@@ -117,7 +117,6 @@ SociAuthDB::SociAuthDB() {
 	get_user_with_phone_request = ma->get<ConfigString>("soci-user-with-phone-request")->read();
 	get_users_with_phones_request = ma->get<ConfigString>("soci-users-with-phones-request")->read();
 	unsigned int max_queue_size = (unsigned int)ma->get<ConfigInt>("soci-max-queue-size")->read();
-	hashed_passwd = ma->get<ConfigBoolean>("hashed-passwords")->read();
 	check_domain_in_presence_results = mp->get<ConfigBoolean>("check-domain-in-presence-results")->read();
 
 	conn_pool.reset(new connection_pool(poolSize));
@@ -170,13 +169,7 @@ void SociAuthDB::getPasswordWithPool(const string &id, const string &domain,
 				/* If size == 1 then we only have the password so we assume MD5 */
 				if (r.size() == 1) {
 					pass.algo = "MD5";
-
-					if (hashed_passwd) {
-						pass.pass = r.get<string>(0);
-					} else {
-						string input = unescapedIdStr + ":" + domain + ":" + r.get<string>(0);
-						pass.pass = Md5().compute<string>(input);
-					}
+					pass.pass = r.get<string>(0);
 				} else if (r.size() > 1) {
 					string password = r.get<string>(0);
 					string algo = r.get<string>(1);

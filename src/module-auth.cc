@@ -55,10 +55,6 @@ void Authentication::onDeclare(GenericStruct *mc) {
 			"The matched subjects are, in order: subjectAltNames.DNS, subjectAltNames.URI, subjectAltNames.IP and CN.",
 			""
 		},
-		{StringList, "trusted-client-certificates", "List of whitespace separated username or username@domain CN "
-			"which will trusted. If no domain is given it is computed.",
-			""
-		},
 		{Boolean, "trust-domain-certificates",
 			"If enabled, all requests which have their request URI containing a trusted domain will be accepted.",
 			"false"
@@ -83,6 +79,12 @@ void Authentication::onDeclare(GenericStruct *mc) {
 			""
 		},
 		{Integer, "cache-expire", "Duration of the validity of the credentials added to the cache in seconds.", "1800"},
+
+		// deprecated parameters
+		{StringList, "trusted-client-certificates", "List of whitespace separated username or username@domain CN "
+			"which will trusted. If no domain is given it is computed.",
+			""
+		},
 		{Boolean, "hashed-passwords",
 			"True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).",
 			"false"
@@ -97,9 +99,14 @@ void Authentication::onDeclare(GenericStruct *mc) {
 	};
 
 	mc->addChildrenValues(items);
-	mc->get<ConfigBoolean>("hashed-passwords")->setDeprecated(true);
-	//we deprecate "trusted-client-certificates" because "tls-client-certificate-required-subject" can do more.
+
+	// we deprecate "trusted-client-certificates" because "tls-client-certificate-required-subject" can do more.
+	// deprecated since 2018-04-16 (1.0.13-alpha)
 	mc->get<ConfigStringList>("trusted-client-certificates")->setDeprecated(true);
+
+	// deprecated since 2020-01-28
+	mc->get<ConfigBoolean>("hashed-passwords")->setDeprecated(true);
+	mc->get<ConfigBoolean>("enable-test-accounts-creation")->setDeprecated(true);
 
 	// Call declareConfig for backends
 	AuthDbBackend::declareConfig(mc);
@@ -117,7 +124,6 @@ void Authentication::onLoad(const GenericStruct *mc) {
 	mNewAuthOn407 = mc->get<ConfigBoolean>("new-auth-on-407")->read();
 	mTrustedClientCertificates = mc->get<ConfigStringList>("trusted-client-certificates")->read();
 	mTrustDomainCertificates = mc->get<ConfigBoolean>("trust-domain-certificates")->read();
-	mTestAccountsEnabled = mc->get<ConfigBoolean>("enable-test-accounts-creation")->read();
 
 	string requiredSubject = mc->get<ConfigString>("tls-client-certificate-required-subject")->read();
 	if (!requiredSubject.empty()){
@@ -133,31 +139,6 @@ void Authentication::onLoad(const GenericStruct *mc) {
 	}
 	mRejectWrongClientCertificates = mc->get<ConfigBoolean>("reject-wrong-client-certificates")->read();
 	AuthDbBackend::get(); // force instanciation of the AuthDbBackend NOW, to force errors to arrive now if any.
-}
-
-bool Authentication::handleTestAccountCreationRequests(const shared_ptr<RequestSipEvent> &ev) {
-	sip_t *sip = ev->getSip();
-	if (sip->sip_request->rq_method == sip_method_register) {
-		sip_unknown_t *h = ModuleToolbox::getCustomHeaderByName(sip, "X-Create-Account");
-		if (h && strcasecmp(h->un_value, "yes") == 0) {
-			url_t *url = sip->sip_from->a_url;
-			if (url) {
-				sip_unknown_t *h2 = ModuleToolbox::getCustomHeaderByName(sip, "X-Phone-Alias");
-				const char* phone_alias = h2 ? h2->un_value : NULL;
-				phone_alias = phone_alias ? phone_alias : "";
-				AuthDbBackend::get().createAccount(url->url_user, url->url_host, url->url_user, url->url_password,
-													sip->sip_expires->ex_delta, phone_alias);
-
-				ostringstream os;
-				os << "Account created for " << url->url_user << '@' << url->url_host << " with password "
-					<< url->url_password << " and expires " << sip->sip_expires->ex_delta;
-				if (phone_alias) os << " with phone alias " << phone_alias;
-				SLOGD << os.str();
-				return true;
-			}
-		}
-	}
-	return false;
 }
 
 bool Authentication::isTrustedPeer(const shared_ptr<RequestSipEvent> &ev) {
@@ -224,37 +205,37 @@ bool Authentication::handleTlsClientAuthentication(const std::shared_ptr<Request
 			} else if (sip->sip_request->rq_method != sip_method_register &&
 				(res = findIncomingSubjectInTrusted(ev, fromDomain))) {
 				SLOGD << "Found trusted TLS certificate " << res;
-			goto postcheck;
-				} else {
-					/*case where the certificate would work for the entire domain*/
-					searched_uri.url_user = NULL;
-					searched = url_as_string(home.home(), &searched_uri);
-					if (ev->findIncomingSubject(searched)) {
-						SLOGD << "Found TLS certificate for entire domain";
-						goto postcheck;
-					}
+				goto postcheck;
+			} else {
+				/*case where the certificate would work for the entire domain*/
+				searched_uri.url_user = NULL;
+				searched = url_as_string(home.home(), &searched_uri);
+				if (ev->findIncomingSubject(searched)) {
+					SLOGD << "Found TLS certificate for entire domain";
+					goto postcheck;
 				}
+			}
 
-				if (sip->sip_request->rq_method != sip_method_register && mTrustDomainCertificates) {
-					searched_uri.url_user = NULL;
-					searched_uri.url_host = sip->sip_request->rq_url->url_host;
-					searched = url_as_string(home.home(), &searched_uri);
-					if (ev->findIncomingSubject(searched)) {
-						SLOGD << "Found trusted TLS certificate for the request URI domain";
-						goto postcheck;
-					}
+			if (sip->sip_request->rq_method != sip_method_register && mTrustDomainCertificates) {
+				searched_uri.url_user = NULL;
+				searched_uri.url_host = sip->sip_request->rq_url->url_host;
+				searched = url_as_string(home.home(), &searched_uri);
+				if (ev->findIncomingSubject(searched)) {
+					SLOGD << "Found trusted TLS certificate for the request URI domain";
+					goto postcheck;
 				}
+			}
 
-				LOGE("Client is presenting a TLS certificate not matching its identity.");
-				SLOGUE << "Registration failure for " << url_as_string(home.home(), from)
-					<< ", TLS certificate doesn't match its identity";
-				goto bad_certificate;
+			LOGE("Client is presenting a TLS certificate not matching its identity.");
+			SLOGUE << "Registration failure for " << url_as_string(home.home(), from)
+				<< ", TLS certificate doesn't match its identity";
+			goto bad_certificate;
 
-				postcheck:
-				if (tlsClientCertificatePostCheck(ev)){
-					/*all is good, return true*/
-					return true;
-				}else goto bad_certificate;
+			postcheck:
+			if (tlsClientCertificatePostCheck(ev)){
+				/*all is good, return true*/
+				return true;
+			}else goto bad_certificate;
 		}else goto bad_certificate;
 
 		bad_certificate:
@@ -327,22 +308,7 @@ FlexisipAuthModuleBase *Authentication::createAuthModule(const std::string &doma
 }
 
 void Authentication::validateRequest(const std::shared_ptr<RequestSipEvent> &request) {
-	sip_t *sip = request->getMsgSip()->getSip();
-
 	ModuleAuthenticationBase::validateRequest(request);
-
-	// handle account creation request (test feature only)
-	if (mTestAccountsEnabled && handleTestAccountCreationRequests(request)) {
-		request->reply(
-			200,
-			"Test account created",
-			SIPTAG_SERVER_STR(getAgent()->getServerString()),
-			SIPTAG_CONTACT(sip->sip_contact),
-			SIPTAG_EXPIRES_STR("0"),
-			TAG_END()
-		);
-		throw StopRequestProcessing();
-	}
 
 	// Check trusted peer
 	if (isTrustedPeer(request))
