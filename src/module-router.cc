@@ -26,9 +26,6 @@ using namespace flexisip;
 void ModuleRouter::onDeclare(GenericStruct *mc) {
 	ConfigItemDescriptor configs[] = {
 		{Boolean, "use-global-domain", "Store and retrieve contacts without using the domain.", "false"},
-		{Boolean, "fork", "Fork messages to all registered devices", "true"},
-		{Boolean, "stateful",
-			"Force forking and thus the creation of an outgoing transaction even when only one contact found", "true"},
 		{Boolean, "fork-late", "Fork invites to late registers.", "false"},
 		{Boolean, "fork-no-global-decline", "All the forked have to decline in order to decline the caller invite.",
 			"false"},
@@ -80,8 +77,16 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 		{Boolean, "parent-domain-fallback", "Whether or not to fallback to the parent domain if there is no fallback route set and the recipient is unreachable. "
 			  "For example, if routing to sip:bob@a.b.com returns no result, route the request to b.com. This is also a non-standard behavior."
 			, "false"},
+
+		// deprecated parameters
+		{Boolean, "stateful", "Force forking and thus the creation of an outgoing transaction even when only one contact found", "true"},
+		{Boolean, "fork", "Fork messages to all registered devices", "true"},
 		config_item_end};
 	mc->addChildrenValues(configs);
+
+	// deprecated since 2020-01-28 (2.0.0)
+	mc->get<ConfigBoolean>("stateful")->setDeprecated(true);
+	mc->get<ConfigBoolean>("fork")->setDeprecated(true);
 
 	mStats.mCountForks = mc->createStats("count-forks", "Number of forks");
 	mStats.mCountForkTransactions =
@@ -97,12 +102,6 @@ void ModuleRouter::onLoad(const GenericStruct *mc) {
 	const GenericStruct *mReg = cr->get<GenericStruct>("module::Registrar");
 
 	mDomains = mReg->get<ConfigStringList>("reg-domains")->read();
-	mStateful = mc->get<ConfigBoolean>("stateful");
-	mFork = mc->get<ConfigBoolean>("fork")->read();
-	if (mStateful && !mFork) {
-		LOGI("Stateful router implies fork=true");
-		mFork = true;
-	}
 	mGeneratedContactRoute = mc->get<ConfigString>("generated-contact-route")->read();
 	mExpectedRealm = mc->get<ConfigString>("generated-contact-expected-realm")->read();
 	mGenerateContactEvenOnFilledAor = mc->get<ConfigBoolean>("generate-contact-even-on-filled-aor")->read();
@@ -579,45 +578,40 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 	}
 	/*now we can create a fork context and dispatch the message to all branches*/
 
-	if (!mFork) {
-		mStats.mCountNonForks->incr();
-	} else {
-		mStats.mCountForks->incrStart();
-	}
+	mStats.mCountForks->incrStart();
 
 	// Init context if needed
 	shared_ptr<ForkContext> context;
-	if (mFork) {
-		if (sip->sip_request->rq_method == sip_method_invite) {
-			context = make_shared<ForkCallContext>(getAgent(), ev, mForkCfg, this);
-			isInvite = true;
-		} else if (
-			(sip->sip_request->rq_method == sip_method_message) &&
-			!(sip->sip_content_type && strcasecmp(sip->sip_content_type->c_type, "application/im-iscomposing+xml") == 0) &&
-			!(sip->sip_expires && sip->sip_expires->ex_delta == 0)
-		) {
-			// Use the basic fork context for "im-iscomposing+xml" messages to prevent storing useless messages
-			context = make_shared<ForkMessageContext>(getAgent(), ev, mMessageForkCfg, this);
-		} else if (sip->sip_request->rq_method == sip_method_refer &&
-				   (sip->sip_refer_to != NULL && msg_params_find(sip->sip_refer_to->r_params, "text") != NULL)) {
-			// Use the message fork context only for refers that are text to prevent storing useless refers
-			context = make_shared<ForkMessageContext>(getAgent(), ev, mMessageForkCfg, this);
-		} else {
-			context = make_shared<ForkBasicContext>(getAgent(), ev, mOtherForkCfg, this);
-		}
-		if (context) {
-			if (context->getConfig()->mForkLate) {
-				const string key(routingKey(sipUri));
-				context->addKey(key);
-				mForks.insert(make_pair(key, context));
-				if (mForks.count(key) == 1) {
-					auto listener = make_shared<OnContactRegisteredListener>(this, sipUri);
-					RegistrarDb::get()->subscribe(key, listener);
-				}
-				SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
+	if (sip->sip_request->rq_method == sip_method_invite) {
+		context = make_shared<ForkCallContext>(getAgent(), ev, mForkCfg, this);
+		isInvite = true;
+	} else if (
+		(sip->sip_request->rq_method == sip_method_message) &&
+		!(sip->sip_content_type && strcasecmp(sip->sip_content_type->c_type, "application/im-iscomposing+xml") == 0) &&
+		!(sip->sip_expires && sip->sip_expires->ex_delta == 0)
+	) {
+		// Use the basic fork context for "im-iscomposing+xml" messages to prevent storing useless messages
+		context = make_shared<ForkMessageContext>(getAgent(), ev, mMessageForkCfg, this);
+	} else if (sip->sip_request->rq_method == sip_method_refer &&
+				(sip->sip_refer_to != NULL && msg_params_find(sip->sip_refer_to->r_params, "text") != NULL)) {
+		// Use the message fork context only for refers that are text to prevent storing useless refers
+		context = make_shared<ForkMessageContext>(getAgent(), ev, mMessageForkCfg, this);
+	} else {
+		context = make_shared<ForkBasicContext>(getAgent(), ev, mOtherForkCfg, this);
+	}
+	if (context) {
+		if (context->getConfig()->mForkLate) {
+			const string key(routingKey(sipUri));
+			context->addKey(key);
+			mForks.insert(make_pair(key, context));
+			if (mForks.count(key) == 1) {
+				auto listener = make_shared<OnContactRegisteredListener>(this, sipUri);
+				RegistrarDb::get()->subscribe(key, listener);
 			}
+			SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
 		}
 	}
+
 	// now sort usable_contacts to form groups, if grouping is allowed
 	ForkGroupSorter sorter(usable_contacts);
 	if (isInvite && mAllowTargetFactorization) {
@@ -633,12 +627,9 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 		const string &targetUris = (*it).mTargetUris;
 
 		if (!ec->mAlias) {
-			if (dispatch(ev, ec, context, targetUris)) {
-				if (!mFork)
-					break;
-			}
+			dispatch(ev, ec, context, targetUris);
 		} else {
-			if (mFork && context->getConfig()->mForkLate && isManagedDomain(ct->m_url)) {
+			if (context->getConfig()->mForkLate && isManagedDomain(ct->m_url)) {
 				sip_contact_t *temp_ctt = sip_contact_create(ms->getHome(), (url_string_t*)ec->mSipContact->m_url, NULL);
 
 				if (mUseGlobalDomain) {
@@ -654,10 +645,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 				}
 				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), key.c_str());
 			} else {
-				if (dispatch(ev, ec, context, targetUris)) {
-					if (!mFork)
-						break;
-				}
+				dispatch(ev, ec, context, targetUris);
 			}
 		}
 	}
