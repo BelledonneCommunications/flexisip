@@ -72,6 +72,7 @@ PresenceServer::Init::Init() {
 	GenericStruct *s = new GenericStruct("presence-server", "Flexisip presence server parameters.", 0);
 	GenericManager::get()->getRoot()->addChild(s);
 	s->addChildrenValues(items);
+	s->get<ConfigBoolean>("leak-detector")->setExportable(false);
 }
 
 PresenceServer::PresenceServer(su_root_t* root) : ServiceServer( root){
