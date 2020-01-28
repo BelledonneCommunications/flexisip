@@ -371,6 +371,9 @@ void ModuleRegistrar::onDeclare(GenericStruct *mc) {
 		config_item_end};
 	mc->addChildrenValues(configs);
 
+	// deprecated since 2020-01-28 (2.0.0)
+	mc->get<ConfigString>("redis-record-serializer")->setDeprecated(true);
+
 	mStats.mCountClear = mc->createStats("count-clear", "Number of cleared registrations.");
 	mStats.mCountBind = mc->createStats("count-bind", "Number of registers.");
 	mStats.mCountLocalActives = mc->createStat("count-local-registered-users", "Number of users currently registered through this server.");

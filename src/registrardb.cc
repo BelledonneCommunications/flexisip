@@ -1269,14 +1269,11 @@ RecordSerializer *RecordSerializer::sInstance = nullptr;
 
 RecordSerializer *RecordSerializer::get() {
 	if (!sInstance) {
-		GenericStruct *registrar = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
-		string name = registrar->get<ConfigString>("redis-record-serializer")->read();
-
+		string name = "protobuf";
 		sInstance = create(name);
 		if (!sInstance) {
 			LOGF("Unsupported record serializer: '%s'", name.c_str());
 		}
 	}
-
 	return sInstance;
 }
