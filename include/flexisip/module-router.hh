@@ -91,7 +91,6 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	std::vector<std::string> split(const char *data, const char *delim);
 
 	std::list<std::string> mDomains;
-	bool mFork = false;
 	std::shared_ptr<ForkContextConfig> mForkCfg;
 	std::shared_ptr<ForkContextConfig> mMessageForkCfg;
 	std::shared_ptr<ForkContextConfig> mOtherForkCfg;
@@ -100,7 +99,6 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	std::string mGeneratedContactRoute;
 	std::string mExpectedRealm;
 	bool mUseGlobalDomain = false;
-	bool mStateful = false;
 
 	bool mGenerateContactEvenOnFilledAor = false;
 	bool mAllowDomainRegistrations = false;
