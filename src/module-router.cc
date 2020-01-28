@@ -46,10 +46,10 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 		{Integer, "call-push-response-timeout", "Optional timer to detect lack of push response, in seconds.", "0"},
 		{Boolean, "message-fork-late", "Fork messages to client registering lately. ", "true"},
 		{Integer, "message-delivery-timeout", "Maximum duration for delivering a text message. This property applies only"
-			" if message-fork-late if set to true, otherwise the duration can't exceed the normal transaction duration.", "3600"},
+			" if message-fork-late if set to true, otherwise the duration can't exceed the normal transaction duration.", "604800"},
 		{Integer, "message-accept-timeout",
 			"Maximum duration for accepting a text message if no response is received from any recipients."
-			" This property is meaningful when message-fork-late is set to true.", "15"},
+			" This property is meaningful when message-fork-late is set to true.", "5"},
 		{String, "fallback-route", "Default route to apply when the recipient is unreachable, given as a SIP URI, for"
 			" example: sip:example.org;transport=tcp (without surrounding brakets)", ""},
 		{Boolean, "allow-target-factorization",
