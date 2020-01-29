@@ -9,7 +9,8 @@
 %define _datarootdir       %{_prefix}/share
 %define _datadir           %{_datarootdir}
 %define _docdir            %{_datadir}/doc
-%define flexisip_logdir    %{_localstatedir}/log/flexisip
+%define logdir             %{_localstatedir}/log
+%define flexisip_logdir    %{logdir}/flexisip
 
 # Hack: force _mandir to its default value because cmake-builder re-define it
 # on rpmbuild invokation with a bad value.
@@ -49,6 +50,19 @@ fi
 
 %endif # %if %{debian_platform}
 
+
+%if %{centos_platform}
+
+%global selinux_logdir_context_post \
+semanage fcontext -a -t var_log_t '%{logdir}(/.*)?' 2>/dev/null || : \
+restorecon -R %{logdir} || :
+
+%global selinux_logdir_context_postun \
+if [ $1 -eq 0 ]; then  # final removal \
+	semanage fcontext -d -t var_log_t '%{logdir}(/.*)?' 2>/dev/null || : \
+fi
+
+%endif # %if %{centos_platform}
 
 
 Summary:       SIP proxy with media capabilities
@@ -193,14 +207,15 @@ rm -rf $RPM_BUILD_ROOT
 
 %if %centos_platform
 %post
+%selinux_logdir_context_post
 %systemd_post %flexisip_services
-/usr/bin/chcon -t chcon -t var_log_t %{flexisip_logdir} || true
 %endif
 
 %preun
 %systemd_preun %flexisip_services
 
 %postun
+%selinux_logdir_context_postun
 %systemd_postun_with_restart %flexisip_services
 
 %files
