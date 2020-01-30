@@ -85,12 +85,19 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 	mc->addChildrenValues(configs);
 
 	// deprecated since 2020-01-28 (2.0.0)
-	mc->get<ConfigBoolean>("stateful")->setDeprecated(true);
-	mc->get<ConfigBoolean>("fork")->setDeprecated(true);
-	mc->get<ConfigString>("generated-contact-route")->setDeprecated(true);
-	mc->get<ConfigString>("generated-contact-expected-realm")->setDeprecated(true);
-	mc->get<ConfigBoolean>("generate-contact-even-on-filled-aor")->setDeprecated(true);
-	mc->get<ConfigString>("preroute")->setDeprecated(true);
+	{
+		const char *depDate = "2020-01-28";
+		const char *depVersion = "2.0.0";
+
+		mc->get<ConfigBoolean>("stateful")->setDeprecated({depDate, depVersion, "Stateless mode isn't supported anymore."});
+		mc->get<ConfigBoolean>("fork")->setDeprecated({depDate, depVersion, "This feature is always enabled since stateless mode is removed."});
+
+		GenericEntry::DeprecationInfo removedFeatureDepInfo(depDate, depVersion, "This feature has been removed.");
+		mc->get<ConfigString>("generated-contact-route")->setDeprecated(removedFeatureDepInfo);
+		mc->get<ConfigString>("generated-contact-expected-realm")->setDeprecated(removedFeatureDepInfo);
+		mc->get<ConfigBoolean>("generate-contact-even-on-filled-aor")->setDeprecated(removedFeatureDepInfo);
+		mc->get<ConfigString>("preroute")->setDeprecated(removedFeatureDepInfo);
+	}
 
 	mStats.mCountForks = mc->createStats("count-forks", "Number of forks");
 	mStats.mCountForkTransactions =
