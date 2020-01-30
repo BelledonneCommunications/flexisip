@@ -18,35 +18,31 @@
 
 #pragma once
 
-#if defined(HAVE_CONFIG_H) && !defined(FLEXISIP_INCLUDED)
-
-#include "flexisip-config.h"
-#define FLEXISIP_INCLUDED
-
-#endif
-
-#include <flexisip/common.hh>
-
-#include <string>
-#include <sstream>
+#include <algorithm>
+#include <cstdlib>
+#include <cxxabi.h>
 #include <iostream>
 #include <list>
-#include <cstdlib>
-#include <vector>
-#include <unordered_set>
-#include <tuple>
-#include <queue>
-#include <algorithm>
-#include <typeinfo>
-#include <cxxabi.h>
 #include <memory>
+#include <queue>
+#include <sstream>
+#include <string>
+#include <tuple>
+#include <typeinfo>
+#include <unordered_set>
+#include <vector>
+
+#if defined(HAVE_CONFIG_H) && !defined(FLEXISIP_INCLUDED)
+#include "flexisip-config.h"
+#define FLEXISIP_INCLUDED
+#endif
 
 #ifdef ENABLE_SNMP
 
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
-#include <net-snmp/agent/net-snmp-agent-includes.h>
 #include <net-snmp/agent/agent_trap.h>
+#include <net-snmp/agent/net-snmp-agent-includes.h>
 
 #else
 
@@ -54,9 +50,10 @@ typedef unsigned long oid;
 
 #endif /* ENABLE_SNMP */
 
-#include <flexisip/sip-boolean-expressions.hh>
-#include <flexisip/global.hh>
-#include <flexisip/flexisip-exception.hh>
+#include "flexisip/common.hh"
+#include "flexisip/flexisip-exception.hh"
+#include "flexisip/global.hh"
+#include "flexisip/sip-boolean-expressions.hh"
 
 typedef struct sip_s sip_t;
 
@@ -79,7 +76,7 @@ protected:
 	virtual bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) = 0;
 
 private:
-	FLEXISIP_DISABLE_COPY(ConfigValueListener);
+// 	FLEXISIP_DISABLE_COPY(ConfigValueListener);
 };
 
 enum GenericValueType {
@@ -181,6 +178,26 @@ class GenericEntriesGetter {
 
 class GenericEntry {
   public:
+	class DeprecationInfo {
+	public:
+		DeprecationInfo() = default;
+		DeprecationInfo(const std::string &date, const std::string &version, const std::string &text = "") {setAsDeprecaded(date, version, text);}
+
+		bool isDeprecated() const {return !mDate.empty();}
+		void setAsDeprecaded(const std::string &date, const std::string &version, const std::string &text = "");
+
+		const std::string &getDate() const {return mDate;}
+		const std::string &getVersion() const {return mVersion;}
+
+		const std::string &getText() const {return mText;}
+		void setText(const std::string &text) {mText = text;}
+
+	private:
+		std::string mDate;
+		std::string mVersion;
+		std::string mText;
+	};
+
 	static std::string sanitize(const std::string &str);
 
 	const std::string &getName() const {return mName;}
@@ -250,12 +267,12 @@ class GenericEntry {
 	ConfigValueListener *getConfigListener() const {
 		return mConfigListener;
 	}
-	void setDeprecated(bool deprecated) {
-		mDeprecated = deprecated;
-	}
-	bool isDeprecated() const {
-		return mDeprecated;
-	}
+
+	void setDeprecated(const DeprecationInfo &info) {mDeprecationInfo = info;}
+	void setDeprecated(DeprecationInfo &&info) {mDeprecationInfo = std::move(info);}
+	bool isDeprecated() const {return mDeprecationInfo.isDeprecated();}
+	const DeprecationInfo &getDeprecationInfo() const {return mDeprecationInfo;}
+	DeprecationInfo &getDeprecationInfo() {return mDeprecationInfo;}
 
   protected:
 	virtual void doMibFragment(std::ostream &ostr, const std::string &def, const std::string &access,
@@ -263,19 +280,19 @@ class GenericEntry {
 	GenericEntry(const std::string &name, GenericValueType type, const std::string &help, oid oid_index = 0);
 	static std::string escapeDoubleQuotes(const std::string &str);
 
-	Oid *mOid;
+	Oid *mOid = nullptr;
 	const std::string mName;
-	bool mReadOnly;
-	bool mExportToConfigFile;
-	bool mDeprecated;
+	bool mReadOnly = false;
+	bool mExportToConfigFile = true;
+	DeprecationInfo mDeprecationInfo;
 	std::string mErrorMessage;
 
   private:
-	const std::string mHelp;
+	std::string mHelp;
 	GenericValueType mType;
-	GenericEntry *mParent;
-	ConfigValueListener *mConfigListener;
-	oid mOidLeaf;
+	GenericEntry *mParent = nullptr;
+	ConfigValueListener *mConfigListener = nullptr;
+	oid mOidLeaf = 0;
 };
 
 inline std::ostream &operator<<(std::ostream &ostr, const GenericEntry &entry) {
@@ -310,7 +327,7 @@ class GenericStruct : public GenericEntry {
 
 	void addChildrenValues(ConfigItemDescriptor *items);
 	void addChildrenValues(ConfigItemDescriptor *items, bool hashed);
-	void deprecateChild(const char *name);
+	void deprecateChild(const char* name, DeprecationInfo &&info);
 	// void addChildrenValues(StatItemDescriptor *items);
 	const std::list<GenericEntry *> &getChildren() const;
 	template <typename _retType> _retType *get(const char *name) const;

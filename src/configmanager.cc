@@ -70,6 +70,19 @@ bool ConfigValueListener::onConfigStateChanged(const ConfigValue &conf, ConfigSt
 	return doOnConfigStateChanged(conf, state);
 }
 
+/*********************************************************************************************************************/
+/* GenericEntry class                                                                                                */
+/*********************************************************************************************************************/
+
+void GenericEntry::DeprecationInfo::setAsDeprecaded(const std::string &date, const std::string &version, const std::string &text) {
+	if (date.empty() || version.empty()) {
+		throw std::invalid_argument(string(__func__) + "(): empty date or version");
+	}
+	mDate = date;
+	mVersion = version;
+	mText = text;
+}
+
 /**
  * Searches a string for a pattern, removes it, and sets the next chatacter to uppercase.
  * For instance, string a = "toto::titi"; camelFindAndReplace(a, "::"); would set a to "totoTiti"
@@ -128,6 +141,69 @@ void GenericEntry::mibFragment(ostream &ost, string spacing) const {
 	string s("OCTET STRING");
 	doMibFragment(ost, "", "read-write", s, spacing);
 }
+
+void GenericEntry::doMibFragment(ostream &ostr, const string &def, const string &access, const string &syntax,
+								 const string &spacing) const {
+	if (!getParent())
+		LOGA("no parent found for %s", getName().c_str());
+	ostr << spacing << sanitize(getName()) << " OBJECT-TYPE" << endl
+		 << spacing << "	SYNTAX"
+		 << "	" << syntax << endl
+		 << spacing << "	MAX-ACCESS	" << access << endl
+		 << spacing << "	STATUS	current" << endl
+		 << spacing << "	DESCRIPTION" << endl
+		 << spacing << "	\"" << escapeDoubleQuotes(getHelp()) << endl
+		 << spacing << "	"
+		 << " Default:" << def << endl
+		 << spacing << "	"
+		 << " PN:" << getPrettyName() << "\"" << endl
+		 << spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
+}
+
+GenericEntry::GenericEntry(const string &name, GenericValueType type, const string &help, oid oid_index)
+	: mName(name), mHelp(help), mType(type), mOidLeaf(oid_index) {
+	mConfigListener = NULL;
+	size_t idx;
+	for (idx = 0; idx < name.size(); idx++) {
+		if (name[idx] == '_')
+			LOGA("Underscores not allowed in config items, please use minus sign (while checking generic entry name "
+				 "'%s').",
+				 name.c_str());
+		if (type != Struct && isupper(name[idx])) {
+			LOGA("Uppercase characters not allowed in config items, please use lowercase characters only (while "
+				 "checking generic entry name '%s').",
+				 name.c_str());
+		}
+	}
+
+	if (oid_index == 0) {
+		mOidLeaf = Oid::oidFromHashedString(name);
+	}
+}
+
+std::string GenericEntry::escapeDoubleQuotes(const std::string &str) {
+	string escapedStr = "";
+	for(auto it=str.cbegin(); it!=str.cend(); it++) {
+		if(*it == '"') {
+			escapedStr += "''";
+		} else {
+			escapedStr += *it;
+		}
+	}
+	return escapedStr;
+}
+
+void GenericEntry::setParent(GenericEntry *parent) {
+	mParent = parent;
+	if (mOid)
+		delete mOid;
+	mOid = new Oid(parent->getOid(), mOidLeaf);
+
+	string key = parent->getName() + "::" + mName;
+	registerWithKey(key);
+}
+
+/*********************************************************************************************************************/
 
 void ConfigValue::mibFragment(ostream &ost, string spacing) const {
 	string s("OCTET STRING");
@@ -239,24 +315,6 @@ void NotificationEntry::send(const GenericEntry *source, const string &msg) {
 #endif
 }
 
-void GenericEntry::doMibFragment(ostream &ostr, const string &def, const string &access, const string &syntax,
-								 const string &spacing) const {
-	if (!getParent())
-		LOGA("no parent found for %s", getName().c_str());
-	ostr << spacing << sanitize(getName()) << " OBJECT-TYPE" << endl
-		 << spacing << "	SYNTAX"
-		 << "	" << syntax << endl
-		 << spacing << "	MAX-ACCESS	" << access << endl
-		 << spacing << "	STATUS	current" << endl
-		 << spacing << "	DESCRIPTION" << endl
-		 << spacing << "	\"" << escapeDoubleQuotes(getHelp()) << endl
-		 << spacing << "	"
-		 << " Default:" << def << endl
-		 << spacing << "	"
-		 << " PN:" << getPrettyName() << "\"" << endl
-		 << spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
-}
-
 /* ConfigValue */
 
 ConfigValue::ConfigValue(const string &name, GenericValueType vt, const string &help, const string &default_value,
@@ -363,50 +421,6 @@ oid Oid::oidFromHashedString(const string &str) {
 						 // 1: snmpwalk cannot associate oid to name otherwise
 }
 
-GenericEntry::GenericEntry(const string &name, GenericValueType type, const string &help, oid oid_index)
-	: mOid(NULL), mName(name), mReadOnly(false), mExportToConfigFile(true), mDeprecated(false), mHelp(help),
-	  mType(type), mParent(0), mOidLeaf(oid_index) {
-	mConfigListener = NULL;
-	size_t idx;
-	for (idx = 0; idx < name.size(); idx++) {
-		if (name[idx] == '_')
-			LOGA("Underscores not allowed in config items, please use minus sign (while checking generic entry name "
-				 "'%s').",
-				 name.c_str());
-		if (type != Struct && isupper(name[idx])) {
-			LOGA("Uppercase characters not allowed in config items, please use lowercase characters only (while "
-				 "checking generic entry name '%s').",
-				 name.c_str());
-		}
-	}
-
-	if (oid_index == 0) {
-		mOidLeaf = Oid::oidFromHashedString(name);
-	}
-}
-
-std::string GenericEntry::escapeDoubleQuotes(const std::string &str) {
-	string escapedStr = "";
-	for(auto it=str.cbegin(); it!=str.cend(); it++) {
-		if(*it == '"') {
-			escapedStr += "''";
-		} else {
-			escapedStr += *it;
-		}
-	}
-	return escapedStr;
-}
-
-void GenericEntry::setParent(GenericEntry *parent) {
-	mParent = parent;
-	if (mOid)
-		delete mOid;
-	mOid = new Oid(parent->getOid(), mOidLeaf);
-
-	string key = parent->getName() + "::" + mName;
-	registerWithKey(key);
-}
-
 void ConfigValue::setParent(GenericEntry *parent) {
 	GenericEntry::setParent(parent);
 #ifdef ENABLE_SNMP
@@ -463,10 +477,9 @@ GenericEntry *GenericStruct::addChild(GenericEntry *c) {
 	return c;
 }
 
-void GenericStruct::deprecateChild(const char *name) {
+void GenericStruct::deprecateChild(const char *name, DeprecationInfo &&info) {
 	GenericEntry *e = find(name);
-	if (e)
-		e->setDeprecated(true);
+	if (e) e->setDeprecated(std::move(info));
 }
 
 void GenericStruct::addChildrenValues(ConfigItemDescriptor *items) {
@@ -1017,7 +1030,7 @@ GenericManager::GenericManager()
 	GenericStruct *global = new GenericStruct("global", "Some global settings of the flexisip proxy.", 2);
 	mConfigRoot.addChild(global);
 	global->addChildrenValues(global_conf);
-	global->get<ConfigByteSize>("max-log-size")->setDeprecated(true);
+	global->get<ConfigByteSize>("max-log-size")->setDeprecated({"2019-05-17", "2.0.0"});
 	global->setConfigListener(this);
 
 	ConfigString *version = new ConfigString("version-number", "Flexisip version.", FLEXISIP_GIT_VERSION, 999);
@@ -1165,21 +1178,25 @@ int FileConfigReader::read2(GenericEntry *entry, int level) {
 			read2(entry, level + 1);
 		}
 	} else if ((cv = dynamic_cast<ConfigValue *>(entry))) {
-		if (level < 2) {
-			LOGF("ConfigValues at root is disallowed.");
-		} else if (level == 2) {
-			const char *val = lp_config_get_string(mCfg, cv->getParent()->getName().c_str(), cv->getName().c_str(), nullptr);
-			if (val) {
-				try{
-					cv->set(val);
-				}catch(std::exception & e){
-					LOGF("While reading '%s', %s.", mFilename.c_str(), e.what());
-				}
-			} else {
-				cv->restoreDefault();
+		if (level < 2) LOGF("ConfigValues at root is disallowed.");
+		if (level > 2) LOGF("The current file format doesn't support recursive subsections.");
+
+		const char *val = lp_config_get_string(mCfg, cv->getParent()->getName().c_str(), cv->getName().c_str(), nullptr);
+		if (val) {
+			if (cv->isDeprecated()) {
+				const auto &info = cv->getDeprecationInfo();
+				SLOGW << "Deprecated parameter:\n"
+					<< "\t[" << cv->getParent()->getName() << "/" << cv->getName() << "]\n"
+					<< "\t" << info.getText() << "\n"
+					<< "\tDeprecated since " << info.getDate() << " (Flexisip v" << info.getVersion() << ")\n";
+			}
+			try{
+				cv->set(val);
+			}catch(std::exception & e){
+				LOGF("While reading '%s', %s.", mFilename.c_str(), e.what());
 			}
 		} else {
-			LOGF("The current file format doesn't support recursive subsections.");
+			cv->restoreDefault();
 		}
 	}
 	return 0;

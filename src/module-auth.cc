@@ -100,13 +100,21 @@ void Authentication::onDeclare(GenericStruct *mc) {
 
 	mc->addChildrenValues(items);
 
-	// we deprecate "trusted-client-certificates" because "tls-client-certificate-required-subject" can do more.
-	// deprecated since 2018-04-16 (1.0.13-alpha)
-	mc->get<ConfigStringList>("trusted-client-certificates")->setDeprecated(true);
-
-	// deprecated since 2020-01-28
-	mc->get<ConfigBoolean>("hashed-passwords")->setDeprecated(true);
-	mc->get<ConfigBoolean>("enable-test-accounts-creation")->setDeprecated(true);
+	mc->get<ConfigStringList>("trusted-client-certificates")->setDeprecated(
+		{"2018-04-16", "1.0.13", "Use 'tls-client-certificate-required-subject' instead."}
+	);
+	mc->get<ConfigBoolean>("hashed-passwords")->setDeprecated({
+		"2020-01-28", "2.0.0",
+		"This setting has been out of use since the algorithm used to hash the password is "
+		"stored in the user database and the CLRTXT algorithm can be used to indicate that "
+		"the password isn't hashed.\n"
+		"Warning: setting 'true' hasn't any effect anymore."
+	});
+	mc->get<ConfigBoolean>("enable-test-accounts-creation")->setDeprecated({
+		"2020-01-28", "2.0.0",
+		"This feature was useful for liblinphone's integrity tests and isn't used today anymore. "
+		"Please remove this setting from your configuration file."
+	});
 
 	// Call declareConfig for backends
 	AuthDbBackend::declareConfig(mc);
