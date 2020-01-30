@@ -234,9 +234,14 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		config_item_end};
 	module_config->addChildrenValues(items);
 
-	// deprecated since 2020-01-28 (2.0.0)
-	module_config->get<ConfigBoolean>("google")->setDeprecated(true);
-	module_config->get<ConfigStringList>("google-projects-api-keys")->setDeprecated(true);
+	module_config->get<ConfigBoolean>("google")->setDeprecated({
+		"2020-01-28", "2.0.0",
+		"'google' push notification backend has been removed. Please use 'firebase' instead."
+	});
+	module_config->get<ConfigStringList>("google-projects-api-keys")->setDeprecated({
+		"2020-01-28", "2.0.0",
+		"This setting has no effect anymore."
+	});
 
 	mCountFailed = module_config->createStat("count-pn-failed", "Number of push notifications failed to be sent");
 	mCountSent = module_config->createStat("count-pn-sent", "Number of push notifications successfully sent");

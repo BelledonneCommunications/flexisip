@@ -355,7 +355,6 @@ void ModuleRegistrar::onDeclare(GenericStruct *mc) {
 		{Integer, "redis-server-port", "Port of the redis server.", "6379"},
 		{String, "redis-auth-password", "Authentication password for redis. Empty to disable.", ""},
 		{Integer, "redis-server-timeout", "Timeout in milliseconds of the redis connection.", "1500"},
-		{String, "redis-record-serializer", "Serialize contacts with: [C, protobuf, json, msgpack]", "protobuf"},
 		{Integer, "redis-slave-check-period", "When Redis is configured in master-slave, flexisip will "
 												"periodically ask what are the slaves and the master."
 												"This is the period with which it will query the server."
@@ -368,11 +367,16 @@ void ModuleRegistrar::onDeclare(GenericStruct *mc) {
 			"Sequence of proxies (space-separated) where requests will be redirected through (RFC3608)", ""},
 		{String, "name-message-expires", "The name used for the expire time of forking message", "message-expires"},
 		{Integer, "register-expire-randomizer-max", "Maximum percentage of the REGISTER expire to randomly remove, 0 to disable", "0"},
+
+		// Deprecated parameters
+		{String, "redis-record-serializer", "Serialize contacts with: [C, protobuf, json, msgpack]", "protobuf"},
 		config_item_end};
 	mc->addChildrenValues(configs);
 
-	// deprecated since 2020-01-28 (2.0.0)
-	mc->get<ConfigString>("redis-record-serializer")->setDeprecated(true);
+	mc->get<ConfigString>("redis-record-serializer")->setDeprecated({
+		"2020-01-28", "2.0.0",
+		"This setting hasn't any effect anymore."
+	});
 
 	mStats.mCountClear = mc->createStats("count-clear", "Number of cleared registrations.");
 	mStats.mCountBind = mc->createStats("count-bind", "Number of registers.");

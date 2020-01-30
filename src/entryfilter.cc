@@ -32,19 +32,20 @@ ConfigEntryFilter::~ConfigEntryFilter() {
 
 static ConfigItemDescriptor config[] = {
 	{Boolean, "enabled", "Indicate whether the module is activated.", "true"},
-	{String, "from-domains", "Deprecated: List of domain names in sip from allowed to enter the module.", "*"},
-	{String, "to-domains", "Deprecated: List of domain names in sip to allowed to enter the module.", "*"},
 	{BooleanExpr, "filter", "A request/response enters module if the boolean filter evaluates to true. Ex:"
 							" from.uri.domain contains 'sip.linphone.org', from.uri.domain in 'a.org b.org c.org',"
-							" (to.uri.domain in 'a.org b.org c.org') && (user-agent == 'Linphone v2')",
-	 ""},
+							" (to.uri.domain in 'a.org b.org c.org') && (user-agent == 'Linphone v2')", ""},
+
+	// Deprecated parameters
+	{String, "from-domains", "Deprecated: List of domain names in sip from allowed to enter the module.", "*"},
+	{String, "to-domains", "Deprecated: List of domain names in sip to allowed to enter the module.", "*"},
 	config_item_end};
 
 void ConfigEntryFilter::declareConfig(GenericStruct *module_config) {
 	
 	module_config->addChildrenValues(config, false);
-	module_config->deprecateChild("from-domains");
-	module_config->deprecateChild("to-domains");
+	module_config->deprecateChild("from-domains", {"2012-09-04", "0.5.0", "Use 'filter' setting instead."});
+	module_config->deprecateChild("to-domains", {"2012-09-04", "0.5.0", "Use 'filter' setting instead."});
 	mCountEvalTrue = module_config->createStat("count-eval-true", "Number of filter evaluations to true.");
 	mCountEvalFalse = module_config->createStat("count-eval-false", "Number of filter evaluations to false.");
 }
