@@ -41,8 +41,12 @@ public:
 
 	~SmartTransaction () {
 		if (!mIsCommitted) {
-			SLOGI << "Rollback transaction " << this << " in " << mName << ".";
-			mSession->rollback();
+			try {
+				SLOGI << "Rollback transaction " << this << " in " << mName << ".";
+				mSession->rollback();
+			} catch (const std::runtime_error &e) {
+				SLOGE << "Rollback of transaction " << this << " has failed: " << e.what();
+			}
 		}
 	}
 
