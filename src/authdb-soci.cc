@@ -41,6 +41,17 @@ using namespace flexisip;
 void SociAuthDB::declareConfig(GenericStruct *mc) {
 	// ODBC-specific configuration keys
 	ConfigItemDescriptor items[] = {
+		{String, "soci-backend", "Choose the type of backend that Soci will use for the connection.\n"
+			"Depending on your Soci package and the modules you installed, this could be 'mysql', "
+			"'oracle', 'postgresql' or something else.",
+			"mysql"},
+
+		{String, "soci-connection-string", "The configuration parameters of the Soci backend.\n"
+			"The basic format is \"key=value key2=value2\". For a mysql backend, this "
+			"is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
+			"Please refer to the Soci documentation of your backend, for intance: "
+			"http://soci.sourceforge.net/doc/3.2/backends/mysql.html",
+			"db=mydb user=myuser password='mypass' host=myhost.com"},
 
 		{String, "soci-password-request",
 			"Soci SQL request to execute to obtain the password and algorithm.\n"
@@ -72,26 +83,6 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 			"Example : select login, domain, phone from accounts where phone in (:phones)",
 			""},
 
-		{Integer, "soci-poolsize",
-			"Size of the pool of connections that Soci will use. We open a thread for each DB query, and this pool will "
-			"allow each thread to get a connection.\n"
-			"The threads are blocked until a connection is released back to the pool, so increasing the pool size will "
-			"allow more connections to occur simultaneously.\n"
-			"On the other hand, you should not keep too many open connections to your DB at the same time.",
-			"100"},
-
-		{String, "soci-backend", "Choose the type of backend that Soci will use for the connection.\n"
-			"Depending on your Soci package and the modules you installed, this could be 'mysql', "
-			"'oracle', 'postgresql' or something else.",
-			"mysql"},
-
-		{String, "soci-connection-string", "The configuration parameters of the Soci backend.\n"
-			"The basic format is \"key=value key2=value2\". For a mysql backend, this "
-			"is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
-			"Please refer to the Soci documentation of your backend, for intance: "
-			"http://soci.sourceforge.net/doc/3.2/backends/mysql.html",
-			"db=mydb user=myuser password='mypass' host=myhost.com"},
-
 		{Integer, "soci-max-queue-size",
 			"Amount of queries that will be allowed to be queued before bailing password "
 			"requests.\n This value should be chosen accordingly with 'soci-poolsize', so "
@@ -99,6 +90,14 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 			"against out-of-control growth of the queue in the event of a flood or big "
 			"delays in the database backend.",
 			"1000"},
+
+		{Integer, "soci-poolsize",
+			"Size of the pool of connections that Soci will use. We open a thread for each DB query, and this pool will "
+			"allow each thread to get a connection.\n"
+			"The threads are blocked until a connection is released back to the pool, so increasing the pool size will "
+			"allow more connections to occur simultaneously.\n"
+			"On the other hand, you should not keep too many open connections to your DB at the same time.",
+			"100"},
 
 		config_item_end};
 
