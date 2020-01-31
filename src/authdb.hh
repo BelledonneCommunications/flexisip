@@ -235,7 +235,7 @@ public:
 	void getUserWithPhoneFromBackend(const std::string &phone, const std::string &domain, AuthDbListener *listener) override;
 	void getPasswordFromBackend(const std::string &id, const std::string &domain, const std::string &authid, AuthDbListener *listener) override;
 
-	static void declareConfig(GenericStruct *mc){};
+	static void declareConfig(GenericStruct *mc);
 };
 
 }
