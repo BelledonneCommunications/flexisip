@@ -35,6 +35,42 @@ using namespace std;
 
 namespace flexisip {
 
+void FileAuthDb::declareConfig(GenericStruct *mc) {
+	ConfigItemDescriptor items[] = {
+		{String, "file-path",
+			"Path of the file in which user credentials are stored.\n"
+			"The file must start with 'version:1' as the first line, and then contains lines in the form of:\n"
+			"user@domain clrtxt:clear-text-password md5:md5-password sha256:sha256-password ;\n"
+			"For example: \n"
+			"bellesip@sip.linphone.org clrtxt:secret ;\n"
+			"bellesip@sip.linphone.org md5:97ffb1c6af18e5687bf26cdf35e45d30 ;\n"
+			"bellesip@sip.linphone.org clrtxt:secret md5:97ffb1c6af18e5687bf26cdf35e45d30 sha256:d7580069de562f5c7fd932cc986472669122da91a0f72f30ef1b20ad6e4f61a3 ;",
+			""
+		},
+
+		// Deprecated paramters
+		{String, "datasource",
+			"Odbc connection string to use for connecting to database. "
+			"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. "
+			"ex2: DRIVER={MySQL};SERVER=host;DATABASE=db;USER=user;PASSWORD=pass;OPTION=3; for a DSN-less connection. "
+			"ex3: /etc/flexisip/passwd; for a file containing user credentials in clear-text, md5 or sha256. "
+			"The file must start with 'version:1' as the first line, and then contains lines in the form of:\n"
+			"user@domain clrtxt:clear-text-password md5:md5-password sha256:sha256-password ;\n"
+			"For example: \n"
+			"bellesip@sip.linphone.org clrtxt:secret ;\n"
+			"bellesip@sip.linphone.org md5:97ffb1c6af18e5687bf26cdf35e45d30 ;\n"
+			"bellesip@sip.linphone.org clrtxt:secret md5:97ffb1c6af18e5687bf26cdf35e45d30 sha256:d7580069de562f5c7fd932cc986472669122da91a0f72f30ef1b20ad6e4f61a3 ;",
+			""
+		},
+		config_item_end
+	};
+	mc->addChildrenValues(items);
+	mc->get<ConfigString>("datasource")->setDeprecated({"2020-01-31", "2.0.0",
+		"This parameter has been renamed into 'file-path' and has no effect if the latter is set.\n"
+		"Please use 'file-path' instead of this parameter."
+	});
+}
+
 void FileAuthDb::parsePasswd(const vector<passwd_algo_t> &srcPasswords, const string &user, const string &domain, vector<passwd_algo_t> &destPasswords) {
 	// Creates pass-md5, pass-sha256 if there is clrtxt pass
 	for (const auto &passwd : srcPasswords) {
@@ -78,7 +114,8 @@ FileAuthDb::FileAuthDb() {
 	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
 
 	mLastSync = 0;
-	mFileString = ma->get<ConfigString>("datasource")->read();
+	mFileString = ma->get<ConfigString>("file-path")->read();
+	if (mFileString.empty()) mFileString = ma->get<ConfigString>("datasource")->read();
 	sync();
 }
 
