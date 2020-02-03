@@ -191,6 +191,8 @@ void FileAuthDb::sync() {
 		LOGF("Version '%s' is not supported for file %s", pwdFile->getVersion().c_str(), mFileString.c_str());
 		return;
 	}
+	
+	LOGD("AuthDb file succesfully parsed: \n%s", fileContent.c_str());
 
 	auto authLines = pwdFile->getAuthLines();
 	for (auto it = authLines.begin(); it != authLines.end(); ++it) {

@@ -41,6 +41,7 @@ static bool isEarlyMedia(sip_t *sip) {
 ModuleInfo<MediaRelay> MediaRelay::sInfo(
 	"MediaRelay",
 	"The MediaRelay module masquerades SDP message so that all RTP and RTCP streams go through the proxy. "
+	"When the client has set ICE candidates in the SDP offer, then the MediaRelay module will automatically add ICE relay candidates. "
 	"The RTP and RTCP streams are then routed so that each client receives the stream of the other. "
 	"MediaRelay makes sure that RTP is ALWAYS established, even with uncooperative firewalls.",
 	{ "LoadBalancer" },
@@ -59,15 +60,24 @@ MediaRelay::~MediaRelay() {
 
 void MediaRelay::onDeclare(GenericStruct * mc) {
 	ConfigItemDescriptor items[] = {
-			{ String, "nortpproxy", "SDP attribute set by the first proxy to forbid subsequent proxies to provide relay. Use 'disable' to disable.", "nortpproxy" },
+			{ String, "nortpproxy", "The name of the SDP attribute to set by the first proxy to forbid subsequent proxies to provide relay. Use 'disable' to disable.", "nortpproxy" },
 			{ Integer, "sdp-port-range-min", "The minimal value of SDP port range", "1024" },
 			{ Integer, "sdp-port-range-max", "The maximal value of SDP port range", "65535" },
-			{ Boolean, "bye-orphan-dialogs", "Sends a ACK and BYE to 200Ok for INVITEs not belonging to any established call.", "false"},
+			{ Boolean, "bye-orphan-dialogs", "Sends a ACK and BYE to 200Ok for INVITEs not belonging to any established call. "
+					"This is to solve the race condition that happens when two callees answer the same call at the same time. "
+					"According to RFC3261, the caller is expected to send an ACK followed by a BYE to the loser callee. "
+					"This is not the case in RFC2543, where the proxy was supposed to do this. When set to true, the MediaRelay "
+					"module will implement the RFC2543 behavior. Note that it may sound inappropriate to bundle this property "
+					"with the media relay feature. However the MediaRelay module is the only one in flexisip that has the visibility of "
+					"SIP dialogs, which is necessary to implement this feature."
+				, "false"},
 			{ Integer, "max-calls", "Maximum concurrent calls processed by the media-relay. Calls arriving when the limit is exceed will be rejected. "
 						"A value of 0 means no limit.", "0" },
 			{ Boolean, "force-relay-for-non-ice-targets", "When true, the 'c=' line and port number"
-				" are set to the relay ip/port even if ICE candidates are present in the request."
-				" This is allow non-ice clients to have their streams relayed.", "true"},
+				" are set to the relay ip/port even if ICE candidates are present in the request, while the standard behavior is to leave "
+				"the c= line and port number as they are in the original offer sent by the client. "
+				" This variation allows callees that do not support ICE at all to benefit from the media relay service."
+				, "true"},
 			{ Boolean, "prevent-loops", "Prevent media-relay ports to loop between them, which can cause 100% cpu on the media relay thread."
 						"You need to set this property to false if you are running test calls from clients running on the same "
 						"IP address as the flexisip server" , "true"},

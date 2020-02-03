@@ -29,12 +29,12 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 		{Boolean, "fork", "Fork messages to all registered devices", "true"},
 		{Boolean, "stateful",
 			"Force forking and thus the creation of an outgoing transaction even when only one contact found", "true"},
-		{Boolean, "fork-late", "Fork invites to late registers", "false"},
-		{Boolean, "fork-no-global-decline", "All the forked have to decline in order to decline the caller invite",
+		{Boolean, "fork-late", "Fork invites to late registers.", "false"},
+		{Boolean, "fork-no-global-decline", "All the forked have to decline in order to decline the caller invite.",
 			"false"},
 		{Boolean, "treat-decline-as-urgent",
 			"Treat 603 Declined answers as urgent. Only relevant if fork-no-global-decline is set to true.", "false"},
-		{Boolean, "treat-all-as-urgent", "During a fork procedure, treat all failure response as urgent", "false"},
+		{Boolean, "treat-all-as-urgent", "During a fork procedure, treat all failure response as urgent.", "false"},
 		{Integer, "call-fork-timeout", "Maximum time for a call fork to try to reach a callee, in seconds.", "90"},
 		{Integer, "call-fork-urgent-timeout",
 			"Maximum time before delivering urgent responses during a call fork, in seconds. "
@@ -44,17 +44,17 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 			"painful for the client to need to wait the end of the transaction time (32 seconds) for these error "
 			"codes.",
 			"5"},
-		{Integer, "call-fork-current-branches-timeout", "Maximum time in seconds before trying the next branches with lower priorities",
+		{Integer, "call-fork-current-branches-timeout", "Maximum time in seconds before trying the next set of lower priority contacts.",
 			"10"},
 		{Integer, "call-push-response-timeout", "Optional timer to detect lack of push response, in seconds.", "0"},
-		{Boolean, "message-fork-late", "Fork messages to client registering lately. ", "true"},
-		{Integer, "message-delivery-timeout", "Maximum duration for delivering a text message. This property applies only"
+		{Boolean, "message-fork-late", "Fork MESSAGE requests to client registering lately. ", "true"},
+		{Integer, "message-delivery-timeout", "Maximum duration for delivering a MESSAGE request. This property applies only"
 			" if message-fork-late if set to true, otherwise the duration can't exceed the normal transaction duration.", "3600"},
 		{Integer, "message-accept-timeout",
-			"Maximum duration for accepting a text message if no response is received from any recipients."
+			"Maximum duration for accepting a MESSAGE request if no response is received from any recipients."
 			" This property is meaningful when message-fork-late is set to true.", "15"},
-		{String, "fallback-route", "Default route to apply when the recipient is unreachable, given as a SIP URI, for"
-			" example: sip:example.org;transport=tcp (without surrounding brakets)", ""},
+		{String, "fallback-route", "Default route to apply when the recipient is unreachable or when when all attempted destination have failed."
+			 "It is given as a SIP URI, for example: sip:example.org;transport=tcp (without surrounding brakets)", ""},
 		{Boolean, "allow-target-factorization",
 			"During a call forking, allow several INVITEs going to the same next hop to be grouped into "
 			"a single one. A proprietary custom header 'X-target-uris' is added to the INVITE to indicate the final "
@@ -77,7 +77,9 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 		{Boolean, "resolve-routes", "Whether or not to resolve next hope in route header against registrar database."
 			" This is an extension to RFC3261, and should not be used unless in some specific deployment cases."
 			" A next hope in route header is otherwise resolved through standard DNS procedure by the Forward module.", "false"},
-		{Boolean, "parent-domain-fallback", "Whether or not to fallback to the parent domain if there is no fallback route set and the recipient is unreachable", "false"},
+		{Boolean, "parent-domain-fallback", "Whether or not to fallback to the parent domain if there is no fallback route set and the recipient is unreachable. "
+			  "For example, if routing to sip:bob@a.b.com returns no result, route the request to b.com. This is also a non-standard behavior."
+			, "false"},
 		config_item_end};
 	mc->addChildrenValues(configs);
 
@@ -1020,7 +1022,22 @@ void ModuleRouter::onForkContextFinished(shared_ptr<ForkContext> ctx) {
 
 ModuleInfo<ModuleRouter> ModuleRouter::sInfo(
 	"Router",
-	"The ModuleRouter module routes requests for domains it manages.",
+	"The Router module routes requests for domains it manages.\n"
+	"The routing algorithm is as follows: \n"
+	" - first skip route headers that directly point to this proxy.\n"
+	" - if a route header is found that doesn't point to this proxy, then the request is not processed by the Router module, and will be"
+	" handled by the Forward module at the end of the processing chain.\n"
+	" - examine the request-uri: if it is part of the domains managed by this proxy (according to Registrar module 'reg-domains' definition,"
+	" then attempt to resolve the request-uri from the Registrar database.\n"
+	" - the results from the registrar database, in the form of contact headers, are sorted by priority (q parameter), if any.\n"
+	" - for each set of contact with equal priorities, the request is forked, and sent to their corresponding sip URI. "
+	"After a timeout defined by property 'call-fork-current-branches-timeout', a next set of contact header is determined.\n"
+	" - responses are received from all attempted branches, and sent back to the request originator, according to the procedure of RFC3261 16.7"
+	" Response processing.\n"
+	"The router module offers different variations of the routing logic, depending on whether it is an INVITE, a MESSAGE, or another type of request. "
+	"The processing of MESSAGE request essentially differs from others because it allows to keep the MESSAGE for a later delivery, in which "
+	"case the incoming transaction will be terminated with a 202 Accepted response."
+	,
 	{ "ContactRouteInserter" },
 	ModuleInfoBase::ModuleOid::Router
 );

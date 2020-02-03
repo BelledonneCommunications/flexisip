@@ -199,7 +199,7 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		 "/etc/flexisip/apn"},
 		{String, "apple-silent-push-type", "Specify the way of formatting push notification sent to apple servers when the client requests to use silent push notifications"
 			" with pn-silent=1 parameter in its contact uri parameter. Several options are available:\n"
-			" - 'pushkit' : format a push notification suitable for usage with pushkit. This is the default value."
+			" - 'pushkit' : format a push notification suitable for usage with pushkit. This is the default value.\n"
 			" - 'normal' : format a push notification suitable for normal push notifications, with 'content-available' attribute set to 1."
 			, "pushkit"},
 		{Boolean, "google", "Enable push notification for android devices (for compatibility only)", "true"},

@@ -85,14 +85,39 @@ bool ConfigDumper::shouldDumpModule(const string &moduleName) const {
 ostream &FileConfigDumper::printHelp(ostream &os, const string &help, const string &comment_prefix) const {
 	auto it = help.cbegin();
 	auto begin = it;
-
+	bool lineStarts = true;
+	bool isWithinBullet = false;
+	bool isBulletFirstLine = false;
+	
 	for (; it != help.cend(); it++) {
+		if (lineStarts){
+			string startOfLine = help.substr(it-help.cbegin(), 3);
+			if (startOfLine == " - " || startOfLine == " * "){
+				// Beginning of a bullet
+				isWithinBullet = true;
+				isBulletFirstLine = true;
+			}else{
+				isWithinBullet = false;
+			}
+			lineStarts = false;
+		}
+		
 		if (((it - begin) > 60 && *it == ' ') || *it == '\n') {
-			os << comment_prefix << " " << string(begin, it) << endl;
+			os << comment_prefix;
+			if (isWithinBullet && !isBulletFirstLine) os << "   "; //To make indentation.
+			isBulletFirstLine = false;
+			os  << " " << string(begin, it) << endl;
 			begin = it + 1;
+			
+		}
+		if (*it == '\n') {
+			lineStarts = true;
+			isBulletFirstLine = false;
 		}
 	}
-	os << comment_prefix << " " << string(begin, it) << endl;
+	os << comment_prefix << " ";
+	if (isWithinBullet && !isBulletFirstLine) os << "   "; //To make indentation.
+	os << string(begin, it) << endl;
 	return os;
 }
 
