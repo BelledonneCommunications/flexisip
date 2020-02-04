@@ -34,6 +34,6 @@ pass-algo	 = algo ":" password
 identity  	 = user "@" domain
 other-userinfo 	 = [*WSP user-id] [*WSP phone] *WSP ILF
 
-auth-line = identity 1*WSP 1*pass-algo 1*WSP ";" *WSP ( ILF / other-userinfo )
+auth-line = identity 1*WSP 1*(pass-algo 1*WSP) ";" *WSP ( ILF / other-userinfo )
 
 password-file = version *(comment / void / auth-line)
