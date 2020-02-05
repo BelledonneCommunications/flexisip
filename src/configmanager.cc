@@ -851,10 +851,13 @@ GenericManager::GenericManager()
 	static ConfigItemDescriptor global_conf[] = {
 		// processus settings
 		{StringList, "default-servers", "Servers started by default when no --server option is specified on command line. "
-			"Possible values are 'proxy', 'presence', separated by whitespaces.", "proxy" },
-		{Boolean, "auto-respawn", "Automatically respawn flexisip in case of abnormal termination (crashes)", "true"},
+			"Possible values are 'proxy', 'presence', 'conference', separated by whitespaces.", "proxy" },
+		{Boolean, "auto-respawn", "Automatically respawn flexisip in case of abnormal termination (crashes). This has an effect if "
+			"Flexisip has been launched with '--daemon' option only", "true"},
 		{String, "plugins-dir", "Path to the directory where plugins can be found.", DEFAULT_PLUGINS_DIR},
-		{StringList, "plugins", "Plugins to use.", ""},
+		{StringList, "plugins", "Plugins to load. Look at <prefix>/lib/flexisip/plugins to know the list of installed plugin. The name of a plugin can "
+			"be derivated from the according library name by striping out the extension part and the leading 'lib' prefix.\n"
+			"E.g. putting 'jweauth' in this setting will make libjweauth.so library to be load on runtime.", ""},
 		{Boolean, "dump-corefiles", "Generate a corefile when crashing. "
 			"Note that by default linux will generate coredumps in '/' which is not so convenient. The following shell command can be added to"
 			" /etc/rc.local in order to write core dumps a in specific directory, for example /home/cores:\n"
@@ -863,13 +866,14 @@ GenericManager::GenericManager()
 		{Boolean, "enable-snmp", "Enable SNMP.", "false"},
 
 		// log settings
-		{String, "log-directory", "Directory where to create log files.\n"
+		{String, "log-directory", "Directory where to create log files. Create logs are named as 'flexisip-<server_type>.log'. If "
+			"If several server types have been specified by '--server' option or 'global/default-servers' parameter, then <server_type> is expanded "
+			"by a concatenation of all the server types joined with '+' character.\n"
 			"WARNING: Flexisip has no embedded log rotation system but provides a configuration file for logrotate. Please ensure "
 			"that logrotate is installed and running on your system if you want to have Flexisip's logs rotated. Log rotation can be customized by "
 			"editing /etc/logrotate.d/flexisip-logrotate.", DEFAULT_LOG_DIR },
-		{String, "log-level", "Verbosity of logs to output. Possible values are debug, message, warning and error", "error"},
-		{String, "syslog-level", "Verbosity of logs to put in syslog. Possible values are debug, message, warning and error", "error"},
-		{ByteSize, "max-log-size", "Max size of a log file before switching to a new log file, expressed with units. For example: 10G, 100M. If -1 then there is no maximum size", "-1"},
+		{String, "log-level", "Log file verbosity. Possible values are debug, message, warning and error", "error"},
+		{String, "syslog-level", "Syslog verbosity. Possible values are debug, message, warning and error", "error"},
 		{Boolean, "user-errors-logs", "Log (on a different log domain) user errors like authentication, registration, routing, etc...", "false"},
 		{String, "contextual-log-filter", "A boolean expression applied to current SIP message being processed. When matched, logs are output"
 			" provided that there level is greater than the value defined in contextual-log-level."
@@ -879,16 +883,13 @@ GenericManager::GenericManager()
 
 		// network settings
 		{StringList, "transports",
-		 "List of white space separated SIP uris where the proxy must listen.\n"
+		 "List of white space separated SIP URIs where the proxy must listen.\n"
 		 "Wildcard (*) can be used to mean 'all local ip addresses'. If 'transport' parameter is unspecified, it will "
-		 "listen "
-		 "to both udp and tcp. A local address to bind onto can be indicated in the 'maddr' parameter, while the "
-		 "domain part of the"
-		 " uris are used as public domain or ip address.\n"
+		 "listen to both udp and tcp. A local address to bind onto can be indicated in the 'maddr' parameter, while "
+		 "the domain part of the uris are used as public domain or ip address.\n"
 		 "The 'sips' transport definitions accept two optional parameters:\n"
 		 " - 'tls-certificates-dir' taking for value a path, with the same meaning as the 'tls-certificates-dir' "
-		 "property of this"
-		 " section and overriding it for this given transport.\n"
+		 "property of this section and overriding it for this given transport.\n"
 		 " - 'tls-verify-incoming' taking for value '0' or '1', to indicate whether clients connecting are "
 		 "required to present a valid client certificate. Default value is 0.\n"
 		 " - 'tls-verify-outgoing' taking for value '0' or '1', whether flexisip should check the peer certificate"
@@ -896,21 +897,21 @@ GenericManager::GenericManager()
 		 " - 'require-peer-certificate' (deprecated) same as tls-verify-incoming\n"
 		 "It is HIGHLY RECOMMENDED to specify a canonical name for 'sips' transport, so that the proxy can advertise "
 		 "this information in Record-Route headers, which allows TLS cname check to be performed by clients.\n"
-		 "Specifying a sip uri with transport=tls is not allowed: the 'sips' scheme must be used instead. As requested by SIP RFC, "
-		 "IPv6 address must be enclosed within brakets.\n"
+		 "Specifying a sip uri with transport=tls is not allowed: the 'sips' scheme must be used instead. As requested "
+		 "by SIP RFC, IPv6 address must be enclosed within brakets.\n"
 		 "Here are some examples to understand:\n"
-		 "- listen on all local interfaces for udp and tcp, on standard port:\n"
+		 " - listen on all local interfaces for udp and tcp, on standard port:\n"
 		 "\ttransports=sip:*\n"
-		 "- listen on all local interfaces for udp,tcp and tls, on standard ports:\n"
+		 " - listen on all local interfaces for udp,tcp and tls, on standard ports:\n"
 		 "\ttransports=sip:* sips:*\n"
-		  "- listen only a specific IPv6 interface, on standard ports, with udp, tcp and tls\n"
+		 " - listen only a specific IPv6 interface, on standard ports, with udp, tcp and tls\n"
 		 "\ttransports=sip:[2a01:e34:edc3:4d0:7dac:4a4f:22b6:2083] sips:[2a01:e34:edc3:4d0:7dac:4a4f:22b6:2083]\n"
-		 "- listen on tls localhost with 2 different ports and SSL certificates:\n"
+		 " - listen on tls localhost with 2 different ports and SSL certificates:\n"
 		 "\ttransports=sips:localhost:5061;tls-certificates-dir=path_a "
 		 "sips:localhost:5062;tls-certificates-dir=path_b\n"
-		 "- listen on tls localhost with 2 peer certificate requirements:\n"
+		 " - listen on tls localhost with 2 peer certificate requirements:\n"
 		 "\ttransports=sips:localhost:5061;tls-verify-incoming=0 sips:localhost:5062;tls-verify-incoming=1\n"
-		 "- listen on 192.168.0.29:6060 with tls, but public hostname is 'sip.linphone.org' used in SIP messages. "
+		 " - listen on 192.168.0.29:6060 with tls, but public hostname is 'sip.linphone.org' used in SIP messages. "
 		 "Bind address won't appear in messages:\n"
 		 "\ttransports=sips:sip.linphone.org:6060;maddr=192.168.0.29",
 		 "sip:*"},
@@ -929,8 +930,7 @@ GenericManager::GenericManager()
 		{Integer, "udp-mtu",
 		 "The UDP MTU. Flexisip will fallback to TCP when sending a message whose size exceeds the UDP MTU."
 		 " Please read http://sofia-sip.sourceforge.net/refdocs/nta/nta__tag_8h.html#a6f51c1ff713ed4b285e95235c4cc999a "
-		 "for more "
-		 "details. If sending large packets over UDP is not a problem, then set a big value such as 65535. "
+		 "for more details. If sending large packets over UDP is not a problem, then set a big value such as 65535. "
 		 "Unlike the recommandation of the RFC, the default value of UDP MTU is 1460 in Flexisip (instead of 1300).",
 		 "1460"},
 
@@ -945,14 +945,17 @@ GenericManager::GenericManager()
 		 " Please take a look to ciphers(1) UNIX manual to get the list of keywords supported by your current version"
 		 " of OpenSSL. You might visit https://www.openssl.org/docs/manmaster/man1/ciphers.html too. The default value"
 		 " set by Flexisip should provide a high level of security while keeping an acceptable level of interoperability"
-		 " with currenttly deployed client on the marcket.",
+		 " with currenttly deployed clients on the market.",
 		 "HIGH:!SSLv2:!SSLv3:!TLSv1:!EXP:!ADH:!RC4:!3DES:!aNULL:!eNULL"},
-		{Boolean, "require-peer-certificate", "Require client certificate from peer (inbound connections only).", "false"},
+		{Boolean, "require-peer-certificate", "Ask for client certificate on TLS session establishing.", "false"},
 
 		// other settings
 		{String, "unique-id", "Unique ID used to identify that instance of Flexisip. It must be a randomly generated "
-			"16-sized hexadecimal number. If empty, it will be randomly generated at each start of Flexisip.", ""},
+			"16-sized hexadecimal number. If empty, it will be randomly generated on each start of Flexisip.", ""},
 
+		// deprecated parameters
+		{ByteSize, "max-log-size", "Max size of a log file before switching to a new log file, expressed with units. "
+			"For example: 10G, 100M. If -1 then there is no maximum size", "-1"},
 		config_item_end};
 
 	static ConfigItemDescriptor cluster_conf[] = {
