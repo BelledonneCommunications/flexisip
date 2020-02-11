@@ -17,6 +17,7 @@
 */
 
 #include <map>
+#include <regex>
 
 #include <sofia-sip/msg_mime.h>
 #include <sofia-sip/sip_status.h>
@@ -35,6 +36,7 @@
 #include "pushnotification/pushnotificationservice.hh"
 #include "utils/timer.hh"
 #include "utils/uri-utils.hh"
+#include "utils/string-utils.hh"
 
 class PushNotification;
 
@@ -310,107 +312,191 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 		? PushInfo::Call
 		: sip->sip_request->rq_method == sip_method_message
 			? PushInfo::Message
-			: PushInfo::Refer;
+			: PushInfo::Refer; //TODO PAUL : what?
 	pinfo.mTtl = mTtl;
 	int time_out = mTimeout;
 
 	if (sip->sip_request->rq_url->url_params != NULL) {
-		string type;
-		string deviceToken;
-		string appId;
 		const url_t *url = sip->sip_request->rq_url;
 		char const *params = url->url_params;
 
-		/*extract all parameters required to make the push notification */
-		try {
-			deviceToken = UriUtils::getParamValue(params, "pn-tok");
-			pinfo.mDeviceToken = deviceToken;
-		} catch (const out_of_range &) {
-			SLOGD << "no pn-tok";
-			return;
-		}
+		if (url_has_param(url, "pn-provider")) {
+			// string type;
+			// string deviceToken;
+			// string appId;
+			string token;
+			bool isVoip;
+			string teamId;
+			string bundleId;
+			vector<string> servicesAvailableList;
+			bool isDev = false;
+			string pn_prid;
+			string pn_provider;
+			string pn_param;
+			string neededService;
 
-		try {
-			appId = UriUtils::getParamValue(params, "app-id");
-			pinfo.mAppId = appId;
-		} catch (const out_of_range &) {
-			SLOGD << "no app-id";
-			return;
-		}
-
-		// Extract the unique id if possible - it's hacky
-		const shared_ptr<BranchInfo> &br = transaction->getProperty<BranchInfo>("BranchInfo");
-		if (br)
-			pinfo.mUid = br->mUid;
-
-		// check if another push notification for this device wouldn't be pending
-		string keyValue = pinfo.mUid.empty() ? deviceToken : pinfo.mUid;
-		string pnKey(pinfo.mCallId + ":" + keyValue + ":" + appId);
-		auto it = mPendingNotifications.find(pnKey);
-		if (it != mPendingNotifications.end()) {
-			LOGD("Another push notification is pending for this call %s and this device %s, not creating a new one",
-				 pinfo.mCallId.c_str(), keyValue.c_str());
-			context = it->second;
-		}
-		if (!context) {
 			try {
-				type = UriUtils::getParamValue(params, "pn-type");
-				pinfo.mType = type;
+				pn_provider = UriUtils::getParamValue(params, "pn-provider");
+				// const regex base_regex("apns(.dev|)");
+				smatch base_match;
+				if (regex_match(pn_provider, base_match, regex("apns(?:(.dev))*"))) {
+					if (base_match.size() == 2) {
+						isDev = true;
+					}
+				} else {
+					SLOGD << "pn-provider invalid syntax";
+					return;
+				}
 			} catch (const out_of_range &) {
-				SLOGD << "no pn-type";
+				SLOGD << "no pn-provider";
 				return;
 			}
 
-			if (url_has_param(url, "pn-timeout")) {
-				string pnTimeoutStr;
-				try {
-					pnTimeoutStr = UriUtils::getParamValue(params, "pn-timeout");
-					time_out = stoi(pnTimeoutStr);
-				} catch (const logic_error &) {
-					SLOGE << "invalid 'pn-timeout' value: " << pnTimeoutStr;
+			try {
+				pn_param = UriUtils::getParamValue(params, "pn-param");
+				smatch base_match;
+				if (regex_match(pn_param, base_match, regex("([A-Za-z0-9]+)\\.([a-z\\.]+)\\.([a-z&]+)"))) {
+					teamId = base_match[1].str();
+					bundleId = base_match[2].str();
+					string servicesAvailable = base_match[3].str();
+					servicesAvailableList = StringUtils::split(servicesAvailable, "&");
+				} else {
+					SLOGD << "pn-param invalid syntax";
+					return;
+				}
+			} catch (const out_of_range &) {
+				SLOGD << "no pn-param";
+				return;
+			}
+
+			if (pinfo.mEvent == PushInfo::Message) {
+				neededService = "remote";
+				isVoip = false;
+			} else {
+				neededService = "voip";
+				isVoip = true;
+			}
+
+			bool hasRequiredService = false;
+			for (const auto availableService : servicesAvailableList) {
+				if (availableService == neededService) {
+					hasRequiredService = true;
+					break;
 				}
 			}
+			if (!hasRequiredService) {
+				SLOGD << "pn-param does not define required service: " << neededService;
+				return;
+			}
 
-			if (url_has_param(url, "pn-silent")) {
-				string pnSilentStr;
-				try {
-					pnSilentStr = UriUtils::getParamValue(params, "pn-silent");
-					pinfo.mSilent = bool(stoi(pnSilentStr));
-				} catch (const logic_error &) {
-					SLOGE << "invalid 'pn-silent' value: " << pnSilentStr;
+			try {
+				pn_prid = UriUtils::getParamValue(params, "pn-prid");
+				const auto tokenList = StringUtils::split(pn_prid, "&");
+				smatch base_match;
+
+				for (const auto &tokenAndService : tokenList) {
+					if (tokenList.size() == 1) {
+						if (regex_match(tokenAndService, base_match, regex("([a-zA-Z0-9]+)(?::([a-z]+))"))) {
+							if (base_match.size() == 2) {
+								token = base_match[1].str();
+							} else {
+								if (base_match[2].str() == neededService) {
+									token = base_match[1].str();
+								}
+							}
+						} else {
+							SLOGD << "pn-prid invalid syntax";
+							return;
+						}
+					} else {
+						if (regex_match(tokenAndService, base_match, regex("([a-zA-Z0-9]+):([a-z]+)"))) {
+							if (base_match[2].str() == neededService) {
+								token = base_match[1].str();
+							}
+						} else {
+							SLOGD << "pn-prid invalid syntax";
+							return;
+						}
+					}
 				}
+			} catch (const out_of_range &) {
+				SLOGD << "no pn-param";
+				return;
 			}
 
-			//Be backward compatible with old Linphone app that don't use pn-silent.
-			//We don't want to notify an incoming call with a non-silent notification 60 seconds after
-			//the beginning of the call.
-			if (pinfo.mEvent == PushInfo::Call && pinfo.mSilent == false){
-				pinfo.mTtl = 60;
+			if (token.empty()) {
+				SLOGD << "pn-prid no tken provided for required service: " << neededService;
+				return;
 			}
 
-			string contact;
-			if (sip->sip_from->a_display != NULL && strlen(sip->sip_from->a_display) > 0) {
-				contact = sip->sip_from->a_display;
-				// Remove the quotes surrounding the display name
-				size_t last = contact.find_last_of('"');
-				if (last != string::npos)
-					contact.erase(last, 1);
-				size_t first = contact.find_first_of('"');
-				if (first != string::npos)
-					contact.erase(first, 1);
-				pinfo.mFromName = contact;
-			}
-			pinfo.mToUri = url_as_string(ms->getHome(), sip->sip_to->a_url);
-			contact = url_as_string(ms->getHome(), sip->sip_from->a_url);
-			pinfo.mFromUri = contact;
-			pinfo.mFromTag = sip->sip_from->a_tag;
-			if (pinfo.mEvent == PushInfo::Message && sip->sip_payload && sip->sip_payload->pl_len > 0) {
-				sip_payload_t *payload = sip->sip_payload;
-				pinfo.mText = string(payload->pl_data, payload->pl_len);
-			}
+			pinfo.mIsVoip = isVoip;
+			pinfo.mDeviceToken = token;
+			pinfo.mAppId = bundleId + (isVoip ? ".voip" : "") + (isDev ? ".dev" : ".prod");
 
-			shared_ptr<PushNotificationRequest> pn;
-			if (type == "apple") {
+			// Extract the unique id if possible - it's hacky
+			const shared_ptr<BranchInfo> &br = transaction->getProperty<BranchInfo>("BranchInfo");
+			if (br)
+				pinfo.mUid = br->mUid;
+
+			// check if another push notification for this device wouldn't be pending
+			string keyValue = pinfo.mUid.empty() ? pinfo.mDeviceToken : pinfo.mUid;
+			string pnKey(pinfo.mCallId + ":" + keyValue + ":" + pinfo.mAppId);
+			auto it = mPendingNotifications.find(pnKey);
+			if (it != mPendingNotifications.end()) {
+				LOGD("Another push notification is pending for this call %s and this device %s, not creating a new one",
+					pinfo.mCallId.c_str(), keyValue.c_str());
+				context = it->second;
+			}
+			if (!context) {
+				if (url_has_param(url, "pn-timeout")) {
+					string pnTimeoutStr;
+					try {
+						pnTimeoutStr = UriUtils::getParamValue(params, "pn-timeout");
+						time_out = stoi(pnTimeoutStr);
+					} catch (const logic_error &) {
+						SLOGE << "invalid 'pn-timeout' value: " << pnTimeoutStr;
+					}
+				}
+
+				if (url_has_param(url, "pn-silent")) {
+					string pnSilentStr;
+					try {
+						pnSilentStr = UriUtils::getParamValue(params, "pn-silent");
+						pinfo.mSilent = bool(stoi(pnSilentStr));
+					} catch (const logic_error &) {
+						SLOGE << "invalid 'pn-silent' value: " << pnSilentStr;
+					}
+				}
+
+				//Be backward compatible with old Linphone app that don't use pn-silent.
+				//We don't want to notify an incoming call with a non-silent notification 60 seconds after
+				//the beginning of the call.
+				if (pinfo.mEvent == PushInfo::Call && pinfo.mSilent == false){
+					pinfo.mTtl = 60;
+				}
+
+				string contact;
+				if (sip->sip_from->a_display != NULL && strlen(sip->sip_from->a_display) > 0) {
+					contact = sip->sip_from->a_display;
+					// Remove the quotes surrounding the display name
+					size_t last = contact.find_last_of('"');
+					if (last != string::npos)
+						contact.erase(last, 1);
+					size_t first = contact.find_first_of('"');
+					if (first != string::npos)
+						contact.erase(first, 1);
+					pinfo.mFromName = contact;
+				}
+				pinfo.mToUri = url_as_string(ms->getHome(), sip->sip_to->a_url);
+				contact = url_as_string(ms->getHome(), sip->sip_from->a_url);
+				pinfo.mFromUri = contact;
+				pinfo.mFromTag = sip->sip_from->a_tag;
+				if (pinfo.mEvent == PushInfo::Message && sip->sip_payload && sip->sip_payload->pl_len > 0) {
+					sip_payload_t *payload = sip->sip_payload;
+					pinfo.mText = string(payload->pl_data, payload->pl_len);
+				}
+
+				shared_ptr<PushNotificationRequest> pn;
 				string msg_str;
 				string call_str;
 				string call_snd;
@@ -450,47 +536,197 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 
 				pinfo.mAlertSound = (sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd;
 				pinfo.mNoBadge = mNoBadgeiOS;
-				if (!mExternalPushUri)
+				// if (!mExternalPushUri)
 					pn = make_shared<ApplePushNotificationRequest>(pinfo);
-			} else if ((type == "wp") || (type == "w10")) {
-				if (!mExternalPushUri)
-					pn = make_shared<WindowsPhonePushNotificationRequest>(pinfo);
-			} else if (type == "google") {
-				auto apiKeyIt = mGoogleKeys.find(appId);
-				if (apiKeyIt != mGoogleKeys.end()) {
-					pinfo.mApiKey = apiKeyIt->second;
-					SLOGD << "Creating Google push notif request";
-					if (!mExternalPushUri)
-						pn = make_shared<GooglePushNotificationRequest>(pinfo);
-				} else {
-					SLOGD << "No Key matching appId " << appId;
-				}
-			} else if (type == "firebase") {
-				auto apiKeyIt = mFirebaseKeys.find(appId);
-				if (apiKeyIt != mFirebaseKeys.end()) {
-					pinfo.mApiKey = apiKeyIt->second;
-					SLOGD << "Creating Firebase push notif request";
-					if (!mExternalPushUri)
-						pn = make_shared<FirebasePushNotificationRequest>(pinfo);
-				} else {
-					SLOGD << "No Key matching appId " << appId;
-				}
-			} else {
-				SLOGD << "Push notification type not recognized [" << type << "]";
-			}
-			if (mExternalPushUri)
-				pn = make_shared<GenericPushNotificationRequest>(pinfo, mExternalPushUri, mExternalPushMethod);
+				// if (mExternalPushUri)
+				// 	pn = make_shared<GenericPushNotificationRequest>(pinfo, mExternalPushUri, mExternalPushMethod);
 
-			if (pn) {
-				if (time_out < 0) time_out = 0;
-				SLOGD << "Creating a push notif context PNR " << pn.get() << " to send in " << time_out << "s";
-				context = make_shared<PushNotificationContext>(transaction, this, pn, pnKey, mRetransmissionCount, mRetransmissionInterval);
-				context->start(time_out, !pinfo.mSilent);
-				mPendingNotifications.insert(make_pair(pnKey, context));
+				if (pn) {
+					if (time_out < 0) time_out = 0;
+					SLOGD << "Creating a push notif context PNR " << pn.get() << " to send in " << time_out << "s";
+					context = make_shared<PushNotificationContext>(transaction, this, pn, pnKey, mRetransmissionCount, mRetransmissionInterval);
+					context->start(time_out, !pinfo.mSilent);
+					mPendingNotifications.insert(make_pair(pnKey, context));
+				}
 			}
+			if (context) /*associate with transaction so that transaction can eventually cancel it if the device answers.*/
+				transaction->setProperty<weak_ptr<PushNotificationContext>>(getModuleName(), make_shared<weak_ptr<PushNotificationContext>>(context));
+		} else {
+			string type;
+			string deviceToken;
+			string appId;
+
+			/*extract all parameters required to make the push notification */
+			try {
+				deviceToken = UriUtils::getParamValue(params, "pn-tok");
+				pinfo.mDeviceToken = deviceToken;
+			} catch (const out_of_range &) {
+				SLOGD << "no pn-tok";
+				return;
+			}
+
+			try {
+				appId = UriUtils::getParamValue(params, "app-id");
+				pinfo.mAppId = appId;
+			} catch (const out_of_range &) {
+				SLOGD << "no app-id";
+				return;
+			}
+
+			// Extract the unique id if possible - it's hacky
+			const shared_ptr<BranchInfo> &br = transaction->getProperty<BranchInfo>("BranchInfo");
+			if (br)
+				pinfo.mUid = br->mUid;
+
+			// check if another push notification for this device wouldn't be pending
+			string keyValue = pinfo.mUid.empty() ? deviceToken : pinfo.mUid;
+			string pnKey(pinfo.mCallId + ":" + keyValue + ":" + appId);
+			auto it = mPendingNotifications.find(pnKey);
+			if (it != mPendingNotifications.end()) {
+				LOGD("Another push notification is pending for this call %s and this device %s, not creating a new one",
+					pinfo.mCallId.c_str(), keyValue.c_str());
+				context = it->second;
+			}
+			if (!context) {
+				try {
+					type = UriUtils::getParamValue(params, "pn-type");
+					pinfo.mType = type;
+				} catch (const out_of_range &) {
+					SLOGD << "no pn-type";
+					return;
+				}
+
+				if (url_has_param(url, "pn-timeout")) {
+					string pnTimeoutStr;
+					try {
+						pnTimeoutStr = UriUtils::getParamValue(params, "pn-timeout");
+						time_out = stoi(pnTimeoutStr);
+					} catch (const logic_error &) {
+						SLOGE << "invalid 'pn-timeout' value: " << pnTimeoutStr;
+					}
+				}
+
+				if (url_has_param(url, "pn-silent")) {
+					string pnSilentStr;
+					try {
+						pnSilentStr = UriUtils::getParamValue(params, "pn-silent");
+						pinfo.mSilent = bool(stoi(pnSilentStr));
+					} catch (const logic_error &) {
+						SLOGE << "invalid 'pn-silent' value: " << pnSilentStr;
+					}
+				}
+
+				//Be backward compatible with old Linphone app that don't use pn-silent.
+				//We don't want to notify an incoming call with a non-silent notification 60 seconds after
+				//the beginning of the call.
+				if (pinfo.mEvent == PushInfo::Call && pinfo.mSilent == false){
+					pinfo.mTtl = 60;
+				}
+
+				string contact;
+				if (sip->sip_from->a_display != NULL && strlen(sip->sip_from->a_display) > 0) {
+					contact = sip->sip_from->a_display;
+					// Remove the quotes surrounding the display name
+					size_t last = contact.find_last_of('"');
+					if (last != string::npos)
+						contact.erase(last, 1);
+					size_t first = contact.find_first_of('"');
+					if (first != string::npos)
+						contact.erase(first, 1);
+					pinfo.mFromName = contact;
+				}
+				pinfo.mToUri = url_as_string(ms->getHome(), sip->sip_to->a_url);
+				contact = url_as_string(ms->getHome(), sip->sip_from->a_url);
+				pinfo.mFromUri = contact;
+				pinfo.mFromTag = sip->sip_from->a_tag;
+				if (pinfo.mEvent == PushInfo::Message && sip->sip_payload && sip->sip_payload->pl_len > 0) {
+					sip_payload_t *payload = sip->sip_payload;
+					pinfo.mText = string(payload->pl_data, payload->pl_len);
+				}
+
+				shared_ptr<PushNotificationRequest> pn;
+				if (type == "apple") {
+					string msg_str;
+					string call_str;
+					string call_snd;
+					string msg_snd;
+
+					try {
+						msg_str = UriUtils::getParamValue(params, "pn-msg-str");
+					} catch (const out_of_range &) {
+						SLOGD << "no pn-msg-str";
+						return;
+					}
+					try {
+						call_str = UriUtils::getParamValue(params, "pn-call-str");
+					} catch (const out_of_range &) {
+						SLOGD << "no pn-call-str";
+						return;
+					}
+					try {
+						call_snd = UriUtils::getParamValue(params, "pn-call-snd");
+					} catch (const out_of_range &) {
+						SLOGD << "no optional pn-call-snd, using empty";
+						call_snd = "empty";
+					}
+					try {
+						msg_snd = UriUtils::getParamValue(params, "pn-msg-snd");
+					} catch (const out_of_range &) {
+						SLOGD << "no optional pn-msg-snd, using empty";
+						msg_snd = "empty";
+					}
+
+					bool isGroupChatInvite = (sip->sip_content_type != NULL && strcasecmp(sip->sip_content_type->c_subtype, "resource-lists+xml") == 0);
+					pinfo.mAlertMsgId = (sip->sip_request->rq_method == sip_method_invite && !isGroupChatInvite)
+						? call_str
+						: (sip->sip_request->rq_method == sip_method_message)
+							? msg_str
+							: "IC_SIL";
+
+					pinfo.mAlertSound = (sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd;
+					pinfo.mNoBadge = mNoBadgeiOS;
+					if (!mExternalPushUri)
+						pn = make_shared<ApplePushNotificationRequest>(pinfo);
+				} else if ((type == "wp") || (type == "w10")) {
+					if (!mExternalPushUri)
+						pn = make_shared<WindowsPhonePushNotificationRequest>(pinfo);
+				} else if (type == "google") {
+					auto apiKeyIt = mGoogleKeys.find(appId);
+					if (apiKeyIt != mGoogleKeys.end()) {
+						pinfo.mApiKey = apiKeyIt->second;
+						SLOGD << "Creating Google push notif request";
+						if (!mExternalPushUri)
+							pn = make_shared<GooglePushNotificationRequest>(pinfo);
+					} else {
+						SLOGD << "No Key matching appId " << appId;
+					}
+				} else if (type == "firebase") {
+					auto apiKeyIt = mFirebaseKeys.find(appId);
+					if (apiKeyIt != mFirebaseKeys.end()) {
+						pinfo.mApiKey = apiKeyIt->second;
+						SLOGD << "Creating Firebase push notif request";
+						if (!mExternalPushUri)
+							pn = make_shared<FirebasePushNotificationRequest>(pinfo);
+					} else {
+						SLOGD << "No Key matching appId " << appId;
+					}
+				} else {
+					SLOGD << "Push notification type not recognized [" << type << "]";
+				}
+				if (mExternalPushUri)
+					pn = make_shared<GenericPushNotificationRequest>(pinfo, mExternalPushUri, mExternalPushMethod);
+
+				if (pn) {
+					if (time_out < 0) time_out = 0;
+					SLOGD << "Creating a push notif context PNR " << pn.get() << " to send in " << time_out << "s";
+					context = make_shared<PushNotificationContext>(transaction, this, pn, pnKey, mRetransmissionCount, mRetransmissionInterval);
+					context->start(time_out, !pinfo.mSilent);
+					mPendingNotifications.insert(make_pair(pnKey, context));
+				}
+			}
+			if (context) /*associate with transaction so that transaction can eventually cancel it if the device answers.*/
+				transaction->setProperty<weak_ptr<PushNotificationContext>>(getModuleName(), make_shared<weak_ptr<PushNotificationContext>>(context));
 		}
-		if (context) /*associate with transaction so that transaction can eventually cancel it if the device answers.*/
-			transaction->setProperty<weak_ptr<PushNotificationContext>>(getModuleName(), make_shared<weak_ptr<PushNotificationContext>>(context));
 	}
 }
 
