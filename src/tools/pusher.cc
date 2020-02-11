@@ -49,7 +49,7 @@ struct PusherArgs {
 	string packageSID;
 	void usage(const char *app) {
 		cout << app
-			 << " --pntype google|firebase|wp|w10|apple --appid id --key apikey(secretkey) --sid ms-app://value --prefix dir --silent --debug --pntok id1 (id2 id3 ...)"
+			 << " --pntype google|firebase|wp|w10|apple|apple-push-kit --appid id --key apikey(secretkey) --sid ms-app://value --prefix dir --silent --debug --pntok id1 (id2 id3 ...)"
 			 << endl;
 	}
 
@@ -150,7 +150,22 @@ static vector<shared_ptr<PushNotificationRequest>> createRequestFromArgs(const P
 			pinfo.mDeviceToken = pntok;
 			pinfo.mText = "Hi here!";
 			result.push_back(make_shared<WindowsPhonePushNotificationRequest>(pinfo));
+		} else if (args.pntype == "apple-push-kit") {
+			/* for calls */
+			pinfo.mIsVoip = true;
+			pinfo.mAlertMsgId = "IM_MSG";
+			pinfo.mAlertSound = "msg.caf";
+			pinfo.mAppId = args.appid;
+			pinfo.mDeviceToken = pntok;
+			pinfo.mTtl = 2592000;
+			pinfo.mSilent = args.isSilent;
+			//pinfo.mTtl = 60;
+			result.push_back(make_shared<ApplePushNotificationRequest>(pinfo));
 		} else if (args.pntype == "apple") {
+			/* for messages and group chat invites
+			iOS app extension get message from callId.
+			It will receive the push but won't be able to display the message */
+			pinfo.mIsVoip = false;
 			pinfo.mAlertMsgId = "IM_MSG";
 			pinfo.mAlertSound = "msg.caf";
 			pinfo.mAppId = args.appid;
