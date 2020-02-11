@@ -17,6 +17,7 @@
 */
 
 #include <map>
+#include <regex>
 
 #include <sofia-sip/msg_mime.h>
 #include <sofia-sip/sip_status.h>
@@ -35,6 +36,7 @@
 #include "pushnotification/pushnotificationservice.hh"
 #include "utils/timer.hh"
 #include "utils/uri-utils.hh"
+#include "utils/string-utils.hh"
 
 class PushNotification;
 
@@ -85,6 +87,7 @@ private:
 	bool needsPush(const sip_t *sip);
 	void makePushNotification(const shared_ptr<MsgSip> &ms, const shared_ptr<OutgoingTransaction> &transaction);
 	void removePushNotification(PushNotificationContext *pn);
+	void parseApplePushParams(const char *params, PushInfo &pinfo);
 
 	std::map<std::string, std::shared_ptr<PushNotificationContext>> mPendingNotifications; // map of pending push notifications. Its
 																			// purpose is to avoid sending multiples
@@ -299,6 +302,97 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 		mPNS->setupWindowsPhoneClient(windowsPhonePackageSID, windowsPhoneApplicationSecret);
 }
 
+void PushNotification::parseApplePushParams(const char *params, PushInfo &pinfo) {
+	string deviceToken;
+	string bundleId;
+	vector<string> servicesAvailable;
+	bool isDev = false;
+	string requiredService;
+	smatch match;
+
+	try {
+		string pnProvider = UriUtils::getParamValue(params, "pn-provider");
+		if (regex_match(pnProvider, match, regex("apns(?:(.dev))*"))) {
+			if (match.size() == 2) {
+				isDev = true;
+			}
+		} else {
+			throw invalid_argument("pn-provider invalid syntax");
+		}
+	} catch (const out_of_range &) {
+		throw invalid_argument("no pn-provider");
+	}
+
+	try {
+		string pnParam = UriUtils::getParamValue(params, "pn-param");
+		if (regex_match(pnParam, match, regex("([A-Za-z0-9]+)\\.([a-z\\.]+)\\.([a-z&]+)"))) {
+			pinfo.mTeamId = match[1].str();
+			bundleId = match[2].str();
+			servicesAvailable = StringUtils::split(match[3].str(), "&");
+		} else {
+			throw invalid_argument("pn-param invalid syntax");
+		}
+	} catch (const out_of_range &) {
+		throw invalid_argument("no pn-param");
+	}
+
+	if (pinfo.mEvent == PushInfo::Message) {
+		requiredService = "remote";
+		pinfo.mIsVoip = false;
+	} else {
+		requiredService = "voip";
+		pinfo.mIsVoip = true;
+	}
+
+	bool hasRequiredService = false;
+	for (const auto service : servicesAvailable) {
+		if (service == requiredService) {
+			hasRequiredService = true;
+			break;
+		}
+	}
+	if (!hasRequiredService) {
+		throw invalid_argument(string("pn-param does not define required service: " + requiredService));
+	}
+
+	try {
+		string pnPrid = UriUtils::getParamValue(params, "pn-prid");
+		const auto tokenList = StringUtils::split(pnPrid, "&");
+		for (const auto &tokenAndService : tokenList) {
+			if (tokenList.size() == 1) {
+				if (regex_match(tokenAndService, match, regex("([a-zA-Z0-9]+)(?::([a-z]+))"))) {
+					if (match.size() == 2) {
+						deviceToken = match[1].str();
+					} else {
+						if (match[2].str() == requiredService) {
+							deviceToken = match[1].str();
+						}
+					}
+				} else {
+					throw invalid_argument("pn-prid invalid syntax");
+				}
+			} else {
+				if (regex_match(tokenAndService, match, regex("([a-zA-Z0-9]+):([a-z]+)"))) {
+					if (match[2].str() == requiredService) {
+						deviceToken = match[1].str();
+					}
+				} else {
+					throw invalid_argument("pn-prid invalid syntax");
+				}
+			}
+		}
+	} catch (const out_of_range &) {
+		throw invalid_argument("no pn-param");
+	}
+
+	if (deviceToken.empty()) {
+		throw invalid_argument(string("pn-prid no token provided for required service: " + requiredService));
+	}
+
+	pinfo.mDeviceToken = deviceToken;
+	pinfo.mAppId = bundleId + (pinfo.mIsVoip ? ".voip" : "") + (isDev ? ".dev" : ".prod");
+}
+
 void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 											const shared_ptr<OutgoingTransaction> &transaction) {
 	shared_ptr<PushNotificationContext> context;
@@ -310,32 +404,41 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 		? PushInfo::Call
 		: sip->sip_request->rq_method == sip_method_message
 			? PushInfo::Message
-			: PushInfo::Refer;
+			: PushInfo::Refer; //TODO PAUL : what?
 	pinfo.mTtl = mTtl;
 	int time_out = mTimeout;
 
 	if (sip->sip_request->rq_url->url_params != NULL) {
-		string type;
-		string deviceToken;
-		string appId;
 		const url_t *url = sip->sip_request->rq_url;
 		char const *params = url->url_params;
 
-		/*extract all parameters required to make the push notification */
-		try {
-			deviceToken = UriUtils::getParamValue(params, "pn-tok");
-			pinfo.mDeviceToken = deviceToken;
-		} catch (const out_of_range &) {
-			SLOGD << "no pn-tok";
-			return;
-		}
+		string type;
+		if (url_has_param(url, "pn-provider")) {
+			try {
+				parseApplePushParams(params, pinfo);
+			} catch (const invalid_argument &e) {
+				SLOGD << e.what();
+				return;
+			}
+			type = "apple";
+		} else {
+			string deviceToken;
+			string appId;
 
-		try {
-			appId = UriUtils::getParamValue(params, "app-id");
-			pinfo.mAppId = appId;
-		} catch (const out_of_range &) {
-			SLOGD << "no app-id";
-			return;
+			/*extract all parameters required to make the push notification */
+			try {
+				pinfo.mDeviceToken = UriUtils::getParamValue(params, "pn-tok");
+			} catch (const out_of_range &) {
+				SLOGD << "no pn-tok";
+				return;
+			}
+
+			try {
+				pinfo.mAppId = UriUtils::getParamValue(params, "app-id");
+			} catch (const out_of_range &) {
+				SLOGD << "no app-id";
+				return;
+			}
 		}
 
 		// Extract the unique id if possible - it's hacky
@@ -344,21 +447,23 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			pinfo.mUid = br->mUid;
 
 		// check if another push notification for this device wouldn't be pending
-		string keyValue = pinfo.mUid.empty() ? deviceToken : pinfo.mUid;
-		string pnKey(pinfo.mCallId + ":" + keyValue + ":" + appId);
+		string keyValue = pinfo.mUid.empty() ? pinfo.mDeviceToken : pinfo.mUid;
+		string pnKey(pinfo.mCallId + ":" + keyValue + ":" + pinfo.mAppId);
 		auto it = mPendingNotifications.find(pnKey);
 		if (it != mPendingNotifications.end()) {
 			LOGD("Another push notification is pending for this call %s and this device %s, not creating a new one",
-				 pinfo.mCallId.c_str(), keyValue.c_str());
+				pinfo.mCallId.c_str(), keyValue.c_str());
 			context = it->second;
 		}
 		if (!context) {
-			try {
-				type = UriUtils::getParamValue(params, "pn-type");
-				pinfo.mType = type;
-			} catch (const out_of_range &) {
-				SLOGD << "no pn-type";
-				return;
+			if (type.empty()) {
+				try {
+					type = UriUtils::getParamValue(params, "pn-type");
+					pinfo.mType = type;
+				} catch (const out_of_range &) {
+					SLOGD << "no pn-type";
+					return;
+				}
 			}
 
 			if (url_has_param(url, "pn-timeout")) {
@@ -456,24 +561,24 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				if (!mExternalPushUri)
 					pn = make_shared<WindowsPhonePushNotificationRequest>(pinfo);
 			} else if (type == "google") {
-				auto apiKeyIt = mGoogleKeys.find(appId);
+				auto apiKeyIt = mGoogleKeys.find(pinfo.mAppId);
 				if (apiKeyIt != mGoogleKeys.end()) {
 					pinfo.mApiKey = apiKeyIt->second;
 					SLOGD << "Creating Google push notif request";
 					if (!mExternalPushUri)
 						pn = make_shared<GooglePushNotificationRequest>(pinfo);
 				} else {
-					SLOGD << "No Key matching appId " << appId;
+					SLOGD << "No Key matching appId " << pinfo.mAppId;
 				}
 			} else if (type == "firebase") {
-				auto apiKeyIt = mFirebaseKeys.find(appId);
+				auto apiKeyIt = mFirebaseKeys.find(pinfo.mAppId);
 				if (apiKeyIt != mFirebaseKeys.end()) {
 					pinfo.mApiKey = apiKeyIt->second;
 					SLOGD << "Creating Firebase push notif request";
 					if (!mExternalPushUri)
 						pn = make_shared<FirebasePushNotificationRequest>(pinfo);
 				} else {
-					SLOGD << "No Key matching appId " << appId;
+					SLOGD << "No Key matching appId " << pinfo.mAppId;
 				}
 			} else {
 				SLOGD << "Push notification type not recognized [" << type << "]";
