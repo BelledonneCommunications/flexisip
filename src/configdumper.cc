@@ -16,6 +16,8 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <regex>
+
 #include <flexisip/flexisip-version.h>
 #include <flexisip/module.hh>
 
@@ -36,8 +38,7 @@ ostream &ConfigDumper::dump_recursive(std::ostream &ostr, const GenericEntry *en
 
 		dumpModuleHead(ostr, cs, level);
 
-		for (auto it = cs->getChildren().begin(); it != cs->getChildren().end(); ++it) {
-			GenericEntry *child = *it;
+		for (const auto *child : cs->getChildren()) {
 			dump_recursive(ostr, child, level + 1);
 		}
 
@@ -50,34 +51,25 @@ ostream &ConfigDumper::dump_recursive(std::ostream &ostr, const GenericEntry *en
 	return ostr;
 }
 
-struct matchModuleName {
-	const std::string &mName;
-	matchModuleName(const std::string &name) : mName(name) {
-	}
-	bool operator()(const ModuleInfoBase *mi) {
-		return (mi->getModuleName() == mName);
-	}
-};
-
-#define MODULE_PREFIX_LEN 8 /* strlen("module::") */
 bool ConfigDumper::shouldDumpModule(const string &moduleName) const {
+	smatch match;
+
 	// When the dumpExperimental is activated, we should dump everything
-	if (mDumpExperimental)
-		return true;
+	if (mDumpExperimental) return true;
 
 	string name = moduleName;
-	if (name.find("module::") != name.npos) {
-		name = moduleName.substr(MODULE_PREFIX_LEN);
+	if (regex_match(moduleName, match, regex("module::([[:print:]]+)"))) {
+		name = match[1].str();
 	}
-	auto registeredModuleInfo = ModuleInfoManager::get()->getRegisteredModuleInfo();
-	auto it = std::find_if(registeredModuleInfo.begin(), registeredModuleInfo.end(), matchModuleName(name));
 
-	ModuleInfoBase *moduleInfo = (it != registeredModuleInfo.end()) ? *it : NULL;
-	if (moduleInfo != NULL) {
-		return moduleInfo->getClass() == ModuleClass::Production;
-	} else {
-		return true;
-	}
+	auto registeredModuleInfo = ModuleInfoManager::get()->getRegisteredModuleInfo();
+	auto it = find_if(
+		registeredModuleInfo.cbegin(),
+		registeredModuleInfo.cend(),
+		[&name](const ModuleInfoBase *mi){return mi->getModuleName() == name;}
+	);
+
+	return (it != registeredModuleInfo.cend()) ? (*it)->getClass() == ModuleClass::Production : true;
 }
 
 /* FILE CONFIG DUMPER */
@@ -88,7 +80,7 @@ ostream &FileConfigDumper::printHelp(ostream &os, const string &help, const stri
 	bool lineStarts = true;
 	bool isWithinBullet = false;
 	bool isBulletFirstLine = false;
-	
+
 	for (; it != help.cend(); it++) {
 		if (lineStarts){
 			string startOfLine = help.substr(it-help.cbegin(), 3);
@@ -101,14 +93,14 @@ ostream &FileConfigDumper::printHelp(ostream &os, const string &help, const stri
 			}
 			lineStarts = false;
 		}
-		
+
 		if (((it - begin) > 60 && *it == ' ') || *it == '\n') {
 			os << comment_prefix;
 			if (isWithinBullet && !isBulletFirstLine) os << "   "; //To make indentation.
 			isBulletFirstLine = false;
 			os  << " " << string(begin, it) << endl;
 			begin = it + 1;
-			
+
 		}
 		if (*it == '\n') {
 			lineStarts = true;
@@ -127,10 +119,10 @@ ostream &FileConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue
 	if (!val->isDeprecated()) {
 
 		printHelp(ostr, val->getHelp(), "#");
-		ostr << "#  Default value: " << val->getDefault() << endl;
+		ostr << "# Default: " << val->getDefault() << endl;
 
-		if (mDumpMode == Mode::DefaultValue || (mDumpMode == Mode::DefaultIfUnset && val->get().empty())) {
-			ostr << val->getName() << "=" << val->getDefault() << endl;
+		if (mDumpMode == Mode::DefaultValue || (mDumpMode == Mode::DefaultIfUnset && val->isDefault())) {
+			ostr << "#" << val->getName() << "=" << val->getDefault() << endl;
 		} else {
 			ostr << val->getName() << "=" << val->get() << endl;
 		}

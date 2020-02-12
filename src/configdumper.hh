@@ -24,19 +24,11 @@
 namespace flexisip {
 
 class ConfigDumper {
-  protected:
-	GenericEntry *mRoot;
-	bool mDumpExperimental;
+public:
+	ConfigDumper(GenericEntry *root) : mRoot(root) {}
+	virtual ~ConfigDumper() = default;
 
-  public:
-	ConfigDumper(GenericEntry *root) : mRoot(root), mDumpExperimental(false) {
-	}
-	virtual ~ConfigDumper() {
-	}
-
-	void setDumpExperimentalEnabled(bool enabled) {
-		mDumpExperimental = enabled;
-	}
+	void setDumpExperimentalEnabled(bool enabled) {mDumpExperimental = enabled;}
 
 	/**
 	 * Can be overloaded for special handling. We expect the implementation to perform a recursive dump of all childrens
@@ -44,7 +36,7 @@ class ConfigDumper {
 	*/
 	virtual std::ostream &dump(std::ostream &ostr) const;
 
-  protected:
+protected:
 	/* Required dump function */
 
 	/**
@@ -77,9 +69,7 @@ class ConfigDumper {
 	 * @param level recursion level
 	 * @return the output stream
 	 */
-	virtual std::ostream &dumpModuleEnd(std::ostream &ostr, const GenericStruct *module, int level) const {
-		return ostr;
-	}
+	virtual std::ostream &dumpModuleEnd(std::ostream &ostr, const GenericStruct *module, int level) const {return ostr;}
 
 	/**
 	 * Will tell if the module should be dumped. If the module is experimental and the dumpExperimental flag is
@@ -90,8 +80,12 @@ class ConfigDumper {
 	 */
 	bool shouldDumpModule(const std::string &moduleName) const;
 
-  private:
+private:
 	std::ostream &dump_recursive(std::ostream &ostr, const GenericEntry *root, unsigned int level) const;
+
+protected:
+	GenericEntry *mRoot = nullptr;
+	bool mDumpExperimental = false;
 };
 
 inline std::ostream &operator<<(std::ostream &ostr, const ConfigDumper &dumper) {
@@ -116,75 +110,67 @@ public:
 	 */
 	void setMode(Mode mode) {mDumpMode = mode;}
 
+protected:
+	std::ostream &dumpModuleHead(std::ostream &ostr, const GenericStruct *moduleHead, int level) const override;
+	std::ostream &dumpModuleValue(std::ostream &ostr, const ConfigValue *value, int level) const override;
+
 private:
-	Mode mDumpMode = Mode::DefaultValue;
 	std::ostream &printHelp(std::ostream &os, const std::string &help, const std::string &comment_prefix) const;
 
-protected:
-	virtual std::ostream &dumpModuleHead(std::ostream &ostr, const GenericStruct *moduleHead, int level) const;
-	virtual std::ostream &dumpModuleValue(std::ostream &ostr, const ConfigValue *value, int level) const;
+	Mode mDumpMode = Mode::DefaultValue;
 };
 
 class TexFileConfigDumper : public ConfigDumper {
-  public:
-	TexFileConfigDumper(GenericEntry *root) : ConfigDumper(root) {
-	}
+public:
+	TexFileConfigDumper(GenericEntry *root) : ConfigDumper(root) {}
 
-  private:
+protected:
+	std::ostream &dumpModuleHead(std::ostream &ostr, const GenericStruct *moduleHead, int level) const override;
+	std::ostream &dumpModuleValue(std::ostream &ostr, const ConfigValue *value, int level) const override;
+
+private:
 	std::string escape(const std::string &strc) const;
-
-  protected:
-	virtual std::ostream &dumpModuleHead(std::ostream &ostr, const GenericStruct *moduleHead, int level) const;
-	virtual std::ostream &dumpModuleValue(std::ostream &ostr, const ConfigValue *value, int level) const;
 };
 
 class DokuwikiConfigDumper : public ConfigDumper {
-  public:
-	DokuwikiConfigDumper(GenericEntry *root) : ConfigDumper(root) {
-	}
+public:
+	DokuwikiConfigDumper(GenericEntry *root) : ConfigDumper(root) {}
 
-  protected:
-	virtual std::ostream &dumpModuleHead(std::ostream &ostr, const GenericStruct *moduleHead, int level) const;
-	virtual std::ostream &dumpModuleValue(std::ostream &ostr, const ConfigValue *value, int level) const;
+protected:
+	std::ostream &dumpModuleHead(std::ostream &ostr, const GenericStruct *moduleHead, int level) const override;
+	std::ostream &dumpModuleValue(std::ostream &ostr, const ConfigValue *value, int level) const override;
 };
 
 class MediaWikiConfigDumper : public ConfigDumper {
-  public:
-	MediaWikiConfigDumper(GenericEntry *root) : ConfigDumper(root) {
-	}
+public:
+	MediaWikiConfigDumper(GenericEntry *root) : ConfigDumper(root) {}
 
-  protected:
-	virtual std::ostream &dumpModuleHead(std::ostream &ostr, const GenericStruct *moduleHead, int level) const;
-	virtual std::ostream &dumpModuleValue(std::ostream &ostr, const ConfigValue *value, int level) const;
-	virtual std::ostream &dumpModuleEnd(std::ostream &ostr, const GenericStruct *value, int level) const;
+protected:
+	std::ostream &dumpModuleHead(std::ostream &ostr, const GenericStruct *moduleHead, int level) const override;
+	std::ostream &dumpModuleValue(std::ostream &ostr, const ConfigValue *value, int level) const override;
+	std::ostream &dumpModuleEnd(std::ostream &ostr, const GenericStruct *value, int level) const override;
 };
 
 class XWikiConfigDumper : public ConfigDumper {
-  public:
-	XWikiConfigDumper(GenericEntry *root) : ConfigDumper(root) {
-	}
+public:
+	XWikiConfigDumper(GenericEntry *root) : ConfigDumper(root) {}
 
-  protected:
-	virtual std::ostream &dumpModuleHead(std::ostream &ostr, const GenericStruct *moduleHead, int level) const;
-	virtual std::ostream &dumpModuleValue(std::ostream &ostr, const ConfigValue *value, int level) const;
+protected:
+	std::ostream &dumpModuleHead(std::ostream &ostr, const GenericStruct *moduleHead, int level) const override;
+	std::ostream &dumpModuleValue(std::ostream &ostr, const ConfigValue *value, int level) const override;
 };
 
 class MibDumper : public ConfigDumper {
-  public:
-	MibDumper(GenericEntry *root) : ConfigDumper(root) {
-	}
-	virtual std::ostream &dump(std::ostream &ostr) const;
+public:
+	MibDumper(GenericEntry *root) : ConfigDumper(root) {}
+	std::ostream &dump(std::ostream &ostr) const override;
 
-  private:
+protected:
+	std::ostream &dumpModuleHead(std::ostream &ostr, const GenericStruct *moduleHead, int level) const override {return ostr;}
+	std::ostream &dumpModuleValue(std::ostream &ostr, const ConfigValue *value, int level) const override {return ostr;}
+
+private:
 	virtual std::ostream &dump2(std::ostream &ostr, GenericEntry *entry, int level) const;
-
-  protected:
-	std::ostream &dumpModuleHead(std::ostream &ostr, const GenericStruct *moduleHead, int level) const {
-		return ostr;
-	}
-	std::ostream &dumpModuleValue(std::ostream &ostr, const ConfigValue *value, int level) const {
-		return ostr;
-	}
 };
 
 }

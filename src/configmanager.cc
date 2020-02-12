@@ -41,8 +41,7 @@ using namespace std;
 namespace flexisip {
 
 bool ConfigValueListener::sDirty = false;
-ConfigValueListener::~ConfigValueListener() {
-}
+
 bool ConfigValueListener::onConfigStateChanged(const ConfigValue &conf, ConfigState state) {
 	switch (state) {
 		case ConfigState::Commited:
@@ -65,7 +64,7 @@ bool ConfigValueListener::onConfigStateChanged(const ConfigValue &conf, ConfigSt
 		case ConfigState::Reset:
 			sDirty = false;
 			break;
-		default:
+		case ConfigState::Check:
 			break;
 	}
 	return doOnConfigStateChanged(conf, state);
@@ -251,12 +250,20 @@ void GenericEntry::doMibFragment(ostream &ostr, const string &def, const string 
 
 ConfigValue::ConfigValue(const string &name, GenericValueType vt, const string &help, const string &default_value,
 						 oid oid_index)
-	: GenericEntry(name, vt, help, oid_index), mDefaultValue(default_value) {
+	: GenericEntry(name, vt, help, oid_index), mValue(default_value), mDefaultValue(default_value) {
 	mExportToConfigFile = true;
 }
 
-void ConfigValue::set(const string &value) {
-	set(string(value));
+bool ConfigValue::invokeConfigStateChanged(ConfigState state) {
+	if (getParent() && getParent()->getType() == Struct) {
+		ConfigValueListener *listener = getParent()->getConfigListener();
+		if (listener) {
+			return listener->onConfigStateChanged(*this, state);
+		} else {
+			LOGE("%s doesn't implement a config change listener.", getParent()->getName().c_str());
+		}
+	}
+	return true;
 }
 
 void ConfigValue::checkType(const string & value, bool isDefault){
@@ -273,6 +280,14 @@ void ConfigValue::checkType(const string & value, bool isDefault){
 void ConfigValue::set(std::string &&value) {
 	checkType(value, false);
 	mValue = move(value);
+	mNextValue = mValue;
+	mIsDefault = false;
+}
+
+void ConfigValue::restoreDefault() {
+	mValue = mDefaultValue;
+	mNextValue = mDefaultValue;
+	mIsDefault = true;
 }
 
 void ConfigValue::setNextValue(const string &value) {
@@ -283,6 +298,10 @@ void ConfigValue::setNextValue(const string &value) {
 void ConfigValue::setDefault(const string &value) {
 	checkType(value, true);
 	mDefaultValue = value;
+	if (mIsDefault) {
+		mValue = mDefaultValue;
+		mNextValue = mDefaultValue;
+	}
 }
 
 const string &ConfigValue::get() const {
@@ -307,9 +326,6 @@ Oid::Oid(vector<oid> path, oid leaf) {
 
 Oid::Oid(vector<oid> path) {
 	mOidPath = path;
-}
-
-Oid::~Oid() {
 }
 
 oid Oid::oidFromHashedString(const string &str) {
@@ -574,7 +590,7 @@ bool ConfigBoolean::parse(const string &value) {
 		return true;
 	else if (value == "false" || value == "0")
 		return false;
-	throw FlexisipException("Bad boolean value" + value);
+	throw FlexisipException("Bad boolean value '" + value + "'");
 	return false;
 }
 
@@ -1127,12 +1143,15 @@ int FileConfigReader::read2(GenericEntry *entry, int level) {
 		if (level < 2) {
 			LOGF("ConfigValues at root is disallowed.");
 		} else if (level == 2) {
-			const char *val = lp_config_get_string(mCfg, cv->getParent()->getName().c_str(), cv->getName().c_str(), cv->getDefault().c_str());
-			try{
-				cv->set(val);
-				cv->setNextValue(val);
-			}catch(std::exception & e){
-				LOGF("While reading '%s', %s.", mFilename.c_str(), e.what());
+			const char *val = lp_config_get_string(mCfg, cv->getParent()->getName().c_str(), cv->getName().c_str(), nullptr);
+			if (val) {
+				try{
+					cv->set(val);
+				}catch(std::exception & e){
+					LOGF("While reading '%s', %s.", mFilename.c_str(), e.what());
+				}
+			} else {
+				cv->restoreDefault();
 			}
 		} else {
 			LOGF("The current file format doesn't support recursive subsections.");

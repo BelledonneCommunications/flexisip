@@ -72,7 +72,7 @@ class ConfigValueListener {
 
 public:
 	ConfigValueListener() = default;
-	virtual ~ConfigValueListener();
+	virtual ~ConfigValueListener() = default;
 	bool onConfigStateChanged(const ConfigValue &conf, ConfigState state);
 
 protected:
@@ -136,7 +136,7 @@ class Oid {
 	std::vector<oid> &getValue() {
 		return mOidPath;
 	}
-	virtual ~Oid();
+	virtual ~Oid() = default;
 
   private:
 	std::vector<oid> mOidPath;
@@ -324,8 +324,8 @@ class GenericStruct : public GenericEntry {
 		return find(name.c_str());
 	}
 	GenericEntry *findApproximate(const char *name) const;
-	virtual void mibFragment(std::ostream &ost, std::string spacing) const;
-	virtual void setParent(GenericEntry *parent);
+	void mibFragment(std::ostream &ost, std::string spacing) const override;
+	void setParent(GenericEntry *parent) override;
 
   private:
 	std::list<GenericEntry *> mEntries;
@@ -334,18 +334,18 @@ class GenericStruct : public GenericEntry {
 class RootConfigStruct : public GenericStruct {
   public:
 	RootConfigStruct(const std::string &name, const std::string &help, std::vector<oid> oid_root_prefix);
-	virtual ~RootConfigStruct();
+	~RootConfigStruct() override;
 };
 
 class StatCounter64 : public GenericEntry {
   public:
 	StatCounter64(const std::string &name, const std::string &help, oid oid_index);
 #ifdef ENABLE_SNMP
-	virtual int handleSnmpRequest(netsnmp_mib_handler *, netsnmp_handler_registration *, netsnmp_agent_request_info *,
-								  netsnmp_request_info *);
+	int handleSnmpRequest(netsnmp_mib_handler *, netsnmp_handler_registration *, netsnmp_agent_request_info *,
+								  netsnmp_request_info *) override;
 #endif
-	virtual void mibFragment(std::ostream &ost, std::string spacing) const;
-	void setParent(GenericEntry *parent);
+	void mibFragment(std::ostream &ost, std::string spacing) const override;
+	void setParent(GenericEntry *parent) override;
 	uint64_t read() {
 		return mValue;
 	}
@@ -405,51 +405,53 @@ class ConfigValue : public GenericEntry {
   public:
 	ConfigValue(const std::string &name, GenericValueType vt, const std::string &help, const std::string &default_value,
 				oid oid_index);
-	void set(const std::string &value);
+
+	/* Set the value and mark it as 'not default' */
+	void set(const std::string &value) {set(std::string(value));}
 	void set(std::string &&value);
+	virtual const std::string &get() const;
+
+	/* Restor the default value and mark the value as 'default'. */
+	void restoreDefault();
+
+	/*
+	 * Set the default value i.e. the value which will be restored by reset(). If the value is
+	 * marked as 'default', it will be automatically updated to the new default value.
+	 */
+	void setDefault(const std::string &value);
+	const std::string &getDefault() const;
+
+	/* Check whether the value is mark as 'default' */
+	bool isDefault() const {return mIsDefault;}
 
 	void setNextValue(const std::string &value);
-	virtual const std::string &get() const;
-	const std::string &getNextValue() const {
-		return mNextValue;
-	}
-	const std::string &getDefault() const;
-	void setDefault(const std::string &value);
-	void setNotifPayload(bool b) {
-		mNotifPayload = b;
-	}
+	const std::string &getNextValue() const {return mNextValue;}
+
+	void setNotifPayload(bool b) {mNotifPayload = b;}
+
 #ifdef ENABLE_SNMP
-	virtual int handleSnmpRequest(netsnmp_mib_handler *, netsnmp_handler_registration *, netsnmp_agent_request_info *,
-								  netsnmp_request_info *);
+	int handleSnmpRequest(netsnmp_mib_handler *, netsnmp_handler_registration *, netsnmp_agent_request_info *,
+								  netsnmp_request_info *) override;
 #endif
-	inline void doConfigMibFragment(std::ostream &ostr, const std::string &syntax, const std::string &spacing) const {
+
+	void doConfigMibFragment(std::ostream &ostr, const std::string &syntax, const std::string &spacing) const {
 		doMibFragment(ostr, "", "", syntax, spacing);
 	}
 
-	virtual void setParent(GenericEntry *parent);
-	virtual void mibFragment(std::ostream &ost, std::string spacing) const;
-	virtual void doMibFragment(std::ostream &ostr, const std::string &def, const std::string &access,
-							   const std::string &syntax, const std::string &spacing) const;
+	void setParent(GenericEntry *parent) override;
+	void mibFragment(std::ostream &ost, std::string spacing) const override;
+	void doMibFragment(std::ostream &ostr, const std::string &def, const std::string &access,
+							   const std::string &syntax, const std::string &spacing) const override;
 
   protected:
-	bool invokeConfigStateChanged(ConfigState state) {
-		if (getParent() && getParent()->getType() == Struct) {
-			ConfigValueListener *listener = getParent()->getConfigListener();
-			if (listener) {
-				return listener->onConfigStateChanged(*this, state);
-			} else {
-				LOGE("%s doesn't implement a config change listener.", getParent()->getName().c_str());
-			}
-		}
-		return true;
-	}
+	bool invokeConfigStateChanged(ConfigState state);
 	void checkType(const std::string & value, bool isDefault);
-	std::string mNextValue;
 
-  private:
 	std::string mValue;
+	std::string mNextValue;
 	std::string mDefaultValue;
-	bool mNotifPayload;
+	bool mIsDefault = true;
+	bool mNotifPayload = false;
 };
 
 class ConfigBoolean : public ConfigValue {
@@ -460,20 +462,20 @@ class ConfigBoolean : public ConfigValue {
 	bool readNext() const;
 	void write(bool value);
 #ifdef ENABLE_SNMP
-	virtual int handleSnmpRequest(netsnmp_mib_handler *, netsnmp_handler_registration *, netsnmp_agent_request_info *,
-								  netsnmp_request_info *);
+	int handleSnmpRequest(netsnmp_mib_handler *, netsnmp_handler_registration *, netsnmp_agent_request_info *,
+								  netsnmp_request_info *) override;
 #endif
-	virtual void mibFragment(std::ostream &ost, std::string spacing) const;
+	void mibFragment(std::ostream &ost, std::string spacing) const override;
 };
 
 class ConfigInt : public ConfigValue {
   public:
 #ifdef ENABLE_SNMP
-	virtual int handleSnmpRequest(netsnmp_mib_handler *, netsnmp_handler_registration *, netsnmp_agent_request_info *,
-								  netsnmp_request_info *);
+	int handleSnmpRequest(netsnmp_mib_handler *, netsnmp_handler_registration *, netsnmp_agent_request_info *,
+								  netsnmp_request_info *) override;
 #endif
 	ConfigInt(const std::string &name, const std::string &help, const std::string &default_value, oid oid_index);
-	virtual void mibFragment(std::ostream &ost, std::string spacing) const;
+	void mibFragment(std::ostream &ost, std::string spacing) const override;
 	int read() const;
 	int readNext() const;
 	void write(int value);
@@ -501,8 +503,8 @@ class ConfigRuntimeError : public ConfigValue {
 	ConfigRuntimeError(const std::string &name, const std::string &help, oid oid_index);
 	std::string generateErrors() const;
 #ifdef ENABLE_SNMP
-	virtual int handleSnmpRequest(netsnmp_mib_handler *, netsnmp_handler_registration *, netsnmp_agent_request_info *,
-								  netsnmp_request_info *);
+	int handleSnmpRequest(netsnmp_mib_handler *, netsnmp_handler_registration *, netsnmp_agent_request_info *,
+								  netsnmp_request_info *) override;
 #endif
 	void writeErrors(GenericEntry *entry, std::ostringstream &oss) const;
 };
@@ -658,8 +660,8 @@ class GenericManager : protected ConfigValueListener {
 
 	protected:
 	GenericManager();
-	virtual ~GenericManager() {
-	}
+	virtual ~GenericManager() = default;
+
   private:
 	static void atexit();
 	bool doIsValidNextConfig(const ConfigValue &cv);
