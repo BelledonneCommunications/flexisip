@@ -619,7 +619,7 @@ bool Record::sAssumeUniqueDomains = false;
 
 Record::Record(const url_t *aor) : mKey(aor ? defineKeyFromUrl(aor) : ""), mOnlyStaticContacts(true) {
 	if (aor && aor->url_type != url_sip && aor->url_type != url_sips){
-		LOGA("Record with invalid aor!");
+		LOGE("Record with invalid aor: [%s]", urlToString(aor));
 		aor = nullptr;
 	}
 	mAor = aor ? url_hdup(mHome.home(), aor) : NULL;
