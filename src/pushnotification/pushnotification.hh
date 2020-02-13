@@ -43,7 +43,8 @@ struct PushInfo {
 	std::string mText;	// Text of the chat message.
 	std::string mUid; // The unique id as used in the ExtendedContact, if available.
 	std::string mAccessToken; // access token required by Microsoft to authenticate our server
-	bool mIsVoip;
+	std::string mTeamId; // The Apple team id
+	bool mIsVoip; // For Apple push: is voip (PushKit) push needed?
 	int mTtl; //Time to live of the push notification.
 	bool mNoBadge; // Whether to display a badge on the application (ios specific).
 	bool mSilent;
