@@ -162,7 +162,7 @@ static vector<shared_ptr<PushNotificationRequest>> createRequestFromArgs(const P
 			//pinfo.mTtl = 60;
 			result.push_back(make_shared<ApplePushNotificationRequest>(pinfo));
 		} else if (args.pntype == "apple") {
-			/* for messages
+			/* for messages and group chat invites
 			iOS app extension get message from callId.
 			It will receive the push but won't be able to display the message */
 			pinfo.mIsVoip = false;

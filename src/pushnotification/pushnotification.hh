@@ -47,6 +47,7 @@ struct PushInfo {
 	bool mIsVoip; // For Apple push: is voip (PushKit) push needed?
 	int mTtl; //Time to live of the push notification.
 	bool mNoBadge; // Whether to display a badge on the application (ios specific).
+	bool mIsChatRoomInvite; // Whether the push is for a message or a chat room invite (ios specific).
 	bool mSilent;
 };
 

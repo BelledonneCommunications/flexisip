@@ -87,7 +87,8 @@ private:
 	bool needsPush(const sip_t *sip);
 	void makePushNotification(const shared_ptr<MsgSip> &ms, const shared_ptr<OutgoingTransaction> &transaction);
 	void removePushNotification(PushNotificationContext *pn);
-	void parseApplePushParams(const char *params, PushInfo &pinfo);
+	void parseApplePushParams(sip_t *sip, const char *params, PushInfo &pinfo);
+	bool isGroupChatInvite(sip_t *sip);
 
 	std::map<std::string, std::shared_ptr<PushNotificationContext>> mPendingNotifications; // map of pending push notifications. Its
 																			// purpose is to avoid sending multiples
@@ -302,7 +303,7 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 		mPNS->setupWindowsPhoneClient(windowsPhonePackageSID, windowsPhoneApplicationSecret);
 }
 
-void PushNotification::parseApplePushParams(const char *params, PushInfo &pinfo) {
+void PushNotification::parseApplePushParams(sip_t *sip, const char *params, PushInfo &pinfo) {
 	string deviceToken;
 	string bundleId;
 	vector<string> servicesAvailable;
@@ -336,9 +337,11 @@ void PushNotification::parseApplePushParams(const char *params, PushInfo &pinfo)
 		throw invalid_argument("no pn-param");
 	}
 
-	if (pinfo.mEvent == PushInfo::Message) {
+	bool chatRoomInvite = isGroupChatInvite(sip);
+	if (pinfo.mEvent == PushInfo::Message || chatRoomInvite) {
 		requiredService = "remote";
 		pinfo.mIsVoip = false;
+		pinfo.mIsChatRoomInvite = chatRoomInvite;
 	} else {
 		requiredService = "voip";
 		pinfo.mIsVoip = true;
@@ -393,6 +396,18 @@ void PushNotification::parseApplePushParams(const char *params, PushInfo &pinfo)
 	pinfo.mAppId = bundleId + (pinfo.mIsVoip ? ".voip" : "") + (isDev ? ".dev" : ".prod");
 }
 
+bool PushNotification::isGroupChatInvite(sip_t *sip) {
+	if (sip->sip_content_type && sip->sip_content_type->c_type &&
+		strcasecmp(sip->sip_content_type->c_subtype, "resource-lists+xml") != 0) {
+		return false;
+	}
+	if (sip->sip_content_type && sip->sip_content_type->c_params &&
+		!msg_params_find(sip->sip_content_type->c_params, "text")) {
+		return false;
+	}
+	return true;
+}
+
 void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 											const shared_ptr<OutgoingTransaction> &transaction) {
 	shared_ptr<PushNotificationContext> context;
@@ -415,7 +430,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 		string type;
 		if (url_has_param(url, "pn-provider")) {
 			try {
-				parseApplePushParams(params, pinfo);
+				parseApplePushParams(sip, params, pinfo);
 			} catch (const invalid_argument &e) {
 				SLOGD << e.what();
 				return;
@@ -546,8 +561,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 					msg_snd = "empty";
 				}
 
-				bool isGroupChatInvite = (sip->sip_content_type != NULL && strcasecmp(sip->sip_content_type->c_subtype, "resource-lists+xml") == 0);
-				pinfo.mAlertMsgId = (sip->sip_request->rq_method == sip_method_invite && !isGroupChatInvite)
+				pinfo.mAlertMsgId = (sip->sip_request->rq_method == sip_method_invite && !isGroupChatInvite(sip))
 					? call_str
 					: (sip->sip_request->rq_method == sip_method_message)
 						? msg_str

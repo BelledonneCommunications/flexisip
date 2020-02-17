@@ -54,7 +54,7 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 		he/she has unread messages even if we do not know the exact count */
 		payload << ",\"badge\":" << (info.mNoBadge ? 0 : 1);
 		payload << "},\"call-id\":\"" << callid << "\",\"pn_ttl\":" << info.mTtl << ",\"uuid\":" << quoteStringIfNeeded(info.mUid)
-			<< ",\"send-time\":\"" << date << "\"}";
+			<< ",\"send-time\":\"" << date << "\", \"chat-room-invite\":" << (info.mIsChatRoomInvite ? 1 : 0) << "}";
 	}
 
 	SLOGD << "PNR " << this << " payload is " << payload.str();
