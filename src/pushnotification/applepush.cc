@@ -35,7 +35,9 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 				<< ", \"send-time\":\"" << date << "\"}, \"pn_ttl\":"<< info.mTtl << "}";
 		}else{
 			// Use a normal push notification with content-available set to 1, no alert, no sound.
-			payload << "{\"aps\": { \"badge\" : 0, \"content-available\" : 1, \"call-id\":\"" << callid <<"\", \"uuid\":" << quoteStringIfNeeded(info.mUid)
+			payload << "{\"aps\": { \"badge\" : 0, \"content-available\" : 1, \"loc-key\":\"" << msg_id << "\", "
+				<< "\"loc-args\":[\"" << arg << "\"], "
+				<< "\"call-id\":\"" << callid <<"\", \"uuid\":" << quoteStringIfNeeded(info.mUid)
 				<< ", \"send-time\":\"" << date << "\"}, \"pn_ttl\":"<< info.mTtl << "}";
 		}
 	} else {
