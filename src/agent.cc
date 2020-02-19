@@ -134,13 +134,19 @@ void Agent::startLogWriter() {
 				LOGF("DataBaseEventLogWriter: unable to use database (`ENABLE_SOCI` is not defined).");
 			#endif
 		} else {
-			string logdir = cr->get<ConfigString>("dir")->read();
-			FilesystemEventLogWriter *lw = new FilesystemEventLogWriter(logdir);
-			if (!lw->isReady()) {
-				delete lw;
-			} else {
-				mLogWriter.reset(lw);
+			const auto *dirConfig = cr->get<ConfigString>("dir");
+			const auto *fsDirConfig = cr->get<ConfigString>("filesystem-direrctory");
+
+			if (!dirConfig->isDefault() && !fsDirConfig->isDefault()) {
+				SLOGW << "'event-logs/dir' and 'event-logs/filesystem-directory' are both defined. "
+					"'event-logs/filesystem-directory' will be used";
 			}
+			const string &logdir = !dirConfig->isDefault() && fsDirConfig->isDefault()
+				? dirConfig->read()
+				: fsDirConfig->read();
+
+			unique_ptr<FilesystemEventLogWriter> lw(new FilesystemEventLogWriter(logdir));
+			if (lw->isReady()) mLogWriter = move(lw);
 		}
 	}
 }
