@@ -995,11 +995,20 @@ GenericManager::GenericManager()
 		config_item_end};
 
 	static ConfigItemDescriptor cluster_conf[] = {
-		{Boolean, "enabled", "Set to 'true' if that node is part of a cluster", "false"},
-		{String, "cluster-domain", "Domain name that is to be used by external proxies to connect on any node of the cluster randomly. "
-			"The round-robin can be implemented with SRV records or by declaring several A records for the that domain", ""},
-		{StringList, "nodes", "List of IP addresses of all nodes present in the cluster", ""},
-		{String, "internal-transport", "Internal transport used to communicate with other proxy", "sip:\%auto:5059;transport=tcp"},
+		{Boolean, "enabled", "Enable cluster mode. If 'false', the parameters of [cluster] section won't have any "
+			"effect.", "false"},
+		{String, "cluster-domain", "Domain name that enables external SIP agents to access to the cluster. "
+			"Such domain is often associated to DNS SRV records for each proxy of the cluster, so that revolution "
+			"leads to any proxy randomly.\n"
+			"Flexisip uses that domain when it needs to insert a 'Path' or 'Record-route' header addressing the "
+			"cluster instead of itself.", ""},
+		{StringList, "nodes", "List of IP addresses of all the proxies present in the cluster. SIP messages coming "
+			"from these addresses won't be challenged by the authentication module and won't have any rate limit "
+			"applied by the DoS protection module.", ""},
+		{String, "internal-transport", "Transport to use to communicate with the other proxy of the cluster. "
+			"This is useful only when no transport declared in 'global/transport' parameter can be used to "
+			"reach the other proxies e.g. when inter-proxy communications are to be made through an private network.\n"
+			"Ex: sip:10.0.0.8:5059;transport=tcp", ""},
 		config_item_end};
 
 	static ConfigItemDescriptor mdns_conf[] = {
@@ -1048,7 +1057,8 @@ GenericManager::GenericManager()
 
 	GenericStruct *cluster = new GenericStruct(
 		"cluster",
-		"Should the server be part of a cluster, this section describes the topology of the cluster.", 0);
+		"This section contains some parameters useful when the current proxy is part of a network of proxies (cluster)"
+		"which serve the same domain.", 0);
 	mConfigRoot.addChild(cluster);
 	cluster->addChildrenValues(cluster_conf);
 	cluster->setReadOnly(true);
