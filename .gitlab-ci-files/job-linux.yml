@@ -11,7 +11,7 @@
     - export CCACHE_BASEDIR=${PWD}
     - export CCACHE_DIR=${PWD}/ccache
     - ccache -s
-    - git submodule foreach --recursive git fetch --tags
+    - git submodule foreach --recursive git fetch --tags --verbose
 
   after_script:
     - export CCACHE_DIR=${PWD}/ccache
