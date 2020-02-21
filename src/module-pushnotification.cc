@@ -419,7 +419,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 		? PushInfo::Call
 		: sip->sip_request->rq_method == sip_method_message
 			? PushInfo::Message
-			: PushInfo::Refer; //TODO PAUL : what?
+			: PushInfo::Refer;
 	pinfo.mTtl = mTtl;
 	int time_out = mTimeout;
 
