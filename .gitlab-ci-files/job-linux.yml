@@ -134,7 +134,7 @@ tests-flexisip-mr:
     #SDK_BRANCH
     #Run test suites simultaneously.
     PARALLEL_MODE: FALSE
-    docker_build_options: '--no-cache --force-rm -t flexisip:latest -f docker Dockerfile'
+    docker_build_options: "--no-cache --force-rm -t flexisip:latest -f docker Dockerfile"
 
   before_script:
     ##
