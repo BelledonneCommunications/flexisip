@@ -97,7 +97,7 @@
       - $DEPLOY_UBUNTU
   only:
     - schedules
-    
+
   script:
     - mv WORK/flexisip-rpm/rpmbuild/DEBS docker/DEBS
     - cd docker
@@ -113,3 +113,116 @@
   extends: .job-linux
   only:
     - schedules
+
+tests-flexisip-mr:
+  stage: image
+  tags: [ "linux"]
+  except:
+    variables:
+      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
+
+  variables:
+    #Build a new Flexisip Docker image from the last published RPM package.
+    REBUILD_FLEXISIP_IMAGE: TRUE
+    #Rebuild docker images of services which Flexisip needs to work: user database, redis server, etc.
+    REBUILD_FLEXISIP_AUXILIARIES: FALSE
+    #Set this option to true each time you change the commit to checkout for linphone-sdk, otherwise, the SDK is never rebuild.
+    REBUILD_SDK: FALSE
+    SDK_VERSION: 4.3
+    #Git branch to use to build the liblinphone_tester image. "release/${SDK_VERSION}" will be used as branch if empty.
+    #SDK_BRANCH
+    #Run test suites simultaneously.
+    PARALLEL_MODE: FALSE
+    docker_build_options: '--no-cache --force-rm -t flexisip:latest -f docker Dockerfile'
+
+  before_script:
+    ##
+    ## If a TUNNEL_USER_KEY is defined then start ssh-agent and add the key
+    ##
+    #- if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then eval $(ssh-agent -s); fi
+    #- if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then echo "$TUNNEL_USER_KEY" | tr -d '\r' | ssh-add - > /dev/null; fi
+    #- if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then mkdir -p ~/.ssh && chmod 700 ~/.ssh; fi
+    #- if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then echo -e "Host gitlab.linphone.org\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config; fi
+
+
+  script:
+    - git clone -b feature/docker_liblinphone_tester https://gitlab.linphone.org/BC/Public/linphone-sdk --single-branch --recursive --jobs 12
+    - git clone -b conf/standalone-flexisip git@gitlab.linphone.org:BC/Public/flexisip-tester --jobs 12
+    - |
+        if [ "$REBUILD_FLEXISIP_IMAGE" = "true" ]; then
+        docker build --verbose $docker_build_options .
+        fi
+    - sourcedir=$PWD/linphone-sdk
+    - |
+        if [ -z "$SDK_BRANCH" ]; then
+        SDK_BRANCH="release/$SDK_VERSION"
+        fi
+
+    - |
+        if [ "$REBUILD_SDK" = "true" ]; then
+        docker build --verbose --no-cache --force-rm -t liblinphone_tester:$SDK_VERSION --build-arg="branch=$SDK_BRANCH" -f "$sourcedir/docker-files/liblinphone-tester" .
+        fi
+
+    - |
+        docker_compose_options=''
+        for name in 'docker-compose.yaml' 'docker-compose-standalone.yaml'; do
+        docker_compose_options="$docker_compose_options -f $PWD/flexisip-tester/docker/$name"
+        done
+
+    - liblinphone_tester="liblinphone_tester:$SDK_VERSION"
+
+    - liblinphone_tester_options='--dns-hosts none --log-file liblinphone_tester.log --xml --verbose --show-account-manager-logs'
+
+    - |
+        if [ "$PARALLEL_MODE" = "true" ]; then
+        liblinphone_tester_options="$liblinphone_tester_options --parallel"
+        fi
+
+    - |
+        workspace="$PWD/liblinphone_tester_workspace"
+        export FLEXISIP_LOGS="$workspace"
+
+    - docker_run_options="--volume=$workspace:/home/bc/linphone-sdk-build/linphone-sdk/desktop/work --network=docker_default"
+    - docker_run_options="$docker_run_options --device=/dev/snd --user 1000:29"
+
+    - mkdir -p $workspace
+    - rm -rf $workspace/*
+    - cd $workspace
+
+    - docker-compose --verbose $docker_compose_options down
+    - |
+        if [ "$REBUILD_FLEXISIP_AUXILIARIES" = "true" ]; then
+        docker-compose $docker_compose_options build
+        fi
+
+    - docker-compose --verbose $docker_compose_options up -d
+
+    - sleep 10
+
+    - docker run $docker_run_options $liblinphone_tester $liblinphone_tester_options || echo 'Tests have failed'
+    - docker-compose $docker_compose_options stop
+
+    - gzip *.log
+
+  after_script:
+    # simplifing artifacts browsing
+    # Moving artifacts to ease browsing from web view
+    # initially, all the paths needed to be browsed entirely to see artifacts
+    # now there is only the folder "results" to check
+    - sudo mkdir ${CI_PROJECT_DIR}/results
+    - sudo chmod 777 ${CI_PROJECT_DIR}/results
+    - cp -r BCUnitAutomated* ${CI_PROJECT_DIR}/results
+    - cp -r *.log ${CI_PROJECT_DIR}/results
+
+  artifacts:
+    paths:
+      - results/*
+    when: always
+    reports:
+      junit:
+        - liblinphone_tester_workspace/BCUnitAutomated-Results.xml
+    expire_in: 4 week
+    #cloner flexisip_tester (branche conf/standalone_flexisip) ainsi que linphone-sdk (branche feature/docker_liblinphone_tester) avec update recursif des sous-modules
+
+    #penser aussi à l'upload des rapports de test.
