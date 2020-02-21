@@ -124,16 +124,16 @@ tests-flexisip-mr:
 
   variables:
     #Build a new Flexisip Docker image from the last published RPM package.
-    REBUILD_FLEXISIP_IMAGE: true
+    REBUILD_FLEXISIP_IMAGE: "true"
     #Rebuild docker images of services which Flexisip needs to work: user database, redis server, etc.
-    REBUILD_FLEXISIP_AUXILIARIES: false
+    REBUILD_FLEXISIP_AUXILIARIES: "false"
     #Set this option to true each time you change the commit to checkout for linphone-sdk, otherwise, the SDK is never rebuild.
-    REBUILD_SDK: false
-    SDK_VERSION: 4.3
+    REBUILD_SDK: "false"
+    SDK_VERSION: "4.3"
     #Git branch to use to build the liblinphone_tester image. "release/${SDK_VERSION}" will be used as branch if empty.
     #SDK_BRANCH
     #Run test suites simultaneously.
-    PARALLEL_MODE: false
+    PARALLEL_MODE: "false"
     DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t flexisip:latest -f docker Dockerfile"
 
   before_script:
