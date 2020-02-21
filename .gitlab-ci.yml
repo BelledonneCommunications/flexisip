@@ -30,6 +30,7 @@ include:
 
 stages:
  - build
+ - test
  - package
  - image
  - deploy
