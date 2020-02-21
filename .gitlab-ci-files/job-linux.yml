@@ -40,6 +40,7 @@
       - $DEPLOY_UBUNTU
 
   script:
+    - source /opt/rh/devtoolset-8/enable
     - sudo rpm -e `rpm -qa | grep "^bc-[^0-9]"` || true
     - ./prepare.py flexisip-rpm $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS
     - cmake --build WORK/flexisip-rpm/cmake -- $ADDITIONAL_BUILD_OPTIONS
