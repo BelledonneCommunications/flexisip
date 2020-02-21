@@ -318,10 +318,10 @@ void PushNotification::parseApplePushParams(sip_t *sip, const char *params, Push
 				isDev = true;
 			}
 		} else {
-			throw invalid_argument("pn-provider invalid syntax");
+			throw runtime_error("pn-provider invalid syntax");
 		}
 	} catch (const out_of_range &) {
-		throw invalid_argument("no pn-provider");
+		throw runtime_error("no pn-provider");
 	}
 
 	try {
@@ -331,10 +331,10 @@ void PushNotification::parseApplePushParams(sip_t *sip, const char *params, Push
 			bundleId = match[2].str();
 			servicesAvailable = StringUtils::split(match[3].str(), "&");
 		} else {
-			throw invalid_argument("pn-param invalid syntax");
+			throw runtime_error("pn-param invalid syntax");
 		}
 	} catch (const out_of_range &) {
-		throw invalid_argument("no pn-param");
+		throw runtime_error("no pn-param");
 	}
 
 	bool chatRoomInvite = isGroupChatInvite(sip);
@@ -355,7 +355,7 @@ void PushNotification::parseApplePushParams(sip_t *sip, const char *params, Push
 		}
 	}
 	if (!hasRequiredService) {
-		throw invalid_argument(string("pn-param does not define required service: " + requiredService));
+		throw runtime_error(string("pn-param does not define required service: " + requiredService));
 	}
 
 	try {
@@ -372,7 +372,7 @@ void PushNotification::parseApplePushParams(sip_t *sip, const char *params, Push
 						}
 					}
 				} else {
-					throw invalid_argument("pn-prid invalid syntax");
+					throw runtime_error("pn-prid invalid syntax");
 				}
 			} else {
 				if (regex_match(tokenAndService, match, regex("([a-zA-Z0-9]+):([a-z]+)"))) {
@@ -380,16 +380,16 @@ void PushNotification::parseApplePushParams(sip_t *sip, const char *params, Push
 						deviceToken = match[1].str();
 					}
 				} else {
-					throw invalid_argument("pn-prid invalid syntax");
+					throw runtime_error("pn-prid invalid syntax");
 				}
 			}
 		}
 	} catch (const out_of_range &) {
-		throw invalid_argument("no pn-param");
+		throw runtime_error("no pn-param");
 	}
 
 	if (deviceToken.empty()) {
-		throw invalid_argument(string("pn-prid no token provided for required service: " + requiredService));
+		throw runtime_error(string("pn-prid no token provided for required service: " + requiredService));
 	}
 
 	pinfo.mDeviceToken = deviceToken;
@@ -431,8 +431,8 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 		if (url_has_param(url, "pn-provider")) {
 			try {
 				parseApplePushParams(sip, params, pinfo);
-			} catch (const invalid_argument &e) {
-				SLOGD << e.what();
+			} catch (const runtime_error &e) {
+				SLOGE << "Error while parsing Contact URI for Apple push: " << e.what();
 				return;
 			}
 			type = "apple";
@@ -444,14 +444,14 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			try {
 				pinfo.mDeviceToken = UriUtils::getParamValue(params, "pn-tok");
 			} catch (const out_of_range &) {
-				SLOGD << "no pn-tok";
+				SLOGE << "no pn-tok";
 				return;
 			}
 
 			try {
 				pinfo.mAppId = UriUtils::getParamValue(params, "app-id");
 			} catch (const out_of_range &) {
-				SLOGD << "no app-id";
+				SLOGE << "no app-id";
 				return;
 			}
 		}
@@ -476,7 +476,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 					type = UriUtils::getParamValue(params, "pn-type");
 					pinfo.mType = type;
 				} catch (const out_of_range &) {
-					SLOGD << "no pn-type";
+					SLOGE << "no pn-type";
 					return;
 				}
 			}
