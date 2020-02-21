@@ -1,8 +1,8 @@
-FROM centos
+FROM centos:7
 MAINTAINER  Jehan Monnier <jehan.monnier@linphone.org>
 
 # Prepare the Belledonne's repository
-COPY docker/Belledonne.repo /etc/yum.repos.d/Belledonne.repo 
+COPY docker/Belledonne.repo /etc/yum.repos.d/Belledonne.repo
 RUN yum -y install epel-release  yum-downloadonly gdb
 RUN yum update -y
 
