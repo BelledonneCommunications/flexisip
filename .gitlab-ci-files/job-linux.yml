@@ -134,7 +134,7 @@ tests-flexisip-mr:
     #SDK_BRANCH
     #Run test suites simultaneously.
     PARALLEL_MODE: FALSE
-    docker_build_options: "--no-cache --force-rm -t flexisip:latest -f docker Dockerfile"
+    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t flexisip:latest -f docker Dockerfile"
 
   before_script:
     ##
@@ -151,7 +151,7 @@ tests-flexisip-mr:
     - git clone -b conf/standalone-flexisip git@gitlab.linphone.org:BC/Public/flexisip-tester --jobs 12
     - |
         if [ "$REBUILD_FLEXISIP_IMAGE" = "true" ]; then
-        docker build --verbose $docker_build_options .
+        docker build --verbose $DOCKER_BUILD_OPTIONS .
         fi
     - sourcedir=$PWD/linphone-sdk
     - |
