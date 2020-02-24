@@ -196,6 +196,8 @@ tests-flexisip-mr:
         docker-compose $docker_compose_options build
         fi
 
+    - docker login gitlab.linphone.org:4567
+
     - docker-compose $docker_compose_options up -d
 
     - sleep 10
