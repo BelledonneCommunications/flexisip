@@ -41,6 +41,10 @@
 
   script:
     - sudo rpm -e `rpm -qa | grep "^bc-[^0-9]"` || true
+	- echo "DEFAULT_CMAKE_OPTIONS=$DEFAULT_CMAKE_OPTIONS"
+	- echo "CMAKE_OPTIONS=$CMAKE_OPTIONS"
+	- echo "ADDITIONAL_BUILD_OPTIONS=$ADDITIONAL_BUILD_OPTIONS"
+	- echo "PATH=$PATH"
     - ./prepare.py flexisip-rpm $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS
     - cmake --build WORK/flexisip-rpm/cmake -- $ADDITIONAL_BUILD_OPTIONS
 
