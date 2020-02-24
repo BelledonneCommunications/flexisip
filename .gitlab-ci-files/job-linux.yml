@@ -40,6 +40,7 @@
       - $DEPLOY_UBUNTU
 
   script:
+    - source /opt/rh/devtoolset-8/enable
     - sudo rpm -e `rpm -qa | grep "^bc-[^0-9]"` || true
     - echo "DEFAULT_CMAKE_OPTIONS=$DEFAULT_CMAKE_OPTIONS"
     - echo "CMAKE_OPTIONS=$CMAKE_OPTIONS"
