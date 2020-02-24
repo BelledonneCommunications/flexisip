@@ -180,11 +180,15 @@ void FileAuthDb::sync() {
 	size_t parsedSize = 0;
 	shared_ptr<FileAuthDbParserElem> ret = parser->parseInput("password-file", fileContent, &parsedSize);
 
-	if (parsedSize < fileContent.size()) {
-		LOGF("Failed to parse authdb file. Parsing unexpectedly stopped at char: %d", (int)parsedSize);
+	shared_ptr<FileAuthDbParserRoot> pwdFile = dynamic_pointer_cast<FileAuthDbParserRoot>(ret);
+	if (pwdFile == nullptr) {
+		LOGF("Failed to parse authdb file.");
 		return;
 	}
-	shared_ptr<FileAuthDbParserRoot> pwdFile = dynamic_pointer_cast<FileAuthDbParserRoot>(ret);
+	if (parsedSize < fileContent.size()){
+		LOGF("Parsing of Authdb file ended prematurely at char %d.", (int)parsedSize);
+		return;
+	}
 
 	//Only version == 1 is supported
 	if (pwdFile->getVersion() != "1") {
