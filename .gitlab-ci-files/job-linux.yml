@@ -140,10 +140,10 @@ tests-flexisip-mr:
     ##
     ## If a FLEXISIP_TESTER_USER_KEY is defined then start ssh-agent and add the key
     ##
-    - if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then eval $(ssh-agent -s); fi
-    - if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then echo "$FLEXISIP_TESTER_USER_KEY" | tr -d '\r' | ssh-add - > /dev/null; fi
-    - if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then mkdir -p ~/.ssh && chmod 700 ~/.ssh; fi
-    - if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then echo -e "Host gitlab.linphone.org\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config; fi
+    #- if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then eval $(ssh-agent -s); fi
+    #- if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then echo "$FLEXISIP_TESTER_USER_KEY" | tr -d '\r' | ssh-add - > /dev/null; fi
+    #- if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then mkdir -p ~/.ssh && chmod 700 ~/.ssh; fi
+    #- if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then echo -e "Host gitlab.linphone.org\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config; fi
 
 
   script:
@@ -196,7 +196,7 @@ tests-flexisip-mr:
         docker-compose $docker_compose_options build
         fi
 
-    - docker login gitlab.linphone.org:4567
+    - docker login -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD $CI_REGISTRY
 
     - docker-compose $docker_compose_options up -d
 
