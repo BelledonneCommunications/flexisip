@@ -62,7 +62,7 @@ job-centos7-makefile-clang:
 
 job-centos7-rpm:
   tags: [ "docker-centos7" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centost:7
   extends: .job-linux-rpm
 
 
