@@ -124,7 +124,7 @@ tests-flexisip-mr:
 
   variables:
     #Build a new Flexisip Docker image from the last published RPM package.
-    REBUILD_FLEXISIP_IMAGE: "false"
+    REBUILD_FLEXISIP_IMAGE: "true"
     #Rebuild docker images of services which Flexisip needs to work: user database, redis server, etc.
     REBUILD_FLEXISIP_AUXILIARIES: "false"
     #Set this option to true each time you change the commit to checkout for linphone-sdk, otherwise, the SDK is never rebuild.
@@ -140,10 +140,10 @@ tests-flexisip-mr:
     ##
     ## If a FLEXISIP_TESTER_USER_KEY is defined then start ssh-agent and add the key
     ##
-    - if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then eval $(ssh-agent -s); fi
-    - if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then echo "$FLEXISIP_TESTER_USER_KEY" | tr -d '\r' | ssh-add - > /dev/null; fi
-    - if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then mkdir -p ~/.ssh && chmod 700 ~/.ssh; fi
-    - if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then echo -e "Host gitlab.linphone.org\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config; fi
+    #- if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then eval $(ssh-agent -s); fi
+    #- if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then echo "$FLEXISIP_TESTER_USER_KEY" | tr -d '\r' | ssh-add - > /dev/null; fi
+    #- if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then mkdir -p ~/.ssh && chmod 700 ~/.ssh; fi
+    #- if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then echo -e "Host gitlab.linphone.org\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config; fi
 
 
   script:
@@ -195,8 +195,6 @@ tests-flexisip-mr:
         if [ "$REBUILD_FLEXISIP_AUXILIARIES" = "true" ]; then
         docker-compose $docker_compose_options build
         fi
-
-    - docker login gitlab.linphone.org:4567
 
     - docker-compose $docker_compose_options up -d
 
