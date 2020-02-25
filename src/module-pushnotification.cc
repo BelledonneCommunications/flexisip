@@ -87,7 +87,7 @@ private:
 	bool needsPush(const sip_t *sip);
 	void makePushNotification(const shared_ptr<MsgSip> &ms, const shared_ptr<OutgoingTransaction> &transaction);
 	void removePushNotification(PushNotificationContext *pn);
-	void parseApplePushParams(sip_t *sip, const char *params, PushInfo &pinfo);
+	void parseApplePushParams(const shared_ptr<MsgSip> &ms, const char *params, PushInfo &pinfo);
 	bool isGroupChatInvite(sip_t *sip);
 
 	std::map<std::string, std::shared_ptr<PushNotificationContext>> mPendingNotifications; // map of pending push notifications. Its
@@ -303,13 +303,14 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 		mPNS->setupWindowsPhoneClient(windowsPhonePackageSID, windowsPhoneApplicationSecret);
 }
 
-void PushNotification::parseApplePushParams(sip_t *sip, const char *params, PushInfo &pinfo) {
+void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const char *params, PushInfo &pinfo) {
 	string deviceToken;
 	string bundleId;
 	vector<string> servicesAvailable;
 	bool isDev = false;
 	string requiredService;
 	smatch match;
+	sip_t *sip = ms->getSip();
 
 	try {
 		string pnProvider = UriUtils::getParamValue(params, "pn-provider");
@@ -341,7 +342,9 @@ void PushNotification::parseApplePushParams(sip_t *sip, const char *params, Push
 	if (pinfo.mEvent == PushInfo::Message || chatRoomInvite) {
 		requiredService = "remote";
 		pinfo.mIsVoip = false;
-		pinfo.mIsChatRoomInvite = chatRoomInvite;
+		if (chatRoomInvite) {
+			pinfo.mChatRoomAddr = sip->sip_from->a_url->url_user;
+		}
 	} else {
 		requiredService = "voip";
 		pinfo.mIsVoip = true;
@@ -430,7 +433,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 		string type;
 		if (url_has_param(url, "pn-provider")) {
 			try {
-				parseApplePushParams(sip, params, pinfo);
+				parseApplePushParams(ms, params, pinfo);
 			} catch (const runtime_error &e) {
 				SLOGE << "Error while parsing Contact URI for Apple push: " << e.what();
 				return;
