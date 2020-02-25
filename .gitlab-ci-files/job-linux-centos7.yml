@@ -16,6 +16,7 @@ job-centos7-makefile-gcc:
     CXX: g++
     ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
   extends: .scheduled-job-linux
+  before_script: source /opt/rh/devtoolset-8/enable
 
 
 job-centos7-makefile-clang:
@@ -64,6 +65,7 @@ job-centos7-rpm:
   tags: [ "docker-centos7" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
   extends: .job-linux-rpm
+  before_script: source /opt/rh/devtoolset-8/enable
 
 
 job-centos7-rpm-deploy:
