@@ -51,6 +51,15 @@ option(ENABLE_UNIT_TESTS "Enable flexisip unit tests (low level tests)" ON)
 
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
 
+
+# Check that the C++ compiler is compliant with C++ 11 standard
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9.0")
+	message(FATAL_ERROR "GCC 4.9.0 or latter is required. Older version of GCC are known to not fully support C++ 11")
+endif()
+
+
 find_package(Threads)
 
 if(NOT CMAKE_INSTALL_RPATH AND CMAKE_INSTALL_PREFIX)
