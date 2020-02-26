@@ -128,7 +128,7 @@ tests-flexisip-mr:
     #Rebuild docker images of services which Flexisip needs to work: user database, redis server, etc.
     REBUILD_FLEXISIP_AUXILIARIES: "false"
     #Set this option to true each time you change the commit to checkout for linphone-sdk, otherwise, the SDK is never rebuild.
-    REBUILD_SDK: "false"
+    REBUILD_SDK: "true"
     SDK_VERSION: "4.3"
     #Git branch to use to build the liblinphone_tester image. "release/${SDK_VERSION}" will be used as branch if empty.
     #SDK_BRANCH
@@ -147,7 +147,7 @@ tests-flexisip-mr:
 
 
   script:
-    - git clone -b feature/docker_liblinphone_tester --single-branch https://gitlab.linphone.org/BC/Public/linphone-sdk --single-branch --recursive --jobs 12 linphone-sdk-docker
+    - git clone -b feature/docker_liblinphone_tester --single-branch https://gitlab.linphone.org/BC/Public/linphone-sdk --recursive --jobs 12 linphone-sdk-docker
     - git clone -b conf/standalone-flexisip --single-branch git@gitlab.linphone.org:BC/Public/flexisip-tester --jobs 12
     - |
         if [ "$REBUILD_FLEXISIP_IMAGE" = "true" ]; then
@@ -161,7 +161,7 @@ tests-flexisip-mr:
 
     - |
         if [ "$REBUILD_SDK" = "true" ]; then
-        docker build --verbose --no-cache --force-rm -t liblinphone_tester:$SDK_VERSION --build-arg="branch=$SDK_BRANCH" -f "$sourcedir/docker-files/liblinphone-tester" .
+        docker build --no-cache --force-rm -t liblinphone_tester:$SDK_VERSION --build-arg="branch=$SDK_BRANCH" -f "$sourcedir/docker-files/liblinphone-tester" .
         fi
 
     - |
