@@ -205,15 +205,17 @@ tests-flexisip-mr:
 
     - gzip *.log
 
+    - tree
+
   after_script:
     # simplifing artifacts browsing
     # Moving artifacts to ease browsing from web view
     # initially, all the paths needed to be browsed entirely to see artifacts
     # now there is only the folder "results" to check
-    - sudo mkdir ${CI_PROJECT_DIR}/results
-    - sudo chmod 777 ${CI_PROJECT_DIR}/results
-    - cp -r BCUnitAutomated* ${CI_PROJECT_DIR}/results
-    - cp -r *.log ${CI_PROJECT_DIR}/results
+    - mkdir ${CI_PROJECT_DIR}/results
+    - chmod 777 ${CI_PROJECT_DIR}/results
+    - cp -r ${CI_PROJECT_DIR}/liblinphone_tester_workspace/BCUnitAutomated* ${CI_PROJECT_DIR}/results
+    - cp -r ${CI_PROJECT_DIR}/liblinphone_tester_workspace/*.log ${CI_PROJECT_DIR}/results
 
   artifacts:
     paths:
