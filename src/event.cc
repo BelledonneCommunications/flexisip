@@ -66,6 +66,26 @@ const char *MsgSip::print() {
 	return msg_as_string(getHome(), mMsg, NULL, 0, &msg_size);
 }
 
+std::string MsgSip::printContext() const {
+	ostringstream os;
+	sip_t *sip = getSip();
+	vector<char> buffer(4096);
+
+	sip_from_e(buffer.data(), buffer.size(), (msg_header_t *)sip->sip_from, 0);
+	os << "From: " << buffer.data() << endl;
+
+	sip_to_e(buffer.data(), buffer.size(), (msg_header_t *)sip->sip_to, 0);
+	os << "To: " << buffer.data() << endl;
+
+	sip_call_id_e(buffer.data(), buffer.size(), (msg_header_t *)sip->sip_call_id, 0);
+	os << "Call-ID: " << buffer.data() << endl;
+
+	sip_cseq_e(buffer.data(), buffer.size(), (msg_header_t *)sip->sip_cseq, 0);
+	os << "CSeq: " << buffer.data();
+
+	return os.str();
+}
+
 MsgSip::~MsgSip() {
 	// LOGD("Destroy MsgSip %p", this);
 	msg_destroy(mMsg);

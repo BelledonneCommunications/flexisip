@@ -193,6 +193,16 @@ inline std::basic_ostream<char, TraitsT> &operator<<(std::basic_ostream<char, Tr
 	return strm;
 }
 
+class InvalidAorError : public std::invalid_argument {
+public:
+	InvalidAorError(const url_t *aor);
+	const char *what() const noexcept override {return mAor;}
+
+private:
+	SofiaAutoHome mHome;
+	const char *mAor = nullptr;
+};
+
 class Record {
 	friend class RegistrarDb;
 

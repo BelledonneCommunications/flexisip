@@ -63,6 +63,7 @@ class MsgSip {
 
 	void serialize() const {msg_serialize(mMsg, (msg_pub_t *)getSip());}
 	const char *print();
+	std::string printContext() const;
 
   private:
 	void assignMsg(msg_t *msg);
