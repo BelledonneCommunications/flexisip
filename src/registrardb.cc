@@ -16,15 +16,6 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <flexisip/registrardb.hh>
-#include "registrardb-internal.hh"
-#ifdef ENABLE_REDIS
-#include "registrardb-redis.hh"
-#endif
-#include <flexisip/common.hh>
-
-#include <flexisip/configmanager.hh>
-
 #include <algorithm>
 #include <ctime>
 #include <cstdio>
@@ -33,8 +24,17 @@
 #include <sstream>
 
 #include <sofia-sip/sip_protos.h>
-#include "recordserializer.hh"
+
+#include <flexisip/configmanager.hh>
+#include <flexisip/common.hh>
 #include <flexisip/module.hh>
+#include <flexisip/registrardb.hh>
+
+#include "recordserializer.hh"
+#include "registrardb-internal.hh"
+#ifdef ENABLE_REDIS
+#include "registrardb-redis.hh"
+#endif
 #include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
 
@@ -525,6 +525,10 @@ void ExtendedContact::extractInfoFromUrl(const char* full_url) {
 	}
 }
 
+InvalidAorError::InvalidAorError(const url_t *aor): invalid_argument("") {
+	mAor = url_as_string(mHome.home(), aor);
+}
+
 bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url, const shared_ptr<ContactUpdateListener> &listener) {
 	auto exc = make_shared<ExtendedContact>(key, uid, full_url);
 
@@ -618,13 +622,10 @@ list<string> Record::sLineFieldNames;
 bool Record::sAssumeUniqueDomains = false;
 
 Record::Record(const url_t *aor) : mKey(aor ? defineKeyFromUrl(aor) : ""), mOnlyStaticContacts(true) {
-	if (aor && aor->url_type != url_sip && aor->url_type != url_sips){
-		SofiaAutoHome home;
-		char *tmp = url_as_string(home.home(), aor);
-		LOGE("Record with invalid aor: [%s]", tmp);
-		aor = nullptr;
+	if (aor && aor->url_type != url_sip && aor->url_type != url_sips) {
+		throw InvalidAorError(aor);
 	}
-	mAor = aor ? url_hdup(mHome.home(), aor) : NULL;
+	mAor = aor ? url_hdup(mHome.home(), aor) : nullptr;
 	if (sMaxContacts == -1)
 		init();
 	if (aor) mIsDomain = aor->url_user == nullptr;

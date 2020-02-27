@@ -769,8 +769,21 @@ class TargetUriListFetcher : public ContactUpdateListener,
 		}
 		/*start the queries for all uris of the target uri list*/
 		for (iter = mUriList; iter != NULL; iter = iter->r_next) {
-			RegistrarDb::get()
-				->fetch(iter->r_url, this->shared_from_this(), allowDomainRegistrations, recursive);
+			try {
+				RegistrarDb::get()->fetch(iter->r_url, this->shared_from_this(), allowDomainRegistrations, recursive);
+			} catch (const InvalidAorError &e) {
+				ostringstream errMsg;
+				sip_unknown_t *xTargetUris = ModuleToolbox::getCustomHeaderByName(mEv->getSip(), "X-Target-Uris");
+				errMsg << "invalid AOR [" << e.what() << "] in target URIs list. Context:" << endl
+					<< mEv->getMsgSip()->printContext() << endl;
+				if (xTargetUris) {
+					vector<char> buffer(4096);
+					sip_unknown_e(buffer.data(), buffer.size(), (msg_header_t *)xTargetUris, 0);
+					errMsg << buffer.data() << endl;
+				}
+				LOGE("%s", errMsg.str().c_str());
+				mPending--;
+			}
 		}
 	}
 
