@@ -183,7 +183,7 @@ tests-flexisip-mr:
         workspace="$PWD/liblinphone_tester_workspace"
         export FLEXISIP_LOGS="$workspace"
 
-    - docker_run_options="--volume=$workspace:/home/bc/linphone-sdk-build/linphone-sdk/desktop/work --network=docker_default"
+    - docker_run_options="--volume=$workspace:/home/bc/linphone-sdk-build/linphone-sdk/desktop/work --volume=$workspace:/home/bc/linphone-sdk-build/linphone-sdk/desktop/bin --network=docker_default"
     - docker_run_options="$docker_run_options --device=/dev/snd --user 1000:29"
 
     - mkdir -p $workspace
@@ -212,13 +212,13 @@ tests-flexisip-mr:
     - cd ${CI_PROJECT_DIR}/liblinphone_tester_workspace
     #.gdbinit is used to store gdb init scripts
     #we use it to avoid the need to specify manually the commands for each potential coredump
-    - echo "thread apply all bt" | sudo tee .gdbinit
+    - echo "thread apply all bt" | tee .gdbinit
     #We need to add this command in two .gdbinit files, one in the current directory and the other in the home directory, for gdb to pick the above command.
-    - echo add-auto-load-safe-path $PWD/.gdbinit | sudo tee -a /home/bc/.gdbinit
+    - echo add-auto-load-safe-path $PWD/.gdbinit | tee -a ~/.gdbinit
     # searching for core files and if there are some, launch gdb on all of it
     # xargs -L1 means that the command in argument will be executed for each line (core dump) found in find output
     # "true ||" is used here to continue the script even if the find fails
-    - if [[ -n $(find . -type f -name "core*") ]]; then find . -type f -name "core*" | xargs -L1 gdb $TESTER_BIN; fi || true
+    - if [[ -n $(find . -type f -name "core*") ]]; then find . -type f -name "core*" | xargs -L1 gdb liblinphone_tester; fi || true
 
     # simplifing artifacts browsing
     # Moving artifacts to ease browsing from web view
