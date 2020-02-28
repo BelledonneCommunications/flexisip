@@ -212,9 +212,9 @@ tests-flexisip-mr:
     - cd ${CI_PROJECT_DIR}/liblinphone_tester_workspace
     #.gdbinit is used to store gdb init scripts
     #we use it to avoid the need to specify manually the commands for each potential coredump
-    - echo "thread apply all bt" | sudo tee .gdbinit
+    - echo "thread apply all bt" | tee .gdbinit
     #We need to add this command in two .gdbinit files, one in the current directory and the other in the home directory, for gdb to pick the above command.
-    - echo add-auto-load-safe-path $PWD/.gdbinit | sudo tee -a /home/bc/.gdbinit
+    - echo add-auto-load-safe-path $PWD/.gdbinit | tee -a /home/bc/.gdbinit
     # searching for core files and if there are some, launch gdb on all of it
     # xargs -L1 means that the command in argument will be executed for each line (core dump) found in find output
     # "true ||" is used here to continue the script even if the find fails
