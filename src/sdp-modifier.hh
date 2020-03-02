@@ -32,6 +32,17 @@
 #define payload_type_get_number(pt)	(int)(long)(pt)->user_data
 
 namespace flexisip {
+	
+struct RelayTransport{
+	std::string mIpv6Address; // The Ipv6 address advertised in SDP.
+	std::string mIpv4Address; // The Ipv4 address advertised in SDP.
+	std::string mIpv6BindAddress; // The ipv6 address used for bind(). WARNING: if set to anything else than "::0", dual stack will not work !
+	std::string mIpv4BindAddress;
+	int mPreferredFamily = AF_INET; // or AF_INET6.
+	int mRtpPort = 0;
+	int mRtcpPort = 0;
+	bool mDualStackRequired = true;
+};
 
 class SdpMasqueradeContext{
 public:
@@ -77,19 +88,19 @@ class SdpModifier{
 		void getAudioIpPort(std::string *ip, int *port);
 		void changeAudioIpPort(const char *ip, int port);
 		void changeConnection(sdp_connection_t *c, const char *ip);
-		void changeMediaConnection(sdp_media_t *mline, const char *relay_ip);
-		void addIceCandidateInOffer(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
+		void changeMediaConnection(sdp_media_t *mline, const char *relay_ip, bool isIP6);
+		void addIceCandidateInOffer(std::function< const RelayTransport *(int )> getRelayAddrFcn,
 			std::function< std::tuple<std::string,int,int>(int )> getDestAddrFcn,
 			std::function< MasqueradeContextPair(int )> getMasqueradeContexts,
 			bool forceRelay);
-		void addIceCandidateInAnswer(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
+		void addIceCandidateInAnswer(std::function< const RelayTransport *(int )> getRelayAddrFcn,
 			std::function< std::tuple<std::string,int,int>(int )> getDestAddrFcn, 
 			std::function< MasqueradeContextPair(int )> getMasqueradeContexts,
 			bool forceRelay);
 		void iterateInOffer(std::function<void(int, const std::string &, int, int)>);
 		void iterateInAnswer(std::function<void(int, const std::string &, int, int)>);
-		void masqueradeInOffer(std::function< std::pair<std::string,int>(int )> getAddrFcn);
-		void masqueradeInAnswer(std::function< std::pair<std::string,int>(int )> getAddrFcn);
+		void masqueradeInOffer(std::function< const RelayTransport *(int )> getAddrFcn);
+		void masqueradeInAnswer(std::function< const RelayTransport *(int )> getAddrFcn);
 		void addAttribute(const char *name, const char *value);
 		bool hasAttribute(const char *name);
 		void addMediaAttribute(sdp_media_t *mline, const char *name, const char *value);
@@ -102,11 +113,11 @@ class SdpModifier{
 		sdp_session_t *mSession;
 		sip_t *mSip;
 	private:
-		void addIceCandidate(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
+		void addIceCandidate(std::function< const RelayTransport *(int )> getRelayAddrFcn,
 			std::function< std::tuple<std::string,int,int>(int )> getDestAddrFcn, std::function< MasqueradeContextPair(int )> getMasqueradeContexts, bool isOffer, bool forceRelay);
 		void iterate(std::function<void(int, const std::string &, int, int)>);
-		void masquerade(std::function< std::pair<std::string,int>(int )> getAddrFcn);
-		void changeRtcpAttr(sdp_media_t *mline, const std::string & relayAddr, int port);
+		void masquerade(std::function< const RelayTransport *(int )> getAddrFcn);
+		void changeRtcpAttr(sdp_media_t *mline, const std::string & relayAddr, int port, bool ipv6);
 		sdp_parser_t *mParser;
 		su_home_t *mHome;
 		std::string mNortproxy;

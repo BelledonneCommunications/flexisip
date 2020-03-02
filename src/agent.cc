@@ -468,7 +468,7 @@ void Agent::start(const string &transport_override, const string passphrase) {
 		}
 	}
 	if (mPublicResolvedIpV6.empty()) {
-		mPublicResolvedIpV6 = mRtpBindIp6;
+		LOGW("This flexisip instance has no public IPv6 address detected.");
 	}
 
 	// Generate the unique ID if it has not been specified in Flexisip's settings

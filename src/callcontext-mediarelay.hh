@@ -30,6 +30,8 @@ namespace flexisip {
 
 class TranscodedCall;
 
+
+
 class RelayedCall: public CallContextBase {
 public:
 	static const int sMaxSessions = 4;
@@ -45,8 +47,8 @@ public:
 	/* Obtain the masquerade contexts for given mline. The trid is used when offeredTag is not yet defined.*/
 	MasqueradeContextPair getMasqueradeContexts(int mline, const std::string &offererTag, const std::string &offeredTag, const std::string &trid);
 
-	/* Obtain the local address and port used for relaying */
-	std::pair<std::string,int> getChannelSources(int mline, const std::string & partyTag, const std::string &trId);
+	/* Obtain the local addresses and ports used for relaying. May return nullptr in case of invalid usage (such as invalid trId or partyTag)*/
+	const RelayTransport * getChannelSources(int mline, const std::string & partyTag, const std::string &trId);
 
 	/* Obtain destination (previously set by setChannelDestinations()*/
 	std::tuple<std::string,int,int> getChannelDestinations(int mline, const std::string & partyTag, const std::string &trId);
@@ -73,6 +75,7 @@ public:
 		return mServer;
 	}
 private:
+	void setupSpecificRelayTransport(RelayTransport *rt, const char *destHost);
 	std::shared_ptr<RelaySession> mSessions[sMaxSessions];
 	const std::shared_ptr<MediaRelayServer> & mServer;
 	int mBandwidthThres;

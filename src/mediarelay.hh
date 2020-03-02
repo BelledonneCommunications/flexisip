@@ -105,8 +105,7 @@ class MediaRelayServer {
   public:
 	MediaRelayServer(MediaRelay *module);
 	~MediaRelayServer();
-	std::shared_ptr<RelaySession> createSession(const std::string &frontId,
-												const std::pair<std::string, std::string> &frontRelayIps);
+	std::shared_ptr<RelaySession> createSession(const std::string &frontId, const RelayTransport &frontRelayTransport);
 	void update();
 	Agent *getAgent();
 	RtpSession *createRtpSession(const std::string &bindIp);
@@ -143,7 +142,7 @@ class RelayChannel;
 class RelaySession : public std::enable_shared_from_this<RelaySession> {
   public:
 	RelaySession(MediaRelayServer *server, const std::string &frontId,
-				 const std::pair<std::string, std::string> &frontRelayIps);
+				 const RelayTransport &frontRelayIps);
 	~RelaySession();
 
 	void fillPollFd(PollFd *pfd);
@@ -163,7 +162,7 @@ class RelaySession : public std::enable_shared_from_this<RelaySession> {
 	 * Called each time an INVITE is forked
 	 */
 	std::shared_ptr<RelayChannel> createBranch(const std::string &trId,
-				 const std::pair<std::string, std::string> &relayIps, bool hasMultipleTargets);
+				 const RelayTransport &relayIps, bool hasMultipleTargets);
 	void removeBranch(const std::string &trId);
 
 	/**
@@ -200,14 +199,18 @@ class MediaFilter {
 	virtual bool onOutgoingTransfer(uint8_t *data, size_t size, const sockaddr *addr, socklen_t addrlen) = 0;
 };
 
+
 class RelayChannel : public SdpMasqueradeContext{
   public:
 	enum Dir { SendOnly, SendRecv, Inactive };
 
-	RelayChannel(RelaySession *relaySession, const std::pair<std::string, std::string> &relayIps, bool preventLoops);
+	RelayChannel(RelaySession *relaySession, const RelayTransport &rt, bool preventLoops);
 	~RelayChannel();
 	bool checkSocketsValid();
 	void setRemoteAddr(const std::string &ip, int port, int rtcp_port, Dir dir);
+	const RelayTransport & getRelayTransport()const{
+		return mRelayTransport;
+	}
 	const std::string &getRemoteIp() const {
 		return mRemoteIp;
 	}
@@ -216,12 +219,6 @@ class RelayChannel : public SdpMasqueradeContext{
 	}
 	int getRemoteRtcpPort() const{
 		return mRemotePort[1];
-	}
-	const std::string &getLocalIp() const {
-		return mLocalIp;
-	}
-	int getLocalPort() const {
-		return rtp_session_get_local_port(mSession);
 	}
 	int recv(int i, uint8_t *buf, size_t size);
 	int send(int i, uint8_t *buf, size_t size);
@@ -244,8 +241,9 @@ class RelayChannel : public SdpMasqueradeContext{
 
   private:
 	static const int sMaxRecvErrors = 50;
+	void initializeRtpSession(RelaySession *relaySession);
 	Dir mDir;
-	std::string mLocalIp;
+	RelayTransport mRelayTransport; // The local addresses and ports used for relaying.
 	std::string mRemoteIp;
 	int mRemotePort[2];
 	RtpSession *mSession;

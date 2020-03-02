@@ -46,6 +46,20 @@ void RelayedCall::enableTelephoneEventDrooping(bool value){
 	mDropTelephoneEvents=value;
 }
 
+void RelayedCall::setupSpecificRelayTransport(RelayTransport *rt, const char *destHost){
+	Agent *agent = mServer->getAgent();
+	bool isIpv6 = (strchr(destHost, ':') != nullptr);
+	auto relayIps = agent->getPreferredIp(destHost);
+	if (isIpv6){
+		rt->mIpv6Address = relayIps.first;
+		rt->mIpv6BindAddress = relayIps.second;
+		rt->mPreferredFamily = AF_INET6;
+	}else{
+		rt->mIpv4Address = relayIps.first;
+		rt->mIpv4BindAddress = relayIps.second;
+		rt->mPreferredFamily = AF_INET;
+	}
+}
 
 void RelayedCall::initChannels ( const std::shared_ptr< SdpModifier >& m, const std::string& tag, const std::string& trid, 
 				 const string &fromHost, const string &destHost) {
@@ -75,23 +89,32 @@ void RelayedCall::initChannels ( const std::shared_ptr< SdpModifier >& m, const 
 
 		sdp_connection_t *mline_c = mline->m_connections ? mline->m_connections : global_c;
 		bool isIpv6 = mline_c && mline_c->c_addrtype == sdp_addr_ip6;
+		bool hasIce = sdp_attribute_find(mline->m_attributes,"candidate") != nullptr;
+		
+		RelayTransport rt;
+			
+		rt.mIpv6Address = agent->getResolvedPublicIp(true);
+		rt.mIpv4Address = agent->getResolvedPublicIp(false);
+		rt.mIpv6BindAddress = agent->getRtpBindIp(true);
+		rt.mIpv4BindAddress = agent->getRtpBindIp(false);
+		rt.mPreferredFamily = isIpv6 ? AF_INET6 : AF_INET;
+		rt.mDualStackRequired = hasIce && !rt.mIpv6Address.empty();
 		
 		if (s == NULL) {
 			/* We initialize here the RelaySession for the current mline, passing the IP addresses we have to use
 			 * to exchange with the caller. */
-			std::pair< std::string, std::string > frontRelayIps;
 			
-			if ((mline_c && mline_c->c_address && strcmp(mline_c->c_address, fromHost.c_str()) == 0) && !mForcePublicAddressEnabled) {
+			if ((mline_c && mline_c->c_address && strcmp(mline_c->c_address, fromHost.c_str()) == 0) && !hasIce && !mForcePublicAddressEnabled) {
 				/* The client is not natted or knows its public IP address. In this case we trust him
-				 * and propose a relay address that matches its network.*/
-				frontRelayIps = agent->getPreferredIp(mline_c->c_address);
+				 * and propose a relay address that exactly matches its network.
+				 * This is needed for a flexisip that runs on a multi-homed machine. */
+				setupSpecificRelayTransport(&rt, mline_c->c_address);
 			}else{
 				/* The client is very likely behind a nat and doesn't know its public ip address.
 				 * In that case, we provide him with a relay address that is the public address of the proxy,
 				 * but with the same address family as the address in the c= line of the SDP*/
-				frontRelayIps = make_pair(agent->getResolvedPublicIp(isIpv6), agent->getRtpBindIp(isIpv6));
 			}
-			s = mServer->createSession(tag,frontRelayIps);
+			s = mServer->createSession(tag, rt);
 			mSessions[i] = s;
 		}
 		shared_ptr<RelayChannel> chan = s->getChannel("",trid);
@@ -101,10 +124,12 @@ void RelayedCall::initChannels ( const std::shared_ptr< SdpModifier >& m, const 
 			 * As fallback solution, we examine the host part of the request uri of the caller to "guess" whether it is under an IPv6 network or not.
 			 * This is clearly not reliable, however remember that trick is useful and necessary only for clients that don't use ICE.
 			 * In a general way, ICE is the only way to solve media connectivity issues between two clients. */
-			isIpv6 = (strchr(destHost.c_str(), ':') != nullptr);
-			pair<string, string> backRelayIps = mForcePublicAddressEnabled ? make_pair(agent->getResolvedPublicIp(isIpv6), agent->getRtpBindIp(isIpv6)) : agent->getPreferredIp(destHost);
+			isIpv6 = strchr(destHost.c_str(), ':') != nullptr;
+			rt.mPreferredFamily = isIpv6 ? AF_INET6 : AF_INET;
+			
+			if (!hasIce && !mForcePublicAddressEnabled) setupSpecificRelayTransport(&rt, destHost.c_str());
 			/*this is a new outgoing branch to be established*/
-			chan=s->createBranch(trid,backRelayIps, hasMultipleTargets);
+			chan=s->createBranch(trid, rt, hasMultipleTargets);
 		}
 	}
 }
@@ -130,18 +155,20 @@ bool RelayedCall::checkMediaValid() {
 }
 
 /* Obtain the local address and port used for relaying */
-std::pair<string,int> RelayedCall::getChannelSources(int mline, const std::string & partyTag, const std::string &trId){
+const RelayTransport * RelayedCall::getChannelSources(int mline, const std::string & partyTag, const std::string &trId){
 	if (mline >= sMaxSessions) {
-		return make_pair("",0);
+		return nullptr;
 	}
 	shared_ptr<RelaySession> s = mSessions[mline];
 	if (s != NULL) {
 		shared_ptr<RelayChannel> chan=s->getChannel(partyTag,trId);
 		if (chan==NULL) {
 			LOGW("RelayedCall::getChannelSources(): no channel");
-		}else return make_pair(chan->getLocalIp(),chan->getLocalPort());
+		}else{
+			return &chan->getRelayTransport();
+		}
 	}
-	return make_pair("",0);
+	return nullptr;
 }
 	
 /* Obtain destination (previously set by setChannelDestinations()*/
@@ -180,7 +207,7 @@ void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier> &m, int m
 			LOGW("RelayedCall::setChannelDestinations(): no channel");
 			return;
 		}
-		if(chan->getLocalPort()>0) {
+		if(chan->getRelayTransport().mRtpPort>0) {
 			if (isEarlyMedia){
 				int maxEarlyRelays = mServer->mModule->mMaxRelayedEarlyMedia;
 				if (maxEarlyRelays != 0){
