@@ -410,9 +410,8 @@ void SdpModifier::changeAudioIpPort(const char *ip, int port){
 	mSession->sdp_media->m_port=(unsigned long)port;
 }
 
-void SdpModifier::changeMediaConnection(sdp_media_t *mline, const char *relay_ip){
+void SdpModifier::changeMediaConnection(sdp_media_t *mline, const char *relay_ip, bool isIP6){
 	sdp_connection_t *c=sdp_connection_dup(mHome,mSession->sdp_connection);
-	bool isIP6 = strchr(relay_ip, ':') != NULL;
 	if (c == NULL) {
 		if (mline->m_connections) {
 			mline->m_connections->c_address=su_strdup(mHome, relay_ip);
@@ -430,7 +429,7 @@ void SdpModifier::changeMediaConnection(sdp_media_t *mline, const char *relay_ip
 	}
 }
 
-void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
+void SdpModifier::addIceCandidate(std::function< const RelayTransport *(int )> getRelayAddrFcn,
 			std::function< std::tuple<std::string,int,int>(int )> getDestAddrFcn, std::function< MasqueradeContextPair(int )> getMasqueradeContexts, bool isOffer, bool forceRelay){
 	char foundation[32];
 	sdp_media_t *mline=mSession->sdp_media;
@@ -461,38 +460,55 @@ void SdpModifier::addIceCandidate(std::function< std::pair<std::string,int>(int 
 
 		if (needsCandidates) {
 			uint32_t priority;
-			auto relayAddr=getRelayAddrFcn(i);
+			const RelayTransport *rt = getRelayAddrFcn(i);
 			auto destAddr=getDestAddrFcn(i);
+			
+			if (!rt) continue;
+			bool isIP6 = rt->mPreferredFamily == AF_INET6;
+			string relayAddr = isIP6 ? rt->mIpv6Address : rt->mIpv4Address;
 
 			if (forceRelay){
 				/* Masquerade c line and port for non-ICE clients.
 				 Ice-enabled targets don't need this.*/
-				changeMediaConnection(mline, relayAddr.first.c_str());
-				mline->m_port=(unsigned long)relayAddr.second;
-				changeRtcpAttr(mline, relayAddr.first, relayAddr.second + 1);
+				changeMediaConnection(mline, relayAddr.c_str(), isIP6);
+				mline->m_port=(unsigned long)rt->mRtpPort;
+				changeRtcpAttr(mline, relayAddr, rt->mRtcpPort, isIP6);
 			}
 
 			for (uint16_t componentID=1; componentID<=2; componentID++) {
-
-				if (!hasIceCandidate(mline, relayAddr.first.c_str(), relayAddr.second + componentID - 1)) {
+				int port = componentID == 1 ? rt->mRtpPort : rt->mRtcpPort;
+				
+				// Add IPv6 relay candidate.
+				relayAddr = rt->mIpv6Address;
+				if (!relayAddr.empty() && !hasIceCandidate(mline, relayAddr.c_str(), port)) {
 					priority = (65535 << 8) | (256 - componentID);
 					ostringstream candidate_line;
-					candidate_line << foundation << ' ' << componentID << " UDP " << priority << ' ' << relayAddr.first.c_str() << ' ' << relayAddr.second + componentID - 1
+					candidate_line << foundation << ' ' << componentID << " UDP " << priority << ' ' << relayAddr.c_str() << ' ' << port
 						<< " typ relay raddr " << std::get<0>(destAddr) << " rport " << (componentID == 1 ? std::get<1>(destAddr) : std::get<2>(destAddr));
 					addMediaAttribute(mline, "candidate", candidate_line.str().c_str());
 				}
+				// Add IPv4 relay candidate
+				relayAddr = rt->mIpv4Address;
+				if (!relayAddr.empty() && !hasIceCandidate(mline, relayAddr.c_str(), port)) {
+					priority = (65535 << 8) | (256 - componentID);
+					ostringstream candidate_line;
+					candidate_line << foundation << ' ' << componentID << " UDP " << priority << ' ' << relayAddr.c_str() << ' ' << port
+						<< " typ relay raddr " << std::get<0>(destAddr) << " rport " << (componentID == 1 ? std::get<1>(destAddr) : std::get<2>(destAddr));
+					addMediaAttribute(mline, "candidate", candidate_line.str().c_str());
+				}
+				
 			}
 			if (!mNortproxy.empty()) addMediaAttribute(mline, mNortproxy.c_str(), "yes");
 		}
 	}
 }
 
-void SdpModifier::addIceCandidateInOffer(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
+void SdpModifier::addIceCandidateInOffer(std::function< const RelayTransport *(int )> getRelayAddrFcn,
 			std::function< std::tuple<std::string,int,int>(int )> getDestAddrFcn, std::function< MasqueradeContextPair(int )> getMasqueradeContexts, bool forceRelay){
 	addIceCandidate(getRelayAddrFcn, getDestAddrFcn, getMasqueradeContexts, true, forceRelay);
 }
 
-void SdpModifier::addIceCandidateInAnswer(std::function< std::pair<std::string,int>(int )> getRelayAddrFcn,
+void SdpModifier::addIceCandidateInAnswer(std::function< const RelayTransport *(int )> getRelayAddrFcn,
 	std::function< std::tuple<std::string,int,int>(int )> getDestAddrFcn, std::function< MasqueradeContextPair(int )> getMasqueradeContexts, bool forceRelay){
 	addIceCandidate(getRelayAddrFcn, getDestAddrFcn, getMasqueradeContexts, false, forceRelay);
 }
@@ -540,7 +556,7 @@ void SdpModifier::changeConnection(sdp_connection_t *c, const char *ip){
 	c->c_addrtype = isIP6 ? sdp_addr_ip6 : sdp_addr_ip4;
 }
 
-void SdpModifier::changeRtcpAttr(sdp_media_t *mline, const string & relayAddr, int port){
+void SdpModifier::changeRtcpAttr(sdp_media_t *mline, const string & relayAddr, int port, bool ipv6){
 	sdp_attribute_t *rtcp_attribute = sdp_attribute_find(mline->m_attributes,"rtcp");
 	if (rtcp_attribute) {
 		int previous_port;
@@ -553,7 +569,7 @@ void SdpModifier::changeRtcpAttr(sdp_media_t *mline, const string & relayAddr, i
 		if (!ist.fail() && !ist.eof()) ist >> protocol;
 		if (!ist.fail() && !ist.eof()) ist >> rtcp_addr;
 		if (!ist.fail() && !ist.eof()) {
-			ost << ' ' << network_family << ' ' << protocol << ' ' << relayAddr;
+			ost << ' ' << network_family << ' ' << (ipv6 ? "IP6" : "IP4") << ' ' << relayAddr;
 		}
 		sdp_attribute_t *a=(sdp_attribute_t *)su_alloc(mHome, sizeof(sdp_attribute_t));
 		memset(a,0,sizeof(*a));
@@ -564,7 +580,7 @@ void SdpModifier::changeRtcpAttr(sdp_media_t *mline, const string & relayAddr, i
 	}
 }
 
-void SdpModifier::masquerade(function< pair<string,int>(int )> fct){
+void SdpModifier::masquerade(function< const RelayTransport *(int )> fct){
 	sdp_media_t *mline=mSession->sdp_media;
 	int i;
 	string global_c_address;
@@ -577,21 +593,25 @@ void SdpModifier::masquerade(function< pair<string,int>(int )> fct){
 		if (hasMediaAttribute(mline, "candidate")) continue; /*only masquerade if ICE is not involved*/
 
 		if (hasMediaAttribute(mline,mNortproxy.c_str())) continue;
-		pair<string,int> relayAddr=fct(i);
+		const RelayTransport *rt = fct(i);
+		
+		if (!rt) continue;
+		bool isIP6 = rt->mPreferredFamily == AF_INET6;
+		const string &relayAddr = isIP6 ? rt->mIpv6Address : rt->mIpv4Address;
 
 		if (mline->m_connections){
-			changeConnection(mline->m_connections, relayAddr.first.c_str());
+			changeConnection(mline->m_connections, relayAddr.c_str());
 		}else if (mSession->sdp_connection){
 			if (sdp_connection_translated){
 				// If the global connection has already been translated, add a media specific connection if needed
-				changeMediaConnection(mline,relayAddr.first.c_str());
+				changeMediaConnection(mline,relayAddr.c_str(), isIP6);
 			}else{
-				changeConnection(mSession->sdp_connection, relayAddr.first.c_str());
+				changeConnection(mSession->sdp_connection, relayAddr.c_str());
 				sdp_connection_translated = true;
 			}
 		}
-		mline->m_port=(unsigned long)relayAddr.second;
-		changeRtcpAttr(mline, relayAddr.first, relayAddr.second + 1);
+		mline->m_port=(unsigned long)rt->mRtpPort;
+		changeRtcpAttr(mline, relayAddr, rt->mRtcpPort, isIP6);
 	}
 
 	if (sdp_connection_translated) {
@@ -600,17 +620,17 @@ void SdpModifier::masquerade(function< pair<string,int>(int )> fct){
 		mline = mSession->sdp_media;
 		for (i = 0; mline != NULL; mline = mline->m_next, ++i) {
 			if (hasMediaAttribute(mline, mNortproxy.c_str()) && !mline->m_connections) {
-				changeMediaConnection(mline, global_c_address.c_str());
+				changeMediaConnection(mline, global_c_address.c_str(), strchr(global_c_address.c_str(), ':') != nullptr);
 			}
 		}
 	}
 }
 
-void SdpModifier::masqueradeInOffer(std::function< std::pair<std::string,int>(int )> getAddrFcn){
+void SdpModifier::masqueradeInOffer(std::function< const RelayTransport *(int )> getAddrFcn){
 	masquerade(getAddrFcn);
 }
 
-void SdpModifier::masqueradeInAnswer( std::function< std::pair<std::string,int>(int )> getAddrFcn ) {
+void SdpModifier::masqueradeInAnswer( std::function< const RelayTransport *(int )> getAddrFcn ) {
 	masquerade(getAddrFcn);
 }
 

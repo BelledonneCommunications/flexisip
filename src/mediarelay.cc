@@ -62,13 +62,11 @@ unsigned int PollFd::getREvents(int index) const {
 	return mPfd[index].revents;
 }
 
-RelayChannel::RelayChannel(RelaySession *relaySession, const std::pair<std::string, std::string> &relayIps,
+RelayChannel::RelayChannel(RelaySession *relaySession, const RelayTransport &rt,
 						   bool preventLoops)
-	: mDir(SendRecv), mLocalIp(relayIps.first), mRemoteIp(std::string("undefined")) {
+	: mDir(SendRecv), mRelayTransport(rt), mRemoteIp(std::string("undefined")) {
 	mPfdIndex = -1;
-	mSession = relaySession->getRelayServer()->createRtpSession(relayIps.second);
-	mSockets[0] = rtp_session_get_rtp_socket(mSession);
-	mSockets[1] = rtp_session_get_rtcp_socket(mSession);
+	initializeRtpSession(relaySession);
 	mSockAddrSize[0] = mSockAddrSize[1] = 0;
 	mPacketsReceived = 0;
 	mPacketsSent = 0;
@@ -77,6 +75,20 @@ RelayChannel::RelayChannel(RelaySession *relaySession, const std::pair<std::stri
 	mDestAddrChanged = false;
 	mRecvErrorCount[0] = mRecvErrorCount[1] = 0;
 	mRemotePort[0] = mRemotePort[1] = -1;
+}
+
+void RelayChannel::initializeRtpSession(RelaySession *relaySession){
+	string bindIp;
+	if (mRelayTransport.mDualStackRequired){
+		bindIp = mRelayTransport.mIpv6BindAddress;
+	}else{
+		bindIp = mRelayTransport.mPreferredFamily == AF_INET6 ? mRelayTransport.mIpv6BindAddress : mRelayTransport.mIpv4BindAddress;
+	}
+	mSession = relaySession->getRelayServer()->createRtpSession(bindIp.c_str());
+	mRelayTransport.mRtpPort = rtp_session_get_local_port(mSession);
+	mRelayTransport.mRtcpPort = mRelayTransport.mRtpPort + 1;
+	mSockets[0] = rtp_session_get_rtp_socket(mSession);
+	mSockets[1] = rtp_session_get_rtcp_socket(mSession);
 }
 
 bool RelayChannel::checkSocketsValid() {
@@ -100,13 +112,15 @@ const char *RelayChannel::dirToString(Dir dir) {
 }
 
 void RelayChannel::setRemoteAddr(const string &ip, int rtp_port, int rtcp_port, Dir dir) {
-	LOGD("RelayChannel [%p] is now configured local=[%s|%i:%i]  remote=[%s|%i:%i] dir=[%s]", this, getLocalIp().c_str(),
-		 getLocalPort(), getLocalPort()+1, ip.c_str(), rtp_port, rtcp_port, dirToString(dir));
+	const string & localIp = mRelayTransport.mPreferredFamily == AF_INET6 ? mRelayTransport.mIpv6Address : mRelayTransport.mIpv4Address;
+	LOGD("RelayChannel [%p] is now configured local=[%s|%i:%i]  remote=[%s|%i:%i] dir=[%s]", this, localIp.c_str(),
+		 mRelayTransport.mRtpPort, mRelayTransport.mRtcpPort, ip.c_str(), rtp_port, rtcp_port, dirToString(dir));
 	bool dest_ok = true;
 
 	if (rtp_port > 0 && mPreventLoop) {
-		if (strcmp(ip.c_str(), getLocalIp().c_str()) == 0) {
-			LOGW("RelayChannel [%p] wants to loop to local machine, not allowed.", this);
+		if (ip == mRelayTransport.mIpv4Address || ip == mRelayTransport.mIpv6Address
+			|| ip == mRelayTransport.mIpv4BindAddress || ip == mRelayTransport.mIpv6BindAddress){
+			LOGW("RelayChannel [%p] wants to loop to local machine with ip [%s], not allowed.", this, ip.c_str());
 			dest_ok = false;
 		}
 	}
@@ -199,7 +213,7 @@ int RelayChannel::recv(int i, uint8_t *buf, size_t buflen) {
 			return 0;
 		}
 	} else if (err == -1) {
-		LOGW("Error receiving on port %i from %s:%i: %s", getLocalPort(), mRemoteIp.c_str(), mRemotePort[i],
+		LOGW("Error receiving on port %i from %s:%i: %s", mRelayTransport.mRtpPort, mRemoteIp.c_str(), mRemotePort[i],
 			 strerror(errno));
 		if (errno == ECONNREFUSED) {
 			mRecvErrorCount[i]++;
@@ -213,13 +227,14 @@ int RelayChannel::send(int i, uint8_t *buf, size_t buflen) {
 	/*if destination address is working mSockAddrSize>0*/
 	if (mRemotePort[i] > 0 && mSockAddrSize[i] > 0 && mDir != Inactive && mRecvErrorCount[i] < sMaxRecvErrors) {
 		if (!mFilter || mFilter->onOutgoingTransfer(buf, buflen, (struct sockaddr *)&mSockAddr[i], mSockAddrSize[i])) {
+			int localPort = (i == 0) ? mRelayTransport.mRtpPort : mRelayTransport.mRtcpPort;
 			err = sendto(mSockets[i], buf, buflen, 0, (struct sockaddr *)&mSockAddr[i], mSockAddrSize[i]);
 			mPacketsSent++;
 			if (err == -1) {
-				LOGW("Error sending %i bytes (localport=%i dest=%s:%i) : %s", (int)buflen, getLocalPort() + i,
+				LOGW("Error sending %i bytes (localport=%i dest=%s:%i) : %s", (int)buflen, localPort,
 					 mRemoteIp.c_str(), mRemotePort[i], strerror(errno));
 			} else if (err != (int)buflen) {
-				LOGW("Only %i bytes sent over %i bytes (localport=%i dest=%s:%i)", err, (int)buflen, getLocalPort() + i,
+				LOGW("Only %i bytes sent over %i bytes (localport=%i dest=%s:%i)", err, (int)buflen, localPort,
 					 mRemoteIp.c_str(), mRemotePort[i]);
 			}
 		}
@@ -234,11 +249,11 @@ void RelayChannel::setFilter(shared_ptr<MediaFilter> filter) {
 }
 
 RelaySession::RelaySession(MediaRelayServer *server, const string &frontId,
-						   const std::pair<std::string, std::string> &relayIps)
+						   const RelayTransport & rt)
 	: mServer(server), mFrontId(frontId) {
 	mLastActivityTime = getCurrentTime();
 	mUsed = true;
-	mFront = make_shared<RelayChannel>(this, relayIps, mServer->loopPreventionEnabled());
+	mFront = make_shared<RelayChannel>(this, rt, mServer->loopPreventionEnabled());
 }
 
 shared_ptr<RelayChannel> RelaySession::getChannel(const string &partyId, const string &trId) {
@@ -259,11 +274,11 @@ shared_ptr<RelayChannel> RelaySession::getChannel(const string &partyId, const s
 }
 
 std::shared_ptr<RelayChannel> RelaySession::createBranch(const std::string &trId,
-		 const std::pair<std::string, std::string> &relayIps,
+		 const RelayTransport & rt,
 		 bool hasMultipleTargets) {
 	shared_ptr<RelayChannel> ret;
 	mMutex.lock();
-	ret = make_shared<RelayChannel>(this, relayIps, mServer->loopPreventionEnabled());
+	ret = make_shared<RelayChannel>(this, rt, mServer->loopPreventionEnabled());
 	ret->setMultipleTargets(hasMultipleTargets);
 	mBacks.insert(make_pair(trId, ret));
 	mMutex.unlock();
@@ -360,12 +375,12 @@ void RelaySession::unuse() {
 	mMutex.lock();
 	mUsed = false;
 	if (mFront) {
-		front.port = mFront->getLocalPort();
+		front.port = mFront->getRelayTransport().mRtpPort;
 		front.recv = mFront->getReceivedPackets();
 		front.sent = mFront->getSentPackets();
 	}
 	if (mBack) {
-		back.port = mBack->getLocalPort();
+		back.port = mBack->getRelayTransport().mRtpPort;
 		back.recv = mBack->getReceivedPackets();
 		back.sent = mBack->getSentPackets();
 	}
@@ -473,9 +488,8 @@ MediaRelayServer::~MediaRelayServer() {
 	close(mCtlPipe[1]);
 }
 
-shared_ptr<RelaySession> MediaRelayServer::createSession(const std::string &frontId,
-														 const std::pair<std::string, std::string> &frontRelayIps) {
-	shared_ptr<RelaySession> s = make_shared<RelaySession>(this, frontId, frontRelayIps);
+shared_ptr<RelaySession> MediaRelayServer::createSession(const std::string &frontId, const RelayTransport &frontRelayTransport) {
+	shared_ptr<RelaySession> s = make_shared<RelaySession>(this, frontId, frontRelayTransport);
 	mMutex.lock();
 	mSessions.push_back(s);
 	mSessionsCount++;
