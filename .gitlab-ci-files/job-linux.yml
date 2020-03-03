@@ -201,12 +201,14 @@ tests-flexisip-mr:
 
     - sleep 10
 
-    - docker run $docker_run_options $liblinphone_tester $liblinphone_tester_options || echo 'Tests have failed'
+    - docker run $docker_run_options $liblinphone_tester $liblinphone_tester_options || EXIT=$? && echo 'Tests have failed'
     - docker-compose $docker_compose_options stop
 
     - gzip *.log
 
     - tree
+
+    - exit $EXIT
 
   after_script:
 
