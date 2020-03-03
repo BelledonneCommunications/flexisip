@@ -1,45 +1,38 @@
-FROM debian:10
+FROM gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
 MAINTAINER  Jehan Monnier <jehan.monnier@linphone.org>
 
-ARG branch=master
 ARG njobs=1
 
-# Prepare dependencies
-RUN apt-get update && apt-get upgrade -y
-RUN apt-get install -y  xsdcxx libxerces-c-dev gdb \
-	nasm patch python-pip python-pystache graphviz intltool libtool python-dev doxygen g++ make cmake git \
-	pkg-config libpulse-dev libssl-dev default-libmysqlclient-dev build-essential
+USER root
+WORKDIR /root
+
 
 #get source code
-RUN git clone https://gitlab.linphone.org/BC/public/flexisip.git --recursive --depth 1 --branch ${branch}
-RUN cd flexisip && ./prepare.py flexisip -d -DENABLE_TRANSCODER=ON -DCMAKE_PREFIX_PATH=/opt/belledonne-communications -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc && make -j ${njobs}
-RUN mkdir -p /etc/opt/belledonne-communications/flexisip
-RUN mkdir -p /var/opt/belledonne-communications/log/flexisip
-RUN ln -s /etc/opt/belledonne-communications/flexisip /etc/flexisip
+COPY . flexisip/
 
-# Add it to the default path
-ENV PATH=$PATH:/opt/belledonne-communications/bin
+# configure & build
+RUN cd flexisip \
+	&& ./prepare.py -c \
+	&& ./prepare.py flexisip -d -DENABLE_CONFERENCE=ON -DENABLE_JWE_AUTH_PLUGIN=ON -DENABLE_EXTERNAL_AUTH_PLUGIN=ON \
+		-DENABLE_PRESENCE=ON -DENABLE_PROTOBUF=ON -DENABLE_SNMP=ON -DENABLE_SOCI=ON -DENABLE_TRANSCODER=ON \
+		-DCMAKE_PREFIX_PATH=/opt/belledonne-communications -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc \
+	&& make -j ${njobs}
 
-WORKDIR /opt/belledonne-communications
+# cleanup
+RUN rm -rf flexisip
+
+# Add Flexisip bindir to the default path
+ENV PATH=/opt/belledonne-communications/bin:$PATH
+
+# create volumes for Flexisip configuration and logs
+RUN mkdir -p /var/opt/belledonne-communications/flexisip /etc/flexisip /home/cores
+VOLUME /etc/flexisip
+VOLUME /var/opt/belledonne-communications/log/flexisip
+VOLUME /home/cores
+
 
 # Generate a default configuration
 RUN flexisip --dump-default all > /etc/flexisip/flexisip.conf
 
-VOLUME /etc/flexisip
-VOLUME /var/opt/belledonne-communications/log/flexisip
-COPY flexisip-entrypoint.sh /
-COPY backtrace.gdb /
-RUN chmod a+x /flexisip-entrypoint.sh
 
-# Script to wait db before launch flexisip [Licence Apache2]
-ADD https://github.com/ufoscout/docker-compose-wait/releases/download/2.2.1/wait /wait
-RUN chmod +x /wait
-
-#cleanup
-RUN apt-get remove -y  nasm patch python-pip python-pystache graphviz intltool libtool python-dev doxygen g++ make cmake git pkg-config libpulse-dev libssl-dev default-libmysqlclient-dev build-essential
-RUN rm -rf flexisip
-RUN apt-get clean all
-
-
-ENTRYPOINT ["/flexisip-entrypoint.sh"]
-CMD flexisip
+ENTRYPOINT ["/opt/belledonne-communications/bin/flexisip"]
