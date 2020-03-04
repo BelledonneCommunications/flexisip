@@ -98,7 +98,7 @@ void RelayedCall::initChannels ( const std::shared_ptr< SdpModifier >& m, const 
 		rt.mIpv6BindAddress = agent->getRtpBindIp(true);
 		rt.mIpv4BindAddress = agent->getRtpBindIp(false);
 		rt.mPreferredFamily = isIpv6 ? AF_INET6 : AF_INET;
-		rt.mDualStackRequired = hasIce;
+		rt.mDualStackRequired = hasIce && !rt.mIpv6Address.empty();
 		
 		if (s == NULL) {
 			/* We initialize here the RelaySession for the current mline, passing the IP addresses we have to use
