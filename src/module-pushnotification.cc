@@ -366,7 +366,7 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 		const auto tokenList = StringUtils::split(pnPrid, "&");
 		for (const auto &tokenAndService : tokenList) {
 			if (tokenList.size() == 1) {
-				if (regex_match(tokenAndService, match, regex("([a-zA-Z0-9]+)(?::([a-z]+))"))) {
+				if (regex_match(tokenAndService, match, regex("([a-zA-Z0-9]+)(?::([a-z]+))?"))) {
 					if (match.size() == 2) {
 						deviceToken = match[1].str();
 					} else {
