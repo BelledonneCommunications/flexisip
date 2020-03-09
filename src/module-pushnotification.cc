@@ -342,7 +342,7 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 
 	try {
 		string pnParam = UriUtils::getParamValue(params, "pn-param");
-		if (regex_match(pnParam, match, regex("([A-Za-z0-9]+)\\.([a-z\\.]+)\\.([a-z&]+)"))) {
+		if (regex_match(pnParam, match, regex("([A-Za-z0-9]+)\\.([A-Za-z\\.]+)\\.([a-z&]+)"))) {
 			pinfo.mTeamId = match[1].str();
 			bundleId = match[2].str();
 			servicesAvailable = StringUtils::split(match[3].str(), "&");
