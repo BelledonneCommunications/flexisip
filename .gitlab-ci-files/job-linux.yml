@@ -123,20 +123,20 @@ tests-flexisip-mr:
       - $DEPLOY_UBUNTU
 
   variables:
-    #Build a new Flexisip Docker image from the last published RPM package.
-    REBUILD_FLEXISIP_IMAGE: "true"
+    #Build a new Flexisip Docker image from the last published RPM package. default = true
+    REBUILD_FLEXISIP_IMAGE: "false"
     #Rebuild docker images of services which Flexisip needs to work: user database, redis server, etc.
     REBUILD_FLEXISIP_AUXILIARIES: "false"
-    #Set this option to true each time you change the commit to checkout for linphone-sdk, otherwise, the SDK is never rebuild.
-    REBUILD_SDK: "true"
+    #Set this option to true each time you change the commit to checkout for linphone-sdk, otherwise, the SDK is never rebuild. default = true
+    REBUILD_SDK: "false"
     SDK_VERSION: "4.3"
     SDK_BRANCH: "release/$SDK_VERSION"
     #Git branch to use to build the liblinphone_tester image. "release/${SDK_VERSION}" will be used as branch if empty.
     #SDK_BRANCH
     #Run test suites simultaneously.
     PARALLEL_MODE: "false"
-    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t flexisip:latest -f docker/Dockerfile"
-    liblinphone_tester: "liblinphone_tester:$SDK_VERSION"
+    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip:latest -f docker/Dockerfile"
+    liblinphone_tester: "gitlab.linphone.org:4567/bc/public/linphone-sdk/liblinphone_tester:$SDK_VERSION"
     sourcedir: ${CI_PROJECT_DIR}/linphone-sdk-docker
     workspace: "${CI_PROJECT_DIR}/liblinphone_tester_workspace"
     # we can't use $workspace nested variables here, since defined variables
@@ -170,7 +170,7 @@ tests-flexisip-mr:
 
     - |
         if [ "$REBUILD_SDK" = "true" ]; then
-        docker build --no-cache --force-rm -t liblinphone_tester:$SDK_VERSION --build-arg="branch=$SDK_BRANCH" -f "$sourcedir/docker-files/liblinphone-tester" .
+        docker build --no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/linphone-sdk/liblinphone_tester:$SDK_VERSION --build-arg="branch=$SDK_BRANCH" -f "$sourcedir/docker-files/liblinphone-tester" .
         fi
 
     - |
