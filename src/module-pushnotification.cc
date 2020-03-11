@@ -353,8 +353,9 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 		throw runtime_error("no pn-param");
 	}
 
+	auto it = std::find(servicesAvailable.begin(), servicesAvailable.end(), "voip");
 	bool chatRoomInvite = isGroupChatInvite(sip);
-	if (pinfo.mEvent == PushInfo::Message || chatRoomInvite) {
+	if (pinfo.mEvent == PushInfo::Message || chatRoomInvite || it == servicesAvailable.end()) {
 		requiredService = "remote";
 		pinfo.mIsVoip = false;
 		if (chatRoomInvite) {
