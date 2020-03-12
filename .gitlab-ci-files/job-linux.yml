@@ -124,7 +124,7 @@ tests-flexisip-mr:
 
   variables:
     #Build a new Flexisip Docker image from the last published RPM package. default = true
-    REBUILD_FLEXISIP_IMAGE_FROM_RPM: "true"
+    REBUILD_FLEXISIP_IMAGE_FROM_RPM: "false"
     #Rebuild docker images of services which Flexisip needs to work: user database, redis server, etc.
     REBUILD_FLEXISIP_AUXILIARIES: "false"
     #Set this option to true each time you change the commit to checkout for linphone-sdk, otherwise, the SDK is never rebuild. default = true
@@ -134,7 +134,7 @@ tests-flexisip-mr:
     #Git branch to use to build the liblinphone_tester image. "release/${SDK_VERSION}" will be used as branch if empty.
     #SDK_BRANCH
     #Run test suites simultaneously.
-    PARALLEL_MODE: "false"
+    PARALLEL_TEST_MODE: "false"
     #test flex-from-src instead of basic rpm dockerfile
     DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip:latest -f docker/flex-from-src --build-arg=njobs=12"
     liblinphone_tester: "gitlab.linphone.org:4567/bc/public/linphone-sdk/liblinphone_tester:$SDK_VERSION"
@@ -183,13 +183,19 @@ tests-flexisip-mr:
     - liblinphone_tester_options='--dns-hosts none --log-file liblinphone_tester.log --xml --verbose --show-account-manager-logs'
 
     - |
-        if [ "$PARALLEL_MODE" = "true" ]; then
+        if [ "$PARALLEL_TEST_MODE" = "true" ]; then
         liblinphone_tester_options="$liblinphone_tester_options --parallel"
         fi
 
     - export FLEXISIP_LOGS="$workspace"
 
     - mkdir -p $workspace/bin
+
+    - |
+        if [ -z $workspace ]; then
+        echo "Error, $workspace should be set. Aborting to avoid unwanted rm"
+        exit 1
+        fi
 
     - rm -rf $workspace/*
     - cd $workspace
@@ -202,7 +208,7 @@ tests-flexisip-mr:
 
     - docker-compose $docker_compose_options up -d
 
-    - sleep 10
+    - sleep 60
 
     - docker run $docker_run_options $liblinphone_tester $liblinphone_tester_options || EXIT=$? && echo 'Tests have failed'
     - docker-compose $docker_compose_options stop
