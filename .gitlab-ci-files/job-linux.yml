@@ -126,7 +126,7 @@ tests-flexisip-mr:
     #Build a new Flexisip Docker image from the last published RPM package. default = true
     REBUILD_FLEXISIP_IMAGE_FROM_RPM: "false"
     #Rebuild docker images of services which Flexisip needs to work: user database, redis server, etc.
-    REBUILD_FLEXISIP_AUXILIARIES: "false"
+    REBUILD_FLEXISIP_AUXILIARIES: "true"
     #Set this option to true each time you change the commit to checkout for linphone-sdk, otherwise, the SDK is never rebuild. default = true
     REBUILD_SDK: "false"
     SDK_VERSION: "4.3"
