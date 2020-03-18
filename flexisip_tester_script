@@ -6,7 +6,7 @@ FLEXISIP_LOCATION=~/flexisip
 
 #GCI script variables
 REBUILD_FLEXISIP_IMAGE_FROM_RPM=false
-REBUILD_FLEXISIP_AUXILIARIES=false
+REBUILD_FLEXISIP_AUXILIARIES=true
 REBUILD_SDK=false
 SDK_VERSION=4.3
 SDK_BRANCH=release/$SDK_VERSION
@@ -69,7 +69,7 @@ if [ "$REBUILD_FLEXISIP_AUXILIARIES" = "true" ]; then
   docker-compose $docker_compose_options build
 fi
 
-# -d
+# --exit-code-from liblinphone_tester
 docker-compose $docker_compose_options up
 
 #docker-compose $docker_compose_options exec liblinphone_tester bash
