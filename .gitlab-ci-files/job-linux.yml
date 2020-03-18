@@ -221,7 +221,7 @@ tests-flexisip-mr:
 
     # commented -d option to have debug logs on standard output in case of buggy or silent log artifacts
 
-    - docker-compose $docker_compose_options up --exit-code-from liblinphone_tester
+    - docker-compose $docker_compose_options up --exit-code-from liblinphone_tester || EXIT=$?
 
     # The sleep was removed because we now wait for the db socket to open (in compose file) before launching tests
 
