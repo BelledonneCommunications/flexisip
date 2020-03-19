@@ -156,6 +156,9 @@ tests-flexisip-mr:
 
 
   script:
+    #used to ensure there will be not network name conflict for parallel docker-compose executions
+    - COMPOSE_PROJECT_NAME=$RANDOM
+    - echo $COMPOSE_PROJECT_NAME
 
     - echo $SDK_BRANCH
     - echo $liblinphone_tester
@@ -178,6 +181,9 @@ tests-flexisip-mr:
 
     - mkdir -p $workspace/bin
     - rm -rf $workspace/*
+
+    # workaround for logs writing
+    - chmod 777 $workspace
 
     - |
         if [ "$REBUILD_FLEXISIP_IMAGE_FROM_RPM" = "true" ]; then
@@ -220,8 +226,10 @@ tests-flexisip-mr:
         fi
 
     # commented -d option to have debug logs on standard output in case of buggy or silent log artifacts
+    # We output only liblinphone_tester and lime-server on stdout
+    # Lime-server is unable to write logs in volumed directory so it was added to standard output
 
-    - docker-compose $docker_compose_options up --exit-code-from liblinphone_tester | grep liblinphone_tester_1 || EXIT=$?
+    - docker-compose $docker_compose_options up --exit-code-from liblinphone_tester | grep 'liblinphone_tester_1\|lime-server_1' || EXIT=$?
 
     # The sleep was removed because we now wait for the db socket to open (in compose file) before launching tests
 
