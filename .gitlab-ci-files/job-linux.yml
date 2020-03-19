@@ -112,7 +112,9 @@
 
   extends: .job-linux
   only:
-    - schedules
+    variables:
+      - $NIGHTLY_MASTER
+      - $NIGHTLY_RELEASE
 
 tests-flexisip-mr:
   stage: test
