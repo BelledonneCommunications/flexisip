@@ -91,9 +91,9 @@ private:
 	bool isGroupChatInvite(sip_t *sip);
 
 	std::map<std::string, std::shared_ptr<PushNotificationContext>> mPendingNotifications; // map of pending push notifications. Its
-																			// purpose is to avoid sending multiples
-																			// notifications for the same call attempt
-																			// to a given device.
+									// purpose is to avoid sending multiples
+									// notifications for the same call attempt
+									// to a given device.
 	static ModuleInfo<PushNotification> sInfo;
 	url_t *mExternalPushUri = nullptr;
 	string mExternalPushMethod;
@@ -481,12 +481,11 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			pinfo.mUid = br->mUid;
 
 		// check if another push notification for this device wouldn't be pending
-		string keyValue = pinfo.mUid.empty() ? pinfo.mDeviceToken : pinfo.mUid;
-		string pnKey(pinfo.mCallId + ":" + keyValue + ":" + pinfo.mAppId);
+		string pnKey(pinfo.mCallId + ":" + pinfo.mDeviceToken + ":" + pinfo.mAppId);
 		auto it = mPendingNotifications.find(pnKey);
 		if (it != mPendingNotifications.end()) {
-			LOGD("Another push notification is pending for this call %s and this device %s, not creating a new one",
-				pinfo.mCallId.c_str(), keyValue.c_str());
+			LOGD("Another push notification is pending for this call %s and this device token %s, not creating a new one",
+				pinfo.mCallId.c_str(), pinfo.mDeviceToken.c_str());
 			context = it->second;
 		}
 		if (!context) {
