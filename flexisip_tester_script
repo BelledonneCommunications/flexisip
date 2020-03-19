@@ -17,6 +17,7 @@ sourcedir=$FLEXISIP_LOCATION/linphone-sdk-docker
 workspace=$FLEXISIP_LOCATION/liblinphone_tester_workspace
 #docker compose network is default one (it is docker_default ???)
 docker_run_options="--volume=$FLEXISIP_LOCATION/liblinphone_tester_workspace:/home/bc/linphone-sdk-build/linphone-sdk/desktop/work --network=docker_default --device=/dev/snd --user 1000:29"
+COMPOSE_PROJECT_NAME=$RANDOM
 
 #new variables for flexisip_tester
 
@@ -33,7 +34,11 @@ if [ -z $workspace ]; then
 fi
 
 mkdir -p $workspace/bin
+mkdir -p $FLEXISIP_LOCATION/lime
+chmod 777 $FLEXISIP_LOCATION/lime
 sudo rm -rf $workspace/*
+#workaround for logs writing
+chmod 777 $workspace
 
 if [ "$REBUILD_FLEXISIP_IMAGE_FROM_RPM" = "true" ]; then
   docker build $DOCKER_BUILD_OPTIONS .
@@ -70,7 +75,7 @@ if [ "$REBUILD_FLEXISIP_AUXILIARIES" = "true" ]; then
 fi
 
 # --exit-code-from liblinphone_tester
-docker-compose $docker_compose_options up
+docker-compose $docker_compose_options up --exit-code-from liblinphone_tester | grep 'liblinphone_tester_1\|lime-server_1' || EXIT=$?
 
 #docker-compose $docker_compose_options exec liblinphone_tester bash
 
@@ -80,7 +85,7 @@ docker-compose $docker_compose_options up
 
 #docker run $(echo $docker_run_options) $liblinphone_tester $liblinphone_tester_options || EXIT=$? && echo 'Tests have failed'
 
-#docker-compose $docker_compose_options stop
+docker-compose $docker_compose_options stop
 
 #after script (coredump management)
 
@@ -97,3 +102,5 @@ echo "thread apply all bt" | tee -a gdb_options
 # args to the entrypoint command.
 # "true ||" is used here to continue the script even if the find fails
 if [[ -n $(find . -type f -name "core*") ]]; then find . -type f -name "core*" | xargs -L1 docker run $(echo $docker_run_options) --entrypoint gdb $liblinphone_tester ../bin/liblinphone_tester -x gdb_options; fi || true
+
+echo $EXIT
