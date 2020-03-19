@@ -105,7 +105,7 @@ void FlexisipAuthModule::onChallenge(AuthStatus &as, auth_challenger_t const *ac
 	};
 	auto *listener = new GenericAuthListener(getRoot(), cleanUsedAlgo);
 	string unescpapedUrlUser = UriUtils::unescape(as.userUri()->url_user);
-	AuthDbBackend::get().getPassword(unescpapedUrlUser, as.userUri()->url_host, unescpapedUrlUser, listener);
+	AuthDbBackend::get().getPassword(unescpapedUrlUser, as.realm(), unescpapedUrlUser, listener);
 	as.status(100);
 }
 
@@ -188,7 +188,7 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *au,
 			}
 		);
 		string unescpapedUrlUser = UriUtils::unescape(as.userUri()->url_user);
-		AuthDbBackend::get().getPassword(unescpapedUrlUser, as.userUri()->url_host, ar->ar_username, listener);
+		AuthDbBackend::get().getPassword(unescpapedUrlUser, as.realm(), ar->ar_username, listener);
 		as.status(100);
 }
 

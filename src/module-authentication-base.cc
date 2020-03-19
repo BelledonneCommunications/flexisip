@@ -163,21 +163,20 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const
 	sip_t *sip = ms->getSip();
 	const sip_p_preferred_identity_t *ppi = sip_p_preferred_identity(sip);
 	const url_t *userUri = ppi ? ppi->ppid_url : sip->sip_from->a_url;
+	const char *userUriStr = url_as_string(ev->getHome(), userUri);
+
+	LOGD("The realm will be extracted from '%s' (%s)", userUriStr, ppi ? "P-Prefered-Identity" : "From");
 
 	const char *realm = userUri->url_host;
 	if (!mRealmRegexStr.empty()) {
 		cmatch m;
-		const char *userUriStr = url_as_string(ev->getHome(), userUri);
-		LOGD("Searching for realm in %s URI (%s) with '%s' as extracting regex",
-			ppi ? "P-Prefered-Identity" : "From",
-			userUriStr, mRealmRegexStr.c_str()
-		);
-		if (!regex_search(userUriStr, m, mRealmRegex)) {
-			throw runtime_error("no realm found");
+		LOGD("Using a regular expression for realm extraction [%s]", userUriStr);
+		if (regex_search(userUriStr, m, mRealmRegex)) {
+			int index = m.size() == 1 ? 0 : 1;
+			realm = su_strndup(ev->getHome(), userUriStr + m.position(index), m.length(index));
 		}
-		int index = m.size() == 1 ? 0 : 1;
-		realm = su_strndup(ev->getHome(), userUriStr + m.position(index), m.length(index));
 	}
+	if (realm == nullptr) throw runtime_error("realm extraction has failed");
 
 	LOGI("'%s' will be used as realm", realm);
 
