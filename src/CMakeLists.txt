@@ -240,6 +240,8 @@ if(ENABLE_CONFERENCE)
 		conference/registration-subscription.hh
 		conference/participant-registration-subscription-handler.cc
 		conference/participant-registration-subscription-handler.hh
+		conference/conference.cc
+		conference/conference.hh
 		registration-events/utils.cpp
 		registration-events/utils.hh
 		registration-events/client.cpp
