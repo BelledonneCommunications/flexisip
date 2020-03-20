@@ -80,8 +80,13 @@ void ConferenceServer::_init () {
 		configLinphone->setString("storage", "uri", config->get<ConfigString>("database-connection-string")->read());
 	}else{
 		configLinphone->setString("storage", "uri", "null");
-		configLinphone->setInt("sound", "conference_rate", 48000);
+		
 	}
+	configLinphone->setInt("misc", "max_calls", 1000);
+	configLinphone->setBool("sip", "reject_duplicated_calls", false);
+	configLinphone->setInt("sound", "conference_rate", 48000);
+	configLinphone->setBool("rtp", "symmetric", true);
+	
 	mCore = linphone::Factory::get()->createCoreWithConfig(configLinphone, nullptr);
 	mCore->setUserAgent("Flexisip-conference", FLEXISIP_GIT_VERSION);
 	mCore->addListener(shared_from_this());
