@@ -64,7 +64,6 @@ job-centos7-rpm:
     CC: gcc
     CXX: g++
 
-
 job-centos7-rpm-deploy:
   extends: .job-rpm-deploy
   dependencies:

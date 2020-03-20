@@ -19,6 +19,8 @@
 #include <cstring>
 #include <stdexcept>
 
+#include <flexisip/logmanager.hh>
+
 #include "string-utils.hh"
 
 using namespace std;
@@ -98,3 +100,21 @@ std::string StringUtils::transform(const std::string &str, const std::map<char, 
 	}
 	return res;
 }
+
+#ifdef HAVE_LIBLINPHONECXX
+flexisip::stl_backports::optional<linphone::MediaEncryption> StringUtils::string2MediaEncryption(const std::string& str) {
+	using enc = linphone::MediaEncryption;
+	if (str == "zrtp") {
+		return enc::ZRTP;
+	} else if (str == "sdes") {
+		return enc::SRTP;
+	} else if (str == "dtls-srtp") {
+		return enc::DTLS;
+	} else if (str == "none") {
+		return enc::None;
+	}
+
+	SLOGE << "Invalid encryption mode: " << str << " valids modes are : zrtp, sdes, dtls-srtp, none. Ignore this setting";
+	return {};
+}
+#endif // HAVE_LIBLINPHONECXX

@@ -203,6 +203,7 @@ public:
 	}
 	url_t* urlFromTportName(su_home_t* home, const tp_name_t* name);
 	void applyProxyToProxyTransportSettings(tport_t* tp);
+	tport_t *getIncomingTport(const msg_t *orig);
 
 	static sofiasip::TlsConfigInfo
 	getTlsConfigInfo(const GenericStruct* global = GenericManager::get()->getRoot()->get<GenericStruct>("global"));

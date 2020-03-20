@@ -302,6 +302,27 @@ if (ENABLE_B2BUA)
 		mediastreamer
 	)
 endif ()
+if(ENABLE_PUSHNOTIFICATION)
+	target_sources(flexisip PRIVATE
+		module-pushnotification.cc
+		pushnotification/applepush.cc
+		pushnotification/applepush.hh
+		pushnotification/firebasepush.cc
+		pushnotification/firebasepush.hh
+		pushnotification/genericpush.cc
+		pushnotification/genericpush.hh
+		pushnotification/googlepush.cc
+		pushnotification/googlepush.hh
+		pushnotification/microsoftpush.cc
+		pushnotification/microsoftpush.hh
+		pushnotification/pushnotificationclient.cc
+		pushnotification/pushnotificationclient.hh
+		pushnotification/pushnotificationclient_wp.cc
+		pushnotification/pushnotificationclient_wp.hh
+		pushnotification/pushnotificationservice.cc
+		pushnotification/pushnotificationservice.hh
+	)
+endif()
 if (ENABLE_SOCI)
 	target_compile_definitions(flexisip PRIVATE "ENABLE_SOCI")
 	target_sources(flexisip PRIVATE authdb-soci.cc soci-helper.cc soci-helper.hh)

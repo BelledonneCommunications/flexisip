@@ -48,10 +48,10 @@ using MsgSip = sofiasip::MsgSip;
 class SipEvent : public std::enable_shared_from_this<SipEvent> {
 	friend class Agent;
 
-public:
-	SipEvent(const std::shared_ptr<IncomingAgent>& inAgent, const std::shared_ptr<MsgSip>& msgSip);
-	SipEvent(const std::shared_ptr<OutgoingAgent>& outAgent, const std::shared_ptr<MsgSip>& msgSip);
-	SipEvent(const SipEvent& sipEvent);
+  public:
+	SipEvent(const std::shared_ptr<IncomingAgent> &inAgent, const std::shared_ptr<MsgSip> &msgSip, tport_t *tport = NULL);
+	SipEvent(const std::shared_ptr<OutgoingAgent> &outAgent, const std::shared_ptr<MsgSip> &msgSip, tport_t *tport = NULL);
+	SipEvent(const SipEvent &sipEvent);
 
 	inline const std::shared_ptr<MsgSip>& getMsgSip() const {
 		return mMsgSip;
@@ -119,6 +119,8 @@ public:
 	                    you need to submit a new one.*/
 	std::shared_ptr<IncomingTransaction> getIncomingTransaction();
 	std::shared_ptr<OutgoingTransaction> getOutgoingTransaction();
+	
+	const std::shared_ptr<tport_t> &getIncomingTport() const;
 
 protected:
 	std::weak_ptr<Module> mCurrModule;
@@ -144,6 +146,8 @@ protected:
 		}
 		return "invalid";
 	}
+private:
+	std::shared_ptr<tport_t> mIncomingTport;
 };
 
 class RequestSipEvent : public SipEvent {
@@ -179,21 +183,18 @@ public:
 	const char* findIncomingSubject(const std::list<std::string>& in) const;
 	bool matchIncomingSubject(regex_t* regex);
 	void unlinkTransactions();
-	const std::shared_ptr<tport_t>& getIncomingTport() const {
-		return mIncomingTport;
-	}
 	bool mRecordRouteAdded;
 
 private:
 	void checkContentLength(const url_t* url);
 	void linkTransactions();
-	std::shared_ptr<tport_t> mIncomingTport;
 };
 
 class ResponseSipEvent : public SipEvent {
-public:
-	ResponseSipEvent(std::shared_ptr<OutgoingAgent> outgoingAgent, const std::shared_ptr<MsgSip>& msgSip);
-	ResponseSipEvent(const std::shared_ptr<ResponseSipEvent>& sipEvent);
+  public:
+	ResponseSipEvent(std::shared_ptr<OutgoingAgent> outgoingAgent, const std::shared_ptr<MsgSip> &msgSip,
+					 tport_t *tport = NULL);
+	ResponseSipEvent(const std::shared_ptr<ResponseSipEvent> &sipEvent);
 
 	virtual void send(const std::shared_ptr<MsgSip>& msg,
 	                  url_string_t const* u = NULL,

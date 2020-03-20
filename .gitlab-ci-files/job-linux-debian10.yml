@@ -58,7 +58,6 @@ job-debian10-deb:
     - .debian10-image
     - .rules-manual-deploy # ⚠ See `rules.yml`, override .job-linux-deb rules
 
-
 job-debian10-deb-deploy:
   extends: .job-debian-deb-deploy
   variables:

@@ -28,8 +28,11 @@
 #include "registration-subscription.hh"
 #include "service-server.hh"
 
-namespace flexisip {
+#ifndef DEFAULT_LIB_DIR
+#define DEFAULT_LIB_DIR "/var/opt/belledonne-communications/lib/flexisip"
+#endif // DEFAULT_LIB_DIR
 
+namespace flexisip {
 	class ConferenceServer
 		: public ServiceServer
 		, public RegistrarDbStateListener
@@ -51,9 +54,10 @@ namespace flexisip {
 		);
 
 		/**
-		 * Bind conference on the registrardb
+		 * Bind conference factory uris and focus uris on the registrardb
 		**/
-		void bindConference ();
+		void bindFactoryUris ();
+		void bindFocusUris();
 
 		bool capabilityCheckEnabled()const{
 			return mCheckCapabilities;
@@ -64,13 +68,24 @@ namespace flexisip {
 		std::shared_ptr<RegistrationEvent::ClientFactory> getRegEventClientFactory()const{
 			return mRegEventClientFactory;
 		}
-
+		std::shared_ptr<linphone::Core> getCore()const{
+			return mCore;
+		}
+		struct MediaConfig{
+			bool audioEnabled = false;
+			bool videoEnabled = false;
+			bool textEnabled = false;
+		};
+		const MediaConfig &getMediaConfig()const{
+			return mMediaConfig;
+		}
 	protected:
 		void _init () override;
 		void _run () override;
 		void _stop () override;
 
 	private:
+		
 		void loadFactoryUris();
 		// RegistrarDbStateListener implementation
 		void onRegistrarDbWritable (bool writable) override;
@@ -93,17 +108,26 @@ namespace flexisip {
 			const std::shared_ptr<linphone::ChatRoom> &cr,
 			const std::shared_ptr<const linphone::Address> & participantAddr
 		) override;
-
+		void enableSelectedCodecs(const std::list<std::shared_ptr<linphone::PayloadType>>& codecs, const std::list<std::string> &mimeTypes);
+		void configureNatAddresses(std::shared_ptr<linphone::NatPolicy> policy, const std::list<std::string> &addresses);
+		std::string getUuidFilePath() const;
+		std::string getStateDir()const;
+		const std::string & readUuid();
+		void writeUuid(const std::string & uuid);
+		std::string getUuid();
 		std::shared_ptr<linphone::Core> mCore{};
 		std::shared_ptr<RegistrationEvent::ClientFactory> mRegEventClientFactory{};
 		std::string mPath{};
 		SipUri mTransport{};
 		std::list<std::shared_ptr<linphone::ChatRoom>> mChatRooms{};
 		ParticipantRegistrationSubscriptionHandler mSubscriptionHandler;
-		std::list<std::string> mFactoryUris{};
+		MediaConfig mMediaConfig;
+		std::list<std::pair<std::string,std::string>> mConfServerUris{};
 		std::list<std::string> mLocalDomains{};
+		std::string mUuid;
 		bool mAddressesBound = false;
 		bool mCheckCapabilities = false;
+		static constexpr const char * sUuidFile = "uuid";
 		
 		// Used to declare the service configuration
 		class Init {
@@ -115,3 +139,4 @@ namespace flexisip {
 		static sofiasip::Home mHome;
 	};
 } // namespace flexisip
+

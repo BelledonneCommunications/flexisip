@@ -132,7 +132,6 @@
     - make flexisip-deb-build
     - make flexisip-deb-push
 
-
 # Enable this to use tests-flexisip-mr
 #docker-build-flexisip-src:
 #  stage: build 🏗

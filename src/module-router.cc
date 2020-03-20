@@ -293,7 +293,6 @@ shared_ptr<BranchInfo> ModuleRouter::dispatch(const shared_ptr<ForkContext> cont
 		if (!url_has_param(final_route->r_url, "lr")) {
 			url_param_add(new_msgsip->getHome(), final_route->r_url, "lr");
 		}
-
 		if (routes == NULL) routes = final_route;
 		else {
 			sip_route_t* r = routes;

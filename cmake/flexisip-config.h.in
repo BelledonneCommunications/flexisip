@@ -55,6 +55,9 @@
 /* oRTP rtp_session_set_reuseaddr availabled */
 #define ORTP_HAS_REUSEADDR 1
 
+/* Default lib directory */
+#define DEFAULT_LIB_DIR "@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/lib/flexisip"
+
 /* Default log directory */
 #define DEFAULT_LOG_DIR "@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/log/flexisip"
 

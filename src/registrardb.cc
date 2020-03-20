@@ -1332,6 +1332,7 @@ void RegistrarDb::bind(MsgSip&& sipMsg,
 		return;
 	}
 
+	LOGI("RegistrarDb: binding %s", SipUri(sipMsg.getSip()->sip_from->a_url).str().c_str());
 	doBind(sipMsg, parameter, listener);
 }
 

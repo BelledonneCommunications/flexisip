@@ -56,8 +56,6 @@ include:
   - '.gitlab-ci-files/job-linux-ubuntu-22-04.yml'
   - '.gitlab-ci-files/job-macosx.yml'
 
-
-
 stages:
   - build 🏗
   - test 🧪
