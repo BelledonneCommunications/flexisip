@@ -185,7 +185,7 @@ tests-flexisip-mr:
         exit 1
         fi
 
-    - mkdir -p $workspace/bin
+    - mkdir -p $workspace/{bin,ext}
     - rm -rf $workspace/*
 
     # workaround for logs writing
@@ -235,7 +235,7 @@ tests-flexisip-mr:
     # We output only liblinphone_tester and lime-server on stdout
     # Lime-server is unable to write logs in volumed directory so it was added to standard output
 
-    - docker-compose $docker_compose_options up --exit-code-from liblinphone_tester | grep 'liblinphone_tester_1\|lime-server_1\|dbserver_1' || EXIT=$?
+    - docker-compose $docker_compose_options up --exit-code-from liblinphone_tester | grep 'liblinphone_tester_1\|lime-server_1\|dbserver_1\|file-transfer-server_1' || EXIT=$?
 
     # The sleep was removed because we now wait for the db socket to open (in compose file) before launching tests
 
