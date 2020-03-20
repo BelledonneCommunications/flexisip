@@ -25,6 +25,7 @@
 
 #include "conference-address-generator.hh"
 #include "conference-server.hh"
+#include "conference.hh"
 #include "utils/uri-utils.hh"
 
 using namespace std;
@@ -34,10 +35,12 @@ namespace flexisip {
 SofiaAutoHome ConferenceServer::mHome;
 ConferenceServer::Init ConferenceServer::sStaticInit;
 
-ConferenceServer::ConferenceServer (
+ConferenceServer::ConferenceServer (Mode mode,
 	const string &path,
 	su_root_t *root
-) : ServiceServer(root), mPath(path), mSubscriptionHandler(*this) {}
+) : ServiceServer(root), mPath(path), mSubscriptionHandler(*this) {
+	mMode = mode;
+}
 
 ConferenceServer::~ConferenceServer () {}
 
@@ -72,8 +75,13 @@ void ConferenceServer::_init () {
 	shared_ptr<linphone::Config> configLinphone = linphone::Factory::get()->createConfig("");
 	configLinphone->setBool("misc", "conference_server_enabled", 1);
 	configLinphone->setBool("misc", "enable_one_to_one_chat_room", config->get<ConfigBoolean>("enable-one-to-one-chat-room")->read());
-	configLinphone->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
-	configLinphone->setString("storage", "uri", config->get<ConfigString>("database-connection-string")->read());
+	if (mMode == Chat){
+		configLinphone->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
+		configLinphone->setString("storage", "uri", config->get<ConfigString>("database-connection-string")->read());
+	}else{
+		configLinphone->setString("storage", "uri", "null");
+		configLinphone->setInt("sound", "conference_rate", 48000);
+	}
 	mCore = linphone::Factory::get()->createCoreWithConfig(configLinphone, nullptr);
 	mCore->setUserAgent("Flexisip-conference", FLEXISIP_GIT_VERSION);
 	mCore->addListener(shared_from_this());
@@ -90,14 +98,16 @@ void ConferenceServer::_init () {
 	proxy->setConferenceFactoryUri(conferenceFactoryUri);
 	mCore->addProxyConfig(proxy);
 	mCore->setDefaultProxyConfig(proxy);
+	mCore->setUseFiles(true); //No sound card shall be used in calls.
 
 	linphone::Status err = mCore->start();
 	if (err == -2) LOGF("Linphone Core couldn't start because the connection to the database has failed");
 	if (err < 0) LOGF("Linphone Core starting failed");
 
 	RegistrarDb::get()->addStateListener(shared_from_this());
-	if (RegistrarDb::get()->isWritable())
+	if (RegistrarDb::get()->isWritable()){
 		bindAddresses();
+	}
 }
 
 void ConferenceServer::_run () {
@@ -162,18 +172,21 @@ void flexisip::ConferenceServer::bindAddresses () {
 	if (mAddressesBound)
 		return;
 
-	// Bind the conference factory address in the registrar DB
-	bindConference();
+	if (mMode == Chat){
+		// Bind the conference factory address in the registrar DB
+		bindConference();
 
-	// Binding loaded chat room
-	for (const auto &chatRoom : mCore->getChatRooms()) {
-		if (chatRoom->getPeerAddress()->getUriParam("gr").empty()){
-			LOGE("Skipping chatroom %s with no gruu parameter.", chatRoom->getPeerAddress()->asString().c_str());
-			continue;
+		// Binding loaded chat room
+		for (const auto &chatRoom : mCore->getChatRooms()) {
+			if (chatRoom->getPeerAddress()->getUriParam("gr").empty()){
+				LOGE("Skipping chatroom %s with no gruu parameter.", chatRoom->getPeerAddress()->asString().c_str());
+				continue;
+			}
+			bindChatRoom(chatRoom->getPeerAddress()->asStringUriOnly(), mTransport, chatRoom->getPeerAddress()->getUriParam("gr"), nullptr);
 		}
-		bindChatRoom(chatRoom->getPeerAddress()->asStringUriOnly(), mTransport, chatRoom->getPeerAddress()->getUriParam("gr"), nullptr);
+	}else{
+		initStaticConferences();
 	}
-
 	mAddressesBound = true;
 }
 
@@ -220,10 +233,10 @@ void ConferenceServer::bindChatRoom (
 
 	sip_contact_t* sipContact = sip_contact_create(mHome.home(),
 		reinterpret_cast<const url_string_t*>(url_make(mHome.home(), contact.c_str())),
-		su_strdup(mHome.home(), ("+sip.instance=" + UriUtils::grToUniqueId(gruu) ).c_str()), nullptr);
+		!gruu.empty() ? su_strdup(mHome.home(), ("+sip.instance=" + UriUtils::grToUniqueId(gruu) ).c_str()) : nullptr, nullptr);
 	url_t *from = url_make(mHome.home(), bindingUrl.c_str());
 
-	parameter.callId = gruu;
+	parameter.callId = !gruu.empty() ? gruu : "dummy-callid";
 	parameter.path = mPath;
 	parameter.globalExpire = numeric_limits<int>::max();
 	parameter.alias = false;
@@ -236,6 +249,45 @@ void ConferenceServer::bindChatRoom (
 		parameter,
 		listener
 	);
+}
+
+void ConferenceServer::onCallStateChanged(const std::shared_ptr<linphone::Core> & lc, 
+						const std::shared_ptr<linphone::Call> & call, 
+				  linphone::Call::State cstate, const std::string & message){
+	switch(cstate){
+		case linphone::Call::State::IncomingReceived:
+		{
+			auto to = call->getToAddress();
+			auto it = mConferences.find(to->getUsername());
+			if (it != mConferences.end()){
+				(*it).second->addCall(call);
+			}else{
+				call->decline(linphone::Reason::NotFound);
+			}
+		}
+		break;
+		default:
+		break;
+	}
+}
+
+void ConferenceServer::createConference(const shared_ptr<const linphone::Address> &address){
+	mConferences[address->getUsername()] = make_shared<Conference>(*this, address);
+	bindChatRoom(address->asStringUriOnly(), mTransport, "", nullptr);
+}
+
+void ConferenceServer::initStaticConferences(){
+	int i;
+	
+	shared_ptr<linphone::ProxyConfig> proxyConfig = mCore->getDefaultProxyConfig();
+	shared_ptr<const linphone::Address> identity = proxyConfig->getIdentityAddress();
+	shared_ptr<linphone::Address> confUri = identity->clone();
+	for (i = 0 ; i < 10 ; ++i){
+		ostringstream ostr;
+		ostr << "conference-" << i;
+		confUri->setUsername(ostr.str());
+		createConference(confUri);
+	}
 }
 
 ConferenceServer::Init::Init() {
