@@ -329,8 +329,8 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 
 	try {
 		string pnProvider = UriUtils::getParamValue(params, "pn-provider");
-		if (regex_match(pnProvider, match, regex("apns(?:(.dev))*"))) {
-			if (match.size() == 2) {
+		if (regex_match(pnProvider, match, regex("apns(.dev|)"))) {
+			if (match[1].str() == ".dev") {
 				isDev = true;
 			}
 		} else {
