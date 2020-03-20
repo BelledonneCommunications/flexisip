@@ -62,18 +62,18 @@ protected:
 	 * This method may be overridden in order to instantiate a specialization of #FlexisipAuthStatus. Should it be,
 	 * the overriding method might call #configureAuthStatus() for configuring the base of the returned object.
 	 */
-	virtual FlexisipAuthStatus *createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev);
+	virtual FlexisipAuthStatus *createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev, const url_t &identity);
 	/**
 	 * Called by createAuthStatus() for setting #FlexisipAuthStatus attribute for the event request information.
 	 */
-	void configureAuthStatus(FlexisipAuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev);
+	void configureAuthStatus(FlexisipAuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev, const url_t &identity);
 
 
 	/**
 	 * These two methods might be overridden to customize onRequest().
 	 */
 	virtual void validateRequest(const std::shared_ptr<RequestSipEvent> &request);
-	virtual void processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am);
+	virtual void processAuthentication(const std::shared_ptr<RequestSipEvent> &request);
 
 	/**
 	 * Called by onRequest() for getting a #FlexisipAuthModuleBase instance from a domain name.

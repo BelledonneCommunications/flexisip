@@ -122,81 +122,44 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct *mc) {
 }
 
 void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
-	sip_t *sip = ev->getMsgSip()->getSip();
-
 	try {
 		validateRequest(ev);
-
-		if (sip->sip_from->a_url[0].url_host == nullptr) {
-			const char *fromUri = url_as_string(ev->getHome(), sip->sip_from->a_url);
-			LOGE("No domain found in From URI [%s]", fromUri);
-			ev->reply(403, "No domain in user's identity", TAG_END());
-			return;
-		}
-
-		string fromDomain = sip->sip_from->a_url[0].url_host;
-		if (fromDomain == "anonymous.invalid") {
-			sip_p_preferred_identity_t *ppi = sip_p_preferred_identity(sip);
-			if (ppi == nullptr) {
-				LOGE("No P-Preferred-Identity header found");
-				ev->reply(403, "Anonymous request", SIPTAG_END());
-				return;
-			}
-			if (ppi->ppid_url->url_host == nullptr) {
-				const char *ppiUri = url_as_string(ev->getHome(), ppi->ppid_url);
-				LOGE("No domain found in P-Preferred-Identity URI [%s]", ppiUri);
-				ev->reply(403, "No domain in user's identity", SIPTAG_END());
-				return;
-			}
-			fromDomain = ppi->ppid_url->url_host;
-		}
-
-		FlexisipAuthModuleBase *am = findAuthModule(fromDomain);
-		if (am == nullptr) {
-			SLOGI << "Unknown domain [" << fromDomain << "]";
-			SLOGUE << "Registration failure, domain is forbidden: " << fromDomain;
-			ev->reply(403, "Domain forbidden", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-			return;
-		}
-
-		processAuthentication(ev, *am);
+		processAuthentication(ev);
 	} catch (const runtime_error &e) {
 		SLOGE << e.what();
 		ev->reply(500, "Internal error", TAG_END());
 	} catch (const StopRequestProcessing &) {}
 }
 
-FlexisipAuthStatus *ModuleAuthenticationBase::createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) {
+FlexisipAuthStatus *ModuleAuthenticationBase::createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev, const url_t &identity) {
 	auto *as = new FlexisipAuthStatus(ev);
-	ModuleAuthenticationBase::configureAuthStatus(*as, ev);
+	ModuleAuthenticationBase::configureAuthStatus(*as, ev, identity);
 	return as;
 }
 
-void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev) {
+void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev, const url_t &identity) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
-	const sip_p_preferred_identity_t *ppi = sip_p_preferred_identity(sip);
-	const url_t *userUri = ppi ? ppi->ppid_url : sip->sip_from->a_url;
-	const char *userUriStr = url_as_string(ev->getHome(), userUri);
 
-	LOGD("The realm will be extracted from '%s' (%s)", userUriStr, ppi ? "P-Prefered-Identity" : "From");
-
-	const char *realm = userUri->url_host;
+	const char *realm = identity.url_host;
 	if (!mRealmRegexStr.empty()) {
 		cmatch m;
-		LOGD("Using a regular expression for realm extraction [%s]", userUriStr);
-		if (regex_search(userUriStr, m, mRealmRegex)) {
-			int index = m.size() == 1 ? 0 : 1;
-			realm = su_strndup(ev->getHome(), userUriStr + m.position(index), m.length(index));
+		const char *identityStr = url_as_string(ev->getHome(), &identity);
+		LOGD("Using a regular expression for realm extraction [%s]", mRealmRegexStr.c_str());
+		if (!regex_search(identityStr, m, mRealmRegex)) {
+			LOGE("Realm extraction failed");
+			ev->reply(403, "Bad domain", SIPTAG_END());
+			throw StopRequestProcessing();
 		}
+		int index = m.size() == 1 ? 0 : 1;
+		realm = su_strndup(ev->getHome(), identityStr + m.position(index), m.length(index));
 	}
-	if (realm == nullptr) throw runtime_error("realm extraction has failed");
 
 	LOGI("'%s' will be used as realm", realm);
 
 	as.method(sip->sip_request->rq_method_name);
 	as.source(msg_addrinfo(ms->getMsg()));
-	as.userUri(userUri);
+	as.userUri(&identity);
 	as.realm(realm);
 	as.display(sip->sip_from->a_display);
 	if (sip->sip_payload) {
@@ -220,9 +183,39 @@ void ModuleAuthenticationBase::validateRequest(const std::shared_ptr<RequestSipE
 	}
 }
 
-void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am) {
+void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<RequestSipEvent> &request) {
 	const shared_ptr<MsgSip> &ms = request->getMsgSip();
 	sip_t *sip = request->getMsgSip()->getSip();
+
+	const url_t *identity = sip->sip_from->a_url;
+	if (identity->url_host && strcmp(identity->url_host, "anonymous.invalid") == 0) {
+		LOGD("Anonymous request; using P-Preferred-Identity header as user's identity [%s]",
+				url_as_string(request->getHome(), identity));
+
+		sip_p_preferred_identity_t *ppi = sip_p_preferred_identity(sip);
+		if (ppi == nullptr) {
+			LOGE("No P-Preferred-Identity header found");
+			request->reply(403, "Anonymous request", SIPTAG_END());
+			throw StopRequestProcessing();
+		}
+		identity = ppi->ppid_url;
+	} else {
+		LOGD("Using From header as user's identity [%s]", url_as_string(request->getHome(), identity));
+	}
+	if (identity->url_host == nullptr) {
+		LOGE("No domain found in the user's identity URI");
+		request->reply(403, "No domain", SIPTAG_END());
+		throw StopRequestProcessing();
+	}
+
+	string domain = identity->url_host;
+	FlexisipAuthModuleBase *am = findAuthModule(domain);
+	if (am == nullptr) {
+		SLOGI << "Unknown domain [" << domain << "]";
+		SLOGUE << "Registration failure, domain is forbidden: " << domain;
+		request->reply(403, "Domain forbidden", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		throw StopRequestProcessing();
+	}
 
 	// Check for the existence of username, which is required for proceeding with digest authentication in flexisip.
 	// Reject if absent.
@@ -238,16 +231,16 @@ void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<Reque
 	// with retransmissions.
 	request->createIncomingTransaction();
 
-	FlexisipAuthStatus *as = createAuthStatus(request);
+	FlexisipAuthStatus *as = createAuthStatus(request, *identity);
 
 	// Attention: the auth_mod_verify method should not send by itself any message but
 	// return after having set the as status and phrase.
 	// Another point in asynchronous mode is that the asynchronous callbacks MUST be called
 	// AFTER the nta_msg_treply bellow. Otherwise the as would be already destroyed.
 	if (sip->sip_request->rq_method == sip_method_register) {
-		am.verify(*as, sip->sip_authorization, &mRegistrarChallenger);
+		am->verify(*as, sip->sip_authorization, &mRegistrarChallenger);
 	} else {
-		am.verify(*as, sip->sip_proxy_authorization, &mProxyChallenger);
+		am->verify(*as, sip->sip_proxy_authorization, &mProxyChallenger);
 	}
 
 	processAuthModuleResponse(*as);

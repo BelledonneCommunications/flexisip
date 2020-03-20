@@ -85,11 +85,11 @@ FlexisipAuthModuleBase *ModuleExternalAuthentication::createAuthModule(const std
 	}
 }
 
-FlexisipAuthStatus *ModuleExternalAuthentication::createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) {
+FlexisipAuthStatus *ModuleExternalAuthentication::createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev, const url_t &identity) {
 	sip_t *sip = ev->getMsgSip()->getSip();
 
 	auto *as = new ExternalAuthModule::Status(ev);
-	configureAuthStatus(*as, ev);
+	configureAuthStatus(*as, ev, identity);
 
 	as->domain(sip->sip_from->a_url->url_host);
 	as->fromHeader(sip_header_as_string(as->home(), reinterpret_cast<sip_header_t *>(sip->sip_from)));

@@ -349,12 +349,12 @@ void Authentication::validateRequest(const std::shared_ptr<RequestSipEvent> &req
 		throw StopRequestProcessing();
 }
 
-void Authentication::processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am) {
+void Authentication::processAuthentication(const std::shared_ptr<RequestSipEvent> &request) {
 	// check if TLS client certificate provides sufficent authentication for this request.
 	if (handleTlsClientAuthentication(request))
 		throw StopRequestProcessing();
 
-	ModuleAuthenticationBase::processAuthentication(request, am);
+	ModuleAuthenticationBase::processAuthentication(request);
 }
 
 const char *Authentication::findIncomingSubjectInTrusted(const shared_ptr<RequestSipEvent> &ev, const char *fromDomain) {
