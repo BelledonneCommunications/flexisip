@@ -6,7 +6,7 @@ FLEXISIP_LOCATION=~/flexisip
 
 #GCI script variables
 REBUILD_FLEXISIP_IMAGE_FROM_RPM=false
-REBUILD_FLEXISIP_AUXILIARIES=true
+REBUILD_FLEXISIP_AUXILIARIES=false
 REBUILD_SDK=false
 SDK_VERSION=4.3
 SDK_BRANCH=release/$SDK_VERSION
@@ -33,9 +33,8 @@ if [ -z $workspace ]; then
   exit 1
 fi
 
-mkdir -p $workspace/bin
-mkdir -p $FLEXISIP_LOCATION/lime
-chmod 777 $FLEXISIP_LOCATION/lime
+mkdir -p $workspace/{bin,ext}
+
 sudo rm -rf $workspace/*
 #workaround for logs writing
 chmod 777 $workspace
@@ -75,7 +74,7 @@ if [ "$REBUILD_FLEXISIP_AUXILIARIES" = "true" ]; then
 fi
 
 # --exit-code-from liblinphone_tester
-docker-compose $docker_compose_options up --exit-code-from liblinphone_tester | grep 'liblinphone_tester_1\|lime-server_1' || EXIT=$?
+docker-compose $docker_compose_options up --exit-code-from liblinphone_tester | grep 'liblinphone_tester_1\|lime-server_1\|flexisip-external_1\|file-transfer-server_1' || EXIT=$?
 
 #docker-compose $docker_compose_options exec liblinphone_tester bash
 
