@@ -30,6 +30,7 @@
 
 
 namespace flexisip {
+	class Conference;
 
 	class ConferenceServer
 		: public ServiceServer
@@ -39,7 +40,8 @@ namespace flexisip {
 		, public linphone::ChatRoomListener
 	{
 	public:
-		ConferenceServer (const std::string &path, su_root_t *root);
+		enum Mode { AudioVideo, Chat };
+		ConferenceServer (Mode mode, const std::string &path, su_root_t *root);
 		~ConferenceServer ();
 
 		void bindAddresses ();
@@ -59,7 +61,9 @@ namespace flexisip {
 		bool capabilityCheckEnabled()const{
 			return mCheckCapabilities;
 		}
-
+		std::shared_ptr<linphone::Core> getCore()const{
+			return mCore;
+		}
 	protected:
 		void _init () override;
 		void _run () override;
@@ -87,12 +91,19 @@ namespace flexisip {
 			const std::shared_ptr<linphone::ChatRoom> &cr,
 			const std::shared_ptr<const linphone::Address> & participantAddr
 		) override;
-
+		
+		virtual void onCallStateChanged(const std::shared_ptr<linphone::Core> & lc, 
+						const std::shared_ptr<linphone::Call> & call, 
+				  linphone::Call::State cstate, const std::string & message) override;
+		void initStaticConferences();
+		void createConference(const std::shared_ptr<const linphone::Address> & address);
 		std::shared_ptr<linphone::Core> mCore;
 		std::string mPath;
 		std::string mTransport;
 		std::list<std::shared_ptr<linphone::ChatRoom>> mChatRooms;
+		std::map<std::string, std::shared_ptr<Conference> > mConferences;
 		ParticipantRegistrationSubscriptionHandler mSubscriptionHandler;
+		Mode mMode;
 		bool mAddressesBound = false;
 		bool mCheckCapabilities;
 		
