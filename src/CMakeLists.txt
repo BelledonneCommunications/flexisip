@@ -239,6 +239,8 @@ if(ENABLE_CONFERENCE)
 		conference/registration-subscription.hh
 		conference/participant-registration-subscription-handler.cc
 		conference/participant-registration-subscription-handler.hh
+		conference/conference.cc
+		conference/conference.hh
 	)
 endif()
 
