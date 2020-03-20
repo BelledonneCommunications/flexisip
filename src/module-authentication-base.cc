@@ -127,14 +127,28 @@ void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 	try {
 		validateRequest(ev);
 
-		sip_p_preferred_identity_t *ppi = nullptr;
-		const char *fromDomain = sip->sip_from->a_url[0].url_host;
-		if (fromDomain && strcmp(fromDomain, "anonymous.invalid") == 0) {
-			ppi = sip_p_preferred_identity(sip);
-			if (ppi)
-				fromDomain = ppi->ppid_url->url_host;
-			else
-				LOGD("There is no p-preferred-identity");
+		if (sip->sip_from->a_url[0].url_host == nullptr) {
+			const char *fromUri = url_as_string(ev->getHome(), sip->sip_from->a_url);
+			LOGE("No domain found in From URI [%s]", fromUri);
+			ev->reply(403, "No domain in user's identity", TAG_END());
+			return;
+		}
+
+		string fromDomain = sip->sip_from->a_url[0].url_host;
+		if (fromDomain == "anonymous.invalid") {
+			sip_p_preferred_identity_t *ppi = sip_p_preferred_identity(sip);
+			if (ppi == nullptr) {
+				LOGE("No P-Preferred-Identity header found");
+				ev->reply(403, "Anonymous request", SIPTAG_END());
+				return;
+			}
+			if (ppi->ppid_url->url_host == nullptr) {
+				const char *ppiUri = url_as_string(ev->getHome(), ppi->ppid_url);
+				LOGE("No domain found in P-Preferred-Identity URI [%s]", ppiUri);
+				ev->reply(403, "No domain in user's identity", SIPTAG_END());
+				return;
+			}
+			fromDomain = ppi->ppid_url->url_host;
 		}
 
 		FlexisipAuthModuleBase *am = findAuthModule(fromDomain);
