@@ -1,0 +1,5 @@
+{\"aps\":{\"alert\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":[\"" << arg 
+    << "\"]},\"sound\":\"" << sound << "\"";
+    payload << ",\"badge\":" << (info.mNoBadge ? 0 : 1);
+    payload << "},\"call-id\":\"" << callid << "\",\"pn_ttl\":" << info.mTtl << ",\"uuid\":" << quoteStringIfNeeded(info.mUid)
+        << ",\"send-time\":\"" << date << "\"}
