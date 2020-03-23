@@ -50,7 +50,7 @@ struct PusherArgs {
 	PushInfo::ApplePushType appleSilentPushType = PushInfo::Pushkit;
 	void usage(const char *app) {
 		cout << app
-			 << " --pntype google|firebase|wp|w10|apple|apple-push-kit --appid id --key apikey(secretkey) --sid ms-app://value --prefix dir [--silent] [--debug] [--apple-silent-push-type Normal|PushKit]"<<endl
+			 << " --pntype google|firebase|wp|w10|apple|apple-push-kit --appid id --key apikey(secretkey) --sid ms-app://value --prefix dir [--silent] [--debug]"<<endl
 			 << " --pntok id1 (id2 id3 ...)"
 			 << endl;
 	}
@@ -93,16 +93,6 @@ struct PusherArgs {
 				debug = true;
 			}else if (EQ0(i, "--silent")) {
 				isSilent = true;
-			} else if (EQ1(i, "--apple-silent-push-type")) {
-				const char *aspt = argv[++i];
-				if (string(aspt) == "PushKit")
-					appleSilentPushType = PushInfo::Pushkit;
-				else if (string(aspt) == "Normal"){
-					appleSilentPushType = PushInfo::Normal;
-				}else {
-					usage(*argv);
-					exit(-1);
-				}
 			} else if (EQ1(i, "--pntok")) {
 				while (i+1 < argc && strncmp(argv[i+1], "--", 2) != 0) {
 					i++;
@@ -164,7 +154,7 @@ static vector<shared_ptr<PushNotificationRequest>> createRequestFromArgs(const P
 			result.push_back(make_shared<WindowsPhonePushNotificationRequest>(pinfo));
 		} else if (args.pntype == "apple-push-kit") {
 			/* for calls */
-			pinfo.mIsVoip = true;
+			pinfo.mApplePushType = PushInfo::Pushkit;
 			pinfo.mAlertMsgId = "IM_MSG";
 			pinfo.mAlertSound = "msg.caf";
 			pinfo.mAppId = args.appid;
@@ -177,14 +167,13 @@ static vector<shared_ptr<PushNotificationRequest>> createRequestFromArgs(const P
 			/* for messages and group chat invites
 			iOS app extension get message from callId.
 			It will receive the push but won't be able to display the message */
-			pinfo.mIsVoip = false;
+			pinfo.mApplePushType = PushInfo::RemoteWithMutableContent;
 			pinfo.mAlertMsgId = "IM_MSG";
 			pinfo.mAlertSound = "msg.caf";
 			pinfo.mAppId = args.appid;
 			pinfo.mDeviceToken = pntok;
 			pinfo.mTtl = 2592000;
 			pinfo.mSilent = args.isSilent;
-			pinfo.mApplePushType = args.appleSilentPushType;
 			//pinfo.mTtl = 60;
 			result.push_back(make_shared<ApplePushNotificationRequest>(pinfo));
 		} else {
