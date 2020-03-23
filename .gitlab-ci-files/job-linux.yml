@@ -126,37 +126,23 @@ tests-flexisip-mr:
       - $DEPLOY_UBUNTU
 
   variables:
-    #Build a new Flexisip Docker image from the last published RPM package. default = true
-    REBUILD_FLEXISIP_IMAGE_FROM_RPM: "false"
+    #Build a new Flexisip Docker image from source
+    REBUILD_FLEXISIP_IMAGE: "false"
     #Rebuild docker images of services which Flexisip needs to work: user database, redis server, etc.
     REBUILD_FLEXISIP_AUXILIARIES: "false"
     #Set this option to true each time you change the commit to checkout for linphone-sdk, otherwise, the SDK is never rebuild. default = true
     REBUILD_SDK: "false"
     SDK_VERSION: "4.3"
     SDK_BRANCH: "release/$SDK_VERSION"
-    #Git branch to use to build the liblinphone_tester image. "release/${SDK_VERSION}" will be used as branch if empty.
-    #SDK_BRANCH
-    #Run test suites simultaneously.
-    #PARALLEL_TEST_MODE: "false"
-    #test flex-from-src instead of basic rpm dockerfile
+
+    # uses flex-from-src instead of basic rpm dockerfile
     DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip:latest -f docker/flex-from-src --build-arg=njobs=12"
     liblinphone_tester: "gitlab.linphone.org:4567/bc/public/linphone-sdk/liblinphone_tester:$SDK_VERSION"
     sourcedir: ${CI_PROJECT_DIR}/linphone-sdk-docker
     workspace: "${CI_PROJECT_DIR}/liblinphone_tester_workspace"
     # we can't use $workspace nested variables here, since defined variables
     # are extended in "script".
-    # Useless run options are defined in docker-compose
-    #docker_run_options: "--volume=${CI_PROJECT_DIR}/liblinphone_tester_workspace:/home/bc/linphone-sdk-build/linphone-sdk/desktop/work --network=docker_default --device=/dev/snd --user 1000:29"
-
-  before_script:
-    ##
-    ## If a FLEXISIP_TESTER_USER_KEY is defined then start ssh-agent and add the key
-    ##
-    #- if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then eval $(ssh-agent -s); fi
-    #- if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then echo "$FLEXISIP_TESTER_USER_KEY" | tr -d '\r' | ssh-add - > /dev/null; fi
-    #- if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then mkdir -p ~/.ssh && chmod 700 ~/.ssh; fi
-    #- if ! [ -z ${FLEXISIP_TESTER_USER_KEY+x} ]; then echo -e "Host gitlab.linphone.org\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config; fi
-
+    # Docker run options are defined in docker-compose
 
   script:
     #used to ensure there will be not network name conflict for parallel docker-compose executions
@@ -185,14 +171,15 @@ tests-flexisip-mr:
         exit 1
         fi
 
-    - mkdir -p $workspace/{bin,ext}
+    - mkdir -p $workspace/{bin,ext,lime-server-apache}
     - rm -rf $workspace/*
 
-    # workaround for logs writing
+    # workaround for logs writing (apache chown for lime-server)
+    - chown apache:apache $workspace
     - chmod 777 $workspace
 
     - |
-        if [ "$REBUILD_FLEXISIP_IMAGE_FROM_RPM" = "true" ]; then
+        if [ "$REBUILD_FLEXISIP_IMAGE" = "true" ]; then
         docker build $DOCKER_BUILD_OPTIONS .
         fi
 
@@ -235,7 +222,15 @@ tests-flexisip-mr:
     # We output only liblinphone_tester and lime-server on stdout
     # Lime-server is unable to write logs in volumed directory so it was added to standard output
 
-    - docker-compose $docker_compose_options up --exit-code-from liblinphone_tester | grep 'liblinphone_tester_1\|lime-server_1\|dbserver_1\|file-transfer-server_1' || EXIT=$?
+    - docker-compose $docker_compose_options up --exit-code-from liblinphone_tester |& tee logs_all | grep 'liblinphone_tester_1' || EXIT=$?
+
+    # We get logs from standard output because it is easier to do this than to modifying all container configs
+    - grep 'file-transfer-server_1' logs_all > file-transfer-server.log
+    - grep 'lime-server_1' logs_all > lime-server_stdout.log
+    - grep 'dbserver_1' logs_all > dbserver_stdout.log
+    - grep 'account-manager_1' logs_all > account-manager_stdout.log
+    - grep 'http-proxy_1' logs_all > http-proxy_stdout.log
+    - grep 'redis-server_1' logs_all > redis-server_stdout.log
 
     # The sleep was removed because we now wait for the db socket to open (in compose file) before launching tests
 
@@ -281,6 +276,3 @@ tests-flexisip-mr:
       junit:
         - liblinphone_tester_workspace/BCUnitAutomated-Results.xml
     expire_in: 4 week
-    #cloner flexisip_tester (branche conf/standalone_flexisip) ainsi que linphone-sdk (branche feature/docker_liblinphone_tester) avec update recursif des sous-modules
-
-    #penser aussi à l'upload des rapports de test.

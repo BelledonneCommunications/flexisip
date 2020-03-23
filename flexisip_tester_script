@@ -6,7 +6,7 @@ FLEXISIP_LOCATION=~/flexisip
 
 #GCI script variables
 REBUILD_FLEXISIP_IMAGE_FROM_RPM=false
-REBUILD_FLEXISIP_AUXILIARIES=false
+REBUILD_FLEXISIP_AUXILIARIES=true
 REBUILD_SDK=false
 SDK_VERSION=4.3
 SDK_BRANCH=release/$SDK_VERSION
@@ -33,11 +33,14 @@ if [ -z $workspace ]; then
   exit 1
 fi
 
-mkdir -p $workspace/{bin,ext}
+mkdir -p $workspace/{bin,ext,lime-server-apache}
 
 sudo rm -rf $workspace/*
+
+ls $workspace
 #workaround for logs writing
-chmod 777 $workspace
+chown apache:apache $workspace
+chmod -R 777 $workspace
 
 if [ "$REBUILD_FLEXISIP_IMAGE_FROM_RPM" = "true" ]; then
   docker build $DOCKER_BUILD_OPTIONS .
@@ -74,7 +77,19 @@ if [ "$REBUILD_FLEXISIP_AUXILIARIES" = "true" ]; then
 fi
 
 # --exit-code-from liblinphone_tester
-docker-compose $docker_compose_options up --exit-code-from liblinphone_tester | grep 'liblinphone_tester_1\|lime-server_1\|flexisip-external_1\|file-transfer-server_1' || EXIT=$?
+docker-compose $docker_compose_options up --exit-code-from liblinphone_tester |& tee logs_all | grep 'liblinphone_tester_1' || EXIT=$?
+
+grep 'file-transfer-server_1' logs_all > file-transfer-server.log
+
+grep 'lime-server_1' logs_all > lime-server_stdout.log
+
+grep 'dbserver_1' logs_all > dbserver_stdout.log
+
+grep 'account-manager_1' logs_all > account-manager_stdout.log
+
+grep 'http-proxy_1' logs_all > http-proxy_stdout.log
+
+grep 'redis-server_1' logs_all > redis-server_stdout.log
 
 #docker-compose $docker_compose_options exec liblinphone_tester bash
 
