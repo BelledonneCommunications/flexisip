@@ -364,7 +364,7 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 	try {
 		pnPrid = UriUtils::getParamValue(params, "pn-prid");
 	} catch (const out_of_range &) {
-		throw runtime_error("no pn-param");
+		throw runtime_error("no pn-prid");
 	}
 	if (!pnPrid.empty()) {
 		const auto tokenList = StringUtils::split(pnPrid, "&");
