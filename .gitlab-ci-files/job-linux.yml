@@ -197,7 +197,7 @@ tests-flexisip-mr:
 
     # workaround for logs writing (apache chown for lime-server)
     - sudo chown apache:apache $workspace
-    - chmod -R 777 $workspace
+    - sudo chmod -R 777 $workspace
 
     - |
         if [ "$REBUILD_FLEXISIP_IMAGE" = "true" ]; then
