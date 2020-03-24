@@ -196,7 +196,7 @@ tests-flexisip-mr:
     - rm -rf $workspace/*
 
     # workaround for logs writing (apache chown for lime-server)
-    - chown apache:apache $workspace
+    - sudo chown apache:apache $workspace
     - chmod -R 777 $workspace
 
     - |
