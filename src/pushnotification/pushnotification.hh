@@ -45,10 +45,12 @@ struct PushInfo {
 	std::string mAccessToken; // access token required by Microsoft to authenticate our server
 	std::string mTeamId; // The Apple team id
 	std::string mChatRoomAddr; // In case of a chat room invite, the sip addr of the chat room is needed. (ios specific).
-	bool mIsVoip; // For Apple push: is voip (PushKit) push needed?
 	int mTtl; //Time to live of the push notification.
-	enum ApplePushType{
-		Pushkit, Normal
+	enum ApplePushType {
+		Pushkit,
+		RemoteBasic,
+		RemoteWithMutableContent,
+		Background
 	} mApplePushType;
 	bool mNoBadge; // Whether to display a badge on the application (ios specific).
 	bool mSilent;

@@ -19,8 +19,11 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 	const string &arg = info.mFromName.empty() ? info.mFromUri : info.mFromName;
 	const string &sound = info.mAlertSound;
 	const string &callid = info.mCallId;
-	ostringstream payload;
 	string date = getPushTimeStamp();
+
+	const char *rawPayload;
+	int bufferMaxSize = MAXPAYLOAD_SIZE;
+	char buffer[bufferMaxSize];
 
 	int ret = formatDeviceToken(deviceToken);
 	if ((ret != 0) || (mDeviceToken.size() != DEVICE_BINARY_SIZE)) {
@@ -28,48 +31,90 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 	}
 	mTtl = info.mTtl;
 
-
-	if (info.mIsVoip) {
-		if (info.mSilent || msg_id == "IC_SIL") {
-			if (info.mApplePushType == PushInfo::Pushkit) {
-				// We also need msg_id and callid in case the push is received but the device cannot register
-				payload << "{\"aps\":{\"sound\":\"\", \"loc-key\":\"" << msg_id << "\", \"call-id\":\"" << callid <<"\", \"uuid\":" << quoteStringIfNeeded(info.mUid)
-					<< ", \"send-time\":\"" << date << "\"}, \"pn_ttl\":"<< info.mTtl << "}";
-			}else{
-				// Use a normal push notification with content-available set to 1, no alert, no sound.
-				payload << "{\"aps\": { \"badge\" : 0, \"content-available\" : 1, \"loc-key\":\"" << msg_id << "\", "
-					<< "\"loc-args\":[\"" << arg << "\"], "
-					<< "\"call-id\":\"" << callid <<"\", \"uuid\":" << quoteStringIfNeeded(info.mUid)
-					<< ", \"send-time\":\"" << date << "\"}, \"pn_ttl\":"<< info.mTtl << "}";
-			}
-		} else {
-			payload << "{\"aps\":{\"alert\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":[\"" << arg
-			<< "\"]},\"sound\":\"" << sound << "\"";
-			/* some apps don't want the push to update the badge - but if they do,
-			we always put the badge value to 1 because we want to notify the user that
-			he/she has unread messages even if we do not know the exact count */
-			payload << ",\"badge\":" << (info.mNoBadge ? 0 : 1);
-			payload << "},\"call-id\":\"" << callid << "\",\"pn_ttl\":" << info.mTtl << ",\"uuid\":" << quoteStringIfNeeded(info.mUid)
-				<< ",\"send-time\":\"" << date << "\"}";
-		}
-	} else {
-		payload << "{\"aps\":{\"alert\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":[\"" << arg
-		<< "\"]},\"sound\":\"" << sound << "\"" << ",\"mutable-content\":1";
+	switch (info.mApplePushType) {
+	case PushInfo::Pushkit:
+		// We also need msg_id and callid in case the push is received but the device cannot register
+		rawPayload = R"json({
+			"aps": {
+				"sound": "",
+				"loc-key": "%s",
+				"call-id": "%s",
+				"uuid": %s,
+				"send-time": "%s"
+			},
+			"pn_ttl": %d
+		})json";
+		snprintf(buffer, bufferMaxSize, rawPayload, msg_id.c_str(), callid.c_str(), quoteStringIfNeeded(info.mUid).c_str(), date.c_str(), info.mTtl);
+		break;
+	case PushInfo::Background:
+		// Use a normal push notification with content-available set to 1, no alert, no sound.
+		rawPayload = R"json({
+			"aps": {
+				"badge": 0,
+				"content-available": 1,
+				"loc-key": "%s",
+				"loc-args": ["%s"],
+				"call-id": "%s",
+				"uuid": %s,
+				"send-time": "%s"
+			},
+			"pn_ttl": %d
+		})json";
+		snprintf(buffer, bufferMaxSize, rawPayload, msg_id.c_str(), arg.c_str(), callid.c_str(), quoteStringIfNeeded(info.mUid).c_str(), date.c_str(), info.mTtl);
+		break;
+	case PushInfo::RemoteBasic:
 		/* some apps don't want the push to update the badge - but if they do,
 		we always put the badge value to 1 because we want to notify the user that
 		he/she has unread messages even if we do not know the exact count */
-		payload << ",\"badge\":" << (info.mNoBadge ? 0 : 1);
-		payload << "},\"call-id\":\"" << callid << "\",\"pn_ttl\":" << info.mTtl << ",\"uuid\":" << quoteStringIfNeeded(info.mUid)
-			<< ",\"send-time\":\"" << date << "\", \"chat-room-addr\":\"" << (info.mChatRoomAddr.empty() ? "" : info.mChatRoomAddr) << "\"}";
+		rawPayload = R"json({
+			"aps": {
+				"alert": {
+					"loc-key": "%s",
+					"loc-args": ["%s"]
+				},
+				"sound": "%s",
+				"badge": %d
+			},
+			"call-id": "%s",
+			"pn_ttl": %d,
+			"uuid": %s,
+			"send-time": "%s"
+		})json";
+		snprintf(buffer, bufferMaxSize, rawPayload, msg_id.c_str(), arg.c_str(), sound.c_str(), (info.mNoBadge ? 0 : 1), callid.c_str(), info.mTtl, quoteStringIfNeeded(info.mUid).c_str(), date.c_str());
+		break;
+	case PushInfo::RemoteWithMutableContent:
+		/* some apps don't want the push to update the badge - but if they do,
+		we always put the badge value to 1 because we want to notify the user that
+		he/she has unread messages even if we do not know the exact count */
+		rawPayload = R"json({
+			"aps": {
+				"alert": {
+					"loc-key": "%s",
+					"loc-args": ["%s"]
+				},
+				"sound": "%s",
+				"mutable-content": 1,
+				"badge": %d
+			},
+			"call-id": "%s",
+			"pn_ttl": %d,
+			"uuid": %s,
+			"send-time": "%s",
+			"chat-room-addr": "%s"
+		})json";
+		string chatRoomAddr = (info.mChatRoomAddr.empty() ? "" : info.mChatRoomAddr);
+		snprintf(buffer, bufferMaxSize, rawPayload, msg_id.c_str(), arg.c_str(), sound.c_str(), (info.mNoBadge ? 0 : 1), callid.c_str(), info.mTtl, quoteStringIfNeeded(info.mUid).c_str(), date.c_str(), chatRoomAddr.c_str());
+		break;
 	}
 
-	SLOGD << "PNR " << this << " payload is " << payload.str();
-	if (payload.str().length() > MAXPAYLOAD_SIZE) {
+	mPayload = buffer;
+	SLOGD << "PNR " << this << " payload is " << mPayload;
+	if (mPayload.length() > MAXPAYLOAD_SIZE) {
 		SLOGE << "PNR " << this << " cannot be sent because the payload size is higher than " << MAXPAYLOAD_SIZE;
+		mPayload.clear();
 		return;
 	}
 
-	mPayload = payload.str();
 }
 
 int ApplePushNotificationRequest::formatDeviceToken(const string &deviceToken) {

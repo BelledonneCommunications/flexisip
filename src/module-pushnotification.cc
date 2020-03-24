@@ -106,8 +106,12 @@ private:
 	std::unique_ptr<PushNotificationService> mPNS;
 	StatCounter64 *mCountFailed = nullptr;
 	StatCounter64 *mCountSent = nullptr;
-	PushInfo::ApplePushType mAppleSilentPushType;
 	bool mNoBadgeiOS = false;
+
+	regex pnProviderRegex = regex("apns(.dev|)");
+	regex pnParamRegex = regex("([A-Za-z0-9]+)\\.([A-Za-z\\.]+)\\.([a-z&]+)");
+	regex pnPridOneTokenRegex = regex("([a-zA-Z0-9]+)(?::([a-z]+))?");
+	regex pnPridMultipleTokensRegex = regex("([a-zA-Z0-9]+):([a-z]+)");
 
 	friend class PushNotificationContext;
 };
@@ -201,11 +205,6 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		 "They should bear the appid of the application, suffixed by the release mode and .pem extension, and made of certificate followed by private key. "
 		 "For example: org.linphone.voip.dev.pem org.linphone.voip.prod.pem com.somephone.voip.dev.pem etc...",
 		 "/etc/flexisip/apn"},
-		{String, "apple-silent-push-type", "Specify the way of formatting push notification sent to apple servers when the client requests to use silent push notifications"
-			" with pn-silent=1 parameter in its contact uri parameter. Several options are available:\n"
-			" - 'pushkit' : format a push notification suitable for usage with pushkit. This is the default value.\n"
-			" - 'normal' : format a push notification suitable for normal push notifications, with 'content-available' attribute set to 1."
-			, "pushkit"},
 		{Boolean, "google", "Enable push notification for android devices (for compatibility only)", "true"},
 		{StringList, "google-projects-api-keys",
 		 "List of couples projectId:ApiKey for each android project that supports push notifications (for compatibility only)", ""},
@@ -272,15 +271,6 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 	}
 	mRetransmissionCount = retransmissionCount;
 	mRetransmissionInterval = retransmissionInterval;
-	
-	string applePushType = mc->get<ConfigString>("apple-silent-push-type")->read();
-	if (applePushType == "pushkit"){
-		mAppleSilentPushType = PushInfo::Pushkit;
-	}else if (applePushType == "normal"){
-		mAppleSilentPushType = PushInfo::Normal;
-	}else{
-		LOGF("Bad value '%s' for module::PushNotification/apple-silent-push-type property.", applePushType.c_str());
-	}
 
 	mExternalPushMethod = mc->get<ConfigString>("external-push-method")->read();
 	if (!externalUri.empty()) {
@@ -329,7 +319,7 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 
 	try {
 		string pnProvider = UriUtils::getParamValue(params, "pn-provider");
-		if (regex_match(pnProvider, match, regex("apns(.dev|)"))) {
+		if (regex_match(pnProvider, match, pnProviderRegex)) {
 			if (match[1].str() == ".dev") {
 				isDev = true;
 			}
@@ -342,7 +332,7 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 
 	try {
 		string pnParam = UriUtils::getParamValue(params, "pn-param");
-		if (regex_match(pnParam, match, regex("([A-Za-z0-9]+)\\.([A-Za-z\\.]+)\\.([a-z&]+)"))) {
+		if (regex_match(pnParam, match, pnParamRegex)) {
 			pinfo.mTeamId = match[1].str();
 			bundleId = match[2].str();
 			servicesAvailable = StringUtils::split(match[3].str(), "&");
@@ -357,13 +347,13 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 	bool chatRoomInvite = isGroupChatInvite(sip);
 	if (pinfo.mEvent == PushInfo::Message || chatRoomInvite || it == servicesAvailable.end()) {
 		requiredService = "remote";
-		pinfo.mIsVoip = false;
+		pinfo.mApplePushType = PushInfo::RemoteWithMutableContent;
 		if (chatRoomInvite) {
 			pinfo.mChatRoomAddr = string(sip->sip_from->a_url->url_user);
 		}
 	} else {
 		requiredService = "voip";
-		pinfo.mIsVoip = true;
+		pinfo.mApplePushType = PushInfo::Pushkit;
 	}
 
 	bool hasRequiredService = false;
@@ -382,7 +372,7 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 		const auto tokenList = StringUtils::split(pnPrid, "&");
 		for (const auto &tokenAndService : tokenList) {
 			if (tokenList.size() == 1) {
-				if (regex_match(tokenAndService, match, regex("([a-zA-Z0-9]+)(?::([a-z]+))?"))) {
+				if (regex_match(tokenAndService, match, pnPridOneTokenRegex)) {
 					if (match.size() == 2) {
 						deviceToken = match[1].str();
 					} else {
@@ -394,7 +384,7 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 					throw runtime_error("pn-prid invalid syntax");
 				}
 			} else {
-				if (regex_match(tokenAndService, match, regex("([a-zA-Z0-9]+):([a-z]+)"))) {
+				if (regex_match(tokenAndService, match, pnPridMultipleTokensRegex)) {
 					if (match[2].str() == requiredService) {
 						deviceToken = match[1].str();
 					}
@@ -412,7 +402,7 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 	}
 
 	pinfo.mDeviceToken = deviceToken;
-	pinfo.mAppId = bundleId + (pinfo.mIsVoip ? ".voip" : "") + (isDev ? ".dev" : ".prod");
+	pinfo.mAppId = bundleId + (pinfo.mApplePushType == PushInfo::Pushkit ? ".voip" : "") + (isDev ? ".dev" : ".prod");
 }
 
 bool PushNotification::isGroupChatInvite(sip_t *sip) {
@@ -514,7 +504,9 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				try {
 					pnSilentStr = UriUtils::getParamValue(params, "pn-silent");
 					pinfo.mSilent = bool(stoi(pnSilentStr));
-					if (pinfo.mSilent && pinfo.mType == "apple") pinfo.mApplePushType = mAppleSilentPushType;
+					if (!url_has_param(url, "pn-provider") && (pinfo.mType == "apple")) {
+						pinfo.mApplePushType = pinfo.mSilent ? PushInfo::Pushkit : PushInfo::RemoteBasic;
+					}
 				} catch (const logic_error &) {
 					SLOGE << "invalid 'pn-silent' value: " << pnSilentStr;
 				}
