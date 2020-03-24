@@ -3,8 +3,17 @@ $(eval GIT_DESCRIBE = $(shell sh -c "git describe"))
 DOCKER_TAG=$(BASE_NAME):$(GIT_DESCRIBE)
 DOCKER_FILE=flex-from-src
 
+# We cannot use dockerfile's COPY outside build context
+# we use then flexisip directory as context for flex-from-src instead of docker directory
+
+ifeq ($(DOCKER_FILE), flex-from-src)
+  CONTEXT=..
+else
+  CONTEXT=.
+endif
+
 flexisip-build:
-	docker build -f $(DOCKER_FILE) --no-cache -t $(DOCKER_TAG) --rm .
+	docker build -f $(DOCKER_FILE) --no-cache -t $(DOCKER_TAG) --rm $(CONTEXT)
 
 flexisip-push:
 	docker push $(DOCKER_TAG)
@@ -14,6 +23,9 @@ flexisip-clean:
 
 flexisip-deb-before:
 	$(eval DOCKER_FILE = flex-from-deb)
+	# forcing context to .
+	# at the moment of the condition above being executed, $DOCKER_FILE doesn't have the right value
+	$(eval CONTEXT = .)
 	$(eval DOCKER_TAG = $(DOCKER_TAG)-deb)
 
 flexisip-deb-build: flexisip-deb-before flexisip-build

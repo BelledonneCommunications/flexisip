@@ -28,11 +28,13 @@ ENV PATH=/opt/belledonne-communications/bin:$PATH
 RUN mkdir -p /var/opt/belledonne-communications/flexisip /etc/flexisip /home/cores
 VOLUME /etc/flexisip
 VOLUME /var/opt/belledonne-communications/log/flexisip
-VOLUME /home/cores
+
+COPY docker/flexisip-entrypoint.sh /
+COPY docker/backtrace.gdb /
+RUN chmod a+x /flexisip-entrypoint.sh
 
 
 # Generate a default configuration
 RUN flexisip --dump-default all > /etc/flexisip/flexisip.conf
-
 
 ENTRYPOINT ["/opt/belledonne-communications/bin/flexisip"]
