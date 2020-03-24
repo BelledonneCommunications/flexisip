@@ -108,10 +108,10 @@ private:
 	StatCounter64 *mCountSent = nullptr;
 	bool mNoBadgeiOS = false;
 
-	regex pnProviderRegex = regex("apns(.dev|)");
-	regex pnParamRegex = regex("([A-Za-z0-9]+)\\.([A-Za-z\\.]+)\\.([a-z&]+)");
-	regex pnPridOneTokenRegex = regex("([a-zA-Z0-9]+)(?::([a-z]+))?");
-	regex pnPridMultipleTokensRegex = regex("([a-zA-Z0-9]+):([a-z]+)");
+	regex mPnProviderRegex = regex("apns(.dev|)");
+	regex mPnParamRegex = regex("([A-Za-z0-9]+)\\.([A-Za-z\\.]+)\\.([a-z&]+)");
+	regex mPnPridOneTokenRegex = regex("([a-zA-Z0-9]+)(?::([a-z]+))?");
+	regex mPnPridMultipleTokensRegex = regex("([a-zA-Z0-9]+):([a-z]+)");
 
 	friend class PushNotificationContext;
 };
@@ -319,7 +319,7 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 
 	try {
 		string pnProvider = UriUtils::getParamValue(params, "pn-provider");
-		if (regex_match(pnProvider, match, pnProviderRegex)) {
+		if (regex_match(pnProvider, match, mPnProviderRegex)) {
 			if (match[1].str() == ".dev") {
 				isDev = true;
 			}
@@ -332,7 +332,7 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 
 	try {
 		string pnParam = UriUtils::getParamValue(params, "pn-param");
-		if (regex_match(pnParam, match, pnParamRegex)) {
+		if (regex_match(pnParam, match, mPnParamRegex)) {
 			pinfo.mTeamId = match[1].str();
 			bundleId = match[2].str();
 			servicesAvailable = StringUtils::split(match[3].str(), "&");
@@ -356,23 +356,21 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 		pinfo.mApplePushType = PushInfo::Pushkit;
 	}
 
-	bool hasRequiredService = false;
-	for (const auto service : servicesAvailable) {
-		if (service == requiredService) {
-			hasRequiredService = true;
-			break;
-		}
-	}
-	if (!hasRequiredService) {
+	if (servicesAvailable.cend() == find(servicesAvailable.cbegin(), servicesAvailable.cend(), requiredService)) {
 		throw runtime_error(string("pn-param does not define required service: " + requiredService));
 	}
 
+	string pnPrid;
 	try {
-		string pnPrid = UriUtils::getParamValue(params, "pn-prid");
+		pnPrid = UriUtils::getParamValue(params, "pn-prid");
+	} catch (const out_of_range &) {
+		throw runtime_error("no pn-param");
+	}
+	if (!pnPrid.empty()) {
 		const auto tokenList = StringUtils::split(pnPrid, "&");
 		for (const auto &tokenAndService : tokenList) {
 			if (tokenList.size() == 1) {
-				if (regex_match(tokenAndService, match, pnPridOneTokenRegex)) {
+				if (regex_match(tokenAndService, match, mPnPridOneTokenRegex)) {
 					if (match.size() == 2) {
 						deviceToken = match[1].str();
 					} else {
@@ -384,7 +382,7 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 					throw runtime_error("pn-prid invalid syntax");
 				}
 			} else {
-				if (regex_match(tokenAndService, match, pnPridMultipleTokensRegex)) {
+				if (regex_match(tokenAndService, match, mPnPridMultipleTokensRegex)) {
 					if (match[2].str() == requiredService) {
 						deviceToken = match[1].str();
 					}
@@ -393,8 +391,6 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 				}
 			}
 		}
-	} catch (const out_of_range &) {
-		throw runtime_error("no pn-param");
 	}
 
 	if (deviceToken.empty()) {
