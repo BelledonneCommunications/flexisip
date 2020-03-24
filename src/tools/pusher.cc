@@ -47,10 +47,10 @@ struct PusherArgs {
 	vector<string> pntok;
 	string apikey;
 	string packageSID;
-	PushInfo::ApplePushType appleSilentPushType = PushInfo::Pushkit;
+	PushInfo::ApplePushType applePushType = PushInfo::Pushkit;
 	void usage(const char *app) {
 		cout << app
-			 << " --pntype google|firebase|wp|w10|apple|apple-push-kit --appid id --key apikey(secretkey) --sid ms-app://value --prefix dir [--silent] [--debug] [--apple-silent-push-type Normal|PushKit]"<<endl
+			 << " --pntype google|firebase|wp|w10|apple --appid id --key apikey(secretkey) --sid ms-app://value --prefix dir [--silent] [--debug] [--apple-push-type RemoteBasic|RemoteWithMutableContent|Background|PushKit]"<<endl
 			 << " --pntok id1 (id2 id3 ...)"
 			 << endl;
 	}
@@ -93,13 +93,17 @@ struct PusherArgs {
 				debug = true;
 			}else if (EQ0(i, "--silent")) {
 				isSilent = true;
-			} else if (EQ1(i, "--apple-silent-push-type")) {
+			} else if (EQ1(i, "--apple-push-type")) {
 				const char *aspt = argv[++i];
-				if (string(aspt) == "PushKit")
-					appleSilentPushType = PushInfo::Pushkit;
-				else if (string(aspt) == "Normal"){
-					appleSilentPushType = PushInfo::Normal;
-				}else {
+				if (string(aspt) == "PushKit") {
+					applePushType = PushInfo::Pushkit;
+				} else if (string(aspt) == "RemoteBasic") {
+					applePushType = PushInfo::RemoteBasic;
+				} else if (string(aspt) == "RemoteWithMutableContent") {
+					applePushType = PushInfo::RemoteWithMutableContent;
+				} else if (string(aspt) == "Background") {
+					applePushType = PushInfo::Background;
+				} else {
 					usage(*argv);
 					exit(-1);
 				}
@@ -162,30 +166,14 @@ static vector<shared_ptr<PushNotificationRequest>> createRequestFromArgs(const P
 			pinfo.mDeviceToken = pntok;
 			pinfo.mText = "Hi here!";
 			result.push_back(make_shared<WindowsPhonePushNotificationRequest>(pinfo));
-		} else if (args.pntype == "apple-push-kit") {
-			/* for calls */
-			pinfo.mIsVoip = true;
-			pinfo.mAlertMsgId = "IM_MSG";
-			pinfo.mAlertSound = "msg.caf";
-			pinfo.mAppId = args.appid;
-			pinfo.mDeviceToken = pntok;
-			pinfo.mTtl = 2592000;
-			pinfo.mSilent = args.isSilent;
-			//pinfo.mTtl = 60;
-			result.push_back(make_shared<ApplePushNotificationRequest>(pinfo));
 		} else if (args.pntype == "apple") {
-			/* for messages and group chat invites
-			iOS app extension get message from callId.
-			It will receive the push but won't be able to display the message */
-			pinfo.mIsVoip = false;
 			pinfo.mAlertMsgId = "IM_MSG";
 			pinfo.mAlertSound = "msg.caf";
 			pinfo.mAppId = args.appid;
 			pinfo.mDeviceToken = pntok;
 			pinfo.mTtl = 2592000;
 			pinfo.mSilent = args.isSilent;
-			pinfo.mApplePushType = args.appleSilentPushType;
-			//pinfo.mTtl = 60;
+			pinfo.mApplePushType = args.applePushType;
 			result.push_back(make_shared<ApplePushNotificationRequest>(pinfo));
 		} else {
 			cerr << "? push pntype " << args.pntype << endl;
