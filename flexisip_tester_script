@@ -33,14 +33,16 @@ if [ -z $workspace ]; then
   exit 1
 fi
 
-mkdir -p $workspace/{bin,ext,lime-server-apache}
+mkdir -p $workspace
 
-sudo rm -rf $workspace/*
+sudo rm -rf $workspace
+
+mkdir -p $workspace/{bin,ext,lime-server-apache}
 
 ls $workspace
 #workaround for logs writing
-chown apache:apache $workspace
-chmod -R 777 $workspace
+sudo chown apache:apache $workspace
+sudo chmod -R 777 $workspace
 
 if [ "$REBUILD_FLEXISIP_IMAGE_FROM_RPM" = "true" ]; then
   docker build $DOCKER_BUILD_OPTIONS .
