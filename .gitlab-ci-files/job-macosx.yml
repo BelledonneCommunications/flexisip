@@ -20,7 +20,9 @@
 
   extends: .job-macosx
   only:
-    - schedules
+    variables:
+      - $NIGHTLY_MASTER
+      - $NIGHTLY_RELEASE
 
 #################################################
 # Makefile
@@ -47,10 +49,7 @@ job-macosx-ninja:
 #################################################
 
 job-macosx-xcode:
-  only:
-    - schedules
-
   variables:
     CMAKE_GENERATOR: Xcode
     ADDITIONAL_BUILD_OPTIONS: -IDEBuildOperationMaxNumberOfConcurrentCompileTasks=$MAX_NUMBER_TASK_XCODE
-  extends: .job-macosx
+  extends: .scheduled-job-macosx

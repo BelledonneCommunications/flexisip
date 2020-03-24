@@ -97,12 +97,27 @@
       - $DEPLOY_UBUNTU
   only:
     - schedules
-    
+
   script:
     - mv WORK/flexisip-rpm/rpmbuild/DEBS docker/DEBS
     - cd docker
     - make flexisip-deb-build
     - make flexisip-deb-push
+
+docker-build-flexisip-src:
+
+  stage: build
+  tags: [ "linux-nuc" ]
+  except:
+    variables:
+      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
+  variables:
+    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip:latest -f docker/flex-from-src --build-arg=njobs=12"
+  script:
+    - docker image ls
+    - docker build $DOCKER_BUILD_OPTIONS .
+    - docker image ls
 
 #################################################
 # Schedule
@@ -112,4 +127,178 @@
 
   extends: .job-linux
   only:
-    - schedules
+    variables:
+      - $NIGHTLY_MASTER
+      - $NIGHTLY_RELEASE
+
+#################################################
+# Tests
+#################################################
+
+tests-flexisip-mr:
+  stage: test
+  tags: [ "linux-nuc"]
+  allow_failure: true
+  except:
+    variables:
+      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
+
+  variables:
+    #Build a new Flexisip Docker image from source
+    REBUILD_FLEXISIP_IMAGE: "false"
+    #Rebuild docker images of services which Flexisip needs to work: user database, redis server, etc.
+    REBUILD_FLEXISIP_AUXILIARIES: "false"
+    #Set this option to true each time you change the commit to checkout for linphone-sdk, otherwise, the SDK is never rebuild. default = true
+    REBUILD_SDK: "false"
+    SDK_VERSION: "4.3"
+    SDK_BRANCH: "release/$SDK_VERSION"
+
+    # uses flex-from-src instead of basic rpm dockerfile
+    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip:latest -f docker/flex-from-src --build-arg=njobs=12"
+    liblinphone_tester: "gitlab.linphone.org:4567/bc/public/linphone-sdk/liblinphone_tester:$SDK_VERSION"
+    sourcedir: ${CI_PROJECT_DIR}/linphone-sdk-docker
+    workspace: "${CI_PROJECT_DIR}/liblinphone_tester_workspace"
+    # we can't use $workspace nested variables here, since defined variables
+    # are extended in "script".
+    # Docker run options are defined in docker-compose
+
+  script:
+
+    - docker image ls
+    #used to ensure there will be not network name conflict for parallel docker-compose executions
+    - COMPOSE_PROJECT_NAME=$RANDOM
+    - echo $COMPOSE_PROJECT_NAME
+
+    - echo $SDK_BRANCH
+    - echo $liblinphone_tester
+    - echo $sourcedir
+    - echo $workspace
+    - echo $docker_run_options
+
+    - |
+        if [ "$REBUILD_SDK" = "true" ]; then
+        git clone -b feature/docker_liblinphone_tester --single-branch https://gitlab.linphone.org/BC/Public/linphone-sdk --recursive --jobs 12 linphone-sdk-docker
+        fi
+    - git clone -b master --single-branch git@gitlab.linphone.org:BC/Public/flexisip-tester --jobs 12
+    - export FLEXISIP_DOCKER_IMAGE="gitlab.linphone.org:4567/bc/public/flexisip/flexisip"
+    - export FLEXISIP_DOCKER_TAG="latest"
+    - export LIBLINPHONE_DOCKER_IMAGE="gitlab.linphone.org:4567/bc/public/linphone-sdk/liblinphone_tester"
+    - export LIBLINPHONE_DOCKER_TAG=$SDK_VERSION
+
+    - |
+        if [ -z $workspace ]; then
+        echo "Error, $workspace should be set. Aborting to avoid unwanted rm"
+        exit 1
+        fi
+
+    - mkdir -p $workspace
+    - rm -rf $workspace/*
+
+    - mkdir -p $workspace/{bin,ext,lime-server-apache}
+
+    # workaround for logs writing (apache chown for lime-server)
+    - sudo chown apache:apache $workspace
+    - sudo chmod -R 777 $workspace
+
+    - |
+        if [ "$REBUILD_FLEXISIP_IMAGE" = "true" ]; then
+        docker build $DOCKER_BUILD_OPTIONS .
+        fi
+
+    - |
+        if [ "$REBUILD_SDK" = "true" ]; then
+        docker build --no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/linphone-sdk/liblinphone_tester:$SDK_VERSION --build-arg="branch=$SDK_BRANCH" --build-arg="njobs=8" -f "$sourcedir/docker-files/liblinphone-tester" $sourcedir/docker-files/
+        fi
+
+    # Handle multiple runs by unsetting variable
+    # Overriding docker-compose.yaml values with docker-compose-standalone.yaml in the ways specified with docker docs (either OR or AND, depending on key)
+
+    - |
+        docker_compose_options=''
+        for name in 'docker-compose.yaml' 'docker-compose-standalone.yaml'; do
+        docker_compose_options="$docker_compose_options -f ${CI_PROJECT_DIR}/flexisip-tester/docker/$name"
+        done
+
+    #useless since tester options are defined in docker-compose
+
+    #- liblinphone_tester_options='--dns-hosts none --log-#file liblinphone_tester.log --xml --verbose --show-#account-manager-logs'
+
+    #- |
+    #    if [ "$PARALLEL_TEST_MODE" = "true" ]; then
+    #    liblinphone_tester_options="$liblinphone_tester_options --parallel"
+    #    fi
+    #########################################################
+
+    - export FLEXISIP_LOGS="$workspace"
+
+
+    - cd $workspace
+
+    - docker-compose $docker_compose_options down
+    - |
+        if [ "$REBUILD_FLEXISIP_AUXILIARIES" = "true" ]; then
+        docker-compose $docker_compose_options build
+        fi
+
+    # commented -d option to have debug logs on standard output in case of buggy or silent log artifacts
+    # We output only liblinphone_tester and lime-server on stdout
+    # Lime-server is unable to write logs in volumed directory so it was added to standard output
+
+    - docker-compose $docker_compose_options up --exit-code-from liblinphone_tester |& tee logs_all | grep 'liblinphone_tester_1' || EXIT=$?
+
+    # We get logs from standard output because it is easier to do this than to modifying all container configs
+    - grep 'file-transfer-server_1' logs_all > file-transfer-server.log
+    - grep 'lime-server_1' logs_all > lime-server_stdout.log
+    - grep 'dbserver_1' logs_all > dbserver_stdout.log
+    - grep 'account-manager_1' logs_all > account-manager_stdout.log
+    - grep 'http-proxy_1' logs_all > http-proxy_stdout.log
+    - grep 'redis_server_1' logs_all > redis-server_stdout.log
+
+    # The sleep was removed because we now wait for the db socket to open (in compose file) before launching tests
+
+    # The tests are launched automatically from the compose file
+    #- docker run $docker_run_options $liblinphone_tester $liblinphone_tester_options || EXIT=$? && echo 'Tests have failed'
+    - docker-compose $docker_compose_options stop
+
+    - gzip *.log
+
+    - gzip */*.log
+
+    - tree
+
+    - exit $EXIT
+
+  after_script:
+
+    - cd ${CI_PROJECT_DIR}/liblinphone_tester_workspace
+    # we specify commands to launch for each coredump of liblinphone_tester
+    - echo "set debug-file-directory ../lib64" | tee gdb_options
+    - echo "thread apply all bt" | tee -a gdb_options
+    # searching for core files and if there are some, launch gdb on all of it
+    # xargs -L1 means that the command in argument will be executed for each
+    # line (core dump) found in find output
+    # The docker syntax is error proning : to override the entrypoint with
+    # args, we enter the entrypoint first, then the name of the image, then the
+    # args to the entrypoint command.
+    # "true ||" is used here to continue the script even if the find fails
+    - if [[ -n $(find . -type f -name "core*") ]]; then find . -type f -name "core*" | xargs -L1 docker run $docker_run_options --entrypoint gdb $liblinphone_tester ../bin/liblinphone_tester -x gdb_options; fi || true
+
+    # simplifing artifacts browsing
+    # Moving artifacts to ease browsing from web view
+    # initially, all the paths needed to be browsed entirely to see artifacts
+    # now there is only the folder "results" to check
+    - mkdir -p ${CI_PROJECT_DIR}/results/ext
+    - chmod 777 ${CI_PROJECT_DIR}/results
+    - cp -r BCUnitAutomated* ${CI_PROJECT_DIR}/results
+    - cp -r *.log.gz ${CI_PROJECT_DIR}/results
+    - cp -r ext/*.log* ${CI_PROJECT_DIR}/results/ext
+
+  artifacts:
+    paths:
+      - results/*
+    when: always
+    reports:
+      junit:
+        - liblinphone_tester_workspace/BCUnitAutomated-Results.xml
+    expire_in: 4 week
