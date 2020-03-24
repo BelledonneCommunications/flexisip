@@ -24,14 +24,21 @@
 
 class StringUtils {
 public:
-	static std::vector<std::string> split (const std::string &str, const std::string &delimiter);
+	/**
+	 * Splits the string by using a delimiter and returns each substrings into a vector.
+	 * @param[in] str The string to split. An empty string results to an empty vector.
+	 * @param[in] delimiter The delimiter which encloses each substrings. An empty delimiter,
+	 * results to a vector containing the entire string (one element).
+	 */
+	static std::vector<std::string> split (const std::string &str, const std::string &delimiter) noexcept;
 
-	static std::string unquote(const std::string & str){
-		return strip(str, '"');
-	}
-	static std::string strip(const char *str, char c);
-	static std::string strip(const std::string &str, char c);
-	static void strip(std::string::const_iterator &start, std::string::const_iterator &end, char c);
+	/* Remove surrounding double-quotes, if present */
+	static std::string unquote(const std::string &str) noexcept {return strip(str, '"');}
+
+	/* Remove the surrounding given character, if present. */
+	static std::string strip(const char *str, char c) noexcept;
+	static std::string strip(const std::string &str, char c) noexcept;
+	static void strip(std::string::const_iterator &start, std::string::const_iterator &end, char c) noexcept;
 
 	/**
 	 * @brief Check whether the string 'str' starts with 'prefix' and returned the subsequent
