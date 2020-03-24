@@ -22,8 +22,9 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 	string date = getPushTimeStamp();
 
 	const char *rawPayload;
-	int bufferMaxSize = MAXPAYLOAD_SIZE;
+	size_t bufferMaxSize = MAXPAYLOAD_SIZE + 1;
 	char buffer[bufferMaxSize];
+	int returnCode = 0;
 
 	int ret = formatDeviceToken(deviceToken);
 	if ((ret != 0) || (mDeviceToken.size() != DEVICE_BINARY_SIZE)) {
@@ -44,7 +45,7 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 			},
 			"pn_ttl": %d
 		})json";
-		snprintf(buffer, bufferMaxSize, rawPayload, msg_id.c_str(), callid.c_str(), quoteStringIfNeeded(info.mUid).c_str(), date.c_str(), info.mTtl);
+		returnCode = snprintf(buffer, bufferMaxSize, rawPayload, msg_id.c_str(), callid.c_str(), quoteStringIfNeeded(info.mUid).c_str(), date.c_str(), info.mTtl);
 		break;
 	case PushInfo::Background:
 		// Use a normal push notification with content-available set to 1, no alert, no sound.
@@ -60,7 +61,7 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 			},
 			"pn_ttl": %d
 		})json";
-		snprintf(buffer, bufferMaxSize, rawPayload, msg_id.c_str(), arg.c_str(), callid.c_str(), quoteStringIfNeeded(info.mUid).c_str(), date.c_str(), info.mTtl);
+		returnCode = snprintf(buffer, bufferMaxSize, rawPayload, msg_id.c_str(), arg.c_str(), callid.c_str(), quoteStringIfNeeded(info.mUid).c_str(), date.c_str(), info.mTtl);
 		break;
 	case PushInfo::RemoteBasic:
 		/* some apps don't want the push to update the badge - but if they do,
@@ -80,7 +81,7 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 			"uuid": %s,
 			"send-time": "%s"
 		})json";
-		snprintf(buffer, bufferMaxSize, rawPayload, msg_id.c_str(), arg.c_str(), sound.c_str(), (info.mNoBadge ? 0 : 1), callid.c_str(), info.mTtl, quoteStringIfNeeded(info.mUid).c_str(), date.c_str());
+		returnCode = snprintf(buffer, bufferMaxSize, rawPayload, msg_id.c_str(), arg.c_str(), sound.c_str(), (info.mNoBadge ? 0 : 1), callid.c_str(), info.mTtl, quoteStringIfNeeded(info.mUid).c_str(), date.c_str());
 		break;
 	case PushInfo::RemoteWithMutableContent:
 		/* some apps don't want the push to update the badge - but if they do,
@@ -103,18 +104,17 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 			"chat-room-addr": "%s"
 		})json";
 		string chatRoomAddr = (info.mChatRoomAddr.empty() ? "" : info.mChatRoomAddr);
-		snprintf(buffer, bufferMaxSize, rawPayload, msg_id.c_str(), arg.c_str(), sound.c_str(), (info.mNoBadge ? 0 : 1), callid.c_str(), info.mTtl, quoteStringIfNeeded(info.mUid).c_str(), date.c_str(), chatRoomAddr.c_str());
+		returnCode = snprintf(buffer, bufferMaxSize, rawPayload, msg_id.c_str(), arg.c_str(), sound.c_str(), (info.mNoBadge ? 0 : 1), callid.c_str(), info.mTtl, quoteStringIfNeeded(info.mUid).c_str(), date.c_str(), chatRoomAddr.c_str());
 		break;
 	}
 
 	mPayload = buffer;
 	SLOGD << "PNR " << this << " payload is " << mPayload;
-	if (mPayload.length() > MAXPAYLOAD_SIZE) {
+	if (returnCode < 0 || returnCode >= (int)bufferMaxSize) {
 		SLOGE << "PNR " << this << " cannot be sent because the payload size is higher than " << MAXPAYLOAD_SIZE;
 		mPayload.clear();
 		return;
 	}
-
 }
 
 int ApplePushNotificationRequest::formatDeviceToken(const string &deviceToken) {
