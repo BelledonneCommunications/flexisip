@@ -45,14 +45,18 @@ void ModuleAuthenticationBase::onDeclare(GenericStruct *mc) {
 	ConfigItemDescriptor items[] = {{
 		StringList,
 		"auth-domains",
-		"List of whitespace separated domain names to challenge. Others are denied.",
+		"List of whitespace separated domains to challenge. Others are automatically denied.",
 		"localhost"
 	}, {
 		StringList,
 		"available-algorithms",
-		"List of algorithms, separated by whitespaces (valid values are MD5 and SHA-256).\n"
-		"This feature allows to force the use of wanted algorithm(s).\n"
-		"If the value is empty, then it will authorize all implemented algorithms.",
+		"List of digest algorithms to use for password hashing. Think this setting as filter applied after fetching "
+		"the credentials of a user from the user database. For example, if a user has its password hashed by MD5 and "
+		"SHA-256 but 'available-algorithms' only has MD5, then only a MD5-based challenged will be submited to the "
+		"UAC.\n"
+		"Furthermore, should a user have several hashed passwords and these are present in the list, then a challenge "
+		"header will be put in the 401 response for each fetched password in the order given by the list.\n",
+		"Supported algorithems are MD5 and SHA-256."
 		"MD5"
 	}, {
 		Boolean,
@@ -62,19 +66,21 @@ void ModuleAuthenticationBase::onDeclare(GenericStruct *mc) {
 	}, {
 		BooleanExpr,
 		"no-403",
-		"Don't reply 403, but 401 or 407 even in case of wrong authentication.",
+		"Don't reply 403 when authentication fails. Instead, generate a new 401 (or 407) response containing "
+		"a new challenge.",
 		"false"
 	}, {
 		Integer,
 		"nonce-expires",
-		"Expiration time of nonces, in seconds.",
+		"Expiration time before generating a new nonce.\n"
+		"Unit: second",
 		"3600"
 	}, {
 		String,
 		"realm-regex",
-		"Extraction regex applied on the URI of the from header (or P-Prefered-Identity header if present) in order to extract the realm. The realm "
-		"is found out by getting the first slice of the URI that matches the regular expression. If it "
-		"has one or more capturing parentheses, then the content of the first one is used as realm.\n"
+		"Extraction regex applied on the URI of the 'from' header (or P-Prefered-Identity header if present) in order "
+		"to extract the realm. The realm is found out by getting the first slice of the URI that matches the regular "
+		"expression. If it has one or more capturing parentheses, the content of the first one is used as realm.\n"
 		"If no regex is specified, then the realm will be the domain part of the URI.\n"
 		"\n"
 		"For instance, given auth-domains=sip.example.com, you might use 'sip:.*@sip\\.(.*)\\.com' in order to "
