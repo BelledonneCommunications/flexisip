@@ -104,6 +104,21 @@
     - make flexisip-deb-build
     - make flexisip-deb-push
 
+docker-build-flexisip-src:
+
+  stage: build
+  tags: [ "linux-nuc" ]
+  except:
+    variables:
+      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
+  variables:
+    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip:latest -f docker/flex-from-src --build-arg=njobs=12"
+  script:
+    - docker image ls
+    - docker build $DOCKER_BUILD_OPTIONS .
+    - docker image ls
+
 #################################################
 # Schedule
 #################################################
@@ -115,6 +130,10 @@
     variables:
       - $NIGHTLY_MASTER
       - $NIGHTLY_RELEASE
+
+#################################################
+# Tests
+#################################################
 
 tests-flexisip-mr:
   stage: test
@@ -145,6 +164,8 @@ tests-flexisip-mr:
     # Docker run options are defined in docker-compose
 
   script:
+
+    - docker image ls
     #used to ensure there will be not network name conflict for parallel docker-compose executions
     - COMPOSE_PROJECT_NAME=$RANDOM
     - echo $COMPOSE_PROJECT_NAME
@@ -176,7 +197,7 @@ tests-flexisip-mr:
 
     # workaround for logs writing (apache chown for lime-server)
     - chown apache:apache $workspace
-    - chmod 777 $workspace
+    - chmod -R 777 $workspace
 
     - |
         if [ "$REBUILD_FLEXISIP_IMAGE" = "true" ]; then
