@@ -251,7 +251,7 @@ tests-flexisip-mr:
     - grep 'dbserver_1' logs_all > dbserver_stdout.log
     - grep 'account-manager_1' logs_all > account-manager_stdout.log
     - grep 'http-proxy_1' logs_all > http-proxy_stdout.log
-    - grep 'redis-server_1' logs_all > redis-server_stdout.log
+    - grep 'redis_server_1' logs_all > redis-server_stdout.log
 
     # The sleep was removed because we now wait for the db socket to open (in compose file) before launching tests
 
