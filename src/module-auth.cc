@@ -41,22 +41,25 @@ Authentication::~Authentication() {
 void Authentication::onDeclare(GenericStruct *mc) {
 	ModuleAuthenticationBase::onDeclare(mc);
 	ConfigItemDescriptor items[] = {
-		{StringList, "trusted-hosts", "List of whitespace separated IP which will not be challenged.", ""},
+		{StringList, "trusted-hosts", "List of whitespace-separated IP addresses which will be judged as trustful. "
+			"Messages coming from these addresses won't be challenged.", ""},
 		{Boolean, "reject-wrong-client-certificates",
-			"If set to true, the module will simply reject with 403 forbidden any request coming from client"
-			" who presented a bad TLS certificate (regardless of reason: improper signature, unmatched subjects)."
-			" Otherwise, the module will fallback to a digest authentication.\n"
-			"This policy applies only for transports configured with 'required-peer-certificate=1' parameter; indeed"
-			" no certificate is requested to the client otherwise.",
+			"If set to true, the module will simply reject with \"403 forbidden\" any request coming from clients "
+			"which have presented a bad TLS certificate (regardless of reason: improper signature, unmatched subjects). "
+			"Otherwise, the module will fallback to a digest authentication.\n"
+			"This policy applies only for transports configured which have 'required-peer-certificate=1' parameter; indeed "
+			"no certificate is requested to the client otherwise. ",
 			"false"
 		},
-		{String, "tls-client-certificate-required-subject", "An optional regular expression matched against subjects "
-			"of presented client certificates. If this regular expression evaluates to false, the request is rejected. "
-			"The matched subjects are, in order: subjectAltNames.DNS, subjectAltNames.URI, subjectAltNames.IP and CN.",
+		{String, "tls-client-certificate-required-subject",
+			"An optional regular expression used to accept or deny a request basing on subject fields of the "
+			"client certificate. The request is allowed if one of the subjects matches the regular expression.\n"
+			"The list of subjects to check is built by extracting the following fields, in order:\n"
+			"\tsubjectAltNames.DNS, subjectAltNames.URI, subjectAltNames.IP and CN",
 			""
 		},
 		{Boolean, "trust-domain-certificates",
-			"If enabled, all requests which have their request URI containing a trusted domain will be accepted.",
+			"Accept requests which the client certificate enables to trust the domaine of its Request-URI.",
 			"false"
 		},
 		{Boolean, "new-auth-on-407", "When receiving a proxy authenticate challenge, generate a new challenge for "
@@ -78,8 +81,7 @@ void Authentication::onDeclare(GenericStruct *mc) {
 		},
 		{Boolean, "enable-test-accounts-creation",
 			"Enable a feature useful for automatic tests, allowing a client to create a temporary account in the "
-			"password database in memory."
-			"This MUST not be used for production as it is a real security hole.",
+			"password database in memory. This MUST not be used for production as it is a real security hole.",
 			"false"
 		},
 		config_item_end
@@ -381,7 +383,7 @@ ModuleInfo<Authentication> Authentication::sInfo(
 	"corresponding to the URI in the from header for the request to be accepted. Optionnaly, the property "
 	"tls-client-certificate-required-subject may contain a regular expression for additional checks to execute on "
 	"certificate subjects.\n"
-	" * if no TLS client based authentication can be performed, or is failed, then a SIP digest authentication is "
+	" * if no TLS client based authentication can be performed, or has failed, then a SIP digest authentication is "
 	"performed. The password verification is made by querying a database or a password file on disk.",
 	{ "NatHelper" },
 	ModuleInfoBase::ModuleOid::Authentication
