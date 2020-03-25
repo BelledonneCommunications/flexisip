@@ -113,9 +113,10 @@ docker-build-flexisip-src:
       - $DEPLOY_RUN
       - $DEPLOY_UBUNTU
   variables:
-    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip:latest -f docker/flex-from-src --build-arg=njobs=12"
+    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA -f docker/flex-from-src --build-arg=njobs=12"
   script:
     - docker image ls
+    - echo $DOCKER_BUILD_OPTIONS
     - docker build $DOCKER_BUILD_OPTIONS .
     - docker image ls
 
@@ -181,8 +182,8 @@ tests-flexisip-mr:
         git clone -b feature/docker_liblinphone_tester --single-branch https://gitlab.linphone.org/BC/Public/linphone-sdk --recursive --jobs 12 linphone-sdk-docker
         fi
     - git clone -b master --single-branch git@gitlab.linphone.org:BC/Public/flexisip-tester --jobs 12
-    - export FLEXISIP_DOCKER_IMAGE="gitlab.linphone.org:4567/bc/public/flexisip/flexisip"
-    - export FLEXISIP_DOCKER_TAG="latest"
+    - export FLEXISIP_DOCKER_IMAGE="gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src"
+    - export FLEXISIP_DOCKER_TAG="$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA"
     - export LIBLINPHONE_DOCKER_IMAGE="gitlab.linphone.org:4567/bc/public/linphone-sdk/liblinphone_tester"
     - export LIBLINPHONE_DOCKER_TAG=$SDK_VERSION
 
