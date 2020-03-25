@@ -168,7 +168,7 @@ tests-flexisip-mr:
 
     - docker image ls
     #used to ensure there will be not network name conflict for parallel docker-compose executions
-    - COMPOSE_PROJECT_NAME=$RANDOM
+    - export COMPOSE_PROJECT_NAME=$RANDOM
     - echo $COMPOSE_PROJECT_NAME
 
     - echo $SDK_BRANCH
