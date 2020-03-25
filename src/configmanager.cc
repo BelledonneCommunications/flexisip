@@ -95,6 +95,17 @@ string GenericEntry::sanitize(const string &str) {
 	return strnew;
 }
 
+std::string GenericEntry::getCompleteName() const {
+	if (mParent == nullptr) {
+		return "";
+	} else {
+		string &&res = mParent->getCompleteName();
+		if (!res.empty()) res += '/';
+		res += mName;
+		return move(res);
+	}
+}
+
 string GenericEntry::getPrettyName() const {
 	string pn(mName);
 	char upper = char(toupper(::toupper(pn.at(0))));
@@ -305,11 +316,20 @@ void ConfigValue::setDefault(const string &value) {
 }
 
 const string &ConfigValue::get() const {
+	if (mIsDefault && mFallback && !mFallback->isDefault()) {
+		LOGW("'%s' isn't set but its old name is. Fallbacking on '%s'",
+			 getCompleteName().c_str(), mFallback->getCompleteName().c_str());
+		return mFallback->get();
+	}
 	return mValue;
 }
 
 const string &ConfigValue::getDefault() const {
 	return mDefaultValue;
+}
+
+void ConfigValue::setFallback(const ConfigValue &fallbackValue) {
+	mFallback = &fallbackValue;
 }
 
 /* Oid */

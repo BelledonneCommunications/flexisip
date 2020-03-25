@@ -183,14 +183,11 @@ class GenericEntry {
   public:
 	static std::string sanitize(const std::string &str);
 
-	const std::string &getName() const {
-		return mName;
-	}
+	const std::string &getName() const {return mName;}
+	std::string getCompleteName() const;
 	std::string getPrettyName() const;
 
-	GenericValueType getType() const {
-		return mType;
-	}
+	GenericValueType getType() const {return mType;}
 
 	const std::string &getTypeName() const {
 		if (GenericValueTypeNameMap.count(mType) == 1)
@@ -421,6 +418,8 @@ class ConfigValue : public GenericEntry {
 	void setDefault(const std::string &value);
 	const std::string &getDefault() const;
 
+	void setFallback(const ConfigValue &fallbackValue);
+
 	/* Check whether the value is mark as 'default' */
 	bool isDefault() const {return mIsDefault;}
 
@@ -450,6 +449,7 @@ class ConfigValue : public GenericEntry {
 	std::string mValue;
 	std::string mNextValue;
 	std::string mDefaultValue;
+	const ConfigValue *mFallback = nullptr;
 	bool mIsDefault = true;
 	bool mNotifPayload = false;
 };
