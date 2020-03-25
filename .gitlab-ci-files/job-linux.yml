@@ -113,7 +113,7 @@ docker-build-flexisip-src:
       - $DEPLOY_RUN
       - $DEPLOY_UBUNTU
   variables:
-    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip:latest -f docker/flex-from-src --build-arg=njobs=12"
+    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src:$(git describe)-$CI_COMMIT_REF_SLUG -f docker/flex-from-src --build-arg=njobs=12"
   script:
     - docker image ls
     - docker build $DOCKER_BUILD_OPTIONS .
