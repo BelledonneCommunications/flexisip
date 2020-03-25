@@ -882,7 +882,7 @@ RegistrarDb *RegistrarDb::initialize(Agent *ag){
 
 	bool useGlobalDomain = mro->get<ConfigBoolean>("use-global-domain")->read();
 	string dbImplementation = mr->get<ConfigString>("db-implementation")->read();
-	string mMessageExpiresName = mr->get<ConfigString>("name-message-expires")->read();
+	string mMessageExpiresName = mr->get<ConfigString>("message-expires-param-name")->read();
 	if ("internal" == dbImplementation) {
 		LOGI("RegistrarDB implementation is internal");
 		sUnique = new RegistrarDbInternal(ag);
