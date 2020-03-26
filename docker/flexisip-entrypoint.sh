@@ -9,7 +9,10 @@ fi
 ulimit -c unlimited
 
 exec "$@"
-if [ -f '/core' ] ; then
-	gdb -s /backtrace.gdb /core 
-	rm -f /core
-fi 
+
+# coredump management, used in unit tests
+# we execute gdb on each coredump, with the options given in backtrace.gdb file
+
+if [[ -n $(find /root -type f -name "core*") ]]; then
+	find /root -type f -name "core*" | xargs -L1 gdb flexisip -x /backtrace.gdb;
+fi || true
