@@ -65,7 +65,7 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 			"Some old versions of Linphone (below linphone-sdk 4.2) suffer from an issue when receiving such kind of provisional "
 			"responses that don't come from a remote client. This setting is mainly intended to temporarily workaround this situation.",
 			"true"},
-		{Boolean, "resolve-routes", "Whether or not to resolve next hope in route header against registrar database."
+		{Boolean, "resolve-routes", "Whether or not to resolve next hop in route header against registrar database."
 			" This is an extension to RFC3261, and should not be used unless in some specific deployment cases."
 			" A next hope in route header is otherwise resolved through standard DNS procedure by the Forward module.", "false"},
 		{Boolean, "parent-domain-fallback", "Whether or not to fallback to the parent domain if there is no fallback route set and the recipient is unreachable. "
