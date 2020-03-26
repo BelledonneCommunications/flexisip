@@ -168,7 +168,7 @@ ModuleInfo<PushNotification> PushNotification::sInfo(
 	"android, windows, as well as a generic http get/post to a custom server to which "
 	"actual sending of the notification is delegated. The push notification is sent when an "
 	"INVITE or MESSAGE request is not answered by the destination of the request "
-	"within a certain period of time, configurable hereunder as 'timeout' parameter.",
+	"within a certain period of time, configurable hereunder by 'timeout' parameter.",
 	{ "Router" },
 	ModuleInfoBase::ModuleOid::PushNotification
 );
@@ -179,41 +179,47 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 	ConfigItemDescriptor items[] = {
 		{Integer, "timeout",
-		 "Number of seconds to wait before sending a push notification to device. A value lesser or equal to zero will make "
-		 "the push notification to be sent immediately.", "0"},
-		{Integer, "max-queue-size", "Maximum number of notifications queued for each client", "100"},
-		{Integer, "time-to-live", "Default time to live for the push notifications, in seconds. This parameter shall be set according to mDeliveryTimeout parameter in ForkContext.cc", "2592000"},
-		{Integer, "retransmission-count", "Number of push notification request retransmissions sent to a client for a same event (call or message). Retransmissions cease when a response "
-			"is received from the client. Setting a value of zero disables retransmissions.", "0"},
-		{Integer, "retransmission-interval", "Retransmission interval in seconds for push notification requests, when a retransmission-count has been specified above.", "5"},
+		 "Number of seconds to wait before sending a push notification to device. A value lesser or equal to zero will "
+		 "make the push notification to be sent immediately.", "0"},
+		{Integer, "max-queue-size", "Maximum number of notifications queued for each push notification service", "100"},
+		{Integer, "time-to-live", "Default time to live for the push notifications, in seconds. This parameter shall be "
+			"set according to mDeliveryTimeout parameter in ForkContext.cc", "2592000"},
+		{Integer, "retransmission-count", "Number of push notification request retransmissions sent to a client for a "
+			"same event (call or message). Retransmissions cease when a response is received from the client. Setting "
+			"a value of zero disables retransmissions.", "0"},
+		{Integer, "retransmission-interval", "Retransmission interval in seconds for push notification requests, when "
+			"a retransmission-count has been specified above.", "5"},
 		{Boolean, "apple", "Enable push notification for apple devices", "true"},
 		{String, "apple-certificate-dir",
 		 "Path to directory where to find Apple Push Notification service certificates. They should bear the appid of "
 		 "the application, suffixed by the release mode and .pem extension. For example: org.linphone.dev.pem "
-		 "org.linphone.prod.pem com.somephone.dev.pem etc..."
-		 " The files should be .pem format, and made of certificate followed by private key. "
-		 "This is also the path to the directory where to find Voice Over IP certificates (certicates to use PushKit)."
-		 "They should bear the appid of the application, suffixed by the release mode and .pem extension, and made of certificate followed by private key. "
-		 "For example: org.linphone.voip.dev.pem org.linphone.voip.prod.pem com.somephone.voip.dev.pem etc...",
-		 "/etc/flexisip/apn"},
-		{String, "apple-silent-push-type", "Specify the way of formatting push notification sent to apple servers when the client requests to use silent push notifications"
-			" with pn-silent=1 parameter in its contact uri parameter. Several options are available:\n"
+		 "org.linphone.prod.pem com.somephone.dev.pem etc... The files should be .pem format, and made of certificate "
+		 "followed by private key.\n"
+		 "This is also the path to the directory where to find Voice Over IP certificates (certicates to use PushKit). "
+		 "They should bear the appid of the application, suffixed by the release mode and .pem extension, and made of "
+		 "certificate followed by private key. For example: org.linphone.voip.dev.pem org.linphone.voip.prod.pem "
+		 "com.somephone.voip.dev.pem etc...", "/etc/flexisip/apn"},
+		{String, "apple-silent-push-type",
+			"Specify the way of formatting push notification sent to Apple's servers when the client requests to use "
+			"silent push notifications with pn-silent=1 parameter in its contact uri parameter. Several options are "
+			"available:\n"
 			" - 'pushkit' : format a push notification suitable for usage with pushkit. This is the default value.\n"
-			" - 'normal' : format a push notification suitable for normal push notifications, with 'content-available' attribute set to 1."
-			, "pushkit"},
-		{Boolean, "no-badge", "Set the badge value to 0 for apple push", "false"},
-		{Boolean, "firebase", "Enable push notification for android devices (new method for android)", "true"},
+			" - 'normal' : format a push notification suitable for normal push notifications, with 'content-available' "
+			"attribute set to 1.", "pushkit"},
+		{Boolean, "no-badge", "Set the badge value to 0 for Apple push", "false"},
+		{Boolean, "firebase", "Enable push notification for Android devices (new method for Android)", "true"},
 		{StringList, "firebase-projects-api-keys",
-		 "List of couples projectId:ApiKey for each android project that supports push notifications (new method for android)", ""},
-		{Boolean, "windowsphone", "Enable push notification for windows phone 8 devices", "true"},
-		{String, "windowsphone-package-sid", "Unique identifier for your Windows Store app. For example: ms-app://s-1-15-2-2345030743-3098444494-743537440-5853975885-5950300305-5348553438-505324794", ""},
+		 "List of couples projectId:ApiKey for each Android project that supports push notifications (new method for "
+		 "Android)", ""},
+		{Boolean, "windowsphone", "Enable push notification for Windows Phone 8 devices", "true"},
+		{String, "windowsphone-package-sid", "Unique identifier for your Windows Store app.\n"
+			"For example: ms-app://s-1-15-2-2345030743-3098444494-743537440-5853975885-5950300305-5348553438-505324794", ""},
 		{String, "windowsphone-application-secret", "Client secret. For example: Jrp1UoVt4C6CYpVVJHUPdcXLB1pEdRoB", ""},
 		{String, "external-push-uri",
-		 "Instead of having Flexisip sending the push notification directly to the Google/Apple/Microsoft push servers,"
-		 " send an http request to an http server with all required information encoded in URL, to which the actual "
-		 "sending of the push notification"
-		 " is delegated. The following arguments can be substitued in the http request uri, with the following "
-		 "values:\n"
+		 "Instead of having Flexisip sending the push notification directly to the Google/Apple/Microsoft push "
+		 "servers, send an http request to a server with all required information encoded in the URL, to which the "
+		 "actual sending of the push notification is delegated. The following arguments can be substitued in the http "
+		 "request uri, with the following values:\n"
 		 " - $type      : apple, google, wp, firebase\n"
 		 " - $token     : device token\n"
 		 " - $api-key   : the api key to use (google and firebase only)\n"
@@ -236,7 +242,8 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		// deprecated parameters
 		{Boolean, "google", "Enable push notification for android devices (for compatibility only)", "true"},
 		{StringList, "google-projects-api-keys",
-		 "List of couples projectId:ApiKey for each android project that supports push notifications (for compatibility only)", ""},
+		 "List of couples projectId:ApiKey for each android project that supports push notifications (for compatibility "
+		 "only)", ""},
 		config_item_end};
 	module_config->addChildrenValues(items);
 
