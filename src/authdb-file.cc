@@ -65,10 +65,12 @@ void FileAuthDb::declareConfig(GenericStruct *mc) {
 		config_item_end
 	};
 	mc->addChildrenValues(items);
-	mc->get<ConfigString>("datasource")->setDeprecated({"2020-01-31", "2.0.0",
+	auto *datasourceParam = mc->get<ConfigString>("datasource");
+	datasourceParam->setDeprecated({"2020-01-31", "2.0.0",
 		"This parameter has been renamed into 'file-path' and has no effect if the latter is set.\n"
 		"Please use 'file-path' instead of this parameter."
 	});
+	mc->get<ConfigString>("file-path")->setFallback(*datasourceParam);
 }
 
 void FileAuthDb::parsePasswd(const vector<passwd_algo_t> &srcPasswords, const string &user, const string &domain, vector<passwd_algo_t> &destPasswords) {
@@ -115,7 +117,7 @@ FileAuthDb::FileAuthDb() {
 
 	mLastSync = 0;
 	mFileString = ma->get<ConfigString>("file-path")->read();
-	if (mFileString.empty()) mFileString = ma->get<ConfigString>("datasource")->read();
+
 	sync();
 }
 
@@ -189,7 +191,7 @@ void FileAuthDb::sync() {
 	mLastSync = getCurrentTime();
 
 	if (mFileString.empty()) {
-		LOGF("'file' authentication backend was requested but no path specified in datasource.");
+		LOGF("'file' authentication backend was requested but no path specified in 'file-path'.");
 		return;
 	}
 
