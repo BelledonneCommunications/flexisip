@@ -24,15 +24,15 @@ using namespace flexisip;
 ModuleInfo<Transcoder> Transcoder::sInfo(
 	"Transcoder",
 	"The purpose of the Transcoder module is to transparently transcode from one audio codec to another to make "
-	"the communication possible between clients that do not share the same set of supported codecs. "
-	"Concretely it adds all missing codecs into the INVITEs it receives, and adds codecs matching the original INVITE "
-	"into the 200Ok. "
-	"Rtp ports and addresses are masqueraded so that the streams can be processed by the proxy. "
-	"The transcoding job is done in the background by the mediastreamer2 library, as consequence the set of "
-	"supported codecs is exactly the the same as the codec set supported by mediastreamer2, including "
-	"the possible plugins you may installed to extend mediastreamer2. "
-	"WARNING: this module can conflict with the MediaRelay module as both are changin the SDP. "
-	"Make sure to configure them with different to-domains or from-domains filter if you want to enable both of them.",
+	"the communication possible between clients that do not share the same set of supported codecs. Concretely, it "
+	"adds all missing codecs into the INVITEs it receives, and adds codecs matching the original INVITE into the 200Ok. "
+	"Rtp ports and addresses are masqueraded so that the streams can be processed by the proxy. The transcoding job is "
+	"done in the background by the Mediastreamer2 library, as consequence the set of supported codecs is exactly the "
+	"the same as the codec set supported by Mediastreamer2, including the possible plugins you may installed to "
+	"extend Mediastreamer2.\n"
+	"\n"
+	"WARNING: this module can conflict with the MediaRelay module as they are both changing the SDP. Make sure to "
+	"configure them with different to-domains or from-domains filter if you want to enable both of them.",
 	{ "MediaRelay" },
 	ModuleInfoBase::ModuleOid::Transcoder
 );
@@ -63,13 +63,14 @@ void Transcoder::onDeclare(GenericStruct *mc) {
 		 "0"},
 		{StringList, "rc-user-agents",
 		 "Whitespace separated list of user-agent strings for which audio rate control is performed.", ""},
-		{StringList, "audio-codecs", "Whitespace seprated list of audio codecs, in order of preference. The "
-									 "telephone-event codec is necessary for inband DTMF processing.",
+		{StringList, "audio-codecs",
+		 "Whitespace seprated list of audio codecs, in order of preference. The 'telephone-event' codec is necessary "
+		 "for inband DTMF processing.",
 		 "speex/8000 amr/8000 iLBC/8000 gsm/8000 pcmu/8000 pcma/8000 telephone-event/8000"},
 		{Boolean, "remove-bw-limits", "Remove the bandwidth limitations from SDP offers and answers", "false"},
 		{Boolean, "block-retransmissions",
-		 "If true, retransmissions of INVITEs will be blocked. "
-		 "The purpose of this option is to limit bandwidth usage and server load on reliable networks.",
+		 "If true, retransmissions of INVITEs will be blocked. The purpose of this option is to limit bandwidth usage "
+		 "and server load on reliable networks.",
 		 "false"},
 		config_item_end};
 	mc->addChildrenValues(items);

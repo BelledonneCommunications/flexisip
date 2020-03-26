@@ -38,39 +38,36 @@ DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agen
 	GenericManager *mgr = GenericManager::get();
 	mDomainRegistrationArea = new GenericStruct(
 		"inter-domain-connections",
-		"Inter domain connections is a set of feature allowing to dynamically connect several flexisip servers "
-		"together in order to manage SIP routing at local and global"
-		" scope. Let's suppose you have two SIP network a.example.net and b.example.net run privately and "
-		"independently (no one from a.example.net "
-		"needs to call someone at b.example.net). However, when people from a and b are outside of their network, they "
-		"register to a worldwide available "
-		"flexisip instance running on 'global.example.net'. It is then possible to:\n"
+		"Inter domain connections is a set of feature allowing to dynamically connect several Flexisip servers "
+		"together in order to manage SIP routing at local and global scope. Let's suppose you have two SIP network "
+		"a.example.net and b.example.net run privately and independently (no one from a.example.net needs to call "
+		"someone at b.example.net). However, when people from a and b are outside of their network, they register to "
+		"a worldwide available Flexisip instance running on 'global.example.net'. It is then possible to:\n"
 		" * have calls made within a.example.net routed locally and sent to global.example.net in order to reach users "
-		"inside and outside of a's network."
-		" Example: 1@a.example.net calls 2@a.example.net. If 2 is registered on a.example.net then the call is routed "
-		"locally. On the contrary if 2 is"
-		" absent and registered, the call is then sent to global.example.net and then routed by the global proxy.\n"
+		"inside and outside of a's network. Example: 1@a.example.net calls 2@a.example.net. If 2 is registered on "
+		"a.example.net then the call is routed locally. On the contrary if 2 is absent and registered, the call is "
+		"then sent to global.example.net and then routed by the global proxy.\n"
 		" * when global.example.net receives a call from a user not within its native network (ex: 1@a.example.net "
-		"calls 2@a.example.net), "
-		"it can route this call to the proxy that is responsible for managing the local domain (a.example.net).\n"
+		"calls 2@a.example.net), it can route this call to the proxy that is responsible for managing the local "
+		"domain (a.example.net).\n"
+		"\n"
 		"This system is dynamic: the physical IP address of a and b network can change (dynamic ip address allocation)\n."
 		"This scenario is achieved with two key features:\n"
 		" * a.example.net sends a REGISTER to global.example.net to indicate that it is the responsible for the entire "
-		"domain a.example.net."
-		" The global.example.net authenticates this REGISTER thanks to TLS client certificate presented by "
-		"a.example.net.\n"
+		"domain a.example.net. The global.example.net authenticates this REGISTER thanks to TLS client certificate "
+		"presented by a.example.net.\n"
 		" * global.example.net is configured to accept this domain registration and route all calls it receives "
-		"directly and estinated to a.example.net domain"
-		" through the connection established by a.example.net during the domain registration.",
+		"directly and estinated to a.example.net domain through the connection established by a.example.net during "
+		"the domain registration.",
 		ModuleInfoBase::InterDomainConnections);
 
 	mgr->getRoot()->addChild(mDomainRegistrationArea);
 
 	ConfigItemDescriptor configs[] = {
-		{Boolean, "accept-domain-registrations", "Whether flexisip shall accept registrations for entire domains",
+		{Boolean, "accept-domain-registrations", "Whether Flexisip shall accept registrations for entire domains",
 		 "false"},
 		{Boolean, "assume-unique-domains",
-		 "Whether flexisip shall assume that there is a unique server per registered domain, which allows"
+		 "Whether Flexisip shall assume that there is a unique server per registered domain, which allows"
 		 " to clean old registrations and simplifies the routing logic.",
 		 "false"},
 		{String, "domain-registrations",
