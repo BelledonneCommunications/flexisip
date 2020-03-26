@@ -3,8 +3,14 @@ $(eval GIT_DESCRIBE = $(shell sh -c "git describe"))
 DOCKER_TAG=$(BASE_NAME):$(GIT_DESCRIBE)
 DOCKER_FILE=flex-from-src
 
+ifeq ($(DOCKER_FILE), flex-from-src)
+  CONTEXT=..
+else
+  CONTEXT=.
+endif
+
 flexisip-build:
-	docker build -f $(DOCKER_FILE) --no-cache -t $(DOCKER_TAG) --rm .
+	docker build -f $(DOCKER_FILE) --no-cache -t $(DOCKER_TAG) --rm $(CONTEXT)
 
 flexisip-push:
 	docker push $(DOCKER_TAG)

@@ -117,7 +117,7 @@ docker-build-flexisip-src:
   script:
     - docker image ls
     - echo $DOCKER_BUILD_OPTIONS
-    - docker build $DOCKER_BUILD_OPTIONS docker
+    - docker build $DOCKER_BUILD_OPTIONS .
     - docker image ls
 
 #################################################
@@ -204,7 +204,7 @@ tests-flexisip-mr:
 
     - |
         if [ "$REBUILD_FLEXISIP_IMAGE" = "true" ]; then
-        docker build $DOCKER_BUILD_OPTIONS docker
+        docker build $DOCKER_BUILD_OPTIONS .
         fi
 
     - |

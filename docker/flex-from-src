@@ -8,7 +8,7 @@ WORKDIR /root
 
 
 #get source code
-COPY .. flexisip/
+COPY . flexisip/
 
 # configure & build
 RUN cd flexisip \
@@ -29,8 +29,8 @@ RUN mkdir -p /var/opt/belledonne-communications/flexisip /etc/flexisip /home/cor
 VOLUME /etc/flexisip
 VOLUME /var/opt/belledonne-communications/log/flexisip
 
-COPY flexisip-entrypoint.sh /
-COPY backtrace.gdb /
+COPY docker/flexisip-entrypoint.sh /
+COPY docker/backtrace.gdb /
 RUN chmod a+x /flexisip-entrypoint.sh
 
 # Script to wait db before launch flexisip [Licence Apache2]
