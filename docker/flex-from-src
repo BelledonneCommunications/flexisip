@@ -8,7 +8,7 @@ WORKDIR /root
 
 
 #get source code
-COPY . flexisip/
+COPY .. flexisip/
 
 # configure & build
 RUN cd flexisip \
