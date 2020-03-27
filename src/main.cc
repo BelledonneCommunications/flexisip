@@ -842,7 +842,7 @@ int main(int argc, char *argv[]) {
 		su_log_set_level(NULL, 9);
 	}
 	/*read the pkcs passphrase if any from the fifo, and keep it in memory*/
-	string passphrase = getPkcsPassphrase(pkcsFile);
+	auto passphrase = getPkcsPassphrase(pkcsFile);
 
 	/*
 	 * Perform the fork of the watchdog, followed by the fork of the worker daemon, in forkAndDetach().

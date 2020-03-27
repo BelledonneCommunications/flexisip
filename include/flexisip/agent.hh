@@ -67,45 +67,45 @@ class Agent : public IncomingAgent,
 	friend class OutgoingTransaction;
 	friend class Module;
 
-	StatCounter64 *mCountIncomingRegister;
-	StatCounter64 *mCountIncomingInvite;
-	StatCounter64 *mCountIncomingAck;
-	StatCounter64 *mCountIncomingInfo;
-	StatCounter64 *mCountIncomingBye;
-	StatCounter64 *mCountIncomingCancel;
-	StatCounter64 *mCountIncomingMessage;
-	StatCounter64 *mCountIncomingOptions;
-	StatCounter64 *mCountIncomingDecline;
-	StatCounter64 *mCountIncomingReqUnknown;
+	StatCounter64 *mCountIncomingRegister = nullptr;
+	StatCounter64 *mCountIncomingInvite = nullptr;
+	StatCounter64 *mCountIncomingAck = nullptr;
+	StatCounter64 *mCountIncomingInfo = nullptr;
+	StatCounter64 *mCountIncomingBye = nullptr;
+	StatCounter64 *mCountIncomingCancel = nullptr;
+	StatCounter64 *mCountIncomingMessage = nullptr;
+	StatCounter64 *mCountIncomingOptions = nullptr;
+	StatCounter64 *mCountIncomingDecline = nullptr;
+	StatCounter64 *mCountIncomingReqUnknown = nullptr;
 
-	StatCounter64 *mCountIncoming100; // trying
-	StatCounter64 *mCountIncoming101;
-	StatCounter64 *mCountIncoming180; // ringing
-	StatCounter64 *mCountIncoming200; // ok
-	StatCounter64 *mCountIncoming202;
-	StatCounter64 *mCountIncoming401; // user auth.
-	StatCounter64 *mCountIncoming404; // not found
-	StatCounter64 *mCountIncoming486; // busy
-	StatCounter64 *mCountIncoming487; // request canceled
-	StatCounter64 *mCountIncoming488;
-	StatCounter64 *mCountIncoming407; // proxy auth
-	StatCounter64 *mCountIncoming408; // request timeout
-	StatCounter64 *mCountIncoming603; // decline
-	StatCounter64 *mCountIncomingResUnknown;
+	StatCounter64 *mCountIncoming100 = nullptr; // trying
+	StatCounter64 *mCountIncoming101 = nullptr;
+	StatCounter64 *mCountIncoming180 = nullptr; // ringing
+	StatCounter64 *mCountIncoming200 = nullptr; // ok
+	StatCounter64 *mCountIncoming202 = nullptr;
+	StatCounter64 *mCountIncoming401 = nullptr; // user auth.
+	StatCounter64 *mCountIncoming404 = nullptr; // not found
+	StatCounter64 *mCountIncoming486 = nullptr; // busy
+	StatCounter64 *mCountIncoming487 = nullptr; // request canceled
+	StatCounter64 *mCountIncoming488 = nullptr;
+	StatCounter64 *mCountIncoming407 = nullptr; // proxy auth
+	StatCounter64 *mCountIncoming408 = nullptr; // request timeout
+	StatCounter64 *mCountIncoming603 = nullptr; // decline
+	StatCounter64 *mCountIncomingResUnknown = nullptr;
 
-	StatCounter64 *mCountReply100; // trying
-	StatCounter64 *mCountReply101;
-	StatCounter64 *mCountReply180; // ringing
-	StatCounter64 *mCountReply200; // ok
-	StatCounter64 *mCountReply202;
-	StatCounter64 *mCountReply401; // user auth.
-	StatCounter64 *mCountReply404; // not found
-	StatCounter64 *mCountReply486; // busy
-	StatCounter64 *mCountReply487; // request canceled
-	StatCounter64 *mCountReply488;
-	StatCounter64 *mCountReply407; // proxy auth
-	StatCounter64 *mCountReply408; // request timeout
-	StatCounter64 *mCountReplyResUnknown;
+	StatCounter64 *mCountReply100 = nullptr; // trying
+	StatCounter64 *mCountReply101 = nullptr;
+	StatCounter64 *mCountReply180 = nullptr; // ringing
+	StatCounter64 *mCountReply200 = nullptr; // ok
+	StatCounter64 *mCountReply202 = nullptr;
+	StatCounter64 *mCountReply401 = nullptr; // user auth.
+	StatCounter64 *mCountReply404 = nullptr; // not found
+	StatCounter64 *mCountReply486 = nullptr; // busy
+	StatCounter64 *mCountReply487 = nullptr; // request canceled
+	StatCounter64 *mCountReply488 = nullptr;
+	StatCounter64 *mCountReply407 = nullptr; // proxy auth
+	StatCounter64 *mCountReply408 = nullptr; // request timeout
+	StatCounter64 *mCountReplyResUnknown = nullptr;
 	void onDeclare(GenericStruct *root);
 	ConfigValueListener *mBaseConfigListener;
 
@@ -116,10 +116,10 @@ private:
 
 public:
 	Agent(su_root_t *root);
-	void start(const std::string &transport_override, const std::string passphrase);
-	virtual void loadConfig(GenericManager *cm);
-	virtual void unloadConfig();
-	virtual ~Agent();
+	void start(const std::string &transport_override, const std::string &passphrase);
+	void loadConfig(GenericManager *cm);
+	void unloadConfig();
+	~Agent() override;
 	/// Returns a pair of ip addresses: < public-ip, bind-ip> suitable for destination.
 	std::pair<std::string, std::string> getPreferredIp(const std::string &destination) const;
 	/// Returns the _default_ bind address for RTP sockets.
@@ -132,7 +132,7 @@ public:
 	const std::string &getResolvedPublicIp(bool ipv6 = false) const {
 		return ipv6 ? mPublicResolvedIpV6 : mPublicResolvedIpV4;
 	}
-	virtual Agent *getAgent() {
+	Agent *getAgent() override {
 		return this;
 	}
 	// Preferred route for inter-proxy communication
@@ -187,7 +187,7 @@ public:
 	void sendRequestEvent(std::shared_ptr<RequestSipEvent> ev);
 	void sendResponseEvent(std::shared_ptr<ResponseSipEvent> ev);
 	void incrReplyStat(int status);
-	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
+	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) override;
 	void logEvent(const std::shared_ptr<SipEvent> &ev);
 	Module *findModule(const std::string &moduleName) const;
 	Module *findModuleByFunction(const std::string &moduleFunction) const;
@@ -200,26 +200,7 @@ public:
 	url_t* urlFromTportName(su_home_t* home, const tp_name_t* name, bool avoidMAddr = false);
 	void applyProxyToProxyTransportSettings(tport_t *tp);
 private:
-	int onIncomingMessage(msg_t *msg, const sip_t *sip);
-	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...);
-	virtual void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
-	void discoverInterfaces();
-	void startLogWriter();
-	std::string computeResolvedPublicIp(const std::string &host, int family = AF_UNSPEC) const;
-	void checkAllowedParams(const url_t *uri);
-	void initializePreferredRoute();
-	void loadModules();
-	void startMdns();
-	static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent, msg_t *msg, sip_t *sip);
-
-	std::string mServerString;
-	std::list<Module *> mModules;
-	std::list<std::string> mAliases;
-	url_t *mPreferredRouteV4;
-	url_t *mPreferredRouteV6;
-	const url_t *mNodeUri = nullptr;
-	const url_t *mClusterUri = nullptr;
-	const url_t *mDefaultUri = nullptr;
+	// Private types
 	class Network {
 		struct sockaddr_storage mPrefix;
 		struct sockaddr_storage mMask;
@@ -232,24 +213,47 @@ private:
 		const std::string getIP() const;
 		static std::string print(const struct ifaddrs *ifaddr);
 	};
+
+	// Private methods
+	int onIncomingMessage(msg_t *msg, const sip_t *sip);
+	void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value, ...) override;
+	void reply(const std::shared_ptr<MsgSip> &msg, int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) override;
+	void discoverInterfaces();
+	void startLogWriter();
+	std::string computeResolvedPublicIp(const std::string &host, int family = AF_UNSPEC) const;
+	void checkAllowedParams(const url_t *uri);
+	void initializePreferredRoute();
+	void loadModules();
+	void startMdns();
+	static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent, msg_t *msg, sip_t *sip);
+
+	// Private attributes
+	std::string mServerString;
+	std::list<Module *> mModules;
+	std::list<std::string> mAliases;
+	url_t *mPreferredRouteV4 = nullptr;
+	url_t *mPreferredRouteV6 = nullptr;
+	const url_t *mNodeUri = nullptr;
+	const url_t *mClusterUri = nullptr;
+	const url_t *mDefaultUri = nullptr;
 	std::list<Network> mNetworks;
 	std::string mUniqueId;
 	std::string mRtpBindIp = "0.0.0.0";
 	std::string mRtpBindIp6 = "::0";
 	std::string mPublicIpV4, mPublicIpV6, mPublicResolvedIpV4, mPublicResolvedIpV6;
-	nta_agent_t *mAgent;
-	su_root_t *mRoot;
-	nth_engine_t *mHttpEngine;
+	nta_agent_t *mAgent = nullptr;
+	su_root_t *mRoot = nullptr;
+	nth_engine_t *mHttpEngine = nullptr;
 	su_home_t mHome;
 	su_timer_t *mTimer = nullptr;
-	unsigned int mProxyToProxyKeepAliveInterval;
+	unsigned int mProxyToProxyKeepAliveInterval = 0;
 	std::unique_ptr<EventLogWriter> mLogWriter;
-	DomainRegistrationManager *mDrm;
+	DomainRegistrationManager *mDrm = nullptr;
 	std::string mPassphrase;
 	tport_t *mInternalTport = nullptr;
 	static constexpr const char* sInternalTransportIdent = "internal-transport";
-	bool mTerminating;
-	bool mUseMaddr;
+	bool mUseMaddr = false;
+	bool mTerminating = false;
 #if ENABLE_MDNS
 	std::vector<belle_sip_mdns_register_t *> mMdnsRegisterList;
 #endif

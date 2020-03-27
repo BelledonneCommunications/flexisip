@@ -24,12 +24,6 @@
 using namespace std;
 using namespace flexisip;
 
-ConfigEntryFilter::ConfigEntryFilter() {
-}
-
-ConfigEntryFilter::~ConfigEntryFilter() {
-}
-
 static ConfigItemDescriptor config[] = {
 	{Boolean, "enabled", "Indicate whether the module is activated.", "true"},
 	{String, "from-domains", "Deprecated: List of domain names in sip from allowed to enter the module.", "*"},

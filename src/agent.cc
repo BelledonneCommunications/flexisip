@@ -201,12 +201,11 @@ void Agent::initializePreferredRoute() {
 }
 
 void Agent::loadModules() {
-	list<Module *>::iterator it;
-	for (it = mModules.begin(); it != mModules.end(); ++it) {
+	for (auto *module : mModules) {
 		// Check in all cases, even if not enabled,
 		// to allow safe dynamic activation of the module
-		(*it)->checkConfig();
-		(*it)->load();
+		module->checkConfig();
+		module->load();
 	}
 	if (mDrm) mDrm->load(mPassphrase);
 	mPassphrase = "";
@@ -276,7 +275,7 @@ static void timerfunc(su_root_magic_t *magic, su_timer_t *t, Agent *a) {
 	a->idle();
 }
 
-void Agent::start(const string &transport_override, const string passphrase) {
+void Agent::start(const string &transport_override, const string &passphrase) {
 	char cCurrDir[FILENAME_MAX];
 	if (!getcwd(cCurrDir, sizeof(cCurrDir))) {
 		LOGA("Could not get current file path");
@@ -315,8 +314,7 @@ void Agent::start(const string &transport_override, const string passphrase) {
 		transports = ConfigStringList::parse(transport_override);
 	}
 
-	for (auto it = transports.begin(); it != transports.end(); ++it) {
-		const string &uri = (*it);
+	for (const auto &uri : transports) {
 		url_t *url;
 		int err;
 		su_home_t home;
@@ -605,7 +603,7 @@ void addPluginModule(Agent *agent, list<Module *> &modules, const string &plugin
 
 // -----------------------------------------------------------------------------
 
-Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
+Agent::Agent(su_root_t *root) {
 	mHttpEngine = nth_engine_create(root, NTHTAG_ERROR_MSG(0), TAG_END());
 	GenericStruct *cr = GenericManager::get()->getRoot();
 
@@ -721,9 +719,8 @@ void Agent::loadConfig(GenericManager *cm) {
 }
 
 void Agent::unloadConfig() {
-	list<Module *>::iterator it;
-	for (it = mModules.begin(); it != mModules.end(); ++it) {
-		(*it)->unload();
+	for (auto *module : mModules) {
+		module->unload();
 	}
 }
 
