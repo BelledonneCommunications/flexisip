@@ -248,13 +248,11 @@ tests-flexisip-mr:
 
     - docker-compose $docker_compose_options up --exit-code-from liblinphone_tester |& tee logs_all | grep 'liblinphone_tester_1' || EXIT=$?
 
-    # We get logs from standard output because it is easier to do this than to modifying all container configs
-    - grep 'file-transfer-server_1' logs_all > file-transfer-server.log
-    - grep 'lime-server_1' logs_all > lime-server_stdout.log
-    - grep 'dbserver_1' logs_all > dbserver_stdout.log
-    - grep 'account-manager_1' logs_all > account-manager_stdout.log
-    - grep 'http-proxy_1' logs_all > http-proxy_stdout.log
-    - grep 'redis_server_1' logs_all > redis-server_stdout.log
+    # For each launched service, we print logs in seperate file with follow and timestamp options
+    - |
+        for service in docker-compose $docker_compose_options ps --service; do
+        docker-compose $docker_compose_options logs -f -t $service >> ${service}_stdout.log
+        done
 
     # The sleep was removed because we now wait for the db socket to open (in compose file) before launching tests
 
