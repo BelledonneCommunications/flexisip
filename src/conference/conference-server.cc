@@ -92,6 +92,8 @@ void ConferenceServer::_init () {
 	mCore->addListener(shared_from_this());
 	mCore->enableConferenceServer(true);
 	mCore->setTransports(cTransport);
+	mCore->setAudioPort(-1); // use random ports.
+	mCore->setVideoPort(-1); // use random ports.
 
 	string conferenceFactoryUri = config->get<ConfigString>("conference-factory-uri")->read();
 	shared_ptr<linphone::Address> addrProxy = linphone::Factory::get()->createAddress(conferenceFactoryUri);
