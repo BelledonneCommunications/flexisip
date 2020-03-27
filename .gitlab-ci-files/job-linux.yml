@@ -148,9 +148,11 @@ tests-flexisip-mr:
   variables:
     #Build a new Flexisip Docker image from source
     REBUILD_FLEXISIP_IMAGE: "false"
-    #Rebuild docker images of services which Flexisip needs to work: user database, redis server, etc.
+    #Rebuild docker images of services which Flexisip needs to work: user
+    #  database, redis server, etc.
     REBUILD_FLEXISIP_AUXILIARIES: "false"
-    #Set this option to true each time you change the commit to checkout for linphone-sdk, otherwise, the SDK is never rebuild. default = true
+    #Set this option to true each time you change the commit to checkout for
+    #  linphone-sdk, otherwise, the SDK is never rebuild. default = true
     REBUILD_SDK: "false"
     SDK_VERSION: "4.3"
     SDK_BRANCH: "release/$SDK_VERSION"
@@ -161,13 +163,15 @@ tests-flexisip-mr:
     sourcedir: ${CI_PROJECT_DIR}/linphone-sdk-docker
     workspace: "${CI_PROJECT_DIR}/liblinphone_tester_workspace"
     # we can't use $workspace nested variables here, since defined variables
-    # are extended in "script".
+    #   are extended in "script".
+
     # Docker run options are defined in docker-compose
 
   script:
 
     - docker image ls
-    #used to ensure there will be not network name conflict for parallel docker-compose executions
+    # used to ensure there will be not network name conflict for parallel
+    #   docker-compose executions
     - export COMPOSE_PROJECT_NAME=$RANDOM
     - echo $COMPOSE_PROJECT_NAME
 
@@ -202,6 +206,12 @@ tests-flexisip-mr:
     - sudo chown apache:apache $workspace
     - sudo chmod -R 777 $workspace
 
+    # /!\ We do not use docker-compose build because if we did the dockerfiles
+    #     location and the context can't be given as cli args but must be given
+    #     in docker-compose file.
+    #     Allowing it could be error-proning for anyone wanting to build
+    #     flexisip docker images only from flexisip-tester project
+
     - |
         if [ "$REBUILD_FLEXISIP_IMAGE" = "true" ]; then
         docker build $DOCKER_BUILD_OPTIONS .
@@ -213,7 +223,8 @@ tests-flexisip-mr:
         fi
 
     # Handle multiple runs by unsetting variable
-    # Overriding docker-compose.yaml values with docker-compose-standalone.yaml in the ways specified with docker docs (either OR or AND, depending on key)
+    # Overriding docker-compose.yaml values with docker-compose-standalone.yaml
+    #   in the ways specified with docker docs (either OR or AND, depending on key)
 
     - |
         docker_compose_options=''
@@ -223,7 +234,7 @@ tests-flexisip-mr:
 
     #useless since tester options are defined in docker-compose
 
-    #- liblinphone_tester_options='--dns-hosts none --log-#file liblinphone_tester.log --xml --verbose --show-#account-manager-logs'
+    #- liblinphone_tester_options='--dns-hosts none --log-file liblinphone_tester.log --xml --verbose --show-#account-manager-logs'
 
     #- |
     #    if [ "$PARALLEL_TEST_MODE" = "true" ]; then
@@ -242,11 +253,11 @@ tests-flexisip-mr:
         docker-compose $docker_compose_options build
         fi
 
-    # commented -d option to have debug logs on standard output in case of buggy or silent log artifacts
-    # We output only liblinphone_tester and lime-server on stdout
-    # Lime-server is unable to write logs in volumed directory so it was added to standard output
+    # commented -d option to have debug logs on standard output in case of
+    #   buggy or silent log artifacts
+    # We output only liblinphone_tester on stdout
 
-    - docker-compose $docker_compose_options up --exit-code-from liblinphone_tester |& tee logs_all | grep 'liblinphone_tester_1' || EXIT=$?
+    - docker-compose $docker_compose_options up --exit-code-from liblinphone_tester | grep 'liblinphone_tester_1' || EXIT=$?
 
     # For each launched service, we print logs in seperate file with follow and timestamp options
     - |
