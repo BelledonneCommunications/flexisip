@@ -135,7 +135,7 @@ void Agent::startLogWriter() {
 				LOGF("DataBaseEventLogWriter: unable to use database (`ENABLE_SOCI` is not defined).");
 			#endif
 		} else {
-			const auto &logdir = cr->get<ConfigString>("filesystem-direrctory")->read();
+			const auto &logdir = cr->get<ConfigString>("filesystem-directory")->read();
 			unique_ptr<FilesystemEventLogWriter> lw(new FilesystemEventLogWriter(logdir));
 			if (lw->isReady()) mLogWriter = move(lw);
 		}
