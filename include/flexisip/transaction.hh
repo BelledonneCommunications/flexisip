@@ -18,14 +18,16 @@
 
 #pragma once
 
-#include <flexisip/event.hh>
+#include <map>
+#include <string>
 
 #include <sofia-sip/msg.h>
 #include <sofia-sip/sip.h>
 #include <sofia-sip/nta.h>
 
-#include <string>
-#include <map>
+#include <flexisip/event.hh>
+
+#include <sofia-wrapper/home.hh>
 
 namespace flexisip {
 
@@ -129,7 +131,7 @@ class OutgoingTransaction : public Transaction,
 	std::shared_ptr<OutgoingTransaction> mSofiaRef;
 	nta_outgoing_t *mOutgoing;
 	std::string mBranchId;
-	SofiaAutoHome mHome;
+	sofiasip::Home mHome;
 	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value,
 					  ...);
 	void destroy();

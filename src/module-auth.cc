@@ -189,7 +189,7 @@ bool Authentication::handleTlsClientAuthentication(const std::shared_ptr<Request
 			const char *fromDomain = from->url_host;
 			const char *res = NULL;
 			url_t searched_uri = URL_INIT_AS(sip);
-			SofiaAutoHome home;
+			sofiasip::Home home;
 			char *searched;
 
 			searched_uri.url_host = from->url_host;
@@ -356,7 +356,7 @@ void Authentication::loadTrustedHosts(const ConfigStringList &trustedHosts) {
 	const GenericStruct *presenceSection = GenericManager::get()->getRoot()->get<GenericStruct>("module::Presence");
 	bool presenceServer = presenceSection->get<ConfigBoolean>("enabled")->read();
 	if (presenceServer) {
-		SofiaAutoHome home;
+		sofiasip::Home home;
 		string presenceServer = presenceSection->get<ConfigString>("presence-server")->read();
 		sip_contact_t *contact = sip_contact_make(home.home(), presenceServer.c_str());
 		url_t *url = contact ? contact->m_url : NULL;

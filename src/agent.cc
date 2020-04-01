@@ -151,7 +151,7 @@ static string absolutePath(const string &currdir, const string &file) {
 }
 
 void Agent::checkAllowedParams(const url_t *uri) {
-	SofiaAutoHome home;
+	sofiasip::Home home;
 	if (!uri->url_params)
 		return;
 	char *params = su_strdup(home.home(), uri->url_params);

@@ -76,12 +76,13 @@ class OnResponseBindListener : public ContactUpdateListener {
 // Listener class NEED to copy the shared pointer
 class OnStaticBindListener : public ContactUpdateListener {
 	friend class ModuleRegistrar;
-	SofiaAutoHome mHome;
+	sofiasip::Home mHome;
 	std::string mContact;
 	std::string mFrom;
 
   public:
 	OnStaticBindListener(const url_t *from, const sip_contact_t *ct);
+
 	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec)override;
 	void onRecordFound(const std::shared_ptr<Record> &r)override;
 	void onError()override;

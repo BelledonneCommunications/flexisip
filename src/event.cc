@@ -385,7 +385,7 @@ ResponseSipEvent::~ResponseSipEvent() {
 }
 
 std::ostream &operator<<(std::ostream &strm, const url_t &obj){
-	SofiaAutoHome home;
+	sofiasip::Home home;
 	strm<<url_as_string(home.home(), &obj);
 	return strm;
 }

@@ -35,17 +35,24 @@ RegistrarDbInternal::RegistrarDbInternal(Agent *ag) : RegistrarDb(ag) {
 }
 
 void RegistrarDbInternal::doBind(const sip_t *sip, int globalExpire, bool alias, int version, const shared_ptr<ContactUpdateListener> &listener) {
-	string key = Record::defineKeyFromUrl(sip->sip_from->a_url);
+	SipUri fromUri;
+	try {
+		fromUri = SipUri(sip->sip_from->a_url);
+	} catch (const invalid_argument &e) {
+		throw InvalidAorError(sip->sip_from->a_url);
+	}
+
+	string key = Record::defineKeyFromUrl(fromUri.get());
 
 	auto it = mRecords.find(key);
 	shared_ptr<Record> r;
-	if (sip->sip_from && it == mRecords.end()) {
-		r = make_shared<Record>(sip->sip_from->a_url);
+	if (it == mRecords.end()) {
+		r = make_shared<Record>(move(fromUri));
 		mRecords.insert(make_pair(key, r));
 		LOGD("Creating AOR %s association", key.c_str());
 	} else {
 		LOGD("AOR %s found", key.c_str());
-		r = (*it).second;
+		r = it->second;
 	}
 
 	if (sip->sip_call_id && sip->sip_cseq && r->isInvalidRegister(sip->sip_call_id->i_id, sip->sip_cseq->cs_seq)) {
@@ -60,8 +67,8 @@ void RegistrarDbInternal::doBind(const sip_t *sip, int globalExpire, bool alias,
 	if (listener) listener->onRecordFound(r);
 }
 
-void RegistrarDbInternal::doFetch(const url_t *url, const shared_ptr<ContactUpdateListener> &listener) {
-	string key(Record::defineKeyFromUrl(url));
+void RegistrarDbInternal::doFetch(const SipUri &url, const shared_ptr<ContactUpdateListener> &listener) {
+	string key = Record::defineKeyFromUrl(url.get());
 
 	auto it = mRecords.find(key);
 	shared_ptr<Record> r = NULL;
@@ -77,9 +84,9 @@ void RegistrarDbInternal::doFetch(const url_t *url, const shared_ptr<ContactUpda
 	listener->onRecordFound(r);
 }
 
-void RegistrarDbInternal::doFetchInstance(const url_t *url, const string &uniqueId, const shared_ptr<ContactUpdateListener> &listener) {
-	string key(Record::defineKeyFromUrl(url));
-	SofiaAutoHome home;
+void RegistrarDbInternal::doFetchInstance(const SipUri &url, const string &uniqueId, const shared_ptr<ContactUpdateListener> &listener) {
+	string key(Record::defineKeyFromUrl(url.get()));
+	sofiasip::Home home;
 
 	auto it = mRecords.find(key);
 	shared_ptr<Record> r = NULL;
@@ -110,7 +117,7 @@ void RegistrarDbInternal::doFetchInstance(const url_t *url, const string &unique
 }
 
 void RegistrarDbInternal::doClear(const sip_t *sip, const shared_ptr<ContactUpdateListener> &listener) {
-	string key(Record::defineKeyFromUrl(sip->sip_from->a_url));
+	string key = Record::defineKeyFromUrl(sip->sip_from->a_url);
 
 	if (errorOnTooMuchContactInBind(sip->sip_contact, key, listener)) {
 		listener->onError();

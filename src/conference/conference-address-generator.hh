@@ -53,7 +53,7 @@ namespace flexisip {
 		void onInvalid () override {}
 		void onContactUpdated (const std::shared_ptr<ExtendedContact> &ec) override {}
 
-		SofiaAutoHome mHome;
+		sofiasip::Home mHome;
 		const std::shared_ptr<linphone::ChatRoom> mChatRoom;
 		std::shared_ptr<linphone::Address> mConferenceAddr;
 		std::string mUuid;

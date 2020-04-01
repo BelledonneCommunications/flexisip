@@ -112,7 +112,7 @@ class OnContactRegisteredListener : public ContactRegisteredListener, public Con
 	ModuleRouter *mModule;
 	url_t *mSipUri;
 	std::string mSipUriAsString;
-	SofiaAutoHome mHome;
+	sofiasip::Home mHome;
 
   public:
 	OnContactRegisteredListener(ModuleRouter *module, const url_t *sipUri)
