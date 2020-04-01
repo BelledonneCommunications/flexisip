@@ -233,19 +233,33 @@ inline std::ostream &operator<<(std::ostream &strm, MsgSip const &obj) {
  * Nice << operator to serialize sofia-sip 's url_t */
 std::ostream &operator<<(std::ostream &strm, const url_t &obj);
 
-/*nice wrapper of the sofia-sip su_home_t, that performs automatic destruction of the home when it leaving a code block
- * or function.*/
+/* nice wrapper of the sofia-sip su_home_t, that performs automatic destruction of the home when it leaving a code block
+   or function. */
 class SofiaAutoHome {
 public:
-	SofiaAutoHome() {
+	SofiaAutoHome() {su_home_init(&mHome);}
+	SofiaAutoHome(const SofiaAutoHome &src) = delete;
+	SofiaAutoHome(SofiaAutoHome &&src): SofiaAutoHome() {su_home_move(&mHome, &src.mHome);}
+	~SofiaAutoHome() {su_home_deinit(&mHome);}
+
+	SofiaAutoHome &operator=(const SofiaAutoHome &src) = delete;
+	SofiaAutoHome &operator=(SofiaAutoHome &&src) {
+		reset();
+		su_home_move(&mHome, &src.mHome);
+		return *this;
+	}
+
+	su_home_t *home() {return &mHome;}
+	const su_home_t *home() const {return &mHome;}
+
+	// Free all the buffers which are referenced by this Home.
+	void reset() {
+		su_home_deinit(&mHome);
 		su_home_init(&mHome);
 	}
-	su_home_t *home() {
-		return &mHome;
-	}
-	~SofiaAutoHome() {
-		su_home_deinit(&mHome);
-	}
+
+	void *alloc(std::size_t size) {return su_alloc(&mHome, size);}
+	void free(void *data) {return su_free(&mHome, data);}
 
 private:
 	su_home_t mHome;
