@@ -16,19 +16,20 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <flexisip/module.hh>
-#include <flexisip/agent.hh>
-#include "entryfilter.hh"
-#include "sofia-sip/auth_digest.h"
-#include "sofia-sip/nta.h"
-#include <flexisip/logmanager.hh>
-#include <flexisip/configmanager.hh>
+#include <algorithm>
 
+#include <flexisip/agent.hh>
+#include <flexisip/configmanager.hh>
+#include <flexisip/entryfilter.hh>
 #include <flexisip/expressionparser.hh>
+#include <flexisip/logmanager.hh>
+#include <flexisip/module.hh>
+
+#include <sofia-sip/auth_digest.h>
+#include <sofia-sip/nta.h>
+
 #include "domain-registrations.hh"
 #include "utils/signaling-exception.hh"
-
-#include <algorithm>
 
 using namespace std;
 using namespace flexisip;

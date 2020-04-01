@@ -26,6 +26,6 @@ add_custom_target(flexisip-git-version
 	BYPRODUCTS "${CMAKE_CURRENT_LIST_DIR}/flexisip/flexisip-version.h"
 )
 
-set(FLEXISIP_HEADER_DIR "${CMAKE_CURRENT_LIST_DIR}/flexisip" PARENT_SCOPE)
+# set(FLEXISIP_HEADER_DIR "${CMAKE_CURRENT_LIST_DIR}/flexisip" PARENT_SCOPE)
 
 install(DIRECTORY flexisip DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})

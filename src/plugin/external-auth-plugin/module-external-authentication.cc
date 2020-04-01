@@ -25,9 +25,9 @@
 #include <sofia-sip/sip_header.h>
 #include <sofia-sip/sip_status.h>
 
+#include <flexisip/logmanager.hh>
 #include <flexisip/plugin.hh>
 
-#include "logmanager.hh"
 #include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
 

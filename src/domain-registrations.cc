@@ -136,7 +136,7 @@ int DomainRegistrationManager::load(string passphrase) {
 	
 	LOGD("Loading domain registration configuration from %s", configFile.c_str());
 	do {
-		SofiaAutoHome home;
+		sofiasip::Home home;
 		string line;
 		string domain, uri;
 		bool is_a_comment = false;
@@ -362,7 +362,7 @@ void DomainRegistration::sOnConnectionBroken(tp_stack_t *stack, tp_client_t *cli
 
 void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp) {
 	int nextSchedule;
-	SofiaAutoHome home;
+	sofiasip::Home home;
 
 	if (mTimer) {
 		su_timer_destroy(mTimer);

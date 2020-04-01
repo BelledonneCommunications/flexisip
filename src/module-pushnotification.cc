@@ -22,11 +22,12 @@
 #include <sofia-sip/msg_mime.h>
 #include <sofia-sip/sip_status.h>
 
-#include "flexisip/agent.hh"
-#include "flexisip/event.hh"
-#include "flexisip/forkcallcontext.hh"
-#include "flexisip/module.hh"
-#include "flexisip/transaction.hh"
+#include <flexisip/agent.hh>
+#include <flexisip/event.hh>
+#include <flexisip/forkcallcontext.hh>
+#include <flexisip/module.hh>
+#include <flexisip/transaction.hh>
+#include <flexisip/utils/timer.hh>
 
 #include "pushnotification/applepush.hh"
 #include "pushnotification/firebasepush.hh"
@@ -34,7 +35,6 @@
 #include "pushnotification/googlepush.hh"
 #include "pushnotification/microsoftpush.hh"
 #include "pushnotification/pushnotificationservice.hh"
-#include "utils/timer.hh"
 #include "utils/uri-utils.hh"
 #include "utils/string-utils.hh"
 

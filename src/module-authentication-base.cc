@@ -20,10 +20,11 @@
 #include <sofia-sip/sip_extra.h>
 #include <sofia-sip/sip_status.h>
 
-#include "agent.hh"
+#include <flexisip/agent.hh>
+#include <flexisip/module-authentication-base.hh>
+
 #include "utils/string-utils.hh"
 
-#include "module-authentication-base.hh"
 
 using namespace std;
 

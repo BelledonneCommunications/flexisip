@@ -23,6 +23,8 @@
 #include <unordered_map>
 
 #include <flexisip/event.hh>
+#include <flexisip/sofia-wrapper/home.hh>
+
 #include "rlmi+xml.hh"
 #include "subscription.hh"
 
@@ -122,7 +124,7 @@ private:
 	belle_sip_source_t *mTimer;
 	size_t mMaxPresenceInfoNotifiedAtATime; //maximum number of presentity available in a sigle notify
 	std::function<void(std::shared_ptr<ListSubscription>)> mListAvailable;
-	SofiaAutoHome home;
+	sofiasip::Home home;
 };
 
 } // namespace flexisip

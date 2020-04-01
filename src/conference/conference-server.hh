@@ -103,6 +103,6 @@ namespace flexisip {
 			Init();
 		};
 		static Init sStaticInit;
-		static SofiaAutoHome mHome;
+		static sofiasip::Home mHome;
 	};
 } // namespace flexisip

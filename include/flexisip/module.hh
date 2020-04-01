@@ -105,7 +105,7 @@ protected:
 	void sendTrap(const std::string &msg) {GenericManager::get()->sendTrap(mModuleConfig, msg);}
 
 protected:
-	SofiaAutoHome mHome;
+	sofiasip::Home mHome;
 	Agent *mAgent = nullptr;
 	ModuleInfoBase *mInfo = nullptr;
 	GenericStruct *mModuleConfig = nullptr;

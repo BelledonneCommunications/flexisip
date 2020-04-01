@@ -16,10 +16,11 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "entryfilter.hh"
-#include "flexisip/module.hh"
-#include "flexisip/sip-boolean-expressions.hh"
 #include <stdexcept>
+
+#include <flexisip/entryfilter.hh>
+#include <flexisip/module.hh>
+#include <flexisip/sip-boolean-expressions.hh>
 
 using namespace std;
 using namespace flexisip;

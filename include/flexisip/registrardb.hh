@@ -18,24 +18,26 @@
 
 #pragma once
 
-#include <flexisip/logmanager.hh>
-#include <flexisip/agent.hh>
-#include <flexisip/module.hh>
-
-#include <sofia-sip/sip.h>
-#include <sofia-sip/url.h>
-#include <sofia-sip/su_random.h>
-
-#include <map>
-#include <list>
-#include <set>
-#include <string>
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
-#include <algorithm>
-#include <limits>
-#include <mutex>
 #include <iosfwd>
+#include <limits>
+#include <list>
+#include <map>
+#include <mutex>
+#include <set>
+#include <string>
+
+#include <sofia-sip/sip.h>
+#include <sofia-sip/su_random.h>
+#include <sofia-sip/url.h>
+
+#include <flexisip/agent.hh>
+#include <flexisip/logmanager.hh>
+#include <flexisip/module.hh>
+
+#include "utils/sip-uri.hh"
 
 namespace flexisip {
 
@@ -75,7 +77,7 @@ struct ExtendedContact {
 	uint32_t mCSeq;
 	std::list<std::string> mAcceptHeader;
 	uintptr_t mConnId; // a unique id shared with associate t_port
-	SofiaAutoHome mHome;
+	sofiasip::Home mHome;
 	bool mAlias;
 	bool mUsedAsRoute; /*whether the contact information shall be used as a route when forming a request, instead of
 						  replacing the request-uri*/
@@ -115,7 +117,7 @@ struct ExtendedContact {
 
 	static std::string urlToString(const url_t *url) {
 		std::ostringstream ostr;
-		SofiaAutoHome home;
+		sofiasip::Home home;
 		char *tmp = url_as_string(home.home(), url);
 		return std::string(tmp ? tmp : "");
 	}
@@ -164,11 +166,11 @@ struct ExtendedContact {
 		init();
 	}
 
-	ExtendedContact(const url_t *url, const std::string &route, const float q = 1.0)
+	ExtendedContact(const SipUri &url, const std::string &route, const float q = 1.0)
 	: mContactId(), mCallId(), mUniqueId(), mPath({route}), mUserAgent(), mSipContact(nullptr), mQ(q), mExpireAt(LONG_MAX),
 		mExpireNotAtMessage(LONG_MAX), mUpdatedTime(0), mCSeq(0), mAcceptHeader({}),
 		mConnId(0), mHome(), mAlias(false), mUsedAsRoute(false) {
-		mSipContact = sip_contact_create(mHome.home(), (url_string_t*)url, nullptr);
+		mSipContact = sip_contact_create(mHome.home(), reinterpret_cast<const url_string_t *>(url.get()), nullptr);
 	}
 
 	ExtendedContact(const ExtendedContact &ec)
@@ -199,7 +201,7 @@ public:
 	const char *what() const noexcept override {return mAor;}
 
 private:
-	SofiaAutoHome mHome;
+	sofiasip::Home mHome;
 	const char *mAor = nullptr;
 };
 
@@ -207,31 +209,38 @@ class Record {
 	friend class RegistrarDb;
 
   private:
-	Record(const Record &other) = delete; //disable copy constructor, this is unsafe due to su_home_t here.
-	void operator=(const Record &other) = delete; //disable assignement operator too
-	SofiaAutoHome mHome;
 	static void init();
+
+	sofiasip::Home mHome;
 	std::list<std::shared_ptr<ExtendedContact>> mContacts;
 	std::list<std::shared_ptr<ExtendedContact>> mContactsToRemove;
 	std::string mKey;
-	url_t *mAor;
-	bool mIsDomain; /*is a domain registration*/
-	bool mOnlyStaticContacts;
+	SipUri mAor;
+	bool mIsDomain = false; /*is a domain registration*/
+	bool mOnlyStaticContacts = true;
 
   public:
 	static std::list<std::string> sLineFieldNames;
 	static int sMaxContacts;
 	static bool sAssumeUniqueDomains;
-	Record(const url_t *aor);
+
+	Record(const SipUri &aor);
+	Record(SipUri &&aor);
+	Record(const Record &other) = delete; //disable copy constructor, this is unsafe due to su_home_t here.
+	Record(Record &&other) = delete; // disable move constructor
+	~Record() = default;
+
+	Record &operator=(const Record &other) = delete; //disable assignement operator too
+	Record &operator=(Record &&other) = delete; //disable move assignement operator too
+
 	//Get address of record
-	const url_t *getAor()const;
+	const SipUri &getAor() const {return mAor;}
 	
 	void insertOrUpdateBinding(const std::shared_ptr<ExtendedContact> &ec, const std::shared_ptr<ContactUpdateListener> &listener);
 	const std::shared_ptr<ExtendedContact> extractContactByUniqueId(std::string uid);
 	sip_contact_t *getContacts(su_home_t *home, time_t now);
-	void pushContact(const std::shared_ptr<ExtendedContact> &ct) {
-		mContacts.push_back(ct);
-	}
+	void pushContact(const std::shared_ptr<ExtendedContact> &ct) {mContacts.push_back(ct);}
+
 	std::list<std::shared_ptr<ExtendedContact>>::iterator removeContact(const std::shared_ptr<ExtendedContact> &ct) {
 		return mContacts.erase(find(mContacts.begin(), mContacts.end(), ct));
 	}
@@ -245,24 +254,13 @@ class Record {
 	bool updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url, const std::shared_ptr<ContactUpdateListener> &listener);
 
 	void print(std::ostream &stream) const;
-	bool isEmpty() const {
-		return mContacts.empty();
-	}
-	const std::string &getKey() const {
-		return mKey;
-	}
-	int count() {
-		return mContacts.size();
-	}
-	const std::list<std::shared_ptr<ExtendedContact>> &getExtendedContacts() const {
-		return mContacts;
-	}
-	const std::list<std::shared_ptr<ExtendedContact>> &getContactsToRemove() const {
-		return mContactsToRemove;
-	}
-	void cleanContactsToRemoveList() {
-		mContactsToRemove.clear();
-	}
+	bool isEmpty() const {return mContacts.empty();}
+	const std::string &getKey() const {return mKey;}
+	int count() {return mContacts.size();}
+	const std::list<std::shared_ptr<ExtendedContact>> &getExtendedContacts() const {return mContacts;}
+	const std::list<std::shared_ptr<ExtendedContact>> &getContactsToRemove() const {return mContactsToRemove;}
+	void cleanContactsToRemoveList() {mContactsToRemove.clear();}
+
 	/*
 	 * Synthetise the pub-gruu address from an extended contact belonging to this Record.
 	 * FIXME: of course this method should be directly attached to ExtendedContact.
@@ -282,14 +280,13 @@ class Record {
 	time_t latestExpire(Agent *ag) const;
 	static std::list<std::string> route_to_stl(const sip_route_s *route);
 	void appendContactsFrom(const std::shared_ptr<Record> &src);
-	static std::string defineKeyFromUrl(const url_t *aor);
-	static url_t *makeUrlFromKey(su_home_t *home, const std::string &key);
-	static std::string extractUniqueId(const sip_contact_t *contact);
-	~Record();
 
-	bool haveOnlyStaticContacts() const {
-		return mOnlyStaticContacts;
-	}
+	// An empty AOR leads to an empty key.
+	static std::string defineKeyFromUrl(const url_t *aor);
+	static SipUri makeUrlFromKey(const std::string &key);
+	static std::string extractUniqueId(const sip_contact_t *contact);
+
+	bool haveOnlyStaticContacts() const {return mOnlyStaticContacts;}
 };
 
 template <typename TraitsT>
@@ -379,11 +376,11 @@ class RegistrarDb {
 	static RegistrarDb *initialize(Agent *ag);
 	static RegistrarDb *get();
 	void bind(const sip_t *sip, const BindingParameters &parameter, const std::shared_ptr<ContactUpdateListener> &listener);
-	void bind(const url_t *from, const sip_contact_t *contact, const BindingParameters &parameter, const std::shared_ptr<ContactUpdateListener> &listener);
+	void bind(const SipUri &from, const sip_contact_t *contact, const BindingParameters &parameter, const std::shared_ptr<ContactUpdateListener> &listener);
 	void clear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener);
-	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive = false);
-	void fetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive);
-	void fetchList(const std::vector<url_t *> urls, const std::shared_ptr<ListContactUpdateListener> &listener);
+	void fetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive = false);
+	void fetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive);
+	void fetchList(const std::vector<SipUri > urls, const std::shared_ptr<ListContactUpdateListener> &listener);
 	void notifyContactListener (const std::shared_ptr<Record> &r /*might be empty record*/, const std::string &uid);
 	void updateRemoteExpireTime(const std::string &key, time_t expireat);
 	unsigned long countLocalActiveRecords() {
@@ -438,14 +435,14 @@ class RegistrarDb {
 	};
 	virtual void doBind(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
 	virtual void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
-	virtual void doFetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
-	virtual void doFetchInstance(const url_t *url, const std::string &uniqueId, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
+	virtual void doFetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
+	virtual void doFetchInstance(const SipUri &url, const std::string &uniqueId, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
 	virtual void doMigration() = 0;
 
 	int count_sip_contacts(const sip_contact_t *contact);
 	bool errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const std::string &key,
 									 const std::shared_ptr<RegistrarDbListener> &listener);
-	void fetchWithDomain(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive);
+	void fetchWithDomain(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive);
 	void notifyContactListener(const std::string &key, const std::string &uid);
 	void notifyStateListener () const;
 	
