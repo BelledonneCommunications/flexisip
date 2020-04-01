@@ -18,37 +18,91 @@
 
 #pragma once
 
+#include <functional>
+#include <memory>
 #include <string>
 
-#include <sofia-sip/url.h>
+// Forward declaration of url_t in order SipUri class
+// completely hides SofiaSip API.
+#ifndef URL_H_TYPES
+struct url_t;
+#endif
+
+namespace sofiasip {
+	/**
+	 * @brief Class for SIP URI handling, implemented with SofiaSip's url_t.
+	 */
+	class Url {
+	public:
+		Url() = default;
+		/**
+		 * @brief Create a SIP URI object from a string.
+		 * @exception std::invalid_argument The string doesn't match with URI grammar.
+		 */
+		Url(const std::string &str);
+		Url(const url_t *src);
+		Url(const Url &src) noexcept;
+		Url(Url &&src) noexcept;
+		virtual ~Url();
+
+		Url &operator=(const Url &src) noexcept;
+		Url &operator=(Url &&src) noexcept;
+
+		bool empty() const noexcept {return _url == nullptr;}
+
+		/**
+		 * @brief Return a pointer on the underlying sip_t structure.
+		 */
+		const url_t *get() const noexcept {return _url.get();}
+		/**
+		 * @brief Get the URI as string.
+		 */
+		const std::string &str() const noexcept;
+
+		std::string getScheme() const noexcept;
+		std::string getUser() const noexcept;
+		std::string getPassword() const noexcept;
+		std::string getHost() const noexcept;
+		std::string getPort() const noexcept;
+		std::string getPath() const noexcept;
+		std::string getParams() const noexcept;
+		std::string getHeaders() const noexcept;
+		std::string getFragment() const noexcept;
+
+	protected:
+		using suDeleterT = std::function<void(void *)>;
+
+		static const suDeleterT suObjectDeleter;
+		std::unique_ptr<url_t, suDeleterT> _url = {nullptr, suObjectDeleter};
+		mutable std::string _urlAsStr;
+	};
+}
 
 namespace flexisip {
 
 	/**
 	 * @brief Class for SIP URI handling, implemented with SofiaSip's url_t.
 	 */
-	class SipUri {
+	class SipUri : public sofiasip::Url {
 	public:
+		SipUri() = default;
 		/**
 		 * @brief Create a SIP URI object from a string.
 		 * @exception std::invalid_argument The string doesn't match with URI grammar.
 		 */
 		SipUri(const std::string &str);
-		~SipUri();
+		SipUri(const url_t *src);
+		SipUri(const sofiasip::Url &src);
+		SipUri(sofiasip::Url &&src);
+		SipUri(const SipUri &src) noexcept = default;
+		SipUri(SipUri &&src) noexcept = default;
+		~SipUri() override = default;
 
-		/**
-		 * @brief Return a pointer on the underlying sip_t structure.
-		 */
-		const url_t *get() const {return _url;}
-		/**
-		 * @brief Get the URI as string.
-		 */
-		const std::string &str() const;
+		SipUri &operator=(const SipUri &src) noexcept = default;
+		SipUri &operator=(SipUri &&src) noexcept = default;
 
 	private:
-		su_home_t _home;
-		url_t *_url = nullptr;
-		mutable std::string _urlAsStr;
+		static void checkUrl(const sofiasip::Url &url);
 	};
 
 }
