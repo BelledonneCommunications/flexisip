@@ -580,7 +580,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 						? msg_str
 						: "IC_SIL";
 
-				pinfo.mAlertSound = (sip->sip_request->rq_method == sip_method_invite) ? call_snd : msg_snd;
+				pinfo.mAlertSound = (sip->sip_request->rq_method == sip_method_invite && pinfo.mChatRoomAddr.empty()) ? call_snd : msg_snd;
 				pinfo.mNoBadge = mNoBadgeiOS;
 				if (!mExternalPushUri)
 					pn = make_shared<ApplePushNotificationRequest>(pinfo);
