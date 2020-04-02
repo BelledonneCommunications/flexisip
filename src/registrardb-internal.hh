@@ -30,12 +30,12 @@ class RegistrarDbInternal : public RegistrarDb {
 	void clearAll();
 
   private:
-	virtual void doBind(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener)override;
-	virtual void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener)override;
-	virtual void doFetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener)override;
-	virtual void doFetchInstance(const url_t *url, const std::string &uniqueId, const std::shared_ptr<ContactUpdateListener> &listener)override;
-	virtual void doMigration()override;
-	virtual void publish(const std::string &topic, const std::string &uid)override;
+	virtual void doBind(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) override;
+	virtual void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener) override;
+	virtual void doFetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener) override;
+	virtual void doFetchInstance(const SipUri &url, const std::string &uniqueId, const std::shared_ptr<ContactUpdateListener> &listener) override;
+	virtual void doMigration() override;
+	virtual void publish(const std::string &topic, const std::string &uid) override;
 	std::map<std::string, std::shared_ptr<Record>> mRecords;
 };
 

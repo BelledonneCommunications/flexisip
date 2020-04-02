@@ -93,7 +93,7 @@ struct RegistrarUserData {
 	bool mUpdateExpire;
 	bool mIsUnregister;
 
-	RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, std::shared_ptr<ContactUpdateListener> listener);
+	RegistrarUserData(RegistrarDbRedisAsync *s, const SipUri &url, std::shared_ptr<ContactUpdateListener> listener);
 	~RegistrarUserData();
 };
 
@@ -108,7 +108,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
   protected:
 	virtual void doBind(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) override;
 	virtual void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener)override;
-	virtual void doFetch(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener)override;
+	virtual void doFetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener)override;
 	virtual void doFetchInstance(const url_t *url, const std::string &uniqueId, const std::shared_ptr<ContactUpdateListener> &listener)override;
 	virtual void doMigration()override;
 	virtual void subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener)override;

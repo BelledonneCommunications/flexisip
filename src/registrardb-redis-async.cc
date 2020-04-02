@@ -41,7 +41,7 @@ constexpr int redisRetryTimeoutMs = 5000;
 using namespace std;
 using namespace flexisip;
 
-RegistrarUserData::RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, shared_ptr<ContactUpdateListener> listener)
+RegistrarUserData::RegistrarUserData(RegistrarDbRedisAsync *s, const SipUri &url, shared_ptr<ContactUpdateListener> listener)
 	: self(s), listener(listener), token(0), mRetryTimer(nullptr), mRetryCount(0), mUniqueId(""), mUpdateExpire(false), mIsUnregister(false) {
 	mRecord = make_shared<Record>(url);
 }
@@ -840,7 +840,7 @@ void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *da
 	}
 }
 
-void RegistrarDbRedisAsync::doFetch(const url_t *url, const shared_ptr<ContactUpdateListener> &listener) {
+void RegistrarDbRedisAsync::doFetch(const SipUri &url, const shared_ptr<ContactUpdateListener> &listener) {
 	// fetch all the contacts in the AOR (HGETALL) and call the onRecordFound of the listener
 	RegistrarUserData *data = new RegistrarUserData(this, url, listener);
 

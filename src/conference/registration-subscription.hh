@@ -96,9 +96,8 @@ class OwnRegistrationSubscription
 		/*ContactRegisteredListener overrides*/
 		virtual void onContactRegistered(const std::shared_ptr<Record> &r, const std::string &uid) override;
 
-		SofiaAutoHome mHome;
-		const url_t *mParticipantAor;
-		bool mActive;
+		SipUri mParticipantAor;
+		bool mActive = false;
 		
 };
 

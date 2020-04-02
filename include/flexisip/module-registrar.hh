@@ -151,7 +151,7 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 
 	bool isManagedDomain(const url_t *url);
 
-	std::string routingKey(const url_t *sipUri);
+	std::string routingKey(const SipUri& sipUri);
 
 	RegistrarStats mStats;
 	bool mUpdateOnResponse;

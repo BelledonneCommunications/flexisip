@@ -39,8 +39,8 @@ namespace sofiasip {
 		 * @brief Create a SIP URI object from a string.
 		 * @exception std::invalid_argument The string doesn't match with URI grammar.
 		 */
-		Url(const std::string &str);
-		Url(const url_t *src);
+		explicit Url(const std::string &str);
+		explicit Url(const url_t *src);
 		Url(const Url &src) noexcept;
 		Url(Url &&src) noexcept;
 		virtual ~Url();
@@ -90,10 +90,10 @@ namespace flexisip {
 		 * @brief Create a SIP URI object from a string.
 		 * @exception std::invalid_argument The string doesn't match with URI grammar.
 		 */
-		SipUri(const std::string &str);
-		SipUri(const url_t *src);
-		SipUri(const sofiasip::Url &src);
-		SipUri(sofiasip::Url &&src);
+		explicit SipUri(const std::string &str);
+		explicit SipUri(const url_t *src);
+		explicit SipUri(const sofiasip::Url &src);
+		explicit SipUri(sofiasip::Url &&src);
 		SipUri(const SipUri &src) noexcept = default;
 		SipUri(SipUri &&src) noexcept = default;
 		~SipUri() override = default;

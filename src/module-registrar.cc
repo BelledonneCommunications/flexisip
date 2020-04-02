@@ -96,7 +96,7 @@ void OnRequestBindListener::onRecordFound(const shared_ptr<Record> &r) {
 
 		if (mContact) {
 			string uid = Record::extractUniqueId(mContact);
-			string topic = mModule->routingKey(mSipFrom->a_url);
+			string topic = mModule->routingKey(SipUri(mSipFrom->a_url));
 			RegistrarDb::get()->publish(topic, uid);
 		}
 	} else {
@@ -471,7 +471,7 @@ bool ModuleRegistrar::isManagedDomain(const url_t *url) {
 	return ModuleToolbox::isManagedDomain(getAgent(), mDomains, url);
 }
 
-string ModuleRegistrar::routingKey(const url_t *sipUri) {
+string ModuleRegistrar::routingKey(const SipUri &sipUri) {
 	return Record::defineKeyFromUrl(sipUri);
 }
 

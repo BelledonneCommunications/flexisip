@@ -639,7 +639,7 @@ class TargetUriListFetcher : public ContactUpdateListener,
 		: mEv(ev), mListener(listener) {
 		mPending = 0;
 		mError = false;
-		mRecord = make_shared<Record>(nullptr);
+		mRecord = make_shared<Record>(SipUri());
 		if (target_uris && target_uris->un_value) {
 			/*the X-target-uris header is parsed like a route, as it is a list of URIs*/
 			mUriList = sip_route_make(mEv->getHome(), target_uris->un_value);

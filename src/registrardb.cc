@@ -228,16 +228,17 @@ list<string> Record::route_to_stl(const sip_route_s *route) {
 	return res;
 }
 
-string Record::defineKeyFromUrl(const url_t *url) {
+string Record::defineKeyFromUrl(const SipUri &url) {
 	ostringstream ostr;
-	if (url->url_user) {
+	auto user = url.getUser();
+	if (!user.empty()) {
 		if (!RegistrarDb::get()->useGlobalDomain()) {
-			ostr<<url->url_user<<"@"<<url->url_host;
+			ostr << user << "@" << url.getHost();
 		} else {
-			ostr<<url->url_user<<"@"<<"merged";
+			ostr << user << "@" << "merged";
 		}
 	} else {
-		ostr<<url->url_host;
+		ostr << url.getHost();
 	}
 	return ostr.str();
 }
@@ -621,18 +622,14 @@ int Record::sMaxContacts = -1;
 list<string> Record::sLineFieldNames;
 bool Record::sAssumeUniqueDomains = false;
 
-Record::Record(const url_t *aor) : mKey(aor ? defineKeyFromUrl(aor) : ""), mOnlyStaticContacts(true) {
-	if (aor && aor->url_type != url_sip && aor->url_type != url_sips) {
-		throw InvalidAorError(aor);
-	}
-	mAor = aor ? url_hdup(mHome.home(), aor) : nullptr;
-	if (sMaxContacts == -1)
-		init();
-	if (aor) mIsDomain = aor->url_user == nullptr;
+Record::Record(const SipUri &aor): Record(SipUri(aor)) {
 }
 
-const url_t *Record::getAor()const{
-	return mAor;
+Record::Record(SipUri &&aor): mAor(move(aor)) {
+	// warning: aor is empty at this point. Use mAor!
+	mKey = defineKeyFromUrl(mAor);
+	mIsDomain = mAor.getUser().empty();
+	if (sMaxContacts == -1) init();
 }
 
 url_t *Record::getPubGruu(const std::shared_ptr<ExtendedContact> &ec, su_home_t *home){
@@ -666,9 +663,6 @@ url_t *Record::getPubGruu(const std::shared_ptr<ExtendedContact> &ec, su_home_t 
 		url_param_add(home, gruu_addr, su_sprintf(home, "gr=%s", gr_value));
 	}
 	return gruu_addr;
-}
-
-Record::~Record() {
 }
 
 void Record::init() {
@@ -1168,7 +1162,7 @@ void RegistrarDb::bind(const sip_t *sip, const BindingParameters &parameter, con
 	doBind(sip, parameter.globalExpire, parameter.alias, parameter.version, listener);
 }
 
-void RegistrarDb::bind(const url_t *from, const sip_contact_t *contact, const BindingParameters &parameter, const shared_ptr<ContactUpdateListener> &listener) {
+void RegistrarDb::bind(const SipUri &from, const sip_contact_t *contact, const BindingParameters &parameter, const shared_ptr<ContactUpdateListener> &listener) {
 	msg_t *msg = msg_create(sip_default_mclass(), 0);
 	su_home_t *homeSip = msg_home(msg);
 	sip_t *sip = sip_object(msg);

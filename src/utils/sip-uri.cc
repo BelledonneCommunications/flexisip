@@ -91,11 +91,11 @@ const std::function<void(void *)> Url::suObjectDeleter = [](void *obj){su_free(n
 namespace flexisip {
 
 SipUri::SipUri(const std::string &str): sofiasip::Url(str) {
-	checkUrl(_url.get());
+	checkUrl(*this);
 }
 
 SipUri::SipUri(const url_t *src): sofiasip::Url(src) {
-	checkUrl(_url.get());
+	checkUrl(*this);
 }
 
 SipUri::SipUri(const sofiasip::Url &src): SipUri(src.get()) {
