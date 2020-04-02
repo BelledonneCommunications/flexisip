@@ -39,13 +39,14 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 			"aps": {
 				"sound": "",
 				"loc-key": "%s",
+				"loc-args": ["%s"],
 				"call-id": "%s",
 				"uuid": %s,
 				"send-time": "%s"
 			},
 			"pn_ttl": %d
 		})json";
-		returnCode = snprintf(buffer, bufferMaxSize, rawPayload, msg_id.c_str(), callid.c_str(), quoteStringIfNeeded(info.mUid).c_str(), date.c_str(), info.mTtl);
+		returnCode = snprintf(buffer, bufferMaxSize, rawPayload, msg_id.c_str(), arg.c_str(), callid.c_str(), quoteStringIfNeeded(info.mUid).c_str(), date.c_str(), info.mTtl);
 		break;
 	case PushInfo::Background:
 		// Use a normal push notification with content-available set to 1, no alert, no sound.
