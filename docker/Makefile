@@ -23,6 +23,9 @@ flexisip-clean:
 
 flexisip-deb-before:
 	$(eval DOCKER_FILE = flex-from-deb)
+	# forcing context to .
+	# at the moment of the condition above being executed, $DOCKER_FILE doesn't have the right value
+	$(eval CONTEXT = .)
 	$(eval DOCKER_TAG = $(DOCKER_TAG)-deb)
 
 flexisip-deb-build: flexisip-deb-before flexisip-build
