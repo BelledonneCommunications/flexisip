@@ -20,15 +20,34 @@
 
 #include <functional>
 #include <memory>
+#include <stdexcept>
 #include <string>
 
-// Forward declaration of url_t in order SipUri class
-// completely hides SofiaSip API.
-#ifndef URL_H_TYPES
-struct url_t;
-#endif
+#include <sofia-sip/url.h>
+
+#include "event.hh"
 
 namespace sofiasip {
+
+	class InvalidUrlError : public std::invalid_argument {
+	public:
+		template <typename T, typename U>
+		InvalidUrlError(T &&url, U &&reason):
+			invalid_argument(url), _url(std::forward<T>(url)), _reason(std::forward<U>(reason)) {}
+
+		const std::string &getUrl() const {return _url;}
+		const std::string &getReason() const {return _reason;}
+
+	private:
+		std::string _url;
+		std::string _reason;
+	};
+
+	class UrlModificationError : public std::logic_error {
+	public:
+		using logic_error::logic_error;
+	};
+
 	/**
 	 * @brief Class for SIP URI handling, implemented with SofiaSip's url_t.
 	 */
@@ -43,7 +62,7 @@ namespace sofiasip {
 		explicit Url(const url_t *src);
 		Url(const Url &src) noexcept;
 		Url(Url &&src) noexcept;
-		virtual ~Url();
+		virtual ~Url() = default;
 
 		Url &operator=(const Url &src) noexcept;
 		Url &operator=(Url &&src) noexcept;
@@ -53,30 +72,37 @@ namespace sofiasip {
 		/**
 		 * @brief Return a pointer on the underlying sip_t structure.
 		 */
-		const url_t *get() const noexcept {return _url.get();}
+		const url_t *get() const noexcept {return _url;}
 		/**
 		 * @brief Get the URI as string.
 		 */
 		const std::string &str() const noexcept;
 
-		std::string getScheme() const noexcept;
-		std::string getUser() const noexcept;
-		std::string getPassword() const noexcept;
-		std::string getHost() const noexcept;
-		std::string getPort() const noexcept;
-		std::string getPath() const noexcept;
-		std::string getParams() const noexcept;
-		std::string getHeaders() const noexcept;
-		std::string getFragment() const noexcept;
+		#define getUrlAttr(attr) _url && _url->attr ? _url->attr : ""
+		std::string getScheme() const noexcept {return getUrlAttr(url_scheme);}
+		std::string getUser() const noexcept {return getUrlAttr(url_user);}
+		std::string getPassword() const noexcept {return getUrlAttr(url_password);}
+		std::string getHost() const noexcept {return getUrlAttr(url_host);}
+		std::string getPort() const noexcept {return getUrlAttr(url_port);}
+		std::string getPath() const noexcept {return getUrlAttr(url_path);}
+		std::string getParams() const noexcept {return getUrlAttr(url_params);}
+		std::string getHeaders() const noexcept {return getUrlAttr(url_headers);}
+		std::string getFragment() const noexcept {return getUrlAttr(url_fragment);}
+		#undef getUrlAttr
+
+		Url replaceUser(const std::string &newUser) const;
+
+		bool hasParam(const std::string &name) const {return hasParam(name.c_str());}
+		bool hasParam(const char *name) const {return url_has_param(_url, name);}
 
 	protected:
-		using suDeleterT = std::function<void(void *)>;
-
-		static const suDeleterT suObjectDeleter;
-		std::unique_ptr<url_t, suDeleterT> _url = {nullptr, suObjectDeleter};
+		flexisip::SofiaAutoHome _home;
+		const url_t *_url = nullptr;
 		mutable std::string _urlAsStr;
 	};
 }
+
+inline std::ostream &operator<<(std::ostream &os, const sofiasip::Url &url) {return os << url.str();}
 
 namespace flexisip {
 
@@ -100,6 +126,8 @@ namespace flexisip {
 
 		SipUri &operator=(const SipUri &src) noexcept = default;
 		SipUri &operator=(SipUri &&src) noexcept = default;
+
+		SipUri replaceUser(const std::string &newUser) const;
 
 	private:
 		static void checkUrl(const sofiasip::Url &url);

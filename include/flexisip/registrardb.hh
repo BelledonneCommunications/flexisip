@@ -166,11 +166,11 @@ struct ExtendedContact {
 		init();
 	}
 
-	ExtendedContact(const url_t *url, const std::string &route, const float q = 1.0)
+	ExtendedContact(const SipUri &url, const std::string &route, const float q = 1.0)
 	: mContactId(), mCallId(), mUniqueId(), mPath({route}), mUserAgent(), mSipContact(nullptr), mQ(q), mExpireAt(LONG_MAX),
 		mExpireNotAtMessage(LONG_MAX), mUpdatedTime(0), mCSeq(0), mAcceptHeader({}),
 		mConnId(0), mHome(), mAlias(false), mUsedAsRoute(false) {
-		mSipContact = sip_contact_create(mHome.home(), (url_string_t*)url, nullptr);
+		mSipContact = sip_contact_create(mHome.home(), reinterpret_cast<const url_string_t *>(url.get()), nullptr);
 	}
 
 	ExtendedContact(const ExtendedContact &ec)
@@ -282,8 +282,8 @@ class Record {
 	void appendContactsFrom(const std::shared_ptr<Record> &src);
 
 	// An empty AOR leads to an empty key.
-	static std::string defineKeyFromUrl(const SipUri &aor);
-	static url_t *makeUrlFromKey(su_home_t *home, const std::string &key);
+	static std::string defineKeyFromUrl(const url_t *aor);
+	static SipUri makeUrlFromKey(const std::string &key);
 	static std::string extractUniqueId(const sip_contact_t *contact);
 
 	bool haveOnlyStaticContacts() const {return mOnlyStaticContacts;}
@@ -380,7 +380,7 @@ class RegistrarDb {
 	void clear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener);
 	void fetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive = false);
 	void fetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive);
-	void fetchList(const std::vector<url_t *> urls, const std::shared_ptr<ListContactUpdateListener> &listener);
+	void fetchList(const std::vector<SipUri > urls, const std::shared_ptr<ListContactUpdateListener> &listener);
 	void notifyContactListener (const std::shared_ptr<Record> &r /*might be empty record*/, const std::string &uid);
 	void updateRemoteExpireTime(const std::string &key, time_t expireat);
 	unsigned long countLocalActiveRecords() {
@@ -442,7 +442,7 @@ class RegistrarDb {
 	int count_sip_contacts(const sip_contact_t *contact);
 	bool errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const std::string &key,
 									 const std::shared_ptr<RegistrarDbListener> &listener);
-	void fetchWithDomain(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive);
+	void fetchWithDomain(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive);
 	void notifyContactListener(const std::string &key, const std::string &uid);
 	void notifyStateListener () const;
 	

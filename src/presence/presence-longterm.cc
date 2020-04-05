@@ -95,8 +95,7 @@ private:
 
 			// Fetch Redis info.
 			shared_ptr<InternalListListener> listener = make_shared<InternalListListener>(info);
-			url_t *url = url_make(listener->getHome(), contact_as_string);
-			RegistrarDb::get()->fetch(url, listener);
+			RegistrarDb::get()->fetch(SipUri{contact_as_string}, listener);
 			belle_sip_free(contact_as_string);
 		} else {
 			SLOGD << __FILE__ << ": " << "Could not find user " << cuser << ".";
