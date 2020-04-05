@@ -15,6 +15,9 @@
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+#include "utils/sip-uri.hh"
+
 #include "tool_utils.hh"
 
 using namespace std;
@@ -22,7 +25,7 @@ using namespace flexisip;
 
 int test_bind_with_ecc(ExtendedContactCommon &ecc, const unique_ptr<RecordSerializer> &serializer, string contact,
 					   time_t expireat, float quality, long cseq, time_t now, bool alias, sip_accept_t *accept) {
-	Record initial(NULL);
+	Record initial(SipUri{});
 
 	list<string> acceptHeaders;
 	while (accept != NULL) {
@@ -42,7 +45,7 @@ int test_bind_with_ecc(ExtendedContactCommon &ecc, const unique_ptr<RecordSerial
 		return -1;
 	}
 
-	Record final(NULL);
+	Record final(SipUri{});
 	if (!serializer->parse(serialized, &final)) {
 		cerr << "Failed parsing" << endl;
 		return -1;
@@ -61,7 +64,7 @@ int test_bind_without_ecc(ExtendedContactCommon &ecc, const unique_ptr<RecordSer
 						  sip_contact_t *contacts, sip_path_t *path, int globalexpire, const char *callid,
 						  string contact, time_t expireat, float quality, long cseq, time_t now, bool alias,
 						  sip_accept_t *accept) {
-	Record initial(NULL);
+	Record initial(SipUri{});
 
 	msg_t *msg = msg_create(sip_default_mclass(), 0);
 	su_home_t *homeSip = msg_home(msg);
@@ -93,7 +96,7 @@ int test_bind_without_ecc(ExtendedContactCommon &ecc, const unique_ptr<RecordSer
 		cout << "Serialized size: " << serialized.length() << endl;
 	}
 
-	Record final(NULL);
+	Record final(SipUri{});
 	if (!serializer->parse(serialized, &final)) {
 		cerr << "Failed parsing" << endl;
 		return -1;

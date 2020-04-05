@@ -323,9 +323,10 @@ void GatewayRegister::onError(const char *message, ...) {
 
 void GatewayRegister::start() {
 	LOGD("GatewayRegister start");
+	SipUri fromUri(from->a_url);
 	LOGD("Fetching binding");
 	++*mCountStart;
-	RegistrarDb::get()->fetch(from->a_url, make_shared<OnFetchListener>(this));
+	RegistrarDb::get()->fetch(fromUri, make_shared<OnFetchListener>(this));
 }
 
 void GatewayRegister::end() {
@@ -431,12 +432,11 @@ void GatewayAdapter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 
-	if (sip->sip_request->rq_method == sip_method_register) {
-		if (sip->sip_contact != NULL) {
-			GatewayRegister *gr = NULL;
+	if (sip->sip_request->rq_method == sip_method_register && sip->sip_contact != nullptr) {
+		try {
+			GatewayRegister *gr = nullptr;
 			if (mRegisterOnGateway) {
-				gr = new GatewayRegister(getAgent(), nua, sip->sip_from, sip->sip_to, sip->sip_contact,
-										sip->sip_expires);
+				gr = new GatewayRegister(getAgent(), nua, sip->sip_from, sip->sip_to, sip->sip_contact, sip->sip_expires);
 			}
 
 			if (mForkToGateway) {
@@ -456,6 +456,11 @@ void GatewayAdapter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			if (mRegisterOnGateway && gr) {
 				gr->start();
 			}
+
+		} catch (const sofiasip::InvalidUrlError &e) {
+			// Thrown by GatewayRegister::start() when From URI isn't a SIP URI.
+			SLOGE << "Invalid 'From' Uri [" << e.what() << "]";
+			ev->reply(400, "Bad request", TAG_END());
 		}
 	} else {
 		/* check if request-uri contains a routing-domain parameter, so that we can route back to the client */

@@ -42,7 +42,7 @@ void RegistrarDbInternal::doBind(const sip_t *sip, int globalExpire, bool alias,
 		throw InvalidAorError(sip->sip_from->a_url);
 	}
 
-	string key = Record::defineKeyFromUrl(fromUri);
+	string key = Record::defineKeyFromUrl(fromUri.get());
 
 	auto it = mRecords.find(key);
 	shared_ptr<Record> r;
@@ -68,7 +68,7 @@ void RegistrarDbInternal::doBind(const sip_t *sip, int globalExpire, bool alias,
 }
 
 void RegistrarDbInternal::doFetch(const SipUri &url, const shared_ptr<ContactUpdateListener> &listener) {
-	string key(Record::defineKeyFromUrl(url));
+	string key = Record::defineKeyFromUrl(url.get());
 
 	auto it = mRecords.find(key);
 	shared_ptr<Record> r = NULL;
@@ -85,7 +85,7 @@ void RegistrarDbInternal::doFetch(const SipUri &url, const shared_ptr<ContactUpd
 }
 
 void RegistrarDbInternal::doFetchInstance(const SipUri &url, const string &uniqueId, const shared_ptr<ContactUpdateListener> &listener) {
-	string key(Record::defineKeyFromUrl(url));
+	string key(Record::defineKeyFromUrl(url.get()));
 	SofiaAutoHome home;
 
 	auto it = mRecords.find(key);
@@ -117,15 +117,7 @@ void RegistrarDbInternal::doFetchInstance(const SipUri &url, const string &uniqu
 }
 
 void RegistrarDbInternal::doClear(const sip_t *sip, const shared_ptr<ContactUpdateListener> &listener) {
-	string key;
-	try {
-		key = Record::defineKeyFromUrl(SipUri(sip->sip_from->a_url));
-	} catch (const invalid_argument &e) {
-		auto suDeleter = [](void *o){su_free(nullptr, o);};
-		unique_ptr<char, decltype(suDeleter)> uriStr(url_as_string(nullptr, sip->sip_from->a_url), suDeleter);
-		LOGD("Invalid 'From' URI [%s]", uriStr.get());
-		listener->onInvalid();
-	}
+	string key = Record::defineKeyFromUrl(sip->sip_from->a_url);
 
 	if (errorOnTooMuchContactInBind(sip->sip_contact, key, listener)) {
 		listener->onError();

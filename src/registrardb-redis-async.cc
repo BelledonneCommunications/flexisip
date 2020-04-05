@@ -41,14 +41,6 @@ constexpr int redisRetryTimeoutMs = 5000;
 using namespace std;
 using namespace flexisip;
 
-RegistrarUserData::RegistrarUserData(RegistrarDbRedisAsync *s, const SipUri &url, shared_ptr<ContactUpdateListener> listener)
-	: self(s), listener(listener), token(0), mRetryTimer(nullptr), mRetryCount(0), mUniqueId(""), mUpdateExpire(false), mIsUnregister(false) {
-	mRecord = make_shared<Record>(url);
-}
-RegistrarUserData::~RegistrarUserData() {
-
-}
-
 /******
  * RegistrarDbRedisAsync class
  */
@@ -703,7 +695,9 @@ void RegistrarDbRedisAsync::doBind(const sip_t *sip, int globalExpire, bool alia
 	// If there is an error, try again
 	// Once it is done, fetch all the contacts in the AOR and call the onRecordFound of the listener
 
-	RegistrarUserData *data = new RegistrarUserData(this, sip->sip_from->a_url, listener);
+	SipUri fromUri(sip->sip_from->a_url);
+
+	RegistrarUserData *data = new RegistrarUserData(this, fromUri, listener);
 
 	data->mRecord->update(sip, globalExpire, alias, version, data->listener);
 	mLocalRegExpire->update(data->mRecord);
@@ -785,22 +779,27 @@ void RegistrarDbRedisAsync::parseAndClean(redisReply *reply, RegistrarUserData *
 }
 
 void RegistrarDbRedisAsync::doClear(const sip_t *sip, const shared_ptr<ContactUpdateListener> &listener) {
-	// Delete the AOR Hashmap using DEL
-	// Once it is done, fetch all the contacts in the AOR and call the onRecordFound of the listener ?
-	RegistrarUserData *data = new RegistrarUserData(this, sip->sip_from->a_url, listener);
+	try {
+		// Delete the AOR Hashmap using DEL
+		// Once it is done, fetch all the contacts in the AOR and call the onRecordFound of the listener ?
+		RegistrarUserData *data = new RegistrarUserData(this, SipUri(sip->sip_from->a_url), listener);
 
-	if (!isConnected() && !connect()) {
-		LOGE("Not connected to redis server");
-		if (data->listener) data->listener->onError();
-		delete data;
-		return;
+		if (!isConnected() && !connect()) {
+			LOGE("Not connected to redis server");
+			if (data->listener) data->listener->onError();
+			delete data;
+			return;
+		}
+
+		const char *key = data->mRecord->getKey().c_str();
+		LOGD("Clearing fs:%s [%lu]", key, data->token);
+		mLocalRegExpire->remove(key);
+		check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleClear,
+			data, "DEL fs:%s", key), data);
+	} catch (const sofiasip::InvalidUrlError &e) {
+		SLOGE << "Invalid 'From' SIP URI [" << e.getUrl() << "]: " << e.getReason();
+		listener->onInvalid();
 	}
-
-	const char *key = data->mRecord->getKey().c_str();
-	LOGD("Clearing fs:%s [%lu]", key, data->token);
-	mLocalRegExpire->remove(key);
-	check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleClear,
-		data, "DEL fs:%s", key), data);
 }
 
 void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *data) {
@@ -857,7 +856,7 @@ void RegistrarDbRedisAsync::doFetch(const SipUri &url, const shared_ptr<ContactU
 		data, "HGETALL fs:%s", key), data);
 }
 
-void RegistrarDbRedisAsync::doFetchInstance(const url_t *url, const string &uniqueId, const shared_ptr<ContactUpdateListener> &listener) {
+void RegistrarDbRedisAsync::doFetchInstance(const SipUri &url, const string &uniqueId, const shared_ptr<ContactUpdateListener> &listener) {
 	// fetch only the contact in the AOR (HGET) and call the onRecordFound of the listener
 	RegistrarUserData *data = new RegistrarUserData(this, url, listener);
 	data->mUniqueId = uniqueId;
@@ -911,17 +910,18 @@ void RegistrarDbRedisAsync::handleMigration(redisReply *reply, RegistrarUserData
 	} else if (reply->type == REDIS_REPLY_ARRAY) {
 		LOGD("Fetching all previous records success: %lu record(s) found", (unsigned long)reply->elements);
 
-		su_home_t home;
-		su_home_init(&home);
 		for (size_t i = 0; i < reply->elements; i++) {
 			redisReply *element = reply->element[i];
-			url_t *url = url_make(&home, element->str);
-			RegistrarUserData *new_data = new RegistrarUserData(this, url, nullptr);
-			LOGD("Fetching previous record: %s", element->str);
-			check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleRecordMigration,
-				new_data, "GET %s", element->str), new_data);
+			try {
+				SipUri url(element->str);
+				RegistrarUserData *new_data = new RegistrarUserData(this, move(url), nullptr);
+				LOGD("Fetching previous record: %s", element->str);
+				check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleRecordMigration,
+					new_data, "GET %s", element->str), new_data);
+			} catch (const sofiasip::InvalidUrlError &e) {
+				LOGD("Skipping invalid previous record [%s]: %s", element->str, e.getReason().c_str());
+			}
 		}
-		su_home_deinit(&home);
 	} else {
 		LOGD("Record aor:%s successfully migrated", data->mRecord->getKey().c_str());
 		if (data->listener) data->listener->onRecordFound(data->mRecord);
@@ -939,7 +939,7 @@ void RegistrarDbRedisAsync::doMigration() {
 	}
 
 	LOGD("Fetching previous record(s)");
-	RegistrarUserData *data = new RegistrarUserData(this, nullptr, nullptr);
+	RegistrarUserData *data = new RegistrarUserData(this, SipUri(), nullptr);
 	check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleMigration,
 		data, "KEYS aor:*"), data);
 }

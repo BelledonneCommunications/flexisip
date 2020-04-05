@@ -228,24 +228,23 @@ list<string> Record::route_to_stl(const sip_route_s *route) {
 	return res;
 }
 
-string Record::defineKeyFromUrl(const SipUri &url) {
+string Record::defineKeyFromUrl(const url_t *url) {
 	ostringstream ostr;
-	auto user = url.getUser();
-	if (!user.empty()) {
+	const char *user = url->url_user;
+	if (user == nullptr || user[0] == '\0') {
 		if (!RegistrarDb::get()->useGlobalDomain()) {
-			ostr << user << "@" << url.getHost();
+			ostr << user << "@" << url->url_host;
 		} else {
 			ostr << user << "@" << "merged";
 		}
 	} else {
-		ostr << url.getHost();
+		ostr << url->url_host;
 	}
 	return ostr.str();
 }
 
-url_t *Record::makeUrlFromKey(su_home_t *home, const string &key){
-	url_t *ret = url_format(home, "sip:%s", key.c_str());
-	return ret;
+SipUri Record::makeUrlFromKey(const string &key) {
+	return SipUri("sip:" + key);
 }
 
 void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const shared_ptr<ContactUpdateListener> &listener) {
@@ -627,7 +626,7 @@ Record::Record(const SipUri &aor): Record(SipUri(aor)) {
 
 Record::Record(SipUri &&aor): mAor(move(aor)) {
 	// warning: aor is empty at this point. Use mAor!
-	mKey = defineKeyFromUrl(mAor);
+	mKey = defineKeyFromUrl(mAor.get());
 	mIsDomain = mAor.getUser().empty();
 	if (sMaxContacts == -1) init();
 }
@@ -659,7 +658,7 @@ url_t *Record::getPubGruu(const std::shared_ptr<ExtendedContact> &ec, su_home_t 
 	isize_t result = url_param(ec->mSipContact->m_url->url_params, "gr", gr_value, sizeof(gr_value)-1);
 	
 	if (result > 0) {
-		gruu_addr = url_hdup(home, mAor);
+		gruu_addr = url_hdup(home, mAor.get());
 		url_param_add(home, gruu_addr, su_sprintf(home, "gr=%s", gr_value));
 	}
 	return gruu_addr;
@@ -738,9 +737,7 @@ class ContactNotificationListener
 	public std::enable_shared_from_this<ContactNotificationListener>
 {
 public:
-	ContactNotificationListener (const string &uid, RegistrarDb *db, const url_t *aor)
-		: mUid(uid), mDb(db), mAor(url_hdup(mHome.home(), aor)) {
-	}
+	ContactNotificationListener (const string &uid, RegistrarDb *db, const SipUri &aor): mUid(uid), mDb(db), mAor(aor) {}
 
 private:
 	// ContactUpdateListener implementation
@@ -754,14 +751,12 @@ private:
 
 	string mUid;
 	RegistrarDb *mDb = nullptr;
-	SofiaAutoHome mHome;
-	const url_t *mAor;
+	SipUri mAor;
 	
 };
 
 void RegistrarDb::notifyContactListener(const string &key, const string &uid) {
-	SofiaAutoHome home;
-	url_t *sipUri = Record::makeUrlFromKey(home.home(), key);
+	auto sipUri = Record::makeUrlFromKey(key);
 	auto listener = make_shared<ContactNotificationListener>(uid, this, sipUri);
 	LOGD("Notify topic = %s, uid = %s", key.c_str(), uid.c_str());
 	RegistrarDb::get()->fetch(sipUri, listener, true);
@@ -939,27 +934,20 @@ const string RegistrarDb::getMessageExpires(const msg_param_t *m_params) {
 class RecursiveRegistrarDbListener : public ContactUpdateListener,
 									 public enable_shared_from_this<RecursiveRegistrarDbListener> {
   private:
-	RegistrarDb *m_database;
+	SofiaAutoHome m_home;
+	RegistrarDb *m_database = nullptr;
 	shared_ptr<ContactUpdateListener> mOriginalListener;
 	shared_ptr<Record> m_record;
-	su_home_t m_home;
-	int m_request;
-	int m_step;
-	const char *m_url;
+	int m_request = 1;
+	int m_step = 0;
+	SipUri m_url;
 	static int sMaxStep;
 
   public:
 	RecursiveRegistrarDbListener(RegistrarDb *database, const shared_ptr<ContactUpdateListener> &original_listerner,
-								 const url_t *url, int step = sMaxStep)
-		: m_database(database), mOriginalListener(original_listerner), m_request(1), m_step(step) {
-		m_record = make_shared<Record>(url);
-		su_home_init(&m_home);
-		m_url = url_as_string(&m_home, url);
-	}
-
-	~RecursiveRegistrarDbListener() {
-		su_home_deinit(&m_home);
-	}
+								 const SipUri &url, int step = sMaxStep):
+		m_database(database), mOriginalListener(original_listerner), m_record(make_shared<Record>(url)),
+		m_step(step), m_url(url) {}
 
 	void onRecordFound(const shared_ptr<Record> &r) override{
 		if (r != nullptr) {
@@ -971,11 +959,11 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 				SLOGD << "Step: " << m_step << (ec->mAlias ? "\tFound alias " : "\tFound contact ") << m_url << " -> "
 					  << ExtendedContact::urlToString(ec->mSipContact->m_url) << " usedAsRoute:" << ec->mUsedAsRoute;
 				if (!ec->mAlias && ec->mUsedAsRoute) {
-					ec = transformContactUsedAsRoute(m_url, ec);
+					ec = transformContactUsedAsRoute(m_url.str(), ec);
 				}
 				m_record->pushContact(ec);
 				if (ec->mAlias && m_step > 0) {
-					sip_contact_t *contact = sip_contact_create(&m_home, (url_string_t*)ec->mSipContact->m_url, nullptr);
+					sip_contact_t *contact = sip_contact_create(m_home.home(), (url_string_t*)ec->mSipContact->m_url, nullptr);
 					if (contact) {
 						vectToRecurseOn.push_back(contact);
 					} else {
@@ -985,10 +973,16 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 			}
 			m_request += vectToRecurseOn.size();
 			for (auto itrec : vectToRecurseOn) {
-				m_database->fetch(itrec->m_url,
-								  make_shared<RecursiveRegistrarDbListener>(m_database, this->shared_from_this(),
-																			itrec->m_url, m_step - 1),
-								  false);
+				try {
+					SipUri uri(itrec->m_url);
+					auto listener = make_shared<RecursiveRegistrarDbListener>(
+						m_database, this->shared_from_this(), uri, m_step - 1
+					);
+					m_database->fetch(uri, listener, false);
+				} catch (const sofiasip::InvalidUrlError &e) {
+					SLOGE << "Invalid fetched URI while fetching [" << m_url.str() << "] recusively." << endl
+						<< "The invalid URI is [" << e.getUrl() << "]. Reason: " << e.getReason();
+				}
 			}
 		}
 
@@ -1016,7 +1010,7 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 	}
 
   private:
-	shared_ptr<ExtendedContact> transformContactUsedAsRoute(const char *uri, const shared_ptr<ExtendedContact> &ec) {
+	shared_ptr<ExtendedContact> transformContactUsedAsRoute(const std::string &uri, const shared_ptr<ExtendedContact> &ec) {
 		/* This function does the following:
 		 * - make a copy of the extended contact
 		 * - in this copy replace the main contact information by the 'uri' given in argument
@@ -1027,7 +1021,7 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 		 * the last request uri that was found recursed through the alias mechanism.
 		*/
 		shared_ptr<ExtendedContact> newEc = make_shared<ExtendedContact>(*ec);
-		newEc->mSipContact = sip_contact_create(newEc->mHome.home(), (url_string_t*)uri, nullptr);
+		newEc->mSipContact = sip_contact_create(newEc->mHome.home(), reinterpret_cast<const url_string_t *>(uri.c_str()), nullptr);
 		ostringstream path;
 		path<<*ec->toSofiaUrlClean(newEc->mHome.home());
 		newEc->mPath.push_back(path.str());
@@ -1068,17 +1062,17 @@ LocalRegExpireListener::~LocalRegExpireListener() {
 
 }
 
-void RegistrarDb::fetch(const url_t *url, const shared_ptr<ContactUpdateListener> &listener, bool recursive) {
+void RegistrarDb::fetch(const SipUri &url, const shared_ptr<ContactUpdateListener> &listener, bool recursive) {
 	fetch(url, listener, false, recursive);
 }
 
-void RegistrarDb::fetch(const url_t *url, const shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive) {
+void RegistrarDb::fetch(const SipUri &url, const shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive) {
 	if (includingDomains) {
 		fetchWithDomain(url, listener, recursive);
 		return;
 	}
-	if(url_has_param(url, "gr")) {
-		string gr = UriUtils::getParamValue(url->url_params, "gr");
+	if(url.hasParam("gr")) {
+		string gr = UriUtils::getParamValue(url.get()->url_params, "gr");
 		if (!gr.empty()) {
 			doFetchInstance(url, UriUtils::grToUniqueId(gr), recursive
 							? make_shared<RecursiveRegistrarDbListener>(this, listener, url)
@@ -1091,7 +1085,7 @@ void RegistrarDb::fetch(const url_t *url, const shared_ptr<ContactUpdateListener
 			: listener);
 }
 
-void RegistrarDb::fetchList(const vector<url_t *> urls, const shared_ptr<ListContactUpdateListener> &listener) {
+void RegistrarDb::fetchList(const vector<SipUri> urls, const shared_ptr<ListContactUpdateListener> &listener) {
 	class InternalContactUpdateListener : public ContactUpdateListener {
 	public:
 		InternalContactUpdateListener(shared_ptr<ListContactUpdateListener> listener, size_t size) : listListener(listener), count(size) {}
@@ -1169,7 +1163,7 @@ void RegistrarDb::bind(const SipUri &from, const sip_contact_t *contact, const B
 
 	sip->sip_contact = sip_contact_dup(homeSip, contact);
 
-	sip->sip_from = sip_from_create(homeSip, reinterpret_cast<const url_string_t*>(from));
+	sip->sip_from = sip_from_create(homeSip, reinterpret_cast<const url_string_t*>(from.get()));
 	if (!parameter.path.empty()) sip->sip_path = sip_path_format(homeSip, "<%s>", parameter.path.c_str());
 
 	if (parameter.withGruu) sip->sip_supported = reinterpret_cast<sip_supported_t *>(sip_header_format(homeSip, sip_supported_class, "gruu"));
@@ -1191,7 +1185,7 @@ class AgregatorRegistrarDbListener : public ContactUpdateListener {
 	bool mError;
 	shared_ptr<Record> getRecord() {
 		if (mRecord == nullptr)
-			mRecord = make_shared<Record>(nullptr);
+			mRecord = make_shared<Record>(SipUri{});
 		return mRecord;
 	}
 	void checkFinished() {
@@ -1231,14 +1225,12 @@ class AgregatorRegistrarDbListener : public ContactUpdateListener {
 	}
 };
 
-void RegistrarDb::fetchWithDomain(const url_t *url, const shared_ptr<ContactUpdateListener> &listener,
+void RegistrarDb::fetchWithDomain(const SipUri &url, const shared_ptr<ContactUpdateListener> &listener,
 								  bool recursive) {
-	url_t domainOnlyUrl = *url;
-	domainOnlyUrl.url_user = nullptr;
-
+	auto domainOnlyUrl = url.replaceUser("");
 	auto agregator = make_shared<AgregatorRegistrarDbListener>(listener, 2);
 	fetch(url, agregator, recursive);
-	fetch(&domainOnlyUrl, agregator, false);
+	fetch(domainOnlyUrl, agregator, false);
 }
 
 RecordSerializer *RecordSerializer::create(const string &name) {

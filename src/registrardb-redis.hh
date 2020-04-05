@@ -86,15 +86,16 @@ struct RegistrarUserData {
 	std::shared_ptr<ContactUpdateListener> listener;
 	std::shared_ptr<Record> mRecord; // The record contaning all fetched contacts.
 	std::shared_ptr<Record> mRecordToSend; // The record contaning the contacts to SET into redis.
-	unsigned long token;
-	su_timer_t *mRetryTimer;
-	int mRetryCount;
+	unsigned long token = 0;
+	su_timer_t *mRetryTimer = nullptr;
+	int mRetryCount = 0;
 	std::string mUniqueId;
-	bool mUpdateExpire;
-	bool mIsUnregister;
+	bool mUpdateExpire = false;
+	bool mIsUnregister = false;
 
-	RegistrarUserData(RegistrarDbRedisAsync *s, const SipUri &url, std::shared_ptr<ContactUpdateListener> listener);
-	~RegistrarUserData();
+	template <typename T>
+	RegistrarUserData(RegistrarDbRedisAsync *s, T &&url, std::shared_ptr<ContactUpdateListener> listener) :
+		self(s), listener(listener), mRecord(std::make_shared<Record>(std::forward<T>(url))) {}
 };
 
 class RegistrarDbRedisAsync : public RegistrarDb {
@@ -109,7 +110,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	virtual void doBind(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) override;
 	virtual void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener)override;
 	virtual void doFetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener)override;
-	virtual void doFetchInstance(const url_t *url, const std::string &uniqueId, const std::shared_ptr<ContactUpdateListener> &listener)override;
+	virtual void doFetchInstance(const SipUri &url, const std::string &uniqueId, const std::shared_ptr<ContactUpdateListener> &listener)override;
 	virtual void doMigration()override;
 	virtual void subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener)override;
 	virtual void unsubscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener)override;

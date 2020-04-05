@@ -628,50 +628,43 @@ class TargetUriListFetcher : public ContactUpdateListener,
 	friend class ModuleRouter;
 	shared_ptr<RequestSipEvent> mEv;
 	shared_ptr<ContactUpdateListener> mListener;
-	sip_route_t *mUriList; /*it is parsed as a route but is not a route*/
-	int mPending;
+	vector<SipUri> mUriList; /*it is parsed as a route but is not a route*/
+	int mPending = 0;
 	shared_ptr<Record> mRecord;
-	bool mError;
+	bool mError = false;
 
   public:
 	TargetUriListFetcher(ModuleRouter *module, const shared_ptr<RequestSipEvent> &ev,
 						 const shared_ptr<ContactUpdateListener> &listener, sip_unknown_t *target_uris)
 		: mEv(ev), mListener(listener) {
-		mPending = 0;
-		mError = false;
 		mRecord = make_shared<Record>(SipUri());
 		if (target_uris && target_uris->un_value) {
 			/*the X-target-uris header is parsed like a route, as it is a list of URIs*/
-			mUriList = sip_route_make(mEv->getHome(), target_uris->un_value);
+			sip_route_t *routes = sip_route_make(mEv->getHome(), target_uris->un_value);
+			for (sip_route_t *iter = routes; iter; iter = iter->r_next) {
+				try {
+					SipUri uri(iter->r_url);
+					mUriList.push_back(move(uri));
+				} catch (const sofiasip::InvalidUrlError &e) {
+					vector<char> buffer(1024);
+					sip_unknown_e(buffer.data(), buffer.size(), (msg_header_t *)target_uris, 0);
+					SLOGE << "Invalid URI in X-Target-Uris header [" << e.getUrl() << "], ignoring it. Context:" << endl
+						<< mEv->getMsgSip()->printContext() << endl
+						<< buffer.data() << endl;
+				}
+			}
 		}
 	}
 
-	~TargetUriListFetcher() {
-	}
+	~TargetUriListFetcher() = default;
 
 	void fetch(bool allowDomainRegistrations, bool recursive) {
-		sip_route_t *iter;
 		/*compute the number of asynchronous queries we are going to make, to later know when we are done.*/
-		for (iter = mUriList; iter != NULL; iter = iter->r_next) {
-			mPending++;
-		}
+		mPending = mUriList.size();
+
 		/*start the queries for all uris of the target uri list*/
-		for (iter = mUriList; iter != NULL; iter = iter->r_next) {
-			try {
-				RegistrarDb::get()->fetch(iter->r_url, this->shared_from_this(), allowDomainRegistrations, recursive);
-			} catch (const InvalidAorError &e) {
-				ostringstream errMsg;
-				sip_unknown_t *xTargetUris = ModuleToolbox::getCustomHeaderByName(mEv->getSip(), "X-Target-Uris");
-				errMsg << "invalid AOR [" << e.what() << "] in target URIs list. Context:" << endl
-					<< mEv->getMsgSip()->printContext() << endl;
-				if (xTargetUris) {
-					vector<char> buffer(4096);
-					sip_unknown_e(buffer.data(), buffer.size(), (msg_header_t *)xTargetUris, 0);
-					errMsg << buffer.data() << endl;
-				}
-				LOGE("%s", errMsg.str().c_str());
-				mPending--;
-			}
+		for (const auto &uri : mUriList) {
+			RegistrarDb::get()->fetch(uri, this->shared_from_this(), allowDomainRegistrations, recursive);
 		}
 	}
 
@@ -707,10 +700,8 @@ class TargetUriListFetcher : public ContactUpdateListener,
 		}else{
 			if (mRecord->count() > 0){
 				/*also add aliases in the ExtendedContact list for the searched AORs, so that they are added to the ForkMap.*/
-				sip_route_t *iter;
-				for (iter = mUriList; iter != NULL; iter = iter->r_next) {
-
-					shared_ptr<ExtendedContact> alias = make_shared<ExtendedContact>(iter->r_url, "");
+				for (const auto &uri : mUriList) {
+					shared_ptr<ExtendedContact> alias = make_shared<ExtendedContact>(uri, "");
 					alias->mAlias = true;
 					mRecord->pushContact(alias);
 				}
@@ -722,15 +713,14 @@ class TargetUriListFetcher : public ContactUpdateListener,
 
 class OnFetchForRoutingListener : public ContactUpdateListener {
 	friend class ModuleRouter;
-	ModuleRouter *mModule;
+	ModuleRouter *mModule = nullptr;
 	shared_ptr<RequestSipEvent> mEv;
-	url_t *mSipUri;
+	SipUri mSipUri;
 
   public:
-	OnFetchForRoutingListener(ModuleRouter *module, shared_ptr<RequestSipEvent> ev, const url_t *sipuri)
-		: mModule(module), mEv(ev) {
+	OnFetchForRoutingListener(ModuleRouter *module, shared_ptr<RequestSipEvent> ev, const SipUri &sipuri)
+		: mModule(module), mEv(ev), mSipUri(sipuri) {
 		if (!ev->isSuspended()) ev->suspendProcessing();
-		mSipUri = url_hdup(mEv->getMsgSip()->getHome(), sipuri);
 		const sip_t *sip = ev->getMsgSip()->getSip();
 		if (sip->sip_request->rq_method == sip_method_invite) {
 			ev->setEventLog(make_shared<CallLog>(sip));
@@ -744,7 +734,7 @@ class OnFetchForRoutingListener : public ContactUpdateListener {
 			r = make_shared<Record>(mSipUri);
 		}
 
-		if (!mModule->isManagedDomain(mSipUri)) {
+		if (!mModule->isManagedDomain(mSipUri.get())) {
 			shared_ptr<ExtendedContact> contact = make_shared<ExtendedContact>(mSipUri, "");
 			r->pushContact(contact);
 
@@ -763,24 +753,25 @@ class OnFetchForRoutingListener : public ContactUpdateListener {
 		}
 
 		if (r->count() == 0 && mModule->isFallbackToParentDomainEnabled()) {
-			string host = mSipUri->url_host;
+			string host = mSipUri.getHost();
 			size_t pos = host.find('.');
 			size_t end = host.length();
 			if (pos == string::npos) {
 				SLOGE << "Host URL doesn't have any subdomain: " << host;
-				mModule->routeRequest(mEv, r, mSipUri);
+				mModule->routeRequest(mEv, r, mSipUri.get());
 				return;
 			} else {
 				host = host.substr(pos + 1, end - (pos + 1)); // Gets the host without the first subdomain
 			}
 
-			url_t *url = url_format(mEv->getHome(), "sip:%s@%s", mSipUri->url_user, host.c_str());
-			SLOGD << "Record [" << r << "] empty, trying to route to parent domain: '" << url_as_string(mEv->getHome(), url);
+			auto urlStr = "sip:" + mSipUri.getUser() + "@" + host;
+			SipUri url(urlStr);
+			SLOGD << "Record [" << r << "] empty, trying to route to parent domain: '" << urlStr << "'";
 
 			auto onRoutingListener = make_shared<OnFetchForRoutingListener>(mModule, mEv, mSipUri);
 			RegistrarDb::get()->fetch(url, onRoutingListener, mModule->isDomainRegistrationAllowed(), true);
 		} else {
-			mModule->routeRequest(mEv, r, mSipUri);
+			mModule->routeRequest(mEv, r, mSipUri.get());
 		}
 	}
 	void onError() override{
@@ -829,11 +820,17 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			if (getAgent()->isUs(route->r_url)) {
 				SLOGD << "Route header found " << url_as_string(ms->getHome(), route->r_url) << " and is us, continuing";
 			} else {
-				SLOGD << "Route header found " << url_as_string(ms->getHome(), route->r_url) << " but not us, forwarding";
-				url_t *sipurl = sip->sip_request->rq_url;
-				auto onRoutingListener = make_shared<OnFetchForRoutingListener>(this, ev, sipurl);
-				RegistrarDb::get()->fetch(sipurl, onRoutingListener, mAllowDomainRegistrations, true);
-				return;
+				try {
+					SLOGD << "Route header found " << url_as_string(ms->getHome(), route->r_url) << " but not us, forwarding";
+					SipUri sipurl(sip->sip_request->rq_url);
+					auto onRoutingListener = make_shared<OnFetchForRoutingListener>(this, ev, sipurl);
+					RegistrarDb::get()->fetch(sipurl, onRoutingListener, mAllowDomainRegistrations, true);
+					return;
+				} catch (const sofiasip::InvalidUrlError &e) {
+					LOGD("%s", e.what());
+					ev->reply(400, "Bad request", TAG_END());
+					return;
+				}
 			}
 			iterator = iterator->r_next;
 		}
@@ -851,23 +848,25 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	*/
 	/* When we accept * as domain we need to test ip4/ipv6 */
 	if (sip->sip_request->rq_method != sip_method_ack && sip->sip_to != NULL && sip->sip_to->a_tag == NULL) {
-		url_t *sipurl = sip->sip_request->rq_url;
-		if (sipurl->url_host && isManagedDomain(sipurl)) {
-			LOGD("Fetch for url %s.", url_as_string(ms->getHome(), sipurl));
-			// Go stateful to stop retransmissions
-			ev->createIncomingTransaction();
-			sendReply(ev, SIP_100_TRYING);
-			auto onRoutingListener = make_shared<OnFetchForRoutingListener>(this, ev, sipurl);
+		try {
+			SipUri sipurl(sip->sip_request->rq_url);
+			if (isManagedDomain(sipurl.get())) {
+				LOGD("Fetch for url %s.", sipurl.str().c_str());
+				// Go stateful to stop retransmissions
+				ev->createIncomingTransaction();
+				sendReply(ev, SIP_100_TRYING);
+				auto onRoutingListener = make_shared<OnFetchForRoutingListener>(this, ev, sipurl);
 
-			/*the unstandard X-Target-Uris header gives us a list of SIP uri to which the request is to be forked.*/
-			sip_unknown_t *h = ModuleToolbox::getCustomHeaderByName(ev->getSip(), "X-Target-Uris");
-			if (!h) {
-				RegistrarDb::get()->fetch(sipurl, onRoutingListener, mAllowDomainRegistrations, true);
-			} else {
-				auto fetcher = make_shared<TargetUriListFetcher>(this, ev, onRoutingListener, h);
-				fetcher->fetch(mAllowDomainRegistrations, true);
+				/*the unstandard X-Target-Uris header gives us a list of SIP uri to which the request is to be forked.*/
+				sip_unknown_t *h = ModuleToolbox::getCustomHeaderByName(ev->getSip(), "X-Target-Uris");
+				if (!h) {
+					RegistrarDb::get()->fetch(sipurl, onRoutingListener, mAllowDomainRegistrations, true);
+				} else {
+					auto fetcher = make_shared<TargetUriListFetcher>(this, ev, onRoutingListener, h);
+					fetcher->fetch(mAllowDomainRegistrations, true);
+				}
 			}
-		}
+		} catch (const sofiasip::InvalidUrlError &) {}
 	}
 }
 
