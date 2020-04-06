@@ -102,7 +102,7 @@
     - mv WORK/flexisip-rpm/rpmbuild/DEBS docker/DEBS
     - cd docker
     - make flexisip-deb-build
-    #- make flexisip-deb-push
+    - make flexisip-deb-push
 
 docker-build-flexisip-src:
 
