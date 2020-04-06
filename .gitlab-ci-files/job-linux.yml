@@ -91,12 +91,12 @@
 
   stage: image
   tags: [ "linux-deploy" ]
-#  except:
-#    variables:
-#      - $DEPLOY_RUN
-#      - $DEPLOY_UBUNTU
-#  only:
-#    - schedules
+  except:
+    variables:
+      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
+  only:
+    - schedules
 
   script:
     - mv WORK/flexisip-rpm/rpmbuild/DEBS docker/DEBS
