@@ -39,7 +39,7 @@ void WindowsPhonePushNotificationRequest::createHTTPRequest ( const std::string 
 	const string &host = mPushInfo.mAppId;
 	char decodeUri[512] = {0};
 
-	bool is_message = mPushInfo.mEvent == PushInfo::Message;
+	bool is_message = mPushInfo.mEvent == PushInfo::Event::Message;
 	const std::string &message = mPushInfo.mText;
 	const std::string &sender_name = mPushInfo.mFromName;
 	const std::string &sender_uri = mPushInfo.mFromUri;

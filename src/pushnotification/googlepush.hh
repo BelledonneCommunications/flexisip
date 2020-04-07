@@ -24,17 +24,15 @@ namespace flexisip {
 
 class GooglePushNotificationRequest : public PushNotificationRequest {
 public:
-	virtual const std::vector<char> &getData();
-	virtual std::string isValidResponse(const std::string &str);
 	GooglePushNotificationRequest(const PushInfo &pinfo);
-	~GooglePushNotificationRequest() {
-	}
-	virtual bool isServerAlwaysResponding() {
-		return true;
-	}
+
+	const std::vector<char> &getData() override;
+	std::string isValidResponse(const std::string &str) override;
+	bool isServerAlwaysResponding() override {return true;}
 
 protected:
 	void createPushNotification();
+
 	std::vector<char> mBuffer;
 	std::string mHttpHeader;
 	std::string mHttpBody;

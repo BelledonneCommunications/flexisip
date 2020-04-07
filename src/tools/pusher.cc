@@ -47,7 +47,7 @@ struct PusherArgs {
 	vector<string> pntok;
 	string apikey;
 	string packageSID;
-	PushInfo::ApplePushType applePushType = PushInfo::Pushkit;
+	PushInfo::ApplePushType applePushType{PushInfo::ApplePushType::Pushkit};
 	void usage(const char *app) {
 		cout << app
 			 << " --pntype google|firebase|wp|w10|apple --appid id --key apikey(secretkey) --sid ms-app://value --prefix dir [--silent] [--debug] [--apple-push-type RemoteBasic|RemoteWithMutableContent|Background|PushKit]"<<endl
@@ -96,13 +96,13 @@ struct PusherArgs {
 			} else if (EQ1(i, "--apple-push-type")) {
 				const char *aspt = argv[++i];
 				if (string(aspt) == "PushKit") {
-					applePushType = PushInfo::Pushkit;
+					applePushType = PushInfo::ApplePushType::Pushkit;
 				} else if (string(aspt) == "RemoteBasic") {
-					applePushType = PushInfo::RemoteBasic;
+					applePushType = PushInfo::ApplePushType::RemoteBasic;
 				} else if (string(aspt) == "RemoteWithMutableContent") {
-					applePushType = PushInfo::RemoteWithMutableContent;
+					applePushType = PushInfo::ApplePushType::RemoteWithMutableContent;
 				} else if (string(aspt) == "Background") {
-					applePushType = PushInfo::Background;
+					applePushType = PushInfo::ApplePushType::Background;
 				} else {
 					usage(*argv);
 					exit(-1);
@@ -157,12 +157,12 @@ static vector<shared_ptr<PushNotificationRequest>> createRequestFromArgs(const P
 		} else if (args.pntype == "wp") {
 			pinfo.mAppId = args.appid;
 			pinfo.mDeviceToken = pntok;
-			pinfo.mEvent = PushInfo::Message;
+			pinfo.mEvent = PushInfo::Event::Message;
 			pinfo.mText = "Hi here!";
 			result.push_back(make_shared<WindowsPhonePushNotificationRequest>(pinfo));
 		} else if (args.pntype == "w10") {
 			pinfo.mAppId = args.appid;
-			pinfo.mEvent = PushInfo::Message;
+			pinfo.mEvent = PushInfo::Event::Message;
 			pinfo.mDeviceToken = pntok;
 			pinfo.mText = "Hi here!";
 			result.push_back(make_shared<WindowsPhonePushNotificationRequest>(pinfo));
@@ -232,16 +232,16 @@ int main(int argc, char *argv[]) {
 		
 		for(auto it = pn.begin(); it != pn.end(); it++){
 			switch((*it)->getState()){
-				case PushNotificationRequest::NotSubmitted:
+				case PushNotificationRequest::State::NotSubmitted:
 					notsubmitted++;
 				break;
-				case PushNotificationRequest::InProgress:
+				case PushNotificationRequest::State::InProgress:
 					inprogress++;
 				break;
-				case PushNotificationRequest::Failed:
+				case PushNotificationRequest::State::Failed:
 					failed++;
 				break;
-				case PushNotificationRequest::Successful:
+				case PushNotificationRequest::State::Successful:
 					success++;
 				break;
 			}

@@ -25,28 +25,29 @@ namespace flexisip {
 class ApplePushNotificationRequest : public PushNotificationRequest {
 public:
 	ApplePushNotificationRequest(const PushInfo &pinfo);
-	~ApplePushNotificationRequest() { };
-	virtual const std::vector<char> &getData();
-	virtual std::string isValidResponse(const std::string &str);
-	virtual bool isServerAlwaysResponding() { return false; }
-protected:
-	int formatDeviceToken(const std::string &deviceToken);
-	void createPushNotification();
+
+	const std::vector<char> &getData() override;
+	std::string isValidResponse(const std::string &str) override;
+	bool isServerAlwaysResponding() override {return false;}
+
 protected:
 	struct Item{
-		void clear(){
-			mData.clear();
-		}
-		uint8_t mId;
+		uint8_t mId{0};
 		std::vector<char> mData;
+
+		void clear() noexcept {mData.clear();}
 	};
-	size_t writeItem(size_t pos, Item &item);
-	static const unsigned int MAXPAYLOAD_SIZE;
-	static const unsigned int DEVICE_BINARY_SIZE;
+
+	int formatDeviceToken(const std::string &deviceToken);
+	void createPushNotification();
+	std::size_t writeItem(std::size_t pos, const Item &item);
+
+	static constexpr std::size_t MAXPAYLOAD_SIZE = 2048;
+	static constexpr std::size_t DEVICE_BINARY_SIZE = 32;
 	std::vector<char> mBuffer;
 	std::vector<char> mDeviceToken;
 	std::string mPayload;
-	unsigned int mTtl;
+	unsigned int mTtl{0};
 	static uint32_t sIdentifier;
 };
 
