@@ -6,10 +6,9 @@
 #include <stdexcept>
 
 using namespace std;
-using namespace flexisip;
 
-const unsigned int ApplePushNotificationRequest::MAXPAYLOAD_SIZE = 2048;
-const unsigned int ApplePushNotificationRequest::DEVICE_BINARY_SIZE = 32;
+namespace flexisip {
+
 uint32_t ApplePushNotificationRequest::sIdentifier = 1;
 
 ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
@@ -33,7 +32,7 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 	mTtl = info.mTtl;
 
 	switch (info.mApplePushType) {
-	case PushInfo::Pushkit:
+		case PushInfo::ApplePushType::Pushkit:
 		// We also need msg_id and callid in case the push is received but the device cannot register
 		rawPayload = R"json({
 			"aps": {
@@ -44,11 +43,22 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 				"uuid": %s,
 				"send-time": "%s"
 			},
+			"from-uri": "%s",
+			"display-name": "%s",
 			"pn_ttl": %d
 		})json";
-		returnCode = snprintf(buffer, bufferMaxSize, rawPayload, msg_id.c_str(), arg.c_str(), callid.c_str(), quoteStringIfNeeded(info.mUid).c_str(), date.c_str(), info.mTtl);
+		returnCode = snprintf(buffer, bufferMaxSize, rawPayload,
+			msg_id.c_str(),
+			arg.c_str(),
+			callid.c_str(),
+			quoteStringIfNeeded(info.mUid).c_str(),
+			date.c_str(),
+			info.mFromUri.c_str(),
+			info.mFromName.c_str(),
+			info.mTtl
+		);
 		break;
-	case PushInfo::Background:
+	case PushInfo::ApplePushType::Background:
 		// Use a normal push notification with content-available set to 1, no alert, no sound.
 		rawPayload = R"json({
 			"aps": {
@@ -60,11 +70,22 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 				"uuid": %s,
 				"send-time": "%s"
 			},
+			"from-uri": "%s",
+			"display-name": "%s",
 			"pn_ttl": %d
 		})json";
-		returnCode = snprintf(buffer, bufferMaxSize, rawPayload, msg_id.c_str(), arg.c_str(), callid.c_str(), quoteStringIfNeeded(info.mUid).c_str(), date.c_str(), info.mTtl);
+		returnCode = snprintf(buffer, bufferMaxSize, rawPayload,
+			msg_id.c_str(),
+			arg.c_str(),
+			callid.c_str(),
+			quoteStringIfNeeded(info.mUid).c_str(),
+			date.c_str(),
+			info.mFromUri.c_str(),
+			info.mFromName.c_str(),
+			info.mTtl
+		);
 		break;
-	case PushInfo::RemoteBasic:
+	case PushInfo::ApplePushType::RemoteBasic:
 		/* some apps don't want the push to update the badge - but if they do,
 		we always put the badge value to 1 because we want to notify the user that
 		he/she has unread messages even if we do not know the exact count */
@@ -77,14 +98,27 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 				"sound": "%s",
 				"badge": %d
 			},
+			"from-uri": "%s",
+			"display-name": "%s",
 			"call-id": "%s",
 			"pn_ttl": %d,
 			"uuid": %s,
 			"send-time": "%s"
 		})json";
-		returnCode = snprintf(buffer, bufferMaxSize, rawPayload, msg_id.c_str(), arg.c_str(), sound.c_str(), (info.mNoBadge ? 0 : 1), callid.c_str(), info.mTtl, quoteStringIfNeeded(info.mUid).c_str(), date.c_str());
+		returnCode = snprintf(buffer, bufferMaxSize, rawPayload,
+			msg_id.c_str(),
+			arg.c_str(),
+			sound.c_str(),
+			(info.mNoBadge ? 0 : 1),
+			info.mFromUri.c_str(),
+			info.mFromName.c_str(),
+			callid.c_str(),
+			info.mTtl,
+			quoteStringIfNeeded(info.mUid).c_str(),
+			date.c_str()
+		);
 		break;
-	case PushInfo::RemoteWithMutableContent:
+	case PushInfo::ApplePushType::RemoteWithMutableContent:
 		/* some apps don't want the push to update the badge - but if they do,
 		we always put the badge value to 1 because we want to notify the user that
 		he/she has unread messages even if we do not know the exact count */
@@ -98,14 +132,27 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 				"mutable-content": 1,
 				"badge": %d
 			},
+			"from-uri": "%s",
+			"display-name": "%s",
 			"call-id": "%s",
 			"pn_ttl": %d,
 			"uuid": %s,
 			"send-time": "%s",
 			"chat-room-addr": "%s"
 		})json";
-		string chatRoomAddr = (info.mChatRoomAddr.empty() ? "" : info.mChatRoomAddr);
-		returnCode = snprintf(buffer, bufferMaxSize, rawPayload, msg_id.c_str(), arg.c_str(), sound.c_str(), (info.mNoBadge ? 0 : 1), callid.c_str(), info.mTtl, quoteStringIfNeeded(info.mUid).c_str(), date.c_str(), chatRoomAddr.c_str());
+		returnCode = snprintf(buffer, bufferMaxSize, rawPayload,
+			msg_id.c_str(),
+			arg.c_str(),
+			sound.c_str(),
+			(info.mNoBadge ? 0 : 1),
+			info.mFromUri.c_str(),
+			info.mFromName.c_str(),
+			callid.c_str(),
+			info.mTtl,
+			quoteStringIfNeeded(info.mUid).c_str(),
+			date.c_str(),
+			info.mChatRoomAddr.c_str()
+		);
 		break;
 	}
 
@@ -150,7 +197,8 @@ int ApplePushNotificationRequest::formatDeviceToken(const string &deviceToken) {
 	return 0;
 }
 
-size_t ApplePushNotificationRequest::writeItem(size_t pos, Item &item){
+std::size_t flexisip::ApplePushNotificationRequest::writeItem(std::size_t pos, const Item& item)
+{
 	size_t newSize = pos + sizeof(uint8_t) + sizeof(uint16_t) + item.mData.size();
 	uint16_t itemSize = htons((uint16_t)item.mData.size());
 	if (mBuffer.size()<newSize){
@@ -244,3 +292,5 @@ string ApplePushNotificationRequest::isValidResponse(const string &str) {
 	}
 	return "";
 }
+
+} // end of flexisip namespace

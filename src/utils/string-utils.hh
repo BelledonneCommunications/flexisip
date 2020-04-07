@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -38,7 +39,23 @@ public:
 	/* Remove the surrounding given character, if present. */
 	static std::string strip(const char *str, char c) noexcept;
 	static std::string strip(const std::string &str, char c) noexcept;
-	static void strip(std::string::const_iterator &start, std::string::const_iterator &end, char c) noexcept;
+
+	template <typename It>
+	static void strip(It &start, It &end, typename std::iterator_traits<It>::value_type c) noexcept {
+		if (end - start < 2) return;
+		if (*start != c || *(end-1) != c) return;
+		start++;
+		end--;
+	}
+
+	template <typename It, typename UnaryPredicate>
+	static void stripAll(It &begin, It &end, UnaryPredicate predicate) noexcept {
+		begin = std::find_if_not(begin, end, predicate);
+		if (begin == end) return;
+		std::reverse_iterator<It> rbegin{end}, rend{begin};
+		rbegin = std::find_if_not(rbegin, rend, predicate);
+		end = rbegin.base();
+	}
 
 	/**
 	 * @brief Check whether the string 'str' starts with 'prefix' and returned the subsequent

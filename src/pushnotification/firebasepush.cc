@@ -19,13 +19,15 @@ FirebasePushNotificationRequest::FirebasePushNotificationRequest(const PushInfo 
 	const string &from = pinfo.mFromName.empty() ? pinfo.mFromUri : pinfo.mFromName;
 	ostringstream httpBody;
 	string date = getPushTimeStamp();
-	int ttl = (pinfo.mEvent == PushInfo::Call) ? 0 : 2419200; // 4 weeks, it is the maximum allowed TTL for firebase push
+	int ttl = (pinfo.mEvent == PushInfo::Event::Call) ? 0 : 2419200; // 4 weeks, it is the maximum allowed TTL for firebase push
 	
 	httpBody << "{\"to\":\"" << deviceToken << "\", "
 	 	<< "\"time_to_live\": " << ttl << ", "
 		<< "\"priority\":\"high\""
 		<< ", \"data\":{"
 			<< "\"uuid\":" << quoteStringIfNeeded(pinfo.mUid)
+			<< ", \"form-uri\":" << quoteStringIfNeeded(pinfo.mFromUri)
+			<< ", \"display-name\":" << quoteStringIfNeeded(pinfo.mFromName)
 			<< ", \"call-id\":" << quoteStringIfNeeded(pinfo.mCallId)
 			<< ", \"sip-from\":" << quoteStringIfNeeded(from)
 			<< ", \"loc-key\":" << quoteStringIfNeeded(pinfo.mAlertMsgId)

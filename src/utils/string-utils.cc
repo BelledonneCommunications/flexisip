@@ -37,25 +37,17 @@ vector<string> StringUtils::split (const string &str, const string &delimiter) n
 }
 
 std::string StringUtils::strip(const char *str, char c) noexcept {
-	size_t len = strlen(str);
-	if (len < 2) return str;
-	if (str[0] != c || str[len-1] != c) return str;
-	return string(str+1, len-2);
+	auto start = str, end = const_cast<const char *>(index(str, '\0'));
+	strip(start, end, c);
+	return string{start, end};
 }
 
 std::string StringUtils::strip(const std::string &str, char c) noexcept {
-	auto start = str.cbegin();
-	auto end = str.cend();
+	auto start = str.cbegin(), end = str.cend();
 	strip(start, end, c);
-	return string(start, end);
+	return string{start, end};
 }
 
-void StringUtils::strip(std::string::const_iterator &start, std::string::const_iterator &end, char c) noexcept {
-	if (end - start < 2) return;
-	if (*start != c || *(end-1) != c) return;
-	start++;
-	end--;
-}
 
 std::string StringUtils::removePrefix(const std::string &str, const std::string &prefix) {
 	if (str.compare(0, prefix.size(), prefix) != 0) {

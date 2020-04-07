@@ -64,10 +64,10 @@ int PushNotificationClient::sendPush(const std::shared_ptr<PushNotificationReque
 		mMutex.unlock();
 		SLOGW << "PushNotificationClient " << mName << " PNR " << req.get() << " queue full, push lost";
 		onError(req, "Error queue full");
-		req->setState(PushNotificationRequest::Failed);
+		req->setState(PushNotificationRequest::State::Failed);
 		return 0;
 	} else {
-		req->setState(PushNotificationRequest::InProgress);
+		req->setState(PushNotificationRequest::State::InProgress);
 		mRequestQueue.push(req);
 		/*client is running, it will pop the queue as soon he is finished with current request*/
 		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " running, queue_size=" << size;
@@ -251,14 +251,14 @@ void PushNotificationClient::run() {
 
 void PushNotificationClient::onError(shared_ptr<PushNotificationRequest> req, const string &msg) {
 	SLOGW << "PushNotificationClient " << mName << " PNR " << req.get() << " failed: " << msg;
-	req->setState(PushNotificationRequest::Failed);
+	req->setState(PushNotificationRequest::State::Failed);
 	if (mService->mCountFailed) {
 		mService->mCountFailed->incr();
 	}
 }
 
 void PushNotificationClient::onSuccess(shared_ptr<PushNotificationRequest> req) {
-	req->setState(PushNotificationRequest::Successful);
+	req->setState(PushNotificationRequest::State::Successful);
 	if (mService->mCountSent) {
 		mService->mCountSent->incr();
 	}
