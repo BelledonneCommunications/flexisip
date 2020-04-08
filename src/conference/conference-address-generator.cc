@@ -42,7 +42,7 @@ void ConferenceAddressGenerator::run () {
 	os << "chatroom-" << token;
 	mConferenceAddr->setUsername(os.str());
 
-	url_t *url = url_make(mHome.home(), mConferenceAddr->asStringUriOnly().c_str());
+	SipUri url(mConferenceAddr->asStringUriOnly());
 	RegistrarDb::get()->fetch(url, shared_from_this(), false, false);
 }
 

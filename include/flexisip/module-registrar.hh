@@ -82,6 +82,7 @@ class OnStaticBindListener : public ContactUpdateListener {
 
   public:
 	OnStaticBindListener(const url_t *from, const sip_contact_t *ct);
+
 	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec)override;
 	void onRecordFound(const std::shared_ptr<Record> &r)override;
 	void onError()override;

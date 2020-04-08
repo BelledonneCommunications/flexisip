@@ -255,25 +255,25 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		dest = getDestinationFromRoute(ms->getHome(), sip);
 	}
 
-	/* workaround bad sip uris with two @ that results in host part being "something@somewhere" */
-	if ((dest->url_type != url_sip && dest->url_type != url_sips) || dest->url_host == nullptr ||
-		strchr(dest->url_host, '@') != 0) {
-		ev->reply(SIP_400_BAD_REQUEST, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-		return;
-	}
-
 	dest = overrideDest(ev, dest);
 
-	/*gruu processing in forward module is only done if dialog is established. In other cases, router mnodule is involved instead*/
-	if (url_has_param(dest,"gr") && (sip->sip_to != nullptr && sip->sip_to->a_tag != nullptr) && mRouterModule->isManagedDomain(dest)) {
-		//gruu case, ask registrar db for AOR
-		ev->suspendProcessing();
-		auto listener = make_shared<RegistrarListener>(this,ev);
-		RegistrarDb::get()->fetch(dest, listener, false, false /*no recursivity for gruu*/);
-		return;
-	}
+	try {
+		SipUri destUri(dest);
 
-	sendRequest(ev, dest);
+		/*gruu processing in forward module is only done if dialog is established. In other cases, router mnodule is involved instead*/
+		if (destUri.hasParam("gr") && (sip->sip_to != nullptr && sip->sip_to->a_tag != nullptr) && mRouterModule->isManagedDomain(dest)) {
+			//gruu case, ask registrar db for AOR
+			ev->suspendProcessing();
+			auto listener = make_shared<RegistrarListener>(this,ev);
+			RegistrarDb::get()->fetch(destUri, listener, false, false /*no recursivity for gruu*/);
+			return;
+		}
+		sendRequest(ev, dest);
+
+	} catch (const sofiasip::InvalidUrlError &e) {
+		SLOGE << e.what();
+		ev->reply(SIP_400_BAD_REQUEST, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+	}
 }
 
 void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
