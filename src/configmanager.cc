@@ -992,6 +992,9 @@ GenericManager::GenericManager()
 		// deprecated parameters
 		{ByteSize, "max-log-size", "Max size of a log file before switching to a new log file, expressed with units. "
 			"For example: 10G, 100M. If -1 then there is no maximum size", "-1"},
+		{Boolean, "use-maddr", "Allow flexisip to use maddr in sips connections to verify the CN of the TLS "
+			"certificate.", "false"},
+
 		config_item_end};
 
 	static ConfigItemDescriptor cluster_conf[] = {
@@ -1043,6 +1046,7 @@ GenericManager::GenericManager()
 	mConfigRoot.addChild(global);
 	global->addChildrenValues(global_conf);
 	global->get<ConfigByteSize>("max-log-size")->setDeprecated({"2019-05-17", "2.0.0"});
+	global->get<ConfigBoolean>("use-maddr")->setDeprecated({"2020-04-08", "2.0.0", "This parameter has no effect anymore."});
 	global->setConfigListener(this);
 
 	ConfigString *version = new ConfigString("version-number", "Flexisip version.", FLEXISIP_GIT_VERSION, 999);
