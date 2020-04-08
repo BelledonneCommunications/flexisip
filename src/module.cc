@@ -44,23 +44,22 @@ bool Module::isEnabled() const {
 }
 
 bool Module::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
-	bool dirtyConfig = false;
 	LOGD("Configuration of module %s changed for key %s to %s", mInfo->getModuleName().c_str(), conf.getName().c_str(),
 		 conf.get().c_str());
 	switch (state) {
 		case ConfigState::Check:
 			return isValidNextConfig(conf);
 		case ConfigState::Changed:
-			dirtyConfig = true;
+			mDirtyConfig = true;
 			break;
 		case ConfigState::Reset:
-			dirtyConfig = false;
+			mDirtyConfig = false;
 			break;
 		case ConfigState::Commited:
-			if (dirtyConfig) {
+			if (mDirtyConfig) {
 				LOGI("Reloading config of module %s", mInfo->getModuleName().c_str());
 				reload();
-				dirtyConfig = false;
+				mDirtyConfig = false;
 			}
 			break;
 	}
