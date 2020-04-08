@@ -58,22 +58,26 @@ void RegistrationSubscription::notifyRegistration(const shared_ptr<Address> &par
 
 OwnRegistrationSubscription::OwnRegistrationSubscription(const ConferenceServer & server, const std::shared_ptr<linphone::ChatRoom> &cr,
 						    const std::shared_ptr<const linphone::Address> &participant)
-	: RegistrationSubscription(server, cr, participant), mActive(false){
-	mParticipantAor = url_make(mHome.home(), participant->asStringUriOnly().c_str());
-	if (mParticipantAor == nullptr){
-		LOGE("RegistrationSubscription(): invalid participant aor %s", participant->asStringUriOnly().c_str());
+	: RegistrationSubscription(server, cr, participant) {
+	try {
+		mParticipantAor = SipUri(participant->asStringUriOnly());
+	} catch (const invalid_argument &e) {
+		LOGE("RegistrationSubscription(): invalid participant aor %s: %s",
+			 participant->asStringUriOnly().c_str(),
+			 e.what()
+		);
 	}
 }
 
 void OwnRegistrationSubscription::start(){
-	if (!mParticipantAor) return;
+	if (mParticipantAor.empty()) return;
 
 	mActive = true;
 	/*First organise the fetch of the contacts belonging to this AOR, so that we can notify immediately*/
 	RegistrarDb::get()->fetch(mParticipantAor, RegistrationSubscriptionFetchListener::shared_from_this(), true);
 
 	/*Secondly subscribe for changes in the registration info of this participant*/
-	string key = Record::defineKeyFromUrl(mParticipantAor);
+	string key = Record::defineKeyFromUrl(mParticipantAor.get());
 
 	RegistrarDb::get()->subscribe(key, RegistrationSubscriptionListener::shared_from_this());
 
@@ -82,7 +86,7 @@ void OwnRegistrationSubscription::start(){
 void OwnRegistrationSubscription::stop(){
 	if (!mActive) return;
 	mActive = false;
-	string key = Record::defineKeyFromUrl(mParticipantAor);
+	string key = Record::defineKeyFromUrl(mParticipantAor.get());
 	RegistrarDb::get()->unsubscribe(key, RegistrationSubscriptionListener::shared_from_this());
 }
 

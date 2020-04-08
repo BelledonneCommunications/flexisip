@@ -26,6 +26,7 @@
 #include <csignal>
 #include <functional>
 #include <algorithm>
+#include <regex>
 
 using namespace std;
 using namespace flexisip;
@@ -589,14 +590,22 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	if (sip->sip_request->rq_method != sip_method_register)
 		return;
 
-	// from managed domains
-	url_t *sipurl = sip->sip_from->a_url;
-	if (!sipurl->url_host || !isManagedDomain(sipurl))
+	// Check that From-URI is a SIP URI
+	SipUri sipurl;
+	try {
+		sipurl = SipUri(sip->sip_from->a_url);
+	} catch (const sofiasip::InvalidUrlError &e) {
+		SLOGE << "Invalid 'From' URI [" << e.getUrl() << "]: " << e.getReason();
+		ev->reply(400, "Bad request", TAG_END());
 		return;
+	}
+
+	// from managed domains
+	if (!isManagedDomain(sipurl.get())) return;
 
 	// Handle fetching
 	if (sip->sip_contact == nullptr) {
-		LOGD("No sip contact, it is a fetch only request for %s.", url_as_string(ms->getHome(), sipurl));
+		LOGD("No sip contact, it is a fetch only request for %s.", sipurl.str().c_str());
 		auto listener = make_shared<OnRequestBindListener>(this, ev);
 		RegistrarDb::get()->fetch(sipurl, listener);
 		return;
@@ -644,9 +653,9 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	}
 
 	// domain registration case, does nothing for the moment
-	if (sipurl->url_user == nullptr && !mAllowDomainRegistrations) {
+	if (sipurl.getUser().empty() && !mAllowDomainRegistrations) {
 		LOGE("Not accepting domain registration");
-		SLOGUE << "Not accepting domain registration:  " << url_as_string(ms->getHome(), sipurl);
+		SLOGUE << "Not accepting domain registration:  " << sipurl;
 		reply(ev, 403, "Domain registration forbidden", nullptr);
 		return;
 	}
@@ -661,7 +670,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			RegistrarDb::get()->clear(sip, listener);
 			return;
 		} else {
-			if (sipurl->url_user == nullptr && mAssumeUniqueDomains) {
+			if (sipurl.getUser().empty() && mAssumeUniqueDomains) {
 				/*first clear to make sure that there is only one record*/
 				RegistrarDb::get()->clear(sip, make_shared<FakeFetchListener>());
 			}
@@ -767,57 +776,53 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 }
 
 void ModuleRegistrar::readStaticRecords() {
+	int linenum = 0;
+
 	if (mStaticRecordsFile.empty()) return;
 	LOGD("Reading static records file");
 
 	SofiaAutoHome home;
 
-	stringstream ss;
-	ss.exceptions(ifstream::failbit | ifstream::badbit);
+	ifstream file(mStaticRecordsFile);
+	if (!file.is_open()) {
+		LOGE("Can't open file %s", mStaticRecordsFile.c_str());
+		return;
+	}
 
-	string line;
-	string from;
-	string contact_header;
+	string path = getAgent()->getPreferredRoute();
+	mStaticRecordsVersion++;
 
-	ifstream file;
-	file.open(mStaticRecordsFile);
-	if (file.is_open()) {
-		string path = getAgent()->getPreferredRoute();
-		mStaticRecordsVersion++;
-		while (file.good() && !file.eof()) {
-			getline(file, line);
-			size_t i;
-			bool is_a_comment = false;
-			for (i = 0; i < line.size(); ++i) {
-				// skip spaces or comments
-				if (isblank(line[i])) continue;
-				if (line[i] == '#') {
-					is_a_comment = true;
-				} else {
-					break;
-				}
+	const regex isCommentRe(R"regex(^\s*#)regex");
+	const regex isRecordRe(R"regex(^\s*([[print]]+)\s+([[print]]+)\s*$)regex");
+	while (file.good() && !file.eof()) {
+		string line;
+		string from;
+		string contact_header;
+		smatch m;
+
+		getline(file, line), ++linenum;
+
+		try {
+
+			if (line.empty() || regex_match(line, m, isCommentRe)) continue;
+			else if (regex_match(line, m, isRecordRe)) {
+				from = m[1];
+				contact_header = m[2];
+			} else {
+				throw runtime_error("invalid line syntax");
 			}
-			if (is_a_comment) continue;
-			if (i == line.size()) continue; // blank line
-			size_t cttpos = line.find_first_of(' ', i);
-			if (cttpos != string::npos && cttpos < line.size()) {
 
-				// Read uri
-				from = line.substr(0, cttpos);
+			// Create
+			sip_contact_t *url = sip_contact_make(home.home(), from.c_str());
+			sip_contact_t *contact = sip_contact_make(home.home(), contact_header.c_str());
+			int expire = mStaticRecordsTimeout + 5; // 5s to avoid race conditions
 
-				// Read contacts
-				contact_header = line.substr(cttpos + 1, line.length() - cttpos + 1);
+			if (!url || !contact) {
+				throw runtime_error("one URI is invlaid");
+			}
 
-				// Create
-				sip_contact_t *url = sip_contact_make(home.home(), from.c_str());
-				sip_contact_t *contact = sip_contact_make(home.home(), contact_header.c_str());
-				int expire = mStaticRecordsTimeout + 5; // 5s to avoid race conditions
-
-				if (!url || !contact) {
-					LOGF("Static records line %s doesn't respect the expected format: <identity> <identity>,<identity>", line.c_str());
-					continue;
-				}
-
+			try {
+				SipUri fromUri(url->m_url);
 				while (contact) {
 					BindingParameters parameter;
 					shared_ptr<OnStaticBindListener> listener;
@@ -834,15 +839,19 @@ void ModuleRegistrar::readStaticRecords() {
 					parameter.alias = alias;
 					parameter.version = mStaticRecordsVersion;
 
-					RegistrarDb::get()->bind(url->m_url, sipContact, parameter, listener);
+					RegistrarDb::get()->bind(fromUri, sipContact, parameter, listener);
 					contact = contact->m_next;
 				}
-				continue;
+			} catch (const sofiasip::InvalidUrlError &e) {
+				ostringstream os;
+				os << "'" << e.getUrl() << "' isn't a valid SIP-URI: " << e.getReason();
+				throw runtime_error(os.str());
 			}
-			LOGW("Incorrect line format: %s", line.c_str());
+
+		} catch (const runtime_error &e) {
+			SLOGW << "error while reading the static record file [" << mStaticRecordsFile << ":" << linenum << endl
+				<< "\t`" << line << "`: " << e.what();
 		}
-	} else {
-		LOGE("Can't open file %s", mStaticRecordsFile.c_str());
 	}
 }
 
@@ -852,12 +861,8 @@ void ModuleRegistrar::sighandler(int signum, siginfo_t *info, void *ptr) {
 		sRegistrarInstanceForSigAction->readStaticRecords();
 	} else if (signum == SIGUSR2) {
 		LOGI("Received signal triggering fake fetch");
-		su_home_t home;
-		su_home_init(&home);
-		url_t *url = url_make(&home, "sip:contact@domain");
-
 		auto listener = make_shared<FakeFetchListener>();
-		RegistrarDb::get()->fetch(url, listener, false);
+		RegistrarDb::get()->fetch(SipUri("sip:contact@domain"), listener, false);
 	}
 }
 
