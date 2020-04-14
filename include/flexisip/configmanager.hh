@@ -672,17 +672,17 @@ class GenericManager : protected ConfigValueListener {
 	}
 	void applyOverrides(bool strict);
 
-	bool mNeedRestart;
-	bool mDirtyConfig;
+	bool mNeedRestart = false;
+	bool mDirtyConfig = false;
 
-	protected:
+  protected:
 	GenericManager();
-	virtual ~GenericManager() = default;
+	~GenericManager() override = default;
 
   private:
 	static void atexit();
 	bool doIsValidNextConfig(const ConfigValue &cv);
-	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
+	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) override;
 	RootConfigStruct mConfigRoot;
 	FileConfigReader mReader;
 	std::string mConfigFile;
@@ -690,7 +690,7 @@ class GenericManager : protected ConfigValueListener {
 	static GenericManager *sInstance;
 	std::map<std::string, StatCounter64 *> mStatMap;
 	std::unordered_set<std::string> mStatOids;
-	NotificationEntry *mNotifier;
+	NotificationEntry *mNotifier = nullptr;
 };
 
 }
