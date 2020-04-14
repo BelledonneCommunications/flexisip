@@ -226,6 +226,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_includedir}/flexisip/*.h
 %{_includedir}/flexisip/*.hh
 %{_includedir}/flexisip/auth/*.hh
+%{_includedir}/flexisip/sofia-wrapper/*.hh
 %{_includedir}/flexisip/utils/*.hh
 %{_includedir}/flexisip/expressionparser-impl.cc
 %{_localstatedir}//*
