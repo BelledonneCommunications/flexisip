@@ -32,10 +32,10 @@ class FlexisipProxy:
 		p = subprocess.Popen([self.path, '-v'], stdout=subprocess.PIPE , stderr=subprocess.PIPE)
 		out, err = p.communicate()
 		out = str(out, encoding='utf-8')
-		m = re.search('version: (\S+) \(git: (\S+)\)', out)
+		m = re.search('version: (([0-9]+\\.[0-9]+\\.[0-9]+)(?:-[a-zA-Z0-9-]+))', out)
 		if m is None:
 			raise RuntimeError("unexpected output of 'flexisip -v': [{0}]".format(out))
-		return m.group(1), m.group(2)
+		return m.group(2), m.group(1)
 
 
 class XWikiProxy:
