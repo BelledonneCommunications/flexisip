@@ -29,13 +29,11 @@
 namespace flexisip {
 
 struct RedisParameters {
-	RedisParameters() : port(0), timeout(0) {
-	}
 	std::string domain;
 	std::string auth;
-	int port;
-	int timeout;
-	int mSlaveCheckTimeout;
+	int port{0};
+	int timeout{0};
+	int mSlaveCheckTimeout{0};
 };
 
 /**
@@ -107,18 +105,18 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	bool disconnect();
 
   protected:
-	virtual void doBind(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) override;
-	virtual void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener)override;
-	virtual void doFetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener)override;
-	virtual void doFetchInstance(const SipUri &url, const std::string &uniqueId, const std::shared_ptr<ContactUpdateListener> &listener)override;
-	virtual void doMigration()override;
-	virtual void subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener)override;
-	virtual void unsubscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener)override;
-	virtual void publish(const std::string &topic, const std::string &uid)override;
+	void doBind(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) override;
+	void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener) override;
+	void doFetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener) override;
+	void doFetchInstance(const SipUri &url, const std::string &uniqueId, const std::shared_ptr<ContactUpdateListener> &listener) override;
+	void doMigration() override;
+	void subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener) override;
+	void unsubscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener) override;
+	void publish(const std::string &topic, const std::string &uid) override;
 
   private:
 	RegistrarDbRedisAsync(Agent *agent, RedisParameters params);
-	~RegistrarDbRedisAsync();
+	~RegistrarDbRedisAsync() override;
 	static void sConnectCallback(const redisAsyncContext *c, int status);
 	static void sDisconnectCallback(const redisAsyncContext *c, int status);
 	static void sSubscribeConnectCallback(const redisAsyncContext *c, int status);
@@ -128,20 +126,17 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	static void sBindRetry(void *unused, su_timer_t *t, void *ud);
 	bool isConnected();
 	void setWritable (bool value);
+
 	friend class RegistrarDb;
-	redisAsyncContext *mContext, *mSubscribeContext;
+
+	redisAsyncContext *mContext{nullptr};
+	redisAsyncContext *mSubscribeContext{nullptr};
 	RecordSerializer *mSerializer;
-	std::string mDomain;
-	std::string mAuthPassword;
-	int mPort;
-	int mTimeout;
-	su_root_t *mRoot;
+	RedisParameters mParams;
+	su_root_t *mRoot{nullptr};
 	std::vector<RedisHost> mSlaves;
-	size_t mCurSlave;
-	su_timer_t *mReplicationTimer;
-	int mSlaveCheckTimeout;
-	/*std::list<RegistrarUserData*> mQueue;
-	bool mAddToQueue;*/
+	size_t mCurSlave{0};
+	su_timer_t *mReplicationTimer{nullptr};
 
 	void serializeAndSendToRedis(RegistrarUserData *data, forwardFn *forward_fn);
 	bool handleRedisStatus(const std::string &desc, int redisStatus, RegistrarUserData *data);
@@ -150,7 +145,6 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	void subscribeAll();
 	void subscribeToKeyExpiration();
 	void parseAndClean(redisReply *reply, RegistrarUserData *data);
-	//void dequeueNextRedisCommand();
 
 	/* callbacks */
 	void handleAuthReply(const redisReply *reply);
@@ -173,7 +167,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 
 	/* static handlers */
 	//static void sHandleAorGetReply(struct redisAsyncContext *, void *r, void *privdata);
-	static void shandleAuthReply(redisAsyncContext *ac, void *r, void *privdata);
+	static void sHandleAuthReply(redisAsyncContext *ac, void *r, void *privdata);
 	static void sHandleBindStart(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
 	static void sHandleBindFinish(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
 	static void sHandleClear(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);

@@ -46,20 +46,10 @@ using namespace flexisip;
  */
 
 RegistrarDbRedisAsync::RegistrarDbRedisAsync(Agent *ag, RedisParameters params)
-	: RegistrarDb(ag), mContext(nullptr), mSubscribeContext(nullptr),
-	  mDomain(params.domain), mAuthPassword(params.auth), mPort(params.port), mTimeout(params.timeout), mRoot(ag->getRoot()),
-	  mReplicationTimer(nullptr), mSlaveCheckTimeout(params.mSlaveCheckTimeout) {
-	mSerializer = RecordSerializer::get();
-	mCurSlave = 0;
-}
+	: RegistrarDb{ag}, mSerializer{RecordSerializer::get()}, mParams{params}, mRoot{ag->getRoot()} {}
 
 RegistrarDbRedisAsync::RegistrarDbRedisAsync(const string &preferredRoute, su_root_t *root, RecordSerializer *serializer, RedisParameters params)
-	: RegistrarDb(nullptr), mContext(nullptr), mSubscribeContext(nullptr),
-	  mDomain(params.domain), mAuthPassword(params.auth), mPort(params.port), mTimeout(params.timeout), mRoot(root),
-	  mReplicationTimer(nullptr), mSlaveCheckTimeout(params.mSlaveCheckTimeout) {
-	mSerializer = serializer;
-	mCurSlave = 0;
-}
+	: RegistrarDb{nullptr}, mSerializer{serializer}, mParams{params}, mRoot{root} {}
 
 RegistrarDbRedisAsync::~RegistrarDbRedisAsync() {
 	if (mContext) {
@@ -276,11 +266,11 @@ void RegistrarDbRedisAsync::tryReconnect() {
 		mCurSlave = mCurSlave % slaveCount;
 		RedisHost host = mSlaves[mCurSlave];
 
-		LOGW("Connection lost to %s:%d, trying a known slave %d at %s:%d", mDomain.c_str(), mPort, host.id,
+		LOGW("Connection lost to %s:%d, trying a known slave %d at %s:%d", mParams.domain.c_str(), mParams.port, host.id,
 			 host.address.c_str(), host.port);
 
-		mDomain = host.address;
-		mPort = host.port;
+		mParams.domain = host.address;
+		mParams.port = host.port;
 
 		connect();
 	} else {
@@ -313,8 +303,8 @@ void RegistrarDbRedisAsync::handleReplicationInfoReply(const char *reply) {
 				SLOGW << "Master is up, will attempt to connect to the master at " << masterAddress << ":"
 					  << masterPort;
 
-				mDomain = masterAddress;
-				mPort = masterPort;
+				mParams.domain = masterAddress;
+				mParams.port = masterPort;
 
 				// disconnect and reconnect immediately, dropping the previous context
 				disconnect();
@@ -327,8 +317,8 @@ void RegistrarDbRedisAsync::handleReplicationInfoReply(const char *reply) {
 			SLOGW << "Unknown role '" << role << "'";
 		}
 		if (mAgent && mReplicationTimer == nullptr) {
-			SLOGD << "Creating replication timer with delay of " << mSlaveCheckTimeout << "s";
-			mReplicationTimer = mAgent->createTimer(mSlaveCheckTimeout * 1000, sHandleInfoTimer, this);
+			SLOGD << "Creating replication timer with delay of " << mParams.mSlaveCheckTimeout << "s";
+			mReplicationTimer = mAgent->createTimer(mParams.mSlaveCheckTimeout * 1000, sHandleInfoTimer, this);
 		}
 	} else {
 		SLOGW << "Invalid INFO reply: no role specified";
@@ -356,7 +346,7 @@ bool RegistrarDbRedisAsync::connect() {
 		return true;
 	}
 
-	mContext = redisAsyncConnect(mDomain.c_str(), mPort);
+	mContext = redisAsyncConnect(mParams.domain.c_str(), mParams.port);
 	mContext->data = this;
 	if (mContext->err) {
 		SLOGE << "Redis Connection error: " << mContext->errstr;
@@ -365,7 +355,7 @@ bool RegistrarDbRedisAsync::connect() {
 		return false;
 	}
 
-	mSubscribeContext = redisAsyncConnect(mDomain.c_str(), mPort);
+	mSubscribeContext = redisAsyncConnect(mParams.domain.c_str(), mParams.port);
 	mSubscribeContext->data = this;
 	if (mSubscribeContext->err) {
 		SLOGE << "Redis Connection error: " << mSubscribeContext->errstr;
@@ -395,9 +385,9 @@ bool RegistrarDbRedisAsync::connect() {
 		return false;
 	}
 
-	if (!mAuthPassword.empty()) {
-		redisAsyncCommand(mContext, shandleAuthReply, this, "AUTH %s", mAuthPassword.c_str());
-		redisAsyncCommand(mSubscribeContext, shandleAuthReply, this, "AUTH %s", mAuthPassword.c_str());
+	if (!mParams.auth.empty()) {
+		redisAsyncCommand(mContext, sHandleAuthReply, this, "AUTH %s", mParams.auth.c_str());
+		redisAsyncCommand(mSubscribeContext, sHandleAuthReply, this, "AUTH %s", mParams.auth.c_str());
 	} else {
 		getReplicationInfo();
 	}
@@ -432,15 +422,21 @@ void RegistrarDbRedisAsync::subscribeAll() {
 }
 
 void RegistrarDbRedisAsync::subscribeToKeyExpiration() {
-	SLOGD << "Subscribing to key expiration";
+	LOGD("Subscribing to key expiration");
+	if (mSubscribeContext == nullptr) {
+		LOGE("RegistrarDbRedisAsync::subscribeToKeyExpiration(): no context !");
+		return;
+	}
 	redisAsyncCommand(mSubscribeContext, sKeyExpirationPublishCallback, nullptr, "SUBSCRIBE __keyevent@0__:expired");
 }
 
 void RegistrarDbRedisAsync::subscribeTopic(const string &topic) {
 	LOGD("Sending SUBSCRIBE command to redis for topic '%s'", topic.c_str());
-	if (mSubscribeContext){
-		redisAsyncCommand(mSubscribeContext, sPublishCallback, nullptr, "SUBSCRIBE %s", topic.c_str());
-	}else LOGE("RegistrarDbRedisAsync::subscribeTopic(): no context !");
+	if (mSubscribeContext == nullptr) {
+		LOGE("RegistrarDbRedisAsync::subscribeTopic(): no context !");
+		return;
+	}
+	redisAsyncCommand(mSubscribeContext, sPublishCallback, nullptr, "SUBSCRIBE %s", topic.c_str());
 }
 
 /*TODO: the listener should be also used to report when the subscription is active.
@@ -595,7 +591,7 @@ void RegistrarDbRedisAsync::sHandleInfoTimer(void *unused, su_timer_t *t, void *
 	}
 }
 
-void RegistrarDbRedisAsync::shandleAuthReply(redisAsyncContext *ac, void *r, void *privdata) {
+void RegistrarDbRedisAsync::sHandleAuthReply(redisAsyncContext *ac, void *r, void *privdata) {
 	RegistrarDbRedisAsync *zis = (RegistrarDbRedisAsync *)privdata;
 	if (zis) {
 		zis->handleAuthReply((const redisReply *)r);
