@@ -974,10 +974,8 @@ Module *Agent::findModuleByFunction(const std::string &moduleFunction) const {
 	return (it != mModules.cend()) ? *it : nullptr;
 }
 
-template <typename SipEventT>
-inline void Agent::doSendEvent(
-	shared_ptr<SipEventT> ev, const list<Module *>::iterator &begin, const list<Module *>::iterator &end
-) {
+template <typename SipEventT, typename ModuleIter>
+void Agent::doSendEvent(std::shared_ptr<SipEventT> ev, const ModuleIter &begin, const ModuleIter &end) {
 	for (auto it = begin; it != end; ++it) {
 		ev->mCurrModule = (*it);
 		(*it)->process(ev);
@@ -996,9 +994,9 @@ void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	const url_t *from_url = sip->sip_from ? sip->sip_from->a_url : NULL;
 
 	if (LOGD_ENABLED()){
+		auto from = from_url ? url_as_string(ev->getHome(), from_url) : "<invalid from>";
 		SLOGD << "Receiving new Request SIP message " << req->rq_method_name << " from "
-			<< (from_url ? url_as_string(ev->getHome(), from_url) : "<invalid from>") << " :"
-			<< "\n" << *ev->getMsgSip();
+			<< from << " :\n" << *ev->getMsgSip();
 	}
 	switch (req->rq_method) {
 		case sip_method_register:
@@ -1100,36 +1098,25 @@ void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 }
 
 void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
-	SipLogContext ctx(ev->getMsgSip());
+	SipLogContext ctx{ev->getMsgSip()};
 	if (LOGD_ENABLED()){
-		SLOGD << "Inject request SIP event after " << ev->mCurrModule->getModuleName() << ":\n" << *ev->getMsgSip();
+		SLOGD << "Inject request SIP event [" << ev << "] after " << ev->mCurrModule->getModuleName() << ":\n" << *ev->getMsgSip();
 	}
 	ev->restartProcessing();
-	list<Module *>::iterator it;
-	for (it = mModules.begin(); it != mModules.end(); ++it) {
-		if (ev->mCurrModule == *it) {
-			++it;
-			break;
-		}
-	}
-	doSendEvent(ev, it, mModules.end());
+	auto it = find(mModules.cbegin(), mModules.cend(), ev->mCurrModule);
+	doSendEvent(ev, ++it, mModules.cend());
+	printEventTailSeparator();
 }
 
 void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> ev) {
-	SipLogContext ctx(ev->getMsgSip());
-	
+	SipLogContext ctx{ev->getMsgSip()};
 	if (LOGD_ENABLED()){
-		SLOGD << "Injecting response SIP event after " << ev->mCurrModule->getModuleName() << ":\n" << *ev->getMsgSip();
+		SLOGD << "Injecting response SIP event [" << ev << "] after " << ev->mCurrModule->getModuleName() << ":\n" << *ev->getMsgSip();
 	}
-	list<Module *>::iterator it;
 	ev->restartProcessing();
-	for (it = mModules.begin(); it != mModules.end(); ++it) {
-		if (ev->mCurrModule == *it) {
-			++it;
-			break;
-		}
-	}
-	doSendEvent(ev, it, mModules.end());
+	auto it = find(mModules.cbegin(), mModules.cend(), ev->mCurrModule);
+	doSendEvent(ev, ++it, mModules.cend());
+	printEventTailSeparator();
 }
 
 /**
@@ -1152,7 +1139,7 @@ int Agent::onIncomingMessage(msg_t *msg, const sip_t *sip) {
 		return -1;
 	}
 	// Assuming sip is derived from msg
-	shared_ptr<MsgSip> ms = make_shared<MsgSip>(msg);
+	auto ms = make_shared<MsgSip>(msg);
 	if (sip->sip_request) {
 		auto ev = make_shared<RequestSipEvent>(shared_from_this(), ms, getIncomingTport(msg, this));
 		sendRequestEvent(ev);
@@ -1160,6 +1147,7 @@ int Agent::onIncomingMessage(msg_t *msg, const sip_t *sip) {
 		auto ev = make_shared<ResponseSipEvent>(shared_from_this(), ms);
 		sendResponseEvent(ev);
 	}
+	printEventTailSeparator();
 	msg_destroy(msg);
 	return 0;
 }
@@ -1279,6 +1267,13 @@ void Agent::applyProxyToProxyTransportSettings(tport_t *tp){
 		}
 	}
 }
+
+const std::string Agent::sEventSeparator(110, '=');
+
+void Agent::printEventTailSeparator() {
+	LOGD("\n\n%s\n", sEventSeparator.c_str());
+}
+
 
 } // namespace flexisip
 

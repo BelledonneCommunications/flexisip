@@ -110,9 +110,8 @@ class Agent : public IncomingAgent,
 	ConfigValueListener *mBaseConfigListener;
 
 private:
-	template <typename SipEventT>
-	void doSendEvent(std::shared_ptr<SipEventT> ev, const std::list<Module *>::iterator &begin,
-					 const std::list<Module *>::iterator &end);
+	template <typename SipEventT, typename ModuleIter>
+	void doSendEvent(std::shared_ptr<SipEventT> ev, const ModuleIter &begin, const ModuleIter &end);
 
 public:
 	Agent(su_root_t *root);
@@ -225,7 +224,9 @@ private:
 	void initializePreferredRoute();
 	void loadModules();
 	void startMdns();
+
 	static int messageCallback(nta_agent_magic_t *context, nta_agent_t *agent, msg_t *msg, sip_t *sip);
+	static void printEventTailSeparator();
 
 	// Private attributes
 	std::string mServerString;
@@ -251,11 +252,13 @@ private:
 	DomainRegistrationManager *mDrm = nullptr;
 	std::string mPassphrase;
 	tport_t *mInternalTport = nullptr;
-	static constexpr const char* sInternalTransportIdent = "internal-transport";
 	bool mTerminating = false;
 #if ENABLE_MDNS
 	std::vector<belle_sip_mdns_register_t *> mMdnsRegisterList;
 #endif
+
+	static constexpr const char* sInternalTransportIdent = "internal-transport";
+	static const std::string sEventSeparator;
 };
 
 }
