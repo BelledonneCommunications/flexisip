@@ -322,7 +322,8 @@ void FilesystemEventLogWriter::writeRegistrationLog(const std::shared_ptr<Regist
 	if (rlog->mContacts)
 		msg << " (" << rlog->mContacts->m_url << ") ";
 	if (rlog->mUA)
-		msg << rlog->mUA << endl;
+		msg << rlog->mUA;
+	msg << endl;
 
 	if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {
 		LOGE("Fail to write registration log: %s", strerror(errno));
