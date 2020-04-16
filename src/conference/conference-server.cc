@@ -86,6 +86,7 @@ void ConferenceServer::_init () {
 	configLinphone->setBool("sip", "reject_duplicated_calls", false);
 	configLinphone->setInt("sound", "conference_rate", 48000);
 	configLinphone->setBool("rtp", "symmetric", true);
+	configLinphone->setBool("video", "dont_check_codecs", true);
 	
 	mCore = linphone::Factory::get()->createCoreWithConfig(configLinphone, nullptr);
 	mCore->enableEchoCancellation(false);
