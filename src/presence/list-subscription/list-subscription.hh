@@ -22,6 +22,8 @@
 #include <chrono>
 #include <unordered_map>
 
+#include <belle-sip/mainloop.h>
+
 #include <flexisip/event.hh>
 #include <flexisip/sofia-wrapper/home.hh>
 
@@ -105,11 +107,11 @@ private:
 	void addInstanceToResource(Xsd::Rlmi::Resource &resource, std::list<belle_sip_body_handler_t *> &multipartList,
 							   PresentityPresenceInformation &presentityInformation, bool extended);
 
-	typedef std::unordered_map<const belle_sip_uri_t *, std::pair<std::shared_ptr<PresentityPresenceInformation>,bool>,
-						  std::hash<const belle_sip_uri_t *>, bellesip::UriComparator> PendingStateType;
+	using PendingStateType = std::unordered_map<const belle_sip_uri_t *, std::pair<std::shared_ptr<PresentityPresenceInformation>,bool>,
+						  std::hash<const belle_sip_uri_t *>, bellesip::UriComparator>;
 	PendingStateType mPendingStates; // map of Presentity to be notified by uri
-	std::chrono::time_point<std::chrono::system_clock> mLastNotify;
-	std::chrono::seconds mMinNotifyInterval;
+	std::chrono::time_point<std::chrono::system_clock> mLastNotify{std::chrono::system_clock::time_point::min()};
+	std::chrono::seconds mMinNotifyInterval{2};
 
 	/*
 	 * rfc 4662
@@ -120,9 +122,9 @@ private:
 	 * NOTIFY message sent within a subscription, and MUST increase by
 	 * exactly one for each subsequent NOTIFY sent within a subscription.
 	 */
-	uint32_t mVersion;
-	belle_sip_source_t *mTimer;
-	size_t mMaxPresenceInfoNotifiedAtATime; //maximum number of presentity available in a sigle notify
+	uint32_t mVersion{0};
+	BelleSipSourcePtr mTimer;
+	size_t mMaxPresenceInfoNotifiedAtATime{0}; //maximum number of presentity available in a sigle notify
 	std::function<void(std::shared_ptr<ListSubscription>)> mListAvailable;
 	sofiasip::Home home;
 };
