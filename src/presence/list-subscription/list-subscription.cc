@@ -21,6 +21,7 @@
 
 #include "belle-sip/belle-sip.h"
 #include "belle-sip/bodyhandler.h"
+#include "belle-sip/mainloop.h"
 
 #include "bellesip-signaling-exception.hh"
 #include "list-subscription.hh"
@@ -37,10 +38,6 @@ ListSubscription::ListSubscription(
 	size_t maxPresenceInfoNotifiedAtATime,
 	function<void(shared_ptr<ListSubscription>)> listAvailable
 ) : Subscription("Presence", expires, belle_sip_transaction_get_dialog(BELLE_SIP_TRANSACTION(ist)), aProv),
-	mLastNotify(chrono::system_clock::time_point::min()),
-	mMinNotifyInterval(2 /*60*/),
-	mVersion(0),
-	mTimer(nullptr),
 	mMaxPresenceInfoNotifiedAtATime(maxPresenceInfoNotifiedAtATime),
 	mListAvailable(listAvailable) {}
 
@@ -49,8 +46,7 @@ list<shared_ptr<PresentityPresenceInformationListener>> &ListSubscription::getLi
 }
 ListSubscription::~ListSubscription() {
 	if (mTimer) {
-		belle_sip_source_cancel(mTimer);
-		belle_sip_object_unref(mTimer);
+		belle_sip_source_cancel(mTimer.get());
 	}
 	if (mName) belle_sip_object_unref((void *)mName);
 	SLOGD << "List subscription ["<< this <<"] deleted";
@@ -183,14 +179,12 @@ void ListSubscription::notify(bool isFullState) {
 		mLastNotify = chrono::system_clock::now();
 		if (!mPendingStates.empty() && !mTimer) {
 			SLOGD << "Still [" << mPendingStates.size() << "] to be notified for list [" << this << "]";
-			belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this](unsigned int events) {
-				belle_sip_source_t * curent_timer = mTimer;
-				mTimer = nullptr;
+			auto func = [this](unsigned int events) {
+				mTimer.reset(nullptr);
 				notify(false);
 				SLOGD << "defered notify sent on [" << this << "]";
-				belle_sip_object_unref(curent_timer);
 				return BELLE_SIP_STOP;
-			});
+			};
 			mTimer = belle_sip_main_loop_create_cpp_timeout(
 				belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv)),
 				func,
@@ -214,13 +208,12 @@ void ListSubscription::onInformationChanged(PresentityPresenceInformation &prese
 		} else {
 			if (mVersion > 0 /*special case for first notify */ && mTimer == nullptr) {
 				// cb function to invalidate an unrefreshed etag;
-				belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this](unsigned int events) {
+				auto func = [this](unsigned int events) {
 					notify(false);
 					SLOGD << "defered notify sent on [" << this << "]";
-					belle_sip_object_unref(mTimer);
-					mTimer = nullptr;
+					mTimer.reset(nullptr);
 					return BELLE_SIP_STOP;
-				});
+				};
 				// create timer
 				chrono::milliseconds timeout(chrono::duration_cast<chrono::milliseconds>(
 					mMinNotifyInterval - (chrono::system_clock::now() - mLastNotify)));
@@ -233,7 +226,7 @@ void ListSubscription::onInformationChanged(PresentityPresenceInformation &prese
 
 			if (mVersion > 0) {
 				SLOGI << "Defering presence information notify for entity [" << presenceInformation.getEntity()
-					  << "/" << this << "] to [" << (belle_sip_source_get_timeout(mTimer)) << " ms]";
+					  << "/" << this << "] to [" << (belle_sip_source_get_timeout(mTimer.get())) << " ms]";
 			} else {
 				SLOGI << "First notify, defering presence information for entity [" << presenceInformation.getEntity()
 					   << "/" << this << "]";
@@ -249,7 +242,7 @@ bool ListSubscription::isTimeToNotify() {
 }
 
 void ListSubscription::finishCreation(belle_sip_server_transaction_t *ist) {
-	belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this, ist](unsigned int){
+	auto func = [this, ist] (unsigned int) {
 		if (mListeners.empty()) {
 			ostringstream os;
 			os << "Empty list entry for dialog id[" << belle_sip_header_call_id_get_call_id(belle_sip_dialog_get_call_id(mDialog)) << "]";
@@ -261,14 +254,13 @@ void ListSubscription::finishCreation(belle_sip_server_transaction_t *ist) {
 		belle_sip_object_ref((void *)mName);
 		mListAvailable(static_pointer_cast<ListSubscription>(shared_from_this()));
 		return BELLE_SIP_STOP;
-	});
-	belle_sip_source_t *timer = belle_sip_main_loop_create_cpp_timeout(
+	};
+	belle_sip_main_loop_create_cpp_timeout(
 		belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv)),
 		func,
 		0,
 		"timer for external list subscription"
 	);
-	belle_sip_object_unref(timer);
 }
 
 /// PresentityResourceListener//
