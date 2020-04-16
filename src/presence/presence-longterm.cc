@@ -20,27 +20,13 @@ public:
 	}
 
 	void onResult(AuthDbResult result, const std::string &passwd) override {
-		belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this, result, passwd](unsigned int events) {
-			processResponse(result, passwd);
-			return BELLE_SIP_STOP;
-		});
-		belle_sip_source_t *timer = belle_sip_main_loop_create_cpp_timeout(  mMainLoop
-			, func
-			, 0
-			, "OnAuthListener to mainthread");
-		belle_sip_object_unref(timer);
+		auto func = [this, result, passwd]() {processResponse(result, passwd);};
+		belle_sip_main_loop_cpp_do_later(mMainLoop, func, "OnAuthListener to mainthread");
 	}
 
 	void onResult(AuthDbResult result, const vector<passwd_algo_t> &passwd) override {
-		belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this, result, passwd](unsigned int events) {
-			processResponse(result, passwd.front().pass);
-			return BELLE_SIP_STOP;
-		});
-		belle_sip_source_t *timer = belle_sip_main_loop_create_cpp_timeout(  mMainLoop
-																		, func
-																		, 0
-																		, "OnAuthListener to mainthread");
-		belle_sip_object_unref(timer);
+		auto func = [this, result, passwd]() {processResponse(result, passwd.front().pass);};
+		belle_sip_main_loop_cpp_do_later(mMainLoop, func, "OnAuthListener to mainthread");
 	}
 
 private:
