@@ -101,6 +101,8 @@ void ConferenceServer::_init () {
 	mCore->setAudioPort(-1); // use random ports.
 	mCore->setVideoPort(-1); // use random ports.
 	mCore->setUseFiles(true); //No sound card shall be used in calls.
+	enableSelectedCodecs(mCore->getAudioPayloadTypes(), { "opus", "speex"});
+	enableSelectedCodecs(mCore->getVideoPayloadTypes(), { "VP8"});
 
 	loadFactoryUris();
 	bool defaultProxyConfigSet = false;
@@ -136,6 +138,16 @@ void ConferenceServer::_init () {
 	RegistrarDb::get()->addStateListener(shared_from_this());
 	if (RegistrarDb::get()->isWritable()){
 		bindAddresses();
+	}
+}
+
+void ConferenceServer::enableSelectedCodecs(const std::list<std::shared_ptr<linphone::PayloadType>>& codecs, const std::list<std::string> &mimeTypes){
+	for(auto codec : codecs){
+		if (std::find(mimeTypes.begin(), mimeTypes.end(), codec->getMimeType()) != mimeTypes.end()) {
+			codec->enable(true);
+		}else{
+			codec->enable(false);
+		}
 	}
 }
 
