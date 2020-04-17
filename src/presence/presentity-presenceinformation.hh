@@ -28,16 +28,29 @@ typedef struct _belle_sip_uri belle_sip_uri_t;
 typedef struct belle_sip_source belle_sip_source_t;
 typedef struct belle_sip_main_loop belle_sip_main_loop_t;
 namespace flexisip {
+
+struct BelleSipSourceCancelingDeleter {
+	constexpr BelleSipSourceCancelingDeleter() noexcept = default;
+	constexpr BelleSipSourceCancelingDeleter(BelleSipObjectDeleter<belle_sip_source_t> &&) noexcept {}
+	void operator()(belle_sip_source_t *source) noexcept {
+		belle_sip_source_cancel(source);
+		belle_sip_object_unref(source);
+	}
+};
+
 class PresentityManager;
 class PresenceInformationElement {
   public:
+	using BelleSipSourcePtr = std::unique_ptr<belle_sip_source_t, BelleSipSourceCancelingDeleter>;
+
 	PresenceInformationElement(Xsd::Pidf::Presence::TupleSequence *tuples, Xsd::DataModel::Person *person,
 							   belle_sip_main_loop_t *mainLoop);
 	// create an information element with a default tuple set to closed.
 	PresenceInformationElement(const belle_sip_uri_t *contact);
 	~PresenceInformationElement();
+
 	time_t getExpitationTime() const;
-	void setExpiresTimer(belle_sip_source_t *timer);
+	void setExpiresTimer(BelleSipSourcePtr &&timer);
 	const std::unique_ptr<Xsd::Pidf::Tuple> &getTuple(const std::string &id) const;
 	const std::list<std::unique_ptr<Xsd::Pidf::Tuple>> &getTuples() const;
 	const Xsd::DataModel::Person getPerson() const;
@@ -49,10 +62,10 @@ class PresenceInformationElement {
 
   private:
 	std::list<std::unique_ptr<Xsd::Pidf::Tuple>> mTuples;
-	Xsd::DataModel::Person mPerson = Xsd::DataModel::Person("");
+	Xsd::DataModel::Person mPerson{""};
 	Xsd::XmlSchema::dom::unique_ptr<xercesc::DOMDocument> mDomDocument; // needed to store extension nodes
-	belle_sip_main_loop_t *mBelleSipMainloop;
-	belle_sip_source_t *mTimer;
+	belle_sip_main_loop_t *mBelleSipMainloop = nullptr;
+	BelleSipSourcePtr mTimer;
 	std::string mEtag;
 };
 /*
@@ -64,11 +77,12 @@ class PresenceInformationElement {
 class PresentityPresenceInformation;
 
 class PresentityPresenceInformationListener  {
-
   public:
-	PresentityPresenceInformationListener();
-	virtual ~PresentityPresenceInformationListener();
-	void setExpiresTimer(belle_sip_main_loop_t *ml, belle_sip_source_t *timer);
+	using BelleSipSourcePtr = std::unique_ptr<belle_sip_source_t, BelleSipSourceCancelingDeleter>;
+
+	PresentityPresenceInformationListener() = default;
+	virtual ~PresentityPresenceInformationListener() = default;
+	void setExpiresTimer(belle_sip_main_loop_t *ml, BelleSipSourcePtr &&timer);
 	void enableExtendedNotify(bool enable);
 	bool extendedNotifyEnabled();
 	void enableBypass(bool enable);
@@ -82,11 +96,12 @@ class PresentityPresenceInformationListener  {
 	virtual void onExpired(PresentityPresenceInformation &presenceInformation) = 0;
 	virtual const belle_sip_uri_t* getFrom() = 0;
 	virtual const belle_sip_uri_t* getTo() = 0;
+
   private:
-	belle_sip_main_loop_t *mBelleSipMainloop;
-	belle_sip_source_t *mTimer;
-	bool mExtendedNotify;
-	bool mBypassEnabled;
+	belle_sip_main_loop_t *mBelleSipMainloop = nullptr;
+	BelleSipSourcePtr mTimer;
+	bool mExtendedNotify = false;
+	bool mBypassEnabled = false;
 };
 
 class PresentityPresenceInformation : public std::enable_shared_from_this<PresentityPresenceInformation> {

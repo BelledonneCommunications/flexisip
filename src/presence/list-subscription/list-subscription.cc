@@ -242,7 +242,7 @@ bool ListSubscription::isTimeToNotify() {
 }
 
 void ListSubscription::finishCreation(belle_sip_server_transaction_t *ist) {
-	auto func = [this, ist] (unsigned int) {
+	auto func = [this, ist] () {
 		if (mListeners.empty()) {
 			ostringstream os;
 			os << "Empty list entry for dialog id[" << belle_sip_header_call_id_get_call_id(belle_sip_dialog_get_call_id(mDialog)) << "]";
@@ -253,13 +253,11 @@ void ListSubscription::finishCreation(belle_sip_server_transaction_t *ist) {
 		mName = (belle_sip_uri_t *)belle_sip_object_clone(BELLE_SIP_OBJECT(belle_sip_request_get_uri(request)));
 		belle_sip_object_ref((void *)mName);
 		mListAvailable(static_pointer_cast<ListSubscription>(shared_from_this()));
-		return BELLE_SIP_STOP;
 	};
-	belle_sip_main_loop_create_cpp_timeout(
+	belle_sip_main_loop_cpp_do_later(
 		belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv)),
 		func,
-		0,
-		"timer for external list subscription"
+		"difered task for external list subscription"
 	);
 }
 
