@@ -108,6 +108,8 @@ void ConferenceServer::_init () {
 	mCore->addProxyConfig(proxy);
 	mCore->setDefaultProxyConfig(proxy);
 	mCore->setUseFiles(true); //No sound card shall be used in calls.
+	enableSelectedCodecs(mCore->getAudioPayloadTypes(), { "opus", "speex"});
+	enableSelectedCodecs(mCore->getVideoPayloadTypes(), { "VP8"});
 
 	linphone::Status err = mCore->start();
 	if (err == -2) LOGF("Linphone Core couldn't start because the connection to the database has failed");
@@ -116,6 +118,16 @@ void ConferenceServer::_init () {
 	RegistrarDb::get()->addStateListener(shared_from_this());
 	if (RegistrarDb::get()->isWritable()){
 		bindAddresses();
+	}
+}
+
+void ConferenceServer::enableSelectedCodecs(const std::list<std::shared_ptr<linphone::PayloadType>>& codecs, const std::list<std::string> &mimeTypes){
+	for(auto codec : codecs){
+		if (std::find(mimeTypes.begin(), mimeTypes.end(), codec->getMimeType()) != mimeTypes.end()) {
+			codec->enable(true);
+		}else{
+			codec->enable(false);
+		}
 	}
 }
 

@@ -95,6 +95,7 @@ namespace flexisip {
 		virtual void onCallStateChanged(const std::shared_ptr<linphone::Core> & lc, 
 						const std::shared_ptr<linphone::Call> & call, 
 				  linphone::Call::State cstate, const std::string & message) override;
+		void enableSelectedCodecs(const std::list<std::shared_ptr<linphone::PayloadType>>& codecs, const std::list<std::string> &mimeTypes);
 		void initStaticConferences();
 		void createConference(const std::shared_ptr<const linphone::Address> & address);
 		std::shared_ptr<linphone::Core> mCore;
