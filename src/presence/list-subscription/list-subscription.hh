@@ -123,7 +123,7 @@ private:
 	 * exactly one for each subsequent NOTIFY sent within a subscription.
 	 */
 	uint32_t mVersion{0};
-	BelleSipSourcePtr mTimer{nullptr, belle_sip_object_unref};
+	BelleSipSourcePtr mTimer;
 	size_t mMaxPresenceInfoNotifiedAtATime{0}; //maximum number of presentity available in a sigle notify
 	std::function<void(std::shared_ptr<ListSubscription>)> mListAvailable;
 	sofiasip::Home home;
