@@ -559,20 +559,27 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			if (type == "apple") {
 				string msg_str;
 				string call_str;
+				string group_chat_str;
 				string call_snd;
 				string msg_snd;
 
 				try {
 					msg_str = UriUtils::getParamValue(params, "pn-msg-str");
 				} catch (const out_of_range &) {
-					SLOGD << "no pn-msg-str";
-					return;
+					SLOGD << "no optional pn-msg-str, using default: IM_MSG";
+					msg_str = "IM_MSG";
 				}
 				try {
 					call_str = UriUtils::getParamValue(params, "pn-call-str");
 				} catch (const out_of_range &) {
-					SLOGD << "no pn-call-str";
-					return;
+					SLOGD << "no optional pn-call-str, using default: IC_MSG";
+					call_str = "IC_MSG";
+				}
+				try {
+					group_chat_str = UriUtils::getParamValue(params, "pn-groupchat-str");
+				} catch (const out_of_range &) {
+					SLOGD << "no optional pn-groupchat-str, using default: GC_MSG";
+					group_chat_str = "GC_MSG";
 				}
 				try {
 					call_snd = UriUtils::getParamValue(params, "pn-call-snd");
@@ -587,11 +594,14 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 					msg_snd = "empty";
 				}
 
-				pinfo.mAlertMsgId = (sip->sip_request->rq_method == sip_method_invite && !isGroupChatInvite(sip))
-					? call_str
-					: (sip->sip_request->rq_method == sip_method_message)
-						? msg_str
-						: "IC_SIL";
+				if (sip->sip_request->rq_method == sip_method_invite && !isGroupChatInvite(sip))
+					pinfo.mAlertMsgId = call_str;
+				else if (sip->sip_request->rq_method == sip_method_message)
+					pinfo.mAlertMsgId = msg_str;
+				else if (isGroupChatInvite(sip))
+					pinfo.mAlertMsgId = group_chat_str;
+				else
+					pinfo.mAlertMsgId = "IC_SIL";
 
 				pinfo.mAlertSound = (sip->sip_request->rq_method == sip_method_invite && pinfo.mChatRoomAddr.empty()) ? call_snd : msg_snd;
 				pinfo.mNoBadge = mNoBadgeiOS;
