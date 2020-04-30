@@ -42,8 +42,8 @@ class ForkCallContext : public ForkContext {
 	~ForkCallContext();
 	void sendResponse(int status, char const *phrase);
 	bool isCompleted() const;
-	void onPushInitiated(const std::string &key);
-	void onPushError(const std::string &key, const std::string &errormsg);
+	virtual void onPushSent(const std::shared_ptr<OutgoingTransaction> &tr) override;
+	virtual void onPushError(const std::shared_ptr<OutgoingTransaction> &tr, const std::string &errormsg) override;
 
   protected:
 	virtual void onResponse(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &event);

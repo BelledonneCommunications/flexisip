@@ -84,6 +84,7 @@ struct uid_finder {
 	const string mUid;
 };
 
+
 shared_ptr<BranchInfo> ForkContext::findBranchByUid(const string &uid) {
 	auto it = find_if(mWaitingBranches.begin(), mWaitingBranches.end(), uid_finder(uid));
 
@@ -295,6 +296,8 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	if (oldBr && oldBr->getStatus() >= 200){
 		LOGD("ForkContext [%p]: new fork branch [%p] clears out old branch [%p]", this, br.get(), oldBr.get());
 		removeBranch(oldBr);
+		br->mPushSent = oldBr->mPushSent; /* We need to remember if a push was sent for this branch, because in some cases (iOS) we must
+				absolutely not re-send a new one.*/
 	}
 	
 	onNewBranch(br);
@@ -315,8 +318,12 @@ shared_ptr<ForkContext> ForkContext::get(const shared_ptr<IncomingTransaction> &
 }
 
 shared_ptr<ForkContext> ForkContext::get(const shared_ptr<OutgoingTransaction> &tr) {
-	shared_ptr<BranchInfo> br = tr->getProperty<BranchInfo>("BranchInfo");
+	shared_ptr<BranchInfo> br = getBranchInfo(tr);
 	return br ? br->mForkCtx : shared_ptr<ForkContext>();
+}
+
+shared_ptr<BranchInfo> ForkContext::getBranchInfo(const shared_ptr<OutgoingTransaction> &tr){
+	return tr->getProperty<BranchInfo>("BranchInfo");
 }
 
 bool ForkContext::processCancel(const shared_ptr<RequestSipEvent> &ev) {
@@ -343,7 +350,7 @@ bool ForkContext::processResponse(const shared_ptr<ResponseSipEvent> &ev) {
 	shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 
 	if (transaction != NULL) {
-		shared_ptr<BranchInfo> binfo = transaction->getProperty<BranchInfo>("BranchInfo");
+		shared_ptr<BranchInfo> binfo = getBranchInfo(transaction);
 
 		if (binfo) {
 			auto copyEv = make_shared<ResponseSipEvent>(ev); // make a copy
@@ -475,6 +482,7 @@ void ForkContext::setFinished() {
 		/*already finishing, ignore*/
 		return;
 	}
+	mFinished = true;
 
 	if (mLateTimer) {
 		su_timer_destroy(mLateTimer);
@@ -565,6 +573,18 @@ int ForkContext::getLastResponseCode() const {
 		return mLastResponseSent->getMsgSip()->getSip()->sip_status->st_status;
 
 	return 0;
+}
+
+void ForkContext::onPushSent(const std::shared_ptr<OutgoingTransaction> &tr){
+	shared_ptr<BranchInfo> br = getBranchInfo(tr);
+	if (!br){
+		LOGE("ForkContext[%p]: no branch for transaction [%p]", this, tr.get());
+		return;
+	}
+	br->mPushSent = true;
+}
+
+void ForkContext::onPushError(const std::shared_ptr<OutgoingTransaction> &tr, const std::string &errormsg){
 }
 
 void BranchInfo::clear() {
