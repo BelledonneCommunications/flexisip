@@ -63,7 +63,7 @@ private:
 	std::string mKey; // unique key for the push notification, identifiying the device and the call.
 	PushNotification *mModule = nullptr;
 	std::shared_ptr<PushNotificationRequest> mPushNotificationRequest;
-	std::shared_ptr<ForkCallContext> mForkContext;
+	std::shared_ptr<OutgoingTransaction> mTransaction;
 	sofiasip::Timer mTimer; // timer after which push is sent
 	sofiasip::Timer mEndTimer; // timer to automatically remove the PN 30 seconds after starting
 	int mRetryCounter = 0;
@@ -97,7 +97,8 @@ private:
 	url_t *mExternalPushUri = nullptr;
 	std::string mExternalPushMethod;
 	int mTimeout = 0;
-	int mTtl = 0;
+	int mCallTtl = 0; // Push notification ttl for calls.
+	int mMessageTtl = 0; // Push notification ttl for IM.
 	unsigned mRetransmissionCount = 0;
 	unsigned mRetransmissionInterval = 0;
 	std::map<std::string, std::string> mFirebaseKeys;
@@ -129,7 +130,7 @@ PushNotificationContext::PushNotificationContext(const std::shared_ptr<OutgoingT
 	mEndTimer(module->getAgent()->getRoot()),
 	mRetryCounter(retryCount),
 	mRetryInterval(retryInterval) {
-	mForkContext = dynamic_pointer_cast<ForkCallContext>(ForkContext::get(transaction));
+	mTransaction = transaction;
 }
 
 void PushNotificationContext::start(int seconds, bool sendRinging) {
@@ -146,22 +147,23 @@ void PushNotificationContext::cancel() {
 
 void PushNotificationContext::onTimeout() {
 	SLOGD << "PNR " << mPushNotificationRequest.get() << ": timeout";
-	if (mForkContext) {
-		if (mForkContext->isCompleted()) {
+	shared_ptr<ForkContext> forkCtx = ForkContext::get(mTransaction);
+	if (forkCtx) {
+		if (forkCtx->isFinished()) {
 			LOGD("Call is already established or canceled, so push notification is not sent but cleared.");
 			return;
-		}
-	}
-
-	if (mForkContext) {
+		} 
 		SLOGD << "PNR " << mPushNotificationRequest.get() << ": notifying call context...";
-		mForkContext->onPushInitiated(mKey);
+		forkCtx->onPushSent(mTransaction);
 	}
 
 	mModule->getService().sendPush(mPushNotificationRequest);
-	if (mForkContext && !mPushSentResponseSent){
-		if (mSendRinging) mForkContext->sendResponse(SIP_180_RINGING);
-		mForkContext->sendResponse(110, "Push sent");
+	if (forkCtx && !mPushSentResponseSent){
+		shared_ptr<ForkCallContext> callCtx = dynamic_pointer_cast<ForkCallContext>(forkCtx);
+		if (callCtx){
+			if (mSendRinging) callCtx->sendResponse(SIP_180_RINGING);
+			callCtx->sendResponse(110, "Push sent");
+		}
 		mPushSentResponseSent = true;
 	}
 
@@ -178,7 +180,15 @@ ModuleInfo<PushNotification> PushNotification::sInfo(
 	"android, windows, as well as a generic http get/post to a custom server to which "
 	"actual sending of the notification is delegated. The push notification is sent when an "
 	"INVITE or MESSAGE request is not answered by the destination of the request "
-	"within a certain period of time, configurable hereunder by 'timeout' parameter.",
+	"within a certain period of time, configurable hereunder by 'timeout' parameter. "
+	"The PushNotification has an implicit dependency on the Router module, which is in charge of creating "
+	"the incoming and outgoing transactions and the context associated with the request forking process. "
+	"No push notification can hence be sent if the Router module isn't activated. "
+	"The time-to-live of the push notification depends on event for which the push notification is generated. "
+	" - if it is for a call (INVITE), it will be set equal 'call-fork-timeout' property of the Router module,"
+	" which corresponds to the maximum time for a call attempt.\n"
+	" - if it is for an IM (MESSAGE or INVITE for a text session), then it will be set equal to the 'message-time-to-live'"
+	" property.", 
 	{ "Router" },
 	ModuleInfoBase::ModuleOid::PushNotification
 );
@@ -190,10 +200,11 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 	ConfigItemDescriptor items[] = {
 		{Integer, "timeout",
 		 "Number of seconds to wait before sending a push notification to device. A value lesser or equal to zero will "
-		 "make the push notification to be sent immediately.", "0"},
+		 "make the push notification to be sent immediately, which is recommended since most of the time devices "
+		 "can't have a permanent connection with the Flexisip server.", "0"},
+		{Integer, "message-time-to-live", "Time to live for the push notifications related to IM messages, in seconds. The default value '0' "
+			"is interpreted as using the same value as for message-delivery-timeout of Router module.", "0"},
 		{Integer, "max-queue-size", "Maximum number of notifications queued for each push notification service", "100"},
-		{Integer, "time-to-live", "Default time to live for the push notifications, in seconds. This parameter shall be "
-			"set according to mDeliveryTimeout parameter in ForkContext.cc", "2592000"},
 		{Integer, "retransmission-count", "Number of push notification request retransmissions sent to a client for a "
 			"same event (call or message). Retransmissions cease when a response is received from the client. Setting "
 			"a value of zero disables retransmissions.", "0"},
@@ -254,6 +265,8 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		{StringList, "google-projects-api-keys",
 		 "List of couples projectId:ApiKey for each android project that supports push notifications (for compatibility "
 		 "only)", ""},
+		{Integer, "time-to-live", "Default time to live for the push notifications, in seconds. This parameter shall be "
+			"set according to mDeliveryTimeout parameter in ForkContext.cc", "2592000"},
 		config_item_end};
 	module_config->addChildrenValues(items);
 
@@ -265,15 +278,25 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		"2020-01-28", "2.0.0",
 		"This setting has no effect anymore."
 	});
+	module_config->get<ConfigInt>("time-to-live")->setDeprecated({
+		"2020-04-28", "2.0.0",
+		"This setting has no effect anymore. Use message-time-to-live to specify ttl for push notifications related to IM message."
+	});
 
 	mCountFailed = module_config->createStat("count-pn-failed", "Number of push notifications failed to be sent");
 	mCountSent = module_config->createStat("count-pn-sent", "Number of push notifications successfully sent");
 }
 
 void PushNotification::onLoad(const GenericStruct *mc) {
+	GenericStruct *root = GenericManager::get()->getRoot();
+	const GenericStruct *mRouter = root->get<GenericStruct>("module::Router");
+	
 	mNoBadgeiOS = mc->get<ConfigBoolean>("no-badge")->read();
 	mTimeout = mc->get<ConfigInt>("timeout")->read();
-	mTtl = mc->get<ConfigInt>("time-to-live")->read();
+	mMessageTtl = mc->get<ConfigInt>("message-time-to-live")->read();
+	if (mMessageTtl == 0){
+		mMessageTtl = mRouter->get<ConfigInt>("message-delivery-timeout")->read();
+	}
 	int maxQueueSize = mc->get<ConfigInt>("max-queue-size")->read();
 	mDisplayFromUri = mc->get<ConfigBoolean>("display-from-uri")->read();
 	string certdir = mc->get<ConfigString>("apple-certificate-dir")->read();
@@ -322,6 +345,10 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 		mPNS->setupFirebaseClient(mFirebaseKeys);
 	if(windowsPhoneEnabled)
 		mPNS->setupWindowsPhoneClient(windowsPhonePackageSID, windowsPhoneApplicationSecret);
+	
+	
+	mCallTtl = mRouter->get<ConfigInt>("call-fork-timeout")->read();
+	LOGD("PushNotification module loaded. Push ttl for calls is %i seconds, and for IM %i seconds.", mCallTtl, mMessageTtl);
 }
 
 const std::regex PushNotification::sPnProviderRegex{"apns(.dev|)"};
@@ -365,11 +392,10 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 	}
 
 	auto it = std::find(servicesAvailable.begin(), servicesAvailable.end(), "voip");
-	bool chatRoomInvite = isGroupChatInvite(sip);
-	if (pinfo.mEvent == PushInfo::Event::Message || chatRoomInvite || it == servicesAvailable.end()) {
+	if (pinfo.mEvent == PushInfo::Event::Message || it == servicesAvailable.end()) {
 		requiredService = "remote";
 		pinfo.mApplePushType = PushInfo::ApplePushType::RemoteWithMutableContent;
-		if (chatRoomInvite) {
+		if (sip->sip_request->rq_method == sip_method_invite) {
 			pinfo.mChatRoomAddr = string(sip->sip_from->a_url->url_user);
 		}
 	} else {
@@ -423,6 +449,7 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 }
 
 bool PushNotification::isGroupChatInvite(sip_t *sip) {
+	if (sip->sip_request->rq_method != sip_method_invite) return false;
 	if (sip->sip_content_type && sip->sip_content_type->c_type &&
 		strcasecmp(sip->sip_content_type->c_subtype, "resource-lists+xml") != 0) {
 		return false;
@@ -439,14 +466,11 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 	shared_ptr<PushNotificationContext> context;
 	sip_t *sip = ms->getSip();
 	PushInfo pinfo;
+	bool newApplePush = false;
 
 	pinfo.mCallId = ms->getSip()->sip_call_id->i_id;
-	pinfo.mEvent = sip->sip_request->rq_method == sip_method_invite
-		? PushInfo::Event::Call
-		: sip->sip_request->rq_method == sip_method_message
-			? PushInfo::Event::Message
-			: PushInfo::Event::Refer;
-	pinfo.mTtl = mTtl;
+	pinfo.mEvent = (isGroupChatInvite(sip) || sip->sip_request->rq_method == sip_method_message) ? PushInfo::Event::Message : PushInfo::Event::Call;
+	pinfo.mTtl = pinfo.mEvent == PushInfo::Event::Call ? mCallTtl : mMessageTtl;
 	int time_out = mTimeout;
 
 	if (sip->sip_request->rq_url->url_params != NULL) {
@@ -455,8 +479,15 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 
 		string type;
 		if (url_has_param(url, "pn-provider")) {
+			/* 
+			 * This corresponds to new way of handling push notifications, using RFC8599.
+			 * As of today, only linphone-iphone requests push notifications this way, so we 
+			 * temporarily assume that it is necessarily an Apple push notification.
+			 * FIXME
+			 */
 			try {
 				parseApplePushParams(ms, params, pinfo);
+				newApplePush = true;
 			} catch (const runtime_error &e) {
 				SLOGE << "Error while parsing Contact URI for Apple push: " << e.what();
 				return;
@@ -482,10 +513,15 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			}
 		}
 
-		// Extract the unique id if possible - it's hacky
-		const shared_ptr<BranchInfo> &br = transaction->getProperty<BranchInfo>("BranchInfo");
-		if (br)
+		// Extract the unique id if possible.
+		const shared_ptr<BranchInfo> &br = ForkContext::getBranchInfo(transaction);
+		if (br){
 			pinfo.mUid = br->mUid;
+			if (newApplePush && br->mPushSent){
+				LOGD("A push notification was sent to this iOS>=13 ready device already, so we won't resend.");
+				return;
+			}
+		}
 
 		// check if another push notification for this device wouldn't be pending
 		string pnKey(pinfo.mCallId + ":" + pinfo.mDeviceToken + ":" + pinfo.mAppId);
@@ -527,13 +563,6 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				} catch (const logic_error &) {
 					SLOGE << "invalid 'pn-silent' value: " << pnSilentStr;
 				}
-			}
-
-			//Be backward compatible with old Linphone app that don't use pn-silent.
-			//We don't want to notify an incoming call with a non-silent notification 60 seconds after
-			//the beginning of the call.
-			if (pinfo.mEvent == PushInfo::Event::Call && pinfo.mSilent == false){
-				pinfo.mTtl = 60;
 			}
 
 			if (mDisplayFromUri) {
