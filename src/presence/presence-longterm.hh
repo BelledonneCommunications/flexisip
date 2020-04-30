@@ -26,10 +26,10 @@ typedef struct belle_sip_main_loop belle_sip_main_loop_t;
 namespace flexisip {
 	class PresenceLongterm : public PresenceInfoObserver {
 	public:
-		PresenceLongterm(belle_sip_main_loop_t *mainLoop) : mMainLoop(mainLoop) {};
+		PresenceLongterm(std::weak_ptr<belle_sip_main_loop_t> mainLoop) : mMainLoop{std::move(mainLoop)} {};
 		virtual void onListenerEvent(const std::shared_ptr<PresentityPresenceInformation>& info) const override;
 		virtual void onListenerEvents(std::list<std::shared_ptr<PresentityPresenceInformation>>& info) const override;
 	private:
-		belle_sip_main_loop_t *mMainLoop;
+		std::weak_ptr<belle_sip_main_loop_t> mMainLoop;
 	};
 }

@@ -43,11 +43,8 @@ struct BelleSipSourceCancelingDeleter {
 class PresentityManager;
 class PresenceInformationElement {
   public:
-	/* Re-definition of BelleSipSourcePtr in order to use BelleSipSourceCancelingDeleter as deleter */
-	using BelleSipSourcePtr = std::unique_ptr<belle_sip_source_t, BelleSipSourceCancelingDeleter>;
-
 	PresenceInformationElement(Xsd::Pidf::Presence::TupleSequence *tuples, Xsd::DataModel::Person *person,
-							   belle_sip_main_loop_t *mainLoop);
+							   std::weak_ptr<belle_sip_main_loop_t> mainLoop);
 	// create an information element with a default tuple set to closed.
 	PresenceInformationElement(const belle_sip_uri_t *contact);
 	~PresenceInformationElement();
@@ -70,8 +67,8 @@ class PresenceInformationElement {
 	std::list<std::unique_ptr<Xsd::Pidf::Tuple>> mTuples;
 	Xsd::DataModel::Person mPerson{""};
 	Xsd::XmlSchema::dom::unique_ptr<xercesc::DOMDocument> mDomDocument; // needed to store extension nodes
-	belle_sip_main_loop_t *mBelleSipMainloop = nullptr;
-	BelleSipSourcePtr mTimer;
+	std::weak_ptr<belle_sip_main_loop_t> mBelleSipMainloop;
+	std::unique_ptr<belle_sip_source_t, BelleSipSourceCancelingDeleter> mTimer;
 	std::string mEtag;
 };
 /*
@@ -84,17 +81,11 @@ class PresentityPresenceInformation;
 
 class PresentityPresenceInformationListener  {
   public:
-	/* Re-definition of BelleSipSourcePtr in order to use BelleSipSourceCancelingDeleter as deleter */
-	using BelleSipSourcePtr = std::unique_ptr<belle_sip_source_t, BelleSipSourceCancelingDeleter>;
-
 	PresentityPresenceInformationListener() = default;
 	virtual ~PresentityPresenceInformationListener() = default;
 
 	template <typename T>
-	void setExpiresTimer(belle_sip_main_loop_t *ml, T &&timer) {
-		mBelleSipMainloop=ml;
-		mTimer = std::forward<T>(timer);
-	}
+	void setExpiresTimer(T &&timer) {mTimer = std::forward<T>(timer);}
 
 	void enableExtendedNotify(bool enable);
 	bool extendedNotifyEnabled();
@@ -111,8 +102,7 @@ class PresentityPresenceInformationListener  {
 	virtual const belle_sip_uri_t* getTo() = 0;
 
   private:
-	belle_sip_main_loop_t *mBelleSipMainloop = nullptr;
-	BelleSipSourcePtr mTimer;
+	std::unique_ptr<belle_sip_source_t, BelleSipSourceCancelingDeleter> mTimer;
 	bool mExtendedNotify = false;
 	bool mBypassEnabled = false;
 };
@@ -120,7 +110,8 @@ class PresentityPresenceInformationListener  {
 class PresentityPresenceInformation : public std::enable_shared_from_this<PresentityPresenceInformation> {
 
   public:
-	PresentityPresenceInformation(const belle_sip_uri_t *entity, PresentityManager &presentityManager, belle_sip_main_loop_t *ml);
+	PresentityPresenceInformation(const belle_sip_uri_t *entity, PresentityManager &presentityManager, std::weak_ptr<belle_sip_main_loop_t> ml);
+	PresentityPresenceInformation(const PresentityPresenceInformation& other) = delete;
 	virtual ~PresentityPresenceInformation();
 
 	/*
@@ -216,7 +207,6 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	std::shared_ptr<PresentityPresenceInformationListener> findPresenceInfoListener(std::shared_ptr<PresentityPresenceInformation> &info);
 
   private:
-	PresentityPresenceInformation(const PresentityPresenceInformation& other);
 	/*
 	 * tuples may be null
 	 */
@@ -230,7 +220,7 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 
 	const belle_sip_uri_t *mEntity;
 	PresentityManager &mPresentityManager;
-	belle_sip_main_loop_t *mBelleSipMainloop;
+	std::weak_ptr<belle_sip_main_loop_t> mBelleSipMainloop;
 	// Tuples ordered by Etag.
 	std::map<std::string /*Etag*/, PresenceInformationElement *> mInformationElements;
 

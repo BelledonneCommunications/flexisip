@@ -68,10 +68,9 @@ PresenceInformationElement::PresenceInformationElement(const belle_sip_uri_t *co
 }
 
 PresentityPresenceInformation::PresentityPresenceInformation(const belle_sip_uri_t *entity, PresentityManager &presentityManager,
-															 belle_sip_main_loop_t *mainloop)
-	: mEntity((belle_sip_uri_t *)belle_sip_object_clone(BELLE_SIP_OBJECT(entity))), mPresentityManager(presentityManager),
-	  mBelleSipMainloop(mainloop) {
-	belle_sip_object_ref(mainloop);
+															 std::weak_ptr<belle_sip_main_loop_t> mainloop)
+	: mEntity{(belle_sip_uri_t *)belle_sip_object_clone(BELLE_SIP_OBJECT(entity))}, mPresentityManager{presentityManager},
+	  mBelleSipMainloop{std::move(mainloop)} {
 	belle_sip_object_ref((void *)mEntity);
 }
 
@@ -85,7 +84,6 @@ PresentityPresenceInformation::~PresentityPresenceInformation() {
 	}
 	mInformationElements.clear();
 	belle_sip_object_unref((void *)mEntity);
-	belle_sip_object_unref((void *)mBelleSipMainloop);
 	SLOGD << "Presence information [" << this << "] deleted";
 }
 size_t PresentityPresenceInformation::getNumberOfListeners() const {
@@ -177,7 +175,7 @@ string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequ
 
 	// create timer
 	auto timer = belle_sip_main_loop_create_cpp_timeout(
-		mBelleSipMainloop,
+		mBelleSipMainloop.lock().get(),
 		func,
 		expiresMs,
 		"timer for presence Info"
@@ -302,16 +300,16 @@ void PresentityPresenceInformation::addOrUpdateListener(const shared_ptr<Present
 
 		// create timer
 		auto timer = belle_sip_main_loop_create_cpp_timeout(
-			mBelleSipMainloop,
+			mBelleSipMainloop.lock().get(),
 			func,
 			expiresMs,
 			"timer for presence info listener"
 		);
 
 		// set expiration timer
-		listener->setExpiresTimer(mBelleSipMainloop, move(timer));
+		listener->setExpiresTimer(move(timer));
 	} else {
-		listener->setExpiresTimer(mBelleSipMainloop, nullptr);
+		listener->setExpiresTimer(nullptr);
 	}
 	/*
 	 *rfc 3265
@@ -327,7 +325,7 @@ void PresentityPresenceInformation::addOrUpdateListener(const shared_ptr<Present
 void PresentityPresenceInformation::removeListener(const shared_ptr<PresentityPresenceInformationListener> &listener) {
 	SLOGD << "removing listener [" << listener.get() << "] on [" << *this << "]";
 	// 1 cancel expiration time
-	listener->setExpiresTimer(mBelleSipMainloop, nullptr);
+	listener->setExpiresTimer(nullptr);
 	// 2 remove listener
 	mSubscribers.remove(listener);
 	//			 3.1.4.3. Unsubscribing
@@ -479,10 +477,10 @@ void PresentityPresenceInformationListener::enableBypass(bool enable) {
 PresenceInformationElement::PresenceInformationElement(
 	Xsd::Pidf::Presence::TupleSequence *tuples,
 	Xsd::DataModel::Person *person,
-	belle_sip_main_loop_t *mainLoop
+	std::weak_ptr<belle_sip_main_loop_t> mainLoop
 ) :
 	mDomDocument(::xsd::cxx::xml::dom::create_document<char>()),
-	mBelleSipMainloop(mainLoop)
+	mBelleSipMainloop(std::move(mainLoop))
 {
 	for (Xsd::Pidf::Presence::TupleSequence::iterator tupleIt = tuples->begin(); tupleIt != tuples->end();) {
 		SLOGD << "Adding tuple id [" << tupleIt->getId() << "] to presence info element [" << this << "]";

@@ -35,6 +35,7 @@ namespace flexisip {
 class ExternalListSubscription : public ListSubscription {
 public:
 	ExternalListSubscription(
+		std::weak_ptr<belle_sip_main_loop_t> mainloop,
 		unsigned int expires,
 		belle_sip_server_transaction_t *ist,
 		belle_sip_provider_t *aProv,

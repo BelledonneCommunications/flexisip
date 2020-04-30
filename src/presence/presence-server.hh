@@ -54,6 +54,11 @@ class Subscription;
 class PresentityPresenceInformation;
 class Listener;
 
+template <typename T>
+struct BelleSipObjectDeleter {
+	void operator()(T *ptr) noexcept {belle_sip_object_unref(ptr);}
+};
+
 //Purpose of this class is to be notify when a presence info is created or when a new listener is added for a presence info. Used by long term presence
 class PresenceInfoObserver {
 public:
@@ -72,10 +77,12 @@ public:
 	void _init() override;
 	void _run() override;
 	void _stop() override;
-	belle_sip_main_loop_t* getBelleSipMainLoop();
+	const std::shared_ptr<belle_sip_main_loop_t> &getBelleSipMainLoop() const {return mMainLoop;}
 	void addPresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver> &observer);
 	void removePresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver> &observer);
 private:
+	using BelleSipStackPtr = std::unique_ptr<belle_sip_stack_t, BelleSipObjectDeleter<belle_sip_stack_t>>;
+
 	// Used to declare the service configuration
 	class Init {
 	public:
@@ -83,7 +90,8 @@ private:
 	};
 	static Init sStaticInit;
 	//PresenceConfigManager mConfigManager;
-	belle_sip_stack_t *mStack;
+	BelleSipStackPtr mStack;
+	std::shared_ptr<belle_sip_main_loop_t> mMainLoop;
 	belle_sip_provider_t *mProvider;
 	belle_sip_listener_t *mListener;
 	int mDefaultExpires;

@@ -83,8 +83,12 @@ PresenceServer::PresenceServer(su_root_t* root) : ServiceServer( root){
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("presence-server");
 	/*Enabling leak detector should be done asap.*/
 	belle_sip_object_enable_leak_detector(GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("leak-detector")->read());
-	mStack = belle_sip_stack_new(nullptr);
-	mProvider = belle_sip_stack_create_provider(mStack, nullptr);
+	mStack.reset(belle_sip_stack_new(nullptr));
+	mMainLoop.reset(
+		reinterpret_cast<belle_sip_main_loop_t *>(belle_sip_object_ref(belle_sip_stack_get_main_loop(mStack.get()))),
+		BelleSipObjectDeleter<belle_sip_main_loop_t>{}
+	);
+	mProvider = belle_sip_stack_create_provider(mStack.get(), nullptr);
 	//bctbx_set_log_handler(_belle_sip_log);
 	//belle_sip_set_log_level(BELLE_SIP_LOG_MESSAGE);
 	mMaxPresenceInfoNotifiedAtATime = GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigInt>("notify-limit")->read();
@@ -151,7 +155,6 @@ PresenceServer::~PresenceServer(){
 	belle_sip_list_free(tmp_list);
 
 	belle_sip_object_unref(mProvider);
-	belle_sip_object_unref(mStack);
 	belle_sip_object_unref(mListener);
 	// must be done before cleaning xerces
 	if (mPresenceInformations.size())
@@ -193,7 +196,7 @@ void PresenceServer::_init() {
 		belle_sip_uri_t *uri = belle_sip_uri_parse(it->c_str());
 		if (uri) {
 			belle_sip_listening_point_t *lp = belle_sip_stack_create_listening_point(
-				mStack, belle_sip_uri_get_host(uri), belle_sip_uri_get_listening_port(uri),
+				mStack.get(), belle_sip_uri_get_host(uri), belle_sip_uri_get_listening_port(uri),
 				belle_sip_uri_get_transport_param(uri) ? belle_sip_uri_get_transport_param(uri) : "udp");
 			belle_sip_object_unref(uri);
 			if (belle_sip_provider_add_listening_point(mProvider, lp))
@@ -203,7 +206,7 @@ void PresenceServer::_init() {
 }
 
 void PresenceServer::_run() {
-	belle_sip_main_loop_sleep(belle_sip_stack_get_main_loop(mStack), 0);
+	belle_sip_main_loop_sleep(belle_sip_stack_get_main_loop(mStack.get()), 0);
 }
 
 void PresenceServer::_stop() {}
@@ -460,7 +463,7 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 		}
 
 		if (!(presenceInfo = getPresenceInfo(entity))) {
-			presenceInfo = make_shared<PresentityPresenceInformation>(entity, *this, belle_sip_stack_get_main_loop(mStack));
+			presenceInfo = make_shared<PresentityPresenceInformation>(entity, *this, mMainLoop);
 			SLOGD << "New Presentity [" << *presenceInfo << "] created from PUBLISH";
 			// for (const belle_sip_uri_t* : mPresenceInformations.keys())
 			addPresenceInfo(presenceInfo);
@@ -674,6 +677,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 					}
 
 					listSubscription = make_shared<ExternalListSubscription>(
+						mMainLoop,
 						expires,
 						server_transaction,
 						mProvider,
@@ -693,6 +697,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 					strcasecmp(belle_sip_header_content_type_get_subtype(contentType), "resource-lists+xml") == 0
 				) {
 					listSubscription = make_shared<BodyListSubscription>(
+						mMainLoop,
 						expires,
 						server_transaction,
 						mProvider,
@@ -870,8 +875,7 @@ void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformatio
 
 	if (!presenceInfo) {
 		/*no information available yet, but creating entry to be able to register subscribers*/
-		presenceInfo = make_shared<PresentityPresenceInformation>(listener->getPresentityUri(), *this,
-															 belle_sip_stack_get_main_loop(mStack));
+		presenceInfo = make_shared<PresentityPresenceInformation>(listener->getPresentityUri(), *this, mMainLoop);
 		SLOGD << "New Presentity [" << *presenceInfo << "] created from SUBSCRIBE";
 		addPresenceInfo(presenceInfo);
 	}
@@ -912,8 +916,7 @@ void PresenceServer::addOrUpdateListeners(list<shared_ptr<PresentityPresenceInfo
 		shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener->getPresentityUri());
 		if (!presenceInfo) {
 			/*no information available yet, but creating entry to be able to register subscribers*/
-			presenceInfo = make_shared<PresentityPresenceInformation>(listener->getPresentityUri(), *this,
-																  belle_sip_stack_get_main_loop(mStack));
+			presenceInfo = make_shared<PresentityPresenceInformation>(listener->getPresentityUri(), *this, mMainLoop);
 			SLOGD << "New Presentity [" << *presenceInfo << "] created from SUBSCRIBE";
 			addPresenceInfo(presenceInfo);
 		}
@@ -972,8 +975,4 @@ void PresenceServer::removeSubscription(shared_ptr<Subscription> &subscription) 
 		}
 		listSubscription->notify(0); // to trigger final notify
 	}
-}
-
-belle_sip_main_loop_t* PresenceServer::getBelleSipMainLoop() {
-	return belle_sip_stack_get_main_loop(mStack);
 }

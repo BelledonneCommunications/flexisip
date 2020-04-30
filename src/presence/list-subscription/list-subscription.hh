@@ -70,6 +70,7 @@ public:
 	// ListSubscription(unsigned int expires,list<const belle_sip_uri_t *> resources,belle_sip_dialog_t*
 	// aDialog,belle_sip_provider_t* aProv);
 	ListSubscription(
+		std::weak_ptr<belle_sip_main_loop_t>,
 		unsigned int expires,
 		belle_sip_server_transaction_t *ist,
 		belle_sip_provider_t *aProv,
@@ -122,6 +123,7 @@ private:
 	 * NOTIFY message sent within a subscription, and MUST increase by
 	 * exactly one for each subsequent NOTIFY sent within a subscription.
 	 */
+	std::weak_ptr<belle_sip_main_loop_t> mBelleSipMainLoop;
 	uint32_t mVersion{0};
 	BelleSipSourcePtr mTimer;
 	size_t mMaxPresenceInfoNotifiedAtATime{0}; //maximum number of presentity available in a sigle notify

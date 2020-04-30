@@ -32,6 +32,7 @@ using namespace chrono;
 namespace flexisip {
 
 ExternalListSubscription::ExternalListSubscription(
+		std::weak_ptr<belle_sip_main_loop_t> mainloop,
 		unsigned int expires,
 		belle_sip_server_transaction_t *ist,
 		belle_sip_provider_t *aProv,
@@ -40,7 +41,7 @@ ExternalListSubscription::ExternalListSubscription(
 		const string &sqlRequest,
 		soci::connection_pool *connPool,
 		ThreadPool *threadPool
-) : ListSubscription(expires, ist, aProv, maxPresenceInfoNotifiedAtATime, listAvailable), mConnPool(connPool) {
+) : ListSubscription{move(mainloop), expires, ist, aProv, maxPresenceInfoNotifiedAtATime, listAvailable}, mConnPool{connPool} {
 	// create a thread to grab a pool connection and use it to retrieve the auth information
 	auto func = bind(&ExternalListSubscription::getUsersList, this, sqlRequest, ist);
 

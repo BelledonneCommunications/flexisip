@@ -48,7 +48,7 @@ void Authentication::onDeclare(GenericStruct *mc) {
 			"If set to true, the module will simply reject with \"403 forbidden\" any request coming from clients "
 			"which have presented a bad TLS certificate (regardless of reason: improper signature, unmatched subjects). "
 			"Otherwise, the module will fallback to a digest authentication.\n"
-			"This policy applies only for transports configured which have 'required-peer-certificate=1' parameter; indeed "
+			"This policy applies only for transports configured which have 'tls-verify-incoming=1' parameter; indeed "
 			"no certificate is requested to the client otherwise. ",
 			"false"
 		},

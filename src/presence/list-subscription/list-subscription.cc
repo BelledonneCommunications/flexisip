@@ -32,14 +32,16 @@ using namespace std;
 namespace flexisip {
 
 ListSubscription::ListSubscription(
+	std::weak_ptr<belle_sip_main_loop_t> mainloop,
 	unsigned int expires,
 	belle_sip_server_transaction_t *ist,
 	belle_sip_provider_t *aProv,
 	size_t maxPresenceInfoNotifiedAtATime,
 	function<void(shared_ptr<ListSubscription>)> listAvailable
 ) : Subscription("Presence", expires, belle_sip_transaction_get_dialog(BELLE_SIP_TRANSACTION(ist)), aProv),
-	mMaxPresenceInfoNotifiedAtATime(maxPresenceInfoNotifiedAtATime),
-	mListAvailable(listAvailable) {}
+	mBelleSipMainLoop{move(mainloop)},
+	mMaxPresenceInfoNotifiedAtATime{maxPresenceInfoNotifiedAtATime},
+	mListAvailable{listAvailable} {}
 
 list<shared_ptr<PresentityPresenceInformationListener>> &ListSubscription::getListeners() {
 	return mListeners;
@@ -254,11 +256,14 @@ void ListSubscription::finishCreation(belle_sip_server_transaction_t *ist) {
 		belle_sip_object_ref((void *)mName);
 		mListAvailable(static_pointer_cast<ListSubscription>(shared_from_this()));
 	};
-	belle_sip_main_loop_cpp_do_later(
-		belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv)),
-		func,
-		"difered task for external list subscription"
-	);
+	auto mainloop = mBelleSipMainLoop.lock();
+	if (mainloop) {
+		belle_sip_main_loop_cpp_do_later(
+			mainloop.get(),
+			func,
+			"difered task for external list subscription"
+		);
+	}
 }
 
 /// PresentityResourceListener//
