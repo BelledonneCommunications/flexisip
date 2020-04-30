@@ -224,6 +224,10 @@ add_definitions("-DHAVE_CONFIG_H")
 
 bc_init_compilation_flags(CPP_BUILD_FLAGS C_BUILD_FLAGS CXX_BUILD_FLAGS ENABLE_STRICT)
 
+# Flexisip is full of virtual without override. Each time we add a new override somewhere we get multiple errors everywhere else
+# because the usage of override is inconsistent. This is painful and leads to the situation where override are poorly used, except in new classes.
+list(APPEND CPP_BUILD_FLAGS "-Wno-inconsistent-missing-override")
+
 add_subdirectory(include)
 add_subdirectory(src)
 add_subdirectory(scripts)
