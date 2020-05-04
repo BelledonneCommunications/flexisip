@@ -65,7 +65,7 @@ fi
 %endif # %if %{centos_platform}
 
 
-Summary:       SIP proxy with media capabilities
+Summary:       SIP server suite comprising proxy, presence, and IM conference server.
 Name:          @CPACK_PACKAGE_NAME@
 Version:       ${RPM_VERSION}
 Release:       ${RPM_RELEASE}%{?dist}
@@ -88,17 +88,18 @@ BuildRequires: protobuf-compiler >= 2.3.0
 %endif
 
 %if @ENABLE_REDIS@
-Requires: %{pkg_prefix}hiredis-devel >= 0.13
+Requires: %{pkg_prefix}hiredis >= 0.13
+BuildRequires: %{pkg_prefix}hiredis-devel >= 0.13
 %endif
 
 %if @ENABLE_SNMP@
 Requires: net-snmp-libs
-Requires: net-snmp-devel
+BuildRequires: net-snmp-devel
 %endif
 
 %if @ENABLE_SOCI@
 Requires: %{pkg_prefix}soci
-Requires: %{pkg_prefix}soci-mysql-devel
+BuildRequires: %{pkg_prefix}soci-mysql-devel
 %endif
 
 %if @ENABLE_TRANSCODER@
