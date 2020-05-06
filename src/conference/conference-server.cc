@@ -189,7 +189,11 @@ void flexisip::ConferenceServer::bindConference() {
 	shared_ptr<FakeListener> listener = make_shared<FakeListener>();
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
 	if (config && config->get<ConfigBoolean>("enabled")->read()) {
-		auto conferenceFactoryUri = config->get<ConfigString>("conference-factory-uri")->read();
+		auto conferenceFactoryUriSetting = config->get<ConfigString>("conference-factory-uri");
+		auto conferenceFactoryUri = conferenceFactoryUriSetting->read();
+		if (conferenceFactoryUri.empty()) {
+			LOGF("'%s' parameter must be set!", conferenceFactoryUriSetting->getCompleteName().c_str());
+		}
 		try {
 			BindingParameters parameter;
 			sip_contact_t* sipContact = sip_contact_create(mHome.home(),
