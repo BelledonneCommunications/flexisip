@@ -87,6 +87,8 @@ private:
 	void makePushNotification(const std::shared_ptr<MsgSip> &ms, const std::shared_ptr<OutgoingTransaction> &transaction);
 	void removePushNotification(PushNotificationContext *pn);
 	void parseApplePushParams(const std::shared_ptr<MsgSip> &ms, const char *params, PushInfo &pinfo);
+	void parsePushParams(const std::shared_ptr<MsgSip> &ms, const char *params, PushInfo &pinfo);
+	void parseLegacyPushParams(const std::shared_ptr<MsgSip> &ms, const char *params, PushInfo &pinfo);
 	bool isGroupChatInvite(sip_t *sip);
 
 	std::map<std::string, std::shared_ptr<PushNotificationContext>> mPendingNotifications; // map of pending push notifications. Its
@@ -461,12 +463,63 @@ bool PushNotification::isGroupChatInvite(sip_t *sip) {
 	return true;
 }
 
+void PushNotification::parseLegacyPushParams(const shared_ptr<MsgSip> &ms, const char *params, PushInfo &pinfo) {
+	try {
+		pinfo.mDeviceToken = UriUtils::getParamValue(params, "pn-tok");
+	} catch (const out_of_range &) {
+		throw runtime_error("no pn-tok");
+	}
+
+	try {
+		pinfo.mAppId = UriUtils::getParamValue(params, "app-id");
+	} catch (const out_of_range &) {
+		throw runtime_error("no app-id");
+	}
+
+	try {
+		pinfo.mType = UriUtils::getParamValue(params, "pn-type");
+	} catch (const out_of_range &) {
+		throw runtime_error("no pn-type");
+	}
+}
+
+void PushNotification::parsePushParams(const shared_ptr<MsgSip> &ms, const char *params, PushInfo &pinfo) {
+	string pnProvider;
+	smatch match;
+
+	try {
+		pnProvider = UriUtils::getParamValue(params, "pn-provider");
+	} catch (const out_of_range &) {
+		throw runtime_error("no pn-provider");
+	}
+
+	if (pnProvider == "fcm") { // firebase
+		try {
+			pinfo.mDeviceToken = UriUtils::getParamValue(params, "pn-prid");
+		} catch (const out_of_range &) {
+			throw runtime_error("no pn-prid");
+		}
+
+		try {
+			pinfo.mAppId = UriUtils::getParamValue(params, "pn-param");
+		} catch (const out_of_range &) {
+			throw runtime_error("no pn-param");
+		}
+
+		pinfo.mType = "firebase";
+	} else if (regex_match(pnProvider, match, sPnProviderRegex)) { // apple
+		parseApplePushParams(ms, params, pinfo);
+		pinfo.mType = "apple";
+	} else {
+		throw runtime_error(string("pn-provider unsupported value: " + pnProvider));
+	}
+}
+
 void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 											const shared_ptr<OutgoingTransaction> &transaction) {
 	shared_ptr<PushNotificationContext> context;
 	sip_t *sip = ms->getSip();
 	PushInfo pinfo;
-	bool newApplePush = false;
 
 	pinfo.mCallId = ms->getSip()->sip_call_id->i_id;
 	pinfo.mEvent = (isGroupChatInvite(sip) || sip->sip_request->rq_method == sip_method_message) ? PushInfo::Event::Message : PushInfo::Event::Call;
@@ -477,47 +530,27 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 		const url_t *url = sip->sip_request->rq_url;
 		char const *params = url->url_params;
 
-		string type;
 		if (url_has_param(url, "pn-provider")) {
-			/* 
-			 * This corresponds to new way of handling push notifications, using RFC8599.
-			 * As of today, only linphone-iphone requests push notifications this way, so we 
-			 * temporarily assume that it is necessarily an Apple push notification.
-			 * FIXME
-			 */
 			try {
-				parseApplePushParams(ms, params, pinfo);
-				newApplePush = true;
+				parsePushParams(ms, params, pinfo);
 			} catch (const runtime_error &e) {
-				SLOGE << "Error while parsing Contact URI for Apple push: " << e.what();
+				SLOGE << "Error while parsing Contact URI: " << e.what();
 				return;
 			}
-			type = "apple";
 		} else {
-			string deviceToken;
-			string appId;
-
-			/*extract all parameters required to make the push notification */
 			try {
-				pinfo.mDeviceToken = UriUtils::getParamValue(params, "pn-tok");
-			} catch (const out_of_range &) {
-				SLOGE << "no pn-tok";
-				return;
-			}
-
-			try {
-				pinfo.mAppId = UriUtils::getParamValue(params, "app-id");
-			} catch (const out_of_range &) {
-				SLOGE << "no app-id";
+				parseLegacyPushParams(ms, params, pinfo);
+			} catch (const runtime_error &e) {
+				SLOGE << "Error while parsing Contact URI: " << e.what();
 				return;
 			}
 		}
 
 		// Extract the unique id if possible.
 		const shared_ptr<BranchInfo> &br = ForkContext::getBranchInfo(transaction);
-		if (br){
+		if (br) {
 			pinfo.mUid = br->mUid;
-			if (newApplePush && br->mPushSent){
+			if (br->mPushSent) {
 				LOGD("A push notification was sent to this iOS>=13 ready device already, so we won't resend.");
 				return;
 			}
@@ -532,16 +565,6 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			context = it->second;
 		}
 		if (!context) {
-			if (type.empty()) {
-				try {
-					type = UriUtils::getParamValue(params, "pn-type");
-					pinfo.mType = type;
-				} catch (const out_of_range &) {
-					SLOGE << "no pn-type";
-					return;
-				}
-			}
-
 			if (url_has_param(url, "pn-timeout")) {
 				string pnTimeoutStr;
 				try {
@@ -585,7 +608,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			}
 
 			shared_ptr<PushNotificationRequest> pn;
-			if (type == "apple") {
+			if (pinfo.mType == "apple") {
 				string msg_str;
 				string call_str;
 				string group_chat_str;
@@ -636,10 +659,10 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				pinfo.mNoBadge = mNoBadgeiOS;
 				if (!mExternalPushUri)
 					pn = make_shared<ApplePushNotificationRequest>(pinfo);
-			} else if ((type == "wp") || (type == "w10")) {
+			} else if ((pinfo.mType == "wp") || (pinfo.mType == "w10")) {
 				if (!mExternalPushUri)
 					pn = make_shared<WindowsPhonePushNotificationRequest>(pinfo);
-			} else if (type == "firebase") {
+			} else if (pinfo.mType == "firebase") {
 				auto apiKeyIt = mFirebaseKeys.find(pinfo.mAppId);
 				if (apiKeyIt != mFirebaseKeys.end()) {
 					pinfo.mApiKey = apiKeyIt->second;
@@ -650,7 +673,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 					SLOGD << "No Key matching appId " << pinfo.mAppId;
 				}
 			} else {
-				SLOGD << "Push notification type not recognized [" << type << "]";
+				SLOGD << "Push notification type not recognized [" << pinfo.mType << "]";
 			}
 			if (mExternalPushUri)
 				pn = make_shared<GenericPushNotificationRequest>(pinfo, mExternalPushUri, mExternalPushMethod);
