@@ -2,10 +2,10 @@
 # Makefile
 #################################################
 
-job-debian8-makefile-gcc:
+job-debian10-makefile-gcc:
 
-  tags: [ "docker-debian8" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
+  tags: [ "docker-debian10" ]
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:10
   except:
     variables:
       - $DEPLOY_RUN
@@ -18,10 +18,10 @@ job-debian8-makefile-gcc:
   extends: .scheduled-job-linux
 
 
-job-debian8-makefile-clang:
+job-debian10-makefile-clang:
 
-  tags: [ "docker-debian8" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
+  tags: [ "docker-debian10" ]
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:10
   except:
     variables:
       - $DEPLOY_RUN
@@ -37,10 +37,10 @@ job-debian8-makefile-clang:
 # Ninja
 #################################################
 
-job-debian8-ninja-gcc:
+job-debian10-ninja-gcc:
 
-  tags: [ "docker-debian8" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
+  tags: [ "docker-debian10" ]
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:10
   except:
     variables:
       - $DEPLOY_RUN
@@ -49,13 +49,13 @@ job-debian8-ninja-gcc:
     CMAKE_GENERATOR: Ninja
     CC: gcc
     CXX: g++
-  extends: .job-linux
+  extends: .scheduled-job-linux
 
 
-job-debian8-ninja-clang:
+job-debian10-ninja-clang:
 
-  tags: [ "docker-debian8" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
+  tags: [ "docker-debian10" ]
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:10
   except:
     variables:
       - $DEPLOY_RUN
@@ -64,30 +64,30 @@ job-debian8-ninja-clang:
     CMAKE_GENERATOR: Ninja
     CC: clang
     CXX: clang++
-  extends: .scheduled-job-linux
+  extends: .job-linux
 
 #################################################
 # DEB
 #################################################
 
-job-debian8-deb:
+job-debian10-deb:
 
+  tags: [ "docker-debian10" ]
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:10
+  extends: .job-linux-deb
   except:
     variables:
       - $DEPLOY_UBUNTU
-  tags: [ "docker-debian8" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
-  extends: .job-linux-deb
 
 
-job-debian8-deb-deploy:
+job-debian10-deb-deploy:
 
   except:
     variables:
       - $DEPLOY_UBUNTU
   variables:
-    RELEASE: jessie
+    RELEASE: stretch
     FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
   extends: .job-debian-deb-deploy
   dependencies:
-    - job-debian8-deb
+    - job-debian10-deb
