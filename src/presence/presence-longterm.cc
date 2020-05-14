@@ -62,7 +62,7 @@ private:
 				void onRecordFound(const std::shared_ptr<Record> &record) {
 					if (!record) return;
 
-					for (const auto extendedContact : record->getExtendedContacts()) {
+					for (const auto &extendedContact : record->getExtendedContacts()) {
 						const string specs = extendedContact->getOrgLinphoneSpecs();
 						if (!specs.empty())
 							mInfo->addCapability(specs);

@@ -42,20 +42,20 @@ class ForkCallContext : public ForkContext {
 	~ForkCallContext();
 	void sendResponse(int status, char const *phrase);
 	bool isCompleted() const;
-	virtual void onPushSent(const std::shared_ptr<OutgoingTransaction> &tr) override;
-	virtual void onPushError(const std::shared_ptr<OutgoingTransaction> &tr, const std::string &errormsg) override;
+	void onPushSent(const std::shared_ptr<OutgoingTransaction> &tr) override;
+	void onPushError(const std::shared_ptr<OutgoingTransaction> &tr, const std::string &errormsg) override;
 
   protected:
-	virtual void onResponse(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &event);
-	virtual bool onNewRegister(const url_t *url, const std::string &uid);
-	virtual void onCancel(const std::shared_ptr<RequestSipEvent> &ev);
+	void onResponse(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &event) override;
+	bool onNewRegister(const url_t *url, const std::string &uid) override;
+	void onCancel(const std::shared_ptr<RequestSipEvent> &ev) override;
 
   private:
 	bool isRingingSomewhere()const;
 	const int *getUrgentCodes();
 	void onShortTimer();
 	void onPushTimer();
-	void onLateTimeout();
+	void onLateTimeout() override;
 	void cancelOthers(const std::shared_ptr<BranchInfo> &br, sip_t* received_cancel);
 	void cancelOthersWithStatus(const std::shared_ptr<BranchInfo> &br, FlexisipForkStatus status);
 	void logResponse(const std::shared_ptr<ResponseSipEvent> &ev);
