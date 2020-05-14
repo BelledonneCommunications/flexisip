@@ -1007,7 +1007,7 @@ GenericManager::GenericManager()
 		{StringList, "nodes", "List of IP addresses of all the proxies present in the cluster. SIP messages coming "
 			"from these addresses won't be challenged by the authentication module and won't have any rate limit "
 			"applied by the DoS protection module.", ""},
-		{String, "internal-transport", "Transport to use to communicate with the other proxy of the cluster. "
+		{String, "internal-transport", "Transport to use for communication with the other proxies of the cluster. "
 			"This is useful only when no transport declared in 'global/transport' parameter can be used to "
 			"reach the other proxies e.g. when inter-proxy communications are to be made through a private network.\n"
 			"Ex: sip:10.0.0.8:5059;transport=tcp", ""},

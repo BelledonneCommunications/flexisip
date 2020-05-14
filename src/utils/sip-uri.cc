@@ -91,7 +91,7 @@ SipUri SipUri::replaceUser(const std::string &newUser) const {
 void SipUri::checkUrl(const sofiasip::Url &url) {
 	const auto *pUrl = url.get();
 	if (pUrl == nullptr) return;
-	if (pUrl->url_scheme == nullptr) throw invalid_argument("no scheme found");
+	if (pUrl->url_scheme == nullptr) throw sofiasip::InvalidUrlError(url.str(), "no scheme found");
 	if (strcmp(pUrl->url_scheme, "sip") != 0 && strcmp(pUrl->url_scheme, "sips") != 0) {
 		ostringstream os;
 		os << "invalid scheme (" << pUrl->url_scheme << ")";

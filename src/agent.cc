@@ -169,30 +169,31 @@ void Agent::checkAllowedParams(const url_t *uri) {
 
 void Agent::initializePreferredRoute() {
 	//Adding internal transport to transport in "cluster" case
-	GenericStruct *cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
+	auto cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
 	if (cluster->get<ConfigBoolean>("enabled")->read()) {
-		int err = 0;
-		string internalTransport = cluster->get<ConfigString>("internal-transport")->read();
+		auto internalTransportParam = cluster->get<ConfigString>("internal-transport");
+		auto internalTransport = internalTransportParam->read();
 
-		size_t pos = internalTransport.find("\%auto");
+		auto pos = internalTransport.find("\%auto");
 		if (pos != string::npos) {
+			SLOGW << "using '\%auto' token in '" << internalTransportParam->getCompleteName() << "' is deprecated";
 			char result[NI_MAXHOST] = { 0 };
 			//Currently only IpV4
-			err = bctbx_get_local_ip_for(AF_INET, nullptr, 0, result, sizeof(result));
-			if (err != 0) {
-				LOGE("Could not get local ip");
-			} else {
-				internalTransport.replace(pos, sizeof("\%auto")-1, result);
+			if (bctbx_get_local_ip_for(AF_INET, nullptr, 0, result, sizeof(result)) != 0) {
+				LOGF("%%auto couldn't be resolved");
 			}
+			internalTransport.replace(pos, sizeof("\%auto")-1, result);
 		}
 
-		if (err == 0) {
-			url_t *url = url_make(&mHome, internalTransport.c_str());
-
-			if (url != nullptr) {
-				mPreferredRouteV4 = url_hdup(&mHome, url);
-				LOGD("Agent's preferred IP for internal routing find: v4: %s", internalTransport.c_str());
-			}
+		try {
+			SipUri url{internalTransport};
+			mPreferredRouteV4 = url_hdup(&mHome, url.get());
+			LOGD("Agent's preferred IP for internal routing find: v4: %s", internalTransport.c_str());
+		} catch (const sofiasip::InvalidUrlError &e) {
+			LOGF("invalid URI in '%s': %s",
+				 internalTransportParam->getCompleteName().c_str(),
+				 e.getReason().c_str()
+			);
 		}
 	}
 }
