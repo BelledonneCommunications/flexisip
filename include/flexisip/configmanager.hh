@@ -332,10 +332,13 @@ class GenericStruct : public GenericEntry {
 	template <typename _retType> _retType *get(const char *name) const;
 	template <typename _retType> _retType *getDeep(const char *name, bool strict) const;
 	~GenericStruct();
-	GenericEntry *find(const char *name) const;
-	GenericEntry *find(const std::string &name) const {
-		return find(name.c_str());
+
+	template <typename Str>
+	GenericEntry *find(Str &&name) const {
+		auto it = find_if(mEntries.cbegin(), mEntries.cend(), [&name](const GenericEntry *e){return e->getName() == name;});
+		return it != mEntries.cend() ? *it : nullptr;
 	}
+
 	GenericEntry *findApproximate(const char *name) const;
 	void mibFragment(std::ostream &ost, std::string spacing) const override;
 	void setParent(GenericEntry *parent) override;
