@@ -14,12 +14,25 @@ import urllib.request
 class FlexisipProxy:
 	def __init__(self, binaryPath):
 		self.path = binaryPath
+		self._version = None
 
 	@property
-	def module_list(self):
-		p = subprocess.Popen([self.path, '--list-modules'], stdout=subprocess.PIPE , stderr=subprocess.PIPE)
+	def section_list(self):
+		p = subprocess.Popen([self.path, '--list-sections'], stdout=subprocess.PIPE , stderr=subprocess.PIPE)
 		out, err = p.communicate()
 		return str(out, encoding='utf-8').rstrip('\n').split('\n')
+
+	@property
+	def version(self):
+		if self._version is None:
+			_version = self._get_version()
+		return _version[0]
+
+	@property
+	def gitVersion(self):
+		if self._version is None:
+			_version = self._get_version()
+		return _version[1]
 
 	def dump_section_doc(self, moduleName):
 		p = subprocess.Popen([self.path, '--dump-format', 'xwiki', '--dump-default', moduleName], stdout=subprocess.PIPE , stderr=subprocess.PIPE)
@@ -28,7 +41,7 @@ class FlexisipProxy:
 		# replace all the -- in the doc with {{{--}}} to escape xwiki autoformatting -- into striken
 		return re.sub("--", "{{{--}}}", out)
 
-	def get_version(self):
+	def _get_version(self):
 		p = subprocess.Popen([self.path, '-v'], stdout=subprocess.PIPE , stderr=subprocess.PIPE)
 		out, err = p.communicate()
 		out = str(out, encoding='utf-8')
@@ -89,6 +102,39 @@ class XWikiProxy:
 		return urllib.request.Request(uri, data=bytes(body, encoding='utf-8'), headers=headers, method=method)
 
 
+class DocWriter:
+	def __init__(self, wikiProxy, fProxy):
+		self.proxy = wikiProxy
+		self.fProxy = fProxy
+		self.documentRoot = '/Flexisip/Configuration Reference Guide'
+
+	def write_and_push(self):
+		fProxy = FlexisipProxy(args.flexisip_binary)
+
+		childrenMacro = '{{children/}}'
+		wiki.update_page(os.path.join(self.documentRoot, 'WebHome'), childrenMacro)
+		wiki.update_page(os.path.join(self._get_version_page_path(), 'WebHome'), childrenMacro)
+		wiki.update_page(os.path.join(self._get_version_page_path(), 'module/WebHome'), childrenMacro)
+
+		for section in fProxy.section_list:
+			out = fProxy.dump_section_doc(section)
+
+			#add commit version on top of the file
+			message = "// Documentation based on repostory git version commit {0} //\n\n".format(fProxy.gitVersion)
+			out = message + out
+
+			path = self._section_name_to_page_path(section)
+
+			print("Updating page '{0}'".format(path))
+			wiki.update_page(path, out)
+
+	def _section_name_to_page_path(self, module_name):
+		return os.path.join(self._get_version_page_path(), *tuple(module_name.split('::')))
+
+	def _get_version_page_path(self):
+		return os.path.join(self.documentRoot, fProxy.version if fProxy.version == fProxy.gitVersion else 'master')
+
+
 class Settings:
 	def __init__(self):
 		self.section_name = 'main'
@@ -112,9 +158,6 @@ wiki=public
 username=titi
 password=toto""".format(self.section_name)
 
-
-def module_name_to_page_name(module_name):
-	return module_name[len('module::'):] if module_name.startswith('module::') else module_name
 
 
 # parse cli arguments
@@ -142,31 +185,14 @@ if args.host is not None:
 if args.wikiname is not None:
 	settings.wikiname = args.wikiname
 
-
 if settings.password == '':
 	print("Please define a password using " + config_file + " or using the --password option")
 	print("Example of " + config_file + ":")
 	print(settings.dump_example())
 	sys.exit(1)
 
-fProxy = FlexisipProxy(args.flexisip_binary)
-sections = ['global'] + fProxy.module_list
-
-version, gitversion = fProxy.get_version()
-
 credentials = XWikiProxy.Credential(settings.user, settings.password)
 wiki = XWikiProxy(settings.host, settings.wikiname, credentials=credentials)
-
-for section in sections:
-	out = fProxy.dump_section_doc(section)
-
-	#add commit version on top of the file
-	message = "// Documentation based on repostory git version commit {0} //\n\n".format(gitversion)
-	out = message + out
-
-	path = '/Flexisip/Modules Reference Guide/{version}/{pagename}'.format(
-		version=(version if version == gitversion else 'master'),
-		pagename=module_name_to_page_name(section))
-
-	print("Updating page '{0}'".format(path))
-	wiki.update_page(path, out)
+fProxy = FlexisipProxy(args.flexisip_binary)
+docWriter = DocWriter(wiki, fProxy)
+docWriter.write_and_push()

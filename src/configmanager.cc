@@ -539,40 +539,6 @@ unique_ptr<StatPair> GenericStruct::createStats(const string &name, const string
 	auto finish = createStat(name + "-finished", help + " Finished.");
 	return unique_ptr<StatPair>(new StatPair(start, finish));
 }
-/*
-void GenericStruct::addChildrenValues(StatItemDescriptor *items){
-	for (;items->name!=NULL;items++){
-		GenericEntry *val=NULL;
-		oid cOid=Oid::oidFromHashedString(items->name);
-		switch(items->type){
-		case Counter64:
-			//LOGD("StatItemDescriptor: %s %lu", items->name, cOid);
-			val=new StatCounter64(items->name,items->help,cOid);
-			break;
-		default:
-			LOGA("Bad ConfigValue type %u for %s!", items->type, items->name);
-			break;
-		}
-		addChild(val);
-	}
-}
-*/
-
-struct matchEntryName {
-	const char *mName;
-	matchEntryName(const char *name) : mName(name) {
-	}
-	bool operator()(GenericEntry *e) {
-		return (strcmp(e->getName().c_str(), mName) == 0);
-	}
-};
-
-GenericEntry *GenericStruct::find(const char *name) const {
-	auto it = find_if(mEntries.begin(), mEntries.end(), matchEntryName(name));
-	if (it != mEntries.end())
-		return *it;
-	return NULL;
-}
 
 struct matchEntryNameApprox {
 	const string mName;
