@@ -30,6 +30,7 @@
 #endif
 
 #include <iostream>
+#include <regex>
 #include <tclap/CmdLine.h>
 
 #ifdef ENABLE_TRANSCODER
@@ -467,41 +468,37 @@ static void depthFirstSearch(string &path, GenericEntry *config, list<string> &a
 	}
 }
 
-static int dump_config(su_root_t *root, const std::string &dump_cfg_part, bool with_experimental, bool dumpDefault, const string &format) {
+static void dump_config(su_root_t *root, const std::string &dump_cfg_part, bool with_experimental, bool dumpDefault, const string &format) {
 	GenericManager::get()->applyOverrides(true);
-	ConfigString *pluginsDirEntry = GenericManager::get()->getGlobal()->get<ConfigString>("plugins-dir");
+	auto *pluginsDirEntry = GenericManager::get()->getGlobal()->get<ConfigString>("plugins-dir");
 	if (pluginsDirEntry->get().empty()) {
 		pluginsDirEntry->set(DEFAULT_PLUGINS_DIR);
 	}
 
-	shared_ptr<Agent> a = make_shared<Agent>(root);
+	auto a = make_shared<Agent>(root);
 	if (!dumpDefault) a->loadConfig(GenericManager::get());
 
-	GenericStruct *rootStruct = GenericManager::get()->getRoot();
+	auto *rootStruct = GenericManager::get()->getRoot();
 	if (dump_cfg_part != "all") {
-
-		size_t prefix_location = dump_cfg_part.find("module::");
 		rootStruct = dynamic_cast<GenericStruct *>(rootStruct->find(dump_cfg_part));
-
-		if (dump_cfg_part != "global" && prefix_location != 0) {
-			cerr << "Module name should start with 'module::' or be the special module 'global' (was given "
-				 << dump_cfg_part << " )" << endl;
-			return EXIT_FAILURE;
-
-		} else if (rootStruct == NULL) {
+		if (rootStruct == nullptr) {
 			cerr << "Couldn't find node " << dump_cfg_part << endl;
-			return EXIT_FAILURE;
+			exit(EXIT_FAILURE);
 
-		} else if (prefix_location == 0) {
-			string moduleName = dump_cfg_part.substr(strlen("module::"));
-			Module *module = a->findModule(moduleName);
+		}
+
+		smatch m;
+		if (regex_match(dump_cfg_part, m, regex("^module::(.*)$"))) {
+			const auto &moduleName = m[1];
+			const auto *module = a->findModule(moduleName);
 			if (module && module->getClass() == ModuleClass::Experimental && !with_experimental) {
 				cerr << "Module " << moduleName
 					 << " is experimental, not returning anything. To override, specify '--show-experimental'" << endl;
-				return EXIT_FAILURE;
+				exit(EXIT_FAILURE);
 			}
 		}
 	}
+
 	unique_ptr<ConfigDumper> dumper;
 	if (format == "tex") {
 		dumper.reset(new TexFileConfigDumper(rootStruct));
@@ -517,20 +514,18 @@ static int dump_config(su_root_t *root, const std::string &dump_cfg_part, bool w
 		dumper.reset(new XWikiConfigDumper(rootStruct));
 	} else {
 		cerr << "Invalid output format '" << format << "'" << endl;
-		return EXIT_FAILURE;
+		exit(EXIT_FAILURE);
 	}
 	dumper->setDumpExperimentalEnabled(with_experimental);
 	dumper->dump(cout);
-	return EXIT_SUCCESS;
+	exit(EXIT_SUCCESS);
 }
 
-static void list_modules() {
-	shared_ptr<Agent> a = make_shared<Agent>(root);
-	GenericStruct *rootStruct = GenericManager::get()->getRoot();
-	list<GenericEntry *> children = rootStruct->getChildren();
-	for (auto it = children.begin(); it != children.end(); ++it) {
-		GenericEntry *child = (*it);
-		if (child->getName().find("module::") == 0) {
+static void list_sections(bool moduleOnly = false) {
+	const string modulePrefix{"module::"};
+	auto a = make_shared<Agent>(root);
+	for (const auto *child : GenericManager::get()->getRoot()->getChildren()) {
+		if (!moduleOnly || child->getName().compare(0, modulePrefix.size(), modulePrefix) == 0) {
 			cout << child->getName() << endl;
 		}
 	}
@@ -648,6 +643,9 @@ int main(int argc, char *argv[]) {
 	TCLAP::SwitchArg           listModules("",  "list-modules", 	"Will print a list of available modules. This is useful if you want to combine with --dump-default "
 										   							"to have specific documentation for a module.", cmd);
 
+	TCLAP::SwitchArg           listSections("",  "list-sections", 	"Will print a list of available sections. This is useful if you want to combine with --dump-default "
+										   							"to have specific documentation for a section.", cmd);
+
 	TCLAP::SwitchArg   displayExperimental("",  "show-experimental","Use in conjunction with --dump-default: will dump the configuration for a module even if it is marked as experiemental.", cmd);
 
 	/* Overriding values */
@@ -697,8 +695,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (module.length() != 0) {
-		int status = dump_config(root, module, displayExperimental, true, dumpFormat.getValue());
-		return status;
+		dump_config(root, module, displayExperimental, true, dumpFormat.getValue());
 	}
 
 	// list all mibs and exit
@@ -710,7 +707,13 @@ int main(int argc, char *argv[]) {
 
 	// list modules and exit
 	if (listModules) {
-		list_modules();
+		list_sections(true);
+		return EXIT_SUCCESS;
+	}
+
+	// list sections and exit
+	if (listSections) {
+		list_sections();
 		return EXIT_SUCCESS;
 	}
 
@@ -747,7 +750,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (rewriteConf) {
-		return dump_config(root, "all", displayExperimental, false, "file");
+		dump_config(root, "all", displayExperimental, false, "file");
 	}
 
 	//if --debug is given, enable user-errors logs as well.
@@ -859,7 +862,7 @@ int main(int argc, char *argv[]) {
 	 * This must be done after forking in order the log file be reopen after respawn should Flexisip crash.
 	 * The condition intent to avoid log initialization should the user have passed command line options that doesn't
 	 * require to start the server e.g. dumping default configuration file. */
-	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !dumpMibs && !dumpAll) {
+	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !listSections && !dumpMibs && !dumpAll) {
 		if (cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read() != -1) {
 			LOGF("Setting 'global/max-log-size' parameter has been forbbiden since log size control was delegated to logrotate. Please "
 				"edit /etc/logrotate.d/flexisip-logrotate for log rotation customization."
