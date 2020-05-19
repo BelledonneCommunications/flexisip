@@ -123,8 +123,6 @@ string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequ
 												  Xsd::DataModel::Person  *person, const string *eTag,
 												  int expires) {
 	PresenceInformationElement *informationElement = nullptr;
-	constexpr unsigned int valMax = numeric_limits<unsigned int>::max() / 1000U;
-	unsigned int expiresMs;
 
 	// etag ?
 	if (eTag && eTag->size() > 0) {
@@ -172,8 +170,8 @@ string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequ
 		return BELLE_SIP_STOP;
 	};
 
-
-	expiresMs = (static_cast<unsigned int>(expires) > valMax) ? numeric_limits<unsigned int>::max() : static_cast<unsigned int>(expires) * 1000U;
+	constexpr unsigned int valMax = numeric_limits<unsigned int>::max() / 1000U;
+	unsigned int expiresMs = (static_cast<unsigned int>(expires) > valMax) ? numeric_limits<unsigned int>::max() : static_cast<unsigned int>(expires) * 1000U;
 
 	// create timer
 	auto timer = belle_sip_main_loop_create_cpp_timeout(

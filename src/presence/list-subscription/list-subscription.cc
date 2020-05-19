@@ -215,8 +215,11 @@ void ListSubscription::onInformationChanged(PresentityPresenceInformation &prese
 					return BELLE_SIP_STOP;
 				};
 				// create timer
-				chrono::milliseconds timeout(chrono::duration_cast<chrono::milliseconds>(
-					mMinNotifyInterval - (chrono::system_clock::now() - mLastNotify)));
+				chrono::milliseconds timeout{
+					chrono::duration_cast<chrono::milliseconds>(
+						mMinNotifyInterval - (chrono::system_clock::now() - mLastNotify)
+					)
+				};
 
 				mTimer = belle_sip_main_loop_create_cpp_timeout( belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv))
 																	, func
