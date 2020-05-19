@@ -215,8 +215,11 @@ void ListSubscription::onInformationChanged(PresentityPresenceInformation &prese
 					return BELLE_SIP_STOP;
 				};
 				// create timer
-				chrono::milliseconds timeout(chrono::duration_cast<chrono::milliseconds>(
-					mMinNotifyInterval - (chrono::system_clock::now() - mLastNotify)));
+				chrono::milliseconds timeout{
+					chrono::duration_cast<chrono::milliseconds>(
+						mMinNotifyInterval - (chrono::system_clock::now() - mLastNotify)
+					)
+				};
 
 				mTimer = belle_sip_main_loop_create_cpp_timeout( belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv))
 																	, func
@@ -226,7 +229,7 @@ void ListSubscription::onInformationChanged(PresentityPresenceInformation &prese
 
 			if (mVersion > 0) {
 				SLOGI << "Defering presence information notify for entity [" << presenceInformation.getEntity()
-					  << "/" << this << "] to [" << (belle_sip_source_get_timeout(mTimer.get())) << " ms]";
+					  << "/" << this << "] to [" << (belle_sip_source_get_timeout_int64(mTimer.get())) << " ms]";
 			} else {
 				SLOGI << "First notify, defering presence information for entity [" << presenceInformation.getEntity()
 					   << "/" << this << "]";

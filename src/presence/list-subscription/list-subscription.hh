@@ -44,17 +44,17 @@ class PresentityResourceListener : public PresentityPresenceInformationListener 
   public:
 	PresentityResourceListener(ListSubscription &aListSubscription, const belle_sip_uri_t *presentity, const std::string &name = "");
 	PresentityResourceListener(const PresentityResourceListener &);
-	~PresentityResourceListener();
+	~PresentityResourceListener() override;
 
-	const belle_sip_uri_t *getPresentityUri() const;
-	std::string getName() const { return mName; }
+	const belle_sip_uri_t *getPresentityUri() const override;
+	std::string getName() const override { return mName; }
 	/*
 	 * This function is call every time Presentity information need to be notified to a UA
 	 */
-	void onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extended);
-	void onExpired(PresentityPresenceInformation &presenceInformation);
-	const belle_sip_uri_t* getFrom();
-	const belle_sip_uri_t* getTo();
+	void onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extended) override;
+	void onExpired(PresentityPresenceInformation &presenceInformation) override;
+	const belle_sip_uri_t* getFrom() override;
+	const belle_sip_uri_t* getTo() override;
 
   private:
 	ListSubscription &mListSubscription;
@@ -76,8 +76,9 @@ public:
 		size_t maxPresenceInfoNotifiedAtATime,
 		std::function<void(std::shared_ptr<ListSubscription>)> listAvailable
 	);
+	ListSubscription(const ListSubscription &) = delete;
+	~ListSubscription() override;
 
-	virtual ~ListSubscription();
 	std::list<std::shared_ptr<PresentityPresenceInformationListener>> &getListeners();
 	su_home_t *getHome() { return home.home(); }
 	/* Notify taking state from all pending Presentity listener*/
@@ -101,7 +102,6 @@ protected:
 	const belle_sip_uri_t *mName = nullptr;
 
 private:
-	ListSubscription(const ListSubscription &);
 	// return true if a real notify can be sent.
 	bool isTimeToNotify();
 	void addInstanceToResource(Xsd::Rlmi::Resource &resource, std::list<belle_sip_body_handler_t *> &multipartList,

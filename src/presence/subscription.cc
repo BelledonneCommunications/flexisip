@@ -29,32 +29,19 @@ namespace flexisip {
 
 Subscription::Subscription(const string &eventName, unsigned int expires, belle_sip_dialog_t *aDialog,
 						   belle_sip_provider_t *prov)
-	: mDialog(aDialog), mProv(prov), mEventName(eventName), mAcceptHeader(0), mAcceptEncodingHeader(0), mState(active) {
-
-	belle_sip_object_ref(mDialog);
-	belle_sip_object_ref(mProv);
+	: mDialog{aDialog}, mProv{prov}, mEventName{eventName} {
 	time(&mCreationTime);
 	mExpirationTime = mCreationTime + expires;
 }
 void Subscription::setAcceptHeader(belle_sip_header_t *acceptHeader) {
-	if (mAcceptHeader)
-		belle_sip_object_unref(mAcceptHeader);
-	if (acceptHeader) {
-		belle_sip_object_ref(acceptHeader);
-		mAcceptHeader = acceptHeader;
-	}
+	if (acceptHeader) belle_sip_object_ref(acceptHeader);
+	mAcceptHeader.reset(acceptHeader);
 }
 void Subscription::setAcceptEncodingHeader(belle_sip_header_t *acceptEncodingHeader) {
-	if (mAcceptEncodingHeader)
-		belle_sip_object_unref(mAcceptEncodingHeader);
-	if (acceptEncodingHeader) {
-		belle_sip_object_ref(acceptEncodingHeader);
-		mAcceptEncodingHeader = acceptEncodingHeader;
-	}
+	if (acceptEncodingHeader) belle_sip_object_ref(acceptEncodingHeader);
+	mAcceptEncodingHeader.reset(acceptEncodingHeader);
 }
-void Subscription::Subscription::setId(const string &id) {
-	mId = id;
-}
+
 const char *Subscription::stateToString(State aState) {
 	switch (aState) {
 		case active:
@@ -66,20 +53,11 @@ const char *Subscription::stateToString(State aState) {
 	}
 	return "Unknown state";
 }
-void Subscription::notify(belle_sip_multipart_body_handler_t *body) {
-	notify(NULL, NULL, body, NULL);
-}
-void Subscription::notify(belle_sip_multipart_body_handler_t *body, const string &content_encoding) {
-	notify(NULL, NULL, body, &content_encoding);
-}
-void Subscription::notify(belle_sip_header_content_type_t *content_type, const string &body) {
-	notify(content_type, &body, NULL, NULL);
-}
+
 void Subscription::notify(belle_sip_header_content_type_t *content_type, const string *body,
 						  belle_sip_multipart_body_handler_t *multiPartBody, const string *content_encoding) {
 	if (belle_sip_dialog_get_state(mDialog) != BELLE_SIP_DIALOG_CONFIRMED) {
-		SLOGI << "Cannot notify information change for [" << std::hex << (long)this << "] because dialog [" << std::hex
-			  << (long)mDialog << "]is in state ["
+		SLOGI << "Cannot notify information change for [" << this << "] because dialog [" << mDialog << "] is in state ["
 			  << belle_sip_dialog_state_to_string(belle_sip_dialog_get_state(mDialog)) << "]";
 		return;
 	}
@@ -95,7 +73,7 @@ void Subscription::notify(belle_sip_header_content_type_t *content_type, const s
 		belle_sip_multipart_body_handler_set_related(multiPartBody, TRUE);
 		belle_sip_message_set_body_handler(BELLE_SIP_MESSAGE(notify), BELLE_SIP_BODY_HANDLER(multiPartBody));
 		if (content_encoding && mAcceptEncodingHeader) {
-			const char *accept_encoding = belle_sip_header_get_unparsed_value(mAcceptEncodingHeader);
+			const char *accept_encoding = belle_sip_header_get_unparsed_value(mAcceptEncodingHeader.get());
 			if (accept_encoding && (strcmp(accept_encoding, content_encoding->c_str()) == 0)) {
 				belle_sip_message_add_header(BELLE_SIP_MESSAGE(notify), belle_sip_header_create("Content-Encoding", content_encoding->c_str()));
 			}
@@ -131,35 +109,13 @@ void Subscription::notify(belle_sip_header_content_type_t *content_type, const s
 		belle_sip_header_subscription_state_set_expires(sub_state, (int)(mExpirationTime - current_time));
 	}
 
-	if (mCurrentTransaction)
-		belle_sip_transaction_set_application_data(BELLE_SIP_TRANSACTION(mCurrentTransaction), NULL);
-
 	mCurrentTransaction = belle_sip_provider_create_client_transaction(mProv, notify);
-	mTransactionRef = shared_from_this();
-	belle_sip_transaction_set_application_data(BELLE_SIP_TRANSACTION(mCurrentTransaction), this);
+	setSubscription(mCurrentTransaction, shared_from_this());
 	if (belle_sip_client_transaction_send_request(mCurrentTransaction)) {
-		SLOGE << "Cannot send notify information change for [" << std::hex << (long)this << "]";
+		SLOGE << "Cannot send notify information change for [" << this << "]";
 	}
 }
-Subscription::~Subscription() {
-	belle_sip_object_unref(mDialog);
-	belle_sip_object_unref(mProv);
-	setAcceptEncodingHeader(NULL);
-}
 
-Subscription::State Subscription::getState() const {
-	return mState;
-}
-void Subscription::setState(Subscription::State state) {
-	mState = state;
-}
-void Subscription::setExpirationTime(time_t expirationTime) {
-	mExpirationTime = expirationTime;
-}
-
-void Subscription::increaseExpirationTime(unsigned int expires) {
-	mExpirationTime += expires;
-}
 const belle_sip_uri_t* Subscription::getFrom() {
 	return belle_sip_header_address_get_uri(belle_sip_dialog_get_local_party(mDialog));
 }
@@ -170,17 +126,13 @@ const belle_sip_uri_t* Subscription::getTo() {
 
 PresenceSubscription::PresenceSubscription(unsigned int expires, const belle_sip_uri_t *presentity,
 										   belle_sip_dialog_t *aDialog, belle_sip_provider_t *aProv)
-	: Subscription("Presence", expires, aDialog, aProv),
-	  mPresentity((belle_sip_uri_t *)belle_sip_object_clone(BELLE_SIP_OBJECT(presentity))) {
-	belle_sip_object_ref((void *)mPresentity);
-}
+	: Subscription{"Presence", expires, aDialog, aProv},
+	  mPresentity{(belle_sip_uri_t *)belle_sip_object_ref(belle_sip_object_clone(BELLE_SIP_OBJECT(presentity)))} {}
+
 PresenceSubscription::~PresenceSubscription() {
-	belle_sip_object_unref((void *)mPresentity);
-	SLOGD << "PresenceSubscription ["<<this<<"] deleted";
+	SLOGD << "PresenceSubscription [" << this << "] deleted";
 }
-const belle_sip_uri_t *PresenceSubscription::getPresentityUri() const {
-	return mPresentity;
-}
+
 void PresenceSubscription::onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extended) {
 	string body;
 	belle_sip_header_content_type_t *content_type = NULL;
@@ -202,10 +154,4 @@ void PresenceSubscription::onExpired(PresentityPresenceInformation &presenceInfo
 	setState(Subscription::State::terminated);
 }
 
-const belle_sip_uri_t* PresenceSubscription::getFrom() {
-	return Subscription::getFrom();
-}
-const belle_sip_uri_t* PresenceSubscription::getTo() {
-	return Subscription::getTo();
-}
 }

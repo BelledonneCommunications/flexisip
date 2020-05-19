@@ -228,6 +228,9 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	 */
 	void notifyAll();
 
+	std::shared_ptr<PresentityPresenceInformationListener> findSubscriber(std::function<bool(const std::shared_ptr<PresentityPresenceInformationListener> &)> predicate) const;
+	void forEachSubscriber(std::function<void(const std::shared_ptr<PresentityPresenceInformationListener> &)> doFunc) const;
+
 	const belle_sip_uri_t *mEntity;
 	PresentityManager &mPresentityManager;
 	belle_sip_main_loop_t *mBelleSipMainloop;
@@ -235,7 +238,7 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	std::map<std::string /*Etag*/, PresenceInformationElement *> mInformationElements;
 
 	// list of subscribers function to be called when a tuple changed
-	std::list<std::shared_ptr<PresentityPresenceInformationListener>> mSubscribers;
+	mutable std::list<std::weak_ptr<PresentityPresenceInformationListener>> mSubscribers;
 	std::shared_ptr<PresenceInformationElement> mDefaultInformationElement; // purpose of this element is to have a
 																			// default presence status (I.E closed) when
 																			// all publish have expired.
