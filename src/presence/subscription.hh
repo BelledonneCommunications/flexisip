@@ -25,33 +25,38 @@
 #include "presentity-presenceinformation.hh"
 
 namespace flexisip {
-	class Subscription : public std::enable_shared_from_this<Subscription>{
+
+class Subscription : public std::enable_shared_from_this<Subscription>{
 
   public:
 	enum State { active, pending, terminated };
 	Subscription(const std::string &eventName, unsigned int expires, belle_sip_dialog_t *aDialog, belle_sip_provider_t *prov);
-	virtual ~Subscription();
+	Subscription(const Subscription &) = delete;
+	virtual ~Subscription() = default;
 	void setAcceptHeader(belle_sip_header_t *acceptHeader);
 	void setAcceptEncodingHeader(belle_sip_header_t *acceptEncodingHeader);
-	void setId(const std::string &id);
-	void notify(belle_sip_header_content_type_t *content_type, const std::string &body);
-	void notify(belle_sip_multipart_body_handler_t *body);
-	void notify(belle_sip_multipart_body_handler_t *body, const std::string &content_encoding);
+	void setId(const std::string &id) {mId = id;}
+	void notify(belle_sip_multipart_body_handler_t *body) {notify(nullptr, nullptr, body, nullptr);}
+	void notify(belle_sip_multipart_body_handler_t *body, const std::string &content_encoding) {notify(nullptr, nullptr, body, &content_encoding);}
+	void notify(belle_sip_header_content_type_t *content_type, const std::string &body) {notify(content_type, &body, nullptr, nullptr);}
 	static const char *stateToString(State aState);
-	State getState() const;
-	void setState(Subscription::State state);
+	State getState() const {return mState;}
+	void setState(State state) {mState = state;}
 	/*
 	 * used to set expiration value
 	 */
-	void setExpirationTime(time_t expirationTime);
+	void setExpirationTime(time_t expirationTime) {mExpirationTime = expirationTime;}
 	time_t getExpirationDate();
-	void increaseExpirationTime(unsigned int expires);
+	void increaseExpirationTime(unsigned int expires) {mExpirationTime += expires;}
 	const belle_sip_uri_t* getFrom();
 	const belle_sip_uri_t* getTo();
 
 	belle_sip_client_transaction_t *mCurrentTransaction = nullptr;
 
   protected:
+	using BelleSipDialogPtr = std::unique_ptr<belle_sip_dialog_t, BelleSipObjectDeleter<belle_sip_dialog_t>>;
+	using BelleSipProviderPtr = std::unique_ptr<belle_sip_provider_t, BelleSipObjectDeleter<belle_sip_provider_t>>;
+
 	static constexpr const char *sSubscriptionDataTag = "subscription";
 
 	template <typename T, typename BelleSipObjectT>
@@ -70,20 +75,22 @@ namespace flexisip {
 		return data ? *static_cast<std::shared_ptr<Subscription> *>(data) : nullptr;
 	}
 
-	belle_sip_dialog_t *mDialog;
-	belle_sip_provider_t *mProv;
+	belle_sip_dialog_t *mDialog{nullptr};
+	belle_sip_provider_t *mProv{nullptr};
 
   private:
-	Subscription(const Subscription &);
+	using BelleSipHeaderPtr = std::unique_ptr<belle_sip_header_t, BelleSipObjectDeleter<belle_sip_header_t>>;
+
 	void notify(belle_sip_header_content_type_t *content_type, const std::string *body,
 				belle_sip_multipart_body_handler_t *multiPartBody, const std::string *content_encoding);
+
 	std::string mEventName;
-	belle_sip_header_t *mAcceptHeader;
-	belle_sip_header_t *mAcceptEncodingHeader;
+	BelleSipHeaderPtr mAcceptHeader;
+	BelleSipHeaderPtr mAcceptEncodingHeader;
 	std::string mId;
-	State mState;
-	time_t mCreationTime;
-	time_t mExpirationTime;
+	State mState{active};
+	time_t mCreationTime{0};
+	time_t mExpirationTime{0};
 };
 
 /**
@@ -94,17 +101,19 @@ class PresenceSubscription : public Subscription, public PresentityPresenceInfor
   public:
 	PresenceSubscription(unsigned int expires, const belle_sip_uri_t *presentity, belle_sip_dialog_t *aDialog,
 						 belle_sip_provider_t *aProv);
-	virtual ~PresenceSubscription();
+	~PresenceSubscription() override;
 
-	const belle_sip_uri_t *getPresentityUri(void) const;
+	const belle_sip_uri_t *getPresentityUri() const override {return mPresentity.get();}
 	/*
 	 * This function is call every time Presentity information need to be notified to a UA
 	 */
-	void onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extented);
-	void onExpired(PresentityPresenceInformation &presenceInformation);
-	const belle_sip_uri_t* getFrom();
-	const belle_sip_uri_t* getTo();
+	void onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extented) override;
+	void onExpired(PresentityPresenceInformation &presenceInformation) override;
+	const belle_sip_uri_t* getFrom() override {return Subscription::getFrom();};
+	const belle_sip_uri_t* getTo() override {return Subscription::getTo();};
+
   private:
-	const belle_sip_uri_t *mPresentity;
+	using BelleSipUriPtr = std::unique_ptr<belle_sip_uri_t, BelleSipObjectDeleter<belle_sip_uri_t>>;
+	BelleSipUriPtr mPresentity;
 };
 }
