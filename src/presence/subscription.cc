@@ -30,17 +30,6 @@ namespace flexisip {
 Subscription::Subscription(const string &eventName, unsigned int expires, belle_sip_dialog_t *aDialog,
 						   belle_sip_provider_t *prov)
 	: mDialog{aDialog}, mProv{prov}, mEventName{eventName} {
-
-	belle_sip_object_weak_ref(
-		BELLE_SIP_OBJECT(mDialog),
-		[](void *thiz, belle_sip_object_t *){static_cast<Subscription *>(thiz)->mDialog = nullptr;},
-		this
-	);
-	belle_sip_object_weak_ref(
-		BELLE_SIP_OBJECT(mProv),
-		[](void *thiz, belle_sip_object_t *){static_cast<Subscription *>(thiz)->mProv = nullptr;},
-		this
-	);
 	time(&mCreationTime);
 	mExpirationTime = mCreationTime + expires;
 }
