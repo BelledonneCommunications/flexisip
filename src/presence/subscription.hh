@@ -49,11 +49,27 @@ namespace flexisip {
 	const belle_sip_uri_t* getFrom();
 	const belle_sip_uri_t* getTo();
 
-	std::shared_ptr<Subscription> mDialogRef; // Keep ref of c++ shared_ptr in belle_sip_dialog
-	std::shared_ptr<Subscription> mTransactionRef; // Keep ref of c++ shared_ptr in belle_sip_transaction
-	belle_sip_client_transaction_t *mCurrentTransaction = NULL;
+	belle_sip_client_transaction_t *mCurrentTransaction = nullptr;
 
   protected:
+	static constexpr const char *sSubscriptionDataTag = "subscription";
+
+	template <typename T, typename BelleSipObjectT>
+	static void setSubscription(BelleSipObjectT *obj, const std::shared_ptr<T> &sub) {
+		belle_sip_object_data_set(
+			BELLE_SIP_OBJECT(obj),
+			sSubscriptionDataTag,
+			new std::shared_ptr<Subscription>{sub},
+			[](void *data){delete static_cast<std::shared_ptr<Subscription> *>(data);}
+		);
+	}
+
+	template <typename BelleSipObjectT>
+	static std::shared_ptr<Subscription> getSubscription(const BelleSipObjectT *obj) {
+		auto data = belle_sip_object_data_get(BELLE_SIP_OBJECT(obj), sSubscriptionDataTag);
+		return data ? *static_cast<std::shared_ptr<Subscription> *>(data) : nullptr;
+	}
+
 	belle_sip_dialog_t *mDialog;
 	belle_sip_provider_t *mProv;
 

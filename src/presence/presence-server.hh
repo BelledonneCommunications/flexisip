@@ -96,6 +96,24 @@ private:
 	bool mEnabled;
 	size_t mMaxPresenceInfoNotifiedAtATime;
 
+	static constexpr const char *sSubscriptionDataTag = "subscription";
+
+	template <typename T, typename BelleSipObjectT>
+	static void setSubscription(BelleSipObjectT *obj, const std::shared_ptr<T> &sub) {
+		belle_sip_object_data_set(
+			BELLE_SIP_OBJECT(obj),
+			sSubscriptionDataTag,
+			new std::shared_ptr<Subscription>{sub},
+			[](void *data){delete static_cast<std::shared_ptr<Subscription> *>(data);}
+		);
+	}
+
+	template <typename BelleSipObjectT>
+	static std::shared_ptr<Subscription> getSubscription(const BelleSipObjectT *obj) {
+		auto data = belle_sip_object_data_get(BELLE_SIP_OBJECT(obj), sSubscriptionDataTag);
+		return data ? *static_cast<std::shared_ptr<Subscription> *>(data) : nullptr;
+	}
+
 	// belle sip cbs
 	static void processDialogTerminated(PresenceServer * thiz, const belle_sip_dialog_terminated_event_t *event);
 	static void processIoError(PresenceServer * thiz, const belle_sip_io_error_event_t *event);
