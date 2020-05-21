@@ -453,7 +453,6 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 		if (!(presenceInfo = getPresenceInfo(entity))) {
 			presenceInfo = make_shared<PresentityPresenceInformation>(entity, *this, belle_sip_stack_get_main_loop(mStack));
 			SLOGD << "New Presentity [" << *presenceInfo << "] created from PUBLISH";
-			// for (const belle_sip_uri_t* : mPresenceInformations.keys())
 			addPresenceInfo(presenceInfo);
 		} else {
 			SLOGD << "Presentity [" << *presenceInfo << "] found";
