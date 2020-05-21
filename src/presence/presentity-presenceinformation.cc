@@ -89,21 +89,24 @@ PresentityPresenceInformation::~PresentityPresenceInformation() {
 	SLOGD << "Presence information [" << this << "] deleted";
 }
 size_t PresentityPresenceInformation::getNumberOfListeners() const {
+	// remove empty weak_ptr before returning the size
+	forEachSubscriber([](const shared_ptr<PresentityPresenceInformationListener> &l){});
 	return mSubscribers.size();
 }
-list<shared_ptr<PresentityPresenceInformationListener>> PresentityPresenceInformation::getListeners() const {
-	return mSubscribers;
+std::list<std::shared_ptr<PresentityPresenceInformationListener>> PresentityPresenceInformation::getListeners() const {
+	list<shared_ptr<PresentityPresenceInformationListener>> retListeners;
+	forEachSubscriber([&retListeners](const shared_ptr<PresentityPresenceInformationListener> &l){retListeners.emplace_back(l);});
+	return retListeners;
 }
 size_t PresentityPresenceInformation::getNumberOfInformationElements() const {
 	return mInformationElements.size();
 }
 shared_ptr<PresentityPresenceInformationListener> PresentityPresenceInformation::findPresenceInfoListener(shared_ptr<PresentityPresenceInformation> &info) {
-	for (shared_ptr<PresentityPresenceInformationListener> listener : mSubscribers) {
-		if(belle_sip_uri_equals(listener->getTo(), info->getEntity())) {
-			return listener;
+	return findSubscriber(
+		[&info](const shared_ptr<PresentityPresenceInformationListener> &l){
+			return belle_sip_uri_equals(l->getTo(), info->getEntity());
 		}
-	}
-	return nullptr;
+	);
 }
 string PresentityPresenceInformation::putTuples(Xsd::Pidf::Presence::TupleSequence &tuples,
 												Xsd::DataModel::Person &person, int expires) {
@@ -245,19 +248,13 @@ void PresentityPresenceInformation::addOrUpdateListener(const shared_ptr<Present
 
 void PresentityPresenceInformation::addListenerIfNecessary(const shared_ptr<PresentityPresenceInformationListener> &listener) {
 	// search if exist
-	string op;
-	bool listener_exist = false;
-	for (const shared_ptr<PresentityPresenceInformationListener> &existing_listener : mSubscribers) {
-		if (listener == existing_listener) {
-			listener_exist = true;
-			break;
-		}
-	}
-	if (listener_exist) {
+	const char *op;
+	auto existing_listener = findSubscriber([&listener](const shared_ptr<PresentityPresenceInformationListener> &l){return l == listener;});
+	if (existing_listener) {
 		op = "Updating";
 	} else {
 		// not found, adding
-		mSubscribers.push_back(listener);
+		mSubscribers.emplace_back(listener);
 		op = "Adding";
 	}
 	SLOGD << op << " listener [" << listener.get() << "] on [" << *this << "]";
@@ -266,24 +263,7 @@ void PresentityPresenceInformation::addListenerIfNecessary(const shared_ptr<Pres
 void PresentityPresenceInformation::addOrUpdateListener(const shared_ptr<PresentityPresenceInformationListener> &listener,
 														int expires) {
 
-	// search if exist
-	string op;
-	bool listener_exist = false;
-	for (const shared_ptr<PresentityPresenceInformationListener> &existing_listener : mSubscribers) {
-		if (listener == existing_listener) {
-			listener_exist = true;
-			break;
-		}
-	}
-	if (listener_exist) {
-		op = "Updating";
-	} else {
-		// not found, adding
-		mSubscribers.push_back(listener);
-		op = "Adding";
-	}
-
-	SLOGD << op << " listener [" << listener.get() << "] on [" << *this << "] for [" << expires << "] seconds";
+	PresentityPresenceInformation::addListenerIfNecessary(listener);
 
 	if (expires > 0) {
 		constexpr unsigned int valMax = numeric_limits<unsigned int>::max() / 1000U;
@@ -327,7 +307,12 @@ void PresentityPresenceInformation::removeListener(const shared_ptr<PresentityPr
 	// 1 cancel expiration time
 	listener->setExpiresTimer(mBelleSipMainloop, nullptr);
 	// 2 remove listener
-	mSubscribers.remove(listener);
+	mSubscribers.remove_if(
+		[&listener](const weak_ptr<PresentityPresenceInformationListener> &wPtr) {
+			auto l = wPtr.lock();
+			return l == nullptr || l == listener;
+			}
+	);
 	//			 3.1.4.3. Unsubscribing
 	//
 	//			 Unsubscribing is handled in the same way as refreshing of a
@@ -453,10 +438,38 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 }
 
 void PresentityPresenceInformation::notifyAll() {
-	for (shared_ptr<PresentityPresenceInformationListener> listener : mSubscribers) {
-		listener->onInformationChanged(*this, listener->extendedNotifyEnabled());
-	}
+	forEachSubscriber(
+		[this](const shared_ptr<PresentityPresenceInformationListener> &listener) {
+			listener->onInformationChanged(*this, listener->extendedNotifyEnabled());
+		}
+	);
 	SLOGD << *this << " has notified [" << mSubscribers.size() << " ] listeners";
+}
+
+std::shared_ptr<PresentityPresenceInformationListener> PresentityPresenceInformation::findSubscriber(
+		std::function<bool(const std::shared_ptr<PresentityPresenceInformationListener> &)> predicate) const {
+	for (auto it = mSubscribers.begin(); it != mSubscribers.end();) {
+		auto subscriber = it->lock();
+		if (subscriber == nullptr) {
+			it = mSubscribers.erase(it);
+			continue;
+		}
+		if (predicate(subscriber)) return subscriber;
+		it++;
+	}
+	return nullptr;
+}
+
+void PresentityPresenceInformation::forEachSubscriber(std::function<void(const std::shared_ptr<PresentityPresenceInformationListener> &)> doFunc) const {
+	for (auto it = mSubscribers.begin(); it != mSubscribers.end();) {
+		auto subscriber = it->lock();
+		if (subscriber == nullptr) {
+			it = mSubscribers.erase(it);
+			continue;
+		}
+		doFunc(subscriber);
+		it++;
+	}
 }
 
 bool PresentityPresenceInformationListener::extendedNotifyEnabled() {
