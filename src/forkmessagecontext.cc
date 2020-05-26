@@ -94,7 +94,7 @@ void ForkMessageContext::logDeliveredToUserEvent(const std::shared_ptr<RequestSi
 										  const shared_ptr<ResponseSipEvent> &respEv) {
 	sip_t *sip = respEv->getMsgSip()->getSip();
 	const sip_t *sipRequest = reqEv->getMsgSip()->getSip();
-	auto log = make_shared<MessageLog>(sip, MessageLog::DeliveredToUser);
+	auto log = make_shared<MessageLog>(sip, MessageLog::ReportType::DeliveredToUser);
 	log->setDestination(sipRequest->sip_request->rq_url);
 	log->setStatusCode(sip->sip_status->st_status, sip->sip_status->st_phrase);
 	if (sipRequest->sip_priority && sipRequest->sip_priority->g_string) {
@@ -138,7 +138,7 @@ void ForkMessageContext::onResponse(const std::shared_ptr<BranchInfo> &br, const
 void ForkMessageContext::logReceivedFromUserEvent(const std::shared_ptr<RequestSipEvent> &reqEv, const shared_ptr<ResponseSipEvent> &respEv) {
 	sip_t *sip = respEv->getMsgSip()->getSip();
 	const sip_t *sipRequest = reqEv->getMsgSip()->getSip();
-	auto log = make_shared<MessageLog>(sip, MessageLog::ReceivedFromUser);
+	auto log = make_shared<MessageLog>(sip, MessageLog::ReportType::ReceivedFromUser);
 	log->setStatusCode(sip->sip_status->st_status, sip->sip_status->st_phrase);
 	if (sipRequest->sip_priority && sipRequest->sip_priority->g_string) {
 		log->setPriority(sipRequest->sip_priority->g_string);
