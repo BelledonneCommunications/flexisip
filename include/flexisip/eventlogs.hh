@@ -18,46 +18,59 @@
 
 #pragma once
 
-#include <flexisip/common.hh>
+#include <memory>
+#include <mutex>
+#include <queue>
+#include <string>
 
 #include <sofia-sip/sip.h>
 #include <sofia-sip/sip_protos.h>
 
-#include <string>
-#include <memory>
-#include <queue>
-#include <mutex>
+#include <flexisip/common.hh>
+#include <flexisip/sofia-wrapper/home.hh>
 
 namespace flexisip {
 
 class EventLog {
-	friend class FilesystemEventLogWriter;
-	friend class DataBaseEventLogWriter;
-	friend class EventLogDb;
-
 public:
 
 	EventLog(const sip_t *sip);
-	virtual ~EventLog();
-	void setCompleted();
-	void setStatusCode(int sip_status, const char *reason);
-	void setPriority(const std::string &priority) {mPriority = priority;}
-	bool isCompleted() const {
-		return mCompleted;
+	EventLog(const EventLog &) = delete;
+	virtual ~EventLog() = default;
+
+	const sip_from_t *getFrom() const {return mFrom;}
+	const sip_from_t *getTo() const {return mTo;}
+	sip_user_agent_t *getUserAgent() const {return mUA;}
+	const std::string &getCallId() const {return mCallId;}
+	const time_t &getDate() const {return mDate;}
+	const std::string &getReason() const {return mReason;}
+
+	bool isCompleted() const {return mCompleted;}
+	void setCompleted() {mCompleted = true;}
+
+	int getStatusCode() const {return mStatusCode;}
+	template <typename T>
+	void setStatusCode(int sip_status, T &&reason) {
+		mStatusCode = sip_status;
+		mReason = std::forward<T>(reason);
 	}
+
+	const std::string &getPriority() const {return mPriority;}
+	template <typename T>
+	void setPriority(T &&priority) {mPriority = std::forward<T>(priority);}
 
 protected:
 
-	su_home_t mHome;
-	sip_from_t *mFrom = nullptr;
-	sip_to_t *mTo = nullptr;
-	sip_user_agent_t *mUA = nullptr;
-	time_t mDate;
-	int mStatusCode = 0;
-	std::string mReason;
-	bool mCompleted = false;
-	std::string mCallId;
-	std::string mPriority = "normal";
+	sofiasip::Home mHome{};
+	sip_from_t *mFrom{nullptr};
+	sip_to_t *mTo{nullptr};
+	sip_user_agent_t *mUA{nullptr};
+	time_t mDate{0};
+	int mStatusCode{0};
+	std::string mReason{};
+	bool mCompleted{false};
+	std::string mCallId{};
+	std::string mPriority{"normal"};
 
 	class Init {
 	public:
@@ -67,14 +80,10 @@ protected:
 };
 
 class RegistrationLog : public EventLog {
-	friend class FilesystemEventLogWriter;
-	friend class DataBaseEventLogWriter;
-	friend class RegistrationLogDb;
-
 public:
 
 	// Explicit values are necessary for soci. Do not change this.
-	enum Type {
+	enum class Type {
 		Register = 0,
 		Unregister = 1,
 		Expired = 2
@@ -82,120 +91,116 @@ public:
 
 	RegistrationLog(const sip_t *sip, const sip_contact_t *contacts);
 
+	Type getType() const {return mType;}
+	sip_contact_t *getContacts() const {return mContacts;}
+
 private:
-	Type mType;
-	sip_contact_t *mContacts;
+	Type mType{Type::Register};
+	sip_contact_t *mContacts{nullptr};
 };
 
 class CallLog : public EventLog {
-	friend class FilesystemEventLogWriter;
-	friend class DataBaseEventLogWriter;
-	friend class CallLogDb;
-
 public:
-	CallLog(const sip_t *sip);
-	void setCancelled();
+	CallLog(const sip_t *sip) : EventLog(sip) {}
+
+	bool isCancelled() const {return mCancelled;}
+	void setCancelled() {mCancelled = true;}
 
 private:
-	bool mCancelled;
+	bool mCancelled{false};
 };
 
 class MessageLog : public EventLog {
-	friend class FilesystemEventLogWriter;
-	friend class DataBaseEventLogWriter;
-	friend class MessageLogDb;
-
 public:
 
 	// Explicit values is necessary for soci. Do not change this.
-	enum ReportType {
+	enum class ReportType {
 		ReceivedFromUser = 0,
 		DeliveredToUser = 1
 	};
 
-	MessageLog(const sip_t *sip, ReportType report);
-	void setDestination(const url_t *dest);
+	MessageLog(const sip_t *sip, ReportType report): EventLog(sip), mReportType{report} {}
+
+	ReportType getReportType() const {return mReportType;}
+	const url_t *getUri() const {return mUri;}
+
+	void setDestination(const url_t *dest) {mUri = url_hdup(mHome.home(), dest);}
 
 private:
 
-	ReportType mReportType;
-	url_t *mUri; // destination uri of message
+	ReportType mReportType{ReportType::ReceivedFromUser};
+	url_t *mUri{nullptr}; // destination uri of message
 };
 
 class AuthLog: public EventLog {
-	friend class FilesystemEventLogWriter;
-	friend class DataBaseEventLogWriter;
-	friend class AuthLogDb;
-
 public:
 
 	AuthLog(const sip_t *sip, bool userExists);
+
+	const url_t *getOrigin() const {return mOrigin;}
+	const std::string &getMethod() const {return mMethod;}
+
+	bool userExists() const {return mUserExists;}
 
 private:
 
 	void setOrigin(const sip_via_t *via);
 
-	url_t *mOrigin;
-	std::string mMethod;
-	bool mUserExists;
+	url_t *mOrigin{nullptr};
+	std::string mMethod{};
+	bool mUserExists{false};
 };
 
 class CallQualityStatisticsLog: public EventLog {
-	friend class FilesystemEventLogWriter;
-	friend class DataBaseEventLogWriter;
-	friend class CallQualityStatisticsLogDb;
-
 public:
 
 	CallQualityStatisticsLog(const sip_t *sip);
+
+	const std::string &getReport() const {return mReport;}
 
 private:
 
 	// Note on `soci`: The `char *` support is dead since 2008...
 	// See: https://github.com/SOCI/soci/commit/25c704ac4cb7bb0135dabc2421a1281fb868a511
 	// It's necessary to create a hard copy with a `string`.
-	std::string mReport;
+	std::string mReport{};
 };
 
 class EventLogWriter {
 public:
+	EventLogWriter() = default;
+	EventLogWriter(const EventLogWriter &) = delete;
+	virtual ~EventLogWriter() = default;
 
-	virtual void write(const std::shared_ptr<EventLog> &evlog) = 0;
-	virtual ~EventLogWriter();
+	virtual void write(std::shared_ptr<const EventLog> evlog) = 0;
 };
 
 class FilesystemEventLogWriter: public EventLogWriter {
 public:
 
 	FilesystemEventLogWriter(const std::string &rootpath);
-	virtual void write(const std::shared_ptr<EventLog> &evlog);
-	bool isReady() const;
+	void write(std::shared_ptr<const EventLog> evlog) override;
+	bool isReady() const {return mIsReady;}
 
 private:
 
 	int openPath(const url_t *uri, const char *kind, time_t curtime, int errorcode = 0);
-	void writeRegistrationLog(const std::shared_ptr<RegistrationLog> &evlog);
-	void writeCallLog(const std::shared_ptr<CallLog> &clog);
-	void writeCallQualityStatisticsLog(const std::shared_ptr<CallQualityStatisticsLog> &mlog);
-	void writeMessageLog(const std::shared_ptr<MessageLog> &mlog);
-	void writeAuthLog(const std::shared_ptr<AuthLog> &alog);
-	void writeErrorLog(const std::shared_ptr<EventLog> &log, const char *kind, const std::string &logstr);
-	std::string mRootPath;
-	bool mIsReady;
+	void writeRegistrationLog(const RegistrationLog *evlog);
+	void writeCallLog(const CallLog *clog);
+	void writeCallQualityStatisticsLog(const CallQualityStatisticsLog *mlog);
+	void writeMessageLog(const MessageLog *mlog);
+	void writeAuthLog(const AuthLog *alog);
+	void writeErrorLog(const EventLog *log, const char *kind, const std::string &logstr);
+
+	std::string mRootPath{};
+	bool mIsReady{false};
 };
 
 }
 
 #if ENABLE_SOCI
 
-#ifdef __GNUG__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
 #include <soci/soci.h>
-#ifdef __GNUG__
-#pragma GCC diagnostic pop
-#endif
 
 #include "utils/threadpool.hh"
 
@@ -211,36 +216,35 @@ public:
 
 	DataBaseEventLogWriter(
 		const std::string &backendString, const std::string &connectionString,
-		int maxQueueSize, int nbThreadsMax
+		unsigned int maxQueueSize, unsigned int nbThreadsMax
 	);
-	~DataBaseEventLogWriter();
 
-	virtual void write(const std::shared_ptr<EventLog> &evlog);
-	bool isReady() const;
+	void write(std::shared_ptr<const EventLog> evlog) override;
+	bool isReady() const {return mIsReady;}
 
 private:
 	void initTables(soci::session *session, Backend backend);
 
-	static void writeEventLog(soci::session *session, const std::shared_ptr<EventLog> &evlog, int typeId);
+	static void writeEventLog(soci::session *session, const EventLog *evlog, int typeId);
 
-	void writeRegistrationLog(soci::session *session, const std::shared_ptr<RegistrationLog> &evlog);
-	void writeCallLog(soci::session *session, const std::shared_ptr<CallLog> &evlog);
-	void writeMessageLog(soci::session *session, const std::shared_ptr<MessageLog> &evlog);
-	void writeAuthLog(soci::session *session, const std::shared_ptr<AuthLog> &evlog);
-	void writeCallQualityStatisticsLog(soci::session *session, const std::shared_ptr<CallQualityStatisticsLog> &evlog);
+	void writeRegistrationLog(soci::session *session, const RegistrationLog *evlog);
+	void writeCallLog(soci::session *session, const CallLog *evlog);
+	void writeMessageLog(soci::session *session, const MessageLog *evlog);
+	void writeAuthLog(soci::session *session, const AuthLog *evlog);
+	void writeCallQualityStatisticsLog(soci::session *session, const CallQualityStatisticsLog *evlog);
 
 	void writeEventFromQueue();
 
-	bool mIsReady;
-	std::mutex mMutex;
-	std::queue<std::shared_ptr<EventLog>> mListLogs;
+	bool mIsReady{false};
+	std::mutex mMutex{};
+	std::queue<std::shared_ptr<const EventLog>> mListLogs{};
 
-	soci::connection_pool *mConnectionPool;
-	ThreadPool *mThreadPool;
+	std::unique_ptr<soci::connection_pool> mConnectionPool{};
+	std::unique_ptr<ThreadPool> mThreadPool{};
 
-	size_t mMaxQueueSize;
+	unsigned int mMaxQueueSize{0};
 
-	std::string mInsertReq[5];
+	std::array<std::string, 5> mInsertReq{};
 };
 
 }
