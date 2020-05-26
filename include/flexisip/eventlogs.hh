@@ -31,6 +31,8 @@
 
 namespace flexisip {
 
+class EventLogWriter;
+
 class EventLog {
 public:
 
@@ -60,6 +62,7 @@ public:
 	void setPriority(T &&priority) {mPriority = std::forward<T>(priority);}
 
 protected:
+	virtual void write(EventLogWriter &writer) const = 0;
 
 	sofiasip::Home mHome{};
 	sip_from_t *mFrom{nullptr};
@@ -77,6 +80,9 @@ protected:
 		Init();
 	};
 	static Init evStaticInit;
+
+	friend class FilesystemEventLogWriter;
+	friend class DataBaseEventLogWriter;
 };
 
 class RegistrationLog : public EventLog {
@@ -94,6 +100,8 @@ public:
 	Type getType() const {return mType;}
 	sip_contact_t *getContacts() const {return mContacts;}
 
+	void write(EventLogWriter &writer) const override;
+
 private:
 	Type mType{Type::Register};
 	sip_contact_t *mContacts{nullptr};
@@ -105,6 +113,8 @@ public:
 
 	bool isCancelled() const {return mCancelled;}
 	void setCancelled() {mCancelled = true;}
+
+	void write(EventLogWriter &writer) const override;
 
 private:
 	bool mCancelled{false};
@@ -126,6 +136,8 @@ public:
 
 	void setDestination(const url_t *dest) {mUri = url_hdup(mHome.home(), dest);}
 
+	void write(EventLogWriter &writer) const override;
+
 private:
 
 	ReportType mReportType{ReportType::ReceivedFromUser};
@@ -141,6 +153,8 @@ public:
 	const std::string &getMethod() const {return mMethod;}
 
 	bool userExists() const {return mUserExists;}
+
+	void write(EventLogWriter &writer) const override;
 
 private:
 
@@ -158,6 +172,8 @@ public:
 
 	const std::string &getReport() const {return mReport;}
 
+	void write(EventLogWriter &writer) const override;
+
 private:
 
 	// Note on `soci`: The `char *` support is dead since 2008...
@@ -173,24 +189,39 @@ public:
 	virtual ~EventLogWriter() = default;
 
 	virtual void write(std::shared_ptr<const EventLog> evlog) = 0;
+
+protected:
+	virtual void writeRegistrationLog(const RegistrationLog &rlog) = 0;
+	virtual void writeCallLog(const CallLog &clog) = 0;
+	virtual void writeCallQualityStatisticsLog(const CallQualityStatisticsLog &mlog) = 0;
+	virtual void writeMessageLog(const MessageLog &mlog) = 0;
+	virtual void writeAuthLog(const AuthLog &alog) = 0;
+
+	friend RegistrationLog;
+	friend CallLog;
+	friend CallQualityStatisticsLog;
+	friend MessageLog;
+	friend AuthLog;
 };
 
 class FilesystemEventLogWriter: public EventLogWriter {
 public:
 
 	FilesystemEventLogWriter(const std::string &rootpath);
-	void write(std::shared_ptr<const EventLog> evlog) override;
+	void write(std::shared_ptr<const EventLog> evlog) override {evlog->write(*this);}
 	bool isReady() const {return mIsReady;}
 
 private:
 
 	int openPath(const url_t *uri, const char *kind, time_t curtime, int errorcode = 0);
-	void writeRegistrationLog(const RegistrationLog *evlog);
-	void writeCallLog(const CallLog *clog);
-	void writeCallQualityStatisticsLog(const CallQualityStatisticsLog *mlog);
-	void writeMessageLog(const MessageLog *mlog);
-	void writeAuthLog(const AuthLog *alog);
-	void writeErrorLog(const EventLog *log, const char *kind, const std::string &logstr);
+
+	void writeRegistrationLog(const RegistrationLog &evlog) override;
+	void writeCallLog(const CallLog &clog) override;
+	void writeCallQualityStatisticsLog(const CallQualityStatisticsLog &mlog) override;
+	void writeMessageLog(const MessageLog &mlog) override;
+	void writeAuthLog(const AuthLog &alog) override;
+
+	void writeErrorLog(const EventLog &log, const char *kind, const std::string &logstr);
 
 	std::string mRootPath{};
 	bool mIsReady{false};
@@ -225,13 +256,13 @@ public:
 private:
 	void initTables(soci::session *session, Backend backend);
 
-	static void writeEventLog(soci::session *session, const EventLog *evlog, int typeId);
+	static void writeEventLog(soci::session &session, const EventLog &evlog, int typeId);
 
-	void writeRegistrationLog(soci::session *session, const RegistrationLog *evlog);
-	void writeCallLog(soci::session *session, const CallLog *evlog);
-	void writeMessageLog(soci::session *session, const MessageLog *evlog);
-	void writeAuthLog(soci::session *session, const AuthLog *evlog);
-	void writeCallQualityStatisticsLog(soci::session *session, const CallQualityStatisticsLog *evlog);
+	void writeRegistrationLog(const RegistrationLog &evlog) override;
+	void writeCallLog(const CallLog &evlog) override;
+	void writeMessageLog(const MessageLog &evlog) override;
+	void writeAuthLog(const AuthLog &evlog) override;
+	void writeCallQualityStatisticsLog(const CallQualityStatisticsLog &evlog) override;
 
 	void writeEventFromQueue();
 

@@ -97,6 +97,18 @@ RegistrationLog::RegistrationLog(const sip_t *sip, const sip_contact_t *contacts
 	mContacts = sip_contact_dup(mHome.home(), contacts);
 }
 
+void RegistrationLog::write(EventLogWriter &writer) const {
+	writer.writeRegistrationLog(*this);
+}
+
+void CallLog::write(EventLogWriter &writer) const {
+	writer.writeCallLog(*this);
+}
+
+void MessageLog::write(EventLogWriter &writer) const {
+	writer.writeMessageLog(*this);
+}
+
 AuthLog::AuthLog(const sip_t *sip, bool userExists)
 :
 	EventLog(sip),
@@ -105,11 +117,6 @@ AuthLog::AuthLog(const sip_t *sip, bool userExists)
 {
 	setOrigin(sip->sip_via);
 }
-
-CallQualityStatisticsLog::CallQualityStatisticsLog(const sip_t *sip)
-:
-	EventLog(sip),
-	mReport{sip->sip_payload && sip->sip_payload->pl_data ? sip->sip_payload->pl_data : nullptr} {}
 
 void AuthLog::setOrigin(const sip_via_t *via) {
 	const char *protocol = strchr(via->v_protocol, '/') + 1;
@@ -129,6 +136,19 @@ void AuthLog::setOrigin(const sip_via_t *via) {
 	if (protocol){
 		mOrigin->url_params = su_sprintf(mHome.home(), "transport=%s", protocol);
 	}
+}
+
+void AuthLog::write(EventLogWriter &writer) const {
+	writer.writeAuthLog(*this);
+}
+
+CallQualityStatisticsLog::CallQualityStatisticsLog(const sip_t *sip)
+:
+	EventLog(sip),
+	mReport{sip->sip_payload && sip->sip_payload->pl_data ? sip->sip_payload->pl_data : nullptr} {}
+
+void CallQualityStatisticsLog::write(EventLogWriter &writer) const {
+	writer.writeCallQualityStatisticsLog(*this);
 }
 
 static bool createDirectoryIfNotExist(const char *path) {
@@ -270,41 +290,41 @@ int FilesystemEventLogWriter::openPath(const url_t *uri, const char *kind, time_
 	return fd;
 }
 
-void FilesystemEventLogWriter::writeRegistrationLog(const RegistrationLog *rlog) {
+void FilesystemEventLogWriter::writeRegistrationLog(const RegistrationLog &rlog) {
 	const char *label = "registers";
-	int fd = openPath(rlog->getFrom()->a_url, label, rlog->getDate());
+	int fd = openPath(rlog.getFrom()->a_url, label, rlog.getDate());
 	if (fd == -1)
 		return;
 
 	ostringstream msg;
-	msg << PrettyTime(rlog->getDate()) << ": " << rlog->getType() << " " << rlog->getFrom();
-	if (rlog->getContacts())
-		msg << " (" << rlog->getContacts()->m_url << ") ";
-	if (rlog->getUserAgent())
-		msg << rlog->getUserAgent();
+	msg << PrettyTime(rlog.getDate()) << ": " << rlog.getType() << " " << rlog.getFrom();
+	if (rlog.getContacts())
+		msg << " (" << rlog.getContacts()->m_url << ") ";
+	if (rlog.getUserAgent())
+		msg << rlog.getUserAgent();
 	msg << endl;
 
 	if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {
 		LOGE("Fail to write registration log: %s", strerror(errno));
 	}
 	close(fd);
-	if (rlog->getStatusCode() >= 300) {
+	if (rlog.getStatusCode() >= 300) {
 		writeErrorLog(rlog, label, msg.str());
 	}
 }
 
-void FilesystemEventLogWriter::writeCallLog(const CallLog *calllog) {
+void FilesystemEventLogWriter::writeCallLog(const CallLog &calllog) {
 	const char *label = "calls";
-	int fd1 = openPath(calllog->getFrom()->a_url, label, calllog->getDate());
-	int fd2 = openPath(calllog->getTo()->a_url, label, calllog->getDate());
+	int fd1 = openPath(calllog.getFrom()->a_url, label, calllog.getDate());
+	int fd2 = openPath(calllog.getTo()->a_url, label, calllog.getDate());
 
 	ostringstream msg;
 
-	msg << PrettyTime(calllog->getDate()) << ": " << calllog->getFrom() << " --> " << calllog->getTo() << " ";
-	if (calllog->isCancelled())
+	msg << PrettyTime(calllog.getDate()) << ": " << calllog.getFrom() << " --> " << calllog.getTo() << " ";
+	if (calllog.isCancelled())
 		msg << "Cancelled";
 	else
-		msg << calllog->getStatusCode() << " " << calllog->getReason();
+		msg << calllog.getStatusCode() << " " << calllog.getReason();
 	msg << endl;
 
 	if (fd1 == -1 || ::write(fd1, msg.str().c_str(), msg.str().size()) == -1) {
@@ -312,7 +332,7 @@ void FilesystemEventLogWriter::writeCallLog(const CallLog *calllog) {
 	}
 	// Avoid to write logs for users that possibly do not exist.
 	// However the error will be reported in the errors directory.
-	if (calllog->getStatusCode() != 404) {
+	if (calllog.getStatusCode() != 404) {
 		if (fd2 == -1 || ::write(fd2, msg.str().c_str(), msg.str().size()) == -1) {
 			LOGE("Fail to write registration log: %s", strerror(errno));
 		}
@@ -321,24 +341,24 @@ void FilesystemEventLogWriter::writeCallLog(const CallLog *calllog) {
 		close(fd1);
 	if (fd2 != -1)
 		close(fd2);
-	if (calllog->getStatusCode() >= 300) {
+	if (calllog.getStatusCode() >= 300) {
 		writeErrorLog(calllog, label, msg.str());
 	}
 }
 
-void FilesystemEventLogWriter::writeMessageLog(const MessageLog *mlog) {
+void FilesystemEventLogWriter::writeMessageLog(const MessageLog &mlog) {
 	const char *label = "messages";
 	ostringstream msg;
 
-	msg << PrettyTime(mlog->getDate()) << ": " << mlog->getReportType() << " id:" << std::hex << mlog->getCallId() << " " <<
+	msg << PrettyTime(mlog.getDate()) << ": " << mlog.getReportType() << " id:" << std::hex << mlog.getCallId() << " " <<
 		std::dec;
-	msg << mlog->getFrom() << " --> " << mlog->getTo();
-	if (mlog->getUri())
-		msg << " (" << mlog->getUri() << ") ";
-	msg << mlog->getStatusCode() << " " << mlog->getReason() << endl;
+	msg << mlog.getFrom() << " --> " << mlog.getTo();
+	if (mlog.getUri())
+		msg << " (" << mlog.getUri() << ") ";
+	msg << mlog.getStatusCode() << " " << mlog.getReason() << endl;
 
-	if (mlog->getReportType() == MessageLog::ReportType::ReceivedFromUser){
-		int fd = openPath(mlog->getFrom()->a_url, label, mlog->getDate());
+	if (mlog.getReportType() == MessageLog::ReportType::ReceivedFromUser){
+		int fd = openPath(mlog.getFrom()->a_url, label, mlog.getDate());
 		if (fd != -1){
 			if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {
 				LOGE("Fail to write message log: %s", strerror(errno));
@@ -347,7 +367,7 @@ void FilesystemEventLogWriter::writeMessageLog(const MessageLog *mlog) {
 		}
 	}else { //MessageLog::DeliveredToUser
 		/*the event is added into the sender's log file and the receiver's log file, for convenience*/
-		int fd = openPath(mlog->getFrom()->a_url, label, mlog->getDate());
+		int fd = openPath(mlog.getFrom()->a_url, label, mlog.getDate());
 		if (fd != -1){
 			if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {
 				LOGE("Fail to write message log: %s", strerror(errno));
@@ -356,8 +376,8 @@ void FilesystemEventLogWriter::writeMessageLog(const MessageLog *mlog) {
 		}
 		// Avoid to write logs for users that possibly do not exist.
 		// However the error will be reported in the errors directory.
-		if (mlog->getStatusCode() != 404){
-			fd = openPath(mlog->getTo()->a_url, label, mlog->getDate());
+		if (mlog.getStatusCode() != 404){
+			fd = openPath(mlog.getTo()->a_url, label, mlog.getDate());
 			if (fd != -1){
 				if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {
 					LOGE("Fail to write message log: %s", strerror(errno));
@@ -366,46 +386,46 @@ void FilesystemEventLogWriter::writeMessageLog(const MessageLog *mlog) {
 			}
 		}
 	}
-	if (mlog->getStatusCode() >= 300) {
+	if (mlog.getStatusCode() >= 300) {
 		writeErrorLog(mlog, label, msg.str());
 	}
 }
 
-void FilesystemEventLogWriter::writeCallQualityStatisticsLog(const CallQualityStatisticsLog *mlog) {
+void FilesystemEventLogWriter::writeCallQualityStatisticsLog(const CallQualityStatisticsLog &mlog) {
 	const char *label = "statistics_reports";
-	int fd = openPath(mlog->getFrom()->a_url, label, mlog->getDate());
+	int fd = openPath(mlog.getFrom()->a_url, label, mlog.getDate());
 	if (fd == -1)
 		return;
 	ostringstream msg;
 
-	msg << PrettyTime(mlog->getDate()) << " ";
-	msg << mlog->getFrom() << " --> " << mlog->getTo() << " ";
-	msg << mlog->getStatusCode() << " " << mlog->getReason() << ": ";
-	msg << mlog->getReport() << endl;
+	msg << PrettyTime(mlog.getDate()) << " ";
+	msg << mlog.getFrom() << " --> " << mlog.getTo() << " ";
+	msg << mlog.getStatusCode() << " " << mlog.getReason() << ": ";
+	msg << mlog.getReport() << endl;
 
 	if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {
 		LOGE("Fail to write registration log: %s", strerror(errno));
 	}
 
 	close(fd);
-	if (mlog->getStatusCode() >= 300) {
+	if (mlog.getStatusCode() >= 300) {
 		writeErrorLog(mlog, label, msg.str());
 	}
 }
 
-void FilesystemEventLogWriter::writeAuthLog(const AuthLog *alog) {
+void FilesystemEventLogWriter::writeAuthLog(const AuthLog &alog) {
 	const char *label = "auth";
 	ostringstream msg;
-	msg << PrettyTime(alog->getDate()) << " " << alog->getMethod() << " " << alog->getFrom();
-	if (alog->getOrigin())
-		msg << " (" << alog->getOrigin() << ") ";
-	if (alog->getUserAgent())
-		msg << " (" << alog->getUserAgent() << ") ";
-	msg << " --> " << alog->getTo() << " ";
-	msg << alog->getStatusCode() << " " << alog->getReason() << endl;
+	msg << PrettyTime(alog.getDate()) << " " << alog.getMethod() << " " << alog.getFrom();
+	if (alog.getOrigin())
+		msg << " (" << alog.getOrigin() << ") ";
+	if (alog.getUserAgent())
+		msg << " (" << alog.getUserAgent() << ") ";
+	msg << " --> " << alog.getTo() << " ";
+	msg << alog.getStatusCode() << " " << alog.getReason() << endl;
 
-	if (alog->userExists()) {
-		int fd = openPath(alog->getFrom()->a_url, label, alog->getDate());
+	if (alog.userExists()) {
+		int fd = openPath(alog.getFrom()->a_url, label, alog.getDate());
 		if (fd != -1) {
 			if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {
 				LOGE("Fail to write auth log: %s", strerror(errno));
@@ -417,31 +437,16 @@ void FilesystemEventLogWriter::writeAuthLog(const AuthLog *alog) {
 }
 
 void FilesystemEventLogWriter::writeErrorLog(
-	const EventLog *log, const char *kind,
+	const EventLog &log, const char *kind,
 	const std::string &logstr
 ) {
-	int fd = openPath(NULL, kind, log->getDate(), log->getStatusCode());
+	int fd = openPath(NULL, kind, log.getDate(), log.getStatusCode());
 	if (fd == -1)
 		return;
 	if (::write(fd, logstr.c_str(), logstr.size()) == -1) {
 		LOGE("Fail to write error log: %s", strerror(errno));
 	}
 	close(fd);
-}
-
-void FilesystemEventLogWriter::write(std::shared_ptr<const EventLog> evlog) {
-	auto ev = evlog.get(); // to fix compilation issue with Apple LLVM version 7.0.0
-	if (typeid(*ev) == typeid(RegistrationLog)) {
-		writeRegistrationLog(static_cast<const RegistrationLog *>(ev));
-	} else if (typeid(*ev) == typeid(CallLog)) {
-		writeCallLog(static_cast<const CallLog *>(ev));
-	} else if (typeid(*ev) == typeid(MessageLog)) {
-		writeMessageLog(static_cast<const MessageLog *>(ev));
-	} else if (typeid(*ev) == typeid(AuthLog)) {
-		writeAuthLog(static_cast<const AuthLog *>(ev));
-	} else if (typeid(*ev) == typeid(CallQualityStatisticsLog)) {
-		writeCallQualityStatisticsLog(static_cast<const CallQualityStatisticsLog *>(ev));
-	}
 }
 
 #if ENABLE_SOCI
@@ -756,19 +761,19 @@ void DataBaseEventLogWriter::initTables(soci::session *session, Backend backend)
 		"  (1, 'Delivered')" + onConflictType;
 }
 
-void DataBaseEventLogWriter::writeEventLog(soci::session *session, const EventLog *evlog, int typeId) {
+void DataBaseEventLogWriter::writeEventLog(soci::session &session, const EventLog &evlog, int typeId) {
 	tm date;
-	string from(sipDataToString(evlog->getFrom()));
-	string to(sipDataToString(evlog->getTo()));
-	string ua(sipDataToString(evlog->getUserAgent()));
-	string completed(boolToSqlString(evlog->isCompleted()));
+	auto from = sipDataToString(evlog.getFrom());
+	auto to = sipDataToString(evlog.getTo());
+	auto ua = sipDataToString(evlog.getUserAgent());
+	auto completed = boolToSqlString(evlog.isCompleted());
 
-	*session << "INSERT INTO event_log "
+	session << "INSERT INTO event_log "
 		"(type_id, sip_from, sip_to, user_agent, date, status_code, reason, completed, call_id, priority)"
 		"VALUES (:typeId, :sipFrom, :sipTo, :userAgent, :date, :statusCode, :reason, :completed, :callId, :priority)",
 		soci::use(typeId), soci::use(from), soci::use(to),
-		soci::use(ua), soci::use(*gmtime_r(&evlog->getDate(), &date)), soci::use(evlog->getStatusCode()),
-		soci::use(evlog->getReason()), soci::use(completed), soci::use(evlog->getCallId()), soci::use(evlog->getPriority());
+		soci::use(ua), soci::use(*gmtime_r(&evlog.getDate(), &date)), soci::use(evlog.getStatusCode()),
+		soci::use(evlog.getReason()), soci::use(completed), soci::use(evlog.getCallId()), soci::use(evlog.getPriority());
 }
 
 // IMPORTANT
@@ -782,68 +787,62 @@ void DataBaseEventLogWriter::writeEventLog(soci::session *session, const EventLo
 // So the choice here is to use the `LAST_INSERT_ID()` and `last_insert_rowid()`
 // from MySQL and SQlite3 directly in SQL.
 
-void DataBaseEventLogWriter::writeRegistrationLog(soci::session *session, const RegistrationLog *evlog) {
-	string contact(sipDataToString(evlog->getContacts()));
-
-	writeEventLog(session, evlog, SqlRegistrationEventLogId);
-	*session << mInsertReq[SqlRegistrationEventLogId], soci::use(int(evlog->getType())), soci::use(contact);
+void DataBaseEventLogWriter::writeRegistrationLog(const RegistrationLog &evlog) {
+	soci::session session{*mConnectionPool};
+	DB_TRANSACTION(&session) {
+		auto contact = sipDataToString(evlog.getContacts());
+		writeEventLog(session, evlog, SqlRegistrationEventLogId);
+		session << mInsertReq[SqlRegistrationEventLogId], soci::use(int(evlog.getType())), soci::use(contact);
+		tr.commit();
+	};
 }
 
-void DataBaseEventLogWriter::writeCallLog(soci::session *session, const CallLog *evlog) {
-	string cancelled(boolToSqlString(evlog->isCancelled()));
-
-	writeEventLog(session, evlog, SqlCallEventLogId);
-	*session << mInsertReq[SqlCallEventLogId], soci::use(cancelled);
+void DataBaseEventLogWriter::writeCallLog(const CallLog &evlog) {
+	soci::session session{*mConnectionPool};
+	DB_TRANSACTION(&session) {
+		auto cancelled = boolToSqlString(evlog.isCancelled());
+		writeEventLog(session, evlog, SqlCallEventLogId);
+		session << mInsertReq[SqlCallEventLogId], soci::use(cancelled);
+		tr.commit();
+	};
 }
 
-void DataBaseEventLogWriter::writeMessageLog(soci::session *session, const MessageLog *evlog) {
-	string uri(sipDataToString(evlog->getUri()));
-
-	writeEventLog(session, evlog, SqlMessageEventLogId);
-	*session << mInsertReq[SqlMessageEventLogId], soci::use(int(evlog->getReportType())), soci::use(uri);
+void DataBaseEventLogWriter::writeMessageLog(const MessageLog &evlog) {
+	soci::session session{*mConnectionPool};
+	DB_TRANSACTION(&session) {
+		auto uri = sipDataToString(evlog.getUri());
+		writeEventLog(session, evlog, SqlMessageEventLogId);
+		session << mInsertReq[SqlMessageEventLogId], soci::use(int(evlog.getReportType())), soci::use(uri);
+		tr.commit();
+	};
 }
 
-void DataBaseEventLogWriter::writeAuthLog(soci::session *session, const AuthLog *evlog) {
-	string origin(sipDataToString(evlog->getOrigin()));
-	string userExists(boolToSqlString(evlog->userExists()));
-
-	writeEventLog(session, evlog, SqlAuthEventLogId);
-	*session << mInsertReq[SqlAuthEventLogId], soci::use(evlog->getMethod()), soci::use(origin), soci::use(userExists);
+void DataBaseEventLogWriter::writeAuthLog(const AuthLog &evlog) {
+	soci::session session{*mConnectionPool};
+	DB_TRANSACTION(&session) {
+		auto origin = sipDataToString(evlog.getOrigin());
+		auto userExists = boolToSqlString(evlog.userExists());
+		writeEventLog(session, evlog, SqlAuthEventLogId);
+		session << mInsertReq[SqlAuthEventLogId], soci::use(evlog.getMethod()), soci::use(origin), soci::use(userExists);
+		tr.commit();
+	};
 }
 
-void DataBaseEventLogWriter::writeCallQualityStatisticsLog(
-	soci::session *session,
-	const CallQualityStatisticsLog *evlog
-) {
-	writeEventLog(session, evlog, SqlCallQualityEventLogId);
-	*session << mInsertReq[SqlCallQualityEventLogId], soci::use(evlog->getReport());
+void DataBaseEventLogWriter::writeCallQualityStatisticsLog(const CallQualityStatisticsLog &evlog) {
+	soci::session session{*mConnectionPool};
+	DB_TRANSACTION(&session) {
+		writeEventLog(session, evlog, SqlCallQualityEventLogId);
+		session << mInsertReq[SqlCallQualityEventLogId], soci::use(evlog.getReport());
+		tr.commit();
+	};
 }
 
 void DataBaseEventLogWriter::writeEventFromQueue() {
 	mMutex.lock();
-
 	auto evlog = mListLogs.front();
 	mListLogs.pop();
-
 	mMutex.unlock();
-
-	auto ev = evlog.get();
-	soci::session session(*mConnectionPool);
-	DB_TRANSACTION(&session) {
-		// TODO: Avoid usage of the digusting typeid helper. Use a visitor pattern instead.
-		if (typeid(*ev) == typeid(RegistrationLog)) {
-			writeRegistrationLog(&session, static_cast<const RegistrationLog *>(ev));
-		} else if (typeid(*ev) == typeid(CallLog)) {
-			writeCallLog(&session, static_cast<const CallLog *>(ev));
-		} else if (typeid(*ev) == typeid(MessageLog)) {
-			writeMessageLog(&session, static_cast<const MessageLog *>(ev));
-		} else if (typeid(*ev) == typeid(AuthLog)) {
-			writeAuthLog(&session, static_cast<const AuthLog *>(ev));
-		} else if (typeid(*ev) == typeid(CallQualityStatisticsLog)) {
-			writeCallQualityStatisticsLog(&session, static_cast<const CallQualityStatisticsLog *>(ev));
-		}
-		tr.commit();
-	};
+	evlog->write(*this);
 }
 
 void DataBaseEventLogWriter::write(std::shared_ptr<const EventLog> evlog) {
