@@ -90,15 +90,19 @@ void ForkMessageContext::checkFinished() {
 	}
 }
 
-void ForkMessageContext::logDeliveredToUserEvent(const std::shared_ptr<BranchInfo> &br,
-										  const std::shared_ptr<ResponseSipEvent> &event) {
-	sip_t *sip = event->getMsgSip()->getSip();
+void ForkMessageContext::logDeliveredToUserEvent(const std::shared_ptr<RequestSipEvent> &reqEv,
+										  const shared_ptr<ResponseSipEvent> &respEv) {
+	sip_t *sip = respEv->getMsgSip()->getSip();
+	const sip_t *sipRequest = reqEv->getMsgSip()->getSip();
 	auto log = make_shared<MessageLog>(sip, MessageLog::ReportType::DeliveredToUser);
-	log->setDestination(br->mRequest->getMsgSip()->getSip()->sip_request->rq_url);
+	log->setDestination(sipRequest->sip_request->rq_url);
 	log->setStatusCode(sip->sip_status->st_status, sip->sip_status->st_phrase);
+	if (sipRequest->sip_priority && sipRequest->sip_priority->g_string) {
+		log->setPriority(sipRequest->sip_priority->g_string);
+	}
 	log->setCompleted();
-	event->setEventLog(log);
-	event->flushLog();
+	respEv->setEventLog(log);
+	respEv->flushLog();
 }
 
 void ForkMessageContext::onResponse(const std::shared_ptr<BranchInfo> &br, const shared_ptr<ResponseSipEvent> &event) {
@@ -111,33 +115,37 @@ void ForkMessageContext::onResponse(const std::shared_ptr<BranchInfo> &br, const
 			mDeliveredCount++;
 			if (mAcceptanceTimer) {
 				if (mIncoming && mIsMessage)
-					logReceivedFromUserEvent(event); /*in the sender's log will appear the status code from the receiver*/
+					logReceivedFromUserEvent(mEvent, event); /*in the sender's log will appear the status code from the receiver*/
 				su_timer_destroy(mAcceptanceTimer);
 				mAcceptanceTimer = NULL;
 			}
 		}
 		if (mIsMessage)
-			logDeliveredToUserEvent(br, event);
+			logDeliveredToUserEvent(br->mRequest, event);
 		forwardResponse(br);
 	} else if (code >= 300 && !mCfg->mForkLate && isUrgent(code, sUrgentCodes)){
 		/*expedite back any urgent replies if late forking is disabled */
 		if (mIsMessage)
-			logDeliveredToUserEvent(br, event);
+			logDeliveredToUserEvent(br->mRequest, event);
 		forwardResponse(br);
 	} else {
 		if (mIsMessage)
-			logDeliveredToUserEvent(br, event);
+			logDeliveredToUserEvent(br->mRequest, event);
 	}
 	checkFinished();
 }
 
-void ForkMessageContext::logReceivedFromUserEvent(const std::shared_ptr<ResponseSipEvent> &ev) {
-	sip_t *sip = ev->getMsgSip()->getSip();
+void ForkMessageContext::logReceivedFromUserEvent(const std::shared_ptr<RequestSipEvent> &reqEv, const shared_ptr<ResponseSipEvent> &respEv) {
+	sip_t *sip = respEv->getMsgSip()->getSip();
+	const sip_t *sipRequest = reqEv->getMsgSip()->getSip();
 	auto log = make_shared<MessageLog>(sip, MessageLog::ReportType::ReceivedFromUser);
 	log->setStatusCode(sip->sip_status->st_status, sip->sip_status->st_phrase);
+	if (sipRequest->sip_priority && sipRequest->sip_priority->g_string) {
+		log->setPriority(sipRequest->sip_priority->g_string);
+	}
 	log->setCompleted();
-	ev->setEventLog(log);
-	ev->flushLog();
+	respEv->setEventLog(log);
+	respEv->flushLog();
 }
 
 /*we are called here if no good response has been received from any branch, in fork-late mode only */
@@ -151,7 +159,7 @@ void ForkMessageContext::acceptMessage() {
 		new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
 	forwardResponse(ev);
 	if (mIsMessage)
-		logReceivedFromUserEvent(ev); /*in the sender's log will appear the 202 accepted from flexisip server*/
+		logReceivedFromUserEvent(mEvent, ev); /*in the sender's log will appear the 202 accepted from flexisip server*/
 }
 
 void ForkMessageContext::onAcceptanceTimer() {

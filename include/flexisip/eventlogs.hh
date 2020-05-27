@@ -57,6 +57,10 @@ public:
 		mReason = std::forward<T>(reason);
 	}
 
+	const std::string &getPriority() const {return mPriority;}
+	template <typename T>
+	void setPriority(T &&priority) {mPriority = std::forward<T>(priority);}
+
 protected:
 	virtual void write(EventLogWriter &writer) const = 0;
 
@@ -69,6 +73,7 @@ protected:
 	std::string mReason{};
 	bool mCompleted{false};
 	std::string mCallId{};
+	std::string mPriority{"normal"};
 
 	class Init {
 	public:
