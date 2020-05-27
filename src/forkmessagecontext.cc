@@ -91,9 +91,9 @@ void ForkMessageContext::checkFinished() {
 }
 
 void ForkMessageContext::logDeliveredToUserEvent(const std::shared_ptr<BranchInfo> &br,
-										  const shared_ptr<ResponseSipEvent> &event) {
+										  const std::shared_ptr<ResponseSipEvent> &event) {
 	sip_t *sip = event->getMsgSip()->getSip();
-	auto log = make_shared<MessageLog>(sip, MessageLog::DeliveredToUser);
+	auto log = make_shared<MessageLog>(sip, MessageLog::ReportType::DeliveredToUser);
 	log->setDestination(br->mRequest->getMsgSip()->getSip()->sip_request->rq_url);
 	log->setStatusCode(sip->sip_status->st_status, sip->sip_status->st_phrase);
 	log->setCompleted();
@@ -131,9 +131,9 @@ void ForkMessageContext::onResponse(const std::shared_ptr<BranchInfo> &br, const
 	checkFinished();
 }
 
-void ForkMessageContext::logReceivedFromUserEvent(const shared_ptr<ResponseSipEvent> &ev) {
+void ForkMessageContext::logReceivedFromUserEvent(const std::shared_ptr<ResponseSipEvent> &ev) {
 	sip_t *sip = ev->getMsgSip()->getSip();
-	auto log = make_shared<MessageLog>(sip, MessageLog::ReceivedFromUser);
+	auto log = make_shared<MessageLog>(sip, MessageLog::ReportType::ReceivedFromUser);
 	log->setStatusCode(sip->sip_status->st_status, sip->sip_status->st_phrase);
 	log->setCompleted();
 	ev->setEventLog(log);
