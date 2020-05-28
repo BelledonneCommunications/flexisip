@@ -528,12 +528,17 @@ DataBaseEventLogWriter::BackendInfo::BackendInfo() noexcept:
 	mTinyUInt{"TINYINT UNSIGNED"},
 	mBigUInt{"BIGINT UNSIGNED"},
 	mDateTime{"DATETIME"},
-	mInsertPrefix{"INSERT INTO"} {}
+	mInsertPrefix{"INSERT INTO"}
+{
+	mCreateVersionTableQuery =
+		"CREATE TABLE IF NOT EXISTS schema_version (version " + bigUIInt() + ") " + tableOptions();
+}
 
 DataBaseEventLogWriter::Sqlite3Info::Sqlite3Info() noexcept : BackendInfo{} {
 	mPrimaryKeyIncrementType = "INTEGER PRIMARY KEY ASC";
 	mInsertPrefix = "INSERT OR IGNORE INTO";
 	mLastIdFunction = "last_insert_rowid()";
+	mTableNamesQuery = "SELECT name AS \"TABLE_NAME\" FROM sqlite_master WHERE type = 'table'";
 }
 
 DataBaseEventLogWriter::MysqlInfo::MysqlInfo() noexcept : BackendInfo{} {
@@ -541,6 +546,7 @@ DataBaseEventLogWriter::MysqlInfo::MysqlInfo() noexcept : BackendInfo{} {
 	mPrimaryKeyIncrementType = "BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT";
 	mLastIdFunction = "LAST_INSERT_ID()";
 	mOnConflictType = "ON DUPLICATE KEY UPDATE type = VALUES(type)";
+	mTableNamesQuery = "SHOW TABLES";
 }
 
 DataBaseEventLogWriter::PostgresqlInfo::PostgresqlInfo() noexcept : BackendInfo{} {
@@ -550,6 +556,7 @@ DataBaseEventLogWriter::PostgresqlInfo::PostgresqlInfo() noexcept : BackendInfo{
 	mPrimaryKeyIncrementType = "BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT";
 	mLastIdFunction = "lastval()";
 	mOnConflictType = "ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type";
+	mTableNamesQuery = "SELECT table_name AS \"TABLE_NAME\"FROM information_schema.tables WHERE table_schema = 'public'";
 }
 
 DataBaseEventLogWriter::DataBaseEventLogWriter(
@@ -571,8 +578,15 @@ DataBaseEventLogWriter::DataBaseEventLogWriter(
 		// Init tables.
 		auto backend = BackendInfo::getBackendInfo(backendString);
 		{
+			unsigned int schemaVersion;
 			soci::session session(*mConnectionPool);
-			SLOGD << "Event log database is " << (databaseIsEmpty(session) ? "empty" : "not empty");
+			if (!databaseIsEmpty(session, *backend)
+				&& (schemaVersion = getSchemaVersion(session, *backend)) < sRequiredSchemaVersion)
+			{
+				LOGF("Event log database as an invalid schema version. Please backup and clear your current "
+					"database and start Flexisip again to generate an up-to-date schema. [currentVersion: %u, "
+					"requiredVersion: %u]", schemaVersion, sRequiredSchemaVersion);
+			}
 			DB_TRANSACTION(&session) {
 				initTables(session, *backend);
 				tr.commit();
@@ -602,11 +616,29 @@ DataBaseEventLogWriter::DataBaseEventLogWriter(
 	}
 }
 
-bool DataBaseEventLogWriter::databaseIsEmpty(soci::session &session) {
-	int ntables;
-	session << "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'flexisip_event_logs';"
-		, soci::into(ntables);
-	return ntables == 0;
+bool DataBaseEventLogWriter::databaseIsEmpty(soci::session &session, const BackendInfo &backend) {
+	string tableName{};
+	DB_TRANSACTION(&session) {
+		session << backend.tableNamesQuery() , soci::into(tableName);
+		tr.commit();
+	};
+	return tableName.empty();
+}
+
+unsigned int DataBaseEventLogWriter::getSchemaVersion(soci::session &session, const BackendInfo &backend) {
+	auto version = 0u;
+	DB_TRANSACTION(&session) {
+		session << backend.createVersionTableQuery();
+		session << "SELECT version FROM schema_version" , soci::into(version);
+		tr.commit();
+	};
+	return version;
+}
+
+void DataBaseEventLogWriter::setSchemaVersion(soci::session &session, const BackendInfo &backend, unsigned int version) {
+	session << backend.createVersionTableQuery();
+	session << "DELETE FROM schema_version";
+	session << "INSERT INTO schema_version VALUE (" + to_string(version) + ")";
 }
 
 void DataBaseEventLogWriter::initTables(soci::session &session, const BackendInfo &backend) {
@@ -614,6 +646,9 @@ void DataBaseEventLogWriter::initTables(soci::session &session, const BackendInf
 	const auto &smallUnsignedInt = backend.tinyUIInt();
 	const auto &bigUnsignedInt = backend.bigUIInt();
 	const auto &timestamp = backend.dateTime();
+
+	// Create schema version table
+	setSchemaVersion(session, backend, sRequiredSchemaVersion);
 
 	// Create types (event, registration, message).
 	session <<
@@ -646,22 +681,10 @@ void DataBaseEventLogWriter::initTables(soci::session &session, const BackendInf
 		"  reason VARCHAR(255) NOT NULL,"
 		"  completed CHAR(1) NOT NULL,"
 		"  call_id VARCHAR(255) NOT NULL,"
+		"  priority VARCHAR(255) NOT NULL,"
 		"  FOREIGN KEY (type_id)"
 		"    REFERENCES event_type(id)"
 		")" + tableOptions;
-
-	// Schema migration #1: add 'priority' column to event_log
-	session << "DROP PROCEDURE IF EXISTS add_priority_column_to_event_log_table";
-	session <<
-		"CREATE PROCEDURE add_priority_column_to_event_log_table()"
-		"BEGIN"
-		"  IF NOT EXISTS ((SELECT * FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='event_log' AND column_name='priority')) THEN"
-		"    ALTER TABLE event_log ADD COLUMN priority VARCHAR(255) NOT NULL DEFAULT 'normal';"
-		"  END IF;"
-		"END";
-	session << "CALL add_priority_column_to_event_log_table()";
-	session << "DROP PROCEDURE IF EXISTS add_priority_column_to_event_log_table";
-
 
 	// Specialized events table.
 	session <<

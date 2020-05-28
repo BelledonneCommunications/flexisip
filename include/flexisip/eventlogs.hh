@@ -251,6 +251,7 @@ private:
 	class BackendInfo {
 	public:
 		BackendInfo() noexcept;
+		virtual ~BackendInfo() = default;
 
 		const std::string &tableOptions() const noexcept {return mTableOptions;}
 		const std::string &tinyUIInt() const noexcept {return mTinyUInt;}
@@ -260,6 +261,10 @@ private:
 		const std::string &insertPrefix() const noexcept {return mInsertPrefix;}
 		const std::string &lastIdFunction() const noexcept {return mLastIdFunction;}
 		const std::string &onConfflictType() const noexcept {return mOnConflictType;}
+
+		const std::string &tableNamesQuery() const noexcept {return mTableNamesQuery;}
+
+		const std::string &createVersionTableQuery() const noexcept {return mCreateVersionTableQuery;}
 
 		static std::unique_ptr<BackendInfo> getBackendInfo(const std::string &backendName);
 
@@ -272,6 +277,9 @@ private:
 		std::string mPrimaryKeyIncrementType{};
 		std::string mLastIdFunction{};
 		std::string mOnConflictType{};
+
+		std::string mTableNamesQuery{};
+		std::string mCreateVersionTableQuery{};
 	};
 
 	class Sqlite3Info : public BackendInfo {
@@ -289,8 +297,10 @@ private:
 		PostgresqlInfo() noexcept;
 	};
 
-	static bool databaseIsEmpty(soci::session &session);
-	void initTables(soci::session &session, const BackendInfo &backend);
+	static bool databaseIsEmpty(soci::session &session, const BackendInfo &backend);
+	static unsigned int getSchemaVersion(soci::session &session, const BackendInfo &backend);
+	static void setSchemaVersion(soci::session& session, const BackendInfo& backend, unsigned int version);
+	static void initTables(soci::session &session, const BackendInfo &backend);
 
 	static void writeEventLog(soci::session &session, const EventLog &evlog, int typeId);
 
@@ -312,6 +322,8 @@ private:
 	unsigned int mMaxQueueSize{0};
 
 	std::array<std::string, 5> mInsertReq{};
+
+	static constexpr unsigned int sRequiredSchemaVersion = 1;
 };
 
 }
