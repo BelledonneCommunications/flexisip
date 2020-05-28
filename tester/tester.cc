@@ -10,7 +10,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -33,6 +33,10 @@ std::string bcTesterRes(const std::string &name){
 	return ret;
 }
 
+static int verbose_arg_func(const char *arg) {
+	bctbx_set_log_level(NULL, BCTBX_LOG_DEBUG);
+	return 0;
+}
 
 int main(int argc, char *argv[]) {
 	int i;
@@ -71,15 +75,15 @@ static void log_handler(int lev, const char *fmt, va_list args) {
 }
 
 void flexisip_tester_init(void(*ftester_printf)(int level, const char *fmt, va_list args)) {
+	bc_tester_set_verbose_func(verbose_arg_func);
+
 	if (ftester_printf == NULL) ftester_printf = log_handler;
 	bc_tester_init(ftester_printf, BCTBX_LOG_MESSAGE, BCTBX_LOG_ERROR, ".");
 
 	bc_tester_add_suite(&boolean_expressions_suite);
-
-
+	bc_tester_add_suite(&registration_event_suite);
 }
 
 void flexisip_tester_uninit(void) {
 	bc_tester_uninit();
 }
-
