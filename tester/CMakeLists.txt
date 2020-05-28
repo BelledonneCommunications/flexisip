@@ -1,6 +1,7 @@
 
 set(SOURCE_FILES_CXX 	tester.cc tester.hh
 			boolean-expressions.cc
+			registration-event-tester.cc
 )
 
 set(FLEXISIP_INCLUDEDIRS)
