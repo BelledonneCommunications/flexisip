@@ -203,29 +203,29 @@ PresenceServer::~PresenceServer(){
 
 void PresenceServer::_init() {
 	if (!mEnabled) return;
-	GenericStruct *cr = GenericManager::get()->getRoot();
-	string get_users_with_phones_request = cr->get<GenericStruct>("module::Authentication")->get<ConfigString>("soci-users-with-phones-request")->read();
-	string db_implementation = cr->get<GenericStruct>("module::Authentication")->get<ConfigString>("db-implementation")->read();
+	const auto *cr = GenericManager::get()->getRoot();
+	const auto &get_users_with_phones_request = cr->get<GenericStruct>("module::Authentication")->get<ConfigString>("soci-users-with-phones-request")->read();
+	const auto &db_implementation = cr->get<GenericStruct>("module::Authentication")->get<ConfigString>("db-implementation")->read();
+	auto longTermEnabled = cr->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read();
 
-	if(get_users_with_phones_request == "" && db_implementation != "file") {
+	if(longTermEnabled && get_users_with_phones_request.empty() && db_implementation != "file") {
 		LOGF("Unable to start presence server : soci-users-with-phones-request is not precised in flexisip.conf, please fix it.");
 	}
 
-	list<string> transports = cr->get<GenericStruct>("presence-server")->get<ConfigStringList>("transports")->read();
+	auto transports = cr->get<GenericStruct>("presence-server")->get<ConfigStringList>("transports")->read();
 
-	for (auto it = transports.begin(); it != transports.end(); ++it) {
-		string transport = *it;
+	for (const auto &transport : transports) {
 		if(transport.find("sips") != string::npos || transport.find("transport=tls") != string::npos) {
 			LOGF("Unable to start presence server : TLS transport is not supported by the presence server.");
 		}
-		belle_sip_uri_t *uri = belle_sip_uri_parse(it->c_str());
+		auto *uri = belle_sip_uri_parse(transport.c_str());
 		if (uri) {
-			belle_sip_listening_point_t *lp = belle_sip_stack_create_listening_point(
+			auto *lp = belle_sip_stack_create_listening_point(
 				mStack, belle_sip_uri_get_host(uri), belle_sip_uri_get_listening_port(uri),
 				belle_sip_uri_get_transport_param(uri) ? belle_sip_uri_get_transport_param(uri) : "udp");
 			belle_sip_object_unref(uri);
 			if (belle_sip_provider_add_listening_point(mProvider, lp))
-				throw FLEXISIP_EXCEPTION << "Cannot add lp for [" << *it << "]";
+				throw FLEXISIP_EXCEPTION << "Cannot add lp for [" << transport << "]";
 		}
 	}
 }
