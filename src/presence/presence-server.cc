@@ -56,27 +56,55 @@ PresenceServer::Init::Init() {
 			"sip:127.0.0.1:5065;transport=tcp"},
 		{Integer, "expires", "Default expires of PUBLISH request in second.", "600"},
 		{Integer, "notify-limit", "Max number of presentity sent in a single NOTIFY by default.", "200"},
-		{Boolean, "long-term-enabled", "Enable long-term presence notifies", "true"},
-		{String, "soci-connection-string", "Connection string to SOCI.", ""},
-		{String, "external-list-subscription-request",
-			"Soci SQL request to execute to obtain the list of the users corresponding to an external subscription.\n"
+		{Boolean, "long-term-enabled", "Enable long-term presence notifies", "false"},
+		{String, "rls-database-connection", "Soci connection string for the resource list database.", ""},
+		{String, "rls-database-request",
+			"SQL request to obtain the list of the users corresponding to an resource list subscription.\n"
 			"Named parameters are:\n"
-				"-':from' : the URI of the sender of the SUBSCRIBE.\n"
-				"-':to' : the URI of the users list which the sender want to subscribe to.\n"
-			"The use of the :from & :to parameters are mandatory.\n", ""},
-		{Integer, "max-thread", "Max number of threads.", "50"},
-		{Integer, "max-thread-queue-size", "Max legnth of threads queue.", "50"},
+			" * ':from' : the URI of the sender of the SUBSCRIBE. (mandatory)\n"
+			" * ':to' : the URI of the users list which the sender want to subscribe to. (mandatory)\n",
+			""},
+		{Integer, "rls-database-max-thread", "Max number of threads.", "50"},
+		{Integer, "rls-database-max-thread-queue-size", "Max legnth of threads queue.", "50"},
 
 		// Hidden parameters
 		{String, "bypass-condition", "If user agent contains it, can bypass extended notifiy verification.", "false"},
 		{Boolean, "leak-detector", "Enable belle-sip leak detector", "false"},
+
+		// Deprecated parameters
+		{String, "soci-connection-string", "Connection string to SOCI.", ""},
+		{String, "external-list-subscription-request",
+			"Soci SQL request to execute to obtain the list of the users corresponding to an external subscription.\n"
+			"Named parameters are:\n"
+			" * ':from' : the URI of the sender of the SUBSCRIBE.\n"
+			" * ':to' : the URI of the users list which the sender want to subscribe to.\n"
+			"The use of the :from & :to parameters are mandatory.", ""},
+		{Integer, "max-thread", "Max number of threads.", "50"},
+		{Integer, "max-thread-queue-size", "Max legnth of threads queue.", "50"},
 		config_item_end};
 
-	GenericStruct *s = new GenericStruct("presence-server", "Flexisip presence server parameters.", 0);
+	auto s = new GenericStruct("presence-server", "Flexisip presence server parameters.", 0);
 	GenericManager::get()->getRoot()->addChild(s);
 	s->addChildrenValues(items);
+
 	s->get<ConfigString>("bypass-condition")->setExportable(false);
 	s->get<ConfigBoolean>("leak-detector")->setExportable(false);
+
+	auto sociConnectionString = s->get<ConfigString>("soci-connection-string");
+	sociConnectionString->setDeprecated({"2020-06-02", "2.0.0", "Renamed into 'rls-database-connection'"});
+	s->get<ConfigString>("rls-database-connection")->setFallback(*sociConnectionString);
+
+	auto externalListSubscriptionRequest = s->get<ConfigString>("external-list-subscription-request");
+	externalListSubscriptionRequest->setDeprecated({"2020-06-02", "2.0.0", "Renamed into 'rls-database-request'"});
+	s->get<ConfigString>("rls-database-request")->setFallback(*externalListSubscriptionRequest);
+
+	auto maxThread = s->get<ConfigInt>("max-thread");
+	maxThread->setDeprecated({"2020-06-02", "2.0.0", "Renamed into 'rls-database-max-thread'"});
+	s->get<ConfigInt>("rls-database-max-thread")->setFallback(*maxThread);
+
+	auto maxThreadQueueSize = s->get<ConfigInt>("max-thread-queue-size");
+	maxThreadQueueSize->setDeprecated({"2020-06-02", "2.0.0", "Renamed into 'rls-database-max-thread-queue-size'"});
+	s->get<ConfigInt>("rls-database-max-thread-queue-size")->setFallback(*maxThreadQueueSize);
 }
 
 PresenceServer::PresenceServer(su_root_t* root) : ServiceServer( root){
@@ -115,13 +143,13 @@ PresenceServer::PresenceServer(su_root_t* root) : ServiceServer( root){
 	mDefaultExpires = config->get<ConfigInt>("expires")->read();
 	mBypass = config->get<ConfigString>("bypass-condition")->read();
 	mEnabled = config->get<ConfigBoolean>("enabled")->read();
-	mRequest = config->get<ConfigString>("external-list-subscription-request")->read();
+	mRequest = config->get<ConfigString>("rls-database-request")->read();
 
 	if (mRequest.empty()) return;
 
-	int maxThreads = config->get<ConfigInt>("max-thread")->read();
-	int maxQueueSize = config->get<ConfigInt>("max-thread-queue-size")->read();
-	const string &connectionString = config->get<ConfigString>("soci-connection-string")->read();
+	int maxThreads = config->get<ConfigInt>("rls-database-max-thread")->read();
+	int maxQueueSize = config->get<ConfigInt>("rls-database-max-thread-queue-size")->read();
+	const string &connectionString = config->get<ConfigString>("rls-database-connection")->read();
 
 	mThreadPool = new ThreadPool(maxThreads, maxQueueSize);
 #if ENABLE_SOCI

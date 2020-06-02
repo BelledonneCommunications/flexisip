@@ -268,8 +268,7 @@ class GenericEntry {
 		return mConfigListener;
 	}
 
-	void setDeprecated(const DeprecationInfo &info) {mDeprecationInfo = info;}
-	void setDeprecated(DeprecationInfo &&info) {mDeprecationInfo = std::move(info);}
+	void setDeprecated(DeprecationInfo info) {mDeprecationInfo = std::move(info);}
 	bool isDeprecated() const {return mDeprecationInfo.isDeprecated();}
 	const DeprecationInfo &getDeprecationInfo() const {return mDeprecationInfo;}
 	DeprecationInfo &getDeprecationInfo() {return mDeprecationInfo;}
