@@ -121,6 +121,10 @@ docker-build-flexisip-src:
 #    - docker image ls
     - ls -la
     - tree
+    - echo "cache path = $CACHE_PATH"
+    - echo "pipeline id = $CI_PIPELINE_ID"
+    - rm -rf "$CACHE_PATH/$CI_PIPELINE_ID"
+    - ls -la
 
 #################################################
 # Schedule
