@@ -115,10 +115,12 @@ docker-build-flexisip-src:
   variables:
     DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA -f docker/flex-from-src --build-arg=njobs=12"
   script:
-    - docker image ls
-    - echo $DOCKER_BUILD_OPTIONS
-    - docker build $DOCKER_BUILD_OPTIONS .
-    - docker image ls
+#    - docker image ls
+#    - echo $DOCKER_BUILD_OPTIONS
+#    - docker build $DOCKER_BUILD_OPTIONS .
+#    - docker image ls
+    - ls -la
+    - tree
 
 #################################################
 # Schedule
