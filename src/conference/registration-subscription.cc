@@ -23,8 +23,8 @@ using namespace flexisip;
 using namespace std;
 using namespace linphone;
 
-RegistrationSubscription::RegistrationSubscription(const ConferenceServer & server, const std::shared_ptr<linphone::ChatRoom> &cr,
-						    const std::shared_ptr<const linphone::Address> &participant)
+RegistrationSubscription::RegistrationSubscription(const ConferenceServer & server, const shared_ptr<ChatRoom> &cr,
+						    const shared_ptr<const Address> &participant)
 	: mServer(server), mChatRoom(cr), mParticipant(participant->clone()) {
 	LOGD("RegistrationSubscription [%p] for chatroom [%p] and participant [%s] initialized.", this, cr.get(),
 	     participant->asStringUriOnly().c_str());
@@ -39,7 +39,7 @@ RegistrationSubscription::~RegistrationSubscription(){
 	LOGD("RegistrationSubscription [%p] destroyed.", this);
 }
 
-void RegistrationSubscription::notify(const std::list< shared_ptr<ParticipantDeviceIdentity> > & participantDevices){
+void RegistrationSubscription::notify(const list< shared_ptr<ParticipantDeviceIdentity> > & participantDevices){
 	LOGD("RegistrationSubscription: notifying chatroom [%p] of participant device list of [%i] elements for participant [%s].",
 	     mChatRoom.get(), (int)participantDevices.size(), mParticipant->asStringUriOnly().c_str());
 	mChatRoom->setParticipantDevices(mParticipant, participantDevices);
@@ -90,7 +90,7 @@ void OwnRegistrationSubscription::stop(){
 	RegistrarDb::get()->unsubscribe(key, RegistrationSubscriptionListener::shared_from_this());
 }
 
-unsigned int OwnRegistrationSubscription::getContactCapabilities(const std::shared_ptr<ExtendedContact> &ec){
+unsigned int OwnRegistrationSubscription::getContactCapabilities(const shared_ptr<ExtendedContact> &ec){
 	unsigned int mask = 0;
 	string specs = ec->getOrgLinphoneSpecs();
 	//Please excuse the following code that is a bit too basic in terms of parsing:
@@ -104,7 +104,7 @@ shared_ptr<Address> OwnRegistrationSubscription::getPubGruu(const shared_ptr<Rec
 	url_t *pub_gruu = r->getPubGruu(ec, home.home());
 	if (pub_gruu){
 		char *pub_gruu_str = su_sprintf(home.home(), "<%s>", url_as_string(home.home(), pub_gruu));
-		return linphone::Factory::get()->createAddress(pub_gruu_str);
+		return Factory::get()->createAddress(pub_gruu_str);
 	}
 	return nullptr;
 }
@@ -131,7 +131,7 @@ bool OwnRegistrationSubscription::isContactCompatible(const shared_ptr<ExtendedC
 	return !mServer.capabilityCheckEnabled() || (getContactCapabilities(ec) & mChatroomRequestedCapabilities) == mChatroomRequestedCapabilities;
 }
 
-void OwnRegistrationSubscription::processRecord(const std::shared_ptr<Record> &r){
+void OwnRegistrationSubscription::processRecord(const shared_ptr<Record> &r){
 	if (!mActive) return;
 	list<shared_ptr<ParticipantDeviceIdentity>> compatibleParticipantDevices;
 	if (r){
@@ -140,7 +140,7 @@ void OwnRegistrationSubscription::processRecord(const std::shared_ptr<Record> &r
 			if (!addr) continue;
 
 			if (isContactCompatible(ec)){
-				shared_ptr<ParticipantDeviceIdentity> identity = linphone::Factory::get()->createParticipantDeviceIdentity(
+				shared_ptr<ParticipantDeviceIdentity> identity = Factory::get()->createParticipantDeviceIdentity(
 					addr, getDeviceName(ec));
 				compatibleParticipantDevices.push_back(identity);
 			}else LOGD("OwnRegistrationSubscription::processRecord(): %s does not have the required capabilities.", addr->asStringUriOnly().c_str());
@@ -149,17 +149,11 @@ void OwnRegistrationSubscription::processRecord(const std::shared_ptr<Record> &r
 	notify(compatibleParticipantDevices);
 }
 
-void OwnRegistrationSubscription::onRecordFound (const std::shared_ptr<Record> &r) {
+void OwnRegistrationSubscription::onRecordFound (const shared_ptr<Record> &r) {
 	processRecord(r);
 }
 
-void OwnRegistrationSubscription::onError (){
-}
-
-void OwnRegistrationSubscription::onInvalid (){
-}
-
-void OwnRegistrationSubscription::onContactRegistered(const std::shared_ptr<Record> &r, const std::string &uid){
+void OwnRegistrationSubscription::onContactRegistered(const shared_ptr<Record> &r, const string &uid){
 	if (!mActive) return;
 	processRecord(r);
 
@@ -173,5 +167,3 @@ void OwnRegistrationSubscription::onContactRegistered(const std::shared_ptr<Reco
 	shared_ptr<Address> pubGruu = getPubGruu(r, ct);
 	if (pubGruu && isContactCompatible(ct)) notifyRegistration(pubGruu);
 }
-
-
