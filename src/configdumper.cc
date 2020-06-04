@@ -16,6 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <cctype>
 #include <regex>
 
 #include <flexisip/flexisip-version.h>
@@ -296,16 +297,28 @@ ostream &XWikiConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValu
 	if (!val->isDeprecated()) {
 
 		// XWiki handles line breaks with double backspaces
-		string help = val->getHelp();
+		auto help = val->getHelp();
 		escaper(help, '\n', "\n ");
 		escaper(help, '`', "'' ");
 
 		ostr << "|=(% style=\"text-align: center;  vertical-align: middle; border: 1px solid #999\" %)" << val->getName()
 			 << "|(% style=\"text-align: left; border: 1px solid #999\" %)" << help
-			 << "|(% style=\"text-align: center; vertical-align: middle; border: 1px solid #999\" %) ##" << val->getDefault() << "##"
+			 << "|(% style=\"text-align: center; vertical-align: middle; border: 1px solid #999\" %) ##" << escape(val->getDefault()) << "##"
 			 << "|(% style=\"text-align: center; vertical-align: middle; border: 1px solid #999\" %)" << val->getTypeName() << endl;
 	}
 	return ostr;
+}
+
+std::string XWikiConfigDumper::escape(const std::string &str) {
+	auto newstr = str;
+	auto it = newstr.begin();
+	do {
+		it = find_if(it, newstr.end(), [](const char &c){return ispunct(c);});
+		if (it != newstr.end()) {
+			it = newstr.insert(it, '~') + 2;
+		}
+	} while (it != newstr.end());
+	return newstr;
 }
 
 

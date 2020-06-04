@@ -158,6 +158,8 @@ public:
 protected:
 	std::ostream &dumpModuleHead(std::ostream &ostr, const GenericStruct *moduleHead, int level) const override;
 	std::ostream &dumpModuleValue(std::ostream &ostr, const ConfigValue *value, int level) const override;
+
+	static std::string escape(const std::string &str);
 };
 
 class MibDumper : public ConfigDumper {
