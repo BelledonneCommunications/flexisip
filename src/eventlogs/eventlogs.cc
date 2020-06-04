@@ -527,7 +527,7 @@ static string boolToSqlString(bool value) {
 DataBaseEventLogWriter::BackendInfo::BackendInfo() noexcept:
 	mTinyUInt{"TINYINT UNSIGNED"},
 	mBigUInt{"BIGINT UNSIGNED"},
-	mDateTime{"DATETIME"},
+	mDateTime{"TIMESTAMP"},
 	mInsertPrefix{"INSERT INTO"}
 {
 	mCreateVersionTableQuery =
@@ -535,7 +535,6 @@ DataBaseEventLogWriter::BackendInfo::BackendInfo() noexcept:
 }
 
 DataBaseEventLogWriter::Sqlite3Info::Sqlite3Info() noexcept : BackendInfo{} {
-	mPrimaryKeyIncrementType = "INTEGER PRIMARY KEY ASC";
 	mInsertPrefix = "INSERT OR IGNORE INTO";
 	mLastIdFunction = "last_insert_rowid()";
 	mTableNamesQuery = "SELECT name AS \"TABLE_NAME\" FROM sqlite_master WHERE type = 'table'";
@@ -543,17 +542,14 @@ DataBaseEventLogWriter::Sqlite3Info::Sqlite3Info() noexcept : BackendInfo{} {
 
 DataBaseEventLogWriter::MysqlInfo::MysqlInfo() noexcept : BackendInfo{} {
 	mTableOptions = "ENGINE=INNODB DEFAULT CHARSET=utf8";
-	mPrimaryKeyIncrementType = "BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT";
+	mPrimaryKeyIncrementType = "AUTO_INCREMENT";
 	mLastIdFunction = "LAST_INSERT_ID()";
 	mOnConflictType = "ON DUPLICATE KEY UPDATE type = VALUES(type)";
 	mTableNamesQuery = "SHOW TABLES";
 }
 
 DataBaseEventLogWriter::PostgresqlInfo::PostgresqlInfo() noexcept : BackendInfo{} {
-	mTinyUInt = "SMALLINT";
-	mBigUInt = "BIGINT";
-	mDateTime = "TIMESTAMP";
-	mPrimaryKeyIncrementType = "BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT";
+	mPrimaryKeyIncrementType = "AUTO_INCREMENT";
 	mLastIdFunction = "lastval()";
 	mOnConflictType = "ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type";
 	mTableNamesQuery = "SELECT table_name AS \"TABLE_NAME\"FROM information_schema.tables WHERE table_schema = 'public'";
@@ -643,7 +639,7 @@ void DataBaseEventLogWriter::setSchemaVersion(soci::session &session, const Back
 
 void DataBaseEventLogWriter::initTables(soci::session &session, const BackendInfo &backend) {
 	const auto &tableOptions = backend.tableOptions();
-	const auto &smallUnsignedInt = backend.tinyUIInt();
+	const auto &tinyUnsignedInt = backend.tinyUIInt();
 	const auto &bigUnsignedInt = backend.bigUIInt();
 	const auto &timestamp = backend.dateTime();
 
@@ -653,31 +649,31 @@ void DataBaseEventLogWriter::initTables(soci::session &session, const BackendInf
 	// Create types (event, registration, message).
 	session <<
 		"CREATE TABLE IF NOT EXISTS event_type ("
-		"  id " + smallUnsignedInt + " PRIMARY KEY,"
+		"  id " + tinyUnsignedInt + " PRIMARY KEY,"
 		"  type VARCHAR(255) NOT NULL UNIQUE"
 		")" + tableOptions;
 
 	session <<
 		"CREATE TABLE IF NOT EXISTS registration_type ("
-		"  id " + smallUnsignedInt + " PRIMARY KEY,"
+		"  id " + tinyUnsignedInt + " PRIMARY KEY,"
 		"  type VARCHAR(255) NOT NULL UNIQUE"
 		")" + tableOptions;
 
 	session <<
 		"CREATE TABLE IF NOT EXISTS message_type ("
-		"  id " + smallUnsignedInt + " PRIMARY KEY,"
+		"  id " + tinyUnsignedInt + " PRIMARY KEY,"
 		"  type VARCHAR(255) NOT NULL UNIQUE"
 		")" + tableOptions;
 
 	// Main events table.
 	session <<
-		"CREATE TABLE IF NOT EXISTS event_log ( id " + backend.primaryKeyIncrementType() + ", "
-		"  type_id " + smallUnsignedInt + " NOT NULL,"
+		"CREATE TABLE IF NOT EXISTS event_log ( id BIGINT UNSIGNED PRIMARY KEY " + backend.primaryKeyIncrementType() + " DESC, "
+		"  type_id " + tinyUnsignedInt + " NOT NULL,"
 		"  sip_from VARCHAR(255) NOT NULL,"
 		"  sip_to VARCHAR(255) NOT NULL,"
 		"  user_agent VARCHAR(255) NOT NULL,"
 		"  date " + timestamp + " NOT NULL,"
-		"  status_code " + smallUnsignedInt + " NOT NULL,"
+		"  status_code SMALLINT UNSIGNED NOT NULL,"
 		"  reason VARCHAR(255) NOT NULL,"
 		"  completed CHAR(1) NOT NULL,"
 		"  call_id VARCHAR(255) NOT NULL,"
@@ -689,8 +685,8 @@ void DataBaseEventLogWriter::initTables(soci::session &session, const BackendInf
 	// Specialized events table.
 	session <<
 		"CREATE TABLE IF NOT EXISTS event_registration_log ("
-		"  id " + bigUnsignedInt + " PRIMARY KEY,"
-		"  type_id " + smallUnsignedInt + " NOT NULL,"
+		"  id " + bigUnsignedInt + " PRIMARY KEY DESC,"
+		"  type_id " + tinyUnsignedInt + " NOT NULL,"
 		"  contacts VARCHAR(255) NOT NULL,"
 
 		"  FOREIGN KEY (id)"
@@ -703,7 +699,7 @@ void DataBaseEventLogWriter::initTables(soci::session &session, const BackendInf
 
 	session <<
 		"CREATE TABLE IF NOT EXISTS event_call_log ("
-		"  id " + bigUnsignedInt + " PRIMARY KEY,"
+		"  id " + bigUnsignedInt + " PRIMARY KEY DESC,"
 		"  cancelled CHAR(1) NOT NULL,"
 
 		"  FOREIGN KEY (id)"
@@ -713,8 +709,8 @@ void DataBaseEventLogWriter::initTables(soci::session &session, const BackendInf
 
 	session <<
 		"CREATE TABLE IF NOT EXISTS event_message_log ("
-		"  id " + bigUnsignedInt + " PRIMARY KEY,"
-		"  type_id " + smallUnsignedInt + " NOT NULL,"
+		"  id " + bigUnsignedInt + " PRIMARY KEY DESC,"
+		"  type_id " + tinyUnsignedInt + " NOT NULL,"
 		"  uri VARCHAR(255) NOT NULL,"
 
 		"  FOREIGN KEY (id)"
@@ -728,7 +724,7 @@ void DataBaseEventLogWriter::initTables(soci::session &session, const BackendInf
 
 	session <<
 		"CREATE TABLE IF NOT EXISTS event_auth_log ("
-		"  id " + bigUnsignedInt + " PRIMARY KEY,"
+		"  id " + bigUnsignedInt + " PRIMARY KEY DESC,"
 		"  method VARCHAR(255) NOT NULL,"
 		"  origin VARCHAR(255) NOT NULL,"
 		"  user_exists CHAR(1) NOT NULL,"
@@ -740,7 +736,7 @@ void DataBaseEventLogWriter::initTables(soci::session &session, const BackendInf
 
 	session <<
 		"CREATE TABLE IF NOT EXISTS event_call_quality_statistics_log ("
-		"  id " + bigUnsignedInt + " PRIMARY KEY,"
+		"  id " + bigUnsignedInt + " PRIMARY KEY DESC,"
 		"  report TEXT NOT NULL,"
 
 		"  FOREIGN KEY (id)"
