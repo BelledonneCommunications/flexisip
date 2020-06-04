@@ -299,12 +299,12 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	}
 	if (!contact->mIsFallback){
 		/* If the original request received contained a X-Target-Uris, it shall be removed now, except
-		 * in the case where we send to a fallback route, because in this case the actual resolution of the X-Target-Uris is 
+		 * in the case where we send to a fallback route, because in this case the actual resolution of the X-Target-Uris is
 		 * actually not done at all. */
 		sip_unknown_t *h = ModuleToolbox::getCustomHeaderByName(new_ev->getMsgSip()->getSip(), "X-Target-Uris");
 		if (h) sip_header_remove(new_ev->getMsgSip()->getMsg(), new_ev->getMsgSip()->getSip(), (sip_header_t *)h);
 	}
-	
+
 	if (!targetUris.empty()) {
 		sip_header_insert(new_msg, new_sip, (sip_header_t *)sip_unknown_format(msg_home(new_msg), "X-Target-Uris: %s",
 																			   targetUris.c_str()));
@@ -621,6 +621,73 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 	context->start();
 }
 
+class PreroutingFetcher : public ContactUpdateListener,
+						  public enable_shared_from_this<PreroutingFetcher>,
+						  private ModuleToolbox {
+	friend class ModuleRouter;
+	shared_ptr<RequestSipEvent> mEv;
+	shared_ptr<ContactUpdateListener> mListener;
+	vector<string> mPreroutes;
+	int pending;
+	bool error;
+	shared_ptr<Record> m_record;
+
+  public:
+	PreroutingFetcher(ModuleRouter *module, shared_ptr<RequestSipEvent> ev,
+					  const shared_ptr<ContactUpdateListener> &listener, const vector<string> &preroutes)
+		: mEv(ev), mListener(listener), mPreroutes(preroutes) {
+		pending = 0;
+		error = false;
+		m_record = make_shared<Record>(nullptr);
+	}
+
+	~PreroutingFetcher() {
+	}
+
+	void fetch() {
+		const char *domain = mEv->getSip()->sip_to->a_url->url_host;
+		if (isNumeric(domain))
+			SLOGE << "Not handled: to is ip at " << __LINE__;
+
+		pending += mPreroutes.size();
+		for (auto it = mPreroutes.cbegin(); it != mPreroutes.cend(); ++it) {
+			url_t *target = url_format(mEv->getHome(), "sip:%s@%s", it->c_str(), domain);
+			RegistrarDb::get()->fetch(target, this->shared_from_this(), true);
+		}
+	}
+
+	void onRecordFound(const shared_ptr<Record> &r) override {
+		--pending;
+		if (r != NULL) {
+			const auto &ctlist = r->getExtendedContacts();
+			for (auto it = ctlist.begin(); it != ctlist.end(); ++it)
+				m_record->pushContact(*it);
+		}
+		checkFinished();
+	}
+	void onError() override {
+		--pending;
+		error = true;
+		checkFinished();
+	}
+
+	void onInvalid() override {
+		--pending;
+		error = true;
+		checkFinished();
+	}
+
+	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override {}
+
+	void checkFinished() {
+		if (pending != 0)
+			return;
+		if (error)
+			mListener->onError();
+		else
+			mListener->onRecordFound(m_record);
+	}
+};
 
 class TargetUriListFetcher : public ContactUpdateListener,
 							 public enable_shared_from_this<TargetUriListFetcher>,
@@ -668,7 +735,7 @@ class TargetUriListFetcher : public ContactUpdateListener,
 		}
 	}
 
-	void onRecordFound(const shared_ptr<Record> &r) override{
+	void onRecordFound(const shared_ptr<Record> &r) override {
 		--mPending;
 		if (r != NULL) {
 			const auto &ctlist = r->getExtendedContacts();
@@ -677,20 +744,19 @@ class TargetUriListFetcher : public ContactUpdateListener,
 		}
 		checkFinished();
 	}
-	void onError() override{
+	void onError() override {
 		--mPending;
 		mError = true;
 		checkFinished();
 	}
 
-	void onInvalid() override{
+	void onInvalid() override {
 		--mPending;
 		mError = true;
 		checkFinished();
 	}
 
-	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override{
-	}
+	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override {}
 
 	void checkFinished() {
 		if (mPending != 0)
@@ -726,7 +792,7 @@ class OnFetchForRoutingListener : public ContactUpdateListener {
 			ev->setEventLog(make_shared<CallLog>(sip));
 		}
 	}
-	void onRecordFound(const shared_ptr<Record> &arg) override{
+	void onRecordFound(const shared_ptr<Record> &arg) override {
 		shared_ptr<Record> r = arg;
 		const string &fallbackRoute = mModule->getFallbackRoute();
 
@@ -774,17 +840,16 @@ class OnFetchForRoutingListener : public ContactUpdateListener {
 			mModule->routeRequest(mEv, r, mSipUri.get());
 		}
 	}
-	void onError() override{
+	void onError() override {
 		mModule->sendReply(mEv, SIP_500_INTERNAL_SERVER_ERROR);
 	}
 
-	void onInvalid() override{
+	void onInvalid() override {
 		LOGD("OnFetchForRoutingListener::onInvalid : 400 - Replayed CSeq");
 		mModule->sendReply(mEv, 400, "Replayed CSeq");
 	}
 
-	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override{
-	}
+	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override {}
 };
 
 vector<string> ModuleRouter::split(const char *data, const char *delim) {

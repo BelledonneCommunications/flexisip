@@ -18,56 +18,86 @@
 
 
 #include "tester.hh"
+#include <flexisip/agent.hh>
 #include <linphone++/linphone.hh>
 #include "bctoolbox/logging.h"
+#include <flexisip/configmanager.hh>
+#include <flexisip/registrardb.hh>
 
 #include "conference/registration-events/client-listener.hh"
 #include "conference/registration-events/server-listener.hh"
 
 using namespace std;
 using namespace linphone;
+using namespace flexisip;
 
 static void basic() {
-
-	shared_ptr<Core> clientCore =  Factory::get()->createCore("","", nullptr);
+	shared_ptr<Core> clientCore = Factory::get()->createCore("","", nullptr);
 	clientCore->getConfig()->setString("storage", "uri", "null");
 	shared_ptr<Transports> transport = Factory::get()->createTransports();
 	transport->setTcpPort(rand() %0x0FFF + 1014);
 	clientCore->setTransports(transport);
 
-	shared_ptr<Core> serverCore =  Factory::get()->createCore("", "", nullptr);
+	shared_ptr<Core> serverCore = Factory::get()->createCore("", "", nullptr);
 	serverCore->getConfig()->setString("storage", "uri", "null");
 	shared_ptr<Transports> serverTransport = Factory::get()->createTransports();
 	serverTransport->setTcpPort(rand() %0x0FFF + 1014);
 	serverCore->setTransports(serverTransport);
 
-	shared_ptr<ServerListener> serverLister = make_shared<ServerListener>();
-	serverCore->addListener(serverLister);
+	// Agent initialisation
+
+	su_root_t *root = su_root_create(NULL);
+	shared_ptr<Agent> a = make_shared<Agent>(root);
+	Agent *agent = a->getAgent();
+
+	GenericManager *cfg = GenericManager::get();
+	cfg->load("/flexisip.conf");
+	agent->loadConfig(cfg);
+
+	// Fill the RegistrarDB
+
+	class BindListener : public ContactUpdateListener {
+	public:
+		void onRecordFound(const shared_ptr<Record> &r) override {}
+		void onError() override {}
+		void onInvalid() override {}
+		void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override {}
+	};
+
+	BindingParameters parameter;
+	parameter.globalExpire = 1000;
+
+	serverCore->addListener(make_shared<ServerListener>());
+	shared_ptr<ClientListener> clientListener = make_shared<ClientListener>();
 
 	serverCore->start();
 	clientCore->start();
 
-	std::shared_ptr<Address> resource = Factory::get()->createAddress(serverCore->getIdentity());
-	shared_ptr<Event> subscribe = clientCore->createSubscribe(resource, "Registrar", 60);
+	string from = serverCore->getIdentity();
 
-	shared_ptr<ClientListener> clientListener = make_shared<ClientListener>();
+	auto msg = nta_msg_create(agent->getSofiaAgent(), 0);
+	clientListener->subscribe(clientCore, Factory::get()->createAddress(from));
 	clientCore->addListener(clientListener);
 
-	shared_ptr<Content> subsContent = Factory::get()->createContent();
-	string body("<mon super xml>");
-	subsContent->setBuffer((uint8_t *)body.data(), body.length());
-	subsContent->setType("application");
-	subsContent->setSubtype("xml");
+	// We forge a fake SIP message
+	auto sip = sip_object(msg);
+	sip->sip_from = sip_from_create(msg_home(msg), (url_string_t *)from.c_str());
+	sip->sip_contact = sip_contact_create(
+		msg_home(msg),
+		(url_string_t *)from.c_str(),
+		string("+sip.instance=").append("12345").c_str(),
+		nullptr
+	);
+	sip->sip_user_agent = sip_user_agent_make(msg_home(msg), "Linphone (Debian) LinphoneCore");
+	sip->sip_call_id = sip_call_id_make(msg_home(msg), "foobar");
 
-	subscribe->sendSubscribe(subsContent);
+	RegistrarDb::get()->bind(sip, parameter, make_shared<BindListener>());
 
 	while (!clientListener->notifyReceived) {
 		clientCore->iterate();
 		serverCore->iterate();
-		usleep(100000);
 	}
 }
-
 
 static test_t tests[] = {
 	TEST_NO_TAG("Basic sub", basic),

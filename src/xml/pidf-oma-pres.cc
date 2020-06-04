@@ -34,11 +34,11 @@
 // Begin prologue.
 //
 #if __clang__ || __GNUC__ >= 4
-  #pragma GCC diagnostic push
-  #pragma GCC diagnostic ignored "-Wfloat-equal"
-  #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wfloat-equal"
+	#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 #ifndef __ANDROID__
-  #pragma GCC diagnostic ignored "-Wsuggest-override"
+	#pragma GCC diagnostic ignored "-Wsuggest-override"
 #endif
 #endif
 //
@@ -51,7 +51,7 @@
 namespace oma_pres
 {
   // BasicType
-  //
+  // 
 
   BasicType::
   BasicType (Value v)
@@ -88,7 +88,7 @@ namespace oma_pres
   BasicType& BasicType::
   operator= (Value v)
   {
-    static_cast< ::Xsd::XmlSchema::String& > (*this) =
+    static_cast< ::Xsd::XmlSchema::String& > (*this) = 
     ::Xsd::XmlSchema::String (_xsd_BasicType_literals_[v]);
 
     return *this;
@@ -96,11 +96,11 @@ namespace oma_pres
 
 
   // EmptyType
-  //
+  // 
 
 
   // RegistrationType
-  //
+  // 
 
   RegistrationType::
   RegistrationType (Value v)
@@ -137,7 +137,7 @@ namespace oma_pres
   RegistrationType& RegistrationType::
   operator= (Value v)
   {
-    static_cast< ::Xsd::XmlSchema::String& > (*this) =
+    static_cast< ::Xsd::XmlSchema::String& > (*this) = 
     ::Xsd::XmlSchema::String (_xsd_RegistrationType_literals_[v]);
 
     return *this;
@@ -145,7 +145,7 @@ namespace oma_pres
 
 
   // BarringType
-  //
+  // 
 
   BarringType::
   BarringType (Value v)
@@ -182,7 +182,7 @@ namespace oma_pres
   BarringType& BarringType::
   operator= (Value v)
   {
-    static_cast< ::Xsd::XmlSchema::String& > (*this) =
+    static_cast< ::Xsd::XmlSchema::String& > (*this) = 
     ::Xsd::XmlSchema::String (_xsd_BarringType_literals_[v]);
 
     return *this;
@@ -190,7 +190,7 @@ namespace oma_pres
 
 
   // ServiceDescription
-  //
+  // 
 
   const ServiceDescription::ServiceIdType& ServiceDescription::
   getServiceId () const
@@ -332,7 +332,7 @@ namespace oma_pres
 
 
   // Willingness
-  //
+  // 
 
   const Willingness::BasicOptional& Willingness::
   getBasic () const
@@ -414,7 +414,7 @@ namespace oma_pres
 
 
   // SessionParticipation
-  //
+  // 
 
   const SessionParticipation::BasicOptional& SessionParticipation::
   getBasic () const
@@ -496,7 +496,7 @@ namespace oma_pres
 
 
   // RegistrationState
-  //
+  // 
 
   const RegistrationState::AnyAttributeSet& RegistrationState::
   getAnyAttribute () const
@@ -530,7 +530,7 @@ namespace oma_pres
 
 
   // BarringState
-  //
+  // 
 
   const BarringState::AnyAttributeSet& BarringState::
   getAnyAttribute () const
@@ -564,7 +564,7 @@ namespace oma_pres
 
 
   // OverridingWillingness
-  //
+  // 
 
   const OverridingWillingness::BasicOptional& OverridingWillingness::
   getBasic () const
@@ -646,7 +646,7 @@ namespace oma_pres
 
 
   // NetworkAvailability
-  //
+  // 
 
   const NetworkAvailability::NetworkSequence& NetworkAvailability::
   getNetwork () const
@@ -716,7 +716,7 @@ namespace oma_pres
 
 
   // Network
-  //
+  // 
 
   const Network::ActiveOptional& Network::
   getActive () const
@@ -5705,7 +5705,8 @@ namespace oma_pres
 // Begin epilogue.
 //
 #if __clang__ || __GNUC__ >= 4
-  #pragma GCC diagnostic pop
+	#pragma GCC diagnostic pop
 #endif
 //
 // End epilogue.
+
