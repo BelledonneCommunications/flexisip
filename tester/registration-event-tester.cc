@@ -18,48 +18,53 @@
 
 
 #include "tester.hh"
+#include <flexisip/agent.hh>
 #include <linphone++/linphone.hh>
 #include "bctoolbox/logging.h"
+#include <flexisip/configmanager.hh>
+#include <flexisip/registrardb.hh>
 
 #include "conference/registration-events/client-listener.hh"
 #include "conference/registration-events/server-listener.hh"
 
 using namespace std;
 using namespace linphone;
+using namespace flexisip;
 
 static void basic() {
-
-	shared_ptr<Core> clientCore =  Factory::get()->createCore("","", nullptr);
+	shared_ptr<Core> clientCore = Factory::get()->createCore("","", nullptr);
 	clientCore->getConfig()->setString("storage", "uri", "null");
 	shared_ptr<Transports> transport = Factory::get()->createTransports();
 	transport->setTcpPort(rand() %0x0FFF + 1014);
 	clientCore->setTransports(transport);
 
-	shared_ptr<Core> serverCore =  Factory::get()->createCore("", "", nullptr);
+	shared_ptr<Core> serverCore = Factory::get()->createCore("", "", nullptr);
 	serverCore->getConfig()->setString("storage", "uri", "null");
 	shared_ptr<Transports> serverTransport = Factory::get()->createTransports();
 	serverTransport->setTcpPort(rand() %0x0FFF + 1014);
 	serverCore->setTransports(serverTransport);
 
+	/*su_root_t *root = NULL;
+	shared_ptr<Agent> a = make_shared<Agent>(root);
+	Agent *agent = a->getAgent();
+
+	GenericManager *cfg = GenericManager::get();
+	cfg->getGlobal()->get<ConfigValue>("use-global-domain")->setDefault("false");
+	agent->loadConfig(cfg);
+
+	RegistrarDb::initialize(agent);*/
+
 	shared_ptr<ServerListener> serverLister = make_shared<ServerListener>();
 	serverCore->addListener(serverLister);
+
+	shared_ptr<ClientListener> clientListener = make_shared<ClientListener>();
+	clientCore->addListener(clientListener);
 
 	serverCore->start();
 	clientCore->start();
 
 	std::shared_ptr<Address> resource = Factory::get()->createAddress(serverCore->getIdentity());
-	shared_ptr<Event> subscribe = clientCore->createSubscribe(resource, "Registrar", 60);
-
-	shared_ptr<ClientListener> clientListener = make_shared<ClientListener>();
-	clientCore->addListener(clientListener);
-
-	shared_ptr<Content> subsContent = Factory::get()->createContent();
-	string body("<mon super xml>");
-	subsContent->setBuffer((uint8_t *)body.data(), body.length());
-	subsContent->setType("application");
-	subsContent->setSubtype("xml");
-
-	subscribe->sendSubscribe(subsContent);
+	clientListener->subscribe(clientCore, resource);
 
 	while (!clientListener->notifyReceived) {
 		clientCore->iterate();

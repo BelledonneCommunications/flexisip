@@ -104,6 +104,7 @@ def generate(name):
 def main(argv = None):
 	generate("xml")
 	generate("common-schema")
+	generate("reginfo")
 	generate("data-model")
 	generate("fthttp")
 	generate("pidf+xml")

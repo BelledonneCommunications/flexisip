@@ -383,6 +383,7 @@ class RegistrarDb {
 	void addStateListener (const std::shared_ptr<RegistrarDbStateListener> &listener);
 	void removeStateListener (const std::shared_ptr<RegistrarDbStateListener> &listener);
 	bool isWritable () const { return mWritable; }
+	void subscribe(const url_t *url, const std::shared_ptr<ContactRegisteredListener> &listener);
 	virtual void subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
 	virtual void unsubscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
 	virtual void publish(const std::string &topic, const std::string &uid) = 0;
@@ -432,7 +433,7 @@ class RegistrarDb {
 	virtual void doFetchInstance(const url_t *url, const std::string &uniqueId, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
 	virtual void doMigration() = 0;
 
-	int count_sip_contacts(const sip_contact_t *contact);
+	int countSipContacts(const sip_contact_t *contact);
 	bool errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const std::string &key,
 									 const std::shared_ptr<RegistrarDbListener> &listener);
 	void fetchWithDomain(const url_t *url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive);

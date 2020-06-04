@@ -716,6 +716,10 @@ void RegistrarDb::notifyStateListener () const {
 		listener->onRegistrarDbWritable(mWritable);
 }
 
+void RegistrarDb::subscribe(const url_t *url, const shared_ptr<ContactRegisteredListener> &listener) {
+	this->subscribe(Record::defineKeyFromUrl(url), listener);
+}
+
 void RegistrarDb::subscribe(const string &topic, const shared_ptr<ContactRegisteredListener> &listener) {
 	LOGD("Subscribe topic = %s with listener %p", topic.c_str(), listener.get());
 	mContactListenersMap.insert(make_pair(topic, listener));
@@ -840,7 +844,7 @@ void RegistrarDb::LocalRegExpire::notifyLocalRegExpireListener(unsigned int coun
 	}
 }
 
-int RegistrarDb::count_sip_contacts(const sip_contact_t *contact) {
+int RegistrarDb::countSipContacts(const sip_contact_t *contact) {
 	int count = 0;
 	sip_contact_t *current = (sip_contact_t *)contact;
 	while (current) {
@@ -854,7 +858,7 @@ int RegistrarDb::count_sip_contacts(const sip_contact_t *contact) {
 
 bool RegistrarDb::errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, const string & key,
 											  const shared_ptr<RegistrarDbListener> &listener) {
-	int nb_contact = count_sip_contacts(sip_contact);
+	int nb_contact = this->countSipContacts(sip_contact);
 	int max_contact = Record::getMaxContacts();
 	if (nb_contact > max_contact) {
 		LOGD("Too many contacts in register %s %i > %i", key.c_str(), nb_contact,
@@ -1153,7 +1157,7 @@ void RegistrarDb::bind(const sip_t *sip, const BindingParameters &parameter, con
 					su_sprintf(home.home(), "pub-gruu"));
 	}
 
-	int countSipContacts = count_sip_contacts(sip->sip_contact);
+	int countSipContacts = this->countSipContacts(sip->sip_contact);
 	if (countSipContacts > Record::getMaxContacts()) {
 		LOGD("Too many contacts in register %s %i > %i", Record::defineKeyFromUrl(sip->sip_from->a_url).c_str(), countSipContacts, Record::getMaxContacts());
 		listener->onError();
@@ -1211,25 +1215,23 @@ class AgregatorRegistrarDbListener : public ContactUpdateListener {
 		: mOriginalListener(origListener), mNumRespExpected(numResponseExpected), mNumResponseObtained(0), mRecord(0) {
 		mError = false;
 	}
-	virtual ~AgregatorRegistrarDbListener() {
-	}
-	virtual void onRecordFound(const shared_ptr<Record> &r) override{
+	virtual ~AgregatorRegistrarDbListener() {}
+	virtual void onRecordFound(const shared_ptr<Record> &r) override {
 		if (r) {
 			getRecord()->appendContactsFrom(r);
 		}
 		checkFinished();
 	}
-	virtual void onError() override{
+	virtual void onError() override {
 		mError = true;
 		checkFinished();
 	}
-	virtual void onInvalid() override{
+	virtual void onInvalid() override {
 		// onInvalid() will normally never be called for a fetch request
 		checkFinished();
 	}
 
-	virtual void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override{
-	}
+	virtual void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override {}
 };
 
 void RegistrarDb::fetchWithDomain(const url_t *url, const shared_ptr<ContactUpdateListener> &listener,
