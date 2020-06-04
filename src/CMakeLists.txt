@@ -193,6 +193,10 @@ if(ENABLE_PRESENCE)
 		xml/rpid.hh
 		xml/xml.cc
 		xml/xml.hh
+
+		# Not sur if it belongs there
+		xml/reginfo.cc
+		xml/reginfo.hh
 	)
 	list(APPEND FLEXISIP_LIBS ${XERCES_LIBS})
 	list(APPEND FLEXISIP_INCLUDES presence)
@@ -244,6 +248,8 @@ if(ENABLE_CONFERENCE)
 		conference/registration-events/client-listener.cpp
 		conference/registration-events/server-listener.hh
 		conference/registration-events/server-listener.cpp
+		conference/registration-events/server-registrar-listener.hh
+		conference/registration-events/server-registrar-listener.cpp
 	)
 endif()
 
