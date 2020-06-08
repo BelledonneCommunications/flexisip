@@ -27,7 +27,6 @@ void ServerRegistrarListener::processRecord(const shared_ptr<Record> &r) {
         "123",
         Registration::StateType::active
     );
-    ri.getRegistration().push_back(re);
 
     if (r) {
         for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
@@ -36,6 +35,8 @@ void ServerRegistrarListener::processRecord(const shared_ptr<Record> &r) {
             re.getContact().push_back(contact);
         }
     }
+
+    ri.getRegistration().push_back(re);
 
     stringstream xmlBody;
     serializeReginfo(xmlBody, ri);

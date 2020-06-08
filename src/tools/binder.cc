@@ -24,9 +24,6 @@ using namespace flexisip;
 
 struct MyListener : public ContactUpdateListener {
 	virtual void onRecordFound(Record *r) override{
-		// 		cout << "record found : ";
-		// 		r->print(cout);
-		// 		cout << endl;
 		auto ecc = firstContact(*r);
 		long rExpire = ecc.mExpireAt - ecc.mUpdatedTime;
 		check("expire", atol(params.sip.contact->m_expires), rExpire);

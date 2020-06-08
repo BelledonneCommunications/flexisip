@@ -44,72 +44,60 @@ static void basic() {
 	serverTransport->setTcpPort(rand() %0x0FFF + 1014);
 	serverCore->setTransports(serverTransport);
 
-	su_root_t *root = NULL;
+	// Agent initialisation
+
+	su_root_t *root = su_root_create(NULL);
 	shared_ptr<Agent> a = make_shared<Agent>(root);
 	Agent *agent = a->getAgent();
-
-
-	class BindListener : public ContactUpdateListener {
-	public:
-		BindListener() {}
-		void onRecordFound(const shared_ptr<Record> &r) override {}
-		void onError() override {}
-		void onInvalid() override {}
-		void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override {}
-	};
 
 	GenericManager *cfg = GenericManager::get();
 	cfg->load("/flexisip.conf");
 	agent->loadConfig(cfg);
 
 	// Fill the RegistrarDB
-	const char* from = "sip:test@test.com";
-	string uuid = "12345";
 
-	auto msg = nta_msg_create(agent->getSofiaAgent(), 0);
-	msg_header_add_dup(
-		msg,
-		nullptr,
-		reinterpret_cast<msg_header_t*>(sip_request_make(msg_home(msg), "MESSAGE sip:abcd SIP/2.0\r\n"))
-	);
+	class BindListener : public ContactUpdateListener {
+	public:
+		void onRecordFound(const shared_ptr<Record> &r) override {}
+		void onError() override {}
+		void onInvalid() override {}
+		void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override {}
+	};
 
 	BindingParameters parameter;
-	parameter.globalExpire = 0;
+	parameter.globalExpire = 1000;
 
-	// We forge a fake SIP message
-	auto sip = sip_object(msg);
-	sip->sip_from = sip_from_create(msg_home(msg), (url_string_t *)from);
-	sip->sip_contact = sip_contact_create(
-		msg_home(msg),
-		(url_string_t *)from, string("+sip.instance=").append(uuid).c_str(),
-		nullptr
-	);
-	sip->sip_call_id = sip_call_id_make(msg_home(msg), "foobar");
-
-	auto listener = make_shared<BindListener>();
-
-	RegistrarDb::get()->bind(sip, parameter, listener);
-
-	shared_ptr<ServerListener> serverLister = make_shared<ServerListener>();
-	serverCore->addListener(serverLister);
-
+	serverCore->addListener(make_shared<ServerListener>());
 	shared_ptr<ClientListener> clientListener = make_shared<ClientListener>();
-	clientCore->addListener(clientListener);
 
 	serverCore->start();
 	clientCore->start();
 
+	string from = serverCore->getIdentity();
 
-	std::shared_ptr<Address> resource = Factory::get()->createAddress(serverCore->getIdentity());
-	clientListener->subscribe(clientCore, resource);
+	auto msg = nta_msg_create(agent->getSofiaAgent(), 0);
+	clientListener->subscribe(clientCore, Factory::get()->createAddress(from));
+	clientCore->addListener(clientListener);
+
+	// We forge a fake SIP message
+	auto sip = sip_object(msg);
+	sip->sip_from = sip_from_create(msg_home(msg), (url_string_t *)from.c_str());
+	sip->sip_contact = sip_contact_create(
+		msg_home(msg),
+		(url_string_t *)from.c_str(),
+		string("+sip.instance=").append("12345").c_str(),
+		nullptr
+	);
+	sip->sip_user_agent = sip_user_agent_make(msg_home(msg), "Linphone (Debian) LinphoneCore");
+	sip->sip_call_id = sip_call_id_make(msg_home(msg), "foobar");
+
+	RegistrarDb::get()->bind(sip, parameter, make_shared<BindListener>());
 
 	while (!clientListener->notifyReceived) {
 		clientCore->iterate();
 		serverCore->iterate();
-		usleep(100000);
 	}
 }
-
 
 static test_t tests[] = {
 	TEST_NO_TAG("Basic sub", basic),

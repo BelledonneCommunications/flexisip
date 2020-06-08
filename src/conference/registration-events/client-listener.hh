@@ -2,6 +2,8 @@
 
 #include <linphone++/linphone.hh>
 
+#include <iostream>
+
 using namespace std;
 using namespace linphone;
 
