@@ -29,10 +29,12 @@ void ServerRegistrarListener::processRecord(const shared_ptr<Record> &r) {
     );
     ri.getRegistration().push_back(re);
 
-    for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
-        // TODO complete
-        Contact contact = Contact(ec->getUniqueId(), Contact::StateType::active, Contact::EventType::registered, ec->getUniqueId());
-        re.getContact().push_back(contact);
+    if (r) {
+        for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
+            Contact contact = Contact(ec->getUniqueId(), Contact::StateType::active, Contact::EventType::registered, ec->getUniqueId());
+            contact.setDisplayName(this->getDeviceName(ec));
+            re.getContact().push_back(contact);
+        }
     }
 
     stringstream xmlBody;
@@ -47,3 +49,25 @@ void ServerRegistrarListener::processRecord(const shared_ptr<Record> &r) {
     this->event->addCustomHeader("Accept", "application/reginfo+xml");
     this->event->notify(notifyContent);
 };
+
+string ServerRegistrarListener::getDeviceName(const shared_ptr<ExtendedContact> &ec) {
+    const string &userAgent = ec->getUserAgent();
+    size_t begin = userAgent.find("(");
+    string deviceName;
+
+    if (begin != string::npos) {
+        size_t end = userAgent.find(")", begin);
+        size_t openingParenthesis = userAgent.find("(", begin + 1);
+
+        while (openingParenthesis != string::npos && openingParenthesis < end) {
+            openingParenthesis = userAgent.find("(", openingParenthesis + 1);
+            end = userAgent.find(")", end + 1);
+        }
+
+        if (end != string::npos){
+            deviceName = userAgent.substr(begin + 1, end - (begin + 1));
+        }
+    }
+
+    return deviceName;
+}

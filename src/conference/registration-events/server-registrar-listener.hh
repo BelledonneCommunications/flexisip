@@ -18,4 +18,5 @@ class ServerRegistrarListener : public ContactRegisteredListener, public Contact
     private:
         const shared_ptr<linphone::Event> event;
         void processRecord(const shared_ptr<Record> &r);
+        string getDeviceName(const shared_ptr<ExtendedContact> &ec);
 };

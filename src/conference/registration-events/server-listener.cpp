@@ -15,7 +15,7 @@ void ServerListener::onSubscribeReceived(const std::shared_ptr<linphone::Core> &
     }
 
     string acceptHeader = lev->getCustomHeader("Accept");
-    if (acceptHeader != "reg") {
+    if (acceptHeader != "application/reginfo+xml") {
         lev->denySubscription(Reason::NotAcceptable);
     }
 
@@ -26,19 +26,6 @@ void ServerListener::onSubscribeReceived(const std::shared_ptr<linphone::Core> &
     SofiaAutoHome home;
     url_t *url = url_make(home.home(), lev->getFrom()->asString().c_str());
 
-    RegistrarDb::get()->fetch(url, listener, true);
     RegistrarDb::get()->subscribe(url, listener);
-
-    this->notifyContent(lc, lev);
-}
-
-void ServerListener::notifyContent(const std::shared_ptr<linphone::Core> & lc, const std::shared_ptr<linphone::Event> & lev) {
-    shared_ptr<Content> notifyContent = Factory::get()->createContent();
-    notifyContent->setType("application");
-    notifyContent->setSubtype("xml");
-
-    string notiFybody("<mon super xml de notify>");
-    notifyContent->setBuffer((uint8_t *)notiFybody.data(), notiFybody.length());
-    lev->addCustomHeader("Accept", "application/reginfo+xml");
-    lev->notify(notifyContent);
+    RegistrarDb::get()->fetch(url, listener, true);
 }
