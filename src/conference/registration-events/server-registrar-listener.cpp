@@ -47,7 +47,7 @@ void ServerRegistrarListener::processRecord(const shared_ptr<Record> &r) {
     notifyContent->setType("application");
     notifyContent->setSubtype("xml");
 
-    this->event->addCustomHeader("Accept", "application/reginfo+xml");
+    this->event->addCustomHeader("Content-Type", "application/reginfo+xml");
     this->event->notify(notifyContent);
 };
 
