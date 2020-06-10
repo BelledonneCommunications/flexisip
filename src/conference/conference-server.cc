@@ -28,6 +28,7 @@
 #include "utils/uri-utils.hh"
 
 using namespace std;
+using namespace linphone;
 
 namespace flexisip {
 
@@ -44,7 +45,7 @@ ConferenceServer::~ConferenceServer () {}
 
 void ConferenceServer::_init () {
 	// Set config, transport, create core, etc
-	shared_ptr<linphone::Transports> cTransport = linphone::Factory::get()->createTransports();
+	shared_ptr<Transports> cTransport = Factory::get()->createTransports();
 	cTransport->setTcpPort(0);
 	cTransport->setUdpPort(0);
 	cTransport->setTlsPort(0);
@@ -69,20 +70,20 @@ void ConferenceServer::_init () {
 	mCheckCapabilities = config->get<ConfigBoolean>("check-capabilities")->read();
 
 	// Core
-	shared_ptr<linphone::Config> configLinphone = linphone::Factory::get()->createConfig("");
+	shared_ptr<Config> configLinphone = Factory::get()->createConfig("");
 	configLinphone->setBool("misc", "conference_server_enabled", 1);
 	configLinphone->setBool("misc", "enable_one_to_one_chat_room", config->get<ConfigBoolean>("enable-one-to-one-chat-room")->read());
 	configLinphone->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
 	configLinphone->setString("storage", "uri", config->get<ConfigString>("database-connection-string")->read());
-	mCore = linphone::Factory::get()->createCoreWithConfig(configLinphone, nullptr);
+	mCore = Factory::get()->createCoreWithConfig(configLinphone, nullptr);
 	mCore->setUserAgent("Flexisip-conference", FLEXISIP_GIT_VERSION);
 	mCore->addListener(shared_from_this());
 	mCore->enableConferenceServer(true);
 	mCore->setTransports(cTransport);
 
 	string conferenceFactoryUri = config->get<ConfigString>("conference-factory-uri")->read();
-	shared_ptr<linphone::Address> addrProxy = linphone::Factory::get()->createAddress(conferenceFactoryUri);
-	shared_ptr<linphone::ProxyConfig> proxy = mCore->createProxyConfig();
+	shared_ptr<Address> addrProxy = Factory::get()->createAddress(conferenceFactoryUri);
+	shared_ptr<ProxyConfig> proxy = mCore->createProxyConfig();
 	proxy->setIdentityAddress(addrProxy);
 	proxy->setRoute(config->get<ConfigString>("outbound-proxy")->read());
 	proxy->setServerAddr(config->get<ConfigString>("outbound-proxy")->read());
@@ -91,7 +92,7 @@ void ConferenceServer::_init () {
 	mCore->addProxyConfig(proxy);
 	mCore->setDefaultProxyConfig(proxy);
 
-	linphone::Status err = mCore->start();
+	Status err = mCore->start();
 	if (err == -2) LOGF("Linphone Core couldn't start because the connection to the database has failed");
 	if (err < 0) LOGF("Linphone Core starting failed");
 
@@ -115,23 +116,23 @@ void ConferenceServer::onRegistrarDbWritable (bool writable) {
 }
 
 void ConferenceServer::onChatRoomStateChanged (
-	const shared_ptr<linphone::Core> &lc,
-	const shared_ptr<linphone::ChatRoom> &cr,
-	linphone::ChatRoom::State state
+	const shared_ptr<Core> &lc,
+	const shared_ptr<ChatRoom> &cr,
+	ChatRoom::State state
 ) {
-	if (state == linphone::ChatRoom::State::Instantiated) {
+	if (state == ChatRoom::State::Instantiated) {
 		mChatRooms.push_back(cr);
 		cr->addListener(shared_from_this());
-	} else if (state == linphone::ChatRoom::State::Deleted) {
+	} else if (state == ChatRoom::State::Deleted) {
 		cr->removeListener(shared_from_this());
 		mChatRooms.remove(cr);
 	}
 }
 
-void ConferenceServer::onConferenceAddressGeneration (const shared_ptr<linphone::ChatRoom> & cr) {
-	shared_ptr<linphone::Config> config = mCore->getConfig();
+void ConferenceServer::onConferenceAddressGeneration (const shared_ptr<ChatRoom> & cr) {
+	shared_ptr<Config> config = mCore->getConfig();
 	string uuid = config->getString("misc", "uuid", "");
-	shared_ptr<linphone::Address> confAddr = linphone::Factory::get()->createAddress(
+	shared_ptr<Address> confAddr = Factory::get()->createAddress(
 		mCore->getDefaultProxyConfig()->getConferenceFactoryUri()
 	);
 	shared_ptr<ConferenceAddressGenerator> generator = make_shared<ConferenceAddressGenerator>(
@@ -144,21 +145,21 @@ void ConferenceServer::onConferenceAddressGeneration (const shared_ptr<linphone:
 	generator->run();
 }
 
-void flexisip::ConferenceServer::onParticipantRegistrationSubscriptionRequested (
-	const shared_ptr<linphone::ChatRoom> &cr,
-	const shared_ptr<const linphone::Address> &participantAddr
+void ConferenceServer::onParticipantRegistrationSubscriptionRequested (
+	const shared_ptr<ChatRoom> &cr,
+	const shared_ptr<const Address> &participantAddr
 ) {
 	mSubscriptionHandler.subscribe(cr, participantAddr);
 }
 
-void flexisip::ConferenceServer::onParticipantRegistrationUnsubscriptionRequested (
-	const shared_ptr<linphone::ChatRoom> &cr,
-	const shared_ptr<const linphone::Address> &participantAddr
+void ConferenceServer::onParticipantRegistrationUnsubscriptionRequested (
+	const shared_ptr<ChatRoom> &cr,
+	const shared_ptr<const Address> &participantAddr
 ) {
 	mSubscriptionHandler.unsubscribe(cr, participantAddr);
 }
 
-void flexisip::ConferenceServer::bindAddresses () {
+void ConferenceServer::bindAddresses () {
 	if (mAddressesBound)
 		return;
 
@@ -177,9 +178,9 @@ void flexisip::ConferenceServer::bindAddresses () {
 	mAddressesBound = true;
 }
 
-void flexisip::ConferenceServer::bindConference() {
+void ConferenceServer::bindConference() {
 	class FakeListener : public ContactUpdateListener {
-		void onRecordFound(const std::shared_ptr<Record> &r) override {}
+		void onRecordFound(const shared_ptr<Record> &r) override {}
 		void onError() override {}
 		void onInvalid() override {}
 		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override {
