@@ -24,8 +24,8 @@
 #include <flexisip/configmanager.hh>
 #include <flexisip/registrardb.hh>
 
-#include "conference/registration-events/client-listener.hh"
-#include "conference/registration-events/server-listener.hh"
+#include "conference/registration-events/client.hh"
+#include "conference/registration-events/server.hh"
 
 using namespace std;
 using namespace linphone;
@@ -67,17 +67,20 @@ static void basic() {
 	BindingParameters parameter;
 	parameter.globalExpire = 1000;
 
-	serverCore->addListener(make_shared<ServerListener>());
-	shared_ptr<ClientListener> clientListener = make_shared<ClientListener>();
+	string from = serverCore->getIdentity();
+
+	serverCore->addListener(make_shared<RegistrationEvent::Server>());
+	shared_ptr<RegistrationEvent::Client> client = make_shared<RegistrationEvent::Client>(
+		clientCore,
+		Factory::get()->createAddress(from)
+	);
 
 	serverCore->start();
 	clientCore->start();
 
-	string from = serverCore->getIdentity();
-
 	auto msg = nta_msg_create(agent->getSofiaAgent(), 0);
-	clientListener->subscribe(clientCore, Factory::get()->createAddress(from));
-	clientCore->addListener(clientListener);
+	client->subscribe();
+	clientCore->addListener(client);
 
 	// We forge a fake SIP message
 	auto sip = sip_object(msg);
@@ -93,7 +96,7 @@ static void basic() {
 
 	RegistrarDb::get()->bind(sip, parameter, make_shared<BindListener>());
 
-	while (!clientListener->notifyReceived) {
+	while (!client->notifyReceived) {
 		clientCore->iterate();
 		serverCore->iterate();
 	}
