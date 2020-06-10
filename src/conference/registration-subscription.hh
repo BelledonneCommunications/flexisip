@@ -19,25 +19,25 @@
 #pragma once
 
 #include <linphone++/linphone.hh>
-
 #include <flexisip/registrardb.hh>
 
+using namespace std;
+using namespace linphone;
 
 namespace flexisip {
 
-
 struct virtual_enable_shared_from_this_base:
-   std::enable_shared_from_this<virtual_enable_shared_from_this_base> {
-   virtual ~virtual_enable_shared_from_this_base() {}
+	enable_shared_from_this<virtual_enable_shared_from_this_base> {
+	virtual ~virtual_enable_shared_from_this_base() {}
 };
 
 template<typename T>
 struct virtual_enable_shared_from_this:
 virtual virtual_enable_shared_from_this_base {
-   std::shared_ptr<T> shared_from_this() {
-      return std::dynamic_pointer_cast<T>(
-         virtual_enable_shared_from_this_base::shared_from_this());
-   }
+	shared_ptr<T> shared_from_this() {
+		return dynamic_pointer_cast<T>(
+			virtual_enable_shared_from_this_base::shared_from_this());
+	}
 };
 
 class ConferenceServer;
@@ -45,19 +45,23 @@ class ConferenceServer;
 /*Base for a class that manages registration information subscription for the server group chatroom*/
 class RegistrationSubscription : public virtual_enable_shared_from_this<RegistrationSubscription>{
 	public:
-		RegistrationSubscription(const ConferenceServer & server, const std::shared_ptr<linphone::ChatRoom> &cr, const std::shared_ptr<const linphone::Address> &participant);
+		RegistrationSubscription(
+			const ConferenceServer & server,
+			const shared_ptr<ChatRoom> &cr,
+			const shared_ptr<const Address> &participant
+		);
 		virtual void start() = 0;
 		virtual void stop() = 0;
 		virtual ~RegistrationSubscription();
-		std::shared_ptr<linphone::ChatRoom> getChatRoom()const;
+		shared_ptr<ChatRoom> getChatRoom()const;
 	protected:
 		/*call this to notify the current list of participant devices for the requested participant*/
-		void notify(const std::list< std::shared_ptr<linphone::ParticipantDeviceIdentity> > & participantDevices);
+		void notify(const list< shared_ptr<ParticipantDeviceIdentity> > & participantDevices);
 		/*call this to notify that a device has just registered*/
-		void notifyRegistration(const std::shared_ptr<linphone::Address>  & participantDevices);
+		void notifyRegistration(const shared_ptr<Address>  & participantDevices);
 		const ConferenceServer & mServer;
-		const std::shared_ptr<linphone::ChatRoom> mChatRoom;
-		const std::shared_ptr<linphone::Address> mParticipant;
+		const shared_ptr<ChatRoom> mChatRoom;
+		const shared_ptr<Address> mParticipant;
 		unsigned int mChatroomRequestedCapabilities;
 };
 
@@ -78,28 +82,31 @@ class OwnRegistrationSubscription
 	: public RegistrationSubscription, protected RegistrationSubscriptionFetchListener, protected RegistrationSubscriptionListener
 {
 	public:
-		OwnRegistrationSubscription(const ConferenceServer & server, const std::shared_ptr<linphone::ChatRoom> &cr, const std::shared_ptr<const linphone::Address> &participant);
+		OwnRegistrationSubscription(
+			const ConferenceServer & server,
+			const shared_ptr<ChatRoom> &cr,
+			const shared_ptr<const Address> &participant
+		);
 		virtual void start() override;
 		virtual void stop() override;
 
 	private:
-		unsigned int getContactCapabilities(const std::shared_ptr<ExtendedContact> &ct);
-		std::shared_ptr<linphone::Address> getPubGruu(const std::shared_ptr<Record> &r, const std::shared_ptr<ExtendedContact> &ec);
-		std::string getDeviceName(const std::shared_ptr<ExtendedContact> &ec);
-		bool isContactCompatible(const std::shared_ptr<ExtendedContact> &ec);
-		void processRecord(const std::shared_ptr<Record> &r);
+		unsigned int getContactCapabilities(const shared_ptr<ExtendedContact> &ct);
+		shared_ptr<Address> getPubGruu(const shared_ptr<Record> &r, const shared_ptr<ExtendedContact> &ec);
+		string getDeviceName(const shared_ptr<ExtendedContact> &ec);
+		bool isContactCompatible(const shared_ptr<ExtendedContact> &ec);
+		void processRecord(const shared_ptr<Record> &r);
 		/*ContactUpdateListener virtual functions to override*/
-		virtual void onRecordFound (const std::shared_ptr<Record> &r) override;
+		virtual void onRecordFound (const shared_ptr<Record> &r) override;
 		virtual void onError () override {};
 		virtual void onInvalid () override {};
-		virtual void onContactUpdated (const std::shared_ptr<ExtendedContact> &ec) override {}
+		virtual void onContactUpdated (const shared_ptr<ExtendedContact> &ec) override {}
 		/*ContactRegisteredListener overrides*/
-		virtual void onContactRegistered(const std::shared_ptr<Record> &r, const std::string &uid) override;
+		virtual void onContactRegistered(const shared_ptr<Record> &r, const string &uid) override;
 
 		SofiaAutoHome mHome;
 		const url_t *mParticipantAor;
 		bool mActive;
-
 };
 
 } // namespace flexisip
