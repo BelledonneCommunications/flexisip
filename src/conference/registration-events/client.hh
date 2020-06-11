@@ -8,9 +8,8 @@ namespace RegistrationEvent {
     class Client : public CoreListener {
     public:
         Client(
-            const shared_ptr<Core> & lc,
-            const shared_ptr<Address> to,
-            const shared_ptr<ChatRoom> &chatRoom);
+            const shared_ptr<ChatRoom> &chatRoom,
+            const shared_ptr<const Address> to);
         void subscribe();
         void onNotifyReceived(
             const shared_ptr<Core> & lc,
@@ -21,8 +20,7 @@ namespace RegistrationEvent {
         bool notifyReceived = false;
     private:
         shared_ptr<Event> subscribeEvent;
-        const shared_ptr<ChatRoom> &chatRoom,
-        const shared_ptr<Core> & core;
-        const shared_ptr<Address> to;
+        const shared_ptr<ChatRoom> &chatRoom;
+        const shared_ptr<const Address> to;
     };
 }

@@ -13,12 +13,11 @@ using namespace reginfo;
 namespace RegistrationEvent {
 
 Client::Client(
-    const shared_ptr<Core> & lc,
-    const shared_ptr<Address> to,
-    const shared_ptr<ChatRoom> &chatRoom) : core(lc), to(to), chatRoom(chatRoom) {}
+    const shared_ptr<ChatRoom> & chatRoom,
+    const shared_ptr<const Address> to) : chatRoom(chatRoom), to(to) {}
 
 void Client::subscribe() {
-    subscribeEvent = core->createSubscribe(to, "reg", 600);
+    subscribeEvent = chatRoom->getCore()->createSubscribe(to, "reg", 600);
     subscribeEvent->addCustomHeader("Accept", "application/reginfo+xml");
     subscribeEvent->addCustomHeader("Event", "reg");
 
@@ -47,7 +46,20 @@ void Client::onNotifyReceived(
         for (const auto &contact : registration.getContact()) {
             shared_ptr<ParticipantDeviceIdentity> identity = Factory::get()->createParticipantDeviceIdentity(
                 Factory::get()->createAddress(contact.getUri().text_content()), contact.getDisplayName()->text_content());
-            participantDevices.push_back(identity);
+
+            Contact::UnknownParamSequence ups = contact.getUnknownParam();
+
+            bool groupChat = false;
+            bool lime = false;
+
+            for (const auto &param : ups) {
+                if (param == "groupchat") groupChat = true;
+                if (param == "lime") lime = true;
+            }
+
+            if (groupChat && lime) {
+                participantDevices.push_back(identity);
+            }
         }
     }
 

@@ -37,6 +37,21 @@ void Listener::processRecord(const shared_ptr<Record> &r) {
                 Contact::StateType::active,
                 Contact::EventType::registered, ec->getUniqueId()
             );
+
+            // unknown-param
+            if (ec->mSipContact->m_params) {
+                size_t i;
+
+                for (i = 0; ec->mSipContact->m_params[i]; i++) {
+                    auto unknownParam = UnknownParam(ec->mSipContact->m_params[i]);
+                    if (!strcmp(msg_params_find(ec->mSipContact->m_params, ec->mSipContact->m_params[i]), "")) {
+                        unknownParam.setName(msg_params_find(ec->mSipContact->m_params, ec->mSipContact->m_params[i]));
+                    }
+
+                    contact.getUnknownParam().push_back(unknownParam);
+                }
+            }
+
             contact.setDisplayName(this->getDeviceName(ec));
             re.getContact().push_back(contact);
         }

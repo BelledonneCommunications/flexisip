@@ -68,11 +68,12 @@ static void basic() {
 	parameter.globalExpire = 1000;
 
 	string from = serverCore->getIdentity();
+	auto address = Factory::get()->createAddress(from);
 
 	serverCore->addListener(make_shared<RegistrationEvent::Server>());
 	shared_ptr<RegistrationEvent::Client> client = make_shared<RegistrationEvent::Client>(
 		clientCore,
-		Factory::get()->createAddress(from)
+		address
 	);
 
 	serverCore->start();
