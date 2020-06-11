@@ -39,7 +39,9 @@ static void basic() {
 	clientCore->setTransports(transport);
 
 	shared_ptr<Core> serverCore = Factory::get()->createCore("", "", nullptr);
-	serverCore->getConfig()->setString("storage", "uri", "null");
+	serverCore->getConfig()->setString("storage", "backend", "sqlite3");
+	serverCore->getConfig()->setString("storage", "uri", ":memory:");
+
 	shared_ptr<Transports> serverTransport = Factory::get()->createTransports();
 	serverTransport->setTcpPort(rand() %0x0FFF + 1014);
 	serverCore->setTransports(serverTransport);
@@ -68,19 +70,22 @@ static void basic() {
 	parameter.globalExpire = 1000;
 
 	string from = serverCore->getIdentity();
-
-	serverCore->addListener(make_shared<RegistrationEvent::Server>());
-	shared_ptr<RegistrationEvent::Client> client = make_shared<RegistrationEvent::Client>(
-		clientCore,
-		Factory::get()->createAddress(from)
-	);
+	auto address = const_pointer_cast<const Address>(Factory::get()->createAddress(from));
 
 	serverCore->start();
 	clientCore->start();
 
+	auto participant = const_pointer_cast<const Address>(Factory::get()->createAddress("sip:participant@test.com"));
+	auto chatRoom = serverCore->createChatRoom(participant);
+
+	serverCore->addListener(make_shared<RegistrationEvent::Server>());
+	shared_ptr<RegistrationEvent::Client> client = make_shared<RegistrationEvent::Client>(
+		chatRoom,
+		address
+	);
+
 	auto msg = nta_msg_create(agent->getSofiaAgent(), 0);
 	client->subscribe();
-	clientCore->addListener(client);
 
 	// We forge a fake SIP message
 	auto sip = sip_object(msg);
