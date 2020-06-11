@@ -54,7 +54,7 @@ void ParticipantRegistrationSubscriptionHandler::subscribe (
 			subscription->start();
 		} else {
 			auto client = make_shared<RegistrationEvent::Client>(
-				chatRoom->getCore(),
+				chatRoom,
 				address
 			);
 			client->subscribe();
