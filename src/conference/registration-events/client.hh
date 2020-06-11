@@ -5,12 +5,13 @@ using namespace std;
 using namespace linphone;
 
 namespace RegistrationEvent {
-    class Client : public CoreListener {
+    class Client : public CoreListener
+		, public enable_shared_from_this<Client> {
     public:
         Client(
-            const shared_ptr<Core> & lc,
-            const shared_ptr<Address> to,
-            const shared_ptr<ChatRoom> &chatRoom);
+            const shared_ptr<ChatRoom> &chatRoom,
+            const shared_ptr<const Address> to);
+        ~Client ();
         void subscribe();
         void onNotifyReceived(
             const shared_ptr<Core> & lc,
@@ -20,9 +21,8 @@ namespace RegistrationEvent {
         ) override;
         bool notifyReceived = false;
     private:
-        shared_ptr<Event> subscribeEvent;
-        const shared_ptr<ChatRoom> &chatRoom,
-        const shared_ptr<Core> & core;
-        const shared_ptr<Address> to;
+        shared_ptr<linphone::Event> subscribeEvent;
+        const shared_ptr<ChatRoom> & chatRoom;
+        const shared_ptr<const Address> to;
     };
 }
