@@ -77,10 +77,7 @@ void OwnRegistrationSubscription::start(){
 	RegistrarDb::get()->fetch(mParticipantAor, RegistrationSubscriptionFetchListener::shared_from_this(), true);
 
 	/*Secondly subscribe for changes in the registration info of this participant*/
-	string key = Record::defineKeyFromUrl(mParticipantAor.get());
-
-	RegistrarDb::get()->subscribe(key, RegistrationSubscriptionListener::shared_from_this());
-
+	RegistrarDb::get()->subscribe(mParticipantAor, RegistrationSubscriptionListener::shared_from_this());
 }
 
 void OwnRegistrationSubscription::stop(){
