@@ -80,14 +80,12 @@ static void basic() {
 
 	serverCore->addListener(make_shared<RegistrationEvent::Server>());
 	shared_ptr<RegistrationEvent::Client> client = make_shared<RegistrationEvent::Client>(
-		chatRoom->getCore(),
 		chatRoom,
 		address
 	);
 
 	auto msg = nta_msg_create(agent->getSofiaAgent(), 0);
 	client->subscribe();
-	clientCore->addListener(client);
 
 	// We forge a fake SIP message
 	auto sip = sip_object(msg);

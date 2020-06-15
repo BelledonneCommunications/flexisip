@@ -38,7 +38,7 @@ void Listener::processRecord(const shared_ptr<Record> &r) {
                 Contact::EventType::registered, ec->getUniqueId()
             );
 
-            // unknown-param
+            // unknown-params
             if (ec->mSipContact->m_params) {
                 size_t i;
 

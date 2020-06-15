@@ -28,6 +28,11 @@ void Client::subscribe() {
     subsContent->setBuffer((uint8_t *)notiFybody.data(), notiFybody.length());
 
     subscribeEvent->sendSubscribe(subsContent);
+    chatRoom->getCore()->addListener(shared_from_this());
+}
+
+Client::~Client () {
+    chatRoom->getCore()->removeListener(shared_from_this());
 }
 
 void Client::onNotifyReceived(
