@@ -369,55 +369,45 @@ static void defineContactId(ostringstream &oss, const url_t *url, const string &
 
 string ExtendedContact::serializeAsUrlEncodedParams() {
 	sofiasip::Home home;
+	string param{};
 	sip_contact_t *contact = sip_contact_dup(home.home(), mSipContact);
 
 	// CallId
-	ostringstream oss;
-	oss << "callid=" << mCallId;
-	url_param_add(home.home(), contact->m_url, oss.str().c_str());
+	param = "callid=" + UriUtils::escape(mCallId, UriUtils::sipUriParamValueReserved);
+	url_param_add(home.home(), contact->m_url, param.c_str());
 
 	// Expire
-	oss.str("");
-	oss.clear();
-	time_t expire = mExpireNotAtMessage - getCurrentTime();
-	oss << "expires=" << expire;
-	url_param_add(home.home(), contact->m_url, oss.str().c_str());
+	auto expire = mExpireNotAtMessage - getCurrentTime();
+	param = "expires=" + to_string(expire);
+	url_param_add(home.home(), contact->m_url, param.c_str());
 
 	// CSeq
-	oss.str("");
-	oss.clear();
-	oss << "cseq=" << mCSeq;
-	url_param_add(home.home(), contact->m_url, oss.str().c_str());
+	param = "cseq=" + to_string(mCSeq);
+	url_param_add(home.home(), contact->m_url, param.c_str());
 
 	// Updated at
-	oss.str("");
-	oss.clear();
-	oss << "updatedAt=" << mUpdatedTime;
-	url_param_add(home.home(), contact->m_url, oss.str().c_str());
+	param = "updatedAt=" + to_string(mUpdatedTime);
+	url_param_add(home.home(), contact->m_url, param.c_str());
 
 	// Alias
-	oss.str("");
-	oss.clear();
-	oss << "alias=" << (mAlias ? "yes" : "no");
-	url_param_add(home.home(), contact->m_url, oss.str().c_str());
+	param = string{"alias="} + (mAlias ? "yes" : "no");
+	url_param_add(home.home(), contact->m_url, param.c_str());
 
 	// Used as route
-	oss.str("");
-	oss.clear();
-	oss << "usedAsRoute=" << (mUsedAsRoute ? "yes" : "no");
-	url_param_add(home.home(), contact->m_url, oss.str().c_str());
+	param = string{"usedAsRoute="} + (mUsedAsRoute ? "yes" : "no");
+	url_param_add(home.home(), contact->m_url, param.c_str());
 
 	// Path
-	ostringstream oss_path;
-	for (auto it = mPath.begin(); it != mPath.end(); ++it) {
-		if (it != mPath.begin()) oss_path << ",";
+	ostringstream oss_path{};
+	for (auto it = mPath.cbegin(); it != mPath.cend(); ++it) {
+		if (it != mPath.cbegin()) oss_path << ",";
 		oss_path << "<" << *it << ">";
 	}
 
 	// AcceptHeaders
-	ostringstream oss_accept;
-	for (auto it = mAcceptHeader.begin(); it != mAcceptHeader.end(); ++it) {
-		if (it != mAcceptHeader.begin()) oss_accept << ",";
+	ostringstream oss_accept{};
+	for (auto it = mAcceptHeader.cbegin(); it != mAcceptHeader.cend(); ++it) {
+		if (it != mAcceptHeader.cbegin()) oss_accept << ",";
 		oss_accept << *it;
 	}
 
@@ -425,32 +415,41 @@ string ExtendedContact::serializeAsUrlEncodedParams() {
 		SIPTAG_PATH_STR(oss_path.str().c_str()), SIPTAG_ACCEPT_STR(oss_accept.str().c_str()),
 		SIPTAG_USER_AGENT_STR(mUserAgent.c_str()) , TAG_END());
 
-	string contact_string(sip_header_as_string(home.home(), (sip_header_t const *)contact));
+	string contact_string{sip_header_as_string(home.home(), (sip_header_t const *)contact)};
 	return contact_string;
 }
 
-static string extractStringParam(url_t *url, const char *param) {
-	char buffer[255] = {0};
-	if (url_has_param(url, param)) {
-		url_param(url->url_params, param, buffer, sizeof(buffer));
-		url->url_params = url_strip_param_string((char *)url->url_params, param);
+static std::string extractStringParam(url_t *url, const char *param) noexcept {
+	if (!url_has_param(url, param)) {
+		return string{};
 	}
-	return string(buffer);
+
+	string buffer(255, '\0');
+	auto valueLength = url_param(url->url_params, param, &buffer[0], buffer.size());
+	buffer.resize(valueLength - 1);
+	url->url_params = url_strip_param_string(const_cast<char *>(url->url_params), param);
+	return UriUtils::unescape(buffer);
 }
 
-static int extractIntParam(url_t *url, const char *param) {
-	string extracted_param(extractStringParam(url, param));
-	return (extracted_param.empty()) ? 0 : atoi(extracted_param.c_str());
+static int extractIntParam(url_t *url, const char *param) noexcept {
+	try {
+		return stoi(extractStringParam(url, param));
+	} catch (...) {
+		return 0;
+	}
 }
 
-static int extractUnsignedLongParam(url_t *url, const char *param) {
-	string extracted_param(extractStringParam(url, param));
-	return (extracted_param.empty()) ? 0 : atoll(extracted_param.c_str());
+static int extractUnsignedLongParam(url_t *url, const char *param) noexcept {
+	try {
+		return static_cast<int>(stoll(extractStringParam(url, param)));
+	} catch (...) {
+		return 0;
+	}
 }
 
-static bool extractBoolParam(url_t *url, const char *param) {
-	string extracted_param(extractStringParam(url, param));
-	return (extracted_param.empty()) ? FALSE : (extracted_param.find("yes") != string::npos);
+static bool extractBoolParam(url_t *url, const char *param) noexcept {
+	auto extractedParam = extractStringParam(url, param);
+	return !extractedParam.empty() && extractedParam.find("yes") != string::npos;
 }
 
 void ExtendedContact::init() {

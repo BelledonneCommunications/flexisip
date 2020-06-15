@@ -44,64 +44,51 @@ namespace flexisip {
 class ContactUpdateListener;
 
 struct ExtendedContactCommon {
-	std::string mContactId;
-	std::string mCallId;
-	std::string mUniqueId;
-	std::list<std::string> mPath;
+	std::string mContactId{};
+	std::string mCallId{};
+	std::string mUniqueId{};
+	std::list<std::string> mPath{};
 
 	ExtendedContactCommon(const char *contactId, const std::list<std::string> &path, const std::string &callId,
-			const std::string &uniqueId) {
-		mCallId = callId;
-		mPath = path;
-		mUniqueId = uniqueId;
-		mContactId = contactId;
-	}
-	ExtendedContactCommon(const std::string &route) : mContactId(), mCallId(), mUniqueId(), mPath({route}) {
-	}
+			const std::string &uniqueId):
+		mContactId{contactId},
+		mCallId{callId},
+		mUniqueId{uniqueId},
+		mPath{path} {}
+
+	ExtendedContactCommon(const std::string &route) : mPath{route} {}
 };
 
 struct ExtendedContact {
 	class Record;
 	friend class Record;
 
-	std::string mContactId;
-	std::string mCallId;
-	std::string mUniqueId;
-	std::list<std::string> mPath; //list of urls as string (not enclosed with brakets)
-	std::string mUserAgent;
-	sip_contact_t *mSipContact; // Full contact
-	float mQ;
-	time_t mExpireAt;
-	time_t mExpireNotAtMessage;  // real expires time but not for message
-	time_t mUpdatedTime;
-	uint32_t mCSeq;
-	std::list<std::string> mAcceptHeader;
-	uintptr_t mConnId; // a unique id shared with associate t_port
-	sofiasip::Home mHome;
-	bool mAlias;
-	bool mUsedAsRoute; /*whether the contact information shall be used as a route when forming a request, instead of
+	std::string mContactId{};
+	std::string mCallId{};
+	std::string mUniqueId{};
+	std::list<std::string> mPath{}; //list of urls as string (not enclosed with brakets)
+	std::string mUserAgent{};
+	sip_contact_t *mSipContact{nullptr}; // Full contact
+	float mQ{1.0f};
+	time_t mExpireAt{std::numeric_limits<time_t>::max()};
+	time_t mExpireNotAtMessage{std::numeric_limits<time_t>::max()};  // real expires time but not for message
+	time_t mUpdatedTime{0};
+	uint32_t mCSeq{0};
+	std::list<std::string> mAcceptHeader{};
+	uintptr_t mConnId{0}; // a unique id shared with associate t_port
+	sofiasip::Home mHome{};
+	bool mAlias{false};
+	bool mUsedAsRoute{false}; /*whether the contact information shall be used as a route when forming a request, instead of
 						  replacing the request-uri*/
 	
 	bool mIsFallback = false; // boolean indicating whether this ExtendedContact is a fallback route or not. There is no need for it to be serialized to database.
 
-	const char *callId() const {
-		return mCallId.c_str();
-	}
-	const char *line() const {
-		return mUniqueId.c_str();
-	}
-	const char *contactId() const {
-		return mContactId.c_str();
-	}
-	const char *route() const {
-		return (mPath.empty() ? nullptr : mPath.cbegin()->c_str());
-	}
-	const char *userAgent() const {
-		return mUserAgent.c_str();
-	}
-	const std::string &getUserAgent() const {
-		return mUserAgent;
-	}
+	const char *callId() const {return mCallId.c_str();}
+	const char *line() const {return mUniqueId.c_str();}
+	const char *contactId() const {return mContactId.c_str();}
+	const char *route() const {return (mPath.empty() ? nullptr : mPath.cbegin()->c_str());}
+	const char *userAgent() const {return mUserAgent.c_str();}
+	const std::string &getUserAgent() const {return mUserAgent;}
 
 	static int resolveExpire(const char *contact_expire, int global_expire) {
 		if (contact_expire) {
@@ -147,10 +134,10 @@ struct ExtendedContact {
 	void extractInfoFromUrl(const char* full_url);
 
 	ExtendedContact(const char *contactId, const char *uniqueId, const char* fullUrl)
-		: mCallId(), mUserAgent(), mSipContact(nullptr), mQ(1.0), mExpireAt(LONG_MAX), mExpireNotAtMessage(LONG_MAX),
-			mUpdatedTime(0), mCSeq(0), mAcceptHeader({}), mConnId(0), mHome(), mAlias(false), mUsedAsRoute(false) {
-		if (contactId) mContactId = contactId;
-		if (uniqueId) mUniqueId = uniqueId;
+	:
+		mContactId{contactId ? contactId : ""},
+		mUniqueId{uniqueId ? uniqueId : ""}
+	{
 		extractInfoFromUrl(fullUrl);
 		init();
 	}
@@ -158,8 +145,8 @@ struct ExtendedContact {
 	ExtendedContact(const ExtendedContactCommon &common, const sip_contact_t *sip_contact, int global_expire, uint32_t cseq,
 					time_t updateTime, bool alias, const std::list<std::string> &acceptHeaders, const std::string &userAgent)
 		: mContactId(common.mContactId), mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath),
-			mUserAgent(userAgent), mSipContact(nullptr), mQ(1.0),mExpireNotAtMessage(global_expire), mUpdatedTime(updateTime),
-			mCSeq(cseq), mAcceptHeader(acceptHeaders), mConnId(0), mHome(), mAlias(alias), mUsedAsRoute(false) {
+			mUserAgent(userAgent), mExpireNotAtMessage(global_expire), mUpdatedTime(updateTime),
+			mCSeq(cseq), mAcceptHeader(acceptHeaders), mAlias(alias) {
 
 		mSipContact = sip_contact_dup(mHome.home(), sip_contact);
 		mSipContact->m_next = nullptr;
@@ -167,9 +154,7 @@ struct ExtendedContact {
 	}
 
 	ExtendedContact(const SipUri &url, const std::string &route, const float q = 1.0)
-	: mContactId(), mCallId(), mUniqueId(), mPath({route}), mUserAgent(), mSipContact(nullptr), mQ(q), mExpireAt(LONG_MAX),
-		mExpireNotAtMessage(LONG_MAX), mUpdatedTime(0), mCSeq(0), mAcceptHeader({}),
-		mConnId(0), mHome(), mAlias(false), mUsedAsRoute(false) {
+	: mPath({route}) {
 		mSipContact = sip_contact_create(mHome.home(), reinterpret_cast<const url_string_t *>(url.get()), nullptr);
 	}
 
