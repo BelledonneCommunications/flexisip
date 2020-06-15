@@ -20,7 +20,7 @@ namespace RegistrationEvent {
         bool notifyReceived = false;
     private:
         shared_ptr<Event> subscribeEvent;
-        const shared_ptr<ChatRoom> &chatRoom;
+        const shared_ptr<ChatRoom> & chatRoom;
         const shared_ptr<const Address> to;
     };
 }
