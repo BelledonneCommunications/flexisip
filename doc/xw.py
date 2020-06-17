@@ -1,13 +1,19 @@
 #!/bin/python
 
 
+import sys
+if sys.version_info.major < 3:
+	print('ERROR: current Python version is {0}.{1}.{2} whereas Python 3 is required.'.format(
+		sys.version_info[0], sys.version_info[1], sys.version_info[2]
+	))
+	sys.exit(1)
+
+
 import argparse
 import base64
-import configparser
 import os
 import re
 import subprocess
-import sys
 import urllib.request
 
 
@@ -144,6 +150,7 @@ class Settings:
 		self.password = ''
 
 	def load(self, filename):
+		import configparser
 		config = configparser.ConfigParser()
 		config.read(config_file)
 		self.host     = config.get(self.section_name, 'host', fallback=self.host)
