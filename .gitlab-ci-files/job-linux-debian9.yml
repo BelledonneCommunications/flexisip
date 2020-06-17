@@ -67,6 +67,26 @@ job-debian9-ninja-clang:
   extends: .job-linux
 
 #################################################
+# XWiki reference documentation
+#################################################
+job-debian9-xwiki-doc-deploy:
+  stage: build
+  tags: [ "docker" ]
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+
+  only:
+    variables:
+      - $SCHEDULE_RUN
+
+  script:
+    - prefix=/opt/belledonne-communications
+    - sudo mkdir -p $prefix
+    - sudo chown bc:bc $prefix
+    - ./prepare.py -DCMAKE_INSTALL_PREFIX=$prefix -DCMAKE_PREFIX_PATH=$prefix $DEFAULT_CMAKE_OPTIONS
+    - make -j$MAKEFILE_JOBS
+    - /usr/bin/python3 ./doc/xw.py --flexisip-binary $prefix/bin/flexisip -H $XWIKI_HOSTNAME -u $XWIKI_USERNAME -p $XWIKI_PASSWORD
+
+#################################################
 # DEB
 #################################################
 
