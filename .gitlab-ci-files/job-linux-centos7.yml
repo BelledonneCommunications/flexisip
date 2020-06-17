@@ -4,7 +4,7 @@
 
 job-centos7-makefile-gcc:
 
-  tags: [ "docker-centos7" ]
+  tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
   except:
     variables:
@@ -22,7 +22,7 @@ job-centos7-makefile-gcc:
 
 job-centos7-makefile-clang:
 
-  tags: [ "docker-centos7" ]
+  tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
   except:
     variables:
@@ -63,7 +63,7 @@ job-centos7-makefile-clang:
 #################################################
 
 job-centos7-rpm:
-  tags: [ "docker-centos7" ]
+  tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
   extends: .job-linux-rpm
   before_script:
@@ -84,3 +84,23 @@ job-centos7-rpm-deploy:
     variables:
       - $DEPLOY_UBUNTU
   script: ./.gitlab-ci-files/deploy.sh centos
+
+
+#################################################
+# XWiki reference documentation
+#################################################
+job-centos7-xwiki-doc-deploy:
+  stage: build
+  tags: [ "docker" ]
+
+#  only:
+#    variables:
+#      - $SCHEDULE_RUN
+#
+#  except:
+#    variables:
+#      - $DEPLOY_UBUNTU
+
+  script:
+    - ./prepare.py -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DCMAKE_PREFIX_PATH=/opt/belledonne-communications $DEFAULT_CMAKE_OPTIONS
+    - make -j$MAKEFILE_JOBS
