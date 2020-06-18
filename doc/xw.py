@@ -3,7 +3,6 @@
 
 import argparse
 import base64
-import configparser
 import os
 import re
 import subprocess
@@ -144,6 +143,7 @@ class Settings:
 		self.password = ''
 
 	def load(self, filename):
+		import configparser
 		config = configparser.ConfigParser()
 		config.read(config_file)
 		self.host     = config.get(self.section_name, 'host', fallback=self.host)
