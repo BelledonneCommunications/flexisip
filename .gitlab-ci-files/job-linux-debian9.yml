@@ -74,9 +74,9 @@ job-debian9-xwiki-doc-deploy:
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
 
-  only:
-    variables:
-      - $SCHEDULE_RUN
+#  only:
+#    variables:
+#      - $SCHEDULE_RUN
 
   script:
     - prefix=/opt/belledonne-communications
