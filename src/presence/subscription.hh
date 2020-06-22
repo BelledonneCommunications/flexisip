@@ -75,7 +75,7 @@ class Subscription : public std::enable_shared_from_this<Subscription>{
 		return data ? *static_cast<std::shared_ptr<Subscription> *>(data) : nullptr;
 	}
 
-	belle_sip_dialog_t *mDialog{nullptr};
+	BelleSipDialogPtr mDialog{nullptr};
 	belle_sip_provider_t *mProv{nullptr};
 
   private:
