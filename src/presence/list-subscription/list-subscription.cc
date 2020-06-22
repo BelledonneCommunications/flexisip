@@ -248,7 +248,7 @@ void ListSubscription::finishCreation(belle_sip_server_transaction_t *ist) {
 	auto func = [this, ist] () {
 		if (mListeners.empty()) {
 			ostringstream os;
-			os << "Empty list entry for dialog id[" << belle_sip_header_call_id_get_call_id(belle_sip_dialog_get_call_id(mDialog)) << "]";
+			os << "Empty list entry for dialog id[" << belle_sip_header_call_id_get_call_id(belle_sip_dialog_get_call_id(mDialog.get())) << "]";
 			setState(Subscription::State::terminated);
 		}
 
