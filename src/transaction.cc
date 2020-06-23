@@ -49,10 +49,6 @@ OutgoingTransaction::OutgoingTransaction(Agent *agent)
 	LOGD("New OutgoingTransaction %p", this);
 }
 
-shared_ptr<OutgoingTransaction> OutgoingTransaction::create(Agent *agent) {
-	return make_shared<OutgoingTransaction>(agent);
-}
-
 OutgoingTransaction::~OutgoingTransaction() {
 	LOGD("Delete OutgoingTransaction %p", this);
 }
@@ -191,10 +187,6 @@ void OutgoingTransaction::destroy() {
 
 IncomingTransaction::IncomingTransaction(Agent *agent) : Transaction(agent), mIncoming(NULL) {
 	LOGD("New IncomingTransaction %p", this);
-}
-
-shared_ptr<IncomingTransaction> IncomingTransaction::create(Agent *agent) {
-	return make_shared<IncomingTransaction>(agent);
 }
 
 void IncomingTransaction::handle(const shared_ptr<MsgSip> &ms) {
