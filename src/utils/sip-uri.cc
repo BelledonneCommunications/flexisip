@@ -45,7 +45,8 @@ Url &Url::operator=(Url &&src) noexcept {
 
 const std::string &Url::str() const noexcept {
 	if (_urlAsStr.empty() && _url) {
-		_urlAsStr = url_as_string(nullptr, _url);
+		sofiasip::Home home;
+		_urlAsStr = url_as_string(home.home(), _url);
 	}
 	return _urlAsStr;
 }
