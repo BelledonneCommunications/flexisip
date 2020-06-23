@@ -119,14 +119,12 @@ class OutgoingTransaction : public Transaction,
 	~OutgoingTransaction();
 	std::shared_ptr<MsgSip> getRequestMsg();
 
-	inline virtual Agent *getAgent() {
-		return Transaction::getAgent();
-	}
+	virtual Agent *getAgent() {return Transaction::getAgent();}
 	/// The incoming transaction from which the message comes from, if any.
-	std::shared_ptr<IncomingTransaction> mIncoming;
+	std::weak_ptr<IncomingTransaction> mIncoming;
   private:
 	friend class RequestSipEvent;
-	static std::shared_ptr<OutgoingTransaction> create(Agent *agent);
+
 	std::shared_ptr<OutgoingTransaction> mSofiaRef;
 	nta_outgoing_t *mOutgoing;
 	std::string mBranchId;
@@ -152,11 +150,10 @@ class IncomingTransaction : public Transaction,
 		return Transaction::getAgent();
 	}
 	/// The outgoing transaction that was eventually created to forward the message through a RequestSipEvent.
-	std::shared_ptr<OutgoingTransaction> mOutgoing;
+	std::weak_ptr<OutgoingTransaction> mOutgoing;
 
   private:
 	friend class RequestSipEvent;
-	static std::shared_ptr<IncomingTransaction> create(Agent *agent);
 
 	std::shared_ptr<IncomingTransaction> mSofiaRef;
 	nta_incoming_t *mIncoming;
