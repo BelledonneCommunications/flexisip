@@ -34,6 +34,8 @@ using namespace flexisip;
 
 static void basic() {
 
+	// Client initialisation
+
 	shared_ptr<Core> clientCore = Factory::get()->createCore("","", nullptr);
 	clientCore->getConfig()->setString("storage", "uri", "null");
 	shared_ptr<Transports> transport = Factory::get()->createTransports();
@@ -53,14 +55,16 @@ static void basic() {
 	clientCore->setDefaultProxyConfig(proxy);
 	clientCore->setPrimaryContact("sip:edhelas@127.0.0.1:48888;transport=tcp;gr=1234");
 
+	// RegEvent Server
+
 	shared_ptr<Core> regEventCore = Factory::get()->createCore("", "", nullptr);
 	regEventCore->getConfig()->setString("storage", "backend", "sqlite3");
 	regEventCore->getConfig()->setString("storage", "uri", ":memory:");
 
-	shared_ptr<Transports> serverTransport = Factory::get()->createTransports();
+	shared_ptr<Transports> regEventTransport = Factory::get()->createTransports();
 	int regEventPort = rand() %0x0FFF + 1014;
-	serverTransport->setTcpPort(regEventPort);
-	regEventCore->setTransports(serverTransport);
+	regEventTransport->setTcpPort(regEventPort);
+	regEventCore->setTransports(regEventTransport);
 
 	// Agent initialisation
 
