@@ -97,5 +97,6 @@ ModuleInfo<LoadBalancer> LoadBalancer::sInfo(
 	"LoadBalancer",
 	"This module performs load balancing between a set of configured destination proxies.",
 	{ "PushNotification" },
-	ModuleInfoBase::ModuleOid::LoadBalancer, ModuleClass::Experimental
+	ModuleInfoBase::ModuleOid::LoadBalancer,
+	ModuleClass::Experimental
 );
