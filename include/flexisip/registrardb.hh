@@ -220,7 +220,7 @@ class Record {
 
 	//Get address of record
 	const SipUri &getAor() const {return mAor;}
-	
+
 	void insertOrUpdateBinding(const std::shared_ptr<ExtendedContact> &ec, const std::shared_ptr<ContactUpdateListener> &listener);
 	const std::shared_ptr<ExtendedContact> extractContactByUniqueId(std::string uid);
 	sip_contact_t *getContacts(su_home_t *home, time_t now);
@@ -338,6 +338,7 @@ struct BindingParameters {
 	int version;
 	std::string callId;
 	std::string path;
+	std::string userAgent;
 
 	BindingParameters() {
 		alias = false;
@@ -346,6 +347,7 @@ struct BindingParameters {
 		version = 0;
 		callId = "";
 		path = "";
+		userAgent = "";
 	}
 };
 

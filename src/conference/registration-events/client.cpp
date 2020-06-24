@@ -50,7 +50,9 @@ void Client::onNotifyReceived(
     for (const auto &registration : ri->getRegistration()) {
         for (const auto &contact : registration.getContact()) {
             shared_ptr<ParticipantDeviceIdentity> identity = Factory::get()->createParticipantDeviceIdentity(
-                Factory::get()->createAddress(contact.getUri().text_content()), contact.getDisplayName()->text_content());
+                Factory::get()->createAddress(contact.getUri().text_content()),
+                contact.getDisplayName()->text_content()
+            );
 
             Contact::UnknownParamSequence ups = contact.getUnknownParam();
 
