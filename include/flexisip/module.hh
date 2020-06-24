@@ -125,13 +125,17 @@ public:
 	const std::list<ModuleInfoBase *> &getRegisteredModuleInfo() const {
 		return mRegisteredModuleInfo;
 	}
+	std::list<ModuleInfoBase*> buildModuleChain()const;
 
 	static ModuleInfoManager *get();
 
 private:
 	void registerModuleInfo(ModuleInfoBase *moduleInfo);
 	void unregisterModuleInfo(ModuleInfoBase *moduleInfo);
-
+	void dumpModuleDependencies(const std::list<ModuleInfoBase *> &l) const;
+	bool moduleDependenciesPresent(const std::list<ModuleInfoBase *> &sortedList, ModuleInfoBase *module) const;
+	void eliminateReplacedModules(std::list<ModuleInfoBase *> &sortedList) const;
+	
 	std::list<ModuleInfoBase *> mRegisteredModuleInfo;
 
 	static ModuleInfoManager *sInstance;
