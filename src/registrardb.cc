@@ -633,7 +633,7 @@ const url_t *Record::getAor()const{
 	return mAor;
 }
 
-url_t *Record::getPubGruu(const std::shared_ptr<ExtendedContact> &ec, su_home_t *home){
+url_t *Record::getPubGruu(const std::shared_ptr<ExtendedContact> &ec, su_home_t *home) {
 	char gr_value[256] = {0};
 	url_t *gruu_addr = NULL;
 	const char *pub_gruu_value = msg_header_find_param((msg_common_t*)ec->mSipContact, "pub-gruu");
@@ -1173,13 +1173,24 @@ void RegistrarDb::bind(const url_t *from, const sip_contact_t *contact, const Bi
 	sip_t *sip = sip_object(msg);
 
 	sip->sip_contact = sip_contact_dup(homeSip, contact);
-
 	sip->sip_from = sip_from_create(homeSip, reinterpret_cast<const url_string_t*>(from));
-	if (!parameter.path.empty()) sip->sip_path = sip_path_format(homeSip, "<%s>", parameter.path.c_str());
 
-	if (parameter.withGruu) sip->sip_supported = reinterpret_cast<sip_supported_t *>(sip_header_format(homeSip, sip_supported_class, "gruu"));
+	if (!parameter.path.empty()) {
+		sip->sip_path = sip_path_format(homeSip, "<%s>", parameter.path.c_str());
+	}
 
-	if (!parameter.callId.empty()) sip->sip_call_id = sip_call_id_make(homeSip, parameter.callId.c_str());
+	if (!parameter.userAgent.empty()) {
+		sip->sip_user_agent = sip_user_agent_make(homeSip, parameter.userAgent.c_str());
+	}
+
+	if (parameter.withGruu) {
+		sip->sip_supported = reinterpret_cast<sip_supported_t *>(sip_header_format(homeSip, sip_supported_class, "gruu"));
+	}
+
+	if (!parameter.callId.empty()) {
+		sip->sip_call_id = sip_call_id_make(homeSip, parameter.callId.c_str());
+	}
+
 	sip->sip_expires = sip_expires_create(homeSip, 0);
 
 	bind(sip, parameter, listener);

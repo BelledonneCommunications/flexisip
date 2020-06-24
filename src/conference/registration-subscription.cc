@@ -130,14 +130,15 @@ void OwnRegistrationSubscription::processRecord(const shared_ptr<Record> &r){
 	list<shared_ptr<ParticipantDeviceIdentity>> compatibleParticipantDevices;
 	if (r){
 		for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
+			LOGI("++++++++++++++++++++++++++++++++++++++++ HOP HOP %s", getDeviceName(ec).c_str());
 			auto addr = getPubGruu(r, ec);
 			if (!addr) continue;
-
+LOGI("################################# HOP HOP2 %s", getDeviceName(ec).c_str());
 			if (isContactCompatible(ec)){
 				shared_ptr<ParticipantDeviceIdentity> identity = Factory::get()->createParticipantDeviceIdentity(
 					addr, getDeviceName(ec));
 				compatibleParticipantDevices.push_back(identity);
-			}else LOGD("OwnRegistrationSubscription::processRecord(): %s does not have the required capabilities.", addr->asStringUriOnly().c_str());
+			} else LOGD("OwnRegistrationSubscription::processRecord(): %s does not have the required capabilities.", addr->asStringUriOnly().c_str());
 		}
 	}
 	notify(compatibleParticipantDevices);
