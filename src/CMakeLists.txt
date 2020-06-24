@@ -74,7 +74,9 @@ set(FLEXISIP_SOURCES
 	module-mediarelay.cc
 	module-nat-helper.cc
 	module-pushnotification.cc
-	module-redirect.cc module-presence.cc
+	module-redirect.cc
+	module-presence.cc
+	module-regevent.cc
 	module-registrar.cc
 	module-router.cc
 	module-sanitychecker.cc

@@ -161,6 +161,7 @@ public:
 		Forward = 270,
 		Redirect = 290,
 		Presence = 300,
+		RegEvent = 305,
 		InterDomainConnections = 310,
 		Plugin = 320
 	};

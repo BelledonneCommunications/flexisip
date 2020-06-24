@@ -75,4 +75,5 @@ ModuleInfo<ModuleSanityChecker> ModuleSanityChecker::sInfo(
 	"processing message further. "
 	"If the message doesn't meet these sanity check criterias, then it is stopped and bad request response is sent.",
 	{ "DoSProtection" },
-	ModuleInfoBase::ModuleOid::SanityChecker);
+	ModuleInfoBase::ModuleOid::SanityChecker
+);

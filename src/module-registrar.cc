@@ -481,7 +481,7 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 			}
 			const char *pub_gruu_value = msg_header_find_param((msg_common_t*)contact, "pub-gruu");
 			if (pub_gruu_value && pub_gruu_value[0] == '\0'){
-				/* Remove empty pub-gruu parameter, which is set internally  
+				/* Remove empty pub-gruu parameter, which is set internally
 				 * for compatibility with previous gruu implementation.*/
 				msg_header_remove_param((msg_common_t*)contact, "pub-gruu");
 			}
@@ -591,8 +591,8 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		reply(ev, 400, "Invalid Request");
 		return;
 	}
-	
-	
+
+
 	// Use path as a contact route in all cases
 	// Preferred Route is only set if cluster mode is enabled
 	if (!getAgent()->getPreferredRoute().empty()) {
