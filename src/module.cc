@@ -194,7 +194,7 @@ void ModuleInfoManager::registerModuleInfo(ModuleInfoBase *moduleInfo) {
 
 	auto it = find(mRegisteredModuleInfo.cbegin(), mRegisteredModuleInfo.cend(), moduleInfo);
 	if (it != mRegisteredModuleInfo.cend()) {
-		SLOGE << "Unable to register existing module [" << moduleInfo->getModuleName() << "].";
+		SLOGE << "Unable to register already registered module [" << moduleInfo->getModuleName() << "].";
 	} else {
 		mRegisteredModuleInfo.push_back(moduleInfo);
 	}
@@ -204,6 +204,101 @@ void ModuleInfoManager::unregisterModuleInfo(ModuleInfoBase *moduleInfo) {
 	SLOGI << "Unregistering module info [" << moduleInfo->getModuleName() << "]...";
 	mRegisteredModuleInfo.remove(moduleInfo);
 }
+
+
+bool ModuleInfoManager::moduleDependenciesPresent(const list<ModuleInfoBase *> &sortedList, ModuleInfoBase *module) const{
+	bool dependenciesOk = false;
+	size_t dependencyCount = module->getAfter().size();
+	
+	if (dependencyCount == 0) return true; /* no dependency */
+	
+	for (const auto &dependency : module->getAfter()){
+		if (dependency.empty() && dependencyCount == 1) {
+			dependenciesOk = true;
+			break; /*This module has no dependency.*/
+		}
+		auto it = find_if(sortedList.cbegin(), sortedList.cend(), [dependency](const ModuleInfoBase *moduleInfo){
+			return moduleInfo->getModuleName() == dependency;
+		});
+		if (it == sortedList.end()){
+			// Not found, check if the dependency ever exists.
+			auto registeredListIterator = find_if(mRegisteredModuleInfo.cbegin(), mRegisteredModuleInfo.cend(), [dependency](const ModuleInfoBase *moduleInfo){
+				return moduleInfo->getModuleName() == dependency;
+			});
+			if (registeredListIterator != mRegisteredModuleInfo.cend()){
+				dependenciesOk = false;
+				break;
+			} // else we can ignore the hint.
+		}else{
+			dependenciesOk = true;
+		}
+	}
+	return dependenciesOk;
+}
+
+void ModuleInfoManager::dumpModuleDependencies(const list<ModuleInfoBase *> &l)const{
+	ostringstream ostr;
+	for (auto module : l){
+		ostr << "[" << module->getModuleName() << "] depending on ";
+		for (auto dep : module->getAfter()){
+			ostr << "[" << dep << "] ";
+		}
+		ostr << endl;
+	}
+	SLOGD << ostr.str();
+}
+
+void ModuleInfoManager::eliminateReplacedModules(list<ModuleInfoBase *> &sortedList)const{
+	for (auto it = sortedList.begin() ; it != sortedList.end(); ++it){
+		const string &replace = (*it)->getReplace();
+		if (!replace.empty()) {
+			const string &moduleName = (*it)->getModuleName();
+			auto replacedModuleIterator = find_if(sortedList.begin(), sortedList.end(), [&replace](const ModuleInfoBase *module) {
+				return module->getModuleName() == replace;
+			});
+			if (replacedModuleIterator == sortedList.end()) {
+				SLOGE << "Unable to find module [" << replace << "] to be replaced by module [" << moduleName << "]";
+				continue;
+			}
+			
+			SLOGW << "Module " << "[" << moduleName << "] will replace module [" << replace << "].";
+			// Eliminate the replaced module. The replacing module remains at its place.
+			sortedList.erase(replacedModuleIterator);
+		}
+	}
+}
+
+std::list<ModuleInfoBase*> ModuleInfoManager::buildModuleChain()const{
+	list<ModuleInfoBase *> sortedList;
+	list<ModuleInfoBase *> pending = mRegisteredModuleInfo;
+	
+	while (!pending.empty()){
+		bool sortProgressing = false;
+		for (auto module_it = pending.begin(); module_it != pending.end(); ){
+			ModuleInfoBase *module = *module_it;
+			// Make sure the module has already its dependencies in the sortedList
+			if (moduleDependenciesPresent(sortedList, module)){
+				/* Good, this module has all its dependencies placed before it in the sorted list. 
+				 * We can append it to the sorted list, and remove it from the pending list.*/
+				sortedList.push_back(module);
+				module_it = pending.erase(module_it);
+				sortProgressing = true;
+			}else{
+				/* Some dependencies are not found. Continue iterating on the pending list. */
+				++module_it;
+			}
+		}
+		if (!sortProgressing && !pending.empty()){
+			LOGE("Some modules have position references to other modules that could not be found:");
+			dumpModuleDependencies(pending);
+			LOGF("Somes modules could not be positionned in the module's processing chain. It is usually caused by an invalid module declaration Flexisip's source code, or in a loaded plugin.");
+		}
+	}
+	eliminateReplacedModules(sortedList);
+	LOGD("Module chain computed succesfully.");
+	return sortedList;
+}
+
 
 // -----------------------------------------------------------------------------
 // ModuleToolBox.
