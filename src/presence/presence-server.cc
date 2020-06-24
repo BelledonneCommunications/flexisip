@@ -110,22 +110,16 @@ PresenceServer::Init::Init() {
 	s->get<ConfigInt>("rls-database-max-thread-queue-size")->setFallback(*maxThreadQueueSize);
 }
 
-PresenceServer::PresenceServer(su_root_t* root) : ServiceServer( root){
+PresenceServer::PresenceServer(su_root_t* root) : ServiceServer(root) {
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("presence-server");
 	/*Enabling leak detector should be done asap.*/
 	belle_sip_object_enable_leak_detector(GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("leak-detector")->read());
 	mStack = belle_sip_stack_new(nullptr);
 	mProvider = belle_sip_stack_create_provider(mStack, nullptr);
-	//bctbx_set_log_handler(_belle_sip_log);
-	//belle_sip_set_log_level(BELLE_SIP_LOG_MESSAGE);
 	mMaxPresenceInfoNotifiedAtATime = GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigInt>("notify-limit")->read();
 
 	xercesc::XMLPlatformUtils::Initialize();
 
-	//	if (mConfigManager.load(configFile.c_str())==-1 ) {
-	//		throw FLEXISIP_EXCEPTION <<"No configuration file found at [" << configFile << "] Please specify a valid
-	//configuration file." ;
-	//	}
 	belle_sip_listener_callbacks_t listener_callbacks;
 	memset(&listener_callbacks, 0, sizeof(listener_callbacks));
 	listener_callbacks.process_dialog_terminated =

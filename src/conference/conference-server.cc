@@ -42,7 +42,6 @@ ConferenceServer::ConferenceServer (
 
 ConferenceServer::~ConferenceServer () {}
 
-
 void ConferenceServer::_init () {
 	// Set config, transport, create core, etc
 	shared_ptr<Transports> cTransport = Factory::get()->createTransports();
@@ -277,6 +276,13 @@ ConferenceServer::Init::Init() {
 			"outbound-proxy",
 			"",
 			"sip:127.0.0.1:5060;transport=tcp"
+		},
+		{
+			String,
+			"local-domains",
+			"Local domains managed by the conference server, the other messages will\n"
+			"be forwarded to the outbound-proxy. Space separated list.",
+			""
 		},
 		{
 			String,
