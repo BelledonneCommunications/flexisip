@@ -499,111 +499,6 @@ void Agent::start(const string &transport_override, const string passphrase) {
 }
 
 // -----------------------------------------------------------------------------
-// Helpers to build module instances.
-// -----------------------------------------------------------------------------
-
-static bool moduleIsBefore(const string &moduleName, ModuleInfoBase *next) {
-	for (const string &after : next->getAfter()) {
-		if (moduleName == after)
-			return true;
-
-		const list<ModuleInfoBase *> &registeredModuleInfo = ModuleInfoManager::get()->getRegisteredModuleInfo();
-		auto it = find_if(registeredModuleInfo.cbegin(), registeredModuleInfo.cend(), [&after](const ModuleInfoBase *moduleInfo) {
-			return moduleInfo->getModuleName() == after;
-		});
-		if (it != registeredModuleInfo.cend())
-			return moduleIsBefore(moduleName, *it);
-	}
-
-	return false;
-}
-
-static list<ModuleInfoBase *> sortModuleInfoByPriority(list<ModuleInfoBase *> moduleInfoToSort) {
-	// 1. Order each module info by priority.
-	moduleInfoToSort.sort([](ModuleInfoBase *a, ModuleInfoBase *b) {
-		const string &moduleName = a->getModuleName();
-		if (moduleName.empty()) // Special case, root.
-			return true;
-
-		return moduleIsBefore(moduleName, b);
-	});
-
-	// 2. Check if each module info has a valid ancestor.
-	auto it = moduleInfoToSort.cbegin();
-	if ((*it)->getModuleName().empty())
-		LOGA("Unable to find the root of registered module info list.");
-
-	bool soFarSoGood = true;
-	auto prev = it;
-	for (++it; it != moduleInfoToSort.cend(); prev = it, ++it) {
-		const string &moduleName = (*prev)->getModuleName();
-		for (const string &after : (*it)->getAfter())
-			if (moduleName == after)
-				goto success;
-
-		soFarSoGood = false;
-		SLOGE << "Unable to find a valid ancestor for [" << (*it)->getModuleName() << "]. "
-			"Please to check your `after` predicate.";
-
-		success:;
-	}
-	if (!soFarSoGood)
-		LOGA("It's necessary to fix module info list to continue.");
-
-	return moduleInfoToSort;
-}
-
-void addPluginModule(Agent *agent, list<Module *> &modules, const string &pluginDir, const string &pluginName) {
-	SLOGI << "Loading [" << pluginName << "] plugin...";
-	PluginLoader pluginLoader(agent, pluginDir + "/lib" + pluginName + ".so");
-
-	const ModuleInfoBase *moduleInfo = pluginLoader.getModuleInfo();
-	if (!moduleInfo) {
-		SLOGE << "Unable to get module info of [" << pluginName << "] plugin (" << pluginLoader.getError() << ").";
-		return;
-	}
-	const string &moduleName = moduleInfo->getModuleName();
-	Module *module = pluginLoader.get();
-
-	const string &replace = moduleInfo->getReplace();
-	if (!replace.empty()) {
-		auto it = find_if(modules.begin(), modules.end(), [&replace](const Module *module) {
-			return module->getModuleName() == replace;
-		});
-		if (it == modules.end()) {
-			SLOGE << "Unable to find module [" << replace << "]'s instance to be replaced by module [" << moduleName << "]'s instance";
-			return;
-		}
-		
-		SLOGW << "Creating plugin module " << "[" << moduleName << "]'s instance that will replace module [" << replace << "]'s instance.";
-		// Replace the previous module by the new one in the chain
-		it = modules.erase(it);
-		modules.insert(it, module);
-		return;
-	}
-
-	for (const string &after : moduleInfo->getAfter()) {
-		// TODO: Replace begin() and end() with cbegin() and cend() later.
-		// gcc 4.8.2 (CentOS 7) does not support insert with const iterator.
-		auto it = find_if(modules.begin(), modules.end(), [&after](const Module *module) {
-			return module->getModuleName() == after;
-		});
-		if (it == modules.end())
-			continue;
-
-		if (!module) {
-			SLOGE << "Failed to load [" << moduleName << "] (" << pluginLoader.getError() << ").";
-		} else {
-			SLOGI << "Creating plugin module instance of " << "[" << moduleName << "] after [" << after << "].";
-			modules.insert(++it, module);
-		}
-		return;
-	}
-
-	SLOGE << "Unable to find a valid ancestor for [" << pluginName << "] plugin.";
-}
-
-// -----------------------------------------------------------------------------
 
 Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
 	mHttpEngine = nth_engine_create(root, NTHTAG_ERROR_MSG(0), TAG_END());
@@ -611,18 +506,28 @@ Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
 
 	EtcHostsResolver::get();
 
-	// 1. Create module instances.
-	for (ModuleInfoBase *moduleInfo : sortModuleInfoByPriority(ModuleInfoManager::get()->getRegisteredModuleInfo())) {
-		SLOGI << "Creating module instance of " << "[" << moduleInfo->getModuleName() << "].";
-		mModules.push_back(moduleInfo->create(this));
-	}
-
-	// 2. Create module instances from plugins.
+	// Load plugins .so files. They will automatically register into the ModuleInfoManager singleton.
 	{
 		GenericStruct *global = cr->get<GenericStruct>("global");
 		const string &pluginDir = global->get<ConfigString>("plugins-dir")->read();
-		for (const string &pluginName : global->get<ConfigStringList>("plugins")->read())
-			addPluginModule(this, mModules, pluginDir, pluginName);
+		for (const string &pluginName : global->get<ConfigStringList>("plugins")->read()){
+			SLOGI << "Loading [" << pluginName << "] plugin...";
+			PluginLoader pluginLoader(this, pluginDir + "/lib" + pluginName + ".so");
+			const ModuleInfoBase *moduleInfo = pluginLoader.getModuleInfo();
+			if (!moduleInfo) {
+				LOGF("Unable to load plugin [%s]: %s", pluginName.c_str(), pluginLoader.getError().c_str());
+				return;
+			}
+		}
+	}
+	
+	// Ask the ModuleInfoManager to build a valid module info chain, according to module's placement hints.
+	list<ModuleInfoBase *> moduleInfoChain = ModuleInfoManager::get()->buildModuleChain();
+
+	// Instanciate the modules.
+	for (ModuleInfoBase *moduleInfo : moduleInfoChain) {
+		SLOGI << "Creating module instance of " << "[" << moduleInfo->getModuleName() << "].";
+		mModules.push_back(moduleInfo->create(this));
 	}
 
 	mServerString = "Flexisip/" FLEXISIP_GIT_VERSION " (sofia-sip-nta/" NTA_VERSION ")";
