@@ -26,7 +26,20 @@
 #include <sofia-sip/su_md5.h>
 
 using namespace std;
-using namespace flexisip;
+
+namespace flexisip {
+
+Transaction::Property Transaction::_getProperty(const std::string &name) const noexcept {
+	auto it = mProperties.find(name);
+	if (it != mProperties.cend()) {
+		return it->second;
+	} else {
+		auto wit = mWeakProperties.find(name);
+		if (wit == mWeakProperties.cend()) return Property{};
+		const auto &prop = wit->second;
+		return Property{prop.value.lock(), prop.type};
+	}
+}
 
 IncomingAgent::~IncomingAgent() {
 }
@@ -290,4 +303,6 @@ void IncomingTransaction::destroy() {
 		// IncomingTransaction.
 	}
 }
+
+} // end of flexisip namespace
 
