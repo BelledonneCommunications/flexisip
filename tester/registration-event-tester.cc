@@ -33,6 +33,7 @@ using namespace linphone;
 using namespace flexisip;
 
 static void basic() {
+	//int proxyPort = 5060;
 
 	// Client initialisation
 
@@ -42,18 +43,22 @@ static void basic() {
 	transport->setTcpPort(rand() %0x0FFF + 1014);
 	clientCore->setTransports(transport);
 
-	auto me = Factory::get()->createAddress(clientCore->getIdentity());
-	me->setUriParam("gr", "abcd");
-	me->setPort(6064);
+	auto me = Factory::get()->createAddress("sip:test@sip.example.org"/*clientCore->getIdentity()*/);
+	//me->setUriParam("gr", "abcd");
+	me->setPort(5060);
+
+	// TODO REGISTER + wait
+	// Flag enabled pour module registrar
 
 	shared_ptr<ProxyConfig> proxy = clientCore->createProxyConfig();
 	proxy->setIdentityAddress(me);
 	proxy->enableRegister(true);
-	proxy->setConferenceFactoryUri("sip:focus@127.0.0.1:6064;transport=tcp");
-	proxy->setServerAddr("sip:127.0.0.1:6064;transport=tcp");
+	proxy->setConferenceFactoryUri("sip:focus@sip.example.org");
+	proxy->setServerAddr("sip:127.0.0.1:5060;transport=tcp");
+	proxy->setRoute("sip:127.0.0.1:5060;transport=tcp");
 	clientCore->addProxyConfig(proxy);
 	clientCore->setDefaultProxyConfig(proxy);
-	clientCore->setPrimaryContact("sip:edhelas@127.0.0.1:48888;transport=tcp;gr=1234");
+	//clientCore->setPrimaryContact("sip:foobar@sip.example.org:48888;transport=tcp;gr=1234");
 
 	// RegEvent Server
 
@@ -75,20 +80,39 @@ static void basic() {
 	GenericManager *cfg = GenericManager::get();
 	cfg->load("/flexisip.conf");
 	agent->loadConfig(cfg);
+	agent->start("", "");
 
 	// Conference Server
 
 	GenericStruct *gs = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
 	gs->get<ConfigString>("database-backend")->set("sqlite");
 	gs->get<ConfigString>("database-connection-string")->set(":memory:");
-	gs->get<ConfigString>("outbound-proxy")->set("");
+	gs->get<ConfigString>("outbound-proxy")->set("sip:127.0.0.1:5060;transport=tcp");
 	gs->get<ConfigString>("transport")->set("sip:127.0.0.1:6064;transport=tcp");
-	gs->get<ConfigString>("conference-factory-uri")->set("sip:focus@127.0.0.1:6064;transport=tcp");
+	gs->get<ConfigString>("conference-factory-uri")->set("sip:focus@sip.example.org");
 	// Registrars / Local confs
 	gs->get<ConfigString>("local-domains")->set("127.0.0.1 [2a01:e0a:1ce:c860:f03d:d06:649f:6cfc]");
 
 	auto conferenceServer = make_shared<ConferenceServer>(a->getPreferredRoute(), root);
 	conferenceServer->init();
+
+	// Proxy configuration
+
+	GenericStruct *global = GenericManager::get()->getRoot()->get<GenericStruct>("global");
+	global->get<ConfigStringList>("transports")->set("sip:127.0.0.1:5060;transport=tcp");
+	//global->get<ConfigString>("enabled")->set("true");
+
+	// Configure module regevent
+
+	GenericStruct *registrarConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
+	registrarConf->get<ConfigStringList>("reg-domains")->set("sip.example.org");
+
+
+	while (proxy->getState() != RegistrationState::Cleared) {
+		clientCore->iterate();
+		//regEventCore->iterate();
+		//su_root_step(a->getRoot(), 100);
+	}
 
 	// Fill the RegistrarDB
 
