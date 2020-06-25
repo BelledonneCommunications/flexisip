@@ -20,5 +20,7 @@ namespace RegistrationEvent::Registrar {
             const shared_ptr<linphone::Event> event;
             void processRecord(const shared_ptr<Record> &r);
             string getDeviceName(const shared_ptr<ExtendedContact> &ec);
+
+            // version, previouscontacts
     };
 }
