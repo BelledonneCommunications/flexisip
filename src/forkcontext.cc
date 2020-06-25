@@ -289,7 +289,7 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	br->mContact = contact;
 	br->mPriority = contact->mQ;
 
-	ot->setProperty("BranchInfo", br);
+	ot->setProperty("BranchInfo", weak_ptr<BranchInfo>{br});
 	
 	// Clear answered branches with same uid.
 	shared_ptr<BranchInfo> oldBr = findBranchByUid(br->mUid);
