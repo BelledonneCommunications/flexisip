@@ -289,7 +289,7 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	br->mContact = contact;
 	br->mPriority = contact->mQ;
 
-	ot->setProperty("BranchInfo", br);
+	ot->setProperty("BranchInfo", weak_ptr<BranchInfo>{br});
 	
 	// Clear answered branches with same uid.
 	shared_ptr<BranchInfo> oldBr = findBranchByUid(br->mUid);
@@ -588,16 +588,8 @@ void ForkContext::onPushError(const std::shared_ptr<OutgoingTransaction> &tr, co
 }
 
 void BranchInfo::clear() {
-	if (mTransaction) {
-		mTransaction->removeProperty("BranchInfo");
-		mTransaction.reset();
-	}
-
+	mTransaction.reset();
 	mRequest.reset();
 	mLastResponse.reset();
 	mForkCtx.reset();
-}
-
-BranchInfo::~BranchInfo() {
-	clear();
 }
