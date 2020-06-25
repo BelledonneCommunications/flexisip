@@ -30,7 +30,7 @@ void Server::onSubscribeReceived(
     auto listener = make_shared<Registrar::Listener>(lev);
 
     SofiaAutoHome home;
-    url_t *url = url_make(home.home(), lev->getFrom()->asString().c_str());
+    url_t *url = url_make(home.home(), lev->getTo()->asString().c_str());
 
     RegistrarDb::get()->subscribe(url, listener);
     RegistrarDb::get()->fetch(url, listener, true);
