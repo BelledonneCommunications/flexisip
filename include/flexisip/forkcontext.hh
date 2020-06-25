@@ -51,7 +51,7 @@ class BranchInfo {
   public:
 	BranchInfo(std::shared_ptr<ForkContext> ctx) : mForkCtx(ctx), mPriority(1.0) {
 	}
-	virtual ~BranchInfo();
+	virtual ~BranchInfo() = default;
 	virtual void clear();
 	int getStatus() {
 		if (mLastResponse)
