@@ -1,6 +1,7 @@
 #include "listener.hh"
 #include "resource-lists.hh"
 #include "reginfo.hh"
+#include "utils/string-utils.hh"
 
 using namespace std;
 using namespace linphone;
@@ -25,27 +26,39 @@ void Listener::processRecord(const shared_ptr<Record> &r) {
 
     Reginfo ri = Reginfo(0, State::Value::full);
     Registration re = Registration(
-        Uri(this->event->getFrom()->asString().c_str()),
+        Uri(this->event->getTo()->asString().c_str()),
         "123",
-        Registration::StateType::active
+        Registration::StateType::init
     );
+    SofiaAutoHome home;
 
     if (r) {
         for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
+            auto addr = r->getPubGruu(ec, home.home());
+            //if (!addr) continue;
+
             Contact contact = Contact(
-                ec->getUniqueId(),
+                su_sprintf(home.home(), "<%s>", url_as_string(home.home(), addr)),
                 Contact::StateType::active,
-                Contact::EventType::registered, ec->getUniqueId()
+                Contact::EventType::registered,
+                ec->getUniqueId()
             );
+
+            // expires
+            if (ec->mSipContact->m_expires) {
+                contact.setExpires(atoi(ec->mSipContact->m_expires));
+            }
 
             // unknown-params
             if (ec->mSipContact->m_params) {
                 size_t i;
 
                 for (i = 0; ec->mSipContact->m_params[i]; i++) {
-                    auto unknownParam = UnknownParam(ec->mSipContact->m_params[i]);
-                    if (!strcmp(msg_params_find(ec->mSipContact->m_params, ec->mSipContact->m_params[i]), "")) {
-                        unknownParam.setName(msg_params_find(ec->mSipContact->m_params, ec->mSipContact->m_params[i]));
+                    vector<string> param = StringUtils::split(ec->mSipContact->m_params[i], "=");
+
+                    auto unknownParam = UnknownParam(param.front());
+                    if (param.size() == 2) {
+                        unknownParam.append(param.back());
                     }
 
                     contact.getUnknownParam().push_back(unknownParam);
@@ -54,6 +67,9 @@ void Listener::processRecord(const shared_ptr<Record> &r) {
 
             contact.setDisplayName(this->getDeviceName(ec));
             re.getContact().push_back(contact);
+
+            // If there is some contacts, we set the sate to active
+            re.setState(Registration::StateType::active);
         }
     }
 
