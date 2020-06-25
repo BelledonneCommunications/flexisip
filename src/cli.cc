@@ -409,7 +409,8 @@ void ProxyCommandLineInterface::handle_registrar_delete_command(unsigned int soc
 	sip->sip_from = sip_from_create(msg_home(msg), (url_string_t *)from.c_str());
 	sip->sip_contact = sip_contact_create(
 		msg_home(msg),
-		(url_string_t *)from.c_str(), string("+sip.instance=").append(uuid).c_str(),
+		(url_string_t *)from.c_str(),
+		string("+sip.instance=").append(uuid).c_str(),
 		nullptr
 	);
 	sip->sip_call_id = sip_call_id_make(msg_home(msg), "foobar");
