@@ -1128,7 +1128,6 @@ void RegistrarDb::fetchList(const vector<SipUri> urls, const shared_ptr<ListCont
 void RegistrarDb::bind(const sip_t *sip, const BindingParameters &parameter, const shared_ptr<ContactUpdateListener> &listener) {
 	sofiasip::Home home;
 	bool gruu_assigned = false;
-
 	if (sip->sip_supported && sip->sip_contact->m_params) {
 		if (msg_params_find(sip->sip_supported->k_items, "gruu") != nullptr){
 			const char *instance_param = msg_params_find(sip->sip_contact->m_params, "+sip.instance");
