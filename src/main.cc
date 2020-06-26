@@ -477,22 +477,12 @@ static void dump_config(su_root_t *root, const std::string &dump_cfg_part, bool 
 
 	auto *rootStruct = GenericManager::get()->getRoot();
 	if (dump_cfg_part != "all") {
-
-		auto prefix_location = dump_cfg_part.find("module::");
+		smatch m;
 		rootStruct = dynamic_cast<GenericStruct *>(rootStruct->find(dump_cfg_part));
-
-		if (dump_cfg_part != "global" && prefix_location != 0) {
-			cerr << "Module name should start with 'module::' or be the special module 'global' (was given "
-				 << dump_cfg_part << " )" << endl;
-			exit(EXIT_FAILURE);
-
-		} else if (rootStruct == nullptr) {
+		if (rootStruct == nullptr) {
 			cerr << "Couldn't find node " << dump_cfg_part << endl;
 			exit(EXIT_FAILURE);
-
 		}
-
-		smatch m;
 		if (regex_match(dump_cfg_part, m, regex("^module::(.*)$"))) {
 			const auto &moduleName = m[1];
 			const auto *module = a->findModule(moduleName);
@@ -503,6 +493,7 @@ static void dump_config(su_root_t *root, const std::string &dump_cfg_part, bool 
 			}
 		}
 	}
+
 	unique_ptr<ConfigDumper> dumper{};
 	if (format == "tex") {
 		dumper = make_unique<TexFileConfigDumper>(rootStruct);
@@ -515,7 +506,7 @@ static void dump_config(su_root_t *root, const std::string &dump_cfg_part, bool 
 	} else if (format == "media") {
 		dumper = make_unique<MediaWikiConfigDumper>(rootStruct);
 	} else if (format == "xwiki") {
-		dumper= make_unique<XWikiConfigDumper>(rootStruct);
+		dumper = make_unique<XWikiConfigDumper>(rootStruct);
 	} else {
 		cerr << "Invalid output format '" << format << "'" << endl;
 		exit(EXIT_FAILURE);
