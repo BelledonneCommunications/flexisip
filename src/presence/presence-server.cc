@@ -204,17 +204,30 @@ PresenceServer::~PresenceServer(){
 void PresenceServer::_init() {
 	if (!mEnabled) return;
 	const auto *cr = GenericManager::get()->getRoot();
-	const auto &get_users_with_phones_request = cr->get<GenericStruct>("module::Authentication")->get<ConfigString>("soci-users-with-phones-request")->read();
-	const auto &db_implementation = cr->get<GenericStruct>("module::Authentication")->get<ConfigString>("db-implementation")->read();
 
 	const auto *longTermEnabledConfig = cr->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled");
-	if (longTermEnabledConfig->isDefault()) {
-		LOGF("The default value of '%s' parameter has changed since Flexisip 2.0.0. "
-			"Please set it explicitly to remove this error.", longTermEnabledConfig->getCompleteName().c_str());
-	}
 	auto longTermEnabled = longTermEnabledConfig->read();
-	if (longTermEnabled && get_users_with_phones_request.empty() && db_implementation != "file") {
-		LOGF("Unable to start presence server: soci-users-with-phones-request is not precised in flexisip.conf, please fix it.");
+
+	const auto &dbImplementation = cr->get<GenericStruct>("module::Authentication")->get<ConfigString>("db-implementation")->read();
+	const auto *getUsersWithPhonesRequestParam = cr->get<GenericStruct>("module::Authentication")->get<ConfigString>("soci-users-with-phones-request");
+	const auto *getUserWithPhoneRequestParam = cr->get<GenericStruct>("module::Authentication")->get<ConfigString>("soci-user-with-phone-request");
+	const auto &getUsersWithPhonesRequest = getUsersWithPhonesRequestParam->read();
+	const auto &getUserWithPhoneRequest = getUserWithPhoneRequestParam->read();
+	auto userDbIsProperlySet = dbImplementation == "file" || !getUsersWithPhonesRequest.empty() || !getUserWithPhoneRequest.empty();
+
+	if (longTermEnabledConfig->isDefault() && !longTermEnabled && userDbIsProperlySet) {
+		LOGF("The default value of '%s' parameter has changed since Flexisip 2.0.0. "
+			"Please set this parameter explicitly or unset '%s' and '%s' to remove this error.",
+			longTermEnabledConfig->getName().c_str(),
+			getUserWithPhoneRequestParam->getCompleteName().c_str(),
+			getUsersWithPhonesRequestParam->getCompleteName().c_str()
+		);
+	}
+	if (longTermEnabled && !userDbIsProperlySet) {
+		LOGF("Unable to start presence server: neither '%s' or '%s' is set whereas 'Long-term Presence' is required.",
+			 getUserWithPhoneRequestParam->getCompleteName().c_str(),
+			 getUsersWithPhonesRequestParam->getCompleteName().c_str()
+		);
 	}
 
 	auto transports = cr->get<GenericStruct>("presence-server")->get<ConfigStringList>("transports")->read();
