@@ -44,7 +44,7 @@ void Listener::processRecord(const shared_ptr<Record> &r) {
 
                 for (i = 0; ec->mSipContact->m_params[i]; i++) {
                     auto unknownParam = UnknownParam(ec->mSipContact->m_params[i]);
-                    if (!strcmp(msg_params_find(ec->mSipContact->m_params, ec->mSipContact->m_params[i]), "")) {
+                    if (strcmp(msg_params_find(ec->mSipContact->m_params, ec->mSipContact->m_params[i]), "") != 0) {
                         unknownParam.setName(msg_params_find(ec->mSipContact->m_params, ec->mSipContact->m_params[i]));
                     }
 
