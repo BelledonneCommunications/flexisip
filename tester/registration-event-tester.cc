@@ -132,12 +132,14 @@ static void basic() {
 	parameter.globalExpire = 1000;
 	parameter.callId = "123456789";
 	parameter.userAgent = "Linphone2 (Debian) LinphoneCore";
+	parameter.withGruu = true;
 
 	RegistrarDb::get()->bind(
 		url_make(home.home(), participantFrom.c_str()),
 		sip_contact_create(
 			home.home(),
 			(url_string_t *)participantFrom.c_str(),
+			string("+sip.instance=\"<1234>\"").c_str(),
 			nullptr
 		),
 		parameter,
@@ -148,15 +150,35 @@ static void basic() {
 	parameter2.globalExpire = 1000;
 	parameter2.callId = "1234567890";
 	parameter2.userAgent = "Linphone3 (Debian) LinphoneCore";
+	parameter2.withGruu = true;
 
 	RegistrarDb::get()->bind(
 		url_make(home.home(), otherParticipantFrom.c_str()),
 		sip_contact_create(
 			home.home(),
 			(url_string_t *)otherParticipantFrom.c_str(),
+			string("+sip.instance=\"<1234>\"").c_str(),
 			nullptr
 		),
 		parameter2,
+		make_shared<BindListener>()
+	);
+
+	BindingParameters parameter3;
+	parameter3.globalExpire = 1000;
+	parameter3.callId = "1234567890";
+	parameter3.userAgent = "Linphone4 (Debian) LinphoneCore";
+	parameter3.withGruu = true;
+
+	RegistrarDb::get()->bind(
+		url_make(home.home(), otherParticipantFrom.c_str()),
+		sip_contact_create(
+			home.home(),
+			(url_string_t *)otherParticipantFrom.c_str(),
+			string("+sip.instance=\"<3456>\"").c_str(),
+			nullptr
+		),
+		parameter3,
 		make_shared<BindListener>()
 	);
 
