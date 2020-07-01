@@ -1,5 +1,7 @@
 #include "client.hh"
 #include "reginfo.hh"
+#include "utils.hh"
+#include "../conference-server.hh"
 
 #include <linphone++/linphone.hh>
 
@@ -9,17 +11,19 @@
 using namespace std;
 using namespace linphone;
 using namespace reginfo;
+using namespace flexisip;
 
 namespace RegistrationEvent {
 
 Client::Client(
+    const ConferenceServer & server,
     const shared_ptr<ChatRoom> & chatRoom,
-    const shared_ptr<const Address> to) : chatRoom(chatRoom), to(to) {}
+    const shared_ptr<const Address> to) : mServer(server), mChatRoom(chatRoom), mTo(to) {}
 
 void Client::subscribe() {
-    subscribeEvent = chatRoom->getCore()->createSubscribe(to, "reg", 600);
-    subscribeEvent->addCustomHeader("Accept", "application/reginfo+xml");
-    subscribeEvent->addCustomHeader("Event", "reg");
+    mSubscribeEvent = mChatRoom->getCore()->createSubscribe(mTo, "reg", 600);
+    mSubscribeEvent->addCustomHeader("Accept", "application/reginfo+xml");
+    mSubscribeEvent->addCustomHeader("Event", "reg");
 
     shared_ptr<Content> subsContent = Factory::get()->createContent();
     subsContent->setType("application");
@@ -27,12 +31,12 @@ void Client::subscribe() {
     string notiFybody("Subscribe");
     subsContent->setBuffer((uint8_t *)notiFybody.data(), notiFybody.length());
 
-    subscribeEvent->sendSubscribe(subsContent);
-    chatRoom->getCore()->addListener(shared_from_this());
+    mSubscribeEvent->sendSubscribe(subsContent);
+    mChatRoom->getCore()->addListener(shared_from_this());
 }
 
 Client::~Client () {
-    chatRoom->getCore()->removeListener(shared_from_this());
+    mChatRoom->getCore()->removeListener(shared_from_this());
 }
 
 void Client::onNotifyReceived(
@@ -44,33 +48,40 @@ void Client::onNotifyReceived(
     notifyReceived = true;
     istringstream data(body->getStringBuffer());
 
-    list<shared_ptr<ParticipantDeviceIdentity>> participantDevices;
     unique_ptr<Reginfo> ri(parseReginfo(data, Xsd::XmlSchema::Flags::dont_validate));
 
     for (const auto &registration : ri->getRegistration()) {
         for (const auto &contact : registration.getContact()) {
-            shared_ptr<ParticipantDeviceIdentity> identity = Factory::get()->createParticipantDeviceIdentity(
-                Factory::get()->createAddress(contact.getUri().text_content()),
-                contact.getDisplayName()->text_content()
-            );
+            list<shared_ptr<ParticipantDeviceIdentity>> participantDevices;
+            auto partAddr = Factory::get()->createAddress(contact.getUri());
 
             Contact::UnknownParamSequence ups = contact.getUnknownParam();
 
-            bool groupChat = false;
-            bool lime = false;
-
             for (const auto &param : ups) {
-                if (param == "groupchat") groupChat = true;
-                if (param == "lime") lime = true;
+                if (Utils::isContactCompatible(mServer, mChatRoom, param)) {
+                    string displayName = contact.getDisplayName()
+                        ? contact.getDisplayName()->c_str()
+                        : string("");
+
+                    shared_ptr<ParticipantDeviceIdentity> identity = Factory::get()->createParticipantDeviceIdentity(
+                        partAddr,
+                        displayName
+                    );
+
+                    participantDevices.push_back(identity);
+                    break;
+                }
             }
 
-            if (groupChat && lime) {
-                participantDevices.push_back(identity);
+            if (!participantDevices.empty()) {
+                partAddr->setUriParams("");
+
+                this->mChatRoom->setParticipantDevices(partAddr, participantDevices);
             }
+
         }
     }
 
-    this->chatRoom->setParticipantDevices(to, participantDevices);
 }
 
 } // namespace RegistrationEvent
