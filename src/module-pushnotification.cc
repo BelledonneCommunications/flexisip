@@ -353,10 +353,34 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 	LOGD("PushNotification module loaded. Push ttl for calls is %i seconds, and for IM %i seconds.", mCallTtl, mMessageTtl);
 }
 
-const std::regex PushNotification::sPnProviderRegex{"apns(.dev|)"};
-const std::regex PushNotification::sPnParamRegex{"([A-Za-z0-9]+)\\.([A-Za-z\\.]+)\\.([a-z&]+)"};
-const std::regex PushNotification::sPnPridOneTokenRegex{"([a-zA-Z0-9]+)(?::([a-z]+))?"};
-const std::regex PushNotification::sPnPridMultipleTokensRegex{"([a-zA-Z0-9]+):([a-z]+)"};
+/* pn-provider may be 'apns' or 'apns.dev' */
+const std::regex PushNotification::sPnProviderRegex{"apns|apns\\.dev"};
+
+/*
+   pn-param:
+   * all the characters before the first point are taken as the team ID;
+   * all the characters between the first and the last point are taken as the bundle ID
+     and may contains points;
+   * all the characters after the last point are taken as the service type. It may be
+     'voip' or 'remote' or 'voip&remote' if the application needs the two kinds of
+     push notification.
+*/
+const std::regex PushNotification::sPnParamRegex{"([^.]+)\\.(.+)\\.((?:voip|remote|&)+)"};
+
+/*
+   Regex to use for extracting information from 'pn-prid' parameter when only one token has been
+   given by the user agent. All the characters or all the characters before ':' are taken as
+   the token. Characters after ':' must be 'voip' or 'remote'. Column character isn't authorized
+   in the token.
+*/
+const std::regex PushNotification::sPnPridOneTokenRegex{"([^:]+)(?::(voip|remote))?"};
+
+/*
+   Regex to use for extracting information from 'pn-prid' parameter when several tokens have been
+   given by the user agent. 'pn-prid' value must be formated as '<token>:<service>' where
+   <token> may be contains any characters except ':' and <service> is equal to 'remote' or 'voip'.
+*/
+const std::regex PushNotification::sPnPridMultipleTokensRegex{"([^:]+):(voip|remote)"};
 
 void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const char *params, PushInfo &pinfo) {
 	string deviceToken;
@@ -368,14 +392,11 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 	sip_t *sip = ms->getSip();
 
 	try {
-		string pnProvider = UriUtils::getParamValue(params, "pn-provider");
-		if (regex_match(pnProvider, match, sPnProviderRegex)) {
-			if (match[1].str() == ".dev") {
-				isDev = true;
-			}
-		} else {
+		auto pnProvider = UriUtils::getParamValue(params, "pn-provider");
+		if (!regex_match(pnProvider, match, sPnProviderRegex)) {
 			throw runtime_error("pn-provider invalid syntax");
 		}
+		isDev = pnProvider == "apns.dev";
 	} catch (const out_of_range &) {
 		throw runtime_error("no pn-provider");
 	}
