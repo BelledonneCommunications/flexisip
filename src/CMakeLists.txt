@@ -244,6 +244,8 @@ if(ENABLE_CONFERENCE)
 		conference/participant-registration-subscription-handler.cc
 		conference/participant-registration-subscription-handler.hh
 
+		conference/registration-events/utils.cpp
+		conference/registration-events/utils.hh
 		conference/registration-events/client.cpp
 		conference/registration-events/client.hh
 		conference/registration-events/server.cpp
