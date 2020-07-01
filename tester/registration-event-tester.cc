@@ -46,10 +46,12 @@ static void basic() {
 	// Client initialisation
 
 	shared_ptr<Core> clientCore = Factory::get()->createCore("","", nullptr);
-	clientCore->getConfig()->setString("storage", "uri", "null");
-	shared_ptr<Transports> transport = Factory::get()->createTransports();
-	transport->setTcpPort(rand() %0x0FFF + 1014);
-	clientCore->setTransports(transport);
+	clientCore->getConfig()->setString("storage", "backend", "sqlite3");
+	clientCore->getConfig()->setString("storage", "uri", ":memory:");
+
+	shared_ptr<Transports> clientTransport = Factory::get()->createTransports();
+	clientTransport->setTcpPort(rand() %0x0FFF + 1014);
+	clientCore->setTransports(clientTransport);
 	clientCore->start();
 
 	auto me = Factory::get()->createAddress("sip:test@sip.example.org");
@@ -121,17 +123,18 @@ static void basic() {
 		void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override {}
 	};
 
-	string participantFrom = "sip:participant2@test.com";
-	string otherParticipantFrom = "sip:participant@test.com";
+	SofiaAutoHome home;
+
+	string participantFrom = "sip:participant1@test.com";
+	string otherParticipantFrom = "sip:participant2@test.com";
+	auto otherParticipantUrl = url_make(home.home(), otherParticipantFrom.c_str());
 
 	// Fill the Regisrar DB with participants
 
-	SofiaAutoHome home;
-
 	BindingParameters parameter;
 	parameter.globalExpire = 1000;
-	parameter.callId = "123456789";
-	parameter.userAgent = "Linphone2 (Debian) LinphoneCore";
+	parameter.callId = "random_id_necessary_to_bind_1";
+	parameter.userAgent = "Linphone1 (Ubuntu) LinphoneCore";
 	parameter.withGruu = true;
 
 	RegistrarDb::get()->bind(
@@ -139,43 +142,49 @@ static void basic() {
 		sip_contact_create(
 			home.home(),
 			(url_string_t *)participantFrom.c_str(),
-			string("+sip.instance=\"<1234>\"").c_str(),
+			string("+sip.instance=\"<f75b0df3-1836-4b83-b7f6-00e48842c9a7>\"").c_str(),
+			string("+org.linphone.specs=\"groupchat,lime\"").c_str(),
 			nullptr
 		),
 		parameter,
 		make_shared<BindListener>()
 	);
 
+	string firstDeviceName = "RedHat";
+
 	BindingParameters parameter2;
 	parameter2.globalExpire = 1000;
-	parameter2.callId = "1234567890";
-	parameter2.userAgent = "Linphone3 (Debian) LinphoneCore";
+	parameter2.callId = "random_id_necessary_to_bind_2";
+	parameter2.userAgent = string("Linphone2 (").append(firstDeviceName).append(") LinphoneCore");
 	parameter2.withGruu = true;
 
 	RegistrarDb::get()->bind(
-		url_make(home.home(), otherParticipantFrom.c_str()),
+		otherParticipantUrl,
 		sip_contact_create(
 			home.home(),
 			(url_string_t *)otherParticipantFrom.c_str(),
-			string("+sip.instance=\"<1234>\"").c_str(),
+			string("+sip.instance=\"<ab959409-7076-464e-85f8-7f8a84864618>\"").c_str(),
+			string("+org.linphone.specs=\"groupchat,lime\"").c_str(),
 			nullptr
 		),
 		parameter2,
 		make_shared<BindListener>()
 	);
 
+	string lastDeviceName = "Debian";
+
 	BindingParameters parameter3;
 	parameter3.globalExpire = 1000;
-	parameter3.callId = "1234567890";
-	parameter3.userAgent = "Linphone4 (Debian) LinphoneCore";
+	parameter3.callId = "random_id_necessary_to_bind_3";
+	parameter3.userAgent = string("Linphone2 (").append(lastDeviceName).append(") LinphoneCore");
 	parameter3.withGruu = true;
 
 	RegistrarDb::get()->bind(
-		url_make(home.home(), otherParticipantFrom.c_str()),
+		otherParticipantUrl,
 		sip_contact_create(
 			home.home(),
 			(url_string_t *)otherParticipantFrom.c_str(),
-			string("+sip.instance=\"<3456>\"").c_str(),
+			string("+sip.instance=\"<6d6ed907-dbd0-4dfc-abf8-6470310bc4ed>\"").c_str(),
 			nullptr
 		),
 		parameter3,
@@ -190,30 +199,141 @@ static void basic() {
 	chatRoomParams->enableGroup(true);
 	auto chatRoom = clientCore->createChatRoom(chatRoomParams, proxy->getContact(), "Chatroom with remote", participants);
 
-	//chatRoom->addParticipant(Factory::get()->createAddress(participantFrom));
-
-	for (shared_ptr<Participant> participant : chatRoom->getParticipants()){
-		cout << "HOY HOY PARTICIPANT " << participant->getAddress()->asString() << endl;
-
-		for (auto device : participant->getDevices()){
-			cout << "HOY HOY DEVICE " << device->getName() << endl;
+	class BcAssert {
+	public:
+		void addCustomIterate(const std::function<void ()> &iterate) {
+			mIterateFuncs.push_back(iterate);
 		}
-	}
+		bool waitUntil( std::chrono::duration<double> timeout ,const std::function<bool ()> &condition) {
+			auto start = std::chrono::steady_clock::now();
 
-	while (/*!client->notifyReceived*/1) {
-		//cout << "HOY HOY RECEIVED " << client->notifyReceived << endl;
-		clientCore->iterate();
-		regEventCore->iterate();
-		su_root_step(a->getRoot(), 100);
-	}
-
-	/*for (auto participant : chatRoom->getParticipants()){
-		cout << "HOY HOY PARTICIPANT " << participant->getAddress()->asString() << endl;
-
-		for (auto device : participant->getDevices()){
-			cout << "HOY HOY DEVICE " << device->getName() << endl;
+			bool_t result;
+			while (!(result = condition()) && (std::chrono::steady_clock::now() - start < timeout)) {
+				for (const std::function<void ()> iterate:mIterateFuncs) {
+					iterate();
+				}
+				usleep(100);
+			}
+			return result;
 		}
-	}*/
+		bool wait(const std::function<bool ()> &condition) {
+			return waitUntil(std::chrono::seconds(2),condition);
+		}
+	private:
+		list<std::function<void ()>> mIterateFuncs;
+	};
+
+	class CoreAssert : public BcAssert {
+	public:
+		CoreAssert(std::initializer_list<shared_ptr<linphone::Core>> cores) {
+			for (shared_ptr<linphone::Core> core: cores) {
+				addCustomIterate([core] {
+					core->iterate();
+				});
+			}
+		}
+	};
+
+	class RegEventAssert : public CoreAssert {
+	public :
+		RegEventAssert(std::initializer_list<shared_ptr<linphone::Core>> cores,Agent * a) : CoreAssert(cores) {
+			addCustomIterate([a] {su_root_step(a->getRoot(), 10);});
+		}
+	};
+
+	BC_ASSERT_TRUE(RegEventAssert({clientCore,regEventCore},agent).wait([chatRoom] {
+		int numberOfDevices = 0;
+		for (auto participant: chatRoom->getParticipants()) {
+			numberOfDevices += participant->getDevices().size();
+		}
+
+		return numberOfDevices == 2;
+	}));
+
+	auto participantsTest = chatRoom->getParticipants();
+	BC_ASSERT_TRUE(participantsTest.front()->getAddress()->asString() == participantFrom);
+	BC_ASSERT_TRUE(participantsTest.back()->getAddress()->asString() == otherParticipantFrom);
+	BC_ASSERT_TRUE(participantsTest.back()->getDevices().back()->getName() == firstDeviceName);
+
+	// Let's add a new device
+
+	string newDeviceName = "New Device";
+
+	BindingParameters parameter4;
+	parameter4.globalExpire = 1000;
+	parameter4.callId = "random_id_necessary_to_bind_4";
+	parameter4.userAgent = string("Linphone2 (").append(newDeviceName).append(") LinphoneCore");
+	parameter4.withGruu = true;
+
+	auto otherParticipantContact = sip_contact_create(
+		home.home(),
+		(url_string_t *)otherParticipantFrom.c_str(),
+		string("+sip.instance=\"<9db326ca-1ee5-400b-b7f1-d31086530a35>\"").c_str(),
+		string("+org.linphone.specs=\"groupchat,lime\"").c_str(),
+		nullptr
+	);
+
+	RegistrarDb::get()->bind(
+		otherParticipantUrl,
+		otherParticipantContact,
+		parameter4,
+		make_shared<BindListener>()
+	);
+	RegistrarDb::get()->publish(otherParticipantFrom.substr(4).c_str(), "");
+
+	BC_ASSERT_TRUE(RegEventAssert({clientCore,regEventCore},agent).wait([chatRoom] {
+		int numberOfDevices = 0;
+		for (auto participant: chatRoom->getParticipants()) {
+			numberOfDevices += participant->getDevices().size();
+		}
+
+		return numberOfDevices == 3;
+	}));
+
+	participantsTest = chatRoom->getParticipants();
+
+	BC_ASSERT_TRUE(participantsTest.back()->getAddress()->asString() == otherParticipantFrom);
+	BC_ASSERT_TRUE(participantsTest.back()->getDevices().front()->getName() == firstDeviceName);
+	BC_ASSERT_TRUE(participantsTest.back()->getDevices().back()->getName() == newDeviceName);
+
+	// Remove a device
+
+	parameter4.globalExpire = 0;
+	parameter4.callId = "random_id_necessary_to_bind_5";
+
+	RegistrarDb::get()->bind(
+		otherParticipantUrl,
+		otherParticipantContact,
+		parameter4,
+		make_shared<BindListener>()
+	);
+
+	BC_ASSERT_TRUE(RegEventAssert({clientCore,regEventCore},agent).wait([chatRoom] {
+		int numberOfDevices = 0;
+		for (auto participant: chatRoom->getParticipants()) {
+			numberOfDevices += participant->getDevices().size();
+		}
+
+		if(numberOfDevices == 2) {
+			for (auto participant: chatRoom->getParticipants()) {
+				cout << "PARTICIPANT " << participant->getAddress()->asString() << endl;
+				numberOfDevices += participant->getDevices().size();
+
+				for (auto device: participant->getDevices()) {
+					cout << "DEVICE " << device->getName() << endl;
+				}
+			}
+
+			return true;
+		}
+
+		return false;
+	}));
+
+	auto participantsTestRemoved = chatRoom->getParticipants();
+	BC_ASSERT_TRUE(participantsTest.front()->getAddress()->asString() == participantFrom);
+	BC_ASSERT_TRUE(participantsTest.back()->getAddress()->asString() == otherParticipantFrom);
+	BC_ASSERT_TRUE(participantsTest.back()->getDevices().back()->getName() == firstDeviceName);
 }
 
 static test_t tests[] = {

@@ -62,7 +62,6 @@ class RegistrationSubscription : public virtual_enable_shared_from_this<Registra
 		const ConferenceServer & mServer;
 		const shared_ptr<ChatRoom> mChatRoom;
 		const shared_ptr<Address> mParticipant;
-		unsigned int mChatroomRequestedCapabilities;
 };
 
 class RegistrationSubscriptionFetchListener : public virtual_enable_shared_from_this<RegistrationSubscriptionFetchListener>, public ContactUpdateListener{
@@ -91,10 +90,7 @@ class OwnRegistrationSubscription
 		virtual void stop() override;
 
 	private:
-		unsigned int getContactCapabilities(const shared_ptr<ExtendedContact> &ct);
 		shared_ptr<Address> getPubGruu(const shared_ptr<Record> &r, const shared_ptr<ExtendedContact> &ec);
-		string getDeviceName(const shared_ptr<ExtendedContact> &ec);
-		bool isContactCompatible(const shared_ptr<ExtendedContact> &ec);
 		void processRecord(const shared_ptr<Record> &r);
 		/*ContactUpdateListener virtual functions to override*/
 		virtual void onRecordFound (const shared_ptr<Record> &r) override;
