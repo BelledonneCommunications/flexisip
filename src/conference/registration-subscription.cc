@@ -18,6 +18,7 @@
 
 #include "registration-subscription.hh"
 #include "conference-server.hh"
+#include "registration-events/utils.hh"
 
 using namespace flexisip;
 using namespace std;
@@ -28,7 +29,6 @@ RegistrationSubscription::RegistrationSubscription(const ConferenceServer & serv
 	: mServer(server), mChatRoom(cr), mParticipant(participant->clone()) {
 	LOGD("RegistrationSubscription [%p] for chatroom [%p] and participant [%s] initialized.", this, cr.get(),
 	     participant->asStringUriOnly().c_str());
-	mChatroomRequestedCapabilities = cr->getCapabilities() & ~(int)ChatRoomCapabilities::OneToOne;
 }
 
 shared_ptr<ChatRoom> RegistrationSubscription::getChatRoom()const{
@@ -84,15 +84,6 @@ void OwnRegistrationSubscription::stop(){
 	RegistrarDb::get()->unsubscribe(key, RegistrationSubscriptionListener::shared_from_this());
 }
 
-unsigned int OwnRegistrationSubscription::getContactCapabilities(const shared_ptr<ExtendedContact> &ec){
-	unsigned int mask = 0;
-	string specs = ec->getOrgLinphoneSpecs();
-	//Please excuse the following code that is a bit too basic in terms of parsing:
-	if (specs.find("groupchat") != string::npos) mask |= (unsigned int)ChatRoomCapabilities::Conference;
-	if (specs.find("lime") != string::npos) mask |= (unsigned int)ChatRoomCapabilities::Encrypted;
-	return mask;
-}
-
 shared_ptr<Address> OwnRegistrationSubscription::getPubGruu(const shared_ptr<Record> &r, const shared_ptr<ExtendedContact> &ec){
 	SofiaAutoHome home;
 	url_t *pub_gruu = r->getPubGruu(ec, home.home());
@@ -103,28 +94,6 @@ shared_ptr<Address> OwnRegistrationSubscription::getPubGruu(const shared_ptr<Rec
 	return nullptr;
 }
 
-string OwnRegistrationSubscription::getDeviceName(const shared_ptr<ExtendedContact> &ec){
-	const string &userAgent = ec->getUserAgent();
-	size_t begin = userAgent.find("(");
-	string deviceName;
-	if (begin != string::npos) {
-		size_t end = userAgent.find(")", begin);
-		size_t openingParenthesis = userAgent.find("(", begin + 1);
-		while (openingParenthesis != string::npos && openingParenthesis < end) {
-			openingParenthesis = userAgent.find("(", openingParenthesis + 1);
-			end = userAgent.find(")", end + 1);
-		}
-		if (end != string::npos){
-			deviceName = userAgent.substr(begin + 1, end - (begin + 1));
-		}
-	}
-	return deviceName;
-}
-
-bool OwnRegistrationSubscription::isContactCompatible(const shared_ptr<ExtendedContact> &ec){
-	return !mServer.capabilityCheckEnabled() || (getContactCapabilities(ec) & mChatroomRequestedCapabilities) == mChatroomRequestedCapabilities;
-}
-
 void OwnRegistrationSubscription::processRecord(const shared_ptr<Record> &r){
 	if (!mActive) return;
 	list<shared_ptr<ParticipantDeviceIdentity>> compatibleParticipantDevices;
@@ -132,9 +101,9 @@ void OwnRegistrationSubscription::processRecord(const shared_ptr<Record> &r){
 		for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
 			auto addr = getPubGruu(r, ec);
 			if (!addr) continue;
-			if (isContactCompatible(ec)){
+			if (RegistrationEvent::Utils::isContactCompatible(mServer, mChatRoom, ec->getOrgLinphoneSpecs())) {
 				shared_ptr<ParticipantDeviceIdentity> identity = Factory::get()->createParticipantDeviceIdentity(
-					addr, getDeviceName(ec));
+					addr, RegistrationEvent::Utils::getDeviceName(ec));
 				compatibleParticipantDevices.push_back(identity);
 			} else LOGD("OwnRegistrationSubscription::processRecord(): %s does not have the required capabilities.", addr->asStringUriOnly().c_str());
 		}
@@ -146,7 +115,7 @@ void OwnRegistrationSubscription::onRecordFound (const shared_ptr<Record> &r) {
 	processRecord(r);
 }
 
-void OwnRegistrationSubscription::onContactRegistered(const shared_ptr<Record> &r, const string &uid){
+void OwnRegistrationSubscription::onContactRegistered(const shared_ptr<Record> &r, const string &uid) {
 	if (!mActive) return;
 	processRecord(r);
 
@@ -158,5 +127,5 @@ void OwnRegistrationSubscription::onContactRegistered(const shared_ptr<Record> &
 		return;
 	}
 	shared_ptr<Address> pubGruu = getPubGruu(r, ct);
-	if (pubGruu && isContactCompatible(ct)) notifyRegistration(pubGruu);
+	if (pubGruu && RegistrationEvent::Utils::isContactCompatible(mServer, mChatRoom, ct->getOrgLinphoneSpecs())) notifyRegistration(pubGruu);
 }

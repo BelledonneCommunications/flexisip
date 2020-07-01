@@ -1,5 +1,7 @@
 #include "client.hh"
 #include "reginfo.hh"
+#include "utils.hh"
+#include "../conference-server.hh"
 
 #include <linphone++/linphone.hh>
 
@@ -9,12 +11,14 @@
 using namespace std;
 using namespace linphone;
 using namespace reginfo;
+using namespace flexisip;
 
 namespace RegistrationEvent {
 
 Client::Client(
+    const ConferenceServer & server,
     const shared_ptr<ChatRoom> & chatRoom,
-    const shared_ptr<const Address> to) : chatRoom(chatRoom), to(to) {}
+    const shared_ptr<const Address> to) : server(server), chatRoom(chatRoom), to(to) {}
 
 void Client::subscribe() {
     subscribeEvent = chatRoom->getCore()->createSubscribe(to, "reg", 600);
@@ -56,17 +60,22 @@ void Client::onNotifyReceived(
 
             Contact::UnknownParamSequence ups = contact.getUnknownParam();
 
-            bool groupChat = false;
-            bool lime = false;
+
+            //bool groupChat = false;
+            //bool lime = false;
 
             for (const auto &param : ups) {
-                if (param == "groupchat") groupChat = true;
-                if (param == "lime") lime = true;
+                if (Utils::isContactCompatible(server, chatRoom, param)) {
+                    cout << "DEVICE " << contact.getUri().text_content() << endl;
+                    participantDevices.push_back(identity);
+                    break;
+                }
+                //if (string(param).find("groupchat")) groupChat = true;
+                //if (param == "lime") lime = true;
             }
 
-            if (groupChat && lime) {
-                participantDevices.push_back(identity);
-            }
+            //if (groupChat /*&& lime*/) {
+            //}
         }
     }
 

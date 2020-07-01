@@ -140,6 +140,7 @@ static void basic() {
 			home.home(),
 			(url_string_t *)participantFrom.c_str(),
 			string("+sip.instance=\"<1234>\"").c_str(),
+			string("+org.linphone.specs=\"groupchat,lime\"").c_str(),
 			nullptr
 		),
 		parameter,
@@ -158,6 +159,7 @@ static void basic() {
 			home.home(),
 			(url_string_t *)otherParticipantFrom.c_str(),
 			string("+sip.instance=\"<1234>\"").c_str(),
+			string("+org.linphone.specs=\"groupchat,lime\"").c_str(),
 			nullptr
 		),
 		parameter2,
