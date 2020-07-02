@@ -261,7 +261,7 @@ tests-flexisip-mr:
     #   buggy or silent log artifacts
     # We output only liblinphone_tester on stdout
 
-    - docker-compose $docker_compose_options up --exit-code-from liblinphone_tester | grep 'liblinphone_tester_1' || EXIT=$?
+    - docker-compose $docker_compose_options up 
 
     # For each launched service, we print logs in seperate file with follow and timestamp options
     - |
@@ -282,8 +282,6 @@ tests-flexisip-mr:
     - gzip */*.log
 
     - tree
-
-    - exit $EXIT
 
   after_script:
 
