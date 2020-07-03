@@ -15,37 +15,40 @@
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include <sys/types.h>
-#include <dirent.h>
-
-#include "pushnotificationservice.hh"
-#include "pushnotificationclient.hh"
-#include "pushnotificationclient_wp.hh"
-#include <flexisip/common.hh>
 
 #include <sstream>
+
+#include <sys/types.h>
+
+#include <dirent.h>
+
 #include <openssl/x509.h>
 #include <openssl/x509_vfy.h>
 #include <openssl/err.h>
 #include <openssl/pem.h>
 
+#include <flexisip/common.hh>
+
+#include <utils/make-unique.hh>
+
+#include "pushnotificationclient.hh"
+#include "pushnotificationclient_wp.hh"
+#include "pushnotificationservice.hh"
+
 using namespace std;
-using namespace flexisip;
 
-static const char *APN_DEV_ADDRESS = "gateway.sandbox.push.apple.com";
-static const char *APN_PROD_ADDRESS = "gateway.push.apple.com";
-static const char *APN_PORT = "2195";
+namespace flexisip {
 
-static const char *GPN_ADDRESS = "gcm-http.googleapis.com";
-static const char *GPN_PORT = "443";
+static constexpr const char *APN_DEV_ADDRESS = "gateway.sandbox.push.apple.com";
+static constexpr const char *APN_PROD_ADDRESS = "gateway.push.apple.com";
+static constexpr const char *APN_PORT = "2195";
 
-static const char *FIREBASE_ADDRESS = "fcm.googleapis.com";
-static const char *FIREBASE_PORT = "443";
+static constexpr const char *FIREBASE_ADDRESS = "fcm.googleapis.com";
+static constexpr const char *FIREBASE_PORT = "443";
 
-static const char *WPPN_PORT = "443";
+static constexpr const char *WPPN_PORT = "443";
 
-PushNotificationService::PushNotificationService(int maxQueueSize)
-: mMaxQueueSize(maxQueueSize), mClients(), mCountFailed(NULL), mCountSent(NULL) {
+PushNotificationService::PushNotificationService(unsigned maxQueueSize) : mMaxQueueSize(maxQueueSize) {
 	SSL_library_init();
 	SSL_load_error_strings();
 }
@@ -56,10 +59,10 @@ PushNotificationService::~PushNotificationService() {
 
 
 int PushNotificationService::sendPush(const std::shared_ptr<PushNotificationRequest> &pn){	
-	std::shared_ptr<PushNotificationClient> client = mClients[pn->getAppIdentifier()];
-	if (client == 0) {
-		bool isW10 = (pn->getType() == "w10");
-		bool isWP = (pn->getType() == "wp");
+	auto client = mClients[pn->getAppIdentifier()].get();
+	if (client == nullptr) {
+		auto isW10 = (pn->getType() == "w10");
+		auto isWP = (pn->getType() == "wp");
 		if(isW10 || isWP) {
 			// In Windows case we can't create all push notification clients at start up since we need to wait the registration of all AppID
 			// Therefore we create the push notification client just before sending the push.
@@ -69,20 +72,20 @@ int PushNotificationService::sendPush(const std::shared_ptr<PushNotificationRequ
 					"application secret is " << (mWindowsPhoneApplicationSecret.empty() ? "NOT configured" : "configured") << ").";
 				return -1;
 			} else {
-				string wpClient = pn->getAppIdentifier();
+				auto wpClient = pn->getAppIdentifier();
 			
 				SSL_CTX* ctx = SSL_CTX_new(TLSv1_2_method());
 				SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
 			
 				LOGD("Creating PN client for %s", pn->getAppIdentifier().c_str());
 				if(isW10) {
-					mClients[wpClient] = std::make_shared<PushNotificationClientWp>(wpClient, this, ctx,
+					mClients[wpClient] = make_unique<PushNotificationClientWp>(wpClient, *this, ctx,
 																					pn->getAppIdentifier(), WPPN_PORT, mMaxQueueSize, true, mWindowsPhonePackageSID, mWindowsPhoneApplicationSecret);
 				} else {
-					mClients[wpClient] = std::make_shared<PushNotificationClient>(wpClient, this, ctx,
+					mClients[wpClient] = make_unique<PushNotificationClient>(wpClient, *this, ctx,
 												pn->getAppIdentifier(), "80", mMaxQueueSize, false);
 				}
-				client = mClients[wpClient];
+				client = mClients[wpClient].get();
 			}
 		} else {
 			SLOGE << "No push notification client available for push notification request : " << pn;
@@ -93,12 +96,9 @@ int PushNotificationService::sendPush(const std::shared_ptr<PushNotificationRequ
 	return 0;
 }
 
-bool PushNotificationService::isIdle() {
-	map<string, std::shared_ptr<PushNotificationClient>>::const_iterator it;
-	for (it = mClients.begin(); it != mClients.end(); ++it) {
-		if (!it->second->isIdle()) {
-			return false;
-		}
+bool PushNotificationService::isIdle() const noexcept {
+	for (const auto &entry : mClients) {
+		if (!entry.second->isIdle()) return false;
 	}
 	return true;
 }
@@ -108,7 +108,7 @@ void PushNotificationService::setupGenericClient(const url_t *url) {
 	SSL_CTX* ctx = SSL_CTX_new(TLSv1_client_method());
 	SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
 
-	mClients["generic"] = std::make_shared<PushNotificationClient>("generic", this, ctx, url->url_host, url_port(url),
+	mClients["generic"] = make_unique<PushNotificationClient>("generic", *this, ctx, url->url_host, url_port(url),
 		mMaxQueueSize, url->url_type == url_https);
 }
 
@@ -125,7 +125,7 @@ static int ASN1_TIME_toString( const ASN1_TIME* time, char* buffer, uint32_t buf
 	return write;
 }
 
-bool PushNotificationService::isCertExpired( const std::string &certPath ){
+bool PushNotificationService::isCertExpired( const std::string &certPath) const noexcept {
 	bool expired = true;
 	BIO* certbio = BIO_new(BIO_s_file());
 	int err = BIO_read_filename(certbio, certPath.c_str());
@@ -268,35 +268,21 @@ void PushNotificationService::setupiOSClient(const std::string &certdir, const s
 
 		string certName = cert.substr(0, cert.size() - 4); // Remove .pem at the end of cert
 		const char *apn_server = (certName.find(".dev") != string::npos) ? APN_DEV_ADDRESS : APN_PROD_ADDRESS;
-		mClients[certName] = std::make_shared<PushNotificationClient>(cert, this, ctx, apn_server, APN_PORT, mMaxQueueSize, true);
+		mClients[certName] = make_unique<PushNotificationClient>(cert, *this, ctx, apn_server, APN_PORT, mMaxQueueSize, true);
 		SLOGD << "Adding ios push notification client [" << certName << "]";
 	}
 	closedir(dirp);
 }
 
-void PushNotificationService::setupAndroidClient(const std::map<std::string, std::string> googleKeys) {
-	map<string, string>::const_iterator it;
-	for (it = googleKeys.begin(); it != googleKeys.end(); ++it) {
-		string android_app_id = it->first;
+void PushNotificationService::setupFirebaseClient(const std::map<std::string, std::string> &firebaseKeys) {
+	for (const auto &entry : firebaseKeys) {
+		const auto &firebaseAppId = entry.first;
 
 		SSL_CTX* ctx = SSL_CTX_new(SSLv23_client_method());
 		SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
 
-		mClients[android_app_id] = std::make_shared<PushNotificationClient>("google", this, ctx, GPN_ADDRESS, GPN_PORT, mMaxQueueSize, true);
-		SLOGD << "Adding android push notification client [" << android_app_id << "]";
-	}
-}
-
-void PushNotificationService::setupFirebaseClient(const std::map<std::string, std::string> firebaseKeys) {
-	map<string, string>::const_iterator it;
-	for (it = firebaseKeys.begin(); it != firebaseKeys.end(); ++it) {
-		string firebase_app_id = it->first;
-
-		SSL_CTX* ctx = SSL_CTX_new(SSLv23_client_method());
-		SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
-
-		mClients[firebase_app_id] = std::make_shared<PushNotificationClient>("firebase", this, ctx, FIREBASE_ADDRESS, FIREBASE_PORT, mMaxQueueSize, true);
-		SLOGD << "Adding firebase push notification client [" << firebase_app_id << "]";
+		mClients[firebaseAppId] = make_unique<PushNotificationClient>("firebase", *this, ctx, FIREBASE_ADDRESS, FIREBASE_PORT, mMaxQueueSize, true);
+		SLOGD << "Adding firebase push notification client [" << firebaseAppId << "]";
 	}
 }
 
@@ -305,3 +291,5 @@ void PushNotificationService::setupWindowsPhoneClient(const std::string& package
 	mWindowsPhoneApplicationSecret = applicationSecret;
 	SLOGD << "Adding Windows push notification client for pacakge SID [" << packageSID << "]";
 }
+
+} // end of flexisip namespace
