@@ -202,10 +202,6 @@ int main(int argc, char *argv[]) {
 
 		if (args.pntype == "apple") {
 			service.setupiOSClient(args.prefix + "/apn", "");
-		} else if (args.pntype == "google") {
-			map<string, string> googleKey;
-			googleKey.insert(make_pair(args.appid, args.apikey));
-			service.setupAndroidClient(googleKey);
 		} else if (args.pntype == "firebase") {
 			map<string, string> firebaseKey;
 			firebaseKey.insert(make_pair(args.appid, args.apikey));

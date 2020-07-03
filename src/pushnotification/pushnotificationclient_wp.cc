@@ -18,23 +18,26 @@
 
 #include <openssl/err.h>
 
-#include "cJSON.h"
+#include <flexisip/logmanager.hh>
+
+#include <cJSON.h>
+#include <utils/uri-utils.hh>
+
 #include "microsoftpush.hh"
-#include "utils/uri-utils.hh"
 
 #include "pushnotificationclient_wp.hh"
 
 using namespace std;
-using namespace flexisip;
 
-PushNotificationClientWp::PushNotificationClientWp(const std::string &name, PushNotificationService *service,
+namespace flexisip {
+
+PushNotificationClientWp::PushNotificationClientWp(const std::string &name, const PushNotificationService &service,
 	 				   SSL_CTX * ctx,
 					   const std::string &host, const std::string &port,
-					   int maxQueueSize, bool isSecure,
+					   unsigned maxQueueSize, bool isSecure,
 					   const std::string& packageSID, const std::string& applicationSecret) : PushNotificationClient(name, service, ctx, host, port, maxQueueSize, isSecure),
-																							mPackageSID(packageSID), mApplicationSecret(applicationSecret), mAccessToken(""), mTokenExpiring(0) {}
+	mPackageSID(packageSID), mApplicationSecret(applicationSecret) {}
 
-PushNotificationClientWp::~PushNotificationClientWp() {}
 
 void PushNotificationClientWp::retrieveAccessToken() {
 	mAccessToken = "";
@@ -131,7 +134,7 @@ void PushNotificationClientWp::retrieveAccessToken() {
 }
 
 
-int PushNotificationClientWp::sendPush(const std::shared_ptr<PushNotificationRequest> &req) {
+bool PushNotificationClientWp::sendPush(const std::shared_ptr<PushNotificationRequest> &req) {
 	if (time(0) > mTokenExpiring) {
 		this->retrieveAccessToken();
 	}
@@ -143,5 +146,7 @@ int PushNotificationClientWp::sendPush(const std::shared_ptr<PushNotificationReq
 	} else {
 		SLOGD << "Cannot send push since we do not access token yet";
 	}
-	return 0;
+	return false;
 }
+
+} // end of flexisip namespace
