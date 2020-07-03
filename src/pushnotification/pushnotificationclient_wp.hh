@@ -24,23 +24,23 @@ namespace flexisip {
 
 class PushNotificationClientWp : public PushNotificationClient {
 	public:
-		PushNotificationClientWp(const std::string &name, PushNotificationService *service,
+		PushNotificationClientWp(const std::string &name, const PushNotificationService &service,
 			 				   SSL_CTX * ctx,
 							   const std::string &host, const std::string &port,
 							   int maxQueueSize, bool isSecure,
 							   const std::string& packageSID, const std::string& applicationSecret);
-		virtual ~PushNotificationClientWp();
+		~PushNotificationClientWp() override = default;
 
-		virtual int sendPush(const std::shared_ptr<PushNotificationRequest> &req);
+		int sendPush(const std::shared_ptr<PushNotificationRequest> &req) override;
 
 	protected:
 		void retrieveAccessToken();
 
 	private:
-		std::string mPackageSID;
-		std::string mApplicationSecret;
-		std::string mAccessToken;
-		time_t mTokenExpiring;
+		std::string mPackageSID{};
+		std::string mApplicationSecret{};
+		std::string mAccessToken{};
+		time_t mTokenExpiring{0};
 };
 
 }
