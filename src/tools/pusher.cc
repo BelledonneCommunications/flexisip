@@ -1,6 +1,6 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+	Copyright (C) 2010-2020  Belledonne Communications SARL, All rights reserved.
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as
@@ -16,38 +16,32 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <flexisip/common.hh>
-#include "pushnotification/applepush.hh"
-#include "pushnotification/googlepush.hh"
-#include "pushnotification/microsoftpush.hh"
-#include "pushnotification/firebasepush.hh"
-#include "pushnotification/pushnotificationservice.hh"
-
-#include <unistd.h>
 #include <string>
 
-#include <ortp/ortp.h>
-#include <sofia-sip/url.h>
-#include <sofia-sip/base64.h>
+#include <flexisip/common.hh>
+#include <flexisip/utils/timer.hh>
+
+#include "pushnotification/service.hh"
+
 
 using namespace std;
 using namespace flexisip;
+using namespace flexisip::pushnotification;
 
-static const int MAX_QUEUE_SIZE = 3000;
-// static const int PRINT_STATS_TIMEOUT = 3000;	/* In milliseconds. */
+
+static constexpr int MAX_QUEUE_SIZE = 3000;
 
 struct PusherArgs {
-	PusherArgs() : debug(false), isSilent(false){
-	}
-	string prefix;
-	string pntype;
-	bool debug;
-	bool isSilent;
-	string appid;
-	vector<string> pntok;
-	string apikey;
-	string packageSID;
+	string prefix{};
+	string pntype{};
+	bool debug{false};
+	bool isSilent{false};
+	string appid{};
+	vector<string> pntok{};
+	string apikey{};
+	string packageSID{};
 	PushInfo::ApplePushType applePushType{PushInfo::ApplePushType::Pushkit};
+
 	void usage(const char *app) {
 		cout << app
 			 << " --pntype google|firebase|wp|w10|apple --appid id --key apikey(secretkey) --sid ms-app://value --prefix dir [--silent] [--debug] [--apple-push-type RemoteBasic|RemoteWithMutableContent|Background|PushKit]"<<endl
@@ -132,40 +126,29 @@ struct PusherArgs {
 	}
 };
 
-static vector<shared_ptr<PushNotificationRequest>> createRequestFromArgs(const PusherArgs &args) {
-	vector<shared_ptr<PushNotificationRequest>> result;
-	for (auto it = args.pntok.begin(); it != args.pntok.end(); it++) {
-		auto pntok = *it;
+static vector<shared_ptr<Request>> createRequestFromArgs(const PusherArgs &args) {
+	vector<shared_ptr<Request>> result{};
+	for (const auto &pntok : args.pntok) {
 		PushInfo pinfo;
 		pinfo.mType = args.pntype;
 		pinfo.mFromName = "Pusher";
 		pinfo.mFromUri = "sip:toto@sip.linphone.org";
-		if (args.pntype == "google") {
+		if (args.pntype == "firebase") {
 			pinfo.mCallId = "fb14b5fe-a9ab-1231-9485-7d582244ba3d";
 			pinfo.mFromName = "+33681741738";
 			pinfo.mDeviceToken = pntok;
 			pinfo.mAppId = args.appid;
 			pinfo.mApiKey = args.apikey;
-			result.push_back(make_shared<GooglePushNotificationRequest>(pinfo));
-		} else if (args.pntype == "firebase") {
-			pinfo.mCallId = "fb14b5fe-a9ab-1231-9485-7d582244ba3d";
-			pinfo.mFromName = "+33681741738";
-			pinfo.mDeviceToken = pntok;
-			pinfo.mAppId = args.appid;
-			pinfo.mApiKey = args.apikey;
-			result.push_back(make_shared<FirebasePushNotificationRequest>(pinfo));
 		} else if (args.pntype == "wp") {
 			pinfo.mAppId = args.appid;
 			pinfo.mDeviceToken = pntok;
 			pinfo.mEvent = PushInfo::Event::Message;
 			pinfo.mText = "Hi here!";
-			result.push_back(make_shared<WindowsPhonePushNotificationRequest>(pinfo));
 		} else if (args.pntype == "w10") {
 			pinfo.mAppId = args.appid;
 			pinfo.mEvent = PushInfo::Event::Message;
 			pinfo.mDeviceToken = pntok;
 			pinfo.mText = "Hi here!";
-			result.push_back(make_shared<WindowsPhonePushNotificationRequest>(pinfo));
 		} else if (args.pntype == "apple") {
 			pinfo.mAlertMsgId = "IM_MSG";
 			pinfo.mAlertSound = "msg.caf";
@@ -174,8 +157,10 @@ static vector<shared_ptr<PushNotificationRequest>> createRequestFromArgs(const P
 			pinfo.mTtl = 2592000;
 			pinfo.mSilent = args.isSilent;
 			pinfo.mApplePushType = args.applePushType;
-			result.push_back(make_shared<ApplePushNotificationRequest>(pinfo));
-		} else {
+		}
+		try {
+			result.emplace_back(Service::makePushRequest(pinfo));
+		} catch (const invalid_argument &) {
 			cerr << "? push pntype " << args.pntype << endl;
 			exit(-1);
 		}
@@ -198,14 +183,11 @@ int main(int argc, char *argv[]) {
 	LogManager::get().initialize(logParams);
 
 	{
-		PushNotificationService service(MAX_QUEUE_SIZE);
+		auto root = su_root_create(nullptr);
+		Service service{*root, MAX_QUEUE_SIZE};
 
 		if (args.pntype == "apple") {
 			service.setupiOSClient(args.prefix + "/apn", "");
-		} else if (args.pntype == "google") {
-			map<string, string> googleKey;
-			googleKey.insert(make_pair(args.appid, args.apikey));
-			service.setupAndroidClient(googleKey);
 		} else if (args.pntype == "firebase") {
 			map<string, string> firebaseKey;
 			firebaseKey.insert(make_pair(args.appid, args.apikey));
@@ -215,14 +197,17 @@ int main(int argc, char *argv[]) {
 		}
 
 		auto pn = createRequestFromArgs(args);
-		for (auto it = pn.begin(); it != pn.end(); it++) {
-			auto push = *it;
+		for (const auto &push : pn) {
 			ret += service.sendPush(push);
 		}
 		
-		while (!service.isIdle()) {
-			sleep(1);
-		}
+		sofiasip::Timer timer{root, 1000};
+		timer.run(
+			[root, &service] () {
+				if (service.isIdle()) su_root_break(root);
+			}
+		);
+		su_root_run(root);
 		
 		int failed = 0;
 		int success = 0;
@@ -230,18 +215,18 @@ int main(int argc, char *argv[]) {
 		int notsubmitted = 0;
 		int total = 0;
 		
-		for(auto it = pn.begin(); it != pn.end(); it++){
-			switch((*it)->getState()){
-				case PushNotificationRequest::State::NotSubmitted:
+		for(const auto &request : pn){
+			switch(request->getState()){
+				case Request::State::NotSubmitted:
 					notsubmitted++;
 				break;
-				case PushNotificationRequest::State::InProgress:
+				case Request::State::InProgress:
 					inprogress++;
 				break;
-				case PushNotificationRequest::State::Failed:
+				case Request::State::Failed:
 					failed++;
 				break;
-				case PushNotificationRequest::State::Successful:
+				case Request::State::Successful:
 					success++;
 				break;
 			}

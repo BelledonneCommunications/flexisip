@@ -16,31 +16,37 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
+#include <ctime>
 
-#include "pushnotificationclient.hh"
+#include <flexisip/logmanager.hh>
+#include "request.hh"
+
+using namespace std;
 
 namespace flexisip {
+namespace pushnotification {
 
-class PushNotificationClientWp : public PushNotificationClient {
-	public:
-		PushNotificationClientWp(const std::string &name, PushNotificationService *service,
-			 				   SSL_CTX * ctx,
-							   const std::string &host, const std::string &port,
-							   int maxQueueSize, bool isSecure,
-							   const std::string& packageSID, const std::string& applicationSecret);
-		virtual ~PushNotificationClientWp();
-
-		virtual int sendPush(const std::shared_ptr<PushNotificationRequest> &req);
-
-	protected:
-		void retrieveAccessToken();
-
-	private:
-		std::string mPackageSID;
-		std::string mApplicationSecret;
-		std::string mAccessToken;
-		time_t mTokenExpiring;
-};
-
+std::string Request::quoteStringIfNeeded(const std::string &str) const noexcept {
+	if (str[0] == '"') {
+		return str;
+	} else {
+		string res;
+		res.reserve(str.size() + 2);
+		return move(res) + "\"" + str + "\"";
+	}
 }
+
+std::string Request::getPushTimeStamp() const noexcept {
+	time_t t = time(nullptr);
+	struct tm time;
+	gmtime_r(&t, &time);
+	char date[20] = {0};
+	size_t ret = strftime(date, sizeof(date), "%Y-%m-%d %H:%M:%S", &time);
+	if (ret == 0)
+		SLOGE << "Invalid time stamp for push notification PNR: " << this;
+
+	return string(date);
+}
+
+} // end of pushnotification namespace
+} // end of flexisip namespace

@@ -5,7 +5,7 @@
 job-debian8-makefile-gcc:
 
   tags: [ "docker-debian8" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:8
   except:
     variables:
       - $DEPLOY_RUN
@@ -21,7 +21,7 @@ job-debian8-makefile-gcc:
 job-debian8-makefile-clang:
 
   tags: [ "docker-debian8" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:8
   except:
     variables:
       - $DEPLOY_RUN
@@ -40,7 +40,7 @@ job-debian8-makefile-clang:
 job-debian8-ninja-gcc:
 
   tags: [ "docker-debian8" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:8
   except:
     variables:
       - $DEPLOY_RUN
@@ -55,7 +55,7 @@ job-debian8-ninja-gcc:
 job-debian8-ninja-clang:
 
   tags: [ "docker-debian8" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:8
   except:
     variables:
       - $DEPLOY_RUN
@@ -76,7 +76,7 @@ job-debian8-deb:
     variables:
       - $DEPLOY_UBUNTU
   tags: [ "docker-debian8" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:8
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:8
   extends: .job-linux-deb
 
 

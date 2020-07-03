@@ -16,6 +16,10 @@ Group changes to describe their impact on the project, as follows:
 
 ## [unreleased]
 
+### [Changed]
+- Usage of HTTP2 protocol to send Apple push notification requests. No
+  change in PushNotification module configuration required.
+
 ### [Fixed]
 - Crash when trying to fetch domain records from registrar DB.
 - Fix issue with dual stack media relay causing ICE failures.
