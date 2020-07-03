@@ -74,16 +74,27 @@ int PushNotificationService::sendPush(const std::shared_ptr<PushNotificationRequ
 			} else {
 				auto wpClient = pn->getAppIdentifier();
 			
-				SSL_CTX* ctx = SSL_CTX_new(TLSv1_2_method());
-				SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+				using SSLCtxUniquePtr = PushNotificationTransportTls::SSLCtxUniquePtr;
+				SSLCtxUniquePtr ctx{SSL_CTX_new(TLSv1_2_method())};
+				SSL_CTX_set_verify(ctx.get(), SSL_VERIFY_NONE, NULL);
 			
 				LOGD("Creating PN client for %s", pn->getAppIdentifier().c_str());
 				if(isW10) {
-					mClients[wpClient] = make_unique<PushNotificationClientWp>(wpClient, *this, ctx,
-																					pn->getAppIdentifier(), WPPN_PORT, mMaxQueueSize, true, mWindowsPhonePackageSID, mWindowsPhoneApplicationSecret);
+					mClients[wpClient] = make_unique<PushNotificationClientWp>(
+						make_unique<PushNotificationTransportTls>(move(ctx), pn->getAppIdentifier(), WPPN_PORT, true),
+						wpClient,
+						*this,
+						mMaxQueueSize,
+						mWindowsPhonePackageSID,
+						mWindowsPhoneApplicationSecret
+					);
 				} else {
-					mClients[wpClient] = make_unique<PushNotificationClient>(wpClient, *this, ctx,
-												pn->getAppIdentifier(), "80", mMaxQueueSize, false);
+					mClients[wpClient] = make_unique<PushNotificationClient>(
+						make_unique<PushNotificationTransportTls>(move(ctx), pn->getAppIdentifier(), "80", false),
+						wpClient,
+						*this,
+						mMaxQueueSize
+					);
 				}
 				client = mClients[wpClient].get();
 			}
@@ -105,11 +116,15 @@ bool PushNotificationService::isIdle() const noexcept {
 
 
 void PushNotificationService::setupGenericClient(const url_t *url) {
-	SSL_CTX* ctx = SSL_CTX_new(TLSv1_client_method());
-	SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+	PushNotificationTransportTls::SSLCtxUniquePtr ctx{SSL_CTX_new(TLSv1_client_method())};
+	SSL_CTX_set_verify(ctx.get(), SSL_VERIFY_NONE, NULL);
 
-	mClients["generic"] = make_unique<PushNotificationClient>("generic", *this, ctx, url->url_host, url_port(url),
-		mMaxQueueSize, url->url_type == url_https);
+	mClients["generic"] = make_unique<PushNotificationClient>(
+		make_unique<PushNotificationTransportTls>(move(ctx), url->url_host, url_port(url), url->url_type == url_https),
+		"generic",
+		*this,
+		mMaxQueueSize
+	);
 }
 
 /* Utility function to convert ASN1_TIME to a printable string in a buffer */
@@ -227,7 +242,7 @@ void PushNotificationService::setupiOSClient(const std::string &certdir, const s
 			(cert.compare(cert.length() - suffix.length(), suffix.length(), suffix) != 0)) {
 			continue;
 		}
-		SSL_CTX* ctx = SSL_CTX_new(TLSv1_2_method());
+		PushNotificationTransportTls::SSLCtxUniquePtr ctx{SSL_CTX_new(TLSv1_2_method())};
 		if (!ctx) {
 			SLOGE << "Could not create ctx!";
 			ERR_print_errors_fp(stderr);
@@ -235,22 +250,21 @@ void PushNotificationService::setupiOSClient(const std::string &certdir, const s
 		}
 
 		if (cafile.empty()) {
-			SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+			SSL_CTX_set_verify(ctx.get(), SSL_VERIFY_NONE, NULL);
 		} else {
-			SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
-			SSL_CTX_set_cert_verify_callback(ctx, handle_verify_callback, NULL);
+			SSL_CTX_set_verify(ctx.get(), SSL_VERIFY_PEER, NULL);
+			SSL_CTX_set_cert_verify_callback(ctx.get(), handle_verify_callback, NULL);
 		}
 
-		if(! SSL_CTX_load_verify_locations(ctx, cafile.empty()?NULL:cafile.c_str(), "/etc/ssl/certs")) {
+		if(! SSL_CTX_load_verify_locations(ctx.get(), cafile.empty()?NULL:cafile.c_str(), "/etc/ssl/certs")) {
 			SLOGE << "Error loading trust store";
 			ERR_print_errors_fp(stderr);
-			SSL_CTX_free(ctx);
 			continue;
 		}
 
 		string certpath = string(certdir) + "/" + cert;
 		if (!cert.empty()) {
-			int error = SSL_CTX_use_certificate_file(ctx, certpath.c_str(), SSL_FILETYPE_PEM);
+			int error = SSL_CTX_use_certificate_file(ctx.get(), certpath.c_str(), SSL_FILETYPE_PEM);
 			if (error != 1) {
 				LOGE("SSL_CTX_use_certificate_file for %s failed: %d", certpath.c_str(), error);
 				continue;
@@ -259,8 +273,8 @@ void PushNotificationService::setupiOSClient(const std::string &certdir, const s
 			}
 		}
 		if (!certpath.empty()) {
-			int error = SSL_CTX_use_PrivateKey_file(ctx, certpath.c_str(), SSL_FILETYPE_PEM);
-			if (error != 1 || SSL_CTX_check_private_key(ctx) != 1) {
+			int error = SSL_CTX_use_PrivateKey_file(ctx.get(), certpath.c_str(), SSL_FILETYPE_PEM);
+			if (error != 1 || SSL_CTX_check_private_key(ctx.get()) != 1) {
 				SLOGE << "Private key does not match the certificate public key for " << certpath << ": " << error;
 				continue;
 			}
@@ -268,7 +282,12 @@ void PushNotificationService::setupiOSClient(const std::string &certdir, const s
 
 		string certName = cert.substr(0, cert.size() - 4); // Remove .pem at the end of cert
 		const char *apn_server = (certName.find(".dev") != string::npos) ? APN_DEV_ADDRESS : APN_PROD_ADDRESS;
-		mClients[certName] = make_unique<PushNotificationClient>(cert, *this, ctx, apn_server, APN_PORT, mMaxQueueSize, true);
+		mClients[certName] = make_unique<PushNotificationClient>(
+			make_unique<PushNotificationTransportTls>(move(ctx), apn_server, APN_PORT, true),
+			cert,
+			*this,
+			mMaxQueueSize
+		);
 		SLOGD << "Adding ios push notification client [" << certName << "]";
 	}
 	closedir(dirp);
@@ -278,10 +297,15 @@ void PushNotificationService::setupFirebaseClient(const std::map<std::string, st
 	for (const auto &entry : firebaseKeys) {
 		const auto &firebaseAppId = entry.first;
 
-		SSL_CTX* ctx = SSL_CTX_new(SSLv23_client_method());
-		SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+		PushNotificationTransportTls::SSLCtxUniquePtr ctx{SSL_CTX_new(SSLv23_client_method())};
+		SSL_CTX_set_verify(ctx.get(), SSL_VERIFY_NONE, NULL);
 
-		mClients[firebaseAppId] = make_unique<PushNotificationClient>("firebase", *this, ctx, FIREBASE_ADDRESS, FIREBASE_PORT, mMaxQueueSize, true);
+		mClients[firebaseAppId] = make_unique<PushNotificationClient>(
+			make_unique<PushNotificationTransportTls>(move(ctx), FIREBASE_ADDRESS, FIREBASE_PORT, true),
+			"firebase",
+			*this,
+			mMaxQueueSize
+		);
 		SLOGD << "Adding firebase push notification client [" << firebaseAppId << "]";
 	}
 }
