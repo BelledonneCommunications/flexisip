@@ -1,0 +1,6 @@
+FROM gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:18.04
+
+MAINTAINER François Grisez <francois.grisez@belledonne-communications.com>
+
+# Install extra Flexisip dependencies
+RUN sudo apt-get install -y libjansson-dev libnghttp2-dev libprotobuf-dev libsnmp-dev protobuf-compiler

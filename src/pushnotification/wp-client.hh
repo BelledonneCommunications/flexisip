@@ -1,6 +1,6 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+	Copyright (C) 2010-2020  Belledonne Communications SARL, All rights reserved.
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as
@@ -14,28 +14,34 @@
 
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #pragma once
 
-#include "pushnotification.hh"
+#include "client.hh"
+#include "request.hh"
 
 namespace flexisip {
+namespace pushnotification {
 
-class GooglePushNotificationRequest : public PushNotificationRequest {
-public:
-	GooglePushNotificationRequest(const PushInfo &pinfo);
+class ClientWp : public LegacyClient {
+	public:
+		ClientWp(std::unique_ptr<Transport> &&transport, const std::string &name,
+			const Service &service, unsigned maxQueueSize,
+			const std::string &packageSID, const std::string &applicationSecret);
+		~ClientWp() override = default;
 
-	const std::vector<char> &getData() override;
-	std::string isValidResponse(const std::string &str) override;
-	bool isServerAlwaysResponding() override {return true;}
+		bool sendPush(const std::shared_ptr<Request> &req) override;
 
-protected:
-	void createPushNotification();
+	protected:
+		void retrieveAccessToken();
 
-	std::vector<char> mBuffer;
-	std::string mHttpHeader;
-	std::string mHttpBody;
+	private:
+		std::string mPackageSID{};
+		std::string mApplicationSecret{};
+		std::string mAccessToken{};
+		time_t mTokenExpiring{0};
 };
 
+}
 }

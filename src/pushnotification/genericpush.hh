@@ -1,6 +1,6 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+	Copyright (C) 2010-2020 Belledonne Communications SARL, All rights reserved.
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as
@@ -18,13 +18,14 @@
 
 #pragma once
 
-#include "pushnotification.hh"
+#include "request.hh"
 
 namespace flexisip {
+namespace pushnotification {
 
-class GenericPushNotificationRequest : public PushNotificationRequest {
+class GenericRequest : public Request {
   public:
-	GenericPushNotificationRequest(const PushInfo &pinfo, const url_t *url, const std::string &method);
+	GenericRequest(const PushInfo &pinfo, const url_t *url, const std::string &method);
 
 	const std::vector<char> &getData() override;
 	std::string isValidResponse(const std::string &str) override;
@@ -38,4 +39,5 @@ class GenericPushNotificationRequest : public PushNotificationRequest {
 	std::string mHttpMessage;
 };
 
+}
 }

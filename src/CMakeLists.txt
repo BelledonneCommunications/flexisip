@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2014-2018  Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2020  Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -27,6 +27,7 @@ set(FLEXISIP_LIBS
 	${LINPHONECXX_LIBRARIES}
 	${ORTP_LIBRARIES}
 	${SOFIASIPUA_LIBRARIES}
+	LibNgHttp2
 )
 
 set(FLEXISIP_INCLUDES )
@@ -83,15 +84,14 @@ set(FLEXISIP_SOURCES
 	module.cc
 	monitor.cc
 	plugin/plugin-loader.cc
-	pushnotification/pushnotification.cc
 	pushnotification/applepush.cc
+	pushnotification/client.cc
 	pushnotification/firebasepush.cc
 	pushnotification/genericpush.cc
-	pushnotification/googlepush.cc
 	pushnotification/microsoftpush.cc
-	pushnotification/pushnotificationclient_wp.cc
-	pushnotification/pushnotificationclient.cc
-	pushnotification/pushnotificationservice.cc
+	pushnotification/request.cc
+	pushnotification/service.cc
+	pushnotification/wp-client.cc
 	recordserializer-c.cc
 	recordserializer-json.cc
 	registrardb-internal.cc

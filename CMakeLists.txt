@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2014  Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2020  Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -90,6 +90,7 @@ endif()
 
 find_package(bctoolbox 0.0.3 REQUIRED)
 find_package(belr REQUIRED)
+find_package(LibNgHttp2 REQUIRED)
 
 find_package(LibXsd)
 

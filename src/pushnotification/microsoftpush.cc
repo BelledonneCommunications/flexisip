@@ -1,6 +1,6 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+	Copyright (C) 2010-2020  Belledonne Communications SARL, All rights reserved.
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as
@@ -25,17 +25,18 @@
 #include <vector>
 
 using namespace std;
-using namespace flexisip;
 
-WindowsPhonePushNotificationRequest::WindowsPhonePushNotificationRequest ( const PushInfo &pinfo )
-	: PushNotificationRequest ( pinfo.mAppId, pinfo.mType ), mPushInfo ( pinfo ) {
+namespace flexisip {
+namespace pushnotification {
 
-	if ( pinfo.mType == "wp" ) {
-		createHTTPRequest ( "" );
+WindowsPhoneRequest::WindowsPhoneRequest (const PushInfo &pinfo) : Request (pinfo.mAppId, pinfo.mType), mPushInfo (pinfo) {
+
+	if (pinfo.mType == "wp") {
+		createHTTPRequest ("");
 	}
 }
 
-void WindowsPhonePushNotificationRequest::createHTTPRequest ( const std::string &access_token ) {
+void WindowsPhoneRequest::createHTTPRequest ( const std::string &access_token ) {
 	const string &host = mPushInfo.mAppId;
 	char decodeUri[512] = {0};
 
@@ -118,7 +119,7 @@ void WindowsPhonePushNotificationRequest::createHTTPRequest ( const std::string 
 	SLOGD << "PNR " << this << " POST body is " << mHttpBody;
 }
 
-void WindowsPhonePushNotificationRequest::createPushNotification() {
+void WindowsPhoneRequest::createPushNotification() {
 	int headerLength = mHttpHeader.length();
 	int bodyLength = mHttpBody.length();
 
@@ -135,12 +136,12 @@ void WindowsPhonePushNotificationRequest::createPushNotification() {
 	binaryMessagePt += bodyLength;
 }
 
-const vector<char> &WindowsPhonePushNotificationRequest::getData() {
+const vector<char> &WindowsPhoneRequest::getData() {
 	createPushNotification();
 	return mBuffer;
 }
 
-std::string WindowsPhonePushNotificationRequest::isValidResponse ( const string &str ) {
+std::string WindowsPhoneRequest::isValidResponse ( const string &str ) {
 	string line;
 	istringstream iss ( str );
 	bool valid = false, connect = false, notif = false;
@@ -166,4 +167,7 @@ std::string WindowsPhonePushNotificationRequest::isValidResponse ( const string 
 	if ( !connect ) return "Device connection status not set to connected";
 	if ( !notif ) return "Notification not received by server";
 	return "";
+}
+
+}
 }
