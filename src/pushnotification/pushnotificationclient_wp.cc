@@ -31,12 +31,10 @@ using namespace std;
 
 namespace flexisip {
 
-PushNotificationClientWp::PushNotificationClientWp(const std::string &name, const PushNotificationService &service,
-	 				   SSL_CTX * ctx,
-					   const std::string &host, const std::string &port,
-					   unsigned maxQueueSize, bool isSecure,
-					   const std::string& packageSID, const std::string& applicationSecret) : PushNotificationClient(name, service, ctx, host, port, maxQueueSize, isSecure),
-	mPackageSID(packageSID), mApplicationSecret(applicationSecret) {}
+PushNotificationClientWp::PushNotificationClientWp(std::unique_ptr<PushNotificationTransport> &&transport, const std::string &name,
+			const PushNotificationService &service, unsigned maxQueueSize,
+			const std::string &packageSID, const std::string &applicationSecret)
+: PushNotificationClient{move(transport), name, service, maxQueueSize}, mPackageSID{packageSID}, mApplicationSecret{applicationSecret} {}
 
 
 void PushNotificationClientWp::retrieveAccessToken() {
