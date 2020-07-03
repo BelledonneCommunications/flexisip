@@ -18,25 +18,27 @@
 
 #include <openssl/err.h>
 
-#include "cJSON.h"
+#include <flexisip/logmanager.hh>
+
+#include <cJSON.h>
+#include <utils/uri-utils.hh>
+
 #include "microsoftpush.hh"
-#include "utils/uri-utils.hh"
 
 #include "pushnotificationclient_wp.hh"
 
 using namespace std;
-using namespace flexisip;
 
-PushNotificationClientWp::PushNotificationClientWp(const std::string &name, PushNotificationService *service,
-	 				   SSL_CTX * ctx,
-					   const std::string &host, const std::string &port,
-					   int maxQueueSize, bool isSecure,
-					   const std::string& packageSID, const std::string& applicationSecret) : PushNotificationClient(name, service, ctx, host, port, maxQueueSize, isSecure),
-																							mPackageSID(packageSID), mApplicationSecret(applicationSecret), mAccessToken(""), mTokenExpiring(0) {}
+namespace flexisip {
+namespace pushnotification {
 
-PushNotificationClientWp::~PushNotificationClientWp() {}
+ClientWp::ClientWp(std::unique_ptr<Transport> &&transport, const std::string &name,
+			const Service &service, unsigned maxQueueSize,
+			const std::string &packageSID, const std::string &applicationSecret)
+: LegacyClient{move(transport), name, service, maxQueueSize}, mPackageSID{packageSID}, mApplicationSecret{applicationSecret} {}
 
-void PushNotificationClientWp::retrieveAccessToken() {
+
+void ClientWp::retrieveAccessToken() {
 	mAccessToken = "";
 	mTokenExpiring = 0;
 
@@ -131,17 +133,20 @@ void PushNotificationClientWp::retrieveAccessToken() {
 }
 
 
-int PushNotificationClientWp::sendPush(const std::shared_ptr<PushNotificationRequest> &req) {
+bool ClientWp::sendPush(const std::shared_ptr<Request> &req) {
 	if (time(0) > mTokenExpiring) {
 		this->retrieveAccessToken();
 	}
 	if (mTokenExpiring != 0) {
 		// we must add the authorization token
-		WindowsPhonePushNotificationRequest* req2 = static_cast<WindowsPhonePushNotificationRequest*>(req.get());
+		auto req2 = static_cast<WindowsPhoneRequest *>(req.get());
 		req2->createHTTPRequest(mAccessToken);
-		return PushNotificationClient::sendPush(req);
+		return LegacyClient::sendPush(req);
 	} else {
 		SLOGD << "Cannot send push since we do not access token yet";
 	}
-	return 0;
+	return false;
 }
+
+} // end of pushnotification namespace
+} // end of flexisip namespace

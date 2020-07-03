@@ -5,15 +5,17 @@
 #include <flexisip/logmanager.hh>
 
 using namespace std;
-using namespace flexisip;
+
+namespace flexisip {
+namespace pushnotification {
 
 /*
  * This supports the legacy http Firebase protocol:
  * https://firebase.google.com/docs/cloud-messaging/http-server-ref
  */
 
-FirebasePushNotificationRequest::FirebasePushNotificationRequest(const PushInfo &pinfo)
-: PushNotificationRequest(pinfo.mAppId, "firebase") {
+FirebaseRequest::FirebaseRequest(const PushInfo &pinfo)
+: Request(pinfo.mAppId, "firebase") {
 	const string &deviceToken = pinfo.mDeviceToken;
 	const string &apiKey = pinfo.mApiKey;
 	const string &from = pinfo.mFromName.empty() ? pinfo.mFromUri : pinfo.mFromName;
@@ -45,7 +47,7 @@ FirebasePushNotificationRequest::FirebasePushNotificationRequest(const PushInfo 
 	SLOGD << "PNR " << this << " https post header is " << mHttpHeader;
 }
 
-void FirebasePushNotificationRequest::createPushNotification() {
+void FirebaseRequest::createPushNotification() {
 	int headerLength = mHttpHeader.length();
 	int bodyLength = mHttpBody.length();
 
@@ -62,12 +64,15 @@ void FirebasePushNotificationRequest::createPushNotification() {
 	binaryMessagePt += bodyLength;
 }
 
-const vector<char> &FirebasePushNotificationRequest::getData() {
+const vector<char> &FirebaseRequest::getData() {
 	createPushNotification();
 	return mBuffer;
 }
 
-string FirebasePushNotificationRequest::isValidResponse(const string &str) {
+string FirebaseRequest::isValidResponse(const string &str) {
 	static const char expected[] = "HTTP/1.1 200";
 	return strncmp(expected, str.c_str(), sizeof(expected) - 1) == 0 ? "" : "Unexpected HTTP response value (not 200 OK)";
+}
+
+}
 }

@@ -18,58 +18,137 @@
 
 #pragma once
 
-#include <queue>
-#include <vector>
+#include <condition_variable>
 #include <ctime>
+#include <functional>
 #include <mutex>
+#include <queue>
+#include <sstream>
 #include <thread>
+#include <vector>
 
 #include <openssl/ssl.h>
+#include <nghttp2/nghttp2.h>
+#include <sofia-sip/su_wait.h>
 
-#include "pushnotificationservice.hh"
+#include "pushnotification.hh"
 
 namespace flexisip {
+namespace pushnotification {
 
-class PushNotificationClient {
-	public:
-		PushNotificationClient(const std::string &name, PushNotificationService *service,
-			 				   SSL_CTX * ctx,
-							   const std::string &host, const std::string &port,
-							   int maxQueueSize, bool isSecure);
-		virtual ~PushNotificationClient();
-		virtual int sendPush(const std::shared_ptr<PushNotificationRequest> &req);
-		bool isIdle();
-		void run();
+class Service;
 
-	protected:
-		/**
-		 * @return
-		 * 	+  0: success
-		 *	+ -1: failure
-		 *	+ -2: failure due to stale socket. You may try to send the push again.
-		 */
-		int sendPushToServer(const std::shared_ptr<PushNotificationRequest> &req, bool hurryUp);
-		void recreateConnection();
-		void onError(std::shared_ptr<PushNotificationRequest> req, const std::string &msg);
-		void onSuccess(std::shared_ptr<PushNotificationRequest> req);
+class TlsConnection {
+public:
+	struct SSLCtxDeleter {
+		void operator()(SSL_CTX *ssl) noexcept {SSL_CTX_free(ssl);}
+	};
+	using SSLCtxUniquePtr = std::unique_ptr<SSL_CTX, SSLCtxDeleter>;
 
-	protected:
-		PushNotificationService *mService;
-		BIO * mBio;
-		SSL_CTX * mCtx;
-		std::queue<std::shared_ptr<PushNotificationRequest>> mRequestQueue;
-		std::string mName;
-		std::string mHost, mPort;
-		int mMaxQueueSize;
-		time_t mLastUse;
-		bool mIsSecure;
-	private:
-		std::thread mThread;
-		std::mutex mMutex;
-		std::condition_variable mCondVar;
+	TlsConnection(const std::string &host, const std::string &port, const SSL_METHOD *method) noexcept;
+	TlsConnection(const std::string &host, const std::string &port, SSLCtxUniquePtr &&ctx) noexcept;
+	TlsConnection(const TlsConnection &) = delete;
+	TlsConnection(TlsConnection &&) = delete;
 
-		bool mThreadRunning;
-		bool mThreadWaiting;
+	void connect() noexcept;
+	void disconnect() noexcept {mBio.reset();}
+	void resetConnection() noexcept;
+
+	bool isConnected() const noexcept {return mBio != nullptr;}
+	bool isSecured() const noexcept {return mCtx != nullptr;}
+
+	BIO *getBIO() const noexcept {return mBio.get();}
+	int getFd() const noexcept;
+
+	int read(void *data, int dlen) noexcept;
+
+	int write(const std::vector<char> &data) noexcept {return write(data.data(), data.size());}
+	int write(const void *data, int dlen) noexcept;
+
+	bool waitForData(int timeout) const;
+	bool hasData() const {return waitForData(0);}
+
+private:
+	struct BIODeleter {
+		void operator()(BIO *bio) {BIO_free_all(bio);}
+	};
+	using BIOUniquePtr = std::unique_ptr<BIO, BIODeleter>;
+
+	BIOUniquePtr mBio{nullptr};
+	SSLCtxUniquePtr mCtx{nullptr};
+	std::string mHost{}, mPort{};
 };
 
+class Transport {
+public:
+	using OnSuccessCb = std::function<void(Request &)>;
+	using OnErrorCb = std::function<void(Request &, const std::string &)>;
+
+	Transport() = default;
+	Transport(const Transport &) = delete;
+	Transport(Transport &&) = delete;
+	virtual ~Transport() = default;
+
+	/**
+	* @return
+	* 	 0: success
+	*	-1: failure
+	*	-2: failure due to stale socket. You may try to send the push again.
+	*/
+	virtual int sendPush(Request &req, bool hurryUp, const OnSuccessCb &onSuccess, const OnErrorCb &onError) = 0;
+};
+
+class TlsTransport : public Transport {
+public:
+	TlsTransport(std::unique_ptr<TlsConnection> &&connection) noexcept : Transport{}, mConn{std::move(connection)} {}
+	int sendPush(Request &req, bool hurryUp, const OnSuccessCb &onSuccess, const OnErrorCb &onError) override;
+
+private:
+	struct BIODeleter {
+		void operator()(BIO *bio) noexcept {BIO_free_all(bio);}
+	};
+	using BIOUniquePtr = std::unique_ptr<BIO, BIODeleter>;
+
+	std::unique_ptr<TlsConnection> mConn{};
+	time_t mLastUse{0};
+};
+
+class Client {
+public:
+	virtual ~Client() = default;
+	virtual bool sendPush(const std::shared_ptr<Request> &req) = 0;
+	virtual bool isIdle() const noexcept = 0;
+};
+
+class LegacyClient : public Client {
+	public:
+		LegacyClient(std::unique_ptr<Transport> &&transport,
+							   const std::string &name, const Service &service, unsigned maxQueueSize);
+		~LegacyClient() override;
+
+		bool sendPush(const std::shared_ptr<Request> &req) override;
+
+		bool isIdle() const noexcept override {return mThreadWaiting;}
+
+	protected:
+		void run();
+		void onError(Request &req, const std::string &msg);
+		void onSuccess(Request &req);
+
+		std::string mName{};
+		const Service &mService;
+		std::unique_ptr<Transport> mTransport{};
+		std::queue<std::shared_ptr<Request>> mRequestQueue{};
+		unsigned mMaxQueueSize{0};
+
+	private:
+		std::thread mThread{};
+		std::mutex mMutex{};
+		std::condition_variable mCondVar{};
+
+		bool mThreadRunning{false};
+		bool mThreadWaiting{false};
+};
+
+}
 }

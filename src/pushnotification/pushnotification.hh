@@ -24,6 +24,7 @@
 #include <sofia-sip/url.h>
 
 namespace flexisip {
+namespace pushnotification {
 
 struct PushInfo {
 	enum class Event { Call, Message , Refer };
@@ -35,29 +36,29 @@ struct PushInfo {
 	};
 
 	Event mEvent{Event::Message}; // Event to advertise: call or text message.
-	std::string mType; // type of push notif: apple, google, wp
-	std::string mAppId; // app id, as extracted from Contact
-	std::string mDeviceToken; // device token, as extracted from Contact
-	std::string mApiKey; // api key (magic number required for Google)
-	std::string mAlertSound; // sound to play
-	std::string mAlertMsgId; // ID of message to show to user
-	std::string mFromName; // From's display name
-	std::string mFromUri; // From's SIP uri
-	std::string mFromTag; // From tag
-	std::string mToUri;   // To SIP uri
-	std::string mCallId;  // CallID
-	std::string mText;	// Text of the chat message.
-	std::string mUid; // The unique id as used in the ExtendedContact, if available.
-	std::string mAccessToken; // access token required by Microsoft to authenticate our server
-	std::string mTeamId; // The Apple team id
-	std::string mChatRoomAddr; // In case of a chat room invite, the sip addr of the chat room is needed. (ios specific).
+	std::string mType{}; // type of push notif: apple, google, wp
+	std::string mAppId{}; // app id, as extracted from Contact
+	std::string mDeviceToken{}; // device token, as extracted from Contact
+	std::string mApiKey{}; // api key (magic number required for Google)
+	std::string mAlertSound{}; // sound to play
+	std::string mAlertMsgId{}; // ID of message to show to user
+	std::string mFromName{}; // From's display name
+	std::string mFromUri{}; // From's SIP uri
+	std::string mFromTag{}; // From tag
+	std::string mToUri{};   // To SIP uri
+	std::string mCallId{};  // CallID
+	std::string mText{};	// Text of the chat message.
+	std::string mUid{}; // The unique id as used in the ExtendedContact, if available.
+	std::string mAccessToken{}; // access token required by Microsoft to authenticate our server
+	std::string mTeamId{}; // The Apple team id
+	std::string mChatRoomAddr{}; // In case of a chat room invite, the sip addr of the chat room is needed. (ios specific).
 	int mTtl{0}; //Time to live of the push notification.
 	ApplePushType mApplePushType{ApplePushType::Pushkit};
 	bool mNoBadge{false}; // Whether to display a badge on the application (ios specific).
 	bool mSilent{false};
 };
 
-class PushNotificationRequest {
+class Request {
 	public:
 		enum class State{
 			NotSubmitted,
@@ -67,13 +68,13 @@ class PushNotificationRequest {
 		};
 
 		template <typename T, typename U>
-		PushNotificationRequest(T &&appid, U &&type) : mAppId(std::forward<T>(appid)), mType(std::forward<U>(type)) {}
-		PushNotificationRequest(const PushNotificationRequest &) = delete;
-		PushNotificationRequest(PushNotificationRequest &&) = delete;
-		virtual ~PushNotificationRequest() = default;
+		Request(T &&appid, U &&type) : mAppId(std::forward<T>(appid)), mType(std::forward<U>(type)) {}
+		Request(const Request &) = delete;
+		Request(Request &&) = delete;
+		virtual ~Request() = default;
 
-		PushNotificationRequest &operator=(const PushNotificationRequest &src) = delete;
-		PushNotificationRequest &operator=(PushNotificationRequest &&src) = delete;
+		Request &operator=(const Request &src) = delete;
+		Request &operator=(Request &&src) = delete;
 
 		State getState() const noexcept {return mState;}
 		void setState(State state) noexcept {mState = state;}
@@ -96,4 +97,5 @@ class PushNotificationRequest {
 
 };
 
-}
+} // pushnotification namespace
+} // flexisip namespace

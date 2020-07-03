@@ -21,10 +21,11 @@
 #include "pushnotification.hh"
 
 namespace flexisip {
+namespace pushnotification {
 
-class FirebasePushNotificationRequest : public PushNotificationRequest {
+class FirebaseRequest : public Request {
 public:
-	FirebasePushNotificationRequest(const PushInfo &pinfo);
+	FirebaseRequest(const PushInfo &pinfo);
 
 	const std::vector<char> &getData() override;
 	virtual std::string isValidResponse(const std::string &str) override;
@@ -38,4 +39,5 @@ protected:
 	std::string mHttpBody;
 };
 
+}
 }

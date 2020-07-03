@@ -17,54 +17,55 @@
 */
 
 #pragma once
-#include "pushnotification.hh"
-#include <flexisip/configmanager.hh>
-
-#include <list>
 
 #include <condition_variable>
+#include <list>
 #include <mutex>
-#include <thread>
 #include <string>
+#include <thread>
+
+#include <flexisip/configmanager.hh>
+
+#include "pushnotification.hh"
+#include "pushnotificationclient.hh"
 
 namespace flexisip {
+namespace pushnotification {
 
-class PushNotificationClient;
+class Service {
+public:
+	Service(su_root_t &root, unsigned maxQueueSize);
+	~Service();
 
-class PushNotificationService {
-	friend class PushNotificationClient;
-
-  public:
-	PushNotificationService(int maxQueueSize);
-	~PushNotificationService();
-
+	StatCounter64 *getFailedCounter() const noexcept {return mCountFailed;}
+	StatCounter64 *getSentCounter() const noexcept {return mCountSent;}
 	void setStatCounters(StatCounter64 *countFailed, StatCounter64 *countSent) {
 		mCountFailed = countFailed;
 		mCountSent = countSent;
 	}
 
-	int sendPush(const std::shared_ptr<PushNotificationRequest> &pn);
+	static std::unique_ptr<Request> makePushRequest(const PushInfo &pinfo);
+
+	int sendPush(const std::shared_ptr<Request> &pn);
 	void setupGenericClient(const url_t *url);
 	void setupiOSClient(const std::string &certdir, const std::string &cafile);
-	void setupAndroidClient(const std::map<std::string, std::string> googleKeys);
-	void setupFirebaseClient(const std::map<std::string, std::string> firebaseKeys);
-	void setupWindowsPhoneClient(const std::string& packageSID, const std::string& applicationSecret);
+	void setupFirebaseClient(const std::map<std::string, std::string> &firebaseKeys);
+	void setupWindowsPhoneClient(const std::string &packageSID, const std::string &applicationSecret);
 
-	bool isIdle();
-  private:
+	bool isIdle() const noexcept;
+
+private:
 	void setupClients(const std::string &certdir, const std::string &ca, int maxQueueSize);
-	bool isCertExpired( const std::string &certPath );
+	bool isCertExpired(const std::string &certPath) const noexcept;
 
-
-  private:
-	std::thread *mThread;
-	int mMaxQueueSize;
-	bool mHaveToStop;
-	std::map<std::string, std::shared_ptr<PushNotificationClient>> mClients;
-	std::string mPassword;
-	std::string mWindowsPhonePackageSID, mWindowsPhoneApplicationSecret;
-	StatCounter64 *mCountFailed;
-	StatCounter64 *mCountSent;
+	su_root_t &mRoot;
+	unsigned mMaxQueueSize{0};
+	std::map<std::string, std::unique_ptr<Client>> mClients{};
+	std::string mWindowsPhonePackageSID{};
+	std::string mWindowsPhoneApplicationSecret{};
+	StatCounter64 *mCountFailed{nullptr};
+	StatCounter64 *mCountSent{nullptr};
 };
 
+}
 }
