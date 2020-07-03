@@ -18,27 +18,31 @@
 
 #pragma once
 
-#include <queue>
-#include <vector>
+#include <condition_variable>
 #include <ctime>
 #include <mutex>
+#include <queue>
 #include <thread>
+#include <vector>
 
 #include <openssl/ssl.h>
 
-#include "pushnotificationservice.hh"
+#include "pushnotification.hh"
 
 namespace flexisip {
+
+class PushNotificationService;
 
 class PushNotificationClient {
 	public:
 		PushNotificationClient(const std::string &name, PushNotificationService *service,
-			 				   SSL_CTX * ctx,
-							   const std::string &host, const std::string &port,
+			 				   SSL_CTX *ctx, const std::string &host, const std::string &port,
 							   int maxQueueSize, bool isSecure);
 		virtual ~PushNotificationClient();
+
 		virtual int sendPush(const std::shared_ptr<PushNotificationRequest> &req);
-		bool isIdle();
+
+		bool isIdle() const noexcept {return mThreadWaiting;}
 		void run();
 
 	protected:
@@ -50,26 +54,27 @@ class PushNotificationClient {
 		 */
 		int sendPushToServer(const std::shared_ptr<PushNotificationRequest> &req, bool hurryUp);
 		void recreateConnection();
-		void onError(std::shared_ptr<PushNotificationRequest> req, const std::string &msg);
-		void onSuccess(std::shared_ptr<PushNotificationRequest> req);
+		void onError(PushNotificationRequest &req, const std::string &msg);
+		void onSuccess(PushNotificationRequest &req);
 
 	protected:
-		PushNotificationService *mService;
-		BIO * mBio;
-		SSL_CTX * mCtx;
-		std::queue<std::shared_ptr<PushNotificationRequest>> mRequestQueue;
-		std::string mName;
-		std::string mHost, mPort;
-		int mMaxQueueSize;
-		time_t mLastUse;
-		bool mIsSecure;
-	private:
-		std::thread mThread;
-		std::mutex mMutex;
-		std::condition_variable mCondVar;
+		PushNotificationService *mService{nullptr};
+		BIO * mBio{nullptr};
+		SSL_CTX * mCtx{nullptr};
+		std::queue<std::shared_ptr<PushNotificationRequest>> mRequestQueue{};
+		std::string mName{};
+		std::string mHost{}, mPort{};
+		int mMaxQueueSize{0};
+		time_t mLastUse{0};
+		bool mIsSecure{false};
 
-		bool mThreadRunning;
-		bool mThreadWaiting;
+	private:
+		std::thread mThread{};
+		std::mutex mMutex{};
+		std::condition_variable mCondVar{};
+
+		bool mThreadRunning{false};
+		bool mThreadWaiting{false};
 };
 
 }

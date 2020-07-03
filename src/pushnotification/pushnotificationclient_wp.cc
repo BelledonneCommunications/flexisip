@@ -18,23 +18,26 @@
 
 #include <openssl/err.h>
 
-#include "cJSON.h"
+#include <flexisip/logmanager.hh>
+
+#include <cJSON.h>
+#include <utils/uri-utils.hh>
+
 #include "microsoftpush.hh"
-#include "utils/uri-utils.hh"
 
 #include "pushnotificationclient_wp.hh"
 
 using namespace std;
-using namespace flexisip;
+
+namespace flexisip {
 
 PushNotificationClientWp::PushNotificationClientWp(const std::string &name, PushNotificationService *service,
 	 				   SSL_CTX * ctx,
 					   const std::string &host, const std::string &port,
 					   int maxQueueSize, bool isSecure,
 					   const std::string& packageSID, const std::string& applicationSecret) : PushNotificationClient(name, service, ctx, host, port, maxQueueSize, isSecure),
-																							mPackageSID(packageSID), mApplicationSecret(applicationSecret), mAccessToken(""), mTokenExpiring(0) {}
+	mPackageSID(packageSID), mApplicationSecret(applicationSecret) {}
 
-PushNotificationClientWp::~PushNotificationClientWp() {}
 
 void PushNotificationClientWp::retrieveAccessToken() {
 	mAccessToken = "";
@@ -145,3 +148,5 @@ int PushNotificationClientWp::sendPush(const std::shared_ptr<PushNotificationReq
 	}
 	return 0;
 }
+
+} // end of flexisip namespace
