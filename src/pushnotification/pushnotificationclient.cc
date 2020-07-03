@@ -16,23 +16,26 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "pushnotificationclient.hh"
-
-#include <openssl/ssl.h>
-#include <openssl/bio.h>
-#include <openssl/err.h>
-
 #include <poll.h>
 
+#include <openssl/bio.h>
+#include <openssl/err.h>
+#include <openssl/ssl.h>
+
+#include <flexisip/common.hh>
+#include <flexisip/logmanager.hh>
+
+#include "pushnotificationservice.hh"
+
+#include "pushnotificationclient.hh"
+
 using namespace std;
-using namespace flexisip;
 
-PushNotificationClient::PushNotificationClient(const string &name, PushNotificationService *service,
-	SSL_CTX * ctx, const std::string &host, const std::string &port, int maxQueueSize, bool isSecure) :
-	mService(service), mBio(NULL), mCtx(ctx), mName(name), mHost(host), mPort(port), mMaxQueueSize(maxQueueSize), mLastUse(0), mIsSecure(isSecure),
-	mThread(), mThreadRunning(false), mThreadWaiting(true) {}
+namespace flexisip {
 
-
+PushNotificationClient::PushNotificationClient(const string &name, PushNotificationService &service,
+	SSL_CTX *ctx, const std::string &host, const std::string &port, int maxQueueSize, bool isSecure) :
+	mService(service), mCtx(ctx), mName(name), mHost(host), mPort(port), mMaxQueueSize(maxQueueSize), mIsSecure(isSecure) {}
 
 PushNotificationClient::~PushNotificationClient() {
 	if (mThreadRunning) {
@@ -50,6 +53,7 @@ PushNotificationClient::~PushNotificationClient() {
 		SSL_CTX_free(mCtx);
 	}
 }
+
 int PushNotificationClient::sendPush(const std::shared_ptr<PushNotificationRequest> &req) {
 	if (!mThreadRunning) {
 		// start thread only when we have at least one push to send
@@ -63,7 +67,7 @@ int PushNotificationClient::sendPush(const std::shared_ptr<PushNotificationReque
 	if (size >= mMaxQueueSize) {
 		mMutex.unlock();
 		SLOGW << "PushNotificationClient " << mName << " PNR " << req.get() << " queue full, push lost";
-		onError(req, "Error queue full");
+		onError(*req, "Error queue full");
 		req->setState(PushNotificationRequest::State::Failed);
 		return 0;
 	} else {
@@ -76,10 +80,6 @@ int PushNotificationClient::sendPush(const std::shared_ptr<PushNotificationReque
 		mMutex.unlock();
 		return 1;
 	}
-}
-
-bool PushNotificationClient::isIdle() {
-	return mThreadWaiting;
 }
 
 void PushNotificationClient::recreateConnection() {
@@ -148,7 +148,7 @@ int PushNotificationClient::sendPushToServer(const std::shared_ptr<PushNotificat
 	}
 
 	if (!mBio) {
-		onError(req, "Cannot create connection to server");
+		onError(*req, "Cannot create connection to server");
 		return -1;
 	}
 
@@ -160,7 +160,7 @@ int PushNotificationClient::sendPushToServer(const std::shared_ptr<PushNotificat
 	SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " sent " << wcount << "/" << buffer.size() << " data";
 	if (wcount <= 0) {
 		SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << " failed to send to server.";
-		onError(req, "Cannot send to server");
+		onError(*req, "Cannot send to server");
 		recreateConnection();
 		return -2;
 	}
@@ -172,7 +172,7 @@ int PushNotificationClient::sendPushToServer(const std::shared_ptr<PushNotificat
 		int fdSocket;
 		if (BIO_get_fd(mBio, &fdSocket) < 0) {
 			SLOGE << "PushNotificationClient " << mName << " PNR " << req.get() << " could not retrieve the socket";
-			onError(req, "Broken socket");
+			onError(*req, "Broken socket");
 			return -2;
 		}
 		pollfd polls = {0};
@@ -185,11 +185,11 @@ int PushNotificationClient::sendPushToServer(const std::shared_ptr<PushNotificat
 		// this is specific to iOS which does not send a response in case of success
 		if (nRet == 0) {//poll timeout, we shall not expect a response.
 			SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " nothing read, assuming success";
-			onSuccess(req);
+			onSuccess(*req);
 			return 0;
 		} else if (nRet == -1) {
 			SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " poll error ("<<strerror(errno)<<"), assuming success";
-			onSuccess(req);
+			onSuccess(*req);
 			recreateConnection();//our socket is not going so well if we go here.
 			return 0;
 		} else if ((polls.revents & POLLIN) == 0) {
@@ -212,13 +212,13 @@ int PushNotificationClient::sendPushToServer(const std::shared_ptr<PushNotificat
 	string responsestr(r, p);
 	string error = req->isValidResponse(responsestr);
 	if (!error.empty()) {
-		onError(req, "Invalid server response: " + error);
+		onError(*req, "Invalid server response: " + error);
 		// on iOS at least, when an error happens, the socket is semibroken (server ignore all future requests),
 		// so we force to recreate the connection
 		recreateConnection();
 		return -1;
 	}
-	onSuccess(req);
+	onSuccess(*req);
 	return 0;
 }
 
@@ -249,17 +249,17 @@ void PushNotificationClient::run() {
 }
 
 
-void PushNotificationClient::onError(shared_ptr<PushNotificationRequest> req, const string &msg) {
-	SLOGW << "PushNotificationClient " << mName << " PNR " << req.get() << " failed: " << msg;
-	req->setState(PushNotificationRequest::State::Failed);
-	if (mService->mCountFailed) {
-		mService->mCountFailed->incr();
-	}
+void PushNotificationClient::onError(PushNotificationRequest &req, const string &msg) {
+	SLOGW << "PushNotificationClient " << mName << " PNR " << &req << " failed: " << msg;
+	req.setState(PushNotificationRequest::State::Failed);
+	auto countFailed = mService.getFailedCounter();
+	if (countFailed) countFailed->incr();
 }
 
-void PushNotificationClient::onSuccess(shared_ptr<PushNotificationRequest> req) {
-	req->setState(PushNotificationRequest::State::Successful);
-	if (mService->mCountSent) {
-		mService->mCountSent->incr();
-	}
+void PushNotificationClient::onSuccess(PushNotificationRequest &req) {
+	req.setState(PushNotificationRequest::State::Successful);
+	auto countSent = mService.getSentCounter();
+	if (countSent) countSent->incr();
 }
+
+} // end of flexisip namespace

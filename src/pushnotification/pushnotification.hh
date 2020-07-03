@@ -35,22 +35,22 @@ struct PushInfo {
 	};
 
 	Event mEvent{Event::Message}; // Event to advertise: call or text message.
-	std::string mType; // type of push notif: apple, google, wp
-	std::string mAppId; // app id, as extracted from Contact
-	std::string mDeviceToken; // device token, as extracted from Contact
-	std::string mApiKey; // api key (magic number required for Google)
-	std::string mAlertSound; // sound to play
-	std::string mAlertMsgId; // ID of message to show to user
-	std::string mFromName; // From's display name
-	std::string mFromUri; // From's SIP uri
-	std::string mFromTag; // From tag
-	std::string mToUri;   // To SIP uri
-	std::string mCallId;  // CallID
-	std::string mText;	// Text of the chat message.
-	std::string mUid; // The unique id as used in the ExtendedContact, if available.
-	std::string mAccessToken; // access token required by Microsoft to authenticate our server
-	std::string mTeamId; // The Apple team id
-	std::string mChatRoomAddr; // In case of a chat room invite, the sip addr of the chat room is needed. (ios specific).
+	std::string mType{}; // type of push notif: apple, google, wp
+	std::string mAppId{}; // app id, as extracted from Contact
+	std::string mDeviceToken{}; // device token, as extracted from Contact
+	std::string mApiKey{}; // api key (magic number required for Google)
+	std::string mAlertSound{}; // sound to play
+	std::string mAlertMsgId{}; // ID of message to show to user
+	std::string mFromName{}; // From's display name
+	std::string mFromUri{}; // From's SIP uri
+	std::string mFromTag{}; // From tag
+	std::string mToUri{};   // To SIP uri
+	std::string mCallId{};  // CallID
+	std::string mText{};	// Text of the chat message.
+	std::string mUid{}; // The unique id as used in the ExtendedContact, if available.
+	std::string mAccessToken{}; // access token required by Microsoft to authenticate our server
+	std::string mTeamId{}; // The Apple team id
+	std::string mChatRoomAddr{}; // In case of a chat room invite, the sip addr of the chat room is needed. (ios specific).
 	int mTtl{0}; //Time to live of the push notification.
 	ApplePushType mApplePushType{ApplePushType::Pushkit};
 	bool mNoBadge{false}; // Whether to display a badge on the application (ios specific).
