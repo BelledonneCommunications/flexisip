@@ -24,9 +24,9 @@ namespace RegistrationEvent {
         ) override;
         bool notifyReceived = false;
     private:
-        shared_ptr<linphone::Event> subscribeEvent;
-		const ConferenceServer & server;
-        const shared_ptr<ChatRoom> & chatRoom;
-        const shared_ptr<const Address> to;
+        shared_ptr<linphone::Event> mSubscribeEvent;
+		const ConferenceServer & mServer;
+        shared_ptr<ChatRoom> mChatRoom;
+        shared_ptr<const Address> mTo;
     };
 }

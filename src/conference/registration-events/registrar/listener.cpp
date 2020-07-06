@@ -36,13 +36,12 @@ void Listener::processRecord(const shared_ptr<Record> &r) {
     if (r) {
         for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
             auto addr = r->getPubGruu(ec, home.home());
-            //if (!addr) continue;
 
             Contact contact = Contact(
-                su_sprintf(home.home(), "<%s>", url_as_string(home.home(), addr)),
+                url_as_string(home.home(), addr),
                 Contact::StateType::active,
                 Contact::EventType::registered,
-                ec->getUniqueId()
+                url_as_string(home.home(), addr)
             );
 
             // expires
@@ -59,7 +58,7 @@ void Listener::processRecord(const shared_ptr<Record> &r) {
 
                     auto unknownParam = UnknownParam(param.front());
                     if (param.size() == 2) {
-                        unknownParam.append(param.back());
+                        unknownParam.append(StringUtils::unquote(param.back()));
                     }
 
                     contact.getUnknownParam().push_back(unknownParam);

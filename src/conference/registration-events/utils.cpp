@@ -18,8 +18,7 @@ int Utils::getMaskFromSpecs (const string &specs) {
 bool Utils::isContactCompatible(const ConferenceServer & server, const shared_ptr<ChatRoom> &cr, const string &specs) {
 	int mask = Utils::getMaskFromSpecs(specs);
 	unsigned int chatRoomCapabilities = cr->getCapabilities() & ~(int)ChatRoomCapabilities::OneToOne;
-
-	return (!server.capabilityCheckEnabled() || mask & chatRoomCapabilities) == chatRoomCapabilities;
+	return (!server.capabilityCheckEnabled() || (mask & chatRoomCapabilities) == chatRoomCapabilities);
 }
 
 string Utils::getDeviceName(const shared_ptr<ExtendedContact> &ec) {

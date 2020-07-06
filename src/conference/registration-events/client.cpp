@@ -18,12 +18,12 @@ namespace RegistrationEvent {
 Client::Client(
     const ConferenceServer & server,
     const shared_ptr<ChatRoom> & chatRoom,
-    const shared_ptr<const Address> to) : server(server), chatRoom(chatRoom), to(to) {}
+    const shared_ptr<const Address> to) : mServer(server), mChatRoom(chatRoom), mTo(to) {}
 
 void Client::subscribe() {
-    subscribeEvent = chatRoom->getCore()->createSubscribe(to, "reg", 600);
-    subscribeEvent->addCustomHeader("Accept", "application/reginfo+xml");
-    subscribeEvent->addCustomHeader("Event", "reg");
+    mSubscribeEvent = mChatRoom->getCore()->createSubscribe(mTo, "reg", 600);
+    mSubscribeEvent->addCustomHeader("Accept", "application/reginfo+xml");
+    mSubscribeEvent->addCustomHeader("Event", "reg");
 
     shared_ptr<Content> subsContent = Factory::get()->createContent();
     subsContent->setType("application");
@@ -31,12 +31,12 @@ void Client::subscribe() {
     string notiFybody("Subscribe");
     subsContent->setBuffer((uint8_t *)notiFybody.data(), notiFybody.length());
 
-    subscribeEvent->sendSubscribe(subsContent);
-    chatRoom->getCore()->addListener(shared_from_this());
+    mSubscribeEvent->sendSubscribe(subsContent);
+    mChatRoom->getCore()->addListener(shared_from_this());
 }
 
 Client::~Client () {
-    chatRoom->getCore()->removeListener(shared_from_this());
+    mChatRoom->getCore()->removeListener(shared_from_this());
 }
 
 void Client::onNotifyReceived(
@@ -53,33 +53,28 @@ void Client::onNotifyReceived(
 
     for (const auto &registration : ri->getRegistration()) {
         for (const auto &contact : registration.getContact()) {
+
+            string displayName = contact.getDisplayName()
+                ? contact.getDisplayName()->c_str()
+                : string("");
+
             shared_ptr<ParticipantDeviceIdentity> identity = Factory::get()->createParticipantDeviceIdentity(
-                Factory::get()->createAddress(contact.getUri().text_content()),
-                contact.getDisplayName()->text_content()
+                Factory::get()->createAddress(contact.getUri()),
+                displayName
             );
 
             Contact::UnknownParamSequence ups = contact.getUnknownParam();
 
-
-            //bool groupChat = false;
-            //bool lime = false;
-
             for (const auto &param : ups) {
-                if (Utils::isContactCompatible(server, chatRoom, param)) {
-                    cout << "DEVICE " << contact.getUri().text_content() << endl;
+                if (Utils::isContactCompatible(mServer, mChatRoom, param)) {
                     participantDevices.push_back(identity);
                     break;
                 }
-                //if (string(param).find("groupchat")) groupChat = true;
-                //if (param == "lime") lime = true;
             }
-
-            //if (groupChat /*&& lime*/) {
-            //}
         }
     }
 
-    this->chatRoom->setParticipantDevices(to, participantDevices);
+    this->mChatRoom->setParticipantDevices(mTo, participantDevices);
 }
 
 } // namespace RegistrationEvent

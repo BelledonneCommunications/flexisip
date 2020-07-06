@@ -131,7 +131,7 @@ static void basic() {
 	BindingParameters parameter;
 	parameter.globalExpire = 1000;
 	parameter.callId = "123456789";
-	parameter.userAgent = "Linphone2 (Debian) LinphoneCore";
+	parameter.userAgent = "Linphone2 (Ubuntu) LinphoneCore";
 	parameter.withGruu = true;
 
 	RegistrarDb::get()->bind(
@@ -150,7 +150,7 @@ static void basic() {
 	BindingParameters parameter2;
 	parameter2.globalExpire = 1000;
 	parameter2.callId = "1234567890";
-	parameter2.userAgent = "Linphone3 (Debian) LinphoneCore";
+	parameter2.userAgent = "Linphone3 (RedHat) LinphoneCore";
 	parameter2.withGruu = true;
 
 	RegistrarDb::get()->bind(
@@ -192,8 +192,6 @@ static void basic() {
 	chatRoomParams->enableGroup(true);
 	auto chatRoom = clientCore->createChatRoom(chatRoomParams, proxy->getContact(), "Chatroom with remote", participants);
 
-	//chatRoom->addParticipant(Factory::get()->createAddress(participantFrom));
-
 	for (shared_ptr<Participant> participant : chatRoom->getParticipants()){
 		cout << "HOY HOY PARTICIPANT " << participant->getAddress()->asString() << endl;
 
@@ -202,7 +200,7 @@ static void basic() {
 		}
 	}
 
-	while (/*!client->notifyReceived*/1) {
+	while (/*wait_for(clientCore->cPtr(), regEventCore->cPtr(), & get_manager(clientCore->cPtr())->stat.number_of_NotifyReceived, 5)*/ 1) {
 		//cout << "HOY HOY RECEIVED " << client->notifyReceived << endl;
 		clientCore->iterate();
 		regEventCore->iterate();
