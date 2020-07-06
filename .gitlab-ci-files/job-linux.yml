@@ -188,6 +188,7 @@ tests-flexisip-mr:
     - |
         if [ "$REBUILD_SDK" = "true" ]; then
         git clone -b feature/docker_liblinphone_tester --single-branch https://gitlab.linphone.org/BC/Public/linphone-sdk --recursive --jobs 12 linphone-sdk-docker
+        docker build -t $liblinphone_tester --build-arg="branch=$SDK_BRANCH" --build-arg="njobs=8" -f "$PWD/linphone-sdk-docker/liblinphone-tester" .
         fi
     - git clone -b master --single-branch git@gitlab.linphone.org:BC/Public/flexisip-tester --jobs 12
     - export FLEXISIP_DOCKER_IMAGE="gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src"
@@ -261,7 +262,7 @@ tests-flexisip-mr:
     #   buggy or silent log artifacts
     # We output only liblinphone_tester on stdout
 
-    - docker-compose $docker_compose_options up --exit-code-from liblinphone_tester | grep 'liblinphone_tester_1' || EXIT=$?
+    - docker-compose $docker_compose_options up -V --exit-code-from liblinphone_tester | grep 'liblinphone_tester_1' || EXIT=$?
 
     # For each launched service, we print logs in seperate file with follow and timestamp options
     - |
