@@ -169,8 +169,6 @@ tests-flexisip-mr:
     # we can't use $workspace nested variables here, since defined variables
     #   are extended in "script".
 
-    # Docker run options are defined in docker-compose
-
   script:
 
     - docker image ls
@@ -183,7 +181,6 @@ tests-flexisip-mr:
     - echo $liblinphone_tester
     - echo $sourcedir
     - echo $workspace
-    - echo $docker_run_options
 
     - |
         if [ "$REBUILD_SDK" = "true" ]; then
@@ -249,6 +246,10 @@ tests-flexisip-mr:
 
     - export FLEXISIP_LOGS="$workspace"
 
+    # Docker run options are only used for coredump display if any
+    - docker_run_options="-v $FLEXISIP_LOGS:/home/bc/linphone-sdk-build/linphone-sdk/desktop/work"
+
+    - echo $docker_run_options
 
     - cd $workspace
 
