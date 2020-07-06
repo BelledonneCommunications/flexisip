@@ -166,6 +166,9 @@ tests-flexisip-mr:
     liblinphone_tester: "gitlab.linphone.org:4567/bc/public/linphone-sdk/liblinphone_tester:$SDK_VERSION"
     sourcedir: ${CI_PROJECT_DIR}/linphone-sdk-docker
     workspace: "${CI_PROJECT_DIR}/liblinphone_tester_workspace"
+
+    # Docker run options are only used for coredump display if any
+    docker_run_options: "-v $workspace:/home/bc/linphone-sdk-build/linphone-sdk/desktop/work"
     # we can't use $workspace nested variables here, since defined variables
     #   are extended in "script".
 
@@ -245,9 +248,6 @@ tests-flexisip-mr:
     #########################################################
 
     - export FLEXISIP_LOGS="$workspace"
-
-    # Docker run options are only used for coredump display if any
-    - docker_run_options="-v $FLEXISIP_LOGS:/home/bc/linphone-sdk-build/linphone-sdk/desktop/work"
 
     - echo $docker_run_options
 
