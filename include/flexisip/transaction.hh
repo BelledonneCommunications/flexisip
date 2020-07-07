@@ -18,8 +18,10 @@
 
 #pragma once
 
-#include <map>
+#include <cstring>
+#include <stdexcept>
 #include <string>
+#include <unordered_map>
 
 #include <sofia-sip/msg.h>
 #include <sofia-sip/sip.h>
@@ -58,49 +60,66 @@ class OutgoingAgent {
 };
 
 class Transaction {
-  protected:
-	Agent *mAgent;
-	typedef std::tuple<std::shared_ptr<void>, std::string> property_type;
-	std::map<std::string, property_type> mProperties;
-	void looseProperties() {
-		mProperties.clear();
-	}
+	public:
+		Transaction(Agent *agent) noexcept : mAgent{agent} {}
+		Transaction(const Transaction &) = delete;
+		Transaction(Transaction &&) = delete;
+		~Transaction() = default;
 
-  public:
-	Transaction(Agent *agent) : mAgent(agent) {
-	}
+		Agent *getAgent() const noexcept {return mAgent;}
 
-	~Transaction() {
-	}
-
-	Agent *getAgent() {
-		return mAgent;
-	}
-
-	template <typename T> void setProperty(const std::string &name, std::shared_ptr<T> value) {
-		std::string type_name = typeid(T).name();
-		property_type prop = make_tuple(std::static_pointer_cast<void>(value), type_name);
-		mProperties.insert(std::pair<std::string, property_type>(name, prop));
-	}
-
-	template <typename T> std::shared_ptr<T> getProperty(const std::string &name) {
-		auto it = mProperties.find(name);
-		if (it != mProperties.end()) {
-			property_type &prop = it->second;
-			if (std::get<1>(prop) == typeid(T).name()) {
-				std::shared_ptr<T> tran = std::static_pointer_cast<T>(std::get<0>(prop));
-				return tran;
-			}
+		template <typename T, typename StrT> void setProperty(StrT &&name, const std::shared_ptr<T> &value) noexcept {
+			auto typeName = typeid(T).name();
+			mWeakProperties.erase(name); // ensures the property value isn't in the two lists both.
+			mProperties[std::forward<StrT>(name)] = Property{value, typeName};
 		}
-		return std::shared_ptr<T>();
-	}
 
-	void removeProperty(const std::string &name) {
-		auto it = mProperties.find(name);
-		if (it != mProperties.end()) {
-			mProperties.erase(it);
+		template <typename T, typename StrT> void setProperty(StrT &&name, const std::weak_ptr<T> &value) noexcept {
+			auto typeName = typeid(T).name();
+			mProperties.erase(name); // ensures the property value isn't in the two lists both.
+			mWeakProperties[std::forward<StrT>(name)] = WProperty{value, typeName};
 		}
-	}
+
+		template <typename T> std::shared_ptr<T> getProperty(const std::string &name) const {
+			auto prop = _getProperty(name);
+			if (prop.value == nullptr) return nullptr;
+			if (std::strcmp(prop.type, typeid(T).name()) != 0) {throw std::bad_cast{};}
+			return std::static_pointer_cast<T>(prop.value);
+		}
+
+		void removeProperty(const std::string &name) noexcept {
+			mProperties.erase(name);
+			mWeakProperties.erase(name);
+		}
+
+	protected:
+		struct Property {
+			Property() = default;
+			template <typename PtrT>
+			Property(PtrT &&value, const char *type) noexcept : value{std::forward<PtrT>(value)}, type{type} {}
+
+			std::shared_ptr<void> value{};
+			const char *type{nullptr};
+		};
+		struct WProperty {
+			WProperty() = default;
+			template <typename PtrT>
+			WProperty(PtrT &&value, const char *type) noexcept : value{std::forward<PtrT>(value)}, type{type} {}
+
+			std::weak_ptr<void> value{};
+			const char *type{nullptr};
+		};
+
+		Property _getProperty(const std::string &name) const noexcept;
+
+		void looseProperties() noexcept {
+			mProperties.clear();
+			mWeakProperties.clear();
+		}
+
+		Agent *mAgent{nullptr};
+		std::unordered_map<std::string, Property> mProperties{};
+		std::unordered_map<std::string, WProperty> mWeakProperties{};
 };
 
 class OutgoingTransaction : public Transaction,
@@ -119,14 +138,12 @@ class OutgoingTransaction : public Transaction,
 	~OutgoingTransaction();
 	std::shared_ptr<MsgSip> getRequestMsg();
 
-	inline virtual Agent *getAgent() {
-		return Transaction::getAgent();
-	}
+	virtual Agent *getAgent() {return Transaction::getAgent();}
 	/// The incoming transaction from which the message comes from, if any.
-	std::shared_ptr<IncomingTransaction> mIncoming;
+	std::weak_ptr<IncomingTransaction> mIncoming;
   private:
 	friend class RequestSipEvent;
-	static std::shared_ptr<OutgoingTransaction> create(Agent *agent);
+
 	std::shared_ptr<OutgoingTransaction> mSofiaRef;
 	nta_outgoing_t *mOutgoing;
 	std::string mBranchId;
@@ -152,11 +169,10 @@ class IncomingTransaction : public Transaction,
 		return Transaction::getAgent();
 	}
 	/// The outgoing transaction that was eventually created to forward the message through a RequestSipEvent.
-	std::shared_ptr<OutgoingTransaction> mOutgoing;
+	std::weak_ptr<OutgoingTransaction> mOutgoing;
 
   private:
 	friend class RequestSipEvent;
-	static std::shared_ptr<IncomingTransaction> create(Agent *agent);
 
 	std::shared_ptr<IncomingTransaction> mSofiaRef;
 	nta_incoming_t *mIncoming;
