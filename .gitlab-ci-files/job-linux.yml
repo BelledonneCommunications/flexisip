@@ -302,7 +302,7 @@ tests-flexisip-mr:
     # args to the entrypoint command.
     # "true ||" is used here to continue the script even if the find fails
 
-    - ls | grep core*
+    - ls | grep core* || true
     - if [[ -n $(find . -type f -name "core*") ]]; then find . -type f -name "core*" | xargs -L1 docker run $docker_run_options --entrypoint gdb $liblinphone_tester ../bin/liblinphone_tester -x gdb_options; fi || true
 
     # simplifing artifacts browsing
