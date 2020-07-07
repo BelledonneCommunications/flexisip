@@ -117,7 +117,7 @@ docker-build-flexisip-src:
       - $DEPLOY_RUN
       - $DEPLOY_UBUNTU
   variables:
-    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA -f docker/flex-from-src --build-arg=njobs=12"
+    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA -f docker/flex-from-src --build-arg=njobs=12 --build-arg=sanitizer=ON"
   script:
     - docker image ls
     - echo $DOCKER_BUILD_OPTIONS
