@@ -168,7 +168,8 @@ tests-flexisip-mr:
     workspace: "${CI_PROJECT_DIR}/liblinphone_tester_workspace"
 
     # Docker run options are only used for coredump display if any
-    docker_run_options: "-v $workspace:/home/bc/linphone-sdk-build/linphone-sdk/desktop/work"
+    # We are forced to copy the same string as "workspace" because we can't use nested variables in the same place (i.e. in variable declaration)
+    docker_run_options: "-v ${CI_PROJECT_DIR}/liblinphone_tester_workspace:/home/bc/linphone-sdk-build/linphone-sdk/desktop/work"
     # we can't use $workspace nested variables here, since defined variables
     #   are extended in "script".
 
