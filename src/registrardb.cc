@@ -924,6 +924,16 @@ RegistrarDb *RegistrarDb::get() {
 	return sUnique;
 }
 
+void RegistrarDb::clear(const url_t *from, const shared_ptr<ContactUpdateListener> &listener) {
+	msg_t *msg = msg_create(sip_default_mclass(), 0);
+	su_home_t *homeSip = msg_home(msg);
+	sip_t *sip = sip_object(msg);
+
+	sip->sip_from = sip_from_create(homeSip, reinterpret_cast<const url_string_t*>(from));
+
+	this->clear(sip, listener);
+}
+
 void RegistrarDb::clear(const sip_t *sip, const shared_ptr<ContactUpdateListener> &listener) {
 	doClear(sip, listener);
 }

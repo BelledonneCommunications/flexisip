@@ -48,33 +48,40 @@ void Client::onNotifyReceived(
     notifyReceived = true;
     istringstream data(body->getStringBuffer());
 
-    list<shared_ptr<ParticipantDeviceIdentity>> participantDevices;
     unique_ptr<Reginfo> ri(parseReginfo(data, Xsd::XmlSchema::Flags::dont_validate));
 
     for (const auto &registration : ri->getRegistration()) {
         for (const auto &contact : registration.getContact()) {
-
-            string displayName = contact.getDisplayName()
-                ? contact.getDisplayName()->c_str()
-                : string("");
-
-            shared_ptr<ParticipantDeviceIdentity> identity = Factory::get()->createParticipantDeviceIdentity(
-                Factory::get()->createAddress(contact.getUri()),
-                displayName
-            );
+            list<shared_ptr<ParticipantDeviceIdentity>> participantDevices;
+            auto partAddr = Factory::get()->createAddress(contact.getUri());
 
             Contact::UnknownParamSequence ups = contact.getUnknownParam();
 
             for (const auto &param : ups) {
                 if (Utils::isContactCompatible(mServer, mChatRoom, param)) {
+                    string displayName = contact.getDisplayName()
+                        ? contact.getDisplayName()->c_str()
+                        : string("");
+
+                    shared_ptr<ParticipantDeviceIdentity> identity = Factory::get()->createParticipantDeviceIdentity(
+                        partAddr,
+                        displayName
+                    );
+
                     participantDevices.push_back(identity);
                     break;
                 }
             }
+
+            if (!participantDevices.empty()) {
+                partAddr->setUriParams("");
+
+                this->mChatRoom->setParticipantDevices(partAddr, participantDevices);
+            }
+
         }
     }
 
-    this->mChatRoom->setParticipantDevices(mTo, participantDevices);
 }
 
 } // namespace RegistrationEvent
