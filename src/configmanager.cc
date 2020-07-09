@@ -873,6 +873,10 @@ GenericManager::GenericManager()
 			"WARNING: Flexisip has no embedded log rotation system but provides a configuration file for logrotate. Please ensure "
 			"that logrotate is installed and running on your system if you want to have Flexisip's logs rotated. Log rotation can be customized by "
 			"editing /etc/logrotate.d/flexisip-logrotate.", DEFAULT_LOG_DIR },
+		{String, "log-filename", "Name of the log file. Any occurences of '{server}' will be replaced by the server type "
+			"which has been given by '--server' option or 'default-servers' parameter. If several server types have been "
+			"given, then '{server}' will be replaced by the concatenation of these separated by '+' character (e.g. 'proxy+presence')",
+			"flexisip-{server}.log"},
 		{String, "log-level", "Log file verbosity. Possible values are debug, message, warning and error", "error"},
 		{String, "syslog-level", "Syslog verbosity. Possible values are debug, message, warning and error", "error"},
 		{Boolean, "user-errors-logs", "Log (on a different log domain) user errors like authentication, registration, routing, etc...", "false"},

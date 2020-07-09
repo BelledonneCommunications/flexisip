@@ -864,10 +864,12 @@ int main(int argc, char *argv[]) {
 			);
 		}
 
-		LogManager::Parameters logParams;
+		const auto &logFilename = cfg->getGlobal()->get<ConfigString>("log-filename")->read();
+
+		LogManager::Parameters logParams{};
 		logParams.root = root;
 		logParams.logDirectory = cfg->getGlobal()->get<ConfigString>("log-directory")->read();
-		logParams.logFilename = "flexisip-" + fName + ".log";
+		logParams.logFilename = regex_replace(logFilename, regex{"\\{server\\}"}, fName);
 		logParams.level = debug ? BCTBX_LOG_DEBUG : LogManager::get().logLevelFromName(log_level);
 		logParams.enableSyslog = useSyslog;
 		logParams.syslogLevel = LogManager::get().logLevelFromName(syslog_level);
