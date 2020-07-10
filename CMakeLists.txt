@@ -52,12 +52,9 @@ option(ENABLE_UNIT_TESTS "Enable flexisip unit tests (low level tests)" ON)
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
 
 
-# Check that the C++ compiler is compliant with C++ 11 standard
-set(CMAKE_CXX_STANDARD 11)
+# Require C++14
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9.0")
-	message(FATAL_ERROR "GCC 4.9.0 or latter is required. Older version of GCC are known to not fully support C++ 11")
-endif()
 
 
 find_package(Threads)
@@ -98,15 +95,6 @@ find_package(LibXsd)
 
 check_function_exists(arc4random HAVE_ARC4RANDOM)
 find_file(HAVE_SYS_PRCTL_H NAMES sys/prctl.h)
-
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-	if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.7)
-		message(STATUS "GCC version < 4.7: use MONOTONIC clock")
-		add_definitions(-DUSE_MONOTONIC_CLOCK)
-	else()
-		message(STATUS "GCC version ${CMAKE_CXX_COMPILER_VERSION} should have steady_clock")
-	endif()
-endif()
 
 set(CMAKE_REQUIRED_LIBRARIES)
 
@@ -161,12 +149,6 @@ if(ENABLE_PDFDOC)
 endif()
 
 if(ENABLE_PRESENCE OR ENABLE_MDNS)
-		# disable Presence on gcc < 4.7 because c++11 is not supported well before
-		if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.7)
-				message(WARNING "Disable Presence because GCC is too old")
-				set(ENABLE_PRESENCE OFF)
-		endif()
-
 	if(LINPHONE_BUILDER_GROUP_EXTERNAL_SOURCE_PATH_BUILDERS)
 		include("${EP_bellesip_CONFIG_DIR}/BelleSIPConfig.cmake")
 	else()
@@ -222,7 +204,11 @@ configure_file(${PROJECT_SOURCE_DIR}/cmake/flexisip-config.h.in ${PROJECT_BINARY
 set_source_files_properties(${PROJECT_BINARY_DIR}/flexisip-config.h PROPERTIES GENERATED ON)
 add_definitions("-DHAVE_CONFIG_H")
 
+# -Werror=varargs seems to do false positives with GCC 4.9.x
 bc_init_compilation_flags(CPP_BUILD_FLAGS C_BUILD_FLAGS CXX_BUILD_FLAGS ENABLE_STRICT)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION MATCHES "^4\\.9\\.[0-9]+$")
+	list(APPEND CXX_BUILD_FLAGS "-Wno-error=varargs")
+endif()
 
 add_subdirectory(include)
 add_subdirectory(src)
