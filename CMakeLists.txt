@@ -53,7 +53,7 @@ cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific feat
 
 
 # Check that the C++ compiler is compliant with C++ 11 standard
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9.0")
 	message(FATAL_ERROR "GCC 4.9.0 or latter is required. Older version of GCC are known to not fully support C++ 11")

@@ -34,6 +34,8 @@ job-centos7-makefile-clang:
     CXX: clang++
     ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
   extends: .job-linux
+  before_script:
+    - source /opt/rh/llvm-toolset-7/enable
 
 #################################################
 # Ninja
