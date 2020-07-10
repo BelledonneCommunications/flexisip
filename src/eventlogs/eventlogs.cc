@@ -29,7 +29,6 @@
 #include <flexisip/eventlogs.hh>
 
 #include "db/db-transaction.hh"
-#include "utils/make-unique.hh"
 #include "utils/string-utils.hh"
 
 using namespace std;
