@@ -55,7 +55,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 
 	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev) override;
 
-	virtual void onForkContextFinished(std::shared_ptr<ForkContext> ctx) override;
+	virtual void onForkContextFinished(ForkContext &ctx) override;
 
 	void sendReply(std::shared_ptr<RequestSipEvent> &ev, int code, const char *reason, int warn_code = 0, const char *warning = nullptr);
 	void routeRequest(std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<Record> &aor, const url_t *sipUri);

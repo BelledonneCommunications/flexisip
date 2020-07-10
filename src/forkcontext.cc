@@ -45,10 +45,18 @@ void ForkContext::sOnNextBanches(su_root_magic_t* magic, su_timer_t* t, su_timer
 
 ForkContext::ForkContext(Agent *agent, const shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg,
 						 ForkContextListener *listener)
-	: mListener(listener), mNextBranchesTimer(NULL), mCurrentPriority(-1), mAgent(agent),
-	  mEvent(make_shared<RequestSipEvent>(event)), // Is this deep copy really necessary ?
-	  mCfg(cfg), mLateTimer(NULL), mFinishTimer(NULL) {
-	init();
+	: mListener{listener}, mAgent{agent}, mEvent{make_shared<RequestSipEvent>(event)}, mCfg{cfg} {
+
+	mIncoming = mEvent->createIncomingTransaction();
+	mIncoming->setProperty(sForkContextPropName, make_shared<ForkContext *>(this));
+
+	if (mCfg->mForkLate && mLateTimer == nullptr) {
+		/*this timer is for when outgoing transaction all die prematuraly, we still need to wait that late register
+		 * arrive.*/
+		mLateTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
+		su_timer_set_interval(mLateTimer, &ForkContext::__timer_callback, this,
+							  (su_duration_t)mCfg->mDeliveryTimeout * (su_duration_t)1000);
+	}
 }
 
 void ForkContext::onLateTimeout() {
@@ -254,18 +262,6 @@ bool ForkContext::onNewRegister(const url_t *url, const string &uid) {
 	return true;
 }
 
-void ForkContext::init() {
-	mIncoming = mEvent->createIncomingTransaction();
-
-	if (mCfg->mForkLate && mLateTimer == NULL) {
-		/*this timer is for when outgoing transaction all die prematuraly, we still need to wait that late register
-		 * arrive.*/
-		mLateTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
-		su_timer_set_interval(mLateTimer, &ForkContext::__timer_callback, this,
-							  (su_duration_t)mCfg->mDeliveryTimeout * (su_duration_t)1000);
-	}
-}
-
 bool compareGreaterBranch(const shared_ptr<BranchInfo> &lhs, const shared_ptr<BranchInfo> &rhs) {
 	return lhs->mPriority > rhs->mPriority;
 }
@@ -273,12 +269,6 @@ bool compareGreaterBranch(const shared_ptr<BranchInfo> &lhs, const shared_ptr<Br
 void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact) {
 	shared_ptr<OutgoingTransaction> ot = ev->createOutgoingTransaction();
 	shared_ptr<BranchInfo> br = createBranchInfo();
-
-	if (mIncoming && mWaitingBranches.size() == 0) {
-		/*for some reason shared_from_this() cannot be invoked within the ForkContext constructor, so we do this
-		 * initialization now*/
-		mIncoming->setProperty<ForkContext>("ForkContext", shared_from_this());
-	}
 
 	// unlink the incoming and outgoing transactions which is done by default, since now the forkcontext is managing
 	// them.
@@ -313,8 +303,8 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	LOGD("ForkContext [%p]: new fork branch [%p]", this, br.get());
 }
 
-shared_ptr<ForkContext> ForkContext::get(const shared_ptr<IncomingTransaction> &tr) {
-	return tr->getProperty<ForkContext>("ForkContext");
+ForkContext *ForkContext::getForkContext(const shared_ptr<IncomingTransaction> &tr) {
+	return *tr->getProperty<ForkContext *>(sForkContextPropName);
 }
 
 shared_ptr<ForkContext> ForkContext::get(const shared_ptr<OutgoingTransaction> &tr) {
@@ -330,8 +320,7 @@ bool ForkContext::processCancel(const shared_ptr<RequestSipEvent> &ev) {
 	shared_ptr<IncomingTransaction> transaction = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
 
 	if (transaction && ev->getMsgSip()->getSip()->sip_request->rq_method == sip_method_cancel) {
-		shared_ptr<ForkContext> ctx = ForkContext::get(transaction);
-
+		auto ctx = ForkContext::getForkContext(transaction);
 		if (ctx) {
 			ctx->onCancel(ev);
 
@@ -473,7 +462,7 @@ void ForkContext::onFinished() {
 	for_each(mCurrentBranches.begin(), mCurrentBranches.end(), mem_fn(&BranchInfo::clear));
 	mCurrentBranches.clear();
 
-	mListener->onForkContextFinished(shared_from_this());
+	mListener->onForkContextFinished(*this);
 	mSelf.reset(); // this must be the last thing to do
 }
 

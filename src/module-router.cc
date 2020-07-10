@@ -877,23 +877,23 @@ void ModuleRouter::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	ForkContext::processResponse(ev);
 }
 
-void ModuleRouter::onForkContextFinished(shared_ptr<ForkContext> ctx) {
-	if (!ctx->getConfig()->mForkLate) return;
+void ModuleRouter::onForkContextFinished(ForkContext &ctx) {
+	if (!ctx.getConfig()->mForkLate) return;
 
-	const list<string> & keys = ctx->getKeys();
+	const list<string> & keys = ctx.getKeys();
 	for (auto it = keys.begin(); it != keys.end(); ++it) {
 		string key = *it;
 		LOGD("Looking at fork contexts with key %s", key.c_str());
 
 		auto range = mForks.equal_range(key.c_str());
 		for (auto it = range.first; it != range.second;) {
-			if (it->second == ctx) {
+			if (&*it->second == &ctx) {
 				LOGD("Remove fork %s from store", it->first.c_str());
 				mStats.mCountForks->incrFinish();
 				auto cur_it = it;
 				++it;
 				// for some reason the multimap erase does not return the next iterator !
-				mForks.erase(cur_it);
+				it = mForks.erase(cur_it);
 				// do not break, because a single fork context might appear several time in the map because of aliases.
 			} else {
 				++it;
