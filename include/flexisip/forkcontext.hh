@@ -44,7 +44,7 @@ class ForkContext;
 class ForkContextListener {
   public:
 	virtual ~ForkContextListener();
-	virtual void onForkContextFinished(std::shared_ptr<ForkContext> ctx) = 0;
+	virtual void onForkContextFinished(ForkContext &ctx) = 0;
 };
 
 class BranchInfo {
@@ -68,37 +68,32 @@ class BranchInfo {
 	bool mPushSent = false; // Whether  push notification has been sent for this branch.
 };
 
-class ForkContext : public std::enable_shared_from_this<ForkContext> {
+class ForkContext {
   private:
 	static void __timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	static void sOnFinished(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	static void sOnNextBanches(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
-	ForkContextListener *mListener;
-	su_timer_t *mNextBranchesTimer;
-	std::list<std::shared_ptr<BranchInfo>> mWaitingBranches;
-	std::list<std::shared_ptr<BranchInfo>> mCurrentBranches;
-	float mCurrentPriority;
-	bool mFinished = false;
-	std::list<std::string> mKeys;
-	void init();
+
 	void processLateTimeout();
 	std::shared_ptr<BranchInfo> _findBestBranch(const int urgentReplies[], bool ignore503And408);
-	std::shared_ptr<OnContactRegisteredListener> mContactRegisteredListener;
+	std::shared_ptr<OnContactRegisteredListener> mContactRegisteredListener{};
 	// Request if the fork has other branches with lower priorities to try
 	bool hasNextBranches();
 	// Set the next branches to try and process them
 	void nextBranches();
 	void onNextBranches();
 
+	ForkContextListener *mListener{nullptr};
+	su_timer_t *mNextBranchesTimer{nullptr};
+	std::list<std::shared_ptr<BranchInfo>> mWaitingBranches{};
+	std::list<std::shared_ptr<BranchInfo>> mCurrentBranches{};
+	float mCurrentPriority{-1};
+	bool mFinished{false};
+	std::list<std::string> mKeys{};
+
+	static constexpr const char *sForkContextPropName = "ForkContext";
+
   protected:
-	Agent *mAgent;
-	std::shared_ptr<RequestSipEvent> mEvent;
-	std::shared_ptr<ResponseSipEvent> mLastResponseSent;
-	std::shared_ptr<IncomingTransaction> mIncoming;
-	std::shared_ptr<ForkContextConfig> mCfg;
-	std::shared_ptr<ForkContext> mSelf;
-	su_timer_t *mLateTimer;
-	su_timer_t *mFinishTimer;
 	// Mark the fork process as terminated. The real destruction is performed asynchrously, in next main loop iteration.
 	void setFinished();
 	// Used by derived class to allocate a derived type of BranchInfo if necessary.
@@ -134,6 +129,15 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	const std::list<std::shared_ptr<BranchInfo>> &getBranches() const;
 	static bool isUrgent(int code, const int urgentCodes[]);
 
+	Agent *mAgent{nullptr};
+	std::shared_ptr<RequestSipEvent> mEvent{};
+	std::shared_ptr<ResponseSipEvent> mLastResponseSent{};
+	std::shared_ptr<IncomingTransaction> mIncoming{};
+	std::shared_ptr<ForkContextConfig> mCfg{};
+	std::shared_ptr<ForkContext> mSelf{};
+	su_timer_t *mLateTimer{nullptr};
+	su_timer_t *mFinishTimer{nullptr};
+
   public:
 	ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg,
 				ForkContextListener *listener);
@@ -146,14 +150,14 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	static bool processResponse(const std::shared_ptr<ResponseSipEvent> &ev);
 	// Obtain the ForkContext that manages a transaction.
 	static std::shared_ptr<ForkContext> get(const std::shared_ptr<OutgoingTransaction> &tr);
-	static std::shared_ptr<ForkContext> get(const std::shared_ptr<IncomingTransaction> &tr);
+	static ForkContext *getForkContext(const std::shared_ptr<IncomingTransaction> &tr);
 	// Obtain the BranchInfo corresponding to an outoing transaction
 	static std::shared_ptr<BranchInfo> getBranchInfo(const std::shared_ptr<OutgoingTransaction> &tr);
 	// Start the processing of the highest priority branches that are not completed yet
 	void start();
 
 	void addKey(const std::string &key);
-	const std::list<std::string> &getKeys()const;
+	const std::list<std::string> &getKeys() const;
 
 	/*
 	 * Informs the forked call context that a new register from a potential destination of the fork just arrived.
@@ -164,10 +168,9 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	virtual void onPushSent(const std::shared_ptr<OutgoingTransaction> &tr);
 	virtual void onPushError(const std::shared_ptr<OutgoingTransaction> &tr, const std::string &errormsg);
 	const std::shared_ptr<RequestSipEvent> &getEvent();
-	const std::shared_ptr<ForkContextConfig> &getConfig() const {
-		return mCfg;
-	}
-	bool isFinished()const{ return mFinished; };
+	const std::shared_ptr<ForkContextConfig> &getConfig() const {return mCfg;}
+	bool isFinished()const{ return mFinished;}
+
 	static const int sUrgentCodes[];
 	static const int sAllCodesUrgent[];
 };
