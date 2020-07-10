@@ -75,7 +75,6 @@
 #include "etchosts.hh"
 #include "monitor.hh"
 #include "stun.hh"
-#include "utils/make-unique.hh"
 #ifdef ENABLE_CONFERENCE
 #include "conference/conference-server.hh"
 #endif

@@ -288,8 +288,6 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 add_library(flexisip SHARED ${FLEXISIP_SOURCES})
-set_property(TARGET flexisip PROPERTY CXX_STANDARD 11)
-set_property(TARGET flexisip PROPERTY CXX_STANDARD_REQUIRED ON)
 
 if(FLEXISIP_DEPENDENCIES)
 	add_dependencies(flexisip ${FLEXISIP_DEPENDENCIES})
@@ -301,8 +299,6 @@ target_include_directories(flexisip PUBLIC ${FLEXISIP_INCLUDES})
 
 add_executable(flexisip_server main.cc)
 set_property(TARGET flexisip_server PROPERTY OUTPUT_NAME flexisip)
-set_property(TARGET flexisip_server PROPERTY CXX_STANDARD 11)
-set_property(TARGET flexisip_server PROPERTY CXX_STANDARD_REQUIRED ON)
 target_compile_features(flexisip_server PRIVATE cxx_auto_type cxx_variadic_macros)
 target_link_libraries(flexisip_server flexisip)
 
@@ -315,8 +311,6 @@ install(TARGETS flexisip flexisip_server
 
 add_executable(flexisip_pusher tools/pusher.cc)
 target_link_libraries(flexisip_pusher flexisip)
-set_property(TARGET flexisip_pusher PROPERTY CXX_STANDARD 11)
-set_property(TARGET flexisip_pusher PROPERTY CXX_STANDARD_REQUIRED ON)
 
 install(TARGETS flexisip_pusher
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -337,8 +331,6 @@ endif()
 
 add_executable(flexisip_serializer tools/serializer.cc)
 target_link_libraries(flexisip_serializer flexisip)
-set_property(TARGET flexisip_serializer PROPERTY CXX_STANDARD 11)
-set_property(TARGET flexisip_serializer PROPERTY CXX_STANDARD_REQUIRED ON)
 
 install(TARGETS flexisip_serializer
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
