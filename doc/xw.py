@@ -105,15 +105,21 @@ class XWikiProxy:
 		def to_base64(self):
 			return base64.b64encode(bytes('{0}:{1}'.format(self.user, self.password), encoding='utf-8'))
 
-	def __init__(self, host, wikiname, credentials=None):
-		self.host = host
+	def __init__(self, host, wikiname, credentials=None, cafile=None):
+		m = re.fullmatch('(?:(http[s]?)\\://)?(\\S+)', host)
+		if m is None:
+			raise ValueError('invalid host [{0}]'.format(host))
+
+		self.scheme = m.group(1) if m.group(1) is not None else 'http'
+		self.host = m.group(2)
 		self.wikiname = wikiname
 		self.credentials = credentials
+		self.cafile = cafile
 
 	def update_page(self, path, content):
 		uri = self._forge_page_uri(path)
 		request = self._forge_http_request(uri, 'PUT', content)
-		response = urllib.request.urlopen(request)
+		response = urllib.request.urlopen(request, cafile=self.cafile)
 		if response.status not in (201, 202):
 			raise RuntimeError('page creation or modification has failed' if response.status == 304 \
 				else 'unexpected status code ({0})'.format(response.status))
@@ -136,7 +142,7 @@ class XWikiProxy:
 		return string.translate({0x20 : '%20'})
 
 	def _forge_root_uri(self):
-		return 'http://' + self.host + XWikiProxy._apipath + '/wikis/' + self.wikiname
+		return self.scheme + '://' + self.host + XWikiProxy._apipath + '/wikis/' + self.wikiname
 
 	_apipath = '/xwiki/rest'
 
@@ -218,6 +224,7 @@ if __name__ == '__main__':
 	parser.add_argument('-w', '--wiki'     , help='name of the wiki', default='public', dest='wikiname')
 	parser.add_argument('-u', '--user'     , help='the user to authenticate to the server', dest='config_user')
 	parser.add_argument('-p', '--password' , help='the password to authenticate to the server', dest='config_password')
+	parser.add_argument('--cafile'         , help='file containing a set of trusted certificates', default=None)
 	parser.add_argument('--flexisip-binary', help='location of the Flexisip executable to run', default='../OUTPUT/bin/flexisip')
 	args = parser.parse_args()
 
@@ -244,7 +251,7 @@ if __name__ == '__main__':
 		sys.exit(1)
 
 	credentials = XWikiProxy.Credential(settings.user, settings.password)
-	wiki = XWikiProxy(settings.host, settings.wikiname, credentials=credentials)
+	wiki = XWikiProxy(settings.host, settings.wikiname, credentials=credentials, cafile=args.cafile)
 	fProxy = FlexisipProxy(args.flexisip_binary)
 	docWriter = DocWriter(wiki, fProxy)
 	docWriter.write_and_push()
