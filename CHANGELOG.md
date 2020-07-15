@@ -6,22 +6,25 @@ Group changes to describe their impact on the project, as follows:
 
 | **Group name** | **Description**                                       |
 | ----------     | ----------------------------------------------------- |
-| Added          | new features                                          |
-| Changed        | changes in existing functionality                     |
-| Deprecated     | once-stable features removed in upcoming releases     |
-| Removed        | deprecated features removed in this release           |
-| Fixed          | any bug fixes                                         |
-| Security       | to invite users to upgrade in case of vulnerabilities |
+| Added          | New features                                          |
+| Changed        | Changes in existing functionality                     |
+| Deprecated     | Once-stable features removed in upcoming releases     |
+| Removed        | Deprecated features removed in this release           |
+| Fixed          | Any bug fixes                                         |
+| Security       | To invite users to upgrade in case of vulnerabilities |
 
 ## [Unreleased]
 
 ### [Added]
- - [Presence server] Support of bodyless subscription.
+**Server independent**
+ - --rewrite-config option
+ - --dump-default can dump default settings for non-module sections.
+ - Add global/log-filename parameter
+
+**Proxy**
  - [Proxy] Add contextual logs settings.
  - [Proxy] External authentication plugin.
  - [Proxy] module::MediaRelay/force-public-ip-for-sdp-masquerading parameter
- - [Conference] 'check-capabilities' boolean parameter
- - --rewrite-config option
  - [Proxy] Add 'realm-regex' parameter in Authentication module.
  - [Proxy] Push Notification Request retransmission feature.
  - [flexisip_cli] Allow to clear registration information of a given user when using REGISTRAR_CLEAR
@@ -29,8 +32,12 @@ Group changes to describe their impact on the project, as follows:
  - [Proxy] Add support for loc-key and loc-args to Firebase, in order to be compatible with apps implementing the same logic as for iOS when handling push notifications coming from Flexisip.
  - [Proxy] EventLog: log the value of 'Priority' header of each event
  - [Proxy] Support of RFC 8599 for the transmission of the PushNotification information through REGISTER requests.
- - --dump-default can dump default settings for non-module sections.
- - Add global/log-filename parameter
+
+**Presence**
+ - [Presence server] Support of bodyless subscription.
+
+**Conference**
+ - [Conference] 'check-capabilities' boolean parameter
  
 ### [Changed]
  - [Proxy] log files are now named flexisip-proxy.log, flexisip-conference.log flexisip-presence.log
