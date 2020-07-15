@@ -16,84 +16,86 @@ Group changes to describe their impact on the project, as follows:
 ## [Unreleased]
 
 ### [Added]
+**New settings**
+ - `global/contextual-log-filter` ([Contextual log feature](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/C.%20Features/Contextual%20logs/))
+ - `global/contextual-log-level` ([Contextual log feature](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/C.%20Features/Contextual%20logs/))
+ - `global/log-filename`: allow to choose the name of the log file.
+ - `module::Authentication/realm-regex`: allow to choose how the authentication module deduce the realm from the From header.
+ - `module::PushNotification/retransmission-count` (PNR retransmission feature)
+ - `module::PushNotification/retransmission-interval` (PNR retransmission feature)
+ - `module::MediaRelay/force-public-ip-for-sdp-masquerading`: force the MediaRelay module to put the public IP address of the proxy while
+   modifying the SDP body of INVITE requests. Only useful when the server is behind a NAT router.
+ - `conference-server/check-capabalities`
+
 **Proxy**
- - Add contextual logs settings.
+ - [Contextual log feature](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/C.%20Features/Contextual%20logs/)
  - External authentication plugin.
- - module::MediaRelay/force-public-ip-for-sdp-masquerading parameter
- - Add 'realm-regex' parameter in Authentication module.
- - Push Notification Request retransmission feature.
- - [flexisip_cli] Allow to clear registration information of a given user when using REGISTRAR_CLEAR
-   sub-command.
+ - Push Notification Request (PNR) retransmission feature. Allow to send PNR several time when no response for the first PNR has been received from the push server.
  - Add support for loc-key and loc-args to Firebase, in order to be compatible with apps implementing the same logic as for iOS when handling push notifications coming from Flexisip.
- - EventLog: log the value of 'Priority' header of each event
+ - EventLog: log the value of 'Priority' header of each event.
  - Support of RFC 8599 for the transmission of the PushNotification information through REGISTER requests.
 
 **Presence**
- - Support of bodyless subscription.
-
-**Conference**
- - 'check-capabilities' boolean parameter
+ - Support of [“Server known resource lists” feature](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/C.%20Features/Presence%20server/#HServerknownresourcelists).
 
 **Miscellaneous**
- - --rewrite-config option
- - --dump-default can dump default settings for non-module sections.
- - Add global/log-filename parameter
+ - Add an option (--rewrite-config) to Flexisip command-line interface to dump a new configuration file with up-to-date docstrings but keeping the setting that
+   have been set explicitly by the user.
  
 ### [Changed]
+**Settings**
+ - Default value changes:
+   - `global/enable-snmp`: `true` -> `false`
+   - `gloabl/dump-cores`: `true` -> `false`
+   - `module::Router/message-delivery-timeout`: 1w
+   - `module::Router/message-accept-timeout`: 5s
+   - `module::Forward/params-to-remove`: adding `pn-provider`, `pn-prid`, `pn-param`
+   - `presence-server/max-thread`: `200` -> `50`
+   - `presence-server/max-thread-queue-size`: `200` -> `50`
+
+ - Parameter renaming:
+   - `event-logs/dir` -> `event-logs/filesystem-directory`
+   - `module::Registrar/datasource` -> `module::Registrar/file-path`
+   - `module::Registrar/name-message-expires` -> `module::Registrar/message-expires-param-name`
+   - `presence-server/soci-connection-string` -> `presence-server/rls-database-connection`
+   - `presence-server/external-list-subscription-request` -> `presence-server/rls-database-request`
+   - `presence-server/max-thread` -> `presence-server/rls-database-max-thread`
+   - `presence-server/max-thread-queue-size` -> `presence-server/rls-database-max-thread-queue-size`
+
+ - `[monitor]` section marked as experimental
+ - `[module::Presence]` section is no more marked as experimental
+
 **Proxy**
- - log files are now named flexisip-proxy.log, flexisip-conference.log flexisip-presence.log
- - boolean expression engine is faster
- - Change "from" into "sip-from" in firebase notification, because "from" is reserved.
- - Default value of 'params-to-remove' parameter in Forward module. Adding 'pn-provider',
-   'pn-prid', 'pn-param'.
+ - `REGISTRAR_CLEAR` sub-command of `flexisip_cli` can now clear registration of a given SIP identity.
+ - Improvement of the performance of the boolean expression engine used by module filters.
  - Breaking of the event log database schema.
 
-**Presence**
- - Default value of 'max-thread' and 'max-thread-queue-size' in [presence-server] section
-   switched from 200 to 50.
- - Presence module settings are not declared as expirimental anymore.
-
 **Miscellaneous**
+ - Log files are now named flexisip-proxy.log, flexisip-conference.log flexisip-presence.log by default.
  - Log rotation is fully handled by Logrotate script.
- - --dump-all-default dump a configuration file with all the parameters commented out.
- - Default values of setting parameters:
-   - global/enable-snmp: true -> false
-   - gloabl/dump-cores: true -> false
-   - module::Router/message-delivery-timeout: 1w
-   - module::Router/decrease message-accept-timeout: 5s
-
- - Setting parameter renaming:
-   - event-logs/dir -> event-logs/filesystem-directory
-   - module::Registrar/datasource -> module::Registrar/file-path
-   - module::Registrar/name-message-expires -> module::Registrar/message-expires-param-name
-   - presence-server/soci-connection-string -> presence-server/rls-database-connection
-   - presence-server/external-list-subscription-request -> presence-server/rls-database-request
-   - presence-server/max-thread -> presence-server/rls-database-max-thread
-   - presence-server/max-thread-queue-size -> presence-server/rls-database-max-thread-queue-size
-
- - Settings: [monitor] section marked as experimental
+ - `--dump-all-default` option dump a configuration file with all the parameters commented out.
+ - `--dump-default` allow to dump default settings for non-module sections.
 
 ### [Deprecated]
- - New deprecated setting parameters:
-   - global/use-maddr
-   - module::Registrar/redis-record-serializer
-   - module::Router/fork
-   - module::Router/stateful
+**New deprecated settings**
+ - `global/use-maddr`
+ - `global/max-log-size`
+ - `module::Registrar/redis-record-serializer`
+ - `module::Router/fork`
+ - `module::Router/stateful`
  
 
 ### [Removed]
- - 'max-log-size' parameter cannot be used anymore and will prevent Flexisip from starting if so.
-   Log rotation and size control is now fully managed by 'logrotate' script.
- - Removed setting parameter:
-   - global/debug
-   - module::Authentication/enable-test-accounts-creation
-   - module::Authentication/hashed-password
-   - module::Router/generated-contact-route
-   - module::Router/generated-contact-expected-realm
-   - module::Router/generate-contact-even-on-filled-aor
-   - module::Router/preroute
-   - module::PushNotification/google
-   - module::PushNotification/google-*
+**Removed settings**
+ - `global/debug`
+ - `module::Authentication/enable-test-accounts-creation`
+ - `module::Authentication/hashed-password`
+ - `module::Router/generated-contact-route`
+ - `module::Router/generated-contact-expected-realm`
+ - `module::Router/generate-contact-even-on-filled-aor`
+ - `module::Router/preroute`
+ - `module::PushNotification/google`
+ - `module::PushNotification/google-*`
    
 
 ### [Fixed]
