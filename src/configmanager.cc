@@ -859,7 +859,7 @@ GenericManager::GenericManager()
 								"loops while routing SIP messages.",
 		 "localhost"},
 		{StringList, "default-servers", "Servers started by default when no --server option is specified on command line. "
-						"Possible values are 'proxy', 'presence', separated by whitespaces.", "proxy" },
+						"Possible values are 'proxy', 'presence', 'conference', 'regevent', separated by whitespaces.", "proxy" },
 		{StringList, "transports",
 		 "List of white space separated SIP uris where the proxy must listen.\n"
 		 "Wildcard (*) can be used to mean 'all local ip addresses'. If 'transport' parameter is unspecified, it will "

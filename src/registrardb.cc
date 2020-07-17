@@ -746,15 +746,15 @@ class ContactNotificationListener
 	public std::enable_shared_from_this<ContactNotificationListener>
 {
 public:
-	ContactNotificationListener (const string &uid, RegistrarDb *db)
-		: mUid(uid), mDb(db) {
+	ContactNotificationListener (const string &uid, RegistrarDb *db, const url_t *aor)
+		: mUid(uid), mDb(db), mAor(url_hdup(mHome.home(), aor)) {
 	}
 
 private:
 	// ContactUpdateListener implementation
 	void onRecordFound (const shared_ptr<Record> &r) override {
-		if (r)
-			mDb->notifyContactListener(r, mUid);
+		const shared_ptr<Record> record = r?:make_shared<Record>(mAor);
+		mDb->notifyContactListener(record, mUid);
 	}
 	void onError () override {}
 	void onInvalid () override {}
@@ -762,12 +762,15 @@ private:
 
 	string mUid;
 	RegistrarDb *mDb = nullptr;
+	SofiaAutoHome mHome;
+	const url_t *mAor;
+	
 };
 
 void RegistrarDb::notifyContactListener(const string &key, const string &uid) {
 	SofiaAutoHome home;
 	url_t *sipUri = Record::makeUrlFromKey(home.home(), key);
-	auto listener = make_shared<ContactNotificationListener>(uid, this);
+	auto listener = make_shared<ContactNotificationListener>(uid, this, sipUri);
 	LOGD("Notify topic = %s, uid = %s", key.c_str(), uid.c_str());
 	RegistrarDb::get()->fetch(sipUri, listener, true);
 }
