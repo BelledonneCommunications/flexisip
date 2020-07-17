@@ -9,6 +9,9 @@ static const string CONTENT_TYPE = "application/reginfo+xml";
 
 namespace RegistrationEvent {
 
+Server::Server (su_root_t *root) : ServiceServer(root) {}
+Server::~Server () {}
+
 void Server::onSubscribeReceived(
     const shared_ptr<Core> & lc,
     const shared_ptr<Event> & lev,
@@ -34,6 +37,61 @@ void Server::onSubscribeReceived(
 
     RegistrarDb::get()->subscribe(url, listener);
     RegistrarDb::get()->fetch(url, listener, true);
+}
+
+void Server::_init () {
+    su_root_t *root = su_root_create(NULL);
+
+    shared_ptr<Core> regEventCore = Factory::get()->createCore("", "", nullptr);
+    auto config = GenericManager::get()->getRoot()->get<GenericStruct>("regevent-server");
+
+    regEventCore->getConfig()->setString("storage", "uri", config->get<ConfigString>("database-connection-string")->read());
+    regEventCore->getConfig()->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
+
+    shared_ptr<Transports> regEventTransport = Factory::get()->createTransports();
+    regEventTransport->setTcpPort(stoi(config->get<ConfigString>("port")->read()));
+    regEventCore->setTransports(regEventTransport);
+    regEventCore->addListener(make_shared<RegistrationEvent::Server>(root));
+    regEventCore->start();
+}
+
+void Server::_run () {
+    mCore->iterate();
+}
+
+void Server::_stop () {
+    mCore->removeListener(shared_from_this());
+}
+
+Server::Init::Init() {
+    ConfigItemDescriptor items[] = {
+        {
+            String,
+            "database-backend",
+            "Choose the type of backend that linphone will use for the connection.\n"
+            "",
+            "sqlite3"
+        },
+        {
+            String,
+            "database-connection-string",
+            "The configuration parameters of the backend.\n"
+            "",
+            ":memory:"
+        },
+        {
+            String,
+            "port",
+            "The port on which the RegEvent server is listening on.\n"
+            "",
+            "1234"
+        },
+        config_item_end
+    };
+
+    GenericStruct *s = new GenericStruct("regevent-server", "Flexisip RegEvent server parameters.", 0);
+    GenericManager::get()->getRoot()->addChild(s);
+    s->addChildrenValues(items);
 }
 
 }
