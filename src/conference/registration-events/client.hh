@@ -8,7 +8,7 @@ using namespace flexisip;
 
 namespace RegistrationEvent {
     class Client : public CoreListener
-		, public enable_shared_from_this<Client> {
+        , public enable_shared_from_this<Client> {
     public:
         Client(
             const ConferenceServer &server,
@@ -25,7 +25,7 @@ namespace RegistrationEvent {
         bool notifyReceived = false;
     private:
         shared_ptr<linphone::Event> mSubscribeEvent;
-		const ConferenceServer & mServer;
+        const ConferenceServer & mServer;
         shared_ptr<ChatRoom> mChatRoom;
         shared_ptr<const Address> mTo;
     };

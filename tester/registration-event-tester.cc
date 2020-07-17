@@ -75,7 +75,7 @@ static void basic() {
 	int regEventPort = rand() %0x0FFF + 1014;
 	regEventTransport->setTcpPort(regEventPort);
 	regEventCore->setTransports(regEventTransport);
-	regEventCore->addListener(make_shared<RegistrationEvent::Server>());
+	regEventCore->addListener(make_shared<RegistrationEvent::Server>(root));
 	regEventCore->start();
 
 	// Conference Server
