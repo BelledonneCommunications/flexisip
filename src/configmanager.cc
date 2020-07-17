@@ -852,7 +852,7 @@ GenericManager::GenericManager()
 	static ConfigItemDescriptor global_conf[] = {
 		// processus settings
 		{StringList, "default-servers", "Servers started by default when no --server option is specified on command line. "
-			"Possible values are 'proxy', 'presence', 'conference', separated by whitespaces.", "proxy" },
+			"Possible values are 'proxy', 'presence', 'conference', 'regevent' separated by whitespaces.", "proxy" },
 		{Boolean, "auto-respawn", "Automatically respawn flexisip in case of abnormal termination (crashes). This has an effect if "
 			"Flexisip has been launched with '--daemon' option only", "true"},
 		{String, "plugins-dir", "Path to the directory where plugins can be found.", DEFAULT_PLUGINS_DIR},
