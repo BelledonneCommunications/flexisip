@@ -741,7 +741,13 @@ class ContactNotificationListener
 	public std::enable_shared_from_this<ContactNotificationListener>
 {
 public:
+<<<<<<< HEAD
 	ContactNotificationListener (const string &uid, RegistrarDb *db, const SipUri &aor): mUid(uid), mDb(db), mAor(aor) {}
+=======
+	ContactNotificationListener (const string &uid, RegistrarDb *db, const url_t *aor)
+		: mUid(uid), mDb(db), mAor(url_hdup(mHome.home(), aor)) {
+	}
+>>>>>>> 78270294... Allow RegEvent server to be run as a daemon
 
 private:
 	// ContactUpdateListener implementation
@@ -755,12 +761,23 @@ private:
 
 	string mUid;
 	RegistrarDb *mDb = nullptr;
+<<<<<<< HEAD
 	SipUri mAor;
 
 };
 
 void RegistrarDb::notifyContactListener(const string &key, const string &uid) {
 	auto sipUri = Record::makeUrlFromKey(key);
+=======
+	SofiaAutoHome mHome;
+	const url_t *mAor;
+	
+};
+
+void RegistrarDb::notifyContactListener(const string &key, const string &uid) {
+	SofiaAutoHome home;
+	url_t *sipUri = Record::makeUrlFromKey(home.home(), key);
+>>>>>>> 78270294... Allow RegEvent server to be run as a daemon
 	auto listener = make_shared<ContactNotificationListener>(uid, this, sipUri);
 	LOGD("Notify topic = %s, uid = %s", key.c_str(), uid.c_str());
 	RegistrarDb::get()->fetch(sipUri, listener, true);

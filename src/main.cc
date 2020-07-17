@@ -71,10 +71,12 @@
 #endif
 
 #include "cli.hh"
+#include "conference/registration-events/server.hh"
 #include "configdumper.hh"
 #include "etchosts.hh"
 #include "monitor.hh"
 #include "stun.hh"
+
 #ifdef ENABLE_CONFERENCE
 #include "conference/conference-server.hh"
 #endif
@@ -85,7 +87,6 @@
 #ifdef ENABLE_SNMP
 #include "snmp-agent.h"
 #endif
-
 
 static int run = 1;
 static int pipe_wdog_flexisip[2] = {
@@ -101,6 +102,7 @@ static std::shared_ptr<flexisip::PresenceServer> presenceServer;
 static std::shared_ptr<flexisip::ConferenceServer> conferenceServer;
 #endif // ENABLE_CONFERENCE
 
+static std::shared_ptr<RegistrationEvent::Server> regEventServer;
 
 using namespace std;
 using namespace flexisip;
@@ -525,11 +527,12 @@ static void list_sections(bool moduleOnly = false) {
 	}
 }
 
-static const string getFunctionName(bool startProxy, bool startPresence, bool startConference){
+static const string getFunctionName(bool startProxy, bool startPresence, bool startConference, bool regEvent){
 	string functions;
 	if(startProxy) functions = "proxy";
 	if(startPresence) functions += ((functions.empty()) ? "" : "+") + string("presence");
 	if(startConference) functions += ((functions.empty()) ? "" : "+") + string("conference");
+	if(regEvent) functions += ((functions.empty()) ? "" : "+") + string("regevent");
 
 	return (functions.empty()) ? "none" : functions;
 }
@@ -572,6 +575,7 @@ static string version() {
 #if ENABLE_CONFERENCE
 	version << "- Conference\n";
 #endif
+	version << "- RegEvent\n";
 
 	return version.str();
 }
@@ -607,7 +611,7 @@ int main(int argc, char *argv[]) {
 	string versionString = version();
 	// clang-format off
 	TCLAP::CmdLine cmd("", ' ', versionString);
-	TCLAP::ValueArg<string>     functionName("", "server", 		"Specify the server function to operate: 'proxy', 'presence', 'conference', or 'all'.", TCLAP::ValueArgOptional, "", "server function", cmd);
+	TCLAP::ValueArg<string>     functionName("", "server", 		"Specify the server function to operate: 'proxy', 'presence', 'regevent', 'conference', or 'all'.", TCLAP::ValueArgOptional, "", "server function", cmd);
 	TCLAP::ValueArg<string>     configFile("c", "config", 			"Specify the location of the configuration file.", TCLAP::ValueArgOptional, CONFIG_DIR "/flexisip.conf", "file", cmd);
 	TCLAP::ValueArg<string>     pkcsFile("", "p12-passphrase-file", "Specify the location of the pkcs12 passphrase file.", TCLAP::ValueArgOptional,"", "file", cmd);
 	TCLAP::SwitchArg            daemonMode("",  "daemon", 			"Launch in daemon mode.", cmd);
@@ -755,6 +759,7 @@ int main(int argc, char *argv[]) {
 	bool startProxy = false;
 	bool startPresence = false;
 	bool startConference = false;
+	bool startRegEvent = false;
 
 	if (functionName.getValue() == "proxy"){
 		startProxy = true;
@@ -768,10 +773,13 @@ int main(int argc, char *argv[]) {
 #ifndef ENABLE_CONFERENCE
 		LOGF("Flexisip was compiled without conference server extension.");
 #endif
+	}else if (functionName.getValue() == "regevent"){
+		startRegEvent = true;
 	}else if (functionName.getValue() == "all"){
 		startPresence = true;
 		startProxy = true;
 		startConference = true;
+		startRegEvent = true;
 	}else if (functionName.getValue().empty()){
 		auto default_servers = cfg->getGlobal()->get<ConfigStringList>("default-servers");
 		if (default_servers->contains("proxy")){
@@ -783,13 +791,16 @@ int main(int argc, char *argv[]) {
 		if (default_servers->contains("conference")){
 			startConference = true;
 		}
+		if (default_servers->contains("regevent")){
+			startRegEvent = true;
+		}
 		if (!startPresence && !startProxy && !startConference){
 			LOGF("Bad default-servers definition '%s'.", default_servers->get().c_str());
 		}
 	}else{
 		LOGF("There is no server function '%s'.", functionName.getValue().c_str());
 	}
-	string fName = getFunctionName(startProxy, startPresence, startConference);
+	string fName = getFunctionName(startProxy, startPresence, startConference, startRegEvent);
 	// Initialize
 	std::string log_level = cfg->getGlobal()->get<ConfigString>("log-level")->read();
 	std::string syslog_level = cfg->getGlobal()->get<ConfigString>("syslog-level")->read();
@@ -801,7 +812,7 @@ int main(int argc, char *argv[]) {
 	sip_update_default_mclass(sip_extend_mclass(NULL));
 
 	root = su_root_create(NULL);
-	
+
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGTERM, flexisip_stop);
 	signal(SIGINT, flexisip_stop);
@@ -882,7 +893,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	/*
-	 * From now on, we are a flexisip daemon, that is a process that will run proxy, presence, or conference server.
+	 * From now on, we are a flexisip daemon, that is a process that will run proxy, presence, regevent or conference server.
 	 */
 	LOGN("Starting flexisip %s-server version %s", fName.c_str(), FLEXISIP_GIT_VERSION);
 	GenericManager::get()->sendTrap("Flexisip "+ fName + "-server starting");
@@ -929,6 +940,7 @@ int main(int argc, char *argv[]) {
 		if (trackAllocs)
 			msg_set_callbacks(flexisip_msg_create, flexisip_msg_destroy);
 	}
+
 	if (startPresence){
 #ifdef ENABLE_PRESENCE
 		bool enableLongTermPresence = (cfg->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read());
@@ -967,6 +979,15 @@ int main(int argc, char *argv[]) {
 			LOGF("Fail to start flexisip conference server");
 		}
 #endif // ENABLE_CONFERENCE
+	}
+
+	if (startRegEvent) {
+		regEventServer = make_shared<RegistrationEvent::Server>(root);
+		try {
+			regEventServer->init();
+		} catch(FlexisipException &e) {
+			LOGF("Fail to start flexisip conference server");
+		}
 	}
 
 	su_root_run(root);
