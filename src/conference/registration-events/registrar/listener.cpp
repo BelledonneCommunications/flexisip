@@ -29,7 +29,7 @@ void Listener::processRecord(const shared_ptr<Record> &r) {
     Registration re = Registration(
         Uri(this->event->getTo()->asString().c_str()),
         "123",
-        Registration::StateType::init
+        Registration::StateType::active
     );
     SofiaAutoHome home;
 
@@ -70,6 +70,10 @@ void Listener::processRecord(const shared_ptr<Record> &r) {
 
             // If there is some contacts, we set the sate to active
             re.setState(Registration::StateType::active);
+        }
+
+        if (r->getExtendedContacts().size() == 0) {
+            re.setState(Registration::StateType::terminated);
         }
     }
 
