@@ -127,10 +127,10 @@ void RegistrarDbInternal::doClear(const sip_t *sip, const shared_ptr<ContactUpda
 	LOGD("AOR %s found", key.c_str());
 	shared_ptr<Record> r = (*it).second;
 
-	/*if (r->isInvalidRegister(sip->sip_call_id->i_id, sip->sip_cseq->cs_seq)) {
+	if (r->isInvalidRegister(sip->sip_call_id->i_id, sip->sip_cseq->cs_seq)) {
 		listener->onInvalid();
 		return;
-	}*/
+	}
 
 	mRecords.erase(it);
 	mLocalRegExpire->remove(key);

@@ -51,9 +51,10 @@ void Client::onNotifyReceived(
     unique_ptr<Reginfo> ri(parseReginfo(data, Xsd::XmlSchema::Flags::dont_validate));
 
     for (const auto &registration : ri->getRegistration()) {
+        list<shared_ptr<ParticipantDeviceIdentity>> participantDevices;
+
         for (const auto &contact : registration.getContact()) {
-            list<shared_ptr<ParticipantDeviceIdentity>> participantDevices;
-            auto partAddr = Factory::get()->createAddress(contact.getUri());
+            auto partDeviceAddr = Factory::get()->createAddress(contact.getUri());
 
             Contact::UnknownParamSequence ups = contact.getUnknownParam();
 
@@ -64,7 +65,7 @@ void Client::onNotifyReceived(
                         : string("");
 
                     shared_ptr<ParticipantDeviceIdentity> identity = Factory::get()->createParticipantDeviceIdentity(
-                        partAddr,
+                        partDeviceAddr,
                         displayName
                     );
 
@@ -72,13 +73,11 @@ void Client::onNotifyReceived(
                     break;
                 }
             }
+        }
 
-            if (!participantDevices.empty()) {
-                partAddr->setUriParams("");
-
-                this->mChatRoom->setParticipantDevices(partAddr, participantDevices);
-            }
-
+        if (!participantDevices.empty()) {
+            auto partAddr = Factory::get()->createAddress(registration.getAor());
+            this->mChatRoom->setParticipantDevices(partAddr, participantDevices);
         }
     }
 

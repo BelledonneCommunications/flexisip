@@ -539,11 +539,12 @@ static void list_modules() {
 	}
 }
 
-static const string getFunctionName(bool startProxy, bool startPresence, bool startConference){
+static const string getFunctionName(bool startProxy, bool startPresence, bool startConference, bool regEvent){
 	string functions;
 	if(startProxy) functions = "proxy";
 	if(startPresence) functions += ((functions.empty()) ? "" : "+") + string("presence");
 	if(startConference) functions += ((functions.empty()) ? "" : "+") + string("conference");
+	if(regEvent) functions += ((functions.empty()) ? "" : "+") + string("regevent");
 
 	return (functions.empty()) ? "none" : functions;
 }
@@ -586,6 +587,7 @@ static string version() {
 #if ENABLE_CONFERENCE
 	version << "- Conference\n";
 #endif
+	version << "- RegEvent\n";
 
 	return version.str();
 }
@@ -807,7 +809,7 @@ int main(int argc, char *argv[]) {
 	}else{
 		LOGF("There is no server function '%s'.", functionName.getValue().c_str());
 	}
-	string fName = getFunctionName(startProxy, startPresence, startConference);
+	string fName = getFunctionName(startProxy, startPresence, startConference, startRegEvent);
 	// Initialize
 	std::string log_level = cfg->getGlobal()->get<ConfigString>("log-level")->read();
 	std::string syslog_level = cfg->getGlobal()->get<ConfigString>("syslog-level")->read();
@@ -898,7 +900,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	/*
-	 * From now on, we are a flexisip daemon, that is a process that will run proxy, presence, or conference server.
+	 * From now on, we are a flexisip daemon, that is a process that will run proxy, presence, regevent or conference server.
 	 */
 	LOGN("Starting flexisip %s-server version %s", fName.c_str(), FLEXISIP_GIT_VERSION);
 	GenericManager::get()->sendTrap("Flexisip "+ fName + "-server starting");
@@ -945,6 +947,7 @@ int main(int argc, char *argv[]) {
 		if (trackAllocs)
 			msg_set_callbacks(flexisip_msg_create, flexisip_msg_destroy);
 	}
+
 	if (startPresence){
 #ifdef ENABLE_PRESENCE
 		bool enableLongTermPresence = (cfg->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read());
@@ -983,6 +986,15 @@ int main(int argc, char *argv[]) {
 			LOGF("Fail to start flexisip conference server");
 		}
 #endif // ENABLE_CONFERENCE
+	}
+
+	if (startRegEvent) {
+		regEventServer = make_shared<RegistrationEvent::Server>(root);
+		try {
+			regEventServer->init();
+		} catch(FlexisipException &e) {
+			LOGF("Fail to start flexisip conference server");
+		}
 	}
 
 	su_root_run(root);

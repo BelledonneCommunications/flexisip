@@ -126,6 +126,7 @@ static void basic() {
 	SofiaAutoHome home;
 
 	string participantFrom = "sip:participant1@test.com";
+	auto participantUrl = url_make(home.home(), participantFrom.c_str());
 	string otherParticipantFrom = "sip:participant2@test.com";
 	auto otherParticipantUrl = url_make(home.home(), otherParticipantFrom.c_str());
 
@@ -137,15 +138,17 @@ static void basic() {
 	parameter.userAgent = "Linphone1 (Ubuntu) LinphoneCore";
 	parameter.withGruu = true;
 
+	auto participantContact = sip_contact_create(
+		home.home(),
+		(url_string_t *)participantFrom.c_str(),
+		string("+sip.instance=\"<f75b0df3-1836-4b83-b7f6-00e48842c9a7-ubuntu>\"").c_str(),
+		string("+org.linphone.specs=\"groupchat,lime\"").c_str(),
+		nullptr
+	);
+
 	RegistrarDb::get()->bind(
-		url_make(home.home(), participantFrom.c_str()),
-		sip_contact_create(
-			home.home(),
-			(url_string_t *)participantFrom.c_str(),
-			string("+sip.instance=\"<f75b0df3-1836-4b83-b7f6-00e48842c9a7>\"").c_str(),
-			string("+org.linphone.specs=\"groupchat,lime\"").c_str(),
-			nullptr
-		),
+		participantUrl,
+		participantContact,
 		parameter,
 		make_shared<BindListener>()
 	);
@@ -163,7 +166,7 @@ static void basic() {
 		sip_contact_create(
 			home.home(),
 			(url_string_t *)otherParticipantFrom.c_str(),
-			string("+sip.instance=\"<ab959409-7076-464e-85f8-7f8a84864618>\"").c_str(),
+			string("+sip.instance=\"<ab959409-7076-464e-85f8-7f8a84864618-redhat>\"").c_str(),
 			string("+org.linphone.specs=\"groupchat,lime\"").c_str(),
 			nullptr
 		),
@@ -184,7 +187,7 @@ static void basic() {
 		sip_contact_create(
 			home.home(),
 			(url_string_t *)otherParticipantFrom.c_str(),
-			string("+sip.instance=\"<6d6ed907-dbd0-4dfc-abf8-6470310bc4ed>\"").c_str(),
+			string("+sip.instance=\"<6d6ed907-dbd0-4dfc-abf8-6470310bc4ed-debian>\"").c_str(),
 			nullptr
 		),
 		parameter3,
@@ -268,7 +271,7 @@ static void basic() {
 	auto otherParticipantContact = sip_contact_create(
 		home.home(),
 		(url_string_t *)otherParticipantFrom.c_str(),
-		string("+sip.instance=\"<9db326ca-1ee5-400b-b7f1-d31086530a35>\"").c_str(),
+		string("+sip.instance=\"<9db326ca-1ee5-400b-b7f1-d31086530a35-new-device>\"").c_str(),
 		string("+org.linphone.specs=\"groupchat,lime\"").c_str(),
 		nullptr
 	);
@@ -307,6 +310,7 @@ static void basic() {
 		parameter4,
 		make_shared<BindListener>()
 	);
+	RegistrarDb::get()->publish(otherParticipantFrom.substr(4).c_str(), "");
 
 	BC_ASSERT_TRUE(RegEventAssert({clientCore,regEventCore},agent).wait([chatRoom] {
 		int numberOfDevices = 0;
@@ -314,26 +318,41 @@ static void basic() {
 			numberOfDevices += participant->getDevices().size();
 		}
 
-		if(numberOfDevices == 2) {
-			for (auto participant: chatRoom->getParticipants()) {
-				cout << "PARTICIPANT " << participant->getAddress()->asString() << endl;
-				numberOfDevices += participant->getDevices().size();
-
-				for (auto device: participant->getDevices()) {
-					cout << "DEVICE " << device->getName() << endl;
-				}
-			}
-
-			return true;
-		}
-
-		return false;
+		return numberOfDevices == 2;
 	}));
 
 	auto participantsTestRemoved = chatRoom->getParticipants();
 	BC_ASSERT_TRUE(participantsTest.front()->getAddress()->asString() == participantFrom);
 	BC_ASSERT_TRUE(participantsTest.back()->getAddress()->asString() == otherParticipantFrom);
 	BC_ASSERT_TRUE(participantsTest.back()->getDevices().back()->getName() == firstDeviceName);
+
+	// Remove the first participant
+
+	parameter.globalExpire = 0;
+	parameter.callId = "random_id_necessary_to_bind_6";
+
+	RegistrarDb::get()->bind(
+		participantUrl,
+		participantContact,
+		parameter,
+		make_shared<BindListener>()
+	);
+	RegistrarDb::get()->publish(participantFrom.substr(4).c_str(), "");
+
+	BC_ASSERT_TRUE(RegEventAssert({clientCore,regEventCore},agent).wait([chatRoom] {
+		int numberOfDevices = 0;
+		for (auto participant: chatRoom->getParticipants()) {
+			numberOfDevices += participant->getDevices().size();
+		}
+
+		return numberOfDevices == 1;
+	}));
+
+	auto firstParticipantTestRemoved = chatRoom->getParticipants();
+	BC_ASSERT_TRUE(firstParticipantTestRemoved.front()->getAddress()->asString() == otherParticipantFrom);
+	BC_ASSERT_TRUE(firstParticipantTestRemoved.back()->getAddress()->asString() == otherParticipantFrom);
+	BC_ASSERT_TRUE(firstParticipantTestRemoved.back()->getDevices().front()->getName() == firstDeviceName);
+	BC_ASSERT_TRUE(firstParticipantTestRemoved.back()->getDevices().back()->getName() == firstDeviceName);
 }
 
 static test_t tests[] = {
