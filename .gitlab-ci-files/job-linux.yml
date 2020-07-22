@@ -166,10 +166,12 @@ tests-flexisip-mr:
     liblinphone_tester: "gitlab.linphone.org:4567/bc/public/linphone-sdk/liblinphone_tester:$SDK_VERSION"
     sourcedir: ${CI_PROJECT_DIR}/linphone-sdk-docker
     workspace: "${CI_PROJECT_DIR}/liblinphone_tester_workspace"
+
+    # Docker run options are only used for coredump display if any
+    # We are forced to copy the same string as "workspace" because we can't use nested variables in the same place (i.e. in variable declaration)
+    docker_run_options: "-v ${CI_PROJECT_DIR}/liblinphone_tester_workspace:/home/bc/linphone-sdk-build/linphone-sdk/desktop/work"
     # we can't use $workspace nested variables here, since defined variables
     #   are extended in "script".
-
-    # Docker run options are defined in docker-compose
 
   script:
 
@@ -183,11 +185,11 @@ tests-flexisip-mr:
     - echo $liblinphone_tester
     - echo $sourcedir
     - echo $workspace
-    - echo $docker_run_options
 
     - |
         if [ "$REBUILD_SDK" = "true" ]; then
         git clone -b feature/docker_liblinphone_tester --single-branch https://gitlab.linphone.org/BC/Public/linphone-sdk --recursive --jobs 12 linphone-sdk-docker
+        docker build -t $liblinphone_tester --build-arg="branch=$SDK_BRANCH" --build-arg="njobs=8" -f "$PWD/linphone-sdk-docker/liblinphone-tester" .
         fi
     - git clone -b master --single-branch git@gitlab.linphone.org:BC/Public/flexisip-tester --jobs 12
     - export FLEXISIP_DOCKER_IMAGE="gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src"
@@ -248,6 +250,7 @@ tests-flexisip-mr:
 
     - export FLEXISIP_LOGS="$workspace"
 
+    - echo $docker_run_options
 
     - cd $workspace
 
@@ -261,7 +264,7 @@ tests-flexisip-mr:
     #   buggy or silent log artifacts
     # We output only liblinphone_tester on stdout
 
-    - docker-compose $docker_compose_options up --exit-code-from liblinphone_tester | grep 'liblinphone_tester_1' || EXIT=$?
+    - docker-compose $docker_compose_options up -V --exit-code-from liblinphone_tester | grep 'liblinphone_tester_1' || EXIT=$?
 
     # For each launched service, we print logs in seperate file with follow and timestamp options
     - |
@@ -298,6 +301,8 @@ tests-flexisip-mr:
     # args, we enter the entrypoint first, then the name of the image, then the
     # args to the entrypoint command.
     # "true ||" is used here to continue the script even if the find fails
+
+    - ls | grep core* || true
     - if [[ -n $(find . -type f -name "core*") ]]; then find . -type f -name "core*" | xargs -L1 docker run $docker_run_options --entrypoint gdb $liblinphone_tester ../bin/liblinphone_tester -x gdb_options; fi || true
 
     # simplifing artifacts browsing
@@ -309,7 +314,6 @@ tests-flexisip-mr:
     - cp -r BCUnitAutomated* ${CI_PROJECT_DIR}/results
     - cp -r *.log.gz ${CI_PROJECT_DIR}/results
     - cp -r ext/*.log* ${CI_PROJECT_DIR}/results/ext
-    - cp -r logs_all ${CI_PROJECT_DIR}/results
 
   artifacts:
     paths:
