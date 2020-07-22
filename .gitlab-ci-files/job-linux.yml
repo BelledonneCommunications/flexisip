@@ -158,7 +158,7 @@ tests-flexisip-mr:
     #Set this option to true each time you change the commit to checkout for
     #  linphone-sdk, otherwise, the SDK is never rebuild. default = true
     REBUILD_SDK: "false"
-    SDK_VERSION: "4.3"
+    SDK_VERSION: "4.3.3-46-g20b27fd"
     SDK_BRANCH: "release/$SDK_VERSION"
 
     # uses flex-from-src instead of basic rpm dockerfile
