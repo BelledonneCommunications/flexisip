@@ -321,9 +321,12 @@ static void basic() {
 		return numberOfDevices == 2;
 	}));
 
-	auto participantsTestRemoved = chatRoom->getParticipants();
+	participantsTest = chatRoom->getParticipants();
+
+	BC_ASSERT_TRUE(participantsTest.size() == 2);
 	BC_ASSERT_TRUE(participantsTest.front()->getAddress()->asString() == participantFrom);
 	BC_ASSERT_TRUE(participantsTest.back()->getAddress()->asString() == otherParticipantFrom);
+	BC_ASSERT_TRUE(participantsTest.back()->getDevices().size() == 1);
 	BC_ASSERT_TRUE(participantsTest.back()->getDevices().back()->getName() == firstDeviceName);
 
 	// Remove the first participant
@@ -348,11 +351,10 @@ static void basic() {
 		return numberOfDevices == 1;
 	}));
 
-	auto firstParticipantTestRemoved = chatRoom->getParticipants();
-	BC_ASSERT_TRUE(firstParticipantTestRemoved.front()->getAddress()->asString() == otherParticipantFrom);
-	BC_ASSERT_TRUE(firstParticipantTestRemoved.back()->getAddress()->asString() == otherParticipantFrom);
-	BC_ASSERT_TRUE(firstParticipantTestRemoved.back()->getDevices().front()->getName() == firstDeviceName);
-	BC_ASSERT_TRUE(firstParticipantTestRemoved.back()->getDevices().back()->getName() == firstDeviceName);
+	participantsTest = chatRoom->getParticipants();
+
+	BC_ASSERT_TRUE(participantsTest.size() == 1);
+	BC_ASSERT_TRUE(participantsTest.front()->getAddress()->asString() == otherParticipantFrom);
 }
 
 static test_t tests[] = {
