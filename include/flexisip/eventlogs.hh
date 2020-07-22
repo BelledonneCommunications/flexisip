@@ -22,6 +22,7 @@
 #include <mutex>
 #include <queue>
 #include <string>
+#include <array>
 
 #include <sofia-sip/sip.h>
 #include <sofia-sip/sip_protos.h>
