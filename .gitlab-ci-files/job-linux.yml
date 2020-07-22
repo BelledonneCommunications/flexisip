@@ -159,7 +159,8 @@ tests-flexisip-mr:
     #  linphone-sdk, otherwise, the SDK is never rebuild. default = true
     REBUILD_SDK: "false"
     SDK_VERSION: "4.3"
-    SDK_BRANCH: "release/$SDK_VERSION"
+    #SDK_BRANCH: "release/$SDK_VERSION"
+    SDK_BRANCH: "fix/server-grp-chat-room-deletion"
 
     # uses flex-from-src instead of basic rpm dockerfile
     DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip:latest -f docker/flex-from-src --build-arg=njobs=12"
