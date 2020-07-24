@@ -20,9 +20,10 @@
 
 #include <string>
 
-#include "belle-sip/belle-sip.h"
+#include <belle-sip/belle-sip.h>
 
 #include "presentity-presenceinformation.hh"
+#include "utils/belle-sip-utils.hh"
 
 namespace flexisip {
 
@@ -30,7 +31,7 @@ class Subscription : public std::enable_shared_from_this<Subscription>{
 
   public:
 	enum State { active, pending, terminated };
-	Subscription(const std::string &eventName, unsigned int expires, belle_sip_dialog_t *aDialog, belle_sip_provider_t *prov);
+	Subscription(const std::string &eventName, unsigned int expires, const bellesip::weak_ptr<belle_sip_dialog_t> &aDialog, belle_sip_provider_t *prov);
 	Subscription(const Subscription &) = delete;
 	virtual ~Subscription() = default;
 	void setAcceptHeader(belle_sip_header_t *acceptHeader);
@@ -54,7 +55,6 @@ class Subscription : public std::enable_shared_from_this<Subscription>{
 	belle_sip_client_transaction_t *mCurrentTransaction = nullptr;
 
   protected:
-	using BelleSipDialogPtr = std::unique_ptr<belle_sip_dialog_t, BelleSipObjectDeleter<belle_sip_dialog_t>>;
 	using BelleSipProviderPtr = std::unique_ptr<belle_sip_provider_t, BelleSipObjectDeleter<belle_sip_provider_t>>;
 
 	static constexpr const char *sSubscriptionDataTag = "subscription";
@@ -75,7 +75,7 @@ class Subscription : public std::enable_shared_from_this<Subscription>{
 		return data ? *static_cast<std::shared_ptr<Subscription> *>(data) : nullptr;
 	}
 
-	BelleSipDialogPtr mDialog{nullptr};
+	bellesip::weak_ptr<belle_sip_dialog_t> mDialog{};
 	belle_sip_provider_t *mProv{nullptr};
 
   private:
@@ -99,7 +99,7 @@ class Subscription : public std::enable_shared_from_this<Subscription>{
  */
 class PresenceSubscription : public Subscription, public PresentityPresenceInformationListener {
   public:
-	PresenceSubscription(unsigned int expires, const belle_sip_uri_t *presentity, belle_sip_dialog_t *aDialog,
+	PresenceSubscription(unsigned int expires, const belle_sip_uri_t *presentity, const bellesip::weak_ptr<belle_sip_dialog_t> &aDialog,
 						 belle_sip_provider_t *aProv);
 	~PresenceSubscription() override;
 
