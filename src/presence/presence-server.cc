@@ -17,26 +17,29 @@
 */
 
 #include <algorithm>
-#include <string.h>
 #include <signal.h>
+#include <string.h>
 
-#include "belle-sip/belle-sip.h"
+#include <belle-sip/belle-sip.h>
 #if ENABLE_SOCI
-	#include "soci/mysql/soci-mysql.h"
+#include <soci/mysql/soci-mysql.h>
 #endif
 
 #include <flexisip/configmanager.hh>
+#include <flexisip/registrardb.hh>
+
 #include "bellesip-signaling-exception.hh"
 #include "list-subscription/body-list-subscription.hh"
 #if ENABLE_SOCI
 	#include "list-subscription/external-list-subscription.hh"
 #endif
 #include "pidf+xml.hh"
-#include "presence-server.hh"
 #include "presentity-presenceinformation.hh"
 #include "resource-lists.hh"
-#include <flexisip/registrardb.hh>
 #include "subscription.hh"
+#include "utils/belle-sip-utils.hh"
+
+#include "presence-server.hh"
 
 using namespace flexisip;
 using namespace pidf;
@@ -657,9 +660,9 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 	 */
 	belle_sip_server_transaction_t *server_transaction = belle_sip_provider_create_server_transaction(mProvider, request);
 	belle_sip_object_data_set((belle_sip_object_t*)request, "my-transaction", server_transaction, nullptr);
-	belle_sip_dialog_t *dialog = belle_sip_request_event_get_dialog(event);
+	bellesip::shared_ptr<belle_sip_dialog_t> dialog{belle_sip_request_event_get_dialog(event)};
 	if (!dialog)
-		dialog = belle_sip_provider_create_dialog(mProvider, BELLE_SIP_TRANSACTION(server_transaction));
+		dialog.reset(belle_sip_provider_create_dialog(mProvider, BELLE_SIP_TRANSACTION(server_transaction)));
 
 	if (!dialog)
 		throw BELLESIP_SIGNALING_EXCEPTION(481) << "Cannot create dialog from request ["<< request << "]";
@@ -667,7 +670,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 	belle_sip_header_expires_t *headerExpires = belle_sip_message_get_header_by_type(request, belle_sip_header_expires_t);
 	int expires = headerExpires ? belle_sip_header_expires_get_expires(headerExpires) : 3600; // rfc3856, default value
 	belle_sip_header_t *acceptEncodingHeader = belle_sip_message_get_header(BELLE_SIP_MESSAGE(request), "Accept-Encoding");
-	switch (belle_sip_dialog_get_state(dialog)) {
+	switch (belle_sip_dialog_get_state(dialog.get())) {
 		case BELLE_SIP_DIALOG_NULL: {
 			belle_sip_header_supported_t *supported =
 				belle_sip_message_get_header_by_type(BELLE_SIP_MESSAGE(request), belle_sip_header_supported_t);
@@ -682,16 +685,22 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 
 			// List subscription
 			if (supported && belle_sip_list_find_custom(belle_sip_header_supported_get_supported(supported), (belle_sip_compare_func)strcasecmp, "eventlist")) {
-				SLOGD << "Subscribe for resource list " << "for dialog [" << BELLE_SIP_OBJECT(dialog) << "]";
+				SLOGD << "Subscribe for resource list " << "for dialog [" << BELLE_SIP_OBJECT(dialog.get()) << "]";
 				// will be release when last PresentityPresenceInformationListener is released
 				shared_ptr<ListSubscription> listSubscription;
 				belle_sip_header_content_type_t *contentType = belle_sip_message_get_header_by_type(request, belle_sip_header_content_type_t);
-				auto listAvailableLambda = [this, bypass, acceptEncodingHeader, server_transaction, resp, dialog] (shared_ptr<ListSubscription> listSubscription) {
+				auto listAvailableLambda = [this, bypass, acceptEncodingHeader, server_transaction, resp, wDialog = bellesip::weak_ptr<belle_sip_dialog_t>{dialog}] (shared_ptr<ListSubscription> listSubscription) {
+					auto dialog = wDialog.lock();
+					if (!dialog) {
+						SLOGD << "Dialog for ListSubscription[" << listSubscription << "] no more exists. Abort list subscription";
+						return;
+					}
+
 					if (acceptEncodingHeader)
 						listSubscription->setAcceptEncodingHeader(acceptEncodingHeader);
 
-					if (getSubscription(dialog) == nullptr) {
-						setSubscription(dialog, listSubscription);
+					if (getSubscription(dialog.get()) == nullptr) {
+						setSubscription(dialog.get(), listSubscription);
 					}
 					// send 200ok late to allow deeper analysis of request
 					belle_sip_server_transaction_send_response(server_transaction, resp.get());
@@ -740,12 +749,12 @@ error:
 						<< (contentType ? belle_sip_header_content_type_get_type(contentType) : "not set") << "/"
 						<< (contentType ? belle_sip_header_content_type_get_subtype(contentType) : "not set") << "]";
 				}
-				setSubscription(dialog, listSubscription);
+				setSubscription(dialog.get(), listSubscription);
 			} else { // Simple subscription
 				auto sub = make_shared<PresenceSubscription>(expires, belle_sip_request_get_uri(request), dialog, mProvider);
 				shared_ptr<PresentityPresenceInformationListener> subscription{sub};
-				setSubscription(dialog, sub);
-				SLOGD << " setting sub pointer [" << belle_sip_dialog_get_application_data(dialog) << "] to dialog [" << dialog << "]";
+				setSubscription(dialog.get(), sub);
+				SLOGD << " setting sub pointer [" << belle_sip_dialog_get_application_data(dialog.get()) << "] to dialog [" << dialog.get() << "]";
 				// send 200ok late to allow deeper anylise of request
 				belle_sip_server_transaction_send_response(server_transaction, resp.get());
 				subscription->enableBypass(bypass);
@@ -755,7 +764,7 @@ error:
 			break;
 		}
 		case BELLE_SIP_DIALOG_CONFIRMED: {
-			auto subscription = getSubscription(dialog);
+			auto subscription = getSubscription(dialog.get());
 
 			//			RFC 3265
 			//			3.1.4.2. Refreshing of Subscriptions
@@ -785,7 +794,7 @@ error:
 
 			if (!subscription || subscription->getState() == Subscription::State::terminated) {
 				throw BELLESIP_SIGNALING_EXCEPTION(481) << "Subscription [" << hex << subscription << "] for dialog ["
-											   << BELLE_SIP_OBJECT(dialog) << "] already in terminated state";
+											   << BELLE_SIP_OBJECT(dialog.get()) << "] already in terminated state";
 			}
 
 			//			 If a SUBSCRIBE request to refresh a subscription fails with a non-481
@@ -824,7 +833,7 @@ error:
 
 		default: {
 			throw BELLESIP_SIGNALING_EXCEPTION(400) << "Unexpected request [" << hex << (long)request << "for dialog ["
-										   << hex << (long)dialog << "in state [" << belle_sip_dialog_state_to_string(belle_sip_dialog_get_state(dialog));
+										   << hex << (long)dialog.get() << "in state [" << belle_sip_dialog_state_to_string(belle_sip_dialog_get_state(dialog.get()));
 		}
 	}
 }

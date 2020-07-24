@@ -99,7 +99,7 @@ protected:
 	 * that corresponds to the list.  Typically, this is the URI to which
 	 * the SUBSCRIBE request was sent.
 	 **/
-	const belle_sip_uri_t *mName = nullptr;
+	bellesip::shared_ptr<const belle_sip_uri_t> mName{};
 
 private:
 	// return true if a real notify can be sent.

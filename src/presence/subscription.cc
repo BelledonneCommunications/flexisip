@@ -27,9 +27,9 @@ using namespace std;
 
 namespace flexisip {
 
-Subscription::Subscription(const string &eventName, unsigned int expires, belle_sip_dialog_t *aDialog,
+Subscription::Subscription(const string &eventName, unsigned int expires, const bellesip::weak_ptr<belle_sip_dialog_t> &aDialog,
 						   belle_sip_provider_t *prov)
-	: mDialog{reinterpret_cast<belle_sip_dialog_t *>(belle_sip_object_ref(BELLE_SIP_OBJECT(aDialog)))}, mProv{prov}, mEventName{eventName} {
+	: mDialog{aDialog}, mProv{prov}, mEventName{eventName} {
 	time(&mCreationTime);
 	mExpirationTime = mCreationTime + expires;
 }
@@ -56,12 +56,17 @@ const char *Subscription::stateToString(State aState) {
 
 void Subscription::notify(belle_sip_header_content_type_t *content_type, const string *body,
 						  belle_sip_multipart_body_handler_t *multiPartBody, const string *content_encoding) {
-	if (belle_sip_dialog_get_state(mDialog.get()) != BELLE_SIP_DIALOG_CONFIRMED) {
-		SLOGI << "Cannot notify information change for [" << this << "] because dialog [" << mDialog.get() << "] is in state ["
-			  << belle_sip_dialog_state_to_string(belle_sip_dialog_get_state(mDialog.get())) << "]";
+	auto dialog = mDialog.lock();
+	if (!dialog) {
+		SLOGI << "Cannot notify information change for [" << this << "] because dialog no more exists";
 		return;
 	}
-	belle_sip_request_t *notify = belle_sip_dialog_create_queued_request(mDialog.get(), "NOTIFY");
+	if (belle_sip_dialog_get_state(dialog.get()) != BELLE_SIP_DIALOG_CONFIRMED) {
+		SLOGI << "Cannot notify information change for [" << this << "] because dialog [" << dialog.get() << "] is in state ["
+			  << belle_sip_dialog_state_to_string(belle_sip_dialog_get_state(dialog.get())) << "]";
+		return;
+	}
+	belle_sip_request_t *notify = belle_sip_dialog_create_queued_request(dialog.get(), "NOTIFY");
 	belle_sip_message_add_header((belle_sip_message_t *)notify, belle_sip_header_create("Event", mEventName.c_str()));
 
 	if (content_type && body) {
@@ -117,15 +122,15 @@ void Subscription::notify(belle_sip_header_content_type_t *content_type, const s
 }
 
 const belle_sip_uri_t* Subscription::getFrom() {
-	return belle_sip_header_address_get_uri(belle_sip_dialog_get_local_party(mDialog.get()));
+	return belle_sip_header_address_get_uri(belle_sip_dialog_get_local_party(mDialog.lock().get()));
 }
 const belle_sip_uri_t* Subscription::getTo() {
-	return belle_sip_header_address_get_uri(belle_sip_dialog_get_remote_party(mDialog.get()));
+	return belle_sip_header_address_get_uri(belle_sip_dialog_get_remote_party(mDialog.lock().get()));
 }
 // Presence Subscription
 
 PresenceSubscription::PresenceSubscription(unsigned int expires, const belle_sip_uri_t *presentity,
-										   belle_sip_dialog_t *aDialog, belle_sip_provider_t *aProv)
+										   const bellesip::weak_ptr<belle_sip_dialog_t> &aDialog, belle_sip_provider_t *aProv)
 	: Subscription{"Presence", expires, aDialog, aProv},
 	  mPresentity{(belle_sip_uri_t *)belle_sip_object_ref(belle_sip_object_clone(BELLE_SIP_OBJECT(presentity)))} {}
 
