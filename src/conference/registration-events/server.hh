@@ -37,6 +37,7 @@ namespace RegistrationEvent {
             Init();
         };
 
+        static Init sStaticInit;
         shared_ptr<Core> mCore;
     };
 }

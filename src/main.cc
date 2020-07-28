@@ -71,7 +71,6 @@
 #endif
 
 #include "cli.hh"
-#include "conference/registration-events/server.hh"
 #include "configdumper.hh"
 #include "etchosts.hh"
 #include "monitor.hh"
@@ -84,6 +83,11 @@
 #include "presence/presence-server.hh"
 #include "presence/presence-longterm.hh"
 #endif
+
+#if ENABLE_REGEVENT
+#include "conference/registration-events/server.hh"
+#endif // ENABLE_REGEVENT
+
 #ifdef ENABLE_SNMP
 #include "snmp-agent.h"
 #endif
@@ -101,8 +105,9 @@ static std::shared_ptr<flexisip::PresenceServer> presenceServer;
 #if ENABLE_CONFERENCE
 static std::shared_ptr<flexisip::ConferenceServer> conferenceServer;
 #endif // ENABLE_CONFERENCE
-
+#if ENABLE_REGEVENT
 static std::shared_ptr<RegistrationEvent::Server> regEventServer;
+#endif // ENABLE_REGEVENT
 
 using namespace std;
 using namespace flexisip;
@@ -575,7 +580,9 @@ static string version() {
 #if ENABLE_CONFERENCE
 	version << "- Conference\n";
 #endif
+#if ENABLE_REGEVENT
 	version << "- RegEvent\n";
+#endif
 
 	return version.str();
 }
@@ -775,6 +782,9 @@ int main(int argc, char *argv[]) {
 #endif
 	}else if (functionName.getValue() == "regevent"){
 		startRegEvent = true;
+#ifndef ENABLE_REGEVENT
+		LOGF("Flexisip was compiled without regevent server extension.")
+#endif
 	}else if (functionName.getValue() == "all"){
 		startPresence = true;
 		startProxy = true;
@@ -981,6 +991,7 @@ int main(int argc, char *argv[]) {
 #endif // ENABLE_CONFERENCE
 	}
 
+#ifdef ENABLE_REGEVENT
 	if (startRegEvent) {
 		regEventServer = make_shared<RegistrationEvent::Server>(root);
 		try {
@@ -989,6 +1000,7 @@ int main(int argc, char *argv[]) {
 			LOGF("Fail to start flexisip conference server");
 		}
 	}
+#endif // ENABLE_REGEVENT
 
 	su_root_run(root);
 
@@ -1004,6 +1016,10 @@ int main(int argc, char *argv[]) {
 	if (conferenceServer) conferenceServer->stop();
 	conferenceServer.reset();
 #endif // ENABLE_CONFERENCE
+
+#ifdef ENABLE_REGEVENT
+	if (regEventServer) regEventServer->stop();
+#endif // ENABLE_REGEVENT
 
 	if (stun) {
 		stun->stop();
