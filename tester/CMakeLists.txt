@@ -1,8 +1,13 @@
 
 set(SOURCE_FILES_CXX 	tester.cc tester.hh
-			boolean-expressions.cc
-			registration-event-tester.cc
+	boolean-expressions.cc
 )
+
+if(ENABLE_REGEVENT)
+	list(APPEND SOURCE_FILES_CXX
+		registration-event-tester.cc
+	)
+endif()
 
 set(FLEXISIP_INCLUDEDIRS)
 

@@ -59,13 +59,15 @@ void ParticipantRegistrationSubscriptionHandler::subscribe (
 			mSubscriptions.insert(make_pair(key, subscription));
 			subscription->start();
 		} else {
-			LOGD("Subscribed address is external [%s], subscribe to it", address->asString().c_str());
-			auto client = make_shared<RegistrationEvent::Client>(
-				mServer,
-				chatRoom,
-				address
-			);
-			client->subscribe();
+			#if ENABLE_REGEVENT
+				LOGD("Subscribed address is external [%s], subscribe to it", address->asString().c_str());
+				auto client = make_shared<RegistrationEvent::Client>(
+					mServer,
+					chatRoom,
+					address
+				);
+				client->subscribe();
+			#endif
 		}
 	}
 }
