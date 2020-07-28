@@ -1,0 +1,11 @@
+[Unit]
+Description=Flexisip RegEvent server - %i instance
+Documentation=http://www.linphone.org/technical-corner/flexisip/overview
+After=syslog.target network.service network.target redis.service
+
+[Service]
+Type=forking
+ExecStart=/opt/belledonne-communications/bin/flexisip --server regevent --daemon --syslog --pidfile /var/run/flexisip-proxy/%i.pid -c /etc/flexisip/%i.conf
+
+[Install]
+WantedBy=multi-user.target

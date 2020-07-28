@@ -7,8 +7,10 @@ using namespace linphone;
 
 static const string CONTENT_TYPE = "application/reginfo+xml";
 
+
 namespace RegistrationEvent {
 
+Server::Init Server::sStaticInit; // The Init object is instanciated to load the config
 Server::Server (su_root_t *root) : ServiceServer(root) {}
 Server::~Server () {}
 
@@ -42,17 +44,17 @@ void Server::onSubscribeReceived(
 void Server::_init () {
     su_root_t *root = su_root_create(NULL);
 
-    shared_ptr<Core> regEventCore = Factory::get()->createCore("", "", nullptr);
+    mCore = Factory::get()->createCore("", "", nullptr);
     auto config = GenericManager::get()->getRoot()->get<GenericStruct>("regevent-server");
 
-    regEventCore->getConfig()->setString("storage", "uri", config->get<ConfigString>("database-connection-string")->read());
-    regEventCore->getConfig()->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
+    mCore->getConfig()->setString("storage", "uri", config->get<ConfigString>("database-connection-string")->read());
+    mCore->getConfig()->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
 
     shared_ptr<Transports> regEventTransport = Factory::get()->createTransports();
     regEventTransport->setTcpPort(stoi(config->get<ConfigString>("port")->read()));
-    regEventCore->setTransports(regEventTransport);
-    regEventCore->addListener(make_shared<RegistrationEvent::Server>(root));
-    regEventCore->start();
+    mCore->setTransports(regEventTransport);
+    mCore->addListener(make_shared<RegistrationEvent::Server>(root));
+    mCore->start();
 }
 
 void Server::_run () {

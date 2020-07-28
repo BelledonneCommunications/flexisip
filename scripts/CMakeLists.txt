@@ -44,4 +44,7 @@ if (ENABLE_CONFERENCE)
 	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-conference.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-conference.service)
 	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-conference@.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-conference@.service)
 endif()
-
+if (ENABLE_REGEVENT)
+	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-regevent.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-regevent.service)
+	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-regevent@.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-regevent@.service)
+endif()
