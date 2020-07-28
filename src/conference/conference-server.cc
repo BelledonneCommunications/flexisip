@@ -33,7 +33,7 @@ using namespace linphone;
 namespace flexisip {
 
 SofiaAutoHome ConferenceServer::mHome;
-ConferenceServer::Init ConferenceServer::sStaticInit;
+ConferenceServer::Init ConferenceServer::sStaticInit; // The Init object is instanciated to load the config
 
 ConferenceServer::ConferenceServer (
 	const string &path,
