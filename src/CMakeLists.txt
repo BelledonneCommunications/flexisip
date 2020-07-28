@@ -243,7 +243,13 @@ if(ENABLE_CONFERENCE)
 		conference/registration-subscription.hh
 		conference/participant-registration-subscription-handler.cc
 		conference/participant-registration-subscription-handler.hh
+		conference/registration-events/utils.cpp
+		conference/registration-events/utils.hh
+	)
+endif()
 
+if(ENABLE_REGEVENT)
+	list(APPEND FLEXISIP_SOURCES
 		conference/registration-events/utils.cpp
 		conference/registration-events/utils.hh
 		conference/registration-events/client.cpp

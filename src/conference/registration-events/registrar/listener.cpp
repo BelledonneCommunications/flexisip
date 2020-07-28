@@ -28,7 +28,7 @@ void Listener::processRecord(const shared_ptr<Record> &r) {
     Reginfo ri = Reginfo(0, State::Value::full);
     Registration re = Registration(
         Uri(this->event->getTo()->asString().c_str()),
-        "123",
+        r->getKey().c_str(),
         Registration::StateType::active
     );
     SofiaAutoHome home;

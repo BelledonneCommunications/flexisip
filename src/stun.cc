@@ -28,7 +28,7 @@
 
 using namespace flexisip;
 
-StunServer::Init StunServer::sStaticInit;
+StunServer::Init StunServer::sStaticInit; // The Init object is instanciated to load the config
 
 StunServer::Init::Init() {
 	ConfigItemDescriptor items[] = {{Boolean, "enabled", "Enable or disable stun server.", "true"},
