@@ -46,7 +46,7 @@ void _belle_sip_log(const char *domain, BctbxLogLevel lev, const char *fmt, va_l
 	LOGV(lev, fmt, args);
 }
 
-PresenceServer::Init PresenceServer::sStaticInit;
+PresenceServer::Init PresenceServer::sStaticInit; // The Init object is instanciated to load the config
 
 PresenceServer::Init::Init() {
 	ConfigItemDescriptor items[] = {

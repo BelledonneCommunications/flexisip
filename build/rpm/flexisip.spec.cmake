@@ -118,7 +118,7 @@ Requires: %{pkg_prefix}liblinphone
 %define ctest_name ctest
 %endif
 
-%global flexisip_services %(printf 'flexisip-proxy.service'; if [ @ENABLE_PRESENCE@ -eq 1 ]; then printf ' flexisip-presence.service'; fi; if [ @ENABLE_CONFERENCE@ -eq 1 ]; then printf ' flexisip-conference.service\n'; fi)
+%global flexisip_services %(printf 'flexisip-proxy.service'; if [ @ENABLE_PRESENCE@ -eq 1 ]; then printf ' flexisip-presence.service'; fi; if [ @ENABLE_CONFERENCE@ -eq 1 ]; then printf ' flexisip-conference.service\n'; fi; if [ @ENABLE_REGEVENT@ -eq 1 ]; then printf ' flexisip-regevent.service\n'; fi)
 
 %description
 Extensible SIP proxy with media capabilities. Designed for robustness and easy of use.
@@ -188,6 +188,10 @@ install -p -m 0644 scripts/flexisip-presence\@.service $RPM_BUILD_ROOT/lib/syste
 	install -p -m 0644 scripts/flexisip-conference.service $RPM_BUILD_ROOT/lib/systemd/system
 	install -p -m 0644 scripts/flexisip-conference\@.service $RPM_BUILD_ROOT/lib/systemd/system
 %endif
+%if @ENABLE_REGEVENT@
+	install -p -m 0644 scripts/flexisip-regevent.service $RPM_BUILD_ROOT/lib/systemd/system
+	install -p -m 0644 scripts/flexisip-regevent\@.service $RPM_BUILD_ROOT/lib/systemd/system
+%endif
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
 install -p -m 0644 scripts/flexisip-logrotate $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
 
@@ -235,6 +239,11 @@ rm -rf $RPM_BUILD_ROOT
 %if @ENABLE_CONFERENCE@
 	%config(noreplace) /lib/systemd/system/flexisip-conference.service
 	%config(noreplace) /lib/systemd/system/flexisip-conference@.service
+%endif
+
+%if @ENABLE_REGEVENT@
+	%config(noreplace) /lib/systemd/system/flexisip-regevent.service
+	%config(noreplace) /lib/systemd/system/flexisip-regevent@.service
 %endif
 
 %{_sysconfdir}/flexisip
