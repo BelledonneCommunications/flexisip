@@ -28,44 +28,47 @@ Flexisip depends on the following projects, added as submodule in the git reposi
 - sofia-sip
 - ortp
 - bctoolbox
-- hiredis (optionaly)
-
-Thesedependencies below are optional, though stronly recommended for a reliable and scalable deployment:
-- soci
-- protobuf
-- netsnmp
+- belr
+- openSSL
+- hiredis (optional: Redis registrar database backend and cluster mode)
+- mediastreamer (optional: transcoding feature)
+- protobuf (optional: migration from legacy registrar database format)
+- belle-sip (optional: mDNS support)
+- soci (optional: SQL database support)
+- netsnmp (optional: SNMP support)
+- pdflatex (optional: to generate the documentation in PDF format)
 
 Specifically for presence server:
-- xsd (>= 4, for old OS on which this version isn't packaged, rpm and deb
-  are available here: http://www.codesynthesis.com/products/xsd/download.xhtml)
-- pdflatex to generate the documentation in PDF format.
-- xercesc3
+- belle-sip
+- xsd (=4.0.0)
+- xercesc
+
+Specifically for conference server:
+- belle-sip
+- liblinphone++
 
 
 # Compilation
 
-Flexisip uses cmake as build system, extended by a prepare.py script written in python.
-Note that some automake/autoconf scripts and Makefile.am are also present in the source code, however
-they are no longer the recommended way for building flexisip, and these files will be removed in mid term.
+Flexisip uses cmake as build system, extended by a prepare.py script written in Python.
 
 ## GNU/Linux developer build
 
 You can issue ./prepare.py -lf to see all possible build options.
-Then use the following to proceed with compilation:
+Then, use the following to proceed with compilation:
 	./prepare.py <build options>
 	make
 
-
-Alternatively, provided that ortp, bctoolbox and sofia-sip dependencies are installed on the system, flexisip's cmake
-integration can be used directly, for example:
+Alternatively, should all the dependencies listed above be installed on the system, Flexisip's CMake scripts
+can be used directly. For example:
 
 	cmake . -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc
 	make
 
 ## rpm and deb packages
 
-The "flexisip-rpm" ./prepare.py target can be used to generate rpm packages for flexisip and its dependencies.
-"Alien" program is used internaly to convert into debian packages, when this build is run on a debian or debian like linux OS.
+The `flexisip-rpm` prepare.py target can be used to generate RPM packages for Flexisip and its dependencies.
+_Alien_ program is used internaly to convert RPMs into Debian packages when this build is run on a Debian or Debian-like GNU/Linux distribution.
 The following dependency packages are required (as rpm package name): 
  mbedtls-devel sqlite-devel postgresql-devel rpm-build bison speex-devel
 
@@ -75,11 +78,12 @@ The following dependency packages are required (as rpm package name):
 ## Docker
 
 A docker image can be build from sources with command:
-	cd docker && make flexisip-build
 
-## Macos X
+	docker build -t flexisip --build-arg=njobs=<njobs> -f docker/flex-from-src .
 
-The cmake scripts of flexisip can be used to develop with Flexisip in Xcode.
+## Macos X (outdated)
+
+The CMake scripts of Flexisip can be used to develop with Flexisip in Xcode.
 You need to run:
 - `./prepare.py -G Xcode flexisip \
 	-DENABLE_REDIS=NO \
@@ -97,24 +101,20 @@ brew install mysql-connector-c
 And finally install soci with mysql
 brew install soci --with-mysql
 
-You can now use -DENABLE_SOCI=ON in your prepare options.
+You can now use `-DENABLE_SOCI=ON` in your prepare options.
 
 # Configuration
 
-
-Flexisip needs a configuration file for running correctly.
-You can either:
-- copy and modify file flexisip.conf.sample to flexisip.conf in directory <prefix>/etc/flexisip
-- or issue `flexisip --dump-default all > flexisip.conf` in a terminal
-  to generate a configuration file with the default values.
+Flexisip needs a configuration file to run correctly.
+Use `./flexisip --dump-all-default > flexisip.conf` to make a documented
+default configuration file.
 
 # Developer notes
 
-With sofia-sip, you have the choice between msg_dup and msg_copy,
-sip_from_dup and sip_from_copy etc...
-The difference isn't well documented in sofia-sip documentation.
-However it is important to understand that
-*_copy() just makes a copy of the structure, not the strings pointed by it
-*_dup() makes a copy of structure plus all included strings inside.
-*_copy() versions can be thus dangerous. Use *_dup() in doubt.
-
+With sofia-sip, you have the choice between `msg_dup()` and `msg_copy()`,
+`sip_from_dup()` and `sip_from_copy()`, _etc_.
+The difference isn't well documented in sofia-sip documentation but it is
+important to understand that:
+- `*_dup()` makes a copy of the structure plus all included strings inside.
+- `*_copy()` just makes a copy of the structure, not the strings pointed by it. **These functions are
+dangerous**; use `*_dup()` versions in doubt.
