@@ -13,7 +13,7 @@ Group changes to describe their impact on the project, as follows:
 | Fixed          | Any bug fixes                                         |
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
-## [Unreleased]
+## [2.0.0] — 2020-07-31
 
 ### [Added]
 **New settings**
