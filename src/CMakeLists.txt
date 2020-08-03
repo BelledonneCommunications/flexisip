@@ -251,7 +251,6 @@ if(ENABLE_CONFERENCE)
 endif()
 
 if(ENABLE_REGEVENT)
-	add_definitions(-DENABLE_REGEVENT)
 	list(APPEND FLEXISIP_SOURCES
 		conference/registration-events/utils.cpp
 		conference/registration-events/utils.hh
