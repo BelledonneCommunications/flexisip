@@ -377,7 +377,7 @@ class RegistrarDb {
 	void addStateListener (const std::shared_ptr<RegistrarDbStateListener> &listener);
 	void removeStateListener (const std::shared_ptr<RegistrarDbStateListener> &listener);
 	bool isWritable () const { return mWritable; }
-	void subscribe(const url_t *url, const std::shared_ptr<ContactRegisteredListener> &listener);
+	void subscribe(const SipUri &url, const std::shared_ptr<ContactRegisteredListener> &listener);
 	virtual void subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
 	virtual void unsubscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
 	virtual void publish(const std::string &topic, const std::string &uid) = 0;

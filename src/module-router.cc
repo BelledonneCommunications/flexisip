@@ -638,7 +638,7 @@ class PreroutingFetcher : public ContactUpdateListener,
 		: mEv(ev), mListener(listener), mPreroutes(preroutes) {
 		pending = 0;
 		error = false;
-		m_record = make_shared<Record>(nullptr);
+		m_record = make_shared<Record>(SipUri{});
 	}
 
 	~PreroutingFetcher() {
@@ -651,7 +651,7 @@ class PreroutingFetcher : public ContactUpdateListener,
 
 		pending += mPreroutes.size();
 		for (auto it = mPreroutes.cbegin(); it != mPreroutes.cend(); ++it) {
-			url_t *target = url_format(mEv->getHome(), "sip:%s@%s", it->c_str(), domain);
+			SipUri target{string("sip:") + it->c_str() + "@" + domain};
 			RegistrarDb::get()->fetch(target, this->shared_from_this(), true);
 		}
 	}

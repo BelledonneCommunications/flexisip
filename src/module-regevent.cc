@@ -19,8 +19,7 @@
 #include "flexisip/agent.hh"
 #include "flexisip/logmanager.hh"
 #include "flexisip/module.hh"
-
-#include "utils/sip-uri.hh"
+#include "flexisip/utils/sip-uri.hh"
 
 using namespace std;
 using namespace flexisip;
