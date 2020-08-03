@@ -19,6 +19,10 @@
 #include "tester.hh"
 #include "bctoolbox/logging.h"
 
+#ifdef HAVE_CONFIG_H
+#include "flexisip-config.h"
+#endif
+
 std::string bcTesterFile(const std::string &name){
 	char *file = bc_tester_file(name.c_str());
 	std::string ret(file);

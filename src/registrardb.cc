@@ -712,8 +712,8 @@ void RegistrarDb::notifyStateListener () const {
 		listener->onRegistrarDbWritable(mWritable);
 }
 
-void RegistrarDb::subscribe(const url_t *url, const shared_ptr<ContactRegisteredListener> &listener) {
-	this->subscribe(Record::defineKeyFromUrl(url), listener);
+void RegistrarDb::subscribe(const SipUri &url, const shared_ptr<ContactRegisteredListener> &listener) {
+	this->subscribe(Record::defineKeyFromUrl(url.get()), listener);
 }
 
 void RegistrarDb::subscribe(const string &topic, const shared_ptr<ContactRegisteredListener> &listener) {
@@ -742,13 +742,7 @@ class ContactNotificationListener
 	public std::enable_shared_from_this<ContactNotificationListener>
 {
 public:
-<<<<<<< HEAD
 	ContactNotificationListener (const string &uid, RegistrarDb *db, const SipUri &aor): mUid(uid), mDb(db), mAor(aor) {}
-=======
-	ContactNotificationListener (const string &uid, RegistrarDb *db, const url_t *aor)
-		: mUid(uid), mDb(db), mAor(url_hdup(mHome.home(), aor)) {
-	}
->>>>>>> 78270294... Allow RegEvent server to be run as a daemon
 
 private:
 	// ContactUpdateListener implementation
@@ -762,23 +756,12 @@ private:
 
 	string mUid;
 	RegistrarDb *mDb = nullptr;
-<<<<<<< HEAD
 	SipUri mAor;
 
 };
 
 void RegistrarDb::notifyContactListener(const string &key, const string &uid) {
 	auto sipUri = Record::makeUrlFromKey(key);
-=======
-	SofiaAutoHome mHome;
-	const url_t *mAor;
-	
-};
-
-void RegistrarDb::notifyContactListener(const string &key, const string &uid) {
-	SofiaAutoHome home;
-	url_t *sipUri = Record::makeUrlFromKey(home.home(), key);
->>>>>>> 78270294... Allow RegEvent server to be run as a daemon
 	auto listener = make_shared<ContactNotificationListener>(uid, this, sipUri);
 	LOGD("Notify topic = %s, uid = %s", key.c_str(), uid.c_str());
 	RegistrarDb::get()->fetch(sipUri, listener, true);
@@ -934,16 +917,6 @@ RegistrarDb *RegistrarDb::get() {
 		LOGF("RegistrarDb not initialized.");
 	}
 	return sUnique;
-}
-
-void RegistrarDb::clear(const url_t *from, const shared_ptr<ContactUpdateListener> &listener) {
-	msg_t *msg = msg_create(sip_default_mclass(), 0);
-	su_home_t *homeSip = msg_home(msg);
-	sip_t *sip = sip_object(msg);
-
-	sip->sip_from = sip_from_create(homeSip, reinterpret_cast<const url_string_t*>(from));
-
-	this->clear(sip, listener);
 }
 
 void RegistrarDb::clear(const sip_t *sip, const shared_ptr<ContactUpdateListener> &listener) {
