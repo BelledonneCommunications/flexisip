@@ -123,12 +123,12 @@ static void basic() {
 		void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override {}
 	};
 
-	SofiaAutoHome home;
+	sofiasip::Home home;
 
 	string participantFrom = "sip:participant1@test.com";
-	auto participantUrl = url_make(home.home(), participantFrom.c_str());
+	SipUri participantUrl{participantFrom};
 	string otherParticipantFrom = "sip:participant2@test.com";
-	auto otherParticipantUrl = url_make(home.home(), otherParticipantFrom.c_str());
+	SipUri otherParticipantUrl{otherParticipantFrom};
 
 	// Fill the Regisrar DB with participants
 
