@@ -1,4 +1,3 @@
-
 set(SOURCE_FILES_CXX 	tester.cc tester.hh
 	boolean-expressions.cc
 )

@@ -31,7 +31,7 @@ void Listener::processRecord(const shared_ptr<Record> &r) {
         r->getKey().c_str(),
         Registration::StateType::active
     );
-    SofiaAutoHome home;
+    sofiasip::Home home;
 
     if (r) {
         for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
