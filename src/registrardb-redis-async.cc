@@ -41,33 +41,15 @@ constexpr int redisRetryTimeoutMs = 5000;
 using namespace std;
 using namespace flexisip;
 
-RegistrarUserData::RegistrarUserData(RegistrarDbRedisAsync *s, const url_t *url, shared_ptr<ContactUpdateListener> listener)
-	: self(s), listener(listener), token(0), mRetryTimer(nullptr), mRetryCount(0), mUniqueId(""), mUpdateExpire(false), mIsUnregister(false) {
-	mRecord = make_shared<Record>(url);
-}
-RegistrarUserData::~RegistrarUserData() {
-
-}
-
 /******
  * RegistrarDbRedisAsync class
  */
 
 RegistrarDbRedisAsync::RegistrarDbRedisAsync(Agent *ag, RedisParameters params)
-	: RegistrarDb(ag), mContext(nullptr), mSubscribeContext(nullptr),
-	  mDomain(params.domain), mAuthPassword(params.auth), mPort(params.port), mTimeout(params.timeout), mRoot(ag->getRoot()),
-	  mReplicationTimer(nullptr), mSlaveCheckTimeout(params.mSlaveCheckTimeout) {
-	mSerializer = RecordSerializer::get();
-	mCurSlave = 0;
-}
+	: RegistrarDb{ag}, mSerializer{RecordSerializer::get()}, mParams{params}, mRoot{ag->getRoot()} {}
 
 RegistrarDbRedisAsync::RegistrarDbRedisAsync(const string &preferredRoute, su_root_t *root, RecordSerializer *serializer, RedisParameters params)
-	: RegistrarDb(nullptr), mContext(nullptr), mSubscribeContext(nullptr),
-	  mDomain(params.domain), mAuthPassword(params.auth), mPort(params.port), mTimeout(params.timeout), mRoot(root),
-	  mReplicationTimer(nullptr), mSlaveCheckTimeout(params.mSlaveCheckTimeout) {
-	mSerializer = serializer;
-	mCurSlave = 0;
-}
+	: RegistrarDb{nullptr}, mSerializer{serializer}, mParams{params}, mRoot{root} {}
 
 RegistrarDbRedisAsync::~RegistrarDbRedisAsync() {
 	if (mContext) {
@@ -284,11 +266,11 @@ void RegistrarDbRedisAsync::tryReconnect() {
 		mCurSlave = mCurSlave % slaveCount;
 		RedisHost host = mSlaves[mCurSlave];
 
-		LOGW("Connection lost to %s:%d, trying a known slave %d at %s:%d", mDomain.c_str(), mPort, host.id,
+		LOGW("Connection lost to %s:%d, trying a known slave %d at %s:%d", mParams.domain.c_str(), mParams.port, host.id,
 			 host.address.c_str(), host.port);
 
-		mDomain = host.address;
-		mPort = host.port;
+		mParams.domain = host.address;
+		mParams.port = host.port;
 
 		connect();
 	} else {
@@ -321,8 +303,8 @@ void RegistrarDbRedisAsync::handleReplicationInfoReply(const char *reply) {
 				SLOGW << "Master is up, will attempt to connect to the master at " << masterAddress << ":"
 					  << masterPort;
 
-				mDomain = masterAddress;
-				mPort = masterPort;
+				mParams.domain = masterAddress;
+				mParams.port = masterPort;
 
 				// disconnect and reconnect immediately, dropping the previous context
 				disconnect();
@@ -335,8 +317,8 @@ void RegistrarDbRedisAsync::handleReplicationInfoReply(const char *reply) {
 			SLOGW << "Unknown role '" << role << "'";
 		}
 		if (mAgent && mReplicationTimer == nullptr) {
-			SLOGD << "Creating replication timer with delay of " << mSlaveCheckTimeout << "s";
-			mReplicationTimer = mAgent->createTimer(mSlaveCheckTimeout * 1000, sHandleInfoTimer, this);
+			SLOGD << "Creating replication timer with delay of " << mParams.mSlaveCheckTimeout << "s";
+			mReplicationTimer = mAgent->createTimer(mParams.mSlaveCheckTimeout * 1000, sHandleInfoTimer, this);
 		}
 	} else {
 		SLOGW << "Invalid INFO reply: no role specified";
@@ -364,7 +346,7 @@ bool RegistrarDbRedisAsync::connect() {
 		return true;
 	}
 
-	mContext = redisAsyncConnect(mDomain.c_str(), mPort);
+	mContext = redisAsyncConnect(mParams.domain.c_str(), mParams.port);
 	mContext->data = this;
 	if (mContext->err) {
 		SLOGE << "Redis Connection error: " << mContext->errstr;
@@ -373,7 +355,7 @@ bool RegistrarDbRedisAsync::connect() {
 		return false;
 	}
 
-	mSubscribeContext = redisAsyncConnect(mDomain.c_str(), mPort);
+	mSubscribeContext = redisAsyncConnect(mParams.domain.c_str(), mParams.port);
 	mSubscribeContext->data = this;
 	if (mSubscribeContext->err) {
 		SLOGE << "Redis Connection error: " << mSubscribeContext->errstr;
@@ -403,9 +385,9 @@ bool RegistrarDbRedisAsync::connect() {
 		return false;
 	}
 
-	if (!mAuthPassword.empty()) {
-		redisAsyncCommand(mContext, shandleAuthReply, this, "AUTH %s", mAuthPassword.c_str());
-		redisAsyncCommand(mSubscribeContext, shandleAuthReply, this, "AUTH %s", mAuthPassword.c_str());
+	if (!mParams.auth.empty()) {
+		redisAsyncCommand(mContext, sHandleAuthReply, this, "AUTH %s", mParams.auth.c_str());
+		redisAsyncCommand(mSubscribeContext, sHandleAuthReply, this, "AUTH %s", mParams.auth.c_str());
 	} else {
 		getReplicationInfo();
 	}
@@ -440,15 +422,21 @@ void RegistrarDbRedisAsync::subscribeAll() {
 }
 
 void RegistrarDbRedisAsync::subscribeToKeyExpiration() {
-	SLOGD << "Subscribing to key expiration";
+	LOGD("Subscribing to key expiration");
+	if (mSubscribeContext == nullptr) {
+		LOGE("RegistrarDbRedisAsync::subscribeToKeyExpiration(): no context !");
+		return;
+	}
 	redisAsyncCommand(mSubscribeContext, sKeyExpirationPublishCallback, nullptr, "SUBSCRIBE __keyevent@0__:expired");
 }
 
 void RegistrarDbRedisAsync::subscribeTopic(const string &topic) {
 	LOGD("Sending SUBSCRIBE command to redis for topic '%s'", topic.c_str());
-	if (mSubscribeContext){
-		redisAsyncCommand(mSubscribeContext, sPublishCallback, nullptr, "SUBSCRIBE %s", topic.c_str());
-	}else LOGE("RegistrarDbRedisAsync::subscribeTopic(): no context !");
+	if (mSubscribeContext == nullptr) {
+		LOGE("RegistrarDbRedisAsync::subscribeTopic(): no context !");
+		return;
+	}
+	redisAsyncCommand(mSubscribeContext, sPublishCallback, nullptr, "SUBSCRIBE %s", topic.c_str());
 }
 
 /*TODO: the listener should be also used to report when the subscription is active.
@@ -603,7 +591,7 @@ void RegistrarDbRedisAsync::sHandleInfoTimer(void *unused, su_timer_t *t, void *
 	}
 }
 
-void RegistrarDbRedisAsync::shandleAuthReply(redisAsyncContext *ac, void *r, void *privdata) {
+void RegistrarDbRedisAsync::sHandleAuthReply(redisAsyncContext *ac, void *r, void *privdata) {
 	RegistrarDbRedisAsync *zis = (RegistrarDbRedisAsync *)privdata;
 	if (zis) {
 		zis->handleAuthReply((const redisReply *)r);
@@ -703,7 +691,9 @@ void RegistrarDbRedisAsync::doBind(const sip_t *sip, int globalExpire, bool alia
 	// If there is an error, try again
 	// Once it is done, fetch all the contacts in the AOR and call the onRecordFound of the listener
 
-	RegistrarUserData *data = new RegistrarUserData(this, sip->sip_from->a_url, listener);
+	SipUri fromUri(sip->sip_from->a_url);
+
+	RegistrarUserData *data = new RegistrarUserData(this, fromUri, listener);
 
 	data->mRecord->update(sip, globalExpire, alias, version, data->listener);
 	mLocalRegExpire->update(data->mRecord);
@@ -785,22 +775,27 @@ void RegistrarDbRedisAsync::parseAndClean(redisReply *reply, RegistrarUserData *
 }
 
 void RegistrarDbRedisAsync::doClear(const sip_t *sip, const shared_ptr<ContactUpdateListener> &listener) {
-	// Delete the AOR Hashmap using DEL
-	// Once it is done, fetch all the contacts in the AOR and call the onRecordFound of the listener ?
-	RegistrarUserData *data = new RegistrarUserData(this, sip->sip_from->a_url, listener);
+	try {
+		// Delete the AOR Hashmap using DEL
+		// Once it is done, fetch all the contacts in the AOR and call the onRecordFound of the listener ?
+		RegistrarUserData *data = new RegistrarUserData(this, SipUri(sip->sip_from->a_url), listener);
 
-	if (!isConnected() && !connect()) {
-		LOGE("Not connected to redis server");
-		if (data->listener) data->listener->onError();
-		delete data;
-		return;
+		if (!isConnected() && !connect()) {
+			LOGE("Not connected to redis server");
+			if (data->listener) data->listener->onError();
+			delete data;
+			return;
+		}
+
+		const char *key = data->mRecord->getKey().c_str();
+		LOGD("Clearing fs:%s [%lu]", key, data->token);
+		mLocalRegExpire->remove(key);
+		check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleClear,
+			data, "DEL fs:%s", key), data);
+	} catch (const sofiasip::InvalidUrlError &e) {
+		SLOGE << "Invalid 'From' SIP URI [" << e.getUrl() << "]: " << e.getReason();
+		listener->onInvalid();
 	}
-
-	const char *key = data->mRecord->getKey().c_str();
-	LOGD("Clearing fs:%s [%lu]", key, data->token);
-	mLocalRegExpire->remove(key);
-	check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleClear,
-		data, "DEL fs:%s", key), data);
 }
 
 void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *data) {
@@ -840,7 +835,7 @@ void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RegistrarUserData *da
 	}
 }
 
-void RegistrarDbRedisAsync::doFetch(const url_t *url, const shared_ptr<ContactUpdateListener> &listener) {
+void RegistrarDbRedisAsync::doFetch(const SipUri &url, const shared_ptr<ContactUpdateListener> &listener) {
 	// fetch all the contacts in the AOR (HGETALL) and call the onRecordFound of the listener
 	RegistrarUserData *data = new RegistrarUserData(this, url, listener);
 
@@ -857,7 +852,7 @@ void RegistrarDbRedisAsync::doFetch(const url_t *url, const shared_ptr<ContactUp
 		data, "HGETALL fs:%s", key), data);
 }
 
-void RegistrarDbRedisAsync::doFetchInstance(const url_t *url, const string &uniqueId, const shared_ptr<ContactUpdateListener> &listener) {
+void RegistrarDbRedisAsync::doFetchInstance(const SipUri &url, const string &uniqueId, const shared_ptr<ContactUpdateListener> &listener) {
 	// fetch only the contact in the AOR (HGET) and call the onRecordFound of the listener
 	RegistrarUserData *data = new RegistrarUserData(this, url, listener);
 	data->mUniqueId = uniqueId;
@@ -911,17 +906,18 @@ void RegistrarDbRedisAsync::handleMigration(redisReply *reply, RegistrarUserData
 	} else if (reply->type == REDIS_REPLY_ARRAY) {
 		LOGD("Fetching all previous records success: %lu record(s) found", (unsigned long)reply->elements);
 
-		su_home_t home;
-		su_home_init(&home);
 		for (size_t i = 0; i < reply->elements; i++) {
 			redisReply *element = reply->element[i];
-			url_t *url = url_make(&home, element->str);
-			RegistrarUserData *new_data = new RegistrarUserData(this, url, nullptr);
-			LOGD("Fetching previous record: %s", element->str);
-			check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleRecordMigration,
-				new_data, "GET %s", element->str), new_data);
+			try {
+				SipUri url(element->str);
+				RegistrarUserData *new_data = new RegistrarUserData(this, move(url), nullptr);
+				LOGD("Fetching previous record: %s", element->str);
+				check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleRecordMigration,
+					new_data, "GET %s", element->str), new_data);
+			} catch (const sofiasip::InvalidUrlError &e) {
+				LOGD("Skipping invalid previous record [%s]: %s", element->str, e.getReason().c_str());
+			}
 		}
-		su_home_deinit(&home);
 	} else {
 		LOGD("Record aor:%s successfully migrated", data->mRecord->getKey().c_str());
 		if (data->listener) data->listener->onRecordFound(data->mRecord);
@@ -939,7 +935,7 @@ void RegistrarDbRedisAsync::doMigration() {
 	}
 
 	LOGD("Fetching previous record(s)");
-	RegistrarUserData *data = new RegistrarUserData(this, nullptr, nullptr);
+	RegistrarUserData *data = new RegistrarUserData(this, SipUri(), nullptr);
 	check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleMigration,
 		data, "KEYS aor:*"), data);
 }

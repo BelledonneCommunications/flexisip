@@ -330,10 +330,10 @@ void ProxyCommandLineInterface::handle_registrar_get_command(unsigned int socket
 	class RawListener : public ContactUpdateListener {
 	public:
 		RawListener(ProxyCommandLineInterface *cli, unsigned int socket)
-			: mCli(cli), mSocket(socket) {}
+			: mCli{cli}, mSocket{socket} {}
 
 		void onRecordFound(const shared_ptr<Record> &r) override {
-			std::string serialized;
+			std::string serialized{};
 			RecordSerializerJson::get()->serialize(r.get(), serialized);
 			mCli->answer(mSocket, serialized);
 		}
@@ -347,17 +347,18 @@ void ProxyCommandLineInterface::handle_registrar_get_command(unsigned int socket
 		void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override {}
 
 	private:
-		ProxyCommandLineInterface *mCli = nullptr;
-		unsigned int mSocket = 0;
+		ProxyCommandLineInterface *mCli{nullptr};
+		unsigned int mSocket{0};
 	};
 
-	auto listener = std::make_shared<RawListener>(this, socket);
-	std::string arg = args.front();
-
-	SofiaAutoHome home;
-	url_t *url = url_make(home.home(), arg.data());
-
-	RegistrarDb::get()->fetch(url, listener, false);
+	try {
+		SipUri url{args.front().c_str()};
+		auto listener = make_shared<RawListener>(this, socket);
+		RegistrarDb::get()->fetch(url, listener, false);
+	} catch (const sofiasip::InvalidUrlError &e) {
+		answer(socket, string{"Error: invalid SIP address ["} + e.what() + "]");
+		return;
+	}
 }
 
 void ProxyCommandLineInterface::handle_registrar_delete_command(unsigned int socket, const std::vector<std::string> &args) {

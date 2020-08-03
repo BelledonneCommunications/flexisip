@@ -9,7 +9,13 @@
 %define _datarootdir       %{_prefix}/share
 %define _datadir           %{_datarootdir}
 %define _docdir            %{_datadir}/doc
-%define flexisip_logdir    %{_localstatedir}/log/flexisip
+%define logdir             %{_localstatedir}/log
+%define flexisip_logdir    %{logdir}/flexisip
+
+# Hack: force _mandir to its default value because cmake-builder re-define it
+# on rpmbuild invokation with a bad value.
+# Remove this hack once Flexisip is based on Linphone SDK >= 4.4
+%define _mandir            %{_datarootdir}/man
 
 # to be compliant with RedHat which changed epoch to 1 for an unknown reason
 %define epoch     1
@@ -45,22 +51,24 @@ fi
 %endif # %if %{debian_platform}
 
 
-
 # Macro to set SELinux permission on log directory
 # It is needed in order logrotate be able to manipulate
 # Flexisip's logs
-%if %centos_platform
+%if %{centos_platform}
 
-%global selinux_logdir_permissions \
-if [ $1 -eq 1 ]; then \
-	/usr/bin/chcon -t chcon -t var_log_t %{flexisip_logdir} || true \
+%global selinux_logdir_context_post \
+semanage fcontext -a -t var_log_t '%{logdir}(/.*)?' 2>/dev/null || : \
+restorecon -R %{logdir} || :
+
+%global selinux_logdir_context_postun \
+if [ $1 -eq 0 ]; then  # final removal \
+	semanage fcontext -d -t var_log_t '%{logdir}(/.*)?' 2>/dev/null || : \
 fi
 
-%endif
+%endif # %if %{centos_platform}
 
 
-
-Summary:       SIP proxy with media capabilities
+Summary:       SIP server suite comprising proxy, presence, and IM conference server.
 Name:          @CPACK_PACKAGE_NAME@
 Version:       ${RPM_VERSION}
 Release:       ${RPM_RELEASE}%{?dist}
@@ -83,17 +91,18 @@ BuildRequires: protobuf-compiler >= 2.3.0
 %endif
 
 %if @ENABLE_REDIS@
-Requires: %{pkg_prefix}hiredis-devel >= 0.13
+Requires: %{pkg_prefix}hiredis >= 0.13
+BuildRequires: %{pkg_prefix}hiredis-devel >= 0.13
 %endif
 
 %if @ENABLE_SNMP@
 Requires: net-snmp-libs
-Requires: net-snmp-devel
+BuildRequires: net-snmp-devel
 %endif
 
 %if @ENABLE_SOCI@
 Requires: %{pkg_prefix}soci
-Requires: %{pkg_prefix}soci-mysql-devel
+BuildRequires: %{pkg_prefix}soci-mysql-devel
 %endif
 
 %if @ENABLE_TRANSCODER@
@@ -118,7 +127,7 @@ Requires: %{pkg_prefix}liblinphone
 %define ctest_name ctest
 %endif
 
-%global flexisip_services %(printf 'flexisip-proxy.service'; if [ @ENABLE_PRESENCE@ -eq 1 ]; then printf ' flexisip-presence.service'; fi; if [ @ENABLE_CONFERENCE@ -eq 1 ]; then printf ' flexisip-conference.service\n'; fi)
+%global flexisip_services %(printf 'flexisip-proxy.service'; if [ @ENABLE_PRESENCE@ -eq 1 ]; then printf ' flexisip-presence.service'; fi; if [ @ENABLE_CONFERENCE@ -eq 1 ]; then printf ' flexisip-conference.service'; fi)
 
 %description
 Extensible SIP proxy with media capabilities. Designed for robustness and easy of use.
@@ -167,7 +176,7 @@ make install DESTDIR=%{buildroot}
 # Mark all libraries as executable because CMake doesn't on
 # Debian to be complient with Debian policy. But rpmbuild
 # won't strip libraries that aren't marked as executable.
-chmod +x `find %{buildroot} *.so.*`
+find %{buildroot} -type f -name '*.so.*' -exec chmod -v +x {} \;
 
 #
 # Shouldn't be the role of cmake to install all the following stuff ?
@@ -202,27 +211,29 @@ rm -rf $RPM_BUILD_ROOT
 
 %if %centos_platform
 %post
+%selinux_logdir_context_post
 %systemd_post %flexisip_services
-%selinux_logdir_permissions
 %endif
 
 %preun
 %systemd_preun %flexisip_services
 
 %postun
+%selinux_logdir_context_postun
 %systemd_postun_with_restart %flexisip_services
 
 %files
 %defattr(-,root,root,-)
-%docdir %{_docdir}
 %{_bindir}/*
 %{_libdir}/*.so
 %{_datarootdir}/*
-%dir %{_includedir}/flexisip
-%{_includedir}/flexisip/*.hh
 %{_includedir}/flexisip/*.h
-%{_includedir}/flexisip/*.cc
-%{_localstatedir}/*
+%{_includedir}/flexisip/*.hh
+%{_includedir}/flexisip/auth/*.hh
+%{_includedir}/flexisip/sofia-wrapper/*.hh
+%{_includedir}/flexisip/utils/*.hh
+%{_includedir}/flexisip/expressionparser-impl.cc
+%{_localstatedir}//*
 
 %config(noreplace) /lib/systemd/system/flexisip-proxy.service
 %config(noreplace) /lib/systemd/system/flexisip-proxy@.service

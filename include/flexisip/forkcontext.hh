@@ -51,7 +51,7 @@ class BranchInfo {
   public:
 	BranchInfo(std::shared_ptr<ForkContext> ctx) : mForkCtx(ctx), mPriority(1.0) {
 	}
-	virtual ~BranchInfo();
+	virtual ~BranchInfo() = default;
 	virtual void clear();
 	int getStatus() {
 		if (mLastResponse)
@@ -65,6 +65,7 @@ class BranchInfo {
 	std::shared_ptr<ResponseSipEvent> mLastResponse;
 	std::shared_ptr<ExtendedContact> mContact;
 	float mPriority;
+	bool mPushSent = false; // Whether  push notification has been sent for this branch.
 };
 
 class ForkContext : public std::enable_shared_from_this<ForkContext> {
@@ -77,6 +78,7 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	std::list<std::shared_ptr<BranchInfo>> mWaitingBranches;
 	std::list<std::shared_ptr<BranchInfo>> mCurrentBranches;
 	float mCurrentPriority;
+	bool mFinished = false;
 	std::list<std::string> mKeys;
 	void init();
 	void processLateTimeout();
@@ -145,6 +147,8 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	// Obtain the ForkContext that manages a transaction.
 	static std::shared_ptr<ForkContext> get(const std::shared_ptr<OutgoingTransaction> &tr);
 	static std::shared_ptr<ForkContext> get(const std::shared_ptr<IncomingTransaction> &tr);
+	// Obtain the BranchInfo corresponding to an outoing transaction
+	static std::shared_ptr<BranchInfo> getBranchInfo(const std::shared_ptr<OutgoingTransaction> &tr);
 	// Start the processing of the highest priority branches that are not completed yet
 	void start();
 
@@ -157,10 +161,13 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	 * Typical case for refusing it is when another transaction already exists or existed for this contact.
 	**/
 	virtual bool onNewRegister(const url_t *dest, const std::string &uid);
+	virtual void onPushSent(const std::shared_ptr<OutgoingTransaction> &tr);
+	virtual void onPushError(const std::shared_ptr<OutgoingTransaction> &tr, const std::string &errormsg);
 	const std::shared_ptr<RequestSipEvent> &getEvent();
 	const std::shared_ptr<ForkContextConfig> &getConfig() const {
 		return mCfg;
 	}
+	bool isFinished()const{ return mFinished; };
 	static const int sUrgentCodes[];
 	static const int sAllCodesUrgent[];
 };

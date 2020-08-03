@@ -276,11 +276,14 @@ void ForkCallContext::sOnPushTimer(su_root_magic_t *magic, su_timer_t *t, su_tim
 	ForkCallContext *zis = static_cast<ForkCallContext *>(arg);
 	zis->onPushTimer();
 }
-void ForkCallContext::onPushInitiated(const string &key) {
+
+void ForkCallContext::onPushSent(const shared_ptr<OutgoingTransaction> &tr) {
+	ForkContext::onPushSent(tr);
 	++mActivePushes;
 }
 
-void ForkCallContext::onPushError(const string &key, const string &errormsg) {
+void ForkCallContext::onPushError(const shared_ptr<OutgoingTransaction> &tr, const string &errormsg) {
+	ForkContext::onPushError(tr, errormsg);
 	--mActivePushes;
 
 	if (mActivePushes != 0)

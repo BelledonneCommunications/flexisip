@@ -4,7 +4,7 @@
 
 job-centos7-makefile-gcc:
 
-  tags: [ "docker-centos7" ]
+  tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
   except:
     variables:
@@ -16,11 +16,13 @@ job-centos7-makefile-gcc:
     CXX: g++
     ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
   extends: .scheduled-job-linux
+  before_script:
+    - source /opt/rh/devtoolset-8/enable
 
 
 job-centos7-makefile-clang:
 
-  tags: [ "docker-centos7" ]
+  tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
   except:
     variables:
@@ -32,6 +34,8 @@ job-centos7-makefile-clang:
     CXX: clang++
     ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
   extends: .job-linux
+  before_script:
+    - source /opt/rh/llvm-toolset-7/enable
 
 #################################################
 # Ninja
@@ -61,9 +65,11 @@ job-centos7-makefile-clang:
 #################################################
 
 job-centos7-rpm:
-  tags: [ "docker-centos7" ]
+  tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
   extends: .job-linux-rpm
+  before_script:
+    - source /opt/rh/devtoolset-8/enable
 
 
 job-centos7-rpm-deploy:
@@ -80,3 +86,4 @@ job-centos7-rpm-deploy:
     variables:
       - $DEPLOY_UBUNTU
   script: ./.gitlab-ci-files/deploy.sh centos
+

@@ -25,9 +25,8 @@
 #include <regex>
 #include <string>
 
+#include "flexisip/auth/flexisip-auth-module-base.hh"
 #include "flexisip/module.hh"
-
-#include "auth/flexisip-auth-module-base.hh"
 
 namespace flexisip {
 

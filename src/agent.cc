@@ -17,6 +17,7 @@
 */
 
 #include <algorithm>
+#include <memory>
 #include <sstream>
 
 #include <net/if.h>
@@ -134,13 +135,9 @@ void Agent::startLogWriter() {
 				LOGF("DataBaseEventLogWriter: unable to use database (`ENABLE_SOCI` is not defined).");
 			#endif
 		} else {
-			string logdir = cr->get<ConfigString>("dir")->read();
-			FilesystemEventLogWriter *lw = new FilesystemEventLogWriter(logdir);
-			if (!lw->isReady()) {
-				delete lw;
-			} else {
-				mLogWriter.reset(lw);
-			}
+			const auto &logdir = cr->get<ConfigString>("filesystem-directory")->read();
+			unique_ptr<FilesystemEventLogWriter> lw(new FilesystemEventLogWriter(logdir));
+			if (lw->isReady()) mLogWriter = move(lw);
 		}
 	}
 }
@@ -154,7 +151,7 @@ static string absolutePath(const string &currdir, const string &file) {
 }
 
 void Agent::checkAllowedParams(const url_t *uri) {
-	SofiaAutoHome home;
+	sofiasip::Home home;
 	if (!uri->url_params)
 		return;
 	char *params = su_strdup(home.home(), uri->url_params);
@@ -172,41 +169,41 @@ void Agent::checkAllowedParams(const url_t *uri) {
 
 void Agent::initializePreferredRoute() {
 	//Adding internal transport to transport in "cluster" case
-	GenericStruct *cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
+	auto cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
 	if (cluster->get<ConfigBoolean>("enabled")->read()) {
-		int err = 0;
-		string internalTransport = cluster->get<ConfigString>("internal-transport")->read();
+		auto internalTransportParam = cluster->get<ConfigString>("internal-transport");
+		auto internalTransport = internalTransportParam->read();
 
-		size_t pos = internalTransport.find("\%auto");
+		auto pos = internalTransport.find("\%auto");
 		if (pos != string::npos) {
+			SLOGW << "using '\%auto' token in '" << internalTransportParam->getCompleteName() << "' is deprecated";
 			char result[NI_MAXHOST] = { 0 };
 			//Currently only IpV4
-			err = bctbx_get_local_ip_for(AF_INET, nullptr, 0, result, sizeof(result));
-			if (err != 0) {
-				LOGE("Could not get local ip");
-			} else {
-				internalTransport.replace(pos, sizeof("\%auto")-1, result);
+			if (bctbx_get_local_ip_for(AF_INET, nullptr, 0, result, sizeof(result)) != 0) {
+				LOGF("%%auto couldn't be resolved");
 			}
+			internalTransport.replace(pos, sizeof("\%auto")-1, result);
 		}
 
-		if (err == 0) {
-			url_t *url = url_make(&mHome, internalTransport.c_str());
-
-			if (url != nullptr) {
-				mPreferredRouteV4 = url_hdup(&mHome, url);
-				LOGD("Agent's preferred IP for internal routing find: v4: %s", internalTransport.c_str());
-			}
+		try {
+			SipUri url{internalTransport};
+			mPreferredRouteV4 = url_hdup(&mHome, url.get());
+			LOGD("Agent's preferred IP for internal routing find: v4: %s", internalTransport.c_str());
+		} catch (const sofiasip::InvalidUrlError &e) {
+			LOGF("invalid URI in '%s': %s",
+				 internalTransportParam->getCompleteName().c_str(),
+				 e.getReason().c_str()
+			);
 		}
 	}
 }
 
 void Agent::loadModules() {
-	list<Module *>::iterator it;
-	for (it = mModules.begin(); it != mModules.end(); ++it) {
+	for (auto *module : mModules) {
 		// Check in all cases, even if not enabled,
 		// to allow safe dynamic activation of the module
-		(*it)->checkConfig();
-		(*it)->load();
+		module->checkConfig();
+		module->load();
 	}
 	if (mDrm) mDrm->load(mPassphrase);
 	mPassphrase = "";
@@ -276,7 +273,7 @@ static void timerfunc(su_root_magic_t *magic, su_timer_t *t, Agent *a) {
 	a->idle();
 }
 
-void Agent::start(const string &transport_override, const string passphrase) {
+void Agent::start(const string &transport_override, const string &passphrase) {
 	char cCurrDir[FILENAME_MAX];
 	if (!getcwd(cCurrDir, sizeof(cCurrDir))) {
 		LOGA("Could not get current file path");
@@ -315,8 +312,7 @@ void Agent::start(const string &transport_override, const string passphrase) {
 		transports = ConfigStringList::parse(transport_override);
 	}
 
-	for (auto it = transports.begin(); it != transports.end(); ++it) {
-		const string &uri = (*it);
+	for (const auto &uri : transports) {
 		url_t *url;
 		int err;
 		su_home_t home;
@@ -445,7 +441,7 @@ void Agent::start(const string &transport_override, const string passphrase) {
 				tp_name_t tmp_name = *name;
 				tmp_name.tpn_canon = clusterDomain.c_str();
 				tmp_name.tpn_port = NULL;
-				mClusterUri = urlFromTportName(&mHome, &tmp_name, true);
+				mClusterUri = urlFromTportName(&mHome, &tmp_name);
 			}
 		}
 	}
@@ -468,7 +464,7 @@ void Agent::start(const string &transport_override, const string passphrase) {
 		}
 	}
 	if (mPublicResolvedIpV6.empty()) {
-		mPublicResolvedIpV6 = mRtpBindIp6;
+		LOGW("This flexisip instance has no public IPv6 address detected.");
 	}
 
 	// Generate the unique ID if it has not been specified in Flexisip's settings
@@ -492,7 +488,6 @@ void Agent::start(const string &transport_override, const string passphrase) {
 	LOGD("Agent public resolved hostname/ip: v4:%s v6:%s", mPublicResolvedIpV4.c_str(), mPublicResolvedIpV6.c_str());
 	LOGD("Agent's _default_ RTP bind ip address: v4:%s v6:%s", mRtpBindIp.c_str(), mRtpBindIp6.c_str());
 
-	mUseMaddr = GenericManager::get()->getGlobal()->get<ConfigBoolean>("use-maddr")->read();
 	startLogWriter();
 
 	loadModules();
@@ -605,7 +600,7 @@ void addPluginModule(Agent *agent, list<Module *> &modules, const string &plugin
 
 // -----------------------------------------------------------------------------
 
-Agent::Agent(su_root_t *root) : mBaseConfigListener(NULL), mTerminating(false) {
+Agent::Agent(su_root_t *root) {
 	mHttpEngine = nth_engine_create(root, NTHTAG_ERROR_MSG(0), TAG_END());
 	GenericStruct *cr = GenericManager::get()->getRoot();
 
@@ -721,9 +716,8 @@ void Agent::loadConfig(GenericManager *cm) {
 }
 
 void Agent::unloadConfig() {
-	list<Module *>::iterator it;
-	for (it = mModules.begin(); it != mModules.end(); ++it) {
-		(*it)->unload();
+	for (auto *module : mModules) {
+		module->unload();
 	}
 }
 
@@ -964,23 +958,24 @@ void Agent::logEvent(const shared_ptr<SipEvent> &ev) {
 	}
 }
 
-struct ModuleHasName {
-	ModuleHasName(const string &ref) : match(ref) {
-	}
-	bool operator()(Module *module) {
-		return module->getModuleName() == match;
-	}
-	const string &match;
-};
 Module *Agent::findModule(const string &moduleName) const {
-	auto it = find_if(mModules.begin(), mModules.end(), ModuleHasName(moduleName));
-	return (it != mModules.end()) ? *it : NULL;
+	auto it = find_if(
+		mModules.cbegin(), mModules.cend(),
+		[&moduleName](const Module *m){return m->getModuleName() == moduleName;}
+	);
+	return (it != mModules.cend()) ? *it : nullptr;
 }
 
-template <typename SipEventT>
-inline void Agent::doSendEvent(
-	shared_ptr<SipEventT> ev, const list<Module *>::iterator &begin, const list<Module *>::iterator &end
-) {
+Module *Agent::findModuleByFunction(const std::string &moduleFunction) const {
+	auto it = find_if(
+		mModules.cbegin(), mModules.cend(),
+		[&moduleFunction](const Module *m){return m->getInfo()->getFunction() == moduleFunction;}
+	);
+	return (it != mModules.cend()) ? *it : nullptr;
+}
+
+template <typename SipEventT, typename ModuleIter>
+void Agent::doSendEvent(std::shared_ptr<SipEventT> ev, const ModuleIter &begin, const ModuleIter &end) {
 	for (auto it = begin; it != end; ++it) {
 		ev->mCurrModule = (*it);
 		(*it)->process(ev);
@@ -999,9 +994,9 @@ void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	const url_t *from_url = sip->sip_from ? sip->sip_from->a_url : NULL;
 
 	if (LOGD_ENABLED()){
+		auto from = from_url ? url_as_string(ev->getHome(), from_url) : "<invalid from>";
 		SLOGD << "Receiving new Request SIP message " << req->rq_method_name << " from "
-			<< (from_url ? url_as_string(ev->getHome(), from_url) : "<invalid from>") << " :"
-			<< "\n" << *ev->getMsgSip();
+			<< from << " :\n" << *ev->getMsgSip();
 	}
 	switch (req->rq_method) {
 		case sip_method_register:
@@ -1103,36 +1098,25 @@ void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 }
 
 void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
-	SipLogContext ctx(ev->getMsgSip());
+	SipLogContext ctx{ev->getMsgSip()};
 	if (LOGD_ENABLED()){
-		SLOGD << "Inject request SIP event after " << ev->mCurrModule->getModuleName() << ":\n" << *ev->getMsgSip();
+		SLOGD << "Inject request SIP event [" << ev << "] after " << ev->mCurrModule->getModuleName() << ":\n" << *ev->getMsgSip();
 	}
 	ev->restartProcessing();
-	list<Module *>::iterator it;
-	for (it = mModules.begin(); it != mModules.end(); ++it) {
-		if (ev->mCurrModule == *it) {
-			++it;
-			break;
-		}
-	}
-	doSendEvent(ev, it, mModules.end());
+	auto it = find(mModules.cbegin(), mModules.cend(), ev->mCurrModule);
+	doSendEvent(ev, ++it, mModules.cend());
+	printEventTailSeparator();
 }
 
 void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> ev) {
-	SipLogContext ctx(ev->getMsgSip());
-	
+	SipLogContext ctx{ev->getMsgSip()};
 	if (LOGD_ENABLED()){
-		SLOGD << "Injecting response SIP event after " << ev->mCurrModule->getModuleName() << ":\n" << *ev->getMsgSip();
+		SLOGD << "Injecting response SIP event [" << ev << "] after " << ev->mCurrModule->getModuleName() << ":\n" << *ev->getMsgSip();
 	}
-	list<Module *>::iterator it;
 	ev->restartProcessing();
-	for (it = mModules.begin(); it != mModules.end(); ++it) {
-		if (ev->mCurrModule == *it) {
-			++it;
-			break;
-		}
-	}
-	doSendEvent(ev, it, mModules.end());
+	auto it = find(mModules.cbegin(), mModules.cend(), ev->mCurrModule);
+	doSendEvent(ev, ++it, mModules.cend());
+	printEventTailSeparator();
 }
 
 /**
@@ -1155,7 +1139,7 @@ int Agent::onIncomingMessage(msg_t *msg, const sip_t *sip) {
 		return -1;
 	}
 	// Assuming sip is derived from msg
-	shared_ptr<MsgSip> ms = make_shared<MsgSip>(msg);
+	auto ms = make_shared<MsgSip>(msg);
 	if (sip->sip_request) {
 		auto ev = make_shared<RequestSipEvent>(shared_from_this(), ms, getIncomingTport(msg, this));
 		sendRequestEvent(ev);
@@ -1163,11 +1147,12 @@ int Agent::onIncomingMessage(msg_t *msg, const sip_t *sip) {
 		auto ev = make_shared<ResponseSipEvent>(shared_from_this(), ms);
 		sendResponseEvent(ev);
 	}
+	printEventTailSeparator();
 	msg_destroy(msg);
 	return 0;
 }
 
-url_t* Agent::urlFromTportName(su_home_t* home, const tp_name_t* name, bool avoidMAddr) {
+url_t* Agent::urlFromTportName(su_home_t* home, const tp_name_t* name) {
 	url_t *url = NULL;
 	url_type_e ut = url_sip;
 
@@ -1182,18 +1167,6 @@ url_t* Agent::urlFromTportName(su_home_t* home, const tp_name_t* name, bool avoi
 
 	url->url_port = su_strdup(home, name->tpn_port);
 	url->url_host = su_strdup(home, name->tpn_canon);
-	if (
-		ut == url_sips
-		&& !avoidMAddr
-		&& (strcmp(name->tpn_host, name->tpn_canon) != 0)
-		&& mUseMaddr
-	) {
-		const string &resolvedIp = strchr(name->tpn_host, ':')
-			? mPublicResolvedIpV6
-			: mPublicResolvedIpV4;
-		url_param_add(home, url, su_sprintf(home, "maddr=%s", resolvedIp.c_str()));
-	}
-
 	return url;
 }
 
@@ -1294,6 +1267,13 @@ void Agent::applyProxyToProxyTransportSettings(tport_t *tp){
 		}
 	}
 }
+
+const std::string Agent::sEventSeparator(110, '=');
+
+void Agent::printEventTailSeparator() {
+	LOGD("\n\n%s\n", sEventSeparator.c_str());
+}
+
 
 } // namespace flexisip
 

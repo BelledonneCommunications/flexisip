@@ -26,6 +26,7 @@
 #include <csignal>
 #include <functional>
 #include <algorithm>
+#include <regex>
 
 using namespace std;
 using namespace flexisip;
@@ -44,7 +45,7 @@ static void addEventLogRecordFound(shared_ptr<SipEventT> ev, const sip_contact_t
 }
 
 static void _onContactUpdated(ModuleRegistrar *module, tport_t *new_tport, const shared_ptr<ExtendedContact> &ec) {
-	SofiaAutoHome home;
+	sofiasip::Home home;
 	tp_name_t name = {0, 0, 0, 0, 0, 0};
 	tport_t *old_tport;
 
@@ -314,30 +315,31 @@ ModuleRegistrar::ModuleRegistrar(Agent *ag) : Module(ag), mStaticRecordsTimer(nu
 
 void ModuleRegistrar::onDeclare(GenericStruct *mc) {
 	ConfigItemDescriptor configs[] = {
-		{StringList, "reg-domains", "List of whitespace separated domain names to be managed by the registrar."
-									" It can eventually be the '*' (wildcard) in order to match any domain name.",
+		{StringList, "reg-domains",
+			"List of whitespace separated domain names which the registar is in charge of. It can eventually be "
+			"the '*' (wildcard) in order to match any domain name.",
 			"localhost"},
 		{Boolean, "reg-on-response",
 			"Register users based on response obtained from a back-end server. "
 			"This mode is for using flexisip as a front-end server to hold client connections but register"
 			"acceptance is deferred to backend server to which the REGISTER is routed.",
 			"false"},
-		{Integer, "max-contacts-by-aor", "Maximum number of registered contacts of an address of record.",
+		{Integer, "max-contacts-by-aor", "Maximum number of registered contacts per address of record.",
 			"12"}, /*used by registrardb*/
 		{StringList, "unique-id-parameters",
-			"List of contact uri parameters that can be used to identify a user's device. "
+			"List of contact URI parameters that can be used to identify a user's device. "
 			"The contact parameters are searched in the order of the list, the first matching parameter is used and "
 			"the others ignored.",
 			"+sip.instance pn-tok line"},
 
 		{Integer, "max-expires", "Maximum expire time for a REGISTER, in seconds.", "86400"},
 		{Integer, "min-expires", "Minimum expire time for a REGISTER, in seconds.", "60"},
-		{Integer, "force-expires", "Set a value that will override expire times given by "
+		{Integer, "force-expires", "Set a value that will override expire times given by the "
 									"REGISTER requests. A null or negative value disables "
 									"that feature. If it is enabled, max-expires and min-expires "
 									"will not have any effect.", "-1"},
 
-		{String, "static-records-file", "File containing the static records to add to database at startup. "
+		{String, "static-records-file", "File containing the static records to add to database on startup. "
 										"Format: one 'sip_uri contact_header' by line. Example:\n"
 										"<sip:contact@domain> <sip:127.0.0.1:5460>,<sip:192.168.0.1:5160>",
 			""},
@@ -345,31 +347,55 @@ void ModuleRegistrar::onDeclare(GenericStruct *mc) {
 			"Timeout in seconds after which the static records file is re-read and the contacts updated.", "600"},
 
 		{String, "db-implementation",
-			"Implementation used for storing address of records contact uris. Two backends are available:\n"
-			"- redis : contacts are stored in a redis database, which allows persistent and shared storage accross multiple flexisip nodes\n"
-			"- internal : contacts are stored in RAM. Of course, if flexisip is restarted, all contacts are lost until client update their"
-			" registration.\n"
+			"Implementation used for storing the contact URIs of each address of record. Two backends are available:\n"
+			" - redis : contacts are stored in a Redis database, which allows persistent and shared storage accross "
+			"multiple Flexisip instances.\n"
+			" - internal : contacts are stored in RAM. Of course, if flexisip is restarted, all the contact URIs are "
+			"lost until clients update their registration.\n"
 			"The redis backend is recommended, the internal being more adapted to very small deployments.", "internal"},
+
 		// Redis config support
-		{String, "redis-server-domain", "Domain of the redis server. ", "localhost"},
-		{Integer, "redis-server-port", "Port of the redis server.", "6379"},
-		{String, "redis-auth-password", "Authentication password for redis. Empty to disable.", ""},
-		{Integer, "redis-server-timeout", "Timeout in milliseconds of the redis connection.", "1500"},
-		{String, "redis-record-serializer", "Serialize contacts with: [C, protobuf, json, msgpack]", "protobuf"},
-		{Integer, "redis-slave-check-period", "When Redis is configured in master-slave, flexisip will "
-												"periodically ask what are the slaves and the master."
-												"This is the period with which it will query the server."
-												"It will then determine whether is is connected to the master, and "
-												"if not, let go of the connection and migrate to the master."
-												"Note: This requires that all redis instances have the same "
-												"password. Otherwise the authentication will fail.",
+		{String, "redis-server-domain", "Hostname or address of the Redis server. ", "localhost"},
+		{Integer, "redis-server-port", "Port of the Redis server.", "6379"},
+		{String, "redis-auth-password", "Authentication password for Redis. Empty to disable.", ""},
+		{Integer, "redis-server-timeout", "Timeout in milliseconds of the Redis connection.", "1500"},
+		{Integer, "redis-slave-check-period",
+			"When Redis is configured in master-slave, Flexisip will periodically ask which Redis instances are the "
+			"slaves and the master. This is the period with which it will query the server. It will then determine "
+			"whether is is connected to the master, and if not, let go of the connection and migrate to the master.\n"
+			"Note: This requires that all Redis instances have the same password. Otherwise the authentication "
+			"will fail.",
 			"60"},
 		{String, "service-route",
 			"Sequence of proxies (space-separated) where requests will be redirected through (RFC3608)", ""},
-		{String, "name-message-expires", "The name used for the expire time of forking message", "message-expires"},
-		{Integer, "register-expire-randomizer-max", "Maximum percentage of the REGISTER expire to randomly remove, 0 to disable", "0"},
+		{String, "message-expires-param-name", "Name of the custom Contact header parameter which is to indicate the expire "
+			"time for chat message delivery.",
+			"message-expires"},
+		{Integer, "register-expire-randomizer-max",
+			"If not zero, the expire time put in the 200 OK response won't be the one required by the user agent, but "
+			"will be slightly modified by substracting a random value. The value given by this parameter is the "
+			"maximum percentage of the initial expire that can be substracted.\n"
+			"If zero, no randomization is applied.", "0"},
+
+		// Deprecated parameters
+		{String, "redis-record-serializer", "Serialize contacts with: [C, protobuf, json, msgpack]", "protobuf"},
+		{String, "name-message-expires", "Name of the custom Contact header parameter which is to indicate the expire "
+			"time for chat message delivery.",
+			"message-expires"},
 		config_item_end};
 	mc->addChildrenValues(configs);
+
+	mc->get<ConfigString>("redis-record-serializer")->setDeprecated({
+		"2020-01-28", "2.0.0",
+		"This setting hasn't any effect anymore."
+	});
+
+	auto *oldMessageExpiresParamName = mc->get<ConfigString>("name-message-expires");
+	oldMessageExpiresParamName->setDeprecated({
+		"2020-03-25", "2.0.0",
+		"This parameter has been renamed into 'message-expires-param-name'"
+	});
+	mc->get<ConfigString>("message-expires-param-name")->setFallback(*oldMessageExpiresParamName);
 
 	mStats.mCountClear = mc->createStats("count-clear", "Number of cleared registrations.");
 	mStats.mCountBind = mc->createStats("count-bind", "Number of registers.");
@@ -400,6 +426,9 @@ void ModuleRegistrar::onLoad(const GenericStruct *mc) {
 	mStaticRecordsTimeout = mc->get<ConfigInt>("static-records-timeout")->read();
 
 	mExpireRandomizer = mc->get<ConfigInt>("register-expire-randomizer-max")->read();
+	if (mExpireRandomizer < 0 || mExpireRandomizer > 100) {
+		LOGF("'register-expire-randomizer-max' value (%i) must be in [0,100]", mExpireRandomizer);
+	}
 
 	if (!mStaticRecordsFile.empty()) {
 		readStaticRecords(); // read static records from configuration file
@@ -466,7 +495,7 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 	}
 	// This ensures not all REGISTERs arrive at the same time on the flexisip
 	if (sip->sip_request->rq_method == sip_method_register && code == 200 && mExpireRandomizer > 0 && expire > 0) {
-		expire = (int) expire - (expire * su_randint(0, mExpireRandomizer) / 100);
+		expire -= (int) (expire * su_randint(0, mExpireRandomizer) / 100.0);
 		expire_str = std::to_string(expire);
 		if (contacts) {
 			su_home_t *home = ev->getHome();
@@ -561,14 +590,22 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	if (sip->sip_request->rq_method != sip_method_register)
 		return;
 
-	// from managed domains
-	url_t *sipurl = sip->sip_from->a_url;
-	if (!sipurl->url_host || !isManagedDomain(sipurl))
+	// Check that From-URI is a SIP URI
+	SipUri sipurl;
+	try {
+		sipurl = SipUri(sip->sip_from->a_url);
+	} catch (const sofiasip::InvalidUrlError &e) {
+		SLOGE << "Invalid 'From' URI [" << e.getUrl() << "]: " << e.getReason();
+		ev->reply(400, "Bad request", TAG_END());
 		return;
+	}
+
+	// from managed domains
+	if (!isManagedDomain(sipurl.get())) return;
 
 	// Handle fetching
 	if (sip->sip_contact == nullptr) {
-		LOGD("No sip contact, it is a fetch only request for %s.", url_as_string(ms->getHome(), sipurl));
+		LOGD("No sip contact, it is a fetch only request for %s.", sipurl.str().c_str());
 		auto listener = make_shared<OnRequestBindListener>(this, ev);
 		RegistrarDb::get()->fetch(sipurl, listener);
 		return;
@@ -616,9 +653,9 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	}
 
 	// domain registration case, does nothing for the moment
-	if (sipurl->url_user == nullptr && !mAllowDomainRegistrations) {
+	if (sipurl.getUser().empty() && !mAllowDomainRegistrations) {
 		LOGE("Not accepting domain registration");
-		SLOGUE << "Not accepting domain registration:  " << url_as_string(ms->getHome(), sipurl);
+		SLOGUE << "Not accepting domain registration:  " << sipurl;
 		reply(ev, 403, "Domain registration forbidden", nullptr);
 		return;
 	}
@@ -633,7 +670,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			RegistrarDb::get()->clear(sip, listener);
 			return;
 		} else {
-			if (sipurl->url_user == nullptr && mAssumeUniqueDomains) {
+			if (sipurl.getUser().empty() && mAssumeUniqueDomains) {
 				/*first clear to make sure that there is only one record*/
 				RegistrarDb::get()->clear(sip, make_shared<FakeFetchListener>());
 			}
@@ -739,57 +776,53 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 }
 
 void ModuleRegistrar::readStaticRecords() {
+	int linenum = 0;
+
 	if (mStaticRecordsFile.empty()) return;
 	LOGD("Reading static records file");
 
-	SofiaAutoHome home;
+	sofiasip::Home home;
 
-	stringstream ss;
-	ss.exceptions(ifstream::failbit | ifstream::badbit);
+	ifstream file(mStaticRecordsFile);
+	if (!file.is_open()) {
+		LOGE("Can't open file %s", mStaticRecordsFile.c_str());
+		return;
+	}
 
-	string line;
-	string from;
-	string contact_header;
+	string path = getAgent()->getPreferredRoute();
+	mStaticRecordsVersion++;
 
-	ifstream file;
-	file.open(mStaticRecordsFile);
-	if (file.is_open()) {
-		string path = getAgent()->getPreferredRoute();
-		mStaticRecordsVersion++;
-		while (file.good() && !file.eof()) {
-			getline(file, line);
-			size_t i;
-			bool is_a_comment = false;
-			for (i = 0; i < line.size(); ++i) {
-				// skip spaces or comments
-				if (isblank(line[i])) continue;
-				if (line[i] == '#') {
-					is_a_comment = true;
-				} else {
-					break;
-				}
+	const regex isCommentRe(R"regex(^\s*#)regex");
+	const regex isRecordRe(R"regex(^\s*([[print]]+)\s+([[print]]+)\s*$)regex");
+	while (file.good() && !file.eof()) {
+		string line;
+		string from;
+		string contact_header;
+		smatch m;
+
+		getline(file, line), ++linenum;
+
+		try {
+
+			if (line.empty() || regex_match(line, m, isCommentRe)) continue;
+			else if (regex_match(line, m, isRecordRe)) {
+				from = m[1];
+				contact_header = m[2];
+			} else {
+				throw runtime_error("invalid line syntax");
 			}
-			if (is_a_comment) continue;
-			if (i == line.size()) continue; // blank line
-			size_t cttpos = line.find_first_of(' ', i);
-			if (cttpos != string::npos && cttpos < line.size()) {
 
-				// Read uri
-				from = line.substr(0, cttpos);
+			// Create
+			sip_contact_t *url = sip_contact_make(home.home(), from.c_str());
+			sip_contact_t *contact = sip_contact_make(home.home(), contact_header.c_str());
+			int expire = mStaticRecordsTimeout + 5; // 5s to avoid race conditions
 
-				// Read contacts
-				contact_header = line.substr(cttpos + 1, line.length() - cttpos + 1);
+			if (!url || !contact) {
+				throw runtime_error("one URI is invlaid");
+			}
 
-				// Create
-				sip_contact_t *url = sip_contact_make(home.home(), from.c_str());
-				sip_contact_t *contact = sip_contact_make(home.home(), contact_header.c_str());
-				int expire = mStaticRecordsTimeout + 5; // 5s to avoid race conditions
-
-				if (!url || !contact) {
-					LOGF("Static records line %s doesn't respect the expected format: <identity> <identity>,<identity>", line.c_str());
-					continue;
-				}
-
+			try {
+				SipUri fromUri(url->m_url);
 				while (contact) {
 					BindingParameters parameter;
 					shared_ptr<OnStaticBindListener> listener;
@@ -806,15 +839,19 @@ void ModuleRegistrar::readStaticRecords() {
 					parameter.alias = alias;
 					parameter.version = mStaticRecordsVersion;
 
-					RegistrarDb::get()->bind(url->m_url, sipContact, parameter, listener);
+					RegistrarDb::get()->bind(fromUri, sipContact, parameter, listener);
 					contact = contact->m_next;
 				}
-				continue;
+			} catch (const sofiasip::InvalidUrlError &e) {
+				ostringstream os;
+				os << "'" << e.getUrl() << "' isn't a valid SIP-URI: " << e.getReason();
+				throw runtime_error(os.str());
 			}
-			LOGW("Incorrect line format: %s", line.c_str());
+
+		} catch (const runtime_error &e) {
+			SLOGW << "error while reading the static record file [" << mStaticRecordsFile << ":" << linenum << endl
+				<< "\t`" << line << "`: " << e.what();
 		}
-	} else {
-		LOGE("Can't open file %s", mStaticRecordsFile.c_str());
 	}
 }
 
@@ -824,19 +861,16 @@ void ModuleRegistrar::sighandler(int signum, siginfo_t *info, void *ptr) {
 		sRegistrarInstanceForSigAction->readStaticRecords();
 	} else if (signum == SIGUSR2) {
 		LOGI("Received signal triggering fake fetch");
-		su_home_t home;
-		su_home_init(&home);
-		url_t *url = url_make(&home, "sip:contact@domain");
-
 		auto listener = make_shared<FakeFetchListener>();
-		RegistrarDb::get()->fetch(url, listener, false);
+		RegistrarDb::get()->fetch(SipUri("sip:contact@domain"), listener, false);
 	}
 }
 
 ModuleInfo<ModuleRegistrar> ModuleRegistrar::sInfo(
 	"Registrar",
-	"The ModuleRegistrar module accepts REGISTERs for domains it manages, and store the address of record "
-	"in order to allow routing requests destinated to the client who registered.",
+	"The ModuleRegistrar module handles REGISTERs for domains it is in charge of, and store the address of record "
+	"in order to allow routing requests destinated to the client who registered. REGISTERs for other domains are "
+	"simply ignored and given to the next module.",
 	{ "Presence" },
 	ModuleInfoBase::ModuleOid::Registrar
 );

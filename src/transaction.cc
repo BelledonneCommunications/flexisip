@@ -26,7 +26,20 @@
 #include <sofia-sip/su_md5.h>
 
 using namespace std;
-using namespace flexisip;
+
+namespace flexisip {
+
+Transaction::Property Transaction::_getProperty(const std::string &name) const noexcept {
+	auto it = mProperties.find(name);
+	if (it != mProperties.cend()) {
+		return it->second;
+	} else {
+		auto wit = mWeakProperties.find(name);
+		if (wit == mWeakProperties.cend()) return Property{};
+		const auto &prop = wit->second;
+		return Property{prop.value.lock(), prop.type};
+	}
+}
 
 IncomingAgent::~IncomingAgent() {
 }
@@ -47,10 +60,6 @@ static string getRandomBranch() {
 OutgoingTransaction::OutgoingTransaction(Agent *agent)
 	: Transaction(agent), mOutgoing(NULL), mBranchId(getRandomBranch()) {
 	LOGD("New OutgoingTransaction %p", this);
-}
-
-shared_ptr<OutgoingTransaction> OutgoingTransaction::create(Agent *agent) {
-	return make_shared<OutgoingTransaction>(agent);
 }
 
 OutgoingTransaction::~OutgoingTransaction() {
@@ -193,10 +202,6 @@ IncomingTransaction::IncomingTransaction(Agent *agent) : Transaction(agent), mIn
 	LOGD("New IncomingTransaction %p", this);
 }
 
-shared_ptr<IncomingTransaction> IncomingTransaction::create(Agent *agent) {
-	return make_shared<IncomingTransaction>(agent);
-}
-
 void IncomingTransaction::handle(const shared_ptr<MsgSip> &ms) {
 	msg_t *msg = ms->getMsg();
 	msg = msg_ref_create(msg);
@@ -298,4 +303,6 @@ void IncomingTransaction::destroy() {
 		// IncomingTransaction.
 	}
 }
+
+} // end of flexisip namespace
 

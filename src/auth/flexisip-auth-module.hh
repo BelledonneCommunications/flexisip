@@ -26,12 +26,12 @@
 #include <sofia-sip/msg_types.h>
 #include <sofia-sip/su_wait.h>
 
-#include <flexisip/auth-module.hh>
+#include "flexisip/auth-module.hh"
+#include "flexisip/auth/nonce-store.hh"
+#include "flexisip/auth/flexisip-auth-module-base.hh"
+#include "flexisip/auth/flexisip-auth-status.hh"
 
 #include "authdb.hh"
-#include "flexisip-auth-module-base.hh"
-#include "flexisip-auth-status.hh"
-#include "nonce-store.hh"
 #include "utils/digest.hh"
 
 namespace flexisip {
@@ -67,13 +67,15 @@ private:
 	};
 
 	void onChallenge(AuthStatus &as, auth_challenger_t const *ach) override;
-	void returnChallenge(FlexisipAuthStatus &as, const auth_challenger_t &ach);
+	void makeChallenge(AuthStatus& as, const auth_challenger_t &ach);
 
 	void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) override;
 
 	void processResponse(FlexisipAuthStatus &as, const auth_response_t &ar, const auth_challenger_t &ach, AuthDbResult result, const AuthDbBackend::PwList &passwords);
 	void checkPassword(FlexisipAuthStatus &as, const auth_challenger_t &ach, const auth_response_t &ar, const std::string &password);
 	int checkPasswordForAlgorithm(FlexisipAuthStatus &as, const auth_response_t &ar, const std::string &password);
+
+	void onAccessForbidden(FlexisipAuthStatus& as, const auth_challenger_t &ach, const char* phrase = "Forbidden");
 
 	static std::string auth_digest_a1_for_algorithm(Digest &algo, const auth_response_t &ar, const std::string &secret);
 	static std::string auth_digest_a1sess_for_algorithm(Digest &algo, const auth_response_t &ar, const std::string &ha1);

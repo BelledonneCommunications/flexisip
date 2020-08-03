@@ -82,7 +82,7 @@ public:
 
 ModuleInfo<ModuleRedirect> ModuleRedirect::sInfo(
 	"Redirect",
-	"This module redirect sip request with a 302 move temporarily.",
+	"This module redirect sip requests with a 302 move temporarily.",
 	{ "DateHandler", "Authentication" },
 	ModuleInfoBase::ModuleOid::Redirect
 );

@@ -23,36 +23,50 @@
 
 using namespace std;
 
-vector<string> StringUtils::split (const string &str, const string &delimiter) {
+vector<string> StringUtils::split (const string &str, const string &delimiter) noexcept {
 	vector<string> out;
 
-	size_t pos = 0, oldPos = 0;
-	for (; (pos = str.find(delimiter, pos)) != string::npos; oldPos = pos + delimiter.length(), pos = oldPos)
-		out.push_back(str.substr(oldPos, pos - oldPos));
-	out.push_back(str.substr(oldPos));
+	if (!str.empty()) {
+		size_t pos = 0, oldPos = 0;
+		for (; (pos = str.find(delimiter, pos)) != string::npos; oldPos = pos + delimiter.length(), pos = oldPos)
+			out.push_back(str.substr(oldPos, pos - oldPos));
+		out.push_back(str.substr(oldPos));
+	}
 
 	return out;
 }
 
-std::string StringUtils::strip(const char *str, char c) {
-	size_t len = strlen(str);
-	if (len < 2) return str;
-	if (str[0] != c || str[len-1] != c) return str;
-	return string(str+1, len-2);
+std::string StringUtils::strip(const char *str, char c) noexcept {
+	auto start = str, end = const_cast<const char *>(index(str, '\0'));
+	strip(start, end, c);
+	return string{start, end};
 }
 
-std::string StringUtils::strip(const std::string &str, char c) {
+std::string StringUtils::strip(const std::string &str, char c) noexcept {
+	auto start = str.cbegin(), end = str.cend();
+	strip(start, end, c);
+	return string{start, end};
+}
+
+
+std::string StringUtils::stripAll(const char *str, char c) {
+	const char *start = str;
+	const char *end = index(str, '\0');
+	while (end > start && *end == c) end--;
+	while (end > start && *start == c) start++;
+	return string(start, end-start);
+}
+
+std::string StringUtils::stripAll(const std::string &str, char c) {
 	auto start = str.cbegin();
 	auto end = str.cend();
-	strip(start, end, c);
+	stripAll(start, end, c);
 	return string(start, end);
 }
 
-void StringUtils::strip(std::string::const_iterator &start, std::string::const_iterator &end, char c) {
-	if (end - start < 2) return;
-	if (*start != c || *(end-1) != c) return;
-	start++;
-	end--;
+void StringUtils::stripAll(std::string::const_iterator &start, std::string::const_iterator &end, char c) {
+	while (end > start && *(end-1) == c) end--;
+	while (end > start && *start == c) start++;
 }
 
 std::string StringUtils::removePrefix(const std::string &str, const std::string &prefix) {

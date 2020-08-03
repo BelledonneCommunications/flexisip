@@ -18,10 +18,8 @@
 
 #pragma once
 
-#include "flexisip/auth-module.hh"
-
+#include "auth-module.hh"
 #include "module-authentication-base.hh"
-
 
 namespace flexisip {
 
@@ -37,7 +35,6 @@ public:
 
 	void onDeclare(GenericStruct *mc) override;
 	void onLoad(const GenericStruct *mc) override;
-	bool handleTestAccountCreationRequests(const std::shared_ptr<RequestSipEvent> &ev);
 	bool isTrustedPeer(const std::shared_ptr<RequestSipEvent> &ev);
 	bool tlsClientCertificatePostCheck(const std::shared_ptr<RequestSipEvent> &ev);
 	virtual bool handleTlsClientAuthentication(const std::shared_ptr<RequestSipEvent> &ev);
@@ -60,7 +57,6 @@ private:
 	std::list<std::string> mTrustedClientCertificates;
 	regex_t mRequiredSubject;
 	bool mNewAuthOn407 = false;
-	bool mTestAccountsEnabled = false;
 	bool mRequiredSubjectCheckSet = false;
 	bool mRejectWrongClientCertificates = false;
 	bool mTrustDomainCertificates = false;

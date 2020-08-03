@@ -5,12 +5,11 @@ set(SOURCE_FILES_CXX 	tester.cc tester.hh
 
 set(FLEXISIP_INCLUDEDIRS)
 
-list(APPEND FLEXISIP_INCLUDEDIRS ${FLEXISIP_HEADER_DIR} ${BCTOOLBOX_INCLUDE_DIRS} ${BELR_INCLUDE_DIRS})
+list(APPEND FLEXISIP_INCLUDEDIRS ${BCTOOLBOX_INCLUDE_DIRS} ${BELR_INCLUDE_DIRS})
 
 bc_apply_compile_flags(SOURCE_FILES_CXX CPP_BUILD_FLAGS CXX_BUILD_FLAGS)
 
 add_executable(flexisip_tester ${SOURCE_FILES_CXX})
-set_target_properties(flexisip_tester PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
 
 target_include_directories(flexisip_tester PUBLIC ${FLEXISIP_INCLUDEDIRS})
 target_link_libraries(flexisip_tester flexisip bctoolbox-tester)

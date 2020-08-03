@@ -20,27 +20,13 @@ public:
 	}
 
 	void onResult(AuthDbResult result, const std::string &passwd) override {
-		belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this, result, passwd](unsigned int events) {
-			processResponse(result, passwd);
-			return BELLE_SIP_STOP;
-		});
-		belle_sip_source_t *timer = belle_sip_main_loop_create_cpp_timeout(  mMainLoop
-			, func
-			, 0
-			, "OnAuthListener to mainthread");
-		belle_sip_object_unref(timer);
+		auto func = [this, result, passwd]() {processResponse(result, passwd);};
+		belle_sip_main_loop_cpp_do_later(mMainLoop, func, "OnAuthListener to mainthread");
 	}
 
 	void onResult(AuthDbResult result, const vector<passwd_algo_t> &passwd) override {
-		belle_sip_source_cpp_func_t *func = new belle_sip_source_cpp_func_t([this, result, passwd](unsigned int events) {
-			processResponse(result, passwd.front().pass);
-			return BELLE_SIP_STOP;
-		});
-		belle_sip_source_t *timer = belle_sip_main_loop_create_cpp_timeout(  mMainLoop
-																		, func
-																		, 0
-																		, "OnAuthListener to mainthread");
-		belle_sip_object_unref(timer);
+		auto func = [this, result, passwd]() {processResponse(result, passwd.front().pass);};
+		belle_sip_main_loop_cpp_do_later(mMainLoop, func, "OnAuthListener to mainthread");
 	}
 
 private:
@@ -76,7 +62,7 @@ private:
 				void onRecordFound(const std::shared_ptr<Record> &record) {
 					if (!record) return;
 
-					for (const auto extendedContact : record->getExtendedContacts()) {
+					for (const auto &extendedContact : record->getExtendedContacts()) {
 						const string specs = extendedContact->getOrgLinphoneSpecs();
 						if (!specs.empty())
 							mInfo->addCapability(specs);
@@ -89,14 +75,13 @@ private:
 				su_home_t *getHome() { return mHome.home(); }
 
 			private:
-				SofiaAutoHome mHome;
+				sofiasip::Home mHome;
 				shared_ptr<PresentityPresenceInformation> mInfo;
 			};
 
 			// Fetch Redis info.
 			shared_ptr<InternalListListener> listener = make_shared<InternalListListener>(info);
-			url_t *url = url_make(listener->getHome(), contact_as_string);
-			RegistrarDb::get()->fetch(url, listener);
+			RegistrarDb::get()->fetch(SipUri{contact_as_string}, listener);
 			belle_sip_free(contact_as_string);
 		} else {
 			SLOGD << __FILE__ << ": " << "Could not find user " << cuser << ".";

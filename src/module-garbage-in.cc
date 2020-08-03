@@ -54,7 +54,7 @@ private:
 
 ModuleInfo<ModuleGarbageIn> ModuleGarbageIn::sInfo(
 	"GarbageIn",
-	"The ModuleGarbageIn module collects incoming garbage and prevent any further processing.",
+	"The GarbageIn module collects incoming garbage and prevent any further processing.",
 	{ "SanityChecker" },
 	ModuleInfoBase::ModuleOid::GarbageIn
 );

@@ -24,19 +24,17 @@ namespace flexisip {
 
 class WindowsPhonePushNotificationRequest : public PushNotificationRequest {
 public:
-	virtual const std::vector<char> &getData();
-	virtual std::string isValidResponse(const std::string &str);
 	WindowsPhonePushNotificationRequest(const PushInfo &pinfo);
-	~WindowsPhonePushNotificationRequest() { }
 
 	void createHTTPRequest(const std::string &access_token);
 
-	virtual bool isServerAlwaysResponding() {
-		return true;
-	}
+	const std::vector<char> &getData() override;
+	std::string isValidResponse(const std::string &str) override;
+	bool isServerAlwaysResponding() override {return true;}
 
 protected:
 	void createPushNotification();
+
 	std::vector<char> mBuffer;
 	std::string mHttpHeader;
 	std::string mHttpBody;

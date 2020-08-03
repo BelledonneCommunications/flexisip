@@ -22,7 +22,11 @@
 #include <chrono>
 #include <unordered_map>
 
+#include <belle-sip/mainloop.h>
+
 #include <flexisip/event.hh>
+#include <flexisip/sofia-wrapper/home.hh>
+
 #include "rlmi+xml.hh"
 #include "subscription.hh"
 
@@ -40,17 +44,17 @@ class PresentityResourceListener : public PresentityPresenceInformationListener 
   public:
 	PresentityResourceListener(ListSubscription &aListSubscription, const belle_sip_uri_t *presentity, const std::string &name = "");
 	PresentityResourceListener(const PresentityResourceListener &);
-	~PresentityResourceListener();
+	~PresentityResourceListener() override;
 
-	const belle_sip_uri_t *getPresentityUri() const;
-	std::string getName() const { return mName; }
+	const belle_sip_uri_t *getPresentityUri() const override;
+	std::string getName() const override { return mName; }
 	/*
 	 * This function is call every time Presentity information need to be notified to a UA
 	 */
-	void onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extended);
-	void onExpired(PresentityPresenceInformation &presenceInformation);
-	const belle_sip_uri_t* getFrom();
-	const belle_sip_uri_t* getTo();
+	void onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extended) override;
+	void onExpired(PresentityPresenceInformation &presenceInformation) override;
+	const belle_sip_uri_t* getFrom() override;
+	const belle_sip_uri_t* getTo() override;
 
   private:
 	ListSubscription &mListSubscription;
@@ -72,8 +76,9 @@ public:
 		size_t maxPresenceInfoNotifiedAtATime,
 		std::function<void(std::shared_ptr<ListSubscription>)> listAvailable
 	);
+	ListSubscription(const ListSubscription &) = delete;
+	~ListSubscription() override;
 
-	virtual ~ListSubscription();
 	std::list<std::shared_ptr<PresentityPresenceInformationListener>> &getListeners();
 	su_home_t *getHome() { return home.home(); }
 	/* Notify taking state from all pending Presentity listener*/
@@ -94,20 +99,19 @@ protected:
 	 * that corresponds to the list.  Typically, this is the URI to which
 	 * the SUBSCRIBE request was sent.
 	 **/
-	const belle_sip_uri_t *mName = nullptr;
+	bellesip::shared_ptr<const belle_sip_uri_t> mName{};
 
 private:
-	ListSubscription(const ListSubscription &);
 	// return true if a real notify can be sent.
 	bool isTimeToNotify();
 	void addInstanceToResource(Xsd::Rlmi::Resource &resource, std::list<belle_sip_body_handler_t *> &multipartList,
 							   PresentityPresenceInformation &presentityInformation, bool extended);
 
-	typedef std::unordered_map<const belle_sip_uri_t *, std::pair<std::shared_ptr<PresentityPresenceInformation>,bool>,
-						  std::hash<const belle_sip_uri_t *>, bellesip::UriComparator> PendingStateType;
+	using PendingStateType = std::unordered_map<const belle_sip_uri_t *, std::pair<std::shared_ptr<PresentityPresenceInformation>,bool>,
+						  std::hash<const belle_sip_uri_t *>, bellesip::UriComparator>;
 	PendingStateType mPendingStates; // map of Presentity to be notified by uri
-	std::chrono::time_point<std::chrono::system_clock> mLastNotify;
-	std::chrono::seconds mMinNotifyInterval;
+	std::chrono::time_point<std::chrono::system_clock> mLastNotify{std::chrono::system_clock::time_point::min()};
+	std::chrono::seconds mMinNotifyInterval{2};
 
 	/*
 	 * rfc 4662
@@ -118,11 +122,11 @@ private:
 	 * NOTIFY message sent within a subscription, and MUST increase by
 	 * exactly one for each subsequent NOTIFY sent within a subscription.
 	 */
-	uint32_t mVersion;
-	belle_sip_source_t *mTimer;
-	size_t mMaxPresenceInfoNotifiedAtATime; //maximum number of presentity available in a sigle notify
+	uint32_t mVersion{0};
+	BelleSipSourcePtr mTimer;
+	size_t mMaxPresenceInfoNotifiedAtATime{0}; //maximum number of presentity available in a sigle notify
 	std::function<void(std::shared_ptr<ListSubscription>)> mListAvailable;
-	SofiaAutoHome home;
+	sofiasip::Home home;
 };
 
 } // namespace flexisip

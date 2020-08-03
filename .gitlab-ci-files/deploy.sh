@@ -21,7 +21,7 @@ case "$dist" in
 		make_repo_args="deb $tmpdir $FREIGHT_PATH $RELEASE"
 		echo "make_repo_args=$make_repo_args"
 		rsync_src='WORK/flexisip-rpm/rpmbuild/DEBS/'
-		legacy_repo_cmd="freight add --conf=$FREIGHT_PATH $tmpdir/*.deb apt/$RELEASE && freight cache $freight_opts apt/$RELEASE"
+		legacy_repo_cmd="freight add --conf=$FREIGHT_PATH $tmpdir/*.deb apt/$RELEASE && freight cache --conf=$FREIGHT_PATH apt/$RELEASE"
 		;;
 	       *)
 		echo "invalid distribution type: '$dist'. Only 'centos' and 'debian' are valid" 1>&2

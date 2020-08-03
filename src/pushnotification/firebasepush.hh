@@ -24,17 +24,15 @@ namespace flexisip {
 
 class FirebasePushNotificationRequest : public PushNotificationRequest {
 public:
-	virtual const std::vector<char> &getData();
-	virtual std::string isValidResponse(const std::string &str);
 	FirebasePushNotificationRequest(const PushInfo &pinfo);
-	~FirebasePushNotificationRequest() {
-	}
-	virtual bool isServerAlwaysResponding() {
-		return true;
-	}
+
+	const std::vector<char> &getData() override;
+	virtual std::string isValidResponse(const std::string &str) override;
+	bool isServerAlwaysResponding() override {return true;}
 
 protected:
 	void createPushNotification();
+
 	std::vector<char> mBuffer;
 	std::string mHttpHeader;
 	std::string mHttpBody;

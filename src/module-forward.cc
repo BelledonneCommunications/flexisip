@@ -81,15 +81,15 @@ ForwardModule::~ForwardModule() {
 
 void ForwardModule::onDeclare(GenericStruct *module_config) {
 	ConfigItemDescriptor items[] = {
-		{String, "route", "A sip uri representing a default where to send all requests not already resolved. "
-		"This is the typical way to setup a Flexisip proxy server acting as a front-end for backend SIP server.", ""},
+		{String, "route", "A SIP URI representing a default where to send all requests not already resolved. This is "
+			"the typical way to setup a Flexisip proxy server acting as a front-end for backend SIP server.", ""},
 		{Boolean, "add-path", "Add a path header of this proxy", "true"},
 		{Boolean, "rewrite-req-uri", "Rewrite request-uri's host and port according to above route", "false"},
-		{String, "default-transport", "For sip uris, in asbsence of transport parameter, assume the given transport is to be is to be used."
-			 " Possible values are udp, tcp or tls.", "udp"},
+		{String, "default-transport", "For SIP URIs, in asbsence of transport parameter, assume the given transport "
+			"is to be used. Possible values are udp, tcp or tls.", "udp"},
 		{StringList, "params-to-remove",
 			 "List of URL and contact params to remove",
-			 "pn-tok pn-type app-id pn-msg-str pn-call-str pn-call-snd pn-msg-snd pn-timeout pn-silent"},
+			 "pn-tok pn-type app-id pn-msg-str pn-call-str pn-call-snd pn-msg-snd pn-timeout pn-silent pn-provider pn-prid pn-param"},
 		config_item_end};
 	module_config->addChildrenValues(items);
 }
@@ -110,8 +110,8 @@ void ForwardModule::onLoad(const GenericStruct *mc) {
 	else mDefaultTransport = "transport=" + mDefaultTransport;
 	/* The forward module needs the help of the router module to determine whether
 	 * a gruu request uri is under control of this domain or not. */
-	mRouterModule = dynamic_cast<ModuleRouter*>(getAgent()->findModule("Router"));
-	if (!mRouterModule) LOGA("Could not find router module.");
+	mRouterModule = dynamic_cast<ModuleRouter*>(getAgent()->findModuleByFunction("Router"));
+	if (!mRouterModule) LOGA("Could not find 'Router' module.");
 	
 	const GenericStruct *clusterSection = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
 	bool clusterEnabled = clusterSection->get<ConfigBoolean>("enabled")->read();
@@ -255,25 +255,25 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		dest = getDestinationFromRoute(ms->getHome(), sip);
 	}
 
-	/* workaround bad sip uris with two @ that results in host part being "something@somewhere" */
-	if ((dest->url_type != url_sip && dest->url_type != url_sips) || dest->url_host == nullptr ||
-		strchr(dest->url_host, '@') != 0) {
-		ev->reply(SIP_400_BAD_REQUEST, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-		return;
-	}
-
 	dest = overrideDest(ev, dest);
 
-	/*gruu processing in forward module is only done if dialog is established. In other cases, router mnodule is involved instead*/
-	if (url_has_param(dest,"gr") && (sip->sip_to != nullptr && sip->sip_to->a_tag != nullptr) && mRouterModule->isManagedDomain(dest)) {
-		//gruu case, ask registrar db for AOR
-		ev->suspendProcessing();
-		auto listener = make_shared<RegistrarListener>(this,ev);
-		RegistrarDb::get()->fetch(dest, listener, false, false /*no recursivity for gruu*/);
-		return;
-	}
+	try {
+		SipUri destUri(dest);
 
-	sendRequest(ev, dest);
+		/*gruu processing in forward module is only done if dialog is established. In other cases, router mnodule is involved instead*/
+		if (destUri.hasParam("gr") && (sip->sip_to != nullptr && sip->sip_to->a_tag != nullptr) && mRouterModule->isManagedDomain(dest)) {
+			//gruu case, ask registrar db for AOR
+			ev->suspendProcessing();
+			auto listener = make_shared<RegistrarListener>(this,ev);
+			RegistrarDb::get()->fetch(destUri, listener, false, false /*no recursivity for gruu*/);
+			return;
+		}
+		sendRequest(ev, dest);
+
+	} catch (const sofiasip::InvalidUrlError &e) {
+		SLOGE << e.what();
+		ev->reply(SIP_400_BAD_REQUEST, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+	}
 }
 
 void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {

@@ -47,9 +47,11 @@ struct PusherArgs {
 	vector<string> pntok;
 	string apikey;
 	string packageSID;
+	PushInfo::ApplePushType applePushType{PushInfo::ApplePushType::Pushkit};
 	void usage(const char *app) {
 		cout << app
-			 << " --pntype google|firebase|wp|w10|apple --appid id --key apikey(secretkey) --sid ms-app://value --prefix dir --silent --debug --pntok id1 (id2 id3 ...)"
+			 << " --pntype google|firebase|wp|w10|apple --appid id --key apikey(secretkey) --sid ms-app://value --prefix dir [--silent] [--debug] [--apple-push-type RemoteBasic|RemoteWithMutableContent|Background|PushKit]"<<endl
+			 << " --pntok id1 (id2 id3 ...)"
 			 << endl;
 	}
 
@@ -91,6 +93,20 @@ struct PusherArgs {
 				debug = true;
 			}else if (EQ0(i, "--silent")) {
 				isSilent = true;
+			} else if (EQ1(i, "--apple-push-type")) {
+				const char *aspt = argv[++i];
+				if (string(aspt) == "PushKit") {
+					applePushType = PushInfo::ApplePushType::Pushkit;
+				} else if (string(aspt) == "RemoteBasic") {
+					applePushType = PushInfo::ApplePushType::RemoteBasic;
+				} else if (string(aspt) == "RemoteWithMutableContent") {
+					applePushType = PushInfo::ApplePushType::RemoteWithMutableContent;
+				} else if (string(aspt) == "Background") {
+					applePushType = PushInfo::ApplePushType::Background;
+				} else {
+					usage(*argv);
+					exit(-1);
+				}
 			} else if (EQ1(i, "--pntok")) {
 				while (i+1 < argc && strncmp(argv[i+1], "--", 2) != 0) {
 					i++;
@@ -141,12 +157,12 @@ static vector<shared_ptr<PushNotificationRequest>> createRequestFromArgs(const P
 		} else if (args.pntype == "wp") {
 			pinfo.mAppId = args.appid;
 			pinfo.mDeviceToken = pntok;
-			pinfo.mEvent = PushInfo::Message;
+			pinfo.mEvent = PushInfo::Event::Message;
 			pinfo.mText = "Hi here!";
 			result.push_back(make_shared<WindowsPhonePushNotificationRequest>(pinfo));
 		} else if (args.pntype == "w10") {
 			pinfo.mAppId = args.appid;
-			pinfo.mEvent = PushInfo::Message;
+			pinfo.mEvent = PushInfo::Event::Message;
 			pinfo.mDeviceToken = pntok;
 			pinfo.mText = "Hi here!";
 			result.push_back(make_shared<WindowsPhonePushNotificationRequest>(pinfo));
@@ -157,7 +173,7 @@ static vector<shared_ptr<PushNotificationRequest>> createRequestFromArgs(const P
 			pinfo.mDeviceToken = pntok;
 			pinfo.mTtl = 2592000;
 			pinfo.mSilent = args.isSilent;
-			//pinfo.mTtl = 60;
+			pinfo.mApplePushType = args.applePushType;
 			result.push_back(make_shared<ApplePushNotificationRequest>(pinfo));
 		} else {
 			cerr << "? push pntype " << args.pntype << endl;
@@ -216,16 +232,16 @@ int main(int argc, char *argv[]) {
 		
 		for(auto it = pn.begin(); it != pn.end(); it++){
 			switch((*it)->getState()){
-				case PushNotificationRequest::NotSubmitted:
+				case PushNotificationRequest::State::NotSubmitted:
 					notsubmitted++;
 				break;
-				case PushNotificationRequest::InProgress:
+				case PushNotificationRequest::State::InProgress:
 					inprogress++;
 				break;
-				case PushNotificationRequest::Failed:
+				case PushNotificationRequest::State::Failed:
 					failed++;
 				break;
-				case PushNotificationRequest::Successful:
+				case PushNotificationRequest::State::Successful:
 					success++;
 				break;
 			}

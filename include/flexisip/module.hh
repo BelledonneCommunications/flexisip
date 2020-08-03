@@ -23,9 +23,8 @@
 #include <sofia-sip/tport.h>
 
 #include "flexisip/configmanager.hh"
+#include "flexisip/entryfilter.hh"
 #include "flexisip/event.hh"
-
-#include "entryfilter.hh"
 
 namespace flexisip {
 
@@ -85,6 +84,7 @@ public:
 	void process(std::shared_ptr<RequestSipEvent> &ev) {processRequest(ev);}
 	void process(std::shared_ptr<ResponseSipEvent> &ev) {processResponse(ev);}
 
+	ModuleInfoBase *getInfo() const {return mInfo;}
 	void setInfo(ModuleInfoBase *moduleInfo);
 
 protected:
@@ -105,7 +105,7 @@ protected:
 	void sendTrap(const std::string &msg) {GenericManager::get()->sendTrap(mModuleConfig, msg);}
 
 protected:
-	SofiaAutoHome mHome;
+	sofiasip::Home mHome;
 	Agent *mAgent = nullptr;
 	ModuleInfoBase *mInfo = nullptr;
 	GenericStruct *mModuleConfig = nullptr;
@@ -138,8 +138,6 @@ private:
 };
 
 class ModuleInfoBase {
-	friend class Agent;
-
 public:
 	enum ModuleOid {
 		SanityChecker = 3,
@@ -165,75 +163,50 @@ public:
 		Plugin = 320
 	};
 
-	virtual ~ModuleInfoBase() {
-		ModuleInfoManager::get()->unregisterModuleInfo(this);
-	}
-
-	const std::string &getModuleName() const {
-		return mName;
-	}
-
-	const std::string &getModuleHelp() const {
-		return mHelp;
-	}
-
-	const std::vector<std::string> &getAfter() const {
-		return mAfter;
-	}
-
-	unsigned int getOidIndex() const {
-		return mOidIndex;
-	}
-
-	ModuleClass getClass() const {
-		return mClass;
-	}
-
-	const std::string &getReplace() const {
-		return mReplace;
-	}
-
-protected:
 	ModuleInfoBase(
 		const std::string &moduleName, const std::string &help, const std::vector<std::string> &after,
 		ModuleOid oid, ModuleClass moduleClass, const std::string &replace
 	) : mName(moduleName), mHelp(help), mAfter(after), mOidIndex(oid), mClass(moduleClass), mReplace(replace) {
 		ModuleInfoManager::get()->registerModuleInfo(this);
 	}
+	virtual ~ModuleInfoBase() {ModuleInfoManager::get()->unregisterModuleInfo(this);}
+
+	const std::string &getModuleName() const {return mName;}
+	const std::string &getModuleHelp() const {return mHelp;}
+	const std::vector<std::string> &getAfter() const {return mAfter;}
+	unsigned int getOidIndex() const {return mOidIndex;}
+	ModuleClass getClass() const {return mClass;}
+	const std::string &getReplace() const {return mReplace;}
+
+	const std::string &getFunction() const {return mReplace.empty() ? mName : mReplace;}
 
 	virtual Module *create(Agent *agent) = 0;
 
 private:
-	const std::string mName;
-	const std::string mHelp;
-	const std::vector<std::string> mAfter;
-	const oid mOidIndex;
+	std::string mName;
+	std::string mHelp;
+	std::vector<std::string> mAfter;
+	oid mOidIndex;
 	ModuleClass mClass;
-	const std::string mReplace;
+	std::string mReplace;
 };
 
 template<typename T>
 class ModuleInfo : public ModuleInfoBase {
 public:
-	typedef T ModuleType;
+	using ModuleType = T;
 
 	ModuleInfo(
 		const std::string &moduleName, const std::string &help, const std::vector<std::string> &after,
 		ModuleOid oid, ModuleClass moduleClass = ModuleClass::Production, const std::string &replace = ""
 	) : ModuleInfoBase(moduleName, help, after, oid, moduleClass, replace) {}
 
-private:
 	Module *create(Agent *agent) override {
 		Module *module = new T(agent);
 		module->setInfo(this);
 		return module;
 	}
 };
-
-inline std::ostringstream &operator<<(std::ostringstream &os, const Module &module) {
-	os << module.getModuleName();
-	return os;
-}
 
 // -----------------------------------------------------------------------------
 // ModuleToolBox.

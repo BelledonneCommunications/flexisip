@@ -17,26 +17,29 @@
 */
 
 #include <algorithm>
-#include <string.h>
 #include <signal.h>
+#include <string.h>
 
-#include "belle-sip/belle-sip.h"
+#include <belle-sip/belle-sip.h>
 #if ENABLE_SOCI
-	#include "soci/mysql/soci-mysql.h"
+#include <soci/mysql/soci-mysql.h>
 #endif
 
 #include <flexisip/configmanager.hh>
+#include <flexisip/registrardb.hh>
+
 #include "bellesip-signaling-exception.hh"
 #include "list-subscription/body-list-subscription.hh"
 #if ENABLE_SOCI
 	#include "list-subscription/external-list-subscription.hh"
 #endif
 #include "pidf+xml.hh"
-#include "presence-server.hh"
 #include "presentity-presenceinformation.hh"
 #include "resource-lists.hh"
-#include <flexisip/registrardb.hh>
 #include "subscription.hh"
+#include "utils/belle-sip-utils.hh"
+
+#include "presence-server.hh"
 
 using namespace flexisip;
 using namespace pidf;
@@ -50,28 +53,61 @@ PresenceServer::Init PresenceServer::sStaticInit;
 
 PresenceServer::Init::Init() {
 	ConfigItemDescriptor items[] = {
-									{Boolean, "enabled", "Enable presence server", "true"},
-									{StringList, "transports",
-									 "List of white space separated SIP uris where the presence server must listen. Must not be tls.",
-									 "sip:127.0.0.1:5065;transport=tcp"},
-									{Integer, "expires", "Publish default expires in second.  by default.", "600"},
-									{Integer, "notify-limit", "Max number of presentity sent in a single NOTIFY.  by default.", "200"},
-									{Boolean, "leak-detector", "Enable belle-sip leak detector", "false"},
-									{Boolean, "long-term-enabled", "Enable long-term presence notifies", "true"},
-									{String, "bypass-condition", "If user agent contains it, can bypass extended notifiy verification.", "false"},
-									{String, "external-list-subscription-request",
-										"Soci SQL request to execute to obtain the list of users corresponding to an external subscription.\n"
-										"Named parameters are:\n"
-											"-':from' : the uri of the sender of the SUBSCRIBE.\n"
-											"-':to' : the uri of the users list the sender want to subscribe to.\n"
-										"The use of the :from & :to parameters are mandatory.\n", ""},
-									{String, "soci-connection-string", "Connection string to SOCI.", ""},
-									{Integer, "max-thread", "Max number threads.", "50"},
-									{Integer, "max-thread-queue-size", "Max legnth of threads queue.", "50"},
-									config_item_end};
-	GenericStruct *s = new GenericStruct("presence-server", "Flexisip presence server parameters.", 0);
+		{Boolean, "enabled", "Enable presence server", "true"},
+		{StringList, "transports",
+			"List of white space separated SIP URIs where the presence server must listen. Must not be tls.",
+			"sip:127.0.0.1:5065;transport=tcp"},
+		{Integer, "expires", "Default expires of PUBLISH request in second.", "600"},
+		{Integer, "notify-limit", "Max number of presentity sent in a single NOTIFY by default.", "200"},
+		{Boolean, "long-term-enabled", "Enable long-term presence notifies", "false"},
+		{String, "rls-database-connection", "Soci connection string for the resource list database.", ""},
+		{String, "rls-database-request",
+			"SQL request to obtain the list of the users corresponding to an resource list subscription.\n"
+			"Named parameters are:\n"
+			" * ':from' : the URI of the sender of the SUBSCRIBE. (mandatory)\n"
+			" * ':to' : the URI of the users list which the sender want to subscribe to. (mandatory)\n",
+			""},
+		{Integer, "rls-database-max-thread", "Max number of threads.", "50"},
+		{Integer, "rls-database-max-thread-queue-size", "Max legnth of threads queue.", "50"},
+
+		// Hidden parameters
+		{String, "bypass-condition", "If user agent contains it, can bypass extended notifiy verification.", "false"},
+		{Boolean, "leak-detector", "Enable belle-sip leak detector", "false"},
+
+		// Deprecated parameters
+		{String, "soci-connection-string", "Connection string to SOCI.", ""},
+		{String, "external-list-subscription-request",
+			"Soci SQL request to execute to obtain the list of the users corresponding to an external subscription.\n"
+			"Named parameters are:\n"
+			" * ':from' : the URI of the sender of the SUBSCRIBE.\n"
+			" * ':to' : the URI of the users list which the sender want to subscribe to.\n"
+			"The use of the :from & :to parameters are mandatory.", ""},
+		{Integer, "max-thread", "Max number of threads.", "50"},
+		{Integer, "max-thread-queue-size", "Max legnth of threads queue.", "50"},
+		config_item_end};
+
+	auto s = new GenericStruct("presence-server", "Flexisip presence server parameters.", 0);
 	GenericManager::get()->getRoot()->addChild(s);
 	s->addChildrenValues(items);
+
+	s->get<ConfigString>("bypass-condition")->setExportable(false);
+	s->get<ConfigBoolean>("leak-detector")->setExportable(false);
+
+	auto sociConnectionString = s->get<ConfigString>("soci-connection-string");
+	sociConnectionString->setDeprecated({"2020-06-02", "2.0.0", "Renamed into 'rls-database-connection'"});
+	s->get<ConfigString>("rls-database-connection")->setFallback(*sociConnectionString);
+
+	auto externalListSubscriptionRequest = s->get<ConfigString>("external-list-subscription-request");
+	externalListSubscriptionRequest->setDeprecated({"2020-06-02", "2.0.0", "Renamed into 'rls-database-request'"});
+	s->get<ConfigString>("rls-database-request")->setFallback(*externalListSubscriptionRequest);
+
+	auto maxThread = s->get<ConfigInt>("max-thread");
+	maxThread->setDeprecated({"2020-06-02", "2.0.0", "Renamed into 'rls-database-max-thread'"});
+	s->get<ConfigInt>("rls-database-max-thread")->setFallback(*maxThread);
+
+	auto maxThreadQueueSize = s->get<ConfigInt>("max-thread-queue-size");
+	maxThreadQueueSize->setDeprecated({"2020-06-02", "2.0.0", "Renamed into 'rls-database-max-thread-queue-size'"});
+	s->get<ConfigInt>("rls-database-max-thread-queue-size")->setFallback(*maxThreadQueueSize);
 }
 
 PresenceServer::PresenceServer(su_root_t* root) : ServiceServer( root){
@@ -110,13 +146,13 @@ PresenceServer::PresenceServer(su_root_t* root) : ServiceServer( root){
 	mDefaultExpires = config->get<ConfigInt>("expires")->read();
 	mBypass = config->get<ConfigString>("bypass-condition")->read();
 	mEnabled = config->get<ConfigBoolean>("enabled")->read();
-	mRequest = config->get<ConfigString>("external-list-subscription-request")->read();
+	mRequest = config->get<ConfigString>("rls-database-request")->read();
 
 	if (mRequest.empty()) return;
 
-	int maxThreads = config->get<ConfigInt>("max-thread")->read();
-	int maxQueueSize = config->get<ConfigInt>("max-thread-queue-size")->read();
-	const string &connectionString = config->get<ConfigString>("soci-connection-string")->read();
+	int maxThreads = config->get<ConfigInt>("rls-database-max-thread")->read();
+	int maxQueueSize = config->get<ConfigInt>("rls-database-max-thread-queue-size")->read();
+	const string &connectionString = config->get<ConfigString>("rls-database-connection")->read();
 
 	mThreadPool = new ThreadPool(maxThreads, maxQueueSize);
 #if ENABLE_SOCI
@@ -170,29 +206,47 @@ PresenceServer::~PresenceServer(){
 
 void PresenceServer::_init() {
 	if (!mEnabled) return;
-	GenericStruct *cr = GenericManager::get()->getRoot();
-	string get_users_with_phones_request = cr->get<GenericStruct>("module::Authentication")->get<ConfigString>("soci-users-with-phones-request")->read();
-	string db_implementation = cr->get<GenericStruct>("module::Authentication")->get<ConfigString>("db-implementation")->read();
+	const auto *cr = GenericManager::get()->getRoot();
 
-	if(get_users_with_phones_request == "" && db_implementation != "file") {
-		LOGF("Unable to start presence server : soci-users-with-phones-request is not precised in flexisip.conf, please fix it.");
+	const auto *longTermEnabledConfig = cr->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled");
+	auto longTermEnabled = longTermEnabledConfig->read();
+
+	const auto &dbImplementation = cr->get<GenericStruct>("module::Authentication")->get<ConfigString>("db-implementation")->read();
+	const auto *getUsersWithPhonesRequestParam = cr->get<GenericStruct>("module::Authentication")->get<ConfigString>("soci-users-with-phones-request");
+	const auto *getUserWithPhoneRequestParam = cr->get<GenericStruct>("module::Authentication")->get<ConfigString>("soci-user-with-phone-request");
+	const auto &getUsersWithPhonesRequest = getUsersWithPhonesRequestParam->read();
+	const auto &getUserWithPhoneRequest = getUserWithPhoneRequestParam->read();
+	auto userDbIsProperlySet = dbImplementation == "file" || !getUsersWithPhonesRequest.empty() || !getUserWithPhoneRequest.empty();
+
+	if (longTermEnabledConfig->isDefault() && userDbIsProperlySet) {
+		LOGF("The default value of '%s' parameter has changed since Flexisip 2.0.0. "
+			"Please set this parameter explicitly or unset '%s' and '%s' to remove this error.",
+			longTermEnabledConfig->getName().c_str(),
+			getUserWithPhoneRequestParam->getCompleteName().c_str(),
+			getUsersWithPhonesRequestParam->getCompleteName().c_str()
+		);
+	}
+	if (longTermEnabled && !userDbIsProperlySet) {
+		LOGF("Unable to start presence server: neither '%s' or '%s' is set whereas 'Long-term Presence' is required.",
+			 getUserWithPhoneRequestParam->getCompleteName().c_str(),
+			 getUsersWithPhonesRequestParam->getCompleteName().c_str()
+		);
 	}
 
-	list<string> transports = cr->get<GenericStruct>("presence-server")->get<ConfigStringList>("transports")->read();
+	auto transports = cr->get<GenericStruct>("presence-server")->get<ConfigStringList>("transports")->read();
 
-	for (auto it = transports.begin(); it != transports.end(); ++it) {
-		string transport = *it;
+	for (const auto &transport : transports) {
 		if(transport.find("sips") != string::npos || transport.find("transport=tls") != string::npos) {
 			LOGF("Unable to start presence server : TLS transport is not supported by the presence server.");
 		}
-		belle_sip_uri_t *uri = belle_sip_uri_parse(it->c_str());
+		auto *uri = belle_sip_uri_parse(transport.c_str());
 		if (uri) {
-			belle_sip_listening_point_t *lp = belle_sip_stack_create_listening_point(
+			auto *lp = belle_sip_stack_create_listening_point(
 				mStack, belle_sip_uri_get_host(uri), belle_sip_uri_get_listening_port(uri),
 				belle_sip_uri_get_transport_param(uri) ? belle_sip_uri_get_transport_param(uri) : "udp");
 			belle_sip_object_unref(uri);
 			if (belle_sip_provider_add_listening_point(mProvider, lp))
-				throw FLEXISIP_EXCEPTION << "Cannot add lp for [" << *it << "]";
+				throw FLEXISIP_EXCEPTION << "Cannot add lp for [" << transport << "]";
 		}
 	}
 }
@@ -203,17 +257,13 @@ void PresenceServer::_run() {
 
 void PresenceServer::_stop() {}
 
-
 void PresenceServer::processDialogTerminated(PresenceServer *thiz, const belle_sip_dialog_terminated_event_t *event) {
 	belle_sip_dialog_t *dialog = belle_sip_dialog_terminated_event_get_dialog(event);
-	if (belle_sip_dialog_get_application_data(dialog)) {
-		Subscription *sub = (Subscription *)belle_sip_dialog_get_application_data(dialog);
-		if (dynamic_cast<ListSubscription *>(sub)) {
-			SLOGD << "Subscription [" << sub << "] has expired";
-			thiz->removeSubscription(sub->mDialogRef);
-		} //else  nothing to be done for now because expire is performed at SubscriptionLevel
-		sub->mDialogRef.reset();
-	}
+	auto sub = getSubscription(dialog);
+	if (dynamic_pointer_cast<ListSubscription>(sub)) {
+		SLOGD << "Subscription [" << sub << "] has expired";
+		thiz->removeSubscription(sub);
+	} //else  nothing to be done for now because expire is performed at SubscriptionLevel
 }
 void PresenceServer::processIoError(PresenceServer *thiz, const belle_sip_io_error_event_t *event) {
 	SLOGD << "PresenceServer::processIoError not implemented yet";
@@ -265,22 +315,17 @@ void PresenceServer::processResponseEvent(PresenceServer *thiz, const belle_sip_
 }
 void PresenceServer::processTimeout(PresenceServer *thiz, const belle_sip_timeout_event_t *event) {
 	belle_sip_client_transaction_t *client = belle_sip_timeout_event_get_client_transaction(event);
-	if (client && belle_sip_transaction_get_application_data(BELLE_SIP_TRANSACTION(client))) {
-		Subscription *subscription = (Subscription *)belle_sip_transaction_get_application_data(BELLE_SIP_TRANSACTION(client));
-		thiz->removeSubscription(subscription->mTransactionRef);
+	auto subscription = client ? getSubscription(client) : nullptr;
+	if (subscription) {
+		thiz->removeSubscription(subscription);
 		SLOGD << "Removing subscription [" << subscription << "] because no response received";
 	}
 }
 void PresenceServer::processTransactionTerminated(PresenceServer *thiz, const belle_sip_transaction_terminated_event_t *event) {
 	belle_sip_client_transaction_t *client = belle_sip_transaction_terminated_event_get_client_transaction(event);
-	if(!client) return;
-
-	auto *sub = static_cast<Subscription *>(belle_sip_transaction_get_application_data(BELLE_SIP_TRANSACTION(client)));
+	auto sub = client ? getSubscription(client) : nullptr;
 	if (sub) {
-		// WARNING: the next line MUST be placed before sub->mTransactionRef.reset() since
-		// the latter could delete 'sub' object.
 		sub->mCurrentTransaction = nullptr;
-		sub->mTransactionRef.reset();
 	}
 }
 
@@ -457,7 +502,6 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 		if (!(presenceInfo = getPresenceInfo(entity))) {
 			presenceInfo = make_shared<PresentityPresenceInformation>(entity, *this, belle_sip_stack_get_main_loop(mStack));
 			SLOGD << "New Presentity [" << *presenceInfo << "] created from PUBLISH";
-			// for (const belle_sip_uri_t* : mPresenceInformations.keys())
 			addPresenceInfo(presenceInfo);
 		} else {
 			SLOGD << "Presentity [" << *presenceInfo << "] found";
@@ -616,9 +660,9 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 	 */
 	belle_sip_server_transaction_t *server_transaction = belle_sip_provider_create_server_transaction(mProvider, request);
 	belle_sip_object_data_set((belle_sip_object_t*)request, "my-transaction", server_transaction, nullptr);
-	belle_sip_dialog_t *dialog = belle_sip_request_event_get_dialog(event);
+	bellesip::shared_ptr<belle_sip_dialog_t> dialog{belle_sip_request_event_get_dialog(event)};
 	if (!dialog)
-		dialog = belle_sip_provider_create_dialog(mProvider, BELLE_SIP_TRANSACTION(server_transaction));
+		dialog.reset(belle_sip_provider_create_dialog(mProvider, BELLE_SIP_TRANSACTION(server_transaction)));
 
 	if (!dialog)
 		throw BELLESIP_SIGNALING_EXCEPTION(481) << "Cannot create dialog from request ["<< request << "]";
@@ -626,7 +670,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 	belle_sip_header_expires_t *headerExpires = belle_sip_message_get_header_by_type(request, belle_sip_header_expires_t);
 	int expires = headerExpires ? belle_sip_header_expires_get_expires(headerExpires) : 3600; // rfc3856, default value
 	belle_sip_header_t *acceptEncodingHeader = belle_sip_message_get_header(BELLE_SIP_MESSAGE(request), "Accept-Encoding");
-	switch (belle_sip_dialog_get_state(dialog)) {
+	switch (belle_sip_dialog_get_state(dialog.get())) {
 		case BELLE_SIP_DIALOG_NULL: {
 			belle_sip_header_supported_t *supported =
 				belle_sip_message_get_header_by_type(BELLE_SIP_MESSAGE(request), belle_sip_header_supported_t);
@@ -641,17 +685,22 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 
 			// List subscription
 			if (supported && belle_sip_list_find_custom(belle_sip_header_supported_get_supported(supported), (belle_sip_compare_func)strcasecmp, "eventlist")) {
-				SLOGD << "Subscribe for resource list " << "for dialog [" << BELLE_SIP_OBJECT(dialog) << "]";
+				SLOGD << "Subscribe for resource list " << "for dialog [" << BELLE_SIP_OBJECT(dialog.get()) << "]";
 				// will be release when last PresentityPresenceInformationListener is released
 				shared_ptr<ListSubscription> listSubscription;
 				belle_sip_header_content_type_t *contentType = belle_sip_message_get_header_by_type(request, belle_sip_header_content_type_t);
-				auto listAvailableLambda = [this, bypass, acceptEncodingHeader, server_transaction, resp, dialog] (shared_ptr<ListSubscription> listSubscription) {
+				auto listAvailableLambda = [this, bypass, acceptEncodingHeader, server_transaction, resp, wDialog = bellesip::weak_ptr<belle_sip_dialog_t>{dialog}] (shared_ptr<ListSubscription> listSubscription) {
+					auto dialog = wDialog.lock();
+					if (!dialog) {
+						SLOGD << "Dialog for ListSubscription[" << listSubscription << "] no more exists. Abort list subscription";
+						return;
+					}
+
 					if (acceptEncodingHeader)
 						listSubscription->setAcceptEncodingHeader(acceptEncodingHeader);
 
-					if (!belle_sip_dialog_get_application_data(dialog)) {
-						listSubscription->mDialogRef = listSubscription;
-						belle_sip_dialog_set_application_data(dialog, listSubscription.get());
+					if (getSubscription(dialog.get()) == nullptr) {
+						setSubscription(dialog.get(), listSubscription);
 					}
 					// send 200ok late to allow deeper analysis of request
 					belle_sip_server_transaction_send_response(server_transaction, resp.get());
@@ -700,15 +749,12 @@ error:
 						<< (contentType ? belle_sip_header_content_type_get_type(contentType) : "not set") << "/"
 						<< (contentType ? belle_sip_header_content_type_get_subtype(contentType) : "not set") << "]";
 				}
-				listSubscription->mDialogRef = listSubscription;
-				belle_sip_dialog_set_application_data(dialog, listSubscription.get());
+				setSubscription(dialog.get(), listSubscription);
 			} else { // Simple subscription
-				shared_ptr<PresentityPresenceInformationListener> subscription =
-					make_shared<PresenceSubscription>(expires, belle_sip_request_get_uri(request), dialog, mProvider);
-				shared_ptr<Subscription> sub = dynamic_pointer_cast<Subscription>(subscription);
-				sub->mDialogRef = sub;
-				belle_sip_dialog_set_application_data(dialog, sub.get());
-				SLOGD << " setting sub pointer [" << belle_sip_dialog_get_application_data(dialog) << "] to dialog [" << dialog << "]";
+				auto sub = make_shared<PresenceSubscription>(expires, belle_sip_request_get_uri(request), dialog, mProvider);
+				shared_ptr<PresentityPresenceInformationListener> subscription{sub};
+				setSubscription(dialog.get(), sub);
+				SLOGD << " setting sub pointer [" << belle_sip_dialog_get_application_data(dialog.get()) << "] to dialog [" << dialog.get() << "]";
 				// send 200ok late to allow deeper anylise of request
 				belle_sip_server_transaction_send_response(server_transaction, resp.get());
 				subscription->enableBypass(bypass);
@@ -718,10 +764,7 @@ error:
 			break;
 		}
 		case BELLE_SIP_DIALOG_CONFIRMED: {
-			Subscription *subscription = nullptr;
-			if (belle_sip_dialog_get_application_data(dialog)) {
-				subscription = (Subscription *) belle_sip_dialog_get_application_data(dialog);
-			}
+			auto subscription = getSubscription(dialog.get());
 
 			//			RFC 3265
 			//			3.1.4.2. Refreshing of Subscriptions
@@ -751,7 +794,7 @@ error:
 
 			if (!subscription || subscription->getState() == Subscription::State::terminated) {
 				throw BELLESIP_SIGNALING_EXCEPTION(481) << "Subscription [" << hex << subscription << "] for dialog ["
-											   << BELLE_SIP_OBJECT(dialog) << "] already in terminated state";
+											   << BELLE_SIP_OBJECT(dialog.get()) << "] already in terminated state";
 			}
 
 			//			 If a SUBSCRIBE request to refresh a subscription fails with a non-481
@@ -769,16 +812,16 @@ error:
 			belle_sip_server_transaction_send_response(server_transaction, resp);
 
 			if (expires == 0) {
-				removeSubscription(subscription->mDialogRef);
+				removeSubscription(subscription);
 			} else {
 				// update expires
 				subscription->increaseExpirationTime(expires);
-				if (dynamic_pointer_cast<PresentityPresenceInformationListener>(subscription->mDialogRef)) {
-					shared_ptr<PresentityPresenceInformationListener> listener = dynamic_pointer_cast<PresentityPresenceInformationListener>(subscription->mDialogRef);
+				if (dynamic_pointer_cast<PresentityPresenceInformationListener>(subscription)) {
+					auto listener = dynamic_pointer_cast<PresentityPresenceInformationListener>(subscription);
 					addOrUpdateListener(listener, expires);
 				} else {
 					// list subscription case
-					shared_ptr<ListSubscription> listSubscription = dynamic_pointer_cast<ListSubscription>(subscription->mDialogRef);
+					auto listSubscription = dynamic_pointer_cast<ListSubscription>(subscription);
 					for (shared_ptr<PresentityPresenceInformationListener> &listener : listSubscription->getListeners()) {
 						listener->enableBypass(bypass); //expiration is handled by dialog
 					}
@@ -790,7 +833,7 @@ error:
 
 		default: {
 			throw BELLESIP_SIGNALING_EXCEPTION(400) << "Unexpected request [" << hex << (long)request << "for dialog ["
-										   << hex << (long)dialog << "in state [" << belle_sip_dialog_state_to_string(belle_sip_dialog_get_state(dialog));
+										   << hex << (long)dialog.get() << "in state [" << belle_sip_dialog_state_to_string(belle_sip_dialog_get_state(dialog.get()));
 		}
 	}
 }

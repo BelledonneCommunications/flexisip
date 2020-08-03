@@ -18,9 +18,10 @@
 
 #pragma once
 
-#include <thread>
 #include <map>
-#include "common.hh"
+#include <thread>
+
+#include <flexisip/common.hh>
 
 namespace flexisip {
 

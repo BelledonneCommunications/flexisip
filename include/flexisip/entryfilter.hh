@@ -32,30 +32,26 @@ namespace flexisip {
  **/
 class EntryFilter {
   public:
-	virtual void declareConfig(GenericStruct *module_config) {
-	}
-	virtual void loadConfig(const GenericStruct *module_config) {
-	}
+	virtual void declareConfig(GenericStruct *module_config) {}
+	virtual void loadConfig(const GenericStruct *module_config) {}
 	virtual bool canEnter(const std::shared_ptr<MsgSip> &ms) = 0;
 	virtual bool isEnabled() = 0;
-	virtual ~EntryFilter() {
-	}
+	virtual ~EntryFilter() = default;
 };
 
 class ConfigEntryFilter : public EntryFilter {
-	StatCounter64 *mCountEvalTrue;
-	StatCounter64 *mCountEvalFalse;
+	StatCounter64 *mCountEvalTrue = nullptr;
+	StatCounter64 *mCountEvalFalse = nullptr;
 
   public:
-	ConfigEntryFilter();
-	virtual ~ConfigEntryFilter();
-	virtual void declareConfig(GenericStruct *module_config);
-	virtual void loadConfig(const GenericStruct *module_config);
-	virtual bool canEnter(const std::shared_ptr<MsgSip> &ms);
-	virtual bool isEnabled();
+	ConfigEntryFilter() = default;
+	void declareConfig(GenericStruct *module_config) override;
+	void loadConfig(const GenericStruct *module_config) override;
+	bool canEnter(const std::shared_ptr<MsgSip> &ms) override;
+	bool isEnabled() override;
 
   private:
-	bool mEnabled;
+	bool mEnabled = false;
 	std::shared_ptr<SipBooleanExpression> mBooleanExprFilter;
 	std::string mEntryName;
 };

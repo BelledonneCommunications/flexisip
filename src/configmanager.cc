@@ -41,8 +41,7 @@ using namespace std;
 namespace flexisip {
 
 bool ConfigValueListener::sDirty = false;
-ConfigValueListener::~ConfigValueListener() {
-}
+
 bool ConfigValueListener::onConfigStateChanged(const ConfigValue &conf, ConfigState state) {
 	switch (state) {
 		case ConfigState::Commited:
@@ -65,10 +64,23 @@ bool ConfigValueListener::onConfigStateChanged(const ConfigValue &conf, ConfigSt
 		case ConfigState::Reset:
 			sDirty = false;
 			break;
-		default:
+		case ConfigState::Check:
 			break;
 	}
 	return doOnConfigStateChanged(conf, state);
+}
+
+/*********************************************************************************************************************/
+/* GenericEntry class                                                                                                */
+/*********************************************************************************************************************/
+
+void GenericEntry::DeprecationInfo::setAsDeprecaded(const std::string &date, const std::string &version, const std::string &text) {
+	if (date.empty() || version.empty()) {
+		throw std::invalid_argument(string(__func__) + "(): empty date or version");
+	}
+	mDate = date;
+	mVersion = version;
+	mText = text;
 }
 
 /**
@@ -96,6 +108,17 @@ string GenericEntry::sanitize(const string &str) {
 	return strnew;
 }
 
+std::string GenericEntry::getCompleteName() const {
+	if (mParent == nullptr) {
+		return "";
+	} else {
+		string &&res = mParent->getCompleteName();
+		if (!res.empty()) res += '/';
+		res += mName;
+		return move(res);
+	}
+}
+
 string GenericEntry::getPrettyName() const {
 	string pn(mName);
 	char upper = char(toupper(::toupper(pn.at(0))));
@@ -118,6 +141,69 @@ void GenericEntry::mibFragment(ostream &ost, string spacing) const {
 	string s("OCTET STRING");
 	doMibFragment(ost, "", "read-write", s, spacing);
 }
+
+void GenericEntry::doMibFragment(ostream &ostr, const string &def, const string &access, const string &syntax,
+								 const string &spacing) const {
+	if (!getParent())
+		LOGA("no parent found for %s", getName().c_str());
+	ostr << spacing << sanitize(getName()) << " OBJECT-TYPE" << endl
+		 << spacing << "	SYNTAX"
+		 << "	" << syntax << endl
+		 << spacing << "	MAX-ACCESS	" << access << endl
+		 << spacing << "	STATUS	current" << endl
+		 << spacing << "	DESCRIPTION" << endl
+		 << spacing << "	\"" << escapeDoubleQuotes(getHelp()) << endl
+		 << spacing << "	"
+		 << " Default:" << def << endl
+		 << spacing << "	"
+		 << " PN:" << getPrettyName() << "\"" << endl
+		 << spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
+}
+
+GenericEntry::GenericEntry(const string &name, GenericValueType type, const string &help, oid oid_index)
+	: mName(name), mHelp(help), mType(type), mOidLeaf(oid_index) {
+	mConfigListener = NULL;
+	size_t idx;
+	for (idx = 0; idx < name.size(); idx++) {
+		if (name[idx] == '_')
+			LOGA("Underscores not allowed in config items, please use minus sign (while checking generic entry name "
+				 "'%s').",
+				 name.c_str());
+		if (type != Struct && isupper(name[idx])) {
+			LOGA("Uppercase characters not allowed in config items, please use lowercase characters only (while "
+				 "checking generic entry name '%s').",
+				 name.c_str());
+		}
+	}
+
+	if (oid_index == 0) {
+		mOidLeaf = Oid::oidFromHashedString(name);
+	}
+}
+
+std::string GenericEntry::escapeDoubleQuotes(const std::string &str) {
+	string escapedStr = "";
+	for(auto it=str.cbegin(); it!=str.cend(); it++) {
+		if(*it == '"') {
+			escapedStr += "''";
+		} else {
+			escapedStr += *it;
+		}
+	}
+	return escapedStr;
+}
+
+void GenericEntry::setParent(GenericEntry *parent) {
+	mParent = parent;
+	if (mOid)
+		delete mOid;
+	mOid = new Oid(parent->getOid(), mOidLeaf);
+
+	string key = parent->getName() + "::" + mName;
+	registerWithKey(key);
+}
+
+/*********************************************************************************************************************/
 
 void ConfigValue::mibFragment(ostream &ost, string spacing) const {
 	string s("OCTET STRING");
@@ -229,34 +315,24 @@ void NotificationEntry::send(const GenericEntry *source, const string &msg) {
 #endif
 }
 
-void GenericEntry::doMibFragment(ostream &ostr, const string &def, const string &access, const string &syntax,
-								 const string &spacing) const {
-	if (!getParent())
-		LOGA("no parent found for %s", getName().c_str());
-	ostr << spacing << sanitize(getName()) << " OBJECT-TYPE" << endl
-		 << spacing << "	SYNTAX"
-		 << "	" << syntax << endl
-		 << spacing << "	MAX-ACCESS	" << access << endl
-		 << spacing << "	STATUS	current" << endl
-		 << spacing << "	DESCRIPTION" << endl
-		 << spacing << "	\"" << escapeDoubleQuotes(getHelp()) << endl
-		 << spacing << "	"
-		 << " Default:" << def << endl
-		 << spacing << "	"
-		 << " PN:" << getPrettyName() << "\"" << endl
-		 << spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
-}
-
 /* ConfigValue */
 
 ConfigValue::ConfigValue(const string &name, GenericValueType vt, const string &help, const string &default_value,
 						 oid oid_index)
-	: GenericEntry(name, vt, help, oid_index), mDefaultValue(default_value) {
+	: GenericEntry(name, vt, help, oid_index), mValue(default_value), mDefaultValue(default_value) {
 	mExportToConfigFile = true;
 }
 
-void ConfigValue::set(const string &value) {
-	set(string(value));
+bool ConfigValue::invokeConfigStateChanged(ConfigState state) {
+	if (getParent() && getParent()->getType() == Struct) {
+		ConfigValueListener *listener = getParent()->getConfigListener();
+		if (listener) {
+			return listener->onConfigStateChanged(*this, state);
+		} else {
+			LOGE("%s doesn't implement a config change listener.", getParent()->getName().c_str());
+		}
+	}
+	return true;
 }
 
 void ConfigValue::checkType(const string & value, bool isDefault){
@@ -273,6 +349,14 @@ void ConfigValue::checkType(const string & value, bool isDefault){
 void ConfigValue::set(std::string &&value) {
 	checkType(value, false);
 	mValue = move(value);
+	mNextValue = mValue;
+	mIsDefault = false;
+}
+
+void ConfigValue::restoreDefault() {
+	mValue = mDefaultValue;
+	mNextValue = mDefaultValue;
+	mIsDefault = true;
 }
 
 void ConfigValue::setNextValue(const string &value) {
@@ -283,14 +367,27 @@ void ConfigValue::setNextValue(const string &value) {
 void ConfigValue::setDefault(const string &value) {
 	checkType(value, true);
 	mDefaultValue = value;
+	if (mIsDefault) {
+		mValue = mDefaultValue;
+		mNextValue = mDefaultValue;
+	}
 }
 
 const string &ConfigValue::get() const {
+	if (mIsDefault && mFallback && !mFallback->isDefault()) {
+		LOGW("'%s' isn't set but its old name is. Fallbacking on '%s'",
+			 getCompleteName().c_str(), mFallback->getCompleteName().c_str());
+		return mFallback->get();
+	}
 	return mValue;
 }
 
 const string &ConfigValue::getDefault() const {
 	return mDefaultValue;
+}
+
+void ConfigValue::setFallback(const ConfigValue &fallbackValue) {
+	mFallback = &fallbackValue;
 }
 
 /* Oid */
@@ -309,9 +406,6 @@ Oid::Oid(vector<oid> path) {
 	mOidPath = path;
 }
 
-Oid::~Oid() {
-}
-
 oid Oid::oidFromHashedString(const string &str) {
 	su_md5_t md5[1];
 	su_md5_init(md5);
@@ -325,50 +419,6 @@ oid Oid::oidFromHashedString(const string &str) {
 	}
 	return oidValue / 2; // takes only half the 32 bit size [1]
 						 // 1: snmpwalk cannot associate oid to name otherwise
-}
-
-GenericEntry::GenericEntry(const string &name, GenericValueType type, const string &help, oid oid_index)
-	: mOid(NULL), mName(name), mReadOnly(false), mExportToConfigFile(true), mDeprecated(false), mHelp(help),
-	  mType(type), mParent(0), mOidLeaf(oid_index) {
-	mConfigListener = NULL;
-	size_t idx;
-	for (idx = 0; idx < name.size(); idx++) {
-		if (name[idx] == '_')
-			LOGA("Underscores not allowed in config items, please use minus sign (while checking generic entry name "
-				 "'%s').",
-				 name.c_str());
-		if (type != Struct && isupper(name[idx])) {
-			LOGA("Uppercase characters not allowed in config items, please use lowercase characters only (while "
-				 "checking generic entry name '%s').",
-				 name.c_str());
-		}
-	}
-
-	if (oid_index == 0) {
-		mOidLeaf = Oid::oidFromHashedString(name);
-	}
-}
-
-std::string GenericEntry::escapeDoubleQuotes(const std::string &str) {
-	string escapedStr = "";
-	for(auto it=str.cbegin(); it!=str.cend(); it++) {
-		if(*it == '"') {
-			escapedStr += "''";
-		} else {
-			escapedStr += *it;
-		}
-	}
-	return escapedStr;
-}
-
-void GenericEntry::setParent(GenericEntry *parent) {
-	mParent = parent;
-	if (mOid)
-		delete mOid;
-	mOid = new Oid(parent->getOid(), mOidLeaf);
-
-	string key = parent->getName() + "::" + mName;
-	registerWithKey(key);
 }
 
 void ConfigValue::setParent(GenericEntry *parent) {
@@ -427,10 +477,9 @@ GenericEntry *GenericStruct::addChild(GenericEntry *c) {
 	return c;
 }
 
-void GenericStruct::deprecateChild(const char *name) {
+void GenericStruct::deprecateChild(const char *name, DeprecationInfo &&info) {
 	GenericEntry *e = find(name);
-	if (e)
-		e->setDeprecated(true);
+	if (e) e->setDeprecated(std::move(info));
 }
 
 void GenericStruct::addChildrenValues(ConfigItemDescriptor *items) {
@@ -490,40 +539,6 @@ unique_ptr<StatPair> GenericStruct::createStats(const string &name, const string
 	auto finish = createStat(name + "-finished", help + " Finished.");
 	return unique_ptr<StatPair>(new StatPair(start, finish));
 }
-/*
-void GenericStruct::addChildrenValues(StatItemDescriptor *items){
-	for (;items->name!=NULL;items++){
-		GenericEntry *val=NULL;
-		oid cOid=Oid::oidFromHashedString(items->name);
-		switch(items->type){
-		case Counter64:
-			//LOGD("StatItemDescriptor: %s %lu", items->name, cOid);
-			val=new StatCounter64(items->name,items->help,cOid);
-			break;
-		default:
-			LOGA("Bad ConfigValue type %u for %s!", items->type, items->name);
-			break;
-		}
-		addChild(val);
-	}
-}
-*/
-
-struct matchEntryName {
-	const char *mName;
-	matchEntryName(const char *name) : mName(name) {
-	}
-	bool operator()(GenericEntry *e) {
-		return (strcmp(e->getName().c_str(), mName) == 0);
-	}
-};
-
-GenericEntry *GenericStruct::find(const char *name) const {
-	auto it = find_if(mEntries.begin(), mEntries.end(), matchEntryName(name));
-	if (it != mEntries.end())
-		return *it;
-	return NULL;
-}
 
 struct matchEntryNameApprox {
 	const string mName;
@@ -574,7 +589,7 @@ bool ConfigBoolean::parse(const string &value) {
 		return true;
 	else if (value == "false" || value == "0")
 		return false;
-	throw FlexisipException("Bad boolean value" + value);
+	throw FlexisipException("Bad boolean value '" + value + "'");
 	return false;
 }
 
@@ -831,71 +846,100 @@ RootConfigStruct::~RootConfigStruct() {
 #endif
 
 GenericManager::GenericManager()
-	: mNeedRestart(false), mDirtyConfig(false),
-	  mConfigRoot("flexisip", "This is the default Flexisip configuration file", {1, 3, 6, 1, 4, 1, company_id}),
-	  mReader(&mConfigRoot), mNotifier(NULL) {
+	: mConfigRoot("flexisip", "This is the default Flexisip (v" FLEXISIP_GIT_VERSION ") configuration file", {1, 3, 6, 1, 4, 1, SNMP_COMPANY_OID}),
+	  mReader(&mConfigRoot) {
 	// to make sure global_conf is instanciated first
 	static ConfigItemDescriptor global_conf[] = {
-		{String, "log-directory", "Directory where to create log files.\n"
+		// processus settings
+		{StringList, "default-servers", "Servers started by default when no --server option is specified on command line. "
+			"Possible values are 'proxy', 'presence', 'conference', separated by whitespaces.", "proxy" },
+		{Boolean, "auto-respawn", "Automatically respawn flexisip in case of abnormal termination (crashes). This has an effect if "
+			"Flexisip has been launched with '--daemon' option only", "true"},
+		{String, "plugins-dir", "Path to the directory where plugins can be found.", DEFAULT_PLUGINS_DIR},
+		{StringList, "plugins", "Plugins to load. Look at <prefix>/lib/flexisip/plugins to know the list of installed plugin. The name of a plugin can "
+			"be derivated from the according library name by striping out the extension part and the leading 'lib' prefix.\n"
+			"E.g. putting 'jweauth' in this setting will make libjweauth.so library to be load on runtime.", ""},
+		{Boolean, "dump-corefiles", "Generate a corefile when crashing. "
+			"Note that by default linux will generate coredumps in '/' which is not so convenient. The following shell command can be added to"
+			" /etc/rc.local in order to write core dumps a in specific directory, for example /home/cores:\n"
+			"\techo \"/home/cores/core.\%e.\%t.\%p\" >/proc/sys/kernel/core_pattern"
+			, "false"},
+		{Boolean, "enable-snmp", "Enable SNMP.", "false"},
+
+		// log settings
+		{String, "log-directory", "Directory where to create log files. Create logs are named as 'flexisip-<server_type>.log'. If "
+			"If several server types have been specified by '--server' option or 'global/default-servers' parameter, then <server_type> is expanded "
+			"by a concatenation of all the server types joined with '+' character.\n"
 			"WARNING: Flexisip has no embedded log rotation system but provides a configuration file for logrotate. Please ensure "
 			"that logrotate is installed and running on your system if you want to have Flexisip's logs rotated. Log rotation can be customized by "
 			"editing /etc/logrotate.d/flexisip-logrotate.", DEFAULT_LOG_DIR },
-		{String, "log-level", "Verbosity of logs to output. Possible values are debug, message, warning and error", "error"},
-		{String, "syslog-level", "Verbosity of logs to put in syslog. Possible values are debug, message, warning and error", "error"},
-		{ByteSize, "max-log-size", "Max size of a log file before switching to a new log file, expressed with units. For example: 10G, 100M. If -1 then there is no maximum size", "-1"},
+		{String, "log-filename", "Name of the log file. Any occurences of '{server}' will be replaced by the server type "
+			"which has been given by '--server' option or 'default-servers' parameter. If several server types have been "
+			"given, then '{server}' will be replaced by the concatenation of these separated by '+' character (e.g. 'proxy+presence')",
+			"flexisip-{server}.log"},
+		{String, "log-level", "Log file verbosity. Possible values are debug, message, warning and error", "error"},
+		{String, "syslog-level", "Syslog verbosity. Possible values are debug, message, warning and error", "error"},
 		{Boolean, "user-errors-logs", "Log (on a different log domain) user errors like authentication, registration, routing, etc...", "false"},
 		{String, "contextual-log-filter", "A boolean expression applied to current SIP message being processed. When matched, logs are output"
 			" provided that there level is greater than the value defined in contextual-log-level."
 			" The definition of the SIP boolean expression is the same as for entry filters of modules, which is "
 			"documented here: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/", ""},
 		{String, "contextual-log-level", "Verbosity of contextual logs to output when the condition defined in 'contextual-log-filter' is met.", "debug"},
-		{Boolean, "dump-corefiles", "Generate a corefile when crashing. "
-			"Note that by default linux will generate coredumps in '/' which is not so convenient. The following shell command can be added to"
-			" /etc/rc.local in order to write core dumps a in specific directory, for example /home/cores:\n"
-			"\techo \"/home/cores/core.\%e.\%t.\%p\" >/proc/sys/kernel/core_pattern"
-			, "true"},
-		{Boolean, "auto-respawn", "Automatically respawn flexisip in case of abnormal termination (crashes)", "true"},
-		{StringList, "aliases", "List of white space separated host names pointing to this machine. This is to prevent "
-								"loops while routing SIP messages.",
-		 "localhost"},
-		{StringList, "default-servers", "Servers started by default when no --server option is specified on command line. "
-						"Possible values are 'proxy', 'presence', separated by whitespaces.", "proxy" },
+
+		// network settings
 		{StringList, "transports",
-		 "List of white space separated SIP uris where the proxy must listen.\n"
+		 "List of white space separated SIP URIs where the proxy must listen.\n"
 		 "Wildcard (*) can be used to mean 'all local ip addresses'. If 'transport' parameter is unspecified, it will "
-		 "listen "
-		 "to both udp and tcp. A local address to bind onto can be indicated in the 'maddr' parameter, while the "
-		 "domain part of the"
-		 " uris are used as public domain or ip address.\n"
+		 "listen to both udp and tcp. A local address to bind onto can be indicated in the 'maddr' parameter, while "
+		 "the domain part of the uris are used as public domain or ip address.\n"
 		 "The 'sips' transport definitions accept two optional parameters:\n"
-		 "\t- 'tls-certificates-dir' taking for value a path, with the same meaning as the 'tls-certificates-dir' "
-		 "property of this"
-		 " section and overriding it for this given transport.\n"
-		 "\t- 'tls-verify-incoming' taking for value '0' or '1', to indicate whether clients connecting are "
+		 " - 'tls-certificates-dir' taking for value a path, with the same meaning as the 'tls-certificates-dir' "
+		 "property of this section and overriding it for this given transport.\n"
+		 " - 'tls-verify-incoming' taking for value '0' or '1', to indicate whether clients connecting are "
 		 "required to present a valid client certificate. Default value is 0.\n"
-		 "\t- 'tls-verify-outgoing' taking for value '0' or '1', whether flexisip should check the peer certificate"
+		 " - 'tls-verify-outgoing' taking for value '0' or '1', whether flexisip should check the peer certificate"
 		 " when it make an outgoing TLS connection to another server. Default value is 1.\n"
-		 "\t- 'require-peer-certificate' (deprecated) same as tls-verify-incoming\n"
+		 " - 'require-peer-certificate' (deprecated) same as tls-verify-incoming\n"
 		 "It is HIGHLY RECOMMENDED to specify a canonical name for 'sips' transport, so that the proxy can advertise "
 		 "this information in Record-Route headers, which allows TLS cname check to be performed by clients.\n"
-		 "Specifying a sip uri with transport=tls is not allowed: the 'sips' scheme must be used instead. As requested by SIP RFC, "
-		 "IPv6 address must be enclosed within brakets.\n"
+		 "Specifying a sip uri with transport=tls is not allowed: the 'sips' scheme must be used instead. As requested "
+		 "by SIP RFC, IPv6 address must be enclosed within brakets.\n"
 		 "Here are some examples to understand:\n"
-		 "- listen on all local interfaces for udp and tcp, on standard port:\n"
+		 " - listen on all local interfaces for udp and tcp, on standard port:\n"
 		 "\ttransports=sip:*\n"
-		 "- listen on all local interfaces for udp,tcp and tls, on standard ports:\n"
+		 " - listen on all local interfaces for udp,tcp and tls, on standard ports:\n"
 		 "\ttransports=sip:* sips:*\n"
-		  "- listen only a specific IPv6 interface, on standard ports, with udp, tcp and tls\n"
+		 " - listen only a specific IPv6 interface, on standard ports, with udp, tcp and tls\n"
 		 "\ttransports=sip:[2a01:e34:edc3:4d0:7dac:4a4f:22b6:2083] sips:[2a01:e34:edc3:4d0:7dac:4a4f:22b6:2083]\n"
-		 "- listen on tls localhost with 2 different ports and SSL certificates:\n"
+		 " - listen on tls localhost with 2 different ports and SSL certificates:\n"
 		 "\ttransports=sips:localhost:5061;tls-certificates-dir=path_a "
 		 "sips:localhost:5062;tls-certificates-dir=path_b\n"
-		 "- listen on tls localhost with 2 peer certificate requirements:\n"
+		 " - listen on tls localhost with 2 peer certificate requirements:\n"
 		 "\ttransports=sips:localhost:5061;tls-verify-incoming=0 sips:localhost:5062;tls-verify-incoming=1\n"
-		 "- listen on 192.168.0.29:6060 with tls, but public hostname is 'sip.linphone.org' used in SIP messages. "
+		 " - listen on 192.168.0.29:6060 with tls, but public hostname is 'sip.linphone.org' used in SIP messages. "
 		 "Bind address won't appear in messages:\n"
 		 "\ttransports=sips:sip.linphone.org:6060;maddr=192.168.0.29",
 		 "sip:*"},
+		{StringList, "aliases", "List of white space separated host names pointing to this machine. This is to prevent "
+								"loops while routing SIP messages.", "localhost"},
+		{Integer, "idle-timeout", "Time interval in seconds after which inactive connections are closed.", "3600"},
+		{Integer, "keepalive-interval", "Time interval in seconds for sending \"\\r\\n\\r\\n\" keepalives packets on inbound and outbound connections. "
+			"A value of zero stands for no keepalive. The main purpose of sending keepalives is to keep connection alive accross NATs, but it also"
+			" helps in detecting silently broken connections which can reduce the number socket descriptors used by flexisip.", "1800"},
+		{Integer, "proxy-to-proxy-keepalive-interval", "Time interval in seconds for sending \"\\r\\n\\r\\n\" keepalives packets specifically for proxy "
+			"to proxy connections. Indeed, while it is undesirable to send frequent keepalives to mobile clients because it drains their battery,"
+			" sending frequent keepalives has proven to be helpful to keep connections up between proxy nodes in a very popular US virtualized datacenter."
+			" A value of zero stands for no keepalive.", "0"},
+		{Integer, "transaction-timeout", "SIP transaction timeout in milliseconds. It is T1*64 (32000 ms) by default.",
+		 "32000"},
+		{Integer, "udp-mtu",
+		 "The UDP MTU. Flexisip will fallback to TCP when sending a message whose size exceeds the UDP MTU."
+		 " Please read http://sofia-sip.sourceforge.net/refdocs/nta/nta__tag_8h.html#a6f51c1ff713ed4b285e95235c4cc999a "
+		 "for more details. If sending large packets over UDP is not a problem, then set a big value such as 65535. "
+		 "Unlike the recommandation of the RFC, the default value of UDP MTU is 1460 in Flexisip (instead of 1300).",
+		 "1460"},
+
+		// TLS settings
 		{String, "tls-certificates-dir",
 		 "Path to the directory where TLS server certificate and private key can be found,"
 		 " concatenated inside an 'agent.pem' file. Any chain certificates must be put into a file named 'cafile.pem'. "
@@ -906,41 +950,37 @@ GenericManager::GenericManager()
 		 " Please take a look to ciphers(1) UNIX manual to get the list of keywords supported by your current version"
 		 " of OpenSSL. You might visit https://www.openssl.org/docs/manmaster/man1/ciphers.html too. The default value"
 		 " set by Flexisip should provide a high level of security while keeping an acceptable level of interoperability"
-		 " with currenttly deployed client on the marcket.",
+		 " with currenttly deployed clients on the market.",
 		 "HIGH:!SSLv2:!SSLv3:!TLSv1:!EXP:!ADH:!RC4:!3DES:!aNULL:!eNULL"},
-		{Integer, "idle-timeout", "Time interval in seconds after which inactive connections are closed.", "3600"},
-		{Integer, "keepalive-interval", "Time interval in seconds for sending \"\\r\\n\\r\\n\" keepalives packets on inbound and outbound connections. "
-			"A value of zero stands for no keepalive. The main purpose of sending keepalives is to keep connection alive accross NATs, but it also"
-			" helps in detecting silently broken connections which can reduce the number socket descriptors used by flexisip.", "1800"},
-		{Integer, "proxy-to-proxy-keepalive-interval", "Time interval in seconds for sending \"\\r\\n\\r\\n\" keepalives packets specifically for proxy "
-			"to proxy connections. Indeed, while it is undesirable to send frequent keepalives to mobile clients because it drains their battery,"
-			" sending frequent keepalives has proven to be helpful to keep connections up between proxy nodes in a very popular US virtualized datacenter."
-			" A value of zero stands for no keepalive.", "0"},
-		{Boolean, "require-peer-certificate", "Require client certificate from peer (inbound connections only).", "false"},
-		{Integer, "transaction-timeout", "SIP transaction timeout in milliseconds. It is T1*64 (32000 ms) by default.",
-		 "32000"},
-		{Integer, "udp-mtu",
-		 "The UDP MTU. Flexisip will fallback to TCP when sending a message whose size exceeds the UDP MTU."
-		 " Please read http://sofia-sip.sourceforge.net/refdocs/nta/nta__tag_8h.html#a6f51c1ff713ed4b285e95235c4cc999a "
-		 "for more "
-		 "details. If sending large packets over UDP is not a problem, then set a big value such as 65535. "
-		 "Unlike the recommandation of the RFC, the default value of UDP MTU is 1460 in Flexisip (instead of 1300).",
-		 "1460"},
-		{Boolean, "enable-snmp", "Enable SNMP.", "true"},
+		{Boolean, "require-peer-certificate", "Ask for client certificate on TLS session establishing.", "false"},
+
+		// other settings
 		{String, "unique-id", "Unique ID used to identify that instance of Flexisip. It must be a randomly generated "
-			"16-sized hexadecimal number. If empty, it will be randomly generated at each start of Flexisip.", ""},
-		{Boolean, "use-maddr", "Allow flexisip to use maddr in sips connections to verify the CN of the TLS certificate.", "false"},
-		{Boolean, "debug", "Outputs very detailed logs.", "false"},
-		{String, "plugins-dir", "Path to the directory where plugins can be found.", DEFAULT_PLUGINS_DIR},
-		{StringList, "plugins", "Plugins to use.", ""},
+			"16-sized hexadecimal number. If empty, it will be randomly generated on each start of Flexisip.", ""},
+
+		// deprecated parameters
+		{ByteSize, "max-log-size", "Max size of a log file before switching to a new log file, expressed with units. "
+			"For example: 10G, 100M. If -1 then there is no maximum size", "-1"},
+		{Boolean, "use-maddr", "Allow flexisip to use maddr in sips connections to verify the CN of the TLS "
+			"certificate.", "false"},
+
 		config_item_end};
 
 	static ConfigItemDescriptor cluster_conf[] = {
-		{Boolean, "enabled", "Set to 'true' if that node is part of a cluster", "false"},
-		{String, "cluster-domain", "Domain name that is to be used by external proxies to connect on any node of the cluster randomly. "
-			"The round-robin can be implemented with SRV records or by declaring several A records for the that domain", ""},
-		{StringList, "nodes", "List of IP addresses of all nodes present in the cluster", ""},
-		{String, "internal-transport", "Internal transport used to communicate with other proxy", "sip:\%auto:5059;transport=tcp"},
+		{Boolean, "enabled", "Enable cluster mode. If 'false', the parameters of [cluster] section won't have any "
+			"effect.", "false"},
+		{String, "cluster-domain", "Domain name that enables external SIP agents to access to the cluster. "
+			"Such domain is often associated to DNS SRV records for each proxy of the cluster, so that DNS resolution "
+			"returns the address of a specific proxy randomly.\n"
+			"Flexisip uses that domain when it needs to insert a 'Path' or 'Record-route' header addressing the "
+			"cluster instead of itself.", ""},
+		{StringList, "nodes", "List of IP addresses of all the proxies present in the cluster. SIP messages coming "
+			"from these addresses won't be challenged by the authentication module and won't have any rate limit "
+			"applied by the DoS protection module.", ""},
+		{String, "internal-transport", "Transport to use for communication with the other proxies of the cluster. "
+			"This is useful only when no transport declared in 'global/transport' parameter can be used to "
+			"reach the other proxies e.g. when inter-proxy communications are to be made through a private network.\n"
+			"Ex: sip:10.0.0.8:5059;transport=tcp", ""},
 		config_item_end};
 
 	static ConfigItemDescriptor mdns_conf[] = {
@@ -974,9 +1014,8 @@ GenericManager::GenericManager()
 	GenericStruct *global = new GenericStruct("global", "Some global settings of the flexisip proxy.", 2);
 	mConfigRoot.addChild(global);
 	global->addChildrenValues(global_conf);
-	global->get<ConfigBoolean>("debug")->setDeprecated(true);
-	global->get<ConfigBoolean>("use-maddr")->setDeprecated(true); /*Deprecate use-maddr parameter. Using canonical names is preferred as it allows IPv6/IPv4 transitions during calls*/
-	global->get<ConfigByteSize>("max-log-size")->setDeprecated(true);
+	global->get<ConfigByteSize>("max-log-size")->setDeprecated({"2019-05-17", "2.0.0"});
+	global->get<ConfigBoolean>("use-maddr")->setDeprecated({"2020-04-08", "2.0.0", "This parameter has no effect anymore."});
 	global->setConfigListener(this);
 
 	ConfigString *version = new ConfigString("version-number", "Flexisip version.", FLEXISIP_GIT_VERSION, 999);
@@ -991,7 +1030,8 @@ GenericManager::GenericManager()
 
 	GenericStruct *cluster = new GenericStruct(
 		"cluster",
-		"Should the server be part of a cluster, this section describes the topology of the cluster.", 0);
+		"This section contains some parameters useful when the current proxy is part of a network of proxies (cluster) "
+		"which serve the same domain.", 0);
 	mConfigRoot.addChild(cluster);
 	cluster->addChildrenValues(cluster_conf);
 	cluster->setReadOnly(true);
@@ -1124,18 +1164,25 @@ int FileConfigReader::read2(GenericEntry *entry, int level) {
 			read2(entry, level + 1);
 		}
 	} else if ((cv = dynamic_cast<ConfigValue *>(entry))) {
-		if (level < 2) {
-			LOGF("ConfigValues at root is disallowed.");
-		} else if (level == 2) {
-			const char *val = lp_config_get_string(mCfg, cv->getParent()->getName().c_str(), cv->getName().c_str(), cv->getDefault().c_str());
+		if (level < 2) LOGF("ConfigValues at root is disallowed.");
+		if (level > 2) LOGF("The current file format doesn't support recursive subsections.");
+
+		const char *val = lp_config_get_string(mCfg, cv->getParent()->getName().c_str(), cv->getName().c_str(), nullptr);
+		if (val) {
+			if (cv->isDeprecated()) {
+				const auto &info = cv->getDeprecationInfo();
+				SLOGW << "Deprecated parameter:\n"
+					<< "\t[" << cv->getParent()->getName() << "/" << cv->getName() << "]\n"
+					<< "\t" << info.getText() << "\n"
+					<< "\tDeprecated since " << info.getDate() << " (Flexisip v" << info.getVersion() << ")\n";
+			}
 			try{
 				cv->set(val);
-				cv->setNextValue(val);
 			}catch(std::exception & e){
 				LOGF("While reading '%s', %s.", mFilename.c_str(), e.what());
 			}
 		} else {
-			LOGF("The current file format doesn't support recursive subsections.");
+			cv->restoreDefault();
 		}
 	}
 	return 0;

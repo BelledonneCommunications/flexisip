@@ -39,6 +39,7 @@ public:
 	static constexpr const char *sipReserved = "\"#$%&+,/:;<=>?@[\\]^`{|}"; /**< Default reserved character for SIP URI */
 	static constexpr const char *sipUserReseverd = "\"#%:<>@[\\]^`{|}"; /**< Reserved characters for user in SIP URI */
 	static constexpr const char *sipPasswordReserved = "\"#%/:;<>?@[\\]^`{|}"; /**< Reserved characters for passwords in SIP URI */
+	static constexpr const char *sipUriParamValueReserved = "\"#&,;<=>@\\^`{|}%"; /**< Characters to be escaped for SIP URI param name and value. */
 
 	/**
 	 * @brief Escape all the characters in str that match one character of reserved.
@@ -52,14 +53,14 @@ public:
 	 * of constants defined above may be used.
 	 * @return A copy of str with all reserved characters escaped.
 	 */
-	static std::string escape(const char *str, const char *reserved);
-	static std::string escape(const std::string &str, const char *reserved) {return escape(str.c_str(), reserved);}
+	static std::string escape(const char *str, const char *reserved) noexcept;
+	static std::string escape(const std::string &str, const char *reserved) noexcept {return escape(str.c_str(), reserved);}
 
 	/**
 	 * @brief Replace each "% HEXDIG HEXDIG" sequence by the matching ASCII character.
 	 */
-	static std::string unescape(const char *str) {return unescape(str, strlen(str));}
-	static std::string unescape(const std::string &str) {return unescape(str.c_str(), str.size());}
+	static std::string unescape(const char *str) noexcept {return unescape(str, strlen(str));}
+	static std::string unescape(const std::string &str) noexcept {return unescape(str.c_str(), str.size());}
 
 	/**
 	 * @brief Return the value of a given param from a string that contains a list
@@ -80,16 +81,16 @@ public:
 	 * double-quotes and then '< >' characters. The return string is
 	 * empty if the input string doesn't match the expected format.
 	 */
-	static std::string uniqueIdToGr(const std::string &uid);
+	static std::string uniqueIdToGr(const std::string &uid) noexcept;
 
 	/**
 	 * @brief Format an UUID extracted for a GRUU into
 	 * a string ready to used as vaule of +sip.instance parameter.
 	 */
-	static std::string grToUniqueId(const std::string &gr);
+	static std::string grToUniqueId(const std::string &gr) noexcept;
 
 private:
-	static std::string unescape(const char *str, size_t n);
+	static std::string unescape(const char *str, size_t n) noexcept;
 
-	static const size_t _bufferSize = 255;
+	static constexpr size_t _bufferSize = 255;
 };

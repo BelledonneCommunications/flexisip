@@ -16,11 +16,10 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "flexisip/agent.hh"
-#include "flexisip/logmanager.hh"
-#include "flexisip/module.hh"
-
-#include "utils/sip-uri.hh"
+#include <flexisip/agent.hh>
+#include <flexisip/logmanager.hh>
+#include <flexisip/module.hh>
+#include <flexisip/utils/sip-uri.hh>
 
 using namespace std;
 using namespace flexisip;
@@ -28,18 +27,27 @@ using namespace flexisip;
 class ModulePresence : public Module, ModuleToolbox {
 private:
 	static ModuleInfo<ModulePresence> sInfo;
-	unique_ptr<SipUri> mDestRoute;
+	SipUri mDestRoute;
 	su_home_t mHome;
 	shared_ptr<SipBooleanExpression> mOnlyListSubscription;
 
 	void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor configs[] = {
-			{String, "presence-server", "A sip uri where to send all presence related requests.", "sip:127.0.0.1:5065;transport=tcp"},
-			{BooleanExpr, "only-list-subscription", "If true, only manage list subscription.", "false"},
+			{String, "presence-server",
+				"A SIP URI where to send all presence related requests.",
+				"sip:127.0.0.1:5065;transport=tcp",
+			},
+			{BooleanExpr, "only-list-subscription",
+				"If true, only manage list subscription.",
+				"false"
+			},
 			{Boolean, "check-domain-in-presence-results",
-				"When getting the list of users with phones, if this setting is enabled, it will limit the results to the ones that have the same domain",
-				"false"},
-			config_item_end};
+				"When getting the list of users with phones, if this setting is enabled, it will limit the results to "
+				"the ones that have the same domain.",
+				"false"
+			},
+			config_item_end
+		};
 		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 		module_config->get<ConfigBooleanExpression>("filter")
 			->setDefault("is_request && (request.method-name == 'PUBLISH' || request.method-name == 'NOTIFY' || "
@@ -64,15 +72,17 @@ private:
 	}
 
 	void onLoad(const GenericStruct *mc) {
-		string destRouteStr = mc->get<ConfigString>("presence-server")->read();
+		auto presenceServerSetting = mc->get<ConfigString>("presence-server");
+		auto destRouteStr = presenceServerSetting->read();
+		if (destRouteStr.empty()) LOGF("[%s] parameter must be set", presenceServerSetting->getCompleteName().c_str());
 		try {
-			mDestRoute.reset(new SipUri(destRouteStr));
+			mDestRoute = SipUri(destRouteStr);
 		} catch (const invalid_argument &e) {
 			LOGF("Invalid SIP URI (%s) in 'presence-server' parameter of 'Presence' module: %s", destRouteStr.c_str(), e.what());
 		}
 
 		mOnlyListSubscription = mc->get<ConfigBooleanExpression>("only-list-subscription")->read();
-		SLOGI << getModuleName() << ": presence server is [" << mDestRoute->str() << "]";
+		SLOGI << getModuleName() << ": presence server is [" << mDestRoute.str() << "]";
 		SLOGI << getModuleName() << ": Non list subscription are " << (mOnlyListSubscription ? "not" : "")
 			<< " redirected by presence server";
 	}
@@ -81,9 +91,9 @@ private:
 	}
 
 	void route(shared_ptr<RequestSipEvent> &ev) {
-		SLOGI << getModuleName() << " routing to [" << mDestRoute->str() << "]";
+		SLOGI << getModuleName() << " routing to [" << mDestRoute.str() << "]";
 		cleanAndPrependRoute(this->getAgent(), ev->getMsgSip()->getMsg(), ev->getSip(),
-							 sip_route_create(&mHome, mDestRoute->get(), nullptr));
+							 sip_route_create(&mHome, mDestRoute.get(), nullptr));
 	}
 	bool isMessageAPresenceMessage(shared_ptr<RequestSipEvent> &ev) {
 		sip_t *sip = ev->getSip();
@@ -126,7 +136,7 @@ public:
 
 ModuleInfo<ModulePresence> ModulePresence::sInfo(
 	"Presence",
-	"This module transfert sip presence messages, like subscribe/notify/publish to a presence server.",
+	"This module transfers SIP presence messages, like subscribe/notify/publish to a presence server.",
 	{ "GatewayAdapter" },
 	ModuleInfoBase::ModuleOid::Presence
 );

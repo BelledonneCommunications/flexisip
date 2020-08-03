@@ -15,72 +15,30 @@
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#ifdef HAVE_CONFIG_H
-#include "flexisip-config.h"
-#endif
-#ifndef CONFIG_DIR
-#define CONFIG_DIR
-#endif
-#include <sys/time.h>
+
+#include <csignal>
+#include <cstdio>
+#include <cstdlib>
+#include <fstream>
+#include <functional>
+#include <iostream>
+#include <list>
+#include <regex>
+
 #include <sys/resource.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #ifdef HAVE_SYS_PRCTL_H
 #include <sys/prctl.h>
 #endif
 
-#include <iostream>
-#include <tclap/CmdLine.h>
-
 #ifdef ENABLE_TRANSCODER
 #include <mediastreamer2/msfactory.h>
 #endif
 
-#include <flexisip/agent.hh>
-#include "cli.hh"
-#include "stun.hh"
-#include <flexisip/module.hh>
-
-#include <cstdlib>
-#include <cstdio>
-#include <csignal>
-
-#include <flexisip/expressionparser.hh>
-#include "configdumper.hh"
-
-#include <sofia-sip/su_log.h>
-#include <sofia-sip/msg.h>
-#include <sofia-sip/sofia_features.h>
-#ifdef ENABLE_SNMP
-#include "snmp-agent.h"
-#endif
-
-#include <flexisip/flexisip-version.h>
-#ifndef FLEXISIP_GIT_VERSION
-#define FLEXISIP_GIT_VERSION "undefined"
-#endif
-
-#include <flexisip/logmanager.hh>
-#include <ortp/ortp.h>
-#include <functional>
-#include <list>
-
-#include "etchosts.hh"
-
-#include <fstream>
-
-#ifdef ENABLE_PRESENCE
-#include "presence/presence-server.hh"
-#include "presence/presence-longterm.hh"
-#endif // ENABLE_PRESENCE
-
-#ifdef ENABLE_CONFERENCE
-#include "conference/conference-server.hh"
-#endif // ENABLE_CONFERENCE
-
-#include "monitor.hh"
-
 #include <openssl/opensslconf.h>
+#include <openssl/crypto.h>
 #if defined(OPENSSL_THREADS)
 // thread support enabled
 #else
@@ -88,7 +46,46 @@
 #error "No thread support in openssl"
 #endif
 
-#include <openssl/crypto.h>
+#include <ortp/ortp.h>
+
+#include <sofia-sip/msg.h>
+#include <sofia-sip/sofia_features.h>
+#include <sofia-sip/su_log.h>
+
+#include <tclap/CmdLine.h>
+
+#include <flexisip/agent.hh>
+#include <flexisip/expressionparser.hh>
+#include <flexisip/flexisip-version.h>
+#include <flexisip/logmanager.hh>
+#include <flexisip/module.hh>
+
+#ifdef HAVE_CONFIG_H
+#include "flexisip-config.h"
+#endif
+#ifndef CONFIG_DIR
+#define CONFIG_DIR
+#endif
+#ifndef FLEXISIP_GIT_VERSION
+#define FLEXISIP_GIT_VERSION "undefined"
+#endif
+
+#include "cli.hh"
+#include "configdumper.hh"
+#include "etchosts.hh"
+#include "monitor.hh"
+#include "stun.hh"
+#ifdef ENABLE_CONFERENCE
+#include "conference/conference-server.hh"
+#endif
+#ifdef ENABLE_PRESENCE
+#include "presence/presence-server.hh"
+#include "presence/presence-longterm.hh"
+#endif
+#ifdef ENABLE_SNMP
+#include "snmp-agent.h"
+#endif
+
 
 static int run = 1;
 static int pipe_wdog_flexisip[2] = {
@@ -467,70 +464,62 @@ static void depthFirstSearch(string &path, GenericEntry *config, list<string> &a
 	}
 }
 
-static int dump_config(su_root_t *root, const std::string &dump_cfg_part, bool with_experimental, bool dumpDefault, const string &format) {
+static void dump_config(su_root_t *root, const std::string &dump_cfg_part, bool with_experimental, bool dumpDefault, const string &format) {
 	GenericManager::get()->applyOverrides(true);
-	ConfigString *pluginsDirEntry = GenericManager::get()->getGlobal()->get<ConfigString>("plugins-dir");
+	auto *pluginsDirEntry = GenericManager::get()->getGlobal()->get<ConfigString>("plugins-dir");
 	if (pluginsDirEntry->get().empty()) {
 		pluginsDirEntry->set(DEFAULT_PLUGINS_DIR);
 	}
 
-	shared_ptr<Agent> a = make_shared<Agent>(root);
+	auto a = make_shared<Agent>(root);
 	if (!dumpDefault) a->loadConfig(GenericManager::get());
 
-	GenericStruct *rootStruct = GenericManager::get()->getRoot();
+	auto *rootStruct = GenericManager::get()->getRoot();
 	if (dump_cfg_part != "all") {
-
-		size_t prefix_location = dump_cfg_part.find("module::");
+		smatch m;
 		rootStruct = dynamic_cast<GenericStruct *>(rootStruct->find(dump_cfg_part));
-
-		if (dump_cfg_part != "global" && prefix_location != 0) {
-			cerr << "Module name should start with 'module::' or be the special module 'global' (was given "
-				 << dump_cfg_part << " )" << endl;
-			return EXIT_FAILURE;
-
-		} else if (rootStruct == NULL) {
+		if (rootStruct == nullptr) {
 			cerr << "Couldn't find node " << dump_cfg_part << endl;
-			return EXIT_FAILURE;
-
-		} else if (prefix_location == 0) {
-			string moduleName = dump_cfg_part.substr(strlen("module::"));
-			Module *module = a->findModule(moduleName);
+			exit(EXIT_FAILURE);
+		}
+		if (regex_match(dump_cfg_part, m, regex("^module::(.*)$"))) {
+			const auto &moduleName = m[1];
+			const auto *module = a->findModule(moduleName);
 			if (module && module->getClass() == ModuleClass::Experimental && !with_experimental) {
 				cerr << "Module " << moduleName
 					 << " is experimental, not returning anything. To override, specify '--show-experimental'" << endl;
-				return EXIT_FAILURE;
+				exit(EXIT_FAILURE);
 			}
 		}
 	}
-	unique_ptr<ConfigDumper> dumper;
+
+	unique_ptr<ConfigDumper> dumper{};
 	if (format == "tex") {
-		dumper.reset(new TexFileConfigDumper(rootStruct));
+		dumper = make_unique<TexFileConfigDumper>(rootStruct);
 	} else if (format == "doku") {
-		dumper.reset(new DokuwikiConfigDumper(rootStruct));
+		dumper = make_unique<DokuwikiConfigDumper>(rootStruct);
 	} else if (format == "file") {
-		FileConfigDumper *fileDumper = new FileConfigDumper(rootStruct);
+		auto fileDumper = make_unique<FileConfigDumper>(rootStruct);
 		fileDumper->setMode(dumpDefault ? FileConfigDumper::Mode::DefaultValue : FileConfigDumper::Mode::DefaultIfUnset);
-		dumper.reset(fileDumper);
+		dumper = move(fileDumper);
 	} else if (format == "media") {
-		dumper.reset(new MediaWikiConfigDumper(rootStruct));
+		dumper = make_unique<MediaWikiConfigDumper>(rootStruct);
 	} else if (format == "xwiki") {
-		dumper.reset(new XWikiConfigDumper(rootStruct));
+		dumper = make_unique<XWikiConfigDumper>(rootStruct);
 	} else {
 		cerr << "Invalid output format '" << format << "'" << endl;
-		return EXIT_FAILURE;
+		exit(EXIT_FAILURE);
 	}
 	dumper->setDumpExperimentalEnabled(with_experimental);
 	dumper->dump(cout);
-	return EXIT_SUCCESS;
+	exit(EXIT_SUCCESS);
 }
 
-static void list_modules() {
-	shared_ptr<Agent> a = make_shared<Agent>(root);
-	GenericStruct *rootStruct = GenericManager::get()->getRoot();
-	list<GenericEntry *> children = rootStruct->getChildren();
-	for (auto it = children.begin(); it != children.end(); ++it) {
-		GenericEntry *child = (*it);
-		if (child->getName().find("module::") == 0) {
+static void list_sections(bool moduleOnly = false) {
+	const string modulePrefix{"module::"};
+	auto a = make_shared<Agent>(root);
+	for (const auto *child : GenericManager::get()->getRoot()->getChildren()) {
+		if (!moduleOnly || child->getName().compare(0, modulePrefix.size(), modulePrefix) == 0) {
 			cout << child->getName() << endl;
 		}
 	}
@@ -640,13 +629,16 @@ int main(int argc, char *argv[]) {
 	TCLAP::SwitchArg               dumpAll("",  "dump-all-default", "Will dump all the configuration. This is equivalent to '--dump-default all'. This option may be combined with "
 																	"'--set global/plugins=<plugin_list>' to also generate the settings of listed plugins.", cmd);
 	TCLAP::ValueArg<string>     dumpFormat("",  "dump-format",		"Select the format in which the dump-default will print. The default is 'file'. Possible values are: "
-																	"file, tex, doku, media.", TCLAP::ValueArgOptional, "file", "file", cmd);
+																	"file, tex, doku, media, xwiki.", TCLAP::ValueArgOptional, "file", "file", cmd);
 
 	TCLAP::SwitchArg           rewriteConf("",  "rewrite-config",   "Load the configuration file and dump a new one on stdout, adding the new settings and updating documentations. "
 	                                                                "All the existing settings are kept even if they are equal to the default value and the default value has changed.", cmd);
 
 	TCLAP::SwitchArg           listModules("",  "list-modules", 	"Will print a list of available modules. This is useful if you want to combine with --dump-default "
 										   							"to have specific documentation for a module.", cmd);
+
+	TCLAP::SwitchArg           listSections("",  "list-sections", 	"Will print a list of available sections. This is useful if you want to combine with --dump-default "
+										   							"to have specific documentation for a section.", cmd);
 
 	TCLAP::SwitchArg   displayExperimental("",  "show-experimental","Use in conjunction with --dump-default: will dump the configuration for a module even if it is marked as experiemental.", cmd);
 
@@ -697,8 +689,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (module.length() != 0) {
-		int status = dump_config(root, module, displayExperimental, true, dumpFormat.getValue());
-		return status;
+		dump_config(root, module, displayExperimental, true, dumpFormat.getValue());
 	}
 
 	// list all mibs and exit
@@ -710,7 +701,13 @@ int main(int argc, char *argv[]) {
 
 	// list modules and exit
 	if (listModules) {
-		list_modules();
+		list_sections(true);
+		return EXIT_SUCCESS;
+	}
+
+	// list sections and exit
+	if (listSections) {
+		list_sections();
 		return EXIT_SUCCESS;
 	}
 
@@ -747,17 +744,12 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (rewriteConf) {
-		return dump_config(root, "all", displayExperimental, false, "file");
+		dump_config(root, "all", displayExperimental, false, "file");
 	}
 
-	if (!debug){
-		if (cfg->getGlobal()->get<ConfigBoolean>("debug")->read()){
-			debug = true;
-		}
-	}else{
-		//if --debug is given, enable user-errors logs as well.
-		user_errors = true;
-	}
+	//if --debug is given, enable user-errors logs as well.
+	if (debug) user_errors = true;
+
 	bool dump_cores = cfg->getGlobal()->get<ConfigBoolean>("dump-corefiles")->read();
 
 	bool startProxy = false;
@@ -842,7 +834,7 @@ int main(int argc, char *argv[]) {
 		su_log_set_level(NULL, 9);
 	}
 	/*read the pkcs passphrase if any from the fifo, and keep it in memory*/
-	string passphrase = getPkcsPassphrase(pkcsFile);
+	auto passphrase = getPkcsPassphrase(pkcsFile);
 
 	/*
 	 * Perform the fork of the watchdog, followed by the fork of the worker daemon, in forkAndDetach().
@@ -864,17 +856,19 @@ int main(int argc, char *argv[]) {
 	 * This must be done after forking in order the log file be reopen after respawn should Flexisip crash.
 	 * The condition intent to avoid log initialization should the user have passed command line options that doesn't
 	 * require to start the server e.g. dumping default configuration file. */
-	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !dumpMibs && !dumpAll) {
+	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !listSections && !dumpMibs && !dumpAll) {
 		if (cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read() != -1) {
 			LOGF("Setting 'global/max-log-size' parameter has been forbbiden since log size control was delegated to logrotate. Please "
 				"edit /etc/logrotate.d/flexisip-logrotate for log rotation customization."
 			);
 		}
 
-		LogManager::Parameters logParams;
+		const auto &logFilename = cfg->getGlobal()->get<ConfigString>("log-filename")->read();
+
+		LogManager::Parameters logParams{};
 		logParams.root = root;
 		logParams.logDirectory = cfg->getGlobal()->get<ConfigString>("log-directory")->read();
-		logParams.logFilename = "flexisip-" + fName + ".log";
+		logParams.logFilename = regex_replace(logFilename, regex{"\\{server\\}"}, fName);
 		logParams.level = debug ? BCTBX_LOG_DEBUG : LogManager::get().logLevelFromName(log_level);
 		logParams.enableSyslog = useSyslog;
 		logParams.syslogLevel = LogManager::get().logLevelFromName(syslog_level);

@@ -66,6 +66,26 @@ const char *MsgSip::print() {
 	return msg_as_string(getHome(), mMsg, NULL, 0, &msg_size);
 }
 
+std::string MsgSip::printContext() const {
+	ostringstream os;
+	sip_t *sip = getSip();
+	vector<char> buffer(4096);
+
+	sip_from_e(buffer.data(), buffer.size(), (msg_header_t *)sip->sip_from, 0);
+	os << "From: " << buffer.data() << endl;
+
+	sip_to_e(buffer.data(), buffer.size(), (msg_header_t *)sip->sip_to, 0);
+	os << "To: " << buffer.data() << endl;
+
+	sip_call_id_e(buffer.data(), buffer.size(), (msg_header_t *)sip->sip_call_id, 0);
+	os << "Call-ID: " << buffer.data() << endl;
+
+	sip_cseq_e(buffer.data(), buffer.size(), (msg_header_t *)sip->sip_cseq, 0);
+	os << "CSeq: " << buffer.data();
+
+	return os.str();
+}
+
 MsgSip::~MsgSip() {
 	// LOGD("Destroy MsgSip %p", this);
 	msg_destroy(mMsg);
@@ -76,9 +96,9 @@ SipEvent::SipEvent(const shared_ptr<IncomingAgent> &inAgent, const shared_ptr<Ms
 	LOGD("New SipEvent %p - msg %p", this, msgSip->getMsg());
 	mIncomingAgent = inAgent;
 	mAgent = inAgent->getAgent();
-	shared_ptr<IncomingTransaction> it = dynamic_pointer_cast<IncomingTransaction>(inAgent);
+	auto it = dynamic_pointer_cast<IncomingTransaction>(inAgent);
 	if (it) {
-		mOutgoingAgent = it->mOutgoing;
+		mOutgoingAgent = it->mOutgoing.lock();
 	} else {
 		mOutgoingAgent = inAgent->getAgent()->shared_from_this();
 	}
@@ -94,7 +114,7 @@ SipEvent::SipEvent(const shared_ptr<OutgoingAgent> &outAgent, const shared_ptr<M
 		// retrieve the incoming transaction associated with the outgoing one, if any.
 		// A response SipEvent is generated either from a stateless response or from a response from an outgoing
 		// transaction.
-		mIncomingAgent = ot->mIncoming;
+		mIncomingAgent = ot->mIncoming.lock();
 	} else
 		mIncomingAgent = mAgent->shared_from_this();
 }
@@ -226,22 +246,21 @@ void RequestSipEvent::setIncomingAgent(const shared_ptr<IncomingAgent> &agent) {
 	LOGA("Can't change incoming agent in request sip event");
 }
 
-shared_ptr<IncomingTransaction> RequestSipEvent::createIncomingTransaction() {
-	shared_ptr<IncomingTransaction> transaction = dynamic_pointer_cast<IncomingTransaction>(mIncomingAgent);
-	if (transaction == NULL) {
-		transaction = IncomingTransaction::create(mIncomingAgent->getAgent());
+std::shared_ptr<IncomingTransaction> RequestSipEvent::createIncomingTransaction() {
+	auto transaction = dynamic_pointer_cast<IncomingTransaction>(mIncomingAgent);
+	if (transaction == nullptr) {
+		transaction = make_shared<IncomingTransaction>(mIncomingAgent->getAgent());
 		mIncomingAgent = transaction;
-
 		transaction->handle(mMsgSip);
 		linkTransactions();
 	}
 	return transaction;
 }
 
-shared_ptr<OutgoingTransaction> RequestSipEvent::createOutgoingTransaction() {
-	shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(mOutgoingAgent);
-	if (transaction == NULL) {
-		transaction = OutgoingTransaction::create(mOutgoingAgent->getAgent());
+std::shared_ptr<OutgoingTransaction> RequestSipEvent::createOutgoingTransaction() {
+	auto transaction = dynamic_pointer_cast<OutgoingTransaction>(mOutgoingAgent);
+	if (transaction == nullptr) {
+		transaction = make_shared<OutgoingTransaction>(mOutgoingAgent->getAgent());
 		mOutgoingAgent = transaction;
 		linkTransactions();
 	}
@@ -365,7 +384,7 @@ ResponseSipEvent::~ResponseSipEvent() {
 }
 
 std::ostream &operator<<(std::ostream &strm, const url_t &obj){
-	SofiaAutoHome home;
+	sofiasip::Home home;
 	strm<<url_as_string(home.home(), &obj);
 	return strm;
 }

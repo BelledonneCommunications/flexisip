@@ -20,7 +20,8 @@
 #include <sofia-sip/sip_extra.h>
 #include <sofia-sip/sip_status.h>
 
-#include "module-auth.hh"
+#include <flexisip/module-auth.hh>
+
 #include "auth/flexisip-auth-module.hh"
 
 using namespace std;
@@ -41,65 +42,69 @@ Authentication::~Authentication() {
 void Authentication::onDeclare(GenericStruct *mc) {
 	ModuleAuthenticationBase::onDeclare(mc);
 	ConfigItemDescriptor items[] = {
-		{StringList, "trusted-hosts", "List of whitespace separated IP which will not be challenged.", ""},
-		{String, "db-implementation",
-			"Database backend implementation for digest authentication [odbc,soci,file].",
-			"file"
-		},
-		{String, "datasource",
-			"Odbc connection string to use for connecting to database. "
-			"ex1: DSN=myodbc3; where 'myodbc3' is the datasource name. "
-			"ex2: DRIVER={MySQL};SERVER=host;DATABASE=db;USER=user;PASSWORD=pass;OPTION=3; for a DSN-less connection. "
-			"ex3: /etc/flexisip/passwd; for a file containing user credentials in clear-text, md5 or sha256. "
-			"The file must start with 'version:1' as the first line, and then contains lines in the form of:\n"
-			"user@domain clrtxt:clear-text-password md5:md5-password sha256:sha256-password ;\n"
-			"For example: \n"
-			"bellesip@sip.linphone.org clrtxt:secret ;\n"
-			"bellesip@sip.linphone.org md5:97ffb1c6af18e5687bf26cdf35e45d30 ;\n"
-			"bellesip@sip.linphone.org clrtxt:secret md5:97ffb1c6af18e5687bf26cdf35e45d30 sha256:d7580069de562f5c7fd932cc986472669122da91a0f72f30ef1b20ad6e4f61a3 ;",
-			""
-		},
-		{Integer, "cache-expire", "Duration of the validity of the credentials added to the cache in seconds.", "1800"},
-		{Boolean, "hashed-passwords",
-			"True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).",
-			"false"
-		},
+		{StringList, "trusted-hosts", "List of whitespace-separated IP addresses which will be judged as trustful. "
+			"Messages coming from these addresses won't be challenged.", ""},
 		{Boolean, "reject-wrong-client-certificates",
-			"If set to true, the module will simply reject with 403 forbidden any request coming from client"
-			" who presented a bad TLS certificate (regardless of reason: improper signature, unmatched subjects)."
-			" Otherwise, the module will fallback to a digest authentication.\n"
-			"This policy applies only for transports configured with 'required-peer-certificate=1' parameter; indeed"
-			" no certificate is requested to the client otherwise.",
+			"If set to true, the module will simply reject with \"403 forbidden\" any request coming from clients "
+			"which have presented a bad TLS certificate (regardless of reason: improper signature, unmatched subjects). "
+			"Otherwise, the module will fallback to a digest authentication.\n"
+			"This policy applies only for transports configured which have 'required-peer-certificate=1' parameter; indeed "
+			"no certificate is requested to the client otherwise. ",
 			"false"
 		},
-		{String, "tls-client-certificate-required-subject", "An optional regular expression matched against subjects "
-			"of presented client certificates. If this regular expression evaluates to false, the request is rejected. "
-			"The matched subjects are, in order: subjectAltNames.DNS, subjectAltNames.URI, subjectAltNames.IP and CN.",
+		{String, "tls-client-certificate-required-subject",
+			"An optional regular expression used to accept or deny a request basing on subject fields of the "
+			"client certificate. The request is allowed if one of the subjects matches the regular expression.\n"
+			"The list of subjects to check is built by extracting the following fields, in order:\n"
+			"\tsubjectAltNames.DNS, subjectAltNames.URI, subjectAltNames.IP and CN",
 			""
+		},
+		{Boolean, "trust-domain-certificates",
+			"Accept requests which the client certificate enables to trust the domaine of its Request-URI.",
+			"false"
 		},
 		{Boolean, "new-auth-on-407", "When receiving a proxy authenticate challenge, generate a new challenge for "
 			"this proxy.", "false"},
-		{Boolean, "enable-test-accounts-creation",
-			"Enable a feature useful for automatic tests, allowing a client to create a temporary account in the "
-			"password database in memory."
-			"This MUST not be used for production as it is a real security hole.",
-			"false"
+		{String, "db-implementation",
+			"Database backend implementation for digest authentication [soci,file].",
+			"file"
 		},
+		{Integer, "cache-expire", "Duration of the validity of the credentials added to the cache in seconds.", "1800"},
+
+		// deprecated parameters
 		{StringList, "trusted-client-certificates", "List of whitespace separated username or username@domain CN "
 			"which will trusted. If no domain is given it is computed.",
 			""
 		},
-		{Boolean, "trust-domain-certificates",
-			"If enabled, all requests which have their request URI containing a trusted domain will be accepted.",
+		{Boolean, "hashed-passwords",
+			"True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).",
+			"false"
+		},
+		{Boolean, "enable-test-accounts-creation",
+			"Enable a feature useful for automatic tests, allowing a client to create a temporary account in the "
+			"password database in memory. This MUST not be used for production as it is a real security hole.",
 			"false"
 		},
 		config_item_end
 	};
 
 	mc->addChildrenValues(items);
-	mc->get<ConfigBoolean>("hashed-passwords")->setDeprecated(true);
-	//we deprecate "trusted-client-certificates" because "tls-client-certificate-required-subject" can do more.
-	mc->get<ConfigStringList>("trusted-client-certificates")->setDeprecated(true);
+
+	mc->get<ConfigStringList>("trusted-client-certificates")->setDeprecated(
+		{"2018-04-16", "1.0.13", "Use 'tls-client-certificate-required-subject' instead."}
+	);
+	mc->get<ConfigBoolean>("hashed-passwords")->setDeprecated({
+		"2020-01-28", "2.0.0",
+		"This setting has been out of use since the algorithm used to hash the password is "
+		"stored in the user database and the CLRTXT algorithm can be used to indicate that "
+		"the password isn't hashed.\n"
+		"Warning: setting 'true' hasn't any effect anymore."
+	});
+	mc->get<ConfigBoolean>("enable-test-accounts-creation")->setDeprecated({
+		"2020-01-28", "2.0.0",
+		"This feature was useful for liblinphone's integrity tests and isn't used today anymore. "
+		"Please remove this setting from your configuration file."
+	});
 
 	// Call declareConfig for backends
 	AuthDbBackend::declareConfig(mc);
@@ -117,7 +122,6 @@ void Authentication::onLoad(const GenericStruct *mc) {
 	mNewAuthOn407 = mc->get<ConfigBoolean>("new-auth-on-407")->read();
 	mTrustedClientCertificates = mc->get<ConfigStringList>("trusted-client-certificates")->read();
 	mTrustDomainCertificates = mc->get<ConfigBoolean>("trust-domain-certificates")->read();
-	mTestAccountsEnabled = mc->get<ConfigBoolean>("enable-test-accounts-creation")->read();
 
 	string requiredSubject = mc->get<ConfigString>("tls-client-certificate-required-subject")->read();
 	if (!requiredSubject.empty()){
@@ -133,31 +137,6 @@ void Authentication::onLoad(const GenericStruct *mc) {
 	}
 	mRejectWrongClientCertificates = mc->get<ConfigBoolean>("reject-wrong-client-certificates")->read();
 	AuthDbBackend::get(); // force instanciation of the AuthDbBackend NOW, to force errors to arrive now if any.
-}
-
-bool Authentication::handleTestAccountCreationRequests(const shared_ptr<RequestSipEvent> &ev) {
-	sip_t *sip = ev->getSip();
-	if (sip->sip_request->rq_method == sip_method_register) {
-		sip_unknown_t *h = ModuleToolbox::getCustomHeaderByName(sip, "X-Create-Account");
-		if (h && strcasecmp(h->un_value, "yes") == 0) {
-			url_t *url = sip->sip_from->a_url;
-			if (url) {
-				sip_unknown_t *h2 = ModuleToolbox::getCustomHeaderByName(sip, "X-Phone-Alias");
-				const char* phone_alias = h2 ? h2->un_value : NULL;
-				phone_alias = phone_alias ? phone_alias : "";
-				AuthDbBackend::get().createAccount(url->url_user, url->url_host, url->url_user, url->url_password,
-													sip->sip_expires->ex_delta, phone_alias);
-
-				ostringstream os;
-				os << "Account created for " << url->url_user << '@' << url->url_host << " with password "
-					<< url->url_password << " and expires " << sip->sip_expires->ex_delta;
-				if (phone_alias) os << " with phone alias " << phone_alias;
-				SLOGD << os.str();
-				return true;
-			}
-		}
-	}
-	return false;
 }
 
 bool Authentication::isTrustedPeer(const shared_ptr<RequestSipEvent> &ev) {
@@ -196,7 +175,7 @@ bool Authentication::tlsClientCertificatePostCheck(const shared_ptr<RequestSipEv
  * true: if the tls authentication is handled (either successful or rejected)
  * false: if we have to fallback to digest
  */
-bool Authentication::handleTlsClientAuthentication(const shared_ptr<RequestSipEvent> &ev) {
+bool Authentication::handleTlsClientAuthentication(const std::shared_ptr<RequestSipEvent> &ev) {
 	sip_t *sip = ev->getSip();
 	shared_ptr<tport_t> inTport = ev->getIncomingTport();
 	unsigned int policy = 0;
@@ -211,7 +190,7 @@ bool Authentication::handleTlsClientAuthentication(const shared_ptr<RequestSipEv
 			const char *fromDomain = from->url_host;
 			const char *res = NULL;
 			url_t searched_uri = URL_INIT_AS(sip);
-			SofiaAutoHome home;
+			sofiasip::Home home;
 			char *searched;
 
 			searched_uri.url_host = from->url_host;
@@ -224,37 +203,37 @@ bool Authentication::handleTlsClientAuthentication(const shared_ptr<RequestSipEv
 			} else if (sip->sip_request->rq_method != sip_method_register &&
 				(res = findIncomingSubjectInTrusted(ev, fromDomain))) {
 				SLOGD << "Found trusted TLS certificate " << res;
-			goto postcheck;
-				} else {
-					/*case where the certificate would work for the entire domain*/
-					searched_uri.url_user = NULL;
-					searched = url_as_string(home.home(), &searched_uri);
-					if (ev->findIncomingSubject(searched)) {
-						SLOGD << "Found TLS certificate for entire domain";
-						goto postcheck;
-					}
+				goto postcheck;
+			} else {
+				/*case where the certificate would work for the entire domain*/
+				searched_uri.url_user = NULL;
+				searched = url_as_string(home.home(), &searched_uri);
+				if (ev->findIncomingSubject(searched)) {
+					SLOGD << "Found TLS certificate for entire domain";
+					goto postcheck;
 				}
+			}
 
-				if (sip->sip_request->rq_method != sip_method_register && mTrustDomainCertificates) {
-					searched_uri.url_user = NULL;
-					searched_uri.url_host = sip->sip_request->rq_url->url_host;
-					searched = url_as_string(home.home(), &searched_uri);
-					if (ev->findIncomingSubject(searched)) {
-						SLOGD << "Found trusted TLS certificate for the request URI domain";
-						goto postcheck;
-					}
+			if (sip->sip_request->rq_method != sip_method_register && mTrustDomainCertificates) {
+				searched_uri.url_user = NULL;
+				searched_uri.url_host = sip->sip_request->rq_url->url_host;
+				searched = url_as_string(home.home(), &searched_uri);
+				if (ev->findIncomingSubject(searched)) {
+					SLOGD << "Found trusted TLS certificate for the request URI domain";
+					goto postcheck;
 				}
+			}
 
-				LOGE("Client is presenting a TLS certificate not matching its identity.");
-				SLOGUE << "Registration failure for " << url_as_string(home.home(), from)
-					<< ", TLS certificate doesn't match its identity";
-				goto bad_certificate;
+			LOGE("Client is presenting a TLS certificate not matching its identity.");
+			SLOGUE << "Registration failure for " << url_as_string(home.home(), from)
+				<< ", TLS certificate doesn't match its identity";
+			goto bad_certificate;
 
-				postcheck:
-				if (tlsClientCertificatePostCheck(ev)){
-					/*all is good, return true*/
-					return true;
-				}else goto bad_certificate;
+			postcheck:
+			if (tlsClientCertificatePostCheck(ev)){
+				/*all is good, return true*/
+				return true;
+			}else goto bad_certificate;
 		}else goto bad_certificate;
 
 		bad_certificate:
@@ -327,22 +306,7 @@ FlexisipAuthModuleBase *Authentication::createAuthModule(const std::string &doma
 }
 
 void Authentication::validateRequest(const std::shared_ptr<RequestSipEvent> &request) {
-	sip_t *sip = request->getMsgSip()->getSip();
-
 	ModuleAuthenticationBase::validateRequest(request);
-
-	// handle account creation request (test feature only)
-	if (mTestAccountsEnabled && handleTestAccountCreationRequests(request)) {
-		request->reply(
-			200,
-			"Test account created",
-			SIPTAG_SERVER_STR(getAgent()->getServerString()),
-			SIPTAG_CONTACT(sip->sip_contact),
-			SIPTAG_EXPIRES_STR("0"),
-			TAG_END()
-		);
-		throw StopRequestProcessing();
-	}
 
 	// Check trusted peer
 	if (isTrustedPeer(request))
@@ -393,7 +357,7 @@ void Authentication::loadTrustedHosts(const ConfigStringList &trustedHosts) {
 	const GenericStruct *presenceSection = GenericManager::get()->getRoot()->get<GenericStruct>("module::Presence");
 	bool presenceServer = presenceSection->get<ConfigBoolean>("enabled")->read();
 	if (presenceServer) {
-		SofiaAutoHome home;
+		sofiasip::Home home;
 		string presenceServer = presenceSection->get<ConfigString>("presence-server")->read();
 		sip_contact_t *contact = sip_contact_make(home.home(), presenceServer.c_str());
 		url_t *url = contact ? contact->m_url : NULL;
@@ -420,7 +384,7 @@ ModuleInfo<Authentication> Authentication::sInfo(
 	"corresponding to the URI in the from header for the request to be accepted. Optionnaly, the property "
 	"tls-client-certificate-required-subject may contain a regular expression for additional checks to execute on "
 	"certificate subjects.\n"
-	" * if no TLS client based authentication can be performed, or is failed, then a SIP digest authentication is "
+	" * if no TLS client based authentication can be performed, or has failed, then a SIP digest authentication is "
 	"performed. The password verification is made by querying a database or a password file on disk.",
 	{ "NatHelper" },
 	ModuleInfoBase::ModuleOid::Authentication

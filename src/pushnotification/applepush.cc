@@ -6,10 +6,9 @@
 #include <stdexcept>
 
 using namespace std;
-using namespace flexisip;
 
-const unsigned int ApplePushNotificationRequest::MAXPAYLOAD_SIZE = 2048;
-const unsigned int ApplePushNotificationRequest::DEVICE_BINARY_SIZE = 32;
+namespace flexisip {
+
 uint32_t ApplePushNotificationRequest::sIdentifier = 1;
 
 ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
@@ -19,8 +18,12 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 	const string &arg = info.mFromName.empty() ? info.mFromUri : info.mFromName;
 	const string &sound = info.mAlertSound;
 	const string &callid = info.mCallId;
-	ostringstream payload;
 	string date = getPushTimeStamp();
+
+	const char *rawPayload;
+	size_t bufferMaxSize = MAXPAYLOAD_SIZE + 1;
+	char buffer[bufferMaxSize];
+	int returnCode = 0;
 
 	int ret = formatDeviceToken(deviceToken);
 	if ((ret != 0) || (mDeviceToken.size() != DEVICE_BINARY_SIZE)) {
@@ -28,29 +31,138 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 	}
 	mTtl = info.mTtl;
 
-	if (info.mSilent || msg_id == "IC_SIL") {
-		// silent push = pushkit.
+	switch (info.mApplePushType) {
+		case PushInfo::ApplePushType::Pushkit:
 		// We also need msg_id and callid in case the push is received but the device cannot register
-		payload << "{\"aps\":{\"sound\":\"\", \"loc-key\":\"" << msg_id << "\", \"call-id\":\"" << callid <<"\", \"uuid\":" << quoteStringIfNeeded(info.mUid)
-			<< ", \"send-time\":\"" << date << "\"}, \"pn_ttl\":"<< info.mTtl << "}";
-	} else {
-		payload << "{\"aps\":{\"alert\":{\"loc-key\":\"" << msg_id << "\",\"loc-args\":[\"" << arg
-		<< "\"]},\"sound\":\"" << sound << "\"";
+		rawPayload = R"json({
+			"aps": {
+				"sound": "",
+				"loc-key": "%s",
+				"loc-args": ["%s"],
+				"call-id": "%s",
+				"uuid": %s,
+				"send-time": "%s"
+			},
+			"from-uri": "%s",
+			"display-name": "%s",
+			"pn_ttl": %d
+		})json";
+		returnCode = snprintf(buffer, bufferMaxSize, rawPayload,
+			msg_id.c_str(),
+			arg.c_str(),
+			callid.c_str(),
+			quoteStringIfNeeded(info.mUid).c_str(),
+			date.c_str(),
+			info.mFromUri.c_str(),
+			info.mFromName.c_str(),
+			info.mTtl
+		);
+		break;
+	case PushInfo::ApplePushType::Background:
+		// Use a normal push notification with content-available set to 1, no alert, no sound.
+		rawPayload = R"json({
+			"aps": {
+				"badge": 0,
+				"content-available": 1,
+				"loc-key": "%s",
+				"loc-args": ["%s"],
+				"call-id": "%s",
+				"uuid": %s,
+				"send-time": "%s"
+			},
+			"from-uri": "%s",
+			"display-name": "%s",
+			"pn_ttl": %d
+		})json";
+		returnCode = snprintf(buffer, bufferMaxSize, rawPayload,
+			msg_id.c_str(),
+			arg.c_str(),
+			callid.c_str(),
+			quoteStringIfNeeded(info.mUid).c_str(),
+			date.c_str(),
+			info.mFromUri.c_str(),
+			info.mFromName.c_str(),
+			info.mTtl
+		);
+		break;
+	case PushInfo::ApplePushType::RemoteBasic:
 		/* some apps don't want the push to update the badge - but if they do,
-		 we always put the badge value to 1 because we want to notify the user that
-		 he/she has unread messages even if we do not know the exact count */
-		payload << ",\"badge\":" << (info.mNoBadge ? 0 : 1);
-		payload << "},\"call-id\":\"" << callid << "\",\"pn_ttl\":" << info.mTtl << ",\"uuid\":" << quoteStringIfNeeded(info.mUid)
-			<< ",\"send-time\":\"" << date << "\"}";
+		we always put the badge value to 1 because we want to notify the user that
+		he/she has unread messages even if we do not know the exact count */
+		rawPayload = R"json({
+			"aps": {
+				"alert": {
+					"loc-key": "%s",
+					"loc-args": ["%s"]
+				},
+				"sound": "%s",
+				"badge": %d
+			},
+			"from-uri": "%s",
+			"display-name": "%s",
+			"call-id": "%s",
+			"pn_ttl": %d,
+			"uuid": %s,
+			"send-time": "%s"
+		})json";
+		returnCode = snprintf(buffer, bufferMaxSize, rawPayload,
+			msg_id.c_str(),
+			arg.c_str(),
+			sound.c_str(),
+			(info.mNoBadge ? 0 : 1),
+			info.mFromUri.c_str(),
+			info.mFromName.c_str(),
+			callid.c_str(),
+			info.mTtl,
+			quoteStringIfNeeded(info.mUid).c_str(),
+			date.c_str()
+		);
+		break;
+	case PushInfo::ApplePushType::RemoteWithMutableContent:
+		/* some apps don't want the push to update the badge - but if they do,
+		we always put the badge value to 1 because we want to notify the user that
+		he/she has unread messages even if we do not know the exact count */
+		rawPayload = R"json({
+			"aps": {
+				"alert": {
+					"loc-key": "%s",
+					"loc-args": ["%s"]
+				},
+				"sound": "%s",
+				"mutable-content": 1,
+				"badge": %d
+			},
+			"from-uri": "%s",
+			"display-name": "%s",
+			"call-id": "%s",
+			"pn_ttl": %d,
+			"uuid": %s,
+			"send-time": "%s",
+			"chat-room-addr": "%s"
+		})json";
+		returnCode = snprintf(buffer, bufferMaxSize, rawPayload,
+			msg_id.c_str(),
+			arg.c_str(),
+			sound.c_str(),
+			(info.mNoBadge ? 0 : 1),
+			info.mFromUri.c_str(),
+			info.mFromName.c_str(),
+			callid.c_str(),
+			info.mTtl,
+			quoteStringIfNeeded(info.mUid).c_str(),
+			date.c_str(),
+			info.mChatRoomAddr.c_str()
+		);
+		break;
 	}
 
-	SLOGD << "PNR " << this << " payload is " << payload.str();
-	if (payload.str().length() > MAXPAYLOAD_SIZE) {
+	mPayload = buffer;
+	SLOGD << "PNR " << this << " payload is " << mPayload;
+	if (returnCode < 0 || returnCode >= (int)bufferMaxSize) {
 		SLOGE << "PNR " << this << " cannot be sent because the payload size is higher than " << MAXPAYLOAD_SIZE;
+		mPayload.clear();
 		return;
 	}
-
-	mPayload = payload.str();
 }
 
 int ApplePushNotificationRequest::formatDeviceToken(const string &deviceToken) {
@@ -85,7 +197,8 @@ int ApplePushNotificationRequest::formatDeviceToken(const string &deviceToken) {
 	return 0;
 }
 
-size_t ApplePushNotificationRequest::writeItem(size_t pos, Item &item){
+std::size_t flexisip::ApplePushNotificationRequest::writeItem(std::size_t pos, const Item& item)
+{
 	size_t newSize = pos + sizeof(uint8_t) + sizeof(uint16_t) + item.mData.size();
 	uint16_t itemSize = htons((uint16_t)item.mData.size());
 	if (mBuffer.size()<newSize){
@@ -179,3 +292,5 @@ string ApplePushNotificationRequest::isValidResponse(const string &str) {
 	}
 	return "";
 }
+
+} // end of flexisip namespace

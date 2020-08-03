@@ -18,35 +18,31 @@
 
 #pragma once
 
-#if defined(HAVE_CONFIG_H) && !defined(FLEXISIP_INCLUDED)
-
-#include "flexisip-config.h"
-#define FLEXISIP_INCLUDED
-
-#endif
-
-#include <flexisip/common.hh>
-
-#include <string>
-#include <sstream>
+#include <algorithm>
+#include <cstdlib>
+#include <cxxabi.h>
 #include <iostream>
 #include <list>
-#include <cstdlib>
-#include <vector>
-#include <unordered_set>
-#include <tuple>
-#include <queue>
-#include <algorithm>
-#include <typeinfo>
-#include <cxxabi.h>
 #include <memory>
+#include <queue>
+#include <sstream>
+#include <string>
+#include <tuple>
+#include <typeinfo>
+#include <unordered_set>
+#include <vector>
+
+#if defined(HAVE_CONFIG_H) && !defined(FLEXISIP_INCLUDED)
+#include "flexisip-config.h"
+#define FLEXISIP_INCLUDED
+#endif
 
 #ifdef ENABLE_SNMP
 
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
-#include <net-snmp/agent/net-snmp-agent-includes.h>
 #include <net-snmp/agent/agent_trap.h>
+#include <net-snmp/agent/net-snmp-agent-includes.h>
 
 #else
 
@@ -54,15 +50,14 @@ typedef unsigned long oid;
 
 #endif /* ENABLE_SNMP */
 
-#include <flexisip/sip-boolean-expressions.hh>
-#include <flexisip/global.hh>
-#include <flexisip/flexisip-exception.hh>
+#include "flexisip/common.hh"
+#include "flexisip/flexisip-exception.hh"
+#include "flexisip/global.hh"
+#include "flexisip/sip-boolean-expressions.hh"
 
 typedef struct sip_s sip_t;
 
 namespace flexisip {
-
-const ::oid company_id = SNMP_COMPANY_OID;
 
 struct LpConfig;
 
@@ -74,14 +69,14 @@ class ConfigValueListener {
 
 public:
 	ConfigValueListener() = default;
-	virtual ~ConfigValueListener();
+	virtual ~ConfigValueListener() = default;
 	bool onConfigStateChanged(const ConfigValue &conf, ConfigState state);
 
 protected:
 	virtual bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) = 0;
 
 private:
-	FLEXISIP_DISABLE_COPY(ConfigValueListener);
+// 	FLEXISIP_DISABLE_COPY(ConfigValueListener);
 };
 
 enum GenericValueType {
@@ -138,7 +133,7 @@ class Oid {
 	std::vector<oid> &getValue() {
 		return mOidPath;
 	}
-	virtual ~Oid();
+	virtual ~Oid() = default;
 
   private:
 	std::vector<oid> mOidPath;
@@ -183,16 +178,33 @@ class GenericEntriesGetter {
 
 class GenericEntry {
   public:
+	class DeprecationInfo {
+	public:
+		DeprecationInfo() = default;
+		DeprecationInfo(const std::string &date, const std::string &version, const std::string &text = "") {setAsDeprecaded(date, version, text);}
+
+		bool isDeprecated() const {return !mDate.empty();}
+		void setAsDeprecaded(const std::string &date, const std::string &version, const std::string &text = "");
+
+		const std::string &getDate() const {return mDate;}
+		const std::string &getVersion() const {return mVersion;}
+
+		const std::string &getText() const {return mText;}
+		void setText(const std::string &text) {mText = text;}
+
+	private:
+		std::string mDate;
+		std::string mVersion;
+		std::string mText;
+	};
+
 	static std::string sanitize(const std::string &str);
 
-	const std::string &getName() const {
-		return mName;
-	}
+	const std::string &getName() const {return mName;}
+	std::string getCompleteName() const;
 	std::string getPrettyName() const;
 
-	GenericValueType getType() const {
-		return mType;
-	}
+	GenericValueType getType() const {return mType;}
 
 	const std::string &getTypeName() const {
 		if (GenericValueTypeNameMap.count(mType) == 1)
@@ -255,12 +267,11 @@ class GenericEntry {
 	ConfigValueListener *getConfigListener() const {
 		return mConfigListener;
 	}
-	void setDeprecated(bool deprecated) {
-		mDeprecated = deprecated;
-	}
-	bool isDeprecated() const {
-		return mDeprecated;
-	}
+
+	void setDeprecated(DeprecationInfo info) {mDeprecationInfo = std::move(info);}
+	bool isDeprecated() const {return mDeprecationInfo.isDeprecated();}
+	const DeprecationInfo &getDeprecationInfo() const {return mDeprecationInfo;}
+	DeprecationInfo &getDeprecationInfo() {return mDeprecationInfo;}
 
   protected:
 	virtual void doMibFragment(std::ostream &ostr, const std::string &def, const std::string &access,
@@ -268,19 +279,19 @@ class GenericEntry {
 	GenericEntry(const std::string &name, GenericValueType type, const std::string &help, oid oid_index = 0);
 	static std::string escapeDoubleQuotes(const std::string &str);
 
-	Oid *mOid;
+	Oid *mOid = nullptr;
 	const std::string mName;
-	bool mReadOnly;
-	bool mExportToConfigFile;
-	bool mDeprecated;
+	bool mReadOnly = false;
+	bool mExportToConfigFile = true;
+	DeprecationInfo mDeprecationInfo;
 	std::string mErrorMessage;
 
   private:
-	const std::string mHelp;
+	std::string mHelp;
 	GenericValueType mType;
-	GenericEntry *mParent;
-	ConfigValueListener *mConfigListener;
-	oid mOidLeaf;
+	GenericEntry *mParent = nullptr;
+	ConfigValueListener *mConfigListener = nullptr;
+	oid mOidLeaf = 0;
 };
 
 inline std::ostream &operator<<(std::ostream &ostr, const GenericEntry &entry) {
@@ -315,19 +326,22 @@ class GenericStruct : public GenericEntry {
 
 	void addChildrenValues(ConfigItemDescriptor *items);
 	void addChildrenValues(ConfigItemDescriptor *items, bool hashed);
-	void deprecateChild(const char *name);
+	void deprecateChild(const char* name, DeprecationInfo &&info);
 	// void addChildrenValues(StatItemDescriptor *items);
 	const std::list<GenericEntry *> &getChildren() const;
 	template <typename _retType> _retType *get(const char *name) const;
 	template <typename _retType> _retType *getDeep(const char *name, bool strict) const;
 	~GenericStruct();
-	GenericEntry *find(const char *name) const;
-	GenericEntry *find(const std::string &name) const {
-		return find(name.c_str());
+
+	template <typename Str>
+	GenericEntry *find(Str &&name) const {
+		auto it = find_if(mEntries.cbegin(), mEntries.cend(), [&name](const GenericEntry *e){return e->getName() == name;});
+		return it != mEntries.cend() ? *it : nullptr;
 	}
+
 	GenericEntry *findApproximate(const char *name) const;
-	virtual void mibFragment(std::ostream &ost, std::string spacing) const;
-	virtual void setParent(GenericEntry *parent);
+	void mibFragment(std::ostream &ost, std::string spacing) const override;
+	void setParent(GenericEntry *parent) override;
 
   private:
 	std::list<GenericEntry *> mEntries;
@@ -336,18 +350,18 @@ class GenericStruct : public GenericEntry {
 class RootConfigStruct : public GenericStruct {
   public:
 	RootConfigStruct(const std::string &name, const std::string &help, std::vector<oid> oid_root_prefix);
-	virtual ~RootConfigStruct();
+	~RootConfigStruct() override;
 };
 
 class StatCounter64 : public GenericEntry {
   public:
 	StatCounter64(const std::string &name, const std::string &help, oid oid_index);
 #ifdef ENABLE_SNMP
-	virtual int handleSnmpRequest(netsnmp_mib_handler *, netsnmp_handler_registration *, netsnmp_agent_request_info *,
-								  netsnmp_request_info *);
+	int handleSnmpRequest(netsnmp_mib_handler *, netsnmp_handler_registration *, netsnmp_agent_request_info *,
+								  netsnmp_request_info *) override;
 #endif
-	virtual void mibFragment(std::ostream &ost, std::string spacing) const;
-	void setParent(GenericEntry *parent);
+	void mibFragment(std::ostream &ost, std::string spacing) const override;
+	void setParent(GenericEntry *parent) override;
 	uint64_t read() {
 		return mValue;
 	}
@@ -407,51 +421,56 @@ class ConfigValue : public GenericEntry {
   public:
 	ConfigValue(const std::string &name, GenericValueType vt, const std::string &help, const std::string &default_value,
 				oid oid_index);
-	void set(const std::string &value);
+
+	/* Set the value and mark it as 'not default' */
+	void set(const std::string &value) {set(std::string(value));}
 	void set(std::string &&value);
+	virtual const std::string &get() const;
+
+	/* Restor the default value and mark the value as 'default'. */
+	void restoreDefault();
+
+	/*
+	 * Set the default value i.e. the value which will be restored by reset(). If the value is
+	 * marked as 'default', it will be automatically updated to the new default value.
+	 */
+	void setDefault(const std::string &value);
+	const std::string &getDefault() const;
+
+	void setFallback(const ConfigValue &fallbackValue);
+
+	/* Check whether the value is mark as 'default' */
+	bool isDefault() const {return mIsDefault;}
 
 	void setNextValue(const std::string &value);
-	virtual const std::string &get() const;
-	const std::string &getNextValue() const {
-		return mNextValue;
-	}
-	const std::string &getDefault() const;
-	void setDefault(const std::string &value);
-	void setNotifPayload(bool b) {
-		mNotifPayload = b;
-	}
+	const std::string &getNextValue() const {return mNextValue;}
+
+	void setNotifPayload(bool b) {mNotifPayload = b;}
+
 #ifdef ENABLE_SNMP
-	virtual int handleSnmpRequest(netsnmp_mib_handler *, netsnmp_handler_registration *, netsnmp_agent_request_info *,
-								  netsnmp_request_info *);
+	int handleSnmpRequest(netsnmp_mib_handler *, netsnmp_handler_registration *, netsnmp_agent_request_info *,
+								  netsnmp_request_info *) override;
 #endif
-	inline void doConfigMibFragment(std::ostream &ostr, const std::string &syntax, const std::string &spacing) const {
+
+	void doConfigMibFragment(std::ostream &ostr, const std::string &syntax, const std::string &spacing) const {
 		doMibFragment(ostr, "", "", syntax, spacing);
 	}
 
-	virtual void setParent(GenericEntry *parent);
-	virtual void mibFragment(std::ostream &ost, std::string spacing) const;
-	virtual void doMibFragment(std::ostream &ostr, const std::string &def, const std::string &access,
-							   const std::string &syntax, const std::string &spacing) const;
+	void setParent(GenericEntry *parent) override;
+	void mibFragment(std::ostream &ost, std::string spacing) const override;
+	void doMibFragment(std::ostream &ostr, const std::string &def, const std::string &access,
+							   const std::string &syntax, const std::string &spacing) const override;
 
   protected:
-	bool invokeConfigStateChanged(ConfigState state) {
-		if (getParent() && getParent()->getType() == Struct) {
-			ConfigValueListener *listener = getParent()->getConfigListener();
-			if (listener) {
-				return listener->onConfigStateChanged(*this, state);
-			} else {
-				LOGE("%s doesn't implement a config change listener.", getParent()->getName().c_str());
-			}
-		}
-		return true;
-	}
+	bool invokeConfigStateChanged(ConfigState state);
 	void checkType(const std::string & value, bool isDefault);
-	std::string mNextValue;
 
-  private:
 	std::string mValue;
+	std::string mNextValue;
 	std::string mDefaultValue;
-	bool mNotifPayload;
+	const ConfigValue *mFallback = nullptr;
+	bool mIsDefault = true;
+	bool mNotifPayload = false;
 };
 
 class ConfigBoolean : public ConfigValue {
@@ -462,20 +481,20 @@ class ConfigBoolean : public ConfigValue {
 	bool readNext() const;
 	void write(bool value);
 #ifdef ENABLE_SNMP
-	virtual int handleSnmpRequest(netsnmp_mib_handler *, netsnmp_handler_registration *, netsnmp_agent_request_info *,
-								  netsnmp_request_info *);
+	int handleSnmpRequest(netsnmp_mib_handler *, netsnmp_handler_registration *, netsnmp_agent_request_info *,
+								  netsnmp_request_info *) override;
 #endif
-	virtual void mibFragment(std::ostream &ost, std::string spacing) const;
+	void mibFragment(std::ostream &ost, std::string spacing) const override;
 };
 
 class ConfigInt : public ConfigValue {
   public:
 #ifdef ENABLE_SNMP
-	virtual int handleSnmpRequest(netsnmp_mib_handler *, netsnmp_handler_registration *, netsnmp_agent_request_info *,
-								  netsnmp_request_info *);
+	int handleSnmpRequest(netsnmp_mib_handler *, netsnmp_handler_registration *, netsnmp_agent_request_info *,
+								  netsnmp_request_info *) override;
 #endif
 	ConfigInt(const std::string &name, const std::string &help, const std::string &default_value, oid oid_index);
-	virtual void mibFragment(std::ostream &ost, std::string spacing) const;
+	void mibFragment(std::ostream &ost, std::string spacing) const override;
 	int read() const;
 	int readNext() const;
 	void write(int value);
@@ -503,8 +522,8 @@ class ConfigRuntimeError : public ConfigValue {
 	ConfigRuntimeError(const std::string &name, const std::string &help, oid oid_index);
 	std::string generateErrors() const;
 #ifdef ENABLE_SNMP
-	virtual int handleSnmpRequest(netsnmp_mib_handler *, netsnmp_handler_registration *, netsnmp_agent_request_info *,
-								  netsnmp_request_info *);
+	int handleSnmpRequest(netsnmp_mib_handler *, netsnmp_handler_registration *, netsnmp_agent_request_info *,
+								  netsnmp_request_info *) override;
 #endif
 	void writeErrors(GenericEntry *entry, std::ostringstream &oss) const;
 };
@@ -655,17 +674,17 @@ class GenericManager : protected ConfigValueListener {
 	}
 	void applyOverrides(bool strict);
 
-	bool mNeedRestart;
-	bool mDirtyConfig;
+	bool mNeedRestart = false;
+	bool mDirtyConfig = false;
 
-	protected:
+  protected:
 	GenericManager();
-	virtual ~GenericManager() {
-	}
+	~GenericManager() override = default;
+
   private:
 	static void atexit();
 	bool doIsValidNextConfig(const ConfigValue &cv);
-	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
+	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) override;
 	RootConfigStruct mConfigRoot;
 	FileConfigReader mReader;
 	std::string mConfigFile;
@@ -673,7 +692,7 @@ class GenericManager : protected ConfigValueListener {
 	static GenericManager *sInstance;
 	std::map<std::string, StatCounter64 *> mStatMap;
 	std::unordered_set<std::string> mStatOids;
-	NotificationEntry *mNotifier;
+	NotificationEntry *mNotifier = nullptr;
 };
 
 }

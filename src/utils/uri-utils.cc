@@ -26,7 +26,7 @@
 
 using namespace std;
 
-std::string UriUtils::escape(const char *str, const char *reserved) {
+std::string UriUtils::escape(const char *str, const char *reserved) noexcept {
 	string escapedStr;
 	if (url_reserved_p(str)) {
 		escapedStr.resize(url_esclen(str, reserved));
@@ -37,7 +37,7 @@ std::string UriUtils::escape(const char *str, const char *reserved) {
 	return escapedStr;
 }
 
-std::string UriUtils::unescape(const char *str, size_t n) {
+std::string UriUtils::unescape(const char *str, size_t n) noexcept {
 	string unescapedStr(n, '\0');
 	n = url_unescape_to(&unescapedStr[0], str, n);
 	unescapedStr.resize(n);
@@ -52,7 +52,7 @@ std::string UriUtils::getParamValue(const char *paramList, const char *paramName
 	return value;
 }
 
-std::string UriUtils::uniqueIdToGr(const std::string &uid) {
+std::string UriUtils::uniqueIdToGr(const std::string &uid) noexcept {
 	string ret;
 	size_t begin = uid.find('<');
 	if (begin != string::npos) {
@@ -65,7 +65,7 @@ std::string UriUtils::uniqueIdToGr(const std::string &uid) {
 	return ret;
 }
 
-std::string UriUtils::grToUniqueId(const std::string &gr) {
+std::string UriUtils::grToUniqueId(const std::string &gr) noexcept {
 	ostringstream uid;
 	uid << "\"<" << gr << ">\"";
 	return uid.str();

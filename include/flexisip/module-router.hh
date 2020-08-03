@@ -81,8 +81,6 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	}
 
   protected:
-	bool makeGeneratedContactRoute(std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<Record> &aor,
-								   std::list<std::shared_ptr<ExtendedContact>> &ec_list);
 	virtual bool dispatch(const std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<ExtendedContact> &contact,
 				  std::shared_ptr<ForkContext> context, const std::string &targetUris);
 	virtual bool lateDispatch(const std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<ExtendedContact> &contact,
@@ -91,21 +89,15 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	std::vector<std::string> split(const char *data, const char *delim);
 
 	std::list<std::string> mDomains;
-	bool mFork = false;
 	std::shared_ptr<ForkContextConfig> mForkCfg;
 	std::shared_ptr<ForkContextConfig> mMessageForkCfg;
 	std::shared_ptr<ForkContextConfig> mOtherForkCfg;
 	typedef std::multimap<std::string, std::shared_ptr<ForkContext>> ForkMap;
 	ForkMap mForks;
-	std::string mGeneratedContactRoute;
-	std::string mExpectedRealm;
 	bool mUseGlobalDomain = false;
-	bool mStateful = false;
 
-	bool mGenerateContactEvenOnFilledAor = false;
 	bool mAllowDomainRegistrations = false;
 	bool mAllowTargetFactorization = false;
-	std::string mPreroute;
 	bool mResolveRoutes = false;
 	std::string mFallbackRoute;
 	url_t *mFallbackRouteParsed = nullptr;
@@ -120,7 +112,7 @@ class OnContactRegisteredListener : public ContactRegisteredListener, public Con
 	ModuleRouter *mModule;
 	url_t *mSipUri;
 	std::string mSipUriAsString;
-	SofiaAutoHome mHome;
+	sofiasip::Home mHome;
 
   public:
 	OnContactRegisteredListener(ModuleRouter *module, const url_t *sipUri)

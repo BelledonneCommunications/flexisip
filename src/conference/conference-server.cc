@@ -31,7 +31,7 @@ using namespace std;
 
 namespace flexisip {
 
-SofiaAutoHome ConferenceServer::mHome;
+sofiasip::Home ConferenceServer::mHome;
 ConferenceServer::Init ConferenceServer::sStaticInit;
 
 ConferenceServer::ConferenceServer (
@@ -54,7 +54,7 @@ void ConferenceServer::_init () {
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
 	mTransport = config->get<ConfigString>("transport")->read();
 	if (mTransport.length() > 0) {
-		SofiaAutoHome mHome;
+		sofiasip::Home mHome;
 		url_t *urlTransport = url_make(mHome.home(), mTransport.c_str());
 		if (urlTransport != nullptr && mTransport.at(0) != '<') {
 			int port;
@@ -189,24 +189,32 @@ void flexisip::ConferenceServer::bindConference() {
 	shared_ptr<FakeListener> listener = make_shared<FakeListener>();
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
 	if (config && config->get<ConfigBoolean>("enabled")->read()) {
-		BindingParameters parameter;
+		auto conferenceFactoryUriSetting = config->get<ConfigString>("conference-factory-uri");
+		auto conferenceFactoryUri = conferenceFactoryUriSetting->read();
+		if (conferenceFactoryUri.empty()) {
+			LOGF("'%s' parameter must be set!", conferenceFactoryUriSetting->getCompleteName().c_str());
+		}
+		try {
+			BindingParameters parameter;
+			sip_contact_t* sipContact = sip_contact_create(mHome.home(),
+				reinterpret_cast<const url_string_t*>(url_make(mHome.home(), mTransport.c_str())), nullptr);
+			SipUri from(conferenceFactoryUri);
 
-		sip_contact_t* sipContact = sip_contact_create(mHome.home(),
-			reinterpret_cast<const url_string_t*>(url_make(mHome.home(), mTransport.c_str())), nullptr);
-		url_t *from = url_make(mHome.home(), config->get<ConfigString>("conference-factory-uri")->read().c_str());
+			parameter.callId = "CONFERENCE";
+			parameter.path = mPath;
+			parameter.globalExpire = numeric_limits<int>::max();
+			parameter.alias = false;
+			parameter.version = 0;
 
-		parameter.callId = "CONFERENCE";
-		parameter.path = mPath;
-		parameter.globalExpire = numeric_limits<int>::max();
-		parameter.alias = false;
-		parameter.version = 0;
-
-		RegistrarDb::get()->bind(
-			from,
-			sipContact,
-			parameter,
-			listener
-		);
+			RegistrarDb::get()->bind(
+				from,
+				sipContact,
+				parameter,
+				listener
+			);
+		} catch (const sofiasip::InvalidUrlError &e) {
+			LOGF("'conference-server' value isn't a SIP URI [%s]", conferenceFactoryUri.c_str());
+		}
 	}
 }
 
@@ -221,7 +229,6 @@ void ConferenceServer::bindChatRoom (
 	sip_contact_t* sipContact = sip_contact_create(mHome.home(),
 		reinterpret_cast<const url_string_t*>(url_make(mHome.home(), contact.c_str())),
 		su_strdup(mHome.home(), ("+sip.instance=" + UriUtils::grToUniqueId(gruu) ).c_str()), nullptr);
-	url_t *from = url_make(mHome.home(), bindingUrl.c_str());
 
 	parameter.callId = gruu;
 	parameter.path = mPath;
@@ -231,7 +238,7 @@ void ConferenceServer::bindChatRoom (
 	parameter.withGruu = true;
 
 	RegistrarDb::get()->bind(
-		from,
+		SipUri(bindingUrl),
 		sipContact,
 		parameter,
 		listener

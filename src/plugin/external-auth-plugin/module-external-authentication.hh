@@ -22,10 +22,9 @@
 #include <regex>
 
 #include <flexisip/agent.hh>
-#include <flexisip/module.hh>
+#include <flexisip/module-authentication-base.hh>
 
 #include "external-auth-module.hh"
-#include "module-authentication-base.hh"
 
 namespace flexisip {
 

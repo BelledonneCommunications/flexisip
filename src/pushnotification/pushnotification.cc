@@ -17,30 +17,26 @@
 */
 
 #include <ctime>
-#include <sstream>
 
 #include <flexisip/logmanager.hh>
 #include "pushnotification.hh"
 
 using namespace std;
-using namespace flexisip;
 
-PushNotificationRequest::PushNotificationRequest(const string &appid, const string &type)
-			: mState( NotSubmitted), mAppId(appid), mType(type) {
-}
+namespace flexisip {
 
-string PushNotificationRequest::quoteStringIfNeeded(const string &str) const {
-	if (str[0] == '"'){
+std::string PushNotificationRequest::quoteStringIfNeeded(const std::string &str) const noexcept {
+	if (str[0] == '"') {
 		return str;
-	}else{
-		ostringstream ostr;
-		ostr << "\"" << str << "\"";
-		return ostr.str();
+	} else {
+		string res;
+		res.reserve(str.size() + 2);
+		return move(res) + "\"" + str + "\"";
 	}
 }
 
-string PushNotificationRequest::getPushTimeStamp() const {
-	time_t t = time(NULL);
+std::string PushNotificationRequest::getPushTimeStamp() const noexcept {
+	time_t t = time(nullptr);
 	struct tm time;
 	gmtime_r(&t, &time);
 	char date[20] = {0};
@@ -50,3 +46,5 @@ string PushNotificationRequest::getPushTimeStamp() const {
 
 	return string(date);
 }
+
+} // end of flexisip namespace

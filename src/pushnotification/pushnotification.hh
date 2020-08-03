@@ -26,9 +26,15 @@
 namespace flexisip {
 
 struct PushInfo {
-	enum Event { Call, Message , Refer };
-	PushInfo() : mEvent(Event::Message), mNoBadge(false), mSilent(false){};
-	Event mEvent; // Event to advertise: call or text message.
+	enum class Event { Call, Message , Refer };
+	enum class ApplePushType {
+		Pushkit,
+		RemoteBasic,
+		RemoteWithMutableContent,
+		Background
+	};
+
+	Event mEvent{Event::Message}; // Event to advertise: call or text message.
 	std::string mType; // type of push notif: apple, google, wp
 	std::string mAppId; // app id, as extracted from Contact
 	std::string mDeviceToken; // device token, as extracted from Contact
@@ -43,43 +49,48 @@ struct PushInfo {
 	std::string mText;	// Text of the chat message.
 	std::string mUid; // The unique id as used in the ExtendedContact, if available.
 	std::string mAccessToken; // access token required by Microsoft to authenticate our server
-	int mTtl; //Time to live of the push notification.
-	bool mNoBadge; // Whether to display a badge on the application (ios specific).
-	bool mSilent;
+	std::string mTeamId; // The Apple team id
+	std::string mChatRoomAddr; // In case of a chat room invite, the sip addr of the chat room is needed. (ios specific).
+	int mTtl{0}; //Time to live of the push notification.
+	ApplePushType mApplePushType{ApplePushType::Pushkit};
+	bool mNoBadge{false}; // Whether to display a badge on the application (ios specific).
+	bool mSilent{false};
 };
 
 class PushNotificationRequest {
 	public:
-		enum State{
+		enum class State{
 			NotSubmitted,
 			InProgress,
 			Successful,
 			Failed
 		};
 
-		virtual ~PushNotificationRequest() {};
+		template <typename T, typename U>
+		PushNotificationRequest(T &&appid, U &&type) : mAppId(std::forward<T>(appid)), mType(std::forward<U>(type)) {}
+		PushNotificationRequest(const PushNotificationRequest &) = delete;
+		PushNotificationRequest(PushNotificationRequest &&) = delete;
+		virtual ~PushNotificationRequest() = default;
 
-		const std::string &getAppIdentifier() const {
-			return mAppId;
-		}
-		const std::string &getType() const {
-			return mType;
-		}
+		PushNotificationRequest &operator=(const PushNotificationRequest &src) = delete;
+		PushNotificationRequest &operator=(PushNotificationRequest &&src) = delete;
+
+		State getState() const noexcept {return mState;}
+		void setState(State state) noexcept {mState = state;}
+
+		const std::string &getAppIdentifier() const noexcept {return mAppId;}
+		const std::string &getType() const noexcept {return mType;}
+
 		virtual const std::vector<char> &getData() = 0;
 		virtual std::string isValidResponse(const std::string &str) = 0;
 		virtual bool isServerAlwaysResponding() = 0;
-		State getState()const{
-			return mState;
-		}
-		void setState(State state){
-			mState = state;
-		}
+
 	protected:
-		PushNotificationRequest(const std::string &appid, const std::string &type);
-		std::string quoteStringIfNeeded(const std::string &str) const;
-		std::string getPushTimeStamp() const;
+		std::string quoteStringIfNeeded(const std::string &str) const noexcept;
+		std::string getPushTimeStamp() const noexcept;
+
 	private:
-		State mState;
+		State mState{State::NotSubmitted};
 		const std::string mAppId;
 		const std::string mType;
 
