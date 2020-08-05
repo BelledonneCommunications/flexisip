@@ -480,21 +480,19 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 		}
 
 		// check entity
-		belle_sip_uri_t *entity = belle_sip_uri_parse(presence_body->getEntity().c_str());
+		bellesip::shared_ptr<belle_sip_uri_t> entity{belle_sip_uri_parse(presence_body->getEntity().c_str())};
 		if (!entity)
 			throw BELLESIP_SIGNALING_EXCEPTION(400) << "Invalid presence entity [" << presence_body->getEntity()
 										   << "] for request [" << request << "]";
-		belle_sip_object_ref(entity); // initial ref = 0;
 
 		belle_sip_header_from_t * from = belle_sip_message_get_header_by_type(request, belle_sip_header_from_t);
-		if (!belle_sip_uri_equals(entity, belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(from)))) {
-			belle_sip_object_unref(entity);
+		if (!belle_sip_uri_equals(entity.get(), belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(from)))) {
 			throw BELLESIP_SIGNALING_EXCEPTION_1(400,belle_sip_header_create("Warning", "Entity must be same as From")) << "Invalid presence entity [" << presence_body->getEntity()
 			<< "] for request [" << request << "] must be same as From";
 		}
 
-		if (!(presenceInfo = getPresenceInfo(entity))) {
-			presenceInfo = make_shared<PresentityPresenceInformation>(entity, *this, belle_sip_stack_get_main_loop(mStack));
+		if (!(presenceInfo = getPresenceInfo(entity.get()))) {
+			presenceInfo = make_shared<PresentityPresenceInformation>(entity.get(), *this, belle_sip_stack_get_main_loop(mStack));
 			SLOGD << "New Presentity [" << *presenceInfo << "] created from PUBLISH";
 			addPresenceInfo(presenceInfo);
 		} else {
@@ -504,7 +502,6 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t 
 			? presenceInfo->putTuples(presence_body->getTuple(), presence_body->getPerson().get(), expires)
 			: presenceInfo->updateTuples(presence_body->getTuple(), presence_body->getPerson().get(), eTag, expires);
 
-		belle_sip_object_unref(entity);
 	} else {
 		/*
 		 *  Else, the event state identified by the entity-tag is
@@ -582,22 +579,20 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 	 "489 Bad Event" response to indicate that the specified event/event
 	 class is not understood.
 	 */
-	belle_sip_header_event_t *header_event = belle_sip_message_get_header_by_type(request, belle_sip_header_event_t);
-	belle_sip_header_user_agent_t *user_agent = belle_sip_message_get_header_by_type(request, belle_sip_header_user_agent_t);
-	bool bypass = false;
-	if(user_agent) {
-		char cchar[100];
-		belle_sip_header_user_agent_get_products_as_string(user_agent, cchar, sizeof(cchar));
-		if(strcasestr(cchar, mBypass.c_str()) && strcmp(mBypass.c_str(), "false") != 0) {
-			bypass = true;
-		}
+	auto headerEvent = belle_sip_message_get_header_by_type(request, belle_sip_header_event_t);
+	auto userAgent = belle_sip_message_get_header_by_type(request, belle_sip_header_user_agent_t);
+	auto bypass = false;
+	if(userAgent) {
+		char userAgentStr[100];
+		belle_sip_header_user_agent_get_products_as_string(userAgent, userAgentStr, sizeof(userAgentStr));
+		bypass = mBypass != "false" && strcasestr(userAgentStr, mBypass.c_str()) != nullptr;
 	}
-	if (!header_event)
+	if (!headerEvent)
 		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", "No Event package")) << "No Event package";
 
-	if (strcmp("presence", belle_sip_header_event_get_package_name(header_event)) != 0)
+	if (strcmp("presence", belle_sip_header_event_get_package_name(headerEvent)) != 0)
 		throw BELLESIP_SIGNALING_EXCEPTION(489) << "Unexpected Event package ["
-									   << belle_sip_header_event_get_package_name(header_event) << "]";
+									   << belle_sip_header_event_get_package_name(headerEvent) << "]";
 
 	/*
 	 The notifier SHOULD also perform any necessary authentication and
@@ -671,10 +666,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 			belle_sip_header_content_disposition_t *content_disposition = belle_sip_message_get_header_by_type(
 				BELLE_SIP_MESSAGE(request), belle_sip_header_content_disposition_t);
 			// first create the dialog
-			shared_ptr<belle_sip_response_t> resp(
-				BELLE_SIP_RESPONSE(belle_sip_object_ref(belle_sip_response_create_from_request(request, 200))),
-				belle_sip_object_unref
-			);
+			bellesip::shared_ptr<belle_sip_response_t> resp{belle_sip_response_create_from_request(request, 200)};
 			belle_sip_message_add_header(BELLE_SIP_MESSAGE(resp.get()), BELLE_SIP_HEADER(belle_sip_header_expires_create(expires)));
 
 			// List subscription
@@ -898,7 +890,7 @@ void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformatio
 	addOrUpdateListener(listener,-1);
 }
 void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener> &listener, int expires) {
-	shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener->getPresentityUri());
+	auto presenceInfo = getPresenceInfo(listener->getPresentityUri());
 
 	if (!presenceInfo) {
 		/*no information available yet, but creating entry to be able to register subscribers*/
@@ -915,9 +907,9 @@ void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformatio
 
 	presenceInfo->addListenerIfNecessary(listener);
 	if (!listener->extendedNotifyEnabled()) {
-		shared_ptr<PresentityPresenceInformation> toPresenceInfo = getPresenceInfo(listener->getTo());
+		auto toPresenceInfo = getPresenceInfo(listener->getTo());
 		if (toPresenceInfo) {
-			shared_ptr<PresentityPresenceInformationListener> toListener = toPresenceInfo->findPresenceInfoListener(presenceInfo);
+			auto toListener = toPresenceInfo->findPresenceInfoListener(presenceInfo);
 			if (toListener != nullptr) {
 				SLOGD << " listener [" << toListener.get() << "] on [" << *toPresenceInfo << "] already exist, enabling extended notification";
 				//both listener->getPresentityUri() and listener->getTo() are subscribed each other
@@ -926,7 +918,7 @@ void PresenceServer::addOrUpdateListener(shared_ptr<PresentityPresenceInformatio
 				toListener->onInformationChanged(*toPresenceInfo, true); //to triger notify
 			}
 		}
-	}
+	} else SLOGD << "Extended presence information forbidden or not available for listener [" << listener << "]";
 
 	if (expires > 0)
 		presenceInfo->addOrUpdateListener(listener, expires);
@@ -939,9 +931,9 @@ void PresenceServer::addOrUpdateListeners(list<shared_ptr<PresentityPresenceInfo
 	addOrUpdateListeners(listeners,-1);
 }
 void PresenceServer::addOrUpdateListeners(list<shared_ptr<PresentityPresenceInformationListener>> &listeners, int expires) {
-	list<shared_ptr<PresentityPresenceInformation>> presenceInfos;
-	for (shared_ptr<PresentityPresenceInformationListener> &listener : listeners) {
-		shared_ptr<PresentityPresenceInformation> presenceInfo = getPresenceInfo(listener->getPresentityUri());
+	list<shared_ptr<PresentityPresenceInformation>> presenceInfos{};
+	for (auto &listener : listeners) {
+		auto presenceInfo = getPresenceInfo(listener->getPresentityUri());
 		if (!presenceInfo) {
 			/*no information available yet, but creating entry to be able to register subscribers*/
 			presenceInfo = make_shared<PresentityPresenceInformation>(listener->getPresentityUri(), *this,
@@ -952,9 +944,9 @@ void PresenceServer::addOrUpdateListeners(list<shared_ptr<PresentityPresenceInfo
 
 		presenceInfo->addListenerIfNecessary(listener);
 		if (!listener->extendedNotifyEnabled()) {
-			shared_ptr<PresentityPresenceInformation> toPresenceInfo = getPresenceInfo(listener->getTo());
+			auto toPresenceInfo = getPresenceInfo(listener->getTo());
 			if (toPresenceInfo) {
-				shared_ptr<PresentityPresenceInformationListener> toListener = toPresenceInfo->findPresenceInfoListener(presenceInfo);
+				auto toListener = toPresenceInfo->findPresenceInfoListener(presenceInfo);
 				if (toListener != nullptr) {
 					//both listener->getPresentityUri() and listener->getTo() are subscribed each other
 					SLOGD << " listener [" << toListener.get() << "] on [" << *toPresenceInfo << "] already exist, enabling extended notification";
@@ -963,7 +955,7 @@ void PresenceServer::addOrUpdateListeners(list<shared_ptr<PresentityPresenceInfo
 					toListener->onInformationChanged(*toPresenceInfo, true); //to triger notify
 				}
 			}
-		}
+		} SLOGD << "Extended presence information forbidden or not available for listener [" << listener << "]";
 		if (expires > 0)
 			presenceInfo->addOrUpdateListener(listener, expires);
 		else
