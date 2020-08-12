@@ -2,7 +2,7 @@ set(SOURCE_FILES_CXX 	tester.cc tester.hh
 	boolean-expressions.cc
 )
 
-if(ENABLE_REGEVENT)
+if(ENABLE_CONFERENCE)
 	list(APPEND SOURCE_FILES_CXX
 		registration-event-tester.cc
 	)

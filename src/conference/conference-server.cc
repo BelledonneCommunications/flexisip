@@ -280,8 +280,9 @@ ConferenceServer::Init::Init() {
 		{
 			String,
 			"local-domains",
-			"Local domains managed by the conference server, the other messages will\n"
-			"be forwarded to the outbound-proxy. Space separated list.",
+			"Local domains managed by the conference server, the other messages will "
+			"be forwarded to the outbound-proxy. Space separated list.\n"
+			"If not empty, the RegEvent (RFC3680) features will be enabled automatically.",
 			""
 		},
 		{

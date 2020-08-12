@@ -78,15 +78,12 @@
 
 #ifdef ENABLE_CONFERENCE
 #include "conference/conference-server.hh"
+#include "conference/registration-events/server.hh"
 #endif
 #ifdef ENABLE_PRESENCE
 #include "presence/presence-server.hh"
 #include "presence/presence-longterm.hh"
 #endif
-
-#if ENABLE_REGEVENT
-#include "conference/registration-events/server.hh"
-#endif // ENABLE_REGEVENT
 
 #ifdef ENABLE_SNMP
 #include "snmp-agent.h"
@@ -104,10 +101,8 @@ static std::shared_ptr<flexisip::PresenceServer> presenceServer;
 #endif // ENABLE_PRESENCE
 #if ENABLE_CONFERENCE
 static std::shared_ptr<flexisip::ConferenceServer> conferenceServer;
-#endif // ENABLE_CONFERENCE
-#if ENABLE_REGEVENT
 static std::shared_ptr<RegistrationEvent::Server> regEventServer;
-#endif // ENABLE_REGEVENT
+#endif // ENABLE_CONFERENCE
 
 using namespace std;
 using namespace flexisip;
@@ -579,8 +574,6 @@ static string version() {
 #endif
 #if ENABLE_CONFERENCE
 	version << "- Conference\n";
-#endif
-#if ENABLE_REGEVENT
 	version << "- RegEvent\n";
 #endif
 
@@ -782,7 +775,7 @@ int main(int argc, char *argv[]) {
 #endif
 	}else if (functionName.getValue() == "regevent"){
 		startRegEvent = true;
-#ifndef ENABLE_REGEVENT
+#ifndef ENABLE_CONFERENCE
 		LOGF("Flexisip was compiled without regevent server extension.")
 #endif
 	}else if (functionName.getValue() == "all"){
@@ -991,16 +984,16 @@ int main(int argc, char *argv[]) {
 #endif // ENABLE_CONFERENCE
 	}
 
-#ifdef ENABLE_REGEVENT
 	if (startRegEvent) {
+#ifdef ENABLE_CONFERENCE
 		regEventServer = make_shared<RegistrationEvent::Server>(root);
 		try {
 			regEventServer->init();
 		} catch(FlexisipException &e) {
 			LOGF("Fail to start flexisip conference server");
 		}
+#endif // ENABLE_CONFERENCE
 	}
-#endif // ENABLE_REGEVENT
 
 	su_root_run(root);
 
@@ -1015,11 +1008,9 @@ int main(int argc, char *argv[]) {
 #ifdef ENABLE_CONFERENCE
 	if (conferenceServer) conferenceServer->stop();
 	conferenceServer.reset();
-#endif // ENABLE_CONFERENCE
 
-#ifdef ENABLE_REGEVENT
 	if (regEventServer) regEventServer->stop();
-#endif // ENABLE_REGEVENT
+#endif // ENABLE_CONFERENCE
 
 	if (stun) {
 		stun->stop();
