@@ -129,6 +129,8 @@ static void basic() {
 	SipUri participantUrl{participantFrom};
 	string otherParticipantFrom = "sip:participant2@test.com";
 	SipUri otherParticipantUrl{otherParticipantFrom};
+	string participantRebindFrom = "sip:participant_re_bind@test.com";
+	SipUri participantRebindUrl{participantRebindFrom};
 
 	// Fill the Regisrar DB with participants
 
@@ -355,6 +357,53 @@ static void basic() {
 
 	BC_ASSERT_TRUE(participantsTest.size() == 1);
 	BC_ASSERT_TRUE(participantsTest.front()->getAddress()->asString() == otherParticipantFrom);
+
+	// Reroute everything locally on the Conference Server
+
+	gs->get<ConfigString>("local-domains")->set("");
+
+	// Re-add the first participant, with the routing disabled
+
+	BindingParameters parameterReBind;
+	parameterReBind.callId = "random_id_necessary_to_rebind_1";
+	parameterReBind.globalExpire = 1000;
+	parameterReBind.userAgent = "Linphone1 (Ubuntu) LinphoneCore";
+	parameterReBind.withGruu = true;
+
+	auto participantReBindContact = sip_contact_create(
+		home.home(),
+		(url_string_t *)participantRebindFrom.c_str(),
+		string("+sip.instance=\"<f75b0df3-1836-4b83-b7f6-00e48842c9a7-re-ubuntu>\"").c_str(),
+		string("+org.linphone.specs=\"groupchat,lime\"").c_str(),
+		nullptr
+	);
+
+	RegistrarDb::get()->bind(
+		participantRebindUrl,
+		participantReBindContact,
+		parameterReBind,
+		make_shared<BindListener>()
+	);
+
+	shared_ptr<linphone::Address> reBindParticipant = linphone::Factory::get()->createAddress(participantRebindFrom.c_str());
+	chatRoom->addParticipant(reBindParticipant);
+
+	BC_ASSERT_TRUE(RegEventAssert({clientCore,regEventCore},agent).wait([chatRoom] {
+		int numberOfDevices = 0;
+		for (auto participant: chatRoom->getParticipants()) {
+			numberOfDevices += participant->getDevices().size();
+		}
+
+		return numberOfDevices == 2;
+	}));
+
+	// Check if the participant was still added (locally)
+
+	participantsTest = chatRoom->getParticipants();
+
+	BC_ASSERT_TRUE(participantsTest.size() == 2);
+	BC_ASSERT_TRUE(participantsTest.front()->getAddress()->asString() == otherParticipantFrom);
+	BC_ASSERT_TRUE(participantsTest.back()->getAddress()->asString() == participantRebindFrom);
 }
 
 static test_t tests[] = {
