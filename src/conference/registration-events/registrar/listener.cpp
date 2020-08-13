@@ -10,7 +10,8 @@ using namespace reginfo;
 using namespace Xsd::ResourceLists;
 using namespace Xsd::XmlSchema;
 
-namespace RegistrationEvent::Registrar {
+namespace RegistrationEvent {
+    namespace Registrar {
 
 Listener::Listener(const shared_ptr<linphone::Event> &lev): event(lev) {}
 
@@ -23,17 +24,17 @@ void Listener::onContactRegistered(const shared_ptr<Record> &r, const string &ui
 }
 
 void Listener::processRecord(const shared_ptr<Record> &r) {
-    list<shared_ptr<ParticipantDeviceIdentity>> compatibleParticipantDevices;
-
-    Reginfo ri = Reginfo(0, State::Value::full);
-    Registration re = Registration(
-        Uri(this->event->getTo()->asString().c_str()),
-        r->getKey().c_str(),
-        Registration::StateType::active
-    );
-    sofiasip::Home home;
-
     if (r) {
+        list<shared_ptr<ParticipantDeviceIdentity>> compatibleParticipantDevices;
+
+        Reginfo ri = Reginfo(0, State::Value::full);
+        Registration re = Registration(
+            Uri(this->event->getTo()->asString().c_str()),
+            r->getKey().c_str(),
+            Registration::StateType::active
+        );
+        sofiasip::Home home;
+
         for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
             auto addr = r->getPubGruu(ec, home.home());
 
@@ -75,20 +76,21 @@ void Listener::processRecord(const shared_ptr<Record> &r) {
         if (r->getExtendedContacts().size() == 0) {
             re.setState(Registration::StateType::terminated);
         }
+
+        ri.getRegistration().push_back(re);
+
+        stringstream xmlBody;
+        serializeReginfo(xmlBody, ri);
+        string body = xmlBody.str();
+
+        auto notifyContent = Factory::get()->createContent();
+        notifyContent->setBuffer((uint8_t *)body.data(), body.length());
+        notifyContent->setType("application");
+        notifyContent->setSubtype("reginfo+xml");
+
+        this->event->notify(notifyContent);
     }
-
-    ri.getRegistration().push_back(re);
-
-    stringstream xmlBody;
-    serializeReginfo(xmlBody, ri);
-    string body = xmlBody.str();
-
-    auto notifyContent = Factory::get()->createContent();
-    notifyContent->setBuffer((uint8_t *)body.data(), body.length());
-    notifyContent->setType("application");
-    notifyContent->setSubtype("reginfo+xml");
-
-    this->event->notify(notifyContent);
 };
 
+    }
 }
