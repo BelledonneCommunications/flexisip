@@ -24,10 +24,9 @@ void Listener::onContactRegistered(const shared_ptr<Record> &r, const string &ui
 }
 
 void Listener::processRecord(const shared_ptr<Record> &r) {
-    if (r) {
-        list<shared_ptr<ParticipantDeviceIdentity>> compatibleParticipantDevices;
+    Reginfo ri = Reginfo(0, State::Value::full);
 
-        Reginfo ri = Reginfo(0, State::Value::full);
+    if (r) {
         Registration re = Registration(
             Uri(this->event->getTo()->asString().c_str()),
             r->getKey().c_str(),
@@ -78,18 +77,18 @@ void Listener::processRecord(const shared_ptr<Record> &r) {
         }
 
         ri.getRegistration().push_back(re);
-
-        stringstream xmlBody;
-        serializeReginfo(xmlBody, ri);
-        string body = xmlBody.str();
-
-        auto notifyContent = Factory::get()->createContent();
-        notifyContent->setBuffer((uint8_t *)body.data(), body.length());
-        notifyContent->setType("application");
-        notifyContent->setSubtype("reginfo+xml");
-
-        this->event->notify(notifyContent);
     }
+
+    stringstream xmlBody;
+    serializeReginfo(xmlBody, ri);
+    string body = xmlBody.str();
+
+    auto notifyContent = Factory::get()->createContent();
+    notifyContent->setBuffer((uint8_t *)body.data(), body.length());
+    notifyContent->setType("application");
+    notifyContent->setSubtype("reginfo+xml");
+
+    this->event->notify(notifyContent);
 };
 
     }

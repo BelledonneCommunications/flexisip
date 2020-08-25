@@ -18,22 +18,22 @@
 */
 
 /* ====================================================================
- * The Vovida Software License, Version 1.0 
- * 
+ * The Vovida Software License, Version 1.0
+ *
  * Copyright (c) 2000 Vovida Networks, Inc.  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * 3. The names "VOCAL", "Vovida Open Communication Application Library",
  *    and "Vovida Open Communication Application Library (VOCAL)" must
  *    not be used to endorse or promote products derived from this
@@ -43,7 +43,7 @@
  * 4. Products derived from this software may not be called "VOCAL", nor
  *    may "VOCAL" appear in their name, without prior written
  *    permission of Vovida Networks, Inc.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESSED OR IMPLIED
  * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE AND
@@ -57,9 +57,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
- * 
+ *
  * ====================================================================
- * 
+ *
  * This software consists of voluntary contributions made by Vovida
  * Networks, Inc. and many individuals on behalf of Vovida Networks,
  * Inc.  For more information on Vovida Networks, Inc., please see
@@ -74,7 +74,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/time.h>
-#include <sys/types.h> 
+#include <sys/types.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <netdb.h>
@@ -124,30 +124,30 @@ openPort( unsigned short port, unsigned int interfaceIp )
 {
    struct sockaddr_in addr;
    Socket fd;
-    
+
    fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
    if ( fd == INVALID_SOCKET )
    {
 	  ortp_error("stun_udp: Could not create a UDP socket");
       return INVALID_SOCKET;
    }
-   
+
    memset((char*) &(addr),0, sizeof((addr)));
    addr.sin_family = AF_INET;
    addr.sin_addr.s_addr = htonl(INADDR_ANY);
    addr.sin_port = htons(port);
-    
-   if ( (interfaceIp != 0) && 
+
+   if ( (interfaceIp != 0) &&
         ( interfaceIp != 0x100007f ) )
    {
       addr.sin_addr.s_addr = htonl(interfaceIp);
       //ortp_debug("Binding to interface 0x%lu\n",(unsigned long) htonl(interfaceIp));
    }
-	
+
    if ( bind( fd,(struct sockaddr*)&addr, sizeof(addr)) != 0 )
    {
       int e = getErrno();
-        
+
       switch (e)
       {
          case 0:
@@ -183,27 +183,27 @@ openPort( unsigned short port, unsigned int interfaceIp )
    }
 
 	 ortp_debug("stun: opened port %i with fd %i\n", port, fd);
-   
+
    /* assert( fd != INVALID_SOCKET  ); */
-	
+
    return fd;
 }
 
 
-bool_t 
+bool_t
 getMessage( Socket fd, char* buf, int* len,
             unsigned int* srcIp, unsigned short* srcPort)
 {
    /* assert( fd != INVALID_SOCKET ); */
-	
+
    int originalSize = *len;
    struct sockaddr_in from;
    int fromLen = sizeof(from);
-   	
+
 
    int err;
    struct timeval tv;
-   fd_set fdSet; 
+   fd_set fdSet;
 #if defined(WIN32) || defined(_WIN32_WCE)
    unsigned int fdSetSize;
 #else
@@ -232,7 +232,7 @@ getMessage( Socket fd, char* buf, int* len,
          case ECONNRESET:
             ortp_error("stun_udp: Error connection reset - host not reachable");
             break;
-				
+
          default:
             ortp_error("stun_udp: Socket Error=%i", e);
       }
@@ -296,8 +296,8 @@ getMessage( Socket fd, char* buf, int* len,
 }
 
 
-bool_t 
-sendMessage( Socket fd, char* buf, int l, 
+bool_t
+sendMessage( Socket fd, char* buf, int l,
              unsigned int dstIp, unsigned short dstPort)
 {
    int s;
@@ -321,14 +321,14 @@ sendMessage( Socket fd, char* buf, int l,
 	  }
 
       memset(&to,0,toLen);
-        
+
       to.sin_family = AF_INET;
       to.sin_port = htons(dstPort);
       to.sin_addr.s_addr = htonl(dstIp);
-        
+
       s = sendto(fd, buf, l, 0,(struct sockaddr*)&to, toLen);
    }
-    
+
    if ( s == SOCKET_ERROR )
    {
       int e = getErrno();
@@ -357,19 +357,19 @@ sendMessage( Socket fd, char* buf, int l,
       }
       return FALSE;
    }
-    
+
    if ( s == 0 )
    {
       ortp_error("stun_udp: no data sent in send");
       return FALSE;
    }
-    
+
    if ( s != l )
    {
       ortp_error("stun_udp: only %i out of %i bytes sent", s, l);
       return FALSE;
    }
-    
+
    return TRUE;
 }
 
@@ -381,49 +381,49 @@ initNetwork()
    WORD wVersionRequested = MAKEWORD( 2, 2 );
    WSADATA wsaData;
    int err;
-	
+
    err = WSAStartup( wVersionRequested, &wsaData );
-   if ( err != 0 ) 
+   if ( err != 0 )
    {
       /* could not find a usable WinSock DLL */
       ortp_error("stun_udp: Could not load winsock");
    }
-    
+
    /* Confirm that the WinSock DLL supports 2.2.*/
    /* Note that if the DLL supports versions greater    */
    /* than 2.2 in addition to 2.2, it will still return */
    /* 2.2 in wVersion since that is the version we      */
    /* requested.                                        */
-    
+
    if ( LOBYTE( wsaData.wVersion ) != 2 ||
-        HIBYTE( wsaData.wVersion ) != 2 ) 
+        HIBYTE( wsaData.wVersion ) != 2 )
    {
       /* Tell the user that we could not find a usable */
       /* WinSock DLL.                                  */
       WSACleanup( );
       ortp_error("stun_udp: Wrong winsock (!= 2.2) version");
-   }    
+   }
 #endif
 }
 
 
 /* ====================================================================
- * The Vovida Software License, Version 1.0 
- * 
+ * The Vovida Software License, Version 1.0
+ *
  * Copyright (c) 2000 Vovida Networks, Inc.  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * 3. The names "VOCAL", "Vovida Open Communication Application Library",
  *    and "Vovida Open Communication Application Library (VOCAL)" must
  *    not be used to endorse or promote products derived from this
@@ -433,7 +433,7 @@ initNetwork()
  * 4. Products derived from this software may not be called "VOCAL", nor
  *    may "VOCAL" appear in their name, without prior written
  *    permission of Vovida Networks, Inc.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESSED OR IMPLIED
  * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE AND
@@ -447,9 +447,9 @@ initNetwork()
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
- * 
+ *
  * ====================================================================
- * 
+ *
  * This software consists of voluntary contributions made by Vovida
  * Networks, Inc. and many individuals on behalf of Vovida Networks,
  * Inc.  For more information on Vovida Networks, Inc., please see
