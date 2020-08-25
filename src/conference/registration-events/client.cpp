@@ -78,7 +78,8 @@ void Client::onNotifyReceived(
         auto partAddr = Factory::get()->createAddress(registration.getAor());
 
         if (registration.getState() == Registration::StateType::terminated) {
-            this->mChatRoom->removeParticipant(this->mChatRoom->findParticipant(partAddr));
+            auto participant = this->mChatRoom->findParticipant(partAddr);
+            if (participant) this->mChatRoom->removeParticipant(participant);
         } else {
             this->mChatRoom->setParticipantDevices(partAddr, participantDevices);
         }

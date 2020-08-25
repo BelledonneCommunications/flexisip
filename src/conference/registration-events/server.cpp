@@ -69,7 +69,7 @@ Server::Init::Init() {
         {
             String,
             "database-backend",
-            "Choose the type of backend that linphone will use for the connection.\n"
+            "Choose the type of backend that the regevent server will use for the connection.\n"
             "",
             "sqlite3"
         },
