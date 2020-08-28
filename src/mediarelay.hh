@@ -220,7 +220,7 @@ class RelayChannel : public SdpMasqueradeContext{
 	int getRemoteRtcpPort() const{
 		return mRemotePort[1];
 	}
-	int recv(int i, uint8_t *buf, size_t size);
+	int recv(int i, uint8_t *buf, size_t size, time_t curTime);
 	int send(int i, uint8_t *buf, size_t size);
 	void fillPollFd(PollFd *pfd);
 	bool checkPollFd(const PollFd *pfd, int i);
@@ -241,6 +241,7 @@ class RelayChannel : public SdpMasqueradeContext{
 
   private:
 	static const int sMaxRecvErrors = 50;
+	static const int sDestinationSwitchTimeout = 5; // seconds
 	void initializeRtpSession(RelaySession *relaySession);
 	Dir mDir;
 	RelayTransport mRelayTransport; // The local addresses and ports used for relaying.
@@ -250,6 +251,7 @@ class RelayChannel : public SdpMasqueradeContext{
 	int mSockets[2];
 	struct sockaddr_storage mSockAddr[2]; /*the destination address in use*/
 	socklen_t mSockAddrSize[2];
+	time_t mSockAddrLastUseTime[2] = { 0 };
 	std::shared_ptr<MediaFilter> mFilter;
 	int mPfdIndex;
 	int mRecvErrorCount[2];

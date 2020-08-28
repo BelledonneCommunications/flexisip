@@ -181,7 +181,7 @@ bool RelayChannel::checkPollFd(const PollFd *pfd, int i) {
 	return false;
 }
 
-int RelayChannel::recv(int i, uint8_t *buf, size_t buflen) {
+int RelayChannel::recv(int i, uint8_t *buf, size_t buflen, time_t curTime) {
 	struct sockaddr_storage ss;
 	socklen_t addrsize = sizeof(ss);
 
@@ -196,14 +196,23 @@ int RelayChannel::recv(int i, uint8_t *buf, size_t buflen) {
 			return 0;
 		}
 		mRecvErrorCount[i] = 0;
-		if (addrsize != mSockAddrSize[i] || memcmp(&ss, &mSockAddr[i], addrsize) != 0 ){
-			LOGD("RelayChannel[%p] destination address changed.", this);
-			mSockAddrSize[i] = addrsize;
-			memcpy(&mSockAddr[i], &ss, addrsize);
-			mDestAddrChanged = true;
+		if (addrsize != mSockAddrSize[i] || memcmp(&ss, &mSockAddr[i], addrsize) != 0){
+			if (curTime - mSockAddrLastUseTime[i] > sDestinationSwitchTimeout){
+				LOGD("RelayChannel[%p] destination address changed.", this);
+				mSockAddrSize[i] = addrsize;
+				memcpy(&mSockAddr[i], &ss, addrsize);
+				mDestAddrChanged = true;
+				mSockAddrLastUseTime[i] = curTime;
+			}else{
+				/* We receive from new remote address. Wait that previous remote address is not used for sDestinationSwitchTimeout seconds 
+				 * before deciding to switch to the new one.
+				 */
+			}
+		}else{
+			/* The remote address from which we are receiving packets hasn't changed, just update last use time. */
+			mSockAddrLastUseTime[i] = curTime;
 		}
 
-		mSockAddrSize[i] = addrsize;
 		if (mDir == SendOnly || mDir == Inactive) {
 			/*LOGD("ignored packet");*/
 			return 0;
@@ -420,7 +429,7 @@ void RelaySession::transfer(time_t curtime, const shared_ptr<RelayChannel> &chan
 	int recv_len;
 
 	mLastActivityTime = curtime;
-	recv_len = chan->recv(i, buf, maxsize);
+	recv_len = chan->recv(i, buf, maxsize, curtime);
 	if (recv_len > 0) {
 		if (chan == mFront) {
 			if (mBack) {
