@@ -230,6 +230,7 @@ list<string> Record::route_to_stl(const sip_route_s *route) {
 
 string Record::defineKeyFromUrl(const url_t *url) {
 	ostringstream ostr;
+	if (url == nullptr) return string{};
 	const char *user = url->url_user;
 	if (user && user[0] != '\0') {
 		if (!RegistrarDb::get()->useGlobalDomain()) {
