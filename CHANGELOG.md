@@ -13,6 +13,12 @@ Group changes to describe their impact on the project, as follows:
 | Fixed          | Any bug fixes                                         |
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
+
+## [unreleased]
+
+### [Fixed]
+- Crash when trying to fetch domain records from registrar DB.
+
 ## [2.0.0] – 2020-07-31
 
 ### [Added]

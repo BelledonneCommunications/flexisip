@@ -266,7 +266,7 @@ class Record {
 	static std::list<std::string> route_to_stl(const sip_route_s *route);
 	void appendContactsFrom(const std::shared_ptr<Record> &src);
 
-	// An empty AOR leads to an empty key.
+	// A null pointer or an empty AOR leads to an empty key.
 	static std::string defineKeyFromUrl(const url_t *aor);
 	static SipUri makeUrlFromKey(const std::string &key);
 	static std::string extractUniqueId(const sip_contact_t *contact);
