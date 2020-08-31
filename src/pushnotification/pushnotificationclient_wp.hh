@@ -21,15 +21,16 @@
 #include "pushnotificationclient.hh"
 
 namespace flexisip {
+namespace pushnotification {
 
-class PushNotificationClientWp : public PushNotificationClient {
+class ClientWp : public Client {
 	public:
-		PushNotificationClientWp(std::unique_ptr<PushNotificationTransport> &&transport, const std::string &name,
-			const PushNotificationService &service, unsigned maxQueueSize,
+		ClientWp(std::unique_ptr<Transport> &&transport, const std::string &name,
+			const Service &service, unsigned maxQueueSize,
 			const std::string &packageSID, const std::string &applicationSecret);
-		~PushNotificationClientWp() override = default;
+		~ClientWp() override = default;
 
-		bool sendPush(const std::shared_ptr<PushNotificationRequest> &req) override;
+		bool sendPush(const std::shared_ptr<Request> &req) override;
 
 	protected:
 		void retrieveAccessToken();
@@ -41,4 +42,5 @@ class PushNotificationClientWp : public PushNotificationClient {
 		time_t mTokenExpiring{0};
 };
 
+}
 }

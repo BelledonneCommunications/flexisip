@@ -24,6 +24,7 @@
 #include <sofia-sip/url.h>
 
 namespace flexisip {
+namespace pushnotification {
 
 struct PushInfo {
 	enum class Event { Call, Message , Refer };
@@ -57,7 +58,7 @@ struct PushInfo {
 	bool mSilent{false};
 };
 
-class PushNotificationRequest {
+class Request {
 	public:
 		enum class State{
 			NotSubmitted,
@@ -67,13 +68,13 @@ class PushNotificationRequest {
 		};
 
 		template <typename T, typename U>
-		PushNotificationRequest(T &&appid, U &&type) : mAppId(std::forward<T>(appid)), mType(std::forward<U>(type)) {}
-		PushNotificationRequest(const PushNotificationRequest &) = delete;
-		PushNotificationRequest(PushNotificationRequest &&) = delete;
-		virtual ~PushNotificationRequest() = default;
+		Request(T &&appid, U &&type) : mAppId(std::forward<T>(appid)), mType(std::forward<U>(type)) {}
+		Request(const Request &) = delete;
+		Request(Request &&) = delete;
+		virtual ~Request() = default;
 
-		PushNotificationRequest &operator=(const PushNotificationRequest &src) = delete;
-		PushNotificationRequest &operator=(PushNotificationRequest &&src) = delete;
+		Request &operator=(const Request &src) = delete;
+		Request &operator=(Request &&src) = delete;
 
 		State getState() const noexcept {return mState;}
 		void setState(State state) noexcept {mState = state;}
@@ -96,4 +97,5 @@ class PushNotificationRequest {
 
 };
 
-}
+} // pushnotification namespace
+} // flexisip namespace

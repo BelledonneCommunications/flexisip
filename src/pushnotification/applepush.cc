@@ -8,11 +8,11 @@
 using namespace std;
 
 namespace flexisip {
+namespace pushnotification {
 
-uint32_t ApplePushNotificationRequest::sIdentifier = 1;
+uint32_t AppleRequest::sIdentifier = 1;
 
-ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
-: PushNotificationRequest(info.mAppId, "apple") {
+AppleRequest::AppleRequest(const PushInfo &info) : Request(info.mAppId, "apple") {
 	const string &deviceToken = info.mDeviceToken;
 	const string &msg_id = info.mAlertMsgId;
 	const string &arg = info.mFromName.empty() ? info.mFromUri : info.mFromName;
@@ -165,7 +165,7 @@ ApplePushNotificationRequest::ApplePushNotificationRequest(const PushInfo &info)
 	}
 }
 
-int ApplePushNotificationRequest::formatDeviceToken(const string &deviceToken) {
+int AppleRequest::formatDeviceToken(const string &deviceToken) {
 	char car = 0;
 	char oct = 0;
 	char val;
@@ -197,7 +197,7 @@ int ApplePushNotificationRequest::formatDeviceToken(const string &deviceToken) {
 	return 0;
 }
 
-std::size_t flexisip::ApplePushNotificationRequest::writeItem(std::size_t pos, const Item& item)
+std::size_t AppleRequest::writeItem(std::size_t pos, const Item& item)
 {
 	size_t newSize = pos + sizeof(uint8_t) + sizeof(uint16_t) + item.mData.size();
 	uint16_t itemSize = htons((uint16_t)item.mData.size());
@@ -213,7 +213,7 @@ std::size_t flexisip::ApplePushNotificationRequest::writeItem(std::size_t pos, c
 	return pos;
 }
 
-const vector<char> &ApplePushNotificationRequest::getData() {
+const vector<char> &AppleRequest::getData() {
 	size_t pos = 0;
 	uint32_t frameSize;
 	/* Init */
@@ -269,7 +269,7 @@ const vector<char> &ApplePushNotificationRequest::getData() {
 	return mBuffer;
 }
 
-string ApplePushNotificationRequest::isValidResponse(const string &str) {
+string AppleRequest::isValidResponse(const string &str) {
 	// error response is COMMAND(1)|STATUS(1)|ID(4) in bytes
 	if (str.length() >= 6) {
 		uint8_t error = str[1];
@@ -293,4 +293,5 @@ string ApplePushNotificationRequest::isValidResponse(const string &str) {
 	return "";
 }
 
+} // end of pushnotification namespace
 } // end of flexisip namespace

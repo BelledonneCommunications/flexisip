@@ -30,15 +30,16 @@
 #include "pushnotification.hh"
 
 namespace flexisip {
+namespace pushnotification {
 
-class PushNotificationService;
+class Service;
 
-class PushNotificationTransport {
+class Transport {
 public:
-	using OnSuccessCb = std::function<void(PushNotificationRequest &)>;
-	using OnErrorCb = std::function<void(PushNotificationRequest &, const std::string &)>;
+	using OnSuccessCb = std::function<void(Request &)>;
+	using OnErrorCb = std::function<void(Request &, const std::string &)>;
 
-	virtual ~PushNotificationTransport() = default;
+	virtual ~Transport() = default;
 
 	/**
 	* @return
@@ -46,20 +47,20 @@ public:
 	*	-1: failure
 	*	-2: failure due to stale socket. You may try to send the push again.
 	*/
-	virtual int sendPush(PushNotificationRequest &req, bool hurryUp, const OnSuccessCb &onSuccess, const OnErrorCb &onError) = 0;
+	virtual int sendPush(Request &req, bool hurryUp, const OnSuccessCb &onSuccess, const OnErrorCb &onError) = 0;
 };
 
-class PushNotificationTransportTls : public PushNotificationTransport {
+class TlsTransport : public Transport {
 public:
 	struct SSLCtxDeleter {
 		void operator()(SSL_CTX *ssl) {SSL_CTX_free(ssl);}
 	};
 	using SSLCtxUniquePtr = std::unique_ptr<SSL_CTX, SSLCtxDeleter>;
 
-	PushNotificationTransportTls(SSLCtxUniquePtr &&ctx, const std::string &host, const std::string &port, bool isSecure);
-	~PushNotificationTransportTls() override = default;
+	TlsTransport(SSLCtxUniquePtr &&ctx, const std::string &host, const std::string &port, bool isSecure);
+	~TlsTransport() override = default;
 
-	int sendPush(PushNotificationRequest &req, bool hurryUp, const OnSuccessCb &onSuccess, const OnErrorCb &onError) override;
+	int sendPush(Request &req, bool hurryUp, const OnSuccessCb &onSuccess, const OnErrorCb &onError) override;
 
 private:
 	struct BIODeleter {
@@ -76,25 +77,25 @@ private:
 	bool mIsSecure{false};
 };
 
-class PushNotificationClient {
+class Client {
 	public:
-		PushNotificationClient(std::unique_ptr<PushNotificationTransport> &&transport,
-							   const std::string &name, const PushNotificationService &service, unsigned maxQueueSize);
-		virtual ~PushNotificationClient();
+		Client(std::unique_ptr<Transport> &&transport,
+							   const std::string &name, const Service &service, unsigned maxQueueSize);
+		virtual ~Client();
 
-		virtual bool sendPush(const std::shared_ptr<PushNotificationRequest> &req);
+		virtual bool sendPush(const std::shared_ptr<Request> &req);
 
 		bool isIdle() const noexcept {return mThreadWaiting;}
 
 	protected:
 		void run();
-		void onError(PushNotificationRequest &req, const std::string &msg);
-		void onSuccess(PushNotificationRequest &req);
+		void onError(Request &req, const std::string &msg);
+		void onSuccess(Request &req);
 
 		std::string mName{};
-		const PushNotificationService &mService;
-		std::unique_ptr<PushNotificationTransport> mTransport{};
-		std::queue<std::shared_ptr<PushNotificationRequest>> mRequestQueue{};
+		const Service &mService;
+		std::unique_ptr<Transport> mTransport{};
+		std::queue<std::shared_ptr<Request>> mRequestQueue{};
 		unsigned mMaxQueueSize{0};
 
 	private:
@@ -106,4 +107,5 @@ class PushNotificationClient {
 		bool mThreadWaiting{false};
 };
 
+}
 }

@@ -32,11 +32,12 @@
 using namespace std;
 
 namespace flexisip {
+namespace pushnotification {
 
-PushNotificationTransportTls::PushNotificationTransportTls(SSLCtxUniquePtr &&ctx, const std::string &host, const std::string &port, bool isSecure)
+TlsTransport::TlsTransport(SSLCtxUniquePtr &&ctx, const std::string &host, const std::string &port, bool isSecure)
 	: mCtx{move(ctx)}, mHost{host}, mPort{port}, mIsSecure{isSecure} {}
 
-int PushNotificationTransportTls::sendPush(PushNotificationRequest &req, bool hurryUp, const OnSuccessCb &onSuccess, const OnErrorCb &onError) {
+int TlsTransport::sendPush(Request &req, bool hurryUp, const OnSuccessCb &onSuccess, const OnErrorCb &onError) {
 	if (mLastUse == 0 || mBio == nullptr) {
 		recreateConnection();
 	/*the client was inactive possibly for a long time. In such case, close and re-create the socket.*/
@@ -121,7 +122,7 @@ int PushNotificationTransportTls::sendPush(PushNotificationRequest &req, bool hu
 	return 0;
 }
 
-void PushNotificationTransportTls::recreateConnection() {
+void TlsTransport::recreateConnection() {
 	/* Setup the connection */
 	mBio.reset();
 
@@ -168,11 +169,11 @@ void PushNotificationTransportTls::recreateConnection() {
 	mBio = move(newBio);
 }
 
-PushNotificationClient::PushNotificationClient(std::unique_ptr<PushNotificationTransport> &&transport,
-											   const string &name, const PushNotificationService &service, unsigned maxQueueSize) :
+Client::Client(std::unique_ptr<Transport> &&transport,
+											   const string &name, const Service &service, unsigned maxQueueSize) :
 	mName{name}, mService{service}, mTransport{move(transport)}, mMaxQueueSize{maxQueueSize} {}
 
-PushNotificationClient::~PushNotificationClient() {
+Client::~Client() {
 	if (mThreadRunning) {
 		mThreadRunning = false;
 		mMutex.lock();
@@ -182,12 +183,12 @@ PushNotificationClient::~PushNotificationClient() {
 	}
 }
 
-bool PushNotificationClient::sendPush(const std::shared_ptr<PushNotificationRequest> &req) {
+bool Client::sendPush(const std::shared_ptr<Request> &req) {
 	if (!mThreadRunning) {
 		// start thread only when we have at least one push to send
 		mThreadRunning = true;
 		mThreadWaiting = false;
-		mThread = std::thread(&PushNotificationClient::run, this);
+		mThread = std::thread(&Client::run, this);
 	}
 	mMutex.lock();
 
@@ -196,10 +197,10 @@ bool PushNotificationClient::sendPush(const std::shared_ptr<PushNotificationRequ
 		mMutex.unlock();
 		SLOGW << "PushNotificationClient " << mName << " PNR " << req.get() << " queue full, push lost";
 		onError(*req, "Error queue full");
-		req->setState(PushNotificationRequest::State::Failed);
+		req->setState(Request::State::Failed);
 		return false;
 	} else {
-		req->setState(PushNotificationRequest::State::InProgress);
+		req->setState(Request::State::InProgress);
 		mRequestQueue.push(req);
 		/*client is running, it will pop the queue as soon he is finished with current request*/
 		SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << " running, queue_size=" << size;
@@ -210,7 +211,7 @@ bool PushNotificationClient::sendPush(const std::shared_ptr<PushNotificationRequ
 	}
 }
 
-void PushNotificationClient::run() {
+void Client::run() {
 	std::unique_lock<std::mutex> lock(mMutex);
 	while (mThreadRunning) {
 		if (!mRequestQueue.empty()) {
@@ -221,8 +222,8 @@ void PushNotificationClient::run() {
 			lock.unlock();
 
 			// send push to the server and wait for its answer
-			auto _onSuccess = [this](PushNotificationRequest &req) {this->onSuccess(req);};
-			auto _onError = [this](PushNotificationRequest &req, const std::string &msg) {this->onError(req, msg);};
+			auto _onSuccess = [this](Request &req) {this->onSuccess(req);};
+			auto _onError = [this](Request &req, const std::string &msg) {this->onError(req, msg);};
 			bool hurryUp = size > 2;
 			if (mTransport->sendPush(*req, hurryUp, _onSuccess, _onError) == -2) {
 				SLOGD << "PushNotificationClient " << mName << " PNR " << req.get() << ": try to send again";
@@ -238,17 +239,18 @@ void PushNotificationClient::run() {
 	}
 }
 
-void PushNotificationClient::onError(PushNotificationRequest &req, const string &msg) {
+void Client::onError(Request &req, const string &msg) {
 	SLOGW << "PushNotificationClient " << mName << " PNR " << &req << " failed: " << msg;
-	req.setState(PushNotificationRequest::State::Failed);
+	req.setState(Request::State::Failed);
 	auto countFailed = mService.getFailedCounter();
 	if (countFailed) countFailed->incr();
 }
 
-void PushNotificationClient::onSuccess(PushNotificationRequest &req) {
-	req.setState(PushNotificationRequest::State::Successful);
+void Client::onSuccess(Request &req) {
+	req.setState(Request::State::Successful);
 	auto countSent = mService.getSentCounter();
 	if (countSent) countSent->incr();
 }
 
+} // end of pushnotification namespace
 } // end of flexisip namespace

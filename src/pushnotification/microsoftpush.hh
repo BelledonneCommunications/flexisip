@@ -21,10 +21,11 @@
 #include "pushnotification.hh"
 
 namespace flexisip {
+namespace pushnotification {
 
-class WindowsPhonePushNotificationRequest : public PushNotificationRequest {
+class WindowsPhoneRequest : public Request {
 public:
-	WindowsPhonePushNotificationRequest(const PushInfo &pinfo);
+	WindowsPhoneRequest(const PushInfo &pinfo);
 
 	void createHTTPRequest(const std::string &access_token);
 
@@ -41,4 +42,5 @@ protected:
 	PushInfo mPushInfo;
 };
 
+}
 }

@@ -36,6 +36,7 @@
 using namespace std;
 
 namespace flexisip {
+namespace pushnotification {
 
 static constexpr const char *APN_DEV_ADDRESS = "gateway.sandbox.push.apple.com";
 static constexpr const char *APN_PROD_ADDRESS = "gateway.push.apple.com";
@@ -46,17 +47,17 @@ static constexpr const char *FIREBASE_PORT = "443";
 
 static constexpr const char *WPPN_PORT = "443";
 
-PushNotificationService::PushNotificationService(unsigned maxQueueSize) : mMaxQueueSize(maxQueueSize) {
+Service::Service(unsigned maxQueueSize) : mMaxQueueSize(maxQueueSize) {
 	SSL_library_init();
 	SSL_load_error_strings();
 }
 
-PushNotificationService::~PushNotificationService() {
+Service::~Service() {
 	ERR_free_strings();
 }
 
 
-int PushNotificationService::sendPush(const std::shared_ptr<PushNotificationRequest> &pn){	
+int Service::sendPush(const std::shared_ptr<Request> &pn){
 	auto client = mClients[pn->getAppIdentifier()].get();
 	if (client == nullptr) {
 		auto isW10 = (pn->getType() == "w10");
@@ -72,14 +73,14 @@ int PushNotificationService::sendPush(const std::shared_ptr<PushNotificationRequ
 			} else {
 				auto wpClient = pn->getAppIdentifier();
 			
-				using SSLCtxUniquePtr = PushNotificationTransportTls::SSLCtxUniquePtr;
+				using SSLCtxUniquePtr = TlsTransport::SSLCtxUniquePtr;
 				SSLCtxUniquePtr ctx{SSL_CTX_new(TLSv1_2_method())};
 				SSL_CTX_set_verify(ctx.get(), SSL_VERIFY_NONE, NULL);
 			
 				LOGD("Creating PN client for %s", pn->getAppIdentifier().c_str());
 				if(isW10) {
-					mClients[wpClient] = make_unique<PushNotificationClientWp>(
-						make_unique<PushNotificationTransportTls>(move(ctx), pn->getAppIdentifier(), WPPN_PORT, true),
+					mClients[wpClient] = make_unique<ClientWp>(
+						make_unique<TlsTransport>(move(ctx), pn->getAppIdentifier(), WPPN_PORT, true),
 						wpClient,
 						*this,
 						mMaxQueueSize,
@@ -87,8 +88,8 @@ int PushNotificationService::sendPush(const std::shared_ptr<PushNotificationRequ
 						mWindowsPhoneApplicationSecret
 					);
 				} else {
-					mClients[wpClient] = make_unique<PushNotificationClient>(
-						make_unique<PushNotificationTransportTls>(move(ctx), pn->getAppIdentifier(), "80", false),
+					mClients[wpClient] = make_unique<Client>(
+						make_unique<TlsTransport>(move(ctx), pn->getAppIdentifier(), "80", false),
 						wpClient,
 						*this,
 						mMaxQueueSize
@@ -105,7 +106,7 @@ int PushNotificationService::sendPush(const std::shared_ptr<PushNotificationRequ
 	return 0;
 }
 
-bool PushNotificationService::isIdle() const noexcept {
+bool Service::isIdle() const noexcept {
 	for (const auto &entry : mClients) {
 		if (!entry.second->isIdle()) return false;
 	}
@@ -113,12 +114,12 @@ bool PushNotificationService::isIdle() const noexcept {
 }
 
 
-void PushNotificationService::setupGenericClient(const url_t *url) {
-	PushNotificationTransportTls::SSLCtxUniquePtr ctx{SSL_CTX_new(TLSv1_client_method())};
+void Service::setupGenericClient(const url_t *url) {
+	TlsTransport::SSLCtxUniquePtr ctx{SSL_CTX_new(TLSv1_client_method())};
 	SSL_CTX_set_verify(ctx.get(), SSL_VERIFY_NONE, NULL);
 
-	mClients["generic"] = make_unique<PushNotificationClient>(
-		make_unique<PushNotificationTransportTls>(move(ctx), url->url_host, url_port(url), url->url_type == url_https),
+	mClients["generic"] = make_unique<Client>(
+		make_unique<TlsTransport>(move(ctx), url->url_host, url_port(url), url->url_type == url_https),
 		"generic",
 		*this,
 		mMaxQueueSize
@@ -138,7 +139,7 @@ static int ASN1_TIME_toString( const ASN1_TIME* time, char* buffer, uint32_t buf
 	return write;
 }
 
-bool PushNotificationService::isCertExpired( const std::string &certPath) const noexcept {
+bool Service::isCertExpired( const std::string &certPath) const noexcept {
 	bool expired = true;
 	BIO* certbio = BIO_new(BIO_s_file());
 	int err = BIO_read_filename(certbio, certPath.c_str());
@@ -214,7 +215,7 @@ int handle_verify_callback(X509_STORE_CTX* mCtx, void* ud) {
 	return 0;
 }
 
-void PushNotificationService::setupiOSClient(const std::string &certdir, const std::string &cafile) {
+void Service::setupiOSClient(const std::string &certdir, const std::string &cafile) {
 	struct dirent *dirent;
 	DIR *dirp;
 
@@ -240,7 +241,7 @@ void PushNotificationService::setupiOSClient(const std::string &certdir, const s
 			(cert.compare(cert.length() - suffix.length(), suffix.length(), suffix) != 0)) {
 			continue;
 		}
-		PushNotificationTransportTls::SSLCtxUniquePtr ctx{SSL_CTX_new(TLSv1_2_method())};
+		TlsTransport::SSLCtxUniquePtr ctx{SSL_CTX_new(TLSv1_2_method())};
 		if (!ctx) {
 			SLOGE << "Could not create ctx!";
 			ERR_print_errors_fp(stderr);
@@ -280,8 +281,8 @@ void PushNotificationService::setupiOSClient(const std::string &certdir, const s
 
 		string certName = cert.substr(0, cert.size() - 4); // Remove .pem at the end of cert
 		const char *apn_server = (certName.find(".dev") != string::npos) ? APN_DEV_ADDRESS : APN_PROD_ADDRESS;
-		mClients[certName] = make_unique<PushNotificationClient>(
-			make_unique<PushNotificationTransportTls>(move(ctx), apn_server, APN_PORT, true),
+		mClients[certName] = make_unique<Client>(
+			make_unique<TlsTransport>(move(ctx), apn_server, APN_PORT, true),
 			cert,
 			*this,
 			mMaxQueueSize
@@ -291,15 +292,15 @@ void PushNotificationService::setupiOSClient(const std::string &certdir, const s
 	closedir(dirp);
 }
 
-void PushNotificationService::setupFirebaseClient(const std::map<std::string, std::string> &firebaseKeys) {
+void Service::setupFirebaseClient(const std::map<std::string, std::string> &firebaseKeys) {
 	for (const auto &entry : firebaseKeys) {
 		const auto &firebaseAppId = entry.first;
 
-		PushNotificationTransportTls::SSLCtxUniquePtr ctx{SSL_CTX_new(SSLv23_client_method())};
+		TlsTransport::SSLCtxUniquePtr ctx{SSL_CTX_new(SSLv23_client_method())};
 		SSL_CTX_set_verify(ctx.get(), SSL_VERIFY_NONE, NULL);
 
-		mClients[firebaseAppId] = make_unique<PushNotificationClient>(
-			make_unique<PushNotificationTransportTls>(move(ctx), FIREBASE_ADDRESS, FIREBASE_PORT, true),
+		mClients[firebaseAppId] = make_unique<Client>(
+			make_unique<TlsTransport>(move(ctx), FIREBASE_ADDRESS, FIREBASE_PORT, true),
 			"firebase",
 			*this,
 			mMaxQueueSize
@@ -308,10 +309,11 @@ void PushNotificationService::setupFirebaseClient(const std::map<std::string, st
 	}
 }
 
-void PushNotificationService::setupWindowsPhoneClient(const std::string& packageSID, const std::string& applicationSecret) {
+void Service::setupWindowsPhoneClient(const std::string& packageSID, const std::string& applicationSecret) {
 	mWindowsPhonePackageSID = packageSID;
 	mWindowsPhoneApplicationSecret = applicationSecret;
 	SLOGD << "Adding Windows push notification client for pacakge SID [" << packageSID << "]";
 }
 
+} // end of pushnotification namespace
 } // end of flexisip namespace
