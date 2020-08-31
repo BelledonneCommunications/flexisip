@@ -21,10 +21,11 @@
 #include "pushnotification.hh"
 
 namespace flexisip {
+namespace pushnotification {
 
-class ApplePushNotificationRequest : public PushNotificationRequest {
+class AppleRequest : public Request {
 public:
-	ApplePushNotificationRequest(const PushInfo &pinfo);
+	AppleRequest(const PushInfo &pinfo);
 
 	const std::vector<char> &getData() override;
 	std::string isValidResponse(const std::string &str) override;
@@ -51,4 +52,5 @@ protected:
 	static uint32_t sIdentifier;
 };
 
+}
 }
