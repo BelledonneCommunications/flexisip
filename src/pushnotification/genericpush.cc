@@ -28,11 +28,11 @@
 #include "genericpush.hh"
 
 using namespace std;
-using namespace flexisip;
 
-GenericPushNotificationRequest::GenericPushNotificationRequest(const PushInfo &pinfo, const url_t *url,
-															   const string &method)
-	: PushNotificationRequest("generic", "generic") {
+namespace flexisip {
+namespace pushnotification {
+
+GenericRequest::GenericRequest(const PushInfo &pinfo, const url_t *url, const string &method) : Request("generic", "generic") {
 	ostringstream httpMessage;
 	string path(url->url_path ? url->url_path : "");
 	string headers(url->url_headers ? url->url_headers : "");
@@ -62,7 +62,7 @@ GenericPushNotificationRequest::GenericPushNotificationRequest(const PushInfo &p
 	SLOGD << "GenericPushNotificationRequest" << this << " http message is " << mHttpMessage;
 }
 
-void GenericPushNotificationRequest::createPushNotification() {
+void GenericRequest::createPushNotification() {
 	int headerLength = mHttpMessage.size();
 
 	mBuffer.clear();
@@ -75,12 +75,12 @@ void GenericPushNotificationRequest::createPushNotification() {
 	binaryMessagePt += headerLength;
 }
 
-const vector<char> &GenericPushNotificationRequest::getData() {
+const vector<char> &GenericRequest::getData() {
 	createPushNotification();
 	return mBuffer;
 }
 
-string GenericPushNotificationRequest::isValidResponse(const string &str) {
+string GenericRequest::isValidResponse(const string &str) {
 	// LOGD("GenericPushNotificationRequest: http response is \n%s", str.c_str());
 	return "";
 }
@@ -92,7 +92,7 @@ struct KeyVal {
 	const string mValue;
 };
 
-string &GenericPushNotificationRequest::substituteArgs(string &input, const PushInfo &pinfo) {
+string &GenericRequest::substituteArgs(string &input, const PushInfo &pinfo) {
 	list<KeyVal> keyvals;
 	keyvals.push_back(KeyVal("$type", pinfo.mType));
 	keyvals.push_back(KeyVal("$token", pinfo.mDeviceToken));
@@ -121,4 +121,7 @@ string &GenericPushNotificationRequest::substituteArgs(string &input, const Push
 		}
 	}
 	return input;
+}
+
+}
 }

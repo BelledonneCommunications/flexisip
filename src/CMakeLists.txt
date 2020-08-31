@@ -87,7 +87,6 @@ set(FLEXISIP_SOURCES
 	pushnotification/applepush.cc
 	pushnotification/firebasepush.cc
 	pushnotification/genericpush.cc
-	pushnotification/googlepush.cc
 	pushnotification/microsoftpush.cc
 	pushnotification/pushnotificationclient_wp.cc
 	pushnotification/pushnotificationclient.cc

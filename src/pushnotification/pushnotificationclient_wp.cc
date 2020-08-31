@@ -30,14 +30,15 @@
 using namespace std;
 
 namespace flexisip {
+namespace pushnotification {
 
-PushNotificationClientWp::PushNotificationClientWp(std::unique_ptr<PushNotificationTransport> &&transport, const std::string &name,
-			const PushNotificationService &service, unsigned maxQueueSize,
+ClientWp::ClientWp(std::unique_ptr<Transport> &&transport, const std::string &name,
+			const Service &service, unsigned maxQueueSize,
 			const std::string &packageSID, const std::string &applicationSecret)
-: PushNotificationClient{move(transport), name, service, maxQueueSize}, mPackageSID{packageSID}, mApplicationSecret{applicationSecret} {}
+: Client{move(transport), name, service, maxQueueSize}, mPackageSID{packageSID}, mApplicationSecret{applicationSecret} {}
 
 
-void PushNotificationClientWp::retrieveAccessToken() {
+void ClientWp::retrieveAccessToken() {
 	mAccessToken = "";
 	mTokenExpiring = 0;
 
@@ -132,19 +133,20 @@ void PushNotificationClientWp::retrieveAccessToken() {
 }
 
 
-bool PushNotificationClientWp::sendPush(const std::shared_ptr<PushNotificationRequest> &req) {
+bool ClientWp::sendPush(const std::shared_ptr<Request> &req) {
 	if (time(0) > mTokenExpiring) {
 		this->retrieveAccessToken();
 	}
 	if (mTokenExpiring != 0) {
 		// we must add the authorization token
-		WindowsPhonePushNotificationRequest* req2 = static_cast<WindowsPhonePushNotificationRequest*>(req.get());
+		auto req2 = static_cast<WindowsPhoneRequest *>(req.get());
 		req2->createHTTPRequest(mAccessToken);
-		return PushNotificationClient::sendPush(req);
+		return Client::sendPush(req);
 	} else {
 		SLOGD << "Cannot send push since we do not access token yet";
 	}
 	return false;
 }
 
+} // end of pushnotification namespace
 } // end of flexisip namespace

@@ -32,7 +32,6 @@
 #include "pushnotification/applepush.hh"
 #include "pushnotification/firebasepush.hh"
 #include "pushnotification/genericpush.hh"
-#include "pushnotification/googlepush.hh"
 #include "pushnotification/microsoftpush.hh"
 #include "pushnotification/pushnotificationservice.hh"
 #include "utils/uri-utils.hh"
@@ -46,13 +45,13 @@ class PushNotificationContext {
 public:
 	PushNotificationContext(
 		const std::shared_ptr<OutgoingTransaction> &transaction, PushNotification *module,
-		const std::shared_ptr<PushNotificationRequest> &pnr, const std::string &pnKey, unsigned retryCount, unsigned retryInterval
+		const std::shared_ptr<pushnotification::Request> &pnr, const std::string &pnKey, unsigned retryCount, unsigned retryInterval
 	);
 	PushNotificationContext(const PushNotificationContext &) = delete;
 	~PushNotificationContext() = default;
 
 	const std::string &getKey() const {return mKey;}
-	const std::shared_ptr<PushNotificationRequest> &getPushRequest() const {return mPushNotificationRequest;}
+	const std::shared_ptr<pushnotification::Request> &getPushRequest() const {return mPushNotificationRequest;}
 
 	void start(int seconds, bool sendRinging);
 	void cancel();
@@ -62,7 +61,7 @@ private:
 
 	std::string mKey; // unique key for the push notification, identifiying the device and the call.
 	PushNotification *mModule = nullptr;
-	std::shared_ptr<PushNotificationRequest> mPushNotificationRequest;
+	std::shared_ptr<pushnotification::Request> mPushNotificationRequest;
 	std::shared_ptr<OutgoingTransaction> mTransaction;
 	sofiasip::Timer mTimer; // timer after which push is sent
 	sofiasip::Timer mEndTimer; // timer to automatically remove the PN 30 seconds after starting
@@ -80,15 +79,15 @@ public:
 	void onRequest(std::shared_ptr<RequestSipEvent> &ev) override;
 	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) override;
 	void onLoad(const GenericStruct *mc) override;
-	PushNotificationService &getService() const {return *mPNS;}
+	pushnotification::Service &getService() const {return *mPNS;}
 
 private:
 	bool needsPush(const sip_t *sip);
 	void makePushNotification(const std::shared_ptr<MsgSip> &ms, const std::shared_ptr<OutgoingTransaction> &transaction);
 	void removePushNotification(PushNotificationContext *pn);
-	void parseApplePushParams(const std::shared_ptr<MsgSip> &ms, const char *params, PushInfo &pinfo);
-	void parsePushParams(const std::shared_ptr<MsgSip> &ms, const char *params, PushInfo &pinfo);
-	void parseLegacyPushParams(const std::shared_ptr<MsgSip> &ms, const char *params, PushInfo &pinfo);
+	void parseApplePushParams(const std::shared_ptr<MsgSip> &ms, const char *params, pushnotification::PushInfo &pinfo);
+	void parsePushParams(const std::shared_ptr<MsgSip> &ms, const char *params, pushnotification::PushInfo &pinfo);
+	void parseLegacyPushParams(const std::shared_ptr<MsgSip> &ms, const char *params, pushnotification::PushInfo &pinfo);
 	bool isGroupChatInvite(sip_t *sip);
 
 	std::map<std::string, std::shared_ptr<PushNotificationContext>> mPendingNotifications; // map of pending push notifications. Its
@@ -104,7 +103,7 @@ private:
 	unsigned mRetransmissionCount = 0;
 	unsigned mRetransmissionInterval = 0;
 	std::map<std::string, std::string> mFirebaseKeys;
-	std::unique_ptr<PushNotificationService> mPNS;
+	std::unique_ptr<pushnotification::Service> mPNS;
 	StatCounter64 *mCountFailed = nullptr;
 	StatCounter64 *mCountSent = nullptr;
 	bool mNoBadgeiOS = false;
@@ -122,7 +121,7 @@ using namespace std;
 
 PushNotificationContext::PushNotificationContext(const std::shared_ptr<OutgoingTransaction> &transaction,
 		PushNotification *module,
-		const std::shared_ptr<PushNotificationRequest> &pnr,
+		const std::shared_ptr<pushnotification::Request> &pnr,
 		const string &key,
 		unsigned retryCount, unsigned retryInterval) :
 	mKey(key),
@@ -337,7 +336,7 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 		mFirebaseKeys.insert(make_pair(keyval.substr(0, sep), keyval.substr(sep + 1)));
 	}
 
-	mPNS.reset(new PushNotificationService(maxQueueSize));
+	mPNS.reset(new pushnotification::Service(maxQueueSize));
 	mPNS->setStatCounters(mCountFailed, mCountSent);
 	if (mExternalPushUri)
 		mPNS->setupGenericClient(mExternalPushUri);
@@ -382,7 +381,7 @@ const std::regex PushNotification::sPnPridOneTokenRegex{"([^:]+)(?::(voip|remote
 */
 const std::regex PushNotification::sPnPridMultipleTokensRegex{"([^:]+):(voip|remote)"};
 
-void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const char *params, PushInfo &pinfo) {
+void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const char *params, pushnotification::PushInfo &pinfo) {
 	string deviceToken;
 	string bundleId;
 	vector<string> servicesAvailable;
@@ -415,15 +414,15 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 	}
 
 	auto it = std::find(servicesAvailable.begin(), servicesAvailable.end(), "voip");
-	if (pinfo.mEvent == PushInfo::Event::Message || it == servicesAvailable.end()) {
+	if (pinfo.mEvent == pushnotification::PushInfo::Event::Message || it == servicesAvailable.end()) {
 		requiredService = "remote";
-		pinfo.mApplePushType = PushInfo::ApplePushType::RemoteWithMutableContent;
+		pinfo.mApplePushType = pushnotification::PushInfo::ApplePushType::RemoteWithMutableContent;
 		if (sip->sip_request->rq_method == sip_method_invite) {
 			pinfo.mChatRoomAddr = string(sip->sip_from->a_url->url_user);
 		}
 	} else {
 		requiredService = "voip";
-		pinfo.mApplePushType = PushInfo::ApplePushType::Pushkit;
+		pinfo.mApplePushType = pushnotification::PushInfo::ApplePushType::Pushkit;
 	}
 
 	if (servicesAvailable.cend() == find(servicesAvailable.cbegin(), servicesAvailable.cend(), requiredService)) {
@@ -468,7 +467,7 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 	}
 
 	pinfo.mDeviceToken = deviceToken;
-	pinfo.mAppId = bundleId + (pinfo.mApplePushType == PushInfo::ApplePushType::Pushkit ? ".voip" : "") + (isDev ? ".dev" : ".prod");
+	pinfo.mAppId = bundleId + (pinfo.mApplePushType == pushnotification::PushInfo::ApplePushType::Pushkit ? ".voip" : "") + (isDev ? ".dev" : ".prod");
 }
 
 bool PushNotification::isGroupChatInvite(sip_t *sip) {
@@ -484,7 +483,7 @@ bool PushNotification::isGroupChatInvite(sip_t *sip) {
 	return true;
 }
 
-void PushNotification::parseLegacyPushParams(const shared_ptr<MsgSip> &ms, const char *params, PushInfo &pinfo) {
+void PushNotification::parseLegacyPushParams(const shared_ptr<MsgSip> &ms, const char *params, pushnotification::PushInfo &pinfo) {
 	try {
 		pinfo.mDeviceToken = UriUtils::getParamValue(params, "pn-tok");
 	} catch (const out_of_range &) {
@@ -504,7 +503,7 @@ void PushNotification::parseLegacyPushParams(const shared_ptr<MsgSip> &ms, const
 	}
 }
 
-void PushNotification::parsePushParams(const shared_ptr<MsgSip> &ms, const char *params, PushInfo &pinfo) {
+void PushNotification::parsePushParams(const shared_ptr<MsgSip> &ms, const char *params, pushnotification::PushInfo &pinfo) {
 	string pnProvider;
 	smatch match;
 
@@ -540,11 +539,11 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 											const shared_ptr<OutgoingTransaction> &transaction) {
 	shared_ptr<PushNotificationContext> context;
 	sip_t *sip = ms->getSip();
-	PushInfo pinfo;
+	pushnotification::PushInfo pinfo;
 
 	pinfo.mCallId = ms->getSip()->sip_call_id->i_id;
-	pinfo.mEvent = (isGroupChatInvite(sip) || sip->sip_request->rq_method == sip_method_message) ? PushInfo::Event::Message : PushInfo::Event::Call;
-	pinfo.mTtl = pinfo.mEvent == PushInfo::Event::Call ? mCallTtl : mMessageTtl;
+	pinfo.mEvent = (isGroupChatInvite(sip) || sip->sip_request->rq_method == sip_method_message) ? pushnotification::PushInfo::Event::Message : pushnotification::PushInfo::Event::Call;
+	pinfo.mTtl = pinfo.mEvent == pushnotification::PushInfo::Event::Call ? mCallTtl : mMessageTtl;
 	int time_out = mTimeout;
 
 	if (sip->sip_request->rq_url->url_params != NULL) {
@@ -602,7 +601,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 					pnSilentStr = UriUtils::getParamValue(params, "pn-silent");
 					pinfo.mSilent = bool(stoi(pnSilentStr));
 					if (!url_has_param(url, "pn-provider") && (pinfo.mType == "apple")) {
-						pinfo.mApplePushType = pinfo.mSilent ? PushInfo::ApplePushType::Pushkit : PushInfo::ApplePushType::RemoteBasic;
+						pinfo.mApplePushType = pinfo.mSilent ? pushnotification::PushInfo::ApplePushType::Pushkit : pushnotification::PushInfo::ApplePushType::RemoteBasic;
 					}
 				} catch (const logic_error &) {
 					SLOGE << "invalid 'pn-silent' value: " << pnSilentStr;
@@ -623,12 +622,12 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 
 			pinfo.mToUri = url_as_string(ms->getHome(), sip->sip_to->a_url);
 			pinfo.mFromTag = sip->sip_from->a_tag;
-			if (pinfo.mEvent == PushInfo::Event::Message && sip->sip_payload && sip->sip_payload->pl_len > 0) {
+			if (pinfo.mEvent == pushnotification::PushInfo::Event::Message && sip->sip_payload && sip->sip_payload->pl_len > 0) {
 				sip_payload_t *payload = sip->sip_payload;
 				pinfo.mText = string(payload->pl_data, payload->pl_len);
 			}
 
-			shared_ptr<PushNotificationRequest> pn;
+			shared_ptr<pushnotification::Request> pn;
 			if (pinfo.mType == "apple") {
 				string msg_str;
 				string call_str;
@@ -679,17 +678,17 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				pinfo.mAlertSound = (sip->sip_request->rq_method == sip_method_invite && pinfo.mChatRoomAddr.empty()) ? call_snd : msg_snd;
 				pinfo.mNoBadge = mNoBadgeiOS;
 				if (!mExternalPushUri)
-					pn = make_shared<ApplePushNotificationRequest>(pinfo);
+					pn = make_shared<pushnotification::AppleRequest>(pinfo);
 			} else if ((pinfo.mType == "wp") || (pinfo.mType == "w10")) {
 				if (!mExternalPushUri)
-					pn = make_shared<WindowsPhonePushNotificationRequest>(pinfo);
+					pn = make_shared<pushnotification::WindowsPhoneRequest>(pinfo);
 			} else if (pinfo.mType == "firebase") {
 				auto apiKeyIt = mFirebaseKeys.find(pinfo.mAppId);
 				if (apiKeyIt != mFirebaseKeys.end()) {
 					pinfo.mApiKey = apiKeyIt->second;
 					SLOGD << "Creating Firebase push notif request";
 					if (!mExternalPushUri)
-						pn = make_shared<FirebasePushNotificationRequest>(pinfo);
+						pn = make_shared<pushnotification::FirebaseRequest>(pinfo);
 				} else {
 					SLOGD << "No Key matching appId " << pinfo.mAppId;
 				}
@@ -697,7 +696,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				SLOGD << "Push notification type not recognized [" << pinfo.mType << "]";
 			}
 			if (mExternalPushUri)
-				pn = make_shared<GenericPushNotificationRequest>(pinfo, mExternalPushUri, mExternalPushMethod);
+				pn = make_shared<pushnotification::GenericRequest>(pinfo, mExternalPushUri, mExternalPushMethod);
 
 			if (pn) {
 				if (time_out < 0) time_out = 0;

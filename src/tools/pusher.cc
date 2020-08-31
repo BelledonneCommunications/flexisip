@@ -18,7 +18,6 @@
 
 #include <flexisip/common.hh>
 #include "pushnotification/applepush.hh"
-#include "pushnotification/googlepush.hh"
 #include "pushnotification/microsoftpush.hh"
 #include "pushnotification/firebasepush.hh"
 #include "pushnotification/pushnotificationservice.hh"
@@ -32,6 +31,8 @@
 
 using namespace std;
 using namespace flexisip;
+using namespace flexisip::pushnotification;
+
 
 static const int MAX_QUEUE_SIZE = 3000;
 // static const int PRINT_STATS_TIMEOUT = 3000;	/* In milliseconds. */
@@ -132,40 +133,33 @@ struct PusherArgs {
 	}
 };
 
-static vector<shared_ptr<PushNotificationRequest>> createRequestFromArgs(const PusherArgs &args) {
-	vector<shared_ptr<PushNotificationRequest>> result;
+static vector<shared_ptr<Request>> createRequestFromArgs(const PusherArgs &args) {
+	vector<shared_ptr<Request>> result;
 	for (auto it = args.pntok.begin(); it != args.pntok.end(); it++) {
 		auto pntok = *it;
 		PushInfo pinfo;
 		pinfo.mType = args.pntype;
 		pinfo.mFromName = "Pusher";
 		pinfo.mFromUri = "sip:toto@sip.linphone.org";
-		if (args.pntype == "google") {
+		if (args.pntype == "firebase") {
 			pinfo.mCallId = "fb14b5fe-a9ab-1231-9485-7d582244ba3d";
 			pinfo.mFromName = "+33681741738";
 			pinfo.mDeviceToken = pntok;
 			pinfo.mAppId = args.appid;
 			pinfo.mApiKey = args.apikey;
-			result.push_back(make_shared<GooglePushNotificationRequest>(pinfo));
-		} else if (args.pntype == "firebase") {
-			pinfo.mCallId = "fb14b5fe-a9ab-1231-9485-7d582244ba3d";
-			pinfo.mFromName = "+33681741738";
-			pinfo.mDeviceToken = pntok;
-			pinfo.mAppId = args.appid;
-			pinfo.mApiKey = args.apikey;
-			result.push_back(make_shared<FirebasePushNotificationRequest>(pinfo));
+			result.push_back(make_shared<FirebaseRequest>(pinfo));
 		} else if (args.pntype == "wp") {
 			pinfo.mAppId = args.appid;
 			pinfo.mDeviceToken = pntok;
 			pinfo.mEvent = PushInfo::Event::Message;
 			pinfo.mText = "Hi here!";
-			result.push_back(make_shared<WindowsPhonePushNotificationRequest>(pinfo));
+			result.push_back(make_shared<WindowsPhoneRequest>(pinfo));
 		} else if (args.pntype == "w10") {
 			pinfo.mAppId = args.appid;
 			pinfo.mEvent = PushInfo::Event::Message;
 			pinfo.mDeviceToken = pntok;
 			pinfo.mText = "Hi here!";
-			result.push_back(make_shared<WindowsPhonePushNotificationRequest>(pinfo));
+			result.push_back(make_shared<WindowsPhoneRequest>(pinfo));
 		} else if (args.pntype == "apple") {
 			pinfo.mAlertMsgId = "IM_MSG";
 			pinfo.mAlertSound = "msg.caf";
@@ -174,7 +168,7 @@ static vector<shared_ptr<PushNotificationRequest>> createRequestFromArgs(const P
 			pinfo.mTtl = 2592000;
 			pinfo.mSilent = args.isSilent;
 			pinfo.mApplePushType = args.applePushType;
-			result.push_back(make_shared<ApplePushNotificationRequest>(pinfo));
+			result.push_back(make_shared<AppleRequest>(pinfo));
 		} else {
 			cerr << "? push pntype " << args.pntype << endl;
 			exit(-1);
@@ -198,7 +192,7 @@ int main(int argc, char *argv[]) {
 	LogManager::get().initialize(logParams);
 
 	{
-		PushNotificationService service(MAX_QUEUE_SIZE);
+		Service service{MAX_QUEUE_SIZE};
 
 		if (args.pntype == "apple") {
 			service.setupiOSClient(args.prefix + "/apn", "");
@@ -228,16 +222,16 @@ int main(int argc, char *argv[]) {
 		
 		for(auto it = pn.begin(); it != pn.end(); it++){
 			switch((*it)->getState()){
-				case PushNotificationRequest::State::NotSubmitted:
+				case Request::State::NotSubmitted:
 					notsubmitted++;
 				break;
-				case PushNotificationRequest::State::InProgress:
+				case Request::State::InProgress:
 					inprogress++;
 				break;
-				case PushNotificationRequest::State::Failed:
+				case Request::State::Failed:
 					failed++;
 				break;
-				case PushNotificationRequest::State::Successful:
+				case Request::State::Successful:
 					success++;
 				break;
 			}

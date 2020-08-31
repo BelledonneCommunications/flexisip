@@ -30,11 +30,12 @@
 #include "pushnotificationclient.hh"
 
 namespace flexisip {
+namespace pushnotification {
 
-class PushNotificationService {
+class Service {
 public:
-	PushNotificationService(unsigned maxQueueSize);
-	~PushNotificationService();
+	Service(unsigned maxQueueSize);
+	~Service();
 
 	StatCounter64 *getFailedCounter() const noexcept {return mCountFailed;}
 	StatCounter64 *getSentCounter() const noexcept {return mCountSent;}
@@ -43,7 +44,7 @@ public:
 		mCountSent = countSent;
 	}
 
-	int sendPush(const std::shared_ptr<PushNotificationRequest> &pn);
+	int sendPush(const std::shared_ptr<Request> &pn);
 	void setupGenericClient(const url_t *url);
 	void setupiOSClient(const std::string &certdir, const std::string &cafile);
 	void setupFirebaseClient(const std::map<std::string, std::string> &firebaseKeys);
@@ -56,11 +57,12 @@ private:
 	bool isCertExpired(const std::string &certPath) const noexcept;
 
 	unsigned mMaxQueueSize{0};
-	std::map<std::string, std::unique_ptr<PushNotificationClient>> mClients{};
+	std::map<std::string, std::unique_ptr<Client>> mClients{};
 	std::string mWindowsPhonePackageSID{};
 	std::string mWindowsPhoneApplicationSecret{};
 	StatCounter64 *mCountFailed{nullptr};
 	StatCounter64 *mCountSent{nullptr};
 };
 
+}
 }

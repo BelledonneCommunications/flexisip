@@ -24,8 +24,9 @@
 using namespace std;
 
 namespace flexisip {
+namespace pushnotification {
 
-std::string PushNotificationRequest::quoteStringIfNeeded(const std::string &str) const noexcept {
+std::string Request::quoteStringIfNeeded(const std::string &str) const noexcept {
 	if (str[0] == '"') {
 		return str;
 	} else {
@@ -35,7 +36,7 @@ std::string PushNotificationRequest::quoteStringIfNeeded(const std::string &str)
 	}
 }
 
-std::string PushNotificationRequest::getPushTimeStamp() const noexcept {
+std::string Request::getPushTimeStamp() const noexcept {
 	time_t t = time(nullptr);
 	struct tm time;
 	gmtime_r(&t, &time);
@@ -47,4 +48,5 @@ std::string PushNotificationRequest::getPushTimeStamp() const noexcept {
 	return string(date);
 }
 
+} // end of pushnotification namespace
 } // end of flexisip namespace
