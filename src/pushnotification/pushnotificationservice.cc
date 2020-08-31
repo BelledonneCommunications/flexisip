@@ -29,8 +29,6 @@
 
 #include <flexisip/common.hh>
 
-#include <utils/make-unique.hh>
-
 #include "pushnotificationclient.hh"
 #include "pushnotificationclient_wp.hh"
 #include "pushnotificationservice.hh"
