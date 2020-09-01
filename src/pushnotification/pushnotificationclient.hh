@@ -25,6 +25,7 @@
 #include <thread>
 #include <vector>
 
+#include <nghttp2/nghttp2.h>
 #include <openssl/ssl.h>
 
 #include "pushnotification.hh"
@@ -33,6 +34,43 @@ namespace flexisip {
 namespace pushnotification {
 
 class Service;
+
+class TlsConnection {
+public:
+	struct SSLCtxDeleter {
+		void operator()(SSL_CTX *ssl) noexcept {SSL_CTX_free(ssl);}
+	};
+	using SSLCtxUniquePtr = std::unique_ptr<SSL_CTX, SSLCtxDeleter>;
+
+	TlsConnection(const std::string &host, const std::string &port, const SSL_METHOD *method) noexcept;
+	TlsConnection(const std::string &host, const std::string &port, SSLCtxUniquePtr &&ctx) noexcept;
+	TlsConnection(const TlsConnection &) = delete;
+	TlsConnection(TlsConnection &&) = delete;
+
+	void connect() noexcept;
+	void disconnect() noexcept {mBio.reset();}
+	void resetConnection() noexcept;
+
+	bool isConnected() const noexcept {return mBio != nullptr;}
+	bool isSecured() const noexcept {return mCtx != nullptr;}
+
+	BIO *getBIO() const noexcept {return mBio.get();}
+
+	int read(void *data, int dlen) noexcept {return BIO_read(mBio.get(), data, dlen);}
+
+	int write(const std::vector<char> &data) noexcept {return BIO_write(mBio.get(), data.data(), data.size());}
+	int write(const void *data, int dlen) noexcept {return BIO_write(mBio.get(), data, dlen);}
+
+private:
+	struct BIODeleter {
+		void operator()(BIO *bio) {BIO_free_all(bio);}
+	};
+	using BIOUniquePtr = std::unique_ptr<BIO, BIODeleter>;
+
+	BIOUniquePtr mBio{nullptr};
+	SSLCtxUniquePtr mCtx{nullptr};
+	std::string mHost{}, mPort{};
+};
 
 class Transport {
 public:
@@ -52,29 +90,24 @@ public:
 
 class TlsTransport : public Transport {
 public:
-	struct SSLCtxDeleter {
-		void operator()(SSL_CTX *ssl) {SSL_CTX_free(ssl);}
-	};
-	using SSLCtxUniquePtr = std::unique_ptr<SSL_CTX, SSLCtxDeleter>;
-
-	TlsTransport(SSLCtxUniquePtr &&ctx, const std::string &host, const std::string &port, bool isSecure);
+	TlsTransport(std::unique_ptr<TlsConnection> &&connection) noexcept : mConn{move(connection)} {}
 	~TlsTransport() override = default;
 
 	int sendPush(Request &req, bool hurryUp, const OnSuccessCb &onSuccess, const OnErrorCb &onError) override;
 
 private:
 	struct BIODeleter {
-		void operator()(BIO *bio) {BIO_free_all(bio);}
+		void operator()(BIO *bio) noexcept {BIO_free_all(bio);}
 	};
 	using BIOUniquePtr = std::unique_ptr<BIO, BIODeleter>;
 
-	void recreateConnection();
-
-	BIOUniquePtr mBio{nullptr};
-	SSLCtxUniquePtr mCtx{nullptr};
-	std::string mHost{}, mPort{};
+	std::unique_ptr<TlsConnection> mConn{};
 	time_t mLastUse{0};
-	bool mIsSecure{false};
+};
+
+class Http2Transport : Transport {
+public:
+	int sendPush(Request &req, bool hurryUp, const OnSuccessCb &onSuccess, const OnErrorCb &onError) override;
 };
 
 class Client {
