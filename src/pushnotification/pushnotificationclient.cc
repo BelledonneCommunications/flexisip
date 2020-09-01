@@ -34,104 +34,28 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
-TlsTransport::TlsTransport(SSLCtxUniquePtr &&ctx, const std::string &host, const std::string &port, bool isSecure)
-	: mCtx{move(ctx)}, mHost{host}, mPort{port}, mIsSecure{isSecure} {}
-
-int TlsTransport::sendPush(Request &req, bool hurryUp, const OnSuccessCb &onSuccess, const OnErrorCb &onError) {
-	if (mLastUse == 0 || mBio == nullptr) {
-		recreateConnection();
-	/*the client was inactive possibly for a long time. In such case, close and re-create the socket.*/
-	} else if (getCurrentTime() - mLastUse > 60) {
-		SLOGD << "PushNotificationTransportTls PNR " << &req << " previous was "
-		<< getCurrentTime() - mLastUse << " secs ago, re-creating connection with server.";
-		recreateConnection();
+TlsConnection::TlsConnection(const std::string &host, const std::string &port, const SSL_METHOD *method) noexcept
+	: mHost{host}, mPort{port}
+{
+	if (method) {
+		auto ctx = SSL_CTX_new(method);
+		SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+		mCtx.reset(ctx);
 	}
-
-	if (mBio == nullptr) {
-		onError(req, "Cannot create connection to server");
-		return -1;
-	}
-
-	/* send push to the server */
-	mLastUse = getCurrentTime();
-	auto buffer = req.getData();
-	int wcount = BIO_write(mBio.get(), buffer.data(), buffer.size());
-
-	SLOGD << "PushNotificationTransportTls PNR " << &req << " sent " << wcount << "/" << buffer.size() << " data";
-	if (wcount <= 0) {
-		SLOGE << "PushNotificationTransportTls PNR " << &req << " failed to send to server.";
-		onError(req, "Cannot send to server");
-		recreateConnection();
-		return -2;
-	}
-
-	/* wait for server response */
-	SLOGD << "PushNotificationTransportTls PNR " << &req << " waiting for server response";
-	/* if the server response is NOT immediate, wait for something to read on the socket first */
-	if (!req.isServerAlwaysResponding()) {
-		int fdSocket;
-		if (BIO_get_fd(mBio.get(), &fdSocket) < 0) {
-			SLOGE << "PushNotificationTransportTls PNR " << &req << " could not retrieve the socket";
-			onError(req, "Broken socket");
-			return -2;
-		}
-		pollfd polls = {0};
-		polls.fd = fdSocket;
-		polls.events = POLLIN;
-
-		int timeout = hurryUp ? 0 : 1000; /*if there are many pending push notification request in our queue, we will not wait
-					the answer from the server (we are in the case where there is an answer ONLY if the push request had an error*/
-		int nRet = poll(&polls, 1, timeout);
-		// this is specific to iOS which does not send a response in case of success
-		if (nRet == 0) {//poll timeout, we shall not expect a response.
-			SLOGD << "PushNotificationTransportTls PNR " << &req << " nothing read, assuming success";
-			onSuccess(req);
-			return 0;
-		} else if (nRet == -1) {
-			SLOGD << "PushNotificationTransportTls PNR " << &req << " poll error ("<<strerror(errno)<<"), assuming success";
-			onSuccess(req);
-			recreateConnection();//our socket is not going so well if we go here.
-			return 0;
-		} else if ((polls.revents & POLLIN) == 0) {
-			SLOGD << "PushNotificationTransportTls PNR " << &req << "error reading response, closing connection";
-			recreateConnection();
-			return -2;
-		}
-	}
-
-	char r[1024];
-	int p = BIO_read(mBio.get(), r, sizeof(r)-1);
-	if (p <= 0) {
-		SLOGE << "PushNotificationTransportTls PNR " << &req << "error reading mandatory response: " << p;
-		recreateConnection();
-		return -2;
-	}
-
-	r[p] = '\0';
-	SLOGD << "PushNotificationTransportTls PNR " << &req << " read " << p << " data:\n" << r;
-	string responsestr(r, p);
-	string error = req.isValidResponse(responsestr);
-	if (!error.empty()) {
-		onError(req, "Invalid server response: " + error);
-		// on iOS at least, when an error happens, the socket is semibroken (server ignore all future requests),
-		// so we force to recreate the connection
-		recreateConnection();
-		return -1;
-	}
-	onSuccess(req);
-	return 0;
 }
 
-void TlsTransport::recreateConnection() {
-	/* Setup the connection */
-	mBio.reset();
+TlsConnection::TlsConnection(const std::string &host, const std::string &port, SSLCtxUniquePtr &&ctx) noexcept
+	: mCtx{move(ctx)}, mHost{host}, mPort{port} {}
+
+void TlsConnection::connect() noexcept {
+	if (isConnected()) return;
 
 	/* Create and setup the connection */
 	auto hostname = mHost + ":" + mPort;
 	SSL *ssl = nullptr;
 
 	BIOUniquePtr newBio{};
-	if (mIsSecure) {
+	if (isSecured()) {
 		mBio = BIOUniquePtr{BIO_new_ssl_connect(mCtx.get())};
 		BIO_set_conn_hostname(mBio.get(), hostname.c_str());
 		/* Set the SSL_MODE_AUTO_RETRY flag */
@@ -151,7 +75,7 @@ void TlsTransport::recreateConnection() {
 		return;
 	}
 
-	if (mIsSecure) {
+	if (isSecured()) {
 		sat = BIO_do_handshake(mBio.get());
 		if (sat <= 0) {
 			SLOGE << "Error attempting to handshake to " << hostname << ": " << sat << " - " << strerror( errno);
@@ -167,6 +91,96 @@ void TlsTransport::recreateConnection() {
 	}
 
 	mBio = move(newBio);
+}
+
+void TlsConnection::resetConnection() noexcept {
+	disconnect();
+	connect();
+}
+
+int TlsTransport::sendPush(Request &req, bool hurryUp, const OnSuccessCb &onSuccess, const OnErrorCb &onError) {
+	if (mLastUse == 0 || !mConn->isConnected()) {
+		mConn->resetConnection();
+	/*the client was inactive possibly for a long time. In such case, close and re-create the socket.*/
+	} else if (getCurrentTime() - mLastUse > 60) {
+		SLOGD << "PushNotificationTransportTls PNR " << &req << " previous was "
+		<< getCurrentTime() - mLastUse << " secs ago, re-creating connection with server.";
+		mConn->resetConnection();
+	}
+
+	if (!mConn->isConnected()) {
+		onError(req, "Cannot create connection to server");
+		return -1;
+	}
+
+	/* send push to the server */
+	mLastUse = getCurrentTime();
+	auto buffer = req.getData();
+	int wcount = mConn->write(buffer);
+
+	SLOGD << "PushNotificationTransportTls PNR " << &req << " sent " << wcount << "/" << buffer.size() << " data";
+	if (wcount <= 0) {
+		SLOGE << "PushNotificationTransportTls PNR " << &req << " failed to send to server.";
+		onError(req, "Cannot send to server");
+		mConn->resetConnection();
+		return -2;
+	}
+
+	/* wait for server response */
+	SLOGD << "PushNotificationTransportTls PNR " << &req << " waiting for server response";
+	/* if the server response is NOT immediate, wait for something to read on the socket first */
+	if (!req.isServerAlwaysResponding()) {
+		int fdSocket;
+		if (BIO_get_fd(mConn->getBIO(), &fdSocket) < 0) {
+			SLOGE << "PushNotificationTransportTls PNR " << &req << " could not retrieve the socket";
+			onError(req, "Broken socket");
+			return -2;
+		}
+		pollfd polls = {0};
+		polls.fd = fdSocket;
+		polls.events = POLLIN;
+
+		int timeout = hurryUp ? 0 : 1000; /*if there are many pending push notification request in our queue, we will not wait
+					the answer from the server (we are in the case where there is an answer ONLY if the push request had an error*/
+		int nRet = poll(&polls, 1, timeout);
+		// this is specific to iOS which does not send a response in case of success
+		if (nRet == 0) {//poll timeout, we shall not expect a response.
+			SLOGD << "PushNotificationTransportTls PNR " << &req << " nothing read, assuming success";
+			onSuccess(req);
+			return 0;
+		} else if (nRet == -1) {
+			SLOGD << "PushNotificationTransportTls PNR " << &req << " poll error ("<<strerror(errno)<<"), assuming success";
+			onSuccess(req);
+			mConn->resetConnection();//our socket is not going so well if we go here.
+			return 0;
+		} else if ((polls.revents & POLLIN) == 0) {
+			SLOGD << "PushNotificationTransportTls PNR " << &req << "error reading response, closing connection";
+			mConn->resetConnection();
+			return -2;
+		}
+	}
+
+	char r[1024];
+	int p = mConn->read(r, sizeof(r)-1);
+	if (p <= 0) {
+		SLOGE << "PushNotificationTransportTls PNR " << &req << "error reading mandatory response: " << p;
+		mConn->resetConnection();
+		return -2;
+	}
+
+	r[p] = '\0';
+	SLOGD << "PushNotificationTransportTls PNR " << &req << " read " << p << " data:\n" << r;
+	string responsestr(r, p);
+	string error = req.isValidResponse(responsestr);
+	if (!error.empty()) {
+		onError(req, "Invalid server response: " + error);
+		// on iOS at least, when an error happens, the socket is semibroken (server ignore all future requests),
+		// so we force to recreate the connection
+		mConn->resetConnection();
+		return -1;
+	}
+	onSuccess(req);
+	return 0;
 }
 
 Client::Client(std::unique_ptr<Transport> &&transport,

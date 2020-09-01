@@ -73,14 +73,11 @@ int Service::sendPush(const std::shared_ptr<Request> &pn){
 			} else {
 				auto wpClient = pn->getAppIdentifier();
 			
-				using SSLCtxUniquePtr = TlsTransport::SSLCtxUniquePtr;
-				SSLCtxUniquePtr ctx{SSL_CTX_new(TLSv1_2_method())};
-				SSL_CTX_set_verify(ctx.get(), SSL_VERIFY_NONE, NULL);
-			
 				LOGD("Creating PN client for %s", pn->getAppIdentifier().c_str());
 				if(isW10) {
+					auto conn = make_unique<TlsConnection>(pn->getAppIdentifier(), WPPN_PORT, TLSv1_2_method());
 					mClients[wpClient] = make_unique<ClientWp>(
-						make_unique<TlsTransport>(move(ctx), pn->getAppIdentifier(), WPPN_PORT, true),
+						make_unique<TlsTransport>(move(conn)),
 						wpClient,
 						*this,
 						mMaxQueueSize,
@@ -88,8 +85,9 @@ int Service::sendPush(const std::shared_ptr<Request> &pn){
 						mWindowsPhoneApplicationSecret
 					);
 				} else {
+					auto conn = make_unique<TlsConnection>(pn->getAppIdentifier(), "80", nullptr);
 					mClients[wpClient] = make_unique<Client>(
-						make_unique<TlsTransport>(move(ctx), pn->getAppIdentifier(), "80", false),
+						make_unique<TlsTransport>(move(conn)),
 						wpClient,
 						*this,
 						mMaxQueueSize
@@ -115,11 +113,10 @@ bool Service::isIdle() const noexcept {
 
 
 void Service::setupGenericClient(const url_t *url) {
-	TlsTransport::SSLCtxUniquePtr ctx{SSL_CTX_new(TLSv1_client_method())};
-	SSL_CTX_set_verify(ctx.get(), SSL_VERIFY_NONE, NULL);
-
+	auto sslMethod = url->url_type == url_https ? TLSv1_client_method() : nullptr;
+	auto conn = make_unique<TlsConnection>(url->url_host, url_port(url), sslMethod);
 	mClients["generic"] = make_unique<Client>(
-		make_unique<TlsTransport>(move(ctx), url->url_host, url_port(url), url->url_type == url_https),
+		make_unique<TlsTransport>(move(conn)),
 		"generic",
 		*this,
 		mMaxQueueSize
@@ -241,7 +238,7 @@ void Service::setupiOSClient(const std::string &certdir, const std::string &cafi
 			(cert.compare(cert.length() - suffix.length(), suffix.length(), suffix) != 0)) {
 			continue;
 		}
-		TlsTransport::SSLCtxUniquePtr ctx{SSL_CTX_new(TLSv1_2_method())};
+		TlsConnection::SSLCtxUniquePtr ctx{SSL_CTX_new(TLSv1_2_method())};
 		if (!ctx) {
 			SLOGE << "Could not create ctx!";
 			ERR_print_errors_fp(stderr);
@@ -281,8 +278,9 @@ void Service::setupiOSClient(const std::string &certdir, const std::string &cafi
 
 		string certName = cert.substr(0, cert.size() - 4); // Remove .pem at the end of cert
 		const char *apn_server = (certName.find(".dev") != string::npos) ? APN_DEV_ADDRESS : APN_PROD_ADDRESS;
+		auto conn = make_unique<TlsConnection>(apn_server, APN_PORT, move(ctx));
 		mClients[certName] = make_unique<Client>(
-			make_unique<TlsTransport>(move(ctx), apn_server, APN_PORT, true),
+			make_unique<TlsTransport>(move(conn)),
 			cert,
 			*this,
 			mMaxQueueSize
@@ -296,11 +294,9 @@ void Service::setupFirebaseClient(const std::map<std::string, std::string> &fire
 	for (const auto &entry : firebaseKeys) {
 		const auto &firebaseAppId = entry.first;
 
-		TlsTransport::SSLCtxUniquePtr ctx{SSL_CTX_new(SSLv23_client_method())};
-		SSL_CTX_set_verify(ctx.get(), SSL_VERIFY_NONE, NULL);
-
+		auto conn = make_unique<TlsConnection>(FIREBASE_ADDRESS, FIREBASE_PORT, SSLv23_client_method());
 		mClients[firebaseAppId] = make_unique<Client>(
-			make_unique<TlsTransport>(move(ctx), FIREBASE_ADDRESS, FIREBASE_PORT, true),
+			make_unique<TlsTransport>(move(conn)),
 			"firebase",
 			*this,
 			mMaxQueueSize
