@@ -27,6 +27,7 @@
 
 #include <nghttp2/nghttp2.h>
 #include <openssl/ssl.h>
+#include <sofia-sip/su_wait.h>
 
 #include "pushnotification.hh"
 
@@ -61,6 +62,9 @@ public:
 	int write(const std::vector<char> &data) noexcept {return BIO_write(mBio.get(), data.data(), data.size());}
 	int write(const void *data, int dlen) noexcept {return BIO_write(mBio.get(), data, dlen);}
 
+	bool waitForData(int timeout) const;
+	bool hasData() const {return waitForData(0);}
+
 private:
 	struct BIODeleter {
 		void operator()(BIO *bio) {BIO_free_all(bio);}
@@ -77,6 +81,9 @@ public:
 	using OnSuccessCb = std::function<void(Request &)>;
 	using OnErrorCb = std::function<void(Request &, const std::string &)>;
 
+	Transport() = default;
+	Transport(const Transport &) = delete;
+	Transport(Transport &&) = delete;
 	virtual ~Transport() = default;
 
 	/**
@@ -90,9 +97,7 @@ public:
 
 class TlsTransport : public Transport {
 public:
-	TlsTransport(std::unique_ptr<TlsConnection> &&connection) noexcept : mConn{move(connection)} {}
-	~TlsTransport() override = default;
-
+	TlsTransport(std::unique_ptr<TlsConnection> &&connection) noexcept : Transport{}, mConn{std::move(connection)} {}
 	int sendPush(Request &req, bool hurryUp, const OnSuccessCb &onSuccess, const OnErrorCb &onError) override;
 
 private:
@@ -107,7 +112,33 @@ private:
 
 class Http2Transport : Transport {
 public:
+	Http2Transport(std::unique_ptr<TlsConnection> &&conn) noexcept;
 	int sendPush(Request &req, bool hurryUp, const OnSuccessCb &onSuccess, const OnErrorCb &onError) override;
+
+private:
+	struct NgHttp2SessionDeleter {
+		void operator()(nghttp2_session *ptr) const noexcept {nghttp2_session_del(ptr);}
+	};
+	using NgHttp2SessionPtr = std::unique_ptr<nghttp2_session, NgHttp2SessionDeleter>;
+
+	class DataProvider {
+	public:
+		DataProvider(const std::vector<char> &data) noexcept;
+
+		const nghttp2_data_provider *getCStruct() const noexcept {return &mDataProv;}
+
+	private:
+		ssize_t read(uint8_t *buf, size_t length, uint32_t *data_flags) noexcept;
+
+		nghttp2_data_provider mDataProv{{0}};
+		std::stringstream mData{};
+	};
+
+	ssize_t send(const uint8_t *data, size_t length) noexcept;
+	ssize_t recv(uint8_t *data, size_t length) noexcept;
+
+	std::unique_ptr<TlsConnection> mConn{};
+	NgHttp2SessionPtr mHttpSession{};
 };
 
 class Client {
