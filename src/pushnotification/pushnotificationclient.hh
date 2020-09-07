@@ -56,6 +56,7 @@ public:
 	bool isSecured() const noexcept {return mCtx != nullptr;}
 
 	BIO *getBIO() const noexcept {return mBio.get();}
+	int getFd() const noexcept;
 
 	int read(void *data, int dlen) noexcept {return BIO_read(mBio.get(), data, dlen);}
 
@@ -180,13 +181,48 @@ class LegacyClient : public Client {
 
 class AppleClient : public Client {
 public:
-	AppleClient(su_root_t *root);
+	AppleClient(su_root_t *root, std::unique_ptr<TlsConnection> &&conn) : mRoot{root}, mConn{std::move(conn)} {}
 
-	bool sendPush(const std::shared_ptr<Request> &req) override {return false;}
-	bool isIdle() const noexcept override {return false;}
+	bool sendPush(const std::shared_ptr<Request> &req) override;
+	bool isIdle() const noexcept override {return true;}
 
 private:
+	struct NgHttp2SessionDeleter {
+		void operator()(nghttp2_session *ptr) const noexcept {nghttp2_session_del(ptr);}
+	};
+	using NgHttp2SessionPtr = std::unique_ptr<nghttp2_session, NgHttp2SessionDeleter>;
+
+	class DataProvider {
+	public:
+		DataProvider(const std::vector<char> &data) noexcept;
+
+		const nghttp2_data_provider *getCStruct() const noexcept {return &mDataProv;}
+
+	private:
+		ssize_t read(uint8_t *buf, size_t length, uint32_t *data_flags) noexcept;
+
+		nghttp2_data_provider mDataProv{{0}};
+		std::stringstream mData{};
+	};
+
+	void connect();
+	void disconnect();
+	bool isConnected() const noexcept {return mHttpSession != nullptr;}
+
+	ssize_t send(const uint8_t *data, size_t length) noexcept;
+	ssize_t recv(uint8_t *data, size_t length) noexcept;
+
+	void onFrameSent(const nghttp2_frame *frame) noexcept;
+	void onFrameRecv(const nghttp2_frame *frame) noexcept;
+
+	static int onPollInCb(su_root_magic_t *, su_wait_t *, su_wakeup_arg_t *arg) noexcept;
+
+	static const char *frameTypeToString(uint8_t frameType) noexcept;
+
 	su_root_t *mRoot{nullptr};
+	su_wait_t mPollInWait{0};
+	std::unique_ptr<TlsConnection> mConn{};
+	NgHttp2SessionPtr mHttpSession{};
 };
 
 }

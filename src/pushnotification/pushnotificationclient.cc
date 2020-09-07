@@ -102,6 +102,16 @@ void TlsConnection::resetConnection() noexcept {
 	connect();
 }
 
+int TlsConnection::getFd() const noexcept {
+	int fd;
+	if (mBio == nullptr) return -1;
+	if (BIO_get_fd(mBio.get(), &fd) < 0) {
+		SLOGE << "TlsConnection: getting fd from BIO failed";
+		return -1;
+	}
+	return fd;
+}
+
 bool TlsConnection::waitForData(int timeout) const {
 	int fdSocket;
 	if (BIO_get_fd(getBIO(), &fdSocket) < 0) {
@@ -367,6 +377,145 @@ void LegacyClient::onSuccess(Request &req) {
 	req.setState(Request::State::Successful);
 	auto countSent = mService.getSentCounter();
 	if (countSent) countSent->incr();
+}
+
+
+AppleClient::DataProvider::DataProvider(const std::vector<char> &data) noexcept {
+	mDataProv.source.ptr = this;
+	mDataProv.read_callback = [](nghttp2_session *session, int32_t stream_id, uint8_t *buf, size_t length,
+							  uint32_t *data_flags, nghttp2_data_source *source, void *user_data) noexcept {
+		return static_cast<DataProvider *>(source->ptr)->read(buf, length, data_flags);
+	};
+	mData.write(data.data(), data.size());
+}
+
+ssize_t AppleClient::DataProvider::read(uint8_t *buf, size_t length, uint32_t *data_flags) noexcept {
+	*data_flags = 0;
+	mData.read(reinterpret_cast<char *>(buf), length);
+	if (mData.eof()) *data_flags |= NGHTTP2_DATA_FLAG_EOF;
+	if (!mData.good() && !mData.eof()) return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
+	return mData.gcount();
+}
+
+bool AppleClient::sendPush(const std::shared_ptr<Request> &req) {
+	if (!isConnected()) connect();
+	DataProvider dataProv{req->getData()};
+	auto status = nghttp2_submit_request(mHttpSession.get(), nullptr, nullptr, 0, dataProv.getCStruct(), nullptr);
+	if (status < 0) {
+		SLOGE << "Http2Transport: push request submit failed. reason=[" << nghttp2_strerror(status) << "]";
+		return false;
+	}
+	status = nghttp2_session_send(mHttpSession.get());
+	if (status < 0) {
+		SLOGE << "Http2Transport: push request sending failed. reason=[" << nghttp2_strerror(status) << "]";
+		return false;
+	}
+	return 0;
+}
+
+void AppleClient::connect() {
+	if (isConnected()) return;
+	mConn->connect();
+
+	auto sendCb = [](nghttp2_session *session, const uint8_t *data, size_t length, int flags, void *user_data) noexcept {
+		auto thiz = static_cast<AppleClient *>(user_data);
+		return thiz->send(data, length);
+	};
+	auto recvCb = [](nghttp2_session *session, uint8_t *buf, size_t length, int flags, void *user_data) noexcept {
+		auto thiz = static_cast<AppleClient *>(user_data);
+		return thiz->recv(buf, length);
+	};
+	auto frameSentCb = [](nghttp2_session *session, const nghttp2_frame *frame, void *user_data) noexcept {
+		auto thiz = static_cast<AppleClient *>(user_data);
+		thiz->onFrameSent(frame);
+		return 0;
+	};
+	auto frameRecvCb = [](nghttp2_session *session, const nghttp2_frame *frame, void *user_data) noexcept {
+		auto thiz = static_cast<AppleClient *>(user_data);
+		thiz->onFrameRecv(frame);
+		return 0;
+	};
+
+	nghttp2_session_callbacks *cbs;
+	nghttp2_session_callbacks_new(&cbs);
+	nghttp2_session_callbacks_set_send_callback(cbs, sendCb);
+	nghttp2_session_callbacks_set_recv_callback(cbs, recvCb);
+	nghttp2_session_callbacks_set_on_frame_send_callback(cbs, frameSentCb);
+	nghttp2_session_callbacks_set_on_frame_recv_callback(cbs, frameRecvCb);
+
+	nghttp2_session *session;
+	nghttp2_session_client_new(&session, cbs, this);
+	mHttpSession.reset(session);
+
+	su_wait_create(&mPollInWait, mConn->getFd(), SU_WAIT_IN);
+	su_root_register(mRoot, &mPollInWait, onPollInCb, this, su_pri_normal);
+
+	nghttp2_session_callbacks_del(cbs);
+}
+
+void AppleClient::disconnect() {
+	if (!isConnected()) return;
+	su_root_unregister(mRoot, &mPollInWait, onPollInCb, this);
+	mHttpSession.reset();
+	mConn->disconnect();
+}
+
+ssize_t AppleClient::send(const uint8_t *data, size_t length) noexcept {
+	length = min(length, size_t(numeric_limits<int>::max()));
+	auto nwritten = mConn->write(data, int(length));
+	if (nwritten < 0) return NGHTTP2_ERR_CALLBACK_FAILURE;
+	if (nwritten == 0) return NGHTTP2_ERR_WOULDBLOCK;
+	return nwritten;
+}
+
+ssize_t AppleClient::recv(uint8_t *data, size_t length) noexcept {
+	length = min(length, size_t(numeric_limits<int>::max()));
+	auto nread = mConn->read(data, length);
+	if (nread < 0) return NGHTTP2_ERR_CALLBACK_FAILURE;
+	if (nread == 0) return NGHTTP2_ERR_WOULDBLOCK;
+	return nread;
+}
+
+void AppleClient::onFrameSent(const nghttp2_frame *frame) noexcept {
+	SLOGD << "AppleClient: HTTP2 frame sent (streamId=" << frame->hd.stream_id
+		<< ", type=" << frameTypeToString(frame->hd.type) << ")";
+}
+
+void AppleClient::onFrameRecv(const nghttp2_frame *frame) noexcept {
+	SLOGD << "AppleClient: HTTP frame received (streamId=)" << frame->hd.stream_id
+		<< ", type=" << frameTypeToString(frame->hd.type) << ")";
+}
+
+int AppleClient::onPollInCb(su_root_magic_t *, su_wait_t *, su_wakeup_arg_t *arg) noexcept {
+	auto thiz = static_cast<AppleClient *>(arg);
+	auto status = nghttp2_session_recv(thiz->mHttpSession.get());
+	if (status == NGHTTP2_ERR_EOF) {
+		SLOGD << "AppleClient: connection closed by remote. Disconnecting";
+		thiz->disconnect();
+	}
+	if (status < 0) {
+		SLOGD << "AppleClient: error while receiving HTTP2 data. Disconnecting";
+		thiz->disconnect();
+	}
+	return 0;
+}
+
+const char *AppleClient::frameTypeToString(uint8_t frameType) noexcept {
+	switch(frameType) {
+		case NGHTTP2_DATA:          return "DATA";
+		case NGHTTP2_HEADERS:       return "HEADERS";
+		case NGHTTP2_PRIORITY:      return "PRIORITY";
+		case NGHTTP2_RST_STREAM:    return "RST_STREAM";
+		case NGHTTP2_SETTINGS:      return "SETTINGS";
+		case NGHTTP2_PUSH_PROMISE:  return "PUSH_PROMISE";
+		case NGHTTP2_PING:          return "PING";
+		case NGHTTP2_GOAWAY:        return "GOAWAY";
+		case NGHTTP2_WINDOW_UPDATE: return "WINDOW_UPDATE";
+		case NGHTTP2_CONTINUATION:  return "CONTINUATION";
+		case NGHTTP2_ALTSVC:        return "ALTSVC";
+		case NGHTTP2_ORIGIN:        return "ORIGIN";
+	}
+	return "UNKNOWN";
 }
 
 } // end of pushnotification namespace
