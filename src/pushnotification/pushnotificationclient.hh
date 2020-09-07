@@ -20,13 +20,15 @@
 
 #include <condition_variable>
 #include <ctime>
+#include <functional>
 #include <mutex>
 #include <queue>
+#include <sstream>
 #include <thread>
 #include <vector>
 
-#include <nghttp2/nghttp2.h>
 #include <openssl/ssl.h>
+#include <nghttp2/nghttp2.h>
 #include <sofia-sip/su_wait.h>
 
 #include "pushnotification.hh"
@@ -56,6 +58,7 @@ public:
 	bool isSecured() const noexcept {return mCtx != nullptr;}
 
 	BIO *getBIO() const noexcept {return mBio.get();}
+	int getFd() const noexcept;
 
 	int read(void *data, int dlen) noexcept {return BIO_read(mBio.get(), data, dlen);}
 
@@ -176,17 +179,6 @@ class LegacyClient : public Client {
 
 		bool mThreadRunning{false};
 		bool mThreadWaiting{false};
-};
-
-class AppleClient : public Client {
-public:
-	AppleClient(su_root_t *root);
-
-	bool sendPush(const std::shared_ptr<Request> &req) override {return false;}
-	bool isIdle() const noexcept override {return false;}
-
-private:
-	su_root_t *mRoot{nullptr};
 };
 
 }
