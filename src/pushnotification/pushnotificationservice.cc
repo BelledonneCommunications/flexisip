@@ -86,7 +86,7 @@ int Service::sendPush(const std::shared_ptr<Request> &pn){
 					);
 				} else {
 					auto conn = make_unique<TlsConnection>(pn->getAppIdentifier(), "80", nullptr);
-					mClients[wpClient] = make_unique<Client>(
+					mClients[wpClient] = make_unique<LegacyClient>(
 						make_unique<TlsTransport>(move(conn)),
 						wpClient,
 						*this,
@@ -115,7 +115,7 @@ bool Service::isIdle() const noexcept {
 void Service::setupGenericClient(const url_t *url) {
 	auto sslMethod = url->url_type == url_https ? TLSv1_client_method() : nullptr;
 	auto conn = make_unique<TlsConnection>(url->url_host, url_port(url), sslMethod);
-	mClients["generic"] = make_unique<Client>(
+	mClients["generic"] = make_unique<LegacyClient>(
 		make_unique<TlsTransport>(move(conn)),
 		"generic",
 		*this,
@@ -279,7 +279,7 @@ void Service::setupiOSClient(const std::string &certdir, const std::string &cafi
 		string certName = cert.substr(0, cert.size() - 4); // Remove .pem at the end of cert
 		const char *apn_server = (certName.find(".dev") != string::npos) ? APN_DEV_ADDRESS : APN_PROD_ADDRESS;
 		auto conn = make_unique<TlsConnection>(apn_server, APN_PORT, move(ctx));
-		mClients[certName] = make_unique<Client>(
+		mClients[certName] = make_unique<LegacyClient>(
 			make_unique<TlsTransport>(move(conn)),
 			cert,
 			*this,
@@ -295,7 +295,7 @@ void Service::setupFirebaseClient(const std::map<std::string, std::string> &fire
 		const auto &firebaseAppId = entry.first;
 
 		auto conn = make_unique<TlsConnection>(FIREBASE_ADDRESS, FIREBASE_PORT, SSLv23_client_method());
-		mClients[firebaseAppId] = make_unique<Client>(
+		mClients[firebaseAppId] = make_unique<LegacyClient>(
 			make_unique<TlsTransport>(move(conn)),
 			"firebase",
 			*this,
