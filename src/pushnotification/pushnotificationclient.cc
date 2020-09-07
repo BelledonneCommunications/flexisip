@@ -102,6 +102,16 @@ void TlsConnection::resetConnection() noexcept {
 	connect();
 }
 
+int TlsConnection::getFd() const noexcept {
+	int fd;
+	if (mBio == nullptr) return -1;
+	if (BIO_get_fd(mBio.get(), &fd) < 0) {
+		SLOGE << "TlsConnection: getting fd from BIO failed";
+		return -1;
+	}
+	return fd;
+}
+
 bool TlsConnection::waitForData(int timeout) const {
 	int fdSocket;
 	if (BIO_get_fd(getBIO(), &fdSocket) < 0) {
