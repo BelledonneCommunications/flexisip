@@ -287,10 +287,10 @@ ssize_t Http2Transport::recv(uint8_t *data, size_t length) noexcept {
 	}
 }
 
-Client::Client(std::unique_ptr<Transport> &&transport, const string &name, const Service &service, unsigned maxQueueSize)
+LegacyClient::LegacyClient(std::unique_ptr<Transport> &&transport, const string &name, const Service &service, unsigned maxQueueSize)
 : mName{name}, mService{service}, mTransport{move(transport)}, mMaxQueueSize{maxQueueSize} {}
 
-Client::~Client() {
+LegacyClient::~LegacyClient() {
 	if (mThreadRunning) {
 		mThreadRunning = false;
 		mMutex.lock();
@@ -300,12 +300,12 @@ Client::~Client() {
 	}
 }
 
-bool Client::sendPush(const std::shared_ptr<Request> &req) {
+bool LegacyClient::sendPush(const std::shared_ptr<Request> &req) {
 	if (!mThreadRunning) {
 		// start thread only when we have at least one push to send
 		mThreadRunning = true;
 		mThreadWaiting = false;
-		mThread = std::thread(&Client::run, this);
+		mThread = std::thread(&LegacyClient::run, this);
 	}
 	mMutex.lock();
 
@@ -328,7 +328,7 @@ bool Client::sendPush(const std::shared_ptr<Request> &req) {
 	}
 }
 
-void Client::run() {
+void LegacyClient::run() {
 	std::unique_lock<std::mutex> lock(mMutex);
 	while (mThreadRunning) {
 		if (!mRequestQueue.empty()) {
@@ -356,14 +356,14 @@ void Client::run() {
 	}
 }
 
-void Client::onError(Request &req, const string &msg) {
+void LegacyClient::onError(Request &req, const string &msg) {
 	SLOGW << "PushNotificationClient " << mName << " PNR " << &req << " failed: " << msg;
 	req.setState(Request::State::Failed);
 	auto countFailed = mService.getFailedCounter();
 	if (countFailed) countFailed->incr();
 }
 
-void Client::onSuccess(Request &req) {
+void LegacyClient::onSuccess(Request &req) {
 	req.setState(Request::State::Successful);
 	auto countSent = mService.getSentCounter();
 	if (countSent) countSent->incr();

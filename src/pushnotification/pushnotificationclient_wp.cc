@@ -35,7 +35,7 @@ namespace pushnotification {
 ClientWp::ClientWp(std::unique_ptr<Transport> &&transport, const std::string &name,
 			const Service &service, unsigned maxQueueSize,
 			const std::string &packageSID, const std::string &applicationSecret)
-: Client{move(transport), name, service, maxQueueSize}, mPackageSID{packageSID}, mApplicationSecret{applicationSecret} {}
+: LegacyClient{move(transport), name, service, maxQueueSize}, mPackageSID{packageSID}, mApplicationSecret{applicationSecret} {}
 
 
 void ClientWp::retrieveAccessToken() {
@@ -141,7 +141,7 @@ bool ClientWp::sendPush(const std::shared_ptr<Request> &req) {
 		// we must add the authorization token
 		auto req2 = static_cast<WindowsPhoneRequest *>(req.get());
 		req2->createHTTPRequest(mAccessToken);
-		return Client::sendPush(req);
+		return LegacyClient::sendPush(req);
 	} else {
 		SLOGD << "Cannot send push since we do not access token yet";
 	}

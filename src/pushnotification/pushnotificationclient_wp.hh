@@ -23,7 +23,7 @@
 namespace flexisip {
 namespace pushnotification {
 
-class ClientWp : public Client {
+class ClientWp : public LegacyClient {
 	public:
 		ClientWp(std::unique_ptr<Transport> &&transport, const std::string &name,
 			const Service &service, unsigned maxQueueSize,
