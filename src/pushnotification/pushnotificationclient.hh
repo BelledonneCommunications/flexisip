@@ -142,14 +142,21 @@ private:
 };
 
 class Client {
+public:
+	virtual ~Client() = default;
+	virtual bool sendPush(const std::shared_ptr<Request> &req) = 0;
+	virtual bool isIdle() const noexcept = 0;
+};
+
+class LegacyClient : public Client {
 	public:
-		Client(std::unique_ptr<Transport> &&transport,
+		LegacyClient(std::unique_ptr<Transport> &&transport,
 							   const std::string &name, const Service &service, unsigned maxQueueSize);
-		virtual ~Client();
+		~LegacyClient() override;
 
-		virtual bool sendPush(const std::shared_ptr<Request> &req);
+		bool sendPush(const std::shared_ptr<Request> &req) override;
 
-		bool isIdle() const noexcept {return mThreadWaiting;}
+		bool isIdle() const noexcept override {return mThreadWaiting;}
 
 	protected:
 		void run();
@@ -169,6 +176,17 @@ class Client {
 
 		bool mThreadRunning{false};
 		bool mThreadWaiting{false};
+};
+
+class AppleClient : public Client {
+public:
+	AppleClient(su_root_t *root);
+
+	bool sendPush(const std::shared_ptr<Request> &req) override {return false;}
+	bool isIdle() const noexcept override {return false;}
+
+private:
+	su_root_t *mRoot{nullptr};
 };
 
 }
