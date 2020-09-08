@@ -60,18 +60,18 @@ void TlsConnection::connect() noexcept {
 
 	BIOUniquePtr newBio{};
 	if (isSecured()) {
-		mBio = BIOUniquePtr{BIO_new_ssl_connect(mCtx.get())};
-		BIO_set_conn_hostname(mBio.get(), hostname.c_str());
+		newBio = BIOUniquePtr{BIO_new_ssl_connect(mCtx.get())};
+		BIO_set_conn_hostname(newBio.get(), hostname.c_str());
 		/* Set the SSL_MODE_AUTO_RETRY flag */
-		BIO_get_ssl(mBio.get(), &ssl);
+		BIO_get_ssl(newBio.get(), &ssl);
 		SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
 		SSL_set_options(ssl, SSL_OP_ALL);
 	}else{
 		// keep the const_cast() here because BIO_new_connect() takes a 'char *' in old revision of OpenSSL.
-		mBio =  BIOUniquePtr{BIO_new_connect(const_cast<char *>(hostname.c_str()))};
+		newBio =  BIOUniquePtr{BIO_new_connect(const_cast<char *>(hostname.c_str()))};
 	}
 
-	int sat = BIO_do_connect(mBio.get());
+	int sat = BIO_do_connect(newBio.get());
 
 	if (sat <= 0) {
 		SLOGE << "Error attempting to connect to " << hostname << ": " << sat << " - " << strerror( errno);
@@ -80,7 +80,7 @@ void TlsConnection::connect() noexcept {
 	}
 
 	if (isSecured()) {
-		sat = BIO_do_handshake(mBio.get());
+		sat = BIO_do_handshake(newBio.get());
 		if (sat <= 0) {
 			SLOGE << "Error attempting to handshake to " << hostname << ": " << sat << " - " << strerror( errno);
 			ERR_print_errors_fp(stderr);
