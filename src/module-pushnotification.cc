@@ -336,7 +336,7 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 		mFirebaseKeys.insert(make_pair(keyval.substr(0, sep), keyval.substr(sep + 1)));
 	}
 
-	mPNS.reset(new pushnotification::Service(maxQueueSize));
+	mPNS = make_unique<pushnotification::Service>(*getAgent()->getRoot(), maxQueueSize);
 	mPNS->setStatCounters(mCountFailed, mCountSent);
 	if (mExternalPushUri)
 		mPNS->setupGenericClient(mExternalPushUri);

@@ -112,6 +112,18 @@ int TlsConnection::getFd() const noexcept {
 	return fd;
 }
 
+int TlsConnection::read(void *data, int dlen) noexcept {
+	auto nread = BIO_read(mBio.get(), data, dlen);
+	if ((nread == 0 || nread == -1) && BIO_should_retry(mBio.get())) return 0;
+	return nread;
+}
+
+int TlsConnection::write(const void *data, int dlen) noexcept {
+	auto nwritten = BIO_write(mBio.get(), data, dlen);
+	if ((nwritten == 0 || nwritten == -1) && BIO_should_retry(mBio.get())) return 0;
+	return nwritten;
+}
+
 bool TlsConnection::waitForData(int timeout) const {
 	int fdSocket;
 	if (BIO_get_fd(getBIO(), &fdSocket) < 0) {

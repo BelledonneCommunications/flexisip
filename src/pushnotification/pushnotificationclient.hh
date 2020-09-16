@@ -60,10 +60,10 @@ public:
 	BIO *getBIO() const noexcept {return mBio.get();}
 	int getFd() const noexcept;
 
-	int read(void *data, int dlen) noexcept {return BIO_read(mBio.get(), data, dlen);}
+	int read(void *data, int dlen) noexcept;
 
-	int write(const std::vector<char> &data) noexcept {return BIO_write(mBio.get(), data.data(), data.size());}
-	int write(const void *data, int dlen) noexcept {return BIO_write(mBio.get(), data, dlen);}
+	int write(const std::vector<char> &data) noexcept {return write(data.data(), data.size());}
+	int write(const void *data, int dlen) noexcept;
 
 	bool waitForData(int timeout) const;
 	bool hasData() const {return waitForData(0);}
