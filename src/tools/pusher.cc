@@ -38,17 +38,16 @@ static const int MAX_QUEUE_SIZE = 3000;
 // static const int PRINT_STATS_TIMEOUT = 3000;	/* In milliseconds. */
 
 struct PusherArgs {
-	PusherArgs() : debug(false), isSilent(false){
-	}
-	string prefix;
-	string pntype;
-	bool debug;
-	bool isSilent;
-	string appid;
-	vector<string> pntok;
-	string apikey;
-	string packageSID;
+	string prefix{};
+	string pntype{};
+	bool debug{false};
+	bool isSilent{false};
+	string appid{};
+	vector<string> pntok{};
+	string apikey{};
+	string packageSID{};
 	PushInfo::ApplePushType applePushType{PushInfo::ApplePushType::Pushkit};
+
 	void usage(const char *app) {
 		cout << app
 			 << " --pntype google|firebase|wp|w10|apple --appid id --key apikey(secretkey) --sid ms-app://value --prefix dir [--silent] [--debug] [--apple-push-type RemoteBasic|RemoteWithMutableContent|Background|PushKit]"<<endl
@@ -135,8 +134,7 @@ struct PusherArgs {
 
 static vector<shared_ptr<Request>> createRequestFromArgs(const PusherArgs &args) {
 	vector<shared_ptr<Request>> result;
-	for (auto it = args.pntok.begin(); it != args.pntok.end(); it++) {
-		auto pntok = *it;
+	for (const auto &pntok : args.pntok) {
 		PushInfo pinfo;
 		pinfo.mType = args.pntype;
 		pinfo.mFromName = "Pusher";
@@ -192,7 +190,8 @@ int main(int argc, char *argv[]) {
 	LogManager::get().initialize(logParams);
 
 	{
-		Service service{MAX_QUEUE_SIZE};
+		auto root = su_root_create(nullptr);
+		Service service{*root, MAX_QUEUE_SIZE};
 
 		if (args.pntype == "apple") {
 			service.setupiOSClient(args.prefix + "/apn", "");
@@ -205,14 +204,12 @@ int main(int argc, char *argv[]) {
 		}
 
 		auto pn = createRequestFromArgs(args);
-		for (auto it = pn.begin(); it != pn.end(); it++) {
-			auto push = *it;
+		for (const auto &push : pn) {
 			ret += service.sendPush(push);
 		}
 		
-		while (!service.isIdle()) {
-			sleep(1);
-		}
+		if (args.pntype == "apple") su_root_run(root);
+		else while (!service.isIdle()) sleep(1);
 		
 		int failed = 0;
 		int success = 0;
@@ -220,8 +217,8 @@ int main(int argc, char *argv[]) {
 		int notsubmitted = 0;
 		int total = 0;
 		
-		for(auto it = pn.begin(); it != pn.end(); it++){
-			switch((*it)->getState()){
+		for(const auto &request : pn){
+			switch(request->getState()){
 				case Request::State::NotSubmitted:
 					notsubmitted++;
 				break;

@@ -34,7 +34,7 @@ namespace pushnotification {
 
 class Service {
 public:
-	Service(unsigned maxQueueSize);
+	Service(su_root_t &root, unsigned maxQueueSize);
 	~Service();
 
 	StatCounter64 *getFailedCounter() const noexcept {return mCountFailed;}
@@ -56,6 +56,7 @@ private:
 	void setupClients(const std::string &certdir, const std::string &ca, int maxQueueSize);
 	bool isCertExpired(const std::string &certPath) const noexcept;
 
+	su_root_t &mRoot;
 	unsigned mMaxQueueSize{0};
 	std::map<std::string, std::unique_ptr<Client>> mClients{};
 	std::string mWindowsPhonePackageSID{};
