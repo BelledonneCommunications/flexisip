@@ -18,6 +18,7 @@ Group changes to describe their impact on the project, as follows:
 
 ### [Fixed]
 - Crash when trying to fetch domain records from registrar DB.
+- Fix issue with dual stack media relay causing ICE failures.
 
 ## [2.0.0] – 2020-07-31
 
