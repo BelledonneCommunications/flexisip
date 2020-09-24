@@ -30,6 +30,8 @@
 #include <flexisip/common.hh>
 
 #include "applepush.hh"
+#include "firebasepush.hh"
+#include "microsoftpush.hh"
 #include "pushnotificationclient.hh"
 #include "pushnotificationclient_wp.hh"
 #include "pushnotificationservice.hh"
@@ -57,6 +59,12 @@ Service::~Service() {
 	ERR_free_strings();
 }
 
+std::unique_ptr<Request> Service::makePushRequest(const PushInfo &pinfo) {
+	if (pinfo.mType == "apple") return make_unique<AppleRequest>(pinfo);
+	if (pinfo.mType == "firebase") return make_unique<FirebaseRequest>(pinfo);
+	if (pinfo.mType == "wp" || pinfo.mType == "wp10") return make_unique<WindowsPhoneRequest>(pinfo);
+	throw invalid_argument("invalid service type [" + pinfo.mType + "]");
+}
 
 int Service::sendPush(const std::shared_ptr<Request> &pn){
 	auto client = mClients[pn->getAppIdentifier()].get();

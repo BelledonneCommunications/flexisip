@@ -72,7 +72,7 @@ public:
 	AppleClient(su_root_t &root, std::unique_ptr<TlsConnection> &&conn) : mRoot{root}, mConn{std::move(conn)} {}
 
 	bool sendPush(const std::shared_ptr<Request> &req) override;
-	bool isIdle() const noexcept override {return true;}
+	bool isIdle() const noexcept override {return mState == State::Connected && mPNRs.empty();}
 
 private:
 	struct NgHttp2SessionDeleter {
