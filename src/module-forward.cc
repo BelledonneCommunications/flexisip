@@ -319,7 +319,7 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 			// tport_by_name can only work for IPs
 			tport = tport_by_name(nta_agent_tports(getSofiaAgent()), &name);
 			if (!tport) {
-				LOGD("Could not existing tport to send message to %s", url_as_string(ms->getHome(), dest));
+				LOGD("Could not find existing tport to send message to %s", url_as_string(ms->getHome(), dest));
 			} else if (tport_get_user_data(tport) != nullptr && destConnId != 0
 						&& (uintptr_t)tport_get_user_data(tport) != destConnId) {
 				SLOGD << "Stopping request ConnId("
