@@ -29,10 +29,7 @@
 #include <flexisip/transaction.hh>
 #include <flexisip/utils/timer.hh>
 
-#include "pushnotification/applepush.hh"
-#include "pushnotification/firebasepush.hh"
 #include "pushnotification/genericpush.hh"
-#include "pushnotification/microsoftpush.hh"
 #include "pushnotification/pushnotificationservice.hh"
 #include "utils/uri-utils.hh"
 #include "utils/string-utils.hh"
@@ -627,7 +624,6 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				pinfo.mText = string(payload->pl_data, payload->pl_len);
 			}
 
-			shared_ptr<pushnotification::Request> pn;
 			if (pinfo.mType == "apple") {
 				string msg_str;
 				string call_str;
@@ -677,33 +673,30 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 
 				pinfo.mAlertSound = (sip->sip_request->rq_method == sip_method_invite && pinfo.mChatRoomAddr.empty()) ? call_snd : msg_snd;
 				pinfo.mNoBadge = mNoBadgeiOS;
-				if (!mExternalPushUri)
-					pn = make_shared<pushnotification::AppleRequest>(pinfo);
-			} else if ((pinfo.mType == "wp") || (pinfo.mType == "w10")) {
-				if (!mExternalPushUri)
-					pn = make_shared<pushnotification::WindowsPhoneRequest>(pinfo);
 			} else if (pinfo.mType == "firebase") {
 				auto apiKeyIt = mFirebaseKeys.find(pinfo.mAppId);
 				if (apiKeyIt != mFirebaseKeys.end()) {
 					pinfo.mApiKey = apiKeyIt->second;
 					SLOGD << "Creating Firebase push notif request";
-					if (!mExternalPushUri)
-						pn = make_shared<pushnotification::FirebaseRequest>(pinfo);
 				} else {
 					SLOGD << "No Key matching appId " << pinfo.mAppId;
 				}
 			} else {
 				SLOGD << "Push notification type not recognized [" << pinfo.mType << "]";
 			}
-			if (mExternalPushUri)
-				pn = make_shared<pushnotification::GenericRequest>(pinfo, mExternalPushUri, mExternalPushMethod);
 
-			if (pn) {
+			try {
+				auto pn = mExternalPushUri
+					? make_unique<pushnotification::GenericRequest>(pinfo, mExternalPushUri, mExternalPushMethod)
+					: pushnotification::Service::makePushRequest(pinfo);
+
 				if (time_out < 0) time_out = 0;
 				SLOGD << "Creating a push notif context PNR " << pn.get() << " to send in " << time_out << "s";
-				context = make_shared<PushNotificationContext>(transaction, this, pn, pnKey, mRetransmissionCount, mRetransmissionInterval);
+				context = make_shared<PushNotificationContext>(transaction, this, move(pn), pnKey, mRetransmissionCount, mRetransmissionInterval);
 				context->start(time_out, !pinfo.mSilent);
 				mPendingNotifications.insert(make_pair(pnKey, context));
+			} catch (const invalid_argument &e) {
+				SLOGD << string{"Error while creating PNR: "} + e.what();
 			}
 		}
 		if (context) /*associate with transaction so that transaction can eventually cancel it if the device answers.*/
