@@ -661,10 +661,12 @@ inline void Arg::xorSet()
 
 /**
  * Overridden by Args that need to added to the end of the list.
+ * Added by SM: this makes no sense to reverse the argument list. push_front() replaced by push_back().
+ * The arguments that need to be added to the end of the list shall be sorted afterwise.
  */
 inline void Arg::addToList( std::list<Arg*>& argList ) const
 {
-	argList.push_front( const_cast<Arg*>(this) );
+	argList.push_back( const_cast<Arg*>(this) );
 }
 
 inline bool Arg::allowMore()

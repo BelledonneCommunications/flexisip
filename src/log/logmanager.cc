@@ -130,7 +130,12 @@ void LogManager::initialize(const Parameters& params){
 		if (mLogHandler) bctbx_add_log_handler(mLogHandler);
 		else {
 			if (params.enableSyslog) ::syslog(LOG_ERR, "Could not create log file handler.");
-			LOGF("Could not create log file handler.");
+			if (!params.enableStdout) {
+				LOGF("Could not create/open log file '%s'.", pathStream.str().c_str());
+			}else{
+				LOGE("Could not create/open log file '%s' (not fatal when logging is enabled on stdout)", pathStream.str().c_str());
+			}
+			
 		}
 	}
 	enableUserErrorsLogs(params.enableUserErrors);
