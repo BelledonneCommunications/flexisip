@@ -44,6 +44,8 @@ public:
 		mCountSent = countSent;
 	}
 
+	static std::unique_ptr<Request> makePushRequest(const PushInfo &pinfo);
+
 	int sendPush(const std::shared_ptr<Request> &pn);
 	void setupGenericClient(const url_t *url);
 	void setupiOSClient(const std::string &certdir, const std::string &cafile);

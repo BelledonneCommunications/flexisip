@@ -16,26 +16,20 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <flexisip/common.hh>
-#include "pushnotification/applepush.hh"
-#include "pushnotification/microsoftpush.hh"
-#include "pushnotification/firebasepush.hh"
-#include "pushnotification/pushnotificationservice.hh"
-
-#include <unistd.h>
 #include <string>
 
-#include <ortp/ortp.h>
-#include <sofia-sip/url.h>
-#include <sofia-sip/base64.h>
+#include <flexisip/common.hh>
+#include <flexisip/utils/timer.hh>
+
+#include "pushnotification/pushnotificationservice.hh"
+
 
 using namespace std;
 using namespace flexisip;
 using namespace flexisip::pushnotification;
 
 
-static const int MAX_QUEUE_SIZE = 3000;
-// static const int PRINT_STATS_TIMEOUT = 3000;	/* In milliseconds. */
+static constexpr int MAX_QUEUE_SIZE = 3000;
 
 struct PusherArgs {
 	string prefix{};
@@ -133,7 +127,7 @@ struct PusherArgs {
 };
 
 static vector<shared_ptr<Request>> createRequestFromArgs(const PusherArgs &args) {
-	vector<shared_ptr<Request>> result;
+	vector<shared_ptr<Request>> result{};
 	for (const auto &pntok : args.pntok) {
 		PushInfo pinfo;
 		pinfo.mType = args.pntype;
@@ -145,19 +139,16 @@ static vector<shared_ptr<Request>> createRequestFromArgs(const PusherArgs &args)
 			pinfo.mDeviceToken = pntok;
 			pinfo.mAppId = args.appid;
 			pinfo.mApiKey = args.apikey;
-			result.push_back(make_shared<FirebaseRequest>(pinfo));
 		} else if (args.pntype == "wp") {
 			pinfo.mAppId = args.appid;
 			pinfo.mDeviceToken = pntok;
 			pinfo.mEvent = PushInfo::Event::Message;
 			pinfo.mText = "Hi here!";
-			result.push_back(make_shared<WindowsPhoneRequest>(pinfo));
 		} else if (args.pntype == "w10") {
 			pinfo.mAppId = args.appid;
 			pinfo.mEvent = PushInfo::Event::Message;
 			pinfo.mDeviceToken = pntok;
 			pinfo.mText = "Hi here!";
-			result.push_back(make_shared<WindowsPhoneRequest>(pinfo));
 		} else if (args.pntype == "apple") {
 			pinfo.mAlertMsgId = "IM_MSG";
 			pinfo.mAlertSound = "msg.caf";
@@ -166,8 +157,10 @@ static vector<shared_ptr<Request>> createRequestFromArgs(const PusherArgs &args)
 			pinfo.mTtl = 2592000;
 			pinfo.mSilent = args.isSilent;
 			pinfo.mApplePushType = args.applePushType;
-			result.push_back(make_shared<AppleRequest>(pinfo));
-		} else {
+		}
+		try {
+			result.emplace_back(Service::makePushRequest(pinfo));
+		} catch (const invalid_argument &) {
 			cerr << "? push pntype " << args.pntype << endl;
 			exit(-1);
 		}
@@ -208,8 +201,13 @@ int main(int argc, char *argv[]) {
 			ret += service.sendPush(push);
 		}
 		
-		if (args.pntype == "apple") su_root_run(root);
-		else while (!service.isIdle()) sleep(1);
+		sofiasip::Timer timer{root, 1000};
+		timer.run(
+			[root, &service] () {
+				if (service.isIdle()) su_root_break(root);
+			}
+		);
+		su_root_run(root);
 		
 		int failed = 0;
 		int success = 0;

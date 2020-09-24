@@ -345,14 +345,15 @@ bool AppleClient::sendAllPendingPNRs() {
 			continue;
 		}
 
-		SLOGD << "AppleClient: creating HTTP2 stream[" << streamId << "] for PNR[" << appleReq << "]";
-		mPNRs[streamId] = move(appleReq);
-
 		auto status = nghttp2_session_send(mHttpSession.get());
 		if (status < 0) {
 			SLOGE << "Http2Transport: push request sending failed. reason=[" << nghttp2_strerror(status) << "]";
 			continue;
 		}
+
+		SLOGD << "AppleClient: creating HTTP2 stream[" << streamId << "] for PNR[" << appleReq << "]";
+		appleReq->setState(Request::State::InProgress);
+		mPNRs[streamId] = move(appleReq);
 	}
 
 	return true;
@@ -394,10 +395,31 @@ void AppleClient::onFrameSent(nghttp2_session &session, const nghttp2_frame &fra
 void AppleClient::onFrameRecv(nghttp2_session &session, const nghttp2_frame &frame) noexcept {
 	SLOGD << "AppleClient: HTTP2 frame received (" << frame.hd.length << "B):" << endl
 		<< frame;
-	if (frame.hd.type == NGHTTP2_SETTINGS) {
-		if (mState == State::Connecting && (frame.hd.flags & NGHTTP2_FLAG_ACK) == 0) {
-			setState(State::Connected);
-			sendAllPendingPNRs();
+	switch (frame.hd.type) {
+		case NGHTTP2_SETTINGS:
+			if (mState == State::Connecting && (frame.hd.flags & NGHTTP2_FLAG_ACK) == 0) {
+				setState(State::Connected);
+				sendAllPendingPNRs();
+			}
+			break;
+		case NGHTTP2_GOAWAY: {
+			const auto &lastSID = frame.goaway.last_stream_id;
+			SLOGD << "AppleClient: GOAWAY frame received (lastStreamID=" << lastSID << "). Closing connection";
+			for (auto it = mPNRs.begin(); it != mPNRs.end(); it = mPNRs.erase(it)) {
+				const auto &sid = it->first;
+				auto &request = it->second;
+				if (sid > lastSID) {
+					SLOGD << "AppleClient: PNR[" << request  << "] will be sent on next connection";
+					request->setState(Request::State::NotSubmitted);
+					mPendingPNRs.emplace(move(request));
+				}
+			}
+			disconnect();
+			if (!mPendingPNRs.empty()) {
+				SLOGD << "AppleClient: PNRs are waiting. Connecting to server again";
+				connect();
+			}
+			break;
 		}
 	}
 }
@@ -410,6 +432,7 @@ void AppleClient::onHeaderRecv(nghttp2_session &session, const nghttp2_frame &fr
 		try {
 			const auto &pnr = mPNRs.at(streamId);
 			pnr->mStatusCode = stoi(value);
+			pnr->setState(pnr->mStatusCode == 200 ? Request::State::Successful : Request::State::Failed);
 		} catch (const logic_error &) {}
 	}
 }
