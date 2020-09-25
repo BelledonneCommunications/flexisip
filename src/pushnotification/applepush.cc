@@ -4,6 +4,8 @@
 #include <stdexcept>
 #include <string>
 
+#include <nghttp2/nghttp2ver.h>
+
 #include <flexisip/common.hh>
 
 #include "applepush.hh"
@@ -479,7 +481,9 @@ const char *Http2Tools::frameTypeToString(uint8_t frameType) noexcept {
 		case NGHTTP2_WINDOW_UPDATE: return "WINDOW_UPDATE";
 		case NGHTTP2_CONTINUATION:  return "CONTINUATION";
 		case NGHTTP2_ALTSVC:        return "ALTSVC";
+#if NGHTTP2_VERSION_NUM >= 0x012100 // v1.33.0
 		case NGHTTP2_ORIGIN:        return "ORIGIN";
+#endif
 	}
 	return "UNKNOWN";
 }
