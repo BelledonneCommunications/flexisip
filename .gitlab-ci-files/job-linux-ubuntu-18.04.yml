@@ -5,7 +5,7 @@
 job-ubuntu-18.04-makefile-gcc:
 
   tags: [ "docker-ubuntu-18.04" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:18.04
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu:18.04
   except:
     variables:
       - $DEPLOY_RUN
@@ -21,7 +21,7 @@ job-ubuntu-18.04-makefile-gcc:
 job-ubuntu-18.04-makefile-clang:
 
   tags: [ "docker-ubuntu-18.04" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:18.04
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu:18.04
   except:
     variables:
       - $DEPLOY_RUN
@@ -40,7 +40,7 @@ job-ubuntu-18.04-makefile-clang:
 job-ubuntu-18.04-ninja-gcc:
 
   tags: [ "docker-ubuntu-18.04" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:18.04
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu:18.04
   except:
     variables:
       - $DEPLOY_RUN
@@ -55,7 +55,7 @@ job-ubuntu-18.04-ninja-gcc:
 job-ubuntu-18.04-ninja-clang:
 
   tags: [ "docker-ubuntu-18.04" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:18.04
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu:18.04
   except:
     variables:
       - $DEPLOY_RUN
@@ -73,7 +73,7 @@ job-ubuntu-18.04-ninja-clang:
 job-ubuntu-18.04-deb:
 
   tags: [ "docker-ubuntu-18.04" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu:18.04
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu:18.04
   extends: .job-linux-deb
   only:
     - schedules
