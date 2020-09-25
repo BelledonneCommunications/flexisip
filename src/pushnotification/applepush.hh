@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <map>
 #include <unordered_map>
 
 #include <nghttp2/nghttp2.h>
@@ -75,20 +76,16 @@ public:
 	bool isIdle() const noexcept override {return mState == State::Connected && mPNRs.empty();}
 
 private:
-	struct NgHttp2SessionDeleter {
-		void operator()(nghttp2_session *ptr) const noexcept {nghttp2_session_del(ptr);}
-	};
-	using NgHttp2SessionPtr = std::unique_ptr<nghttp2_session, NgHttp2SessionDeleter>;
-
 	class HeaderStore {
 	public:
 		using HeaderMap = std::map<std::string, std::pair<std::string, uint8_t>>;
 		using HeaderList = std::vector<nghttp2_nv>;
 
-		HeaderStore() noexcept = default;
-		template <typename T> HeaderStore(T &&hMap) noexcept : mMap{std::forward<T>(hMap)} {}
-		HeaderStore(const HeaderStore &) noexcept = default;
-		HeaderStore(HeaderStore &&) noexcept = default;
+		HeaderStore() = default;
+		template <typename T>
+		HeaderStore(T &&hMap) noexcept : mMap{std::forward<T>(hMap)} {}
+		HeaderStore(const HeaderStore &) = default;
+		HeaderStore(HeaderStore &&) = default;
 
 		HeaderMap &map() noexcept {return mMap;}
 		HeaderList makeHeaderList() const noexcept;
@@ -110,6 +107,11 @@ private:
 		nghttp2_data_provider mDataProv{{0}};
 		std::stringstream mData{};
 	};
+
+	struct NgHttp2SessionDeleter {
+		void operator()(nghttp2_session *ptr) const noexcept {nghttp2_session_del(ptr);}
+	};
+	using NgHttp2SessionPtr = std::unique_ptr<nghttp2_session, NgHttp2SessionDeleter>;
 
 	void connect();
 	void disconnect();
