@@ -5,7 +5,7 @@
 job-centos7-makefile-gcc:
 
   tags: [ "docker" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos:7
   except:
     variables:
       - $DEPLOY_RUN
@@ -23,7 +23,7 @@ job-centos7-makefile-gcc:
 job-centos7-makefile-clang:
 
   tags: [ "docker" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos:7
   except:
     variables:
       - $DEPLOY_RUN
@@ -43,7 +43,7 @@ job-centos7-makefile-clang:
 
 #job-centos7-ninja-gcc:
 #
-#  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
+#  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos:7
 #  variables:
 #    CMAKE_GENERATOR: Ninja
 #    CC: gcc
@@ -53,7 +53,7 @@ job-centos7-makefile-clang:
 
 #job-centos7-ninja-clang:
 #
-#  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
+#  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos:7
 #  variables:
 #    CMAKE_GENERATOR: Ninja
 #    CC: clang
@@ -66,7 +66,7 @@ job-centos7-makefile-clang:
 
 job-centos7-rpm:
   tags: [ "docker" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos:7
   extends: .job-linux-rpm
   before_script:
     - source /opt/rh/devtoolset-8/enable
