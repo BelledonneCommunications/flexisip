@@ -5,7 +5,7 @@
 job-debian9-makefile-gcc:
 
   tags: [ "docker-debian9" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:9
   except:
     variables:
       - $DEPLOY_RUN
@@ -21,7 +21,7 @@ job-debian9-makefile-gcc:
 job-debian9-makefile-clang:
 
   tags: [ "docker-debian9" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:9
   except:
     variables:
       - $DEPLOY_RUN
@@ -40,7 +40,7 @@ job-debian9-makefile-clang:
 job-debian9-ninja-gcc:
 
   tags: [ "docker-debian9" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:9
   except:
     variables:
       - $DEPLOY_RUN
@@ -55,7 +55,7 @@ job-debian9-ninja-gcc:
 job-debian9-ninja-clang:
 
   tags: [ "docker-debian9" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:9
   except:
     variables:
       - $DEPLOY_RUN
@@ -72,7 +72,7 @@ job-debian9-ninja-clang:
 job-debian9-xwiki-doc-deploy:
   stage: build
   tags: [ "docker" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:9
 
   only:
     variables:
@@ -93,7 +93,7 @@ job-debian9-xwiki-doc-deploy:
 job-debian9-deb:
 
   tags: [ "docker-debian9" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:9
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:9
   extends: .job-linux-deb
   except:
     variables:
