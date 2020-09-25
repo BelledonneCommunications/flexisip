@@ -22,7 +22,7 @@
 #
 # Find libnghttp2 and defined the associated target.
 #
-# Target name: NgHttp2
+# Target name: LibNgHttp2
 
 include(FindPackageHandleStandardArgs)
 
