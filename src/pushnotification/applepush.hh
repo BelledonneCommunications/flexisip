@@ -78,20 +78,25 @@ public:
 private:
 	class HeaderStore {
 	public:
-		using HeaderMap = std::map<std::string, std::pair<std::string, uint8_t>>;
-		using HeaderList = std::vector<nghttp2_nv>;
+		struct Header {
+			std::string name{};
+			std::string value{};
+			uint8_t flags{NGHTTP2_FLAG_NONE};
+		};
+
+		using HeaderList = std::vector<Header>;
+		using CHeaderList = std::vector<nghttp2_nv>;
 
 		HeaderStore() = default;
-		template <typename T>
-		HeaderStore(T &&hMap) noexcept : mMap{std::forward<T>(hMap)} {}
 		HeaderStore(const HeaderStore &) = default;
 		HeaderStore(HeaderStore &&) = default;
 
-		HeaderMap &map() noexcept {return mMap;}
-		HeaderList makeHeaderList() const noexcept;
+		void add(std::string name, std::string value, uint8_t flags = NGHTTP2_FLAG_NONE) noexcept;
+
+		CHeaderList makeHeaderList() const noexcept;
 
 	private:
-		HeaderMap mMap{};
+		HeaderList mHList{};
 	};
 
 	class DataProvider {
@@ -141,6 +146,8 @@ private:
 	std::unordered_map<int32_t, std::shared_ptr<AppleRequest>> mPNRs{};
 	std::queue<std::shared_ptr<AppleRequest>> mPendingPNRs{};
 	State mState{State::Disconnected};
+
+	static const char * const sLogPrefix;
 };
 
 class Http2Tools {
@@ -149,7 +156,8 @@ public:
 	static std::string printFlags(uint8_t flags) noexcept;
 };
 
-std::ostream &operator<<(std::ostream &os, const nghttp2_frame &frame) noexcept;
+}
+}
 
-}
-}
+std::ostream &operator<<(std::ostream &os, const ::nghttp2_frame &frame) noexcept;
+std::ostream &operator<<(std::ostream &os, flexisip::pushnotification::AppleClient::State state) noexcept;
