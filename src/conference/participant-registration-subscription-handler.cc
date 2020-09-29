@@ -63,7 +63,7 @@ void ParticipantRegistrationSubscriptionHandler::subscribe (
 			subscription->start();
 		} else {
 			LOGD("Subscribed address is external [%s], subscribe to it", address->asString().c_str());
-			auto client = make_shared<RegistrationEvent::Client>(
+			auto client = make_shared<flexisip::RegistrationEvent::Client>(
 				mServer,
 				chatRoom,
 				address
