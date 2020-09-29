@@ -394,7 +394,7 @@ ssize_t AppleClient::recv(nghttp2_session &session, uint8_t *data, size_t length
 	length = min(length, size_t(numeric_limits<int>::max()));
 	auto nread = mConn->read(data, length);
 	if (nread < 0) {
-		SLOGE << sLogPrefix << ": error while reading socket[" << nread << "]";
+		SLOGE << sLogPrefix << ": error while reading socket. " << strerror(errno);
 		return NGHTTP2_ERR_CALLBACK_FAILURE;
 	}
 	if (nread == 0 && length > 0) return NGHTTP2_ERR_WOULDBLOCK;
@@ -562,7 +562,11 @@ std::ostream &operator<<(std::ostream &os, const nghttp2_frame &frame) noexcept 
 			break;
 		case NGHTTP2_RST_STREAM: {
 			const auto &error_code = frame.rst_stream.error_code;
-			os << "errorCode: " << error_code << "[" << nghttp2_http2_strerror(error_code) << "]" << endl;
+			os << "errorCode: " << error_code;
+#if NGHTTP2_VERSION_NUM >= 0x010900 // v1.9.0
+			os << "[" << nghttp2_http2_strerror(error_code) << "]";
+#endif
+			os << endl;
 			break;
 		}
 		case NGHTTP2_SETTINGS:
