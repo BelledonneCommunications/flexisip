@@ -315,11 +315,11 @@ void AppleClient::connect() {
 
 	int status;
 	if ((status = nghttp2_submit_settings(mHttpSession.get(), NGHTTP2_FLAG_NONE, nullptr, 0)) < 0) {
-		SLOGE << "AppleClient: submitting settings failed[status=" << status << "]";
+		SLOGE << sLogPrefix << ": submitting settings failed[status=" << status << "]";
 		return;
 	}
 	if ((status = nghttp2_session_send(mHttpSession.get())) < 0) {
-		SLOGE << "AppleClient: sending SETTINGS frame failed [status=" << status << "]";
+		SLOGE << sLogPrefix << ": sending SETTINGS frame failed [status=" << status << "]";
 		return;
 	}
 }
@@ -329,6 +329,7 @@ void AppleClient::disconnect() {
 	su_root_unregister(&mRoot, &mPollInWait, onPollInCb, this);
 	mHttpSession.reset();
 	mConn->disconnect();
+	setState(State::Disconnected);
 }
 
 bool AppleClient::sendAllPendingPNRs() {
