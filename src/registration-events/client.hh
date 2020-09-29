@@ -1,10 +1,11 @@
-#include "../conference-server.hh"
+#include "../conference/conference-server.hh"
 #include <linphone++/linphone.hh>
 #include <iostream>
 
 using namespace std;
 using namespace linphone;
-using namespace flexisip;
+
+namespace flexisip {
 
 namespace RegistrationEvent {
     class Client : public CoreListener
@@ -29,4 +30,6 @@ namespace RegistrationEvent {
         shared_ptr<ChatRoom> mChatRoom;
         shared_ptr<const Address> mTo;
     };
+}
+
 }

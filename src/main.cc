@@ -78,7 +78,7 @@
 
 #ifdef ENABLE_CONFERENCE
 #include "conference/conference-server.hh"
-#include "conference/registration-events/server.hh"
+#include "registration-events/server.hh"
 #endif
 #ifdef ENABLE_PRESENCE
 #include "presence/presence-server.hh"
@@ -101,7 +101,7 @@ static std::shared_ptr<flexisip::PresenceServer> presenceServer;
 #endif // ENABLE_PRESENCE
 #if ENABLE_CONFERENCE
 static std::shared_ptr<flexisip::ConferenceServer> conferenceServer;
-static std::shared_ptr<RegistrationEvent::Server> regEventServer;
+static std::shared_ptr<flexisip::RegistrationEvent::Server> regEventServer;
 #endif // ENABLE_CONFERENCE
 
 using namespace std;
@@ -613,7 +613,7 @@ int main(int argc, char *argv[]) {
 	TCLAP::CmdLine cmd("", ' ', versionString);
 	TCLAP::ValueArg<string>     functionName("", "server", 		"Specify the server function to operate: 'proxy', 'presence', 'regevent', 'conference', or 'all'.", TCLAP::ValueArgOptional, "", "server function", cmd);
 	TCLAP::ValueArg<string>     configFile("c", "config", 			"Specify the location of the configuration file.", TCLAP::ValueArgOptional, CONFIG_DIR "/flexisip.conf", "file", cmd);
-	
+
 	TCLAP::SwitchArg            daemonMode("",  "daemon", 			"Launch in daemon mode.", cmd);
 	TCLAP::SwitchArg              useDebug("d", "debug", 			"Force output of all logs, including debug logs, to the terminal (does not affect the log level applied to log files).", cmd);
 	TCLAP::ValueArg<string>        pidFile("p", "pidfile", 			"PID file location, used when running in daemon mode.", TCLAP::ValueArgOptional, "", "file", cmd);
@@ -621,8 +621,8 @@ int main(int argc, char *argv[]) {
 
 	TCLAP::ValueArg<string>  transportsArg("t", "transports", 		"The list of transports to handle (overrides the ones defined in the configuration file).", TCLAP::ValueArgOptional, "", "sips:* sip:*", cmd);
 
-	
-	
+
+
 	TCLAP::ValueArg<string>    dumpDefault("",  "dump-default",		"Dump default config, with specifier for the module to dump. Use 'all' to dump all modules, or 'MODULENAME' to dump "
 										   							"a specific module. For instance, to dump the Router module default config, "
 																	"issue 'flexisip --dump-default module::Router.", TCLAP::ValueArgOptional, "", "all", cmd);
@@ -630,7 +630,7 @@ int main(int argc, char *argv[]) {
 																	"'--set global/plugins=<plugin_list>' to also generate the settings of listed plugins.", cmd);
 	TCLAP::ValueArg<string>     dumpFormat("",  "dump-format",		"Select the format in which the dump-default will print. The default is 'file'. Possible values are: "
 																	"file, tex, doku, media, xwiki.", TCLAP::ValueArgOptional, "file", "file", cmd);
-	
+
 
 	TCLAP::SwitchArg           listModules("",  "list-modules", 	"Will print a list of available modules. This is useful if you want to combine with --dump-default "
 										   							"to have specific documentation for a module.", cmd);
@@ -981,7 +981,7 @@ int main(int argc, char *argv[]) {
 
 	if (startRegEvent) {
 #ifdef ENABLE_CONFERENCE
-		regEventServer = make_shared<RegistrationEvent::Server>(root);
+		regEventServer = make_shared<flexisip::RegistrationEvent::Server>(root);
 		try {
 			regEventServer->init();
 		} catch(FlexisipException &e) {
