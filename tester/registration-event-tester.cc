@@ -24,8 +24,8 @@
 #include <flexisip/configmanager.hh>
 #include <flexisip/registrardb.hh>
 
-#include "conference/registration-events/client.hh"
-#include "conference/registration-events/server.hh"
+#include "registration-events/client.hh"
+#include "registration-events/server.hh"
 #include "conference/conference-server.hh"
 
 using namespace std;
@@ -75,7 +75,7 @@ static void basic() {
 	int regEventPort = rand() %0x0FFF + 1014;
 	regEventTransport->setTcpPort(regEventPort);
 	regEventCore->setTransports(regEventTransport);
-	regEventCore->addListener(make_shared<RegistrationEvent::Server>(root));
+	regEventCore->addListener(make_shared<flexisip::RegistrationEvent::Server>(root));
 	regEventCore->start();
 
 	// Conference Server

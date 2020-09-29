@@ -1,7 +1,7 @@
 #include "client.hh"
 #include "reginfo.hh"
 #include "utils.hh"
-#include "../conference-server.hh"
+#include "../conference/conference-server.hh"
 
 #include <linphone++/linphone.hh>
 
@@ -11,7 +11,8 @@
 using namespace std;
 using namespace linphone;
 using namespace reginfo;
-using namespace flexisip;
+
+namespace flexisip {
 
 namespace RegistrationEvent {
 
@@ -23,7 +24,6 @@ Client::Client(
 void Client::subscribe() {
     mSubscribeEvent = mChatRoom->getCore()->createSubscribe(mTo, "reg", 600);
     mSubscribeEvent->addCustomHeader("Accept", "application/reginfo+xml");
-    mSubscribeEvent->addCustomHeader("Event", "reg");
 
     shared_ptr<Content> subsContent = Factory::get()->createContent();
     subsContent->setType("application");
@@ -88,3 +88,5 @@ void Client::onNotifyReceived(
 }
 
 } // namespace RegistrationEvent
+
+} // namespace flexisip

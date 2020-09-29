@@ -243,14 +243,14 @@ if(ENABLE_CONFERENCE)
 		conference/registration-subscription.hh
 		conference/participant-registration-subscription-handler.cc
 		conference/participant-registration-subscription-handler.hh
-		conference/registration-events/utils.cpp
-		conference/registration-events/utils.hh
-		conference/registration-events/client.cpp
-		conference/registration-events/client.hh
-		conference/registration-events/server.cpp
-		conference/registration-events/server.hh
-		conference/registration-events/registrar/listener.hh
-		conference/registration-events/registrar/listener.cpp
+		registration-events/utils.cpp
+		registration-events/utils.hh
+		registration-events/client.cpp
+		registration-events/client.hh
+		registration-events/server.cpp
+		registration-events/server.hh
+		registration-events/registrar/listener.hh
+		registration-events/registrar/listener.cpp
 	)
 endif()
 

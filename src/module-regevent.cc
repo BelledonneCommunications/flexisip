@@ -35,7 +35,7 @@ private:
 		ConfigItemDescriptor configs[] = {
 			{String, "regevent-server", "A sip uri where to send all the reg-event related requests.", "sip:127.0.0.1:5065;transport=tcp"},
 			config_item_end};
-		module_config->get<ConfigBoolean>("enabled")->setDefault("true");
+		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 		module_config->addChildrenValues(configs);
 	}
 
@@ -71,7 +71,8 @@ private:
 	void onRequest(shared_ptr<RequestSipEvent> &ev) {
 		sip_t *sip = ev->getSip();
 		if (sip->sip_request->rq_method == sip_method_subscribe
-		&&  strcasecmp(sip->sip_event->o_type, "reg") == 0) {
+		&&  strcasecmp(sip->sip_event->o_type, "reg") == 0
+		&& sip->sip_to->a_tag == nullptr) {
 			cleanAndPrependRoute(
 				this->getAgent(),
 				ev->getMsgSip()->getMsg(),
@@ -95,7 +96,7 @@ public:
 
 ModuleInfo<RegEvent> RegEvent::sInfo(
 	"RegEvent",
-	"This module transfert RegEvent subscription messages to the registrar server.",
+	"This module is in charge of routing 'reg' event SUBSCRIBE requests to the flexisip-regevent server.",
 	{ "" },
 	ModuleInfoBase::ModuleOid::RegEvent
 );
