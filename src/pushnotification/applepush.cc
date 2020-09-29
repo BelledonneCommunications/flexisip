@@ -422,7 +422,7 @@ void AppleClient::onFrameRecv(nghttp2_session &session, const nghttp2_frame &fra
 				const auto &sid = it->first;
 				auto &request = it->second;
 				if (sid > lastSID) {
-					SLOGD << sLogPrefix << ": PNR[" << request  << "] will be sent on next connection";
+					SLOGD << sLogPrefix << ": PNR " << request  << " will be sent on next connection";
 					request->setState(Request::State::NotSubmitted);
 					mPendingPNRs.emplace(move(request));
 				}
@@ -458,10 +458,10 @@ void AppleClient::onHeaderRecv(nghttp2_session &session, const nghttp2_frame &fr
 		}
 		if (pnr->mStatusCode == 200) {
 			pnr->setState(Request::State::Successful);
-			SLOGD << logPrefix << ": PNR[" << pnr << "] succeeded";
+			SLOGD << logPrefix << ": PNR " << pnr << " succeeded";
 		} else {
 			pnr->setState(Request::State::Failed);
-			SLOGD << logPrefix << ": PNR[" << pnr << "] failed";
+			SLOGD << logPrefix << ": PNR " << pnr << " failed";
 		}
 	}
 }
@@ -491,7 +491,7 @@ void AppleClient::onStreamClosed(nghttp2_session &session, int32_t stream_id, ui
 	SLOGD << sLogPrefix << "[" << stream_id << "]: stream closed with error code [" << error_code << "]";
 	auto it = mPNRs.find(stream_id);
 	if (it != mPNRs.cend()) {
-		SLOGD << sLogPrefix << ": end of PNR[" << it->second << "]";
+		SLOGD << sLogPrefix << ": end of PNR " << it->second;
 		mPNRs.erase(it);
 	}
 }
@@ -508,7 +508,9 @@ const char *Http2Tools::frameTypeToString(uint8_t frameType) noexcept {
 		case NGHTTP2_GOAWAY:        return "GOAWAY";
 		case NGHTTP2_WINDOW_UPDATE: return "WINDOW_UPDATE";
 		case NGHTTP2_CONTINUATION:  return "CONTINUATION";
+#if NGHTTP2_VERSION_NUM >= 0x010a00 // v1.10.0
 		case NGHTTP2_ALTSVC:        return "ALTSVC";
+#endif
 #if NGHTTP2_VERSION_NUM >= 0x012100 // v1.33.0
 		case NGHTTP2_ORIGIN:        return "ORIGIN";
 #endif
