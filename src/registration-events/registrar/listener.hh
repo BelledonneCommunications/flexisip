@@ -5,7 +5,8 @@
 
 using namespace std;
 using namespace linphone;
-using namespace flexisip;
+
+namespace flexisip {
 
 namespace RegistrationEvent {
     namespace Registrar {
@@ -25,4 +26,6 @@ namespace RegistrationEvent {
                 // version, previouscontacts
         };
     }
+}
+
 }

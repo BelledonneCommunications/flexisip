@@ -10,6 +10,8 @@ using namespace reginfo;
 using namespace Xsd::ResourceLists;
 using namespace Xsd::XmlSchema;
 
+namespace flexisip {
+
 namespace RegistrationEvent {
     namespace Registrar {
 
@@ -92,4 +94,6 @@ void Listener::processRecord(const shared_ptr<Record> &r) {
 };
 
     }
+}
+
 }

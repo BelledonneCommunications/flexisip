@@ -1,8 +1,8 @@
 #include "utils.hh"
-#include "../conference-server.hh"
+#include "../conference/conference-server.hh"
 #include <flexisip/registrardb.hh>
 
-using namespace flexisip;
+namespace flexisip {
 
 namespace RegistrationEvent {
 
@@ -37,6 +37,8 @@ string Utils::getDeviceName(const shared_ptr<ExtendedContact> &ec) {
 		}
 	}
 	return deviceName;
+}
+
 }
 
 }

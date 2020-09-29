@@ -18,7 +18,7 @@
 
 #include "registration-subscription.hh"
 #include "conference-server.hh"
-#include "registration-events/utils.hh"
+#include "../registration-events/utils.hh"
 
 using namespace flexisip;
 using namespace std;
