@@ -1,10 +1,11 @@
-#include "../conference-server.hh"
+#include "../conference/conference-server.hh"
 #include <linphone++/linphone.hh>
 #include <flexisip/registrardb.hh>
 
 using namespace std;
 using namespace linphone;
-using namespace flexisip;
+
+namespace flexisip {
 
 namespace RegistrationEvent {
     class Utils {
@@ -13,4 +14,6 @@ namespace RegistrationEvent {
         static bool isContactCompatible(const ConferenceServer & server, const shared_ptr<ChatRoom> &cr, const string &specs);
         static string getDeviceName(const shared_ptr<ExtendedContact> &ec);
     };
+}
+
 }

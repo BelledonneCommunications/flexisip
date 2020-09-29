@@ -7,7 +7,8 @@
 
 using namespace std;
 using namespace linphone;
-using namespace flexisip;
+
+namespace flexisip {
 
 namespace RegistrationEvent {
     class Server : public ServiceServer
@@ -40,4 +41,6 @@ namespace RegistrationEvent {
         static Init sStaticInit;
         shared_ptr<Core> mCore;
     };
+}
+
 }
