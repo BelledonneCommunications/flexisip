@@ -70,7 +70,7 @@ public:
 		static std::string formatWhatArg(State state) noexcept;
 	};
 
-	AppleClient(su_root_t &root, std::unique_ptr<TlsConnection> &&conn) : mRoot{root}, mConn{std::move(conn)} {}
+	AppleClient(su_root_t &root, std::unique_ptr<TlsConnection> &&conn);
 
 	bool sendPush(const std::shared_ptr<Request> &req) override;
 	bool isIdle() const noexcept override {return mState == State::Connected && mPNRs.empty();}
@@ -146,8 +146,7 @@ private:
 	std::unordered_map<int32_t, std::shared_ptr<AppleRequest>> mPNRs{};
 	std::queue<std::shared_ptr<AppleRequest>> mPendingPNRs{};
 	State mState{State::Disconnected};
-
-	static const char * const sLogPrefix;
+	std::string mLogPrefix{};
 };
 
 class Http2Tools {
