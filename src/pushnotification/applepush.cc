@@ -500,10 +500,11 @@ int AppleClient::onPollInCb(su_root_magic_t *, su_wait_t *, su_wakeup_arg_t *arg
 }
 
 void AppleClient::onStreamClosed(nghttp2_session &session, int32_t stream_id, uint32_t error_code) noexcept {
-	SLOGD << mLogPrefix << "[" << stream_id << "]: stream closed with error code [" << error_code << "]";
+	auto logPrefix = mLogPrefix + "[" + to_string(stream_id) + "]";
+	SLOGD << logPrefix << ": stream closed with error code [" << error_code << "]";
 	auto it = mPNRs.find(stream_id);
 	if (it != mPNRs.cend()) {
-		SLOGD << mLogPrefix << ": end of PNR " << it->second;
+		SLOGD << logPrefix << ": end of PNR " << it->second;
 		mPNRs.erase(it);
 	}
 }
