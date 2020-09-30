@@ -252,75 +252,80 @@ void AppleClient::connect() {
 	if (mState != State::Disconnected) {
 		throw BadStateError(mState);
 	}
-
 	setState(State::Connecting);
 
-	mConn->connect();
+	try {
+		mConn->connect();
+		if (!mConn->isConnected()) throw runtime_error{"TLS connection failed"};
 
-	auto sendCb = [](nghttp2_session *session, const uint8_t *data, size_t length, int flags, void *user_data) noexcept {
-		auto thiz = static_cast<AppleClient *>(user_data);
-		return thiz->send(*session, data, length);
-	};
-	auto recvCb = [](nghttp2_session *session, uint8_t *buf, size_t length, int flags, void *user_data) noexcept {
-		auto thiz = static_cast<AppleClient *>(user_data);
-		return thiz->recv(*session, buf, length);
-	};
-	auto frameSentCb = [](nghttp2_session *session, const nghttp2_frame *frame, void *user_data) noexcept {
-		auto thiz = static_cast<AppleClient *>(user_data);
-		thiz->onFrameSent(*session, *frame);
-		return 0;
-	};
-	auto frameRecvCb = [](nghttp2_session *session, const nghttp2_frame *frame, void *user_data) noexcept {
-		auto thiz = static_cast<AppleClient *>(user_data);
-		thiz->onFrameRecv(*session, *frame);
-		return 0;
-	};
-	auto onHeaderRecvCb = [](nghttp2_session *session, const nghttp2_frame *frame, const uint8_t *name, size_t namelen,
-							 const uint8_t *value, size_t valuelen, uint8_t flags, void *user_data) noexcept {
-		auto thiz = static_cast<AppleClient *>(user_data);
-		string nameStr{reinterpret_cast<const char *>(name), namelen};
-		string valueStr{reinterpret_cast<const char *>(value), valuelen};
-		thiz->onHeaderRecv(*session, *frame, nameStr, valueStr, flags);
-		return 0;
-	};
-	auto onDataChunkRecvCb = [](nghttp2_session *session, uint8_t flags, int32_t stream_id, const uint8_t *data, size_t len, void *user_data) noexcept {
-		auto thiz = static_cast<AppleClient *>(user_data);
-		thiz->onDataReceived(*session, flags, stream_id, data, len);
-		return 0;
-	};
-	auto onStreamClosedCb = [](nghttp2_session *session, int32_t stream_id, uint32_t error_code, void *user_data) noexcept {
-		auto thiz = static_cast<AppleClient *>(user_data);
-		thiz->onStreamClosed(*session, stream_id, error_code);
-		return 0;
-	};
+		auto sendCb = [](nghttp2_session *session, const uint8_t *data, size_t length, int flags, void *user_data) noexcept {
+			auto thiz = static_cast<AppleClient *>(user_data);
+			return thiz->send(*session, data, length);
+		};
+		auto recvCb = [](nghttp2_session *session, uint8_t *buf, size_t length, int flags, void *user_data) noexcept {
+			auto thiz = static_cast<AppleClient *>(user_data);
+			return thiz->recv(*session, buf, length);
+		};
+		auto frameSentCb = [](nghttp2_session *session, const nghttp2_frame *frame, void *user_data) noexcept {
+			auto thiz = static_cast<AppleClient *>(user_data);
+			thiz->onFrameSent(*session, *frame);
+			return 0;
+		};
+		auto frameRecvCb = [](nghttp2_session *session, const nghttp2_frame *frame, void *user_data) noexcept {
+			auto thiz = static_cast<AppleClient *>(user_data);
+			thiz->onFrameRecv(*session, *frame);
+			return 0;
+		};
+		auto onHeaderRecvCb = [](nghttp2_session *session, const nghttp2_frame *frame, const uint8_t *name, size_t namelen,
+								const uint8_t *value, size_t valuelen, uint8_t flags, void *user_data) noexcept {
+			auto thiz = static_cast<AppleClient *>(user_data);
+			string nameStr{reinterpret_cast<const char *>(name), namelen};
+			string valueStr{reinterpret_cast<const char *>(value), valuelen};
+			thiz->onHeaderRecv(*session, *frame, nameStr, valueStr, flags);
+			return 0;
+		};
+		auto onDataChunkRecvCb = [](nghttp2_session *session, uint8_t flags, int32_t stream_id, const uint8_t *data, size_t len, void *user_data) noexcept {
+			auto thiz = static_cast<AppleClient *>(user_data);
+			thiz->onDataReceived(*session, flags, stream_id, data, len);
+			return 0;
+		};
+		auto onStreamClosedCb = [](nghttp2_session *session, int32_t stream_id, uint32_t error_code, void *user_data) noexcept {
+			auto thiz = static_cast<AppleClient *>(user_data);
+			thiz->onStreamClosed(*session, stream_id, error_code);
+			return 0;
+		};
 
-	nghttp2_session_callbacks *cbs;
-	nghttp2_session_callbacks_new(&cbs);
-	nghttp2_session_callbacks_set_send_callback(cbs, sendCb);
-	nghttp2_session_callbacks_set_recv_callback(cbs, recvCb);
-	nghttp2_session_callbacks_set_on_frame_send_callback(cbs, frameSentCb);
-	nghttp2_session_callbacks_set_on_frame_recv_callback(cbs, frameRecvCb);
-	nghttp2_session_callbacks_set_on_header_callback(cbs, onHeaderRecvCb);
-	nghttp2_session_callbacks_set_on_data_chunk_recv_callback(cbs, onDataChunkRecvCb);
-	nghttp2_session_callbacks_set_on_stream_close_callback(cbs, onStreamClosedCb);;
+		nghttp2_session_callbacks *cbs;
+		nghttp2_session_callbacks_new(&cbs);
+		nghttp2_session_callbacks_set_send_callback(cbs, sendCb);
+		nghttp2_session_callbacks_set_recv_callback(cbs, recvCb);
+		nghttp2_session_callbacks_set_on_frame_send_callback(cbs, frameSentCb);
+		nghttp2_session_callbacks_set_on_frame_recv_callback(cbs, frameRecvCb);
+		nghttp2_session_callbacks_set_on_header_callback(cbs, onHeaderRecvCb);
+		nghttp2_session_callbacks_set_on_data_chunk_recv_callback(cbs, onDataChunkRecvCb);
+		nghttp2_session_callbacks_set_on_stream_close_callback(cbs, onStreamClosedCb);;
 
-	unique_ptr<nghttp2_session_callbacks, void(*)(nghttp2_session_callbacks *)> cbsPtr{cbs, nghttp2_session_callbacks_del};
+		unique_ptr<nghttp2_session_callbacks, void(*)(nghttp2_session_callbacks *)> cbsPtr{cbs, nghttp2_session_callbacks_del};
 
-	nghttp2_session *session;
-	nghttp2_session_client_new(&session, cbs, this);
-	mHttpSession.reset(session);
+		nghttp2_session *session;
+		nghttp2_session_client_new(&session, cbs, this);
+		NgHttp2SessionPtr httpSession{session};
 
-	su_wait_create(&mPollInWait, mConn->getFd(), SU_WAIT_IN);
-	su_root_register(&mRoot, &mPollInWait, onPollInCb, this, su_pri_normal);
+		int status;
+		if ((status = nghttp2_submit_settings(session, NGHTTP2_FLAG_NONE, nullptr, 0)) < 0) {
+			throw runtime_error{"submitting settings failed [status=" + to_string(status) + "]"};
+		}
+		if ((status = nghttp2_session_send(session)) < 0) {
+			throw runtime_error{"sending SETTINGS frame failed [status=" + to_string(status) + "]"};
+		}
 
-	int status;
-	if ((status = nghttp2_submit_settings(mHttpSession.get(), NGHTTP2_FLAG_NONE, nullptr, 0)) < 0) {
-		SLOGE << sLogPrefix << ": submitting settings failed[status=" << status << "]";
-		return;
-	}
-	if ((status = nghttp2_session_send(mHttpSession.get())) < 0) {
-		SLOGE << sLogPrefix << ": sending SETTINGS frame failed [status=" << status << "]";
-		return;
+		mHttpSession = move(httpSession);
+		su_wait_create(&mPollInWait, mConn->getFd(), SU_WAIT_IN);
+		su_root_register(&mRoot, &mPollInWait, onPollInCb, this, su_pri_normal);
+
+	} catch (const runtime_error &e) {
+		SLOGE << sLogPrefix << ": " << e.what();
+		disconnect();
 	}
 }
 
