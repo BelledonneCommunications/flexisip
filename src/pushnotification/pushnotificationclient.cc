@@ -112,8 +112,30 @@ int TlsConnection::getFd() const noexcept {
 	return fd;
 }
 
+#define FlagTranslatePair(flag) { flag, "flag" }
+
+static std::string bioFlagsToString(unsigned flags) {
+	const std::map<unsigned, const char *> flagsMap{
+		FlagTranslatePair(BIO_FLAGS_READ),
+		FlagTranslatePair(BIO_FLAGS_WRITE),
+		FlagTranslatePair(BIO_FLAGS_IO_SPECIAL),
+		FlagTranslatePair(BIO_FLAGS_SHOULD_RETRY)
+	};
+	std::string res{};
+	for (const auto &e : flagsMap) {
+		if (flags & e.first) {
+			if (!res.empty()) res += "|";
+			res += e.second;
+		}
+	}
+	return !res.empty() ? res : "NONE";
+}
+
 int TlsConnection::read(void *data, int dlen) noexcept {
 	auto nread = BIO_read(mBio.get(), data, dlen);
+	if (nread == 0 || nread == -1) {
+		SLOGD << "TlsConnection: BIO_read() returns " << nread << ", retry_flags=" << bioFlagsToString(unsigned(BIO_get_retry_flags(mBio.get())));
+	}
 	if ((nread == 0 || nread == -1) && (BIO_should_read(mBio.get()) || BIO_should_retry(mBio.get()))) return 0;
 	return nread;
 }
