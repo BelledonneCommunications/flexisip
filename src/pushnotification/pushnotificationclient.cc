@@ -113,14 +113,26 @@ int TlsConnection::getFd() const noexcept {
 }
 
 int TlsConnection::read(void *data, int dlen) noexcept {
+	ERR_clear_error();
 	auto nread = BIO_read(mBio.get(), data, dlen);
-	if ((nread == 0 || nread == -1) && (BIO_should_read(mBio.get()) || BIO_should_retry(mBio.get()))) return 0;
+	if (nread < 0) {
+		SLOGE << "TlsConnection[" << this << "]: error while reading data. "
+			<< ERR_error_string(ERR_get_error(), nullptr);
+		ERR_clear_error();
+		if (BIO_should_retry(mBio.get())) nread = 0;
+	}
 	return nread;
 }
 
 int TlsConnection::write(const void *data, int dlen) noexcept {
+	ERR_clear_error();
 	auto nwritten = BIO_write(mBio.get(), data, dlen);
-	if ((nwritten == 0 || nwritten == -1) && (BIO_should_write(mBio.get()) || BIO_should_retry(mBio.get()))) return 0;
+	if (nwritten < 0) {
+		SLOGE << "TlsConnection[" << this << "]: error while writting data. "
+			<< ERR_error_string(ERR_get_error(), nullptr);
+		ERR_clear_error();
+		if (BIO_should_retry(mBio.get())) nwritten = 0;
+	}
 	return nwritten;
 }
 
