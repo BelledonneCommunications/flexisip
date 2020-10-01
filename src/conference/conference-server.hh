@@ -61,6 +61,9 @@ namespace flexisip {
 		bool capabilityCheckEnabled()const{
 			return mCheckCapabilities;
 		}
+		const list<string> & getLocalDomains()const{
+			return mLocalDomains;
+		}
 
 	protected:
 		void _init () override;
@@ -68,6 +71,7 @@ namespace flexisip {
 		void _stop () override;
 
 	private:
+		void loadFactoryUris();
 		// RegistrarDbStateListener implementation
 		void onRegistrarDbWritable (bool writable) override;
 
@@ -95,6 +99,8 @@ namespace flexisip {
 		string mTransport;
 		list<shared_ptr<ChatRoom>> mChatRooms;
 		ParticipantRegistrationSubscriptionHandler mSubscriptionHandler;
+		list<string> mFactoryUris;
+		list<string> mLocalDomains;
 		bool mAddressesBound = false;
 		bool mCheckCapabilities;
 

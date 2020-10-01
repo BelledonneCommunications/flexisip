@@ -982,6 +982,9 @@ int main(int argc, char *argv[]) {
 	if (startRegEvent) {
 #ifdef ENABLE_CONFERENCE
 		regEventServer = make_shared<flexisip::RegistrationEvent::Server>(root);
+		if (daemonMode) {
+			notifyWatchDog();
+		}
 		try {
 			regEventServer->init();
 		} catch(FlexisipException &e) {

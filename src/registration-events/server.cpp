@@ -47,7 +47,7 @@ void Server::_init () {
     mCore = Factory::get()->createCore("", "", nullptr);
     auto config = GenericManager::get()->getRoot()->get<GenericStruct>("regevent-server");
 
-    mCore->getConfig()->setString("storage", "uri", nullptr);
+    mCore->getConfig()->setString("storage", "uri", "null");
 
     shared_ptr<Transports> regEventTransport = Factory::get()->createTransports();
     string mTransport = config->get<ConfigString>("transport")->read();
@@ -83,7 +83,7 @@ Server::Init::Init() {
         {
             String,
             "transport",
-            "uri on which the RegEvent server is listening on.",
+            "SIP uri on which the RegEvent server is listening on.",
             "sip:127.0.0.1:6064;transport=tcp"
         },
         config_item_end

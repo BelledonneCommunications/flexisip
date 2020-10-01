@@ -80,16 +80,31 @@ void ConferenceServer::_init () {
 	mCore->enableConferenceServer(true);
 	mCore->setTransports(cTransport);
 
-	string conferenceFactoryUri = config->get<ConfigString>("conference-factory-uri")->read();
-	shared_ptr<Address> addrProxy = Factory::get()->createAddress(conferenceFactoryUri);
-	shared_ptr<ProxyConfig> proxy = mCore->createProxyConfig();
-	proxy->setIdentityAddress(addrProxy);
-	proxy->setRoute(config->get<ConfigString>("outbound-proxy")->read());
-	proxy->setServerAddr(config->get<ConfigString>("outbound-proxy")->read());
-	proxy->enableRegister(false);
-	proxy->setConferenceFactoryUri(conferenceFactoryUri);
-	mCore->addProxyConfig(proxy);
-	mCore->setDefaultProxyConfig(proxy);
+	loadFactoryUris();
+	bool defaultProxyConfigSet = false;
+	for (const string & conferenceFactoryUri : mFactoryUris){
+		shared_ptr<Address> addrProxy = Factory::get()->createAddress(conferenceFactoryUri);
+		shared_ptr<ProxyConfig> proxy = mCore->createProxyConfig();
+		proxy->setIdentityAddress(addrProxy);
+		proxy->setRoute(config->get<ConfigString>("outbound-proxy")->read());
+		proxy->setServerAddr(config->get<ConfigString>("outbound-proxy")->read());
+		proxy->enableRegister(false);
+		proxy->setConferenceFactoryUri(conferenceFactoryUri);
+		mCore->addProxyConfig(proxy);
+		if (!defaultProxyConfigSet){
+			defaultProxyConfigSet = true;
+			mCore->setDefaultProxyConfig(proxy);
+		}
+		mLocalDomains.push_back(addrProxy->getDomain());
+	}
+	
+	/* Get additional local domains */
+	const list<string> otherLocalDomains = config->get<ConfigStringList>("local-domains")->read();
+	for (auto domain : otherLocalDomains){
+		mLocalDomains.push_back(domain);
+	}
+	mLocalDomains.sort();
+	mLocalDomains.unique();
 
 	Status err = mCore->start();
 	if (err == -2) LOGF("Linphone Core couldn't start because the connection to the database has failed");
@@ -107,6 +122,20 @@ void ConferenceServer::_run () {
 void ConferenceServer::_stop () {
 	mCore->removeListener(shared_from_this());
 	RegistrarDb::get()->removeStateListener(shared_from_this());
+}
+
+void ConferenceServer::loadFactoryUris(){
+	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
+	auto conferenceFactoryUriSetting = config->get<ConfigString>("conference-factory-uri");
+	auto conferenceFactoryUrisSetting = config->get<ConfigStringList>("conference-factory-uris");
+	auto conferenceFactoryUri = conferenceFactoryUriSetting->read();
+	auto conferenceFactoryUris = conferenceFactoryUrisSetting->read();
+	
+	if (!conferenceFactoryUri.empty()) conferenceFactoryUris.push_back(conferenceFactoryUri);
+	if (conferenceFactoryUris.empty()) {
+		LOGF("'%s' parameter must be set!", conferenceFactoryUrisSetting->getCompleteName().c_str());
+	}
+	mFactoryUris = conferenceFactoryUris;
 }
 
 void ConferenceServer::onRegistrarDbWritable (bool writable) {
@@ -189,31 +218,29 @@ void ConferenceServer::bindConference() {
 	shared_ptr<FakeListener> listener = make_shared<FakeListener>();
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
 	if (config && config->get<ConfigBoolean>("enabled")->read()) {
-		auto conferenceFactoryUriSetting = config->get<ConfigString>("conference-factory-uri");
-		auto conferenceFactoryUri = conferenceFactoryUriSetting->read();
-		if (conferenceFactoryUri.empty()) {
-			LOGF("'%s' parameter must be set!", conferenceFactoryUriSetting->getCompleteName().c_str());
-		}
-		try {
-			BindingParameters parameter;
-			sip_contact_t* sipContact = sip_contact_create(mHome.home(),
-				reinterpret_cast<const url_string_t*>(url_make(mHome.home(), mTransport.c_str())), nullptr);
-			SipUri from(conferenceFactoryUri);
+		
+		for (string conferenceFactoryUri : mFactoryUris){
+			try {
+				BindingParameters parameter;
+				sip_contact_t* sipContact = sip_contact_create(mHome.home(),
+					reinterpret_cast<const url_string_t*>(url_make(mHome.home(), mTransport.c_str())), nullptr);
+				SipUri from(conferenceFactoryUri);
 
-			parameter.callId = "CONFERENCE";
-			parameter.path = mPath;
-			parameter.globalExpire = numeric_limits<int>::max();
-			parameter.alias = false;
-			parameter.version = 0;
+				parameter.callId = "CONFERENCE";
+				parameter.path = mPath;
+				parameter.globalExpire = numeric_limits<int>::max();
+				parameter.alias = false;
+				parameter.version = 0;
 
-			RegistrarDb::get()->bind(
-				from,
-				sipContact,
-				parameter,
-				listener
-			);
-		} catch (const sofiasip::InvalidUrlError &e) {
-			LOGF("'conference-server' value isn't a SIP URI [%s]", conferenceFactoryUri.c_str());
+				RegistrarDb::get()->bind(
+					from,
+					sipContact,
+					parameter,
+					listener
+				);
+			} catch (const sofiasip::InvalidUrlError &e) {
+				LOGF("'conference-server' value isn't a SIP URI [%s]", conferenceFactoryUri.c_str());
+			}
 		}
 	}
 }
@@ -266,25 +293,30 @@ ConferenceServer::Init::Init() {
 			""
 		},
 		{
-			Boolean,
-			"enable-one-to-one-chat-room",
-			"Whether one-to-one chat room creation is allowed or not.",
-			"true"
+			StringList,
+			"conference-factory-uris",
+			"List of SIP uris used by clients to create a conference. This implicitely defines the list of SIP domains "
+			"managed by the conference server. For example: 'sip:conference-factory@sip.linphone.org sip:conference-factory@sip.linhome.org'.",
+			""
 		},
 		{
 			String,
 			"outbound-proxy",
-			"",
+			"The Flexisip proxy URI to which the conference server should sent all its outgoing SIP requests.",
 			"sip:127.0.0.1:5060;transport=tcp"
 		},
 		{
-			String,
+			StringList,
 			"local-domains",
-			"Local domains managed by the conference server, the other messages will "
-			"be forwarded to the outbound-proxy. Space separated list.\n"
-			"If not empty, the RegEvent (RFC3680) features will be enabled automatically.",
+			"Domains managed by the local SIP service, ie domains for which user registration information "
+			"can be found directly from the local registrar database (redis database). "
+			"For external domains (not in this list), a 'reg' SUBSCRIBE (RFC3680) will be emitted."
+			"It is not necessary to list here domains that appear in the 'conference-factory-uris' property. "
+			"They are assumed to be local domains already.\n"
+			"Ex: local-domains=sip.linphone.org conf.linphone.org linhome.org",
 			""
 		},
+
 		{
 			String,
 			"database-backend",
@@ -312,6 +344,12 @@ ConferenceServer::Init::Init() {
 			" in order to indicate whether they support group chat and secured group chat.",
 			"true"
 		},
+		{
+			Boolean,
+			"enable-one-to-one-chat-room",
+			"Whether one-to-one chat room creation is allowed or not.",
+			"true"
+		},
 		config_item_end
 	};
 
@@ -323,6 +361,8 @@ ConferenceServer::Init::Init() {
 	, 0);
 	GenericManager::get()->getRoot()->addChild(s);
 	s->addChildrenValues(items);
+	s->get<ConfigString>("conference-factory-uri")->setDeprecated({"2020-09-30", "2.1.0", 
+		"Use 'conference-factory-uris' instead, that allows to declare multiple factory uris."});
 }
 
 } // namespace flexisip

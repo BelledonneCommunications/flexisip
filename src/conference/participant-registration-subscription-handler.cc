@@ -49,14 +49,9 @@ void ParticipantRegistrationSubscriptionHandler::subscribe (
 	}
 
 	if (toSubscribe) {
-		auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
-		vector<string> domains = StringUtils::split(config->get<ConfigString>("local-domains")->read(), " ");
+		const auto &domains = mServer.getLocalDomains();
 
-		bool localOnly = domains.empty();
-
-		domains.push_back(chatRoom->getConferenceAddress()->getDomain());
-
-		if (localOnly || std::find(domains.begin(), domains.end(), address->getDomain()) != domains.end()) {
+		if (std::find(domains.begin(), domains.end(), address->getDomain()) != domains.end()) {
 			LOGD("Subscribed address is local [%s]", address->asString().c_str());
 			shared_ptr<OwnRegistrationSubscription> subscription(new OwnRegistrationSubscription(mServer, chatRoom, address));
 			mSubscriptions.insert(make_pair(key, subscription));
