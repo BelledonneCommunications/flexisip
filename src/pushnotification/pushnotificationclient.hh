@@ -74,6 +74,8 @@ private:
 	};
 	using BIOUniquePtr = std::unique_ptr<BIO, BIODeleter>;
 
+	static void handleBioError(const std::string &msg, int status);
+
 	BIOUniquePtr mBio{nullptr};
 	SSLCtxUniquePtr mCtx{nullptr};
 	std::string mHost{}, mPort{};

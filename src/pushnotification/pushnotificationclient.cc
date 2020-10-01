@@ -71,19 +71,18 @@ void TlsConnection::connect() noexcept {
 		newBio =  BIOUniquePtr{BIO_new_connect(const_cast<char *>(hostname.c_str()))};
 	}
 
-	int sat = BIO_do_connect(newBio.get());
+	ERR_clear_error();
 
+	auto sat = BIO_do_connect(newBio.get());
 	if (sat <= 0) {
-		SLOGE << "Error attempting to connect to " << hostname << ": " << sat << " - " << strerror( errno);
-		ERR_print_errors_fp(stderr);
+		handleBioError("Error attempting to connect to " + hostname, sat);
 		return;
 	}
 
 	if (isSecured()) {
 		sat = BIO_do_handshake(newBio.get());
 		if (sat <= 0) {
-			SLOGE << "Error attempting to handshake to " << hostname << ": " << sat << " - " << strerror( errno);
-			ERR_print_errors_fp(stderr);
+			handleBioError("Error attempting to handshake to " + hostname, sat);
 			return;
 		}
 	}
@@ -105,8 +104,10 @@ void TlsConnection::resetConnection() noexcept {
 int TlsConnection::getFd() const noexcept {
 	int fd;
 	if (mBio == nullptr) return -1;
-	if (BIO_get_fd(mBio.get(), &fd) < 0) {
-		SLOGE << "TlsConnection: getting fd from BIO failed";
+	ERR_clear_error();
+	auto status = BIO_get_fd(mBio.get(), &fd);
+	if (status < 0) {
+		handleBioError("TlsConnection: getting fd from BIO failed. ", status);
 		return -1;
 	}
 	return fd;
@@ -117,9 +118,9 @@ int TlsConnection::read(void *data, int dlen) noexcept {
 	auto nread = BIO_read(mBio.get(), data, dlen);
 	if (nread < 0) {
 		if (BIO_should_retry(mBio.get())) return 0;
-		SLOGE << "TlsConnection[" << this << "]: error while reading data. "
-			<< ERR_error_string(ERR_get_error(), nullptr);
-		ERR_clear_error();
+		ostringstream err{};
+		err << "TlsConnection[" << this << "]: error while reading data. ";
+		handleBioError(err.str(), nread);
 	}
 	return nread;
 }
@@ -129,16 +130,18 @@ int TlsConnection::write(const void *data, int dlen) noexcept {
 	auto nwritten = BIO_write(mBio.get(), data, dlen);
 	if (nwritten < 0) {
 		if (BIO_should_retry(mBio.get())) return 0;
-		SLOGE << "TlsConnection[" << this << "]: error while writting data. "
-			<< ERR_error_string(ERR_get_error(), nullptr);
-		ERR_clear_error();
+		ostringstream err{};
+		err << "TlsConnection[" << this << "]: error while writting data. ";
+		handleBioError(err.str(), nwritten);
 	}
 	return nwritten;
 }
 
 bool TlsConnection::waitForData(int timeout) const {
 	int fdSocket;
+	ERR_clear_error();
 	if (BIO_get_fd(getBIO(), &fdSocket) < 0) {
+		ERR_clear_error();
 		throw runtime_error("no associated socket");
 	}
 
@@ -151,6 +154,20 @@ bool TlsConnection::waitForData(int timeout) const {
 		throw runtime_error(string{"poll() failed: "} + strerror(errno));
 	}
 	return ret != 0;
+}
+
+void TlsConnection::handleBioError(const std::string &msg, int status) {
+	ostringstream os;
+	os << msg << ": " << status << " - " << strerror(errno) << " - SSL error stack:";
+	ERR_print_errors_cb(
+		[] (const char *str, size_t len, void *u) {
+			auto &os = *static_cast<ostream *>(u);
+			os << endl << '\t' << str;
+			return 0;
+		},
+		&os
+	);
+	SLOGE << os.str();
 }
 
 int TlsTransport::sendPush(Request &req, bool hurryUp, const OnSuccessCb &onSuccess, const OnErrorCb &onError) {
