@@ -40,8 +40,7 @@ Flexisip depends on the following projects, added as submodule in the git reposi
 
 Specifically for presence server:
 - belle-sip
-- xsd (=4.0.0)
-- xercesc
+- XercesC
 
 Specifically for conference server:
 - belle-sip

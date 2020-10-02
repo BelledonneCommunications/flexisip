@@ -1,23 +1,37 @@
-set(SOURCE_FILES_CXX 	tester.cc tester.hh
+############################################################################
+# CMakeLists.txt
+# Copyright (C) 2010-2020  Belledonne Communications, Grenoble France
+#
+############################################################################
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+############################################################################
+
+add_executable(flexisip_tester
+	tester.cc
+	tester.hh
 	boolean-expressions.cc
 )
 
 if(ENABLE_CONFERENCE)
-	list(APPEND SOURCE_FILES_CXX
-		registration-event-tester.cc
-	)
+	target_sources(flexisip_tester PRIVATE registration-event-tester.cc)
 endif()
 
-set(FLEXISIP_INCLUDEDIRS)
-
-list(APPEND FLEXISIP_INCLUDEDIRS ${BCTOOLBOX_INCLUDE_DIRS} ${BELR_INCLUDE_DIRS})
-
-bc_apply_compile_flags(SOURCE_FILES_CXX CPP_BUILD_FLAGS CXX_BUILD_FLAGS)
-
-add_executable(flexisip_tester ${SOURCE_FILES_CXX})
-
-target_include_directories(flexisip_tester PUBLIC ${FLEXISIP_INCLUDEDIRS})
-target_link_libraries(flexisip_tester flexisip bctoolbox-tester)
+target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
+target_link_libraries(flexisip_tester PRIVATE bctoolbox-tester flexisip linphone++)
 
 install(TARGETS flexisip_tester
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

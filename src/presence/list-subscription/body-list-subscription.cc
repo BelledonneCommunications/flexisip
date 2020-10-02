@@ -20,7 +20,7 @@
 
 #include "bellesip-signaling-exception.hh"
 #include "body-list-subscription.hh"
-#include "resource-lists.hh"
+#include "xml/resource-lists.hh"
 
 using namespace std;
 
