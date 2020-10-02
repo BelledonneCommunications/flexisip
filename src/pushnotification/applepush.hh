@@ -122,6 +122,7 @@ private:
 	void disconnect();
 
 	bool sendAllPendingPNRs();
+	void processGoAway();
 
 	State getState() const noexcept {return mState;}
 	void setState(State state) noexcept;
@@ -146,6 +147,7 @@ private:
 	std::unordered_map<int32_t, std::shared_ptr<AppleRequest>> mPNRs{};
 	std::queue<std::shared_ptr<AppleRequest>> mPendingPNRs{};
 	State mState{State::Disconnected};
+	int32_t mLastSID{-1};
 	std::string mLogPrefix{};
 };
 

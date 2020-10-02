@@ -340,6 +340,8 @@ void AppleClient::disconnect() {
 	mHttpSession.reset();
 	mConn->disconnect();
 	setState(State::Disconnected);
+	mLastSID = -1;
+	mPNRs.clear();
 }
 
 bool AppleClient::sendAllPendingPNRs() {
@@ -382,6 +384,28 @@ bool AppleClient::sendAllPendingPNRs() {
 	}
 
 	return true;
+}
+
+void AppleClient::processGoAway() {
+	SLOGD << mLogPrefix << ": closing connection after receiving GOAWAY frame. Last processed stream is [" << mLastSID << "]";
+
+	// move back all the non-treated PNRs into the pending queue
+	for (auto it = mPNRs.begin(); it != mPNRs.end(); it = mPNRs.erase(it)) {
+		const auto &sid = it->first;
+		auto &request = it->second;
+		if (sid > mLastSID) {
+			SLOGD << mLogPrefix << ": PNR " << request  << " will be sent on next connection";
+			request->setState(Request::State::NotSubmitted);
+			mPendingPNRs.emplace(move(request));
+		}
+	}
+
+	// disconnect and connect again if there still are PNRs to process
+	disconnect();
+	if (!mPendingPNRs.empty()) {
+		SLOGD << mLogPrefix << ": PNRs are waiting. Connecting to server again";
+		connect();
+	}
 }
 
 void AppleClient::setState(State state) noexcept {
@@ -428,22 +452,8 @@ void AppleClient::onFrameRecv(nghttp2_session &session, const nghttp2_frame &fra
 			}
 			break;
 		case NGHTTP2_GOAWAY: {
-			const auto &lastSID = frame.goaway.last_stream_id;
-			SLOGD << mLogPrefix << ": GOAWAY frame received (lastStreamID=" << lastSID << "). Closing connection";
-			for (auto it = mPNRs.begin(); it != mPNRs.end(); it = mPNRs.erase(it)) {
-				const auto &sid = it->first;
-				auto &request = it->second;
-				if (sid > lastSID) {
-					SLOGD << mLogPrefix << ": PNR " << request  << " will be sent on next connection";
-					request->setState(Request::State::NotSubmitted);
-					mPendingPNRs.emplace(move(request));
-				}
-			}
-			disconnect();
-			if (!mPendingPNRs.empty()) {
-				SLOGD << mLogPrefix << ": PNRs are waiting. Connecting to server again";
-				connect();
-			}
+			SLOGD << mLogPrefix << ": GOAWAY frame received. Scheduling connection closing";
+			mLastSID = frame.goaway.last_stream_id;
 			break;
 		}
 	}
@@ -489,13 +499,12 @@ void AppleClient::onDataReceived(nghttp2_session &session, uint8_t flags, int32_
 int AppleClient::onPollInCb(su_root_magic_t *, su_wait_t *, su_wakeup_arg_t *arg) noexcept {
 	auto thiz = static_cast<AppleClient *>(arg);
 	auto status = nghttp2_session_recv(thiz->mHttpSession.get());
-	if (status == NGHTTP2_ERR_EOF) {
-		SLOGD << thiz->mLogPrefix << ": connection closed by remote. Disconnecting";
-		thiz->disconnect();
-	} else if (status < 0) {
+	if (status < 0) {
 		SLOGE << thiz->mLogPrefix << ": error while receiving HTTP2 data[" << nghttp2_strerror(status) << "]. Disconnecting";
 		thiz->disconnect();
+		return 0;
 	}
+	if (thiz->mLastSID >= 0) thiz->processGoAway();
 	return 0;
 }
 
