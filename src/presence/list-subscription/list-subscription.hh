@@ -27,8 +27,8 @@
 #include <flexisip/event.hh>
 #include <flexisip/sofia-wrapper/home.hh>
 
-#include "rlmi+xml.hh"
 #include "subscription.hh"
+#include "xml/rlmi+xml.hh"
 
 typedef struct _belle_sip_uri belle_sip_uri_t;
 typedef struct belle_sip_server_transaction belle_sip_server_transaction_t;
