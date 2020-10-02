@@ -93,7 +93,7 @@ find_package(bctoolbox 0.0.3 REQUIRED)
 find_package(belr REQUIRED)
 find_package(LibNgHttp2 REQUIRED)
 
-find_package(LibXsd)
+find_package(XercesC)
 
 check_function_exists(arc4random HAVE_ARC4RANDOM)
 find_file(HAVE_SYS_PRCTL_H NAMES sys/prctl.h)

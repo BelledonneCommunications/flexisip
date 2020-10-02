@@ -21,14 +21,15 @@
 ############################################################################
 
 set(FLEXISIP_LIBS
-	${BCTOOLBOX_CORE_LIBRARIES}
-	${BELR_LIBRARIES}
+	bctoolbox
+	belr
 	${CMAKE_THREAD_LIBS_INIT}
 	${LINPHONECXX_LIBRARIES}
-	${ORTP_LIBRARIES}
+	ortp
 	${SOFIASIPUA_LIBRARIES}
 	LibNgHttp2
 )
+set(FLEXISIP_PUBLIC_LIBS ${SOFIASIPUA_LIBRARIES})
 
 set(FLEXISIP_INCLUDES )
 
@@ -115,12 +116,12 @@ set(FLEXISIP_SOURCES
 	utils/uri-utils.cc
 )
 
-list(APPEND FLEXISIP_INCLUDES ${BCTOOLBOX_INCLUDE_DIRS} ${BELR_INCLUDE_DIRS})
+set(XML_SOURCES )
 
-if(LIBXSD_FOUND)
-	list(APPEND FLEXISIP_LIBS ${LIBXSD_LIBRARIES})
-	list(APPEND FLEXISIP_INCLUDES ${LIBXSD_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/xml)
-	list(APPEND FLEXISIP_SOURCES xml/fthttp.cc xml/fthttp.hh)
+if(XercesC_FOUND)
+	list(APPEND FLEXISIP_INCLUDES "${PROJECT_SOURCE_DIR}/libxsd")
+	list(APPEND FLEXISIP_LIBS XercesC::XercesC)
+	list(APPEND XML_SOURCES xml/fthttp.cc xml/fthttp.hh)
 endif()
 
 if(ENABLE_MSGPACK)
@@ -176,11 +177,11 @@ if(ENABLE_PRESENCE OR ENABLE_MDNS)
 endif()
 
 if(ENABLE_PRESENCE)
-	if(NOT LIBXSD_FOUND)
-		message(FATAL_ERROR "Presence asked but XSD not enabled! Please enable it first.")
+	if(NOT XercesC_FOUND)
+		message(FATAL_ERROR "Presence asked but XercesC not enabled! Please enable it first.")
 	endif()
 	add_definitions(-DBELLE_SIP_USE_STL ${BELLE_SIP_CFLAGS})
-	set(XML_SOURCES
+	list(APPEND XML_SOURCES
 		xml/data-model.cc
 		xml/data-model.hh
 		xml/pidf+xml.cc
@@ -196,8 +197,8 @@ if(ENABLE_PRESENCE)
 		xml/xml.cc
 		xml/xml.hh
 	)
-	list(APPEND FLEXISIP_LIBS ${XERCES_LIBS})
-	list(APPEND FLEXISIP_INCLUDES presence)
+	list(APPEND FLEXISIP_LIBS XercesC::XercesC)
+	list(APPEND FLEXISIP_INCLUDES "presence" "${CMAKE_SOURCE_PROJECT}/libxsd")
 	list(APPEND FLEXISIP_SOURCES
 		presence/bellesip-signaling-exception.cc
 		presence/bellesip-signaling-exception.hh
@@ -217,7 +218,6 @@ if(ENABLE_PRESENCE)
 		presence/presentity-presenceinformation.hh
 		presence/subscription.cc
 		presence/subscription.hh
-		${XML_SOURCES}
 	)
 	if(ENABLE_SOCI)
 		list(APPEND FLEXISIP_SOURCES
@@ -285,17 +285,20 @@ if(ENABLE_SOCI)
 	list(APPEND FLEXISIP_INCLUDES ${SOCI_INCLUDE_DIRS} ${SOCI_MYSQL_INCLUDES})
 endif()
 
+list(APPEND FLEXISIP_SOURCES ${XML_SOURCES})
+
 message(STATUS "Flexisip LIBS : ${FLEXISIP_LIBS}")
+message(STATUS "Flexisip PUBLIC_LIBS : ${FLEXISIP_PUBLIC_LIBS}")
 message(STATUS "Flexisip INCLUDES : ${FLEXISIP_INCLUDES}")
 message(STATUS "Flexisip DEPENDENCIES : ${FLEXISIP_DEPENDENCIES}")
 
 bc_apply_compile_flags(FLEXISIP_SOURCES CPP_BUILD_FLAGS CXX_BUILD_FLAGS)
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-	if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0.0 OR CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 6.0.0)
+	if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 6.0.0)
 		set_source_files_properties(cJSON.c PROPERTIES COMPILE_FLAGS "-Wno-error=misleading-indentation")
 	endif()
 	set_source_files_properties(stun/stun.c PROPERTIES COMPILE_FLAGS "-Wno-error=sign-compare")
-	if (ENABLE_PRESENCE AND (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9.1.0 OR CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 9.1.0))
+	if (ENABLE_PRESENCE AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0.0)
 		set_source_files_properties(${XML_SOURCES} PROPERTIES COMPILE_FLAGS "-Wno-error=deprecated-copy")
 	endif()
 endif()
@@ -307,13 +310,13 @@ if(FLEXISIP_DEPENDENCIES)
 endif()
 add_dependencies(flexisip flexisip-git-version)
 target_compile_features(flexisip PRIVATE cxx_auto_type cxx_variadic_macros)
-target_link_libraries(flexisip ${FLEXISIP_LIBS})
-target_include_directories(flexisip PUBLIC ${FLEXISIP_INCLUDES})
+target_link_libraries(flexisip PUBLIC ${FLEXISIP_PUBLIC_LIBS} PRIVATE ${FLEXISIP_LIBS})
+target_include_directories(flexisip PRIVATE ${FLEXISIP_INCLUDES})
 
 add_executable(flexisip_server main.cc)
 set_property(TARGET flexisip_server PROPERTY OUTPUT_NAME flexisip)
 target_compile_features(flexisip_server PRIVATE cxx_auto_type cxx_variadic_macros)
-target_link_libraries(flexisip_server flexisip)
+target_link_libraries(flexisip_server flexisip OpenSSL::Crypto ortp)
 
 install(TARGETS flexisip flexisip_server
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -343,7 +346,7 @@ endif()
 
 
 add_executable(flexisip_serializer tools/serializer.cc)
-target_link_libraries(flexisip_serializer flexisip)
+target_link_libraries(flexisip_serializer flexisip bctoolbox)
 
 install(TARGETS flexisip_serializer
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
