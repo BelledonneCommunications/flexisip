@@ -20,17 +20,18 @@
 #include <memory>
 #include <ostream>
 
-#include "belle-sip/belle-sip.h"
+#include <belle-sip/belle-sip.h>
 
-#include "data-model.hh"
-#include "etag-manager.hh"
+#include <flexisip/flexisip-exception.hh>
 #include <flexisip/logmanager.hh>
-#include "pidf+xml.hh"
+
+#include "etag-manager.hh"
 #include "presentity-manager.hh"
 #include "presentity-presenceinformation.hh"
-#include "rpid.hh"
-#include <flexisip/flexisip-exception.hh>
 #include "utils/string-utils.hh"
+#include "xml/data-model.hh"
+#include "xml/pidf+xml.hh"
+#include "xml/rpid.hh"
 
 #define ETAG_SIZE 8
 using namespace std;
