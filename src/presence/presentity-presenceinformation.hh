@@ -21,8 +21,9 @@
 #include <list>
 #include <map>
 
-#include "pidf+xml.hh"
 #include <flexisip/flexisip-exception.hh>
+
+#include "xml/pidf+xml.hh"
 
 typedef struct _belle_sip_uri belle_sip_uri_t;
 typedef struct belle_sip_source belle_sip_source_t;
