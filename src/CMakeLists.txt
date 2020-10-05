@@ -301,7 +301,7 @@ target_include_directories(flexisip PRIVATE ${FLEXISIP_INCLUDES})
 add_executable(flexisip_server main.cc)
 set_property(TARGET flexisip_server PROPERTY OUTPUT_NAME flexisip)
 target_compile_features(flexisip_server PRIVATE cxx_auto_type cxx_variadic_macros)
-target_link_libraries(flexisip_server flexisip ortp)
+target_link_libraries(flexisip_server flexisip OpenSSL::Crypto ortp)
 
 install(TARGETS flexisip flexisip_server
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
