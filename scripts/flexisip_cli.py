@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 
 from __future__ import print_function # needed for using print() instead of 'print' statement with Python 2
