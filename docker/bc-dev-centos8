@@ -5,3 +5,5 @@ MAINTAINER François Grisez <francois.grisez@belledonne-communications.com>
 # Install extra Flexisip dependencies
 RUN sudo dnf --enablerepo=PowerTools install -y speexdsp-devel jansson-devel libnghttp2-devel net-snmp-devel protobuf-devel
 
+# Create /usr/bin/python symbolic link
+RUN sudo ln -s /usr/bin/python2 /usr/bin/python
