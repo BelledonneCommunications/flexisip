@@ -1,0 +1,81 @@
+#################################################
+# Makefile
+#################################################
+
+job-centos8-makefile-gcc:
+
+  tags: [ "docker" ]
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos:8
+  except:
+    variables:
+      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    CC: gcc
+    CXX: g++
+    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
+  extends: .scheduled-job-linux
+
+job-centos8-makefile-clang:
+
+  tags: [ "docker" ]
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos:8
+  except:
+    variables:
+      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    CC: clang
+    CXX: clang++
+    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
+  extends: .job-linux
+
+#################################################
+# Ninja
+#################################################
+
+#job-centos8-ninja-gcc:
+#
+#  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos:8
+#  variables:
+#    CMAKE_GENERATOR: Ninja
+#    CC: gcc
+#    CXX: g++
+#  extends: .job-linux
+
+
+#job-centos8-ninja-clang:
+#
+#  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos:8
+#  variables:
+#    CMAKE_GENERATOR: Ninja
+#    CC: clang
+#    CXX: clang++
+#  extends: .job-linux
+
+#################################################
+# RPM
+#################################################
+
+job-centos8-rpm:
+  tags: [ "docker" ]
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos:8
+  extends: .job-linux-rpm
+
+job-centos8-rpm-deploy:
+
+  stage: deploy
+  tags: [ "deploy" ]
+
+  extends: .job-deploy
+
+  dependencies:
+    - job-centos8-rpm
+
+  except:
+    variables:
+      - $DEPLOY_UBUNTU
+  script: ./.gitlab-ci-files/deploy.sh centos
+
