@@ -114,11 +114,12 @@ set(FLEXISIP_SOURCES
 	utils/uri-utils.cc
 )
 
+set(XML_SOURCES )
+
 if(XercesC_FOUND)
 	list(APPEND FLEXISIP_INCLUDES "${PROJECT_SOURCE_DIR}/libxsd")
 	list(APPEND FLEXISIP_LIBS XercesC::XercesC)
-	list(APPEND FLEXISIP_SOURCES xml/fthttp.cc xml/fthttp.hh)
-	set_source_files_properties(xml/fthttp.cc xml/fthttp.hh PROPERTIES COMPILE_OPTIONS "-Wno-deprecated-copy")
+	list(APPEND XML_SOURCES xml/fthttp.cc xml/fthttp.hh)
 endif()
 
 if(ENABLE_MSGPACK)
@@ -178,7 +179,7 @@ if(ENABLE_PRESENCE)
 		message(FATAL_ERROR "Presence asked but XercesC not enabled! Please enable it first.")
 	endif()
 	add_definitions(-DBELLE_SIP_USE_STL ${BELLE_SIP_CFLAGS})
-	set(XML_SOURCES
+	list(APPEND XML_SOURCES
 		xml/data-model.cc
 		xml/data-model.hh
 		xml/pidf+xml.cc
@@ -215,7 +216,6 @@ if(ENABLE_PRESENCE)
 		presence/presentity-presenceinformation.hh
 		presence/subscription.cc
 		presence/subscription.hh
-		${XML_SOURCES}
 	)
 	if(ENABLE_SOCI)
 		list(APPEND FLEXISIP_SOURCES
@@ -272,6 +272,8 @@ if(ENABLE_SOCI)
 	list(APPEND FLEXISIP_INCLUDES ${SOCI_INCLUDE_DIRS} ${SOCI_MYSQL_INCLUDES})
 endif()
 
+list(APPEND FLEXISIP_SOURCES ${XML_SOURCES})
+
 message(STATUS "Flexisip LIBS : ${FLEXISIP_LIBS}")
 message(STATUS "Flexisip PUBLIC_LIBS : ${FLEXISIP_PUBLIC_LIBS}")
 message(STATUS "Flexisip INCLUDES : ${FLEXISIP_INCLUDES}")
@@ -279,11 +281,11 @@ message(STATUS "Flexisip DEPENDENCIES : ${FLEXISIP_DEPENDENCIES}")
 
 bc_apply_compile_flags(FLEXISIP_SOURCES CPP_BUILD_FLAGS CXX_BUILD_FLAGS)
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-	if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0.0 OR CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 6.0.0)
+	if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 6.0.0)
 		set_source_files_properties(cJSON.c PROPERTIES COMPILE_FLAGS "-Wno-error=misleading-indentation")
 	endif()
 	set_source_files_properties(stun/stun.c PROPERTIES COMPILE_FLAGS "-Wno-error=sign-compare")
-	if (ENABLE_PRESENCE AND (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9.1.0 OR CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 9.1.0))
+	if (ENABLE_PRESENCE AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0.0)
 		set_source_files_properties(${XML_SOURCES} PROPERTIES COMPILE_FLAGS "-Wno-error=deprecated-copy")
 	endif()
 endif()
