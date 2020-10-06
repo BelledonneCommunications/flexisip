@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2014-2018  Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2020  Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
