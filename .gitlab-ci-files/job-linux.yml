@@ -160,7 +160,7 @@ tests-flexisip-mr:
     REBUILD_SDK: "false"
     SDK_VERSION: "4.3.3-46-g20b27fd"
     SDK_BRANCH: "release/4.3"
-    FLEXISIP_TESTER_VERSION: "feature/ci_print_flexisip_stacktrace"
+    FLEXISIP_TESTER_BRANCH: "feature/ci_print_flexisip_stacktrace"
 
     # uses flex-from-src instead of basic rpm dockerfile
     DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip:latest -f docker/flex-from-src --build-arg=njobs=12"
@@ -198,7 +198,7 @@ tests-flexisip-mr:
         docker build -t $liblinphone_tester --build-arg="branch=$SDK_BRANCH" --build-arg="njobs=8" -f "$PWD/linphone-sdk-docker/liblinphone-tester" .
         fi
     - id
-    - git clone -b $FLEXISIP_TESTER_VERSION --single-branch git@gitlab.linphone.org:BC/Public/flexisip-tester --jobs 12
+    - git clone -b $FLEXISIP_TESTER_BRANCH --single-branch git@gitlab.linphone.org:BC/Public/flexisip-tester --jobs 12
     - export FLEXISIP_DOCKER_IMAGE=$flexisip_docker_image
     - echo $flexisip_docker_image
     - echo $FLEXISIP_DOCKER_IMAGE
@@ -322,7 +322,11 @@ tests-flexisip-mr:
     # we specify commands to launch for each coredump of flexisip_tester
     - echo "set debug-file-directory /opt/belledonne-communications/lib" | tee gdb_options
     - echo "thread apply all bt" | tee -a gdb_options
-    - if [[ -n $(find . -type f -name "core.flexisip*") ]]; then find . -type f -name "core.flexisip*" | xargs -L1 docker run $flexisip_docker_run_options --entrypoint gdb $FLEXISIP_DOCKER_IMAGE:$FLEXISIP_DOCKER_TAG /opt/belledonne-communications/bin/flexisip -x gdb_options; fi || true
+    - echo $flexisip_docker_run_options
+    - find . -type f -name "core.flexisip*"
+    - echo $FLEXISIP_DOCKER_IMAGE
+    - echo $FLEXISIP_DOCKER_TAG
+    - if [[ -n $(find . -type f -name "core.flexisip*") ]]; then find . -type f -name "core.flexisip*" | xargs -L1 docker run $flexisip_docker_run_options --entrypoint gdb "$FLEXISIP_DOCKER_IMAGE:$FLEXISIP_DOCKER_TAG" /opt/belledonne-communications/bin/flexisip -x gdb_options; fi || true
 
     # simplifing artifacts browsing
     # Moving artifacts to ease browsing from web view
