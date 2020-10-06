@@ -111,7 +111,7 @@
 docker-build-flexisip-src:
 
   stage: build
-  tags: [ "linux-nuc" ]
+  tags: [ "linux-nuc-build²" ]
   except:
     variables:
       - $DEPLOY_RUN
@@ -159,7 +159,7 @@ tests-flexisip-mr:
     #  linphone-sdk, otherwise, the SDK is never rebuild. default = true
     REBUILD_SDK: "false"
     SDK_VERSION: "4.3.3-46-g20b27fd"
-    SDK_BRANCH: "release/$SDK_VERSION"
+    SDK_BRANCH: "release/4.3"
     FLEXISIP_TESTER_VERSION: "feature/ci_print_flexisip_stacktrace"
 
     # uses flex-from-src instead of basic rpm dockerfile
