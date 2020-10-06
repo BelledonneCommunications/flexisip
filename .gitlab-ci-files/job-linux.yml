@@ -191,7 +191,7 @@ tests-flexisip-mr:
         git clone -b feature/docker_liblinphone_tester --single-branch https://gitlab.linphone.org/BC/Public/linphone-sdk --recursive --jobs 12 linphone-sdk-docker
         docker build -t $liblinphone_tester --build-arg="branch=$SDK_BRANCH" --build-arg="njobs=8" -f "$PWD/linphone-sdk-docker/liblinphone-tester" .
         fi
-    - git clone -b master --single-branch git@gitlab.linphone.org:BC/Public/flexisip-tester --jobs 12
+    - git clone -b release/flexisip_2.0 --single-branch git@gitlab.linphone.org:BC/Public/flexisip-tester --jobs 12
     - export FLEXISIP_DOCKER_IMAGE="gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src"
     - export FLEXISIP_DOCKER_TAG="$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA"
     - export LIBLINPHONE_DOCKER_IMAGE="gitlab.linphone.org:4567/bc/public/linphone-sdk/liblinphone_tester"
