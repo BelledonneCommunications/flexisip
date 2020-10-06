@@ -30,7 +30,7 @@
 #include <flexisip/utils/timer.hh>
 
 #include "pushnotification/genericpush.hh"
-#include "pushnotification/pushnotificationservice.hh"
+#include "pushnotification/service.hh"
 #include "utils/uri-utils.hh"
 #include "utils/string-utils.hh"
 

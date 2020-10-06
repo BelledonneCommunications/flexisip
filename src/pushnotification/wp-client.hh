@@ -18,7 +18,8 @@
 
 #pragma once
 
-#include "pushnotificationclient.hh"
+#include "client.hh"
+#include "request.hh"
 
 namespace flexisip {
 namespace pushnotification {

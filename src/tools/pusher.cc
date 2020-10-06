@@ -21,7 +21,7 @@
 #include <flexisip/common.hh>
 #include <flexisip/utils/timer.hh>
 
-#include "pushnotification/pushnotificationservice.hh"
+#include "pushnotification/service.hh"
 
 
 using namespace std;

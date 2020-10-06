@@ -23,8 +23,8 @@
 
 #include <nghttp2/nghttp2.h>
 
-#include "pushnotification.hh"
-#include "pushnotificationclient.hh"
+#include "client.hh"
+#include "request.hh"
 
 namespace flexisip {
 namespace pushnotification {

@@ -31,7 +31,7 @@
 #include <nghttp2/nghttp2.h>
 #include <sofia-sip/su_wait.h>
 
-#include "pushnotification.hh"
+#include "request.hh"
 
 namespace flexisip {
 namespace pushnotification {

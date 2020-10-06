@@ -24,8 +24,8 @@
 #include <utils/uri-utils.hh>
 
 #include "microsoftpush.hh"
+#include "wp-client.hh"
 
-#include "pushnotificationclient_wp.hh"
 
 using namespace std;
 

@@ -84,14 +84,14 @@ set(FLEXISIP_SOURCES
 	module.cc
 	monitor.cc
 	plugin/plugin-loader.cc
-	pushnotification/pushnotification.cc
 	pushnotification/applepush.cc
+	pushnotification/client.cc
 	pushnotification/firebasepush.cc
 	pushnotification/genericpush.cc
 	pushnotification/microsoftpush.cc
-	pushnotification/pushnotificationclient_wp.cc
-	pushnotification/pushnotificationclient.cc
-	pushnotification/pushnotificationservice.cc
+	pushnotification/request.cc
+	pushnotification/service.cc
+	pushnotification/wp-client.cc
 	recordserializer-c.cc
 	recordserializer-json.cc
 	registrardb-internal.cc

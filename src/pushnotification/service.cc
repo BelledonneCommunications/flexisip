@@ -32,9 +32,9 @@
 #include "applepush.hh"
 #include "firebasepush.hh"
 #include "microsoftpush.hh"
-#include "pushnotificationclient.hh"
-#include "pushnotificationclient_wp.hh"
-#include "pushnotificationservice.hh"
+#include "wp-client.hh"
+
+#include "service.hh"
 
 using namespace std;
 

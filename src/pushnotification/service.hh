@@ -26,8 +26,8 @@
 
 #include <flexisip/configmanager.hh>
 
-#include "pushnotification.hh"
-#include "pushnotificationclient.hh"
+#include "client.hh"
+#include "request.hh"
 
 namespace flexisip {
 namespace pushnotification {

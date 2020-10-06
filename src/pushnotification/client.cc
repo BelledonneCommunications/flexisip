@@ -29,9 +29,9 @@
 #include <flexisip/common.hh>
 #include <flexisip/logmanager.hh>
 
-#include "pushnotificationservice.hh"
+#include "service.hh"
 
-#include "pushnotificationclient.hh"
+#include "request.hh"
 
 using namespace std;
 
