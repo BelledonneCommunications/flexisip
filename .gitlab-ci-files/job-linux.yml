@@ -111,7 +111,7 @@
 docker-build-flexisip-src:
 
   stage: build
-  tags: [ "linux-nuc-build" ]
+  tags: [ "linux-nuc" ]
   except:
     variables:
       - $DEPLOY_RUN
