@@ -160,6 +160,7 @@ tests-flexisip-mr:
     REBUILD_SDK: "false"
     SDK_VERSION: "4.3.3-46-g20b27fd"
     SDK_BRANCH: "release/$SDK_VERSION"
+    FLEXISIP_TESTER_VERSION: "flexisip_2.0"
 
     # uses flex-from-src instead of basic rpm dockerfile
     DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip:latest -f docker/flex-from-src --build-arg=njobs=12"
@@ -191,11 +192,13 @@ tests-flexisip-mr:
         git clone -b feature/docker_liblinphone_tester --single-branch https://gitlab.linphone.org/BC/Public/linphone-sdk --recursive --jobs 12 linphone-sdk-docker
         docker build -t $liblinphone_tester --build-arg="branch=$SDK_BRANCH" --build-arg="njobs=8" -f "$PWD/linphone-sdk-docker/liblinphone-tester" .
         fi
-    - git clone -b release/flexisip_2.0 --single-branch git@gitlab.linphone.org:BC/Public/flexisip-tester --jobs 12
+    - git clone -b "release/${FLEXISIP_TESTER_VERSION}" --single-branch git@gitlab.linphone.org:BC/Public/flexisip-tester --jobs 12
     - export FLEXISIP_DOCKER_IMAGE="gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src"
     - export FLEXISIP_DOCKER_TAG="$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA"
     - export LIBLINPHONE_DOCKER_IMAGE="gitlab.linphone.org:4567/bc/public/linphone-sdk/liblinphone_tester"
     - export LIBLINPHONE_DOCKER_TAG=$SDK_VERSION
+    - export FILE_TRANSFER_SERVER_DOCKER_IMAGE="gitlab.linphone.org:4567/bc/public/flexisip/http-file-transfer-server"
+    - export FILE_TRANSFER_SERVER_DOCKER_TAG="${FLEXISIP_TESTER_VERSION}"
 
     - |
         if [ -z $workspace ]; then
