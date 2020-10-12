@@ -289,14 +289,16 @@ ConferenceServer::Init::Init() {
 		{
 			String,
 			"conference-factory-uri",
-			"uri where the client must ask to create a conference. For example: 'sip:conference-factory@sip.linphone.org'.",
+			"uri where the client must ask to create a conference. For example:\n"
+			"conference-factory-uri=sip:conference-factory@sip.linphone.org",
 			""
 		},
 		{
 			StringList,
 			"conference-factory-uris",
 			"List of SIP uris used by clients to create a conference. This implicitely defines the list of SIP domains "
-			"managed by the conference server. For example: 'sip:conference-factory@sip.linphone.org sip:conference-factory@sip.linhome.org'.",
+			"managed by the conference server. For example:\n"
+			"conference-factory-uris=sip:conference-factory@sip.linphone.org sip:conference-factory@sip.linhome.org",
 			""
 		},
 		{
@@ -321,7 +323,7 @@ ConferenceServer::Init::Init() {
 			String,
 			"database-backend",
 			"Choose the type of backend that linphone will use for the connection.\n"
-			"Depending on your Soci package and the modules you installed, the supported databases are:"
+			"Depending on your Soci package and the modules you installed, the supported databases are: "
 			"`mysql`, `sqlite3`",
 			"mysql"
 		},
