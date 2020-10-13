@@ -14,7 +14,7 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
 
-## [unreleased]
+## [2.0.1] - 2020-10-13
 
 ### [Changed]
 - Usage of HTTP2 protocol to send Apple push notification requests. No
@@ -22,6 +22,10 @@ Group changes to describe their impact on the project, as follows:
 
 ### [Fixed]
 - Crash when trying to fetch domain records from registrar DB.
+- Avoid MediaRelay's channel to continously swap between IPv6 and IPv4 during ICE connectivity checks. Indeed, this causes some connectivity
+  checks to fail because some stun requests sent over IPv6 are answered over IPv4 and vice versa. The workaround implemented consists in locking
+  the destination choosen by the MediaRelay's channels (when receiving a packet) for a minimum of 5 seconds. The switch to a new destination
+  is allowed only if the previous destination has been unused over the last 5 seconds.
 
 ## [2.0.0] – 2020-07-31
 
