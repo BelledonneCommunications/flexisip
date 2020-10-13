@@ -146,7 +146,7 @@ url_t *ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest)
 			}
 		}
 	}
-	if (!mDefaultTransport.empty() && dest->url_type == url_sip && !url_has_param(dest, "transport") ){
+	if (!urlIsResolved(dest) && !mDefaultTransport.empty() && dest->url_type == url_sip && !url_has_param(dest, "transport") ){
 		url_param_add(ev->getHome(), dest, mDefaultTransport.c_str());
 	}
 	return dest;
