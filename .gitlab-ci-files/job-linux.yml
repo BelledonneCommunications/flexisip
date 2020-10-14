@@ -168,8 +168,8 @@ tests-flexisip-mr:
     sourcedir: ${CI_PROJECT_DIR}/linphone-sdk-docker
     workspace: "${CI_PROJECT_DIR}/liblinphone_tester_workspace"
 
-    flexisip_docker_image: "gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src"
-    flexisip_docker_tag: "$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA"
+    FLEXISIP_DOCKER_IMAGE: "gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src"
+    FLEXISIP_DOCKER_TAG: "$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA"
 
     # Docker run options are only used for coredump display if any
     # We are forced to copy the same string as "workspace" because we can't use nested variables in the same place (i.e. in variable declaration)
@@ -199,11 +199,7 @@ tests-flexisip-mr:
         fi
     - id
     - git clone -b $FLEXISIP_TESTER_BRANCH --single-branch git@gitlab.linphone.org:BC/Public/flexisip-tester --jobs 12
-    - export FLEXISIP_DOCKER_IMAGE=$flexisip_docker_image
-    - echo $flexisip_docker_image
     - echo $FLEXISIP_DOCKER_IMAGE
-    - export FLEXISIP_DOCKER_TAG=$flexisip_docker_tag
-    - echo $flexisip_docker_tag
     - echo $FLEXISIP_DOCKER_TAG
     - export LIBLINPHONE_DOCKER_IMAGE="gitlab.linphone.org:4567/bc/public/linphone-sdk/liblinphone_tester"
     - export LIBLINPHONE_DOCKER_TAG=$SDK_VERSION
@@ -326,6 +322,7 @@ tests-flexisip-mr:
     - find . -type f -name "core.flexisip*"
     - echo $FLEXISIP_DOCKER_IMAGE
     - echo $FLEXISIP_DOCKER_TAG
+    - echo $flexisip_docker_run_options
     - if [[ -n $(find . -type f -name "core.flexisip*") ]]; then find . -type f -name "core.flexisip*" | xargs -L1 docker run $flexisip_docker_run_options --entrypoint gdb "$FLEXISIP_DOCKER_IMAGE:$FLEXISIP_DOCKER_TAG" /opt/belledonne-communications/bin/flexisip -x gdb_options; fi || true
 
     # simplifing artifacts browsing
