@@ -34,7 +34,8 @@ RegistrarDbInternal::RegistrarDbInternal(Agent *ag) : RegistrarDb(ag) {
 	mWritable = true;
 }
 
-void RegistrarDbInternal::doBind(const sip_t *sip, int globalExpire, bool alias, int version, const shared_ptr<ContactUpdateListener> &listener) {
+void RegistrarDbInternal::doBind(const MsgSip &msg, int globalExpire, bool alias, int version, const shared_ptr<ContactUpdateListener> &listener) {
+	auto sip = msg.getSip();
 	SipUri fromUri;
 	try {
 		fromUri = SipUri(sip->sip_from->a_url);
@@ -116,7 +117,8 @@ void RegistrarDbInternal::doFetchInstance(const SipUri &url, const string &uniqu
 	listener->onRecordFound(retRecord);
 }
 
-void RegistrarDbInternal::doClear(const sip_t *sip, const shared_ptr<ContactUpdateListener> &listener) {
+void RegistrarDbInternal::doClear(const MsgSip &msg, const shared_ptr<ContactUpdateListener> &listener) {
+	auto sip = msg.getSip();
 	string key = Record::defineKeyFromUrl(sip->sip_from->a_url);
 
 	if (errorOnTooMuchContactInBind(sip->sip_contact, key, listener)) {
