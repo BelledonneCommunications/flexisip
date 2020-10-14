@@ -33,6 +33,9 @@ void MsgSip::assignMsg(msg_t *msg) {
 	mMsg = msg_ref_create(msg);
 }
 
+MsgSip::MsgSip() : mMsg{msg_create(sip_default_mclass(), 0)} {
+}
+
 MsgSip::MsgSip(msg_t *msg) {
 	assignMsg(msg);
 }
@@ -87,8 +90,7 @@ std::string MsgSip::printContext() const {
 }
 
 MsgSip::~MsgSip() {
-	// LOGD("Destroy MsgSip %p", this);
-	msg_destroy(mMsg);
+	msg_unref(mMsg);
 }
 
 SipEvent::SipEvent(const shared_ptr<IncomingAgent> &inAgent, const shared_ptr<MsgSip> &msgSip)

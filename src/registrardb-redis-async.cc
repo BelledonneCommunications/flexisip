@@ -686,10 +686,12 @@ void RegistrarDbRedisAsync::handleBind(redisReply *reply, RegistrarUserData *dat
 	}
 }
 
-void RegistrarDbRedisAsync::doBind(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) {
+void RegistrarDbRedisAsync::doBind(const MsgSip &msg, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) {
 	// Update the AOR Hashmap using HSET
 	// If there is an error, try again
 	// Once it is done, fetch all the contacts in the AOR and call the onRecordFound of the listener
+
+	auto sip = msg.getSip();
 
 	SipUri fromUri(sip->sip_from->a_url);
 
@@ -774,7 +776,8 @@ void RegistrarDbRedisAsync::parseAndClean(redisReply *reply, RegistrarUserData *
 	data->mRecord->clean(now, data->listener);
 }
 
-void RegistrarDbRedisAsync::doClear(const sip_t *sip, const shared_ptr<ContactUpdateListener> &listener) {
+void RegistrarDbRedisAsync::doClear(const MsgSip &msg, const shared_ptr<ContactUpdateListener> &listener) {
+	auto sip = msg.getSip();
 	try {
 		// Delete the AOR Hashmap using DEL
 		// Once it is done, fetch all the contacts in the AOR and call the onRecordFound of the listener ?

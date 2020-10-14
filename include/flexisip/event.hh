@@ -50,6 +50,7 @@ class MsgSip {
 	friend class OutgoingTransaction;
 
   public:
+	MsgSip();
 	MsgSip(msg_t *msg);
 	MsgSip(const MsgSip &msgSip);
 	~MsgSip();
@@ -67,7 +68,8 @@ class MsgSip {
 
   private:
 	void assignMsg(msg_t *msg);
-	msg_t *mMsg;
+
+	msg_t *mMsg{nullptr};
 };
 
 class SipEvent : public std::enable_shared_from_this<SipEvent> {
