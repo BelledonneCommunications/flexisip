@@ -354,7 +354,7 @@ void ProxyCommandLineInterface::handle_registrar_clear_command(unsigned int sock
 	auto sip = sip_object(msg);
 	sip->sip_from = sip_from_create(msg_home(msg), (url_string_t *)arg.c_str());
 	auto listener = std::make_shared<ClearListener>(this, socket, arg);
-	RegistrarDb::get()->clear(sip, listener);
+	RegistrarDb::get()->clear(MsgSip{msg}, listener);
 }
 
 void ProxyCommandLineInterface::parseAndAnswer(unsigned int socket, const std::string &command, const std::vector<std::string> &args) {

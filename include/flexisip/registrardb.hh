@@ -360,9 +360,9 @@ class RegistrarDb {
   public:
 	static RegistrarDb *initialize(Agent *ag);
 	static RegistrarDb *get();
-	void bind(const sip_t *sip, const BindingParameters &parameter, const std::shared_ptr<ContactUpdateListener> &listener);
+	void bind(const MsgSip &sipMsg, const BindingParameters &parameter, const std::shared_ptr<ContactUpdateListener> &listener);
 	void bind(const SipUri &from, const sip_contact_t *contact, const BindingParameters &parameter, const std::shared_ptr<ContactUpdateListener> &listener);
-	void clear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener);
+	void clear(const MsgSip &sip, const std::shared_ptr<ContactUpdateListener> &listener);
 	void fetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive = false);
 	void fetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive);
 	void fetchList(const std::vector<SipUri > urls, const std::shared_ptr<ListContactUpdateListener> &listener);
@@ -418,8 +418,8 @@ class RegistrarDb {
 		void unsubscribe(LocalRegExpireListener *listener);
 		void notifyLocalRegExpireListener(unsigned int count);
 	};
-	virtual void doBind(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
-	virtual void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
+	virtual void doBind(const MsgSip &sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
+	virtual void doClear(const MsgSip &sip, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
 	virtual void doFetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
 	virtual void doFetchInstance(const SipUri &url, const std::string &uniqueId, const std::shared_ptr<ContactUpdateListener> &listener) = 0;
 	virtual void doMigration() = 0;

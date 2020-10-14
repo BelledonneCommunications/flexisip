@@ -105,8 +105,8 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	bool disconnect();
 
   protected:
-	void doBind(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) override;
-	void doClear(const sip_t *sip, const std::shared_ptr<ContactUpdateListener> &listener) override;
+	void doBind(const MsgSip &msg, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) override;
+	void doClear(const MsgSip &msg, const std::shared_ptr<ContactUpdateListener> &listener) override;
 	void doFetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener) override;
 	void doFetchInstance(const SipUri &url, const std::string &uniqueId, const std::shared_ptr<ContactUpdateListener> &listener) override;
 	void doMigration() override;

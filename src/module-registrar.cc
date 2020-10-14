@@ -212,16 +212,15 @@ shared_ptr<ResponseContext> ResponseContext::createInTransaction(shared_ptr<Requ
 	return context;
 }
 
-ResponseContext::ResponseContext(shared_ptr<RequestSipEvent> &ev, int globalDelta)
-	: reqSipEvent(ev), mHome(ev->getMsgSip()->getHome()) {
+ResponseContext::ResponseContext(shared_ptr<RequestSipEvent> &ev, int globalDelta) : reqSipEvent{ev} {
 	sip_t *sip = ev->getMsgSip()->getSip();
-	mFrom = sip_from_dup(mHome, sip->sip_from);
-	mContacts = sip_contact_dup(mHome, sip->sip_contact);
+	mFrom = sip_from_dup(mHome.home(), sip->sip_from);
+	mContacts = sip_contact_dup(mHome.home(), sip->sip_contact);
 	for (sip_contact_t *it = mContacts; it; it = it->m_next) {
 		int cExpire = ExtendedContact::resolveExpire(it->m_expires, globalDelta);
-		it->m_expires = su_sprintf(mHome, "%d", cExpire);
+		it->m_expires = su_sprintf(mHome.home(), "%d", cExpire);
 	}
-	mPath = sip_path_dup(mHome, sip->sip_path);
+	mPath = sip_path_dup(mHome.home(), sip->sip_path);
 }
 
 bool ResponseContext::match(const shared_ptr<ResponseContext> &ctx, const char *fromtag) {
@@ -667,12 +666,12 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			mStats.mCountClear->incrStart();
 			LOGD("Clearing bindings");
 			listener->addStatCounter(mStats.mCountClear->finish);
-			RegistrarDb::get()->clear(sip, listener);
+			RegistrarDb::get()->clear(*ms, listener);
 			return;
 		} else {
 			if (sipurl.getUser().empty() && mAssumeUniqueDomains) {
 				/*first clear to make sure that there is only one record*/
-				RegistrarDb::get()->clear(sip, make_shared<FakeFetchListener>());
+				RegistrarDb::get()->clear(*ms, make_shared<FakeFetchListener>());
 			}
 			BindingParameters parameter;
 			auto listener =
@@ -683,7 +682,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			parameter.alias = false;
 			parameter.globalExpire = maindelta;
 			parameter.version = 0;
-			RegistrarDb::get()->bind(sip, parameter, listener);
+			RegistrarDb::get()->bind(*ms, parameter, listener);
 			return;
 		}
 	} else {
@@ -757,7 +756,7 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 			mStats.mCountClear->incrStart();
 			LOGD("Clearing bindings");
 			listener->addStatCounter(mStats.mCountClear->finish);
-			RegistrarDb::get()->clear(reSip, listener);
+			RegistrarDb::get()->clear(*reMs, listener);
 		} else {
 			BindingParameters parameter;
 			mStats.mCountBind->incrStart();
@@ -766,7 +765,7 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 			parameter.globalExpire = maindelta;
 			parameter.version = 0;
 			listener->addStatCounter(mStats.mCountBind->finish);
-			RegistrarDb::get()->bind(reSip, parameter, listener);
+			RegistrarDb::get()->bind(*reMs, parameter, listener);
 		}
 	}
 	if (reSip->sip_status->st_status >= 200) {
