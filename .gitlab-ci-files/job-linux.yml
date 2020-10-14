@@ -278,7 +278,7 @@ tests-flexisip-mr:
     # For each launched service, we print logs in seperate file with follow and timestamp options
     - |
         for service in $(docker-compose $docker_compose_options ps --services); do
-        echo service
+        echo $service
         docker-compose $docker_compose_options logs -f -t $service >> ${service}_stdout.log
         echo "docker-compose $docker_compose_options logs -f -t $service"
         done
