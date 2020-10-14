@@ -14,8 +14,14 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
 
-## [2.0.1] - 2020-10-13
 
+## [2.0.2] - 2020-10-14
+### [Fixed]
+- Fix a crash that occures when module::Registrar/reg-on-response feature is enabled. It happens
+  when the “200 Registration successful” response is received from the backend server.
+
+
+## [2.0.1] - 2020-10-13
 ### [Changed]
 - Usage of HTTP2 protocol to send Apple push notification requests. No
   change in PushNotification module configuration required.
@@ -27,8 +33,8 @@ Group changes to describe their impact on the project, as follows:
   the destination choosen by the MediaRelay's channels (when receiving a packet) for a minimum of 5 seconds. The switch to a new destination
   is allowed only if the previous destination has been unused over the last 5 seconds.
 
-## [2.0.0] – 2020-07-31
 
+## [2.0.0] – 2020-07-31
 ### [Added]
 **New settings**
  - `global/contextual-log-filter` ([Contextual log feature](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/C.%20Features/Contextual%20logs/))
@@ -100,7 +106,6 @@ Group changes to describe their impact on the project, as follows:
  - `module::Router/fork`
  - `module::Router/stateful`
  
-
 ### [Removed]
 **Removed settings**
  - `global/debug`
@@ -113,7 +118,6 @@ Group changes to describe their impact on the project, as follows:
  - `module::PushNotification/google`
  - `module::PushNotification/google-*`
    
-
 ### [Fixed]
 **Proxy**
  - Aborted calls not logged in the event log.
