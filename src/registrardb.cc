@@ -919,7 +919,7 @@ RegistrarDb *RegistrarDb::get() {
 	return sUnique;
 }
 
-void RegistrarDb::clear(const sip_t *sip, const shared_ptr<ContactUpdateListener> &listener) {
+void RegistrarDb::clear(const MsgSip &sip, const shared_ptr<ContactUpdateListener> &listener) {
 	doClear(sip, listener);
 }
 
@@ -1126,8 +1126,11 @@ void RegistrarDb::fetchList(const vector<SipUri> urls, const shared_ptr<ListCont
 	}
 }
 
-void RegistrarDb::bind(const sip_t *sip, const BindingParameters &parameter, const shared_ptr<ContactUpdateListener> &listener) {
-	sofiasip::Home home;
+void RegistrarDb::bind(const MsgSip &sipMsg, const BindingParameters &parameter, const shared_ptr<ContactUpdateListener> &listener) {
+	/* Copy the SIP message because the below code modifies the message whereas bind() API suggests that it don't. */
+	MsgSip msgCopy{sipMsg};
+	sip_t *sip = sipMsg.getSip();
+
 	bool gruu_assigned = false;
 	if (sip->sip_supported && sip->sip_contact->m_params) {
 		if (msg_params_find(sip->sip_supported->k_items, "gruu") != nullptr){
@@ -1135,8 +1138,8 @@ void RegistrarDb::bind(const sip_t *sip, const BindingParameters &parameter, con
 			if (instance_param) {
 				string gr = UriUtils::uniqueIdToGr(instance_param);
 				if (!gr.empty()){/* assign a public gruu address to this contact */
-					msg_header_replace_param(home.home(), (msg_common_t *) sip->sip_contact,
-						su_sprintf(home.home(), "pub-gruu=\"%s;gr=%s\"", url_as_string(home.home(), sip->sip_from->a_url), gr.c_str() ) );
+					msg_header_replace_param(sipMsg.getHome(), (msg_common_t *) sip->sip_contact,
+						su_sprintf(sipMsg.getHome(), "pub-gruu=\"%s;gr=%s\"", url_as_string(sipMsg.getHome(), sip->sip_from->a_url), gr.c_str() ) );
 					gruu_assigned = true;
 				}
 			}
@@ -1146,8 +1149,8 @@ void RegistrarDb::bind(const sip_t *sip, const BindingParameters &parameter, con
 		/* Set an empty pub-gruu meaning that this client hasn't requested any pub-gruu from this server.
 		 * This is to preserve compatibility with previous RegistrarDb storage, where only gr parameter was stored.
 		 * This couldn't work because a client can use a "gr" parameter in its contact uri.*/
-		msg_header_replace_param(home.home(), (msg_common_t *) sip->sip_contact,
-					su_sprintf(home.home(), "pub-gruu"));
+		msg_header_replace_param(sipMsg.getHome(), (msg_common_t *) sip->sip_contact,
+					su_sprintf(sipMsg.getHome(), "pub-gruu"));
 	}
 
 	int countSipContacts = this->countSipContacts(sip->sip_contact);
@@ -1157,13 +1160,13 @@ void RegistrarDb::bind(const sip_t *sip, const BindingParameters &parameter, con
 		return;
 	}
 
-	doBind(sip, parameter.globalExpire, parameter.alias, parameter.version, listener);
+	doBind(sipMsg, parameter.globalExpire, parameter.alias, parameter.version, listener);
 }
 
 void RegistrarDb::bind(const SipUri &from, const sip_contact_t *contact, const BindingParameters &parameter, const shared_ptr<ContactUpdateListener> &listener) {
-	msg_t *msg = msg_create(sip_default_mclass(), 0);
-	su_home_t *homeSip = msg_home(msg);
-	sip_t *sip = sip_object(msg);
+	MsgSip msg{};
+	auto *homeSip = msg.getHome();
+	auto *sip = msg.getSip();
 
 	sip->sip_contact = sip_contact_dup(homeSip, contact);
 
@@ -1187,9 +1190,7 @@ void RegistrarDb::bind(const SipUri &from, const sip_contact_t *contact, const B
 
 	sip->sip_expires = sip_expires_create(homeSip, 0);
 
-	bind(sip, parameter, listener);
-
-	msg_unref(msg);
+	bind(msg, parameter, listener);
 }
 
 class AgregatorRegistrarDbListener : public ContactUpdateListener {
