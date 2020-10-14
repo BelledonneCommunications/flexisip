@@ -273,7 +273,8 @@ tests-flexisip-mr:
     #   buggy or silent log artifacts
     # We output only liblinphone_tester on stdout
 
-    - docker-compose $docker_compose_options up -V --exit-code-from liblinphone_tester | grep 'liblinphone_tester_1' || EXIT=$?
+    #-V, --renew-anon-volumes   Recreate anonymous volumes instead of retrieving data from the previous containers.
+    - docker-compose --verbose $docker_compose_options up -V --exit-code-from liblinphone_tester | grep 'liblinphone_tester_1' || EXIT=$?
 
     # For each launched service, we print logs in seperate file with follow and timestamp options
     - |
