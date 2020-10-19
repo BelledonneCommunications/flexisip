@@ -455,11 +455,13 @@ ssize_t AppleClient::recv(nghttp2_session &session, uint8_t *data, size_t length
 }
 
 void AppleClient::onFrameSent(nghttp2_session &session, const nghttp2_frame &frame) noexcept {
-//	SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: " << Http2Tools::frameTypeToString(frame.hd.type) << " frame sent (" << frame.hd.length << "B)";
+	SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: " << Http2Tools::frameTypeToString(frame.hd.type) << " frame sent (" << frame.hd.length << "B):\n"
+		<< frame;
 }
 
 void AppleClient::onFrameRecv(nghttp2_session &session, const nghttp2_frame &frame) noexcept {
-//	SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: " << Http2Tools::frameTypeToString(frame.hd.type) << " frame received (" << frame.hd.length << "B)";
+	SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: " << Http2Tools::frameTypeToString(frame.hd.type) << " frame received (" << frame.hd.length << "B):\n"
+		<< frame;
 	switch (frame.hd.type) {
 		case NGHTTP2_SETTINGS:
 			if (mState == State::Connecting && (frame.hd.flags & NGHTTP2_FLAG_ACK) == 0) {
