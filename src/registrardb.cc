@@ -1129,7 +1129,7 @@ void RegistrarDb::fetchList(const vector<SipUri> urls, const shared_ptr<ListCont
 void RegistrarDb::bind(const MsgSip &sipMsg, const BindingParameters &parameter, const shared_ptr<ContactUpdateListener> &listener) {
 	/* Copy the SIP message because the below code modifies the message whereas bind() API suggests that it don't. */
 	MsgSip msgCopy{sipMsg};
-	sip_t *sip = sipMsg.getSip();
+	sip_t *sip = msgCopy.getSip();
 
 	bool gruu_assigned = false;
 	if (sip->sip_supported && sip->sip_contact->m_params) {
@@ -1138,8 +1138,8 @@ void RegistrarDb::bind(const MsgSip &sipMsg, const BindingParameters &parameter,
 			if (instance_param) {
 				string gr = UriUtils::uniqueIdToGr(instance_param);
 				if (!gr.empty()){/* assign a public gruu address to this contact */
-					msg_header_replace_param(sipMsg.getHome(), (msg_common_t *) sip->sip_contact,
-						su_sprintf(sipMsg.getHome(), "pub-gruu=\"%s;gr=%s\"", url_as_string(sipMsg.getHome(), sip->sip_from->a_url), gr.c_str() ) );
+					msg_header_replace_param(msgCopy.getHome(), (msg_common_t *) sip->sip_contact,
+						su_sprintf(msgCopy.getHome(), "pub-gruu=\"%s;gr=%s\"", url_as_string(msgCopy.getHome(), sip->sip_from->a_url), gr.c_str() ) );
 					gruu_assigned = true;
 				}
 			}
@@ -1149,8 +1149,8 @@ void RegistrarDb::bind(const MsgSip &sipMsg, const BindingParameters &parameter,
 		/* Set an empty pub-gruu meaning that this client hasn't requested any pub-gruu from this server.
 		 * This is to preserve compatibility with previous RegistrarDb storage, where only gr parameter was stored.
 		 * This couldn't work because a client can use a "gr" parameter in its contact uri.*/
-		msg_header_replace_param(sipMsg.getHome(), (msg_common_t *) sip->sip_contact,
-					su_sprintf(sipMsg.getHome(), "pub-gruu"));
+		msg_header_replace_param(msgCopy.getHome(), (msg_common_t *) sip->sip_contact,
+					su_sprintf(msgCopy.getHome(), "pub-gruu"));
 	}
 
 	int countSipContacts = this->countSipContacts(sip->sip_contact);
@@ -1160,7 +1160,7 @@ void RegistrarDb::bind(const MsgSip &sipMsg, const BindingParameters &parameter,
 		return;
 	}
 
-	doBind(sipMsg, parameter.globalExpire, parameter.alias, parameter.version, listener);
+	doBind(msgCopy, parameter.globalExpire, parameter.alias, parameter.version, listener);
 }
 
 void RegistrarDb::bind(const SipUri &from, const sip_contact_t *contact, const BindingParameters &parameter, const shared_ptr<ContactUpdateListener> &listener) {
