@@ -470,7 +470,17 @@ void AppleClient::onFrameRecv(nghttp2_session &session, const nghttp2_frame &fra
 			}
 			break;
 		case NGHTTP2_GOAWAY: {
-			SLOGD << mLogPrefix << ": GOAWAY frame received. Scheduling connection closing";
+			ostringstream msg{};
+			msg << mLogPrefix << ": GOAWAY frame received, errorCode=[" << frame.goaway.error_code << "], lastStreamId=["
+				<< frame.goaway.last_stream_id << "]:";
+			if (frame.goaway.opaque_data_len > 0) {
+				msg << endl;
+				msg.write(reinterpret_cast<const char *>(frame.goaway.opaque_data), frame.goaway.opaque_data_len);
+			} else {
+				msg << " <empty>";
+			}
+			SLOGD << msg.str();
+			SLOGD << "Scheduling connection closing";
 			mLastSID = frame.goaway.last_stream_id;
 			break;
 		}

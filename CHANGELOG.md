@@ -14,6 +14,10 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
 
+## Unreleased
+### [Fixed]
+- Apple push notification client: the body of HTTP/2 GOAWAY frames wasn't printed in log, which
+  doesn't allow to know the disconnection reason.
 
 ## [2.0.2] - 2020-10-14
 ### [Fixed]
