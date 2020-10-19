@@ -50,6 +50,9 @@ public:
 	TlsConnection(const TlsConnection &) = delete;
 	TlsConnection(TlsConnection &&) = delete;
 
+	const std::string &getHost() const noexcept {return mHost;}
+	const std::string &getPort() const noexcept {return mPort;}
+
 	void connect() noexcept;
 	void disconnect() noexcept {mBio.reset();}
 	void resetConnection() noexcept;

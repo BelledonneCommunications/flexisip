@@ -92,6 +92,7 @@ private:
 		HeaderStore(HeaderStore &&) = default;
 
 		void add(std::string name, std::string value, uint8_t flags = NGHTTP2_FLAG_NONE) noexcept;
+		std::string toString() const noexcept;
 
 		CHeaderList makeHeaderList() const noexcept;
 
