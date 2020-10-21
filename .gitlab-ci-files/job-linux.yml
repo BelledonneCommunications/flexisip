@@ -158,9 +158,9 @@ tests-flexisip-mr:
     #Set this option to true each time you change the commit to checkout for
     #  linphone-sdk, otherwise, the SDK is never rebuild. default = true
     REBUILD_SDK: "false"
-    SDK_VERSION: "4.3.3-46-g20b27fd"
-    SDK_BRANCH: "release/4.3"
-    FLEXISIP_TESTER_BRANCH: "master"
+    SDK_VERSION: "4.5.0-alpha-203-gde8cf76"
+    FLEXISIP_TESTER_VERSION: "1.0.0-alpha"
+    FLEXISIP_TESTER_BRANCH: "feature/enable_external_domain_tester"
 
     # uses flex-from-src instead of basic rpm dockerfile
     DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip:latest -f docker/flex-from-src --build-arg=njobs=12"
@@ -187,22 +187,29 @@ tests-flexisip-mr:
     - export COMPOSE_PROJECT_NAME=$RANDOM
     - echo $COMPOSE_PROJECT_NAME
 
-    - echo $SDK_BRANCH
+    - echo "Liblinphone tester version:" $SDK_BRANCH
+    - echo "Flexisip tester version:" $FLEXISIP_TESTER_VERSION
     - echo $liblinphone_tester
     - echo $sourcedir
     - echo $workspace
 
     - |
         if [ "$REBUILD_SDK" = "true" ]; then
-        git clone -b feature/docker_liblinphone_tester --single-branch https://gitlab.linphone.org/BC/Public/linphone-sdk --recursive --jobs 12 linphone-sdk-docker
+        git clone https://gitlab.linphone.org/BC/Public/linphone-sdk --recursive --jobs 12 linphone-sdk-docker
+        cd linphone-sdk-docker
+        git checkout ${FLEXISIP_TESTER_VERSION}
+        cd -
         docker build -t $liblinphone_tester --build-arg="branch=$SDK_BRANCH" --build-arg="njobs=8" -f "$PWD/linphone-sdk-docker/liblinphone-tester" .
         fi
-    - id
     - git clone -b $FLEXISIP_TESTER_BRANCH --single-branch git@gitlab.linphone.org:BC/Public/flexisip-tester --jobs 12
-    - echo $FLEXISIP_DOCKER_IMAGE
-    - echo $FLEXISIP_DOCKER_TAG
-    - export LIBLINPHONE_DOCKER_IMAGE="gitlab.linphone.org:4567/bc/public/linphone-sdk/liblinphone_tester"
+    - export FLEXISIP_DOCKER_IMAGE="gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src"
+    - export FLEXISIP_DOCKER_TAG="$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA"
+    - export LIBLINPHONE_DOCKER_IMAGE="liblinphone_tester_for_flexisip"
+
+
+
     - export LIBLINPHONE_DOCKER_TAG=$SDK_VERSION
+    - export LIME_SERVER_VERSION="1.0-26.el7"
 
     - |
         if [ -z $workspace ]; then
@@ -240,7 +247,7 @@ tests-flexisip-mr:
     #   in the ways specified with docker docs (either OR or AND, depending on key)
 
     - |
-        docker_compose_options=''
+        docker_compose_options='--env-file /dev/null'
         for name in 'docker-compose.yaml' 'docker-compose-standalone.yaml'; do
         docker_compose_options="$docker_compose_options -f ${CI_PROJECT_DIR}/flexisip-tester/docker/$name"
         done
@@ -256,6 +263,7 @@ tests-flexisip-mr:
     #########################################################
 
     - export FLEXISIP_LOGS="$workspace"
+    - export LIBLINPHONE_LOGS="$workspace"
 
     - export FLEXISIP_WORKSPACE="$workspace"
 
@@ -274,6 +282,7 @@ tests-flexisip-mr:
     # We output only liblinphone_tester on stdout
 
     #-V, --renew-anon-volumes   Recreate anonymous volumes instead of retrieving data from the previous containers.
+    #--exit-code-from Exits with the return code from the specified container (implies --abort-on-container-exit)
     - docker-compose $docker_compose_options up -V --exit-code-from liblinphone_tester | grep 'liblinphone_tester_1' || EXIT=$?
 
     # For each launched service, we print logs in seperate file with follow and timestamp options
@@ -299,6 +308,9 @@ tests-flexisip-mr:
     - exit $EXIT
 
   after_script:
+
+
+    - docker image ls
 
     #content of $workspace (set like this because the variable can't be resolved here)
     - cd ${CI_PROJECT_DIR}/liblinphone_tester_workspace
