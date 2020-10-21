@@ -158,8 +158,7 @@ tests-flexisip-mr:
     #Set this option to true each time you change the commit to checkout for
     #  linphone-sdk, otherwise, the SDK is never rebuild. default = true
     REBUILD_SDK: "false"
-    SDK_VERSION: "4.3.3-46-g20b27fd"
-    SDK_BRANCH: "release/$SDK_VERSION"
+    SDK_VERSION: "master"
 
     # uses flex-from-src instead of basic rpm dockerfile
     DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip:latest -f docker/flex-from-src --build-arg=njobs=12"
@@ -191,10 +190,10 @@ tests-flexisip-mr:
         git clone -b feature/docker_liblinphone_tester --single-branch https://gitlab.linphone.org/BC/Public/linphone-sdk --recursive --jobs 12 linphone-sdk-docker
         docker build -t $liblinphone_tester --build-arg="branch=$SDK_BRANCH" --build-arg="njobs=8" -f "$PWD/linphone-sdk-docker/liblinphone-tester" .
         fi
-    - git clone -b master --single-branch git@gitlab.linphone.org:BC/Public/flexisip-tester --jobs 12
+    - git clone -b feature/enable_external_domain_tester --single-branch git@gitlab.linphone.org:BC/Public/flexisip-tester --jobs 12
     - export FLEXISIP_DOCKER_IMAGE="gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src"
     - export FLEXISIP_DOCKER_TAG="$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA"
-    - export LIBLINPHONE_DOCKER_IMAGE="gitlab.linphone.org:4567/bc/public/linphone-sdk/liblinphone_tester"
+    - export LIBLINPHONE_DOCKER_IMAGE="liblinphone_tester_for_flexisip"
     - export LIBLINPHONE_DOCKER_TAG=$SDK_VERSION
 
     - |
