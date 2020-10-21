@@ -28,8 +28,8 @@ include:
 
 
 stages:
- - build
+# - build
  - test
- - package
- - image
- - deploy
+# - package
+# - image
+# - deploy
