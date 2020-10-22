@@ -160,7 +160,7 @@ tests-flexisip-mr:
     REBUILD_SDK: "false"
     SDK_VERSION: "4.3.3-46-g20b27fd"
     SDK_BRANCH: "release/4.3"
-    FLEXISIP_TESTER_BRANCH: "feature/ci_print_flexisip_stacktrace"
+    FLEXISIP_TESTER_BRANCH: "master"
 
     # uses flex-from-src instead of basic rpm dockerfile
     DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip:latest -f docker/flex-from-src --build-arg=njobs=12"
