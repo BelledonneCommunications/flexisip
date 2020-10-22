@@ -209,6 +209,14 @@ void AppleClient::HeaderStore::add(std::string name, std::string value, uint8_t 
 	it->flags = flags;
 }
 
+std::string AppleClient::HeaderStore::toString() const noexcept {
+	ostringstream os{};
+	for (const auto &h : mHList) {
+		os << h.name << " = " << h.value << endl;
+	}
+	return os.str();
+}
+
 std::vector<nghttp2_nv> AppleClient::HeaderStore::makeHeaderList() const noexcept {
 	CHeaderList cHList{};
 	cHList.reserve(mHList.size());
@@ -363,23 +371,24 @@ void AppleClient::disconnect() {
 }
 
 bool AppleClient::sendAllPendingPNRs() {
-	constexpr auto host = "api.push.apple.com";
-
 	while (!mPendingPNRs.empty()) {
 		auto appleReq = move(mPendingPNRs.front());
 		mPendingPNRs.pop();
 
+		auto host = mConn->getPort() == "443"
+			? mConn->getHost()
+			: mConn->getHost() + ":" + mConn->getPort();
 		auto path = string{"/3/device/"} + appleReq->getDeviceToken();
 		auto topicLen = appleReq->getAppIdentifier().rfind(".", string::npos);
 		auto apnsTopic = appleReq->getAppIdentifier().substr(0, topicLen);
 
 		HeaderStore hStore{};
-		hStore.add( ":method"         , "POST"    );
-		hStore.add( ":scheme"         , "https"   );
-		hStore.add( ":path"           , path      );
-		hStore.add( "host"            , host      );
-		hStore.add( "apns-expiration" , "0"       );
-		hStore.add( "apns-topic"      , apnsTopic );
+		hStore.add( ":method"         , "POST"     );
+		hStore.add( ":scheme"         , "https"    );
+		hStore.add( ":path"           , move(path) );
+		hStore.add( "host"            , move(host) );
+		hStore.add( "apns-expiration" , "0"        );
+		hStore.add( "apns-topic"      , apnsTopic  );
 		auto hList = hStore.makeHeaderList();
 
 		DataProvider dataProv{appleReq->getData()};
@@ -390,7 +399,12 @@ bool AppleClient::sendAllPendingPNRs() {
 		}
 		auto logPrefix = string{mLogPrefix} + "[" + to_string(streamId) + "]";
 
-		SLOGD << logPrefix << ": sending PNR " << appleReq;
+		ostringstream msg{};
+		msg << logPrefix << ": sending PNR " << appleReq << ":\n"
+			<< hStore.toString() << endl;
+		msg.write(appleReq->getData().data(), appleReq->getData().size());
+		SLOGD << msg.str();
+
 		auto status = nghttp2_session_send(mHttpSession.get());
 		if (status < 0) {
 			SLOGE << logPrefix << ": push request sending failed. reason=[" << nghttp2_strerror(status) << "]";
@@ -455,11 +469,11 @@ ssize_t AppleClient::recv(nghttp2_session &session, uint8_t *data, size_t length
 }
 
 void AppleClient::onFrameSent(nghttp2_session &session, const nghttp2_frame &frame) noexcept {
-//	SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: " << Http2Tools::frameTypeToString(frame.hd.type) << " frame sent (" << frame.hd.length << "B)";
+// 	SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: frame sent (" << frame.hd.length << "B):\n" << frame;
 }
 
 void AppleClient::onFrameRecv(nghttp2_session &session, const nghttp2_frame &frame) noexcept {
-//	SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: " << Http2Tools::frameTypeToString(frame.hd.type) << " frame received (" << frame.hd.length << "B)";
+// 	SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: frame received (" << frame.hd.length << "B):\n" << frame;
 	switch (frame.hd.type) {
 		case NGHTTP2_SETTINGS:
 			if (mState == State::Connecting && (frame.hd.flags & NGHTTP2_FLAG_ACK) == 0) {
