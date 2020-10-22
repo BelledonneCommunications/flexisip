@@ -160,7 +160,7 @@ tests-flexisip-mr:
     REBUILD_SDK: "false"
     SDK_VERSION: "4.3.3-46-g20b27fd"
     SDK_BRANCH: "release/4.3"
-    FLEXISIP_TESTER_BRANCH: "feature/ci_print_flexisip_stacktrace"
+    FLEXISIP_TESTER_BRANCH: "master"
 
     # uses flex-from-src instead of basic rpm dockerfile
     DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip:latest -f docker/flex-from-src --build-arg=njobs=12"
@@ -274,7 +274,7 @@ tests-flexisip-mr:
     # We output only liblinphone_tester on stdout
 
     #-V, --renew-anon-volumes   Recreate anonymous volumes instead of retrieving data from the previous containers.
-    - docker-compose --verbose $docker_compose_options up -V --exit-code-from liblinphone_tester | grep 'liblinphone_tester_1' || EXIT=$?
+    - docker-compose $docker_compose_options up -V --exit-code-from liblinphone_tester | grep 'liblinphone_tester_1' || EXIT=$?
 
     # For each launched service, we print logs in seperate file with follow and timestamp options
     - |
