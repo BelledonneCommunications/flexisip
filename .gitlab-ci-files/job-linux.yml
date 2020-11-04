@@ -323,7 +323,7 @@ tests-flexisip-mr:
     # args to the entrypoint command.
     # "|| true " is used here to continue the script even if the find fails
 
-    - find . -type f -name "core.liblin*" | grep . || FIND_EXIT=$?
+    - find . -type f -name "core.liblin*" | grep .; FIND_EXIT=$?
     - echo $FIND_EXIT
     - if [[ $FIND_EXIT = 0 ]]; then find . -type f -name "core.liblin*" | xargs -L1 docker run $docker_run_options --entrypoint gdb "$LIBLINPHONE_DOCKER_IMAGE:$LIBLINPHONE_DOCKER_TAG" ../bin/liblinphone_tester -x gdb_options; fi || true
     - unset FIND_EXIT
@@ -336,7 +336,7 @@ tests-flexisip-mr:
     - echo $FLEXISIP_DOCKER_TAG
     - echo $flexisip_docker_run_options
 
-    - find . -type f -name "core.flexisip*" | grep . || FIND_EXIT=$?
+    - find . -type f -name "core.flexisip*" | grep .; FIND_EXIT=$?
     - echo $FIND_EXIT
     - if [[ $FIND_EXIT = 0 ]]; then find . -type f -name "core.flexisip*" | xargs -L1 docker run $flexisip_docker_run_options --entrypoint gdb "$FLEXISIP_DOCKER_IMAGE:$FLEXISIP_DOCKER_TAG" /opt/belledonne-communications/bin/flexisip -x gdb_options; fi || true
 
