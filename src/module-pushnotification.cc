@@ -547,20 +547,23 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 		const url_t *url = sip->sip_request->rq_url;
 		char const *params = url->url_params;
 
-		if (url_has_param(url, "pn-provider")) {
+		if (url_has_param(url, "pn-provider")) { // RFC8599
 			try {
 				parsePushParams(ms, params, pinfo);
 			} catch (const runtime_error &e) {
-				SLOGE << "Error while parsing Contact URI: " << e.what();
+				SLOGE << "Error while parsing push notification parameters from request-uri: " << e.what();
 				return;
 			}
-		} else {
+		} else if (url_has_param(url, "pn-tok")){ // Flexisip and Linphone legacy parameters
 			try {
 				parseLegacyPushParams(ms, params, pinfo);
 			} catch (const runtime_error &e) {
-				SLOGE << "Error while parsing Contact URI: " << e.what();
+				SLOGE << "Error while parsing lecacy push notification parameters from request-uri: " << e.what();
 				return;
 			}
+		}else {
+			LOGD("Request has no push notification parameters. Destination client probably didn't submitted them in REGISTER.");
+			return;
 		}
 
 		// Extract the unique id if possible.

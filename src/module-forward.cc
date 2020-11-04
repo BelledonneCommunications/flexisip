@@ -130,24 +130,25 @@ bool ForwardModule::isAClusterNode(const url_t *url){
 url_t *ForwardModule::overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 
-	if (mOutRoute) {
-		sip_t *sip = ms->getSip();
-		url_t *req_url = sip->sip_request->rq_url;
-		for (sip_via_t *via = sip->sip_via; via != nullptr; via = via->v_next) {
-			if (urlViaMatch(mOutRoute->r_url, sip->sip_via, false)) {
-				SLOGD << "Found forced outgoing route in via, skipping";
-				return dest;
+	if (!urlIsResolved(dest)){
+		if (mOutRoute) {
+			sip_t *sip = ms->getSip();
+			url_t *req_url = sip->sip_request->rq_url;
+			for (sip_via_t *via = sip->sip_via; via != nullptr; via = via->v_next) {
+				if (urlViaMatch(mOutRoute->r_url, sip->sip_via, false)) {
+					SLOGD << "Found forced outgoing route in via, skipping";
+					return dest;
+				}
 			}
-		}
-		if(!urlIsResolved(req_url)) {
-			dest = mOutRoute->r_url;
-			if(mRewriteReqUri) {
-				*req_url = *dest;
+			if(!urlIsResolved(req_url)) {
+				dest = mOutRoute->r_url;
+				if(mRewriteReqUri) {
+					*req_url = *dest;
+				}
 			}
+		}else if (!mDefaultTransport.empty() && dest->url_type == url_sip && !url_has_param(dest, "transport") ){
+			url_param_add(ev->getHome(), dest, mDefaultTransport.c_str());
 		}
-	}
-	if (!urlIsResolved(dest) && !mDefaultTransport.empty() && dest->url_type == url_sip && !url_has_param(dest, "transport") ){
-		url_param_add(ev->getHome(), dest, mDefaultTransport.c_str());
 	}
 	return dest;
 }
