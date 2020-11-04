@@ -158,13 +158,13 @@ tests-flexisip-mr:
     #Set this option to true each time you change the commit to checkout for
     #  linphone-sdk, otherwise, the SDK is never rebuild. default = true
     REBUILD_SDK: "false"
-    SDK_VERSION: "4.5.0-alpha-203-gde8cf76"
+    LIBLINPHONE_DOCKER_IMAGE: liblinphone_tester_for_flexisip
+    LIBLINPHONE_DOCKER_TAG: "4.5.0-alpha-203-gde8cf76"
     FLEXISIP_TESTER_VERSION: "1.0.0-alpha"
     FLEXISIP_TESTER_BRANCH: "feature/enable_external_domain_tester"
 
     # uses flex-from-src instead of basic rpm dockerfile
     DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip:latest -f docker/flex-from-src --build-arg=njobs=12"
-    liblinphone_tester: "gitlab.linphone.org:4567/bc/public/linphone-sdk/liblinphone_tester:$SDK_VERSION"
     sourcedir: ${CI_PROJECT_DIR}/linphone-sdk-docker
     workspace: "${CI_PROJECT_DIR}/liblinphone_tester_workspace"
 
@@ -202,13 +202,11 @@ tests-flexisip-mr:
         docker build -t $liblinphone_tester --build-arg="branch=$SDK_BRANCH" --build-arg="njobs=8" -f "$PWD/linphone-sdk-docker/liblinphone-tester" .
         fi
     - git clone -b $FLEXISIP_TESTER_BRANCH --single-branch git@gitlab.linphone.org:BC/Public/flexisip-tester --jobs 12
+
     - export FLEXISIP_DOCKER_IMAGE="gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src"
     - export FLEXISIP_DOCKER_TAG="$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA"
-    - export LIBLINPHONE_DOCKER_IMAGE="liblinphone_tester_for_flexisip"
-
-
-
-    - export LIBLINPHONE_DOCKER_TAG=$SDK_VERSION
+    - export LIBLINPHONE_DOCKER_IMAGE=$LIBLINPHONE_DOCKER_IMAGE
+    - export LIBLINPHONE_DOCKER_TAG=$LIBLINPHONE_DOCKER_TAG
     - export LIME_SERVER_VERSION="1.0-26.el7"
 
     - |
@@ -323,11 +321,11 @@ tests-flexisip-mr:
     # The docker syntax is error proning : to override the entrypoint with
     # args, we enter the entrypoint first, then the name of the image, then the
     # args to the entrypoint command.
-    # "true ||" is used here to continue the script even if the find fails
+    # "|| true " is used here to continue the script even if the find fails
 
     - find . -type f -name "core.liblin*" | grep . || FIND_EXIT=$?
     - echo $FIND_EXIT
-    - if [[ $FIND_EXIT = 0 ]]; then find . -type f -name "core.liblin*" | xargs -L1 docker run $docker_run_options --entrypoint gdb $liblinphone_tester ../bin/liblinphone_tester -x gdb_options; fi || true
+    - if [[ $FIND_EXIT = 0 ]]; then find . -type f -name "core.liblin*" | xargs -L1 docker run $docker_run_options --entrypoint gdb "$LIBLINPHONE_DOCKER_IMAGE:$LIBLINPHONE_DOCKER_TAG" ../bin/liblinphone_tester -x gdb_options; fi || true
     - unset FIND_EXIT
     # we specify commands to launch for each coredump of flexisip_tester
     - echo "set debug-file-directory /opt/belledonne-communications/lib" | tee gdb_options
