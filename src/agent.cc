@@ -160,6 +160,7 @@ void Agent::checkAllowedParams(const url_t *uri) {
 	params = url_strip_param_string(params, "require-peer-certificate");
 	params = url_strip_param_string(params, "maddr");
 	params = url_strip_param_string(params, "tls-verify-incoming");
+	params = url_strip_param_string(params, "tls-allow-missing-client-certificate");
 	params = url_strip_param_string(params, "tls-verify-outgoing");
 	// make sure that there is no misstyped params in the url:
 	if (params && strlen(params) > 0) {
@@ -334,6 +335,10 @@ void Agent::start(const string &transport_override, const string &passphrase) {
 
 			if (getBoolUriParameter(url, "tls-verify-incoming", false) || getBoolUriParameter(url, "require-peer-certificate", false)){
 				tls_policy |= TPTLS_VERIFY_INCOMING;
+			}
+
+			if (getBoolUriParameter(url, "tls-allow-missing-client-certificate", false)){
+				tls_policy |= TPTLS_VERIFY_ALLOW_MISSING_CERT_IN;
 			}
 
 			if (getBoolUriParameter(url, "tls-verify-outgoing", true)){
