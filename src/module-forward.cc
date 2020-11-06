@@ -81,8 +81,13 @@ ForwardModule::~ForwardModule() {
 
 void ForwardModule::onDeclare(GenericStruct *module_config) {
 	ConfigItemDescriptor items[] = {
-		{String, "route", "A SIP URI representing a default where to send all requests not already resolved. This is "
-			"the typical way to setup a Flexisip proxy server acting as a front-end for backend SIP server.", ""},
+		{String, "route", "A route header value where to send all requests not already resolved by the Router module "
+			"(ie for which contact information has been found from the registrar database). This is "
+			"the typical way to setup a Flexisip proxy server acting as a front-end for backend SIP server."
+			"Pay attention that is not just a SIP URI, but a route. As a result, when the URI has parameters, "
+			"brakets must enclose the URI, otherwise the parameters will be parsed as route parameters.\n"
+			"For example:\n"
+			"route=<sip:192.168.0.10;transport=tcp>", ""},
 		{Boolean, "add-path", "Add a path header of this proxy", "true"},
 		{Boolean, "rewrite-req-uri", "Rewrite request-uri's host and port according to above route", "false"},
 		{String, "default-transport", "For SIP URIs, in asbsence of transport parameter, assume the given transport "
