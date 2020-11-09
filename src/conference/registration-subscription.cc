@@ -107,6 +107,7 @@ void OwnRegistrationSubscription::processRecord(const shared_ptr<Record> &r){
 			if (RegistrationEvent::Utils::isContactCompatible(mServer, mChatRoom, ec->getOrgLinphoneSpecs())) {
 				shared_ptr<ParticipantDeviceIdentity> identity = Factory::get()->createParticipantDeviceIdentity(
 					addr, RegistrationEvent::Utils::getDeviceName(ec));
+				identity->setCapabilityDescriptor(ec->getOrgLinphoneSpecs());
 				compatibleParticipantDevices.push_back(identity);
 			} else LOGD("OwnRegistrationSubscription::processRecord(): %s does not have the required capabilities.", addr->asStringUriOnly().c_str());
 		}

@@ -68,7 +68,7 @@ void Client::onNotifyReceived(
                         partDeviceAddr,
                         displayName
                     );
-
+			identity->setCapabilityDescriptor(param);
                     participantDevices.push_back(identity);
                     break;
                 }
