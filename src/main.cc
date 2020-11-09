@@ -993,7 +993,7 @@ int main(int argc, char *argv[]) {
 #endif // ENABLE_CONFERENCE
 	}
 
-	su_root_run(root);
+	if (run) su_root_run(root);
 
 	a->unloadConfig();
 	a.reset();
