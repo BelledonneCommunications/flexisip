@@ -281,15 +281,28 @@ tests-flexisip-mr:
 
     #-V, --renew-anon-volumes   Recreate anonymous volumes instead of retrieving data from the previous containers.
     #--exit-code-from Exits with the return code from the specified container (implies --abort-on-container-exit)
-    - docker-compose $docker_compose_options up -V --exit-code-from liblinphone_tester | grep 'liblinphone_tester_1' || EXIT=$?
+    - docker-compose $docker_compose_options up -V --exit-code-from liblinphone_tester |& tee logs_all | grep 'liblinphone_tester_1' || EXIT=$?
 
     # For each launched service, we print logs in seperate file with follow and timestamp options
+    #- |
+    #    for service in $(docker-compose $docker_compose_options ps --services); do
+    #    echo $service
+    #    docker-compose $docker_compose_options logs -f -t $service >> $# {service}_stdout.log
+    #    echo "docker-compose $docker_compose_options logs -f -t $service"
+    #    done
+
+    #docker-compose logs aren't used anymore because of bad performance
+    #the logs were converted by docker in json format, then reconverted to txt, which is useless (doing this made the job last for 20-30 minutes for 9 minutes of tests)
+
     - |
         for service in $(docker-compose $docker_compose_options ps --services); do
         echo $service &
-        docker-compose $docker_compose_options logs -f -t $service >> ${service}_stdout.log &
-        echo "docker-compose $docker_compose_options logs -f -t $service" &
+        grep $service logs_all >> $ {service}_stdout.log &
+        echo "grep $service logs_all" &
         done
+
+    #we wait for each grep to end before stopping containers
+    - wait
 
     # The sleep was removed because we now wait for the db socket to open (in compose file) before launching tests
 
