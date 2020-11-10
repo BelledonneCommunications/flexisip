@@ -25,7 +25,7 @@ namespace RegistrationEvent {
             const shared_ptr<Event> & lev,
             const string & subscribeEvent,
             const shared_ptr<const Content> & body
-        ) override;
+        ) noexcept override;
 
     protected:
         void _init () override;

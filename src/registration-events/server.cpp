@@ -20,7 +20,7 @@ void Server::onSubscribeReceived(
     const shared_ptr<Event> & lev,
     const string & subscribeEvent,
     const shared_ptr<const Content> & body
-) {
+) noexcept {
     string eventHeader = lev->getName();
     if (eventHeader != "reg") {
         lev->denySubscription(Reason::BadEvent);
@@ -35,10 +35,13 @@ void Server::onSubscribeReceived(
 
     auto listener = make_shared<Registrar::Listener>(lev);
 
-    SipUri url{lev->getTo()->asString()};
-
-    RegistrarDb::get()->subscribe(url, listener);
-    RegistrarDb::get()->fetch(url, listener, true);
+	try {
+		SipUri url{lev->getTo()->asStringUriOnly()};
+		RegistrarDb::get()->subscribe(url, listener);
+		RegistrarDb::get()->fetch(url, listener, true);
+	} catch (const sofiasip::InvalidUrlError &e) {
+		SLOGE << "invalid URI in 'To' header: " << e.getUrl();
+	}
 }
 
 void Server::_init () {
