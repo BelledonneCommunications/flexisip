@@ -282,7 +282,7 @@ tests-flexisip-mr:
 
     #-V, --renew-anon-volumes   Recreate anonymous volumes instead of retrieving data from the previous containers.
     #--exit-code-from Exits with the return code from the specified container (implies --abort-on-container-exit)
-    - docker-compose $docker_compose_options up -V --exit-code-from liblinphone_tester |& tee logs_all | grep 'liblinphone_tester_1' || EXIT=$?
+    - docker-compose $docker_compose_options up --build -V --exit-code-from liblinphone_tester |& tee logs_all | grep 'liblinphone_tester_1' || EXIT=$?
 
     # For each launched service, we print logs in seperate file with follow and timestamp options
     #- |
