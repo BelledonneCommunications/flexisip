@@ -160,7 +160,7 @@ tests-flexisip-mr:
     REBUILD_SDK: "false"
     LIBLINPHONE_DOCKER_IMAGE: liblinphone_tester_for_flexisip
     #LIBLINPHONE_DOCKER_TAG: "4.5.0-alpha-203-gde8cf76"
-    LIBLINPHONE_DOCKER_TAG: "release/4.4"
+    LIBLINPHONE_DOCKER_TAG: "4.4.6"
     FLEXISIP_TESTER_VERSION: "1.0.0-alpha"
     FLEXISIP_TESTER_BRANCH: "feature/enable_external_domain_tester"
 
