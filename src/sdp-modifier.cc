@@ -152,8 +152,17 @@ bool SdpMasqueradeContext::updateIceFromAnswer(sdp_session_t* session, sdp_media
 				}
 			break;
 			case IceCompleted:
-				/*case of a stream that is declined*/
-				if (!hasCandidates(mline)) mIceState = IceNone;
+				if (!hasCandidates(mline)) {
+					/*case of a stream that is declined*/
+					mIceState = IceNone;
+				}
+				else if (ufrag != mIceUfrag || passwd != mIcePasswd){
+					/*ICE restart*/
+					mIceState = IceCompleted; /* no op*/
+					needsCandidates = true;
+					LOGD("Ice restart detected ufrag %s->%s pwd %s->%s",
+						mIceUfrag.c_str(), ufrag.c_str(), mIcePasswd.c_str(), passwd.c_str());
+				}
 			break;
 		}
 		mIceUfrag = ufrag;
@@ -474,6 +483,7 @@ void SdpModifier::addIceCandidate(std::function< const RelayTransport *(int )> g
 				mline->m_port=(unsigned long)rt->mRtpPort;
 				changeRtcpAttr(mline, relayAddr, rt->mRtcpPort, isIP6);
 			}
+			LOGD("rt= %s %s", rt->mIpv6Address.c_str(), rt->mIpv4Address.c_str());
 
 			for (uint16_t componentID=1; componentID<=2; componentID++) {
 				int port = componentID == 1 ? rt->mRtpPort : rt->mRtcpPort;
