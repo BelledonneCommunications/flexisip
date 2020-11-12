@@ -181,9 +181,9 @@ tests-flexisip-mr:
     #   are extended in "script".
 
     #LIME_SERVER_VERSION: "1.0-26.el7"
-    LIME_SERVER_VERSION: "latest"
-    ACCOUNT_MANAGER_VERSION: "latest"
-    FILE_TRANFER_SERVER_VERSION: "latest"
+    LIME_SERVER_VERSION: "1.0-27.el7"
+    ACCOUNT_MANAGER_VERSION: "1.1.0-36.el7"
+    FILE_TRANSFER_SERVER_VERSION: "1.0-3.el7"
 
   script:
 
@@ -215,7 +215,7 @@ tests-flexisip-mr:
     - export LIBLINPHONE_DOCKER_TAG=$LIBLINPHONE_DOCKER_TAG
     - export LIME_SERVER_VERSION="$LIME_SERVER_VERSION"
     - export ACCOUNT_MANAGER_VERSION="$ACCOUNT_MANAGER_VERSION"
-    - export FILE_TRANFER_SERVER_VERSION="$FILE_TRANFER_SERVER_VERSION"
+    - export FILE_TRANSFER_SERVER_VERSION="$FILE_TRANSFER_SERVER_VERSION"
 
     - |
         if [ -z $workspace ]; then
@@ -289,8 +289,12 @@ tests-flexisip-mr:
 
     #-V, --renew-anon-volumes   Recreate anonymous volumes instead of retrieving data from the previous containers.
     #--exit-code-from Exits with the return code from the specified container (implies --abort-on-container-exit)
-    #- docker-compose $docker_compose_options up --build -V --exit-code-from #liblinphone_tester |& tee logs_all | grep 'liblinphone_tester_1' || EXIT=$?
-    - docker-compose $docker_compose_options up -V --exit-code-from liblinphone_tester || EXIT=$?
+    #In the grep we are searching for the logs of the liblinphone_tester, and the logs of docker image build (with the arrow and 'Step')
+    #- docker-compose $docker_compose_options up -V --exit-code-from liblinphone_tester |& tee logs_all | grep 'liblinphone_tester_1\|^Step\|^ --->' || EXIT=$?
+
+    - docker-compose $docker_compose_options up -V --exit-code-from liblinphone_tester |& tee logs_all | grep -v 'redis_server_1\|flexisip_1\|flexisip-regevent_1\|flexisip-external_1\|flexisip-external-domain_1\|lime-server_1\|lime-external-server\|dbserver_1\|account-manager_1\|file-transfer-server_1\|http-proxy_1' || EXIT=$?
+
+    #- docker-compose $docker_compose_options up -V --exit-code-from #liblinphone_tester || EXIT=$?
 
     # For each launched service, we print logs in seperate file with follow and timestamp options
     #- |
