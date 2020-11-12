@@ -180,6 +180,11 @@ tests-flexisip-mr:
     # we can't use $workspace nested variables here, since defined variables
     #   are extended in "script".
 
+    #LIME_SERVER_VERSION: "1.0-26.el7"
+    LIME_SERVER_VERSION: "latest"
+    ACCOUNT_MANAGER_VERSION: "latest"
+    FILE_TRANFER_SERVER_VERSION: "latest"
+
   script:
 
     - docker image ls
@@ -208,7 +213,9 @@ tests-flexisip-mr:
     - export FLEXISIP_DOCKER_TAG="$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA"
     - export LIBLINPHONE_DOCKER_IMAGE=$LIBLINPHONE_DOCKER_IMAGE
     - export LIBLINPHONE_DOCKER_TAG=$LIBLINPHONE_DOCKER_TAG
-    - export LIME_SERVER_VERSION="1.0-26.el7"
+    - export LIME_SERVER_VERSION="$LIME_SERVER_VERSION"
+    - export ACCOUNT_MANAGER_VERSION="$ACCOUNT_MANAGER_VERSION"
+    - export FILE_TRANFER_SERVER_VERSION="$FILE_TRANFER_SERVER_VERSION"
 
     - |
         if [ -z $workspace ]; then
