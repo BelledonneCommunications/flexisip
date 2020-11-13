@@ -127,7 +127,7 @@ Requires: %{pkg_prefix}liblinphone
 %define ctest_name ctest
 %endif
 
-%global flexisip_services %(printf 'flexisip-proxy.service'; if [ @ENABLE_PRESENCE@ -eq 1 ]; then printf ' flexisip-presence.service'; fi; if [ @ENABLE_CONFERENCE@ -eq 1 ]; then printf ' flexisip-conference.service'; fi)
+%global flexisip_services %(printf 'flexisip-proxy.service flexisip-regevent.service'; if [ @ENABLE_PRESENCE@ -eq 1 ]; then printf ' flexisip-presence.service'; fi; if [ @ENABLE_CONFERENCE@ -eq 1 ]; then printf ' flexisip-conference.service'; fi)
 
 %description
 Extensible SIP proxy with media capabilities. Designed for robustness and easy of use.
