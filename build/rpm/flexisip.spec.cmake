@@ -101,7 +101,7 @@ BuildRequires: net-snmp-devel
 %endif
 
 %if @ENABLE_SOCI@
-Requires: %{pkg_prefix}soci
+Requires: %{pkg_prefix}soci %{pkg_prefix}soci-mysql %{pkg_prefix}soci-sqlite3
 BuildRequires: %{pkg_prefix}soci-mysql-devel
 %endif
 
