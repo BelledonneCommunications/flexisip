@@ -150,40 +150,33 @@ tests-flexisip-mr:
       - $DEPLOY_UBUNTU
 
   variables:
-    #Build a new Flexisip Docker image from source
-    REBUILD_FLEXISIP_IMAGE: "false"
-    #Rebuild docker images of services which Flexisip needs to work: user
-    #  database, redis server, etc.
-    REBUILD_FLEXISIP_AUXILIARIES: "false"
-    #Set this option to true each time you change the commit to checkout for
-    #  linphone-sdk, otherwise, the SDK is never rebuild. default = true
-    REBUILD_SDK: "false"
+    #No need to modify
     LIBLINPHONE_DOCKER_IMAGE: liblinphone_tester_for_flexisip
-    #LIBLINPHONE_DOCKER_TAG: "4.5.0-alpha-203-gde8cf76"
+
+    #You can set here the version you want for Flexisip auxiliaries and  liblinphone (branches with '/' are not supported yet since it is set as a docker tag).
+    #/!\ if you work with Lime-server, account-manager or file-transfer server dev packages, you MUST ensure that these packages are available in one of the BC snapshot repositories. Otherwize the docker images won't use the latest versions.
+    #You can use the latest version available of Lime-server, account-manager, file-transfer-server with the version number "latest"
+    #/!\ In this case, there MUST be NO image with the same name on the nuc, otherwize the docker images won't be rebuilt
     LIBLINPHONE_DOCKER_TAG: "4.4.5"
-    FLEXISIP_TESTER_VERSION: "1.0.0-alpha"
+    LIME_SERVER_VERSION: "1.0-27.el7"
+    ACCOUNT_MANAGER_VERSION: "1.1.0-36.el7"
+    FILE_TRANSFER_SERVER_VERSION: "1.0-3.el7"
+
+    #Branch of the Flexisip-tester project to use. Could be modified to test fixes or features in the Flexisip-tester
     FLEXISIP_TESTER_BRANCH: "feature/enable_external_domain_tester"
 
-    # uses flex-from-src instead of basic rpm dockerfile
-    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip:latest -f docker/flex-from-src --build-arg=njobs=12"
-    sourcedir: ${CI_PROJECT_DIR}/linphone-sdk-docker
+    #This value specifies the workspace where we from all tests outputs.
     workspace: "${CI_PROJECT_DIR}/liblinphone_tester_workspace"
 
+    #Flexisip docker image is build from source in the build stage (job docker-build-flexisip-src)
+    #No need to modify these values
     FLEXISIP_DOCKER_IMAGE: "gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src"
     FLEXISIP_DOCKER_TAG: "$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA"
 
     # Docker run options are only used for coredump display if any
     # We are forced to copy the same string as "workspace" because we can't use nested variables in the same place (i.e. in variable declaration)
     docker_run_options: "-v ${CI_PROJECT_DIR}/liblinphone_tester_workspace:/home/bc/linphone-sdk-build/linphone-sdk/desktop/work"
-
     flexisip_docker_run_options: "-v ${CI_PROJECT_DIR}/liblinphone_tester_workspace:/root"
-    # we can't use $workspace nested variables here, since defined variables
-    #   are extended in "script".
-
-    #LIME_SERVER_VERSION: "1.0-26.el7"
-    LIME_SERVER_VERSION: "1.0-27.el7"
-    ACCOUNT_MANAGER_VERSION: "1.1.0-36.el7"
-    FILE_TRANSFER_SERVER_VERSION: "1.0-3.el7"
 
   script:
 
@@ -193,23 +186,14 @@ tests-flexisip-mr:
     - export COMPOSE_PROJECT_NAME=$RANDOM
     - echo $COMPOSE_PROJECT_NAME
 
-    - echo "Liblinphone tester version:" $SDK_BRANCH
-    - echo "Flexisip tester version:" $FLEXISIP_TESTER_VERSION
-    - echo $liblinphone_tester
-    - echo $sourcedir
+    - echo "Liblinphone tester version:" $LIBLINPHONE_DOCKER_TAG
     - echo $workspace
 
-    - |
-        if [ "$REBUILD_SDK" = "true" ]; then
-        git clone https://gitlab.linphone.org/BC/Public/linphone-sdk --recursive --jobs 12 linphone-sdk-docker
-        cd linphone-sdk-docker
-        git checkout ${FLEXISIP_TESTER_VERSION}
-        cd -
-        docker build -t $liblinphone_tester --build-arg="branch=$SDK_BRANCH" --build-arg="njobs=8" -f "$PWD/linphone-sdk-docker/liblinphone-tester" .
-        fi
-    - git clone -b $FLEXISIP_TESTER_BRANCH --single-branch git@gitlab.linphone.org:BC/Public/flexisip-tester --jobs 12
+    - git clone -b $FLEXISIP_TESTER_BRANCH --single-branch git@gitlab.linphone.org:BC/private/flexisip-tester --jobs 12
 
-    - export FLEXISIP_DOCKER_IMAGE="gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src"
+    #We make sure that the variables we set here can be accessed by the docker-compose scripts (in the flexisip-tester project).
+
+    - export FLEXISIP_DOCKER_IMAGE="$FLEXISIP_DOCKER_IMAGE"
     - export FLEXISIP_DOCKER_TAG="$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA"
     - export LIBLINPHONE_DOCKER_IMAGE=$LIBLINPHONE_DOCKER_IMAGE
     - export LIBLINPHONE_DOCKER_TAG=$LIBLINPHONE_DOCKER_TAG
@@ -232,22 +216,6 @@ tests-flexisip-mr:
     - sudo chown apache:apache $workspace
     - sudo chmod -R 777 $workspace
 
-    # /!\ We do not use docker-compose build because if we did the dockerfiles
-    #     location and the context can't be given as cli args but must be given
-    #     in docker-compose file.
-    #     Allowing it could be error-proning for anyone wanting to build
-    #     flexisip docker images only from flexisip-tester project
-
-    - |
-        if [ "$REBUILD_FLEXISIP_IMAGE" = "true" ]; then
-        docker build $DOCKER_BUILD_OPTIONS .
-        fi
-
-    - |
-        if [ "$REBUILD_SDK" = "true" ]; then
-        docker build --no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/linphone-sdk/liblinphone_tester:$SDK_VERSION --build-arg="branch=$SDK_BRANCH" --build-arg="njobs=8" -f "$sourcedir/docker-files/liblinphone-tester" $sourcedir/docker-files/
-        fi
-
     # Handle multiple runs by unsetting variable
     # Overriding docker-compose.yaml values with docker-compose-standalone.yaml
     #   in the ways specified with docker docs (either OR or AND, depending on key)
@@ -258,15 +226,7 @@ tests-flexisip-mr:
         docker_compose_options="$docker_compose_options -f ${CI_PROJECT_DIR}/flexisip-tester/docker/$name"
         done
 
-    #useless since tester options are defined in docker-compose
-
-    #- liblinphone_tester_options='--dns-hosts none --log-file liblinphone_tester.log --xml --verbose --show-#account-manager-logs'
-
-    #- |
-    #    if [ "$PARALLEL_TEST_MODE" = "true" ]; then
-    #    liblinphone_tester_options="$liblinphone_tester_options --parallel"
-    #    fi
-    #########################################################
+    #Tester's options like parallel mode are defined in the docker-compose-standalone.yaml file of the flexisip-tester project
 
     - export FLEXISIP_LOGS="$workspace"
     - export LIBLINPHONE_LOGS="$workspace"
@@ -289,22 +249,11 @@ tests-flexisip-mr:
 
     #-V, --renew-anon-volumes   Recreate anonymous volumes instead of retrieving data from the previous containers.
     #--exit-code-from Exits with the return code from the specified container (implies --abort-on-container-exit)
-    #In the grep we are searching for the logs of the liblinphone_tester, and the logs of docker image build (with the arrow and 'Step')
-    #- docker-compose $docker_compose_options up -V --exit-code-from liblinphone_tester |& tee logs_all | grep 'liblinphone_tester_1\|^Step\|^ --->' || EXIT=$?
+    #In the grep we are searching only for the logs related to liblinphone_tester and docker build, so we remove output from all other services.
 
     - docker-compose $docker_compose_options up -V --exit-code-from liblinphone_tester |& tee logs_all | grep -v 'redis_server_1\|flexisip_1\|flexisip-regevent_1\|flexisip-external_1\|flexisip-external-domain_1\|lime-server_1\|lime-external-server\|dbserver_1\|account-manager_1\|file-transfer-server_1\|http-proxy_1' || EXIT=$?
 
-    #- docker-compose $docker_compose_options up -V --exit-code-from #liblinphone_tester || EXIT=$?
-
-    # For each launched service, we print logs in seperate file with follow and timestamp options
-    #- |
-    #    for service in $(docker-compose $docker_compose_options ps --services); do
-    #    echo $service
-    #    docker-compose $docker_compose_options logs -f -t $service >> $# {service}_stdout.log
-    #    echo "docker-compose $docker_compose_options logs -f -t $service"
-    #    done
-
-    #docker-compose logs aren't used anymore because of bad performance
+    #docker-compose log command isn't used anymore because of bad performance
     #the logs were converted by docker in json format, then reconverted to txt, which is useless (doing this made the job last for 20-30 minutes for 9 minutes of tests)
 
     - |
@@ -317,10 +266,8 @@ tests-flexisip-mr:
     #we wait for each grep to end before stopping containers
     - wait
 
-    # The sleep was removed because we now wait for the db socket to open (in compose file) before launching tests
+    # The sleep command was removed because we now wait for the db socket to open (in compose file) before launching tests
 
-    # The tests are launched automatically from the compose file
-    #- docker run $docker_run_options $liblinphone_tester $liblinphone_tester_options || EXIT=$? && echo 'Tests have failed'
     - docker-compose $docker_compose_options stop
 
     - gzip *.log
