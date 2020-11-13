@@ -19,6 +19,18 @@ Group changes to describe their impact on the project, as follows:
 - Fix issue with dual stack media relay causing ICE failures.
 
 
+## [2.0.3] - 2020-11-13
+### [Fixed]
+- Apple push notification client: the body of HTTP/2 GOAWAY frames wasn't printed in log, which
+  doesn't allow to know the disconnection reason.
+- Fix a regression that causes to have an empty pub-gruu parameter in the Contact header of
+  forwarded REGISTERs.
+- Fix potential crash or at least memory corruption when both "route" and "default-transport" are set in the ForwardModule.
+  The default-transport will not be applied when route is used.
+- MediaRelay: fix ICE restart not being detected or notified on the offered side. This causes relay candidates to be not added
+  in the 200 Ok, which can break RTP communication.
+
+
 ## [2.0.2] - 2020-10-14
 ### [Fixed]
 - Fix a crash that occures when module::Registrar/reg-on-response feature is enabled. It happens
