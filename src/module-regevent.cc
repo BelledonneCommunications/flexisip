@@ -33,7 +33,7 @@ private:
 
 	void onDeclare(GenericStruct *module_config) {
 		ConfigItemDescriptor configs[] = {
-			{String, "regevent-server", "A sip uri where to send all the reg-event related requests.", "sip:127.0.0.1:5065;transport=tcp"},
+			{String, "regevent-server", "A sip uri where to send all the reg-event related requests.", "sip:127.0.0.1:6064;transport=tcp"},
 			config_item_end};
 		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 		module_config->addChildrenValues(configs);
