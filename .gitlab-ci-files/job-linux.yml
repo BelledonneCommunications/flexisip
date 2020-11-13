@@ -163,7 +163,7 @@ tests-flexisip-mr:
     FILE_TRANSFER_SERVER_VERSION: "1.0-3.el7"
 
     #Branch of the Flexisip-tester project to use. Could be modified to test fixes or features in the Flexisip-tester
-    FLEXISIP_TESTER_BRANCH: "feature/enable_external_domain_tester"
+    FLEXISIP_TESTER_BRANCH: "master"
 
     #This value specifies the workspace where we from all tests outputs.
     workspace: "${CI_PROJECT_DIR}/liblinphone_tester_workspace"
