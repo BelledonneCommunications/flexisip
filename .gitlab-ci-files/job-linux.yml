@@ -157,7 +157,7 @@ tests-flexisip-mr:
     #/!\ if you work with Lime-server, account-manager or file-transfer server dev packages, you MUST ensure that these packages are available in one of the BC snapshot repositories. Otherwize the docker images won't use the latest versions.
     #You can use the latest version available of Lime-server, account-manager, file-transfer-server with the version number "latest"
     #/!\ In this case, there MUST be NO image with the same name on the nuc, otherwize the docker images won't be rebuilt
-    LIBLINPHONE_DOCKER_TAG: "4.4.5"
+    LIBLINPHONE_DOCKER_TAG: "4.5.0-alpha-217-gfec0155"
     LIME_SERVER_VERSION: "1.0-27.el7"
     ACCOUNT_MANAGER_VERSION: "1.1.0-36.el7"
     FILE_TRANSFER_SERVER_VERSION: "1.0-3.el7"
