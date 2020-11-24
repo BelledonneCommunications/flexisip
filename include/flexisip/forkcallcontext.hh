@@ -18,30 +18,33 @@
 
 #pragma once
 
-#include <flexisip/agent.hh>
-#include <flexisip/event.hh>
-#include <flexisip/transaction.hh>
-#include <flexisip/forkcontext.hh>
-
 #include <list>
+
+#include "flexisip/agent.hh"
+#include "flexisip/event.hh"
+#include "flexisip/forkcontext.hh"
+#include "flexisip/transaction.hh"
+#include "flexisip/utils/timer.hh"
 
 namespace flexisip {
 
-enum FlexisipForkStatus {FlexisipForkAcceptedElsewhere, FlexisipForkDeclineElsewhere, FlexisipForkStandard};
+enum class ForkStatus {
+	 AcceptedElsewhere,
+	 DeclineElsewhere,
+	 Standard
+};
 
 class ForkCallContext : public ForkContext {
-  private:
-	su_timer_t *mShortTimer; // optionaly used to send retryable responses
-	su_timer_t *mPushTimer; // used to track push responses
-	std::shared_ptr<CallLog> mLog;
-	bool mCancelled;
-
   public:
 	ForkCallContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg,
 					ForkContextListener *listener);
 	~ForkCallContext();
+
 	void sendResponse(int status, char const *phrase);
+
 	bool isCompleted() const;
+	bool isRingingSomewhere() const;
+
 	void onPushSent(const std::shared_ptr<OutgoingTransaction> &tr) override;
 	void onPushError(const std::shared_ptr<OutgoingTransaction> &tr, const std::string &errormsg) override;
 
@@ -51,18 +54,21 @@ class ForkCallContext : public ForkContext {
 	void onCancel(const std::shared_ptr<RequestSipEvent> &ev) override;
 
   private:
-	bool isRingingSomewhere()const;
 	const int *getUrgentCodes();
 	void onShortTimer();
 	void onPushTimer();
 	void onLateTimeout() override;
 	void cancelOthers(const std::shared_ptr<BranchInfo> &br, sip_t* received_cancel);
-	void cancelOthersWithStatus(const std::shared_ptr<BranchInfo> &br, FlexisipForkStatus status);
+	void cancelOthersWithStatus(const std::shared_ptr<BranchInfo> &br, ForkStatus status);
 	void logResponse(const std::shared_ptr<ResponseSipEvent> &ev);
-	static void sOnShortTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
-	static void sOnPushTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
-	int mActivePushes;
 	static const int sUrgentCodesWithout603[];
+
+	std::unique_ptr<sofiasip::Timer> mShortTimer{}; // optionaly used to send retryable responses
+	std::unique_ptr<sofiasip::Timer> mPushTimer{}; // used to track push responses
+	std::shared_ptr<CallLog> mLog{};
+	bool mCancelled = false;
+	bool mRingingSent = false;
+	int mActivePushes = 0;
 };
 
 }

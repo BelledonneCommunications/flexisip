@@ -145,7 +145,7 @@ void PushNotificationContext::cancel() {
 
 void PushNotificationContext::onTimeout() {
 	SLOGD << "PNR " << mPushNotificationRequest.get() << ": timeout";
-	shared_ptr<ForkContext> forkCtx = ForkContext::get(mTransaction);
+	auto forkCtx = ForkContext::get(mTransaction);
 	if (forkCtx) {
 		if (forkCtx->isFinished()) {
 			LOGD("Call is already established or canceled, so push notification is not sent but cleared.");
@@ -157,10 +157,10 @@ void PushNotificationContext::onTimeout() {
 
 	mModule->getService().sendPush(mPushNotificationRequest);
 	if (forkCtx && !mPushSentResponseSent){
-		shared_ptr<ForkCallContext> callCtx = dynamic_pointer_cast<ForkCallContext>(forkCtx);
-		if (callCtx){
+		auto callCtx = dynamic_pointer_cast<ForkCallContext>(forkCtx);
+		if (callCtx && !callCtx->isRingingSomewhere()) {
 			if (mSendRinging) callCtx->sendResponse(SIP_180_RINGING);
-			callCtx->sendResponse(110, "Push sent");
+			else callCtx->sendResponse(110, "Push sent");
 		}
 		mPushSentResponseSent = true;
 	}
