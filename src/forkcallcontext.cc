@@ -16,13 +16,17 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <flexisip/forkcallcontext.hh>
-#include <flexisip/common.hh>
 #include <algorithm>
+
 #include <sofia-sip/sip_status.h>
 
+#include "flexisip/common.hh"
+
+#include "flexisip/forkcallcontext.hh"
+
 using namespace std;
-using namespace flexisip;
+
+namespace flexisip {
 
 template <typename T> static bool contains(const list<T> &l, T value) {
 	return find(l.cbegin(), l.cend(), value) != l.cend();
@@ -30,24 +34,14 @@ template <typename T> static bool contains(const list<T> &l, T value) {
 
 ForkCallContext::ForkCallContext(Agent *agent, const shared_ptr<RequestSipEvent> &event,
 								 shared_ptr<ForkContextConfig> cfg, ForkContextListener *listener)
-	: ForkContext(agent, event, cfg, listener), mShortTimer(NULL), mPushTimer(NULL), mCancelled(false) {
+:
+	ForkContext(agent, event, cfg, listener), mLog{event->getEventLog<CallLog>()}
+{
 	SLOGD << "New ForkCallContext " << this;
-	mLog = event->getEventLog<CallLog>();
-	mActivePushes = 0;
 }
 
 ForkCallContext::~ForkCallContext() {
 	SLOGD << "Destroy ForkCallContext " << this;
-
-	if (mShortTimer) {
-		su_timer_destroy(mShortTimer);
-		mShortTimer = NULL;
-	}
-
-	if (mPushTimer) {
-		su_timer_destroy(mPushTimer);
-		mPushTimer = NULL;
-	}
 }
 
 void ForkCallContext::onCancel(const shared_ptr<RequestSipEvent> &ev) {
@@ -60,13 +54,10 @@ void ForkCallContext::onCancel(const shared_ptr<RequestSipEvent> &ev) {
 }
 
 void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo> &br, sip_t *received_cancel) {
-	auto branches = getBranches();
-	for (auto it = branches.begin(); it != branches.end(); ++it) {
-		shared_ptr<BranchInfo> brit = *it;
-
+	const auto branches = getBranches(); // work on a copy of the list of branches
+	for (const auto &brit : branches) {
 		if (brit != br) {
-			shared_ptr<OutgoingTransaction> tr = brit->mTransaction;
-
+			auto &tr = brit->mTransaction;
 			if (tr && brit->getStatus() < 200) {
 				if(received_cancel && received_cancel->sip_reason) {
 					sip_reason_t *reason = sip_reason_dup(tr->getHome(), received_cancel->sip_reason);
@@ -81,18 +72,16 @@ void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo> &br, sip_t *rece
 	}
 }
 
-void ForkCallContext::cancelOthersWithStatus(const shared_ptr<BranchInfo> &br, FlexisipForkStatus status) {
-	auto branches = getBranches();
-	for (auto it = branches.begin(); it != branches.end(); ++it) {
-		shared_ptr<BranchInfo> brit = *it;
+void ForkCallContext::cancelOthersWithStatus(const shared_ptr<BranchInfo> &br, ForkStatus status) {
+	const auto branches = getBranches(); // work on a copy of the list of branches
+	for (const auto &brit : branches) {
 		if (brit != br) {
-			shared_ptr<OutgoingTransaction> tr = brit->mTransaction;
-
+			auto &tr = brit->mTransaction;
 			if (tr && brit->getStatus() < 200) {
-				if(status == FlexisipForkAcceptedElsewhere) {
+				if(status == ForkStatus::AcceptedElsewhere) {
 					sip_reason_t* reason = sip_reason_make(tr->getHome(), "SIP;cause=200;text=\"Call completed elsewhere\"");
 					tr->cancelWithReason(reason);
-				} else if (status == FlexisipForkDeclineElsewhere) {
+				} else if (status == ForkStatus::DeclineElsewhere) {
 					sip_reason_t* reason = sip_reason_make(tr->getHome(), "SIP;cause=600;text=\"Busy Everywhere\"");
 					tr->cancelWithReason(reason);
 				} else {
@@ -133,10 +122,9 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo> &br, const shared_
 			return;
 		}
 
-		if (isUrgent(code, getUrgentCodes()) && mShortTimer == NULL) {
-			mShortTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
-			su_timer_set_interval(mShortTimer, &ForkCallContext::sOnShortTimer, this,
-								  (su_duration_t)mCfg->mUrgentTimeout * 1000);
+		if (isUrgent(code, getUrgentCodes()) && mShortTimer == nullptr) {
+			mShortTimer = make_unique<sofiasip::Timer>(mAgent->getRoot());
+			mShortTimer->set([this](){onShortTimer();}, mCfg->mUrgentTimeout * 1000);
 			return;
 		}
 
@@ -144,12 +132,12 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo> &br, const shared_
 			/*6xx response are normally treated as global faillures */
 			if (!mCfg->mForkNoGlobalDecline) {
 				logResponse(forwardResponse(br));
-				cancelOthersWithStatus(br, FlexisipForkDeclineElsewhere);
+				cancelOthersWithStatus(br, ForkStatus::DeclineElsewhere);
 			}
 		}
 	} else if (code >= 200) {
 		logResponse(forwardResponse(br));
-		cancelOthersWithStatus(br, FlexisipForkAcceptedElsewhere);
+		cancelOthersWithStatus(br, ForkStatus::AcceptedElsewhere);
 	} else if (code >= 100) {
 		logResponse(forwardResponse(br));
 	}
@@ -176,12 +164,10 @@ void ForkCallContext::sendResponse(int code, char const *phrase) {
 	shared_ptr<ResponseSipEvent> ev(
 		new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
 
-	if (mPushTimer)
-		su_timer_destroy(mPushTimer), mPushTimer = NULL;
-
+	mPushTimer.reset();
 	if (mCfg->mPushResponseTimeout > 0) {
-		mPushTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
-		su_timer_set_interval(mPushTimer, &ForkCallContext::sOnPushTimer, this, (su_duration_t)mCfg->mPushResponseTimeout * 1000);
+		mPushTimer = make_unique<sofiasip::Timer>(mAgent->getRoot());
+		mPushTimer->set([this](){onPushTimer();}, mCfg->mPushResponseTimeout * 1000);
 	}
 	forwardResponse(ev);
 }
@@ -212,14 +198,12 @@ bool ForkCallContext::isCompleted() const {
 	return false;
 }
 
-bool ForkCallContext::isRingingSomewhere()const{
-	for (const auto& br : getBranches()){
-		int status = br->getStatus();
-
+bool ForkCallContext::isRingingSomewhere() const {
+	for (const auto &br : getBranches()){
+		auto status = br->getStatus();
 		if (status >= 180 && status < 200)
 			return true;
 	}
-
 	return false;
 }
 
@@ -227,8 +211,7 @@ void ForkCallContext::onShortTimer() {
 	SLOGD << "ForkCallContext [" << this << "]: time to send urgent replies";
 
 	/*first stop the timer, it has to be one shot*/
-	su_timer_destroy(mShortTimer);
-	mShortTimer = NULL;
+	mShortTimer.reset();
 
 	if (isRingingSomewhere())
 		return; /*it's ringing somewhere*/
@@ -258,23 +241,11 @@ void ForkCallContext::onLateTimeout() {
 	cancelOthers(shared_ptr<BranchInfo>(), NULL);
 }
 
-void ForkCallContext::sOnShortTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) {
-	ForkCallContext *zis = static_cast<ForkCallContext *>(arg);
-	zis->onShortTimer();
-}
-
 void ForkCallContext::onPushTimer() {
 	if (!isCompleted() && getLastResponseCode() < 180) {
 		SLOGD << "ForkCallContext [" << this << "] push timer : no uac response";
 	}
-
-	su_timer_destroy(mPushTimer);
-	mPushTimer = NULL;
-}
-
-void ForkCallContext::sOnPushTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) {
-	ForkCallContext *zis = static_cast<ForkCallContext *>(arg);
-	zis->onPushTimer();
+	mPushTimer.reset();
 }
 
 void ForkCallContext::onPushSent(const shared_ptr<OutgoingTransaction> &tr) {
@@ -292,3 +263,5 @@ void ForkCallContext::onPushError(const shared_ptr<OutgoingTransaction> &tr, con
 	SLOGD << "Early fail due to all push requests having failed";
 	onPushTimer();
 }
+
+} // namespace flexisip
