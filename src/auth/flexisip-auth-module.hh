@@ -73,7 +73,7 @@ private:
 
 	void processResponse(FlexisipAuthStatus &as, const auth_response_t &ar, const auth_challenger_t &ach, AuthDbResult result, const AuthDbBackend::PwList &passwords);
 	void checkPassword(FlexisipAuthStatus &as, const auth_challenger_t &ach, const auth_response_t &ar, const std::string &password);
-	int checkPasswordForAlgorithm(FlexisipAuthStatus &as, const auth_response_t &ar, const std::string &password);
+	int checkPasswordForAlgorithm(FlexisipAuthStatus &as, const auth_response_t &ar, std::string ha1);
 
 	void onAccessForbidden(FlexisipAuthStatus& as, const auth_challenger_t &ach, const char* phrase = "Forbidden");
 

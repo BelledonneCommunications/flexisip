@@ -211,14 +211,17 @@ void FlexisipAuthModule::processResponse(FlexisipAuthStatus &as, const auth_resp
 			if (find(as.usedAlgo().cbegin(), as.usedAlgo().cend(), algo) == as.usedAlgo().cend()) {
 				LOGD("AuthStatus[%p]: '%s' not allowed", &as, algo);
 				onAccessForbidden(as, ach);
-				notify(as);
-				return;
+				break;
 			}
 			auto pw = find_if(passwords.cbegin(), passwords.cend(), [&algo](const passwd_algo_t &pw) {
 				return pw.algo == algo;
 			});
-			string password = pw != passwords.cend() ? pw->pass : "";
-			checkPassword(as, ach, ar, password);
+			if (pw == passwords.cend()) {
+				LOGD("AuthStatus[%p]: no %s password in database for user '%s@%s'", &as, algo, ar.ar_username, ar.ar_realm);
+				onAccessForbidden(as, ach);
+				break;
+			}
+			checkPassword(as, ach, ar, pw->pass);
 			break;
 		}
 		case PASSWORD_NOT_FOUND:
@@ -242,11 +245,7 @@ void FlexisipAuthModule::processResponse(FlexisipAuthStatus &as, const auth_resp
  */
 void FlexisipAuthModule::checkPassword(FlexisipAuthStatus &as, const auth_challenger_t &ach, const auth_response_t &ar, const std::string &password) {
 	if (checkPasswordForAlgorithm(as, ar, password)) {
-		if (!password.empty()) {
-			LOGD("AuthStatus[%p]: passwords did not match", &as);
-		} else {
-			LOGD("AuthStatus[%p]: no password in database for '%s'", &as, ar.ar_algorithm ? ar.ar_algorithm : "MD5");
-		}
+		LOGD("AuthStatus[%p]: passwords did not match", &as);
 		onAccessForbidden(as, ach);
 		return;
 	}
@@ -267,29 +266,24 @@ void FlexisipAuthModule::checkPassword(FlexisipAuthStatus &as, const auth_challe
 	as.phrase("");
 }
 
-int FlexisipAuthModule::checkPasswordForAlgorithm(FlexisipAuthStatus &as, const auth_response_t &ar, const std::string &passwd) {
-	unique_ptr<Digest> algo;
-	string algoName = ar.ar_algorithm ? ar.ar_algorithm : "MD5";
+int FlexisipAuthModule::checkPasswordForAlgorithm(FlexisipAuthStatus &as, const auth_response_t &ar, std::string ha1) {
+	if (ha1.empty()) return -1;
 
+	unique_ptr<Digest> algo{};
 	try {
+		auto algoName = ar.ar_algorithm ? ar.ar_algorithm : "MD5";
 		algo.reset(Digest::create(algoName));
 	} catch (const invalid_argument &e) {
 		SLOGE << e.what();
 		return -1;
 	}
 
-	string a1;
-	if (!passwd.empty()) {
-		a1 = passwd;
-	} else {
-		a1 = computeA1(*algo, ar, "xyzzy");
+	if (ar.ar_md5sess) {
+		ha1 = computeA1SESS(*algo, ar, ha1);
 	}
 
-	if (ar.ar_md5sess)
-		a1 = computeA1SESS(*algo, ar, a1);
-
-	string response = computeDigestResponse(*algo, ar, as.method(), as.body(), as.bodyLen(), a1);
-	return (!passwd.empty() && response == ar.ar_response ? 0 : -1);
+	auto response = computeDigestResponse(*algo, ar, as.method(), as.body(), as.bodyLen(), ha1);
+	return response == ar.ar_response ? 0 : -1;
 }
 
 void FlexisipAuthModule::onAccessForbidden(FlexisipAuthStatus &as, const auth_challenger_t &ach, const char *phrase) {
