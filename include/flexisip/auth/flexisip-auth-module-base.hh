@@ -53,9 +53,16 @@ public:
 	NonceStore &nonceStore() {return mNonceStore;}
 
 protected:
+	struct Nonce {
+		msg_time_t issued;
+		uint32_t count;
+		uint16_t nextnonce;
+		uint8_t digest[6];
+	};
+
 	void onCheck(AuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) override;
 	void onChallenge(AuthStatus &as, auth_challenger_t const *ach) override;
-	void onCancel(AuthStatus &as) override;
+	void onCancel(AuthStatus &as) override {}
 
 	/**
 	 * This method is called each time the module want to authenticate an Authorization header.
@@ -70,6 +77,11 @@ protected:
 	void notify(FlexisipAuthStatus &as);
 	void onError(FlexisipAuthStatus &as);
 
+	bool allowCheck(AuthStatus &as);
+	void challengeDigest(AuthStatus &as, auth_challenger_t const *ach);
+	std::string generateDigestNonce(bool nextnonce, msg_time_t now);
+
+	// Attributes
 	NonceStore mNonceStore;
 	bool mQOPAuth = false;
 };

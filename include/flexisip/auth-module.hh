@@ -19,6 +19,8 @@
 #pragma once
 
 #include <memory>
+#include <unordered_map>
+#include <vector>
 
 #include <sofia-sip/auth_module.h>
 
@@ -34,50 +36,45 @@ namespace flexisip {
  */
 class AuthModule {
 public:
-	AuthModule(su_root_t *root, tag_type_t, tag_value_t, ...);
-	virtual ~AuthModule() {auth_mod_destroy(mAm);}
+	AuthModule(su_root_t *root, std::unordered_map<std::string, std::string> params);
+	virtual ~AuthModule() = default;
 
-	/**
-	 * Return a pointer on the underlying SofiaSip's authentication module.
-	 * This method is useful if you mean to call a SofiaSip function that needs
-	 * an auth_mod_t object as parameter.
-	 */
-	auth_mod_t *getPtr() const {return mAm;}
-
-	/**
-	 * Event loop which the authentication module is working on.
-	 * This has been define on module construction.
-	 */
-	su_root_t *getRoot() const {return mRoot;}
-
+	su_root_t *getRoot() const noexcept {return mRoot;}
 
 	/**
 	 * These methods are C++ version of public method of auth_mod_t API. To find the associated
 	 * SofiaSip function, just prefix the name of the method by "auth_mod_" e.g. verify() -> auth_mod_verify().
 	 */
-	void verify(AuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) {auth_mod_verify(mAm, as.getPtr(), credentials, ach);}
-	void challenge(AuthStatus &as, auth_challenger_t const *ach) {auth_mod_challenge(mAm, as.getPtr(), ach);}
-	void authorize(AuthStatus &as, auth_challenger_t const *ach) {auth_mod_challenge(mAm, as.getPtr(), ach);}
-	void cancel(AuthStatus &as) {auth_mod_cancel(mAm, as.getPtr());}
+	void verify(AuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach);
+	void challenge(AuthStatus &as, auth_challenger_t const *ach) {if (ach) onChallenge(as, ach);}
+	void authorize(AuthStatus &as, auth_challenger_t const *ach) {challenge(as, ach);}
+	void cancel(AuthStatus &as) {onCancel(as);}
 
 protected:
 	virtual void onCheck(AuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) = 0;
 	virtual void onChallenge(AuthStatus &as, auth_challenger_t const *ach) = 0;
 	virtual void onCancel(AuthStatus &as) = 0;
 
-	auth_mod_t *mAm = nullptr;
-
-private:
-	static void checkCb(auth_mod_t *am, auth_status_t *as, msg_auth_t *auth, auth_challenger_t const *ch) noexcept;
-	static void challengeCb(auth_mod_t *am, auth_status_t *as, auth_challenger_t const *ach) noexcept;
-	static void cancelCb(auth_mod_t *am, auth_status_t *as) noexcept;
-
-	static void registerScheme();
-
+	// attributes
 	su_root_t *mRoot = nullptr;
-	static const char *sMethodName;
-	static auth_scheme_t sAuthScheme;
-	static bool sSchemeRegistered;
+	std::string am_realm{};		/**< Our realm */
+	std::string am_opaque{};		/**< Opaque identification data */
+	std::string am_gssapi_data; /**< NTLM data */
+	std::string am_targetname;	/**< NTLM target name */
+	std::vector<std::string> am_allow{"ACK", "BYE", "CANCEL"};		/**< Methods to allow without authentication */
+	std::string  am_algorithm{"MD5"};	/**< Defauilt algorithm */
+	std::string am_qop{};			/**< Default qop (quality-of-protection) */
+	unsigned am_expires = 60 * 60;		/**< Nonce lifetime */
+	unsigned am_next_exp = 5 * 60;		/**< Next nonce lifetime */
+	unsigned am_blacklist = 5;		/**< Extra delay if bad credentials. */
+	bool am_forbidden = false;	/**< Respond with 403 if bad credentials */
+	bool am_anonymous = false;	/**< Allow anonymous access */
+	bool am_challenge;	/**< Challenge even if successful */
+	bool am_nextnonce = true;	/**< Send next nonce in responses */
+	bool am_mutual = false;		/**< Mutual authentication */
+	bool am_fake = false;		/**< Fake authentication */
+	unsigned am_count; /**< Nonce counter */
+	bool am_max_ncount = false; /**< If nonzero, challenge with new nonce after ncount */
 };
 
 }

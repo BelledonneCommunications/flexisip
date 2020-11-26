@@ -81,6 +81,10 @@ private:
 	static std::string computeA1SESS(Digest &algo, const auth_response_t &ar, const std::string &ha1);
 	static std::string computeDigestResponse(Digest &algo, const ::auth_response_t &ar, const std::string &method_name, const void *body, size_t bodyLen, const std::string &ha1);
 
+	int validateDigestNonce(AuthStatus &as, auth_response_t &ar, msg_time_t now);
+	void infoDigest(AuthStatus &as, auth_challenger_t const *ach);
+
+	// Attributes
 	PasswordFetchResultCb mPassworFetchResultCb;
 };
 

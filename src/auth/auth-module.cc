@@ -16,81 +16,62 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <algorithm>
+#include <cstring>
 #include <sstream>
 #include <stdexcept>
 
-#include <sofia-sip/auth_plugin.h>
-#include <sofia-sip/su_tagarg.h>
+#include "flexisip/logmanager.hh"
 
-#include <flexisip/logmanager.hh>
-
-#include <flexisip/auth-module.hh>
+#include "flexisip/auth-module.hh"
 
 using namespace std;
-using namespace flexisip;
 
-struct auth_plugin_t {
-	AuthModule *backPtr;
-};
+namespace flexisip {
 
-struct auth_mod_plugin_t {
-	auth_mod_t module[1];
-	auth_plugin_t plugin[1];
-};
+AuthModule::AuthModule(su_root_t *root, std::unordered_map<std::string, std::string> params) : mRoot{root} {
+	auto it = params.find("realm");
+	am_realm = it != params.cend() ? move(it->second) : "*";
 
-AuthModule::AuthModule(su_root_t *root, tag_type_t tag, tag_value_t value, ...) : mRoot(root) {
-	ta_list ta;
+	it = params.find("opaque");
+	if (it != params.cend()) am_opaque = move(it->second);
 
-	registerScheme();
+	it = params.find("expires");
+	if (it != params.cend()) am_expires = unsigned(stoul(it->second));
 
-	ta_start(ta, tag, value);
-	mAm = auth_mod_create(root, AUTHTAG_METHOD(sMethodName), ta_tags(ta));
-	ta_end(ta);
+	it = params.find("next_expires");
+	if (it != params.cend()) am_next_exp = unsigned(stoul(it->second));
 
-	if (mAm == nullptr) {
-		ostringstream os;
-		os << "couldn't create '" << sMethodName << "' authentication module";
-		throw logic_error(os.str());
+	it = params.find("forbidden");
+	if (it != params.cend()) am_forbidden = bool(stoi(it->second));
+
+	it = params.find("qop");
+	if (it != params.cend()) am_qop = move(it->second);
+
+	am_nextnonce = (am_algorithm == "MD5" && am_next_exp > 0);
+}
+
+void AuthModule::verify(AuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) {
+	if (!ach) return;
+
+	auto wildcardPos = find(am_realm.cbegin(), am_realm.cend(), '*');
+	auto host = as.domain();
+
+	/* Initialize per-request realm */
+	if (as.domain())
+		;
+	else if (wildcardPos == am_realm.cend()) {
+		as.realm(am_realm.c_str());
+	} else if (!host) {
+		return; /* Internal error */
+	} else if (am_realm == "*") {
+		as.realm(host);
+	} else {
+		/* Replace * with hostpart */
+		as.realm( string{am_realm.cbegin(), wildcardPos} + host + string{wildcardPos+1, am_realm.cend()} );
 	}
 
-	(AUTH_PLUGIN(mAm))->backPtr = this;
+	onCheck(as, credentials, ach);
 }
 
-void AuthModule::checkCb(auth_mod_t *am, auth_status_t *as, msg_auth_t *auth, auth_challenger_t const *ch) noexcept {
-	AuthStatus &authStatus = *reinterpret_cast<AuthStatus *>(as->as_plugin);
-	(AUTH_PLUGIN(am))->backPtr->onCheck(authStatus, auth, ch);
-}
-
-void AuthModule::challengeCb(auth_mod_t *am, auth_status_t *as, auth_challenger_t const *ach) noexcept {
-	AuthStatus &authStatus = *reinterpret_cast<AuthStatus *>(as->as_plugin);
-	(AUTH_PLUGIN(am))->backPtr->onChallenge(authStatus, ach);
-}
-
-void AuthModule::cancelCb(auth_mod_t *am, auth_status_t *as) noexcept {
-	AuthStatus &authStatus = *reinterpret_cast<AuthStatus *>(as->as_plugin);
-	(AUTH_PLUGIN(am))->backPtr->onCancel(authStatus);
-}
-
-void AuthModule::registerScheme() {
-	if (!sSchemeRegistered) {
-		if (auth_mod_register_plugin(&sAuthScheme) != 0) {
-			ostringstream os;
-			os << "couldn't register '" << sMethodName << "' authentication plugin";
-			throw logic_error(os.str());
-		}
-	}
-}
-
-const char *AuthModule::sMethodName = "flexisip";
-
-auth_scheme_t AuthModule::sAuthScheme = {
-	sMethodName,
-	sizeof(auth_mod_plugin_t),
-	auth_init_default,
-	checkCb,
-	challengeCb,
-	cancelCb,
-	auth_destroy_default
-};
-
-bool AuthModule::sSchemeRegistered = false;
+} // namespace flexisip

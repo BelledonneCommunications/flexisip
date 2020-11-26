@@ -61,14 +61,17 @@ public:
 	isize_t bodyLen() const {return mPriv->as_bodylen;}
 	void bodyLen(isize_t val) {mPriv->as_bodylen = val;}
 
-	bool blacklist() const {return mPriv->as_blacklist;}
-	void blacklist(bool val) {mPriv->as_blacklist = val;}
+	unsigned blacklist() const {return mPriv->as_blacklist;}
+	void blacklist(unsigned val) {mPriv->as_blacklist = val;}
 
 	const ResponseCb &callback() const {return mResponseCb;}
 	void callback(const ResponseCb &cb) {mResponseCb = cb;}
 
 	const char *display() const {return mPriv->as_display;}
 	void display(const char *val) {mPriv->as_display = val;}
+
+	const char *domain() const {return mPriv->as_domain;}
+	void domain(const char *val) {mPriv->as_domain = val;}
 
 	/**
 	 * Internal home_t, which will be destroyed on destruction
@@ -96,7 +99,7 @@ public:
 
 	const char *realm() const {return mPriv->as_realm;}
 	void realm(const char *val) {mPriv->as_realm = val;}
-	void realm(const std::string &val) {mPriv->as_realm = su_strdup(&mHome, val.c_str());}
+	void realm(const std::string &val) {mPriv->as_realm = !val.empty() ? su_strdup(&mHome, val.c_str()) : nullptr;}
 
 	msg_header_t *response() const {return mPriv->as_response;}
 	void response(msg_header_t *val) {mPriv->as_response = val;}

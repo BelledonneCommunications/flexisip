@@ -16,12 +16,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <algorithm>
+
 #include <sofia-sip/auth_plugin.h>
+#include <sofia-sip/base64.h>
 #include <sofia-sip/msg_header.h>
 
-#include "flexisip/auth/flexisip-auth-module-base.hh"
 #include "flexisip/logmanager.hh"
 #include "flexisip/module.hh"
+
+#include "utils/digest.hh"
+
+#include "flexisip/auth/flexisip-auth-module-base.hh"
 
 using namespace std;
 using namespace flexisip;
@@ -30,25 +36,38 @@ using namespace flexisip;
 //  FlexisipAuthModuleBase class
 // ====================================================================================================================
 
+// FlexisipAuthModuleBase::FlexisipAuthModuleBase(su_root_t *root, const std::string &domain, int nonceExpire, bool qopAuth):
+// AuthModule(root,
+// 		   AUTHTAG_REALM(domain.c_str()),
+// 		   AUTHTAG_OPAQUE("+GNywA=="),
+// 		   AUTHTAG_FORBIDDEN(1),
+// 		   AUTHTAG_ALLOW("ACK CANCEL BYE"),
+// 		   AUTHTAG_EXPIRES(nonceExpire),
+// 		   AUTHTAG_NEXT_EXPIRES(nonceExpire),
+// 		   AUTHTAG_QOP(qopAuth ? "auth" : nullptr),
+// 		   TAG_END()
+// ),
+// 	mQOPAuth(qopAuth) {
+// 	mNonceStore.setNonceExpires(nonceExpire);
+// }
+
 FlexisipAuthModuleBase::FlexisipAuthModuleBase(su_root_t *root, const std::string &domain, int nonceExpire, bool qopAuth):
-AuthModule(root,
-		   AUTHTAG_REALM(domain.c_str()),
-		   AUTHTAG_OPAQUE("+GNywA=="),
-		   AUTHTAG_FORBIDDEN(1),
-		   AUTHTAG_ALLOW("ACK CANCEL BYE"),
-		   AUTHTAG_EXPIRES(nonceExpire),
-		   AUTHTAG_NEXT_EXPIRES(nonceExpire),
-		   AUTHTAG_QOP(qopAuth ? "auth" : nullptr),
-		   TAG_END()
-),
-	mQOPAuth(qopAuth) {
+AuthModule(root, {
+	{"realm", domain},
+	{"opaque", "+GNywA=="},
+	{"forbidden", "1"},
+	{"expires", to_string(nonceExpire)},
+	{"next_expires", to_string(nonceExpire)},
+	{"qop", (qopAuth ? "auth" : "")}
+}),
+	mQOPAuth{qopAuth} {
 	mNonceStore.setNonceExpires(nonceExpire);
 }
 
 void FlexisipAuthModuleBase::onCheck(AuthStatus &as, msg_auth_t *au, auth_challenger_t const *ach) {
 	auto &authStatus = dynamic_cast<FlexisipAuthStatus &>(as);
 
-	as.allow(as.allow() || auth_allow_check(mAm, as.getPtr()) == 0);
+	as.allow(as.allow() || allowCheck(as));
 
 	if (as.realm()) {
 		/* Workaround for old linphone client that don't check whether algorithm is MD5 or SHA256.
@@ -65,7 +84,7 @@ void FlexisipAuthModuleBase::onCheck(AuthStatus &as, msg_auth_t *au, auth_challe
 			}
 		}
 		/* After auth_digest_credentials, there is no more au->au_next. */
-		au = auth_digest_credentials(au, as.realm(), mAm->am_opaque);
+		au = auth_digest_credentials(au, as.realm(), am_opaque.c_str());
 	} else
 		au = NULL;
 
@@ -95,7 +114,7 @@ void FlexisipAuthModuleBase::onCheck(AuthStatus &as, msg_auth_t *au, auth_challe
 void FlexisipAuthModuleBase::onChallenge(AuthStatus &as, auth_challenger_t const *ach) {
 	auto &flexisipAs = dynamic_cast<FlexisipAuthStatus &>(as);
 
-	auth_challenge_digest(mAm, as.getPtr(), ach);
+	challengeDigest(as, ach);
 
 	msg_header_t *response = as.response();
 	as.response(nullptr);
@@ -129,10 +148,6 @@ void FlexisipAuthModuleBase::onChallenge(AuthStatus &as, auth_challenger_t const
 	}
 }
 
-void FlexisipAuthModuleBase::onCancel(AuthStatus &as) {
-	auth_cancel_default(mAm, as.getPtr());
-}
-
 void FlexisipAuthModuleBase::notify(FlexisipAuthStatus &as) {
 	as.getPtr()->as_callback(as.magic(), as.getPtr());
 }
@@ -143,6 +158,76 @@ void FlexisipAuthModuleBase::onError(FlexisipAuthStatus &as) {
 		as.phrase("Internal error");
 		as.response(nullptr);
 	}
+}
+
+bool FlexisipAuthModuleBase::allowCheck(AuthStatus &as) {
+	auto method = as.method();
+
+	if (method && strcmp(method, "ACK") == 0) { /* Hack */
+		as.status(0);
+		return true;
+	}
+
+	if (!method || am_allow.empty())
+		return false;
+
+	if (am_allow[0] == "*") {
+		as.status(0);
+		return true;
+	}
+
+	if (find(am_allow.cbegin(), am_allow.cend(), method) != am_allow.cend()) {
+		as.status(0);
+		return true;
+	}
+
+	return false;
+}
+
+void FlexisipAuthModuleBase::challengeDigest(AuthStatus &as, auth_challenger_t const *ach) {
+	auto nonce = generateDigestNonce(false, msg_now());
+
+	const auto &u = as.getPtr()->as_uri;
+	const auto &d = as.getPtr()->as_pdomain;
+
+	ostringstream resp{};
+	resp << "Digest realm=\"" << as.realm() << "\",";
+	if (u) resp << " uri=\"" << u << "\",";
+	if (d) resp << " domain=\"" << d << "\",";
+	resp << " nonce=\"" << nonce << "\",";
+	if (!am_opaque.empty()) resp << " opaque=\"" << am_opaque << "\",";
+	if (as.stale()) resp << " stale=true,";
+	resp << " algorithm=" << am_algorithm;
+	if (!am_qop.empty()) resp << ", qop=\"" << am_qop << "\"";
+
+	as.response(msg_header_make(as.home(), ach->ach_header, resp.str().c_str()));
+	if (as.response() == nullptr) {
+		as.status(500);
+		as.phrase(auth_internal_server_error);
+	} else {
+		as.status(ach->ach_status);
+		as.phrase(ach->ach_phrase);
+	}
+}
+
+std::string FlexisipAuthModuleBase::generateDigestNonce(bool nextnonce, msg_time_t now) {
+	am_count += 3730029547U; /* 3730029547 is a prime */
+
+	Nonce _nonce = {0};
+	_nonce.issued = now;
+	_nonce.count = am_count;
+	_nonce.nextnonce = uint16_t(nextnonce);
+
+	/* Calculate HMAC of nonce data */
+	auto len = reinterpret_cast<char *>(&_nonce.digest) - reinterpret_cast<char *>(&_nonce);
+	Md5 md5{};
+	auto digest = md5.compute<vector<uint8_t>>(&_nonce, len);
+	memcpy(_nonce.digest, digest.data(), min(sizeof(_nonce.digest), digest.size()));
+
+	string res(256, '\0');
+	auto size = base64_e(&res[0], res.size(), &_nonce, sizeof(_nonce));
+	res.resize(size-1);
+	return res;
 }
 
 // ====================================================================================================================

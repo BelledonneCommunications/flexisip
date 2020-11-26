@@ -18,6 +18,8 @@
 
 #include <bctoolbox/crypto.h>
 
+#include <sofia-sip/base64.h>
+
 #include "flexisip/module.hh"
 
 #include "utils/string-utils.hh"
@@ -158,8 +160,8 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *au,
 	}
 
 	msg_time_t now = msg_now();
-	if (as.nonceIssued() == 0 /* Already validated nonce */ && auth_validate_digest_nonce(mAm, as.getPtr(), ar, now) < 0) {
-		as.blacklist(mAm->am_blacklist);
+	if (as.nonceIssued() == 0 /* Already validated nonce */ && validateDigestNonce(as, *ar, now) < 0) {
+		as.blacklist(am_blacklist);
 		challenge(as, ach);;
 		notify(as);
 		return;
@@ -176,7 +178,7 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *au,
 		int nnc = (int)strtoul(ar->ar_nc, NULL, 16);
 		if (pnc == -1 || pnc >= nnc) {
 			LOGE("Bad nonce count %d -> %d for %s", pnc, nnc, ar->ar_nonce);
-			as.blacklist(mAm->am_blacklist);
+			as.blacklist(am_blacklist);
 			challenge(as, ach);
 			notify(as);
 			return;
@@ -254,11 +256,11 @@ void FlexisipAuthModule::checkPassword(FlexisipAuthStatus &as, const auth_challe
 	as.user(ar.ar_username);
 	as.anonymous(false);
 
-	if (getPtr()->am_nextnonce || getPtr()->am_mutual)
-		auth_info_digest(getPtr(), as.getPtr(), &ach);
+	if (am_nextnonce || am_mutual)
+		infoDigest(as, &ach);
 
-	if (getPtr()->am_challenge)
-		auth_challenge_digest(getPtr(), as.getPtr(), &ach);
+	if (am_challenge)
+		challengeDigest(as, &ach);
 
 	LOGD("AuthStatus[%p]: successful authentication", &as);
 
@@ -287,14 +289,14 @@ int FlexisipAuthModule::checkPasswordForAlgorithm(FlexisipAuthStatus &as, const 
 }
 
 void FlexisipAuthModule::onAccessForbidden(FlexisipAuthStatus &as, const auth_challenger_t &ach, const char *phrase) {
-	if (getPtr()->am_forbidden && !as.no403()) {
+	if (am_forbidden && !as.no403()) {
 		as.status(403);
 		as.phrase(phrase);
 		as.response(nullptr);
 	} else {
 		challenge(as, &ach);
 	}
-	as.blacklist(getPtr()->am_blacklist);
+	as.blacklist(am_blacklist);
 }
 
 std::string FlexisipAuthModule::computeA1(Digest &algo, const auth_response_t &ar, const std::string &secret) {
@@ -344,6 +346,63 @@ std::string FlexisipAuthModule::computeDigestResponse(
 	SLOGD << __func__ << "(): " << response << " = " << algo.name() << "(" << input2.str() << ") (qop=" << qop << ")";
 
 	return response;
+}
+
+int FlexisipAuthModule::validateDigestNonce(AuthStatus &as, auth_response_t &ar, msg_time_t now) {
+	Nonce nonce[1] = {{0}};
+
+	/* Check nonce */
+	if (!ar.ar_nonce) {
+		LOGD("%s: no nonce", __func__);
+		return -1;
+	}
+	if (base64_d(reinterpret_cast<char *>(nonce), sizeof(nonce), ar.ar_nonce) != sizeof(nonce)) {
+		LOGD("%s: too short nonce", __func__);
+		return -1;
+	}
+
+	Md5 md5{};
+	auto len = reinterpret_cast<char *>(nonce->digest) - reinterpret_cast<char *>(nonce);
+	auto hmac = md5.compute<vector<uint8_t>>(&nonce, len);
+
+	if (hmac.size() != sizeof(nonce->digest) || memcmp(nonce->digest, hmac.data(), hmac.size()) != 0) {
+		LOGD("%s: bad nonce", __func__);
+		return -1;
+	}
+
+	as.nonceIssued(nonce->issued);
+	as.getPtr()->as_nextnonce = (nonce->nextnonce != 0);
+
+	const auto &expires = nonce->nextnonce ? am_next_exp : am_expires;
+
+	if (nonce->issued > now || (expires && nonce->issued + expires < now)) {
+		LOGD("%s: nonce expired %lu seconds ago "
+			 "(lifetime %u)",
+			 __func__, now - (nonce->issued + expires), expires);
+		as.stale(true);
+	}
+
+	if (am_max_ncount && ar.ar_nc) {
+		unsigned long nc = strtoul(ar.ar_nc, NULL, 10);
+
+		if (nc == 0 || nc > am_max_ncount) {
+			LOGD("%s: nonce used %s times, max %u\n", __func__, ar.ar_nc, am_max_ncount);
+			as.stale(true);
+		}
+	}
+
+	/* We should also check cnonce, nc... */
+
+	return 0;
+}
+
+void FlexisipAuthModule::infoDigest(AuthStatus &as, auth_challenger_t const *ach) {
+	if (!ach->ach_info) return;
+
+	if (am_nextnonce) {
+		auto nonce = generateDigestNonce(true, msg_now());
+		as.info(msg_header_format(as.home(), ach->ach_info, "nextnonce=\"%s\"", nonce.c_str()));
+	}
 }
 
 // ====================================================================================================================
