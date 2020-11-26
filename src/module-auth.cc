@@ -259,10 +259,9 @@ void Authentication::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		auto *as = new FlexisipAuthStatus(nullptr);
 		as->realm(proxyRealm.get()->c_str());
 		as->userUri(sip->sip_from->a_url);
-		AuthModule *am = findAuthModule(as->realm());
-		FlexisipAuthModule *fam = dynamic_cast<FlexisipAuthModule *>(am);
-		if (fam) {
-			fam->challenge(*as, &mProxyChallenger);
+		auto am = findAuthModule(as->realm());
+		if (am) {
+			am->challenge(*as, &mProxyChallenger);
 			msg_header_insert(ev->getMsgSip()->getMsg(), (msg_pub_t *)sip, (msg_header_t *)as->response());
 		} else {
 			LOGD("Authentication module for %s not found", as->realm());
@@ -275,9 +274,8 @@ void Authentication::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 
 void Authentication::onIdle() {
 	for (auto &it : mAuthModules) {
-		AuthModule *am = it.second.get();
-		FlexisipAuthModule *fam = dynamic_cast<FlexisipAuthModule *>(am);
-		fam->nonceStore().cleanExpired();
+		auto am = it.second.get();
+		am->nonceStore().cleanExpired();
 	}
 }
 

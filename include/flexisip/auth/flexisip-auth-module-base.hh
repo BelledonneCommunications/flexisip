@@ -26,7 +26,6 @@
 #include <sofia-sip/msg_types.h>
 #include <sofia-sip/su_wait.h>
 
-#include <flexisip/auth-module.hh>
 #include "flexisip-auth-status.hh"
 #include "nonce-store.hh"
 
@@ -38,7 +37,7 @@ namespace flexisip {
  * This implementation of AuthModule allows to do HTTP-like authentication
  * of SIP requests as described in RFC 3261 §22.
  */
-class FlexisipAuthModuleBase : public AuthModule {
+class FlexisipAuthModuleBase {
 public:
 	/**
 	 * @brief Instantiate a new authentication module without QOP authentication feature.
@@ -47,10 +46,16 @@ public:
 	 * @param[in] nonceExpire Validity period for a nonce in seconds.
 	 * @param[in] qopAuth Setting true allows clients to use the same nonce for successive authentication.
 	 */
-	FlexisipAuthModuleBase(su_root_t *root, const std::string &domain, int nonceExpire, bool qopAuth);
-	~FlexisipAuthModuleBase() override = default;
+	FlexisipAuthModuleBase(su_root_t *root, const std::string &domain, unsigned nonceExpire, bool qopAuth);
+	virtual ~FlexisipAuthModuleBase() = default;
 
 	NonceStore &nonceStore() {return mNonceStore;}
+	su_root_t *getRoot() const noexcept {return mRoot;}
+
+	void verify(AuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach);
+	void challenge(AuthStatus &as, auth_challenger_t const *ach) {if (ach) onChallenge(as, ach);}
+	void authorize(AuthStatus &as, auth_challenger_t const *ach) {challenge(as, ach);}
+	void cancel(AuthStatus &as) {}
 
 protected:
 	struct Nonce {
@@ -60,9 +65,8 @@ protected:
 		uint8_t digest[6];
 	};
 
-	void onCheck(AuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) override;
-	void onChallenge(AuthStatus &as, auth_challenger_t const *ach) override;
-	void onCancel(AuthStatus &as) override {}
+	void onCheck(AuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach);
+	virtual void onChallenge(AuthStatus &as, auth_challenger_t const *ach);
 
 	/**
 	 * This method is called each time the module want to authenticate an Authorization header.
@@ -82,7 +86,27 @@ protected:
 	std::string generateDigestNonce(bool nextnonce, msg_time_t now);
 
 	// Attributes
-	NonceStore mNonceStore;
+	std::string am_realm{};		/**< Our realm */
+	std::string am_opaque{"+GNywA=="};		/**< Opaque identification data */
+	std::string am_gssapi_data; /**< NTLM data */
+	std::string am_targetname;	/**< NTLM target name */
+	std::vector<std::string> am_allow{"ACK", "BYE", "CANCEL"};		/**< Methods to allow without authentication */
+	std::string  am_algorithm{"MD5"};	/**< Defauilt algorithm */
+	std::string am_qop{};			/**< Default qop (quality-of-protection) */
+	unsigned am_expires = 60 * 60;		/**< Nonce lifetime */
+	unsigned am_next_exp = 5 * 60;		/**< Next nonce lifetime */
+	unsigned am_blacklist = 5;		/**< Extra delay if bad credentials. */
+	bool am_forbidden = true;	/**< Respond with 403 if bad credentials */
+	bool am_anonymous = false;	/**< Allow anonymous access */
+	bool am_challenge;	/**< Challenge even if successful */
+	bool am_nextnonce = true;	/**< Send next nonce in responses */
+	bool am_mutual = false;		/**< Mutual authentication */
+	bool am_fake = false;		/**< Fake authentication */
+	unsigned am_count; /**< Nonce counter */
+	bool am_max_ncount = false; /**< If nonzero, challenge with new nonce after ncount */
+
+	su_root_t *mRoot = nullptr;
+	NonceStore mNonceStore{};
 	bool mQOPAuth = false;
 };
 

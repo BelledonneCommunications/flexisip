@@ -51,17 +51,33 @@ using namespace flexisip;
 // 	mNonceStore.setNonceExpires(nonceExpire);
 // }
 
-FlexisipAuthModuleBase::FlexisipAuthModuleBase(su_root_t *root, const std::string &domain, int nonceExpire, bool qopAuth):
-AuthModule(root, {
-	{"realm", domain},
-	{"opaque", "+GNywA=="},
-	{"forbidden", "1"},
-	{"expires", to_string(nonceExpire)},
-	{"next_expires", to_string(nonceExpire)},
-	{"qop", (qopAuth ? "auth" : "")}
-}),
-	mQOPAuth{qopAuth} {
+FlexisipAuthModuleBase::FlexisipAuthModuleBase(su_root_t *root, const std::string &domain, unsigned nonceExpire, bool qopAuth):
+	am_realm{domain}, am_qop{qopAuth ? "auth" : ""}, am_expires{nonceExpire}, am_next_exp{nonceExpire}, mRoot{root}, mQOPAuth{qopAuth} {
+
 	mNonceStore.setNonceExpires(nonceExpire);
+}
+
+void FlexisipAuthModuleBase::verify(AuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) {
+	if (!ach) return;
+
+	auto wildcardPos = find(am_realm.cbegin(), am_realm.cend(), '*');
+	auto host = as.domain();
+
+	/* Initialize per-request realm */
+	if (as.domain())
+		;
+	else if (wildcardPos == am_realm.cend()) {
+		as.realm(am_realm.c_str());
+	} else if (!host) {
+		return; /* Internal error */
+	} else if (am_realm == "*") {
+		as.realm(host);
+	} else {
+		/* Replace * with hostpart */
+		as.realm( string{am_realm.cbegin(), wildcardPos} + host + string{wildcardPos+1, am_realm.cend()} );
+	}
+
+	onCheck(as, credentials, ach);
 }
 
 void FlexisipAuthModuleBase::onCheck(AuthStatus &as, msg_auth_t *au, auth_challenger_t const *ach) {

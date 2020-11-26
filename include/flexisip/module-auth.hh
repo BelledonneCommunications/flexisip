@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include "auth-module.hh"
 #include "module-authentication-base.hh"
 #include <set>
 
