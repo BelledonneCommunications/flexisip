@@ -17,7 +17,7 @@
  */
 
 #include "participant-registration-subscription-handler.hh"
-#include "registration-events/client.hh"
+#include "conference/conference-server.hh"
 #include "utils/string-utils.hh"
 
 using namespace flexisip;
@@ -50,21 +50,17 @@ void ParticipantRegistrationSubscriptionHandler::subscribe (
 
 	if (toSubscribe) {
 		const auto &domains = mServer.getLocalDomains();
-
+		shared_ptr<RegistrationSubscription> subscription;
+		
 		if (std::find(domains.begin(), domains.end(), address->getDomain()) != domains.end()) {
 			LOGD("Subscribed address is local [%s]", address->asString().c_str());
-			shared_ptr<OwnRegistrationSubscription> subscription(new OwnRegistrationSubscription(mServer, chatRoom, address));
-			mSubscriptions.insert(make_pair(key, subscription));
-			subscription->start();
-		} else {
+			subscription = make_shared<OwnRegistrationSubscription>(mServer, chatRoom, address);
+		}else{
 			LOGD("Subscribed address is external [%s], subscribe to it", address->asString().c_str());
-			auto client = make_shared<flexisip::RegistrationEvent::Client>(
-				mServer,
-				chatRoom,
-				address
-			);
-			client->subscribe();
+			subscription = make_shared<ExternalRegistrationSubscription>(mServer, chatRoom, address);
 		}
+		mSubscriptions.insert(make_pair(key, subscription));
+		subscription->start();
 	}
 }
 

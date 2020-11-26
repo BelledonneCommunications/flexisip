@@ -1,7 +1,24 @@
+/*
+ Flexisip, a flexible SIP proxy server with media capabilities.
+ Copyright (C) 2018 Belledonne Communications SARL.
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as
+ published by the Free Software Foundation, either version 3 of the
+ License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include "client.hh"
 #include "reginfo.hh"
 #include "utils.hh"
-#include "../conference/conference-server.hh"
 
 #include <linphone++/linphone.hh>
 
@@ -16,75 +33,88 @@ namespace flexisip {
 
 namespace RegistrationEvent {
 
-Client::Client(
-    const ConferenceServer & server,
-    const shared_ptr<ChatRoom> & chatRoom,
-    const shared_ptr<const Address> to) : mServer(server), mChatRoom(chatRoom), mTo(to) {}
+Client::Client(const shared_ptr<Core> & core, const shared_ptr<const Address> &to) : mCore(core), mTo(to->clone()){
+	
+}
 
 void Client::subscribe() {
-    mSubscribeEvent = mChatRoom->getCore()->createSubscribe(mTo, "reg", 600);
-    mSubscribeEvent->addCustomHeader("Accept", "application/reginfo+xml");
+	if (mSubscribeEvent){
+		LOGE("Already subscribed.");
+		return;
+	}
+	mCore->addListener(shared_from_this());
+	mSubscribeEvent = mCore->createSubscribe(mTo, "reg", 600);
+	mSubscribeEvent->addCustomHeader("Accept", "application/reginfo+xml");
 
-    shared_ptr<Content> subsContent = Factory::get()->createContent();
-    subsContent->setType("application");
-    subsContent->setSubtype("xml");
-    string notiFybody("Subscribe");
-    subsContent->setBuffer((uint8_t *)notiFybody.data(), notiFybody.length());
+	mSubscribeEvent->sendSubscribe(nullptr);
+	
+}
 
-    mSubscribeEvent->sendSubscribe(subsContent);
-    mChatRoom->getCore()->addListener(shared_from_this());
+void Client::unsubscribe(){
+	if (!mSubscribeEvent){
+		LOGE("No subscribe.");
+		return;
+	}
+	mSubscribeEvent->terminate();
+	mCore->removeListener(shared_from_this());
+	mSubscribeEvent = nullptr;
 }
 
 Client::~Client () {
-    mChatRoom->getCore()->removeListener(shared_from_this());
+	/* It is not possible to call shared_from_this() from here because we are in the destructor,
+	 so not possible to remove us as a core listener. Too late.*/
+	if (mSubscribeEvent){
+		LOGA("RegistrationEvent::Client() destroyed while still subscription active.");
+	}
+}
+
+void Client::setListener(ClientListener *listener){
+	mListener = listener;
 }
 
 void Client::onNotifyReceived(
     const shared_ptr<Core> & lc,
     const shared_ptr<linphone::Event> & lev,
     const string & notifiedEvent,
-    const shared_ptr<const Content> & body
-) {
-    notifyReceived = true;
-    istringstream data(body->getStringBuffer());
+    const shared_ptr<const Content> & body) {
 
-    unique_ptr<Reginfo> ri(parseReginfo(data, Xsd::XmlSchema::Flags::dont_validate));
+	istringstream data(body->getStringBuffer());
 
-    for (const auto &registration : ri->getRegistration()) {
-        list<shared_ptr<ParticipantDeviceIdentity>> participantDevices;
+	unique_ptr<Reginfo> ri(parseReginfo(data, Xsd::XmlSchema::Flags::dont_validate));
 
-        for (const auto &contact : registration.getContact()) {
-            auto partDeviceAddr = Factory::get()->createAddress(contact.getUri());
+	for (const auto &registration : ri->getRegistration()) {
+		list<shared_ptr<ParticipantDeviceIdentity>> participantDevices;
+		size_t refreshed = 0;
 
-            Contact::UnknownParamSequence ups = contact.getUnknownParam();
+		for (const auto &contact : registration.getContact()) {
+			auto partDeviceAddr = Factory::get()->createAddress(contact.getUri());
 
-            for (const auto &param : ups) {
-                if (Utils::isContactCompatible(mServer, mChatRoom, param)) {
-                    string displayName = contact.getDisplayName()
-                        ? contact.getDisplayName()->c_str()
-                        : string("");
+			Contact::UnknownParamSequence ups = contact.getUnknownParam();
 
-                    shared_ptr<ParticipantDeviceIdentity> identity = Factory::get()->createParticipantDeviceIdentity(
-                        partDeviceAddr,
-                        displayName
-                    );
-			identity->setCapabilityDescriptor(param);
-                    participantDevices.push_back(identity);
-                    break;
-                }
-            }
-        }
+			for (const auto &param : ups) {
+				if (param.getName() != "+org.linphone.specs") continue;
+				string displayName = contact.getDisplayName() ? contact.getDisplayName()->c_str() : string("");
+				shared_ptr<ParticipantDeviceIdentity> identity = Factory::get()->createParticipantDeviceIdentity(partDeviceAddr, displayName);
+				identity->setCapabilityDescriptor(param);
+				
+				if (contact.getEvent() == reginfo::Event::refreshed){
+					if (mListener) mListener->onRefreshed(identity);
+					refreshed++;
+				}
+				participantDevices.push_back(identity);
+				break;
+			}
+		}
 
-        auto partAddr = Factory::get()->createAddress(registration.getAor());
+		auto partAddr = Factory::get()->createAddress(registration.getAor());
 
-        if (registration.getState() == Registration::StateType::terminated) {
-            auto participant = this->mChatRoom->findParticipant(partAddr);
-            if (participant) this->mChatRoom->removeParticipant(participant);
-        } else {
-            this->mChatRoom->setParticipantDevices(partAddr, participantDevices);
-        }
-    }
-
+		if (registration.getState() == Registration::StateType::terminated) {
+			participantDevices.clear(); // We'll notify that 0 devices are registered.
+		}
+		if (refreshed != participantDevices.size()){
+			if (mListener) mListener->onNotifyReceived(participantDevices);
+		}/*otherwise it's useless */
+	}
 }
 
 } // namespace RegistrationEvent

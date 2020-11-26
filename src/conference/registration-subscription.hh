@@ -18,8 +18,9 @@
 
 #pragma once
 
-#include <linphone++/linphone.hh>
-#include <flexisip/registrardb.hh>
+#include "linphone++/linphone.hh"
+#include "flexisip/registrardb.hh"
+#include "registration-events/client.hh"
 
 using namespace std;
 using namespace linphone;
@@ -55,13 +56,16 @@ class RegistrationSubscription : public virtual_enable_shared_from_this<Registra
 		virtual ~RegistrationSubscription();
 		shared_ptr<ChatRoom> getChatRoom()const;
 	protected:
+		bool isContactCompatible(const string &specs);
 		/*call this to notify the current list of participant devices for the requested participant*/
 		void notify(const list< shared_ptr<ParticipantDeviceIdentity> > & participantDevices);
 		/*call this to notify that a device has just registered*/
-		void notifyRegistration(const shared_ptr<Address>  & participantDevices);
+		void notifyRegistration(const shared_ptr<const Address>  & participantDevices);
 		const ConferenceServer & mServer;
 		const shared_ptr<ChatRoom> mChatRoom;
 		const shared_ptr<Address> mParticipant;
+	private:
+		int getMaskFromSpecs (const std::string &specs);
 };
 
 class RegistrationSubscriptionFetchListener : public virtual_enable_shared_from_this<RegistrationSubscriptionFetchListener>, public ContactUpdateListener{
@@ -102,6 +106,24 @@ class OwnRegistrationSubscription
 
 		SipUri mParticipantAor;
 		bool mActive = false;
+};
+
+/**
+ * Implementation that uses the 'reg' event package to get registration information from external domains with SUBSCRIBE/NOTIFY
+ */
+class ExternalRegistrationSubscription : public RegistrationSubscription, protected RegistrationEvent::ClientListener{
+	public:
+		ExternalRegistrationSubscription(
+			const ConferenceServer & server,
+			const shared_ptr<ChatRoom> &cr,
+			const shared_ptr<const Address> &participant
+		);
+		virtual void start() override;
+		virtual void stop() override;
+	private:
+		shared_ptr<RegistrationEvent::Client> mRegClient;
+		virtual void onNotifyReceived(const list< shared_ptr<ParticipantDeviceIdentity> > & participantDevices) override;
+		virtual void onRefreshed(const shared_ptr<ParticipantDeviceIdentity> &participantDevice) override;
 };
 
 } // namespace flexisip
