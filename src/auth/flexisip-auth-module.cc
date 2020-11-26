@@ -70,7 +70,8 @@ void FlexisipAuthModule::GenericAuthListener::main_thread_async_response_cb(su_r
 //  FlexisipAuthModule class
 // ====================================================================================================================
 
-void FlexisipAuthModule::onChallenge(FlexisipAuthStatus &as, auth_challenger_t const *ach) {
+void FlexisipAuthModule::challenge(FlexisipAuthStatus &as, auth_challenger_t const *ach) {
+	if (ach == nullptr) return;
 	auto &authStatus = dynamic_cast<FlexisipAuthStatus &>(as);
 	auto cleanUsedAlgo = [this, &authStatus, ach](AuthDbResult r, const AuthDbBackend::PwList &passwords) {
 		switch (r) {
@@ -90,13 +91,13 @@ void FlexisipAuthModule::onChallenge(FlexisipAuthStatus &as, auth_challenger_t c
 				} else {
 					authStatus.mUsedAlgo = move(usedAlgo);
 				}
-				makeChallenge(authStatus, *ach); // Calling FlexisipAuthModuleBase::onChallenge() directly here is forbidden with GCC 4.9 and earlier.
+				FlexisipAuthModuleBase::challenge(authStatus, ach); // Calling FlexisipAuthModuleBase::onChallenge() directly here is forbidden with GCC 4.9 and earlier.
 				break;
 			}
 			case PASSWORD_NOT_FOUND:
 				// Make a challenge for each algorithm allowed by Flexisip settings.
 				LOGD("AuthStatus[%p]: no password found. Making challenge for each authorized algorithm", &authStatus);
-				makeChallenge(authStatus, *ach); // Calling FlexisipAuthModuleBase::onChallenge() directly here is forbidden with GCC 4.9 and earlier.
+				FlexisipAuthModuleBase::challenge(authStatus, ach); // Calling FlexisipAuthModuleBase::onChallenge() directly here is forbidden with GCC 4.9 and earlier.
 				break;
 			case AUTH_ERROR:
 				this->onError(authStatus);
@@ -113,10 +114,6 @@ void FlexisipAuthModule::onChallenge(FlexisipAuthStatus &as, auth_challenger_t c
 	LOGD("AuthStatus[%p]: searching for digest passwords of '%s@%s'", &as, unescpapedUrlUser.c_str(), as.as_user_uri->url_host);
 	AuthDbBackend::get().getPassword(unescpapedUrlUser, as.as_user_uri->url_host, unescpapedUrlUser, listener);
 	as.as_status = 100;
-}
-
-void FlexisipAuthModule::makeChallenge(FlexisipAuthStatus &as, const auth_challenger_t &ach) {
-	FlexisipAuthModuleBase::onChallenge(as, &ach);
 }
 
 #define PA "Authorization missing "
@@ -256,11 +253,8 @@ void FlexisipAuthModule::checkPassword(FlexisipAuthStatus &as, const auth_challe
 	as.as_user = ar.ar_username;
 	as.as_anonymous = false;
 
-	if (am_nextnonce || am_mutual)
+	if (am_nextnonce)
 		infoDigest(as, &ach);
-
-	if (am_challenge)
-		challengeDigest(as, &ach);
 
 	LOGD("AuthStatus[%p]: successful authentication", &as);
 

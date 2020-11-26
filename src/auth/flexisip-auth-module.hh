@@ -47,6 +47,8 @@ public:
 
 	void setOnPasswordFetchResultCb(const PasswordFetchResultCb &cb) {mPassworFetchResultCb = cb;}
 
+	void challenge(FlexisipAuthStatus &as, auth_challenger_t const *ach) override;
+
 private:
 	class GenericAuthListener : public AuthDbListener {
 	public:
@@ -64,9 +66,6 @@ private:
 		AuthDbResult mResult = PENDING;
 		AuthDbBackend::PwList mPasswords;
 	};
-
-	void onChallenge(FlexisipAuthStatus &as, auth_challenger_t const *ach) override;
-	void makeChallenge(FlexisipAuthStatus& as, const auth_challenger_t &ach);
 
 	void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) override;
 

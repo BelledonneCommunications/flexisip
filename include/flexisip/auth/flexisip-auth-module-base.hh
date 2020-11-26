@@ -53,9 +53,7 @@ public:
 	su_root_t *getRoot() const noexcept {return mRoot;}
 
 	void verify(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach);
-	void challenge(FlexisipAuthStatus &as, auth_challenger_t const *ach) {if (ach) onChallenge(as, ach);}
-	void authorize(FlexisipAuthStatus &as, auth_challenger_t const *ach) {challenge(as, ach);}
-	void cancel(FlexisipAuthStatus &as) {}
+	virtual void challenge(FlexisipAuthStatus &as, auth_challenger_t const *ach);
 
 protected:
 	struct Nonce {
@@ -64,9 +62,6 @@ protected:
 		uint16_t nextnonce;
 		uint8_t digest[6];
 	};
-
-	void onCheck(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach);
-	virtual void onChallenge(FlexisipAuthStatus &as, auth_challenger_t const *ach);
 
 	/**
 	 * This method is called each time the module want to authenticate an Authorization header.
@@ -88,8 +83,6 @@ protected:
 	// Attributes
 	std::string am_realm{};		/**< Our realm */
 	std::string am_opaque{"+GNywA=="};		/**< Opaque identification data */
-	std::string am_gssapi_data; /**< NTLM data */
-	std::string am_targetname;	/**< NTLM target name */
 	std::vector<std::string> am_allow{"ACK", "BYE", "CANCEL"};		/**< Methods to allow without authentication */
 	std::string  am_algorithm{"MD5"};	/**< Defauilt algorithm */
 	std::string am_qop{};			/**< Default qop (quality-of-protection) */
@@ -97,13 +90,9 @@ protected:
 	unsigned am_next_exp = 5 * 60;		/**< Next nonce lifetime */
 	unsigned am_blacklist = 5;		/**< Extra delay if bad credentials. */
 	bool am_forbidden = true;	/**< Respond with 403 if bad credentials */
-	bool am_anonymous = false;	/**< Allow anonymous access */
-	bool am_challenge;	/**< Challenge even if successful */
 	bool am_nextnonce = true;	/**< Send next nonce in responses */
-	bool am_mutual = false;		/**< Mutual authentication */
-	bool am_fake = false;		/**< Fake authentication */
-	unsigned am_count; /**< Nonce counter */
-	bool am_max_ncount = false; /**< If nonzero, challenge with new nonce after ncount */
+	unsigned am_count = 0; /**< Nonce counter */
+	unsigned am_max_ncount = 0; /**< If nonzero, challenge with new nonce after ncount */
 
 	su_root_t *mRoot = nullptr;
 	NonceStore mNonceStore{};

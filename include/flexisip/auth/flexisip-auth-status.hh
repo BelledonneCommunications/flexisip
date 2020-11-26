@@ -44,8 +44,6 @@ struct FlexisipAuthStatus {
 	std::string as_display{}; /**< Return user's real name [in/out] */
 
 	url_t const *as_user_uri = nullptr; /* Return user's identity [in/out] */
-	std::string as_ident{};	  /**< Identities [out] */
-	unsigned as_profile = 0;	  /**< User profile (group) [out] */
 
 	su_addrinfo_t *as_source = nullptr; /**< Source address [in] */
 
@@ -75,44 +73,6 @@ struct FlexisipAuthStatus {
 	std::list<std::string> mUsedAlgo;
 	bool mNo403 = false;
 	bool mPasswordFound = false;
-
-public:
-
-// 	/**
-// 	 * Request that has been used while construction.
-// 	 */
-// 	const std::shared_ptr<RequestSipEvent> &event() const {return mEvent;}
-//
-// 	/**
-// 	 * This property is to be set by the user of FlexisipAuthModule
-// 	 * before calling verify(). If true, the module will not return 403
-// 	 * status code on authentication denied but will submit a new challenge.
-// 	 */
-// 	bool no403() const {return mNo403;}
-// 	void no403(bool no403) {mNo403 = no403;}
-//
-// 	/**
-// 	 * This property is set by FlexisipAuthModule and can
-// 	 * be read on each time while the authentication is running.
-// 	 * A 'true' value means that the module has already tried to fetch
-// 	 * the password from database and has succeeded.
-// 	 */
-// 	bool passwordFound() const {return mPasswordFound;}
-// 	void passwordFound(bool val) {mPasswordFound = val;}
-//
-// 	/**
-// 	 * List of digest algorithms to use for authentication. If there
-// 	 * are several algorithms, FlexisipAuthModule will generate
-// 	 * one challenge per algorithm when the Authorization header is missing
-// 	 * from the request.
-// 	 *
-// 	 * This property must be set before calling verify() and must
-// 	 * contain one element at least.
-// 	 */
-// 	std::list<std::string> &usedAlgo() {return mAlgoUsed;}
-
-private:
-
 };
 
 }

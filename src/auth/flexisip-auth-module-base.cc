@@ -46,10 +46,10 @@ void FlexisipAuthModuleBase::verify(FlexisipAuthStatus &as, msg_auth_t *credenti
 	if (!ach) return;
 
 	auto wildcardPos = find(am_realm.cbegin(), am_realm.cend(), '*');
-	auto host = as.as_domain;
+	const auto &host = as.as_domain;
 
 	/* Initialize per-request realm */
-	if (!as.as_domain.empty())
+	if (!as.as_realm.empty())
 		;
 	else if (wildcardPos == am_realm.cend()) {
 		as.as_realm = am_realm;
@@ -62,12 +62,6 @@ void FlexisipAuthModuleBase::verify(FlexisipAuthStatus &as, msg_auth_t *credenti
 		as.as_realm = string{am_realm.cbegin(), wildcardPos} + host + string{wildcardPos+1, am_realm.cend()};
 	}
 
-	onCheck(as, credentials, ach);
-}
-
-void FlexisipAuthModuleBase::onCheck(FlexisipAuthStatus &as, msg_auth_t *au, auth_challenger_t const *ach) {
-	auto &authStatus = dynamic_cast<FlexisipAuthStatus &>(as);
-
 	as.as_allow = as.as_allow || allowCheck(as);
 
 	if (!as.as_realm.empty()) {
@@ -75,44 +69,46 @@ void FlexisipAuthModuleBase::onCheck(FlexisipAuthStatus &as, msg_auth_t *au, aut
 		 * They then answer for both, but the first one for SHA256 is of course wrong.
 		 * We workaround by selecting the second digest response.
 		 */
-		if (au && au->au_next) {
+		if (credentials && credentials->au_next) {
 			auth_response_t r = {0};
 			r.ar_size = sizeof(r);
-			auth_digest_response_get(as.mHome.home(), &r, au->au_next->au_params);
+			auth_digest_response_get(as.mHome.home(), &r, credentials->au_next->au_params);
 
 			if (r.ar_algorithm == NULL || !strcasecmp(r.ar_algorithm, "MD5")) {
-				au = au->au_next;
+				credentials = credentials->au_next;
 			}
 		}
 		/* After auth_digest_credentials, there is no more au->au_next. */
-		au = auth_digest_credentials(au, as.as_realm.c_str(), am_opaque.c_str());
+		credentials = auth_digest_credentials(credentials, as.as_realm.c_str(), am_opaque.c_str());
 	} else
-		au = NULL;
+		credentials = NULL;
 
 	if (as.as_allow) {
 		LOGD("AuthStatus[%p]: allow unauthenticated %s", &as, as.as_method.c_str());
 		as.as_status = 0, as.as_phrase = "";
-		as.as_match = reinterpret_cast<msg_header_t *>(au);
+		as.as_match = reinterpret_cast<msg_header_t *>(credentials);
 		return;
 	}
 
-	if (au) {
+	if (credentials) {
 		LOGD("AuthStatus[%p]: searching for auth digest response for this proxy", &as);
-		msg_auth_t *matched_au = ModuleToolbox::findAuthorizationForRealm(as.mHome.home(), au, as.as_realm.c_str());
+		msg_auth_t *matched_au = ModuleToolbox::findAuthorizationForRealm(as.mHome.home(), credentials, as.as_realm.c_str());
 		if (matched_au)
-			au = matched_au;
-		as.as_match = reinterpret_cast<msg_header_t *>(au);
-		checkAuthHeader(authStatus, au, ach);
+			credentials = matched_au;
+		as.as_match = reinterpret_cast<msg_header_t *>(credentials);
+		checkAuthHeader(as, credentials, ach);
 	} else {
 		/* There was no realm or credentials, send challenge */
 		LOGD("AuthStatus[%p]: no credential found for realm '%s'", &as, as.as_realm.c_str());
 		challenge(as, ach);
-		notify(authStatus);
+		notify(as);
 		return;
 	}
 }
 
-void FlexisipAuthModuleBase::onChallenge(FlexisipAuthStatus &as, auth_challenger_t const *ach) {
+void FlexisipAuthModuleBase::challenge(FlexisipAuthStatus &as, auth_challenger_t const *ach) {
+	if (ach == nullptr) return;
+
 	auto &flexisipAs = dynamic_cast<FlexisipAuthStatus &>(as);
 
 	challengeDigest(as, ach);
