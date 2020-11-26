@@ -6,20 +6,6 @@ namespace flexisip {
 
 namespace RegistrationEvent {
 
-int Utils::getMaskFromSpecs (const string &specs) {
-    unsigned int mask = 0;
-
-    //Please excuse the following code that is a bit too basic in terms of parsing:
-    if (specs.find("groupchat") != string::npos) mask |= (unsigned int)ChatRoomCapabilities::Conference;
-    if (specs.find("lime") != string::npos) mask |= (unsigned int)ChatRoomCapabilities::Encrypted;
-    return mask;
-}
-
-bool Utils::isContactCompatible(const ConferenceServer & server, const shared_ptr<ChatRoom> &cr, const string &specs) {
-	int mask = Utils::getMaskFromSpecs(specs);
-	unsigned int chatRoomCapabilities = cr->getCapabilities() & ~(int)ChatRoomCapabilities::OneToOne;
-	return (!server.capabilityCheckEnabled() || (mask & chatRoomCapabilities) == chatRoomCapabilities);
-}
 
 string Utils::getDeviceName(const shared_ptr<ExtendedContact> &ec) {
 	const string &userAgent = ec->getUserAgent();

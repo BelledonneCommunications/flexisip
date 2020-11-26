@@ -45,12 +45,26 @@ void RegistrationSubscription::notify(const list< shared_ptr<ParticipantDeviceId
 	mChatRoom->setParticipantDevices(mParticipant, participantDevices);
 }
 
-void RegistrationSubscription::notifyRegistration(const shared_ptr<Address> &participantDevice){
+void RegistrationSubscription::notifyRegistration(const shared_ptr<const Address> &participantDevice){
 	LOGD("RegistrationSubscription: notifying chatroom [%p] that participant-device [%s] has just registered.",
 	     mChatRoom.get(), participantDevice->asStringUriOnly().c_str());
 	mChatRoom->notifyParticipantDeviceRegistration(participantDevice);
 }
 
+int RegistrationSubscription::getMaskFromSpecs (const string &specs) {
+	unsigned int mask = 0;
+
+	//Please excuse the following code that is a bit too basic in terms of parsing:
+	if (specs.find("groupchat") != string::npos) mask |= (unsigned int)ChatRoomCapabilities::Conference;
+	if (specs.find("lime") != string::npos) mask |= (unsigned int)ChatRoomCapabilities::Encrypted;
+	return mask;
+}
+
+bool RegistrationSubscription::isContactCompatible(const string &specs) {
+	int mask = getMaskFromSpecs(specs);
+	unsigned int chatRoomCapabilities = mChatRoom->getCapabilities() & ~(int)ChatRoomCapabilities::OneToOne;
+	return !mServer.capabilityCheckEnabled() || (mask & chatRoomCapabilities) == chatRoomCapabilities;
+}
 
 /*
  * Redis implementation of RegistrationSubscription.
@@ -104,7 +118,7 @@ void OwnRegistrationSubscription::processRecord(const shared_ptr<Record> &r){
 		for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
 			auto addr = getPubGruu(r, ec);
 			if (!addr) continue;
-			if (RegistrationEvent::Utils::isContactCompatible(mServer, mChatRoom, ec->getOrgLinphoneSpecs())) {
+			if (isContactCompatible(ec->getOrgLinphoneSpecs())) {
 				shared_ptr<ParticipantDeviceIdentity> identity = Factory::get()->createParticipantDeviceIdentity(
 					addr, RegistrationEvent::Utils::getDeviceName(ec));
 				identity->setCapabilityDescriptor(ec->getOrgLinphoneSpecs());
@@ -131,5 +145,43 @@ void OwnRegistrationSubscription::onContactRegistered(const shared_ptr<Record> &
 		return;
 	}
 	shared_ptr<Address> pubGruu = getPubGruu(r, ct);
-	if (pubGruu && RegistrationEvent::Utils::isContactCompatible(mServer, mChatRoom, ct->getOrgLinphoneSpecs())) notifyRegistration(pubGruu);
+	if (pubGruu && isContactCompatible(ct->getOrgLinphoneSpecs())) notifyRegistration(pubGruu);
 }
+
+
+//=========================== External Registration Subscription ===================
+
+
+ExternalRegistrationSubscription::ExternalRegistrationSubscription(
+			const ConferenceServer & server,
+			const shared_ptr<ChatRoom> &cr,
+			const shared_ptr<const Address> &participant) : 
+			RegistrationSubscription(server, cr, participant){
+	mRegClient = make_shared<RegistrationEvent::Client>(cr->getCore(), participant);
+}
+
+void ExternalRegistrationSubscription::start(){
+	mRegClient->setListener(this);
+	mRegClient->subscribe();
+}
+
+void ExternalRegistrationSubscription::stop(){
+	mRegClient->unsubscribe();
+	mRegClient->setListener(this);
+}
+
+void ExternalRegistrationSubscription::onNotifyReceived(const list< shared_ptr<ParticipantDeviceIdentity> > & participantDevices){
+	auto compatibleParticipantDevices = participantDevices; // Make a copy
+	// Remove uncompatible devices
+	compatibleParticipantDevices.remove_if([this](shared_ptr<ParticipantDeviceIdentity> &deviceIdentity){
+		return !isContactCompatible(deviceIdentity->getCapabilityDescriptor());
+	});
+	notify(compatibleParticipantDevices);
+}
+
+void ExternalRegistrationSubscription::onRefreshed(const shared_ptr<ParticipantDeviceIdentity> &deviceIdentity){
+	if (isContactCompatible(deviceIdentity->getCapabilityDescriptor())){
+		notifyRegistration(deviceIdentity->getAddress());
+	}
+}
+
