@@ -26,7 +26,6 @@
 #include <sofia-sip/msg_types.h>
 #include <sofia-sip/su_wait.h>
 
-#include "flexisip/auth-module.hh"
 #include "flexisip/auth/nonce-store.hh"
 #include "flexisip/auth/flexisip-auth-module-base.hh"
 #include "flexisip/auth/flexisip-auth-status.hh"
@@ -66,8 +65,8 @@ private:
 		AuthDbBackend::PwList mPasswords;
 	};
 
-	void onChallenge(AuthStatus &as, auth_challenger_t const *ach) override;
-	void makeChallenge(AuthStatus& as, const auth_challenger_t &ach);
+	void onChallenge(FlexisipAuthStatus &as, auth_challenger_t const *ach) override;
+	void makeChallenge(FlexisipAuthStatus& as, const auth_challenger_t &ach);
 
 	void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) override;
 
@@ -81,8 +80,8 @@ private:
 	static std::string computeA1SESS(Digest &algo, const auth_response_t &ar, const std::string &ha1);
 	static std::string computeDigestResponse(Digest &algo, const ::auth_response_t &ar, const std::string &method_name, const void *body, size_t bodyLen, const std::string &ha1);
 
-	int validateDigestNonce(AuthStatus &as, auth_response_t &ar, msg_time_t now);
-	void infoDigest(AuthStatus &as, auth_challenger_t const *ach);
+	int validateDigestNonce(FlexisipAuthStatus &as, auth_response_t &ar, msg_time_t now);
+	void infoDigest(FlexisipAuthStatus &as, auth_challenger_t const *ach);
 
 	// Attributes
 	PasswordFetchResultCb mPassworFetchResultCb;

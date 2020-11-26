@@ -211,17 +211,16 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const
 
 	LOGD("AuthStatus[%p]: '%s' will be used as realm", &as, realm.c_str());
 
-	as.method(sip->sip_request->rq_method_name);
-	as.source(msg_addrinfo(ms->getMsg()));
-	as.userUri(userUri);
-	as.realm(realm);
-	as.display(sip->sip_from->a_display);
+	as.as_method = sip->sip_request->rq_method_name;
+	as.as_source = msg_addrinfo(ms->getMsg());
+	as.as_user_uri = userUri;
+	as.as_realm = realm;
+	as.as_display = sip->sip_from->a_display;
 	if (sip->sip_payload) {
-		as.body(sip->sip_payload->pl_data);
-		as.bodyLen(sip->sip_payload->pl_len);
+		as.as_body.assign(sip->sip_payload->pl_data, sip->sip_payload->pl_data + sip->sip_payload->pl_len);
 	}
-	as.usedAlgo() = mAlgorithms;
-	as.no403(mNo403Expr->eval(*ev->getSip()));
+	as.mUsedAlgo = mAlgorithms;
+	as.mNo403 = mNo403Expr->eval(*ev->getSip());
 }
 
 void ModuleAuthenticationBase::validateRequest(const std::shared_ptr<RequestSipEvent> &request) {
@@ -295,23 +294,23 @@ FlexisipAuthModuleBase *ModuleAuthenticationBase::findAuthModule(const std::stri
 	return it->second.get();
 }
 
-void ModuleAuthenticationBase::processAuthModuleResponse(AuthStatus &as) {
+void ModuleAuthenticationBase::processAuthModuleResponse(FlexisipAuthStatus &as) {
 	auto &fAs = dynamic_cast<FlexisipAuthStatus &>(as);
-	const shared_ptr<RequestSipEvent> &ev = fAs.event();
-	if (as.status() == 0) {
+	const shared_ptr<RequestSipEvent> &ev = fAs.mEvent;
+	if (as.as_status == 0) {
 		onSuccess(fAs);
 		if (ev->isSuspended()) {
 			// The event is re-injected
 			getAgent()->injectRequestEvent(ev);
 		}
-	} else if (as.status() == 100) {
+	} else if (as.as_status == 100) {
 		if (!ev->isSuspended()) ev->suspendProcessing();
-		as.callback(std::bind(&ModuleAuthenticationBase::processAuthModuleResponse, this, placeholders::_1));
+		as.as_callback = std::bind(&ModuleAuthenticationBase::processAuthModuleResponse, this, placeholders::_1);
 		return;
-	} else if (as.status() >= 400) {
-		if (as.status() == 401 || as.status() == 407) {
-			auto log = make_shared<AuthLog>(ev->getMsgSip()->getSip(), fAs.passwordFound());
-			log->setStatusCode(as.status(), as.phrase());
+	} else if (as.as_status >= 400) {
+		if (as.as_status == 401 || as.as_status == 407) {
+			auto log = make_shared<AuthLog>(ev->getMsgSip()->getSip(), fAs.mPasswordFound);
+			log->setStatusCode(as.as_status, as.as_phrase);
 			log->setCompleted();
 			ev->setEventLog(log);
 		}
@@ -324,19 +323,19 @@ void ModuleAuthenticationBase::processAuthModuleResponse(AuthStatus &as) {
 
 void ModuleAuthenticationBase::onSuccess(const FlexisipAuthStatus &as) {
 	msg_auth_t *au;
-	const shared_ptr<MsgSip> &ms = as.event()->getMsgSip();
+	const shared_ptr<MsgSip> &ms = as.mEvent->getMsgSip();
 	sip_t *sip = ms->getSip();
 	if (sip->sip_request->rq_method == sip_method_register) {
 		au = ModuleToolbox::findAuthorizationForRealm(
 			ms->getHome(),
 			sip->sip_authorization,
-			as.realm()
+			as.as_realm.c_str()
 		);
 	} else {
 		au = ModuleToolbox::findAuthorizationForRealm(
 			ms->getHome(),
 			sip->sip_proxy_authorization,
-			as.realm()
+			as.as_realm.c_str()
 		);
 	}
 	while (au) {
@@ -347,10 +346,10 @@ void ModuleAuthenticationBase::onSuccess(const FlexisipAuthStatus &as) {
 }
 
 void ModuleAuthenticationBase::errorReply(const FlexisipAuthStatus &as) {
-	const std::shared_ptr<RequestSipEvent> &ev = as.event();
-	ev->reply(as.status(), as.phrase(),
-			  SIPTAG_HEADER(reinterpret_cast<sip_header_t *>(as.info())),
-			  SIPTAG_HEADER(reinterpret_cast<sip_header_t *>(as.response())),
+	const std::shared_ptr<RequestSipEvent> &ev = as.mEvent;
+	ev->reply(as.as_status, as.as_phrase.c_str(),
+			  SIPTAG_HEADER(reinterpret_cast<sip_header_t *>(as.as_info)),
+			  SIPTAG_HEADER(reinterpret_cast<sip_header_t *>(as.as_response)),
 			  SIPTAG_SERVER_STR(getAgent()->getServerString()),
 			  TAG_END()
 	);

@@ -66,7 +66,7 @@ void ExternalAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *cre
 			throw runtime_error(os.str());
 		}
 		SLOGD << "HTTP request [" << request << "] to '" << uri << "' successfully sent";
-		as.status(100);
+		as.as_status = 100;
 	} catch (const runtime_error &e) {
 		SLOGE << e.what();
 		onError(as);
@@ -118,8 +118,8 @@ void ExternalAuthModule::onHttpResponse(HttpRequestCtx &ctx, nth_client_t *reque
 		}
 
 		auto &httpAuthStatus = dynamic_cast<ExternalAuthModule::Status &>(ctx.as);
-		httpAuthStatus.status(sipCode == 200 ? 0 : sipCode);
-		httpAuthStatus.phrase(su_strdup(ctx.as.home(), phrase.c_str()));
+		httpAuthStatus.as_status = (sipCode == 200 ? 0 : sipCode);
+		httpAuthStatus.as_phrase = phrase;
 		httpAuthStatus.reason(reasonHeaderValue);
 		httpAuthStatus.pAssertedIdentity(pAssertedIdentity);
 		if (sipCode == 401 || sipCode == 407) challenge(ctx.as, &ctx.ach);
@@ -167,7 +167,7 @@ std::string ExternalAuthModule::extractParameter(const Status &as, const msg_aut
 		string headerName(paramName, 7);
 		if (!headerName.empty()) {
 			char encodedHeader[255];
-			msg_header_t *header = as.event()->getMsgSip()->findHeader(headerName);
+			msg_header_t *header = as.mEvent->getMsgSip()->findHeader(headerName);
 			if (header) {
 				cmatch m;
 				sip_header_e(encodedHeader, sizeof(encodedHeader), reinterpret_cast<sip_header_t *>(header), 0);
@@ -187,7 +187,7 @@ std::string ExternalAuthModule::extractParameter(const Status &as, const msg_aut
 	}
 
 	if (paramName == "scheme") return StringUtils::strip(credentials.au_scheme, '"');
-	if (paramName == "method") return StringUtils::strip(as.method(), '"');
+	if (paramName == "method") return StringUtils::strip(as.as_method, '"');
 	if (paramName == "from") return StringUtils::strip(as.fromHeader(), '"');
 	if (paramName == "sip-instance") return StringUtils::strip(as.sipInstance(), '"');
 	if (paramName == "uuid") return as.uuid();

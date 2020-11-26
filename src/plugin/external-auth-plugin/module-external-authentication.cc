@@ -92,7 +92,7 @@ FlexisipAuthStatus *ModuleExternalAuthentication::createAuthStatus(const std::sh
 	configureAuthStatus(*as, ev);
 
 	as->domain(sip->sip_from->a_url->url_host);
-	as->fromHeader(sip_header_as_string(as->home(), reinterpret_cast<sip_header_t *>(sip->sip_from)));
+	as->fromHeader(sip_header_as_string(as->mHome.home(), reinterpret_cast<sip_header_t *>(sip->sip_from)));
 
 	if (sip->sip_contact) {
 		const char *sipInstance = msg_header_find_param(reinterpret_cast<msg_common_t *>(sip->sip_contact), "+sip.instance");
@@ -112,7 +112,7 @@ FlexisipAuthStatus *ModuleExternalAuthentication::createAuthStatus(const std::sh
 }
 
 void ModuleExternalAuthentication::onSuccess(const FlexisipAuthStatus &as) {
-	const shared_ptr<MsgSip> &ms = as.event()->getMsgSip();
+	const shared_ptr<MsgSip> &ms = as.mEvent->getMsgSip();
 	sip_t *sip = ms->getSip();
 	const auto &authStatus = dynamic_cast<const ExternalAuthModule::Status &>(as);
 	ModuleAuthenticationBase::onSuccess(as);
@@ -124,10 +124,10 @@ void ModuleExternalAuthentication::onSuccess(const FlexisipAuthStatus &as) {
 
 void ModuleExternalAuthentication::errorReply(const FlexisipAuthStatus &as) {
 	const auto &authStatus = dynamic_cast<const ExternalAuthModule::Status &>(as);
-	const shared_ptr<RequestSipEvent> &ev = authStatus.event();
-	ev->reply(as.status(), as.phrase(),
-			  SIPTAG_HEADER(reinterpret_cast<sip_header_t *>(as.info())),
-			  SIPTAG_HEADER(reinterpret_cast<sip_header_t *>(as.response())),
+	const shared_ptr<RequestSipEvent> &ev = authStatus.mEvent;
+	ev->reply(as.as_status, as.as_phrase.c_str(),
+			  SIPTAG_HEADER(reinterpret_cast<sip_header_t *>(as.as_info)),
+			  SIPTAG_HEADER(reinterpret_cast<sip_header_t *>(as.as_response)),
 			  SIPTAG_REASON_STR(authStatus.reason().empty() ? nullptr : authStatus.reason().c_str()),
 			  SIPTAG_SERVER_STR(getAgent()->getServerString()),
 			  TAG_END()

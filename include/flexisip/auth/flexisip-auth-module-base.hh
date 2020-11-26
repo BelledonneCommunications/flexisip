@@ -52,10 +52,10 @@ public:
 	NonceStore &nonceStore() {return mNonceStore;}
 	su_root_t *getRoot() const noexcept {return mRoot;}
 
-	void verify(AuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach);
-	void challenge(AuthStatus &as, auth_challenger_t const *ach) {if (ach) onChallenge(as, ach);}
-	void authorize(AuthStatus &as, auth_challenger_t const *ach) {challenge(as, ach);}
-	void cancel(AuthStatus &as) {}
+	void verify(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach);
+	void challenge(FlexisipAuthStatus &as, auth_challenger_t const *ach) {if (ach) onChallenge(as, ach);}
+	void authorize(FlexisipAuthStatus &as, auth_challenger_t const *ach) {challenge(as, ach);}
+	void cancel(FlexisipAuthStatus &as) {}
 
 protected:
 	struct Nonce {
@@ -65,8 +65,8 @@ protected:
 		uint8_t digest[6];
 	};
 
-	void onCheck(AuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach);
-	virtual void onChallenge(AuthStatus &as, auth_challenger_t const *ach);
+	void onCheck(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach);
+	virtual void onChallenge(FlexisipAuthStatus &as, auth_challenger_t const *ach);
 
 	/**
 	 * This method is called each time the module want to authenticate an Authorization header.
@@ -81,8 +81,8 @@ protected:
 	void notify(FlexisipAuthStatus &as);
 	void onError(FlexisipAuthStatus &as);
 
-	bool allowCheck(AuthStatus &as);
-	void challengeDigest(AuthStatus &as, auth_challenger_t const *ach);
+	bool allowCheck(FlexisipAuthStatus &as);
+	void challengeDigest(FlexisipAuthStatus &as, auth_challenger_t const *ach);
 	std::string generateDigestNonce(bool nextnonce, msg_time_t now);
 
 	// Attributes

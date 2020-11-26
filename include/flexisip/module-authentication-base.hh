@@ -85,7 +85,7 @@ protected:
 	 * This method is called synchronously or asynchronously on result of AuthModule::verify() method.
 	 * It calls onSuccess() and errorReply() according the authentication result.
 	 */
-	void processAuthModuleResponse(AuthStatus &as);
+	void processAuthModuleResponse(FlexisipAuthStatus &as);
 	virtual void onSuccess(const FlexisipAuthStatus &as);
 	virtual void errorReply(const FlexisipAuthStatus &as);
 
