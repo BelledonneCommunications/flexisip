@@ -42,9 +42,7 @@ FlexisipAuthModuleBase::FlexisipAuthModuleBase(su_root_t *root, const std::strin
 	mNonceStore.setNonceExpires(nonceExpire);
 }
 
-void FlexisipAuthModuleBase::verify(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) {
-	if (!ach) return;
-
+void FlexisipAuthModuleBase::verify(FlexisipAuthStatus &as, msg_auth_t &_credentials, const auth_challenger_t &ach) {
 	auto wildcardPos = find(am_realm.cbegin(), am_realm.cend(), '*');
 	const auto &host = as.as_domain;
 
@@ -64,12 +62,13 @@ void FlexisipAuthModuleBase::verify(FlexisipAuthStatus &as, msg_auth_t *credenti
 
 	as.as_allow = as.as_allow || allowCheck(as);
 
+	auto credentials = &_credentials;
 	if (!as.as_realm.empty()) {
 		/* Workaround for old linphone client that don't check whether algorithm is MD5 or SHA256.
 		 * They then answer for both, but the first one for SHA256 is of course wrong.
 		 * We workaround by selecting the second digest response.
 		 */
-		if (credentials && credentials->au_next) {
+		if (credentials->au_next) {
 			auth_response_t r = {0};
 			r.ar_size = sizeof(r);
 			auth_digest_response_get(as.mHome.home(), &r, credentials->au_next->au_params);
@@ -81,7 +80,7 @@ void FlexisipAuthModuleBase::verify(FlexisipAuthStatus &as, msg_auth_t *credenti
 		/* After auth_digest_credentials, there is no more au->au_next. */
 		credentials = auth_digest_credentials(credentials, as.as_realm.c_str(), am_opaque.c_str());
 	} else
-		credentials = NULL;
+		credentials = nullptr;
 
 	if (as.as_allow) {
 		LOGD("AuthStatus[%p]: allow unauthenticated %s", &as, as.as_method.c_str());
@@ -96,7 +95,7 @@ void FlexisipAuthModuleBase::verify(FlexisipAuthStatus &as, msg_auth_t *credenti
 		if (matched_au)
 			credentials = matched_au;
 		as.as_match = reinterpret_cast<msg_header_t *>(credentials);
-		checkAuthHeader(as, credentials, ach);
+		checkAuthHeader(as, *credentials, ach);
 	} else {
 		/* There was no realm or credentials, send challenge */
 		LOGD("AuthStatus[%p]: no credential found for realm '%s'", &as, as.as_realm.c_str());
@@ -106,9 +105,7 @@ void FlexisipAuthModuleBase::verify(FlexisipAuthStatus &as, msg_auth_t *credenti
 	}
 }
 
-void FlexisipAuthModuleBase::challenge(FlexisipAuthStatus &as, auth_challenger_t const *ach) {
-	if (ach == nullptr) return;
-
+void FlexisipAuthModuleBase::challenge(FlexisipAuthStatus &as, const auth_challenger_t &ach) {
 	as.as_response = nullptr;
 
 	auto nonce = generateDigestNonce(false, msg_now());
@@ -127,7 +124,7 @@ void FlexisipAuthModuleBase::challenge(FlexisipAuthStatus &as, auth_challenger_t
 		resp << " algorithm=" << *algo;
 		if (!am_qop.empty()) resp << ", qop=\"" << am_qop << "\"";
 
-		auto challenge = msg_header_make(as.mHome.home(), ach->ach_header, resp.str().c_str());
+		auto challenge = msg_header_make(as.mHome.home(), ach.ach_header, resp.str().c_str());
 		if (as.as_response) {
 			challenge->sh_auth->au_next = as.as_response->sh_auth;
 		}
@@ -139,8 +136,8 @@ void FlexisipAuthModuleBase::challenge(FlexisipAuthStatus &as, auth_challenger_t
 		as.as_status = 500;
 		as.as_phrase = auth_internal_server_error;
 	} else {
-		as.as_status = ach->ach_status;
-		as.as_phrase = ach->ach_phrase;
+		as.as_status = ach.ach_status;
+		as.as_phrase = ach.ach_phrase;
 		mNonceStore.insert(as.as_response->sh_auth);
 	}
 }

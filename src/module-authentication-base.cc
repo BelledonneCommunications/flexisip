@@ -262,9 +262,9 @@ void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<Reque
 	// Another point in asynchronous mode is that the asynchronous callbacks MUST be called
 	// AFTER the nta_msg_treply bellow. Otherwise the as would be already destroyed.
 	if (sip->sip_request->rq_method == sip_method_register) {
-		am.verify(*as, sip->sip_authorization, &mRegistrarChallenger);
+		am.verify(*as, *sip->sip_authorization, mRegistrarChallenger);
 	} else {
-		am.verify(*as, sip->sip_proxy_authorization, &mProxyChallenger);
+		am.verify(*as, *sip->sip_proxy_authorization, mProxyChallenger);
 	}
 
 	processAuthModuleResponse(*as);

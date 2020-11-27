@@ -42,14 +42,14 @@ ExternalAuthModule::~ExternalAuthModule() {
 	nth_engine_destroy(mEngine);
 }
 
-void ExternalAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) {
+void ExternalAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t &credentials, const auth_challenger_t &ach) {
 	try {
 		auto &externalAs = dynamic_cast<ExternalAuthModule::Status &>(as);
 
-		HttpUriFormater::TranslationFunc func = [&externalAs, credentials](const string &key){return extractParameter(externalAs, *credentials, key);};
+		HttpUriFormater::TranslationFunc func = [&externalAs, &credentials](const string &key){return extractParameter(externalAs, credentials, key);};
 		string uri = mUriFormater.format(func);
 
-		auto *ctx = new HttpRequestCtx({*this, as, *ach});
+		auto *ctx = new HttpRequestCtx({*this, as, ach});
 
 		nth_client_t *request = nth_client_tcreate(mEngine,
 			onHttpResponseCb,
@@ -122,7 +122,7 @@ void ExternalAuthModule::onHttpResponse(HttpRequestCtx &ctx, nth_client_t *reque
 		httpAuthStatus.as_phrase = phrase;
 		httpAuthStatus.reason(reasonHeaderValue);
 		httpAuthStatus.pAssertedIdentity(pAssertedIdentity);
-		if (sipCode == 401 || sipCode == 407) challenge(ctx.as, &ctx.ach);
+		if (sipCode == 401 || sipCode == 407) challenge(ctx.as, ctx.ach);
 	} catch (const runtime_error &e) {
 		SLOGE << "HTTP request [" << request << "]: " << e.what();
 		onError(ctx.as);

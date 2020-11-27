@@ -47,7 +47,7 @@ public:
 
 	void setOnPasswordFetchResultCb(const PasswordFetchResultCb &cb) {mPassworFetchResultCb = cb;}
 
-	void challenge(FlexisipAuthStatus &as, auth_challenger_t const *ach) override;
+	void challenge(FlexisipAuthStatus &as, const auth_challenger_t &ach) override;
 
 private:
 	class GenericAuthListener : public AuthDbListener {
@@ -67,7 +67,7 @@ private:
 		AuthDbBackend::PwList mPasswords;
 	};
 
-	void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) override;
+	void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t &credentials, const auth_challenger_t &ach) override;
 
 	void processResponse(FlexisipAuthStatus &as, const auth_response_t &ar, const auth_challenger_t &ach, AuthDbResult result, const AuthDbBackend::PwList &passwords);
 	void checkPassword(FlexisipAuthStatus &as, const auth_challenger_t &ach, const auth_response_t &ar, const std::string &password);
@@ -80,7 +80,7 @@ private:
 	static std::string computeDigestResponse(Digest &algo, const ::auth_response_t &ar, const std::string &method_name, const void *body, size_t bodyLen, const std::string &ha1);
 
 	int validateDigestNonce(FlexisipAuthStatus &as, auth_response_t &ar, msg_time_t now);
-	void infoDigest(FlexisipAuthStatus &as, auth_challenger_t const *ach);
+	void infoDigest(FlexisipAuthStatus &as, const auth_challenger_t &ach);
 
 	// Attributes
 	PasswordFetchResultCb mPassworFetchResultCb;

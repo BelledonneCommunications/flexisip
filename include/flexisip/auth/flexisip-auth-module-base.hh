@@ -52,8 +52,8 @@ public:
 	NonceStore &nonceStore() {return mNonceStore;}
 	su_root_t *getRoot() const noexcept {return mRoot;}
 
-	void verify(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach);
-	virtual void challenge(FlexisipAuthStatus &as, auth_challenger_t const *ach);
+	void verify(FlexisipAuthStatus &as, msg_auth_t &credentials, const auth_challenger_t &ach);
+	virtual void challenge(FlexisipAuthStatus &as, const auth_challenger_t &ach);
 
 protected:
 	struct Nonce {
@@ -71,7 +71,7 @@ protected:
 	 * @param[in,out] as The context on the authentication. It is also used to return the result.
 	 * @param[in] credentials The authorization header to validate.
 	 */
-	virtual void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) = 0;
+	virtual void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t &credentials, const auth_challenger_t &ach) = 0;
 
 	void notify(FlexisipAuthStatus &as);
 	void onError(FlexisipAuthStatus &as);
