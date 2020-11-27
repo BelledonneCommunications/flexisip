@@ -109,38 +109,38 @@ void FlexisipAuthModuleBase::verify(FlexisipAuthStatus &as, msg_auth_t *credenti
 void FlexisipAuthModuleBase::challenge(FlexisipAuthStatus &as, auth_challenger_t const *ach) {
 	if (ach == nullptr) return;
 
-	auto &flexisipAs = dynamic_cast<FlexisipAuthStatus &>(as);
-
-	challengeDigest(as, ach);
-
-	msg_header_t *response = as.as_response;
 	as.as_response = nullptr;
 
-	msg_header_t *lastChallenge = nullptr;
-	for (const std::string &algo : flexisipAs.mUsedAlgo) {
-		msg_header_t *challenge;
-		LOGD("AuthStatus[%p]: making challenge header for '%s' algorithm", &as, algo.c_str());
-		const char *algoValue = msg_header_find_param(response->sh_common, "algorithm");
-		if (algo == &algoValue[1]) {
-			challenge = response;
-		} else {
-			const char *param = su_sprintf(as.mHome.home(), "algorithm=%s", algo.c_str());
-			challenge = msg_header_copy(as.mHome.home(), response);
-			msg_header_replace_param(as.mHome.home(), challenge->sh_common, param);
-		}
+	auto nonce = generateDigestNonce(false, msg_now());
 
-		if (lastChallenge == nullptr) {
-			as.as_response = challenge;
-		} else {
-			lastChallenge->sh_auth->au_next = challenge->sh_auth;
+	const auto &u = as.as_uri;
+	const auto &d = as.as_pdomain;
+
+	for (auto algo = as.mUsedAlgo.crbegin(); algo != as.mUsedAlgo.crend(); ++algo) {
+		ostringstream resp{};
+		resp << "Digest realm=\"" << as.as_realm << "\",";
+		if (!u.empty()) resp << " uri=\"" << u << "\",";
+		if (!d.empty()) resp << " domain=\"" << d << "\",";
+		resp << " nonce=\"" << nonce << "\",";
+		if (!am_opaque.empty()) resp << " opaque=\"" << am_opaque << "\",";
+		if (as.as_stale) resp << " stale=true,";
+		resp << " algorithm=" << *algo;
+		if (!am_qop.empty()) resp << ", qop=\"" << am_qop << "\"";
+
+		auto challenge = msg_header_make(as.mHome.home(), ach->ach_header, resp.str().c_str());
+		if (as.as_response) {
+			challenge->sh_auth->au_next = as.as_response->sh_auth;
 		}
-		lastChallenge = challenge;
+		as.as_response = challenge;
 	}
+
 	if (as.as_response == nullptr) {
 		SLOGE << "AuthStatus[" << &as << "]: no available algorithm while challenge making";
 		as.as_status = 500;
-		as.as_phrase = "Internal error";
+		as.as_phrase = auth_internal_server_error;
 	} else {
+		as.as_status = ach->ach_status;
+		as.as_phrase = ach->ach_phrase;
 		mNonceStore.insert(as.as_response->sh_auth);
 	}
 }
@@ -179,32 +179,6 @@ bool FlexisipAuthModuleBase::allowCheck(FlexisipAuthStatus &as) {
 	}
 
 	return false;
-}
-
-void FlexisipAuthModuleBase::challengeDigest(FlexisipAuthStatus &as, auth_challenger_t const *ach) {
-	auto nonce = generateDigestNonce(false, msg_now());
-
-	const auto &u = as.as_uri;
-	const auto &d = as.as_pdomain;
-
-	ostringstream resp{};
-	resp << "Digest realm=\"" << as.as_realm << "\",";
-	if (!u.empty()) resp << " uri=\"" << u << "\",";
-	if (!d.empty()) resp << " domain=\"" << d << "\",";
-	resp << " nonce=\"" << nonce << "\",";
-	if (!am_opaque.empty()) resp << " opaque=\"" << am_opaque << "\",";
-	if (as.as_stale) resp << " stale=true,";
-	resp << " algorithm=" << am_algorithm;
-	if (!am_qop.empty()) resp << ", qop=\"" << am_qop << "\"";
-
-	as.as_response = msg_header_make(as.mHome.home(), ach->ach_header, resp.str().c_str());
-	if (as.as_response == nullptr) {
-		as.as_status = 500;
-		as.as_phrase = auth_internal_server_error;
-	} else {
-		as.as_status = ach->ach_status;
-		as.as_phrase = ach->ach_phrase;
-	}
 }
 
 std::string FlexisipAuthModuleBase::generateDigestNonce(bool nextnonce, msg_time_t now) {
