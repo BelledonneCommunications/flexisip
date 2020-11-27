@@ -22,77 +22,79 @@
 #include "flexisip/common.hh"
 #include "flexisip/logmanager.hh"
 
+#include "utils/string-utils.hh"
+
 using namespace std;
-using namespace flexisip;
+
+namespace flexisip {
 
 // ====================================================================================================================
 //  NonceStore class
 // ====================================================================================================================
 
-int NonceStore::getNc(const string &nonce) {
+int NonceStore::getNc(const string &nonce) noexcept {
 	unique_lock<mutex> lck(mMutex);
 	auto it = mNc.find(nonce);
 	if (it != mNc.end())
-		return (*it).second.nc;
+		return it->second.nc;
 	return -1;
 }
 
-void NonceStore::insert(const msg_auth_t *response) {
-	const char *nonce = msg_header_find_param(response->au_common, "nonce");
-	string snonce(nonce);
-	snonce = snonce.substr(1, snonce.length() - 2);
+void NonceStore::insert(const msg_auth_t *response) noexcept {
+	auto nonce = msg_header_find_param(response->au_common, "nonce");
+	auto snonce = StringUtils::unquote(nonce);
 	LOGD("New nonce %s", snonce.c_str());
 	insert(snonce);
 }
 
-void NonceStore::insert(const string &nonce) {
-	unique_lock<mutex> lck(mMutex);
-	time_t expiration = getCurrentTime() + mNonceExpires;
+void NonceStore::insert(const string &nonce) noexcept {
+	unique_lock<mutex> lck{mMutex};
+	auto expiration = getCurrentTime() + mNonceExpires;
 	auto it = mNc.find(nonce);
 	if (it != mNc.end()) {
 		LOGE("Replacing nonce count for %s", nonce.c_str());
 		it->second.nc = 0;
 		it->second.expires = expiration;
 	} else {
-		mNc.insert(make_pair(nonce, NonceCount(0, expiration)));
+		mNc.emplace(nonce, NonceCount{0, expiration});
 	}
 }
 
-void NonceStore::updateNc(const string &nonce, int newnc) {
-	unique_lock<mutex> lck(mMutex);
+void NonceStore::updateNc(const string &nonce, int newnc) noexcept {
+	unique_lock<mutex> lck{mMutex};
 	auto it = mNc.find(nonce);
 	if (it != mNc.end()) {
 		LOGD("Updating nonce %s with nc=%d", nonce.c_str(), newnc);
-		(*it).second.nc = newnc;
+		it->second.nc = newnc;
 	} else {
 		LOGE("Couldn't update nonce %s: not found", nonce.c_str());
 	}
 }
 
-void NonceStore::erase(const string &nonce) {
-	unique_lock<mutex> lck(mMutex);
+void NonceStore::erase(const string &nonce) noexcept {
+	unique_lock<mutex> lck{mMutex};
 	LOGD("Erasing nonce %s", nonce.c_str());
 	mNc.erase(nonce);
 }
 
-void NonceStore::cleanExpired() {
-	unique_lock<mutex> lck(mMutex);
-	int count = 0;
-	time_t now = getCurrentTime();
-	size_t size = 0;
+void NonceStore::cleanExpired() noexcept {
+	unique_lock<mutex> lck{mMutex};
+	auto count = 0;
+	auto now = getCurrentTime();
 	for (auto it = mNc.begin(); it != mNc.end();) {
 		if (now > it->second.expires) {
 			LOGD("Cleaning expired nonce %s", it->first.c_str());
-			auto eraseIt = it;
-			++it;
-			mNc.erase(eraseIt);
+			it = mNc.erase(it);
 			++count;
-		} else
+		} else {
 			++it;
-		size++;
+		}
 	}
-	if (count)
-		LOGD("Cleaned %d expired nonces, %zd remaining", count, size);
+	if (count) {
+		SLOGD << "Cleaned " << count << " expired nonces, " << mNc.size() << " remaining";
+	}
 }
 
 // ====================================================================================================================
+
+} // namespace flexisip

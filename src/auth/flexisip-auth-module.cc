@@ -367,12 +367,10 @@ int FlexisipAuthModule::validateDigestNonce(FlexisipAuthStatus &as, auth_respons
 	as.as_nonce_issued = nonce->issued;
 	as.as_nextnonce = (nonce->nextnonce != 0);
 
-	const auto &expires = nonce->nextnonce ? am_next_exp : am_expires;
-
-	if (nonce->issued > now || (expires && nonce->issued + expires < now)) {
+	if (nonce->issued > now || (am_expires && nonce->issued + am_expires < now)) {
 		LOGD("%s: nonce expired %lu seconds ago "
 			 "(lifetime %u)",
-			 __func__, now - (nonce->issued + expires), expires);
+			 __func__, now - (nonce->issued + am_expires), am_expires);
 		as.as_stale = true;
 	}
 

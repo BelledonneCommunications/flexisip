@@ -35,7 +35,8 @@ public:
 	static std::vector<std::string> split (const std::string &str, const std::string &delimiter) noexcept;
 
 	/* Remove surrounding double-quotes, if present */
-	static std::string unquote(const std::string &str) noexcept {return strip(str, '"');}
+	template <typename StrT>
+	static std::string unquote(const StrT &str) noexcept {return strip(str, '"');}
 
 	/* Remove the surrounding given character, if present. */
 	static std::string strip(const char *str, char c) noexcept;

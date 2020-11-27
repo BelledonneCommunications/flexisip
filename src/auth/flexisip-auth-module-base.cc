@@ -37,7 +37,7 @@ using namespace flexisip;
 // ====================================================================================================================
 
 FlexisipAuthModuleBase::FlexisipAuthModuleBase(su_root_t *root, const std::string &domain, unsigned nonceExpire, bool qopAuth):
-	am_realm{domain}, am_qop{qopAuth ? "auth" : ""}, am_expires{nonceExpire}, am_next_exp{nonceExpire}, mRoot{root}, mQOPAuth{qopAuth} {
+	am_realm{domain}, am_qop{qopAuth ? "auth" : ""}, am_expires{nonceExpire}, mRoot{root}, mQOPAuth{qopAuth} {
 
 	mNonceStore.setNonceExpires(nonceExpire);
 }
