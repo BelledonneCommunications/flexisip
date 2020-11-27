@@ -17,6 +17,7 @@
 */
 
 #include <algorithm>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
 
@@ -75,9 +76,9 @@ void ModuleExternalAuthentication::onLoad(const GenericStruct *mc) {
 	ModuleAuthenticationBase::onLoad(mc);
 }
 
-FlexisipAuthModuleBase *ModuleExternalAuthentication::createAuthModule(const std::string &domain, int nonceExpire, bool qopAuth) {
+std::unique_ptr<FlexisipAuthModuleBase> ModuleExternalAuthentication::createAuthModule(const std::string &domain, int nonceExpire, bool qopAuth) {
 	try {
-		auto *am = new ExternalAuthModule(getAgent()->getRoot(), domain, nonceExpire, qopAuth);
+		auto am = make_unique<ExternalAuthModule>(getAgent()->getRoot(), domain, nonceExpire, qopAuth);
 		am->getFormater().setTemplate(mRemoteUri);
 		return am;
 	} catch (const invalid_argument &e) {

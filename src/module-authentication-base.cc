@@ -126,8 +126,7 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct *mc) {
 	int nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
 
 	for (const string &domain : authDomains) {
-		unique_ptr<FlexisipAuthModuleBase> am(createAuthModule(domain, nonceExpires, !disableQOPAuth));
-		mAuthModules[domain] = move(am);
+		mAuthModules[domain] = createAuthModule(domain, nonceExpires, !disableQOPAuth);
 	}
 
 	const string regexPrefix{"regex:"};

@@ -28,7 +28,7 @@ add_library(external-auth SHARED
 )
 
 set_property(TARGET external-auth PROPERTY VERSION ${PROJECT_VERSION})
-set_property(TARGET external-auth PROPERTY CXX_STANDARD 11)
+set_property(TARGET external-auth PROPERTY CXX_STANDARD 14)
 set_property(TARGET external-auth PROPERTY CXX_STANDARD_REQUIRED ON)
 
 target_link_libraries(external-auth ${FLEXISIP_LIBS})

@@ -43,7 +43,7 @@ public:
 	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) override;
 
 private:
-	FlexisipAuthModuleBase *createAuthModule(const std::string &domain, int nonceExpire, bool qopAuth) override;
+	std::unique_ptr<FlexisipAuthModuleBase> createAuthModule(const std::string &domain, int nonceExpire, bool qopAuth) override;
 
 	void validateRequest(const std::shared_ptr<RequestSipEvent> &request) override;
 	void processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am) override;
