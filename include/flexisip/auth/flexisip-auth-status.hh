@@ -59,7 +59,6 @@ struct FlexisipAuthStatus {
 	unsigned as_blacklist = 0;		/**< Blacklist time [out] */
 	bool as_anonymous = false;	/**< Return true if user is anonymous [out] */
 	bool as_stale = false;		/**< Credentials were stale [out] */
-	bool as_allow = false;		/**< Method cannot be challenged [out] */
 	bool as_nextnonce = false;	/**< Client used nextnonce [out] */
 
 	msg_header_t *as_response = nullptr; /**< Authentication challenge [out] */

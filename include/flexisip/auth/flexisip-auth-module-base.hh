@@ -76,13 +76,11 @@ protected:
 	void notify(FlexisipAuthStatus &as);
 	void onError(FlexisipAuthStatus &as);
 
-	bool allowCheck(FlexisipAuthStatus &as);
 	std::string generateDigestNonce(bool nextnonce, msg_time_t now);
 
 	// Attributes
 	std::string am_realm{};		/**< Our realm */
 	std::string am_opaque{"+GNywA=="};		/**< Opaque identification data */
-	std::vector<std::string> am_allow{"ACK", "BYE", "CANCEL"};		/**< Methods to allow without authentication */
 	std::string am_qop{};			/**< Default qop (quality-of-protection) */
 	unsigned am_expires = 60 * 60;		/**< Nonce lifetime */
 	unsigned am_blacklist = 5;		/**< Extra delay if bad credentials. */

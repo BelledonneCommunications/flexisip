@@ -60,8 +60,6 @@ void FlexisipAuthModuleBase::verify(FlexisipAuthStatus &as, msg_auth_t &_credent
 		as.as_realm = string{am_realm.cbegin(), wildcardPos} + host + string{wildcardPos+1, am_realm.cend()};
 	}
 
-	as.as_allow = as.as_allow || allowCheck(as);
-
 	auto credentials = &_credentials;
 	if (!as.as_realm.empty()) {
 		/* Workaround for old linphone client that don't check whether algorithm is MD5 or SHA256.
@@ -81,13 +79,6 @@ void FlexisipAuthModuleBase::verify(FlexisipAuthStatus &as, msg_auth_t &_credent
 		credentials = auth_digest_credentials(credentials, as.as_realm.c_str(), am_opaque.c_str());
 	} else
 		credentials = nullptr;
-
-	if (as.as_allow) {
-		LOGD("AuthStatus[%p]: allow unauthenticated %s", &as, as.as_method.c_str());
-		as.as_status = 0, as.as_phrase = "";
-		as.as_match = reinterpret_cast<msg_header_t *>(credentials);
-		return;
-	}
 
 	if (credentials) {
 		LOGD("AuthStatus[%p]: searching for auth digest response for this proxy", &as);
@@ -152,30 +143,6 @@ void FlexisipAuthModuleBase::onError(FlexisipAuthStatus &as) {
 		as.as_phrase = "Internal error";
 		as.as_response = nullptr;
 	}
-}
-
-bool FlexisipAuthModuleBase::allowCheck(FlexisipAuthStatus &as) {
-	const auto &method = as.as_method;
-
-	if (method == "ACK") { /* Hack */
-		as.as_status = 0;
-		return true;
-	}
-
-	if (method.empty() || am_allow.empty())
-		return false;
-
-	if (am_allow[0] == "*") {
-		as.as_status = 0;
-		return true;
-	}
-
-	if (find(am_allow.cbegin(), am_allow.cend(), method) != am_allow.cend()) {
-		as.as_status = 0;
-		return true;
-	}
-
-	return false;
 }
 
 std::string FlexisipAuthModuleBase::generateDigestNonce(bool nextnonce, msg_time_t now) {
