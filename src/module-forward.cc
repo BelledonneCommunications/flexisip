@@ -261,12 +261,10 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		dest = getDestinationFromRoute(ms->getHome(), sip);
 	}
 
-	dest = overrideDest(ev, dest);
-
 	try {
 		SipUri destUri(dest);
 
-		/*gruu processing in forward module is only done if dialog is established. In other cases, router mnodule is involved instead*/
+		/*gruu processing in forward module is only done if dialog is established. In other cases, router module is involved instead*/
 		if (destUri.hasParam("gr") && (sip->sip_to != nullptr && sip->sip_to->a_tag != nullptr) && mRouterModule->isManagedDomain(dest)) {
 			//gruu case, ask registrar db for AOR
 			ev->suspendProcessing();
@@ -274,8 +272,8 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			RegistrarDb::get()->fetch(destUri, listener, false, false /*no recursivity for gruu*/);
 			return;
 		}
+		dest = overrideDest(ev, dest);
 		sendRequest(ev, dest);
-
 	} catch (const sofiasip::InvalidUrlError &e) {
 		SLOGE << e.what();
 		ev->reply(SIP_400_BAD_REQUEST, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
