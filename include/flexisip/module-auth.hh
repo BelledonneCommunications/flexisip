@@ -20,6 +20,7 @@
 
 #include "auth-module.hh"
 #include "module-authentication-base.hh"
+#include <set>
 
 namespace flexisip {
 
@@ -53,7 +54,7 @@ private:
 	void loadTrustedHosts(const ConfigStringList &trustedHosts);
 
 	static ModuleInfo<Authentication> sInfo;
-	std::list<BinaryIp> mTrustedHosts;
+	std::set<BinaryIp> mTrustedHosts;
 	std::list<std::string> mTrustedClientCertificates;
 	regex_t mRequiredSubject;
 	bool mNewAuthOn407 = false;

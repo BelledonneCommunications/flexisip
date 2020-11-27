@@ -69,16 +69,43 @@ template <typename _first, typename _last> class map_delete_functor {
 #define RESTART_EXIT_CODE 5
 
 // Helper to get ip from host in a portable binary format.
+// It has comparison functions, which makes it suitable to use in std::set or std::map, for fast search.
 class BinaryIp {
 public:
-	// If onlyIpString = true, no address lookups are executed.
-	BinaryIp(const char *hostname, bool onlyIpString = false);
+	/* Adds a hostname in the form of BinaryIp into a generic STL container.
+	 If numericOnly is set to true, then no DNS lookup will be made. As a result fully qualified domain names will be ignored.*/
+	template <typename _containerT>
+	static _containerT & emplace(_containerT & container, const std::string &hostname, bool numericOnly = false){
+		struct addrinfo *ai = resolve(hostname, numericOnly);
+		struct addrinfo *ai_it;
+		for (ai_it = ai ; ai_it != nullptr; ai_it = ai_it->ai_next){
+			container.emplace(ai_it);
+		}
+		freeaddrinfo(ai);
+		return container;
+	}
+	/* Builds a BinaryIp from a struct addrinfo containing an AF_INET6 address only !.
+	 * Do not use directly, use static emplace() method to build BinarIps.*/
+	BinaryIp(const struct addrinfo *ai);
+	BinaryIp(const char *ip);
 
 	bool operator==(const BinaryIp &ip2) const {
-		return !memcmp(&mAddr, &ip2.mAddr, sizeof mAddr);
+		return memcmp(&mAddr, &ip2.mAddr, sizeof mAddr) == 0;
 	}
-
+	bool operator<(const BinaryIp &ip2) const{
+		return memcmp(&mAddr, &ip2.mAddr, sizeof mAddr) < 0;
+	}
+	bool operator<=(const BinaryIp &ip2) const{
+		return memcmp(&mAddr, &ip2.mAddr, sizeof mAddr) <= 0;
+	}
+	bool operator>(const BinaryIp &ip2) const{
+		return memcmp(&mAddr, &ip2.mAddr, sizeof mAddr) > 0;
+	}
+	bool operator>=(const BinaryIp &ip2) const{
+		return memcmp(&mAddr, &ip2.mAddr, sizeof mAddr) >= 0;
+	}
 private:
+	static struct addrinfo *resolve(const std::string &hostname, bool numericOnly);
 	struct in6_addr mAddr;
 };
 

@@ -144,16 +144,13 @@ bool Authentication::isTrustedPeer(const shared_ptr<RequestSipEvent> &ev) {
 
 	// Check for trusted host
 	sip_via_t *via = sip->sip_via;
-	list<BinaryIp>::const_iterator trustedHostsIt = mTrustedHosts.begin();
 	const char *printableReceivedHost = !empty(via->v_received) ? via->v_received : via->v_host;
 
-	BinaryIp receivedHost(printableReceivedHost, true);
-
-	for (; trustedHostsIt != mTrustedHosts.end(); ++trustedHostsIt) {
-		if (receivedHost == *trustedHostsIt) {
-			LOGD("Allowing message from trusted host %s", printableReceivedHost);
-			return true;
-		}
+	BinaryIp receivedHost(printableReceivedHost);
+	
+	if (mTrustedHosts.find(receivedHost) != mTrustedHosts.end()){
+		LOGD("Allowing message from trusted host %s", printableReceivedHost);
+		return true;
 	}
 	return false;
 }
@@ -337,20 +334,17 @@ const char *Authentication::findIncomingSubjectInTrusted(const shared_ptr<Reques
 
 void Authentication::loadTrustedHosts(const ConfigStringList &trustedHosts) {
 	list<string> hosts = trustedHosts.read();
-	transform(hosts.begin(), hosts.end(), back_inserter(mTrustedHosts), [](string host) {
-		return BinaryIp(host.c_str());
-	});
+	
+	for(const auto &host : hosts){
+		BinaryIp::emplace(mTrustedHosts, host);
+	}
 
 	const GenericStruct *clusterSection = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
 	bool clusterEnabled = clusterSection->get<ConfigBoolean>("enabled")->read();
 	if (clusterEnabled) {
 		list<string> clusterNodes = clusterSection->get<ConfigStringList>("nodes")->read();
-		for (list<string>::const_iterator node = clusterNodes.cbegin(); node != clusterNodes.cend(); node++) {
-			BinaryIp nodeIp((*node).c_str());
-
-			if (find(mTrustedHosts.cbegin(), mTrustedHosts.cend(), nodeIp) == mTrustedHosts.cend()) {
-				mTrustedHosts.push_back(nodeIp);
-			}
+		for(const auto &host : clusterNodes){
+			BinaryIp::emplace(mTrustedHosts, host);
 		}
 	}
 
@@ -362,12 +356,8 @@ void Authentication::loadTrustedHosts(const ConfigStringList &trustedHosts) {
 		sip_contact_t *contact = sip_contact_make(home.home(), presenceServer.c_str());
 		url_t *url = contact ? contact->m_url : NULL;
 		if (url && url->url_host) {
-			BinaryIp host(url->url_host);
-
-			if (find(mTrustedHosts.cbegin(), mTrustedHosts.cend(), host) == mTrustedHosts.cend()) {
-				SLOGI << "Adding presence server '" << url->url_host << "' to trusted hosts";
-				mTrustedHosts.push_back(host);
-			}
+			BinaryIp::emplace(mTrustedHosts, url->url_host);
+			SLOGI << "Added presence server '" << url->url_host << "' to trusted hosts";
 		} else {
 			SLOGW << "Could not parse presence server URL '" << presenceServer
 				<< "', cannot be added to trusted hosts!";

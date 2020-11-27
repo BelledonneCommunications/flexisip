@@ -23,6 +23,7 @@
 #include <sofia-sip/tport.h>
 #include <sofia-sip/msg_addr.h>
 #include <unordered_map>
+#include <set>
 
 using namespace std;
 using namespace flexisip;
@@ -52,7 +53,7 @@ class DoSProtection : public Module, ModuleToolbox {
 	int mBanTime;
 	bool mIptablesVersionChecked;
 	bool mIptablesSupportsWait;
-	list<string> mWhiteList;
+	set<BinaryIp> mWhiteList;
 	unordered_map<string, DosContext> mDosContexts;
 	unordered_map<string, DosContext>::iterator mDOSHashtableIterator;
 	ThreadPool *mThreadPool;
@@ -92,6 +93,12 @@ class DoSProtection : public Module, ModuleToolbox {
 			 "20"},
 			{Integer, "ban-time", "Number of minutes to ban the ip/port using iptables", "2"},
 			{String, "iptables-chain", "Name of the chain flexisip will create to store the banned IPs", "FLEXISIP"},
+			{StringList, "white-list", "List of IP addresses or hostnames for which no DoS protection is made."
+				" This is typically for trusted servers from which we can receive high traffic. "
+				"Please note that nodes from the local flexisip cluster (see [cluster] section) are automatically "
+				"added to the white list, as well as 127.0.0.1 and ::1.\n"
+				"Example:\n"
+				"white-list=sip.example.org sip.linphone.org 15.128.128.93", ""},
 			config_item_end};
 		module_config->get<ConfigBoolean>("enabled")->setDefault("true");
 		module_config->addChildrenValues(configs);
@@ -105,13 +112,18 @@ class DoSProtection : public Module, ModuleToolbox {
 		mDOSHashtableIterator = mDosContexts.begin();
 
 		GenericStruct *cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
-		mWhiteList = cluster->get<ConfigStringList>("nodes")->read();
-		for (auto it = mWhiteList.begin(); it != mWhiteList.end(); ++it) {
+		list<string> whiteList = cluster->get<ConfigStringList>("nodes")->read();
+		whiteList.splice(whiteList.end(), mc->get<ConfigStringList>("white-list")->read());
+		
+		LOGI("IP 127.0.0.1 and ::1 automatically added to DOS protection white list");
+		whiteList.push_back("127.0.0.1");
+		whiteList.push_back("::1");
+		for (auto it = whiteList.begin(); it != whiteList.end(); ++it) {
 			const char *white_ip = (*it).c_str();
-			LOGI("IP %s is in DOS protection white list", white_ip);
+			LOGI("Host %s is in DOS protection white list", white_ip);
+			BinaryIp::emplace(mWhiteList, white_ip);
 		}
-		LOGI("IP 127.0.0.1 automatically added to DOS protection white list");
-
+		
 		tport_t *primaries = tport_primaries(nta_agent_tports(mAgent->getSofiaAgent()));
 		if (primaries == NULL)
 			LOGF("No sip transport defined.");
@@ -233,18 +245,7 @@ class DoSProtection : public Module, ModuleToolbox {
 
 	bool isIpWhiteListed(const char *ip) {
 		if (!ip) return true; // If IP is null, is useless to try to add it in iptables...
-
-		if (ip && strcmp(ip, "127.0.0.1") == 0) { // Never ban localhost, used for presence
-			return true;
-		}
-
-		for (auto it = mWhiteList.begin(); it != mWhiteList.end(); ++it) { // Never ban ips from cluster
-			const char *white_ip = (*it).c_str();
-			if (white_ip && strcmp(ip, white_ip) == 0) {
-				return true;
-			}
-		}
-		return false;
+		return mWhiteList.find(BinaryIp(ip)) != mWhiteList.end();
 	}
 
 	void banIP(const char *ip, const char *port, const char *protocol) {

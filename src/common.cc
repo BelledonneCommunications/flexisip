@@ -128,33 +128,40 @@ time_t getTimeOffset(time_t current_time) {
 #endif
 }
 
-BinaryIp::BinaryIp(const char *hostname, bool onlyIpString) {
+struct addrinfo *BinaryIp::resolve(const std::string &hostname, bool numericOnly = false){
 	// Warning: IPv6 can use brakets.
-	char *node = hostname[0] != '['
-		? (char *)hostname
-		: strndup(hostname + 1, strlen(hostname) - 2);
+	std::string hostnameCopy;
+	if (hostname[0] == '[') hostnameCopy = hostname.substr(1, hostname.size() - 2);
+	else hostnameCopy = hostname;
 
-	struct addrinfo hints, *res;
-
-	memset(&mAddr, 0, sizeof mAddr);
+	struct addrinfo hints, *res = NULL;
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_INET6; // Only IPv6.
 	hints.ai_flags = AI_V4MAPPED; // Transform IPv4 in IPv6.
+	hints.ai_socktype = SOCK_STREAM;
 
 	// Suppresses host address lookups.
-	if (onlyIpString)
+	if (numericOnly)
 		hints.ai_flags |= AI_NUMERICHOST;
 
-	if (getaddrinfo(node, NULL, &hints, &res) != 0)
-		LOGE("getaddrinfo failed with %s", hostname);
-	else {
-		mAddr = ((struct sockaddr_in6 *)res->ai_addr)->sin6_addr;
-		freeaddrinfo(res);
+	if (getaddrinfo(hostnameCopy.c_str(), NULL, &hints, &res) != 0){
+		LOGE("getaddrinfo failed with %s", hostnameCopy.c_str());
 	}
+	return res;
+}
 
-	// free IPv6 address with brakets.
-	if (node != hostname)
-		free(node);
+BinaryIp::BinaryIp(const struct addrinfo *ai){
+	mAddr = ((struct sockaddr_in6 *)ai->ai_addr)->sin6_addr;
+}
+
+BinaryIp::BinaryIp(const char *ip){
+	struct addrinfo *ai = resolve(ip, true);
+	if (ai){
+		mAddr = ((struct sockaddr_in6 *)ai->ai_addr)->sin6_addr;
+		freeaddrinfo(ai);
+	}else{
+		memset(&mAddr, 0, sizeof(mAddr));
+	}
 }
 
 std::vector<std::string> flexisip::split (const std::string &str, const std::string &delimiter) {
