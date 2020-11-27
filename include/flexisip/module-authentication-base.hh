@@ -63,7 +63,7 @@ protected:
 	 * This method may be overridden in order to instantiate a specialization of #FlexisipAuthStatus. Should it be,
 	 * the overriding method might call #configureAuthStatus() for configuring the base of the returned object.
 	 */
-	virtual FlexisipAuthStatus *createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev);
+	virtual std::unique_ptr<FlexisipAuthStatus> createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev);
 	/**
 	 * Called by createAuthStatus() for setting #FlexisipAuthStatus attribute for the event request information.
 	 */
@@ -85,7 +85,7 @@ protected:
 	 * This method is called synchronously or asynchronously on result of AuthModule::verify() method.
 	 * It calls onSuccess() and errorReply() according the authentication result.
 	 */
-	void processAuthModuleResponse(FlexisipAuthStatus &as);
+	void processAuthModuleResponse(const std::shared_ptr<FlexisipAuthStatus> &as);
 	virtual void onSuccess(const FlexisipAuthStatus &as);
 	virtual void errorReply(const FlexisipAuthStatus &as);
 

@@ -79,12 +79,15 @@ public:
 
 private:
 	struct HttpRequestCtx {
+		HttpRequestCtx(ExternalAuthModule &am, const std::shared_ptr<ExternalAuthModule::Status> &as, const auth_challenger_t &ach):
+			am{am}, as{as}, ach{ach} {}
+
 		ExternalAuthModule &am;
-		FlexisipAuthStatus &as;
+		std::shared_ptr<ExternalAuthModule::Status> as{};
 		const auth_challenger_t &ach;
 	};
 
-	void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t &credentials, const auth_challenger_t &ach) override;
+	void checkAuthHeader(const std::shared_ptr<FlexisipAuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach) override;
 
 	void onHttpResponse(HttpRequestCtx &ctx, nth_client_t *request, const http_t *http);
 	std::map<std::string, std::string> parseHttpBody(const std::string &body) const;

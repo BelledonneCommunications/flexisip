@@ -37,31 +37,14 @@ using namespace flexisip;
 // ====================================================================================================================
 
 FlexisipAuthModuleBase::FlexisipAuthModuleBase(su_root_t *root, const std::string &domain, unsigned nonceExpire, bool qopAuth):
-	am_realm{domain}, am_qop{qopAuth ? "auth" : ""}, am_expires{nonceExpire}, mRoot{root}, mQOPAuth{qopAuth} {
+	am_qop{qopAuth ? "auth" : ""}, am_expires{nonceExpire}, mRoot{root}, mQOPAuth{qopAuth} {
 
 	mNonceStore.setNonceExpires(nonceExpire);
 }
 
-void FlexisipAuthModuleBase::verify(FlexisipAuthStatus &as, msg_auth_t &_credentials, const auth_challenger_t &ach) {
-	auto wildcardPos = find(am_realm.cbegin(), am_realm.cend(), '*');
-	const auto &host = as.as_domain;
-
-	/* Initialize per-request realm */
-	if (!as.as_realm.empty())
-		;
-	else if (wildcardPos == am_realm.cend()) {
-		as.as_realm = am_realm;
-	} else if (host.empty()) {
-		return; /* Internal error */
-	} else if (am_realm == "*") {
-		as.as_realm = host;
-	} else {
-		/* Replace * with hostpart */
-		as.as_realm = string{am_realm.cbegin(), wildcardPos} + host + string{wildcardPos+1, am_realm.cend()};
-	}
-
+void FlexisipAuthModuleBase::verify(const std::shared_ptr<FlexisipAuthStatus> &as, msg_auth_t &_credentials, const auth_challenger_t &ach) {
 	auto credentials = &_credentials;
-	if (!as.as_realm.empty()) {
+	if (!as->as_realm.empty()) {
 		/* Workaround for old linphone client that don't check whether algorithm is MD5 or SHA256.
 		 * They then answer for both, but the first one for SHA256 is of course wrong.
 		 * We workaround by selecting the second digest response.
@@ -69,72 +52,72 @@ void FlexisipAuthModuleBase::verify(FlexisipAuthStatus &as, msg_auth_t &_credent
 		if (credentials->au_next) {
 			auth_response_t r = {0};
 			r.ar_size = sizeof(r);
-			auth_digest_response_get(as.mHome.home(), &r, credentials->au_next->au_params);
+			auth_digest_response_get(as->mHome.home(), &r, credentials->au_next->au_params);
 
 			if (r.ar_algorithm == NULL || !strcasecmp(r.ar_algorithm, "MD5")) {
 				credentials = credentials->au_next;
 			}
 		}
 		/* After auth_digest_credentials, there is no more au->au_next. */
-		credentials = auth_digest_credentials(credentials, as.as_realm.c_str(), am_opaque.c_str());
+		credentials = auth_digest_credentials(credentials, as->as_realm.c_str(), am_opaque.c_str());
 	} else
 		credentials = nullptr;
 
 	if (credentials) {
 		LOGD("AuthStatus[%p]: searching for auth digest response for this proxy", &as);
-		msg_auth_t *matched_au = ModuleToolbox::findAuthorizationForRealm(as.mHome.home(), credentials, as.as_realm.c_str());
+		msg_auth_t *matched_au = ModuleToolbox::findAuthorizationForRealm(as->mHome.home(), credentials, as->as_realm.c_str());
 		if (matched_au)
 			credentials = matched_au;
-		as.as_match = reinterpret_cast<msg_header_t *>(credentials);
+		as->as_match = reinterpret_cast<msg_header_t *>(credentials);
 		checkAuthHeader(as, *credentials, ach);
 	} else {
 		/* There was no realm or credentials, send challenge */
-		LOGD("AuthStatus[%p]: no credential found for realm '%s'", &as, as.as_realm.c_str());
+		LOGD("AuthStatus[%p]: no credential found for realm '%s'", &as, as->as_realm.c_str());
 		challenge(as, ach);
 		notify(as);
 		return;
 	}
 }
 
-void FlexisipAuthModuleBase::challenge(FlexisipAuthStatus &as, const auth_challenger_t &ach) {
-	as.as_response = nullptr;
+void FlexisipAuthModuleBase::challenge(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_challenger_t &ach) {
+	as->as_response = nullptr;
 
 	auto nonce = generateDigestNonce(false, msg_now());
 
-	const auto &u = as.as_uri;
-	const auto &d = as.as_pdomain;
+	const auto &u = as->as_uri;
+	const auto &d = as->as_pdomain;
 
-	for (auto algo = as.mUsedAlgo.crbegin(); algo != as.mUsedAlgo.crend(); ++algo) {
+	for (auto algo = as->mUsedAlgo.crbegin(); algo != as->mUsedAlgo.crend(); ++algo) {
 		ostringstream resp{};
-		resp << "Digest realm=\"" << as.as_realm << "\",";
+		resp << "Digest realm=\"" << as->as_realm << "\",";
 		if (!u.empty()) resp << " uri=\"" << u << "\",";
 		if (!d.empty()) resp << " domain=\"" << d << "\",";
 		resp << " nonce=\"" << nonce << "\",";
 		if (!am_opaque.empty()) resp << " opaque=\"" << am_opaque << "\",";
-		if (as.as_stale) resp << " stale=true,";
+		if (as->as_stale) resp << " stale=true,";
 		resp << " algorithm=" << *algo;
 		if (!am_qop.empty()) resp << ", qop=\"" << am_qop << "\"";
 
-		auto challenge = msg_header_make(as.mHome.home(), ach.ach_header, resp.str().c_str());
-		if (as.as_response) {
-			challenge->sh_auth->au_next = as.as_response->sh_auth;
+		auto challenge = msg_header_make(as->mHome.home(), ach.ach_header, resp.str().c_str());
+		if (as->as_response) {
+			challenge->sh_auth->au_next = as->as_response->sh_auth;
 		}
-		as.as_response = challenge;
+		as->as_response = challenge;
 	}
 
-	if (as.as_response == nullptr) {
+	if (as->as_response == nullptr) {
 		SLOGE << "AuthStatus[" << &as << "]: no available algorithm while challenge making";
-		as.as_status = 500;
-		as.as_phrase = auth_internal_server_error;
+		as->as_status = 500;
+		as->as_phrase = auth_internal_server_error;
 	} else {
-		as.as_status = ach.ach_status;
-		as.as_phrase = ach.ach_phrase;
-		mNonceStore.insert(as.as_response->sh_auth);
+		as->as_status = ach.ach_status;
+		as->as_phrase = ach.ach_phrase;
+		mNonceStore.insert(as->as_response->sh_auth);
 	}
 }
 
-void FlexisipAuthModuleBase::notify(FlexisipAuthStatus &as) {
-	as.as_callback(as);
+void FlexisipAuthModuleBase::notify(const std::shared_ptr<FlexisipAuthStatus> &as) {
+	if (as->as_callback) as->as_callback(as);
 }
 
 void FlexisipAuthModuleBase::onError(FlexisipAuthStatus &as) {

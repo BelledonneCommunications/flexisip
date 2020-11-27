@@ -256,12 +256,12 @@ void Authentication::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 
 	sip_t *sip = ev->getMsgSip()->getSip();
 	if (sip->sip_status->st_status == 407 && sip->sip_proxy_authenticate) {
-		auto *as = new FlexisipAuthStatus(nullptr);
+		auto as = make_shared<FlexisipAuthStatus>(nullptr);
 		as->as_realm = *proxyRealm;
 		as->as_user_uri = sip->sip_from->a_url;
 		auto am = findAuthModule(as->as_realm);
 		if (am) {
-			am->challenge(*as, mProxyChallenger);
+			am->challenge(as, mProxyChallenger);
 			msg_header_insert(ev->getMsgSip()->getMsg(), (msg_pub_t *)sip, (msg_header_t *)as->as_response);
 		} else {
 			LOGD("Authentication module for %s not found", as->as_realm.c_str());

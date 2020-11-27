@@ -183,9 +183,9 @@ void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 	} catch (const StopRequestProcessing &) {}
 }
 
-FlexisipAuthStatus *ModuleAuthenticationBase::createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) {
-	auto *as = new FlexisipAuthStatus(ev);
-	LOGD("New FlexisipAuthStatus [%p]", as);
+std::unique_ptr<FlexisipAuthStatus> ModuleAuthenticationBase::createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) {
+	auto as = make_unique<FlexisipAuthStatus>(ev);
+	LOGD("New FlexisipAuthStatus [%p]", as.get());
 	ModuleAuthenticationBase::configureAuthStatus(*as, ev);
 	return as;
 }
@@ -213,7 +213,7 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const
 	as.as_method = sip->sip_request->rq_method_name;
 	as.as_source = msg_addrinfo(ms->getMsg());
 	as.as_user_uri = userUri;
-	as.as_realm = realm;
+	as.as_realm = move(realm);
 	as.as_display = sip->sip_from->a_display;
 	if (sip->sip_payload) {
 		as.as_body.assign(sip->sip_payload->pl_data, sip->sip_payload->pl_data + sip->sip_payload->pl_len);
@@ -254,19 +254,19 @@ void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<Reque
 
 	LOGD("start digest authentication");
 
-	FlexisipAuthStatus *as = createAuthStatus(request);
+	shared_ptr<FlexisipAuthStatus> as{createAuthStatus(request)};
 
 	// Attention: the auth_mod_verify method should not send by itself any message but
 	// return after having set the as status and phrase.
 	// Another point in asynchronous mode is that the asynchronous callbacks MUST be called
 	// AFTER the nta_msg_treply bellow. Otherwise the as would be already destroyed.
 	if (sip->sip_request->rq_method == sip_method_register) {
-		am.verify(*as, *sip->sip_authorization, mRegistrarChallenger);
+		am.verify(as, *sip->sip_authorization, mRegistrarChallenger);
 	} else {
-		am.verify(*as, *sip->sip_proxy_authorization, mProxyChallenger);
+		am.verify(as, *sip->sip_proxy_authorization, mProxyChallenger);
 	}
 
-	processAuthModuleResponse(*as);
+	processAuthModuleResponse(as);
 }
 
 FlexisipAuthModuleBase *ModuleAuthenticationBase::findAuthModule(const std::string name) {
@@ -293,31 +293,29 @@ FlexisipAuthModuleBase *ModuleAuthenticationBase::findAuthModule(const std::stri
 	return it->second.get();
 }
 
-void ModuleAuthenticationBase::processAuthModuleResponse(FlexisipAuthStatus &as) {
-	auto &fAs = dynamic_cast<FlexisipAuthStatus &>(as);
-	const shared_ptr<RequestSipEvent> &ev = fAs.mEvent;
-	if (as.as_status == 0) {
-		onSuccess(fAs);
+void ModuleAuthenticationBase::processAuthModuleResponse(const std::shared_ptr<FlexisipAuthStatus> &as) {
+	const shared_ptr<RequestSipEvent> &ev = as->mEvent;
+	if (as->as_status == 0) {
+		onSuccess(*as);
 		if (ev->isSuspended()) {
 			// The event is re-injected
 			getAgent()->injectRequestEvent(ev);
 		}
-	} else if (as.as_status == 100) {
+	} else if (as->as_status == 100) {
 		if (!ev->isSuspended()) ev->suspendProcessing();
-		as.as_callback = std::bind(&ModuleAuthenticationBase::processAuthModuleResponse, this, placeholders::_1);
+		as->as_callback = std::bind(&ModuleAuthenticationBase::processAuthModuleResponse, this, placeholders::_1);
 		return;
-	} else if (as.as_status >= 400) {
-		if (as.as_status == 401 || as.as_status == 407) {
-			auto log = make_shared<AuthLog>(ev->getMsgSip()->getSip(), fAs.mPasswordFound);
-			log->setStatusCode(as.as_status, as.as_phrase);
+	} else if (as->as_status >= 400) {
+		if (as->as_status == 401 || as->as_status == 407) {
+			auto log = make_shared<AuthLog>(ev->getMsgSip()->getSip(), as->mPasswordFound);
+			log->setStatusCode(as->as_status, as->as_phrase);
 			log->setCompleted();
 			ev->setEventLog(log);
 		}
-		errorReply(fAs);
+		errorReply(*as);
 	} else {
 		ev->reply(500, "Internal error", TAG_END());
 	}
-	delete &as;
 }
 
 void ModuleAuthenticationBase::onSuccess(const FlexisipAuthStatus &as) {

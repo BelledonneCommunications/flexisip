@@ -42,18 +42,18 @@ ExternalAuthModule::~ExternalAuthModule() {
 	nth_engine_destroy(mEngine);
 }
 
-void ExternalAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t &credentials, const auth_challenger_t &ach) {
+void ExternalAuthModule::checkAuthHeader(const std::shared_ptr<FlexisipAuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach) {
 	try {
-		auto &externalAs = dynamic_cast<ExternalAuthModule::Status &>(as);
+		auto externalAs = dynamic_pointer_cast<ExternalAuthModule::Status>(as);
 
-		HttpUriFormater::TranslationFunc func = [&externalAs, &credentials](const string &key){return extractParameter(externalAs, credentials, key);};
+		HttpUriFormater::TranslationFunc func = [&externalAs, &credentials](const string &key){return extractParameter(*externalAs, credentials, key);};
 		string uri = mUriFormater.format(func);
 
-		auto *ctx = new HttpRequestCtx({*this, as, ach});
+		auto ctx = make_unique<HttpRequestCtx>(*this, externalAs, ach);
 
 		nth_client_t *request = nth_client_tcreate(mEngine,
 			onHttpResponseCb,
-			reinterpret_cast<nth_client_magic_t *>(ctx),
+			reinterpret_cast<nth_client_magic_t *>(ctx.release()),
 			http_method_get,
 			"GET",
 			URL_STRING_MAKE(uri.c_str()),
@@ -62,14 +62,13 @@ void ExternalAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t &cre
 		if (request == nullptr) {
 			ostringstream os;
 			os << "HTTP request for '" << uri << "' has failed";
-			delete ctx;
 			throw runtime_error(os.str());
 		}
 		SLOGD << "HTTP request [" << request << "] to '" << uri << "' successfully sent";
-		as.as_status = 100;
+		as->as_status = 100;
 	} catch (const runtime_error &e) {
 		SLOGE << e.what();
-		onError(as);
+		onError(*as);
 		notify(as);
 	}
 }
@@ -117,15 +116,14 @@ void ExternalAuthModule::onHttpResponse(HttpRequestCtx &ctx, nth_client_t *reque
 			throw runtime_error(os.str());
 		}
 
-		auto &httpAuthStatus = dynamic_cast<ExternalAuthModule::Status &>(ctx.as);
-		httpAuthStatus.as_status = (sipCode == 200 ? 0 : sipCode);
-		httpAuthStatus.as_phrase = phrase;
-		httpAuthStatus.reason(reasonHeaderValue);
-		httpAuthStatus.pAssertedIdentity(pAssertedIdentity);
+		ctx.as->as_status = (sipCode == 200 ? 0 : sipCode);
+		ctx.as->as_phrase = phrase;
+		ctx.as->reason(reasonHeaderValue);
+		ctx.as->pAssertedIdentity(pAssertedIdentity);
 		if (sipCode == 401 || sipCode == 407) challenge(ctx.as, ctx.ach);
 	} catch (const runtime_error &e) {
 		SLOGE << "HTTP request [" << request << "]: " << e.what();
-		onError(ctx.as);
+		onError(*ctx.as);
 	} catch (...) {
 		if (request) nth_client_destroy(request);
 		throw;

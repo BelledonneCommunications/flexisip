@@ -52,8 +52,8 @@ public:
 	NonceStore &nonceStore() {return mNonceStore;}
 	su_root_t *getRoot() const noexcept {return mRoot;}
 
-	void verify(FlexisipAuthStatus &as, msg_auth_t &credentials, const auth_challenger_t &ach);
-	virtual void challenge(FlexisipAuthStatus &as, const auth_challenger_t &ach);
+	void verify(const std::shared_ptr<FlexisipAuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach);
+	virtual void challenge(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_challenger_t &ach);
 
 protected:
 	struct Nonce {
@@ -71,15 +71,14 @@ protected:
 	 * @param[in,out] as The context on the authentication. It is also used to return the result.
 	 * @param[in] credentials The authorization header to validate.
 	 */
-	virtual void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t &credentials, const auth_challenger_t &ach) = 0;
+	virtual void checkAuthHeader(const std::shared_ptr<FlexisipAuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach) = 0;
 
-	void notify(FlexisipAuthStatus &as);
+	void notify(const std::shared_ptr<FlexisipAuthStatus> &as);
 	void onError(FlexisipAuthStatus &as);
 
 	std::string generateDigestNonce(bool nextnonce, msg_time_t now);
 
 	// Attributes
-	std::string am_realm{};		/**< Our realm */
 	std::string am_opaque{"+GNywA=="};		/**< Opaque identification data */
 	std::string am_qop{};			/**< Default qop (quality-of-protection) */
 	unsigned am_expires = 60 * 60;		/**< Nonce lifetime */

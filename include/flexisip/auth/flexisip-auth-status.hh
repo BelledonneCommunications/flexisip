@@ -32,7 +32,7 @@ namespace flexisip {
  * with FlexisipAuthModule class.
  */
 struct FlexisipAuthStatus {
-	using ResponseCb = std::function<void(FlexisipAuthStatus &as)>;
+	using ResponseCb = std::function<void(const std::shared_ptr<FlexisipAuthStatus> &as)>;
 
 	FlexisipAuthStatus(const std::shared_ptr<RequestSipEvent> &ev): mEvent(ev) {}
 	virtual ~FlexisipAuthStatus() = default;

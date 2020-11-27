@@ -47,7 +47,7 @@ public:
 
 	void setOnPasswordFetchResultCb(const PasswordFetchResultCb &cb) {mPassworFetchResultCb = cb;}
 
-	void challenge(FlexisipAuthStatus &as, const auth_challenger_t &ach) override;
+	void challenge(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_challenger_t &ach) override;
 
 private:
 	class GenericAuthListener : public AuthDbListener {
@@ -67,13 +67,13 @@ private:
 		AuthDbBackend::PwList mPasswords;
 	};
 
-	void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t &credentials, const auth_challenger_t &ach) override;
+	void checkAuthHeader(const std::shared_ptr<FlexisipAuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach) override;
 
-	void processResponse(FlexisipAuthStatus &as, const auth_response_t &ar, const auth_challenger_t &ach, AuthDbResult result, const AuthDbBackend::PwList &passwords);
-	void checkPassword(FlexisipAuthStatus &as, const auth_challenger_t &ach, const auth_response_t &ar, const std::string &password);
+	void processResponse(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_response_t &ar, const auth_challenger_t &ach, AuthDbResult result, const AuthDbBackend::PwList &passwords);
+	void checkPassword(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_challenger_t &ach, const auth_response_t &ar, const std::string &password);
 	int checkPasswordForAlgorithm(FlexisipAuthStatus &as, const auth_response_t &ar, std::string ha1);
 
-	void onAccessForbidden(FlexisipAuthStatus& as, const auth_challenger_t &ach, const char* phrase = "Forbidden");
+	void onAccessForbidden(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_challenger_t &ach, const char* phrase = "Forbidden");
 
 	static std::string computeA1(Digest &algo, const auth_response_t &ar, const std::string &secret);
 	static std::string computeA1SESS(Digest &algo, const auth_response_t &ar, const std::string &ha1);
