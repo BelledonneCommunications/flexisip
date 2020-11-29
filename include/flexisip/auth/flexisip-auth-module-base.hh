@@ -82,8 +82,6 @@ protected:
 	std::string am_opaque{"+GNywA=="};		/**< Opaque identification data */
 	std::string am_qop{};			/**< Default qop (quality-of-protection) */
 	unsigned am_expires = 60 * 60;		/**< Nonce lifetime */
-	unsigned am_blacklist = 5;		/**< Extra delay if bad credentials. */
-	bool am_forbidden = true;	/**< Respond with 403 if bad credentials */
 	bool am_nextnonce = true;	/**< Send next nonce in responses */
 	unsigned am_count = 0; /**< Nonce counter */
 	unsigned am_max_ncount = 0; /**< If nonzero, challenge with new nonce after ncount */

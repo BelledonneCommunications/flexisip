@@ -56,7 +56,6 @@ struct FlexisipAuthStatus {
 	std::vector<uint8_t> as_body{}; /**< Message body to protect [in] */
 
 	msg_time_t as_nonce_issued = 0; /**< Nonce issue time [out] */
-	unsigned as_blacklist = 0;		/**< Blacklist time [out] */
 	bool as_anonymous = false;	/**< Return true if user is anonymous [out] */
 	bool as_stale = false;		/**< Credentials were stale [out] */
 	bool as_nextnonce = false;	/**< Client used nextnonce [out] */

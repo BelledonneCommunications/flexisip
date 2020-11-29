@@ -156,7 +156,6 @@ void FlexisipAuthModule::checkAuthHeader(const std::shared_ptr<FlexisipAuthStatu
 
 	msg_time_t now = msg_now();
 	if (as->as_nonce_issued == 0 /* Already validated nonce */ && validateDigestNonce(*as, *ar, now) < 0) {
-		as->as_blacklist = am_blacklist;
 		challenge(as, ach);;
 		notify(as);
 		return;
@@ -173,7 +172,6 @@ void FlexisipAuthModule::checkAuthHeader(const std::shared_ptr<FlexisipAuthStatu
 		int nnc = (int)strtoul(ar->ar_nc, NULL, 16);
 		if (pnc == -1 || pnc >= nnc) {
 			LOGE("Bad nonce count %d -> %d for %s", pnc, nnc, ar->ar_nonce);
-			as->as_blacklist = am_blacklist;
 			challenge(as, ach);
 			notify(as);
 			return;
@@ -280,15 +278,14 @@ int FlexisipAuthModule::checkPasswordForAlgorithm(FlexisipAuthStatus &as, const 
 	return response == ar.ar_response ? 0 : -1;
 }
 
-void FlexisipAuthModule::onAccessForbidden(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_challenger_t &ach, const char *phrase) {
-	if (am_forbidden && !as->mNo403) {
+void FlexisipAuthModule::onAccessForbidden(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_challenger_t &ach, std::string phrase) {
+	if (!as->mNo403) {
 		as->as_status = 403;
-		as->as_phrase = phrase;
+		as->as_phrase = move(phrase);
 		as->as_response = nullptr;
 	} else {
 		challenge(as, ach);
 	}
-	as->as_blacklist = am_blacklist;
 }
 
 std::string FlexisipAuthModule::computeA1(Digest &algo, const auth_response_t &ar, const std::string &secret) {

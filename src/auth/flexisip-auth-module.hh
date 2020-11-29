@@ -73,7 +73,7 @@ private:
 	void checkPassword(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_challenger_t &ach, const auth_response_t &ar, const std::string &password);
 	int checkPasswordForAlgorithm(FlexisipAuthStatus &as, const auth_response_t &ar, std::string ha1);
 
-	void onAccessForbidden(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_challenger_t &ach, const char* phrase = "Forbidden");
+	void onAccessForbidden(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_challenger_t &ach, std::string phrase = "Forbidden");
 
 	static std::string computeA1(Digest &algo, const auth_response_t &ar, const std::string &secret);
 	static std::string computeA1SESS(Digest &algo, const auth_response_t &ar, const std::string &ha1);
