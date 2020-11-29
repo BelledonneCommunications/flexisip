@@ -21,32 +21,33 @@
 #include <map>
 
 #include <linphone++/linphone.hh>
+
 #include "registration-subscription.hh"
 
-using namespace std;
-using namespace linphone;
 
 namespace flexisip {
 
+	class ConferenceServer; // ConferenceServer is composed by a ParticipantRegistrationSubscriptionHandler
+
 	class ParticipantRegistrationSubscriptionHandler
-		: public enable_shared_from_this<ParticipantRegistrationSubscriptionHandler>
+		: public std::enable_shared_from_this<ParticipantRegistrationSubscriptionHandler>
 	{
 	public:
 		ParticipantRegistrationSubscriptionHandler(const ConferenceServer &server);
 
 		void subscribe (
-			const shared_ptr<ChatRoom> &chatRoom,
-			const shared_ptr<const Address> &address
+			const std::shared_ptr<linphone::ChatRoom> &chatRoom,
+			const std::shared_ptr<const linphone::Address> &address
 		);
 		void unsubscribe (
-			const shared_ptr<ChatRoom> &chatRoom,
-			const shared_ptr<const Address> &address
+			const std::shared_ptr<linphone::ChatRoom> &chatRoom,
+			const std::shared_ptr<const linphone::Address> &address
 		);
 
 	private:
 		const ConferenceServer &mServer;
-		string getKey (const shared_ptr<const Address> &address);
-		multimap<string, shared_ptr<RegistrationSubscription>> mSubscriptions;
+		std::string getKey (const std::shared_ptr<const linphone::Address> &address);
+		std::multimap<std::string, std::shared_ptr<RegistrationSubscription>> mSubscriptions;
 	};
 
 } // namespace flexisip

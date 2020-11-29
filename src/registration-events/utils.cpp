@@ -22,6 +22,8 @@
 
 #include "utils.hh"
 
+using namespace std;
+
 namespace flexisip {
 
 namespace RegistrationEvent {

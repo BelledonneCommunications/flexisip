@@ -24,15 +24,12 @@
 
 #include "conference/conference-server.hh"
 
-using namespace std;
-using namespace linphone;
-
 namespace flexisip {
 
 namespace RegistrationEvent {
 	class Utils {
 		public:
-		static string getDeviceName(const shared_ptr<ExtendedContact> &ec);
+		static std::string getDeviceName(const std::shared_ptr<ExtendedContact> &ec);
 	};
 }
 

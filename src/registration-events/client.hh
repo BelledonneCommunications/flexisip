@@ -22,11 +22,6 @@
 
 #include <linphone++/linphone.hh>
 
-#include "conference/conference-server.hh"
-
-using namespace std;
-using namespace linphone;
-
 namespace flexisip {
 
 namespace RegistrationEvent {
@@ -36,27 +31,27 @@ public:
 	/* This is where the parsing result of the incoming NOTIFY are notified. 
 	 * The ParticipantDeviceIdentity object is convenient to represent the device information returned by the reg event package.
 	 */
-	virtual void onNotifyReceived(const list< shared_ptr<ParticipantDeviceIdentity> > & participantDevices) = 0;
-	virtual void onRefreshed(const shared_ptr<ParticipantDeviceIdentity> &participantDevice) = 0;
+	virtual void onNotifyReceived(const std::list< std::shared_ptr<linphone::ParticipantDeviceIdentity> > & participantDevices) = 0;
+	virtual void onRefreshed(const std::shared_ptr<linphone::ParticipantDeviceIdentity> &participantDevice) = 0;
 };
 
 /**
  * Base class for a "reg" event client.
  * It has to be inherited to get notified of the results of the subscription (the incoming NOTIFY request content).
  */
-class Client : public enable_shared_from_this<Client>, public CoreListener {
+class Client : public std::enable_shared_from_this<Client>, public linphone::CoreListener {
 	public:
-		Client(const shared_ptr<Core> &core, const shared_ptr<const Address> &to);
+		Client(const std::shared_ptr<linphone::Core> &core, const std::shared_ptr<const linphone::Address> &to);
 		~Client ();
 		void subscribe();
 		void unsubscribe();
 		void setListener(ClientListener *listener);
 	private:
-		void onNotifyReceived(const shared_ptr<Core> & lc, const shared_ptr<Event> & lev, const string & notifiedEvent, 
-				      const shared_ptr<const Content> & body) override;
-		shared_ptr<Core> mCore;
-		shared_ptr<Event> mSubscribeEvent;
-		shared_ptr<Address> mTo;
+		void onNotifyReceived(const std::shared_ptr<linphone::Core> & lc, const std::shared_ptr<linphone::Event> & lev, const std::string & notifiedEvent,
+				      const std::shared_ptr<const linphone::Content> & body) override;
+		std::shared_ptr<linphone::Core> mCore;
+		std::shared_ptr<linphone::Event> mSubscribeEvent;
+		std::shared_ptr<linphone::Address> mTo;
 		ClientListener *mListener = nullptr;
 };
 

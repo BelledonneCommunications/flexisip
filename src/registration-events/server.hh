@@ -24,27 +24,24 @@
 
 #include "service-server.hh"
 
-using namespace std;
-using namespace linphone;
-
 namespace flexisip {
 
 namespace RegistrationEvent {
 	
 class Server : public ServiceServer
-, public enable_shared_from_this<Server>
-, public CoreListener {
+, public std::enable_shared_from_this<Server>
+, public linphone::CoreListener {
 	public:
-		static const string CONTENT_TYPE;
+		static const std::string CONTENT_TYPE;
 
 		Server (su_root_t *root);
 		~Server ();
 
 		void onSubscribeReceived(
-			const shared_ptr<Core> & lc,
-			const shared_ptr<Event> & lev,
-			const string & subscribeEvent,
-			const shared_ptr<const Content> & body
+			const std::shared_ptr<linphone::Core> & lc,
+			const std::shared_ptr<linphone::Event> & lev,
+			const std::string & subscribeEvent,
+			const std::shared_ptr<const linphone::Content> & body
 		) noexcept override;
 
 		protected:
@@ -58,7 +55,7 @@ class Server : public ServiceServer
 		Init();
 	};
 	static Init sStaticInit;
-	shared_ptr<Core> mCore;
+	std::shared_ptr<linphone::Core> mCore;
 };
 
 }
