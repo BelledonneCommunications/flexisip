@@ -22,35 +22,32 @@
 
 #include <linphone++/linphone.hh>
 
-#include <flexisip/registrardb.hh>
-#include "service-server.hh"
+#include "flexisip/registrardb.hh"
 
-#include "registration-subscription.hh"
 #include "participant-registration-subscription-handler.hh"
-
-using namespace std;
-using namespace linphone;
+#include "registration-subscription.hh"
+#include "service-server.hh"
 
 namespace flexisip {
 
 	class ConferenceServer
 		: public ServiceServer
 		, public RegistrarDbStateListener
-		, public enable_shared_from_this<ConferenceServer>
-		, public CoreListener
-		, public ChatRoomListener
+		, public std::enable_shared_from_this<ConferenceServer>
+		, public linphone::CoreListener
+		, public linphone::ChatRoomListener
 	{
 	public:
-		ConferenceServer (const string &path, su_root_t *root);
+		ConferenceServer (const std::string &path, su_root_t *root);
 		~ConferenceServer ();
 
 		void bindAddresses ();
 
 		void bindChatRoom (
-			const string &bindingUrl,
-			const string &contact,
-			const string &gruu,
-			const shared_ptr<ContactUpdateListener> &listener
+			const std::string &bindingUrl,
+			const std::string &contact,
+			const std::string &gruu,
+			const std::shared_ptr<ContactUpdateListener> &listener
 		);
 
 		/**
@@ -61,7 +58,7 @@ namespace flexisip {
 		bool capabilityCheckEnabled()const{
 			return mCheckCapabilities;
 		}
-		const list<string> & getLocalDomains()const{
+		const std::list<std::string> & getLocalDomains()const{
 			return mLocalDomains;
 		}
 
@@ -77,30 +74,30 @@ namespace flexisip {
 
 		// CoreListener implementation
 		void onChatRoomStateChanged (
-			const shared_ptr<Core> &lc,
-			const shared_ptr<ChatRoom> &cr,
-			ChatRoom::State state
+			const std::shared_ptr<linphone::Core> &lc,
+			const std::shared_ptr<linphone::ChatRoom> &cr,
+			linphone::ChatRoom::State state
 		) override;
 
 		// ChatRoomListener implementation
-		void onConferenceAddressGeneration (const shared_ptr<ChatRoom> &cr) override;
+		void onConferenceAddressGeneration (const std::shared_ptr<linphone::ChatRoom> &cr) override;
 
 		void onParticipantRegistrationSubscriptionRequested (
-			const shared_ptr<ChatRoom> &cr,
-			const shared_ptr<const Address> & participantAddr
+			const std::shared_ptr<linphone::ChatRoom> &cr,
+			const std::shared_ptr<const linphone::Address> & participantAddr
 		) override;
 		void onParticipantRegistrationUnsubscriptionRequested (
-			const shared_ptr<ChatRoom> &cr,
-			const shared_ptr<const Address> & participantAddr
+			const std::shared_ptr<linphone::ChatRoom> &cr,
+			const std::shared_ptr<const linphone::Address> & participantAddr
 		) override;
 
-		shared_ptr<Core> mCore;
-		string mPath;
-		string mTransport;
-		list<shared_ptr<ChatRoom>> mChatRooms;
+		std::shared_ptr<linphone::Core> mCore;
+		std::string mPath;
+		std::string mTransport;
+		std::list<std::shared_ptr<linphone::ChatRoom>> mChatRooms;
 		ParticipantRegistrationSubscriptionHandler mSubscriptionHandler;
-		list<string> mFactoryUris;
-		list<string> mLocalDomains;
+		std::list<std::string> mFactoryUris;
+		std::list<std::string> mLocalDomains;
 		bool mAddressesBound = false;
 		bool mCheckCapabilities;
 

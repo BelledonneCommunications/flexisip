@@ -16,13 +16,15 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "registration-subscription.hh"
 #include "conference-server.hh"
-#include "../registration-events/utils.hh"
+#include "registration-events/utils.hh"
 
-using namespace flexisip;
+#include "registration-subscription.hh"
+
 using namespace std;
 using namespace linphone;
+
+namespace flexisip {
 
 RegistrationSubscription::RegistrationSubscription(const ConferenceServer & server, const shared_ptr<ChatRoom> &cr,
 						    const shared_ptr<const Address> &participant)
@@ -184,4 +186,6 @@ void ExternalRegistrationSubscription::onRefreshed(const shared_ptr<ParticipantD
 		notifyRegistration(deviceIdentity->getAddress());
 	}
 }
+
+} // namespace flexisip
 

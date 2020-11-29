@@ -33,11 +33,11 @@
 #if ENABLE_SOCI
 	#include "list-subscription/external-list-subscription.hh"
 #endif
-#include "pidf+xml.hh"
 #include "presentity-presenceinformation.hh"
-#include "resource-lists.hh"
 #include "subscription.hh"
 #include "utils/belle-sip-utils.hh"
+#include "xml/pidf+xml.hh"
+#include "xml/resource-lists.hh"
 
 #include "presence-server.hh"
 
