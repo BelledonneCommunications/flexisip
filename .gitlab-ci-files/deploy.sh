@@ -1,16 +1,33 @@
 #!/bin/bash
 
-if [ $# -ne 1 ]; then
+function print_usage {
 	prog=$(basename $0)
-	echo "syntax: $prog <dist>" 1>&2
+	echo "syntax: $prog [--make-lagacy-repo] <dist>" 1>&2
 	exit 2
+}
+
+if [ "$1" = '--make-legacy-repo' ]; then
+	make_legacy=1
+	shift
+else
+	make_legacy=0
 fi
+
+if [ -z "$1" || "${1:0:1} = '-'" ]; then
+	print_usage $0
+fi
+
+if [ $# -ne 1 ]; then
+	print_usage $0
+fi
+
+dist="$1"
+
 
 id=$(cat /dev/urandom | tr -dc '[:alnum:]' | fold -w 10 | head -n 1)
 tmpdir="$MAKE_REPO_TMP/tmp-$id"
 rsync_dest="$DEPLOY_SERVER:$tmpdir/"
 
-dist=$1
 case "$dist" in
 	'centos')
 		make_repo_args="rpm $tmpdir $CENTOS_REPOSITORY"
@@ -37,9 +54,12 @@ ssh $DEPLOY_SERVER "
 	echo '>>>> Making repository'
 	make_repo $make_repo_args || exit 1
 
-	echo '>>>> Making legacy repository'
-	$legacy_repo_cmd || exit 1
+	if [ $make_legacy -eq 1 ]; then
+		echo '>>>> Making legacy repository'
+		$legacy_repo_cmd || exit 1
+	fi
 
 	echo \">>>> Removing '$tmpdir'\"
 	rm -r $tmpdir
 "
+
