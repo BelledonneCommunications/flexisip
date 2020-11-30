@@ -76,6 +76,7 @@
     refs:
       - master
       - /release/.*/
+      - feature/packaging_centos8
     variables: [$SCHEDULE_RUN]
 
 .job-debian-deb-deploy:
