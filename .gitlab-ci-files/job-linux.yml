@@ -153,11 +153,11 @@ tests-flexisip-mr:
     #No need to modify
     LIBLINPHONE_DOCKER_IMAGE: liblinphone_tester_for_flexisip
 
-    #You can set here the version you want for Flexisip auxiliaries and  liblinphone (branches with '/' are not supported yet since it is set as a docker tag).
+    #You can set here the version you want for Flexisip auxiliaries and liblinphone (branches with '/' are not supported yet since it is set as a docker tag).
     #/!\ if you work with Lime-server, account-manager or file-transfer server dev packages, you MUST ensure that these packages are available in one of the BC snapshot repositories. Otherwize the docker images won't use the latest versions.
     #You can use the latest version available of Lime-server, account-manager, file-transfer-server with the version number "latest"
     #/!\ In this case, there MUST be NO image with the same name on the nuc, otherwize the docker images won't be rebuilt
-    LIBLINPHONE_DOCKER_TAG: "4.5.0-alpha-230-gb5ce1e7"
+    LIBLINPHONE_DOCKER_TAG: "4.5.0-alpha-256-g1b450dd"
     LIME_SERVER_VERSION: "1.0-27.el7"
     ACCOUNT_MANAGER_VERSION: "1.1.0-36.el7"
     FILE_TRANSFER_SERVER_VERSION: "1.0-5.el7"
