@@ -109,7 +109,8 @@ void ModuleAuthenticationBase::onDeclare(GenericStruct *mc) {
 }
 
 void ModuleAuthenticationBase::onLoad(const GenericStruct *mc) {
-	list<string> authDomains = mc->get<ConfigStringList>("auth-domains")->read();
+	auto authDomains = mc->get<ConfigStringList>("auth-domains")->read();
+	mAuthDomains.assign(authDomains.cbegin(), authDomains.cend());
 
 	mAlgorithms = mc->get<ConfigStringList>("available-algorithms")->read();
 	mAlgorithms.unique();
@@ -125,9 +126,7 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct *mc) {
 	bool disableQOPAuth = mc->get<ConfigBoolean>("disable-qop-auth")->read();
 	int nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
 
-	for (const string &domain : authDomains) {
-		mAuthModules[domain] = createAuthModule(domain, nonceExpires, !disableQOPAuth);
-	}
+	mAuthModule = createAuthModule(nonceExpires, !disableQOPAuth);
 
 	const string regexPrefix{"regex:"};
 	const auto *realmCfg = mc->get<ConfigString>("realm");
@@ -169,14 +168,13 @@ void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 				LOGD("There is no p-preferred-identity");
 		}
 
-		FlexisipAuthModuleBase *am = findAuthModule(fromDomain);
-		if (am == nullptr) {
+		if (!checkDomain(fromDomain)) {
 			SLOGI << "Registration failure, domain is forbidden: " << fromDomain;
 			ev->reply(403, "Domain forbidden", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 			return;
 		}
 
-		processAuthentication(ev, *am);
+		processAuthentication(ev);
 	} catch (const runtime_error &e) {
 		SLOGE << e.what();
 		ev->reply(500, "Internal error", TAG_END());
@@ -235,7 +233,7 @@ void ModuleAuthenticationBase::validateRequest(const std::shared_ptr<RequestSipE
 	}
 }
 
-void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am) {
+void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<RequestSipEvent> &request) {
 	const shared_ptr<MsgSip> &ms = request->getMsgSip();
 	sip_t *sip = request->getMsgSip()->getSip();
 
@@ -261,36 +259,32 @@ void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<Reque
 	// Another point in asynchronous mode is that the asynchronous callbacks MUST be called
 	// AFTER the nta_msg_treply bellow. Otherwise the as would be already destroyed.
 	if (sip->sip_request->rq_method == sip_method_register) {
-		am.verify(as, *sip->sip_authorization, mRegistrarChallenger);
+		mAuthModule->verify(as, *sip->sip_authorization, mRegistrarChallenger);
 	} else {
-		am.verify(as, *sip->sip_proxy_authorization, mProxyChallenger);
+		mAuthModule->verify(as, *sip->sip_proxy_authorization, mProxyChallenger);
 	}
 
 	processAuthModuleResponse(as);
 }
 
-FlexisipAuthModuleBase *ModuleAuthenticationBase::findAuthModule(const std::string name) {
-	auto it = mAuthModules.find(name);
-	if (it == mAuthModules.end())
-		it = mAuthModules.find("*");
-	if (it == mAuthModules.end()) {
-		for (auto it2 = mAuthModules.begin(); it2 != mAuthModules.end(); ++it2) {
-			string domainName = it2->first;
-			size_t wildcardPosition = domainName.find("*");
-			// if domain has a wildcard in it, try to match
-			if (wildcardPosition != string::npos) {
-				size_t beforeWildcard = name.find(domainName.substr(0, wildcardPosition));
-				size_t afterWildcard = name.find(domainName.substr(wildcardPosition + 1));
-				if (beforeWildcard != string::npos && afterWildcard != string::npos) {
-					return it2->second.get();
-				}
+bool ModuleAuthenticationBase::checkDomain(const std::string &domain) const noexcept {
+	if (find_if(mAuthDomains.cbegin(), mAuthDomains.cend(),
+		[&domain] (const auto &d) { return d == domain || d == "*"; }
+	) != mAuthDomains.cend()) return true;
+
+	for (const auto &authDomain : mAuthDomains) {
+		auto wildcardPosition = authDomain.find('*');
+		// if domain has a wildcard in it, try to match
+		if (wildcardPosition != string::npos) {
+			auto beforeWildcard = domain.find(authDomain.substr(0, wildcardPosition));
+			auto afterWildcard = domain.rfind(authDomain.substr(wildcardPosition + 1));
+			if (beforeWildcard == 0 && afterWildcard > wildcardPosition) {
+				return true;
 			}
 		}
 	}
-	if (it == mAuthModules.end()) {
-		return nullptr;
-	}
-	return it->second.get();
+
+	return false;
 }
 
 void ModuleAuthenticationBase::processAuthModuleResponse(const std::shared_ptr<FlexisipAuthStatus> &as) {

@@ -42,7 +42,7 @@ class FlexisipAuthModule : public FlexisipAuthModuleBase {
 public:
 	using PasswordFetchResultCb = std::function<void(bool)>;
 
-	FlexisipAuthModule(su_root_t *root, const std::string &domain, int nonceExpire, bool qopAuth): FlexisipAuthModuleBase(root, domain, nonceExpire, qopAuth) {}
+	FlexisipAuthModule(su_root_t *root, int nonceExpire, bool qopAuth): FlexisipAuthModuleBase(root, nonceExpire, qopAuth) {}
 	~FlexisipAuthModule() override = default;
 
 	void setOnPasswordFetchResultCb(const PasswordFetchResultCb &cb) {mPassworFetchResultCb = cb;}

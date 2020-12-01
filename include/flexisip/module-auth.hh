@@ -39,14 +39,14 @@ public:
 	bool tlsClientCertificatePostCheck(const std::shared_ptr<RequestSipEvent> &ev);
 	virtual bool handleTlsClientAuthentication(const std::shared_ptr<RequestSipEvent> &ev);
 	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) override;
-	void onIdle() override;
+	void onIdle() override {mAuthModule->nonceStore().cleanExpired();}
 	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) override;
 
 private:
-	std::unique_ptr<FlexisipAuthModuleBase> createAuthModule(const std::string &domain, int nonceExpire, bool qopAuth) override;
+	std::unique_ptr<FlexisipAuthModuleBase> createAuthModule(int nonceExpire, bool qopAuth) override;
 
 	void validateRequest(const std::shared_ptr<RequestSipEvent> &request) override;
-	void processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am) override;
+	void processAuthentication(const std::shared_ptr<RequestSipEvent> &request) override;
 
 	bool empty(const char *value) {return value == NULL || value[0] == '\0';}
 	const char *findIncomingSubjectInTrusted(const std::shared_ptr<RequestSipEvent> &ev, const char *fromDomain);

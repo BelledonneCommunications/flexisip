@@ -56,7 +56,7 @@ protected:
 	/**
 	 * Override this method to specify the specialization of #FlexisipAuthModuleBase to instantiate.
 	 */
-	virtual std::unique_ptr<FlexisipAuthModuleBase> createAuthModule(const std::string &domain, int nonceExpire, bool qopAuth) = 0;
+	virtual std::unique_ptr<FlexisipAuthModuleBase> createAuthModule(int nonceExpire, bool qopAuth) = 0;
 	/**
 	 * @brief Create and configure a #FlexisipAuthStatus according the information extracted from ev.
 	 *
@@ -74,12 +74,12 @@ protected:
 	 * These two methods might be overridden to customize onRequest().
 	 */
 	virtual void validateRequest(const std::shared_ptr<RequestSipEvent> &request);
-	virtual void processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am);
+	virtual void processAuthentication(const std::shared_ptr<RequestSipEvent> &request);
 
 	/**
-	 * Called by onRequest() for getting a #FlexisipAuthModuleBase instance from a domain name.
+	 * Check whether domain matches one of the authorized domains.
 	 */
-	FlexisipAuthModuleBase *findAuthModule(const std::string name);
+	bool checkDomain(const std::string &domain) const noexcept;
 
 	/**
 	 * This method is called synchronously or asynchronously on result of AuthModule::verify() method.
@@ -95,12 +95,13 @@ protected:
 	static bool validAlgo(const std::string &algo);
 
 protected:
-	std::map<std::string, std::unique_ptr<FlexisipAuthModuleBase>> mAuthModules;
-	std::list<std::string> mAlgorithms;
+	std::vector<std::string> mAuthDomains{};
+	std::unique_ptr<FlexisipAuthModuleBase> mAuthModule{};
+	std::list<std::string> mAlgorithms{};
 	auth_challenger_t mRegistrarChallenger;
 	auth_challenger_t mProxyChallenger;
 	std::unique_ptr<RealmExtractor> mRealmExtractor{};
-	std::shared_ptr<SipBooleanExpression> mNo403Expr;
+	std::shared_ptr<SipBooleanExpression> mNo403Expr{};
 
 	static const std::array<std::string, 2> sValidAlgos;
 };

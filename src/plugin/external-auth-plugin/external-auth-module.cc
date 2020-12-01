@@ -34,7 +34,7 @@ using namespace std;
 
 namespace flexisip {
 
-ExternalAuthModule::ExternalAuthModule(su_root_t *root, const std::string &domain, int nonceExpire, bool qopAuth) : FlexisipAuthModuleBase(root, domain, nonceExpire, qopAuth) {
+ExternalAuthModule::ExternalAuthModule(su_root_t *root, int nonceExpire, bool qopAuth) : FlexisipAuthModuleBase(root, nonceExpire, qopAuth) {
 	mEngine = nth_engine_create(root, TAG_END());
 }
 

@@ -37,7 +37,7 @@ private:
 	void onDeclare(GenericStruct *mc) override;
 	void onLoad(const GenericStruct *root) override;
 
-	std::unique_ptr<FlexisipAuthModuleBase> createAuthModule(const std::string &domain, int nonceExpire, bool qopAuth) override;
+	std::unique_ptr<FlexisipAuthModuleBase> createAuthModule(int nonceExpire, bool qopAuth) override;
 	std::unique_ptr<FlexisipAuthStatus> createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) override;
 
 	void onSuccess(const FlexisipAuthStatus &as) override;

@@ -248,35 +248,28 @@ bool Authentication::handleTlsClientAuthentication(const std::shared_ptr<Request
 void Authentication::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	if (!mNewAuthOn407) return; /*nop*/
 
-	shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
-	if (transaction == NULL) return;
+	auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+	if (transaction == nullptr) return;
 
-	shared_ptr<string> proxyRealm = transaction->getProperty<string>("this_proxy_realm");
-	if (proxyRealm == NULL) return;
+	auto proxyRealm = transaction->getProperty<string>("this_proxy_realm");
+	if (proxyRealm == nullptr) return;
 
-	sip_t *sip = ev->getMsgSip()->getSip();
-	if (sip->sip_status->st_status == 407 && sip->sip_proxy_authenticate) {
-		auto as = make_shared<FlexisipAuthStatus>(nullptr);
-		as->as_realm = *proxyRealm;
-		as->as_user_uri = sip->sip_from->a_url;
-		auto am = findAuthModule(as->as_realm);
-		if (am) {
-			am->challenge(as, mProxyChallenger);
-			msg_header_insert(ev->getMsgSip()->getMsg(), (msg_pub_t *)sip, (msg_header_t *)as->as_response);
-		} else {
-			LOGD("Authentication module for %s not found", as->as_realm.c_str());
-		}
-	} else {
+	auto sip = ev->getMsgSip()->getSip();
+	if (sip->sip_status->st_status != 407 || !sip->sip_proxy_authenticate) {
 		LOGD("not handled newauthon401");
+		return;
 	}
-}
 
-
-void Authentication::onIdle() {
-	for (auto &it : mAuthModules) {
-		auto am = it.second.get();
-		am->nonceStore().cleanExpired();
+	auto as = make_shared<FlexisipAuthStatus>(nullptr);
+	as->as_realm = *proxyRealm;
+	as->as_user_uri = sip->sip_from->a_url;
+	if (!checkDomain(as->as_realm)) {
+		LOGD("'%s' not authorized", as->as_realm.c_str());
+		return;
 	}
+
+	mAuthModule->challenge(as, mProxyChallenger);
+	msg_header_insert(ev->getMsgSip()->getMsg(), (msg_pub_t *)sip, as->as_response);
 }
 
 bool Authentication::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
@@ -293,10 +286,9 @@ bool Authentication::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 // Private methods                                                                                                   //
 // ================================================================================================================= //
 
-std::unique_ptr<FlexisipAuthModuleBase> Authentication::createAuthModule(const std::string &domain, int nonceExpire, bool qopAuth) {
-	auto authModule = make_unique<FlexisipAuthModule>(getAgent()->getRoot(), domain, nonceExpire, qopAuth);
+std::unique_ptr<FlexisipAuthModuleBase> Authentication::createAuthModule(int nonceExpire, bool qopAuth) {
+	auto authModule = make_unique<FlexisipAuthModule>(getAgent()->getRoot(), nonceExpire, qopAuth);
 	authModule->setOnPasswordFetchResultCb([this](bool passFound){passFound ? mCountPassFound++ : mCountPassNotFound++;});
-	SLOGI << "Found auth domain: " << domain;
 	return authModule;
 }
 
@@ -308,12 +300,12 @@ void Authentication::validateRequest(const std::shared_ptr<RequestSipEvent> &req
 		throw StopRequestProcessing();
 }
 
-void Authentication::processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am) {
+void Authentication::processAuthentication(const std::shared_ptr<RequestSipEvent> &request) {
 	// check if TLS client certificate provides sufficent authentication for this request.
 	if (handleTlsClientAuthentication(request))
 		throw StopRequestProcessing();
 
-	ModuleAuthenticationBase::processAuthentication(request, am);
+	ModuleAuthenticationBase::processAuthentication(request);
 }
 
 const char *Authentication::findIncomingSubjectInTrusted(const shared_ptr<RequestSipEvent> &ev, const char *fromDomain) {

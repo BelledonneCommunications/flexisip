@@ -42,11 +42,10 @@ public:
 	/**
 	 * @brief Instantiate a new authentication module without QOP authentication feature.
 	 * @param[in] root Event loop which the module will be working on.
-	 * @param[in] domain The domain name which the module is in charge of.
 	 * @param[in] nonceExpire Validity period for a nonce in seconds.
 	 * @param[in] qopAuth Setting true allows clients to use the same nonce for successive authentication.
 	 */
-	FlexisipAuthModuleBase(su_root_t *root, const std::string &domain, unsigned nonceExpire, bool qopAuth);
+	FlexisipAuthModuleBase(su_root_t *root, unsigned nonceExpire, bool qopAuth);
 	virtual ~FlexisipAuthModuleBase() = default;
 
 	NonceStore &nonceStore() {return mNonceStore;}
