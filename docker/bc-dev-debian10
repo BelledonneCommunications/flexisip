@@ -3,5 +3,6 @@ FROM gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:10
 MAINTAINER François Grisez <francois.grisez@belledonne-communications.com>
 
 # Add extra dependencies for Flexisip
-RUN sudo apt-get install -y libjansson-dev libmariadb-dev-compat libnghttp2-dev libprotobuf-dev libsnmp-dev protobuf-compiler
+RUN sudo apt-get update \
+	&& sudo apt-get install -y libjansson-dev libmariadb-dev-compat libnghttp2-dev libprotobuf-dev libsnmp-dev protobuf-compiler
 
