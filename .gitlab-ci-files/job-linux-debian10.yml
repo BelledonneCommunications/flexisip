@@ -1,0 +1,114 @@
+#################################################
+# Makefile
+#################################################
+
+job-debian10-makefile-gcc:
+
+  tags: [ "docker-debian10" ]
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:10
+  except:
+    variables:
+      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    CC: gcc
+    CXX: g++
+    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
+  extends: .scheduled-job-linux
+
+
+job-debian10-makefile-clang:
+
+  tags: [ "docker-debian10" ]
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:10
+  except:
+    variables:
+      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    CC: clang
+    CXX: clang++
+    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
+  extends: .scheduled-job-linux
+
+#################################################
+# Ninja
+#################################################
+
+job-debian10-ninja-gcc:
+
+  tags: [ "docker-debian10" ]
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:10
+  except:
+    variables:
+      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CC: gcc
+    CXX: g++
+  extends: .scheduled-job-linux
+
+
+job-debian10-ninja-clang:
+
+  tags: [ "docker-debian10" ]
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:10
+  except:
+    variables:
+      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CC: clang
+    CXX: clang++
+  extends: .job-linux
+
+#################################################
+# XWiki reference documentation
+#################################################
+job-debian10-xwiki-doc-deploy:
+  stage: build
+  tags: [ "docker" ]
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:10
+
+  only:
+    variables:
+      - $SCHEDULE_RUN
+
+  script:
+    - prefix=/opt/belledonne-communications
+    - sudo mkdir -p $prefix
+    - sudo chown bc:bc $prefix
+    - ./prepare.py -DCMAKE_INSTALL_PREFIX=$prefix -DCMAKE_PREFIX_PATH=$prefix $DEFAULT_CMAKE_OPTIONS
+    - make -j$MAKEFILE_JOBS
+    - /usr/bin/python3 ./doc/xw.py --flexisip-binary $prefix/bin/flexisip -H $XWIKI_HOSTNAME -u $XWIKI_USERNAME -p $XWIKI_PASSWORD
+
+#################################################
+# DEB
+#################################################
+
+job-debian10-deb:
+
+  tags: [ "docker-debian10" ]
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:10
+  extends: .job-linux-deb
+  except:
+    variables:
+      - $DEPLOY_UBUNTU
+
+
+job-debian10-deb-deploy:
+
+  except:
+    variables:
+      - $DEPLOY_UBUNTU
+  variables:
+    RELEASE: buster
+    FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
+  extends: .job-debian-deb-deploy
+  dependencies:
+    - job-debian10-deb
+    
