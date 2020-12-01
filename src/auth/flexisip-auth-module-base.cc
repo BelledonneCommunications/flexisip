@@ -142,7 +142,7 @@ std::string FlexisipAuthModuleBase::generateDigestNonce(bool nextnonce, msg_time
 	auto digest = md5.compute<vector<uint8_t>>(&_nonce, len);
 	memcpy(_nonce.digest, digest.data(), min(sizeof(_nonce.digest), digest.size()));
 
-	string res(256, '\0');
+	string res(sizeof(_nonce)*4+1, '\0');
 	auto size = base64_e(&res[0], res.size(), &_nonce, sizeof(_nonce));
 	res.resize(size-1);
 	return res;

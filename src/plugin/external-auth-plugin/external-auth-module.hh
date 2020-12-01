@@ -42,34 +42,36 @@ public:
 		Status(const std::shared_ptr<RequestSipEvent> &ev) : FlexisipAuthStatus(ev) {}
 
 		const std::string &reason() const {return mReasonHeader;}
-		void reason(const std::string &val) {mReasonHeader = val;}
+		template <typename T>
+		void reason(T &&val) {mReasonHeader = std::forward<T>(val);}
 
 		const std::string &pAssertedIdentity() const {return mPAssertedIdentity;}
-		void pAssertedIdentity(const std::string &val) {mPAssertedIdentity = val;}
+		template <typename T>
+		void pAssertedIdentity(T &&val) {mPAssertedIdentity = std::forward<T>(val);}
 
 		const std::string &fromHeader() const {return mFromHeader;}
-		void fromHeader(const std::string &val) {mFromHeader = val;}
-		void fromHeader(std::string &&val) {mFromHeader = std::move(val);}
+		template <typename T>
+		void fromHeader(T &&val) {mFromHeader = std::forward<T>(val);}
 
 		const std::string &domain() const {return mDomain;}
-		void domain(const std::string &val) {mDomain = val;}
-		void domain(std::string &&val) {mDomain = std::move(val);}
+		template <typename T>
+		void domain(T &&val) {mDomain = std::forward<T>(val);}
 
 		const std::string &sipInstance() const {return mSipInstance;}
-		void sipInstance(const std::string &val) {mSipInstance = val;}
-		void sipInstance(std::string &&val) {mSipInstance = std::move(val);}
+		template <typename T>
+		void sipInstance(T &&val) {mSipInstance = std::forward<T>(val);}
 
 		const std::string &uuid() const {return mUUID;}
-		void uuid(const std::string &uuid) {mUUID = uuid;}
-		void uuid(std::string &uuid) {mUUID = std::move(uuid);}
+		template <typename T>
+		void uuid(T &&uuid) {mUUID = std::forward<T>(uuid);}
 
 	private:
-		std::string mReasonHeader;      /**< [out] Reason header returned by the HTTP server on authentication failure. */
-		std::string mPAssertedIdentity; /**< [out] PAssertIdentity header returned by the HTTP server on authentication success. */
-		std::string mFromHeader;        /**< [in]  Value of From header of the request. */
-		std::string mDomain;            /**< [in]  Domain of the From header. */
-		std::string mSipInstance;       /**< [in]  Value of the +sip.instance parameter from Contact header. */
-		std::string mUUID;              /**< [in]  UUID of the application that is trying to authenticate. */
+		std::string mReasonHeader{};      /**< [out] Reason header returned by the HTTP server on authentication failure. */
+		std::string mPAssertedIdentity{}; /**< [out] PAssertIdentity header returned by the HTTP server on authentication success. */
+		std::string mFromHeader{};        /**< [in]  Value of From header of the request. */
+		std::string mDomain{};            /**< [in]  Domain of the From header. */
+		std::string mSipInstance{};       /**< [in]  Value of the +sip.instance parameter from Contact header. */
+		std::string mUUID{};              /**< [in]  UUID of the application that is trying to authenticate. */
 	};
 
 	ExternalAuthModule(su_root_t *root, int nonceExpire, bool qopAuth);
@@ -98,7 +100,7 @@ private:
 	static bool validSipCode(int sipCode);
 
 	nth_engine_t *mEngine = nullptr;
-	HttpUriFormater mUriFormater;
+	HttpUriFormater mUriFormater{};
 
 	static std::array<int, 4> sValidSipCodes;
 };
