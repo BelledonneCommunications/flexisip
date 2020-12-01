@@ -76,6 +76,7 @@
     refs:
       - master
       - /release/.*/
+      - feature/packaging_debian10
     variables: [$SCHEDULE_RUN]
 
 .job-debian-deb-deploy:
