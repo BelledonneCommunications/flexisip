@@ -163,7 +163,7 @@ tests-flexisip-mr:
     FILE_TRANSFER_SERVER_VERSION: "1.0-5.el7"
 
     #Branch of the Flexisip-tester project to use. Could be modified to test fixes or features in the Flexisip-tester
-    FLEXISIP_TESTER_BRANCH: "master"
+    FLEXISIP_TESTER_BRANCH: "feature/set_ipv4_subnet"
 
     #This value specifies the workspace where we from all tests outputs.
     workspace: "${CI_PROJECT_DIR}/liblinphone_tester_workspace"
@@ -186,12 +186,15 @@ tests-flexisip-mr:
     - export COMPOSE_PROJECT_NAME=$RANDOM
     - echo $COMPOSE_PROJECT_NAME
 
-    - export FLEXISIP_TESTER_SUBNET="2001:3200:3200:`printf '%x\n' $COMPOSE_PROJECT_NAME`::/64"
-    - echo "Flexisip tester private ipv6 subnet " $FLEXISIP_TESTER_SUBNET
+    - export FLEXISIP_TESTER_IPV4_PREFIX="172.0.`expr $COMPOSE_PROJECT_NAME % 255`"
+    - echo "Flexisip tester private ipv4 prefix " $FLEXISIP_TESTER_IPV4_PREFIX
 
-    - export FLEXISIP_TESTER_GATEWAY="2001:3200:3200:`printf '%x\n' $COMPOSE_PROJECT_NAME`::1"
+    - export FLEXISIP_TESTER_IPV6_SUBNET="2001:3200:3200:`printf '%x\n' $COMPOSE_PROJECT_NAME`::/64"
+    - echo "Flexisip tester private ipv6 subnet " $FLEXISIP_TESTER_IPV6_SUBNET
+
+    - export FLEXISIP_TESTER_IPV6_GATEWAY="2001:3200:3200:`printf '%x\n' $COMPOSE_PROJECT_NAME`::1"
     - export FLEXISIP_TESTER_IPV6_PROBING_ADDR=$FLEXISIP_TESTER_GATEWAY
-    - echo "Flexisip tester private ipv6 gateway" $FLEXISIP_TESTER_GATEWAY
+    - echo "Flexisip tester private ipv6 gateway" $FLEXISIP_TESTER_IPV6_GATEWAY
     
     - echo "Liblinphone tester version:" $LIBLINPHONE_DOCKER_TAG
     - echo $workspace
