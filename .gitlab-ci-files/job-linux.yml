@@ -184,14 +184,17 @@ tests-flexisip-mr:
     # used to ensure there will be not network name conflict for parallel 
     #   docker-compose executions
     - export COMPOSE_PROJECT_NAME=$RANDOM
-    - echo $COMPOSE_PROJECT_NAME
+    - echo "Compose project name " $COMPOSE_PROJECT_NAME
 
-    - export FLEXISIP_TESTER_SUBNET="2001:3200:3200:`printf '%x\n' $COMPOSE_PROJECT_NAME`::/64"
-    - echo "Flexisip tester private ipv6 subnet " $FLEXISIP_TESTER_SUBNET
+    - export FLEXISIP_TESTER_IPV4_PREFIX="172.0.`expr $COMPOSE_PROJECT_NAME % 255`"
+    - echo "Flexisip tester private ipv4 prefix " $FLEXISIP_TESTER_IPV4_PREFIX
 
-    - export FLEXISIP_TESTER_GATEWAY="2001:3200:3200:`printf '%x\n' $COMPOSE_PROJECT_NAME`::1"
-    - export FLEXISIP_TESTER_IPV6_PROBING_ADDR=$FLEXISIP_TESTER_GATEWAY
-    - echo "Flexisip tester private ipv6 gateway" $FLEXISIP_TESTER_GATEWAY
+    - export FLEXISIP_TESTER_IPV6_SUBNET="2001:3200:3200:`printf '%x\n' $COMPOSE_PROJECT_NAME`::/64"
+    - echo "Flexisip tester private ipv6 subnet " $FLEXISIP_TESTER_IPV6_SUBNET
+
+    - export FLEXISIP_TESTER_IPV6_GATEWAY="2001:3200:3200:`printf '%x\n' $COMPOSE_PROJECT_NAME`::1"
+    - export FLEXISIP_TESTER_IPV6_PROBING_ADDR=$FLEXISIP_TESTER_IPV6_GATEWAY
+    - echo "Flexisip tester private ipv6 gateway" $FLEXISIP_TESTER_IPV6_GATEWAY
     
     - echo "Liblinphone tester version:" $LIBLINPHONE_DOCKER_TAG
     - echo $workspace
