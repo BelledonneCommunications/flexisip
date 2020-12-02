@@ -26,8 +26,8 @@
 
 include(FindPackageHandleStandardArgs)
 
-find_path(LIBNGHTTP2_INCLUDE_DIR nghttp2.h PATH_SUFFIXES include/nghttp2)
-find_library(LIBNGHTTP2_LIBRARY NAMES libnghttp2.so)
+find_path(LIBNGHTTP2_INCLUDE_DIR nghttp2/nghttp2.h)
+find_library(LIBNGHTTP2_LIBRARY nghttp2)
 
 find_package_handle_standard_args(LibNgHttp2 REQUIRED_VARS LIBNGHTTP2_INCLUDE_DIR LIBNGHTTP2_LIBRARY)
 

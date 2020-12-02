@@ -33,6 +33,7 @@ set(JWE_AUTH_LIBRARIES
 	flexisip
 	${JANSSON_LIBRARIES}
 	${JOSE_LIBRARIES}
+	bctoolbox
 )
 
 set(JWE_AUTH_INCLUDES
