@@ -35,24 +35,54 @@ public:
 	virtual void onRefreshed(const std::shared_ptr<linphone::ParticipantDeviceIdentity> &participantDevice) = 0;
 };
 
+class Client;
+
+/* 
+ * Helper class to create client 'reg' subscriptions.
+ * It must be alive as long as there are Client instanciated, otherwise the clients won't receive any notify anymore.
+ * And it must be hold by a shared_ptr.
+ * Its main purpose is to centralize the linphone::Event callbacks; that are attached to the Core, and dispatch them to the Clients.
+ */
+class ClientFactory : public std::enable_shared_from_this<ClientFactory>, public linphone::CoreListener {
+friend class Client;
+public:
+	ClientFactory(const std::shared_ptr<linphone::Core> &core);
+	std::shared_ptr<Client> create(const std::shared_ptr<const linphone::Address> &to);
+private:
+	virtual void onNotifyReceived(const std::shared_ptr<linphone::Core> & lc, const std::shared_ptr<linphone::Event> & lev, const std::string & notifiedEvent,
+				      const std::shared_ptr<const linphone::Content> & body) override;
+	virtual void onSubscriptionStateChanged(const std::shared_ptr<linphone::Core> & core, const std::shared_ptr<linphone::Event> & linphoneEvent, 
+					linphone::SubscriptionState state) override;
+	int mUseCount = 0;
+	void registerClient(Client &client);
+	void unregisterClient(Client &client);
+	std::shared_ptr<linphone::Core> getCore()const{
+		return mCore;
+	}
+	std::shared_ptr<linphone::Core> mCore;
+};
+
 /**
  * Base class for a "reg" event client.
  * It has to be inherited to get notified of the results of the subscription (the incoming NOTIFY request content).
  */
-class Client : public std::enable_shared_from_this<Client>, public linphone::CoreListener {
+class Client{
+friend class ClientFactory;
 	public:
-		Client(const std::shared_ptr<linphone::Core> &core, const std::shared_ptr<const linphone::Address> &to);
 		~Client ();
 		void subscribe();
 		void unsubscribe();
 		void setListener(ClientListener *listener);
+	protected:
+		Client(const std::shared_ptr<ClientFactory> & factory, const std::shared_ptr<const linphone::Address> &to);
 	private:
-		void onNotifyReceived(const std::shared_ptr<linphone::Core> & lc, const std::shared_ptr<linphone::Event> & lev, const std::string & notifiedEvent,
-				      const std::shared_ptr<const linphone::Content> & body) override;
-		std::shared_ptr<linphone::Core> mCore;
+		void onNotifyReceived(const std::shared_ptr<const linphone::Content> & body);
+		void onSubscriptionStateChanged(linphone::SubscriptionState state);
 		std::shared_ptr<linphone::Event> mSubscribeEvent;
-		std::shared_ptr<linphone::Address> mTo;
 		ClientListener *mListener = nullptr;
+		std::shared_ptr<ClientFactory> mFactory;
+		std::shared_ptr<linphone::Address> mTo;
+		static constexpr const char *eventKey = "Regevent::Client";
 };
 
 } // end of namespace RegistrationEvent

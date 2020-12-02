@@ -158,18 +158,16 @@ ExternalRegistrationSubscription::ExternalRegistrationSubscription(
 			const ConferenceServer & server,
 			const shared_ptr<ChatRoom> &cr,
 			const shared_ptr<const Address> &participant) : 
-			RegistrationSubscription(server, cr, participant){
-	mRegClient = make_shared<RegistrationEvent::Client>(cr->getCore(), participant);
+			RegistrationSubscription(server, cr, participant), Client(server.getRegEventClientFactory(), participant){
+	setListener(this);
 }
 
 void ExternalRegistrationSubscription::start(){
-	mRegClient->setListener(this);
-	mRegClient->subscribe();
+	subscribe();
 }
 
 void ExternalRegistrationSubscription::stop(){
-	mRegClient->unsubscribe();
-	mRegClient->setListener(this);
+	unsubscribe();
 }
 
 void ExternalRegistrationSubscription::onNotifyReceived(const list< shared_ptr<ParticipantDeviceIdentity> > & participantDevices){

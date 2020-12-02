@@ -25,6 +25,7 @@
 
 #include "conference-address-generator.hh"
 #include "conference-server.hh"
+#include "registration-events/client.hh"
 #include "utils/uri-utils.hh"
 
 using namespace std;
@@ -105,6 +106,8 @@ void ConferenceServer::_init () {
 	}
 	mLocalDomains.sort();
 	mLocalDomains.unique();
+	
+	mRegEventClientFactory = make_shared<RegistrationEvent::ClientFactory>(mCore);
 
 	Status err = mCore->start();
 	if (err == -2) LOGF("Linphone Core couldn't start because the connection to the database has failed");

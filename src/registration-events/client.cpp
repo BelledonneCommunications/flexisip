@@ -35,8 +35,8 @@ namespace flexisip {
 
 namespace RegistrationEvent {
 
-Client::Client(const shared_ptr<Core> & core, const shared_ptr<const Address> &to) : mCore(core), mTo(to->clone()){
-	
+Client::Client(const shared_ptr<ClientFactory> & factory, const shared_ptr<const Address> &to) : mFactory(factory), mTo(to->clone()){
+	mFactory->registerClient(*this);
 }
 
 void Client::subscribe() {
@@ -44,10 +44,9 @@ void Client::subscribe() {
 		LOGE("Already subscribed.");
 		return;
 	}
-	mCore->addListener(shared_from_this());
-	mSubscribeEvent = mCore->createSubscribe(mTo, "reg", 600);
+	mSubscribeEvent = mFactory->getCore()->createSubscribe(mTo, "reg", 600);
 	mSubscribeEvent->addCustomHeader("Accept", "application/reginfo+xml");
-
+	mSubscribeEvent->setData(eventKey, *this);
 	mSubscribeEvent->sendSubscribe(nullptr);
 	
 }
@@ -57,16 +56,18 @@ void Client::unsubscribe(){
 		LOGE("No subscribe.");
 		return;
 	}
+	mSubscribeEvent->unsetData(eventKey);
 	mSubscribeEvent->terminate();
-	mCore->removeListener(shared_from_this());
 	mSubscribeEvent = nullptr;
 }
 
 Client::~Client () {
+	mFactory->unregisterClient(*this);
 	/* It is not possible to call shared_from_this() from here because we are in the destructor,
 	 so not possible to remove us as a core listener. Too late.*/
 	if (mSubscribeEvent){
-		LOGA("RegistrationEvent::Client() destroyed while still subscription active.");
+		mSubscribeEvent->unsetData(eventKey);
+		mSubscribeEvent->terminate();
 	}
 }
 
@@ -74,12 +75,7 @@ void Client::setListener(ClientListener *listener){
 	mListener = listener;
 }
 
-void Client::onNotifyReceived(
-    const shared_ptr<Core> & lc,
-    const shared_ptr<linphone::Event> & lev,
-    const string & notifiedEvent,
-    const shared_ptr<const Content> & body) {
-
+void Client::onNotifyReceived(const std::shared_ptr<const linphone::Content> & body){
 	istringstream data(body->getStringBuffer());
 
 	unique_ptr<Reginfo> ri(parseReginfo(data, Xsd::XmlSchema::Flags::dont_validate));
@@ -118,6 +114,70 @@ void Client::onNotifyReceived(
 		}/*otherwise it's useless */
 	}
 }
+
+void Client::onSubscriptionStateChanged(linphone::SubscriptionState state){
+	switch(state){
+		case SubscriptionState::None:
+		case SubscriptionState::OutgoingProgress:
+		case SubscriptionState::IncomingReceived:
+		case SubscriptionState::Pending:
+		case SubscriptionState::Active:
+		case SubscriptionState::Expiring:
+		break;
+		case SubscriptionState::Terminated:
+		case SubscriptionState::Error:
+			mSubscribeEvent->unsetData(eventKey);
+			mSubscribeEvent->terminate();
+			mSubscribeEvent = nullptr;
+			/* TODO: retry later*/
+		break;
+	}
+}
+
+void ClientFactory::onSubscriptionStateChanged(const std::shared_ptr<linphone::Core> & core, const std::shared_ptr<linphone::Event> & linphoneEvent, 
+					linphone::SubscriptionState state){
+	try{
+		Client &client = linphoneEvent->getData<Client>(Client::eventKey);
+		client.onSubscriptionStateChanged(state);
+	}catch(...){
+		LOGE("ClientFactory::onSubscriptionStateChanged: disconnected client");
+	}
+}
+
+void ClientFactory::onNotifyReceived(
+    const shared_ptr<Core> & lc,
+    const shared_ptr<linphone::Event> & lev,
+    const string & notifiedEvent,
+    const shared_ptr<const Content> & body) {
+	try{
+		Client &client = lev->getData<Client>(Client::eventKey);
+		client.onNotifyReceived(body);
+	}catch(...){
+		LOGE("ClientFactory::onNotifyReceived: disconnected client");
+	}
+}
+
+void ClientFactory::registerClient(Client &client){
+	if (mUseCount == 0){
+		mCore->addListener(shared_from_this());
+	}
+	mUseCount++;
+}
+void ClientFactory::unregisterClient(Client &client){
+	mUseCount--;
+	if (mUseCount == 0){
+		mCore->removeListener(shared_from_this());
+	}
+}
+
+ClientFactory::ClientFactory(const std::shared_ptr<linphone::Core> &core) : mCore(core){
+}
+
+std::shared_ptr<Client> ClientFactory::create(const std::shared_ptr<const linphone::Address> &to){
+	return shared_ptr<Client>(new Client(shared_from_this(), to));
+}
+
+
 
 } // namespace RegistrationEvent
 

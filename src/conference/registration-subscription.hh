@@ -108,7 +108,7 @@ class OwnRegistrationSubscription
 /**
  * Implementation that uses the 'reg' event package to get registration information from external domains with SUBSCRIBE/NOTIFY
  */
-class ExternalRegistrationSubscription : public RegistrationSubscription, protected RegistrationEvent::ClientListener{
+class ExternalRegistrationSubscription : public RegistrationSubscription, protected RegistrationEvent::ClientListener, protected RegistrationEvent::Client{
 	public:
 		ExternalRegistrationSubscription(
 			const ConferenceServer & server,
@@ -118,7 +118,6 @@ class ExternalRegistrationSubscription : public RegistrationSubscription, protec
 		virtual void start() override;
 		virtual void stop() override;
 	private:
-		std::shared_ptr<RegistrationEvent::Client> mRegClient;
 		virtual void onNotifyReceived(const std::list< std::shared_ptr<linphone::ParticipantDeviceIdentity> > & participantDevices) override;
 		virtual void onRefreshed(const std::shared_ptr<linphone::ParticipantDeviceIdentity> &participantDevice) override;
 };

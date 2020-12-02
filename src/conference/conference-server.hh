@@ -61,6 +61,9 @@ namespace flexisip {
 		const std::list<std::string> & getLocalDomains()const{
 			return mLocalDomains;
 		}
+		std::shared_ptr<RegistrationEvent::ClientFactory> getRegEventClientFactory()const{
+			return mRegEventClientFactory;
+		}
 
 	protected:
 		void _init () override;
@@ -92,6 +95,7 @@ namespace flexisip {
 		) override;
 
 		std::shared_ptr<linphone::Core> mCore;
+		std::shared_ptr<RegistrationEvent::ClientFactory> mRegEventClientFactory;
 		std::string mPath;
 		std::string mTransport;
 		std::list<std::shared_ptr<linphone::ChatRoom>> mChatRooms;
