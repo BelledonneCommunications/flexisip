@@ -28,7 +28,6 @@
 #include <vector>
 
 #include <openssl/ssl.h>
-#include <nghttp2/nghttp2.h>
 #include <sofia-sip/su_wait.h>
 
 #include "request.hh"

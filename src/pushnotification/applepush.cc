@@ -17,6 +17,7 @@
  */
 
 #include <algorithm>
+#include <array>
 #include <iomanip>
 #include <regex>
 #include <sstream>
