@@ -327,8 +327,7 @@ install(TARGETS flexisip flexisip_server
 )
 
 add_executable(flexisip_pusher tools/pusher.cc)
-target_include_directories(flexisip_pusher PRIVATE ${OPENSSL_INCLUDE_DIR})
-target_link_libraries(flexisip_pusher PRIVATE flexisip)
+target_link_libraries(flexisip_pusher flexisip OpenSSL::Crypto LibNgHttp2)
 
 install(TARGETS flexisip_pusher
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
