@@ -104,10 +104,13 @@ public:
 	bool operator>=(const BinaryIp &ip2) const{
 		return memcmp(&mAddr, &ip2.mAddr, sizeof mAddr) >= 0;
 	}
+	//turn hummanely readable IP. This function is not optimized for speed.
+	std::string asString() const;
 private:
 	static struct addrinfo *resolve(const std::string &hostname, bool numericOnly);
 	struct in6_addr mAddr;
 };
+
 
 
 std::vector<std::string> split (const std::string &str, const std::string &delimiter);
@@ -117,3 +120,4 @@ inline std::vector<std::string> split (const std::string &str, char delimiter) {
 }
 
 }
+std::ostream &operator<<(std::ostream &os, const flexisip::BinaryIp &ip) noexcept;
