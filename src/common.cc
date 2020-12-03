@@ -131,20 +131,10 @@ time_t getTimeOffset(time_t current_time) {
 struct addrinfo *BinaryIp::resolve(const std::string &hostname, bool numericOnly = false){
 	// Warning: IPv6 can use brakets.
 	std::string hostnameCopy;
+	struct addrinfo *res = NULL;
 	if (hostname[0] == '[') hostnameCopy = hostname.substr(1, hostname.size() - 2);
 	else hostnameCopy = hostname;
-
-	struct addrinfo hints, *res = NULL;
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_INET6; // Only IPv6.
-	hints.ai_flags = AI_V4MAPPED; // Transform IPv4 in IPv6.
-	hints.ai_socktype = SOCK_STREAM;
-
-	// Suppresses host address lookups.
-	if (numericOnly)
-		hints.ai_flags |= AI_NUMERICHOST;
-
-	if (getaddrinfo(hostnameCopy.c_str(), NULL, &hints, &res) != 0){
+	if ( (res = bctbx_name_to_addrinfo(AF_INET6, SOCK_DGRAM, hostnameCopy.c_str(), 0)) == NULL){
 		LOGE("getaddrinfo failed with %s", hostnameCopy.c_str());
 	}
 	return res;
@@ -162,6 +152,18 @@ BinaryIp::BinaryIp(const char *ip){
 	}else{
 		memset(&mAddr, 0, sizeof(mAddr));
 	}
+}
+std::string BinaryIp::asString() const{
+	char ip[64];
+	struct sockaddr_in6 addr = {0};
+	addr.sin6_family = AF_INET6;
+	memcpy(&addr.sin6_addr, (const void *)&mAddr, sizeof(mAddr));
+	//might be better to use bctbx_getnameinfo instead
+	bctbx_sockaddr_to_printable_ip_address((struct sockaddr *)&addr,sizeof(addr),ip,sizeof(ip));
+	return ip;
+}
+std::ostream & operator<<(std::ostream &os, const BinaryIp &ip) {
+	return os << ip.asString();
 }
 
 std::vector<std::string> flexisip::split (const std::string &str, const std::string &delimiter) {
