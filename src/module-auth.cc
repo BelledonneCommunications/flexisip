@@ -363,6 +363,9 @@ void Authentication::loadTrustedHosts(const ConfigStringList &trustedHosts) {
 				<< "', cannot be added to trusted hosts!";
 		}
 	}
+	for (auto trustedHosts :mTrustedHosts) {
+		SLOGI << "IP "<< trustedHosts << " added to trusted hosts";
+	}
 }
 
 ModuleInfo<Authentication> Authentication::sInfo(
