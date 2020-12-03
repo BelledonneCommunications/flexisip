@@ -23,6 +23,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <array>
 
 #include <nghttp2/nghttp2ver.h>
 
