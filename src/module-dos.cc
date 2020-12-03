@@ -193,8 +193,9 @@ class DoSProtection : public Module, ModuleToolbox {
 			return true;
 		else {
 #if __APPLE__
-			LOGEN("DosProtection only works on linux hosts. Please disable this module.");
-			return false;
+			module_config->get<ConfigBoolean>("enabled")->set("false");
+			LOGE("DosProtection only works on linux hosts, Disabling this module.");
+			return true;
 #else
 			if (!mIptablesVersionChecked) {
 				mIptablesVersionChecked = true;
