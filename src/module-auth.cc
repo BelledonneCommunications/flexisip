@@ -363,7 +363,7 @@ void Authentication::loadTrustedHosts(const ConfigStringList &trustedHosts) {
 				<< "', cannot be added to trusted hosts!";
 		}
 	}
-	for (auto trustedHosts :mTrustedHosts) {
+	for (const auto &trustedHosts : mTrustedHosts) {
 		SLOGI << "IP "<< trustedHosts << " added to trusted hosts";
 	}
 }
