@@ -27,6 +27,7 @@
 #include "flexisip/module.hh"
 
 #include "utils/digest.hh"
+#include "utils/string-utils.hh"
 
 #include "flexisip/auth/flexisip-auth-module-base.hh"
 
@@ -59,13 +60,8 @@ void FlexisipAuthModuleBase::AuthResponse::parse(char const * const params[]) {
 	setattr(ar2, ar, ar_nonce);
 	setattr(ar2, ar, ar_uri);
 	setattr(ar2, ar, ar_response);
-
-	ar2.ar_algorithm = ar->ar_algorithm ? ar->ar_algorithm : "MD5";
-	for (auto &c : ar2.ar_algorithm) {c = toupper(c);}
-
 	setattr(ar2, ar, ar_opaque);
 	setattr(ar2, ar, ar_cnonce);
-	setattr(ar2, ar, ar_qop);
 
 	try {
 		if (ar->ar_nc) {
@@ -80,23 +76,25 @@ void FlexisipAuthModuleBase::AuthResponse::parse(char const * const params[]) {
 		throw runtime_error{"Too big nonce counter"};
 	}
 
-	ar2.ar_md5 = (ar2.ar_algorithm == "MD5");
-	ar2.ar_md5sess = (ar2.ar_algorithm == "MD5-SESS");
-	ar2.ar_sha1 = (ar2.ar_algorithm == "SHA1");
-	ar2.ar_auth = (ar2.ar_qop == "auth");
-	ar2.ar_auth_int = (ar2.ar_qop == "auth-int");
+	const auto algo = StringUtils::unquote(ar->ar_algorithm ? ar->ar_algorithm : "MD5");
+	if (algo == "MD5") ar2.ar_algorithm = Algo::Md5;
+	else if (algo == "MD5-sess") ar2.ar_algorithm = Algo::Md5sess;
+	else if (algo == "SHA1") ar2.ar_algorithm = Algo::Sha1;
+	else if (algo == "SHA-256") ar2.ar_algorithm = Algo::Sha256;
+	else throw runtime_error{"Invalid algorithm"};
+
+	if (ar->ar_qop) {
+		const auto qop = StringUtils::unquote(ar->ar_qop);
+		if (qop == "auth") ar2.ar_qop = Qop::Auth;
+		else if (qop == "auth-int")  ar2.ar_qop = Qop::AuthInt;
+		else throw runtime_error{"Invalid qop"};
+	}
 
 	if (ar2.ar_username.empty()) throw runtime_error{move(missingMsg) + "username"};
 	if (ar2.ar_nonce.empty()) throw runtime_error{move(missingMsg) + "nonce"};
 	if (ar2.ar_uri.empty()) throw runtime_error{move(missingMsg) + "uri"};
 	if (ar2.ar_response.empty()) throw runtime_error{move(missingMsg) + "response"};
-
-	if (!ar2.ar_qop.empty() && (
-		(ar2.ar_auth && strcasecmp(ar2.ar_qop.c_str(), "auth") !=0 && strcasecmp(ar2.ar_qop.c_str(), "\"auth\"") != 0) ||
-		(ar2.ar_auth_int && strcasecmp(ar2.ar_qop.c_str(), "auth-int") !=0 && strcasecmp(ar2.ar_qop.c_str(), "\"auth-int\"") != 0))
-	) throw runtime_error{"Invalid qop parameter"};
-
-	if (ar2.ar_auth && ar2.ar_nc == 0) throw runtime_error{move(missingMsg) + "nonce count"};
+	if (ar2.ar_qop == Qop::Auth && ar2.ar_nc == INVALID_NC) throw runtime_error{move(missingMsg) + "nonce count"};
 
 	*this = move(ar2);
 }
@@ -230,6 +228,25 @@ std::string FlexisipAuthModuleBase::generateDigestNonce(bool nextnonce, msg_time
 	auto size = base64_e(&res[0], res.size(), &_nonce, sizeof(_nonce));
 	res.resize(size-1);
 	return res;
+}
+
+std::string FlexisipAuthModuleBase::to_string(Algo algo) noexcept {
+	switch (algo) {
+		case Algo::Md5:     return "MD5";
+		case Algo::Md5sess: return "MD5-sess";
+		case Algo::Sha1:    return "SHA1";
+		case Algo::Sha256:  return "SHA-256";
+	}
+	return "<unknown>";
+}
+
+std::string FlexisipAuthModuleBase::to_string(Qop qop) noexcept {
+	switch (qop) {
+		case Qop::None:    return "none";
+		case Qop::Auth:    return "auth";
+		case Qop::AuthInt: return "auth-int";
+	}
+	return "<unknown>";
 }
 
 // ====================================================================================================================

@@ -55,30 +55,28 @@ public:
 	virtual void challenge(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_challenger_t &ach);
 
 protected:
+	enum class Algo : std::uint8_t { Md5, Md5sess, Sha1, Sha256 };
+	enum class Qop : std::uint8_t { None, Auth, AuthInt };
+
 	struct AuthResponse {
 		void parse(char const * const params[]);
 
 		template <typename T> T getNc() const noexcept;
-// 		template <> std::uint32_t getNc() const noexcept {return ar_nc;}
-// 		template <> std::string getNc() const noexcept;
 
 		std::string ar_username{};
-		std::string ar_realm{};	  /**< realm */
-		std::string ar_nonce{};	  /**< nonce */
-		std::string ar_uri{};		  /**< uri */
-		std::string ar_response{};  /**< response */
-		std::string ar_algorithm{}; /**< algorithm */
-		std::string ar_cnonce{};	  /**< cnonce */
-		std::string ar_opaque{};	  /**< opaque */
-		std::string ar_qop{};		  /**< qop */
-		bool ar_md5 = false;	  /**< MS5 algorithm */
-		bool ar_md5sess = false;  /**< MD5-sess algorithm */
-		bool ar_sha1 = false;	  /**< SHA1 algorithm */
-		bool ar_auth = false;	  /**< qop=auth */
-		bool ar_auth_int = false; /**< qop=auth-int */
+		std::string ar_realm{};             /**< realm */
+		std::string ar_nonce{};             /**< nonce */
+		std::string ar_uri{};               /**< uri */
+		std::string ar_response{};          /**< response */
+		std::string ar_cnonce{};            /**< cnonce */
+		std::string ar_opaque{};            /**< opaque */
+		Algo ar_algorithm = Algo::Md5;      /**< algorithm */
+		Qop ar_qop = Qop::None;             /**< qop */
+
+		static constexpr std::uint32_t INVALID_NC = 0;
 
 	private:
-		std::uint32_t ar_nc = 0;		  /**< nonce count */
+		std::uint32_t ar_nc = INVALID_NC;   /**< nonce count */
 	};
 
 	struct Nonce {
@@ -102,6 +100,9 @@ protected:
 	void onError(FlexisipAuthStatus &as);
 
 	std::string generateDigestNonce(bool nextnonce, msg_time_t now);
+
+	static std::string to_string(Algo algo) noexcept;
+	static std::string to_string(Qop qop) noexcept;
 
 	// Attributes
 	std::string am_opaque{"+GNywA=="};		/**< Opaque identification data */

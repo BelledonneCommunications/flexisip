@@ -195,7 +195,7 @@ void FlexisipAuthModule::processResponse(const std::shared_ptr<FlexisipAuthStatu
 				[] (const passwd_algo_t &pw) -> const std::string & {return pw.algo;}
 			);
 			LOGD("%s: password found for '%s', algorithms=%s", logPrefix.c_str(), userId.c_str(), algosStr.c_str());
-			auto &algo = ar.ar_algorithm;
+			const auto algo = to_string(ar.ar_algorithm);
 			if (find(as->mUsedAlgo.cbegin(), as->mUsedAlgo.cend(), algo) == as->mUsedAlgo.cend()) {
 				LOGD("%s: '%s' not allowed", logPrefix.c_str(), algo.c_str());
 				onAccessForbidden(as, ach);
@@ -256,13 +256,13 @@ int FlexisipAuthModule::checkPasswordForAlgorithm(FlexisipAuthStatus &as, const 
 
 	unique_ptr<Digest> algo{};
 	try {
-		algo.reset(Digest::create(ar.ar_algorithm));
+		algo.reset(Digest::create(to_string(ar.ar_algorithm)));
 	} catch (const invalid_argument &e) {
 		SLOGE << e.what();
 		return -1;
 	}
 
-	if (ar.ar_md5sess) {
+	if (ar.ar_algorithm == Algo::Md5sess) {
 		ha1 = computeA1SESS(*algo, ar, ha1);
 	}
 
@@ -304,11 +304,11 @@ std::string FlexisipAuthModule::computeDigestResponse(
 	const std::string &ha1
 ) {
 	/* Calculate Hentity */
-	string Hentity = ar.ar_auth_int ? algo.compute<string>(body, bodyLen) : "";
+	string Hentity = ar.ar_qop == Qop::Auth ? algo.compute<string>(body, bodyLen) : "";
 
 	/* Calculate A2 */
 	ostringstream input;
-	if (ar.ar_auth_int) {
+	if (ar.ar_qop == Qop::AuthInt) {
 		input << method_name << ':' << ar.ar_uri << ':' << Hentity;
 	} else
 		input << method_name << ':' << ar.ar_uri;
@@ -318,13 +318,13 @@ std::string FlexisipAuthModule::computeDigestResponse(
 	/* Calculate response */
 	ostringstream input2;
 	input2 << ha1 << ':' << ar.ar_nonce;
-	if (ar.ar_auth || ar.ar_auth_int) {
-		input2 << ':' << ar.getNc<string>() << ':' << ar.ar_cnonce << ':' << ar.ar_qop;
+	if (ar.ar_qop == Qop::Auth || ar.ar_qop == Qop::AuthInt) {
+		input2 << ':' << ar.getNc<string>() << ':' << ar.ar_cnonce << ':' << to_string(ar.ar_qop);
 	}
 	input2 << ':' << ha2;
 	auto response = algo.compute<string>(input2.str());
-	auto qop = !ar.ar_qop.empty() ? ar.ar_qop.c_str() : "NONE";
-	LOGD("%s(): %s = %s(%s) (%s)", __func__, response.c_str(), algo.name().c_str(), input2.str().c_str(), qop);
+	LOGD("%s(): %s = %s(%s) (qop=%s)", __func__, response.c_str(), algo.name().c_str(),
+		 input2.str().c_str(), to_string(ar.ar_qop).c_str());
 
 	return response;
 }
@@ -363,7 +363,7 @@ int FlexisipAuthModule::validateDigestNonce(FlexisipAuthStatus &as, AuthResponse
 
 	auto nc = ar.getNc<uint32_t>();
 	if (am_max_ncount) {
-		if (nc == 0 || nc > am_max_ncount) {
+		if (nc == AuthResponse::INVALID_NC || nc > am_max_ncount) {
 			LOGD("%s: nonce used %u times, max %u\n", __func__, unsigned(nc), am_max_ncount);
 			as.as_stale = true;
 		}
