@@ -118,37 +118,24 @@ void FlexisipAuthModule::challenge(const std::shared_ptr<FlexisipAuthStatus> &as
 
 /** Verify digest authentication */
 void FlexisipAuthModule::checkAuthHeader(const std::shared_ptr<FlexisipAuthStatus> &as, msg_auth_t &au, const auth_challenger_t &ach) {
-	auto *ar = static_cast<auth_response_t *>(su_alloc(as->mHome.home(), sizeof(auth_response_t)));
-	ar->ar_size = sizeof(auth_response_t);
-
-	auth_digest_response_get(as->mHome.home(), ar, au.au_params);
-	SLOGD << "AuthStatus[" << as << "]: checking auth digest response for realm '" << ar->ar_realm << "'";
-
-	char const *phrase = "Bad authorization ";
-	if ((!ar->ar_username && (phrase = PA "username")) || (!ar->ar_nonce && (phrase = PA "nonce")) ||
-		(mQOPAuth && !ar->ar_nc && (phrase = PA "nonce count")) ||
-		(!ar->ar_uri && (phrase = PA "URI")) || (!ar->ar_response && (phrase = PA "response")) ||
-		/* (!ar->ar_opaque && (phrase = PA "opaque")) || */
-		/* Check for qop */
-		(ar->ar_qop &&
-		((ar->ar_auth && !strcasecmp(ar->ar_qop, "auth") && !strcasecmp(ar->ar_qop, "\"auth\"")) ||
-		(ar->ar_auth_int && !strcasecmp(ar->ar_qop, "auth-int") && !strcasecmp(ar->ar_qop, "\"auth-int\""))) &&
-		(phrase = PA "has invalid qop"))) {
-
-		// assert(phrase);
-		LOGE("AuthStatus[%p]: %s", &as, phrase);
+	auto ar = make_shared<AuthResponse>();
+	try {
+		ar->parse(au.au_params);
+	} catch (const runtime_error &e) {
+		LOGE("AuthStatus[%p]: %s", &as, e.what());
 		as->as_status = 400;
-		as->as_phrase = phrase;
+		as->as_phrase = e.what();
 		as->as_response = nullptr;
 		notify(as);
 		return;
 	}
 
-	if (!ar->ar_username || !as->as_user_uri->url_user || !ar->ar_realm || !as->as_user_uri->url_host) {
+	SLOGD << "AuthStatus[" << as << "]: checking auth digest response for realm '" << ar->ar_realm << "'";
+	if (ar->ar_username.empty() || !as->as_user_uri->url_user || ar->ar_realm.empty() || !as->as_user_uri->url_host) {
 		SLOGE << "Registration failure, authentication info are missing: usernames " <<
 		ar->ar_username << "/" << as->as_user_uri->url_user << ", hosts " << ar->ar_realm << "/" << as->as_user_uri->url_host;
 		LOGD("from and authentication usernames [%s/%s] or from and authentication hosts [%s/%s] empty",
-				ar->ar_username, as->as_user_uri->url_user, ar->ar_realm, as->as_user_uri->url_host);
+				ar->ar_username.c_str(), as->as_user_uri->url_user, ar->ar_realm.c_str(), as->as_user_uri->url_host);
 		onAccessForbidden(as, ach, "Authentication info missing");
 		notify(as);
 		return;
@@ -168,10 +155,10 @@ void FlexisipAuthModule::checkAuthHeader(const std::shared_ptr<FlexisipAuthStatu
 	}
 
 	if (mQOPAuth) {
-		int pnc = mNonceStore.getNc(ar->ar_nonce);
-		int nnc = (int)strtoul(ar->ar_nc, NULL, 16);
-		if (pnc == -1 || pnc >= nnc) {
-			LOGE("Bad nonce count %d -> %d for %s", pnc, nnc, ar->ar_nonce);
+		auto pnc = mNonceStore.getNc(ar->ar_nonce);
+		auto nnc = ar->getNc<uint32_t>();
+		if (pnc >= nnc) {
+			SLOGE << "Bad nonce count " << pnc << " -> " << nnc << " for " << ar->ar_nonce;
 			challenge(as, ach);
 			notify(as);
 			return;
@@ -180,18 +167,24 @@ void FlexisipAuthModule::checkAuthHeader(const std::shared_ptr<FlexisipAuthStatu
 		}
 	}
 
-	auto *listener = new GenericAuthListener(
+	auto unescpapedUrlUser = UriUtils::unescape(as->as_user_uri->url_user);
+	auto listener = new GenericAuthListener(
 		getRoot(),
 		[this, as, ar, ach](AuthDbResult result, const AuthDbBackend::PwList &passwords){
 			this->processResponse(as, *ar, ach, result, passwords);
 		}
 	);
-	string unescpapedUrlUser = UriUtils::unescape(as->as_user_uri->url_user);
 	AuthDbBackend::get().getPassword(unescpapedUrlUser, as->as_user_uri->url_host, ar->ar_username, listener);
 	as->as_status = 100;
 }
 
-void FlexisipAuthModule::processResponse(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_response_t &ar, const auth_challenger_t &ach, AuthDbResult result, const AuthDbBackend::PwList &passwords) {
+void FlexisipAuthModule::processResponse(const std::shared_ptr<FlexisipAuthStatus> &as, const AuthResponse &ar, const auth_challenger_t &ach, AuthDbResult result, const AuthDbBackend::PwList &passwords) {
+	ostringstream logPrefixOs{};
+	logPrefixOs << "AuthStatus[" << as << "]";
+
+	const auto userId = string{ar.ar_username} + "@" + as->as_realm;
+	const auto logPrefix = logPrefixOs.str();
+
 	if (result == PASSWORD_FOUND || result == PASSWORD_NOT_FOUND) {
 		if (mPassworFetchResultCb) mPassworFetchResultCb(result == PASSWORD_FOUND);
 		as->mPasswordFound = (result == PASSWORD_FOUND);
@@ -201,10 +194,10 @@ void FlexisipAuthModule::processResponse(const std::shared_ptr<FlexisipAuthStatu
 			auto algosStr = StringUtils::toString(passwords,
 				[] (const passwd_algo_t &pw) -> const std::string & {return pw.algo;}
 			);
-			LOGD("AuthStatus[%p]: password found for '%s@%s', algorithms=%s", &as, ar.ar_username, as->as_realm.c_str(), algosStr.c_str());
-			auto algo = ar.ar_algorithm ? ar.ar_algorithm : "MD5";
+			LOGD("%s: password found for '%s', algorithms=%s", logPrefix.c_str(), userId.c_str(), algosStr.c_str());
+			auto &algo = ar.ar_algorithm;
 			if (find(as->mUsedAlgo.cbegin(), as->mUsedAlgo.cend(), algo) == as->mUsedAlgo.cend()) {
-				LOGD("AuthStatus[%p]: '%s' not allowed", &as, algo);
+				LOGD("%s: '%s' not allowed", logPrefix.c_str(), algo.c_str());
 				onAccessForbidden(as, ach);
 				break;
 			}
@@ -212,7 +205,7 @@ void FlexisipAuthModule::processResponse(const std::shared_ptr<FlexisipAuthStatu
 				return pw.algo == algo;
 			});
 			if (pw == passwords.cend()) {
-				LOGD("AuthStatus[%p]: no %s password in database for user '%s@%s'", &as, algo, ar.ar_username, ar.ar_realm);
+				LOGD("%s: no %s password in database for user '%s'", logPrefix.c_str(), algo.c_str(), userId.c_str());
 				onAccessForbidden(as, ach);
 				break;
 			}
@@ -220,15 +213,15 @@ void FlexisipAuthModule::processResponse(const std::shared_ptr<FlexisipAuthStatu
 			break;
 		}
 		case PASSWORD_NOT_FOUND:
-			LOGD("password not found for '%s' user, realm=%s", ar.ar_username, as->as_realm.c_str());
+			LOGD("%s: no password found for '%s'", logPrefix.c_str(), userId.c_str());
 			onAccessForbidden(as, ach);
 			break;
 		case AUTH_ERROR:
-			LOGD("password fetching has failed for '%s' user, realm=%s", ar.ar_username, as->as_realm.c_str());
+			LOGD("%s: password fetching failed for '%s'", logPrefix.c_str(), userId.c_str());
 			onError(*as);
 			break;
 		case PENDING:
-			LOGE("Unhandled asynchronous response %u", result);
+			LOGD("%s: unhandled asynchronous response %u", logPrefix.c_str(), result);
 			onError(*as);
 			break;
 	}
@@ -238,7 +231,7 @@ void FlexisipAuthModule::processResponse(const std::shared_ptr<FlexisipAuthStatu
 /**
  * NULL if passwd not found.
  */
-void FlexisipAuthModule::checkPassword(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_challenger_t &ach, const auth_response_t &ar, const std::string &password) {
+void FlexisipAuthModule::checkPassword(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_challenger_t &ach, const AuthResponse &ar, const std::string &password) {
 	if (checkPasswordForAlgorithm(*as, ar, password)) {
 		LOGD("AuthStatus[%p]: passwords did not match", as.get());
 		onAccessForbidden(as, ach);
@@ -258,13 +251,12 @@ void FlexisipAuthModule::checkPassword(const std::shared_ptr<FlexisipAuthStatus>
 	as->as_phrase = "";
 }
 
-int FlexisipAuthModule::checkPasswordForAlgorithm(FlexisipAuthStatus &as, const auth_response_t &ar, std::string ha1) {
+int FlexisipAuthModule::checkPasswordForAlgorithm(FlexisipAuthStatus &as, const AuthResponse &ar, std::string ha1) {
 	if (ha1.empty()) return -1;
 
 	unique_ptr<Digest> algo{};
 	try {
-		auto algoName = ar.ar_algorithm ? ar.ar_algorithm : "MD5";
-		algo.reset(Digest::create(algoName));
+		algo.reset(Digest::create(ar.ar_algorithm));
 	} catch (const invalid_argument &e) {
 		SLOGE << e.what();
 		return -1;
@@ -288,7 +280,7 @@ void FlexisipAuthModule::onAccessForbidden(const std::shared_ptr<FlexisipAuthSta
 	}
 }
 
-std::string FlexisipAuthModule::computeA1(Digest &algo, const auth_response_t &ar, const std::string &secret) {
+std::string FlexisipAuthModule::computeA1(Digest &algo, const AuthResponse &ar, const std::string &secret) {
 	ostringstream data;
 	data << ar.ar_username << ':' << ar.ar_realm << ':' << secret;
 	string ha1 = algo.compute<string>(data.str());
@@ -296,7 +288,7 @@ std::string FlexisipAuthModule::computeA1(Digest &algo, const auth_response_t &a
 	return ha1;
 }
 
-std::string FlexisipAuthModule::computeA1SESS(Digest &algo, const ::auth_response_t &ar, const std::string &ha1) {
+std::string FlexisipAuthModule::computeA1SESS(Digest &algo, const AuthResponse &ar, const std::string &ha1) {
 	ostringstream data;
 	data << ha1 << ':' << ar.ar_nonce << ':' << ar.ar_cnonce;
 	string newHa1 = algo.compute<string>(data.str());
@@ -306,7 +298,7 @@ std::string FlexisipAuthModule::computeA1SESS(Digest &algo, const ::auth_respons
 
 std::string FlexisipAuthModule::computeDigestResponse(
 	Digest &algo,
-	const ::auth_response_t &ar,
+	const AuthResponse &ar,
 	const std::string &method_name,
 	const void *body, size_t bodyLen,
 	const std::string &ha1
@@ -320,33 +312,33 @@ std::string FlexisipAuthModule::computeDigestResponse(
 		input << method_name << ':' << ar.ar_uri << ':' << Hentity;
 	} else
 		input << method_name << ':' << ar.ar_uri;
-	string ha2 = algo.compute<string>(input.str());
-	SLOGD << "A2 = " << algo.name() << "(" << input.str() << ")";
+	auto ha2 = algo.compute<string>(input.str());
+	LOGD("A2= %s(%s)", algo.name().c_str(), input.str().c_str());
 
 	/* Calculate response */
 	ostringstream input2;
 	input2 << ha1 << ':' << ar.ar_nonce;
 	if (ar.ar_auth || ar.ar_auth_int) {
-		input2 << ':' << ar.ar_nc << ':' << ar.ar_cnonce << ':' << ar.ar_qop;
+		input2 << ':' << ar.getNc<string>() << ':' << ar.ar_cnonce << ':' << ar.ar_qop;
 	}
 	input2 << ':' << ha2;
-	string response = algo.compute<string>(input2.str());
-	const char *qop = ar.ar_qop ? ar.ar_qop : "NONE";
-	SLOGD << __func__ << "(): " << response << " = " << algo.name() << "(" << input2.str() << ") (qop=" << qop << ")";
+	auto response = algo.compute<string>(input2.str());
+	auto qop = !ar.ar_qop.empty() ? ar.ar_qop.c_str() : "NONE";
+	LOGD("%s(): %s = %s(%s) (%s)", __func__, response.c_str(), algo.name().c_str(), input2.str().c_str(), qop);
 
 	return response;
 }
 
-int FlexisipAuthModule::validateDigestNonce(FlexisipAuthStatus &as, auth_response_t &ar, msg_time_t now) {
+int FlexisipAuthModule::validateDigestNonce(FlexisipAuthStatus &as, AuthResponse &ar, msg_time_t now) {
 	Nonce nonce[1] = {{0}};
 
 	/* Check nonce */
-	if (!ar.ar_nonce) {
-		LOGD("%s: no nonce", __func__);
+	if (ar.ar_nonce.empty()) {
+		LOGD("%s(): no nonce", __func__);
 		return -1;
 	}
-	if (base64_d(reinterpret_cast<char *>(nonce), sizeof(nonce), ar.ar_nonce) != sizeof(nonce)) {
-		LOGD("%s: too short nonce", __func__);
+	if (base64_d(reinterpret_cast<char *>(nonce), sizeof(nonce), ar.ar_nonce.c_str()) != sizeof(nonce)) {
+		LOGD("%s(): too short nonce", __func__);
 		return -1;
 	}
 
@@ -369,11 +361,10 @@ int FlexisipAuthModule::validateDigestNonce(FlexisipAuthStatus &as, auth_respons
 		as.as_stale = true;
 	}
 
-	if (am_max_ncount && ar.ar_nc) {
-		unsigned long nc = strtoul(ar.ar_nc, NULL, 10);
-
+	auto nc = ar.getNc<uint32_t>();
+	if (am_max_ncount) {
 		if (nc == 0 || nc > am_max_ncount) {
-			LOGD("%s: nonce used %s times, max %u\n", __func__, ar.ar_nc, am_max_ncount);
+			LOGD("%s: nonce used %u times, max %u\n", __func__, unsigned(nc), am_max_ncount);
 			as.as_stale = true;
 		}
 	}

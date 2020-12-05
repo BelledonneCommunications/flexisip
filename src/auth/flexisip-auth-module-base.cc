@@ -17,6 +17,7 @@
  */
 
 #include <algorithm>
+#include <iomanip>
 
 #include <sofia-sip/auth_plugin.h>
 #include <sofia-sip/base64.h>
@@ -31,6 +32,89 @@
 
 using namespace std;
 using namespace flexisip;
+
+// ====================================================================================================================
+//  FlexisipAuthModuleBase class
+// ====================================================================================================================
+
+#define setattr(dst, src, attr_name) dst.attr_name = src->attr_name ? src->attr_name : ""
+
+void FlexisipAuthModuleBase::AuthResponse::parse(char const * const params[]) {
+	sofiasip::Home h{};
+	const string badAuthMsg{"Bad authorization"};
+	string missingMsg{"Authorization missing "};
+
+	if (params == nullptr) throw runtime_error{badAuthMsg};
+
+	auth_response_t ar[1] = {{0}};
+	auto n = auth_get_params(h.home(), params, "username=", &ar->ar_username, "realm=", &ar->ar_realm, "nonce=", &ar->ar_nonce,
+						"uri=", &ar->ar_uri, "response=", &ar->ar_response, "algorithm=", &ar->ar_algorithm,
+						"opaque=", &ar->ar_opaque, "cnonce=", &ar->ar_cnonce, "qop=", &ar->ar_qop, "nc=", &ar->ar_nc, nullptr);
+
+	if (n < 0) throw runtime_error{badAuthMsg};
+
+	AuthResponse ar2{};
+	setattr(ar2, ar, ar_username);
+	setattr(ar2, ar, ar_realm);
+	setattr(ar2, ar, ar_nonce);
+	setattr(ar2, ar, ar_uri);
+	setattr(ar2, ar, ar_response);
+
+	ar2.ar_algorithm = ar->ar_algorithm ? ar->ar_algorithm : "MD5";
+	for (auto &c : ar2.ar_algorithm) {c = toupper(c);}
+
+	setattr(ar2, ar, ar_opaque);
+	setattr(ar2, ar, ar_cnonce);
+	setattr(ar2, ar, ar_qop);
+
+	try {
+		if (ar->ar_nc) {
+			auto nc = stoul(ar->ar_nc, nullptr, 16);
+			if (nc == 0) throw invalid_argument{""};
+			if (nc > numeric_limits<decltype(nc)>::max()) throw out_of_range{""};
+			ar2.ar_nc = nc;
+		}
+	} catch (const invalid_argument &) {
+		throw runtime_error{"Invalid nonce counter"};
+	} catch (const out_of_range &) {
+		throw runtime_error{"Too big nonce counter"};
+	}
+
+	ar2.ar_md5 = (ar2.ar_algorithm == "MD5");
+	ar2.ar_md5sess = (ar2.ar_algorithm == "MD5-SESS");
+	ar2.ar_sha1 = (ar2.ar_algorithm == "SHA1");
+	ar2.ar_auth = (ar2.ar_qop == "auth");
+	ar2.ar_auth_int = (ar2.ar_qop == "auth-int");
+
+	if (ar2.ar_username.empty()) throw runtime_error{move(missingMsg) + "username"};
+	if (ar2.ar_nonce.empty()) throw runtime_error{move(missingMsg) + "nonce"};
+	if (ar2.ar_uri.empty()) throw runtime_error{move(missingMsg) + "uri"};
+	if (ar2.ar_response.empty()) throw runtime_error{move(missingMsg) + "response"};
+
+	if (!ar2.ar_qop.empty() && (
+		(ar2.ar_auth && strcasecmp(ar2.ar_qop.c_str(), "auth") !=0 && strcasecmp(ar2.ar_qop.c_str(), "\"auth\"") != 0) ||
+		(ar2.ar_auth_int && strcasecmp(ar2.ar_qop.c_str(), "auth-int") !=0 && strcasecmp(ar2.ar_qop.c_str(), "\"auth-int\"") != 0))
+	) throw runtime_error{"Invalid qop parameter"};
+
+	if (ar2.ar_auth && ar2.ar_nc == 0) throw runtime_error{move(missingMsg) + "nonce count"};
+
+	*this = move(ar2);
+}
+
+template <>
+std::uint32_t FlexisipAuthModuleBase::AuthResponse::getNc() const noexcept {
+	return ar_nc;
+}
+
+template <>
+std::string FlexisipAuthModuleBase::AuthResponse::getNc() const noexcept {
+	ostringstream os{};
+	os << hex << setw(8) << setfill('0') << ar_nc;
+	return os.str();
+}
+
+// ====================================================================================================================
+
 
 // ====================================================================================================================
 //  FlexisipAuthModuleBase class

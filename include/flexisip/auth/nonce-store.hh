@@ -29,18 +29,18 @@ namespace flexisip {
 
 class NonceStore {
 public:
-	void setNonceExpires(int value) noexcept {mNonceExpires = value;}
-	int getNc(const std::string &nonce) noexcept;
+	void setNonceExpires(unsigned value) noexcept {mNonceExpires = value;}
+	std::uint32_t getNc(const std::string &nonce) noexcept;
 	void insert(const msg_auth_t *response) noexcept;
 	void insert(const std::string &nonce) noexcept;
-	void updateNc(const std::string &nonce, int newnc) noexcept;
+	void updateNc(const std::string &nonce, std::uint32_t newnc) noexcept;
 	void erase(const std::string &nonce) noexcept;
 	void cleanExpired() noexcept;
 
 private:
 	struct NonceCount {
-		int nc;
-		std::time_t expires;
+		std::uint32_t nc = 0;
+		std::time_t expires = 0;
 	};
 
 	std::map<std::string, NonceCount> mNc;

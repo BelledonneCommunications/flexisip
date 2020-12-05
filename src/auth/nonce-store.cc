@@ -32,7 +32,7 @@ namespace flexisip {
 //  NonceStore class
 // ====================================================================================================================
 
-int NonceStore::getNc(const string &nonce) noexcept {
+std::uint32_t NonceStore::getNc(const string &nonce) noexcept {
 	unique_lock<mutex> lck(mMutex);
 	auto it = mNc.find(nonce);
 	if (it != mNc.end())
@@ -60,7 +60,7 @@ void NonceStore::insert(const string &nonce) noexcept {
 	}
 }
 
-void NonceStore::updateNc(const string &nonce, int newnc) noexcept {
+void NonceStore::updateNc(const string &nonce, std::uint32_t newnc) noexcept {
 	unique_lock<mutex> lck{mMutex};
 	auto it = mNc.find(nonce);
 	if (it != mNc.end()) {
