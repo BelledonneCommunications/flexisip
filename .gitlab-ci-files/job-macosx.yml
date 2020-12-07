@@ -1,7 +1,7 @@
 .job-macosx:
   allow_failure: true
   stage: build
-  tags: [ "macosx" ]
+  tags: [ "macosx-xcode12" ]
   except:
     variables:
       - $DEPLOY_RUN
