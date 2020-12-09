@@ -35,13 +35,6 @@ ConferenceAddressGenerator::ConferenceAddressGenerator (
 ) : mChatRoom(chatRoom), mConferenceAddr(conferenceFactoryAddr), mUuid(uuid), mPath(path), mConferenceServer(conferenceServer) {}
 
 void ConferenceAddressGenerator::run () {
-	char token[17];
-	ostringstream os;
-	
-	belle_sip_random_token(token, sizeof(token));
-	os << "chatroom-" << token;
-	mConferenceAddr->setUsername(os.str());
-
 	SipUri url(mConferenceAddr->asStringUriOnly());
 	RegistrarDb::get()->fetch(url, shared_from_this(), false, false);
 }
