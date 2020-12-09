@@ -163,9 +163,8 @@ void ConferenceServer::onChatRoomStateChanged (
 void ConferenceServer::onConferenceAddressGeneration (const shared_ptr<ChatRoom> & cr) {
 	shared_ptr<Config> config = mCore->getConfig();
 	string uuid = config->getString("misc", "uuid", "");
-	shared_ptr<Address> confAddr = Factory::get()->createAddress(
-		mCore->getDefaultProxyConfig()->getConferenceFactoryUri()
-	);
+	shared_ptr<Address> confAddr = cr->getConferenceAddress()->clone();
+	LOGI("Conference address is %s", confAddr->asString().c_str());
 	shared_ptr<ConferenceAddressGenerator> generator = make_shared<ConferenceAddressGenerator>(
 		cr,
 		confAddr,
