@@ -51,7 +51,7 @@ AppleRequest::AppleRequest(const PushInfo &info) : Request(info.mAppId, "apple")
 	checkDeviceToken();
 
 	mTtl = info.mTtl;
-
+	
 	switch (info.mApplePushType) {
 		case PushInfo::ApplePushType::Pushkit: {
 			// We also need msg_id and callid in case the push is received but the device cannot register
@@ -66,7 +66,8 @@ AppleRequest::AppleRequest(const PushInfo &info) : Request(info.mAppId, "apple")
 				},
 				"from-uri": "%s",
 				"display-name": "%s",
-				"pn_ttl": %d
+				"pn_ttl": %d,
+				"customPayload": %s
 			})json";
 			nwritten = snprintf(mPayload.data(), mPayload.size(), rawPayload,
 				msg_id.c_str(),
@@ -76,7 +77,8 @@ AppleRequest::AppleRequest(const PushInfo &info) : Request(info.mAppId, "apple")
 				date.c_str(),
 				info.mFromUri.c_str(),
 				info.mFromName.c_str(),
-				info.mTtl
+				info.mTtl,
+				info.mCustomPayload.c_str()
 			);
 			break;
 		}
@@ -94,7 +96,8 @@ AppleRequest::AppleRequest(const PushInfo &info) : Request(info.mAppId, "apple")
 				},
 				"from-uri": "%s",
 				"display-name": "%s",
-				"pn_ttl": %d
+				"pn_ttl": %d,
+				"customPayload": %s
 			})json";
 			nwritten = snprintf(mPayload.data(), mPayload.size(), rawPayload,
 				msg_id.c_str(),
@@ -104,7 +107,8 @@ AppleRequest::AppleRequest(const PushInfo &info) : Request(info.mAppId, "apple")
 				date.c_str(),
 				info.mFromUri.c_str(),
 				info.mFromName.c_str(),
-				info.mTtl
+				info.mTtl,
+				info.mCustomPayload.c_str()
 			);
 			break;
 		}
@@ -126,7 +130,8 @@ AppleRequest::AppleRequest(const PushInfo &info) : Request(info.mAppId, "apple")
 				"call-id": "%s",
 				"pn_ttl": %d,
 				"uuid": %s,
-				"send-time": "%s"
+				"send-time": "%s",
+				"customPayload": %s
 			})json";
 			nwritten = snprintf(mPayload.data(), mPayload.size(), rawPayload,
 				msg_id.c_str(),
@@ -138,7 +143,8 @@ AppleRequest::AppleRequest(const PushInfo &info) : Request(info.mAppId, "apple")
 				callid.c_str(),
 				info.mTtl,
 				quoteStringIfNeeded(info.mUid).c_str(),
-				date.c_str()
+				date.c_str(),
+				info.mCustomPayload.c_str()
 			);
 			break;
 		}
@@ -162,7 +168,8 @@ AppleRequest::AppleRequest(const PushInfo &info) : Request(info.mAppId, "apple")
 				"pn_ttl": %d,
 				"uuid": %s,
 				"send-time": "%s",
-				"chat-room-addr": "%s"
+				"chat-room-addr": "%s",
+				"customPayload": %s
 			})json";
 			nwritten = snprintf(mPayload.data(), mPayload.size(), rawPayload,
 				msg_id.c_str(),
@@ -175,7 +182,8 @@ AppleRequest::AppleRequest(const PushInfo &info) : Request(info.mAppId, "apple")
 				info.mTtl,
 				quoteStringIfNeeded(info.mUid).c_str(),
 				date.c_str(),
-				info.mChatRoomAddr.c_str()
+				info.mChatRoomAddr.c_str(),
+				info.mCustomPayload.c_str()
 			);
 			break;
 		}
