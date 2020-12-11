@@ -20,6 +20,7 @@
 #include "registration-events/utils.hh"
 
 #include "registration-subscription.hh"
+#include "utils/string-utils.hh"
 
 using namespace std;
 using namespace linphone;
@@ -123,7 +124,7 @@ void OwnRegistrationSubscription::processRecord(const shared_ptr<Record> &r){
 			if (isContactCompatible(ec->getOrgLinphoneSpecs())) {
 				shared_ptr<ParticipantDeviceIdentity> identity = Factory::get()->createParticipantDeviceIdentity(
 					addr, RegistrationEvent::Utils::getDeviceName(ec));
-				identity->setCapabilityDescriptor(ec->getOrgLinphoneSpecs());
+				identity->setCapabilityDescriptor(StringUtils::unquote(ec->getOrgLinphoneSpecs()));
 				compatibleParticipantDevices.push_back(identity);
 			} else LOGD("OwnRegistrationSubscription::processRecord(): %s does not have the required capabilities.", addr->asStringUriOnly().c_str());
 		}
