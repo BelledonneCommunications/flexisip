@@ -22,6 +22,7 @@
 #include <linphone++/linphone.hh>
 
 #include "conference/conference-server.hh"
+#include "utils/string-utils.hh"
 #include "utils.hh"
 #include "xml/reginfo.hh"
 
@@ -93,7 +94,7 @@ void Client::onNotifyReceived(const std::shared_ptr<const linphone::Content> & b
 				if (param.getName() != "+org.linphone.specs") continue;
 				string displayName = contact.getDisplayName() ? contact.getDisplayName()->c_str() : string("");
 				shared_ptr<ParticipantDeviceIdentity> identity = Factory::get()->createParticipantDeviceIdentity(partDeviceAddr, displayName);
-				identity->setCapabilityDescriptor(param);
+				identity->setCapabilityDescriptor(StringUtils::unquote(param));
 				
 				if (contact.getEvent() == reginfo::Event::refreshed){
 					if (mListener) mListener->onRefreshed(identity);
