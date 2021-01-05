@@ -29,6 +29,8 @@
 
 #include <flexisip/common.hh>
 
+#include "utils/string-utils.hh"
+
 #include "applepush.hh"
 
 using namespace std;
@@ -36,7 +38,7 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
-AppleRequest::AppleRequest(const PushInfo &info) : Request(info.mAppId, "apple") {
+AppleRequest::AppleRequest(const PushInfo &info) : Request(info.mAppId, "apple"), mPayloadType{info.mApplePushType} {
 	const string &deviceToken = info.mDeviceToken;
 	const string &msg_id = info.mAlertMsgId;
 	const string &arg = info.mFromName.empty() ? info.mFromUri : info.mFromName;
@@ -53,7 +55,7 @@ AppleRequest::AppleRequest(const PushInfo &info) : Request(info.mAppId, "apple")
 	mTtl = info.mTtl;
 
 	switch (info.mApplePushType) {
-		case PushInfo::ApplePushType::Pushkit: {
+		case ApplePushType::Pushkit: {
 			// We also need msg_id and callid in case the push is received but the device cannot register
 			constexpr auto rawPayload = R"json({
 				"aps": {
@@ -80,7 +82,7 @@ AppleRequest::AppleRequest(const PushInfo &info) : Request(info.mAppId, "apple")
 			);
 			break;
 		}
-		case PushInfo::ApplePushType::Background: {
+		case ApplePushType::Background: {
 			// Use a normal push notification with content-available set to 1, no alert, no sound.
 			constexpr auto rawPayload = R"json({
 				"aps": {
@@ -108,7 +110,7 @@ AppleRequest::AppleRequest(const PushInfo &info) : Request(info.mAppId, "apple")
 			);
 			break;
 		}
-		case PushInfo::ApplePushType::RemoteBasic: {
+		case ApplePushType::RemoteBasic: {
 			/* some apps don't want the push to update the badge - but if they do,
 			we always put the badge value to 1 because we want to notify the user that
 			he/she has unread messages even if we do not know the exact count */
@@ -142,7 +144,7 @@ AppleRequest::AppleRequest(const PushInfo &info) : Request(info.mAppId, "apple")
 			);
 			break;
 		}
-		case PushInfo::ApplePushType::RemoteWithMutableContent: {
+		case ApplePushType::RemoteWithMutableContent: {
 			/* some apps don't want the push to update the badge - but if they do,
 			we always put the badge value to 1 because we want to notify the user that
 			he/she has unread messages even if we do not know the exact count */
@@ -381,8 +383,17 @@ bool AppleClient::sendAllPendingPNRs() {
 			? mConn->getHost()
 			: mConn->getHost() + ":" + mConn->getPort();
 		auto path = string{"/3/device/"} + appleReq->getDeviceToken();
-		auto topicLen = appleReq->getAppIdentifier().rfind(".", string::npos);
+		auto topicLen = appleReq->getAppIdentifier().rfind(".");
 		auto apnsTopic = appleReq->getAppIdentifier().substr(0, topicLen);
+
+		// Check whether the appId is compatible with the payload type
+		auto endsWithVoip = StringUtils::endsWith(apnsTopic, ".voip");
+		if ((appleReq->mPayloadType == ApplePushType::Pushkit && !endsWithVoip)
+				|| (appleReq->mPayloadType != ApplePushType::Pushkit && endsWithVoip)) {
+			SLOGE << mLogPrefix << ": apns-topic [" << apnsTopic << "] not compatible with payload type ["
+				<< toString(appleReq->mPayloadType) << "]. Aborting";
+			continue;
+		}
 
 		HeaderStore hStore{};
 		hStore.add( ":method"         , "POST"     );

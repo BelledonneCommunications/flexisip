@@ -27,14 +27,17 @@
 namespace flexisip {
 namespace pushnotification {
 
+enum class ApplePushType : std::uint8_t {
+	Pushkit,
+	RemoteBasic,
+	RemoteWithMutableContent,
+	Background
+};
+
+std::string toString(ApplePushType type) noexcept;
+
 struct PushInfo {
-	enum class Event { Call, Message , Refer };
-	enum class ApplePushType {
-		Pushkit,
-		RemoteBasic,
-		RemoteWithMutableContent,
-		Background
-	};
+	enum class Event : std::uint8_t { Call, Message , Refer };
 
 	Event mEvent{Event::Message}; // Event to advertise: call or text message.
 	std::string mType{}; // type of push notif: apple, google, wp
