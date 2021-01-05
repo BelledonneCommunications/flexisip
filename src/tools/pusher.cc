@@ -40,7 +40,7 @@ struct PusherArgs {
 	vector<string> pntok{};
 	string apikey{};
 	string packageSID{};
-	PushInfo::ApplePushType applePushType{PushInfo::ApplePushType::Pushkit};
+	ApplePushType applePushType{ApplePushType::Pushkit};
 
 	void usage(const char *app) {
 		cout << app
@@ -90,13 +90,13 @@ struct PusherArgs {
 			} else if (EQ1(i, "--apple-push-type")) {
 				const char *aspt = argv[++i];
 				if (string(aspt) == "PushKit") {
-					applePushType = PushInfo::ApplePushType::Pushkit;
+					applePushType = ApplePushType::Pushkit;
 				} else if (string(aspt) == "RemoteBasic") {
-					applePushType = PushInfo::ApplePushType::RemoteBasic;
+					applePushType = ApplePushType::RemoteBasic;
 				} else if (string(aspt) == "RemoteWithMutableContent") {
-					applePushType = PushInfo::ApplePushType::RemoteWithMutableContent;
+					applePushType = ApplePushType::RemoteWithMutableContent;
 				} else if (string(aspt) == "Background") {
-					applePushType = PushInfo::ApplePushType::Background;
+					applePushType = ApplePushType::Background;
 				} else {
 					usage(*argv);
 					exit(-1);

@@ -413,13 +413,13 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 	auto it = std::find(servicesAvailable.begin(), servicesAvailable.end(), "voip");
 	if (pinfo.mEvent == pushnotification::PushInfo::Event::Message || it == servicesAvailable.end()) {
 		requiredService = "remote";
-		pinfo.mApplePushType = pushnotification::PushInfo::ApplePushType::RemoteWithMutableContent;
+		pinfo.mApplePushType = pushnotification::ApplePushType::RemoteWithMutableContent;
 		if (sip->sip_request->rq_method == sip_method_invite) {
 			pinfo.mChatRoomAddr = string(sip->sip_from->a_url->url_user);
 		}
 	} else {
 		requiredService = "voip";
-		pinfo.mApplePushType = pushnotification::PushInfo::ApplePushType::Pushkit;
+		pinfo.mApplePushType = pushnotification::ApplePushType::Pushkit;
 	}
 
 	if (servicesAvailable.cend() == find(servicesAvailable.cbegin(), servicesAvailable.cend(), requiredService)) {
@@ -464,7 +464,7 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 	}
 
 	pinfo.mDeviceToken = deviceToken;
-	pinfo.mAppId = bundleId + (pinfo.mApplePushType == pushnotification::PushInfo::ApplePushType::Pushkit ? ".voip" : "") + (isDev ? ".dev" : ".prod");
+	pinfo.mAppId = bundleId + (pinfo.mApplePushType == pushnotification::ApplePushType::Pushkit ? ".voip" : "") + (isDev ? ".dev" : ".prod");
 }
 
 bool PushNotification::isGroupChatInvite(sip_t *sip) {
@@ -601,7 +601,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 					pnSilentStr = UriUtils::getParamValue(params, "pn-silent");
 					pinfo.mSilent = bool(stoi(pnSilentStr));
 					if (!url_has_param(url, "pn-provider") && (pinfo.mType == "apple")) {
-						pinfo.mApplePushType = pinfo.mSilent ? pushnotification::PushInfo::ApplePushType::Pushkit : pushnotification::PushInfo::ApplePushType::RemoteBasic;
+						pinfo.mApplePushType = pinfo.mSilent ? pushnotification::ApplePushType::Pushkit : pushnotification::ApplePushType::RemoteBasic;
 					}
 				} catch (const logic_error &) {
 					SLOGE << "invalid 'pn-silent' value: " << pnSilentStr;

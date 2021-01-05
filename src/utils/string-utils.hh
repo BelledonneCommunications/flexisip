@@ -91,4 +91,15 @@ public:
 		os << " }";
 		return os.str();
 	}
+
+	// Returns 'true' if 'str' starts with 'prefix'.
+	static bool startsWith(const std::string &str, const std::string &prefix) noexcept {
+		return str.compare(0, prefix.size(), prefix) == 0;
+	}
+
+	// Returns 'true' if 'str' ends with 'prefix'.
+	static bool endsWith(const std::string &str, const std::string &suffix) noexcept {
+		return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+	}
+
 };

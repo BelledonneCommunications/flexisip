@@ -42,10 +42,11 @@ public:
 protected:
 	void checkDeviceToken() const;
 
-	std::string mDeviceToken;
+	std::string mDeviceToken{};
 	std::vector<char> mPayload{};
-	unsigned int mTtl{0};
-	int mStatusCode{0};
+	ApplePushType mPayloadType;
+	unsigned int mTtl = 0;
+	int mStatusCode = 0;
 	std::string mReason{};
 
 	static constexpr std::size_t MAXPAYLOAD_SIZE = 2048;
