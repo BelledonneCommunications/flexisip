@@ -498,6 +498,15 @@ void PushNotification::parseLegacyPushParams(const shared_ptr<MsgSip> &ms, const
 	} catch (const out_of_range &) {
 		throw runtime_error("no pn-type");
 	}
+
+	if (pinfo.mType == "apple") {
+		static const regex re{"(?:[^.]+\\.)+voip\\.[^.]+"}; // matches voip app-id only
+		smatch m{};
+		pinfo.mApplePushType =
+			regex_match(pinfo.mAppId, m, re)
+			? pushnotification::ApplePushType::Pushkit
+			: pushnotification::ApplePushType::RemoteBasic;
+	}
 }
 
 void PushNotification::parsePushParams(const shared_ptr<MsgSip> &ms, const char *params, pushnotification::PushInfo &pinfo) {
@@ -536,7 +545,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 											const shared_ptr<OutgoingTransaction> &transaction) {
 	shared_ptr<PushNotificationContext> context;
 	sip_t *sip = ms->getSip();
-	pushnotification::PushInfo pinfo;
+	pushnotification::PushInfo pinfo{};
 
 	pinfo.mCallId = ms->getSip()->sip_call_id->i_id;
 	pinfo.mEvent = (isGroupChatInvite(sip) || sip->sip_request->rq_method == sip_method_message) ? pushnotification::PushInfo::Event::Message : pushnotification::PushInfo::Event::Call;
@@ -595,19 +604,6 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				}
 			}
 
-			if (url_has_param(url, "pn-silent")) {
-				string pnSilentStr;
-				try {
-					pnSilentStr = UriUtils::getParamValue(params, "pn-silent");
-					pinfo.mSilent = bool(stoi(pnSilentStr));
-					if (!url_has_param(url, "pn-provider") && (pinfo.mType == "apple")) {
-						pinfo.mApplePushType = pinfo.mSilent ? pushnotification::ApplePushType::Pushkit : pushnotification::ApplePushType::RemoteBasic;
-					}
-				} catch (const logic_error &) {
-					SLOGE << "invalid 'pn-silent' value: " << pnSilentStr;
-				}
-			}
-
 			if (mDisplayFromUri) {
 				if (sip->sip_from->a_display) {
 					// Remove the double-quotes and the spaces surrounding the display name
@@ -628,36 +624,53 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			}
 
 			if (pinfo.mType == "apple") {
-				string msg_str;
-				string call_str;
-				string group_chat_str;
-				string call_snd;
-				string msg_snd;
 
+				if (pinfo.mApplePushType != pushnotification::ApplePushType::Pushkit && url_has_param(url, "pn-silent")) {
+					string pnSilentStr{};
+					try {
+						pnSilentStr = UriUtils::getParamValue(params, "pn-silent");
+						auto pnSilent = static_cast<bool>(stoi(pnSilentStr));
+						pinfo.mApplePushType = pnSilent ?
+							pushnotification::ApplePushType::Background :
+							pushnotification::ApplePushType::RemoteBasic;
+					} catch (const logic_error &) {
+						SLOGE << "invalid 'pn-silent' value: " << pnSilentStr;
+					}
+				}
+
+				string msg_str{};
 				try {
 					msg_str = UriUtils::getParamValue(params, "pn-msg-str");
 				} catch (const out_of_range &) {
 					SLOGD << "no optional pn-msg-str, using default: IM_MSG";
 					msg_str = "IM_MSG";
 				}
+
+				string call_str{};
 				try {
 					call_str = UriUtils::getParamValue(params, "pn-call-str");
 				} catch (const out_of_range &) {
 					SLOGD << "no optional pn-call-str, using default: IC_MSG";
 					call_str = "IC_MSG";
 				}
+
+				string group_chat_str{};
 				try {
 					group_chat_str = UriUtils::getParamValue(params, "pn-groupchat-str");
 				} catch (const out_of_range &) {
 					SLOGD << "no optional pn-groupchat-str, using default: GC_MSG";
 					group_chat_str = "GC_MSG";
 				}
+
+				string call_snd{};
 				try {
 					call_snd = UriUtils::getParamValue(params, "pn-call-snd");
 				} catch (const out_of_range &) {
 					SLOGD << "no optional pn-call-snd, using empty";
 					call_snd = "empty";
 				}
+
+				string msg_snd{};
 				try {
 					msg_snd = UriUtils::getParamValue(params, "pn-msg-snd");
 				} catch (const out_of_range &) {
@@ -696,7 +709,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 				if (time_out < 0) time_out = 0;
 				SLOGD << "Creating a push notif context PNR " << pn.get() << " to send in " << time_out << "s";
 				context = make_shared<PushNotificationContext>(transaction, this, move(pn), pnKey, mRetransmissionCount, mRetransmissionInterval);
-				context->start(time_out, !pinfo.mSilent);
+				context->start(time_out, pinfo.needRinging());
 				mPendingNotifications.insert(make_pair(pnKey, context));
 			} catch (const invalid_argument &e) {
 				SLOGD << string{"Error while creating PNR: "} + e.what();

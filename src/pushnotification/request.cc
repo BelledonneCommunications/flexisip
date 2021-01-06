@@ -26,12 +26,13 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
-std::string toString(flexisip::pushnotification::ApplePushType type) noexcept {
+std::string toString(ApplePushType type) noexcept {
 	switch (type) {
-		case flexisip::pushnotification::ApplePushType::Pushkit: return "PushKit";
-		case flexisip::pushnotification::ApplePushType::RemoteBasic: return "RemoteBasic";
-		case flexisip::pushnotification::ApplePushType::RemoteWithMutableContent: return "RemoteWithMutableContent";
-		case flexisip::pushnotification::ApplePushType::Background: return "BackGround";
+		case ApplePushType::Unknown: return "Unknown";
+		case ApplePushType::Pushkit: return "PushKit";
+		case ApplePushType::RemoteBasic: return "RemoteBasic";
+		case ApplePushType::RemoteWithMutableContent: return "RemoteWithMutableContent";
+		case ApplePushType::Background: return "BackGround";
 	};
 	return "<invalid>";
 }
