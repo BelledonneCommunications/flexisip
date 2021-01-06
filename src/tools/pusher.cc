@@ -35,7 +35,6 @@ struct PusherArgs {
 	string prefix{};
 	string pntype{};
 	bool debug{false};
-	bool isSilent{false};
 	string appid{};
 	vector<string> pntok{};
 	string apikey{};
@@ -44,8 +43,8 @@ struct PusherArgs {
 
 	void usage(const char *app) {
 		cout << app
-			 << " --pntype google|firebase|wp|w10|apple --appid id --key apikey(secretkey) --sid ms-app://value --prefix dir [--silent] [--debug] [--apple-push-type RemoteBasic|RemoteWithMutableContent|Background|PushKit]"<<endl
-			 << " --pntok id1 (id2 id3 ...)"
+			 << " --pntype google|firebase|wp|w10|apple --appid id --key apikey(secretkey) --sid ms-app://value --prefix dir [--debug] [--apple-push-type RemoteBasic|RemoteWithMutableContent|Background|PushKit]"<<endl
+			 << " --pntok id1 [id2 id3 ...]"
 			 << endl;
 	}
 
@@ -86,7 +85,7 @@ struct PusherArgs {
 			} else if (EQ0(i, "--debug")) {
 				debug = true;
 			}else if (EQ0(i, "--silent")) {
-				isSilent = true;
+				cout << "WARNING: --silent has no more effect (deprecated)" << endl;
 			} else if (EQ1(i, "--apple-push-type")) {
 				const char *aspt = argv[++i];
 				if (string(aspt) == "PushKit") {
@@ -155,7 +154,6 @@ static vector<shared_ptr<Request>> createRequestFromArgs(const PusherArgs &args)
 			pinfo.mAppId = args.appid;
 			pinfo.mDeviceToken = pntok;
 			pinfo.mTtl = 2592000;
-			pinfo.mSilent = args.isSilent;
 			pinfo.mApplePushType = args.applePushType;
 		}
 		try {
