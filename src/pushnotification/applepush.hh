@@ -44,7 +44,7 @@ protected:
 
 	std::string mDeviceToken{};
 	std::vector<char> mPayload{};
-	ApplePushType mPayloadType;
+	ApplePushType mPayloadType = ApplePushType::Unknown;
 	unsigned int mTtl = 0;
 	int mStatusCode = 0;
 	std::string mReason{};
