@@ -55,6 +55,8 @@ AppleRequest::AppleRequest(const PushInfo &info) : Request(info.mAppId, "apple")
 	mTtl = info.mTtl;
 
 	switch (info.mApplePushType) {
+		case ApplePushType::Unknown:
+			throw invalid_argument{"Apple push type not set"};
 		case ApplePushType::Pushkit: {
 			// We also need msg_id and callid in case the push is received but the device cannot register
 			constexpr auto rawPayload = R"json({

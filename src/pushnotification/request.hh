@@ -28,6 +28,7 @@ namespace flexisip {
 namespace pushnotification {
 
 enum class ApplePushType : std::uint8_t {
+	Unknown,
 	Pushkit,
 	RemoteBasic,
 	RemoteWithMutableContent,
@@ -57,9 +58,19 @@ struct PushInfo {
 	std::string mTeamId{}; // The Apple team id
 	std::string mChatRoomAddr{}; // In case of a chat room invite, the sip addr of the chat room is needed. (ios specific).
 	int mTtl{0}; //Time to live of the push notification.
-	ApplePushType mApplePushType{ApplePushType::Pushkit};
+	ApplePushType mApplePushType{ApplePushType::Unknown};
 	bool mNoBadge{false}; // Whether to display a badge on the application (ios specific).
-	bool mSilent{false};
+
+	/*
+	 * Tells whether "180 Ringing" should be replied by the proxy instead of "110 Push sent".
+	 * Practically only Apple RemoteBasic and RemoteWithMutableContent pushes need to have
+	 * 180 replied because they doesn't wake the application up immediately.
+	 */
+	bool needRinging() const noexcept {
+		// because
+		return (mEvent == Event::Call || mEvent == Event::Refer)
+			&& (mApplePushType == ApplePushType::RemoteBasic || mApplePushType == ApplePushType::RemoteWithMutableContent);
+	}
 };
 
 class Request {
