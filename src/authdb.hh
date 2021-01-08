@@ -42,8 +42,12 @@ namespace flexisip {
 enum AuthDbResult { PENDING, PASSWORD_FOUND, PASSWORD_NOT_FOUND, AUTH_ERROR };
 
 struct passwd_algo_t {
-	std::string pass;
-	std::string algo;
+	passwd_algo_t() = default;
+	template <typename T, typename U>
+	passwd_algo_t(T &&pass, U &&algo) : pass{std::forward<T>(pass)}, algo{std::forward<U>(algo)} {};
+
+	std::string pass{};
+	std::string algo{};
 };
 
 // Fw declaration
