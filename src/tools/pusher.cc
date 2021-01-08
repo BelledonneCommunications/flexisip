@@ -39,12 +39,13 @@ struct PusherArgs {
 	vector<string> pntok{};
 	string apikey{};
 	string packageSID{};
+	string customPayload;
 	ApplePushType applePushType{ApplePushType::Pushkit};
 
 	void usage(const char *app) {
 		cout << app
 			 << " --pntype google|firebase|wp|w10|apple --appid id --key apikey(secretkey) --sid ms-app://value --prefix dir [--debug] [--apple-push-type RemoteBasic|RemoteWithMutableContent|Background|PushKit]"<<endl
-			 << " --pntok id1 [id2 id3 ...]"
+			 << " --pntok id1 [id2 id3 ...] --customPayload (apple push only)"
 			 << endl;
 	}
 
@@ -116,6 +117,8 @@ struct PusherArgs {
 			} else if (EQ0(i, "--help") || EQ0(i, "-h")) {
 				usage(*argv);
 				exit(0);
+			} else if (EQ1(i, "--customPayload")) {
+				customPayload = argv[++i];
 			} else {
 				cerr << "? arg" << i << " " << argv[i] << endl;
 				usage(*argv);
@@ -155,6 +158,7 @@ static vector<shared_ptr<Request>> createRequestFromArgs(const PusherArgs &args)
 			pinfo.mDeviceToken = pntok;
 			pinfo.mTtl = 2592000;
 			pinfo.mApplePushType = args.applePushType;
+			pinfo.mCustomPayload = args.customPayload;
 		}
 		try {
 			result.emplace_back(Service::makePushRequest(pinfo));
