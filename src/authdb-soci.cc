@@ -22,6 +22,7 @@
 
 #include "soci-helper.hh"
 #include "utils/digest.hh"
+#include "utils/string-utils.hh"
 
 #include "authdb.hh"
 
@@ -166,51 +167,29 @@ void SociAuthDB::closeOpenedSessions() {
 
 void SociAuthDB::getPasswordWithPool(const string &id, const string &domain,
 									const string &authid, AuthDbListener *listener) {
-	vector<passwd_algo_t> passwd;
-	string unescapedIdStr = urlUnescape(id);
+	vector<passwd_algo_t> passwd{};
+	auto unescapedIdStr = urlUnescape(id);
 
-	SociHelper sociHelper(*conn_pool);
+	SociHelper sociHelper{*conn_pool};
 	
 	try{
 		sociHelper.execute([&](session &sql){
-			rowset<row> results =  (sql.prepare << get_password_request, use(unescapedIdStr, "id"), use(domain, "domain"), use(authid, "authid"));
-			for (rowset<row>::const_iterator it = results.begin(); it != results.end(); it++) {
-				row const& r = *it;
-				passwd_algo_t pass;
-
+			rowset<row> results = (sql.prepare << get_password_request, use(unescapedIdStr, "id"), use(domain, "domain"), use(authid, "authid"));
+			for (const auto &r : results) {
 				/* If size == 1 then we only have the password so we assume MD5 */
-				if (r.size() == 1) {
-					pass.algo = "MD5";
-					pass.pass = r.get<string>(0);
-				} else if (r.size() > 1) {
-					string password = r.get<string>(0);
-					string algo = r.get<string>(1);
-
-					if (algo == "CLRTXT") {
-						if (passwd.empty()) {
-							pass.algo = algo;
-							pass.pass = password;
-							passwd.push_back(pass);
-
-							string input;
-							input = unescapedIdStr + ":" + domain + ":" + password;
-
-							pass.pass = Md5().compute<string>(input);
-							pass.algo = "MD5";
-							passwd.push_back(pass);
-
-							pass.pass = Sha256().compute<string>(input);
-							pass.algo = "SHA-256";
-							passwd.push_back(pass);
-
-							break;
-						}
-					} else {
-						pass.algo = algo;
-						pass.pass = password;
-					}
+				auto algo = r.size() > 1 ? r.get<string>(1) : "MD5";
+				if (algo == "CLRTXT") {
+					const auto &password = r.get<string>(0);
+					auto input = unescapedIdStr + ":" + domain + ":" + password;
+					passwd.clear();
+					passwd.emplace_back(password, algo);
+					passwd.emplace_back(Md5{}.compute<string>(input), "MD5");
+					passwd.emplace_back(Sha256{}.compute<string>(input), "SHA-256");
+					break;
+				} else {
+					auto hash = StringUtils::toLower(r.get<string>(0));
+					passwd.emplace_back(move(hash), algo);
 				}
-				passwd.push_back(pass);
 			}
 		});
 

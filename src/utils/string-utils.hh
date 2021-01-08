@@ -19,6 +19,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cctype>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -67,6 +68,37 @@ public:
 	 * @throw invalid_argument when 'str' doesn't start with 'prefix'.
 	 */
 	static std::string removePrefix(const std::string &str, const std::string &prefix);
+
+	/**
+	 * Apply a modifying function on each character of
+	 * the input string and return the result.
+	 * @param str The string to modify.
+	 * @param func A callable object that takes a character as
+	 * argument and returns the modified character.
+	 * @return The modified string.
+	 */
+	template <typename StrT, typename FuncT>
+	static std::string transform(StrT &&str, FuncT &&func) noexcept {
+		auto transStr = std::forward<StrT>(str);
+		for (auto &c : transStr) c = func(c);
+		return transStr;
+	}
+
+	/**
+	 * Return the lower-case version of a string.
+	 */
+	template <typename StrT>
+	static std::string toLower(StrT &&str) noexcept {
+		return transform(std::forward<StrT>(str), [](const char &c){return std::tolower(c);});
+	}
+
+	/**
+	 * Return the upper-case version of a string.
+	 */
+	template <typename StrT>
+	static std::string toUpper(StrT &&str) noexcept {
+		return transform(std::forward<StrT>(str), [](const char &c){return std::toupper(c);});
+	}
 
 	template <typename Iterable>
 	static std::string toString(const Iterable &iterable) {

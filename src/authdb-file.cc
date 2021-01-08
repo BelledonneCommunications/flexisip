@@ -27,10 +27,12 @@
 #include "flexisip-config.h"
 #endif
 
-#include "authdb.hh"
 #include "utils/digest.hh"
+#include "utils/string-utils.hh"
 
-using namespace::belr;
+#include "authdb.hh"
+
+using namespace ::belr;
 using namespace std;
 
 namespace flexisip {
@@ -73,40 +75,23 @@ void FileAuthDb::declareConfig(GenericStruct *mc) {
 	mc->get<ConfigString>("file-path")->setFallback(*datasourceParam);
 }
 
-void FileAuthDb::parsePasswd(const vector<passwd_algo_t> &srcPasswords, const string &user, const string &domain, vector<passwd_algo_t> &destPasswords) {
-	// Creates pass-md5, pass-sha256 if there is clrtxt pass
+void FileAuthDb::parsePasswd(
+	const vector<passwd_algo_t> &srcPasswords,
+	const std::string &user,
+	const std::string &domain,
+	std::vector<passwd_algo_t> &destPasswords
+) {
+	destPasswords.reserve(srcPasswords.size());
 	for (const auto &passwd : srcPasswords) {
-		if (passwd.algo == "clrtxt") {
-			passwd_algo_t clrtxt, md5, sha256;
-			clrtxt.pass = passwd.pass;
-			clrtxt.algo = "CLRTXT";
-			destPasswords.push_back(clrtxt);
-
-			string input;
-			input = user+":"+domain+":"+clrtxt.pass;
-
-			md5.pass = Md5().compute<string>(input);
-			md5.algo = "MD5";
-			destPasswords.push_back(md5);
-
-			sha256.pass = Sha256().compute<string>(input);
-			sha256.algo = "SHA-256";
-			destPasswords.push_back(sha256);
-			return;
-		}
-	}
-	for (const auto &passwd : srcPasswords) {
-		if (passwd.algo == "md5") {
-			passwd_algo_t md5;
-			md5.pass = passwd.pass;
-			md5.algo = "MD5";
-			destPasswords.push_back(md5);
-		}
-		if (passwd.algo == "sha256") {
-			passwd_algo_t sha256;
-			sha256.pass = passwd.pass;
-			sha256.algo = "SHA-256";
-			destPasswords.push_back(sha256);
+		if (passwd.algo == "md5") destPasswords.emplace_back(StringUtils::toLower(passwd.pass), "MD5");
+		else if (passwd.algo == "sha256") destPasswords.emplace_back(StringUtils::toLower(passwd.pass), "SHA-256");
+		else if (passwd.algo == "clrtxt") {
+			// Creates pass-md5, pass-sha256 if there is clrtxt pass
+			auto input = user + ":" + domain + ":" + passwd.pass;
+			destPasswords.clear();
+			destPasswords.emplace_back(passwd.pass, "CLRTXT");
+			destPasswords.emplace_back(Md5().compute<string>(input), "MD5");
+			destPasswords.emplace_back(Sha256().compute<string>(input), "SHA-256");
 		}
 	}
 }
