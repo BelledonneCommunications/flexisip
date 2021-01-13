@@ -44,10 +44,10 @@ std::string UriUtils::unescape(const char *str, size_t n) noexcept {
 	return unescapedStr;
 }
 
-std::string UriUtils::getParamValue(const char *paramList, const char *paramName) {
+std::string UriUtils::getParamValue(const char *paramList, const char *paramName, const char *defaultValue) noexcept {
 	string value(_bufferSize, '\0');
 	isize_t valueSize = url_param(paramList, paramName, &value[0], value.size());
-	if (valueSize == 0) throw out_of_range(string("\'") + paramName + "\' not found");
+	if (valueSize == 0) return defaultValue;
 	value.resize(valueSize-1);
 	return value;
 }
