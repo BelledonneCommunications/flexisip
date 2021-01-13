@@ -387,28 +387,25 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 	smatch match;
 	sip_t *sip = ms->getSip();
 
-	try {
-		auto pnProvider = UriUtils::getParamValue(params, "pn-provider");
-		if (!regex_match(pnProvider, match, sPnProviderRegex)) {
-			throw runtime_error("pn-provider invalid syntax");
-		}
-		isDev = pnProvider == "apns.dev";
-	} catch (const out_of_range &) {
+	auto pnProvider = UriUtils::getParamValue(params, "pn-provider");
+	if (pnProvider.empty()) {
 		throw runtime_error("no pn-provider");
 	}
+	if (!regex_match(pnProvider, match, sPnProviderRegex)) {
+		throw runtime_error("pn-provider invalid syntax");
+	}
+	isDev = pnProvider == "apns.dev";
 
-	try {
-		string pnParam = UriUtils::getParamValue(params, "pn-param");
-		if (regex_match(pnParam, match, sPnParamRegex)) {
-			pinfo.mTeamId = match[1].str();
-			bundleId = match[2].str();
-			servicesAvailable = StringUtils::split(match[3].str(), "&");
-		} else {
-			throw runtime_error("pn-param invalid syntax");
-		}
-	} catch (const out_of_range &) {
+	auto pnParam = UriUtils::getParamValue(params, "pn-param");
+	if (pnParam.empty()) {
 		throw runtime_error("no pn-param");
 	}
+	if (!regex_match(pnParam, match, sPnParamRegex)) {
+		throw runtime_error("pn-param invalid syntax");
+	}
+	pinfo.mTeamId = match[1].str();
+	bundleId = match[2].str();
+	servicesAvailable = StringUtils::split(match[3].str(), "&");
 
 	auto it = std::find(servicesAvailable.begin(), servicesAvailable.end(), "voip");
 	if (pinfo.mEvent == pushnotification::PushInfo::Event::Message || it == servicesAvailable.end()) {
@@ -426,35 +423,31 @@ void PushNotification::parseApplePushParams(const shared_ptr<MsgSip> &ms, const 
 		throw runtime_error(string("pn-param does not define required service: " + requiredService));
 	}
 
-	string pnPrid;
-	try {
-		pnPrid = UriUtils::getParamValue(params, "pn-prid");
-	} catch (const out_of_range &) {
+	auto pnPrid = UriUtils::getParamValue(params, "pn-prid");
+	if (pnPrid.empty()) {
 		throw runtime_error("no pn-prid");
 	}
-	if (!pnPrid.empty()) {
-		const auto tokenList = StringUtils::split(pnPrid, "&");
-		for (const auto &tokenAndService : tokenList) {
-			if (tokenList.size() == 1) {
-				if (regex_match(tokenAndService, match, sPnPridOneTokenRegex)) {
-					if (match.size() == 2) {
-						deviceToken = match[1].str();
-					} else {
-						if (match[2].str() == requiredService) {
-							deviceToken = match[1].str();
-						}
-					}
+	const auto tokenList = StringUtils::split(pnPrid, "&");
+	for (const auto &tokenAndService : tokenList) {
+		if (tokenList.size() == 1) {
+			if (regex_match(tokenAndService, match, sPnPridOneTokenRegex)) {
+				if (match.size() == 2) {
+					deviceToken = match[1].str();
 				} else {
-					throw runtime_error("pn-prid invalid syntax");
-				}
-			} else {
-				if (regex_match(tokenAndService, match, sPnPridMultipleTokensRegex)) {
 					if (match[2].str() == requiredService) {
 						deviceToken = match[1].str();
 					}
-				} else {
-					throw runtime_error("pn-prid invalid syntax");
 				}
+			} else {
+				throw runtime_error("pn-prid invalid syntax");
+			}
+		} else {
+			if (regex_match(tokenAndService, match, sPnPridMultipleTokensRegex)) {
+				if (match[2].str() == requiredService) {
+					deviceToken = match[1].str();
+				}
+			} else {
+				throw runtime_error("pn-prid invalid syntax");
 			}
 		}
 	}
@@ -481,21 +474,18 @@ bool PushNotification::isGroupChatInvite(sip_t *sip) {
 }
 
 void PushNotification::parseLegacyPushParams(const shared_ptr<MsgSip> &ms, const char *params, pushnotification::PushInfo &pinfo) {
-	try {
-		pinfo.mDeviceToken = UriUtils::getParamValue(params, "pn-tok");
-	} catch (const out_of_range &) {
+	pinfo.mDeviceToken = UriUtils::getParamValue(params, "pn-tok");
+	if (pinfo.mDeviceToken.empty()) {
 		throw runtime_error("no pn-tok");
 	}
 
-	try {
-		pinfo.mAppId = UriUtils::getParamValue(params, "app-id");
-	} catch (const out_of_range &) {
+	pinfo.mAppId = UriUtils::getParamValue(params, "app-id");
+	if (pinfo.mAppId.empty()) {
 		throw runtime_error("no app-id");
 	}
 
-	try {
-		pinfo.mType = UriUtils::getParamValue(params, "pn-type");
-	} catch (const out_of_range &) {
+	pinfo.mType = UriUtils::getParamValue(params, "pn-type");
+	if (pinfo.mType.empty()) {
 		throw runtime_error("no pn-type");
 	}
 
@@ -510,25 +500,21 @@ void PushNotification::parseLegacyPushParams(const shared_ptr<MsgSip> &ms, const
 }
 
 void PushNotification::parsePushParams(const shared_ptr<MsgSip> &ms, const char *params, pushnotification::PushInfo &pinfo) {
-	string pnProvider;
-	smatch match;
+	smatch match{};
 
-	try {
-		pnProvider = UriUtils::getParamValue(params, "pn-provider");
-	} catch (const out_of_range &) {
+	auto pnProvider = UriUtils::getParamValue(params, "pn-provider");
+	if (pnProvider.empty()) {
 		throw runtime_error("no pn-provider");
 	}
 
 	if (pnProvider == "fcm") { // firebase
-		try {
-			pinfo.mDeviceToken = UriUtils::getParamValue(params, "pn-prid");
-		} catch (const out_of_range &) {
+		pinfo.mDeviceToken = UriUtils::getParamValue(params, "pn-prid");
+		if (pinfo.mDeviceToken.empty()) {
 			throw runtime_error("no pn-prid");
 		}
 
-		try {
-			pinfo.mAppId = UriUtils::getParamValue(params, "pn-param");
-		} catch (const out_of_range &) {
+		pinfo.mAppId = UriUtils::getParamValue(params, "pn-param");
+		if (pinfo.mAppId.empty()) {
 			throw runtime_error("no pn-param");
 		}
 
@@ -537,7 +523,7 @@ void PushNotification::parsePushParams(const shared_ptr<MsgSip> &ms, const char 
 		parseApplePushParams(ms, params, pinfo);
 		pinfo.mType = "apple";
 	} else {
-		throw runtime_error(string("pn-provider unsupported value: " + pnProvider));
+		throw runtime_error("pn-provider unsupported value: " + pnProvider);
 	}
 }
 
@@ -594,10 +580,9 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			context = it->second;
 		}
 		if (!context) {
-			if (url_has_param(url, "pn-timeout")) {
-				string pnTimeoutStr;
+			auto pnTimeoutStr = UriUtils::getParamValue(params, "pn-timeout");
+			if (!pnTimeoutStr.empty()) {
 				try {
-					pnTimeoutStr = UriUtils::getParamValue(params, "pn-timeout");
 					time_out = stoi(pnTimeoutStr);
 				} catch (const logic_error &) {
 					SLOGE << "invalid 'pn-timeout' value: " << pnTimeoutStr;
@@ -625,42 +610,32 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 
 			if (pinfo.mType == "apple") {
 
-				string msg_str{};
-				try {
-					msg_str = UriUtils::getParamValue(params, "pn-msg-str");
-				} catch (const out_of_range &) {
+				auto msg_str = UriUtils::getParamValue(params, "pn-msg-str");
+				if (msg_str.empty()) {
 					SLOGD << "no optional pn-msg-str, using default: IM_MSG";
 					msg_str = "IM_MSG";
 				}
 
-				string call_str{};
-				try {
-					call_str = UriUtils::getParamValue(params, "pn-call-str");
-				} catch (const out_of_range &) {
+				auto call_str = UriUtils::getParamValue(params, "pn-call-str");
+				if (call_str.empty()) {
 					SLOGD << "no optional pn-call-str, using default: IC_MSG";
 					call_str = "IC_MSG";
 				}
 
-				string group_chat_str{};
-				try {
-					group_chat_str = UriUtils::getParamValue(params, "pn-groupchat-str");
-				} catch (const out_of_range &) {
+				auto group_chat_str = UriUtils::getParamValue(params, "pn-groupchat-str");
+				if (group_chat_str.empty()) {
 					SLOGD << "no optional pn-groupchat-str, using default: GC_MSG";
 					group_chat_str = "GC_MSG";
 				}
 
-				string call_snd{};
-				try {
-					call_snd = UriUtils::getParamValue(params, "pn-call-snd");
-				} catch (const out_of_range &) {
+				auto call_snd = UriUtils::getParamValue(params, "pn-call-snd");
+				if (call_snd.empty()) {
 					SLOGD << "no optional pn-call-snd, using empty";
 					call_snd = "empty";
 				}
 
-				string msg_snd{};
-				try {
-					msg_snd = UriUtils::getParamValue(params, "pn-msg-snd");
-				} catch (const out_of_range &) {
+				auto msg_snd = UriUtils::getParamValue(params, "pn-msg-snd");
+				if (msg_snd.empty()) {
 					SLOGD << "no optional pn-msg-snd, using empty";
 					msg_snd = "empty";
 				}

@@ -66,12 +66,16 @@ public:
 	 * @brief Return the value of a given param from a string that contains a list
 	 * of 'param=value' elements separated by semi-colon character.
 	 * @param paramList The string containing the list of parameter.
-	 * @param paramName The name of the parameter whose value is to be gotten.
-	 * @return The value of the parameter. If the parameter exists but has no value, then the return string is empty.
-	 * @throw std::out_of_range The given paramter could not be found.
+	 * @param paramName The name of the parameter to seek.
+	 * @param defaultValue The string to return if the parameter doesn't exist or has no value.
 	 */
-	static std::string getParamValue(const char *paramList, const char *paramName);
-	static std::string getParamFromParamList(const std::string &paramList, const std::string &paramName) {return getParamValue(paramList.c_str(), paramName.c_str());}
+	static std::string getParamValue(const char *paramList, const char *paramName, const char *defaultValue = "") noexcept;
+	static std::string getParamValue(const std::string &paramList, const std::string &paramName) noexcept {
+		return getParamValue(paramList.c_str(), paramName.c_str());
+	}
+	static std::string getParamValue(const std::string &paramList, const std::string &paramName, const std::string &defaultValue) noexcept {
+		return getParamValue(paramList.c_str(), paramName.c_str(), defaultValue.c_str());
+	}
 
 	/**
 	 * @brief Translate a UUID given by +sip.instance parameter into an
