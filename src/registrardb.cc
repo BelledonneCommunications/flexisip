@@ -1080,18 +1080,16 @@ void RegistrarDb::fetch(const SipUri &url, const shared_ptr<ContactUpdateListene
 		fetchWithDomain(url, listener, recursive);
 		return;
 	}
-	if(url.hasParam("gr")) {
-		string gr = UriUtils::getParamValue(url.get()->url_params, "gr");
-		if (!gr.empty()) {
-			doFetchInstance(url, UriUtils::grToUniqueId(gr), recursive
-							? make_shared<RecursiveRegistrarDbListener>(this, listener, url)
-							: listener);
-			return;
-		}
-	}
-	doFetch(url, recursive
+	auto gr = UriUtils::getParamValue(url.get()->url_params, "gr");
+	if (!gr.empty()) {
+		doFetchInstance(url, UriUtils::grToUniqueId(gr), recursive
+						? make_shared<RecursiveRegistrarDbListener>(this, listener, url)
+						: listener);
+	} else {
+		doFetch(url, recursive
 			? make_shared<RecursiveRegistrarDbListener>(this, listener, url)
 			: listener);
+	}
 }
 
 void RegistrarDb::fetchList(const vector<SipUri> urls, const shared_ptr<ListContactUpdateListener> &listener) {
