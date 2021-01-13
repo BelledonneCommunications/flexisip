@@ -625,19 +625,6 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 
 			if (pinfo.mType == "apple") {
 
-				if (pinfo.mApplePushType != pushnotification::ApplePushType::Pushkit && url_has_param(url, "pn-silent")) {
-					string pnSilentStr{};
-					try {
-						pnSilentStr = UriUtils::getParamValue(params, "pn-silent");
-						auto pnSilent = static_cast<bool>(stoi(pnSilentStr));
-						pinfo.mApplePushType = pnSilent ?
-							pushnotification::ApplePushType::Background :
-							pushnotification::ApplePushType::RemoteBasic;
-					} catch (const logic_error &) {
-						SLOGE << "invalid 'pn-silent' value: " << pnSilentStr;
-					}
-				}
-
 				string msg_str{};
 				try {
 					msg_str = UriUtils::getParamValue(params, "pn-msg-str");
