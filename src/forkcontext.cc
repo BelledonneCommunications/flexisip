@@ -271,13 +271,13 @@ bool compareGreaterBranch(const shared_ptr<BranchInfo> &lhs, const shared_ptr<Br
 }
 
 void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact) {
-	shared_ptr<OutgoingTransaction> ot = ev->createOutgoingTransaction();
-	shared_ptr<BranchInfo> br = createBranchInfo();
+	auto ot = ev->createOutgoingTransaction();
+	auto br = createBranchInfo();
 
 	if (mIncoming && mWaitingBranches.size() == 0) {
 		/*for some reason shared_from_this() cannot be invoked within the ForkContext constructor, so we do this
 		 * initialization now*/
-		mIncoming->setProperty<ForkContext>("ForkContext", shared_from_this());
+		mIncoming->setProperty<ForkContext>("ForkContext", weak_ptr<ForkContext>{shared_from_this()});
 	}
 
 	// unlink the incoming and outgoing transactions which is done by default, since now the forkcontext is managing
@@ -292,7 +292,7 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	ot->setProperty("BranchInfo", weak_ptr<BranchInfo>{br});
 	
 	// Clear answered branches with same uid.
-	shared_ptr<BranchInfo> oldBr = findBranchByUid(br->mUid);
+	auto oldBr = findBranchByUid(br->mUid);
 	if (oldBr && oldBr->getStatus() >= 200){
 		LOGD("ForkContext [%p]: new fork branch [%p] clears out old branch [%p]", this, br.get(), oldBr.get());
 		removeBranch(oldBr);
@@ -327,10 +327,10 @@ shared_ptr<BranchInfo> ForkContext::getBranchInfo(const shared_ptr<OutgoingTrans
 }
 
 bool ForkContext::processCancel(const shared_ptr<RequestSipEvent> &ev) {
-	shared_ptr<IncomingTransaction> transaction = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
+	auto transaction = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
 
 	if (transaction && ev->getMsgSip()->getSip()->sip_request->rq_method == sip_method_cancel) {
-		shared_ptr<ForkContext> ctx = ForkContext::get(transaction);
+		auto ctx = ForkContext::get(transaction);
 
 		if (ctx) {
 			ctx->onCancel(ev);
