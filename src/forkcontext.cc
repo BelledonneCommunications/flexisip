@@ -28,35 +28,16 @@ const int ForkContext::sUrgentCodes[] = {401, 407, 415, 420, 484, 488, 606, 603,
 
 const int ForkContext::sAllCodesUrgent[] = {-1, 0};
 
-ForkContextListener::~ForkContextListener() {
-}
-
-void ForkContext::__timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) {
-	(static_cast<ForkContext *>(arg))->processLateTimeout();
-}
-
-void ForkContext::sOnFinished(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) {
-	(static_cast<ForkContext *>(arg))->onFinished();
-}
-
-void ForkContext::sOnNextBanches(su_root_magic_t* magic, su_timer_t* t, su_timer_arg_t* arg) {
-	(static_cast<ForkContext *>(arg))->onNextBranches();
-}
-
 ForkContext::ForkContext(Agent *agent, const shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg,
 						 ForkContextListener *listener)
-	: mListener(listener), mNextBranchesTimer(NULL), mCurrentPriority(-1), mAgent(agent),
+	: mListener(listener), mNextBranchesTimer(agent->getRoot()), mCurrentPriority(-1), mAgent(agent),
 	  mEvent(make_shared<RequestSipEvent>(event)), // Is this deep copy really necessary ?
-	  mCfg(cfg), mLateTimer(NULL), mFinishTimer(NULL) {
+	  mCfg(cfg), mLateTimer(agent->getRoot()), mFinishTimer(agent->getRoot()) {
 	init();
 }
 
-void ForkContext::onLateTimeout() {
-}
-
 void ForkContext::processLateTimeout() {
-	su_timer_destroy(mLateTimer);
-	mLateTimer = NULL;
+	mLateTimer.reset();
 	onLateTimeout();
 	setFinished();
 }
@@ -257,12 +238,10 @@ bool ForkContext::onNewRegister(const url_t *url, const string &uid) {
 void ForkContext::init() {
 	mIncoming = mEvent->createIncomingTransaction();
 
-	if (mCfg->mForkLate && mLateTimer == NULL) {
+	if (mCfg->mForkLate && !mLateTimer.isRunning()) {
 		/*this timer is for when outgoing transaction all die prematuraly, we still need to wait that late register
 		 * arrive.*/
-		mLateTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
-		su_timer_set_interval(mLateTimer, &ForkContext::__timer_callback, this,
-							  (su_duration_t)mCfg->mDeliveryTimeout * (su_duration_t)1000);
+		mLateTimer.set([this](){processLateTimeout();}, static_cast<su_duration_t>(mCfg->mDeliveryTimeout) * 1000);
 	}
 }
 
@@ -271,13 +250,13 @@ bool compareGreaterBranch(const shared_ptr<BranchInfo> &lhs, const shared_ptr<Br
 }
 
 void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact) {
-	shared_ptr<OutgoingTransaction> ot = ev->createOutgoingTransaction();
-	shared_ptr<BranchInfo> br = createBranchInfo();
+	auto ot = ev->createOutgoingTransaction();
+	auto br = createBranchInfo();
 
 	if (mIncoming && mWaitingBranches.size() == 0) {
 		/*for some reason shared_from_this() cannot be invoked within the ForkContext constructor, so we do this
 		 * initialization now*/
-		mIncoming->setProperty<ForkContext>("ForkContext", shared_from_this());
+		mIncoming->setProperty<ForkContext>("ForkContext", weak_ptr<ForkContext>{shared_from_this()});
 	}
 
 	// unlink the incoming and outgoing transactions which is done by default, since now the forkcontext is managing
@@ -292,7 +271,7 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	ot->setProperty("BranchInfo", weak_ptr<BranchInfo>{br});
 	
 	// Clear answered branches with same uid.
-	shared_ptr<BranchInfo> oldBr = findBranchByUid(br->mUid);
+	auto oldBr = findBranchByUid(br->mUid);
 	if (oldBr && oldBr->getStatus() >= 200){
 		LOGD("ForkContext [%p]: new fork branch [%p] clears out old branch [%p]", this, br.get(), oldBr.get());
 		removeBranch(oldBr);
@@ -319,7 +298,7 @@ shared_ptr<ForkContext> ForkContext::get(const shared_ptr<IncomingTransaction> &
 
 shared_ptr<ForkContext> ForkContext::get(const shared_ptr<OutgoingTransaction> &tr) {
 	shared_ptr<BranchInfo> br = getBranchInfo(tr);
-	return br ? br->mForkCtx : shared_ptr<ForkContext>();
+	return br ? br->mForkCtx.lock() : nullptr;
 }
 
 shared_ptr<BranchInfo> ForkContext::getBranchInfo(const shared_ptr<OutgoingTransaction> &tr){
@@ -327,10 +306,10 @@ shared_ptr<BranchInfo> ForkContext::getBranchInfo(const shared_ptr<OutgoingTrans
 }
 
 bool ForkContext::processCancel(const shared_ptr<RequestSipEvent> &ev) {
-	shared_ptr<IncomingTransaction> transaction = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
+	auto transaction = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
 
 	if (transaction && ev->getMsgSip()->getSip()->sip_request->rq_method == sip_method_cancel) {
-		shared_ptr<ForkContext> ctx = ForkContext::get(transaction);
+		auto ctx = ForkContext::get(transaction);
 
 		if (ctx) {
 			ctx->onCancel(ev);
@@ -356,7 +335,9 @@ bool ForkContext::processResponse(const shared_ptr<ResponseSipEvent> &ev) {
 			auto copyEv = make_shared<ResponseSipEvent>(ev); // make a copy
 			copyEv->suspendProcessing();
 			binfo->mLastResponse = copyEv;
-			binfo->mForkCtx->onResponse(binfo, copyEv);
+
+			auto forkCtx = binfo->mForkCtx.lock();
+			forkCtx->onResponse(binfo, copyEv);
 
 			// the event may go through but it will not be sent*/
 			ev->setIncomingAgent(shared_ptr<IncomingAgent>());
@@ -369,9 +350,9 @@ bool ForkContext::processResponse(const shared_ptr<ResponseSipEvent> &ev) {
 				// LOGD("The response has been retained");
 			}
 
-			if (binfo->mForkCtx->allCurrentBranchesAnswered()) {
-				if (binfo->mForkCtx->hasNextBranches())
-					binfo->mForkCtx->start();
+			if (forkCtx->allCurrentBranchesAnswered()) {
+				if (forkCtx->hasNextBranches())
+					forkCtx->start();
 			}
 
 			return true;
@@ -425,10 +406,7 @@ void ForkContext::nextBranches() {
 
 void ForkContext::start() {
 	/* Remove existing timer */
-	if (mNextBranchesTimer) {
-		su_timer_destroy(mNextBranchesTimer);
-		mNextBranchesTimer = NULL;
-	}
+	mNextBranchesTimer.reset();
 
 	/* Prepare branches */
 	nextBranches();
@@ -442,8 +420,7 @@ void ForkContext::start() {
 
 	if (mCfg->mCurrentBranchesTimeout > 0 && hasNextBranches()) {
 		/* Start the timer for next branches */
-		mNextBranchesTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
-		su_timer_set_interval(mNextBranchesTimer, &ForkContext::sOnNextBanches, this, (su_duration_t)mCfg->mCurrentBranchesTimeout * (su_duration_t)1000);
+		mNextBranchesTimer.set([this](){onNextBranches();}, static_cast<su_duration_t>(mCfg->mCurrentBranchesTimeout) * 1000);
 	}
 }
 
@@ -451,17 +428,8 @@ const shared_ptr<RequestSipEvent> &ForkContext::getEvent() {
 	return mEvent;
 }
 
-ForkContext::~ForkContext() {
-	if (mLateTimer)
-		su_timer_destroy(mLateTimer);
-
-	if (mNextBranchesTimer)
-		su_timer_destroy(mNextBranchesTimer);
-}
-
 void ForkContext::onFinished() {
-	su_timer_destroy(mFinishTimer);
-	mFinishTimer = NULL;
+	mFinishTimer.reset();
 
 	// force references to be loosed immediately, to avoid circular dependencies.
 	mEvent.reset();
@@ -474,29 +442,19 @@ void ForkContext::onFinished() {
 	mCurrentBranches.clear();
 
 	mListener->onForkContextFinished(shared_from_this());
-	mSelf.reset(); // this must be the last thing to do
 }
 
 void ForkContext::setFinished() {
-	if (mFinishTimer) {
+	if (mFinishTimer.isRunning()) {
 		/*already finishing, ignore*/
 		return;
 	}
 	mFinished = true;
 
-	if (mLateTimer) {
-		su_timer_destroy(mLateTimer);
-		mLateTimer = NULL;
-	}
+	mLateTimer.reset();
+	mNextBranchesTimer.reset();
 
-	if (mNextBranchesTimer) {
-		su_timer_destroy(mNextBranchesTimer);
-		mNextBranchesTimer = NULL;
-	}
-
-	mSelf = shared_from_this(); // to prevent destruction until finishTimer arrives
-	mFinishTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
-	su_timer_set_interval(mFinishTimer, &ForkContext::sOnFinished, this, (su_duration_t)0);
+	mFinishTimer.set([self = shared_from_this()](){self->onFinished();}, 0);
 }
 
 bool ForkContext::shouldFinish() {
