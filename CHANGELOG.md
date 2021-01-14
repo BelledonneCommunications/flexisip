@@ -59,6 +59,7 @@ Group changes to describe their impact on the project, as follows:
  - `module::Authentication/realm-regex`: allows to choose how the authentication module deduces the realm from the From header.
  - `module::PushNotification/retransmission-count` (PNR retransmission feature)
  - `module::PushNotification/retransmission-interval` (PNR retransmission feature)
+ - `module::PushNotification/display-from-uri`: controls whether the From URI is print in PN payloads.
  - `module::MediaRelay/force-public-ip-for-sdp-masquerading`: force the MediaRelay module to put the public IP address of the proxy while
    modifying the SDP body of INVITE requests. Only useful when the server is behind a NAT router.
  - `conference-server/check-capabalities` (see [Reference Documentation](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/A.%20Configuration%20Reference%20Guide/2.0.0/conference-server))
@@ -105,6 +106,8 @@ Group changes to describe their impact on the project, as follows:
  - `REGISTRAR_CLEAR` sub-command of `flexisip_cli` can now clear registration of a given SIP identity.
  - Improvement of the performance of the boolean expression engine used by module filters.
  - Breaking of the event log database schema.
+ - [Push Notfifications] The From URI is no more printed in the PN payload as first element of loc-args list.
+   Use `module::PushNotification/display-from-uri` setting to retore this behaviour.
 
 **Miscellaneous**
  - Log files are now named flexisip-proxy.log, flexisip-conference.log flexisip-presence.log by default.
