@@ -44,8 +44,10 @@ ConferenceServer::ConferenceServer (
 ConferenceServer::~ConferenceServer () {}
 
 void ConferenceServer::_init () {
+	string bindAddress{};
+
 	// Set config, transport, create core, etc
-	shared_ptr<Transports> cTransport = Factory::get()->createTransports();
+	auto cTransport = Factory::get()->createTransports();
 	cTransport->setTcpPort(0);
 	cTransport->setUdpPort(0);
 	cTransport->setTlsPort(0);
@@ -53,24 +55,23 @@ void ConferenceServer::_init () {
 
 	// Flexisip config
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
-	mTransport = config->get<ConfigString>("transport")->read();
-	if (mTransport.length() > 0) {
-		sofiasip::Home mHome;
-		url_t *urlTransport = url_make(mHome.home(), mTransport.c_str());
-		if (urlTransport != nullptr && mTransport.at(0) != '<') {
-			int port;
-			istringstream istr;
-			istr.str(urlTransport->url_port);
-			istr >> port;
-			cTransport->setTcpPort(port);
-		} else {
-			LOGF("ConferenceServer: Your configured conference transport(\"%s\") is not an URI.\nIf you have \"<>\" in your transport, remove them.", mTransport.c_str());
-		}
+	try {
+		mTransport = SipUri{config->get<ConfigString>("transport")->read()};
+		if (mTransport.empty()) throw sofiasip::InvalidUrlError{"", "empty URI"};
+
+		bindAddress = mTransport.getHost();
+
+		const auto &portStr = mTransport.getPort();
+		auto port = !portStr.empty() ? stoi(portStr) : 5060;
+		cTransport->setTcpPort(port);
+	} catch (const sofiasip::InvalidUrlError &e) { // thrown by SipUri constructor and when mTransport is empty
+		LOGF("ConferenceServer: Your configured conference transport(\"%s\") is not an URI.\nIf you have \"<>\" in your transport, remove them.", e.getUrl().c_str());
 	}
 	mCheckCapabilities = config->get<ConfigBoolean>("check-capabilities")->read();
 
 	// Core
-	shared_ptr<Config> configLinphone = Factory::get()->createConfig("");
+	auto configLinphone = Factory::get()->createConfig("");
+	configLinphone->setString("sip", "bind_address", bindAddress);
 	configLinphone->setBool("misc", "conference_server_enabled", 1);
 	configLinphone->setBool("misc", "enable_one_to_one_chat_room", config->get<ConfigBoolean>("enable-one-to-one-chat-room")->read());
 	configLinphone->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
@@ -83,9 +84,9 @@ void ConferenceServer::_init () {
 
 	loadFactoryUris();
 	bool defaultProxyConfigSet = false;
-	for (const string & conferenceFactoryUri : mFactoryUris){
-		shared_ptr<Address> addrProxy = Factory::get()->createAddress(conferenceFactoryUri);
-		shared_ptr<ProxyConfig> proxy = mCore->createProxyConfig();
+	for (const auto &conferenceFactoryUri : mFactoryUris){
+		auto addrProxy = Factory::get()->createAddress(conferenceFactoryUri);
+		auto proxy = mCore->createProxyConfig();
 		proxy->setIdentityAddress(addrProxy);
 		proxy->setRoute(config->get<ConfigString>("outbound-proxy")->read());
 		proxy->setServerAddr(config->get<ConfigString>("outbound-proxy")->read());
@@ -100,10 +101,9 @@ void ConferenceServer::_init () {
 	}
 	
 	/* Get additional local domains */
-	const list<string> otherLocalDomains = config->get<ConfigStringList>("local-domains")->read();
-	for (auto domain : otherLocalDomains){
-		mLocalDomains.push_back(domain);
-	}
+	auto localDomains = config->get<ConfigStringList>("local-domains")->read();
+	for (auto &domain : localDomains) mLocalDomains.emplace_back(move(domain));
+	localDomains.clear();
 	mLocalDomains.sort();
 	mLocalDomains.unique();
 	
@@ -202,7 +202,7 @@ void ConferenceServer::bindAddresses () {
 			LOGE("Skipping chatroom %s with no gruu parameter.", chatRoom->getPeerAddress()->asString().c_str());
 			continue;
 		}
-		bindChatRoom(chatRoom->getPeerAddress()->asStringUriOnly(), mTransport, chatRoom->getPeerAddress()->getUriParam("gr"), nullptr);
+		bindChatRoom(chatRoom->getPeerAddress()->asStringUriOnly(), mTransport.str(), chatRoom->getPeerAddress()->getUriParam("gr"), nullptr);
 	}
 
 	mAddressesBound = true;
@@ -225,7 +225,7 @@ void ConferenceServer::bindConference() {
 			try {
 				BindingParameters parameter;
 				sip_contact_t* sipContact = sip_contact_create(mHome.home(),
-					reinterpret_cast<const url_string_t*>(url_make(mHome.home(), mTransport.c_str())), nullptr);
+					reinterpret_cast<const url_string_t*>(url_make(mHome.home(), mTransport.str().c_str())), nullptr);
 				SipUri from(conferenceFactoryUri);
 
 				parameter.callId = "CONFERENCE";
@@ -285,7 +285,7 @@ ConferenceServer::Init::Init() {
 		{
 			String,
 			"transport",
-			"uri where the conference server must listen.",
+			"URI where the conference server must listen. Only one URI can be specified.",
 			"sip:127.0.0.1:6064;transport=tcp"
 		},
 		{
