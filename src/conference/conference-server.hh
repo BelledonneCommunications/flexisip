@@ -94,17 +94,17 @@ namespace flexisip {
 			const std::shared_ptr<const linphone::Address> & participantAddr
 		) override;
 
-		std::shared_ptr<linphone::Core> mCore;
-		std::shared_ptr<RegistrationEvent::ClientFactory> mRegEventClientFactory;
-		std::string mPath;
-		std::string mTransport;
-		std::list<std::shared_ptr<linphone::ChatRoom>> mChatRooms;
+		std::shared_ptr<linphone::Core> mCore{};
+		std::shared_ptr<RegistrationEvent::ClientFactory> mRegEventClientFactory{};
+		std::string mPath{};
+		SipUri mTransport{};
+		std::list<std::shared_ptr<linphone::ChatRoom>> mChatRooms{};
 		ParticipantRegistrationSubscriptionHandler mSubscriptionHandler;
-		std::list<std::string> mFactoryUris;
-		std::list<std::string> mLocalDomains;
+		std::list<std::string> mFactoryUris{};
+		std::list<std::string> mLocalDomains{};
 		bool mAddressesBound = false;
-		bool mCheckCapabilities;
-
+		bool mCheckCapabilities = false;
+		
 		// Used to declare the service configuration
 		class Init {
 		public:
