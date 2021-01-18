@@ -88,13 +88,13 @@ namespace flexisip {
 			const std::shared_ptr<const linphone::Address> & participantAddr
 		) override;
 
-		std::shared_ptr<linphone::Core> mCore;
-		std::string mPath;
-		std::string mTransport;
-		std::list<std::shared_ptr<linphone::ChatRoom>> mChatRooms;
+		std::shared_ptr<linphone::Core> mCore{};
+		std::string mPath{};
+		SipUri mTransport{};
+		std::list<std::shared_ptr<linphone::ChatRoom>> mChatRooms{};
 		ParticipantRegistrationSubscriptionHandler mSubscriptionHandler;
 		bool mAddressesBound = false;
-		bool mCheckCapabilities;
+		bool mCheckCapabilities = false;
 		
 
 		// Used to declare the service configuration
