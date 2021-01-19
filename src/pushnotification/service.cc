@@ -237,6 +237,7 @@ void Service::setupiOSClient(const std::string &certdir, const std::string &cafi
 		if ((dirent = readdir(dirp)) == NULL) {
 			if (errno)
 				SLOGE << "Cannot read dir [" << certdir << "] because [" << strerror(errno) << "]";
+			std::cout << "exiting setup ios client loop" << std::endl;
 			break;
 		}
 
@@ -289,6 +290,7 @@ void Service::setupiOSClient(const std::string &certdir, const std::string &cafi
 		const char *apn_server = (certName.find(".dev") != string::npos) ? APN_DEV_ADDRESS : APN_PROD_ADDRESS;
 		auto conn = make_unique<TlsConnection>(apn_server, APN_PORT, move(ctx));
 		mClients[certName] = make_unique<AppleClient>(mRoot, move(conn));
+		std::cout << "Added certname to clients : " << certName << std::endl;
 		SLOGD << "Adding ios push notification client [" << certName << "]";
 	}
 	closedir(dirp);

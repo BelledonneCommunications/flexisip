@@ -23,7 +23,6 @@
 
 #include "pushnotification/service.hh"
 
-
 using namespace std;
 using namespace flexisip;
 using namespace flexisip::pushnotification;
@@ -41,12 +40,17 @@ struct PusherArgs {
 	string packageSID{};
 	string customPayload;
 	ApplePushType applePushType{ApplePushType::Pushkit};
-
+	RFC8599PushParams standardPushParams{};
+	bool legacyPush{false};
+	
 	void usage(const char *app) {
-		cout << app
-			 << " --pntype google|firebase|wp|w10|apple --appid id --key apikey(secretkey) --sid ms-app://value --prefix dir [--debug] [--apple-push-type RemoteBasic|RemoteWithMutableContent|Background|PushKit]"<<endl
-			 << " --pntok id1 [id2 id3 ...] --customPayload (apple push only)"
-			 << endl;
+		cout << app << endl
+			<< "Standard push notifications usage:" << endl
+			<< "--pn-provider provider --pn-params params --pn-prid id" << endl
+			<< "Legacy push notifications usage:" << endl
+			<< " --pntype google|firebase|wp|w10|apple --appid id --key --pntok id1 [id2 id3 ...] apikey(secretkey) --sid ms-app://value --prefix dir [--debug]" << endl
+			<< "Generic options:" << endl
+			<<  "[--customPayload {json}] [--apple-push-type RemoteBasic|RemoteWithMutableContent|Background|PushKit, PushKit by default]" << endl;
 	}
 
 	const char *parseUrlParams(const char *params) {
@@ -72,14 +76,20 @@ struct PusherArgs {
 	void parse(int argc, char *argv[]) {
 		prefix = "/etc/flexisip";
 		pntype = "";
+		
+		bool found_RFC_8599_Params = false;
+		bool found_Legacy_Params = false;
+		
 #define EQ0(i, name) (strcmp(name, argv[i]) == 0)
 #define EQ1(i, name) (strcmp(name, argv[i]) == 0 && argc > i)
 		for (int i = 1; i < argc; ++i) {
 			if (EQ1(i, "--prefix")) {
 				prefix = argv[++i];
 			} else if (EQ1(i, "--pntype")) {
+				found_Legacy_Params = true;
 				pntype = argv[++i];
 			} else if (EQ1(i, "--appid")) {
+				found_Legacy_Params = true;
 				appid = argv[++i];
 			} else if (EQ1(i, "--sid")) {
 				packageSID = argv[++i];
@@ -102,6 +112,7 @@ struct PusherArgs {
 					exit(-1);
 				}
 			} else if (EQ1(i, "--pntok")) {
+				found_Legacy_Params = true;
 				while (i+1 < argc && strncmp(argv[i+1], "--", 2) != 0) {
 					i++;
 					pntok.push_back(argv[i]);
@@ -114,6 +125,15 @@ struct PusherArgs {
 					cerr << "? raw " << res << endl;
 					exit(-1);
 				}
+			} else if (EQ1(i, "--pn-provider")) {
+				found_RFC_8599_Params = true;
+				standardPushParams.pnProvider = argv[++i];
+			} else if (EQ1(i, "--pn-prid")) {
+				found_RFC_8599_Params = true;
+				standardPushParams.pnPrid = argv[++i];
+			} else if (EQ1(i, "--pn-params")) {
+				found_RFC_8599_Params = true;
+				standardPushParams.pnParams = argv[++i];
 			} else if (EQ0(i, "--help") || EQ0(i, "-h")) {
 				usage(*argv);
 				exit(0);
@@ -125,45 +145,78 @@ struct PusherArgs {
 				exit(-1);
 			}
 		}
+		
+		if (found_Legacy_Params && found_RFC_8599_Params) {
+			cerr << "Found both legacy and standard parameters, choose one way or the other !" << endl;
+			usage(*argv);
+			exit(-1);
+		}
+		legacyPush = found_Legacy_Params;
 	}
 };
 
 static vector<shared_ptr<Request>> createRequestFromArgs(const PusherArgs &args) {
 	vector<shared_ptr<Request>> result{};
-	for (const auto &pntok : args.pntok) {
-		PushInfo pinfo;
-		pinfo.mType = args.pntype;
-		pinfo.mFromName = "Pusher";
-		pinfo.mFromUri = "sip:toto@sip.linphone.org";
-		if (args.pntype == "firebase") {
-			pinfo.mCallId = "fb14b5fe-a9ab-1231-9485-7d582244ba3d";
-			pinfo.mFromName = "+33681741738";
-			pinfo.mDeviceToken = pntok;
-			pinfo.mAppId = args.appid;
-			pinfo.mApiKey = args.apikey;
-		} else if (args.pntype == "wp") {
-			pinfo.mAppId = args.appid;
-			pinfo.mDeviceToken = pntok;
-			pinfo.mEvent = PushInfo::Event::Message;
-			pinfo.mText = "Hi here!";
-		} else if (args.pntype == "w10") {
-			pinfo.mAppId = args.appid;
-			pinfo.mEvent = PushInfo::Event::Message;
-			pinfo.mDeviceToken = pntok;
-			pinfo.mText = "Hi here!";
-		} else if (args.pntype == "apple") {
-			pinfo.mAlertMsgId = "IM_MSG";
-			pinfo.mAlertSound = "msg.caf";
-			pinfo.mAppId = args.appid;
-			pinfo.mDeviceToken = pntok;
-			pinfo.mTtl = 2592000;
-			pinfo.mApplePushType = args.applePushType;
-			pinfo.mCustomPayload = args.customPayload;
-		}
+	auto makePushRequest = [&result, args](const PushInfo &pinfo, string const& errorMsg) {
 		try {
 			result.emplace_back(Service::makePushRequest(pinfo));
 		} catch (const invalid_argument &) {
-			cerr << "? push pntype " << args.pntype << endl;
+			cerr << errorMsg << endl;
+			exit(-1);
+		}
+	};
+	
+	if (args.legacyPush) {
+		for (const auto &pntok : args.pntok) {
+			PushInfo pinfo;
+			pinfo.mType = args.pntype;
+			pinfo.mFromName = "Pusher";
+			pinfo.mFromUri = "sip:toto@sip.linphone.org";
+			if (args.pntype == "firebase") {
+				pinfo.mCallId = "fb14b5fe-a9ab-1231-9485-7d582244ba3d";
+				pinfo.mFromName = "+33681741738";
+				pinfo.mDeviceToken = pntok;
+				pinfo.mAppId = args.appid;
+				pinfo.mApiKey = args.apikey;
+			} else if (args.pntype == "wp") {
+				pinfo.mAppId = args.appid;
+				pinfo.mDeviceToken = pntok;
+				pinfo.mEvent = PushInfo::Event::Message;
+				pinfo.mText = "Hi here!";
+			} else if (args.pntype == "w10") { 
+				pinfo.mAppId = args.appid;
+				pinfo.mEvent = PushInfo::Event::Message;
+				pinfo.mDeviceToken = pntok;
+				pinfo.mText = "Hi here!";
+			} else if (args.pntype == "apple") {
+				pinfo.mAlertMsgId = "IM_MSG";
+				pinfo.mAlertSound = "msg.caf";
+				pinfo.mAppId = args.appid;
+				pinfo.mDeviceToken = pntok;
+				pinfo.mTtl = 2592000;
+				pinfo.mApplePushType = args.applePushType;
+				pinfo.mCustomPayload = args.customPayload;
+			}
+			stringstream ssErrorMsg;
+			ssErrorMsg << "? push pntype " << args.pntype << endl;
+			makePushRequest(pinfo, ssErrorMsg.str());
+		}
+	} else { // StandardPush
+		smatch match;
+		stringstream ssErrorMsg;
+		if (regex_match(args.standardPushParams.pnProvider, match, sApplePnProviderRegex)) {
+			PushInfo pinfo;
+			pinfo.mAlertMsgId = "IM_MSG";
+			pinfo.mAlertSound = "msg.caf";
+			pinfo.mTtl = 2592000;
+			pinfo.mCustomPayload = args.customPayload;
+			pinfo.mApplePushType = args.applePushType;
+			pinfo.readRFC8599PushParamsForApple(args.standardPushParams);
+			
+			ssErrorMsg << "? push pntype " << args.pntype << endl;
+			makePushRequest(pinfo, ssErrorMsg.str());
+		} else {
+			cerr << "? Standard push currently are only available for Apple, so pn-provider is expecred to be 'apns' or 'apns.dev'. Found : " << args.standardPushParams.pnProvider << endl;
 			exit(-1);
 		}
 	}

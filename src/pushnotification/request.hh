@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <regex>
 
 #include <sofia-sip/url.h>
 
@@ -37,7 +38,14 @@ enum class ApplePushType : std::uint8_t {
 
 std::string toString(ApplePushType type) noexcept;
 
-struct PushInfo {
+struct RFC8599PushParams {
+	std::string pnProvider{};
+	std::string pnPrid{};
+	std::string pnParams{};
+};
+
+class PushInfo {
+public:
 	enum class Event : std::uint8_t { Call, Message , Refer };
 
 	Event mEvent{Event::Message}; // Event to advertise: call or text message.
@@ -72,6 +80,8 @@ struct PushInfo {
 		return (mEvent == Event::Call || mEvent == Event::Refer)
 			&& (mApplePushType == ApplePushType::RemoteBasic || mApplePushType == ApplePushType::RemoteWithMutableContent);
 	}
+	
+	void readRFC8599PushParamsForApple(const RFC8599PushParams &params);
 };
 
 class Request {
@@ -112,6 +122,35 @@ class Request {
 		const std::string mType;
 
 };
+
+/* Apple pn-provider may be 'apns' or 'apns.dev' */
+static const std::regex sApplePnProviderRegex("apns|apns\\.dev");
+
+/*
+   pn-param:
+   * all the characters before the first point are taken as the team ID;
+   * all the characters between the first and the last point are taken as the bundle ID
+	 and may contains points;
+   * all the characters after the last point are taken as the service type. It may be
+	 'voip' or 'remote' or 'voip&remote' if the application needs the two kinds of
+	 push notification.
+*/
+static const std::regex sPnParamRegex("([^.]+)\\.(.+)\\.((?:voip|remote|&)+)");
+
+/*
+   Regex to use for extracting information from 'pn-prid' parameter when only one token has been
+   given by the user agent. All the characters or all the characters before ':' are taken as
+   the token. Characters after ':' must be 'voip' or 'remote'. Column character isn't authorized
+   in the token.
+*/
+static const std::regex sPnPridOneTokenRegex("([^:]+)(?::(voip|remote))?");
+
+/*
+   Regex to use for extracting information from 'pn-prid' parameter when several tokens have been
+   given by the user agent. 'pn-prid' value must be formated as '<token>:<service>' where
+   <token> may be contains any characters except ':' and <service> is equal to 'remote' or 'voip'.
+*/
+static const std::regex sPnPridMultipleTokensRegex("([^:]+):(voip|remote)");
 
 } // pushnotification namespace
 } // flexisip namespace
