@@ -19,6 +19,7 @@
 #include <ctime>
 
 #include <flexisip/logmanager.hh>
+#include "utils/string-utils.hh"
 #include "request.hh"
 
 using namespace std;
@@ -26,7 +27,8 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
-std::string toString(ApplePushType type) noexcept {
+
+string toString(ApplePushType type) noexcept {
 	switch (type) {
 		case ApplePushType::Unknown: return "Unknown";
 		case ApplePushType::Pushkit: return "PushKit";
@@ -37,7 +39,71 @@ std::string toString(ApplePushType type) noexcept {
 	return "<invalid>";
 }
 
-std::string Request::quoteStringIfNeeded(const std::string &str) const noexcept {
+void PushInfo::readRFC8599PushParamsForApple(const RFC8599PushParams &params) {
+	string deviceToken;
+	string bundleId;
+	vector<string> servicesAvailable;
+	bool isDev = (params.pnProvider == "apns.dev");
+	string requiredService;
+	smatch match;
+
+	if (regex_match(params.pnParam, match, sPnParamRegex)) {
+		mTeamId = match[1].str();
+		bundleId = match[2].str();
+		servicesAvailable = StringUtils::split(match[3].str(), "&");
+	} else {
+		throw runtime_error("pn-param invalid syntax");
+	}
+
+	auto it = find(servicesAvailable.begin(), servicesAvailable.end(), "voip");
+	if (mEvent == pushnotification::PushInfo::Event::Message || it == servicesAvailable.end()) {
+		requiredService = "remote";
+		mApplePushType = pushnotification::ApplePushType::RemoteWithMutableContent;
+	} else {
+		requiredService = "voip";
+		mApplePushType = pushnotification::ApplePushType::Pushkit;
+	}
+
+	if (servicesAvailable.cend() == find(servicesAvailable.cbegin(), servicesAvailable.cend(), requiredService)) {
+		throw runtime_error(string("pn-param does not define required service: " + requiredService));
+	}
+
+	if (!params.pnPrid.empty()) {
+		const auto tokenList = StringUtils::split(params.pnPrid, "&");
+		for (const auto &tokenAndService : tokenList) {
+			if (tokenList.size() == 1) {
+				if (regex_match(tokenAndService, match, sPnPridOneTokenRegex)) {
+					if (match.size() == 2) {
+						deviceToken = match[1].str();
+					} else {
+						if (match[2].str() == requiredService) {
+							deviceToken = match[1].str();
+						}
+					}
+				} else {
+					throw runtime_error("pn-prid invalid syntax");
+				}
+			} else {
+				if (regex_match(tokenAndService, match, sPnPridMultipleTokensRegex)) {
+					if (match[2].str() == requiredService) {
+						deviceToken = match[1].str();
+					}
+				} else {
+					throw runtime_error("pn-prid invalid syntax");
+				}
+			}
+		}
+	}
+
+	if (deviceToken.empty()) {
+		throw runtime_error(string("pn-prid no token provided for required service: " + requiredService));
+	}
+
+	mDeviceToken = deviceToken;
+	mAppId = bundleId + (mApplePushType == pushnotification::ApplePushType::Pushkit ? ".voip" : "") + (isDev ? ".dev" : ".prod");
+}
+
+string Request::quoteStringIfNeeded(const string &str) const noexcept {
 	if (str[0] == '"') {
 		return str;
 	} else {
@@ -47,7 +113,7 @@ std::string Request::quoteStringIfNeeded(const std::string &str) const noexcept 
 	}
 }
 
-std::string Request::getPushTimeStamp() const noexcept {
+string Request::getPushTimeStamp() const noexcept {
 	time_t t = time(nullptr);
 	struct tm time;
 	gmtime_r(&t, &time);
@@ -58,6 +124,7 @@ std::string Request::getPushTimeStamp() const noexcept {
 
 	return string(date);
 }
+
 
 } // end of pushnotification namespace
 } // end of flexisip namespace
