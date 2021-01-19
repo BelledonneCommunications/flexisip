@@ -26,6 +26,36 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
+/* pn-provider may be 'apns' or 'apns.dev' */
+const std::regex PushNotification::sPnProviderRegex{"apns|apns\\.dev"};
+
+/*
+   pn-param:
+   * all the characters before the first point are taken as the team ID;
+   * all the characters between the first and the last point are taken as the bundle ID
+	 and may contains points;
+   * all the characters after the last point are taken as the service type. It may be
+	 'voip' or 'remote' or 'voip&remote' if the application needs the two kinds of
+	 push notification.
+*/
+const std::regex PushNotification::sPnParamRegex{"([^.]+)\\.(.+)\\.((?:voip|remote|&)+)"};
+
+/*
+   Regex to use for extracting information from 'pn-prid' parameter when only one token has been
+   given by the user agent. All the characters or all the characters before ':' are taken as
+   the token. Characters after ':' must be 'voip' or 'remote'. Column character isn't authorized
+   in the token.
+*/
+const std::regex PushNotification::sPnPridOneTokenRegex{"([^:]+)(?::(voip|remote))?"};
+
+/*
+   Regex to use for extracting information from 'pn-prid' parameter when several tokens have been
+   given by the user agent. 'pn-prid' value must be formated as '<token>:<service>' where
+   <token> may be contains any characters except ':' and <service> is equal to 'remote' or 'voip'.
+*/
+const std::regex PushNotification::sPnPridMultipleTokensRegex{"([^:]+):(voip|remote)"};
+
+
 std::string toString(ApplePushType type) noexcept {
 	switch (type) {
 		case ApplePushType::Unknown: return "Unknown";
@@ -35,6 +65,70 @@ std::string toString(ApplePushType type) noexcept {
 		case ApplePushType::Background: return "BackGround";
 	};
 	return "<invalid>";
+}
+
+void PushNotification::readRFC8599PushParamsForApple(const RFC8599PushParams &params) {
+	string deviceToken;
+	string bundleId;
+	vector<string> servicesAvailable;
+	bool isDev = (params.pnProvider == "apns.dev");
+	string requiredService;
+	smatch match;
+
+	if (regex_match(params.pn-params, match, sPnParamRegex)) {
+		pinfo.mTeamId = match[1].str();
+		bundleId = match[2].str();
+		servicesAvailable = StringUtils::split(match[3].str(), "&");
+	} else {
+		throw runtime_error("pn-param invalid syntax");
+	}
+
+	auto it = std::find(servicesAvailable.begin(), servicesAvailable.end(), "voip");
+	if (pinfo.mEvent == pushnotification::PushInfo::Event::Message || it == servicesAvailable.end()) {
+		requiredService = "remote";
+		pinfo.mApplePushType = pushnotification::ApplePushType::Background;
+	} else {
+		requiredService = "voip";
+		pinfo.mApplePushType = pushnotification::ApplePushType::Pushkit;
+	}
+
+	if (servicesAvailable.cend() == find(servicesAvailable.cbegin(), servicesAvailable.cend(), requiredService)) {
+		throw runtime_error(string("pn-param does not define required service: " + requiredService));
+	}
+
+	if (!params.pn-prid.empty()) {
+		const auto tokenList = StringUtils::split(params.pn-prid, "&");
+		for (const auto &tokenAndService : tokenList) {
+			if (tokenList.size() == 1) {
+				if (regex_match(tokenAndService, match, sPnPridOneTokenRegex)) {
+					if (match.size() == 2) {
+						deviceToken = match[1].str();
+					} else {
+						if (match[2].str() == requiredService) {
+							deviceToken = match[1].str();
+						}
+					}
+				} else {
+					throw runtime_error("pn-prid invalid syntax");
+				}
+			} else {
+				if (regex_match(tokenAndService, match, sPnPridMultipleTokensRegex)) {
+					if (match[2].str() == requiredService) {
+						deviceToken = match[1].str();
+					}
+				} else {
+					throw runtime_error("pn-prid invalid syntax");
+				}
+			}
+		}
+	}
+
+	if (deviceToken.empty()) {
+		throw runtime_error(string("pn-prid no token provided for required service: " + requiredService));
+	}
+
+	pinfo.mDeviceToken = deviceToken;
+	pinfo.mAppId = bundleId + (pinfo.mApplePushType == pushnotification::ApplePushType::Pushkit ? ".voip" : "") + (isDev ? ".dev" : ".prod");
 }
 
 std::string Request::quoteStringIfNeeded(const std::string &str) const noexcept {
@@ -58,6 +152,7 @@ std::string Request::getPushTimeStamp() const noexcept {
 
 	return string(date);
 }
+
 
 } // end of pushnotification namespace
 } // end of flexisip namespace

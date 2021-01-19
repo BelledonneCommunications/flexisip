@@ -37,7 +37,14 @@ enum class ApplePushType : std::uint8_t {
 
 std::string toString(ApplePushType type) noexcept;
 
-struct PushInfo {
+struct RFC8599PushParams {
+	std::string pn-provider{};
+	std::string pn-prid{};
+	std::string pn-params{};
+};
+
+class PushInfo {
+public:
 	enum class Event : std::uint8_t { Call, Message , Refer };
 
 	Event mEvent{Event::Message}; // Event to advertise: call or text message.
@@ -72,6 +79,8 @@ struct PushInfo {
 		return (mEvent == Event::Call || mEvent == Event::Refer)
 			&& (mApplePushType == ApplePushType::RemoteBasic || mApplePushType == ApplePushType::RemoteWithMutableContent);
 	}
+	
+	void readRFC8599PushParamsForApple(const RFC8599PushParams &params);
 };
 
 class Request {
