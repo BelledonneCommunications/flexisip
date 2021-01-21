@@ -65,7 +65,7 @@ void ConferenceAddressGenerator::onRecordFound(const std::shared_ptr<Record> &r)
 			LOGF("Conference address bind failed.");
 			return;
 		}
-		const shared_ptr<ExtendedContact> ec = r->getExtendedContacts().front();
+		const auto &ec = r->getExtendedContacts().front();
 		url_t *pub_gruu = r->getPubGruu(ec, mHome.home());
 		if (!pub_gruu) {
 			LOGF("Conference does not have gruu address.");

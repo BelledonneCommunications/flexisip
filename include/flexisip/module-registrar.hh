@@ -52,7 +52,7 @@ class OnRequestBindListener : public ContactUpdateListener {
 						  sip_contact_t *contact = NULL, sip_path_t *path = NULL);
 	~OnRequestBindListener();
 
-	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override;
+	void onContactUpdated(const std::unique_ptr<ExtendedContact> &ec) override;
 	void onRecordFound(const std::shared_ptr<Record> &r)override;
 	void onError()override;
 	void onInvalid()override;
@@ -67,7 +67,7 @@ class OnResponseBindListener : public ContactUpdateListener {
   public:
 	OnResponseBindListener(ModuleRegistrar *module, std::shared_ptr<ResponseSipEvent> ev, std::shared_ptr<OutgoingTransaction> tr,
 						   std::shared_ptr<ResponseContext> ctx);
-	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec)override;
+	void onContactUpdated(const std::unique_ptr<ExtendedContact> &ec)override;
 	void onRecordFound(const std::shared_ptr<Record> &r)override;
 	void onError()override;
 	void onInvalid()override;
@@ -83,7 +83,7 @@ class OnStaticBindListener : public ContactUpdateListener {
   public:
 	OnStaticBindListener(const url_t *from, const sip_contact_t *ct);
 
-	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec)override;
+	void onContactUpdated(const std::unique_ptr<ExtendedContact> &ec)override;
 	void onRecordFound(const std::shared_ptr<Record> &r)override;
 	void onError()override;
 	void onInvalid()override;
@@ -94,7 +94,7 @@ class FakeFetchListener : public ContactUpdateListener {
 
 public:
 	FakeFetchListener();
-	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec)override;
+	void onContactUpdated(const std::unique_ptr<ExtendedContact> &ec)override;
 	void onRecordFound(const std::shared_ptr<Record> &r)override;
 	void onError()override;
 	void onInvalid()override;
