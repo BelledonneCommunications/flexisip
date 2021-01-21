@@ -197,8 +197,8 @@ class Record {
 	static void init();
 
 	sofiasip::Home mHome;
-	std::list<std::shared_ptr<ExtendedContact>> mContacts;
-	std::list<std::shared_ptr<ExtendedContact>> mContactsToRemove;
+	std::list<std::unique_ptr<ExtendedContact>> mContacts;
+	std::list<std::unique_ptr<ExtendedContact>> mContactsToRemove;
 	std::string mKey;
 	SipUri mAor;
 	bool mIsDomain = false; /*is a domain registration*/
@@ -221,14 +221,11 @@ class Record {
 	//Get address of record
 	const SipUri &getAor() const {return mAor;}
 	
-	void insertOrUpdateBinding(const std::shared_ptr<ExtendedContact> &ec, const std::shared_ptr<ContactUpdateListener> &listener);
-	const std::shared_ptr<ExtendedContact> extractContactByUniqueId(std::string uid);
+	void insertOrUpdateBinding(std::unique_ptr<ExtendedContact> &&ec, const std::shared_ptr<ContactUpdateListener> &listener);
+	const std::unique_ptr<ExtendedContact> &extractContactByUniqueId(std::string uid);
 	sip_contact_t *getContacts(su_home_t *home, time_t now);
-	void pushContact(const std::shared_ptr<ExtendedContact> &ct) {mContacts.push_back(ct);}
+	void pushContact(std::unique_ptr<ExtendedContact> &&ct) {mContacts.emplace_back(std::move(ct));}
 
-	std::list<std::shared_ptr<ExtendedContact>>::iterator removeContact(const std::shared_ptr<ExtendedContact> &ct) {
-		return mContacts.erase(find(mContacts.begin(), mContacts.end(), ct));
-	}
 	bool isInvalidRegister(const std::string &call_id, uint32_t cseq);
 	void clean(time_t time, const std::shared_ptr<ContactUpdateListener> &listener);
 	void update(const sip_t *sip, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener);
@@ -242,8 +239,9 @@ class Record {
 	bool isEmpty() const {return mContacts.empty();}
 	const std::string &getKey() const {return mKey;}
 	int count() {return mContacts.size();}
-	const std::list<std::shared_ptr<ExtendedContact>> &getExtendedContacts() const {return mContacts;}
-	const std::list<std::shared_ptr<ExtendedContact>> &getContactsToRemove() const {return mContactsToRemove;}
+	const std::list<std::unique_ptr<ExtendedContact>> &getExtendedContacts() const {return mContacts;}
+	std::list<std::unique_ptr<ExtendedContact>> &getExtendedContacts() {return mContacts;}
+	const std::list<std::unique_ptr<ExtendedContact>> &getContactsToRemove() const {return mContactsToRemove;}
 	void cleanContactsToRemoveList() {mContactsToRemove.clear();}
 
 	/*
@@ -251,7 +249,7 @@ class Record {
 	 * FIXME: of course this method should be directly attached to ExtendedContact.
 	 * Unfortunately, because pub-gruu were not contained in the ExtendedContact, it shall remain in Record for compatibility.
 	 */
-	url_t *getPubGruu(const std::shared_ptr<ExtendedContact> &ec, su_home_t *home);
+	url_t *getPubGruu(const std::unique_ptr<ExtendedContact> &ec, su_home_t *home);
 	/**
 	 * Check if the contacts list size is < to max aor config option and remove older contacts to match restriction if needed
 	 */
@@ -308,7 +306,7 @@ public:
 class ContactUpdateListener : public RegistrarDbListener {
 	public:
 	virtual ~ContactUpdateListener();
-	virtual void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) = 0;
+	virtual void onContactUpdated(const std::unique_ptr<ExtendedContact> &ec) = 0;
 };
 
 class ListContactUpdateListener {

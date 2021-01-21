@@ -213,7 +213,7 @@ public:
 			return;
 		}
 
-		shared_ptr<ExtendedContact> contact = *r->getExtendedContacts().begin();
+		const unique_ptr<ExtendedContact> &contact = r->getExtendedContacts().front();
 		time_t now = getCurrentTime();
 		sip_contact_t *ct = contact->toSofiaContact(ms->getHome(), now);
 		url_t *dest = ct->m_url;
@@ -229,7 +229,7 @@ public:
 		SLOGE << "RegistrarListener invalid";
 		mEv->reply(500, "Internal Server Error", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
 	}
-	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override{};
+	void onContactUpdated(const std::unique_ptr<ExtendedContact> &ec) override{};
 	private :
 	ForwardModule *mModule;
 	shared_ptr<RequestSipEvent> mEv;

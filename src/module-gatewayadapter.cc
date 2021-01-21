@@ -168,7 +168,7 @@ private:
 			gw->onError("Fetch error.");
 		}
 
-		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override{
+		void onContactUpdated(const unique_ptr<ExtendedContact> &ec) override{
 		}
 	};
 };

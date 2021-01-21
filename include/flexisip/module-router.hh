@@ -81,9 +81,9 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	}
 
   protected:
-	virtual bool dispatch(const std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<ExtendedContact> &contact,
+	virtual bool dispatch(const std::shared_ptr<RequestSipEvent> &ev, const std::unique_ptr<ExtendedContact> &contact,
 				  std::shared_ptr<ForkContext> context, const std::string &targetUris);
-	virtual bool lateDispatch(const std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<ExtendedContact> &contact,
+	virtual bool lateDispatch(const std::shared_ptr<RequestSipEvent> &ev, const std::unique_ptr<ExtendedContact> &contact,
 				  std::shared_ptr<ForkContext> context, const std::string &targetUris);
 	std::string routingKey(const url_t *sipUri);
 	std::vector<std::string> split(const char *data, const char *delim);
@@ -138,7 +138,7 @@ class OnContactRegisteredListener : public ContactRegisteredListener, public Con
 	}
 	void onInvalid() override{
 	}
-	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override{
+	void onContactUpdated(const std::unique_ptr<ExtendedContact> &ec) override{
 	}
 };
 
