@@ -341,7 +341,7 @@ void ProxyCommandLineInterface::handle_registrar_clear_command(unsigned int sock
 		void onInvalid() override {
 			mCli->answer(mSocket, "Error: cannot clear record " + mUri);
 		}
-		void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override {}
+		void onContactUpdated(const std::unique_ptr<ExtendedContact> &ec) override {}
 
 	private:
 		ProxyCommandLineInterface *mCli = nullptr;

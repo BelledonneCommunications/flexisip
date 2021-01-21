@@ -51,7 +51,7 @@ namespace flexisip {
 		void onRecordFound (const std::shared_ptr<Record> &r) override;
 		void onError () override;
 		void onInvalid () override {}
-		void onContactUpdated (const std::shared_ptr<ExtendedContact> &ec) override {}
+		void onContactUpdated (const std::unique_ptr<ExtendedContact> &ec) override {}
 
 		sofiasip::Home mHome;
 		const std::shared_ptr<linphone::ChatRoom> mChatRoom;

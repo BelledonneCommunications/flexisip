@@ -241,12 +241,12 @@ bool ModuleRouter::rewriteContactUrl(const shared_ptr<MsgSip> &ms, const url_t *
 	return false;
 }
 
-bool ModuleRouter::lateDispatch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact,
+bool ModuleRouter::lateDispatch(const shared_ptr<RequestSipEvent> &ev, const unique_ptr<ExtendedContact> &contact,
 							shared_ptr<ForkContext> context, const string &targetUris) {
 	return dispatch(ev, contact, context, targetUris);
 }
 
-bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact,
+bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const unique_ptr<ExtendedContact> &contact,
 							shared_ptr<ForkContext> context, const string &targetUris) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	time_t now = getCurrentTime();
@@ -353,7 +353,7 @@ void ModuleRouter::onContactRegistered(const shared_ptr<OnContactRegisteredListe
 
 	if (range.first != range.second){
 		forksFound = true;
-		const shared_ptr<ExtendedContact> ec = record->extractContactByUniqueId(uid);
+		const auto &ec = record->extractContactByUniqueId(uid);
 		if (ec) {
 			contact = ec->toSofiaContact(home.home(), ec->mExpireAt - 1);
 			path = ec->toSofiaRoute(home.home());
@@ -371,9 +371,9 @@ void ModuleRouter::onContactRegistered(const shared_ptr<OnContactRegisteredListe
 	}
 
 	// If not found, search in aliases
-	const auto contacts = record->getExtendedContacts();
+	const auto &contacts = record->getExtendedContacts();
 	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
-		const shared_ptr<ExtendedContact> ec = *it;
+		const auto &ec = *it;
 		if (!ec || !ec->mAlias)
 			continue;
 
@@ -407,18 +407,18 @@ void ModuleRouter::onContactRegistered(const shared_ptr<OnContactRegisteredListe
 struct ForkDestination {
 	ForkDestination() : mSipContact(NULL) {
 	}
-	ForkDestination(sip_contact_t *ct, const shared_ptr<ExtendedContact> &exContact, const string &targetUris)
-		: mSipContact(ct), mExtendedContact(exContact), mTargetUris(targetUris) {
+	ForkDestination(sip_contact_t *ct, unique_ptr<ExtendedContact> &&exContact, const string &targetUris)
+		: mSipContact(ct), mExtendedContact(move(exContact)), mTargetUris(targetUris) {
 	}
 	sip_contact_t *mSipContact;
-	shared_ptr<ExtendedContact> mExtendedContact;
+	unique_ptr<ExtendedContact> mExtendedContact;
 	string mTargetUris;
 };
 
 class ForkGroupSorter {
   public:
-	ForkGroupSorter(const list<pair<sip_contact_t *, shared_ptr<ExtendedContact>>> &usable_contacts)
-		: mAllContacts(usable_contacts) {
+	ForkGroupSorter(list<pair<sip_contact_t *, unique_ptr<ExtendedContact>>> &&usable_contacts)
+		: mAllContacts{move(usable_contacts)} {
 	}
 	void makeGroups() {
 		sofiasip::Home home;
@@ -426,22 +426,22 @@ class ForkGroupSorter {
 		for (auto it = mAllContacts.begin(); it != mAllContacts.end();) {
 			if ((*it).second->mPath.size() < 2) {
 				/*this is a "direct" destination, nothing to do*/
-				mDestinations.emplace_back(ForkDestination((*it).first, (*it).second, ""));
+				mDestinations.emplace_back(ForkDestination((*it).first, move(it->second), ""));
 				it = mAllContacts.erase(it);
 			} else
 				++it;
 		}
 		/*second step, form groups with non-adjacent contacts*/
 		for (auto it = mAllContacts.begin(); it != mAllContacts.end();) {
-			list<pair<sip_contact_t *, shared_ptr<ExtendedContact>>>::iterator sameDestinationIt;
+			list<pair<sip_contact_t *, unique_ptr<ExtendedContact>>>::iterator sameDestinationIt;
 			ForkDestination dest;
 			ostringstream targetUris;
 			bool foundGroup = false;
 
 			dest.mSipContact = (*it).first;
-			dest.mExtendedContact = (*it).second;
+			dest.mExtendedContact = move(it->second);
 			targetUris << "<" << *dest.mExtendedContact->toSofiaUrlClean(home.home()) << ">";
-			url_t *url = url_make(home.home(), (*it).second->mPath.back().c_str());
+			url_t *url = url_make(home.home(), dest.mExtendedContact->mPath.back().c_str());
 			// remove it and now search for other contacts that have the same route.
 			it = mAllContacts.erase(it);
 			while ((sameDestinationIt = findDestination(url)) != mAllContacts.end()) {
@@ -455,12 +455,12 @@ class ForkGroupSorter {
 				dest.mTargetUris = targetUris.str();
 				it = mAllContacts.begin();
 			}
-			mDestinations.emplace_back(dest);
+			mDestinations.emplace_back(move(dest));
 		}
 	}
 	void makeDestinations() {
 		for (auto it = mAllContacts.begin(); it != mAllContacts.end(); ++it) {
-			mDestinations.emplace_back(ForkDestination((*it).first, (*it).second, ""));
+			mDestinations.emplace_back(ForkDestination((*it).first, move(it->second), ""));
 		}
 	}
 	const list<ForkDestination> &getDestinations() const {
@@ -468,7 +468,7 @@ class ForkGroupSorter {
 	}
 
   private:
-	list<pair<sip_contact_t *, shared_ptr<ExtendedContact>>>::iterator findDestination(const url_t *url) {
+	list<pair<sip_contact_t *, unique_ptr<ExtendedContact>>>::iterator findDestination(const url_t *url) {
 		sofiasip::Home home;
 		// LOGD("findDestination(): looking for %s", url_as_string(home.home(), url));
 		for (auto it = mAllContacts.begin(); it != mAllContacts.end(); ++it) {
@@ -481,14 +481,13 @@ class ForkGroupSorter {
 		return mAllContacts.end();
 	}
 	list<ForkDestination> mDestinations;
-	list<pair<sip_contact_t *, shared_ptr<ExtendedContact>>> mAllContacts;
+	list<pair<sip_contact_t *, unique_ptr<ExtendedContact>>> mAllContacts;
 };
 
 void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_ptr<Record> &aor, const url_t *sipUri) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
-	list<shared_ptr<ExtendedContact>> contacts;
-	list<pair<sip_contact_t *, shared_ptr<ExtendedContact>>> usable_contacts;
+	list<pair<sip_contact_t *, unique_ptr<ExtendedContact>>> usable_contacts;
 	bool isInvite = false;
 
 	if (!aor) {
@@ -499,15 +498,15 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 	}
 
 	// _Copy_ list of extended contacts
-	if (aor)
-		contacts = aor->getExtendedContacts();
+	static list<unique_ptr<ExtendedContact>> emptyContactList{};
+	const auto &contacts = aor ? aor->getExtendedContacts() : emptyContactList;
 
 	time_t now = getCurrentTime();
 
 	// now, create the list of usable contacts to fork to
 	bool nonSipsFound = false;
 	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
-		const shared_ptr<ExtendedContact> &ec = *it;
+		const auto &ec = *it;
 		sip_contact_t *ct = ec->toSofiaContact(ms->getHome(), now);
 		if (!ct) {
 			SLOGE << "Can't create sip_contact of " << ec->mSipContact->m_url;
@@ -529,7 +528,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 				 url_as_string(ms->getHome(), ct->m_url));
 			continue;
 		}
-		usable_contacts.push_back(make_pair(ct, ec));
+		usable_contacts.emplace_back(ct, make_unique<ExtendedContact>(*ec));
 	}
 
 	if (usable_contacts.size() == 0) {
@@ -581,7 +580,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 	}
 
 	// now sort usable_contacts to form groups, if grouping is allowed
-	ForkGroupSorter sorter(usable_contacts);
+	ForkGroupSorter sorter{move(usable_contacts)};
 	if (isInvite && mAllowTargetFactorization) {
 		sorter.makeGroups();
 	} else {
@@ -591,7 +590,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 
 	for (auto it = destinations.begin(); it != destinations.end(); ++it) {
 		sip_contact_t *ct = (*it).mSipContact;
-		const shared_ptr<ExtendedContact> &ec = (*it).mExtendedContact;
+		const auto &ec = (*it).mExtendedContact;
 		const string &targetUris = (*it).mTargetUris;
 
 		if (!ec->mAlias) {
@@ -673,7 +672,7 @@ class TargetUriListFetcher : public ContactUpdateListener,
 		if (r != NULL) {
 			const auto &ctlist = r->getExtendedContacts();
 			for (auto it = ctlist.begin(); it != ctlist.end(); ++it)
-				mRecord->pushContact(*it);
+				mRecord->pushContact(make_unique<ExtendedContact>(**it));
 		}
 		checkFinished();
 	}
@@ -689,7 +688,7 @@ class TargetUriListFetcher : public ContactUpdateListener,
 		checkFinished();
 	}
 
-	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override{
+	void onContactUpdated(const unique_ptr<ExtendedContact> &ec) override{
 	}
 
 	void checkFinished() {
@@ -701,9 +700,9 @@ class TargetUriListFetcher : public ContactUpdateListener,
 			if (mRecord->count() > 0){
 				/*also add aliases in the ExtendedContact list for the searched AORs, so that they are added to the ForkMap.*/
 				for (const auto &uri : mUriList) {
-					shared_ptr<ExtendedContact> alias = make_shared<ExtendedContact>(uri, "");
+					auto alias = make_unique<ExtendedContact>(uri, "");
 					alias->mAlias = true;
-					mRecord->pushContact(alias);
+					mRecord->pushContact(move(alias));
 				}
 			}
 			mListener->onRecordFound(mRecord);
@@ -735,18 +734,17 @@ class OnFetchForRoutingListener : public ContactUpdateListener {
 		}
 
 		if (!mModule->isManagedDomain(mSipUri.get())) {
-			shared_ptr<ExtendedContact> contact = make_shared<ExtendedContact>(mSipUri, "");
-			r->pushContact(contact);
-
+			auto contact = make_unique<ExtendedContact>(mSipUri, "");
 			SLOGD << "Record [" << r << "] Original request URI added because domain is not managed: " << *contact;
+			r->pushContact(move(contact));
 		}
 
 		if (!fallbackRoute.empty()) {
 			if (!ModuleToolbox::viaContainsUrlHost(mEv->getMsgSip()->getSip()->sip_via, mModule->getFallbackRouteParsed())) {
-				shared_ptr<ExtendedContact> fallback = make_shared<ExtendedContact>(mSipUri, fallbackRoute, 0.0);
+				auto fallback = make_unique<ExtendedContact>(mSipUri, fallbackRoute, 0.0);
 				fallback->mIsFallback = true;
-				r->pushContact(fallback);
 				SLOGD << "Record [" << r << "] Fallback route '" << fallbackRoute << "' added: " << *fallback;
+				r->pushContact(move(fallback));
 			}else{
 				SLOGD << "Not adding fallback route '" << fallbackRoute << "' to avoid loop because request is coming from there already.";
 			}
@@ -783,7 +781,7 @@ class OnFetchForRoutingListener : public ContactUpdateListener {
 		mModule->sendReply(mEv, 400, "Replayed CSeq");
 	}
 
-	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override{
+	void onContactUpdated(const unique_ptr<ExtendedContact> &ec) override{
 	}
 };
 
