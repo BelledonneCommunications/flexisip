@@ -134,7 +134,7 @@ sip_contact_t *Record::getContacts(su_home_t *home, time_t now) {
 
 bool Record::isInvalidRegister(const string &call_id, uint32_t cseq) {
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
-		shared_ptr<ExtendedContact> ec = (*it);
+		const auto &ec = (*it);
 		if ((0 == strcmp(ec->callId(), call_id.c_str())) && cseq <= ec->mCSeq) {
 			LOGD("CallID %s already registered with CSeq %d (received %d)", call_id.c_str(), ec->mCSeq, cseq);
 			return true;
@@ -159,15 +159,15 @@ string Record::extractUniqueId(const sip_contact_t *contact) {
 	return "";
 }
 
-const shared_ptr<ExtendedContact> Record::extractContactByUniqueId(string uid) {
-	const auto contacts = getExtendedContacts();
+const unique_ptr<ExtendedContact> &Record::extractContactByUniqueId(string uid) {
+	const auto &contacts = getExtendedContacts();
 	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
-		const shared_ptr<ExtendedContact> ec = *it;
+		const auto &ec = *it;
 		if (ec && ec->mUniqueId.compare(uid) == 0) {
 			return ec;
 		}
 	}
-	shared_ptr<ExtendedContact> noContact;
+	static unique_ptr<ExtendedContact> noContact{};
 	return noContact;
 }
 
@@ -177,7 +177,7 @@ const shared_ptr<ExtendedContact> Record::extractContactByUniqueId(string uid) {
 void Record::clean(time_t now, const shared_ptr<ContactUpdateListener> &listener) {
 	auto it = mContacts.begin();
 	while (it != mContacts.end()) {
-		shared_ptr<ExtendedContact> ec = (*it);
+		const auto &ec = (*it);
 		if (now >= ec->mExpireAt) {
 			if (listener)
 				listener->onContactUpdated(ec);
@@ -248,7 +248,7 @@ SipUri Record::makeUrlFromKey(const string &key) {
 	return SipUri("sip:" + key);
 }
 
-void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const shared_ptr<ContactUpdateListener> &listener) {
+void Record::insertOrUpdateBinding(unique_ptr<ExtendedContact> &&ec, const shared_ptr<ContactUpdateListener> &listener) {
 	time_t now = ec->mUpdatedTime;
 
 	SLOGD << "Trying to insert new contact " << *ec;
@@ -288,7 +288,7 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 			++it;
 		}
 	}
-	mContacts.push_back(ec);
+	mContacts.emplace_back(move(ec));
 
 	if (ec->mCallId.find("static-record") == string::npos) {
 		mOnlyStaticContacts = false;
@@ -342,7 +342,7 @@ void ExtendedContact::extractInfoFromHeader(const char *urlHeaders) {
 	}
 }
 
-static bool compare_contact_using_last_update (shared_ptr<ExtendedContact> first, shared_ptr<ExtendedContact> second) {
+static bool compare_contact_using_last_update (const unique_ptr<ExtendedContact> &first, const unique_ptr<ExtendedContact> &second) {
 	return first->mUpdatedTime < second->mUpdatedTime;
 }
 
@@ -351,9 +351,9 @@ void Record::applyMaxAor() {
 	if (mContacts.size() > (unsigned int)sMaxContacts) {
 		mContacts.sort(compare_contact_using_last_update);
 		do {
-			shared_ptr<ExtendedContact> front = mContacts.front();
+			auto &front = mContacts.front();
+			mContactsToRemove.emplace_back(move(front));
 			mContacts.pop_front();
-			mContactsToRemove.push_back(front);
 		} while (mContacts.size() > (unsigned int)sMaxContacts);
 	}
 }
@@ -530,10 +530,10 @@ InvalidAorError::InvalidAorError(const url_t *aor): invalid_argument("") {
 }
 
 bool Record::updateFromUrlEncodedParams(const char *key, const char *uid, const char *full_url, const shared_ptr<ContactUpdateListener> &listener) {
-	auto exc = make_shared<ExtendedContact>(key, uid, full_url);
+	auto exc = make_unique<ExtendedContact>(key, uid, full_url);
 
 	if (exc->mSipContact && getCurrentTime() < exc->mExpireAt) {
-		insertOrUpdateBinding(exc, listener);
+		insertOrUpdateBinding(move(exc), listener);
 		return true;
 	}
 
@@ -571,9 +571,9 @@ void Record::update(const sip_t *sip, int globalExpire, bool alias, int version,
 
 		defineContactId(contactId, contacts->m_url, transport);
 		ExtendedContactCommon ecc(contactId.str().c_str(), stlPath, sip->sip_call_id->i_id, uniqueId);
-		auto exc = make_shared<ExtendedContact>(ecc, contacts, globalExpire, (sip->sip_cseq) ? sip->sip_cseq->cs_seq : 0, getCurrentTime(), alias, acceptHeaders, userAgent);
+		auto exc = make_unique<ExtendedContact>(ecc, contacts, globalExpire, (sip->sip_cseq) ? sip->sip_cseq->cs_seq : 0, getCurrentTime(), alias, acceptHeaders, userAgent);
 		exc->mUsedAsRoute = sip->sip_from->a_url->url_user == nullptr;
-		insertOrUpdateBinding(exc, listener);
+		insertOrUpdateBinding(move(exc), listener);
 		contacts = contacts->m_next;
 	}
 	applyMaxAor();
@@ -597,9 +597,9 @@ void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long e
 		return;
 	}
 
-	auto exct = make_shared<ExtendedContact>(ecc, contact, expireAt, cseq, updated_time, alias, accept, "");
+	auto exct = make_unique<ExtendedContact>(ecc, contact, expireAt, cseq, updated_time, alias, accept, "");
 	exct->mUsedAsRoute = usedAsRoute;
-	insertOrUpdateBinding(exct, listener);
+	insertOrUpdateBinding(move(exct), listener);
 	applyMaxAor();
 
 	SLOGD << *this;
@@ -631,7 +631,7 @@ Record::Record(SipUri &&aor): mAor(move(aor)) {
 	if (sMaxContacts == -1) init();
 }
 
-url_t *Record::getPubGruu(const std::shared_ptr<ExtendedContact> &ec, su_home_t *home){
+url_t *Record::getPubGruu(const std::unique_ptr<ExtendedContact> &ec, su_home_t *home){
 	char gr_value[256] = {0};
 	url_t *gruu_addr = NULL;
 	const char *pub_gruu_value = msg_header_find_param((msg_common_t*)ec->mSipContact, "pub-gruu");
@@ -679,8 +679,8 @@ void Record::appendContactsFrom(const shared_ptr<Record> &src) {
 	if (!src)
 		return;
 
-	for (auto it = src->mContacts.begin(); it != src->mContacts.end(); ++it) {
-		mContacts.push_back(*it);
+	for (const auto &ec : src->mContacts) {
+		mContacts.push_back(make_unique<ExtendedContact>(*ec));
 	}
 }
 
@@ -747,7 +747,7 @@ private:
 	}
 	void onError () override {}
 	void onInvalid () override {}
-	void onContactUpdated (const std::shared_ptr<ExtendedContact> &ec) override {}
+	void onContactUpdated (const std::unique_ptr<ExtendedContact> &ec) override {}
 
 	string mUid;
 	RegistrarDb *mDb = nullptr;
@@ -951,17 +951,16 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 
 	void onRecordFound(const shared_ptr<Record> &r) override{
 		if (r != nullptr) {
-			auto &extlist = r->getExtendedContacts();
+			const auto &extlist = r->getExtendedContacts();
 			list<sip_contact_t *> vectToRecurseOn;
-			for (auto it : extlist) {
-				shared_ptr<ExtendedContact> ec = it;
+			for (const auto &it : extlist) {
+				auto ec = make_unique<ExtendedContact>(*it);
 				// Also add alias for late forking (context in the forks map for this alias key)
 				SLOGD << "Step: " << m_step << (ec->mAlias ? "\tFound alias " : "\tFound contact ") << m_url << " -> "
 					  << ExtendedContact::urlToString(ec->mSipContact->m_url) << " usedAsRoute:" << ec->mUsedAsRoute;
 				if (!ec->mAlias && ec->mUsedAsRoute) {
 					ec = transformContactUsedAsRoute(m_url.str(), ec);
 				}
-				m_record->pushContact(ec);
 				if (ec->mAlias && m_step > 0) {
 					sip_contact_t *contact = sip_contact_create(m_home.home(), (url_string_t*)ec->mSipContact->m_url, nullptr);
 					if (contact) {
@@ -970,6 +969,7 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 						SLOGW << "Can't create sip_contact of " << ExtendedContact::urlToString(ec->mSipContact->m_url);
 					}
 				}
+				m_record->pushContact(move(ec));
 			}
 			m_request += vectToRecurseOn.size();
 			for (auto itrec : vectToRecurseOn) {
@@ -1006,11 +1006,11 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 		}
 	}
 
-	void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override{
+	void onContactUpdated(const unique_ptr<ExtendedContact> &ec) override{
 	}
 
   private:
-	shared_ptr<ExtendedContact> transformContactUsedAsRoute(const std::string &uri, const shared_ptr<ExtendedContact> &ec) {
+	unique_ptr<ExtendedContact> transformContactUsedAsRoute(const std::string &uri, const unique_ptr<ExtendedContact> &ec) {
 		/* This function does the following:
 		 * - make a copy of the extended contact
 		 * - in this copy replace the main contact information by the 'uri' given in argument
@@ -1020,7 +1020,7 @@ class RecursiveRegistrarDbListener : public ContactUpdateListener,
 		 * Contact but still preserving
 		 * the last request uri that was found recursed through the alias mechanism.
 		*/
-		shared_ptr<ExtendedContact> newEc = make_shared<ExtendedContact>(*ec);
+		auto newEc = make_unique<ExtendedContact>(*ec);
 		newEc->mSipContact = sip_contact_create(newEc->mHome.home(), reinterpret_cast<const url_string_t *>(uri.c_str()), nullptr);
 		ostringstream path;
 		path<<*ec->toSofiaUrlClean(newEc->mHome.home());
@@ -1104,7 +1104,7 @@ void RegistrarDb::fetchList(const vector<SipUri> urls, const shared_ptr<ListCont
 			if (r) listListener->records.push_back(r);
 			updateCount();
 		}
-		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override{}
+		void onContactUpdated(const unique_ptr<ExtendedContact> &ec) override{}
 		void updateCount() {
 			count--;
 			if (count == 0)
@@ -1221,7 +1221,7 @@ class AgregatorRegistrarDbListener : public ContactUpdateListener {
 		checkFinished();
 	}
 
-	virtual void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override{
+	virtual void onContactUpdated(const unique_ptr<ExtendedContact> &ec) override{
 	}
 };
 

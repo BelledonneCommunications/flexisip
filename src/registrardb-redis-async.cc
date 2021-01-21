@@ -539,9 +539,15 @@ void RegistrarDbRedisAsync::sHandleBindStart(redisAsyncContext *ac, redisReply *
 	data->mRecord = make_shared<Record>(recordToStore->getAor());
 	data->self->parseAndClean(reply, data); //received data will be parsed into data->mRecord
 
+	list<unique_ptr<ExtendedContact>> extendedContact{};
+	for (auto it = recordToStore->getExtendedContacts().begin(); it != recordToStore->getExtendedContacts().end();) {
+		extendedContact.emplace_back(move(*it));
+		it = recordToStore->getExtendedContacts().erase(it);
+	}
+
 	/*insertOrUpdateBinding() will do the job of contact comparison and invoke the onContactUpdated listener*/
-	for (auto ec : recordToStore->getExtendedContacts()) {
-		data->mRecord->insertOrUpdateBinding(ec, data->listener);
+	for (auto &ec : extendedContact) {
+		data->mRecord->insertOrUpdateBinding(move(ec), data->listener);
 	}
 	/*But at the end all we want is to submit the ExtendedContacts in the original record to Redis*/
 	data->mRecordToSend = recordToStore;
@@ -621,7 +627,7 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RegistrarUserData *data, for
 
 	int i = 2;
 	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
-		shared_ptr<ExtendedContact> ec = (*it);
+		const auto &ec = (*it);
 
 		argv[i] = strdup(ec->getUniqueId().c_str());
 		argvlen[i] = strlen(argv[i]);

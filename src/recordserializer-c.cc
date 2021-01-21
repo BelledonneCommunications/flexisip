@@ -99,12 +99,12 @@ bool RecordSerializerC::serialize(Record *r, string &serialized, bool log) {
 	if (!r)
 		return true;
 
-	auto contacts = r->getExtendedContacts();
+	const auto &contacts = r->getExtendedContacts();
 	ostringstream oss;
 
 	int i = 0;
 	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
-		shared_ptr<ExtendedContact> ec = (*it);
+		const auto &ec = (*it);
 		if (i != 0)
 			oss << "#";
 		oss << "#" << ec->mSipContact->m_url << "#" << ec->mExpireAt << "#" << ec->mQ;
