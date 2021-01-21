@@ -182,7 +182,7 @@ void flexisip::ConferenceServer::bindConference() {
 		void onRecordFound(const std::shared_ptr<Record> &r) override{}
 		void onError()override {}
 		void onInvalid()override {}
-		void onContactUpdated(const shared_ptr<ExtendedContact> &ec)override {
+		void onContactUpdated(const unique_ptr<ExtendedContact> &ec)override {
 			SLOGD << "ConferenceServer: ExtendedContact contactId=" << ec->contactId() << " callId=" << ec->callId();
 		}
 	};
