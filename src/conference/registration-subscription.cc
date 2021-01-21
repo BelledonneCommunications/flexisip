@@ -90,7 +90,7 @@ void OwnRegistrationSubscription::stop(){
 	RegistrarDb::get()->unsubscribe(key, RegistrationSubscriptionListener::shared_from_this());
 }
 
-unsigned int OwnRegistrationSubscription::getContactCapabilities(const std::shared_ptr<ExtendedContact> &ec){
+unsigned int OwnRegistrationSubscription::getContactCapabilities(const std::unique_ptr<ExtendedContact> &ec){
 	unsigned int mask = 0;
 	string specs = ec->getOrgLinphoneSpecs();
 	//Please excuse the following code that is a bit too basic in terms of parsing:
@@ -99,7 +99,7 @@ unsigned int OwnRegistrationSubscription::getContactCapabilities(const std::shar
 	return mask;
 }
 
-shared_ptr<Address> OwnRegistrationSubscription::getPubGruu(const shared_ptr<Record> &r, const shared_ptr<ExtendedContact> &ec){
+shared_ptr<Address> OwnRegistrationSubscription::getPubGruu(const shared_ptr<Record> &r, const unique_ptr<ExtendedContact> &ec){
 	sofiasip::Home home;
 	url_t *pub_gruu = r->getPubGruu(ec, home.home());
 	if (pub_gruu){
@@ -109,7 +109,7 @@ shared_ptr<Address> OwnRegistrationSubscription::getPubGruu(const shared_ptr<Rec
 	return nullptr;
 }
 
-string OwnRegistrationSubscription::getDeviceName(const shared_ptr<ExtendedContact> &ec){
+string OwnRegistrationSubscription::getDeviceName(const unique_ptr<ExtendedContact> &ec){
 	const string &userAgent = ec->getUserAgent();
 	size_t begin = userAgent.find("(");
 	string deviceName;
@@ -127,7 +127,7 @@ string OwnRegistrationSubscription::getDeviceName(const shared_ptr<ExtendedConta
 	return deviceName;
 }
 
-bool OwnRegistrationSubscription::isContactCompatible(const shared_ptr<ExtendedContact> &ec){
+bool OwnRegistrationSubscription::isContactCompatible(const unique_ptr<ExtendedContact> &ec){
 	return !mServer.capabilityCheckEnabled() || (getContactCapabilities(ec) & mChatroomRequestedCapabilities) == mChatroomRequestedCapabilities;
 }
 
@@ -135,7 +135,7 @@ void OwnRegistrationSubscription::processRecord(const std::shared_ptr<Record> &r
 	if (!mActive) return;
 	list<shared_ptr<ParticipantDeviceIdentity>> compatibleParticipantDevices;
 	if (r){
-		for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
+		for (const auto &ec : r->getExtendedContacts()) {
 			auto addr = getPubGruu(r, ec);
 			if (!addr) continue;
 
@@ -165,7 +165,7 @@ void OwnRegistrationSubscription::onContactRegistered(const std::shared_ptr<Reco
 
 	if (uid.empty()) return;
 
-	shared_ptr<ExtendedContact> ct = r->extractContactByUniqueId(uid);
+	const auto &ct = r->extractContactByUniqueId(uid);
 	if (!ct){
 		LOGI("OwnRegistrationSubscription::onContactRegistered(): no contact with uuid %s, it has unregistered.", uid.c_str());
 		return;

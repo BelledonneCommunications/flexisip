@@ -85,8 +85,8 @@ bool compare(const ExtendedContact &ec1, const ExtendedContact &ec2) {
 }
 
 bool compare(const Record &r1, const Record &r2) {
-	auto ec1 = r1.getExtendedContacts();
-	auto ec2 = r2.getExtendedContacts();
+	const auto &ec1 = r1.getExtendedContacts();
+	const auto &ec2 = r2.getExtendedContacts();
 	if (ec1.size() != ec2.size()) BAD("ecc size :" << ec1.size() << " / " << ec2.size());
 
 	return compare(firstContact(r1), firstContact(r2));
