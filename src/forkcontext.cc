@@ -270,7 +270,7 @@ bool compareGreaterBranch(const shared_ptr<BranchInfo> &lhs, const shared_ptr<Br
 	return lhs->mPriority > rhs->mPriority;
 }
 
-void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact) {
+void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const unique_ptr<ExtendedContact> &contact) {
 	auto ot = ev->createOutgoingTransaction();
 	auto br = createBranchInfo();
 
@@ -286,7 +286,7 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	br->mRequest = ev;
 	br->mTransaction = ot;
 	br->mUid = contact->mUniqueId;
-	br->mContact = contact;
+	br->mContact = make_unique<ExtendedContact>(*contact);
 	br->mPriority = contact->mQ;
 
 	ot->setProperty("BranchInfo", weak_ptr<BranchInfo>{br});

@@ -44,7 +44,7 @@ static void addEventLogRecordFound(shared_ptr<SipEventT> ev, const sip_contact_t
 	ev->setEventLog(evlog);
 }
 
-static void _onContactUpdated(ModuleRegistrar *module, tport_t *new_tport, const shared_ptr<ExtendedContact> &ec) {
+static void _onContactUpdated(ModuleRegistrar *module, tport_t *new_tport, const unique_ptr<ExtendedContact> &ec) {
 	sofiasip::Home home;
 	tp_name_t name = {0, 0, 0, 0, 0, 0};
 	tport_t *old_tport;
@@ -84,7 +84,7 @@ OnRequestBindListener::~OnRequestBindListener() {
 	su_home_deinit(&mHome);
 }
 
-void OnRequestBindListener::onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) {
+void OnRequestBindListener::onContactUpdated(const std::unique_ptr<ExtendedContact> &ec) {
 	_onContactUpdated(this->mModule, this->mEv->getIncomingTport().get(), ec);
 }
 
@@ -164,7 +164,7 @@ void OnResponseBindListener::onInvalid() {
 	mEv->terminateProcessing();
 }
 
-void OnResponseBindListener::onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+void OnResponseBindListener::onContactUpdated(const unique_ptr<ExtendedContact> &ec) {
 	_onContactUpdated(this->mModule, this->mCtx->reqSipEvent->getIncomingTport().get(), ec);
 }
 
@@ -181,7 +181,7 @@ void OnStaticBindListener::onError() {
 void OnStaticBindListener::onInvalid() {
 	LOGE("OnStaticBindListener onInvalid");
 }
-void OnStaticBindListener::onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+void OnStaticBindListener::onContactUpdated(const unique_ptr<ExtendedContact> &ec) {
 }
 
 FakeFetchListener::FakeFetchListener() {
@@ -201,7 +201,7 @@ void FakeFetchListener::onInvalid() {
 	LOGD("FakeFetchListener: onInvalid");
 }
 
-void FakeFetchListener::onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
+void FakeFetchListener::onContactUpdated(const unique_ptr<ExtendedContact> &ec) {
 }
 
 shared_ptr<ResponseContext> ResponseContext::createInTransaction(shared_ptr<RequestSipEvent> ev, int globalDelta,
