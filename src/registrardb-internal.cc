@@ -106,11 +106,11 @@ void RegistrarDbInternal::doFetchInstance(const SipUri &url, const string &uniqu
 		return;
 	}
 
-	const list<shared_ptr<ExtendedContact>> &contacts = r->getExtendedContacts();
+	const auto &contacts = r->getExtendedContacts();
 	shared_ptr<Record> retRecord = make_shared<Record>(url);
 	for (const auto &contact : contacts) {
 		if (contact->mUniqueId == uniqueId){
-			retRecord->pushContact(contact);
+			retRecord->pushContact(make_unique<ExtendedContact>(*contact));
 			break;
 		}
 	}

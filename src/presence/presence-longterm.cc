@@ -59,7 +59,7 @@ private:
 			public:
 				InternalListListener(shared_ptr<PresentityPresenceInformation> info) : mInfo(info) {}
 
-				void onRecordFound(const std::shared_ptr<Record> &record) {
+				void onRecordFound(const std::shared_ptr<Record> &record) override {
 					if (!record) return;
 
 					for (const auto &extendedContact : record->getExtendedContacts()) {
@@ -68,9 +68,9 @@ private:
 							mInfo->addCapability(specs);
 					}
 				}
-				void onError() {}
-				void onInvalid() {}
-				void onContactUpdated(const std::shared_ptr<ExtendedContact> &) {}
+				void onError() override {}
+				void onInvalid() override {}
+				void onContactUpdated(const std::unique_ptr<ExtendedContact> &) override {}
 
 				su_home_t *getHome() { return mHome.home(); }
 

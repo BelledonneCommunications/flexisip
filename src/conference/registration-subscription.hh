@@ -83,16 +83,16 @@ class OwnRegistrationSubscription
 		virtual void stop() override;
 
 	private:
-		unsigned int getContactCapabilities(const std::shared_ptr<ExtendedContact> &ct);
-		std::shared_ptr<linphone::Address> getPubGruu(const std::shared_ptr<Record> &r, const std::shared_ptr<ExtendedContact> &ec);
-		std::string getDeviceName(const std::shared_ptr<ExtendedContact> &ec);
-		bool isContactCompatible(const std::shared_ptr<ExtendedContact> &ec);
+		unsigned int getContactCapabilities(const std::unique_ptr<ExtendedContact> &ct);
+		std::shared_ptr<linphone::Address> getPubGruu(const std::shared_ptr<Record> &r, const std::unique_ptr<ExtendedContact> &ec);
+		std::string getDeviceName(const std::unique_ptr<ExtendedContact> &ec);
+		bool isContactCompatible(const std::unique_ptr<ExtendedContact> &ec);
 		void processRecord(const std::shared_ptr<Record> &r);
 		/*ContactUpdateListener virtual functions to override*/
 		virtual void onRecordFound (const std::shared_ptr<Record> &r) override;
 		virtual void onError () override;
 		virtual void onInvalid () override;
-		virtual void onContactUpdated (const std::shared_ptr<ExtendedContact> &ec) override {}
+		virtual void onContactUpdated (const std::unique_ptr<ExtendedContact> &ec) override {}
 		/*ContactRegisteredListener overrides*/
 		virtual void onContactRegistered(const std::shared_ptr<Record> &r, const std::string &uid) override;
 

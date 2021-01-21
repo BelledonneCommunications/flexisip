@@ -69,10 +69,10 @@ bool RecordSerializerPb::serialize(Record *r, string &serialized, bool log) {
 		return true;
 
 	RecordContactListPb pbContacts;
-	auto contacts = r->getExtendedContacts();
+	const auto &contacts = r->getExtendedContacts();
 	auto it = contacts.begin();
 	for (it = contacts.begin(); it != contacts.end(); ++it) {
-		auto ec = (*it);
+		const auto &ec = (*it);
 		RecordContactPb *c = pbContacts.add_contact();
 		c->set_uri(ExtendedContact::urlToString(ec->mSipContact->m_url));
 		c->set_contact_id(ec->mContactId);
