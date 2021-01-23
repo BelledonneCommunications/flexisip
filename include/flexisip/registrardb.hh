@@ -439,11 +439,12 @@ class RegistrarDb {
 	std::multimap<std::string, std::shared_ptr<ContactRegisteredListener>> mContactListenersMap;
 	std::list<std::shared_ptr<RegistrarDbStateListener>> mStateListeners;
 	LocalRegExpire *mLocalRegExpire;
-	bool mUseGlobalDomain;
 	std::string mMessageExpiresName;
 	static RegistrarDb *sUnique;
 	Agent *mAgent;
 	bool mWritable = false;
+	bool mUseGlobalDomain;
+	bool mGruuEnabled;
 };
 
 }

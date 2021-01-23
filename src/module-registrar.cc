@@ -135,19 +135,14 @@ void OnResponseBindListener::onRecordFound(const shared_ptr<Record> &r) {
 	string topic = mModule->routingKey(mCtx->mFrom->a_url);
 	RegistrarDb::get()->publish(topic, uid);
 
-	const sip_contact_t *dbContacts = r->getContacts(ms->getHome(), now);
+	sip_contact_t *dbContacts = r->getContacts(ms->getHome(), now);
 
 	// Replace received contacts by our ones
 	auto &reMs = mEv->getMsgSip();
-	reMs->getSip()->sip_contact = sip_contact_dup(reMs->getHome(), dbContacts);
+	msg_header_remove_all(reMs->getMsg(), (msg_pub_t*)reMs->getSip(), (msg_header_t*)reMs->getSip()->sip_contact);
+	msg_header_insert(reMs->getMsg(), (msg_pub_t*)reMs->getSip(), (msg_header_t*)dbContacts);
 
-	// Remove empty 'pub-gruu' params from each contact header
-	for (sip_contact_t *contact = reMs->getSip()->sip_contact; contact; contact = contact->m_next) {
-		const char *pubGruuValue = msg_header_find_param((msg_common_t *)contact, "pub-gruu");
-		if (pubGruuValue == nullptr || pubGruuValue[0] == '\0') {
-			msg_header_remove_param((msg_common_t *)contact, "pub-gruu");
-		}
-	}
+	mModule->removeInternalParams(reMs->getSip()->sip_contact);
 
 	addEventLogRecordFound(mEv, dbContacts);
 	mModule->getAgent()->injectResponseEvent(mEv);
@@ -330,7 +325,9 @@ void ModuleRegistrar::onDeclare(GenericStruct *mc) {
 			"The contact parameters are searched in the order of the list, the first matching parameter is used and "
 			"the others ignored.",
 			"+sip.instance pn-tok line"},
-
+		{Boolean, "enable-gruu",
+			"When supported by the client, assign a pub-gruu address to the client, returned in the response. ",
+			"true"},
 		{Integer, "max-expires", "Maximum expire time for a REGISTER, in seconds.", "86400"},
 		{Integer, "min-expires", "Minimum expire time for a REGISTER, in seconds.", "60"},
 		{Integer, "force-expires", "Set a value that will override expire times given by the "
@@ -471,6 +468,22 @@ bool ModuleRegistrar::isManagedDomain(const url_t *url) {
 	return ModuleToolbox::isManagedDomain(getAgent(), mDomains, url);
 }
 
+void ModuleRegistrar::removeInternalParams(sip_contact_t *ct){
+	for (sip_contact_t *contact = ct; contact!=nullptr ; contact=contact->m_next) {
+		if (contact) {
+			if (url_has_param(contact->m_url, "fs-conn-id")) {
+				contact->m_url->url_params = url_strip_param_string((char *)contact->m_url->url_params,"fs-conn-id");
+			}
+			const char *pub_gruu_value = msg_header_find_param((msg_common_t*)contact, "pub-gruu");
+			if (pub_gruu_value && pub_gruu_value[0] == '\0'){
+				/* Remove empty pub-gruu parameter, which is set internally
+				 * for compatibility with previous gruu implementation.*/
+				msg_header_remove_param((msg_common_t*)contact, "pub-gruu");
+			}
+		}
+	}
+}
+
 string ModuleRegistrar::routingKey(const url_t *sipUri) {
 	return Record::defineKeyFromUrl(sipUri);
 }
@@ -502,19 +515,7 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent> &ev, int code, const cha
 		}
 	}
 
-	for (sip_contact_t *contact = modified_contacts; contact!=nullptr ; contact=contact->m_next) {
-		if (sip->sip_request->rq_method == sip_method_register && code == 200 && contact) {
-			if (url_has_param(contact->m_url, "fs-conn-id")) {
-				contact->m_url->url_params = url_strip_param_string((char *)contact->m_url->url_params,"fs-conn-id");
-			}
-			const char *pub_gruu_value = msg_header_find_param((msg_common_t*)contact, "pub-gruu");
-			if (pub_gruu_value && pub_gruu_value[0] == '\0'){
-				/* Remove empty pub-gruu parameter, which is set internally
-				 * for compatibility with previous gruu implementation.*/
-				msg_header_remove_param((msg_common_t*)contact, "pub-gruu");
-			}
-		}
-	}
+	removeInternalParams(modified_contacts);
 	if (modified_contacts && !mServiceRoute.empty()) {
 		if (expire > 0) {
 			ev->reply(code, reason, SIPTAG_CONTACT(modified_contacts), SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
@@ -748,15 +749,11 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		const int maindelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
 		auto listener = make_shared<OnResponseBindListener>(this, ev, transaction, context);
 
-		// Rewrite contacts in received msg (avoid reworking registrardb API)
-		reSip->sip_contact = context->mContacts;
-		reSip->sip_path = context->mPath;
-
-		if ('*' == reSip->sip_contact->m_url[0].url_scheme[0]) {
+		if ('*' == request->getSip()->sip_contact->m_url[0].url_scheme[0]) {
 			mStats.mCountClear->incrStart();
 			LOGD("Clearing bindings");
 			listener->addStatCounter(mStats.mCountClear->finish);
-			RegistrarDb::get()->clear(*reMs, listener);
+			RegistrarDb::get()->clear(*request, listener);
 		} else {
 			BindingParameters parameter;
 			mStats.mCountBind->incrStart();
@@ -765,7 +762,7 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 			parameter.globalExpire = maindelta;
 			parameter.version = 0;
 			listener->addStatCounter(mStats.mCountBind->finish);
-			RegistrarDb::get()->bind(*reMs, parameter, listener);
+			RegistrarDb::get()->bind(*request, parameter, listener);
 		}
 	}
 	if (reSip->sip_status->st_status >= 200) {

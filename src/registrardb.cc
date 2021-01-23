@@ -690,7 +690,10 @@ RegistrarDb::LocalRegExpire::LocalRegExpire(Agent *ag) : mAgent(ag) {
 }
 
 RegistrarDb::RegistrarDb(Agent *ag)
-	: mLocalRegExpire(new LocalRegExpire(ag)), mUseGlobalDomain(false), mAgent(ag) {
+	: mLocalRegExpire(new LocalRegExpire(ag)), mAgent(ag), mUseGlobalDomain(false) {
+	GenericStruct *cr = GenericManager::get()->getRoot();
+	GenericStruct *mr = cr->get<GenericStruct>("module::Registrar");
+	mGruuEnabled = mr->get<ConfigBoolean>("enable-gruu")->read();
 }
 
 RegistrarDb::~RegistrarDb() {
@@ -877,6 +880,7 @@ RegistrarDb *RegistrarDb::initialize(Agent *ag){
 	bool useGlobalDomain = mro->get<ConfigBoolean>("use-global-domain")->read();
 	string dbImplementation = mr->get<ConfigString>("db-implementation")->read();
 	string mMessageExpiresName = mr->get<ConfigString>("message-expires-param-name")->read();
+
 	if ("internal" == dbImplementation) {
 		LOGI("RegistrarDB implementation is internal");
 		sUnique = new RegistrarDbInternal(ag);
@@ -1132,7 +1136,7 @@ void RegistrarDb::bind(const MsgSip &sipMsg, const BindingParameters &parameter,
 	sip_t *sip = msgCopy.getSip();
 
 	bool gruu_assigned = false;
-	if (sip->sip_supported && sip->sip_contact->m_params) {
+	if (mGruuEnabled && sip->sip_supported && sip->sip_contact->m_params) {
 		if (msg_params_find(sip->sip_supported->k_items, "gruu") != nullptr){
 			const char *instance_param = msg_params_find(sip->sip_contact->m_params, "+sip.instance");
 			if (instance_param) {

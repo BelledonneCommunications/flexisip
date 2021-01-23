@@ -149,10 +149,9 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 	static void sighandler(int signum, siginfo_t *info, void *ptr);
 
 	void updateLocalRegExpire();
-
 	bool isManagedDomain(const url_t *url);
-
 	std::string routingKey(const url_t *sipUri);
+	void removeInternalParams(sip_contact_t *ct);
 
 	RegistrarStats mStats;
 	bool mUpdateOnResponse;
