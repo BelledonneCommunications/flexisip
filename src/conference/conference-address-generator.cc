@@ -39,9 +39,20 @@ void ConferenceAddressGenerator::run () {
 	RegistrarDb::get()->fetch(url, shared_from_this(), false, false);
 }
 
+void ConferenceAddressGenerator::changeAddress(){
+	char token[17];
+	ostringstream os;
+	
+	belle_sip_random_token(token, sizeof(token));
+	os << "chatroom-" << token;
+	mConferenceAddr->setUsername(os.str());
+}
+
 void ConferenceAddressGenerator::onRecordFound(const std::shared_ptr<Record> &r) {
 	if (mState == State::Fetching) {
-		if (r) {
+		if (r && !r->isEmpty()) {
+			LOGW("Conference address conflict detected, trying another random name.");
+			changeAddress();
 			run();
 		} else {
 			mState = State::Binding;
