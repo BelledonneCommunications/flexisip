@@ -97,6 +97,6 @@ public:
 ModuleInfo<RegEvent> RegEvent::sInfo(
 	"RegEvent",
 	"This module is in charge of routing 'reg' event SUBSCRIBE requests to the flexisip-regevent server.",
-	{ "" },
+	{ "Authentication" },
 	ModuleInfoBase::ModuleOid::RegEvent
 );
