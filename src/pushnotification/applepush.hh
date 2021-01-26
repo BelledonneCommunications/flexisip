@@ -156,11 +156,15 @@ private:
 	void onDataReceived(nghttp2_session &session, uint8_t flags, int32_t streamId, const uint8_t *data, size_t datalen) noexcept;
 	void onStreamClosed(nghttp2_session &session, int32_t stream_id, uint32_t error_code) noexcept;
 
+	void resetIdleTimer() noexcept {mIdleTimer.set([this](){onConnectionIdle();});}
+	void onConnectionIdle() noexcept;
+
 	static int onPollInCb(su_root_magic_t *, su_wait_t *, su_wakeup_arg_t *arg) noexcept;
 	static std::vector<nghttp2_nv> makeNgHttp2Headers(const std::map<std::string, std::pair<std::string, nghttp2_data_flag>>);
 
 	/* Private attributes */
 	su_root_t &mRoot;
+	sofiasip::Timer mIdleTimer;
 	su_wait_t mPollInWait{0};
 	std::unique_ptr<TlsConnection> mConn{};
 	NgHttp2SessionPtr mHttpSession{};

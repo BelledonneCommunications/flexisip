@@ -271,14 +271,17 @@ AppleClient::PnrContext::PnrContext(AppleClient &client, const std::shared_ptr<A
 		SLOGE << client.mLogPrefix << ": request timeout.";
 		mPnr->setState(Request::State::Failed);
 		auto &pnrToRemove = mPnr;
-		auto it = find_if(client.mPNRs.begin(), client.mPNRs.end(),
-						  [&pnrToRemove](const auto &e){return e.second.mPnr == pnrToRemove;});
+		auto it = find_if(
+			client.mPNRs.begin(), client.mPNRs.end(),
+			[&pnrToRemove](const auto &e){return e.second.mPnr == pnrToRemove;}
+		);
 		client.mPNRs.erase(it);
 	});
 }
 
-AppleClient::AppleClient(su_root_t &root, std::unique_ptr<TlsConnection> &&conn) : mRoot{root}, mConn{std::move(conn)} {
-	ostringstream os;
+AppleClient::AppleClient(su_root_t &root, std::unique_ptr<TlsConnection> &&conn)
+	: mRoot{root}, mIdleTimer{&root, sIdleTimeout * 1000}, mConn{std::move(conn)} {
+	ostringstream os{};
 	os << "AppleClient[" << this << "]";
 	mLogPrefix = os.str();
 	SLOGD << mLogPrefix << ": constructing AppleClient with TlsConnection[" << mConn.get() << "]";
@@ -371,6 +374,8 @@ void AppleClient::connect() {
 		su_wait_create(&mPollInWait, mConn->getFd(), SU_WAIT_IN);
 		su_root_register(&mRoot, &mPollInWait, onPollInCb, this, su_pri_normal);
 
+		resetIdleTimer();
+
 	} catch (const runtime_error &e) {
 		SLOGE << mLogPrefix << ": " << e.what();
 		disconnect();
@@ -378,6 +383,7 @@ void AppleClient::connect() {
 }
 
 void AppleClient::disconnect() {
+	SLOGD << mLogPrefix << ": disconnecting from APNS";
 	if (mState == State::Disconnected) return;
 	su_root_unregister(&mRoot, &mPollInWait, onPollInCb, this);
 	mHttpSession.reset();
@@ -388,6 +394,7 @@ void AppleClient::disconnect() {
 }
 
 bool AppleClient::sendAllPendingPNRs() {
+	auto pnrSent = false;
 	while (!mPendingPNRs.empty()) {
 		auto appleReq = move(mPendingPNRs.front());
 		mPendingPNRs.pop();
@@ -437,15 +444,13 @@ bool AppleClient::sendAllPendingPNRs() {
 			continue;
 		}
 
-		try {
-			mPNRs.emplace(streamId, PnrContext{*this, appleReq, sPnrTimeout});
-			appleReq->setState(Request::State::InProgress);
-		} catch (const logic_error &) {
-			SLOGE << logPrefix << ": couldn't create context for PNR[" << appleReq << "]. Assuming fail";
-			appleReq->setState(Request::State::InProgress);
-		}
+		mPNRs.emplace(streamId, PnrContext{*this, appleReq, sPnrTimeout});
+		appleReq->setState(Request::State::InProgress);
+
+		pnrSent = true;
 	}
 
+	if (pnrSent) resetIdleTimer();
 	return true;
 }
 
@@ -589,6 +594,11 @@ void AppleClient::onStreamClosed(nghttp2_session &session, int32_t stream_id, ui
 		SLOGD << logPrefix << ": end of PNR " << it->second.getPnr();
 		mPNRs.erase(it);
 	}
+}
+
+void AppleClient::onConnectionIdle() noexcept {
+	SLOGD << mLogPrefix << ": connection is idle";
+	disconnect();
 }
 
 const char *Http2Tools::frameTypeToString(uint8_t frameType) noexcept {
