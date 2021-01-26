@@ -264,6 +264,19 @@ ssize_t AppleClient::DataProvider::read(uint8_t *buf, size_t length, uint32_t *d
 	return mData.gcount();
 }
 
+AppleClient::PnrContext::PnrContext(AppleClient &client, const std::shared_ptr<AppleRequest> &pnr, unsigned timeout /* s */) noexcept
+	: mPnr{pnr} {
+	mTimer = make_unique<sofiasip::Timer>(&client.mRoot, timeout * 1000);
+	mTimer->set([&client, this] () {
+		SLOGE << client.mLogPrefix << ": request timeout.";
+		mPnr->setState(Request::State::Failed);
+		auto &pnrToRemove = mPnr;
+		auto it = find_if(client.mPNRs.begin(), client.mPNRs.end(),
+						  [&pnrToRemove](const auto &e){return e.second.mPnr == pnrToRemove;});
+		client.mPNRs.erase(it);
+	});
+}
+
 AppleClient::AppleClient(su_root_t &root, std::unique_ptr<TlsConnection> &&conn) : mRoot{root}, mConn{std::move(conn)} {
 	ostringstream os;
 	os << "AppleClient[" << this << "]";
@@ -424,8 +437,13 @@ bool AppleClient::sendAllPendingPNRs() {
 			continue;
 		}
 
-		appleReq->setState(Request::State::InProgress);
-		mPNRs[streamId] = move(appleReq);
+		try {
+			mPNRs.emplace(streamId, PnrContext{*this, appleReq, sPnrTimeout});
+			appleReq->setState(Request::State::InProgress);
+		} catch (const logic_error &) {
+			SLOGE << logPrefix << ": couldn't create context for PNR[" << appleReq << "]. Assuming fail";
+			appleReq->setState(Request::State::InProgress);
+		}
 	}
 
 	return true;
@@ -437,7 +455,7 @@ void AppleClient::processGoAway() {
 	// move back all the non-treated PNRs into the pending queue
 	for (auto it = mPNRs.begin(); it != mPNRs.end(); it = mPNRs.erase(it)) {
 		const auto &sid = it->first;
-		auto &request = it->second;
+		auto &request = it->second.getPnr();
 		if (sid > mLastSID) {
 			SLOGD << mLogPrefix << ": PNR " << request  << " will be sent on next connection";
 			request->setState(Request::State::NotSubmitted);
@@ -522,7 +540,7 @@ void AppleClient::onHeaderRecv(nghttp2_session &session, const nghttp2_frame &fr
 	if (name == ":status") {
 		AppleRequest *pnr = nullptr;
 		try {
-			pnr = mPNRs.at(streamId).get();
+			pnr = mPNRs.at(streamId).getPnr().get();
 		} catch (const logic_error &) {
 			SLOGE << logPrefix << ": receiving header for an unknown stream. Just ignoring";
 			return;
@@ -568,7 +586,7 @@ void AppleClient::onStreamClosed(nghttp2_session &session, int32_t stream_id, ui
 	SLOGD << logPrefix << ": stream closed with error code [" << error_code << "]";
 	auto it = mPNRs.find(stream_id);
 	if (it != mPNRs.cend()) {
-		SLOGD << logPrefix << ": end of PNR " << it->second;
+		SLOGD << logPrefix << ": end of PNR " << it->second.getPnr();
 		mPNRs.erase(it);
 	}
 }
