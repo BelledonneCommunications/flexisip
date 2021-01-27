@@ -15,6 +15,9 @@ Group changes to describe their impact on the project, as follows:
 
 
 ## [unreleased]
+### [Added]
+- `module::Authentication/realm` parameter.
+
 ### [Fixed]
 - Fix issue with dual stack media relay causing ICE failures.
 
