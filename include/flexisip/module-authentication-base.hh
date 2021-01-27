@@ -22,11 +22,12 @@
 #include <list>
 #include <map>
 #include <memory>
-#include <regex>
 #include <string>
 
 #include "flexisip/auth/flexisip-auth-module-base.hh"
 #include "flexisip/module.hh"
+
+#include "auth/realm-extractor.hh"
 
 namespace flexisip {
 
@@ -98,8 +99,7 @@ protected:
 	std::list<std::string> mAlgorithms;
 	auth_challenger_t mRegistrarChallenger;
 	auth_challenger_t mProxyChallenger;
-	std::string mRealmRegexStr;
-	std::regex mRealmRegex;
+	std::unique_ptr<RealmExtractor> mRealmExtractor{};
 	std::shared_ptr<SipBooleanExpression> mNo403Expr;
 
 	static const std::array<std::string, 2> sValidAlgos;
