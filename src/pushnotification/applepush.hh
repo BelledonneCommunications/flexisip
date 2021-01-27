@@ -23,6 +23,8 @@
 
 #include <nghttp2/nghttp2.h>
 
+#include "flexisip/utils/timer.hh"
+
 #include "client.hh"
 #include "request.hh"
 
@@ -79,6 +81,7 @@ public:
 	}
 
 private:
+	/* Private classes and structs */
 	class HeaderStore {
 	public:
 		struct Header {
@@ -117,11 +120,25 @@ private:
 		std::stringstream mData{};
 	};
 
+	class PnrContext {
+	public:
+		PnrContext(AppleClient &client, const std::shared_ptr<AppleRequest> &pnr, unsigned timeout /* s */) noexcept;
+		PnrContext(const PnrContext &) = delete;
+		PnrContext(PnrContext &&) noexcept = default;
+
+		const std::shared_ptr<AppleRequest> &getPnr() const noexcept {return mPnr;}
+
+	private:
+		std::shared_ptr<AppleRequest> mPnr{};
+		std::unique_ptr<sofiasip::Timer> mTimer{};
+	};
+
 	struct NgHttp2SessionDeleter {
 		void operator()(nghttp2_session *ptr) const noexcept {nghttp2_session_del(ptr);}
 	};
 	using NgHttp2SessionPtr = std::unique_ptr<nghttp2_session, NgHttp2SessionDeleter>;
 
+	/* Private methods */
 	void connect();
 	void disconnect();
 
@@ -141,18 +158,26 @@ private:
 	void onDataReceived(nghttp2_session &session, uint8_t flags, int32_t streamId, const uint8_t *data, size_t datalen) noexcept;
 	void onStreamClosed(nghttp2_session &session, int32_t stream_id, uint32_t error_code) noexcept;
 
+	void resetIdleTimer() noexcept {mIdleTimer.set([this](){onConnectionIdle();});}
+	void onConnectionIdle() noexcept;
+
 	static int onPollInCb(su_root_magic_t *, su_wait_t *, su_wakeup_arg_t *arg) noexcept;
 	static std::vector<nghttp2_nv> makeNgHttp2Headers(const std::map<std::string, std::pair<std::string, nghttp2_data_flag>>);
 
+	/* Private attributes */
 	su_root_t &mRoot;
+	sofiasip::Timer mIdleTimer;
 	su_wait_t mPollInWait{0};
 	std::unique_ptr<TlsConnection> mConn{};
 	NgHttp2SessionPtr mHttpSession{};
-	std::unordered_map<int32_t, std::shared_ptr<AppleRequest>> mPNRs{};
+	std::unordered_map<int32_t, PnrContext> mPNRs{};
 	std::queue<std::shared_ptr<AppleRequest>> mPendingPNRs{};
 	State mState{State::Disconnected};
 	int32_t mLastSID{-1};
 	std::string mLogPrefix{};
+
+	static constexpr unsigned sPnrTimeout = 5; // Delay (in second) before a PNR is marked as failed because of missing response from the APNS.
+	static constexpr unsigned sIdleTimeout = 60; // Delay (in second) before the connection with the APNS is closed because of inactivity.
 };
 
 class Http2Tools {
