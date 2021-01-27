@@ -78,6 +78,18 @@ void ModuleAuthenticationBase::onDeclare(GenericStruct *mc) {
 		"3600"
 	}, {
 		String,
+		"realm",
+		"The realm to use for digest authentication. It will used whatever the domain of the From-URI.\n"
+		"If the value starts with 'regex:', then this parameter will have the same effect than 'realm-regex', "
+		"using all the remaining string as regular expression.\n"
+		"WARNING: this parameter is exclusive with 'realm-regex'\n"
+		"\n"
+		"Examples:\n"
+		"\trealm=sip.example.org\n"
+		"\trealm=regex:sip:.*@sip\\.(.*)\\.com\n",
+		""
+	}, {
+		String,
 		"realm-regex",
 		"Extraction regex applied on the URI of the 'from' header (or P-Prefered-Identity header if present) in order "
 		"to extract the realm. The realm is found out by getting the first slice of the URI that matches the regular "
@@ -85,7 +97,9 @@ void ModuleAuthenticationBase::onDeclare(GenericStruct *mc) {
 		"If no regex is specified, then the realm will be the domain part of the URI.\n"
 		"\n"
 		"For instance, given auth-domains=sip.example.com, you might use 'sip:.*@sip\\.(.*)\\.com' in order to "
-		"use 'example' as realm.",
+		"use 'example' as realm.\n"
+		"\n"
+		"WARNING: this parameter is exclusive with 'realm'",
 		""
 	},
 	config_item_end
@@ -116,13 +130,25 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct *mc) {
 		mAuthModules[domain] = move(am);
 	}
 
-	mRealmRegexStr = mc->get<ConfigString>("realm-regex")->get();
-	if (!mRealmRegexStr.empty()) {
+	const string regexPrefix{"regex:"};
+	const auto *realmCfg = mc->get<ConfigString>("realm");
+	const auto *realmRegexCfg = mc->get<ConfigString>("realm-regex");
+	auto realm = realmCfg->read();
+	auto realmRegex = realmRegexCfg->read();
+	if (!realm.empty() && !realmRegex.empty()) {
+		LOGF("setting both '%s' and '%s' is forbidden", realmCfg->getCompleteName().c_str(), realmRegexCfg->getCompleteName().c_str());
+	}
+	if (realmRegex.empty() && StringUtils::startsWith(realm, regexPrefix)) {
+		realmRegex = realm.substr(regexPrefix.size());
+	}
+	if (!realmRegex.empty()) {
 		try {
-			mRealmRegex.assign(mRealmRegexStr);
+			mRealmExtractor = make_unique<RegexRealmExtractor>(move(realmRegex));
 		} catch (const regex_error &e) {
 			LOGF("invalid regex in 'realm-regex': %s", e.what());
 		}
+	} else if (!realm.empty()) {
+		mRealmExtractor = make_unique<StaticRealmExtractor>(move(realm));
 	}
 
 	mNo403Expr = mc->get<ConfigBooleanExpression>("no-403")->read();
@@ -171,24 +197,19 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const
 	const sip_p_preferred_identity_t *ppi = sip_p_preferred_identity(sip);
 	const url_t *userUri = ppi ? ppi->ppid_url : sip->sip_from->a_url;
 
-	const char *realm = userUri->url_host;
-	if (!mRealmRegexStr.empty()) {
-		cmatch m;
-		const char *userUriStr = url_as_string(ev->getHome(), userUri);
-		LOGD("AuthStatus[%p]: searching for realm in %s URI (%s) with '%s' as extracting regex",
-			&as,
-			ppi ? "P-Prefered-Identity" : "From",
-			userUriStr, mRealmRegexStr.c_str()
-		);
-		if (!regex_search(userUriStr, m, mRealmRegex)) {
-			LOGD("AuthStauts[%p]: regex didn't match", &as);
-			throw runtime_error("no realm found");
-		}
-		int index = m.size() == 1 ? 0 : 1;
-		realm = su_strndup(ev->getHome(), userUriStr + m.position(index), m.length(index));
+	string realm{};
+	if (mRealmExtractor) {
+		auto userUriStr = url_as_string(ev->getHome(), userUri);
+		LOGD("AuthStatus[%p]: searching for realm in %s URI (%s)",
+			&as, ppi ? "P-Prefered-Identity" : "From", userUriStr);
+
+		realm = mRealmExtractor->extract(userUriStr);
+		if (realm.empty()) throw runtime_error{"couldn't find the realm out"};
+	} else {
+		realm = userUri->url_host;
 	}
 
-	LOGD("AuthStatus[%p]: '%s' will be used as realm", &as, realm);
+	LOGD("AuthStatus[%p]: '%s' will be used as realm", &as, realm.c_str());
 
 	as.method(sip->sip_request->rq_method_name);
 	as.source(msg_addrinfo(ms->getMsg()));

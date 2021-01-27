@@ -44,6 +44,12 @@ public:
 	~Timer();
 
 	/**
+	 * Copying or moving a timer has no sense.
+	 */
+	Timer(const Timer &) = delete;
+	Timer(Timer &&) = delete;
+
+	/**
 	 * @brief Start the timer with the default expiration time.
 	 * @param[in] func The funciton to call when the timer expires. The
 	 * context of the function is copied and automatically destroyed on

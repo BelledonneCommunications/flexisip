@@ -39,6 +39,7 @@ set(FLEXISIP_SOURCES
 	auth/auth-module.cc
 	auth/flexisip-auth-module.cc
 	auth/flexisip-auth-module-base.cc
+	auth/realm-extractor.hh
 	auth/nonce-store.cc
 	authdb-file.cc
 	authdb.cc

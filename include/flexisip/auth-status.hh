@@ -19,6 +19,7 @@
 #pragma once
 
 #include <functional>
+#include <string>
 
 #include <sofia-sip/auth_module.h>
 
@@ -95,6 +96,7 @@ public:
 
 	const char *realm() const {return mPriv->as_realm;}
 	void realm(const char *val) {mPriv->as_realm = val;}
+	void realm(const std::string &val) {mPriv->as_realm = su_strdup(&mHome, val.c_str());}
 
 	msg_header_t *response() const {return mPriv->as_response;}
 	void response(msg_header_t *val) {mPriv->as_response = val;}
