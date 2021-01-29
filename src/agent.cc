@@ -757,6 +757,7 @@ pair<string, string> Agent::getPreferredIp(const string &destination) const {
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_flags = AI_NUMERICHOST;
+	bool isIpv6;
 
 	struct addrinfo *result;
 	err = getaddrinfo(dest.c_str(), NULL, &hints, &result);
@@ -771,8 +772,12 @@ pair<string, string> Agent::getPreferredIp(const string &destination) const {
 	} else {
 		LOGE("getPreferredIp() getaddrinfo() error while resolving '%s': %s", dest.c_str(), gai_strerror(err));
 	}
-	return strchr(dest.c_str(), ':') == NULL ? make_pair(getResolvedPublicIp(), getRtpBindIp())
-											 : make_pair(getResolvedPublicIp(true), getRtpBindIp(true));
+	isIpv6 = strchr(dest.c_str(), ':') != NULL;
+	if (getResolvedPublicIp(true).empty()){
+		// If no IPv6 available, fallback to ipv4 and relay on NAT64.
+		return make_pair(getResolvedPublicIp(), getRtpBindIp());
+	}
+	return isIpv6 ? make_pair(getResolvedPublicIp(), getRtpBindIp()) : make_pair(getResolvedPublicIp(true), getRtpBindIp(true));
 }
 
 Agent::Network::Network(const Network &net) : mIP(net.mIP) {
