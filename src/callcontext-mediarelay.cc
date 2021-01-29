@@ -48,8 +48,8 @@ void RelayedCall::enableTelephoneEventDrooping(bool value){
 
 void RelayedCall::setupSpecificRelayTransport(RelayTransport *rt, const char *destHost){
 	Agent *agent = mServer->getAgent();
-	bool isIpv6 = (strchr(destHost, ':') != nullptr);
 	auto relayIps = agent->getPreferredIp(destHost);
+	bool isIpv6 = strchr(relayIps.first.c_str(), ':') != nullptr;
 	if (isIpv6){
 		rt->mIpv6Address = relayIps.first;
 		rt->mIpv6BindAddress = relayIps.second;
@@ -97,7 +97,7 @@ void RelayedCall::initChannels ( const std::shared_ptr< SdpModifier >& m, const 
 		rt.mIpv4Address = agent->getResolvedPublicIp(false);
 		rt.mIpv6BindAddress = agent->getRtpBindIp(true);
 		rt.mIpv4BindAddress = agent->getRtpBindIp(false);
-		rt.mPreferredFamily = isIpv6 ? AF_INET6 : AF_INET;
+		rt.mPreferredFamily = (!rt.mIpv6Address.empty() && isIpv6) ? AF_INET6 : AF_INET;
 		rt.mDualStackRequired = hasIce && !rt.mIpv6Address.empty();
 		
 		if (s == NULL) {
