@@ -102,18 +102,13 @@ public:
 
 class ResponseContext {
   public:
-	const std::shared_ptr<RequestSipEvent> reqSipEvent{};
-
-	static std::shared_ptr<ResponseContext> createInTransaction(std::shared_ptr<RequestSipEvent> ev, int globalDelta, const std::string &tag);
-
 	ResponseContext(std::shared_ptr<RequestSipEvent> &ev, int globalDelta);
 
+	static std::shared_ptr<ResponseContext> createInTransaction(std::shared_ptr<RequestSipEvent> ev, int globalDelta, const std::string &tag);
 	static bool match(const std::shared_ptr<ResponseContext> &ctx, const char *fromtag);
-
-	sofiasip::Home mHome{};
-	sip_from_t *mFrom{nullptr};
-	sip_contact_t *mContacts{nullptr};
-	sip_path_t *mPath{nullptr};
+	
+	const std::shared_ptr<RequestSipEvent> mRequestSipEvent;
+	sip_contact_t *mOriginalContacts{nullptr};
 };
 
 class ModuleRegistrar : public Module, public ModuleToolbox {

@@ -126,13 +126,13 @@ void OnResponseBindListener::onRecordFound(const shared_ptr<Record> &r) {
 
 	if (r == nullptr) {
 		LOGE("OnResponseBindListener::onRecordFound(): Record is null");
-		mCtx->reqSipEvent->reply(SIP_500_INTERNAL_SERVER_ERROR, TAG_END());
+		mCtx->mRequestSipEvent->reply(SIP_500_INTERNAL_SERVER_ERROR, TAG_END());
 		mEv->terminateProcessing();
 		return;
 	}
 
-	string uid = Record::extractUniqueId(mCtx->mContacts);
-	string topic = mModule->routingKey(mCtx->mFrom->a_url);
+	string uid = Record::extractUniqueId(mCtx->mOriginalContacts);
+	string topic = mModule->routingKey(mCtx->mRequestSipEvent->getSip()->sip_from->a_url);
 	RegistrarDb::get()->publish(topic, uid);
 
 	sip_contact_t *dbContacts = r->getContacts(ms->getHome(), now);
@@ -149,18 +149,18 @@ void OnResponseBindListener::onRecordFound(const shared_ptr<Record> &r) {
 }
 void OnResponseBindListener::onError() {
 	LOGE("OnResponseBindListener::onError(): 500");
-	mCtx->reqSipEvent->reply(SIP_500_INTERNAL_SERVER_ERROR, TAG_END());
+	mCtx->mRequestSipEvent->reply(SIP_500_INTERNAL_SERVER_ERROR, TAG_END());
 	mEv->terminateProcessing();
 }
 
 void OnResponseBindListener::onInvalid() {
 	LOGE("OnResponseBindListener::onInvalid: 400 - Replayed CSeq");
-	mCtx->reqSipEvent->reply(400, "Replayed CSeq", TAG_END());
+	mCtx->mRequestSipEvent->reply(400, "Replayed CSeq", TAG_END());
 	mEv->terminateProcessing();
 }
 
 void OnResponseBindListener::onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
-	_onContactUpdated(this->mModule, this->mCtx->reqSipEvent->getIncomingTport().get(), ec);
+	_onContactUpdated(this->mModule, this->mCtx->mRequestSipEvent->getIncomingTport().get(), ec);
 }
 
 OnStaticBindListener::OnStaticBindListener(const url_t *from, const sip_contact_t *ct) {
@@ -207,19 +207,17 @@ shared_ptr<ResponseContext> ResponseContext::createInTransaction(shared_ptr<Requ
 	return context;
 }
 
-ResponseContext::ResponseContext(shared_ptr<RequestSipEvent> &ev, int globalDelta) : reqSipEvent{ev} {
+ResponseContext::ResponseContext(shared_ptr<RequestSipEvent> &ev, int globalDelta) : mRequestSipEvent{ev} {
 	sip_t *sip = ev->getMsgSip()->getSip();
-	mFrom = sip_from_dup(mHome.home(), sip->sip_from);
-	mContacts = sip_contact_dup(mHome.home(), sip->sip_contact);
-	for (sip_contact_t *it = mContacts; it; it = it->m_next) {
+	mOriginalContacts = sip_contact_dup(mRequestSipEvent->getHome(), sip->sip_contact);
+	for (sip_contact_t *it = mOriginalContacts; it; it = it->m_next) {
 		int cExpire = ExtendedContact::resolveExpire(it->m_expires, globalDelta);
-		it->m_expires = su_sprintf(mHome.home(), "%d", cExpire);
+		it->m_expires = su_sprintf(mRequestSipEvent->getHome(), "%d", cExpire);
 	}
-	mPath = sip_path_dup(mHome.home(), sip->sip_path);
 }
 
 bool ResponseContext::match(const shared_ptr<ResponseContext> &ctx, const char *fromtag) {
-	return fromtag && strcmp(ctx->mFrom->a_tag, fromtag) == 0;
+	return fromtag && strcmp(ctx->mRequestSipEvent->getSip()->sip_from->a_tag, fromtag) == 0;
 }
 
 /**
@@ -692,16 +690,22 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		ev->reply(SIP_100_TRYING, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 
 		auto context = ResponseContext::createInTransaction(ev, maindelta, getModuleName());
-		// Contact route inserter should masquerade contact using domain
-		SLOGD << "Contacts :" << context->mContacts;
 		// Store a reference to the ResponseContext to prevent its destruction
 		mRespContexes.push_back(context);
 
-		// Cleaner contacts
 		su_home_t *home = ev->getMsgSip()->getHome();
-		removeParamsFromContacts(home, sip->sip_contact, mUniqueIdParams);
-		removeParamsFromContacts(home, sip->sip_contact, mParamsToRemove);
-		SLOGD << "Removed instance and push params: \n" << sip->sip_contact;
+		url_t *gruuAddress;
+		if (RegistrarDb::get()->gruuEnabled() && (gruuAddress = RegistrarDb::get()->synthesizePubGruu(home, *ev->getMsgSip()))){
+			/* A gruu address can be assigned to this contact. Replace the contact with the GRUU address we are going to 
+			 * create for the contact.*/
+			msg_header_remove_all(ev->getMsgSip()->getMsg(), (msg_pub_t*)ev->getSip(), (msg_header_t*)ev->getSip()->sip_contact);
+			msg_header_insert(ev->getMsgSip()->getMsg(), (msg_pub_t*)ev->getSip(), (msg_header_t*)sip_contact_create(home, (url_string_t*)gruuAddress, NULL));
+		}else{
+		// Legacy code: just cleaner contacts	
+			removeParamsFromContacts(home, sip->sip_contact, mUniqueIdParams);
+			removeParamsFromContacts(home, sip->sip_contact, mParamsToRemove);
+			SLOGD << "Removed instance and push params: \n" << sip->sip_contact;
+		}
 
 		if (sip->sip_path) {
 			sip->sip_path = nullptr;
@@ -762,6 +766,12 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 			parameter.globalExpire = maindelta;
 			parameter.version = 0;
 			listener->addStatCounter(mStats.mCountBind->finish);
+			
+			/* Before submiting the bind() request to the RegistrarDb, restore the Contact header as it was found in the original request received
+			 * from the client.*/
+			msg_header_remove_all(request->getMsg(), (msg_pub_t*)request->getSip(), (msg_header_t*)request->getSip()->sip_contact);
+			msg_header_insert(request->getMsg(), (msg_pub_t*)request->getSip(), (msg_header_t*)context->mOriginalContacts);
+		
 			RegistrarDb::get()->bind(*request, parameter, listener);
 		}
 	}

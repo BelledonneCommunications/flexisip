@@ -1128,23 +1128,33 @@ void RegistrarDb::fetchList(const vector<SipUri> urls, const shared_ptr<ListCont
 	}
 }
 
+url_t *RegistrarDb::synthesizePubGruu(su_home_t *home, const MsgSip &sipMsg){
+	sip_t *sip = sipMsg.getSip();
+	if (!sip->sip_contact || !sip->sip_contact->m_params) return nullptr;
+	if (!sip->sip_supported || msg_params_find(sip->sip_supported->k_items, "gruu") == nullptr) return nullptr;
+	const char *instance_param = msg_params_find(sip->sip_contact->m_params, "+sip.instance");
+	if (!instance_param) return nullptr;
+	
+	string gr = UriUtils::uniqueIdToGr(instance_param);
+	if (gr.empty()) return nullptr;
+	url_t *gruuUri = url_hdup(home, sip->sip_from->a_url);
+	url_param_add(home, gruuUri, (string("gr=") + gr).c_str());
+	return gruuUri;
+}
+
 void RegistrarDb::bind(const MsgSip &sipMsg, const BindingParameters &parameter, const shared_ptr<ContactUpdateListener> &listener) {
 	/* Copy the SIP message because the below code modifies the message whereas bind() API suggests that it don't. */
 	MsgSip msgCopy{sipMsg};
 	sip_t *sip = msgCopy.getSip();
 
 	bool gruu_assigned = false;
-	if (mGruuEnabled && sip->sip_supported && sip->sip_contact->m_params) {
-		if (msg_params_find(sip->sip_supported->k_items, "gruu") != nullptr){
-			const char *instance_param = msg_params_find(sip->sip_contact->m_params, "+sip.instance");
-			if (instance_param) {
-				string gr = UriUtils::uniqueIdToGr(instance_param);
-				if (!gr.empty()){/* assign a public gruu address to this contact */
-					msg_header_replace_param(msgCopy.getHome(), (msg_common_t *) sip->sip_contact,
-						su_sprintf(msgCopy.getHome(), "pub-gruu=\"%s;gr=%s\"", url_as_string(msgCopy.getHome(), sip->sip_from->a_url), gr.c_str() ) );
-					gruu_assigned = true;
-				}
-			}
+	if (mGruuEnabled) {
+		url_t *gruuUri = synthesizePubGruu(msgCopy.getHome(), msgCopy);
+		if (gruuUri) {
+			/* assign a public gruu address to this contact */
+			msg_header_replace_param(msgCopy.getHome(), (msg_common_t *) sip->sip_contact,
+					su_sprintf(msgCopy.getHome(), "pub-gruu=\"%s\"", url_as_string(msgCopy.getHome(), gruuUri) ));
+			gruu_assigned = true;
 		}
 	}
 	if (!gruu_assigned){
