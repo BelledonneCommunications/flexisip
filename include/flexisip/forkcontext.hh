@@ -90,7 +90,6 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	std::shared_ptr<ResponseSipEvent> mLastResponseSent;
 	std::shared_ptr<IncomingTransaction> mIncoming;
 	std::shared_ptr<ForkContextConfig> mCfg;
-	std::shared_ptr<ForkContext> mSelf;
 	sofiasip::Timer mLateTimer;
 	sofiasip::Timer mFinishTimer;
 	// Mark the fork process as terminated. The real destruction is performed asynchrously, in next main loop iteration.
