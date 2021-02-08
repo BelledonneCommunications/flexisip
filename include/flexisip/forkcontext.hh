@@ -43,7 +43,7 @@ class ForkContext;
 
 class ForkContextListener {
   public:
-	virtual ~ForkContextListener();
+	virtual ~ForkContextListener() = default;
 	virtual void onForkContextFinished(std::shared_ptr<ForkContext> ctx) = 0;
 };
 
@@ -67,11 +67,8 @@ class BranchInfo {
 
 class ForkContext : public std::enable_shared_from_this<ForkContext> {
   private:
-	static void __timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
-	static void sOnFinished(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
-	static void sOnNextBanches(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	ForkContextListener *mListener;
-	su_timer_t *mNextBranchesTimer;
+	sofiasip::Timer mNextBranchesTimer;
 	std::list<std::shared_ptr<BranchInfo>> mWaitingBranches;
 	std::list<std::shared_ptr<BranchInfo>> mCurrentBranches;
 	float mCurrentPriority;
@@ -94,8 +91,8 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	std::shared_ptr<IncomingTransaction> mIncoming;
 	std::shared_ptr<ForkContextConfig> mCfg;
 	std::shared_ptr<ForkContext> mSelf;
-	su_timer_t *mLateTimer;
-	su_timer_t *mFinishTimer;
+	sofiasip::Timer mLateTimer;
+	sofiasip::Timer mFinishTimer;
 	// Mark the fork process as terminated. The real destruction is performed asynchrously, in next main loop iteration.
 	void setFinished();
 	// Used by derived class to allocate a derived type of BranchInfo if necessary.
@@ -107,7 +104,7 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	// Notifies the arrival of a new response on a given branch
 	virtual void onResponse(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &event) = 0;
 	// Notifies the expiry of the final fork timeout.
-	virtual void onLateTimeout();
+	virtual void onLateTimeout() {};
 	// Requests the derived class if the fork context should finish now.
 	virtual bool shouldFinish();
 	// Notifies the destruction of the fork context. Implementors should use it to perform their unitialization, but
@@ -134,7 +131,7 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
   public:
 	ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg,
 				ForkContextListener *listener);
-	virtual ~ForkContext();
+	virtual ~ForkContext() = default;
 	// Called by the Router module to create a new branch.
 	void addBranch(const std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<ExtendedContact> &contact);
 	// Called by the router module to notify a cancellation.

@@ -28,35 +28,16 @@ const int ForkContext::sUrgentCodes[] = {401, 407, 415, 420, 484, 488, 606, 603,
 
 const int ForkContext::sAllCodesUrgent[] = {-1, 0};
 
-ForkContextListener::~ForkContextListener() {
-}
-
-void ForkContext::__timer_callback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) {
-	(static_cast<ForkContext *>(arg))->processLateTimeout();
-}
-
-void ForkContext::sOnFinished(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) {
-	(static_cast<ForkContext *>(arg))->onFinished();
-}
-
-void ForkContext::sOnNextBanches(su_root_magic_t* magic, su_timer_t* t, su_timer_arg_t* arg) {
-	(static_cast<ForkContext *>(arg))->onNextBranches();
-}
-
 ForkContext::ForkContext(Agent *agent, const shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg,
 						 ForkContextListener *listener)
-	: mListener(listener), mNextBranchesTimer(NULL), mCurrentPriority(-1), mAgent(agent),
+	: mListener(listener), mNextBranchesTimer(agent->getRoot()), mCurrentPriority(-1), mAgent(agent),
 	  mEvent(make_shared<RequestSipEvent>(event)), // Is this deep copy really necessary ?
-	  mCfg(cfg), mLateTimer(NULL), mFinishTimer(NULL) {
+	  mCfg(cfg), mLateTimer(agent->getRoot()), mFinishTimer(agent->getRoot()) {
 	init();
 }
 
-void ForkContext::onLateTimeout() {
-}
-
 void ForkContext::processLateTimeout() {
-	su_timer_destroy(mLateTimer);
-	mLateTimer = NULL;
+	mLateTimer.reset();
 	onLateTimeout();
 	setFinished();
 }
@@ -257,12 +238,10 @@ bool ForkContext::onNewRegister(const url_t *url, const string &uid) {
 void ForkContext::init() {
 	mIncoming = mEvent->createIncomingTransaction();
 
-	if (mCfg->mForkLate && mLateTimer == NULL) {
+	if (mCfg->mForkLate && !mLateTimer.isRunning()) {
 		/*this timer is for when outgoing transaction all die prematuraly, we still need to wait that late register
 		 * arrive.*/
-		mLateTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
-		su_timer_set_interval(mLateTimer, &ForkContext::__timer_callback, this,
-							  (su_duration_t)mCfg->mDeliveryTimeout * (su_duration_t)1000);
+		mLateTimer.set([this](){processLateTimeout();}, static_cast<su_duration_t>(mCfg->mDeliveryTimeout) * 1000);
 	}
 }
 
@@ -427,10 +406,7 @@ void ForkContext::nextBranches() {
 
 void ForkContext::start() {
 	/* Remove existing timer */
-	if (mNextBranchesTimer) {
-		su_timer_destroy(mNextBranchesTimer);
-		mNextBranchesTimer = NULL;
-	}
+	mNextBranchesTimer.reset();
 
 	/* Prepare branches */
 	nextBranches();
@@ -444,8 +420,7 @@ void ForkContext::start() {
 
 	if (mCfg->mCurrentBranchesTimeout > 0 && hasNextBranches()) {
 		/* Start the timer for next branches */
-		mNextBranchesTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
-		su_timer_set_interval(mNextBranchesTimer, &ForkContext::sOnNextBanches, this, (su_duration_t)mCfg->mCurrentBranchesTimeout * (su_duration_t)1000);
+		mNextBranchesTimer.set([this](){onNextBranches();}, static_cast<su_duration_t>(mCfg->mCurrentBranchesTimeout) * 1000);
 	}
 }
 
@@ -453,17 +428,8 @@ const shared_ptr<RequestSipEvent> &ForkContext::getEvent() {
 	return mEvent;
 }
 
-ForkContext::~ForkContext() {
-	if (mLateTimer)
-		su_timer_destroy(mLateTimer);
-
-	if (mNextBranchesTimer)
-		su_timer_destroy(mNextBranchesTimer);
-}
-
 void ForkContext::onFinished() {
-	su_timer_destroy(mFinishTimer);
-	mFinishTimer = NULL;
+	mFinishTimer.reset();
 
 	// force references to be loosed immediately, to avoid circular dependencies.
 	mEvent.reset();
@@ -480,25 +446,17 @@ void ForkContext::onFinished() {
 }
 
 void ForkContext::setFinished() {
-	if (mFinishTimer) {
+	if (mFinishTimer.isRunning()) {
 		/*already finishing, ignore*/
 		return;
 	}
 	mFinished = true;
 
-	if (mLateTimer) {
-		su_timer_destroy(mLateTimer);
-		mLateTimer = NULL;
-	}
-
-	if (mNextBranchesTimer) {
-		su_timer_destroy(mNextBranchesTimer);
-		mNextBranchesTimer = NULL;
-	}
+	mLateTimer.reset();
+	mNextBranchesTimer.reset();
 
 	mSelf = shared_from_this(); // to prevent destruction until finishTimer arrives
-	mFinishTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
-	su_timer_set_interval(mFinishTimer, &ForkContext::sOnFinished, this, (su_duration_t)0);
+	mFinishTimer.set([this](){onFinished();});
 }
 
 bool ForkContext::shouldFinish() {
