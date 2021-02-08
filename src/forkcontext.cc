@@ -442,7 +442,6 @@ void ForkContext::onFinished() {
 	mCurrentBranches.clear();
 
 	mListener->onForkContextFinished(shared_from_this());
-	mSelf.reset(); // this must be the last thing to do
 }
 
 void ForkContext::setFinished() {
@@ -455,8 +454,7 @@ void ForkContext::setFinished() {
 	mLateTimer.reset();
 	mNextBranchesTimer.reset();
 
-	mSelf = shared_from_this(); // to prevent destruction until finishTimer arrives
-	mFinishTimer.set([this](){onFinished();});
+	mFinishTimer.set([self = shared_from_this()](){self->onFinished();});
 }
 
 bool ForkContext::shouldFinish() {
