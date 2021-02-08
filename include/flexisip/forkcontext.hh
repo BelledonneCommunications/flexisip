@@ -49,23 +49,20 @@ class ForkContextListener {
 
 class BranchInfo {
   public:
-	BranchInfo(std::shared_ptr<ForkContext> ctx) : mForkCtx(ctx), mPriority(1.0) {
-	}
-	virtual ~BranchInfo() = default;
-	virtual void clear();
-	int getStatus() {
-		if (mLastResponse)
-			return mLastResponse->getMsgSip()->getSip()->sip_status->st_status;
-		return 0;
-	}
-	std::shared_ptr<ForkContext> mForkCtx;
-	std::string mUid;
-	std::shared_ptr<RequestSipEvent> mRequest;
-	std::shared_ptr<OutgoingTransaction> mTransaction;
-	std::shared_ptr<ResponseSipEvent> mLastResponse;
-	std::shared_ptr<ExtendedContact> mContact;
-	float mPriority;
-	bool mPushSent = false; // Whether  push notification has been sent for this branch.
+	template <typename T>
+	BranchInfo(T &&ctx) : mForkCtx{std::forward<T>(ctx)} {}
+
+	void clear();
+	int getStatus() {return mLastResponse ? mLastResponse->getMsgSip()->getSip()->sip_status->st_status : 0;}
+
+	std::weak_ptr<ForkContext> mForkCtx{};
+	std::string mUid{};
+	std::shared_ptr<RequestSipEvent> mRequest{};
+	std::shared_ptr<OutgoingTransaction> mTransaction{};
+	std::shared_ptr<ResponseSipEvent> mLastResponse{};
+	std::shared_ptr<ExtendedContact> mContact{};
+	float mPriority{1.0f};
+	bool mPushSent{false}; // Whether  push notification has been sent for this branch.
 };
 
 class ForkContext : public std::enable_shared_from_this<ForkContext> {

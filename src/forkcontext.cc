@@ -319,7 +319,7 @@ shared_ptr<ForkContext> ForkContext::get(const shared_ptr<IncomingTransaction> &
 
 shared_ptr<ForkContext> ForkContext::get(const shared_ptr<OutgoingTransaction> &tr) {
 	shared_ptr<BranchInfo> br = getBranchInfo(tr);
-	return br ? br->mForkCtx : shared_ptr<ForkContext>();
+	return br ? br->mForkCtx.lock() : nullptr;
 }
 
 shared_ptr<BranchInfo> ForkContext::getBranchInfo(const shared_ptr<OutgoingTransaction> &tr){
@@ -356,7 +356,9 @@ bool ForkContext::processResponse(const shared_ptr<ResponseSipEvent> &ev) {
 			auto copyEv = make_shared<ResponseSipEvent>(ev); // make a copy
 			copyEv->suspendProcessing();
 			binfo->mLastResponse = copyEv;
-			binfo->mForkCtx->onResponse(binfo, copyEv);
+
+			auto forkCtx = binfo->mForkCtx.lock();
+			forkCtx->onResponse(binfo, copyEv);
 
 			// the event may go through but it will not be sent*/
 			ev->setIncomingAgent(shared_ptr<IncomingAgent>());
@@ -369,9 +371,9 @@ bool ForkContext::processResponse(const shared_ptr<ResponseSipEvent> &ev) {
 				// LOGD("The response has been retained");
 			}
 
-			if (binfo->mForkCtx->allCurrentBranchesAnswered()) {
-				if (binfo->mForkCtx->hasNextBranches())
-					binfo->mForkCtx->start();
+			if (forkCtx->allCurrentBranchesAnswered()) {
+				if (forkCtx->hasNextBranches())
+					forkCtx->start();
 			}
 
 			return true;
