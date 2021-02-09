@@ -2,7 +2,7 @@ FROM gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:9
 MAINTAINER  Jehan Monnier <jehan.monnier@linphone.org>
 
 ARG njobs=1
-ARG sanitizer=OFF
+ARG sanitizer=ON
 
 USER root
 WORKDIR /root
