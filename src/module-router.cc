@@ -568,15 +568,13 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 		context = make_shared<ForkBasicContext>(getAgent(), ev, mOtherForkCfg, this);
 	}
 	if (context) {
-		if (context->getConfig()->mForkLate) {
-			const string key(routingKey(sipUri));
-			context->addKey(key);
-			mForks.insert(make_pair(key, context));
-			if (mForks.count(key) == 1) {
-				auto listener = make_shared<OnContactRegisteredListener>(this, sipUri);
-				RegistrarDb::get()->subscribe(key, listener);
-			}
-			SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
+		const auto key = routingKey(sipUri);
+		context->addKey(key);
+		mForks.emplace(key, context);
+		SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
+		if (context->getConfig()->mForkLate && mForks.count(key) == 1) {
+			auto listener = make_shared<OnContactRegisteredListener>(this, sipUri);
+			RegistrarDb::get()->subscribe(key, listener);
 		}
 	}
 
