@@ -454,7 +454,7 @@ void ForkContext::setFinished() {
 	mLateTimer.reset();
 	mNextBranchesTimer.reset();
 
-	mFinishTimer.set([self = shared_from_this()](){self->onFinished();});
+	mFinishTimer.set([self = shared_from_this()](){self->onFinished();}, 0);
 }
 
 bool ForkContext::shouldFinish() {
