@@ -347,11 +347,11 @@ void ModuleRouter::onContactRegistered(const shared_ptr<OnContactRegisteredListe
 	url_e(sipUriRef, sizeof(sipUriRef) - 1, &urlcopy);
 
 	// Find all contexts
-	const string key(routingKey(sipUri));
-	auto range = mForks.equal_range(key.c_str());
+	const auto key = routingKey(sipUri);
+	auto range = getLateForks(key);
 	SLOGD << "Searching for fork context with key " << key;
 
-	if (range.first != range.second){
+	if (range.size() > 0){
 		forksFound = true;
 		const auto &ec = record->extractContactByUniqueId(uid);
 		if (ec) {
@@ -359,8 +359,7 @@ void ModuleRouter::onContactRegistered(const shared_ptr<OnContactRegisteredListe
 			path = ec->toSofiaRoute(home.home());
 
 			// First use sipURI
-			for (auto it = range.first; it != range.second; ++it) {
-				shared_ptr<ForkContext> context = it->second;
+			for (const auto &context : range) {
 				if (context->onNewRegister(contact->m_url, uid)) {
 					SLOGD << "Found a pending context for key " << key << ": " << context.get();
 					lateDispatch(context->getEvent(), ec, context, "");
@@ -372,17 +371,15 @@ void ModuleRouter::onContactRegistered(const shared_ptr<OnContactRegisteredListe
 
 	// If not found, search in aliases
 	const auto &contacts = record->getExtendedContacts();
-	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
-		const auto &ec = *it;
+	for (const auto &ec : contacts) {
 		if (!ec || !ec->mAlias)
 			continue;
 
 		// Find all contexts
 		contact = ec->toSofiaContact(home.home(), ec->mExpireAt - 1);
 		path = ec->toSofiaRoute(home.home());
-		auto rang = mForks.equal_range(ExtendedContact::urlToString(ec->mSipContact->m_url));
-		for (auto ite = rang.first; ite != rang.second; ++ite) {
-			shared_ptr<ForkContext> context = ite->second;
+		auto rang = getLateForks(ExtendedContact::urlToString(ec->mSipContact->m_url));
+		for (const auto &context : rang) {
 			forksFound = true;
 			if (context->onNewRegister(contact->m_url, uid)) {
 				LOGD("Found a pending context for contact %s: %p", ExtendedContact::urlToString(ec->mSipContact->m_url).c_str(), context.get());
@@ -571,7 +568,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 		context->addKey(key);
 		mForks.emplace(key, context);
 		SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
-		if (context->getConfig()->mForkLate && mForks.count(key) == 1) {
+		if (context->getConfig()->mForkLate && countLateForks(key) == 1) {
 			auto listener = make_shared<OnContactRegisteredListener>(this, sipUri);
 			RegistrarDb::get()->subscribe(key, listener);
 		}
@@ -603,8 +600,8 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 				}
 				const string key(routingKey(temp_ctt->m_url));
 				context->addKey(key);
-				mForks.insert(make_pair(key, context));
-				if (mForks.count(key) == 1) {
+				mForks.emplace(key, context);
+				if (countLateForks(key) == 1) {
 					auto listener = make_shared<OnContactRegisteredListener>(this, temp_ctt->m_url);
 					RegistrarDb::get()->subscribe(key, listener);
 				}
@@ -795,6 +792,27 @@ vector<string> ModuleRouter::split(const char *data, const char *delim) {
 	return res;
 }
 
+ModuleRouter::ForkRefList ModuleRouter::getLateForks(const std::string &key) const noexcept {
+	ForkRefList lateForks{};
+	lateForks.reserve(mForks.count(key));
+	auto range = mForks.equal_range(key);
+	for (auto it = range.first; it != range.second; ++it) {
+		const auto &forkCtx = it->second;
+		if (forkCtx->getConfig()->mForkLate) lateForks.emplace_back(it->second);
+	}
+	return lateForks;
+}
+
+unsigned ModuleRouter::countLateForks(const std::string &key) const noexcept {
+	auto count = 0u;
+	auto range = mForks.equal_range(key);
+	for (auto it = range.first; it != range.second; ++it) {
+		const auto &forkCtx = it->second;
+		if (forkCtx->getConfig()->mForkLate) ++count;
+	}
+	return count;
+}
+
 void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
@@ -874,11 +892,8 @@ void ModuleRouter::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 }
 
 void ModuleRouter::onForkContextFinished(shared_ptr<ForkContext> ctx) {
-	if (!ctx->getConfig()->mForkLate) return;
-
-	const list<string> & keys = ctx->getKeys();
-	for (auto it = keys.begin(); it != keys.end(); ++it) {
-		string key = *it;
+	const auto &keys = ctx->getKeys();
+	for (const auto &key : keys) {
 		LOGD("Looking at fork contexts with key %s", key.c_str());
 
 		auto range = mForks.equal_range(key.c_str());

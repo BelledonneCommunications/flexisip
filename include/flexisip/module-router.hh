@@ -81,18 +81,23 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	}
 
   protected:
+	using ForkMapElem = std::shared_ptr<ForkContext>;
+	using ForkMap = std::multimap<std::string, ForkMapElem>;
+	using ForkRefList = std::vector<ForkMapElem>;
+
 	virtual bool dispatch(const std::shared_ptr<RequestSipEvent> &ev, const std::unique_ptr<ExtendedContact> &contact,
 				  std::shared_ptr<ForkContext> context, const std::string &targetUris);
 	virtual bool lateDispatch(const std::shared_ptr<RequestSipEvent> &ev, const std::unique_ptr<ExtendedContact> &contact,
 				  std::shared_ptr<ForkContext> context, const std::string &targetUris);
 	std::string routingKey(const url_t *sipUri);
 	std::vector<std::string> split(const char *data, const char *delim);
+	ForkRefList getLateForks(const std::string &key) const noexcept;
+	unsigned countLateForks(const std::string &key) const noexcept;
 
 	std::list<std::string> mDomains;
 	std::shared_ptr<ForkContextConfig> mForkCfg;
 	std::shared_ptr<ForkContextConfig> mMessageForkCfg;
 	std::shared_ptr<ForkContextConfig> mOtherForkCfg;
-	typedef std::multimap<std::string, std::shared_ptr<ForkContext>> ForkMap;
 	ForkMap mForks;
 	bool mUseGlobalDomain = false;
 
