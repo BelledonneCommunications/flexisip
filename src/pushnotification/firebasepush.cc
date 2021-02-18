@@ -38,7 +38,8 @@ FirebaseRequest::FirebaseRequest(const PushInfo &pinfo)
 	const string &from = pinfo.mFromName.empty() ? pinfo.mFromUri : pinfo.mFromName;
 	ostringstream httpBody;
 	string date = getPushTimeStamp();
-	int ttl = (pinfo.mEvent == PushInfo::Event::Call) ? 0 : 2419200; // 4 weeks, it is the maximum allowed TTL for firebase push
+	constexpr auto firebaseMaxTtl = 4 * 7 * 24 * 3600; // 4 weeks
+	auto ttl = min(pinfo.mTtl, firebaseMaxTtl);
 	
 	httpBody << "{\"to\":\"" << deviceToken << "\", "
 	 	<< "\"time_to_live\": " << ttl << ", "
