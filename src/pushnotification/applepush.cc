@@ -52,8 +52,6 @@ AppleRequest::AppleRequest(const PushInfo &info) : Request(info.mAppId, "apple")
 	mDeviceToken = deviceToken;
 	checkDeviceToken();
 
-	mTtl = info.mTtl;
-	
 	string customPayload = (info.mCustomPayload.empty()) ? "{}" : info.mCustomPayload;
 							
 	switch (info.mApplePushType) {
