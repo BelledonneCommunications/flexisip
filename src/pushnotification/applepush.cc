@@ -50,8 +50,6 @@ AppleRequest::AppleRequest(const PushInfo &info) : Request(info.mAppId, "apple")
 	mDeviceToken = deviceToken;
 	checkDeviceToken();
 
-	mTtl = info.mTtl;
-
 	switch (info.mApplePushType) {
 		case ApplePushType::Unknown:
 			throw invalid_argument{"Apple push type not set"};
