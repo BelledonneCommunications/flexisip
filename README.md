@@ -1,13 +1,10 @@
-Flexisip is a complete, modular and scalable SIP server suite written in C++11, comprising proxy, presence and group chat functions.
+Flexisip is a complete, modular and scalable SIP server suite written in C++14, comprising proxy, presence and group chat functions.
 It also includes a push gateway, to deliver SIP incoming calls or text messages on mobile device platforms where push notifications are required to receive information when the app is not active in the foreground.
 
 Flexisip instances can be deployed on server machines to run a SIP VoIP service. 
 The free linphone.org SIP service has run on Flexisip since 2011, and enables Linphone users to create SIP addresses in order to connect with each other.
 
 It can also be embedded and run perfectly on small hardware systems.
-
-To see all supported features and RFCs: http://www.linphone.org/technical-corner/flexisip/features <br/>
-To read the documentation: http://www.linphone.org/technical-corner/flexisip/documentation
 
 # License
 
@@ -19,22 +16,22 @@ Flexisip is dual licensed, and can be licensed and distributed:
 
 # Documentation
 
-- Supported features and RFCs : https://www.linphone.org/technical-corner/flexisip/features  
-- Flexisip documentation : https://www.linphone.org/technical-corner/flexisip/documentation
+- [Supported features and RFCs](https://www.linphone.org/technical-corner/flexisip/features)
+- [Flexisip documentation](https://www.linphone.org/technical-corner/flexisip/documentation)
 
 # Dependencies
 
 Flexisip depends on the following projects, added as submodule in the git repository:
-- sofia-sip
-- ortp
-- bctoolbox
-- belr
-- openSSL
-- hiredis (optional: Redis registrar database backend and cluster mode)
-- mediastreamer (optional: transcoding feature)
-- protobuf (optional: migration from legacy registrar database format)
-- belle-sip (optional: mDNS support)
-- soci (optional: SQL database support)
+- Belledonne Communicaitons maintained SofiaSip project. [See GitLab repository](https://gitlab.linphone.org/BC/public/external/sofia-sip) **[submodule,mandatory]**
+- oRTP: stack RTP used for media relay feauture. **[linphone-sdk,optional]**
+- bctoolbox: several basic utilities. **[linphone-sdk,mandatory]**
+- belr: generic parser using ABNF grammar, used for user file parsing. **[linphone-sdk,mandatory]**
+- openSSL: TLS stack. **[external,mandatory]**
+- hiredis: Redis DB client library, used for Registrar DB and communications between Flexisip instances of a same cluster. **[external,mandatory]**
+- mediastreamer: media engine used for transcoding feature. **[linphone-sdk,optional]**
+- protobuf: needed for migration from legacy registrar database format. **[external,optional]**
+- belle-sip: mDNS support. **[linphone-sdk,optional]**
+- soci: SQL dadabase client, used for user database reading and event logs. **[submodule,optional]**
 - netsnmp (optional: SNMP support)
 - pdflatex (optional: to generate the documentation in PDF format)
 
