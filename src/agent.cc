@@ -777,7 +777,7 @@ pair<string, string> Agent::getPreferredIp(const string &destination) const {
 		// If no IPv6 available, fallback to ipv4 and relay on NAT64.
 		return make_pair(getResolvedPublicIp(), getRtpBindIp());
 	}
-	return isIpv6 ? make_pair(getResolvedPublicIp(), getRtpBindIp()) : make_pair(getResolvedPublicIp(true), getRtpBindIp(true));
+	return isIpv6 ? make_pair(getResolvedPublicIp(true), getRtpBindIp(true)) : make_pair(getResolvedPublicIp(), getRtpBindIp()) ;
 }
 
 Agent::Network::Network(const Network &net) : mIP(net.mIP) {
