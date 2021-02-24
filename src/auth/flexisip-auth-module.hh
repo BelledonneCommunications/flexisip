@@ -38,16 +38,16 @@ namespace flexisip {
 /**
  * Authentication module using a user database to validate the Authorization header.
  */
-class FlexisipAuthModule : public FlexisipAuthModuleBase {
+class AuthModule : public AuthModuleBase {
 public:
 	using PasswordFetchResultCb = std::function<void(bool)>;
 
-	FlexisipAuthModule(su_root_t *root, int nonceExpire, bool qopAuth): FlexisipAuthModuleBase(root, nonceExpire, qopAuth) {}
-	~FlexisipAuthModule() override = default;
+	AuthModule(su_root_t *root, int nonceExpire, bool qopAuth): AuthModuleBase(root, nonceExpire, qopAuth) {}
+	~AuthModule() override = default;
 
 	void setOnPasswordFetchResultCb(const PasswordFetchResultCb &cb) {mPassworFetchResultCb = cb;}
 
-	void challenge(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_challenger_t &ach) override;
+	void challenge(const std::shared_ptr<AuthStatus> &as, const auth_challenger_t &ach) override;
 
 private:
 	class GenericAuthListener : public AuthDbListener {
@@ -67,20 +67,20 @@ private:
 		AuthDbBackend::PwList mPasswords;
 	};
 
-	void checkAuthHeader(const std::shared_ptr<FlexisipAuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach) override;
+	void checkAuthHeader(const std::shared_ptr<AuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach) override;
 
-	void processResponse(const std::shared_ptr<FlexisipAuthStatus> &as, const AuthResponse &ar, const auth_challenger_t &ach, AuthDbResult result, const AuthDbBackend::PwList &passwords);
-	void checkPassword(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_challenger_t &ach, const AuthResponse &ar, const std::string &password);
-	int checkPasswordForAlgorithm(FlexisipAuthStatus &as, const AuthResponse &ar, std::string ha1);
+	void processResponse(const std::shared_ptr<AuthStatus> &as, const AuthResponse &ar, const auth_challenger_t &ach, AuthDbResult result, const AuthDbBackend::PwList &passwords);
+	void checkPassword(const std::shared_ptr<AuthStatus> &as, const auth_challenger_t &ach, const AuthResponse &ar, const std::string &password);
+	int checkPasswordForAlgorithm(AuthStatus &as, const AuthResponse &ar, std::string ha1);
 
-	void onAccessForbidden(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_challenger_t &ach, std::string phrase = "Forbidden");
+	void onAccessForbidden(const std::shared_ptr<AuthStatus> &as, const auth_challenger_t &ach, std::string phrase = "Forbidden");
 
 	static std::string computeA1(Digest &algo, const AuthResponse &ar, const std::string &secret);
 	static std::string computeA1SESS(Digest &algo, const AuthResponse &ar, const std::string &ha1);
 	static std::string computeDigestResponse(Digest &algo, const AuthResponse &ar, const std::string &method_name, const void *body, size_t bodyLen, const std::string &ha1);
 
-	int validateDigestNonce(FlexisipAuthStatus &as, AuthResponse &ar, msg_time_t now);
-	void infoDigest(FlexisipAuthStatus &as, const auth_challenger_t &ach);
+	int validateDigestNonce(AuthStatus &as, AuthResponse &ar, msg_time_t now);
+	void infoDigest(AuthStatus &as, const auth_challenger_t &ach);
 
 	// Attributes
 	PasswordFetchResultCb mPassworFetchResultCb;

@@ -181,14 +181,14 @@ void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 	} catch (const StopRequestProcessing &) {}
 }
 
-std::unique_ptr<FlexisipAuthStatus> ModuleAuthenticationBase::createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) {
-	auto as = make_unique<FlexisipAuthStatus>(ev);
+std::unique_ptr<AuthStatus> ModuleAuthenticationBase::createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) {
+	auto as = make_unique<AuthStatus>(ev);
 	LOGD("New FlexisipAuthStatus [%p]", as.get());
 	ModuleAuthenticationBase::configureAuthStatus(*as, ev);
 	return as;
 }
 
-void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev) {
+void ModuleAuthenticationBase::configureAuthStatus(AuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	const sip_p_preferred_identity_t *ppi = sip_p_preferred_identity(sip);
@@ -250,7 +250,7 @@ void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<Reque
 
 	LOGD("start digest authentication");
 
-	shared_ptr<FlexisipAuthStatus> as{createAuthStatus(request)};
+	shared_ptr<AuthStatus> as{createAuthStatus(request)};
 
 	// Attention: the auth_mod_verify method should not send by itself any message but
 	// return after having set the as status and phrase.
@@ -285,7 +285,7 @@ bool ModuleAuthenticationBase::checkDomain(const std::string &domain) const noex
 	return false;
 }
 
-void ModuleAuthenticationBase::processAuthModuleResponse(const std::shared_ptr<FlexisipAuthStatus> &as) {
+void ModuleAuthenticationBase::processAuthModuleResponse(const std::shared_ptr<AuthStatus> &as) {
 	const shared_ptr<RequestSipEvent> &ev = as->mEvent;
 	if (as->as_status == 0) {
 		onSuccess(*as);
@@ -310,7 +310,7 @@ void ModuleAuthenticationBase::processAuthModuleResponse(const std::shared_ptr<F
 	}
 }
 
-void ModuleAuthenticationBase::onSuccess(const FlexisipAuthStatus &as) {
+void ModuleAuthenticationBase::onSuccess(const AuthStatus &as) {
 	msg_auth_t *au;
 	const shared_ptr<MsgSip> &ms = as.mEvent->getMsgSip();
 	sip_t *sip = ms->getSip();
@@ -334,7 +334,7 @@ void ModuleAuthenticationBase::onSuccess(const FlexisipAuthStatus &as) {
 	}
 }
 
-void ModuleAuthenticationBase::errorReply(const FlexisipAuthStatus &as) {
+void ModuleAuthenticationBase::errorReply(const AuthStatus &as) {
 	const std::shared_ptr<RequestSipEvent> &ev = as.mEvent;
 	ev->reply(as.as_status, as.as_phrase.c_str(),
 			  SIPTAG_HEADER(reinterpret_cast<sip_header_t *>(as.as_info)),

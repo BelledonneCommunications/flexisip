@@ -36,11 +36,11 @@ namespace flexisip {
 //  FlexisipAuthModule::AuthenticationListener class
 // ====================================================================================================================
 
-void FlexisipAuthModule::GenericAuthListener::onResult(AuthDbResult result, const std::string &passwd) {
+void AuthModule::GenericAuthListener::onResult(AuthDbResult result, const std::string &passwd) {
 	throw logic_error("FlexisipAuthModule::GenericAuthListener::onResult(AuthDbResult, const std::string &) should never be called");
 }
 
-void FlexisipAuthModule::GenericAuthListener::onResult(AuthDbResult result, const AuthDbBackend::PwList &passwd) {
+void AuthModule::GenericAuthListener::onResult(AuthDbResult result, const AuthDbBackend::PwList &passwd) {
 	// invoke callback on main thread (sofia-sip)
 	su_msg_r mamc = SU_MSG_R_INIT;
 	if (-1 == su_msg_create(mamc, su_root_task(mRoot), su_root_task(mRoot), main_thread_async_response_cb, sizeof(GenericAuthListener *))) {
@@ -57,7 +57,7 @@ void FlexisipAuthModule::GenericAuthListener::onResult(AuthDbResult result, cons
 	}
 }
 
-void FlexisipAuthModule::GenericAuthListener::main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg, void *u) noexcept {
+void AuthModule::GenericAuthListener::main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg, void *u) noexcept {
 	auto *listener = *reinterpret_cast<GenericAuthListener **>(su_msg_data(msg));
 	if (listener->mFunc) listener->mFunc(listener->mResult, listener->mPasswords);
 	delete listener;
@@ -70,7 +70,7 @@ void FlexisipAuthModule::GenericAuthListener::main_thread_async_response_cb(su_r
 //  FlexisipAuthModule class
 // ====================================================================================================================
 
-void FlexisipAuthModule::challenge(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_challenger_t &ach) {
+void AuthModule::challenge(const std::shared_ptr<AuthStatus> &as, const auth_challenger_t &ach) {
 	auto cleanUsedAlgo = [this, &as, ach](AuthDbResult r, const AuthDbBackend::PwList &passwords) {
 		switch (r) {
 			case PASSWORD_FOUND: {
@@ -89,13 +89,13 @@ void FlexisipAuthModule::challenge(const std::shared_ptr<FlexisipAuthStatus> &as
 				} else {
 					as->mUsedAlgo = move(usedAlgo);
 				}
-				FlexisipAuthModuleBase::challenge(as, ach); // Calling FlexisipAuthModuleBase::onChallenge() directly here is forbidden with GCC 4.9 and earlier.
+				AuthModuleBase::challenge(as, ach); // Calling FlexisipAuthModuleBase::onChallenge() directly here is forbidden with GCC 4.9 and earlier.
 				break;
 			}
 			case PASSWORD_NOT_FOUND:
 				// Make a challenge for each algorithm allowed by Flexisip settings.
 				LOGD("AuthStatus[%p]: no password found. Making challenge for each authorized algorithm", &as);
-				FlexisipAuthModuleBase::challenge(as, ach); // Calling FlexisipAuthModuleBase::onChallenge() directly here is forbidden with GCC 4.9 and earlier.
+				AuthModuleBase::challenge(as, ach); // Calling FlexisipAuthModuleBase::onChallenge() directly here is forbidden with GCC 4.9 and earlier.
 				break;
 			case AUTH_ERROR:
 				this->onError(*as);
@@ -117,7 +117,7 @@ void FlexisipAuthModule::challenge(const std::shared_ptr<FlexisipAuthStatus> &as
 #define PA "Authorization missing "
 
 /** Verify digest authentication */
-void FlexisipAuthModule::checkAuthHeader(const std::shared_ptr<FlexisipAuthStatus> &as, msg_auth_t &au, const auth_challenger_t &ach) {
+void AuthModule::checkAuthHeader(const std::shared_ptr<AuthStatus> &as, msg_auth_t &au, const auth_challenger_t &ach) {
 	auto ar = make_shared<AuthResponse>();
 	try {
 		ar->parse(au.au_params);
@@ -178,7 +178,7 @@ void FlexisipAuthModule::checkAuthHeader(const std::shared_ptr<FlexisipAuthStatu
 	as->as_status = 100;
 }
 
-void FlexisipAuthModule::processResponse(const std::shared_ptr<FlexisipAuthStatus> &as, const AuthResponse &ar, const auth_challenger_t &ach, AuthDbResult result, const AuthDbBackend::PwList &passwords) {
+void AuthModule::processResponse(const std::shared_ptr<AuthStatus> &as, const AuthResponse &ar, const auth_challenger_t &ach, AuthDbResult result, const AuthDbBackend::PwList &passwords) {
 	ostringstream logPrefixOs{};
 	logPrefixOs << "AuthStatus[" << as << "]";
 
@@ -231,7 +231,7 @@ void FlexisipAuthModule::processResponse(const std::shared_ptr<FlexisipAuthStatu
 /**
  * NULL if passwd not found.
  */
-void FlexisipAuthModule::checkPassword(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_challenger_t &ach, const AuthResponse &ar, const std::string &password) {
+void AuthModule::checkPassword(const std::shared_ptr<AuthStatus> &as, const auth_challenger_t &ach, const AuthResponse &ar, const std::string &password) {
 	if (checkPasswordForAlgorithm(*as, ar, password)) {
 		LOGD("AuthStatus[%p]: passwords did not match", as.get());
 		onAccessForbidden(as, ach);
@@ -247,7 +247,7 @@ void FlexisipAuthModule::checkPassword(const std::shared_ptr<FlexisipAuthStatus>
 	as->as_phrase = "";
 }
 
-int FlexisipAuthModule::checkPasswordForAlgorithm(FlexisipAuthStatus &as, const AuthResponse &ar, std::string ha1) {
+int AuthModule::checkPasswordForAlgorithm(AuthStatus &as, const AuthResponse &ar, std::string ha1) {
 	if (ha1.empty()) return -1;
 
 	unique_ptr<Digest> algo{};
@@ -266,7 +266,7 @@ int FlexisipAuthModule::checkPasswordForAlgorithm(FlexisipAuthStatus &as, const 
 	return response == ar.ar_response ? 0 : -1;
 }
 
-void FlexisipAuthModule::onAccessForbidden(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_challenger_t &ach, std::string phrase) {
+void AuthModule::onAccessForbidden(const std::shared_ptr<AuthStatus> &as, const auth_challenger_t &ach, std::string phrase) {
 	if (!as->mNo403) {
 		as->as_status = 403;
 		as->as_phrase = move(phrase);
@@ -276,7 +276,7 @@ void FlexisipAuthModule::onAccessForbidden(const std::shared_ptr<FlexisipAuthSta
 	}
 }
 
-std::string FlexisipAuthModule::computeA1(Digest &algo, const AuthResponse &ar, const std::string &secret) {
+std::string AuthModule::computeA1(Digest &algo, const AuthResponse &ar, const std::string &secret) {
 	ostringstream data;
 	data << ar.ar_username << ':' << ar.ar_realm << ':' << secret;
 	string ha1 = algo.compute<string>(data.str());
@@ -284,7 +284,7 @@ std::string FlexisipAuthModule::computeA1(Digest &algo, const AuthResponse &ar, 
 	return ha1;
 }
 
-std::string FlexisipAuthModule::computeA1SESS(Digest &algo, const AuthResponse &ar, const std::string &ha1) {
+std::string AuthModule::computeA1SESS(Digest &algo, const AuthResponse &ar, const std::string &ha1) {
 	ostringstream data;
 	data << ha1 << ':' << ar.ar_nonce << ':' << ar.ar_cnonce;
 	string newHa1 = algo.compute<string>(data.str());
@@ -292,7 +292,7 @@ std::string FlexisipAuthModule::computeA1SESS(Digest &algo, const AuthResponse &
 	return newHa1;
 }
 
-std::string FlexisipAuthModule::computeDigestResponse(
+std::string AuthModule::computeDigestResponse(
 	Digest &algo,
 	const AuthResponse &ar,
 	const std::string &method_name,
@@ -325,7 +325,7 @@ std::string FlexisipAuthModule::computeDigestResponse(
 	return response;
 }
 
-int FlexisipAuthModule::validateDigestNonce(FlexisipAuthStatus &as, AuthResponse &ar, msg_time_t now) {
+int AuthModule::validateDigestNonce(AuthStatus &as, AuthResponse &ar, msg_time_t now) {
 	Nonce nonce[1] = {{0}};
 
 	/* Check nonce */
@@ -369,7 +369,7 @@ int FlexisipAuthModule::validateDigestNonce(FlexisipAuthStatus &as, AuthResponse
 	return 0;
 }
 
-void FlexisipAuthModule::infoDigest(FlexisipAuthStatus &as, const auth_challenger_t &ach) {
+void AuthModule::infoDigest(AuthStatus &as, const auth_challenger_t &ach) {
 	if (am_nextnonce) {
 		auto nonce = generateDigestNonce(true, msg_now());
 		as.as_info = msg_header_format(as.mHome.home(), ach.ach_info, "nextnonce=\"%s\"", nonce.c_str());

@@ -260,7 +260,7 @@ void Authentication::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		return;
 	}
 
-	auto as = make_shared<FlexisipAuthStatus>(nullptr);
+	auto as = make_shared<AuthStatus>(nullptr);
 	as->as_realm = *proxyRealm;
 	as->as_user_uri = sip->sip_from->a_url;
 	if (!checkDomain(as->as_realm)) {
@@ -286,8 +286,8 @@ bool Authentication::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 // Private methods                                                                                                   //
 // ================================================================================================================= //
 
-std::unique_ptr<FlexisipAuthModuleBase> Authentication::createAuthModule(int nonceExpire, bool qopAuth) {
-	auto authModule = make_unique<FlexisipAuthModule>(getAgent()->getRoot(), nonceExpire, qopAuth);
+std::unique_ptr<AuthModuleBase> Authentication::createAuthModule(int nonceExpire, bool qopAuth) {
+	auto authModule = make_unique<AuthModule>(getAgent()->getRoot(), nonceExpire, qopAuth);
 	authModule->setOnPasswordFetchResultCb([this](bool passFound){passFound ? mCountPassFound++ : mCountPassNotFound++;});
 	return authModule;
 }

@@ -76,7 +76,7 @@ void ModuleExternalAuthentication::onLoad(const GenericStruct *mc) {
 	ModuleAuthenticationBase::onLoad(mc);
 }
 
-std::unique_ptr<FlexisipAuthModuleBase> ModuleExternalAuthentication::createAuthModule(int nonceExpire, bool qopAuth) {
+std::unique_ptr<AuthModuleBase> ModuleExternalAuthentication::createAuthModule(int nonceExpire, bool qopAuth) {
 	try {
 		auto am = make_unique<ExternalAuthModule>(getAgent()->getRoot(), nonceExpire, qopAuth);
 		am->getFormater().setTemplate(mRemoteUri);
@@ -86,7 +86,7 @@ std::unique_ptr<FlexisipAuthModuleBase> ModuleExternalAuthentication::createAuth
 	}
 }
 
-std::unique_ptr<FlexisipAuthStatus> ModuleExternalAuthentication::createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) {
+std::unique_ptr<AuthStatus> ModuleExternalAuthentication::createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) {
 	sip_t *sip = ev->getMsgSip()->getSip();
 
 	auto as = make_unique<ExternalAuthModule::Status>(ev);
@@ -112,7 +112,7 @@ std::unique_ptr<FlexisipAuthStatus> ModuleExternalAuthentication::createAuthStat
 	return as;
 }
 
-void ModuleExternalAuthentication::onSuccess(const FlexisipAuthStatus &as) {
+void ModuleExternalAuthentication::onSuccess(const AuthStatus &as) {
 	const shared_ptr<MsgSip> &ms = as.mEvent->getMsgSip();
 	sip_t *sip = ms->getSip();
 	const auto &authStatus = dynamic_cast<const ExternalAuthModule::Status &>(as);
@@ -123,7 +123,7 @@ void ModuleExternalAuthentication::onSuccess(const FlexisipAuthStatus &as) {
 	}
 }
 
-void ModuleExternalAuthentication::errorReply(const FlexisipAuthStatus &as) {
+void ModuleExternalAuthentication::errorReply(const AuthStatus &as) {
 	const auto &authStatus = dynamic_cast<const ExternalAuthModule::Status &>(as);
 	const shared_ptr<RequestSipEvent> &ev = authStatus.mEvent;
 	ev->reply(as.as_status, as.as_phrase.c_str(),

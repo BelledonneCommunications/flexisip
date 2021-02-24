@@ -56,18 +56,18 @@ protected:
 	/**
 	 * Override this method to specify the specialization of #FlexisipAuthModuleBase to instantiate.
 	 */
-	virtual std::unique_ptr<FlexisipAuthModuleBase> createAuthModule(int nonceExpire, bool qopAuth) = 0;
+	virtual std::unique_ptr<AuthModuleBase> createAuthModule(int nonceExpire, bool qopAuth) = 0;
 	/**
 	 * @brief Create and configure a #FlexisipAuthStatus according the information extracted from ev.
 	 *
 	 * This method may be overridden in order to instantiate a specialization of #FlexisipAuthStatus. Should it be,
 	 * the overriding method might call #configureAuthStatus() for configuring the base of the returned object.
 	 */
-	virtual std::unique_ptr<FlexisipAuthStatus> createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev);
+	virtual std::unique_ptr<AuthStatus> createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev);
 	/**
 	 * Called by createAuthStatus() for setting #FlexisipAuthStatus attribute for the event request information.
 	 */
-	void configureAuthStatus(FlexisipAuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev);
+	void configureAuthStatus(AuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev);
 
 
 	/**
@@ -85,9 +85,9 @@ protected:
 	 * This method is called synchronously or asynchronously on result of AuthModule::verify() method.
 	 * It calls onSuccess() and errorReply() according the authentication result.
 	 */
-	void processAuthModuleResponse(const std::shared_ptr<FlexisipAuthStatus> &as);
-	virtual void onSuccess(const FlexisipAuthStatus &as);
-	virtual void errorReply(const FlexisipAuthStatus &as);
+	void processAuthModuleResponse(const std::shared_ptr<AuthStatus> &as);
+	virtual void onSuccess(const AuthStatus &as);
+	virtual void errorReply(const AuthStatus &as);
 
 	/**
 	 * Test whether a string match a valid algorithm in specified by sValidAlgos.
@@ -96,7 +96,7 @@ protected:
 
 protected:
 	std::vector<std::string> mAuthDomains{};
-	std::unique_ptr<FlexisipAuthModuleBase> mAuthModule{};
+	std::unique_ptr<AuthModuleBase> mAuthModule{};
 	std::list<std::string> mAlgorithms{};
 	auth_challenger_t mRegistrarChallenger;
 	auth_challenger_t mProxyChallenger;

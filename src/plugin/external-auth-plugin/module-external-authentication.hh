@@ -37,11 +37,11 @@ private:
 	void onDeclare(GenericStruct *mc) override;
 	void onLoad(const GenericStruct *root) override;
 
-	std::unique_ptr<FlexisipAuthModuleBase> createAuthModule(int nonceExpire, bool qopAuth) override;
-	std::unique_ptr<FlexisipAuthStatus> createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) override;
+	std::unique_ptr<AuthModuleBase> createAuthModule(int nonceExpire, bool qopAuth) override;
+	std::unique_ptr<AuthStatus> createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) override;
 
-	void onSuccess(const FlexisipAuthStatus &as) override;
-	void errorReply(const FlexisipAuthStatus &as) override;
+	void onSuccess(const AuthStatus &as) override;
+	void errorReply(const AuthStatus &as) override;
 
 	std::map<nth_client_t *, std::shared_ptr<RequestSipEvent>> mPendingEvent;
 	std::string mRemoteUri;

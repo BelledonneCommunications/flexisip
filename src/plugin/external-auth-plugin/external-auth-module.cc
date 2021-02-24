@@ -34,7 +34,7 @@ using namespace std;
 
 namespace flexisip {
 
-ExternalAuthModule::ExternalAuthModule(su_root_t *root, int nonceExpire, bool qopAuth) : FlexisipAuthModuleBase(root, nonceExpire, qopAuth) {
+ExternalAuthModule::ExternalAuthModule(su_root_t *root, int nonceExpire, bool qopAuth) : AuthModuleBase(root, nonceExpire, qopAuth) {
 	mEngine = nth_engine_create(root, TAG_END());
 }
 
@@ -42,7 +42,7 @@ ExternalAuthModule::~ExternalAuthModule() {
 	nth_engine_destroy(mEngine);
 }
 
-void ExternalAuthModule::checkAuthHeader(const std::shared_ptr<FlexisipAuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach) {
+void ExternalAuthModule::checkAuthHeader(const std::shared_ptr<AuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach) {
 	try {
 		auto externalAs = dynamic_pointer_cast<ExternalAuthModule::Status>(as);
 

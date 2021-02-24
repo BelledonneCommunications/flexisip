@@ -31,11 +31,11 @@ namespace flexisip {
  * Specialization of AuthStatus dedicated to be used
  * with FlexisipAuthModule class.
  */
-struct FlexisipAuthStatus {
-	using ResponseCb = std::function<void(const std::shared_ptr<FlexisipAuthStatus> &as)>;
+struct AuthStatus {
+	using ResponseCb = std::function<void(const std::shared_ptr<AuthStatus> &as)>;
 
-	FlexisipAuthStatus(const std::shared_ptr<RequestSipEvent> &ev): mEvent(ev) {}
-	virtual ~FlexisipAuthStatus() = default;
+	AuthStatus(const std::shared_ptr<RequestSipEvent> &ev): mEvent(ev) {}
+	virtual ~AuthStatus() = default;
 
 	// Attributes
 	int as_status = 500;			/**< Return authorization status [out] */

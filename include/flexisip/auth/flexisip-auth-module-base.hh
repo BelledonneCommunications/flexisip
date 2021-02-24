@@ -37,7 +37,7 @@ namespace flexisip {
  * This implementation of AuthModule allows to do HTTP-like authentication
  * of SIP requests as described in RFC 3261 §22.
  */
-class FlexisipAuthModuleBase {
+class AuthModuleBase {
 public:
 	/**
 	 * @brief Instantiate a new authentication module without QOP authentication feature.
@@ -45,14 +45,14 @@ public:
 	 * @param[in] nonceExpire Validity period for a nonce in seconds.
 	 * @param[in] qopAuth Setting true allows clients to use the same nonce for successive authentication.
 	 */
-	FlexisipAuthModuleBase(su_root_t *root, unsigned nonceExpire, bool qopAuth);
-	virtual ~FlexisipAuthModuleBase() = default;
+	AuthModuleBase(su_root_t *root, unsigned nonceExpire, bool qopAuth);
+	virtual ~AuthModuleBase() = default;
 
 	NonceStore &nonceStore() {return mNonceStore;}
 	su_root_t *getRoot() const noexcept {return mRoot;}
 
-	void verify(const std::shared_ptr<FlexisipAuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach);
-	virtual void challenge(const std::shared_ptr<FlexisipAuthStatus> &as, const auth_challenger_t &ach);
+	void verify(const std::shared_ptr<AuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach);
+	virtual void challenge(const std::shared_ptr<AuthStatus> &as, const auth_challenger_t &ach);
 
 protected:
 	enum class Algo : std::uint8_t { Md5, Md5sess, Sha1, Sha256 };
@@ -94,10 +94,10 @@ protected:
 	 * @param[in,out] as The context on the authentication. It is also used to return the result.
 	 * @param[in] credentials The authorization header to validate.
 	 */
-	virtual void checkAuthHeader(const std::shared_ptr<FlexisipAuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach) = 0;
+	virtual void checkAuthHeader(const std::shared_ptr<AuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach) = 0;
 
-	void notify(const std::shared_ptr<FlexisipAuthStatus> &as);
-	void onError(FlexisipAuthStatus &as);
+	void notify(const std::shared_ptr<AuthStatus> &as);
+	void onError(AuthStatus &as);
 
 	std::string generateDigestNonce(bool nextnonce, msg_time_t now);
 

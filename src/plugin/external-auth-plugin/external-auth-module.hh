@@ -32,14 +32,14 @@ namespace flexisip {
  * Authentication module that delegates the Authorization header validation to
  * an external HTTP server.
  */
-class ExternalAuthModule : public FlexisipAuthModuleBase {
+class ExternalAuthModule : public AuthModuleBase {
 public:
 	/**
 	 * Specialization of FlexisipAuthStatus dedicated to ExternalAuthModule.
 	 */
-	class Status : public FlexisipAuthStatus {
+	class Status : public AuthStatus {
 	public:
-		Status(const std::shared_ptr<RequestSipEvent> &ev) : FlexisipAuthStatus(ev) {}
+		Status(const std::shared_ptr<RequestSipEvent> &ev) : AuthStatus(ev) {}
 
 		const std::string &reason() const {return mReasonHeader;}
 		template <typename T>
@@ -89,7 +89,7 @@ private:
 		const auth_challenger_t &ach;
 	};
 
-	void checkAuthHeader(const std::shared_ptr<FlexisipAuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach) override;
+	void checkAuthHeader(const std::shared_ptr<AuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach) override;
 
 	void onHttpResponse(HttpRequestCtx &ctx, nth_client_t *request, const http_t *http);
 	std::map<std::string, std::string> parseHttpBody(const std::string &body) const;
