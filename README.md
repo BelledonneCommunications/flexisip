@@ -23,32 +23,38 @@ Flexisip is dual licensed, and can be licensed and distributed:
 
 **Common and proxy dependencies:**
 
-- Belledonne Communications maintained SofiaSip project. [See GitLab repository](https://gitlab.linphone.org/BC/public/external/sofia-sip) **[submodule,mandatory]**
-- oRTP: stack RTP used for media relay feature. **[linphone-sdk,optional]**
-- bctoolbox: several basic utilities. **[linphone-sdk,mandatory]**
-- belr: generic parser using ABNF grammar, used for user file parsing. **[linphone-sdk,mandatory]**
-- openSSL: TLS stack. **[tier,mandatory]**
-- hiredis: Redis DB client library, used for Registrar DB and communications between Flexisip instances of a same cluster. **[tier,mandatory]**
-- libnghttp2: HTTP2 stack. **[tier,mandatory]**
-- mediastreamer: media engine used for transcoding feature. **[linphone-sdk,optional]**
-- protobuf: needed for migration from legacy registrar database format. **[tier,optional]**
-- belle-sip: mDNS support. **[linphone-sdk,optional]**
-- soci: SQL database client, used for user database reading and event logs. **[tier,submodule,mandatory]**
-- SQLite3 Soci connector. **[tier,submodule,mandatory]**
-- MySQL Soci connector. **[tier,submodule,mandatory]**
-- netsnmp: SNMP library, used for SNMP support. **[tier,optional]**
-- pdflatex: to generate the reference documentation as PDF. **[tier,optional]**
+| Dependency    | Description                                                                                                                              | Mandatory | Tier  | Submodule | Linphone-sdk |
+| :---          | :---                                                                                                                                     | :---:     | :---: | :---:     | :---:        |
+| BcSofiaSip    | Belledonne Communications maintained SofiaSip project. [See GitLab repository](https://gitlab.linphone.org/BC/public/external/sofia-sip) | X         |       | X         |              |
+| oRTP          | RTP stack used for media relay feature.                                                                                                  |           |       |           | X            |
+| BcToolbox     | Several basic utilities.                                                                                                                 | X         |       |           | X            |
+| BelR          | Generic parser using ABNF grammar, used for user file parsing.                                                                           | X         |       |           | X            |
+| OpenSSL       | TLS stack.                                                                                                                               | X         | X     |           |              |
+| Hiredis       | Redis DB client library, used for Registrar DB and communications between Flexisip instances of a same cluster.                          | X         | X     |           |              |
+| LibNgHttp2    | HTTP2 stack.                                                                                                                             | X         | X     |           |              |
+| Mediastreamer | Media engine used for transcoding feature.                                                                                               |           |       |           | X            |
+| Protobuf      | Needed for migration from legacy registrar database format.                                                                              |           | X     |           |              |
+| BelleSip      | mDNS support.                                                                                                                            |           |       |           | X            |
+| Soci          | SQL database client, used for user database reading and event logs.                                                                      | X         | X     | X         |              |
+| Soci-sqlite3  | Soci connector for SQLit3.                                                                                                               | X         | X     | X         |              |
+| Soci-mysql    | Soci connector for MySQL.                                                                                                                | X         | X     | X         |              |
+| NetSNMP       | SNMP library, used for SNMP support.                                                                                                     |           | X     |           |              |
+| pdflatex      | To generate the reference documentation as PDF.                                                                                          |           | X     |           |              |
 
 **Presence server only dependencies:**
 
-- belle-sip: SIP stack. **[linphone-sdk,mandatory]**
-- xsd(=4.0.0): W3C XML Schema to C++ data binding compiler. **[tier,mandatory]**
-- xercesc: XML parser. **[tier,mandatory]**
+| Dependency    | Description                                                                                                                              | Mandatory | Tier  | Submodule | Linphone-sdk |
+| :---          | :---                                                                                                                                     | :---:     | :---: | :---:     | :---:        |
+| BelleSip      | SIP stack.                                                                                                                               | X         |       |           | X            |
+| Xsd           | W3C XML Schema to C++ data binding compiler.                                                                                             | X         | X     |           |              |
+| XercesC       | XML parser.                                                                                                                              | X         | X     |           |              |
 
 **Conference server only dependencies:**
 
-- belle-sip: SIP stack. **[linphone-sdk,mandatory]**
-- liblinphone++: SIP user agent library. **[linphone-sdk,mandatory]**
+| Dependency    | Description                                                                                                                              | Mandatory | Tier  | Submodule | Linphone-sdk |
+| :---          | :---                                                                                                                                     | :---:     | :---: | :---:     | :---:        |
+| BelleSip      | SIP stack.                                                                                                                               | X         |       |           | X            |
+| LibLinphone++ | SIP user agent C++ library.                                                                                                              | X         |       |           | X            |
 
 ---
 
