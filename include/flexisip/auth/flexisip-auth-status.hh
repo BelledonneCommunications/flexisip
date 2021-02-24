@@ -40,15 +40,10 @@ struct FlexisipAuthStatus {
 	// Attributes
 	int as_status = 500;			/**< Return authorization status [out] */
 	std::string as_phrase{auth_internal_server_error};	/**< Return response phrase [out] */
-	std::string as_user{};	/**< Authenticated username [in/out] */
-	std::string as_display{}; /**< Return user's real name [in/out] */
 
 	url_t const *as_user_uri = nullptr; /* Return user's identity [in/out] */
 
-	su_addrinfo_t *as_source = nullptr; /**< Source address [in] */
-
 	std::string as_realm{};	/**< Authentication realm [in] */
-	std::string as_domain{};	/**< Hostname [in] */
 	std::string as_uri{};		/**< Request-URI [in] */
 	std::string as_pdomain{}; /**< Domain parameter [in] (ignored). */
 	std::string as_method{};	/**< Method name to authenticate [in] */
@@ -56,13 +51,10 @@ struct FlexisipAuthStatus {
 	std::vector<uint8_t> as_body{}; /**< Message body to protect [in] */
 
 	msg_time_t as_nonce_issued = 0; /**< Nonce issue time [out] */
-	bool as_anonymous = false;	/**< Return true if user is anonymous [out] */
 	bool as_stale = false;		/**< Credentials were stale [out] */
-	bool as_nextnonce = false;	/**< Client used nextnonce [out] */
 
 	msg_header_t *as_response = nullptr; /**< Authentication challenge [out] */
 	msg_header_t *as_info = nullptr;	   /**< Authentication-Info [out] */
-	msg_header_t *as_match = nullptr;	   /**< Used authentication header [out] */
 
 	ResponseCb as_callback{}; /**< Completion callback [in] */
 

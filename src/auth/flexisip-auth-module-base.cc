@@ -150,7 +150,6 @@ void FlexisipAuthModuleBase::verify(const std::shared_ptr<FlexisipAuthStatus> &a
 		msg_auth_t *matched_au = ModuleToolbox::findAuthorizationForRealm(as->mHome.home(), credentials, as->as_realm.c_str());
 		if (matched_au)
 			credentials = matched_au;
-		as->as_match = reinterpret_cast<msg_header_t *>(credentials);
 		checkAuthHeader(as, *credentials, ach);
 	} else {
 		/* There was no realm or credentials, send challenge */

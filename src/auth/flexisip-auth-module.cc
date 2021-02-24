@@ -238,10 +238,6 @@ void FlexisipAuthModule::checkPassword(const std::shared_ptr<FlexisipAuthStatus>
 		return;
 	}
 
-	// assert(apw);
-	as->as_user = ar.ar_username;
-	as->as_anonymous = false;
-
 	if (am_nextnonce)
 		infoDigest(*as, ach);
 
@@ -352,7 +348,6 @@ int FlexisipAuthModule::validateDigestNonce(FlexisipAuthStatus &as, AuthResponse
 	}
 
 	as.as_nonce_issued = nonce->issued;
-	as.as_nextnonce = (nonce->nextnonce != 0);
 
 	if (nonce->issued > now || (am_expires && nonce->issued + am_expires < now)) {
 		LOGD("%s: nonce expired %lu seconds ago "

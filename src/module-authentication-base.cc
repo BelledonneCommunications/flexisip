@@ -209,10 +209,8 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const
 	LOGD("AuthStatus[%p]: '%s' will be used as realm", &as, realm.c_str());
 
 	as.as_method = sip->sip_request->rq_method_name;
-	as.as_source = msg_addrinfo(ms->getMsg());
 	as.as_user_uri = userUri;
 	as.as_realm = move(realm);
-	as.as_display = sip->sip_from->a_display;
 	if (sip->sip_payload) {
 		as.as_body.assign(sip->sip_payload->pl_data, sip->sip_payload->pl_data + sip->sip_payload->pl_len);
 	}
