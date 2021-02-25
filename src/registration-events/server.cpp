@@ -105,7 +105,7 @@ Server::Init::Init() {
 			String,
 			"transport",
 			"SIP uri on which the RegEvent server is listening on.",
-			"sip:127.0.0.1:6064;transport=tcp"
+			"sip:127.0.0.1:6065;transport=tcp"
 		},
 		config_item_end
 	};
