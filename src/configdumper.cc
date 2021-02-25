@@ -23,6 +23,7 @@
 #include <flexisip/module.hh>
 
 #include "configdumper.hh"
+#include "utils/string-utils.hh"
 
 using namespace std;
 
@@ -152,32 +153,12 @@ ostream &FileConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruc
 }
 
 /* TexFileComfigDumper */
-
-static void escaper(string &str, char c, const string &replaced) {
-	size_t i = 0;
-	while (string::npos != (i = str.find_first_of(c, i))) {
-		str.erase(i, 1);
-		str.insert(i, replaced);
-		i += replaced.length();
-	}
-}
-
-static void string_escaper(string &str, const string &s, const string &replace) {
-	size_t i = 0;
-	while (string::npos != (i = str.find(s, i))) {
-		str.erase(i, s.length());
-		str.insert(i, replace);
-		i += replace.length();
-	}
-}
-
 string TexFileConfigDumper::escape(const string &strc) const {
-	std::string str(strc);
-	escaper(str, '_', "\\_");
-	escaper(str, '<', "\\textless{}");
-	escaper(str, '>', "\\textgreater{}");
-
-	return str;
+	return StringUtils::transform(strc, {
+		{ '_' , "\\_"             },
+		{ '<' , "\\textless{}"    },
+		{ '>' , "\\textgreater{}" }
+	});
 }
 
 ostream &TexFileConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruct *cs, int level) const {
@@ -209,10 +190,11 @@ ostream &DokuwikiConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigV
 	if (!val->isDeprecated()) {
 
 		// dokuwiki handles line breaks with double backspaces
-		string help = val->getHelp();
-		escaper(help, '\n', "\\\\ ");
-		escaper(help, '`', "'' ");
-		string_escaper(help, ". ", ".\\\\ ");
+		auto help = StringUtils::transform(val->getHelp(), {
+			{ '\n' , "\\\\ " },
+			{ '`'  , "'' "   }
+		});
+		StringUtils::searchAndReplace(help, ". ", ".\\\\ ");
 
 		ostr << "|"
 			 << "'''" << val->getName() << "'''"
@@ -255,10 +237,11 @@ ostream &MediaWikiConfigDumper::dumpModuleValue(std::ostream &ostr, const Config
 	if (!val->isDeprecated()) {
 
 		// MediaWiki handles line breaks with double backspaces
-		string help = val->getHelp();
-		escaper(help, '\n', "<br/> ");
-		escaper(help, '`', "'' ");
-		string_escaper(help, ". ", ".<br/> ");
+		auto help = StringUtils::transform(val->getHelp(), {
+			{ '\n' , "<br/>" },
+			{ '`'  , "'' "   }
+		});
+		StringUtils::searchAndReplace(help, ". ", ".<br/> ");
 
 		ostr << "|-" << endl // entry marker
 			 << "|'''" << val->getName() << "'''" << endl
@@ -295,14 +278,8 @@ ostream &XWikiConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStru
 
 ostream &XWikiConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue *val, int level) const {
 	if (!val->isDeprecated()) {
-
-		// XWiki handles line breaks with double backspaces
-		auto help = val->getHelp();
-		escaper(help, '\n', "\n ");
-		escaper(help, '`', "'' ");
-
 		ostr << "|=(% style=\"text-align: center;  vertical-align: middle; border: 1px solid #999\" %)" << val->getName()
-			 << "|(% style=\"text-align: left; border: 1px solid #999\" %)" << help
+			 << "|(% style=\"text-align: left; border: 1px solid #999\" %)(((" << escape(val->getHelp()) << ")))"
 			 << "|(% style=\"text-align: center; vertical-align: middle; border: 1px solid #999\" %) ##" << escape(val->getDefault()) << "##"
 			 << "|(% style=\"text-align: center; vertical-align: middle; border: 1px solid #999\" %)" << val->getTypeName() << endl;
 	}
@@ -310,15 +287,17 @@ ostream &XWikiConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValu
 }
 
 std::string XWikiConfigDumper::escape(const std::string &str) {
-	auto newstr = str;
-	auto it = newstr.begin();
-	do {
-		it = find_if(it, newstr.end(), [](const char &c){return ispunct(c);});
-		if (it != newstr.end()) {
-			it = newstr.insert(it, '~') + 2;
-		}
-	} while (it != newstr.end());
-	return newstr;
+	string escaped{};
+	auto start = str.cbegin();
+	decltype(start) end{};
+	while ((end = find_if(start, str.cend(), [](const auto &c){return ispunct(c);})) != str.cend()) {
+		escaped.append(start, end);
+		escaped += '~';
+		escaped += *end++;
+		start = end;
+	}
+	escaped.append(start, end);
+	return escaped;
 }
 
 
