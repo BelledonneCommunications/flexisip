@@ -21,55 +21,44 @@ Flexisip is dual licensed, and can be licensed and distributed:
 
 # Dependencies
 
+The dependencies to install depend on the build utilities you use to build Flexisip. See [“Compilations” section](#compilations) for more inforamation about build ways.
+
 **Common and proxy dependencies:**
 
-| Dependency    | Description                                                                                                                              | Mandatory | Tier  | Submodule | Linphone-sdk |
-| :---          | :---                                                                                                                                     | :---:     | :---: | :---:     | :---:        |
-| BcSofiaSip    | Belledonne Communications maintained SofiaSip project. [See GitLab repository](https://gitlab.linphone.org/BC/public/external/sofia-sip) | X         |       | X         |              |
-| oRTP          | RTP stack used for media relay feature.                                                                                                  |           |       |           | X            |
-| BcToolbox     | Several basic utilities.                                                                                                                 | X         |       |           | X            |
-| BelR          | Generic parser using ABNF grammar, used for user file parsing.                                                                           | X         |       |           | X            |
-| OpenSSL       | TLS stack.                                                                                                                               | X         | X     |           |              |
-| Hiredis       | Redis DB client library, used for Registrar DB and communications between Flexisip instances of a same cluster.                          | X         | X     |           |              |
-| LibNgHttp2    | HTTP2 stack.                                                                                                                             | X         | X     |           |              |
-| Mediastreamer | Media engine used for transcoding feature.                                                                                               |           |       |           | X            |
-| Protobuf      | Needed for migration from legacy registrar database format.                                                                              |           | X     |           |              |
-| BelleSip      | mDNS support.                                                                                                                            |           |       |           | X            |
-| Soci          | SQL database client, used for user database reading and event logs.                                                                      | X         | X     | X         |              |
-| Soci-sqlite3  | Soci connector for SQLit3.                                                                                                               | X         | X     | X         |              |
-| Soci-mysql    | Soci connector for MySQL.                                                                                                                | X         | X     | X         |              |
-| NetSNMP       | SNMP library, used for SNMP support.                                                                                                     |           | X     |           |              |
-| pdflatex      | To generate the reference documentation as PDF.                                                                                          |           | X     |           |              |
+| Dependency      | Description                                                                                                                              | Mandatory | prepare.py | CMake |
+| :---            | :---                                                                                                                                     | :---:     | :---:      | :---: |
+| BcSofiaSip      | Belledonne Communications maintained SofiaSip project. [See GitLab repository](https://gitlab.linphone.org/BC/public/external/sofia-sip) | X         |            | X     |
+| BcToolbox       | Several basic utilities.                                                                                                                 | X         |            | X     |
+| BelR            | Generic parser using ABNF grammar, used for user file parsing.                                                                           | X         |            | X     |
+| OpenSSL         | TLS stack.                                                                                                                               | X         | X          | X     |
+| Hiredis         | Redis DB client library, used for Registrar DB and communications between Flexisip instances of a same cluster.                          | X         | X          | X     |
+| LibNgHttp2      | HTTP2 stack.                                                                                                                             | X         | X          | X     |
+| Soci            | SQL database client, used for user database reading and event logs.                                                                      | X         |            | X     |
+| Soci-sqlite3    | Soci connector for SQLit3.                                                                                                               | X         |            | X     |
+| Soci-mysql      | Soci connector for MySQL.                                                                                                                | X         |            | X     |
+| oRTP            | RTP stack used for media relay feature.                                                                                                  |           |            | X     |
+| Mediastreamer   | Media engine used for transcoding feature.                                                                                               |           |            | X     |
+| BelleSip        | mDNS support.                                                                                                                            |           |            | X     |
+| Protobuf        | Needed for migration from legacy registrar database format.                                                                              |           | X          | X     |
+| NetSNMP         | SNMP library, used for SNMP support.                                                                                                     |           | X          | X     |
+| pdflatex        | To generate the reference documentation as PDF.                                                                                          |           | X          | X     |
+| SQLite3         |                                                                                                                                          | X         | X          |       |
+| libmysql-client |                                                                                                                                          | X         | X          |       |
 
 **Presence server only dependencies:**
 
-| Dependency    | Description                                                                                                                              | Mandatory | Tier  | Submodule | Linphone-sdk |
-| :---          | :---                                                                                                                                     | :---:     | :---: | :---:     | :---:        |
-| BelleSip      | SIP stack.                                                                                                                               | X         |       |           | X            |
-| Xsd           | W3C XML Schema to C++ data binding compiler.                                                                                             | X         | X     |           |              |
-| XercesC       | XML parser.                                                                                                                              | X         | X     |           |              |
-
+| Dependency      | Description                                                                                                                              | Mandatory | prepare.py | CMake |
+| :---            | :---                                                                                                                                     | :---:     | :---:      | :---: |
+| BelleSip        | SIP stack.                                                                                                                               | X         |            | X     |
+| Xsd             | W3C XML Schema to C++ data binding compiler.                                                                                             | X         | X          | X     |
+| XercesC         | XML parser.                                                                                                                              | X         | X          | X     |
+                                                                                                                                                                        
 **Conference server only dependencies:**
-
-| Dependency    | Description                                                                                                                              | Mandatory | Tier  | Submodule | Linphone-sdk |
-| :---          | :---                                                                                                                                     | :---:     | :---: | :---:     | :---:        |
-| BelleSip      | SIP stack.                                                                                                                               | X         |       |           | X            |
-| LibLinphone++ | SIP user agent C++ library.                                                                                                              | X         |       |           | X            |
-
----
-
-**mandatory** marked dependencies are necessary for building a minimal binary of the required server whereas **optional** marked ones may be skipped if the
-according feature has been disabled while configuring the source code.
-
-**tier** marked dependencies are projects which aren't developed by Belledonne Communications and must be installed on the build machine before configuring the
-source code of Flexisip, except if they are tagged as **submodule**.
-
-**submodule** marked dependencies are projects (tier projects for the most), which the Git repository has been added as submodule of Flexisip project, and thus don't need to be installed on
-the build machine if the *./prepare.py* utilities is used to configure source code. However, package maintainers will need to install the dependencies since
-common package building tools use to build projects separately.
-
-**linphone-sdk** dependencies are projects which are developed by Belledonne Communications for the sake of Linphone client. These projects are also submodules of Flexisip Git repository, so
-they may be viewed as **submodule** projects.
+                                                                                                                                                                        
+| Dependency      | Description                                                                                                                              | Mandatory | prepare.py | CMake |
+| :---            | :---                                                                                                                                     | :---:     | :---:      | :---: |
+| BelleSip        | SIP stack.                                                                                                                               | X         |            | X     |
+| LibLinphone++   | SIP user agent C++ library.                                                                                                              | X         |            | X     |
 
 
 # Compilation
