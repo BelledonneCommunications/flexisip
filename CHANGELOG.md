@@ -19,8 +19,30 @@ Group changes to describe their impact on the project, as follows:
 - `module::Authentication/realm` parameter.
 
 ### [Fixed]
-- Fix issue with dual stack media relay causing ICE failures.
 
+
+## [2.0.4] - 2021-03-01
+### [Fixed]
+- **Authentication** Prevent password mismatch error when hashed passwords are in upper case
+  in the user database.
+- **Push Notifications** Prevent the PushNotification module from sending an out-of-dialog
+  "180 Ringing" reply when an in-dialog 180 reply has already
+  been forwarded back by the Router module.
+- **Apple push notifications** The new HTTP/2 client now automatically close the connection
+  with the APNS after one minute of inactivity to prevent the connection to be silently
+  destroyed by aggressive routers. That improve PNR sending reliability.
+- **Android push notifications** Use timeouts that has been set in the Router module settings to fill the TTL
+  of the push notification request. See
+  [Flexisip's specification around push notifications](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/D.%20Specifications/Push%20notifications/#HContentofthepushnotificationssentbyFlexisip)
+  for more information about the involved parameters.
+- **Media relay** Fix an issue while processing a SDP without ICE containing an IPv6 connection address, and Flexisip has no IPv6 address available.
+  Previously, an empty connection address was set by the MediaRelay module, causing a blank call. Now, the IPv4 address will be used as fallback, which will work if the network provides NAT64 service.
+- **Proxy server** Fix several huge memory leaks. No more memory leaks issues are known on the proxy component today.
+- **Conference server** The transport address now allows to restrict the listening interface.
+  Before, the conference was listening on all interfaces independently of the transport host.
+
+### [Removed]
+- 'pn-silent' custom Contact parameter for push notifications.
 
 ## [2.0.3] - 2020-11-13
 ### [Fixed]
