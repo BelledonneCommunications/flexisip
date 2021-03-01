@@ -1,13 +1,10 @@
-Flexisip is a complete, modular and scalable SIP server suite written in C++11, comprising proxy, presence and group chat functions.
+Flexisip is a complete, modular and scalable SIP server suite written in C++14, comprising proxy, presence and group chat functions.
 It also includes a push gateway, to deliver SIP incoming calls or text messages on mobile device platforms where push notifications are required to receive information when the app is not active in the foreground.
 
 Flexisip instances can be deployed on server machines to run a SIP VoIP service. 
 The free linphone.org SIP service has run on Flexisip since 2011, and enables Linphone users to create SIP addresses in order to connect with each other.
 
 It can also be embedded and run perfectly on small hardware systems.
-
-To see all supported features and RFCs: http://www.linphone.org/technical-corner/flexisip/features <br/>
-To read the documentation: http://www.linphone.org/technical-corner/flexisip/documentation
 
 # License
 
@@ -19,89 +16,136 @@ Flexisip is dual licensed, and can be licensed and distributed:
 
 # Documentation
 
-- Supported features and RFCs : https://www.linphone.org/technical-corner/flexisip/features  
-- Flexisip documentation : https://www.linphone.org/technical-corner/flexisip/documentation
+- [Supported features and RFCs](https://www.linphone.org/technical-corner/flexisip/features)
+- [Flexisip documentation](https://www.linphone.org/technical-corner/flexisip/documentation)
 
 # Dependencies
 
-Flexisip depends on the following projects, added as submodule in the git repository:
-- sofia-sip
-- ortp
-- bctoolbox
-- belr
-- openSSL
-- hiredis (optional: Redis registrar database backend and cluster mode)
-- mediastreamer (optional: transcoding feature)
-- protobuf (optional: migration from legacy registrar database format)
-- belle-sip (optional: mDNS support)
-- soci (optional: SQL database support)
-- netsnmp (optional: SNMP support)
-- pdflatex (optional: to generate the documentation in PDF format)
+The dependencies to install depend on the build utilities you use to build Flexisip (*./prepare.py* or *CMake*). See [“Compilations”](#compilation) for more information about build ways.
 
-Specifically for presence server:
-- belle-sip
-- xsd (=4.0.0)
-- xercesc
+**Common and proxy dependencies:**
 
-Specifically for conference server:
-- belle-sip
-- liblinphone++
+| Dependency      | Description                                                                                                                              | Mandatory | prepare.py | CMake |
+| :---            | :---                                                                                                                                     | :---:     | :---:      | :---: |
+| BcSofiaSip      | Belledonne Communications maintained SofiaSip project. [See GitLab repository](https://gitlab.linphone.org/BC/public/external/sofia-sip) | X         |            | X     |
+| BcToolbox       | Several basic utilities.                                                                                                                 | X         |            | X     |
+| BelR            | Generic parser using ABNF grammar, used for user file parsing.                                                                           | X         |            | X     |
+| OpenSSL         | TLS stack.                                                                                                                               | X         | X          | X     |
+| Hiredis         | Redis DB client library, used for Registrar DB and communications between Flexisip instances of a same cluster.                          | X         | X          | X     |
+| LibNgHttp2      | HTTP2 stack.                                                                                                                             | X         | X          | X     |
+| Soci            | SQL database client, used for user database reading and event logs.                                                                      | X         |            | X     |
+| Soci-sqlite3    | Soci connector for SQLit3.                                                                                                               | X         |            | X     |
+| Soci-mysql      | Soci connector for MySQL.                                                                                                                | X         |            | X     |
+| SQLite3         |                                                                                                                                          | X         | X          |       |
+| libmysql-client |                                                                                                                                          | X         | X          |       |
+| oRTP            | RTP stack used for media relay feature.                                                                                                  | X         |            | X     |
+| Mediastreamer   | Media engine used for transcoding feature.                                                                                               |           |            | X     |
+| BelleSip        | mDNS support.                                                                                                                            |           |            | X     |
+| Protobuf        | Needed for migration from legacy registrar database format.                                                                              |           | X          | X     |
+| NetSNMP         | SNMP library, used for SNMP support.                                                                                                     |           | X          | X     |
+| pdflatex        | To generate the reference documentation as PDF.                                                                                          |           | X          | X     |
+
+**Presence server only dependencies:**
+
+| Dependency      | Description                                                                                                                              | Mandatory | prepare.py | CMake |
+| :---            | :---                                                                                                                                     | :---:     | :---:      | :---: |
+| BelleSip        | SIP stack.                                                                                                                               | X         |            | X     |
+| Xsd             | W3C XML Schema to C++ data binding compiler.                                                                                             | X         | X          | X     |
+| XercesC         | XML parser.                                                                                                                              | X         | X          | X     |
+                                                                                                                                                                        
+**Conference server only dependencies:**
+                                                                                                                                                                        
+| Dependency      | Description                                                                                                                              | Mandatory | prepare.py | CMake |
+| :---            | :---                                                                                                                                     | :---:     | :---:      | :---: |
+| BelleSip        | SIP stack.                                                                                                                               | X         |            | X     |
+| LibLinphone++   | SIP user agent C++ library.                                                                                                              | X         |            | X     |
 
 
 # Compilation
 
-Flexisip uses cmake as build system, extended by a prepare.py script written in Python.
+## Required build tools
 
-## GNU/Linux developer build
+- C and C++ compiler. GCC and Clang are supported as long as they are recent enough for building C++14 code.
+- CMake >= 3.11
+- Autotools suite: autoconf, automake, libtool
+- make or Ninja
+- patch command
+- Python >= 3
+- Doxygen
+- Git
 
-You can issue ./prepare.py -lf to see all possible build options.
-Then, use the following to proceed with compilation:
-	./prepare.py <build options>
-	make
 
-Alternatively, should all the dependencies listed above be installed on the system, Flexisip's CMake scripts
-can be used directly. For example:
+## Building Flexisip with ./prepare.py tool (recommended)
 
-	cmake . -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc
-	make
+*./prepare.py* allows to build Flexisip and all the required dependencies, so that few dependencies need to be
+installed by the user. To use it, just type the following command:
 
-## rpm and deb packages
+```bash
+./prepare.py <build_options>
+make -j<njobs>
+```
 
-The `flexisip-rpm` prepare.py target can be used to generate RPM packages for Flexisip and its dependencies.
-_Alien_ program is used internaly to convert RPMs into Debian packages when this build is run on a Debian or Debian-like GNU/Linux distribution.
-The following dependency packages are required (as rpm package name): 
- mbedtls-devel sqlite-devel postgresql-devel rpm-build bison speex-devel
+To have the list of all supported options, you may invoke *./prepare.py* with *-lf* options:
 
-	./prepare.py flexisip-rpm -DENABLE_REDIS=ON -DENABLE_BC_HIREDIS=ON
-	make
+```bash
+./prepare.py -lf
+```
+
+For instance, the following line allows to build Flexisip with the same features than our packages
+for CentOS and Debian:
+
+```bash
+./prepare.py -DENABLE_CONFERENCE=ON -DENABLE_JWE_AUTH_PLUGIN=ON -DENABLE_EXTERNAL_AUTH_PLUGIN=ON -DENABLE_PRESENCE=ON -DENABLE_PROTOBUF=ON -DENABLE_SNMP=ON -DENABLE_SOCI=ON -DENABLE_TRANSCODER=ON
+make -j<njobs>
+```
+
+If you need to switch on/off a build option, it is highly recommended to clean the project by using *./prepare.py -c* and configure it again from scratch.
+
+
+All the built binaries are installed by using *./OUTPUT* directory as prefix.
+
+
+## Building Flexisip with CMake (recommended for package maintainers)
+
+Before configuring, you need to install all the dependencies marked as *CMake* in [“Dependencies”](#dependencies) section.
+
+Then, create a build directory and configure the project:
+
+```bash
+mkdir ./work
+cmake -S . -B ./work -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc
+make -C ./work -j<njobs>
+```
+
+Check *CMakeLists.txt* to know the list of the available options and their default value. To change an option, you just need to invoke *CMake* again by specifying the option you need to change only.
+For instance, to enable the presence server feature:
+
+```bash
+cmake ./work -DENABLE_PRESENCE=ON
+make -C ./work -j<njobs>
+```
+
+You may also use *ccmake* or *cmake-gui* utilities to configure the project interactively:
+
+```bash
+ccmake ./work
+make -C ./work -j<njobs>
+```
+
+## Building RPM or DEB packages
+
+```bash
+./prepare.py flexisip-rpm -DENABLE_CONFERENCE=ON -DENABLE_JWE_AUTH_PLUGIN=ON -DENABLE_EXTERNAL_AUTH_PLUGIN=ON -DENABLE_PRESENCE=ON -DENABLE_PROTOBUF=ON -DENABLE_SNMP=ON -DENABLE_SOCI=ON -DENABLE_TRANSCODER=ON
+make -j1 # The build MUST be sequential
+```
 
 ## Docker
 
 A docker image can be build from sources with command:
 
-	docker build -t flexisip --build-arg=njobs=<njobs> -f docker/flex-from-src .
-
-## Macos X (outdated)
-
-The CMake scripts of Flexisip can be used to develop with Flexisip in Xcode.
-You need to run:
-- `./prepare.py -G Xcode flexisip \
-	-DENABLE_REDIS=NO \
-	-DEP_sofiasip_CONFIGURE_OPTIONS=PKG_CONFIG_PATH=/opt/local/lib/pkgconfig/ `
-- `xcodebuild -project WORK/flexisip/cmake/Project.xcodeproj/ `
-- `open WORK/flexisip/Build/flexisip/flexisip.xcodeproj`
-
-The soci dependency is not easy to install on MacOS. If you need it, you can use these tips, based on "brew" system:
-
-You need to install and unlink mysql :
-brew install mysql
-brew unlink mysql
-Then install mysql-connector-c
-brew install mysql-connector-c
-And finally install soci with mysql
-brew install soci --with-mysql
-
-You can now use `-DENABLE_SOCI=ON` in your prepare options.
+```bash
+docker build -t flexisip --build-arg='njobs=<njobs>' -f docker/flex-from-src .
+```
 
 # Configuration
 
