@@ -63,7 +63,7 @@ protected:
 	 * This method may be overridden in order to instantiate a specialization of #FlexisipAuthStatus. Should it be,
 	 * the overriding method might call #configureAuthStatus() for configuring the base of the returned object.
 	 */
-	virtual std::unique_ptr<AuthStatus> createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev);
+	std::unique_ptr<AuthStatus> createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev);
 	/**
 	 * Called by createAuthStatus() for setting #FlexisipAuthStatus attribute for the event request information.
 	 */

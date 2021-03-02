@@ -24,6 +24,7 @@
 #include <flexisip/module-authentication-base.hh>
 
 #include "utils/string-utils.hh"
+#include "utils/uri-utils.hh"
 
 
 using namespace std;
@@ -217,6 +218,23 @@ void ModuleAuthenticationBase::configureAuthStatus(AuthStatus &as, const std::sh
 	as.as_callback = [this](const auto &as){processAuthModuleResponse(as);};
 	as.mUsedAlgo = mAlgorithms;
 	as.mNo403 = mNo403Expr->eval(*ev->getSip());
+
+	as.mDomain = sip->sip_from->a_url->url_host;
+	as.mFromHeader = sip_header_as_string(as.mHome.home(), reinterpret_cast<sip_header_t *>(sip->sip_from));
+
+	if (sip->sip_contact) {
+		const char *sipInstance = msg_header_find_param(reinterpret_cast<msg_common_t *>(sip->sip_contact), "+sip.instance");
+		as.mSipInstance = sipInstance ? sipInstance : "";
+
+		try {
+			auto uuid = UriUtils::getParamValue(sip->sip_contact->m_url->url_params, "gr");
+			if (uuid.empty()) uuid = UriUtils::uniqueIdToGr(as.mSipInstance);
+			uuid = StringUtils::removePrefix(uuid, "urn:uuid:");
+			as.mUUID = move(uuid);
+		} catch (const invalid_argument &e) { // raised by removePrefix() when uuid doesn't start by 'urn:uuid:'
+			SLOGE << "ExernalAuthentication: error while getting UUID: " << e.what();
+		}
+	}
 }
 
 void ModuleAuthenticationBase::validateRequest(const std::shared_ptr<RequestSipEvent> &request) {

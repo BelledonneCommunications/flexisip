@@ -38,7 +38,6 @@ private:
 	void onLoad(const GenericStruct *root) override;
 
 	std::unique_ptr<AuthModuleBase> createAuthModule(int nonceExpire, bool qopAuth) override;
-	std::unique_ptr<AuthStatus> createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) override;
 
 	void onSuccess(const AuthStatus &as) override;
 	void errorReply(const AuthStatus &as) override;

@@ -86,32 +86,6 @@ std::unique_ptr<AuthModuleBase> ModuleExternalAuthentication::createAuthModule(i
 	}
 }
 
-std::unique_ptr<AuthStatus> ModuleExternalAuthentication::createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) {
-	sip_t *sip = ev->getMsgSip()->getSip();
-
-	auto as = make_unique<AuthStatus>(ev);
-	configureAuthStatus(*as, ev);
-
-	as->mDomain = sip->sip_from->a_url->url_host;
-	as->mFromHeader = sip_header_as_string(as->mHome.home(), reinterpret_cast<sip_header_t *>(sip->sip_from));
-
-	if (sip->sip_contact) {
-		const char *sipInstance = msg_header_find_param(reinterpret_cast<msg_common_t *>(sip->sip_contact), "+sip.instance");
-		as->mSipInstance = sipInstance ? sipInstance : "";
-
-		try {
-			auto uuid = UriUtils::getParamValue(sip->sip_contact->m_url->url_params, "gr");
-			if (uuid.empty()) uuid = UriUtils::uniqueIdToGr(as->mSipInstance);
-			uuid = StringUtils::removePrefix(uuid, "urn:uuid:");
-			as->mUUID = move(uuid);
-		} catch (const invalid_argument &e) { // raised by removePrefix() when uuid doesn't start by 'urn:uuid:'
-			SLOGE << "ExernalAuthentication: error while getting UUID: " << e.what();
-		}
-	}
-
-	return as;
-}
-
 void ModuleExternalAuthentication::onSuccess(const AuthStatus &as) {
 	const shared_ptr<MsgSip> &ms = as.mEvent->getMsgSip();
 	sip_t *sip = ms->getSip();
