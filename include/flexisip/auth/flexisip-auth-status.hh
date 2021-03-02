@@ -34,8 +34,7 @@ namespace flexisip {
 struct AuthStatus {
 	using ResponseCb = std::function<void(const std::shared_ptr<AuthStatus> &as)>;
 
-	AuthStatus(const std::shared_ptr<RequestSipEvent> &ev): mEvent(ev) {}
-	virtual ~AuthStatus() = default;
+	AuthStatus(const std::shared_ptr<RequestSipEvent> &ev): mEvent{ev} {}
 
 	// Attributes
 	int as_status = 500;			/**< Return authorization status [out] */

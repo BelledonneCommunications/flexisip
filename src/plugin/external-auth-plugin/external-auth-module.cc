@@ -42,12 +42,12 @@ ExternalAuthModule::~ExternalAuthModule() {
 	nth_engine_destroy(mEngine);
 }
 
-void ExternalAuthModule::checkAuthHeader(const std::shared_ptr<AuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach) {
+void ExternalAuthModule::checkAuthHeader(const std::shared_ptr<AuthStatus> &as, msg_auth_t &credentials) {
 	try {
 		HttpUriFormater::TranslationFunc func = [&as, &credentials](const string &key){return extractParameter(*as, credentials, key);};
 		string uri = mUriFormater.format(func);
 
-		auto ctx = make_unique<HttpRequestCtx>(*this, as, ach);
+		auto ctx = make_unique<HttpRequestCtx>(*this, as);
 
 		nth_client_t *request = nth_client_tcreate(mEngine,
 			onHttpResponseCb,
@@ -118,7 +118,7 @@ void ExternalAuthModule::onHttpResponse(HttpRequestCtx &ctx, nth_client_t *reque
 		ctx.as->as_phrase = phrase;
 		ctx.as->mReasonHeader = reasonHeaderValue;
 		ctx.as->mPAssertedIdentity = pAssertedIdentity;
-		if (sipCode == 401 || sipCode == 407) challenge(ctx.as, ctx.ach);
+		if (sipCode == 401 || sipCode == 407) challenge(ctx.as);
 	} catch (const runtime_error &e) {
 		SLOGE << "HTTP request [" << request << "]: " << e.what();
 		onError(*ctx.as);

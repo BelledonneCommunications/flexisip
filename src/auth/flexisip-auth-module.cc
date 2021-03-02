@@ -70,8 +70,8 @@ void AuthModule::GenericAuthListener::main_thread_async_response_cb(su_root_magi
 //  FlexisipAuthModule class
 // ====================================================================================================================
 
-void AuthModule::challenge(const std::shared_ptr<AuthStatus> &as, const auth_challenger_t &ach) {
-	auto cleanUsedAlgo = [this, &as, ach](AuthDbResult r, const AuthDbBackend::PwList &passwords) {
+void AuthModule::challenge(const std::shared_ptr<AuthStatus> &as) {
+	auto cleanUsedAlgo = [this, &as](AuthDbResult r, const AuthDbBackend::PwList &passwords) {
 		switch (r) {
 			case PASSWORD_FOUND: {
 				// Make a challenge for each algorithm found in database which has been authorized in Flexisip settings.
@@ -89,13 +89,13 @@ void AuthModule::challenge(const std::shared_ptr<AuthStatus> &as, const auth_cha
 				} else {
 					as->mUsedAlgo = move(usedAlgo);
 				}
-				DigestAuthBase::challenge(as, ach); // Calling FlexisipAuthModuleBase::onChallenge() directly here is forbidden with GCC 4.9 and earlier.
+				DigestAuthBase::challenge(as); // Calling FlexisipAuthModuleBase::onChallenge() directly here is forbidden with GCC 4.9 and earlier.
 				break;
 			}
 			case PASSWORD_NOT_FOUND:
 				// Make a challenge for each algorithm allowed by Flexisip settings.
 				LOGD("AuthStatus[%p]: no password found. Making challenge for each authorized algorithm", &as);
-				DigestAuthBase::challenge(as, ach); // Calling FlexisipAuthModuleBase::onChallenge() directly here is forbidden with GCC 4.9 and earlier.
+				DigestAuthBase::challenge(as); // Calling FlexisipAuthModuleBase::onChallenge() directly here is forbidden with GCC 4.9 and earlier.
 				break;
 			case AUTH_ERROR:
 				this->onError(*as);
@@ -117,7 +117,7 @@ void AuthModule::challenge(const std::shared_ptr<AuthStatus> &as, const auth_cha
 #define PA "Authorization missing "
 
 /** Verify digest authentication */
-void AuthModule::checkAuthHeader(const std::shared_ptr<AuthStatus> &as, msg_auth_t &au, const auth_challenger_t &ach) {
+void AuthModule::checkAuthHeader(const std::shared_ptr<AuthStatus> &as, msg_auth_t &au) {
 	auto ar = make_shared<AuthResponse>();
 	try {
 		ar->parse(au.au_params);
@@ -136,20 +136,20 @@ void AuthModule::checkAuthHeader(const std::shared_ptr<AuthStatus> &as, msg_auth
 		ar->ar_username << "/" << as->as_user_uri->url_user << ", hosts " << ar->ar_realm << "/" << as->as_user_uri->url_host;
 		LOGD("from and authentication usernames [%s/%s] or from and authentication hosts [%s/%s] empty",
 				ar->ar_username.c_str(), as->as_user_uri->url_user, ar->ar_realm.c_str(), as->as_user_uri->url_host);
-		onAccessForbidden(as, ach, "Authentication info missing");
+		onAccessForbidden(as, "Authentication info missing");
 		notify(as);
 		return;
 	}
 
 	msg_time_t now = msg_now();
 	if (as->as_nonce_issued == 0 /* Already validated nonce */ && validateDigestNonce(*as, *ar, now) < 0) {
-		challenge(as, ach);;
+		challenge(as);;
 		notify(as);
 		return;
 	}
 
 	if (as->as_stale) {
-		challenge(as, ach);
+		challenge(as);
 		notify(as);
 		return;
 	}
@@ -159,7 +159,7 @@ void AuthModule::checkAuthHeader(const std::shared_ptr<AuthStatus> &as, msg_auth
 		auto nnc = ar->getNc<uint32_t>();
 		if (pnc >= nnc) {
 			SLOGE << "Bad nonce count " << pnc << " -> " << nnc << " for " << ar->ar_nonce;
-			challenge(as, ach);
+			challenge(as);
 			notify(as);
 			return;
 		} else {
@@ -170,15 +170,15 @@ void AuthModule::checkAuthHeader(const std::shared_ptr<AuthStatus> &as, msg_auth
 	auto unescpapedUrlUser = UriUtils::unescape(as->as_user_uri->url_user);
 	auto listener = new GenericAuthListener(
 		getRoot(),
-		[this, as, ar, ach](AuthDbResult result, const AuthDbBackend::PwList &passwords){
-			this->processResponse(as, *ar, ach, result, passwords);
+		[this, as, ar](AuthDbResult result, const AuthDbBackend::PwList &passwords){
+			this->processResponse(as, *ar, result, passwords);
 		}
 	);
 	AuthDbBackend::get().getPassword(unescpapedUrlUser, as->as_user_uri->url_host, ar->ar_username, listener);
 	as->as_status = 100;
 }
 
-void AuthModule::processResponse(const std::shared_ptr<AuthStatus> &as, const AuthResponse &ar, const auth_challenger_t &ach, AuthDbResult result, const AuthDbBackend::PwList &passwords) {
+void AuthModule::processResponse(const std::shared_ptr<AuthStatus> &as, const AuthResponse &ar, AuthDbResult result, const AuthDbBackend::PwList &passwords) {
 	ostringstream logPrefixOs{};
 	logPrefixOs << "AuthStatus[" << as << "]";
 
@@ -198,7 +198,7 @@ void AuthModule::processResponse(const std::shared_ptr<AuthStatus> &as, const Au
 			const auto algo = to_string(ar.ar_algorithm);
 			if (find(as->mUsedAlgo.cbegin(), as->mUsedAlgo.cend(), algo) == as->mUsedAlgo.cend()) {
 				LOGD("%s: '%s' not allowed", logPrefix.c_str(), algo.c_str());
-				onAccessForbidden(as, ach);
+				onAccessForbidden(as);
 				break;
 			}
 			auto pw = find_if(passwords.cbegin(), passwords.cend(), [&algo](const passwd_algo_t &pw) {
@@ -206,15 +206,15 @@ void AuthModule::processResponse(const std::shared_ptr<AuthStatus> &as, const Au
 			});
 			if (pw == passwords.cend()) {
 				LOGD("%s: no %s password in database for user '%s'", logPrefix.c_str(), algo.c_str(), userId.c_str());
-				onAccessForbidden(as, ach);
+				onAccessForbidden(as);
 				break;
 			}
-			checkPassword(as, ach, ar, pw->pass);
+			checkPassword(as, ar, pw->pass);
 			break;
 		}
 		case PASSWORD_NOT_FOUND:
 			LOGD("%s: no password found for '%s'", logPrefix.c_str(), userId.c_str());
-			onAccessForbidden(as, ach);
+			onAccessForbidden(as);
 			break;
 		case AUTH_ERROR:
 			LOGD("%s: password fetching failed for '%s'", logPrefix.c_str(), userId.c_str());
@@ -231,15 +231,15 @@ void AuthModule::processResponse(const std::shared_ptr<AuthStatus> &as, const Au
 /**
  * NULL if passwd not found.
  */
-void AuthModule::checkPassword(const std::shared_ptr<AuthStatus> &as, const auth_challenger_t &ach, const AuthResponse &ar, const std::string &password) {
+void AuthModule::checkPassword(const std::shared_ptr<AuthStatus> &as, const AuthResponse &ar, const std::string &password) {
 	if (checkPasswordForAlgorithm(*as, ar, password)) {
 		LOGD("AuthStatus[%p]: passwords did not match", as.get());
-		onAccessForbidden(as, ach);
+		onAccessForbidden(as);
 		return;
 	}
 
 	if (am_nextnonce)
-		infoDigest(*as, ach);
+		infoDigest(*as);
 
 	LOGD("AuthStatus[%p]: successful authentication", &as);
 
@@ -266,13 +266,13 @@ int AuthModule::checkPasswordForAlgorithm(AuthStatus &as, const AuthResponse &ar
 	return response == ar.ar_response ? 0 : -1;
 }
 
-void AuthModule::onAccessForbidden(const std::shared_ptr<AuthStatus> &as, const auth_challenger_t &ach, std::string phrase) {
+void AuthModule::onAccessForbidden(const std::shared_ptr<AuthStatus> &as, std::string phrase) {
 	if (!as->mNo403) {
 		as->as_status = 403;
 		as->as_phrase = move(phrase);
 		as->as_response = nullptr;
 	} else {
-		challenge(as, ach);
+		challenge(as);
 	}
 }
 
@@ -369,7 +369,9 @@ int AuthModule::validateDigestNonce(AuthStatus &as, AuthResponse &ar, msg_time_t
 	return 0;
 }
 
-void AuthModule::infoDigest(AuthStatus &as, const auth_challenger_t &ach) {
+void AuthModule::infoDigest(AuthStatus &as) {
+	const auto &method = as.mEvent->getSip()->sip_request->rq_method;
+	const auto &ach = method == sip_method_register ? sRegistrarChallenger : sProxyChallenger;
 	if (am_nextnonce) {
 		auto nonce = generateDigestNonce(true, msg_now());
 		as.as_info = msg_header_format(as.mHome.home(), ach.ach_info, "nextnonce=\"%s\"", nonce.c_str());

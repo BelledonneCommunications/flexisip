@@ -22,6 +22,7 @@
 #include <sofia-sip/auth_plugin.h>
 #include <sofia-sip/base64.h>
 #include <sofia-sip/msg_header.h>
+#include <sofia-sip/sip_status.h>
 
 #include "flexisip/logmanager.hh"
 #include "flexisip/module.hh"
@@ -124,7 +125,7 @@ DigestAuthBase::DigestAuthBase(su_root_t *root, unsigned nonceExpire, bool qopAu
 	mNonceStore.setNonceExpires(nonceExpire);
 }
 
-void DigestAuthBase::verify(const std::shared_ptr<AuthStatus> &as, msg_auth_t &_credentials, const auth_challenger_t &ach) {
+void DigestAuthBase::verify(const std::shared_ptr<AuthStatus> &as, msg_auth_t &_credentials) {
 	auto credentials = &_credentials;
 	if (!as->as_realm.empty()) {
 		/* Workaround for old linphone client that don't check whether algorithm is MD5 or SHA256.
@@ -150,23 +151,26 @@ void DigestAuthBase::verify(const std::shared_ptr<AuthStatus> &as, msg_auth_t &_
 		msg_auth_t *matched_au = ModuleToolbox::findAuthorizationForRealm(as->mHome.home(), credentials, as->as_realm.c_str());
 		if (matched_au)
 			credentials = matched_au;
-		checkAuthHeader(as, *credentials, ach);
+		checkAuthHeader(as, *credentials);
 	} else {
 		/* There was no realm or credentials, send challenge */
 		LOGD("AuthStatus[%p]: no credential found for realm '%s'", &as, as->as_realm.c_str());
-		challenge(as, ach);
+		challenge(as);
 		notify(as);
 		return;
 	}
 }
 
-void DigestAuthBase::challenge(const std::shared_ptr<AuthStatus> &as, const auth_challenger_t &ach) {
+void DigestAuthBase::challenge(const std::shared_ptr<AuthStatus> &as) {
 	as->as_response = nullptr;
 
 	auto nonce = generateDigestNonce(false, msg_now());
 
 	const auto &u = as->as_uri;
 	const auto &d = as->as_pdomain;
+
+	const auto &method = as->mEvent->getSip()->sip_request->rq_method;
+	const auto &challenger = method == sip_method_register ? sRegistrarChallenger : sProxyChallenger;
 
 	for (auto algo = as->mUsedAlgo.crbegin(); algo != as->mUsedAlgo.crend(); ++algo) {
 		ostringstream resp{};
@@ -179,7 +183,7 @@ void DigestAuthBase::challenge(const std::shared_ptr<AuthStatus> &as, const auth
 		resp << " algorithm=" << *algo;
 		if (!am_qop.empty()) resp << ", qop=\"" << am_qop << "\"";
 
-		auto challenge = msg_header_make(as->mHome.home(), ach.ach_header, resp.str().c_str());
+		auto challenge = msg_header_make(as->mHome.home(), challenger.ach_header, resp.str().c_str());
 		if (as->as_response) {
 			challenge->sh_auth->au_next = as->as_response->sh_auth;
 		}
@@ -191,8 +195,8 @@ void DigestAuthBase::challenge(const std::shared_ptr<AuthStatus> &as, const auth
 		as->as_status = 500;
 		as->as_phrase = auth_internal_server_error;
 	} else {
-		as->as_status = ach.ach_status;
-		as->as_phrase = ach.ach_phrase;
+		as->as_status = challenger.ach_status;
+		as->as_phrase = challenger.ach_phrase;
 		mNonceStore.insert(as->as_response->sh_auth);
 	}
 }
@@ -247,5 +251,8 @@ std::string DigestAuthBase::to_string(Qop qop) noexcept {
 	}
 	return "<unknown>";
 }
+
+auth_challenger_t DigestAuthBase::sRegistrarChallenger = {401, sip_401_Unauthorized, sip_www_authenticate_class, sip_authentication_info_class};
+auth_challenger_t DigestAuthBase::sProxyChallenger = {407, sip_407_Proxy_auth_required, sip_proxy_authenticate_class, sip_proxy_authentication_info_class};
 
 // ====================================================================================================================

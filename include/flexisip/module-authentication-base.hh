@@ -98,8 +98,6 @@ protected:
 	std::vector<std::string> mAuthDomains{};
 	std::unique_ptr<DigestAuthBase> mAuthModule{};
 	std::list<std::string> mAlgorithms{};
-	auth_challenger_t mRegistrarChallenger;
-	auth_challenger_t mProxyChallenger;
 	std::unique_ptr<RealmExtractor> mRealmExtractor{};
 	std::shared_ptr<SipBooleanExpression> mNo403Expr{};
 

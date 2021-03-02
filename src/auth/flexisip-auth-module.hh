@@ -47,7 +47,7 @@ public:
 
 	void setOnPasswordFetchResultCb(const PasswordFetchResultCb &cb) {mPassworFetchResultCb = cb;}
 
-	void challenge(const std::shared_ptr<AuthStatus> &as, const auth_challenger_t &ach) override;
+	void challenge(const std::shared_ptr<AuthStatus> &as) override;
 
 private:
 	class GenericAuthListener : public AuthDbListener {
@@ -67,20 +67,20 @@ private:
 		AuthDbBackend::PwList mPasswords;
 	};
 
-	void checkAuthHeader(const std::shared_ptr<AuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach) override;
+	void checkAuthHeader(const std::shared_ptr<AuthStatus> &as, msg_auth_t &credentials) override;
 
-	void processResponse(const std::shared_ptr<AuthStatus> &as, const AuthResponse &ar, const auth_challenger_t &ach, AuthDbResult result, const AuthDbBackend::PwList &passwords);
-	void checkPassword(const std::shared_ptr<AuthStatus> &as, const auth_challenger_t &ach, const AuthResponse &ar, const std::string &password);
+	void processResponse(const std::shared_ptr<AuthStatus> &as, const AuthResponse &ar, AuthDbResult result, const AuthDbBackend::PwList &passwords);
+	void checkPassword(const std::shared_ptr<AuthStatus> &as, const AuthResponse &ar, const std::string &password);
 	int checkPasswordForAlgorithm(AuthStatus &as, const AuthResponse &ar, std::string ha1);
 
-	void onAccessForbidden(const std::shared_ptr<AuthStatus> &as, const auth_challenger_t &ach, std::string phrase = "Forbidden");
+	void onAccessForbidden(const std::shared_ptr<AuthStatus> &as, std::string phrase = "Forbidden");
 
 	static std::string computeA1(Digest &algo, const AuthResponse &ar, const std::string &secret);
 	static std::string computeA1SESS(Digest &algo, const AuthResponse &ar, const std::string &ha1);
 	static std::string computeDigestResponse(Digest &algo, const AuthResponse &ar, const std::string &method_name, const void *body, size_t bodyLen, const std::string &ha1);
 
 	int validateDigestNonce(AuthStatus &as, AuthResponse &ar, msg_time_t now);
-	void infoDigest(AuthStatus &as, const auth_challenger_t &ach);
+	void infoDigest(AuthStatus &as);
 
 	// Attributes
 	PasswordFetchResultCb mPassworFetchResultCb;

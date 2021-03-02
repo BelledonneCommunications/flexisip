@@ -268,7 +268,7 @@ void Authentication::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		return;
 	}
 
-	mAuthModule->challenge(as, mProxyChallenger);
+	mAuthModule->challenge(as);
 	msg_header_insert(ev->getMsgSip()->getMsg(), (msg_pub_t *)sip, as->as_response);
 }
 

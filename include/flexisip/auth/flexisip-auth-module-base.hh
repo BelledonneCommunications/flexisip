@@ -52,8 +52,8 @@ public:
 	NonceStore &nonceStore() {return mNonceStore;}
 	su_root_t *getRoot() const noexcept {return mRoot;}
 
-	void verify(const std::shared_ptr<AuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach) override;
-	virtual void challenge(const std::shared_ptr<AuthStatus> &as, const auth_challenger_t &ach);
+	void verify(const std::shared_ptr<AuthStatus> &as, msg_auth_t &credentials) override;
+	virtual void challenge(const std::shared_ptr<AuthStatus> &as);
 
 protected:
 	enum class Algo : std::uint8_t { Md5, Md5sess, Sha1, Sha256 };
@@ -95,7 +95,7 @@ protected:
 	 * @param[in,out] as The context on the authentication. It is also used to return the result.
 	 * @param[in] credentials The authorization header to validate.
 	 */
-	virtual void checkAuthHeader(const std::shared_ptr<AuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach) = 0;
+	virtual void checkAuthHeader(const std::shared_ptr<AuthStatus> &as, msg_auth_t &credentials) = 0;
 
 	void notify(const std::shared_ptr<AuthStatus> &as);
 	void onError(AuthStatus &as);
@@ -116,6 +116,9 @@ protected:
 	su_root_t *mRoot = nullptr;
 	NonceStore mNonceStore{};
 	bool mQOPAuth = false;
+
+	static auth_challenger_t sRegistrarChallenger;
+	static auth_challenger_t sProxyChallenger;
 };
 
 }

@@ -32,15 +32,6 @@ using namespace std;
 namespace flexisip {
 
 ModuleAuthenticationBase::ModuleAuthenticationBase(Agent *agent) : Module(agent) {
-	mProxyChallenger.ach_status = 407; /*SIP_407_PROXY_AUTH_REQUIRED*/
-	mProxyChallenger.ach_phrase = sip_407_Proxy_auth_required;
-	mProxyChallenger.ach_header = sip_proxy_authenticate_class;
-	mProxyChallenger.ach_info = sip_proxy_authentication_info_class;
-
-	mRegistrarChallenger.ach_status = 401; /*SIP_401_UNAUTHORIZED*/
-	mRegistrarChallenger.ach_phrase = sip_401_Unauthorized;
-	mRegistrarChallenger.ach_header = sip_www_authenticate_class;
-	mRegistrarChallenger.ach_info = sip_authentication_info_class;
 }
 
 void ModuleAuthenticationBase::onDeclare(GenericStruct *mc) {
@@ -276,9 +267,9 @@ void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<Reque
 	// Another point in asynchronous mode is that the asynchronous callbacks MUST be called
 	// AFTER the nta_msg_treply bellow. Otherwise the as would be already destroyed.
 	if (sip->sip_request->rq_method == sip_method_register) {
-		mAuthModule->verify(as, *sip->sip_authorization, mRegistrarChallenger);
+		mAuthModule->verify(as, *sip->sip_authorization);
 	} else {
-		mAuthModule->verify(as, *sip->sip_proxy_authorization, mProxyChallenger);
+		mAuthModule->verify(as, *sip->sip_proxy_authorization);
 	}
 
 	processAuthModuleResponse(as);
