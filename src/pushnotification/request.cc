@@ -40,12 +40,13 @@ static const std::regex sApplePnProviderRegex("apns|apns\\.dev");
 	 push notification.
 */
 static const std::regex sPnParamRegex("([^.]+)\\.(.+)\\.((?:voip|remote|&)+)");
+static const std::regex sPnParamNoServiceRegex("([^.]+)\\.(.+)"); // If no service type is specified, we assume that the service type is "remote"
 
 /*
    Regex to use for extracting information from 'pn-prid' parameter when only one token has been
    given by the user agent. All the characters or all the characters before ':' are taken as
    the token. Characters after ':' must be 'voip' or 'remote'. Column character isn't authorized
-   in the token.
+   in the token. "remote" is used by default if nothing is specificed.
 */
 static const std::regex sPnPridOneTokenRegex("([^:]+)(?::(voip|remote))?");
 
@@ -87,7 +88,13 @@ void PushInfo::readRFC8599PushParams(const RFC8599PushParams &params) {
 			mTeamId = match[1].str();
 			bundleId = match[2].str();
 			servicesAvailable = StringUtils::split(match[3].str(), "&");
-		} else {
+		} else if (regex_match(params.pnParam, match, sPnParamNoServiceRegex)) {
+			mTeamId = match[1].str();
+			bundleId = match[2].str();
+			// if "remote" or "voip" services are not specified, we assume that the service type is "remote"
+			servicesAvailable.emplace_back("remote");
+		}
+		else {
 			throw runtime_error("pn-param invalid syntax");
 		}
 
@@ -109,12 +116,9 @@ void PushInfo::readRFC8599PushParams(const RFC8599PushParams &params) {
 			for (const auto &tokenAndService : tokenList) {
 				if (tokenList.size() == 1) {
 					if (regex_match(tokenAndService, match, sPnPridOneTokenRegex)) {
-						if (match.size() == 2) {
+						// If ":remote" or ":voip" was not specificed, we assume that the token match the requested service
+						if (match[2].str().empty() || match[2].str() == requiredService) {
 							deviceToken = match[1].str();
-						} else {
-							if (match[2].str() == requiredService) {
-								deviceToken = match[1].str();
-							}
 						}
 					} else {
 						throw runtime_error("pn-prid invalid syntax");
