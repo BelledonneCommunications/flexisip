@@ -56,7 +56,7 @@ protected:
 	/**
 	 * Override this method to specify the specialization of #FlexisipAuthModuleBase to instantiate.
 	 */
-	virtual std::unique_ptr<AuthModuleBase> createAuthModule(int nonceExpire, bool qopAuth) = 0;
+	virtual std::unique_ptr<DigestAuthBase> createAuthModule(int nonceExpire, bool qopAuth) = 0;
 	/**
 	 * @brief Create and configure a #FlexisipAuthStatus according the information extracted from ev.
 	 *
@@ -96,7 +96,7 @@ protected:
 
 protected:
 	std::vector<std::string> mAuthDomains{};
-	std::unique_ptr<AuthModuleBase> mAuthModule{};
+	std::unique_ptr<DigestAuthBase> mAuthModule{};
 	std::list<std::string> mAlgorithms{};
 	auth_challenger_t mRegistrarChallenger;
 	auth_challenger_t mProxyChallenger;

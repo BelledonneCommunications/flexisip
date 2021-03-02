@@ -32,7 +32,7 @@ namespace flexisip {
  * Authentication module that delegates the Authorization header validation to
  * an external HTTP server.
  */
-class ExternalAuthModule : public AuthModuleBase {
+class ExternalAuthModule : public DigestAuthBase {
 public:
 	ExternalAuthModule(su_root_t *root, int nonceExpire, bool qopAuth);
 	~ExternalAuthModule() override;

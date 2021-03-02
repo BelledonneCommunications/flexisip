@@ -43,7 +43,7 @@ public:
 	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) override;
 
 private:
-	std::unique_ptr<AuthModuleBase> createAuthModule(int nonceExpire, bool qopAuth) override;
+	std::unique_ptr<DigestAuthBase> createAuthModule(int nonceExpire, bool qopAuth) override;
 
 	void validateRequest(const std::shared_ptr<RequestSipEvent> &request) override;
 	void processAuthentication(const std::shared_ptr<RequestSipEvent> &request) override;

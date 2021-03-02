@@ -89,13 +89,13 @@ void AuthModule::challenge(const std::shared_ptr<AuthStatus> &as, const auth_cha
 				} else {
 					as->mUsedAlgo = move(usedAlgo);
 				}
-				AuthModuleBase::challenge(as, ach); // Calling FlexisipAuthModuleBase::onChallenge() directly here is forbidden with GCC 4.9 and earlier.
+				DigestAuthBase::challenge(as, ach); // Calling FlexisipAuthModuleBase::onChallenge() directly here is forbidden with GCC 4.9 and earlier.
 				break;
 			}
 			case PASSWORD_NOT_FOUND:
 				// Make a challenge for each algorithm allowed by Flexisip settings.
 				LOGD("AuthStatus[%p]: no password found. Making challenge for each authorized algorithm", &as);
-				AuthModuleBase::challenge(as, ach); // Calling FlexisipAuthModuleBase::onChallenge() directly here is forbidden with GCC 4.9 and earlier.
+				DigestAuthBase::challenge(as, ach); // Calling FlexisipAuthModuleBase::onChallenge() directly here is forbidden with GCC 4.9 and earlier.
 				break;
 			case AUTH_ERROR:
 				this->onError(*as);

@@ -40,7 +40,7 @@ using namespace flexisip;
 
 #define setattr(dst, src, attr_name) dst.attr_name = src->attr_name ? src->attr_name : ""
 
-void AuthModuleBase::AuthResponse::parse(char const * const params[]) {
+void DigestAuthBase::AuthResponse::parse(char const * const params[]) {
 	sofiasip::Home h{};
 	const string badAuthMsg{"Bad authorization"};
 	string missingMsg{"Authorization missing "};
@@ -100,12 +100,12 @@ void AuthModuleBase::AuthResponse::parse(char const * const params[]) {
 }
 
 template <>
-std::uint32_t AuthModuleBase::AuthResponse::getNc() const noexcept {
+std::uint32_t DigestAuthBase::AuthResponse::getNc() const noexcept {
 	return ar_nc;
 }
 
 template <>
-std::string AuthModuleBase::AuthResponse::getNc() const noexcept {
+std::string DigestAuthBase::AuthResponse::getNc() const noexcept {
 	ostringstream os{};
 	os << hex << setw(8) << setfill('0') << ar_nc;
 	return os.str();
@@ -118,13 +118,13 @@ std::string AuthModuleBase::AuthResponse::getNc() const noexcept {
 //  FlexisipAuthModuleBase class
 // ====================================================================================================================
 
-AuthModuleBase::AuthModuleBase(su_root_t *root, unsigned nonceExpire, bool qopAuth):
+DigestAuthBase::DigestAuthBase(su_root_t *root, unsigned nonceExpire, bool qopAuth):
 	am_qop{qopAuth ? "auth" : ""}, am_expires{nonceExpire}, mRoot{root}, mQOPAuth{qopAuth} {
 
 	mNonceStore.setNonceExpires(nonceExpire);
 }
 
-void AuthModuleBase::verify(const std::shared_ptr<AuthStatus> &as, msg_auth_t &_credentials, const auth_challenger_t &ach) {
+void DigestAuthBase::verify(const std::shared_ptr<AuthStatus> &as, msg_auth_t &_credentials, const auth_challenger_t &ach) {
 	auto credentials = &_credentials;
 	if (!as->as_realm.empty()) {
 		/* Workaround for old linphone client that don't check whether algorithm is MD5 or SHA256.
@@ -160,7 +160,7 @@ void AuthModuleBase::verify(const std::shared_ptr<AuthStatus> &as, msg_auth_t &_
 	}
 }
 
-void AuthModuleBase::challenge(const std::shared_ptr<AuthStatus> &as, const auth_challenger_t &ach) {
+void DigestAuthBase::challenge(const std::shared_ptr<AuthStatus> &as, const auth_challenger_t &ach) {
 	as->as_response = nullptr;
 
 	auto nonce = generateDigestNonce(false, msg_now());
@@ -197,11 +197,11 @@ void AuthModuleBase::challenge(const std::shared_ptr<AuthStatus> &as, const auth
 	}
 }
 
-void AuthModuleBase::notify(const std::shared_ptr<AuthStatus> &as) {
+void DigestAuthBase::notify(const std::shared_ptr<AuthStatus> &as) {
 	if (as->as_callback) as->as_callback(as);
 }
 
-void AuthModuleBase::onError(AuthStatus &as) {
+void DigestAuthBase::onError(AuthStatus &as) {
 	if (as.as_status != 0) {
 		as.as_status = 500;
 		as.as_phrase = "Internal error";
@@ -209,7 +209,7 @@ void AuthModuleBase::onError(AuthStatus &as) {
 	}
 }
 
-std::string AuthModuleBase::generateDigestNonce(bool nextnonce, msg_time_t now) {
+std::string DigestAuthBase::generateDigestNonce(bool nextnonce, msg_time_t now) {
 	am_count += 3730029547U; /* 3730029547 is a prime */
 
 	Nonce _nonce = {0};
@@ -229,7 +229,7 @@ std::string AuthModuleBase::generateDigestNonce(bool nextnonce, msg_time_t now) 
 	return res;
 }
 
-std::string AuthModuleBase::to_string(Algo algo) noexcept {
+std::string DigestAuthBase::to_string(Algo algo) noexcept {
 	switch (algo) {
 		case Algo::Md5:     return "MD5";
 		case Algo::Md5sess: return "MD5-sess";
@@ -239,7 +239,7 @@ std::string AuthModuleBase::to_string(Algo algo) noexcept {
 	return "<unknown>";
 }
 
-std::string AuthModuleBase::to_string(Qop qop) noexcept {
+std::string DigestAuthBase::to_string(Qop qop) noexcept {
 	switch (qop) {
 		case Qop::None:    return "none";
 		case Qop::Auth:    return "auth";

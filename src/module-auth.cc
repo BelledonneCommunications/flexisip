@@ -286,7 +286,7 @@ bool Authentication::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 // Private methods                                                                                                   //
 // ================================================================================================================= //
 
-std::unique_ptr<AuthModuleBase> Authentication::createAuthModule(int nonceExpire, bool qopAuth) {
+std::unique_ptr<DigestAuthBase> Authentication::createAuthModule(int nonceExpire, bool qopAuth) {
 	auto authModule = make_unique<AuthModule>(getAgent()->getRoot(), nonceExpire, qopAuth);
 	authModule->setOnPasswordFetchResultCb([this](bool passFound){passFound ? mCountPassFound++ : mCountPassNotFound++;});
 	return authModule;

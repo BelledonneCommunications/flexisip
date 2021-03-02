@@ -26,6 +26,7 @@
 #include <sofia-sip/msg_types.h>
 #include <sofia-sip/su_wait.h>
 
+#include "authentifier.hh"
 #include "flexisip-auth-status.hh"
 #include "nonce-store.hh"
 
@@ -37,7 +38,7 @@ namespace flexisip {
  * This implementation of AuthModule allows to do HTTP-like authentication
  * of SIP requests as described in RFC 3261 §22.
  */
-class AuthModuleBase {
+class DigestAuthBase : public Authentifier {
 public:
 	/**
 	 * @brief Instantiate a new authentication module without QOP authentication feature.
@@ -45,13 +46,13 @@ public:
 	 * @param[in] nonceExpire Validity period for a nonce in seconds.
 	 * @param[in] qopAuth Setting true allows clients to use the same nonce for successive authentication.
 	 */
-	AuthModuleBase(su_root_t *root, unsigned nonceExpire, bool qopAuth);
-	virtual ~AuthModuleBase() = default;
+	DigestAuthBase(su_root_t *root, unsigned nonceExpire, bool qopAuth);
+	~DigestAuthBase() override = default;
 
 	NonceStore &nonceStore() {return mNonceStore;}
 	su_root_t *getRoot() const noexcept {return mRoot;}
 
-	void verify(const std::shared_ptr<AuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach);
+	void verify(const std::shared_ptr<AuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach) override;
 	virtual void challenge(const std::shared_ptr<AuthStatus> &as, const auth_challenger_t &ach);
 
 protected:
