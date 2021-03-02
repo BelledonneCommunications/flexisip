@@ -63,6 +63,13 @@ struct AuthStatus {
 	std::list<std::string> mUsedAlgo;
 	bool mNo403 = false;
 	bool mPasswordFound = false;
+
+	std::string mReasonHeader{};      /**< [out] Reason header returned by the HTTP server on authentication failure. */
+	std::string mPAssertedIdentity{}; /**< [out] PAssertIdentity header returned by the HTTP server on authentication success. */
+	std::string mFromHeader{};        /**< [in]  Value of From header of the request. */
+	std::string mDomain{};            /**< [in]  Domain of the From header. */
+	std::string mSipInstance{};       /**< [in]  Value of the +sip.instance parameter from Contact header. */
+	std::string mUUID{};              /**< [in]  UUID of the application that is trying to authenticate. */
 };
 
 }

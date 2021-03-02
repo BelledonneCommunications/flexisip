@@ -44,12 +44,10 @@ ExternalAuthModule::~ExternalAuthModule() {
 
 void ExternalAuthModule::checkAuthHeader(const std::shared_ptr<AuthStatus> &as, msg_auth_t &credentials, const auth_challenger_t &ach) {
 	try {
-		auto externalAs = dynamic_pointer_cast<ExternalAuthModule::Status>(as);
-
-		HttpUriFormater::TranslationFunc func = [&externalAs, &credentials](const string &key){return extractParameter(*externalAs, credentials, key);};
+		HttpUriFormater::TranslationFunc func = [&as, &credentials](const string &key){return extractParameter(*as, credentials, key);};
 		string uri = mUriFormater.format(func);
 
-		auto ctx = make_unique<HttpRequestCtx>(*this, externalAs, ach);
+		auto ctx = make_unique<HttpRequestCtx>(*this, as, ach);
 
 		nth_client_t *request = nth_client_tcreate(mEngine,
 			onHttpResponseCb,
@@ -118,8 +116,8 @@ void ExternalAuthModule::onHttpResponse(HttpRequestCtx &ctx, nth_client_t *reque
 
 		ctx.as->as_status = (sipCode == 200 ? 0 : sipCode);
 		ctx.as->as_phrase = phrase;
-		ctx.as->reason(reasonHeaderValue);
-		ctx.as->pAssertedIdentity(pAssertedIdentity);
+		ctx.as->mReasonHeader = reasonHeaderValue;
+		ctx.as->mPAssertedIdentity = pAssertedIdentity;
 		if (sipCode == 401 || sipCode == 407) challenge(ctx.as, ctx.ach);
 	} catch (const runtime_error &e) {
 		SLOGE << "HTTP request [" << request << "]: " << e.what();
@@ -160,7 +158,7 @@ std::map<std::string, std::string> ExternalAuthModule::parseHttpBody(const std::
 	return result;
 }
 
-std::string ExternalAuthModule::extractParameter(const Status &as, const msg_auth_t &credentials, const std::string &paramName) {
+std::string ExternalAuthModule::extractParameter(const AuthStatus &as, const msg_auth_t &credentials, const std::string &paramName) {
 	if (paramName.compare(0, 7, "header:") == 0) {
 		string headerName(paramName, 7);
 		if (!headerName.empty()) {
@@ -186,10 +184,10 @@ std::string ExternalAuthModule::extractParameter(const Status &as, const msg_aut
 
 	if (paramName == "scheme") return StringUtils::strip(credentials.au_scheme, '"');
 	if (paramName == "method") return StringUtils::strip(as.as_method, '"');
-	if (paramName == "from") return StringUtils::strip(as.fromHeader(), '"');
-	if (paramName == "sip-instance") return StringUtils::strip(as.sipInstance(), '"');
-	if (paramName == "uuid") return as.uuid();
-	if (paramName == "domain") return StringUtils::strip(as.domain(), '"');
+	if (paramName == "from") return StringUtils::strip(as.mFromHeader, '"');
+	if (paramName == "sip-instance") return StringUtils::strip(as.mSipInstance, '"');
+	if (paramName == "uuid") return as.mUUID;
+	if (paramName == "domain") return StringUtils::strip(as.mDomain, '"');
 
 	return "null";
 }

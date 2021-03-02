@@ -34,46 +34,6 @@ namespace flexisip {
  */
 class ExternalAuthModule : public AuthModuleBase {
 public:
-	/**
-	 * Specialization of FlexisipAuthStatus dedicated to ExternalAuthModule.
-	 */
-	class Status : public AuthStatus {
-	public:
-		Status(const std::shared_ptr<RequestSipEvent> &ev) : AuthStatus(ev) {}
-
-		const std::string &reason() const {return mReasonHeader;}
-		template <typename T>
-		void reason(T &&val) {mReasonHeader = std::forward<T>(val);}
-
-		const std::string &pAssertedIdentity() const {return mPAssertedIdentity;}
-		template <typename T>
-		void pAssertedIdentity(T &&val) {mPAssertedIdentity = std::forward<T>(val);}
-
-		const std::string &fromHeader() const {return mFromHeader;}
-		template <typename T>
-		void fromHeader(T &&val) {mFromHeader = std::forward<T>(val);}
-
-		const std::string &domain() const {return mDomain;}
-		template <typename T>
-		void domain(T &&val) {mDomain = std::forward<T>(val);}
-
-		const std::string &sipInstance() const {return mSipInstance;}
-		template <typename T>
-		void sipInstance(T &&val) {mSipInstance = std::forward<T>(val);}
-
-		const std::string &uuid() const {return mUUID;}
-		template <typename T>
-		void uuid(T &&uuid) {mUUID = std::forward<T>(uuid);}
-
-	private:
-		std::string mReasonHeader{};      /**< [out] Reason header returned by the HTTP server on authentication failure. */
-		std::string mPAssertedIdentity{}; /**< [out] PAssertIdentity header returned by the HTTP server on authentication success. */
-		std::string mFromHeader{};        /**< [in]  Value of From header of the request. */
-		std::string mDomain{};            /**< [in]  Domain of the From header. */
-		std::string mSipInstance{};       /**< [in]  Value of the +sip.instance parameter from Contact header. */
-		std::string mUUID{};              /**< [in]  UUID of the application that is trying to authenticate. */
-	};
-
 	ExternalAuthModule(su_root_t *root, int nonceExpire, bool qopAuth);
 	~ExternalAuthModule() override;
 
@@ -81,11 +41,11 @@ public:
 
 private:
 	struct HttpRequestCtx {
-		HttpRequestCtx(ExternalAuthModule &am, const std::shared_ptr<ExternalAuthModule::Status> &as, const auth_challenger_t &ach):
+		HttpRequestCtx(ExternalAuthModule &am, const std::shared_ptr<AuthStatus> &as, const auth_challenger_t &ach):
 			am{am}, as{as}, ach{ach} {}
 
 		ExternalAuthModule &am;
-		std::shared_ptr<ExternalAuthModule::Status> as{};
+		std::shared_ptr<AuthStatus> as{};
 		const auth_challenger_t &ach;
 	};
 
@@ -94,7 +54,7 @@ private:
 	void onHttpResponse(HttpRequestCtx &ctx, nth_client_t *request, const http_t *http);
 	std::map<std::string, std::string> parseHttpBody(const std::string &body) const;
 
-	static std::string extractParameter(const Status &as, const msg_auth_t &credentials, const std::string &paramName);
+	static std::string extractParameter(const AuthStatus &as, const msg_auth_t &credentials, const std::string &paramName);
 	static int onHttpResponseCb(nth_client_magic_t *magic, nth_client_t *request, const http_t *http) noexcept;
 	static std::string toString(const http_payload_t *httpPayload);
 	static bool validSipCode(int sipCode);

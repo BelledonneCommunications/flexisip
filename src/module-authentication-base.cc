@@ -214,6 +214,7 @@ void ModuleAuthenticationBase::configureAuthStatus(AuthStatus &as, const std::sh
 	if (sip->sip_payload) {
 		as.as_body.assign(sip->sip_payload->pl_data, sip->sip_payload->pl_data + sip->sip_payload->pl_len);
 	}
+	as.as_callback = [this](const auto &as){processAuthModuleResponse(as);};
 	as.mUsedAlgo = mAlgorithms;
 	as.mNo403 = mNo403Expr->eval(*ev->getSip());
 }
@@ -250,7 +251,7 @@ void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<Reque
 
 	LOGD("start digest authentication");
 
-	shared_ptr<AuthStatus> as{createAuthStatus(request)};
+	auto as = static_cast<shared_ptr<AuthStatus>>(createAuthStatus(request));
 
 	// Attention: the auth_mod_verify method should not send by itself any message but
 	// return after having set the as status and phrase.
@@ -295,7 +296,6 @@ void ModuleAuthenticationBase::processAuthModuleResponse(const std::shared_ptr<A
 		}
 	} else if (as->as_status == 100) {
 		if (!ev->isSuspended()) ev->suspendProcessing();
-		as->as_callback = std::bind(&ModuleAuthenticationBase::processAuthModuleResponse, this, placeholders::_1);
 		return;
 	} else if (as->as_status >= 400) {
 		if (as->as_status == 401 || as->as_status == 407) {

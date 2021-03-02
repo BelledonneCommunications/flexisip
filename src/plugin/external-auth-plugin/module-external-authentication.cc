@@ -89,21 +89,21 @@ std::unique_ptr<AuthModuleBase> ModuleExternalAuthentication::createAuthModule(i
 std::unique_ptr<AuthStatus> ModuleExternalAuthentication::createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) {
 	sip_t *sip = ev->getMsgSip()->getSip();
 
-	auto as = make_unique<ExternalAuthModule::Status>(ev);
+	auto as = make_unique<AuthStatus>(ev);
 	configureAuthStatus(*as, ev);
 
-	as->domain(sip->sip_from->a_url->url_host);
-	as->fromHeader(sip_header_as_string(as->mHome.home(), reinterpret_cast<sip_header_t *>(sip->sip_from)));
+	as->mDomain = sip->sip_from->a_url->url_host;
+	as->mFromHeader = sip_header_as_string(as->mHome.home(), reinterpret_cast<sip_header_t *>(sip->sip_from));
 
 	if (sip->sip_contact) {
 		const char *sipInstance = msg_header_find_param(reinterpret_cast<msg_common_t *>(sip->sip_contact), "+sip.instance");
-		as->sipInstance(sipInstance ? sipInstance : "");
+		as->mSipInstance = sipInstance ? sipInstance : "";
 
 		try {
 			auto uuid = UriUtils::getParamValue(sip->sip_contact->m_url->url_params, "gr");
-			if (uuid.empty()) uuid = UriUtils::uniqueIdToGr(as->sipInstance());
+			if (uuid.empty()) uuid = UriUtils::uniqueIdToGr(as->mSipInstance);
 			uuid = StringUtils::removePrefix(uuid, "urn:uuid:");
-			as->uuid(move(uuid));
+			as->mUUID = move(uuid);
 		} catch (const invalid_argument &e) { // raised by removePrefix() when uuid doesn't start by 'urn:uuid:'
 			SLOGE << "ExernalAuthentication: error while getting UUID: " << e.what();
 		}
@@ -115,21 +115,19 @@ std::unique_ptr<AuthStatus> ModuleExternalAuthentication::createAuthStatus(const
 void ModuleExternalAuthentication::onSuccess(const AuthStatus &as) {
 	const shared_ptr<MsgSip> &ms = as.mEvent->getMsgSip();
 	sip_t *sip = ms->getSip();
-	const auto &authStatus = dynamic_cast<const ExternalAuthModule::Status &>(as);
 	ModuleAuthenticationBase::onSuccess(as);
-	if (!authStatus.pAssertedIdentity().empty()) {
-		string header = "P-Asserted-Identity: " + authStatus.pAssertedIdentity();
+	if (!as.mPAssertedIdentity.empty()) {
+		string header = "P-Asserted-Identity: " + as.mPAssertedIdentity;
 		sip_add_make(ms->getMsg(), sip, sip_unknown_class, header.c_str());
 	}
 }
 
 void ModuleExternalAuthentication::errorReply(const AuthStatus &as) {
-	const auto &authStatus = dynamic_cast<const ExternalAuthModule::Status &>(as);
-	const shared_ptr<RequestSipEvent> &ev = authStatus.mEvent;
+	const shared_ptr<RequestSipEvent> &ev = as.mEvent;
 	ev->reply(as.as_status, as.as_phrase.c_str(),
 			  SIPTAG_HEADER(reinterpret_cast<sip_header_t *>(as.as_info)),
 			  SIPTAG_HEADER(reinterpret_cast<sip_header_t *>(as.as_response)),
-			  SIPTAG_REASON_STR(authStatus.reason().empty() ? nullptr : authStatus.reason().c_str()),
+			  SIPTAG_REASON_STR(as.mReasonHeader.empty() ? nullptr : as.mReasonHeader.c_str()),
 			  SIPTAG_SERVER_STR(getAgent()->getServerString()),
 			  TAG_END()
 	);
