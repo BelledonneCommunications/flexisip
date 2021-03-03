@@ -12,11 +12,6 @@
 %define logdir             %{_localstatedir}/log
 %define flexisip_logdir    %{logdir}/flexisip
 
-# Hack: force _mandir to its default value because cmake-builder re-define it
-# on rpmbuild invokation with a bad value.
-# Remove this hack once Flexisip is based on Linphone SDK >= 4.4
-%define _mandir            %{_datarootdir}/man
-
 # to be compliant with RedHat which changed epoch to 1 for an unknown reason
 %define epoch     1
 
