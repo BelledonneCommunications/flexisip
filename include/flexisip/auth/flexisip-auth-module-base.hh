@@ -52,7 +52,7 @@ public:
 	NonceStore &nonceStore() {return mNonceStore;}
 	su_root_t *getRoot() const noexcept {return mRoot;}
 
-	void verify(const std::shared_ptr<AuthStatus> &as, msg_auth_t &credentials) override;
+	void verify(const std::shared_ptr<AuthStatus> &as) override;
 	virtual void challenge(const std::shared_ptr<AuthStatus> &as);
 
 protected:

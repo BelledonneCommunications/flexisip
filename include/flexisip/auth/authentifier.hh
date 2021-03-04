@@ -26,7 +26,7 @@ namespace flexisip {
 
 class Authentifier {
 public:
-	virtual void verify(const std::shared_ptr<AuthStatus> &as, msg_auth_t &credentials) = 0;
+	virtual void verify(const std::shared_ptr<AuthStatus> &as) = 0;
 	virtual ~Authentifier() = default;
 };
 

@@ -125,8 +125,10 @@ DigestAuthBase::DigestAuthBase(su_root_t *root, unsigned nonceExpire, bool qopAu
 	mNonceStore.setNonceExpires(nonceExpire);
 }
 
-void DigestAuthBase::verify(const std::shared_ptr<AuthStatus> &as, msg_auth_t &_credentials) {
-	auto credentials = &_credentials;
+void DigestAuthBase::verify(const std::shared_ptr<AuthStatus> &as) {
+	const auto *sip = as->mEvent->getSip();
+	auto method = sip->sip_request->rq_method;
+	auto credentials = method == sip_method_register ? sip->sip_authorization : sip->sip_proxy_authorization;
 	if (!as->as_realm.empty()) {
 		/* Workaround for old linphone client that don't check whether algorithm is MD5 or SHA256.
 		 * They then answer for both, but the first one for SHA256 is of course wrong.
