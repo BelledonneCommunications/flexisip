@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <map>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -69,6 +70,12 @@ public:
 	 */
 	static std::string removePrefix(const std::string &str, const std::string &prefix);
 
+
+	/**
+	 * Replace any occurence of 'key' in 'str' by 'value'.
+	 */
+	static std::string &searchAndReplace(std::string &str, const std::string &key, const std::string &value) noexcept;
+
 	/**
 	 * Apply a modifying function on each character of
 	 * the input string and return the result.
@@ -83,6 +90,11 @@ public:
 		for (auto &c : transStr) c = func(c);
 		return transStr;
 	}
+
+	/**
+	 * Replace any character listed in 'transMap' keys by the according value.
+	 */
+	static std::string transform(const std::string &str, const std::map<char, std::string> &transMap) noexcept;
 
 	/**
 	 * Return the lower-case version of a string.

@@ -77,3 +77,24 @@ std::string StringUtils::removePrefix(const std::string &str, const std::string 
 	}
 	return str.substr(prefix.size());
 }
+
+std::string &StringUtils::searchAndReplace(std::string &str, const std::string &key, const std::string &value) noexcept {
+	for (auto i = str.find(key); i != string::npos;) {
+		str.replace(i, key.size(), value);
+		i += value.size();
+	}
+	return str;
+}
+
+std::string StringUtils::transform(const std::string &str, const std::map<char, std::string> &transMap) noexcept {
+	string res{};
+	for (const auto &c : str) {
+		auto transEntry = transMap.find(c);
+		if (transEntry != transMap.cend()) {
+			res.append(transEntry->second);
+		} else {
+			res.push_back(c);
+		}
+	}
+	return res;
+}
