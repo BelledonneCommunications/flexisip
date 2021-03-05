@@ -127,6 +127,19 @@ DigestAuthBase::DigestAuthBase(su_root_t *root, unsigned nonceExpire, bool qopAu
 
 void DigestAuthBase::verify(const std::shared_ptr<AuthStatus> &as) {
 	const auto *sip = as->mEvent->getSip();
+	const auto &msg = as->mEvent->getMsgSip();
+
+	LOGD("start digest authentication");
+
+	// Check for the existence of username, which is required for proceeding with digest authentication in flexisip.
+	// Reject if absent.
+	if (sip->sip_from->a_url->url_user == NULL) {
+		SLOGI << "Registration failure, no username in From header: " << url_as_string(msg->getHome(), sip->sip_from->a_url);
+		as->as_status = 403;
+		as->as_phrase = "Username must be provided";
+		return;
+	}
+
 	auto method = sip->sip_request->rq_method;
 	auto credentials = method == sip_method_register ? sip->sip_authorization : sip->sip_proxy_authorization;
 	if (!as->as_realm.empty()) {
