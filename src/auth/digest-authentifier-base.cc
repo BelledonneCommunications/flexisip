@@ -30,7 +30,7 @@
 #include "utils/digest.hh"
 #include "utils/string-utils.hh"
 
-#include "flexisip/auth/flexisip-auth-module-base.hh"
+#include "flexisip/auth/digest-authentifier-base.hh"
 
 using namespace std;
 using namespace flexisip;
@@ -119,7 +119,7 @@ std::string DigestAuthBase::AuthResponse::getNc() const noexcept {
 //  FlexisipAuthModuleBase class
 // ====================================================================================================================
 
-DigestAuthBase::DigestAuthBase(su_root_t *root, unsigned nonceExpire, bool qopAuth):
+DigestAuthBase::DigestAuthBase(su_root_t *root, unsigned nonceExpire, bool qopAuth): Authentifier{},
 	am_qop{qopAuth ? "auth" : ""}, am_expires{nonceExpire}, mRoot{root}, mQOPAuth{qopAuth} {
 
 	mNonceStore.setNonceExpires(nonceExpire);
@@ -137,6 +137,7 @@ void DigestAuthBase::verify(const std::shared_ptr<AuthStatus> &as) {
 		SLOGI << "Registration failure, no username in From header: " << url_as_string(msg->getHome(), sip->sip_from->a_url);
 		as->as_status = 403;
 		as->as_phrase = "Username must be provided";
+		notify(as);
 		return;
 	}
 
@@ -171,9 +172,9 @@ void DigestAuthBase::verify(const std::shared_ptr<AuthStatus> &as) {
 		/* There was no realm or credentials, send challenge */
 		LOGD("AuthStatus[%p]: no credential found for realm '%s'", &as, as->as_realm.c_str());
 		challenge(as);
-		notify(as);
-		return;
 	}
+
+	notify(as);
 }
 
 void DigestAuthBase::challenge(const std::shared_ptr<AuthStatus> &as) {
@@ -217,7 +218,13 @@ void DigestAuthBase::challenge(const std::shared_ptr<AuthStatus> &as) {
 }
 
 void DigestAuthBase::notify(const std::shared_ptr<AuthStatus> &as) {
-	if (as->as_callback) as->as_callback(as);
+	Status status;
+	if (as->as_status == 0) status = Status::Pass;
+	else if (as->as_status == 100) status = Status::Pending;
+	else if (as->as_status == 403) status = Status::Reject;
+	else if (as->as_status == 401 || as->as_status == 407) status = Status::Challenge;
+	else status = Status::Error;
+	if (as->as_callback) as->as_callback(as, status);
 }
 
 void DigestAuthBase::onError(AuthStatus &as) {

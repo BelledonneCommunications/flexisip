@@ -260,7 +260,7 @@ void Authentication::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		return;
 	}
 
-	auto as = make_shared<AuthStatus>(nullptr);
+	auto as = make_shared<Authentifier::AuthStatus>(nullptr);
 	as->as_realm = *proxyRealm;
 	as->as_user_uri = sip->sip_from->a_url;
 	if (!checkDomain(as->as_realm)) {

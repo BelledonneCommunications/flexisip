@@ -22,7 +22,7 @@
 
 #include <sofia-sip/nth.h>
 
-#include "flexisip/auth/flexisip-auth-module-base.hh"
+#include <flexisip/auth/digest-authentifier-base.hh>
 
 #include "utils/string-formater.hh"
 

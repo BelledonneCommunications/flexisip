@@ -27,7 +27,6 @@
 #include <sofia-sip/su_wait.h>
 
 #include "authentifier.hh"
-#include "flexisip-auth-status.hh"
 #include "nonce-store.hh"
 
 namespace flexisip {

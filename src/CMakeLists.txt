@@ -39,8 +39,9 @@ set(FLEXISIP_SOURCES
 	agent.cc
 	auth/digest-authentifier.cc auth/digest-authentifier.hh
 	auth/digest-authentifier-base.cc
-	auth/realm-extractor.hh
 	auth/nonce-store.cc
+	auth/realm-extractor.hh
+	auth/trusted-host-authentifier.cc auth/trusted-host-authentifier.hh
 	authdb-file.cc
 	authdb.cc
 	callcontext-mediarelay.cc
