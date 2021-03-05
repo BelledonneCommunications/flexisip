@@ -38,12 +38,12 @@ namespace flexisip {
 /**
  * Authentication module using a user database to validate the Authorization header.
  */
-class AuthModule : public DigestAuthBase {
+class DigestAuthentifier : public DigestAuthBase {
 public:
 	using PasswordFetchResultCb = std::function<void(bool)>;
 
-	AuthModule(su_root_t *root, int nonceExpire, bool qopAuth): DigestAuthBase(root, nonceExpire, qopAuth) {}
-	~AuthModule() override = default;
+	DigestAuthentifier(su_root_t *root, int nonceExpire, bool qopAuth): DigestAuthBase(root, nonceExpire, qopAuth) {}
+	~DigestAuthentifier() override = default;
 
 	void setOnPasswordFetchResultCb(const PasswordFetchResultCb &cb) {mPassworFetchResultCb = cb;}
 

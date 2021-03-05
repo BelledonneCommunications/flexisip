@@ -37,8 +37,8 @@ set(FLEXISIP_DEPENDENCIES)
 
 set(FLEXISIP_SOURCES
 	agent.cc
-	auth/flexisip-auth-module.cc
-	auth/flexisip-auth-module-base.cc
+	auth/digest-authentifier.cc auth/digest-authentifier.hh
+	auth/digest-authentifier-base.cc
 	auth/realm-extractor.hh
 	auth/nonce-store.cc
 	authdb-file.cc

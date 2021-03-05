@@ -22,7 +22,7 @@
 
 #include <flexisip/module-auth.hh>
 
-#include "auth/flexisip-auth-module.hh"
+#include "auth/digest-authentifier.hh"
 
 using namespace std;
 using namespace flexisip;
@@ -287,7 +287,7 @@ bool Authentication::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 // ================================================================================================================= //
 
 std::unique_ptr<DigestAuthBase> Authentication::createAuthModule(int nonceExpire, bool qopAuth) {
-	auto authModule = make_unique<AuthModule>(getAgent()->getRoot(), nonceExpire, qopAuth);
+	auto authModule = make_unique<DigestAuthentifier>(getAgent()->getRoot(), nonceExpire, qopAuth);
 	authModule->setOnPasswordFetchResultCb([this](bool passFound){passFound ? mCountPassFound++ : mCountPassNotFound++;});
 	return authModule;
 }
