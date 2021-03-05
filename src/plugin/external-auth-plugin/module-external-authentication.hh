@@ -39,8 +39,8 @@ private:
 
 	std::unique_ptr<DigestAuthBase> createAuthModule(int nonceExpire, bool qopAuth) override;
 
-	void onSuccess(const AuthStatus &as) override;
-	void errorReply(const AuthStatus &as) override;
+	void onSuccess(const Authentifier::AuthStatus &as) override;
+	void errorReply(const Authentifier::AuthStatus &as) override;
 
 	std::map<nth_client_t *, std::shared_ptr<RequestSipEvent>> mPendingEvent;
 	std::string mRemoteUri;

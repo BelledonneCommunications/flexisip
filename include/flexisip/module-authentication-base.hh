@@ -24,8 +24,8 @@
 #include <memory>
 #include <string>
 
-#include "flexisip/auth/flexisip-auth-module-base.hh"
-#include "flexisip/module.hh"
+#include <flexisip/auth/digest-authentifier-base.hh>
+#include <flexisip/module.hh>
 
 #include "auth/realm-extractor.hh"
 
@@ -63,11 +63,11 @@ protected:
 	 * This method may be overridden in order to instantiate a specialization of #FlexisipAuthStatus. Should it be,
 	 * the overriding method might call #configureAuthStatus() for configuring the base of the returned object.
 	 */
-	std::unique_ptr<AuthStatus> createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev);
+	std::unique_ptr<Authentifier::AuthStatus> createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev);
 	/**
 	 * Called by createAuthStatus() for setting #FlexisipAuthStatus attribute for the event request information.
 	 */
-	void configureAuthStatus(AuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev);
+	void configureAuthStatus(Authentifier::AuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev);
 
 
 	/**
@@ -85,9 +85,9 @@ protected:
 	 * This method is called synchronously or asynchronously on result of AuthModule::verify() method.
 	 * It calls onSuccess() and errorReply() according the authentication result.
 	 */
-	void processAuthModuleResponse(const std::shared_ptr<AuthStatus> &as);
-	virtual void onSuccess(const AuthStatus &as);
-	virtual void errorReply(const AuthStatus &as);
+	void processAuthModuleResponse(const std::shared_ptr<Authentifier::AuthStatus> &as, Authentifier::Status status);
+	virtual void onSuccess(const Authentifier::AuthStatus &as);
+	virtual void errorReply(const Authentifier::AuthStatus &as);
 
 	/**
 	 * Test whether a string match a valid algorithm in specified by sValidAlgos.

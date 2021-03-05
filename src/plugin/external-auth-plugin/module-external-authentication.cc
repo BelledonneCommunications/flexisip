@@ -86,7 +86,7 @@ std::unique_ptr<DigestAuthBase> ModuleExternalAuthentication::createAuthModule(i
 	}
 }
 
-void ModuleExternalAuthentication::onSuccess(const AuthStatus &as) {
+void ModuleExternalAuthentication::onSuccess(const Authentifier::AuthStatus &as) {
 	const shared_ptr<MsgSip> &ms = as.mEvent->getMsgSip();
 	sip_t *sip = ms->getSip();
 	ModuleAuthenticationBase::onSuccess(as);
@@ -96,7 +96,7 @@ void ModuleExternalAuthentication::onSuccess(const AuthStatus &as) {
 	}
 }
 
-void ModuleExternalAuthentication::errorReply(const AuthStatus &as) {
+void ModuleExternalAuthentication::errorReply(const Authentifier::AuthStatus &as) {
 	const shared_ptr<RequestSipEvent> &ev = as.mEvent;
 	ev->reply(as.as_status, as.as_phrase.c_str(),
 			  SIPTAG_HEADER(reinterpret_cast<sip_header_t *>(as.as_info)),

@@ -173,14 +173,14 @@ void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 	} catch (const StopRequestProcessing &) {}
 }
 
-std::unique_ptr<AuthStatus> ModuleAuthenticationBase::createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) {
-	auto as = make_unique<AuthStatus>(ev);
+std::unique_ptr<Authentifier::AuthStatus> ModuleAuthenticationBase::createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) {
+	auto as = make_unique<Authentifier::AuthStatus>(ev);
 	LOGD("New FlexisipAuthStatus [%p]", as.get());
 	ModuleAuthenticationBase::configureAuthStatus(*as, ev);
 	return as;
 }
 
-void ModuleAuthenticationBase::configureAuthStatus(AuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev) {
+void ModuleAuthenticationBase::configureAuthStatus(Authentifier::AuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
 	const sip_p_preferred_identity_t *ppi = sip_p_preferred_identity(sip);
@@ -206,7 +206,7 @@ void ModuleAuthenticationBase::configureAuthStatus(AuthStatus &as, const std::sh
 	if (sip->sip_payload) {
 		as.as_body.assign(sip->sip_payload->pl_data, sip->sip_payload->pl_data + sip->sip_payload->pl_len);
 	}
-	as.as_callback = [this](const auto &as){processAuthModuleResponse(as);};
+	as.as_callback = [this](const std::shared_ptr<Authentifier::AuthStatus> &as, Authentifier::Status status){processAuthModuleResponse(as, status);};
 	as.mUsedAlgo = mAlgorithms;
 	as.mNo403 = mNo403Expr->eval(*ev->getSip());
 
@@ -247,9 +247,8 @@ void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<Reque
 	// with retransmissions.
 	request->createIncomingTransaction();
 
-	auto as = static_cast<shared_ptr<AuthStatus>>(createAuthStatus(request));
+	auto as = static_cast<shared_ptr<Authentifier::AuthStatus>>(createAuthStatus(request));
 	mAuthModule->verify(as);
-	processAuthModuleResponse(as);
 }
 
 bool ModuleAuthenticationBase::checkDomain(const std::string &domain) const noexcept {
@@ -272,31 +271,44 @@ bool ModuleAuthenticationBase::checkDomain(const std::string &domain) const noex
 	return false;
 }
 
-void ModuleAuthenticationBase::processAuthModuleResponse(const std::shared_ptr<AuthStatus> &as) {
+void ModuleAuthenticationBase::processAuthModuleResponse(const std::shared_ptr<Authentifier::AuthStatus> &as,
+														 Authentifier::Status status) {
 	const shared_ptr<RequestSipEvent> &ev = as->mEvent;
-	if (as->as_status == 0) {
-		onSuccess(*as);
-		if (ev->isSuspended()) {
-			// The event is re-injected
-			getAgent()->injectRequestEvent(ev);
-		}
-	} else if (as->as_status == 100) {
-		if (!ev->isSuspended()) ev->suspendProcessing();
-		return;
-	} else if (as->as_status >= 400) {
-		if (as->as_status == 401 || as->as_status == 407) {
-			auto log = make_shared<AuthLog>(ev->getMsgSip()->getSip(), as->mPasswordFound);
-			log->setStatusCode(as->as_status, as->as_phrase);
-			log->setCompleted();
-			ev->setEventLog(log);
-		}
-		errorReply(*as);
-	} else {
-		ev->reply(500, "Internal error", TAG_END());
+
+	switch (status) {
+		case Authentifier::Status::Pass:
+			onSuccess(*as);
+			if (ev->isSuspended()) {
+				// The event is re-injected
+				getAgent()->injectRequestEvent(ev);
+			}
+			return;
+
+		case Authentifier::Status::Pending:
+			if (!ev->isSuspended()) ev->suspendProcessing();
+			return;
+
+		case Authentifier::Status::Reject:
+		case Authentifier::Status::Challenge:
+			if (as->as_status == 401 || as->as_status == 407) {
+				auto log = make_shared<AuthLog>(ev->getMsgSip()->getSip(), as->mPasswordFound);
+				log->setStatusCode(as->as_status, as->as_phrase);
+				log->setCompleted();
+				ev->setEventLog(log);
+			}
+			errorReply(*as);
+			return;
+
+		case Authentifier::Status::Error:
+			ev->reply(500, "Internal error", TAG_END());
+			return;
+
+		case Authentifier::Status::Continue:
+			throw logic_error("Authentifier::Status::Continue not supported");
 	}
 }
 
-void ModuleAuthenticationBase::onSuccess(const AuthStatus &as) {
+void ModuleAuthenticationBase::onSuccess(const Authentifier::AuthStatus &as) {
 	msg_auth_t *au;
 	const shared_ptr<MsgSip> &ms = as.mEvent->getMsgSip();
 	sip_t *sip = ms->getSip();
@@ -320,7 +332,7 @@ void ModuleAuthenticationBase::onSuccess(const AuthStatus &as) {
 	}
 }
 
-void ModuleAuthenticationBase::errorReply(const AuthStatus &as) {
+void ModuleAuthenticationBase::errorReply(const Authentifier::AuthStatus &as) {
 	const std::shared_ptr<RequestSipEvent> &ev = as.mEvent;
 	ev->reply(as.as_status, as.as_phrase.c_str(),
 			  SIPTAG_HEADER(reinterpret_cast<sip_header_t *>(as.as_info)),

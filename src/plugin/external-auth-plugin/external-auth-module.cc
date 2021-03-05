@@ -67,7 +67,6 @@ void ExternalAuthModule::checkAuthHeader(const std::shared_ptr<AuthStatus> &as, 
 	} catch (const runtime_error &e) {
 		SLOGE << e.what();
 		onError(*as);
-		notify(as);
 	}
 }
 
