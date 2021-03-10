@@ -268,8 +268,12 @@ void Authentication::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		return;
 	}
 
-	mAuthModule->challenge(as);
+	dynamic_cast<DigestAuthentifier *>(mAuthModule.get())->challenge(as);
 	msg_header_insert(ev->getMsgSip()->getMsg(), (msg_pub_t *)sip, as->as_response);
+}
+
+void Authentication::onIdle() {
+	dynamic_cast<DigestAuthentifier *>(mAuthModule.get())->nonceStore().cleanExpired();
 }
 
 bool Authentication::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
@@ -286,7 +290,7 @@ bool Authentication::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 // Private methods                                                                                                   //
 // ================================================================================================================= //
 
-std::unique_ptr<DigestAuthBase> Authentication::createAuthModule(int nonceExpire, bool qopAuth) {
+std::unique_ptr<Authentifier> Authentication::createAuthModule(int nonceExpire, bool qopAuth) {
 	auto authModule = make_unique<DigestAuthentifier>(getAgent()->getRoot(), nonceExpire, qopAuth);
 	authModule->setOnPasswordFetchResultCb([this](bool passFound){passFound ? mCountPassFound++ : mCountPassNotFound++;});
 	return authModule;

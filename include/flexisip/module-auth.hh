@@ -39,11 +39,11 @@ public:
 	bool tlsClientCertificatePostCheck(const std::shared_ptr<RequestSipEvent> &ev);
 	virtual bool handleTlsClientAuthentication(const std::shared_ptr<RequestSipEvent> &ev);
 	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) override;
-	void onIdle() override {mAuthModule->nonceStore().cleanExpired();}
+	void onIdle() override;
 	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) override;
 
 private:
-	std::unique_ptr<DigestAuthBase> createAuthModule(int nonceExpire, bool qopAuth) override;
+	std::unique_ptr<Authentifier> createAuthModule(int nonceExpire, bool qopAuth) override;
 
 	void validateRequest(const std::shared_ptr<RequestSipEvent> &request) override;
 	void processAuthentication(const std::shared_ptr<RequestSipEvent> &request) override;
