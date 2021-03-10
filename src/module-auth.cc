@@ -272,6 +272,10 @@ void Authentication::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	msg_header_insert(ev->getMsgSip()->getMsg(), (msg_pub_t *)sip, as->as_response);
 }
 
+void Authentication::onIdle() {
+	mAuthModule->nonceStore().cleanExpired();
+}
+
 bool Authentication::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
 	if (conf.getName() == "trusted-hosts" && state == ConfigState::Commited) {
 		loadTrustedHosts((const ConfigStringList &)conf);
