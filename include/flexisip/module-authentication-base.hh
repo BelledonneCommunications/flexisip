@@ -24,7 +24,7 @@
 #include <memory>
 #include <string>
 
-#include <flexisip/auth/digest-authentifier-base.hh>
+#include <flexisip/auth/authentifier.hh>
 #include <flexisip/module.hh>
 
 #include "auth/realm-extractor.hh"
@@ -56,7 +56,7 @@ protected:
 	/**
 	 * Override this method to specify the specialization of #FlexisipAuthModuleBase to instantiate.
 	 */
-	virtual std::unique_ptr<DigestAuthBase> createAuthModule(int nonceExpire, bool qopAuth) = 0;
+	virtual std::unique_ptr<Authentifier> createAuthModule(int nonceExpire, bool qopAuth) = 0;
 	/**
 	 * @brief Create and configure a #FlexisipAuthStatus according the information extracted from ev.
 	 *
@@ -96,7 +96,7 @@ protected:
 
 protected:
 	std::vector<std::string> mAuthDomains{};
-	std::unique_ptr<DigestAuthBase> mAuthModule{};
+	std::unique_ptr<Authentifier> mAuthModule{};
 	std::list<std::string> mAlgorithms{};
 	std::unique_ptr<RealmExtractor> mRealmExtractor{};
 	std::shared_ptr<SipBooleanExpression> mNo403Expr{};
