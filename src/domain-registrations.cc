@@ -27,6 +27,7 @@
 #include <sofia-sip/sip_util.h>
 #include <sofia-sip/sip_tag.h>
 #include <sofia-sip/nta_tport.h>
+#include <sofia-sip/auth_client.h>
 
 #include <fstream>
 #include <sstream>
@@ -72,14 +73,17 @@ DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agen
 		 "false"},
 		{String, "domain-registrations",
 		 "Path to a text file describing the domain registrations to make. This file must contains lines like:\n"
-		 " <local domain name> <SIP URI of proxy/registrar where to send the domain REGISTER>\n"
+		 " <local domain name> <SIP URI of proxy/registrar where to send the domain REGISTER> [password]>\n"
 		 " where:\n"
 		 " <local domain name> is a domain name managed locally by this proxy\n"
 		 " <SIP URI of proxy/registrar> is the SIP URI where the domain registration will be sent. The special uri "
 		 "parameter"
 		 " 'tls-certificates-dir' is understood in order to specify a TLS client certificate to present to the remote "
 		 "proxy.\n"
-		 " If the file is absent or empty, no registrations are done.",
+		 " [password] is the password to use if the remote proxy/registrar requests a digest authentication. It is optional.\n"
+		 " If the file is absent or empty, no registrations are done."
+		 "An example of such line is:\n"
+		 "belledonne.linphone.org <sips:sip.linphone.org;tls-certificates-dir=/etc/flexisip/client-cert> gghhiioozz",
 		 "/etc/flexisip/domain-registrations.conf"},
 		{Boolean, "verify-server-certs",
 		 "When submitting a domain registration to a server over TLS, verify the certificate presented by the server. "
@@ -92,6 +96,14 @@ DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agen
 		 {Boolean, "reg-when-needed",
 		 "Whether Flexisip shall only send a domain registration when a device is registered",
 		 "false"},
+		 {Boolean, "relay-reg-to-domains",
+		 "Route received REGISTER request to the server in charge of the domain, according to accepted domain registrations. "
+		 "This option is intended to be used with 'reg-on-response' mode of Registrar module, and 'accept-domain-registrations' enabled too."
+		 "The 'reg-on-response' mode typically allows Flexisip to forward an incoming REGISTER to an upstream server, and record the "
+		 "client's contact address upon receiving the 200 Ok response from the upstream server. "
+		 "When 'relay-reg-to-domains' is enabled, the routing to the upstream server is performed according to the domain registrations "
+		 "received previously by flexisip, instead of usual DNS-based procedures."
+		"false"},
 		config_item_end};
 
 	mDomainRegistrationArea->addChildrenValues(configs);
@@ -138,7 +150,7 @@ int DomainRegistrationManager::load(string passphrase) {
 	do {
 		sofiasip::Home home;
 		string line;
-		string domain, uri;
+		string domain, uri, password;
 		bool is_a_comment = false;
 		getline(ifs, line);
 
@@ -156,12 +168,14 @@ int DomainRegistrationManager::load(string passphrase) {
 		istringstream istr(line);
 		istr >> domain;
 		istr >> uri;
+		istr >> password;
 		if (domain.empty())
 			continue; /*empty line */
 		if (uri.empty()) {
 			LOGE("Empty URI in domain registration definition.");
 			goto error;
 		}
+		if (uri[0] == '<') uri = uri.substr(1, uri.size()-2);
 		url_t *url = url_make(home.home(), uri.c_str());
 		if (!url) {
 			LOGE("Bad URI '%s' in domain registration definition.", uri.c_str());
@@ -173,7 +187,7 @@ int DomainRegistrationManager::load(string passphrase) {
 		if (url_param(url->url_params, "tls-certificates-dir", clientCertdir, sizeof(clientCertdir)) > 0) {
 			url->url_params = url_strip_param_string(su_strdup(home.home(), url->url_params), "tls-certificates-dir");
 		}
-		auto dr = make_shared<DomainRegistration>(*this, domain, url, clientCertdir, passphrase.c_str(), lineIndex);
+		auto dr = make_shared<DomainRegistration>(*this, domain, url, password, clientCertdir, passphrase.c_str(), lineIndex);
 		lineIndex++;
 		mRegistrations.push_back(dr);
 	} while (!ifs.eof() && !ifs.bad());
@@ -233,7 +247,7 @@ void DomainRegistrationManager::onLocalRegExpireUpdated(unsigned int count) {
 }
 
 DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const string &localDomain,
-									   const url_t *parent_proxy, const string &clientCertdir, const string &passphrase, int lineIndex)
+									   const url_t *parent_proxy, const std::string &password, const string &clientCertdir, const string &passphrase, int lineIndex)
 	: mManager(mgr){
 	char transport[64] = {0};
 	tp_name_t tpn = {0};
@@ -243,6 +257,7 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const str
 
 	su_home_init(&mHome);
 	mFrom = url_format(&mHome, "%s:%s", parent_proxy->url_type == url_sips ? "sips" : "sip", localDomain.c_str());
+	mPassword = password;
 	mProxy = url_hdup(&mHome, parent_proxy);
 
 	url_param(parent_proxy->url_params, "transport", transport, sizeof(transport) - 1);
@@ -318,11 +333,7 @@ int DomainRegistration::sLegCallback(nta_leg_magic_t *ctx, nta_leg_t *leg, nta_i
 }
 
 void DomainRegistration::sRefreshRegistration(su_root_magic_t *magic, su_timer_t *timer, su_timer_arg_t *arg) {
-	static_cast<DomainRegistration *>(arg)->start();
-}
-
-void DomainRegistration::sRefreshUnregistration(su_root_magic_t *magic, su_timer_t *timer, su_timer_arg_t *arg) {
-	static_cast<DomainRegistration *>(arg)->stop();
+	static_cast<DomainRegistration *>(arg)->sendRequest();
 }
 
 int DomainRegistration::getExpires(nta_outgoing_t *orq, const sip_t *response) {
@@ -361,7 +372,7 @@ void DomainRegistration::sOnConnectionBroken(tp_stack_t *stack, tp_client_t *cli
 }
 
 void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp) {
-	int nextSchedule;
+	int nextSchedule = -1;
 	sofiasip::Home home;
 
 	if (mTimer) {
@@ -375,40 +386,35 @@ void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp
 			  << msg_as_string(home.home(), msg, msg_object(msg), 0, NULL);
 		msg_unref(msg);
 	}
-	
+	int expire = getExpires(orq, resp);
 	mRegistrationStatus->set(resp ? resp->sip_status->st_status : 408); /*if no response, it is a timeout*/
 
-	if (!resp || resp->sip_status->st_status != 200) {
-		/*the registration failed for whatever reason. Retry shortly.*/
-		if (!resp){
-			nextSchedule = 1;
-			SLOGUE << "Domain registration error for " << url_as_string(home.home(), mFrom);
-		}else{
+	if (!resp || resp->sip_status->st_status == 408){
+		nextSchedule = 1;
+		SLOGUE << "Domain registration error for " << url_as_string(home.home(), mFrom) << ", timeout.";
+		if (mCurrentTport){
+			LOGD("No domain registration response, connection might be broken. Shutting down current connection.");
+			tport_shutdown(mCurrentTport, 2);
+		}
+		mLastResponseWas401 = false;
+	}else if (resp->sip_status->st_status == 401){
+		if (mLastResponseWas401){
+			LOGE("Authentication failing constantly, will retry later.");
 			nextSchedule = 30;
-			SLOGUE << "Domain registration error for " << url_as_string(home.home(), mFrom) << " : " << resp->sip_status->st_status;
+		}else{
+			nextSchedule = 0;
 		}
-
-		int expire = resp ? getExpires(orq, resp) : -1;
-		if(expire > 0) {
-			LOGD("Domain registration for %s failed, will retry in %i seconds", mFrom->url_host, nextSchedule);
-			su_timer_set_interval(mTimer, &DomainRegistration::sRefreshRegistration, this,
-								  (su_duration_t)nextSchedule * 1000);
-		} else if(expire == 0) {
-			LOGD("Domain un-registration for %s failed, will retry in %i seconds", mFrom->url_host, nextSchedule);
-			su_timer_set_interval(mTimer, &DomainRegistration::sRefreshUnregistration, this,
-								  (su_duration_t)nextSchedule * 1000);
-		}
-
-		if (!resp){
-			if (mCurrentTport){
-				LOGD("No domain registration response, connection might be broken. Shutting down current connection.");
-				tport_shutdown(mCurrentTport, 2);
-				return;
-			}
-		}
-	} else {
-		int expire = getExpires(orq, resp);
+		mLastResponseWas401 = true;
+		/* will retry immediately */
+	}else if (resp->sip_status->st_status != 200) {
+		/*the registration failed for whatever reason. Retry shortly.*/
+		nextSchedule = 30;
+		SLOGUE << "Domain registration error for " << url_as_string(home.home(), mFrom) << " : " << resp->sip_status->st_status
+			<< " , will retry in " << nextSchedule << " seconds.";
+		mLastResponseWas401 = false;
+	} else { /* is 200 OK */
 		const char *domain = mFrom->url_host;
+		mLastResponseWas401 = false;
 		if(expire > 0) {
 			if(!(find(mManager.mRegistrationList.begin(), mManager.mRegistrationList.end(), domain) != mManager.mRegistrationList.end())) {
 				mManager.mNbRegistration++;
@@ -431,11 +437,8 @@ void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp
 		tport_set_params(tport, TPTAG_SDWN_ERROR(1), TPTAG_KEEPALIVE(keepAliveInterval), TAG_END());
 		mPendId = tport_pend(tport, NULL, &DomainRegistration::sOnConnectionBroken, (tp_client_t *)this);
 		nextSchedule = ((expire * 90) / 100) + 1;
-		if(expire > 0) {
-			LOGD("Scheduling next domain register refresh for %s in %i seconds", mFrom->url_host, nextSchedule);
-			su_timer_set_interval(mTimer, &DomainRegistration::sRefreshRegistration, this,
-											  (su_duration_t)nextSchedule * 1000);
-		}
+		LOGD("Scheduling next domain register refresh for %s in %i seconds", mFrom->url_host, nextSchedule);
+	
 		/*store contact sent in response, as it gives information about our public IP/port*/
 		if (resp->sip_contact) {
 			if (mExternalContact) {
@@ -449,6 +452,11 @@ void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp
 			mTimer = NULL;
 		}
 	}
+	
+	if (mTimer && nextSchedule >= 0){
+		su_timer_set_interval(mTimer, &DomainRegistration::sRefreshRegistration, this,
+									(su_duration_t)nextSchedule * 1000);
+	}
 }
 
 int DomainRegistration::sResponseCallback(nta_outgoing_magic_t *ctx, nta_outgoing_t *orq, const sip_t *resp) {
@@ -457,6 +465,8 @@ int DomainRegistration::sResponseCallback(nta_outgoing_magic_t *ctx, nta_outgoin
 }
 
 DomainRegistration::~DomainRegistration() {
+	if (mLeg) nta_leg_destroy(mLeg);
+	if (mOutgoing) nta_outgoing_destroy(mOutgoing);
 	su_home_deinit(&mHome);
 }
 
@@ -520,7 +530,7 @@ int DomainRegistration::generateUuid(const string &uniqueId) {
 	return 0;
 }
 
-void DomainRegistration::start() {
+void DomainRegistration::sendRequest(){
 	msg_t *msg;
 
 	if (mTimer) {
@@ -528,15 +538,35 @@ void DomainRegistration::start() {
 		mTimer = NULL;
 	}
 
-	if (mOutgoing) {
-		nta_outgoing_destroy(mOutgoing);
-	}
-
 	msg = nta_msg_create(mManager.mAgent->getSofiaAgent(), 0);
 	if (nta_msg_request_complete(msg, mLeg, sip_method_register, NULL, (url_string_t *)mProxy) != 0) {
 		LOGE("nta_msg_request_complete() failed");
 	}
-	msg_header_insert(msg, msg_object(msg), (msg_header_t *)sip_expires_create(msg_home(msg), 600));
+	msg_header_insert(msg, msg_object(msg), (msg_header_t *)sip_expires_create(msg_home(msg), mExpires));
+	
+	if (mOutgoing){
+		msg_t *respMsg = nta_outgoing_getresponse(mOutgoing);
+		if (respMsg){
+			sip_t *respSip = (sip_t*)msg_object(respMsg);
+			if (respSip->sip_status->st_status == 401){
+				/* Add authorization headers if last response was a 401 */
+				const char* user = "";
+				const char* realm = msg_params_find(respSip->sip_www_authenticate->au_params, "realm=");
+				const char* pwd = mPassword.c_str();
+				msg_header_t *authHeaders;
+				auth_client_t *aucs = NULL;
+				auc_challenge(&aucs, msg_home(msg), respSip->sip_www_authenticate,
+										sip_authorization_class);
+				auc_all_credentials(&aucs, "DIGEST", realm, user, pwd);
+				sip_t *sip = sip_object(msg);
+				auc_authorization_headers(&aucs, msg_home(msg), "REGISTER", (url_t *)sip->sip_request->rq_url,
+												sip->sip_payload,
+												&authHeaders);
+				msg_header_insert(msg, msg_object(msg), authHeaders);
+			}
+			msg_unref(respMsg);
+		}
+	}
 	setContact(msg);
 	sip_complete_message(msg);
 	msg_serialize(msg, msg_object(msg));
@@ -544,14 +574,20 @@ void DomainRegistration::start() {
 	su_home_init(&home);
 	LOGD("Domain registration about to be sent:\n%s", msg_as_string(&home, msg, msg_object(msg), 0, NULL));
 	su_home_deinit(&home);
-
-	mOutgoing =
-		nta_outgoing_mcreate(mManager.mAgent->getSofiaAgent(), sResponseCallback, (nta_outgoing_magic_t *)this, NULL,
+	
+	if (mOutgoing) {
+		nta_outgoing_destroy(mOutgoing);
+	}
+	mOutgoing = nta_outgoing_mcreate(mManager.mAgent->getSofiaAgent(), sResponseCallback, (nta_outgoing_magic_t *)this, NULL,
 							 msg, NTATAG_TPORT(mPrimaryTport), TAG_END());
 	if (!mOutgoing) {
 		LOGE("Could not create outgoing transaction");
 		return;
 	}
+}
+
+void DomainRegistration::start() {
+	sendRequest();
 }
 
 void DomainRegistration::cleanCurrentTport() {
@@ -564,37 +600,10 @@ void DomainRegistration::cleanCurrentTport() {
 }
 
 void DomainRegistration::stop() {
-	msg_t *msg;
 	cleanCurrentTport();
-	if (mTimer) {
-		su_timer_destroy(mTimer);
-		mTimer = NULL;
-	}
-
-	msg = nta_msg_create(mManager.mAgent->getSofiaAgent(), 0);
-	if (nta_msg_request_complete(msg, mLeg, sip_method_register, NULL, (url_string_t *)mProxy) != 0) {
-		LOGE("nta_msg_request_complete() failed");
-	}
-	if(mSip) {
-		msg_header_insert(msg, msg_object(msg), msg_header_copy(&mHome, mSip));
-		mSip = NULL;
-	}
-	msg_header_insert(msg, msg_object(msg), (msg_header_t *)sip_expires_create(msg_home(msg), 0));
-	setContact(msg);
-	sip_complete_message(msg);
-	msg_serialize(msg, msg_object(msg));
-	su_home_t home;
-	su_home_init(&home);
-	LOGD("Domain un-registration about to be sent:\n%s", msg_as_string(&home, msg, msg_object(msg), 0, NULL));
-	su_home_deinit(&home);
-
-	nta_outgoing_t *outgoing =
-	nta_outgoing_mcreate(mManager.mAgent->getSofiaAgent(), sResponseCallback, (nta_outgoing_magic_t *)this, NULL,
-						 msg, NTATAG_TPORT(mPrimaryTport), TAG_END());
-	if (!outgoing) {
-		LOGE("Could not create outgoing transaction");
-		return;
-	}
+	LOGD("Unregistering domain.");
+	mExpires = 0;
+	sendRequest();
 }
 
 bool DomainRegistration::isUs(const url_t *url) {
