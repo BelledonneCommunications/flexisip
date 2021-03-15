@@ -444,6 +444,7 @@ shared_ptr<BooleanExpression<_valuesT>> BooleanExpressionBuilder<_valuesT>::pars
 				if (isKeyword(expr.substr(i), &j, "contains")) {
 					i += j;
 					j = 0;
+					if (cur_var == nullptr) throw invalid_argument("'contains' operator has no left-hand operand.");
 					auto rightVar = buildVariable(expr.substr(i), &j);
 					cur_exp = make_shared<ContainsOp<_valuesT>>(cur_var, rightVar);
 					i += j;
