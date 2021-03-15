@@ -27,31 +27,32 @@ The dependencies to install depend on the build utilities you use to build Flexi
 
 | Dependency      | Description                                                                                                                              | Mandatory | prepare.py | CMake |
 | :---            | :---                                                                                                                                     | :---:     | :---:      | :---: |
-| BcSofiaSip      | Belledonne Communications maintained SofiaSip project. [See GitLab repository](https://gitlab.linphone.org/BC/public/external/sofia-sip) | X         |            | X     |
-| BcToolbox       | Several basic utilities.                                                                                                                 | X         |            | X     |
-| BelR            | Generic parser using ABNF grammar, used for user file parsing.                                                                           | X         |            | X     |
 | OpenSSL         | TLS stack.                                                                                                                               | X         | X          | X     |
 | Hiredis         | Redis DB client library, used for Registrar DB and communications between Flexisip instances of a same cluster.                          | X         | X          | X     |
 | LibNgHttp2      | HTTP2 stack.                                                                                                                             | X         | X          | X     |
+| SQLite3         | Library for handling SQlite3 file                                                                                                        | X         | X          |       |
+| libmysql-client | Client library for MySQL database.                                                                                                       | X         | X          |       |
+| libasound       | ALSA library.                                                                                                                            | X         | X          |       |
+| BcSofiaSip      | Belledonne Communications maintained SofiaSip project. [See GitLab repository](https://gitlab.linphone.org/BC/public/external/sofia-sip) | X         |            | X     |
+| BcToolbox       | Several basic utilities.                                                                                                                 | X         |            | X     |
+| BelR            | Generic parser using ABNF grammar, used for user file parsing.                                                                           | X         |            | X     |
+| oRTP            | RTP stack used for media relay feature.                                                                                                  | X         |            | X     |
 | Soci            | SQL database client, used for user database reading and event logs.                                                                      | X         |            | X     |
 | Soci-sqlite3    | Soci connector for SQLit3.                                                                                                               | X         |            | X     |
 | Soci-mysql      | Soci connector for MySQL.                                                                                                                | X         |            | X     |
-| SQLite3         |                                                                                                                                          | X         | X          |       |
-| libmysql-client |                                                                                                                                          | X         | X          |       |
-| oRTP            | RTP stack used for media relay feature.                                                                                                  | X         |            | X     |
-| Mediastreamer   | Media engine used for transcoding feature.                                                                                               |           |            | X     |
-| BelleSip        | mDNS support.                                                                                                                            |           |            | X     |
 | Protobuf        | Needed for migration from legacy registrar database format.                                                                              |           | X          | X     |
 | NetSNMP         | SNMP library, used for SNMP support.                                                                                                     |           | X          | X     |
 | pdflatex        | To generate the reference documentation as PDF.                                                                                          |           | X          | X     |
+| Mediastreamer   | Media engine used for transcoding feature.                                                                                               |           |            | X     |
+| BelleSip        | mDNS support.                                                                                                                            |           |            | X     |
 
 **Presence server only dependencies:**
 
 | Dependency      | Description                                                                                                                              | Mandatory | prepare.py | CMake |
 | :---            | :---                                                                                                                                     | :---:     | :---:      | :---: |
-| BelleSip        | SIP stack.                                                                                                                               | X         |            | X     |
 | Xsd             | W3C XML Schema to C++ data binding compiler.                                                                                             | X         | X          | X     |
 | XercesC         | XML parser.                                                                                                                              | X         | X          | X     |
+| BelleSip        | SIP stack.                                                                                                                               | X         |            | X     |
                                                                                                                                                                         
 **Conference server only dependencies:**
                                                                                                                                                                         
