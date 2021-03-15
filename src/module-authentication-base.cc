@@ -303,8 +303,8 @@ void ModuleAuthenticationBase::processAuthModuleResponse(const std::shared_ptr<A
 			ev->reply(500, "Internal error", TAG_END());
 			return;
 
-		case Authentifier::Status::Continue:
-			throw logic_error("Authentifier::Status::Continue not supported");
+		case Authentifier::Status::End:
+			throw logic_error("Authentifier::Status::End not supported");
 	}
 }
 

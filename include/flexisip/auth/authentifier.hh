@@ -29,7 +29,7 @@ namespace flexisip {
 
 class Authentifier {
   public:
-	enum class Status : uint8_t { Pass, Reject, Continue, Pending, Error, Challenge };
+	enum class Status : uint8_t { Pending, Pass, Reject, Error, Challenge, End };
 
 	/**
 	 * Specialization of AuthStatus dedicated to be used
@@ -81,7 +81,13 @@ class Authentifier {
 	Authentifier(Authentifier &&) = delete;
 	virtual ~Authentifier() = default;
 
+	template <typename AuthPtrT>
+	void setNextAuth(AuthPtrT &&authPtr) noexcept {mNextAuth = std::forward<AuthPtrT>(authPtr);}
+
 	virtual void verify(const std::shared_ptr<AuthStatus> &as) = 0;
+
+  protected:
+	std::weak_ptr<Authentifier> mNextAuth{};
 };
 
 } // namespace flexisip

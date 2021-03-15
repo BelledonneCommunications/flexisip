@@ -30,14 +30,14 @@ void TrustedHostAuthentifier::verify(const std::shared_ptr<AuthStatus> &as) {
 
 	BinaryIp receivedHost{printableReceivedHost};
 
-	Status status;
 	if (mTrustedHosts.find(receivedHost) != mTrustedHosts.end()){
 		LOGD("Allowing message from trusted host %s", printableReceivedHost);
-		status = Status::Pass;
+		if (as->as_callback) as->as_callback(as, Status::Pass);
 	} else {
-		status = Status::Continue;
+		auto nextAuth = mNextAuth.lock();
+		if (nextAuth) nextAuth->verify(as);
+		else if (as->as_callback) as->as_callback(as, Status::End);
 	}
-	if (as->as_callback) as->as_callback(as, status);
 }
 
 } // namespace flexisip
