@@ -237,6 +237,7 @@ static vector<PushInfo> createPushInfosFromArgs(const PusherArgs &args) {
 				// Background notification aren't specified in the standard push params, but rather in the content of the push notification
 				pinfo.mApplePushType = args.applePushType;
 			}
+			pinfo.mApiKey = args.apikey;
 			pushInfos.push_back(pinfo);
 		}
 	}
@@ -268,7 +269,7 @@ int main(int argc, char *argv[]) {
 			service.setupiOSClient(args.prefix + "/apn", "");
 		} else if (pnType == "firebase") {
 			map<string, string> firebaseKey;
-			firebaseKey.insert(make_pair(args.appid, args.apikey));
+			firebaseKey.insert(make_pair(pushInfos.front().mAppId, pushInfos.front().mApiKey));
 			service.setupFirebaseClient(firebaseKey);
 		} else if (pnType == "wp" || pnType == "w10") {
 			service.setupWindowsPhoneClient(args.packageSID, args.apikey);
