@@ -529,7 +529,6 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 		}
 		usable_contacts.push_back(make_pair(ct, ec));
 	}
-
 	if (usable_contacts.size() == 0) {
 		if (nonSipsFound) {
 			/*rfc5630 5.3*/
@@ -608,8 +607,6 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 					RegistrarDb::get()->subscribe(key, listener);
 				}
 				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), key.c_str());
-			} else {
-				dispatch(ev, ec, context, targetUris);
 			}
 		}
 	}
