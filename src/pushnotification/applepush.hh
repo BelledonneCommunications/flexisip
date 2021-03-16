@@ -19,12 +19,15 @@
 #pragma once
 
 #include <map>
+#include <queue>
 #include <unordered_map>
 
 #include <nghttp2/nghttp2.h>
+#include <sofia-sip/su_wait.h>
 
 #include "flexisip/utils/timer.hh"
 
+#include "../utils/transport/tls-connection.hh"
 #include "client.hh"
 #include "request.hh"
 
@@ -32,16 +35,24 @@ namespace flexisip {
 namespace pushnotification {
 
 class AppleRequest : public Request {
-public:
+  public:
 	AppleRequest(const PushInfo &pinfo);
 
-	const std::string &getDeviceToken() const noexcept {return mDeviceToken;}
+	const std::string &getDeviceToken() const noexcept {
+		return mDeviceToken;
+	}
 
-	const std::vector<char> &getData() override {return mPayload;}
-	std::string isValidResponse(const std::string &str) override {return std::string{};}
-	bool isServerAlwaysResponding() override {return false;}
+	const std::vector<char> &getData() override {
+		return mPayload;
+	}
+	std::string isValidResponse(const std::string &str) override {
+		return std::string{};
+	}
+	bool isServerAlwaysResponding() override {
+		return false;
+	}
 
-protected:
+  protected:
 	void checkDeviceToken() const;
 
 	std::string mDeviceToken{};
@@ -57,85 +68,32 @@ protected:
 };
 
 class AppleClient : public Client {
-public:
-	enum class State : uint8_t {
-		Disconnected,
-		Connecting,
-		Connected
-	};
+  public:
+	enum class State : uint8_t { Disconnected, Connecting, Connected };
 
-	class BadStateError : public std::logic_error {
-	public:
-		BadStateError(State state) : logic_error(formatWhatArg(state)) {}
-
-	private:
-		static std::string formatWhatArg(State state) noexcept;
-	};
-
-	AppleClient(su_root_t &root, std::unique_ptr<TlsConnection> &&conn);
+	AppleClient(su_root_t &root);
 
 	bool sendPush(const std::shared_ptr<Request> &req) override;
 	bool isIdle() const noexcept override {
-		return  mPNRs.empty();
+		return mPNRs.empty();
 	}
 
-private:
+  private:
 	/* Private classes and structs */
-	class HeaderStore {
-	public:
-		struct Header {
-			std::string name{};
-			std::string value{};
-			uint8_t flags{NGHTTP2_FLAG_NONE};
-		};
-
-		using HeaderList = std::vector<Header>;
-		using CHeaderList = std::vector<nghttp2_nv>;
-
-		HeaderStore() = default;
-		HeaderStore(const HeaderStore &) = default;
-		HeaderStore(HeaderStore &&) = default;
-
-		void add(std::string name, std::string value, uint8_t flags = NGHTTP2_FLAG_NONE) noexcept;
-		std::string toString() const noexcept;
-
-		CHeaderList makeHeaderList() const noexcept;
-
-	private:
-		HeaderList mHList{};
-	};
-
-	class DataProvider {
-	public:
-		DataProvider(const std::vector<char> &data) noexcept;
-		DataProvider(const std::string &data) noexcept;
-
-		const nghttp2_data_provider *getCStruct() const noexcept {return &mDataProv;}
-
-	private:
-		ssize_t read(uint8_t *buf, size_t length, uint32_t *data_flags) noexcept;
-
-		nghttp2_data_provider mDataProv{{0}};
-		std::stringstream mData{};
-	};
-
 	class PnrContext {
-	public:
+	  public:
 		PnrContext(AppleClient &client, const std::shared_ptr<AppleRequest> &pnr, unsigned timeout /* s */) noexcept;
 		PnrContext(const PnrContext &) = delete;
 		PnrContext(PnrContext &&) noexcept = default;
 
-		const std::shared_ptr<AppleRequest> &getPnr() const noexcept {return mPnr;}
+		const std::shared_ptr<AppleRequest> &getPnr() const noexcept {
+			return mPnr;
+		}
 
-	private:
+	  private:
 		std::shared_ptr<AppleRequest> mPnr{};
 		std::unique_ptr<sofiasip::Timer> mTimer{};
 	};
-
-	struct NgHttp2SessionDeleter {
-		void operator()(nghttp2_session *ptr) const noexcept {nghttp2_session_del(ptr);}
-	};
-	using NgHttp2SessionPtr = std::unique_ptr<nghttp2_session, NgHttp2SessionDeleter>;
 
 	/* Private methods */
 	void connect();
@@ -144,49 +102,28 @@ private:
 	bool sendAllPendingPNRs();
 	void processGoAway();
 
-	State getState() const noexcept {return mState;}
-	void setState(State state) noexcept;
 
-	ssize_t send(nghttp2_session &session, const uint8_t *data, size_t length) noexcept;
-	ssize_t recv(nghttp2_session &session, uint8_t *data, size_t length) noexcept;
-
-	void onFrameSent(nghttp2_session &session, const nghttp2_frame &frame) noexcept;
-	void onFrameRecv(nghttp2_session &session, const nghttp2_frame &frame) noexcept;
-	void onHeaderRecv(nghttp2_session &session, const nghttp2_frame &frame,
-					  const std::string &name, const std::string &value, uint8_t flags) noexcept;
-	void onDataReceived(nghttp2_session &session, uint8_t flags, int32_t streamId, const uint8_t *data, size_t datalen) noexcept;
-	void onStreamClosed(nghttp2_session &session, int32_t stream_id, uint32_t error_code) noexcept;
-
-	void resetIdleTimer() noexcept {mIdleTimer.set([this](){onConnectionIdle();});}
-	void onConnectionIdle() noexcept;
-
-	static int onPollInCb(su_root_magic_t *, su_wait_t *, su_wakeup_arg_t *arg) noexcept;
-	static std::vector<nghttp2_nv> makeNgHttp2Headers(const std::map<std::string, std::pair<std::string, nghttp2_data_flag>>);
+	static std::vector<nghttp2_nv>
+	makeNgHttp2Headers(const std::map<std::string, std::pair<std::string, nghttp2_data_flag>>);
 
 	/* Private attributes */
-	su_root_t &mRoot;
-	sofiasip::Timer mIdleTimer;
-	su_wait_t mPollInWait{0};
-	std::unique_ptr<TlsConnection> mConn{};
-	NgHttp2SessionPtr mHttpSession{};
 	std::unordered_map<int32_t, PnrContext> mPNRs{};
 	std::queue<std::shared_ptr<AppleRequest>> mPendingPNRs{};
-	State mState{State::Disconnected};
-	int32_t mLastSID{-1};
 	std::string mLogPrefix{};
+	su_root_t &mRoot;
+	su_wait_t mPollInWait{0};
 
-	static constexpr unsigned sPnrTimeout = 5; // Delay (in second) before a PNR is marked as failed because of missing response from the APNS.
-	static constexpr unsigned sIdleTimeout = 60; // Delay (in second) before the connection with the APNS is closed because of inactivity.
+	static constexpr unsigned sPnrTimeout =
+		5; // Delay (in second) before a PNR is marked as failed because of missing response from the APNS.
 };
 
 class Http2Tools {
-public:
+  public:
 	static const char *frameTypeToString(uint8_t frameType) noexcept;
 	static std::string printFlags(uint8_t flags) noexcept;
 };
 
-}
-}
+} // namespace pushnotification
+} // namespace flexisip
 
 std::ostream &operator<<(std::ostream &os, const ::nghttp2_frame &frame) noexcept;
-std::ostream &operator<<(std::ostream &os, flexisip::pushnotification::AppleClient::State state) noexcept;

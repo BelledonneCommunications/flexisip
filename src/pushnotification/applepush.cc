@@ -53,7 +53,7 @@ AppleRequest::AppleRequest(const PushInfo &info) : Request(info.mAppId, "apple")
 	checkDeviceToken();
 
 	string customPayload = (info.mCustomPayload.empty()) ? "{}" : info.mCustomPayload;
-							
+
 	switch (info.mApplePushType) {
 		case ApplePushType::Unknown:
 			throw invalid_argument{"Apple push type not set"};
@@ -209,71 +209,6 @@ void AppleRequest::checkDeviceToken() const {
 	}
 }
 
-std::string AppleClient::BadStateError::formatWhatArg(State state) noexcept {
-	return string{"bad state ["} + to_string(unsigned(state)) + "]";
-}
-
-void AppleClient::HeaderStore::add(std::string name, std::string value, uint8_t flags) noexcept {
-	auto it = find_if(mHList.begin(), mHList.end(), [&name](const Header &h){return h.name == name;});
-	if (it == mHList.end()) {
-		it = mHList.emplace(mHList.end());
-	}
-	it->name = move(name);
-	it->value = move(value);
-	it->flags = flags;
-}
-
-std::string AppleClient::HeaderStore::toString() const noexcept {
-	ostringstream os{};
-	for (const auto &h : mHList) {
-		os << h.name << " = " << h.value << endl;
-	}
-	return os.str();
-}
-
-std::vector<nghttp2_nv> AppleClient::HeaderStore::makeHeaderList() const noexcept {
-	CHeaderList cHList{};
-	cHList.reserve(mHList.size());
-	for (const auto &header : mHList) {
-		cHList.emplace_back(
-			nghttp2_nv{
-				(uint8_t *)header.name.c_str(),
-				(uint8_t *)header.value.c_str(),
-				header.name.size(),
-				header.value.size(),
-				header.flags
-			}
-		);
-	}
-	return cHList;
-}
-
-AppleClient::DataProvider::DataProvider(const std::vector<char> &data) noexcept {
-	mDataProv.source.ptr = this;
-	mDataProv.read_callback = [](nghttp2_session *session, int32_t stream_id, uint8_t *buf, size_t length,
-							  uint32_t *data_flags, nghttp2_data_source *source, void *user_data) noexcept {
-		return static_cast<DataProvider *>(source->ptr)->read(buf, length, data_flags);
-	};
-	mData.write(data.data(), data.size());
-}
-
-AppleClient::DataProvider::DataProvider(const std::string &data) noexcept {
-	mDataProv.source.ptr = this;
-	mDataProv.read_callback = [](nghttp2_session *session, int32_t stream_id, uint8_t *buf, size_t length,
-							  uint32_t *data_flags, nghttp2_data_source *source, void *user_data) noexcept {
-		return static_cast<DataProvider *>(source->ptr)->read(buf, length, data_flags);
-	};
-	mData.write(data.data(), data.size());
-}
-
-ssize_t AppleClient::DataProvider::read(uint8_t *buf, size_t length, uint32_t *data_flags) noexcept {
-	*data_flags = 0;
-	mData.read(reinterpret_cast<char *>(buf), length);
-	if (mData.eof()) *data_flags |= NGHTTP2_DATA_FLAG_EOF;
-	if (!mData.good() && !mData.eof()) return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
-	return mData.gcount();
-}
-
 AppleClient::PnrContext::PnrContext(AppleClient &client, const std::shared_ptr<AppleRequest> &pnr, unsigned timeout /* s */) noexcept
 	: mPnr{pnr} {
 	mTimer = make_unique<sofiasip::Timer>(&client.mRoot, timeout * 1000);
@@ -289,122 +224,28 @@ AppleClient::PnrContext::PnrContext(AppleClient &client, const std::shared_ptr<A
 	});
 }
 
-AppleClient::AppleClient(su_root_t &root, std::unique_ptr<TlsConnection> &&conn)
-	: mRoot{root}, mIdleTimer{&root, sIdleTimeout * 1000}, mConn{std::move(conn)} {
+AppleClient::AppleClient(su_root_t &root) : mRoot{root} {
 	ostringstream os{};
 	os << "AppleClient[" << this << "]";
 	mLogPrefix = os.str();
-	SLOGD << mLogPrefix << ": constructing AppleClient with TlsConnection[" << mConn.get() << "]";
+	SLOGD << mLogPrefix << ": constructing AppleClient";
 }
 
 bool AppleClient::sendPush(const std::shared_ptr<Request> &req) {
 	auto appleReq = dynamic_pointer_cast<AppleRequest>(req);
 	mPendingPNRs.emplace(move(appleReq));
 
-	if (mState != State::Connected) {
+	/*if (mState != State::Connected) {
 		if (mState == State::Disconnected) connect();
 		return true;
-	}
+	} TODO */
 
 	return sendAllPendingPNRs();
 }
 
-void AppleClient::connect() {
-	if (mState != State::Disconnected) {
-		throw BadStateError(mState);
-	}
-	setState(State::Connecting);
-
-	try {
-		mConn->connect();
-		if (!mConn->isConnected()) throw runtime_error{"TLS connection failed"};
-
-		auto sendCb = [](nghttp2_session *session, const uint8_t *data, size_t length, int flags, void *user_data) noexcept {
-			auto thiz = static_cast<AppleClient *>(user_data);
-			return thiz->send(*session, data, length);
-		};
-		auto recvCb = [](nghttp2_session *session, uint8_t *buf, size_t length, int flags, void *user_data) noexcept {
-			auto thiz = static_cast<AppleClient *>(user_data);
-			return thiz->recv(*session, buf, length);
-		};
-		auto frameSentCb = [](nghttp2_session *session, const nghttp2_frame *frame, void *user_data) noexcept {
-			auto thiz = static_cast<AppleClient *>(user_data);
-			thiz->onFrameSent(*session, *frame);
-			return 0;
-		};
-		auto frameRecvCb = [](nghttp2_session *session, const nghttp2_frame *frame, void *user_data) noexcept {
-			auto thiz = static_cast<AppleClient *>(user_data);
-			thiz->onFrameRecv(*session, *frame);
-			return 0;
-		};
-		auto onHeaderRecvCb = [](nghttp2_session *session, const nghttp2_frame *frame, const uint8_t *name, size_t namelen,
-								const uint8_t *value, size_t valuelen, uint8_t flags, void *user_data) noexcept {
-			auto thiz = static_cast<AppleClient *>(user_data);
-			string nameStr{reinterpret_cast<const char *>(name), namelen};
-			string valueStr{reinterpret_cast<const char *>(value), valuelen};
-			thiz->onHeaderRecv(*session, *frame, nameStr, valueStr, flags);
-			return 0;
-		};
-		auto onDataChunkRecvCb = [](nghttp2_session *session, uint8_t flags, int32_t stream_id, const uint8_t *data, size_t len, void *user_data) noexcept {
-			auto thiz = static_cast<AppleClient *>(user_data);
-			thiz->onDataReceived(*session, flags, stream_id, data, len);
-			return 0;
-		};
-		auto onStreamClosedCb = [](nghttp2_session *session, int32_t stream_id, uint32_t error_code, void *user_data) noexcept {
-			auto thiz = static_cast<AppleClient *>(user_data);
-			thiz->onStreamClosed(*session, stream_id, error_code);
-			return 0;
-		};
-
-		nghttp2_session_callbacks *cbs;
-		nghttp2_session_callbacks_new(&cbs);
-		nghttp2_session_callbacks_set_send_callback(cbs, sendCb);
-		nghttp2_session_callbacks_set_recv_callback(cbs, recvCb);
-		nghttp2_session_callbacks_set_on_frame_send_callback(cbs, frameSentCb);
-		nghttp2_session_callbacks_set_on_frame_recv_callback(cbs, frameRecvCb);
-		nghttp2_session_callbacks_set_on_header_callback(cbs, onHeaderRecvCb);
-		nghttp2_session_callbacks_set_on_data_chunk_recv_callback(cbs, onDataChunkRecvCb);
-		nghttp2_session_callbacks_set_on_stream_close_callback(cbs, onStreamClosedCb);;
-
-		unique_ptr<nghttp2_session_callbacks, void(*)(nghttp2_session_callbacks *)> cbsPtr{cbs, nghttp2_session_callbacks_del};
-
-		nghttp2_session *session;
-		nghttp2_session_client_new(&session, cbs, this);
-		NgHttp2SessionPtr httpSession{session};
-
-		int status;
-		if ((status = nghttp2_submit_settings(session, NGHTTP2_FLAG_NONE, nullptr, 0)) < 0) {
-			throw runtime_error{"submitting settings failed [status=" + to_string(status) + "]"};
-		}
-		if ((status = nghttp2_session_send(session)) < 0) {
-			throw runtime_error{"sending SETTINGS frame failed [status=" + to_string(status) + "]"};
-		}
-
-		mHttpSession = move(httpSession);
-		su_wait_create(&mPollInWait, mConn->getFd(), SU_WAIT_IN);
-		su_root_register(&mRoot, &mPollInWait, onPollInCb, this, su_pri_normal);
-
-		resetIdleTimer();
-
-	} catch (const runtime_error &e) {
-		SLOGE << mLogPrefix << ": " << e.what();
-		disconnect();
-	}
-}
-
-void AppleClient::disconnect() {
-	SLOGD << mLogPrefix << ": disconnecting from APNS";
-	if (mState == State::Disconnected) return;
-	su_root_unregister(&mRoot, &mPollInWait, onPollInCb, this);
-	mHttpSession.reset();
-	mConn->disconnect();
-	setState(State::Disconnected);
-	mLastSID = -1;
-	mPNRs.clear();
-}
-
 bool AppleClient::sendAllPendingPNRs() {
-	auto pnrSent = false;
+	//TODO
+	/*auto pnrSent = false;
 	while (!mPendingPNRs.empty()) {
 		auto appleReq = move(mPendingPNRs.front());
 		mPendingPNRs.pop();
@@ -460,155 +301,8 @@ bool AppleClient::sendAllPendingPNRs() {
 		pnrSent = true;
 	}
 
-	if (pnrSent) resetIdleTimer();
+	if (pnrSent) resetIdleTimer();*/
 	return true;
-}
-
-void AppleClient::processGoAway() {
-	SLOGD << mLogPrefix << ": closing connection after receiving GOAWAY frame. Last processed stream is [" << mLastSID << "]";
-
-	// move back all the non-treated PNRs into the pending queue
-	for (auto it = mPNRs.begin(); it != mPNRs.end(); it = mPNRs.erase(it)) {
-		const auto &sid = it->first;
-		auto &request = it->second.getPnr();
-		if (sid > mLastSID) {
-			SLOGD << mLogPrefix << ": PNR " << request  << " will be sent on next connection";
-			request->setState(Request::State::NotSubmitted);
-			mPendingPNRs.emplace(move(request));
-		}
-	}
-
-	// disconnect and connect again if there still are PNRs to process
-	disconnect();
-	if (!mPendingPNRs.empty()) {
-		SLOGD << mLogPrefix << ": PNRs are waiting. Connecting to server again";
-		connect();
-	}
-}
-
-void AppleClient::setState(State state) noexcept {
-	if (mState == state) return;
-	SLOGD << mLogPrefix << ": switching state from [" << mState << "] to [" << state << "]";
-	mState = state;
-}
-
-ssize_t AppleClient::send(nghttp2_session &session, const uint8_t *data, size_t length) noexcept {
-	length = min(length, size_t(numeric_limits<int>::max()));
-	auto nwritten = mConn->write(data, int(length));
-	if (nwritten < 0) {
-		SLOGE << mLogPrefix << ": error while writting into socket[" << nwritten << "]";
-		return NGHTTP2_ERR_CALLBACK_FAILURE;
-	}
-	if (nwritten == 0 && length > 0) return NGHTTP2_ERR_WOULDBLOCK;
-	return nwritten;
-}
-
-ssize_t AppleClient::recv(nghttp2_session &session, uint8_t *data, size_t length) noexcept {
-	length = min(length, size_t(numeric_limits<int>::max()));
-	auto nread = mConn->read(data, length);
-	if (nread < 0) {
-		SLOGE << mLogPrefix << ": error while reading socket. " << strerror(errno);
-		return NGHTTP2_ERR_CALLBACK_FAILURE;
-	}
-	if (nread == 0 && length > 0) return NGHTTP2_ERR_WOULDBLOCK;
-	return nread;
-}
-
-void AppleClient::onFrameSent(nghttp2_session &session, const nghttp2_frame &frame) noexcept {
-// 	SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: frame sent (" << frame.hd.length << "B):\n" << frame;
-}
-
-void AppleClient::onFrameRecv(nghttp2_session &session, const nghttp2_frame &frame) noexcept {
-// 	SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: frame received (" << frame.hd.length << "B):\n" << frame;
-	switch (frame.hd.type) {
-		case NGHTTP2_SETTINGS:
-			if (mState == State::Connecting && (frame.hd.flags & NGHTTP2_FLAG_ACK) == 0) {
-				SLOGD << mLogPrefix << ": server settings received";
-				setState(State::Connected);
-				SLOGD << mLogPrefix << ": sending all pending PNRs";
-				sendAllPendingPNRs();
-			}
-			break;
-		case NGHTTP2_GOAWAY: {
-			ostringstream msg{};
-			msg << mLogPrefix << ": GOAWAY frame received, errorCode=[" << frame.goaway.error_code << "], lastStreamId=["
-				<< frame.goaway.last_stream_id << "]:";
-			if (frame.goaway.opaque_data_len > 0) {
-				msg << endl;
-				msg.write(reinterpret_cast<const char *>(frame.goaway.opaque_data), frame.goaway.opaque_data_len);
-			} else {
-				msg << " <empty>";
-			}
-			SLOGD << msg.str();
-			SLOGD << "Scheduling connection closing";
-			mLastSID = frame.goaway.last_stream_id;
-			break;
-		}
-	}
-}
-
-void AppleClient::onHeaderRecv(nghttp2_session &session, const nghttp2_frame &frame, const std::string &name,
-					           const std::string &value, uint8_t flags) noexcept {
-	const auto &streamId = frame.hd.stream_id;
-	auto logPrefix = string{mLogPrefix} + "[" + to_string(streamId) + "]";
-	SLOGD << logPrefix << ": receiving HTTP2 header [" << name << " = " << value << "]";
-	if (name == ":status") {
-		AppleRequest *pnr = nullptr;
-		try {
-			pnr = mPNRs.at(streamId).getPnr().get();
-		} catch (const logic_error &) {
-			SLOGE << logPrefix << ": receiving header for an unknown stream. Just ignoring";
-			return;
-		}
-		try {
-			pnr->mStatusCode = stoi(value);
-		} catch (const logic_error &e) {
-			SLOGE << logPrefix << ": error while parsing status code[" << value << "]: " << e.what();
-			return;
-		}
-		if (pnr->mStatusCode == 200) {
-			pnr->setState(Request::State::Successful);
-			SLOGD << logPrefix << ": PNR " << pnr << " succeeded";
-		} else {
-			pnr->setState(Request::State::Failed);
-			SLOGD << logPrefix << ": PNR " << pnr << " failed";
-		}
-	}
-}
-
-void AppleClient::onDataReceived(nghttp2_session &session, uint8_t flags, int32_t streamId, const uint8_t *data, size_t datalen) noexcept {
-	ostringstream msg{};
-	msg << mLogPrefix << "[" << streamId << "]";
-	msg << ": " << datalen << "B of data received on stream[" << streamId << "]:\n";
-	msg.write(reinterpret_cast<const char *>(data), datalen);
-	SLOGD << msg.str();
-}
-
-int AppleClient::onPollInCb(su_root_magic_t *, su_wait_t *, su_wakeup_arg_t *arg) noexcept {
-	auto thiz = static_cast<AppleClient *>(arg);
-	auto status = nghttp2_session_recv(thiz->mHttpSession.get());
-	if (status < 0) {
-		SLOGE << thiz->mLogPrefix << ": error while receiving HTTP2 data[" << nghttp2_strerror(status) << "]. Disconnecting";
-		thiz->disconnect();
-		return 0;
-	}
-	if (thiz->mLastSID >= 0) thiz->processGoAway();
-	return 0;
-}
-
-void AppleClient::onStreamClosed(nghttp2_session &session, int32_t stream_id, uint32_t error_code) noexcept {
-	auto logPrefix = mLogPrefix + "[" + to_string(stream_id) + "]";
-	SLOGD << logPrefix << ": stream closed with error code [" << error_code << "]";
-	auto it = mPNRs.find(stream_id);
-	if (it != mPNRs.cend()) {
-		SLOGD << logPrefix << ": end of PNR " << it->second.getPnr();
-		mPNRs.erase(it);
-	}
-}
-
-void AppleClient::onConnectionIdle() noexcept {
-	SLOGD << mLogPrefix << ": connection is idle";
-	disconnect();
 }
 
 const char *Http2Tools::frameTypeToString(uint8_t frameType) noexcept {
@@ -710,13 +404,4 @@ std::ostream &operator<<(std::ostream &os, const nghttp2_frame &frame) noexcept 
 			break;
 	};
 	return os;
-}
-
-std::ostream &operator<<(std::ostream &os, flexisip::pushnotification::AppleClient::State state) noexcept {
-	switch (state) {
-		case AppleClient::State::Disconnected: return os << "Disconnected";
-		case AppleClient::State::Connecting: return os << "Connecting";
-		case AppleClient::State::Connected: return os << "Connected";
-	};
-	return os << "Unknown";
 }
