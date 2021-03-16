@@ -14,32 +14,49 @@
 
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
-#include "legacy-client.hh"
-#include "request.hh"
+#include "pushnotification/request.hh"
+#include "utils/transport/http/http-message.hh"
 
 namespace flexisip {
 namespace pushnotification {
 
-class ClientWp : public LegacyClient {
+class AppleRequest : public Request, public HttpMessage {
   public:
-	ClientWp(std::unique_ptr<Transport> &&transport, const std::string &name, const Service &service,
-			 unsigned maxQueueSize, const std::string &packageSID, const std::string &applicationSecret);
-	~ClientWp() override = default;
+	AppleRequest(const PushInfo& pinfo);
 
-	void sendPush(const std::shared_ptr<Request> &req) override;
+	const std::string& getDeviceToken() const noexcept {
+		return mDeviceToken;
+	}
+
+	std::string isValidResponse(const std::string& str) override {
+		return std::string{};
+	}
+
+	bool isServerAlwaysResponding() override {
+		return false;
+	}
+
+	[[deprecated("Here for compatibility issue, use getBody() instead")]] const std::vector<char>& getData() override {
+		return mBody;
+	}
 
   protected:
-	void retrieveAccessToken();
+	void checkDeviceToken() const;
+	static std::string pushTypeToApnsPushType(ApplePushType type);
 
-  private:
-	std::string mPackageSID{};
-	std::string mApplicationSecret{};
-	std::string mAccessToken{};
-	time_t mTokenExpiring{0};
+	ApplePushType mPayloadType{ApplePushType::Unknown};
+	std::string mDeviceToken{};
+	std::string mReason{};
+	int mStatusCode{0};
+
+	static constexpr std::size_t MAXPAYLOAD_SIZE = 2048;
+	static constexpr std::size_t DEVICE_BINARY_SIZE = 32;
+
+	friend class AppleClient;
 };
 
 } // namespace pushnotification
