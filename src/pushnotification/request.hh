@@ -115,12 +115,11 @@ class Request {
 	protected:
 		std::string quoteStringIfNeeded(const std::string &str) const noexcept;
 		std::string getPushTimeStamp() const noexcept;
+		const std::string mAppId;
 
 	private:
 		State mState{State::NotSubmitted};
-		const std::string mAppId;
 		const std::string mType;
-
 };
 
 } // pushnotification namespace
