@@ -56,7 +56,6 @@ public:
 
 private:
 	void setupClients(const std::string &certdir, const std::string &ca, int maxQueueSize);
-	bool isCertExpired(const std::string &certPath) const noexcept;
 
 	su_root_t &mRoot;
 	unsigned mMaxQueueSize{0};
