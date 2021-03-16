@@ -89,9 +89,10 @@ set(FLEXISIP_SOURCES
 	monitor.cc
 	plugin/plugin-loader.cc
 	pushnotification/applepush.cc
-	pushnotification/client.cc
+	pushnotification/client.hh
 	pushnotification/firebasepush.cc
 	pushnotification/genericpush.cc
+	pushnotification/legacy-client.cc pushnotification/legacy-client.hh
 	pushnotification/microsoftpush.cc
 	pushnotification/request.cc
 	pushnotification/service.cc
@@ -114,6 +115,13 @@ set(FLEXISIP_SOURCES
 	utils/string-utils.cc
 	utils/threadpool.cc
 	utils/timer.cc
+	utils/transport/header_store.cc utils/transport/header_store.hh
+	utils/transport/http_message_context.hh
+	utils/transport/http_message.cc utils/transport/http_message.hh
+	utils/transport/http_response.cc utils/transport/http_response.hh
+	utils/transport/http2client.cc utils/transport/http2client.hh
+	utils/transport/ng_data_provider.cc utils/transport/ng_data_provider.hh
+	utils/transport/tls-connection.cc utils/transport/tls-connection.hh
 	utils/uri-utils.cc
 )
 

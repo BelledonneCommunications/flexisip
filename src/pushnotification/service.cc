@@ -288,7 +288,7 @@ void Service::setupiOSClient(const std::string &certdir, const std::string &cafi
 		string certName = cert.substr(0, cert.size() - 4); // Remove .pem at the end of cert
 		const char *apn_server = (certName.find(".dev") != string::npos) ? APN_DEV_ADDRESS : APN_PROD_ADDRESS;
 		auto conn = make_unique<TlsConnection>(apn_server, APN_PORT, move(ctx));
-		mClients[certName] = make_unique<AppleClient>(mRoot, move(conn));
+		mClients[certName] = make_unique<AppleClient>(mRoot);
 		SLOGD << "Adding ios push notification client [" << certName << "]";
 	}
 	closedir(dirp);
