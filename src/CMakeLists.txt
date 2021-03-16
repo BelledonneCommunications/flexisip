@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2020  Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2021  Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -88,10 +88,13 @@ set(FLEXISIP_SOURCES
 	module.cc
 	monitor.cc
 	plugin/plugin-loader.cc
-	pushnotification/applepush.cc
-	pushnotification/client.cc
-	pushnotification/firebasepush.cc
+	pushnotification/apple/apple-client.cc pushnotification/apple/apple-client.hh
+	pushnotification/apple/apple-request.cc pushnotification/apple/apple-request.hh
+	pushnotification/firebase/firebase-client.cc pushnotification/firebase/firebase-client.hh
+	pushnotification/firebase/firebase-request.cc pushnotification/firebase/firebase-request.hh
+	pushnotification/client.hh
 	pushnotification/genericpush.cc
+	pushnotification/legacy-client.cc pushnotification/legacy-client.hh
 	pushnotification/microsoftpush.cc
 	pushnotification/request.cc
 	pushnotification/service.cc
@@ -114,6 +117,13 @@ set(FLEXISIP_SOURCES
 	utils/string-utils.cc
 	utils/threadpool.cc
 	utils/timer.cc
+	utils/transport/http/http2client.cc utils/transport/http/http2client.hh
+	utils/transport/http/http-headers.cc utils/transport/http/http-headers.hh
+	utils/transport/http/http-message-context.hh
+	utils/transport/http/http-message.cc utils/transport/http/http-message.hh
+	utils/transport/http/http-response.cc utils/transport/http/http-response.hh
+	utils/transport/http/ng-data-provider.cc utils/transport/http/ng-data-provider.hh
+	utils/transport/tls-connection.cc utils/transport/tls-connection.hh
 	utils/uri-utils.cc
 )
 
@@ -156,6 +166,10 @@ if(ENABLE_REDIS)
 endif()
 
 if(ENABLE_PROTOBUF)
+	#include(FindProtobuf)
+	#find_package(Protobuf REQUIRED)
+	#include_directories(${PROTOBUF_INCLUDE_DIR})
+	
 	# TODO: generate the protobuf wrapper
 	# protoc --proto_path=$(builddir) --cpp_out=$(builddir) $(pb_files)
 	set(PROTOBUF_GENERATED_FILES ${CMAKE_CURRENT_BINARY_DIR}/recordserializer-protobuf.pb.cc ${CMAKE_CURRENT_BINARY_DIR}/recordserializer-protobuf.pb.h)
@@ -312,6 +326,7 @@ if(FLEXISIP_DEPENDENCIES)
 endif()
 add_dependencies(flexisip flexisip-git-version)
 target_compile_features(flexisip PRIVATE cxx_auto_type cxx_variadic_macros)
+#target_link_libraries(flexisip PUBLIC ${FLEXISIP_PUBLIC_LIBS} PRIVATE ${FLEXISIP_LIBS} ${PROTOBUF_LIBRARY})
 target_link_libraries(flexisip PUBLIC ${FLEXISIP_PUBLIC_LIBS} PRIVATE ${FLEXISIP_LIBS})
 target_include_directories(flexisip PRIVATE ${FLEXISIP_INCLUDES})
 
