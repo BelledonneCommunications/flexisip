@@ -29,8 +29,8 @@
 
 #include <flexisip/common.hh>
 
-#include "applepush.hh"
-#include "firebasepush.hh"
+#include "apple/apple-client.hh"
+#include "firebase/firebase-client.hh"
 #include "microsoftpush.hh"
 #include "wp-client.hh"
 
@@ -40,13 +40,6 @@ using namespace std;
 
 namespace flexisip {
 namespace pushnotification {
-
-static constexpr const char *APN_DEV_ADDRESS = "api.development.push.apple.com";
-static constexpr const char *APN_PROD_ADDRESS = "api.push.apple.com";
-static constexpr const char *APN_PORT = "443";
-
-static constexpr const char *FIREBASE_ADDRESS = "fcm.googleapis.com";
-static constexpr const char *FIREBASE_PORT = "443";
 
 static constexpr const char *WPPN_PORT = "443";
 
@@ -247,7 +240,7 @@ void Service::setupiOSClient(const std::string &certdir, const std::string &cafi
 			(cert.compare(cert.length() - suffix.length(), suffix.length(), suffix) != 0)) {
 			continue;
 		}
-		TlsConnection::SSLCtxUniquePtr ctx{SSL_CTX_new(TLSv1_2_method())};
+		TlsConnection::SSLCtxUniquePtr ctx{SSL_CTX_new(TLS_client_method())};
 		if (!ctx) {
 			SLOGE << "Could not create ctx!";
 			ERR_print_errors_fp(stderr);
@@ -286,9 +279,7 @@ void Service::setupiOSClient(const std::string &certdir, const std::string &cafi
 		}
 
 		string certName = cert.substr(0, cert.size() - 4); // Remove .pem at the end of cert
-		const char *apn_server = (certName.find(".dev") != string::npos) ? APN_DEV_ADDRESS : APN_PROD_ADDRESS;
-		auto conn = make_unique<TlsConnection>(apn_server, APN_PORT, move(ctx));
-		mClients[certName] = make_unique<AppleClient>(mRoot, move(conn));
+		mClients[certName] = make_unique<AppleClient>(mRoot, move(ctx), certName);
 		SLOGD << "Adding ios push notification client [" << certName << "]";
 	}
 	closedir(dirp);
@@ -298,13 +289,7 @@ void Service::setupFirebaseClient(const std::map<std::string, std::string> &fire
 	for (const auto &entry : firebaseKeys) {
 		const auto &firebaseAppId = entry.first;
 
-		auto conn = make_unique<TlsConnection>(FIREBASE_ADDRESS, FIREBASE_PORT, SSLv23_client_method());
-		mClients[firebaseAppId] = make_unique<LegacyClient>(
-			make_unique<TlsTransport>(move(conn)),
-			"firebase",
-			*this,
-			mMaxQueueSize
-		);
+		mClients[firebaseAppId] = make_unique<FirebaseClient>(mRoot);
 		SLOGD << "Adding firebase push notification client [" << firebaseAppId << "]";
 	}
 }
