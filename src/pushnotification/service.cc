@@ -29,7 +29,7 @@
 
 #include <flexisip/common.hh>
 
-#include "applepush.hh"
+#include "apple/apple-client.hh"
 #include "firebasepush.hh"
 #include "microsoftpush.hh"
 #include "wp-client.hh"
@@ -40,10 +40,6 @@ using namespace std;
 
 namespace flexisip {
 namespace pushnotification {
-
-static constexpr const char *APN_DEV_ADDRESS = "api.development.push.apple.com";
-static constexpr const char *APN_PROD_ADDRESS = "api.push.apple.com";
-static constexpr const char *APN_PORT = "443";
 
 static constexpr const char *FIREBASE_ADDRESS = "fcm.googleapis.com";
 static constexpr const char *FIREBASE_PORT = "443";
@@ -286,9 +282,7 @@ void Service::setupiOSClient(const std::string &certdir, const std::string &cafi
 		}
 
 		string certName = cert.substr(0, cert.size() - 4); // Remove .pem at the end of cert
-		const char *apn_server = (certName.find(".dev") != string::npos) ? APN_DEV_ADDRESS : APN_PROD_ADDRESS;
-		auto conn = make_unique<TlsConnection>(apn_server, APN_PORT, move(ctx));
-		mClients[certName] = make_unique<AppleClient>(mRoot, move(conn));
+		mClients[certName] = make_unique<AppleClient>(mRoot, move(ctx), certName);
 		SLOGD << "Adding ios push notification client [" << certName << "]";
 	}
 	closedir(dirp);

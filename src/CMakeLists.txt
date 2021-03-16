@@ -88,10 +88,12 @@ set(FLEXISIP_SOURCES
 	module.cc
 	monitor.cc
 	plugin/plugin-loader.cc
-	pushnotification/applepush.cc
-	pushnotification/client.cc
+	pushnotification/apple/apple-client.cc pushnotification/apple/apple-client.hh
+	pushnotification/apple/apple-request.cc pushnotification/apple/apple-request.hh
+	pushnotification/client.hh
 	pushnotification/firebasepush.cc
 	pushnotification/genericpush.cc
+	pushnotification/legacy-client.cc pushnotification/legacy-client.hh
 	pushnotification/microsoftpush.cc
 	pushnotification/request.cc
 	pushnotification/service.cc
@@ -114,6 +116,13 @@ set(FLEXISIP_SOURCES
 	utils/string-utils.cc
 	utils/threadpool.cc
 	utils/timer.cc
+	utils/transport/header-store.cc utils/transport/header-store.hh
+	utils/transport/http-message-context.hh
+	utils/transport/http-message.cc utils/transport/http-message.hh
+	utils/transport/http-response.cc utils/transport/http-response.hh
+	utils/transport/http2client.cc utils/transport/http2client.hh
+	utils/transport/ng-data-provider.cc utils/transport/ng-data-provider.hh
+	utils/transport/tls-connection.cc utils/transport/tls-connection.hh
 	utils/uri-utils.cc
 )
 
