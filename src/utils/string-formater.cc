@@ -53,11 +53,11 @@ std::string StringFormater::format(TranslationFunc &func) const {
 	string result;
 	auto it1 = mTemplate.cbegin();
 	do {
-		auto it2 = find(it1, mTemplate.cend(), '{');
+		auto it2 = find(it1, mTemplate.cend(), mStartDelim);
 		result.insert(result.end(), it1, it2);
 		it1 = it2;
 		if (it1 != mTemplate.cend()) {
-			it2 = find(++it1, mTemplate.cend(), '}');
+			it2 = find(++it1, mTemplate.cend(), mEndDelim);
 			string key(it1, it2);
 			result += func(key);
 			it1 = ++it2;
