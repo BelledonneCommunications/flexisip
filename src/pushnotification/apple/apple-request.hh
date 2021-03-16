@@ -14,20 +14,49 @@
 
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
-#include "request.hh"
+#include "../../utils/transport/http/http-message.hh"
+#include "pushnotification/request.hh"
 
 namespace flexisip {
 namespace pushnotification {
 
-class Client {
+class AppleRequest : public Request, public HttpMessage {
   public:
-	virtual ~Client() = default;
-	virtual bool sendPush(const std::shared_ptr<Request>& req) = 0;
-	virtual bool isIdle() const noexcept = 0;
+	AppleRequest(const PushInfo& pinfo);
+
+	const std::string& getDeviceToken() const noexcept {
+		return mDeviceToken;
+	}
+
+	std::string isValidResponse(const std::string& str) override {
+		return std::string{};
+	}
+
+	bool isServerAlwaysResponding() override {
+		return false;
+	}
+
+	[[deprecated("Here for compatibility issue, use getBody() instead")]]
+	const std::vector<char>& getData() override {
+		return mBody;
+	}
+
+  protected:
+	void checkDeviceToken() const;
+
+	ApplePushType mPayloadType = ApplePushType::Unknown;
+	std::string mDeviceToken{};
+	std::string mReason{};
+	int mStatusCode = 0;
+
+	static constexpr std::size_t MAXPAYLOAD_SIZE = 2048;
+	static constexpr std::size_t DEVICE_BINARY_SIZE = 32;
+
+	friend class AppleClient;
 };
 
 } // namespace pushnotification

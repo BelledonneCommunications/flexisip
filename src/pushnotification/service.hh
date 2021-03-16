@@ -1,6 +1,6 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2020  Belledonne Communications SARL, All rights reserved.
+	Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as
@@ -56,7 +56,6 @@ public:
 
 private:
 	void setupClients(const std::string &certdir, const std::string &ca, int maxQueueSize);
-	bool isCertExpired(const std::string &certPath) const noexcept;
 
 	su_root_t &mRoot;
 	unsigned mMaxQueueSize{0};
