@@ -23,7 +23,7 @@
 #include <map>
 #include <memory>
 #include <ostream>
-#include <regex.h>
+#include <regex>
 #include <string>
 
 #include <sofia-sip/msg.h>
@@ -191,7 +191,7 @@ class RequestSipEvent : public SipEvent {
 	/** Find if incoming tport TLS client certificate contains a given entry */
 	bool findIncomingSubject(const char *searched) const;
 	const char *findIncomingSubject(const std::list<std::string> &in) const;
-	bool matchIncomingSubject(regex_t *regex);
+	bool matchIncomingSubject(const std::regex &regex);
 	void unlinkTransactions();
 	const std::shared_ptr<tport_t> &getIncomingTport() const {
 		return mIncomingTport;

@@ -41,6 +41,7 @@ set(FLEXISIP_SOURCES
 	auth/digest-authentifier-base.cc
 	auth/nonce-store.cc
 	auth/realm-extractor.hh
+	auth/tls-client-authentifier.cc auth/tls-client-authentifier.hh
 	auth/trusted-host-authentifier.cc auth/trusted-host-authentifier.hh
 	authdb-file.cc
 	authdb.cc

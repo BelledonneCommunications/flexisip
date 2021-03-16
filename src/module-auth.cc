@@ -34,12 +34,6 @@ using namespace flexisip;
 
 Authentication::Authentication(Agent *ag) : ModuleAuthenticationBase(ag) {}
 
-Authentication::~Authentication() {
-	if (mRequiredSubjectCheckSet){
-		regfree(&mRequiredSubject);
-	}
-}
-
 void Authentication::onDeclare(GenericStruct *mc) {
 	ModuleAuthenticationBase::onDeclare(mc);
 	ConfigItemDescriptor items[] = {
@@ -124,17 +118,16 @@ void Authentication::onLoad(const GenericStruct *mc) {
 	mTrustedClientCertificates = mc->get<ConfigStringList>("trusted-client-certificates")->read();
 	mTrustDomainCertificates = mc->get<ConfigBoolean>("trust-domain-certificates")->read();
 
-	string requiredSubject = mc->get<ConfigString>("tls-client-certificate-required-subject")->read();
-	if (!requiredSubject.empty()){
-		int res = regcomp(&mRequiredSubject, requiredSubject.c_str(),  REG_EXTENDED|REG_NOSUB);
-		if (res != 0) {
-			string err_msg(128, '\0');
-			regerror(res, &mRequiredSubject, &err_msg[0], err_msg.size());
+	const auto &requiredSubject = mc->get<ConfigString>("tls-client-certificate-required-subject")->read();
+	if (!requiredSubject.empty()) {
+		try {
+			mRequiredSubject.assign(requiredSubject);
+			mRequiredSubjectCheckSet = true;
+		} catch (const runtime_error &e) {
 			LOGF("Could not compile regex for 'tls-client-certificate-required-subject' '%s': %s",
-				 requiredSubject.c_str(),
-				 err_msg.c_str()
+				 requiredSubject.c_str(), e.what()
 			);
-		} else mRequiredSubjectCheckSet = true;
+		}
 	}
 	mRejectWrongClientCertificates = mc->get<ConfigBoolean>("reject-wrong-client-certificates")->read();
 	AuthDbBackend::get(); // force instanciation of the AuthDbBackend NOW, to force errors to arrive now if any.
@@ -158,7 +151,7 @@ bool Authentication::isTrustedPeer(const shared_ptr<RequestSipEvent> &ev) {
 
 bool Authentication::tlsClientCertificatePostCheck(const shared_ptr<RequestSipEvent> &ev){
 	if (mRequiredSubjectCheckSet){
-		bool ret = ev->matchIncomingSubject(&mRequiredSubject);
+		bool ret = ev->matchIncomingSubject(mRequiredSubject);
 		if (ret){
 			SLOGD<<"TLS certificate postcheck successful.";
 		}else{
