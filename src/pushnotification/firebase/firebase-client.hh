@@ -14,32 +14,40 @@
 
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
-#include "legacy-client.hh"
-#include "request.hh"
+#include <string>
+
+#include "firebase-request.hh"
+#include "pushnotification/client.hh"
+#include "utils/transport/http/http-message.hh"
+#include "utils/transport/http/http-response.hh"
+#include "utils/transport/http/http2client.hh"
+#include "utils/transport/tls-connection.hh"
 
 namespace flexisip {
 namespace pushnotification {
 
-class ClientWp : public LegacyClient {
+class FirebaseClient : public Client {
   public:
-	ClientWp(std::unique_ptr<Transport> &&transport, const std::string &name, const Service &service,
-			 unsigned maxQueueSize, const std::string &packageSID, const std::string &applicationSecret);
-	~ClientWp() override = default;
+	FirebaseClient(su_root_t& root);
 
-	void sendPush(const std::shared_ptr<Request> &req) override;
+	void sendPush(const std::shared_ptr<Request>& req) override;
+	bool isIdle() const noexcept override {
+		return mHttp2Client->isIdle();
+	}
 
-  protected:
-	void retrieveAccessToken();
+	static constexpr const char* FIREBASE_ADDRESS = "fcm.googleapis.com";
+	static constexpr const char* FIREBASE_PORT = "443";
 
   private:
-	std::string mPackageSID{};
-	std::string mApplicationSecret{};
-	std::string mAccessToken{};
-	time_t mTokenExpiring{0};
+	void onResponse(const std::shared_ptr<HttpMessage>& request, const std::shared_ptr<HttpResponse>& response);
+	void onError(const std::shared_ptr<HttpMessage>& request);
+
+	std::string mLogPrefix{};
+	std::unique_ptr<Http2Client> mHttp2Client;
 };
 
 } // namespace pushnotification
