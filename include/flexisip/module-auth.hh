@@ -31,7 +31,6 @@ public:
 	StatCounter64 *mCountPassNotFound = nullptr;
 
 	Authentication(Agent *ag);
-	~Authentication() override;
 
 	void onDeclare(GenericStruct *mc) override;
 	void onLoad(const GenericStruct *mc) override;
@@ -54,7 +53,7 @@ private:
 	static ModuleInfo<Authentication> sInfo;
 	std::set<BinaryIp> mTrustedHosts;
 	std::list<std::string> mTrustedClientCertificates;
-	regex_t mRequiredSubject;
+	std::regex mRequiredSubject{};
 	bool mNewAuthOn407 = false;
 	bool mRequiredSubjectCheckSet = false;
 	bool mRejectWrongClientCertificates = false;

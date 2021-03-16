@@ -303,18 +303,16 @@ void RequestSipEvent::suspendProcessing() {
 RequestSipEvent::~RequestSipEvent() {
 }
 
-bool RequestSipEvent::matchIncomingSubject(regex_t *regex){
+bool RequestSipEvent::matchIncomingSubject(const std::regex &regex){
 	const su_strlst_t *strlst = tport_delivered_from_subjects(mIncomingTport.get(), mMsgSip->getMsg());
 	int count = su_strlst_len(strlst);
 
 	for (int k = 0 ; k < count ; ++k){
 		const char *subj = su_strlst_item(strlst, k);
 		LOGD("matchIncomingSubject %s", subj);
-		int res = regexec(regex, subj, 0, NULL, 0);
-		if (res == 0) {
+		cmatch m{};
+		if (regex_match(subj, m, regex)) {
 			return true;
-		}else if (res != REG_NOMATCH){
-			LOGE("RequestSipEvent::matchIncomingSubject() regexec() returned unexpected %i", res);
 		}
 	}
 	return false;

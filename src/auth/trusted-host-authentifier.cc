@@ -32,10 +32,9 @@ void TrustedHostAuthentifier::verify(const std::shared_ptr<AuthStatus> &as) {
 
 	if (mTrustedHosts.find(receivedHost) != mTrustedHosts.end()){
 		LOGD("Allowing message from trusted host %s", printableReceivedHost);
-		if (as->as_callback) as->as_callback(as, Status::Pass);
+		notify(as, Status::Pass);
 	} else {
-		if (mNextAuth) mNextAuth->verify(as);
-		else if (as->as_callback) as->as_callback(as, Status::End);
+		continue_(as);
 	}
 }
 

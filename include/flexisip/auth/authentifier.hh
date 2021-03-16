@@ -87,6 +87,13 @@ class Authentifier {
 	virtual void verify(const std::shared_ptr<AuthStatus> &as) = 0;
 
   protected:
+	void notify(const std::shared_ptr<AuthStatus> &as, Status status) {if (as->as_callback) as->as_callback(as, status);}
+	void continue_(const std::shared_ptr<AuthStatus> &as) {
+		if (mNextAuth) mNextAuth->verify(as);
+		else if (as->as_callback) as->as_callback(as, Status::End);
+	}
+
+  private:
 	std::unique_ptr<Authentifier> mNextAuth{};
 };
 
