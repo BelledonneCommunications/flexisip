@@ -45,7 +45,6 @@ public:
 private:
 	std::unique_ptr<Authentifier> createAuthModule(int nonceExpire, bool qopAuth) override;
 
-	void validateRequest(const std::shared_ptr<RequestSipEvent> &request) override;
 	void processAuthentication(const std::shared_ptr<RequestSipEvent> &request) override;
 
 	bool empty(const char *value) {return value == NULL || value[0] == '\0';}

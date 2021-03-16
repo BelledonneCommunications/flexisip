@@ -273,7 +273,7 @@ bool ModuleAuthenticationBase::checkDomain(const std::string &domain) const noex
 
 void ModuleAuthenticationBase::processAuthModuleResponse(const std::shared_ptr<Authentifier::AuthStatus> &as,
 														 Authentifier::Status status) {
-	const shared_ptr<RequestSipEvent> &ev = as->mEvent;
+	const auto &ev = as->mEvent;
 
 	switch (status) {
 		case Authentifier::Status::Pass:

@@ -87,7 +87,7 @@ class Authentifier {
 	virtual void verify(const std::shared_ptr<AuthStatus> &as) = 0;
 
   protected:
-	std::weak_ptr<Authentifier> mNextAuth{};
+	std::unique_ptr<Authentifier> mNextAuth{};
 };
 
 } // namespace flexisip

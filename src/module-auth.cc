@@ -20,9 +20,10 @@
 #include <sofia-sip/sip_extra.h>
 #include <sofia-sip/sip_status.h>
 
-#include <flexisip/module-auth.hh>
-
 #include "auth/digest-authentifier.hh"
+#include "auth/trusted-host-authentifier.hh"
+
+#include <flexisip/module-auth.hh>
 
 using namespace std;
 using namespace flexisip;
@@ -291,17 +292,11 @@ bool Authentication::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 // ================================================================================================================= //
 
 std::unique_ptr<Authentifier> Authentication::createAuthModule(int nonceExpire, bool qopAuth) {
-	auto authModule = make_unique<DigestAuthentifier>(getAgent()->getRoot(), nonceExpire, qopAuth);
-	authModule->setOnPasswordFetchResultCb([this](bool passFound){passFound ? mCountPassFound++ : mCountPassNotFound++;});
+	auto authModule = make_unique<TrustedHostAuthentifier>(mTrustedHosts);
+	auto digestAuthModule = make_unique<DigestAuthentifier>(getAgent()->getRoot(), nonceExpire, qopAuth);
+	digestAuthModule->setOnPasswordFetchResultCb([this](bool passFound){passFound ? mCountPassFound++ : mCountPassNotFound++;});
+	authModule->setNextAuth(move(digestAuthModule));
 	return authModule;
-}
-
-void Authentication::validateRequest(const std::shared_ptr<RequestSipEvent> &request) {
-	ModuleAuthenticationBase::validateRequest(request);
-
-	// Check trusted peer
-	if (isTrustedPeer(request))
-		throw StopRequestProcessing();
 }
 
 void Authentication::processAuthentication(const std::shared_ptr<RequestSipEvent> &request) {

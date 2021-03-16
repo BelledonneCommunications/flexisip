@@ -34,8 +34,7 @@ void TrustedHostAuthentifier::verify(const std::shared_ptr<AuthStatus> &as) {
 		LOGD("Allowing message from trusted host %s", printableReceivedHost);
 		if (as->as_callback) as->as_callback(as, Status::Pass);
 	} else {
-		auto nextAuth = mNextAuth.lock();
-		if (nextAuth) nextAuth->verify(as);
+		if (mNextAuth) mNextAuth->verify(as);
 		else if (as->as_callback) as->as_callback(as, Status::End);
 	}
 }

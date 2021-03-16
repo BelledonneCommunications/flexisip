@@ -96,7 +96,7 @@ protected:
 
 protected:
 	std::vector<std::string> mAuthDomains{};
-	std::unique_ptr<Authentifier> mAuthModule{};
+	std::shared_ptr<Authentifier> mAuthModule{};
 	std::list<std::string> mAlgorithms{};
 	std::unique_ptr<RealmExtractor> mRealmExtractor{};
 	std::shared_ptr<SipBooleanExpression> mNo403Expr{};
