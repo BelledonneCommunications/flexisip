@@ -18,30 +18,29 @@
 
 #pragma once
 
-#include "client.hh"
+#include "legacy-client.hh"
 #include "request.hh"
 
 namespace flexisip {
 namespace pushnotification {
 
 class ClientWp : public LegacyClient {
-	public:
-		ClientWp(std::unique_ptr<Transport> &&transport, const std::string &name,
-			const Service &service, unsigned maxQueueSize,
-			const std::string &packageSID, const std::string &applicationSecret);
-		~ClientWp() override = default;
+  public:
+	ClientWp(std::unique_ptr<Transport> &&transport, const std::string &name, const Service &service,
+			 unsigned maxQueueSize, const std::string &packageSID, const std::string &applicationSecret);
+	~ClientWp() override = default;
 
-		bool sendPush(const std::shared_ptr<Request> &req) override;
+	bool sendPush(const std::shared_ptr<Request> &req) override;
 
-	protected:
-		void retrieveAccessToken();
+  protected:
+	void retrieveAccessToken();
 
-	private:
-		std::string mPackageSID{};
-		std::string mApplicationSecret{};
-		std::string mAccessToken{};
-		time_t mTokenExpiring{0};
+  private:
+	std::string mPackageSID{};
+	std::string mApplicationSecret{};
+	std::string mAccessToken{};
+	time_t mTokenExpiring{0};
 };
 
-}
-}
+} // namespace pushnotification
+} // namespace flexisip

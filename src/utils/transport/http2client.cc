@@ -1,0 +1,529 @@
+/*
+ Flexisip, a flexible SIP proxy server with media capabilities.
+ Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as
+ published by the Free Software Foundation, either version 3 of the
+ License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <algorithm>
+#include <sstream>
+
+#include <nghttp2/nghttp2ver.h>
+
+#include "flexisip/logmanager.hh"
+
+#include "ng-data-provider.hh"
+
+#include "http2client.hh"
+
+using namespace std;
+
+namespace flexisip {
+
+string Http2Client::BadStateError::formatWhatArg(State state) noexcept {
+	return string{"bad state ["} + to_string(unsigned(state)) + "]";
+}
+
+Http2Client::Http2Client(su_root_t& root, const string& host, const string& port, const SSL_METHOD* method)
+	: mRoot{root}, mIdleTimer{&root, sIdleTimeout * 1000} {
+	mConn = make_unique<TlsConnection>(host, port, method, true);
+
+	ostringstream os{};
+	os << "Http2Client[" << this << "]";
+	mLogPrefix = os.str();
+
+	SLOGD << mLogPrefix << ": constructing Http2Client with TlsConnection[" << mConn.get() << "]";
+
+	mState = State::Disconnected;
+}
+
+Http2Client::Http2Client(su_root_t& root, const string& host, const string& port, TlsConnection::SSLCtxUniquePtr&& ctx)
+	: mRoot{root}, mIdleTimer{&root, sIdleTimeout * 1000} {
+	mConn = make_unique<TlsConnection>(host, port, move(ctx), true);
+
+	ostringstream os{};
+	os << "Http2Client[" << this << "]";
+	mLogPrefix = os.str();
+
+	SLOGD << mLogPrefix << ": constructing Http2Client with TlsConnection[" << mConn.get() << "]";
+
+	mState = State::Disconnected;
+}
+
+void Http2Client::sendAllPendingReRequests() {
+	for (auto it = mPendingRequests.begin(); it != mPendingRequests.end(); it = mPendingRequests.erase(it)) {
+		this->send(it->get()->getRequest(), it->get()->getOnResponseCb(), it->get()->getOnErrorCb());
+	}
+}
+
+void Http2Client::send(const shared_ptr<HttpRequest>& request, const OnResponseCb& onResponseCb,
+					   const OnErrorCb& onErrorCb) {
+	shared_ptr<HttpMessageContext> context = make_shared<HttpMessageContext>(move(request), onResponseCb, onErrorCb);
+
+	if (mState != State::Connected) {
+		mPendingRequests.emplace_back(move(context));
+		this->connect();
+		return;
+	}
+
+	NgDataProvider dataProv{request->getBody()};
+	auto streamId =
+		nghttp2_submit_request(mHttpSession.get(), nullptr, request->getHeaderStore().makeHeaderList().data(),
+							   request->getHeaderStore().getMHList().size(), dataProv.getCStruct(), nullptr);
+	if (streamId < 0) {
+		SLOGE << mLogPrefix << ": push request submit failed. reason=[" << nghttp2_strerror(streamId) << "]";
+		onErrorCb(request, streamId, nghttp2_strerror(streamId));
+		return;
+	}
+
+	auto logPrefix = string{mLogPrefix} + "[" + to_string(streamId) + "]";
+	SLOGD << logPrefix << ": sending request " << request->toString() << endl;
+
+	auto status = nghttp2_session_send(mHttpSession.get());
+	if (status < 0) {
+		SLOGE << logPrefix << ": push request sending failed. reason=[" << nghttp2_strerror(status) << "]";
+		onErrorCb(request, status, nghttp2_strerror(status));
+		return;
+	}
+
+	mActiveHttpContexts.emplace(streamId, move(context));
+	addTimeoutTimer(streamId);
+	resetIdleTimer();
+}
+
+void Http2Client::connect() {
+	if (mState != State::Disconnected && mState != State::Connecting) {
+		throw BadStateError(mState);
+	}
+	if (mState == State::Connecting) {
+		return;
+	}
+	setState(State::Connecting);
+	try {
+		mConn->connect();
+		if (!mConn->isConnected())
+			throw runtime_error{"TLS connection failed"};
+
+		auto sendCb = [](nghttp2_session* session, const uint8_t* data, size_t length, int flags,
+						 void* user_data) noexcept {
+			auto thiz = static_cast<Http2Client*>(user_data);
+			return thiz->sendCb(*session, data, length);
+		};
+		auto recvCb = [](nghttp2_session* session, uint8_t* buf, size_t length, int flags, void* user_data) noexcept {
+			auto thiz = static_cast<Http2Client*>(user_data);
+			return thiz->recv(*session, buf, length);
+		};
+		auto frameSentCb = [](nghttp2_session* session, const nghttp2_frame* frame, void* user_data) noexcept {
+			auto thiz = static_cast<Http2Client*>(user_data);
+			thiz->onFrameSent(*session, *frame);
+			return 0;
+		};
+		auto frameRecvCb = [](nghttp2_session* session, const nghttp2_frame* frame, void* user_data) noexcept {
+			auto thiz = static_cast<Http2Client*>(user_data);
+			thiz->onFrameRecv(*session, *frame);
+			return 0;
+		};
+		auto onHeaderRecvCb = [](nghttp2_session* session, const nghttp2_frame* frame, const uint8_t* name,
+								 size_t namelen, const uint8_t* value, size_t valuelen, uint8_t flags,
+								 void* user_data) noexcept {
+			auto thiz = static_cast<Http2Client*>(user_data);
+			string nameStr{reinterpret_cast<const char*>(name), namelen};
+			string valueStr{reinterpret_cast<const char*>(value), valuelen};
+			thiz->onHeaderRecv(*session, *frame, nameStr, valueStr, flags);
+			return 0;
+		};
+		auto onDataChunkRecvCb = [](nghttp2_session* session, uint8_t flags, int32_t stream_id, const uint8_t* data,
+									size_t len, void* user_data) noexcept {
+			auto thiz = static_cast<Http2Client*>(user_data);
+			thiz->onDataReceived(*session, flags, stream_id, data, len);
+			return 0;
+		};
+		auto onStreamClosedCb = [](nghttp2_session* session, int32_t stream_id, uint32_t error_code,
+								   void* user_data) noexcept {
+			auto thiz = static_cast<Http2Client*>(user_data);
+			thiz->onStreamClosed(*session, stream_id, error_code);
+			return 0;
+		};
+
+		nghttp2_session_callbacks* cbs;
+		nghttp2_session_callbacks_new(&cbs);
+		nghttp2_session_callbacks_set_send_callback(cbs, sendCb);
+		nghttp2_session_callbacks_set_recv_callback(cbs, recvCb);
+		nghttp2_session_callbacks_set_on_frame_send_callback(cbs, frameSentCb);
+		nghttp2_session_callbacks_set_on_frame_recv_callback(cbs, frameRecvCb);
+		nghttp2_session_callbacks_set_on_header_callback(cbs, onHeaderRecvCb);
+		nghttp2_session_callbacks_set_on_data_chunk_recv_callback(cbs, onDataChunkRecvCb);
+		nghttp2_session_callbacks_set_on_stream_close_callback(cbs, onStreamClosedCb);
+
+		unique_ptr<nghttp2_session_callbacks, void (*)(nghttp2_session_callbacks*)> cbsPtr{
+			cbs, nghttp2_session_callbacks_del};
+
+		nghttp2_session* session;
+		nghttp2_session_client_new(&session, cbs, this);
+		NgHttp2SessionPtr httpSession{session};
+
+		int status;
+		if ((status = nghttp2_submit_settings(session, NGHTTP2_FLAG_NONE, nullptr, 0)) != 0) {
+			throw runtime_error{"submitting settings failed [status=" + to_string(status) + "]"};
+		}
+
+		mHttpSession = move(httpSession);
+
+		su_wait_create(&mPollInWait, mConn->getFd(), SU_WAIT_IN);
+		su_root_register(&mRoot, &mPollInWait, onPollInCb, this, su_pri_normal);
+		resetIdleTimer();
+
+		setState(State::Connected);
+		sendAllPendingReRequests();
+	} catch (const runtime_error& e) {
+		SLOGE << mLogPrefix << ": " << e.what();
+		disconnect();
+	}
+}
+
+ssize_t Http2Client::sendCb(nghttp2_session& session, const uint8_t* data, size_t length) noexcept {
+	length = min(length, size_t(numeric_limits<int>::max()));
+	auto nwritten = mConn->write(data, int(length));
+	if (nwritten < 0) {
+		SLOGE << mLogPrefix << ": error while writting into socket[" << nwritten << "]";
+		return NGHTTP2_ERR_CALLBACK_FAILURE;
+	}
+	if (nwritten == 0 && length > 0)
+		return NGHTTP2_ERR_WOULDBLOCK;
+	return nwritten;
+}
+
+ssize_t Http2Client::recv(nghttp2_session& session, uint8_t* data, size_t length) noexcept {
+	length = min(length, size_t(numeric_limits<int>::max()));
+	auto nread = mConn->read(data, length);
+	if (nread < 0) {
+		SLOGE << mLogPrefix << ": error while reading socket. " << strerror(errno);
+		return NGHTTP2_ERR_CALLBACK_FAILURE;
+	}
+	if (nread == 0 && length > 0)
+		return NGHTTP2_ERR_WOULDBLOCK;
+	return nread;
+}
+
+void Http2Client::onFrameSent(nghttp2_session& session, const nghttp2_frame& frame) noexcept {
+	// SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: frame sent (" << frame.hd.length << "B):\n" << frame;
+	resetTimeoutTimer(frame.hd.stream_id);
+}
+
+void Http2Client::onFrameRecv(nghttp2_session& session, const nghttp2_frame& frame) noexcept {
+	// SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: frame received (" << frame.hd.length << "B):\n" << frame;
+	resetTimeoutTimer(frame.hd.stream_id);
+
+	switch (frame.hd.type) {
+		case NGHTTP2_SETTINGS:
+			if (mState == State::Connecting && (frame.hd.flags & NGHTTP2_FLAG_ACK) == 0) {
+				SLOGD << mLogPrefix << ": server settings received";
+			}
+			break;
+		case NGHTTP2_GOAWAY: {
+			ostringstream msg{};
+			msg << mLogPrefix << ": GOAWAY frame received, errorCode=[" << frame.goaway.error_code
+				<< "], lastStreamId=[" << frame.goaway.last_stream_id << "]:";
+			if (frame.goaway.opaque_data_len > 0) {
+				msg << endl;
+				msg.write(reinterpret_cast<const char*>(frame.goaway.opaque_data), frame.goaway.opaque_data_len);
+			} else {
+				msg << " <empty>";
+			}
+			SLOGD << msg.str();
+			SLOGD << "Scheduling connection closing";
+			mLastSID = frame.goaway.last_stream_id;
+			break;
+		}
+	}
+}
+
+void Http2Client::onHeaderRecv(nghttp2_session& session, const nghttp2_frame& frame, const string& name,
+							   const string& value, uint8_t flags) noexcept {
+	const auto& streamId = frame.hd.stream_id;
+	auto logPrefix = string{mLogPrefix} + "[" + to_string(streamId) + "]";
+	// SLOGD << logPrefix << ": receiving HTTP2 header [" << name << " = " << value << "]";
+
+	auto contextIterator = mActiveHttpContexts.find(streamId);
+	if (contextIterator != mActiveHttpContexts.end()) {
+		contextIterator->second->getResponse()->getHeaderStore().add(name, value, flags);
+	} else {
+		SLOGE << logPrefix << ": receiving header for an unknown stream. Just ignoring";
+	}
+}
+
+void Http2Client::onDataReceived(nghttp2_session& session, uint8_t flags, int32_t streamId, const uint8_t* data,
+								 size_t datalen) noexcept {
+	string stringData(reinterpret_cast<const char*>(data), datalen);
+
+	auto logPrefix = string{mLogPrefix} + "[" + to_string(streamId) + "]";
+
+	//	ostringstream msg{};
+	//	msg << logPrefix << ": " << datalen << "B of data received on stream[" << streamId << "]:\n";
+	//	msg << stringData;
+	//	SLOGD << msg.str();
+
+	auto contextIterator = mActiveHttpContexts.find(streamId);
+	if (contextIterator != mActiveHttpContexts.end()) {
+		contextIterator->second->getResponse()->appendBody(stringData);
+	} else {
+		SLOGE << logPrefix << "Data received for a unknown context";
+	}
+}
+
+int Http2Client::onPollInCb(su_root_magic_t*, su_wait_t*, su_wakeup_arg_t* arg) noexcept {
+	auto thiz = static_cast<Http2Client*>(arg);
+	auto status = nghttp2_session_recv(thiz->mHttpSession.get());
+	if (status < 0) {
+		SLOGE << thiz->mLogPrefix << ": error while receiving HTTP2 data[" << nghttp2_strerror(status)
+			  << "]. Disconnecting";
+		thiz->processGoAwayOrErrors();
+		return 0;
+	}
+	if (thiz->mLastSID >= 0) {
+		SLOGD << thiz->mLogPrefix << ": closing connection after receiving GOAWAY frame. Last processed stream is ["
+			  << thiz->mLastSID << "]";
+		thiz->processGoAwayOrErrors();
+	}
+	return 0;
+}
+
+void Http2Client::processGoAwayOrErrors() {
+	// move back all the non-finished requests into the pending queue
+	for (auto it = mActiveHttpContexts.begin(); it != mActiveHttpContexts.end(); it = mActiveHttpContexts.erase(it)) {
+		const auto unfinishedContext = it->second;
+		mPendingRequests.emplace_back(move(unfinishedContext));
+	}
+	// disconnect ...
+	disconnect();
+	// ... and connect again if there still are requests to process
+	if (!mPendingRequests.empty()) {
+		SLOGD << mLogPrefix << ": Requests are pending. Connecting to server again";
+		connect();
+	}
+}
+
+void Http2Client::onStreamClosed(nghttp2_session& session, int32_t stream_id, uint32_t error_code) noexcept {
+	auto logPrefix = mLogPrefix + "[" + to_string(stream_id) + "]";
+
+	shared_ptr<HttpMessageContext> context = nullptr;
+	auto contextMapIterator = mActiveHttpContexts.find(stream_id);
+	if (contextMapIterator != mActiveHttpContexts.cend()) {
+		context = contextMapIterator->second;
+	}
+	if (NGHTTP2_NO_ERROR == error_code) {
+		SLOGD << logPrefix << ": stream closed without error";
+		if (context != nullptr) {
+			context->getOnResponseCb()(context->getRequest(), context->getResponse());
+			mActiveHttpContexts.erase(contextMapIterator);
+		}
+	} else {
+		ostringstream msg{};
+		msg << logPrefix << ": stream closed with error code [" << error_code << "]";
+		SLOGD << msg.str();
+		if (context != nullptr) {
+			context->getOnErrorCb()(context->getRequest(), error_code, nghttp2_http2_strerror(error_code));
+			mActiveHttpContexts.erase(contextMapIterator);
+		}
+	}
+	removeTimeoutTimer(stream_id);
+}
+
+void Http2Client::disconnect() {
+	SLOGD << mLogPrefix << ": disconnecting";
+	if (mState == State::Disconnected)
+		return;
+	su_root_unregister(&mRoot, &mPollInWait, onPollInCb, this);
+	mHttpSession.reset();
+	mConn->disconnect();
+	mLastSID = -1;
+	mActiveHttpContexts.clear();
+	mTimeoutTimers.clear();
+	setState(State::Disconnected);
+}
+
+void Http2Client::onConnectionIdle() noexcept {
+	SLOGD << mLogPrefix << ": connection is idle";
+	disconnect();
+}
+
+void Http2Client::setState(State state) noexcept {
+	if (mState == state)
+		return;
+	SLOGD << mLogPrefix << ": switching state from [" << mState << "] to [" << state << "]";
+	mState = state;
+}
+
+void Http2Client::addTimeoutTimer(int32_t streamId) {
+	auto timer = make_shared<sofiasip::Timer>(&mRoot, sRequestTimeout * 1000);
+	timer->set([this, streamId]() { onRequestTimeout(streamId); });
+
+	mTimeoutTimers.emplace(streamId, move(timer));
+}
+
+void Http2Client::resetTimeoutTimer(int32_t streamId) {
+	auto timoutMapIterator = mTimeoutTimers.find(streamId);
+	if (timoutMapIterator != mTimeoutTimers.cend()) {
+		timoutMapIterator->second->set([this, streamId]() { onRequestTimeout(streamId); });
+	}
+}
+
+void Http2Client::removeTimeoutTimer(int32_t streamId) {
+	auto timoutMapIterator = mTimeoutTimers.find(streamId);
+	if (timoutMapIterator != mTimeoutTimers.cend()) {
+		mTimeoutTimers.erase(timoutMapIterator);
+	}
+}
+
+void Http2Client::onRequestTimeout(int32_t streamId) {
+	auto contextMapIterator = mActiveHttpContexts.find(streamId);
+	if (contextMapIterator != mActiveHttpContexts.cend()) {
+		auto context = contextMapIterator->second;
+		context->getOnErrorCb()(context->getRequest(), 408, "Request timeout");
+		mActiveHttpContexts.erase(contextMapIterator);
+	}
+
+	auto timoutMapIterator = mTimeoutTimers.find(streamId);
+	if (timoutMapIterator != mTimeoutTimers.cend()) {
+		mTimeoutTimers.erase(timoutMapIterator);
+	}
+}
+
+const char* Http2Tools::frameTypeToString(uint8_t frameType) noexcept {
+	switch (frameType) {
+		case NGHTTP2_DATA:
+			return "DATA";
+		case NGHTTP2_HEADERS:
+			return "HEADERS";
+		case NGHTTP2_PRIORITY:
+			return "PRIORITY";
+		case NGHTTP2_RST_STREAM:
+			return "RST_STREAM";
+		case NGHTTP2_SETTINGS:
+			return "SETTINGS";
+		case NGHTTP2_PUSH_PROMISE:
+			return "PUSH_PROMISE";
+		case NGHTTP2_PING:
+			return "PING";
+		case NGHTTP2_GOAWAY:
+			return "GOAWAY";
+		case NGHTTP2_WINDOW_UPDATE:
+			return "WINDOW_UPDATE";
+		case NGHTTP2_CONTINUATION:
+			return "CONTINUATION";
+#if NGHTTP2_VERSION_NUM >= 0x010a00 // v1.10.0
+		case NGHTTP2_ALTSVC:
+			return "ALTSVC";
+#endif
+#if NGHTTP2_VERSION_NUM >= 0x012100 // v1.33.0
+		case NGHTTP2_ORIGIN:
+			return "ORIGIN";
+#endif
+	}
+	return "UNKNOWN";
+}
+
+string Http2Tools::printFlags(uint8_t flags) noexcept {
+	array<const char*, 4> flagsAsStr{};
+
+	auto len = 0;
+	if (flags & NGHTTP2_FLAG_END_STREAM)
+		flagsAsStr.at(len++) = "END_STREAM";
+	if (flags & NGHTTP2_FLAG_END_HEADERS)
+		flagsAsStr.at(len++) = "END_HEADERS";
+	if (flags & NGHTTP2_FLAG_ACK)
+		flagsAsStr.at(len++) = "ACK";
+	if (flags & NGHTTP2_FLAG_PADDED)
+		flagsAsStr.at(len++) = "PADDED";
+
+	string res{};
+	for (auto i = 0; i < len; ++i) {
+		if (i != 0)
+			res += " | ";
+		res += flagsAsStr.at(i);
+	}
+	return res;
+}
+
+} /* namespace flexisip */
+
+using namespace flexisip;
+
+ostream& operator<<(ostream& os, flexisip::Http2Client::State state) noexcept {
+	switch (state) {
+		case flexisip::Http2Client::State::Disconnected:
+			return os << "Disconnected";
+		case flexisip::Http2Client::State::Connecting:
+			return os << "Connecting";
+		case flexisip::Http2Client::State::Connected:
+			return os << "Connected";
+	};
+	return os << "Unknown";
+}
+
+ostream& operator<<(ostream& os, const nghttp2_frame& frame) noexcept {
+	os << Http2Tools::frameTypeToString(frame.hd.type) << endl;
+	os << "streamId: " << frame.hd.stream_id << endl;
+	os << hex << showbase;
+	os << "flags: " << int(frame.hd.flags) << " [" << Http2Tools::printFlags(frame.hd.flags) << "]" << endl;
+	os << dec << noshowbase;
+	switch (frame.hd.type) {
+		case NGHTTP2_HEADERS:
+			os << endl;
+			// this if/else clause only works for sending HEADER request
+			if (frame.headers.nvlen > 0) {
+				for (unsigned i = 0; i < frame.headers.nvlen; ++i) {
+					const auto& nva = frame.headers.nva[i];
+					os << nva.name << ": " << nva.value << endl;
+				}
+			} else {
+				os << "<empty>" << endl;
+			}
+			break;
+		case NGHTTP2_RST_STREAM: {
+			const auto& error_code = frame.rst_stream.error_code;
+			os << "errorCode: " << error_code;
+#if NGHTTP2_VERSION_NUM >= 0x010900 // v1.9.0
+			os << "[" << nghttp2_http2_strerror(error_code) << "]";
+#endif
+			os << endl;
+			break;
+		}
+		case NGHTTP2_SETTINGS:
+			os << endl;
+			if (frame.settings.niv > 0) {
+				for (unsigned i = 0; i < frame.settings.niv; ++i) {
+					const auto& iv = frame.settings.iv[i];
+					os << iv.settings_id << " : " << iv.value << endl;
+				}
+			} else {
+				os << "<empty>" << endl;
+			}
+			break;
+		case NGHTTP2_GOAWAY:
+			os << "lastStreamId: " << frame.goaway.last_stream_id << endl;
+			os << "errorCode: " << frame.goaway.error_code << endl;
+			os << endl;
+			if (frame.goaway.opaque_data) {
+				os.write(reinterpret_cast<char*>(frame.goaway.opaque_data), frame.goaway.opaque_data_len);
+				os << endl;
+			} else {
+				os << "<empty>" << endl;
+			}
+			break;
+		default:
+			break;
+	};
+	return os;
+}
