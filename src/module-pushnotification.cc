@@ -79,6 +79,7 @@ public:
 	pushnotification::Service &getService() const {return *mPNS;}
 
 private:
+	void loadAppleForcePnType(const GenericStruct &moduleCfg);
 	bool needsPush(const sip_t *sip);
 	void makePushNotification(const std::shared_ptr<MsgSip> &ms, const std::shared_ptr<OutgoingTransaction> &transaction);
 	void removePushNotification(PushNotificationContext *pn);
@@ -103,6 +104,7 @@ private:
 	std::unique_ptr<pushnotification::Service> mPNS;
 	StatCounter64 *mCountFailed = nullptr;
 	StatCounter64 *mCountSent = nullptr;
+	pushnotification::ApplePushType mAppleForcePnType{pushnotification::ApplePushType::Unknown};
 	bool mNoBadgeiOS = false;
 	bool mDisplayFromUri = false;
 
@@ -226,6 +228,18 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		 "certificate followed by private key. For example: org.linphone.voip.dev.pem org.linphone.voip.prod.pem "
 		 "com.somephone.voip.dev.pem etc...", "/etc/flexisip/apn"},
 		{Boolean, "no-badge", "Set the badge value to 0 for Apple push", "false"},
+		{String, "apple-force-pn-type", "Allows to force the usage of a given type of push notification whatever the value "
+			"of the 'app-id' parameter. For instance, if the 'app-id' is 'org.example.prod' and this parameter has been "
+			"set to 'voip', then a PushKit notification will be sent although the 'app-id' suggests to send a Remote push "
+			"notification.\n"
+			"The 'apns-topic' header of the PNR is computed from the 'app-id' parameter by adding or removing the '.voip.' "
+			"part according to the required PN type.\n"
+			"This parameter has an effect only if the client has registered by using legacy push parameters.\n"
+			"\n"
+			"Supported values are:\n"
+			" * 'remote', to force the usage of Remote push notifications;\n"
+			" * 'voip', to force the usage of PushKit notifications;\n"
+			" * <empty>, to disable this feature.", ""},
 		{Boolean, "firebase", "Enable push notification for Android devices (new method for Android)", "true"},
 		{StringList, "firebase-projects-api-keys",
 		 "List of couples projectId:ApiKey for each Android project that supports push notifications (new method for "
@@ -280,6 +294,11 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		"2020-04-28", "2.0.0",
 		"This setting has no effect anymore. Use message-time-to-live to specify ttl for push notifications related to IM message."
 	});
+	module_config->get<ConfigString>("apple-force-pn-type")->setDeprecated({
+		"2021-03-23", "2.0.0",
+		"This paramter is only useful if the server has to deal with clients that have a bad use of the legacy push parameters. "
+		"Remove it once the problem has been fixed in client side and all users have updated their app."
+	});
 
 	mCountFailed = module_config->createStat("count-pn-failed", "Number of push notifications failed to be sent");
 	mCountSent = module_config->createStat("count-pn-sent", "Number of push notifications successfully sent");
@@ -290,6 +309,7 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 	const GenericStruct *mRouter = root->get<GenericStruct>("module::Router");
 	
 	mNoBadgeiOS = mc->get<ConfigBoolean>("no-badge")->read();
+	loadAppleForcePnType(*mc);
 	mTimeout = mc->get<ConfigInt>("timeout")->read();
 	mMessageTtl = mc->get<ConfigInt>("message-time-to-live")->read();
 	if (mMessageTtl == 0){
@@ -500,12 +520,37 @@ void PushNotification::parseLegacyPushParams(const shared_ptr<MsgSip> &ms, const
 	}
 
 	if (pinfo.mType == "apple") {
-		static const regex re{"(?:[^.]+\\.)+voip\\.[^.]+"}; // matches voip app-id only
-		smatch m{};
-		pinfo.mApplePushType =
-			regex_match(pinfo.mAppId, m, re)
-			? pushnotification::ApplePushType::Pushkit
-			: pushnotification::ApplePushType::RemoteBasic;
+		if (mAppleForcePnType == pushnotification::ApplePushType::Unknown) {
+			// deduce the type of the push from the app-id
+			static const regex isVoipRe{"(?:[^.]+\\.)+voip\\.[^.]+"}; // matches voip app-id only
+			smatch m{};
+			pinfo.mApplePushType =
+				regex_match(pinfo.mAppId, m, isVoipRe)
+				? pushnotification::ApplePushType::Pushkit
+				: pushnotification::ApplePushType::RemoteBasic;
+		} else {
+			// use the type define by the administrator
+			pinfo.mApplePushType = mAppleForcePnType;
+
+			/*
+			 * Ensure that the app-id ends with '.voip' if the
+			 * push type is 'pushkit' and doesn't ends with '.voip'
+			 * if the push type is 'remote'.
+			 */
+			static const regex isAppIdRe{"((?:[^.]+\\.)+)([^.]+)"};
+			smatch m{};
+			if (!regex_match(pinfo.mAppId, m, isAppIdRe)) {
+				throw runtime_error{"invalid 'app-id'"};
+			}
+			auto appId = m[1].str();
+			auto serverType = m[2].str();
+			auto endsWithVoip = StringUtils::endsWith(appId, ".voip.");
+			if (pinfo.mApplePushType == pushnotification::ApplePushType::Pushkit && !endsWithVoip) {
+				pinfo.mAppId = move(appId) + "voip." + serverType;
+			} else if (pinfo.mApplePushType == pushnotification::ApplePushType::RemoteBasic && endsWithVoip) {
+				pinfo.mAppId = appId.substr(0, appId.size()-5) + serverType;
+			}
+		}
 	}
 }
 
@@ -715,6 +760,17 @@ void PushNotification::removePushNotification(PushNotificationContext *pn) {
 	if (it != mPendingNotifications.cend()) {
 		SLOGD << "PNR " << pn->getPushRequest().get() << ": removing context from pending push notifications list";
 		mPendingNotifications.erase(it);
+	}
+}
+
+void PushNotification::loadAppleForcePnType(const GenericStruct &moduleCfg) {
+	const auto &forceTypeParam = moduleCfg.get<ConfigString>("apple-force-pn-type");
+	const auto &forceType = forceTypeParam->read();
+	if (forceType.empty()) mAppleForcePnType = pushnotification::ApplePushType::Unknown;
+	else if (forceType == "remote") mAppleForcePnType = pushnotification::ApplePushType::RemoteBasic;
+	else if (forceType == "voip") mAppleForcePnType = pushnotification::ApplePushType::Pushkit;
+	else {
+		LOGF("'%s' parameter has invalid value: '%s'", forceTypeParam->getCompleteName().c_str(), forceType.c_str());
 	}
 }
 
