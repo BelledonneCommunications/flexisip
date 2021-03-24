@@ -267,6 +267,9 @@ public:
 	static bool viaContainsUrl(const sip_via_t *vias, const url_t *url);
 	// Returns true if the destination host contained in 'url' is present in via headers. This helps loop detection.
 	static bool viaContainsUrlHost(const sip_via_t *vias, const url_t *url);
+	
+	/* Return the next hop by skipping possible Route headers pointing to this proxy.*/
+	static const url_t *getNextHop(Agent *ag, const sip_t *sip, bool *isRoute);
 
 	// Returns true if the two url represent the same transport channel (IP, port and protocol).
 	static bool urlTransportMatch(const url_t *url1, const url_t *url2);
