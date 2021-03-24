@@ -50,6 +50,10 @@ AppleRequest::AppleRequest(const PushInfo &info) : Request(info.mAppId, "apple")
 	mDeviceToken = deviceToken;
 	checkDeviceToken();
 
+	if (info.mTtl > 0) {
+		mExpire = time(nullptr) + info.mTtl;
+	}
+
 	switch (info.mApplePushType) {
 		case ApplePushType::Unknown:
 			throw invalid_argument{"Apple push type not set"};
@@ -414,12 +418,13 @@ bool AppleClient::sendAllPendingPNRs() {
 		}
 
 		HeaderStore hStore{};
-		hStore.add( ":method"         , "POST"     );
-		hStore.add( ":scheme"         , "https"    );
-		hStore.add( ":path"           , move(path) );
-		hStore.add( "host"            , move(host) );
-		hStore.add( "apns-expiration" , "0"        );
-		hStore.add( "apns-topic"      , apnsTopic  );
+		hStore.add( ":method"         , "POST"                                         );
+		hStore.add( ":scheme"         , "https"                                        );
+		hStore.add( ":path"           , move(path)                                     );
+		hStore.add( "host"            , move(host)                                     );
+		hStore.add( "apns-expiration" , to_string(appleReq->mExpire)                   );
+		hStore.add( "apns-topic"      , apnsTopic                                      );
+		hStore.add( "apns-push-type"  , pushTypeToApnsPushType(appleReq->mPayloadType) );
 		auto hList = hStore.makeHeaderList();
 
 		DataProvider dataProv{appleReq->getData()};
@@ -597,6 +602,25 @@ void AppleClient::onStreamClosed(nghttp2_session &session, int32_t stream_id, ui
 void AppleClient::onConnectionIdle() noexcept {
 	SLOGD << mLogPrefix << ": connection is idle";
 	disconnect();
+}
+
+std::string AppleClient::pushTypeToApnsPushType(ApplePushType type) {
+	string res{};
+	switch (type) {
+		case ApplePushType::Unknown:
+			throw invalid_argument("no 'apns-push-type' value for 'ApplePushType::Unknown'");
+		case ApplePushType::RemoteBasic:
+		case ApplePushType::RemoteWithMutableContent:
+			res = "alert";
+			break;
+		case ApplePushType::Background:
+			res = "background";
+			break;
+		case ApplePushType::Pushkit:
+			res = "voip";
+			break;
+	}
+	return res;
 }
 
 const char *Http2Tools::frameTypeToString(uint8_t frameType) noexcept {
