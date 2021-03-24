@@ -111,7 +111,7 @@
 docker-build-flexisip-src:
 
   stage: build
-  tags: [ "linux-nuc" ]
+  tags: [ "linux-shell" ]
   except:
     variables:
       - $DEPLOY_RUN
@@ -142,7 +142,7 @@ docker-build-flexisip-src:
 
 tests-flexisip-mr:
   stage: test
-  tags: [ "linux-nuc"]
+  tags: [ "linux-shell"]
   allow_failure: true
   except:
     variables:
