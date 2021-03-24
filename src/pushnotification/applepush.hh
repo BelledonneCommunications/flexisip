@@ -46,8 +46,9 @@ protected:
 
 	std::string mDeviceToken{};
 	std::vector<char> mPayload{};
-	ApplePushType mPayloadType = ApplePushType::Unknown;
-	int mStatusCode = 0;
+	ApplePushType mPayloadType{ApplePushType::Unknown};
+	std::time_t mExpire{0};
+	int mStatusCode{0};
 	std::string mReason{};
 
 	static constexpr std::size_t MAXPAYLOAD_SIZE = 2048;
@@ -162,6 +163,7 @@ private:
 
 	static int onPollInCb(su_root_magic_t *, su_wait_t *, su_wakeup_arg_t *arg) noexcept;
 	static std::vector<nghttp2_nv> makeNgHttp2Headers(const std::map<std::string, std::pair<std::string, nghttp2_data_flag>>);
+	static std::string pushTypeToApnsPushType(ApplePushType type);
 
 	/* Private attributes */
 	su_root_t &mRoot;
