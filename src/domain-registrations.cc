@@ -102,8 +102,8 @@ DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agen
 		 "The 'reg-on-response' mode typically allows Flexisip to forward an incoming REGISTER to an upstream server, and record the "
 		 "client's contact address upon receiving the 200 Ok response from the upstream server. "
 		 "When 'relay-reg-to-domains' is enabled, the routing to the upstream server is performed according to the domain registrations "
-		 "received previously by flexisip, instead of usual DNS-based procedures."
-		"false"},
+		 "received previously by flexisip, instead of usual DNS-based procedures.",
+		 "false" },
 		config_item_end};
 
 	mDomainRegistrationArea->addChildrenValues(configs);

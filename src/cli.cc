@@ -333,8 +333,9 @@ void ProxyCommandLineInterface::handle_registrar_get_command(unsigned int socket
 			: mCli{cli}, mSocket{socket} {}
 
 		void onRecordFound(const shared_ptr<Record> &r) override {
-			std::string serialized{};
-			RecordSerializerJson::get()->serialize(r.get(), serialized);
+			std::string serialized;
+			RecordSerializerJson serializer;
+			serializer.serialize(r.get(), serialized, false);
 			mCli->answer(mSocket, serialized);
 		}
 		void onError() override {
@@ -374,7 +375,8 @@ void ProxyCommandLineInterface::handle_registrar_delete_command(unsigned int soc
 
 		void onRecordFound(const shared_ptr<Record> &r) override {
 			std::string serialized;
-			RecordSerializerJson::get()->serialize(r.get(), serialized);
+			RecordSerializerJson serializer;
+			serializer.serialize(r.get(), serialized, false);
 			mCli->answer(mSocket, serialized);
 		}
 		void onError() override {
