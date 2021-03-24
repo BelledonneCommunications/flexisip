@@ -18,26 +18,28 @@
 
 #pragma once
 
-#include "request.hh"
+#include "../request.hh"
+#include "utils/transport/http-message.hh"
 
 namespace flexisip {
 namespace pushnotification {
 
-class FirebaseRequest : public Request {
-public:
-	FirebaseRequest(const PushInfo &pinfo);
+class FirebaseRequest : public Request, public HttpMessage {
+  public:
+	FirebaseRequest(const PushInfo& pinfo);
 
-	const std::vector<char> &getData() override;
-	virtual std::string isValidResponse(const std::string &str) override;
-	bool isServerAlwaysResponding() override {return true;}
+	std::string isValidResponse(const std::string& str) override {
+		return std::string{};
+	}
 
-protected:
-	void createPushNotification();
+	bool isServerAlwaysResponding() override {
+		return false;
+	}
 
-	std::vector<char> mBuffer;
-	std::string mHttpHeader;
-	std::string mHttpBody;
+	[[deprecated("Here for compatibility issue, use getBody() instead")]] const std::vector<char>& getData() override {
+		return mBody;
+	}
 };
 
-}
-}
+} // namespace pushnotification
+} // namespace flexisip

@@ -14,24 +14,41 @@
 
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
-#include "request.hh"
-#include "utils/transport/http2client.hh"
+#include <string>
+
+#include "../client.hh"
+#include "firebase-request.hh"
+#include "utils/transport/http-message.hh"
+#include "utils/transport/http-response.hh"
+#include "utils/transport/tls-connection.hh"
 
 namespace flexisip {
 namespace pushnotification {
 
-class Client {
+class FirebaseClient : public Client {
   public:
-	virtual ~Client() = default;
-	virtual bool sendPush(const std::shared_ptr<Request>& req) = 0;
-	virtual bool isIdle() const noexcept = 0;
+	enum class State : uint8_t { Disconnected, Connecting, Connected };
 
-  protected:
-	std::shared_ptr<Http2Client> mHttp2Client;
+	FirebaseClient(su_root_t& root);
+	virtual ~FirebaseClient() = default;
+
+	bool sendPush(const std::shared_ptr<Request>& req) override;
+	bool isIdle() const noexcept override {
+		return mHttp2Client->isIdle();
+	}
+
+	void onResponse(const std::shared_ptr<HttpMessage>& request, const std::shared_ptr<HttpResponse>& response);
+	void onError(const std::shared_ptr<HttpMessage>& request, int errorCode, const std::string& errorMessage);
+
+	static constexpr const char* FIREBASE_ADDRESS = "fcm.googleapis.com";
+	static constexpr const char* FIREBASE_PORT = "443";
+
+  private:
+	std::string mLogPrefix{};
 };
 
 } // namespace pushnotification
