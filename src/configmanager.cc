@@ -488,10 +488,15 @@ void GenericStruct::addChildrenValues(ConfigItemDescriptor *items) {
 
 void GenericStruct::addChildrenValues(ConfigItemDescriptor *items, bool hashed) {
 	oid cOid = 1;
+	
 	for (; items->name != NULL; items++) {
 		ConfigValue *val = NULL;
 		if (hashed)
 			cOid = Oid::oidFromHashedString(items->name);
+		if (!items->name) LOGA("No name provided in configuration item");
+		if (!items->help) LOGA("No help provided for configuration item '%s'", items->name);
+		if (!items->default_value) LOGA("No default value provided for configuration item '%s'", items->name);
+		
 		switch (items->type) {
 			case Boolean:
 				val = new ConfigBoolean(items->name, items->help, items->default_value, cOid);
