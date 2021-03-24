@@ -111,7 +111,7 @@
 docker-build-flexisip-src:
 
   stage: build
-  tags: [ "linux-nuc-build" ]
+  tags: [ "linux-shell" ]
   except:
     variables:
       - $DEPLOY_RUN
@@ -142,7 +142,7 @@ docker-build-flexisip-src:
 
 tests-flexisip-mr:
   stage: test
-  tags: [ "linux-nuc"]
+  tags: [ "linux-shell"]
   allow_failure: true
   except:
     variables:
@@ -181,7 +181,7 @@ tests-flexisip-mr:
   script:
 
     - docker image ls
-    # used to ensure there will be not network name conflict for parallel 
+    # used to ensure there will be not network name conflict for parallel
     #   docker-compose executions
     - export COMPOSE_PROJECT_NAME=$RANDOM
     - echo "Compose project name " $COMPOSE_PROJECT_NAME
@@ -195,7 +195,7 @@ tests-flexisip-mr:
     - export FLEXISIP_TESTER_IPV6_GATEWAY="2001:3200:3200:`printf '%x\n' $COMPOSE_PROJECT_NAME`::1"
     - export FLEXISIP_TESTER_IPV6_PROBING_ADDR=$FLEXISIP_TESTER_IPV6_GATEWAY
     - echo "Flexisip tester private ipv6 gateway" $FLEXISIP_TESTER_IPV6_GATEWAY
-    
+
     - echo "Liblinphone tester version:" $LIBLINPHONE_DOCKER_TAG
     - echo $workspace
 
