@@ -29,7 +29,7 @@ def parse_args():
 		'help': """Action to do on the server. Type `{prog} <command> --help` for detailed
 					documentation about the given command.""".format(prog=os.path.basename(sys.argv[0]))
 	}
-	if sys.version_info[0] == 3:
+	if sys.version_info[:2] >= (3,7):
 		kargs['required'] = True
 	cmdSubparser = parser.add_subparsers(**kargs)
 	for cmdName in commands.keys():
@@ -68,6 +68,9 @@ def getpid(serverType):
 
 
 def formatMessage(args):
+	if args.command is None:
+		print('error: no command sepecified', file=sys.stderr)
+		sys.exit(2)
 	messageArgs = [args.command]
 	if args.command == 'CONFIG_GET':
 		messageArgs.append(args.path)
