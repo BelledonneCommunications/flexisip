@@ -1254,10 +1254,16 @@ class AgregatorRegistrarDbListener : public ContactUpdateListener {
 
 void RegistrarDb::fetchWithDomain(const SipUri &url, const shared_ptr<ContactUpdateListener> &listener,
 								  bool recursive) {
-	auto domainOnlyUrl = url.replaceUser("");
-	auto agregator = make_shared<AgregatorRegistrarDbListener>(listener, 2);
-	fetch(url, agregator, recursive);
-	fetch(domainOnlyUrl, agregator, false);
+	if (!url.getUser().empty()){
+		/* If username is present in URI, search with and without the username */
+		auto domainOnlyUrl = url.replaceUser("");
+		auto agregator = make_shared<AgregatorRegistrarDbListener>(listener, 2);
+		fetch(url, agregator, recursive);
+		fetch(domainOnlyUrl, agregator, false);
+	}else{
+		/* else do a single search of course. */
+		fetch(url, listener, recursive);
+	}
 }
 
 RecordSerializer *RecordSerializer::create(const string &name) {

@@ -46,7 +46,8 @@ void ModuleAuthenticationBase::onDeclare(GenericStruct *mc) {
 	ConfigItemDescriptor items[] = {{
 		StringList,
 		"auth-domains",
-		"List of whitespace separated domains to challenge. Others are automatically denied.",
+		"List of whitespace separated domains to challenge. Others are automatically denied. The wildcard domain '*' is accepted, "
+		"which means that requests are challenged whatever the originating domain is. This is convenient for a proxy serving multiple SIP domains. ",
 		"localhost"
 	}, {
 		StringList,
@@ -238,9 +239,10 @@ void ModuleAuthenticationBase::validateRequest(const std::shared_ptr<RequestSipE
 }
 
 void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am) {
-	const shared_ptr<MsgSip> &ms = request->getMsgSip();
 	sip_t *sip = request->getMsgSip()->getSip();
 
+#if 0
+	const shared_ptr<MsgSip> &ms = request->getMsgSip();
 	// Check for the existence of username, which is required for proceeding with digest authentication in flexisip.
 	// Reject if absent.
 	if (sip->sip_from->a_url->url_user == NULL) {
@@ -248,6 +250,7 @@ void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<Reque
 		request->reply(403, "Username must be provided", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		throw StopRequestProcessing();
 	}
+#endif
 
 	// Create incoming transaction if not already exists
 	// Necessary in qop=auth to prevent nonce count chaos
