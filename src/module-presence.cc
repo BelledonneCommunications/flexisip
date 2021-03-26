@@ -93,7 +93,7 @@ private:
 	void route(shared_ptr<RequestSipEvent> &ev) {
 		SLOGI << getModuleName() << " routing to [" << mDestRoute.str() << "]";
 		cleanAndPrependRoute(this->getAgent(), ev->getMsgSip()->getMsg(), ev->getSip(),
-							 sip_route_create(&mHome, mDestRoute.get(), nullptr));
+							 sip_route_create(ev->getMsgSip()->getHome(), mDestRoute.get(), nullptr));
 	}
 	bool isMessageAPresenceMessage(shared_ptr<RequestSipEvent> &ev) {
 		sip_t *sip = ev->getSip();
