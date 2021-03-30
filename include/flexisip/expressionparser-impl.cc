@@ -27,8 +27,7 @@
 #include <cstring>
 #include <sstream>
 #include <algorithm>
-
-#include <regex.h>
+#include <regex>
 
 
 using namespace std;
@@ -153,43 +152,29 @@ private:
 	shared_ptr<Var> mVar;
 };
 
-template <typename _valuesT>
-class RegexpOp : public BooleanExpression<_valuesT> {
-public:
+template <typename _valuesT> class RegexpOp : public BooleanExpression<_valuesT> {
+  public:
 	using Var = Variable<_valuesT>;
-	RegexpOp(const shared_ptr<Var> &input, const shared_ptr<Constant<_valuesT>> &pattern) : mInput(input) {
-		string p = pattern->get();
-		int err = regcomp(&preg, p.c_str(), REG_NOSUB | REG_EXTENDED);
-		if (err != 0)
-			throw invalid_argument("couldn't compile regex " + p);
+
+	RegexpOp(const shared_ptr<Var>& input, const shared_ptr<Constant<_valuesT>>& pattern)
+		: mInput(input), preg(pattern->get(), std::regex::ECMAScript | std::regex::nosubs) {
 	}
-	~RegexpOp() {
-		regfree(&preg);
-	}
-	virtual bool eval(const _valuesT &args) {
+
+	virtual bool eval(const _valuesT& args) {
 		string input = mInput->get(args);
-		int match = regexec(&preg, input.c_str(), 0, NULL, 0);
-		bool res = false;
-		switch (match) {
-			case 0:
-				res = true;
-				break;
-			case REG_NOMATCH:
-				res = false;
-				break;
-			default:
-			{
-				char error_msg_buff[100] = {0};
-				regerror(match, &preg, error_msg_buff, sizeof(error_msg_buff)-1);
-				LOGE("RegexpOp error: %s", error_msg_buff);
+		try {
+			if (regex_search(input, preg)) {
+				return true;
 			}
+		} catch (const regex_error& e) {
+			SLOGE << "RegexpOp error: " << e.what();
 		}
-		return res;
+		return false;
 	}
-private:
+
+  private:
 	shared_ptr<Var> mInput;
-	regex_t preg;
-	
+	std::regex preg;
 };
 
 template <typename _valuesT>
