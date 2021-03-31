@@ -81,8 +81,10 @@ class Authentifier {
 	Authentifier(Authentifier &&) = delete;
 	virtual ~Authentifier() = default;
 
-	template <typename AuthPtrT>
-	void setNextAuth(AuthPtrT &&authPtr) noexcept {mNextAuth = std::forward<AuthPtrT>(authPtr);}
+	template <typename AuthT>
+	const std::shared_ptr<Authentifier>& setNextAuth(AuthT&& authPtr) noexcept {
+		return mNextAuth = std::forward<AuthT>(authPtr);
+	}
 
 	virtual void verify(const std::shared_ptr<AuthStatus> &as) = 0;
 
@@ -94,7 +96,7 @@ class Authentifier {
 	}
 
   private:
-	std::unique_ptr<Authentifier> mNextAuth{};
+	std::shared_ptr<Authentifier> mNextAuth{};
 };
 
 } // namespace flexisip

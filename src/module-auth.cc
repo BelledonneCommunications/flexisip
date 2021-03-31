@@ -20,9 +20,6 @@
 #include <sofia-sip/sip_extra.h>
 #include <sofia-sip/sip_status.h>
 
-#include "auth/digest-authentifier.hh"
-#include "auth/trusted-host-authentifier.hh"
-
 #include <flexisip/module-auth.hh>
 
 using namespace std;
@@ -149,96 +146,6 @@ bool Authentication::isTrustedPeer(const shared_ptr<RequestSipEvent> &ev) {
 	return false;
 }
 
-bool Authentication::tlsClientCertificatePostCheck(const shared_ptr<RequestSipEvent> &ev){
-	if (mRequiredSubjectCheckSet){
-		bool ret = ev->matchIncomingSubject(mRequiredSubject);
-		if (ret){
-			SLOGD<<"TLS certificate postcheck successful.";
-		}else{
-			SLOGUE<<"TLS certificate postcheck failed.";
-		}
-		return ret;
-	}
-	return true;
-}
-
-/* This function returns
- * true: if the tls authentication is handled (either successful or rejected)
- * false: if we have to fallback to digest
- */
-bool Authentication::handleTlsClientAuthentication(const std::shared_ptr<RequestSipEvent> &ev) {
-	sip_t *sip = ev->getSip();
-	shared_ptr<tport_t> inTport = ev->getIncomingTport();
-	unsigned int policy = 0;
-
-	tport_get_params(inTport.get(), TPTAG_TLS_VERIFY_POLICY_REF(policy), NULL);
-	// Check TLS certificate
-	if ((policy & TPTLS_VERIFY_INCOMING) && tport_is_server(inTport.get())){
-		/* tls client certificate is required for this transport*/
-		if (tport_is_verified(inTport.get())) {
-			/*the certificate looks good, now match subjects*/
-			const url_t *from = sip->sip_from->a_url;
-			const char *fromDomain = from->url_host;
-			const char *res = NULL;
-			url_t searched_uri = URL_INIT_AS(sip);
-			sofiasip::Home home;
-			char *searched;
-
-			searched_uri.url_host = from->url_host;
-			searched_uri.url_user = from->url_user;
-			searched = url_as_string(home.home(), &searched_uri);
-
-			if (ev->findIncomingSubject(searched)) {
-				SLOGD << "Allowing message from matching TLS certificate";
-				goto postcheck;
-			} else if (sip->sip_request->rq_method != sip_method_register &&
-				(res = findIncomingSubjectInTrusted(ev, fromDomain))) {
-				SLOGD << "Found trusted TLS certificate " << res;
-				goto postcheck;
-			} else {
-				/*case where the certificate would work for the entire domain*/
-				searched_uri.url_user = NULL;
-				searched = url_as_string(home.home(), &searched_uri);
-				if (ev->findIncomingSubject(searched)) {
-					SLOGD << "Found TLS certificate for entire domain";
-					goto postcheck;
-				}
-			}
-
-			if (sip->sip_request->rq_method != sip_method_register && mTrustDomainCertificates) {
-				searched_uri.url_user = NULL;
-				searched_uri.url_host = sip->sip_request->rq_url->url_host;
-				searched = url_as_string(home.home(), &searched_uri);
-				if (ev->findIncomingSubject(searched)) {
-					SLOGD << "Found trusted TLS certificate for the request URI domain";
-					goto postcheck;
-				}
-			}
-
-			LOGE("Client is presenting a TLS certificate not matching its identity.");
-			SLOGUE << "Registration failure for " << url_as_string(home.home(), from)
-				<< ", TLS certificate doesn't match its identity";
-			goto bad_certificate;
-
-			postcheck:
-			if (tlsClientCertificatePostCheck(ev)){
-				/*all is good, return true*/
-				return true;
-			}else goto bad_certificate;
-		}else goto bad_certificate;
-
-		bad_certificate:
-		if (mRejectWrongClientCertificates){
-			ev->reply(403, "Bad tls client certificate", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-			return true; /*the request is responded, no further processing required*/
-		}
-		/*fallback to digest*/
-		return false;
-	}
-	/*no client certificate requested, go to digest auth*/
-	return false;
-}
-
 void Authentication::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	if (!mNewAuthOn407) return; /*nop*/
 
@@ -262,12 +169,12 @@ void Authentication::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		return;
 	}
 
-	dynamic_cast<DigestAuthentifier *>(mAuthModule.get())->challenge(as);
+	mDigestAuth->challenge(as);
 	msg_header_insert(ev->getMsgSip()->getMsg(), (msg_pub_t *)sip, as->as_response);
 }
 
 void Authentication::onIdle() {
-	dynamic_cast<DigestAuthentifier *>(mAuthModule.get())->nonceStore().cleanExpired();
+	mDigestAuth->nonceStore().cleanExpired();
 }
 
 bool Authentication::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
@@ -284,34 +191,16 @@ bool Authentication::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 // Private methods                                                                                                   //
 // ================================================================================================================= //
 
-std::unique_ptr<Authentifier> Authentication::createAuthModule(int nonceExpire, bool qopAuth) {
-	auto authModule = make_unique<TrustedHostAuthentifier>(mTrustedHosts);
-	auto digestAuthModule = make_unique<DigestAuthentifier>(getAgent()->getRoot(), nonceExpire, qopAuth);
-	digestAuthModule->setOnPasswordFetchResultCb([this](bool passFound){passFound ? mCountPassFound++ : mCountPassNotFound++;});
-	authModule->setNextAuth(move(digestAuthModule));
-	return authModule;
-}
+void Authentication::createAuthModule(int nonceExpire, bool qopAuth) {
+	mTrustedHostAuth = make_shared<TrustedHostAuthentifier>(mTrustedHosts);
+	mTlsClientAuth = make_shared<TlsClientAuthentifier>(
+		vector<string>{mTrustedClientCertificates.cbegin(), mTrustedClientCertificates.cend()}
+	);
+	mDigestAuth = make_shared<DigestAuthentifier>(getAgent()->getRoot(), nonceExpire, qopAuth);
+	mDigestAuth->setOnPasswordFetchResultCb([this](bool passFound){passFound ? mCountPassFound++ : mCountPassNotFound++;});
 
-void Authentication::processAuthentication(const std::shared_ptr<RequestSipEvent> &request) {
-	// check if TLS client certificate provides sufficent authentication for this request.
-	if (handleTlsClientAuthentication(request))
-		throw StopRequestProcessing();
-
-	ModuleAuthenticationBase::processAuthentication(request);
-}
-
-const char *Authentication::findIncomingSubjectInTrusted(const shared_ptr<RequestSipEvent> &ev, const char *fromDomain) {
-	if (mTrustedClientCertificates.empty())
-		return NULL;
-	list<string> toCheck;
-	for (auto it = mTrustedClientCertificates.cbegin(); it != mTrustedClientCertificates.cend(); ++it) {
-		if (it->find("@") != string::npos)
-			toCheck.push_back(*it);
-		else
-			toCheck.push_back(*it + "@" + string(fromDomain));
-	}
-	const char *res = ev->findIncomingSubject(toCheck);
-	return res;
+	mTrustedHostAuth->setNextAuth(mTlsClientAuth)->setNextAuth(mDigestAuth);
+	mAuthModules = mTrustedHostAuth;
 }
 
 void Authentication::loadTrustedHosts(const ConfigStringList &trustedHosts) {

@@ -28,7 +28,7 @@ namespace flexisip {
 class TlsClientAuthentifier : public Authentifier {
 public:
 	template <typename T>
-	TlsClientAuthentifier(T &&clientCerts) : Authentifier{}, mTrustDomainCertificates{std::forward<T>(clientCerts)} {}
+	TlsClientAuthentifier(T &&clientCerts) : Authentifier{}, mTrustedClientCertificates{std::forward<T>(clientCerts)} {}
 
 	bool trustDomainCertificates() const noexcept {return mTrustDomainCertificates;}
 	void trustDomainCertificates(bool val) noexcept {mTrustDomainCertificates = val;}
@@ -42,7 +42,7 @@ public:
 	void verify(const std::shared_ptr<AuthStatus> &as) override;
 
 private:
-	const char *findIncomingSubjectInTrusted(const std::shared_ptr<RequestSipEvent> &ev, const char *fromDomain);
+	const char *findIncomingSubjectInTrusted(const std::shared_ptr<RequestSipEvent> &ev, const std::string& fromDomain);
 	bool tlsClientCertificatePostCheck(const std::shared_ptr<RequestSipEvent> &ev);
 
 	std::vector<std::string> mTrustedClientCertificates{};

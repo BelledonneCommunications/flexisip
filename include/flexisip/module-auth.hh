@@ -18,8 +18,12 @@
 
 #pragma once
 
-#include "module-authentication-base.hh"
 #include <set>
+
+#include "auth/digest-authentifier.hh"
+#include "auth/tls-client-authentifier.hh"
+#include "auth/trusted-host-authentifier.hh"
+#include "module-authentication-base.hh"
 
 namespace flexisip {
 
@@ -35,21 +39,19 @@ public:
 	void onDeclare(GenericStruct *mc) override;
 	void onLoad(const GenericStruct *mc) override;
 	bool isTrustedPeer(const std::shared_ptr<RequestSipEvent> &ev);
-	bool tlsClientCertificatePostCheck(const std::shared_ptr<RequestSipEvent> &ev);
-	virtual bool handleTlsClientAuthentication(const std::shared_ptr<RequestSipEvent> &ev);
 	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) override;
 	void onIdle() override;
 	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) override;
 
 private:
-	std::unique_ptr<Authentifier> createAuthModule(int nonceExpire, bool qopAuth) override;
-
-	void processAuthentication(const std::shared_ptr<RequestSipEvent> &request) override;
+	void createAuthModule(int nonceExpire, bool qopAuth) override;
 
 	bool empty(const char *value) {return value == NULL || value[0] == '\0';}
-	const char *findIncomingSubjectInTrusted(const std::shared_ptr<RequestSipEvent> &ev, const char *fromDomain);
 	void loadTrustedHosts(const ConfigStringList &trustedHosts);
 
+	std::shared_ptr<TrustedHostAuthentifier> mTrustedHostAuth{};
+	std::shared_ptr<TlsClientAuthentifier> mTlsClientAuth{};
+	std::shared_ptr<DigestAuthentifier> mDigestAuth{};
 	static ModuleInfo<Authentication> sInfo;
 	std::set<BinaryIp> mTrustedHosts;
 	std::list<std::string> mTrustedClientCertificates;

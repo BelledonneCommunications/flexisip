@@ -118,7 +118,7 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct *mc) {
 	bool disableQOPAuth = mc->get<ConfigBoolean>("disable-qop-auth")->read();
 	int nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
 
-	mAuthModule = createAuthModule(nonceExpires, !disableQOPAuth);
+	createAuthModule(nonceExpires, !disableQOPAuth);
 
 	const string regexPrefix{"regex:"};
 	const auto *realmCfg = mc->get<ConfigString>("realm");
@@ -248,7 +248,7 @@ void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<Reque
 	request->createIncomingTransaction();
 
 	auto as = static_cast<shared_ptr<Authentifier::AuthStatus>>(createAuthStatus(request));
-	mAuthModule->verify(as);
+	mAuthModules->verify(as);
 }
 
 bool ModuleAuthenticationBase::checkDomain(const std::string &domain) const noexcept {

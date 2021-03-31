@@ -37,7 +37,7 @@ private:
 	void onDeclare(GenericStruct *mc) override;
 	void onLoad(const GenericStruct *root) override;
 
-	std::unique_ptr<Authentifier> createAuthModule(int nonceExpire, bool qopAuth) override;
+	void createAuthModule(int nonceExpire, bool qopAuth) override;
 
 	void onSuccess(const Authentifier::AuthStatus &as) override;
 	void errorReply(const Authentifier::AuthStatus &as) override;

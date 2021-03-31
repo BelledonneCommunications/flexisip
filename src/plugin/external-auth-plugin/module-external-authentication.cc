@@ -76,11 +76,11 @@ void ModuleExternalAuthentication::onLoad(const GenericStruct *mc) {
 	ModuleAuthenticationBase::onLoad(mc);
 }
 
-std::unique_ptr<Authentifier> ModuleExternalAuthentication::createAuthModule(int nonceExpire, bool qopAuth) {
+void ModuleExternalAuthentication::createAuthModule(int nonceExpire, bool qopAuth) {
 	try {
-		auto am = make_unique<ExternalAuthModule>(getAgent()->getRoot(), nonceExpire, qopAuth);
+		auto am = make_shared<ExternalAuthModule>(getAgent()->getRoot(), nonceExpire, qopAuth);
 		am->getFormater().setTemplate(mRemoteUri);
-		return am;
+		mAuthModules = move(am);
 	} catch (const invalid_argument &e) {
 		LOGF("error while parsing 'module::ExternalAuthentication/remote-auth-uri': %s", e.what());
 	}

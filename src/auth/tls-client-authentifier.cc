@@ -104,18 +104,18 @@ void TlsClientAuthentifier::verify(const std::shared_ptr<AuthStatus> &as) {
 	continue_(as);
 }
 
-const char *TlsClientAuthentifier::findIncomingSubjectInTrusted(const std::shared_ptr<RequestSipEvent> &ev, const char *fromDomain) {
+const char *TlsClientAuthentifier::findIncomingSubjectInTrusted(const std::shared_ptr<RequestSipEvent> &ev, const std::string& fromDomain) {
 	if (mTrustedClientCertificates.empty())
-		return NULL;
+		return nullptr;
 	list<string> toCheck;
-	for (auto it = mTrustedClientCertificates.cbegin(); it != mTrustedClientCertificates.cend(); ++it) {
-		if (it->find("@") != string::npos)
-			toCheck.push_back(*it);
-		else
-			toCheck.push_back(*it + "@" + string(fromDomain));
+	for (const auto& trustedCert : mTrustedClientCertificates) {
+		if (trustedCert.find("@") != string::npos) {
+			toCheck.push_back(trustedCert);
+		} else {
+			toCheck.push_back(trustedCert + "@" + fromDomain);
+		}
 	}
-	const char *res = ev->findIncomingSubject(toCheck);
-	return res;
+	return ev->findIncomingSubject(toCheck);
 }
 
 bool TlsClientAuthentifier::tlsClientCertificatePostCheck(const std::shared_ptr<RequestSipEvent> &ev) {

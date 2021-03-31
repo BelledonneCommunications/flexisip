@@ -323,15 +323,15 @@ bool RequestSipEvent::findIncomingSubject(const char *searched) const {
 	return !!tport_subject_search(searched, strlst);
 }
 
-const char *RequestSipEvent::findIncomingSubject(const list<string> &in) const {
+const char *RequestSipEvent::findIncomingSubject(const std::list<std::string>& in) const {
 	if (in.empty())
-		return NULL;
+		return nullptr;
 	auto strlst = tport_delivered_from_subjects(mIncomingTport.get(), mMsgSip->getMsg());
 	for (auto it = in.cbegin(); it != in.cend(); ++it) {
 		if (tport_subject_search(it->c_str(), strlst))
 			return it->c_str();
 	}
-	return NULL;
+	return nullptr;
 }
 
 ResponseSipEvent::ResponseSipEvent(shared_ptr<OutgoingAgent> outgoingAgent, const shared_ptr<MsgSip> &msgSip)
