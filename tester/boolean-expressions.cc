@@ -126,11 +126,22 @@ static void basic_message_inspection(void){
 	expr = SipBooleanExpressionBuilder::get().parse("to.uri.user != 'jehan-jacques'");
 	BC_ASSERT_TRUE(expr!=nullptr);
 	BC_ASSERT_TRUE(expr->eval(getRequest()));
-	
-	expr = SipBooleanExpressionBuilder::get().parse("to.uri.user regexp 'jehan-*'");
-	BC_ASSERT_TRUE(expr!=nullptr);
+
+	// Filter will only be successful if regex match the entire character sequence
+	expr = SipBooleanExpressionBuilder::get().parse("to.uri.user regex 'jehan-*'");
+	BC_ASSERT_TRUE(expr != nullptr);
+	BC_ASSERT_FALSE(expr->eval(getRequest()));
+
+	// Basic regex
+	expr = SipBooleanExpressionBuilder::get().parse("to.uri.user regex 'jehan-.*'");
+	BC_ASSERT_TRUE(expr != nullptr);
 	BC_ASSERT_TRUE(expr->eval(getRequest()));
-	
+
+	// Regex that only work because we now use ECMAScript grammar (do not start with)
+	expr = SipBooleanExpressionBuilder::get().parse("from.uri.domain regex '^(?!kijou).*$'");
+	BC_ASSERT_TRUE(expr != nullptr);
+	BC_ASSERT_TRUE(expr->eval(getRequest()));
+
 	expr = SipBooleanExpressionBuilder::get().parse("request.method == 'REGISTER'");
 	BC_ASSERT_TRUE(expr!=nullptr);
 	BC_ASSERT_TRUE(expr->eval(getRequest()));
@@ -183,7 +194,7 @@ static void complex_expressions(void){
 	);
 	BC_ASSERT_TRUE(expr!=nullptr);
 	BC_ASSERT_FALSE(expr->eval(getRequest()));
-	
+
 }
 
 static void invalid_expressions(void){
