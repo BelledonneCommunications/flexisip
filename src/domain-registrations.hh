@@ -37,7 +37,7 @@ class Agent;
 
 class DomainRegistration {
   public:
-	DomainRegistration(DomainRegistrationManager &mgr, const std::string &localDomain, const url_t *parent_proxy,
+	DomainRegistration(DomainRegistrationManager &mgr, const std::string &localDomain, const url_t *parent_proxy, const std::string &password,
 					   const std::string &clientCertdir, const std::string &passphrase, int lineIndex);
 	void start();
 	void stop();
@@ -68,25 +68,27 @@ class DomainRegistration {
 	static int sLegCallback(nta_leg_magic_t *ctx, nta_leg_t *leg, nta_incoming_t *incoming, const sip_t *request);
 	static int sResponseCallback(nta_outgoing_magic_t *ctx, nta_outgoing_t *orq, const sip_t *resp);
 	static void sRefreshRegistration(su_root_magic_t *magic, su_timer_t *timer, su_timer_arg_t *arg);
-	static void sRefreshUnregistration(su_root_magic_t *magic, su_timer_t *timer, su_timer_arg_t *arg);
 	void responseCallback(nta_outgoing_t *orq, const sip_t *resp);
 	void onConnectionBroken(tport_t *tport, msg_t *msg, int error);
 	void cleanCurrentTport();
+	void sendRequest();
 	int generateUuid(const std::string &uniqueId);
 	DomainRegistrationManager &mManager;
 	StatCounter64 * mRegistrationStatus; //This contains the lastest SIP response code of the REGISTER transaction.
 	su_home_t mHome;
 	nta_leg_t *mLeg;
-	msg_header_t *mSip = NULL;
 	tport_t *mPrimaryTport; // the tport that has the configuration
 	tport_t *mCurrentTport; // the secondary tport that has the active connection.
 	int mPendId;
 	su_timer_t *mTimer;
 	url_t *mFrom;
+	std::string mPassword;
 	url_t *mProxy;
 	sip_contact_t *mExternalContact;
 	std::string mUuid;
 	nta_outgoing_t *mOutgoing;
+	int mExpires = 600;
+	bool mLastResponseWas401 = false;;
 };
 
 class DomainRegistrationManager : public LocalRegExpireListener, public std::enable_shared_from_this<DomainRegistrationManager> {

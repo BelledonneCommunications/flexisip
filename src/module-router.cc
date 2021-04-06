@@ -152,6 +152,7 @@ void ModuleRouter::onLoad(const GenericStruct *mc) {
 		mFallbackRouteParsed = sipUrlMake(mHome.home(), mFallbackRoute.c_str());
 		if (!mFallbackRouteParsed) LOGF("Bad value [%s] for fallback-route in module::Router.", mFallbackRoute.c_str());
 	}
+	mRelayRegsToDomains =  cr->get<GenericStruct>("inter-domain-connections")->get<ConfigBoolean>("relay-reg-to-domains")->read();
 }
 
 void ModuleRouter::sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason, int warn_code,
@@ -528,7 +529,6 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 		}
 		usable_contacts.push_back(make_pair(ct, ec));
 	}
-
 	if (usable_contacts.size() == 0) {
 		if (nonSipsFound) {
 			/*rfc5630 5.3*/
@@ -607,8 +607,6 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 					RegistrarDb::get()->subscribe(key, listener);
 				}
 				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), key.c_str());
-			} else {
-				dispatch(ev, ec, context, targetUris);
 			}
 		}
 	}
@@ -883,16 +881,27 @@ unsigned ModuleRouter::countLateForks(const std::string &key) const noexcept {
 void ModuleRouter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
 	sip_t *sip = ms->getSip();
+	const url_t *next_hop = nullptr;
+	bool isRoute = false;
 
 	// Handle SipEvent associated with a Stateful transaction
 	if (sip->sip_request->rq_method == sip_method_cancel) {
 		ForkContext::processCancel(ev);
 		return;
 	}
-
-	// Don't route registers
-	if (sip->sip_request->rq_method == sip_method_register)
+	if ((next_hop = ModuleToolbox::getNextHop(getAgent(), sip, &isRoute)) != NULL && isRoute) {
+		if (LOGD_ENABLED()) LOGD("Route header found [%s] but not us, skipping.", url_as_string(ms->getHome(), next_hop));
 		return;
+	}
+
+	/*unless in a specific case, REGISTER don't go into the router logic*/
+	if (sip->sip_request->rq_method == sip_method_register){
+		if (!mRelayRegsToDomains || sip->sip_from->a_url->url_user == NULL){
+			return;
+		}
+		LOGD("Router: routing REGISTER to domain controller");
+	}
+
 
 	if (mResolveRoutes) {
 		sip_route_t *iterator = sip->sip_route;

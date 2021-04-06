@@ -107,7 +107,7 @@ void FlexisipAuthModule::onChallenge(AuthStatus &as, auth_challenger_t const *ac
 	};
 
 	auto *listener = new GenericAuthListener(getRoot(), cleanUsedAlgo);
-	string unescpapedUrlUser = UriUtils::unescape(as.userUri()->url_user);
+	string unescpapedUrlUser = UriUtils::unescape(as.userUri()->url_user ? as.userUri()->url_user : "");
 	LOGD("AuthStatus[%p]: searching for digest passwords of '%s@%s'", &as, unescpapedUrlUser.c_str(), as.userUri()->url_host);
 	AuthDbBackend::get().getPassword(unescpapedUrlUser, as.userUri()->url_host, unescpapedUrlUser, listener);
 	as.status(100);
@@ -147,7 +147,7 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *au,
 		return;
 	}
 
-	if (!ar->ar_username || !as.userUri()->url_user || !ar->ar_realm || !as.userUri()->url_host) {
+	if (!ar->ar_username || !ar->ar_realm || !as.userUri()->url_host) {
 		SLOGE << "Registration failure, authentication info are missing: usernames " <<
 		ar->ar_username << "/" << as.userUri()->url_user << ", hosts " << ar->ar_realm << "/" << as.userUri()->url_host;
 		LOGD("from and authentication usernames [%s/%s] or from and authentication hosts [%s/%s] empty",
@@ -191,7 +191,7 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *au,
 			this->processResponse(as, *ar, *ach, result, passwords);
 		}
 	);
-	string unescpapedUrlUser = UriUtils::unescape(as.userUri()->url_user);
+	string unescpapedUrlUser = UriUtils::unescape(as.userUri()->url_user ? as.userUri()->url_user : "");
 	AuthDbBackend::get().getPassword(unescpapedUrlUser, as.userUri()->url_host, ar->ar_username, listener);
 	as.status(100);
 }

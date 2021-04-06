@@ -748,6 +748,19 @@ void ModuleToolbox::addPathHeader(
 	}
 }
 
+const url_t *ModuleToolbox::getNextHop(Agent *ag, const sip_t *sip, bool *isRoute){
+	const sip_route_t *route = sip->sip_route;
+	while (route){
+		if (!ag->isUs(route->r_url)){
+			if (isRoute) *isRoute = true;
+			return route->r_url;
+		}
+		route = route->r_next;
+	}
+	if (isRoute) *isRoute = false;
+	return sip->sip_request->rq_url;
+}
+
 void ModuleToolbox::removeParamsFromContacts(su_home_t *home, sip_contact_t *c, list<string> &params) {
 	while (c) {
 		removeParamsFromUrl(home, c->m_url, params);
