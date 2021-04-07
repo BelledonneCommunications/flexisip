@@ -122,7 +122,6 @@ private:
 	public:
 		PnrContext(AppleClient &client, const std::shared_ptr<AppleRequest> &pnr, unsigned timeout /* s */) noexcept;
 		PnrContext(const PnrContext &) = delete;
-		PnrContext(PnrContext &&) noexcept = default;
 
 		const std::shared_ptr<AppleRequest> &getPnr() const noexcept {return mPnr;}
 
@@ -169,7 +168,7 @@ private:
 	su_wait_t mPollInWait{0};
 	std::unique_ptr<TlsConnection> mConn{};
 	NgHttp2SessionPtr mHttpSession{};
-	std::unordered_map<int32_t, PnrContext> mPNRs{};
+	std::unordered_map<int32_t, std::unique_ptr<PnrContext>> mPNRs{};
 	std::queue<std::shared_ptr<AppleRequest>> mPendingPNRs{};
 	State mState{State::Disconnected};
 	int32_t mLastSID{-1};
