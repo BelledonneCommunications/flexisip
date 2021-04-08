@@ -5,7 +5,7 @@
 job-debian10-makefile-gcc:
 
   tags: [ "docker-debian10" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:10
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
   except:
     variables:
       - $DEPLOY_RUN
@@ -21,7 +21,7 @@ job-debian10-makefile-gcc:
 job-debian10-makefile-clang:
 
   tags: [ "docker-debian10" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:10
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
   except:
     variables:
       - $DEPLOY_RUN
@@ -40,7 +40,7 @@ job-debian10-makefile-clang:
 job-debian10-ninja-gcc:
 
   tags: [ "docker-debian10" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:10
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
   except:
     variables:
       - $DEPLOY_RUN
@@ -55,7 +55,7 @@ job-debian10-ninja-gcc:
 job-debian10-ninja-clang:
 
   tags: [ "docker-debian10" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:10
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
   except:
     variables:
       - $DEPLOY_RUN
@@ -72,7 +72,7 @@ job-debian10-ninja-clang:
 job-debian10-xwiki-doc-deploy:
   stage: build
   tags: [ "docker" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:10
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
 
   only:
     variables:
@@ -93,7 +93,7 @@ job-debian10-xwiki-doc-deploy:
 job-debian10-deb:
 
   tags: [ "docker-debian10" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:10
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
   extends: .job-linux-deb
   except:
     variables:
