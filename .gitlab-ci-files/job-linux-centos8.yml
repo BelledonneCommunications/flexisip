@@ -5,7 +5,7 @@
 job-centos8-makefile-gcc:
 
   tags: [ "docker" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos:8
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos8:$CENTOS_8_IMAGE_VERSION
   except:
     variables:
       - $DEPLOY_RUN
@@ -20,7 +20,7 @@ job-centos8-makefile-gcc:
 job-centos8-makefile-clang:
 
   tags: [ "docker" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos:8
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos8:$CENTOS_8_IMAGE_VERSION
   except:
     variables:
       - $DEPLOY_RUN
@@ -38,7 +38,7 @@ job-centos8-makefile-clang:
 
 #job-centos8-ninja-gcc:
 #
-#  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos:8
+#  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos8:$CENTOS_8_IMAGE_VERSION
 #  variables:
 #    CMAKE_GENERATOR: Ninja
 #    CC: gcc
@@ -48,7 +48,7 @@ job-centos8-makefile-clang:
 
 #job-centos8-ninja-clang:
 #
-#  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos:8
+#  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos8:$CENTOS_8_IMAGE_VERSION
 #  variables:
 #    CMAKE_GENERATOR: Ninja
 #    CC: clang
@@ -61,7 +61,7 @@ job-centos8-makefile-clang:
 
 job-centos8-rpm:
   tags: [ "docker" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos:8
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos8:$CENTOS_8_IMAGE_VERSION
   extends: .job-linux-rpm
 
 job-centos8-rpm-deploy:
