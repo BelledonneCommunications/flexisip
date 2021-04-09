@@ -38,7 +38,7 @@ using namespace std;
 namespace flexisip {
 
 TlsConnection::TlsConnection(const string& host, const string& port, bool mustBeHttp2) noexcept
-	: mHost{host}, mPort{port}, mMustBeHttp2{mustBeHttp2} {
+    : mHost{host}, mPort{port}, mMustBeHttp2{mustBeHttp2} {
 
 	auto ctx = getDefaultCtx();
 	SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
@@ -46,8 +46,8 @@ TlsConnection::TlsConnection(const string& host, const string& port, bool mustBe
 }
 
 TlsConnection::TlsConnection(const string& host, const string& port, const string& trustStorePath,
-							 const string& certPath, bool mustBeHttp2)
-	: mHost{host}, mPort{port}, mMustBeHttp2{mustBeHttp2} {
+                             const string& certPath, bool mustBeHttp2)
+    : mHost{host}, mPort{port}, mMustBeHttp2{mustBeHttp2} {
 
 	if (certPath.empty()) {
 		mCtx = nullptr;
@@ -76,8 +76,8 @@ TlsConnection::TlsConnection(const string& host, const string& port, const strin
 			throw runtime_error("Error during TlsConnection creation");
 		} else if (isCertExpired(certPath)) {
 			LOGEN("Certificate %s is expired! You won't be able to use it for push notifications. Please update your "
-				  "certificate or remove it entirely.",
-				  certPath.c_str());
+			      "certificate or remove it entirely.",
+			      certPath.c_str());
 		}
 	}
 	if (!certPath.empty()) {
@@ -205,6 +205,12 @@ bool TlsConnection::waitForData(int timeout) const {
 	return ret != 0;
 }
 
+void TlsConnection::enableInsecureTestMode() {
+	SLOGW << "BE CAREFUL, YOU BETTER BE IN TEST ENV, YOU ARE USING A INSECURE CONNECTION";
+	SSL_CTX_set_cert_verify_callback(
+	    mCtx.get(), [](auto, auto) { return 1; }, nullptr);
+}
+
 SSL_CTX* TlsConnection::getDefaultCtx() {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 	// from OpenSSL 1.1.0
@@ -223,12 +229,12 @@ void TlsConnection::handleBioError(const string& msg, int status) {
 	ostringstream os;
 	os << msg << ": " << status << " - " << strerror(errno) << " - SSL error stack:";
 	ERR_print_errors_cb(
-		[](const char* str, size_t len, void* u) {
-			auto& os = *static_cast<ostream*>(u);
-			os << endl << '\t' << str;
-			return 0;
-		},
-		&os);
+	    [](const char* str, size_t len, void* u) {
+		    auto& os = *static_cast<ostream*>(u);
+		    os << endl << '\t' << str;
+		    return 0;
+	    },
+	    &os);
 	SLOGE << os.str();
 }
 
@@ -257,7 +263,7 @@ int TlsConnection::handleVerifyCallback(X509_STORE_CTX* ctx, void* ud) {
 			default: {
 				const char* errString = X509_verify_cert_error_string(error);
 				SLOGE << "Certificate for " << subject_name << " is invalid (reason: " << error << ": "
-					  << (errString ? errString : "unknown") << "). Push won't work.";
+				      << (errString ? errString : "unknown") << "). Push won't work.";
 				break;
 			}
 		}
@@ -297,7 +303,7 @@ bool TlsConnection::isCertExpired(const std::string& certPath) noexcept {
 			// the certificate has an expire or not before value that makes it not valid regarding the server's date.
 			if (validDates) {
 				LOGD("Certificate %s is expired or not yet valid! Not Before: %s, Not After: %s", certPath.c_str(),
-					 beforeStr, afterStr);
+				     beforeStr, afterStr);
 			} else {
 				LOGD("Certificate %s is expired or not yet valid!", certPath.c_str());
 			}

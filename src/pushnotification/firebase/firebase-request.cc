@@ -1,19 +1,19 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <iostream>
@@ -51,7 +51,7 @@ FirebaseRequest::FirebaseRequest(const PushInfo& pinfo) : Request(pinfo.mAppId, 
 	"priority":"high",
 	"data":{
 		"uuid":"@uuid@",
-		"form-uri":"@form-uri@",
+		"from-uri":"@from-uri@",
 		"display-name":"@display-name@",
 		"call-id":"@call-id@",
 		"sip-from":"@sip-from@",
@@ -66,7 +66,7 @@ FirebaseRequest::FirebaseRequest(const PushInfo& pinfo) : Request(pinfo.mAppId, 
 		{"to", pinfo.mDeviceToken},
 		{"ttl", to_string(ttl)},
 		{"uuid", pinfo.mUid},
-		{"form-uri", pinfo.mFromUri},
+		{"from-uri", pinfo.mFromUri},
 		{"display-name", pinfo.mFromName},
 		{"call-id", pinfo.mCallId},
 		{"sip-from", from},

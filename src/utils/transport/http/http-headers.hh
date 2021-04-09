@@ -26,7 +26,7 @@
 namespace flexisip {
 
 class HttpHeaders {
-  public:
+public:
 	struct Header {
 		std::string name{};
 		std::string value{};
@@ -52,7 +52,7 @@ class HttpHeaders {
 
 	CHeaderList makeCHeaderList() const noexcept;
 
-  private:
+private:
 	HeadersList mHList{};
 };
 
