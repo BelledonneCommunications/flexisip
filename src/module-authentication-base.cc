@@ -115,10 +115,7 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct *mc) {
 	}
 	if (mAlgorithms.empty()) mAlgorithms.assign(sValidAlgos.cbegin(), sValidAlgos.cend());
 
-	bool disableQOPAuth = mc->get<ConfigBoolean>("disable-qop-auth")->read();
-	int nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
-
-	createAuthModule(nonceExpires, !disableQOPAuth);
+	createAuthModule(*mc);
 
 	const string regexPrefix{"regex:"};
 	const auto *realmCfg = mc->get<ConfigString>("realm");

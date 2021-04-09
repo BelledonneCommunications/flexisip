@@ -56,7 +56,7 @@ protected:
 	/**
 	 * Override this method to specify the specialization of #FlexisipAuthModuleBase to instantiate.
 	 */
-	virtual void createAuthModule(int nonceExpire, bool qopAuth) = 0;
+	virtual void createAuthModule(const GenericStruct& cfg) = 0;
 	/**
 	 * @brief Create and configure a #FlexisipAuthStatus according the information extracted from ev.
 	 *

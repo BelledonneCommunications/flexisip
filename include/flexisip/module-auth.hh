@@ -44,22 +44,17 @@ public:
 	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) override;
 
 private:
-	void createAuthModule(int nonceExpire, bool qopAuth) override;
+	void createAuthModule(const GenericStruct& cfg) override;
 
-	bool empty(const char *value) {return value == NULL || value[0] == '\0';}
-	void loadTrustedHosts(const ConfigStringList &trustedHosts);
+	static bool empty(const char* value) {return value == nullptr || value[0] == '\0';}
+	static std::set<BinaryIp> loadTrustedHosts(const ConfigStringList &trustedHosts);
 
 	std::shared_ptr<TrustedHostAuthentifier> mTrustedHostAuth{};
 	std::shared_ptr<TlsClientAuthentifier> mTlsClientAuth{};
 	std::shared_ptr<DigestAuthentifier> mDigestAuth{};
+	bool mNewAuthOn407{false};
+
 	static ModuleInfo<Authentication> sInfo;
-	std::set<BinaryIp> mTrustedHosts;
-	std::list<std::string> mTrustedClientCertificates;
-	std::regex mRequiredSubject{};
-	bool mNewAuthOn407 = false;
-	bool mRequiredSubjectCheckSet = false;
-	bool mRejectWrongClientCertificates = false;
-	bool mTrustDomainCertificates = false;
 };
 
 }

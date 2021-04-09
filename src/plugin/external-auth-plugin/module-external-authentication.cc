@@ -76,9 +76,12 @@ void ModuleExternalAuthentication::onLoad(const GenericStruct *mc) {
 	ModuleAuthenticationBase::onLoad(mc);
 }
 
-void ModuleExternalAuthentication::createAuthModule(int nonceExpire, bool qopAuth) {
+void ModuleExternalAuthentication::createAuthModule(const GenericStruct& cfg) {
+	auto disableQOPAuth = cfg.get<ConfigBoolean>("disable-qop-auth")->read();
+	auto nonceExpires = cfg.get<ConfigInt>("nonce-expires")->read();
+
 	try {
-		auto am = make_shared<ExternalAuthModule>(getAgent()->getRoot(), nonceExpire, qopAuth);
+		auto am = make_shared<ExternalAuthModule>(getAgent()->getRoot(), nonceExpires, !disableQOPAuth);
 		am->getFormater().setTemplate(mRemoteUri);
 		mAuthModules = move(am);
 	} catch (const invalid_argument &e) {

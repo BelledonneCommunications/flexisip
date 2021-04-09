@@ -109,37 +109,19 @@ void Authentication::onDeclare(GenericStruct *mc) {
 
 void Authentication::onLoad(const GenericStruct *mc) {
 	ModuleAuthenticationBase::onLoad(mc);
-
-	loadTrustedHosts(*mc->get<ConfigStringList>("trusted-hosts"));
 	mNewAuthOn407 = mc->get<ConfigBoolean>("new-auth-on-407")->read();
-	mTrustedClientCertificates = mc->get<ConfigStringList>("trusted-client-certificates")->read();
-	mTrustDomainCertificates = mc->get<ConfigBoolean>("trust-domain-certificates")->read();
-
-	const auto &requiredSubject = mc->get<ConfigString>("tls-client-certificate-required-subject")->read();
-	if (!requiredSubject.empty()) {
-		try {
-			mRequiredSubject.assign(requiredSubject);
-			mRequiredSubjectCheckSet = true;
-		} catch (const runtime_error &e) {
-			LOGF("Could not compile regex for 'tls-client-certificate-required-subject' '%s': %s",
-				 requiredSubject.c_str(), e.what()
-			);
-		}
-	}
-	mRejectWrongClientCertificates = mc->get<ConfigBoolean>("reject-wrong-client-certificates")->read();
 	AuthDbBackend::get(); // force instanciation of the AuthDbBackend NOW, to force errors to arrive now if any.
 }
 
 bool Authentication::isTrustedPeer(const shared_ptr<RequestSipEvent> &ev) {
-	sip_t *sip = ev->getSip();
-
 	// Check for trusted host
-	sip_via_t *via = sip->sip_via;
-	const char *printableReceivedHost = !empty(via->v_received) ? via->v_received : via->v_host;
+	const auto* via = ev->getSip()->sip_via;
+	auto printableReceivedHost = !empty(via->v_received) ? via->v_received : via->v_host;
 
-	BinaryIp receivedHost(printableReceivedHost);
+	BinaryIp receivedHost{printableReceivedHost};
 	
-	if (mTrustedHosts.find(receivedHost) != mTrustedHosts.end()){
+	const auto& trustedHosts = mTrustedHostAuth->getTrustedHosts();
+	if (trustedHosts.find(receivedHost) != trustedHosts.cend()){
 		LOGD("Allowing message from trusted host %s", printableReceivedHost);
 		return true;
 	}
@@ -179,7 +161,8 @@ void Authentication::onIdle() {
 
 bool Authentication::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
 	if (conf.getName() == "trusted-hosts" && state == ConfigState::Commited) {
-		loadTrustedHosts((const ConfigStringList &)conf);
+		auto trustedHosts = loadTrustedHosts(static_cast<const ConfigStringList&>(conf));
+		mTrustedHostAuth->setTrustedHosts(move(trustedHosts));
 		LOGD("Trusted hosts updated");
 		return true;
 	} else {
@@ -191,52 +174,74 @@ bool Authentication::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 // Private methods                                                                                                   //
 // ================================================================================================================= //
 
-void Authentication::createAuthModule(int nonceExpire, bool qopAuth) {
-	mTrustedHostAuth = make_shared<TrustedHostAuthentifier>(mTrustedHosts);
+void Authentication::createAuthModule(const GenericStruct& cfg) {
+	auto trustedHosts = loadTrustedHosts(*cfg.get<ConfigStringList>("trusted-hosts"));
+	mTrustedHostAuth = make_shared<TrustedHostAuthentifier>(trustedHosts);
+
+	auto trustedClientCertificates = cfg.get<ConfigStringList>("trusted-client-certificates")->read();
+	const auto &requiredSubject = cfg.get<ConfigString>("tls-client-certificate-required-subject")->read();
+	auto rejectWrongClientCertificates = cfg.get<ConfigBoolean>("reject-wrong-client-certificates")->read();
+	auto trustDomainCertificates = cfg.get<ConfigBoolean>("trust-domain-certificates")->read();
 	mTlsClientAuth = make_shared<TlsClientAuthentifier>(
-		vector<string>{mTrustedClientCertificates.cbegin(), mTrustedClientCertificates.cend()}
+		vector<string>{trustedClientCertificates.cbegin(), trustedClientCertificates.cend()}
 	);
-	mDigestAuth = make_shared<DigestAuthentifier>(getAgent()->getRoot(), nonceExpire, qopAuth);
+	if (!requiredSubject.empty()) {
+		try {
+			mTlsClientAuth->requiredSubject(requiredSubject);
+		} catch (const runtime_error &e) {
+			LOGF("Could not compile regex for 'tls-client-certificate-required-subject' '%s': %s",
+				 requiredSubject.c_str(), e.what()
+			);
+		}
+	}
+	mTlsClientAuth->rejectWrongClientCertificates(rejectWrongClientCertificates);
+	mTlsClientAuth->trustDomainCertificates(trustDomainCertificates);
+
+	auto disableQOPAuth = cfg.get<ConfigBoolean>("disable-qop-auth")->read();
+	auto nonceExpires = cfg.get<ConfigInt>("nonce-expires")->read();
+	mDigestAuth = make_shared<DigestAuthentifier>(getAgent()->getRoot(), nonceExpires, !disableQOPAuth);
 	mDigestAuth->setOnPasswordFetchResultCb([this](bool passFound){passFound ? mCountPassFound++ : mCountPassNotFound++;});
 
 	mTrustedHostAuth->setNextAuth(mTlsClientAuth)->setNextAuth(mDigestAuth);
 	mAuthModules = mTrustedHostAuth;
 }
 
-void Authentication::loadTrustedHosts(const ConfigStringList &trustedHosts) {
-	list<string> hosts = trustedHosts.read();
+std::set<BinaryIp> Authentication::loadTrustedHosts(const ConfigStringList &trustedHosts) {
+	std::set<BinaryIp> trustedHostsSet{};
 	
-	for(const auto &host : hosts){
-		BinaryIp::emplace(mTrustedHosts, host);
+	for(const auto& host : trustedHosts.read()){
+		BinaryIp::emplace(trustedHostsSet, host);
 	}
 
-	const GenericStruct *clusterSection = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
-	bool clusterEnabled = clusterSection->get<ConfigBoolean>("enabled")->read();
+	const auto* clusterSection = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
+	auto clusterEnabled = clusterSection->get<ConfigBoolean>("enabled")->read();
 	if (clusterEnabled) {
-		list<string> clusterNodes = clusterSection->get<ConfigStringList>("nodes")->read();
-		for(const auto &host : clusterNodes){
-			BinaryIp::emplace(mTrustedHosts, host);
+		auto clusterNodes = clusterSection->get<ConfigStringList>("nodes")->read();
+		for(const auto& host : clusterNodes){
+			BinaryIp::emplace(trustedHostsSet, host);
 		}
 	}
 
-	const GenericStruct *presenceSection = GenericManager::get()->getRoot()->get<GenericStruct>("module::Presence");
-	bool presenceServer = presenceSection->get<ConfigBoolean>("enabled")->read();
+	const auto* presenceSection = GenericManager::get()->getRoot()->get<GenericStruct>("module::Presence");
+	auto presenceServer = presenceSection->get<ConfigBoolean>("enabled")->read();
 	if (presenceServer) {
-		sofiasip::Home home;
-		string presenceServer = presenceSection->get<ConfigString>("presence-server")->read();
-		sip_contact_t *contact = sip_contact_make(home.home(), presenceServer.c_str());
-		url_t *url = contact ? contact->m_url : NULL;
+		sofiasip::Home home{};
+		const auto& presenceServer = presenceSection->get<ConfigString>("presence-server")->read();
+		auto* contact = sip_contact_make(home.home(), presenceServer.c_str());
+		auto* url = contact ? contact->m_url : nullptr;
 		if (url && url->url_host) {
-			BinaryIp::emplace(mTrustedHosts, url->url_host);
+			BinaryIp::emplace(trustedHostsSet, url->url_host);
 			SLOGI << "Added presence server '" << url->url_host << "' to trusted hosts";
 		} else {
 			SLOGW << "Could not parse presence server URL '" << presenceServer
 				<< "', cannot be added to trusted hosts!";
 		}
 	}
-	for (auto trustedHosts :mTrustedHosts) {
-		SLOGI << "IP "<< trustedHosts << " added to trusted hosts";
+	for (const auto& host : trustedHostsSet) {
+		SLOGI << "IP "<< host << " added to trusted hosts";
 	}
+
+	return trustedHostsSet;
 }
 
 ModuleInfo<Authentication> Authentication::sInfo(

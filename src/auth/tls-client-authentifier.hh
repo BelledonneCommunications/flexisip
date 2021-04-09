@@ -36,8 +36,12 @@ public:
 	bool rejectWrongClientCertificates() const noexcept {return mRejectWrongClientCertificates;}
 	void rejectWrongClientCertificates(bool val) noexcept {mRejectWrongClientCertificates = val;}
 
-	bool requiredSubjectCheckSet() const noexcept {return mRequiredSubjectCheckSet;}
-	void requiredSubjectCheckSet(bool val) noexcept {mRequiredSubjectCheckSet = val;}
+	const std::regex& requiredSubject() const {return mRequiredSubject;}
+	template <typename T>
+	void requiredSubject(T&& val) noexcept {
+		mRequiredSubject.assign(std::forward<T>(val));
+		mRequiredSubjectCheckSet = true;
+	}
 
 	void verify(const std::shared_ptr<AuthStatus> &as) override;
 

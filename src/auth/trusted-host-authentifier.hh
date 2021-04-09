@@ -32,6 +32,10 @@ public:
 	TrustedHostAuthentifier(const TrustedHostAuthentifier &) = delete;
 	TrustedHostAuthentifier(TrustedHostAuthentifier &&) = delete;
 
+	template <typename T>
+	void setTrustedHosts(T&& hosts) noexcept {mTrustedHosts = std::forward<T>(hosts);}
+	const std::set<BinaryIp>& getTrustedHosts() const noexcept {return mTrustedHosts;}
+
 	void verify(const std::shared_ptr<AuthStatus> &as) override;
 
 private:
