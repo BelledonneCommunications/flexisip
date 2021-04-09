@@ -28,15 +28,15 @@
 namespace flexisip {
 
 class HttpMessageContext {
-  public:
+public:
 	using HttpRequest = HttpMessage;
 	using OnResponseCb = std::function<void(const std::shared_ptr<HttpRequest>&, const std::shared_ptr<HttpResponse>&)>;
 	using OnErrorCb = std::function<void(const std::shared_ptr<HttpRequest>&)>;
 
 	HttpMessageContext(const std::shared_ptr<HttpRequest>& request, const OnResponseCb& onResponseCb,
-					   const OnErrorCb& onErrorCb, su_root_t& root, const unsigned timeout)
-		: mRequest{request}, mResponse{std::make_shared<HttpResponse>()}, mTimeoutTimer{&root, timeout * 1000},
-		  mOnResponseCb{onResponseCb}, mOnErrorCb{onErrorCb} {};
+	                   const OnErrorCb& onErrorCb, su_root_t& root, const unsigned timeout)
+	    : mRequest{request}, mResponse{std::make_shared<HttpResponse>()}, mTimeoutTimer{&root, timeout * 1000},
+	      mOnResponseCb{onResponseCb}, mOnErrorCb{onErrorCb} {};
 
 	const OnErrorCb& getOnErrorCb() const {
 		return mOnErrorCb;
@@ -62,7 +62,7 @@ class HttpMessageContext {
 		return mTimeoutTimer;
 	}
 
-  private:
+private:
 	std::shared_ptr<HttpRequest> mRequest;
 	std::shared_ptr<HttpResponse> mResponse;
 	sofiasip::Timer mTimeoutTimer;

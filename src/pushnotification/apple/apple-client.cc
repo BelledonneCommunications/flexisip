@@ -1,19 +1,19 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <flexisip/logmanager.hh>
@@ -27,13 +27,8 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
-// redundant declaration (required for C++14 compatibility)
-constexpr const char* AppleClient::APN_DEV_ADDRESS;
-constexpr const char* AppleClient::APN_PROD_ADDRESS;
-constexpr const char* AppleClient::APN_PORT;
-
 AppleClient::AppleClient(su_root_t& root, const string& trustStorePath, const string& certPath,
-						 const string& certName) {
+                         const string& certName) {
 	ostringstream os{};
 	os << "AppleClient[" << this << "]";
 	mLogPrefix = os.str();
@@ -51,9 +46,9 @@ void AppleClient::sendPush(const std::shared_ptr<Request>& req) {
 	// Check whether the appId is compatible with the payload type
 	auto endsWithVoip = StringUtils::endsWith(apnsTopic, ".voip");
 	if ((appleReq->mPayloadType == ApplePushType::Pushkit && !endsWithVoip) ||
-		(appleReq->mPayloadType != ApplePushType::Pushkit && endsWithVoip)) {
+	    (appleReq->mPayloadType != ApplePushType::Pushkit && endsWithVoip)) {
 		SLOGE << mLogPrefix << ": apns-topic [" << apnsTopic << "] not compatible with payload type ["
-			  << toString(appleReq->mPayloadType) << "]. Aborting";
+		      << toString(appleReq->mPayloadType) << "]. Aborting";
 
 		appleReq->setState(Request::State::Failed);
 		return;
@@ -64,12 +59,12 @@ void AppleClient::sendPush(const std::shared_ptr<Request>& req) {
 
 	appleReq->setState(Request::State::InProgress);
 	mHttp2Client->send(
-		appleReq, [this](const auto& req, const auto& resp) { this->onResponse(req, resp); },
-		[this](const auto& req) { this->onError(req); });
+	    appleReq, [this](const auto& req, const auto& resp) { this->onResponse(req, resp); },
+	    [this](const auto& req) { this->onError(req); });
 }
 
 void AppleClient::onResponse(const std::shared_ptr<HttpMessage>& request,
-							 const std::shared_ptr<HttpResponse>& response) {
+                             const std::shared_ptr<HttpResponse>& response) {
 	SLOGD << mLogPrefix << ": onResponseCb " << response->toString();
 
 	auto appleReq = dynamic_pointer_cast<AppleRequest>(request);

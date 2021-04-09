@@ -27,7 +27,7 @@
 namespace flexisip {
 
 class NgDataProvider {
-  public:
+public:
 	NgDataProvider(const std::vector<char>& data) noexcept;
 	NgDataProvider(const std::string& data) noexcept;
 
@@ -35,7 +35,7 @@ class NgDataProvider {
 		return &mDataProv;
 	}
 
-  private:
+private:
 	ssize_t read(uint8_t* buf, size_t length, uint32_t* data_flags) noexcept;
 
 	nghttp2_data_provider mDataProv{{0}};
