@@ -48,7 +48,7 @@ HttpHeaders::CHeaderList HttpHeaders::makeCHeaderList() const noexcept {
 	cHList.reserve(mHList.size());
 	for (const auto& header : mHList) {
 		cHList.emplace_back(nghttp2_nv{(uint8_t*)header.name.c_str(), (uint8_t*)header.value.c_str(),
-									   header.name.size(), header.value.size(), header.flags});
+		                               header.name.size(), header.value.size(), header.flags});
 	}
 	return cHList;
 }

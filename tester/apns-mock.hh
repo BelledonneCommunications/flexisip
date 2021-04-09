@@ -18,45 +18,25 @@
 
 #pragma once
 
-#include "pushnotification/request.hh"
-#include "utils/transport/http/http-message.hh"
+#include <string>
+
+#include <nghttp2/asio_http2_server.h>
 
 namespace flexisip {
 namespace pushnotification {
 
-class AppleRequest : public Request, public HttpMessage {
+class ApnsMock {
 public:
-	AppleRequest(const PushInfo& pinfo);
+	ApnsMock() = default;
+	bool exposeMock(int code, const std::string& body, const std::string& reqBodyPattern, std::promise<bool>&& barrier,
+	                bool timeout = false);
+	void forceCloseServer();
 
-	const std::string& getDeviceToken() const noexcept {
-		return mDeviceToken;
-	}
+private:
+	nghttp2::asio_http2::server::http2 mServer{};
 
-	std::string isValidResponse(const std::string& str) override {
-		return std::string{};
-	}
-
-	bool isServerAlwaysResponding() override {
-		return false;
-	}
-
-	[[deprecated("Here for compatibility issue, use getBody() instead")]] const std::vector<char>& getData() override {
-		return mBody;
-	}
-
-protected:
-	void checkDeviceToken() const;
-	static std::string pushTypeToApnsPushType(ApplePushType type);
-
-	ApplePushType mPayloadType{ApplePushType::Unknown};
-	std::string mDeviceToken{};
-	std::string mReason{};
-	int mStatusCode{0};
-
-	static constexpr std::size_t MAXPAYLOAD_SIZE = 2048;
-	static constexpr std::size_t DEVICE_BINARY_SIZE = 32;
-
-	friend class AppleClient;
+	std::function<void(const nghttp2::asio_http2::server::request&, const nghttp2::asio_http2::server::response&)>
+	handleRequest(int code, const std::string& body, const std::string& reqBodyPattern, bool& assert, bool timeout);
 };
 
 } // namespace pushnotification
