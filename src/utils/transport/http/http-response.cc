@@ -31,7 +31,7 @@ namespace flexisip {
 
 int HttpResponse::getStatusCode() const {
 	auto itr = find_if(mHeaders.getHeadersList().begin(), mHeaders.getHeadersList().end(),
-					   [](const HttpHeaders::Header& header) { return header.name == ":status"; });
+	                   [](const HttpHeaders::Header& header) { return header.name == ":status"; });
 
 	if (itr == mHeaders.getHeadersList().end()) {
 		throw runtime_error("No status code in HTTP response");
