@@ -27,7 +27,7 @@
 namespace flexisip {
 
 class TlsConnection {
-  public:
+public:
 	struct SSLCtxDeleter {
 		void operator()(SSL_CTX* ssl) noexcept {
 			SSL_CTX_free(ssl);
@@ -37,7 +37,7 @@ class TlsConnection {
 
 	TlsConnection(const std::string& host, const std::string& port, bool mustBeHttp2 = false) noexcept;
 	TlsConnection(const std::string& host, const std::string& port, const std::string& trustStorePath,
-				  const std::string& certPath, bool mustBeHttp2 = false);
+	              const std::string& certPath, bool mustBeHttp2 = false);
 	TlsConnection(const TlsConnection&) = delete;
 	TlsConnection(TlsConnection&&) = delete;
 
@@ -101,7 +101,9 @@ class TlsConnection {
 		return waitForData(std::chrono::milliseconds{0});
 	}
 
-  private:
+	void enableInsecureTestMode();
+
+private:
 	struct BIODeleter {
 		void operator()(BIO* bio) {
 			BIO_free_all(bio);

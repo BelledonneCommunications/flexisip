@@ -36,7 +36,7 @@ string Http2Client::BadStateError::formatWhatArg(State state) noexcept {
 }
 
 Http2Client::Http2Client(su_root_t& root, const string& host, const string& port)
-	: mRoot{root}, mIdleTimer{&root, sIdleTimeout * 1000} {
+    : mRoot{root}, mIdleTimer{&root, sIdleTimeout * 1000} {
 	mConn = make_unique<TlsConnection>(host, port, true);
 
 	ostringstream os{};
@@ -49,8 +49,8 @@ Http2Client::Http2Client(su_root_t& root, const string& host, const string& port
 }
 
 Http2Client::Http2Client(su_root_t& root, const string& host, const string& port, const string& trustStorePath,
-						 const string& certPath)
-	: mRoot{root}, mIdleTimer{&root, sIdleTimeout * 1000} {
+                         const string& certPath)
+    : mRoot{root}, mIdleTimer{&root, sIdleTimeout * 1000} {
 	mConn = make_unique<TlsConnection>(host, port, trustStorePath, certPath, true);
 
 	ostringstream os{};
@@ -63,7 +63,7 @@ Http2Client::Http2Client(su_root_t& root, const string& host, const string& port
 }
 
 void Http2Client::send(const shared_ptr<HttpRequest>& request, const OnResponseCb& onResponseCb,
-					   const OnErrorCb& onErrorCb) {
+                       const OnErrorCb& onErrorCb) {
 	auto context = make_shared<HttpMessageContext>(request, onResponseCb, onErrorCb, mRoot, mRequestTimeout);
 
 	if (mState != State::Connected) {
@@ -72,8 +72,8 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request, const OnResponseC
 
 	NgDataProvider dataProv{request->getBody()};
 	auto streamId =
-		nghttp2_submit_request(mHttpSession.get(), nullptr, request->getHeaders().makeCHeaderList().data(),
-							   request->getHeaders().getHeadersList().size(), dataProv.getCStruct(), nullptr);
+	    nghttp2_submit_request(mHttpSession.get(), nullptr, request->getHeaders().makeCHeaderList().data(),
+	                           request->getHeaders().getHeadersList().size(), dataProv.getCStruct(), nullptr);
 	if (streamId < 0) {
 		SLOGE << mLogPrefix << ": push request submit failed. reason=[" << nghttp2_strerror(streamId) << "]";
 		onErrorCb(request);
@@ -83,14 +83,14 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request, const OnResponseC
 	auto logPrefix = string{mLogPrefix} + "[" + to_string(streamId) + "]";
 	SLOGD << logPrefix << ": sending request " << request->toString() << endl;
 
+	mActiveHttpContexts.emplace(streamId, move(context));
 	auto status = nghttp2_session_send(mHttpSession.get());
 	if (status < 0) {
 		SLOGE << logPrefix << ": push request sending failed. reason=[" << nghttp2_strerror(status) << "]";
+		mActiveHttpContexts.erase(streamId);
 		onErrorCb(request);
 		return;
 	}
-
-	mActiveHttpContexts.emplace(streamId, move(context));
 }
 
 void Http2Client::connect(shared_ptr<HttpMessageContext>& context) {
@@ -104,7 +104,7 @@ void Http2Client::connect(shared_ptr<HttpMessageContext>& context) {
 			throw runtime_error{"TLS connection failed"};
 		}
 		auto sendCb = [](nghttp2_session* session, const uint8_t* data, size_t length, int flags,
-						 void* user_data) noexcept {
+		                 void* user_data) noexcept {
 			auto thiz = static_cast<Http2Client*>(user_data);
 			return thiz->doSend(*session, data, length);
 		};
@@ -123,8 +123,8 @@ void Http2Client::connect(shared_ptr<HttpMessageContext>& context) {
 			return 0;
 		};
 		auto onHeaderRecvCb = [](nghttp2_session* session, const nghttp2_frame* frame, const uint8_t* name,
-								 size_t namelen, const uint8_t* value, size_t valuelen, uint8_t flags,
-								 void* user_data) noexcept {
+		                         size_t namelen, const uint8_t* value, size_t valuelen, uint8_t flags,
+		                         void* user_data) noexcept {
 			auto thiz = static_cast<Http2Client*>(user_data);
 			string nameStr{reinterpret_cast<const char*>(name), namelen};
 			string valueStr{reinterpret_cast<const char*>(value), valuelen};
@@ -132,13 +132,13 @@ void Http2Client::connect(shared_ptr<HttpMessageContext>& context) {
 			return 0;
 		};
 		auto onDataChunkRecvCb = [](nghttp2_session* session, uint8_t flags, int32_t stream_id, const uint8_t* data,
-									size_t len, void* user_data) noexcept {
+		                            size_t len, void* user_data) noexcept {
 			auto thiz = static_cast<Http2Client*>(user_data);
 			thiz->onDataReceived(*session, flags, stream_id, data, len);
 			return 0;
 		};
 		auto onStreamClosedCb = [](nghttp2_session* session, int32_t stream_id, uint32_t error_code,
-								   void* user_data) noexcept {
+		                           void* user_data) noexcept {
 			auto thiz = static_cast<Http2Client*>(user_data);
 			thiz->onStreamClosed(*session, stream_id, error_code);
 			return 0;
@@ -155,7 +155,7 @@ void Http2Client::connect(shared_ptr<HttpMessageContext>& context) {
 		nghttp2_session_callbacks_set_on_stream_close_callback(cbs, onStreamClosedCb);
 
 		unique_ptr<nghttp2_session_callbacks, void (*)(nghttp2_session_callbacks*)> cbsPtr{
-			cbs, nghttp2_session_callbacks_del};
+		    cbs, nghttp2_session_callbacks_del};
 
 		nghttp2_session* session;
 		nghttp2_session_client_new(&session, cbs, this);
@@ -227,7 +227,7 @@ void Http2Client::onFrameRecv(nghttp2_session& session, const nghttp2_frame& fra
 		case NGHTTP2_GOAWAY: {
 			ostringstream msg{};
 			msg << mLogPrefix << ": GOAWAY frame received, errorCode=[" << frame.goaway.error_code
-				<< "], lastStreamId=[" << frame.goaway.last_stream_id << "]:";
+			    << "], lastStreamId=[" << frame.goaway.last_stream_id << "]:";
 			if (frame.goaway.opaque_data_len > 0) {
 				msg << endl;
 				msg.write(reinterpret_cast<const char*>(frame.goaway.opaque_data), frame.goaway.opaque_data_len);
@@ -243,7 +243,7 @@ void Http2Client::onFrameRecv(nghttp2_session& session, const nghttp2_frame& fra
 }
 
 void Http2Client::onHeaderRecv(nghttp2_session& session, const nghttp2_frame& frame, const string& name,
-							   const string& value, uint8_t flags) noexcept {
+                               const string& value, uint8_t flags) noexcept {
 	const auto& streamId = frame.hd.stream_id;
 	auto logPrefix = string{mLogPrefix} + "[" + to_string(streamId) + "]";
 	// SLOGD << logPrefix << ": receiving HTTP2 header [" << name << " = " << value << "]";
@@ -257,7 +257,7 @@ void Http2Client::onHeaderRecv(nghttp2_session& session, const nghttp2_frame& fr
 }
 
 void Http2Client::onDataReceived(nghttp2_session& session, uint8_t flags, int32_t streamId, const uint8_t* data,
-								 size_t datalen) noexcept {
+                                 size_t datalen) noexcept {
 	string stringData(reinterpret_cast<const char*>(data), datalen);
 
 	auto logPrefix = string{mLogPrefix} + "[" + to_string(streamId) + "]";
@@ -280,9 +280,9 @@ int Http2Client::onPollInCb(su_root_magic_t*, su_wait_t*, su_wakeup_arg_t* arg) 
 	auto status = nghttp2_session_recv(thiz->mHttpSession.get());
 	if (status < 0) {
 		SLOGE << thiz->mLogPrefix << ": error while receiving HTTP2 data[" << nghttp2_strerror(status)
-			  << "]. Disconnecting";
+		      << "]. Disconnecting";
 		for (auto it = thiz->mActiveHttpContexts.begin(); it != thiz->mActiveHttpContexts.end();
-			 it = thiz->mActiveHttpContexts.erase(it)) {
+		     it = thiz->mActiveHttpContexts.erase(it)) {
 			const auto& context = it->second;
 			context->getOnErrorCb()(context->getRequest());
 		}
@@ -291,9 +291,9 @@ int Http2Client::onPollInCb(su_root_magic_t*, su_wait_t*, su_wakeup_arg_t* arg) 
 	}
 	if (thiz->mLastSID >= 0) {
 		SLOGD << thiz->mLogPrefix << ": closing connection after receiving GOAWAY frame. Last processed stream is ["
-			  << thiz->mLastSID << "]";
+		      << thiz->mLastSID << "]";
 		for (auto it = thiz->mActiveHttpContexts.begin(); it != thiz->mActiveHttpContexts.end();
-			 it = thiz->mActiveHttpContexts.erase(it)) {
+		     it = thiz->mActiveHttpContexts.erase(it)) {
 			const auto& context = it->second;
 			context->getOnErrorCb()(context->getRequest());
 		}
@@ -324,7 +324,7 @@ void Http2Client::onStreamClosed(nghttp2_session& session, int32_t stream_id, ui
 		}
 	} else {
 		SLOGD << logPrefix << ": stream closed with error code [" << error_code
-			  << "] : " << nghttp2_http2_strerror(error_code);
+		      << "] : " << nghttp2_http2_strerror(error_code);
 		if (context != nullptr) {
 			context->getOnErrorCb()(context->getRequest());
 			mActiveHttpContexts.erase(contextMapIterator);

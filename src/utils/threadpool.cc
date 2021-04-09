@@ -79,7 +79,7 @@ void ThreadPool::stop() {
 	}
 
 	// Empty workers vector.
-	mThreadPool.empty();
+	mThreadPool.clear();
 
 	// Indicate that the pool has been shut down.
 	mState = Stopped;
