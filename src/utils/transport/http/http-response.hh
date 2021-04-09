@@ -23,7 +23,7 @@
 namespace flexisip {
 
 class HttpResponse : public HttpMessage {
-  public:
+public:
 	int getStatusCode() const;
 };
 

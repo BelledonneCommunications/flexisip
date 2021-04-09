@@ -36,28 +36,28 @@
 namespace flexisip {
 
 class Http2Client {
-  public:
+public:
 	enum class State : uint8_t { Disconnected, Connected };
 
 	class BadStateError : public std::logic_error {
-	  public:
+	public:
 		BadStateError(State state) : logic_error(formatWhatArg(state)) {
 		}
 
-	  private:
+	private:
 		static std::string formatWhatArg(State state) noexcept;
 	};
 
 	Http2Client(su_root_t& root, const std::string& host, const std::string& port);
 	Http2Client(su_root_t& root, const std::string& host, const std::string& port, const std::string& trustStorePath,
-				const std::string& certPath);
+	            const std::string& certPath);
 	virtual ~Http2Client() = default;
 
 	using HttpRequest = HttpMessage;
 	using OnErrorCb = HttpMessageContext::OnErrorCb;
 	using OnResponseCb = HttpMessageContext::OnResponseCb;
 	void send(const std::shared_ptr<HttpRequest>& request, const OnResponseCb& onResponseCb,
-			  const OnErrorCb& onErrorCb);
+	          const OnErrorCb& onErrorCb);
 
 	std::string getHost() const {
 		return mConn->getPort() == "443" ? mConn->getHost() : mConn->getHost() + ":" + mConn->getPort();
@@ -77,7 +77,11 @@ class Http2Client {
 		return *this;
 	}
 
-  private:
+	void enableInsecureTestMode() {
+		mConn->enableInsecureTestMode();
+	}
+
+private:
 	struct NgHttp2SessionDeleter {
 		void operator()(nghttp2_session* ptr) const noexcept {
 			nghttp2_session_del(ptr);
@@ -90,9 +94,9 @@ class Http2Client {
 	void onFrameSent(nghttp2_session& session, const nghttp2_frame& frame) noexcept;
 	void onFrameRecv(nghttp2_session& session, const nghttp2_frame& frame) noexcept;
 	void onHeaderRecv(nghttp2_session& session, const nghttp2_frame& frame, const std::string& name,
-					  const std::string& value, uint8_t flags) noexcept;
+	                  const std::string& value, uint8_t flags) noexcept;
 	void onDataReceived(nghttp2_session& session, uint8_t flags, int32_t streamId, const uint8_t* data,
-						size_t datalen) noexcept;
+	                    size_t datalen) noexcept;
 	void onStreamClosed(nghttp2_session& session, int32_t stream_id, uint32_t error_code) noexcept;
 
 	static int onPollInCb(su_root_magic_t*, su_wait_t*, su_wakeup_arg_t* arg) noexcept;
@@ -138,7 +142,7 @@ class Http2Client {
 };
 
 class Http2Tools {
-  public:
+public:
 	static const char* frameTypeToString(uint8_t frameType) noexcept;
 	static std::string printFlags(uint8_t flags) noexcept;
 };

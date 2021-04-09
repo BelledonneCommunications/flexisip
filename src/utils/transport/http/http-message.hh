@@ -25,7 +25,7 @@
 namespace flexisip {
 
 class HttpMessage {
-  public:
+public:
 	HttpMessage() = default;
 	HttpMessage(const HttpHeaders& headers, const std::vector<char>& body) : mHeaders(headers), mBody(body){};
 	virtual ~HttpMessage() = default;
@@ -56,7 +56,7 @@ class HttpMessage {
 
 	std::string toString() const noexcept;
 
-  protected:
+protected:
 	HttpHeaders mHeaders{};
 	std::vector<char> mBody{};
 };
