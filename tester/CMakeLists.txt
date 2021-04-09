@@ -20,10 +20,14 @@
 #
 ############################################################################
 
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -lssl -lcrypto")
+
 add_executable(flexisip_tester
 	tester.cc
 	tester.hh
 	boolean-expressions.cc
+	push-notification-tester.cc
+	apns-mock.cc apns-mock.hh
 )
 
 if(ENABLE_CONFERENCE)
@@ -31,7 +35,7 @@ if(ENABLE_CONFERENCE)
 endif()
 
 target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
-target_link_libraries(flexisip_tester PRIVATE bctoolbox-tester flexisip linphone++)
+target_link_libraries(flexisip_tester PRIVATE bctoolbox-tester flexisip linphone++ nghttp2_asio crypto)
 
 install(TARGETS flexisip_tester
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

@@ -50,19 +50,19 @@ AppleRequest::AppleRequest(const PushInfo& info) : Request(info.mAppId, "apple")
 		case ApplePushType::Pushkit: {
 			// We also need msg_id and callid in case the push is received but the device cannot register
 			constexpr auto rawPayload = R"json({
-				"aps": {
-					"sound": "",
-					"loc-key": "%s",
-					"loc-args": ["%s"],
-					"call-id": "%s",
-					"uuid": %s,
-					"send-time": "%s"
-				},
-				"from-uri": "%s",
-				"display-name": "%s",
-				"pn_ttl": %d,
-				"customPayload": %s
-			})json";
+	"aps": {
+		"sound": "",
+		"loc-key": "%s",
+		"loc-args": ["%s"],
+		"call-id": "%s",
+		"uuid": %s,
+		"send-time": "%s"
+	},
+	"from-uri": "%s",
+	"display-name": "%s",
+	"pn_ttl": %d,
+	"customPayload": %s
+})json";
 			nwritten = snprintf(mBody.data(), mBody.size(), rawPayload, msg_id.c_str(), arg.c_str(), callid.c_str(),
 								quoteStringIfNeeded(info.mUid).c_str(), date.c_str(), info.mFromUri.c_str(),
 								info.mFromName.c_str(), info.mTtl, customPayload.c_str());
@@ -71,20 +71,20 @@ AppleRequest::AppleRequest(const PushInfo& info) : Request(info.mAppId, "apple")
 		case ApplePushType::Background: {
 			// Use a normal push notification with content-available set to 1, no alert, no sound.
 			constexpr auto rawPayload = R"json({
-				"aps": {
-					"badge": 0,
-					"content-available": 1,
-					"loc-key": "%s",
-					"loc-args": ["%s"],
-					"call-id": "%s",
-					"uuid": %s,
-					"send-time": "%s"
-				},
-				"from-uri": "%s",
-				"display-name": "%s",
-				"pn_ttl": %d,
-				"customPayload": %s
-			})json";
+	"aps": {
+		"badge": 0,
+		"content-available": 1,
+		"loc-key": "%s",
+		"loc-args": ["%s"],
+		"call-id": "%s",
+		"uuid": %s,
+		"send-time": "%s"
+	},
+	"from-uri": "%s",
+	"display-name": "%s",
+	"pn_ttl": %d,
+	"customPayload": %s
+})json";
 			nwritten = snprintf(mBody.data(), mBody.size(), rawPayload, msg_id.c_str(), arg.c_str(), callid.c_str(),
 								quoteStringIfNeeded(info.mUid).c_str(), date.c_str(), info.mFromUri.c_str(),
 								info.mFromName.c_str(), info.mTtl, customPayload.c_str());
@@ -95,22 +95,22 @@ AppleRequest::AppleRequest(const PushInfo& info) : Request(info.mAppId, "apple")
 			we always put the badge value to 1 because we want to notify the user that
 			he/she has unread messages even if we do not know the exact count */
 			constexpr auto rawPayload = R"json({
-				"aps": {
-					"alert": {
-						"loc-key": "%s",
-						"loc-args": ["%s"]
-					},
-					"sound": "%s",
-					"badge": %d
-				},
-				"from-uri": "%s",
-				"display-name": "%s",
-				"call-id": "%s",
-				"pn_ttl": %d,
-				"uuid": %s,
-				"send-time": "%s",
-				"customPayload": %s
-			})json";
+	"aps": {
+		"alert": {
+			"loc-key": "%s",
+			"loc-args": ["%s"]
+		},
+		"sound": "%s",
+		"badge": %d
+	},
+	"from-uri": "%s",
+	"display-name": "%s",
+	"call-id": "%s",
+	"pn_ttl": %d,
+	"uuid": %s,
+	"send-time": "%s",
+	"customPayload": %s
+})json";
 			nwritten = snprintf(mBody.data(), mBody.size(), rawPayload, msg_id.c_str(), arg.c_str(), sound.c_str(),
 								(info.mNoBadge ? 0 : 1), info.mFromUri.c_str(), info.mFromName.c_str(), callid.c_str(),
 								info.mTtl, quoteStringIfNeeded(info.mUid).c_str(), date.c_str(), customPayload.c_str());
@@ -121,24 +121,24 @@ AppleRequest::AppleRequest(const PushInfo& info) : Request(info.mAppId, "apple")
 			we always put the badge value to 1 because we want to notify the user that
 			he/she has unread messages even if we do not know the exact count */
 			constexpr auto rawPayload = R"json({
-				"aps": {
-					"alert": {
-						"loc-key": "%s",
-						"loc-args": ["%s"]
-					},
-					"sound": "%s",
-					"mutable-content": 1,
-					"badge": %d
-				},
-				"from-uri": "%s",
-				"display-name": "%s",
-				"call-id": "%s",
-				"pn_ttl": %d,
-				"uuid": %s,
-				"send-time": "%s",
-				"chat-room-addr": "%s",
-				"customPayload": %s
-			})json";
+	"aps": {
+		"alert": {
+			"loc-key": "%s",
+			"loc-args": ["%s"]
+		},
+		"sound": "%s",
+		"mutable-content": 1,
+		"badge": %d
+	},
+	"from-uri": "%s",
+	"display-name": "%s",
+	"call-id": "%s",
+	"pn_ttl": %d,
+	"uuid": %s,
+	"send-time": "%s",
+	"chat-room-addr": "%s",
+	"customPayload": %s
+})json";
 			nwritten = snprintf(mBody.data(), mBody.size(), rawPayload, msg_id.c_str(), arg.c_str(), sound.c_str(),
 								(info.mNoBadge ? 0 : 1), info.mFromUri.c_str(), info.mFromName.c_str(), callid.c_str(),
 								info.mTtl, quoteStringIfNeeded(info.mUid).c_str(), date.c_str(),
