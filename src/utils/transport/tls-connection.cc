@@ -37,6 +37,11 @@ using namespace std;
 
 namespace flexisip {
 
+static int always_true_callback(X509_STORE_CTX *ctx, void *arg)
+{
+    return 1;
+}
+
 TlsConnection::TlsConnection(const string& host, const string& port, bool mustBeHttp2) noexcept
 	: mHost{host}, mPort{port}, mMustBeHttp2{mustBeHttp2} {
 
@@ -203,6 +208,11 @@ bool TlsConnection::waitForData(int timeout) const {
 		throw runtime_error(string{"poll() failed: "} + strerror(errno));
 	}
 	return ret != 0;
+}
+
+void TlsConnection::enableInsecureTestMode() {
+	SLOGW << "BE CAREFUL, YOU BETTER BE IN TEST ENV, YOU ARE USING A INSECURE CONNECTION";
+	SSL_CTX_set_cert_verify_callback(mCtx.get(), always_true_callback, NULL);
 }
 
 SSL_CTX* TlsConnection::getDefaultCtx() {

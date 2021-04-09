@@ -83,14 +83,14 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request, const OnResponseC
 	auto logPrefix = string{mLogPrefix} + "[" + to_string(streamId) + "]";
 	SLOGD << logPrefix << ": sending request " << request->toString() << endl;
 
+	mActiveHttpContexts.emplace(streamId, move(context));
 	auto status = nghttp2_session_send(mHttpSession.get());
 	if (status < 0) {
 		SLOGE << logPrefix << ": push request sending failed. reason=[" << nghttp2_strerror(status) << "]";
+		mActiveHttpContexts.erase(streamId);
 		onErrorCb(request);
 		return;
 	}
-
-	mActiveHttpContexts.emplace(streamId, move(context));
 }
 
 void Http2Client::connect(shared_ptr<HttpMessageContext>& context) {

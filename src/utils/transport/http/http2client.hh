@@ -77,6 +77,10 @@ class Http2Client {
 		return *this;
 	}
 
+	void enableInsecureTestMode() {
+		mConn->enableInsecureTestMode();
+	}
+
   private:
 	struct NgHttp2SessionDeleter {
 		void operator()(nghttp2_session* ptr) const noexcept {

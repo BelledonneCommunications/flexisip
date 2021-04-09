@@ -27,11 +27,6 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
-// redundant declaration (required for C++14 compatibility)
-constexpr const char* AppleClient::APN_DEV_ADDRESS;
-constexpr const char* AppleClient::APN_PROD_ADDRESS;
-constexpr const char* AppleClient::APN_PORT;
-
 AppleClient::AppleClient(su_root_t& root, const string& trustStorePath, const string& certPath,
 						 const string& certName) {
 	ostringstream os{};
