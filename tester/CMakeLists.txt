@@ -23,7 +23,10 @@
 add_executable(flexisip_tester
 	tester.cc
 	tester.hh
+	apns-mock.cc apns-mock.hh
 	boolean-expressions.cc
+	latch.cc latch.hh
+	push-notification-tester.cc
 )
 
 if(ENABLE_CONFERENCE)
@@ -31,11 +34,15 @@ if(ENABLE_CONFERENCE)
 endif()
 
 target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
-target_link_libraries(flexisip_tester PRIVATE bctoolbox-tester flexisip linphone++)
+target_link_libraries(flexisip_tester PRIVATE bctoolbox-tester flexisip linphone++ nghttp2_asio OpenSSL::SSL OpenSSL::Crypto pthread)
 
 install(TARGETS flexisip_tester
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+)
+
+install(DIRECTORY cert
+        DESTINATION ${TESTER_DATA_DIR}
 )

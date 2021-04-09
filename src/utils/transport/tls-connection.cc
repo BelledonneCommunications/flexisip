@@ -205,6 +205,11 @@ bool TlsConnection::waitForData(int timeout) const {
 	return ret != 0;
 }
 
+void TlsConnection::enableInsecureTestMode() {
+	SLOGW << "BE CAREFUL, YOU BETTER BE IN TEST ENV, YOU ARE USING A INSECURE CONNECTION";
+	SSL_CTX_set_cert_verify_callback(mCtx.get(), [](auto, auto){return 1;}, nullptr);
+}
+
 SSL_CTX* TlsConnection::getDefaultCtx() {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 	// from OpenSSL 1.1.0

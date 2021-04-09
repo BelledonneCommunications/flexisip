@@ -40,16 +40,21 @@ class AppleClient : public Client {
 		return mHttp2Client->isIdle();
 	}
 
+	void enableInsecureTestMode() {
+		mHttp2Client->enableInsecureTestMode();
+	}
+
+	static inline std::string APN_DEV_ADDRESS = "api.development.push.apple.com";
+	static inline std::string APN_PORT        = "443";
+
   private:
 	void onResponse(const std::shared_ptr<HttpMessage>& request, const std::shared_ptr<HttpResponse>& response);
 	void onError(const std::shared_ptr<HttpMessage>& request);
 
-	std::string mLogPrefix{};
 	std::unique_ptr<Http2Client> mHttp2Client;
+	std::string                  mLogPrefix{};
 
-	static constexpr const char* APN_DEV_ADDRESS = "api.development.push.apple.com";
-	static constexpr const char* APN_PROD_ADDRESS = "api.push.apple.com";
-	static constexpr const char* APN_PORT = "443";
+	static inline std::string APN_PROD_ADDRESS = "api.push.apple.com";
 };
 
 } // namespace pushnotification

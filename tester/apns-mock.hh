@@ -20,38 +20,24 @@
 
 #include <string>
 
-#include "firebase-request.hh"
-#include "pushnotification/client.hh"
-#include "utils/transport/http/http-message.hh"
-#include "utils/transport/http/http-response.hh"
-#include "utils/transport/http/http2client.hh"
-#include "utils/transport/tls-connection.hh"
+#include <nghttp2/asio_http2_server.h>
+
+#include "latch.hh"
 
 namespace flexisip {
 namespace pushnotification {
 
-class FirebaseClient : public Client {
+class ApnsMock {
   public:
-	FirebaseClient(su_root_t& root);
-
-	void sendPush(const std::shared_ptr<Request>& req) override;
-	bool isIdle() const noexcept override {
-		return mHttp2Client->isIdle();
-	}
-
-	void enableInsecureTestMode() {
-		mHttp2Client->enableInsecureTestMode();
-	}
-
-	static inline std::string FIREBASE_ADDRESS = "fcm.googleapis.com";
-	static inline std::string FIREBASE_PORT    = "443";
+	ApnsMock() = default;
+	bool exposeMock(int code, const std::string& body, const std::string& reqBodyPattern, Latch& isStarted, bool timeout = false);
+	void forceCloseServer();
 
   private:
-	void onResponse(const std::shared_ptr<HttpMessage>& request, const std::shared_ptr<HttpResponse>& response);
-	void onError(const std::shared_ptr<HttpMessage>& request);
+	nghttp2::asio_http2::server::http2 mServer;
 
-	std::unique_ptr<Http2Client> mHttp2Client;
-	std::string                  mLogPrefix{};
+	std::function<void(const nghttp2::asio_http2::server::request&, const nghttp2::asio_http2::server::response&)>
+	handleRequest(int code, const std::string& body, const std::string& reqBodyPattern, bool& assert, bool timeout);
 };
 
 } // namespace pushnotification
