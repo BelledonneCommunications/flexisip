@@ -27,10 +27,6 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
-// redundant declaration (required for C++14 compatibility)
-constexpr const char* FirebaseClient::FIREBASE_ADDRESS;
-constexpr const char* FirebaseClient::FIREBASE_PORT;
-
 FirebaseClient::FirebaseClient(su_root_t& root) {
 	ostringstream os{};
 	os << "FirebaseClient[" << this << "]";

@@ -77,6 +77,8 @@ class TlsConnection {
 		return waitForData(0);
 	}
 
+	void enableInsecureTestMode();
+
   private:
 	struct BIODeleter {
 		void operator()(BIO* bio) {
