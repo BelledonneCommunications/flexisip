@@ -77,11 +77,6 @@ protected:
 	virtual void processAuthentication(const std::shared_ptr<RequestSipEvent> &request);
 
 	/**
-	 * Check whether domain matches one of the authorized domains.
-	 */
-	bool checkDomain(const std::string &domain) const noexcept;
-
-	/**
 	 * This method is called synchronously or asynchronously on result of AuthModule::verify() method.
 	 * It calls onSuccess() and errorReply() according the authentication result.
 	 */
@@ -93,6 +88,7 @@ protected:
 	 * Test whether a string match a valid algorithm in specified by sValidAlgos.
 	 */
 	static bool validAlgo(const std::string &algo);
+	static std::list<std::string> loadDigestAlgos(const ConfigStringList& parameter);
 
 protected:
 	std::vector<std::string> mAuthDomains{};

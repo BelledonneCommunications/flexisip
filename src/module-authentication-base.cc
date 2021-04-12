@@ -17,7 +17,6 @@
 */
 
 #include <sofia-sip/msg_addr.h>
-#include <sofia-sip/sip_extra.h>
 #include <sofia-sip/sip_status.h>
 
 #include <flexisip/agent.hh>
@@ -103,17 +102,7 @@ void ModuleAuthenticationBase::onDeclare(GenericStruct *mc) {
 void ModuleAuthenticationBase::onLoad(const GenericStruct *mc) {
 	auto authDomains = mc->get<ConfigStringList>("auth-domains")->read();
 	mAuthDomains.assign(authDomains.cbegin(), authDomains.cend());
-
-	mAlgorithms = mc->get<ConfigStringList>("available-algorithms")->read();
-	mAlgorithms.unique();
-	auto it = find_if(mAlgorithms.cbegin(), mAlgorithms.cend(), [](const string &algo){return !validAlgo(algo);});
-	if (it != mAlgorithms.cend()) {
-		ostringstream os;
-		os << "invalid algorithm (" << *it << ") set in '" << mc->getName() << "/available-algorithms'. ";
-		os << "Available algorithms are " << StringUtils::toString(sValidAlgos);
-		LOGF("%s", os.str().c_str());
-	}
-	if (mAlgorithms.empty()) mAlgorithms.assign(sValidAlgos.cbegin(), sValidAlgos.cend());
+	mAlgorithms = loadDigestAlgos(*mc->get<ConfigStringList>("available-algorithms"));
 
 	createAuthModule(*mc);
 
@@ -146,23 +135,6 @@ void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 
 	try {
 		validateRequest(ev);
-
-		sip_p_preferred_identity_t *ppi = nullptr;
-		const char *fromDomain = sip->sip_from->a_url[0].url_host;
-		if (fromDomain && strcmp(fromDomain, "anonymous.invalid") == 0) {
-			ppi = sip_p_preferred_identity(sip);
-			if (ppi)
-				fromDomain = ppi->ppid_url->url_host;
-			else
-				LOGD("There is no p-preferred-identity");
-		}
-
-		if (!checkDomain(fromDomain)) {
-			SLOGI << "Registration failure, domain is forbidden: " << fromDomain;
-			ev->reply(403, "Domain forbidden", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-			return;
-		}
-
 		processAuthentication(ev);
 	} catch (const runtime_error &e) {
 		SLOGE << e.what();
@@ -248,26 +220,6 @@ void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<Reque
 	mAuthModules->verify(as);
 }
 
-bool ModuleAuthenticationBase::checkDomain(const std::string &domain) const noexcept {
-	if (find_if(mAuthDomains.cbegin(), mAuthDomains.cend(),
-		[&domain] (const auto &d) { return d == domain || d == "*"; }
-	) != mAuthDomains.cend()) return true;
-
-	for (const auto &authDomain : mAuthDomains) {
-		auto wildcardPosition = authDomain.find('*');
-		// if domain has a wildcard in it, try to match
-		if (wildcardPosition != string::npos) {
-			auto beforeWildcard = domain.find(authDomain.substr(0, wildcardPosition));
-			auto afterWildcard = domain.rfind(authDomain.substr(wildcardPosition + 1));
-			if (beforeWildcard == 0 && afterWildcard > wildcardPosition) {
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
 void ModuleAuthenticationBase::processAuthModuleResponse(const std::shared_ptr<Authentifier::AuthStatus> &as,
 														 Authentifier::Status status) {
 	const auto &ev = as->mEvent;
@@ -342,6 +294,20 @@ void ModuleAuthenticationBase::errorReply(const Authentifier::AuthStatus &as) {
 bool ModuleAuthenticationBase::validAlgo(const std::string &algo) {
 	auto it = find(sValidAlgos.cbegin(), sValidAlgos.cend(), algo);
 	return it != sValidAlgos.cend();
+}
+
+std::list<std::string> ModuleAuthenticationBase::loadDigestAlgos(const ConfigStringList& parameter) {
+	auto algos = parameter.read();
+	algos.unique();
+	auto it = find_if(algos.cbegin(), algos.cend(), [](const string &algo){return !validAlgo(algo);});
+	if (it != algos.cend()) {
+		ostringstream os{};
+		os << "invalid algorithm (" << *it << ") set in '" << parameter.getName() << "/available-algorithms'. ";
+		os << "Available algorithms are " << StringUtils::toString(sValidAlgos);
+		LOGF("%s", os.str().c_str());
+	}
+	if (algos.empty()) algos.assign(sValidAlgos.cbegin(), sValidAlgos.cend());
+	return algos;
 }
 
 const std::array<std::string, 2> ModuleAuthenticationBase::sValidAlgos = {{ "MD5", "SHA-256" }};
