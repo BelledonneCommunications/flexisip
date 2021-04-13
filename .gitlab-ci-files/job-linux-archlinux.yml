@@ -15,7 +15,7 @@ job-archlinux-latest-makefile-gcc:
     CC: gcc
     CXX: g++
     ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
-  extends: .scheduled-job-linux
+  extends: .job-linux
 
 
 job-archlinux-latest-makefile-clang:
@@ -49,11 +49,7 @@ job-archlinux-latest-ninja-gcc:
     CMAKE_GENERATOR: Ninja
     CC: gcc
     CXX: g++
-  extends: .job-linux
-  artifacts:
-    paths:
-      - submodules/externals/sofia-sip/config.log
-    when: always
+  extends: .scheduled-job-linux
 
 
 job-archlinux-latest-ninja-clang:
