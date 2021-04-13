@@ -50,6 +50,10 @@ job-archlinux-latest-ninja-gcc:
     CC: gcc
     CXX: g++
   extends: .job-linux
+  artifacts:
+    paths:
+      - submodules/externals/sofia-sip/config.log
+    when: always
 
 
 job-archlinux-latest-ninja-clang:
