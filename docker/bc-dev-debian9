@@ -5,3 +5,5 @@ MAINTAINER François Grisez <francois.grisez@belledonne-communications.com>
 # Add extra dependencies for Flexisip
 RUN sudo su -c 'apt-get -y update && apt-get -y install libjansson-dev libnghttp2-dev libprotobuf-dev libsnmp-dev protobuf-compiler && apt-get -y clean'
 
+# Custom macros for Alien to build with CMake
+COPY --chown=bc rpmmacros /home/bc/.rpmmacros
