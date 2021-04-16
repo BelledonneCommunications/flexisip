@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <condition_variable>
 #include <ctime>
 #include <functional>
@@ -81,6 +82,7 @@ private:
 	BIOUniquePtr mBio{nullptr};
 	SSLCtxUniquePtr mCtx{nullptr};
 	std::string mHost{}, mPort{};
+	std::chrono::milliseconds mTimeout{1000};
 };
 
 class Transport {
