@@ -17,8 +17,10 @@
 */
 
 #include <algorithm>
+#include <chrono>
 #include <limits>
 #include <sstream>
+#include <thread>
 
 #include <poll.h>
 
@@ -54,15 +56,14 @@ TlsConnection::TlsConnection(const std::string &host, const std::string &port, S
 void TlsConnection::connect() noexcept {
 	if (isConnected()) return;
 
-	/* Create and setup the connection */
+	/* Set connection paramters */
 	auto hostname = mHost + ":" + mPort;
 	SSL *ssl = nullptr;
-
 	BIOUniquePtr newBio{};
 	if (isSecured()) {
 		newBio = BIOUniquePtr{BIO_new_ssl_connect(mCtx.get())};
 		BIO_set_conn_hostname(newBio.get(), hostname.c_str());
-		/* Set the SSL_MODE_AUTO_RETRY flag */
+		BIO_set_nbio(newBio.get(), 1);
 		BIO_get_ssl(newBio.get(), &ssl);
 		SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
 		SSL_set_options(ssl, SSL_OP_ALL);
@@ -71,21 +72,30 @@ void TlsConnection::connect() noexcept {
 		newBio =  BIOUniquePtr{BIO_new_connect(const_cast<char *>(hostname.c_str()))};
 	}
 
+	/* Ensure that the error queue is empty */
 	ERR_clear_error();
 
-	auto sat = BIO_do_connect(newBio.get());
-	if (sat <= 0) {
-		handleBioError("Error attempting to connect to " + hostname, sat);
-		return;
-	}
+	/* Do the connection by actively waiting for connection completion */
+	auto status = 0;
+	chrono::milliseconds time{0};
+	while (status <= 0) {
+		const auto proto = isSecured() ? "tls://" : "tcp://";
+		const auto errmsg = string{"Error while connecting to "} + proto + hostname;
 
-	if (isSecured()) {
-		sat = BIO_do_handshake(newBio.get());
-		if (sat <= 0) {
-			handleBioError("Error attempting to handshake to " + hostname, sat);
+		status = isSecured() ? BIO_do_handshake(newBio.get()) : BIO_do_connect(newBio.get());
+		if (status <= 0 && !BIO_should_retry(newBio.get())) {
+			handleBioError(errmsg, status);
 			return;
 		}
-	}
+		if (time >= mTimeout) {
+			SLOGE << errmsg << ": timeout";
+			return;
+		}
+
+		constexpr chrono::milliseconds sleepDuration{100};
+		this_thread::sleep_for(sleepDuration);
+		time += sleepDuration;
+	};
 
 	/* Check the certificate */
 	if(ssl && (SSL_get_verify_mode(ssl) == SSL_VERIFY_PEER && SSL_get_verify_result(ssl) != X509_V_OK)) {
@@ -157,7 +167,7 @@ bool TlsConnection::waitForData(int timeout) const {
 }
 
 void TlsConnection::handleBioError(const std::string &msg, int status) {
-	ostringstream os;
+	ostringstream os{};
 	os << msg << ": " << status << " - " << strerror(errno) << " - SSL error stack:";
 	ERR_print_errors_cb(
 		[] (const char *str, size_t len, void *u) {
