@@ -1,7 +1,7 @@
-FROM gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian:10
+FROM gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian10:20210416_allow_sha1_certs
 
 MAINTAINER François Grisez <francois.grisez@belledonne-communications.com>
 
 # Add extra dependencies for Flexisip
-RUN sudo apt-get install -y libjansson-dev libmariadb-dev-compat libnghttp2-dev libprotobuf-dev libsnmp-dev protobuf-compiler
+RUN sudo su -c 'apt-get -y update && apt-get -y install libjansson-dev libmariadb-dev-compat libnghttp2-dev libprotobuf-dev libsnmp-dev protobuf-compiler && apt-get -y clean'
 
