@@ -14,20 +14,44 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
-#include "request.hh"
+#include <string>
+
+#include "firebase-request.hh"
+#include "pushnotification/client.hh"
+#include "utils/transport/http/http-message.hh"
+#include "utils/transport/http/http-response.hh"
+#include "utils/transport/http/http2client.hh"
+#include "utils/transport/tls-connection.hh"
 
 namespace flexisip {
 namespace pushnotification {
 
-class Client {
+class FirebaseClient : public Client {
 public:
-	virtual ~Client() = default;
-	virtual void sendPush(const std::shared_ptr<Request>& req) = 0;
-	virtual bool isIdle() const noexcept = 0;
+	FirebaseClient(su_root_t& root);
+
+	void sendPush(const std::shared_ptr<Request>& req) override;
+	bool isIdle() const noexcept override {
+		return mHttp2Client->isIdle();
+	}
+
+	void enableInsecureTestMode() {
+		mHttp2Client->enableInsecureTestMode();
+	}
+
+	static inline std::string FIREBASE_ADDRESS = "fcm.googleapis.com";
+	static inline std::string FIREBASE_PORT = "443";
+
+private:
+	void onResponse(const std::shared_ptr<HttpMessage>& request, const std::shared_ptr<HttpResponse>& response);
+	void onError(const std::shared_ptr<HttpMessage>& request);
+
+	std::unique_ptr<Http2Client> mHttp2Client;
+	std::string mLogPrefix{};
 };
 
 } // namespace pushnotification
