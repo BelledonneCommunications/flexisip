@@ -34,15 +34,8 @@
 #include "module-external-authentication.hh"
 
 using namespace std;
-using namespace flexisip;
 
-std::ostream &operator<<(std::ostream &os, const http_payload_t *httpPayload) {
-	const http_payload_t *httpPayloadBase = reinterpret_cast<const http_payload_t *>(httpPayload);
-	if (httpPayload->pl_data) {
-		os.write(reinterpret_cast<const char *>(httpPayloadBase->pl_data), httpPayloadBase->pl_len);
-	}
-	return os;
-}
+namespace flexisip {
 
 void ModuleExternalAuthentication::onDeclare(GenericStruct *mc) {
 	ModuleAuthenticationBase::onDeclare(mc);
@@ -163,3 +156,5 @@ ModuleInfo<ModuleExternalAuthentication> ExternalAuthInfo(
 );
 
 FLEXISIP_DECLARE_PLUGIN(ExternalAuthInfo, "External authentication plugin", 1);
+
+};
