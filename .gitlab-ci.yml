@@ -9,6 +9,16 @@ variables:
   DEFAULT_CMAKE_OPTIONS: -DENABLE_CONFERENCE=ON -DENABLE_JWE_AUTH_PLUGIN=ON -DENABLE_EXTERNAL_AUTH_PLUGIN=ON -DENABLE_PRESENCE=ON -DENABLE_PROTOBUF=ON -DENABLE_SNMP=ON -DENABLE_SOCI=ON -DENABLE_TRANSCODER=ON
   DEFAULT_MACOS_CMAKE_OPTIONS: -DENABLE_CONFERENCE=ON -DENABLE_JWE_AUTH_PLUGIN=ON -DENABLE_PRESENCE=ON -DENABLE_PROTOBUF=ON -DENABLE_SNMP=OFF -DENABLE_SOCI=ON -DENABLE_TRANSCODER=ON
 
+  # Docker image version
+  ARCHLINUX_IMAGE_VERSION: latest
+  CENTOS_7_IMAGE_VERSION: 20210419_python3
+  CENTOS_8_IMAGE_VERSION: 20210419_python3
+  DEBIAN_8_IMAGE_VERSION: 20210419_python3
+  DEBIAN_9_IMAGE_VERSION: 20210419_python3
+  DEBIAN_10_IMAGE_VERSION: 20210419_python3
+  UBUNTU_18_04_IMAGE_VERSION: 20210419_python3
+  UBUNTU_ROLLING_IMAGE_VERSION: 20210419_python3
+
 before_script:
   - git submodule foreach --recursive git fetch --tags
 
@@ -24,7 +34,7 @@ include:
   - '.gitlab-ci-files/job-linux-debian9.yml'
   - '.gitlab-ci-files/job-linux-debian10.yml'
 #  - '.gitlab-ci-files/job-linux-ubuntu-rolling.yml'
-#  - '.gitlab-ci-files/job-linux-ubuntu-18.04.yml'
+  - '.gitlab-ci-files/job-linux-ubuntu-18.04.yml'
   - '.gitlab-ci-files/job-macosx.yml'
 
 

@@ -1,7 +1,7 @@
-FROM gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7
+FROM gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos7:20210217_python3
 
 MAINTAINER François Grisez <francois.grisez@belledonne-communications.com>
 
 # Install extra Flexisip dependencies
-RUN sudo yum install -y jansson-devel libnghttp2-devel net-snmp-devel protobuf-devel
+RUN sudo su -c 'yum -y install jansson-devel libnghttp2-devel net-snmp-devel protobuf-devel && yum -y clean all'
 
