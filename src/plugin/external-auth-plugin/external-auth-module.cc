@@ -88,14 +88,14 @@ void ExternalAuthModule::onHttpResponse(HttpRequestCtx &ctx, nth_client_t *reque
 			throw runtime_error(os.str());
 		}
 
-		int status = http->http_status->st_status;
-		SLOGD << "HTTP response received [" << status << "]: " << endl << http->http_payload;
+		auto status = http->http_status->st_status;
+		auto httpBody = toString(http->http_payload);
+		SLOGD << "HTTP response received [" << status << "]: " << endl << (!httpBody.empty() ? httpBody : "<empty>") ;
 		if (status != 200) {
 			os << "unhandled HTTP status code [" << status << "]";
 			throw runtime_error(os.str());
 		}
 
-		string httpBody = toString(http->http_payload);
 		if (httpBody.empty()) {
 			os << "HTTP server answered with an empty body";
 			throw runtime_error(os.str());
