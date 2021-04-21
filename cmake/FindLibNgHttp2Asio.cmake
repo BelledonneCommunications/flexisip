@@ -26,7 +26,7 @@
 
 include(FindPackageHandleStandardArgs)
 
-find_path(LIBNGHTTP2ASIO_INCLUDE_DIR nghttp2/nghttp2_asio.h)
+find_path(LIBNGHTTP2ASIO_INCLUDE_DIR nghttp2/asio_http2.h)
 find_library(LIBNGHTTP2ASIO_LIBRARY nghttp2_asio)
 
 find_package_handle_standard_args(LibNgHttp2Asio REQUIRED_VARS LIBNGHTTP2ASIO_INCLUDE_DIR LIBNGHTTP2_LIBRARY)
