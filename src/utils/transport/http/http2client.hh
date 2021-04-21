@@ -37,7 +37,7 @@ namespace flexisip {
 
 class Http2Client {
 public:
-	enum class State : uint8_t { Disconnected, Connected };
+	enum class State : uint8_t { Disconnected, Connected, Connecting };
 
 	class BadStateError : public std::logic_error {
 	public:
@@ -58,6 +58,7 @@ public:
 	using OnResponseCb = HttpMessageContext::OnResponseCb;
 	void send(const std::shared_ptr<HttpRequest>& request, const OnResponseCb& onResponseCb,
 	          const OnErrorCb& onErrorCb);
+	void onTlsConnectCb();
 
 	std::string getHost() const {
 		return mConn->getPort() == "443" ? mConn->getHost() : mConn->getHost() + ":" + mConn->getPort();
@@ -89,6 +90,11 @@ private:
 	};
 
 	/* Private methods */
+	void sendAllPendingRequests();
+	void discardAllPendingRequests();
+	void discardAllActiveRequests();
+	void discardAllRequests();
+
 	ssize_t doSend(nghttp2_session& session, const uint8_t* data, size_t length) noexcept;
 	ssize_t doRecv(nghttp2_session& session, uint8_t* data, size_t length) noexcept;
 	void onFrameSent(nghttp2_session& session, const nghttp2_frame& frame) noexcept;
@@ -109,7 +115,8 @@ private:
 	void onRequestTimeout(int32_t streamId);
 	void resetTimeoutTimer(int32_t streamId);
 
-	void connect(std::shared_ptr<HttpMessageContext>& context);
+	void tlsConnect();
+	void http2Setup();
 	void disconnect();
 
 	void setState(State state) noexcept;
@@ -129,8 +136,11 @@ private:
 	using NgHttp2SessionPtr = std::unique_ptr<nghttp2_session, NgHttp2SessionDeleter>;
 	NgHttp2SessionPtr mHttpSession{};
 
+	using HttpContextList = std::vector<std::shared_ptr<HttpMessageContext>>;
+	HttpContextList mPendingHttpContexts{};
+
 	using HttpContextMap = std::map<int32_t, std::shared_ptr<HttpMessageContext>>;
-	HttpContextMap mActiveHttpContexts;
+	HttpContextMap mActiveHttpContexts{};
 
 	using TimeoutTimerMap = std::map<int32_t, std::shared_ptr<sofiasip::Timer>>;
 	TimeoutTimerMap mTimeoutTimers;
