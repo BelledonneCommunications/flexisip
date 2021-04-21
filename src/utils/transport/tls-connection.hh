@@ -23,6 +23,7 @@
 #include <vector>
 
 #include <openssl/ssl.h>
+#include <sofia-sip/su_wait.h>
 
 namespace flexisip {
 
@@ -49,6 +50,8 @@ public:
 	}
 
 	void connect() noexcept;
+	void connectAsync(su_root_t& root, std::function<void()> onConnectCb) noexcept;
+
 	void disconnect() noexcept {
 		mBio.reset();
 	}
@@ -93,12 +96,15 @@ private:
 	static bool isCertExpired(const std::string& certPath) noexcept;
 	static int ASN1_TIME_toString(const ASN1_TIME* time, char* buffer, uint32_t buff_length);
 	static SSL_CTX* getDefaultCtx();
+	
+	static void doConnectCb(su_root_magic_t* rm, su_msg_r msg, void* u);
+	void doConnectAsync(su_root_t& root, std::function<void()> onConnectCb);
 
 	BIOUniquePtr mBio{nullptr};
 	SSLCtxUniquePtr mCtx{nullptr};
 	std::string mHost{}, mPort{};
 	bool mMustBeHttp2 = false;
-	std::chrono::milliseconds mTimeout{1000};
+	std::chrono::milliseconds mTimeout{5000};
 };
 
 } // namespace flexisip
