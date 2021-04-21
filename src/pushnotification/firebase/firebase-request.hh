@@ -18,16 +18,30 @@
 
 #pragma once
 
-#include "request.hh"
+#include "pushnotification/request.hh"
+#include "utils/transport/http/http-message.hh"
 
 namespace flexisip {
 namespace pushnotification {
 
-class Client {
+class FirebaseRequest : public Request, public HttpMessage {
 public:
-	virtual ~Client() = default;
-	virtual void sendPush(const std::shared_ptr<Request>& req) = 0;
-	virtual bool isIdle() const noexcept = 0;
+	FirebaseRequest(const PushInfo& pinfo);
+
+	std::string isValidResponse(const std::string& str) override {
+		return std::string{};
+	}
+
+	bool isServerAlwaysResponding() override {
+		return false;
+	}
+
+	[[deprecated("Here for compatibility issue, use getBody() instead")]] const std::vector<char>& getData() override {
+		return mBody;
+	}
+
+private:
+	static constexpr const auto FIREBASE_MAX_TTL = 4 * 7 * 24 * 3600; // 4 weeks
 };
 
 } // namespace pushnotification
