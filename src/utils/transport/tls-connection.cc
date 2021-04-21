@@ -16,6 +16,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <future>
 #include <limits>
 #include <ostream>
 #include <sstream>
@@ -90,6 +91,32 @@ TlsConnection::TlsConnection(const string& host, const string& port, const strin
 	}
 
 	mCtx.reset(ctx);
+}
+
+void TlsConnection::connectAsync(su_root_t& root, function<void()> onConnectCb) noexcept {
+	auto result = std::async(std::launch::async, [this, &root, &onConnectCb]() { this->doConnectAsync(root, onConnectCb); });
+}
+
+void TlsConnection::doConnectAsync(su_root_t& root, function<void()>& onConnectCb) {
+	connect();
+
+	su_msg_r mamc = SU_MSG_R_INIT;
+	if (-1 == su_msg_create(mamc, su_root_task(&root), su_root_task(&root), doConnectCb, sizeof(function<void()>*))) {
+		LOGF("Couldn't create auth async message");
+	}
+
+	auto clientOnConnectCb = reinterpret_cast<function<void()>**>(su_msg_data(mamc));
+	*clientOnConnectCb = new function<void()>(onConnectCb);
+
+	if (-1 == su_msg_send(mamc)) {
+		LOGF("Couldn't send auth async message to main thread.");
+	}
+}
+
+void TlsConnection::doConnectCb(su_root_magic_t* rm, su_msg_r msg, void* u) {
+	auto clientOnConnectCb = *reinterpret_cast<function<void()>**>(su_msg_data(msg));
+	(*clientOnConnectCb)();
+	delete clientOnConnectCb;
 }
 
 void TlsConnection::connect() noexcept {

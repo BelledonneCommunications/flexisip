@@ -1,19 +1,19 @@
 /*
- * Copyright (C) 2017  Belledonne Communications SARL
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ Flexisip, a flexible SIP proxy server with media capabilities.
+ Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as
+ published by the Free Software Foundation, either version 3 of the
+ License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <chrono>
@@ -27,6 +27,7 @@
 #include "flexisip/logmanager.hh"
 
 #include "apns-mock.hh"
+#include "listening-socket.hh"
 #include "pushnotification/apple/apple-client.hh"
 #include "pushnotification/firebase/firebase-client.hh"
 #include "tester.hh"
@@ -70,8 +71,9 @@ static void startPushTest(Client& client, const shared_ptr<Request>& request, co
 	client.sendPush(request);
 	sofiasip::Timer timer{root, 500};
 	timer.run([request]() {
-		if (request->getState() == Request::State::Successful || request->getState() == Request::State::Failed)
+		if (request->getState() == Request::State::Successful || request->getState() == Request::State::Failed) {
 			su_root_break(root);
+		}
 	});
 	su_root_run(root);
 
@@ -376,6 +378,45 @@ static void applePushTestTimeout(void) {
 	startApplePushTest(pushInfo, reqBodyPattern, 200, "Ok", Request::State::Failed, true);
 }
 
+static void tlsTimeoutTest(void) {
+	FirebaseClient::FIREBASE_ADDRESS = "localhost";
+	FirebaseClient::FIREBASE_PORT = "3000";
+	FirebaseClient firebaseClient{*root};
+	firebaseClient.enableInsecureTestMode();
+
+	// Minimal request creation, values don't matter for this test
+	PushInfo pushInfo{};
+	auto request = make_shared<FirebaseRequest>(pushInfo);
+	auto request2 = make_shared<FirebaseRequest>(pushInfo);
+	auto request3 = make_shared<FirebaseRequest>(pushInfo);
+	auto request4 = make_shared<FirebaseRequest>(pushInfo);
+
+	std::promise<void> barrier{};
+	// Start listening on port 3000 with no response to simulate tls timeout
+	auto isReqPatternMatched = std::async(std::launch::async, [&barrier]() { ListeningSocket::listenUntil(barrier); });
+
+	// Send the push notifications and wait until the request the request state is "Successful" or "Failed"
+	firebaseClient.sendPush(request);
+	firebaseClient.sendPush(request2);
+	firebaseClient.sendPush(request3);
+	firebaseClient.sendPush(request4);
+	sofiasip::Timer timer{root, 500};
+	timer.run([request, &barrier]() {
+		// All the requests should be rejected in the same loop, we can only watch one of them.
+		if (request->getState() == Request::State::Successful || request->getState() == Request::State::Failed) {
+			su_root_break(root);
+			barrier.set_value();
+		}
+	});
+	su_root_run(root);
+
+	// Client onError is called and response status is well managed, no crash occured
+	BC_ASSERT_TRUE(request->getState() == Request::State::Failed);
+	BC_ASSERT_TRUE(request2->getState() == Request::State::Failed);
+	BC_ASSERT_TRUE(request3->getState() == Request::State::Failed);
+	BC_ASSERT_TRUE(request4->getState() == Request::State::Failed);
+}
+
 static test_t tests[] = {
     TEST_NO_TAG("Firebase push notification test OK", firebasePushTestOk),
     TEST_NO_TAG("Apple push notification test OK RemoteBasic", applePushTestOkRemoteBasic),
@@ -385,6 +426,7 @@ static test_t tests[] = {
     TEST_NO_TAG("Firebase push notification test KO", firebasePushTestKo),
     TEST_NO_TAG("Apple push notification test KO", applePushTestKo),
     TEST_NO_TAG("Apple push notification test KO wrong type", applePushTestKoWrongType),
+    TEST_NO_TAG("Tls timeout test", tlsTimeoutTest),
     TEST_NO_TAG("Firebase push notification test timeout", firebasePushTestTimeout),
     TEST_NO_TAG("Apple push notification test timeout", applePushTestTimeout)};
 
