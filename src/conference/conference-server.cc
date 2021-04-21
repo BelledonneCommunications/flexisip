@@ -26,6 +26,7 @@
 #include "conference-address-generator.hh"
 #include "conference-server.hh"
 #include "registration-events/client.hh"
+#include "conference.hh"
 #include "utils/uri-utils.hh"
 
 using namespace std;
@@ -39,7 +40,8 @@ ConferenceServer::Init ConferenceServer::sStaticInit;
 ConferenceServer::ConferenceServer (
 	const string &path,
 	su_root_t *root
-) : ServiceServer(root), mPath(path), mSubscriptionHandler(*this) {}
+) : ServiceServer(root), mPath(path), mSubscriptionHandler(*this) {
+}
 
 ConferenceServer::~ConferenceServer () {}
 
@@ -68,19 +70,54 @@ void ConferenceServer::_init () {
 		LOGF("ConferenceServer: Your configured conference transport(\"%s\") is not an URI.\nIf you have \"<>\" in your transport, remove them.", e.getUrl().c_str());
 	}
 	mCheckCapabilities = config->get<ConfigBoolean>("check-capabilities")->read();
+	
+	/* Read enabled media types (audio, video, text) */
+	auto mediaTypes = config->get<ConfigStringList>("supported-media-types")->read();
+	if (find(mediaTypes.begin(), mediaTypes.end(), "audio") != mediaTypes.end()) mMediaConfig.audioEnabled = true;
+	if (find(mediaTypes.begin(), mediaTypes.end(), "video") != mediaTypes.end()) mMediaConfig.videoEnabled = true;
+	if (find(mediaTypes.begin(), mediaTypes.end(), "text") != mediaTypes.end()) mMediaConfig.textEnabled = true;
+	if (mMediaConfig.audioEnabled == false && mMediaConfig.videoEnabled == false && mMediaConfig.textEnabled == false){
+		LOGF("ConferenceServer: no media types enabled. Check configuration file.");
+	}
 
 	// Core
 	auto configLinphone = Factory::get()->createConfig("");
 	configLinphone->setString("sip", "bind_address", bindAddress);
 	configLinphone->setBool("misc", "conference_server_enabled", 1);
 	configLinphone->setBool("misc", "enable_one_to_one_chat_room", config->get<ConfigBoolean>("enable-one-to-one-chat-room")->read());
-	configLinphone->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
-	configLinphone->setString("storage", "uri", config->get<ConfigString>("database-connection-string")->read());
-	mCore = Factory::get()->createCoreWithConfig(configLinphone, nullptr);
+
+	if (mMediaConfig.textEnabled){
+		string dbUri = config->get<ConfigString>("database-connection-string")->read();
+		if (dbUri.empty()) LOGF("ConferenceServer: database-connection-string is not set. It is mandatory for handling text conferences.");
+		configLinphone->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
+		configLinphone->setString("storage", "uri", dbUri);
+	}else{
+		configLinphone->setString("storage", "uri", "null");
+		
+	}
+	configLinphone->setInt("misc", "max_calls", 1000);
+	configLinphone->setBool("sip", "reject_duplicated_calls", false);
+	configLinphone->setInt("sound", "conference_rate", 48000);
+	configLinphone->setBool("rtp", "symmetric", true);
+	configLinphone->setBool("video", "dont_check_codecs", true);
+	
+	mCore = linphone::Factory::get()->createCoreWithConfig(configLinphone, nullptr);
+	mCore->enableEchoCancellation(false);
+
 	mCore->setUserAgent("Flexisip-conference", FLEXISIP_GIT_VERSION);
 	mCore->addListener(shared_from_this());
 	mCore->enableConferenceServer(true);
 	mCore->setTransports(cTransport);
+	mCore->setAudioPort(-1); // use random ports.
+	mCore->setVideoPort(-1); // use random ports.
+	mCore->setUseFiles(true); //No sound card shall be used in calls.
+	enableSelectedCodecs(mCore->getAudioPayloadTypes(), { "opus", "speex"});
+	enableSelectedCodecs(mCore->getVideoPayloadTypes(), { "VP8"});
+	
+	// Enable ICE (with host candidates only) so that the relay service of the proxies is bypassed.
+	shared_ptr<linphone::NatPolicy> natPolicy = mCore->createNatPolicy();
+	natPolicy->enableIce(true);
+	mCore->setNatPolicy(natPolicy);
 
 	loadFactoryUris();
 	bool defaultProxyConfigSet = false;
@@ -114,8 +151,19 @@ void ConferenceServer::_init () {
 	if (err < 0) LOGF("Linphone Core starting failed");
 
 	RegistrarDb::get()->addStateListener(shared_from_this());
-	if (RegistrarDb::get()->isWritable())
+	if (RegistrarDb::get()->isWritable()){
 		bindAddresses();
+	}
+}
+
+void ConferenceServer::enableSelectedCodecs(const std::list<std::shared_ptr<linphone::PayloadType>>& codecs, const std::list<std::string> &mimeTypes){
+	for(auto codec : codecs){
+		if (std::find(mimeTypes.begin(), mimeTypes.end(), codec->getMimeType()) != mimeTypes.end()) {
+			codec->enable(true);
+		}else{
+			codec->enable(false);
+		}
+	}
 }
 
 void ConferenceServer::_run () {
@@ -193,18 +241,22 @@ void ConferenceServer::bindAddresses () {
 	if (mAddressesBound)
 		return;
 
-	// Bind the conference factory address in the registrar DB
-	bindConference();
+	if (mMediaConfig.textEnabled){
+		// Bind the conference factory address in the registrar DB
+		bindConference();
 
-	// Binding loaded chat room
-	for (const auto &chatRoom : mCore->getChatRooms()) {
-		if (chatRoom->getPeerAddress()->getUriParam("gr").empty()){
-			LOGE("Skipping chatroom %s with no gruu parameter.", chatRoom->getPeerAddress()->asString().c_str());
-			continue;
+		// Binding loaded chat room
+		for (const auto &chatRoom : mCore->getChatRooms()) {
+			if (chatRoom->getPeerAddress()->getUriParam("gr").empty()){
+				LOGE("Skipping chatroom %s with no gruu parameter.", chatRoom->getPeerAddress()->asString().c_str());
+				continue;
+			}
+			bindChatRoom(chatRoom->getPeerAddress()->asStringUriOnly(), mTransport.str(), chatRoom->getPeerAddress()->getUriParam("gr"), nullptr);
 		}
-		bindChatRoom(chatRoom->getPeerAddress()->asStringUriOnly(), mTransport.str(), chatRoom->getPeerAddress()->getUriParam("gr"), nullptr);
 	}
-
+	if (mMediaConfig.audioEnabled || mMediaConfig.videoEnabled){
+		initStaticConferences();
+	}
 	mAddressesBound = true;
 }
 
@@ -257,9 +309,9 @@ void ConferenceServer::bindChatRoom (
 
 	sip_contact_t* sipContact = sip_contact_create(mHome.home(),
 		reinterpret_cast<const url_string_t*>(url_make(mHome.home(), contact.c_str())),
-		su_strdup(mHome.home(), ("+sip.instance=" + UriUtils::grToUniqueId(gruu) ).c_str()), nullptr);
+		!gruu.empty() ? su_strdup(mHome.home(), ("+sip.instance=" + UriUtils::grToUniqueId(gruu) ).c_str()) : nullptr, nullptr);
 
-	parameter.callId = gruu;
+	parameter.callId = !gruu.empty() ? gruu : "dummy-callid";
 	parameter.path = mPath;
 	parameter.globalExpire = numeric_limits<int>::max();
 	parameter.alias = false;
@@ -272,6 +324,45 @@ void ConferenceServer::bindChatRoom (
 		parameter,
 		listener
 	);
+}
+
+void ConferenceServer::onCallStateChanged(const std::shared_ptr<linphone::Core> & lc, 
+						const std::shared_ptr<linphone::Call> & call, 
+				  linphone::Call::State cstate, const std::string & message){
+	switch(cstate){
+		case linphone::Call::State::IncomingReceived:
+		{
+			auto to = call->getToAddress();
+			auto it = mConferences.find(to->getUsername());
+			if (it != mConferences.end()){
+				(*it).second->addCall(call);
+			}else{
+				call->decline(linphone::Reason::NotFound);
+			}
+		}
+		break;
+		default:
+		break;
+	}
+}
+
+void ConferenceServer::createConference(const shared_ptr<const linphone::Address> &address){
+	mConferences[address->getUsername()] = make_shared<Conference>(*this, address);
+	bindChatRoom(address->asStringUriOnly(), mTransport.str(), "", nullptr);
+}
+
+void ConferenceServer::initStaticConferences(){
+	int i;
+	
+	shared_ptr<linphone::ProxyConfig> proxyConfig = mCore->getDefaultProxyConfig();
+	shared_ptr<const linphone::Address> identity = proxyConfig->getIdentityAddress();
+	shared_ptr<linphone::Address> confUri = identity->clone();
+	for (i = 0 ; i < 10 ; ++i){
+		ostringstream ostr;
+		ostr << "conference-" << i;
+		confUri->setUsername(ostr.str());
+		createConference(confUri);
+	}
 }
 
 ConferenceServer::Init::Init() {
@@ -287,6 +378,14 @@ ConferenceServer::Init::Init() {
 			"transport",
 			"URI where the conference server must listen. Only one URI can be specified.",
 			"sip:127.0.0.1:6064;transport=tcp"
+		},
+		{
+			StringList,
+			"supported-media-types",
+			"List of supported media types, separated by spaces. For example:\n"
+			"supported-media-types=audio video text\n"
+			"The list must not be empty.",
+			"text"
 		},
 		{
 			String,
@@ -334,11 +433,11 @@ ConferenceServer::Init::Init() {
 			"database-connection-string",
 			"The configuration parameters of the backend.\n"
 			"The basic format is \"key=value key2=value2\". For a mysql backend, this "
-			"is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
+			"is a valid config: \"db='mydb' user='user' password='pass' host='db.example.org'\".\n"
 			"Please refer to the Soci documentation of your backend, for instance: "
 			"http://soci.sourceforge.net/doc/3.2/backends/mysql.html"
 			"http://soci.sourceforge.net/doc/3.2/backends/sqlite3.html",
-			"db='mydb' user='myuser' password='mypass' host='myhost.com'"
+			""
 		},
 		{
 			Boolean,
