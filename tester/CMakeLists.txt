@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2020  Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2021  Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -29,6 +29,7 @@ add_executable(flexisip_tester
 	apns-mock.cc apns-mock.hh
 	boolean-expressions.cc
 	push-notification-tester.cc
+	listening-socket.cc listening-socket.hh
 )
 
 if(ENABLE_CONFERENCE)

@@ -62,12 +62,42 @@ Http2Client::Http2Client(su_root_t& root, const string& host, const string& port
 	mState = State::Disconnected;
 }
 
+void Http2Client::sendAllPendingRequests() {
+	for (auto it = mPendingHttpContexts.begin(); it != mPendingHttpContexts.end();
+	     it = mPendingHttpContexts.erase(it)) {
+		send(it->get()->getRequest(), it->get()->getOnResponseCb(), it->get()->getOnErrorCb());
+	}
+}
+
+void Http2Client::discardAllPendingRequests() {
+	for (auto it = mPendingHttpContexts.begin(); it != mPendingHttpContexts.end();
+	     it = mPendingHttpContexts.erase(it)) {
+		it->get()->getOnErrorCb()(it->get()->getRequest());
+	}
+}
+
+void Http2Client::discardAllActiveRequests() {
+	for (auto it = mActiveHttpContexts.begin(); it != mActiveHttpContexts.end(); it = mActiveHttpContexts.erase(it)) {
+		const auto& context = it->second;
+		context->getOnErrorCb()(context->getRequest());
+	}
+}
+
+void Http2Client::discardAllRequests() {
+	discardAllPendingRequests();
+	discardAllActiveRequests();
+}
+
 void Http2Client::send(const shared_ptr<HttpRequest>& request, const OnResponseCb& onResponseCb,
                        const OnErrorCb& onErrorCb) {
 	auto context = make_shared<HttpMessageContext>(request, onResponseCb, onErrorCb, mRoot, mRequestTimeout);
 
+	if (mState != State::Connected && mState != State::Connecting) {
+		this->tlsConnect();
+	}
 	if (mState != State::Connected) {
-		this->connect(context);
+		mPendingHttpContexts.emplace_back(move(context));
+		return;
 	}
 
 	NgDataProvider dataProv{request->getBody()};
@@ -83,6 +113,9 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request, const OnResponseC
 	auto logPrefix = string{mLogPrefix} + "[" + to_string(streamId) + "]";
 	SLOGD << logPrefix << ": sending request " << request->toString() << endl;
 
+	// the emplace MUST be called before nghttp2_session_send for the timeout mechanic to work properly.
+	// In fact if you watch the Http2Client::resetTimeoutTimer the context need to be in map for the timer to be
+	// reset/start properly.
 	mActiveHttpContexts.emplace(streamId, move(context));
 	auto status = nghttp2_session_send(mHttpSession.get());
 	if (status < 0) {
@@ -93,91 +126,96 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request, const OnResponseC
 	}
 }
 
-void Http2Client::connect(shared_ptr<HttpMessageContext>& context) {
+void Http2Client::tlsConnect() {
 	if (mState != State::Disconnected) {
 		throw BadStateError(mState);
 	}
-	try {
-		mConn->connect();
-		if (!mConn->isConnected()) {
-			context->getOnErrorCb()(context->getRequest());
-			throw runtime_error{"TLS connection failed"};
-		}
-		auto sendCb = [](nghttp2_session* session, const uint8_t* data, size_t length, int flags,
-		                 void* user_data) noexcept {
-			auto thiz = static_cast<Http2Client*>(user_data);
-			return thiz->doSend(*session, data, length);
-		};
-		auto recvCb = [](nghttp2_session* session, uint8_t* buf, size_t length, int flags, void* user_data) noexcept {
-			auto thiz = static_cast<Http2Client*>(user_data);
-			return thiz->doRecv(*session, buf, length);
-		};
-		auto frameSentCb = [](nghttp2_session* session, const nghttp2_frame* frame, void* user_data) noexcept {
-			auto thiz = static_cast<Http2Client*>(user_data);
-			thiz->onFrameSent(*session, *frame);
-			return 0;
-		};
-		auto frameRecvCb = [](nghttp2_session* session, const nghttp2_frame* frame, void* user_data) noexcept {
-			auto thiz = static_cast<Http2Client*>(user_data);
-			thiz->onFrameRecv(*session, *frame);
-			return 0;
-		};
-		auto onHeaderRecvCb = [](nghttp2_session* session, const nghttp2_frame* frame, const uint8_t* name,
-		                         size_t namelen, const uint8_t* value, size_t valuelen, uint8_t flags,
-		                         void* user_data) noexcept {
-			auto thiz = static_cast<Http2Client*>(user_data);
-			string nameStr{reinterpret_cast<const char*>(name), namelen};
-			string valueStr{reinterpret_cast<const char*>(value), valuelen};
-			thiz->onHeaderRecv(*session, *frame, nameStr, valueStr, flags);
-			return 0;
-		};
-		auto onDataChunkRecvCb = [](nghttp2_session* session, uint8_t flags, int32_t stream_id, const uint8_t* data,
-		                            size_t len, void* user_data) noexcept {
-			auto thiz = static_cast<Http2Client*>(user_data);
-			thiz->onDataReceived(*session, flags, stream_id, data, len);
-			return 0;
-		};
-		auto onStreamClosedCb = [](nghttp2_session* session, int32_t stream_id, uint32_t error_code,
-		                           void* user_data) noexcept {
-			auto thiz = static_cast<Http2Client*>(user_data);
-			thiz->onStreamClosed(*session, stream_id, error_code);
-			return 0;
-		};
+	mState = State::Connecting;
 
-		nghttp2_session_callbacks* cbs;
-		nghttp2_session_callbacks_new(&cbs);
-		nghttp2_session_callbacks_set_send_callback(cbs, sendCb);
-		nghttp2_session_callbacks_set_recv_callback(cbs, recvCb);
-		nghttp2_session_callbacks_set_on_frame_send_callback(cbs, frameSentCb);
-		nghttp2_session_callbacks_set_on_frame_recv_callback(cbs, frameRecvCb);
-		nghttp2_session_callbacks_set_on_header_callback(cbs, onHeaderRecvCb);
-		nghttp2_session_callbacks_set_on_data_chunk_recv_callback(cbs, onDataChunkRecvCb);
-		nghttp2_session_callbacks_set_on_stream_close_callback(cbs, onStreamClosedCb);
+	mConn->connectAsync(mRoot, [this]() { this->onTlsConnectCb(); });
+}
 
-		unique_ptr<nghttp2_session_callbacks, void (*)(nghttp2_session_callbacks*)> cbsPtr{
-		    cbs, nghttp2_session_callbacks_del};
-
-		nghttp2_session* session;
-		nghttp2_session_client_new(&session, cbs, this);
-		NgHttp2SessionPtr httpSession{session};
-
-		int status;
-		if ((status = nghttp2_submit_settings(session, NGHTTP2_FLAG_NONE, nullptr, 0)) != 0) {
-			context->getOnErrorCb()(context->getRequest());
-			throw runtime_error{"submitting settings failed [status=" + to_string(status) + "]"};
-		}
-
-		mHttpSession = move(httpSession);
-
-		su_wait_create(&mPollInWait, mConn->getFd(), SU_WAIT_IN);
-		su_root_register(&mRoot, &mPollInWait, onPollInCb, this, su_pri_normal);
-		resetIdleTimer();
-
-		setState(State::Connected);
-	} catch (const runtime_error& e) {
-		SLOGE << mLogPrefix << ": " << e.what();
-		disconnect();
+void Http2Client::onTlsConnectCb() {
+	if (mConn->isConnected()) {
+		http2Setup();
+	} else {
+		discardAllPendingRequests();
 	}
+}
+
+void Http2Client::http2Setup() {
+	auto sendCb = [](nghttp2_session* session, const uint8_t* data, size_t length, int flags,
+	                 void* user_data) noexcept {
+		auto thiz = static_cast<Http2Client*>(user_data);
+		return thiz->doSend(*session, data, length);
+	};
+	auto recvCb = [](nghttp2_session* session, uint8_t* buf, size_t length, int flags, void* user_data) noexcept {
+		auto thiz = static_cast<Http2Client*>(user_data);
+		return thiz->doRecv(*session, buf, length);
+	};
+	auto frameSentCb = [](nghttp2_session* session, const nghttp2_frame* frame, void* user_data) noexcept {
+		auto thiz = static_cast<Http2Client*>(user_data);
+		thiz->onFrameSent(*session, *frame);
+		return 0;
+	};
+	auto frameRecvCb = [](nghttp2_session* session, const nghttp2_frame* frame, void* user_data) noexcept {
+		auto thiz = static_cast<Http2Client*>(user_data);
+		thiz->onFrameRecv(*session, *frame);
+		return 0;
+	};
+	auto onHeaderRecvCb = [](nghttp2_session* session, const nghttp2_frame* frame, const uint8_t* name, size_t namelen,
+	                         const uint8_t* value, size_t valuelen, uint8_t flags, void* user_data) noexcept {
+		auto thiz = static_cast<Http2Client*>(user_data);
+		string nameStr{reinterpret_cast<const char*>(name), namelen};
+		string valueStr{reinterpret_cast<const char*>(value), valuelen};
+		thiz->onHeaderRecv(*session, *frame, nameStr, valueStr, flags);
+		return 0;
+	};
+	auto onDataChunkRecvCb = [](nghttp2_session* session, uint8_t flags, int32_t stream_id, const uint8_t* data,
+	                            size_t len, void* user_data) noexcept {
+		auto thiz = static_cast<Http2Client*>(user_data);
+		thiz->onDataReceived(*session, flags, stream_id, data, len);
+		return 0;
+	};
+	auto onStreamClosedCb = [](nghttp2_session* session, int32_t stream_id, uint32_t error_code,
+	                           void* user_data) noexcept {
+		auto thiz = static_cast<Http2Client*>(user_data);
+		thiz->onStreamClosed(*session, stream_id, error_code);
+		return 0;
+	};
+
+	nghttp2_session_callbacks* cbs;
+	nghttp2_session_callbacks_new(&cbs);
+	nghttp2_session_callbacks_set_send_callback(cbs, sendCb);
+	nghttp2_session_callbacks_set_recv_callback(cbs, recvCb);
+	nghttp2_session_callbacks_set_on_frame_send_callback(cbs, frameSentCb);
+	nghttp2_session_callbacks_set_on_frame_recv_callback(cbs, frameRecvCb);
+	nghttp2_session_callbacks_set_on_header_callback(cbs, onHeaderRecvCb);
+	nghttp2_session_callbacks_set_on_data_chunk_recv_callback(cbs, onDataChunkRecvCb);
+	nghttp2_session_callbacks_set_on_stream_close_callback(cbs, onStreamClosedCb);
+
+	unique_ptr<nghttp2_session_callbacks, void (*)(nghttp2_session_callbacks*)> cbsPtr{cbs,
+	                                                                                   nghttp2_session_callbacks_del};
+
+	nghttp2_session* session;
+	nghttp2_session_client_new(&session, cbs, this);
+	NgHttp2SessionPtr httpSession{session};
+
+	int status;
+	if ((status = nghttp2_submit_settings(session, NGHTTP2_FLAG_NONE, nullptr, 0)) != 0) {
+		SLOGE << mLogPrefix << ": submitting settings failed [status=" << to_string(status) << "]";
+		disconnect();
+		return;
+	}
+
+	mHttpSession = move(httpSession);
+
+	su_wait_create(&mPollInWait, mConn->getFd(), SU_WAIT_IN);
+	su_root_register(&mRoot, &mPollInWait, onPollInCb, this, su_pri_normal);
+	resetIdleTimer();
+
+	setState(State::Connected);
+	sendAllPendingRequests();
 }
 
 ssize_t Http2Client::doSend(nghttp2_session& session, const uint8_t* data, size_t length) noexcept {
@@ -281,22 +319,12 @@ int Http2Client::onPollInCb(su_root_magic_t*, su_wait_t*, su_wakeup_arg_t* arg) 
 	if (status < 0) {
 		SLOGE << thiz->mLogPrefix << ": error while receiving HTTP2 data[" << nghttp2_strerror(status)
 		      << "]. Disconnecting";
-		for (auto it = thiz->mActiveHttpContexts.begin(); it != thiz->mActiveHttpContexts.end();
-		     it = thiz->mActiveHttpContexts.erase(it)) {
-			const auto& context = it->second;
-			context->getOnErrorCb()(context->getRequest());
-		}
 		thiz->disconnect();
 		return 0;
 	}
 	if (thiz->mLastSID >= 0) {
 		SLOGD << thiz->mLogPrefix << ": closing connection after receiving GOAWAY frame. Last processed stream is ["
 		      << thiz->mLastSID << "]";
-		for (auto it = thiz->mActiveHttpContexts.begin(); it != thiz->mActiveHttpContexts.end();
-		     it = thiz->mActiveHttpContexts.erase(it)) {
-			const auto& context = it->second;
-			context->getOnErrorCb()(context->getRequest());
-		}
 		thiz->disconnect();
 	}
 	return 0;
@@ -334,13 +362,15 @@ void Http2Client::onStreamClosed(nghttp2_session& session, int32_t stream_id, ui
 
 void Http2Client::disconnect() {
 	SLOGD << mLogPrefix << ": disconnecting";
-	if (mState == State::Disconnected)
+	if (mState == State::Disconnected) {
 		return;
+	}
+	discardAllPendingRequests();
+	discardAllActiveRequests();
 	su_root_unregister(&mRoot, &mPollInWait, onPollInCb, this);
 	mHttpSession.reset();
 	mConn->disconnect();
 	mLastSID = -1;
-	mActiveHttpContexts.clear();
 	mTimeoutTimers.clear();
 	setState(State::Disconnected);
 }
@@ -440,6 +470,8 @@ ostream& operator<<(ostream& os, flexisip::Http2Client::State state) noexcept {
 			return os << "Disconnected";
 		case flexisip::Http2Client::State::Connected:
 			return os << "Connected";
+		case flexisip::Http2Client::State::Connecting:
+			return os << "Connecting";
 	};
 	return os << "Unknown";
 }
