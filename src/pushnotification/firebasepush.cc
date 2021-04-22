@@ -46,7 +46,8 @@ FirebaseRequest::FirebaseRequest(const PushInfo &pinfo)
 		<< "\"priority\":\"high\""
 		<< ", \"data\":{"
 			<< "\"uuid\":" << quoteStringIfNeeded(pinfo.mUid)
-			<< ", \"form-uri\":" << quoteStringIfNeeded(pinfo.mFromUri)
+			<< ", \"form-uri\":" << quoteStringIfNeeded(pinfo.mFromUri) // to remove in Flexisip 2.1
+			<< ", \"from-uri\":" << quoteStringIfNeeded(pinfo.mFromUri)
 			<< ", \"display-name\":" << quoteStringIfNeeded(pinfo.mFromName)
 			<< ", \"call-id\":" << quoteStringIfNeeded(pinfo.mCallId)
 			<< ", \"sip-from\":" << quoteStringIfNeeded(from)
