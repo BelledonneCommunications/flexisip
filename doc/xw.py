@@ -76,7 +76,7 @@ class FlexisipProxy:
 		return _version
 
 	def dump_section_doc(self, moduleName):
-		p = subprocess.Popen([self.path, '--dump-format', 'xwiki', '--dump-default', moduleName], stdout=subprocess.PIPE , stderr=subprocess.PIPE)
+		p = subprocess.Popen([self.path, '--dump-format', 'xwiki', '--show-experimental', '--dump-default', moduleName], stdout=subprocess.PIPE , stderr=subprocess.PIPE)
 		out, err = p.communicate()
 		out = str(out, encoding='utf-8')
 		# replace all the -- in the doc with {{{--}}} to escape xwiki autoformatting -- into striken
