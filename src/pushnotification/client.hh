@@ -64,7 +64,7 @@ public:
 	BIO *getBIO() const noexcept {return mBio.get();}
 	int getFd() const noexcept;
 
-	int read(void *data, int dlen) noexcept;
+	int read(void *data, int dlen, int timeout = 2) noexcept;
 
 	int write(const std::vector<char> &data) noexcept {return write(data.data(), data.size());}
 	int write(const void *data, int dlen) noexcept;

@@ -123,11 +123,30 @@ int TlsConnection::getFd() const noexcept {
 	return fd;
 }
 
-int TlsConnection::read(void *data, int dlen) noexcept {
+int TlsConnection::read(void *data, int dlen, int timeout) noexcept {
 	ERR_clear_error();
+
+	int fdSocket;
+	if (BIO_get_fd(this->getBIO(), &fdSocket) < 0) {
+		SLOGE << "TlsConnection - read error - could not retrieve the socket";
+		return -2;
+	}
+	pollfd polls = {0};
+	polls.fd = fdSocket;
+	polls.events = POLLIN;
+	int pollRet = poll(&polls, 1, timeout);
+	if (pollRet == 0) { // timeout nothing to read
+		return 0;
+	} else if (pollRet < 0) {
+		SLOGD << "TlsConnection - read - poll error : " << strerror(errno);
+		return -1;
+	}
+
 	auto nread = BIO_read(mBio.get(), data, dlen);
 	if (nread < 0) {
-		if (BIO_should_retry(mBio.get())) return 0;
+		if (BIO_should_retry(mBio.get())) {
+			return 0;
+		}
 		ostringstream err{};
 		err << "TlsConnection[" << this << "]: error while reading data. ";
 		handleBioError(err.str(), nread);

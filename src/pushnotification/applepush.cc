@@ -501,7 +501,7 @@ ssize_t AppleClient::send(nghttp2_session &session, const uint8_t *data, size_t 
 
 ssize_t AppleClient::recv(nghttp2_session &session, uint8_t *data, size_t length) noexcept {
 	length = min(length, size_t(numeric_limits<int>::max()));
-	auto nread = mConn->read(data, length);
+	auto nread = mConn->read(data, length, 0);
 	if (nread < 0) {
 		SLOGE << mLogPrefix << ": error while reading socket. " << strerror(errno);
 		return NGHTTP2_ERR_CALLBACK_FAILURE;
