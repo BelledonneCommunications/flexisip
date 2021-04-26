@@ -16,41 +16,44 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef flexisip_tester_hpp
-#define flexisip_tester_hpp
+#pragma once
 
-#include "bctoolbox/tester.h"
-
-
-#include <fstream>
 #include <string>
-#include <memory>
-#include <sstream>
-#include <iostream>
 #include <vector>
-#include <chrono>
 
+#include <nghttp2/nghttp2.h>
 
-std::string bcTesterFile(const std::string &name);
-std::string bcTesterRes(const std::string &name);
+namespace flexisip {
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+class HttpHeaders {
+public:
+	struct Header {
+		std::string name{};
+		std::string value{};
+		uint8_t flags{NGHTTP2_FLAG_NONE};
+	};
 
-extern test_suite_t boolean_expressions_suite;
-extern test_suite_t push_notification_suite;
-extern test_suite_t registration_event_suite;
+	using HeadersList = std::vector<Header>;
+	using CHeaderList = std::vector<nghttp2_nv>;
 
+	HttpHeaders() = default;
+	HttpHeaders(const HttpHeaders&) = default;
+	HttpHeaders(HttpHeaders&&) = default;
 
+	HttpHeaders& operator=(const HttpHeaders&) = default;
+	HttpHeaders& operator=(HttpHeaders&&) = default;
 
-void flexisip_tester_init(void(*ftester_printf)(int level, const char *fmt, va_list args));
-void flexisip_tester_uninit(void);
+	const HeadersList& getHeadersList() const {
+		return mHList;
+	}
 
-#ifdef __cplusplus
+	void add(std::string name, std::string value, uint8_t flags = NGHTTP2_FLAG_NONE) noexcept;
+	std::string toString() const noexcept;
+
+	CHeaderList makeCHeaderList() const noexcept;
+
+private:
+	HeadersList mHList{};
 };
-#endif
 
-
-
-#endif
+} // namespace flexisip

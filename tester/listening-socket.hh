@@ -14,21 +14,16 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #pragma once
 
-#include "request.hh"
+#include <future>
 
 namespace flexisip {
-namespace pushnotification {
 
-class Client {
-public:
-	virtual ~Client() = default;
-	virtual void sendPush(const std::shared_ptr<Request>& req) = 0;
-	virtual bool isIdle() const noexcept = 0;
+class ListeningSocket {
+public :
+	static void listenUntil(std::promise<void>& barrier);
 };
-
-} // namespace pushnotification
 } // namespace flexisip

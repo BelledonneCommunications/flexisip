@@ -16,41 +16,49 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef flexisip_tester_hpp
-#define flexisip_tester_hpp
+#pragma once
 
-#include "bctoolbox/tester.h"
-
-
-#include <fstream>
 #include <string>
-#include <memory>
-#include <sstream>
-#include <iostream>
-#include <vector>
-#include <chrono>
 
+#include "http-headers.hh"
 
-std::string bcTesterFile(const std::string &name);
-std::string bcTesterRes(const std::string &name);
+namespace flexisip {
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+class HttpMessage {
+public:
+	HttpMessage() = default;
+	HttpMessage(const HttpHeaders& headers, const std::vector<char>& body) : mHeaders(headers), mBody(body){};
+	virtual ~HttpMessage() = default;
 
-extern test_suite_t boolean_expressions_suite;
-extern test_suite_t push_notification_suite;
-extern test_suite_t registration_event_suite;
+	const std::vector<char>& getBody() const {
+		return mBody;
+	}
 
+	void setBody(const std::vector<char>& body) {
+		this->mBody = body;
+	}
 
+	void appendBody(const std::string& body) {
+		this->mBody.insert(mBody.end(), body.begin(), body.end());
+	}
 
-void flexisip_tester_init(void(*ftester_printf)(int level, const char *fmt, va_list args));
-void flexisip_tester_uninit(void);
+	const HttpHeaders& getHeaders() const {
+		return mHeaders;
+	}
 
-#ifdef __cplusplus
+	HttpHeaders& getHeaders() {
+		return mHeaders;
+	}
+
+	void setHeaders(const HttpHeaders& headers) {
+		this->mHeaders = headers;
+	}
+
+	std::string toString() const noexcept;
+
+protected:
+	HttpHeaders mHeaders{};
+	std::vector<char> mBody{};
 };
-#endif
 
-
-
-#endif
+} // namespace flexisip
