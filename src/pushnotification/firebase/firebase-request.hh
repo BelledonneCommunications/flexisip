@@ -24,6 +24,14 @@
 namespace flexisip {
 namespace pushnotification {
 
+/**
+ * This class represent one Firebase push notification request. This class inherits from Request, so it can be treated
+ * like another type of PNR by the flexisip push notification module, and from HttpMessage so it can be sent by the
+ * Http2Client.
+ *
+ * This supports the legacy http (http2 compatible) Firebase protocol:
+ * https://firebase.google.com/docs/cloud-messaging/http-server-ref
+ */
 class FirebaseRequest : public Request, public HttpMessage {
 public:
 	FirebaseRequest(const PushInfo& pinfo);
@@ -41,7 +49,7 @@ public:
 	}
 
 private:
-	static constexpr const auto FIREBASE_MAX_TTL = 4 * 7 * 24 * 3600; // 4 weeks
+	static inline const auto FIREBASE_MAX_TTL = 4 * 7 * 24 * 3600; // 4 weeks
 };
 
 } // namespace pushnotification

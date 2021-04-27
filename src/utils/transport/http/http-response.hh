@@ -22,6 +22,10 @@
 
 namespace flexisip {
 
+/**
+ * Representation of a HTTP response, here this is simply a HTTP message with a status code.
+ * Be careful the way the HttpResponse::getStatusCode method work only fit HTTP/2 response.
+ */
 class HttpResponse : public HttpMessage {
 public:
 	int getStatusCode() const;
