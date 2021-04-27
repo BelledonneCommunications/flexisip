@@ -26,7 +26,7 @@ find_package(LibNgHttp2Asio REQUIRED)
 add_executable(flexisip_tester
 	tester.cc
 	tester.hh
-	apns-mock.cc apns-mock.hh
+	pns-mock.cc pns-mock.hh
 	boolean-expressions.cc
 	push-notification-tester.cc
 	listening-socket.cc listening-socket.hh

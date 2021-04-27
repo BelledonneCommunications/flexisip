@@ -47,7 +47,7 @@ option(ENABLE_TRANSCODER "Build transcoder support" YES)
 option(ENABLE_MDNS "Build multicast DNS support" NO)
 option(ENABLE_EXTERNAL_AUTH_PLUGIN "Enable ExternalAuth plugin support" NO)
 option(ENABLE_JWE_AUTH_PLUGIN "Enable JweAuth plugin support" NO)
-option(ENABLE_UNIT_TESTS "Enable flexisip unit tests (low level tests)" ON)
+option(ENABLE_FLEXI_UNIT_TESTS "Enable flexisip unit tests (low level tests)" NO)
 option(ENABLE_PACKAGE_SOURCE "Create 'package_source' target for source archive making (CMake >= 3.11)" OFF)
 
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
@@ -71,7 +71,7 @@ set(SYSCONF_INSTALL_DIR ${CMAKE_INSTALL_FULL_SYSCONFDIR} CACHE STRING "Config di
 set(CONFIG_DIR ${SYSCONF_INSTALL_DIR}/flexisip)
 message(STATUS "Config dir: ${CONFIG_DIR}")
 set(INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
-if(ENABLE_UNIT_TESTS)
+if(ENABLE_FLEXI_UNIT_TESTS)
 	set(TESTER_DATA_DIR ${CMAKE_INSTALL_PREFIX}/share/flexisip-tester)
 endif()
 
@@ -221,7 +221,7 @@ add_subdirectory(src)
 add_subdirectory(scripts)
 add_subdirectory(share)
 
-if(ENABLE_UNIT_TESTS)
+if(ENABLE_FLEXI_UNIT_TESTS)
 	add_subdirectory(tester)
 endif()
 

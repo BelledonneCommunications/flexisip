@@ -30,10 +30,20 @@
 namespace flexisip {
 namespace pushnotification {
 
+/**
+ * PNR (Push Notification Request) client designed to send push notification to the Firebase push API.
+ */
 class FirebaseClient : public Client {
 public:
 	FirebaseClient(su_root_t& root);
 
+	/**
+	 * Send the request to the Firebase PNR server. If the request succeed, if a response is received, the
+	 * FirebaseClient::onResponse method is called. If the request failed, no response/timeout, tls/handshake errors... the
+	 * FirebaseClient::onError method is called.
+	 *
+	 * @param req The request to send, this MUST be of FirebaseRequest type.
+	 */
 	void sendPush(const std::shared_ptr<Request>& req) override;
 	bool isIdle() const noexcept override {
 		return mHttp2Client->isIdle();
