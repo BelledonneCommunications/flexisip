@@ -35,6 +35,11 @@
 
 namespace flexisip {
 
+/**
+ * An HTTTP/2 client over a tls connection.
+ * Can be used to established one connection to a remote remote server and send multiple request over this connection.
+ * Tls connection and http/2 connection handling is done by the Http2Client.
+ */
 class Http2Client {
 public:
 	enum class State : uint8_t { Disconnected, Connected, Connecting };
@@ -56,8 +61,19 @@ public:
 	using HttpRequest = HttpMessage;
 	using OnErrorCb = HttpMessageContext::OnErrorCb;
 	using OnResponseCb = HttpMessageContext::OnResponseCb;
+	/**
+	 * Send a request to the remote server. OnResponseCb is called if the server return a complete answer. OnErrorCb is
+	 * called if any unexpected errors occured (like connection errors or timeouts).
+	 * If an HTTP/2 connection is already active between you and the remote server this connection is re-used. Else a
+	 * new connection is automatically created.
+	 *
+	 * @param request A std::shared_ptr pointing to a HttpMessage object, the message to send.
+	 * @param onResponseCb The callback called when a complete answer is received.
+	 * @param onErrorCb The callback called when an unexpeted error occured.
+	 */
 	void send(const std::shared_ptr<HttpRequest>& request, const OnResponseCb& onResponseCb,
 	          const OnErrorCb& onErrorCb);
+
 	void onTlsConnectCb();
 
 	std::string getHost() const {
@@ -128,10 +144,6 @@ private:
 	sofiasip::Timer mIdleTimer;
 	std::string mLogPrefix{};
 	int32_t mLastSID{-1};
-	/**
-	 * Delay (in second) for one request timeout, default is 30
-	 */
-	unsigned mRequestTimeout = 30;
 
 	using NgHttp2SessionPtr = std::unique_ptr<nghttp2_session, NgHttp2SessionDeleter>;
 	NgHttp2SessionPtr mHttpSession{};
@@ -144,6 +156,11 @@ private:
 
 	using TimeoutTimerMap = std::map<int32_t, std::shared_ptr<sofiasip::Timer>>;
 	TimeoutTimerMap mTimeoutTimers;
+
+	/**
+	 * Delay (in second) for one request timeout, default is 30. Must be inferior to Http2Client::sIdleTimeout.
+	 */
+	unsigned mRequestTimeout = 30;
 
 	/**
 	 * Delay (in second) before the connection with the distant HTTP2 server is closed because of inactivity.
