@@ -27,6 +27,10 @@
 
 namespace flexisip {
 
+/**
+ * A complete c++ implementation of a TLS connection over the OpenSSL library.
+ * Can be used to create, configure, read and write with a TLS connection.
+ */
 class TlsConnection {
 public:
 	struct SSLCtxDeleter {

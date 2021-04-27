@@ -25,6 +25,10 @@
 
 namespace flexisip {
 
+/**
+ * This class represent a list of HTTP headers.
+ * This implementation also allow to get the list as an nghttp2 formatted header list, see HttpHeaders::makeCHeaderList
+ */
 class HttpHeaders {
 public:
 	struct Header {

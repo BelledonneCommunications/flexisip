@@ -22,8 +22,11 @@
 
 namespace flexisip {
 
+/**
+ * Open a listening socket, only used to test timeout on TLS connection.
+ */
 class ListeningSocket {
-public :
+public:
 	static void listenUntil(std::promise<void>& barrier);
 };
 } // namespace flexisip
