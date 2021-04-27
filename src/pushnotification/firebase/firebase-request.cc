@@ -31,14 +31,6 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
-/*
- * This supports the legacy http Firebase protocol:
- * https://firebase.google.com/docs/cloud-messaging/http-server-ref
- */
-
-// redundant declaration (required for C++14 compatibility)
-constexpr const int FirebaseRequest::FIREBASE_MAX_TTL;
-
 FirebaseRequest::FirebaseRequest(const PushInfo& pinfo) : Request(pinfo.mAppId, "firebase") {
 	const string& from = pinfo.mFromName.empty() ? pinfo.mFromUri : pinfo.mFromName;
 	auto ttl = min(pinfo.mTtl, FIREBASE_MAX_TTL);
