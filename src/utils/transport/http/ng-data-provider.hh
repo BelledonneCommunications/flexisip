@@ -26,6 +26,10 @@
 
 namespace flexisip {
 
+/**
+ * An utility class to provide a way to transform a simple request body (std::vector<char> or std::string) to a
+ * nghttp2_data_provider needed by nghttp2 to send a request.
+ */
 class NgDataProvider {
 public:
 	NgDataProvider(const std::vector<char>& data) noexcept;

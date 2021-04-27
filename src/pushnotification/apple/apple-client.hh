@@ -30,12 +30,23 @@
 namespace flexisip {
 namespace pushnotification {
 
+/**
+ * PNR (Push Notification Request) client designed to send push notification to the Apple push API.
+ */
 class AppleClient : public Client {
 public:
 	AppleClient(su_root_t& root, const std::string& trustStorePath, const std::string& certPath,
 	            const std::string& certName);
 
+	/**
+	 * Send the request to the apple PNR service. If the request succeed, if a response is received, the
+	 * AppleClient::onResponse method is called. If the request failed, no response/timeout, tls/handshake errors... the
+	 * AppleClient::onError method is called.
+	 *
+	 * @param req The request to send, this MUST be of AppleRequest type.
+	 */
 	void sendPush(const std::shared_ptr<Request>& req) override;
+
 	bool isIdle() const noexcept override {
 		return mHttp2Client->isIdle();
 	}

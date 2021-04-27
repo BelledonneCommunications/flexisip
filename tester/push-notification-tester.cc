@@ -26,8 +26,8 @@
 #include "flexisip-config.h"
 #include "flexisip/logmanager.hh"
 
-#include "apns-mock.hh"
 #include "listening-socket.hh"
+#include "pns-mock.hh"
 #include "pushnotification/apple/apple-client.hh"
 #include "pushnotification/firebase/firebase-client.hh"
 #include "tester.hh"
@@ -53,12 +53,12 @@ static void startPushTest(Client& client, const shared_ptr<Request>& request, co
                           bool timeout = false) {
 	std::promise<bool> barrier{};
 	std::future<bool> barrier_future = barrier.get_future();
-	ApnsMock apnsMock;
+	PnsMock pnsMock;
 
 	// Start of the push notification mock server
 	auto isReqPatternMatched =
-	    async(launch::async, [&apnsMock, responseCode, &responseBody, &reqBodyPattern, &barrier, timeout]() {
-		    return apnsMock.exposeMock(responseCode, responseBody, reqBodyPattern, std::move(barrier), timeout);
+	    async(launch::async, [&pnsMock, responseCode, &responseBody, &reqBodyPattern, &barrier, timeout]() {
+		    return pnsMock.exposeMock(responseCode, responseBody, reqBodyPattern, std::move(barrier), timeout);
 	    });
 
 	// Wait for the server to start
@@ -78,7 +78,7 @@ static void startPushTest(Client& client, const shared_ptr<Request>& request, co
 	su_root_run(root);
 
 	// NgHttp2 serveur normally don't stop until all connections are closed
-	apnsMock.forceCloseServer();
+	pnsMock.forceCloseServer();
 
 	// Client (Firebase or Apple) onResponse/onError is called and response status is well managed
 	BC_ASSERT_TRUE(request->getState() == expectedFinalState);

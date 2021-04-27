@@ -16,7 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "apns-mock.hh"
+#include "pns-mock.hh"
 
 #include <chrono>
 #include <regex>
@@ -34,7 +34,7 @@ using namespace boost::asio::ssl;
 namespace flexisip {
 namespace pushnotification {
 
-bool ApnsMock::exposeMock(int code, const string& body, const string& reqBodyPattern, promise<bool>&& barrier,
+bool PnsMock::exposeMock(int code, const string& body, const string& reqBodyPattern, promise<bool>&& barrier,
                           bool timeout) {
 	bool assert = false;
 	try {
@@ -63,7 +63,7 @@ bool ApnsMock::exposeMock(int code, const string& body, const string& reqBodyPat
 }
 
 std::function<void(const request&, const response&)>
-ApnsMock::handleRequest(int code, const string& body, const string& reqBodyPattern, bool& assert, bool timeout) {
+PnsMock::handleRequest(int code, const string& body, const string& reqBodyPattern, bool& assert, bool timeout) {
 	return [code, body, reqBodyPattern, &assert, timeout](const request& req, const response& res) {
 		req.on_data([reqBodyPattern, &assert](const uint8_t* data, std::size_t len) {
 			if (len > 0) {
@@ -80,7 +80,7 @@ ApnsMock::handleRequest(int code, const string& body, const string& reqBodyPatte
 	};
 }
 
-void ApnsMock::forceCloseServer() {
+void PnsMock::forceCloseServer() {
 	for (const auto& io_service : mServer.io_services()) {
 		io_service->stop();
 	}

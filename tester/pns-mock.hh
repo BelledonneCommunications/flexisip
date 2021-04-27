@@ -25,9 +25,25 @@
 namespace flexisip {
 namespace pushnotification {
 
-class ApnsMock {
+/**
+ * A simple HTTP2/2 server with the only purpose of mocking Push Notification Service for testing.
+ */
+class PnsMock {
 public:
-	ApnsMock() = default;
+	PnsMock() = default;
+
+	/**
+	 * Expose a mock server answering every request with the same code and body passed as parameters.
+	 * Aimed to be used asynchronously.
+	 *
+	 * @param code The HTTP status code to return.
+	 * @param body The response body to return.
+	 * @param reqBodyPattern Match the received request against this regex pattern.
+	 * @param barrier A std::promise used as a barrier to notified caller when the server is started.
+	 * @param timeout Simulate a response timeout if set to true.
+	 *
+	 * @return True if the received request match reqBodyPattern, false otherwise.
+	 */
 	bool exposeMock(int code, const std::string& body, const std::string& reqBodyPattern, std::promise<bool>&& barrier,
 	                bool timeout = false);
 	void forceCloseServer();

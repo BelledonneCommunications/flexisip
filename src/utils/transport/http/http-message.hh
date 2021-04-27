@@ -24,6 +24,9 @@
 
 namespace flexisip {
 
+/**
+ * Representation of any http message (request or response), fit HTTP and HTTP/2 messages.
+ */
 class HttpMessage {
 public:
 	HttpMessage() = default;
