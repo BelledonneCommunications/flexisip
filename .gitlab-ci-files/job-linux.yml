@@ -103,6 +103,7 @@
     - schedules
 
   script:
+    - git submodule foreach --recursive git fetch --tags --force
     - mv WORK/flexisip-rpm/rpmbuild/DEBS docker/DEBS
     - cd docker
     - make flexisip-deb-build
