@@ -92,7 +92,7 @@ void TlsConnection::connect() noexcept {
 			return;
 		}
 
-		constexpr chrono::milliseconds sleepDuration{100};
+		constexpr chrono::milliseconds sleepDuration{10};
 		this_thread::sleep_for(sleepDuration);
 		time += sleepDuration;
 	};
@@ -112,10 +112,16 @@ void TlsConnection::resetConnection() noexcept {
 }
 
 int TlsConnection::getFd() const noexcept {
-	int fd;
-	if (mBio == nullptr) return -1;
+	if (mBio == nullptr) {
+		return -1;
+	}
+	return getFd(*mBio);
+}
+
+int TlsConnection::getFd(BIO& bio) {
+	int fd = 0;
 	ERR_clear_error();
-	auto status = BIO_get_fd(mBio.get(), &fd);
+	auto status = BIO_get_fd(&bio, &fd);
 	if (status < 0) {
 		handleBioError("TlsConnection: getting fd from BIO failed. ", status);
 		return -1;
@@ -123,16 +129,56 @@ int TlsConnection::getFd() const noexcept {
 	return fd;
 }
 
-int TlsConnection::read(void *data, int dlen) noexcept {
-	ERR_clear_error();
+int TlsConnection::read(void *data, int dlen, chrono::milliseconds timeout) noexcept {
+
+	if (timeout != 0ms) {
+		try {
+			if (!waitForData(timeout)) {
+				return 0;
+			}
+		} catch (const runtime_error &e) {
+			return -1;
+		}
+	}
+
 	auto nread = BIO_read(mBio.get(), data, dlen);
 	if (nread < 0) {
-		if (BIO_should_retry(mBio.get())) return 0;
+		if (BIO_should_retry(mBio.get())) {
+			return 0;
+		}
 		ostringstream err{};
 		err << "TlsConnection[" << this << "]: error while reading data. ";
 		handleBioError(err.str(), nread);
 	}
+
 	return nread;
+}
+
+int TlsConnection::readAll(vector<char> &result, chrono::milliseconds timeout) noexcept {
+	const int READ_SIZE = 1024;
+	char readBuffer[READ_SIZE];
+	int totalNbRead = 0;
+	result.clear();
+
+	// first read with timeout
+	int nbRead = totalNbRead = this->read(readBuffer, sizeof(readBuffer), timeout);
+	if (nbRead < 0) {
+		return nbRead;
+	}
+
+	result.insert(result.begin(), readBuffer, readBuffer + nbRead);
+	if (totalNbRead == READ_SIZE) {
+		// Emptying socket with multiple non blocking reads.
+		do {
+			totalNbRead += nbRead = this->read(readBuffer, sizeof(readBuffer), 0ms);
+			if (nbRead < 0) {
+				return nbRead;
+			}
+			result.insert(result.end(), readBuffer, readBuffer + nbRead);
+		} while (nbRead == READ_SIZE);
+	}
+
+ 	return totalNbRead;
 }
 
 int TlsConnection::write(const void *data, int dlen) noexcept {
@@ -147,22 +193,19 @@ int TlsConnection::write(const void *data, int dlen) noexcept {
 	return nwritten;
 }
 
-bool TlsConnection::waitForData(int timeout) const {
-	int fdSocket;
-	ERR_clear_error();
-	if (BIO_get_fd(getBIO(), &fdSocket) < 0) {
-		ERR_clear_error();
-		throw runtime_error("no associated socket");
-	}
-
+bool TlsConnection::waitForData(chrono::milliseconds timeout) const {
 	pollfd polls = {0};
-	polls.fd = fdSocket;
+	polls.fd = this->getFd();
 	polls.events = POLLIN;
 
 	int ret;
-	if ((ret = poll(&polls, 1, timeout)) < 0) {
-		throw runtime_error(string{"poll() failed: "} + strerror(errno));
+	if ((ret = poll(&polls, 1, timeout.count())) < 0) {
+		ostringstream err{};
+		err << "TlsConnection[" << this << "]: error during poll : ";
+		handleBioError(err.str(), ret);
+		throw runtime_error(err.str());
 	}
+
 	return ret != 0;
 }
 
@@ -242,18 +285,18 @@ int TlsTransport::sendPush(Request &req, bool hurryUp, const OnSuccessCb &onSucc
 		}
 	}
 
-	char r[1024];
-	int p = mConn->read(r, sizeof(r)-1);
-	if (p <= 0) {
-		SLOGE << "PushNotificationTransportTls PNR " << &req << "error reading mandatory response: " << p;
+	vector<char> responseVector{};
+	int nbRead = mConn->readAll(responseVector);
+	if (nbRead <= 0) {
+		SLOGE << "PushNotificationTransportTls PNR " << &req << "error reading mandatory response: " << nbRead;
 		mConn->resetConnection();
 		return -2;
 	}
+	responseVector.insert(responseVector.end(), '\0');
 
-	r[p] = '\0';
-	SLOGD << "PushNotificationTransportTls PNR " << &req << " read " << p << " data:\n" << r;
-	string responsestr(r, p);
-	string error = req.isValidResponse(responsestr);
+	SLOGD << "PushNotificationTransportTls PNR " << &req << " read " << nbRead << " data:\n" << responseVector.data();
+	string responseStr(responseVector.begin(), responseVector.end());
+	string error = req.isValidResponse(responseStr);
 	if (!error.empty()) {
 		onError(req, "Invalid server response: " + error);
 		// on iOS at least, when an error happens, the socket is semibroken (server ignore all future requests),

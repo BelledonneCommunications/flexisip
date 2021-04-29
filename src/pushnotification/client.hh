@@ -64,13 +64,14 @@ public:
 	BIO *getBIO() const noexcept {return mBio.get();}
 	int getFd() const noexcept;
 
-	int read(void *data, int dlen) noexcept;
+	int read(void *data, int dlen, std::chrono::milliseconds timeout = std::chrono::milliseconds{2000}) noexcept;
+	int readAll(std::vector<char>& result, std::chrono::milliseconds timeout = std::chrono::milliseconds{2000}) noexcept;
 
 	int write(const std::vector<char> &data) noexcept {return write(data.data(), data.size());}
 	int write(const void *data, int dlen) noexcept;
 
-	bool waitForData(int timeout) const;
-	bool hasData() const {return waitForData(0);}
+	bool waitForData(std::chrono::milliseconds timeout) const;
+	bool hasData() const {return waitForData(std::chrono::milliseconds{0});}
 
 private:
 	struct BIODeleter {
@@ -79,6 +80,7 @@ private:
 	using BIOUniquePtr = std::unique_ptr<BIO, BIODeleter>;
 
 	static void handleBioError(const std::string &msg, int status);
+	static int getFd(BIO& bio);
 
 	BIOUniquePtr mBio{nullptr};
 	SSLCtxUniquePtr mCtx{nullptr};
