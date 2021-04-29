@@ -133,7 +133,7 @@ void ClientWp::retrieveAccessToken() {
 }
 
 
-bool ClientWp::sendPush(const std::shared_ptr<Request> &req) {
+void ClientWp::sendPush(const std::shared_ptr<Request> &req) {
 	if (time(0) > mTokenExpiring) {
 		this->retrieveAccessToken();
 	}
@@ -145,7 +145,6 @@ bool ClientWp::sendPush(const std::shared_ptr<Request> &req) {
 	} else {
 		SLOGD << "Cannot send push since we do not access token yet";
 	}
-	return false;
 }
 
 } // end of pushnotification namespace
