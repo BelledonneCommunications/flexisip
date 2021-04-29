@@ -95,12 +95,12 @@
 
   stage: image
   tags: [ "linux-deploy" ]
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
-  only:
-    - schedules
+#  except:
+#    variables:
+#      - $DEPLOY_RUN
+#      - $DEPLOY_UBUNTU
+#  only:
+#    - schedules
 
   script:
     - git submodule foreach --recursive git fetch --tags --force
