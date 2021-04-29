@@ -2,22 +2,6 @@
 # Makefile
 #################################################
 
-job-debian9-makefile-gcc:
-
-  tags: [ "docker-debian9" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian9:$DEBIAN_9_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
-  variables:
-    CMAKE_GENERATOR: Unix Makefiles
-    CC: gcc
-    CXX: g++
-    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
-  extends: .scheduled-job-linux
-
-
 job-debian9-makefile-clang:
 
   tags: [ "docker-debian9" ]
@@ -28,29 +12,14 @@ job-debian9-makefile-clang:
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
-    CC: clang
-    CXX: clang++
+    CC: clang-7
+    CXX: clang++-7
     ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
   extends: .scheduled-job-linux
 
 #################################################
 # Ninja
 #################################################
-
-job-debian9-ninja-gcc:
-
-  tags: [ "docker-debian9" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian9:$DEBIAN_9_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
-  variables:
-    CMAKE_GENERATOR: Ninja
-    CC: gcc
-    CXX: g++
-  extends: .scheduled-job-linux
-
 
 job-debian9-ninja-clang:
 
@@ -62,8 +31,8 @@ job-debian9-ninja-clang:
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
-    CC: clang
-    CXX: clang++
+    CC: clang-7
+    CXX: clang++-7
   extends: .job-linux
 
 
@@ -89,6 +58,8 @@ job-debian9-deb-deploy:
   variables:
     RELEASE: stretch
     FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
+    CC: clang-7
+    CXX: clang++-7
   extends: .job-debian-deb-deploy
   dependencies:
     - job-debian9-deb
