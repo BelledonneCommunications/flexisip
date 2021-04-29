@@ -1,5 +1,5 @@
 ############################################################################
-# CMakeLists.txt
+# FindLibNgHttp2Asio.cmake
 # Copyright (C) 2010-2021  Belledonne Communications, Grenoble France
 #
 ############################################################################
@@ -19,34 +19,25 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #
 ############################################################################
+#
+# Find libnghttp2_asio and defined the associated target.
+#
+# Target name: LibNgHttp2Asio
 
-find_package(Threads REQUIRED)
-find_package(LibNgHttp2Asio REQUIRED)
+include(FindPackageHandleStandardArgs)
 
-add_executable(flexisip_tester
-	tester.cc
-	tester.hh
-	apns-mock.cc apns-mock.hh
-	boolean-expressions.cc
-	push-notification-tester.cc
-	listening-socket.cc listening-socket.hh
-)
+find_path(LIBNGHTTP2ASIO_INCLUDE_DIR nghttp2/asio_http2.h)
+find_library(LIBNGHTTP2ASIO_LIBRARY nghttp2_asio)
 
-if(ENABLE_CONFERENCE)
-	target_sources(flexisip_tester PRIVATE registration-event-tester.cc)
+find_package_handle_standard_args(LibNgHttp2Asio REQUIRED_VARS LIBNGHTTP2ASIO_INCLUDE_DIR LIBNGHTTP2_LIBRARY)
+
+if (LIBNGHTTP2ASIO_FOUND)
+	add_library(LibNgHttp2Asio SHARED IMPORTED)
+	set_target_properties(LibNgHttp2Asio PROPERTIES
+		INTERFACE_INCLUDE_DIRECTORIES "${LIBNGHTTP2ASIO_INCLUDE_DIR}"
+		IMPORTED_LOCATION "${LIBNGHTTP2ASIO_LIBRARY}"
+	)
 endif()
 
-target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
-target_link_libraries(flexisip_tester PRIVATE bctoolbox-tester flexisip linphone++ LibNgHttp2Asio OpenSSL::SSL 
-						OpenSSL::Crypto Threads::Threads)
-
-install(TARGETS flexisip_tester
-	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-)
-
-install(DIRECTORY cert
-        DESTINATION ${TESTER_DATA_DIR}
-)
+unset(NGHTTP2_ASIO_INCLUDE_DIR)
+unset(NGHTTP2_ASIO_LIBRARY)
