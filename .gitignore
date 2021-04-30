@@ -72,3 +72,6 @@ test/massregister/users.sql
 WORK
 **/*.kate*
 **/.vscode
+
+### TEST ###
+BCUnitAutomated-Results.xml

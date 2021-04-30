@@ -22,6 +22,7 @@
 
 find_package(Threads REQUIRED)
 find_package(LibNgHttp2Asio REQUIRED)
+find_package(Boost COMPONENTS system REQUIRED)
 
 add_executable(flexisip_tester
 	tester.cc
@@ -38,7 +39,7 @@ endif()
 
 target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
 target_link_libraries(flexisip_tester PRIVATE bctoolbox-tester flexisip linphone++ LibNgHttp2Asio OpenSSL::SSL 
-						OpenSSL::Crypto Threads::Threads)
+						OpenSSL::Crypto Threads::Threads ${Boost_SYSTEM_LIBRARY})
 
 install(TARGETS flexisip_tester
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
