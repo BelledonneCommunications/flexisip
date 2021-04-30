@@ -53,8 +53,8 @@ public:
 		mHttp2Client->enableInsecureTestMode();
 	}
 
-	static inline std::string FIREBASE_ADDRESS = "fcm.googleapis.com";
-	static inline std::string FIREBASE_PORT = "443";
+	static std::string FIREBASE_ADDRESS;
+	static std::string FIREBASE_PORT;
 
 private:
 	void onResponse(const std::shared_ptr<HttpMessage>& request, const std::shared_ptr<HttpResponse>& response);
