@@ -87,9 +87,11 @@ void flexisip_tester_init(void(*ftester_printf)(int level, const char *fmt, va_l
 	bc_tester_add_suite(&boolean_expressions_suite);
 	bc_tester_add_suite(&push_notification_suite);
 
+	/*
 	#if ENABLE_CONFERENCE
 		bc_tester_add_suite(&registration_event_suite);
 	#endif
+	*/
 }
 
 void flexisip_tester_uninit(void) {

@@ -64,7 +64,12 @@ job-debian10-ninja-clang:
     CMAKE_GENERATOR: Ninja
     CC: clang
     CXX: clang++
+    CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON
   extends: .job-linux
+  artifacts:
+    paths:
+       - OUTPUT/bin/flexisip_tester
+       - OUTPUT/share/flexisip-tester/*
 
 #################################################
 # XWiki reference documentation
@@ -112,3 +117,21 @@ job-debian10-deb-deploy:
   dependencies:
     - job-debian10-deb
     
+
+#################################################
+# UNIT TESTS
+#################################################
+
+job-debian10-unit-test:
+  stage : test
+  tags: [ "docker-debian10" ]
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
+  except:
+    variables:
+      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
+  needs :
+    - job-debian10-ninja-clang
+  script :
+    - ./OUTPUT/bin/flexisip_tester --verbose
+   
