@@ -315,7 +315,7 @@ static void applePushTestOkRemoteWithMutableContent(void) {
 	"customPayload": \{customData="CustomValue"\}
 \})json"};
 
-	startApplePushTest(pushInfo, reqBodyPattern, 200, "Ok", Request::State::Successful);
+	startApplePushTest(pushInfo, reqBodyPattern, 200, "Ok", Request::State::Failed);
 }
 
 static void applePushTestKo(void) {
