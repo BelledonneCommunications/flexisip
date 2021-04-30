@@ -63,13 +63,13 @@ public:
 	using OnResponseCb = HttpMessageContext::OnResponseCb;
 	/**
 	 * Send a request to the remote server. OnResponseCb is called if the server return a complete answer. OnErrorCb is
-	 * called if any unexpected errors occured (like connection errors or timeouts).
+	 * called if any unexpected errors occurred (like connection errors or timeouts).
 	 * If an HTTP/2 connection is already active between you and the remote server this connection is re-used. Else a
 	 * new connection is automatically created.
 	 *
 	 * @param request A std::shared_ptr pointing to a HttpMessage object, the message to send.
 	 * @param onResponseCb The callback called when a complete answer is received.
-	 * @param onErrorCb The callback called when an unexpeted error occured.
+	 * @param onErrorCb The callback called when an unexpected error occurred.
 	 */
 	void send(const std::shared_ptr<HttpRequest>& request, const OnResponseCb& onResponseCb,
 	          const OnErrorCb& onErrorCb);

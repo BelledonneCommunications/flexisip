@@ -49,7 +49,7 @@ public:
 	}
 
 private:
-	static inline const auto FIREBASE_MAX_TTL = 4 * 7 * 24 * 3600; // 4 weeks
+	static constexpr auto FIREBASE_MAX_TTL = 4 * 7 * 24 * 3600; // 4 weeks
 };
 
 } // namespace pushnotification
