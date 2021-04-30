@@ -53,8 +53,8 @@ option(ENABLE_PACKAGE_SOURCE "Create 'package_source' target for source archive 
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
 
 
-# Require C++17
-set(CMAKE_CXX_STANDARD 17)
+# Require C++14
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 
