@@ -3,7 +3,7 @@ FROM gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian10:20210421_py
 MAINTAINER François Grisez <francois.grisez@belledonne-communications.com>
 
 # Add extra dependencies for Flexisip
-RUN sudo su -c 'apt-get -y update && apt-get -y install libjansson-dev libmariadb-dev-compat libnghttp2-dev libprotobuf-dev libsnmp-dev protobuf-compiler && apt-get -y clean'
+RUN sudo su -c 'apt-get -y update && apt-get -y install libjansson-dev libmariadb-dev-compat libnghttp2-dev libprotobuf-dev libsnmp-dev protobuf-compiler wget libboost-dev libboost-system-dev libboost-thread-dev && apt-get -y clean'
 
 # Configure OpenSSL policy
 # Setting 'CipherString' to 'DEFAULT@SECLEVEL=1' forces libssl to allow
@@ -13,3 +13,14 @@ RUN sudo su -c 'apt-get -y update && apt-get -y install libjansson-dev libmariad
 # Please keep this modification until the CA certificates has been updated
 # in each project.
 RUN sudo sed -i -E 's/^CipherString[ ]*=(.*)$/CipherString = DEFAULT@SECLEVEL=1/' /etc/ssl/openssl.cnf
+
+
+# Install libnghttp2_asio
+RUN wget https://github.com/nghttp2/nghttp2/releases/download/v1.36.0/nghttp2-1.36.0.tar.bz2
+RUN tar xf nghttp2-1.36.0.tar.bz2
+RUN cd nghttp2-1.36.0 && \
+	./configure --prefix=/usr --disable-examples --disable-python-bindings --enable-lib-only --enable-asio-lib && \
+	sudo make && \
+	cd src && \
+	sudo make install && \
+	sudo install -Dm644 ../COPYING "/usr/share/licenses/libnghttp2_asio/COPYING"
