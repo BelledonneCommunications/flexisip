@@ -27,6 +27,9 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
+std::string FirebaseClient::FIREBASE_ADDRESS{"fcm.googleapis.com"};
+std::string FirebaseClient::FIREBASE_PORT{"443"};
+
 FirebaseClient::FirebaseClient(su_root_t& root) {
 	ostringstream os{};
 	os << "FirebaseClient[" << this << "]";

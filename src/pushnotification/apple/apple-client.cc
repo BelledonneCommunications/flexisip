@@ -27,6 +27,10 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
+std::string AppleClient::APN_DEV_ADDRESS{"api.development.push.apple.com"};
+std::string AppleClient::APN_PROD_ADDRESS{"api.push.apple.com"};
+std::string AppleClient::APN_PORT{"443"};
+
 AppleClient::AppleClient(su_root_t& root, const string& trustStorePath, const string& certPath,
                          const string& certName) {
 	ostringstream os{};
