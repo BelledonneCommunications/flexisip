@@ -55,8 +55,8 @@ public:
 		mHttp2Client->enableInsecureTestMode();
 	}
 
-	static inline std::string APN_DEV_ADDRESS = "api.development.push.apple.com";
-	static inline std::string APN_PORT = "443";
+	static std::string APN_DEV_ADDRESS;
+	static std::string APN_PORT;
 
 private:
 	void onResponse(const std::shared_ptr<HttpMessage>& request, const std::shared_ptr<HttpResponse>& response);
@@ -65,7 +65,7 @@ private:
 	std::unique_ptr<Http2Client> mHttp2Client;
 	std::string mLogPrefix{};
 
-	static inline std::string APN_PROD_ADDRESS = "api.push.apple.com";
+	static std::string APN_PROD_ADDRESS;
 };
 
 } // namespace pushnotification
