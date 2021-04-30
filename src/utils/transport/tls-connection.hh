@@ -53,7 +53,20 @@ public:
 		return mPort;
 	}
 
+	/**
+	 * Method used to establish the connection between you and the server. This is a bocking connection. The connection
+	 * is established with all furthers I/O set as non-blocking.
+	 */
 	void connect() noexcept;
+
+	/**
+	 * Method used to establish the connection between you and the server. This method run asynchronously and add a
+	 * callback to the sofia-sip loop on connection success/error. The connection is established with all furthers I/O
+	 * set as non-blocking.
+	 *
+	 * @param root sofia-sip loop root object
+	 * @param onConnectCb callback to call after connection success/error
+	 */
 	void connectAsync(su_root_t& root, std::function<void()> onConnectCb) noexcept;
 
 	void disconnect() noexcept {
@@ -124,7 +137,7 @@ private:
 	static int ASN1_TIME_toString(const ASN1_TIME* time, char* buffer, uint32_t buff_length);
 	static SSL_CTX* getDefaultCtx();
 	static int getFd(BIO& bio);
-	
+
 	static void doConnectCb(su_root_magic_t* rm, su_msg_r msg, void* u);
 	void doConnectAsync(su_root_t& root, std::function<void()> onConnectCb);
 
