@@ -102,6 +102,9 @@
   only:
     - schedules
 
+  before_script:
+    - git submodule foreach --recursive git fetch --tags --force
+
   script:
     - mv WORK/flexisip-rpm/rpmbuild/DEBS docker/DEBS
     - cd docker
