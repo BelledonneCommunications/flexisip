@@ -29,6 +29,7 @@
 #include "service-server.hh"
 
 namespace flexisip {
+	class Conference;
 
 	class ConferenceServer
 		: public ServiceServer
@@ -64,13 +65,24 @@ namespace flexisip {
 		std::shared_ptr<RegistrationEvent::ClientFactory> getRegEventClientFactory()const{
 			return mRegEventClientFactory;
 		}
-
+		std::shared_ptr<linphone::Core> getCore()const{
+			return mCore;
+		}
+		struct MediaConfig{
+			bool audioEnabled = false;
+			bool videoEnabled = false;
+			bool textEnabled = false;
+		};
+		const MediaConfig &getMediaConfig()const{
+			return mMediaConfig;
+		}
 	protected:
 		void _init () override;
 		void _run () override;
 		void _stop () override;
 
 	private:
+		
 		void loadFactoryUris();
 		// RegistrarDbStateListener implementation
 		void onRegistrarDbWritable (bool writable) override;
@@ -94,12 +106,20 @@ namespace flexisip {
 			const std::shared_ptr<const linphone::Address> & participantAddr
 		) override;
 
+		virtual void onCallStateChanged(const std::shared_ptr<linphone::Core> & lc, 
+						const std::shared_ptr<linphone::Call> & call, 
+				  linphone::Call::State cstate, const std::string & message) override;
+		void enableSelectedCodecs(const std::list<std::shared_ptr<linphone::PayloadType>>& codecs, const std::list<std::string> &mimeTypes);
+		void initStaticConferences();
+		void createConference(const std::shared_ptr<const linphone::Address> & address);
 		std::shared_ptr<linphone::Core> mCore{};
 		std::shared_ptr<RegistrationEvent::ClientFactory> mRegEventClientFactory{};
 		std::string mPath{};
 		SipUri mTransport{};
 		std::list<std::shared_ptr<linphone::ChatRoom>> mChatRooms{};
+		std::map<std::string, std::shared_ptr<Conference> > mConferences{};
 		ParticipantRegistrationSubscriptionHandler mSubscriptionHandler;
+		MediaConfig mMediaConfig;
 		std::list<std::string> mFactoryUris{};
 		std::list<std::string> mLocalDomains{};
 		bool mAddressesBound = false;
