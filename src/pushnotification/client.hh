@@ -65,7 +65,29 @@ public:
 	int getFd() const noexcept;
 
 	int read(void *data, int dlen, std::chrono::milliseconds timeout = std::chrono::milliseconds{2000}) noexcept;
-	int readAll(std::vector<char>& result, std::chrono::milliseconds timeout = std::chrono::milliseconds{2000}) noexcept;
+
+	template <typename ContainerT>
+	int readAll(ContainerT& result, std::chrono::milliseconds timeout = std::chrono::milliseconds{2000}) noexcept {
+		char readBuffer[1024];
+		result.clear();
+
+		// first read with timeout
+		auto nbRead = this->read(readBuffer, sizeof(readBuffer), timeout);
+		if (nbRead < 0) {
+			return nbRead;
+		}
+		result.insert(result.end(), readBuffer, readBuffer + nbRead);
+
+		// read until the socket is empty or an error occurs.
+		while ((nbRead = this->read(readBuffer, sizeof(readBuffer), std::chrono::milliseconds{0})) > 0) {
+			result.insert(result.end(), readBuffer, readBuffer + nbRead);
+		}
+		if (nbRead < 0)  {
+			return nbRead;
+		}
+
+		return result.size();
+	}
 
 	int write(const std::vector<char> &data) noexcept {return write(data.data(), data.size());}
 	int write(const void *data, int dlen) noexcept;

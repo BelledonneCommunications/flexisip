@@ -154,28 +154,6 @@ int TlsConnection::read(void *data, int dlen, chrono::milliseconds timeout) noex
 	return nread;
 }
 
-int TlsConnection::readAll(vector<char> &result, chrono::milliseconds timeout) noexcept {
-	char readBuffer[1024];
-	result.clear();
-
-	// first read with timeout
-	auto nbRead = this->read(readBuffer, sizeof(readBuffer), timeout);
-	if (nbRead < 0) {
-		return nbRead;
-	}
-	result.insert(result.begin(), readBuffer, readBuffer + nbRead);
-
-	// read until the socket is empty or an error occurs.
-	while ((nbRead = this->read(readBuffer, sizeof(readBuffer), 0ms)) > 0) {
-		result.insert(result.end(), readBuffer, readBuffer + nbRead);
-	}
-	if (nbRead < 0)  {
-		return nbRead;
-	}
-
-	return result.size();
-}
-
 int TlsConnection::write(const void *data, int dlen) noexcept {
 	ERR_clear_error();
 	auto nwritten = BIO_write(mBio.get(), data, dlen);
@@ -280,15 +258,14 @@ int TlsTransport::sendPush(Request &req, bool hurryUp, const OnSuccessCb &onSucc
 		}
 	}
 
-	vector<char> responseVector{};
-	int nbRead = mConn->readAll(responseVector);
+	string responseStr{};
+	int nbRead = mConn->readAll(responseStr);
 	if (nbRead <= 0) {
-		SLOGE << "PushNotificationTransportTls PNR " << &req << "error reading mandatory response: " << nbRead;
+		SLOGE << "PushNotificationTransportTls PNR " << &req << "error reading mandatory response: " << responseStr;
 		mConn->resetConnection();
 		return -2;
 	}
 
-	string responseStr(responseVector.begin(), responseVector.end());
 	SLOGD << "PushNotificationTransportTls PNR " << &req << " read " << nbRead << " data:\n" << responseStr;
 	string error = req.isValidResponse(responseStr);
 	if (!error.empty()) {
