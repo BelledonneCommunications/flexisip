@@ -2,6 +2,8 @@
 /* flexisip-config.h.in.  Generated from configure.ac by autoheader.  */
 
 #cmakedefine CONFIG_DIR "${CONFIG_DIR}"
+#cmakedefine INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}"
+#cmakedefine TESTER_DATA_DIR "${TESTER_DATA_DIR}"
 
 #cmakedefine ENABLE_SNMP 1
 #cmakedefine ENABLE_LIBODB_MYSQL 1
