@@ -19,6 +19,7 @@
 #pragma once
 
 #include <array>
+#include <queue>
 
 #include <sofia-sip/nth.h>
 
@@ -82,9 +83,11 @@ private:
 		ExternalAuthModule &am;
 		FlexisipAuthStatus &as;
 		const auth_challenger_t &ach;
+		msg_auth_t &creds;
 	};
 
 	void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) override;
+	void popAndSendRequest();
 
 	void onHttpResponse(HttpRequestCtx &ctx, nth_client_t *request, const http_t *http);
 	std::map<std::string, std::string> parseHttpBody(const std::string &body) const;
@@ -96,6 +99,7 @@ private:
 
 	nth_engine_t *mEngine = nullptr;
 	HttpUriFormater mUriFormater;
+	std::queue<HttpRequestCtx*> pendingAuthRequests{};
 
 	static std::array<int, 4> sValidSipCodes;
 };
