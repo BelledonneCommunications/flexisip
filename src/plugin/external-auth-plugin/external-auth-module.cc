@@ -42,35 +42,52 @@ ExternalAuthModule::~ExternalAuthModule() {
 	nth_engine_destroy(mEngine);
 }
 
-void ExternalAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) {
+void ExternalAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials,
+										 auth_challenger_t const *ach) {
+	auto *ctx = new HttpRequestCtx({*this, as, *ach, *credentials});
+
+	as.status(100);
+	pendingAuthRequests.push(ctx);
+
+	// If no request is being processed we send this one directly
+	if (pendingAuthRequests.size() == 1) {
+		this->popAndSendRequest();
+	}
+}
+
+void ExternalAuthModule::popAndSendRequest() {
+	auto *firstRequestToSend = pendingAuthRequests.front();
 	try {
-		auto &externalAs = dynamic_cast<ExternalAuthModule::Status &>(as);
+		pendingAuthRequests.pop();
 
-		HttpUriFormater::TranslationFunc func = [&externalAs, credentials](const string &key){return extractParameter(externalAs, *credentials, key);};
+		auto &externalAs = dynamic_cast<ExternalAuthModule::Status &>(firstRequestToSend->as);
+		auto &credentials = firstRequestToSend->creds;
+		HttpUriFormater::TranslationFunc func = [&externalAs, &credentials](const string &key) {
+			return extractParameter(externalAs, credentials, key);
+		};
 		string uri = mUriFormater.format(func);
-
-		auto *ctx = new HttpRequestCtx({*this, as, *ach});
 
 		nth_client_t *request = nth_client_tcreate(mEngine,
 			onHttpResponseCb,
-			reinterpret_cast<nth_client_magic_t *>(ctx),
+			reinterpret_cast<nth_client_magic_t *>(firstRequestToSend),
 			http_method_get,
 			"GET",
 			URL_STRING_MAKE(uri.c_str()),
 			TAG_END()
 		);
+
 		if (request == nullptr) {
 			ostringstream os;
 			os << "HTTP request for '" << uri << "' has failed";
-			delete ctx;
+			delete firstRequestToSend;
 			throw runtime_error(os.str());
 		}
 		SLOGD << "HTTP request [" << request << "] to '" << uri << "' successfully sent";
-		as.status(100);
+
 	} catch (const runtime_error &e) {
 		SLOGE << e.what();
-		onError(as);
-		notify(as);
+		onError(firstRequestToSend->as);
+		notify(firstRequestToSend->as);
 	}
 }
 
@@ -196,9 +213,16 @@ std::string ExternalAuthModule::extractParameter(const Status &as, const msg_aut
 	return "null";
 }
 
-int ExternalAuthModule::onHttpResponseCb(nth_client_magic_t *magic, nth_client_t *request, const http_t *http) noexcept {
+int ExternalAuthModule::onHttpResponseCb(nth_client_magic_t *magic, nth_client_t *request,
+										 const http_t *http) noexcept {
 	auto *ctx = reinterpret_cast<HttpRequestCtx *>(magic);
+
 	ctx->am.onHttpResponse(*ctx, request, http);
+
+	if (!ctx->am.pendingAuthRequests.empty()) {
+		ctx->am.popAndSendRequest();
+	}
+
 	delete ctx;
 	return 0;
 }
