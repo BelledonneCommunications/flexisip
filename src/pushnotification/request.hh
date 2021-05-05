@@ -1,6 +1,6 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2020  Belledonne Communications SARL, All rights reserved.
+	Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as
@@ -115,12 +115,11 @@ class Request {
 	protected:
 		std::string quoteStringIfNeeded(const std::string &str) const noexcept;
 		std::string getPushTimeStamp() const noexcept;
+		const std::string mAppId;
 
 	private:
 		State mState{State::NotSubmitted};
-		const std::string mAppId;
 		const std::string mType;
-
 };
 
 } // pushnotification namespace
