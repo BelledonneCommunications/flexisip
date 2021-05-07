@@ -19,7 +19,7 @@ variables:
   UBUNTU_ROLLING_IMAGE_VERSION: 20210419_python3
 
 before_script:
-  - git submodule foreach --recursive git fetch --tags
+  - git submodule foreach --recursive git fetch -f --tags
 
 #################################################
 # Platforms to test
