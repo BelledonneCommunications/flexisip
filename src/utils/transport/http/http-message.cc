@@ -16,41 +16,25 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef flexisip_tester_hpp
-#define flexisip_tester_hpp
+#include "http-message.hh"
 
-#include "bctoolbox/tester.h"
-
-
-#include <fstream>
-#include <string>
-#include <memory>
 #include <sstream>
-#include <iostream>
-#include <vector>
-#include <chrono>
 
+using namespace std;
 
-std::string bcTesterFile(const std::string &name);
-std::string bcTesterRes(const std::string &name);
+namespace flexisip {
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+string HttpMessage::toString() const noexcept {
+	ostringstream os{};
+	os << "HttpMessage : " << endl;
+	os << "    HttpMessage header : " << endl;
+	os << this->mHeaders.toString() << endl;
+	os << "    HttpMessage body : " << endl;
+	for (char c : this->mBody) {
+		os << c;
+	}
 
-extern test_suite_t boolean_expressions_suite;
-extern test_suite_t push_notification_suite;
-extern test_suite_t registration_event_suite;
+	return os.str();
+}
 
-
-
-void flexisip_tester_init(void(*ftester_printf)(int level, const char *fmt, va_list args));
-void flexisip_tester_uninit(void);
-
-#ifdef __cplusplus
-};
-#endif
-
-
-
-#endif
+} // namespace flexisip
