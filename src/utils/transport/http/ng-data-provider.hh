@@ -16,41 +16,34 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef flexisip_tester_hpp
-#define flexisip_tester_hpp
+#pragma once
 
-#include "bctoolbox/tester.h"
-
-
-#include <fstream>
-#include <string>
-#include <memory>
 #include <sstream>
-#include <iostream>
+#include <string>
 #include <vector>
-#include <chrono>
 
+#include <nghttp2/nghttp2.h>
 
-std::string bcTesterFile(const std::string &name);
-std::string bcTesterRes(const std::string &name);
+namespace flexisip {
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+/**
+ * An utility class to provide a way to transform a simple request body (std::vector<char> or std::string) to a
+ * nghttp2_data_provider needed by nghttp2 to send a request.
+ */
+class NgDataProvider {
+public:
+	NgDataProvider(const std::vector<char>& data) noexcept;
+	NgDataProvider(const std::string& data) noexcept;
 
-extern test_suite_t boolean_expressions_suite;
-extern test_suite_t push_notification_suite;
-extern test_suite_t registration_event_suite;
+	const nghttp2_data_provider* getCStruct() const noexcept {
+		return &mDataProv;
+	}
 
+private:
+	ssize_t read(uint8_t* buf, size_t length, uint32_t* data_flags) noexcept;
 
-
-void flexisip_tester_init(void(*ftester_printf)(int level, const char *fmt, va_list args));
-void flexisip_tester_uninit(void);
-
-#ifdef __cplusplus
+	nghttp2_data_provider mDataProv{{0}};
+	std::stringstream mData{};
 };
-#endif
 
-
-
-#endif
+} // namespace flexisip
