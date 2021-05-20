@@ -99,14 +99,14 @@ void ConferenceServer::_init () {
 		}
 		mLocalDomains.push_back(addrProxy->getDomain());
 	}
-	
+
 	/* Get additional local domains */
 	auto otherLocalDomains = config->get<ConfigStringList>("local-domains")->read();
 	for (auto &domain : otherLocalDomains) mLocalDomains.emplace_back(move(domain));
 	otherLocalDomains.clear();
 	mLocalDomains.sort();
 	mLocalDomains.unique();
-	
+
 	mRegEventClientFactory = make_shared<RegistrationEvent::ClientFactory>(mCore);
 
 	Status err = mCore->start();
@@ -133,7 +133,7 @@ void ConferenceServer::loadFactoryUris(){
 	auto conferenceFactoryUrisSetting = config->get<ConfigStringList>("conference-factory-uris");
 	auto conferenceFactoryUri = conferenceFactoryUriSetting->read();
 	auto conferenceFactoryUris = conferenceFactoryUrisSetting->read();
-	
+
 	if (!conferenceFactoryUri.empty()) conferenceFactoryUris.push_back(conferenceFactoryUri);
 	if (conferenceFactoryUris.empty()) {
 		LOGF("'%s' parameter must be set!", conferenceFactoryUrisSetting->getCompleteName().c_str());
@@ -220,7 +220,7 @@ void ConferenceServer::bindConference() {
 	shared_ptr<FakeListener> listener = make_shared<FakeListener>();
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
 	if (config && config->get<ConfigBoolean>("enabled")->read()) {
-		
+
 		for (string conferenceFactoryUri : mFactoryUris){
 			try {
 				BindingParameters parameter;
@@ -365,7 +365,7 @@ ConferenceServer::Init::Init() {
 	, 0);
 	GenericManager::get()->getRoot()->addChild(s);
 	s->addChildrenValues(items);
-	s->get<ConfigString>("conference-factory-uri")->setDeprecated({"2020-09-30", "2.1.0", 
+	s->get<ConfigString>("conference-factory-uri")->setDeprecated({"2020-09-30", "2.1.0",
 		"Use 'conference-factory-uris' instead, that allows to declare multiple factory uris."});
 }
 
