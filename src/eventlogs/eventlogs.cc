@@ -846,6 +846,6 @@ void DataBaseEventLogWriter::write(std::shared_ptr<const EventLog> evlog) {
 	}
 }
 
-} // flexisip namespace
-
 #endif
+
+} // flexisip namespace
