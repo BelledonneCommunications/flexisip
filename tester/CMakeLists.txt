@@ -38,7 +38,7 @@ if(ENABLE_CONFERENCE)
 endif()
 
 target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
-target_link_libraries(flexisip_tester PRIVATE bctoolbox-tester flexisip linphone++ LibNgHttp2Asio OpenSSL::SSL 
+target_link_libraries(flexisip_tester PRIVATE bctoolbox-tester flexisip linphone++ LibNgHttp2Asio OpenSSL::SSL
 						OpenSSL::Crypto Threads::Threads ${Boost_SYSTEM_LIBRARY})
 
 install(TARGETS flexisip_tester
@@ -49,5 +49,9 @@ install(TARGETS flexisip_tester
 )
 
 install(DIRECTORY cert
+        DESTINATION ${TESTER_DATA_DIR}
+)
+
+install(DIRECTORY config
         DESTINATION ${TESTER_DATA_DIR}
 )
