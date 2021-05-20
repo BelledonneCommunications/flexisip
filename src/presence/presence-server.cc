@@ -146,10 +146,10 @@ PresenceServer::PresenceServer(su_root_t* root) : ServiceServer(root) {
 
 	int maxThreads = config->get<ConfigInt>("rls-database-max-thread")->read();
 	int maxQueueSize = config->get<ConfigInt>("rls-database-max-thread-queue-size")->read();
-	const string &connectionString = config->get<ConfigString>("rls-database-connection")->read();
 
 	mThreadPool = new ThreadPool(maxThreads, maxQueueSize);
 #if ENABLE_SOCI
+	const string &connectionString = config->get<ConfigString>("rls-database-connection")->read();
 	mConnPool = new soci::connection_pool(maxThreads);
 
 	try {
