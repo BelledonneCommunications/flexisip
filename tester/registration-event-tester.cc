@@ -40,7 +40,7 @@ static void basic() {
 	Agent *agent = a->getAgent();
 
 	GenericManager *cfg = GenericManager::get();
-	cfg->load("/flexisip.conf");
+	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_regevent.conf").c_str());
 	agent->loadConfig(cfg);
 
 	// Client initialisation
@@ -88,7 +88,7 @@ static void basic() {
 	gs->get<ConfigString>("conference-factory-uri")->set("sip:focus@sip.example.org");
 
 	// Registrars / Local confs
-	gs->get<ConfigString>("local-domains")->set("sip.example.org 127.0.0.1 [2a01:e0a:1ce:c860:f03d:d06:649f:6cfc]");
+	gs->get<ConfigStringList>("local-domains")->set("sip.example.org 127.0.0.1 [2a01:e0a:1ce:c860:f03d:d06:649f:6cfc]");
 
 	auto conferenceServer = make_shared<ConferenceServer>(a->getPreferredRoute(), root);
 	conferenceServer->init();
@@ -360,7 +360,7 @@ static void basic() {
 
 	// Reroute everything locally on the Conference Server
 
-	gs->get<ConfigString>("local-domains")->set("");
+	gs->get<ConfigStringList>("local-domains")->set("");
 
 	// Re-add the first participant, with the routing disabled
 
