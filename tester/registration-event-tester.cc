@@ -40,7 +40,7 @@ static void basic() {
 	Agent *agent = a->getAgent();
 
 	GenericManager *cfg = GenericManager::get();
-	cfg->load("/flexisip.conf");
+	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip.conf").c_str());
 	agent->loadConfig(cfg);
 
 	// Client initialisation
