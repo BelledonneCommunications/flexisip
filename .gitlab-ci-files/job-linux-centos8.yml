@@ -65,17 +65,18 @@ job-centos8-rpm:
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos8:$CENTOS_8_IMAGE_VERSION
   extends: .job-linux-rpm
 
-job-centos8-rpm-deploy:
-  stage: deploy
-  tags: [ "deploy" ]
-
-  extends: .job-deploy
-
-  dependencies:
-    - job-centos8-rpm
-
-  except:
-    variables:
-      - $DEPLOY_UBUNTU
-  script: ./.gitlab-ci-files/deploy.sh centos
+# Disabled temporarily on master to not break release/2.0
+#job-centos8-rpm-deploy:
+#  stage: deploy
+#  tags: [ "deploy" ]
+#
+#  extends: .job-deploy
+#
+#  dependencies:
+#    - job-centos8-rpm
+#
+#  except:
+#    variables:
+#      - $DEPLOY_UBUNTU
+#  script: ./.gitlab-ci-files/deploy.sh centos
 

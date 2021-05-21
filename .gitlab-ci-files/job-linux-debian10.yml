@@ -104,17 +104,18 @@ job-debian10-deb:
       - $DEPLOY_UBUNTU
 
 
-job-debian10-deb-deploy:
-
-  except:
-    variables:
-      - $DEPLOY_UBUNTU
-  variables:
-    RELEASE: buster
-    FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
-  extends: .job-debian-deb-deploy
-  dependencies:
-    - job-debian10-deb
+# Disabled temporarily on master to not break release/2.0
+#job-debian10-deb-deploy:
+#
+#  except:
+#    variables:
+#      - $DEPLOY_UBUNTU
+#  variables:
+#    RELEASE: buster
+#    FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
+#  extends: .job-debian-deb-deploy
+#  dependencies:
+#    - job-debian10-deb
     
 
 #################################################
