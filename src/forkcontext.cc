@@ -29,11 +29,20 @@ const int ForkContext::sUrgentCodes[] = {401, 407, 415, 420, 484, 488, 606, 603,
 const int ForkContext::sAllCodesUrgent[] = {-1, 0};
 
 ForkContext::ForkContext(Agent *agent, const shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg,
-						 ForkContextListener *listener)
-	: mListener(listener), mNextBranchesTimer(agent->getRoot()), mCurrentPriority(-1), mAgent(agent),
-	  mEvent(make_shared<RequestSipEvent>(event)), // Is this deep copy really necessary ?
+						 ForkContextListener *listener, shared_ptr<StatPair> counter)
+	: mListener(listener), mNextBranchesTimer(agent->getRoot()), mStatCounter(counter), mCurrentPriority(-1),
+	  mAgent(agent), mEvent(make_shared<RequestSipEvent>(event)), // Is this deep copy really necessary ?
 	  mCfg(cfg), mLateTimer(agent->getRoot()), mFinishTimer(agent->getRoot()) {
+	if (auto sharedCounter = mStatCounter.lock()) {
+		sharedCounter->incrStart();
+	}
 	init();
+}
+
+ForkContext::~ForkContext() {
+	if (auto sharedCounter = mStatCounter.lock()) {
+		sharedCounter->incrFinish();
+	}
 }
 
 void ForkContext::processLateTimeout() {
@@ -65,7 +74,6 @@ struct uid_finder {
 	const string mUid;
 };
 
-
 shared_ptr<BranchInfo> ForkContext::findBranchByUid(const string &uid) {
 	auto it = find_if(mWaitingBranches.begin(), mWaitingBranches.end(), uid_finder(uid));
 
@@ -96,14 +104,14 @@ bool ForkContext::isUrgent(int code, const int urgentCodes[]) {
 	return false;
 }
 
-static bool isConsidered(int code, bool ignore503And408){
+static bool isConsidered(int code, bool ignore503And408) {
 	return ignore503And408 ? (!(code == 503 || code == 408)) : true;
 }
 
 shared_ptr<BranchInfo> ForkContext::_findBestBranch(const int urgentCodes[], bool ignore503And408) {
 	shared_ptr<BranchInfo> best;
-	
-	for (const auto& br : mWaitingBranches) {
+
+	for (const auto &br : mWaitingBranches) {
 		int code = br->getStatus();
 		if (code >= 200 && isConsidered(code, ignore503And408)) {
 			if (best == NULL) {
@@ -119,10 +127,10 @@ shared_ptr<BranchInfo> ForkContext::_findBestBranch(const int urgentCodes[], boo
 		return shared_ptr<BranchInfo>();
 
 	if (urgentCodes) {
-		for (const auto& br : mWaitingBranches) {
+		for (const auto &br : mWaitingBranches) {
 			int code = br->getStatus();
 
-			if (code > 0  && isConsidered(code, ignore503And408) && isUrgent(code, urgentCodes)) {
+			if (code > 0 && isConsidered(code, ignore503And408) && isUrgent(code, urgentCodes)) {
 				best = br;
 				break;
 			}
@@ -132,7 +140,7 @@ shared_ptr<BranchInfo> ForkContext::_findBestBranch(const int urgentCodes[], boo
 	return best;
 }
 
-shared_ptr<BranchInfo> ForkContext::findBestBranch(const int urgentCodes[], bool avoid503And408){
+shared_ptr<BranchInfo> ForkContext::findBestBranch(const int urgentCodes[], bool avoid503And408) {
 	shared_ptr<BranchInfo> ret;
 
 	if (avoid503And408 == false)
@@ -148,7 +156,7 @@ shared_ptr<BranchInfo> ForkContext::findBestBranch(const int urgentCodes[], bool
 }
 
 bool ForkContext::allBranchesAnswered(bool ignore_errors_and_timeouts) const {
-	for (const auto& br : mWaitingBranches) {
+	for (const auto &br : mWaitingBranches) {
 		int code = br->getStatus();
 
 		if (code < 200)
@@ -161,7 +169,7 @@ bool ForkContext::allBranchesAnswered(bool ignore_errors_and_timeouts) const {
 }
 
 bool ForkContext::allCurrentBranchesAnswered(bool ignore_errors_and_timeouts) const {
-	for (const auto& br : mCurrentBranches) {
+	for (const auto &br : mCurrentBranches) {
 		int code = br->getStatus();
 
 		if (code < 200)
@@ -189,40 +197,41 @@ const list<shared_ptr<BranchInfo>> &ForkContext::getBranches() const {
 // would already been tried.
 bool ForkContext::onNewRegister(const url_t *url, const string &uid) {
 	shared_ptr<BranchInfo> br, br_by_url;
-	
+
 	/*
-	 * Check gruu. If the request was targeting a gruu address, the uid of the contact who has just registered shall match.
+	 * Check gruu. If the request was targeting a gruu address, the uid of the contact who has just registered shall
+	 * match.
 	 */
 	string target_gr;
 	if (ModuleToolbox::getUriParameter(mEvent->getSip()->sip_request->rq_url, "gr", target_gr)) {
-		if (uid.find(target_gr) == string::npos){ //to compare regardless of < >
+		if (uid.find(target_gr) == string::npos) { // to compare regardless of < >
 			/* This request was targetting a gruu address, but this REGISTER is not coming from our target contact.*/
 			return false;
 		}
 	}
-	
+
 	br = findBranchByUid(uid);
 	br_by_url = findBranchByDest(url);
 	if (br) {
 		int code = br->getStatus();
-		if (code == 503 || code == 408){
+		if (code == 503 || code == 408) {
 			LOGD("ForkContext %p: onNewRegister(): instance failed to receive the request previously.", this);
 			return true;
 		} else if (code >= 200) {
-			/* 
+			/*
 			 * This instance has already accepted or declined the request.
 			 * We should not send it the request again.
 			 */
 			LOGD("ForkContext %p: onNewRegister(): instance has already answered the request.", this);
 			return false;
 		} else {
-			/* 
+			/*
 			 * No response, or a provisional response is received. We can cannot conclude on what to do.
-			 * The transaction might succeeed in near future, or it might be dead. 
-			 * However, if the contact's uri is new, there is a high probability that the client reconnected 
-			 * from a new socket, in which case the current branch will receive no response. 
+			 * The transaction might succeeed in near future, or it might be dead.
+			 * However, if the contact's uri is new, there is a high probability that the client reconnected
+			 * from a new socket, in which case the current branch will receive no response.
 			 */
-			if (br_by_url == nullptr){
+			if (br_by_url == nullptr) {
 				LOGD("ForkContext %p: onNewRegister(): instance reconnected.", this);
 				return true;
 			}
@@ -241,7 +250,7 @@ void ForkContext::init() {
 	if (mCfg->mForkLate && !mLateTimer.isRunning()) {
 		/*this timer is for when outgoing transaction all die prematuraly, we still need to wait that late register
 		 * arrive.*/
-		mLateTimer.set([this](){processLateTimeout();}, static_cast<su_duration_t>(mCfg->mDeliveryTimeout) * 1000);
+		mLateTimer.set([this]() { processLateTimeout(); }, static_cast<su_duration_t>(mCfg->mDeliveryTimeout) * 1000);
 	}
 }
 
@@ -269,16 +278,16 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	br->mPriority = contact->mQ;
 
 	ot->setProperty("BranchInfo", weak_ptr<BranchInfo>{br});
-	
+
 	// Clear answered branches with same uid.
 	auto oldBr = findBranchByUid(br->mUid);
-	if (oldBr && oldBr->getStatus() >= 200){
+	if (oldBr && oldBr->getStatus() >= 200) {
 		LOGD("ForkContext [%p]: new fork branch [%p] clears out old branch [%p]", this, br.get(), oldBr.get());
 		removeBranch(oldBr);
-		br->mPushSent = oldBr->mPushSent; /* We need to remember if a push was sent for this branch, because in some cases (iOS) we must
-				absolutely not re-send a new one.*/
+		br->mPushSent = oldBr->mPushSent; /* We need to remember if a push was sent for this branch, because in some
+				cases (iOS) we must absolutely not re-send a new one.*/
 	}
-	
+
 	onNewBranch(br);
 
 	mWaitingBranches.push_back(br);
@@ -301,7 +310,7 @@ shared_ptr<ForkContext> ForkContext::get(const shared_ptr<OutgoingTransaction> &
 	return br ? br->mForkCtx.lock() : nullptr;
 }
 
-shared_ptr<BranchInfo> ForkContext::getBranchInfo(const shared_ptr<OutgoingTransaction> &tr){
+shared_ptr<BranchInfo> ForkContext::getBranchInfo(const shared_ptr<OutgoingTransaction> &tr) {
 	return tr->getProperty<BranchInfo>("BranchInfo");
 }
 
@@ -373,7 +382,7 @@ bool ForkContext::hasNextBranches() {
 	if (mCurrentPriority == -1 && !mWaitingBranches.empty())
 		return true;
 
-	for(auto& br : mWaitingBranches) {
+	for (auto &br : mWaitingBranches) {
 		if (br->mPriority < mCurrentPriority)
 			return true;
 	}
@@ -389,7 +398,7 @@ void ForkContext::nextBranches() {
 	if (mCurrentPriority == -1 && !mWaitingBranches.empty()) {
 		mCurrentPriority = mWaitingBranches.front()->mPriority;
 	} else {
-		for(const auto& br : mWaitingBranches) {
+		for (const auto &br : mWaitingBranches) {
 			if (br->mPriority < mCurrentPriority) {
 				mCurrentPriority = br->mPriority;
 				break;
@@ -398,7 +407,7 @@ void ForkContext::nextBranches() {
 	}
 
 	/* Stock all wanted branches */
-	for(const auto& br : mWaitingBranches) {
+	for (const auto &br : mWaitingBranches) {
 		if (br->mPriority == mCurrentPriority)
 			mCurrentBranches.push_back(br);
 	}
@@ -414,13 +423,14 @@ void ForkContext::start() {
 	LOGD("Started forking branches with priority [%p]: %f", this, mCurrentPriority);
 
 	/* Start the processing */
-	for(const auto& br : mCurrentBranches) {
+	for (const auto &br : mCurrentBranches) {
 		mAgent->injectRequestEvent(br->mRequest);
 	}
 
 	if (mCfg->mCurrentBranchesTimeout > 0 && hasNextBranches()) {
 		/* Start the timer for next branches */
-		mNextBranchesTimer.set([this](){onNextBranches();}, static_cast<su_duration_t>(mCfg->mCurrentBranchesTimeout) * 1000);
+		mNextBranchesTimer.set([this]() { onNextBranches(); },
+							   static_cast<su_duration_t>(mCfg->mCurrentBranchesTimeout) * 1000);
 	}
 }
 
@@ -454,7 +464,7 @@ void ForkContext::setFinished() {
 	mLateTimer.reset();
 	mNextBranchesTimer.reset();
 
-	mFinishTimer.set([self = shared_from_this()](){self->onFinished();}, 0);
+	mFinishTimer.set([self = shared_from_this()]() { self->onFinished(); }, 0);
 }
 
 bool ForkContext::shouldFinish() {
@@ -468,11 +478,11 @@ void ForkContext::onCancel(const shared_ptr<RequestSipEvent> &ev) {
 }
 
 void ForkContext::addKey(const string &key) {
-     mKeys.push_back(key);
+	mKeys.push_back(key);
 }
 
-const list<string> &ForkContext::getKeys() const{
-     return mKeys;
+const list<string> &ForkContext::getKeys() const {
+	return mKeys;
 }
 
 shared_ptr<BranchInfo> ForkContext::createBranchInfo() {
@@ -533,16 +543,16 @@ int ForkContext::getLastResponseCode() const {
 	return 0;
 }
 
-void ForkContext::onPushSent(const std::shared_ptr<OutgoingTransaction> &tr){
+void ForkContext::onPushSent(const std::shared_ptr<OutgoingTransaction> &tr) {
 	shared_ptr<BranchInfo> br = getBranchInfo(tr);
-	if (!br){
+	if (!br) {
 		LOGE("ForkContext[%p]: no branch for transaction [%p]", this, tr.get());
 		return;
 	}
 	br->mPushSent = true;
 }
 
-void ForkContext::onPushError(const std::shared_ptr<OutgoingTransaction> &tr, const std::string &errormsg){
+void ForkContext::onPushError(const std::shared_ptr<OutgoingTransaction> &tr, const std::string &errormsg) {
 }
 
 void BranchInfo::clear() {
