@@ -39,7 +39,8 @@ class ForkMessageContext : public ForkContext {
 
   public:
 	ForkMessageContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event,
-					   std::shared_ptr<ForkContextConfig> cfg, ForkContextListener *listener);
+					   std::shared_ptr<ForkContextConfig> cfg, ForkContextListener *listener,
+					   std::shared_ptr<StatPair> counter);
 	virtual ~ForkMessageContext();
 
   protected:

@@ -29,11 +29,16 @@ const int ForkContext::sUrgentCodes[] = {401, 407, 415, 420, 484, 488, 606, 603,
 const int ForkContext::sAllCodesUrgent[] = {-1, 0};
 
 ForkContext::ForkContext(Agent *agent, const shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg,
-						 ForkContextListener *listener)
-	: mListener(listener), mNextBranchesTimer(agent->getRoot()), mCurrentPriority(-1), mAgent(agent),
+						 ForkContextListener *listener, shared_ptr<StatPair> counter)
+	: mListener(listener), mNextBranchesTimer(agent->getRoot()), mStatCounter(counter), mCurrentPriority(-1), mAgent(agent),
 	  mEvent(make_shared<RequestSipEvent>(event)), // Is this deep copy really necessary ?
 	  mCfg(cfg), mLateTimer(agent->getRoot()), mFinishTimer(agent->getRoot()) {
+	mStatCounter->incrStart();
 	init();
+}
+
+ForkContext::~ForkContext() {
+	mStatCounter->incrFinish();
 }
 
 void ForkContext::processLateTimeout() {
