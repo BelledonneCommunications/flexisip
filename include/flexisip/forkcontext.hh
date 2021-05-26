@@ -71,6 +71,7 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	sofiasip::Timer mNextBranchesTimer;
 	std::list<std::shared_ptr<BranchInfo>> mWaitingBranches;
 	std::list<std::shared_ptr<BranchInfo>> mCurrentBranches;
+	std::weak_ptr<StatPair> mStatCounter;
 	float mCurrentPriority;
 	bool mFinished = false;
 	std::list<std::string> mKeys;
@@ -129,8 +130,8 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 
   public:
 	ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg,
-				ForkContextListener *listener);
-	virtual ~ForkContext() = default;
+				ForkContextListener *listener, std::shared_ptr<StatPair> counter);
+	virtual ~ForkContext();
 	// Called by the Router module to create a new branch.
 	void addBranch(const std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<ExtendedContact> &contact);
 	// Called by the router module to notify a cancellation.

@@ -29,11 +29,20 @@ const int ForkContext::sUrgentCodes[] = {401, 407, 415, 420, 484, 488, 606, 603,
 const int ForkContext::sAllCodesUrgent[] = {-1, 0};
 
 ForkContext::ForkContext(Agent *agent, const shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg,
-						 ForkContextListener *listener)
-	: mListener(listener), mNextBranchesTimer(agent->getRoot()), mCurrentPriority(-1), mAgent(agent),
+						 ForkContextListener *listener, shared_ptr<StatPair> counter)
+	: mListener(listener), mNextBranchesTimer(agent->getRoot()), mStatCounter(counter), mCurrentPriority(-1), mAgent(agent),
 	  mEvent(make_shared<RequestSipEvent>(event)), // Is this deep copy really necessary ?
 	  mCfg(cfg), mLateTimer(agent->getRoot()), mFinishTimer(agent->getRoot()) {
+	if (auto sharedCounter = mStatCounter.lock()) {
+		sharedCounter->incrStart();
+	}
 	init();
+}
+
+ForkContext::~ForkContext() {
+	if (auto sharedCounter = mStatCounter.lock()) {
+		sharedCounter->incrFinish();
+	}
 }
 
 void ForkContext::processLateTimeout() {
@@ -102,7 +111,7 @@ static bool isConsidered(int code, bool ignore503And408){
 
 shared_ptr<BranchInfo> ForkContext::_findBestBranch(const int urgentCodes[], bool ignore503And408) {
 	shared_ptr<BranchInfo> best;
-	
+
 	for (const auto& br : mWaitingBranches) {
 		int code = br->getStatus();
 		if (code >= 200 && isConsidered(code, ignore503And408)) {
@@ -189,7 +198,7 @@ const list<shared_ptr<BranchInfo>> &ForkContext::getBranches() const {
 // would already been tried.
 bool ForkContext::onNewRegister(const url_t *url, const string &uid) {
 	shared_ptr<BranchInfo> br, br_by_url;
-	
+
 	/*
 	 * Check gruu. If the request was targeting a gruu address, the uid of the contact who has just registered shall match.
 	 */
@@ -200,7 +209,7 @@ bool ForkContext::onNewRegister(const url_t *url, const string &uid) {
 			return false;
 		}
 	}
-	
+
 	br = findBranchByUid(uid);
 	br_by_url = findBranchByDest(url);
 	if (br) {
@@ -209,18 +218,18 @@ bool ForkContext::onNewRegister(const url_t *url, const string &uid) {
 			LOGD("ForkContext %p: onNewRegister(): instance failed to receive the request previously.", this);
 			return true;
 		} else if (code >= 200) {
-			/* 
+			/*
 			 * This instance has already accepted or declined the request.
 			 * We should not send it the request again.
 			 */
 			LOGD("ForkContext %p: onNewRegister(): instance has already answered the request.", this);
 			return false;
 		} else {
-			/* 
+			/*
 			 * No response, or a provisional response is received. We can cannot conclude on what to do.
-			 * The transaction might succeeed in near future, or it might be dead. 
-			 * However, if the contact's uri is new, there is a high probability that the client reconnected 
-			 * from a new socket, in which case the current branch will receive no response. 
+			 * The transaction might succeeed in near future, or it might be dead.
+			 * However, if the contact's uri is new, there is a high probability that the client reconnected
+			 * from a new socket, in which case the current branch will receive no response.
 			 */
 			if (br_by_url == nullptr){
 				LOGD("ForkContext %p: onNewRegister(): instance reconnected.", this);
@@ -269,7 +278,7 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	br->mPriority = contact->mQ;
 
 	ot->setProperty("BranchInfo", weak_ptr<BranchInfo>{br});
-	
+
 	// Clear answered branches with same uid.
 	auto oldBr = findBranchByUid(br->mUid);
 	if (oldBr && oldBr->getStatus() >= 200){
@@ -278,7 +287,7 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_
 		br->mPushSent = oldBr->mPushSent; /* We need to remember if a push was sent for this branch, because in some cases (iOS) we must
 				absolutely not re-send a new one.*/
 	}
-	
+
 	onNewBranch(br);
 
 	mWaitingBranches.push_back(br);

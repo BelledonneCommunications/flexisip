@@ -29,6 +29,9 @@ namespace flexisip {
 
 struct RouterStats {
 	std::unique_ptr<StatPair> mCountForks;
+	std::shared_ptr<StatPair> mCountBasicForks;
+	std::shared_ptr<StatPair> mCountCallForks;
+	std::shared_ptr<StatPair> mCountMessageForks;
 	std::unique_ptr<StatPair> mCountForkTransactions;
 	StatCounter64 *mCountNonForks = nullptr;
 	StatCounter64 *mCountLocalActives = nullptr;
