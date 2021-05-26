@@ -323,6 +323,7 @@ class GenericStruct : public GenericEntry {
 	StatCounter64 *createStat(const std::string &name, const std::string &help);
 	std::pair<StatCounter64 *, StatCounter64 *> createStatPair(const std::string &name, const std::string &help);
 	std::unique_ptr<StatPair> createStats(const std::string &name, const std::string &help);
+	std::shared_ptr<StatPair> createSharedStats(const std::string &name, const std::string &help);
 
 	void addChildrenValues(ConfigItemDescriptor *items);
 	void addChildrenValues(ConfigItemDescriptor *items, bool hashed);
