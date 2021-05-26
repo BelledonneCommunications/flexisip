@@ -33,10 +33,9 @@ template <typename T> static bool contains(const list<T> &l, T value) {
 }
 
 ForkCallContext::ForkCallContext(Agent *agent, const shared_ptr<RequestSipEvent> &event,
-								 shared_ptr<ForkContextConfig> cfg, ForkContextListener *listener)
-:
-	ForkContext(agent, event, cfg, listener), mLog{event->getEventLog<CallLog>()}
-{
+								 shared_ptr<ForkContextConfig> cfg, ForkContextListener *listener,
+								 weak_ptr<StatPair> counter)
+	: ForkContext(agent, event, move(cfg), listener, move(counter)), mLog{event->getEventLog<CallLog>()} {
 	SLOGD << "New ForkCallContext " << this;
 }
 
