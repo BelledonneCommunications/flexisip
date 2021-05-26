@@ -25,8 +25,9 @@ using namespace std;
 using namespace flexisip;
 
 ForkBasicContext::ForkBasicContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event,
-								   shared_ptr<ForkContextConfig> cfg, ForkContextListener *listener)
-	: ForkContext(agent, event, cfg, listener) {
+								   shared_ptr<ForkContextConfig> cfg, ForkContextListener *listener,
+								   weak_ptr<StatPair> counter)
+	: ForkContext(agent, event, move(cfg), listener, counter) {
 	LOGD("New ForkBasicContext %p", this);
 	mDecisionTimer = NULL;
 	// start the acceptance timer immediately
