@@ -22,9 +22,7 @@
 
 set(FLEXISIP_LIBS
 	bctoolbox
-	belr
 	${CMAKE_THREAD_LIBS_INIT}
-	${LINPHONECXX_LIBRARIES}
 	ortp
 	${SOFIASIPUA_LIBRARIES}
 	LibNgHttp2
@@ -150,8 +148,7 @@ endif()
 
 if(ENABLE_TRANSCODER)
 	list(APPEND FLEXISIP_SOURCES callcontext-transcoder.cc callcontext-transcoder.hh)
-	list(APPEND FLEXISIP_LIBS ${MEDIASTREAMER2_LIBRARIES})
-	list(APPEND FLEXISIP_INCLUDES ${MEDIASTREAMER2_INCLUDE_DIRS})
+	list(APPEND FLEXISIP_LIBS mediastreamer)
 endif()
 
 if(ENABLE_DATEHANDLER)
@@ -185,17 +182,21 @@ if(ENABLE_PROTOBUF)
 	add_definitions(-DENABLE_PROTOBUF)
 endif()
 
+if(ENABLE_PRESENCE)
+	list(APPEND FLEXISIP_PUBLIC_LIBS "belr")
+else()
+	list(APPEND FLEXISIP_LIBS "belr")
+endif()
+
 if(ENABLE_PRESENCE OR ENABLE_MDNS)
-	list(APPEND FLEXISIP_LIBS ${BELLESIP_LIBRARIES})
-	list(APPEND FLEXISIP_INCLUDES ${BELLESIP_INCLUDE_DIRS})
-	add_definitions(-DBELLE_SIP_USE_STL ${BELLE_SIP_CFLAGS})
+	list(APPEND FLEXISIP_PUBLIC_LIBS bellesip)
+	add_definitions(-DBELLE_SIP_USE_STL)
 endif()
 
 if(ENABLE_PRESENCE)
 	if(NOT XercesC_FOUND)
 		message(FATAL_ERROR "Presence asked but XercesC not enabled! Please enable it first.")
 	endif()
-	add_definitions(-DBELLE_SIP_USE_STL ${BELLE_SIP_CFLAGS})
 	list(APPEND XML_SOURCES
 		xml/data-model.cc
 		xml/data-model.hh
@@ -243,8 +244,8 @@ if(ENABLE_PRESENCE)
 endif()
 
 if(ENABLE_CONFERENCE)
-	list(APPEND FLEXISIP_LIBS ${BELLESIP_LIBRARIES} ${LINPHONE_LIBRARIES})
-	list(APPEND FLEXISIP_INCLUDES ${BELLESIP_INCLUDE_DIRS} ${LINPHONE_INCLUDE_DIRS})
+	list(APPEND FLEXISIP_LIBS bellesip)
+	list(APPEND FLEXISIP_PUBLIC_LIBS linphone++)
 	list(APPEND FLEXISIP_SOURCES
 		conference/conference-address-generator.cc
 		conference/conference-address-generator.hh
@@ -297,8 +298,7 @@ list(APPEND FLEXISIP_INCLUDES ${OPENSSL_INCLUDE_DIR})
 if(ENABLE_SOCI)
 	add_definitions(-DENABLE_SOCI)
 	list(APPEND FLEXISIP_SOURCES authdb-soci.cc soci-helper.cc soci-helper.hh)
-	list(APPEND FLEXISIP_LIBS ${SOCI_LIBRARY})
-	list(APPEND FLEXISIP_INCLUDES ${SOCI_INCLUDE_DIRS} ${SOCI_MYSQL_INCLUDES})
+	list(APPEND FLEXISIP_PUBLIC_LIBS soci_core soci_mysql)
 endif()
 
 list(APPEND FLEXISIP_SOURCES ${XML_SOURCES})
@@ -314,7 +314,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 		set_source_files_properties(cJSON.c PROPERTIES COMPILE_FLAGS "-Wno-error=misleading-indentation")
 	endif()
 	set_source_files_properties(stun/stun.c PROPERTIES COMPILE_FLAGS "-Wno-error=sign-compare")
-	if (ENABLE_PRESENCE AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0.0)
+	if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0.0)
 		set_source_files_properties(${XML_SOURCES} PROPERTIES COMPILE_FLAGS "-Wno-error=deprecated-copy")
 	endif()
 endif()
@@ -326,14 +326,14 @@ if(FLEXISIP_DEPENDENCIES)
 endif()
 add_dependencies(flexisip flexisip-git-version)
 target_compile_features(flexisip PRIVATE cxx_auto_type cxx_variadic_macros)
-#target_link_libraries(flexisip PUBLIC ${FLEXISIP_PUBLIC_LIBS} PRIVATE ${FLEXISIP_LIBS} ${PROTOBUF_LIBRARY})
+
 target_link_libraries(flexisip PUBLIC ${FLEXISIP_PUBLIC_LIBS} PRIVATE ${FLEXISIP_LIBS})
 target_include_directories(flexisip PRIVATE ${FLEXISIP_INCLUDES})
 
 add_executable(flexisip_server main.cc)
 set_property(TARGET flexisip_server PROPERTY OUTPUT_NAME flexisip)
 target_compile_features(flexisip_server PRIVATE cxx_auto_type cxx_variadic_macros)
-target_link_libraries(flexisip_server flexisip OpenSSL::Crypto ortp)
+target_link_libraries(flexisip_server PRIVATE flexisip OpenSSL::Crypto ortp)
 
 install(TARGETS flexisip flexisip_server
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -343,7 +343,7 @@ install(TARGETS flexisip flexisip_server
 )
 
 add_executable(flexisip_pusher tools/pusher.cc)
-target_link_libraries(flexisip_pusher flexisip OpenSSL::Crypto LibNgHttp2)
+target_link_libraries(flexisip_pusher flexisip OpenSSL::Crypto LibNgHttp2 bctoolbox)
 
 install(TARGETS flexisip_pusher
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

@@ -20,7 +20,8 @@
 #
 ############################################################################
 
-cmake_minimum_required(VERSION 3.2.0 FATAL_ERROR) # 3.2.0 required for target_compile_features support on gcc 4.4+ (centos6)
+# CMake 3.13 required by some sub-projects.
+cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 
 project(flexisip LANGUAGES C CXX)
 
@@ -85,16 +86,41 @@ endfunction()
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-# Required packages
-find_package(SofiaSipUa 1.13.11 REQUIRED) #find_package only allow numbers
-if(LINPHONE_BUILDER_GROUP_EXTERNAL_SOURCE_PATH_BUILDERS)
-	include("${EP_ortp_CONFIG_DIR}/ORTPConfig.cmake")
-else()
-	find_package(ortp 0.21 REQUIRED)
+# Add external dependencies
+if(ENABLE_SOCI OR ENABLE_CONFERENCE_SERVER)
+	set(SOCI_SHARED ON CACHE BOOL "" FORCE)
+	set(SOCI_STATIC OFF CACHE BOOL "" FORCE)
+	set(WITH_MYSQL ON CACHE BOOL "" FORCE)
+	add_subdirectory("linphone-sdk/external/soci")
 endif()
 
-find_package(bctoolbox 0.0.3 REQUIRED)
-find_package(belr REQUIRED)
+# Add Linphone SDK dependencies
+set(DISABLE_BC_PACKAGE_SEARCH ON)
+set(BCUNIT_TARGETNAME "bcunit")
+set(BCTOOLBOX_CMAKE_UTILS_DIR "${CMAKE_CURRENT_BINARY_DIR}/linphone-sdk/bctoolbox")
+add_subdirectory("linphone-sdk/bcunit")
+add_subdirectory("linphone-sdk/bctoolbox")
+add_subdirectory("linphone-sdk/ortp")
+add_subdirectory("linphone-sdk/belr")
+if(ENABLE_TRANSCODER)
+	set(ENABLE_MKV OFF)
+	add_subdirectory("linphone-sdk/mediastreamer2")
+endif()
+if(ENABLE_PRESENCE OR ENABLE_MDNS OR ENABLE_CONFERENCE)
+	add_subdirectory("linphone-sdk/belle-sip")
+endif()
+if(ENABLE_CONFERENCE)
+	set(ENABLE_LIME OFF)
+	set(ENABLE_LIME_X3DH OFF)
+	set(ENABLE_VCARD OFF)
+	set(DISABLE_SOCI_PACKAGE_SEARCH ON)
+	add_subdirectory("linphone-sdk/liblinphone")
+endif()
+
+
+# Required packages
+
+find_package(SofiaSipUa REQUIRED)
 find_package(LibNgHttp2 REQUIRED)
 
 find_package(XercesC)
@@ -114,10 +140,6 @@ if(ENABLE_SNMP)
 	endif()
 
 	execute_process(COMMAND "${NET_SNMP_PROG}" "--agent-libs" OUTPUT_VARIABLE NET_SNMP_LIBRARIES OUTPUT_STRIP_TRAILING_WHITESPACE)
-endif()
-
-if(ENABLE_TRANSCODER)
-	find_package(Mediastreamer2 2.9.0 REQUIRED)
 endif()
 
 if(ENABLE_SPECIFIC_FEATURES)
@@ -153,32 +175,6 @@ endif()
 if(ENABLE_PDFDOC)
 	FIND_PROGRAM_REQUIRED(PDFLATEX_PROG pdflatex)
 endif()
-
-if(ENABLE_PRESENCE OR ENABLE_MDNS)
-	if(LINPHONE_BUILDER_GROUP_EXTERNAL_SOURCE_PATH_BUILDERS)
-		include("${EP_bellesip_CONFIG_DIR}/BelleSIPConfig.cmake")
-	else()
-		find_package(BelleSIP 1.2.4 REQUIRED)
-	endif()
-endif()
-
-if(ENABLE_CONFERENCE)
-	if(LINPHONE_BUILDER_GROUP_EXTERNAL_SOURCE_PATH_BUILDERS)
-		include("${EP_bellesip_CONFIG_DIR}/BelleSIPConfig.cmake")
-		include("${EP_linphone_CONFIG_DIR}/LinphoneConfig.cmake")
-		include("${EP_linphone_CONFIG_DIR}/wrappers/cpp/LinphoneCxxConfig.cmake")
-	else ()
-		find_package(BelleSIP 1.2.4 REQUIRED)
-		find_package(Linphone REQUIRED)
-		find_package(LinphoneCxx REQUIRED)
-	endif()
-endif()
-
-if(ENABLE_SOCI)
-	find_package(Soci REQUIRED COMPONENTS mysql)
-	find_path(SOCI_MYSQL_INCLUDES NAMES mysql.h PATH_SUFFIXES mysql HINTS $ENV{MYSQL_DIR}/include /usr/include/mariadb /usr/local/include)
-endif()
-
 
 find_path(MSGPACK_INCLUDE_DIRS NAMES msgpack.hpp HINTS /usr/local/include)
 if(MSGPACK_INCLUDE_DIRS)
