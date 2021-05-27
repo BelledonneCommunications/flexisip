@@ -64,7 +64,7 @@ job-debian10-ninja-clang:
     CMAKE_GENERATOR: Ninja
     CC: clang
     CXX: clang++
-    CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON 
+    CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON
   extends: .job-linux
   artifacts:
     paths:
@@ -116,7 +116,7 @@ job-debian10-deb:
 #  extends: .job-debian-deb-deploy
 #  dependencies:
 #    - job-debian10-deb
-    
+
 
 #################################################
 # UNIT TESTS
@@ -139,4 +139,3 @@ job-debian10-unit-test:
     reports :
         junit :
           - BCUnitAutomated-Results.xml
-   
