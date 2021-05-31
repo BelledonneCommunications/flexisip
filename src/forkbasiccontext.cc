@@ -75,6 +75,7 @@ void ForkBasicContext::finishIncomingTransaction() {
 	} else {
 		forwardResponse(best);
 	}
+	setFinished();
 }
 
 void ForkBasicContext::onDecisionTimer() {
