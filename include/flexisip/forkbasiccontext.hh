@@ -35,7 +35,8 @@ class ForkBasicContext : public ForkContext {
 							success response was received on the outgoing transactions*/
   public:
 	ForkBasicContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event,
-					 std::shared_ptr<ForkContextConfig> cfg, ForkContextListener *listener);
+					 std::shared_ptr<ForkContextConfig> cfg, ForkContextListener *listener,
+					 std::weak_ptr<StatPair> counter);
 	virtual ~ForkBasicContext();
 
   protected:

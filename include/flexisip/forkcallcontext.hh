@@ -37,7 +37,7 @@ enum class ForkStatus {
 class ForkCallContext : public ForkContext {
   public:
 	ForkCallContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg,
-					ForkContextListener *listener);
+					ForkContextListener *listener, std::weak_ptr<StatPair> counter);
 	~ForkCallContext();
 
 	void sendResponse(int status, char const *phrase);
