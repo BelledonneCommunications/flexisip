@@ -23,6 +23,8 @@
 #include "flexisip-config.h"
 #endif
 
+namespace flexisip {
+
 std::string bcTesterFile(const std::string &name){
 	char *file = bc_tester_file(name.c_str());
 	std::string ret(file);
@@ -40,28 +42,6 @@ std::string bcTesterRes(const std::string &name){
 static int verbose_arg_func(const char *arg) {
 	bctbx_set_log_level(NULL, BCTBX_LOG_DEBUG);
 	return 0;
-}
-
-int main(int argc, char *argv[]) {
-	int i;
-	int ret;
-
-	flexisip_tester_init(NULL);
-
-	for(i = 1; i < argc; ++i) {
-		int ret = bc_tester_parse_args(argc, argv, i);
-		if (ret>0) {
-			i += ret - 1;
-			continue;
-		} else if (ret<0) {
-			bc_tester_helper(argv[0], "");
-		}
-		return ret;
-	}
-
-	ret = bc_tester_start(argv[0]);
-	flexisip_tester_uninit();
-	return ret;
 }
 
 static void log_handler(int lev, const char *fmt, va_list args) {
@@ -96,4 +76,28 @@ void flexisip_tester_init(void(*ftester_printf)(int level, const char *fmt, va_l
 
 void flexisip_tester_uninit(void) {
 	bc_tester_uninit();
+}
+
+} // namespace flexisip
+
+
+using namespace flexisip;
+
+int main(int argc, char *argv[]) {
+	flexisip_tester_init(NULL);
+
+	for(auto i = 1; i < argc; ++i) {
+		auto ret = bc_tester_parse_args(argc, argv, i);
+		if (ret>0) {
+			i += ret - 1;
+			continue;
+		} else if (ret<0) {
+			bc_tester_helper(argv[0], "");
+		}
+		return ret;
+	}
+
+	auto ret = bc_tester_start(argv[0]);
+	flexisip_tester_uninit();
+	return ret;
 }
