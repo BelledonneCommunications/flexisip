@@ -101,6 +101,7 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 
 	mStats.mCountForks = mc->createStats("count-forks", "Number of forks");
 	mStats.mCountBasicForks = mc->createStats("count-basic-forks", "Number of basic forks");
+	mStats.mCountBasicForksSetFinished = mc->createStats("count-basic-forks-set-finished", "Number of basic forks who called setFinished");
 	mStats.mCountCallForks = mc->createStats("count-call-forks", "Number of call forks");
 	mStats.mCountMessageForks = mc->createStats("count-message-forks", "Number of message forks");
 
@@ -566,7 +567,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 		// Use the message fork context only for refers that are text to prevent storing useless refers
 		context = make_shared<ForkMessageContext>(getAgent(), ev, mMessageForkCfg, this, mStats.mCountMessageForks);
 	} else {
-		context = make_shared<ForkBasicContext>(getAgent(), ev, mOtherForkCfg, this, mStats.mCountBasicForks);
+		context = make_shared<ForkBasicContext>(getAgent(), ev, mOtherForkCfg, this, mStats.mCountBasicForks, mStats.mCountBasicForksSetFinished);
 	}
 	if (context) {
 		const auto key = routingKey(sipUri);
