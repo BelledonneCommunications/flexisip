@@ -33,15 +33,17 @@ class ForkBasicContext : public ForkContext {
 	su_timer_t
 		*mDecisionTimer; /*timeout after which an answer must be sent through the incoming transaction even if no
 							success response was received on the outgoing transactions*/
+	std::weak_ptr<StatPair> mSetFinishedCounter;
   public:
 	ForkBasicContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event,
 					 std::shared_ptr<ForkContextConfig> cfg, ForkContextListener *listener,
-					 std::weak_ptr<StatPair> counter);
+					 std::weak_ptr<StatPair> counter, std::weak_ptr<StatPair> basicCounter);
 	virtual ~ForkBasicContext();
 
   protected:
 	virtual void onResponse(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &event);
 	virtual bool onNewRegister(const url_t *url, const std::string &uid);
+	virtual void setFinished();
 
   private:
 	void finishIncomingTransaction();

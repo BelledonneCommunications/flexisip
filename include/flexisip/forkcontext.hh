@@ -94,7 +94,7 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	sofiasip::Timer mLateTimer;
 	sofiasip::Timer mFinishTimer;
 	// Mark the fork process as terminated. The real destruction is performed asynchrously, in next main loop iteration.
-	void setFinished();
+	virtual void setFinished();
 	// Used by derived class to allocate a derived type of BranchInfo if necessary.
 	virtual std::shared_ptr<BranchInfo> createBranchInfo();
 	// Notifies derived class of the creation of a new branch
