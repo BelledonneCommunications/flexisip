@@ -537,7 +537,7 @@ pair<StatCounter64 *, StatCounter64 *> GenericStruct::createStatPair(const strin
 unique_ptr<StatPair> GenericStruct::createStats(const string &name, const string &help) {
 	auto start = createStat(name, help);
 	auto finish = createStat(name + "-finished", help + " Finished.");
-	return unique_ptr<StatPair>(new StatPair(start, finish));
+	return make_unique<StatPair>(start, finish);
 }
 
 struct matchEntryNameApprox {
