@@ -41,8 +41,7 @@ The dependencies to install depend on the build utilities you use to build Flexi
 | Soci-sqlite3    | Soci connector for SQLit3.                                                                                                               | X         |            | X     |
 | Soci-mysql      | Soci connector for MySQL.                                                                                                                | X         |            | X     |
 | Protobuf        | Needed for migration from legacy registrar database format.                                                                              |           | X          | X     |
-| NetSNMP         | SNMP library, used for SNMP support.                                                                                                     |           | X          | X     |
-| pdflatex        | To generate the reference documentation as PDF.                                                                                          |           | X          | X     |
+| NetSNMP         | SNMP library, used for SNMP support.                                                                                                     |           | X          | X     |                                                                                  |           | X          | X     |
 | Mediastreamer   | Media engine used for transcoding feature.                                                                                               |           |            | X     |
 | BelleSip        | mDNS support.                                                                                                                            |           |            | X     |
 
@@ -73,6 +72,7 @@ The dependencies to install depend on the build utilities you use to build Flexi
 - Python >= 3
 - Doxygen
 - Git
+- six, pystache, and graphviz (to be installed with pip for python3 - pip3 on centos 7)
 
 
 ## Building Flexisip with ./prepare.py tool (recommended)
@@ -91,7 +91,7 @@ To have the list of all supported options, you may invoke *./prepare.py* with *-
 ./prepare.py -lf
 ```
 
-For instance, the following line allows to build Flexisip with the same features than our packages
+For instance, the following line allows to build Flexisip with the same features as our published packages
 for CentOS and Debian:
 
 ```bash
@@ -135,9 +135,11 @@ make -C ./work -j<njobs>
 ## Building RPM or DEB packages
 
 ```bash
+export PYTHONPATH=$PYTHONPATH:/usr/local/lib/python3.6/site-packages # This workaround is required for rpmbuild to find some required build tools.
 ./prepare.py flexisip-rpm -DENABLE_CONFERENCE=ON -DENABLE_JWE_AUTH_PLUGIN=ON -DENABLE_EXTERNAL_AUTH_PLUGIN=ON -DENABLE_PRESENCE=ON -DENABLE_PROTOBUF=ON -DENABLE_SNMP=ON -DENABLE_SOCI=ON -DENABLE_TRANSCODER=ON
-make -j1 # The build MUST be sequential
+make -j<njobs>
 ```
+The packages are written within *./WORK/flexisip-rpm* directory.
 
 ## Docker
 
