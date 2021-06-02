@@ -225,11 +225,11 @@ class RelayChannel : public SdpMasqueradeContext{
 	void fillPollFd(PollFd *pfd);
 	bool checkPollFd(const PollFd *pfd, int i);
 	void setFilter(std::shared_ptr<MediaFilter> filter);
-	uint64_t getReceivedPackets() const {
-		return mPacketsReceived;
+	uint64_t getReceivedPackets(int componentIndex) const {
+		return mPacketsReceived[componentIndex];
 	}
-	uint64_t getSentPackets() const {
-		return mPacketsSent;
+	uint64_t getSentPackets(int componentIndex) const {
+		return mPacketsSent[componentIndex];
 	}
 	void setMultipleTargets(bool val){
 		mHasMultipleTargets = val;
@@ -255,8 +255,8 @@ class RelayChannel : public SdpMasqueradeContext{
 	std::shared_ptr<MediaFilter> mFilter;
 	int mPfdIndex;
 	int mRecvErrorCount[2];
-	uint64_t mPacketsSent;
-	uint64_t mPacketsReceived;
+	uint64_t mPacketsReceived[2];
+	uint64_t mPacketsSent[2];
 	bool mPreventLoop;
 	bool mHasMultipleTargets;
 	bool mDestAddrChanged;
