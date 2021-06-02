@@ -71,6 +71,9 @@ void ForkBasicContext::finishIncomingTransaction() {
 			shared_ptr<ResponseSipEvent> ev(
 				new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
 			forwardResponse(ev);
+		} else { // Should never happen
+			SLOGE << "Because MsgSip can't be created ForkBasicContext is finished without forwarding any response.";
+			setFinished();
 		}
 	} else {
 		forwardResponse(best);

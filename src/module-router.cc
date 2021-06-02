@@ -140,7 +140,6 @@ void ModuleRouter::onLoad(const GenericStruct *mc) {
 	mOtherForkCfg = make_shared<ForkContextConfig>();
 	mOtherForkCfg->mTreatAllErrorsAsUrgent = false;
 	mOtherForkCfg->mForkLate = false;
-	mOtherForkCfg->mDeliveryTimeout = 30;
 
 	mUseGlobalDomain = mc->get<ConfigBoolean>("use-global-domain")->read();
 
