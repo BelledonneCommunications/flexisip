@@ -151,7 +151,6 @@ tests-flexisip-mr:
     variables:
       - $DEPLOY_RUN
       - $DEPLOY_UBUNTU
-
   variables:
     #Build a new Flexisip Docker image from source
     REBUILD_FLEXISIP_IMAGE: "false"

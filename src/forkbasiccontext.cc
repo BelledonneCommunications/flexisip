@@ -25,8 +25,9 @@ using namespace std;
 using namespace flexisip;
 
 ForkBasicContext::ForkBasicContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event,
-								   shared_ptr<ForkContextConfig> cfg, ForkContextListener *listener)
-	: ForkContext(agent, event, cfg, listener) {
+								   shared_ptr<ForkContextConfig> cfg, ForkContextListener *listener,
+								   weak_ptr<StatPair> counter, weak_ptr<StatPair> basicCounter)
+	: ForkContext(agent, event, move(cfg), listener, move(counter)), mSetFinishedCounter(move(basicCounter)) {
 	LOGD("New ForkBasicContext %p", this);
 	mDecisionTimer = NULL;
 	// start the acceptance timer immediately
@@ -62,6 +63,9 @@ void ForkBasicContext::finishIncomingTransaction() {
 		su_timer_destroy(mDecisionTimer);
 		mDecisionTimer = NULL;
 	}
+	if (auto sharedCounter = mSetFinishedCounter.lock()) {
+		sharedCounter->incrStart();
+	}
 	shared_ptr<BranchInfo> best = findBestBranch(sUrgentCodes);
 	if (best == NULL) {
 		// Create response
@@ -74,6 +78,7 @@ void ForkBasicContext::finishIncomingTransaction() {
 	} else {
 		forwardResponse(best);
 	}
+	setFinished();
 }
 
 void ForkBasicContext::onDecisionTimer() {
@@ -87,4 +92,11 @@ void ForkBasicContext::sOnDecisionTimer(su_root_magic_t *magic, su_timer_t *t, s
 
 bool ForkBasicContext::onNewRegister(const url_t *url, const string &uid) {
 	return false;
+}
+
+void ForkBasicContext::setFinished() {
+	ForkContext::setFinished();
+	if (auto sharedCounter = mSetFinishedCounter.lock()) {
+		sharedCounter->incrFinish();
+	}
 }
