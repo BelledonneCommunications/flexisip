@@ -87,6 +87,8 @@ endfunction()
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # Add external dependencies
+add_subdirectory("submodules/externals/sofia-sip")
+
 if(ENABLE_SOCI OR ENABLE_CONFERENCE_SERVER)
 	set(SOCI_SHARED ON CACHE BOOL "" FORCE)
 	set(SOCI_STATIC OFF CACHE BOOL "" FORCE)
@@ -103,6 +105,7 @@ add_subdirectory("linphone-sdk/bctoolbox")
 add_subdirectory("linphone-sdk/ortp")
 add_subdirectory("linphone-sdk/belr")
 if(ENABLE_TRANSCODER)
+	set(ENABLE_VIDEO OFF)
 	set(ENABLE_MKV OFF)
 	add_subdirectory("linphone-sdk/mediastreamer2")
 endif()
@@ -120,7 +123,6 @@ endif()
 
 # Required packages
 
-find_package(SofiaSipUa REQUIRED)
 find_package(LibNgHttp2 REQUIRED)
 
 find_package(XercesC)
