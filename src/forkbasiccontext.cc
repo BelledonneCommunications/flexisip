@@ -25,8 +25,9 @@ using namespace std;
 using namespace flexisip;
 
 ForkBasicContext::ForkBasicContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event,
-								   shared_ptr<ForkContextConfig> cfg, ForkContextListener *listener)
-	: ForkContext(agent, event, cfg, listener) {
+								   shared_ptr<ForkContextConfig> cfg, ForkContextListener *listener,
+								   weak_ptr<StatPair> counter)
+	: ForkContext(agent, event, move(cfg), listener, move(counter)) {
 	LOGD("New ForkBasicContext %p", this);
 	mDecisionTimer = NULL;
 	// start the acceptance timer immediately
@@ -70,6 +71,9 @@ void ForkBasicContext::finishIncomingTransaction() {
 			shared_ptr<ResponseSipEvent> ev(
 				new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
 			forwardResponse(ev);
+		} else { // Should never happen
+			SLOGE << "Because MsgSip can't be created ForkBasicContext is finished without forwarding any response.";
+			setFinished();
 		}
 	} else {
 		forwardResponse(best);
