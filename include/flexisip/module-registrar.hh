@@ -109,6 +109,7 @@ class ResponseContext {
 	
 	const std::shared_ptr<RequestSipEvent> mRequestSipEvent;
 	sip_contact_t *mOriginalContacts{nullptr};
+	bool mContactIsMasqueraded{};
 };
 
 class ModuleRegistrar : public Module, public ModuleToolbox {
@@ -147,8 +148,10 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 	bool isManagedDomain(const url_t *url);
 	std::string routingKey(const url_t *sipUri);
 	void removeInternalParams(sip_contact_t *ct);
-
+	url_t * masqueradeContactUri(su_home_t *home, url_t *uri);
+	
 	RegistrarStats mStats;
+	std::string mDomainForContactMasquerading;
 	bool mUpdateOnResponse;
 	bool mAllowDomainRegistrations;
 	std::list<std::string> mDomains;
