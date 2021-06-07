@@ -1,3 +1,6 @@
+#
+# __The tests contained in this directory are now deprecated__
+#
 
 This file describes how to manage the tester scripts located in flexisip/test directory.
 
@@ -11,8 +14,8 @@ First, let's see what the typical layout should be for a test:
 │   ├── invite-auth.xml    # the SIPP scenario that will be played when flexisip is running with authentication enabled
 │   ├── invite.xml         # (mandatory) the SIPP scenario that will be played when flexisip is running without auth
 │   ├── launch.config      # (mandatory) in this file we can tune some parameters that the main launch script uses, and perform launch preparation commands
-│   ├── passwords          # (optional) test-specific password file for flexisip to use when authentication is enabled 
-│   ├── uas.xml            # (optional) test-specific uas.xml. This is useful in case of non-INVITE-based tests. 
+│   ├── passwords          # (optional) test-specific password file for flexisip to use when authentication is enabled
+│   ├── uas.xml            # (optional) test-specific uas.xml. This is useful in case of non-INVITE-based tests.
 │   └── users.csv          # (optional) test-specific users authentication CSV
 ```
 
