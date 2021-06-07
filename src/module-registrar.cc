@@ -331,9 +331,10 @@ void ModuleRegistrar::onDeclare(GenericStruct *mc) {
 			"This mode is for using flexisip as a front-end server to hold client connections but register"
 			"acceptance is deferred to backend server to which the REGISTER is routed.",
 			"false"},
-		{String, "masquerade-contact-with-domain",
-			"When reg-on-response mode is activated, specifiy a SIP domain "
-			"to be used to masquerade domains. This is useful when backend SIP registrar does not support Path header extension.",
+		{String, "masquerade-contact-with-uri",
+			"When reg-on-response mode is activated, specifiy a SIP URI template "
+			"to be used to masquerade contact. This is useful when backend SIP registrar does not support Path header extension. "
+			"The user part of the URI is ignored as it is replaced by during the masquerading process.",
 			""},
 		{Integer, "max-contacts-by-aor", "Maximum number of registered contacts per address of record.",
 			"12"}, /*used by registrardb*/
@@ -420,15 +421,20 @@ void ModuleRegistrar::onLoad(const GenericStruct *mc) {
 	mDomains = mc->get<ConfigStringList>("reg-domains")->read();
 	
 	if (mUpdateOnResponse){
-		mDomainForContactMasquerading = mc->get<ConfigString>("masquerade-contact-with-domain")->read();
-		if (!mDomainForContactMasquerading.empty()){
-			if (find(mDomains.begin(), mDomains.end(), mDomainForContactMasquerading) == mDomains.end()){
-				mDomains.push_back(mDomainForContactMasquerading);
+		string masqueradeUri = mc->get<ConfigString>("masquerade-contact-with-uri")->read();
+		if (!masqueradeUri.empty()){
+			try{
+				mContactMasqueradingUri = SipUri(masqueradeUri);
+				if (find(mDomains.begin(), mDomains.end(), mContactMasqueradingUri.getHost()) == mDomains.end()){
+					mDomains.push_back(mContactMasqueradingUri.getHost());
+				}
+			}catch(...){
+				LOGF("Invalid SIP URI specified in masquerade-contact-with-uri parameter of module::Regitrar");
 			}
 		}
 	}
 	for (auto it = mDomains.begin(); it != mDomains.end(); ++it) {
-		LOGD("Found registrar domain: %s %s", (*it).c_str(), (*it) == mDomainForContactMasquerading ? "(primary domain used for contact masquerading)" : "");
+		LOGD("Found registrar domain: %s %s", (*it).c_str(), (*it) == mContactMasqueradingUri.getHost() ? "(primary domain used for contact masquerading)" : "");
 	}
 	mUniqueIdParams = mc->get<ConfigStringList>("unique-id-parameters")->read();
 	mServiceRoute = mc->get<ConfigString>("service-route")->read();
@@ -512,10 +518,18 @@ void ModuleRegistrar::removeInternalParams(sip_contact_t *ct){
 	}
 }
 
-url_t *ModuleRegistrar::masqueradeContactUri(su_home_t *home, url_t *uri){
-	uri->url_user = su_sprintf(home, "%s%%40%s", uri->url_user, uri->url_host);
-	uri->url_host = su_strdup(home, mDomainForContactMasquerading.c_str());
-	return uri;
+/* Generate a GRUU address with username set to original username %40 (@) + original domain name. */
+url_t *ModuleRegistrar::masqueradeContactUri(su_home_t *home, const url_t *uri){
+	string grParam;
+	url_t *ret = url_hdup(home, mContactMasqueradingUri.get());
+	ret->url_user = su_sprintf(home, "%s%%40%s", uri->url_user, uri->url_host);
+	grParam.resize(strlen(uri->url_params));
+	isize_t size = url_param(uri->url_params, "gr", &grParam[0], grParam.size());
+	if (size > 0){
+		grParam.resize(size);
+		url_param_add(home, ret, (string("gr=") + grParam).c_str());
+	}
+	return ret;
 }
 
 string ModuleRegistrar::routingKey(const url_t *sipUri) {
@@ -735,7 +749,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			/* A gruu address can be assigned to this contact. Replace the contact with the GRUU address we are going to 
 			 * create for the contact.*/
 			/* if mDomainForContactMasquerading is not empty, masquerade this contact. */
-			if (!mDomainForContactMasquerading.empty()) {
+			if (!mContactMasqueradingUri.empty()) {
 				gruuAddress = masqueradeContactUri(ev->getHome(), gruuAddress);
 				context->mContactIsMasqueraded = true;
 			}
