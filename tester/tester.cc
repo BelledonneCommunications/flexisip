@@ -78,20 +78,20 @@ static void log_handler(int lev, const char *fmt, va_list args) {
 #endif
 }
 
-void flexisip_tester_init(void(*ftester_printf)(int level, const char *fmt, va_list args)) {
+void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_list args)) {
 	bc_tester_set_verbose_func(verbose_arg_func);
 
-	if (ftester_printf == NULL) ftester_printf = log_handler;
+	if (ftester_printf == NULL)
+		ftester_printf = log_handler;
 	bc_tester_init(ftester_printf, BCTBX_LOG_MESSAGE, BCTBX_LOG_ERROR, ".");
 
 	bc_tester_add_suite(&boolean_expressions_suite);
+	bc_tester_add_suite(&fork_context_suite);
 	bc_tester_add_suite(&push_notification_suite);
 
-
-	#if ENABLE_CONFERENCE
-		bc_tester_add_suite(&registration_event_suite);
-	#endif
-
+	//	#if ENABLE_CONFERENCE
+	//		bc_tester_add_suite(&registration_event_suite);
+	//	#endif
 }
 
 void flexisip_tester_uninit(void) {
