@@ -26,11 +26,11 @@
 #include "flexisip-config.h"
 #include "flexisip/logmanager.hh"
 
-#include "listening-socket.hh"
-#include "pns-mock.hh"
 #include "pushnotification/apple/apple-client.hh"
 #include "pushnotification/firebase/firebase-client.hh"
 #include "tester.hh"
+#include "utils/listening-socket.hh"
+#include "utils/pns-mock.hh"
 
 using namespace flexisip;
 using namespace flexisip::pushnotification;
