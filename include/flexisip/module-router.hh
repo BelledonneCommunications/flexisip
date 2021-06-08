@@ -35,36 +35,36 @@ struct RouterStats {
 };
 
 class ModuleRouter : public Module, public ModuleToolbox, public ForkContextListener {
-	RouterStats mStats;
-	bool rewriteContactUrl(const std::shared_ptr<MsgSip> &ms, const url_t *ct_url, const char *route);
-
-  public:
-	ModuleRouter(Agent *ag) : Module(ag) {
+public:
+	ModuleRouter(Agent* ag) : Module(ag) {
 	}
 
 	~ModuleRouter() {
 	}
 
-	virtual void onDeclare(GenericStruct *mc) override;
+	virtual void onDeclare(GenericStruct* mc) override;
 
-	virtual void onLoad(const GenericStruct *mc) override;
+	virtual void onLoad(const GenericStruct* mc) override;
 
-	virtual void onUnload() override {}
+	virtual void onUnload() override {
+	}
 
-	virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev) override;
+	virtual void onRequest(std::shared_ptr<RequestSipEvent>& ev) override;
 
-	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev) override;
+	virtual void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override;
 
 	virtual void onForkContextFinished(std::shared_ptr<ForkContext> ctx) override;
 
-	void sendReply(std::shared_ptr<RequestSipEvent> &ev, int code, const char *reason, int warn_code = 0, const char *warning = nullptr);
-	void routeRequest(std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<Record> &aor, const url_t *sipUri);
-	void onContactRegistered(const std::shared_ptr<OnContactRegisteredListener> &listener, const std::string &uid, const std::shared_ptr<Record> &aor, const url_t *sipUri);
+	void sendReply(std::shared_ptr<RequestSipEvent>& ev, int code, const char* reason, int warn_code = 0,
+	               const char* warning = nullptr);
+	void routeRequest(std::shared_ptr<RequestSipEvent>& ev, const std::shared_ptr<Record>& aor, const url_t* sipUri);
+	void onContactRegistered(const std::shared_ptr<OnContactRegisteredListener>& listener, const std::string& uid,
+	                         const std::shared_ptr<Record>& aor, const url_t* sipUri);
 
-	const std::string &getFallbackRoute() const {
+	const std::string& getFallbackRoute() const {
 		return mFallbackRoute;
 	}
-	const url_t *getFallbackRouteParsed() const{
+	const url_t* getFallbackRouteParsed() const {
 		return mFallbackRouteParsed;
 	}
 
@@ -76,23 +76,26 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 		return mAllowDomainRegistrations;
 	}
 
-	bool isManagedDomain(const url_t *url) {
+	bool isManagedDomain(const url_t* url) {
 		return ModuleToolbox::isManagedDomain(getAgent(), mDomains, url);
 	}
 
-  protected:
+	RouterStats mStats;
+
+protected:
 	using ForkMapElem = std::shared_ptr<ForkContext>;
 	using ForkMap = std::multimap<std::string, ForkMapElem>;
 	using ForkRefList = std::vector<ForkMapElem>;
 
-	virtual bool dispatch(const std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<ExtendedContact> &contact,
-				  std::shared_ptr<ForkContext> context, const std::string &targetUris);
-	virtual bool lateDispatch(const std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<ExtendedContact> &contact,
-				  std::shared_ptr<ForkContext> context, const std::string &targetUris);
-	std::string routingKey(const url_t *sipUri);
-	std::vector<std::string> split(const char *data, const char *delim);
-	ForkRefList getLateForks(const std::string &key) const noexcept;
-	unsigned countLateForks(const std::string &key) const noexcept;
+	virtual bool dispatch(const std::shared_ptr<RequestSipEvent>& ev, const std::shared_ptr<ExtendedContact>& contact,
+	                      std::shared_ptr<ForkContext> context, const std::string& targetUris);
+	virtual bool lateDispatch(const std::shared_ptr<RequestSipEvent>& ev,
+	                          const std::shared_ptr<ExtendedContact>& contact, std::shared_ptr<ForkContext> context,
+	                          const std::string& targetUris);
+	std::string routingKey(const url_t* sipUri);
+	std::vector<std::string> split(const char* data, const char* delim);
+	ForkRefList getLateForks(const std::string& key) const noexcept;
+	unsigned countLateForks(const std::string& key) const noexcept;
 
 	std::list<std::string> mDomains;
 	std::shared_ptr<ForkContextConfig> mForkCfg;
@@ -106,9 +109,10 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 	bool mRelayRegsToDomains = false;
 	bool mFallbackParentDomain = false;
 	std::string mFallbackRoute;
-	url_t *mFallbackRouteParsed = nullptr;
-	
-  private:
+	url_t* mFallbackRouteParsed = nullptr;
+
+private:
+	bool rewriteContactUrl(const std::shared_ptr<MsgSip>& ms, const url_t* ct_url, const char* route);
 	static ModuleInfo<ModuleRouter> sInfo;
 };
 
