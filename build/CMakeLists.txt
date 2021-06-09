@@ -20,18 +20,23 @@
 #
 ############################################################################
 
-cmake_minimum_required(VERSION 3.11) # we need CMake 3.11 for defining 'package_source' target as custom target
+set(CPACK_PACKAGE_NAME "bc-flexisip")
+set(CPACK_PACKAGE_VENDOR "Belledonne Communications SARL")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "SIP server suite comprising proxy, presence, and IM conference server.")
+set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/description.txt")
+set(CPACK_PACKAGE_HOMEPAGE_URL "http://flexisip.org")
+set(CPACK_PACKAGING_INSTALL_PREFIX "/opt/belledonne-communications")
+set(CPACK_GENERATOR "RPM")
 
-if (NOT CPACK_PACKAGE_NAME)
-	set(CPACK_PACKAGE_NAME "flexisip")
-endif()
+bc_compute_linux_package_version("${FLEXISIP_FULL_VERSION}" version release)
 
-set(CPACK_SOURCE_IGNORE_FILES
-	"./linphone-sdk"
-	"./submodules*"
-	"./WORK*"
-	"./OUTPUT*"
-	"./.*"
+set(CPACK_RPM_PACKAGE_EPOCH "1")
+set(CPACK_RPM_PACKAGE_LICENSE "AGPLv3")
+set(CPACK_RPM_PACKAGE_GROUP "Applications/Communication")
+set(CPACK_RPM_PACKAGE_RELEASE "${release}")
+set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
+	"/opt/belledonne-communications/include"
 )
+set(CPACK_RPM_FILE_NAME "${CPACK_PACKAGE_NAME}-${PROJECT_VERSION}-${CPACK_RPM_PACKAGE_RELEASE}.${CMAKE_HOST_SYSTEM_PROCESSOR}.rpm")
 
-bc_make_package_source_target()
+include(CPack)

@@ -23,7 +23,14 @@
 # CMake 3.13 required by some sub-projects.
 cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 
-project(flexisip LANGUAGES C CXX)
+# Set project version by using the Git describe
+include("./linphone-sdk/bctoolbox/cmake/BcToolboxCMakeUtils.cmake")
+bc_compute_full_version(FLEXISIP_FULL_VERSION)
+bc_parse_full_version("${FLEXISIP_FULL_VERSION}" major minor patch)
+project(flexisip VERSION "${major}.${minor}.${patch}" LANGUAGES C CXX)
+unset(major)
+unset(minor)
+unset(patch)
 
 include(CMakePushCheckState)
 include(CMakeDependentOption)
@@ -49,7 +56,6 @@ option(ENABLE_MDNS "Build multicast DNS support" OFF)
 option(ENABLE_EXTERNAL_AUTH_PLUGIN "Enable ExternalAuth plugin support" ON)
 option(ENABLE_JWE_AUTH_PLUGIN "Enable JweAuth plugin support" ON)
 option(ENABLE_UNIT_TESTS "Enable flexisip unit tests (low level tests)" OFF)
-option(ENABLE_PACKAGE_SOURCE "Create 'package_source' target for source archive making (CMake >= 3.11)" OFF)
 
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
 
@@ -250,6 +256,4 @@ if(ENABLE_UNIT_TESTS)
 endif()
 
 # Packaging
-if (ENABLE_PACKAGE_SOURCE)
-	add_subdirectory(build)
-endif()
+add_subdirectory(build)
