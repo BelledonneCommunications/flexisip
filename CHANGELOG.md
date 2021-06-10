@@ -13,6 +13,25 @@ Group changes to describe their impact on the project, as follows:
 | Fixed          | Any bug fixes                                         |
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
+## [2.0.5] - 2021-06-09
+### [Added]
+- **Flexisip CLI** Add three new counters: count-basic-forks, count-call-forks and count-message-forks.
+
+### [Fixed]
+- **Apple push notifications** Set the 'apns-push-type' header.
+- **Apple push notifications** Correctly set the 'apns-expiration' header, basing on some parameters of module::Router (call-fork-timeout and message-delivery-timeout).
+- **Apple push notifications** Prevent the TLS connection from blocking the main thread for more than one second while connecting.
+- **Android push notifications** Fix typo in the name of one key in the PNR payload. ('form-uri' -> 'from-uri'). The old key will be
+  supported until Flexisip 2.1.
+- **External Authentication plugin** Correctly print the HTTP response from the authentication server in the log.
+- **External Authentication plugin** Fix bug that caused the HTTP response to be matched with the bad request when
+  several request was sent simultaneously.
+- **Filter parameter** Fix crash on evaluation when 'contains' operator has no left-hand operand.
+  Makes Flexisip to abort on starting otherwise.
+- **Flexisip CLI** Fix crash with Python3 < 3.7
+- **Memory usage** Fix several memory leaks.
+- **XWiki doc generator** Fix bad output syntax when bullet points are used in parameter descriptions.
+- **XWiki doc generator** Generate documentation for the experimental modules.
 
 ## [2.0.4] - 2021-03-01
 ### [Fixed]
