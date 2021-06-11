@@ -21,6 +21,8 @@
 ############################################################################
 
 set(CPACK_PACKAGE_NAME "bc-flexisip")
+set(CPACK_PACKAGE_VERSION "${FLEXISIP_FULL_VERSION}")
+set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${FLEXISIP_FULL_VERSION}")
 set(CPACK_PACKAGE_VENDOR "Belledonne Communications SARL")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "SIP server suite comprising proxy, presence, and IM conference server.")
 set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/description.txt")
@@ -38,5 +40,6 @@ set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
 	"/opt/belledonne-communications/include"
 )
 set(CPACK_RPM_FILE_NAME "${CPACK_PACKAGE_NAME}-${PROJECT_VERSION}-${CPACK_RPM_PACKAGE_RELEASE}.${CMAKE_HOST_SYSTEM_PROCESSOR}.rpm")
+set(CPACK_RPM_DEBUGINFO_PACKAGE ON)
 
 include(CPack)
