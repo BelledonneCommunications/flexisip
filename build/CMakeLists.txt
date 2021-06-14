@@ -27,19 +27,36 @@ set(CPACK_PACKAGE_VENDOR "Belledonne Communications SARL")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "SIP server suite comprising proxy, presence, and IM conference server.")
 set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/description.txt")
 set(CPACK_PACKAGE_HOMEPAGE_URL "http://flexisip.org")
-set(CPACK_PACKAGING_INSTALL_PREFIX "/opt/belledonne-communications")
-set(CPACK_GENERATOR "RPM")
+set(CPACK_PACKAGING_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
+set(CPACK_GENERATOR "DEB")
 
 bc_compute_linux_package_version("${FLEXISIP_FULL_VERSION}" version release)
 
+# RedHat/CentOS package
 set(CPACK_RPM_PACKAGE_EPOCH "1")
 set(CPACK_RPM_PACKAGE_LICENSE "AGPLv3")
 set(CPACK_RPM_PACKAGE_GROUP "Applications/Communication")
+set(CPACK_RPM_PACKAGE_VERSION "${version}")
 set(CPACK_RPM_PACKAGE_RELEASE "${release}")
 set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
 	"/opt/belledonne-communications/include"
 )
-set(CPACK_RPM_FILE_NAME "${CPACK_PACKAGE_NAME}-${PROJECT_VERSION}-${CPACK_RPM_PACKAGE_RELEASE}.${CMAKE_HOST_SYSTEM_PROCESSOR}.rpm")
+set(CPACK_RPM_FILE_NAME "${CPACK_PACKAGE_NAME}-${version}-${release}.${CMAKE_HOST_SYSTEM_PROCESSOR}.rpm")
 set(CPACK_RPM_DEBUGINFO_PACKAGE ON)
+
+# Debian package
+find_program(DPKG "dpkg")
+if(DPKG)
+	execute_process(
+		COMMAND ${DPKG} "--print-architecture"
+		OUTPUT_VARIABLE CPACK_DEBIAN_PACKAGE_ARCHITECTURE
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+	)
+endif()
+
+set(CPACK_DEBIAN_PACKAGE_VERSION "${version}")
+set(CPACK_DEBIAN_PACAGKE_RELEASE "${release}")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "info@belledonne-communications")
+set(CPACK_DEBIAN_FILE_NAME "${CPACK_PACKAGE_NAME}_${version}-${release}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}.deb")
 
 include(CPack)
