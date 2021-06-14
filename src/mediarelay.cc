@@ -64,12 +64,10 @@ unsigned int PollFd::getREvents(int index) const {
 
 RelayChannel::RelayChannel(RelaySession *relaySession, const RelayTransport &rt,
 						   bool preventLoops)
-	: mDir(SendRecv), mRelayTransport(rt), mRemoteIp(std::string("undefined")) {
+	: mDir(SendRecv), mRelayTransport(rt), mRemoteIp(std::string("undefined")), mPacketsReceived{}, mPacketsSent{} {
 	mPfdIndex = -1;
 	initializeRtpSession(relaySession);
 	mSockAddrSize[0] = mSockAddrSize[1] = 0;
-	mPacketsReceived = 0;
-	mPacketsSent = 0;
 	mPreventLoop = preventLoops;
 	mHasMultipleTargets = false;
 	mDestAddrChanged = false;
@@ -187,7 +185,7 @@ int RelayChannel::recv(int i, uint8_t *buf, size_t buflen, time_t curTime) {
 
 	int err = recvfrom(mSockets[i], buf, buflen, 0, (struct sockaddr *)&ss, &addrsize);
 	if (err > 0) {
-		mPacketsReceived++;
+		mPacketsReceived[i]++;
 		if (mSockAddrSize[i] == 0){
 			/* Remote destination has never been set previously (for example if 183 or 200 OK is not yet received),
 			 * but we receive a packet.
@@ -238,7 +236,7 @@ int RelayChannel::send(int i, uint8_t *buf, size_t buflen) {
 		if (!mFilter || mFilter->onOutgoingTransfer(buf, buflen, (struct sockaddr *)&mSockAddr[i], mSockAddrSize[i])) {
 			int localPort = (i == 0) ? mRelayTransport.mRtpPort : mRelayTransport.mRtcpPort;
 			err = sendto(mSockets[i], buf, buflen, 0, (struct sockaddr *)&mSockAddr[i], mSockAddrSize[i]);
-			mPacketsSent++;
+			mPacketsSent[i]++;
 			if (err == -1) {
 				LOGW("Error sending %i bytes (localport=%i dest=%s:%i) : %s", (int)buflen, localPort,
 					 mRemoteIp.c_str(), mRemotePort[i], strerror(errno));
@@ -372,38 +370,52 @@ RelaySession::~RelaySession() {
 	LOGD("RelaySession %p destroyed", this);
 }
 
+struct Statistics {
+	int port = 0;
+	uint64_t recv = 0;
+	uint64_t sent = 0;
+	static void log(const Statistics st[2], const std::string & identifier){
+		LOGD("%s statistics: \n"
+			"RTP port  : %i\t Received packets: %lu\tSent packets: %lu\n"
+			"RTCP port : %i\t Received packets: %lu\tSent packets: %lu\n",
+			identifier.c_str(),
+			st[0].port, st[0].recv, st[0].sent,
+			st[1].port, st[1].recv, st[1].sent);
+	}
+};
+
 void RelaySession::unuse() {
-	struct statistics {
-		int port;
-		unsigned long recv;
-		unsigned long sent;
-	} front = {0, 0, 0}, back = {0, 0, 0};
+	Statistics front[2], back[2];
 
 	LOGD("RelaySession [%p] terminated.", this);
+	
+	/* Do not log while holding a mutex, so copy out statistics first, and then display them. */
 
 	mMutex.lock();
 	mUsed = false;
-	if (mFront) {
-		front.port = mFront->getRelayTransport().mRtpPort;
-		front.recv = mFront->getReceivedPackets();
-		front.sent = mFront->getSentPackets();
-	}
-	if (mBack) {
-		back.port = mBack->getRelayTransport().mRtpPort;
-		back.recv = mBack->getReceivedPackets();
-		back.sent = mBack->getSentPackets();
+	for (int componentID = 0 ; componentID < 2 ; ++ componentID){
+		if (mFront) {
+			front[componentID].port = componentID == 0 ? mFront->getRelayTransport().mRtpPort : mFront->getRelayTransport().mRtcpPort;
+			front[componentID].recv = mFront->getReceivedPackets(componentID);
+			front[componentID].sent = mFront->getSentPackets(componentID);
+		}
+		if (mBack) {
+			back[componentID].port = componentID == 0 ? mBack->getRelayTransport().mRtpPort : mBack->getRelayTransport().mRtcpPort;
+			back[componentID].recv = mBack->getReceivedPackets(componentID);
+			back[componentID].sent = mBack->getSentPackets(componentID);
+		}
 	}
 	mFront.reset();
 	mBacks.clear();
 	mBack.reset();
 	mMutex.unlock();
 
-	/*do not log while holding a mutex*/
-	if (front.port > 0) {
-		LOGD("Front on port [%i] received [%lu] and sent [%lu] packets.", front.port, front.recv, front.sent);
+	
+	if (front[0].port != 0) {
+		Statistics::log(front, "Caller side");
 	}
-	if (back.port > 0) {
-		LOGD("Back on port [%i] received [%lu] and sent [%lu] packets.", back.port, back.recv, back.sent);
+	if (back[0].port != 0) {
+		Statistics::log(back, "Callee side");
 	}
 }
 
