@@ -520,9 +520,10 @@ void ModuleRegistrar::removeInternalParams(sip_contact_t *ct){
 
 /* Generate a GRUU address with username set to original username %40 (@) + original domain name. */
 url_t *ModuleRegistrar::masqueradeContactUri(su_home_t *home, const url_t *uri){
-	string grParam;
+	
 	url_t *ret = url_hdup(home, mContactMasqueradingUri.get());
-	ret->url_user = su_sprintf(home, "%s%%40%s", uri->url_user, uri->url_host);
+	ret->url_user = su_sprintf(home, "%s-%s", uri->url_user, uri->url_host);
+	string grParam;
 	grParam.resize(strlen(uri->url_params));
 	isize_t size = url_param(uri->url_params, "gr", &grParam[0], grParam.size());
 	if (size > 0){
@@ -687,7 +688,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			SLOGD << "Identical path already existing: " << getAgent()->getPreferredRoute();
 		}
 	} else {
-		addPathHeader(getAgent(), ev, ev->getIncomingTport().get());
+		//addPathHeader(getAgent(), ev, ev->getIncomingTport().get());
 	}
 
 	// Init conn id in tport
