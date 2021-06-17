@@ -77,27 +77,6 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 			"\tselect password, 'MD5' from accounts where login = :id and domain = :domain",
 			"select password, 'MD5' from accounts where login = :id and domain = :domain"},
 
-		{String, "soci-user-with-phone-request",
-			"WARNING: This parameter is used by the presence server only.\n"
-			"Soci SQL request used to obtain the username associated with a phone alias.\n"
-			"The string MUST contains the ':phone' keyword which will be replaced by the phone number to look for.\n"
-			"The result of the request is a 1x1 table containing the name of the user associated with the phone "
-			"number.\n"
-			"\n"
-			"Example: select login from accounts where phone = :phone ",
-			""},
-
-		{String, "soci-users-with-phones-request",
-			"WARNING: This parameter is used by the presence server only.\n"
-			"Same as 'soci-user-with-phone-request' but allows to fetch several users by a unique SQL request.\n"
-			"The string MUST contains the ':phones' keyword which will be replaced by the list of phone numbers to "
-			"look for. Each element of the list is seperated by a comma character and is protected by simple quotes "
-			"(e.g. '0336xxxxxxxx','0337yyyyyyyy','034zzzzzzzzz').\n"
-			"If you use phone number linked accounts you'll need to select login, domain, phone in your request for "
-			"flexisip to work.\n"
-			"Example: select login, domain, phone from accounts where phone in (:phones)",
-			""},
-
 		{Integer, "soci-max-queue-size",
 			"Amount of queries that will be allowed to be queued before bailing password requests.\n"
 			"This value should be chosen accordingly with 'soci-poolsize', so that you have a coherent behavior.\n"
@@ -119,23 +98,27 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 }
 
 SociAuthDB::SociAuthDB() {
-	GenericStruct *cr = GenericManager::get()->getRoot();
-	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
-	GenericStruct *mp = cr->get<GenericStruct>("module::Presence");
+	auto* cr = GenericManager::get()->getRoot();
+	auto* ma = cr->get<GenericStruct>("module::Authentication");
+	auto* mp = cr->get<GenericStruct>("module::Presence");
+	auto* ps = cr->get<GenericStruct>("presence-server");
 
 	poolSize = ma->get<ConfigInt>("soci-poolsize")->read();
 	connection_string = ma->get<ConfigString>("soci-connection-string")->read();
 	backend = ma->get<ConfigString>("soci-backend")->read();
 	get_password_request = ma->get<ConfigString>("soci-password-request")->read();
-	get_user_with_phone_request = ma->get<ConfigString>("soci-user-with-phone-request")->read();
-	get_users_with_phones_request = ma->get<ConfigString>("soci-users-with-phones-request")->read();
-	unsigned int max_queue_size = (unsigned int)ma->get<ConfigInt>("soci-max-queue-size")->read();
+	auto max_queue_size = (unsigned int)ma->get<ConfigInt>("soci-max-queue-size")->read();
+
+	get_user_with_phone_request = ps->get<ConfigString>("soci-user-with-phone-request")->read();
+	get_users_with_phones_request = ps->get<ConfigString>("soci-users-with-phones-request")->read();
+
 	check_domain_in_presence_results = mp->get<ConfigBoolean>("check-domain-in-presence-results")->read();
 
 	conn_pool.reset(new connection_pool(poolSize));
 	thread_pool.reset(new ThreadPool(poolSize, max_queue_size));
 
-	LOGD("[SOCI] Authentication provider for backend %s created. Pooled for %zu connections", backend.c_str(), poolSize);
+	LOGD("[SOCI] Authentication provider for backend %s created. Pooled for %zu connections", backend.c_str(),
+	     poolSize);
 	connectDatabase();
 }
 

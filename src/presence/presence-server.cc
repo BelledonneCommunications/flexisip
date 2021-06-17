@@ -69,6 +69,23 @@ PresenceServer::Init::Init() {
 			""},
 		{Integer, "rls-database-max-thread", "Max number of threads.", "50"},
 		{Integer, "rls-database-max-thread-queue-size", "Max legnth of threads queue.", "50"},
+		{String, "soci-user-with-phone-request",
+			"Soci SQL request used to obtain the username associated with a phone alias.\n"
+			"The string MUST contains the ':phone' keyword which will be replaced by the phone number to look for.\n"
+			"The result of the request is a 1x1 table containing the name of the user associated with the phone "
+			"number.\n"
+			"\n"
+			"Example: select login from accounts where phone = :phone ",
+			""},
+		{String, "soci-users-with-phones-request",
+			"Same as 'soci-user-with-phone-request' but allows to fetch several users by a unique SQL request.\n"
+			"The string MUST contains the ':phones' keyword which will be replaced by the list of phone numbers to "
+			"look for. Each element of the list is seperated by a comma character and is protected by simple quotes "
+			"(e.g. '0336xxxxxxxx','0337yyyyyyyy','034zzzzzzzzz').\n"
+			"If you use phone number linked accounts you'll need to select login, domain, phone in your request for "
+			"flexisip to work.\n"
+			"Example: select login, domain, phone from accounts where phone in (:phones)",
+			""},
 
 		// Hidden parameters
 		{String, "bypass-condition", "If user agent contains it, can bypass extended notifiy verification.", "false"},
@@ -206,8 +223,8 @@ void PresenceServer::_init() {
 	auto longTermEnabled = longTermEnabledConfig->read();
 
 	const auto &dbImplementation = cr->get<GenericStruct>("module::Authentication")->get<ConfigString>("db-implementation")->read();
-	const auto *getUsersWithPhonesRequestParam = cr->get<GenericStruct>("module::Authentication")->get<ConfigString>("soci-users-with-phones-request");
-	const auto *getUserWithPhoneRequestParam = cr->get<GenericStruct>("module::Authentication")->get<ConfigString>("soci-user-with-phone-request");
+	const auto *getUsersWithPhonesRequestParam = cr->get<GenericStruct>("presence-server")->get<ConfigString>("soci-users-with-phones-request");
+	const auto *getUserWithPhoneRequestParam = cr->get<GenericStruct>("presence-server")->get<ConfigString>("soci-user-with-phone-request");
 	const auto &getUsersWithPhonesRequest = getUsersWithPhonesRequestParam->read();
 	const auto &getUserWithPhoneRequest = getUserWithPhoneRequestParam->read();
 	auto userDbIsProperlySet = dbImplementation == "file" || !getUsersWithPhonesRequest.empty() || !getUserWithPhoneRequest.empty();
