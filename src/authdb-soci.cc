@@ -77,6 +77,22 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 			"\tselect password, 'MD5' from accounts where login = :id and domain = :domain",
 			"select password, 'MD5' from accounts where login = :id and domain = :domain"},
 
+		{Integer, "soci-max-queue-size",
+			"Amount of queries that will be allowed to be queued before bailing password requests.\n"
+			"This value should be chosen accordingly with 'soci-poolsize', so that you have a coherent behavior.\n"
+			"This limit is here mainly as a safeguard against out-of-control growth of the queue in the event of a "
+			"flood or big delays in the database backend.",
+			"1000"},
+
+		{Integer, "soci-poolsize",
+			"Size of the pool of connections that Soci will use. A thread is opened for each DB query, and this pool "
+			"will allow each thread to get a connection.\n"
+			"The threads are blocked until a connection is released back to the pool, so increasing the pool size will "
+			"allow more connections to occur simultaneously.\n"
+			"On the other hand, you should not keep too many open connections to your DB at the same time.",
+			"100"},
+
+			// Deprecated
 		{String, "soci-user-with-phone-request",
 			"WARNING: This parameter is used by the presence server only.\n"
 			"Soci SQL request used to obtain the username associated with a phone alias.\n"
@@ -98,44 +114,45 @@ void SociAuthDB::declareConfig(GenericStruct *mc) {
 			"Example: select login, domain, phone from accounts where phone in (:phones)",
 			""},
 
-		{Integer, "soci-max-queue-size",
-			"Amount of queries that will be allowed to be queued before bailing password requests.\n"
-			"This value should be chosen accordingly with 'soci-poolsize', so that you have a coherent behavior.\n"
-			"This limit is here mainly as a safeguard against out-of-control growth of the queue in the event of a "
-			"flood or big delays in the database backend.",
-			"1000"},
-
-		{Integer, "soci-poolsize",
-			"Size of the pool of connections that Soci will use. A thread is opened for each DB query, and this pool "
-			"will allow each thread to get a connection.\n"
-			"The threads are blocked until a connection is released back to the pool, so increasing the pool size will "
-			"allow more connections to occur simultaneously.\n"
-			"On the other hand, you should not keep too many open connections to your DB at the same time.",
-			"100"},
-
 		config_item_end};
 
 	mc->addChildrenValues(items);
+
+	auto userWithPhoneReqConf = mc->get<ConfigString>("soci-user-with-phone-request");
+	userWithPhoneReqConf->setDeprecated(
+	    {"2020-06-18", "2.1.0",
+	     "This configuration is moved to [presence-server] section. Please move your configuration."});
+	auto usersWithPhonesReqConf = mc->get<ConfigString>("soci-users-with-phones-request");
+	usersWithPhonesReqConf->setDeprecated(
+	    {"2020-06-18", "2.1.0",
+	     "This configuration is moved to [presence-server] section. Please move your configuration."});
+
+	auto* ps = GenericManager::get()->getRoot()->get<GenericStruct>("presence-server");
+	ps->get<ConfigString>("soci-user-with-phone-request")->setFallback(*userWithPhoneReqConf);
+	ps->get<ConfigString>("soci-users-with-phones-request")->setFallback(*usersWithPhonesReqConf);
 }
 
 SociAuthDB::SociAuthDB() {
-	GenericStruct *cr = GenericManager::get()->getRoot();
-	GenericStruct *ma = cr->get<GenericStruct>("module::Authentication");
-	GenericStruct *mp = cr->get<GenericStruct>("module::Presence");
+	auto* cr = GenericManager::get()->getRoot();
+	auto* ma = cr->get<GenericStruct>("module::Authentication");
+	auto* mp = cr->get<GenericStruct>("module::Presence");
+	auto* ps = cr->get<GenericStruct>("presence-server");
 
 	poolSize = ma->get<ConfigInt>("soci-poolsize")->read();
 	connection_string = ma->get<ConfigString>("soci-connection-string")->read();
 	backend = ma->get<ConfigString>("soci-backend")->read();
 	get_password_request = ma->get<ConfigString>("soci-password-request")->read();
-	get_user_with_phone_request = ma->get<ConfigString>("soci-user-with-phone-request")->read();
-	get_users_with_phones_request = ma->get<ConfigString>("soci-users-with-phones-request")->read();
-	unsigned int max_queue_size = (unsigned int)ma->get<ConfigInt>("soci-max-queue-size")->read();
+	auto max_queue_size = (unsigned int)ma->get<ConfigInt>("soci-max-queue-size")->read();
+
+	get_user_with_phone_request = ps->get<ConfigString>("soci-user-with-phone-request")->read();
+	get_users_with_phones_request = ps->get<ConfigString>("soci-users-with-phones-request")->read();
 	check_domain_in_presence_results = mp->get<ConfigBoolean>("check-domain-in-presence-results")->read();
 
 	conn_pool.reset(new connection_pool(poolSize));
 	thread_pool.reset(new ThreadPool(poolSize, max_queue_size));
 
-	LOGD("[SOCI] Authentication provider for backend %s created. Pooled for %zu connections", backend.c_str(), poolSize);
+	LOGD("[SOCI] Authentication provider for backend %s created. Pooled for %zu connections", backend.c_str(),
+	     poolSize);
 	connectDatabase();
 }
 
