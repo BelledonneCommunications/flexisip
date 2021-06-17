@@ -522,7 +522,7 @@ void ModuleRegistrar::removeInternalParams(sip_contact_t *ct){
 url_t *ModuleRegistrar::masqueradeContactUri(su_home_t *home, const url_t *uri){
 	
 	url_t *ret = url_hdup(home, mContactMasqueradingUri.get());
-	ret->url_user = su_sprintf(home, "%s-%s", uri->url_user, uri->url_host);
+	ret->url_user = su_sprintf(home, "%s--%s", uri->url_user, uri->url_host);
 	string grParam;
 	grParam.resize(strlen(uri->url_params));
 	isize_t size = url_param(uri->url_params, "gr", &grParam[0], grParam.size());
