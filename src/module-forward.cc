@@ -347,7 +347,7 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 
 	// Add path
 	if (mAddPath && method == sip_method_register) {
-		addPathHeader(getAgent(), ev, tport, getAgent()->getUniqueId().c_str());
+		//addPathHeader(getAgent(), ev, tport, getAgent()->getUniqueId().c_str());
 	}
 
 	// Clean push notifs params from contacts
