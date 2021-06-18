@@ -21,36 +21,31 @@
 
 #include "bctoolbox/tester.h"
 
-
+#include <chrono>
 #include <fstream>
-#include <string>
+#include <iostream>
 #include <memory>
 #include <sstream>
-#include <iostream>
+#include <string>
 #include <vector>
-#include <chrono>
 
-
-std::string bcTesterFile(const std::string &name);
-std::string bcTesterRes(const std::string &name);
+std::string bcTesterFile(const std::string& name);
+std::string bcTesterRes(const std::string& name);
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 extern test_suite_t boolean_expressions_suite;
+extern test_suite_t fork_context_suite;
 extern test_suite_t push_notification_suite;
 extern test_suite_t registration_event_suite;
 
-
-
-void flexisip_tester_init(void(*ftester_printf)(int level, const char *fmt, va_list args));
+void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_list args));
 void flexisip_tester_uninit(void);
 
 #ifdef __cplusplus
 };
 #endif
-
-
 
 #endif

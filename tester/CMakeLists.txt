@@ -23,14 +23,16 @@
 find_package(Threads REQUIRED)
 find_package(LibNgHttp2Asio REQUIRED)
 find_package(Boost COMPONENTS system REQUIRED)
+find_package(BelleSIP REQUIRED)
 
 add_executable(flexisip_tester
-	tester.cc
-	tester.hh
-	pns-mock.cc pns-mock.hh
 	boolean-expressions.cc
+	fork-context-tester.cc
 	push-notification-tester.cc
-	listening-socket.cc listening-socket.hh
+	tester.cc tester.hh
+	utils/pns-mock.cc utils/pns-mock.hh
+	utils/listening-socket.cc utils/listening-socket.hh
+	utils/bellesip-utils.cc utils/bellesip-utils.hh
 )
 
 if(ENABLE_CONFERENCE)
@@ -38,7 +40,7 @@ if(ENABLE_CONFERENCE)
 endif()
 
 target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
-target_link_libraries(flexisip_tester PRIVATE bctoolbox-tester flexisip linphone++ LibNgHttp2Asio OpenSSL::SSL 
+target_link_libraries(flexisip_tester PRIVATE bctoolbox-tester flexisip linphone++ bellesip LibNgHttp2Asio OpenSSL::SSL
 						OpenSSL::Crypto Threads::Threads ${Boost_SYSTEM_LIBRARY})
 
 install(TARGETS flexisip_tester
@@ -49,5 +51,9 @@ install(TARGETS flexisip_tester
 )
 
 install(DIRECTORY cert
+        DESTINATION ${TESTER_DATA_DIR}
+)
+
+install(DIRECTORY config
         DESTINATION ${TESTER_DATA_DIR}
 )
