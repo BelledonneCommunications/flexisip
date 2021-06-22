@@ -332,23 +332,13 @@ public:
 };
 
 struct BindingParameters {
-	bool alias;
-	bool withGruu;
-	int globalExpire;
-	int version;
-	std::string callId;
-	std::string path;
-	std::string userAgent;
-
-	BindingParameters() {
-		alias = false;
-		withGruu = false;
-		globalExpire = 0;
-		version = 0;
-		callId = "";
-		path = "";
-		userAgent = "";
-	}
+	bool alias{false};
+	bool withGruu{false};
+	int globalExpire{0};
+	int version{0};
+	std::string callId{};
+	std::string path{};
+	std::string userAgent{};
 };
 
 /**

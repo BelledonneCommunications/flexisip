@@ -32,9 +32,10 @@
 #include "pushnotification/firebase/firebase-client.hh"
 #include "tester.hh"
 
-using namespace flexisip;
 using namespace flexisip::pushnotification;
 using namespace std;
+
+namespace flexisip {
 
 static su_root_t* root = nullptr;
 
@@ -431,4 +432,7 @@ static test_t tests[] = {
     TEST_NO_TAG("Apple push notification test timeout", applePushTestTimeout)};
 
 test_suite_t push_notification_suite = {
-    "Push notification", beforeSuite, afterSuite, NULL, NULL, sizeof(tests) / sizeof(tests[0]), tests};
+    "Push notification", beforeSuite, afterSuite, NULL, NULL, sizeof(tests) / sizeof(tests[0]), tests
+};
+
+} // namespace flexisip

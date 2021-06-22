@@ -106,8 +106,9 @@ class Agent : public IncomingAgent,
 	StatCounter64 *mCountReply407 = nullptr; // proxy auth
 	StatCounter64 *mCountReply408 = nullptr; // request timeout
 	StatCounter64 *mCountReplyResUnknown = nullptr;
+	ConfigValueListener *mBaseConfigListener = nullptr;
+
 	void onDeclare(GenericStruct *root);
-	ConfigValueListener *mBaseConfigListener;
 
 private:
 	template <typename SipEventT, typename ModuleIter>

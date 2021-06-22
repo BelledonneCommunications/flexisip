@@ -646,7 +646,7 @@ class GenericManager : protected ConfigValueListener {
   public:
 	static GenericManager *get();
 
-	int load(const char *configFile);
+	int load(std::string configFile);
 	GenericStruct *getRoot();
 	std::string &getConfigFile() {
 		return mConfigFile;

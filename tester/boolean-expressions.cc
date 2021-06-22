@@ -22,9 +22,9 @@
 #include "tester.hh"
 #include "flexisip/sip-boolean-expressions.hh"
 
-
-using namespace flexisip;
 using namespace std;
+
+namespace flexisip {
 
 static msg_t *sipRequest = nullptr;
 static msg_t *sipResponse = nullptr;
@@ -237,3 +237,6 @@ test_suite_t boolean_expressions_suite = {
 	sizeof(tests) / sizeof(tests[0]),
 	tests
 };
+
+} // namespace flexisip
+
