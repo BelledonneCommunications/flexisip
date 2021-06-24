@@ -25,9 +25,9 @@
     - export CC=$CC
     - export CXX=$CXX
     - git submodule foreach --recursive git fetch --tags --force
-    - mkdir work
-    - cmake -S . -B work -G "$CMAKE_GENERATOR" $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS
-    - cmake --build work -- $ADDITIONAL_BUILD_OPTIONS
+    - mkdir work && cd work
+    - cmake -G "$CMAKE_GENERATOR" $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS ..
+    - cmake --build . -- $ADDITIONAL_BUILD_OPTIONS
 
 #################################################
 # RPM
@@ -41,10 +41,10 @@
       - $DEPLOY_UBUNTU
 
   script:
-    - mkdir work
-    - cmake -S . -B work $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS
-    - cmake --build work -- $ADDITIONAL_BUILD_OPTIONS
-    - cpack -G RPM
+    - mkdir work && cd work
+    - cmake $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS ..
+    - cmake --build . -- $ADDITIONAL_BUILD_OPTIONS
+    - cpack -G RPM .
 
   artifacts:
     paths:
@@ -61,10 +61,10 @@
   stage: package
 
   script:
-    - mkdir work
-    - cmake -S . -B work $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS
-    - cmake --build work -- $ADDITIONAL_BUILD_OPTIONS
-    - cpack -G DEB
+    - mkdir work && cd work
+    - cmake $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS ..
+    - cmake --build . -- $ADDITIONAL_BUILD_OPTIONS
+    - cpack -G DEB .
 
   artifacts:
     paths:
