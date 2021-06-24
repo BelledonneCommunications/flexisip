@@ -110,6 +110,7 @@ set(FLEXISIP_SOURCES
 	stun/stun.c
 	telephone-event-filter.cc
 	transaction.cc
+	transport.cc
 	uac-register.cc
 	utils/digest.cc utils/digest.hh
 	utils/sip-uri.cc
