@@ -26,6 +26,7 @@ find_package(Boost COMPONENTS system REQUIRED)
 find_package(BelleSIP REQUIRED)
 
 add_executable(flexisip_tester
+	agent-tester.cc
 	boolean-expressions.cc
 	fork-context-tester.cc
 	push-notification-tester.cc
