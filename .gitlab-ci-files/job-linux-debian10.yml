@@ -84,11 +84,13 @@ job-debian10-xwiki-doc-deploy:
 
   script:
     - prefix=/opt/belledonne-communications
+    - builddir=work
     - sudo mkdir -p $prefix
     - sudo chown bc:bc $prefix
-    - ./prepare.py -DCMAKE_INSTALL_PREFIX=$prefix -DCMAKE_PREFIX_PATH=$prefix $DEFAULT_CMAKE_OPTIONS
+	- mkdir $builddir
+    - cmake -S . -B $builddir -DCMAKE_INSTALL_PREFIX=$prefix -DCMAKE_PREFIX_PATH=$prefix $DEFAULT_CMAKE_OPTIONS
     - make -j$MAKEFILE_JOBS
-    - /usr/bin/python3 ./doc/xw.py --flexisip-binary $prefix/bin/flexisip -H $XWIKI_HOSTNAME -u $XWIKI_USERNAME -p $XWIKI_PASSWORD
+    - /usr/bin/python3 ./doc/xw.py --flexisip-binary $builddir/src/flexisip -H $XWIKI_HOSTNAME -u $XWIKI_USERNAME -p $XWIKI_PASSWORD
 
 #################################################
 # DEB
