@@ -21,7 +21,7 @@
 ############################################################################
 
 # CMake 3.13 required by some sub-projects.
-cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.13)
 
 # Set project version by using the Git describe
 include("./linphone-sdk/bctoolbox/cmake/BcToolboxCMakeUtils.cmake")
@@ -96,9 +96,29 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 add_subdirectory("submodules/externals/sofia-sip")
 
 if(ENABLE_SOCI OR ENABLE_CONFERENCE_SERVER)
-	set(SOCI_SHARED ON CACHE BOOL "" FORCE)
-	set(SOCI_STATIC OFF CACHE BOOL "" FORCE)
-	set(WITH_MYSQL ON CACHE BOOL "" FORCE)
+	set(SOCI_SHARED ON)
+	set(SOCI_STATIC OFF)
+	if (APPLE)
+		set(SOCI_FRAMEWORK ON)
+	endif()
+	set(SOCI_TESTS OFF)
+	set(SOCI_ASAN OFF)
+	set(SOCI_EMPTY OFF)
+
+	# Soci backends
+	set(WITH_DB2 OFF)
+	set(WITH_FIREBIRD OFF)
+	set(WITH_MYSQL ON)
+	set(WITH_ODBC OFF)
+	set(WITH_ORACLE OFF)
+	set(WITH_POSTGRESQL ON)
+	set(WITH_SQLITE3 ON)
+	set(WITH_THREAD_STACK_SIZE 0)
+	set(WITH_VALGRIND OFF)
+
+	set(SOCI_MYSQL ON)
+	set(SOCI_POSTGRESQL ON)
+	set(SOCI_SQLITE3 ON)
 	add_subdirectory("linphone-sdk/external/soci")
 endif()
 
@@ -111,6 +131,16 @@ set(DISABLE_BC_PACKAGE_SEARCH ON)
 set(BCUNIT_TARGETNAME "bcunit")
 set(BCTOOLBOX_CMAKE_UTILS_DIR "${CMAKE_CURRENT_BINARY_DIR}/linphone-sdk/bctoolbox")
 
+## Global SDK config
+set(ENABLE_SHARED ON)
+set(ENABLE_STATIC OFF)
+set(ENABLE_TOOLS OFF)
+set(ENABLE_TEST OFF)
+set(ENABLE_TESTS OFF)
+set(ENABLE_DOC OFF)
+set(ENABLE_PACKAGE_SOURCE OFF)
+
+## BCunit specific config
 set(ENABLE_AUTOMATED ON)
 set(ENABLE_BASIC ON)
 set(ENABLE_CONSOLE ON)
@@ -119,36 +149,92 @@ set(ENABLE_MEMTRACE OFF)
 set(ENABLE_DEPRECATED OFF)
 add_subdirectory("linphone-sdk/bcunit")
 
+## BcToolbox specific config
 set(ENABLE_POLARSSL OFF)
 set(ENABLE_MBEDTLS ON)
+set(ENABLE_DECAF OFF)
+set(ENABLE_TESTS_COMPONENT ${ENABLE_UNIT_TESTS})
 add_subdirectory("linphone-sdk/bctoolbox")
 
+## oRTP specific config
+option(ENABLE_NTP_TIMESTAMP OFF)
+option(ENABLE_PERF OFF)
+option(ENABLE_DEBUG_LOGS OFF)
+option(ENABLE_PACKAGE_SOURCE "Create 'package_source' target for source archive making (CMake >= 3.11)" OFF)
 add_subdirectory("linphone-sdk/ortp")
+
+## Belr specific config
 add_subdirectory("linphone-sdk/belr")
+
+## Mediastreamer specific config
 if(ENABLE_TRANSCODER)
-	set(ENABLE_SOUND OFF)
+	set(ENABLE_DEBUG_LOGS OFF)
+	set(ENABLE_FIXED_POINT "Turn on fixed point computations." OFF)
+	set(ENABLE_NON_FREE_CODECS OFF)
+	set(ENABLE_PCAP OFF)
+	set(ENABLE_RELATIVE_PREFIX OFF)
+
+	set(ENABLE_SRTP ON)
+	set(ENABLE_ZRTP ON)
+
+	set(ENABLE_SOUND OFF) # Disable all sound card backends.
+
+	set(ENABLE_G726 OFF)
+	set(ENABLE_GSM ON)
+	set(ENABLE_BV16 OFF)
+	set(ENABLE_OPUS ON)
+	set(ENABLE_SPEEX_CODEC ON)
+	set(ENABLE_SPEEX_DSP ON)
+	set(ENABLE_G729 OFF) # Disable for lisence conformity
+	set(ENABLE_G729B_CNG OFF) # Disalbe for lisence conformity
+	set(ENABLE_RESAMPLE ON)
+
 	set(ENABLE_VIDEO OFF)
 	set(ENABLE_MKV OFF)
-	set(ENABLE_BV16 OFF)
-	set(ENABLE_G726 OFF)
 	set(ENABLE_JPEG OFF)
-	set(ENABLE_NON_FREE_CODECS OFF)
-	set(ENABLE_OPUS ON)
-	set(ENABLE_PCAP OFF)
-	set(ENABLE_RESAMPLE ON)
-	set(ENABLE_SPEEX ON)
-	set(ENABLE_SPEEX_DSP ON)
-	set(ENABLE_BCG729 OFF)
 	add_subdirectory("linphone-sdk/mediastreamer2")
 endif()
+
+## Belle-sip specific config
 if(ENABLE_PRESENCE OR ENABLE_MDNS OR ENABLE_CONFERENCE)
+	set(ENABLE_RTP_MAP_ALWAYS_IN_SDP OFF)
+	set(ENABLE_TUNNEL OFF)
+
+	# antlr3 settings
+	set(ENABLE_64BIT  OFF)
+	set(ENABLE_DEBUGGER OFF)
+
 	add_subdirectory("linphone-sdk/belle-sip")
 endif()
+
+## Liblinphone specific config
 if(ENABLE_CONFERENCE)
-	set(ENABLE_LIME OFF)
-	set(ENABLE_LIME_X3DH OFF)
-	set(ENABLE_VCARD OFF)
 	set(DISABLE_SOCI_PACKAGE_SEARCH ON)
+
+	set(ENABLE_ADVANCED_IM ON)
+	set(ENABLE_CONSOLE_UI OFF)
+	set(ENABLE_CSHARP_WRAPPER OFF)
+	set(ENABLE_CXX_WRAPPER YES)
+	set(ENABLE_DB_STORAGE YES)
+	set(ENABLE_SWIFT_WRAPPER OFF)
+	set(ENABLE_SWIFT_WRAPPER_COMPILATION OFF)
+	set(ENABLE_JAZZY_DOC OFF)
+	set(ENABLE_DAEMON OFF)
+	set(ENABLE_DATE OFF)
+	set(ENABLE_DEBUG_LOGS OFF)
+	set(ENABLE_LIME_X3DH OFF)
+	set(ENABLE_JAVA_WRAPPER OFF)
+	set(ENABLE_JAVADOC OFF)
+	set(ENABLE_LDAP OFF)
+	set(ENABLE_LIME OFF)
+	set(ENABLE_RELATIVE_PREFIX OFF)
+	set(ENABLE_TUNNEL OFF)
+	set(ENABLE_TUTORIALS OFF)
+	set(ENABLE_UNIT_TESTS OFF)
+	set(ENABLE_UPDATE_CHECK OFF)
+	set(ENABLE_VCARD OFF)
+	set(ENABLE_VIDEO OFF)
+	set(ENABLE_ASSETS OFF)
 	add_subdirectory("linphone-sdk/liblinphone")
 endif()
 
