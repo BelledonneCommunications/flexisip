@@ -800,24 +800,21 @@ int Agent::countUsInVia(sip_via_t *via) const {
 	return count;
 }
 
-bool Agent::isUs(const char *host, const char *port, bool check_aliases) const {
-	char *tmp = NULL;
-	size_t end;
-	tport_t *tport = tport_primaries(nta_agent_tports(mAgent));
-
+bool Agent::isUs(const char* host, const char* port, bool check_aliases) const {
 	// skip possibly trailing '.' at the end of host
+	char* tmp = NULL;
+	size_t end;
 	if (host[end = (strlen(host) - 1)] == '.') {
-		tmp = (char *)alloca(end + 1);
+		tmp = (char*)alloca(end + 1);
 		memcpy(tmp, host, end);
 		tmp[end] = '\0';
 		host = tmp;
 	}
-	const char *matched_port = port;
+	const char* matched_port = port;
 
 	if (check_aliases) {
 		/*the checking of aliases ignores the port number, since a domain name in a Route header might resolve to
-		 * multiple ports
-			* thanks to SRV records*/
+		 * multiple ports thanks to SRV records */
 		list<string>::const_iterator it;
 		for (it = mAliases.begin(); it != mAliases.end(); ++it) {
 			if (ModuleToolbox::urlHostMatch(host, (*it).c_str()))
@@ -825,8 +822,14 @@ bool Agent::isUs(const char *host, const char *port, bool check_aliases) const {
 		}
 	}
 
+	if (ModuleToolbox::urlHostMatch(host, mPublicResolvedIpV4) ||
+	    ModuleToolbox::urlHostMatch(host, mPublicResolvedIpV6)) {
+		return true;
+	}
+
+	tport_t* tport = tport_primaries(nta_agent_tports(mAgent));
 	for (; tport != NULL; tport = tport_next(tport)) {
-		const tp_name_t *tn = tport_name(tport);
+		const tp_name_t* tn = tport_name(tport);
 		if (port == NULL) {
 			if (strcasecmp(tn->tpn_proto, "tls") == 0)
 				matched_port = "5061";
