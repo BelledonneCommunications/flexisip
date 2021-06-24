@@ -26,7 +26,7 @@
     - export CXX=$CXX
     - git submodule foreach --recursive git fetch --tags --force
     - mkdir work
-    - cmake -S . -B work -G "$CMAKE_GENERATOR" $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS
+    - cmake -G "$CMAKE_GENERATOR" $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS -S . -B work
     - cmake --build work -- $ADDITIONAL_BUILD_OPTIONS
 
 #################################################
@@ -42,7 +42,7 @@
 
   script:
     - mkdir work
-    - cmake -S . -B work $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS
+    - cmake $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS -S . -B work
     - cmake --build work -- $ADDITIONAL_BUILD_OPTIONS
     - cpack -G RPM
 
@@ -62,7 +62,7 @@
 
   script:
     - mkdir work
-    - cmake -S . -B work $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS
+    - cmake $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS -S . -B work
     - cmake --build work -- $ADDITIONAL_BUILD_OPTIONS
     - cpack -G DEB
 
