@@ -341,7 +341,7 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 	// Eventually add second record route with different transport
 	// to bridge to networks: for example, we'll end with UDP, TCP.
 	const sip_method_t method = ms->getSip()->sip_request->rq_method;
-	if (ev->mRecordRouteAdded && (method == sip_method_invite || method == sip_method_subscribe)) {
+	if (ev->mRecordRouteAdded && (method == sip_method_invite || method == sip_method_subscribe || method == sip_method_ack)) {
 		addRecordRoute(getAgent(), ev, tport);
 	}
 
