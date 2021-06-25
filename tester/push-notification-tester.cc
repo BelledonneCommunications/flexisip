@@ -26,11 +26,11 @@
 #include "flexisip-config.h"
 #include "flexisip/logmanager.hh"
 
-#include "listening-socket.hh"
-#include "pns-mock.hh"
 #include "pushnotification/apple/apple-client.hh"
 #include "pushnotification/firebase/firebase-client.hh"
 #include "tester.hh"
+#include "utils/listening-socket.hh"
+#include "utils/pns-mock.hh"
 
 using namespace flexisip;
 using namespace flexisip::pushnotification;
@@ -431,4 +431,4 @@ static test_t tests[] = {
     TEST_NO_TAG("Apple push notification test timeout", applePushTestTimeout)};
 
 test_suite_t push_notification_suite = {
-    "Push notification", beforeSuite, afterSuite, NULL, NULL, sizeof(tests) / sizeof(tests[0]), tests};
+    "Push notification", beforeSuite, afterSuite, nullptr, nullptr, sizeof(tests) / sizeof(tests[0]), tests};
