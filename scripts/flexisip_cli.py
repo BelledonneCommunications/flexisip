@@ -104,8 +104,8 @@ def sendMessage(remote_socket, message):
 	s.settimeout(1)
 	try:
 		s.connect(remote_socket)
-		s.send(message)
-		print(s.recv(8192))
+		s.send(message.encode())
+		print(s.recv(8192).decode())
 	except socket.error:
 		print('error: could not connect to the socket', file=sys.stderr)
 	s.close()
