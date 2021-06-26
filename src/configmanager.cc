@@ -1078,9 +1078,9 @@ bool GenericManager::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 	return true;
 }
 
-int GenericManager::load(const char *configfile) {
-	mConfigFile = configfile;
-	int res = mReader.read(configfile);
+int GenericManager::load(std::string configfile) {
+	mConfigFile = move(configfile);
+	int res = mReader.read(mConfigFile.c_str());
 	applyOverrides(false);
 	return res;
 }
