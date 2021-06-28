@@ -93,7 +93,9 @@ endfunction()
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # Add external dependencies
+set(ENABLE_UNIT_TESTS OFF)
 add_subdirectory("submodules/externals/sofia-sip")
+unset(ENABLE_UNIT_TESTS)
 
 if(ENABLE_SOCI OR ENABLE_CONFERENCE_SERVER)
 	set(SOCI_SHARED ON)
