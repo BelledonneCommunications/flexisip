@@ -17,7 +17,7 @@ COPY --chown=bc:bc . flexisip/
 RUN cd flexisip \
 	&& sudo install -o bc -g bc -m 755 -d /opt/belledonne-communications \
 	&& rm -rf work && mkdir work \
-	&& cmake -S . -B work -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications
+	&& cmake -S . -B work -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications \
 	&& make -j ${njobs} install \
 	&& sudo chown -R root:root /opt/belledonne-communications
 
