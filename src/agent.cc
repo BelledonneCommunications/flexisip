@@ -419,36 +419,44 @@ void Agent::start(const string &transport_override, const string &passphrase) {
 	su_md5_init(&ctx);
 
 	LOGD("Agent 's primaries are:");
-	for (tport_t *tport = primaries; tport != NULL; tport = tport_next(tport)) {
-		const tp_name_t *name;
+	for (tport_t* tport = primaries; tport != NULL; tport = tport_next(tport)) {
+		auto name = tport_name(tport);
 		char url[512];
-		name = tport_name(tport);
-		snprintf(url, sizeof(url), "sip:%s:%s;transport=%s;maddr=%s", name->tpn_canon, name->tpn_port, name->tpn_proto, name->tpn_host);
+		snprintf(url, sizeof(url), "sip:%s:%s;transport=%s;maddr=%s", name->tpn_canon, name->tpn_port, name->tpn_proto,
+		         name->tpn_host);
 		su_md5_strupdate(&ctx, url);
 		LOGD("\t%s", url);
-		bool isIpv6 = strchr(name->tpn_host, ':') != NULL;
+		auto isIpv6 = strchr(name->tpn_host, ':') != nullptr;
 
 		// The public and bind values are different
 		// which is the case of transport with sip:public;maddr=bind
 		// where public is the hostname or ip address publicly announced
 		// and maddr the real ip we listen on.
 		// Useful for a scenario where the flexisip is behind a router.
+		auto formatedHost = ModuleToolbox::getHost(name->tpn_canon);
 		if (isIpv6 && mPublicIpV6.empty()) {
-			mPublicIpV6 = ModuleToolbox::getHost(name->tpn_canon);
+			mPublicIpV6 = formatedHost;
 		} else if (!isIpv6 && mPublicIpV4.empty()) {
-			mPublicIpV4 = name->tpn_canon;
+			mPublicIpV4 = formatedHost;
 		}
 
-		if (mNodeUri == NULL) {
+		if (mNodeUri == nullptr) {
 			mNodeUri = urlFromTportName(&mHome, name);
-			string clusterDomain = GenericManager::get()->getRoot()->get<GenericStruct>("cluster")->get<ConfigString>("cluster-domain")->read();
+			auto clusterDomain = GenericManager::get()
+			                           ->getRoot()
+			                           ->get<GenericStruct>("cluster")
+			                           ->get<ConfigString>("cluster-domain")
+			                           ->read();
 			if (!clusterDomain.empty()) {
-				tp_name_t tmp_name = *name;
+				auto tmp_name = *name;
 				tmp_name.tpn_canon = clusterDomain.c_str();
-				tmp_name.tpn_port = NULL;
+				tmp_name.tpn_port = nullptr;
 				mClusterUri = urlFromTportName(&mHome, &tmp_name);
 			}
 		}
+
+		mTransports.emplace_back(formatedHost, name->tpn_port, name->tpn_proto, computeResolvedPublicIp(formatedHost, AF_INET),
+		                         computeResolvedPublicIp(formatedHost, AF_INET6), name->tpn_host);
 	}
 
 	bool clusterModeEnabled = GenericManager::get()->getRoot()->get<GenericStruct>("cluster")->get<ConfigBoolean>("enabled")->read();
@@ -800,45 +808,32 @@ int Agent::countUsInVia(sip_via_t *via) const {
 	return count;
 }
 
-bool Agent::isUs(const char *host, const char *port, bool check_aliases) const {
-	char *tmp = NULL;
-	size_t end;
-	tport_t *tport = tport_primaries(nta_agent_tports(mAgent));
-
+bool Agent::isUs(const char* host, const char* port, bool check_aliases) const {
 	// skip possibly trailing '.' at the end of host
+	char* tmp = nullptr;
+	size_t end;
 	if (host[end = (strlen(host) - 1)] == '.') {
-		tmp = (char *)alloca(end + 1);
+		tmp = (char*)alloca(end + 1);
 		memcpy(tmp, host, end);
 		tmp[end] = '\0';
 		host = tmp;
 	}
-	const char *matched_port = port;
 
 	if (check_aliases) {
 		/*the checking of aliases ignores the port number, since a domain name in a Route header might resolve to
-		 * multiple ports
-			* thanks to SRV records*/
+		 * multiple ports thanks to SRV records */
 		list<string>::const_iterator it;
-		for (it = mAliases.begin(); it != mAliases.end(); ++it) {
-			if (ModuleToolbox::urlHostMatch(host, (*it).c_str()))
+		for (auto alias : mAliases) {
+			if (ModuleToolbox::urlHostMatch(host, alias.c_str()))
 				return true;
 		}
 	}
 
-	for (; tport != NULL; tport = tport_next(tport)) {
-		const tp_name_t *tn = tport_name(tport);
-		if (port == NULL) {
-			if (strcasecmp(tn->tpn_proto, "tls") == 0)
-				matched_port = "5061";
-			else
-				matched_port = "5060";
-		}
-		if (strcmp(matched_port, tn->tpn_port) == 0) {
-			if (ModuleToolbox::urlHostMatch(host, tn->tpn_canon) || ModuleToolbox::urlHostMatch(host, tn->tpn_host))
-				return true;
-		}
-	}
-	return false;
+	string matched_host{host == nullptr ? "" : host};
+	string matched_port{port == nullptr ? "" : port};
+
+	return any_of(mTransports.begin(), mTransports.end(),
+	              [matched_host, matched_port](Transport t) { return t.is(matched_host, matched_port); });
 }
 
 sip_via_t *Agent::getNextVia(sip_t *response) {

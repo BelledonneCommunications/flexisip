@@ -252,6 +252,7 @@ public:
 	// brakets.
 	static bool urlHostMatch(const char *host1, const char *host2);
 	static bool urlHostMatch(const url_t *url, const char *host);
+	static bool urlHostMatch(const std::string& host1, const std::string& host2);
 
 	// Returns the host taking into account that if it is an ipv6 address, then brakets are removed.
 	static std::string getHost(const char *host);

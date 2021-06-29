@@ -85,6 +85,7 @@ void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_
 		ftester_printf = log_handler;
 	bc_tester_init(ftester_printf, BCTBX_LOG_MESSAGE, BCTBX_LOG_ERROR, ".");
 
+	bc_tester_add_suite(&agent_suite);
 	bc_tester_add_suite(&boolean_expressions_suite);
 	bc_tester_add_suite(&fork_context_suite);
 	bc_tester_add_suite(&push_notification_suite);
