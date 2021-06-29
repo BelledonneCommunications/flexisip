@@ -26,8 +26,9 @@
 #include <flexisip/common.hh>
 #include <flexisip/configmanager.hh>
 #include <flexisip/event.hh>
-#include <flexisip/transaction.hh>
 #include <flexisip/eventlogs.hh>
+#include <flexisip/transaction.hh>
+#include <flexisip/transport.hh>
 
 #include <sofia-sip/sip.h>
 #include <sofia-sip/sip_protos.h>
@@ -242,6 +243,7 @@ private:
 	std::string mRtpBindIp = "0.0.0.0";
 	std::string mRtpBindIp6 = "::0";
 	std::string mPublicIpV4, mPublicIpV6, mPublicResolvedIpV4, mPublicResolvedIpV6;
+	std::vector<Transport> mTransports{};
 	nta_agent_t *mAgent = nullptr;
 	su_root_t *mRoot = nullptr;
 	nth_engine_t *mHttpEngine = nullptr;
