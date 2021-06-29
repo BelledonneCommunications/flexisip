@@ -18,7 +18,7 @@ RUN cd flexisip \
 	&& sudo install -o bc -g bc -m 755 -d /opt/belledonne-communications \
 	&& rm -rf work && mkdir work \
 	&& cmake -S . -B work -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications \
-	&& make -j ${njobs} install \
+	&& make -C work -j${njobs} install \
 	&& sudo chown -R root:root /opt/belledonne-communications
 
 # Cleanup
