@@ -5,7 +5,7 @@
 job-archlinux-latest-makefile-gcc:
 
   tags: [ "docker-archlinux-latest" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-archlinux:$ARCHLINUX_IMAGE_VERSION
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:$ARCHLINUX_IMAGE_VERSION:$ARCHLINUX_IMAGE_VERSION
   except:
     variables:
       - $DEPLOY_RUN
@@ -21,7 +21,7 @@ job-archlinux-latest-makefile-gcc:
 job-archlinux-latest-makefile-clang:
 
   tags: [ "docker-archlinux-latest" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-archlinux:$ARCHLINUX_IMAGE_VERSION
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:$ARCHLINUX_IMAGE_VERSION:$ARCHLINUX_IMAGE_VERSION
   except:
     variables:
       - $DEPLOY_RUN
@@ -40,7 +40,7 @@ job-archlinux-latest-makefile-clang:
 job-archlinux-latest-ninja-gcc:
 
   tags: [ "docker-archlinux-latest" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-archlinux:$ARCHLINUX_IMAGE_VERSION
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:$ARCHLINUX_IMAGE_VERSION:$ARCHLINUX_IMAGE_VERSION
   except:
     variables:
       - $DEPLOY_RUN
@@ -55,7 +55,7 @@ job-archlinux-latest-ninja-gcc:
 job-archlinux-latest-ninja-clang:
 
   tags: [ "docker-archlinux-latest" ]
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-archlinux:$ARCHLINUX_IMAGE_VERSION
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:$ARCHLINUX_IMAGE_VERSION:$ARCHLINUX_IMAGE_VERSION
   except:
     variables:
       - $DEPLOY_RUN
