@@ -31,7 +31,7 @@ public:
 	      mResolvedIpv6{resolvedIpv6}, mAddrBiding{addrBiding} {};
 	~Transport() = default;
 
-	bool is(const std::string& host, const std::string& port);
+	bool is(const std::string& host, std::string port) const;
 
 	const std::string& getAddrBiding() const {
 		return mAddrBiding;

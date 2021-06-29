@@ -823,17 +823,17 @@ bool Agent::isUs(const char* host, const char* port, bool check_aliases) const {
 		/*the checking of aliases ignores the port number, since a domain name in a Route header might resolve to
 		 * multiple ports thanks to SRV records */
 		list<string>::const_iterator it;
-		for (auto alias : mAliases) {
+		for (const auto& alias : mAliases) {
 			if (ModuleToolbox::urlHostMatch(host, alias.c_str()))
 				return true;
 		}
 	}
 
-	string matched_host{host == nullptr ? "" : host};
-	string matched_port{port == nullptr ? "" : port};
+	string matchedHost{host == nullptr ? "" : host};
+	string matchedPort{port == nullptr ? "" : port};
 
 	return any_of(mTransports.begin(), mTransports.end(),
-	              [matched_host, matched_port](Transport t) { return t.is(matched_host, matched_port); });
+	              [&matchedHost, &matchedPort](const auto& t) { return t.is(matchedHost, matchedPort); });
 }
 
 sip_via_t *Agent::getNextVia(sip_t *response) {

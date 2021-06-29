@@ -18,26 +18,25 @@
 
 #include <strings.h>
 
-#include <flexisip/module.hh>
+#include "flexisip/module.hh"
 
-#include <flexisip/transport.hh>
+#include "flexisip/transport.hh"
 
 using namespace std;
 
 namespace flexisip {
 
-bool Transport::is(const string& host, const string& port) {
+bool Transport::is(const string& host, string port) const {
 	if(host.empty()) {
 		return false;
 	}
-	auto matched_port = port;
 	if (port.empty()) {
 		if (strcasecmp(mProtocol.c_str(), "tls") == 0)
-			matched_port = "5061";
+			port = "5061";
 		else
-			matched_port = "5060";
+			port = "5060";
 	}
-	if (strcmp(matched_port.c_str(), mPort.c_str()) == 0) {
+	if (port == mPort) {
 		if (ModuleToolbox::urlHostMatch(host, mHostname) || ModuleToolbox::urlHostMatch(host, mAddrBiding) ||
 		    ModuleToolbox::urlHostMatch(host, mResolvedIpv4) || ModuleToolbox::urlHostMatch(host, mResolvedIpv6))
 			return true;
