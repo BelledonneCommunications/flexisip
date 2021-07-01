@@ -32,7 +32,7 @@ public:
 	BellesipUtils(const std::string& ipaddress, int port, const std::string& transport,
 	         const ProcessResponseEventCb& processResponseEventCb);
 	~BellesipUtils();
-	void sendRawRequest(const std::string& rawMessage);
+	void sendRawRequest(const std::string& rawMessage, const std::string& rawBody = "");
 	void stackSleep(unsigned int milliseconds);
 
 private:
