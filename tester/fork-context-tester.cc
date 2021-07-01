@@ -90,15 +90,12 @@ static void nullMaxFrowardAndForkBasicContext() {
 	                             "User-Agent: Linphone/3.3.99.10 (eXosip2/3.3.0)\r\n"
 	                             "Content-Length: 0\r\n\r\n");
 
-	// Flexisip and belle-sip loop, until 25 sec passed, because ForkBasicContext::onDecisionTimer is triggered after
-	// 20 sec.
-	auto beforePlus25 = system_clock::now() + 25s;
-	while (true) {
+	// Flexisip and belle-sip loop, until response is received by the belle-sip stack.
+	// If after 5s (MUST be inferior to ForkBasicContext timeout) nothing is received we break the loop and the test should fail.
+	auto beforePlus5 = system_clock::now() + 5s;
+	while (!responseReceived  && beforePlus5 >= system_clock::now()) {
 		su_root_step(agent->getRoot(), 100);
 		bellesipUtils.stackSleep(100);
-		if (beforePlus25 < system_clock::now()) {
-			break;
-		}
 	}
 
 	auto moduleRouter = static_cast<ModuleRouter*>(agent->findModule("Router"));
