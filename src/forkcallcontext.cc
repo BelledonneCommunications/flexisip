@@ -1,20 +1,20 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include <algorithm>
 
@@ -225,19 +225,13 @@ void ForkCallContext::onLateTimeout() {
 	auto br = findBestBranch(getUrgentCodes(), mCfg->mForkLate);
 
 	if (!br || br->getStatus() == 0 || br->getStatus() == 503) {
-		shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_408_REQUEST_TIMEOUT));
-
-		if (msgsip) {
-			shared_ptr<ResponseSipEvent> ev(
-				new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
-			logResponse(forwardResponse(ev));
-		}
+		logResponse(forwardCustomResponse(SIP_408_REQUEST_TIMEOUT));
 	} else {
 		logResponse(forwardResponse(br));
 	}
 
 	/*cancel all possibly pending outgoing transactions*/
-	cancelOthers(shared_ptr<BranchInfo>(), NULL);
+	cancelOthers(shared_ptr<BranchInfo>(), nullptr);
 }
 
 void ForkCallContext::onPushTimer() {
@@ -261,6 +255,11 @@ void ForkCallContext::onPushError(const shared_ptr<OutgoingTransaction> &tr, con
 
 	SLOGD << "Early fail due to all push requests having failed";
 	onPushTimer();
+}
+
+void ForkCallContext::processInternalError(int status, const char* phrase) {
+	ForkContext::processInternalError(status, phrase);
+	cancelOthers(shared_ptr<BranchInfo>(), nullptr);
 }
 
 } // namespace flexisip

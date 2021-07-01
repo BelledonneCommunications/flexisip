@@ -1,20 +1,20 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include <flexisip/agent.hh>
 #include <flexisip/forkcontext.hh>
@@ -260,6 +260,7 @@ bool compareGreaterBranch(const shared_ptr<BranchInfo> &lhs, const shared_ptr<Br
 
 void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact) {
 	auto ot = ev->createOutgoingTransaction();
+	ot->setProperty<ForkContext>("ForkContext", weak_ptr<ForkContext>{shared_from_this()});
 	auto br = createBranchInfo();
 
 	if (mIncoming && mWaitingBranches.size() == 0) {
@@ -424,6 +425,10 @@ void ForkContext::start() {
 	/* Start the processing */
 	for(const auto& br : mCurrentBranches) {
 		mAgent->injectRequestEvent(br->mRequest);
+		if(mCurrentBranches.empty()) {
+			// Can only occured if an internal error append
+			break;
+		}
 	}
 
 	if (mCfg->mCurrentBranchesTimeout > 0 && hasNextBranches()) {
@@ -551,6 +556,23 @@ void ForkContext::onPushSent(const std::shared_ptr<OutgoingTransaction> &tr){
 }
 
 void ForkContext::onPushError(const std::shared_ptr<OutgoingTransaction> &tr, const std::string &errormsg){
+}
+
+shared_ptr<ResponseSipEvent> ForkContext::forwardCustomResponse(int status, const char* phrase) {
+	auto msgsip = mIncoming->createResponse(status, phrase);
+	if (msgsip) {
+		auto ev =
+		    make_shared<ResponseSipEvent>(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip);
+		return forwardResponse(ev);
+	} else { // Should never happen
+		LOGE("Because MsgSip can't be created ForkContext[%p] is finished without forwarding any response.", this);
+		setFinished();
+	}
+	return nullptr;
+}
+
+void  ForkContext::processInternalError(int status, const char* phrase) {
+	forwardCustomResponse(status, phrase);
 }
 
 void BranchInfo::clear() {
