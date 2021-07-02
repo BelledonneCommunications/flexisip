@@ -39,6 +39,7 @@ extern "C" {
 #endif
 
 extern test_suite_t boolean_expressions_suite;
+extern test_suite_t extended_contact_suite;
 
 
 void flexisip_tester_init(void(*ftester_printf)(int level, const char *fmt, va_list args));

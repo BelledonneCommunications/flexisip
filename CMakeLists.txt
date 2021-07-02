@@ -69,6 +69,9 @@ set(SYSCONF_INSTALL_DIR ${CMAKE_INSTALL_FULL_SYSCONFDIR} CACHE STRING "Config di
 
 set(CONFIG_DIR ${SYSCONF_INSTALL_DIR}/flexisip)
 message(STATUS "Config dir: ${CONFIG_DIR}")
+if(ENABLE_UNIT_TESTS)
+	set(TESTER_DATA_DIR ${CMAKE_INSTALL_PREFIX}/share/flexisip-tester)
+endif()
 
 function(FIND_PROGRAM_REQUIRED varname progname)
 	find_program(${varname} NAMES "${progname}")
