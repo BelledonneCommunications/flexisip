@@ -156,6 +156,11 @@ struct ExtendedContact {
 	ExtendedContact(const SipUri &url, const std::string &route, const float q = 1.0)
 	: mPath({route}) {
 		mSipContact = sip_contact_create(mHome.home(), reinterpret_cast<const url_string_t *>(url.get()), nullptr);
+		float qValue = std::min(1.0f,std::max(0.0f, q)); // force RFC compliance
+		char* qBuf = (char*)mHome.alloc(6);
+		sprintf(qBuf, "%.3f", qValue);
+		mSipContact->m_q = qBuf;
+		init();
 	}
 
 	ExtendedContact(const ExtendedContact &ec)
