@@ -27,6 +27,7 @@ find_package(BelleSIP REQUIRED)
 
 add_executable(flexisip_tester
 	boolean-expressions.cc
+	extended-contact-tester.cc
 	fork-context-tester.cc
 	push-notification-tester.cc
 	tester.cc tester.hh
