@@ -73,6 +73,7 @@ RelayChannel::RelayChannel(RelaySession *relaySession, const RelayTransport &rt,
 	mDestAddrChanged = false;
 	mRecvErrorCount[0] = mRecvErrorCount[1] = 0;
 	mRemotePort[0] = mRemotePort[1] = -1;
+	mIsOpen = false;
 }
 
 void RelayChannel::initializeRtpSession(RelaySession *relaySession){
@@ -153,11 +154,13 @@ void RelayChannel::setRemoteAddr(const string &ip, int rtp_port, int rtcp_port, 
 			}
 
 		}
+		mIsOpen = true;
 	} else {
 		/*case where client declined the stream (0 port in SDP) or destination address is invalid*/
 		mDestAddrChanged = false;
 		mSockAddrSize[0] = 0;
 		mSockAddrSize[1] = 0;
+		mIsOpen = false;
 	}
 }
 
@@ -186,13 +189,6 @@ int RelayChannel::recv(int i, uint8_t *buf, size_t buflen, time_t curTime) {
 	int err = recvfrom(mSockets[i], buf, buflen, 0, (struct sockaddr *)&ss, &addrsize);
 	if (err > 0) {
 		mPacketsReceived[i]++;
-		if (mSockAddrSize[i] == 0){
-			/* Remote destination has never been set previously (for example if 183 or 200 OK is not yet received),
-			 * but we receive a packet.
-			 * Our policy is to drop the packet until the destination address is set.*/
-			LOGW("RelayChannel[%p]: remote address not set, packet ignored.", this);
-			return 0;
-		}
 		mRecvErrorCount[i] = 0;
 		if (addrsize != mSockAddrSize[i] || memcmp(&ss, &mSockAddr[i], addrsize) != 0){
 			if (curTime - mSockAddrLastUseTime[i] > sDestinationSwitchTimeout){
@@ -211,7 +207,7 @@ int RelayChannel::recv(int i, uint8_t *buf, size_t buflen, time_t curTime) {
 			mSockAddrLastUseTime[i] = curTime;
 		}
 
-		if (mDir == SendOnly || mDir == Inactive) {
+		if ( !mIsOpen || mDir == SendOnly || mDir == Inactive ){
 			/*LOGD("ignored packet");*/
 			return 0;
 		}
@@ -232,7 +228,7 @@ int RelayChannel::recv(int i, uint8_t *buf, size_t buflen, time_t curTime) {
 int RelayChannel::send(int i, uint8_t *buf, size_t buflen) {
 	int err = 0;
 	/*if destination address is working mSockAddrSize>0*/
-	if (mRemotePort[i] > 0 && mSockAddrSize[i] > 0 && mDir != Inactive && mRecvErrorCount[i] < sMaxRecvErrors) {
+	if (mRemotePort[i] > 0 && mSockAddrSize[i] > 0 && mDir != Inactive && mRecvErrorCount[i] < sMaxRecvErrors && mIsOpen) {
 		if (!mFilter || mFilter->onOutgoingTransfer(buf, buflen, (struct sockaddr *)&mSockAddr[i], mSockAddrSize[i])) {
 			int localPort = (i == 0) ? mRelayTransport.mRtpPort : mRelayTransport.mRtcpPort;
 			err = sendto(mSockets[i], buf, buflen, 0, (struct sockaddr *)&mSockAddr[i], mSockAddrSize[i]);
