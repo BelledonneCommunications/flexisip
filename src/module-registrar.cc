@@ -806,8 +806,8 @@ void ModuleRegistrar::readStaticRecords() {
 	string path = getAgent()->getPreferredRoute();
 	mStaticRecordsVersion++;
 
-	const regex isCommentRe(R"regex(^\s*#)regex");
-	const regex isRecordRe(R"regex(^\s*([[print]]+)\s+([[print]]+)\s*$)regex");
+	const regex isCommentRe(R"regex(^\s*#.*$)regex");
+	const regex isRecordRe(R"regex(^\s*([[:print:]]+)\s+([[:print:]]+)\s*$)regex");
 	while (file.good() && !file.eof()) {
 		string line;
 		string from;
