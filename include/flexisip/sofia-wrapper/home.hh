@@ -29,32 +29,39 @@ namespace sofiasip {
  */
 class Home {
 public:
-	Home() {su_home_init(&mHome);}
+	Home() noexcept {su_home_init(&mHome);}
 	Home(const Home &src) = delete;
-	Home(Home &&src): Home() {su_home_move(&mHome, &src.mHome);}
-	~Home() {su_home_deinit(&mHome);}
+	Home(Home &&src) noexcept : Home() {su_home_move(&mHome, &src.mHome);}
+	~Home() noexcept {su_home_deinit(&mHome);}
 
 	Home &operator=(const Home &src) = delete;
-	Home &operator=(Home &&src) {
+	Home &operator=(Home &&src) noexcept {
 		reset();
 		su_home_move(&mHome, &src.mHome);
 		return *this;
 	}
 
-	su_home_t *home() {return &mHome;}
-	const su_home_t *home() const {return &mHome;}
+	su_home_t* home() noexcept {return &mHome;}
+	const su_home_t* home() const noexcept {return &mHome;}
 
 	// Free all the buffers which are referenced by this Home.
-	void reset() {
+	void reset() noexcept {
 		su_home_deinit(&mHome);
 		su_home_init(&mHome);
 	}
 
-	void *alloc(std::size_t size) {return su_alloc(&mHome, size);}
-	void free(void *data) {return su_free(&mHome, data);}
+	void* alloc(std::size_t size) noexcept {return su_alloc(&mHome, size);}
+	void free(void *data) noexcept {return su_free(&mHome, data);}
+
+	char* vsprintf(char const* fmt, va_list ap) noexcept {
+		return su_vsprintf(&mHome, fmt, ap);
+	}
+	template <typename... Args> char* sprintf(const char* fmt, Args&&... args) noexcept {
+		return su_sprintf(&mHome, fmt, args...);
+	}
 
 private:
-	su_home_t mHome;
+	su_home_t mHome{};
 };
 
 } // end of sofiasip namespace
