@@ -42,18 +42,35 @@ static int verbose_arg_func(const char *arg) {
 	return 0;
 }
 
-int main(int argc, char *argv[]) {
-	int i;
+int main(int argc, char* argv[]) {
 	int ret;
 
 	flexisip_tester_init(NULL);
 
-	for(i = 1; i < argc; ++i) {
-		int ret = bc_tester_parse_args(argc, argv, i);
-		if (ret>0) {
+	// Flexisip tests suite must run in different processes because some Flexisip objects relied on "atexit" to be
+	// completely cleared.
+	std::vector<char*> fakeArgv{};
+	auto isParallel = false;
+	for (auto i = 0; i < argc; ++i) {
+		if (strcmp(argv[i], "--parallel") == 0) {
+			isParallel = true;
+		}
+		fakeArgv.push_back(argv[i]);
+	}
+	// So we fake  a parallel execution with only one process, so each suite is executed in a different fork.
+	if (!isParallel) {
+		fakeArgv.push_back((char*)"--parallel");
+		bc_tester_set_max_parallel_suites(1);
+	}
+	// Don't forget that argv MUST be null terminated.
+	fakeArgv.push_back(nullptr);
+	int fakeArgc = fakeArgv.size() - 1;
+	for (auto i = 1; i < fakeArgc; ++i) {
+		int ret = bc_tester_parse_args(fakeArgc, fakeArgv.data(), i);
+		if (ret > 0) {
 			i += ret - 1;
 			continue;
-		} else if (ret<0) {
+		} else if (ret < 0) {
 			bc_tester_helper(argv[0], "");
 		}
 		return ret;
@@ -85,6 +102,7 @@ void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_
 		ftester_printf = log_handler;
 	bc_tester_init(ftester_printf, BCTBX_LOG_MESSAGE, BCTBX_LOG_ERROR, ".");
 
+	bc_tester_add_suite(&agent_suite);
 	bc_tester_add_suite(&boolean_expressions_suite);
 	bc_tester_add_suite(&extended_contact_suite);
 	bc_tester_add_suite(&fork_context_suite);

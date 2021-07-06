@@ -36,6 +36,7 @@ std::string bcTesterRes(const std::string& name);
 extern "C" {
 #endif
 
+extern test_suite_t agent_suite;
 extern test_suite_t boolean_expressions_suite;
 extern test_suite_t extended_contact_suite;
 extern test_suite_t fork_context_suite;
