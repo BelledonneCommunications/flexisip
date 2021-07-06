@@ -355,6 +355,11 @@ int DomainRegistration::getExpires(nta_outgoing_t *orq, const sip_t *response) {
 void DomainRegistration::onConnectionBroken(tport_t *tport, msg_t *msg, int error) {
 	int nextSchedule = 5;
 	// restart registration...
+	if (tport == mCurrentTport) {
+		/* Cleanup current tport here, to force creation of a new one upon next registraion attempt */
+		LOGD("Current tport is broken");
+		cleanCurrentTport();
+	}
 	if (mTimer) {
 		su_timer_destroy(mTimer);
 		mTimer = NULL;
@@ -532,6 +537,8 @@ int DomainRegistration::generateUuid(const string &uniqueId) {
 
 void DomainRegistration::sendRequest(){
 	msg_t *msg;
+	/* Re-use current transport, whenever possible */
+	tport_t *tport = mCurrentTport ? mCurrentTport : mPrimaryTport;
 
 	if (mTimer) {
 		su_timer_destroy(mTimer);
@@ -579,7 +586,7 @@ void DomainRegistration::sendRequest(){
 		nta_outgoing_destroy(mOutgoing);
 	}
 	mOutgoing = nta_outgoing_mcreate(mManager.mAgent->getSofiaAgent(), sResponseCallback, (nta_outgoing_magic_t *)this, NULL,
-							 msg, NTATAG_TPORT(mPrimaryTport), TAG_END());
+							 msg, NTATAG_TPORT(tport), TAG_END());
 	if (!mOutgoing) {
 		LOGE("Could not create outgoing transaction");
 		return;
