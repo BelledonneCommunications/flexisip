@@ -18,7 +18,12 @@ Group changes to describe their impact on the project, as follows:
 ### [Added]
 - `module::Authentication/realm` parameter.
 
+
+## [2.0.6] - 2021-07-07
 ### [Fixed]
+- **Proxy** INIVITE requests was systematically forked to the fallback route (if set)
+  independently of the status of each received response. Furthermore, the fallback
+  destination was called alongside the real contact addresses of the called identity.
 
 
 ## [2.0.5] - 2021-06-09
@@ -40,6 +45,7 @@ Group changes to describe their impact on the project, as follows:
 - **Memory usage** Fix several memory leaks.
 - **XWiki doc generator** Fix bad output syntax when bullet points are used in parameter descriptions.
 - **XWiki doc generator** Generate documentation for the experimental modules.
+
 
 ## [2.0.4] - 2021-03-01
 ### [Fixed]
@@ -63,6 +69,7 @@ Group changes to describe their impact on the project, as follows:
 
 ### [Removed]
 - 'pn-silent' custom Contact parameter for push notifications.
+
 
 ## [2.0.3] - 2020-11-13
 ### [Fixed]
