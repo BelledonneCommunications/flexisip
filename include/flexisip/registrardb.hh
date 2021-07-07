@@ -153,14 +153,19 @@ struct ExtendedContact {
 		init();
 	}
 
-	ExtendedContact(const SipUri &url, const std::string &route, const float q = 1.0)
+	/**
+	 * Forge an ExtendedContact from a SIP URI. Optionaly, a route and
+	 * the 'q' paramter of the Contact may be set.
+	 * The new ExtendedConact has the maximum expiration date.
+	 */
+	ExtendedContact(const SipUri &url, const std::string &route, float q = 1.0)
 	: mPath({route}) {
 		mSipContact = sip_contact_create(mHome.home(), reinterpret_cast<const url_string_t *>(url.get()), nullptr);
-		float qValue = std::min(1.0f,std::max(0.0f, q)); // force RFC compliance
-		char* qBuf = (char*)mHome.alloc(6);
-		sprintf(qBuf, "%.3f", qValue);
-		mSipContact->m_q = qBuf;
-		init();
+		q = std::min(1.0f, std::max(0.0f, q)); // force RFC compliance
+		mSipContact->m_q = mHome.sprintf("%.3f", q);
+		mQ = atof(mSipContact->m_q);
+		// init() MUST NOT be called here to keep mExpireAt and mExpireNotAtMessage untouched in order the
+		// contact never expire.
 	}
 
 	ExtendedContact(const ExtendedContact &ec)
