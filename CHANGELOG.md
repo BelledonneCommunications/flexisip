@@ -13,6 +13,12 @@ Group changes to describe their impact on the project, as follows:
 | Fixed          | Any bug fixes                                         |
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
+## [2.0.6] - 2021-07-07
+### [Fixed]
+- **Proxy** INIVITE requests was systematically forked to the fallback route (if set)
+  independently of the status of each received response. Furthermore, the fallback
+  destination was called alongside the real contact addresses of the called identity.
+
 ## [2.0.5] - 2021-06-09
 ### [Added]
 - **Flexisip CLI** Add three new counters: count-basic-forks, count-call-forks and count-message-forks.
