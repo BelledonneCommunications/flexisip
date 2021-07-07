@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,16 +14,18 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
+#include <algorithm>
+#include <vector>
+
+#include <flexisip/transaction.hh>
+#include <flexisip/forkcontext.hh>
+
+#include "callcontext-mediarelay.hh"
+#include "h264iframefilter.hh"
 #include "mediarelay.hh"
 #include "sdp-modifier.hh"
-#include <flexisip/transaction.hh>
-#include "h264iframefilter.hh"
-#include "callcontext-mediarelay.hh"
-
-#include <vector>
-#include <algorithm>
 
 using namespace std;
 using namespace ::std::placeholders;
@@ -217,7 +219,12 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 
 	if (!c->checkMediaValid()) {
 		LOGE("The relay media are invalid, no RTP/RTCP port remaining?");
-		ev->reply(500, "RTP port pool exhausted", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		if (auto forkContext = transaction->getProperty<ForkContext>("ForkContext")) {
+			forkContext->processInternalError(500, "RTP port pool exhausted");
+			ev->terminateProcessing();
+		} else {
+			ev->reply(500, "RTP port pool exhausted", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		}
 		return false;
 	}
 
