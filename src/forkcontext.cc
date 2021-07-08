@@ -335,11 +335,9 @@ bool ForkContext::processCancel(const shared_ptr<RequestSipEvent> &ev) {
 }
 
 bool ForkContext::processResponse(const shared_ptr<ResponseSipEvent> &ev) {
-	shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
-
-	if (transaction != NULL) {
-		shared_ptr<BranchInfo> binfo = getBranchInfo(transaction);
-
+	auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+	if (transaction) {
+		auto binfo = getBranchInfo(transaction);
 		if (binfo) {
 			auto copyEv = make_shared<ResponseSipEvent>(ev); // make a copy
 			copyEv->suspendProcessing();
@@ -349,7 +347,7 @@ bool ForkContext::processResponse(const shared_ptr<ResponseSipEvent> &ev) {
 			forkCtx->onResponse(binfo, copyEv);
 
 			// the event may go through but it will not be sent*/
-			ev->setIncomingAgent(shared_ptr<IncomingAgent>());
+			ev->setIncomingAgent(nullptr);
 
 			if (!copyEv->isSuspended()) {
 				// LOGD("A response has been submitted");
@@ -359,9 +357,8 @@ bool ForkContext::processResponse(const shared_ptr<ResponseSipEvent> &ev) {
 				// LOGD("The response has been retained");
 			}
 
-			if (forkCtx->allCurrentBranchesAnswered()) {
-				if (forkCtx->hasNextBranches())
-					forkCtx->start();
+			if (forkCtx->allCurrentBranchesAnswered() && forkCtx->hasNextBranches()) {
+				forkCtx->start();
 			}
 
 			return true;
@@ -379,15 +376,12 @@ void ForkContext::onNextBranches() {
 }
 
 bool ForkContext::hasNextBranches() {
-	if (mCurrentPriority == -1 && !mWaitingBranches.empty())
-		return true;
-
-	for(auto& br : mWaitingBranches) {
-		if (br->mPriority < mCurrentPriority)
-			return true;
-	}
-
-	return false;
+	const auto& wBrs = mWaitingBranches;
+	auto findCond = [this] (const auto& br) {return br->mPriority < mCurrentPriority;};
+	return !mFinished && (
+		( mCurrentPriority == -1 && !mWaitingBranches.empty() ) ||
+		find_if(wBrs.cbegin(), wBrs.cend(), findCond) != wBrs.cend()
+	);
 }
 
 void ForkContext::nextBranches() {
@@ -414,6 +408,11 @@ void ForkContext::nextBranches() {
 }
 
 void ForkContext::start() {
+	if (mFinished) {
+		LOGE("Calling start() on a completed ForkContext[%p]. Doing nothing", this);
+		return;
+	}
+
 	/* Remove existing timer */
 	mNextBranchesTimer.reset();
 
