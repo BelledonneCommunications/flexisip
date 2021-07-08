@@ -19,6 +19,12 @@ Group changes to describe their impact on the project, as follows:
 - `module::Authentication/realm` parameter.
 
 
+## [2.0.7] - 2021-07-09
+### [Fixed]
+- **Proxy** Fix a bug that caused the fallback route to be used even if the forked request
+  had succeeded.
+
+
 ## [2.0.6] - 2021-07-07
 ### [Fixed]
 - **Proxy** INIVITE requests was systematically forked to the fallback route (if set)
