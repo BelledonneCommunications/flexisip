@@ -869,6 +869,11 @@ bool RegistrarDb::errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, 
 
 RegistrarDb *RegistrarDb::sUnique = nullptr;
 
+void RegistrarDb::resetDB() {
+	SLOGW << "Reseting RegistrarDb static pointer, you MUST be in a test.";
+	sUnique = nullptr;
+}
+
 RegistrarDb *RegistrarDb::initialize(Agent *ag){
 	if (sUnique != nullptr){
 		LOGF("RegistrarDb already initialized");
