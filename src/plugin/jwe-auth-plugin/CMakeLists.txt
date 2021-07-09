@@ -27,19 +27,16 @@ set(JWE_AUTH_SOURCES
 )
 
 find_package(Jansson REQUIRED)
-find_package(Jose REQUIRED)
 
 set(JWE_AUTH_LIBRARIES
 	flexisip
 	${JANSSON_LIBRARIES}
-	${JOSE_LIBRARIES}
+	jose
 	bctoolbox
 )
 
 set(JWE_AUTH_INCLUDES
-	${FLEXISIP_INCLUDES}
 	${JANSSON_INCLUDE_DIR}
-	${JOSE_INCLUDE_DIR}
 )
 
 add_library(jweauth SHARED ${JWE_AUTH_SOURCES})
@@ -47,8 +44,8 @@ set_property(TARGET jweauth PROPERTY VERSION ${PROJECT_VERSION})
 set_property(TARGET jweauth PROPERTY CXX_STANDARD 11)
 set_property(TARGET jweauth PROPERTY CXX_STANDARD_REQUIRED ON)
 
-target_link_libraries(jweauth ${JWE_AUTH_LIBRARIES})
-target_include_directories(jweauth PUBLIC ${JWE_AUTH_INCLUDES})
+target_link_libraries(jweauth PRIVATE ${JWE_AUTH_LIBRARIES})
+target_include_directories(jweauth PRIVATE ${JWE_AUTH_INCLUDES})
 add_dependencies(jweauth flexisip-git-version)
 
 install(TARGETS jweauth
