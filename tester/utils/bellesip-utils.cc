@@ -25,7 +25,7 @@ using namespace std;
 namespace flexisip {
 
 BellesipUtils::BellesipUtils(const string& ipaddress, int port, const string& transport,
-                     const ProcessResponseEventCb& processResponseEventCb) {
+                             const ProcessResponseEventCb& processResponseEventCb) {
 	mProcessResponseEventCb = processResponseEventCb;
 	mStack = belle_sip_stack_new(nullptr);
 	mListeningPoint = belle_sip_stack_create_listening_point(mStack, ipaddress.c_str(), port, transport.c_str());
@@ -42,22 +42,26 @@ BellesipUtils::BellesipUtils(const string& ipaddress, int port, const string& tr
 		                  status = belle_sip_response_get_status_code(belle_sip_response_event_get_response(event)),
 		                  belle_sip_response_get_reason_phrase(belle_sip_response_event_get_response(event)));
 
-		static_cast<ProcessResponseEventCb *>(userCtx)->operator ()(status);
+		static_cast<ProcessResponseEventCb*>(userCtx)->operator()(status);
 	};
 
 	mListener = belle_sip_listener_create_from_callbacks(&listener_callbacks, &mProcessResponseEventCb);
 	belle_sip_provider_add_sip_listener(mProvider, BELLE_SIP_LISTENER(mListener));
 }
 
-BellesipUtils::~BellesipUtils(){
+BellesipUtils::~BellesipUtils() {
 	belle_sip_object_unref(mListener);
 	belle_sip_object_unref(mProvider);
 	belle_sip_object_unref(mStack);
 }
 
-void BellesipUtils::sendRawRequest(const string& rawMessage) {
+void BellesipUtils::sendRawRequest(const string& rawMessage, const string& rawBody) {
 	belle_sip_message_t* message = belle_sip_message_parse(rawMessage.c_str());
 	belle_sip_request_t* request = BELLE_SIP_REQUEST(message);
+
+	if (!rawBody.empty()) {
+		belle_sip_message_set_body(BELLE_SIP_MESSAGE(request), rawBody.c_str(), strlen(rawBody.c_str()));
+	}
 
 	belle_sip_provider_send_request(mProvider, request);
 }

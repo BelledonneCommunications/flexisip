@@ -370,6 +370,11 @@ class RegistrarDb {
 	friend class ModuleRegistrar;
 
   public:
+	/**
+	 * Reset RegistrarDb::sUnique
+	 * WARNING : this method is ONLY there for testing purpose
+	 */
+	static void resetDB();
 	static RegistrarDb *initialize(Agent *ag);
 	static RegistrarDb *get();
 	void bind(const MsgSip &sipMsg, const BindingParameters &parameter, const std::shared_ptr<ContactUpdateListener> &listener);
