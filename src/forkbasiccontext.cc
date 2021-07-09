@@ -1,33 +1,34 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <algorithm>
+#include <flexisip/common.hh>
 #include <flexisip/forkbasiccontext.hh>
 #include <flexisip/registrardb.hh>
-#include <flexisip/common.hh>
-#include <algorithm>
 #include <sofia-sip/sip_status.h>
 
 using namespace std;
 using namespace flexisip;
 
-ForkBasicContext::ForkBasicContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event,
-								   shared_ptr<ForkContextConfig> cfg, ForkContextListener *listener,
-								   weak_ptr<StatPair> counter)
-	: ForkContext(agent, event, move(cfg), listener, move(counter)) {
+ForkBasicContext::ForkBasicContext(Agent* agent, const std::shared_ptr<RequestSipEvent>& event,
+                                   shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener,
+                                   weak_ptr<StatPair> counter)
+    : ForkContext(agent, event, move(cfg), listener, move(counter)) {
 	LOGD("New ForkBasicContext %p", this);
 	mDecisionTimer = NULL;
 	// start the acceptance timer immediately
@@ -41,14 +42,14 @@ ForkBasicContext::~ForkBasicContext() {
 	LOGD("Destroy ForkBasicContext %p", this);
 }
 
-void ForkBasicContext::onResponse(const shared_ptr<BranchInfo> &br, const shared_ptr<ResponseSipEvent> &event) {
+void ForkBasicContext::onResponse(const shared_ptr<BranchInfo>& br, const shared_ptr<ResponseSipEvent>& event) {
 	int code = br->getStatus();
 	if (code >= 200) {
 		if (code < 300) {
 			forwardResponse(br);
 			if (mDecisionTimer) {
 				su_timer_destroy(mDecisionTimer);
-				mDecisionTimer = NULL;
+				mDecisionTimer = nullptr;
 			}
 		} else {
 			if (allBranchesAnswered()) {
@@ -61,20 +62,11 @@ void ForkBasicContext::onResponse(const shared_ptr<BranchInfo> &br, const shared
 void ForkBasicContext::finishIncomingTransaction() {
 	if (mDecisionTimer) {
 		su_timer_destroy(mDecisionTimer);
-		mDecisionTimer = NULL;
+		mDecisionTimer = nullptr;
 	}
 	shared_ptr<BranchInfo> best = findBestBranch(sUrgentCodes);
-	if (best == NULL) {
-		// Create response
-		shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_408_REQUEST_TIMEOUT));
-		if (msgsip) {
-			shared_ptr<ResponseSipEvent> ev(
-				new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
-			forwardResponse(ev);
-		} else { // Should never happen
-			SLOGE << "Because MsgSip can't be created ForkBasicContext is finished without forwarding any response.";
-			setFinished();
-		}
+	if (best == nullptr) {
+		forwardCustomResponse(SIP_408_REQUEST_TIMEOUT);
 	} else {
 		forwardResponse(best);
 	}
@@ -85,10 +77,18 @@ void ForkBasicContext::onDecisionTimer() {
 	finishIncomingTransaction();
 }
 
-void ForkBasicContext::sOnDecisionTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) {
-	static_cast<ForkBasicContext *>(arg)->onDecisionTimer();
+void ForkBasicContext::sOnDecisionTimer(su_root_magic_t* magic, su_timer_t* t, su_timer_arg_t* arg) {
+	static_cast<ForkBasicContext*>(arg)->onDecisionTimer();
 }
 
-bool ForkBasicContext::onNewRegister(const url_t *url, const string &uid) {
+bool ForkBasicContext::onNewRegister(const url_t* url, const string& uid) {
 	return false;
+}
+
+void ForkBasicContext::processInternalError(int status, const char* phrase) {
+	if (mDecisionTimer) {
+		su_timer_destroy(mDecisionTimer);
+		mDecisionTimer = nullptr;
+	}
+	ForkContext::processInternalError(status, phrase);
 }
