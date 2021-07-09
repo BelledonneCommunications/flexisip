@@ -532,6 +532,10 @@ bool ModuleToolbox::urlHostMatch(const url_t *url, const char *host) {
 	return urlHostMatch(url->url_host, host);
 }
 
+bool ModuleToolbox::urlHostMatch(const std::string& host1, const std::string& host2) {
+	return urlHostMatch(host1.c_str(), host2.c_str());
+}
+
 bool ModuleToolbox::transportEquals(const char *tr1, const char *tr2) {
 	if (tr1 == NULL || tr1[0] == 0)
 		tr1 = "UDP";
