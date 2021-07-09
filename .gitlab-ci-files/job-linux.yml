@@ -26,7 +26,7 @@
     - export CXX=$CXX
     - git submodule foreach --recursive git fetch --tags --force
     - mkdir work && cd work
-    - cmake -G "$CMAKE_GENERATOR" $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS ..
+    - cmake -G "$CMAKE_GENERATOR" -DCMAKE_INSTALL_PREFIX="$PWD/../OUTPUT" $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS ..
     - cmake --build . -- $ADDITIONAL_BUILD_OPTIONS
 
 #################################################

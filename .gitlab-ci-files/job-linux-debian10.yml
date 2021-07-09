@@ -135,6 +135,7 @@ job-debian10-unit-test:
   needs :
     - job-debian10-ninja-clang
   script :
+    - cmake --build work --target install
     - export LD_LIBRARY_PATH=/usr/local/lib
     - ./OUTPUT/bin/flexisip_tester --verbose --parallel || exit $?
   artifacts :
