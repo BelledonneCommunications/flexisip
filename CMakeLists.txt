@@ -20,9 +20,17 @@
 #
 ############################################################################
 
-cmake_minimum_required(VERSION 3.2.0 FATAL_ERROR) # 3.2.0 required for target_compile_features support on gcc 4.4+ (centos6)
+# CMake 3.13 required by some sub-projects.
+cmake_minimum_required(VERSION 3.13)
 
-project(flexisip LANGUAGES C CXX)
+# Set project version by using the Git describe
+include("./linphone-sdk/bctoolbox/cmake/BcToolboxCMakeUtils.cmake")
+bc_compute_full_version(FLEXISIP_FULL_VERSION)
+bc_parse_full_version("${FLEXISIP_FULL_VERSION}" major minor patch)
+project(flexisip VERSION "${major}.${minor}.${patch}" LANGUAGES C CXX)
+unset(major)
+unset(minor)
+unset(patch)
 
 include(CMakePushCheckState)
 include(CMakeDependentOption)
@@ -32,23 +40,22 @@ include(FeatureSummary)
 include(CheckCXXSourceCompiles)
 include(GNUInstallDirs)
 
-option(ENABLE_STRICT "Pass strict flags to the compiler" YES)
-option(ENABLE_DATEHANDLER "Build DateHandler module" NO)
-option(ENABLE_PDFDOC "Build pdf documentation" NO)
-option(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS "Enable monotonic clock for registrations" NO)
-option(ENABLE_PRESENCE "Build presence support" NO)
-option(ENABLE_CONFERENCE "Build conference support" NO)
-option(ENABLE_PROTOBUF "Build with protobuf support" NO)
-option(ENABLE_REDIS "Build with Redis support" NO)
-option(ENABLE_SNMP "Build with SNMP support" NO)
-option(ENABLE_SOCI "Build with SOCI support" YES)
-option(ENABLE_STATIC "Build static library (default is shared library)." NO)
-option(ENABLE_TRANSCODER "Build transcoder support" YES)
-option(ENABLE_MDNS "Build multicast DNS support" NO)
-option(ENABLE_EXTERNAL_AUTH_PLUGIN "Enable ExternalAuth plugin support" NO)
-option(ENABLE_JWE_AUTH_PLUGIN "Enable JweAuth plugin support" NO)
-option(ENABLE_UNIT_TESTS "Enable flexisip unit tests (low level tests)" NO)
-option(ENABLE_PACKAGE_SOURCE "Create 'package_source' target for source archive making (CMake >= 3.11)" OFF)
+option(ENABLE_STRICT "Pass strict flags to the compiler" ON)
+option(ENABLE_DATEHANDLER "Build DateHandler module" OFF)
+option(ENABLE_PDFDOC "Build pdf documentation" OFF)
+option(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS "Enable monotonic clock for registrations" OFF)
+option(ENABLE_PRESENCE "Build presence support" ON)
+option(ENABLE_CONFERENCE "Build conference support" ON)
+option(ENABLE_PROTOBUF "Build with protobuf support" ON)
+option(ENABLE_REDIS "Build with Redis support" ON)
+option(ENABLE_SNMP "Build with SNMP support" ON)
+option(ENABLE_SOCI "Build with SOCI support" ON)
+option(ENABLE_STATIC "Build static library (default is shared library)." OFF)
+option(ENABLE_TRANSCODER "Build transcoder support" ON)
+option(ENABLE_MDNS "Build multicast DNS support" OFF)
+option(ENABLE_EXTERNAL_AUTH_PLUGIN "Enable ExternalAuth plugin support" ON)
+option(ENABLE_JWE_AUTH_PLUGIN "Enable JweAuth plugin support" ON)
+option(ENABLE_UNIT_TESTS "Enable flexisip unit tests (low level tests)" OFF)
 
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
 
@@ -85,16 +92,158 @@ endfunction()
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-# Required packages
-find_package(SofiaSipUa 1.13.11 REQUIRED) #find_package only allow numbers
-if(LINPHONE_BUILDER_GROUP_EXTERNAL_SOURCE_PATH_BUILDERS)
-	include("${EP_ortp_CONFIG_DIR}/ORTPConfig.cmake")
-else()
-	find_package(ortp 0.21 REQUIRED)
+# Add external dependencies
+set(ENABLE_UNIT_TESTS OFF)
+add_subdirectory("submodules/externals/sofia-sip")
+unset(ENABLE_UNIT_TESTS)
+
+if(ENABLE_SOCI OR ENABLE_CONFERENCE_SERVER)
+	set(SOCI_SHARED ON)
+	set(SOCI_STATIC OFF)
+	if (APPLE)
+		set(SOCI_FRAMEWORK ON)
+	endif()
+	set(SOCI_TESTS OFF)
+	set(SOCI_ASAN OFF)
+	set(SOCI_EMPTY OFF)
+
+	# Soci backends
+	set(WITH_DB2 OFF)
+	set(WITH_FIREBIRD OFF)
+	set(WITH_MYSQL ON)
+	set(WITH_ODBC OFF)
+	set(WITH_ORACLE OFF)
+	set(WITH_POSTGRESQL ON)
+	set(WITH_SQLITE3 ON)
+	set(WITH_THREAD_STACK_SIZE 0)
+	set(WITH_VALGRIND OFF)
+
+	set(SOCI_MYSQL ON)
+	set(SOCI_POSTGRESQL ON)
+	set(SOCI_SQLITE3 ON)
+	add_subdirectory("linphone-sdk/external/soci")
 endif()
 
-find_package(bctoolbox 0.0.3 REQUIRED)
-find_package(belr REQUIRED)
+if(ENABLE_JWE_AUTH_PLUGIN)
+	add_subdirectory("submodules/externals/jose")
+endif()
+
+# Add Linphone SDK dependencies
+set(DISABLE_BC_PACKAGE_SEARCH ON)
+set(BCUNIT_TARGETNAME "bcunit")
+set(BCTOOLBOX_CMAKE_UTILS_DIR "${CMAKE_CURRENT_BINARY_DIR}/linphone-sdk/bctoolbox")
+
+## Global SDK config
+set(ENABLE_SHARED ON)
+set(ENABLE_STATIC OFF)
+set(ENABLE_TOOLS OFF)
+set(ENABLE_TEST OFF)
+set(ENABLE_TESTS OFF)
+set(ENABLE_DOC OFF)
+set(ENABLE_PACKAGE_SOURCE OFF)
+
+## BCunit specific config
+set(ENABLE_AUTOMATED ON)
+set(ENABLE_BASIC ON)
+set(ENABLE_CONSOLE ON)
+set(ENABLE_CURSES OFF)
+set(ENABLE_MEMTRACE OFF)
+set(ENABLE_DEPRECATED OFF)
+add_subdirectory("linphone-sdk/bcunit")
+
+## BcToolbox specific config
+set(ENABLE_POLARSSL OFF)
+set(ENABLE_MBEDTLS ON)
+set(ENABLE_DECAF OFF)
+set(ENABLE_TESTS_COMPONENT ${ENABLE_UNIT_TESTS})
+add_subdirectory("linphone-sdk/bctoolbox")
+
+## oRTP specific config
+option(ENABLE_NTP_TIMESTAMP OFF)
+option(ENABLE_PERF OFF)
+option(ENABLE_DEBUG_LOGS OFF)
+option(ENABLE_PACKAGE_SOURCE "Create 'package_source' target for source archive making (CMake >= 3.11)" OFF)
+add_subdirectory("linphone-sdk/ortp")
+
+## Belr specific config
+add_subdirectory("linphone-sdk/belr")
+
+## Mediastreamer specific config
+if(ENABLE_TRANSCODER)
+	set(ENABLE_DEBUG_LOGS OFF)
+	set(ENABLE_FIXED_POINT "Turn on fixed point computations." OFF)
+	set(ENABLE_NON_FREE_CODECS OFF)
+	set(ENABLE_PCAP OFF)
+	set(ENABLE_RELATIVE_PREFIX OFF)
+
+	set(ENABLE_SRTP ON)
+	set(ENABLE_ZRTP ON)
+
+	set(ENABLE_SOUND OFF) # Disable all sound card backends.
+
+	set(ENABLE_G726 OFF)
+	set(ENABLE_GSM ON)
+	set(ENABLE_BV16 OFF)
+	set(ENABLE_OPUS ON)
+	set(ENABLE_SPEEX_CODEC ON)
+	set(ENABLE_SPEEX_DSP ON)
+	set(ENABLE_G729 OFF) # Disable for lisence conformity
+	set(ENABLE_G729B_CNG OFF) # Disalbe for lisence conformity
+	set(ENABLE_RESAMPLE ON)
+
+	set(ENABLE_VIDEO OFF)
+	set(ENABLE_MKV OFF)
+	set(ENABLE_JPEG OFF)
+	add_subdirectory("linphone-sdk/mediastreamer2")
+endif()
+
+## Belle-sip specific config
+if(ENABLE_PRESENCE OR ENABLE_MDNS OR ENABLE_CONFERENCE)
+	set(BELLESIP_TARGETNAME "bellesip")
+	set(ENABLE_RTP_MAP_ALWAYS_IN_SDP OFF)
+	set(ENABLE_TUNNEL OFF)
+
+	# antlr3 settings
+	set(ENABLE_64BIT  OFF)
+	set(ENABLE_DEBUGGER OFF)
+
+	add_subdirectory("linphone-sdk/belle-sip")
+endif()
+
+## Liblinphone specific config
+if(ENABLE_CONFERENCE)
+	set(DISABLE_SOCI_PACKAGE_SEARCH ON)
+
+	set(ENABLE_ADVANCED_IM ON)
+	set(ENABLE_CONSOLE_UI OFF)
+	set(ENABLE_CSHARP_WRAPPER OFF)
+	set(ENABLE_CXX_WRAPPER YES)
+	set(ENABLE_DB_STORAGE YES)
+	set(ENABLE_SWIFT_WRAPPER OFF)
+	set(ENABLE_SWIFT_WRAPPER_COMPILATION OFF)
+	set(ENABLE_JAZZY_DOC OFF)
+	set(ENABLE_DAEMON OFF)
+	set(ENABLE_DATE OFF)
+	set(ENABLE_DEBUG_LOGS OFF)
+	set(ENABLE_LIME_X3DH OFF)
+	set(ENABLE_JAVA_WRAPPER OFF)
+	set(ENABLE_JAVADOC OFF)
+	set(ENABLE_LDAP OFF)
+	set(ENABLE_LIME OFF)
+	set(ENABLE_RELATIVE_PREFIX OFF)
+	set(ENABLE_TUNNEL OFF)
+	set(ENABLE_TUTORIALS OFF)
+	set(ENABLE_UNIT_TESTS OFF)
+	set(ENABLE_UPDATE_CHECK OFF)
+	set(ENABLE_VCARD OFF)
+	set(ENABLE_VIDEO OFF)
+	set(ENABLE_ASSETS OFF)
+	add_subdirectory("linphone-sdk/liblinphone")
+endif()
+
+
+# Required packages
+
 find_package(LibNgHttp2 REQUIRED)
 
 find_package(XercesC)
@@ -114,10 +263,6 @@ if(ENABLE_SNMP)
 	endif()
 
 	execute_process(COMMAND "${NET_SNMP_PROG}" "--agent-libs" OUTPUT_VARIABLE NET_SNMP_LIBRARIES OUTPUT_STRIP_TRAILING_WHITESPACE)
-endif()
-
-if(ENABLE_TRANSCODER)
-	find_package(Mediastreamer2 2.9.0 REQUIRED)
 endif()
 
 if(ENABLE_SPECIFIC_FEATURES)
@@ -153,32 +298,6 @@ endif()
 if(ENABLE_PDFDOC)
 	FIND_PROGRAM_REQUIRED(PDFLATEX_PROG pdflatex)
 endif()
-
-if(ENABLE_PRESENCE OR ENABLE_MDNS)
-	if(LINPHONE_BUILDER_GROUP_EXTERNAL_SOURCE_PATH_BUILDERS)
-		include("${EP_bellesip_CONFIG_DIR}/BelleSIPConfig.cmake")
-	else()
-		find_package(BelleSIP 1.2.4 REQUIRED)
-	endif()
-endif()
-
-if(ENABLE_CONFERENCE)
-	if(LINPHONE_BUILDER_GROUP_EXTERNAL_SOURCE_PATH_BUILDERS)
-		include("${EP_bellesip_CONFIG_DIR}/BelleSIPConfig.cmake")
-		include("${EP_linphone_CONFIG_DIR}/LinphoneConfig.cmake")
-		include("${EP_linphone_CONFIG_DIR}/wrappers/cpp/LinphoneCxxConfig.cmake")
-	else ()
-		find_package(BelleSIP 1.2.4 REQUIRED)
-		find_package(Linphone REQUIRED)
-		find_package(LinphoneCxx REQUIRED)
-	endif()
-endif()
-
-if(ENABLE_SOCI)
-	find_package(Soci REQUIRED COMPONENTS mysql)
-	find_path(SOCI_MYSQL_INCLUDES NAMES mysql.h PATH_SUFFIXES mysql HINTS $ENV{MYSQL_DIR}/include /usr/include/mariadb /usr/local/include)
-endif()
-
 
 find_path(MSGPACK_INCLUDE_DIRS NAMES msgpack.hpp HINTS /usr/local/include)
 if(MSGPACK_INCLUDE_DIRS)
@@ -226,6 +345,4 @@ if(ENABLE_UNIT_TESTS)
 endif()
 
 # Packaging
-if (ENABLE_PACKAGE_SOURCE)
-	add_subdirectory(build)
-endif()
+add_subdirectory(build)
