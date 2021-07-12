@@ -2,8 +2,13 @@ FROM gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian10:20210421_py
 
 MAINTAINER François Grisez <francois.grisez@belledonne-communications.com>
 
+ARG njobs=1
+
+# Allow make to use several jobs basing on 'njobs' parameter.
+ENV MAKEFLAGS="${MAKEFLAGS} -j${njobs}"
+
 # Add extra dependencies for Flexisip
-RUN sudo su -c 'apt-get -y update && apt-get -y install libjansson-dev libmariadb-dev-compat libnghttp2-dev libprotobuf-dev libsnmp-dev protobuf-compiler wget libboost-dev libboost-system-dev libboost-thread-dev && apt-get -y clean'
+RUN sudo su -c 'apt-get -y update && apt-get -y install libboost-dev libboost-system-dev libboost-thread-dev libhiredis-dev libjansson-dev libmariadb-dev-compat libnghttp2-dev libprotobuf-dev libsnmp-dev protobuf-compiler wget && apt-get -y clean'
 
 # Configure OpenSSL policy
 # Setting 'CipherString' to 'DEFAULT@SECLEVEL=1' forces libssl to allow
@@ -24,3 +29,7 @@ RUN wget https://github.com/nghttp2/nghttp2/releases/download/v1.36.0/nghttp2-1.
 	sudo make -C src install && \
 	cd - && \
 	rm -rf nghttp2-1.36.0.tar.bz2 nghttp2-1.36.0
+
+# Install CMake 3.20.5
+COPY cmake_install.sh .
+RUN ./cmake_install.sh 3.20.5 && rm cmake_install.sh
