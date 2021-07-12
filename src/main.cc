@@ -107,19 +107,6 @@ static std::shared_ptr<flexisip::RegistrationEvent::Server> regEventServer;
 using namespace std;
 using namespace flexisip;
 
-static unsigned long threadid_cb(){
-	return (unsigned long)pthread_self();
-}
-
-static void locking_function(int mode, int n, const char *file, int line){
-	static mutex *mutextab=NULL;
-	if (mutextab==NULL)
-		mutextab=new mutex[CRYPTO_num_locks()];
-	if (mode & CRYPTO_LOCK)
-		mutextab[n].lock();
-	else mutextab[n].unlock();
-}
-
 static void setOpenSSLThreadSafe(){
 	CRYPTO_set_id_callback(&threadid_cb);
 	CRYPTO_set_locking_callback(&locking_function);
@@ -866,7 +853,7 @@ int main(int argc, char *argv[]) {
 	 * The condition intent to avoid log initialization should the user have passed command line options that doesn't
 	 * require to start the server e.g. dumping default configuration file. */
 	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !listSections && !dumpMibs && !dumpAll) {
-		if (cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read() != -1) {
+		if (cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read() != static_cast<ConfigByteSize::ValueType>(-1)) {
 			LOGF("Setting 'global/max-log-size' parameter has been forbbiden since log size control was delegated to logrotate. Please "
 				"edit /etc/logrotate.d/flexisip-logrotate for log rotation customization."
 			);
