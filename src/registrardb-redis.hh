@@ -29,11 +29,12 @@
 namespace flexisip {
 
 struct RedisParameters {
-	std::string domain;
-	std::string auth;
-	int port{0};
-	int timeout{0};
-	int mSlaveCheckTimeout{0};
+	std::string domain{};
+	std::string auth{};
+	int port = 0;
+	int timeout = 0;
+	int mSlaveCheckTimeout = 0;
+	bool useSlavesAsBackup = true;
 };
 
 /**
@@ -132,10 +133,11 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	redisAsyncContext *mContext{nullptr};
 	redisAsyncContext *mSubscribeContext{nullptr};
 	RecordSerializer *mSerializer;
-	RedisParameters mParams;
+	RedisParameters mParams{};
+	RedisParameters mLastActiveParams{};
 	su_root_t *mRoot{nullptr};
-	std::vector<RedisHost> mSlaves;
-	size_t mCurSlave{0};
+	std::vector<RedisHost> mSlaves{};
+	decltype(mSlaves)::const_iterator mCurSlave = mSlaves.cend();
 	su_timer_t *mReplicationTimer{nullptr};
 
 	void serializeAndSendToRedis(RegistrarUserData *data, forwardFn *forward_fn);
@@ -152,6 +154,13 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	void handleBindReplyAorSet(redisReply *reply, RegistrarUserData *data);
 	void handleClear(redisReply *reply, RegistrarUserData *data);
 	void handleFetch(redisReply *reply, RegistrarUserData *data);
+	
+	/**
+	 * This callback is called when the Redis instance answered our "INFO replication" message.
+	 * We parse the response to determine if we are connected to the master Redis instance or
+	 * a slave, and we react accordingly.
+	 * @param str Redis answer
+	 */
 	void handleReplicationInfoReply(const char *str);
 	void handleMigration(redisReply *reply, RegistrarUserData *data);
 	void handleRecordMigration(redisReply *reply, RegistrarUserData *data);
