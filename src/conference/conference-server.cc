@@ -74,6 +74,8 @@ void ConferenceServer::_init () {
 	configLinphone->setString("sip", "bind_address", bindAddress);
 	configLinphone->setBool("misc", "conference_server_enabled", 1);
 	configLinphone->setBool("misc", "enable_one_to_one_chat_room", config->get<ConfigBoolean>("enable-one-to-one-chat-room")->read());
+	configLinphone->setInt("misc", "hide_empty_chat_rooms", 0);
+	configLinphone->setInt("misc", "hide_chat_rooms_from_removed_proxies", 0);
 	configLinphone->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
 	configLinphone->setString("storage", "uri", config->get<ConfigString>("database-connection-string")->read());
 	mCore = Factory::get()->createCoreWithConfig(configLinphone, nullptr);
