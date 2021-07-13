@@ -903,6 +903,7 @@ RegistrarDb *RegistrarDb::initialize(Agent *ag){
 		params.timeout = registrar->get<ConfigInt>("redis-server-timeout")->read();
 		params.auth = registrar->get<ConfigString>("redis-auth-password")->read();
 		params.mSlaveCheckTimeout = registrar->get<ConfigInt>("redis-slave-check-period")->read();
+		params.useSlavesAsBackup = registrar->get<ConfigBoolean>("redis-use-slaves-as-backup")->read();
 
 		sUnique = new RegistrarDbRedisAsync(ag, params);
 		sUnique->mUseGlobalDomain = useGlobalDomain;
