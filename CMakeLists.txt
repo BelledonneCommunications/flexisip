@@ -20,9 +20,17 @@
 #
 ############################################################################
 
-cmake_minimum_required(VERSION 3.2.0 FATAL_ERROR) # 3.2.0 required for target_compile_features support on gcc 4.4+ (centos6)
+# CMake 3.13 required by some sub-projects.
+cmake_minimum_required(VERSION 3.13)
 
-project(flexisip LANGUAGES C CXX)
+# Set project version by using the Git describe
+include("./linphone-sdk/bctoolbox/cmake/BcToolboxCMakeUtils.cmake")
+bc_compute_full_version(FLEXISIP_FULL_VERSION)
+bc_parse_full_version("${FLEXISIP_FULL_VERSION}" major minor patch)
+project(flexisip VERSION "${major}.${minor}.${patch}" LANGUAGES C CXX)
+unset(major)
+unset(minor)
+unset(patch)
 
 include(CMakePushCheckState)
 include(CMakeDependentOption)
@@ -32,23 +40,22 @@ include(FeatureSummary)
 include(CheckCXXSourceCompiles)
 include(GNUInstallDirs)
 
-option(ENABLE_STRICT "Pass strict flags to the compiler" YES)
-option(ENABLE_DATEHANDLER "Build DateHandler module" NO)
-option(ENABLE_PDFDOC "Build pdf documentation" NO)
-option(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS "Enable monotonic clock for registrations" NO)
-option(ENABLE_PRESENCE "Build presence support" NO)
-option(ENABLE_CONFERENCE "Build conference support" NO)
-option(ENABLE_PROTOBUF "Build with protobuf support" NO)
-option(ENABLE_REDIS "Build with Redis support" NO)
-option(ENABLE_SNMP "Build with SNMP support" NO)
-option(ENABLE_SOCI "Build with SOCI support" YES)
-option(ENABLE_STATIC "Build static library (default is shared library)." NO)
-option(ENABLE_TRANSCODER "Build transcoder support" YES)
-option(ENABLE_MDNS "Build multicast DNS support" NO)
-option(ENABLE_EXTERNAL_AUTH_PLUGIN "Enable ExternalAuth plugin support" NO)
-option(ENABLE_JWE_AUTH_PLUGIN "Enable JweAuth plugin support" NO)
-option(ENABLE_UNIT_TESTS "Enable flexisip unit tests (low level tests)" NO)
-option(ENABLE_PACKAGE_SOURCE "Create 'package_source' target for source archive making (CMake >= 3.11)" OFF)
+option(ENABLE_STRICT "Pass strict flags to the compiler" ON)
+option(ENABLE_DATEHANDLER "Build DateHandler module" OFF)
+option(ENABLE_PDFDOC "Build pdf documentation" OFF)
+option(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS "Enable monotonic clock for registrations" OFF)
+option(ENABLE_PRESENCE "Build presence support" ON)
+option(ENABLE_CONFERENCE "Build conference support" ON)
+option(ENABLE_PROTOBUF "Build with protobuf support" ON)
+option(ENABLE_REDIS "Build with Redis support" ON)
+option(ENABLE_SNMP "Build with SNMP support" ON)
+option(ENABLE_SOCI "Build with SOCI support" ON)
+option(ENABLE_STATIC "Build static library (default is shared library)." OFF)
+option(ENABLE_TRANSCODER "Build transcoder support" ON)
+option(ENABLE_MDNS "Build multicast DNS support" OFF)
+option(ENABLE_EXTERNAL_AUTH_PLUGIN "Enable ExternalAuth plugin support" ON)
+option(ENABLE_JWE_AUTH_PLUGIN "Enable JweAuth plugin support" ON)
+option(ENABLE_UNIT_TESTS "Enable flexisip unit tests (low level tests)" OFF)
 
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
 
@@ -85,16 +92,11 @@ endfunction()
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-# Required packages
-find_package(SofiaSipUa 1.13.11 REQUIRED) #find_package only allow numbers
-if(LINPHONE_BUILDER_GROUP_EXTERNAL_SOURCE_PATH_BUILDERS)
-	include("${EP_ortp_CONFIG_DIR}/ORTPConfig.cmake")
-else()
-	find_package(ortp 0.21 REQUIRED)
-endif()
+include("cmake/ExternalDependencies.cmake")
+include("cmake/LinphoneSDK.cmake")
 
-find_package(bctoolbox 0.0.3 REQUIRED)
-find_package(belr REQUIRED)
+# Required packages
+
 find_package(LibNgHttp2 REQUIRED)
 
 find_package(XercesC)
@@ -114,10 +116,6 @@ if(ENABLE_SNMP)
 	endif()
 
 	execute_process(COMMAND "${NET_SNMP_PROG}" "--agent-libs" OUTPUT_VARIABLE NET_SNMP_LIBRARIES OUTPUT_STRIP_TRAILING_WHITESPACE)
-endif()
-
-if(ENABLE_TRANSCODER)
-	find_package(Mediastreamer2 2.9.0 REQUIRED)
 endif()
 
 if(ENABLE_SPECIFIC_FEATURES)
@@ -154,32 +152,6 @@ if(ENABLE_PDFDOC)
 	FIND_PROGRAM_REQUIRED(PDFLATEX_PROG pdflatex)
 endif()
 
-if(ENABLE_PRESENCE OR ENABLE_MDNS)
-	if(LINPHONE_BUILDER_GROUP_EXTERNAL_SOURCE_PATH_BUILDERS)
-		include("${EP_bellesip_CONFIG_DIR}/BelleSIPConfig.cmake")
-	else()
-		find_package(BelleSIP 1.2.4 REQUIRED)
-	endif()
-endif()
-
-if(ENABLE_CONFERENCE)
-	if(LINPHONE_BUILDER_GROUP_EXTERNAL_SOURCE_PATH_BUILDERS)
-		include("${EP_bellesip_CONFIG_DIR}/BelleSIPConfig.cmake")
-		include("${EP_linphone_CONFIG_DIR}/LinphoneConfig.cmake")
-		include("${EP_linphone_CONFIG_DIR}/wrappers/cpp/LinphoneCxxConfig.cmake")
-	else ()
-		find_package(BelleSIP 1.2.4 REQUIRED)
-		find_package(Linphone REQUIRED)
-		find_package(LinphoneCxx REQUIRED)
-	endif()
-endif()
-
-if(ENABLE_SOCI)
-	find_package(Soci REQUIRED COMPONENTS mysql)
-	find_path(SOCI_MYSQL_INCLUDES NAMES mysql.h PATH_SUFFIXES mysql HINTS $ENV{MYSQL_DIR}/include /usr/include/mariadb /usr/local/include)
-endif()
-
-
 find_path(MSGPACK_INCLUDE_DIRS NAMES msgpack.hpp HINTS /usr/local/include)
 if(MSGPACK_INCLUDE_DIRS)
 	message(STATUS "MSGPACK found")
@@ -197,24 +169,24 @@ feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAG
 include_directories(
 	include/
 	src/
-	src/plugin
+	src/plugin/
+	src/presence/
 	${CMAKE_CURRENT_BINARY_DIR}
 	${CMAKE_CURRENT_BINARY_DIR}/src/
-	${ORTP_INCLUDE_DIRS}
-	${SOFIASIPUA_INCLUDE_DIRS}
 )
 
 set(BELR_GRAMMARS_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/belr/grammars")
 
-configure_file(${PROJECT_SOURCE_DIR}/cmake/flexisip-config.h.in ${PROJECT_BINARY_DIR}/flexisip-config.h)
+configure_file(cmake/flexisip-config.h.in flexisip-config.h)
 set_source_files_properties(${PROJECT_BINARY_DIR}/flexisip-config.h PROPERTIES GENERATED ON)
-add_definitions("-DHAVE_CONFIG_H")
+add_compile_definitions("HAVE_CONFIG_H")
 
 # -Werror=varargs seems to do false positives with GCC 4.9.x
 bc_init_compilation_flags(CPP_BUILD_FLAGS C_BUILD_FLAGS CXX_BUILD_FLAGS ENABLE_STRICT)
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION MATCHES "^4\\.9\\.[0-9]+$")
 	list(APPEND CXX_BUILD_FLAGS "-Wno-error=varargs")
 endif()
+add_compile_options(${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
 
 add_subdirectory(include)
 add_subdirectory(src)
@@ -226,6 +198,4 @@ if(ENABLE_UNIT_TESTS)
 endif()
 
 # Packaging
-if (ENABLE_PACKAGE_SOURCE)
-	add_subdirectory(build)
-endif()
+add_subdirectory(build)
