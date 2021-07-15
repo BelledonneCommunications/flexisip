@@ -104,6 +104,7 @@ void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_
 
 	bc_tester_add_suite(&agent_suite);
 	bc_tester_add_suite(&boolean_expressions_suite);
+	bc_tester_add_suite(&conference_suite);
 	bc_tester_add_suite(&extended_contact_suite);
 	bc_tester_add_suite(&fork_context_suite);
 	bc_tester_add_suite(&push_notification_suite);

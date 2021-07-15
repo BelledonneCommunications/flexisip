@@ -38,6 +38,7 @@ extern "C" {
 
 extern test_suite_t agent_suite;
 extern test_suite_t boolean_expressions_suite;
+extern test_suite_t conference_suite;
 extern test_suite_t extended_contact_suite;
 extern test_suite_t fork_context_suite;
 extern test_suite_t push_notification_suite;
