@@ -28,6 +28,7 @@ find_package(BelleSIP REQUIRED)
 add_executable(flexisip_tester
 	agent-tester.cc
 	boolean-expressions.cc
+	conference-tester.cc
 	extended-contact-tester.cc
 	fork-context-tester.cc
 	push-notification-tester.cc
@@ -57,5 +58,9 @@ install(DIRECTORY cert
 )
 
 install(DIRECTORY config
+        DESTINATION ${TESTER_DATA_DIR}
+)
+
+install(DIRECTORY db
         DESTINATION ${TESTER_DATA_DIR}
 )
