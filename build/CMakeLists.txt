@@ -28,7 +28,7 @@ set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "SIP server suite comprising proxy, presen
 set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/description.txt")
 set(CPACK_PACKAGE_HOMEPAGE_URL "http://flexisip.org")
 set(CPACK_PACKAGING_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
-set(CPACK_GENERATOR "DEB")
+#set(CPACK_GENERATOR "DEB")
 
 bc_compute_linux_package_version("${FLEXISIP_FULL_VERSION}" version release)
 set(obsolete_packets
@@ -86,13 +86,23 @@ set(CPACK_RPM_PACKAGE_GROUP "Applications/Communication")
 set(CPACK_RPM_PACKAGE_VERSION "${version}")
 set(CPACK_RPM_PACKAGE_RELEASE "${release}")
 set(CPACK_RPM_PACKAGE_OBSOLETES "${obsolete_packets_str}")
-set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
-	"/opt/belledonne-communications/include"
-)
-
-set(CPACK_RPM_PACKAGE_OBSOLETES "")
-
+set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION "/opt/belledonne-communications/include")
 set(CPACK_RPM_FILE_NAME "${CPACK_PACKAGE_NAME}-${version}-${release}.${CMAKE_HOST_SYSTEM_PROCESSOR}.rpm")
+
+set(FLEXISIP_SERVICES "flexisip-proxy flexisip-regevent")
+if(ENABLE_PRESENCE)
+	string(APPEND FLEXISIP_SERVICES " flexisip-presence")
+endif()
+if(ENABLE_CONFERENCE)
+	string(APPEND FLEXISIP_SERVICES " flexisip-conference")
+endif()
+set(FLEXISIP_LOGDIR "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log")
+foreach(secname "post_install" "pre_uninstall" "post_uninstall")
+	configure_file("rpm/${secname}.spec.in" "rpm/${secname}.spec")
+	string(TOUPPER "${secname}" SECNAME)
+	set(CPACK_RPM_${SECNAME}_SCRIPT_FILE "${CMAKE_CURRENT_BINARY_DIR}/rpm/${secname}.spec")
+endforeach()
+
 set(CPACK_RPM_DEBUGINFO_PACKAGE ON)
 
 # Debian package

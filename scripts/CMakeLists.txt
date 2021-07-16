@@ -23,26 +23,32 @@
 #legacy script
 set(bindir ${CMAKE_INSTALL_FULL_BINDIR})
 message ("-- Startup scripts configured with bindir=${bindir}")
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/redhat/flexisip.in ${CMAKE_CURRENT_BINARY_DIR}/redhat/flexisip)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/debian/flexisip.in ${CMAKE_CURRENT_BINARY_DIR}/debian/flexisip)
+configure_file(redhat/flexisip.in redhat/flexisip)
+configure_file(debian/flexisip.in debian/flexisip)
 
 if (ENABLE_PRESENCE)
-	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/redhat/flexisip-presence.in ${CMAKE_CURRENT_BINARY_DIR}/redhat/flexisip-presence)
-	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/debian/flexisip-presence.in ${CMAKE_CURRENT_BINARY_DIR}/debian/flexisip-presence)
+	configure_file(redhat/flexisip-presence.in redhat/flexisip-presence)
+	configure_file(debian/flexisip-presence.in debian/flexisip-presence)
 endif()
 
 
 #systemd
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-proxy.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-proxy.service)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-proxy@.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-proxy@.service)
+set(systemd_services "flexisip-proxy.service" "flexisip-proxy@.service")
+if(ENABLE_PRESENCE)
+	list(APPEND systemd_services "flexisip-presence.service" "flexisip-presence@.service")
+endif()
+if(ENABLE_CONFERENCE)
+	list(APPEND systemd_services
+	        "flexisip-conference.service"
+	        "flexisip-conference@.service"
+	        "flexisip-regevent.service"
+	        "flexisip-regevent@.service"
+	)
+endif()
 
-if (ENABLE_PRESENCE)
-	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-presence.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-presence.service)
-	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-presence@.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-presence@.service)
-endif()
-if (ENABLE_CONFERENCE)
-	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-conference.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-conference.service)
-	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-conference@.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-conference@.service)
-	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-regevent.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-regevent.service)
-	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/flexisip-regevent@.service.in ${CMAKE_CURRENT_BINARY_DIR}/flexisip-regevent@.service)
-endif()
+foreach(service ${systemd_services})
+	configure_file("${service}.in" "${service}")
+	list(APPEND generated_services "${CMAKE_CURRENT_BINARY_DIR}/${service}")
+endforeach()
+
+install(FILES ${generated_services} DESTINATION "${DATAROOTDIR}/flexisip/systemd")
