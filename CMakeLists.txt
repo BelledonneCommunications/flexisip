@@ -198,4 +198,4 @@ if(ENABLE_UNIT_TESTS)
 endif()
 
 # Packaging
-add_subdirectory(build)
+add_subdirectory(packaging)

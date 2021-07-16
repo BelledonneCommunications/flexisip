@@ -51,4 +51,4 @@ foreach(service ${systemd_services})
 	list(APPEND generated_services "${CMAKE_CURRENT_BINARY_DIR}/${service}")
 endforeach()
 
-install(FILES ${generated_services} DESTINATION "${DATAROOTDIR}/flexisip/systemd")
+install(FILES ${generated_services} DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/flexisip/systemd")
