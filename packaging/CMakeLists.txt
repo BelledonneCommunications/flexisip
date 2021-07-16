@@ -28,7 +28,6 @@ set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "SIP server suite comprising proxy, presen
 set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/description.txt")
 set(CPACK_PACKAGE_HOMEPAGE_URL "http://flexisip.org")
 set(CPACK_PACKAGING_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
-#set(CPACK_GENERATOR "DEB")
 
 bc_compute_linux_package_version("${FLEXISIP_FULL_VERSION}" version release)
 set(obsolete_packets
@@ -46,10 +45,7 @@ set(obsolete_packets
 	"bc-belle-sip-devel"
 	"bc-belr"
 	"bc-belr-devel"
-	"bc-flexisip"
-	"bc-flexisip-account-manager"
 	"bc-flexisip-external-auth-plugin"
-	"bc-flexisip-http-file-transfer-server"
 	"bc-flexisip-jwe-auth-plugin"
 	"bc-hiredis"
 	"bc-http-file-transfer-server"
@@ -88,7 +84,9 @@ set(CPACK_RPM_PACKAGE_RELEASE "${release}")
 set(CPACK_RPM_PACKAGE_OBSOLETES "${obsolete_packets_str}")
 set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION "/opt/belledonne-communications/include")
 set(CPACK_RPM_FILE_NAME "${CPACK_PACKAGE_NAME}-${version}-${release}.${CMAKE_HOST_SYSTEM_PROCESSOR}.rpm")
+set(CPACK_RPM_DEBUGINFO_PACKAGE ON)
 
+## Set the SystemD services that should be restart on package update
 set(FLEXISIP_SERVICES "flexisip-proxy flexisip-regevent")
 if(ENABLE_PRESENCE)
 	string(APPEND FLEXISIP_SERVICES " flexisip-presence")
@@ -96,6 +94,8 @@ endif()
 if(ENABLE_CONFERENCE)
 	string(APPEND FLEXISIP_SERVICES " flexisip-conference")
 endif()
+
+## Configure %post, %postun, %preun rpmbuild section
 set(FLEXISIP_LOGDIR "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log")
 foreach(secname "post_install" "pre_uninstall" "post_uninstall")
 	configure_file("rpm/${secname}.spec.in" "rpm/${secname}.spec" @ONLY)
@@ -103,7 +103,12 @@ foreach(secname "post_install" "pre_uninstall" "post_uninstall")
 	set(CPACK_RPM_${SECNAME}_SCRIPT_FILE "${CMAKE_CURRENT_BINARY_DIR}/rpm/${secname}.spec")
 endforeach()
 
-set(CPACK_RPM_DEBUGINFO_PACKAGE ON)
+## Protect every installed SystemD unit against replacement while update
+foreach(service ${FLEXISIP_SYSTEMD_SERVICES})
+	list(APPEND CPACK_RPM_USER_FILELIST "%config(noreplace) ${FLEXISIP_SYSTEMD_INSTALLDIR}/${service}")
+endforeach()
+
+
 
 # Debian package
 
