@@ -45,10 +45,13 @@ if(ENABLE_CONFERENCE)
 	        "flexisip-regevent@.service"
 	)
 endif()
+set(FLEXISIP_SYSTEMD_SERVICES ${systemd_services} PARENT_SCOPE)
 
 foreach(service ${systemd_services})
 	configure_file("${service}.in" "${service}")
 	list(APPEND generated_services "${CMAKE_CURRENT_BINARY_DIR}/${service}")
 endforeach()
 
-install(FILES ${generated_services} DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/flexisip/systemd")
+set(systemd_installdir "${CMAKE_INSTALL_FULL_DATAROOTDIR}/flexisip/systemd")
+set(FLEXISIP_SYSTEMD_INSTALLDIR "${systemd_installdir}" PARENT_SCOPE)
+install(FILES ${generated_services} DESTINATION "${systemd_installdir}")

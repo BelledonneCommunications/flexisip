@@ -74,7 +74,6 @@ endif()
 
 set(SYSCONF_INSTALL_DIR ${CMAKE_INSTALL_FULL_SYSCONFDIR} CACHE STRING "Config directory, the place where flexisip expects its flexisip.conf file to reside" )
 
-
 set(CONFIG_DIR ${SYSCONF_INSTALL_DIR}/flexisip)
 message(STATUS "Config dir: ${CONFIG_DIR}")
 set(INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
