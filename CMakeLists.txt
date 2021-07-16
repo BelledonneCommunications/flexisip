@@ -82,6 +82,7 @@ set(INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
 if(ENABLE_UNIT_TESTS)
 	set(TESTER_DATA_DIR ${CMAKE_INSTALL_PREFIX}/share/flexisip-tester)
 endif()
+find_program(REDIS_SERVER_EXEC NAMES redis-server REQUIRED)
 
 function(FIND_PROGRAM_REQUIRED varname progname)
 	find_program(${varname} NAMES "${progname}")
