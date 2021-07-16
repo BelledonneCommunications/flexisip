@@ -32,7 +32,7 @@ static su_root_t* root = nullptr;
 static shared_ptr<Agent> agent = nullptr;
 static int listenerCalled = 0;
 
-class TestBindListener : public ContactUpdateListener {
+class ConferenceBindListener : public ContactUpdateListener {
 public:
 	void onRecordFound(const shared_ptr<Record>& r) override {
 		listenerCalled++;
@@ -96,8 +96,8 @@ static void chatRoomBindingOnInitTest() {
 	auto conferenceServer = make_shared<ConferenceServer>(agent->getPreferredRoute(), root);
 	conferenceServer->init();
 
-	RegistrarDb::get()->fetch(SipUri{"sip:chatroom@sip.linphone.org"}, make_shared<TestBindListener>(), true);
-	RegistrarDb::get()->fetch(SipUri{"sip:chatroom2@sip.linphone.org"}, make_shared<TestBindListener>(), true);
+	RegistrarDb::get()->fetch(SipUri{"sip:chatroom@sip.linphone.org"}, make_shared<ConferenceBindListener>(), true);
+	RegistrarDb::get()->fetch(SipUri{"sip:chatroom2@sip.linphone.org"}, make_shared<ConferenceBindListener>(), true);
 
 	agent->start("", "");
 
