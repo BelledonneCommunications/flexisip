@@ -482,14 +482,11 @@ void ExtendedContact::init(bool initExpire) {
 			mExpireAt = mUpdatedTime + expire;
 			mExpireAt = mExpireAt > mExpireNotAtMessage ? mExpireAt : mExpireNotAtMessage;
 		}
-		try {
-			auto pnProvider = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-provider");
-			auto pnPrId = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-prid");
-			auto pnParam = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-param");
-			if (!pnProvider.empty() && !pnPrId.empty() && !pnParam.empty()) {
-				mPushParamList = PushParamList{pnProvider, pnPrId, pnParam};
-			}
-		} catch (const out_of_range &) {
+		auto pnProvider = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-provider");
+		auto pnPrId = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-prid");
+		auto pnParam = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-param");
+		if (!pnProvider.empty() && !pnPrId.empty() && !pnParam.empty()) {
+			mPushParamList = PushParamList{pnProvider, pnPrId, pnParam};
 		}
 	}
 }
