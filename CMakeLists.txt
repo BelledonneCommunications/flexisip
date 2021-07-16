@@ -71,6 +71,7 @@ set(CONFIG_DIR ${SYSCONF_INSTALL_DIR}/flexisip)
 message(STATUS "Config dir: ${CONFIG_DIR}")
 if(ENABLE_UNIT_TESTS)
 	set(TESTER_DATA_DIR ${CMAKE_INSTALL_PREFIX}/share/flexisip-tester)
+	find_program(REDIS_SERVER_EXEC NAMES redis-server REQUIRED)
 endif()
 
 function(FIND_PROGRAM_REQUIRED varname progname)
