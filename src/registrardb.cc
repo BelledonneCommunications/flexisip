@@ -284,6 +284,13 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 			SLOGD << "Cleaning same call id contact " << (*it)->mContactId << "(" << ec->mCallId << ")";
 			if (listener) listener->onContactUpdated(*it);
 			it = mContacts.erase(it);
+		} else if ((*it)->pushParamList == ec->pushParamList) {
+			SLOGD << "Cleaning contact with push param in common : new[" << (*it)->pushParamList << "], actual["
+			      << ec->pushParamList << "]";
+			if (listener) {
+				listener->onContactUpdated(*it);
+			}
+			it = mContacts.erase(it);
 		} else {
 			++it;
 		}
@@ -453,7 +460,7 @@ static bool extractBoolParam(url_t *url, const char *param) noexcept {
 	return !extractedParam.empty() && extractedParam.find("yes") != string::npos;
 }
 
-void ExtendedContact::init() {
+void ExtendedContact::init(bool initExpire) {
 	if (mSipContact) {
 		if (mSipContact->m_q) {
 			mQ = atof(mSipContact->m_q);
@@ -466,15 +473,24 @@ void ExtendedContact::init() {
 			}
 		}
 
-		int expire = resolveExpire(mSipContact->m_expires, mExpireNotAtMessage);
-		mExpireNotAtMessage = mUpdatedTime + expire;
-		expire = resolveExpire(getMessageExpires(mSipContact->m_params).c_str(), expire);
-		if (expire == -1) {
-			LOGE("no global expire (%li) nor local contact expire (%s)found", mExpireNotAtMessage, mSipContact->m_expires);
-			expire = 0;
+		if (initExpire) {
+			int expire = resolveExpire(mSipContact->m_expires, mExpireNotAtMessage);
+			mExpireNotAtMessage = mUpdatedTime + expire;
+			expire = resolveExpire(getMessageExpires(mSipContact->m_params).c_str(), expire);
+			if (expire == -1) {
+				LOGE("no global expire (%li) nor local contact expire (%s)found", mExpireNotAtMessage,
+					 mSipContact->m_expires);
+				expire = 0;
+			}
+			mExpireAt = mUpdatedTime + expire;
+			mExpireAt = mExpireAt > mExpireNotAtMessage ? mExpireAt : mExpireNotAtMessage;
 		}
-		mExpireAt = mUpdatedTime + expire;
-		mExpireAt = mExpireAt > mExpireNotAtMessage ? mExpireAt : mExpireNotAtMessage;
+		auto pnProvider = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-provider");
+		auto pnPrId = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-prid");
+		auto pnParam = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-param");
+		if(!pnProvider.empty() && !pnPrId.empty() && !pnParam.empty()) {
+			pushParamList = PushParamList{pnProvider, pnPrId, pnParam};
+		}
 	}
 }
 
