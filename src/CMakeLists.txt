@@ -20,22 +20,10 @@
 #
 ############################################################################
 
-set(FLEXISIP_LIBS
-	bctoolbox
-	belr
-	${CMAKE_THREAD_LIBS_INIT}
-	${LINPHONECXX_LIBRARIES}
-	ortp
-	${SOFIASIPUA_LIBRARIES}
-	LibNgHttp2
-)
-set(FLEXISIP_PUBLIC_LIBS ${SOFIASIPUA_LIBRARIES})
-
-set(FLEXISIP_INCLUDES )
-
-set(FLEXISIP_DEPENDENCIES)
-
-set(FLEXISIP_SOURCES
+#######################################################################################################################
+# Build the Flexisip library
+#######################################################################################################################
+add_library(flexisip SHARED
 	agent.cc
 	auth/auth-module.cc
 	auth/flexisip-auth-module.cc
@@ -127,50 +115,50 @@ set(FLEXISIP_SOURCES
 	utils/transport/tls-connection.cc utils/transport/tls-connection.hh
 	utils/uri-utils.cc
 )
-
-set(XML_SOURCES )
-
-if(XercesC_FOUND)
-	list(APPEND FLEXISIP_INCLUDES "${PROJECT_SOURCE_DIR}/libxsd")
-	list(APPEND FLEXISIP_LIBS XercesC::XercesC)
-	list(APPEND XML_SOURCES xml/fthttp.cc xml/fthttp.hh)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 6.0.0)
+		set_source_files_properties(cJSON.c PROPERTIES COMPILE_OPTIONS "-Wno-error=misleading-indentation")
+	endif()
+	set_source_files_properties(stun/stun.c PROPERTIES COMPILE_OPTIONS "-Wno-error=sign-compare;-Wno-error=stringop-truncation")
 endif()
+target_compile_features(flexisip PRIVATE cxx_auto_type cxx_variadic_macros)
+target_link_libraries(flexisip
+	PRIVATE
+		bctoolbox
+		belr
+		LibNgHttp2
+		ortp
+		OpenSSL::SSL
+		Threads::Threads
+	PUBLIC
+		sofia-sip-ua
+)
+add_dependencies(flexisip flexisip-git-version)
 
 if(ENABLE_MSGPACK)
 	message(STATUS "Enabling MSGPACK with includes at ${MSGPACK_INCLUDE_DIRS}")
-	list(APPEND FLEXISIP_INCLUDES ${MSGPACK_INCLUDE_DIRS})
-	list(APPEND FLEXISIP_SOURCES recordserializer-msgpack.cc)
+	target_sources(flexisip PRIVATE recordserializer-msgpack.cc)
+	target_include_directories(flexisip PRIVATE ${MSGPACK_INCLUDE_DIRS})
 endif()
-
-
 if(ENABLE_SNMP)
-	list(APPEND FLEXISIP_SOURCES snmp-agent.cc snmp-agent.h)
-	list(APPEND FLEXISIP_LIBS ${NET_SNMP_LIBRARIES})
-	list(APPEND FLEXISIP_INCLUDES ${NET_SNMP_INCLUDE_DIRS} ${CMAKE_CURRENT_LIST_DIR}/mib)
+	target_sources(flexisip PRIVATE snmp-agent.cc snmp-agent.h)
+	target_include_directories(flexisip PRIVATE "mib" ${NET_SNMP_INCLUDE_DIRS})
+	target_link_libraries(flexisip PRIVATE ${NET_SNMP_LIBRARIES})
 endif()
-
 if(ENABLE_TRANSCODER)
-	list(APPEND FLEXISIP_SOURCES callcontext-transcoder.cc callcontext-transcoder.hh)
-	list(APPEND FLEXISIP_LIBS ${MEDIASTREAMER2_LIBRARIES})
-	list(APPEND FLEXISIP_INCLUDES ${MEDIASTREAMER2_INCLUDE_DIRS})
+	target_sources(flexisip PRIVATE callcontext-transcoder.cc callcontext-transcoder.hh)
+	target_link_libraries(flexisip PRIVATE mediastreamer)
 endif()
-
 if(ENABLE_DATEHANDLER)
-	list(APPEND FLEXISIP_SOURCES module-datehandler.cc)
+	target_sources(flexisip PRIVATE module-datehandler.cc)
 endif()
-
 if(ENABLE_REDIS)
-	list(APPEND FLEXISIP_SOURCES registrardb-redis-async.cc registrardb-redis.hh registrardb-redis-sofia-event.h)
-	list(APPEND FLEXISIP_LIBS ${HIREDIS_LIBRARIES})
-	list(APPEND FLEXISIP_INCLUDES ${HIREDIS_INCLUDE_DIRS})
-	add_definitions(-DENABLE_REDIS)
+	target_sources(flexisip PRIVATE registrardb-redis-async.cc registrardb-redis.hh registrardb-redis-sofia-event.h)
+	target_compile_definitions(flexisip PRIVATE "ENABLE_REDIS")
+	target_include_directories(flexisip PRIVATE ${HIREDIS_INCLUDE_DIRS})
+	target_link_libraries(flexisip PRIVATE ${HIREDIS_LIBRARIES})
 endif()
-
 if(ENABLE_PROTOBUF)
-	#include(FindProtobuf)
-	#find_package(Protobuf REQUIRED)
-	#include_directories(${PROTOBUF_INCLUDE_DIR})
-	
 	# TODO: generate the protobuf wrapper
 	# protoc --proto_path=$(builddir) --cpp_out=$(builddir) $(pb_files)
 	set(PROTOBUF_GENERATED_FILES ${CMAKE_CURRENT_BINARY_DIR}/recordserializer-protobuf.pb.cc ${CMAKE_CURRENT_BINARY_DIR}/recordserializer-protobuf.pb.h)
@@ -180,23 +168,14 @@ if(ENABLE_PROTOBUF)
 		COMMENT "Generate protobuf wrappers")
 	set_source_files_properties(${PROTOBUF_GENERATED_FILES} PROPERTIES GENERATED ON)
 
-	list(APPEND FLEXISIP_SOURCES recordserializer-protobuf.cc ${PROTOBUF_GENERATED_FILES})
-	list(APPEND FLEXISIP_LIBS ${PROTOBUF_LIBRARIES})
-	list(APPEND FLEXISIP_INCLUDES ${PROTOBUF_INCLUDE_DIRS})
-	add_definitions(-DENABLE_PROTOBUF)
+	target_sources(flexisip PRIVATE recordserializer-protobuf.cc ${PROTOBUF_GENERATED_FILES})
+	target_link_libraries(flexisip PRIVATE "protobuf::libprotobuf")
+	target_compile_definitions(flexisip PRIVATE "ENABLE_PROTOBUF")
 endif()
-
-if(ENABLE_PRESENCE OR ENABLE_MDNS)
-	list(APPEND FLEXISIP_LIBS ${BELLESIP_LIBRARIES})
-	list(APPEND FLEXISIP_INCLUDES ${BELLESIP_INCLUDE_DIRS})
-	add_definitions(-DBELLE_SIP_USE_STL ${BELLE_SIP_CFLAGS})
-endif()
-
 if(ENABLE_PRESENCE)
 	if(NOT XercesC_FOUND)
 		message(FATAL_ERROR "Presence asked but XercesC not enabled! Please enable it first.")
 	endif()
-	add_definitions(-DBELLE_SIP_USE_STL ${BELLE_SIP_CFLAGS})
 	list(APPEND XML_SOURCES
 		xml/data-model.cc
 		xml/data-model.hh
@@ -213,9 +192,7 @@ if(ENABLE_PRESENCE)
 		xml/xml.cc
 		xml/xml.hh
 	)
-	list(APPEND FLEXISIP_LIBS XercesC::XercesC)
-	list(APPEND FLEXISIP_INCLUDES "presence" "${CMAKE_SOURCE_PROJECT}/libxsd")
-	list(APPEND FLEXISIP_SOURCES
+	target_sources(flexisip PRIVATE
 		presence/bellesip-signaling-exception.cc
 		presence/bellesip-signaling-exception.hh
 		presence/etag-manager.hh
@@ -235,18 +212,16 @@ if(ENABLE_PRESENCE)
 		presence/subscription.cc
 		presence/subscription.hh
 	)
+	target_link_libraries(flexisip PUBLIC belr)
 	if(ENABLE_SOCI)
-		list(APPEND FLEXISIP_SOURCES
+		target_sources(flexisip PRIVATE
 			presence/list-subscription/external-list-subscription.cc
 			presence/list-subscription/external-list-subscription.hh
 		)
 	endif()
 endif()
-
 if(ENABLE_CONFERENCE)
-	list(APPEND FLEXISIP_LIBS ${BELLESIP_LIBRARIES} ${LINPHONE_LIBRARIES})
-	list(APPEND FLEXISIP_INCLUDES ${BELLESIP_INCLUDE_DIRS} ${LINPHONE_INCLUDE_DIRS})
-	list(APPEND FLEXISIP_SOURCES
+	target_sources(flexisip PRIVATE
 		conference/conference-address-generator.cc
 		conference/conference-address-generator.hh
 		conference/conference-server.cc
@@ -264,14 +239,17 @@ if(ENABLE_CONFERENCE)
 		registration-events/registrar/listener.hh
 		registration-events/registrar/listener.cpp
 	)
+	target_link_libraries(flexisip
+		PRIVATE bellesip
+		PUBLIC linphone++
+	)
 	list(APPEND XML_SOURCES
 		xml/reginfo.cc
 		xml/reginfo.hh
 	)
 endif()
-
 if(ENABLE_PUSHNOTIFICATION)
-	list(APPEND FLEXISIP_SOURCES
+	target_sources(flexisip PRIVATE
 		module-pushnotification.cc
 		pushnotification/applepush.cc
 		pushnotification/applepush.hh
@@ -291,51 +269,46 @@ if(ENABLE_PUSHNOTIFICATION)
 		pushnotification/pushnotificationservice.hh
 	)
 endif()
-
-list(APPEND FLEXISIP_LIBS ${OPENSSL_LIBRARIES})
-list(APPEND FLEXISIP_INCLUDES ${OPENSSL_INCLUDE_DIR})
-
 if(ENABLE_SOCI)
-	add_definitions(-DENABLE_SOCI)
-	list(APPEND FLEXISIP_SOURCES authdb-soci.cc soci-helper.cc soci-helper.hh)
-	list(APPEND FLEXISIP_LIBS ${SOCI_LIBRARY})
-	list(APPEND FLEXISIP_INCLUDES ${SOCI_INCLUDE_DIRS} ${SOCI_MYSQL_INCLUDES})
+	target_compile_definitions(flexisip PRIVATE "ENABLE_SOCI")
+	target_sources(flexisip PRIVATE authdb-soci.cc soci-helper.cc soci-helper.hh)
+	target_link_libraries(flexisip PUBLIC soci_core soci_mysql)
+endif()
+if(XercesC_FOUND)
+	target_include_directories(flexisip PRIVATE "${PROJECT_SOURCE_DIR}/libxsd")
+	target_link_libraries(flexisip PRIVATE "XercesC::XercesC")
+	list(APPEND XML_SOURCES xml/fthttp.cc xml/fthttp.hh)
+endif()
+if(ENABLE_PRESENCE OR ENABLE_MDNS)
+	target_link_libraries(flexisip PUBLIC bellesip)
+	target_compile_definitions(flexisip PRIVATE "BELLE_SIP_USE_STL")
 endif()
 
-list(APPEND FLEXISIP_SOURCES ${XML_SOURCES})
-
-message(STATUS "Flexisip LIBS : ${FLEXISIP_LIBS}")
-message(STATUS "Flexisip PUBLIC_LIBS : ${FLEXISIP_PUBLIC_LIBS}")
-message(STATUS "Flexisip INCLUDES : ${FLEXISIP_INCLUDES}")
-message(STATUS "Flexisip DEPENDENCIES : ${FLEXISIP_DEPENDENCIES}")
-
-bc_apply_compile_flags(FLEXISIP_SOURCES CPP_BUILD_FLAGS CXX_BUILD_FLAGS)
+target_sources(flexisip PRIVATE ${XML_SOURCES})
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-	if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 6.0.0)
-		set_source_files_properties(cJSON.c PROPERTIES COMPILE_FLAGS "-Wno-error=misleading-indentation")
-	endif()
-	set_source_files_properties(stun/stun.c PROPERTIES COMPILE_FLAGS "-Wno-error=sign-compare")
-	if (ENABLE_PRESENCE AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0.0)
-		set_source_files_properties(${XML_SOURCES} PROPERTIES COMPILE_FLAGS "-Wno-error=deprecated-copy")
+	if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0.0)
+		set_source_files_properties(${XML_SOURCES} PROPERTIES COMPILE_OPTIONS "-Wno-error=deprecated-copy")
 	endif()
 endif()
 
-add_library(flexisip SHARED ${FLEXISIP_SOURCES})
-
-if(FLEXISIP_DEPENDENCIES)
-	add_dependencies(flexisip ${FLEXISIP_DEPENDENCIES})
+#######################################################################################################################
+# Build plugins.
+#######################################################################################################################
+if(ENABLE_EXTERNAL_AUTH_PLUGIN)
+	add_subdirectory(plugin/external-auth-plugin)
 endif()
-add_dependencies(flexisip flexisip-git-version)
-target_compile_features(flexisip PRIVATE cxx_auto_type cxx_variadic_macros)
-#target_link_libraries(flexisip PUBLIC ${FLEXISIP_PUBLIC_LIBS} PRIVATE ${FLEXISIP_LIBS} ${PROTOBUF_LIBRARY})
-target_link_libraries(flexisip PUBLIC ${FLEXISIP_PUBLIC_LIBS} PRIVATE ${FLEXISIP_LIBS})
-target_include_directories(flexisip PRIVATE ${FLEXISIP_INCLUDES})
 
+if(ENABLE_JWE_AUTH_PLUGIN)
+	add_subdirectory(plugin/jwe-auth-plugin)
+endif()
+
+#######################################################################################################################
+# Build the executables
+#######################################################################################################################
 add_executable(flexisip_server main.cc)
 set_property(TARGET flexisip_server PROPERTY OUTPUT_NAME flexisip)
 target_compile_features(flexisip_server PRIVATE cxx_auto_type cxx_variadic_macros)
-target_link_libraries(flexisip_server flexisip OpenSSL::Crypto ortp)
-
+target_link_libraries(flexisip_server PRIVATE flexisip OpenSSL::Crypto ortp)
 install(TARGETS flexisip flexisip_server
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -344,8 +317,7 @@ install(TARGETS flexisip flexisip_server
 )
 
 add_executable(flexisip_pusher tools/pusher.cc)
-target_link_libraries(flexisip_pusher flexisip OpenSSL::Crypto LibNgHttp2)
-
+target_link_libraries(flexisip_pusher flexisip OpenSSL::Crypto LibNgHttp2 bctoolbox)
 install(TARGETS flexisip_pusher
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -353,19 +325,8 @@ install(TARGETS flexisip_pusher
 	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
 )
 
-# Build plugins.
-if(ENABLE_EXTERNAL_AUTH_PLUGIN)
-    add_subdirectory(plugin/external-auth-plugin)
-endif()
-
-if(ENABLE_JWE_AUTH_PLUGIN)
-	add_subdirectory(plugin/jwe-auth-plugin)
-endif()
-
-
 add_executable(flexisip_serializer tools/serializer.cc)
 target_link_libraries(flexisip_serializer flexisip bctoolbox)
-
 install(TARGETS flexisip_serializer
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
