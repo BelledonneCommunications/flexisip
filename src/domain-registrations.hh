@@ -28,6 +28,7 @@
 #include <flexisip/registrardb.hh>
 
 #include <list>
+#include <regex>
 
 namespace flexisip {
 
@@ -117,6 +118,12 @@ class DomainRegistrationManager : public LocalRegExpireListener, public std::ena
 	 */
 	tport_t *lookupTport(const url_t *destUrl);
 
+	/**
+	 * Check if a we have to relay registration requests to its domain controller for a given domain.
+	 * If url_host is an empty string, then the global relay registration to domain cfg status is returned.
+	 */
+	bool haveToRelayRegToDomain(const std::string url_host);
+
   private:
 	Agent *mAgent;
 	std::list<std::shared_ptr<DomainRegistration>> mRegistrations;
@@ -128,6 +135,8 @@ class DomainRegistrationManager : public LocalRegExpireListener, public std::ena
 	bool mVerifyServerCerts;
 	bool mRegisterWhenNeeded;
 	bool mDomainRegistrationsStarted;
+	bool mRelayRegsToDomains;
+	std::regex mRelayRegsToDomainsRegex;
 
 	static void unregisterTimeout(su_root_magic_t *magic, su_timer_t *t, void *data) {
 		su_root_t *root = (su_root_t *) data;
