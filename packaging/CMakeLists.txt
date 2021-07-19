@@ -74,8 +74,20 @@ foreach(pkg ${obsolete_packets})
 endforeach()
 
 
+# Set the SystemD services that should be restarted on package update
+set(FLEXISIP_SERVICES "flexisip-proxy flexisip-regevent")
+if(ENABLE_PRESENCE)
+	string(APPEND FLEXISIP_SERVICES " flexisip-presence")
+endif()
+if(ENABLE_CONFERENCE)
+	string(APPEND FLEXISIP_SERVICES " flexisip-conference")
+endif()
 
+
+#######################################################################################################################
 # RedHat/CentOS package
+#######################################################################################################################
+
 set(CPACK_RPM_PACKAGE_EPOCH "1")
 set(CPACK_RPM_PACKAGE_LICENSE "AGPLv3")
 set(CPACK_RPM_PACKAGE_GROUP "Applications/Communication")
@@ -85,15 +97,6 @@ set(CPACK_RPM_PACKAGE_OBSOLETES "${obsolete_packets_str}")
 set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION "/opt/belledonne-communications/include")
 set(CPACK_RPM_FILE_NAME "${CPACK_PACKAGE_NAME}-${version}-${release}.${CMAKE_HOST_SYSTEM_PROCESSOR}.rpm")
 set(CPACK_RPM_DEBUGINFO_PACKAGE ON)
-
-## Set the SystemD services that should be restart on package update
-set(FLEXISIP_SERVICES "flexisip-proxy flexisip-regevent")
-if(ENABLE_PRESENCE)
-	string(APPEND FLEXISIP_SERVICES " flexisip-presence")
-endif()
-if(ENABLE_CONFERENCE)
-	string(APPEND FLEXISIP_SERVICES " flexisip-conference")
-endif()
 
 ## Configure %post, %postun, %preun rpmbuild section
 set(FLEXISIP_LOGDIR "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log")
@@ -109,8 +112,9 @@ foreach(service ${FLEXISIP_SYSTEMD_SERVICES})
 endforeach()
 
 
-
+#######################################################################################################################
 # Debian package
+#######################################################################################################################
 
 # CPackDEB bug: component mode must be on for debsym pacage generation
 set(CPACK_DEB_COMPONENT_INSTALL ON)
@@ -126,6 +130,13 @@ set(CPACK_DEBIAN_PACKAGE_SECTION "net")
 set(CPACK_DEBIAN_PACKAGE_PROVIDES "${obsolete_packets_str}")
 set(CPACK_DEBIAN_PACKAGE_CONFLICTS "${obsolete_packets_str}")
 set(CPACK_DEBIAN_PACKAGE_REPLACES "${obsolete_packets_str}")
+
+# Add control scripts
+set(control_files "postinst" "prerm" "postrm")
+foreach(control ${control_files})
+	configure_file("deb/${control}.in" "deb/${control}" @ONLY)
+	list(APPEND CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_BINARY_DIR}/deb/${control}")
+endforeach()
 
 # Do not set CPACK_DEBIAN_FILE_NAME
 set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
