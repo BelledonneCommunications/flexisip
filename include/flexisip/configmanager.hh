@@ -537,8 +537,10 @@ class ConfigString : public ConfigValue {
 
 class ConfigByteSize : public ConfigValue {
   public:
+	using ValueType = std::uint64_t;
+
 	ConfigByteSize(const std::string &name, const std::string &help, const std::string &default_value, oid oid_index);
-	uint64_t read() const;
+	ValueType read() const;
 };
 
 class ConfigStringList : public ConfigValue {
