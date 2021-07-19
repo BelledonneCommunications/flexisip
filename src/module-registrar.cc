@@ -18,6 +18,7 @@
 
 #include <flexisip/module-registrar.hh>
 #include <flexisip/logmanager.hh>
+#include "domain-registrations.hh"
 
 #include <fstream>
 #include <sstream>
@@ -451,8 +452,6 @@ void ModuleRegistrar::onLoad(const GenericStruct *mc) {
 	sigaction(SIGUSR2, &mSigaction, nullptr);
 
 	mParamsToRemove = GenericManager::get()->getRoot()->get<GenericStruct>("module::Forward")->get<ConfigStringList>("params-to-remove")->read();
-	
-	mRelayRegsToDomains = GenericManager::get()->getRoot()->get<GenericStruct>("inter-domain-connections")->get<ConfigBoolean>("relay-reg-to-domains")->read();
 }
 
 void ModuleRegistrar::onUnload() {
@@ -667,7 +666,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	}
 
 	// Handle modifications
-	if (!mUpdateOnResponse || sipurl.getUser().empty()) {
+	if (!mUpdateOnResponse || sipurl.getUser().empty() || !getAgent()->getDRM()->haveToRelayRegToDomain(sipurl.getHost())) {
 		if ('*' == sip->sip_contact->m_url[0].url_scheme[0]) {
 			auto listener = make_shared<OnRequestBindListener>(this, ev);
 			mStats.mCountClear->incrStart();
@@ -724,7 +723,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 }
 
 void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
-	if (!mUpdateOnResponse && !mRelayRegsToDomains)
+	if (!mUpdateOnResponse && !getAgent()->getDRM()->haveToRelayRegToDomain(std::string("")))
 		return;
 	const shared_ptr<MsgSip> &reMs = ev->getMsgSip();
 	sip_t *reSip = reMs->getSip();

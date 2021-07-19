@@ -104,6 +104,10 @@ DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agen
 		 "When 'relay-reg-to-domains' is enabled, the routing to the upstream server is performed according to the domain registrations "
 		 "received previously by flexisip, instead of usual DNS-based procedures.",
 		 "false" },
+		{String, "relay-reg-to-domains-regex",
+		 "regex to match domain names (host part of URL) for which the register requests should be routed to the upstream server."
+		 "This option is intended to be used with 'relay-reg-to-domains' mode enabled.",
+		 ""},
 		config_item_end};
 
 	mDomainRegistrationArea->addChildrenValues(configs);
@@ -128,6 +132,7 @@ int DomainRegistrationManager::load(string passphrase) {
 	ifstream ifs;
 	string configFile;
 	int lineIndex = 0;
+	string relayRegsToDomainsRegex;
 
 	GenericStruct *domainRegistrationCfg =
 		GenericManager::get()->getRoot()->get<GenericStruct>("inter-domain-connections");
@@ -201,6 +206,17 @@ int DomainRegistrationManager::load(string passphrase) {
 		for_each(mRegistrations.begin(), mRegistrations.end(), mem_fn(&DomainRegistration::start));
 	}
 
+	mRelayRegsToDomains = domainRegistrationCfg->get<ConfigBoolean>("relay-reg-to-domains")->read();
+	relayRegsToDomainsRegex = domainRegistrationCfg->get<ConfigString>("relay-reg-to-domains-regex")->read();
+	if (!relayRegsToDomainsRegex.empty()) {
+		try {
+			mRelayRegsToDomainsRegex = std::regex(relayRegsToDomainsRegex);
+		} catch (const std::regex_error &e) {
+			LOGF("invalid regex in 'relay-reg-to-domains-regex': %s", e.what());
+		}
+		LOGD("Found relay-reg-to-domain regex: %s", relayRegsToDomainsRegex.c_str());
+	}
+
 	return 0;
 error:
 	LOGF("Syntax error parsing domain registration configuration file '%s'", configFile.c_str());
@@ -244,6 +260,21 @@ void DomainRegistrationManager::onLocalRegExpireUpdated(unsigned int count) {
 		for_each(mRegistrations.begin(), mRegistrations.end(), mem_fn(&DomainRegistration::stop));
 		mDomainRegistrationsStarted = false;
 	}
+}
+
+bool DomainRegistrationManager::haveToRelayRegToDomain(const std::string url_host) {
+	bool ret;
+
+	if (url_host.empty())
+		return mRelayRegsToDomains; // no host provided - just return global relay reg cfg status
+
+	if (!mRelayRegsToDomains)
+		return false;
+
+	/* See if the host part matches the relay rule regex */
+	ret = regex_match(url_host, mRelayRegsToDomainsRegex);
+	LOGD("DomainRegistrationManager: REGISTER for domain %s -> %s domain relay rule", ret ? "matches" : "does not match", url_host.c_str());
+	return ret;
 }
 
 DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const string &localDomain,
