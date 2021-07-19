@@ -121,7 +121,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 
 	set(stun_c_compile_options "-Wno-error=sign-compare")
 	if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0.0)
-		string(APPEND stun_c_compile_options "-Wno-error=stringop-truncation")
+		list(APPEND stun_c_compile_options "-Wno-error=stringop-truncation")
 	endif()
 	set_source_files_properties(stun/stun.c PROPERTIES COMPILE_OPTIONS "${stun_c_compile_options}")
 	unset(stun_c_compile_options)
