@@ -21,43 +21,16 @@ Flexisip is dual licensed, and can be licensed and distributed:
 
 # Dependencies
 
-The dependencies to install depend on the build utilities you use to build Flexisip (*./prepare.py* or *CMake*). See [“Compilations”](#compilation) for more information about build ways.
-
-**Common and proxy dependencies:**
-
-| Dependency      | Description                                                                                                                              | Mandatory | prepare.py | CMake |
-| :---            | :---                                                                                                                                     | :---:     | :---:      | :---: |
-| OpenSSL         | TLS stack.                                                                                                                               | X         | X          | X     |
-| Hiredis         | Redis DB client library, used for Registrar DB and communications between Flexisip instances of a same cluster.                          | X         | X          | X     |
-| LibNgHttp2      | HTTP2 stack.                                                                                                                             | X         | X          | X     |
-| SQLite3         | Library for handling SQlite3 file                                                                                                        | X         | X          |       |
-| libmysql-client | Client library for MySQL database.                                                                                                       | X         | X          |       |
-| libasound       | ALSA library.                                                                                                                            | X         | X          |       |
-| BcSofiaSip      | Belledonne Communications maintained SofiaSip project. [See GitLab repository](https://gitlab.linphone.org/BC/public/external/sofia-sip) | X         |            | X     |
-| BcToolbox       | Several basic utilities.                                                                                                                 | X         |            | X     |
-| BelR            | Generic parser using ABNF grammar, used for user file parsing.                                                                           | X         |            | X     |
-| oRTP            | RTP stack used for media relay feature.                                                                                                  | X         |            | X     |
-| Soci            | SQL database client, used for user database reading and event logs.                                                                      | X         |            | X     |
-| Soci-sqlite3    | Soci connector for SQLit3.                                                                                                               | X         |            | X     |
-| Soci-mysql      | Soci connector for MySQL.                                                                                                                | X         |            | X     |
-| Protobuf        | Needed for migration from legacy registrar database format.                                                                              |           | X          | X     |
-| NetSNMP         | SNMP library, used for SNMP support.                                                                                                     |           | X          | X     |                                                                                  |           | X          | X     |
-| Mediastreamer   | Media engine used for transcoding feature.                                                                                               |           |            | X     |
-| BelleSip        | mDNS support.                                                                                                                            |           |            | X     |
-
-**Presence server only dependencies:**
-
-| Dependency      | Description                                                                                                                              | Mandatory | prepare.py | CMake |
-| :---            | :---                                                                                                                                     | :---:     | :---:      | :---: |
-| XercesC         | XML parser.                                                                                                                              | X         | X          | X     |
-| BelleSip        | SIP stack.                                                                                                                               | X         |            | X     |
-                                                                                                                                                                        
-**Conference server only dependencies:**
-                                                                                                                                                                        
-| Dependency      | Description                                                                                                                              | Mandatory | prepare.py | CMake |
-| :---            | :---                                                                                                                                     | :---:     | :---:      | :---: |
-| BelleSip        | SIP stack.                                                                                                                               | X         |            | X     |
-| LibLinphone++   | SIP user agent C++ library.                                                                                                              | X         |            | X     |
+| Dependency      | Description                                                                                                                              | Mandatory | Enabled by default |
+| :---            | :---                                                                                                                                     | :---:     | :---:              |
+| OpenSSL         | TLS stack.                                                                                                                               | X         |                    |
+| LibNgHttp2      | HTTP2 stack.                                                                                                                             | X         |                    |
+| SQLite3         | Library for handling SQlite3 file                                                                                                        | X         |                    |
+| libmysql-client | Client library for MySQL database.                                                                                                       | X         |                    |
+| Hiredis         | Redis DB client library, used for Registrar DB and communications between Flexisip instances of a same cluster. (-DENABLE\_REDIS=YES)    |           | X                  |
+| Protobuf        | Needed for migration from legacy registrar database format. (-DENABLE\_PROTOBUF=YES)                                                     |           | X                  |
+| NetSNMP         | SNMP library, used for SNMP support. (-DENABME\_SNMP=YES)                                                                                |           | X                  |
+| XercesC         | XML parser. (-DENABLE\_PRESENCE=YES)                                                                                                     |           | X                  |
 
 
 # Compilation
@@ -65,81 +38,57 @@ The dependencies to install depend on the build utilities you use to build Flexi
 ## Required build tools
 
 - C and C++ compiler. GCC and Clang are supported as long as they are recent enough for building C++14 code.
-- CMake >= 3.11
-- Autotools suite: autoconf, automake, libtool
+- CMake >= 3.13
 - make or Ninja
-- patch command
 - Python >= 3
 - Doxygen
 - Git
-- six, pystache, and graphviz (to be installed with pip for python3 - pip3 on centos 7)
 
 
-## Building Flexisip with ./prepare.py tool (recommended)
+## Building Flexisip with CMake
 
-*./prepare.py* allows to build Flexisip and all the required dependencies, so that few dependencies need to be
-installed by the user. To use it, just type the following command:
+Create a build directory and configure the project:
 
 ```bash
-./prepare.py <build_options>
-make -j<njobs>
-```
-
-To have the list of all supported options, you may invoke *./prepare.py* with *-lf* options:
-
-```bash
-./prepare.py -lf
-```
-
-For instance, the following line allows to build Flexisip with the same features as our published packages
-for CentOS and Debian:
-
-```bash
-./prepare.py -DENABLE_CONFERENCE=ON -DENABLE_JWE_AUTH_PLUGIN=ON -DENABLE_EXTERNAL_AUTH_PLUGIN=ON -DENABLE_PRESENCE=ON -DENABLE_PROTOBUF=ON -DENABLE_SNMP=ON -DENABLE_SOCI=ON -DENABLE_TRANSCODER=ON
-make -j<njobs>
-```
-
-If you need to switch on/off a build option, it is highly recommended to clean the project by using *./prepare.py -c* and configure it again from scratch.
-
-
-All the built binaries are installed by using *./OUTPUT* directory as prefix.
-
-
-## Building Flexisip with CMake (recommended for package maintainers)
-
-Before configuring, you need to install all the dependencies marked as *CMake* in [“Dependencies”](#dependencies) section.
-
-Then, create a build directory and configure the project:
-
-```bash
-mkdir ./work
-cmake -S . -B ./work -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc
-make -C ./work -j<njobs>
+mkdir ./build
+cmake -S . -B ./build
+make -C ./build -j<njobs>
 ```
 
 Check *CMakeLists.txt* to know the list of the available options and their default value. To change an option, you just need to invoke *CMake* again by specifying the option you need to change only.
-For instance, to enable the presence server feature:
+For instance, to disable the presence server feature:
 
 ```bash
-cmake ./work -DENABLE_PRESENCE=ON
-make -C ./work -j<njobs>
+cmake ./build -DENABLE_PRESENCE=OFF
+make -C ./build -j<njobs>
 ```
 
 You may also use *ccmake* or *cmake-gui* utilities to configure the project interactively:
 
 ```bash
-ccmake ./work
-make -C ./work -j<njobs>
+ccmake ./build
+make -C ./build -j<njobs>
 ```
 
 ## Building RPM or DEB packages
 
+This procedure will make a unique RPM package containing Flexisip and all its dependencies and the according package for debug symbols.
+
+The following options are relevant for packaging:
+
+|                        |                                                                              |
+| :---                   | :---                                                                         |
+| `CMAKE_INSTALL_PREFIX` | The prefix where the package will installed the files.                       |
+| `SYSCONF_INSTALL_DIR`  | Where Flexisip expect to find its default configuration directory.           |
+| `CMAKE_BUILD_TYPE`     | Set this to “RelWithDebInfo” to have debug symbols in the debuginfo package. |
+| `CPACK_GENERATOR`      | Select the kind of package. “RPM” or “DEB”.                                  |
+
 ```bash
-export PYTHONPATH=$PYTHONPATH:/usr/local/lib/python3.6/site-packages # This workaround is required for rpmbuild to find some required build tools.
-./prepare.py flexisip-rpm -DENABLE_CONFERENCE=ON -DENABLE_JWE_AUTH_PLUGIN=ON -DENABLE_EXTERNAL_AUTH_PLUGIN=ON -DENABLE_PRESENCE=ON -DENABLE_PROTOBUF=ON -DENABLE_SNMP=ON -DENABLE_SOCI=ON -DENABLE_TRANSCODER=ON
-make -j<njobs>
+cmake ./build -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communiactions -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSYSCONF_INSTALL_DIR=/etc -DCPACK_GENERATOR=RPM
+make -C ./build -j<njobs> package
 ```
-The packages are written within *./WORK/flexisip-rpm* directory.
+
+The packages is now available in ./build directory.
 
 ## Docker
 
