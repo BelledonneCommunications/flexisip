@@ -19,16 +19,17 @@
 #include "conference.hh"
 
 
+
 using namespace::std;
 
 namespace flexisip{
-	
+
 
 Conference::Conference(ConferenceServer &server, const std::shared_ptr<const linphone::Address> &uri) : mServer(server), mUri(uri->clone()){
 	shared_ptr<linphone::ConferenceParams> params = server.getCore()->createConferenceParams();
 	// TODO: control audio enablement (not so useful actually).
-	params->enableVideo(mServer.getMediaConfig().videoEnabled);
-	params->enableLocalParticipant(false);
+	params->setVideoEnabled(mServer.getMediaConfig().videoEnabled);
+	params->setLocalParticipantEnabled(false);
 	mConference = mServer.getCore()->createConferenceWithParams(params);
 }
 
