@@ -52,7 +52,7 @@ static constexpr auto makeArray(T &&...values) -> array<
 	return array<
 		typename decay<typename common_type<T...>::type>::type,
 		sizeof...(T)
-	>{ forward<T>(values)... };
+	>{ {forward<T>(values)...} };
 }
 
 static bool endsWith(const string &str, const string &suffix) {
