@@ -1,0 +1,29 @@
+FROM archlinux:base
+
+MAINTAINER François Grisez <francois.grisez@belledonne-communications.com>
+
+
+# Configure locale
+RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && locale-gen
+ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
+
+ENV SHELL=/bin/bash
+
+# 1. Update the system
+# 2. Install development tools
+# 3. Install Flexisip dependencies
+# 4. Clean package cache
+RUN pacman --noconfirm --noprogressbar -Syu && \
+    pacman --noconfirm --noprogressbar -S ccache clang cmake doxygen gcc git make nasm ninja python-pip python-pystache python-six yasm && \
+    pacman --noconfirm --noprogressbar -S gsm hiredis jansson libsrtp libxml2 mariadb mbedtls net-snmp openssl opus postgresql protobuf speex speexdsp sqlite xerces-c && \
+	pacman --noconfirm -Scc
+
+# Configure user bc
+RUN useradd -m -s /bin/bash bc && \
+    echo 'bc:cotcot' | chpasswd && \
+    echo 'bc ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+USER bc
+WORKDIR /home/bc
+ENTRYPOINT /bin/bash
+CMD "--login"
