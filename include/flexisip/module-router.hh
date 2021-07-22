@@ -109,7 +109,6 @@ protected:
 	bool mAllowDomainRegistrations = false;
 	bool mAllowTargetFactorization = false;
 	bool mResolveRoutes = false;
-	bool mRelayRegsToDomains = false;
 	bool mFallbackParentDomain = false;
 	std::string mFallbackRoute;
 	url_t* mFallbackRouteParsed = nullptr;
