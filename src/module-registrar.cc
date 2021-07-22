@@ -348,28 +348,34 @@ void ModuleRegistrar::onDeclare(GenericStruct *mc) {
 			"lost until clients update their registration.\n"
 			"The redis backend is recommended, the internal being more adapted to very small deployments.", "internal"},
 
-		// Redis config support
-		{String, "redis-server-domain", "Hostname or address of the Redis server. ", "localhost"},
-		{Integer, "redis-server-port", "Port of the Redis server.", "6379"},
-		{String, "redis-auth-password", "Authentication password for Redis. Empty to disable.", ""},
-		{Integer, "redis-server-timeout", "Timeout in milliseconds of the Redis connection.", "1500"},
-		{Integer, "redis-slave-check-period",
-			"When Redis is configured in master-slave, Flexisip will periodically ask which Redis instances are the "
-			"slaves and the master. This is the period with which it will query the server. It will then determine "
-			"whether is is connected to the master, and if not, let go of the connection and migrate to the master.\n"
-			"Note: This requires that all Redis instances have the same password. Otherwise the authentication "
-			"will fail.",
-			"60"},
-		{String, "service-route",
-			"Sequence of proxies (space-separated) where requests will be redirected through (RFC3608)", ""},
-		{String, "message-expires-param-name", "Name of the custom Contact header parameter which is to indicate the expire "
-			"time for chat message delivery.",
-			"message-expires"},
-		{Integer, "register-expire-randomizer-max",
-			"If not zero, the expire time put in the 200 OK response won't be the one required by the user agent, but "
-			"will be slightly modified by substracting a random value. The value given by this parameter is the "
-			"maximum percentage of the initial expire that can be substracted.\n"
-			"If zero, no randomization is applied.", "0"},
+	    // Redis config support
+	    {String, "redis-server-domain", "Hostname or address of the Redis server. ", "localhost"},
+	    {Integer, "redis-server-port", "Port of the Redis server.", "6379"},
+	    {String, "redis-auth-password", "Authentication password for Redis. Empty to disable.", ""},
+	    {Integer, "redis-server-timeout", "Timeout in milliseconds of the Redis connection.", "1500"},
+	    {Integer, "redis-slave-check-period",
+	     "When Redis is configured in master-slave, Flexisip will periodically ask which Redis instances are the "
+	     "slaves and the master. This is the period with which it will query the server. It will then determine "
+	     "whether is is connected to the master, and if not, let go of the connection and migrate to the master.\n"
+	     "Note: This requires that all Redis instances have the same password. Otherwise the authentication "
+	     "will fail.",
+	     "60"},
+	    {Boolean, "redis-use-slaves-as-backup",
+	     "Tell if Flexisip should try to connect to Redis slaves if master went down. Can be disabled if slaves "
+	     "hostname info are on private network for example.",
+	     "true"},
+	    {String, "service-route",
+	     "Sequence of proxies (space-separated) where requests will be redirected through (RFC3608)", ""},
+	    {String, "message-expires-param-name",
+	     "Name of the custom Contact header parameter which is to indicate the expire "
+	     "time for chat message delivery.",
+	     "message-expires"},
+	    {Integer, "register-expire-randomizer-max",
+	     "If not zero, the expire time put in the 200 OK response won't be the one required by the user agent, but "
+	     "will be slightly modified by substracting a random value. The value given by this parameter is the "
+	     "maximum percentage of the initial expire that can be substracted.\n"
+	     "If zero, no randomization is applied.",
+	     "0"},
 
 		// Deprecated parameters
 		{String, "redis-record-serializer", "Serialize contacts with: [C, protobuf, json, msgpack]", "protobuf"},

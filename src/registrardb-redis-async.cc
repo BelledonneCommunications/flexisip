@@ -79,9 +79,13 @@ void RegistrarDbRedisAsync::onDisconnect(const redisAsyncContext *c, int status)
 	}
 }
 
-void RegistrarDbRedisAsync::onConnect(const redisAsyncContext *c, int status) {
+void RegistrarDbRedisAsync::onConnect(const redisAsyncContext* c, int status) {
 	if (status != REDIS_OK) {
 		LOGE("Couldn't connect to redis: %s", c->errstr);
+		if (mContext != nullptr && mContext != c) {
+			LOGE("Redis context %p connection failed, but current context is %p", c, mContext);
+			return;
+		}
 		mContext = nullptr;
 		tryReconnect();
 		return;
@@ -104,15 +108,20 @@ void RegistrarDbRedisAsync::onSubscribeDisconnect(const redisAsyncContext *c, in
 	}
 }
 
-void RegistrarDbRedisAsync::onSubscribeConnect(const redisAsyncContext *c, int status) {
+void RegistrarDbRedisAsync::onSubscribeConnect(const redisAsyncContext* c, int status) {
 	if (status != REDIS_OK) {
-		LOGE("Couldn't connect to redis: %s", c->errstr);
+		LOGE("Couldn't connect for subscribe channel to redis: %s", c->errstr);
+		if (mSubscribeContext != nullptr && mSubscribeContext != c) {
+			LOGE("Redis subscribe context %p connection failed, but current subscribe context is %p", c,
+			     mSubscribeContext);
+			return;
+		}
 		mSubscribeContext = nullptr;
 		tryReconnect();
 		return;
 	}
 	LOGD("REDIS Connection done for subscribe channel %p", c);
-	if (!mContactListenersMap.empty()){
+	if (!mContactListenersMap.empty()) {
 		LOGD("Now re-subscribing all topics we had before being disconnected.");
 		subscribeAll();
 	}
@@ -229,7 +238,7 @@ RedisHost RedisHost::parseSlave(const string &slave, int id) {
 }
 
 void RegistrarDbRedisAsync::updateSlavesList(const map<string, string> redisReply) {
-	vector<RedisHost> newSlaves;
+	decltype(mSlaves) newSlaves;
 
 	try {
 		int slaveCount = atoi(redisReply.at("connected_slaves").c_str());
@@ -245,43 +254,53 @@ void RegistrarDbRedisAsync::updateSlavesList(const map<string, string> redisRepl
 					// only tell if a new host was found
 					if (std::find(mSlaves.begin(), mSlaves.end(), host) == mSlaves.end()) {
 						LOGD("Replication: Adding host %d %s:%d state:%s", host.id, host.address.c_str(), host.port,
-							host.state.c_str());
+						     host.state.c_str());
 					}
 					newSlaves.push_back(host);
 				}
 			}
 		}
-	} catch (const out_of_range &) {}
+	} catch (const out_of_range&) {
+	}
 
 	// replace the slaves array
-	mSlaves.clear();
-	mSlaves = newSlaves;
+	mSlaves = move(newSlaves);
+	mCurSlave = mSlaves.cend();
 }
 
 void RegistrarDbRedisAsync::tryReconnect() {
-	size_t slaveCount = mSlaves.size();
-	if (slaveCount > 0 && !isConnected()) {
-		// we are disconnected, but we can try one of the previously determined slaves
+	if (isConnected()) {
+		return;
+	}
+	// First we try to reconnect using the last active connection
+	if (mCurSlave == mSlaves.cend()) {
+		// We need to restore mLastActiveParams if we already tried all slaves without success to try the last master
+		// again.
+		mParams = mLastActiveParams;
+		mCurSlave = mSlaves.cbegin();
+		LOGW("Trying to reconnect to last active connection at %s:%d", mParams.domain.c_str(), mParams.port);
+		connect();
+		return;
+	}
+
+	// If last active connection still fail
+	// we can try one of the previously determined slaves
+	if (mCurSlave != mSlaves.cend()) {
+		LOGW("Connection failed or lost to %s:%d, trying a known slave %d at %s:%d", mParams.domain.c_str(),
+		     mParams.port, mCurSlave->id, mCurSlave->address.c_str(), mCurSlave->port);
+
+		mParams.domain = mCurSlave->address;
+		mParams.port = mCurSlave->port;
 		mCurSlave++;
-		mCurSlave = mCurSlave % slaveCount;
-		RedisHost host = mSlaves[mCurSlave];
-
-		LOGW("Connection lost to %s:%d, trying a known slave %d at %s:%d", mParams.domain.c_str(), mParams.port, host.id,
-			 host.address.c_str(), host.port);
-
-		mParams.domain = host.address;
-		mParams.port = host.port;
 
 		connect();
+
 	} else {
 		LOGW("No slave to try, giving up.");
 	}
 }
 
-/* This callback is called when the Redis instance answered our "INFO replication" message.
- * We parse the response to determine if we are connected to the master Redis instance or
- * a slave, and we react accordingly. */
-void RegistrarDbRedisAsync::handleReplicationInfoReply(const char *reply) {
+void RegistrarDbRedisAsync::handleReplicationInfoReply(const char* reply) {
 
 	auto replyMap = parseKeyValue(reply);
 	if (replyMap.find("role") != replyMap.end()) {
@@ -289,8 +308,9 @@ void RegistrarDbRedisAsync::handleReplicationInfoReply(const char *reply) {
 		if (role == "master") {
 			// We are speaking to the master, set the DB as writable and update the list of slaves
 			setWritable(true);
-			updateSlavesList(replyMap);
-
+			if (mParams.useSlavesAsBackup) {
+				updateSlavesList(replyMap);
+			}
 		} else if (role == "slave") {
 
 			// woops, we are connected to a slave. We should go to the master
@@ -301,7 +321,7 @@ void RegistrarDbRedisAsync::handleReplicationInfoReply(const char *reply) {
 			LOGW("Our redis instance is a slave of %s:%d", masterAddress.c_str(), masterPort);
 			if (masterStatus == "up") {
 				SLOGW << "Master is up, will attempt to connect to the master at " << masterAddress << ":"
-					  << masterPort;
+				      << masterPort;
 
 				mParams.domain = masterAddress;
 				mParams.port = masterPort;
@@ -311,7 +331,7 @@ void RegistrarDbRedisAsync::handleReplicationInfoReply(const char *reply) {
 				connect();
 			} else {
 				SLOGW << "Master is " << masterStatus
-					  << " but not up, wait for next periodic check to decide to connect.";
+				      << " but not up, wait for next periodic check to decide to connect.";
 			}
 		} else {
 			SLOGW << "Unknown role '" << role << "'";
@@ -391,6 +411,8 @@ bool RegistrarDbRedisAsync::connect() {
 	} else {
 		getReplicationInfo();
 	}
+
+	mLastActiveParams = mParams;
 	return true;
 }
 
