@@ -22,7 +22,6 @@
 
 set(CPACK_PACKAGE_NAME "bc-flexisip")
 set(CPACK_PACKAGE_VERSION "${FLEXISIP_FULL_VERSION}")
-#set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${FLEXISIP_FULL_VERSION}")
 set(CPACK_PACKAGE_VENDOR "Belledonne Communications SARL")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "SIP server suite comprising proxy, presence, and IM conference server.")
 set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/description.txt")
@@ -124,12 +123,14 @@ set(CPACK_DEB_COMPONENT_INSTALL ON)
 set(CPACK_DEBIAN_PACKAGE_NAME "${CPACK_PACKAGE_NAME}")
 set(CPACK_DEBIAN_UNSPECIFIED_PACKAGE_NAME "${CPACK_PACKAGE_NAME}")
 set(CPACK_DEBIAN_PACKAGE_VERSION "${version}-${release}")
-#set(CPACK_DEBIAN_PACKAGE_RELEASE "${release}")
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "info@belledonne-communications.com")
 set(CPACK_DEBIAN_PACKAGE_SECTION "net")
 set(CPACK_DEBIAN_PACKAGE_PROVIDES "${obsolete_packets_str}")
 set(CPACK_DEBIAN_PACKAGE_CONFLICTS "${obsolete_packets_str}")
 set(CPACK_DEBIAN_PACKAGE_REPLACES "${obsolete_packets_str}")
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+set(CPACK_DEBIAN_DEBUGINFO_PACKAGE ON)
+set(CPACK_COMPONENTS_ALL "Unspecified")
 
 # Add control scripts
 set(control_files "postinst" "prerm" "postrm")
@@ -138,11 +139,7 @@ foreach(control ${control_files})
 	list(APPEND CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_BINARY_DIR}/deb/${control}")
 endforeach()
 
-# Do not set CPACK_DEBIAN_FILE_NAME
+# Set CPACK_DEBIAN_FILE_NAME to "DEB-DEFAULT" to allow CPackDeb to generate package file name by itself in deb format
 set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
-set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
-set(CPACK_DEBIAN_DEBUGINFO_PACKAGE ON)
-
-set(CPACK_COMPONENTS_ALL "Unspecified")
 
 include(CPack)

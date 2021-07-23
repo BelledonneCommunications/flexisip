@@ -1,3 +1,7 @@
+###############################################################################
+# Dockerfile used to make bc-dev-archlinux:20210624_packaging
+###############################################################################
+
 FROM archlinux:base
 
 MAINTAINER François Grisez <francois.grisez@belledonne-communications.com>

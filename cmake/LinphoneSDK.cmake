@@ -131,7 +131,7 @@ if(ENABLE_CONFERENCE)
 	set(ENABLE_VIDEO OFF)
 	set(ENABLE_ASSETS OFF)
 
-        set(ENABLE_UNIT_TESTS OFF) # override Flexisip ENABLE_UNIT_TESTS option by using a local variable
+	set(ENABLE_UNIT_TESTS OFF) # override Flexisip ENABLE_UNIT_TESTS option by using a local variable
 	add_subdirectory("linphone-sdk/liblinphone")
-        unset(ENABLE_UNIT_TESTS) # remove the overriding
+	unset(ENABLE_UNIT_TESTS) # remove the overriding
 endif()
