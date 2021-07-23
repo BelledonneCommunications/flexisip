@@ -38,6 +38,11 @@ if(ENABLE_SOCI OR ENABLE_CONFERENCE_SERVER)
 	endif()
 	set(SOCI_TESTS OFF)
 	set(SOCI_ASAN OFF)
+	set(SOCI_INSTALL_BACKEND_TARGETS OFF) # Keeping this option to ON cause an obscure error while first cmake invokation.
+                                          # CMake Error: install(EXPORT "LinphoneTargets" ...) includes target "linphone"
+                                          #   which requires target "soci_core" that is not in this export set, but
+                                          #   in multiple other export sets: cmake/SOCI.cmake, cmake/SOCI.cmake,
+                                          #   cmake/SOCI.cmake, cmake/SOCI.cmake.
 	set(SOCI_EMPTY OFF)
 
 	# Soci backends
