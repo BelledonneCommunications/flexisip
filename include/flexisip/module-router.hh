@@ -89,7 +89,7 @@ public:
 
 	RouterStats mStats;
 
-protected:
+  protected:
 	using ForkMapElem = std::shared_ptr<ForkContext>;
 	using ForkMap = std::multimap<std::string, ForkMapElem>;
 	using ForkRefList = std::vector<ForkMapElem>;
