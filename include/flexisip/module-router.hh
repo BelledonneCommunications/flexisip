@@ -83,6 +83,10 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 		return ModuleToolbox::isManagedDomain(getAgent(), mDomains, url);
 	}
 
+	const std::shared_ptr<SipBooleanExpression>& getFallbackRouteFilter() const {
+		return mFallbackRouteFilter;
+	}
+
   protected:
 	using ForkMapElem = std::shared_ptr<ForkContext>;
 	using ForkMap = std::multimap<std::string, ForkMapElem>;
@@ -113,6 +117,7 @@ class ModuleRouter : public Module, public ModuleToolbox, public ForkContextList
 
   private:
 	static ModuleInfo<ModuleRouter> sInfo;
+	std::shared_ptr<SipBooleanExpression> mFallbackRouteFilter;
 };
 
 class OnContactRegisteredListener : public ContactRegisteredListener, public ContactUpdateListener, public std::enable_shared_from_this<OnContactRegisteredListener> {
