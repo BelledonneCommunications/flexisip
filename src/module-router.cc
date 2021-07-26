@@ -28,57 +28,72 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 		{Boolean, "use-global-domain", "Store and retrieve contacts without using the domain.", "false"},
 		{Boolean, "fork-late", "Fork invites to late registers.", "false"},
 		{Boolean, "fork-no-global-decline", "All the forked have to decline in order to decline the caller invite.",
-			"false"},
+		 "false"},
 		{Boolean, "treat-decline-as-urgent",
-			"Treat 603 Declined answers as urgent. Only relevant if fork-no-global-decline is set to true.", "false"},
+		 "Treat 603 Declined answers as urgent. Only relevant if fork-no-global-decline is set to true.", "false"},
 		{Boolean, "treat-all-as-urgent", "During a fork procedure, treat all failure response as urgent.", "false"},
 		{Integer, "call-fork-timeout", "Maximum time for a call fork to try to reach a callee, in seconds.", "90"},
 		{Integer, "call-fork-urgent-timeout",
-			"Maximum time before delivering urgent responses during a call fork, in seconds. "
-			"The typical fork process requires to wait the best response from all branches before transmitting it to "
-			"the client. "
-			"However some error responses are retryable immediately (like 415 unsupported media, 401, 407) thus it is "
-			"painful for the client to need to wait the end of the transaction time (32 seconds) for these error "
-			"codes.",
-			"5"},
-		{Integer, "call-fork-current-branches-timeout", "Maximum time in seconds before trying the next set of lower priority contacts.",
-			"10"},
+		 "Maximum time before delivering urgent responses during a call fork, in seconds. "
+		 "The typical fork process requires to wait the best response from all branches before transmitting it to "
+		 "the client. "
+		 "However some error responses are retryable immediately (like 415 unsupported media, 401, 407) thus it is "
+		 "painful for the client to need to wait the end of the transaction time (32 seconds) for these error "
+		 "codes.",
+		 "5"},
+		{Integer, "call-fork-current-branches-timeout",
+		 "Maximum time in seconds before trying the next set of lower priority contacts.", "10"},
 		{Integer, "call-push-response-timeout", "Optional timer to detect lack of push response, in seconds.", "0"},
 		{Boolean, "message-fork-late", "Fork MESSAGE requests to client registering lately. ", "true"},
-		{Integer, "message-delivery-timeout", "Maximum duration for delivering a MESSAGE request. This property applies only"
-			" if message-fork-late if set to true, otherwise the duration can't exceed the normal transaction duration.", "604800"},
+		{Integer, "message-delivery-timeout",
+		 "Maximum duration for delivering a MESSAGE request. This property applies only"
+		 " if message-fork-late if set to true, otherwise the duration can't exceed the normal transaction duration.",
+		 "604800"},
 		{Integer, "message-accept-timeout",
-			"Maximum duration for accepting a MESSAGE request if no response is received from any recipients."
-			" This property is meaningful when message-fork-late is set to true.", "5"},
-		{String, "fallback-route", "Default route to apply when the recipient is unreachable or when when all attempted destination have failed."
-			 "It is given as a SIP URI, for example: sip:example.org;transport=tcp (without surrounding brakets)", ""},
+		 "Maximum duration for accepting a MESSAGE request if no response is received from any recipients."
+		 " This property is meaningful when message-fork-late is set to true.",
+		 "5"},
+		{String, "fallback-route",
+		 "Default route to apply when the recipient is unreachable or when when all attempted destination have failed."
+		 "It is given as a SIP URI, for example: sip:example.org;transport=tcp (without surrounding brakets)",
+		 ""},
 		{Boolean, "allow-target-factorization",
-			"During a call forking, allow several INVITEs going to the same next hop to be grouped into "
-			"a single one. A proprietary custom header 'X-target-uris' is added to the INVITE to indicate the final "
-			"targets of the "
-			"INVITE.",
-			"false"},
+		 "During a call forking, allow several INVITEs going to the same next hop to be grouped into "
+		 "a single one. A proprietary custom header 'X-target-uris' is added to the INVITE to indicate the final "
+		 "targets of the "
+		 "INVITE.",
+		 "false"},
 		{Boolean, "permit-self-generated-provisional-response",
-			"Whether the proxy is allowed to generate and send provisional responses during a call forking process. "
-			"A typical example for this is the '110 Push sent' emitted by the proxy when at least one push notification has "
-			"been sent to a target UA while routing an INVITE. "
-			"Some old versions of Linphone (below linphone-sdk 4.2) suffer from an issue when receiving such kind of provisional "
-			"responses that don't come from a remote client. This setting is mainly intended to temporarily workaround this situation.",
-			"true"},
-		{Boolean, "resolve-routes", "Whether or not to resolve next hop in route header against registrar database."
-			" This is an extension to RFC3261, and should not be used unless in some specific deployment cases."
-			" A next hope in route header is otherwise resolved through standard DNS procedure by the Forward module.", "false"},
-		{Boolean, "parent-domain-fallback", "Whether or not to fallback to the parent domain if there is no fallback route set and the recipient is unreachable. "
-			  "For example, if routing to sip:bob@a.b.com returns no result, route the request to b.com. This is also a non-standard behavior."
-			, "false"},
+		 "Whether the proxy is allowed to generate and send provisional responses during a call forking process. "
+		 "A typical example for this is the '110 Push sent' emitted by the proxy when at least one push notification "
+		 "has "
+		 "been sent to a target UA while routing an INVITE. "
+		 "Some old versions of Linphone (below linphone-sdk 4.2) suffer from an issue when receiving such kind of "
+		 "provisional "
+		 "responses that don't come from a remote client. This setting is mainly intended to temporarily workaround "
+		 "this situation.",
+		 "true"},
+		{Boolean, "resolve-routes",
+		 "Whether or not to resolve next hop in route header against registrar database."
+		 " This is an extension to RFC3261, and should not be used unless in some specific deployment cases."
+		 " A next hope in route header is otherwise resolved through standard DNS procedure by the Forward module.",
+		 "false"},
+		{Boolean, "parent-domain-fallback",
+		 "Whether or not to fallback to the parent domain if there is no fallback route set and the recipient is "
+		 "unreachable. "
+		 "For example, if routing to sip:bob@a.b.com returns no result, route the request to b.com. This is also a "
+		 "non-standard behavior.",
+		 "false"},
+		{BooleanExpr, "fallback-route-filter", "Only use the fallback route if the expression is true.", "true"},
 
 		// deprecated parameters
-		{Boolean, "stateful", "Force forking and thus the creation of an outgoing transaction even when only one contact found", "true"},
+		{Boolean, "stateful",
+		 "Force forking and thus the creation of an outgoing transaction even when only one contact found", "true"},
 		{Boolean, "fork", "Fork messages to all registered devices", "true"},
 		{String, "generated-contact-route",
-			"Generate a contact from the TO header and route it to the above destination. [sip:host:port]", ""},
+		 "Generate a contact from the TO header and route it to the above destination. [sip:host:port]", ""},
 		{String, "generated-contact-expected-realm",
-			"Require presence of authorization header for specified realm. [Realm]", ""},
+		 "Require presence of authorization header for specified realm. [Realm]", ""},
 		{Boolean, "generate-contact-even-on-filled-aor", "Generate a contact route even on filled AOR.", "false"},
 		{String, "preroute", "Rewrite username with given value.", ""},
 		config_item_end};
@@ -150,6 +165,7 @@ void ModuleRouter::onLoad(const GenericStruct *mc) {
 	mResolveRoutes = mc->get<ConfigBoolean>("resolve-routes")->read();
 	mFallbackRoute = mc->get<ConfigString>("fallback-route")->read();
 	mFallbackParentDomain = mc->get<ConfigBoolean>("parent-domain-fallback")->read();
+	mFallbackRouteFilter = mc->get<ConfigBooleanExpression>("fallback-route-filter")->read();
 
 	if (!mFallbackRoute.empty()){
 		mFallbackRouteParsed = sipUrlMake(mHome.home(), mFallbackRoute.c_str());
@@ -739,7 +755,7 @@ class OnFetchForRoutingListener : public ContactUpdateListener {
 			SLOGD << "Record [" << r << "] Original request URI added because domain is not managed: " << *contact;
 		}
 
-		if (!fallbackRoute.empty()) {
+		if (!fallbackRoute.empty() && mModule->getFallbackRouteFilter()->eval(*mEv->getMsgSip()->getSip())) {
 			if (!ModuleToolbox::viaContainsUrlHost(mEv->getMsgSip()->getSip()->sip_via, mModule->getFallbackRouteParsed())) {
 				shared_ptr<ExtendedContact> fallback = make_shared<ExtendedContact>(mSipUri, fallbackRoute, 0.0);
 				fallback->mIsFallback = true;
