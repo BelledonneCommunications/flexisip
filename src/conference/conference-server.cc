@@ -208,6 +208,15 @@ void ConferenceServer::onChatRoomStateChanged (
 	}
 }
 
+void ConferenceServer::onConferenceStateChanged(const std::shared_ptr<linphone::Core> & core, const std::shared_ptr<linphone::Conference> & conference, linphone::Conference::State state) {
+	if (state == linphone::Conference::State::Deleted) {
+			//[workround] confernece is deleted when there is no more participants.
+			shared_ptr<linphone::Address> confUri =  conference->getConferenceAddress()->clone();
+			confUri->setUsername(conference->getUsername());
+			createConference(confUri);
+	}
+}
+
 void ConferenceServer::onConferenceAddressGeneration (const shared_ptr<ChatRoom> & cr) {
 	shared_ptr<Config> config = mCore->getConfig();
 	string uuid = config->getString("misc", "uuid", "");
