@@ -1,0 +1,13 @@
+#!/bin/bash
+
+if [ "$1" = 'remove' ] ; then 
+	systemctl --no-reload disable @FLEXISIP_SERVICES@  > /dev/null 2>&1 || : 
+	systemctl stop @FLEXISIP_SERVICES@ > /dev/null 2>&1 || : 
+fi
+
+# Remove every symbolic link on Flexisip SystemD units
+for service in $(echo '@FLEXISIP_SYSTEMD_SERVICES@' | tr ';' ' ')
+do
+	rm "/lib/systemd/system/${service}"
+done
+
