@@ -331,17 +331,23 @@ void ConferenceServer::bindChatRoom (
 void ConferenceServer::onCallStateChanged(const std::shared_ptr<linphone::Core> & lc, 
 						const std::shared_ptr<linphone::Call> & call, 
 				  linphone::Call::State cstate, const std::string & message){
+
+	auto to = call->getToAddress();
+	auto it = mConferences.find(to->getUsername());
 	switch(cstate){
 		case linphone::Call::State::IncomingReceived:
-		{
-			auto to = call->getToAddress();
-			auto it = mConferences.find(to->getUsername());
 			if (it != mConferences.end()){
-				(*it).second->addCall(call);
+				call->accept();
 			}else{
 				call->decline(linphone::Reason::NotFound);
 			}
-		}
+		break;
+		case linphone::Call::State::StreamsRunning:
+			if (it != mConferences.end()){
+				(*it).second->addCall(call);
+			}else{
+				LOGD("Unable to add participant [%s] to any conference", call->getRemoteAddress()->asString().c_str());
+			}
 		break;
 		default:
 		break;
