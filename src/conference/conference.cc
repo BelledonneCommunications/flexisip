@@ -35,10 +35,7 @@ Conference::Conference(ConferenceServer &server, const std::shared_ptr<const lin
 
 void Conference::addCall(const std::shared_ptr<linphone::Call> &call){
 	LOGD("Conference [%s] : taking in charge new participant [%s]", mUri->asString().c_str(), call->getRemoteAddress()->asString().c_str());
-	mConference->addParticipant(call);
-	if (call->getState() == linphone::Call::State::IncomingReceived){
-		call->accept();
-	}
+		mConference->addParticipant(call);
 }
 
 }
