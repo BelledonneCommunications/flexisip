@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Create configuration directory
+mkdir -p /etc/flexisip
+
+# Make symbolic links of installed SystemD unit into system directory
+for service in $(echo '@FLEXISIP_SYSTEMD_SERVICES@' | tr ';' ' ')
+do
+    ln -s "@FLEXISIP_SYSTEMD_INSTALLDIR@/${service}" "/lib/systemd/system"
+done
+
+# Enable/disable the SystemD services according the system policy
+systemctl preset @FLEXISIP_SERVICES@ > /dev/null 2>&1 || : 
