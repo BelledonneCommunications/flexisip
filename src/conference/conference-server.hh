@@ -94,6 +94,12 @@ namespace flexisip {
 			linphone::ChatRoom::State state
 		) override;
 
+	 void onConferenceStateChanged (
+		 const std::shared_ptr<linphone::Core> & core,
+		 const std::shared_ptr<linphone::Conference> & conference,
+		 linphone::Conference::State state
+	 ) override;
+
 		// ChatRoomListener implementation
 		void onConferenceAddressGeneration (const std::shared_ptr<linphone::ChatRoom> &cr) override;
 
