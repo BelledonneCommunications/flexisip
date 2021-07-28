@@ -80,12 +80,11 @@ job-ubuntu-18.04-deb:
 
 
 
-# Disabled temporarily on master to not break release/2.0
-#job-ubuntu-18.04-deb-deploy:
-#
-#  variables:
-#    RELEASE: bionic
-#    FREIGHT_PATH: $UBUNTU_FREIGHT_CONF_PATH
-#  extends: .job-debian-deb-deploy
-#  dependencies:
-#    - job-ubuntu-18.04-deb
+job-ubuntu-18.04-deb-deploy:
+
+  variables:
+    RELEASE: bionic
+    FREIGHT_PATH: $UBUNTU_FREIGHT_CONF_PATH
+  extends: .job-debian-deb-deploy
+  dependencies:
+    - job-ubuntu-18.04-deb
