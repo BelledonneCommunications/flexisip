@@ -95,7 +95,10 @@ set(CPACK_RPM_PACKAGE_RELEASE "${release}")
 set(CPACK_RPM_PACKAGE_OBSOLETES "${obsolete_packets_str}")
 set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION "/opt/belledonne-communications/include")
 set(CPACK_RPM_FILE_NAME "${CPACK_PACKAGE_NAME}-${version}-${release}.${CMAKE_HOST_SYSTEM_PROCESSOR}.rpm")
+
+## Enable debuginfo package generation
 set(CPACK_RPM_DEBUGINFO_PACKAGE ON)
+set(CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX "/usr/src/debug/${CPACK_PACKAGE_NAME}")
 
 ## Configure %post, %postun, %preun rpmbuild section
 set(FLEXISIP_LOGDIR "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log")
