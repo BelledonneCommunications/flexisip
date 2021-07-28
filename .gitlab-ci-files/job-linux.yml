@@ -75,9 +75,6 @@
   before_script:
     - git submodule foreach --recursive git fetch --tags --force
   only:
-    refs:
-      - master
-      - /release/.*/
     variables: [$SCHEDULE_RUN]
 
 .job-debian-deb-deploy:
