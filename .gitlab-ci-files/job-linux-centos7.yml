@@ -2,63 +2,77 @@
 # Makefile
 #################################################
 
-job-centos7-makefile-gcc:
-
-  tags: [ "docker" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos7:$CENTOS_7_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
-  variables:
-    CMAKE_GENERATOR: Unix Makefiles
-    CC: gcc
-    CXX: g++
-    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
-  extends: .scheduled-job-linux
-  before_script:
-    - source /opt/rh/devtoolset-8/enable
-
-
-job-centos7-makefile-clang:
-
-  tags: [ "docker" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos7:$CENTOS_7_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
-  variables:
-    CMAKE_GENERATOR: Unix Makefiles
-    CC: clang
-    CXX: clang++
-    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
-  extends: .job-linux
-  before_script:
-    - source /opt/rh/llvm-toolset-7/enable
+#job-centos7-makefile-gcc:
+#
+#  tags: [ "docker" ]
+#  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos7:$CENTOS_7_IMAGE_VERSION
+#  except:
+#    variables:
+#      - $DEPLOY_RUN
+#      - $DEPLOY_UBUNTU
+#  variables:
+#    CMAKE_GENERATOR: Unix Makefiles
+#    CC: gcc
+#    CXX: g++
+#    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
+#  extends: .scheduled-job-linux
+#  before_script:
+#    - source /opt/rh/devtoolset-8/enable
+#
+#
+#job-centos7-makefile-clang:
+#
+#  tags: [ "docker" ]
+#  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos7:$CENTOS_7_IMAGE_VERSION
+#  except:
+#    variables:
+#      - $DEPLOY_RUN
+#      - $DEPLOY_UBUNTU
+#  variables:
+#    CMAKE_GENERATOR: Unix Makefiles
+#    CC: clang
+#    CXX: clang++
+#    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
+#  extends: .job-linux
+#  before_script:
+#    - source /opt/rh/llvm-toolset-7/enable
 
 #################################################
 # Ninja
 #################################################
 
-#job-centos7-ninja-gcc:
-#
-#  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos7:$CENTOS_7_IMAGE_VERSION
-#  variables:
-#    CMAKE_GENERATOR: Ninja
-#    CC: gcc
-#    CXX: g++
-#  extends: .job-linux
+job-centos7-ninja-gcc:
+
+  tags: [ "docker" ]
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos7:$CENTOS_7_IMAGE_VERSION
+  except:
+    variables:
+      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CC: gcc
+    CXX: g++
+  extends: .scheduled-job-linux
+  before_script:
+    - source /opt/rh/devtoolset-8/enable
 
 
-#job-centos7-ninja-clang:
-#
-#  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos7:$CENTOS_7_IMAGE_VERSION
-#  variables:
-#    CMAKE_GENERATOR: Ninja
-#    CC: clang
-#    CXX: clang++
-#  extends: .job-linux
+job-centos7-ninja-clang:
+
+  tags: [ "docker" ]
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos7:$CENTOS_7_IMAGE_VERSION
+  except:
+    variables:
+      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CC: clang
+    CXX: clang++
+  extends: .job-linux
+  before_script:
+    - source /opt/rh/llvm-toolset-7/enable
 
 #################################################
 # RPM
