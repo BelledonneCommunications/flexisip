@@ -98,6 +98,7 @@ void ConferenceServer::_init () {
 		
 	}
 	configLinphone->setInt("misc", "max_calls", 1000);
+	configLinphone->setInt("misc", "all_to_all", 1);
 	configLinphone->setBool("sip", "reject_duplicated_calls", false);
 	configLinphone->setInt("sound", "conference_rate", 48000);
 	configLinphone->setBool("rtp", "symmetric", true);
