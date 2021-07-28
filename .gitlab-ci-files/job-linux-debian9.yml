@@ -81,18 +81,17 @@ job-debian9-deb:
       - $DEPLOY_UBUNTU
 
 
-# Disabled temporarily on master to not break release/2.0
-#job-debian9-deb-deploy:
-#
-#  except:
-#    variables:
-#      - $DEPLOY_UBUNTU
-#  variables:
-#    RELEASE: stretch
-#    FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
-#  extends: .job-debian-deb-deploy
-#  dependencies:
-#    - job-debian9-deb
+job-debian9-deb-deploy:
+
+  except:
+    variables:
+      - $DEPLOY_UBUNTU
+  variables:
+    RELEASE: stretch
+    FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
+  extends: .job-debian-deb-deploy
+  dependencies:
+    - job-debian9-deb
     
     
 #################################################
