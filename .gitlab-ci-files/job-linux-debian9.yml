@@ -99,8 +99,8 @@ job-debian9-deb:
 # Docker
 #################################################
 
-job-flexisip-debian9-image-deploy:
-
-  dependencies:
-    - job-debian9-deb
-  extends: .job-flexisip-image-deploy
+#job-flexisip-debian9-image-deploy:
+#
+#  dependencies:
+#    - job-debian9-deb
+#  extends: .job-flexisip-image-deploy
