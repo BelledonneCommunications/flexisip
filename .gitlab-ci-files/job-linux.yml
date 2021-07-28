@@ -21,12 +21,15 @@
   stage: build
   extends: .linux-ccache
 
+  variables:
+    DEFAULT_CMAKE_OPTIONS: $DEFAULT_CMAKE_OPTIONS -DCMAKE_INSTALL_PREFIX=\$PWD/../OUTPUT
+
   script:
     - export CC=$CC
     - export CXX=$CXX
     - git submodule foreach --recursive git fetch --tags --force
     - mkdir work && cd work
-    - cmake -G "$CMAKE_GENERATOR" -DCMAKE_INSTALL_PREFIX="$PWD/../OUTPUT" $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS ..
+    - cmake -G "$CMAKE_GENERATOR" $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS ..
     - cmake --build . --target install -- $ADDITIONAL_BUILD_OPTIONS
 
 #################################################
@@ -40,15 +43,19 @@
     variables:
       - $DEPLOY_UBUNTU
 
+  variables:
+    CMAKE_GENERATOR: 'Ninja'
+    DEFAULT_CMAKE_OPTIONS: "$DEFAULT_CMAKE_OPTIONS -DCPACK_GENERATOR=RPM -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications"
+
   script:
-    - mkdir work && cd work
-    - cmake $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS ..
-    - cmake --build . -- $ADDITIONAL_BUILD_OPTIONS
-    - cpack -G RPM .
+    - builddir='intentional_long_directory_name_for_debuginfo_package_generation'
+    - mkdir $builddir && cd $builddir
+    - cmake -G "$CMAKE_GENERATOR" $DEFAULT_CMAKE_OPTIONS ..
+    - cmake --build . --target package -- $ADDITIONAL_BUILD_OPTIONS
 
   artifacts:
     paths:
-      - work/*.rpm
+      - build/*.rpm
     when: always
     expire_in: 1 week
 
@@ -60,16 +67,19 @@
 
   stage: package
 
+  variables:
+    CMAKE_GENERATOR: 'Ninja'
+    DEFAULT_CMAKE_OPTIONS: "$DEFAULT_CMAKE_OPTIONS -DCPACK_GENERATOR=DEB -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications"
+
   script:
-    - mkdir work && cd work
-    - cmake $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS ..
-    - cmake --build . -- $ADDITIONAL_BUILD_OPTIONS
-    - cpack -G DEB .
+    - mkdir build && cd build
+    - cmake -G "$CMAKE_GENERATOR" $DEFAULT_CMAKE_OPTIONS ..
+    - cmake --build . --target package -- $ADDITIONAL_BUILD_OPTIONS
 
   artifacts:
     paths:
-      - work/*.deb
-      - work/*.ddeb
+      - build/*.deb
+      - build/*.ddeb
     when: always
     expire_in: 1 week
 
