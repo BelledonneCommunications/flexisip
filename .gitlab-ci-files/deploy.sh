@@ -31,13 +31,13 @@ rsync_dest="$DEPLOY_SERVER:$tmpdir/"
 case "$dist" in
 	'centos')
 		make_repo_args="rpm $tmpdir $CENTOS_REPOSITORY"
-		rsync_src='WORK/flexisip-rpm/rpmbuild/RPMS/x86_64/'
+		rsync_src='build/*.rpm'
 		legacy_repo_cmd="cp -v --link --no-clobber --preserve=timestamp $tmpdir/* $CENTOS7_DEPLOY_DIRECTORY && createrepo_c --update $CENTOS7_DEPLOY_DIRECTORY"
 		;;
 	'debian')
 		make_repo_args="deb $tmpdir $FREIGHT_PATH $RELEASE"
 		echo "make_repo_args=$make_repo_args"
-		rsync_src='WORK/flexisip-rpm/rpmbuild/DEBS/'
+		rsync_src='build/*.deb build/*.ddeb'
 		legacy_repo_cmd="freight add --conf=$FREIGHT_PATH $tmpdir/*.deb apt/$RELEASE && freight cache --conf=$FREIGHT_PATH apt/$RELEASE"
 		;;
 	       *)
@@ -47,7 +47,7 @@ case "$dist" in
 esac
 
 echo ">>> Pushing packages into '$rsync_dest'"
-rsync -rv $rsync_src $rsync_dest
+rsync -v $rsync_src $rsync_dest
 
 echo ">>> Connecting on '$DEPLOY_SERVER'"
 ssh $DEPLOY_SERVER "
