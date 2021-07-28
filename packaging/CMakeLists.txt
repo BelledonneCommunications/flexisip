@@ -95,7 +95,17 @@ set(CPACK_RPM_PACKAGE_RELEASE "${release}")
 set(CPACK_RPM_PACKAGE_OBSOLETES "${obsolete_packets_str}")
 set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION "/opt/belledonne-communications/include")
 set(CPACK_RPM_FILE_NAME "${CPACK_PACKAGE_NAME}-${version}-${release}.${CMAKE_HOST_SYSTEM_PROCESSOR}.rpm")
+
+## Enable debuginfo package generation
 set(CPACK_RPM_DEBUGINFO_PACKAGE ON)
+set(CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX "/usr/src/debug/${CPACK_PACKAGE_NAME}")
+
+### RPM Cpack generator limitation: the length of "${CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX}/src_0"
+### must not be higher than ${CMAKE_PROJECT_SOURCE_DIR}
+string(LENGTH "/src_0" suffix_length)
+string(LENGTH "${CMAKE_PROJECT_SOURCE_DIR}" max_length)
+math(EXPR max_length "${max_length} - ${suffix_length}")
+string(SUBSTRING "${CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX}" 0 ${max_length} CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX)
 
 ## Configure %post, %postun, %preun rpmbuild section
 set(FLEXISIP_LOGDIR "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log")
