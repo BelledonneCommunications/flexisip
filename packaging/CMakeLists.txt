@@ -132,14 +132,14 @@ set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 set(CPACK_DEBIAN_DEBUGINFO_PACKAGE ON)
 set(CPACK_COMPONENTS_ALL "Unspecified")
 
+# Use Debian convention for package naming
+set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
+
 # Add control scripts
 set(control_files "postinst" "prerm" "postrm")
 foreach(control ${control_files})
 	configure_file("deb/${control}.in" "deb/${control}" @ONLY)
 	list(APPEND CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_BINARY_DIR}/deb/${control}")
 endforeach()
-
-# Set CPACK_DEBIAN_FILE_NAME to "DEB-DEFAULT" to allow CPackDeb to generate package file name by itself in deb format
-set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
 
 include(CPack)
