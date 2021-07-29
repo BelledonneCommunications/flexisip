@@ -98,11 +98,16 @@ void ConferenceServer::_init () {
 		
 	}
 	configLinphone->setInt("misc", "max_calls", 1000);
-	configLinphone->setInt("misc", "all_to_all", 1);
 	configLinphone->setBool("sip", "reject_duplicated_calls", false);
 	configLinphone->setInt("sound", "conference_rate", 48000);
 	configLinphone->setBool("rtp", "symmetric", true);
 	configLinphone->setBool("video", "dont_check_codecs", true);
+
+// ------------------  START: Temporary conference parameters ------------------------- //
+	// FIXME: Need to agree on default values
+	configLinphone->setInt("misc", "all_to_all", 1);
+	configLinphone->setBool("rtp", "bundle", true);
+// ------------------  END: Temporary conference parameters ------------------------- //
 	
 	mCore = linphone::Factory::get()->createCoreWithConfig(configLinphone, nullptr);
 	mCore->enableEchoCancellation(false);
