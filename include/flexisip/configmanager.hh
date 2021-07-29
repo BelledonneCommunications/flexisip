@@ -646,7 +646,7 @@ class GenericManager : protected ConfigValueListener {
 	friend class ConfigArea;
 
   public:
-	static GenericManager *get();
+	static GenericManager* get();
 
 	int load(const char *configFile);
 	GenericStruct *getRoot();
@@ -681,20 +681,19 @@ class GenericManager : protected ConfigValueListener {
 
   protected:
 	GenericManager();
-	~GenericManager() override = default;
 
   private:
-	static void atexit();
 	bool doIsValidNextConfig(const ConfigValue &cv);
 	bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) override;
 	RootConfigStruct mConfigRoot;
 	FileConfigReader mReader;
 	std::string mConfigFile;
 	std::map<std::string, std::string> mOverrides;
-	static GenericManager *sInstance;
 	std::map<std::string, StatCounter64 *> mStatMap;
 	std::unordered_set<std::string> mStatOids;
 	NotificationEntry *mNotifier = nullptr;
+
+	static std::unique_ptr<GenericManager> sInstance;
 };
 
 }

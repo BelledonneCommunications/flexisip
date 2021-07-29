@@ -794,7 +794,7 @@ shared_ptr<SipBooleanExpression> ConfigBooleanExpression::read() const {
 	return SipBooleanExpressionBuilder::get().parse(get());
 }
 
-GenericManager *GenericManager::sInstance = 0;
+std::unique_ptr<GenericManager> GenericManager::sInstance{};
 
 static void init_flexisip_snmp() {
 #ifdef ENABLE_SNMP
@@ -823,20 +823,14 @@ static void init_flexisip_snmp() {
 #endif
 }
 
-void GenericManager::atexit() {
-	if (sInstance != NULL) {
-		delete sInstance;
-		sInstance = NULL;
-	}
-}
-
-GenericManager *GenericManager::get() {
-	if (sInstance == NULL) {
+GenericManager* GenericManager::get() {
+	if (sInstance == nullptr) {
 		init_flexisip_snmp();
-		sInstance = new GenericManager();
-		::atexit(GenericManager::atexit);
+		// make_unique<>() cannot be used here because
+		// the constructor of GenericManager is protected.
+		sInstance.reset(new GenericManager{});
 	}
-	return sInstance;
+	return sInstance.get();
 }
 
 RootConfigStruct::RootConfigStruct(const string &name, const string &help, vector<oid> oid_root_path)
