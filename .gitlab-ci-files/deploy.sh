@@ -13,7 +13,7 @@ else
 	make_legacy=0
 fi
 
-if [ -z "$1" || "${1:0:1} = '-'" ]; then
+if [ -z "$1" || "${1:0:1}" = '-' ]; then
 	print_usage $0
 fi
 
