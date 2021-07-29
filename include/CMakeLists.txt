@@ -21,11 +21,16 @@
 ############################################################################
 
 find_package(Git)
-add_custom_target(flexisip-git-version
-	COMMAND ${CMAKE_COMMAND} -DGIT_EXECUTABLE=${GIT_EXECUTABLE} -DFLEXISIP_VERSION=${FLEXISIP_VERSION} -DWORK_DIR=${CMAKE_CURRENT_SOURCE_DIR} -DOUTPUT_DIR=${CMAKE_CURRENT_LIST_DIR}/flexisip -P ${CMAKE_CURRENT_SOURCE_DIR}/gitversion.cmake
-	BYPRODUCTS "${CMAKE_CURRENT_LIST_DIR}/flexisip/flexisip-version.h"
-)
 
-# set(FLEXISIP_HEADER_DIR "${CMAKE_CURRENT_LIST_DIR}/flexisip" PARENT_SCOPE)
+set(gitversion_script "${CMAKE_CURRENT_SOURCE_DIR}/gitversion.cmake")
+set(workdir "${CMAKE_CURRENT_SOURCE_DIR}")
+set(outputdir "${CMAKE_CURRENT_BINARY_DIR}/flexisip")
+set(flexisip_version_h "${outputdir}/flexisip-version.h")
+
+add_custom_target(flexisip-git-version ALL
+	COMMAND ${CMAKE_COMMAND} -DGIT_EXECUTABLE=${GIT_EXECUTABLE} -DFLEXISIP_VERSION=${FLEXISIP_VERSION}
+		-DWORK_DIR=${workdir} -DOUTPUT_DIR=${outputdir} -P "${gitversion_script}"
+	BYPRODUCTS "${flexisip_version_h}"
+)
 
 install(DIRECTORY flexisip DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
