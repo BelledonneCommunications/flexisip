@@ -31,6 +31,7 @@ add_executable(flexisip_tester
 	extended-contact-tester.cc
 	fork-context-tester.cc
 	push-notification-tester.cc
+	router-tester.cc
 	tester.cc tester.hh
 	utils/pns-mock.cc utils/pns-mock.hh
 	utils/listening-socket.cc utils/listening-socket.hh
