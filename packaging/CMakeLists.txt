@@ -87,70 +87,97 @@ endif()
 # RedHat/CentOS package
 #######################################################################################################################
 
-set(CPACK_RPM_PACKAGE_EPOCH "1")
-set(CPACK_RPM_PACKAGE_LICENSE "AGPLv3")
-set(CPACK_RPM_PACKAGE_GROUP "Applications/Communication")
-set(CPACK_RPM_PACKAGE_VERSION "${version}")
-set(CPACK_RPM_PACKAGE_RELEASE "${release}")
-set(CPACK_RPM_PACKAGE_OBSOLETES "${obsolete_packets_str}")
-set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION "/opt/belledonne-communications/include")
-set(CPACK_RPM_FILE_NAME "${CPACK_PACKAGE_NAME}-${version}-${release}.${CMAKE_HOST_SYSTEM_PROCESSOR}.rpm")
-set(CPACK_RPM_PACKAGE_RELEASE_DIST ON)
+if("RPM" IN_LIST CPACK_GENERATOR)
 
-## Enable debuginfo package generation
-set(CPACK_RPM_DEBUGINFO_PACKAGE ON)
-set(CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX "/usr/src/debug/${CPACK_PACKAGE_NAME}")
+	set(CPACK_RPM_PACKAGE_EPOCH "1")
+	set(CPACK_RPM_PACKAGE_LICENSE "AGPLv3")
+	set(CPACK_RPM_PACKAGE_GROUP "Applications/Communication")
+	set(CPACK_RPM_PACKAGE_VERSION "${version}")
+	set(CPACK_RPM_PACKAGE_RELEASE "${release}")
+	set(CPACK_RPM_PACKAGE_OBSOLETES "${obsolete_packets_str}")
+	set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION "/opt/belledonne-communications/include")
+	set(CPACK_RPM_FILE_NAME "${CPACK_PACKAGE_NAME}-${version}-${release}.${CMAKE_HOST_SYSTEM_PROCESSOR}.rpm")
+	set(CPACK_RPM_PACKAGE_RELEASE_DIST ON)
+	
+	## Enable debuginfo package generation
+	set(rpm_debug_install_dir "/usr/src/debug")
+	set(CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX "${rpm_debug_install_dir}/${CPACK_PACKAGE_NAME}")
+	set(CPACK_RPM_DEBUGINFO_PACKAGE ON)
+	message(STATUS "RPM debuginfo: every occurence to '${PROJECT_SOURCE_DIR}' will be replaced by "
+		"'${CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX}/src_0' in the binary files."
+	)
+	
+	### RPM Cpack generator limitation: the length of "${CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX}/src_0"
+	### must not be longer than ${PROJECT_SOURCE_DIR}
+	string(LENGTH "${CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX}" cur_length)
+	
+	string(LENGTH "${rpm_debug_install_dir}" min_length)
+	math(EXPR min_length "${min_length} + 2")
+	
+	string(LENGTH "${PROJECT_SOURCE_DIR}" max_length)
+	string(LENGTH "/src_0" suffix_length)
+	math(EXPR max_length "${max_length} - ${suffix_length}")
+	
+	if(cur_length GREATER max_length)
+		message(WARNING "RPM debuginfo: PROJECT_SOURCE_DIR ('${PROJECT_SOURCE_DIR}') must be longer than '${CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX}/src_0'. Trying to shrink")
+		if(max_length LESS min_length)
+			message(FATAL_ERROR "RPM debuginfo: PROJECT_SOURCE_DIR is not long enough to include '${rpm_debug_install_dir}'")
+		endif()
+		string(SUBSTRING "${CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX}" 0 ${max_length} CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX)
+		message(STATUS "RPM debuginfo: '${PROJECT_SOURCE_DIR}' will be replaced by '${CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX}'/src_0")
+	endif()
+	
+	## Configure %post, %postun, %preun rpmbuild section
+	set(FLEXISIP_LOGDIR "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log")
+	foreach(secname "post_install" "pre_uninstall" "post_uninstall")
+		configure_file("rpm/${secname}.spec.in" "rpm/${secname}.spec" @ONLY)
+		string(TOUPPER "${secname}" SECNAME)
+		set(CPACK_RPM_${SECNAME}_SCRIPT_FILE "${CMAKE_CURRENT_BINARY_DIR}/rpm/${secname}.spec")
+	endforeach()
+	
+	## Protect every installed SystemD unit against replacement while update
+	foreach(service ${FLEXISIP_SYSTEMD_SERVICES})
+		list(APPEND CPACK_RPM_USER_FILELIST "%config(noreplace) ${FLEXISIP_SYSTEMD_INSTALLDIR}/${service}")
+	endforeach()
 
-### RPM Cpack generator limitation: the length of "${CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX}/src_0"
-### must not be higher than ${PROJECT_SOURCE_DIR}
-string(LENGTH "/src_0" suffix_length)
-string(LENGTH "${PROJECT_SOURCE_DIR}" max_length)
-math(EXPR max_length "${max_length} - ${suffix_length}")
-string(SUBSTRING "${CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX}" 0 ${max_length} CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX)
-
-## Configure %post, %postun, %preun rpmbuild section
-set(FLEXISIP_LOGDIR "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log")
-foreach(secname "post_install" "pre_uninstall" "post_uninstall")
-	configure_file("rpm/${secname}.spec.in" "rpm/${secname}.spec" @ONLY)
-	string(TOUPPER "${secname}" SECNAME)
-	set(CPACK_RPM_${SECNAME}_SCRIPT_FILE "${CMAKE_CURRENT_BINARY_DIR}/rpm/${secname}.spec")
-endforeach()
-
-## Protect every installed SystemD unit against replacement while update
-foreach(service ${FLEXISIP_SYSTEMD_SERVICES})
-	list(APPEND CPACK_RPM_USER_FILELIST "%config(noreplace) ${FLEXISIP_SYSTEMD_INSTALLDIR}/${service}")
-endforeach()
+endif()
 
 
 #######################################################################################################################
 # Debian package
 #######################################################################################################################
 
-# CPackDEB bug: component mode must be on for debsym pacage generation
-set(CPACK_DEB_COMPONENT_INSTALL ON)
+if("DEB" IN_LIST CPACK_GENERATOR)
 
-# CPACK_DEBIAN_PACKAGE_NAME must be redefined because its default value is "${CPACK_PACKAGE_NAME}-<component>"
-# when component mode is on.
-set(CPACK_DEBIAN_PACKAGE_NAME "${CPACK_PACKAGE_NAME}")
-set(CPACK_DEBIAN_UNSPECIFIED_PACKAGE_NAME "${CPACK_PACKAGE_NAME}")
-set(CPACK_DEBIAN_PACKAGE_VERSION "${version}-${release}")
-set(CPACK_DEBIAN_PACKAGE_MAINTAINER "info@belledonne-communications.com")
-set(CPACK_DEBIAN_PACKAGE_SECTION "net")
-set(CPACK_DEBIAN_PACKAGE_PROVIDES "${obsolete_packets_str}")
-set(CPACK_DEBIAN_PACKAGE_CONFLICTS "${obsolete_packets_str}")
-set(CPACK_DEBIAN_PACKAGE_REPLACES "${obsolete_packets_str}")
-set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
-set(CPACK_DEBIAN_DEBUGINFO_PACKAGE ON)
-set(CPACK_COMPONENTS_ALL "Unspecified")
+	# CPackDEB bug: component mode must be on for debsym pacage generation
+	set(CPACK_DEB_COMPONENT_INSTALL ON)
+	
+	# CPACK_DEBIAN_PACKAGE_NAME must be redefined because its default value is "${CPACK_PACKAGE_NAME}-<component>"
+	# when component mode is on.
+	set(CPACK_DEBIAN_PACKAGE_NAME "${CPACK_PACKAGE_NAME}")
+	set(CPACK_DEBIAN_UNSPECIFIED_PACKAGE_NAME "${CPACK_PACKAGE_NAME}")
+	set(CPACK_DEBIAN_PACKAGE_VERSION "${version}-${release}")
+	set(CPACK_DEBIAN_PACKAGE_MAINTAINER "info@belledonne-communications.com")
+	set(CPACK_DEBIAN_PACKAGE_SECTION "net")
+	set(CPACK_DEBIAN_PACKAGE_PROVIDES "${obsolete_packets_str}")
+	set(CPACK_DEBIAN_PACKAGE_CONFLICTS "${obsolete_packets_str}")
+	set(CPACK_DEBIAN_PACKAGE_REPLACES "${obsolete_packets_str}")
+	set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+	set(CPACK_DEBIAN_DEBUGINFO_PACKAGE ON)
+	set(CPACK_COMPONENTS_ALL "Unspecified")
+	
+	# Add control scripts
+	set(control_files "postinst" "prerm" "postrm")
+	foreach(control ${control_files})
+		configure_file("deb/${control}.in" "deb/${control}" @ONLY)
+		list(APPEND CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_BINARY_DIR}/deb/${control}")
+	endforeach()
+	
+	# Set CPACK_DEBIAN_FILE_NAME to "DEB-DEFAULT" to allow CPackDeb to generate package file name by itself in deb format
+	set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
 
-# Add control scripts
-set(control_files "postinst" "prerm" "postrm")
-foreach(control ${control_files})
-	configure_file("deb/${control}.in" "deb/${control}" @ONLY)
-	list(APPEND CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_BINARY_DIR}/deb/${control}")
-endforeach()
+endif()
 
-# Set CPACK_DEBIAN_FILE_NAME to "DEB-DEFAULT" to allow CPackDeb to generate package file name by itself in deb format
-set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
+#######################################################################################################################
 
 include(CPack)
