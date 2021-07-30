@@ -92,6 +92,7 @@ set(FLEXISIP_SOURCES
 	pushnotification/request.cc
 	pushnotification/service.cc
 	pushnotification/wp-client.cc
+	push-param.cc
 	recordserializer-c.cc
 	recordserializer-json.cc
 	registrardb-internal.cc
