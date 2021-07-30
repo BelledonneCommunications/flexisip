@@ -42,10 +42,24 @@ BellesipUtils::BellesipUtils(const string& ipaddress, int port, const string& tr
 		                  status = belle_sip_response_get_status_code(belle_sip_response_event_get_response(event)),
 		                  belle_sip_response_get_reason_phrase(belle_sip_response_event_get_response(event)));
 
-		static_cast<ProcessResponseEventCb*>(userCtx)->operator()(status);
+		static_cast<BellesipUtils*>(userCtx)->mProcessResponseEventCb.operator()(status);
 	};
 
-	mListener = belle_sip_listener_create_from_callbacks(&listener_callbacks, &mProcessResponseEventCb);
+	listener_callbacks.process_request_event = [](void* userCtx, const belle_sip_request_event_t* event) {
+		if (!BC_ASSERT_PTR_NOT_NULL(belle_sip_request_event_get_request(event))) {
+			return;
+		}
+		belle_sip_message("caller_process_request_event received [%s] message",
+		                  belle_sip_request_get_method(belle_sip_request_event_get_request(event)));
+		auto thiz = static_cast<BellesipUtils*>(userCtx);
+		belle_sip_response_t* resp;
+		resp = belle_sip_response_create_from_request(belle_sip_request_event_get_request(event), 200);
+		belle_sip_provider_send_response(thiz->mProvider, resp);
+
+		thiz->mProcessResponseEventCb.operator()(-1);
+	};
+
+	mListener = belle_sip_listener_create_from_callbacks(&listener_callbacks, this);
 	belle_sip_provider_add_sip_listener(mProvider, BELLE_SIP_LISTENER(mListener));
 }
 
