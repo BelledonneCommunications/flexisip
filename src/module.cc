@@ -589,10 +589,10 @@ bool ModuleToolbox::viaContainsUrl(const sip_via_t *vias, const url_t *url) {
 	return false;
 }
 
-bool ModuleToolbox::viaContainsUrlHost(const sip_via_t *vias, const url_t *url) {
-	const sip_via_t *via;
+bool ModuleToolbox::viaContainsUrlHost(const sip_via_t* vias, const url_t* url) {
+	const sip_via_t* via;
 	for (via = vias; via != NULL; via = via->v_next) {
-		if (strcasecmp(via->v_host, url->url_host)==0)
+		if (strcasecmp(via->v_host, url->url_host) == 0 && strcasecmp(via->v_port, url->url_port) == 0)
 			return true;
 	}
 	return false;
