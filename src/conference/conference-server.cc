@@ -103,7 +103,7 @@ void ConferenceServer::_init () {
 
 // ------------------  START: Temporary conference parameters ------------------------- //
 	// FIXME: Need to agree on default values
-	configLinphone->setBool("rtp", "bundle", true);
+	//configLinphone->setBool("rtp", "bundle", true);
 // ------------------  END: Temporary conference parameters ------------------------- //
 
 	mCore = linphone::Factory::get()->createCoreWithConfig(configLinphone, nullptr);
