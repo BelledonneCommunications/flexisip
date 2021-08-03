@@ -13,7 +13,7 @@ else
 endif
 
 flexisip-build:
-	docker build -f $(DOCKER_FILE) --no-cache -t $(DOCKER_TAG) --rm $(CONTEXT)
+	docker build -f $(DOCKER_FILE) --pull --no-cache -t $(DOCKER_TAG) --rm $(CONTEXT)
 
 flexisip-push:
 	docker push $(DOCKER_TAG)

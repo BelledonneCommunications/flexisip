@@ -6,8 +6,8 @@ RUN apt-get update
 RUN apt-get install -y xsdcxx gdb libmariadbclient18
 
 # Get flexisip package
-COPY DEBS/*.deb /deb-packages/
-RUN apt-get install -y /deb-packages/bc-*.deb
+COPY DEBS/*.deb DEBS/*.ddeb deb-packages/
+RUN apt-get install -y /deb-packages/bc-*.deb /deb-packages/bc-*.ddeb
 RUN rm -rf /deb-packages
 
 # Add it to the default path
