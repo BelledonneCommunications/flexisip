@@ -103,8 +103,8 @@ PresenceServer::Init::Init() {
 		{Integer, "max-thread-queue-size", "Max legnth of threads queue.", "50"},
 		config_item_end};
 
-	auto s = new GenericStruct("presence-server", "Flexisip presence server parameters.", 0);
-	GenericManager::get()->getRoot()->addChild(s);
+	auto uS = make_unique<GenericStruct>("presence-server", "Flexisip presence server parameters.", 0);
+	auto s = GenericManager::get()->getRoot()->addChild(move(uS));
 	s->addChildrenValues(items);
 
 	s->get<ConfigString>("bypass-condition")->setExportable(false);
