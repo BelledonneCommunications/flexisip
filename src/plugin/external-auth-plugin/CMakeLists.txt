@@ -28,8 +28,6 @@ add_library(external-auth SHARED
 )
 
 set_property(TARGET external-auth PROPERTY VERSION ${PROJECT_VERSION})
-set_property(TARGET external-auth PROPERTY CXX_STANDARD 11)
-set_property(TARGET external-auth PROPERTY CXX_STANDARD_REQUIRED ON)
 
 target_link_libraries(external-auth PRIVATE flexisip sofia-sip-ua)
 target_compile_options(external-auth PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})

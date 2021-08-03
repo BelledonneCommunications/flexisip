@@ -76,22 +76,23 @@ nta_agent_t *Module::getSofiaAgent() const {
 	return mAgent->mAgent;
 }
 
-void Module::declare(GenericStruct *root) {
-	mModuleConfig = new GenericStruct("module::" + getModuleConfigName(), mInfo->getModuleHelp(), mInfo->getOidIndex());
-	mModuleConfig->setConfigListener(this);
-	root->addChild(mModuleConfig);
+void Module::declare(GenericStruct* root) {
+	auto uModuleConfig =
+	    make_unique<GenericStruct>("module::" + getModuleConfigName(), mInfo->getModuleHelp(), mInfo->getOidIndex());
+	uModuleConfig->setConfigListener(this);
+	mModuleConfig = root->addChild(move(uModuleConfig));
 	mFilter->declareConfig(mModuleConfig);
-	if (getClass() == ModuleClass::Experimental){
-		//Experimental modules are forced to be disabled by default.
+	if (getClass() == ModuleClass::Experimental) {
+		// Experimental modules are forced to be disabled by default.
 		mModuleConfig->get<ConfigBoolean>("enabled")->setDefault("false");
 	}
 	onDeclare(mModuleConfig);
 }
 
 void Module::checkConfig() {
-	list<GenericEntry *> children = mModuleConfig->getChildren();
+	auto& children = mModuleConfig->getChildren();
 	for (auto it = children.begin(); it != children.end(); ++it) {
-		const ConfigValue *cv = dynamic_cast<ConfigValue *>(*it);
+		auto cv = dynamic_cast<ConfigValue*>(it->get());
 		if (cv && !isValidNextConfig(*cv)) {
 			LOGF("Invalid config %s:%s=%s", getModuleName().c_str(), cv->getName().c_str(), cv->get().c_str());
 		}
