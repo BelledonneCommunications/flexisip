@@ -108,7 +108,7 @@
     - git submodule foreach --recursive git fetch --tags --force
 
   script:
-    - mv WORK/flexisip-rpm/rpmbuild/DEBS docker/DEBS
+    - mkdir -p docker/DEBS && mv build/*.{deb,ddeb} docker/DEBS
     - cd docker
     - make flexisip-deb-build
     - make flexisip-deb-push
