@@ -20,6 +20,11 @@
 #
 ############################################################################
 
+#logrotate conf
+set(logrotate_dir "${SYSCONF_INSTALL_DIR}/logrotate.d")
+install(FILES flexisip-logrotate DESTINATION "${logrotate_dir}")
+set(FLEXISIP_LOGROTATE_INSTALL_LOCATION "${logrotate_dir}/flexisip-logrotate" PARENT_SCOPE)
+
 #legacy script
 set(bindir ${CMAKE_INSTALL_FULL_BINDIR})
 message ("-- Startup scripts configured with bindir=${bindir}")
@@ -52,6 +57,4 @@ foreach(service ${systemd_services})
 	list(APPEND generated_services "${CMAKE_CURRENT_BINARY_DIR}/${service}")
 endforeach()
 
-set(systemd_installdir "${CMAKE_INSTALL_FULL_DATAROOTDIR}/flexisip/systemd")
-set(FLEXISIP_SYSTEMD_INSTALLDIR "${systemd_installdir}" PARENT_SCOPE)
-install(FILES ${generated_services} DESTINATION "${systemd_installdir}")
+install(FILES ${generated_services} DESTINATION "${FLEXISIP_SYSTEMD_INSTALL_DIR}")

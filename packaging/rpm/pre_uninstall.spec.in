@@ -1,11 +1,2 @@
 %systemd_preun @FLEXISIP_SERVICES@
 
-if [ $1 -eq 0 ] ; then
-	# Package removal, not upgrade
-	# Remove every symbolic link on Flexisip SystemD units
-	for service in $(echo '@FLEXISIP_SYSTEMD_SERVICES@' | tr ';' ' ')
-	do
-		rm "/usr/lib/systemd/system/${service}"
-	done
-fi
-
