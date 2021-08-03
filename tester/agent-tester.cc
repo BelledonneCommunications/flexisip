@@ -17,7 +17,8 @@
  */
 #include <chrono>
 
-#include <flexisip/agent.hh>
+#include "flexisip/agent.hh"
+#include "flexisip/registrardb.hh"
 
 #include "tester.hh"
 
@@ -25,11 +26,22 @@ using namespace std;
 using namespace std::chrono;
 using namespace flexisip;
 
-static void transportsAndIsUsTest() {
-	// Agent initialization
-	auto root = su_root_create(nullptr);
-	auto agent = make_shared<Agent>(root);
+static su_root_t* root = nullptr;
+static shared_ptr<Agent> agent = nullptr;
 
+static void beforeEach() {
+	root = su_root_create(nullptr);
+	agent = make_shared<Agent>(root);
+}
+
+static void afterEach() {
+	agent->unloadConfig();
+	RegistrarDb::resetDB();
+	agent.reset();
+	su_root_destroy(root);
+}
+
+static void transportsAndIsUsTest() {
 	auto cfg = GenericManager::get();
 	// See this file for aliases configuration
 	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_agent.conf").c_str());
@@ -72,4 +84,4 @@ static test_t tests[] = {
 };
 
 test_suite_t agent_suite = {
-    "Agent unit tests", nullptr, nullptr, nullptr, nullptr, sizeof(tests) / sizeof(tests[0]), tests};
+    "Agent unit tests", nullptr, nullptr, beforeEach, afterEach, sizeof(tests) / sizeof(tests[0]), tests};

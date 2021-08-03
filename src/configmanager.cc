@@ -471,12 +471,6 @@ void GenericStruct::setParent(GenericEntry *parent) {
 #endif
 }
 
-GenericEntry *GenericStruct::addChild(GenericEntry *c) {
-	mEntries.push_back(c);
-	c->setParent(this);
-	return c;
-}
-
 void GenericStruct::deprecateChild(const char *name, DeprecationInfo &&info) {
 	GenericEntry *e = find(name);
 	if (e) e->setDeprecated(std::move(info));
@@ -486,54 +480,58 @@ void GenericStruct::addChildrenValues(ConfigItemDescriptor *items) {
 	addChildrenValues(items, true);
 }
 
-void GenericStruct::addChildrenValues(ConfigItemDescriptor *items, bool hashed) {
+void GenericStruct::addChildrenValues(ConfigItemDescriptor* items, bool hashed) {
 	oid cOid = 1;
-	
-	for (; items->name != NULL; items++) {
-		ConfigValue *val = NULL;
+
+	for (; items->name != nullptr; items++) {
+		unique_ptr<GenericEntry> val = nullptr;
 		if (hashed)
 			cOid = Oid::oidFromHashedString(items->name);
-		if (!items->name) LOGA("No name provided in configuration item");
-		if (!items->help) LOGA("No help provided for configuration item '%s'", items->name);
-		if (!items->default_value) LOGA("No default value provided for configuration item '%s'", items->name);
-		
+		if (!items->name) {
+			LOGA("No name provided in configuration item");
+		}
+		if (!items->help) {
+			LOGA("No help provided for configuration item '%s'", items->name);
+		}
+		if (!items->default_value) {
+			LOGA("No default value provided for configuration item '%s'", items->name);
+		}
 		switch (items->type) {
 			case Boolean:
-				val = new ConfigBoolean(items->name, items->help, items->default_value, cOid);
+				val = make_unique<ConfigBoolean>(items->name, items->help, items->default_value, cOid);
 				break;
 			case Integer:
-				val = new ConfigInt(items->name, items->help, items->default_value, cOid);
+				val = make_unique<ConfigInt>(items->name, items->help, items->default_value, cOid);
 				break;
 			case IntegerRange:
-				val = new ConfigIntRange(items->name, items->help, items->default_value, cOid);
+				val = make_unique<ConfigIntRange>(items->name, items->help, items->default_value, cOid);
 				break;
 			case String:
-				val = new ConfigString(items->name, items->help, items->default_value, cOid);
+				val = make_unique<ConfigString>(items->name, items->help, items->default_value, cOid);
 				break;
 			case ByteSize:
-				val = new ConfigByteSize(items->name, items->help, items->default_value, cOid);
+				val = make_unique<ConfigByteSize>(items->name, items->help, items->default_value, cOid);
 				break;
 			case StringList:
-				val = new ConfigStringList(items->name, items->help, items->default_value, cOid);
+				val = make_unique<ConfigStringList>(items->name, items->help, items->default_value, cOid);
 				break;
 			case BooleanExpr:
-				val = new ConfigBooleanExpression(items->name, items->help, items->default_value, cOid);
+				val = make_unique<ConfigBooleanExpression>(items->name, items->help, items->default_value, cOid);
 				break;
 			default:
 				LOGA("Bad ConfigValue type %u for %s!", items->type, items->name);
 				break;
 		}
-		addChild(val);
+		addChild(move(val));
 		if (!hashed)
 			++cOid;
 	}
 }
 
-StatCounter64 *GenericStruct::createStat(const string &name, const string &help) {
+StatCounter64* GenericStruct::createStat(const string& name, const string& help) {
 	oid cOid = Oid::oidFromHashedString(name);
-	StatCounter64 *val = new StatCounter64(name, help, cOid);
-	addChild(val);
-	return val;
+	auto val = make_unique<StatCounter64>(name, help, cOid);
+	return addChild(move(val));
 }
 pair<StatCounter64 *, StatCounter64 *> GenericStruct::createStatPair(const string &name, const string &help) {
 	return make_pair(createStat(name, help), createStat(name + "-finished", help + " Finished."));
@@ -547,9 +545,9 @@ unique_ptr<StatPair> GenericStruct::createStats(const string &name, const string
 
 struct matchEntryNameApprox {
 	const string mName;
-	matchEntryNameApprox(const char *name) : mName(name) {
+	matchEntryNameApprox(const char* name) : mName(name) {
 	}
-	bool operator()(GenericEntry *e) {
+	bool operator()(const unique_ptr<GenericEntry>& e) {
 		unsigned int i;
 		int count = 0;
 		int min_required = mName.size() - 2;
@@ -568,21 +566,15 @@ struct matchEntryNameApprox {
 	}
 };
 
-GenericEntry *GenericStruct::findApproximate(const char *name) const {
+GenericEntry* GenericStruct::findApproximate(const char* name) const {
 	auto it = find_if(mEntries.begin(), mEntries.end(), matchEntryNameApprox(name));
 	if (it != mEntries.end())
-		return *it;
-	return NULL;
+		return it->get();
+	return nullptr;
 }
 
-const list<GenericEntry *> &GenericStruct::getChildren() const {
+const list<unique_ptr<GenericEntry>>& GenericStruct::getChildren() const {
 	return mEntries;
-}
-
-GenericStruct::~GenericStruct() {
-	for (auto it = mEntries.begin(); it != mEntries.end(); ++it) {
-		delete *it;
-	}
 }
 
 ConfigBoolean::ConfigBoolean(const string &name, const string &help, const string &default_value, oid oid_index)
@@ -734,12 +726,12 @@ uint64_t ConfigByteSize::read() const {
 	return stoll(str);
 }
 
-void ConfigRuntimeError::writeErrors(GenericEntry *entry, ostringstream &oss) const {
-	GenericStruct *cs = dynamic_cast<GenericStruct *>(entry);
+void ConfigRuntimeError::writeErrors(GenericEntry* entry, ostringstream& oss) const {
+	auto cs = dynamic_cast<GenericStruct*>(entry);
 	if (cs) {
-		const auto &children = cs->getChildren();
+		const auto& children = cs->getChildren();
 		for (auto it = children.begin(); it != children.end(); ++it) {
-			writeErrors(*it, oss);
+			writeErrors(it->get(), oss);
 		}
 	}
 
@@ -1002,47 +994,48 @@ GenericManager::GenericManager()
 		{Integer, "mdns-ttl", "Time To Live of any mDNS query that will ask for this Flexisip instance", "3600"},
 		config_item_end};
 
-	GenericStruct *notifObjs = new GenericStruct("notif", "Templates for notifications.", 1);
-	notifObjs->setExportable(false);
-	mConfigRoot.addChild(notifObjs);
-	mNotifier = new NotificationEntry("sender", "Send notifications", 1);
-	notifObjs->addChild(mNotifier);
-	ConfigString *nmsg = new ConfigString("msg", "Notification message payload.", "", 10);
+	auto uNotifObjs = make_unique<GenericStruct>("notif", "Templates for notifications.", 1);
+	uNotifObjs->setExportable(false);
+	auto notifObjs = mConfigRoot.addChild(move(uNotifObjs));
+	auto uNotifier = make_unique<NotificationEntry>("sender", "Send notifications", 1);
+	mNotifier = notifObjs->addChild(move(uNotifier));
+	auto nmsg = make_unique<ConfigString>("msg", "Notification message payload.", "", 10);
 	nmsg->setNotifPayload(true);
-	notifObjs->addChild(nmsg);
-	ConfigString *nsoid = new ConfigString("source", "Notification source payload.", "", 11);
+	notifObjs->addChild(move(nmsg));
+	auto nsoid = make_unique<ConfigString>("source", "Notification source payload.", "", 11);
 	nsoid->setNotifPayload(true);
-	notifObjs->addChild(nsoid);
+	notifObjs->addChild(move(nsoid));
 
-	GenericStruct *global = new GenericStruct("global", "Some global settings of the flexisip proxy.", 2);
-	mConfigRoot.addChild(global);
+	auto uGlobal = make_unique<GenericStruct>("global", "Some global settings of the flexisip proxy.", 2);
+	auto global = mConfigRoot.addChild(move(uGlobal));
 	global->addChildrenValues(global_conf);
 	global->get<ConfigByteSize>("max-log-size")->setDeprecated({"2019-05-17", "2.0.0"});
-	global->get<ConfigBoolean>("use-maddr")->setDeprecated({"2020-04-08", "2.0.0", "This parameter has no effect anymore."});
+	global->get<ConfigBoolean>("use-maddr")
+	    ->setDeprecated({"2020-04-08", "2.0.0", "This parameter has no effect anymore."});
 	global->setConfigListener(this);
 
-	ConfigString *version = new ConfigString("version-number", "Flexisip version.", FLEXISIP_GIT_VERSION, 999);
+	auto version = make_unique<ConfigString>("version-number", "Flexisip version.", FLEXISIP_GIT_VERSION, 999);
 	version->setReadOnly(true);
 	version->setExportable(false);
-	global->addChild(version);
+	global->addChild(move(version));
 
-	ConfigValue *runtimeError = new ConfigRuntimeError("runtime-error", "Retrieve current runtime error state.", 998);
+	auto runtimeError = make_unique<ConfigRuntimeError>("runtime-error", "Retrieve current runtime error state.", 998);
 	runtimeError->setExportable(false);
 	runtimeError->setReadOnly(true);
-	global->addChild(runtimeError);
+	global->addChild(move(runtimeError));
 
-	GenericStruct *cluster = new GenericStruct(
-		"cluster",
-		"This section contains some parameters useful when the current proxy is part of a network of proxies (cluster) "
-		"which serve the same domain.", 0);
-	mConfigRoot.addChild(cluster);
+	auto uCluster = make_unique<GenericStruct>(
+	    "cluster",
+	    "This section contains some parameters useful when the current proxy is part of a network of proxies (cluster) "
+	    "which serve the same domain.",
+	    0);
+	auto cluster = mConfigRoot.addChild(move(uCluster));
 	cluster->addChildrenValues(cluster_conf);
 	cluster->setReadOnly(true);
 
-	GenericStruct *mdns = new GenericStruct(
-		"mdns-register",
-		"Should the server be registered on a local domain, to be accessible via multicast DNS.", 0);
-	mConfigRoot.addChild(mdns);
+	auto uMdns = make_unique<GenericStruct>(
+	    "mdns-register", "Should the server be registered on a local domain, to be accessible via multicast DNS.", 0);
+	auto mdns = mConfigRoot.addChild(move(uMdns));
 	mdns->addChildrenValues(mdns_conf);
 	mdns->setReadOnly(true);
 }
@@ -1108,6 +1101,9 @@ const GenericStruct *GenericManager::getGlobal() {
 
 int FileConfigReader::read(const char *filename) {
 	int err;
+	if(mCfg) {
+        lp_config_destroy(mCfg);
+	}
 	mCfg = lp_config_new(NULL);
 	mFilename = filename;
 	err = lp_config_read_file(mCfg, filename);
@@ -1158,30 +1154,31 @@ void FileConfigReader::checkUnread() {
 		LOGF("Some items or section are invalid in the configuration file. Please check it.");
 }
 
-int FileConfigReader::read2(GenericEntry *entry, int level) {
-	GenericStruct *cs = dynamic_cast<GenericStruct *>(entry);
-	ConfigValue *cv;
+int FileConfigReader::read2(GenericEntry* entry, int level) {
+	auto cs = dynamic_cast<GenericStruct*>(entry);
+	ConfigValue* cv;
 	if (cs) {
-		auto &entries = cs->getChildren();
-		for (auto &entry : entries) {
-			read2(entry, level + 1);
+		auto& children = cs->getChildren();
+		for (auto& child : children) {
+			read2(child.get(), level + 1);
 		}
-	} else if ((cv = dynamic_cast<ConfigValue *>(entry))) {
+	} else if ((cv = dynamic_cast<ConfigValue*>(entry))) {
 		if (level < 2) LOGF("ConfigValues at root is disallowed.");
 		if (level > 2) LOGF("The current file format doesn't support recursive subsections.");
 
-		const char *val = lp_config_get_string(mCfg, cv->getParent()->getName().c_str(), cv->getName().c_str(), nullptr);
+		const char* val =
+		    lp_config_get_string(mCfg, cv->getParent()->getName().c_str(), cv->getName().c_str(), nullptr);
 		if (val) {
 			if (cv->isDeprecated()) {
-				const auto &info = cv->getDeprecationInfo();
+				const auto& info = cv->getDeprecationInfo();
 				SLOGW << "Deprecated parameter:\n"
-					<< "\t[" << cv->getParent()->getName() << "/" << cv->getName() << "]\n"
-					<< "\t" << info.getText() << "\n"
-					<< "\tDeprecated since " << info.getDate() << " (Flexisip v" << info.getVersion() << ")\n";
+				      << "\t[" << cv->getParent()->getName() << "/" << cv->getName() << "]\n"
+				      << "\t" << info.getText() << "\n"
+				      << "\tDeprecated since " << info.getDate() << " (Flexisip v" << info.getVersion() << ")\n";
 			}
-			try{
+			try {
 				cv->set(val);
-			}catch(std::exception & e){
+			} catch (std::exception& e) {
 				LOGF("While reading '%s', %s.", mFilename.c_str(), e.what());
 			}
 		} else {

@@ -359,16 +359,19 @@ ConferenceServer::Init::Init() {
 		config_item_end
 	};
 
-	GenericStruct *s = new GenericStruct("conference-server", "Flexisip conference server parameters. "
-		"The flexisip conference server is a user-agent that handles session-based chat (yes, text only at this time). "
-		"It requires a mysql database in order to persisently store chatroom state (participants and their devices). "
-		"It will use the Registrar backend (see section module::Registrar) to discover devices (or client instances) "
-		"of each participant."
-	, 0);
-	GenericManager::get()->getRoot()->addChild(s);
+	auto uS = make_unique<GenericStruct>(
+	    "conference-server",
+	    "Flexisip conference server parameters. "
+	    "The flexisip conference server is a user-agent that handles session-based chat (yes, text only at this time). "
+	    "It requires a mysql database in order to persisently store chatroom state (participants and their devices). "
+	    "It will use the Registrar backend (see section module::Registrar) to discover devices (or client instances) "
+	    "of each participant.",
+	    0);
+	auto s = GenericManager::get()->getRoot()->addChild(move(uS));
 	s->addChildrenValues(items);
-	s->get<ConfigString>("conference-factory-uri")->setDeprecated({"2020-09-30", "2.1.0",
-		"Use 'conference-factory-uris' instead, that allows to declare multiple factory uris."});
+	s->get<ConfigString>("conference-factory-uri")
+	    ->setDeprecated({"2020-09-30", "2.1.0",
+	                     "Use 'conference-factory-uris' instead, that allows to declare multiple factory uris."});
 }
 
 } // namespace flexisip

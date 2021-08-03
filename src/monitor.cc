@@ -40,8 +40,8 @@ Monitor::Init::Init() {
 		{String, "password-salt", "Salt used to generate the passwords of each test account", ""},
 		config_item_end};
 
-	GenericStruct *s = new GenericStruct("monitor", "Flexisip monitor parameters", 0);
-	GenericManager::get()->getRoot()->addChild(s);
+	auto uS = make_unique<GenericStruct>("monitor", "Flexisip monitor parameters", 0);
+	auto s = GenericManager::get()->getRoot()->addChild(move(uS));
 	s->addChildrenValues(items);
 	s->setExportable(false);
 }

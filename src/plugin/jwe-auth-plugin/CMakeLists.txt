@@ -41,8 +41,6 @@ set(JWE_AUTH_INCLUDES
 
 add_library(jweauth SHARED ${JWE_AUTH_SOURCES})
 set_property(TARGET jweauth PROPERTY VERSION ${PROJECT_VERSION})
-set_property(TARGET jweauth PROPERTY CXX_STANDARD 11)
-set_property(TARGET jweauth PROPERTY CXX_STANDARD_REQUIRED ON)
 
 target_link_libraries(jweauth PRIVATE ${JWE_AUTH_LIBRARIES})
 target_include_directories(jweauth PRIVATE ${JWE_AUTH_INCLUDES})

@@ -15,8 +15,6 @@
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-#include "stun.hh"
 #include <flexisip/common.hh>
 #include <flexisip/configmanager.hh>
 #include "stun/flexisip_stun.h"
@@ -26,17 +24,20 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
+#include "stun.hh"
+
 using namespace flexisip;
+using namespace std;
 
 StunServer::Init StunServer::sStaticInit; // The Init object is instanciated to load the config
 
 StunServer::Init::Init() {
 	ConfigItemDescriptor items[] = {{Boolean, "enabled", "Enable or disable stun server.", "true"},
-									{String, "bind-address", "Local ip address where to bind the socket.", "0.0.0.0"},
-									{Integer, "port", "STUN server port number.", "3478"},
-									config_item_end};
-	GenericStruct *s = new GenericStruct("stun-server", "STUN server parameters.", 0);
-	GenericManager::get()->getRoot()->addChild(s);
+	                                {String, "bind-address", "Local ip address where to bind the socket.", "0.0.0.0"},
+	                                {Integer, "port", "STUN server port number.", "3478"},
+	                                config_item_end};
+	auto uS = make_unique<GenericStruct>("stun-server", "STUN server parameters.", 0);
+	auto s = dynamic_cast<GenericStruct*>(GenericManager::get()->getRoot()->addChild(move(uS)));
 	s->addChildrenValues(items);
 }
 

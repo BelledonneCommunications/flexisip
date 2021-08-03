@@ -83,7 +83,9 @@ private:
 };
 
 static void beforeEach() {
+	notSoRandomId = 0;
 	responseReceived = 0;
+	expectedResponseReceived = 0;
 	root = su_root_create(nullptr);
 	agent = make_shared<Agent>(root);
 }
@@ -143,7 +145,7 @@ static void sendRegisterRequest(const string& sipUri, const string& paramList, c
 	expectedResponseReceived++;
 	auto beforePlus5 = system_clock::now() + 5s;
 	while (responseReceived != expectedResponseReceived && beforePlus5 >= system_clock::now()) {
-		su_root_step(agent->getRoot(), 100);
+		su_root_step(root, 100);
 		bellesipUtils.stackSleep(100);
 	}
 }
@@ -154,7 +156,7 @@ static void duplicatePushTokenRegisterTest() {
 	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_register.conf").c_str());
 	agent->loadConfig(cfg);
 
-	auto registrarConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
+	auto registrarConf = cfg->getRoot()->get<GenericStruct>("module::Registrar");
 	registrarConf->get<ConfigStringList>("reg-domains")->set("127.0.0.1");
 
 	// FCM
