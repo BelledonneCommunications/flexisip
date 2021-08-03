@@ -1,13 +1,4 @@
 semanage fcontext -a -t var_log_t '@FLEXISIP_LOGDIR@(/.*)?' 2>/dev/null || : \
 restorecon -R @FLEXISIP_LOGDIR@ || :
 
-if [ $1 -eq 1 ] ; then
-	# Initial installation
-	# Make symbolic links of installed SystemD unit into system directory
-	for service in $(echo '@FLEXISIP_SYSTEMD_SERVICES@' | tr ';' ' ')
-	do
-		ln -s "@FLEXISIP_SYSTEMD_INSTALLDIR@/${service}" "/usr/lib/systemd/system"
-	done
-fi
-
 %systemd_post @FLEXISIP_SERVICES@

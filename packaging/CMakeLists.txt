@@ -29,6 +29,11 @@ set(CPACK_PACKAGE_HOMEPAGE_URL "http://flexisip.org")
 set(CPACK_PACKAGING_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
 bc_compute_linux_package_version("${FLEXISIP_FULL_VERSION}" version release)
+set(extra_dependencies
+	"logrotate"
+)
+list(JOIN extra_dependencies ", " extra_dependencies_str)
+
 set(obsolete_packets
 	"bc-hiredis-devel"
 	"bc-soci-devel"
@@ -64,13 +69,7 @@ set(obsolete_packets
 	"bc-sofia-sip-utils"
 	"bc-unixODBC"
 )
-foreach(pkg ${obsolete_packets})
-	if(NOT DEFINED obsolete_packets_str) 
-		set(obsolete_packets_str "${pkg}")
-	else()
-		string(APPEND obsolete_packets_str ", ${pkg}")
-	endif()
-endforeach()
+list(JOIN obsolete_packets ", " obsolete_packets_str)
 
 
 # Set the SystemD services that should be restarted on package update
@@ -92,10 +91,18 @@ set(CPACK_RPM_PACKAGE_LICENSE "AGPLv3")
 set(CPACK_RPM_PACKAGE_GROUP "Applications/Communication")
 set(CPACK_RPM_PACKAGE_VERSION "${version}")
 set(CPACK_RPM_PACKAGE_RELEASE "${release}")
+set(CPACK_RPM_PACKAGE_REQUIRES "${extra_dependencies_str}")
 set(CPACK_RPM_PACKAGE_OBSOLETES "${obsolete_packets_str}")
 set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION "/opt/belledonne-communications/include")
 set(CPACK_RPM_FILE_NAME "${CPACK_PACKAGE_NAME}-${version}-${release}.${CMAKE_HOST_SYSTEM_PROCESSOR}.rpm")
 set(CPACK_RPM_DEBUGINFO_PACKAGE ON)
+set(CPACK_RPM_USER_FILELIST "%config(noreplace) ${FLEXISIP_LOGROTATE_INSTALL_LOCATION}")
+set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
+	"/etc/logrotate.d"
+	"/lib"
+	"/lib/systemd"
+	"/lib/systemd/system"
+)
 
 ## Configure %post, %postun, %preun rpmbuild section
 set(FLEXISIP_LOGDIR "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log")
@@ -107,7 +114,7 @@ endforeach()
 
 ## Protect every installed SystemD unit against replacement while update
 foreach(service ${FLEXISIP_SYSTEMD_SERVICES})
-	list(APPEND CPACK_RPM_USER_FILELIST "%config(noreplace) ${FLEXISIP_SYSTEMD_INSTALLDIR}/${service}")
+	list(APPEND CPACK_RPM_USER_FILELIST "%config(noreplace) ${FLEXISIP_SYSTEMD_INSTALL_DIR}/${service}")
 endforeach()
 
 
@@ -125,6 +132,7 @@ set(CPACK_DEBIAN_UNSPECIFIED_PACKAGE_NAME "${CPACK_PACKAGE_NAME}")
 set(CPACK_DEBIAN_PACKAGE_VERSION "${version}-${release}")
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "info@belledonne-communications.com")
 set(CPACK_DEBIAN_PACKAGE_SECTION "net")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "${extra_dependencies_str}")
 set(CPACK_DEBIAN_PACKAGE_PROVIDES "${obsolete_packets_str}")
 set(CPACK_DEBIAN_PACKAGE_CONFLICTS "${obsolete_packets_str}")
 set(CPACK_DEBIAN_PACKAGE_REPLACES "${obsolete_packets_str}")
