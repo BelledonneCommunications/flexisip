@@ -29,7 +29,6 @@ using namespace std::chrono_literals;
 using namespace std::chrono;
 using namespace flexisip;
 
-
 static su_root_t* root = nullptr;
 static shared_ptr<Agent> agent = nullptr;
 static bool responseReceived = false;
@@ -216,5 +215,5 @@ static test_t tests[] = {
     TEST_NO_TAG("No RTP port available and ForkCallContext leak", notRtpPortAndForkCallContext),
 };
 
-test_suite_t fork_context_suite = {"Fork context", nullptr, nullptr, beforeEach, afterEach, sizeof(tests) / sizeof(tests[0]),
-                                   tests};
+test_suite_t fork_context_suite = {
+    "Fork context", nullptr, nullptr, beforeEach, afterEach, sizeof(tests) / sizeof(tests[0]), tests};

@@ -163,8 +163,7 @@ static void fallbackRouteFilter() {
 }
 
 static test_t tests[] = {
-    TEST_NO_TAG("Disable fallback route for requests not matching fallback-route-filter",
-                fallbackRouteFilter),
+    TEST_NO_TAG("Disable fallback route for requests not matching fallback-route-filter", fallbackRouteFilter),
 };
 
 test_suite_t router_suite = {

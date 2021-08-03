@@ -471,7 +471,11 @@ void GenericStruct::setParent(GenericEntry *parent) {
 #endif
 }
 
-GenericEntry *GenericStruct::addChild(GenericEntry *c) {
+GenericEntry* GenericStruct::addChild(GenericEntry* c) {
+	auto name = c->getName();
+	mEntries.erase(
+	    remove_if(mEntries.begin(), mEntries.end(), [&name](GenericEntry* e) { return e->getName() == name; }),
+	    mEntries.end());
 	mEntries.push_back(c);
 	c->setParent(this);
 	return c;
