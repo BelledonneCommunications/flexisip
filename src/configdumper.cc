@@ -33,15 +33,15 @@ ostream &ConfigDumper::dump(ostream &ostr) const {
 	return dump_recursive(ostr, mRoot, 0);
 }
 
-ostream &ConfigDumper::dump_recursive(std::ostream &ostr, const GenericEntry *entry, unsigned int level) const {
-	const GenericStruct *cs = dynamic_cast<const GenericStruct *>(entry);
-	const ConfigValue *value = dynamic_cast<const ConfigValue *>(entry);
+ostream& ConfigDumper::dump_recursive(std::ostream& ostr, const GenericEntry* entry, unsigned int level) const {
+	const GenericStruct* cs = dynamic_cast<const GenericStruct*>(entry);
+	const ConfigValue* value = dynamic_cast<const ConfigValue*>(entry);
 	if (cs && shouldDumpModule(cs->getName()) && cs->isExportable()) {
 
 		dumpModuleHead(ostr, cs, level);
 
-		for (const auto *child : cs->getChildren()) {
-			dump_recursive(ostr, child, level + 1);
+		for (const auto& child : cs->getChildren()) {
+			dump_recursive(ostr, child.get(), level + 1);
 		}
 
 		dumpModuleEnd(ostr, cs, level);
@@ -333,11 +333,11 @@ ostream &MibDumper::dump(ostream &ostr) const {
 	return ostr;
 }
 
-ostream &MibDumper::dump2(ostream &ostr, GenericEntry *entry, int level) const {
-	GenericStruct *cs = dynamic_cast<GenericStruct *>(entry);
-	ConfigValue *cVal;
-	StatCounter64 *sVal;
-	NotificationEntry *ne;
+ostream& MibDumper::dump2(ostream& ostr, GenericEntry* entry, int level) const {
+	auto cs = dynamic_cast<GenericStruct*>(entry);
+	ConfigValue* cVal;
+	StatCounter64* sVal;
+	NotificationEntry* ne;
 	string spacing = "";
 	while (level > 0) {
 		spacing += "	";
@@ -347,15 +347,15 @@ ostream &MibDumper::dump2(ostream &ostr, GenericEntry *entry, int level) const {
 		cs->mibFragment(ostr, spacing);
 		for (auto it = cs->getChildren().begin(); it != cs->getChildren().end(); ++it) {
 			if (!cs->isDeprecated()) {
-				dump2(ostr, *it, level + 1);
+				dump2(ostr, it->get(), level + 1);
 				ostr << endl;
 			}
 		}
-	} else if ((cVal = dynamic_cast<ConfigValue *>(entry)) != NULL) {
+	} else if ((cVal = dynamic_cast<ConfigValue*>(entry)) != nullptr) {
 		cVal->mibFragment(ostr, spacing);
-	} else if ((sVal = dynamic_cast<StatCounter64 *>(entry)) != NULL) {
+	} else if ((sVal = dynamic_cast<StatCounter64*>(entry)) != nullptr) {
 		sVal->mibFragment(ostr, spacing);
-	} else if ((ne = dynamic_cast<NotificationEntry *>(entry)) != NULL) {
+	} else if ((ne = dynamic_cast<NotificationEntry*>(entry)) != nullptr) {
 		ne->mibFragment(ostr, spacing);
 	}
 	return ostr;

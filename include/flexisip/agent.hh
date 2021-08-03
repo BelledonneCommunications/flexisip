@@ -68,6 +68,8 @@ class Agent : public IncomingAgent,
 	friend class OutgoingTransaction;
 	friend class Module;
 
+	void onDeclare(GenericStruct* root);
+
 	StatCounter64 *mCountIncomingRegister = nullptr;
 	StatCounter64 *mCountIncomingInvite = nullptr;
 	StatCounter64 *mCountIncomingAck = nullptr;
@@ -107,8 +109,8 @@ class Agent : public IncomingAgent,
 	StatCounter64 *mCountReply407 = nullptr; // proxy auth
 	StatCounter64 *mCountReply408 = nullptr; // request timeout
 	StatCounter64 *mCountReplyResUnknown = nullptr;
-	void onDeclare(GenericStruct *root);
-	ConfigValueListener *mBaseConfigListener;
+
+	ConfigValueListener *mBaseConfigListener = nullptr;
 
 private:
 	template <typename SipEventT, typename ModuleIter>

@@ -98,14 +98,16 @@ struct RegistrarUserData {
 };
 
 class RegistrarDbRedisAsync : public RegistrarDb {
-  public:
-	RegistrarDbRedisAsync(const std::string &preferredRoute, su_root_t *root, RecordSerializer *serializer,
-						  RedisParameters params);
+public:
+	RegistrarDbRedisAsync(Agent* agent, RedisParameters params);
+	RegistrarDbRedisAsync(const std::string& preferredRoute, su_root_t* root, RecordSerializer* serializer,
+	                      RedisParameters params);
+	~RegistrarDbRedisAsync() override;
 
 	bool connect();
 	bool disconnect();
 
-  protected:
+protected:
 	void doBind(const MsgSip &msg, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) override;
 	void doClear(const MsgSip &msg, const std::shared_ptr<ContactUpdateListener> &listener) override;
 	void doFetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener) override;
@@ -115,9 +117,7 @@ class RegistrarDbRedisAsync : public RegistrarDb {
 	void unsubscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener) override;
 	void publish(const std::string &topic, const std::string &uid) override;
 
-  private:
-	RegistrarDbRedisAsync(Agent *agent, RedisParameters params);
-	~RegistrarDbRedisAsync() override;
+private:
 	static void sConnectCallback(const redisAsyncContext *c, int status);
 	static void sDisconnectCallback(const redisAsyncContext *c, int status);
 	static void sSubscribeConnectCallback(const redisAsyncContext *c, int status);

@@ -867,14 +867,14 @@ bool RegistrarDb::errorOnTooMuchContactInBind(const sip_contact_t *sip_contact, 
 	return false;
 }
 
-RegistrarDb *RegistrarDb::sUnique = nullptr;
+unique_ptr<RegistrarDb> RegistrarDb::sUnique = nullptr;
 
 void RegistrarDb::resetDB() {
 	SLOGW << "Reseting RegistrarDb static pointer, you MUST be in a test.";
-	sUnique = nullptr;
+    sUnique = nullptr;
 }
 
-RegistrarDb *RegistrarDb::initialize(Agent *ag){
+RegistrarDb* RegistrarDb::initialize(Agent* ag) {
 	if (sUnique != nullptr){
 		LOGF("RegistrarDb already initialized");
 	}
@@ -888,7 +888,7 @@ RegistrarDb *RegistrarDb::initialize(Agent *ag){
 
 	if ("internal" == dbImplementation) {
 		LOGI("RegistrarDB implementation is internal");
-		sUnique = new RegistrarDbInternal(ag);
+		sUnique = make_unique<RegistrarDbInternal>(ag);
 		sUnique->mUseGlobalDomain = useGlobalDomain;
 	}
 #ifdef ENABLE_REDIS
@@ -905,9 +905,9 @@ RegistrarDb *RegistrarDb::initialize(Agent *ag){
 		params.mSlaveCheckTimeout = registrar->get<ConfigInt>("redis-slave-check-period")->read();
 		params.useSlavesAsBackup = registrar->get<ConfigBoolean>("redis-use-slaves-as-backup")->read();
 
-		sUnique = new RegistrarDbRedisAsync(ag, params);
+		sUnique = make_unique<RegistrarDbRedisAsync>(ag, params);
 		sUnique->mUseGlobalDomain = useGlobalDomain;
-		static_cast<RegistrarDbRedisAsync *>(sUnique)->connect();
+		static_cast<RegistrarDbRedisAsync *>(sUnique.get())->connect();
 	}
 #endif
 	else {
@@ -919,14 +919,14 @@ RegistrarDb *RegistrarDb::initialize(Agent *ag){
 #endif
 	}
 	sUnique->mMessageExpiresName = mMessageExpiresName;
-	return sUnique;
+	return sUnique.get();
 }
 
-RegistrarDb *RegistrarDb::get() {
+RegistrarDb* RegistrarDb::get() {
 	if (sUnique == nullptr) {
 		LOGF("RegistrarDb not initialized.");
 	}
-	return sUnique;
+	return sUnique.get();
 }
 
 void RegistrarDb::clear(const MsgSip &sip, const shared_ptr<ContactUpdateListener> &listener) {

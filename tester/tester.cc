@@ -47,26 +47,8 @@ int main(int argc, char* argv[]) {
 
 	flexisip_tester_init(NULL);
 
-	// Flexisip tests suite must run in different processes because some Flexisip objects relied on "atexit" to be
-	// completely cleared.
-	std::vector<char*> fakeArgv{};
-	auto isParallel = false;
-	for (auto i = 0; i < argc; ++i) {
-		if (strcmp(argv[i], "--parallel") == 0) {
-			isParallel = true;
-		}
-		fakeArgv.push_back(argv[i]);
-	}
-	// So we fake  a parallel execution with only one process, so each suite is executed in a different fork.
-	if (!isParallel) {
-		fakeArgv.push_back((char*)"--parallel");
-		bc_tester_set_max_parallel_suites(1);
-	}
-	// Don't forget that argv MUST be null terminated.
-	fakeArgv.push_back(nullptr);
-	int fakeArgc = fakeArgv.size() - 1;
-	for (auto i = 1; i < fakeArgc; ++i) {
-		int ret = bc_tester_parse_args(fakeArgc, fakeArgv.data(), i);
+	for (auto i = 1; i < argc; ++i) {
+		ret = bc_tester_parse_args(argc, argv, i);
 		if (ret > 0) {
 			i += ret - 1;
 			continue;
@@ -112,7 +94,7 @@ void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_
 
 	/*
 	#if ENABLE_CONFERENCE
-		bc_tester_add_suite(&registration_event_suite);
+	    bc_tester_add_suite(&registration_event_suite);
 	#endif
 	*/
 }

@@ -370,6 +370,7 @@ class RegistrarDb {
 	friend class ModuleRegistrar;
 
   public:
+	virtual ~RegistrarDb();
 	/**
 	 * Reset RegistrarDb::sUnique
 	 * WARNING : this method is ONLY there for testing purpose
@@ -454,12 +455,11 @@ class RegistrarDb {
 	void notifyStateListener () const;
 
 	RegistrarDb(Agent *ag);
-	virtual ~RegistrarDb();
 	std::multimap<std::string, std::shared_ptr<ContactRegisteredListener>> mContactListenersMap;
 	std::list<std::shared_ptr<RegistrarDbStateListener>> mStateListeners;
 	LocalRegExpire *mLocalRegExpire;
 	std::string mMessageExpiresName;
-	static RegistrarDb *sUnique;
+	static std::unique_ptr<RegistrarDb> sUnique;
 	Agent *mAgent;
 	bool mWritable = false;
 	bool mUseGlobalDomain;
