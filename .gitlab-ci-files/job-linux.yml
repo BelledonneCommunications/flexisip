@@ -42,7 +42,7 @@
 
   script:
     - mkdir build && cd build
-    - cmake -G Ninja $DEFAULT_CMAKE_OPTIONS -DCPACK_GENERATOR=RPM -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications ..
+    - cmake -G Ninja $DEFAULT_CMAKE_OPTIONS -DCPACK_GENERATOR=RPM $PACKAGING_EXTRA_CMAKE_OPTIONS ..
     - cmake --build . --target package -- $ADDITIONAL_BUILD_OPTIONS
 
   artifacts:
@@ -61,7 +61,7 @@
 
   script:
     - mkdir build && cd build
-    - cmake -G Ninja $DEFAULT_CMAKE_OPTIONS -DCPACK_GENERATOR=DEB -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications ..
+    - cmake -G Ninja $DEFAULT_CMAKE_OPTIONS -DCPACK_GENERATOR=DEB $PACKAGING_EXTRA_CMAKE_OPTIONS ..
     - cmake --build . --target package -- $ADDITIONAL_BUILD_OPTIONS
 
   artifacts:
@@ -108,7 +108,7 @@
     - git submodule foreach --recursive git fetch --tags --force
 
   script:
-    - mv WORK/flexisip-rpm/rpmbuild/DEBS docker/DEBS
+    - mkdir -p docker/DEBS && mv build/*.{deb,ddeb} docker/DEBS
     - cd docker
     - make flexisip-deb-build
     - make flexisip-deb-push
