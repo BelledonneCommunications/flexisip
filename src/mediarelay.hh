@@ -260,6 +260,7 @@ class RelayChannel : public SdpMasqueradeContext{
 	bool mPreventLoop;
 	bool mHasMultipleTargets;
 	bool mDestAddrChanged;
+	bool mIsOpen; /* Initially false, it is set to true when the remote address is set. It controls whether tranfer can occur. */
 };
 
 }
