@@ -98,7 +98,7 @@ static void log_handler(int lev, const char *fmt, va_list args) {
 void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_list args)) {
 	bc_tester_set_verbose_func(verbose_arg_func);
 
-	if (ftester_printf == NULL)
+	if (ftester_printf == nullptr)
 		ftester_printf = log_handler;
 	bc_tester_init(ftester_printf, BCTBX_LOG_MESSAGE, BCTBX_LOG_ERROR, ".");
 
