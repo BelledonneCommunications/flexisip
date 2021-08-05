@@ -91,7 +91,7 @@ static void fallbackRouteFilter() {
 
 	auto beforePlus2 = system_clock::now() + 2s;
 	while ((!responseReceived || !requestReceived) && beforePlus2 >= system_clock::now()) {
-		su_root_step(agent->getRoot(), 100);
+		su_root_step(root, 100);
 		bellesipUtils.stackSleep(100);
 		bellesipUtilsFallback.stackSleep(100);
 	}
@@ -151,7 +151,7 @@ static void fallbackRouteFilter() {
 
 	beforePlus2 = system_clock::now() + 2s;
 	while ((!responseReceived || !requestReceived) && beforePlus2 >= system_clock::now()) {
-		su_root_step(agent->getRoot(), 100);
+		su_root_step(root, 100);
 		bellesipUtils2.stackSleep(100);
 		bellesipUtilsFallback.stackSleep(100);
 	}
@@ -163,8 +163,7 @@ static void fallbackRouteFilter() {
 }
 
 static test_t tests[] = {
-    TEST_NO_TAG("Disable fallback route for requests not matching fallback-route-filter",
-                fallbackRouteFilter),
+    TEST_NO_TAG("Disable fallback route for requests not matching fallback-route-filter", fallbackRouteFilter),
 };
 
 test_suite_t router_suite = {
