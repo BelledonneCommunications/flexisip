@@ -19,10 +19,11 @@
 #include <iostream>
 #include <string>
 
-#include <flexisip/logmanager.hh>
+#include "flexisip/logmanager.hh"
 
 #include "firebase-client.hh"
 #include "utils/string-formater.hh"
+#include "utils/string-utils.hh"
 
 #include "firebase-request.hh"
 
@@ -60,7 +61,7 @@ FirebaseRequest::FirebaseRequest(const PushInfo& pinfo) : Request(pinfo.mAppId, 
 	std::map<std::string, std::string> values = {
 		{"to", pinfo.mDeviceToken},
 		{"ttl", to_string(ttl)},
-		{"uuid", pinfo.mUid},
+		{"uuid", StringUtils::unquote(pinfo.mUid)},
 		{"from-uri", pinfo.mFromUri},
 		{"display-name", pinfo.mFromName},
 		{"call-id", pinfo.mCallId},
