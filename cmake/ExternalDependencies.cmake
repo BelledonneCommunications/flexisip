@@ -62,7 +62,13 @@ if(ENABLE_SOCI OR ENABLE_CONFERENCE_SERVER)
 	add_subdirectory("linphone-sdk/external/soci")
 endif()
 
+# Configure and add SRTP2
+if(INTERNAL_LIBSRTP2)
+	add_subdirectory("linphone-sdk/external/srtp")
+endif()
+
 # Configure and add Jose
 if(ENABLE_JWE_AUTH_PLUGIN)
 	add_subdirectory("submodules/externals/jose")
 endif()
+
