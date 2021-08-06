@@ -111,13 +111,11 @@ private:
 	struct in6_addr mAddr;
 };
 
+std::vector<std::string> split(const std::string& str, const std::string& delimiter);
 
-
-std::vector<std::string> split (const std::string &str, const std::string &delimiter);
-
-inline std::vector<std::string> split (const std::string &str, char delimiter) {
+inline std::vector<std::string> split(const std::string& str, char delimiter) {
 	return split(str, std::string(1, delimiter));
 }
 
-}
-std::ostream &operator<<(std::ostream &os, const flexisip::BinaryIp &ip);
+std::ostream& operator<<(std::ostream& os, const flexisip::BinaryIp& ip);
+} // namespace flexisip
