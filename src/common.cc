@@ -25,6 +25,31 @@
 
 using namespace flexisip;
 
+time_t getCurrentTime() {
+#ifdef MONOTONIC_CLOCK_REGISTRATIONS
+	struct timespec t;
+	if (clock_gettime(CLOCK_MONOTONIC, &t)) {
+		LOGE("cannot read monotonic clock");
+		return time(NULL);
+	}
+
+	return t.tv_sec;
+#else
+	return time(NULL);
+#endif
+}
+
+time_t getTimeOffset(time_t current_time) {
+	static time_t empty = {0};
+#ifdef MONOTONIC_CLOCK_REGISTRATIONS
+	time_t offset = time(NULL) - current_time;
+#else
+	return empty;
+#endif
+}
+
+namespace flexisip {
+
 Mutex::Mutex(bool reentrant) : mReentrant(reentrant), mCount(0) {
 	int err;
 	if ((err = pthread_mutex_init(&mMutex, NULL)) != 0) {
@@ -105,29 +130,6 @@ void Mutex::unlock() {
 	}
 }
 
-time_t getCurrentTime() {
-#ifdef MONOTONIC_CLOCK_REGISTRATIONS
-	struct timespec t;
-	if (clock_gettime(CLOCK_MONOTONIC, &t)) {
-		LOGE("cannot read monotonic clock");
-		return time(NULL);
-	}
-
-	return t.tv_sec;
-#else
-	return time(NULL);
-#endif
-}
-
-time_t getTimeOffset(time_t current_time) {
-	static time_t empty = {0};
-#ifdef MONOTONIC_CLOCK_REGISTRATIONS
-	time_t offset = time(NULL) - current_time;
-#else
-	return empty;
-#endif
-}
-
 struct addrinfo *BinaryIp::resolve(const std::string &hostname, bool numericOnly = false){
 	// Warning: IPv6 can use brakets.
 	std::string hostnameCopy;
@@ -166,7 +168,7 @@ std::ostream & operator<<(std::ostream &os, const BinaryIp &ip) {
 	return os << ip.asString();
 }
 
-std::vector<std::string> flexisip::split (const std::string &str, const std::string &delimiter) {
+std::vector<std::string> split(const std::string& str, const std::string& delimiter) {
 	std::vector<std::string> out;
 	size_t pos = 0, oldPos = 0;
 	for (; (pos = str.find(delimiter, pos)) != std::string::npos; oldPos = pos + 1, pos = oldPos)
@@ -174,3 +176,5 @@ std::vector<std::string> flexisip::split (const std::string &str, const std::str
 	out.push_back(str.substr(oldPos));
 	return out;
 }
+
+} // namespace flexisip
