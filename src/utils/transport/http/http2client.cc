@@ -467,10 +467,6 @@ string Http2Tools::printFlags(uint8_t flags) noexcept {
 	return res;
 }
 
-} /* namespace flexisip */
-
-using namespace flexisip;
-
 ostream& operator<<(ostream& os, flexisip::Http2Client::State state) noexcept {
 	switch (state) {
 		case flexisip::Http2Client::State::Disconnected:
@@ -538,3 +534,5 @@ ostream& operator<<(ostream& os, const nghttp2_frame& frame) noexcept {
 	};
 	return os;
 }
+
+} /* namespace flexisip */
