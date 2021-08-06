@@ -17,13 +17,29 @@
  */
 
 #include "flexisip/registrardb.hh"
-#include "registrardb-internal.hh"
 #include "tester.hh"
 
 using namespace flexisip;
 using namespace std;
 
-static void qValueConstructorTest(const SipUri &inputUri, const string &inputRoute, const float inputQ, const float expectedQ) {
+static su_root_t* root = nullptr;
+static shared_ptr<Agent> agent = nullptr;
+
+static void beforeEach() {
+	// Agent initialization (needed only because ExtendedContact::init relies on RegistrarDb::getMessageExpires)
+	root = su_root_create(nullptr);
+	agent = make_shared<Agent>(root);
+}
+
+static void afterEach() {
+	agent->unloadConfig();
+	RegistrarDb::resetDB();
+	agent.reset();
+	su_root_destroy(root);
+}
+
+static void qValueConstructorTest(const SipUri& inputUri, const string& inputRoute, const float inputQ,
+                                  const float expectedQ) {
 	ExtendedContact extendedContact{inputUri, inputRoute, inputQ};
 
 	BC_ASSERT_EQUAL(extendedContact.mQ, expectedQ, float, "%f");
@@ -35,34 +51,31 @@ static void qValueConstructorTest(const SipUri &inputUri, const string &inputRou
 	SipUri actualUri{extendedContact.mSipContact->m_url};
 	BC_ASSERT_STRING_EQUAL(actualUri.str().c_str(), inputUri.str().c_str());
 
-	const char * actualRoute = extendedContact.route() == nullptr ? "null" :  extendedContact.route();
+	const char* actualRoute = extendedContact.route() == nullptr ? "null" : extendedContact.route();
 	BC_ASSERT_STRING_EQUAL(actualRoute, inputRoute.c_str());
 }
 
 static void qValueConstructorTests(void) {
-	// Agent initialization (needed only because ExtendedContact::init relies on RegistrarDb::getMessageExpires)
-	auto root = su_root_create(nullptr);
-	auto agent = make_shared<Agent>(root);
 	auto cfg = GenericManager::get();
 	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_fork_context.conf").c_str());
 	agent->loadConfig(cfg);
 
 	qValueConstructorTest(SipUri{"sip:kijou@sip.linphone.org:4242"}, string{"sip:185.11.220.105;transport=udp"}, 0.555,
-						  0.555);
-	qValueConstructorTest(SipUri{"sip:kijou@sip.linphone.org:4242"}, string{"sip:185.11.220.105;transport=udp"}, 0.55555555,
-							  0.556);
+	                      0.555);
+	qValueConstructorTest(SipUri{"sip:kijou@sip.linphone.org:4242"}, string{"sip:185.11.220.105;transport=udp"},
+	                      0.55555555, 0.556);
 	qValueConstructorTest(
-		SipUri{"sip:kijou@sip.linphone.org;maddr=192.0.0.1;transport=tls;tls-certificates-dir=path_a "},
-		string{"sip:185.11.220.105;transport=udp"}, 0.5, 0.5);
+	    SipUri{"sip:kijou@sip.linphone.org;maddr=192.0.0.1;transport=tls;tls-certificates-dir=path_a "},
+	    string{"sip:185.11.220.105;transport=udp"}, 0.5, 0.5);
 	qValueConstructorTest(SipUri{"sip:kijou@sip.linphone.org:4242"}, string{"sip:185.11.220.105:420;transport=udp"},
-						  1.42, 1.0);
-	qValueConstructorTest(SipUri{"sip:kijou@sip.linphone.org:4242"}, string{"sip:185.11.220.105;maddr=192.0.0.1"}, -0.001,
-						  0.0);
+	                      1.42, 1.0);
+	qValueConstructorTest(SipUri{"sip:kijou@sip.linphone.org:4242"}, string{"sip:185.11.220.105;maddr=192.0.0.1"},
+	                      -0.001, 0.0);
 }
 
 static test_t tests[] = {
-	TEST_NO_TAG("ExtendedContact constructor with qValue tests", qValueConstructorTests),
+    TEST_NO_TAG("ExtendedContact constructor with qValue tests", qValueConstructorTests),
 };
 
 test_suite_t extended_contact_suite = {
-	"Extended contact", nullptr, nullptr, nullptr, nullptr, sizeof(tests) / sizeof(tests[0]), tests};
+    "Extended contact", nullptr, nullptr, beforeEach, afterEach, sizeof(tests) / sizeof(tests[0]), tests};

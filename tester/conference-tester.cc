@@ -88,7 +88,8 @@ static void chatRoomBindingOnInitTest() {
 	auto gs = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
 	gs->get<ConfigString>("database-backend")->set("sqlite");
 	// This database already contains 2 chatrooms
-	gs->get<ConfigString>("database-connection-string")->set(string(TESTER_DATA_DIR).append("/db/conference_tester.db"));
+	gs->get<ConfigString>("database-connection-string")
+	    ->set(string(TESTER_DATA_DIR).append("/db/conference_tester.db"));
 	gs->get<ConfigString>("outbound-proxy")->set("sip:127.0.0.1:5060;transport=tcp");
 	gs->get<ConfigString>("transport")->set("sip:127.0.0.1:6064;transport=tcp");
 	gs->get<ConfigString>("conference-factory-uri")->set("sip:focus@sip.example.org");
