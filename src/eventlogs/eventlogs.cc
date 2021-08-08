@@ -71,13 +71,13 @@ EventLog::Init::Init() {
 		 "/var/log/flexisip"},
 		config_item_end};
 
-	GenericStruct *ev = new GenericStruct(
-		"event-logs",
-		"Event logs contain per domain and user information about processed registrations, calls and messages.\n"
-		"See: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Event%20logs%20and%20queries/ for architecture and queries.",
-		0
-	);
-	GenericManager::get()->getRoot()->addChild(ev);
+	auto uEv = make_unique<GenericStruct>(
+	    "event-logs",
+	    "Event logs contain per domain and user information about processed registrations, calls and messages.\n"
+	    "See: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Event%20logs%20and%20queries/ for architecture "
+	    "and queries.",
+	    0);
+	auto ev = GenericManager::get()->getRoot()->addChild(move(uEv));
 	ev->addChildrenValues(items);
 	ev->get<ConfigString>("dir")->setDeprecated({"2020-02-19", "2.0.0", "Replaced by 'filesystem-directory'"});
 }

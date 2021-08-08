@@ -255,17 +255,17 @@ void CommandLineInterface::run() {
 	unlink(path.c_str());
 }
 
-GenericEntry* CommandLineInterface::find(GenericStruct *root, std::vector<std::string> &path) {
+GenericEntry* CommandLineInterface::find(GenericStruct* root, std::vector<std::string>& path) {
 	std::string elem = path.front();
 	path.erase(path.begin());
-	for (const auto entry : root->getChildren()) {
+	for (const auto& entry : root->getChildren()) {
 		if (!entry || (entry->getName() != elem))
 			continue;
 
 		if (path.empty()) {
-			return entry;
+			return entry.get();
 		} else {
-			auto gstruct = dynamic_cast<GenericStruct *>(entry);
+			auto gstruct = dynamic_cast<GenericStruct*>(entry.get());
 			if (gstruct)
 				return find(gstruct, path);
 			return nullptr;
@@ -303,11 +303,11 @@ std::string CommandLineInterface::printEntry(GenericEntry *entry, bool printHelp
 	return answer;
 }
 
-std::string CommandLineInterface::printSection(GenericStruct *gstruct, bool printHelpInsteadOfValue) {
+std::string CommandLineInterface::printSection(GenericStruct* gstruct, bool printHelpInsteadOfValue) {
 	std::string answer = "";
-	for (const auto child : gstruct->getChildren()) {
+	for (const auto& child : gstruct->getChildren()) {
 		if (child)
-			answer += printEntry(child, printHelpInsteadOfValue) + "\r\n";
+			answer += printEntry(child.get(), printHelpInsteadOfValue) + "\r\n";
 	}
 	return answer;
 }

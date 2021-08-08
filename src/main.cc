@@ -442,8 +442,8 @@ static void forkAndDetach(const string &pidfile, bool auto_respawn, bool startMo
 	}
 }
 
-static void depthFirstSearch(string &path, GenericEntry *config, list<string> &allCompletions) {
-	GenericStruct *gStruct = dynamic_cast<GenericStruct *>(config);
+static void depthFirstSearch(string& path, GenericEntry* config, list<string>& allCompletions) {
+	auto gStruct = dynamic_cast<GenericStruct*>(config);
 	if (gStruct) {
 		string newpath;
 		if (!path.empty())
@@ -451,12 +451,12 @@ static void depthFirstSearch(string &path, GenericEntry *config, list<string> &a
 		if (config->getName() != "flexisip")
 			newpath += config->getName();
 		for (auto it = gStruct->getChildren().cbegin(); it != gStruct->getChildren().cend(); ++it) {
-			depthFirstSearch(newpath, *it, allCompletions);
+			depthFirstSearch(newpath, it->get(), allCompletions);
 		}
 		return;
 	}
 
-	ConfigValue *cValue = dynamic_cast<ConfigValue *>(config);
+	auto cValue = dynamic_cast<ConfigValue*>(config);
 	if (cValue) {
 		string completion;
 		if (!path.empty())
@@ -520,7 +520,7 @@ static void dump_config(su_root_t *root, const std::string &dump_cfg_part, bool 
 static void list_sections(bool moduleOnly = false) {
 	const string modulePrefix{"module::"};
 	auto a = make_shared<Agent>(root);
-	for (const auto *child : GenericManager::get()->getRoot()->getChildren()) {
+	for (const auto& child : GenericManager::get()->getRoot()->getChildren()) {
 		if (!moduleOnly || child->getName().compare(0, modulePrefix.size(), modulePrefix) == 0) {
 			cout << child->getName() << endl;
 		}
