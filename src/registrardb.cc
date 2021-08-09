@@ -884,7 +884,8 @@ RegistrarDb *RegistrarDb::sUnique = nullptr;
 
 void RegistrarDb::resetDB() {
 	SLOGW << "Reseting RegistrarDb static pointer, you MUST be in a test.";
-	sUnique = nullptr;
+	delete sUnique;
+    sUnique = nullptr;
 }
 
 RegistrarDb *RegistrarDb::initialize(Agent *ag){

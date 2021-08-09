@@ -37,7 +37,7 @@ using namespace flexisip;
 
 DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agent), mRegisterWhenNeeded(false) {
 	GenericManager *mgr = GenericManager::get();
-	mDomainRegistrationArea = new GenericStruct(
+	auto uDomainRegistrationArea = make_unique<GenericStruct>(
 		"inter-domain-connections",
 		"Inter domain connections is a set of feature allowing to dynamically connect several Flexisip servers "
 		"together in order to manage SIP routing at local and global scope. Let's suppose you have two SIP network "
@@ -62,7 +62,7 @@ DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agen
 		"the domain registration.",
 		ModuleInfoBase::InterDomainConnections);
 
-	mgr->getRoot()->addChild(mDomainRegistrationArea);
+    mDomainRegistrationArea = mgr->getRoot()->addChild(move(uDomainRegistrationArea));
 
 	ConfigItemDescriptor configs[] = {
 		{Boolean, "accept-domain-registrations", "Whether Flexisip shall accept registrations for entire domains",
