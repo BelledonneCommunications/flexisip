@@ -20,12 +20,13 @@
 #
 ############################################################################
 
-#logrotate conf
+# logrotate conf
 set(logrotate_dir "${SYSCONF_INSTALL_DIR}/logrotate.d")
 install(FILES flexisip-logrotate DESTINATION "${logrotate_dir}")
 set(FLEXISIP_LOGROTATE_INSTALL_LOCATION "${logrotate_dir}/flexisip-logrotate" PARENT_SCOPE)
 
-#legacy script
+
+# legacy script
 set(bindir ${CMAKE_INSTALL_FULL_BINDIR})
 message ("-- Startup scripts configured with bindir=${bindir}")
 configure_file(redhat/flexisip.in redhat/flexisip)
@@ -37,7 +38,7 @@ if (ENABLE_PRESENCE)
 endif()
 
 
-#systemd
+# systemd
 set(systemd_services "flexisip-proxy.service" "flexisip-proxy@.service")
 if(ENABLE_PRESENCE)
 	list(APPEND systemd_services "flexisip-presence.service" "flexisip-presence@.service")
@@ -58,3 +59,7 @@ foreach(service ${systemd_services})
 endforeach()
 
 install(FILES ${generated_services} DESTINATION "${FLEXISIP_SYSTEMD_INSTALL_DIR}")
+
+
+# flexisip_cli.py
+install(PROGRAMS flexisip_cli.py TYPE "BIN")
