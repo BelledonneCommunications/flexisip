@@ -562,7 +562,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 			}
 		}
 		if (context) /*associate with transaction so that transaction can eventually cancel it if the device answers.*/
-			transaction->setProperty<weak_ptr<PushNotificationContext>>(getModuleName(), make_shared<weak_ptr<PushNotificationContext>>(context));
+			transaction->setProperty(getModuleName(), weak_ptr<PushNotificationContext>{context});
 	}
 }
 
@@ -626,18 +626,16 @@ void PushNotification::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 }
 
 void PushNotification::onResponse(std::shared_ptr<ResponseSipEvent> &ev) {
-	shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
-	int code = ev->getMsgSip()->getSip()->sip_status->st_status;
-	if (transaction != NULL && code >= 180 && code != 503) {
+	auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+	const auto& code = ev->getMsgSip()->getSip()->sip_status->st_status;
+	if (transaction && code >= 180 && code != 503) {
 		/*any response >=180 except 503 (which is sofia's internal response for broken transports) should cancel the
 		 * push*/
-		shared_ptr<weak_ptr<PushNotificationContext>> value = transaction->getProperty<weak_ptr<PushNotificationContext>>(getModuleName());
-		if (value && !value->expired()) {
-			shared_ptr<PushNotificationContext> ctx = value->lock();
-			if (ctx) {
-				ctx->cancel();
-				removePushNotification(ctx.get());
-			}
+		auto pnr = transaction->getProperty<PushNotificationContext>(getModuleName());
+		if (pnr) {
+			SLOGD << "Transaction[" << transaction << "] has been answerd. Canceling the associated PNR[" << pnr << "]";
+			pnr->cancel();
+			removePushNotification(pnr.get());
 		}
 	}
 }
