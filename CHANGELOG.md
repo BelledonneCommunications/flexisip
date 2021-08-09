@@ -19,6 +19,24 @@ Group changes to describe their impact on the project, as follows:
 - `module::Authentication/realm` parameter.
 
 
+## [2.0.8] - 2021-08-09
+### [Added]
+- **Proxy** Adding 'fallback-route-filter' parameter in 'module::Router' section.
+  This parameter allows to prevent some SIP requests to be forwarded to the
+  fallback route when all the forked transactions have failed. The parameter expects
+  a boolean expression as the filter parameter at the beggining of each module::\*
+  sections. The fallback route is used when the boolean expression is evaluated to _true_.
+
+### [Fixed]
+- **Proxy** Prevent SIP client to registers two distinct contacts (distinct UID) which would have
+  the same push notification parameters. That often happens when Linphone is uninstalled and
+  installed again on an iOS device, causing the instance UID to be generated again but keeping
+  the same push notification tokens. That causes the device to receives several push notifications
+  for each SIP request because Flexisip assumes that each contact URI matches a distinct device.
+  To avoid this scenario, Flexisip automatically removes the old contact URI to ensure the unicity
+  of the push notification parameters.
+
+
 ## [2.0.7] - 2021-07-09
 ### [Fixed]
 - **Proxy** Fix a bug that caused the fallback route to be used even if the forked request
