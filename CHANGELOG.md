@@ -19,6 +19,13 @@ Group changes to describe their impact on the project, as follows:
 - `module::Authentication/realm` parameter.
 
 
+## [2.0.9] - 2021-08-10
+### [Fixed]
+- **Proxy** Reverts the previous fix which prevents that two contacts with the same push parameters
+  be registered for the same user. Side effects which caused some users to not receive
+  messages or calls have been observed in production.
+
+
 ## [2.0.8] - 2021-08-09
 ### [Added]
 - **Proxy** Adding 'fallback-route-filter' parameter in 'module::Router' section.

@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-#tester/tester.cc
+#
 ############################################################################
 
 find_package(Threads REQUIRED)
@@ -31,7 +31,6 @@ add_executable(flexisip_tester
 	extended-contact-tester.cc
 	fork-context-tester.cc
 	push-notification-tester.cc
-    register-tester.cc
 	router-tester.cc
 	tester.cc tester.hh
 	utils/pns-mock.cc utils/pns-mock.hh
