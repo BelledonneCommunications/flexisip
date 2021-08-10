@@ -30,7 +30,8 @@ namespace flexisip {
  */
 class PushParam {
 public:
-	PushParam(const std::string& prId, const std::string& param);
+	PushParam(const std::string& prId, const std::string& param) : mPrId{prId}, mParam{param} {};
+	~PushParam() = default;
 
 	const std::string& getParam() const {
 		return mParam;
@@ -38,10 +39,6 @@ public:
 
 	const std::string& getPrId() const {
 		return mPrId;
-	}
-
-	bool isInvalid() const {
-		return mPrId.empty() || mParam.empty();
 	}
 
 	bool operator==(const PushParam& pp) const;

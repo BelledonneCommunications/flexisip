@@ -15,7 +15,6 @@
  You should have received a copy of the GNU Affero General Public License
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <stdexcept>
 
 #include "flexisip/logmanager.hh"
 #include "utils/string-utils.hh"
@@ -25,12 +24,6 @@
 using namespace std;
 
 namespace flexisip {
-
-PushParam::PushParam(const string& prId, const string& param) : mPrId{prId}, mParam{param} {
-	if (isInvalid()) {
-		throw invalid_argument("Invalid PushParam - PrId[" + prId + "] and Param[" + param + "] can't be empty.");
-	}
-}
 
 bool PushParam::operator==(const PushParam& pp) const {
 	return pp.mPrId == mPrId && pp.mParam == mParam;
@@ -43,36 +36,18 @@ PushParamList::PushParamList(const string& provider, const string& customPrId, c
 		return;
 	}
 	auto splitPrId = StringUtils::split(customPrId, "&");
-	if (splitPrId.size() != 2 ||
-	    any_of(splitPrId.cbegin(), splitPrId.cend(), [](const auto& prId) { return prId.empty(); })) {
+	if (splitPrId.size() != 2) {
 		SLOGD << "Bad pn-prid format : " << customPrId;
 		return;
 	}
-
-	const auto lastDotIndex = customParam.find_last_of('.');
-	if (lastDotIndex == string::npos) {
-		SLOGD << "Bad pn-param format (no dot) : " << customParam;
-		return;
-	}
-	const auto paramSuffix = customParam.substr(lastDotIndex + 1);
-	if ("remote&voip" == paramSuffix || "voip&remote" == paramSuffix) {
-		const auto remoteParam = customParam.substr(0, lastDotIndex);
-		const auto pushKitParam = remoteParam + ".voip";
-		try {
-			if (splitPrId.at(0).find(":remote") != string::npos) {
-				mPushParams.emplace_back(StringUtils::split(splitPrId.at(0), ":").at(0), remoteParam);
-				mPushParams.emplace_back(StringUtils::split(splitPrId.at(1), ":").at(0), pushKitParam);
-			} else {
-				mPushParams.emplace_back(StringUtils::split(splitPrId.at(1), ":").at(0), remoteParam);
-				mPushParams.emplace_back(StringUtils::split(splitPrId.at(0), ":").at(0), pushKitParam);
-			}
-		} catch (const invalid_argument& invalidArgument) {
-			SLOGD << invalidArgument.what() << " pn-prid[" << customPrId << "] pn-param[" << customParam << "]";
-			mPushParams.clear();
-		}
+	const auto remoteParam = StringUtils::split(customParam, ".remote&voip").at(0);
+	const auto pushKitParam = StringUtils::split(customParam, ".remote&voip").at(0).append(".voip");
+	if (splitPrId.at(0).find(":remote") != string::npos) {
+		mPushParams.emplace_back(StringUtils::split(splitPrId.at(0), ":").at(0), remoteParam);
+		mPushParams.emplace_back(StringUtils::split(splitPrId.at(1), ":").at(0), pushKitParam);
 	} else {
-		SLOGD << "Bad pn-param format : " << customParam;
-		return;
+		mPushParams.emplace_back(StringUtils::split(splitPrId.at(1), ":").at(0), remoteParam);
+		mPushParams.emplace_back(StringUtils::split(splitPrId.at(0), ":").at(0), pushKitParam);
 	}
 }
 
