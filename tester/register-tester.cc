@@ -183,14 +183,6 @@ static void duplicatePushTokenRegisterTest() {
 	                                     "param=aProjectID.aBundleID.remote&voip");
 	insertContact("sip:apns9@127.0.0.1", "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
 	                                     "param=aProjectID.aBundleID.remote&voip");
-	insertContact("sip:apns10@127.0.0.1", "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
-	                                      "param=aProjectID.aBundleID.remote&voip");
-	insertContact("sip:apns11@127.0.0.1",
-	              "pn-provider=apns;pn-prid=:remote&:voip;pn-param=aProjectID.aBundleID.remote&voip");
-	insertContact("sip:apns12@127.0.0.1", "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
-	                                      "param=aProjectID.aBundleID.remote&voip");
-	insertContact("sip:apns13@127.0.0.1", "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
-	                                      "param=aProjectID.aBundleID.remote&voip");
 
 	// Starting Flexisip
 	agent->start("", "");
@@ -217,7 +209,7 @@ static void duplicatePushTokenRegisterTest() {
 	// APNS (with 2 tokens)
 	sendRegisterRequest("sip:apns4@127.0.0.1",
 	                    "pn-provider=apns;pn-prid=RemoteToken:remote&aPushKitToken:"
-	                    "voip;pn-param=aProjectID.aBundleID.voip&remote",
+	                    "voip;pn-param=aProjectID.aBundleID.remote&voip",
 	                    "apns4Reg");
 	sendRegisterRequest("sip:apns5@127.0.0.1",
 	                    "pn-provider=apns;pn-prid=aOtherUniqueRemoteToken:remote&aPushKitToken:"
@@ -239,20 +231,6 @@ static void duplicatePushTokenRegisterTest() {
 	                    "pn-provider=apns;pn-prid=RemoteToken:remote-aPushKitToken:"
 	                    "voip;pn-param=aProjectID.aBundleID.remote&voip",
 	                    "apns9Reg");
-	sendRegisterRequest("sip:apns10@127.0.0.1",
-	                    "pn-provider=apns;pn-prid=&blablabla:remote;pn-param=aProjectID.aBundleID.remote&voip",
-	                    "apns10Reg");
-	sendRegisterRequest("sip:apns11@127.0.0.1",
-	                    "pn-provider=apns;pn-prid=:remote&:voip;pn-param=aProjectID.aBundleID.remote&voip",
-	                    "apns11Reg");
-	sendRegisterRequest("sip:apns12@127.0.0.1",
-	                    "pn-provider=apns;pn-prid=RemoteToken:remote&aPushKitToken:"
-	                    "voip;pn-param=aProjectID.aBundleID_remote&voip",
-	                    "apns12Reg");
-	sendRegisterRequest("sip:apns13@127.0.0.1",
-	                    "pn-provider=apns;pn-prid=RemoteToken:remote&aPushKitToken:"
-	                    "voip;pn-param=aProjectID_aBundleID_remote&voip",
-	                    "apns13Reg");
 
 	// FCM
 	// Same prid and param --> replaced
@@ -273,7 +251,7 @@ static void duplicatePushTokenRegisterTest() {
 	RegistrarDb::get()->fetch(SipUri{"sip:apns3@127.0.0.1"}, make_shared<RegisterBindListener>(2), true);
 
 	// APNS (with 2 tokens)
-	// All same (only param suffix is reversed) --> replaced
+	// All same --> replaced
 	RegistrarDb::get()->fetch(SipUri{"sip:apns4@127.0.0.1"}, make_shared<RegisterBindListener>(1, "apns4Reg"), true);
 	// Same PushKitToken, different RemoteToken, same param --> replaced
 	RegistrarDb::get()->fetch(SipUri{"sip:apns5@127.0.0.1"}, make_shared<RegisterBindListener>(1, "apns5Reg"), true);
@@ -285,14 +263,6 @@ static void duplicatePushTokenRegisterTest() {
 	RegistrarDb::get()->fetch(SipUri{"sip:apns8@127.0.0.1"}, make_shared<RegisterBindListener>(2), true);
 	// Invalid prid ('&' not present), can't really compare --> both kept
 	RegistrarDb::get()->fetch(SipUri{"sip:apns9@127.0.0.1"}, make_shared<RegisterBindListener>(2), true);
-	// Invalid prid (only remote present), can't really compare --> both kept
-	RegistrarDb::get()->fetch(SipUri{"sip:apns10@127.0.0.1"}, make_shared<RegisterBindListener>(2), true);
-	// Invalid prid (only suffix for remote and voip), can't really compare --> both kept
-	RegistrarDb::get()->fetch(SipUri{"sip:apns11@127.0.0.1"}, make_shared<RegisterBindListener>(2), true);
-	// Invalid pn-param ('_' before instead of '.'), can't really compare --> both kept
-	RegistrarDb::get()->fetch(SipUri{"sip:apns12@127.0.0.1"}, make_shared<RegisterBindListener>(2), true);
-	// Invalid pn-param (no '.'), can't really compare --> both kept
-	RegistrarDb::get()->fetch(SipUri{"sip:apns13@127.0.0.1"}, make_shared<RegisterBindListener>(2), true);
 }
 
 static test_t tests[] = {
