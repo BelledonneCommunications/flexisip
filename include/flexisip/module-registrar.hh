@@ -166,7 +166,6 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 	static ModuleInfo<ModuleRegistrar> sInfo;
 	std::list<std::shared_ptr<ResponseContext>> mRespContexes;
 	bool mUseGlobalDomain;
-	bool mRelayRegsToDomains;
 	int mExpireRandomizer;
 	std::list<std::string> mParamsToRemove;
 };
