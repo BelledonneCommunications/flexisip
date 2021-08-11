@@ -559,6 +559,10 @@ void ForkContext::onPushError(const std::shared_ptr<OutgoingTransaction> &tr, co
 }
 
 shared_ptr<ResponseSipEvent> ForkContext::forwardCustomResponse(int status, const char* phrase) {
+	if (mIncoming == nullptr) {
+		LOGE("ForkContext[%p]: cannot forward SIP response [%d %s]: no incoming transaction.", this, status, phrase);
+		return nullptr;
+	}
 	auto msgsip = mIncoming->createResponse(status, phrase);
 	if (msgsip) {
 		auto ev =
