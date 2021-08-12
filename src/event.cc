@@ -100,7 +100,7 @@ SipEvent::SipEvent(const shared_ptr<IncomingAgent> &inAgent, const shared_ptr<Ms
 	mAgent = inAgent->getAgent();
 	auto it = dynamic_pointer_cast<IncomingTransaction>(inAgent);
 	if (it) {
-		mOutgoingAgent = it->mOutgoing.lock();
+		mOutgoingAgent = it->getOutgoingTransaction();
 	} else {
 		mOutgoingAgent = inAgent->getAgent()->shared_from_this();
 	}
@@ -116,7 +116,7 @@ SipEvent::SipEvent(const shared_ptr<OutgoingAgent> &outAgent, const shared_ptr<M
 		// retrieve the incoming transaction associated with the outgoing one, if any.
 		// A response SipEvent is generated either from a stateless response or from a response from an outgoing
 		// transaction.
-		mIncomingAgent = ot->mIncoming.lock();
+		mIncomingAgent = ot->getIncomingTransaction();
 	} else
 		mIncomingAgent = mAgent->shared_from_this();
 }
