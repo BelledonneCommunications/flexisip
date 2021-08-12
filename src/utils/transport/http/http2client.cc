@@ -90,9 +90,15 @@ void Http2Client::discardAllRequests() {
 
 void Http2Client::send(const shared_ptr<HttpRequest>& request, const OnResponseCb& onResponseCb,
                        const OnErrorCb& onErrorCb) {
+
+	auto logPrefix = mLogPrefix;
+
+	SLOGD << logPrefix << ": sending request[" << request << "]:\n" << request->toString();
+
 	auto context = make_shared<HttpMessageContext>(request, onResponseCb, onErrorCb, mRoot, mRequestTimeout);
 
-	if (mState != State::Connected && mState != State::Connecting) {
+	if (mState == State::Disconnected) {
+		SLOGD << logPrefix << ": not connected. Trying to connect...";
 		this->tlsConnect();
 	}
 	if (mState != State::Connected) {
@@ -105,13 +111,12 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request, const OnResponseC
 	    nghttp2_submit_request(mHttpSession.get(), nullptr, request->getHeaders().makeCHeaderList().data(),
 	                           request->getHeaders().getHeadersList().size(), dataProv.getCStruct(), nullptr);
 	if (streamId < 0) {
-		SLOGE << mLogPrefix << ": push request submit failed. reason=[" << nghttp2_strerror(streamId) << "]";
+		SLOGE << logPrefix << ": push request submit failed. reason=[" << nghttp2_strerror(streamId) << "]";
 		onErrorCb(request);
 		return;
 	}
 
-	auto logPrefix = string{mLogPrefix} + "[" + to_string(streamId) + "]";
-	SLOGD << logPrefix << ": sending request " << request->toString() << endl;
+	logPrefix = mLogPrefix + "[" + to_string(streamId) + "]";
 
 	// the emplace MUST be called before nghttp2_session_send for the timeout mechanic to work properly.
 	// In fact if you watch the Http2Client::resetTimeoutTimer the context need to be in map for the timer to be
@@ -124,6 +129,8 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request, const OnResponseC
 		onErrorCb(request);
 		return;
 	}
+
+	SLOGD << logPrefix << ": request[" << request << "] sent";
 }
 
 void Http2Client::tlsConnect() {
