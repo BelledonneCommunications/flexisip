@@ -40,14 +40,12 @@ public:
 		fix any possible Contact headers with the same wrong ip address and ports */
 		fixContactFromVia(ms->getHome(), sip, sip->sip_via);
 
-		// processing of requests that may establish a dialog.
-		if (rq->rq_method == sip_method_invite || rq->rq_method == sip_method_subscribe) {
-			if (sip->sip_to->a_tag == NULL) {
-				// fix potential record-route from a natted proxy added before us
-				if (mFixRecordRoutes)
-					fixRecordRouteInRequest(ms);
-				addRecordRouteIncoming(getAgent(), ev);
-			}
+		// processing of requests that may establish a dialog or already part of a dialog.
+		if (rq->rq_method == sip_method_invite || rq->rq_method == sip_method_subscribe || rq->rq_method == sip_method_ack) {
+			// fix potential record-route from a natted proxy added before us
+			if (mFixRecordRoutes)
+				fixRecordRouteInRequest(ms);
+			addRecordRouteIncoming(getAgent(), ev);
 		}
 		// fix potential Path header inserted before us by a flexisip natted proxy
 		if (rq->rq_method == sip_method_register && sip->sip_path &&
