@@ -414,11 +414,15 @@ class RegistrarDb {
 	}
 	/* Synthesize the pub-gruu SIP URI corresponding to a REGISTER message. +sip.instance is expected in the Contact header.*/
 	url_t *synthesizePubGruu(su_home_t *home, const MsgSip &sipMsg);
+	
+	void getLocalRegisteredAors(std::list<std::string> & aors) const{
+		mLocalRegExpire->getRegisteredAors(aors);
+	}
 
   protected:
 	class LocalRegExpire {
 		std::map<std::string, time_t> mRegMap;
-		std::mutex mMutex;
+		mutable std::mutex mMutex;
 		std::list<LocalRegExpireListener *> mLocalRegListenerList;
 		Agent *mAgent;
 
@@ -435,6 +439,7 @@ class RegistrarDb {
 			std::lock_guard<std::mutex> lock(mMutex);
 			mRegMap.clear();
 		}
+		void getRegisteredAors(std::list<std::string> &aors)const;
 
 		void subscribe(LocalRegExpireListener *listener);
 		void unsubscribe(LocalRegExpireListener *listener);
@@ -455,11 +460,11 @@ class RegistrarDb {
 
 	RegistrarDb(Agent *ag);
 	virtual ~RegistrarDb();
+	static RegistrarDb *sUnique;
 	std::multimap<std::string, std::shared_ptr<ContactRegisteredListener>> mContactListenersMap;
 	std::list<std::shared_ptr<RegistrarDbStateListener>> mStateListeners;
 	LocalRegExpire *mLocalRegExpire;
 	std::string mMessageExpiresName;
-	static RegistrarDb *sUnique;
 	Agent *mAgent;
 	bool mWritable = false;
 	bool mUseGlobalDomain;
