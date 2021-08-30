@@ -317,34 +317,44 @@ class ConfigValue;
 class StatCounter64;
 struct StatPair;
 class GenericStruct : public GenericEntry {
-  public:
-	GenericStruct(const std::string &name, const std::string &help, oid oid_index);
-	GenericEntry *addChild(GenericEntry *c);
-	StatCounter64 *createStat(const std::string &name, const std::string &help);
-	std::pair<StatCounter64 *, StatCounter64 *> createStatPair(const std::string &name, const std::string &help);
-	std::unique_ptr<StatPair> createStats(const std::string &name, const std::string &help);
+public:
+	GenericStruct(const std::string& name, const std::string& help, oid oid_index);
 
-	void addChildrenValues(ConfigItemDescriptor *items);
-	void addChildrenValues(ConfigItemDescriptor *items, bool hashed);
-	void deprecateChild(const char* name, DeprecationInfo &&info);
-	// void addChildrenValues(StatItemDescriptor *items);
-	const std::list<GenericEntry *> &getChildren() const;
-	template <typename _retType> _retType *get(const char *name) const;
-	template <typename _retType> _retType *getDeep(const char *name, bool strict) const;
-	~GenericStruct();
-
-	template <typename Str>
-	GenericEntry *find(Str &&name) const {
-		auto it = find_if(mEntries.cbegin(), mEntries.cend(), [&name](const GenericEntry *e){return e->getName() == name;});
-		return it != mEntries.cend() ? *it : nullptr;
+	template <typename T> T* addChild(std::unique_ptr<T>&& newEntry) {
+        auto newEntryPointer = newEntry.get();
+        newEntryPointer->setParent(this);
+        for (auto& entry : mEntries) {
+            if (entry->getName() == newEntry->getName()) {
+                entry = move(newEntry);
+                return newEntryPointer;
+            }
+        }
+		mEntries.push_back(move(newEntry));
+		return newEntryPointer;
 	}
 
-	GenericEntry *findApproximate(const char *name) const;
-	void mibFragment(std::ostream &ost, std::string spacing) const override;
-	void setParent(GenericEntry *parent) override;
+	StatCounter64* createStat(const std::string& name, const std::string& help);
+	std::pair<StatCounter64*, StatCounter64*> createStatPair(const std::string& name, const std::string& help);
+	std::unique_ptr<StatPair> createStats(const std::string& name, const std::string& help);
 
-  private:
-	std::list<GenericEntry *> mEntries;
+	void addChildrenValues(ConfigItemDescriptor* items);
+	void addChildrenValues(ConfigItemDescriptor* items, bool hashed);
+	void deprecateChild(const char* name, DeprecationInfo&& info);
+	const std::list<std::unique_ptr<GenericEntry>>& getChildren() const;
+	template <typename _retType> _retType* get(const char* name) const;
+	template <typename _retType> _retType* getDeep(const char* name, bool strict) const;
+
+	template <typename Str> GenericEntry* find(Str&& name) const {
+		auto it = find_if(mEntries.cbegin(), mEntries.cend(), [&name](const auto& e) { return e->getName() == name; });
+		return it != mEntries.cend() ? it->get() : nullptr;
+	}
+
+	GenericEntry* findApproximate(const char* name) const;
+	void mibFragment(std::ostream& ost, std::string spacing) const override;
+	void setParent(GenericEntry* parent) override;
+
+private:
+	std::list<std::unique_ptr<GenericEntry>> mEntries;
 };
 
 class RootConfigStruct : public GenericStruct {
