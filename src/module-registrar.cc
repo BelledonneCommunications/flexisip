@@ -461,7 +461,14 @@ void ModuleRegistrar::onUnload() {
 }
 
 void ModuleRegistrar::idle() {
+	chrono::steady_clock::time_point start, stop;
+	start = chrono::steady_clock::now();
 	updateLocalRegExpire();
+	stop = chrono::steady_clock::now();
+	unsigned long durationMs = (unsigned long) std::chrono::duration_cast<std::chrono::milliseconds>((stop) - (start)).count();
+	if (durationMs >= 1000){
+		LOGW("ModuleRegistrar::idle() (registrar expired aor cleanup) took %lu ms", durationMs); 
+	}
 }
 
 void ModuleRegistrar::updateLocalRegExpire() {
