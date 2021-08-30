@@ -700,6 +700,7 @@ RegistrarDb::~RegistrarDb() {
 	delete mLocalRegExpire;
 }
 
+
 void RegistrarDb::addStateListener (const std::shared_ptr<RegistrarDbStateListener> &listener) {
 	auto it = find(mStateListeners.cbegin(), mStateListeners.cend(), listener);
 	if (it == mStateListeners.cend())
@@ -819,6 +820,13 @@ void RegistrarDb::LocalRegExpire::removeExpiredBefore(time_t before) {
 		} else {
 			++it;
 		}
+	}
+}
+
+void RegistrarDb::LocalRegExpire::getRegisteredAors(std::list<std::string> & aors)const{
+	unique_lock<mutex> lock(mMutex);
+	for(auto & pair : mRegMap){
+		aors.push_back(pair.first);
 	}
 }
 

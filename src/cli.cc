@@ -32,6 +32,8 @@
 #include <flexisip/logmanager.hh>
 #include <flexisip/registrardb.hh>
 
+#include "cJSON.h"
+
 using namespace flexisip;
 using namespace std;
 
@@ -71,16 +73,16 @@ void CommandLineInterface::answer(unsigned int socket, const std::string &messag
 
 void CommandLineInterface::parseAndAnswer(unsigned int socket, const std::string &command, const std::vector<std::string> &args) {
 	if ((command == "CONFIG_GET") || (command == "GET"))
-		handle_config_get_command(socket, args);
+		handleConfigGet(socket, args);
 	else if ((command == "CONFIG_LIST") || (command == "LIST"))
-		handle_config_list_command(socket, args);
+		handleConfigList(socket, args);
 	else if ((command == "CONFIG_SET") || (command == "SET"))
-		handle_config_set_command(socket, args);
+		handleConfigSet(socket, args);
 	else
 		answer(socket, "Error: unknown command " + command);
 }
 
-GenericEntry *CommandLineInterface::get_generic_entry(const std::string &arg) const {
+GenericEntry *CommandLineInterface::getGenericEntry(const std::string &arg) const {
 	std::vector<std::string> arg_split = split(arg, '/');
 	GenericManager *manager = GenericManager::get();
 	GenericStruct *root = manager->getRoot();
@@ -90,13 +92,13 @@ GenericEntry *CommandLineInterface::get_generic_entry(const std::string &arg) co
 	return find(root, arg_split);
 }
 
-void CommandLineInterface::handle_config_get_command(unsigned int socket, const std::vector<std::string> &args) {
+void CommandLineInterface::handleConfigGet(unsigned int socket, const std::vector<std::string> &args) {
 	if (args.size() < 1) {
 		answer(socket, "Error: at least 1 argument is expected for the CONFIG_GET command");
 		return;
 	}
 
-	GenericEntry *entry = get_generic_entry(args.front());
+	GenericEntry *entry = getGenericEntry(args.front());
 	if (!entry) {
 		answer(socket, "Error: " + args.front() + " not found");
 		return;
@@ -109,13 +111,13 @@ void CommandLineInterface::handle_config_get_command(unsigned int socket, const 
 		answer(socket, printEntry(entry, false));
 }
 
-void CommandLineInterface::handle_config_list_command(unsigned int socket, const std::vector<std::string> &args) {
+void CommandLineInterface::handleConfigList(unsigned int socket, const std::vector<std::string> &args) {
 	if (args.size() < 1) {
 		answer(socket, "Error: at least 1 argument is expected for the CONFIG_LIST command");
 		return;
 	}
 
-	GenericEntry *entry = get_generic_entry(args.front());
+	GenericEntry *entry = getGenericEntry(args.front());
 	if (!entry) {
 		answer(socket, "Error: " + args.front() + " not found");
 		return;
@@ -136,14 +138,14 @@ string CommandLineInterface::agregate(const std::vector<std::string> &args, size
 	return ostr.str();
 }
 
-void CommandLineInterface::handle_config_set_command(unsigned int socket, const std::vector<std::string> &args) {
+void CommandLineInterface::handleConfigSet(unsigned int socket, const std::vector<std::string> &args) {
 	if (args.size() < 2) {
 		answer(socket, "Error: at least 2 arguments are expected for the CONFIG_SET command");
 		return;
 	}
 
 	std::string arg = args.front();
-	GenericEntry *entry = get_generic_entry(arg);
+	GenericEntry *entry = getGenericEntry(arg);
 	if (!entry) {
 		answer(socket, "Error: " + args.front() + " not found");
 		return;
@@ -321,7 +323,7 @@ void *CommandLineInterface::threadfunc(void *arg) {
 
 ProxyCommandLineInterface::ProxyCommandLineInterface(const std::shared_ptr<Agent> &agent) : CommandLineInterface("proxy"), mAgent(agent) {}
 
-void ProxyCommandLineInterface::handle_registrar_get_command(unsigned int socket, const std::vector<std::string> &args) {
+void ProxyCommandLineInterface::handleRegistrarGet(unsigned int socket, const std::vector<std::string> &args) {
 	if (args.size() < 1) {
 		answer(socket, "Error: a SIP address argument is expected for the REGISTRAR_GET command");
 		return;
@@ -362,7 +364,7 @@ void ProxyCommandLineInterface::handle_registrar_get_command(unsigned int socket
 	}
 }
 
-void ProxyCommandLineInterface::handle_registrar_delete_command(unsigned int socket, const std::vector<std::string> &args) {
+void ProxyCommandLineInterface::handleRegistrarDelete(unsigned int socket, const std::vector<std::string> &args) {
 	if (args.size() < 2) {
 		answer(socket, "Error: an URI arguments is expected for the REGISTRAR_DELETE command");
 		return;
@@ -422,7 +424,7 @@ void ProxyCommandLineInterface::handle_registrar_delete_command(unsigned int soc
 	RegistrarDb::get()->bind(MsgSip{msg}, parameter, listener);
 }
 
-void ProxyCommandLineInterface::handle_registrar_clear_command(unsigned int socket, const std::vector<std::string> &args) {
+void ProxyCommandLineInterface::handleRegistrarClear(unsigned int socket, const std::vector<std::string> &args) {
 	if (args.size() < 1) {
 		answer(socket, "Error: a SIP address argument is expected for the REGISTRAR_CLEAR command");
 		return;
@@ -459,13 +461,35 @@ void ProxyCommandLineInterface::handle_registrar_clear_command(unsigned int sock
 	RegistrarDb::get()->clear(MsgSip{msg}, listener);
 }
 
+void ProxyCommandLineInterface::handleRegistrarDump(unsigned int socket, const std::vector<std::string> &args){
+	list<string> aorList;
+	
+	RegistrarDb::get()->getLocalRegisteredAors(aorList); 
+	
+	cJSON *root = cJSON_CreateObject();
+	cJSON *contacts = cJSON_CreateArray();
+	
+	cJSON_AddItemToObject(root, "aors", contacts);
+	for(auto & aor : aorList) {
+		cJSON *pitem = cJSON_CreateString(aor.c_str());
+		cJSON_AddItemToArray(contacts, pitem);
+	}
+	char *jsonOutput = cJSON_Print(root);
+	answer(socket, jsonOutput);
+	free(jsonOutput);
+	cJSON_Delete(root);
+}
+
 void ProxyCommandLineInterface::parseAndAnswer(unsigned int socket, const std::string &command, const std::vector<std::string> &args) {
-	if (command == "REGISTRAR_CLEAR")
-		handle_registrar_clear_command(socket, args);
-	else if (command == "REGISTRAR_DELETE")
-		handle_registrar_delete_command(socket, args);
-	else if (command == "REGISTRAR_GET")
-		handle_registrar_get_command(socket, args);
-	else
+	if (command == "REGISTRAR_CLEAR"){
+		handleRegistrarClear(socket, args);
+	}else if (command == "REGISTRAR_DELETE"){
+		handleRegistrarDelete(socket, args);
+	}else if (command == "REGISTRAR_GET"){
+		handleRegistrarGet(socket, args);
+	}else if (command == "REGISTRAR_DUMP"){
+		handleRegistrarDump(socket, args);
+	}else{
 		CommandLineInterface::parseAndAnswer(socket, command, args);
+	}
 }
