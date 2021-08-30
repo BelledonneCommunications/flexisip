@@ -24,9 +24,10 @@ def parse_args():
 		'CONFIG_GET': {'help': 'Get the value of an internal variable of Flexisip.'},
 		'CONFIG_SET': {'help': 'Set the value of an internal variable of Flexisip.'},
 		'CONFIG_LIST': {'help': 'List all the available parameters of a section.'},
-		'REGISTRAR_GET': {'help': 'Return a JSON serialized object from the registrar database.'},
-		'REGISTRAR_DELETE': {'help': 'Remove a user client from the registrar database.'},
-		'REGISTRAR_CLEAR': {'help': 'Remove a user from the registrar database.'}
+		'REGISTRAR_GET': {'help': 'List all bindings under an address of record from registrar database.'},
+		'REGISTRAR_DELETE': {'help': 'Remove a specific binding of an address of record from the registrar database.'},
+		'REGISTRAR_CLEAR': {'help': 'Remove an address-of-record from the registrar database.'},
+		'REGISTRAR_DUMP': {'help': 'Dump list of registered address-of-records for this proxy instance only (not all the cluster !)'}
 	}
 
 	kargs = {
@@ -50,10 +51,10 @@ def parse_args():
 	commands['CONFIG_LIST']['parser'].add_argument('section_name', nargs='?', default='all',
 		help='The name of the section. The list of all available sections is returned if no section name is given.'
 	)
-	commands['REGISTRAR_CLEAR']['parser'].add_argument('uri', help='SIP URI of the user.')
-	commands['REGISTRAR_GET']['parser'].add_argument('uri', help='SIP URI of the user.')
-	commands['REGISTRAR_DELETE']['parser'].add_argument('uri', help='SIP URI of the user.')
-	commands['REGISTRAR_DELETE']['parser'].add_argument('uuid', help='Client identifier.')
+	commands['REGISTRAR_CLEAR']['parser'].add_argument('uri', help='AOR sip uri.')
+	commands['REGISTRAR_GET']['parser'].add_argument('uri', help='AOR sip uri.')
+	commands['REGISTRAR_DELETE']['parser'].add_argument('uri', help='AOR sip uri.')
+	commands['REGISTRAR_DELETE']['parser'].add_argument('uuid', help='+sip.instance value identifying the binding.')
 
 	return parser.parse_args()
 
@@ -78,7 +79,7 @@ def getpid(serverType):
 
 def formatMessage(args):
 	if args.command is None:
-		print('error: no command sepecified', file=sys.stderr)
+		print('error: no command specified', file=sys.stderr)
 		sys.exit(2)
 	messageArgs = [args.command]
 	if args.command == 'CONFIG_GET':
@@ -105,7 +106,7 @@ def sendMessage(remote_socket, message):
 	try:
 		s.connect(remote_socket)
 		s.send(message.encode())
-		print(s.recv(8192).decode())
+		print(s.recv(65535).decode())
 	except socket.error:
 		print('error: could not connect to the socket', file=sys.stderr)
 	s.close()

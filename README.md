@@ -37,7 +37,8 @@ Flexisip is dual licensed, and can be licensed and distributed:
 
 ## Required build tools
 
-- C and C++ compiler. GCC and Clang are supported as long as they are recent enough for building C++14 code.
+- C and C++ compiler. GCC and Clang are supported *as long as they are recent enough for building C++14 code*.
+  On Redhat/CentOS 7, we recommend installing gcc-7 from https://www.softwarecollections.org/en/scls/rhscl/devtoolset-7/ . The default gcc-4.8 is not sufficient.
 - CMake >= 3.13
 - make or Ninja
 - Python >= 3

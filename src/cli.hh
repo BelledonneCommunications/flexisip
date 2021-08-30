@@ -40,10 +40,10 @@ protected:
 	virtual void parseAndAnswer(unsigned int socket, const std::string &command, const std::vector<std::string> &args);
 
 private:
-	GenericEntry *get_generic_entry(const std::string &arg) const;
-	void handle_config_get_command(unsigned int socket, const std::vector<std::string> &args);
-	void handle_config_list_command(unsigned int socket, const std::vector<std::string> &args);
-	void handle_config_set_command(unsigned int socket, const std::vector<std::string> &args);
+	GenericEntry *getGenericEntry(const std::string &arg) const;
+	void handleConfigGet(unsigned int socket, const std::vector<std::string> &args);
+	void handleConfigList(unsigned int socket, const std::vector<std::string> &args);
+	void handleConfigSet(unsigned int socket, const std::vector<std::string> &args);
 	void run();
 
 	static GenericEntry* find(GenericStruct *root, std::vector<std::string> &path);
@@ -64,9 +64,10 @@ public:
 	ProxyCommandLineInterface(const std::shared_ptr<Agent> &agent);
 
 private:
-	void handle_registrar_clear_command(unsigned int socket, const std::vector<std::string> &args);
-	void handle_registrar_delete_command(unsigned int socket, const std::vector<std::string> &args);
-	void handle_registrar_get_command(unsigned int socket, const std::vector<std::string> &args);
+	void handleRegistrarClear(unsigned int socket, const std::vector<std::string> &args);
+	void handleRegistrarDelete(unsigned int socket, const std::vector<std::string> &args);
+	void handleRegistrarGet(unsigned int socket, const std::vector<std::string> &args);
+	void handleRegistrarDump(unsigned int socket, const std::vector<std::string> &args);
 	void parseAndAnswer(unsigned int socket, const std::string &command, const std::vector<std::string> &args) override;
 
 	std::shared_ptr<Agent> mAgent;
