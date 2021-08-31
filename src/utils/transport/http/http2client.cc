@@ -253,13 +253,13 @@ ssize_t Http2Client::doRecv(nghttp2_session& session, uint8_t* data, size_t leng
  * Synchronously called by nghttp2_session_send
  */
 void Http2Client::onFrameSent(nghttp2_session& session, const nghttp2_frame& frame) noexcept {
-	// SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: frame sent (" << frame.hd.length << "B):\n" << frame;
+	SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: frame sent (" << frame.hd.length << "B):\n" << frame;
 	resetTimeoutTimer(frame.hd.stream_id);
 	resetIdleTimer();
 }
 
 void Http2Client::onFrameRecv(nghttp2_session& session, const nghttp2_frame& frame) noexcept {
-	// SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: frame received (" << frame.hd.length << "B):\n" << frame;
+	SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: frame received (" << frame.hd.length << "B):\n" << frame;
 	resetTimeoutTimer(frame.hd.stream_id);
 	resetIdleTimer();
 
