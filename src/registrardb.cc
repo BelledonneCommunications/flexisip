@@ -285,9 +285,13 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 			if (listener) listener->onContactUpdated(*it);
 			it = mContacts.erase(it);
 		} else if ((*it)->mPushParamList == ec->mPushParamList) {
-			SLOGD << "Cleaning contact with push param in common : new[" << (*it)->mPushParamList << "], actual["
-			      << ec->mPushParamList << "]";
-			it = mContacts.erase(it);
+			if((*it)->mUpdatedTime < ec->mUpdatedTime) {
+				SLOGD << "Avoiding contact with push param in common : new[" << ec->mPushParamList << "], actual["
+				      << (*it)->mPushParamList << "]";
+				it = mContacts.erase(it);
+			} else {
+				return;
+			}
 		} else {
 			++it;
 		}
