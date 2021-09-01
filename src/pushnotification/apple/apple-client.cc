@@ -69,19 +69,11 @@ void AppleClient::sendPush(const std::shared_ptr<Request>& req) {
 
 void AppleClient::onResponse(const std::shared_ptr<HttpMessage>& request,
                              const std::shared_ptr<HttpResponse>& response) {
-	SLOGD << mLogPrefix << ": onResponseCb " << response->toString();
-
 	auto appleReq = dynamic_pointer_cast<AppleRequest>(request);
-	if (response->getStatusCode() == 200) {
-		appleReq->setState(Request::State::Successful);
-	} else {
-		appleReq->setState(Request::State::Failed);
-	}
+	appleReq->setState(response->getStatusCode() == 200 ? Request::State::Successful : Request::State::Failed);
 }
 
 void AppleClient::onError(const std::shared_ptr<HttpMessage>& request) {
-	SLOGD << mLogPrefix << ": onErrorCb";
-
 	auto appleReq = dynamic_pointer_cast<AppleRequest>(request);
 	appleReq->setState(Request::State::Failed);
 }
