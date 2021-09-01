@@ -18,8 +18,11 @@
 
 #include <ctime>
 #include <regex>
-#include <flexisip/logmanager.hh>
+
+#include "flexisip/logmanager.hh"
+
 #include "utils/string-utils.hh"
+
 #include "request.hh"
 
 using namespace std;
@@ -146,6 +149,15 @@ void PushInfo::readRFC8599PushParams(const RFC8599PushParams &params) {
 	}
 }
 
+// ====================================================================================================================
+//  Request class
+// ====================================================================================================================
+
+void Request::setState(State state) noexcept {
+	SLOGD << "Request[" << this << "]: switching state from " << mState << " -> " << state;
+	mState = state;
+}
+
 string Request::quoteStringIfNeeded(const string &str) const noexcept {
 	if (str[0] == '"') {
 		return str;
@@ -167,6 +179,25 @@ string Request::getPushTimeStamp() const noexcept {
 
 	return string(date);
 }
+
+std::ostream& operator<<(std::ostream& os, Request::State state) noexcept {
+	#define stateCase(stateEnumName) \
+		case Request::State::stateEnumName: \
+			os << #stateEnumName; \
+			break
+
+	switch (state) {
+		stateCase(NotSubmitted);
+		stateCase(InProgress);
+		stateCase(Successful);
+		stateCase(Failed);
+	}
+	return os;
+
+	#undef stateCase
+}
+
+// ====================================================================================================================
 
 
 } // end of pushnotification namespace
