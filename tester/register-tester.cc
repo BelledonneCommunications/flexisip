@@ -17,6 +17,7 @@
  */
 
 #include <chrono>
+#include <signal.h>
 
 #include <flexisip/agent.hh>
 #include <flexisip/module-router.hh>
@@ -34,28 +35,34 @@ static shared_ptr<Agent> agent = nullptr;
 static int responseReceived = 0;
 static int expectedResponseReceived = 0;
 static int notSoRandomId = 0;
-
-/**
- * Empty implementation for testing purpose
- */
-class BindListener : public ContactUpdateListener {
-public:
-	void onRecordFound(const shared_ptr<Record>& r) override {
-	}
-	void onError() override {
-	}
-	void onInvalid() override {
-	}
-	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
-	}
-};
+static int bidingDone = 0;
+static int expectedBidingDone = 0;
+static int fetchingDone = 0;
+static int expectedFetchingDone = 0;
 
 class RegisterBindListener : public ContactUpdateListener {
 public:
-	RegisterBindListener(int expectedNumberOfContact, const string& mustBePresentUuid = "")
+	void onRecordFound(const shared_ptr<Record>& r) override {
+		bidingDone++;
+	}
+	void onError() override {
+		BC_FAIL("Only onRecordFound must be called.");
+	}
+	void onInvalid() override {
+		BC_FAIL("Only onRecordFound must be called.");
+	}
+	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+		BC_FAIL("Only onRecordFound must be called.");
+	}
+};
+
+class RegisterFetchListener : public ContactUpdateListener {
+public:
+	RegisterFetchListener(int expectedNumberOfContact, const string& mustBePresentUuid = "")
 	    : mExpectedNumberOfContact(expectedNumberOfContact), mMustBePresentUuid{mustBePresentUuid} {};
 
 	void onRecordFound(const shared_ptr<Record>& r) override {
+		fetchingDone++;
 		if (!r) {
 			BC_FAIL("At least one record must be found.");
 			return;
@@ -63,8 +70,17 @@ public:
 		auto extendedContactList = r->getExtendedContacts();
 		BC_ASSERT_EQUAL(extendedContactList.size(), mExpectedNumberOfContact, int, "%i");
 		if (!mMustBePresentUuid.empty()) {
-			BC_ASSERT_TRUE(any_of(extendedContactList.begin(), extendedContactList.end(),
-			                      [this](const auto& ec) { return ec->mUniqueId == this->mMustBePresentUuid; }));
+			auto isPresent = any_of(extendedContactList.begin(), extendedContactList.end(),
+			                        [this](const auto& ec) { return ec->mUniqueId == this->mMustBePresentUuid; });
+			BC_ASSERT_TRUE(isPresent);
+			if (!isPresent) {
+				string actualUuid{};
+				for (auto const& i : extendedContactList) {
+					actualUuid.append(i->mUniqueId).append(";");
+				}
+				SLOGD << "Must be present UUID is : " << mMustBePresentUuid << " but only [" << actualUuid
+				      << "] were present.";
+			}
 		}
 	}
 	void onError() override {
@@ -84,6 +100,11 @@ private:
 
 static void beforeEach() {
 	responseReceived = 0;
+	expectedResponseReceived = 0;
+	bidingDone = 0;
+	expectedBidingDone = 0;
+	fetchingDone = 0;
+	expectedFetchingDone = 0;
 	root = su_root_create(nullptr);
 	agent = make_shared<Agent>(root);
 }
@@ -107,8 +128,13 @@ static void insertContact(const string& sipUri, const string& paramList) {
 	parameter.withGruu = true;
 
 	auto contact = sip_contact_create(home.home(), (url_string_t*)user.str().c_str(), nullptr);
-	RegistrarDb::get()->bind(user, contact, parameter, make_shared<BindListener>());
-	RegistrarDb::get()->fetch(SipUri{sipUri}, make_shared<RegisterBindListener>(1), true);
+
+	RegistrarDb::get()->bind(user, contact, parameter, make_shared<RegisterBindListener>());
+	expectedBidingDone++;
+	auto beforePlus2 = system_clock::now() + 2s;
+	while (bidingDone != expectedBidingDone && beforePlus2 >= system_clock::now()) {
+		su_root_step(agent->getRoot(), 100);
+	}
 }
 
 /**
@@ -129,7 +155,7 @@ static void sendRegisterRequest(const string& sipUri, const string& paramList, c
 	    "Via: SIP/2.0/UDP 10.10.10.10:5060;rport;branch=z9hG4bK1439638806\r\n"
 	    "From: <" + sipUri + ">;tag=465687829\r\n"
 	    "To: <" + sipUri + ">\r\n"
-	    "Call-ID: 1053183492\r\n"
+		"Call-ID: 1053183492" + to_string(notSoRandomId++)+"\r\n"
 	    "CSeq: 1 REGISTER\r\n"
 	    "Contact: <" + sipUri + ";" + paramList + ">;+sip.instance=" + uuid + "\r\n"
 	    "Max-Forwards: 42\r\n"
@@ -141,21 +167,25 @@ static void sendRegisterRequest(const string& sipUri, const string& paramList, c
 	// Flexisip and belle-sip loop, until response is received by the belle-sip stack.
 	// If after 5s nothing is received we break the loop and the test should fail.
 	expectedResponseReceived++;
-	auto beforePlus5 = system_clock::now() + 5s;
-	while (responseReceived != expectedResponseReceived && beforePlus5 >= system_clock::now()) {
+	auto beforePlus2 = system_clock::now() + 2s;
+	while (responseReceived != expectedResponseReceived && beforePlus2 >= system_clock::now()) {
 		su_root_step(agent->getRoot(), 100);
 		bellesipUtils.stackSleep(100);
 	}
 }
 
-static void duplicatePushTokenRegisterTest() {
-	// Agent initialization
-	auto cfg = GenericManager::get();
-	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_register.conf").c_str());
-	agent->loadConfig(cfg);
+static void checkResultInDb(SipUri uri, shared_ptr<RegisterFetchListener> fetchListener, bool recursive) {
+	RegistrarDb::get()->fetch(uri, fetchListener, recursive);
+	expectedFetchingDone++;
+	auto beforePlus2 = system_clock::now() + 2s;
+	while (fetchingDone != expectedFetchingDone && beforePlus2 >= system_clock::now()) {
+		su_root_step(agent->getRoot(), 100);
+	}
+}
 
-	auto registrarConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
-	registrarConf->get<ConfigStringList>("reg-domains")->set("127.0.0.1");
+static void startTest() {
+	// Starting Flexisip
+	agent->start("", "");
 
 	// FCM
 	insertContact("sip:fcm1@127.0.0.1", "pn-provider=fcm;pn-prid=aFcmToken;pn-param=aProjectId");
@@ -192,8 +222,17 @@ static void duplicatePushTokenRegisterTest() {
 	insertContact("sip:apns13@127.0.0.1", "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
 	                                      "param=aProjectID.aBundleID.remote&voip");
 
-	// Starting Flexisip
-	agent->start("", "");
+	// Multiple entries with same tokens are possible with Redis because no cleaning is done on biding, except if unique
+	// key are the same.
+	insertContact("sip:elisa@127.0.0.1", "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
+	                                     "param=aProjectID.aBundleID.remote&voip");
+	insertContact("sip:elisa@127.0.0.1", "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
+	                                     "param=aProjectID.aBundleID.remote&voip");
+	insertContact("sip:elisa@127.0.0.1", "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
+	                                     "param=aProjectID.aBundleID.remote&voip");
+
+	// All "sleep" calls are here to make "updatedTime" different for all entries.
+	sleep(1);
 
 	// FCM
 	sendRegisterRequest("sip:fcm1@127.0.0.1", "pn-provider=fcm;pn-prid=aFcmToken;pn-param=aProjectId", "fcm1Reg");
@@ -254,49 +293,106 @@ static void duplicatePushTokenRegisterTest() {
 	                    "voip;pn-param=aProjectID_aBundleID_remote&voip",
 	                    "apns13Reg");
 
+	// Multiple entries with same tokens
+	sendRegisterRequest("sip:elisa@127.0.0.1",
+	                    "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
+	                    "param=aProjectID.aBundleID.remote&voip",
+	                    "elisa1");
+	sleep(1);
+	sendRegisterRequest("sip:elisa@127.0.0.1",
+	                    "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
+	                    "param=aProjectID.aBundleID.remote&voip",
+	                    "elisa10");
+	sleep(1);
+	sendRegisterRequest("sip:elisa@127.0.0.1",
+	                    "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
+	                    "param=aProjectID.aBundleID.remote&voip",
+	                    "elisa20");
+	sleep(1);
+	sendRegisterRequest("sip:elisa@127.0.0.1",
+	                    "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
+	                    "param=aProjectID.aBundleID.remote&voip",
+	                    "elisa15");
+
 	// FCM
 	// Same prid and param --> replaced
-	RegistrarDb::get()->fetch(SipUri{"sip:fcm1@127.0.0.1"}, make_shared<RegisterBindListener>(1, "fcm1Reg"), true);
+	checkResultInDb(SipUri{"sip:fcm1@127.0.0.1"}, make_shared<RegisterFetchListener>(1, "fcm1Reg"), true);
 	// Different prid and param --> both kept
-	RegistrarDb::get()->fetch(SipUri{"sip:fcm2@127.0.0.1"}, make_shared<RegisterBindListener>(2), true);
+	checkResultInDb(SipUri{"sip:fcm2@127.0.0.1"}, make_shared<RegisterFetchListener>(2), true);
 	// Different prid but same param --> both kept
-	RegistrarDb::get()->fetch(SipUri{"sip:fcm3@127.0.0.1"}, make_shared<RegisterBindListener>(2), true);
+	checkResultInDb(SipUri{"sip:fcm3@127.0.0.1"}, make_shared<RegisterFetchListener>(2), true);
 	// Same prid but different param --> both kept
-	RegistrarDb::get()->fetch(SipUri{"sip:fcm4@127.0.0.1"}, make_shared<RegisterBindListener>(2), true);
+	checkResultInDb(SipUri{"sip:fcm4@127.0.0.1"}, make_shared<RegisterFetchListener>(2), true);
 
 	// APNS (simple ones)
 	// Same prid and param --> replaced
-	RegistrarDb::get()->fetch(SipUri{"sip:apns1@127.0.0.1"}, make_shared<RegisterBindListener>(1, "apns1Reg"), true);
+	checkResultInDb(SipUri{"sip:apns1@127.0.0.1"}, make_shared<RegisterFetchListener>(1, "apns1Reg"), true);
 	// Different prid but same param --> both kept
-	RegistrarDb::get()->fetch(SipUri{"sip:apns2@127.0.0.1"}, make_shared<RegisterBindListener>(2), true);
+	checkResultInDb(SipUri{"sip:apns2@127.0.0.1"}, make_shared<RegisterFetchListener>(2), true);
 	// Same prid but different param --> both kept
-	RegistrarDb::get()->fetch(SipUri{"sip:apns3@127.0.0.1"}, make_shared<RegisterBindListener>(2), true);
+	checkResultInDb(SipUri{"sip:apns3@127.0.0.1"}, make_shared<RegisterFetchListener>(2), true);
 
 	// APNS (with 2 tokens)
 	// All same (only param suffix is reversed) --> replaced
-	RegistrarDb::get()->fetch(SipUri{"sip:apns4@127.0.0.1"}, make_shared<RegisterBindListener>(1, "apns4Reg"), true);
+	checkResultInDb(SipUri{"sip:apns4@127.0.0.1"}, make_shared<RegisterFetchListener>(1, "apns4Reg"), true);
 	// Same PushKitToken, different RemoteToken, same param --> replaced
-	RegistrarDb::get()->fetch(SipUri{"sip:apns5@127.0.0.1"}, make_shared<RegisterBindListener>(1, "apns5Reg"), true);
+	checkResultInDb(SipUri{"sip:apns5@127.0.0.1"}, make_shared<RegisterFetchListener>(1, "apns5Reg"), true);
 	// Different PushKitToken, same RemoteToken, same param --> replaced
-	RegistrarDb::get()->fetch(SipUri{"sip:apns6@127.0.0.1"}, make_shared<RegisterBindListener>(1, "apns6Reg"), true);
+	checkResultInDb(SipUri{"sip:apns6@127.0.0.1"}, make_shared<RegisterFetchListener>(1, "apns6Reg"), true);
 	// Same PushKitToken, same RemoteToken, Different param --> both kept
-	RegistrarDb::get()->fetch(SipUri{"sip:apns7@127.0.0.1"}, make_shared<RegisterBindListener>(2), true);
+	checkResultInDb(SipUri{"sip:apns7@127.0.0.1"}, make_shared<RegisterFetchListener>(2), true);
 	// Badly formated register, can't really compare --> both kept
-	RegistrarDb::get()->fetch(SipUri{"sip:apns8@127.0.0.1"}, make_shared<RegisterBindListener>(2), true);
+	checkResultInDb(SipUri{"sip:apns8@127.0.0.1"}, make_shared<RegisterFetchListener>(2), true);
 	// Invalid prid ('&' not present), can't really compare --> both kept
-	RegistrarDb::get()->fetch(SipUri{"sip:apns9@127.0.0.1"}, make_shared<RegisterBindListener>(2), true);
+	checkResultInDb(SipUri{"sip:apns9@127.0.0.1"}, make_shared<RegisterFetchListener>(2), true);
 	// Invalid prid (only remote present), can't really compare --> both kept
-	RegistrarDb::get()->fetch(SipUri{"sip:apns10@127.0.0.1"}, make_shared<RegisterBindListener>(2), true);
+	checkResultInDb(SipUri{"sip:apns10@127.0.0.1"}, make_shared<RegisterFetchListener>(2), true);
 	// Invalid prid (only suffix for remote and voip), can't really compare --> both kept
-	RegistrarDb::get()->fetch(SipUri{"sip:apns11@127.0.0.1"}, make_shared<RegisterBindListener>(2), true);
+	checkResultInDb(SipUri{"sip:apns11@127.0.0.1"}, make_shared<RegisterFetchListener>(2), true);
 	// Invalid pn-param ('_' before instead of '.'), can't really compare --> both kept
-	RegistrarDb::get()->fetch(SipUri{"sip:apns12@127.0.0.1"}, make_shared<RegisterBindListener>(2), true);
+	checkResultInDb(SipUri{"sip:apns12@127.0.0.1"}, make_shared<RegisterFetchListener>(2), true);
 	// Invalid pn-param (no '.'), can't really compare --> both kept
-	RegistrarDb::get()->fetch(SipUri{"sip:apns13@127.0.0.1"}, make_shared<RegisterBindListener>(2), true);
+	checkResultInDb(SipUri{"sip:apns13@127.0.0.1"}, make_shared<RegisterFetchListener>(2), true);
+
+	// Multiples ones, all with the same tokens, only the last inserted must remain (cleaning done at biding with
+	// internalDB, at fetching with Redis)
+	checkResultInDb(SipUri{"sip:elisa@127.0.0.1"}, make_shared<RegisterFetchListener>(1, "elisa15"), true);
+}
+
+static void duplicatePushTokenRegisterInternalDbTest() {
+	// Agent initialization
+	auto cfg = GenericManager::get();
+	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_register.conf").c_str());
+	agent->loadConfig(cfg);
+
+	auto registrarConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
+	registrarConf->get<ConfigStringList>("reg-domains")->set("127.0.0.1");
+	startTest();
+}
+
+static void duplicatePushTokenRegisterRedisTest() {
+	auto pid = fork();
+	if (pid == 0) {
+		execl("/usr/bin/redis-server", "redis-server", nullptr);
+		exit(1);
+	}
+
+	sleep(5);
+
+	// Agent initialization
+	auto cfg = GenericManager::get();
+	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_register_redis.conf").c_str());
+	agent->loadConfig(cfg);
+
+	startTest();
+
+	kill(pid, 15);
 }
 
 static test_t tests[] = {
-    TEST_NO_TAG("Duplicate push token at register handling", duplicatePushTokenRegisterTest),
+    TEST_NO_TAG("Duplicate push token at register handling, with internal db",
+                duplicatePushTokenRegisterInternalDbTest),
+    TEST_NO_TAG("Duplicate push token at register handling, with Redis db", duplicatePushTokenRegisterRedisTest),
 };
 
 test_suite_t register_suite = {"Register", nullptr, nullptr, beforeEach, afterEach, sizeof(tests) / sizeof(tests[0]),
