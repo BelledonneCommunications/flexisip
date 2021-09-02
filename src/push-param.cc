@@ -36,8 +36,40 @@ bool PushParam::operator==(const PushParam& pp) const {
 	return pp.mPrId == mPrId && pp.mParam == mParam;
 }
 
-PushParamList::PushParamList(const string& provider, const string& customPrId, const string& customParam)
-    : mProvider{provider} {
+PushParamList::PushParamList(const string& provider, const string& customPrId, const string& customParam,
+                             bool isLegacyContactParams) {
+	if (isLegacyContactParams) {
+		constructFromLegacyContactParameters(provider, customPrId, customParam);
+	} else {
+		constructFromContactParameters(provider, customPrId, customParam);
+	}
+}
+
+void PushParamList::constructFromLegacyContactParameters(const string& pnType, const string& pnTok,
+                                                         const string& appId) {
+	string provider{};
+	if (pnType == "firebase" || pnType == "google") {
+		provider = "fcm";
+		constructFromContactParameters(provider, pnTok, appId);
+		return;
+	} else {
+		string customParam{appId};
+		size_t prodPrefixPos = string::npos;
+		if ((prodPrefixPos = appId.find(".prod")) != string::npos) {
+			provider = "apns";
+			customParam = customParam.substr(0, prodPrefixPos);
+		} else {
+			provider = "apns.dev";
+			customParam = customParam.substr(0, appId.find(".dev"));
+		}
+		customParam = "ABCD1234." + customParam;
+		constructFromContactParameters(provider, pnTok, customParam);
+	}
+}
+
+void PushParamList::constructFromContactParameters(const string& provider, const string& customPrId,
+                                                   const string& customParam) {
+	mProvider = provider;
 	if (mProvider == "fcm" || (StringUtils::startsWith(mProvider, "apns") && customPrId.find("&") == string::npos)) {
 		mPushParams.emplace_back(customPrId, customParam);
 		return;

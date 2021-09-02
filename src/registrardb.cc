@@ -491,6 +491,13 @@ void ExtendedContact::init(bool initExpire) {
 		auto pnParam = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-param");
 		if (!pnProvider.empty() && !pnPrId.empty() && !pnParam.empty()) {
 			mPushParamList = PushParamList{pnProvider, pnPrId, pnParam};
+		} else {
+			auto appId = UriUtils::getParamValue(mSipContact->m_url->url_params, "app-id");
+			auto pnType = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-type");
+			auto pnTok = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-tok");
+			if (!appId.empty() && !pnType.empty() && !pnTok.empty()) {
+				mPushParamList = PushParamList{pnType, pnTok, appId, true};
+			}
 		}
 	}
 }
