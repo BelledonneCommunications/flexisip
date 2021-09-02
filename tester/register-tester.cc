@@ -231,6 +231,15 @@ static void startTest() {
 	insertContact("sip:elisa@127.0.0.1", "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
 	                                     "param=aProjectID.aBundleID.remote&voip");
 
+	// Legacy contact parameters (apple)
+	insertContact("sip:apns14@127.0.0.1", "pn-provider=apns;pn-prid=aRemoteToken;pn-param=ABCD1234.aBundleId");
+	insertContact("sip:apns15@127.0.0.1", "pn-provider=apns.dev;pn-prid=aRemoteToken;pn-param=ABCD1234.aBundleId");
+	insertContact("sip:apns16@127.0.0.1", "pn-provider=apns;pn-prid=aUniqueRemoteToken;pn-param=ABCD1234.aBundleId");
+
+	// Legacy contact parameters (firebase)
+	insertContact("sip:fcm5@127.0.0.1", "pn-provider=fcm;pn-prid=aToken;pn-param=aProjectId");
+	insertContact("sip:fcm6@127.0.0.1", "pn-provider=fcm;pn-prid=aUniqueToken;pn-param=aProjectId");
+
 	// All "sleep" calls are here to make "updatedTime" different for all entries.
 	sleep(1);
 
@@ -267,8 +276,8 @@ static void startTest() {
 	                    "voip;pn-param=aProjectID.aBundleID.remote&voip",
 	                    "apns6Reg");
 	sendRegisterRequest("sip:apns7@127.0.0.1",
-	                    "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:"
-	                    "voip;pn-param=aOtherUniqueProjectID.aBundleID.remote&voip",
+	                    "pn-provider=apns;pn-prid=aPushKitToken:voip&aRemoteToken:remote;pn-param="
+	                    "aOtherUniqueProjectID.aBundleID.remote&voip",
 	                    "apns7Reg");
 	sendRegisterRequest("sip:apns8@127.0.0.1",
 	                    "pn-provider=apns;pn-prid=aRemoteToken:CrashTest&aPushKitToken-butnotwellformated;pn-param="
@@ -314,6 +323,16 @@ static void startTest() {
 	                    "param=aProjectID.aBundleID.remote&voip",
 	                    "elisa15");
 
+	// Legacy contact parameters (apple)
+	sendRegisterRequest("sip:apns14@127.0.0.1", "pn-type=apple;pn-tok=aRemoteToken;app-id=aBundleId.prod", "apns14Reg");
+	sendRegisterRequest("sip:apns15@127.0.0.1", "pn-type=apple;pn-tok=aRemoteToken;app-id=aBundleId.dev", "apns15Reg");
+	sendRegisterRequest("sip:apns16@127.0.0.1", "pn-type=apple;pn-tok=aOtherUniqueRemoteToken;app-id=aBundleId.prod",
+	                    "apns16Reg");
+
+	// Legacy contact parameters (firebase)
+	sendRegisterRequest("sip:fcm5@127.0.0.1", "pn-type=google;pn-tok=aToken;app-id=aProjectId", "fcm5Reg");
+	sendRegisterRequest("sip:fcm6@127.0.0.1", "pn-type=firebase;pn-tok=aOtherUniqueToken;app-id=aProjectId", "fcm6Reg");
+
 	// FCM
 	// Same prid and param --> replaced
 	checkResultInDb(SipUri{"sip:fcm1@127.0.0.1"}, make_shared<RegisterFetchListener>(1, "fcm1Reg"), true);
@@ -357,6 +376,20 @@ static void startTest() {
 	// Multiples ones, all with the same tokens, only the last inserted must remain (cleaning done at biding with
 	// internalDB, at fetching with Redis)
 	checkResultInDb(SipUri{"sip:elisa@127.0.0.1"}, make_shared<RegisterFetchListener>(1, "elisa15"), true);
+
+	// Legacy contact parameters (apple)
+	// Same prid and param --> replaced
+	checkResultInDb(SipUri{"sip:apns14@127.0.0.1"}, make_shared<RegisterFetchListener>(1, "apns14Reg"), true);
+	// Same prid and param --> replaced
+	checkResultInDb(SipUri{"sip:apns15@127.0.0.1"}, make_shared<RegisterFetchListener>(1, "apns15Reg"), true);
+	// Different prid but same param --> both kept
+	checkResultInDb(SipUri{"sip:apns16@127.0.0.1"}, make_shared<RegisterFetchListener>(2), true);
+
+	// Legacy contact parameters (firebase)
+	// Same prid and param --> replaced
+	checkResultInDb(SipUri{"sip:fcm5@127.0.0.1"}, make_shared<RegisterFetchListener>(1, "fcm5Reg"), true);
+	// Different prid but same param --> both kept
+	checkResultInDb(SipUri{"sip:fcm6@127.0.0.1"}, make_shared<RegisterFetchListener>(2), true);
 }
 
 static void duplicatePushTokenRegisterInternalDbTest() {
@@ -377,7 +410,8 @@ static void duplicatePushTokenRegisterRedisTest() {
 		exit(1);
 	}
 
-	sleep(5);
+	// Redis need a bit of time to start
+	sleep(2);
 
 	// Agent initialization
 	auto cfg = GenericManager::get();

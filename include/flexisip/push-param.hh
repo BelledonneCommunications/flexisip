@@ -27,6 +27,11 @@ namespace flexisip {
  * All this class is think with
  * https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/D.%20Specifications/Push%20notifications/
  * in mind.
+ * Legacy contact parameters for push can looks like :
+ * app-id=a.bundle.id.prod;pn-type=apple;pn-tok=ATOKEN;
+ * app-id=a.bundle.id.dev;pn-type=apple;pn-tok=ATOKEN;
+ * app-id=a.project.id;pn-type=google;pn-tok=ATOKEN;
+ * app-id=a.project.id;pn-type=firebase;pn-tok=ATOKEN;
  */
 class PushParam {
 public:
@@ -54,7 +59,8 @@ private:
 class PushParamList {
 public:
 	PushParamList() = default;
-	PushParamList(const std::string& provider, const std::string& customPrId, const std::string& customParam);
+	PushParamList(const std::string& provider, const std::string& customPrId, const std::string& customParam,
+	              bool isLegacyContactParams = false);
 	~PushParamList() = default;
 
 	const std::string& getProvider() const {
@@ -68,6 +74,11 @@ public:
 	bool operator==(const PushParamList& ppl) const;
 
 private:
+	void constructFromContactParameters(const std::string& provider, const std::string& customPrid,
+	                                    const std::string& customParam);
+	void constructFromLegacyContactParameters(const std::string& pnType, const std::string& pnTok,
+	                                          const std::string& appId);
+
 	std::string mProvider{};
 	std::vector<PushParam> mPushParams{};
 };
