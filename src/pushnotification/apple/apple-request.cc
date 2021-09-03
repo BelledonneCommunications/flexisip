@@ -28,6 +28,10 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
+// redundant declaration (required for C++14 compatibility)
+constexpr std::size_t AppleRequest::MAXPAYLOAD_SIZE;
+constexpr std::size_t AppleRequest::DEVICE_BINARY_SIZE;
+
 AppleRequest::AppleRequest(const PushInfo& info) : Request(info.mAppId, "apple"), mPayloadType{info.mApplePushType} {
 	const string& deviceToken = info.mDeviceToken;
 	const string& msg_id = info.mAlertMsgId;
