@@ -12,6 +12,7 @@
 #      - $DEPLOY_UBUNTU
 #  variables:
 #    CMAKE_GENERATOR: Unix Makefiles
+#    CMAKE_OPTIONS: -DINTERNAL_LIBSRTP2=ON
 #    CC: gcc
 #    CXX: g++
 #    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
@@ -27,6 +28,7 @@
 #      - $DEPLOY_UBUNTU
 #  variables:
 #    CMAKE_GENERATOR: Unix Makefiles
+#    CMAKE_OPTIONS: -DINTERNAL_LIBSRTP2=ON
 #    CC: clang
 #    CXX: clang++
 #    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
@@ -46,6 +48,7 @@ job-centos8-ninja-gcc:
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
+    CMAKE_OPTIONS: -DINTERNAL_LIBSRTP2=ON
     CC: gcc
     CXX: g++
   extends: .scheduled-job-linux
@@ -60,6 +63,7 @@ job-centos8-ninja-clang:
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
+    CMAKE_OPTIONS: -DINTERNAL_LIBSRTP2=ON
     CC: clang
     CXX: clang++
   extends: .job-linux
@@ -72,6 +76,8 @@ job-centos8-rpm:
   allow_failure: true
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos8:$CENTOS_8_IMAGE_VERSION
+  variables:
+    CMAKE_OPTIONS: -DINTERNAL_LIBSRTP2=ON
   extends: .job-linux-rpm
 
 job-centos8-rpm-deploy:
