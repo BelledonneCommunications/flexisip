@@ -51,18 +51,18 @@ bool RecordSerializerJson::parse(const char *str, int len, Record *r) {
 
 	int i = 0;
 	while (contact && contact->child) {
-		const char *sip_contact = cJSON_GetObjectItem(contact->child, "uri")->valuestring;
-		time_t expire = cJSON_GetObjectItem(contact->child, "expires_at")->valuedouble;
+		const char *sip_contact = cJSON_GetObjectItem(contact->child, "contact")->valuestring;
+		time_t expire = cJSON_GetObjectItem(contact->child, "expires-at")->valuedouble;
 		float q = cJSON_GetObjectItem(contact->child, "q")->valuedouble;
-		const char *lineValue = parseOptionalField(contact->child, "line_value_copy");
-		const char *route = parseOptionalField(contact->child, "route");
-		const char *contactId = cJSON_GetObjectItem(contact->child, "contact_id")->valuestring;
-		time_t update_time = cJSON_GetObjectItem(contact->child, "update_time")->valuedouble;
-		char *call_id = cJSON_GetObjectItem(contact->child, "call_id")->valuestring;
+		const char *lineValue = parseOptionalField(contact->child, "unique-id");
+		const char *route = parseOptionalField(contact->child, "path");
+		const char *contactId = cJSON_GetObjectItem(contact->child, "contact-id")->valuestring;
+		time_t update_time = cJSON_GetObjectItem(contact->child, "update-time")->valuedouble;
+		char *call_id = cJSON_GetObjectItem(contact->child, "call-id")->valuestring;
 		int cseq = cJSON_GetObjectItem(contact->child, "cseq")->valueint;
 		bool alias = cJSON_GetObjectItem(contact->child, "alias")->valueint != 0;
 		cJSON *path = cJSON_GetObjectItem(contact->child, "path");
-		cJSON *accept = cJSON_GetObjectItem(contact->child, "acceptHeaders");
+		cJSON *accept = cJSON_GetObjectItem(contact->child, "accept");
 
 		CHECK(" no sip_contact", !sip_contact || sip_contact[0] == 0);
 		CHECK(" no contactId", !contactId || contactId[0] == 0);
@@ -106,22 +106,25 @@ bool RecordSerializerJson::serialize(Record *r, string &serialized, bool log) {
 		cJSON *c = cJSON_CreateObject();
 		cJSON_AddItemToArray(contacts, c);
 		cJSON *path = cJSON_CreateArray();
-		cJSON_AddItemToObject(c, "path", path);
+		
 		cJSON *acceptHeaders = cJSON_CreateArray();
-		cJSON_AddItemToObject(c, "acceptHeaders", acceptHeaders);
 
 		shared_ptr<ExtendedContact> ec = (*it);
-		cJSON_AddStringToObject(c, "uri", ExtendedContact::urlToString(ec->mSipContact->m_url).c_str());
-		cJSON_AddNumberToObject(c, "expires_at", ec->mExpireAt);
+		cJSON_AddStringToObject(c, "contact", ExtendedContact::urlToString(ec->mSipContact->m_url).c_str());
+		cJSON_AddItemToObject(c, "path", path);
+		cJSON_AddNumberToObject(c, "expires-at", ec->mExpireAt);
 		cJSON_AddNumberToObject(c, "q", ec->mQ ? ec->mQ : 0);
 		if (ec->line())
-			cJSON_AddStringToObject(c, "line_value_copy", ec->line());
-		cJSON_AddStringToObject(c, "contact_id", ec->contactId());
-		cJSON_AddStringToObject(c, "user_agent", ec->getUserAgent().c_str());
-		cJSON_AddNumberToObject(c, "update_time", ec->mUpdatedTime);
-		cJSON_AddStringToObject(c, "call_id", ec->callId());
+			cJSON_AddStringToObject(c, "unique-id", ec->line());
+		
+		cJSON_AddStringToObject(c, "user-agent", ec->getUserAgent().c_str());
+		
+		cJSON_AddStringToObject(c, "call-id", ec->callId());
 		cJSON_AddNumberToObject(c, "cseq", ec->mCSeq);
+		cJSON_AddItemToObject(c, "accept", acceptHeaders);
 		cJSON_AddNumberToObject(c, "alias", ec->mAlias ? 1 : 0);
+		cJSON_AddNumberToObject(c, "update-time", ec->mUpdatedTime);
+		cJSON_AddStringToObject(c, "contact-id", ec->contactId());
 
 		for (auto pit = ec->mPath.cbegin(); pit != ec->mPath.cend(); ++pit) {
 			cJSON *pitem = cJSON_CreateString(pit->c_str());
@@ -133,7 +136,7 @@ bool RecordSerializerJson::serialize(Record *r, string &serialized, bool log) {
 		}
 	}
 
-	char *contacts_str = cJSON_PrintUnformatted(root);
+	char *contacts_str = cJSON_Print(root);
 	if (!contacts_str)
 		return false;
 	serialized.assign(contacts_str);
