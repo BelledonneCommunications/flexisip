@@ -182,7 +182,7 @@ std::string ExternalAuthModule::extractParameter(const Status &as, const msg_aut
 		string headerName(paramName, 7);
 		if (!headerName.empty()) {
 			char encodedHeader[255];
-			msg_header_t *header = as.event()->getMsgSip()->findHeader(headerName);
+			msg_header_t *header = as.event()->getMsgSip()->findHeader(headerName, true);
 			if (header) {
 				cmatch m;
 				sip_header_e(encodedHeader, sizeof(encodedHeader), reinterpret_cast<sip_header_t *>(header), 0);

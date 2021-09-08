@@ -89,7 +89,7 @@ cmake ./build -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communiactions -DCMAKE_BUIL
 make -C ./build -j<njobs> package
 ```
 
-The packages is now available in ./build directory.
+The packages are now available in ./build directory.
 
 ## Docker
 
