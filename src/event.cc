@@ -49,7 +49,7 @@ MsgSip::MsgSip(const MsgSip &msgSip) {
 	LOGD("New MsgSip %p copied from MsgSip %p", this, &msgSip);
 }
 
-msg_header_t *MsgSip::findHeader(const std::string &name) {
+msg_header_t *MsgSip::findHeader(const std::string &name, bool searchUnknowns) {
 	const sip_t *sip = getSip();
 	auto begin = reinterpret_cast<msg_header_t * const *>(&sip->sip_via);
 	auto end = reinterpret_cast<msg_header_t * const *>(&sip->sip_unknown);
@@ -58,6 +58,17 @@ msg_header_t *MsgSip::findHeader(const std::string &name) {
 		if (header && strcasecmp(header->sh_common->h_class->hc_name, name.c_str()) == 0) {
 			return header;
 		}
+	}
+
+	if (searchUnknowns && sip->sip_unknown) {
+		/* Search through unknown/custom headers, too */
+		msg_unknown_t *unknown = sip->sip_unknown;
+		do
+		{
+			if (strcasecmp(unknown->un_name, name.c_str()) == 0) {
+				return reinterpret_cast<msg_header_t * >(unknown);
+			}
+		} while ( (unknown = unknown->un_next) );
 	}
 	return nullptr;
 }

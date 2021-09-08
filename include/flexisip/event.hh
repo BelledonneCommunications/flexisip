@@ -59,7 +59,7 @@ class MsgSip {
 	sip_t *getSip() const {return (sip_t *)msg_object(mMsg);}
 	su_home_t *getHome() const {return msg_home(mMsg);}
 
-	msg_header_t *findHeader(const std::string &name);
+	msg_header_t *findHeader(const std::string &name, bool searchUnknowns = false);
 	const msg_header_t *findHeader(const std::string &name) const {return const_cast<MsgSip *>(this)->findHeader(name);}
 
 	void serialize() const {msg_serialize(mMsg, (msg_pub_t *)getSip());}
