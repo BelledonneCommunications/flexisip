@@ -236,7 +236,7 @@ tests-flexisip-mr:
     #   in the ways specified with docker docs (either OR or AND, depending on key)
 
     - |
-        docker_compose_options='--env-file /dev/null'
+        docker_compose_options="--env-file ${CI_PROJECT_DIR}/flexisip-tester/docker/.env"
         for name in 'docker-compose.yaml' 'docker-compose-standalone.yaml'; do
         docker_compose_options="$docker_compose_options -f ${CI_PROJECT_DIR}/flexisip-tester/docker/$name"
         done
