@@ -174,7 +174,6 @@ public:
 	static std::string printFlags(uint8_t flags) noexcept;
 };
 
-} // namespace flexisip
-
 std::ostream& operator<<(std::ostream& os, const ::nghttp2_frame& frame) noexcept;
 std::ostream& operator<<(std::ostream& os, flexisip::Http2Client::State state) noexcept;
+} // namespace flexisip
