@@ -20,56 +20,20 @@
 
 #include <memory>
 
-#include <flexisip/agent.hh>
-#include <flexisip/event.hh>
-#include <flexisip/transaction.hh>
-#include <flexisip/registrardb.hh>
+#include "flexisip/agent.hh"
+#include "flexisip/event.hh"
+#include "flexisip/fork-context/branch-info.hh"
+#include "flexisip/fork-context/fork-context.hh"
+#include "flexisip/registrardb.hh"
+#include "flexisip/transaction.hh"
 
 namespace flexisip {
 
 class OnContactRegisteredListener;
 
-struct ForkContextConfig {
-	int mDeliveryTimeout = 0;	 /* in seconds, used for "late" forking*/
-	int mUrgentTimeout = 5;		  /*timeout for sending buffered urgent or retryable reponses (like 415).*/
-	int mPushResponseTimeout = 0; /*timeout for receiving response to push */
-	int mCurrentBranchesTimeout = 0; /*timeout for receiving response on current branches*/
-	bool mForkLate = false;
-	bool mTreatAllErrorsAsUrgent = false; /*treat all SIP response code as urgent replies in the fork mechanism.*/
-	bool mForkNoGlobalDecline = false;
-	bool mTreatDeclineAsUrgent = false; /*treat 603 declined as a urgent response, only useful is mForkNoGlobalDecline==true*/
-	bool mPermitSelfGeneratedProvisionalResponse = true; /* Self explicit. Ex: 110 Push sent, 180 Ringing*/
-};
-
-class ForkContext;
-
-class ForkContextListener {
-  public:
-	virtual ~ForkContextListener() = default;
-	virtual void onForkContextFinished(std::shared_ptr<ForkContext> ctx) = 0;
-};
-
-class BranchInfo {
-  public:
-	template <typename T>
-	BranchInfo(T &&ctx) : mForkCtx{std::forward<T>(ctx)} {}
-
-	void clear();
-	int getStatus() {return mLastResponse ? mLastResponse->getMsgSip()->getSip()->sip_status->st_status : 0;}
-
-	std::weak_ptr<ForkContext> mForkCtx{};
-	std::string mUid{};
-	std::shared_ptr<RequestSipEvent> mRequest{};
-	std::shared_ptr<OutgoingTransaction> mTransaction{};
-	std::shared_ptr<ResponseSipEvent> mLastResponse{};
-	std::shared_ptr<ExtendedContact> mContact{};
-	float mPriority{1.0f};
-	bool mPushSent{false}; // Whether  push notification has been sent for this branch.
-};
-
-class ForkContext : public std::enable_shared_from_this<ForkContext> {
-  private:
-	ForkContextListener *mListener;
+class ForkContextBase : public ForkContext, public std::enable_shared_from_this<ForkContextBase>  {
+private:
+	std::weak_ptr<ForkContextListener> mListener;
 	sofiasip::Timer mNextBranchesTimer;
 	std::list<std::shared_ptr<BranchInfo>> mWaitingBranches;
 	std::list<std::shared_ptr<BranchInfo>> mCurrentBranches;
@@ -81,13 +45,11 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	void processLateTimeout();
 	std::shared_ptr<BranchInfo> _findBestBranch(const int urgentReplies[], bool ignore503And408);
 	std::shared_ptr<OnContactRegisteredListener> mContactRegisteredListener;
-	// Request if the fork has other branches with lower priorities to try
-	bool hasNextBranches();
 	// Set the next branches to try and process them
 	void nextBranches();
 	void onNextBranches();
 
-  protected:
+protected:
 	Agent *mAgent;
 	std::shared_ptr<RequestSipEvent> mEvent;
 	std::shared_ptr<ResponseSipEvent> mLastResponseSent;
@@ -101,10 +63,6 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	virtual std::shared_ptr<BranchInfo> createBranchInfo();
 	// Notifies derived class of the creation of a new branch
 	virtual void onNewBranch(const std::shared_ptr<BranchInfo> &br);
-	// Notifies the cancellation of the fork process.
-	virtual void onCancel(const std::shared_ptr<RequestSipEvent> &ev);
-	// Notifies the arrival of a new response on a given branch
-	virtual void onResponse(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &event) = 0;
 	// Notifies the expiry of the final fork timeout.
 	virtual void onLateTimeout() {};
 	// Requests the derived class if the fork context should finish now.
@@ -131,53 +89,53 @@ class ForkContext : public std::enable_shared_from_this<ForkContext> {
 	// Get the best candidate among all branches for forwarding its responses.
 	std::shared_ptr<BranchInfo> findBestBranch(const int urgentReplies[], bool avoid503And408 = false);
 	bool allBranchesAnswered(bool ignore_errors_and_timeouts = false) const;
-	bool allCurrentBranchesAnswered(bool ignore_errors_and_timeouts = false) const;
 	int getLastResponseCode() const;
 	void removeBranch(const std::shared_ptr<BranchInfo> &br);
 	const std::list<std::shared_ptr<BranchInfo>> &getBranches() const;
 	static bool isUrgent(int code, const int urgentCodes[]);
 
-  public:
-	ForkContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg,
-				ForkContextListener *listener, std::weak_ptr<StatPair> counter);
-	virtual ~ForkContext();
+public:
+	ForkContextBase(Agent* agent, const std::shared_ptr<RequestSipEvent>& event, std::shared_ptr<ForkContextConfig> cfg,
+	                const std::weak_ptr<ForkContextListener>& listener, std::weak_ptr<StatPair> counter);
+	virtual ~ForkContextBase();
+
 	// Called by the Router module to create a new branch.
-	void addBranch(const std::shared_ptr<RequestSipEvent> &ev, const std::shared_ptr<ExtendedContact> &contact);
+	void addBranch(const std::shared_ptr<RequestSipEvent>& ev,
+	               const std::shared_ptr<ExtendedContact>& contact) override;
+	bool allCurrentBranchesAnswered(bool ignore_errors_and_timeouts = false) const override;
+	// Request if the fork has other branches with lower priorities to try
+	bool hasNextBranches() const override;
 	/**
 	 * Called when a fatal internal error is thrown in Flexisip. Send a custom response and cancel all branches if
 	 * necessary.
 	 * @param status The status of the custom response to send.
 	 * @param phrase The content of the custom response to send.
 	 */
-	virtual void processInternalError(int status, const char* phrase);
-	// Called by the router module to notify a cancellation.
-	static bool processCancel(const std::shared_ptr<RequestSipEvent> &ev);
-	// called by the router module to notify the arrival of a response.
-	static bool processResponse(const std::shared_ptr<ResponseSipEvent> &ev);
-	// Obtain the ForkContext that manages a transaction.
-	static std::shared_ptr<ForkContext> get(const std::shared_ptr<OutgoingTransaction> &tr);
-	static std::shared_ptr<ForkContext> get(const std::shared_ptr<IncomingTransaction> &tr);
-	// Obtain the BranchInfo corresponding to an outoing transaction
-	static std::shared_ptr<BranchInfo> getBranchInfo(const std::shared_ptr<OutgoingTransaction> &tr);
+	virtual void processInternalError(int status, const char* phrase) override;
 	// Start the processing of the highest priority branches that are not completed yet
-	void start();
+	void start() override;
 
-	void addKey(const std::string &key);
-	const std::list<std::string> &getKeys()const;
+	void addKey(const std::string& key) override;
+	const std::list<std::string>& getKeys() const override;
 
 	/*
 	 * Informs the forked call context that a new register from a potential destination of the fork just arrived.
 	 * If the fork context is interested in handling this new destination, then it should return true, false otherwise.
 	 * Typical case for refusing it is when another transaction already exists or existed for this contact.
-	**/
-	virtual bool onNewRegister(const url_t *dest, const std::string &uid);
-	virtual void onPushSent(const std::shared_ptr<OutgoingTransaction> &tr);
-	virtual void onPushError(const std::shared_ptr<OutgoingTransaction> &tr, const std::string &errormsg);
-	const std::shared_ptr<RequestSipEvent> &getEvent();
-	const std::shared_ptr<ForkContextConfig> &getConfig() const {
+	 **/
+	virtual bool onNewRegister(const url_t* dest, const std::string& uid) override;
+	virtual void onPushSent(const std::shared_ptr<OutgoingTransaction>& tr) override;
+	virtual void onPushError(const std::shared_ptr<OutgoingTransaction>& tr, const std::string& errormsg) override;
+	// Notifies the cancellation of the fork process.
+	virtual void onCancel(const std::shared_ptr<RequestSipEvent> &ev) override;
+	const std::shared_ptr<RequestSipEvent>& getEvent() override;
+	const std::shared_ptr<ForkContextConfig>& getConfig() const override {
 		return mCfg;
 	}
-	bool isFinished()const{ return mFinished; };
+	bool isFinished() const override {
+		return mFinished;
+	};
+
 	static const int sUrgentCodes[];
 	static const int sAllCodesUrgent[];
 };
