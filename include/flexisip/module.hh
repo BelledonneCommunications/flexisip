@@ -185,7 +185,7 @@ public:
 
 	const std::string &getFunction() const {return mReplace.empty() ? mName : mReplace;}
 
-	virtual Module *create(Agent *agent) = 0;
+	virtual std::shared_ptr<Module> create(Agent* agent) = 0;
 
 private:
 	std::string mName;
@@ -206,8 +206,8 @@ public:
 		ModuleOid oid, ModuleClass moduleClass = ModuleClass::Production, const std::string &replace = ""
 	) : ModuleInfoBase(moduleName, help, after, oid, moduleClass, replace) {}
 
-	Module *create(Agent *agent) override {
-		Module *module = new T(agent);
+	std::shared_ptr<Module> create(Agent* agent) override {
+		std::shared_ptr<Module> module = std::make_shared<T>(agent);
 		module->setInfo(this);
 		return module;
 	}
