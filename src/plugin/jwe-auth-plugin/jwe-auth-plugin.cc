@@ -307,7 +307,7 @@ private:
 	list<pair<const char *, const char *>> mCustomHeadersToCheck;
 
 	unordered_map<string, shared_ptr<JweContext>> mJweContexts;
-	Authentication *mAuthModule;
+	std::weak_ptr<Authentication> mAuthModule;
 };
 
 namespace {
@@ -375,7 +375,7 @@ void JweAuth::onLoad(const GenericStruct *moduleConfig) {
 		{ "aud", mAudCustomHeader.c_str() },
 		{ "req_act", mReqActCustomHeader.c_str() }
 	};
-	mAuthModule = dynamic_cast<Authentication*>(getAgent()->findModule("Authentication"));
+	mAuthModule = dynamic_pointer_cast<Authentication>(getAgent()->findModule("Authentication"));
 }
 
 void JweAuth::onUnload() {
@@ -389,9 +389,9 @@ void JweAuth::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	if (method != sip_method_invite && method != sip_method_message)
 		return;
 
-	if (mAuthModule){
+	if (const auto& authModule = mAuthModule.lock()){
 		// Allow requests coming from trusted peers.
-		if (mAuthModule->isTrustedPeer(ev)) return;
+		if (authModule->isTrustedPeer(ev)) return;
 	}else{
 		LOGE("Authentication module not found, trusted peers are unknown.");
 	}

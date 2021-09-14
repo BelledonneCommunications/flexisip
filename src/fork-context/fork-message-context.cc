@@ -16,12 +16,13 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <flexisip/forkmessagecontext.hh>
-#include <flexisip/registrardb.hh>
-#include <flexisip/common.hh>
 #include <algorithm>
-#include <sofia-sip/sip_status.h>
-#include <sofia-sip/msg_types.h>
+
+#include "flexisip/common.hh"
+#include "flexisip/registrardb.hh"
+#include "sofia-sip/sip_status.h"
+
+#include "flexisip/fork-context/fork-message-context.hh"
 
 #if ENABLE_XSD
 
@@ -37,17 +38,17 @@ static bool needsDelivery(int code) {
 	return code < 200 || code == 503 || code == 408;
 }
 
-ForkMessageContext::ForkMessageContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event,
-									   shared_ptr<ForkContextConfig> cfg, ForkContextListener *listener,
-									   weak_ptr<StatPair> counter)
-	: ForkContext(agent, event, move(cfg), listener, move(counter)) {
+ForkMessageContext::ForkMessageContext(Agent* agent, const std::shared_ptr<RequestSipEvent>& event,
+                                       shared_ptr<ForkContextConfig> cfg, const weak_ptr<ForkContextListener>& listener,
+                                       weak_ptr<StatPair> counter)
+    : ForkContextBase(agent, event, move(cfg), listener, move(counter)) {
 	LOGD("New ForkMessageContext %p", this);
 	mAcceptanceTimer = NULL;
 	// start the acceptance timer immediately
 	if (mCfg->mForkLate && mCfg->mDeliveryTimeout > 30) {
 		mAcceptanceTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
 		su_timer_set_interval(mAcceptanceTimer, &ForkMessageContext::sOnAcceptanceTimer, this,
-							  (su_duration_t)mCfg->mUrgentTimeout * 1000);
+		                      (su_duration_t)mCfg->mUrgentTimeout * 1000);
 	}
 	mDeliveredCount = 0;
 	mIsMessage = event->getMsgSip()->getSip()->sip_request->rq_method == sip_method_message;
@@ -262,7 +263,7 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 }
 
 bool ForkMessageContext::onNewRegister(const url_t *dest, const string &uid) {
-	bool already_have_transaction = !ForkContext::onNewRegister(dest, uid);
+	bool already_have_transaction = !ForkContextBase::onNewRegister(dest, uid);
 	if (already_have_transaction)
 		return false;
 	if (uid.size() > 0) {
