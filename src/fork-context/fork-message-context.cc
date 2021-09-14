@@ -16,12 +16,13 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <flexisip/forkmessagecontext.hh>
-#include <flexisip/registrardb.hh>
-#include <flexisip/common.hh>
 #include <algorithm>
-#include <sofia-sip/sip_status.h>
-#include <sofia-sip/msg_types.h>
+
+#include "flexisip/common.hh"
+#include "flexisip/registrardb.hh"
+#include "sofia-sip/sip_status.h"
+
+#include "flexisip/fork-context/fork-message-context.hh"
 
 #if ENABLE_XSD
 
@@ -37,17 +38,25 @@ static bool needsDelivery(int code) {
 	return code < 200 || code == 503 || code == 408;
 }
 
-ForkMessageContext::ForkMessageContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event,
-									   shared_ptr<ForkContextConfig> cfg, ForkContextListener *listener,
-									   weak_ptr<StatPair> counter)
-	: ForkContext(agent, event, move(cfg), listener, move(counter)) {
+shared_ptr<ForkMessageContext> ForkMessageContext::make(Agent* agent, const shared_ptr<RequestSipEvent>& event,
+                                                        shared_ptr<ForkContextConfig> cfg,
+                                                        const weak_ptr<ForkContextListener>& listener,
+                                                        weak_ptr<StatPair> counter) {
+	shared_ptr<ForkMessageContext> shared{new ForkMessageContext(agent, event, cfg, listener, counter)};
+	return shared;
+}
+
+ForkMessageContext::ForkMessageContext(Agent* agent, const shared_ptr<RequestSipEvent>& event,
+                                       shared_ptr<ForkContextConfig> cfg, const weak_ptr<ForkContextListener>& listener,
+                                       weak_ptr<StatPair> counter)
+    : ForkContextBase(agent, event, move(cfg), listener, move(counter)) {
 	LOGD("New ForkMessageContext %p", this);
 	mAcceptanceTimer = NULL;
 	// start the acceptance timer immediately
 	if (mCfg->mForkLate && mCfg->mDeliveryTimeout > 30) {
 		mAcceptanceTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
 		su_timer_set_interval(mAcceptanceTimer, &ForkMessageContext::sOnAcceptanceTimer, this,
-							  (su_duration_t)mCfg->mUrgentTimeout * 1000);
+		                      (su_duration_t)mCfg->mUrgentTimeout * 1000);
 	}
 	mDeliveredCount = 0;
 	mIsMessage = event->getMsgSip()->getSip()->sip_request->rq_method == sip_method_message;
@@ -91,7 +100,7 @@ void ForkMessageContext::checkFinished() {
 	}
 }
 
-void ForkMessageContext::logDeliveredToUserEvent(const std::shared_ptr<RequestSipEvent> &reqEv,
+void ForkMessageContext::logDeliveredToUserEvent(const shared_ptr<RequestSipEvent> &reqEv,
 										  const shared_ptr<ResponseSipEvent> &respEv) {
 	sip_t *sip = respEv->getMsgSip()->getSip();
 	const sip_t *sipRequest = reqEv->getMsgSip()->getSip();
@@ -106,7 +115,7 @@ void ForkMessageContext::logDeliveredToUserEvent(const std::shared_ptr<RequestSi
 	respEv->flushLog();
 }
 
-void ForkMessageContext::onResponse(const std::shared_ptr<BranchInfo> &br, const shared_ptr<ResponseSipEvent> &event) {
+void ForkMessageContext::onResponse(const shared_ptr<BranchInfo> &br, const shared_ptr<ResponseSipEvent> &event) {
 	sip_t *sip = event->getMsgSip()->getSip();
 	int code = sip->sip_status->st_status;
 	LOGD("ForkMessageContext::onResponse()");
@@ -118,7 +127,7 @@ void ForkMessageContext::onResponse(const std::shared_ptr<BranchInfo> &br, const
 				if (mIncoming && mIsMessage)
 					logReceivedFromUserEvent(mEvent, event); /*in the sender's log will appear the status code from the receiver*/
 				su_timer_destroy(mAcceptanceTimer);
-				mAcceptanceTimer = NULL;
+				mAcceptanceTimer = nullptr;
 			}
 		}
 		if (mIsMessage)
@@ -136,7 +145,7 @@ void ForkMessageContext::onResponse(const std::shared_ptr<BranchInfo> &br, const
 	checkFinished();
 }
 
-void ForkMessageContext::logReceivedFromUserEvent(const std::shared_ptr<RequestSipEvent> &reqEv, const shared_ptr<ResponseSipEvent> &respEv) {
+void ForkMessageContext::logReceivedFromUserEvent(const shared_ptr<RequestSipEvent> &reqEv, const shared_ptr<ResponseSipEvent> &respEv) {
 	sip_t *sip = respEv->getMsgSip()->getSip();
 	const sip_t *sipRequest = reqEv->getMsgSip()->getSip();
 	auto log = make_shared<MessageLog>(sip, MessageLog::ReportType::ReceivedFromUser);
@@ -151,7 +160,7 @@ void ForkMessageContext::logReceivedFromUserEvent(const std::shared_ptr<RequestS
 
 /*we are called here if no good response has been received from any branch, in fork-late mode only */
 void ForkMessageContext::acceptMessage() {
-	if (mIncoming == NULL)
+	if (mIncoming == nullptr)
 		return;
 
 	/*in fork late mode, never answer a service unavailable*/
@@ -222,7 +231,7 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 
 					xercesc::XMLPlatformUtils::Initialize();
 					if (payload) {
-						std::unique_ptr<Xsd::Fthttp::File> file_transfer_infos;
+						unique_ptr<Xsd::Fthttp::File> file_transfer_infos;
 						char *file_url = NULL;
 
 						try {
@@ -262,7 +271,7 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 }
 
 bool ForkMessageContext::onNewRegister(const url_t *dest, const string &uid) {
-	bool already_have_transaction = !ForkContext::onNewRegister(dest, uid);
+	bool already_have_transaction = !ForkContextBase::onNewRegister(dest, uid);
 	if (already_have_transaction)
 		return false;
 	if (uid.size() > 0) {

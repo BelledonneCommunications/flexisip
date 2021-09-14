@@ -19,8 +19,8 @@
 #include <algorithm>
 #include <vector>
 
+#include <flexisip/fork-context/fork-context-base.hh>
 #include <flexisip/transaction.hh>
-#include <flexisip/forkcontext.hh>
 
 #include "callcontext-mediarelay.hh"
 #include "h264iframefilter.hh"
@@ -219,7 +219,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 
 	if (!c->checkMediaValid()) {
 		LOGE("The relay media are invalid, no RTP/RTCP port remaining?");
-		if (auto forkContext = transaction->getProperty<ForkContext>("ForkContext")) {
+		if (auto forkContext = ForkContext::getFork(transaction)) {
 			forkContext->processInternalError(500, "RTP port pool exhausted");
 			ev->terminateProcessing();
 		} else {

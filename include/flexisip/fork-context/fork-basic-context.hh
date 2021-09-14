@@ -23,23 +23,17 @@
 
 #include <flexisip/agent.hh>
 #include <flexisip/event.hh>
-#include <flexisip/forkcontext.hh>
+#include <flexisip/fork-context/fork-context-base.hh>
 #include <flexisip/transaction.hh>
 
 namespace flexisip {
 
-class ForkBasicContext : public ForkContext {
-private:
-	/**
-	 * Timeout after which an answer must be sent through the incoming transaction even if no success response was
-	 * received on the outgoing transactions
-	 */
-	su_timer_t* mDecisionTimer;
-
+class ForkBasicContext : public ForkContextBase {
 public:
-	ForkBasicContext(Agent* agent, const std::shared_ptr<RequestSipEvent>& event,
-	                 std::shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener,
-	                 std::weak_ptr<StatPair> counter);
+	static std::shared_ptr<ForkBasicContext> make(Agent* agent, const std::shared_ptr<RequestSipEvent>& event,
+	                                              std::shared_ptr<ForkContextConfig> cfg,
+	                                              const std::weak_ptr<ForkContextListener>& listener,
+	                                              std::weak_ptr<StatPair> counter);
 	virtual ~ForkBasicContext();
 
 	void processInternalError(int status, const char* phrase) override;
@@ -49,9 +43,19 @@ protected:
 	bool onNewRegister(const url_t* url, const std::string& uid) override;
 
 private:
+	ForkBasicContext(Agent* agent, const std::shared_ptr<RequestSipEvent>& event,
+	                 std::shared_ptr<ForkContextConfig> cfg, const std::weak_ptr<ForkContextListener>& listener,
+	                 std::weak_ptr<StatPair> counter);
+
 	void finishIncomingTransaction();
 	static void sOnDecisionTimer(su_root_magic_t* magic, su_timer_t* t, su_timer_arg_t* arg);
 	void onDecisionTimer();
+
+	/**
+	 * Timeout after which an answer must be sent through the incoming transaction even if no success response was
+	 * received on the outgoing transactions
+	 */
+	su_timer_t* mDecisionTimer;
 };
 
 } // namespace flexisip

@@ -105,7 +105,7 @@ MsgSip::~MsgSip() {
 }
 
 SipEvent::SipEvent(const shared_ptr<IncomingAgent> &inAgent, const shared_ptr<MsgSip> &msgSip)
-	: mCurrModule(NULL), mMsgSip(msgSip), mState(STARTED) {
+	: mCurrModule{}, mMsgSip(msgSip), mState(STARTED) {
 	LOGD("New SipEvent %p - msg %p", this, msgSip->getMsg());
 	mIncomingAgent = inAgent;
 	mAgent = inAgent->getAgent();
@@ -118,7 +118,7 @@ SipEvent::SipEvent(const shared_ptr<IncomingAgent> &inAgent, const shared_ptr<Ms
 }
 
 SipEvent::SipEvent(const shared_ptr<OutgoingAgent> &outAgent, const shared_ptr<MsgSip> &msgSip)
-	: mCurrModule(NULL), mMsgSip(msgSip), mState(STARTED) {
+	: mCurrModule{}, mMsgSip(msgSip), mState(STARTED) {
 	LOGD("New SipEvent %p - %p", this, msgSip->getMsg());
 	mOutgoingAgent = outAgent;
 	mAgent = outAgent->getAgent();

@@ -485,8 +485,8 @@ static void dump_config(su_root_t *root, const std::string &dump_cfg_part, bool 
 			exit(EXIT_FAILURE);
 		}
 		if (regex_match(dump_cfg_part, m, regex("^module::(.*)$"))) {
-			const auto &moduleName = m[1];
-			const auto *module = a->findModule(moduleName);
+			const auto& moduleName = m[1];
+			const auto& module = a->findModule(moduleName);
 			if (module && module->getClass() == ModuleClass::Experimental && !with_experimental) {
 				cerr << "Module " << moduleName
 					 << " is experimental, not returning anything. To override, specify '--show-experimental'" << endl;
