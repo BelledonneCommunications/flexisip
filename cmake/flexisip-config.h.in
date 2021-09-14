@@ -3,7 +3,6 @@
 
 #cmakedefine CONFIG_DIR "${CONFIG_DIR}"
 #cmakedefine INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}"
-#cmakedefine TESTER_DATA_DIR "${TESTER_DATA_DIR}"
 
 #cmakedefine ENABLE_SNMP 1
 #cmakedefine ENABLE_LIBODB_MYSQL 1
@@ -24,6 +23,10 @@
 
 #cmakedefine MEDIARELAY_SPECIFIC_FEATURES_ENABLED 1
 #cmakedefine MONOTONIC_CLOCK_REGISTRATIONS 1
+
+/* Test configurations */
+#cmakedefine TESTER_DATA_DIR "${TESTER_DATA_DIR}"
+#cmakedefine REDIS_SERVER_EXEC "${REDIS_SERVER_EXEC}"
 
 #define SNMP_COMPANY_OID 10000
 
