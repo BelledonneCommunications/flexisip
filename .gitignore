@@ -8,6 +8,7 @@
 .DS_Store
 .vscode
 /CMakeLists.txt.user
+.idea/
 
 ### TEST ###
 BCUnitAutomated-Results.xml
