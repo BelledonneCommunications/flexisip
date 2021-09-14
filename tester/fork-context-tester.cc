@@ -111,7 +111,7 @@ static void nullMaxFrowardAndForkBasicContext() {
 		bellesipUtils.stackSleep(100);
 	}
 
-	auto moduleRouter = static_cast<ModuleRouter*>(agent->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	BC_ASSERT_TRUE(responseReceived);
 	if (moduleRouter) {
@@ -199,7 +199,7 @@ static void notRtpPortAndForkCallContext() {
 		bellesipUtils.stackSleep(100);
 	}
 
-	auto moduleRouter = static_cast<ModuleRouter*>(agent->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	BC_ASSERT_TRUE(responseReceived);
 	if (moduleRouter) {
