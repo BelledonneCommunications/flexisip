@@ -18,7 +18,7 @@
 
 #include <algorithm>
 #include <flexisip/common.hh>
-#include <flexisip/forkbasiccontext.hh>
+#include <flexisip/fork-context/fork-basic-context.hh>
 #include <flexisip/registrardb.hh>
 #include <sofia-sip/sip_status.h>
 
@@ -26,9 +26,9 @@ using namespace std;
 using namespace flexisip;
 
 ForkBasicContext::ForkBasicContext(Agent* agent, const std::shared_ptr<RequestSipEvent>& event,
-                                   shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener,
+                                   shared_ptr<ForkContextConfig> cfg, const weak_ptr<ForkContextListener>& listener,
                                    weak_ptr<StatPair> counter)
-    : ForkContext(agent, event, move(cfg), listener, move(counter)) {
+    : ForkContextBase(agent, event, move(cfg), listener, move(counter)) {
 	LOGD("New ForkBasicContext %p", this);
 	mDecisionTimer = NULL;
 	// start the acceptance timer immediately
@@ -90,5 +90,5 @@ void ForkBasicContext::processInternalError(int status, const char* phrase) {
 		su_timer_destroy(mDecisionTimer);
 		mDecisionTimer = nullptr;
 	}
-	ForkContext::processInternalError(status, phrase);
+	ForkContextBase::processInternalError(status, phrase);
 }

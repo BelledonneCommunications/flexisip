@@ -22,9 +22,9 @@
 
 #include "flexisip/agent.hh"
 #include "flexisip/event.hh"
-#include "flexisip/forkcontext.hh"
 #include "flexisip/transaction.hh"
 #include "flexisip/utils/timer.hh"
+#include "fork-context-base.hh"
 
 namespace flexisip {
 
@@ -34,10 +34,10 @@ enum class ForkStatus {
 	 Standard
 };
 
-class ForkCallContext : public ForkContext {
+class ForkCallContext : public ForkContextBase {
   public:
-	ForkCallContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event, std::shared_ptr<ForkContextConfig> cfg,
-					ForkContextListener *listener, std::weak_ptr<StatPair> counter);
+	ForkCallContext(Agent* agent, const std::shared_ptr<RequestSipEvent>& event, std::shared_ptr<ForkContextConfig> cfg,
+	                const std::weak_ptr<ForkContextListener>& listener, std::weak_ptr<StatPair> counter);
 	~ForkCallContext();
 
 	void sendResponse(int status, char const *phrase);
@@ -47,13 +47,12 @@ class ForkCallContext : public ForkContext {
 
 	void onPushSent(const std::shared_ptr<OutgoingTransaction> &tr) override;
 	void onPushError(const std::shared_ptr<OutgoingTransaction> &tr, const std::string &errormsg) override;
+	void onCancel(const std::shared_ptr<RequestSipEvent> &ev) override;
 
 	void processInternalError(int status, const char* phrase) override;
-
-  protected:
+protected:
 	void onResponse(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &event) override;
 	bool onNewRegister(const url_t *url, const std::string &uid) override;
-	void onCancel(const std::shared_ptr<RequestSipEvent> &ev) override;
 
   private:
 	const int *getUrgentCodes();

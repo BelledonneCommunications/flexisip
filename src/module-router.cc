@@ -567,21 +567,23 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 	// Init context if needed
 	shared_ptr<ForkContext> context;
 	if (sip->sip_request->rq_method == sip_method_invite) {
-		context = make_shared<ForkCallContext>(getAgent(), ev, mForkCfg, this, mStats.mCountCallForks);
+		context = make_shared<ForkCallContext>(getAgent(), ev, mForkCfg, shared_from_this(), mStats.mCountCallForks);
 		isInvite = true;
-	} else if (
-		(sip->sip_request->rq_method == sip_method_message) &&
-		!(sip->sip_content_type && strcasecmp(sip->sip_content_type->c_type, "application/im-iscomposing+xml") == 0) &&
-		!(sip->sip_expires && sip->sip_expires->ex_delta == 0)
-	) {
+	} else if ((sip->sip_request->rq_method == sip_method_message) &&
+	           !(sip->sip_content_type &&
+	             strcasecmp(sip->sip_content_type->c_type, "application/im-iscomposing+xml") == 0) &&
+	           !(sip->sip_expires && sip->sip_expires->ex_delta == 0)) {
 		// Use the basic fork context for "im-iscomposing+xml" messages to prevent storing useless messages
-		context = make_shared<ForkMessageContext>(getAgent(), ev, mMessageForkCfg, this, mStats.mCountMessageForks);
+		context = make_shared<ForkMessageContextDbProxy>(getAgent(), ev, mMessageForkCfg, shared_from_this(),
+		                                                 mStats.mCountMessageForks);
 	} else if (sip->sip_request->rq_method == sip_method_refer &&
-				(sip->sip_refer_to != NULL && msg_params_find(sip->sip_refer_to->r_params, "text") != NULL)) {
+	           (sip->sip_refer_to != NULL && msg_params_find(sip->sip_refer_to->r_params, "text") != NULL)) {
 		// Use the message fork context only for refers that are text to prevent storing useless refers
-		context = make_shared<ForkMessageContext>(getAgent(), ev, mMessageForkCfg, this, mStats.mCountMessageForks);
+		context = make_shared<ForkMessageContextDbProxy>(getAgent(), ev, mMessageForkCfg, shared_from_this(),
+		                                                 mStats.mCountMessageForks);
 	} else {
-		context = make_shared<ForkBasicContext>(getAgent(), ev, mOtherForkCfg, this, mStats.mCountBasicForks);
+		context =
+		    make_shared<ForkBasicContext>(getAgent(), ev, mOtherForkCfg, shared_from_this(), mStats.mCountBasicForks);
 	}
 	if (context) {
 		const auto key = routingKey(sipUri);
