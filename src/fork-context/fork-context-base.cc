@@ -16,36 +16,37 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <flexisip/agent.hh>
-#include <flexisip/forkcontext.hh>
-#include <flexisip/registrardb.hh>
-#include <sofia-sip/sip_status.h>
+#include "flexisip/agent.hh"
+#include "flexisip/registrardb.hh"
+
+#include "flexisip/fork-context/fork-context-base.hh"
 
 using namespace std;
 using namespace flexisip;
 
-const int ForkContext::sUrgentCodes[] = {401, 407, 415, 420, 484, 488, 606, 603, 0};
+const int ForkContextBase::sUrgentCodes[] = {401, 407, 415, 420, 484, 488, 606, 603, 0};
 
-const int ForkContext::sAllCodesUrgent[] = {-1, 0};
+const int ForkContextBase::sAllCodesUrgent[] = {-1, 0};
 
-ForkContext::ForkContext(Agent *agent, const shared_ptr<RequestSipEvent> &event, shared_ptr<ForkContextConfig> cfg,
-						 ForkContextListener *listener, weak_ptr<StatPair> counter)
-	: mListener(listener), mNextBranchesTimer(agent->getRoot()), mStatCounter(move(counter)), mCurrentPriority(-1),
-	  mAgent(agent), mEvent(make_shared<RequestSipEvent>(event)), // Is this deep copy really necessary ?
-	  mCfg(move(cfg)), mLateTimer(agent->getRoot()), mFinishTimer(agent->getRoot()) {
+ForkContextBase::ForkContextBase(Agent* agent, const shared_ptr<RequestSipEvent>& event,
+                                 shared_ptr<ForkContextConfig> cfg, const weak_ptr<ForkContextListener>& listener,
+                                 weak_ptr<StatPair> counter)
+    : mListener(listener), mNextBranchesTimer(agent->getRoot()), mStatCounter(move(counter)), mCurrentPriority(-1),
+      mAgent(agent), mEvent(make_shared<RequestSipEvent>(event)), // Is this deep copy really necessary ?
+      mCfg(move(cfg)), mLateTimer(agent->getRoot()), mFinishTimer(agent->getRoot()) {
 	if (auto sharedCounter = mStatCounter.lock()) {
 		sharedCounter->incrStart();
 	}
 	init();
 }
 
-ForkContext::~ForkContext() {
+ForkContextBase::~ForkContextBase() {
 	if (auto sharedCounter = mStatCounter.lock()) {
 		sharedCounter->incrFinish();
 	}
 }
 
-void ForkContext::processLateTimeout() {
+void ForkContextBase::processLateTimeout() {
 	mLateTimer.reset();
 	onLateTimeout();
 	setFinished();
@@ -75,7 +76,7 @@ struct uid_finder {
 };
 
 
-shared_ptr<BranchInfo> ForkContext::findBranchByUid(const string &uid) {
+shared_ptr<BranchInfo> ForkContextBase::findBranchByUid(const string &uid) {
 	auto it = find_if(mWaitingBranches.begin(), mWaitingBranches.end(), uid_finder(uid));
 
 	if (it != mWaitingBranches.end())
@@ -84,7 +85,7 @@ shared_ptr<BranchInfo> ForkContext::findBranchByUid(const string &uid) {
 	return shared_ptr<BranchInfo>();
 }
 
-shared_ptr<BranchInfo> ForkContext::findBranchByDest(const url_t *dest) {
+shared_ptr<BranchInfo> ForkContextBase::findBranchByDest(const url_t *dest) {
 	auto it = find_if(mWaitingBranches.begin(), mWaitingBranches.end(), dest_finder(dest));
 
 	if (it != mWaitingBranches.end())
@@ -93,7 +94,7 @@ shared_ptr<BranchInfo> ForkContext::findBranchByDest(const url_t *dest) {
 	return shared_ptr<BranchInfo>();
 }
 
-bool ForkContext::isUrgent(int code, const int urgentCodes[]) {
+bool ForkContextBase::isUrgent(int code, const int urgentCodes[]) {
 	if (urgentCodes[0] == -1)
 		return true; /*everything is urgent*/
 
@@ -109,7 +110,7 @@ static bool isConsidered(int code, bool ignore503And408){
 	return ignore503And408 ? (!(code == 503 || code == 408)) : true;
 }
 
-shared_ptr<BranchInfo> ForkContext::_findBestBranch(const int urgentCodes[], bool ignore503And408) {
+shared_ptr<BranchInfo> ForkContextBase::_findBestBranch(const int urgentCodes[], bool ignore503And408) {
 	shared_ptr<BranchInfo> best;
 
 	for (const auto& br : mWaitingBranches) {
@@ -141,7 +142,7 @@ shared_ptr<BranchInfo> ForkContext::_findBestBranch(const int urgentCodes[], boo
 	return best;
 }
 
-shared_ptr<BranchInfo> ForkContext::findBestBranch(const int urgentCodes[], bool avoid503And408){
+shared_ptr<BranchInfo> ForkContextBase::findBestBranch(const int urgentCodes[], bool avoid503And408){
 	shared_ptr<BranchInfo> ret;
 
 	if (avoid503And408 == false)
@@ -156,7 +157,7 @@ shared_ptr<BranchInfo> ForkContext::findBestBranch(const int urgentCodes[], bool
 	return ret;
 }
 
-bool ForkContext::allBranchesAnswered(bool ignore_errors_and_timeouts) const {
+bool ForkContextBase::allBranchesAnswered(bool ignore_errors_and_timeouts) const {
 	for (const auto& br : mWaitingBranches) {
 		int code = br->getStatus();
 
@@ -169,7 +170,7 @@ bool ForkContext::allBranchesAnswered(bool ignore_errors_and_timeouts) const {
 	return true;
 }
 
-bool ForkContext::allCurrentBranchesAnswered(bool ignore_errors_and_timeouts) const {
+bool ForkContextBase::allCurrentBranchesAnswered(bool ignore_errors_and_timeouts) const {
 	for (const auto& br : mCurrentBranches) {
 		int code = br->getStatus();
 
@@ -182,7 +183,7 @@ bool ForkContext::allCurrentBranchesAnswered(bool ignore_errors_and_timeouts) co
 	return true;
 }
 
-void ForkContext::removeBranch(const shared_ptr<BranchInfo> &br) {
+void ForkContextBase::removeBranch(const shared_ptr<BranchInfo> &br) {
 	SLOGD << "ForkContext [" << this << "] branch [" << br.get() << "] removed.";
 
 	mWaitingBranches.remove(br);
@@ -190,13 +191,13 @@ void ForkContext::removeBranch(const shared_ptr<BranchInfo> &br) {
 	br->clear();
 }
 
-const list<shared_ptr<BranchInfo>> &ForkContext::getBranches() const {
+const list<shared_ptr<BranchInfo>> & ForkContextBase::getBranches() const {
 	return mWaitingBranches;
 }
 
 // this implementation looks for already pending or failed transactions and then rejects handling of a new one that
 // would already been tried.
-bool ForkContext::onNewRegister(const url_t *url, const string &uid) {
+bool ForkContextBase::onNewRegister(const url_t *url, const string &uid) {
 	shared_ptr<BranchInfo> br, br_by_url;
 
 	/*
@@ -244,7 +245,7 @@ bool ForkContext::onNewRegister(const url_t *url, const string &uid) {
 	return true;
 }
 
-void ForkContext::init() {
+void ForkContextBase::init() {
 	mIncoming = mEvent->createIncomingTransaction();
 
 	if (mCfg->mForkLate && !mLateTimer.isRunning()) {
@@ -258,15 +259,14 @@ bool compareGreaterBranch(const shared_ptr<BranchInfo> &lhs, const shared_ptr<Br
 	return lhs->mPriority > rhs->mPriority;
 }
 
-void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact) {
+void ForkContextBase::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact) {
 	auto ot = ev->createOutgoingTransaction();
-	ot->setProperty<ForkContext>("ForkContext", weak_ptr<ForkContext>{shared_from_this()});
 	auto br = createBranchInfo();
 
 	if (mIncoming && mWaitingBranches.size() == 0) {
 		/*for some reason shared_from_this() cannot be invoked within the ForkContext constructor, so we do this
 		 * initialization now*/
-		mIncoming->setProperty<ForkContext>("ForkContext", weak_ptr<ForkContext>{shared_from_this()});
+		ForkContext::setFork(mIncoming, shared_from_this());
 	}
 
 	// unlink the incoming and outgoing transactions which is done by default, since now the forkcontext is managing
@@ -278,7 +278,7 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	br->mContact = contact;
 	br->mPriority = contact->mQ;
 
-	ot->setProperty("BranchInfo", weak_ptr<BranchInfo>{br});
+	BranchInfo::setBranchInfo(ot, weak_ptr<BranchInfo>{br});
 
 	// Clear answered branches with same uid.
 	auto oldBr = findBranchByUid(br->mUid);
@@ -302,81 +302,12 @@ void ForkContext::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_
 	LOGD("ForkContext [%p]: new fork branch [%p]", this, br.get());
 }
 
-shared_ptr<ForkContext> ForkContext::get(const shared_ptr<IncomingTransaction> &tr) {
-	return tr->getProperty<ForkContext>("ForkContext");
-}
-
-shared_ptr<ForkContext> ForkContext::get(const shared_ptr<OutgoingTransaction> &tr) {
-	shared_ptr<BranchInfo> br = getBranchInfo(tr);
-	return br ? br->mForkCtx.lock() : nullptr;
-}
-
-shared_ptr<BranchInfo> ForkContext::getBranchInfo(const shared_ptr<OutgoingTransaction> &tr){
-	return tr->getProperty<BranchInfo>("BranchInfo");
-}
-
-bool ForkContext::processCancel(const shared_ptr<RequestSipEvent> &ev) {
-	auto transaction = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
-
-	if (transaction && ev->getMsgSip()->getSip()->sip_request->rq_method == sip_method_cancel) {
-		auto ctx = ForkContext::get(transaction);
-
-		if (ctx) {
-			ctx->onCancel(ev);
-
-			if (ctx->shouldFinish())
-				ctx->setFinished();
-
-			// let ev go through all the chain, however it will not be forwarded.
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool ForkContext::processResponse(const shared_ptr<ResponseSipEvent> &ev) {
-	auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
-	if (transaction) {
-		auto binfo = getBranchInfo(transaction);
-		if (binfo) {
-			auto copyEv = make_shared<ResponseSipEvent>(ev); // make a copy
-			copyEv->suspendProcessing();
-			binfo->mLastResponse = copyEv;
-
-			auto forkCtx = binfo->mForkCtx.lock();
-			forkCtx->onResponse(binfo, copyEv);
-
-			// the event may go through but it will not be sent*/
-			ev->setIncomingAgent(nullptr);
-
-			if (!copyEv->isSuspended()) {
-				// LOGD("A response has been submitted");
-				// copyEv has been resubmited, so stop original event.
-				ev->terminateProcessing();
-			} else {
-				// LOGD("The response has been retained");
-			}
-
-			if (forkCtx->allCurrentBranchesAnswered() && forkCtx->hasNextBranches()) {
-				forkCtx->start();
-			}
-
-			return true;
-		} else {
-			// LOGD("ForkContext: un-processed response");
-		}
-	}
-
-	return false;
-}
-
-void ForkContext::onNextBranches() {
+void ForkContextBase::onNextBranches() {
 	if (hasNextBranches())
 		start();
 }
 
-bool ForkContext::hasNextBranches() {
+bool ForkContextBase::hasNextBranches() const {
 	const auto& wBrs = mWaitingBranches;
 	auto findCond = [this] (const auto& br) {return br->mPriority < mCurrentPriority;};
 	return !mFinished && (
@@ -385,7 +316,7 @@ bool ForkContext::hasNextBranches() {
 	);
 }
 
-void ForkContext::nextBranches() {
+void ForkContextBase::nextBranches() {
 	/* Clear all current branches is there is any */
 	mCurrentBranches.clear();
 
@@ -408,7 +339,7 @@ void ForkContext::nextBranches() {
 	}
 }
 
-void ForkContext::start() {
+void ForkContextBase::start() {
 	if (mFinished) {
 		LOGE("Calling start() on a completed ForkContext[%p]. Doing nothing", this);
 		return;
@@ -437,11 +368,11 @@ void ForkContext::start() {
 	}
 }
 
-const shared_ptr<RequestSipEvent> &ForkContext::getEvent() {
+const shared_ptr<RequestSipEvent> & ForkContextBase::getEvent() {
 	return mEvent;
 }
 
-void ForkContext::onFinished() {
+void ForkContextBase::onFinished() {
 	mFinishTimer.reset();
 
 	// force references to be loosed immediately, to avoid circular dependencies.
@@ -454,10 +385,12 @@ void ForkContext::onFinished() {
 	for_each(mCurrentBranches.begin(), mCurrentBranches.end(), mem_fn(&BranchInfo::clear));
 	mCurrentBranches.clear();
 
-	mListener->onForkContextFinished(shared_from_this());
+	if (auto listener = mListener.lock()) {
+		listener->onForkContextFinished(shared_from_this());
+	}
 }
 
-void ForkContext::setFinished() {
+void ForkContextBase::setFinished() {
 	if (mFinishTimer.isRunning()) {
 		/*already finishing, ignore*/
 		return;
@@ -470,31 +403,34 @@ void ForkContext::setFinished() {
 	mFinishTimer.set([self = shared_from_this()](){self->onFinished();}, 0);
 }
 
-bool ForkContext::shouldFinish() {
+bool ForkContextBase::shouldFinish() {
 	return true;
 }
 
-void ForkContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
+void ForkContextBase::onNewBranch(const shared_ptr<BranchInfo> &br) {
 }
 
-void ForkContext::onCancel(const shared_ptr<RequestSipEvent> &ev) {
+void ForkContextBase::onCancel(const shared_ptr<RequestSipEvent> &ev) {
+	if (shouldFinish()) {
+		setFinished();
+	}
 }
 
-void ForkContext::addKey(const string &key) {
+void ForkContextBase::addKey(const string &key) {
      mKeys.push_back(key);
 }
 
-const list<string> &ForkContext::getKeys() const{
+const list<string> & ForkContextBase::getKeys() const{
      return mKeys;
 }
 
-shared_ptr<BranchInfo> ForkContext::createBranchInfo() {
+shared_ptr<BranchInfo> ForkContextBase::createBranchInfo() {
 	return make_shared<BranchInfo>(shared_from_this());
 }
 
 // called by implementors to request the forwarding of a response from this branch, regardless of whether it was
 // retained previously or not*/
-shared_ptr<ResponseSipEvent> ForkContext::forwardResponse(const shared_ptr<BranchInfo> &br) {
+shared_ptr<ResponseSipEvent> ForkContextBase::forwardResponse(const shared_ptr<BranchInfo> &br) {
 	if (br->mLastResponse) {
 		if (mIncoming) {
 			int code = br->mLastResponse->getMsgSip()->getSip()->sip_status->st_status;
@@ -514,7 +450,7 @@ shared_ptr<ResponseSipEvent> ForkContext::forwardResponse(const shared_ptr<Branc
 	return shared_ptr<ResponseSipEvent>();
 }
 
-shared_ptr<ResponseSipEvent> ForkContext::forwardResponse(const shared_ptr<ResponseSipEvent> &ev) {
+shared_ptr<ResponseSipEvent> ForkContextBase::forwardResponse(const shared_ptr<ResponseSipEvent> &ev) {
 	if (mIncoming) {
 		int code = ev->getMsgSip()->getSip()->sip_status->st_status;
 		ev->setIncomingAgent(mIncoming);
@@ -539,15 +475,15 @@ shared_ptr<ResponseSipEvent> ForkContext::forwardResponse(const shared_ptr<Respo
 	return shared_ptr<ResponseSipEvent>();
 }
 
-int ForkContext::getLastResponseCode() const {
+int ForkContextBase::getLastResponseCode() const {
 	if (mLastResponseSent)
 		return mLastResponseSent->getMsgSip()->getSip()->sip_status->st_status;
 
 	return 0;
 }
 
-void ForkContext::onPushSent(const std::shared_ptr<OutgoingTransaction> &tr){
-	shared_ptr<BranchInfo> br = getBranchInfo(tr);
+void ForkContextBase::onPushSent(const std::shared_ptr<OutgoingTransaction> &tr){
+	shared_ptr<BranchInfo> br = BranchInfo::getBranchInfo(tr);
 	if (!br){
 		LOGE("ForkContext[%p]: no branch for transaction [%p]", this, tr.get());
 		return;
@@ -555,10 +491,10 @@ void ForkContext::onPushSent(const std::shared_ptr<OutgoingTransaction> &tr){
 	br->mPushSent = true;
 }
 
-void ForkContext::onPushError(const std::shared_ptr<OutgoingTransaction> &tr, const std::string &errormsg){
+void ForkContextBase::onPushError(const std::shared_ptr<OutgoingTransaction> &tr, const std::string &errormsg){
 }
 
-shared_ptr<ResponseSipEvent> ForkContext::forwardCustomResponse(int status, const char* phrase) {
+shared_ptr<ResponseSipEvent> ForkContextBase::forwardCustomResponse(int status, const char* phrase) {
 	if (mIncoming == nullptr) {
 		LOGE("ForkContext[%p]: cannot forward SIP response [%d %s]: no incoming transaction.", this, status, phrase);
 		return nullptr;
@@ -575,13 +511,6 @@ shared_ptr<ResponseSipEvent> ForkContext::forwardCustomResponse(int status, cons
 	return nullptr;
 }
 
-void  ForkContext::processInternalError(int status, const char* phrase) {
+void ForkContextBase::processInternalError(int status, const char* phrase) {
 	forwardCustomResponse(status, phrase);
-}
-
-void BranchInfo::clear() {
-	mTransaction.reset();
-	mRequest.reset();
-	mLastResponse.reset();
-	mForkCtx.reset();
 }
