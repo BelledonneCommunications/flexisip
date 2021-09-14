@@ -22,7 +22,7 @@
 
 #include "flexisip/common.hh"
 
-#include "flexisip/forkcallcontext.hh"
+#include "flexisip/fork-context/fork-call-context.hh"
 
 using namespace std;
 
@@ -32,10 +32,18 @@ template <typename T> static bool contains(const list<T> &l, T value) {
 	return find(l.cbegin(), l.cend(), value) != l.cend();
 }
 
-ForkCallContext::ForkCallContext(Agent *agent, const shared_ptr<RequestSipEvent> &event,
-								 shared_ptr<ForkContextConfig> cfg, ForkContextListener *listener,
-								 weak_ptr<StatPair> counter)
-	: ForkContext(agent, event, move(cfg), listener, move(counter)), mLog{event->getEventLog<CallLog>()} {
+shared_ptr<ForkCallContext> ForkCallContext::make(Agent* agent, const shared_ptr<RequestSipEvent>& event,
+                                                  const shared_ptr<ForkContextConfig>& cfg,
+                                                  const weak_ptr<ForkContextListener>& listener,
+                                                  const weak_ptr<StatPair>& counter) {
+	const shared_ptr<ForkCallContext> shared{new ForkCallContext(agent, event, cfg, listener, counter)};
+	return shared;
+}
+
+ForkCallContext::ForkCallContext(Agent* agent, const shared_ptr<RequestSipEvent>& event,
+                                 const shared_ptr<ForkContextConfig>& cfg,
+                                 const weak_ptr<ForkContextListener>& listener, const weak_ptr<StatPair>& counter)
+    : ForkContextBase(agent, event, cfg, listener, counter), mLog{event->getEventLog<CallLog>()} {
 	SLOGD << "New ForkCallContext " << this;
 }
 
@@ -50,6 +58,10 @@ void ForkCallContext::onCancel(const shared_ptr<RequestSipEvent> &ev) {
 	cancelOthers(shared_ptr<BranchInfo>(), ev->getSip());
 	// The event log must be placed in a sip event in order to be written into DB.
 	ev->setEventLog(mLog);
+
+	if (shouldFinish()) {
+		setFinished();
+	}
 }
 
 void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo> &br, sip_t *received_cancel) {
@@ -97,10 +109,10 @@ const int ForkCallContext::sUrgentCodesWithout603[] = {401, 407, 415, 420, 484, 
 
 const int *ForkCallContext::getUrgentCodes() {
 	if (mCfg->mTreatAllErrorsAsUrgent)
-		return ForkContext::sAllCodesUrgent;
+		return ForkContextBase::sAllCodesUrgent;
 
 	if (mCfg->mTreatDeclineAsUrgent)
-		return ForkContext::sUrgentCodes;
+		return ForkContextBase::sUrgentCodes;
 
 	return sUrgentCodesWithout603;
 }
@@ -187,7 +199,7 @@ bool ForkCallContext::onNewRegister(const url_t *url, const string &uid) {
 	if (isCompleted())
 		return false;
 
-	return ForkContext::onNewRegister(url, uid);
+	return ForkContextBase::onNewRegister(url, uid);
 }
 
 bool ForkCallContext::isCompleted() const {
@@ -242,12 +254,12 @@ void ForkCallContext::onPushTimer() {
 }
 
 void ForkCallContext::onPushSent(const shared_ptr<OutgoingTransaction> &tr) {
-	ForkContext::onPushSent(tr);
+	ForkContextBase::onPushSent(tr);
 	++mActivePushes;
 }
 
 void ForkCallContext::onPushError(const shared_ptr<OutgoingTransaction> &tr, const string &errormsg) {
-	ForkContext::onPushError(tr, errormsg);
+	ForkContextBase::onPushError(tr, errormsg);
 	--mActivePushes;
 
 	if (mActivePushes != 0)
@@ -258,7 +270,7 @@ void ForkCallContext::onPushError(const shared_ptr<OutgoingTransaction> &tr, con
 }
 
 void ForkCallContext::processInternalError(int status, const char* phrase) {
-	ForkContext::processInternalError(status, phrase);
+	ForkContextBase::processInternalError(status, phrase);
 	cancelOthers(shared_ptr<BranchInfo>(), nullptr);
 }
 

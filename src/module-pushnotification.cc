@@ -24,7 +24,7 @@
 
 #include <flexisip/agent.hh>
 #include <flexisip/event.hh>
-#include <flexisip/forkcallcontext.hh>
+#include <flexisip/fork-context/fork-call-context.hh>
 #include <flexisip/module.hh>
 #include <flexisip/transaction.hh>
 #include <flexisip/utils/timer.hh>
@@ -144,7 +144,7 @@ void PushNotificationContext::cancel() {
 
 void PushNotificationContext::onTimeout() {
 	SLOGD << "PNR " << mPushNotificationRequest.get() << ": timeout";
-	auto forkCtx = ForkContext::get(mTransaction);
+	auto forkCtx = ForkContext::getFork(mTransaction);
 	if (forkCtx) {
 		if (forkCtx->isFinished()) {
 			LOGD("Call is already established or canceled, so push notification is not sent but cleared.");
@@ -446,7 +446,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 		}
 
 		// Extract the unique id if possible.
-		const shared_ptr<BranchInfo> &br = ForkContext::getBranchInfo(transaction);
+		const auto& br = BranchInfo::getBranchInfo(transaction);
 		if (br) {
 			pinfo.mUid = br->mUid;
 			if (br->mPushSent) {
