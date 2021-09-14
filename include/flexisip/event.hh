@@ -130,7 +130,7 @@ class SipEvent : public std::enable_shared_from_this<SipEvent> {
 
 	virtual ~SipEvent();
 
-	Module *getCurrentModule() {
+	const std::weak_ptr<Module>& getCurrentModule() {
 		return mCurrModule;
 	}
 
@@ -144,7 +144,7 @@ class SipEvent : public std::enable_shared_from_this<SipEvent> {
 	std::shared_ptr<OutgoingTransaction> getOutgoingTransaction();
 
   protected:
-	Module *mCurrModule;
+	std::weak_ptr<Module> mCurrModule;
 	std::shared_ptr<MsgSip> mMsgSip;
 	std::shared_ptr<IncomingAgent> mIncomingAgent;
 	std::shared_ptr<OutgoingAgent> mOutgoingAgent;

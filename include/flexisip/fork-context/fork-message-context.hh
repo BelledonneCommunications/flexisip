@@ -18,44 +18,44 @@
 
 #pragma once
 
-#include <flexisip/agent.hh>
-#include <flexisip/event.hh>
-#include <flexisip/transaction.hh>
-#include <flexisip/forkcontext.hh>
-
 #include <list>
 #include <map>
 
+#include "flexisip/agent.hh"
+#include "flexisip/event.hh"
+#include "flexisip/fork-context/fork-context-base.hh"
+#include "flexisip/transaction.hh"
+
 namespace flexisip {
 
-class ForkMessageContext : public ForkContext {
-  private:
-	su_timer_t
-		*mAcceptanceTimer; /*timeout after which an answer must be sent through the incoming transaction even if no
-							  success response was received on the outgoing transactions*/
-	static const int sAcceptanceTimeout = 20; /* this must be less than the transaction time (32 seconds)*/
-	int mDeliveredCount;
-	bool mIsMessage; /* tells if the ForkMessageContext is a message, if false it's a refer */
-
-  public:
-	ForkMessageContext(Agent *agent, const std::shared_ptr<RequestSipEvent> &event,
-					   std::shared_ptr<ForkContextConfig> cfg, ForkContextListener *listener,
-					   std::weak_ptr<StatPair> counter);
+class ForkMessageContext : public ForkContextBase {
+public:
+	ForkMessageContext(Agent* agent, const std::shared_ptr<RequestSipEvent>& event,
+	                   std::shared_ptr<ForkContextConfig> cfg, const std::weak_ptr<ForkContextListener>& listener,
+	                   std::weak_ptr<StatPair> counter);
 	virtual ~ForkMessageContext();
 
-  protected:
-	virtual bool onNewRegister(const url_t *url, const std::string &uid);
-	virtual void onNewBranch(const std::shared_ptr<BranchInfo> &br);
+	virtual bool onNewRegister(const url_t* url, const std::string& uid);
 	virtual void onResponse(const std::shared_ptr<BranchInfo> &br, const std::shared_ptr<ResponseSipEvent> &ev);
+
+protected:
+	virtual void onNewBranch(const std::shared_ptr<BranchInfo> &br);
 	virtual bool shouldFinish();
 
-  private:
+private:
 	static void sOnAcceptanceTimer(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg);
 	void acceptMessage();
 	void onAcceptanceTimer();
 	void logReceivedFromUserEvent(const std::shared_ptr<RequestSipEvent> &reqEv, const std::shared_ptr<ResponseSipEvent> &respEv);
 	void checkFinished();
 	void logDeliveredToUserEvent(const std::shared_ptr<RequestSipEvent> &reqEv, const std::shared_ptr<ResponseSipEvent> &respEv);
+
+	su_timer_t
+	    *mAcceptanceTimer; /*timeout after which an answer must be sent through the incoming transaction even if no
+	                                             success response was received on the outgoing transactions*/
+	static const int sAcceptanceTimeout = 20; /* this must be less than the transaction time (32 seconds)*/
+	int mDeliveredCount;
+	bool mIsMessage; /* tells if the ForkMessageContext is a message, if false it's a refer */
 };
 
 }

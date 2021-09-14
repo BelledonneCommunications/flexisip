@@ -47,7 +47,7 @@ class ForwardModule : public Module, ModuleToolbox {
 	void sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest);
 
   private:
-	ModuleRouter *mRouterModule;
+	std::weak_ptr<ModuleRouter> mRouterModule;
 	url_t *overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest);
 	url_t *getDestinationFromRoute(su_home_t *home, sip_t *sip);
 	bool isLooping(shared_ptr<RequestSipEvent> &ev, const char *branch);
@@ -115,8 +115,8 @@ void ForwardModule::onLoad(const GenericStruct *mc) {
 	else mDefaultTransport = "transport=" + mDefaultTransport;
 	/* The forward module needs the help of the router module to determine whether
 	 * a gruu request uri is under control of this domain or not. */
-	mRouterModule = dynamic_cast<ModuleRouter*>(getAgent()->findModuleByFunction("Router"));
-	if (!mRouterModule) LOGA("Could not find 'Router' module.");
+	mRouterModule = dynamic_pointer_cast<ModuleRouter>(getAgent()->findModuleByFunction("Router"));
+	if (!mRouterModule.lock()) LOGA("Could not find 'Router' module.");
 	
 	const GenericStruct *clusterSection = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
 	bool clusterEnabled = clusterSection->get<ConfigBoolean>("enabled")->read();
@@ -245,7 +245,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	if (sip->sip_max_forwards != nullptr && sip->sip_max_forwards->mf_count <= countVia(ev)) {
 		LOGD("Too Many Hops");
 		if (auto transaction = ev->getOutgoingTransaction()) {
-			if (auto forkContext = transaction->getProperty<ForkContext>("ForkContext")) {
+			if (auto forkContext = ForkContext::getFork(transaction)) {
 				forkContext->processInternalError(SIP_483_TOO_MANY_HOPS);
 				ev->terminateProcessing();
 				return;
@@ -271,8 +271,9 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	try {
 		SipUri destUri(dest);
 
+		const auto& routerModule = mRouterModule.lock(); // Used to be a basic pointer
 		/*gruu processing in forward module is only done if dialog is established. In other cases, router module is involved instead*/
-		if (destUri.hasParam("gr") && (sip->sip_to != nullptr && sip->sip_to->a_tag != nullptr) && mRouterModule->isManagedDomain(dest)) {
+		if (destUri.hasParam("gr") && (sip->sip_to != nullptr && sip->sip_to->a_tag != nullptr) && routerModule->isManagedDomain(dest)) {
 			//gruu case, ask registrar db for AOR
 			ev->suspendProcessing();
 			auto listener = make_shared<RegistrarListener>(this,ev);
