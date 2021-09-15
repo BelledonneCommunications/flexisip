@@ -216,12 +216,15 @@ int TlsConnection::read(void* data, int dlen, chrono::milliseconds timeout) noex
 
 	auto nread = BIO_read(mBio.get(), data, dlen);
 	if (nread < 0) {
-		if (BIO_should_retry(mBio.get())) {
+		if (errno == EAGAIN || BIO_should_retry(mBio.get())) {
 			return 0;
 		}
 		ostringstream err{};
 		err << "TlsConnection[" << this << "]: error while reading data. ";
 		handleBioError(err.str(), nread);
+	}
+	if (nread > 0) {
+		SLOGD << "TlsConnection[" << this << "]: " << nread << "B read";
 	}
 
 	return nread;
@@ -231,11 +234,15 @@ int TlsConnection::write(const void* data, int dlen) noexcept {
 	ERR_clear_error();
 	auto nwritten = BIO_write(mBio.get(), data, dlen);
 	if (nwritten < 0) {
-		if (BIO_should_retry(mBio.get()))
+		if (errno == EAGAIN || BIO_should_retry(mBio.get())) {
 			return 0;
+		}
 		ostringstream err{};
 		err << "TlsConnection[" << this << "]: error while writting data. ";
 		handleBioError(err.str(), nwritten);
+	}
+	if (nwritten > 0) {
+		SLOGD << "TlsConnection[" << this << "]: " << nwritten << "B written";
 	}
 	return nwritten;
 }
