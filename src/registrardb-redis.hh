@@ -130,16 +130,6 @@ private:
 
 	friend class RegistrarDb;
 
-	redisAsyncContext *mContext{nullptr};
-	redisAsyncContext *mSubscribeContext{nullptr};
-	RecordSerializer *mSerializer;
-	RedisParameters mParams{};
-	RedisParameters mLastActiveParams{};
-	su_root_t *mRoot{nullptr};
-	std::vector<RedisHost> mSlaves{};
-	decltype(mSlaves)::const_iterator mCurSlave = mSlaves.cend();
-	su_timer_t *mReplicationTimer{nullptr};
-
 	void serializeAndSendToRedis(RegistrarUserData *data, forwardFn *forward_fn);
 	bool handleRedisStatus(const std::string &desc, int redisStatus, RegistrarUserData *data);
 	void onErrorData(RegistrarUserData *data);
@@ -186,6 +176,23 @@ private:
 	static void sHandleSet(redisAsyncContext *ac, void *r, void *privdata);
 	static void sHandleMigration(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
 	static void sHandleRecordMigration(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
+
+	/**
+	 * Callback use to add space between RegistrarDbRedisAsync::tryReconnect calls
+	 */
+	static void OnTryReconnectTimer(su_root_magic_t* magic, su_timer_t* t, su_timer_arg_t* arg);
+
+	redisAsyncContext* mContext{nullptr};
+	redisAsyncContext* mSubscribeContext{nullptr};
+	RecordSerializer* mSerializer;
+	RedisParameters mParams{};
+	RedisParameters mLastActiveParams{};
+	su_root_t* mRoot{nullptr};
+	std::vector<RedisHost> mSlaves{};
+	decltype(mSlaves)::const_iterator mCurSlave = mSlaves.cend();
+	su_timer_t* mReplicationTimer{nullptr};
+	std::chrono::system_clock::time_point mLastReconnectRotation;
+	su_timer_t* mReconnectTimer{nullptr};
 };
 
 }

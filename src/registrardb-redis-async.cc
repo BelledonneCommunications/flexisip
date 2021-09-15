@@ -62,6 +62,10 @@ RegistrarDbRedisAsync::~RegistrarDbRedisAsync() {
 		mAgent->stopTimer(mReplicationTimer);
 		mReplicationTimer = nullptr;
 	}
+	if (mAgent && mReconnectTimer) {
+		mAgent->stopTimer(mReconnectTimer);
+		mReconnectTimer = nullptr;
+	}
 }
 
 void RegistrarDbRedisAsync::onDisconnect(const redisAsyncContext *c, int status) {
@@ -268,16 +272,38 @@ void RegistrarDbRedisAsync::updateSlavesList(const map<string, string> redisRepl
 	mCurSlave = mSlaves.cend();
 }
 
+void RegistrarDbRedisAsync::OnTryReconnectTimer(su_root_magic_t* magic, su_timer_t* t, su_timer_arg_t* arg) {
+	auto thiz = static_cast<RegistrarDbRedisAsync*>(arg);
+	thiz->tryReconnect();
+	if (thiz->mReconnectTimer) {
+		su_timer_destroy(thiz->mReconnectTimer);
+		thiz->mReconnectTimer = nullptr;
+	}
+}
+
 void RegistrarDbRedisAsync::tryReconnect() {
 	if (isConnected()) {
 		return;
 	}
+
+	if (chrono::system_clock::now() - mLastReconnectRotation < 1s) {
+		if (!mReconnectTimer) {
+			mReconnectTimer = su_timer_create(su_root_task(mRoot), 0);
+			su_timer_set_interval(mReconnectTimer, &RegistrarDbRedisAsync::OnTryReconnectTimer, this,
+			                      (su_duration_t)1000);
+		}
+		return;
+	}
+
 	// First we try to reconnect using the last active connection
 	if (mCurSlave == mSlaves.cend()) {
 		// We need to restore mLastActiveParams if we already tried all slaves without success to try the last master
 		// again.
 		mParams = mLastActiveParams;
-		mCurSlave = mSlaves.cbegin();
+		if((mCurSlave = mSlaves.cbegin()) == mSlaves.cend()) {
+			// If there is no slaves, this is already a full rotation.
+			mLastReconnectRotation = std::chrono::system_clock::now();
+		}
 		LOGW("Trying to reconnect to last active connection at %s:%d", mParams.domain.c_str(), mParams.port);
 		connect();
 		return;
@@ -291,8 +317,9 @@ void RegistrarDbRedisAsync::tryReconnect() {
 
 		mParams.domain = mCurSlave->address;
 		mParams.port = mCurSlave->port;
-		mCurSlave++;
-
+		if(++mCurSlave == mSlaves.cend()) {
+			mLastReconnectRotation = std::chrono::system_clock::now();
+		}
 		connect();
 
 	} else {
