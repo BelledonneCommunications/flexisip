@@ -253,13 +253,15 @@ ssize_t Http2Client::doRecv(nghttp2_session& session, uint8_t* data, size_t leng
  * Synchronously called by nghttp2_session_send
  */
 void Http2Client::onFrameSent(nghttp2_session& session, const nghttp2_frame& frame) noexcept {
-	// SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: frame sent (" << frame.hd.length << "B):\n" << frame;
+	SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: " << Http2Tools::frameTypeToString(frame.hd.type)
+		<< " frame sent (" << frame.hd.length << "B):\n" << frame;
 	resetTimeoutTimer(frame.hd.stream_id);
 	resetIdleTimer();
 }
 
 void Http2Client::onFrameRecv(nghttp2_session& session, const nghttp2_frame& frame) noexcept {
-	// SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: frame received (" << frame.hd.length << "B):\n" << frame;
+	SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: " << Http2Tools::frameTypeToString(frame.hd.type)
+		<< " frame received (" << frame.hd.length << "B):\n" << frame;
 	resetTimeoutTimer(frame.hd.stream_id);
 	resetIdleTimer();
 
@@ -320,8 +322,16 @@ void Http2Client::onDataReceived(nghttp2_session& session, uint8_t flags, int32_
 	}
 }
 
-int Http2Client::onPollInCb(su_root_magic_t*, su_wait_t*, su_wakeup_arg_t* arg) noexcept {
+int Http2Client::onPollInCb(su_root_magic_t*, su_wait_t* w, su_wakeup_arg_t* arg) noexcept {
 	auto thiz = static_cast<Http2Client*>(arg);
+
+	if (w->revents & SU_WAIT_ERR) {
+		SLOGE << thiz->mLogPrefix << ": socket error";
+	}
+	if (w->revents & SU_WAIT_HUP) {
+		SLOGD << thiz->mLogPrefix << ": peer has hung up";
+	}
+
 	auto status = nghttp2_session_recv(thiz->mHttpSession.get());
 	if (status < 0) {
 		SLOGE << thiz->mLogPrefix << ": error while receiving HTTP2 data[" << nghttp2_strerror(status)
@@ -349,7 +359,9 @@ void Http2Client::onStreamClosed(nghttp2_session& session, int32_t stream_id, ui
 		SLOGD << logPrefix << ": stream closed without error";
 		if (context != nullptr) {
 			try {
-				context->getResponse()->getStatusCode();
+				context->getResponse()->getStatusCode(); // throw an exception if the status code is invalid.
+				SLOGD << logPrefix << ": response received for HttpRequest[" << context->getRequest() << "]:\n"
+					<< context->getResponse()->toString();
 				context->getOnResponseCb()(context->getRequest(), context->getResponse());
 				mActiveHttpContexts.erase(contextMapIterator);
 			} catch (const runtime_error& e) {
