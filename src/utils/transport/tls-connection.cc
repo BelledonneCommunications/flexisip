@@ -216,7 +216,10 @@ int TlsConnection::read(void* data, int dlen, chrono::milliseconds timeout) noex
 
 	auto nread = BIO_read(mBio.get(), data, dlen);
 	if (nread < 0) {
-		if (BIO_should_retry(mBio.get())) {
+		if (errno == EWOULDBLOCK || BIO_should_retry(mBio.get())) {
+			// Either the socket was emtpy or there wasn't enough data to
+			// form a complete TLS message. Return '0' to requieres the
+			// upper code to try later.
 			return 0;
 		}
 		ostringstream err{};
@@ -234,8 +237,12 @@ int TlsConnection::write(const void* data, int dlen) noexcept {
 	ERR_clear_error();
 	auto nwritten = BIO_write(mBio.get(), data, dlen);
 	if (nwritten < 0) {
-		if (BIO_should_retry(mBio.get()))
+		if (errno == EWOULDBLOCK || BIO_should_retry(mBio.get())) {
+			// Either the socket was full or there wasn't enough space
+			// to serialize a complete TLS message. Return '0' to
+			// requires the upper code to try later.
 			return 0;
+		}
 		ostringstream err{};
 		err << "TlsConnection[" << this << "]: error while writting data. ";
 		handleBioError(err.str(), nwritten);
