@@ -200,7 +200,7 @@ void Agent::initializePreferredRoute() {
 }
 
 void Agent::loadModules() {
-	for (auto *module : mModules) {
+	for (const auto& module : mModules) {
 		// Check in all cases, even if not enabled,
 		// to allow safe dynamic activation of the module
 		module->checkConfig();
@@ -540,8 +540,9 @@ Agent::Agent(su_root_t *root) {
 
 	mServerString = "Flexisip/" FLEXISIP_GIT_VERSION " (sofia-sip-nta/" NTA_VERSION ")";
 
-	for (Module *module : mModules)
+	for (const auto& module : mModules) {
 		module->declare(cr);
+	}
 
 	onDeclare(cr);
 
@@ -577,8 +578,6 @@ Agent::~Agent() {
 #endif
 
 	mTerminating = true;
-	for (Module *module : mModules)
-		delete module;
 
 	if (mTimer)
 		su_timer_destroy(mTimer);
@@ -634,7 +633,7 @@ void Agent::loadConfig(GenericManager *cm) {
 }
 
 void Agent::unloadConfig() {
-	for (auto *module : mModules) {
+	for (const auto& module : mModules) {
 		module->unload();
 	}
 }
@@ -868,26 +867,22 @@ void Agent::logEvent(const shared_ptr<SipEvent> &ev) {
 	}
 }
 
-Module *Agent::findModule(const string &moduleName) const {
-	auto it = find_if(
-		mModules.cbegin(), mModules.cend(),
-		[&moduleName](const Module *m){return m->getModuleName() == moduleName;}
-	);
+shared_ptr<Module> Agent::findModule(const string& moduleName) const {
+	auto it = find_if(mModules.cbegin(), mModules.cend(),
+	                  [&moduleName](const auto& m) { return m->getModuleName() == moduleName; });
 	return (it != mModules.cend()) ? *it : nullptr;
 }
 
-Module *Agent::findModuleByFunction(const std::string &moduleFunction) const {
-	auto it = find_if(
-		mModules.cbegin(), mModules.cend(),
-		[&moduleFunction](const Module *m){return m->getInfo()->getFunction() == moduleFunction;}
-	);
-	return (it != mModules.cend()) ? *it : nullptr;
+shared_ptr<Module> Agent::findModuleByFunction(const std::string& moduleFunction) const {
+	auto it = find_if(mModules.cbegin(), mModules.cend(),
+	                  [&moduleFunction](const auto& m) { return m->getInfo()->getFunction() == moduleFunction; });
+	return it != mModules.cend() ? *it : nullptr;
 }
 
 template <typename SipEventT, typename ModuleIter>
 void Agent::doSendEvent(std::shared_ptr<SipEventT> ev, const ModuleIter &begin, const ModuleIter &end) {
 	for (auto it = begin; it != end; ++it) {
-		ev->mCurrModule = (*it);
+		ev->mCurrModule = *it;
 		(*it)->process(ev);
 		if (ev->isTerminated() || ev->isSuspended())
 			break;
@@ -1009,22 +1004,24 @@ void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 
 void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	SipLogContext ctx{ev->getMsgSip()};
+	auto currModule = ev->mCurrModule.lock();// Used to be a basic pointer
 	if (LOGD_ENABLED()){
-		SLOGD << "Inject request SIP event [" << ev << "] after " << ev->mCurrModule->getModuleName() << ":\n" << *ev->getMsgSip();
+		SLOGD << "Inject request SIP event [" << ev << "] after " << currModule->getModuleName() << ":\n" << *ev->getMsgSip();
 	}
 	ev->restartProcessing();
-	auto it = find(mModules.cbegin(), mModules.cend(), ev->mCurrModule);
+	auto it = find(mModules.cbegin(), mModules.cend(), currModule);
 	doSendEvent(ev, ++it, mModules.cend());
 	printEventTailSeparator();
 }
 
 void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 	SipLogContext ctx{ev->getMsgSip()};
+	auto currModule = ev->mCurrModule.lock();// Used to be a basic pointer
 	if (LOGD_ENABLED()){
-		SLOGD << "Injecting response SIP event [" << ev << "] after " << ev->mCurrModule->getModuleName() << ":\n" << *ev->getMsgSip();
+		SLOGD << "Injecting response SIP event [" << ev << "] after " << currModule->getModuleName() << ":\n" << *ev->getMsgSip();
 	}
 	ev->restartProcessing();
-	auto it = find(mModules.cbegin(), mModules.cend(), ev->mCurrModule);
+	auto it = find(mModules.cbegin(), mModules.cend(), currModule);
 	doSendEvent(ev, ++it, mModules.cend());
 	printEventTailSeparator();
 }
@@ -1086,7 +1083,9 @@ int Agent::messageCallback(nta_agent_magic_t *context, nta_agent_t *agent, msg_t
 }
 
 void Agent::idle() {
-	for_each(mModules.begin(), mModules.end(), mem_fun(&Module::idle));
+	for(const auto& module : mModules) {
+		module->idle();
+	}
 	if (GenericManager::get()->mNeedRestart) {
 		exit(RESTART_EXIT_CODE);
 	}
