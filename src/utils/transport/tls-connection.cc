@@ -223,7 +223,6 @@ int TlsConnection::read(void* data, int dlen, chrono::milliseconds timeout) noex
 		err << "TlsConnection[" << this << "]: error while reading data. ";
 		handleBioError(err.str(), nread);
 	}
-
 	return nread;
 }
 
