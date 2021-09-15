@@ -46,10 +46,11 @@ add_library(flexisip SHARED
 	etchosts.cc
 	event.cc
 	eventlogs/eventlogs.cc
-	forkbasiccontext.cc
-	forkcallcontext.cc
-	forkcontext.cc
-	forkmessagecontext.cc
+	fork-context/fork-basic-context.cc
+	fork-context/fork-call-context.cc
+	fork-context/fork-context-base.cc
+	fork-context/fork-message-context.cc
+	fork-context/fork-context.cc
 	h264iframefilter.cc
 	log/logmanager.cc
 	lpconfig.cc
