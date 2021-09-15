@@ -95,15 +95,10 @@ class Request {
 
 		template <typename T, typename U>
 		Request(T &&appid, U &&type) : mAppId(std::forward<T>(appid)), mType(std::forward<U>(type)) {}
-		Request(const Request &) = delete;
-		Request(Request &&) = delete;
 		virtual ~Request() = default;
 
-		Request &operator=(const Request &src) = delete;
-		Request &operator=(Request &&src) = delete;
-
 		State getState() const noexcept {return mState;}
-		void setState(State state) noexcept {mState = state;}
+		void setState(State state) noexcept;
 
 		const std::string &getAppIdentifier() const noexcept {return mAppId;}
 		const std::string &getType() const noexcept {return mType;}
@@ -121,6 +116,8 @@ class Request {
 		State mState{State::NotSubmitted};
 		const std::string mType;
 };
+
+std::ostream& operator<<(std::ostream& os, Request::State state) noexcept;
 
 } // pushnotification namespace
 } // flexisip namespace
