@@ -57,10 +57,23 @@ option(ENABLE_EXTERNAL_AUTH_PLUGIN "Enable ExternalAuth plugin support" ON)
 option(ENABLE_JWE_AUTH_PLUGIN "Enable JweAuth plugin support" ON)
 option(ENABLE_UNIT_TESTS "Enable flexisip unit tests (low level tests)" OFF)
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
+option(INTERNAL_LIBSRTP2 "Build SRTP2 source code present as linphone-sdk submodules instead of searching it in system libraries" OFF)
 set(CPACK_GENERATOR "" CACHE STRING "Generator to use for making package. Supported values: 'RPM', 'DEB'")
-set(SYSCONF_INSTALL_DIR ${CMAKE_INSTALL_FULL_SYSCONFDIR} CACHE STRING "Config directory, the place where flexisip expects its flexisip.conf file to reside" )
-set(FLEXISIP_SYSTEMD_INSTALL_DIR "${CMAKE_INSTALL_FULL_DATAROOTDIR}/systemd/system" CACHE STRING "Where to install the SystemD units.")
+set(SYSCONF_INSTALL_DIR "" CACHE STRING
+	"Config directory, the place where flexisip expects its flexisip.conf file to reside. Always equal to '${CMAKE_INSTALL_FULL_SYSCONFDIR}' if empty."
+)
+set(FLEXISIP_SYSTEMD_INSTALL_DIR "" CACHE STRING
+	"Where to install the SystemD units. Always equal to '${CMAKE_INSTALL_FULL_DATAROOTDIR}/systemd/system' if empty."
+)
 
+# Handle the default value of installation paths. That ensures that they are
+# always relative to the install prefix when the user hasn't set them explicitly.
+if(SYSCONF_INSTALL_DIR STREQUAL "")
+	set(SYSCONF_INSTALL_DIR "${CMAKE_INSTALL_FULL_SYSCONFDIR}")
+endif()
+if(FLEXISIP_SYSTEMD_INSTALL_DIR STREQUAL "")
+	set(FLEXISIP_SYSTEMD_INSTALL_DIR "${CMAKE_INSTALL_FULL_DATAROOTDIR}/systemd/system")
+endif()
 
 
 # Require C++14
@@ -75,9 +88,9 @@ if(NOT CMAKE_INSTALL_RPATH AND CMAKE_INSTALL_PREFIX)
 	message(STATUS "Setting install rpath to ${CMAKE_INSTALL_RPATH}")
 endif()
 
-
-set(CONFIG_DIR ${SYSCONF_INSTALL_DIR}/flexisip)
+set(CONFIG_DIR "${SYSCONF_INSTALL_DIR}/flexisip")
 message(STATUS "Config dir: ${CONFIG_DIR}")
+
 set(INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
 if(ENABLE_UNIT_TESTS)
 	set(TESTER_DATA_DIR ${CMAKE_INSTALL_PREFIX}/share/flexisip-tester)
