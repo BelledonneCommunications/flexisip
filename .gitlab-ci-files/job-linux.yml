@@ -283,8 +283,6 @@ tests-flexisip-mr:
 
     # The sleep command was removed because we now wait for the db socket to open (in compose file) before launching tests
 
-    - docker-compose $docker_compose_options stop
-
     - gzip *.log
 
     - gzip */*.log
@@ -337,6 +335,8 @@ tests-flexisip-mr:
     - cp -r BCUnitAutomated* ${CI_PROJECT_DIR}/results
     - cp -r *.log.gz ${CI_PROJECT_DIR}/results
     - cp -r ext/*.log* ${CI_PROJECT_DIR}/results/ext
+
+    - docker-compose $docker_compose_options down || true
 
   artifacts:
     paths:

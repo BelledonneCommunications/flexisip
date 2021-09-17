@@ -91,7 +91,7 @@ static void nullMaxFrowardAndForkBasicContext() {
 			                            responseReceived = true;
 		                            }
 	                            }};
-	bellesipUtils.sendRawRequest("OPTIONS sip:participant1@127.0.0.1 SIP/2.0\r\n"
+	bellesipUtils.sendRawRequest("OPTIONS sip:participant1@127.0.0.1:5360 SIP/2.0\r\n"
 	                             "Via: SIP/2.0/UDP 10.10.10.10:5060;rport;branch=z9hG4bK1439638806\r\n"
 	                             "From: <sip:anthony@127.0.0.1>;tag=465687829\r\n"
 	                             "To: <sip:participant1@127.0.0.1>\r\n"
@@ -154,7 +154,7 @@ static void notRtpPortAndForkCallContext() {
 	                            }};
 	bellesipUtils.sendRawRequest(
 	    // Sip message
-	    "INVITE sip:participant1@127.0.0.1 SIP/2.0\r\n"
+	    "INVITE sip:participant1@127.0.0.1:5360 SIP/2.0\r\n"
 	    "Via: SIP/2.0/UDP "
 	    "10.23.17.117:22600;branch=z9hG4bK-d8754z-4d7620d2feccbfac-1---d8754z-;rport=4820;received=202.165.193.129\r\n"
 	    "Max-Forwards: 70\r\n"
