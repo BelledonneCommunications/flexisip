@@ -18,12 +18,13 @@
 
 #pragma once
 
-#include <flexisip/module.hh>
-#include <flexisip/agent.hh>
-#include <flexisip/registrardb.hh>
-#include <flexisip/forkcallcontext.hh>
-#include <flexisip/forkmessagecontext.hh>
-#include <flexisip/forkbasiccontext.hh>
+#include "flexisip/agent.hh"
+#include "flexisip/fork-context/fork-basic-context.hh"
+#include "flexisip/fork-context/fork-call-context.hh"
+#include "flexisip/fork-context/fork-message-context-db-proxy.hh"
+#include "flexisip/fork-context/fork-message-context.hh"
+#include "flexisip/module.hh"
+#include "flexisip/registrardb.hh"
 
 namespace flexisip {
 
@@ -37,7 +38,10 @@ struct RouterStats {
 	StatCounter64 *mCountLocalActives = nullptr;
 };
 
-class ModuleRouter : public Module, public ModuleToolbox, public ForkContextListener {
+class ModuleRouter : public Module,
+                     public ModuleToolbox,
+                     public ForkContextListener,
+                     public std::enable_shared_from_this<ModuleRouter> {
 public:
 	ModuleRouter(Agent* ag) : Module(ag) {
 	}
