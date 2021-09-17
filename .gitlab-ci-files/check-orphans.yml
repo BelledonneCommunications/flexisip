@@ -1,0 +1,5 @@
+trigger_check_orphans:
+  trigger:
+    include:
+      - local: linphone-sdk/.gitlab-ci-files/job-check-orphan-commits.yml
+    strategy: depend
