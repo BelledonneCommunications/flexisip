@@ -283,7 +283,7 @@ tests-flexisip-mr:
 
     # The sleep command was removed because we now wait for the db socket to open (in compose file) before launching tests
 
-    - docker-compose $docker_compose_options stop
+    - docker-compose $docker_compose_options down
 
     - gzip *.log
 
