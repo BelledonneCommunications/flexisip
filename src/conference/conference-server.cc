@@ -375,13 +375,13 @@ void ConferenceServer::createConference(const shared_ptr<const linphone::Address
 
 void ConferenceServer::initStaticConferences(){
 	int i;
-	
+
 	shared_ptr<linphone::ProxyConfig> proxyConfig = mCore->getDefaultProxyConfig();
 	shared_ptr<const linphone::Address> identity = proxyConfig->getIdentityAddress();
 	shared_ptr<linphone::Address> confUri = identity->clone();
 	for (i = 0 ; i < 10 ; ++i){
 		ostringstream ostr;
-		ostr << "conference-" << i;
+		ostr << "video-conference-" << i;
 		confUri->setUsername(ostr.str());
 		createConference(confUri);
 	}
