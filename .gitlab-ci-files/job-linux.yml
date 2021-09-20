@@ -293,7 +293,6 @@ tests-flexisip-mr:
 
   after_script:
 
-
     - docker image ls
 
     #content of $workspace (set like this because the variable can't be resolved here)
@@ -336,6 +335,12 @@ tests-flexisip-mr:
     - cp -r *.log.gz ${CI_PROJECT_DIR}/results
     - cp -r ext/*.log* ${CI_PROJECT_DIR}/results/ext
 
+    # We need to do this again because after_script can't access variables
+    - |
+      docker_compose_options="--env-file ${CI_PROJECT_DIR}/flexisip-tester/docker/.env"
+      for name in 'docker-compose.yaml' 'docker-compose-standalone.yaml'; do
+      docker_compose_options="$docker_compose_options -f ${CI_PROJECT_DIR}/flexisip-tester/docker/$name"
+      done
     - docker-compose $docker_compose_options down || true
 
   artifacts:
