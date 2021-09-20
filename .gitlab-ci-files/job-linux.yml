@@ -336,6 +336,7 @@ tests-flexisip-mr:
     - cp -r *.log.gz ${CI_PROJECT_DIR}/results
     - cp -r ext/*.log* ${CI_PROJECT_DIR}/results/ext
 
+    - cd $workspace
     - docker-compose $docker_compose_options down || true
 
   artifacts:
