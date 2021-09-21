@@ -1,20 +1,20 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+ Flexisip, a flexible SIP proxy server with media capabilities.
+ Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as
+ published by the Free Software Foundation, either version 3 of the
+ License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ You should have received a copy of the GNU Affero General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #pragma once
 
@@ -36,6 +36,7 @@
 #include <flexisip/agent.hh>
 #include <flexisip/logmanager.hh>
 #include <flexisip/module.hh>
+#include <flexisip/push-param.hh>
 
 #include "utils/sip-uri.hh"
 
@@ -82,6 +83,8 @@ struct ExtendedContact {
 						  replacing the request-uri*/
 	
 	bool mIsFallback = false; // boolean indicating whether this ExtendedContact is a fallback route or not. There is no need for it to be serialized to database.
+
+	PushParamList mPushParamList{};
 
 	const char *callId() const {return mCallId.c_str();}
 	const char *line() const {return mUniqueId.c_str();}
@@ -130,7 +133,7 @@ struct ExtendedContact {
 
 	void extractInfoFromHeader(const char *urlHeaders);
 	const std::string getMessageExpires(const msg_param_t *m_params);
-	void init();
+	void init(bool initExpire = true);
 	void extractInfoFromUrl(const char* full_url);
 
 	ExtendedContact(const char *contactId, const char *uniqueId, const char* fullUrl)
@@ -158,14 +161,12 @@ struct ExtendedContact {
 	 * the 'q' paramter of the Contact may be set.
 	 * The new ExtendedConact has the maximum expiration date.
 	 */
-	ExtendedContact(const SipUri &url, const std::string &route, float q = 1.0)
-	: mPath({route}) {
+	ExtendedContact(const SipUri &url, const std::string &route, float q = 1.0) : mPath({route}) {
 		mSipContact = sip_contact_create(mHome.home(), reinterpret_cast<const url_string_t *>(url.get()), nullptr);
 		q = std::min(1.0f, std::max(0.0f, q)); // force RFC compliance
 		mSipContact->m_q = mHome.sprintf("%.3f", q);
-		mQ = atof(mSipContact->m_q);
-		// init() MUST NOT be called here to keep mExpireAt and mExpireNotAtMessage untouched in order the
-		// contact never expire.
+		init(false); // MUST be called with [initExpire == false] to keep mExpireAt and mExpireNotAtMessage untouched in
+					 // order the contact never expire.
 	}
 
 	ExtendedContact(const ExtendedContact &ec)
@@ -453,4 +454,4 @@ class RegistrarDb {
 	bool mWritable = false;
 };
 
-}
+} // namespace flexisip
