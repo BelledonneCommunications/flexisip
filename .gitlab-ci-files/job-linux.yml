@@ -258,6 +258,8 @@ tests-flexisip-mr:
         docker-compose $docker_compose_options build
         fi
 
+    - echo "COMPOSE_PROJECT_NAME=$COMPOSE_PROJECT_NAME" > savedEnv
+
     # commented -d option to have debug logs on standard output in case of
     #   buggy or silent log artifacts
     # We output only liblinphone_tester on stdout
@@ -283,6 +285,8 @@ tests-flexisip-mr:
 
     # The sleep command was removed because we now wait for the db socket to open (in compose file) before launching tests
 
+    - docker-compose $docker_compose_options down || true
+
     - gzip *.log
 
     - gzip */*.log
@@ -292,7 +296,6 @@ tests-flexisip-mr:
     - exit $EXIT
 
   after_script:
-
 
     - docker image ls
 
@@ -336,7 +339,9 @@ tests-flexisip-mr:
     - cp -r *.log.gz ${CI_PROJECT_DIR}/results
     - cp -r ext/*.log* ${CI_PROJECT_DIR}/results/ext
 
-    - docker-compose $docker_compose_options down || true
+    # Remove network (useful in case of crash or cancel), loading the random generated project name saved during execution
+    - source savedEnv
+    - docker network rm "$COMPOSE_PROJECT_NAME"_default "$COMPOSE_PROJECT_NAME"_flexisip_internal_private || true
 
   artifacts:
     paths:
