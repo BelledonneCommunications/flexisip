@@ -41,40 +41,40 @@
 # Ninja
 #################################################
 
-job-centos7-ninja-gcc:
-
-  tags: [ "docker" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos7:$CENTOS_7_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
-  variables:
-    CMAKE_GENERATOR: Ninja
-    CMAKE_OPTIONS: -DINTERNAL_LIBSRTP2=ON
-    CC: gcc
-    CXX: g++
-  extends: .scheduled-job-linux
-  before_script:
-    - source /opt/rh/devtoolset-8/enable
-
-
-job-centos7-ninja-clang:
-
-  tags: [ "docker" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos7:$CENTOS_7_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
-  variables:
-    CMAKE_GENERATOR: Ninja
-    CMAKE_OPTIONS: -DINTERNAL_LIBSRTP2=ON
-    CC: clang
-    CXX: clang++
-  extends: .job-linux
-  before_script:
-    - source /opt/rh/llvm-toolset-7/enable
+# job-centos7-ninja-gcc:
+#
+#   tags: [ "docker" ]
+#   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos7:$CENTOS_7_IMAGE_VERSION
+#   except:
+#     variables:
+#       - $DEPLOY_RUN
+#       - $DEPLOY_UBUNTU
+#   variables:
+#     CMAKE_GENERATOR: Ninja
+#     CMAKE_OPTIONS: -DINTERNAL_LIBSRTP2=ON
+#     CC: gcc
+#     CXX: g++
+#   extends: .scheduled-job-linux
+#   before_script:
+#     - source /opt/rh/devtoolset-8/enable
+#
+#
+# job-centos7-ninja-clang:
+#
+#   tags: [ "docker" ]
+#   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos7:$CENTOS_7_IMAGE_VERSION
+#   except:
+#     variables:
+#       - $DEPLOY_RUN
+#       - $DEPLOY_UBUNTU
+#   variables:
+#     CMAKE_GENERATOR: Ninja
+#     CMAKE_OPTIONS: -DINTERNAL_LIBSRTP2=ON
+#     CC: clang
+#     CXX: clang++
+#   extends: .job-linux
+#   before_script:
+#     - source /opt/rh/llvm-toolset-7/enable
 
 #################################################
 # RPM
@@ -90,18 +90,17 @@ job-centos7-rpm:
     - source /opt/rh/devtoolset-8/enable
 
 
-job-centos7-rpm-deploy:
-
-  stage: deploy
-  tags: [ "deploy" ]
-
-  extends: .job-deploy
-
-  dependencies:
-    - job-centos7-rpm
-
-  except:
-   variables:
-      - $DEPLOY_UBUNTU
-  script: ./.gitlab-ci-files/deploy.sh centos
-
+# job-centos7-rpm-deploy:
+#
+#   stage: deploy
+#   tags: [ "deploy" ]
+#
+#   extends: .job-deploy
+#
+#   dependencies:
+#     - job-centos7-rpm
+#
+#   except:
+#    variables:
+#       - $DEPLOY_UBUNTU
+#   script: ./.gitlab-ci-files/deploy.sh centos
