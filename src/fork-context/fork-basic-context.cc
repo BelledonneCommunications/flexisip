@@ -18,27 +18,32 @@
 
 #include <algorithm>
 #include <flexisip/common.hh>
-#include <flexisip/forkbasiccontext.hh>
+#include <flexisip/fork-context/fork-basic-context.hh>
 #include <flexisip/registrardb.hh>
 #include <sofia-sip/sip_status.h>
 
 using namespace std;
 using namespace flexisip;
 
-ForkBasicContext::ForkBasicContext(Agent* agent, const std::shared_ptr<RequestSipEvent>& event,
-                                   shared_ptr<ForkContextConfig> cfg, ForkContextListener* listener,
-                                   weak_ptr<StatPair> counter)
-    : ForkContext(agent, event, move(cfg), listener, move(counter)) {
+shared_ptr<ForkBasicContext> ForkBasicContext::make(Agent* agent, const shared_ptr<RequestSipEvent>& event,
+                                                    const shared_ptr<ForkContextConfig>& cfg,
+                                                    const weak_ptr<ForkContextListener>& listener,
+                                                    const weak_ptr<StatPair>& counter) {
+	const shared_ptr<ForkBasicContext> shared{new ForkBasicContext(agent, event, cfg, listener, counter)};
+	return shared;
+}
+
+ForkBasicContext::ForkBasicContext(Agent* agent, const shared_ptr<RequestSipEvent>& event,
+                                   const shared_ptr<ForkContextConfig>& cfg,
+                                   const weak_ptr<ForkContextListener>& listener, const weak_ptr<StatPair>& counter)
+    : ForkContextBase(agent, event, cfg, listener, counter) {
 	LOGD("New ForkBasicContext %p", this);
-	mDecisionTimer = NULL;
+	mDecisionTimer = make_unique<sofiasip::Timer>(mAgent->getRoot(), 20000);
 	// start the acceptance timer immediately
-	mDecisionTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
-	su_timer_set_interval(mDecisionTimer, &ForkBasicContext::sOnDecisionTimer, this, (su_duration_t)20000);
+	mDecisionTimer->set([this]() { onDecisionTimer(); });
 }
 
 ForkBasicContext::~ForkBasicContext() {
-	if (mDecisionTimer)
-		su_timer_destroy(mDecisionTimer);
 	LOGD("Destroy ForkBasicContext %p", this);
 }
 
@@ -47,10 +52,7 @@ void ForkBasicContext::onResponse(const shared_ptr<BranchInfo>& br, const shared
 	if (code >= 200) {
 		if (code < 300) {
 			forwardResponse(br);
-			if (mDecisionTimer) {
-				su_timer_destroy(mDecisionTimer);
-				mDecisionTimer = nullptr;
-			}
+			mDecisionTimer.reset(nullptr);
 		} else {
 			if (allBranchesAnswered()) {
 				finishIncomingTransaction();
@@ -60,10 +62,8 @@ void ForkBasicContext::onResponse(const shared_ptr<BranchInfo>& br, const shared
 }
 
 void ForkBasicContext::finishIncomingTransaction() {
-	if (mDecisionTimer) {
-		su_timer_destroy(mDecisionTimer);
-		mDecisionTimer = nullptr;
-	}
+	mDecisionTimer.reset(nullptr);
+
 	shared_ptr<BranchInfo> best = findBestBranch(sUrgentCodes);
 	if (best == nullptr) {
 		forwardCustomResponse(SIP_408_REQUEST_TIMEOUT);
@@ -77,18 +77,11 @@ void ForkBasicContext::onDecisionTimer() {
 	finishIncomingTransaction();
 }
 
-void ForkBasicContext::sOnDecisionTimer(su_root_magic_t* magic, su_timer_t* t, su_timer_arg_t* arg) {
-	static_cast<ForkBasicContext*>(arg)->onDecisionTimer();
-}
-
 bool ForkBasicContext::onNewRegister(const url_t* url, const string& uid) {
 	return false;
 }
 
 void ForkBasicContext::processInternalError(int status, const char* phrase) {
-	if (mDecisionTimer) {
-		su_timer_destroy(mDecisionTimer);
-		mDecisionTimer = nullptr;
-	}
-	ForkContext::processInternalError(status, phrase);
+	mDecisionTimer.reset(nullptr);
+	ForkContextBase::processInternalError(status, phrase);
 }
