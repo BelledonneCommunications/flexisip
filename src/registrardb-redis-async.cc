@@ -58,10 +58,6 @@ RegistrarDbRedisAsync::~RegistrarDbRedisAsync() {
 	if (mSubscribeContext) {
 		redisAsyncDisconnect(mSubscribeContext);
 	}
-	if (mAgent && mReplicationTimer) {
-		mAgent->stopTimer(mReplicationTimer);
-		mReplicationTimer = nullptr;
-	}
 }
 
 void RegistrarDbRedisAsync::onDisconnect(const redisAsyncContext *c, int status) {
@@ -268,16 +264,33 @@ void RegistrarDbRedisAsync::updateSlavesList(const map<string, string> redisRepl
 	mCurSlave = mSlaves.cend();
 }
 
+void RegistrarDbRedisAsync::onTryReconnectTimer() {
+	tryReconnect();
+	mReconnectTimer.reset(nullptr);
+}
+
 void RegistrarDbRedisAsync::tryReconnect() {
 	if (isConnected()) {
 		return;
 	}
+
+	if (chrono::system_clock::now() - mLastReconnectRotation < 1s) {
+		if (!mReconnectTimer.get()) {
+			mReconnectTimer = make_unique<sofiasip::Timer>(mRoot, 1000);
+			mReconnectTimer->set([this]() { onTryReconnectTimer(); });
+		}
+		return;
+	}
+
 	// First we try to reconnect using the last active connection
 	if (mCurSlave == mSlaves.cend()) {
 		// We need to restore mLastActiveParams if we already tried all slaves without success to try the last master
 		// again.
 		mParams = mLastActiveParams;
-		mCurSlave = mSlaves.cbegin();
+		if((mCurSlave = mSlaves.cbegin()) == mSlaves.cend()) {
+			// If there is no slaves, this is already a full rotation.
+			mLastReconnectRotation = std::chrono::system_clock::now();
+		}
 		LOGW("Trying to reconnect to last active connection at %s:%d", mParams.domain.c_str(), mParams.port);
 		connect();
 		return;
@@ -291,8 +304,9 @@ void RegistrarDbRedisAsync::tryReconnect() {
 
 		mParams.domain = mCurSlave->address;
 		mParams.port = mCurSlave->port;
-		mCurSlave++;
-
+		if(++mCurSlave == mSlaves.cend()) {
+			mLastReconnectRotation = std::chrono::system_clock::now();
+		}
 		connect();
 
 	} else {
@@ -336,9 +350,10 @@ void RegistrarDbRedisAsync::handleReplicationInfoReply(const char* reply) {
 		} else {
 			SLOGW << "Unknown role '" << role << "'";
 		}
-		if (mAgent && mReplicationTimer == nullptr) {
+		if (!mReplicationTimer.get()) {
 			SLOGD << "Creating replication timer with delay of " << mParams.mSlaveCheckTimeout << "s";
-			mReplicationTimer = mAgent->createTimer(mParams.mSlaveCheckTimeout * 1000, sHandleInfoTimer, this);
+			mReplicationTimer = make_unique<sofiasip::Timer>(mRoot, mParams.mSlaveCheckTimeout * 1000);
+			mReplicationTimer->run([this]() { onHandleInfoTimer(); });
 		}
 	} else {
 		SLOGW << "Invalid INFO reply: no role specified";
@@ -604,12 +619,10 @@ void RegistrarDbRedisAsync::sHandleReplicationInfoReply(redisAsyncContext *ac, v
 	}
 }
 
-/* this callback is called periodically to check if the current REDIS connection is valid */
-void RegistrarDbRedisAsync::sHandleInfoTimer(void *unused, su_timer_t *t, void *data) {
-	RegistrarDbRedisAsync *zis = (RegistrarDbRedisAsync *)data;
-	if (zis && zis->mContext) {
+void RegistrarDbRedisAsync::onHandleInfoTimer() {
+	if (mContext) {
 		SLOGI << "Launching periodic INFO query on REDIS";
-		zis->getReplicationInfo();
+		getReplicationInfo();
 	}
 }
 
