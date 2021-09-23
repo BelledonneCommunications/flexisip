@@ -130,16 +130,6 @@ private:
 
 	friend class RegistrarDb;
 
-	redisAsyncContext *mContext{nullptr};
-	redisAsyncContext *mSubscribeContext{nullptr};
-	RecordSerializer *mSerializer;
-	RedisParameters mParams{};
-	RedisParameters mLastActiveParams{};
-	su_root_t *mRoot{nullptr};
-	std::vector<RedisHost> mSlaves{};
-	decltype(mSlaves)::const_iterator mCurSlave = mSlaves.cend();
-	su_timer_t *mReplicationTimer{nullptr};
-
 	void serializeAndSendToRedis(RegistrarUserData *data, forwardFn *forward_fn);
 	bool handleRedisStatus(const std::string &desc, int redisStatus, RegistrarUserData *data);
 	void onErrorData(RegistrarUserData *data);
@@ -181,11 +171,32 @@ private:
 	static void sHandleBindFinish(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
 	static void sHandleClear(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
 	static void sHandleFetch(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
-	static void sHandleInfoTimer(void *unused, su_timer_t *t, void *data);
 	static void sHandleReplicationInfoReply(redisAsyncContext *ac, void *r, void *privdata);
 	static void sHandleSet(redisAsyncContext *ac, void *r, void *privdata);
 	static void sHandleMigration(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
 	static void sHandleRecordMigration(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
+
+	/**
+	 * This callback is called periodically to check if the current REDIS connection is valid
+	 */
+	void onHandleInfoTimer();
+
+	/**
+	 * Callback use to add space between RegistrarDbRedisAsync::tryReconnect calls
+	 */
+	void onTryReconnectTimer();
+
+	redisAsyncContext* mContext{nullptr};
+	redisAsyncContext* mSubscribeContext{nullptr};
+	RecordSerializer* mSerializer;
+	RedisParameters mParams{};
+	RedisParameters mLastActiveParams{};
+	su_root_t* mRoot{nullptr};
+	std::vector<RedisHost> mSlaves{};
+	decltype(mSlaves)::const_iterator mCurSlave = mSlaves.cend();
+	std::unique_ptr<sofiasip::Timer> mReplicationTimer{nullptr};
+	std::unique_ptr<sofiasip::Timer> mReconnectTimer{nullptr};
+	std::chrono::system_clock::time_point mLastReconnectRotation;
 };
 
-}
+} // namespace flexisip
