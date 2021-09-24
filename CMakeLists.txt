@@ -23,6 +23,11 @@
 # CMake 3.13 required by some sub-projects.
 cmake_minimum_required(VERSION 3.13)
 
+# Add 'Sanitizer' CMake build type.
+# MUST be before project declaration.
+set(CMAKE_C_FLAGS_SANITIZER_INIT "-g -fsanitize=address,undefined")
+set(CMAKE_CXX_FLAGS_SANITIZER_INIT "-g -fsanitize=address,undefined")
+
 # Set project version by using the Git describe
 include("./linphone-sdk/bctoolbox/cmake/BcToolboxCMakeUtils.cmake")
 bc_compute_full_version(FLEXISIP_FULL_VERSION)
