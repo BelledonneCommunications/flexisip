@@ -655,41 +655,41 @@ namespace reginfo
 
   State::
   State (Value v)
-  : ::Xsd::XmlSchema::String (_xsd_State_literals_[v])
+  : ::flexisip::Xsd::XmlSchema::String (_xsd_State_literals_[v])
   {
   }
 
   State::
   State (const char* v)
-  : ::Xsd::XmlSchema::String (v)
+  : ::flexisip::Xsd::XmlSchema::String (v)
   {
   }
 
   State::
   State (const ::std::string& v)
-  : ::Xsd::XmlSchema::String (v)
+  : ::flexisip::Xsd::XmlSchema::String (v)
   {
   }
 
   State::
-  State (const ::Xsd::XmlSchema::String& v)
-  : ::Xsd::XmlSchema::String (v)
+  State (const ::flexisip::Xsd::XmlSchema::String& v)
+  : ::flexisip::Xsd::XmlSchema::String (v)
   {
   }
 
   State::
   State (const State& v,
-         ::Xsd::XmlSchema::Flags f,
-         ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::String (v, f, c)
+         ::flexisip::Xsd::XmlSchema::Flags f,
+         ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::String (v, f, c)
   {
   }
 
   State& State::
   operator= (Value v)
   {
-    static_cast< ::Xsd::XmlSchema::String& > (*this) = 
-    ::Xsd::XmlSchema::String (_xsd_State_literals_[v]);
+    static_cast< ::flexisip::Xsd::XmlSchema::String& > (*this) = 
+    ::flexisip::Xsd::XmlSchema::String (_xsd_State_literals_[v]);
 
     return *this;
   }
@@ -700,41 +700,41 @@ namespace reginfo
 
   State1::
   State1 (Value v)
-  : ::Xsd::XmlSchema::String (_xsd_State1_literals_[v])
+  : ::flexisip::Xsd::XmlSchema::String (_xsd_State1_literals_[v])
   {
   }
 
   State1::
   State1 (const char* v)
-  : ::Xsd::XmlSchema::String (v)
+  : ::flexisip::Xsd::XmlSchema::String (v)
   {
   }
 
   State1::
   State1 (const ::std::string& v)
-  : ::Xsd::XmlSchema::String (v)
+  : ::flexisip::Xsd::XmlSchema::String (v)
   {
   }
 
   State1::
-  State1 (const ::Xsd::XmlSchema::String& v)
-  : ::Xsd::XmlSchema::String (v)
+  State1 (const ::flexisip::Xsd::XmlSchema::String& v)
+  : ::flexisip::Xsd::XmlSchema::String (v)
   {
   }
 
   State1::
   State1 (const State1& v,
-          ::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::String (v, f, c)
+          ::flexisip::Xsd::XmlSchema::Flags f,
+          ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::String (v, f, c)
   {
   }
 
   State1& State1::
   operator= (Value v)
   {
-    static_cast< ::Xsd::XmlSchema::String& > (*this) = 
-    ::Xsd::XmlSchema::String (_xsd_State1_literals_[v]);
+    static_cast< ::flexisip::Xsd::XmlSchema::String& > (*this) = 
+    ::flexisip::Xsd::XmlSchema::String (_xsd_State1_literals_[v]);
 
     return *this;
   }
@@ -813,41 +813,41 @@ namespace reginfo
 
   State2::
   State2 (Value v)
-  : ::Xsd::XmlSchema::String (_xsd_State2_literals_[v])
+  : ::flexisip::Xsd::XmlSchema::String (_xsd_State2_literals_[v])
   {
   }
 
   State2::
   State2 (const char* v)
-  : ::Xsd::XmlSchema::String (v)
+  : ::flexisip::Xsd::XmlSchema::String (v)
   {
   }
 
   State2::
   State2 (const ::std::string& v)
-  : ::Xsd::XmlSchema::String (v)
+  : ::flexisip::Xsd::XmlSchema::String (v)
   {
   }
 
   State2::
-  State2 (const ::Xsd::XmlSchema::String& v)
-  : ::Xsd::XmlSchema::String (v)
+  State2 (const ::flexisip::Xsd::XmlSchema::String& v)
+  : ::flexisip::Xsd::XmlSchema::String (v)
   {
   }
 
   State2::
   State2 (const State2& v,
-          ::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::String (v, f, c)
+          ::flexisip::Xsd::XmlSchema::Flags f,
+          ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::String (v, f, c)
   {
   }
 
   State2& State2::
   operator= (Value v)
   {
-    static_cast< ::Xsd::XmlSchema::String& > (*this) = 
-    ::Xsd::XmlSchema::String (_xsd_State2_literals_[v]);
+    static_cast< ::flexisip::Xsd::XmlSchema::String& > (*this) = 
+    ::flexisip::Xsd::XmlSchema::String (_xsd_State2_literals_[v]);
 
     return *this;
   }
@@ -858,41 +858,41 @@ namespace reginfo
 
   Event::
   Event (Value v)
-  : ::Xsd::XmlSchema::String (_xsd_Event_literals_[v])
+  : ::flexisip::Xsd::XmlSchema::String (_xsd_Event_literals_[v])
   {
   }
 
   Event::
   Event (const char* v)
-  : ::Xsd::XmlSchema::String (v)
+  : ::flexisip::Xsd::XmlSchema::String (v)
   {
   }
 
   Event::
   Event (const ::std::string& v)
-  : ::Xsd::XmlSchema::String (v)
+  : ::flexisip::Xsd::XmlSchema::String (v)
   {
   }
 
   Event::
-  Event (const ::Xsd::XmlSchema::String& v)
-  : ::Xsd::XmlSchema::String (v)
+  Event (const ::flexisip::Xsd::XmlSchema::String& v)
+  : ::flexisip::Xsd::XmlSchema::String (v)
   {
   }
 
   Event::
   Event (const Event& v,
-         ::Xsd::XmlSchema::Flags f,
-         ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::String (v, f, c)
+         ::flexisip::Xsd::XmlSchema::Flags f,
+         ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::String (v, f, c)
   {
   }
 
   Event& Event::
   operator= (Value v)
   {
-    static_cast< ::Xsd::XmlSchema::String& > (*this) = 
-    ::Xsd::XmlSchema::String (_xsd_Event_literals_[v]);
+    static_cast< ::flexisip::Xsd::XmlSchema::String& > (*this) = 
+    ::flexisip::Xsd::XmlSchema::String (_xsd_Event_literals_[v]);
 
     return *this;
   }
@@ -910,7 +910,7 @@ namespace reginfo
   Reginfo::
   Reginfo (const VersionType& version,
            const StateType& state)
-  : ::Xsd::XmlSchema::Type (),
+  : ::flexisip::Xsd::XmlSchema::Type (),
     dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
     registration_ (this),
     any_ (this->getDomDocument ()),
@@ -921,9 +921,9 @@ namespace reginfo
 
   Reginfo::
   Reginfo (const Reginfo& x,
-           ::Xsd::XmlSchema::Flags f,
-           ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::Type (x, f, c),
+           ::flexisip::Xsd::XmlSchema::Flags f,
+           ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::Type (x, f, c),
     dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
     registration_ (x.registration_, f, this),
     any_ (x.any_, this->getDomDocument ()),
@@ -934,16 +934,16 @@ namespace reginfo
 
   Reginfo::
   Reginfo (const ::xercesc::DOMElement& e,
-           ::Xsd::XmlSchema::Flags f,
-           ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::Type (e, f | ::Xsd::XmlSchema::Flags::base, c),
+           ::flexisip::Xsd::XmlSchema::Flags f,
+           ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::Type (e, f | ::flexisip::Xsd::XmlSchema::Flags::base, c),
     dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
     registration_ (this),
     any_ (this->getDomDocument ()),
     version_ (this),
     state_ (this)
   {
-    if ((f & ::Xsd::XmlSchema::Flags::base) == 0)
+    if ((f & ::flexisip::Xsd::XmlSchema::Flags::base) == 0)
     {
       ::xsd::cxx::xml::dom::parser< char > p (e, true, false, true);
       this->parse (p, f);
@@ -952,7 +952,7 @@ namespace reginfo
 
   void Reginfo::
   parse (::xsd::cxx::xml::dom::parser< char >& p,
-         ::Xsd::XmlSchema::Flags f)
+         ::flexisip::Xsd::XmlSchema::Flags f)
   {
     for (; p.more_content (); p.next_content (false))
     {
@@ -1021,8 +1021,8 @@ namespace reginfo
   }
 
   Reginfo* Reginfo::
-  _clone (::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c) const
+  _clone (::flexisip::Xsd::XmlSchema::Flags f,
+          ::flexisip::Xsd::XmlSchema::Container* c) const
   {
     return new class Reginfo (*this, f, c);
   }
@@ -1032,7 +1032,7 @@ namespace reginfo
   {
     if (this != &x)
     {
-      static_cast< ::Xsd::XmlSchema::Type& > (*this) = x;
+      static_cast< ::flexisip::Xsd::XmlSchema::Type& > (*this) = x;
       this->registration_ = x.registration_;
       this->any_ = x.any_;
       this->version_ = x.version_;
@@ -1054,7 +1054,7 @@ namespace reginfo
   Registration (const AorType& aor,
                 const IdType& id,
                 const StateType& state)
-  : ::Xsd::XmlSchema::Type (),
+  : ::flexisip::Xsd::XmlSchema::Type (),
     dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
     contact_ (this),
     any_ (this->getDomDocument ()),
@@ -1066,9 +1066,9 @@ namespace reginfo
 
   Registration::
   Registration (const Registration& x,
-                ::Xsd::XmlSchema::Flags f,
-                ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::Type (x, f, c),
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::Type (x, f, c),
     dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
     contact_ (x.contact_, f, this),
     any_ (x.any_, this->getDomDocument ()),
@@ -1080,9 +1080,9 @@ namespace reginfo
 
   Registration::
   Registration (const ::xercesc::DOMElement& e,
-                ::Xsd::XmlSchema::Flags f,
-                ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::Type (e, f | ::Xsd::XmlSchema::Flags::base, c),
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::Type (e, f | ::flexisip::Xsd::XmlSchema::Flags::base, c),
     dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
     contact_ (this),
     any_ (this->getDomDocument ()),
@@ -1090,7 +1090,7 @@ namespace reginfo
     id_ (this),
     state_ (this)
   {
-    if ((f & ::Xsd::XmlSchema::Flags::base) == 0)
+    if ((f & ::flexisip::Xsd::XmlSchema::Flags::base) == 0)
     {
       ::xsd::cxx::xml::dom::parser< char > p (e, true, false, true);
       this->parse (p, f);
@@ -1099,7 +1099,7 @@ namespace reginfo
 
   void Registration::
   parse (::xsd::cxx::xml::dom::parser< char >& p,
-         ::Xsd::XmlSchema::Flags f)
+         ::flexisip::Xsd::XmlSchema::Flags f)
   {
     for (; p.more_content (); p.next_content (false))
     {
@@ -1181,8 +1181,8 @@ namespace reginfo
   }
 
   Registration* Registration::
-  _clone (::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c) const
+  _clone (::flexisip::Xsd::XmlSchema::Flags f,
+          ::flexisip::Xsd::XmlSchema::Container* c) const
   {
     return new class Registration (*this, f, c);
   }
@@ -1192,7 +1192,7 @@ namespace reginfo
   {
     if (this != &x)
     {
-      static_cast< ::Xsd::XmlSchema::Type& > (*this) = x;
+      static_cast< ::flexisip::Xsd::XmlSchema::Type& > (*this) = x;
       this->contact_ = x.contact_;
       this->any_ = x.any_;
       this->aor_ = x.aor_;
@@ -1216,7 +1216,7 @@ namespace reginfo
            const StateType& state,
            const EventType& event,
            const IdType& id)
-  : ::Xsd::XmlSchema::Type (),
+  : ::flexisip::Xsd::XmlSchema::Type (),
     dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
     uri_ (uri, this),
     display_name_ (this),
@@ -1236,9 +1236,9 @@ namespace reginfo
 
   Contact::
   Contact (const Contact& x,
-           ::Xsd::XmlSchema::Flags f,
-           ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::Type (x, f, c),
+           ::flexisip::Xsd::XmlSchema::Flags f,
+           ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::Type (x, f, c),
     dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
     uri_ (x.uri_, f, this),
     display_name_ (x.display_name_, f, this),
@@ -1258,9 +1258,9 @@ namespace reginfo
 
   Contact::
   Contact (const ::xercesc::DOMElement& e,
-           ::Xsd::XmlSchema::Flags f,
-           ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::Type (e, f | ::Xsd::XmlSchema::Flags::base, c),
+           ::flexisip::Xsd::XmlSchema::Flags f,
+           ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::Type (e, f | ::flexisip::Xsd::XmlSchema::Flags::base, c),
     dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
     uri_ (this),
     display_name_ (this),
@@ -1276,7 +1276,7 @@ namespace reginfo
     callid_ (this),
     cseq_ (this)
   {
-    if ((f & ::Xsd::XmlSchema::Flags::base) == 0)
+    if ((f & ::flexisip::Xsd::XmlSchema::Flags::base) == 0)
     {
       ::xsd::cxx::xml::dom::parser< char > p (e, true, false, true);
       this->parse (p, f);
@@ -1285,7 +1285,7 @@ namespace reginfo
 
   void Contact::
   parse (::xsd::cxx::xml::dom::parser< char >& p,
-         ::Xsd::XmlSchema::Flags f)
+         ::flexisip::Xsd::XmlSchema::Flags f)
   {
     for (; p.more_content (); p.next_content (false))
     {
@@ -1438,8 +1438,8 @@ namespace reginfo
   }
 
   Contact* Contact::
-  _clone (::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c) const
+  _clone (::flexisip::Xsd::XmlSchema::Flags f,
+          ::flexisip::Xsd::XmlSchema::Container* c) const
   {
     return new class Contact (*this, f, c);
   }
@@ -1449,7 +1449,7 @@ namespace reginfo
   {
     if (this != &x)
     {
-      static_cast< ::Xsd::XmlSchema::Type& > (*this) = x;
+      static_cast< ::flexisip::Xsd::XmlSchema::Type& > (*this) = x;
       this->uri_ = x.uri_;
       this->display_name_ = x.display_name_;
       this->unknown_param_ = x.unknown_param_;
@@ -1478,18 +1478,18 @@ namespace reginfo
 
   State::
   State (const ::xercesc::DOMElement& e,
-         ::Xsd::XmlSchema::Flags f,
-         ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::String (e, f, c)
+         ::flexisip::Xsd::XmlSchema::Flags f,
+         ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::String (e, f, c)
   {
     _xsd_State_convert ();
   }
 
   State::
   State (const ::xercesc::DOMAttr& a,
-         ::Xsd::XmlSchema::Flags f,
-         ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::String (a, f, c)
+         ::flexisip::Xsd::XmlSchema::Flags f,
+         ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::String (a, f, c)
   {
     _xsd_State_convert ();
   }
@@ -1497,16 +1497,16 @@ namespace reginfo
   State::
   State (const ::std::string& s,
          const ::xercesc::DOMElement* e,
-         ::Xsd::XmlSchema::Flags f,
-         ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::String (s, e, f, c)
+         ::flexisip::Xsd::XmlSchema::Flags f,
+         ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::String (s, e, f, c)
   {
     _xsd_State_convert ();
   }
 
   State* State::
-  _clone (::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c) const
+  _clone (::flexisip::Xsd::XmlSchema::Flags f,
+          ::flexisip::Xsd::XmlSchema::Container* c) const
   {
     return new class State (*this, f, c);
   }
@@ -1548,18 +1548,18 @@ namespace reginfo
 
   State1::
   State1 (const ::xercesc::DOMElement& e,
-          ::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::String (e, f, c)
+          ::flexisip::Xsd::XmlSchema::Flags f,
+          ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::String (e, f, c)
   {
     _xsd_State1_convert ();
   }
 
   State1::
   State1 (const ::xercesc::DOMAttr& a,
-          ::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::String (a, f, c)
+          ::flexisip::Xsd::XmlSchema::Flags f,
+          ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::String (a, f, c)
   {
     _xsd_State1_convert ();
   }
@@ -1567,16 +1567,16 @@ namespace reginfo
   State1::
   State1 (const ::std::string& s,
           const ::xercesc::DOMElement* e,
-          ::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::String (s, e, f, c)
+          ::flexisip::Xsd::XmlSchema::Flags f,
+          ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::String (s, e, f, c)
   {
     _xsd_State1_convert ();
   }
 
   State1* State1::
-  _clone (::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c) const
+  _clone (::flexisip::Xsd::XmlSchema::Flags f,
+          ::flexisip::Xsd::XmlSchema::Container* c) const
   {
     return new class State1 (*this, f, c);
   }
@@ -1620,49 +1620,49 @@ namespace reginfo
 
   DisplayName::
   DisplayName ()
-  : ::Xsd::XmlSchema::String (),
+  : ::flexisip::Xsd::XmlSchema::String (),
     lang_ (this)
   {
   }
 
   DisplayName::
   DisplayName (const char* _xsd_String_base)
-  : ::Xsd::XmlSchema::String (_xsd_String_base),
+  : ::flexisip::Xsd::XmlSchema::String (_xsd_String_base),
     lang_ (this)
   {
   }
 
   DisplayName::
   DisplayName (const ::std::string& _xsd_String_base)
-  : ::Xsd::XmlSchema::String (_xsd_String_base),
+  : ::flexisip::Xsd::XmlSchema::String (_xsd_String_base),
     lang_ (this)
   {
   }
 
   DisplayName::
-  DisplayName (const ::Xsd::XmlSchema::String& _xsd_String_base)
-  : ::Xsd::XmlSchema::String (_xsd_String_base),
+  DisplayName (const ::flexisip::Xsd::XmlSchema::String& _xsd_String_base)
+  : ::flexisip::Xsd::XmlSchema::String (_xsd_String_base),
     lang_ (this)
   {
   }
 
   DisplayName::
   DisplayName (const DisplayName& x,
-               ::Xsd::XmlSchema::Flags f,
-               ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::String (x, f, c),
+               ::flexisip::Xsd::XmlSchema::Flags f,
+               ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::String (x, f, c),
     lang_ (x.lang_, f, this)
   {
   }
 
   DisplayName::
   DisplayName (const ::xercesc::DOMElement& e,
-               ::Xsd::XmlSchema::Flags f,
-               ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::String (e, f | ::Xsd::XmlSchema::Flags::base, c),
+               ::flexisip::Xsd::XmlSchema::Flags f,
+               ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::String (e, f | ::flexisip::Xsd::XmlSchema::Flags::base, c),
     lang_ (this)
   {
-    if ((f & ::Xsd::XmlSchema::Flags::base) == 0)
+    if ((f & ::flexisip::Xsd::XmlSchema::Flags::base) == 0)
     {
       ::xsd::cxx::xml::dom::parser< char > p (e, false, false, true);
       this->parse (p, f);
@@ -1671,7 +1671,7 @@ namespace reginfo
 
   void DisplayName::
   parse (::xsd::cxx::xml::dom::parser< char >& p,
-         ::Xsd::XmlSchema::Flags f)
+         ::flexisip::Xsd::XmlSchema::Flags f)
   {
     while (p.more_attributes ())
     {
@@ -1688,8 +1688,8 @@ namespace reginfo
   }
 
   DisplayName* DisplayName::
-  _clone (::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c) const
+  _clone (::flexisip::Xsd::XmlSchema::Flags f,
+          ::flexisip::Xsd::XmlSchema::Container* c) const
   {
     return new class DisplayName (*this, f, c);
   }
@@ -1699,7 +1699,7 @@ namespace reginfo
   {
     if (this != &x)
     {
-      static_cast< ::Xsd::XmlSchema::String& > (*this) = x;
+      static_cast< ::flexisip::Xsd::XmlSchema::String& > (*this) = x;
       this->lang_ = x.lang_;
     }
 
@@ -1716,7 +1716,7 @@ namespace reginfo
 
   UnknownParam::
   UnknownParam (const NameType& name)
-  : ::Xsd::XmlSchema::String (),
+  : ::flexisip::Xsd::XmlSchema::String (),
     name_ (name, this)
   {
   }
@@ -1724,7 +1724,7 @@ namespace reginfo
   UnknownParam::
   UnknownParam (const char* _xsd_String_base,
                 const NameType& name)
-  : ::Xsd::XmlSchema::String (_xsd_String_base),
+  : ::flexisip::Xsd::XmlSchema::String (_xsd_String_base),
     name_ (name, this)
   {
   }
@@ -1732,36 +1732,36 @@ namespace reginfo
   UnknownParam::
   UnknownParam (const ::std::string& _xsd_String_base,
                 const NameType& name)
-  : ::Xsd::XmlSchema::String (_xsd_String_base),
+  : ::flexisip::Xsd::XmlSchema::String (_xsd_String_base),
     name_ (name, this)
   {
   }
 
   UnknownParam::
-  UnknownParam (const ::Xsd::XmlSchema::String& _xsd_String_base,
+  UnknownParam (const ::flexisip::Xsd::XmlSchema::String& _xsd_String_base,
                 const NameType& name)
-  : ::Xsd::XmlSchema::String (_xsd_String_base),
+  : ::flexisip::Xsd::XmlSchema::String (_xsd_String_base),
     name_ (name, this)
   {
   }
 
   UnknownParam::
   UnknownParam (const UnknownParam& x,
-                ::Xsd::XmlSchema::Flags f,
-                ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::String (x, f, c),
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::String (x, f, c),
     name_ (x.name_, f, this)
   {
   }
 
   UnknownParam::
   UnknownParam (const ::xercesc::DOMElement& e,
-                ::Xsd::XmlSchema::Flags f,
-                ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::String (e, f | ::Xsd::XmlSchema::Flags::base, c),
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::String (e, f | ::flexisip::Xsd::XmlSchema::Flags::base, c),
     name_ (this)
   {
-    if ((f & ::Xsd::XmlSchema::Flags::base) == 0)
+    if ((f & ::flexisip::Xsd::XmlSchema::Flags::base) == 0)
     {
       ::xsd::cxx::xml::dom::parser< char > p (e, false, false, true);
       this->parse (p, f);
@@ -1770,7 +1770,7 @@ namespace reginfo
 
   void UnknownParam::
   parse (::xsd::cxx::xml::dom::parser< char >& p,
-         ::Xsd::XmlSchema::Flags f)
+         ::flexisip::Xsd::XmlSchema::Flags f)
   {
     while (p.more_attributes ())
     {
@@ -1794,8 +1794,8 @@ namespace reginfo
   }
 
   UnknownParam* UnknownParam::
-  _clone (::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c) const
+  _clone (::flexisip::Xsd::XmlSchema::Flags f,
+          ::flexisip::Xsd::XmlSchema::Container* c) const
   {
     return new class UnknownParam (*this, f, c);
   }
@@ -1805,7 +1805,7 @@ namespace reginfo
   {
     if (this != &x)
     {
-      static_cast< ::Xsd::XmlSchema::String& > (*this) = x;
+      static_cast< ::flexisip::Xsd::XmlSchema::String& > (*this) = x;
       this->name_ = x.name_;
     }
 
@@ -1822,18 +1822,18 @@ namespace reginfo
 
   State2::
   State2 (const ::xercesc::DOMElement& e,
-          ::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::String (e, f, c)
+          ::flexisip::Xsd::XmlSchema::Flags f,
+          ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::String (e, f, c)
   {
     _xsd_State2_convert ();
   }
 
   State2::
   State2 (const ::xercesc::DOMAttr& a,
-          ::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::String (a, f, c)
+          ::flexisip::Xsd::XmlSchema::Flags f,
+          ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::String (a, f, c)
   {
     _xsd_State2_convert ();
   }
@@ -1841,16 +1841,16 @@ namespace reginfo
   State2::
   State2 (const ::std::string& s,
           const ::xercesc::DOMElement* e,
-          ::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::String (s, e, f, c)
+          ::flexisip::Xsd::XmlSchema::Flags f,
+          ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::String (s, e, f, c)
   {
     _xsd_State2_convert ();
   }
 
   State2* State2::
-  _clone (::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c) const
+  _clone (::flexisip::Xsd::XmlSchema::Flags f,
+          ::flexisip::Xsd::XmlSchema::Container* c) const
   {
     return new class State2 (*this, f, c);
   }
@@ -1892,18 +1892,18 @@ namespace reginfo
 
   Event::
   Event (const ::xercesc::DOMElement& e,
-         ::Xsd::XmlSchema::Flags f,
-         ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::String (e, f, c)
+         ::flexisip::Xsd::XmlSchema::Flags f,
+         ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::String (e, f, c)
   {
     _xsd_Event_convert ();
   }
 
   Event::
   Event (const ::xercesc::DOMAttr& a,
-         ::Xsd::XmlSchema::Flags f,
-         ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::String (a, f, c)
+         ::flexisip::Xsd::XmlSchema::Flags f,
+         ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::String (a, f, c)
   {
     _xsd_Event_convert ();
   }
@@ -1911,16 +1911,16 @@ namespace reginfo
   Event::
   Event (const ::std::string& s,
          const ::xercesc::DOMElement* e,
-         ::Xsd::XmlSchema::Flags f,
-         ::Xsd::XmlSchema::Container* c)
-  : ::Xsd::XmlSchema::String (s, e, f, c)
+         ::flexisip::Xsd::XmlSchema::Flags f,
+         ::flexisip::Xsd::XmlSchema::Container* c)
+  : ::flexisip::Xsd::XmlSchema::String (s, e, f, c)
   {
     _xsd_Event_convert ();
   }
 
   Event* Event::
-  _clone (::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c) const
+  _clone (::flexisip::Xsd::XmlSchema::Flags f,
+          ::flexisip::Xsd::XmlSchema::Container* c) const
   {
     return new class Event (*this, f, c);
   }
@@ -2068,7 +2068,7 @@ namespace reginfo
   ::std::ostream&
   operator<< (::std::ostream& o, const State& i)
   {
-    return o << static_cast< const ::Xsd::XmlSchema::String& > (i);
+    return o << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
   }
 
   ::std::ostream&
@@ -2080,13 +2080,13 @@ namespace reginfo
   ::std::ostream&
   operator<< (::std::ostream& o, const State1& i)
   {
-    return o << static_cast< const ::Xsd::XmlSchema::String& > (i);
+    return o << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
   }
 
   ::std::ostream&
   operator<< (::std::ostream& o, const DisplayName& i)
   {
-    o << static_cast< const ::Xsd::XmlSchema::String& > (i);
+    o << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
 
     if (i.getLang ())
     {
@@ -2099,7 +2099,7 @@ namespace reginfo
   ::std::ostream&
   operator<< (::std::ostream& o, const UnknownParam& i)
   {
-    o << static_cast< const ::Xsd::XmlSchema::String& > (i);
+    o << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
 
     o << ::std::endl << "name: " << i.getName ();
     return o;
@@ -2114,7 +2114,7 @@ namespace reginfo
   ::std::ostream&
   operator<< (::std::ostream& o, const State2& i)
   {
-    return o << static_cast< const ::Xsd::XmlSchema::String& > (i);
+    return o << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
   }
 
   ::std::ostream&
@@ -2126,7 +2126,7 @@ namespace reginfo
   ::std::ostream&
   operator<< (::std::ostream& o, const Event& i)
   {
-    return o << static_cast< const ::Xsd::XmlSchema::String& > (i);
+    return o << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
   }
 }
 
@@ -2138,16 +2138,16 @@ namespace reginfo
 {
   ::std::unique_ptr< ::reginfo::Reginfo >
   parseReginfo (const ::std::string& u,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-      (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+      (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
     ::xsd::cxx::tree::error_handler< char > h;
 
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::xsd::cxx::xml::dom::parse< char > (
         u, h, p, f));
 
@@ -2155,20 +2155,20 @@ namespace reginfo
 
     return ::std::unique_ptr< ::reginfo::Reginfo > (
       ::reginfo::parseReginfo (
-        std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
   }
 
   ::std::unique_ptr< ::reginfo::Reginfo >
   parseReginfo (const ::std::string& u,
-                ::Xsd::XmlSchema::ErrorHandler& h,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-      (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+      (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::xsd::cxx::xml::dom::parse< char > (
         u, h, p, f));
 
@@ -2177,16 +2177,16 @@ namespace reginfo
 
     return ::std::unique_ptr< ::reginfo::Reginfo > (
       ::reginfo::parseReginfo (
-        std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
   }
 
   ::std::unique_ptr< ::reginfo::Reginfo >
   parseReginfo (const ::std::string& u,
                 ::xercesc::DOMErrorHandler& h,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::xsd::cxx::xml::dom::parse< char > (
         u, h, p, f));
 
@@ -2195,17 +2195,17 @@ namespace reginfo
 
     return ::std::unique_ptr< ::reginfo::Reginfo > (
       ::reginfo::parseReginfo (
-        std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
   }
 
   ::std::unique_ptr< ::reginfo::Reginfo >
   parseReginfo (::std::istream& is,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-      (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+      (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
     ::xsd::cxx::xml::sax::std_input_source isrc (is);
     return ::reginfo::parseReginfo (isrc, f, p);
@@ -2213,13 +2213,13 @@ namespace reginfo
 
   ::std::unique_ptr< ::reginfo::Reginfo >
   parseReginfo (::std::istream& is,
-                ::Xsd::XmlSchema::ErrorHandler& h,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-      (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+      (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
     ::xsd::cxx::xml::sax::std_input_source isrc (is);
     return ::reginfo::parseReginfo (isrc, h, f, p);
@@ -2228,8 +2228,8 @@ namespace reginfo
   ::std::unique_ptr< ::reginfo::Reginfo >
   parseReginfo (::std::istream& is,
                 ::xercesc::DOMErrorHandler& h,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::sax::std_input_source isrc (is);
     return ::reginfo::parseReginfo (isrc, h, f, p);
@@ -2238,12 +2238,12 @@ namespace reginfo
   ::std::unique_ptr< ::reginfo::Reginfo >
   parseReginfo (::std::istream& is,
                 const ::std::string& sid,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-      (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+      (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
     ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
     return ::reginfo::parseReginfo (isrc, f, p);
@@ -2252,13 +2252,13 @@ namespace reginfo
   ::std::unique_ptr< ::reginfo::Reginfo >
   parseReginfo (::std::istream& is,
                 const ::std::string& sid,
-                ::Xsd::XmlSchema::ErrorHandler& h,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-      (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+      (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
     ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
     return ::reginfo::parseReginfo (isrc, h, f, p);
@@ -2268,8 +2268,8 @@ namespace reginfo
   parseReginfo (::std::istream& is,
                 const ::std::string& sid,
                 ::xercesc::DOMErrorHandler& h,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
     return ::reginfo::parseReginfo (isrc, h, f, p);
@@ -2277,12 +2277,12 @@ namespace reginfo
 
   ::std::unique_ptr< ::reginfo::Reginfo >
   parseReginfo (::xercesc::InputSource& i,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::tree::error_handler< char > h;
 
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::xsd::cxx::xml::dom::parse< char > (
         i, h, p, f));
 
@@ -2290,16 +2290,16 @@ namespace reginfo
 
     return ::std::unique_ptr< ::reginfo::Reginfo > (
       ::reginfo::parseReginfo (
-        std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
   }
 
   ::std::unique_ptr< ::reginfo::Reginfo >
   parseReginfo (::xercesc::InputSource& i,
-                ::Xsd::XmlSchema::ErrorHandler& h,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::xsd::cxx::xml::dom::parse< char > (
         i, h, p, f));
 
@@ -2308,16 +2308,16 @@ namespace reginfo
 
     return ::std::unique_ptr< ::reginfo::Reginfo > (
       ::reginfo::parseReginfo (
-        std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
   }
 
   ::std::unique_ptr< ::reginfo::Reginfo >
   parseReginfo (::xercesc::InputSource& i,
                 ::xercesc::DOMErrorHandler& h,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::xsd::cxx::xml::dom::parse< char > (
         i, h, p, f));
 
@@ -2326,22 +2326,22 @@ namespace reginfo
 
     return ::std::unique_ptr< ::reginfo::Reginfo > (
       ::reginfo::parseReginfo (
-        std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
   }
 
   ::std::unique_ptr< ::reginfo::Reginfo >
   parseReginfo (const ::xercesc::DOMDocument& doc,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
-    if (f & ::Xsd::XmlSchema::Flags::keep_dom)
+    if (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom)
     {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+      ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
         static_cast< ::xercesc::DOMDocument* > (doc.cloneNode (true)));
 
       return ::std::unique_ptr< ::reginfo::Reginfo > (
         ::reginfo::parseReginfo (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+          std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
     }
 
     const ::xercesc::DOMElement& e (*doc.getDocumentElement ());
@@ -2365,13 +2365,13 @@ namespace reginfo
   }
 
   ::std::unique_ptr< ::reginfo::Reginfo >
-  parseReginfo (::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties&)
+  parseReginfo (::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties&)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > c (
-      ((f & ::Xsd::XmlSchema::Flags::keep_dom) &&
-       !(f & ::Xsd::XmlSchema::Flags::own_dom))
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > c (
+      ((f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) &&
+       !(f & ::flexisip::Xsd::XmlSchema::Flags::own_dom))
       ? static_cast< ::xercesc::DOMDocument* > (d->cloneNode (true))
       : 0);
 
@@ -2381,8 +2381,8 @@ namespace reginfo
     const ::xsd::cxx::xml::qualified_name< char > n (
       ::xsd::cxx::xml::dom::name< char > (e));
 
-    if (f & ::Xsd::XmlSchema::Flags::keep_dom)
-      doc.setUserData (::Xsd::XmlSchema::dom::treeNodeKey,
+    if (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom)
+      doc.setUserData (::flexisip::Xsd::XmlSchema::dom::treeNodeKey,
                        (c.get () ? &c : &d),
                        0);
 
@@ -2404,16 +2404,16 @@ namespace reginfo
 
   ::std::unique_ptr< ::reginfo::Registration >
   parseRegistration (const ::std::string& u,
-                     ::Xsd::XmlSchema::Flags f,
-                     const ::Xsd::XmlSchema::Properties& p)
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-      (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+      (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
     ::xsd::cxx::tree::error_handler< char > h;
 
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::xsd::cxx::xml::dom::parse< char > (
         u, h, p, f));
 
@@ -2421,20 +2421,20 @@ namespace reginfo
 
     return ::std::unique_ptr< ::reginfo::Registration > (
       ::reginfo::parseRegistration (
-        std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
   }
 
   ::std::unique_ptr< ::reginfo::Registration >
   parseRegistration (const ::std::string& u,
-                     ::Xsd::XmlSchema::ErrorHandler& h,
-                     ::Xsd::XmlSchema::Flags f,
-                     const ::Xsd::XmlSchema::Properties& p)
+                     ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-      (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+      (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::xsd::cxx::xml::dom::parse< char > (
         u, h, p, f));
 
@@ -2443,16 +2443,16 @@ namespace reginfo
 
     return ::std::unique_ptr< ::reginfo::Registration > (
       ::reginfo::parseRegistration (
-        std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
   }
 
   ::std::unique_ptr< ::reginfo::Registration >
   parseRegistration (const ::std::string& u,
                      ::xercesc::DOMErrorHandler& h,
-                     ::Xsd::XmlSchema::Flags f,
-                     const ::Xsd::XmlSchema::Properties& p)
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::xsd::cxx::xml::dom::parse< char > (
         u, h, p, f));
 
@@ -2461,17 +2461,17 @@ namespace reginfo
 
     return ::std::unique_ptr< ::reginfo::Registration > (
       ::reginfo::parseRegistration (
-        std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
   }
 
   ::std::unique_ptr< ::reginfo::Registration >
   parseRegistration (::std::istream& is,
-                     ::Xsd::XmlSchema::Flags f,
-                     const ::Xsd::XmlSchema::Properties& p)
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-      (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+      (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
     ::xsd::cxx::xml::sax::std_input_source isrc (is);
     return ::reginfo::parseRegistration (isrc, f, p);
@@ -2479,13 +2479,13 @@ namespace reginfo
 
   ::std::unique_ptr< ::reginfo::Registration >
   parseRegistration (::std::istream& is,
-                     ::Xsd::XmlSchema::ErrorHandler& h,
-                     ::Xsd::XmlSchema::Flags f,
-                     const ::Xsd::XmlSchema::Properties& p)
+                     ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-      (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+      (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
     ::xsd::cxx::xml::sax::std_input_source isrc (is);
     return ::reginfo::parseRegistration (isrc, h, f, p);
@@ -2494,8 +2494,8 @@ namespace reginfo
   ::std::unique_ptr< ::reginfo::Registration >
   parseRegistration (::std::istream& is,
                      ::xercesc::DOMErrorHandler& h,
-                     ::Xsd::XmlSchema::Flags f,
-                     const ::Xsd::XmlSchema::Properties& p)
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::sax::std_input_source isrc (is);
     return ::reginfo::parseRegistration (isrc, h, f, p);
@@ -2504,12 +2504,12 @@ namespace reginfo
   ::std::unique_ptr< ::reginfo::Registration >
   parseRegistration (::std::istream& is,
                      const ::std::string& sid,
-                     ::Xsd::XmlSchema::Flags f,
-                     const ::Xsd::XmlSchema::Properties& p)
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-      (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+      (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
     ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
     return ::reginfo::parseRegistration (isrc, f, p);
@@ -2518,13 +2518,13 @@ namespace reginfo
   ::std::unique_ptr< ::reginfo::Registration >
   parseRegistration (::std::istream& is,
                      const ::std::string& sid,
-                     ::Xsd::XmlSchema::ErrorHandler& h,
-                     ::Xsd::XmlSchema::Flags f,
-                     const ::Xsd::XmlSchema::Properties& p)
+                     ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-      (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+      (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
     ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
     return ::reginfo::parseRegistration (isrc, h, f, p);
@@ -2534,8 +2534,8 @@ namespace reginfo
   parseRegistration (::std::istream& is,
                      const ::std::string& sid,
                      ::xercesc::DOMErrorHandler& h,
-                     ::Xsd::XmlSchema::Flags f,
-                     const ::Xsd::XmlSchema::Properties& p)
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
     return ::reginfo::parseRegistration (isrc, h, f, p);
@@ -2543,12 +2543,12 @@ namespace reginfo
 
   ::std::unique_ptr< ::reginfo::Registration >
   parseRegistration (::xercesc::InputSource& i,
-                     ::Xsd::XmlSchema::Flags f,
-                     const ::Xsd::XmlSchema::Properties& p)
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::tree::error_handler< char > h;
 
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::xsd::cxx::xml::dom::parse< char > (
         i, h, p, f));
 
@@ -2556,16 +2556,16 @@ namespace reginfo
 
     return ::std::unique_ptr< ::reginfo::Registration > (
       ::reginfo::parseRegistration (
-        std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
   }
 
   ::std::unique_ptr< ::reginfo::Registration >
   parseRegistration (::xercesc::InputSource& i,
-                     ::Xsd::XmlSchema::ErrorHandler& h,
-                     ::Xsd::XmlSchema::Flags f,
-                     const ::Xsd::XmlSchema::Properties& p)
+                     ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::xsd::cxx::xml::dom::parse< char > (
         i, h, p, f));
 
@@ -2574,16 +2574,16 @@ namespace reginfo
 
     return ::std::unique_ptr< ::reginfo::Registration > (
       ::reginfo::parseRegistration (
-        std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
   }
 
   ::std::unique_ptr< ::reginfo::Registration >
   parseRegistration (::xercesc::InputSource& i,
                      ::xercesc::DOMErrorHandler& h,
-                     ::Xsd::XmlSchema::Flags f,
-                     const ::Xsd::XmlSchema::Properties& p)
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::xsd::cxx::xml::dom::parse< char > (
         i, h, p, f));
 
@@ -2592,22 +2592,22 @@ namespace reginfo
 
     return ::std::unique_ptr< ::reginfo::Registration > (
       ::reginfo::parseRegistration (
-        std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
   }
 
   ::std::unique_ptr< ::reginfo::Registration >
   parseRegistration (const ::xercesc::DOMDocument& doc,
-                     ::Xsd::XmlSchema::Flags f,
-                     const ::Xsd::XmlSchema::Properties& p)
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
-    if (f & ::Xsd::XmlSchema::Flags::keep_dom)
+    if (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom)
     {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+      ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
         static_cast< ::xercesc::DOMDocument* > (doc.cloneNode (true)));
 
       return ::std::unique_ptr< ::reginfo::Registration > (
         ::reginfo::parseRegistration (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+          std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
     }
 
     const ::xercesc::DOMElement& e (*doc.getDocumentElement ());
@@ -2631,13 +2631,13 @@ namespace reginfo
   }
 
   ::std::unique_ptr< ::reginfo::Registration >
-  parseRegistration (::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
-                     ::Xsd::XmlSchema::Flags f,
-                     const ::Xsd::XmlSchema::Properties&)
+  parseRegistration (::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties&)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > c (
-      ((f & ::Xsd::XmlSchema::Flags::keep_dom) &&
-       !(f & ::Xsd::XmlSchema::Flags::own_dom))
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > c (
+      ((f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) &&
+       !(f & ::flexisip::Xsd::XmlSchema::Flags::own_dom))
       ? static_cast< ::xercesc::DOMDocument* > (d->cloneNode (true))
       : 0);
 
@@ -2647,8 +2647,8 @@ namespace reginfo
     const ::xsd::cxx::xml::qualified_name< char > n (
       ::xsd::cxx::xml::dom::name< char > (e));
 
-    if (f & ::Xsd::XmlSchema::Flags::keep_dom)
-      doc.setUserData (::Xsd::XmlSchema::dom::treeNodeKey,
+    if (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom)
+      doc.setUserData (::flexisip::Xsd::XmlSchema::dom::treeNodeKey,
                        (c.get () ? &c : &d),
                        0);
 
@@ -2670,16 +2670,16 @@ namespace reginfo
 
   ::std::unique_ptr< ::reginfo::Contact >
   parseContact (const ::std::string& u,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-      (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+      (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
     ::xsd::cxx::tree::error_handler< char > h;
 
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::xsd::cxx::xml::dom::parse< char > (
         u, h, p, f));
 
@@ -2687,20 +2687,20 @@ namespace reginfo
 
     return ::std::unique_ptr< ::reginfo::Contact > (
       ::reginfo::parseContact (
-        std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
   }
 
   ::std::unique_ptr< ::reginfo::Contact >
   parseContact (const ::std::string& u,
-                ::Xsd::XmlSchema::ErrorHandler& h,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-      (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+      (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::xsd::cxx::xml::dom::parse< char > (
         u, h, p, f));
 
@@ -2709,16 +2709,16 @@ namespace reginfo
 
     return ::std::unique_ptr< ::reginfo::Contact > (
       ::reginfo::parseContact (
-        std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
   }
 
   ::std::unique_ptr< ::reginfo::Contact >
   parseContact (const ::std::string& u,
                 ::xercesc::DOMErrorHandler& h,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::xsd::cxx::xml::dom::parse< char > (
         u, h, p, f));
 
@@ -2727,17 +2727,17 @@ namespace reginfo
 
     return ::std::unique_ptr< ::reginfo::Contact > (
       ::reginfo::parseContact (
-        std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
   }
 
   ::std::unique_ptr< ::reginfo::Contact >
   parseContact (::std::istream& is,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-      (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+      (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
     ::xsd::cxx::xml::sax::std_input_source isrc (is);
     return ::reginfo::parseContact (isrc, f, p);
@@ -2745,13 +2745,13 @@ namespace reginfo
 
   ::std::unique_ptr< ::reginfo::Contact >
   parseContact (::std::istream& is,
-                ::Xsd::XmlSchema::ErrorHandler& h,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-      (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+      (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
     ::xsd::cxx::xml::sax::std_input_source isrc (is);
     return ::reginfo::parseContact (isrc, h, f, p);
@@ -2760,8 +2760,8 @@ namespace reginfo
   ::std::unique_ptr< ::reginfo::Contact >
   parseContact (::std::istream& is,
                 ::xercesc::DOMErrorHandler& h,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::sax::std_input_source isrc (is);
     return ::reginfo::parseContact (isrc, h, f, p);
@@ -2770,12 +2770,12 @@ namespace reginfo
   ::std::unique_ptr< ::reginfo::Contact >
   parseContact (::std::istream& is,
                 const ::std::string& sid,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-      (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+      (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
     ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
     return ::reginfo::parseContact (isrc, f, p);
@@ -2784,13 +2784,13 @@ namespace reginfo
   ::std::unique_ptr< ::reginfo::Contact >
   parseContact (::std::istream& is,
                 const ::std::string& sid,
-                ::Xsd::XmlSchema::ErrorHandler& h,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-      (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+      (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
     ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
     return ::reginfo::parseContact (isrc, h, f, p);
@@ -2800,8 +2800,8 @@ namespace reginfo
   parseContact (::std::istream& is,
                 const ::std::string& sid,
                 ::xercesc::DOMErrorHandler& h,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
     return ::reginfo::parseContact (isrc, h, f, p);
@@ -2809,12 +2809,12 @@ namespace reginfo
 
   ::std::unique_ptr< ::reginfo::Contact >
   parseContact (::xercesc::InputSource& i,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
     ::xsd::cxx::tree::error_handler< char > h;
 
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::xsd::cxx::xml::dom::parse< char > (
         i, h, p, f));
 
@@ -2822,16 +2822,16 @@ namespace reginfo
 
     return ::std::unique_ptr< ::reginfo::Contact > (
       ::reginfo::parseContact (
-        std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
   }
 
   ::std::unique_ptr< ::reginfo::Contact >
   parseContact (::xercesc::InputSource& i,
-                ::Xsd::XmlSchema::ErrorHandler& h,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::xsd::cxx::xml::dom::parse< char > (
         i, h, p, f));
 
@@ -2840,16 +2840,16 @@ namespace reginfo
 
     return ::std::unique_ptr< ::reginfo::Contact > (
       ::reginfo::parseContact (
-        std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
   }
 
   ::std::unique_ptr< ::reginfo::Contact >
   parseContact (::xercesc::InputSource& i,
                 ::xercesc::DOMErrorHandler& h,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::xsd::cxx::xml::dom::parse< char > (
         i, h, p, f));
 
@@ -2858,22 +2858,22 @@ namespace reginfo
 
     return ::std::unique_ptr< ::reginfo::Contact > (
       ::reginfo::parseContact (
-        std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
   }
 
   ::std::unique_ptr< ::reginfo::Contact >
   parseContact (const ::xercesc::DOMDocument& doc,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties& p)
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties& p)
   {
-    if (f & ::Xsd::XmlSchema::Flags::keep_dom)
+    if (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom)
     {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+      ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
         static_cast< ::xercesc::DOMDocument* > (doc.cloneNode (true)));
 
       return ::std::unique_ptr< ::reginfo::Contact > (
         ::reginfo::parseContact (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+          std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
     }
 
     const ::xercesc::DOMElement& e (*doc.getDocumentElement ());
@@ -2897,13 +2897,13 @@ namespace reginfo
   }
 
   ::std::unique_ptr< ::reginfo::Contact >
-  parseContact (::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
-                ::Xsd::XmlSchema::Flags f,
-                const ::Xsd::XmlSchema::Properties&)
+  parseContact (::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                const ::flexisip::Xsd::XmlSchema::Properties&)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > c (
-      ((f & ::Xsd::XmlSchema::Flags::keep_dom) &&
-       !(f & ::Xsd::XmlSchema::Flags::own_dom))
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > c (
+      ((f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) &&
+       !(f & ::flexisip::Xsd::XmlSchema::Flags::own_dom))
       ? static_cast< ::xercesc::DOMDocument* > (d->cloneNode (true))
       : 0);
 
@@ -2913,8 +2913,8 @@ namespace reginfo
     const ::xsd::cxx::xml::qualified_name< char > n (
       ::xsd::cxx::xml::dom::name< char > (e));
 
-    if (f & ::Xsd::XmlSchema::Flags::keep_dom)
-      doc.setUserData (::Xsd::XmlSchema::dom::treeNodeKey,
+    if (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom)
+      doc.setUserData (::flexisip::Xsd::XmlSchema::dom::treeNodeKey,
                        (c.get () ? &c : &d),
                        0);
 
@@ -2944,14 +2944,14 @@ namespace reginfo
   void
   serializeReginfo (::std::ostream& o,
                     const ::reginfo::Reginfo& s,
-                    const ::Xsd::XmlSchema::NamespaceInfomap& m,
+                    const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
                     const ::std::string& e,
-                    ::Xsd::XmlSchema::Flags f)
+                    ::flexisip::Xsd::XmlSchema::Flags f)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0);
 
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::reginfo::serializeReginfo (s, m, f));
 
     ::xsd::cxx::tree::error_handler< char > h;
@@ -2966,15 +2966,15 @@ namespace reginfo
   void
   serializeReginfo (::std::ostream& o,
                     const ::reginfo::Reginfo& s,
-                    ::Xsd::XmlSchema::ErrorHandler& h,
-                    const ::Xsd::XmlSchema::NamespaceInfomap& m,
+                    ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                    const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
                     const ::std::string& e,
-                    ::Xsd::XmlSchema::Flags f)
+                    ::flexisip::Xsd::XmlSchema::Flags f)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0);
 
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::reginfo::serializeReginfo (s, m, f));
     ::xsd::cxx::xml::dom::ostream_format_target t (o);
     if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
@@ -2987,11 +2987,11 @@ namespace reginfo
   serializeReginfo (::std::ostream& o,
                     const ::reginfo::Reginfo& s,
                     ::xercesc::DOMErrorHandler& h,
-                    const ::Xsd::XmlSchema::NamespaceInfomap& m,
+                    const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
                     const ::std::string& e,
-                    ::Xsd::XmlSchema::Flags f)
+                    ::flexisip::Xsd::XmlSchema::Flags f)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::reginfo::serializeReginfo (s, m, f));
     ::xsd::cxx::xml::dom::ostream_format_target t (o);
     if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
@@ -3003,11 +3003,11 @@ namespace reginfo
   void
   serializeReginfo (::xercesc::XMLFormatTarget& t,
                     const ::reginfo::Reginfo& s,
-                    const ::Xsd::XmlSchema::NamespaceInfomap& m,
+                    const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
                     const ::std::string& e,
-                    ::Xsd::XmlSchema::Flags f)
+                    ::flexisip::Xsd::XmlSchema::Flags f)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::reginfo::serializeReginfo (s, m, f));
 
     ::xsd::cxx::tree::error_handler< char > h;
@@ -3021,12 +3021,12 @@ namespace reginfo
   void
   serializeReginfo (::xercesc::XMLFormatTarget& t,
                     const ::reginfo::Reginfo& s,
-                    ::Xsd::XmlSchema::ErrorHandler& h,
-                    const ::Xsd::XmlSchema::NamespaceInfomap& m,
+                    ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                    const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
                     const ::std::string& e,
-                    ::Xsd::XmlSchema::Flags f)
+                    ::flexisip::Xsd::XmlSchema::Flags f)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::reginfo::serializeReginfo (s, m, f));
     if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
     {
@@ -3038,11 +3038,11 @@ namespace reginfo
   serializeReginfo (::xercesc::XMLFormatTarget& t,
                     const ::reginfo::Reginfo& s,
                     ::xercesc::DOMErrorHandler& h,
-                    const ::Xsd::XmlSchema::NamespaceInfomap& m,
+                    const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
                     const ::std::string& e,
-                    ::Xsd::XmlSchema::Flags f)
+                    ::flexisip::Xsd::XmlSchema::Flags f)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::reginfo::serializeReginfo (s, m, f));
     if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
     {
@@ -3053,7 +3053,7 @@ namespace reginfo
   void
   serializeReginfo (::xercesc::DOMDocument& d,
                     const ::reginfo::Reginfo& s,
-                    ::Xsd::XmlSchema::Flags)
+                    ::flexisip::Xsd::XmlSchema::Flags)
   {
     ::xercesc::DOMElement& e (*d.getDocumentElement ());
     const ::xsd::cxx::xml::qualified_name< char > n (
@@ -3074,12 +3074,12 @@ namespace reginfo
     }
   }
 
-  ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
+  ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
   serializeReginfo (const ::reginfo::Reginfo& s,
-                    const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                    ::Xsd::XmlSchema::Flags f)
+                    const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                    ::flexisip::Xsd::XmlSchema::Flags f)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::xsd::cxx::xml::dom::serialize< char > (
         "reginfo",
         "urn:ietf:params:xml:ns:reginfo",
@@ -3092,14 +3092,14 @@ namespace reginfo
   void
   serializeRegistration (::std::ostream& o,
                          const ::reginfo::Registration& s,
-                         const ::Xsd::XmlSchema::NamespaceInfomap& m,
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
                          const ::std::string& e,
-                         ::Xsd::XmlSchema::Flags f)
+                         ::flexisip::Xsd::XmlSchema::Flags f)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0);
 
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::reginfo::serializeRegistration (s, m, f));
 
     ::xsd::cxx::tree::error_handler< char > h;
@@ -3114,15 +3114,15 @@ namespace reginfo
   void
   serializeRegistration (::std::ostream& o,
                          const ::reginfo::Registration& s,
-                         ::Xsd::XmlSchema::ErrorHandler& h,
-                         const ::Xsd::XmlSchema::NamespaceInfomap& m,
+                         ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
                          const ::std::string& e,
-                         ::Xsd::XmlSchema::Flags f)
+                         ::flexisip::Xsd::XmlSchema::Flags f)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0);
 
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::reginfo::serializeRegistration (s, m, f));
     ::xsd::cxx::xml::dom::ostream_format_target t (o);
     if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
@@ -3135,11 +3135,11 @@ namespace reginfo
   serializeRegistration (::std::ostream& o,
                          const ::reginfo::Registration& s,
                          ::xercesc::DOMErrorHandler& h,
-                         const ::Xsd::XmlSchema::NamespaceInfomap& m,
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
                          const ::std::string& e,
-                         ::Xsd::XmlSchema::Flags f)
+                         ::flexisip::Xsd::XmlSchema::Flags f)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::reginfo::serializeRegistration (s, m, f));
     ::xsd::cxx::xml::dom::ostream_format_target t (o);
     if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
@@ -3151,11 +3151,11 @@ namespace reginfo
   void
   serializeRegistration (::xercesc::XMLFormatTarget& t,
                          const ::reginfo::Registration& s,
-                         const ::Xsd::XmlSchema::NamespaceInfomap& m,
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
                          const ::std::string& e,
-                         ::Xsd::XmlSchema::Flags f)
+                         ::flexisip::Xsd::XmlSchema::Flags f)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::reginfo::serializeRegistration (s, m, f));
 
     ::xsd::cxx::tree::error_handler< char > h;
@@ -3169,12 +3169,12 @@ namespace reginfo
   void
   serializeRegistration (::xercesc::XMLFormatTarget& t,
                          const ::reginfo::Registration& s,
-                         ::Xsd::XmlSchema::ErrorHandler& h,
-                         const ::Xsd::XmlSchema::NamespaceInfomap& m,
+                         ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
                          const ::std::string& e,
-                         ::Xsd::XmlSchema::Flags f)
+                         ::flexisip::Xsd::XmlSchema::Flags f)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::reginfo::serializeRegistration (s, m, f));
     if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
     {
@@ -3186,11 +3186,11 @@ namespace reginfo
   serializeRegistration (::xercesc::XMLFormatTarget& t,
                          const ::reginfo::Registration& s,
                          ::xercesc::DOMErrorHandler& h,
-                         const ::Xsd::XmlSchema::NamespaceInfomap& m,
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
                          const ::std::string& e,
-                         ::Xsd::XmlSchema::Flags f)
+                         ::flexisip::Xsd::XmlSchema::Flags f)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::reginfo::serializeRegistration (s, m, f));
     if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
     {
@@ -3201,7 +3201,7 @@ namespace reginfo
   void
   serializeRegistration (::xercesc::DOMDocument& d,
                          const ::reginfo::Registration& s,
-                         ::Xsd::XmlSchema::Flags)
+                         ::flexisip::Xsd::XmlSchema::Flags)
   {
     ::xercesc::DOMElement& e (*d.getDocumentElement ());
     const ::xsd::cxx::xml::qualified_name< char > n (
@@ -3222,12 +3222,12 @@ namespace reginfo
     }
   }
 
-  ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
+  ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
   serializeRegistration (const ::reginfo::Registration& s,
-                         const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                         ::Xsd::XmlSchema::Flags f)
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                         ::flexisip::Xsd::XmlSchema::Flags f)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::xsd::cxx::xml::dom::serialize< char > (
         "registration",
         "urn:ietf:params:xml:ns:reginfo",
@@ -3240,14 +3240,14 @@ namespace reginfo
   void
   serializeContact (::std::ostream& o,
                     const ::reginfo::Contact& s,
-                    const ::Xsd::XmlSchema::NamespaceInfomap& m,
+                    const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
                     const ::std::string& e,
-                    ::Xsd::XmlSchema::Flags f)
+                    ::flexisip::Xsd::XmlSchema::Flags f)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0);
 
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::reginfo::serializeContact (s, m, f));
 
     ::xsd::cxx::tree::error_handler< char > h;
@@ -3262,15 +3262,15 @@ namespace reginfo
   void
   serializeContact (::std::ostream& o,
                     const ::reginfo::Contact& s,
-                    ::Xsd::XmlSchema::ErrorHandler& h,
-                    const ::Xsd::XmlSchema::NamespaceInfomap& m,
+                    ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                    const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
                     const ::std::string& e,
-                    ::Xsd::XmlSchema::Flags f)
+                    ::flexisip::Xsd::XmlSchema::Flags f)
   {
     ::xsd::cxx::xml::auto_initializer i (
-      (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0);
+      (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0);
 
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::reginfo::serializeContact (s, m, f));
     ::xsd::cxx::xml::dom::ostream_format_target t (o);
     if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
@@ -3283,11 +3283,11 @@ namespace reginfo
   serializeContact (::std::ostream& o,
                     const ::reginfo::Contact& s,
                     ::xercesc::DOMErrorHandler& h,
-                    const ::Xsd::XmlSchema::NamespaceInfomap& m,
+                    const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
                     const ::std::string& e,
-                    ::Xsd::XmlSchema::Flags f)
+                    ::flexisip::Xsd::XmlSchema::Flags f)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::reginfo::serializeContact (s, m, f));
     ::xsd::cxx::xml::dom::ostream_format_target t (o);
     if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
@@ -3299,11 +3299,11 @@ namespace reginfo
   void
   serializeContact (::xercesc::XMLFormatTarget& t,
                     const ::reginfo::Contact& s,
-                    const ::Xsd::XmlSchema::NamespaceInfomap& m,
+                    const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
                     const ::std::string& e,
-                    ::Xsd::XmlSchema::Flags f)
+                    ::flexisip::Xsd::XmlSchema::Flags f)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::reginfo::serializeContact (s, m, f));
 
     ::xsd::cxx::tree::error_handler< char > h;
@@ -3317,12 +3317,12 @@ namespace reginfo
   void
   serializeContact (::xercesc::XMLFormatTarget& t,
                     const ::reginfo::Contact& s,
-                    ::Xsd::XmlSchema::ErrorHandler& h,
-                    const ::Xsd::XmlSchema::NamespaceInfomap& m,
+                    ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                    const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
                     const ::std::string& e,
-                    ::Xsd::XmlSchema::Flags f)
+                    ::flexisip::Xsd::XmlSchema::Flags f)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::reginfo::serializeContact (s, m, f));
     if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
     {
@@ -3334,11 +3334,11 @@ namespace reginfo
   serializeContact (::xercesc::XMLFormatTarget& t,
                     const ::reginfo::Contact& s,
                     ::xercesc::DOMErrorHandler& h,
-                    const ::Xsd::XmlSchema::NamespaceInfomap& m,
+                    const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
                     const ::std::string& e,
-                    ::Xsd::XmlSchema::Flags f)
+                    ::flexisip::Xsd::XmlSchema::Flags f)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::reginfo::serializeContact (s, m, f));
     if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
     {
@@ -3349,7 +3349,7 @@ namespace reginfo
   void
   serializeContact (::xercesc::DOMDocument& d,
                     const ::reginfo::Contact& s,
-                    ::Xsd::XmlSchema::Flags)
+                    ::flexisip::Xsd::XmlSchema::Flags)
   {
     ::xercesc::DOMElement& e (*d.getDocumentElement ());
     const ::xsd::cxx::xml::qualified_name< char > n (
@@ -3370,12 +3370,12 @@ namespace reginfo
     }
   }
 
-  ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
+  ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
   serializeContact (const ::reginfo::Contact& s,
-                    const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                    ::Xsd::XmlSchema::Flags f)
+                    const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                    ::flexisip::Xsd::XmlSchema::Flags f)
   {
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
       ::xsd::cxx::xml::dom::serialize< char > (
         "contact",
         "urn:ietf:params:xml:ns:reginfo",
@@ -3388,7 +3388,7 @@ namespace reginfo
   void
   operator<< (::xercesc::DOMElement& e, const Reginfo& i)
   {
-    e << static_cast< const ::Xsd::XmlSchema::Type& > (i);
+    e << static_cast< const ::flexisip::Xsd::XmlSchema::Type& > (i);
 
     // registration
     //
@@ -3442,7 +3442,7 @@ namespace reginfo
   void
   operator<< (::xercesc::DOMElement& e, const Registration& i)
   {
-    e << static_cast< const ::Xsd::XmlSchema::Type& > (i);
+    e << static_cast< const ::flexisip::Xsd::XmlSchema::Type& > (i);
 
     // contact
     //
@@ -3507,7 +3507,7 @@ namespace reginfo
   void
   operator<< (::xercesc::DOMElement& e, const Contact& i)
   {
-    e << static_cast< const ::Xsd::XmlSchema::Type& > (i);
+    e << static_cast< const ::flexisip::Xsd::XmlSchema::Type& > (i);
 
     // uri
     //
@@ -3669,45 +3669,45 @@ namespace reginfo
   void
   operator<< (::xercesc::DOMElement& e, const State& i)
   {
-    e << static_cast< const ::Xsd::XmlSchema::String& > (i);
+    e << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
   }
 
   void
   operator<< (::xercesc::DOMAttr& a, const State& i)
   {
-    a << static_cast< const ::Xsd::XmlSchema::String& > (i);
+    a << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
   }
 
   void
-  operator<< (::Xsd::XmlSchema::ListStream& l,
+  operator<< (::flexisip::Xsd::XmlSchema::ListStream& l,
               const State& i)
   {
-    l << static_cast< const ::Xsd::XmlSchema::String& > (i);
+    l << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
   }
 
   void
   operator<< (::xercesc::DOMElement& e, const State1& i)
   {
-    e << static_cast< const ::Xsd::XmlSchema::String& > (i);
+    e << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
   }
 
   void
   operator<< (::xercesc::DOMAttr& a, const State1& i)
   {
-    a << static_cast< const ::Xsd::XmlSchema::String& > (i);
+    a << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
   }
 
   void
-  operator<< (::Xsd::XmlSchema::ListStream& l,
+  operator<< (::flexisip::Xsd::XmlSchema::ListStream& l,
               const State1& i)
   {
-    l << static_cast< const ::Xsd::XmlSchema::String& > (i);
+    l << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
   }
 
   void
   operator<< (::xercesc::DOMElement& e, const DisplayName& i)
   {
-    e << static_cast< const ::Xsd::XmlSchema::String& > (i);
+    e << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
 
     // lang
     //
@@ -3726,7 +3726,7 @@ namespace reginfo
   void
   operator<< (::xercesc::DOMElement& e, const UnknownParam& i)
   {
-    e << static_cast< const ::Xsd::XmlSchema::String& > (i);
+    e << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
 
     // name
     //
@@ -3743,39 +3743,39 @@ namespace reginfo
   void
   operator<< (::xercesc::DOMElement& e, const State2& i)
   {
-    e << static_cast< const ::Xsd::XmlSchema::String& > (i);
+    e << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
   }
 
   void
   operator<< (::xercesc::DOMAttr& a, const State2& i)
   {
-    a << static_cast< const ::Xsd::XmlSchema::String& > (i);
+    a << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
   }
 
   void
-  operator<< (::Xsd::XmlSchema::ListStream& l,
+  operator<< (::flexisip::Xsd::XmlSchema::ListStream& l,
               const State2& i)
   {
-    l << static_cast< const ::Xsd::XmlSchema::String& > (i);
+    l << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
   }
 
   void
   operator<< (::xercesc::DOMElement& e, const Event& i)
   {
-    e << static_cast< const ::Xsd::XmlSchema::String& > (i);
+    e << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
   }
 
   void
   operator<< (::xercesc::DOMAttr& a, const Event& i)
   {
-    a << static_cast< const ::Xsd::XmlSchema::String& > (i);
+    a << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
   }
 
   void
-  operator<< (::Xsd::XmlSchema::ListStream& l,
+  operator<< (::flexisip::Xsd::XmlSchema::ListStream& l,
               const Event& i)
   {
-    l << static_cast< const ::Xsd::XmlSchema::String& > (i);
+    l << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
   }
 }
 
