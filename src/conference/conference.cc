@@ -30,7 +30,7 @@ Conference::Conference(ConferenceServer &server, const std::shared_ptr<const lin
 	// TODO: control audio enablement (not so useful actually).
 	params->setVideoEnabled(mServer.getMediaConfig().videoEnabled);
 	params->setLocalParticipantEnabled(false);
-	params->setLayout(linphone::ConferenceLayout::Grid);
+	params->setLayout(linphone::ConferenceLayout::None);
 	mConference = mServer.getCore()->createConferenceWithParams(params);
 	// [workround] we need to recreate the same conference, but the username is not stored correctly in address.
 	mConference->setUsername(uri->getUsername());
