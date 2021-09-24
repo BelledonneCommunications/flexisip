@@ -371,7 +371,7 @@ GatewayAdapter::GatewayAdapter(Agent *ag) : Module(ag), nua(NULL) {
 GatewayAdapter::~GatewayAdapter() {
 	if (nua != NULL) {
 		nua_shutdown(nua);
-		su_root_run(mAgent->getRoot()); // Correctly wait for nua_destroy
+		mAgent->getRoot()->run(); // Correctly wait for nua_destroy
 	}
 	su_home_deinit(&home);
 }
@@ -421,7 +421,7 @@ void GatewayAdapter::onLoad(const GenericStruct *module_config) {
 	gateway_url = url_make(&home, gateway.c_str());
 	if (mRegisterOnGateway) {
 		char *url = su_sprintf(&home, "sip:%s:*", mAgent->getPublicIp().c_str());
-		nua = nua_create(mAgent->getRoot(), nua_callback, this, NUTAG_URL(url),
+		nua = nua_create(mAgent->getRoot()->getCPtr(), nua_callback, this, NUTAG_URL(url),
 						NUTAG_OUTBOUND("no-validate no-natify no-options-keepalive"), NUTAG_PROXY(gateway.c_str()),
 						TAG_END());
 	}
@@ -485,7 +485,7 @@ void GatewayAdapter::nua_callback(nua_event_t event, int status, char const *phr
 		GatewayAdapter *ga = (GatewayAdapter *)ctx;
 		if (ga != NULL) {
 			nua_destroy(ga->nua);
-			su_root_break(ga->getAgent()->getRoot());
+			ga->getAgent()->getRoot()->quit();
 		}
 		return;
 	}

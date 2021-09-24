@@ -74,6 +74,7 @@
 #include "configdumper.hh"
 #include "etchosts.hh"
 #include "monitor.hh"
+#include "sofia-wrapper/su-root.hh"
 #include "stun.hh"
 
 #ifdef ENABLE_CONFERENCE
@@ -94,7 +95,7 @@ static int pipe_wdog_flexisip[2] = {
 	-1}; // This is the pipe that flexisip will write to to signify it has started to the Watchdog
 static pid_t flexisip_pid = -1;
 static pid_t monitor_pid = -1;
-static su_root_t *root = NULL;
+static std::shared_ptr<sofiasip::SuRoot> root{};
 
 #if ENABLE_PRESENCE
 static std::shared_ptr<flexisip::PresenceServer> presenceServer;
@@ -135,9 +136,7 @@ static void flexisip_stop(int signum) {
 		// LOGD("Received quit signal...");
 
 		run = 0;
-		if (root) {
-			su_root_break(root);
-		}
+		if (root) root->quit();
 	} //else nop
 }
 
@@ -466,7 +465,7 @@ static void depthFirstSearch(string& path, GenericEntry* config, list<string>& a
 	}
 }
 
-static void dump_config(su_root_t *root, const std::string &dump_cfg_part, bool with_experimental, bool dumpDefault, const string &format) {
+static void dump_config(const std::shared_ptr<sofiasip::SuRoot>& root, const std::string &dump_cfg_part, bool with_experimental, bool dumpDefault, const string &format) {
 	GenericManager::get()->applyOverrides(true);
 	auto *pluginsDirEntry = GenericManager::get()->getGlobal()->get<ConfigString>("plugins-dir");
 	if (pluginsDirEntry->get().empty()) {
@@ -677,6 +676,13 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+	// Instanciate the main loop and set signal callbacks
+	root = make_shared<sofiasip::SuRoot>();
+	signal(SIGPIPE, SIG_IGN);
+	signal(SIGTERM, flexisip_stop);
+	signal(SIGINT, flexisip_stop);
+	signal(SIGHUP, flexisip_reopen_log_files);
+
 	// Instanciate the Generic manager
 	GenericManager *cfg = GenericManager::get();
 	cfg->setOverrideMap(oset);
@@ -809,13 +815,6 @@ int main(int argc, char *argv[]) {
 	/*tell parser to support extra headers */
 	sip_update_default_mclass(sip_extend_mclass(NULL));
 
-	root = su_root_create(NULL);
-
-	signal(SIGPIPE, SIG_IGN);
-	signal(SIGTERM, flexisip_stop);
-	signal(SIGINT, flexisip_stop);
-	signal(SIGHUP, flexisip_reopen_log_files);
-
 	if (dump_cores) {
 		/*enable core dumps*/
 		struct rlimit lm;
@@ -875,7 +874,7 @@ int main(int argc, char *argv[]) {
 		const auto &logFilename = cfg->getGlobal()->get<ConfigString>("log-filename")->read();
 
 		LogManager::Parameters logParams{};
-		logParams.root = root;
+		logParams.root = root->getCPtr();
 		logParams.logDirectory = cfg->getGlobal()->get<ConfigString>("log-directory")->read();
 		logParams.logFilename = regex_replace(logFilename, regex{"\\{server\\}"}, fName);
 		logParams.level = debug ? BCTBX_LOG_DEBUG : LogManager::get().logLevelFromName(log_level);
@@ -993,7 +992,7 @@ int main(int argc, char *argv[]) {
 #endif // ENABLE_CONFERENCE
 	}
 
-	if (run) su_root_run(root);
+	if (run) root->run();
 
 	a->unloadConfig();
 	a.reset();
@@ -1015,7 +1014,6 @@ int main(int argc, char *argv[]) {
 		delete stun;
 	}
 	proxy_cli = nullptr;
-	if (root) su_root_destroy(root);
 
 	LOGN("Flexisip %s-server exiting normally.", fName.c_str());
 	if (trackAllocs)

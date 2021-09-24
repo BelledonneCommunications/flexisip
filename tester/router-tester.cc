@@ -21,6 +21,7 @@
 #include <flexisip/agent.hh>
 #include <flexisip/module-router.hh>
 
+#include "sofia-wrapper/su-root.hh"
 #include "tester.hh"
 #include "utils/bellesip-utils.hh"
 
@@ -29,15 +30,15 @@ using namespace std::chrono_literals;
 using namespace std::chrono;
 using namespace flexisip;
 
-static su_root_t* root = nullptr;
-static shared_ptr<Agent> agent = nullptr;
+static shared_ptr<sofiasip::SuRoot> root{};
+static shared_ptr<Agent> agent{};
 static bool responseReceived = false;
 static bool requestReceived = false;
 
 static void beforeEach() {
 	responseReceived = false;
 	requestReceived = false;
-	root = su_root_create(nullptr);
+	root = make_shared<sofiasip::SuRoot>();
 	agent = make_shared<Agent>(root);
 }
 
@@ -45,7 +46,7 @@ static void afterEach() {
 	agent->unloadConfig();
 	RegistrarDb::resetDB();
 	agent.reset();
-	su_root_destroy(root);
+	root.reset();
 }
 
 static void fallbackRouteFilter() {
@@ -91,7 +92,7 @@ static void fallbackRouteFilter() {
 
 	auto beforePlus2 = system_clock::now() + 2s;
 	while ((!responseReceived || !requestReceived) && beforePlus2 >= system_clock::now()) {
-		su_root_step(root, 100);
+		root->step(100ms);
 		bellesipUtils.stackSleep(100);
 		bellesipUtilsFallback.stackSleep(100);
 	}
@@ -151,7 +152,7 @@ static void fallbackRouteFilter() {
 
 	beforePlus2 = system_clock::now() + 2s;
 	while ((!responseReceived || !requestReceived) && beforePlus2 >= system_clock::now()) {
-		su_root_step(root, 100);
+		root->step(100ms);
 		bellesipUtils2.stackSleep(100);
 		bellesipUtilsFallback.stackSleep(100);
 	}

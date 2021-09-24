@@ -291,7 +291,7 @@ class DoSProtection : public Module, ModuleToolbox {
 		ctx->port = port;
 		ctx->protocol = protocol;
 		ctx->lambda = [&](BanContext *context) { unbanIP(context); };
-		ctx->timer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
+		ctx->timer = su_timer_create(mAgent->getRoot()->getTask(), 0);
 		su_timer_set_interval(ctx->timer, invokeLambdaFromSofiaTimerCallback, ctx, mBanTime * 60 * 1000);
 	}
 

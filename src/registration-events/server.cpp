@@ -33,12 +33,6 @@ static constexpr const char * CONTENT_TYPE = "application/reginfo+xml";
 
 Server::Init Server::sStaticInit; // The Init object is instanciated to load the config
 
-Server::Server (su_root_t *root) : ServiceServer(root) {
-	
-}
-
-Server::~Server () {}
-
 void Server::onSubscribeReceived(
     const shared_ptr<Core> & lc,
     const shared_ptr<Event> & lev,

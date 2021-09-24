@@ -177,7 +177,7 @@ void OutgoingTransaction::destroy() {
 		{
 			// invoke nta_outgoing_destroy() at a later time.
 			su_msg_r mamc = SU_MSG_R_INIT;
-			if (-1 == su_msg_create(mamc, su_root_task(mAgent->getRoot()), su_root_task(mAgent->getRoot()),
+			if (-1 == su_msg_create(mamc, mAgent->getRoot()->getTask(), mAgent->getRoot()->getTask(),
 			                        destroy_transaction, sizeof(nta_outgoing_t*))) {
 				LOGF("Couldn't create async message to destroy transaction.");
 			}

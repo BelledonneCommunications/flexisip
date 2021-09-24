@@ -54,7 +54,7 @@ ForkMessageContext::ForkMessageContext(Agent* agent, const shared_ptr<RequestSip
 	mAcceptanceTimer = NULL;
 	// start the acceptance timer immediately
 	if (mCfg->mForkLate && mCfg->mDeliveryTimeout > 30) {
-		mAcceptanceTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
+		mAcceptanceTimer = su_timer_create(mAgent->getRoot()->getTask(), 0);
 		su_timer_set_interval(mAcceptanceTimer, &ForkMessageContext::sOnAcceptanceTimer, this,
 		                      (su_duration_t)mCfg->mUrgentTimeout * 1000);
 	}

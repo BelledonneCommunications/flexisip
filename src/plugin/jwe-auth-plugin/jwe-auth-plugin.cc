@@ -458,7 +458,7 @@ void JweAuth::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 }
 
 void JweAuth::insertJweContext(string &&jweKey, const shared_ptr<JweContext> &jweContext, int timeout) {
-	su_timer_t *timer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
+	auto* timer = su_timer_create(mAgent->getRoot()->getTask(), 0);
 	jweContext->self = this;
 	jweContext->key = jweKey;
 	jweContext->timer = timer;

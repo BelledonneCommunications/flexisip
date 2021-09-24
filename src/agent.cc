@@ -297,7 +297,7 @@ void Agent::start(const string &transport_override, const string &passphrase) {
 
 	mProxyToProxyKeepAliveInterval = global->get<ConfigInt>("proxy-to-proxy-keepalive-interval")->read() * 1000;
 
-	mTimer = su_timer_create(su_root_task(mRoot), 5000);
+	mTimer = su_timer_create(mRoot->getTask(), 5000);
 	su_timer_set_for_ever(mTimer, reinterpret_cast<su_timer_f>(timerfunc), this);
 
 	mainTlsCertsDir = absolutePath(currDir, mainTlsCertsDir);
@@ -508,8 +508,8 @@ void Agent::start(const string &transport_override, const string &passphrase) {
 
 // -----------------------------------------------------------------------------
 
-Agent::Agent(su_root_t *root) {
-	mHttpEngine = nth_engine_create(root, NTHTAG_ERROR_MSG(0), TAG_END());
+Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root) {
+	mHttpEngine = nth_engine_create(root->getCPtr(), NTHTAG_ERROR_MSG(0), TAG_END());
 	GenericStruct *cr = GenericManager::get()->getRoot();
 
 	EtcHostsResolver::get();
@@ -562,10 +562,10 @@ Agent::Agent(su_root_t *root) {
 		LOGE("Can't find interface addresses: %s", strerror(err));
 	}
 	mRoot = root;
-	mAgent = nta_agent_create(root, (url_string_t *)-1, &Agent::messageCallback, (nta_agent_magic_t *)this, TAG_END());
+	mAgent = nta_agent_create(root->getCPtr(), (url_string_t *)-1, &Agent::messageCallback, (nta_agent_magic_t *)this, TAG_END());
 	su_home_init(&mHome);
-	mPreferredRouteV4 = NULL;
-	mPreferredRouteV6 = NULL;
+	mPreferredRouteV4 = nullptr;
+	mPreferredRouteV6 = nullptr;
 	mDrm = new DomainRegistrationManager(this);
 	mProxyToProxyKeepAliveInterval = 0;
 }
@@ -1096,7 +1096,7 @@ const string &Agent::getUniqueId() const {
 }
 
 su_timer_t *Agent::createTimer(int milliseconds, timerCallback cb, void *data, bool repeating) {
-	su_timer_t *timer = su_timer_create(su_root_task(mRoot), milliseconds);
+	su_timer_t *timer = su_timer_create(mRoot->getTask(), milliseconds);
 	if (repeating) su_timer_set_for_ever(timer, (su_timer_f)cb, data);
 	else su_timer_set(timer, (su_timer_f)cb, data);
 	return timer;

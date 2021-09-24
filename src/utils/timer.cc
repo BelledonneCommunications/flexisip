@@ -56,6 +56,13 @@ void Timer::run(const Func &func) {
 	_func = func;
 }
 
+void Timer::setForEver(const Func &func) {
+	if (su_timer_set_for_ever(_timer, _regularTimerCb, this) != 0) {
+		throw logic_error("fail to set timer");
+	}
+	_func = func;
+}
+
 void Timer::reset() {
 	if (su_timer_reset(_timer) != 0) {
 		throw logic_error("fail to reset timer");

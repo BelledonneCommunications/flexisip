@@ -19,8 +19,11 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 
 #include <sofia-sip/su_wait.h>
+
+#include "sofia-wrapper/su-root.hh"
 
 namespace sofiasip {
 
@@ -41,6 +44,7 @@ public:
 	 * @throw std::logic_error if the timer couldn't been created.
 	 */
 	Timer(su_root_t *root, unsigned intervalMs = 0);
+	Timer(const std::shared_ptr<sofiasip::SuRoot>& root, unsigned internalMs = 0) : Timer{root->getCPtr(), internalMs} {}
 	~Timer();
 
 	/**
@@ -74,6 +78,10 @@ public:
 	 * @throw std::logic_error if the timer couldn't be stated.
 	 */
 	void run(const Func &func);
+	/**
+	 * @brief Same as run() execept it doesn't try to catchup missed callbacks.
+	 */
+	void setForEver(const Func &func);
 	/**
 	 * @brief Stop the timer and delete the internal function.
 	 * @throw std::logic_error if the timer couldn't been reset.
