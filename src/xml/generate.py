@@ -88,13 +88,14 @@ def generate(name):
 		"--modifier-regex", "%([^,-]+)-?([^,-]*),([^,]+),([^,]+)%set\\u$1\\u$2\\l\\u$3\\u$4%",
 		"--parser-regex", "%([^-]+)-?([^-]*)%parse\\u$1\\u$2%",
 		"--serializer-regex", "%([^-]+)-?([^-]*)%serialize\\u$1\\u$2%",
-		"--namespace-map", "http://www.w3.org/2001/XMLSchema=Xsd::XmlSchema",
-		"--namespace-map", "urn:ietf:params:xml:ns:pidf:data-model=Xsd::DataModel",
-		"--namespace-map", "urn:gsma:params:xml:ns:rcs:rcs:fthttp=Xsd::Fthttp",
-		"--namespace-map", "urn:ietf:params:xml:ns:pidf=Xsd::Pidf",
-		"--namespace-map", "urn:ietf:params:xml:ns:resource-lists=Xsd::ResourceLists",
-		"--namespace-map", "urn:ietf:params:xml:ns:rlmi=Xsd::Rlmi",
-		"--namespace-map", "urn:ietf:params:xml:ns:pidf:rpid=Xsd::Rpid",
+		"--namespace-map", "http://www.w3.org/XML/1998/namespace=flexisip::Xsd::Namespace",
+		"--namespace-map", "http://www.w3.org/2001/XMLSchema=flexisip::Xsd::XmlSchema",
+		"--namespace-map", "urn:ietf:params:xml:ns:pidf:data-model=flexisip::Xsd::DataModel",
+		"--namespace-map", "urn:gsma:params:xml:ns:rcs:rcs:fthttp=flexisip::Xsd::Fthttp",
+		"--namespace-map", "urn:ietf:params:xml:ns:pidf=flexisip::Xsd::Pidf",
+		"--namespace-map", "urn:ietf:params:xml:ns:resource-lists=flexisip::Xsd::ResourceLists",
+		"--namespace-map", "urn:ietf:params:xml:ns:rlmi=flexisip::Xsd::Rlmi",
+		"--namespace-map", "urn:ietf:params:xml:ns:pidf:rpid=flexisip::Xsd::Rpid",
 		source_file
 		], shell=False)
 	p.communicate()

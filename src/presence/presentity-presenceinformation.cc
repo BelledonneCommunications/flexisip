@@ -415,7 +415,7 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 		}
 		if (presence.getTuple().size() == 0) {
 			Xsd::Pidf::Note value;
-			namespace_::Lang lang("en");
+			Xsd::Namespace::Lang lang("en");
 			value += "No presence information available yet";
 			value.setLang(lang);
 			// value.lang("en");
