@@ -108,157 +108,160 @@
 
 #include <xsd/cxx/tree/std-ostream-operators.hxx>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace XmlSchema
+  namespace Xsd
   {
-    // anyType and anySimpleType.
-    //
-    typedef ::xsd::cxx::tree::type Type;
-    typedef ::xsd::cxx::tree::simple_type< char, Type > SimpleType;
-    typedef ::xsd::cxx::tree::type Container;
-
-    // 8-bit
-    //
-    typedef signed char Byte;
-    typedef unsigned char UnsignedByte;
-
-    // 16-bit
-    //
-    typedef short Short;
-    typedef unsigned short UnsignedShort;
-
-    // 32-bit
-    //
-    typedef int Int;
-    typedef unsigned int UnsignedInt;
-
-    // 64-bit
-    //
-    typedef long long Long;
-    typedef unsigned long long UnsignedLong;
-
-    // Supposed to be arbitrary-length integral types.
-    //
-    typedef long long Integer;
-    typedef long long NonPositiveInteger;
-    typedef unsigned long long NonNegativeInteger;
-    typedef unsigned long long PositiveInteger;
-    typedef long long NegativeInteger;
-
-    // Boolean.
-    //
-    typedef bool Boolean;
-
-    // Floating-point types.
-    //
-    typedef float Float;
-    typedef double Double;
-    typedef double Decimal;
-
-    // String types.
-    //
-    typedef ::xsd::cxx::tree::string< char, SimpleType > String;
-    typedef ::xsd::cxx::tree::normalized_string< char, String > NormalizedString;
-    typedef ::xsd::cxx::tree::token< char, NormalizedString > Token;
-    typedef ::xsd::cxx::tree::name< char, Token > Name;
-    typedef ::xsd::cxx::tree::nmtoken< char, Token > Nmtoken;
-    typedef ::xsd::cxx::tree::nmtokens< char, SimpleType, Nmtoken > Nmtokens;
-    typedef ::xsd::cxx::tree::ncname< char, Name > Ncname;
-    typedef ::xsd::cxx::tree::language< char, Token > Language;
-
-    // ID/IDREF.
-    //
-    typedef ::xsd::cxx::tree::id< char, Ncname > Id;
-    typedef ::xsd::cxx::tree::idref< char, Ncname, Type > Idref;
-    typedef ::xsd::cxx::tree::idrefs< char, SimpleType, Idref > Idrefs;
-
-    // URI.
-    //
-    typedef ::xsd::cxx::tree::uri< char, SimpleType > Uri;
-
-    // Qualified name.
-    //
-    typedef ::xsd::cxx::tree::qname< char, SimpleType, Uri, Ncname > Qname;
-
-    // Binary.
-    //
-    typedef ::xsd::cxx::tree::buffer< char > Buffer;
-    typedef ::xsd::cxx::tree::base64_binary< char, SimpleType > Base64Binary;
-    typedef ::xsd::cxx::tree::hex_binary< char, SimpleType > HexBinary;
-
-    // Date/time.
-    //
-    typedef ::xsd::cxx::tree::time_zone TimeZone;
-    typedef ::xsd::cxx::tree::date< char, SimpleType > Date;
-    typedef ::xsd::cxx::tree::date_time< char, SimpleType > DateTime;
-    typedef ::xsd::cxx::tree::duration< char, SimpleType > Duration;
-    typedef ::xsd::cxx::tree::gday< char, SimpleType > Gday;
-    typedef ::xsd::cxx::tree::gmonth< char, SimpleType > Gmonth;
-    typedef ::xsd::cxx::tree::gmonth_day< char, SimpleType > GmonthDay;
-    typedef ::xsd::cxx::tree::gyear< char, SimpleType > Gyear;
-    typedef ::xsd::cxx::tree::gyear_month< char, SimpleType > GyearMonth;
-    typedef ::xsd::cxx::tree::time< char, SimpleType > Time;
-
-    // Entity.
-    //
-    typedef ::xsd::cxx::tree::entity< char, Ncname > Entity;
-    typedef ::xsd::cxx::tree::entities< char, SimpleType, Entity > Entities;
-
-    typedef ::xsd::cxx::tree::content_order ContentOrder;
-    // Namespace information and list stream. Used in
-    // serialization functions.
-    //
-    typedef ::xsd::cxx::xml::dom::namespace_info< char > NamespaceInfo;
-    typedef ::xsd::cxx::xml::dom::namespace_infomap< char > NamespaceInfomap;
-    typedef ::xsd::cxx::tree::list_stream< char > ListStream;
-    typedef ::xsd::cxx::tree::as_double< Double > AsDouble;
-    typedef ::xsd::cxx::tree::as_decimal< Decimal > AsDecimal;
-    typedef ::xsd::cxx::tree::facet Facet;
-
-    // Flags and properties.
-    //
-    typedef ::xsd::cxx::tree::flags Flags;
-    typedef ::xsd::cxx::tree::properties< char > Properties;
-
-    // Parsing/serialization diagnostics.
-    //
-    typedef ::xsd::cxx::tree::severity Severity;
-    typedef ::xsd::cxx::tree::error< char > Error;
-    typedef ::xsd::cxx::tree::diagnostics< char > Diagnostics;
-
-    // Exceptions.
-    //
-    typedef ::xsd::cxx::tree::exception< char > Exception;
-    typedef ::xsd::cxx::tree::bounds< char > Bounds;
-    typedef ::xsd::cxx::tree::duplicate_id< char > DuplicateId;
-    typedef ::xsd::cxx::tree::parsing< char > Parsing;
-    typedef ::xsd::cxx::tree::expected_element< char > ExpectedElement;
-    typedef ::xsd::cxx::tree::unexpected_element< char > UnexpectedElement;
-    typedef ::xsd::cxx::tree::expected_attribute< char > ExpectedAttribute;
-    typedef ::xsd::cxx::tree::unexpected_enumerator< char > UnexpectedEnumerator;
-    typedef ::xsd::cxx::tree::expected_text_content< char > ExpectedTextContent;
-    typedef ::xsd::cxx::tree::no_prefix_mapping< char > NoPrefixMapping;
-    typedef ::xsd::cxx::tree::serialization< char > Serialization;
-
-    // Error handler callback interface.
-    //
-    typedef ::xsd::cxx::xml::error_handler< char > ErrorHandler;
-
-    // DOM interaction.
-    //
-    namespace dom
+    namespace XmlSchema
     {
-      // Automatic pointer for DOMDocument.
+      // anyType and anySimpleType.
       //
-      using ::xsd::cxx::xml::dom::unique_ptr;
+      typedef ::xsd::cxx::tree::type Type;
+      typedef ::xsd::cxx::tree::simple_type< char, Type > SimpleType;
+      typedef ::xsd::cxx::tree::type Container;
 
-#ifndef XSD_CXX_TREE_TREE_NODE_KEY__XSD__XMLSCHEMA
-#define XSD_CXX_TREE_TREE_NODE_KEY__XSD__XMLSCHEMA
-      // DOM user data key for back pointers to tree nodes.
+      // 8-bit
       //
-      const XMLCh* const treeNodeKey = ::xsd::cxx::tree::user_data_keys::node;
+      typedef signed char Byte;
+      typedef unsigned char UnsignedByte;
+
+      // 16-bit
+      //
+      typedef short Short;
+      typedef unsigned short UnsignedShort;
+
+      // 32-bit
+      //
+      typedef int Int;
+      typedef unsigned int UnsignedInt;
+
+      // 64-bit
+      //
+      typedef long long Long;
+      typedef unsigned long long UnsignedLong;
+
+      // Supposed to be arbitrary-length integral types.
+      //
+      typedef long long Integer;
+      typedef long long NonPositiveInteger;
+      typedef unsigned long long NonNegativeInteger;
+      typedef unsigned long long PositiveInteger;
+      typedef long long NegativeInteger;
+
+      // Boolean.
+      //
+      typedef bool Boolean;
+
+      // Floating-point types.
+      //
+      typedef float Float;
+      typedef double Double;
+      typedef double Decimal;
+
+      // String types.
+      //
+      typedef ::xsd::cxx::tree::string< char, SimpleType > String;
+      typedef ::xsd::cxx::tree::normalized_string< char, String > NormalizedString;
+      typedef ::xsd::cxx::tree::token< char, NormalizedString > Token;
+      typedef ::xsd::cxx::tree::name< char, Token > Name;
+      typedef ::xsd::cxx::tree::nmtoken< char, Token > Nmtoken;
+      typedef ::xsd::cxx::tree::nmtokens< char, SimpleType, Nmtoken > Nmtokens;
+      typedef ::xsd::cxx::tree::ncname< char, Name > Ncname;
+      typedef ::xsd::cxx::tree::language< char, Token > Language;
+
+      // ID/IDREF.
+      //
+      typedef ::xsd::cxx::tree::id< char, Ncname > Id;
+      typedef ::xsd::cxx::tree::idref< char, Ncname, Type > Idref;
+      typedef ::xsd::cxx::tree::idrefs< char, SimpleType, Idref > Idrefs;
+
+      // URI.
+      //
+      typedef ::xsd::cxx::tree::uri< char, SimpleType > Uri;
+
+      // Qualified name.
+      //
+      typedef ::xsd::cxx::tree::qname< char, SimpleType, Uri, Ncname > Qname;
+
+      // Binary.
+      //
+      typedef ::xsd::cxx::tree::buffer< char > Buffer;
+      typedef ::xsd::cxx::tree::base64_binary< char, SimpleType > Base64Binary;
+      typedef ::xsd::cxx::tree::hex_binary< char, SimpleType > HexBinary;
+
+      // Date/time.
+      //
+      typedef ::xsd::cxx::tree::time_zone TimeZone;
+      typedef ::xsd::cxx::tree::date< char, SimpleType > Date;
+      typedef ::xsd::cxx::tree::date_time< char, SimpleType > DateTime;
+      typedef ::xsd::cxx::tree::duration< char, SimpleType > Duration;
+      typedef ::xsd::cxx::tree::gday< char, SimpleType > Gday;
+      typedef ::xsd::cxx::tree::gmonth< char, SimpleType > Gmonth;
+      typedef ::xsd::cxx::tree::gmonth_day< char, SimpleType > GmonthDay;
+      typedef ::xsd::cxx::tree::gyear< char, SimpleType > Gyear;
+      typedef ::xsd::cxx::tree::gyear_month< char, SimpleType > GyearMonth;
+      typedef ::xsd::cxx::tree::time< char, SimpleType > Time;
+
+      // Entity.
+      //
+      typedef ::xsd::cxx::tree::entity< char, Ncname > Entity;
+      typedef ::xsd::cxx::tree::entities< char, SimpleType, Entity > Entities;
+
+      typedef ::xsd::cxx::tree::content_order ContentOrder;
+      // Namespace information and list stream. Used in
+      // serialization functions.
+      //
+      typedef ::xsd::cxx::xml::dom::namespace_info< char > NamespaceInfo;
+      typedef ::xsd::cxx::xml::dom::namespace_infomap< char > NamespaceInfomap;
+      typedef ::xsd::cxx::tree::list_stream< char > ListStream;
+      typedef ::xsd::cxx::tree::as_double< Double > AsDouble;
+      typedef ::xsd::cxx::tree::as_decimal< Decimal > AsDecimal;
+      typedef ::xsd::cxx::tree::facet Facet;
+
+      // Flags and properties.
+      //
+      typedef ::xsd::cxx::tree::flags Flags;
+      typedef ::xsd::cxx::tree::properties< char > Properties;
+
+      // Parsing/serialization diagnostics.
+      //
+      typedef ::xsd::cxx::tree::severity Severity;
+      typedef ::xsd::cxx::tree::error< char > Error;
+      typedef ::xsd::cxx::tree::diagnostics< char > Diagnostics;
+
+      // Exceptions.
+      //
+      typedef ::xsd::cxx::tree::exception< char > Exception;
+      typedef ::xsd::cxx::tree::bounds< char > Bounds;
+      typedef ::xsd::cxx::tree::duplicate_id< char > DuplicateId;
+      typedef ::xsd::cxx::tree::parsing< char > Parsing;
+      typedef ::xsd::cxx::tree::expected_element< char > ExpectedElement;
+      typedef ::xsd::cxx::tree::unexpected_element< char > UnexpectedElement;
+      typedef ::xsd::cxx::tree::expected_attribute< char > ExpectedAttribute;
+      typedef ::xsd::cxx::tree::unexpected_enumerator< char > UnexpectedEnumerator;
+      typedef ::xsd::cxx::tree::expected_text_content< char > ExpectedTextContent;
+      typedef ::xsd::cxx::tree::no_prefix_mapping< char > NoPrefixMapping;
+      typedef ::xsd::cxx::tree::serialization< char > Serialization;
+
+      // Error handler callback interface.
+      //
+      typedef ::xsd::cxx::xml::error_handler< char > ErrorHandler;
+
+      // DOM interaction.
+      //
+      namespace dom
+      {
+        // Automatic pointer for DOMDocument.
+        //
+        using ::xsd::cxx::xml::dom::unique_ptr;
+
+#ifndef XSD_CXX_TREE_TREE_NODE_KEY__FLEXISIP__XSD__XMLSCHEMA
+#define XSD_CXX_TREE_TREE_NODE_KEY__FLEXISIP__XSD__XMLSCHEMA
+        // DOM user data key for back pointers to tree nodes.
+        //
+        const XMLCh* const treeNodeKey = ::xsd::cxx::tree::user_data_keys::node;
 #endif
+      }
     }
   }
 }
@@ -288,76 +291,76 @@ class Empty;
 
 #include "xml.hh"
 
-class Timestamp_t: public ::Xsd::XmlSchema::DateTime
+class Timestamp_t: public ::flexisip::Xsd::XmlSchema::DateTime
 {
   public:
   // Constructors.
   //
-  Timestamp_t (const ::Xsd::XmlSchema::DateTime&);
+  Timestamp_t (const ::flexisip::Xsd::XmlSchema::DateTime&);
 
   Timestamp_t (const ::xercesc::DOMElement& e,
-               ::Xsd::XmlSchema::Flags f = 0,
-               ::Xsd::XmlSchema::Container* c = 0);
+               ::flexisip::Xsd::XmlSchema::Flags f = 0,
+               ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
   Timestamp_t (const ::xercesc::DOMAttr& a,
-               ::Xsd::XmlSchema::Flags f = 0,
-               ::Xsd::XmlSchema::Container* c = 0);
+               ::flexisip::Xsd::XmlSchema::Flags f = 0,
+               ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
   Timestamp_t (const ::std::string& s,
                const ::xercesc::DOMElement* e,
-               ::Xsd::XmlSchema::Flags f = 0,
-               ::Xsd::XmlSchema::Container* c = 0);
+               ::flexisip::Xsd::XmlSchema::Flags f = 0,
+               ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
   Timestamp_t (const Timestamp_t& x,
-               ::Xsd::XmlSchema::Flags f = 0,
-               ::Xsd::XmlSchema::Container* c = 0);
+               ::flexisip::Xsd::XmlSchema::Flags f = 0,
+               ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
   virtual Timestamp_t*
-  _clone (::Xsd::XmlSchema::Flags f = 0,
-          ::Xsd::XmlSchema::Container* c = 0) const;
+  _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+          ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
   virtual 
   ~Timestamp_t ();
 };
 
-class DeviceID_t: public ::Xsd::XmlSchema::Uri
+class DeviceID_t: public ::flexisip::Xsd::XmlSchema::Uri
 {
   public:
   // Constructors.
   //
-  DeviceID_t (const ::Xsd::XmlSchema::Uri&);
+  DeviceID_t (const ::flexisip::Xsd::XmlSchema::Uri&);
 
   DeviceID_t (const ::xercesc::DOMElement& e,
-              ::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0);
+              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+              ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
   DeviceID_t (const ::xercesc::DOMAttr& a,
-              ::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0);
+              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+              ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
   DeviceID_t (const ::std::string& s,
               const ::xercesc::DOMElement* e,
-              ::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0);
+              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+              ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
   DeviceID_t (const DeviceID_t& x,
-              ::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0);
+              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+              ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
   virtual DeviceID_t*
-  _clone (::Xsd::XmlSchema::Flags f = 0,
-          ::Xsd::XmlSchema::Container* c = 0) const;
+  _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+          ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
   virtual 
   ~DeviceID_t ();
 };
 
-class Note_t: public ::Xsd::XmlSchema::String
+class Note_t: public ::flexisip::Xsd::XmlSchema::String
 {
   public:
   // lang
   //
-  typedef ::namespace_::Lang LangType;
+  typedef ::flexisip::Xsd::Namespace::Lang LangType;
   typedef ::xsd::cxx::tree::optional< LangType > LangOptional;
   typedef ::xsd::cxx::tree::traits< LangType, char > LangTraits;
 
@@ -384,19 +387,19 @@ class Note_t: public ::Xsd::XmlSchema::String
 
   Note_t (const ::std::string&);
 
-  Note_t (const ::Xsd::XmlSchema::String&);
+  Note_t (const ::flexisip::Xsd::XmlSchema::String&);
 
   Note_t (const ::xercesc::DOMElement& e,
-          ::Xsd::XmlSchema::Flags f = 0,
-          ::Xsd::XmlSchema::Container* c = 0);
+          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+          ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
   Note_t (const Note_t& x,
-          ::Xsd::XmlSchema::Flags f = 0,
-          ::Xsd::XmlSchema::Container* c = 0);
+          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+          ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
   virtual Note_t*
-  _clone (::Xsd::XmlSchema::Flags f = 0,
-          ::Xsd::XmlSchema::Container* c = 0) const;
+  _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+          ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
   Note_t&
   operator= (const Note_t& x);
@@ -409,13 +412,13 @@ class Note_t: public ::Xsd::XmlSchema::String
   protected:
   void
   parse (::xsd::cxx::xml::dom::parser< char >&,
-         ::Xsd::XmlSchema::Flags);
+         ::flexisip::Xsd::XmlSchema::Flags);
 
   protected:
   LangOptional lang_;
 };
 
-class Empty: public ::Xsd::XmlSchema::Type
+class Empty: public ::flexisip::Xsd::XmlSchema::Type
 {
   public:
   // Constructors.
@@ -423,25 +426,25 @@ class Empty: public ::Xsd::XmlSchema::Type
   Empty ();
 
   Empty (const ::xercesc::DOMElement& e,
-         ::Xsd::XmlSchema::Flags f = 0,
-         ::Xsd::XmlSchema::Container* c = 0);
+         ::flexisip::Xsd::XmlSchema::Flags f = 0,
+         ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
   Empty (const ::xercesc::DOMAttr& a,
-         ::Xsd::XmlSchema::Flags f = 0,
-         ::Xsd::XmlSchema::Container* c = 0);
+         ::flexisip::Xsd::XmlSchema::Flags f = 0,
+         ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
   Empty (const ::std::string& s,
          const ::xercesc::DOMElement* e,
-         ::Xsd::XmlSchema::Flags f = 0,
-         ::Xsd::XmlSchema::Container* c = 0);
+         ::flexisip::Xsd::XmlSchema::Flags f = 0,
+         ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
   Empty (const Empty& x,
-         ::Xsd::XmlSchema::Flags f = 0,
-         ::Xsd::XmlSchema::Container* c = 0);
+         ::flexisip::Xsd::XmlSchema::Flags f = 0,
+         ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
   virtual Empty*
-  _clone (::Xsd::XmlSchema::Flags f = 0,
-          ::Xsd::XmlSchema::Container* c = 0) const;
+  _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+          ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
   virtual 
   ~Empty ();
@@ -482,7 +485,7 @@ void
 operator<< (::xercesc::DOMAttr&, const Timestamp_t&);
 
 void
-operator<< (::Xsd::XmlSchema::ListStream&,
+operator<< (::flexisip::Xsd::XmlSchema::ListStream&,
             const Timestamp_t&);
 
 void
@@ -492,7 +495,7 @@ void
 operator<< (::xercesc::DOMAttr&, const DeviceID_t&);
 
 void
-operator<< (::Xsd::XmlSchema::ListStream&,
+operator<< (::flexisip::Xsd::XmlSchema::ListStream&,
             const DeviceID_t&);
 
 void
@@ -505,7 +508,7 @@ void
 operator<< (::xercesc::DOMAttr&, const Empty&);
 
 void
-operator<< (::Xsd::XmlSchema::ListStream&,
+operator<< (::flexisip::Xsd::XmlSchema::ListStream&,
             const Empty&);
 
 #include <xsd/cxx/post.hxx>
