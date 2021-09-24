@@ -17,17 +17,19 @@
  */
 
 #include "flexisip/registrardb.hh"
+
+#include "sofia-wrapper/su-root.hh"
 #include "tester.hh"
 
 using namespace flexisip;
 using namespace std;
 
-static su_root_t* root = nullptr;
-static shared_ptr<Agent> agent = nullptr;
+static shared_ptr<sofiasip::SuRoot> root{};
+static shared_ptr<Agent> agent{};
 
 static void beforeEach() {
 	// Agent initialization (needed only because ExtendedContact::init relies on RegistrarDb::getMessageExpires)
-	root = su_root_create(nullptr);
+	root = make_shared<sofiasip::SuRoot>();
 	agent = make_shared<Agent>(root);
 }
 
@@ -35,7 +37,7 @@ static void afterEach() {
 	agent->unloadConfig();
 	RegistrarDb::resetDB();
 	agent.reset();
-	su_root_destroy(root);
+	root.reset();
 }
 
 static void qValueConstructorTest(const SipUri& inputUri, const string& inputRoute, const float inputQ,
