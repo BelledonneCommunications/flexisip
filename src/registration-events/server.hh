@@ -34,8 +34,7 @@ class Server : public ServiceServer
 	public:
 		static const std::string CONTENT_TYPE;
 
-		Server (su_root_t *root);
-		~Server ();
+		template <typename SuRootPtr> Server(SuRootPtr&& root) : ServiceServer{std::forward<SuRootPtr>(root)} {}
 
 		void onSubscribeReceived(
 			const std::shared_ptr<linphone::Core> & lc,

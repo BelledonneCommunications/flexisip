@@ -17,16 +17,19 @@
  */
 
 
-#include "tester.hh"
-#include <flexisip/agent.hh>
-#include <linphone++/linphone.hh>
-#include "bctoolbox/logging.h"
-#include <flexisip/configmanager.hh>
-#include <flexisip/registrardb.hh>
+#include <bctoolbox/logging.h>
 
+#include <linphone++/linphone.hh>
+
+#include "flexisip/agent.hh"
+#include "flexisip/configmanager.hh"
+#include "flexisip/registrardb.hh"
+
+#include "conference/conference-server.hh"
 #include "registration-events/client.hh"
 #include "registration-events/server.hh"
-#include "conference/conference-server.hh"
+#include "sofia-wrapper/su-root.hh"
+#include "tester.hh"
 
 using namespace std;
 using namespace linphone;
@@ -35,7 +38,7 @@ using namespace flexisip;
 static void basic() {
 	// Agent initialisation
 
-	su_root_t *root = su_root_create(NULL);
+	auto root = make_shared<sofiasip::SuRoot>();
 	shared_ptr<Agent> a = make_shared<Agent>(root);
 	Agent *agent = a->getAgent();
 
@@ -110,7 +113,7 @@ static void basic() {
 
 	while (proxy->getState() != RegistrationState::Ok) {
 		clientCore->iterate();
-		su_root_step(a->getRoot(), 100);
+		a->getRoot()->step(100ms);
 	}
 
 	// Fill the RegistrarDB
@@ -241,8 +244,8 @@ static void basic() {
 
 	class RegEventAssert : public CoreAssert {
 	public :
-		RegEventAssert(std::initializer_list<shared_ptr<linphone::Core>> cores,Agent * a) : CoreAssert(cores) {
-			addCustomIterate([a] {su_root_step(a->getRoot(), 10);});
+		RegEventAssert(std::initializer_list<shared_ptr<linphone::Core>> cores, Agent* a) : CoreAssert(cores) {
+			addCustomIterate([a] { a->getRoot()->step(10ms); });
 		}
 	};
 

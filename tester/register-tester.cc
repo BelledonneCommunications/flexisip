@@ -30,8 +30,8 @@ using namespace std::chrono_literals;
 using namespace std::chrono;
 using namespace flexisip;
 
-static su_root_t* root = nullptr;
-static shared_ptr<Agent> agent = nullptr;
+static std::shared_ptr<sofiasip::SuRoot> root{};
+static shared_ptr<Agent> agent{};
 static int responseReceived = 0;
 static int expectedResponseReceived = 0;
 static int notSoRandomId = 0;
@@ -105,7 +105,7 @@ static void beforeEach() {
 	expectedBidingDone = 0;
 	fetchingDone = 0;
 	expectedFetchingDone = 0;
-	root = su_root_create(nullptr);
+	root = make_shared<sofiasip::SuRoot>();
 	agent = make_shared<Agent>(root);
 }
 
@@ -113,7 +113,7 @@ static void afterEach() {
 	agent->unloadConfig();
 	RegistrarDb::resetDB();
 	agent.reset();
-	su_root_destroy(root);
+	root.reset();
 }
 
 /**
@@ -133,7 +133,7 @@ static void insertContact(const string& sipUri, const string& paramList) {
 	expectedBidingDone++;
 	auto beforePlus2 = system_clock::now() + 2s;
 	while (bidingDone != expectedBidingDone && beforePlus2 >= system_clock::now()) {
-		su_root_step(agent->getRoot(), 100);
+		agent->getRoot()->step(100ms);
 	}
 }
 
@@ -169,7 +169,7 @@ static void sendRegisterRequest(const string& sipUri, const string& paramList, c
 	expectedResponseReceived++;
 	auto beforePlus2 = system_clock::now() + 2s;
 	while (responseReceived != expectedResponseReceived && beforePlus2 >= system_clock::now()) {
-		su_root_step(agent->getRoot(), 100);
+		agent->getRoot()->step(100ms);
 		bellesipUtils.stackSleep(100);
 	}
 }
@@ -179,7 +179,7 @@ static void checkResultInDb(SipUri uri, shared_ptr<RegisterFetchListener> fetchL
 	expectedFetchingDone++;
 	auto beforePlus2 = system_clock::now() + 2s;
 	while (fetchingDone != expectedFetchingDone && beforePlus2 >= system_clock::now()) {
-		su_root_step(agent->getRoot(), 100);
+		agent->getRoot()->step(100ms);
 	}
 }
 

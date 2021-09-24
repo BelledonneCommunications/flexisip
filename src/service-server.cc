@@ -18,17 +18,18 @@
 
 #include "service-server.hh"
 
-using namespace flexisip;
+using namespace std;
 
-ServiceServer::ServiceServer(su_root_t* root) :
-	mStarted(true),
-	mRoot(root)
-	{};
+namespace flexisip {
 
 void ServiceServer::init() {
 	if (mRoot) {
-		mTimer = su_timer_create(su_root_task(mRoot), 10);
-		su_timer_set_for_ever(mTimer, ((su_timer_f)ServiceServer::timerFunc), this);
+		mTimer = make_unique<sofiasip::Timer>(mRoot->getCPtr(), 10);
+		mTimer->setForEver([this](){
+			if (mStarted) {
+				_run();
+			}
+		});
 	}
 	this->_init();
 };
@@ -36,9 +37,11 @@ void ServiceServer::init() {
 
 void ServiceServer::stop() {
 	mStarted = false;
-	if (mRoot && mTimer) {
-		su_timer_destroy(mTimer);
+	if (mRoot) {
+		mTimer.reset();
 	}
 	this->_stop();
 };
+
+} // namespace flexisip
 
