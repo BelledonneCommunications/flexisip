@@ -108,175 +108,181 @@
 
 #include <xsd/cxx/tree/std-ostream-operators.hxx>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace XmlSchema
+  namespace Xsd
   {
-    // anyType and anySimpleType.
-    //
-    typedef ::xsd::cxx::tree::type Type;
-    typedef ::xsd::cxx::tree::simple_type< char, Type > SimpleType;
-    typedef ::xsd::cxx::tree::type Container;
-
-    // 8-bit
-    //
-    typedef signed char Byte;
-    typedef unsigned char UnsignedByte;
-
-    // 16-bit
-    //
-    typedef short Short;
-    typedef unsigned short UnsignedShort;
-
-    // 32-bit
-    //
-    typedef int Int;
-    typedef unsigned int UnsignedInt;
-
-    // 64-bit
-    //
-    typedef long long Long;
-    typedef unsigned long long UnsignedLong;
-
-    // Supposed to be arbitrary-length integral types.
-    //
-    typedef long long Integer;
-    typedef long long NonPositiveInteger;
-    typedef unsigned long long NonNegativeInteger;
-    typedef unsigned long long PositiveInteger;
-    typedef long long NegativeInteger;
-
-    // Boolean.
-    //
-    typedef bool Boolean;
-
-    // Floating-point types.
-    //
-    typedef float Float;
-    typedef double Double;
-    typedef double Decimal;
-
-    // String types.
-    //
-    typedef ::xsd::cxx::tree::string< char, SimpleType > String;
-    typedef ::xsd::cxx::tree::normalized_string< char, String > NormalizedString;
-    typedef ::xsd::cxx::tree::token< char, NormalizedString > Token;
-    typedef ::xsd::cxx::tree::name< char, Token > Name;
-    typedef ::xsd::cxx::tree::nmtoken< char, Token > Nmtoken;
-    typedef ::xsd::cxx::tree::nmtokens< char, SimpleType, Nmtoken > Nmtokens;
-    typedef ::xsd::cxx::tree::ncname< char, Name > Ncname;
-    typedef ::xsd::cxx::tree::language< char, Token > Language;
-
-    // ID/IDREF.
-    //
-    typedef ::xsd::cxx::tree::id< char, Ncname > Id;
-    typedef ::xsd::cxx::tree::idref< char, Ncname, Type > Idref;
-    typedef ::xsd::cxx::tree::idrefs< char, SimpleType, Idref > Idrefs;
-
-    // URI.
-    //
-    typedef ::xsd::cxx::tree::uri< char, SimpleType > Uri;
-
-    // Qualified name.
-    //
-    typedef ::xsd::cxx::tree::qname< char, SimpleType, Uri, Ncname > Qname;
-
-    // Binary.
-    //
-    typedef ::xsd::cxx::tree::buffer< char > Buffer;
-    typedef ::xsd::cxx::tree::base64_binary< char, SimpleType > Base64Binary;
-    typedef ::xsd::cxx::tree::hex_binary< char, SimpleType > HexBinary;
-
-    // Date/time.
-    //
-    typedef ::xsd::cxx::tree::time_zone TimeZone;
-    typedef ::xsd::cxx::tree::date< char, SimpleType > Date;
-    typedef ::xsd::cxx::tree::date_time< char, SimpleType > DateTime;
-    typedef ::xsd::cxx::tree::duration< char, SimpleType > Duration;
-    typedef ::xsd::cxx::tree::gday< char, SimpleType > Gday;
-    typedef ::xsd::cxx::tree::gmonth< char, SimpleType > Gmonth;
-    typedef ::xsd::cxx::tree::gmonth_day< char, SimpleType > GmonthDay;
-    typedef ::xsd::cxx::tree::gyear< char, SimpleType > Gyear;
-    typedef ::xsd::cxx::tree::gyear_month< char, SimpleType > GyearMonth;
-    typedef ::xsd::cxx::tree::time< char, SimpleType > Time;
-
-    // Entity.
-    //
-    typedef ::xsd::cxx::tree::entity< char, Ncname > Entity;
-    typedef ::xsd::cxx::tree::entities< char, SimpleType, Entity > Entities;
-
-    typedef ::xsd::cxx::tree::content_order ContentOrder;
-    // Namespace information and list stream. Used in
-    // serialization functions.
-    //
-    typedef ::xsd::cxx::xml::dom::namespace_info< char > NamespaceInfo;
-    typedef ::xsd::cxx::xml::dom::namespace_infomap< char > NamespaceInfomap;
-    typedef ::xsd::cxx::tree::list_stream< char > ListStream;
-    typedef ::xsd::cxx::tree::as_double< Double > AsDouble;
-    typedef ::xsd::cxx::tree::as_decimal< Decimal > AsDecimal;
-    typedef ::xsd::cxx::tree::facet Facet;
-
-    // Flags and properties.
-    //
-    typedef ::xsd::cxx::tree::flags Flags;
-    typedef ::xsd::cxx::tree::properties< char > Properties;
-
-    // Parsing/serialization diagnostics.
-    //
-    typedef ::xsd::cxx::tree::severity Severity;
-    typedef ::xsd::cxx::tree::error< char > Error;
-    typedef ::xsd::cxx::tree::diagnostics< char > Diagnostics;
-
-    // Exceptions.
-    //
-    typedef ::xsd::cxx::tree::exception< char > Exception;
-    typedef ::xsd::cxx::tree::bounds< char > Bounds;
-    typedef ::xsd::cxx::tree::duplicate_id< char > DuplicateId;
-    typedef ::xsd::cxx::tree::parsing< char > Parsing;
-    typedef ::xsd::cxx::tree::expected_element< char > ExpectedElement;
-    typedef ::xsd::cxx::tree::unexpected_element< char > UnexpectedElement;
-    typedef ::xsd::cxx::tree::expected_attribute< char > ExpectedAttribute;
-    typedef ::xsd::cxx::tree::unexpected_enumerator< char > UnexpectedEnumerator;
-    typedef ::xsd::cxx::tree::expected_text_content< char > ExpectedTextContent;
-    typedef ::xsd::cxx::tree::no_prefix_mapping< char > NoPrefixMapping;
-    typedef ::xsd::cxx::tree::serialization< char > Serialization;
-
-    // Error handler callback interface.
-    //
-    typedef ::xsd::cxx::xml::error_handler< char > ErrorHandler;
-
-    // DOM interaction.
-    //
-    namespace dom
+    namespace XmlSchema
     {
-      // Automatic pointer for DOMDocument.
+      // anyType and anySimpleType.
       //
-      using ::xsd::cxx::xml::dom::unique_ptr;
+      typedef ::xsd::cxx::tree::type Type;
+      typedef ::xsd::cxx::tree::simple_type< char, Type > SimpleType;
+      typedef ::xsd::cxx::tree::type Container;
 
-#ifndef XSD_CXX_TREE_TREE_NODE_KEY__XSD__XMLSCHEMA
-#define XSD_CXX_TREE_TREE_NODE_KEY__XSD__XMLSCHEMA
-      // DOM user data key for back pointers to tree nodes.
+      // 8-bit
       //
-      const XMLCh* const treeNodeKey = ::xsd::cxx::tree::user_data_keys::node;
+      typedef signed char Byte;
+      typedef unsigned char UnsignedByte;
+
+      // 16-bit
+      //
+      typedef short Short;
+      typedef unsigned short UnsignedShort;
+
+      // 32-bit
+      //
+      typedef int Int;
+      typedef unsigned int UnsignedInt;
+
+      // 64-bit
+      //
+      typedef long long Long;
+      typedef unsigned long long UnsignedLong;
+
+      // Supposed to be arbitrary-length integral types.
+      //
+      typedef long long Integer;
+      typedef long long NonPositiveInteger;
+      typedef unsigned long long NonNegativeInteger;
+      typedef unsigned long long PositiveInteger;
+      typedef long long NegativeInteger;
+
+      // Boolean.
+      //
+      typedef bool Boolean;
+
+      // Floating-point types.
+      //
+      typedef float Float;
+      typedef double Double;
+      typedef double Decimal;
+
+      // String types.
+      //
+      typedef ::xsd::cxx::tree::string< char, SimpleType > String;
+      typedef ::xsd::cxx::tree::normalized_string< char, String > NormalizedString;
+      typedef ::xsd::cxx::tree::token< char, NormalizedString > Token;
+      typedef ::xsd::cxx::tree::name< char, Token > Name;
+      typedef ::xsd::cxx::tree::nmtoken< char, Token > Nmtoken;
+      typedef ::xsd::cxx::tree::nmtokens< char, SimpleType, Nmtoken > Nmtokens;
+      typedef ::xsd::cxx::tree::ncname< char, Name > Ncname;
+      typedef ::xsd::cxx::tree::language< char, Token > Language;
+
+      // ID/IDREF.
+      //
+      typedef ::xsd::cxx::tree::id< char, Ncname > Id;
+      typedef ::xsd::cxx::tree::idref< char, Ncname, Type > Idref;
+      typedef ::xsd::cxx::tree::idrefs< char, SimpleType, Idref > Idrefs;
+
+      // URI.
+      //
+      typedef ::xsd::cxx::tree::uri< char, SimpleType > Uri;
+
+      // Qualified name.
+      //
+      typedef ::xsd::cxx::tree::qname< char, SimpleType, Uri, Ncname > Qname;
+
+      // Binary.
+      //
+      typedef ::xsd::cxx::tree::buffer< char > Buffer;
+      typedef ::xsd::cxx::tree::base64_binary< char, SimpleType > Base64Binary;
+      typedef ::xsd::cxx::tree::hex_binary< char, SimpleType > HexBinary;
+
+      // Date/time.
+      //
+      typedef ::xsd::cxx::tree::time_zone TimeZone;
+      typedef ::xsd::cxx::tree::date< char, SimpleType > Date;
+      typedef ::xsd::cxx::tree::date_time< char, SimpleType > DateTime;
+      typedef ::xsd::cxx::tree::duration< char, SimpleType > Duration;
+      typedef ::xsd::cxx::tree::gday< char, SimpleType > Gday;
+      typedef ::xsd::cxx::tree::gmonth< char, SimpleType > Gmonth;
+      typedef ::xsd::cxx::tree::gmonth_day< char, SimpleType > GmonthDay;
+      typedef ::xsd::cxx::tree::gyear< char, SimpleType > Gyear;
+      typedef ::xsd::cxx::tree::gyear_month< char, SimpleType > GyearMonth;
+      typedef ::xsd::cxx::tree::time< char, SimpleType > Time;
+
+      // Entity.
+      //
+      typedef ::xsd::cxx::tree::entity< char, Ncname > Entity;
+      typedef ::xsd::cxx::tree::entities< char, SimpleType, Entity > Entities;
+
+      typedef ::xsd::cxx::tree::content_order ContentOrder;
+      // Namespace information and list stream. Used in
+      // serialization functions.
+      //
+      typedef ::xsd::cxx::xml::dom::namespace_info< char > NamespaceInfo;
+      typedef ::xsd::cxx::xml::dom::namespace_infomap< char > NamespaceInfomap;
+      typedef ::xsd::cxx::tree::list_stream< char > ListStream;
+      typedef ::xsd::cxx::tree::as_double< Double > AsDouble;
+      typedef ::xsd::cxx::tree::as_decimal< Decimal > AsDecimal;
+      typedef ::xsd::cxx::tree::facet Facet;
+
+      // Flags and properties.
+      //
+      typedef ::xsd::cxx::tree::flags Flags;
+      typedef ::xsd::cxx::tree::properties< char > Properties;
+
+      // Parsing/serialization diagnostics.
+      //
+      typedef ::xsd::cxx::tree::severity Severity;
+      typedef ::xsd::cxx::tree::error< char > Error;
+      typedef ::xsd::cxx::tree::diagnostics< char > Diagnostics;
+
+      // Exceptions.
+      //
+      typedef ::xsd::cxx::tree::exception< char > Exception;
+      typedef ::xsd::cxx::tree::bounds< char > Bounds;
+      typedef ::xsd::cxx::tree::duplicate_id< char > DuplicateId;
+      typedef ::xsd::cxx::tree::parsing< char > Parsing;
+      typedef ::xsd::cxx::tree::expected_element< char > ExpectedElement;
+      typedef ::xsd::cxx::tree::unexpected_element< char > UnexpectedElement;
+      typedef ::xsd::cxx::tree::expected_attribute< char > ExpectedAttribute;
+      typedef ::xsd::cxx::tree::unexpected_enumerator< char > UnexpectedEnumerator;
+      typedef ::xsd::cxx::tree::expected_text_content< char > ExpectedTextContent;
+      typedef ::xsd::cxx::tree::no_prefix_mapping< char > NoPrefixMapping;
+      typedef ::xsd::cxx::tree::serialization< char > Serialization;
+
+      // Error handler callback interface.
+      //
+      typedef ::xsd::cxx::xml::error_handler< char > ErrorHandler;
+
+      // DOM interaction.
+      //
+      namespace dom
+      {
+        // Automatic pointer for DOMDocument.
+        //
+        using ::xsd::cxx::xml::dom::unique_ptr;
+
+#ifndef XSD_CXX_TREE_TREE_NODE_KEY__FLEXISIP__XSD__XMLSCHEMA
+#define XSD_CXX_TREE_TREE_NODE_KEY__FLEXISIP__XSD__XMLSCHEMA
+        // DOM user data key for back pointers to tree nodes.
+        //
+        const XMLCh* const treeNodeKey = ::xsd::cxx::tree::user_data_keys::node;
 #endif
+      }
     }
   }
 }
 
 // Forward declarations.
 //
-namespace Xsd
+namespace flexisip
 {
-  namespace ResourceLists
+  namespace Xsd
   {
-    class ListType;
-    class EntryType;
-    class EntryRefType;
-    class ExternalType;
-    class DisplayNameType;
-    class List;
-    class DisplayName;
-    class ResourceLists;
+    namespace ResourceLists
+    {
+      class ListType;
+      class EntryType;
+      class EntryRefType;
+      class ExternalType;
+      class DisplayNameType;
+      class List;
+      class DisplayName;
+      class ResourceLists;
+    }
   }
 }
 
@@ -299,763 +305,769 @@ namespace Xsd
 
 #include "xml.hh"
 
-namespace Xsd
+namespace flexisip
 {
-  namespace ResourceLists
+  namespace Xsd
   {
-    class ListType: public ::Xsd::XmlSchema::Type
+    namespace ResourceLists
     {
-      public:
-      // display-name
-      //
-      typedef ::Xsd::ResourceLists::DisplayNameType DisplayNameType;
-      typedef ::xsd::cxx::tree::optional< DisplayNameType > DisplayNameOptional;
-      typedef ::xsd::cxx::tree::traits< DisplayNameType, char > DisplayNameTraits;
-
-      const DisplayNameOptional&
-      getDisplayName () const;
-
-      DisplayNameOptional&
-      getDisplayName ();
-
-      void
-      setDisplayName (const DisplayNameType& x);
-
-      void
-      setDisplayName (const DisplayNameOptional& x);
-
-      void
-      setDisplayName (::std::unique_ptr< DisplayNameType > p);
-
-      // list
-      //
-      typedef ::Xsd::ResourceLists::List ListType1;
-      typedef ::xsd::cxx::tree::sequence< ListType1 > ListSequence;
-      typedef ListSequence::iterator ListIterator;
-      typedef ListSequence::const_iterator ListConstIterator;
-      typedef ::xsd::cxx::tree::traits< ListType1, char > ListTraits;
-
-      const ListSequence&
-      getList () const;
+      class ListType: public ::flexisip::Xsd::XmlSchema::Type
+      {
+        public:
+        // display-name
+        //
+        typedef ::flexisip::Xsd::ResourceLists::DisplayNameType DisplayNameType;
+        typedef ::xsd::cxx::tree::optional< DisplayNameType > DisplayNameOptional;
+        typedef ::xsd::cxx::tree::traits< DisplayNameType, char > DisplayNameTraits;
+
+        const DisplayNameOptional&
+        getDisplayName () const;
+
+        DisplayNameOptional&
+        getDisplayName ();
+
+        void
+        setDisplayName (const DisplayNameType& x);
+
+        void
+        setDisplayName (const DisplayNameOptional& x);
+
+        void
+        setDisplayName (::std::unique_ptr< DisplayNameType > p);
+
+        // list
+        //
+        typedef ::flexisip::Xsd::ResourceLists::List ListType1;
+        typedef ::xsd::cxx::tree::sequence< ListType1 > ListSequence;
+        typedef ListSequence::iterator ListIterator;
+        typedef ListSequence::const_iterator ListConstIterator;
+        typedef ::xsd::cxx::tree::traits< ListType1, char > ListTraits;
+
+        const ListSequence&
+        getList () const;
+
+        ListSequence&
+        getList ();
+
+        void
+        setList (const ListSequence& s);
 
-      ListSequence&
-      getList ();
+        // external
+        //
+        typedef ::flexisip::Xsd::ResourceLists::ExternalType ExternalType;
+        typedef ::xsd::cxx::tree::sequence< ExternalType > ExternalSequence;
+        typedef ExternalSequence::iterator ExternalIterator;
+        typedef ExternalSequence::const_iterator ExternalConstIterator;
+        typedef ::xsd::cxx::tree::traits< ExternalType, char > ExternalTraits;
 
-      void
-      setList (const ListSequence& s);
+        const ExternalSequence&
+        getExternal () const;
 
-      // external
-      //
-      typedef ::Xsd::ResourceLists::ExternalType ExternalType;
-      typedef ::xsd::cxx::tree::sequence< ExternalType > ExternalSequence;
-      typedef ExternalSequence::iterator ExternalIterator;
-      typedef ExternalSequence::const_iterator ExternalConstIterator;
-      typedef ::xsd::cxx::tree::traits< ExternalType, char > ExternalTraits;
+        ExternalSequence&
+        getExternal ();
+
+        void
+        setExternal (const ExternalSequence& s);
+
+        // entry
+        //
+        typedef ::flexisip::Xsd::ResourceLists::EntryType EntryType;
+        typedef ::xsd::cxx::tree::sequence< EntryType > EntrySequence;
+        typedef EntrySequence::iterator EntryIterator;
+        typedef EntrySequence::const_iterator EntryConstIterator;
+        typedef ::xsd::cxx::tree::traits< EntryType, char > EntryTraits;
+
+        const EntrySequence&
+        getEntry () const;
 
-      const ExternalSequence&
-      getExternal () const;
+        EntrySequence&
+        getEntry ();
 
-      ExternalSequence&
-      getExternal ();
+        void
+        setEntry (const EntrySequence& s);
 
-      void
-      setExternal (const ExternalSequence& s);
+        // entry-ref
+        //
+        typedef ::flexisip::Xsd::ResourceLists::EntryRefType EntryRefType;
+        typedef ::xsd::cxx::tree::sequence< EntryRefType > EntryRefSequence;
+        typedef EntryRefSequence::iterator EntryRefIterator;
+        typedef EntryRefSequence::const_iterator EntryRefConstIterator;
+        typedef ::xsd::cxx::tree::traits< EntryRefType, char > EntryRefTraits;
+
+        const EntryRefSequence&
+        getEntryRef () const;
+
+        EntryRefSequence&
+        getEntryRef ();
+
+        void
+        setEntryRef (const EntryRefSequence& s);
+
+        // any
+        //
+        typedef ::xsd::cxx::tree::element_sequence AnySequence;
+        typedef AnySequence::iterator AnyIterator;
+        typedef AnySequence::const_iterator AnyConstIterator;
+
+        const AnySequence&
+        getAny () const;
+
+        AnySequence&
+        getAny ();
+
+        void
+        setAny (const AnySequence& s);
+
+        // name
+        //
+        typedef ::flexisip::Xsd::XmlSchema::String NameType;
+        typedef ::xsd::cxx::tree::optional< NameType > NameOptional;
+        typedef ::xsd::cxx::tree::traits< NameType, char > NameTraits;
 
-      // entry
-      //
-      typedef ::Xsd::ResourceLists::EntryType EntryType;
-      typedef ::xsd::cxx::tree::sequence< EntryType > EntrySequence;
-      typedef EntrySequence::iterator EntryIterator;
-      typedef EntrySequence::const_iterator EntryConstIterator;
-      typedef ::xsd::cxx::tree::traits< EntryType, char > EntryTraits;
+        const NameOptional&
+        getName () const;
 
-      const EntrySequence&
-      getEntry () const;
+        NameOptional&
+        getName ();
 
-      EntrySequence&
-      getEntry ();
+        void
+        setName (const NameType& x);
+
+        void
+        setName (const NameOptional& x);
 
-      void
-      setEntry (const EntrySequence& s);
+        void
+        setName (::std::unique_ptr< NameType > p);
 
-      // entry-ref
-      //
-      typedef ::Xsd::ResourceLists::EntryRefType EntryRefType;
-      typedef ::xsd::cxx::tree::sequence< EntryRefType > EntryRefSequence;
-      typedef EntryRefSequence::iterator EntryRefIterator;
-      typedef EntryRefSequence::const_iterator EntryRefConstIterator;
-      typedef ::xsd::cxx::tree::traits< EntryRefType, char > EntryRefTraits;
+        // any_attribute
+        //
+        typedef ::xsd::cxx::tree::attribute_set< char > AnyAttributeSet;
+        typedef AnyAttributeSet::iterator AnyAttributeIterator;
+        typedef AnyAttributeSet::const_iterator AnyAttributeConstIterator;
 
-      const EntryRefSequence&
-      getEntryRef () const;
+        const AnyAttributeSet&
+        getAnyAttribute () const;
 
-      EntryRefSequence&
-      getEntryRef ();
-
-      void
-      setEntryRef (const EntryRefSequence& s);
-
-      // any
-      //
-      typedef ::xsd::cxx::tree::element_sequence AnySequence;
-      typedef AnySequence::iterator AnyIterator;
-      typedef AnySequence::const_iterator AnyConstIterator;
-
-      const AnySequence&
-      getAny () const;
-
-      AnySequence&
-      getAny ();
-
-      void
-      setAny (const AnySequence& s);
-
-      // name
-      //
-      typedef ::Xsd::XmlSchema::String NameType;
-      typedef ::xsd::cxx::tree::optional< NameType > NameOptional;
-      typedef ::xsd::cxx::tree::traits< NameType, char > NameTraits;
-
-      const NameOptional&
-      getName () const;
-
-      NameOptional&
-      getName ();
+        AnyAttributeSet&
+        getAnyAttribute ();
 
-      void
-      setName (const NameType& x);
-
-      void
-      setName (const NameOptional& x);
-
-      void
-      setName (::std::unique_ptr< NameType > p);
-
-      // any_attribute
-      //
-      typedef ::xsd::cxx::tree::attribute_set< char > AnyAttributeSet;
-      typedef AnyAttributeSet::iterator AnyAttributeIterator;
-      typedef AnyAttributeSet::const_iterator AnyAttributeConstIterator;
+        void
+        setAnyAttribute (const AnyAttributeSet& s);
 
-      const AnyAttributeSet&
-      getAnyAttribute () const;
-
-      AnyAttributeSet&
-      getAnyAttribute ();
-
-      void
-      setAnyAttribute (const AnyAttributeSet& s);
+        // DOMDocument for wildcard content.
+        //
+        const ::xercesc::DOMDocument&
+        getDomDocument () const;
 
-      // DOMDocument for wildcard content.
-      //
-      const ::xercesc::DOMDocument&
-      getDomDocument () const;
+        ::xercesc::DOMDocument&
+        getDomDocument ();
 
-      ::xercesc::DOMDocument&
-      getDomDocument ();
+        // Constructors.
+        //
+        ListType ();
 
-      // Constructors.
-      //
-      ListType ();
+        ListType (const ::xercesc::DOMElement& e,
+                  ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                  ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      ListType (const ::xercesc::DOMElement& e,
-                ::Xsd::XmlSchema::Flags f = 0,
-                ::Xsd::XmlSchema::Container* c = 0);
+        ListType (const ListType& x,
+                  ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                  ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      ListType (const ListType& x,
-                ::Xsd::XmlSchema::Flags f = 0,
-                ::Xsd::XmlSchema::Container* c = 0);
+        virtual ListType*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
-      virtual ListType*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
+        ListType&
+        operator= (const ListType& x);
 
-      ListType&
-      operator= (const ListType& x);
+        virtual 
+        ~ListType ();
 
-      virtual 
-      ~ListType ();
+        // Implementation.
+        //
+        protected:
+        void
+        parse (::xsd::cxx::xml::dom::parser< char >&,
+               ::flexisip::Xsd::XmlSchema::Flags);
 
-      // Implementation.
-      //
-      protected:
-      void
-      parse (::xsd::cxx::xml::dom::parser< char >&,
-             ::Xsd::XmlSchema::Flags);
+        protected:
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
 
-      protected:
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
+        DisplayNameOptional display_name_;
+        ListSequence list_;
+        ExternalSequence external_;
+        EntrySequence entry_;
+        EntryRefSequence entry_ref_;
+        AnySequence any_;
+        NameOptional name_;
+        AnyAttributeSet any_attribute_;
+      };
 
-      DisplayNameOptional display_name_;
-      ListSequence list_;
-      ExternalSequence external_;
-      EntrySequence entry_;
-      EntryRefSequence entry_ref_;
-      AnySequence any_;
-      NameOptional name_;
-      AnyAttributeSet any_attribute_;
-    };
+      class EntryType: public ::flexisip::Xsd::XmlSchema::Type
+      {
+        public:
+        // display-name
+        //
+        typedef ::flexisip::Xsd::ResourceLists::DisplayName DisplayNameType;
+        typedef ::xsd::cxx::tree::optional< DisplayNameType > DisplayNameOptional;
+        typedef ::xsd::cxx::tree::traits< DisplayNameType, char > DisplayNameTraits;
 
-    class EntryType: public ::Xsd::XmlSchema::Type
-    {
-      public:
-      // display-name
-      //
-      typedef ::Xsd::ResourceLists::DisplayName DisplayNameType;
-      typedef ::xsd::cxx::tree::optional< DisplayNameType > DisplayNameOptional;
-      typedef ::xsd::cxx::tree::traits< DisplayNameType, char > DisplayNameTraits;
+        const DisplayNameOptional&
+        getDisplayName () const;
 
-      const DisplayNameOptional&
-      getDisplayName () const;
+        DisplayNameOptional&
+        getDisplayName ();
 
-      DisplayNameOptional&
-      getDisplayName ();
+        void
+        setDisplayName (const DisplayNameType& x);
 
-      void
-      setDisplayName (const DisplayNameType& x);
+        void
+        setDisplayName (const DisplayNameOptional& x);
 
-      void
-      setDisplayName (const DisplayNameOptional& x);
+        void
+        setDisplayName (::std::unique_ptr< DisplayNameType > p);
 
-      void
-      setDisplayName (::std::unique_ptr< DisplayNameType > p);
+        // any
+        //
+        typedef ::xsd::cxx::tree::element_sequence AnySequence;
+        typedef AnySequence::iterator AnyIterator;
+        typedef AnySequence::const_iterator AnyConstIterator;
 
-      // any
-      //
-      typedef ::xsd::cxx::tree::element_sequence AnySequence;
-      typedef AnySequence::iterator AnyIterator;
-      typedef AnySequence::const_iterator AnyConstIterator;
+        const AnySequence&
+        getAny () const;
 
-      const AnySequence&
-      getAny () const;
+        AnySequence&
+        getAny ();
 
-      AnySequence&
-      getAny ();
+        void
+        setAny (const AnySequence& s);
 
-      void
-      setAny (const AnySequence& s);
+        // uri
+        //
+        typedef ::flexisip::Xsd::XmlSchema::Uri UriType;
+        typedef ::xsd::cxx::tree::traits< UriType, char > UriTraits;
 
-      // uri
-      //
-      typedef ::Xsd::XmlSchema::Uri UriType;
-      typedef ::xsd::cxx::tree::traits< UriType, char > UriTraits;
+        const UriType&
+        getUri () const;
 
-      const UriType&
-      getUri () const;
+        UriType&
+        getUri ();
 
-      UriType&
-      getUri ();
+        void
+        setUri (const UriType& x);
 
-      void
-      setUri (const UriType& x);
+        void
+        setUri (::std::unique_ptr< UriType > p);
 
-      void
-      setUri (::std::unique_ptr< UriType > p);
+        ::std::unique_ptr< UriType >
+        setDetachUri ();
 
-      ::std::unique_ptr< UriType >
-      setDetachUri ();
+        // any_attribute
+        //
+        typedef ::xsd::cxx::tree::attribute_set< char > AnyAttributeSet;
+        typedef AnyAttributeSet::iterator AnyAttributeIterator;
+        typedef AnyAttributeSet::const_iterator AnyAttributeConstIterator;
 
-      // any_attribute
-      //
-      typedef ::xsd::cxx::tree::attribute_set< char > AnyAttributeSet;
-      typedef AnyAttributeSet::iterator AnyAttributeIterator;
-      typedef AnyAttributeSet::const_iterator AnyAttributeConstIterator;
+        const AnyAttributeSet&
+        getAnyAttribute () const;
 
-      const AnyAttributeSet&
-      getAnyAttribute () const;
+        AnyAttributeSet&
+        getAnyAttribute ();
 
-      AnyAttributeSet&
-      getAnyAttribute ();
+        void
+        setAnyAttribute (const AnyAttributeSet& s);
 
-      void
-      setAnyAttribute (const AnyAttributeSet& s);
+        // DOMDocument for wildcard content.
+        //
+        const ::xercesc::DOMDocument&
+        getDomDocument () const;
 
-      // DOMDocument for wildcard content.
-      //
-      const ::xercesc::DOMDocument&
-      getDomDocument () const;
+        ::xercesc::DOMDocument&
+        getDomDocument ();
 
-      ::xercesc::DOMDocument&
-      getDomDocument ();
+        // Constructors.
+        //
+        EntryType (const UriType&);
 
-      // Constructors.
-      //
-      EntryType (const UriType&);
+        EntryType (const ::xercesc::DOMElement& e,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      EntryType (const ::xercesc::DOMElement& e,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 ::Xsd::XmlSchema::Container* c = 0);
+        EntryType (const EntryType& x,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      EntryType (const EntryType& x,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 ::Xsd::XmlSchema::Container* c = 0);
+        virtual EntryType*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
-      virtual EntryType*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
+        EntryType&
+        operator= (const EntryType& x);
 
-      EntryType&
-      operator= (const EntryType& x);
+        virtual 
+        ~EntryType ();
 
-      virtual 
-      ~EntryType ();
+        // Implementation.
+        //
+        protected:
+        void
+        parse (::xsd::cxx::xml::dom::parser< char >&,
+               ::flexisip::Xsd::XmlSchema::Flags);
 
-      // Implementation.
-      //
-      protected:
-      void
-      parse (::xsd::cxx::xml::dom::parser< char >&,
-             ::Xsd::XmlSchema::Flags);
+        protected:
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
 
-      protected:
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
+        DisplayNameOptional display_name_;
+        AnySequence any_;
+        ::xsd::cxx::tree::one< UriType > uri_;
+        AnyAttributeSet any_attribute_;
+      };
 
-      DisplayNameOptional display_name_;
-      AnySequence any_;
-      ::xsd::cxx::tree::one< UriType > uri_;
-      AnyAttributeSet any_attribute_;
-    };
+      class EntryRefType: public ::flexisip::Xsd::XmlSchema::Type
+      {
+        public:
+        // display-name
+        //
+        typedef ::flexisip::Xsd::ResourceLists::DisplayNameType DisplayNameType;
+        typedef ::xsd::cxx::tree::optional< DisplayNameType > DisplayNameOptional;
+        typedef ::xsd::cxx::tree::traits< DisplayNameType, char > DisplayNameTraits;
 
-    class EntryRefType: public ::Xsd::XmlSchema::Type
-    {
-      public:
-      // display-name
-      //
-      typedef ::Xsd::ResourceLists::DisplayNameType DisplayNameType;
-      typedef ::xsd::cxx::tree::optional< DisplayNameType > DisplayNameOptional;
-      typedef ::xsd::cxx::tree::traits< DisplayNameType, char > DisplayNameTraits;
+        const DisplayNameOptional&
+        getDisplayName () const;
 
-      const DisplayNameOptional&
-      getDisplayName () const;
+        DisplayNameOptional&
+        getDisplayName ();
 
-      DisplayNameOptional&
-      getDisplayName ();
+        void
+        setDisplayName (const DisplayNameType& x);
 
-      void
-      setDisplayName (const DisplayNameType& x);
+        void
+        setDisplayName (const DisplayNameOptional& x);
 
-      void
-      setDisplayName (const DisplayNameOptional& x);
+        void
+        setDisplayName (::std::unique_ptr< DisplayNameType > p);
 
-      void
-      setDisplayName (::std::unique_ptr< DisplayNameType > p);
+        // any
+        //
+        typedef ::xsd::cxx::tree::element_sequence AnySequence;
+        typedef AnySequence::iterator AnyIterator;
+        typedef AnySequence::const_iterator AnyConstIterator;
 
-      // any
-      //
-      typedef ::xsd::cxx::tree::element_sequence AnySequence;
-      typedef AnySequence::iterator AnyIterator;
-      typedef AnySequence::const_iterator AnyConstIterator;
+        const AnySequence&
+        getAny () const;
 
-      const AnySequence&
-      getAny () const;
+        AnySequence&
+        getAny ();
 
-      AnySequence&
-      getAny ();
+        void
+        setAny (const AnySequence& s);
 
-      void
-      setAny (const AnySequence& s);
+        // ref
+        //
+        typedef ::flexisip::Xsd::XmlSchema::Uri RefType;
+        typedef ::xsd::cxx::tree::traits< RefType, char > RefTraits;
 
-      // ref
-      //
-      typedef ::Xsd::XmlSchema::Uri RefType;
-      typedef ::xsd::cxx::tree::traits< RefType, char > RefTraits;
+        const RefType&
+        getRef () const;
 
-      const RefType&
-      getRef () const;
+        RefType&
+        getRef ();
 
-      RefType&
-      getRef ();
+        void
+        setRef (const RefType& x);
 
-      void
-      setRef (const RefType& x);
+        void
+        setRef (::std::unique_ptr< RefType > p);
 
-      void
-      setRef (::std::unique_ptr< RefType > p);
+        ::std::unique_ptr< RefType >
+        setDetachRef ();
 
-      ::std::unique_ptr< RefType >
-      setDetachRef ();
+        // any_attribute
+        //
+        typedef ::xsd::cxx::tree::attribute_set< char > AnyAttributeSet;
+        typedef AnyAttributeSet::iterator AnyAttributeIterator;
+        typedef AnyAttributeSet::const_iterator AnyAttributeConstIterator;
 
-      // any_attribute
-      //
-      typedef ::xsd::cxx::tree::attribute_set< char > AnyAttributeSet;
-      typedef AnyAttributeSet::iterator AnyAttributeIterator;
-      typedef AnyAttributeSet::const_iterator AnyAttributeConstIterator;
+        const AnyAttributeSet&
+        getAnyAttribute () const;
 
-      const AnyAttributeSet&
-      getAnyAttribute () const;
+        AnyAttributeSet&
+        getAnyAttribute ();
 
-      AnyAttributeSet&
-      getAnyAttribute ();
+        void
+        setAnyAttribute (const AnyAttributeSet& s);
 
-      void
-      setAnyAttribute (const AnyAttributeSet& s);
+        // DOMDocument for wildcard content.
+        //
+        const ::xercesc::DOMDocument&
+        getDomDocument () const;
 
-      // DOMDocument for wildcard content.
-      //
-      const ::xercesc::DOMDocument&
-      getDomDocument () const;
+        ::xercesc::DOMDocument&
+        getDomDocument ();
 
-      ::xercesc::DOMDocument&
-      getDomDocument ();
+        // Constructors.
+        //
+        EntryRefType (const RefType&);
 
-      // Constructors.
-      //
-      EntryRefType (const RefType&);
+        EntryRefType (const ::xercesc::DOMElement& e,
+                      ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                      ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      EntryRefType (const ::xercesc::DOMElement& e,
-                    ::Xsd::XmlSchema::Flags f = 0,
-                    ::Xsd::XmlSchema::Container* c = 0);
+        EntryRefType (const EntryRefType& x,
+                      ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                      ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      EntryRefType (const EntryRefType& x,
-                    ::Xsd::XmlSchema::Flags f = 0,
-                    ::Xsd::XmlSchema::Container* c = 0);
+        virtual EntryRefType*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
-      virtual EntryRefType*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
+        EntryRefType&
+        operator= (const EntryRefType& x);
 
-      EntryRefType&
-      operator= (const EntryRefType& x);
+        virtual 
+        ~EntryRefType ();
 
-      virtual 
-      ~EntryRefType ();
+        // Implementation.
+        //
+        protected:
+        void
+        parse (::xsd::cxx::xml::dom::parser< char >&,
+               ::flexisip::Xsd::XmlSchema::Flags);
 
-      // Implementation.
-      //
-      protected:
-      void
-      parse (::xsd::cxx::xml::dom::parser< char >&,
-             ::Xsd::XmlSchema::Flags);
+        protected:
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
 
-      protected:
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
+        DisplayNameOptional display_name_;
+        AnySequence any_;
+        ::xsd::cxx::tree::one< RefType > ref_;
+        AnyAttributeSet any_attribute_;
+      };
 
-      DisplayNameOptional display_name_;
-      AnySequence any_;
-      ::xsd::cxx::tree::one< RefType > ref_;
-      AnyAttributeSet any_attribute_;
-    };
+      class ExternalType: public ::flexisip::Xsd::XmlSchema::Type
+      {
+        public:
+        // display-name
+        //
+        typedef ::flexisip::Xsd::ResourceLists::DisplayNameType DisplayNameType;
+        typedef ::xsd::cxx::tree::optional< DisplayNameType > DisplayNameOptional;
+        typedef ::xsd::cxx::tree::traits< DisplayNameType, char > DisplayNameTraits;
 
-    class ExternalType: public ::Xsd::XmlSchema::Type
-    {
-      public:
-      // display-name
-      //
-      typedef ::Xsd::ResourceLists::DisplayNameType DisplayNameType;
-      typedef ::xsd::cxx::tree::optional< DisplayNameType > DisplayNameOptional;
-      typedef ::xsd::cxx::tree::traits< DisplayNameType, char > DisplayNameTraits;
+        const DisplayNameOptional&
+        getDisplayName () const;
 
-      const DisplayNameOptional&
-      getDisplayName () const;
+        DisplayNameOptional&
+        getDisplayName ();
 
-      DisplayNameOptional&
-      getDisplayName ();
+        void
+        setDisplayName (const DisplayNameType& x);
 
-      void
-      setDisplayName (const DisplayNameType& x);
+        void
+        setDisplayName (const DisplayNameOptional& x);
 
-      void
-      setDisplayName (const DisplayNameOptional& x);
+        void
+        setDisplayName (::std::unique_ptr< DisplayNameType > p);
 
-      void
-      setDisplayName (::std::unique_ptr< DisplayNameType > p);
+        // any
+        //
+        typedef ::xsd::cxx::tree::element_sequence AnySequence;
+        typedef AnySequence::iterator AnyIterator;
+        typedef AnySequence::const_iterator AnyConstIterator;
 
-      // any
-      //
-      typedef ::xsd::cxx::tree::element_sequence AnySequence;
-      typedef AnySequence::iterator AnyIterator;
-      typedef AnySequence::const_iterator AnyConstIterator;
+        const AnySequence&
+        getAny () const;
 
-      const AnySequence&
-      getAny () const;
+        AnySequence&
+        getAny ();
 
-      AnySequence&
-      getAny ();
+        void
+        setAny (const AnySequence& s);
 
-      void
-      setAny (const AnySequence& s);
+        // anchor
+        //
+        typedef ::flexisip::Xsd::XmlSchema::Uri AnchorType;
+        typedef ::xsd::cxx::tree::optional< AnchorType > AnchorOptional;
+        typedef ::xsd::cxx::tree::traits< AnchorType, char > AnchorTraits;
 
-      // anchor
-      //
-      typedef ::Xsd::XmlSchema::Uri AnchorType;
-      typedef ::xsd::cxx::tree::optional< AnchorType > AnchorOptional;
-      typedef ::xsd::cxx::tree::traits< AnchorType, char > AnchorTraits;
+        const AnchorOptional&
+        getAnchor () const;
 
-      const AnchorOptional&
-      getAnchor () const;
+        AnchorOptional&
+        getAnchor ();
 
-      AnchorOptional&
-      getAnchor ();
+        void
+        setAnchor (const AnchorType& x);
 
-      void
-      setAnchor (const AnchorType& x);
+        void
+        setAnchor (const AnchorOptional& x);
 
-      void
-      setAnchor (const AnchorOptional& x);
+        void
+        setAnchor (::std::unique_ptr< AnchorType > p);
 
-      void
-      setAnchor (::std::unique_ptr< AnchorType > p);
+        // any_attribute
+        //
+        typedef ::xsd::cxx::tree::attribute_set< char > AnyAttributeSet;
+        typedef AnyAttributeSet::iterator AnyAttributeIterator;
+        typedef AnyAttributeSet::const_iterator AnyAttributeConstIterator;
 
-      // any_attribute
-      //
-      typedef ::xsd::cxx::tree::attribute_set< char > AnyAttributeSet;
-      typedef AnyAttributeSet::iterator AnyAttributeIterator;
-      typedef AnyAttributeSet::const_iterator AnyAttributeConstIterator;
+        const AnyAttributeSet&
+        getAnyAttribute () const;
 
-      const AnyAttributeSet&
-      getAnyAttribute () const;
+        AnyAttributeSet&
+        getAnyAttribute ();
 
-      AnyAttributeSet&
-      getAnyAttribute ();
+        void
+        setAnyAttribute (const AnyAttributeSet& s);
 
-      void
-      setAnyAttribute (const AnyAttributeSet& s);
+        // DOMDocument for wildcard content.
+        //
+        const ::xercesc::DOMDocument&
+        getDomDocument () const;
 
-      // DOMDocument for wildcard content.
-      //
-      const ::xercesc::DOMDocument&
-      getDomDocument () const;
+        ::xercesc::DOMDocument&
+        getDomDocument ();
 
-      ::xercesc::DOMDocument&
-      getDomDocument ();
+        // Constructors.
+        //
+        ExternalType ();
 
-      // Constructors.
-      //
-      ExternalType ();
+        ExternalType (const ::xercesc::DOMElement& e,
+                      ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                      ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      ExternalType (const ::xercesc::DOMElement& e,
-                    ::Xsd::XmlSchema::Flags f = 0,
-                    ::Xsd::XmlSchema::Container* c = 0);
+        ExternalType (const ExternalType& x,
+                      ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                      ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      ExternalType (const ExternalType& x,
-                    ::Xsd::XmlSchema::Flags f = 0,
-                    ::Xsd::XmlSchema::Container* c = 0);
+        virtual ExternalType*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
-      virtual ExternalType*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
+        ExternalType&
+        operator= (const ExternalType& x);
 
-      ExternalType&
-      operator= (const ExternalType& x);
+        virtual 
+        ~ExternalType ();
 
-      virtual 
-      ~ExternalType ();
+        // Implementation.
+        //
+        protected:
+        void
+        parse (::xsd::cxx::xml::dom::parser< char >&,
+               ::flexisip::Xsd::XmlSchema::Flags);
 
-      // Implementation.
-      //
-      protected:
-      void
-      parse (::xsd::cxx::xml::dom::parser< char >&,
-             ::Xsd::XmlSchema::Flags);
+        protected:
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
 
-      protected:
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
+        DisplayNameOptional display_name_;
+        AnySequence any_;
+        AnchorOptional anchor_;
+        AnyAttributeSet any_attribute_;
+      };
 
-      DisplayNameOptional display_name_;
-      AnySequence any_;
-      AnchorOptional anchor_;
-      AnyAttributeSet any_attribute_;
-    };
+      class DisplayNameType: public ::flexisip::Xsd::XmlSchema::String
+      {
+        public:
+        // lang
+        //
+        typedef ::flexisip::Xsd::Namespace::Lang LangType;
+        typedef ::xsd::cxx::tree::optional< LangType > LangOptional;
+        typedef ::xsd::cxx::tree::traits< LangType, char > LangTraits;
 
-    class DisplayNameType: public ::Xsd::XmlSchema::String
-    {
-      public:
-      // lang
-      //
-      typedef ::namespace_::Lang LangType;
-      typedef ::xsd::cxx::tree::optional< LangType > LangOptional;
-      typedef ::xsd::cxx::tree::traits< LangType, char > LangTraits;
+        const LangOptional&
+        getLang () const;
 
-      const LangOptional&
-      getLang () const;
+        LangOptional&
+        getLang ();
 
-      LangOptional&
-      getLang ();
+        void
+        setLang (const LangType& x);
 
-      void
-      setLang (const LangType& x);
+        void
+        setLang (const LangOptional& x);
 
-      void
-      setLang (const LangOptional& x);
+        void
+        setLang (::std::unique_ptr< LangType > p);
 
-      void
-      setLang (::std::unique_ptr< LangType > p);
+        // Constructors.
+        //
+        DisplayNameType ();
 
-      // Constructors.
-      //
-      DisplayNameType ();
+        DisplayNameType (const char*);
 
-      DisplayNameType (const char*);
+        DisplayNameType (const ::std::string&);
 
-      DisplayNameType (const ::std::string&);
+        DisplayNameType (const ::flexisip::Xsd::XmlSchema::String&);
 
-      DisplayNameType (const ::Xsd::XmlSchema::String&);
+        DisplayNameType (const ::xercesc::DOMElement& e,
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                         ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      DisplayNameType (const ::xercesc::DOMElement& e,
-                       ::Xsd::XmlSchema::Flags f = 0,
-                       ::Xsd::XmlSchema::Container* c = 0);
+        DisplayNameType (const DisplayNameType& x,
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                         ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      DisplayNameType (const DisplayNameType& x,
-                       ::Xsd::XmlSchema::Flags f = 0,
-                       ::Xsd::XmlSchema::Container* c = 0);
+        virtual DisplayNameType*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
-      virtual DisplayNameType*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
+        DisplayNameType&
+        operator= (const DisplayNameType& x);
 
-      DisplayNameType&
-      operator= (const DisplayNameType& x);
+        virtual 
+        ~DisplayNameType ();
 
-      virtual 
-      ~DisplayNameType ();
+        // Implementation.
+        //
+        protected:
+        void
+        parse (::xsd::cxx::xml::dom::parser< char >&,
+               ::flexisip::Xsd::XmlSchema::Flags);
 
-      // Implementation.
-      //
-      protected:
-      void
-      parse (::xsd::cxx::xml::dom::parser< char >&,
-             ::Xsd::XmlSchema::Flags);
+        protected:
+        LangOptional lang_;
+      };
 
-      protected:
-      LangOptional lang_;
-    };
+      class List: public ::flexisip::Xsd::ResourceLists::ListType
+      {
+        public:
+        // Constructors.
+        //
+        List ();
 
-    class List: public ::Xsd::ResourceLists::ListType
-    {
-      public:
-      // Constructors.
-      //
-      List ();
+        List (const ::xercesc::DOMElement& e,
+              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+              ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      List (const ::xercesc::DOMElement& e,
-            ::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0);
+        List (const List& x,
+              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+              ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      List (const List& x,
-            ::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0);
+        virtual List*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
-      virtual List*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
+        virtual 
+        ~List ();
+      };
 
-      virtual 
-      ~List ();
-    };
+      class DisplayName: public ::flexisip::Xsd::ResourceLists::DisplayNameType
+      {
+        public:
+        // Constructors.
+        //
+        DisplayName ();
 
-    class DisplayName: public ::Xsd::ResourceLists::DisplayNameType
-    {
-      public:
-      // Constructors.
-      //
-      DisplayName ();
+        DisplayName (const char*);
 
-      DisplayName (const char*);
+        DisplayName (const ::std::string&);
 
-      DisplayName (const ::std::string&);
+        DisplayName (const ::flexisip::Xsd::XmlSchema::String&);
 
-      DisplayName (const ::Xsd::XmlSchema::String&);
+        DisplayName (const ::xercesc::DOMElement& e,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      DisplayName (const ::xercesc::DOMElement& e,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   ::Xsd::XmlSchema::Container* c = 0);
+        DisplayName (const DisplayName& x,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      DisplayName (const DisplayName& x,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   ::Xsd::XmlSchema::Container* c = 0);
+        virtual DisplayName*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
-      virtual DisplayName*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
+        virtual 
+        ~DisplayName ();
+      };
 
-      virtual 
-      ~DisplayName ();
-    };
+      class ResourceLists: public ::flexisip::Xsd::XmlSchema::Type
+      {
+        public:
+        // list
+        //
+        typedef ::flexisip::Xsd::ResourceLists::ListType ListType;
+        typedef ::xsd::cxx::tree::sequence< ListType > ListSequence;
+        typedef ListSequence::iterator ListIterator;
+        typedef ListSequence::const_iterator ListConstIterator;
+        typedef ::xsd::cxx::tree::traits< ListType, char > ListTraits;
 
-    class ResourceLists: public ::Xsd::XmlSchema::Type
-    {
-      public:
-      // list
-      //
-      typedef ::Xsd::ResourceLists::ListType ListType;
-      typedef ::xsd::cxx::tree::sequence< ListType > ListSequence;
-      typedef ListSequence::iterator ListIterator;
-      typedef ListSequence::const_iterator ListConstIterator;
-      typedef ::xsd::cxx::tree::traits< ListType, char > ListTraits;
+        const ListSequence&
+        getList () const;
 
-      const ListSequence&
-      getList () const;
+        ListSequence&
+        getList ();
 
-      ListSequence&
-      getList ();
+        void
+        setList (const ListSequence& s);
 
-      void
-      setList (const ListSequence& s);
+        // Constructors.
+        //
+        ResourceLists ();
 
-      // Constructors.
-      //
-      ResourceLists ();
+        ResourceLists (const ::xercesc::DOMElement& e,
+                       ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                       ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      ResourceLists (const ::xercesc::DOMElement& e,
-                     ::Xsd::XmlSchema::Flags f = 0,
-                     ::Xsd::XmlSchema::Container* c = 0);
+        ResourceLists (const ResourceLists& x,
+                       ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                       ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      ResourceLists (const ResourceLists& x,
-                     ::Xsd::XmlSchema::Flags f = 0,
-                     ::Xsd::XmlSchema::Container* c = 0);
+        virtual ResourceLists*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
-      virtual ResourceLists*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
+        ResourceLists&
+        operator= (const ResourceLists& x);
 
-      ResourceLists&
-      operator= (const ResourceLists& x);
+        virtual 
+        ~ResourceLists ();
 
-      virtual 
-      ~ResourceLists ();
+        // Implementation.
+        //
+        protected:
+        void
+        parse (::xsd::cxx::xml::dom::parser< char >&,
+               ::flexisip::Xsd::XmlSchema::Flags);
 
-      // Implementation.
-      //
-      protected:
-      void
-      parse (::xsd::cxx::xml::dom::parser< char >&,
-             ::Xsd::XmlSchema::Flags);
-
-      protected:
-      ListSequence list_;
-    };
+        protected:
+        ListSequence list_;
+      };
+    }
   }
 }
 
 #include <iosfwd>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace ResourceLists
+  namespace Xsd
   {
-    ::std::ostream&
-    operator<< (::std::ostream&, const ListType&);
+    namespace ResourceLists
+    {
+      ::std::ostream&
+      operator<< (::std::ostream&, const ListType&);
 
-    ::std::ostream&
-    operator<< (::std::ostream&, const EntryType&);
+      ::std::ostream&
+      operator<< (::std::ostream&, const EntryType&);
 
-    ::std::ostream&
-    operator<< (::std::ostream&, const EntryRefType&);
+      ::std::ostream&
+      operator<< (::std::ostream&, const EntryRefType&);
 
-    ::std::ostream&
-    operator<< (::std::ostream&, const ExternalType&);
+      ::std::ostream&
+      operator<< (::std::ostream&, const ExternalType&);
 
-    ::std::ostream&
-    operator<< (::std::ostream&, const DisplayNameType&);
+      ::std::ostream&
+      operator<< (::std::ostream&, const DisplayNameType&);
 
-    ::std::ostream&
-    operator<< (::std::ostream&, const List&);
+      ::std::ostream&
+      operator<< (::std::ostream&, const List&);
 
-    ::std::ostream&
-    operator<< (::std::ostream&, const DisplayName&);
+      ::std::ostream&
+      operator<< (::std::ostream&, const DisplayName&);
 
-    ::std::ostream&
-    operator<< (::std::ostream&, const ResourceLists&);
+      ::std::ostream&
+      operator<< (::std::ostream&, const ResourceLists&);
+    }
   }
 }
 
@@ -1065,102 +1077,105 @@ namespace Xsd
 #include <xercesc/dom/DOMDocument.hpp>
 #include <xercesc/dom/DOMErrorHandler.hpp>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace ResourceLists
+  namespace Xsd
   {
-    // Parse a URI or a local file.
-    //
+    namespace ResourceLists
+    {
+      // Parse a URI or a local file.
+      //
 
-    ::std::unique_ptr< ::Xsd::ResourceLists::ResourceLists >
-    parseResourceLists (const ::std::string& uri,
-                        ::Xsd::XmlSchema::Flags f = 0,
-                        const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::ResourceLists::ResourceLists >
+      parseResourceLists (const ::std::string& uri,
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::ResourceLists::ResourceLists >
-    parseResourceLists (const ::std::string& uri,
-                        ::Xsd::XmlSchema::ErrorHandler& eh,
-                        ::Xsd::XmlSchema::Flags f = 0,
-                        const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::ResourceLists::ResourceLists >
+      parseResourceLists (const ::std::string& uri,
+                          ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::ResourceLists::ResourceLists >
-    parseResourceLists (const ::std::string& uri,
-                        ::xercesc::DOMErrorHandler& eh,
-                        ::Xsd::XmlSchema::Flags f = 0,
-                        const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::ResourceLists::ResourceLists >
+      parseResourceLists (const ::std::string& uri,
+                          ::xercesc::DOMErrorHandler& eh,
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    // Parse std::istream.
-    //
+      // Parse std::istream.
+      //
 
-    ::std::unique_ptr< ::Xsd::ResourceLists::ResourceLists >
-    parseResourceLists (::std::istream& is,
-                        ::Xsd::XmlSchema::Flags f = 0,
-                        const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::ResourceLists::ResourceLists >
+      parseResourceLists (::std::istream& is,
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::ResourceLists::ResourceLists >
-    parseResourceLists (::std::istream& is,
-                        ::Xsd::XmlSchema::ErrorHandler& eh,
-                        ::Xsd::XmlSchema::Flags f = 0,
-                        const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::ResourceLists::ResourceLists >
+      parseResourceLists (::std::istream& is,
+                          ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::ResourceLists::ResourceLists >
-    parseResourceLists (::std::istream& is,
-                        ::xercesc::DOMErrorHandler& eh,
-                        ::Xsd::XmlSchema::Flags f = 0,
-                        const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::ResourceLists::ResourceLists >
+      parseResourceLists (::std::istream& is,
+                          ::xercesc::DOMErrorHandler& eh,
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::ResourceLists::ResourceLists >
-    parseResourceLists (::std::istream& is,
-                        const ::std::string& id,
-                        ::Xsd::XmlSchema::Flags f = 0,
-                        const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::ResourceLists::ResourceLists >
+      parseResourceLists (::std::istream& is,
+                          const ::std::string& id,
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::ResourceLists::ResourceLists >
-    parseResourceLists (::std::istream& is,
-                        const ::std::string& id,
-                        ::Xsd::XmlSchema::ErrorHandler& eh,
-                        ::Xsd::XmlSchema::Flags f = 0,
-                        const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::ResourceLists::ResourceLists >
+      parseResourceLists (::std::istream& is,
+                          const ::std::string& id,
+                          ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::ResourceLists::ResourceLists >
-    parseResourceLists (::std::istream& is,
-                        const ::std::string& id,
-                        ::xercesc::DOMErrorHandler& eh,
-                        ::Xsd::XmlSchema::Flags f = 0,
-                        const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::ResourceLists::ResourceLists >
+      parseResourceLists (::std::istream& is,
+                          const ::std::string& id,
+                          ::xercesc::DOMErrorHandler& eh,
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    // Parse xercesc::InputSource.
-    //
+      // Parse xercesc::InputSource.
+      //
 
-    ::std::unique_ptr< ::Xsd::ResourceLists::ResourceLists >
-    parseResourceLists (::xercesc::InputSource& is,
-                        ::Xsd::XmlSchema::Flags f = 0,
-                        const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::ResourceLists::ResourceLists >
+      parseResourceLists (::xercesc::InputSource& is,
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::ResourceLists::ResourceLists >
-    parseResourceLists (::xercesc::InputSource& is,
-                        ::Xsd::XmlSchema::ErrorHandler& eh,
-                        ::Xsd::XmlSchema::Flags f = 0,
-                        const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::ResourceLists::ResourceLists >
+      parseResourceLists (::xercesc::InputSource& is,
+                          ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::ResourceLists::ResourceLists >
-    parseResourceLists (::xercesc::InputSource& is,
-                        ::xercesc::DOMErrorHandler& eh,
-                        ::Xsd::XmlSchema::Flags f = 0,
-                        const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::ResourceLists::ResourceLists >
+      parseResourceLists (::xercesc::InputSource& is,
+                          ::xercesc::DOMErrorHandler& eh,
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    // Parse xercesc::DOMDocument.
-    //
+      // Parse xercesc::DOMDocument.
+      //
 
-    ::std::unique_ptr< ::Xsd::ResourceLists::ResourceLists >
-    parseResourceLists (const ::xercesc::DOMDocument& d,
-                        ::Xsd::XmlSchema::Flags f = 0,
-                        const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::ResourceLists::ResourceLists >
+      parseResourceLists (const ::xercesc::DOMDocument& d,
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::ResourceLists::ResourceLists >
-    parseResourceLists (::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
-                        ::Xsd::XmlSchema::Flags f = 0,
-                        const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::ResourceLists::ResourceLists >
+      parseResourceLists (::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
+    }
   }
 }
 
@@ -1172,101 +1187,104 @@ namespace Xsd
 
 #include <xsd/cxx/xml/dom/auto-ptr.hxx>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace ResourceLists
+  namespace Xsd
   {
-    void
-    operator<< (::xercesc::DOMElement&, const ListType&);
+    namespace ResourceLists
+    {
+      void
+      operator<< (::xercesc::DOMElement&, const ListType&);
 
-    void
-    operator<< (::xercesc::DOMElement&, const EntryType&);
+      void
+      operator<< (::xercesc::DOMElement&, const EntryType&);
 
-    void
-    operator<< (::xercesc::DOMElement&, const EntryRefType&);
+      void
+      operator<< (::xercesc::DOMElement&, const EntryRefType&);
 
-    void
-    operator<< (::xercesc::DOMElement&, const ExternalType&);
+      void
+      operator<< (::xercesc::DOMElement&, const ExternalType&);
 
-    // Serialize to std::ostream.
-    //
+      // Serialize to std::ostream.
+      //
 
-    void
-    serializeResourceLists (::std::ostream& os,
-                            const ::Xsd::ResourceLists::ResourceLists& x, 
-                            const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                            const ::std::string& e = "UTF-8",
-                            ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializeResourceLists (::std::ostream& os,
+                              const ::flexisip::Xsd::ResourceLists::ResourceLists& x, 
+                              const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                              const ::std::string& e = "UTF-8",
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    void
-    serializeResourceLists (::std::ostream& os,
-                            const ::Xsd::ResourceLists::ResourceLists& x, 
-                            ::Xsd::XmlSchema::ErrorHandler& eh,
-                            const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                            const ::std::string& e = "UTF-8",
-                            ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializeResourceLists (::std::ostream& os,
+                              const ::flexisip::Xsd::ResourceLists::ResourceLists& x, 
+                              ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                              const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                              const ::std::string& e = "UTF-8",
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    void
-    serializeResourceLists (::std::ostream& os,
-                            const ::Xsd::ResourceLists::ResourceLists& x, 
-                            ::xercesc::DOMErrorHandler& eh,
-                            const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                            const ::std::string& e = "UTF-8",
-                            ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializeResourceLists (::std::ostream& os,
+                              const ::flexisip::Xsd::ResourceLists::ResourceLists& x, 
+                              ::xercesc::DOMErrorHandler& eh,
+                              const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                              const ::std::string& e = "UTF-8",
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    // Serialize to xercesc::XMLFormatTarget.
-    //
+      // Serialize to xercesc::XMLFormatTarget.
+      //
 
-    void
-    serializeResourceLists (::xercesc::XMLFormatTarget& ft,
-                            const ::Xsd::ResourceLists::ResourceLists& x, 
-                            const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                            const ::std::string& e = "UTF-8",
-                            ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializeResourceLists (::xercesc::XMLFormatTarget& ft,
+                              const ::flexisip::Xsd::ResourceLists::ResourceLists& x, 
+                              const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                              const ::std::string& e = "UTF-8",
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    void
-    serializeResourceLists (::xercesc::XMLFormatTarget& ft,
-                            const ::Xsd::ResourceLists::ResourceLists& x, 
-                            ::Xsd::XmlSchema::ErrorHandler& eh,
-                            const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                            const ::std::string& e = "UTF-8",
-                            ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializeResourceLists (::xercesc::XMLFormatTarget& ft,
+                              const ::flexisip::Xsd::ResourceLists::ResourceLists& x, 
+                              ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                              const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                              const ::std::string& e = "UTF-8",
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    void
-    serializeResourceLists (::xercesc::XMLFormatTarget& ft,
-                            const ::Xsd::ResourceLists::ResourceLists& x, 
-                            ::xercesc::DOMErrorHandler& eh,
-                            const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                            const ::std::string& e = "UTF-8",
-                            ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializeResourceLists (::xercesc::XMLFormatTarget& ft,
+                              const ::flexisip::Xsd::ResourceLists::ResourceLists& x, 
+                              ::xercesc::DOMErrorHandler& eh,
+                              const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                              const ::std::string& e = "UTF-8",
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    // Serialize to an existing xercesc::DOMDocument.
-    //
+      // Serialize to an existing xercesc::DOMDocument.
+      //
 
-    void
-    serializeResourceLists (::xercesc::DOMDocument& d,
-                            const ::Xsd::ResourceLists::ResourceLists& x,
-                            ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializeResourceLists (::xercesc::DOMDocument& d,
+                              const ::flexisip::Xsd::ResourceLists::ResourceLists& x,
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    // Serialize to a new xercesc::DOMDocument.
-    //
+      // Serialize to a new xercesc::DOMDocument.
+      //
 
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
-    serializeResourceLists (const ::Xsd::ResourceLists::ResourceLists& x, 
-                            const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                            ::Xsd::XmlSchema::Flags f = 0);
+      ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
+      serializeResourceLists (const ::flexisip::Xsd::ResourceLists::ResourceLists& x, 
+                              const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    void
-    operator<< (::xercesc::DOMElement&, const DisplayNameType&);
+      void
+      operator<< (::xercesc::DOMElement&, const DisplayNameType&);
 
-    void
-    operator<< (::xercesc::DOMElement&, const List&);
+      void
+      operator<< (::xercesc::DOMElement&, const List&);
 
-    void
-    operator<< (::xercesc::DOMElement&, const DisplayName&);
+      void
+      operator<< (::xercesc::DOMElement&, const DisplayName&);
 
-    void
-    operator<< (::xercesc::DOMElement&, const ResourceLists&);
+      void
+      operator<< (::xercesc::DOMElement&, const ResourceLists&);
+    }
   }
 }
 

@@ -108,180 +108,189 @@
 
 #include <xsd/cxx/tree/std-ostream-operators.hxx>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace XmlSchema
+  namespace Xsd
   {
-    // anyType and anySimpleType.
-    //
-    typedef ::xsd::cxx::tree::type Type;
-    typedef ::xsd::cxx::tree::simple_type< char, Type > SimpleType;
-    typedef ::xsd::cxx::tree::type Container;
-
-    // 8-bit
-    //
-    typedef signed char Byte;
-    typedef unsigned char UnsignedByte;
-
-    // 16-bit
-    //
-    typedef short Short;
-    typedef unsigned short UnsignedShort;
-
-    // 32-bit
-    //
-    typedef int Int;
-    typedef unsigned int UnsignedInt;
-
-    // 64-bit
-    //
-    typedef long long Long;
-    typedef unsigned long long UnsignedLong;
-
-    // Supposed to be arbitrary-length integral types.
-    //
-    typedef long long Integer;
-    typedef long long NonPositiveInteger;
-    typedef unsigned long long NonNegativeInteger;
-    typedef unsigned long long PositiveInteger;
-    typedef long long NegativeInteger;
-
-    // Boolean.
-    //
-    typedef bool Boolean;
-
-    // Floating-point types.
-    //
-    typedef float Float;
-    typedef double Double;
-    typedef double Decimal;
-
-    // String types.
-    //
-    typedef ::xsd::cxx::tree::string< char, SimpleType > String;
-    typedef ::xsd::cxx::tree::normalized_string< char, String > NormalizedString;
-    typedef ::xsd::cxx::tree::token< char, NormalizedString > Token;
-    typedef ::xsd::cxx::tree::name< char, Token > Name;
-    typedef ::xsd::cxx::tree::nmtoken< char, Token > Nmtoken;
-    typedef ::xsd::cxx::tree::nmtokens< char, SimpleType, Nmtoken > Nmtokens;
-    typedef ::xsd::cxx::tree::ncname< char, Name > Ncname;
-    typedef ::xsd::cxx::tree::language< char, Token > Language;
-
-    // ID/IDREF.
-    //
-    typedef ::xsd::cxx::tree::id< char, Ncname > Id;
-    typedef ::xsd::cxx::tree::idref< char, Ncname, Type > Idref;
-    typedef ::xsd::cxx::tree::idrefs< char, SimpleType, Idref > Idrefs;
-
-    // URI.
-    //
-    typedef ::xsd::cxx::tree::uri< char, SimpleType > Uri;
-
-    // Qualified name.
-    //
-    typedef ::xsd::cxx::tree::qname< char, SimpleType, Uri, Ncname > Qname;
-
-    // Binary.
-    //
-    typedef ::xsd::cxx::tree::buffer< char > Buffer;
-    typedef ::xsd::cxx::tree::base64_binary< char, SimpleType > Base64Binary;
-    typedef ::xsd::cxx::tree::hex_binary< char, SimpleType > HexBinary;
-
-    // Date/time.
-    //
-    typedef ::xsd::cxx::tree::time_zone TimeZone;
-    typedef ::xsd::cxx::tree::date< char, SimpleType > Date;
-    typedef ::xsd::cxx::tree::date_time< char, SimpleType > DateTime;
-    typedef ::xsd::cxx::tree::duration< char, SimpleType > Duration;
-    typedef ::xsd::cxx::tree::gday< char, SimpleType > Gday;
-    typedef ::xsd::cxx::tree::gmonth< char, SimpleType > Gmonth;
-    typedef ::xsd::cxx::tree::gmonth_day< char, SimpleType > GmonthDay;
-    typedef ::xsd::cxx::tree::gyear< char, SimpleType > Gyear;
-    typedef ::xsd::cxx::tree::gyear_month< char, SimpleType > GyearMonth;
-    typedef ::xsd::cxx::tree::time< char, SimpleType > Time;
-
-    // Entity.
-    //
-    typedef ::xsd::cxx::tree::entity< char, Ncname > Entity;
-    typedef ::xsd::cxx::tree::entities< char, SimpleType, Entity > Entities;
-
-    typedef ::xsd::cxx::tree::content_order ContentOrder;
-    // Namespace information and list stream. Used in
-    // serialization functions.
-    //
-    typedef ::xsd::cxx::xml::dom::namespace_info< char > NamespaceInfo;
-    typedef ::xsd::cxx::xml::dom::namespace_infomap< char > NamespaceInfomap;
-    typedef ::xsd::cxx::tree::list_stream< char > ListStream;
-    typedef ::xsd::cxx::tree::as_double< Double > AsDouble;
-    typedef ::xsd::cxx::tree::as_decimal< Decimal > AsDecimal;
-    typedef ::xsd::cxx::tree::facet Facet;
-
-    // Flags and properties.
-    //
-    typedef ::xsd::cxx::tree::flags Flags;
-    typedef ::xsd::cxx::tree::properties< char > Properties;
-
-    // Parsing/serialization diagnostics.
-    //
-    typedef ::xsd::cxx::tree::severity Severity;
-    typedef ::xsd::cxx::tree::error< char > Error;
-    typedef ::xsd::cxx::tree::diagnostics< char > Diagnostics;
-
-    // Exceptions.
-    //
-    typedef ::xsd::cxx::tree::exception< char > Exception;
-    typedef ::xsd::cxx::tree::bounds< char > Bounds;
-    typedef ::xsd::cxx::tree::duplicate_id< char > DuplicateId;
-    typedef ::xsd::cxx::tree::parsing< char > Parsing;
-    typedef ::xsd::cxx::tree::expected_element< char > ExpectedElement;
-    typedef ::xsd::cxx::tree::unexpected_element< char > UnexpectedElement;
-    typedef ::xsd::cxx::tree::expected_attribute< char > ExpectedAttribute;
-    typedef ::xsd::cxx::tree::unexpected_enumerator< char > UnexpectedEnumerator;
-    typedef ::xsd::cxx::tree::expected_text_content< char > ExpectedTextContent;
-    typedef ::xsd::cxx::tree::no_prefix_mapping< char > NoPrefixMapping;
-    typedef ::xsd::cxx::tree::serialization< char > Serialization;
-
-    // Error handler callback interface.
-    //
-    typedef ::xsd::cxx::xml::error_handler< char > ErrorHandler;
-
-    // DOM interaction.
-    //
-    namespace dom
+    namespace XmlSchema
     {
-      // Automatic pointer for DOMDocument.
+      // anyType and anySimpleType.
       //
-      using ::xsd::cxx::xml::dom::unique_ptr;
+      typedef ::xsd::cxx::tree::type Type;
+      typedef ::xsd::cxx::tree::simple_type< char, Type > SimpleType;
+      typedef ::xsd::cxx::tree::type Container;
 
-#ifndef XSD_CXX_TREE_TREE_NODE_KEY__XSD__XMLSCHEMA
-#define XSD_CXX_TREE_TREE_NODE_KEY__XSD__XMLSCHEMA
-      // DOM user data key for back pointers to tree nodes.
+      // 8-bit
       //
-      const XMLCh* const treeNodeKey = ::xsd::cxx::tree::user_data_keys::node;
+      typedef signed char Byte;
+      typedef unsigned char UnsignedByte;
+
+      // 16-bit
+      //
+      typedef short Short;
+      typedef unsigned short UnsignedShort;
+
+      // 32-bit
+      //
+      typedef int Int;
+      typedef unsigned int UnsignedInt;
+
+      // 64-bit
+      //
+      typedef long long Long;
+      typedef unsigned long long UnsignedLong;
+
+      // Supposed to be arbitrary-length integral types.
+      //
+      typedef long long Integer;
+      typedef long long NonPositiveInteger;
+      typedef unsigned long long NonNegativeInteger;
+      typedef unsigned long long PositiveInteger;
+      typedef long long NegativeInteger;
+
+      // Boolean.
+      //
+      typedef bool Boolean;
+
+      // Floating-point types.
+      //
+      typedef float Float;
+      typedef double Double;
+      typedef double Decimal;
+
+      // String types.
+      //
+      typedef ::xsd::cxx::tree::string< char, SimpleType > String;
+      typedef ::xsd::cxx::tree::normalized_string< char, String > NormalizedString;
+      typedef ::xsd::cxx::tree::token< char, NormalizedString > Token;
+      typedef ::xsd::cxx::tree::name< char, Token > Name;
+      typedef ::xsd::cxx::tree::nmtoken< char, Token > Nmtoken;
+      typedef ::xsd::cxx::tree::nmtokens< char, SimpleType, Nmtoken > Nmtokens;
+      typedef ::xsd::cxx::tree::ncname< char, Name > Ncname;
+      typedef ::xsd::cxx::tree::language< char, Token > Language;
+
+      // ID/IDREF.
+      //
+      typedef ::xsd::cxx::tree::id< char, Ncname > Id;
+      typedef ::xsd::cxx::tree::idref< char, Ncname, Type > Idref;
+      typedef ::xsd::cxx::tree::idrefs< char, SimpleType, Idref > Idrefs;
+
+      // URI.
+      //
+      typedef ::xsd::cxx::tree::uri< char, SimpleType > Uri;
+
+      // Qualified name.
+      //
+      typedef ::xsd::cxx::tree::qname< char, SimpleType, Uri, Ncname > Qname;
+
+      // Binary.
+      //
+      typedef ::xsd::cxx::tree::buffer< char > Buffer;
+      typedef ::xsd::cxx::tree::base64_binary< char, SimpleType > Base64Binary;
+      typedef ::xsd::cxx::tree::hex_binary< char, SimpleType > HexBinary;
+
+      // Date/time.
+      //
+      typedef ::xsd::cxx::tree::time_zone TimeZone;
+      typedef ::xsd::cxx::tree::date< char, SimpleType > Date;
+      typedef ::xsd::cxx::tree::date_time< char, SimpleType > DateTime;
+      typedef ::xsd::cxx::tree::duration< char, SimpleType > Duration;
+      typedef ::xsd::cxx::tree::gday< char, SimpleType > Gday;
+      typedef ::xsd::cxx::tree::gmonth< char, SimpleType > Gmonth;
+      typedef ::xsd::cxx::tree::gmonth_day< char, SimpleType > GmonthDay;
+      typedef ::xsd::cxx::tree::gyear< char, SimpleType > Gyear;
+      typedef ::xsd::cxx::tree::gyear_month< char, SimpleType > GyearMonth;
+      typedef ::xsd::cxx::tree::time< char, SimpleType > Time;
+
+      // Entity.
+      //
+      typedef ::xsd::cxx::tree::entity< char, Ncname > Entity;
+      typedef ::xsd::cxx::tree::entities< char, SimpleType, Entity > Entities;
+
+      typedef ::xsd::cxx::tree::content_order ContentOrder;
+      // Namespace information and list stream. Used in
+      // serialization functions.
+      //
+      typedef ::xsd::cxx::xml::dom::namespace_info< char > NamespaceInfo;
+      typedef ::xsd::cxx::xml::dom::namespace_infomap< char > NamespaceInfomap;
+      typedef ::xsd::cxx::tree::list_stream< char > ListStream;
+      typedef ::xsd::cxx::tree::as_double< Double > AsDouble;
+      typedef ::xsd::cxx::tree::as_decimal< Decimal > AsDecimal;
+      typedef ::xsd::cxx::tree::facet Facet;
+
+      // Flags and properties.
+      //
+      typedef ::xsd::cxx::tree::flags Flags;
+      typedef ::xsd::cxx::tree::properties< char > Properties;
+
+      // Parsing/serialization diagnostics.
+      //
+      typedef ::xsd::cxx::tree::severity Severity;
+      typedef ::xsd::cxx::tree::error< char > Error;
+      typedef ::xsd::cxx::tree::diagnostics< char > Diagnostics;
+
+      // Exceptions.
+      //
+      typedef ::xsd::cxx::tree::exception< char > Exception;
+      typedef ::xsd::cxx::tree::bounds< char > Bounds;
+      typedef ::xsd::cxx::tree::duplicate_id< char > DuplicateId;
+      typedef ::xsd::cxx::tree::parsing< char > Parsing;
+      typedef ::xsd::cxx::tree::expected_element< char > ExpectedElement;
+      typedef ::xsd::cxx::tree::unexpected_element< char > UnexpectedElement;
+      typedef ::xsd::cxx::tree::expected_attribute< char > ExpectedAttribute;
+      typedef ::xsd::cxx::tree::unexpected_enumerator< char > UnexpectedEnumerator;
+      typedef ::xsd::cxx::tree::expected_text_content< char > ExpectedTextContent;
+      typedef ::xsd::cxx::tree::no_prefix_mapping< char > NoPrefixMapping;
+      typedef ::xsd::cxx::tree::serialization< char > Serialization;
+
+      // Error handler callback interface.
+      //
+      typedef ::xsd::cxx::xml::error_handler< char > ErrorHandler;
+
+      // DOM interaction.
+      //
+      namespace dom
+      {
+        // Automatic pointer for DOMDocument.
+        //
+        using ::xsd::cxx::xml::dom::unique_ptr;
+
+#ifndef XSD_CXX_TREE_TREE_NODE_KEY__FLEXISIP__XSD__XMLSCHEMA
+#define XSD_CXX_TREE_TREE_NODE_KEY__FLEXISIP__XSD__XMLSCHEMA
+        // DOM user data key for back pointers to tree nodes.
+        //
+        const XMLCh* const treeNodeKey = ::xsd::cxx::tree::user_data_keys::node;
 #endif
+      }
     }
   }
 }
 
 // Forward declarations.
 //
-namespace Xsd
+namespace flexisip
 {
-  namespace DataModel
+  namespace Xsd
   {
-    class Timestamp_t;
-    class DeviceID_t;
-    class Note_t;
-    class Empty;
+    namespace DataModel
+    {
+      class Timestamp_t;
+      class DeviceID_t;
+      class Note_t;
+      class Empty;
+    }
   }
 }
 
-namespace Xsd
+namespace flexisip
 {
-  namespace DataModel
+  namespace Xsd
   {
-    class Device;
-    class Person;
+    namespace DataModel
+    {
+      class Device;
+      class Person;
+    }
   }
 }
 
@@ -306,490 +315,502 @@ namespace Xsd
 
 #include "rpid.hh"
 
-namespace Xsd
+namespace flexisip
 {
-  namespace DataModel
+  namespace Xsd
   {
-    class Timestamp_t: public ::Xsd::XmlSchema::DateTime
+    namespace DataModel
     {
-      public:
-      // Constructors.
-      //
-      Timestamp_t (const ::Xsd::XmlSchema::DateTime&);
+      class Timestamp_t: public ::flexisip::Xsd::XmlSchema::DateTime
+      {
+        public:
+        // Constructors.
+        //
+        Timestamp_t (const ::flexisip::Xsd::XmlSchema::DateTime&);
 
-      Timestamp_t (const ::xercesc::DOMElement& e,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   ::Xsd::XmlSchema::Container* c = 0);
+        Timestamp_t (const ::xercesc::DOMElement& e,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      Timestamp_t (const ::xercesc::DOMAttr& a,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   ::Xsd::XmlSchema::Container* c = 0);
+        Timestamp_t (const ::xercesc::DOMAttr& a,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      Timestamp_t (const ::std::string& s,
-                   const ::xercesc::DOMElement* e,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   ::Xsd::XmlSchema::Container* c = 0);
+        Timestamp_t (const ::std::string& s,
+                     const ::xercesc::DOMElement* e,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      Timestamp_t (const Timestamp_t& x,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   ::Xsd::XmlSchema::Container* c = 0);
+        Timestamp_t (const Timestamp_t& x,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      virtual Timestamp_t*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
+        virtual Timestamp_t*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
-      virtual 
-      ~Timestamp_t ();
-    };
+        virtual 
+        ~Timestamp_t ();
+      };
 
-    class DeviceID_t: public ::Xsd::XmlSchema::Uri
-    {
-      public:
-      // Constructors.
-      //
-      DeviceID_t (const ::Xsd::XmlSchema::Uri&);
+      class DeviceID_t: public ::flexisip::Xsd::XmlSchema::Uri
+      {
+        public:
+        // Constructors.
+        //
+        DeviceID_t (const ::flexisip::Xsd::XmlSchema::Uri&);
 
-      DeviceID_t (const ::xercesc::DOMElement& e,
-                  ::Xsd::XmlSchema::Flags f = 0,
-                  ::Xsd::XmlSchema::Container* c = 0);
+        DeviceID_t (const ::xercesc::DOMElement& e,
+                    ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                    ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      DeviceID_t (const ::xercesc::DOMAttr& a,
-                  ::Xsd::XmlSchema::Flags f = 0,
-                  ::Xsd::XmlSchema::Container* c = 0);
+        DeviceID_t (const ::xercesc::DOMAttr& a,
+                    ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                    ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      DeviceID_t (const ::std::string& s,
-                  const ::xercesc::DOMElement* e,
-                  ::Xsd::XmlSchema::Flags f = 0,
-                  ::Xsd::XmlSchema::Container* c = 0);
+        DeviceID_t (const ::std::string& s,
+                    const ::xercesc::DOMElement* e,
+                    ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                    ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      DeviceID_t (const DeviceID_t& x,
-                  ::Xsd::XmlSchema::Flags f = 0,
-                  ::Xsd::XmlSchema::Container* c = 0);
+        DeviceID_t (const DeviceID_t& x,
+                    ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                    ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      virtual DeviceID_t*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
+        virtual DeviceID_t*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
-      virtual 
-      ~DeviceID_t ();
-    };
+        virtual 
+        ~DeviceID_t ();
+      };
 
-    class Note_t: public ::Xsd::XmlSchema::String
-    {
-      public:
-      // lang
-      //
-      typedef ::namespace_::Lang LangType;
-      typedef ::xsd::cxx::tree::optional< LangType > LangOptional;
-      typedef ::xsd::cxx::tree::traits< LangType, char > LangTraits;
+      class Note_t: public ::flexisip::Xsd::XmlSchema::String
+      {
+        public:
+        // lang
+        //
+        typedef ::flexisip::Xsd::Namespace::Lang LangType;
+        typedef ::xsd::cxx::tree::optional< LangType > LangOptional;
+        typedef ::xsd::cxx::tree::traits< LangType, char > LangTraits;
 
-      const LangOptional&
-      getLang () const;
+        const LangOptional&
+        getLang () const;
 
-      LangOptional&
-      getLang ();
+        LangOptional&
+        getLang ();
 
-      void
-      setLang (const LangType& x);
+        void
+        setLang (const LangType& x);
 
-      void
-      setLang (const LangOptional& x);
+        void
+        setLang (const LangOptional& x);
 
-      void
-      setLang (::std::unique_ptr< LangType > p);
+        void
+        setLang (::std::unique_ptr< LangType > p);
 
-      // Constructors.
-      //
-      Note_t ();
+        // Constructors.
+        //
+        Note_t ();
 
-      Note_t (const char*);
+        Note_t (const char*);
 
-      Note_t (const ::std::string&);
+        Note_t (const ::std::string&);
 
-      Note_t (const ::Xsd::XmlSchema::String&);
+        Note_t (const ::flexisip::Xsd::XmlSchema::String&);
 
-      Note_t (const ::xercesc::DOMElement& e,
-              ::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0);
+        Note_t (const ::xercesc::DOMElement& e,
+                ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      Note_t (const Note_t& x,
-              ::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0);
+        Note_t (const Note_t& x,
+                ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      virtual Note_t*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
+        virtual Note_t*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
-      Note_t&
-      operator= (const Note_t& x);
+        Note_t&
+        operator= (const Note_t& x);
 
-      virtual 
-      ~Note_t ();
+        virtual 
+        ~Note_t ();
 
-      // Implementation.
-      //
-      protected:
-      void
-      parse (::xsd::cxx::xml::dom::parser< char >&,
-             ::Xsd::XmlSchema::Flags);
+        // Implementation.
+        //
+        protected:
+        void
+        parse (::xsd::cxx::xml::dom::parser< char >&,
+               ::flexisip::Xsd::XmlSchema::Flags);
 
-      protected:
-      LangOptional lang_;
-    };
+        protected:
+        LangOptional lang_;
+      };
 
-    class Empty: public ::Xsd::XmlSchema::Type
-    {
-      public:
-      // Constructors.
-      //
-      Empty ();
+      class Empty: public ::flexisip::Xsd::XmlSchema::Type
+      {
+        public:
+        // Constructors.
+        //
+        Empty ();
 
-      Empty (const ::xercesc::DOMElement& e,
-             ::Xsd::XmlSchema::Flags f = 0,
-             ::Xsd::XmlSchema::Container* c = 0);
+        Empty (const ::xercesc::DOMElement& e,
+               ::flexisip::Xsd::XmlSchema::Flags f = 0,
+               ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      Empty (const ::xercesc::DOMAttr& a,
-             ::Xsd::XmlSchema::Flags f = 0,
-             ::Xsd::XmlSchema::Container* c = 0);
+        Empty (const ::xercesc::DOMAttr& a,
+               ::flexisip::Xsd::XmlSchema::Flags f = 0,
+               ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      Empty (const ::std::string& s,
-             const ::xercesc::DOMElement* e,
-             ::Xsd::XmlSchema::Flags f = 0,
-             ::Xsd::XmlSchema::Container* c = 0);
+        Empty (const ::std::string& s,
+               const ::xercesc::DOMElement* e,
+               ::flexisip::Xsd::XmlSchema::Flags f = 0,
+               ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      Empty (const Empty& x,
-             ::Xsd::XmlSchema::Flags f = 0,
-             ::Xsd::XmlSchema::Container* c = 0);
+        Empty (const Empty& x,
+               ::flexisip::Xsd::XmlSchema::Flags f = 0,
+               ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      virtual Empty*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
+        virtual Empty*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
-      virtual 
-      ~Empty ();
-    };
+        virtual 
+        ~Empty ();
+      };
+    }
   }
 }
 
-namespace Xsd
+namespace flexisip
 {
-  namespace DataModel
+  namespace Xsd
   {
-    class Device: public ::Xsd::XmlSchema::Type
+    namespace DataModel
     {
-      public:
-      // any
-      //
-      typedef ::xsd::cxx::tree::element_sequence AnySequence;
-      typedef AnySequence::iterator AnyIterator;
-      typedef AnySequence::const_iterator AnyConstIterator;
+      class Device: public ::flexisip::Xsd::XmlSchema::Type
+      {
+        public:
+        // any
+        //
+        typedef ::xsd::cxx::tree::element_sequence AnySequence;
+        typedef AnySequence::iterator AnyIterator;
+        typedef AnySequence::const_iterator AnyConstIterator;
 
-      const AnySequence&
-      getAny () const;
+        const AnySequence&
+        getAny () const;
 
-      AnySequence&
-      getAny ();
+        AnySequence&
+        getAny ();
 
-      void
-      setAny (const AnySequence& s);
+        void
+        setAny (const AnySequence& s);
 
-      // deviceID
-      //
-      typedef ::Xsd::DataModel::DeviceID_t DeviceIDType;
-      typedef ::xsd::cxx::tree::traits< DeviceIDType, char > DeviceIDTraits;
+        // deviceID
+        //
+        typedef ::flexisip::Xsd::DataModel::DeviceID_t DeviceIDType;
+        typedef ::xsd::cxx::tree::traits< DeviceIDType, char > DeviceIDTraits;
 
-      const DeviceIDType&
-      getDeviceID () const;
+        const DeviceIDType&
+        getDeviceID () const;
 
-      DeviceIDType&
-      getDeviceID ();
+        DeviceIDType&
+        getDeviceID ();
 
-      void
-      setDeviceID (const DeviceIDType& x);
+        void
+        setDeviceID (const DeviceIDType& x);
 
-      void
-      setDeviceID (::std::unique_ptr< DeviceIDType > p);
+        void
+        setDeviceID (::std::unique_ptr< DeviceIDType > p);
 
-      ::std::unique_ptr< DeviceIDType >
-      setDetachDeviceid ();
+        ::std::unique_ptr< DeviceIDType >
+        setDetachDeviceid ();
 
-      // note
-      //
-      typedef ::Xsd::DataModel::Note_t NoteType;
-      typedef ::xsd::cxx::tree::sequence< NoteType > NoteSequence;
-      typedef NoteSequence::iterator NoteIterator;
-      typedef NoteSequence::const_iterator NoteConstIterator;
-      typedef ::xsd::cxx::tree::traits< NoteType, char > NoteTraits;
+        // note
+        //
+        typedef ::flexisip::Xsd::DataModel::Note_t NoteType;
+        typedef ::xsd::cxx::tree::sequence< NoteType > NoteSequence;
+        typedef NoteSequence::iterator NoteIterator;
+        typedef NoteSequence::const_iterator NoteConstIterator;
+        typedef ::xsd::cxx::tree::traits< NoteType, char > NoteTraits;
 
-      const NoteSequence&
-      getNote () const;
+        const NoteSequence&
+        getNote () const;
 
-      NoteSequence&
-      getNote ();
-
-      void
-      setNote (const NoteSequence& s);
-
-      // timestamp
-      //
-      typedef ::Xsd::DataModel::Timestamp_t TimestampType;
-      typedef ::xsd::cxx::tree::optional< TimestampType > TimestampOptional;
-      typedef ::xsd::cxx::tree::traits< TimestampType, char > TimestampTraits;
-
-      const TimestampOptional&
-      getTimestamp () const;
-
-      TimestampOptional&
-      getTimestamp ();
+        NoteSequence&
+        getNote ();
+
+        void
+        setNote (const NoteSequence& s);
+
+        // timestamp
+        //
+        typedef ::flexisip::Xsd::DataModel::Timestamp_t TimestampType;
+        typedef ::xsd::cxx::tree::optional< TimestampType > TimestampOptional;
+        typedef ::xsd::cxx::tree::traits< TimestampType, char > TimestampTraits;
+
+        const TimestampOptional&
+        getTimestamp () const;
+
+        TimestampOptional&
+        getTimestamp ();
+
+        void
+        setTimestamp (const TimestampType& x);
+
+        void
+        setTimestamp (const TimestampOptional& x);
+
+        void
+        setTimestamp (::std::unique_ptr< TimestampType > p);
+
+        // id
+        //
+        typedef ::flexisip::Xsd::XmlSchema::Id IdType;
+        typedef ::xsd::cxx::tree::traits< IdType, char > IdTraits;
+
+        const IdType&
+        getId () const;
+
+        IdType&
+        getId ();
+
+        void
+        setId (const IdType& x);
+
+        void
+        setId (::std::unique_ptr< IdType > p);
+
+        ::std::unique_ptr< IdType >
+        setDetachId ();
+
+        // DOMDocument for wildcard content.
+        //
+        const ::xercesc::DOMDocument&
+        getDomDocument () const;
 
-      void
-      setTimestamp (const TimestampType& x);
-
-      void
-      setTimestamp (const TimestampOptional& x);
-
-      void
-      setTimestamp (::std::unique_ptr< TimestampType > p);
-
-      // id
-      //
-      typedef ::Xsd::XmlSchema::Id IdType;
-      typedef ::xsd::cxx::tree::traits< IdType, char > IdTraits;
-
-      const IdType&
-      getId () const;
-
-      IdType&
-      getId ();
-
-      void
-      setId (const IdType& x);
-
-      void
-      setId (::std::unique_ptr< IdType > p);
-
-      ::std::unique_ptr< IdType >
-      setDetachId ();
-
-      // DOMDocument for wildcard content.
-      //
-      const ::xercesc::DOMDocument&
-      getDomDocument () const;
+        ::xercesc::DOMDocument&
+        getDomDocument ();
+
+        // Constructors.
+        //
+        Device (const DeviceIDType&,
+                const IdType&);
+
+        Device (const ::xercesc::DOMElement& e,
+                ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        Device (const Device& x,
+                ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      ::xercesc::DOMDocument&
-      getDomDocument ();
-
-      // Constructors.
-      //
-      Device (const DeviceIDType&,
-              const IdType&);
-
-      Device (const ::xercesc::DOMElement& e,
-              ::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0);
-
-      Device (const Device& x,
-              ::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0);
-
-      virtual Device*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
-
-      Device&
-      operator= (const Device& x);
-
-      virtual 
-      ~Device ();
-
-      // Implementation.
-      //
-      protected:
-      void
-      parse (::xsd::cxx::xml::dom::parser< char >&,
-             ::Xsd::XmlSchema::Flags);
-
-      protected:
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
-
-      AnySequence any_;
-      ::xsd::cxx::tree::one< DeviceIDType > deviceID_;
-      NoteSequence note_;
-      TimestampOptional timestamp_;
-      ::xsd::cxx::tree::one< IdType > id_;
-    };
-
-    class Person: public ::Xsd::XmlSchema::Type
-    {
-      public:
-      // note
-      //
-      typedef ::Xsd::DataModel::Note_t NoteType;
-      typedef ::xsd::cxx::tree::sequence< NoteType > NoteSequence;
-      typedef NoteSequence::iterator NoteIterator;
-      typedef NoteSequence::const_iterator NoteConstIterator;
-      typedef ::xsd::cxx::tree::traits< NoteType, char > NoteTraits;
+        virtual Device*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
-      const NoteSequence&
-      getNote () const;
+        Device&
+        operator= (const Device& x);
 
-      NoteSequence&
-      getNote ();
-
-      void
-      setNote (const NoteSequence& s);
-
-      // activities
-      //
-      typedef ::Xsd::Rpid::Activities ActivitiesType;
-      typedef ::xsd::cxx::tree::sequence< ActivitiesType > ActivitiesSequence;
-      typedef ActivitiesSequence::iterator ActivitiesIterator;
-      typedef ActivitiesSequence::const_iterator ActivitiesConstIterator;
-      typedef ::xsd::cxx::tree::traits< ActivitiesType, char > ActivitiesTraits;
-
-      const ActivitiesSequence&
-      getActivities () const;
+        virtual 
+        ~Device ();
+
+        // Implementation.
+        //
+        protected:
+        void
+        parse (::xsd::cxx::xml::dom::parser< char >&,
+               ::flexisip::Xsd::XmlSchema::Flags);
+
+        protected:
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
 
-      ActivitiesSequence&
-      getActivities ();
+        AnySequence any_;
+        ::xsd::cxx::tree::one< DeviceIDType > deviceID_;
+        NoteSequence note_;
+        TimestampOptional timestamp_;
+        ::xsd::cxx::tree::one< IdType > id_;
+      };
 
-      void
-      setActivities (const ActivitiesSequence& s);
-
-      // timestamp
-      //
-      typedef ::Xsd::DataModel::Timestamp_t TimestampType;
-      typedef ::xsd::cxx::tree::optional< TimestampType > TimestampOptional;
-      typedef ::xsd::cxx::tree::traits< TimestampType, char > TimestampTraits;
-
-      const TimestampOptional&
-      getTimestamp () const;
-
-      TimestampOptional&
-      getTimestamp ();
-
-      void
-      setTimestamp (const TimestampType& x);
-
-      void
-      setTimestamp (const TimestampOptional& x);
-
-      void
-      setTimestamp (::std::unique_ptr< TimestampType > p);
-
-      // id
-      //
-      typedef ::Xsd::XmlSchema::Id IdType;
-      typedef ::xsd::cxx::tree::traits< IdType, char > IdTraits;
-
-      const IdType&
-      getId () const;
-
-      IdType&
-      getId ();
-
-      void
-      setId (const IdType& x);
-
-      void
-      setId (::std::unique_ptr< IdType > p);
-
-      ::std::unique_ptr< IdType >
-      setDetachId ();
-
-      // any_attribute
-      //
-      typedef ::xsd::cxx::tree::attribute_set< char > AnyAttributeSet;
-      typedef AnyAttributeSet::iterator AnyAttributeIterator;
-      typedef AnyAttributeSet::const_iterator AnyAttributeConstIterator;
-
-      const AnyAttributeSet&
-      getAnyAttribute () const;
-
-      AnyAttributeSet&
-      getAnyAttribute ();
-
-      void
-      setAnyAttribute (const AnyAttributeSet& s);
-
-      // DOMDocument for wildcard content.
-      //
-      const ::xercesc::DOMDocument&
-      getDomDocument () const;
-
-      ::xercesc::DOMDocument&
-      getDomDocument ();
-
-      // Constructors.
-      //
-      Person (const IdType&);
-
-      Person (const ::xercesc::DOMElement& e,
-              ::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0);
-
-      Person (const Person& x,
-              ::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0);
-
-      virtual Person*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
-
-      Person&
-      operator= (const Person& x);
-
-      virtual 
-      ~Person ();
-
-      // Implementation.
-      //
-      protected:
-      void
-      parse (::xsd::cxx::xml::dom::parser< char >&,
-             ::Xsd::XmlSchema::Flags);
-
-      protected:
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
-
-      NoteSequence note_;
-      ActivitiesSequence activities_;
-      TimestampOptional timestamp_;
-      ::xsd::cxx::tree::one< IdType > id_;
-      AnyAttributeSet any_attribute_;
-    };
+      class Person: public ::flexisip::Xsd::XmlSchema::Type
+      {
+        public:
+        // note
+        //
+        typedef ::flexisip::Xsd::DataModel::Note_t NoteType;
+        typedef ::xsd::cxx::tree::sequence< NoteType > NoteSequence;
+        typedef NoteSequence::iterator NoteIterator;
+        typedef NoteSequence::const_iterator NoteConstIterator;
+        typedef ::xsd::cxx::tree::traits< NoteType, char > NoteTraits;
+
+        const NoteSequence&
+        getNote () const;
+
+        NoteSequence&
+        getNote ();
+
+        void
+        setNote (const NoteSequence& s);
+
+        // activities
+        //
+        typedef ::flexisip::Xsd::Rpid::Activities ActivitiesType;
+        typedef ::xsd::cxx::tree::sequence< ActivitiesType > ActivitiesSequence;
+        typedef ActivitiesSequence::iterator ActivitiesIterator;
+        typedef ActivitiesSequence::const_iterator ActivitiesConstIterator;
+        typedef ::xsd::cxx::tree::traits< ActivitiesType, char > ActivitiesTraits;
+
+        const ActivitiesSequence&
+        getActivities () const;
+
+        ActivitiesSequence&
+        getActivities ();
+
+        void
+        setActivities (const ActivitiesSequence& s);
+
+        // timestamp
+        //
+        typedef ::flexisip::Xsd::DataModel::Timestamp_t TimestampType;
+        typedef ::xsd::cxx::tree::optional< TimestampType > TimestampOptional;
+        typedef ::xsd::cxx::tree::traits< TimestampType, char > TimestampTraits;
+
+        const TimestampOptional&
+        getTimestamp () const;
+
+        TimestampOptional&
+        getTimestamp ();
+
+        void
+        setTimestamp (const TimestampType& x);
+
+        void
+        setTimestamp (const TimestampOptional& x);
+
+        void
+        setTimestamp (::std::unique_ptr< TimestampType > p);
+
+        // id
+        //
+        typedef ::flexisip::Xsd::XmlSchema::Id IdType;
+        typedef ::xsd::cxx::tree::traits< IdType, char > IdTraits;
+
+        const IdType&
+        getId () const;
+
+        IdType&
+        getId ();
+
+        void
+        setId (const IdType& x);
+
+        void
+        setId (::std::unique_ptr< IdType > p);
+
+        ::std::unique_ptr< IdType >
+        setDetachId ();
+
+        // any_attribute
+        //
+        typedef ::xsd::cxx::tree::attribute_set< char > AnyAttributeSet;
+        typedef AnyAttributeSet::iterator AnyAttributeIterator;
+        typedef AnyAttributeSet::const_iterator AnyAttributeConstIterator;
+
+        const AnyAttributeSet&
+        getAnyAttribute () const;
+
+        AnyAttributeSet&
+        getAnyAttribute ();
+
+        void
+        setAnyAttribute (const AnyAttributeSet& s);
+
+        // DOMDocument for wildcard content.
+        //
+        const ::xercesc::DOMDocument&
+        getDomDocument () const;
+
+        ::xercesc::DOMDocument&
+        getDomDocument ();
+
+        // Constructors.
+        //
+        Person (const IdType&);
+
+        Person (const ::xercesc::DOMElement& e,
+                ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        Person (const Person& x,
+                ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        virtual Person*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
+
+        Person&
+        operator= (const Person& x);
+
+        virtual 
+        ~Person ();
+
+        // Implementation.
+        //
+        protected:
+        void
+        parse (::xsd::cxx::xml::dom::parser< char >&,
+               ::flexisip::Xsd::XmlSchema::Flags);
+
+        protected:
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
+
+        NoteSequence note_;
+        ActivitiesSequence activities_;
+        TimestampOptional timestamp_;
+        ::xsd::cxx::tree::one< IdType > id_;
+        AnyAttributeSet any_attribute_;
+      };
+    }
   }
 }
 
 #include <iosfwd>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace DataModel
+  namespace Xsd
   {
-    ::std::ostream&
-    operator<< (::std::ostream&, const Timestamp_t&);
+    namespace DataModel
+    {
+      ::std::ostream&
+      operator<< (::std::ostream&, const Timestamp_t&);
 
-    ::std::ostream&
-    operator<< (::std::ostream&, const DeviceID_t&);
+      ::std::ostream&
+      operator<< (::std::ostream&, const DeviceID_t&);
 
-    ::std::ostream&
-    operator<< (::std::ostream&, const Note_t&);
+      ::std::ostream&
+      operator<< (::std::ostream&, const Note_t&);
 
-    ::std::ostream&
-    operator<< (::std::ostream&, const Empty&);
+      ::std::ostream&
+      operator<< (::std::ostream&, const Empty&);
+    }
   }
 }
 
-namespace Xsd
+namespace flexisip
 {
-  namespace DataModel
+  namespace Xsd
   {
-    ::std::ostream&
-    operator<< (::std::ostream&, const Device&);
+    namespace DataModel
+    {
+      ::std::ostream&
+      operator<< (::std::ostream&, const Device&);
 
-    ::std::ostream&
-    operator<< (::std::ostream&, const Person&);
+      ::std::ostream&
+      operator<< (::std::ostream&, const Person&);
+    }
   }
 }
 
@@ -799,295 +820,301 @@ namespace Xsd
 #include <xercesc/dom/DOMDocument.hpp>
 #include <xercesc/dom/DOMErrorHandler.hpp>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace DataModel
+  namespace Xsd
   {
+    namespace DataModel
+    {
+    }
   }
 }
 
-namespace Xsd
+namespace flexisip
 {
-  namespace DataModel
+  namespace Xsd
   {
-    // Parse a URI or a local file.
-    //
+    namespace DataModel
+    {
+      // Parse a URI or a local file.
+      //
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (const ::std::string& uri,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (const ::std::string& uri,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (const ::std::string& uri,
-                   ::Xsd::XmlSchema::ErrorHandler& eh,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (const ::std::string& uri,
+                     ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (const ::std::string& uri,
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (const ::std::string& uri,
+                     ::xercesc::DOMErrorHandler& eh,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
+
+      // Parse std::istream.
+      //
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (::std::istream& is,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (::std::istream& is,
+                     ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (::std::istream& is,
+                     ::xercesc::DOMErrorHandler& eh,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (::std::istream& is,
+                     const ::std::string& id,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (::std::istream& is,
+                     const ::std::string& id,
+                     ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (::std::istream& is,
+                     const ::std::string& id,
+                     ::xercesc::DOMErrorHandler& eh,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
+
+      // Parse xercesc::InputSource.
+      //
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (::xercesc::InputSource& is,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (::xercesc::InputSource& is,
+                     ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (::xercesc::InputSource& is,
+                     ::xercesc::DOMErrorHandler& eh,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
+
+      // Parse xercesc::DOMDocument.
+      //
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (const ::xercesc::DOMDocument& d,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
+
+      // Parse a URI or a local file.
+      //
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (const ::std::string& uri,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (const ::std::string& uri,
+                   ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (const ::std::string& uri,
                    ::xercesc::DOMErrorHandler& eh,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    // Parse std::istream.
-    //
+      // Parse std::istream.
+      //
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (::std::istream& is,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (::std::istream& is,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (::std::istream& is,
-                   ::Xsd::XmlSchema::ErrorHandler& eh,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (::std::istream& is,
+                   ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (::std::istream& is,
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (::std::istream& is,
                    ::xercesc::DOMErrorHandler& eh,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (::std::istream& is,
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (::std::istream& is,
                    const ::std::string& id,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (::std::istream& is,
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (::std::istream& is,
                    const ::std::string& id,
-                   ::Xsd::XmlSchema::ErrorHandler& eh,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                   ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (::std::istream& is,
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (::std::istream& is,
                    const ::std::string& id,
                    ::xercesc::DOMErrorHandler& eh,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    // Parse xercesc::InputSource.
-    //
+      // Parse xercesc::InputSource.
+      //
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (::xercesc::InputSource& is,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (::xercesc::InputSource& is,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (::xercesc::InputSource& is,
-                   ::Xsd::XmlSchema::ErrorHandler& eh,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (::xercesc::InputSource& is,
+                   ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (::xercesc::InputSource& is,
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (::xercesc::InputSource& is,
                    ::xercesc::DOMErrorHandler& eh,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    // Parse xercesc::DOMDocument.
-    //
+      // Parse xercesc::DOMDocument.
+      //
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (const ::xercesc::DOMDocument& d,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (const ::xercesc::DOMDocument& d,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    // Parse a URI or a local file.
-    //
+      // Parse a URI or a local file.
+      //
 
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (const ::std::string& uri,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (const ::std::string& uri,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (const ::std::string& uri,
-                 ::Xsd::XmlSchema::ErrorHandler& eh,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (const ::std::string& uri,
+                   ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (const ::std::string& uri,
-                 ::xercesc::DOMErrorHandler& eh,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (const ::std::string& uri,
+                   ::xercesc::DOMErrorHandler& eh,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    // Parse std::istream.
-    //
+      // Parse std::istream.
+      //
 
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (::std::istream& is,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (::std::istream& is,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (::std::istream& is,
-                 ::Xsd::XmlSchema::ErrorHandler& eh,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (::std::istream& is,
+                   ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (::std::istream& is,
-                 ::xercesc::DOMErrorHandler& eh,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (::std::istream& is,
+                   ::xercesc::DOMErrorHandler& eh,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (::std::istream& is,
-                 const ::std::string& id,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (::std::istream& is,
+                   const ::std::string& id,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (::std::istream& is,
-                 const ::std::string& id,
-                 ::Xsd::XmlSchema::ErrorHandler& eh,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (::std::istream& is,
+                   const ::std::string& id,
+                   ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (::std::istream& is,
-                 const ::std::string& id,
-                 ::xercesc::DOMErrorHandler& eh,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (::std::istream& is,
+                   const ::std::string& id,
+                   ::xercesc::DOMErrorHandler& eh,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    // Parse xercesc::InputSource.
-    //
+      // Parse xercesc::InputSource.
+      //
 
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (::xercesc::InputSource& is,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (::xercesc::InputSource& is,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (::xercesc::InputSource& is,
-                 ::Xsd::XmlSchema::ErrorHandler& eh,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (::xercesc::InputSource& is,
+                   ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (::xercesc::InputSource& is,
-                 ::xercesc::DOMErrorHandler& eh,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (::xercesc::InputSource& is,
+                   ::xercesc::DOMErrorHandler& eh,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    // Parse xercesc::DOMDocument.
-    //
+      // Parse xercesc::DOMDocument.
+      //
 
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (const ::xercesc::DOMDocument& d,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (const ::xercesc::DOMDocument& d,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
-
-    // Parse a URI or a local file.
-    //
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (const ::std::string& uri,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (const ::std::string& uri,
-                 ::Xsd::XmlSchema::ErrorHandler& eh,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (const ::std::string& uri,
-                 ::xercesc::DOMErrorHandler& eh,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
-
-    // Parse std::istream.
-    //
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (::std::istream& is,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (::std::istream& is,
-                 ::Xsd::XmlSchema::ErrorHandler& eh,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (::std::istream& is,
-                 ::xercesc::DOMErrorHandler& eh,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (::std::istream& is,
-                 const ::std::string& id,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (::std::istream& is,
-                 const ::std::string& id,
-                 ::Xsd::XmlSchema::ErrorHandler& eh,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (::std::istream& is,
-                 const ::std::string& id,
-                 ::xercesc::DOMErrorHandler& eh,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
-
-    // Parse xercesc::InputSource.
-    //
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (::xercesc::InputSource& is,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (::xercesc::InputSource& is,
-                 ::Xsd::XmlSchema::ErrorHandler& eh,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (::xercesc::InputSource& is,
-                 ::xercesc::DOMErrorHandler& eh,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
-
-    // Parse xercesc::DOMDocument.
-    //
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (const ::xercesc::DOMDocument& d,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
+                   ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
+    }
   }
 }
 
@@ -1099,258 +1126,264 @@ namespace Xsd
 
 #include <xsd/cxx/xml/dom/auto-ptr.hxx>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace DataModel
+  namespace Xsd
   {
-    void
-    operator<< (::xercesc::DOMElement&, const Timestamp_t&);
+    namespace DataModel
+    {
+      void
+      operator<< (::xercesc::DOMElement&, const Timestamp_t&);
 
-    void
-    operator<< (::xercesc::DOMAttr&, const Timestamp_t&);
+      void
+      operator<< (::xercesc::DOMAttr&, const Timestamp_t&);
 
-    void
-    operator<< (::Xsd::XmlSchema::ListStream&,
-                const Timestamp_t&);
+      void
+      operator<< (::flexisip::Xsd::XmlSchema::ListStream&,
+                  const Timestamp_t&);
 
-    void
-    operator<< (::xercesc::DOMElement&, const DeviceID_t&);
+      void
+      operator<< (::xercesc::DOMElement&, const DeviceID_t&);
 
-    void
-    operator<< (::xercesc::DOMAttr&, const DeviceID_t&);
+      void
+      operator<< (::xercesc::DOMAttr&, const DeviceID_t&);
 
-    void
-    operator<< (::Xsd::XmlSchema::ListStream&,
-                const DeviceID_t&);
+      void
+      operator<< (::flexisip::Xsd::XmlSchema::ListStream&,
+                  const DeviceID_t&);
 
-    void
-    operator<< (::xercesc::DOMElement&, const Note_t&);
+      void
+      operator<< (::xercesc::DOMElement&, const Note_t&);
 
-    void
-    operator<< (::xercesc::DOMElement&, const Empty&);
+      void
+      operator<< (::xercesc::DOMElement&, const Empty&);
 
-    void
-    operator<< (::xercesc::DOMAttr&, const Empty&);
+      void
+      operator<< (::xercesc::DOMAttr&, const Empty&);
 
-    void
-    operator<< (::Xsd::XmlSchema::ListStream&,
-                const Empty&);
+      void
+      operator<< (::flexisip::Xsd::XmlSchema::ListStream&,
+                  const Empty&);
+    }
   }
 }
 
-namespace Xsd
+namespace flexisip
 {
-  namespace DataModel
+  namespace Xsd
   {
-    // Serialize to std::ostream.
-    //
+    namespace DataModel
+    {
+      // Serialize to std::ostream.
+      //
 
-    void
-    serializeDeviceID (::std::ostream& os,
-                       const ::Xsd::DataModel::DeviceID_t& x, 
-                       const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+      void
+      serializeDeviceID (::std::ostream& os,
+                         const ::flexisip::Xsd::DataModel::DeviceID_t& x, 
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                         const ::std::string& e = "UTF-8",
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0);
+
+      void
+      serializeDeviceID (::std::ostream& os,
+                         const ::flexisip::Xsd::DataModel::DeviceID_t& x, 
+                         ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                         const ::std::string& e = "UTF-8",
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0);
+
+      void
+      serializeDeviceID (::std::ostream& os,
+                         const ::flexisip::Xsd::DataModel::DeviceID_t& x, 
+                         ::xercesc::DOMErrorHandler& eh,
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                         const ::std::string& e = "UTF-8",
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0);
+
+      // Serialize to xercesc::XMLFormatTarget.
+      //
+
+      void
+      serializeDeviceID (::xercesc::XMLFormatTarget& ft,
+                         const ::flexisip::Xsd::DataModel::DeviceID_t& x, 
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                         const ::std::string& e = "UTF-8",
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0);
+
+      void
+      serializeDeviceID (::xercesc::XMLFormatTarget& ft,
+                         const ::flexisip::Xsd::DataModel::DeviceID_t& x, 
+                         ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                         const ::std::string& e = "UTF-8",
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0);
+
+      void
+      serializeDeviceID (::xercesc::XMLFormatTarget& ft,
+                         const ::flexisip::Xsd::DataModel::DeviceID_t& x, 
+                         ::xercesc::DOMErrorHandler& eh,
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                         const ::std::string& e = "UTF-8",
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0);
+
+      // Serialize to an existing xercesc::DOMDocument.
+      //
+
+      void
+      serializeDeviceID (::xercesc::DOMDocument& d,
+                         const ::flexisip::Xsd::DataModel::DeviceID_t& x,
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0);
+
+      // Serialize to a new xercesc::DOMDocument.
+      //
+
+      ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
+      serializeDeviceID (const ::flexisip::Xsd::DataModel::DeviceID_t& x, 
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0);
+
+      // Serialize to std::ostream.
+      //
+
+      void
+      serializeDevice (::std::ostream& os,
+                       const ::flexisip::Xsd::DataModel::Device& x, 
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                        const ::std::string& e = "UTF-8",
-                       ::Xsd::XmlSchema::Flags f = 0);
+                       ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    void
-    serializeDeviceID (::std::ostream& os,
-                       const ::Xsd::DataModel::DeviceID_t& x, 
-                       ::Xsd::XmlSchema::ErrorHandler& eh,
-                       const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+      void
+      serializeDevice (::std::ostream& os,
+                       const ::flexisip::Xsd::DataModel::Device& x, 
+                       ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                        const ::std::string& e = "UTF-8",
-                       ::Xsd::XmlSchema::Flags f = 0);
+                       ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    void
-    serializeDeviceID (::std::ostream& os,
-                       const ::Xsd::DataModel::DeviceID_t& x, 
+      void
+      serializeDevice (::std::ostream& os,
+                       const ::flexisip::Xsd::DataModel::Device& x, 
                        ::xercesc::DOMErrorHandler& eh,
-                       const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                        const ::std::string& e = "UTF-8",
-                       ::Xsd::XmlSchema::Flags f = 0);
+                       ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    // Serialize to xercesc::XMLFormatTarget.
-    //
+      // Serialize to xercesc::XMLFormatTarget.
+      //
 
-    void
-    serializeDeviceID (::xercesc::XMLFormatTarget& ft,
-                       const ::Xsd::DataModel::DeviceID_t& x, 
-                       const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+      void
+      serializeDevice (::xercesc::XMLFormatTarget& ft,
+                       const ::flexisip::Xsd::DataModel::Device& x, 
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                        const ::std::string& e = "UTF-8",
-                       ::Xsd::XmlSchema::Flags f = 0);
+                       ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    void
-    serializeDeviceID (::xercesc::XMLFormatTarget& ft,
-                       const ::Xsd::DataModel::DeviceID_t& x, 
-                       ::Xsd::XmlSchema::ErrorHandler& eh,
-                       const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+      void
+      serializeDevice (::xercesc::XMLFormatTarget& ft,
+                       const ::flexisip::Xsd::DataModel::Device& x, 
+                       ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                        const ::std::string& e = "UTF-8",
-                       ::Xsd::XmlSchema::Flags f = 0);
+                       ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    void
-    serializeDeviceID (::xercesc::XMLFormatTarget& ft,
-                       const ::Xsd::DataModel::DeviceID_t& x, 
+      void
+      serializeDevice (::xercesc::XMLFormatTarget& ft,
+                       const ::flexisip::Xsd::DataModel::Device& x, 
                        ::xercesc::DOMErrorHandler& eh,
-                       const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                        const ::std::string& e = "UTF-8",
-                       ::Xsd::XmlSchema::Flags f = 0);
+                       ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    // Serialize to an existing xercesc::DOMDocument.
-    //
+      // Serialize to an existing xercesc::DOMDocument.
+      //
 
-    void
-    serializeDeviceID (::xercesc::DOMDocument& d,
-                       const ::Xsd::DataModel::DeviceID_t& x,
-                       ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializeDevice (::xercesc::DOMDocument& d,
+                       const ::flexisip::Xsd::DataModel::Device& x,
+                       ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    // Serialize to a new xercesc::DOMDocument.
-    //
+      // Serialize to a new xercesc::DOMDocument.
+      //
 
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
-    serializeDeviceID (const ::Xsd::DataModel::DeviceID_t& x, 
-                       const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                       ::Xsd::XmlSchema::Flags f = 0);
+      ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
+      serializeDevice (const ::flexisip::Xsd::DataModel::Device& x, 
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                       ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    // Serialize to std::ostream.
-    //
+      // Serialize to std::ostream.
+      //
 
-    void
-    serializeDevice (::std::ostream& os,
-                     const ::Xsd::DataModel::Device& x, 
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                     const ::std::string& e = "UTF-8",
-                     ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializePerson (::std::ostream& os,
+                       const ::flexisip::Xsd::DataModel::Person& x, 
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                       const ::std::string& e = "UTF-8",
+                       ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    void
-    serializeDevice (::std::ostream& os,
-                     const ::Xsd::DataModel::Device& x, 
-                     ::Xsd::XmlSchema::ErrorHandler& eh,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                     const ::std::string& e = "UTF-8",
-                     ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializePerson (::std::ostream& os,
+                       const ::flexisip::Xsd::DataModel::Person& x, 
+                       ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                       const ::std::string& e = "UTF-8",
+                       ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    void
-    serializeDevice (::std::ostream& os,
-                     const ::Xsd::DataModel::Device& x, 
-                     ::xercesc::DOMErrorHandler& eh,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                     const ::std::string& e = "UTF-8",
-                     ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializePerson (::std::ostream& os,
+                       const ::flexisip::Xsd::DataModel::Person& x, 
+                       ::xercesc::DOMErrorHandler& eh,
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                       const ::std::string& e = "UTF-8",
+                       ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    // Serialize to xercesc::XMLFormatTarget.
-    //
+      // Serialize to xercesc::XMLFormatTarget.
+      //
 
-    void
-    serializeDevice (::xercesc::XMLFormatTarget& ft,
-                     const ::Xsd::DataModel::Device& x, 
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                     const ::std::string& e = "UTF-8",
-                     ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializePerson (::xercesc::XMLFormatTarget& ft,
+                       const ::flexisip::Xsd::DataModel::Person& x, 
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                       const ::std::string& e = "UTF-8",
+                       ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    void
-    serializeDevice (::xercesc::XMLFormatTarget& ft,
-                     const ::Xsd::DataModel::Device& x, 
-                     ::Xsd::XmlSchema::ErrorHandler& eh,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                     const ::std::string& e = "UTF-8",
-                     ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializePerson (::xercesc::XMLFormatTarget& ft,
+                       const ::flexisip::Xsd::DataModel::Person& x, 
+                       ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                       const ::std::string& e = "UTF-8",
+                       ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    void
-    serializeDevice (::xercesc::XMLFormatTarget& ft,
-                     const ::Xsd::DataModel::Device& x, 
-                     ::xercesc::DOMErrorHandler& eh,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                     const ::std::string& e = "UTF-8",
-                     ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializePerson (::xercesc::XMLFormatTarget& ft,
+                       const ::flexisip::Xsd::DataModel::Person& x, 
+                       ::xercesc::DOMErrorHandler& eh,
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                       const ::std::string& e = "UTF-8",
+                       ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    // Serialize to an existing xercesc::DOMDocument.
-    //
+      // Serialize to an existing xercesc::DOMDocument.
+      //
 
-    void
-    serializeDevice (::xercesc::DOMDocument& d,
-                     const ::Xsd::DataModel::Device& x,
-                     ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializePerson (::xercesc::DOMDocument& d,
+                       const ::flexisip::Xsd::DataModel::Person& x,
+                       ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    // Serialize to a new xercesc::DOMDocument.
-    //
+      // Serialize to a new xercesc::DOMDocument.
+      //
 
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
-    serializeDevice (const ::Xsd::DataModel::Device& x, 
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                     ::Xsd::XmlSchema::Flags f = 0);
+      ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
+      serializePerson (const ::flexisip::Xsd::DataModel::Person& x, 
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                       ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    // Serialize to std::ostream.
-    //
+      void
+      operator<< (::xercesc::DOMElement&, const Device&);
 
-    void
-    serializePerson (::std::ostream& os,
-                     const ::Xsd::DataModel::Person& x, 
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                     const ::std::string& e = "UTF-8",
-                     ::Xsd::XmlSchema::Flags f = 0);
-
-    void
-    serializePerson (::std::ostream& os,
-                     const ::Xsd::DataModel::Person& x, 
-                     ::Xsd::XmlSchema::ErrorHandler& eh,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                     const ::std::string& e = "UTF-8",
-                     ::Xsd::XmlSchema::Flags f = 0);
-
-    void
-    serializePerson (::std::ostream& os,
-                     const ::Xsd::DataModel::Person& x, 
-                     ::xercesc::DOMErrorHandler& eh,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                     const ::std::string& e = "UTF-8",
-                     ::Xsd::XmlSchema::Flags f = 0);
-
-    // Serialize to xercesc::XMLFormatTarget.
-    //
-
-    void
-    serializePerson (::xercesc::XMLFormatTarget& ft,
-                     const ::Xsd::DataModel::Person& x, 
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                     const ::std::string& e = "UTF-8",
-                     ::Xsd::XmlSchema::Flags f = 0);
-
-    void
-    serializePerson (::xercesc::XMLFormatTarget& ft,
-                     const ::Xsd::DataModel::Person& x, 
-                     ::Xsd::XmlSchema::ErrorHandler& eh,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                     const ::std::string& e = "UTF-8",
-                     ::Xsd::XmlSchema::Flags f = 0);
-
-    void
-    serializePerson (::xercesc::XMLFormatTarget& ft,
-                     const ::Xsd::DataModel::Person& x, 
-                     ::xercesc::DOMErrorHandler& eh,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                     const ::std::string& e = "UTF-8",
-                     ::Xsd::XmlSchema::Flags f = 0);
-
-    // Serialize to an existing xercesc::DOMDocument.
-    //
-
-    void
-    serializePerson (::xercesc::DOMDocument& d,
-                     const ::Xsd::DataModel::Person& x,
-                     ::Xsd::XmlSchema::Flags f = 0);
-
-    // Serialize to a new xercesc::DOMDocument.
-    //
-
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
-    serializePerson (const ::Xsd::DataModel::Person& x, 
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                     ::Xsd::XmlSchema::Flags f = 0);
-
-    void
-    operator<< (::xercesc::DOMElement&, const Device&);
-
-    void
-    operator<< (::xercesc::DOMElement&, const Person&);
+      void
+      operator<< (::xercesc::DOMElement&, const Person&);
+    }
   }
 }
 
