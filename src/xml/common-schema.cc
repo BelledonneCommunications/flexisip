@@ -102,47 +102,47 @@ setLang (::std::unique_ptr< LangType > x)
 //
 
 Timestamp_t::
-Timestamp_t (const ::Xsd::XmlSchema::DateTime& _xsd_DateTime_base)
-: ::Xsd::XmlSchema::DateTime (_xsd_DateTime_base)
+Timestamp_t (const ::flexisip::Xsd::XmlSchema::DateTime& _xsd_DateTime_base)
+: ::flexisip::Xsd::XmlSchema::DateTime (_xsd_DateTime_base)
 {
 }
 
 Timestamp_t::
 Timestamp_t (const Timestamp_t& x,
-             ::Xsd::XmlSchema::Flags f,
-             ::Xsd::XmlSchema::Container* c)
-: ::Xsd::XmlSchema::DateTime (x, f, c)
+             ::flexisip::Xsd::XmlSchema::Flags f,
+             ::flexisip::Xsd::XmlSchema::Container* c)
+: ::flexisip::Xsd::XmlSchema::DateTime (x, f, c)
 {
 }
 
 Timestamp_t::
 Timestamp_t (const ::xercesc::DOMElement& e,
-             ::Xsd::XmlSchema::Flags f,
-             ::Xsd::XmlSchema::Container* c)
-: ::Xsd::XmlSchema::DateTime (e, f, c)
+             ::flexisip::Xsd::XmlSchema::Flags f,
+             ::flexisip::Xsd::XmlSchema::Container* c)
+: ::flexisip::Xsd::XmlSchema::DateTime (e, f, c)
 {
 }
 
 Timestamp_t::
 Timestamp_t (const ::xercesc::DOMAttr& a,
-             ::Xsd::XmlSchema::Flags f,
-             ::Xsd::XmlSchema::Container* c)
-: ::Xsd::XmlSchema::DateTime (a, f, c)
+             ::flexisip::Xsd::XmlSchema::Flags f,
+             ::flexisip::Xsd::XmlSchema::Container* c)
+: ::flexisip::Xsd::XmlSchema::DateTime (a, f, c)
 {
 }
 
 Timestamp_t::
 Timestamp_t (const ::std::string& s,
              const ::xercesc::DOMElement* e,
-             ::Xsd::XmlSchema::Flags f,
-             ::Xsd::XmlSchema::Container* c)
-: ::Xsd::XmlSchema::DateTime (s, e, f, c)
+             ::flexisip::Xsd::XmlSchema::Flags f,
+             ::flexisip::Xsd::XmlSchema::Container* c)
+: ::flexisip::Xsd::XmlSchema::DateTime (s, e, f, c)
 {
 }
 
 Timestamp_t* Timestamp_t::
-_clone (::Xsd::XmlSchema::Flags f,
-        ::Xsd::XmlSchema::Container* c) const
+_clone (::flexisip::Xsd::XmlSchema::Flags f,
+        ::flexisip::Xsd::XmlSchema::Container* c) const
 {
   return new class Timestamp_t (*this, f, c);
 }
@@ -156,47 +156,47 @@ Timestamp_t::
 //
 
 DeviceID_t::
-DeviceID_t (const ::Xsd::XmlSchema::Uri& _xsd_Uri_base)
-: ::Xsd::XmlSchema::Uri (_xsd_Uri_base)
+DeviceID_t (const ::flexisip::Xsd::XmlSchema::Uri& _xsd_Uri_base)
+: ::flexisip::Xsd::XmlSchema::Uri (_xsd_Uri_base)
 {
 }
 
 DeviceID_t::
 DeviceID_t (const DeviceID_t& x,
-            ::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c)
-: ::Xsd::XmlSchema::Uri (x, f, c)
+            ::flexisip::Xsd::XmlSchema::Flags f,
+            ::flexisip::Xsd::XmlSchema::Container* c)
+: ::flexisip::Xsd::XmlSchema::Uri (x, f, c)
 {
 }
 
 DeviceID_t::
 DeviceID_t (const ::xercesc::DOMElement& e,
-            ::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c)
-: ::Xsd::XmlSchema::Uri (e, f, c)
+            ::flexisip::Xsd::XmlSchema::Flags f,
+            ::flexisip::Xsd::XmlSchema::Container* c)
+: ::flexisip::Xsd::XmlSchema::Uri (e, f, c)
 {
 }
 
 DeviceID_t::
 DeviceID_t (const ::xercesc::DOMAttr& a,
-            ::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c)
-: ::Xsd::XmlSchema::Uri (a, f, c)
+            ::flexisip::Xsd::XmlSchema::Flags f,
+            ::flexisip::Xsd::XmlSchema::Container* c)
+: ::flexisip::Xsd::XmlSchema::Uri (a, f, c)
 {
 }
 
 DeviceID_t::
 DeviceID_t (const ::std::string& s,
             const ::xercesc::DOMElement* e,
-            ::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c)
-: ::Xsd::XmlSchema::Uri (s, e, f, c)
+            ::flexisip::Xsd::XmlSchema::Flags f,
+            ::flexisip::Xsd::XmlSchema::Container* c)
+: ::flexisip::Xsd::XmlSchema::Uri (s, e, f, c)
 {
 }
 
 DeviceID_t* DeviceID_t::
-_clone (::Xsd::XmlSchema::Flags f,
-        ::Xsd::XmlSchema::Container* c) const
+_clone (::flexisip::Xsd::XmlSchema::Flags f,
+        ::flexisip::Xsd::XmlSchema::Container* c) const
 {
   return new class DeviceID_t (*this, f, c);
 }
@@ -211,49 +211,49 @@ DeviceID_t::
 
 Note_t::
 Note_t ()
-: ::Xsd::XmlSchema::String (),
+: ::flexisip::Xsd::XmlSchema::String (),
   lang_ (this)
 {
 }
 
 Note_t::
 Note_t (const char* _xsd_String_base)
-: ::Xsd::XmlSchema::String (_xsd_String_base),
+: ::flexisip::Xsd::XmlSchema::String (_xsd_String_base),
   lang_ (this)
 {
 }
 
 Note_t::
 Note_t (const ::std::string& _xsd_String_base)
-: ::Xsd::XmlSchema::String (_xsd_String_base),
+: ::flexisip::Xsd::XmlSchema::String (_xsd_String_base),
   lang_ (this)
 {
 }
 
 Note_t::
-Note_t (const ::Xsd::XmlSchema::String& _xsd_String_base)
-: ::Xsd::XmlSchema::String (_xsd_String_base),
+Note_t (const ::flexisip::Xsd::XmlSchema::String& _xsd_String_base)
+: ::flexisip::Xsd::XmlSchema::String (_xsd_String_base),
   lang_ (this)
 {
 }
 
 Note_t::
 Note_t (const Note_t& x,
-        ::Xsd::XmlSchema::Flags f,
-        ::Xsd::XmlSchema::Container* c)
-: ::Xsd::XmlSchema::String (x, f, c),
+        ::flexisip::Xsd::XmlSchema::Flags f,
+        ::flexisip::Xsd::XmlSchema::Container* c)
+: ::flexisip::Xsd::XmlSchema::String (x, f, c),
   lang_ (x.lang_, f, this)
 {
 }
 
 Note_t::
 Note_t (const ::xercesc::DOMElement& e,
-        ::Xsd::XmlSchema::Flags f,
-        ::Xsd::XmlSchema::Container* c)
-: ::Xsd::XmlSchema::String (e, f | ::Xsd::XmlSchema::Flags::base, c),
+        ::flexisip::Xsd::XmlSchema::Flags f,
+        ::flexisip::Xsd::XmlSchema::Container* c)
+: ::flexisip::Xsd::XmlSchema::String (e, f | ::flexisip::Xsd::XmlSchema::Flags::base, c),
   lang_ (this)
 {
-  if ((f & ::Xsd::XmlSchema::Flags::base) == 0)
+  if ((f & ::flexisip::Xsd::XmlSchema::Flags::base) == 0)
   {
     ::xsd::cxx::xml::dom::parser< char > p (e, false, false, true);
     this->parse (p, f);
@@ -262,7 +262,7 @@ Note_t (const ::xercesc::DOMElement& e,
 
 void Note_t::
 parse (::xsd::cxx::xml::dom::parser< char >& p,
-       ::Xsd::XmlSchema::Flags f)
+       ::flexisip::Xsd::XmlSchema::Flags f)
 {
   while (p.more_attributes ())
   {
@@ -279,8 +279,8 @@ parse (::xsd::cxx::xml::dom::parser< char >& p,
 }
 
 Note_t* Note_t::
-_clone (::Xsd::XmlSchema::Flags f,
-        ::Xsd::XmlSchema::Container* c) const
+_clone (::flexisip::Xsd::XmlSchema::Flags f,
+        ::flexisip::Xsd::XmlSchema::Container* c) const
 {
   return new class Note_t (*this, f, c);
 }
@@ -290,7 +290,7 @@ operator= (const Note_t& x)
 {
   if (this != &x)
   {
-    static_cast< ::Xsd::XmlSchema::String& > (*this) = x;
+    static_cast< ::flexisip::Xsd::XmlSchema::String& > (*this) = x;
     this->lang_ = x.lang_;
   }
 
@@ -307,46 +307,46 @@ Note_t::
 
 Empty::
 Empty ()
-: ::Xsd::XmlSchema::Type ()
+: ::flexisip::Xsd::XmlSchema::Type ()
 {
 }
 
 Empty::
 Empty (const Empty& x,
-       ::Xsd::XmlSchema::Flags f,
-       ::Xsd::XmlSchema::Container* c)
-: ::Xsd::XmlSchema::Type (x, f, c)
+       ::flexisip::Xsd::XmlSchema::Flags f,
+       ::flexisip::Xsd::XmlSchema::Container* c)
+: ::flexisip::Xsd::XmlSchema::Type (x, f, c)
 {
 }
 
 Empty::
 Empty (const ::xercesc::DOMElement& e,
-       ::Xsd::XmlSchema::Flags f,
-       ::Xsd::XmlSchema::Container* c)
-: ::Xsd::XmlSchema::Type (e, f, c)
+       ::flexisip::Xsd::XmlSchema::Flags f,
+       ::flexisip::Xsd::XmlSchema::Container* c)
+: ::flexisip::Xsd::XmlSchema::Type (e, f, c)
 {
 }
 
 Empty::
 Empty (const ::xercesc::DOMAttr& a,
-       ::Xsd::XmlSchema::Flags f,
-       ::Xsd::XmlSchema::Container* c)
-: ::Xsd::XmlSchema::Type (a, f, c)
+       ::flexisip::Xsd::XmlSchema::Flags f,
+       ::flexisip::Xsd::XmlSchema::Container* c)
+: ::flexisip::Xsd::XmlSchema::Type (a, f, c)
 {
 }
 
 Empty::
 Empty (const ::std::string& s,
        const ::xercesc::DOMElement* e,
-       ::Xsd::XmlSchema::Flags f,
-       ::Xsd::XmlSchema::Container* c)
-: ::Xsd::XmlSchema::Type (s, e, f, c)
+       ::flexisip::Xsd::XmlSchema::Flags f,
+       ::flexisip::Xsd::XmlSchema::Container* c)
+: ::flexisip::Xsd::XmlSchema::Type (s, e, f, c)
 {
 }
 
 Empty* Empty::
-_clone (::Xsd::XmlSchema::Flags f,
-        ::Xsd::XmlSchema::Container* c) const
+_clone (::flexisip::Xsd::XmlSchema::Flags f,
+        ::flexisip::Xsd::XmlSchema::Container* c) const
 {
   return new class Empty (*this, f, c);
 }
@@ -361,7 +361,7 @@ Empty::
 ::std::ostream&
 operator<< (::std::ostream& o, const Timestamp_t& i)
 {
-  o << static_cast< const ::Xsd::XmlSchema::DateTime& > (i);
+  o << static_cast< const ::flexisip::Xsd::XmlSchema::DateTime& > (i);
 
   return o;
 }
@@ -369,7 +369,7 @@ operator<< (::std::ostream& o, const Timestamp_t& i)
 ::std::ostream&
 operator<< (::std::ostream& o, const DeviceID_t& i)
 {
-  o << static_cast< const ::Xsd::XmlSchema::Uri& > (i);
+  o << static_cast< const ::flexisip::Xsd::XmlSchema::Uri& > (i);
 
   return o;
 }
@@ -377,7 +377,7 @@ operator<< (::std::ostream& o, const DeviceID_t& i)
 ::std::ostream&
 operator<< (::std::ostream& o, const Note_t& i)
 {
-  o << static_cast< const ::Xsd::XmlSchema::String& > (i);
+  o << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
 
   if (i.getLang ())
   {
@@ -404,45 +404,45 @@ operator<< (::std::ostream& o, const Empty&)
 void
 operator<< (::xercesc::DOMElement& e, const Timestamp_t& i)
 {
-  e << static_cast< const ::Xsd::XmlSchema::DateTime& > (i);
+  e << static_cast< const ::flexisip::Xsd::XmlSchema::DateTime& > (i);
 }
 
 void
 operator<< (::xercesc::DOMAttr& a, const Timestamp_t& i)
 {
-  a << static_cast< const ::Xsd::XmlSchema::DateTime& > (i);
+  a << static_cast< const ::flexisip::Xsd::XmlSchema::DateTime& > (i);
 }
 
 void
-operator<< (::Xsd::XmlSchema::ListStream& l,
+operator<< (::flexisip::Xsd::XmlSchema::ListStream& l,
             const Timestamp_t& i)
 {
-  l << static_cast< const ::Xsd::XmlSchema::DateTime& > (i);
+  l << static_cast< const ::flexisip::Xsd::XmlSchema::DateTime& > (i);
 }
 
 void
 operator<< (::xercesc::DOMElement& e, const DeviceID_t& i)
 {
-  e << static_cast< const ::Xsd::XmlSchema::Uri& > (i);
+  e << static_cast< const ::flexisip::Xsd::XmlSchema::Uri& > (i);
 }
 
 void
 operator<< (::xercesc::DOMAttr& a, const DeviceID_t& i)
 {
-  a << static_cast< const ::Xsd::XmlSchema::Uri& > (i);
+  a << static_cast< const ::flexisip::Xsd::XmlSchema::Uri& > (i);
 }
 
 void
-operator<< (::Xsd::XmlSchema::ListStream& l,
+operator<< (::flexisip::Xsd::XmlSchema::ListStream& l,
             const DeviceID_t& i)
 {
-  l << static_cast< const ::Xsd::XmlSchema::Uri& > (i);
+  l << static_cast< const ::flexisip::Xsd::XmlSchema::Uri& > (i);
 }
 
 void
 operator<< (::xercesc::DOMElement& e, const Note_t& i)
 {
-  e << static_cast< const ::Xsd::XmlSchema::String& > (i);
+  e << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
 
   // lang
   //
@@ -461,7 +461,7 @@ operator<< (::xercesc::DOMElement& e, const Note_t& i)
 void
 operator<< (::xercesc::DOMElement& e, const Empty& i)
 {
-  e << static_cast< const ::Xsd::XmlSchema::Type& > (i);
+  e << static_cast< const ::flexisip::Xsd::XmlSchema::Type& > (i);
 }
 
 void
@@ -470,7 +470,7 @@ operator<< (::xercesc::DOMAttr&, const Empty&)
 }
 
 void
-operator<< (::Xsd::XmlSchema::ListStream&,
+operator<< (::flexisip::Xsd::XmlSchema::ListStream&,
             const Empty&)
 {
 }

@@ -108,157 +108,160 @@
 
 #include <xsd/cxx/tree/std-ostream-operators.hxx>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace XmlSchema
+  namespace Xsd
   {
-    // anyType and anySimpleType.
-    //
-    typedef ::xsd::cxx::tree::type Type;
-    typedef ::xsd::cxx::tree::simple_type< char, Type > SimpleType;
-    typedef ::xsd::cxx::tree::type Container;
-
-    // 8-bit
-    //
-    typedef signed char Byte;
-    typedef unsigned char UnsignedByte;
-
-    // 16-bit
-    //
-    typedef short Short;
-    typedef unsigned short UnsignedShort;
-
-    // 32-bit
-    //
-    typedef int Int;
-    typedef unsigned int UnsignedInt;
-
-    // 64-bit
-    //
-    typedef long long Long;
-    typedef unsigned long long UnsignedLong;
-
-    // Supposed to be arbitrary-length integral types.
-    //
-    typedef long long Integer;
-    typedef long long NonPositiveInteger;
-    typedef unsigned long long NonNegativeInteger;
-    typedef unsigned long long PositiveInteger;
-    typedef long long NegativeInteger;
-
-    // Boolean.
-    //
-    typedef bool Boolean;
-
-    // Floating-point types.
-    //
-    typedef float Float;
-    typedef double Double;
-    typedef double Decimal;
-
-    // String types.
-    //
-    typedef ::xsd::cxx::tree::string< char, SimpleType > String;
-    typedef ::xsd::cxx::tree::normalized_string< char, String > NormalizedString;
-    typedef ::xsd::cxx::tree::token< char, NormalizedString > Token;
-    typedef ::xsd::cxx::tree::name< char, Token > Name;
-    typedef ::xsd::cxx::tree::nmtoken< char, Token > Nmtoken;
-    typedef ::xsd::cxx::tree::nmtokens< char, SimpleType, Nmtoken > Nmtokens;
-    typedef ::xsd::cxx::tree::ncname< char, Name > Ncname;
-    typedef ::xsd::cxx::tree::language< char, Token > Language;
-
-    // ID/IDREF.
-    //
-    typedef ::xsd::cxx::tree::id< char, Ncname > Id;
-    typedef ::xsd::cxx::tree::idref< char, Ncname, Type > Idref;
-    typedef ::xsd::cxx::tree::idrefs< char, SimpleType, Idref > Idrefs;
-
-    // URI.
-    //
-    typedef ::xsd::cxx::tree::uri< char, SimpleType > Uri;
-
-    // Qualified name.
-    //
-    typedef ::xsd::cxx::tree::qname< char, SimpleType, Uri, Ncname > Qname;
-
-    // Binary.
-    //
-    typedef ::xsd::cxx::tree::buffer< char > Buffer;
-    typedef ::xsd::cxx::tree::base64_binary< char, SimpleType > Base64Binary;
-    typedef ::xsd::cxx::tree::hex_binary< char, SimpleType > HexBinary;
-
-    // Date/time.
-    //
-    typedef ::xsd::cxx::tree::time_zone TimeZone;
-    typedef ::xsd::cxx::tree::date< char, SimpleType > Date;
-    typedef ::xsd::cxx::tree::date_time< char, SimpleType > DateTime;
-    typedef ::xsd::cxx::tree::duration< char, SimpleType > Duration;
-    typedef ::xsd::cxx::tree::gday< char, SimpleType > Gday;
-    typedef ::xsd::cxx::tree::gmonth< char, SimpleType > Gmonth;
-    typedef ::xsd::cxx::tree::gmonth_day< char, SimpleType > GmonthDay;
-    typedef ::xsd::cxx::tree::gyear< char, SimpleType > Gyear;
-    typedef ::xsd::cxx::tree::gyear_month< char, SimpleType > GyearMonth;
-    typedef ::xsd::cxx::tree::time< char, SimpleType > Time;
-
-    // Entity.
-    //
-    typedef ::xsd::cxx::tree::entity< char, Ncname > Entity;
-    typedef ::xsd::cxx::tree::entities< char, SimpleType, Entity > Entities;
-
-    typedef ::xsd::cxx::tree::content_order ContentOrder;
-    // Namespace information and list stream. Used in
-    // serialization functions.
-    //
-    typedef ::xsd::cxx::xml::dom::namespace_info< char > NamespaceInfo;
-    typedef ::xsd::cxx::xml::dom::namespace_infomap< char > NamespaceInfomap;
-    typedef ::xsd::cxx::tree::list_stream< char > ListStream;
-    typedef ::xsd::cxx::tree::as_double< Double > AsDouble;
-    typedef ::xsd::cxx::tree::as_decimal< Decimal > AsDecimal;
-    typedef ::xsd::cxx::tree::facet Facet;
-
-    // Flags and properties.
-    //
-    typedef ::xsd::cxx::tree::flags Flags;
-    typedef ::xsd::cxx::tree::properties< char > Properties;
-
-    // Parsing/serialization diagnostics.
-    //
-    typedef ::xsd::cxx::tree::severity Severity;
-    typedef ::xsd::cxx::tree::error< char > Error;
-    typedef ::xsd::cxx::tree::diagnostics< char > Diagnostics;
-
-    // Exceptions.
-    //
-    typedef ::xsd::cxx::tree::exception< char > Exception;
-    typedef ::xsd::cxx::tree::bounds< char > Bounds;
-    typedef ::xsd::cxx::tree::duplicate_id< char > DuplicateId;
-    typedef ::xsd::cxx::tree::parsing< char > Parsing;
-    typedef ::xsd::cxx::tree::expected_element< char > ExpectedElement;
-    typedef ::xsd::cxx::tree::unexpected_element< char > UnexpectedElement;
-    typedef ::xsd::cxx::tree::expected_attribute< char > ExpectedAttribute;
-    typedef ::xsd::cxx::tree::unexpected_enumerator< char > UnexpectedEnumerator;
-    typedef ::xsd::cxx::tree::expected_text_content< char > ExpectedTextContent;
-    typedef ::xsd::cxx::tree::no_prefix_mapping< char > NoPrefixMapping;
-    typedef ::xsd::cxx::tree::serialization< char > Serialization;
-
-    // Error handler callback interface.
-    //
-    typedef ::xsd::cxx::xml::error_handler< char > ErrorHandler;
-
-    // DOM interaction.
-    //
-    namespace dom
+    namespace XmlSchema
     {
-      // Automatic pointer for DOMDocument.
+      // anyType and anySimpleType.
       //
-      using ::xsd::cxx::xml::dom::unique_ptr;
+      typedef ::xsd::cxx::tree::type Type;
+      typedef ::xsd::cxx::tree::simple_type< char, Type > SimpleType;
+      typedef ::xsd::cxx::tree::type Container;
 
-#ifndef XSD_CXX_TREE_TREE_NODE_KEY__XSD__XMLSCHEMA
-#define XSD_CXX_TREE_TREE_NODE_KEY__XSD__XMLSCHEMA
-      // DOM user data key for back pointers to tree nodes.
+      // 8-bit
       //
-      const XMLCh* const treeNodeKey = ::xsd::cxx::tree::user_data_keys::node;
+      typedef signed char Byte;
+      typedef unsigned char UnsignedByte;
+
+      // 16-bit
+      //
+      typedef short Short;
+      typedef unsigned short UnsignedShort;
+
+      // 32-bit
+      //
+      typedef int Int;
+      typedef unsigned int UnsignedInt;
+
+      // 64-bit
+      //
+      typedef long long Long;
+      typedef unsigned long long UnsignedLong;
+
+      // Supposed to be arbitrary-length integral types.
+      //
+      typedef long long Integer;
+      typedef long long NonPositiveInteger;
+      typedef unsigned long long NonNegativeInteger;
+      typedef unsigned long long PositiveInteger;
+      typedef long long NegativeInteger;
+
+      // Boolean.
+      //
+      typedef bool Boolean;
+
+      // Floating-point types.
+      //
+      typedef float Float;
+      typedef double Double;
+      typedef double Decimal;
+
+      // String types.
+      //
+      typedef ::xsd::cxx::tree::string< char, SimpleType > String;
+      typedef ::xsd::cxx::tree::normalized_string< char, String > NormalizedString;
+      typedef ::xsd::cxx::tree::token< char, NormalizedString > Token;
+      typedef ::xsd::cxx::tree::name< char, Token > Name;
+      typedef ::xsd::cxx::tree::nmtoken< char, Token > Nmtoken;
+      typedef ::xsd::cxx::tree::nmtokens< char, SimpleType, Nmtoken > Nmtokens;
+      typedef ::xsd::cxx::tree::ncname< char, Name > Ncname;
+      typedef ::xsd::cxx::tree::language< char, Token > Language;
+
+      // ID/IDREF.
+      //
+      typedef ::xsd::cxx::tree::id< char, Ncname > Id;
+      typedef ::xsd::cxx::tree::idref< char, Ncname, Type > Idref;
+      typedef ::xsd::cxx::tree::idrefs< char, SimpleType, Idref > Idrefs;
+
+      // URI.
+      //
+      typedef ::xsd::cxx::tree::uri< char, SimpleType > Uri;
+
+      // Qualified name.
+      //
+      typedef ::xsd::cxx::tree::qname< char, SimpleType, Uri, Ncname > Qname;
+
+      // Binary.
+      //
+      typedef ::xsd::cxx::tree::buffer< char > Buffer;
+      typedef ::xsd::cxx::tree::base64_binary< char, SimpleType > Base64Binary;
+      typedef ::xsd::cxx::tree::hex_binary< char, SimpleType > HexBinary;
+
+      // Date/time.
+      //
+      typedef ::xsd::cxx::tree::time_zone TimeZone;
+      typedef ::xsd::cxx::tree::date< char, SimpleType > Date;
+      typedef ::xsd::cxx::tree::date_time< char, SimpleType > DateTime;
+      typedef ::xsd::cxx::tree::duration< char, SimpleType > Duration;
+      typedef ::xsd::cxx::tree::gday< char, SimpleType > Gday;
+      typedef ::xsd::cxx::tree::gmonth< char, SimpleType > Gmonth;
+      typedef ::xsd::cxx::tree::gmonth_day< char, SimpleType > GmonthDay;
+      typedef ::xsd::cxx::tree::gyear< char, SimpleType > Gyear;
+      typedef ::xsd::cxx::tree::gyear_month< char, SimpleType > GyearMonth;
+      typedef ::xsd::cxx::tree::time< char, SimpleType > Time;
+
+      // Entity.
+      //
+      typedef ::xsd::cxx::tree::entity< char, Ncname > Entity;
+      typedef ::xsd::cxx::tree::entities< char, SimpleType, Entity > Entities;
+
+      typedef ::xsd::cxx::tree::content_order ContentOrder;
+      // Namespace information and list stream. Used in
+      // serialization functions.
+      //
+      typedef ::xsd::cxx::xml::dom::namespace_info< char > NamespaceInfo;
+      typedef ::xsd::cxx::xml::dom::namespace_infomap< char > NamespaceInfomap;
+      typedef ::xsd::cxx::tree::list_stream< char > ListStream;
+      typedef ::xsd::cxx::tree::as_double< Double > AsDouble;
+      typedef ::xsd::cxx::tree::as_decimal< Decimal > AsDecimal;
+      typedef ::xsd::cxx::tree::facet Facet;
+
+      // Flags and properties.
+      //
+      typedef ::xsd::cxx::tree::flags Flags;
+      typedef ::xsd::cxx::tree::properties< char > Properties;
+
+      // Parsing/serialization diagnostics.
+      //
+      typedef ::xsd::cxx::tree::severity Severity;
+      typedef ::xsd::cxx::tree::error< char > Error;
+      typedef ::xsd::cxx::tree::diagnostics< char > Diagnostics;
+
+      // Exceptions.
+      //
+      typedef ::xsd::cxx::tree::exception< char > Exception;
+      typedef ::xsd::cxx::tree::bounds< char > Bounds;
+      typedef ::xsd::cxx::tree::duplicate_id< char > DuplicateId;
+      typedef ::xsd::cxx::tree::parsing< char > Parsing;
+      typedef ::xsd::cxx::tree::expected_element< char > ExpectedElement;
+      typedef ::xsd::cxx::tree::unexpected_element< char > UnexpectedElement;
+      typedef ::xsd::cxx::tree::expected_attribute< char > ExpectedAttribute;
+      typedef ::xsd::cxx::tree::unexpected_enumerator< char > UnexpectedEnumerator;
+      typedef ::xsd::cxx::tree::expected_text_content< char > ExpectedTextContent;
+      typedef ::xsd::cxx::tree::no_prefix_mapping< char > NoPrefixMapping;
+      typedef ::xsd::cxx::tree::serialization< char > Serialization;
+
+      // Error handler callback interface.
+      //
+      typedef ::xsd::cxx::xml::error_handler< char > ErrorHandler;
+
+      // DOM interaction.
+      //
+      namespace dom
+      {
+        // Automatic pointer for DOMDocument.
+        //
+        using ::xsd::cxx::xml::dom::unique_ptr;
+
+#ifndef XSD_CXX_TREE_TREE_NODE_KEY__FLEXISIP__XSD__XMLSCHEMA
+#define XSD_CXX_TREE_TREE_NODE_KEY__FLEXISIP__XSD__XMLSCHEMA
+        // DOM user data key for back pointers to tree nodes.
+        //
+        const XMLCh* const treeNodeKey = ::xsd::cxx::tree::user_data_keys::node;
 #endif
+      }
     }
   }
 }
@@ -302,7 +305,7 @@ namespace oma_pres
 
 namespace oma_pres
 {
-  class BasicType: public ::Xsd::XmlSchema::String
+  class BasicType: public ::flexisip::Xsd::XmlSchema::String
   {
     public:
     enum Value
@@ -317,28 +320,28 @@ namespace oma_pres
 
     BasicType (const ::std::string& v);
 
-    BasicType (const ::Xsd::XmlSchema::String& v);
+    BasicType (const ::flexisip::Xsd::XmlSchema::String& v);
 
     BasicType (const ::xercesc::DOMElement& e,
-               ::Xsd::XmlSchema::Flags f = 0,
-               ::Xsd::XmlSchema::Container* c = 0);
+               ::flexisip::Xsd::XmlSchema::Flags f = 0,
+               ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     BasicType (const ::xercesc::DOMAttr& a,
-               ::Xsd::XmlSchema::Flags f = 0,
-               ::Xsd::XmlSchema::Container* c = 0);
+               ::flexisip::Xsd::XmlSchema::Flags f = 0,
+               ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     BasicType (const ::std::string& s,
                const ::xercesc::DOMElement* e,
-               ::Xsd::XmlSchema::Flags f = 0,
-               ::Xsd::XmlSchema::Container* c = 0);
+               ::flexisip::Xsd::XmlSchema::Flags f = 0,
+               ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     BasicType (const BasicType& x,
-               ::Xsd::XmlSchema::Flags f = 0,
-               ::Xsd::XmlSchema::Container* c = 0);
+               ::flexisip::Xsd::XmlSchema::Flags f = 0,
+               ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     virtual BasicType*
-    _clone (::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0) const;
+    _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+            ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
     BasicType&
     operator= (Value v);
@@ -358,7 +361,7 @@ namespace oma_pres
     static const Value _xsd_BasicType_indexes_[2];
   };
 
-  class EmptyType: public ::Xsd::XmlSchema::Type
+  class EmptyType: public ::flexisip::Xsd::XmlSchema::Type
   {
     public:
     // Constructors.
@@ -366,31 +369,31 @@ namespace oma_pres
     EmptyType ();
 
     EmptyType (const ::xercesc::DOMElement& e,
-               ::Xsd::XmlSchema::Flags f = 0,
-               ::Xsd::XmlSchema::Container* c = 0);
+               ::flexisip::Xsd::XmlSchema::Flags f = 0,
+               ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     EmptyType (const ::xercesc::DOMAttr& a,
-               ::Xsd::XmlSchema::Flags f = 0,
-               ::Xsd::XmlSchema::Container* c = 0);
+               ::flexisip::Xsd::XmlSchema::Flags f = 0,
+               ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     EmptyType (const ::std::string& s,
                const ::xercesc::DOMElement* e,
-               ::Xsd::XmlSchema::Flags f = 0,
-               ::Xsd::XmlSchema::Container* c = 0);
+               ::flexisip::Xsd::XmlSchema::Flags f = 0,
+               ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     EmptyType (const EmptyType& x,
-               ::Xsd::XmlSchema::Flags f = 0,
-               ::Xsd::XmlSchema::Container* c = 0);
+               ::flexisip::Xsd::XmlSchema::Flags f = 0,
+               ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     virtual EmptyType*
-    _clone (::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0) const;
+    _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+            ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
     virtual 
     ~EmptyType ();
   };
 
-  class RegistrationType: public ::Xsd::XmlSchema::String
+  class RegistrationType: public ::flexisip::Xsd::XmlSchema::String
   {
     public:
     enum Value
@@ -405,28 +408,28 @@ namespace oma_pres
 
     RegistrationType (const ::std::string& v);
 
-    RegistrationType (const ::Xsd::XmlSchema::String& v);
+    RegistrationType (const ::flexisip::Xsd::XmlSchema::String& v);
 
     RegistrationType (const ::xercesc::DOMElement& e,
-                      ::Xsd::XmlSchema::Flags f = 0,
-                      ::Xsd::XmlSchema::Container* c = 0);
+                      ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                      ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     RegistrationType (const ::xercesc::DOMAttr& a,
-                      ::Xsd::XmlSchema::Flags f = 0,
-                      ::Xsd::XmlSchema::Container* c = 0);
+                      ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                      ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     RegistrationType (const ::std::string& s,
                       const ::xercesc::DOMElement* e,
-                      ::Xsd::XmlSchema::Flags f = 0,
-                      ::Xsd::XmlSchema::Container* c = 0);
+                      ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                      ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     RegistrationType (const RegistrationType& x,
-                      ::Xsd::XmlSchema::Flags f = 0,
-                      ::Xsd::XmlSchema::Container* c = 0);
+                      ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                      ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     virtual RegistrationType*
-    _clone (::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0) const;
+    _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+            ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
     RegistrationType&
     operator= (Value v);
@@ -446,7 +449,7 @@ namespace oma_pres
     static const Value _xsd_RegistrationType_indexes_[2];
   };
 
-  class BarringType: public ::Xsd::XmlSchema::String
+  class BarringType: public ::flexisip::Xsd::XmlSchema::String
   {
     public:
     enum Value
@@ -461,28 +464,28 @@ namespace oma_pres
 
     BarringType (const ::std::string& v);
 
-    BarringType (const ::Xsd::XmlSchema::String& v);
+    BarringType (const ::flexisip::Xsd::XmlSchema::String& v);
 
     BarringType (const ::xercesc::DOMElement& e,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 ::Xsd::XmlSchema::Container* c = 0);
+                 ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                 ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     BarringType (const ::xercesc::DOMAttr& a,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 ::Xsd::XmlSchema::Container* c = 0);
+                 ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                 ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     BarringType (const ::std::string& s,
                  const ::xercesc::DOMElement* e,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 ::Xsd::XmlSchema::Container* c = 0);
+                 ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                 ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     BarringType (const BarringType& x,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 ::Xsd::XmlSchema::Container* c = 0);
+                 ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                 ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     virtual BarringType*
-    _clone (::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0) const;
+    _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+            ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
     BarringType&
     operator= (Value v);
@@ -502,12 +505,12 @@ namespace oma_pres
     static const Value _xsd_BarringType_indexes_[2];
   };
 
-  class ServiceDescription: public ::Xsd::XmlSchema::Type
+  class ServiceDescription: public ::flexisip::Xsd::XmlSchema::Type
   {
     public:
     // service-id
     //
-    typedef ::Xsd::XmlSchema::Token ServiceIdType;
+    typedef ::flexisip::Xsd::XmlSchema::Token ServiceIdType;
     typedef ::xsd::cxx::tree::traits< ServiceIdType, char > ServiceIdTraits;
 
     const ServiceIdType&
@@ -527,7 +530,7 @@ namespace oma_pres
 
     // version
     //
-    typedef ::Xsd::XmlSchema::Token VersionType;
+    typedef ::flexisip::Xsd::XmlSchema::Token VersionType;
     typedef ::xsd::cxx::tree::traits< VersionType, char > VersionTraits;
 
     const VersionType&
@@ -547,7 +550,7 @@ namespace oma_pres
 
     // description
     //
-    typedef ::Xsd::XmlSchema::Token DescriptionType;
+    typedef ::flexisip::Xsd::XmlSchema::Token DescriptionType;
     typedef ::xsd::cxx::tree::optional< DescriptionType > DescriptionOptional;
     typedef ::xsd::cxx::tree::traits< DescriptionType, char > DescriptionTraits;
 
@@ -610,16 +613,16 @@ namespace oma_pres
                         const VersionType&);
 
     ServiceDescription (const ::xercesc::DOMElement& e,
-                        ::Xsd::XmlSchema::Flags f = 0,
-                        ::Xsd::XmlSchema::Container* c = 0);
+                        ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                        ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     ServiceDescription (const ServiceDescription& x,
-                        ::Xsd::XmlSchema::Flags f = 0,
-                        ::Xsd::XmlSchema::Container* c = 0);
+                        ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                        ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     virtual ServiceDescription*
-    _clone (::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0) const;
+    _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+            ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
     ServiceDescription&
     operator= (const ServiceDescription& x);
@@ -632,10 +635,10 @@ namespace oma_pres
     protected:
     void
     parse (::xsd::cxx::xml::dom::parser< char >&,
-           ::Xsd::XmlSchema::Flags);
+           ::flexisip::Xsd::XmlSchema::Flags);
 
     protected:
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
 
     ::xsd::cxx::tree::one< ServiceIdType > service_id_;
     ::xsd::cxx::tree::one< VersionType > version_;
@@ -644,7 +647,7 @@ namespace oma_pres
     AnyAttributeSet any_attribute_;
   };
 
-  class Willingness: public ::Xsd::XmlSchema::Type
+  class Willingness: public ::flexisip::Xsd::XmlSchema::Type
   {
     public:
     // basic
@@ -711,16 +714,16 @@ namespace oma_pres
     Willingness ();
 
     Willingness (const ::xercesc::DOMElement& e,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 ::Xsd::XmlSchema::Container* c = 0);
+                 ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                 ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     Willingness (const Willingness& x,
-                 ::Xsd::XmlSchema::Flags f = 0,
-                 ::Xsd::XmlSchema::Container* c = 0);
+                 ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                 ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     virtual Willingness*
-    _clone (::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0) const;
+    _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+            ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
     Willingness&
     operator= (const Willingness& x);
@@ -733,17 +736,17 @@ namespace oma_pres
     protected:
     void
     parse (::xsd::cxx::xml::dom::parser< char >&,
-           ::Xsd::XmlSchema::Flags);
+           ::flexisip::Xsd::XmlSchema::Flags);
 
     protected:
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
 
     BasicOptional basic_;
     AnySequence any_;
     AnyAttributeSet any_attribute_;
   };
 
-  class SessionParticipation: public ::Xsd::XmlSchema::Type
+  class SessionParticipation: public ::flexisip::Xsd::XmlSchema::Type
   {
     public:
     // basic
@@ -810,16 +813,16 @@ namespace oma_pres
     SessionParticipation ();
 
     SessionParticipation (const ::xercesc::DOMElement& e,
-                          ::Xsd::XmlSchema::Flags f = 0,
-                          ::Xsd::XmlSchema::Container* c = 0);
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     SessionParticipation (const SessionParticipation& x,
-                          ::Xsd::XmlSchema::Flags f = 0,
-                          ::Xsd::XmlSchema::Container* c = 0);
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     virtual SessionParticipation*
-    _clone (::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0) const;
+    _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+            ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
     SessionParticipation&
     operator= (const SessionParticipation& x);
@@ -832,10 +835,10 @@ namespace oma_pres
     protected:
     void
     parse (::xsd::cxx::xml::dom::parser< char >&,
-           ::Xsd::XmlSchema::Flags);
+           ::flexisip::Xsd::XmlSchema::Flags);
 
     protected:
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
 
     BasicOptional basic_;
     AnySequence any_;
@@ -879,16 +882,16 @@ namespace oma_pres
     RegistrationState (const ::oma_pres::RegistrationType&);
 
     RegistrationState (const ::xercesc::DOMElement& e,
-                       ::Xsd::XmlSchema::Flags f = 0,
-                       ::Xsd::XmlSchema::Container* c = 0);
+                       ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                       ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     RegistrationState (const RegistrationState& x,
-                       ::Xsd::XmlSchema::Flags f = 0,
-                       ::Xsd::XmlSchema::Container* c = 0);
+                       ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                       ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     virtual RegistrationState*
-    _clone (::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0) const;
+    _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+            ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
     RegistrationState&
     operator= (const RegistrationState& x);
@@ -901,10 +904,10 @@ namespace oma_pres
     protected:
     void
     parse (::xsd::cxx::xml::dom::parser< char >&,
-           ::Xsd::XmlSchema::Flags);
+           ::flexisip::Xsd::XmlSchema::Flags);
 
     protected:
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
 
     AnyAttributeSet any_attribute_;
   };
@@ -946,16 +949,16 @@ namespace oma_pres
     BarringState (const ::oma_pres::BarringType&);
 
     BarringState (const ::xercesc::DOMElement& e,
-                  ::Xsd::XmlSchema::Flags f = 0,
-                  ::Xsd::XmlSchema::Container* c = 0);
+                  ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                  ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     BarringState (const BarringState& x,
-                  ::Xsd::XmlSchema::Flags f = 0,
-                  ::Xsd::XmlSchema::Container* c = 0);
+                  ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                  ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     virtual BarringState*
-    _clone (::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0) const;
+    _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+            ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
     BarringState&
     operator= (const BarringState& x);
@@ -968,15 +971,15 @@ namespace oma_pres
     protected:
     void
     parse (::xsd::cxx::xml::dom::parser< char >&,
-           ::Xsd::XmlSchema::Flags);
+           ::flexisip::Xsd::XmlSchema::Flags);
 
     protected:
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
 
     AnyAttributeSet any_attribute_;
   };
 
-  class OverridingWillingness: public ::Xsd::XmlSchema::Type
+  class OverridingWillingness: public ::flexisip::Xsd::XmlSchema::Type
   {
     public:
     // basic
@@ -1043,16 +1046,16 @@ namespace oma_pres
     OverridingWillingness ();
 
     OverridingWillingness (const ::xercesc::DOMElement& e,
-                           ::Xsd::XmlSchema::Flags f = 0,
-                           ::Xsd::XmlSchema::Container* c = 0);
+                           ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                           ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     OverridingWillingness (const OverridingWillingness& x,
-                           ::Xsd::XmlSchema::Flags f = 0,
-                           ::Xsd::XmlSchema::Container* c = 0);
+                           ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                           ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     virtual OverridingWillingness*
-    _clone (::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0) const;
+    _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+            ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
     OverridingWillingness&
     operator= (const OverridingWillingness& x);
@@ -1065,17 +1068,17 @@ namespace oma_pres
     protected:
     void
     parse (::xsd::cxx::xml::dom::parser< char >&,
-           ::Xsd::XmlSchema::Flags);
+           ::flexisip::Xsd::XmlSchema::Flags);
 
     protected:
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
 
     BasicOptional basic_;
     AnySequence any_;
     AnyAttributeSet any_attribute_;
   };
 
-  class NetworkAvailability: public ::Xsd::XmlSchema::Type
+  class NetworkAvailability: public ::flexisip::Xsd::XmlSchema::Type
   {
     public:
     // network
@@ -1138,16 +1141,16 @@ namespace oma_pres
     NetworkAvailability ();
 
     NetworkAvailability (const ::xercesc::DOMElement& e,
-                         ::Xsd::XmlSchema::Flags f = 0,
-                         ::Xsd::XmlSchema::Container* c = 0);
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                         ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     NetworkAvailability (const NetworkAvailability& x,
-                         ::Xsd::XmlSchema::Flags f = 0,
-                         ::Xsd::XmlSchema::Container* c = 0);
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                         ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     virtual NetworkAvailability*
-    _clone (::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0) const;
+    _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+            ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
     NetworkAvailability&
     operator= (const NetworkAvailability& x);
@@ -1160,17 +1163,17 @@ namespace oma_pres
     protected:
     void
     parse (::xsd::cxx::xml::dom::parser< char >&,
-           ::Xsd::XmlSchema::Flags);
+           ::flexisip::Xsd::XmlSchema::Flags);
 
     protected:
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
 
     NetworkSequence network_;
     AnySequence any_;
     AnyAttributeSet any_attribute_;
   };
 
-  class Network: public ::Xsd::XmlSchema::Type
+  class Network: public ::flexisip::Xsd::XmlSchema::Type
   {
     public:
     // active
@@ -1232,7 +1235,7 @@ namespace oma_pres
 
     // id
     //
-    typedef ::Xsd::XmlSchema::Token IdType;
+    typedef ::flexisip::Xsd::XmlSchema::Token IdType;
     typedef ::xsd::cxx::tree::traits< IdType, char > IdTraits;
 
     const IdType&
@@ -1278,16 +1281,16 @@ namespace oma_pres
     Network (const IdType&);
 
     Network (const ::xercesc::DOMElement& e,
-             ::Xsd::XmlSchema::Flags f = 0,
-             ::Xsd::XmlSchema::Container* c = 0);
+             ::flexisip::Xsd::XmlSchema::Flags f = 0,
+             ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     Network (const Network& x,
-             ::Xsd::XmlSchema::Flags f = 0,
-             ::Xsd::XmlSchema::Container* c = 0);
+             ::flexisip::Xsd::XmlSchema::Flags f = 0,
+             ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
     virtual Network*
-    _clone (::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0) const;
+    _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+            ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
 
     Network&
     operator= (const Network& x);
@@ -1300,10 +1303,10 @@ namespace oma_pres
     protected:
     void
     parse (::xsd::cxx::xml::dom::parser< char >&,
-           ::Xsd::XmlSchema::Flags);
+           ::flexisip::Xsd::XmlSchema::Flags);
 
     protected:
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
+    ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
 
     ActiveOptional active_;
     TerminatedOptional terminated_;
@@ -1376,651 +1379,651 @@ namespace oma_pres
 
   ::std::unique_ptr< ::oma_pres::ServiceDescription >
   parseServiceDescription (const ::std::string& uri,
-                           ::Xsd::XmlSchema::Flags f = 0,
-                           const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                           ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                           const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::ServiceDescription >
   parseServiceDescription (const ::std::string& uri,
-                           ::Xsd::XmlSchema::ErrorHandler& eh,
-                           ::Xsd::XmlSchema::Flags f = 0,
-                           const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                           ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                           ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                           const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::ServiceDescription >
   parseServiceDescription (const ::std::string& uri,
                            ::xercesc::DOMErrorHandler& eh,
-                           ::Xsd::XmlSchema::Flags f = 0,
-                           const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                           ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                           const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse std::istream.
   //
 
   ::std::unique_ptr< ::oma_pres::ServiceDescription >
   parseServiceDescription (::std::istream& is,
-                           ::Xsd::XmlSchema::Flags f = 0,
-                           const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                           ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                           const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::ServiceDescription >
   parseServiceDescription (::std::istream& is,
-                           ::Xsd::XmlSchema::ErrorHandler& eh,
-                           ::Xsd::XmlSchema::Flags f = 0,
-                           const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                           ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                           ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                           const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::ServiceDescription >
   parseServiceDescription (::std::istream& is,
                            ::xercesc::DOMErrorHandler& eh,
-                           ::Xsd::XmlSchema::Flags f = 0,
-                           const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                           ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                           const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::ServiceDescription >
   parseServiceDescription (::std::istream& is,
                            const ::std::string& id,
-                           ::Xsd::XmlSchema::Flags f = 0,
-                           const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                           ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                           const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::ServiceDescription >
   parseServiceDescription (::std::istream& is,
                            const ::std::string& id,
-                           ::Xsd::XmlSchema::ErrorHandler& eh,
-                           ::Xsd::XmlSchema::Flags f = 0,
-                           const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                           ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                           ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                           const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::ServiceDescription >
   parseServiceDescription (::std::istream& is,
                            const ::std::string& id,
                            ::xercesc::DOMErrorHandler& eh,
-                           ::Xsd::XmlSchema::Flags f = 0,
-                           const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                           ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                           const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse xercesc::InputSource.
   //
 
   ::std::unique_ptr< ::oma_pres::ServiceDescription >
   parseServiceDescription (::xercesc::InputSource& is,
-                           ::Xsd::XmlSchema::Flags f = 0,
-                           const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                           ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                           const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::ServiceDescription >
   parseServiceDescription (::xercesc::InputSource& is,
-                           ::Xsd::XmlSchema::ErrorHandler& eh,
-                           ::Xsd::XmlSchema::Flags f = 0,
-                           const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                           ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                           ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                           const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::ServiceDescription >
   parseServiceDescription (::xercesc::InputSource& is,
                            ::xercesc::DOMErrorHandler& eh,
-                           ::Xsd::XmlSchema::Flags f = 0,
-                           const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                           ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                           const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse xercesc::DOMDocument.
   //
 
   ::std::unique_ptr< ::oma_pres::ServiceDescription >
   parseServiceDescription (const ::xercesc::DOMDocument& d,
-                           ::Xsd::XmlSchema::Flags f = 0,
-                           const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                           ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                           const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::ServiceDescription >
-  parseServiceDescription (::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
-                           ::Xsd::XmlSchema::Flags f = 0,
-                           const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+  parseServiceDescription (::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
+                           ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                           const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse a URI or a local file.
   //
 
   ::std::unique_ptr< ::oma_pres::Willingness >
   parseWillingness (const ::std::string& uri,
-                    ::Xsd::XmlSchema::Flags f = 0,
-                    const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                    ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                    const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::Willingness >
   parseWillingness (const ::std::string& uri,
-                    ::Xsd::XmlSchema::ErrorHandler& eh,
-                    ::Xsd::XmlSchema::Flags f = 0,
-                    const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                    ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                    ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                    const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::Willingness >
   parseWillingness (const ::std::string& uri,
                     ::xercesc::DOMErrorHandler& eh,
-                    ::Xsd::XmlSchema::Flags f = 0,
-                    const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                    ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                    const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse std::istream.
   //
 
   ::std::unique_ptr< ::oma_pres::Willingness >
   parseWillingness (::std::istream& is,
-                    ::Xsd::XmlSchema::Flags f = 0,
-                    const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                    ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                    const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::Willingness >
   parseWillingness (::std::istream& is,
-                    ::Xsd::XmlSchema::ErrorHandler& eh,
-                    ::Xsd::XmlSchema::Flags f = 0,
-                    const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                    ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                    ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                    const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::Willingness >
   parseWillingness (::std::istream& is,
                     ::xercesc::DOMErrorHandler& eh,
-                    ::Xsd::XmlSchema::Flags f = 0,
-                    const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                    ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                    const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::Willingness >
   parseWillingness (::std::istream& is,
                     const ::std::string& id,
-                    ::Xsd::XmlSchema::Flags f = 0,
-                    const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                    ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                    const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::Willingness >
   parseWillingness (::std::istream& is,
                     const ::std::string& id,
-                    ::Xsd::XmlSchema::ErrorHandler& eh,
-                    ::Xsd::XmlSchema::Flags f = 0,
-                    const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                    ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                    ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                    const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::Willingness >
   parseWillingness (::std::istream& is,
                     const ::std::string& id,
                     ::xercesc::DOMErrorHandler& eh,
-                    ::Xsd::XmlSchema::Flags f = 0,
-                    const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                    ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                    const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse xercesc::InputSource.
   //
 
   ::std::unique_ptr< ::oma_pres::Willingness >
   parseWillingness (::xercesc::InputSource& is,
-                    ::Xsd::XmlSchema::Flags f = 0,
-                    const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                    ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                    const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::Willingness >
   parseWillingness (::xercesc::InputSource& is,
-                    ::Xsd::XmlSchema::ErrorHandler& eh,
-                    ::Xsd::XmlSchema::Flags f = 0,
-                    const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                    ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                    ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                    const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::Willingness >
   parseWillingness (::xercesc::InputSource& is,
                     ::xercesc::DOMErrorHandler& eh,
-                    ::Xsd::XmlSchema::Flags f = 0,
-                    const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                    ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                    const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse xercesc::DOMDocument.
   //
 
   ::std::unique_ptr< ::oma_pres::Willingness >
   parseWillingness (const ::xercesc::DOMDocument& d,
-                    ::Xsd::XmlSchema::Flags f = 0,
-                    const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                    ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                    const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::Willingness >
-  parseWillingness (::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
-                    ::Xsd::XmlSchema::Flags f = 0,
-                    const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+  parseWillingness (::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
+                    ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                    const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse a URI or a local file.
   //
 
   ::std::unique_ptr< ::oma_pres::SessionParticipation >
   parseSessionParticipation (const ::std::string& uri,
-                             ::Xsd::XmlSchema::Flags f = 0,
-                             const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                             ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                             const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::SessionParticipation >
   parseSessionParticipation (const ::std::string& uri,
-                             ::Xsd::XmlSchema::ErrorHandler& eh,
-                             ::Xsd::XmlSchema::Flags f = 0,
-                             const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                             ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                             ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                             const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::SessionParticipation >
   parseSessionParticipation (const ::std::string& uri,
                              ::xercesc::DOMErrorHandler& eh,
-                             ::Xsd::XmlSchema::Flags f = 0,
-                             const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                             ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                             const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse std::istream.
   //
 
   ::std::unique_ptr< ::oma_pres::SessionParticipation >
   parseSessionParticipation (::std::istream& is,
-                             ::Xsd::XmlSchema::Flags f = 0,
-                             const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                             ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                             const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::SessionParticipation >
   parseSessionParticipation (::std::istream& is,
-                             ::Xsd::XmlSchema::ErrorHandler& eh,
-                             ::Xsd::XmlSchema::Flags f = 0,
-                             const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                             ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                             ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                             const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::SessionParticipation >
   parseSessionParticipation (::std::istream& is,
                              ::xercesc::DOMErrorHandler& eh,
-                             ::Xsd::XmlSchema::Flags f = 0,
-                             const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                             ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                             const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::SessionParticipation >
   parseSessionParticipation (::std::istream& is,
                              const ::std::string& id,
-                             ::Xsd::XmlSchema::Flags f = 0,
-                             const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                             ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                             const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::SessionParticipation >
   parseSessionParticipation (::std::istream& is,
                              const ::std::string& id,
-                             ::Xsd::XmlSchema::ErrorHandler& eh,
-                             ::Xsd::XmlSchema::Flags f = 0,
-                             const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                             ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                             ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                             const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::SessionParticipation >
   parseSessionParticipation (::std::istream& is,
                              const ::std::string& id,
                              ::xercesc::DOMErrorHandler& eh,
-                             ::Xsd::XmlSchema::Flags f = 0,
-                             const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                             ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                             const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse xercesc::InputSource.
   //
 
   ::std::unique_ptr< ::oma_pres::SessionParticipation >
   parseSessionParticipation (::xercesc::InputSource& is,
-                             ::Xsd::XmlSchema::Flags f = 0,
-                             const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                             ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                             const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::SessionParticipation >
   parseSessionParticipation (::xercesc::InputSource& is,
-                             ::Xsd::XmlSchema::ErrorHandler& eh,
-                             ::Xsd::XmlSchema::Flags f = 0,
-                             const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                             ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                             ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                             const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::SessionParticipation >
   parseSessionParticipation (::xercesc::InputSource& is,
                              ::xercesc::DOMErrorHandler& eh,
-                             ::Xsd::XmlSchema::Flags f = 0,
-                             const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                             ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                             const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse xercesc::DOMDocument.
   //
 
   ::std::unique_ptr< ::oma_pres::SessionParticipation >
   parseSessionParticipation (const ::xercesc::DOMDocument& d,
-                             ::Xsd::XmlSchema::Flags f = 0,
-                             const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                             ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                             const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::SessionParticipation >
-  parseSessionParticipation (::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
-                             ::Xsd::XmlSchema::Flags f = 0,
-                             const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+  parseSessionParticipation (::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
+                             ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                             const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse a URI or a local file.
   //
 
   ::std::unique_ptr< ::oma_pres::RegistrationState >
   parseRegistrationState (const ::std::string& uri,
-                          ::Xsd::XmlSchema::Flags f = 0,
-                          const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::RegistrationState >
   parseRegistrationState (const ::std::string& uri,
-                          ::Xsd::XmlSchema::ErrorHandler& eh,
-                          ::Xsd::XmlSchema::Flags f = 0,
-                          const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                          ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::RegistrationState >
   parseRegistrationState (const ::std::string& uri,
                           ::xercesc::DOMErrorHandler& eh,
-                          ::Xsd::XmlSchema::Flags f = 0,
-                          const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse std::istream.
   //
 
   ::std::unique_ptr< ::oma_pres::RegistrationState >
   parseRegistrationState (::std::istream& is,
-                          ::Xsd::XmlSchema::Flags f = 0,
-                          const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::RegistrationState >
   parseRegistrationState (::std::istream& is,
-                          ::Xsd::XmlSchema::ErrorHandler& eh,
-                          ::Xsd::XmlSchema::Flags f = 0,
-                          const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                          ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::RegistrationState >
   parseRegistrationState (::std::istream& is,
                           ::xercesc::DOMErrorHandler& eh,
-                          ::Xsd::XmlSchema::Flags f = 0,
-                          const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::RegistrationState >
   parseRegistrationState (::std::istream& is,
                           const ::std::string& id,
-                          ::Xsd::XmlSchema::Flags f = 0,
-                          const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::RegistrationState >
   parseRegistrationState (::std::istream& is,
                           const ::std::string& id,
-                          ::Xsd::XmlSchema::ErrorHandler& eh,
-                          ::Xsd::XmlSchema::Flags f = 0,
-                          const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                          ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::RegistrationState >
   parseRegistrationState (::std::istream& is,
                           const ::std::string& id,
                           ::xercesc::DOMErrorHandler& eh,
-                          ::Xsd::XmlSchema::Flags f = 0,
-                          const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse xercesc::InputSource.
   //
 
   ::std::unique_ptr< ::oma_pres::RegistrationState >
   parseRegistrationState (::xercesc::InputSource& is,
-                          ::Xsd::XmlSchema::Flags f = 0,
-                          const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::RegistrationState >
   parseRegistrationState (::xercesc::InputSource& is,
-                          ::Xsd::XmlSchema::ErrorHandler& eh,
-                          ::Xsd::XmlSchema::Flags f = 0,
-                          const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                          ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::RegistrationState >
   parseRegistrationState (::xercesc::InputSource& is,
                           ::xercesc::DOMErrorHandler& eh,
-                          ::Xsd::XmlSchema::Flags f = 0,
-                          const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse xercesc::DOMDocument.
   //
 
   ::std::unique_ptr< ::oma_pres::RegistrationState >
   parseRegistrationState (const ::xercesc::DOMDocument& d,
-                          ::Xsd::XmlSchema::Flags f = 0,
-                          const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::RegistrationState >
-  parseRegistrationState (::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
-                          ::Xsd::XmlSchema::Flags f = 0,
-                          const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+  parseRegistrationState (::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
+                          ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                          const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse a URI or a local file.
   //
 
   ::std::unique_ptr< ::oma_pres::BarringState >
   parseBarringState (const ::std::string& uri,
-                     ::Xsd::XmlSchema::Flags f = 0,
-                     const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::BarringState >
   parseBarringState (const ::std::string& uri,
-                     ::Xsd::XmlSchema::ErrorHandler& eh,
-                     ::Xsd::XmlSchema::Flags f = 0,
-                     const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                     ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::BarringState >
   parseBarringState (const ::std::string& uri,
                      ::xercesc::DOMErrorHandler& eh,
-                     ::Xsd::XmlSchema::Flags f = 0,
-                     const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse std::istream.
   //
 
   ::std::unique_ptr< ::oma_pres::BarringState >
   parseBarringState (::std::istream& is,
-                     ::Xsd::XmlSchema::Flags f = 0,
-                     const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::BarringState >
   parseBarringState (::std::istream& is,
-                     ::Xsd::XmlSchema::ErrorHandler& eh,
-                     ::Xsd::XmlSchema::Flags f = 0,
-                     const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                     ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::BarringState >
   parseBarringState (::std::istream& is,
                      ::xercesc::DOMErrorHandler& eh,
-                     ::Xsd::XmlSchema::Flags f = 0,
-                     const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::BarringState >
   parseBarringState (::std::istream& is,
                      const ::std::string& id,
-                     ::Xsd::XmlSchema::Flags f = 0,
-                     const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::BarringState >
   parseBarringState (::std::istream& is,
                      const ::std::string& id,
-                     ::Xsd::XmlSchema::ErrorHandler& eh,
-                     ::Xsd::XmlSchema::Flags f = 0,
-                     const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                     ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::BarringState >
   parseBarringState (::std::istream& is,
                      const ::std::string& id,
                      ::xercesc::DOMErrorHandler& eh,
-                     ::Xsd::XmlSchema::Flags f = 0,
-                     const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse xercesc::InputSource.
   //
 
   ::std::unique_ptr< ::oma_pres::BarringState >
   parseBarringState (::xercesc::InputSource& is,
-                     ::Xsd::XmlSchema::Flags f = 0,
-                     const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::BarringState >
   parseBarringState (::xercesc::InputSource& is,
-                     ::Xsd::XmlSchema::ErrorHandler& eh,
-                     ::Xsd::XmlSchema::Flags f = 0,
-                     const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                     ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::BarringState >
   parseBarringState (::xercesc::InputSource& is,
                      ::xercesc::DOMErrorHandler& eh,
-                     ::Xsd::XmlSchema::Flags f = 0,
-                     const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse xercesc::DOMDocument.
   //
 
   ::std::unique_ptr< ::oma_pres::BarringState >
   parseBarringState (const ::xercesc::DOMDocument& d,
-                     ::Xsd::XmlSchema::Flags f = 0,
-                     const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::BarringState >
-  parseBarringState (::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
-                     ::Xsd::XmlSchema::Flags f = 0,
-                     const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+  parseBarringState (::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse a URI or a local file.
   //
 
   ::std::unique_ptr< ::oma_pres::OverridingWillingness >
   parseOverridingWillingness (const ::std::string& uri,
-                              ::Xsd::XmlSchema::Flags f = 0,
-                              const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                              const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::OverridingWillingness >
   parseOverridingWillingness (const ::std::string& uri,
-                              ::Xsd::XmlSchema::ErrorHandler& eh,
-                              ::Xsd::XmlSchema::Flags f = 0,
-                              const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                              ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                              const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::OverridingWillingness >
   parseOverridingWillingness (const ::std::string& uri,
                               ::xercesc::DOMErrorHandler& eh,
-                              ::Xsd::XmlSchema::Flags f = 0,
-                              const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                              const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse std::istream.
   //
 
   ::std::unique_ptr< ::oma_pres::OverridingWillingness >
   parseOverridingWillingness (::std::istream& is,
-                              ::Xsd::XmlSchema::Flags f = 0,
-                              const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                              const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::OverridingWillingness >
   parseOverridingWillingness (::std::istream& is,
-                              ::Xsd::XmlSchema::ErrorHandler& eh,
-                              ::Xsd::XmlSchema::Flags f = 0,
-                              const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                              ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                              const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::OverridingWillingness >
   parseOverridingWillingness (::std::istream& is,
                               ::xercesc::DOMErrorHandler& eh,
-                              ::Xsd::XmlSchema::Flags f = 0,
-                              const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                              const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::OverridingWillingness >
   parseOverridingWillingness (::std::istream& is,
                               const ::std::string& id,
-                              ::Xsd::XmlSchema::Flags f = 0,
-                              const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                              const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::OverridingWillingness >
   parseOverridingWillingness (::std::istream& is,
                               const ::std::string& id,
-                              ::Xsd::XmlSchema::ErrorHandler& eh,
-                              ::Xsd::XmlSchema::Flags f = 0,
-                              const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                              ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                              const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::OverridingWillingness >
   parseOverridingWillingness (::std::istream& is,
                               const ::std::string& id,
                               ::xercesc::DOMErrorHandler& eh,
-                              ::Xsd::XmlSchema::Flags f = 0,
-                              const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                              const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse xercesc::InputSource.
   //
 
   ::std::unique_ptr< ::oma_pres::OverridingWillingness >
   parseOverridingWillingness (::xercesc::InputSource& is,
-                              ::Xsd::XmlSchema::Flags f = 0,
-                              const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                              const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::OverridingWillingness >
   parseOverridingWillingness (::xercesc::InputSource& is,
-                              ::Xsd::XmlSchema::ErrorHandler& eh,
-                              ::Xsd::XmlSchema::Flags f = 0,
-                              const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                              ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                              const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::OverridingWillingness >
   parseOverridingWillingness (::xercesc::InputSource& is,
                               ::xercesc::DOMErrorHandler& eh,
-                              ::Xsd::XmlSchema::Flags f = 0,
-                              const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                              const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse xercesc::DOMDocument.
   //
 
   ::std::unique_ptr< ::oma_pres::OverridingWillingness >
   parseOverridingWillingness (const ::xercesc::DOMDocument& d,
-                              ::Xsd::XmlSchema::Flags f = 0,
-                              const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                              const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::OverridingWillingness >
-  parseOverridingWillingness (::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
-                              ::Xsd::XmlSchema::Flags f = 0,
-                              const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+  parseOverridingWillingness (::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                              const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse a URI or a local file.
   //
 
   ::std::unique_ptr< ::oma_pres::NetworkAvailability >
   parseNetworkAvailability (const ::std::string& uri,
-                            ::Xsd::XmlSchema::Flags f = 0,
-                            const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                            ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                            const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::NetworkAvailability >
   parseNetworkAvailability (const ::std::string& uri,
-                            ::Xsd::XmlSchema::ErrorHandler& eh,
-                            ::Xsd::XmlSchema::Flags f = 0,
-                            const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                            ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                            ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                            const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::NetworkAvailability >
   parseNetworkAvailability (const ::std::string& uri,
                             ::xercesc::DOMErrorHandler& eh,
-                            ::Xsd::XmlSchema::Flags f = 0,
-                            const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                            ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                            const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse std::istream.
   //
 
   ::std::unique_ptr< ::oma_pres::NetworkAvailability >
   parseNetworkAvailability (::std::istream& is,
-                            ::Xsd::XmlSchema::Flags f = 0,
-                            const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                            ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                            const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::NetworkAvailability >
   parseNetworkAvailability (::std::istream& is,
-                            ::Xsd::XmlSchema::ErrorHandler& eh,
-                            ::Xsd::XmlSchema::Flags f = 0,
-                            const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                            ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                            ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                            const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::NetworkAvailability >
   parseNetworkAvailability (::std::istream& is,
                             ::xercesc::DOMErrorHandler& eh,
-                            ::Xsd::XmlSchema::Flags f = 0,
-                            const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                            ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                            const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::NetworkAvailability >
   parseNetworkAvailability (::std::istream& is,
                             const ::std::string& id,
-                            ::Xsd::XmlSchema::Flags f = 0,
-                            const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                            ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                            const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::NetworkAvailability >
   parseNetworkAvailability (::std::istream& is,
                             const ::std::string& id,
-                            ::Xsd::XmlSchema::ErrorHandler& eh,
-                            ::Xsd::XmlSchema::Flags f = 0,
-                            const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                            ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                            ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                            const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::NetworkAvailability >
   parseNetworkAvailability (::std::istream& is,
                             const ::std::string& id,
                             ::xercesc::DOMErrorHandler& eh,
-                            ::Xsd::XmlSchema::Flags f = 0,
-                            const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                            ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                            const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse xercesc::InputSource.
   //
 
   ::std::unique_ptr< ::oma_pres::NetworkAvailability >
   parseNetworkAvailability (::xercesc::InputSource& is,
-                            ::Xsd::XmlSchema::Flags f = 0,
-                            const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                            ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                            const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::NetworkAvailability >
   parseNetworkAvailability (::xercesc::InputSource& is,
-                            ::Xsd::XmlSchema::ErrorHandler& eh,
-                            ::Xsd::XmlSchema::Flags f = 0,
-                            const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                            ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                            ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                            const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::NetworkAvailability >
   parseNetworkAvailability (::xercesc::InputSource& is,
                             ::xercesc::DOMErrorHandler& eh,
-                            ::Xsd::XmlSchema::Flags f = 0,
-                            const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                            ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                            const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   // Parse xercesc::DOMDocument.
   //
 
   ::std::unique_ptr< ::oma_pres::NetworkAvailability >
   parseNetworkAvailability (const ::xercesc::DOMDocument& d,
-                            ::Xsd::XmlSchema::Flags f = 0,
-                            const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+                            ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                            const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
   ::std::unique_ptr< ::oma_pres::NetworkAvailability >
-  parseNetworkAvailability (::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
-                            ::Xsd::XmlSchema::Flags f = 0,
-                            const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+  parseNetworkAvailability (::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
+                            ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                            const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 }
 
 #include <iosfwd>
@@ -2040,7 +2043,7 @@ namespace oma_pres
   operator<< (::xercesc::DOMAttr&, const BasicType&);
 
   void
-  operator<< (::Xsd::XmlSchema::ListStream&,
+  operator<< (::flexisip::Xsd::XmlSchema::ListStream&,
               const BasicType&);
 
   void
@@ -2050,7 +2053,7 @@ namespace oma_pres
   operator<< (::xercesc::DOMAttr&, const EmptyType&);
 
   void
-  operator<< (::Xsd::XmlSchema::ListStream&,
+  operator<< (::flexisip::Xsd::XmlSchema::ListStream&,
               const EmptyType&);
 
   void
@@ -2060,7 +2063,7 @@ namespace oma_pres
   operator<< (::xercesc::DOMAttr&, const RegistrationType&);
 
   void
-  operator<< (::Xsd::XmlSchema::ListStream&,
+  operator<< (::flexisip::Xsd::XmlSchema::ListStream&,
               const RegistrationType&);
 
   void
@@ -2070,7 +2073,7 @@ namespace oma_pres
   operator<< (::xercesc::DOMAttr&, const BarringType&);
 
   void
-  operator<< (::Xsd::XmlSchema::ListStream&,
+  operator<< (::flexisip::Xsd::XmlSchema::ListStream&,
               const BarringType&);
 
   // Serialize to std::ostream.
@@ -2079,25 +2082,25 @@ namespace oma_pres
   void
   serializeServiceDescription (::std::ostream& os,
                                const ::oma_pres::ServiceDescription& x, 
-                               const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                               const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                const ::std::string& e = "UTF-8",
-                               ::Xsd::XmlSchema::Flags f = 0);
+                               ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeServiceDescription (::std::ostream& os,
                                const ::oma_pres::ServiceDescription& x, 
-                               ::Xsd::XmlSchema::ErrorHandler& eh,
-                               const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                               ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                               const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                const ::std::string& e = "UTF-8",
-                               ::Xsd::XmlSchema::Flags f = 0);
+                               ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeServiceDescription (::std::ostream& os,
                                const ::oma_pres::ServiceDescription& x, 
                                ::xercesc::DOMErrorHandler& eh,
-                               const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                               const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                const ::std::string& e = "UTF-8",
-                               ::Xsd::XmlSchema::Flags f = 0);
+                               ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to xercesc::XMLFormatTarget.
   //
@@ -2105,25 +2108,25 @@ namespace oma_pres
   void
   serializeServiceDescription (::xercesc::XMLFormatTarget& ft,
                                const ::oma_pres::ServiceDescription& x, 
-                               const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                               const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                const ::std::string& e = "UTF-8",
-                               ::Xsd::XmlSchema::Flags f = 0);
+                               ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeServiceDescription (::xercesc::XMLFormatTarget& ft,
                                const ::oma_pres::ServiceDescription& x, 
-                               ::Xsd::XmlSchema::ErrorHandler& eh,
-                               const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                               ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                               const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                const ::std::string& e = "UTF-8",
-                               ::Xsd::XmlSchema::Flags f = 0);
+                               ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeServiceDescription (::xercesc::XMLFormatTarget& ft,
                                const ::oma_pres::ServiceDescription& x, 
                                ::xercesc::DOMErrorHandler& eh,
-                               const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                               const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                const ::std::string& e = "UTF-8",
-                               ::Xsd::XmlSchema::Flags f = 0);
+                               ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to an existing xercesc::DOMDocument.
   //
@@ -2131,15 +2134,15 @@ namespace oma_pres
   void
   serializeServiceDescription (::xercesc::DOMDocument& d,
                                const ::oma_pres::ServiceDescription& x,
-                               ::Xsd::XmlSchema::Flags f = 0);
+                               ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to a new xercesc::DOMDocument.
   //
 
-  ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
+  ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
   serializeServiceDescription (const ::oma_pres::ServiceDescription& x, 
-                               const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                               ::Xsd::XmlSchema::Flags f = 0);
+                               const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                               ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to std::ostream.
   //
@@ -2147,25 +2150,25 @@ namespace oma_pres
   void
   serializeWillingness (::std::ostream& os,
                         const ::oma_pres::Willingness& x, 
-                        const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                        const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                         const ::std::string& e = "UTF-8",
-                        ::Xsd::XmlSchema::Flags f = 0);
+                        ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeWillingness (::std::ostream& os,
                         const ::oma_pres::Willingness& x, 
-                        ::Xsd::XmlSchema::ErrorHandler& eh,
-                        const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                        ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                        const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                         const ::std::string& e = "UTF-8",
-                        ::Xsd::XmlSchema::Flags f = 0);
+                        ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeWillingness (::std::ostream& os,
                         const ::oma_pres::Willingness& x, 
                         ::xercesc::DOMErrorHandler& eh,
-                        const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                        const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                         const ::std::string& e = "UTF-8",
-                        ::Xsd::XmlSchema::Flags f = 0);
+                        ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to xercesc::XMLFormatTarget.
   //
@@ -2173,25 +2176,25 @@ namespace oma_pres
   void
   serializeWillingness (::xercesc::XMLFormatTarget& ft,
                         const ::oma_pres::Willingness& x, 
-                        const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                        const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                         const ::std::string& e = "UTF-8",
-                        ::Xsd::XmlSchema::Flags f = 0);
+                        ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeWillingness (::xercesc::XMLFormatTarget& ft,
                         const ::oma_pres::Willingness& x, 
-                        ::Xsd::XmlSchema::ErrorHandler& eh,
-                        const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                        ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                        const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                         const ::std::string& e = "UTF-8",
-                        ::Xsd::XmlSchema::Flags f = 0);
+                        ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeWillingness (::xercesc::XMLFormatTarget& ft,
                         const ::oma_pres::Willingness& x, 
                         ::xercesc::DOMErrorHandler& eh,
-                        const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                        const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                         const ::std::string& e = "UTF-8",
-                        ::Xsd::XmlSchema::Flags f = 0);
+                        ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to an existing xercesc::DOMDocument.
   //
@@ -2199,15 +2202,15 @@ namespace oma_pres
   void
   serializeWillingness (::xercesc::DOMDocument& d,
                         const ::oma_pres::Willingness& x,
-                        ::Xsd::XmlSchema::Flags f = 0);
+                        ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to a new xercesc::DOMDocument.
   //
 
-  ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
+  ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
   serializeWillingness (const ::oma_pres::Willingness& x, 
-                        const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                        ::Xsd::XmlSchema::Flags f = 0);
+                        const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                        ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to std::ostream.
   //
@@ -2215,25 +2218,25 @@ namespace oma_pres
   void
   serializeSessionParticipation (::std::ostream& os,
                                  const ::oma_pres::SessionParticipation& x, 
-                                 const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                                 const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                  const ::std::string& e = "UTF-8",
-                                 ::Xsd::XmlSchema::Flags f = 0);
+                                 ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeSessionParticipation (::std::ostream& os,
                                  const ::oma_pres::SessionParticipation& x, 
-                                 ::Xsd::XmlSchema::ErrorHandler& eh,
-                                 const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                                 ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                                 const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                  const ::std::string& e = "UTF-8",
-                                 ::Xsd::XmlSchema::Flags f = 0);
+                                 ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeSessionParticipation (::std::ostream& os,
                                  const ::oma_pres::SessionParticipation& x, 
                                  ::xercesc::DOMErrorHandler& eh,
-                                 const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                                 const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                  const ::std::string& e = "UTF-8",
-                                 ::Xsd::XmlSchema::Flags f = 0);
+                                 ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to xercesc::XMLFormatTarget.
   //
@@ -2241,25 +2244,25 @@ namespace oma_pres
   void
   serializeSessionParticipation (::xercesc::XMLFormatTarget& ft,
                                  const ::oma_pres::SessionParticipation& x, 
-                                 const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                                 const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                  const ::std::string& e = "UTF-8",
-                                 ::Xsd::XmlSchema::Flags f = 0);
+                                 ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeSessionParticipation (::xercesc::XMLFormatTarget& ft,
                                  const ::oma_pres::SessionParticipation& x, 
-                                 ::Xsd::XmlSchema::ErrorHandler& eh,
-                                 const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                                 ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                                 const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                  const ::std::string& e = "UTF-8",
-                                 ::Xsd::XmlSchema::Flags f = 0);
+                                 ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeSessionParticipation (::xercesc::XMLFormatTarget& ft,
                                  const ::oma_pres::SessionParticipation& x, 
                                  ::xercesc::DOMErrorHandler& eh,
-                                 const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                                 const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                  const ::std::string& e = "UTF-8",
-                                 ::Xsd::XmlSchema::Flags f = 0);
+                                 ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to an existing xercesc::DOMDocument.
   //
@@ -2267,15 +2270,15 @@ namespace oma_pres
   void
   serializeSessionParticipation (::xercesc::DOMDocument& d,
                                  const ::oma_pres::SessionParticipation& x,
-                                 ::Xsd::XmlSchema::Flags f = 0);
+                                 ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to a new xercesc::DOMDocument.
   //
 
-  ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
+  ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
   serializeSessionParticipation (const ::oma_pres::SessionParticipation& x, 
-                                 const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                                 ::Xsd::XmlSchema::Flags f = 0);
+                                 const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                                 ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to std::ostream.
   //
@@ -2283,25 +2286,25 @@ namespace oma_pres
   void
   serializeRegistrationState (::std::ostream& os,
                               const ::oma_pres::RegistrationState& x, 
-                              const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                              const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                               const ::std::string& e = "UTF-8",
-                              ::Xsd::XmlSchema::Flags f = 0);
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeRegistrationState (::std::ostream& os,
                               const ::oma_pres::RegistrationState& x, 
-                              ::Xsd::XmlSchema::ErrorHandler& eh,
-                              const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                              ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                              const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                               const ::std::string& e = "UTF-8",
-                              ::Xsd::XmlSchema::Flags f = 0);
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeRegistrationState (::std::ostream& os,
                               const ::oma_pres::RegistrationState& x, 
                               ::xercesc::DOMErrorHandler& eh,
-                              const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                              const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                               const ::std::string& e = "UTF-8",
-                              ::Xsd::XmlSchema::Flags f = 0);
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to xercesc::XMLFormatTarget.
   //
@@ -2309,25 +2312,25 @@ namespace oma_pres
   void
   serializeRegistrationState (::xercesc::XMLFormatTarget& ft,
                               const ::oma_pres::RegistrationState& x, 
-                              const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                              const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                               const ::std::string& e = "UTF-8",
-                              ::Xsd::XmlSchema::Flags f = 0);
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeRegistrationState (::xercesc::XMLFormatTarget& ft,
                               const ::oma_pres::RegistrationState& x, 
-                              ::Xsd::XmlSchema::ErrorHandler& eh,
-                              const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                              ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                              const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                               const ::std::string& e = "UTF-8",
-                              ::Xsd::XmlSchema::Flags f = 0);
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeRegistrationState (::xercesc::XMLFormatTarget& ft,
                               const ::oma_pres::RegistrationState& x, 
                               ::xercesc::DOMErrorHandler& eh,
-                              const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                              const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                               const ::std::string& e = "UTF-8",
-                              ::Xsd::XmlSchema::Flags f = 0);
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to an existing xercesc::DOMDocument.
   //
@@ -2335,15 +2338,15 @@ namespace oma_pres
   void
   serializeRegistrationState (::xercesc::DOMDocument& d,
                               const ::oma_pres::RegistrationState& x,
-                              ::Xsd::XmlSchema::Flags f = 0);
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to a new xercesc::DOMDocument.
   //
 
-  ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
+  ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
   serializeRegistrationState (const ::oma_pres::RegistrationState& x, 
-                              const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                              ::Xsd::XmlSchema::Flags f = 0);
+                              const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                              ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to std::ostream.
   //
@@ -2351,25 +2354,25 @@ namespace oma_pres
   void
   serializeBarringState (::std::ostream& os,
                          const ::oma_pres::BarringState& x, 
-                         const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                          const ::std::string& e = "UTF-8",
-                         ::Xsd::XmlSchema::Flags f = 0);
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeBarringState (::std::ostream& os,
                          const ::oma_pres::BarringState& x, 
-                         ::Xsd::XmlSchema::ErrorHandler& eh,
-                         const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                         ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                          const ::std::string& e = "UTF-8",
-                         ::Xsd::XmlSchema::Flags f = 0);
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeBarringState (::std::ostream& os,
                          const ::oma_pres::BarringState& x, 
                          ::xercesc::DOMErrorHandler& eh,
-                         const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                          const ::std::string& e = "UTF-8",
-                         ::Xsd::XmlSchema::Flags f = 0);
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to xercesc::XMLFormatTarget.
   //
@@ -2377,25 +2380,25 @@ namespace oma_pres
   void
   serializeBarringState (::xercesc::XMLFormatTarget& ft,
                          const ::oma_pres::BarringState& x, 
-                         const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                          const ::std::string& e = "UTF-8",
-                         ::Xsd::XmlSchema::Flags f = 0);
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeBarringState (::xercesc::XMLFormatTarget& ft,
                          const ::oma_pres::BarringState& x, 
-                         ::Xsd::XmlSchema::ErrorHandler& eh,
-                         const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                         ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                          const ::std::string& e = "UTF-8",
-                         ::Xsd::XmlSchema::Flags f = 0);
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeBarringState (::xercesc::XMLFormatTarget& ft,
                          const ::oma_pres::BarringState& x, 
                          ::xercesc::DOMErrorHandler& eh,
-                         const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                          const ::std::string& e = "UTF-8",
-                         ::Xsd::XmlSchema::Flags f = 0);
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to an existing xercesc::DOMDocument.
   //
@@ -2403,15 +2406,15 @@ namespace oma_pres
   void
   serializeBarringState (::xercesc::DOMDocument& d,
                          const ::oma_pres::BarringState& x,
-                         ::Xsd::XmlSchema::Flags f = 0);
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to a new xercesc::DOMDocument.
   //
 
-  ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
+  ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
   serializeBarringState (const ::oma_pres::BarringState& x, 
-                         const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                         ::Xsd::XmlSchema::Flags f = 0);
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to std::ostream.
   //
@@ -2419,25 +2422,25 @@ namespace oma_pres
   void
   serializeOverridingWillingness (::std::ostream& os,
                                   const ::oma_pres::OverridingWillingness& x, 
-                                  const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                                  const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                   const ::std::string& e = "UTF-8",
-                                  ::Xsd::XmlSchema::Flags f = 0);
+                                  ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeOverridingWillingness (::std::ostream& os,
                                   const ::oma_pres::OverridingWillingness& x, 
-                                  ::Xsd::XmlSchema::ErrorHandler& eh,
-                                  const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                                  ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                                  const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                   const ::std::string& e = "UTF-8",
-                                  ::Xsd::XmlSchema::Flags f = 0);
+                                  ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeOverridingWillingness (::std::ostream& os,
                                   const ::oma_pres::OverridingWillingness& x, 
                                   ::xercesc::DOMErrorHandler& eh,
-                                  const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                                  const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                   const ::std::string& e = "UTF-8",
-                                  ::Xsd::XmlSchema::Flags f = 0);
+                                  ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to xercesc::XMLFormatTarget.
   //
@@ -2445,25 +2448,25 @@ namespace oma_pres
   void
   serializeOverridingWillingness (::xercesc::XMLFormatTarget& ft,
                                   const ::oma_pres::OverridingWillingness& x, 
-                                  const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                                  const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                   const ::std::string& e = "UTF-8",
-                                  ::Xsd::XmlSchema::Flags f = 0);
+                                  ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeOverridingWillingness (::xercesc::XMLFormatTarget& ft,
                                   const ::oma_pres::OverridingWillingness& x, 
-                                  ::Xsd::XmlSchema::ErrorHandler& eh,
-                                  const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                                  ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                                  const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                   const ::std::string& e = "UTF-8",
-                                  ::Xsd::XmlSchema::Flags f = 0);
+                                  ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeOverridingWillingness (::xercesc::XMLFormatTarget& ft,
                                   const ::oma_pres::OverridingWillingness& x, 
                                   ::xercesc::DOMErrorHandler& eh,
-                                  const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                                  const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                   const ::std::string& e = "UTF-8",
-                                  ::Xsd::XmlSchema::Flags f = 0);
+                                  ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to an existing xercesc::DOMDocument.
   //
@@ -2471,15 +2474,15 @@ namespace oma_pres
   void
   serializeOverridingWillingness (::xercesc::DOMDocument& d,
                                   const ::oma_pres::OverridingWillingness& x,
-                                  ::Xsd::XmlSchema::Flags f = 0);
+                                  ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to a new xercesc::DOMDocument.
   //
 
-  ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
+  ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
   serializeOverridingWillingness (const ::oma_pres::OverridingWillingness& x, 
-                                  const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                                  ::Xsd::XmlSchema::Flags f = 0);
+                                  const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                                  ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to std::ostream.
   //
@@ -2487,25 +2490,25 @@ namespace oma_pres
   void
   serializeNetworkAvailability (::std::ostream& os,
                                 const ::oma_pres::NetworkAvailability& x, 
-                                const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                                const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                 const ::std::string& e = "UTF-8",
-                                ::Xsd::XmlSchema::Flags f = 0);
+                                ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeNetworkAvailability (::std::ostream& os,
                                 const ::oma_pres::NetworkAvailability& x, 
-                                ::Xsd::XmlSchema::ErrorHandler& eh,
-                                const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                                ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                                const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                 const ::std::string& e = "UTF-8",
-                                ::Xsd::XmlSchema::Flags f = 0);
+                                ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeNetworkAvailability (::std::ostream& os,
                                 const ::oma_pres::NetworkAvailability& x, 
                                 ::xercesc::DOMErrorHandler& eh,
-                                const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                                const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                 const ::std::string& e = "UTF-8",
-                                ::Xsd::XmlSchema::Flags f = 0);
+                                ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to xercesc::XMLFormatTarget.
   //
@@ -2513,25 +2516,25 @@ namespace oma_pres
   void
   serializeNetworkAvailability (::xercesc::XMLFormatTarget& ft,
                                 const ::oma_pres::NetworkAvailability& x, 
-                                const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                                const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                 const ::std::string& e = "UTF-8",
-                                ::Xsd::XmlSchema::Flags f = 0);
+                                ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeNetworkAvailability (::xercesc::XMLFormatTarget& ft,
                                 const ::oma_pres::NetworkAvailability& x, 
-                                ::Xsd::XmlSchema::ErrorHandler& eh,
-                                const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                                ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                                const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                 const ::std::string& e = "UTF-8",
-                                ::Xsd::XmlSchema::Flags f = 0);
+                                ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   serializeNetworkAvailability (::xercesc::XMLFormatTarget& ft,
                                 const ::oma_pres::NetworkAvailability& x, 
                                 ::xercesc::DOMErrorHandler& eh,
-                                const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
+                                const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
                                 const ::std::string& e = "UTF-8",
-                                ::Xsd::XmlSchema::Flags f = 0);
+                                ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to an existing xercesc::DOMDocument.
   //
@@ -2539,15 +2542,15 @@ namespace oma_pres
   void
   serializeNetworkAvailability (::xercesc::DOMDocument& d,
                                 const ::oma_pres::NetworkAvailability& x,
-                                ::Xsd::XmlSchema::Flags f = 0);
+                                ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   // Serialize to a new xercesc::DOMDocument.
   //
 
-  ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
+  ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
   serializeNetworkAvailability (const ::oma_pres::NetworkAvailability& x, 
-                                const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                                ::Xsd::XmlSchema::Flags f = 0);
+                                const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                                ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
   void
   operator<< (::xercesc::DOMElement&, const ServiceDescription&);
