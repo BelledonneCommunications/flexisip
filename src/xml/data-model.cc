@@ -48,330 +48,336 @@
 
 #include "data-model.hh"
 
-namespace Xsd
+namespace flexisip
 {
-  namespace DataModel
+  namespace Xsd
   {
-    // Timestamp_t
-    // 
-
-
-    // DeviceID_t
-    // 
-
-
-    // Note_t
-    // 
-
-    const Note_t::LangOptional& Note_t::
-    getLang () const
+    namespace DataModel
     {
-      return this->lang_;
+      // Timestamp_t
+      // 
+
+
+      // DeviceID_t
+      // 
+
+
+      // Note_t
+      // 
+
+      const Note_t::LangOptional& Note_t::
+      getLang () const
+      {
+        return this->lang_;
+      }
+
+      Note_t::LangOptional& Note_t::
+      getLang ()
+      {
+        return this->lang_;
+      }
+
+      void Note_t::
+      setLang (const LangType& x)
+      {
+        this->lang_.set (x);
+      }
+
+      void Note_t::
+      setLang (const LangOptional& x)
+      {
+        this->lang_ = x;
+      }
+
+      void Note_t::
+      setLang (::std::unique_ptr< LangType > x)
+      {
+        this->lang_.set (std::move (x));
+      }
+
+
+      // Empty
+      // 
     }
-
-    Note_t::LangOptional& Note_t::
-    getLang ()
-    {
-      return this->lang_;
-    }
-
-    void Note_t::
-    setLang (const LangType& x)
-    {
-      this->lang_.set (x);
-    }
-
-    void Note_t::
-    setLang (const LangOptional& x)
-    {
-      this->lang_ = x;
-    }
-
-    void Note_t::
-    setLang (::std::unique_ptr< LangType > x)
-    {
-      this->lang_.set (std::move (x));
-    }
-
-
-    // Empty
-    // 
   }
 }
 
-namespace Xsd
+namespace flexisip
 {
-  namespace DataModel
+  namespace Xsd
   {
-    // Device
-    // 
-
-    const Device::AnySequence& Device::
-    getAny () const
+    namespace DataModel
     {
-      return this->any_;
-    }
+      // Device
+      // 
 
-    Device::AnySequence& Device::
-    getAny ()
-    {
-      return this->any_;
-    }
+      const Device::AnySequence& Device::
+      getAny () const
+      {
+        return this->any_;
+      }
 
-    void Device::
-    setAny (const AnySequence& s)
-    {
-      this->any_ = s;
-    }
+      Device::AnySequence& Device::
+      getAny ()
+      {
+        return this->any_;
+      }
 
-    const Device::DeviceIDType& Device::
-    getDeviceID () const
-    {
-      return this->deviceID_.get ();
-    }
+      void Device::
+      setAny (const AnySequence& s)
+      {
+        this->any_ = s;
+      }
 
-    Device::DeviceIDType& Device::
-    getDeviceID ()
-    {
-      return this->deviceID_.get ();
-    }
+      const Device::DeviceIDType& Device::
+      getDeviceID () const
+      {
+        return this->deviceID_.get ();
+      }
 
-    void Device::
-    setDeviceID (const DeviceIDType& x)
-    {
-      this->deviceID_.set (x);
-    }
+      Device::DeviceIDType& Device::
+      getDeviceID ()
+      {
+        return this->deviceID_.get ();
+      }
 
-    void Device::
-    setDeviceID (::std::unique_ptr< DeviceIDType > x)
-    {
-      this->deviceID_.set (std::move (x));
-    }
+      void Device::
+      setDeviceID (const DeviceIDType& x)
+      {
+        this->deviceID_.set (x);
+      }
 
-    ::std::unique_ptr< Device::DeviceIDType > Device::
-    setDetachDeviceid ()
-    {
-      return this->deviceID_.detach ();
-    }
+      void Device::
+      setDeviceID (::std::unique_ptr< DeviceIDType > x)
+      {
+        this->deviceID_.set (std::move (x));
+      }
 
-    const Device::NoteSequence& Device::
-    getNote () const
-    {
-      return this->note_;
-    }
+      ::std::unique_ptr< Device::DeviceIDType > Device::
+      setDetachDeviceid ()
+      {
+        return this->deviceID_.detach ();
+      }
 
-    Device::NoteSequence& Device::
-    getNote ()
-    {
-      return this->note_;
-    }
+      const Device::NoteSequence& Device::
+      getNote () const
+      {
+        return this->note_;
+      }
 
-    void Device::
-    setNote (const NoteSequence& s)
-    {
-      this->note_ = s;
-    }
+      Device::NoteSequence& Device::
+      getNote ()
+      {
+        return this->note_;
+      }
 
-    const Device::TimestampOptional& Device::
-    getTimestamp () const
-    {
-      return this->timestamp_;
-    }
+      void Device::
+      setNote (const NoteSequence& s)
+      {
+        this->note_ = s;
+      }
 
-    Device::TimestampOptional& Device::
-    getTimestamp ()
-    {
-      return this->timestamp_;
-    }
+      const Device::TimestampOptional& Device::
+      getTimestamp () const
+      {
+        return this->timestamp_;
+      }
 
-    void Device::
-    setTimestamp (const TimestampType& x)
-    {
-      this->timestamp_.set (x);
-    }
+      Device::TimestampOptional& Device::
+      getTimestamp ()
+      {
+        return this->timestamp_;
+      }
 
-    void Device::
-    setTimestamp (const TimestampOptional& x)
-    {
-      this->timestamp_ = x;
-    }
+      void Device::
+      setTimestamp (const TimestampType& x)
+      {
+        this->timestamp_.set (x);
+      }
 
-    void Device::
-    setTimestamp (::std::unique_ptr< TimestampType > x)
-    {
-      this->timestamp_.set (std::move (x));
-    }
+      void Device::
+      setTimestamp (const TimestampOptional& x)
+      {
+        this->timestamp_ = x;
+      }
 
-    const Device::IdType& Device::
-    getId () const
-    {
-      return this->id_.get ();
-    }
+      void Device::
+      setTimestamp (::std::unique_ptr< TimestampType > x)
+      {
+        this->timestamp_.set (std::move (x));
+      }
 
-    Device::IdType& Device::
-    getId ()
-    {
-      return this->id_.get ();
-    }
+      const Device::IdType& Device::
+      getId () const
+      {
+        return this->id_.get ();
+      }
 
-    void Device::
-    setId (const IdType& x)
-    {
-      this->id_.set (x);
-    }
+      Device::IdType& Device::
+      getId ()
+      {
+        return this->id_.get ();
+      }
 
-    void Device::
-    setId (::std::unique_ptr< IdType > x)
-    {
-      this->id_.set (std::move (x));
-    }
+      void Device::
+      setId (const IdType& x)
+      {
+        this->id_.set (x);
+      }
 
-    ::std::unique_ptr< Device::IdType > Device::
-    setDetachId ()
-    {
-      return this->id_.detach ();
-    }
+      void Device::
+      setId (::std::unique_ptr< IdType > x)
+      {
+        this->id_.set (std::move (x));
+      }
 
-    const ::xercesc::DOMDocument& Device::
-    getDomDocument () const
-    {
-      return *this->dom_document_;
-    }
+      ::std::unique_ptr< Device::IdType > Device::
+      setDetachId ()
+      {
+        return this->id_.detach ();
+      }
 
-    ::xercesc::DOMDocument& Device::
-    getDomDocument ()
-    {
-      return *this->dom_document_;
-    }
+      const ::xercesc::DOMDocument& Device::
+      getDomDocument () const
+      {
+        return *this->dom_document_;
+      }
+
+      ::xercesc::DOMDocument& Device::
+      getDomDocument ()
+      {
+        return *this->dom_document_;
+      }
 
 
-    // Person
-    // 
+      // Person
+      // 
 
-    const Person::NoteSequence& Person::
-    getNote () const
-    {
-      return this->note_;
-    }
+      const Person::NoteSequence& Person::
+      getNote () const
+      {
+        return this->note_;
+      }
 
-    Person::NoteSequence& Person::
-    getNote ()
-    {
-      return this->note_;
-    }
+      Person::NoteSequence& Person::
+      getNote ()
+      {
+        return this->note_;
+      }
 
-    void Person::
-    setNote (const NoteSequence& s)
-    {
-      this->note_ = s;
-    }
+      void Person::
+      setNote (const NoteSequence& s)
+      {
+        this->note_ = s;
+      }
 
-    const Person::ActivitiesSequence& Person::
-    getActivities () const
-    {
-      return this->activities_;
-    }
+      const Person::ActivitiesSequence& Person::
+      getActivities () const
+      {
+        return this->activities_;
+      }
 
-    Person::ActivitiesSequence& Person::
-    getActivities ()
-    {
-      return this->activities_;
-    }
+      Person::ActivitiesSequence& Person::
+      getActivities ()
+      {
+        return this->activities_;
+      }
 
-    void Person::
-    setActivities (const ActivitiesSequence& s)
-    {
-      this->activities_ = s;
-    }
+      void Person::
+      setActivities (const ActivitiesSequence& s)
+      {
+        this->activities_ = s;
+      }
 
-    const Person::TimestampOptional& Person::
-    getTimestamp () const
-    {
-      return this->timestamp_;
-    }
+      const Person::TimestampOptional& Person::
+      getTimestamp () const
+      {
+        return this->timestamp_;
+      }
 
-    Person::TimestampOptional& Person::
-    getTimestamp ()
-    {
-      return this->timestamp_;
-    }
+      Person::TimestampOptional& Person::
+      getTimestamp ()
+      {
+        return this->timestamp_;
+      }
 
-    void Person::
-    setTimestamp (const TimestampType& x)
-    {
-      this->timestamp_.set (x);
-    }
+      void Person::
+      setTimestamp (const TimestampType& x)
+      {
+        this->timestamp_.set (x);
+      }
 
-    void Person::
-    setTimestamp (const TimestampOptional& x)
-    {
-      this->timestamp_ = x;
-    }
+      void Person::
+      setTimestamp (const TimestampOptional& x)
+      {
+        this->timestamp_ = x;
+      }
 
-    void Person::
-    setTimestamp (::std::unique_ptr< TimestampType > x)
-    {
-      this->timestamp_.set (std::move (x));
-    }
+      void Person::
+      setTimestamp (::std::unique_ptr< TimestampType > x)
+      {
+        this->timestamp_.set (std::move (x));
+      }
 
-    const Person::IdType& Person::
-    getId () const
-    {
-      return this->id_.get ();
-    }
+      const Person::IdType& Person::
+      getId () const
+      {
+        return this->id_.get ();
+      }
 
-    Person::IdType& Person::
-    getId ()
-    {
-      return this->id_.get ();
-    }
+      Person::IdType& Person::
+      getId ()
+      {
+        return this->id_.get ();
+      }
 
-    void Person::
-    setId (const IdType& x)
-    {
-      this->id_.set (x);
-    }
+      void Person::
+      setId (const IdType& x)
+      {
+        this->id_.set (x);
+      }
 
-    void Person::
-    setId (::std::unique_ptr< IdType > x)
-    {
-      this->id_.set (std::move (x));
-    }
+      void Person::
+      setId (::std::unique_ptr< IdType > x)
+      {
+        this->id_.set (std::move (x));
+      }
 
-    ::std::unique_ptr< Person::IdType > Person::
-    setDetachId ()
-    {
-      return this->id_.detach ();
-    }
+      ::std::unique_ptr< Person::IdType > Person::
+      setDetachId ()
+      {
+        return this->id_.detach ();
+      }
 
-    const Person::AnyAttributeSet& Person::
-    getAnyAttribute () const
-    {
-      return this->any_attribute_;
-    }
+      const Person::AnyAttributeSet& Person::
+      getAnyAttribute () const
+      {
+        return this->any_attribute_;
+      }
 
-    Person::AnyAttributeSet& Person::
-    getAnyAttribute ()
-    {
-      return this->any_attribute_;
-    }
+      Person::AnyAttributeSet& Person::
+      getAnyAttribute ()
+      {
+        return this->any_attribute_;
+      }
 
-    void Person::
-    setAnyAttribute (const AnyAttributeSet& s)
-    {
-      this->any_attribute_ = s;
-    }
+      void Person::
+      setAnyAttribute (const AnyAttributeSet& s)
+      {
+        this->any_attribute_ = s;
+      }
 
-    const ::xercesc::DOMDocument& Person::
-    getDomDocument () const
-    {
-      return *this->dom_document_;
-    }
+      const ::xercesc::DOMDocument& Person::
+      getDomDocument () const
+      {
+        return *this->dom_document_;
+      }
 
-    ::xercesc::DOMDocument& Person::
-    getDomDocument ()
-    {
-      return *this->dom_document_;
+      ::xercesc::DOMDocument& Person::
+      getDomDocument ()
+      {
+        return *this->dom_document_;
+      }
     }
   }
 }
@@ -380,695 +386,707 @@ namespace Xsd
 
 #include <xsd/cxx/xml/dom/parsing-source.hxx>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace DataModel
+  namespace Xsd
   {
-    // Timestamp_t
-    //
-
-    Timestamp_t::
-    Timestamp_t (const ::Xsd::XmlSchema::DateTime& _xsd_DateTime_base)
-    : ::Xsd::XmlSchema::DateTime (_xsd_DateTime_base)
+    namespace DataModel
     {
-    }
+      // Timestamp_t
+      //
 
-    Timestamp_t::
-    Timestamp_t (const Timestamp_t& x,
-                 ::Xsd::XmlSchema::Flags f,
-                 ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::DateTime (x, f, c)
-    {
-    }
-
-    Timestamp_t::
-    Timestamp_t (const ::xercesc::DOMElement& e,
-                 ::Xsd::XmlSchema::Flags f,
-                 ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::DateTime (e, f, c)
-    {
-    }
-
-    Timestamp_t::
-    Timestamp_t (const ::xercesc::DOMAttr& a,
-                 ::Xsd::XmlSchema::Flags f,
-                 ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::DateTime (a, f, c)
-    {
-    }
-
-    Timestamp_t::
-    Timestamp_t (const ::std::string& s,
-                 const ::xercesc::DOMElement* e,
-                 ::Xsd::XmlSchema::Flags f,
-                 ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::DateTime (s, e, f, c)
-    {
-    }
-
-    Timestamp_t* Timestamp_t::
-    _clone (::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c) const
-    {
-      return new class Timestamp_t (*this, f, c);
-    }
-
-    Timestamp_t::
-    ~Timestamp_t ()
-    {
-    }
-
-    // DeviceID_t
-    //
-
-    DeviceID_t::
-    DeviceID_t (const ::Xsd::XmlSchema::Uri& _xsd_Uri_base)
-    : ::Xsd::XmlSchema::Uri (_xsd_Uri_base)
-    {
-    }
-
-    DeviceID_t::
-    DeviceID_t (const DeviceID_t& x,
-                ::Xsd::XmlSchema::Flags f,
-                ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::Uri (x, f, c)
-    {
-    }
-
-    DeviceID_t::
-    DeviceID_t (const ::xercesc::DOMElement& e,
-                ::Xsd::XmlSchema::Flags f,
-                ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::Uri (e, f, c)
-    {
-    }
-
-    DeviceID_t::
-    DeviceID_t (const ::xercesc::DOMAttr& a,
-                ::Xsd::XmlSchema::Flags f,
-                ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::Uri (a, f, c)
-    {
-    }
-
-    DeviceID_t::
-    DeviceID_t (const ::std::string& s,
-                const ::xercesc::DOMElement* e,
-                ::Xsd::XmlSchema::Flags f,
-                ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::Uri (s, e, f, c)
-    {
-    }
-
-    DeviceID_t* DeviceID_t::
-    _clone (::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c) const
-    {
-      return new class DeviceID_t (*this, f, c);
-    }
-
-    DeviceID_t::
-    ~DeviceID_t ()
-    {
-    }
-
-    // Note_t
-    //
-
-    Note_t::
-    Note_t ()
-    : ::Xsd::XmlSchema::String (),
-      lang_ (this)
-    {
-    }
-
-    Note_t::
-    Note_t (const char* _xsd_String_base)
-    : ::Xsd::XmlSchema::String (_xsd_String_base),
-      lang_ (this)
-    {
-    }
-
-    Note_t::
-    Note_t (const ::std::string& _xsd_String_base)
-    : ::Xsd::XmlSchema::String (_xsd_String_base),
-      lang_ (this)
-    {
-    }
-
-    Note_t::
-    Note_t (const ::Xsd::XmlSchema::String& _xsd_String_base)
-    : ::Xsd::XmlSchema::String (_xsd_String_base),
-      lang_ (this)
-    {
-    }
-
-    Note_t::
-    Note_t (const Note_t& x,
-            ::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::String (x, f, c),
-      lang_ (x.lang_, f, this)
-    {
-    }
-
-    Note_t::
-    Note_t (const ::xercesc::DOMElement& e,
-            ::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::String (e, f | ::Xsd::XmlSchema::Flags::base, c),
-      lang_ (this)
-    {
-      if ((f & ::Xsd::XmlSchema::Flags::base) == 0)
+      Timestamp_t::
+      Timestamp_t (const ::flexisip::Xsd::XmlSchema::DateTime& _xsd_DateTime_base)
+      : ::flexisip::Xsd::XmlSchema::DateTime (_xsd_DateTime_base)
       {
-        ::xsd::cxx::xml::dom::parser< char > p (e, false, false, true);
-        this->parse (p, f);
       }
-    }
 
-    void Note_t::
-    parse (::xsd::cxx::xml::dom::parser< char >& p,
-           ::Xsd::XmlSchema::Flags f)
-    {
-      while (p.more_attributes ())
+      Timestamp_t::
+      Timestamp_t (const Timestamp_t& x,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::DateTime (x, f, c)
       {
-        const ::xercesc::DOMAttr& i (p.next_attribute ());
-        const ::xsd::cxx::xml::qualified_name< char > n (
-          ::xsd::cxx::xml::dom::name< char > (i));
+      }
 
-        if (n.name () == "lang" && n.namespace_ () == "http://www.w3.org/XML/1998/namespace")
+      Timestamp_t::
+      Timestamp_t (const ::xercesc::DOMElement& e,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::DateTime (e, f, c)
+      {
+      }
+
+      Timestamp_t::
+      Timestamp_t (const ::xercesc::DOMAttr& a,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::DateTime (a, f, c)
+      {
+      }
+
+      Timestamp_t::
+      Timestamp_t (const ::std::string& s,
+                   const ::xercesc::DOMElement* e,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::DateTime (s, e, f, c)
+      {
+      }
+
+      Timestamp_t* Timestamp_t::
+      _clone (::flexisip::Xsd::XmlSchema::Flags f,
+              ::flexisip::Xsd::XmlSchema::Container* c) const
+      {
+        return new class Timestamp_t (*this, f, c);
+      }
+
+      Timestamp_t::
+      ~Timestamp_t ()
+      {
+      }
+
+      // DeviceID_t
+      //
+
+      DeviceID_t::
+      DeviceID_t (const ::flexisip::Xsd::XmlSchema::Uri& _xsd_Uri_base)
+      : ::flexisip::Xsd::XmlSchema::Uri (_xsd_Uri_base)
+      {
+      }
+
+      DeviceID_t::
+      DeviceID_t (const DeviceID_t& x,
+                  ::flexisip::Xsd::XmlSchema::Flags f,
+                  ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::Uri (x, f, c)
+      {
+      }
+
+      DeviceID_t::
+      DeviceID_t (const ::xercesc::DOMElement& e,
+                  ::flexisip::Xsd::XmlSchema::Flags f,
+                  ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::Uri (e, f, c)
+      {
+      }
+
+      DeviceID_t::
+      DeviceID_t (const ::xercesc::DOMAttr& a,
+                  ::flexisip::Xsd::XmlSchema::Flags f,
+                  ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::Uri (a, f, c)
+      {
+      }
+
+      DeviceID_t::
+      DeviceID_t (const ::std::string& s,
+                  const ::xercesc::DOMElement* e,
+                  ::flexisip::Xsd::XmlSchema::Flags f,
+                  ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::Uri (s, e, f, c)
+      {
+      }
+
+      DeviceID_t* DeviceID_t::
+      _clone (::flexisip::Xsd::XmlSchema::Flags f,
+              ::flexisip::Xsd::XmlSchema::Container* c) const
+      {
+        return new class DeviceID_t (*this, f, c);
+      }
+
+      DeviceID_t::
+      ~DeviceID_t ()
+      {
+      }
+
+      // Note_t
+      //
+
+      Note_t::
+      Note_t ()
+      : ::flexisip::Xsd::XmlSchema::String (),
+        lang_ (this)
+      {
+      }
+
+      Note_t::
+      Note_t (const char* _xsd_String_base)
+      : ::flexisip::Xsd::XmlSchema::String (_xsd_String_base),
+        lang_ (this)
+      {
+      }
+
+      Note_t::
+      Note_t (const ::std::string& _xsd_String_base)
+      : ::flexisip::Xsd::XmlSchema::String (_xsd_String_base),
+        lang_ (this)
+      {
+      }
+
+      Note_t::
+      Note_t (const ::flexisip::Xsd::XmlSchema::String& _xsd_String_base)
+      : ::flexisip::Xsd::XmlSchema::String (_xsd_String_base),
+        lang_ (this)
+      {
+      }
+
+      Note_t::
+      Note_t (const Note_t& x,
+              ::flexisip::Xsd::XmlSchema::Flags f,
+              ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::String (x, f, c),
+        lang_ (x.lang_, f, this)
+      {
+      }
+
+      Note_t::
+      Note_t (const ::xercesc::DOMElement& e,
+              ::flexisip::Xsd::XmlSchema::Flags f,
+              ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::String (e, f | ::flexisip::Xsd::XmlSchema::Flags::base, c),
+        lang_ (this)
+      {
+        if ((f & ::flexisip::Xsd::XmlSchema::Flags::base) == 0)
         {
-          this->lang_.set (LangTraits::create (i, f, this));
-          continue;
+          ::xsd::cxx::xml::dom::parser< char > p (e, false, false, true);
+          this->parse (p, f);
         }
       }
-    }
 
-    Note_t* Note_t::
-    _clone (::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c) const
-    {
-      return new class Note_t (*this, f, c);
-    }
-
-    Note_t& Note_t::
-    operator= (const Note_t& x)
-    {
-      if (this != &x)
+      void Note_t::
+      parse (::xsd::cxx::xml::dom::parser< char >& p,
+             ::flexisip::Xsd::XmlSchema::Flags f)
       {
-        static_cast< ::Xsd::XmlSchema::String& > (*this) = x;
-        this->lang_ = x.lang_;
+        while (p.more_attributes ())
+        {
+          const ::xercesc::DOMAttr& i (p.next_attribute ());
+          const ::xsd::cxx::xml::qualified_name< char > n (
+            ::xsd::cxx::xml::dom::name< char > (i));
+
+          if (n.name () == "lang" && n.namespace_ () == "http://www.w3.org/XML/1998/namespace")
+          {
+            this->lang_.set (LangTraits::create (i, f, this));
+            continue;
+          }
+        }
       }
 
-      return *this;
-    }
+      Note_t* Note_t::
+      _clone (::flexisip::Xsd::XmlSchema::Flags f,
+              ::flexisip::Xsd::XmlSchema::Container* c) const
+      {
+        return new class Note_t (*this, f, c);
+      }
 
-    Note_t::
-    ~Note_t ()
-    {
-    }
+      Note_t& Note_t::
+      operator= (const Note_t& x)
+      {
+        if (this != &x)
+        {
+          static_cast< ::flexisip::Xsd::XmlSchema::String& > (*this) = x;
+          this->lang_ = x.lang_;
+        }
 
-    // Empty
-    //
+        return *this;
+      }
 
-    Empty::
-    Empty ()
-    : ::Xsd::XmlSchema::Type ()
-    {
-    }
+      Note_t::
+      ~Note_t ()
+      {
+      }
 
-    Empty::
-    Empty (const Empty& x,
-           ::Xsd::XmlSchema::Flags f,
-           ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::Type (x, f, c)
-    {
-    }
+      // Empty
+      //
 
-    Empty::
-    Empty (const ::xercesc::DOMElement& e,
-           ::Xsd::XmlSchema::Flags f,
-           ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::Type (e, f, c)
-    {
-    }
+      Empty::
+      Empty ()
+      : ::flexisip::Xsd::XmlSchema::Type ()
+      {
+      }
 
-    Empty::
-    Empty (const ::xercesc::DOMAttr& a,
-           ::Xsd::XmlSchema::Flags f,
-           ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::Type (a, f, c)
-    {
-    }
+      Empty::
+      Empty (const Empty& x,
+             ::flexisip::Xsd::XmlSchema::Flags f,
+             ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::Type (x, f, c)
+      {
+      }
 
-    Empty::
-    Empty (const ::std::string& s,
-           const ::xercesc::DOMElement* e,
-           ::Xsd::XmlSchema::Flags f,
-           ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::Type (s, e, f, c)
-    {
-    }
+      Empty::
+      Empty (const ::xercesc::DOMElement& e,
+             ::flexisip::Xsd::XmlSchema::Flags f,
+             ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::Type (e, f, c)
+      {
+      }
 
-    Empty* Empty::
-    _clone (::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c) const
-    {
-      return new class Empty (*this, f, c);
-    }
+      Empty::
+      Empty (const ::xercesc::DOMAttr& a,
+             ::flexisip::Xsd::XmlSchema::Flags f,
+             ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::Type (a, f, c)
+      {
+      }
 
-    Empty::
-    ~Empty ()
-    {
+      Empty::
+      Empty (const ::std::string& s,
+             const ::xercesc::DOMElement* e,
+             ::flexisip::Xsd::XmlSchema::Flags f,
+             ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::Type (s, e, f, c)
+      {
+      }
+
+      Empty* Empty::
+      _clone (::flexisip::Xsd::XmlSchema::Flags f,
+              ::flexisip::Xsd::XmlSchema::Container* c) const
+      {
+        return new class Empty (*this, f, c);
+      }
+
+      Empty::
+      ~Empty ()
+      {
+      }
     }
   }
 }
 
-namespace Xsd
+namespace flexisip
 {
-  namespace DataModel
+  namespace Xsd
   {
-    // Device
-    //
-
-    Device::
-    Device (const DeviceIDType& deviceID,
-            const IdType& id)
-    : ::Xsd::XmlSchema::Type (),
-      dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
-      any_ (this->getDomDocument ()),
-      deviceID_ (deviceID, this),
-      note_ (this),
-      timestamp_ (this),
-      id_ (id, this)
+    namespace DataModel
     {
-    }
+      // Device
+      //
 
-    Device::
-    Device (const Device& x,
-            ::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::Type (x, f, c),
-      dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
-      any_ (x.any_, this->getDomDocument ()),
-      deviceID_ (x.deviceID_, f, this),
-      note_ (x.note_, f, this),
-      timestamp_ (x.timestamp_, f, this),
-      id_ (x.id_, f, this)
-    {
-    }
-
-    Device::
-    Device (const ::xercesc::DOMElement& e,
-            ::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::Type (e, f | ::Xsd::XmlSchema::Flags::base, c),
-      dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
-      any_ (this->getDomDocument ()),
-      deviceID_ (this),
-      note_ (this),
-      timestamp_ (this),
-      id_ (this)
-    {
-      if ((f & ::Xsd::XmlSchema::Flags::base) == 0)
+      Device::
+      Device (const DeviceIDType& deviceID,
+              const IdType& id)
+      : ::flexisip::Xsd::XmlSchema::Type (),
+        dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
+        any_ (this->getDomDocument ()),
+        deviceID_ (deviceID, this),
+        note_ (this),
+        timestamp_ (this),
+        id_ (id, this)
       {
-        ::xsd::cxx::xml::dom::parser< char > p (e, true, false, true);
-        this->parse (p, f);
       }
-    }
 
-    void Device::
-    parse (::xsd::cxx::xml::dom::parser< char >& p,
-           ::Xsd::XmlSchema::Flags f)
-    {
-      for (; p.more_content (); p.next_content (false))
+      Device::
+      Device (const Device& x,
+              ::flexisip::Xsd::XmlSchema::Flags f,
+              ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::Type (x, f, c),
+        dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
+        any_ (x.any_, this->getDomDocument ()),
+        deviceID_ (x.deviceID_, f, this),
+        note_ (x.note_, f, this),
+        timestamp_ (x.timestamp_, f, this),
+        id_ (x.id_, f, this)
       {
-        const ::xercesc::DOMElement& i (p.cur_element ());
-        const ::xsd::cxx::xml::qualified_name< char > n (
-          ::xsd::cxx::xml::dom::name< char > (i));
+      }
 
-        // any
-        //
-        if ((!n.namespace_ ().empty () && n.namespace_ () != "urn:ietf:params:xml:ns:pidf:data-model"))
+      Device::
+      Device (const ::xercesc::DOMElement& e,
+              ::flexisip::Xsd::XmlSchema::Flags f,
+              ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::Type (e, f | ::flexisip::Xsd::XmlSchema::Flags::base, c),
+        dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
+        any_ (this->getDomDocument ()),
+        deviceID_ (this),
+        note_ (this),
+        timestamp_ (this),
+        id_ (this)
+      {
+        if ((f & ::flexisip::Xsd::XmlSchema::Flags::base) == 0)
         {
-          ::xercesc::DOMElement* r (
-            static_cast< ::xercesc::DOMElement* > (
-              this->getDomDocument ().importNode (
-                const_cast< ::xercesc::DOMElement* > (&i), true)));
-          this->any_.push_back (r);
-          continue;
+          ::xsd::cxx::xml::dom::parser< char > p (e, true, false, true);
+          this->parse (p, f);
+        }
+      }
+
+      void Device::
+      parse (::xsd::cxx::xml::dom::parser< char >& p,
+             ::flexisip::Xsd::XmlSchema::Flags f)
+      {
+        for (; p.more_content (); p.next_content (false))
+        {
+          const ::xercesc::DOMElement& i (p.cur_element ());
+          const ::xsd::cxx::xml::qualified_name< char > n (
+            ::xsd::cxx::xml::dom::name< char > (i));
+
+          // any
+          //
+          if ((!n.namespace_ ().empty () && n.namespace_ () != "urn:ietf:params:xml:ns:pidf:data-model"))
+          {
+            ::xercesc::DOMElement* r (
+              static_cast< ::xercesc::DOMElement* > (
+                this->getDomDocument ().importNode (
+                  const_cast< ::xercesc::DOMElement* > (&i), true)));
+            this->any_.push_back (r);
+            continue;
+          }
+
+          // deviceID
+          //
+          if (n.name () == "deviceID" && n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+          {
+            ::std::unique_ptr< DeviceIDType > r (
+              DeviceIDTraits::create (i, f, this));
+
+            if (!deviceID_.present ())
+            {
+              this->deviceID_.set (::std::move (r));
+              continue;
+            }
+          }
+
+          // note
+          //
+          if (n.name () == "note" && n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+          {
+            ::std::unique_ptr< NoteType > r (
+              NoteTraits::create (i, f, this));
+
+            this->note_.push_back (::std::move (r));
+            continue;
+          }
+
+          // timestamp
+          //
+          if (n.name () == "timestamp" && n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+          {
+            ::std::unique_ptr< TimestampType > r (
+              TimestampTraits::create (i, f, this));
+
+            if (!this->timestamp_)
+            {
+              this->timestamp_.set (::std::move (r));
+              continue;
+            }
+          }
+
+          break;
         }
 
-        // deviceID
-        //
-        if (n.name () == "deviceID" && n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+        if (!deviceID_.present ())
         {
-          ::std::unique_ptr< DeviceIDType > r (
-            DeviceIDTraits::create (i, f, this));
+          throw ::xsd::cxx::tree::expected_element< char > (
+            "deviceID",
+            "urn:ietf:params:xml:ns:pidf:data-model");
+        }
 
-          if (!deviceID_.present ())
+        while (p.more_attributes ())
+        {
+          const ::xercesc::DOMAttr& i (p.next_attribute ());
+          const ::xsd::cxx::xml::qualified_name< char > n (
+            ::xsd::cxx::xml::dom::name< char > (i));
+
+          if (n.name () == "id" && n.namespace_ ().empty ())
           {
-            this->deviceID_.set (::std::move (r));
+            this->id_.set (IdTraits::create (i, f, this));
             continue;
           }
         }
 
-        // note
-        //
-        if (n.name () == "note" && n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+        if (!id_.present ())
         {
-          ::std::unique_ptr< NoteType > r (
-            NoteTraits::create (i, f, this));
+          throw ::xsd::cxx::tree::expected_attribute< char > (
+            "id",
+            "");
+        }
+      }
 
-          this->note_.push_back (::std::move (r));
-          continue;
+      Device* Device::
+      _clone (::flexisip::Xsd::XmlSchema::Flags f,
+              ::flexisip::Xsd::XmlSchema::Container* c) const
+      {
+        return new class Device (*this, f, c);
+      }
+
+      Device& Device::
+      operator= (const Device& x)
+      {
+        if (this != &x)
+        {
+          static_cast< ::flexisip::Xsd::XmlSchema::Type& > (*this) = x;
+          this->any_ = x.any_;
+          this->deviceID_ = x.deviceID_;
+          this->note_ = x.note_;
+          this->timestamp_ = x.timestamp_;
+          this->id_ = x.id_;
         }
 
-        // timestamp
-        //
-        if (n.name () == "timestamp" && n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
-        {
-          ::std::unique_ptr< TimestampType > r (
-            TimestampTraits::create (i, f, this));
+        return *this;
+      }
 
-          if (!this->timestamp_)
+      Device::
+      ~Device ()
+      {
+      }
+
+      // Person
+      //
+
+      Person::
+      Person (const IdType& id)
+      : ::flexisip::Xsd::XmlSchema::Type (),
+        dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
+        note_ (this),
+        activities_ (this),
+        timestamp_ (this),
+        id_ (id, this),
+        any_attribute_ (this->getDomDocument ())
+      {
+      }
+
+      Person::
+      Person (const Person& x,
+              ::flexisip::Xsd::XmlSchema::Flags f,
+              ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::Type (x, f, c),
+        dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
+        note_ (x.note_, f, this),
+        activities_ (x.activities_, f, this),
+        timestamp_ (x.timestamp_, f, this),
+        id_ (x.id_, f, this),
+        any_attribute_ (x.any_attribute_, this->getDomDocument ())
+      {
+      }
+
+      Person::
+      Person (const ::xercesc::DOMElement& e,
+              ::flexisip::Xsd::XmlSchema::Flags f,
+              ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::Type (e, f | ::flexisip::Xsd::XmlSchema::Flags::base, c),
+        dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
+        note_ (this),
+        activities_ (this),
+        timestamp_ (this),
+        id_ (this),
+        any_attribute_ (this->getDomDocument ())
+      {
+        if ((f & ::flexisip::Xsd::XmlSchema::Flags::base) == 0)
+        {
+          ::xsd::cxx::xml::dom::parser< char > p (e, true, false, true);
+          this->parse (p, f);
+        }
+      }
+
+      void Person::
+      parse (::xsd::cxx::xml::dom::parser< char >& p,
+             ::flexisip::Xsd::XmlSchema::Flags f)
+      {
+        for (; p.more_content (); p.next_content (false))
+        {
+          const ::xercesc::DOMElement& i (p.cur_element ());
+          const ::xsd::cxx::xml::qualified_name< char > n (
+            ::xsd::cxx::xml::dom::name< char > (i));
+
+          // note
+          //
+          if (n.name () == "note" && n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
           {
-            this->timestamp_.set (::std::move (r));
+            ::std::unique_ptr< NoteType > r (
+              NoteTraits::create (i, f, this));
+
+            this->note_.push_back (::std::move (r));
+            continue;
+          }
+
+          // activities
+          //
+          if (n.name () == "activities" && n.namespace_ () == "urn:ietf:params:xml:ns:pidf:rpid")
+          {
+            ::std::unique_ptr< ActivitiesType > r (
+              ActivitiesTraits::create (i, f, this));
+
+            this->activities_.push_back (::std::move (r));
+            continue;
+          }
+
+          // timestamp
+          //
+          if (n.name () == "timestamp" && n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+          {
+            ::std::unique_ptr< TimestampType > r (
+              TimestampTraits::create (i, f, this));
+
+            if (!this->timestamp_)
+            {
+              this->timestamp_.set (::std::move (r));
+              continue;
+            }
+          }
+
+          break;
+        }
+
+        while (p.more_attributes ())
+        {
+          const ::xercesc::DOMAttr& i (p.next_attribute ());
+          const ::xsd::cxx::xml::qualified_name< char > n (
+            ::xsd::cxx::xml::dom::name< char > (i));
+
+          if (n.name () == "id" && n.namespace_ ().empty ())
+          {
+            this->id_.set (IdTraits::create (i, f, this));
+            continue;
+          }
+
+          // any_attribute
+          //
+          if ((n.namespace_ () != ::xsd::cxx::xml::bits::xmlns_namespace< char > () &&
+               n.namespace_ () != ::xsd::cxx::xml::bits::xsi_namespace< char > ()))
+          {
+            ::xercesc::DOMAttr* r (
+              static_cast< ::xercesc::DOMAttr* > (
+                this->getDomDocument ().importNode (
+                  const_cast< ::xercesc::DOMAttr* > (&i), true)));
+            this->any_attribute_ .insert (r);
             continue;
           }
         }
 
-        break;
-      }
-
-      if (!deviceID_.present ())
-      {
-        throw ::xsd::cxx::tree::expected_element< char > (
-          "deviceID",
-          "urn:ietf:params:xml:ns:pidf:data-model");
-      }
-
-      while (p.more_attributes ())
-      {
-        const ::xercesc::DOMAttr& i (p.next_attribute ());
-        const ::xsd::cxx::xml::qualified_name< char > n (
-          ::xsd::cxx::xml::dom::name< char > (i));
-
-        if (n.name () == "id" && n.namespace_ ().empty ())
+        if (!id_.present ())
         {
-          this->id_.set (IdTraits::create (i, f, this));
-          continue;
+          throw ::xsd::cxx::tree::expected_attribute< char > (
+            "id",
+            "");
         }
       }
 
-      if (!id_.present ())
+      Person* Person::
+      _clone (::flexisip::Xsd::XmlSchema::Flags f,
+              ::flexisip::Xsd::XmlSchema::Container* c) const
       {
-        throw ::xsd::cxx::tree::expected_attribute< char > (
-          "id",
-          "");
-      }
-    }
-
-    Device* Device::
-    _clone (::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c) const
-    {
-      return new class Device (*this, f, c);
-    }
-
-    Device& Device::
-    operator= (const Device& x)
-    {
-      if (this != &x)
-      {
-        static_cast< ::Xsd::XmlSchema::Type& > (*this) = x;
-        this->any_ = x.any_;
-        this->deviceID_ = x.deviceID_;
-        this->note_ = x.note_;
-        this->timestamp_ = x.timestamp_;
-        this->id_ = x.id_;
+        return new class Person (*this, f, c);
       }
 
-      return *this;
-    }
-
-    Device::
-    ~Device ()
-    {
-    }
-
-    // Person
-    //
-
-    Person::
-    Person (const IdType& id)
-    : ::Xsd::XmlSchema::Type (),
-      dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
-      note_ (this),
-      activities_ (this),
-      timestamp_ (this),
-      id_ (id, this),
-      any_attribute_ (this->getDomDocument ())
-    {
-    }
-
-    Person::
-    Person (const Person& x,
-            ::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::Type (x, f, c),
-      dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
-      note_ (x.note_, f, this),
-      activities_ (x.activities_, f, this),
-      timestamp_ (x.timestamp_, f, this),
-      id_ (x.id_, f, this),
-      any_attribute_ (x.any_attribute_, this->getDomDocument ())
-    {
-    }
-
-    Person::
-    Person (const ::xercesc::DOMElement& e,
-            ::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::Type (e, f | ::Xsd::XmlSchema::Flags::base, c),
-      dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
-      note_ (this),
-      activities_ (this),
-      timestamp_ (this),
-      id_ (this),
-      any_attribute_ (this->getDomDocument ())
-    {
-      if ((f & ::Xsd::XmlSchema::Flags::base) == 0)
+      Person& Person::
+      operator= (const Person& x)
       {
-        ::xsd::cxx::xml::dom::parser< char > p (e, true, false, true);
-        this->parse (p, f);
-      }
-    }
-
-    void Person::
-    parse (::xsd::cxx::xml::dom::parser< char >& p,
-           ::Xsd::XmlSchema::Flags f)
-    {
-      for (; p.more_content (); p.next_content (false))
-      {
-        const ::xercesc::DOMElement& i (p.cur_element ());
-        const ::xsd::cxx::xml::qualified_name< char > n (
-          ::xsd::cxx::xml::dom::name< char > (i));
-
-        // note
-        //
-        if (n.name () == "note" && n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+        if (this != &x)
         {
-          ::std::unique_ptr< NoteType > r (
-            NoteTraits::create (i, f, this));
-
-          this->note_.push_back (::std::move (r));
-          continue;
+          static_cast< ::flexisip::Xsd::XmlSchema::Type& > (*this) = x;
+          this->note_ = x.note_;
+          this->activities_ = x.activities_;
+          this->timestamp_ = x.timestamp_;
+          this->id_ = x.id_;
+          this->any_attribute_ = x.any_attribute_;
         }
 
-        // activities
-        //
-        if (n.name () == "activities" && n.namespace_ () == "urn:ietf:params:xml:ns:pidf:rpid")
-        {
-          ::std::unique_ptr< ActivitiesType > r (
-            ActivitiesTraits::create (i, f, this));
-
-          this->activities_.push_back (::std::move (r));
-          continue;
-        }
-
-        // timestamp
-        //
-        if (n.name () == "timestamp" && n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
-        {
-          ::std::unique_ptr< TimestampType > r (
-            TimestampTraits::create (i, f, this));
-
-          if (!this->timestamp_)
-          {
-            this->timestamp_.set (::std::move (r));
-            continue;
-          }
-        }
-
-        break;
+        return *this;
       }
 
-      while (p.more_attributes ())
+      Person::
+      ~Person ()
       {
-        const ::xercesc::DOMAttr& i (p.next_attribute ());
-        const ::xsd::cxx::xml::qualified_name< char > n (
-          ::xsd::cxx::xml::dom::name< char > (i));
-
-        if (n.name () == "id" && n.namespace_ ().empty ())
-        {
-          this->id_.set (IdTraits::create (i, f, this));
-          continue;
-        }
-
-        // any_attribute
-        //
-        if ((n.namespace_ () != ::xsd::cxx::xml::bits::xmlns_namespace< char > () &&
-             n.namespace_ () != ::xsd::cxx::xml::bits::xsi_namespace< char > ()))
-        {
-          ::xercesc::DOMAttr* r (
-            static_cast< ::xercesc::DOMAttr* > (
-              this->getDomDocument ().importNode (
-                const_cast< ::xercesc::DOMAttr* > (&i), true)));
-          this->any_attribute_ .insert (r);
-          continue;
-        }
       }
-
-      if (!id_.present ())
-      {
-        throw ::xsd::cxx::tree::expected_attribute< char > (
-          "id",
-          "");
-      }
-    }
-
-    Person* Person::
-    _clone (::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c) const
-    {
-      return new class Person (*this, f, c);
-    }
-
-    Person& Person::
-    operator= (const Person& x)
-    {
-      if (this != &x)
-      {
-        static_cast< ::Xsd::XmlSchema::Type& > (*this) = x;
-        this->note_ = x.note_;
-        this->activities_ = x.activities_;
-        this->timestamp_ = x.timestamp_;
-        this->id_ = x.id_;
-        this->any_attribute_ = x.any_attribute_;
-      }
-
-      return *this;
-    }
-
-    Person::
-    ~Person ()
-    {
     }
   }
 }
 
 #include <ostream>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace DataModel
+  namespace Xsd
   {
-    ::std::ostream&
-    operator<< (::std::ostream& o, const Timestamp_t& i)
+    namespace DataModel
     {
-      o << static_cast< const ::Xsd::XmlSchema::DateTime& > (i);
-
-      return o;
-    }
-
-    ::std::ostream&
-    operator<< (::std::ostream& o, const DeviceID_t& i)
-    {
-      o << static_cast< const ::Xsd::XmlSchema::Uri& > (i);
-
-      return o;
-    }
-
-    ::std::ostream&
-    operator<< (::std::ostream& o, const Note_t& i)
-    {
-      o << static_cast< const ::Xsd::XmlSchema::String& > (i);
-
-      if (i.getLang ())
+      ::std::ostream&
+      operator<< (::std::ostream& o, const Timestamp_t& i)
       {
-        o << ::std::endl << "lang: " << *i.getLang ();
+        o << static_cast< const ::flexisip::Xsd::XmlSchema::DateTime& > (i);
+
+        return o;
       }
 
-      return o;
-    }
+      ::std::ostream&
+      operator<< (::std::ostream& o, const DeviceID_t& i)
+      {
+        o << static_cast< const ::flexisip::Xsd::XmlSchema::Uri& > (i);
 
-    ::std::ostream&
-    operator<< (::std::ostream& o, const Empty&)
-    {
-      return o;
+        return o;
+      }
+
+      ::std::ostream&
+      operator<< (::std::ostream& o, const Note_t& i)
+      {
+        o << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
+
+        if (i.getLang ())
+        {
+          o << ::std::endl << "lang: " << *i.getLang ();
+        }
+
+        return o;
+      }
+
+      ::std::ostream&
+      operator<< (::std::ostream& o, const Empty&)
+      {
+        return o;
+      }
     }
   }
 }
 
-namespace Xsd
+namespace flexisip
 {
-  namespace DataModel
+  namespace Xsd
   {
-    ::std::ostream&
-    operator<< (::std::ostream& o, const Device& i)
+    namespace DataModel
     {
-      o << ::std::endl << "deviceID: " << i.getDeviceID ();
-      for (Device::NoteConstIterator
-           b (i.getNote ().begin ()), e (i.getNote ().end ());
-           b != e; ++b)
+      ::std::ostream&
+      operator<< (::std::ostream& o, const Device& i)
       {
-        o << ::std::endl << "note: " << *b;
+        o << ::std::endl << "deviceID: " << i.getDeviceID ();
+        for (Device::NoteConstIterator
+             b (i.getNote ().begin ()), e (i.getNote ().end ());
+             b != e; ++b)
+        {
+          o << ::std::endl << "note: " << *b;
+        }
+
+        if (i.getTimestamp ())
+        {
+          o << ::std::endl << "timestamp: " << *i.getTimestamp ();
+        }
+
+        o << ::std::endl << "id: " << i.getId ();
+        return o;
       }
 
-      if (i.getTimestamp ())
+      ::std::ostream&
+      operator<< (::std::ostream& o, const Person& i)
       {
-        o << ::std::endl << "timestamp: " << *i.getTimestamp ();
+        for (Person::NoteConstIterator
+             b (i.getNote ().begin ()), e (i.getNote ().end ());
+             b != e; ++b)
+        {
+          o << ::std::endl << "note: " << *b;
+        }
+
+        for (Person::ActivitiesConstIterator
+             b (i.getActivities ().begin ()), e (i.getActivities ().end ());
+             b != e; ++b)
+        {
+          o << ::std::endl << "activities: " << *b;
+        }
+
+        if (i.getTimestamp ())
+        {
+          o << ::std::endl << "timestamp: " << *i.getTimestamp ();
+        }
+
+        o << ::std::endl << "id: " << i.getId ();
+        return o;
       }
-
-      o << ::std::endl << "id: " << i.getId ();
-      return o;
-    }
-
-    ::std::ostream&
-    operator<< (::std::ostream& o, const Person& i)
-    {
-      for (Person::NoteConstIterator
-           b (i.getNote ().begin ()), e (i.getNote ().end ());
-           b != e; ++b)
-      {
-        o << ::std::endl << "note: " << *b;
-      }
-
-      for (Person::ActivitiesConstIterator
-           b (i.getActivities ().begin ()), e (i.getActivities ().end ());
-           b != e; ++b)
-      {
-        o << ::std::endl << "activities: " << *b;
-      }
-
-      if (i.getTimestamp ())
-      {
-        o << ::std::endl << "timestamp: " << *i.getTimestamp ();
-      }
-
-      o << ::std::endl << "id: " << i.getId ();
-      return o;
     }
   }
 }
@@ -1077,813 +1095,819 @@ namespace Xsd
 #include <xsd/cxx/xml/sax/std-input-source.hxx>
 #include <xsd/cxx/tree/error-handler.hxx>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace DataModel
+  namespace Xsd
   {
+    namespace DataModel
+    {
+    }
   }
 }
 
-namespace Xsd
+namespace flexisip
 {
-  namespace DataModel
+  namespace Xsd
   {
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (const ::std::string& u,
-                   ::Xsd::XmlSchema::Flags f,
-                   const ::Xsd::XmlSchema::Properties& p)
+    namespace DataModel
     {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (const ::std::string& u,
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
-      ::xsd::cxx::tree::error_handler< char > h;
+        ::xsd::cxx::tree::error_handler< char > h;
 
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          u, h, p, f));
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            u, h, p, f));
 
-      h.throw_if_failed< ::xsd::cxx::tree::parsing< char > > ();
+        h.throw_if_failed< ::xsd::cxx::tree::parsing< char > > ();
 
-      return ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t > (
-        ::Xsd::DataModel::parseDeviceID (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
+        return ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t > (
+          ::flexisip::Xsd::DataModel::parseDeviceID (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
+      }
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (const ::std::string& u,
-                   ::Xsd::XmlSchema::ErrorHandler& h,
-                   ::Xsd::XmlSchema::Flags f,
-                   const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (const ::std::string& u,
+                     ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          u, h, p, f));
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            u, h, p, f));
 
-      if (!d.get ())
-        throw ::xsd::cxx::tree::parsing< char > ();
+        if (!d.get ())
+          throw ::xsd::cxx::tree::parsing< char > ();
 
-      return ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t > (
-        ::Xsd::DataModel::parseDeviceID (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
+        return ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t > (
+          ::flexisip::Xsd::DataModel::parseDeviceID (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
+      }
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (const ::std::string& u,
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (const ::std::string& u,
+                     ::xercesc::DOMErrorHandler& h,
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            u, h, p, f));
+
+        if (!d.get ())
+          throw ::xsd::cxx::tree::parsing< char > ();
+
+        return ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t > (
+          ::flexisip::Xsd::DataModel::parseDeviceID (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (::std::istream& is,
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
+
+        ::xsd::cxx::xml::sax::std_input_source isrc (is);
+        return ::flexisip::Xsd::DataModel::parseDeviceID (isrc, f, p);
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (::std::istream& is,
+                     ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
+
+        ::xsd::cxx::xml::sax::std_input_source isrc (is);
+        return ::flexisip::Xsd::DataModel::parseDeviceID (isrc, h, f, p);
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (::std::istream& is,
+                     ::xercesc::DOMErrorHandler& h,
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::sax::std_input_source isrc (is);
+        return ::flexisip::Xsd::DataModel::parseDeviceID (isrc, h, f, p);
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (::std::istream& is,
+                     const ::std::string& sid,
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
+
+        ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
+        return ::flexisip::Xsd::DataModel::parseDeviceID (isrc, f, p);
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (::std::istream& is,
+                     const ::std::string& sid,
+                     ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
+
+        ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
+        return ::flexisip::Xsd::DataModel::parseDeviceID (isrc, h, f, p);
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (::std::istream& is,
+                     const ::std::string& sid,
+                     ::xercesc::DOMErrorHandler& h,
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
+        return ::flexisip::Xsd::DataModel::parseDeviceID (isrc, h, f, p);
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (::xercesc::InputSource& i,
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::tree::error_handler< char > h;
+
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            i, h, p, f));
+
+        h.throw_if_failed< ::xsd::cxx::tree::parsing< char > > ();
+
+        return ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t > (
+          ::flexisip::Xsd::DataModel::parseDeviceID (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (::xercesc::InputSource& i,
+                     ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            i, h, p, f));
+
+        if (!d.get ())
+          throw ::xsd::cxx::tree::parsing< char > ();
+
+        return ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t > (
+          ::flexisip::Xsd::DataModel::parseDeviceID (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (::xercesc::InputSource& i,
+                     ::xercesc::DOMErrorHandler& h,
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            i, h, p, f));
+
+        if (!d.get ())
+          throw ::xsd::cxx::tree::parsing< char > ();
+
+        return ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t > (
+          ::flexisip::Xsd::DataModel::parseDeviceID (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (const ::xercesc::DOMDocument& doc,
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        if (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom)
+        {
+          ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+            static_cast< ::xercesc::DOMDocument* > (doc.cloneNode (true)));
+
+          return ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t > (
+            ::flexisip::Xsd::DataModel::parseDeviceID (
+              std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
+        }
+
+        const ::xercesc::DOMElement& e (*doc.getDocumentElement ());
+        const ::xsd::cxx::xml::qualified_name< char > n (
+          ::xsd::cxx::xml::dom::name< char > (e));
+
+        if (n.name () == "deviceID" &&
+            n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+        {
+          ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t > r (
+            ::xsd::cxx::tree::traits< ::flexisip::Xsd::DataModel::DeviceID_t, char >::create (
+              e, f, 0));
+          return r;
+        }
+
+        throw ::xsd::cxx::tree::unexpected_element < char > (
+          n.name (),
+          n.namespace_ (),
+          "deviceID",
+          "urn:ietf:params:xml:ns:pidf:data-model");
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t >
+      parseDeviceID (::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
+                     ::flexisip::Xsd::XmlSchema::Flags f,
+                     const ::flexisip::Xsd::XmlSchema::Properties&)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > c (
+          ((f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) &&
+           !(f & ::flexisip::Xsd::XmlSchema::Flags::own_dom))
+          ? static_cast< ::xercesc::DOMDocument* > (d->cloneNode (true))
+          : 0);
+
+        ::xercesc::DOMDocument& doc (c.get () ? *c : *d);
+        const ::xercesc::DOMElement& e (*doc.getDocumentElement ());
+
+        const ::xsd::cxx::xml::qualified_name< char > n (
+          ::xsd::cxx::xml::dom::name< char > (e));
+
+        if (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom)
+          doc.setUserData (::flexisip::Xsd::XmlSchema::dom::treeNodeKey,
+                           (c.get () ? &c : &d),
+                           0);
+
+        if (n.name () == "deviceID" &&
+            n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+        {
+          ::std::unique_ptr< ::flexisip::Xsd::DataModel::DeviceID_t > r (
+            ::xsd::cxx::tree::traits< ::flexisip::Xsd::DataModel::DeviceID_t, char >::create (
+              e, f, 0));
+          return r;
+        }
+
+        throw ::xsd::cxx::tree::unexpected_element < char > (
+          n.name (),
+          n.namespace_ (),
+          "deviceID",
+          "urn:ietf:params:xml:ns:pidf:data-model");
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (const ::std::string& u,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
+
+        ::xsd::cxx::tree::error_handler< char > h;
+
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            u, h, p, f));
+
+        h.throw_if_failed< ::xsd::cxx::tree::parsing< char > > ();
+
+        return ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device > (
+          ::flexisip::Xsd::DataModel::parseDevice (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (const ::std::string& u,
+                   ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
+
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            u, h, p, f));
+
+        if (!d.get ())
+          throw ::xsd::cxx::tree::parsing< char > ();
+
+        return ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device > (
+          ::flexisip::Xsd::DataModel::parseDevice (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (const ::std::string& u,
                    ::xercesc::DOMErrorHandler& h,
-                   ::Xsd::XmlSchema::Flags f,
-                   const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          u, h, p, f));
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            u, h, p, f));
 
-      if (!d.get ())
-        throw ::xsd::cxx::tree::parsing< char > ();
+        if (!d.get ())
+          throw ::xsd::cxx::tree::parsing< char > ();
 
-      return ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t > (
-        ::Xsd::DataModel::parseDeviceID (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
+        return ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device > (
+          ::flexisip::Xsd::DataModel::parseDevice (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
+      }
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (::std::istream& is,
-                   ::Xsd::XmlSchema::Flags f,
-                   const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (::std::istream& is,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
-      ::xsd::cxx::xml::sax::std_input_source isrc (is);
-      return ::Xsd::DataModel::parseDeviceID (isrc, f, p);
-    }
+        ::xsd::cxx::xml::sax::std_input_source isrc (is);
+        return ::flexisip::Xsd::DataModel::parseDevice (isrc, f, p);
+      }
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (::std::istream& is,
-                   ::Xsd::XmlSchema::ErrorHandler& h,
-                   ::Xsd::XmlSchema::Flags f,
-                   const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (::std::istream& is,
+                   ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
-      ::xsd::cxx::xml::sax::std_input_source isrc (is);
-      return ::Xsd::DataModel::parseDeviceID (isrc, h, f, p);
-    }
+        ::xsd::cxx::xml::sax::std_input_source isrc (is);
+        return ::flexisip::Xsd::DataModel::parseDevice (isrc, h, f, p);
+      }
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (::std::istream& is,
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (::std::istream& is,
                    ::xercesc::DOMErrorHandler& h,
-                   ::Xsd::XmlSchema::Flags f,
-                   const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::sax::std_input_source isrc (is);
-      return ::Xsd::DataModel::parseDeviceID (isrc, h, f, p);
-    }
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::sax::std_input_source isrc (is);
+        return ::flexisip::Xsd::DataModel::parseDevice (isrc, h, f, p);
+      }
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (::std::istream& is,
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (::std::istream& is,
                    const ::std::string& sid,
-                   ::Xsd::XmlSchema::Flags f,
-                   const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
-      ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
-      return ::Xsd::DataModel::parseDeviceID (isrc, f, p);
-    }
+        ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
+        return ::flexisip::Xsd::DataModel::parseDevice (isrc, f, p);
+      }
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (::std::istream& is,
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (::std::istream& is,
                    const ::std::string& sid,
-                   ::Xsd::XmlSchema::ErrorHandler& h,
-                   ::Xsd::XmlSchema::Flags f,
-                   const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
+                   ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
-      ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
-      return ::Xsd::DataModel::parseDeviceID (isrc, h, f, p);
-    }
+        ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
+        return ::flexisip::Xsd::DataModel::parseDevice (isrc, h, f, p);
+      }
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (::std::istream& is,
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (::std::istream& is,
                    const ::std::string& sid,
                    ::xercesc::DOMErrorHandler& h,
-                   ::Xsd::XmlSchema::Flags f,
-                   const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
-      return ::Xsd::DataModel::parseDeviceID (isrc, h, f, p);
-    }
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
+        return ::flexisip::Xsd::DataModel::parseDevice (isrc, h, f, p);
+      }
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (::xercesc::InputSource& i,
-                   ::Xsd::XmlSchema::Flags f,
-                   const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::tree::error_handler< char > h;
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (::xercesc::InputSource& i,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::tree::error_handler< char > h;
 
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          i, h, p, f));
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            i, h, p, f));
 
-      h.throw_if_failed< ::xsd::cxx::tree::parsing< char > > ();
+        h.throw_if_failed< ::xsd::cxx::tree::parsing< char > > ();
 
-      return ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t > (
-        ::Xsd::DataModel::parseDeviceID (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
+        return ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device > (
+          ::flexisip::Xsd::DataModel::parseDevice (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
+      }
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (::xercesc::InputSource& i,
-                   ::Xsd::XmlSchema::ErrorHandler& h,
-                   ::Xsd::XmlSchema::Flags f,
-                   const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          i, h, p, f));
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (::xercesc::InputSource& i,
+                   ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            i, h, p, f));
 
-      if (!d.get ())
-        throw ::xsd::cxx::tree::parsing< char > ();
+        if (!d.get ())
+          throw ::xsd::cxx::tree::parsing< char > ();
 
-      return ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t > (
-        ::Xsd::DataModel::parseDeviceID (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
+        return ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device > (
+          ::flexisip::Xsd::DataModel::parseDevice (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
+      }
 
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (::xercesc::InputSource& i,
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (::xercesc::InputSource& i,
                    ::xercesc::DOMErrorHandler& h,
-                   ::Xsd::XmlSchema::Flags f,
-                   const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          i, h, p, f));
-
-      if (!d.get ())
-        throw ::xsd::cxx::tree::parsing< char > ();
-
-      return ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t > (
-        ::Xsd::DataModel::parseDeviceID (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (const ::xercesc::DOMDocument& doc,
-                   ::Xsd::XmlSchema::Flags f,
-                   const ::Xsd::XmlSchema::Properties& p)
-    {
-      if (f & ::Xsd::XmlSchema::Flags::keep_dom)
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
       {
-        ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-          static_cast< ::xercesc::DOMDocument* > (doc.cloneNode (true)));
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            i, h, p, f));
 
-        return ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t > (
-          ::Xsd::DataModel::parseDeviceID (
-            std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        if (!d.get ())
+          throw ::xsd::cxx::tree::parsing< char > ();
+
+        return ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device > (
+          ::flexisip::Xsd::DataModel::parseDevice (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
       }
 
-      const ::xercesc::DOMElement& e (*doc.getDocumentElement ());
-      const ::xsd::cxx::xml::qualified_name< char > n (
-        ::xsd::cxx::xml::dom::name< char > (e));
-
-      if (n.name () == "deviceID" &&
-          n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (const ::xercesc::DOMDocument& doc,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
       {
-        ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t > r (
-          ::xsd::cxx::tree::traits< ::Xsd::DataModel::DeviceID_t, char >::create (
-            e, f, 0));
-        return r;
+        if (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom)
+        {
+          ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+            static_cast< ::xercesc::DOMDocument* > (doc.cloneNode (true)));
+
+          return ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device > (
+            ::flexisip::Xsd::DataModel::parseDevice (
+              std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
+        }
+
+        const ::xercesc::DOMElement& e (*doc.getDocumentElement ());
+        const ::xsd::cxx::xml::qualified_name< char > n (
+          ::xsd::cxx::xml::dom::name< char > (e));
+
+        if (n.name () == "device" &&
+            n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+        {
+          ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device > r (
+            ::xsd::cxx::tree::traits< ::flexisip::Xsd::DataModel::Device, char >::create (
+              e, f, 0));
+          return r;
+        }
+
+        throw ::xsd::cxx::tree::unexpected_element < char > (
+          n.name (),
+          n.namespace_ (),
+          "device",
+          "urn:ietf:params:xml:ns:pidf:data-model");
       }
 
-      throw ::xsd::cxx::tree::unexpected_element < char > (
-        n.name (),
-        n.namespace_ (),
-        "deviceID",
-        "urn:ietf:params:xml:ns:pidf:data-model");
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t >
-    parseDeviceID (::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
-                   ::Xsd::XmlSchema::Flags f,
-                   const ::Xsd::XmlSchema::Properties&)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > c (
-        ((f & ::Xsd::XmlSchema::Flags::keep_dom) &&
-         !(f & ::Xsd::XmlSchema::Flags::own_dom))
-        ? static_cast< ::xercesc::DOMDocument* > (d->cloneNode (true))
-        : 0);
-
-      ::xercesc::DOMDocument& doc (c.get () ? *c : *d);
-      const ::xercesc::DOMElement& e (*doc.getDocumentElement ());
-
-      const ::xsd::cxx::xml::qualified_name< char > n (
-        ::xsd::cxx::xml::dom::name< char > (e));
-
-      if (f & ::Xsd::XmlSchema::Flags::keep_dom)
-        doc.setUserData (::Xsd::XmlSchema::dom::treeNodeKey,
-                         (c.get () ? &c : &d),
-                         0);
-
-      if (n.name () == "deviceID" &&
-          n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device >
+      parseDevice (::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties&)
       {
-        ::std::unique_ptr< ::Xsd::DataModel::DeviceID_t > r (
-          ::xsd::cxx::tree::traits< ::Xsd::DataModel::DeviceID_t, char >::create (
-            e, f, 0));
-        return r;
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > c (
+          ((f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) &&
+           !(f & ::flexisip::Xsd::XmlSchema::Flags::own_dom))
+          ? static_cast< ::xercesc::DOMDocument* > (d->cloneNode (true))
+          : 0);
+
+        ::xercesc::DOMDocument& doc (c.get () ? *c : *d);
+        const ::xercesc::DOMElement& e (*doc.getDocumentElement ());
+
+        const ::xsd::cxx::xml::qualified_name< char > n (
+          ::xsd::cxx::xml::dom::name< char > (e));
+
+        if (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom)
+          doc.setUserData (::flexisip::Xsd::XmlSchema::dom::treeNodeKey,
+                           (c.get () ? &c : &d),
+                           0);
+
+        if (n.name () == "device" &&
+            n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+        {
+          ::std::unique_ptr< ::flexisip::Xsd::DataModel::Device > r (
+            ::xsd::cxx::tree::traits< ::flexisip::Xsd::DataModel::Device, char >::create (
+              e, f, 0));
+          return r;
+        }
+
+        throw ::xsd::cxx::tree::unexpected_element < char > (
+          n.name (),
+          n.namespace_ (),
+          "device",
+          "urn:ietf:params:xml:ns:pidf:data-model");
       }
 
-      throw ::xsd::cxx::tree::unexpected_element < char > (
-        n.name (),
-        n.namespace_ (),
-        "deviceID",
-        "urn:ietf:params:xml:ns:pidf:data-model");
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (const ::std::string& u,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
-
-      ::xsd::cxx::tree::error_handler< char > h;
-
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          u, h, p, f));
-
-      h.throw_if_failed< ::xsd::cxx::tree::parsing< char > > ();
-
-      return ::std::unique_ptr< ::Xsd::DataModel::Device > (
-        ::Xsd::DataModel::parseDevice (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (const ::std::string& u,
-                 ::Xsd::XmlSchema::ErrorHandler& h,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
-
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          u, h, p, f));
-
-      if (!d.get ())
-        throw ::xsd::cxx::tree::parsing< char > ();
-
-      return ::std::unique_ptr< ::Xsd::DataModel::Device > (
-        ::Xsd::DataModel::parseDevice (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (const ::std::string& u,
-                 ::xercesc::DOMErrorHandler& h,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          u, h, p, f));
-
-      if (!d.get ())
-        throw ::xsd::cxx::tree::parsing< char > ();
-
-      return ::std::unique_ptr< ::Xsd::DataModel::Device > (
-        ::Xsd::DataModel::parseDevice (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (::std::istream& is,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
-
-      ::xsd::cxx::xml::sax::std_input_source isrc (is);
-      return ::Xsd::DataModel::parseDevice (isrc, f, p);
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (::std::istream& is,
-                 ::Xsd::XmlSchema::ErrorHandler& h,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
-
-      ::xsd::cxx::xml::sax::std_input_source isrc (is);
-      return ::Xsd::DataModel::parseDevice (isrc, h, f, p);
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (::std::istream& is,
-                 ::xercesc::DOMErrorHandler& h,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::sax::std_input_source isrc (is);
-      return ::Xsd::DataModel::parseDevice (isrc, h, f, p);
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (::std::istream& is,
-                 const ::std::string& sid,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
-
-      ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
-      return ::Xsd::DataModel::parseDevice (isrc, f, p);
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (::std::istream& is,
-                 const ::std::string& sid,
-                 ::Xsd::XmlSchema::ErrorHandler& h,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
-
-      ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
-      return ::Xsd::DataModel::parseDevice (isrc, h, f, p);
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (::std::istream& is,
-                 const ::std::string& sid,
-                 ::xercesc::DOMErrorHandler& h,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
-      return ::Xsd::DataModel::parseDevice (isrc, h, f, p);
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (::xercesc::InputSource& i,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::tree::error_handler< char > h;
-
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          i, h, p, f));
-
-      h.throw_if_failed< ::xsd::cxx::tree::parsing< char > > ();
-
-      return ::std::unique_ptr< ::Xsd::DataModel::Device > (
-        ::Xsd::DataModel::parseDevice (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (::xercesc::InputSource& i,
-                 ::Xsd::XmlSchema::ErrorHandler& h,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          i, h, p, f));
-
-      if (!d.get ())
-        throw ::xsd::cxx::tree::parsing< char > ();
-
-      return ::std::unique_ptr< ::Xsd::DataModel::Device > (
-        ::Xsd::DataModel::parseDevice (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (::xercesc::InputSource& i,
-                 ::xercesc::DOMErrorHandler& h,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          i, h, p, f));
-
-      if (!d.get ())
-        throw ::xsd::cxx::tree::parsing< char > ();
-
-      return ::std::unique_ptr< ::Xsd::DataModel::Device > (
-        ::Xsd::DataModel::parseDevice (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (const ::xercesc::DOMDocument& doc,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      if (f & ::Xsd::XmlSchema::Flags::keep_dom)
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (const ::std::string& u,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
       {
-        ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-          static_cast< ::xercesc::DOMDocument* > (doc.cloneNode (true)));
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
-        return ::std::unique_ptr< ::Xsd::DataModel::Device > (
-          ::Xsd::DataModel::parseDevice (
-            std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        ::xsd::cxx::tree::error_handler< char > h;
+
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            u, h, p, f));
+
+        h.throw_if_failed< ::xsd::cxx::tree::parsing< char > > ();
+
+        return ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person > (
+          ::flexisip::Xsd::DataModel::parsePerson (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
       }
 
-      const ::xercesc::DOMElement& e (*doc.getDocumentElement ());
-      const ::xsd::cxx::xml::qualified_name< char > n (
-        ::xsd::cxx::xml::dom::name< char > (e));
-
-      if (n.name () == "device" &&
-          n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (const ::std::string& u,
+                   ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
       {
-        ::std::unique_ptr< ::Xsd::DataModel::Device > r (
-          ::xsd::cxx::tree::traits< ::Xsd::DataModel::Device, char >::create (
-            e, f, 0));
-        return r;
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
+
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            u, h, p, f));
+
+        if (!d.get ())
+          throw ::xsd::cxx::tree::parsing< char > ();
+
+        return ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person > (
+          ::flexisip::Xsd::DataModel::parsePerson (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
       }
 
-      throw ::xsd::cxx::tree::unexpected_element < char > (
-        n.name (),
-        n.namespace_ (),
-        "device",
-        "urn:ietf:params:xml:ns:pidf:data-model");
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Device >
-    parseDevice (::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties&)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > c (
-        ((f & ::Xsd::XmlSchema::Flags::keep_dom) &&
-         !(f & ::Xsd::XmlSchema::Flags::own_dom))
-        ? static_cast< ::xercesc::DOMDocument* > (d->cloneNode (true))
-        : 0);
-
-      ::xercesc::DOMDocument& doc (c.get () ? *c : *d);
-      const ::xercesc::DOMElement& e (*doc.getDocumentElement ());
-
-      const ::xsd::cxx::xml::qualified_name< char > n (
-        ::xsd::cxx::xml::dom::name< char > (e));
-
-      if (f & ::Xsd::XmlSchema::Flags::keep_dom)
-        doc.setUserData (::Xsd::XmlSchema::dom::treeNodeKey,
-                         (c.get () ? &c : &d),
-                         0);
-
-      if (n.name () == "device" &&
-          n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (const ::std::string& u,
+                   ::xercesc::DOMErrorHandler& h,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
       {
-        ::std::unique_ptr< ::Xsd::DataModel::Device > r (
-          ::xsd::cxx::tree::traits< ::Xsd::DataModel::Device, char >::create (
-            e, f, 0));
-        return r;
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            u, h, p, f));
+
+        if (!d.get ())
+          throw ::xsd::cxx::tree::parsing< char > ();
+
+        return ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person > (
+          ::flexisip::Xsd::DataModel::parsePerson (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
       }
 
-      throw ::xsd::cxx::tree::unexpected_element < char > (
-        n.name (),
-        n.namespace_ (),
-        "device",
-        "urn:ietf:params:xml:ns:pidf:data-model");
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (const ::std::string& u,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
-
-      ::xsd::cxx::tree::error_handler< char > h;
-
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          u, h, p, f));
-
-      h.throw_if_failed< ::xsd::cxx::tree::parsing< char > > ();
-
-      return ::std::unique_ptr< ::Xsd::DataModel::Person > (
-        ::Xsd::DataModel::parsePerson (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (const ::std::string& u,
-                 ::Xsd::XmlSchema::ErrorHandler& h,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
-
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          u, h, p, f));
-
-      if (!d.get ())
-        throw ::xsd::cxx::tree::parsing< char > ();
-
-      return ::std::unique_ptr< ::Xsd::DataModel::Person > (
-        ::Xsd::DataModel::parsePerson (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (const ::std::string& u,
-                 ::xercesc::DOMErrorHandler& h,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          u, h, p, f));
-
-      if (!d.get ())
-        throw ::xsd::cxx::tree::parsing< char > ();
-
-      return ::std::unique_ptr< ::Xsd::DataModel::Person > (
-        ::Xsd::DataModel::parsePerson (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (::std::istream& is,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
-
-      ::xsd::cxx::xml::sax::std_input_source isrc (is);
-      return ::Xsd::DataModel::parsePerson (isrc, f, p);
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (::std::istream& is,
-                 ::Xsd::XmlSchema::ErrorHandler& h,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
-
-      ::xsd::cxx::xml::sax::std_input_source isrc (is);
-      return ::Xsd::DataModel::parsePerson (isrc, h, f, p);
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (::std::istream& is,
-                 ::xercesc::DOMErrorHandler& h,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::sax::std_input_source isrc (is);
-      return ::Xsd::DataModel::parsePerson (isrc, h, f, p);
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (::std::istream& is,
-                 const ::std::string& sid,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
-
-      ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
-      return ::Xsd::DataModel::parsePerson (isrc, f, p);
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (::std::istream& is,
-                 const ::std::string& sid,
-                 ::Xsd::XmlSchema::ErrorHandler& h,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
-
-      ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
-      return ::Xsd::DataModel::parsePerson (isrc, h, f, p);
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (::std::istream& is,
-                 const ::std::string& sid,
-                 ::xercesc::DOMErrorHandler& h,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
-      return ::Xsd::DataModel::parsePerson (isrc, h, f, p);
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (::xercesc::InputSource& i,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::tree::error_handler< char > h;
-
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          i, h, p, f));
-
-      h.throw_if_failed< ::xsd::cxx::tree::parsing< char > > ();
-
-      return ::std::unique_ptr< ::Xsd::DataModel::Person > (
-        ::Xsd::DataModel::parsePerson (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (::xercesc::InputSource& i,
-                 ::Xsd::XmlSchema::ErrorHandler& h,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          i, h, p, f));
-
-      if (!d.get ())
-        throw ::xsd::cxx::tree::parsing< char > ();
-
-      return ::std::unique_ptr< ::Xsd::DataModel::Person > (
-        ::Xsd::DataModel::parsePerson (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (::xercesc::InputSource& i,
-                 ::xercesc::DOMErrorHandler& h,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          i, h, p, f));
-
-      if (!d.get ())
-        throw ::xsd::cxx::tree::parsing< char > ();
-
-      return ::std::unique_ptr< ::Xsd::DataModel::Person > (
-        ::Xsd::DataModel::parsePerson (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (const ::xercesc::DOMDocument& doc,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties& p)
-    {
-      if (f & ::Xsd::XmlSchema::Flags::keep_dom)
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (::std::istream& is,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
       {
-        ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-          static_cast< ::xercesc::DOMDocument* > (doc.cloneNode (true)));
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
-        return ::std::unique_ptr< ::Xsd::DataModel::Person > (
-          ::Xsd::DataModel::parsePerson (
-            std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        ::xsd::cxx::xml::sax::std_input_source isrc (is);
+        return ::flexisip::Xsd::DataModel::parsePerson (isrc, f, p);
       }
 
-      const ::xercesc::DOMElement& e (*doc.getDocumentElement ());
-      const ::xsd::cxx::xml::qualified_name< char > n (
-        ::xsd::cxx::xml::dom::name< char > (e));
-
-      if (n.name () == "person" &&
-          n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (::std::istream& is,
+                   ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
       {
-        ::std::unique_ptr< ::Xsd::DataModel::Person > r (
-          ::xsd::cxx::tree::traits< ::Xsd::DataModel::Person, char >::create (
-            e, f, 0));
-        return r;
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
+
+        ::xsd::cxx::xml::sax::std_input_source isrc (is);
+        return ::flexisip::Xsd::DataModel::parsePerson (isrc, h, f, p);
       }
 
-      throw ::xsd::cxx::tree::unexpected_element < char > (
-        n.name (),
-        n.namespace_ (),
-        "person",
-        "urn:ietf:params:xml:ns:pidf:data-model");
-    }
-
-    ::std::unique_ptr< ::Xsd::DataModel::Person >
-    parsePerson (::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
-                 ::Xsd::XmlSchema::Flags f,
-                 const ::Xsd::XmlSchema::Properties&)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > c (
-        ((f & ::Xsd::XmlSchema::Flags::keep_dom) &&
-         !(f & ::Xsd::XmlSchema::Flags::own_dom))
-        ? static_cast< ::xercesc::DOMDocument* > (d->cloneNode (true))
-        : 0);
-
-      ::xercesc::DOMDocument& doc (c.get () ? *c : *d);
-      const ::xercesc::DOMElement& e (*doc.getDocumentElement ());
-
-      const ::xsd::cxx::xml::qualified_name< char > n (
-        ::xsd::cxx::xml::dom::name< char > (e));
-
-      if (f & ::Xsd::XmlSchema::Flags::keep_dom)
-        doc.setUserData (::Xsd::XmlSchema::dom::treeNodeKey,
-                         (c.get () ? &c : &d),
-                         0);
-
-      if (n.name () == "person" &&
-          n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (::std::istream& is,
+                   ::xercesc::DOMErrorHandler& h,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
       {
-        ::std::unique_ptr< ::Xsd::DataModel::Person > r (
-          ::xsd::cxx::tree::traits< ::Xsd::DataModel::Person, char >::create (
-            e, f, 0));
-        return r;
+        ::xsd::cxx::xml::sax::std_input_source isrc (is);
+        return ::flexisip::Xsd::DataModel::parsePerson (isrc, h, f, p);
       }
 
-      throw ::xsd::cxx::tree::unexpected_element < char > (
-        n.name (),
-        n.namespace_ (),
-        "person",
-        "urn:ietf:params:xml:ns:pidf:data-model");
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (::std::istream& is,
+                   const ::std::string& sid,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
+
+        ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
+        return ::flexisip::Xsd::DataModel::parsePerson (isrc, f, p);
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (::std::istream& is,
+                   const ::std::string& sid,
+                   ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
+
+        ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
+        return ::flexisip::Xsd::DataModel::parsePerson (isrc, h, f, p);
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (::std::istream& is,
+                   const ::std::string& sid,
+                   ::xercesc::DOMErrorHandler& h,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
+        return ::flexisip::Xsd::DataModel::parsePerson (isrc, h, f, p);
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (::xercesc::InputSource& i,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::tree::error_handler< char > h;
+
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            i, h, p, f));
+
+        h.throw_if_failed< ::xsd::cxx::tree::parsing< char > > ();
+
+        return ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person > (
+          ::flexisip::Xsd::DataModel::parsePerson (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (::xercesc::InputSource& i,
+                   ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            i, h, p, f));
+
+        if (!d.get ())
+          throw ::xsd::cxx::tree::parsing< char > ();
+
+        return ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person > (
+          ::flexisip::Xsd::DataModel::parsePerson (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (::xercesc::InputSource& i,
+                   ::xercesc::DOMErrorHandler& h,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            i, h, p, f));
+
+        if (!d.get ())
+          throw ::xsd::cxx::tree::parsing< char > ();
+
+        return ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person > (
+          ::flexisip::Xsd::DataModel::parsePerson (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (const ::xercesc::DOMDocument& doc,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        if (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom)
+        {
+          ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+            static_cast< ::xercesc::DOMDocument* > (doc.cloneNode (true)));
+
+          return ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person > (
+            ::flexisip::Xsd::DataModel::parsePerson (
+              std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
+        }
+
+        const ::xercesc::DOMElement& e (*doc.getDocumentElement ());
+        const ::xsd::cxx::xml::qualified_name< char > n (
+          ::xsd::cxx::xml::dom::name< char > (e));
+
+        if (n.name () == "person" &&
+            n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+        {
+          ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person > r (
+            ::xsd::cxx::tree::traits< ::flexisip::Xsd::DataModel::Person, char >::create (
+              e, f, 0));
+          return r;
+        }
+
+        throw ::xsd::cxx::tree::unexpected_element < char > (
+          n.name (),
+          n.namespace_ (),
+          "person",
+          "urn:ietf:params:xml:ns:pidf:data-model");
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person >
+      parsePerson (::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   const ::flexisip::Xsd::XmlSchema::Properties&)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > c (
+          ((f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) &&
+           !(f & ::flexisip::Xsd::XmlSchema::Flags::own_dom))
+          ? static_cast< ::xercesc::DOMDocument* > (d->cloneNode (true))
+          : 0);
+
+        ::xercesc::DOMDocument& doc (c.get () ? *c : *d);
+        const ::xercesc::DOMElement& e (*doc.getDocumentElement ());
+
+        const ::xsd::cxx::xml::qualified_name< char > n (
+          ::xsd::cxx::xml::dom::name< char > (e));
+
+        if (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom)
+          doc.setUserData (::flexisip::Xsd::XmlSchema::dom::treeNodeKey,
+                           (c.get () ? &c : &d),
+                           0);
+
+        if (n.name () == "person" &&
+            n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+        {
+          ::std::unique_ptr< ::flexisip::Xsd::DataModel::Person > r (
+            ::xsd::cxx::tree::traits< ::flexisip::Xsd::DataModel::Person, char >::create (
+              e, f, 0));
+          return r;
+        }
+
+        throw ::xsd::cxx::tree::unexpected_element < char > (
+          n.name (),
+          n.namespace_ (),
+          "person",
+          "urn:ietf:params:xml:ns:pidf:data-model");
+      }
     }
   }
 }
@@ -1892,676 +1916,682 @@ namespace Xsd
 #include <xsd/cxx/tree/error-handler.hxx>
 #include <xsd/cxx/xml/dom/serialization-source.hxx>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace DataModel
+  namespace Xsd
   {
-    void
-    operator<< (::xercesc::DOMElement& e, const Timestamp_t& i)
+    namespace DataModel
     {
-      e << static_cast< const ::Xsd::XmlSchema::DateTime& > (i);
-    }
-
-    void
-    operator<< (::xercesc::DOMAttr& a, const Timestamp_t& i)
-    {
-      a << static_cast< const ::Xsd::XmlSchema::DateTime& > (i);
-    }
-
-    void
-    operator<< (::Xsd::XmlSchema::ListStream& l,
-                const Timestamp_t& i)
-    {
-      l << static_cast< const ::Xsd::XmlSchema::DateTime& > (i);
-    }
-
-    void
-    operator<< (::xercesc::DOMElement& e, const DeviceID_t& i)
-    {
-      e << static_cast< const ::Xsd::XmlSchema::Uri& > (i);
-    }
-
-    void
-    operator<< (::xercesc::DOMAttr& a, const DeviceID_t& i)
-    {
-      a << static_cast< const ::Xsd::XmlSchema::Uri& > (i);
-    }
-
-    void
-    operator<< (::Xsd::XmlSchema::ListStream& l,
-                const DeviceID_t& i)
-    {
-      l << static_cast< const ::Xsd::XmlSchema::Uri& > (i);
-    }
-
-    void
-    operator<< (::xercesc::DOMElement& e, const Note_t& i)
-    {
-      e << static_cast< const ::Xsd::XmlSchema::String& > (i);
-
-      // lang
-      //
-      if (i.getLang ())
+      void
+      operator<< (::xercesc::DOMElement& e, const Timestamp_t& i)
       {
-        ::xercesc::DOMAttr& a (
-          ::xsd::cxx::xml::dom::create_attribute (
-            "lang",
-            "http://www.w3.org/XML/1998/namespace",
-            e));
-
-        a << *i.getLang ();
+        e << static_cast< const ::flexisip::Xsd::XmlSchema::DateTime& > (i);
       }
-    }
 
-    void
-    operator<< (::xercesc::DOMElement& e, const Empty& i)
-    {
-      e << static_cast< const ::Xsd::XmlSchema::Type& > (i);
-    }
+      void
+      operator<< (::xercesc::DOMAttr& a, const Timestamp_t& i)
+      {
+        a << static_cast< const ::flexisip::Xsd::XmlSchema::DateTime& > (i);
+      }
 
-    void
-    operator<< (::xercesc::DOMAttr&, const Empty&)
-    {
-    }
+      void
+      operator<< (::flexisip::Xsd::XmlSchema::ListStream& l,
+                  const Timestamp_t& i)
+      {
+        l << static_cast< const ::flexisip::Xsd::XmlSchema::DateTime& > (i);
+      }
 
-    void
-    operator<< (::Xsd::XmlSchema::ListStream&,
-                const Empty&)
-    {
+      void
+      operator<< (::xercesc::DOMElement& e, const DeviceID_t& i)
+      {
+        e << static_cast< const ::flexisip::Xsd::XmlSchema::Uri& > (i);
+      }
+
+      void
+      operator<< (::xercesc::DOMAttr& a, const DeviceID_t& i)
+      {
+        a << static_cast< const ::flexisip::Xsd::XmlSchema::Uri& > (i);
+      }
+
+      void
+      operator<< (::flexisip::Xsd::XmlSchema::ListStream& l,
+                  const DeviceID_t& i)
+      {
+        l << static_cast< const ::flexisip::Xsd::XmlSchema::Uri& > (i);
+      }
+
+      void
+      operator<< (::xercesc::DOMElement& e, const Note_t& i)
+      {
+        e << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
+
+        // lang
+        //
+        if (i.getLang ())
+        {
+          ::xercesc::DOMAttr& a (
+            ::xsd::cxx::xml::dom::create_attribute (
+              "lang",
+              "http://www.w3.org/XML/1998/namespace",
+              e));
+
+          a << *i.getLang ();
+        }
+      }
+
+      void
+      operator<< (::xercesc::DOMElement& e, const Empty& i)
+      {
+        e << static_cast< const ::flexisip::Xsd::XmlSchema::Type& > (i);
+      }
+
+      void
+      operator<< (::xercesc::DOMAttr&, const Empty&)
+      {
+      }
+
+      void
+      operator<< (::flexisip::Xsd::XmlSchema::ListStream&,
+                  const Empty&)
+      {
+      }
     }
   }
 }
 
-namespace Xsd
+namespace flexisip
 {
-  namespace DataModel
+  namespace Xsd
   {
-    void
-    serializeDeviceID (::std::ostream& o,
-                       const ::Xsd::DataModel::DeviceID_t& s,
-                       const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                       const ::std::string& e,
-                       ::Xsd::XmlSchema::Flags f)
+    namespace DataModel
     {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0);
-
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::DataModel::serializeDeviceID (s, m, f));
-
-      ::xsd::cxx::tree::error_handler< char > h;
-
-      ::xsd::cxx::xml::dom::ostream_format_target t (o);
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+      void
+      serializeDeviceID (::std::ostream& o,
+                         const ::flexisip::Xsd::DataModel::DeviceID_t& s,
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                         const ::std::string& e,
+                         ::flexisip::Xsd::XmlSchema::Flags f)
       {
-        h.throw_if_failed< ::xsd::cxx::tree::serialization< char > > ();
-      }
-    }
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0);
 
-    void
-    serializeDeviceID (::std::ostream& o,
-                       const ::Xsd::DataModel::DeviceID_t& s,
-                       ::Xsd::XmlSchema::ErrorHandler& h,
-                       const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                       const ::std::string& e,
-                       ::Xsd::XmlSchema::Flags f)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0);
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::DataModel::serializeDeviceID (s, m, f));
 
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::DataModel::serializeDeviceID (s, m, f));
-      ::xsd::cxx::xml::dom::ostream_format_target t (o);
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        throw ::xsd::cxx::tree::serialization< char > ();
-      }
-    }
+        ::xsd::cxx::tree::error_handler< char > h;
 
-    void
-    serializeDeviceID (::std::ostream& o,
-                       const ::Xsd::DataModel::DeviceID_t& s,
-                       ::xercesc::DOMErrorHandler& h,
-                       const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                       const ::std::string& e,
-                       ::Xsd::XmlSchema::Flags f)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::DataModel::serializeDeviceID (s, m, f));
-      ::xsd::cxx::xml::dom::ostream_format_target t (o);
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        throw ::xsd::cxx::tree::serialization< char > ();
-      }
-    }
-
-    void
-    serializeDeviceID (::xercesc::XMLFormatTarget& t,
-                       const ::Xsd::DataModel::DeviceID_t& s,
-                       const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                       const ::std::string& e,
-                       ::Xsd::XmlSchema::Flags f)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::DataModel::serializeDeviceID (s, m, f));
-
-      ::xsd::cxx::tree::error_handler< char > h;
-
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        h.throw_if_failed< ::xsd::cxx::tree::serialization< char > > ();
-      }
-    }
-
-    void
-    serializeDeviceID (::xercesc::XMLFormatTarget& t,
-                       const ::Xsd::DataModel::DeviceID_t& s,
-                       ::Xsd::XmlSchema::ErrorHandler& h,
-                       const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                       const ::std::string& e,
-                       ::Xsd::XmlSchema::Flags f)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::DataModel::serializeDeviceID (s, m, f));
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        throw ::xsd::cxx::tree::serialization< char > ();
-      }
-    }
-
-    void
-    serializeDeviceID (::xercesc::XMLFormatTarget& t,
-                       const ::Xsd::DataModel::DeviceID_t& s,
-                       ::xercesc::DOMErrorHandler& h,
-                       const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                       const ::std::string& e,
-                       ::Xsd::XmlSchema::Flags f)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::DataModel::serializeDeviceID (s, m, f));
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        throw ::xsd::cxx::tree::serialization< char > ();
-      }
-    }
-
-    void
-    serializeDeviceID (::xercesc::DOMDocument& d,
-                       const ::Xsd::DataModel::DeviceID_t& s,
-                       ::Xsd::XmlSchema::Flags)
-    {
-      ::xercesc::DOMElement& e (*d.getDocumentElement ());
-      const ::xsd::cxx::xml::qualified_name< char > n (
-        ::xsd::cxx::xml::dom::name< char > (e));
-
-      if (n.name () == "deviceID" &&
-          n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
-      {
-        e << s;
-      }
-      else
-      {
-        throw ::xsd::cxx::tree::unexpected_element < char > (
-          n.name (),
-          n.namespace_ (),
-          "deviceID",
-          "urn:ietf:params:xml:ns:pidf:data-model");
-      }
-    }
-
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
-    serializeDeviceID (const ::Xsd::DataModel::DeviceID_t& s,
-                       const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                       ::Xsd::XmlSchema::Flags f)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::serialize< char > (
-          "deviceID",
-          "urn:ietf:params:xml:ns:pidf:data-model",
-          m, f));
-
-      ::Xsd::DataModel::serializeDeviceID (*d, s, f);
-      return d;
-    }
-
-    void
-    serializeDevice (::std::ostream& o,
-                     const ::Xsd::DataModel::Device& s,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                     const ::std::string& e,
-                     ::Xsd::XmlSchema::Flags f)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0);
-
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::DataModel::serializeDevice (s, m, f));
-
-      ::xsd::cxx::tree::error_handler< char > h;
-
-      ::xsd::cxx::xml::dom::ostream_format_target t (o);
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        h.throw_if_failed< ::xsd::cxx::tree::serialization< char > > ();
-      }
-    }
-
-    void
-    serializeDevice (::std::ostream& o,
-                     const ::Xsd::DataModel::Device& s,
-                     ::Xsd::XmlSchema::ErrorHandler& h,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                     const ::std::string& e,
-                     ::Xsd::XmlSchema::Flags f)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0);
-
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::DataModel::serializeDevice (s, m, f));
-      ::xsd::cxx::xml::dom::ostream_format_target t (o);
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        throw ::xsd::cxx::tree::serialization< char > ();
-      }
-    }
-
-    void
-    serializeDevice (::std::ostream& o,
-                     const ::Xsd::DataModel::Device& s,
-                     ::xercesc::DOMErrorHandler& h,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                     const ::std::string& e,
-                     ::Xsd::XmlSchema::Flags f)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::DataModel::serializeDevice (s, m, f));
-      ::xsd::cxx::xml::dom::ostream_format_target t (o);
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        throw ::xsd::cxx::tree::serialization< char > ();
-      }
-    }
-
-    void
-    serializeDevice (::xercesc::XMLFormatTarget& t,
-                     const ::Xsd::DataModel::Device& s,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                     const ::std::string& e,
-                     ::Xsd::XmlSchema::Flags f)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::DataModel::serializeDevice (s, m, f));
-
-      ::xsd::cxx::tree::error_handler< char > h;
-
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        h.throw_if_failed< ::xsd::cxx::tree::serialization< char > > ();
-      }
-    }
-
-    void
-    serializeDevice (::xercesc::XMLFormatTarget& t,
-                     const ::Xsd::DataModel::Device& s,
-                     ::Xsd::XmlSchema::ErrorHandler& h,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                     const ::std::string& e,
-                     ::Xsd::XmlSchema::Flags f)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::DataModel::serializeDevice (s, m, f));
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        throw ::xsd::cxx::tree::serialization< char > ();
-      }
-    }
-
-    void
-    serializeDevice (::xercesc::XMLFormatTarget& t,
-                     const ::Xsd::DataModel::Device& s,
-                     ::xercesc::DOMErrorHandler& h,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                     const ::std::string& e,
-                     ::Xsd::XmlSchema::Flags f)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::DataModel::serializeDevice (s, m, f));
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        throw ::xsd::cxx::tree::serialization< char > ();
-      }
-    }
-
-    void
-    serializeDevice (::xercesc::DOMDocument& d,
-                     const ::Xsd::DataModel::Device& s,
-                     ::Xsd::XmlSchema::Flags)
-    {
-      ::xercesc::DOMElement& e (*d.getDocumentElement ());
-      const ::xsd::cxx::xml::qualified_name< char > n (
-        ::xsd::cxx::xml::dom::name< char > (e));
-
-      if (n.name () == "device" &&
-          n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
-      {
-        e << s;
-      }
-      else
-      {
-        throw ::xsd::cxx::tree::unexpected_element < char > (
-          n.name (),
-          n.namespace_ (),
-          "device",
-          "urn:ietf:params:xml:ns:pidf:data-model");
-      }
-    }
-
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
-    serializeDevice (const ::Xsd::DataModel::Device& s,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                     ::Xsd::XmlSchema::Flags f)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::serialize< char > (
-          "device",
-          "urn:ietf:params:xml:ns:pidf:data-model",
-          m, f));
-
-      ::Xsd::DataModel::serializeDevice (*d, s, f);
-      return d;
-    }
-
-    void
-    serializePerson (::std::ostream& o,
-                     const ::Xsd::DataModel::Person& s,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                     const ::std::string& e,
-                     ::Xsd::XmlSchema::Flags f)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0);
-
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::DataModel::serializePerson (s, m, f));
-
-      ::xsd::cxx::tree::error_handler< char > h;
-
-      ::xsd::cxx::xml::dom::ostream_format_target t (o);
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        h.throw_if_failed< ::xsd::cxx::tree::serialization< char > > ();
-      }
-    }
-
-    void
-    serializePerson (::std::ostream& o,
-                     const ::Xsd::DataModel::Person& s,
-                     ::Xsd::XmlSchema::ErrorHandler& h,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                     const ::std::string& e,
-                     ::Xsd::XmlSchema::Flags f)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0);
-
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::DataModel::serializePerson (s, m, f));
-      ::xsd::cxx::xml::dom::ostream_format_target t (o);
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        throw ::xsd::cxx::tree::serialization< char > ();
-      }
-    }
-
-    void
-    serializePerson (::std::ostream& o,
-                     const ::Xsd::DataModel::Person& s,
-                     ::xercesc::DOMErrorHandler& h,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                     const ::std::string& e,
-                     ::Xsd::XmlSchema::Flags f)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::DataModel::serializePerson (s, m, f));
-      ::xsd::cxx::xml::dom::ostream_format_target t (o);
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        throw ::xsd::cxx::tree::serialization< char > ();
-      }
-    }
-
-    void
-    serializePerson (::xercesc::XMLFormatTarget& t,
-                     const ::Xsd::DataModel::Person& s,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                     const ::std::string& e,
-                     ::Xsd::XmlSchema::Flags f)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::DataModel::serializePerson (s, m, f));
-
-      ::xsd::cxx::tree::error_handler< char > h;
-
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        h.throw_if_failed< ::xsd::cxx::tree::serialization< char > > ();
-      }
-    }
-
-    void
-    serializePerson (::xercesc::XMLFormatTarget& t,
-                     const ::Xsd::DataModel::Person& s,
-                     ::Xsd::XmlSchema::ErrorHandler& h,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                     const ::std::string& e,
-                     ::Xsd::XmlSchema::Flags f)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::DataModel::serializePerson (s, m, f));
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        throw ::xsd::cxx::tree::serialization< char > ();
-      }
-    }
-
-    void
-    serializePerson (::xercesc::XMLFormatTarget& t,
-                     const ::Xsd::DataModel::Person& s,
-                     ::xercesc::DOMErrorHandler& h,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                     const ::std::string& e,
-                     ::Xsd::XmlSchema::Flags f)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::DataModel::serializePerson (s, m, f));
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        throw ::xsd::cxx::tree::serialization< char > ();
-      }
-    }
-
-    void
-    serializePerson (::xercesc::DOMDocument& d,
-                     const ::Xsd::DataModel::Person& s,
-                     ::Xsd::XmlSchema::Flags)
-    {
-      ::xercesc::DOMElement& e (*d.getDocumentElement ());
-      const ::xsd::cxx::xml::qualified_name< char > n (
-        ::xsd::cxx::xml::dom::name< char > (e));
-
-      if (n.name () == "person" &&
-          n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
-      {
-        e << s;
-      }
-      else
-      {
-        throw ::xsd::cxx::tree::unexpected_element < char > (
-          n.name (),
-          n.namespace_ (),
-          "person",
-          "urn:ietf:params:xml:ns:pidf:data-model");
-      }
-    }
-
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
-    serializePerson (const ::Xsd::DataModel::Person& s,
-                     const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                     ::Xsd::XmlSchema::Flags f)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::serialize< char > (
-          "person",
-          "urn:ietf:params:xml:ns:pidf:data-model",
-          m, f));
-
-      ::Xsd::DataModel::serializePerson (*d, s, f);
-      return d;
-    }
-
-    void
-    operator<< (::xercesc::DOMElement& e, const Device& i)
-    {
-      e << static_cast< const ::Xsd::XmlSchema::Type& > (i);
-
-      // any
-      //
-      for (Device::AnyConstIterator
-           b (i.getAny ().begin ()), n (i.getAny ().end ());
-           b != n; ++b)
-      {
-        e.appendChild (
-          e.getOwnerDocument ()->importNode (
-            const_cast< ::xercesc::DOMElement* > (&(*b)), true));
+        ::xsd::cxx::xml::dom::ostream_format_target t (o);
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          h.throw_if_failed< ::xsd::cxx::tree::serialization< char > > ();
+        }
       }
 
-      // deviceID
-      //
+      void
+      serializeDeviceID (::std::ostream& o,
+                         const ::flexisip::Xsd::DataModel::DeviceID_t& s,
+                         ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                         const ::std::string& e,
+                         ::flexisip::Xsd::XmlSchema::Flags f)
       {
-        ::xercesc::DOMElement& s (
-          ::xsd::cxx::xml::dom::create_element (
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0);
+
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::DataModel::serializeDeviceID (s, m, f));
+        ::xsd::cxx::xml::dom::ostream_format_target t (o);
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          throw ::xsd::cxx::tree::serialization< char > ();
+        }
+      }
+
+      void
+      serializeDeviceID (::std::ostream& o,
+                         const ::flexisip::Xsd::DataModel::DeviceID_t& s,
+                         ::xercesc::DOMErrorHandler& h,
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                         const ::std::string& e,
+                         ::flexisip::Xsd::XmlSchema::Flags f)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::DataModel::serializeDeviceID (s, m, f));
+        ::xsd::cxx::xml::dom::ostream_format_target t (o);
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          throw ::xsd::cxx::tree::serialization< char > ();
+        }
+      }
+
+      void
+      serializeDeviceID (::xercesc::XMLFormatTarget& t,
+                         const ::flexisip::Xsd::DataModel::DeviceID_t& s,
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                         const ::std::string& e,
+                         ::flexisip::Xsd::XmlSchema::Flags f)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::DataModel::serializeDeviceID (s, m, f));
+
+        ::xsd::cxx::tree::error_handler< char > h;
+
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          h.throw_if_failed< ::xsd::cxx::tree::serialization< char > > ();
+        }
+      }
+
+      void
+      serializeDeviceID (::xercesc::XMLFormatTarget& t,
+                         const ::flexisip::Xsd::DataModel::DeviceID_t& s,
+                         ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                         const ::std::string& e,
+                         ::flexisip::Xsd::XmlSchema::Flags f)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::DataModel::serializeDeviceID (s, m, f));
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          throw ::xsd::cxx::tree::serialization< char > ();
+        }
+      }
+
+      void
+      serializeDeviceID (::xercesc::XMLFormatTarget& t,
+                         const ::flexisip::Xsd::DataModel::DeviceID_t& s,
+                         ::xercesc::DOMErrorHandler& h,
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                         const ::std::string& e,
+                         ::flexisip::Xsd::XmlSchema::Flags f)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::DataModel::serializeDeviceID (s, m, f));
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          throw ::xsd::cxx::tree::serialization< char > ();
+        }
+      }
+
+      void
+      serializeDeviceID (::xercesc::DOMDocument& d,
+                         const ::flexisip::Xsd::DataModel::DeviceID_t& s,
+                         ::flexisip::Xsd::XmlSchema::Flags)
+      {
+        ::xercesc::DOMElement& e (*d.getDocumentElement ());
+        const ::xsd::cxx::xml::qualified_name< char > n (
+          ::xsd::cxx::xml::dom::name< char > (e));
+
+        if (n.name () == "deviceID" &&
+            n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+        {
+          e << s;
+        }
+        else
+        {
+          throw ::xsd::cxx::tree::unexpected_element < char > (
+            n.name (),
+            n.namespace_ (),
+            "deviceID",
+            "urn:ietf:params:xml:ns:pidf:data-model");
+        }
+      }
+
+      ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
+      serializeDeviceID (const ::flexisip::Xsd::DataModel::DeviceID_t& s,
+                         const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                         ::flexisip::Xsd::XmlSchema::Flags f)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::serialize< char > (
             "deviceID",
             "urn:ietf:params:xml:ns:pidf:data-model",
-            e));
+            m, f));
 
-        s << i.getDeviceID ();
+        ::flexisip::Xsd::DataModel::serializeDeviceID (*d, s, f);
+        return d;
       }
 
-      // note
-      //
-      for (Device::NoteConstIterator
-           b (i.getNote ().begin ()), n (i.getNote ().end ());
-           b != n; ++b)
+      void
+      serializeDevice (::std::ostream& o,
+                       const ::flexisip::Xsd::DataModel::Device& s,
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                       const ::std::string& e,
+                       ::flexisip::Xsd::XmlSchema::Flags f)
       {
-        ::xercesc::DOMElement& s (
-          ::xsd::cxx::xml::dom::create_element (
-            "note",
-            "urn:ietf:params:xml:ns:pidf:data-model",
-            e));
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0);
 
-        s << *b;
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::DataModel::serializeDevice (s, m, f));
+
+        ::xsd::cxx::tree::error_handler< char > h;
+
+        ::xsd::cxx::xml::dom::ostream_format_target t (o);
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          h.throw_if_failed< ::xsd::cxx::tree::serialization< char > > ();
+        }
       }
 
-      // timestamp
-      //
-      if (i.getTimestamp ())
+      void
+      serializeDevice (::std::ostream& o,
+                       const ::flexisip::Xsd::DataModel::Device& s,
+                       ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                       const ::std::string& e,
+                       ::flexisip::Xsd::XmlSchema::Flags f)
       {
-        ::xercesc::DOMElement& s (
-          ::xsd::cxx::xml::dom::create_element (
-            "timestamp",
-            "urn:ietf:params:xml:ns:pidf:data-model",
-            e));
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0);
 
-        s << *i.getTimestamp ();
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::DataModel::serializeDevice (s, m, f));
+        ::xsd::cxx::xml::dom::ostream_format_target t (o);
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          throw ::xsd::cxx::tree::serialization< char > ();
+        }
       }
 
-      // id
-      //
+      void
+      serializeDevice (::std::ostream& o,
+                       const ::flexisip::Xsd::DataModel::Device& s,
+                       ::xercesc::DOMErrorHandler& h,
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                       const ::std::string& e,
+                       ::flexisip::Xsd::XmlSchema::Flags f)
       {
-        ::xercesc::DOMAttr& a (
-          ::xsd::cxx::xml::dom::create_attribute (
-            "id",
-            e));
-
-        a << i.getId ();
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::DataModel::serializeDevice (s, m, f));
+        ::xsd::cxx::xml::dom::ostream_format_target t (o);
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          throw ::xsd::cxx::tree::serialization< char > ();
+        }
       }
-    }
 
-    void
-    operator<< (::xercesc::DOMElement& e, const Person& i)
-    {
-      e << static_cast< const ::Xsd::XmlSchema::Type& > (i);
-
-      // any_attribute
-      //
-      for (Person::AnyAttributeConstIterator
-           b (i.getAnyAttribute ().begin ()), n (i.getAnyAttribute ().end ());
-           b != n; ++b)
+      void
+      serializeDevice (::xercesc::XMLFormatTarget& t,
+                       const ::flexisip::Xsd::DataModel::Device& s,
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                       const ::std::string& e,
+                       ::flexisip::Xsd::XmlSchema::Flags f)
       {
-        ::xercesc::DOMAttr* a (
-          static_cast< ::xercesc::DOMAttr* > (
-            e.getOwnerDocument ()->importNode (
-              const_cast< ::xercesc::DOMAttr* > (&(*b)), true)));
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::DataModel::serializeDevice (s, m, f));
 
-        if (a->getLocalName () == 0)
-          e.setAttributeNode (a);
+        ::xsd::cxx::tree::error_handler< char > h;
+
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          h.throw_if_failed< ::xsd::cxx::tree::serialization< char > > ();
+        }
+      }
+
+      void
+      serializeDevice (::xercesc::XMLFormatTarget& t,
+                       const ::flexisip::Xsd::DataModel::Device& s,
+                       ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                       const ::std::string& e,
+                       ::flexisip::Xsd::XmlSchema::Flags f)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::DataModel::serializeDevice (s, m, f));
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          throw ::xsd::cxx::tree::serialization< char > ();
+        }
+      }
+
+      void
+      serializeDevice (::xercesc::XMLFormatTarget& t,
+                       const ::flexisip::Xsd::DataModel::Device& s,
+                       ::xercesc::DOMErrorHandler& h,
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                       const ::std::string& e,
+                       ::flexisip::Xsd::XmlSchema::Flags f)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::DataModel::serializeDevice (s, m, f));
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          throw ::xsd::cxx::tree::serialization< char > ();
+        }
+      }
+
+      void
+      serializeDevice (::xercesc::DOMDocument& d,
+                       const ::flexisip::Xsd::DataModel::Device& s,
+                       ::flexisip::Xsd::XmlSchema::Flags)
+      {
+        ::xercesc::DOMElement& e (*d.getDocumentElement ());
+        const ::xsd::cxx::xml::qualified_name< char > n (
+          ::xsd::cxx::xml::dom::name< char > (e));
+
+        if (n.name () == "device" &&
+            n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+        {
+          e << s;
+        }
         else
-          e.setAttributeNodeNS (a);
+        {
+          throw ::xsd::cxx::tree::unexpected_element < char > (
+            n.name (),
+            n.namespace_ (),
+            "device",
+            "urn:ietf:params:xml:ns:pidf:data-model");
+        }
       }
 
-      // note
-      //
-      for (Person::NoteConstIterator
-           b (i.getNote ().begin ()), n (i.getNote ().end ());
-           b != n; ++b)
+      ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
+      serializeDevice (const ::flexisip::Xsd::DataModel::Device& s,
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                       ::flexisip::Xsd::XmlSchema::Flags f)
       {
-        ::xercesc::DOMElement& s (
-          ::xsd::cxx::xml::dom::create_element (
-            "note",
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::serialize< char > (
+            "device",
             "urn:ietf:params:xml:ns:pidf:data-model",
-            e));
+            m, f));
 
-        s << *b;
+        ::flexisip::Xsd::DataModel::serializeDevice (*d, s, f);
+        return d;
       }
 
-      // activities
-      //
-      for (Person::ActivitiesConstIterator
-           b (i.getActivities ().begin ()), n (i.getActivities ().end ());
-           b != n; ++b)
+      void
+      serializePerson (::std::ostream& o,
+                       const ::flexisip::Xsd::DataModel::Person& s,
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                       const ::std::string& e,
+                       ::flexisip::Xsd::XmlSchema::Flags f)
       {
-        ::xercesc::DOMElement& s (
-          ::xsd::cxx::xml::dom::create_element (
-            "activities",
-            "urn:ietf:params:xml:ns:pidf:rpid",
-            e));
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0);
 
-        s << *b;
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::DataModel::serializePerson (s, m, f));
+
+        ::xsd::cxx::tree::error_handler< char > h;
+
+        ::xsd::cxx::xml::dom::ostream_format_target t (o);
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          h.throw_if_failed< ::xsd::cxx::tree::serialization< char > > ();
+        }
       }
 
-      // timestamp
-      //
-      if (i.getTimestamp ())
+      void
+      serializePerson (::std::ostream& o,
+                       const ::flexisip::Xsd::DataModel::Person& s,
+                       ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                       const ::std::string& e,
+                       ::flexisip::Xsd::XmlSchema::Flags f)
       {
-        ::xercesc::DOMElement& s (
-          ::xsd::cxx::xml::dom::create_element (
-            "timestamp",
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0);
+
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::DataModel::serializePerson (s, m, f));
+        ::xsd::cxx::xml::dom::ostream_format_target t (o);
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          throw ::xsd::cxx::tree::serialization< char > ();
+        }
+      }
+
+      void
+      serializePerson (::std::ostream& o,
+                       const ::flexisip::Xsd::DataModel::Person& s,
+                       ::xercesc::DOMErrorHandler& h,
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                       const ::std::string& e,
+                       ::flexisip::Xsd::XmlSchema::Flags f)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::DataModel::serializePerson (s, m, f));
+        ::xsd::cxx::xml::dom::ostream_format_target t (o);
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          throw ::xsd::cxx::tree::serialization< char > ();
+        }
+      }
+
+      void
+      serializePerson (::xercesc::XMLFormatTarget& t,
+                       const ::flexisip::Xsd::DataModel::Person& s,
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                       const ::std::string& e,
+                       ::flexisip::Xsd::XmlSchema::Flags f)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::DataModel::serializePerson (s, m, f));
+
+        ::xsd::cxx::tree::error_handler< char > h;
+
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          h.throw_if_failed< ::xsd::cxx::tree::serialization< char > > ();
+        }
+      }
+
+      void
+      serializePerson (::xercesc::XMLFormatTarget& t,
+                       const ::flexisip::Xsd::DataModel::Person& s,
+                       ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                       const ::std::string& e,
+                       ::flexisip::Xsd::XmlSchema::Flags f)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::DataModel::serializePerson (s, m, f));
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          throw ::xsd::cxx::tree::serialization< char > ();
+        }
+      }
+
+      void
+      serializePerson (::xercesc::XMLFormatTarget& t,
+                       const ::flexisip::Xsd::DataModel::Person& s,
+                       ::xercesc::DOMErrorHandler& h,
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                       const ::std::string& e,
+                       ::flexisip::Xsd::XmlSchema::Flags f)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::DataModel::serializePerson (s, m, f));
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          throw ::xsd::cxx::tree::serialization< char > ();
+        }
+      }
+
+      void
+      serializePerson (::xercesc::DOMDocument& d,
+                       const ::flexisip::Xsd::DataModel::Person& s,
+                       ::flexisip::Xsd::XmlSchema::Flags)
+      {
+        ::xercesc::DOMElement& e (*d.getDocumentElement ());
+        const ::xsd::cxx::xml::qualified_name< char > n (
+          ::xsd::cxx::xml::dom::name< char > (e));
+
+        if (n.name () == "person" &&
+            n.namespace_ () == "urn:ietf:params:xml:ns:pidf:data-model")
+        {
+          e << s;
+        }
+        else
+        {
+          throw ::xsd::cxx::tree::unexpected_element < char > (
+            n.name (),
+            n.namespace_ (),
+            "person",
+            "urn:ietf:params:xml:ns:pidf:data-model");
+        }
+      }
+
+      ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
+      serializePerson (const ::flexisip::Xsd::DataModel::Person& s,
+                       const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                       ::flexisip::Xsd::XmlSchema::Flags f)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::serialize< char > (
+            "person",
             "urn:ietf:params:xml:ns:pidf:data-model",
-            e));
+            m, f));
 
-        s << *i.getTimestamp ();
+        ::flexisip::Xsd::DataModel::serializePerson (*d, s, f);
+        return d;
       }
 
-      // id
-      //
+      void
+      operator<< (::xercesc::DOMElement& e, const Device& i)
       {
-        ::xercesc::DOMAttr& a (
-          ::xsd::cxx::xml::dom::create_attribute (
-            "id",
-            e));
+        e << static_cast< const ::flexisip::Xsd::XmlSchema::Type& > (i);
 
-        a << i.getId ();
+        // any
+        //
+        for (Device::AnyConstIterator
+             b (i.getAny ().begin ()), n (i.getAny ().end ());
+             b != n; ++b)
+        {
+          e.appendChild (
+            e.getOwnerDocument ()->importNode (
+              const_cast< ::xercesc::DOMElement* > (&(*b)), true));
+        }
+
+        // deviceID
+        //
+        {
+          ::xercesc::DOMElement& s (
+            ::xsd::cxx::xml::dom::create_element (
+              "deviceID",
+              "urn:ietf:params:xml:ns:pidf:data-model",
+              e));
+
+          s << i.getDeviceID ();
+        }
+
+        // note
+        //
+        for (Device::NoteConstIterator
+             b (i.getNote ().begin ()), n (i.getNote ().end ());
+             b != n; ++b)
+        {
+          ::xercesc::DOMElement& s (
+            ::xsd::cxx::xml::dom::create_element (
+              "note",
+              "urn:ietf:params:xml:ns:pidf:data-model",
+              e));
+
+          s << *b;
+        }
+
+        // timestamp
+        //
+        if (i.getTimestamp ())
+        {
+          ::xercesc::DOMElement& s (
+            ::xsd::cxx::xml::dom::create_element (
+              "timestamp",
+              "urn:ietf:params:xml:ns:pidf:data-model",
+              e));
+
+          s << *i.getTimestamp ();
+        }
+
+        // id
+        //
+        {
+          ::xercesc::DOMAttr& a (
+            ::xsd::cxx::xml::dom::create_attribute (
+              "id",
+              e));
+
+          a << i.getId ();
+        }
+      }
+
+      void
+      operator<< (::xercesc::DOMElement& e, const Person& i)
+      {
+        e << static_cast< const ::flexisip::Xsd::XmlSchema::Type& > (i);
+
+        // any_attribute
+        //
+        for (Person::AnyAttributeConstIterator
+             b (i.getAnyAttribute ().begin ()), n (i.getAnyAttribute ().end ());
+             b != n; ++b)
+        {
+          ::xercesc::DOMAttr* a (
+            static_cast< ::xercesc::DOMAttr* > (
+              e.getOwnerDocument ()->importNode (
+                const_cast< ::xercesc::DOMAttr* > (&(*b)), true)));
+
+          if (a->getLocalName () == 0)
+            e.setAttributeNode (a);
+          else
+            e.setAttributeNodeNS (a);
+        }
+
+        // note
+        //
+        for (Person::NoteConstIterator
+             b (i.getNote ().begin ()), n (i.getNote ().end ());
+             b != n; ++b)
+        {
+          ::xercesc::DOMElement& s (
+            ::xsd::cxx::xml::dom::create_element (
+              "note",
+              "urn:ietf:params:xml:ns:pidf:data-model",
+              e));
+
+          s << *b;
+        }
+
+        // activities
+        //
+        for (Person::ActivitiesConstIterator
+             b (i.getActivities ().begin ()), n (i.getActivities ().end ());
+             b != n; ++b)
+        {
+          ::xercesc::DOMElement& s (
+            ::xsd::cxx::xml::dom::create_element (
+              "activities",
+              "urn:ietf:params:xml:ns:pidf:rpid",
+              e));
+
+          s << *b;
+        }
+
+        // timestamp
+        //
+        if (i.getTimestamp ())
+        {
+          ::xercesc::DOMElement& s (
+            ::xsd::cxx::xml::dom::create_element (
+              "timestamp",
+              "urn:ietf:params:xml:ns:pidf:data-model",
+              e));
+
+          s << *i.getTimestamp ();
+        }
+
+        // id
+        //
+        {
+          ::xercesc::DOMAttr& a (
+            ::xsd::cxx::xml::dom::create_attribute (
+              "id",
+              e));
+
+          a << i.getId ();
+        }
       }
     }
   }

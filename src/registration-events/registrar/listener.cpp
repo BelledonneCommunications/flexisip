@@ -26,8 +26,8 @@
 using namespace std;
 using namespace linphone;
 using namespace reginfo;
-using namespace Xsd::ResourceLists;
-using namespace Xsd::XmlSchema;
+using namespace flexisip::Xsd::ResourceLists;
+using namespace flexisip::Xsd::XmlSchema;
 
 namespace flexisip {
 
