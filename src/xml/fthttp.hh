@@ -108,175 +108,181 @@
 
 #include <xsd/cxx/tree/std-ostream-operators.hxx>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace XmlSchema
+  namespace Xsd
   {
-    // anyType and anySimpleType.
-    //
-    typedef ::xsd::cxx::tree::type Type;
-    typedef ::xsd::cxx::tree::simple_type< char, Type > SimpleType;
-    typedef ::xsd::cxx::tree::type Container;
-
-    // 8-bit
-    //
-    typedef signed char Byte;
-    typedef unsigned char UnsignedByte;
-
-    // 16-bit
-    //
-    typedef short Short;
-    typedef unsigned short UnsignedShort;
-
-    // 32-bit
-    //
-    typedef int Int;
-    typedef unsigned int UnsignedInt;
-
-    // 64-bit
-    //
-    typedef long long Long;
-    typedef unsigned long long UnsignedLong;
-
-    // Supposed to be arbitrary-length integral types.
-    //
-    typedef long long Integer;
-    typedef long long NonPositiveInteger;
-    typedef unsigned long long NonNegativeInteger;
-    typedef unsigned long long PositiveInteger;
-    typedef long long NegativeInteger;
-
-    // Boolean.
-    //
-    typedef bool Boolean;
-
-    // Floating-point types.
-    //
-    typedef float Float;
-    typedef double Double;
-    typedef double Decimal;
-
-    // String types.
-    //
-    typedef ::xsd::cxx::tree::string< char, SimpleType > String;
-    typedef ::xsd::cxx::tree::normalized_string< char, String > NormalizedString;
-    typedef ::xsd::cxx::tree::token< char, NormalizedString > Token;
-    typedef ::xsd::cxx::tree::name< char, Token > Name;
-    typedef ::xsd::cxx::tree::nmtoken< char, Token > Nmtoken;
-    typedef ::xsd::cxx::tree::nmtokens< char, SimpleType, Nmtoken > Nmtokens;
-    typedef ::xsd::cxx::tree::ncname< char, Name > Ncname;
-    typedef ::xsd::cxx::tree::language< char, Token > Language;
-
-    // ID/IDREF.
-    //
-    typedef ::xsd::cxx::tree::id< char, Ncname > Id;
-    typedef ::xsd::cxx::tree::idref< char, Ncname, Type > Idref;
-    typedef ::xsd::cxx::tree::idrefs< char, SimpleType, Idref > Idrefs;
-
-    // URI.
-    //
-    typedef ::xsd::cxx::tree::uri< char, SimpleType > Uri;
-
-    // Qualified name.
-    //
-    typedef ::xsd::cxx::tree::qname< char, SimpleType, Uri, Ncname > Qname;
-
-    // Binary.
-    //
-    typedef ::xsd::cxx::tree::buffer< char > Buffer;
-    typedef ::xsd::cxx::tree::base64_binary< char, SimpleType > Base64Binary;
-    typedef ::xsd::cxx::tree::hex_binary< char, SimpleType > HexBinary;
-
-    // Date/time.
-    //
-    typedef ::xsd::cxx::tree::time_zone TimeZone;
-    typedef ::xsd::cxx::tree::date< char, SimpleType > Date;
-    typedef ::xsd::cxx::tree::date_time< char, SimpleType > DateTime;
-    typedef ::xsd::cxx::tree::duration< char, SimpleType > Duration;
-    typedef ::xsd::cxx::tree::gday< char, SimpleType > Gday;
-    typedef ::xsd::cxx::tree::gmonth< char, SimpleType > Gmonth;
-    typedef ::xsd::cxx::tree::gmonth_day< char, SimpleType > GmonthDay;
-    typedef ::xsd::cxx::tree::gyear< char, SimpleType > Gyear;
-    typedef ::xsd::cxx::tree::gyear_month< char, SimpleType > GyearMonth;
-    typedef ::xsd::cxx::tree::time< char, SimpleType > Time;
-
-    // Entity.
-    //
-    typedef ::xsd::cxx::tree::entity< char, Ncname > Entity;
-    typedef ::xsd::cxx::tree::entities< char, SimpleType, Entity > Entities;
-
-    typedef ::xsd::cxx::tree::content_order ContentOrder;
-    // Namespace information and list stream. Used in
-    // serialization functions.
-    //
-    typedef ::xsd::cxx::xml::dom::namespace_info< char > NamespaceInfo;
-    typedef ::xsd::cxx::xml::dom::namespace_infomap< char > NamespaceInfomap;
-    typedef ::xsd::cxx::tree::list_stream< char > ListStream;
-    typedef ::xsd::cxx::tree::as_double< Double > AsDouble;
-    typedef ::xsd::cxx::tree::as_decimal< Decimal > AsDecimal;
-    typedef ::xsd::cxx::tree::facet Facet;
-
-    // Flags and properties.
-    //
-    typedef ::xsd::cxx::tree::flags Flags;
-    typedef ::xsd::cxx::tree::properties< char > Properties;
-
-    // Parsing/serialization diagnostics.
-    //
-    typedef ::xsd::cxx::tree::severity Severity;
-    typedef ::xsd::cxx::tree::error< char > Error;
-    typedef ::xsd::cxx::tree::diagnostics< char > Diagnostics;
-
-    // Exceptions.
-    //
-    typedef ::xsd::cxx::tree::exception< char > Exception;
-    typedef ::xsd::cxx::tree::bounds< char > Bounds;
-    typedef ::xsd::cxx::tree::duplicate_id< char > DuplicateId;
-    typedef ::xsd::cxx::tree::parsing< char > Parsing;
-    typedef ::xsd::cxx::tree::expected_element< char > ExpectedElement;
-    typedef ::xsd::cxx::tree::unexpected_element< char > UnexpectedElement;
-    typedef ::xsd::cxx::tree::expected_attribute< char > ExpectedAttribute;
-    typedef ::xsd::cxx::tree::unexpected_enumerator< char > UnexpectedEnumerator;
-    typedef ::xsd::cxx::tree::expected_text_content< char > ExpectedTextContent;
-    typedef ::xsd::cxx::tree::no_prefix_mapping< char > NoPrefixMapping;
-    typedef ::xsd::cxx::tree::serialization< char > Serialization;
-
-    // Error handler callback interface.
-    //
-    typedef ::xsd::cxx::xml::error_handler< char > ErrorHandler;
-
-    // DOM interaction.
-    //
-    namespace dom
+    namespace XmlSchema
     {
-      // Automatic pointer for DOMDocument.
+      // anyType and anySimpleType.
       //
-      using ::xsd::cxx::xml::dom::unique_ptr;
+      typedef ::xsd::cxx::tree::type Type;
+      typedef ::xsd::cxx::tree::simple_type< char, Type > SimpleType;
+      typedef ::xsd::cxx::tree::type Container;
 
-#ifndef XSD_CXX_TREE_TREE_NODE_KEY__XSD__XMLSCHEMA
-#define XSD_CXX_TREE_TREE_NODE_KEY__XSD__XMLSCHEMA
-      // DOM user data key for back pointers to tree nodes.
+      // 8-bit
       //
-      const XMLCh* const treeNodeKey = ::xsd::cxx::tree::user_data_keys::node;
+      typedef signed char Byte;
+      typedef unsigned char UnsignedByte;
+
+      // 16-bit
+      //
+      typedef short Short;
+      typedef unsigned short UnsignedShort;
+
+      // 32-bit
+      //
+      typedef int Int;
+      typedef unsigned int UnsignedInt;
+
+      // 64-bit
+      //
+      typedef long long Long;
+      typedef unsigned long long UnsignedLong;
+
+      // Supposed to be arbitrary-length integral types.
+      //
+      typedef long long Integer;
+      typedef long long NonPositiveInteger;
+      typedef unsigned long long NonNegativeInteger;
+      typedef unsigned long long PositiveInteger;
+      typedef long long NegativeInteger;
+
+      // Boolean.
+      //
+      typedef bool Boolean;
+
+      // Floating-point types.
+      //
+      typedef float Float;
+      typedef double Double;
+      typedef double Decimal;
+
+      // String types.
+      //
+      typedef ::xsd::cxx::tree::string< char, SimpleType > String;
+      typedef ::xsd::cxx::tree::normalized_string< char, String > NormalizedString;
+      typedef ::xsd::cxx::tree::token< char, NormalizedString > Token;
+      typedef ::xsd::cxx::tree::name< char, Token > Name;
+      typedef ::xsd::cxx::tree::nmtoken< char, Token > Nmtoken;
+      typedef ::xsd::cxx::tree::nmtokens< char, SimpleType, Nmtoken > Nmtokens;
+      typedef ::xsd::cxx::tree::ncname< char, Name > Ncname;
+      typedef ::xsd::cxx::tree::language< char, Token > Language;
+
+      // ID/IDREF.
+      //
+      typedef ::xsd::cxx::tree::id< char, Ncname > Id;
+      typedef ::xsd::cxx::tree::idref< char, Ncname, Type > Idref;
+      typedef ::xsd::cxx::tree::idrefs< char, SimpleType, Idref > Idrefs;
+
+      // URI.
+      //
+      typedef ::xsd::cxx::tree::uri< char, SimpleType > Uri;
+
+      // Qualified name.
+      //
+      typedef ::xsd::cxx::tree::qname< char, SimpleType, Uri, Ncname > Qname;
+
+      // Binary.
+      //
+      typedef ::xsd::cxx::tree::buffer< char > Buffer;
+      typedef ::xsd::cxx::tree::base64_binary< char, SimpleType > Base64Binary;
+      typedef ::xsd::cxx::tree::hex_binary< char, SimpleType > HexBinary;
+
+      // Date/time.
+      //
+      typedef ::xsd::cxx::tree::time_zone TimeZone;
+      typedef ::xsd::cxx::tree::date< char, SimpleType > Date;
+      typedef ::xsd::cxx::tree::date_time< char, SimpleType > DateTime;
+      typedef ::xsd::cxx::tree::duration< char, SimpleType > Duration;
+      typedef ::xsd::cxx::tree::gday< char, SimpleType > Gday;
+      typedef ::xsd::cxx::tree::gmonth< char, SimpleType > Gmonth;
+      typedef ::xsd::cxx::tree::gmonth_day< char, SimpleType > GmonthDay;
+      typedef ::xsd::cxx::tree::gyear< char, SimpleType > Gyear;
+      typedef ::xsd::cxx::tree::gyear_month< char, SimpleType > GyearMonth;
+      typedef ::xsd::cxx::tree::time< char, SimpleType > Time;
+
+      // Entity.
+      //
+      typedef ::xsd::cxx::tree::entity< char, Ncname > Entity;
+      typedef ::xsd::cxx::tree::entities< char, SimpleType, Entity > Entities;
+
+      typedef ::xsd::cxx::tree::content_order ContentOrder;
+      // Namespace information and list stream. Used in
+      // serialization functions.
+      //
+      typedef ::xsd::cxx::xml::dom::namespace_info< char > NamespaceInfo;
+      typedef ::xsd::cxx::xml::dom::namespace_infomap< char > NamespaceInfomap;
+      typedef ::xsd::cxx::tree::list_stream< char > ListStream;
+      typedef ::xsd::cxx::tree::as_double< Double > AsDouble;
+      typedef ::xsd::cxx::tree::as_decimal< Decimal > AsDecimal;
+      typedef ::xsd::cxx::tree::facet Facet;
+
+      // Flags and properties.
+      //
+      typedef ::xsd::cxx::tree::flags Flags;
+      typedef ::xsd::cxx::tree::properties< char > Properties;
+
+      // Parsing/serialization diagnostics.
+      //
+      typedef ::xsd::cxx::tree::severity Severity;
+      typedef ::xsd::cxx::tree::error< char > Error;
+      typedef ::xsd::cxx::tree::diagnostics< char > Diagnostics;
+
+      // Exceptions.
+      //
+      typedef ::xsd::cxx::tree::exception< char > Exception;
+      typedef ::xsd::cxx::tree::bounds< char > Bounds;
+      typedef ::xsd::cxx::tree::duplicate_id< char > DuplicateId;
+      typedef ::xsd::cxx::tree::parsing< char > Parsing;
+      typedef ::xsd::cxx::tree::expected_element< char > ExpectedElement;
+      typedef ::xsd::cxx::tree::unexpected_element< char > UnexpectedElement;
+      typedef ::xsd::cxx::tree::expected_attribute< char > ExpectedAttribute;
+      typedef ::xsd::cxx::tree::unexpected_enumerator< char > UnexpectedEnumerator;
+      typedef ::xsd::cxx::tree::expected_text_content< char > ExpectedTextContent;
+      typedef ::xsd::cxx::tree::no_prefix_mapping< char > NoPrefixMapping;
+      typedef ::xsd::cxx::tree::serialization< char > Serialization;
+
+      // Error handler callback interface.
+      //
+      typedef ::xsd::cxx::xml::error_handler< char > ErrorHandler;
+
+      // DOM interaction.
+      //
+      namespace dom
+      {
+        // Automatic pointer for DOMDocument.
+        //
+        using ::xsd::cxx::xml::dom::unique_ptr;
+
+#ifndef XSD_CXX_TREE_TREE_NODE_KEY__FLEXISIP__XSD__XMLSCHEMA
+#define XSD_CXX_TREE_TREE_NODE_KEY__FLEXISIP__XSD__XMLSCHEMA
+        // DOM user data key for back pointers to tree nodes.
+        //
+        const XMLCh* const treeNodeKey = ::xsd::cxx::tree::user_data_keys::node;
 #endif
+      }
     }
   }
 }
 
 // Forward declarations.
 //
-namespace Xsd
+namespace flexisip
 {
-  namespace Fthttp
+  namespace Xsd
   {
-    class File;
-    class FileInfo;
-    class FileSize;
-    class FileName;
-    class ContentType;
-    class Data;
-    class Type;
-    class FileDisposition;
+    namespace Fthttp
+    {
+      class File;
+      class FileInfo;
+      class FileSize;
+      class FileName;
+      class ContentType;
+      class Data;
+      class Type;
+      class FileDisposition;
+    }
   }
 }
 
@@ -297,663 +303,669 @@ namespace Xsd
 
 #include <xsd/cxx/tree/containers-wildcard.hxx>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace Fthttp
+  namespace Xsd
   {
-    class File: public ::Xsd::XmlSchema::Type
+    namespace Fthttp
     {
-      public:
-      // file-info
-      //
-      typedef ::Xsd::Fthttp::FileInfo FileInfoType;
-      typedef ::xsd::cxx::tree::sequence< FileInfoType > FileInfoSequence;
-      typedef FileInfoSequence::iterator FileInfoIterator;
-      typedef FileInfoSequence::const_iterator FileInfoConstIterator;
-      typedef ::xsd::cxx::tree::traits< FileInfoType, char > FileInfoTraits;
-
-      const FileInfoSequence&
-      getFileInfo () const;
-
-      FileInfoSequence&
-      getFileInfo ();
-
-      void
-      setFileInfo (const FileInfoSequence& s);
-
-      // any
-      //
-      typedef ::xsd::cxx::tree::element_sequence AnySequence;
-      typedef AnySequence::iterator AnyIterator;
-      typedef AnySequence::const_iterator AnyConstIterator;
-
-      const AnySequence&
-      getAny () const;
-
-      AnySequence&
-      getAny ();
-
-      void
-      setAny (const AnySequence& s);
-
-      // DOMDocument for wildcard content.
-      //
-      const ::xercesc::DOMDocument&
-      getDomDocument () const;
-
-      ::xercesc::DOMDocument&
-      getDomDocument ();
-
-      // Constructors.
-      //
-      File ();
-
-      File (const ::xercesc::DOMElement& e,
-            ::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0);
-
-      File (const File& x,
-            ::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0);
-
-      virtual File*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
-
-      File&
-      operator= (const File& x);
-
-      virtual 
-      ~File ();
-
-      // Implementation.
-      //
-      protected:
-      void
-      parse (::xsd::cxx::xml::dom::parser< char >&,
-             ::Xsd::XmlSchema::Flags);
-
-      protected:
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
-
-      FileInfoSequence file_info_;
-      AnySequence any_;
-    };
-
-    class FileInfo: public ::Xsd::XmlSchema::Type
-    {
-      public:
-      // file-size
-      //
-      typedef ::Xsd::Fthttp::FileSize FileSizeType;
-      typedef ::xsd::cxx::tree::traits< FileSizeType, char > FileSizeTraits;
-
-      const FileSizeType&
-      getFileSize () const;
-
-      FileSizeType&
-      getFileSize ();
-
-      void
-      setFileSize (const FileSizeType& x);
-
-      void
-      setFileSize (::std::unique_ptr< FileSizeType > p);
-
-      ::std::unique_ptr< FileSizeType >
-      setDetachFile_size ();
-
-      // file-name
-      //
-      typedef ::Xsd::Fthttp::FileName FileNameType;
-      typedef ::xsd::cxx::tree::optional< FileNameType > FileNameOptional;
-      typedef ::xsd::cxx::tree::traits< FileNameType, char > FileNameTraits;
-
-      const FileNameOptional&
-      getFileName () const;
-
-      FileNameOptional&
-      getFileName ();
-
-      void
-      setFileName (const FileNameType& x);
-
-      void
-      setFileName (const FileNameOptional& x);
-
-      void
-      setFileName (::std::unique_ptr< FileNameType > p);
-
-      // content-type
-      //
-      typedef ::Xsd::Fthttp::ContentType ContentTypeType;
-      typedef ::xsd::cxx::tree::traits< ContentTypeType, char > ContentTypeTraits;
-
-      const ContentTypeType&
-      getContentType () const;
-
-      ContentTypeType&
-      getContentType ();
-
-      void
-      setContentType (const ContentTypeType& x);
-
-      void
-      setContentType (::std::unique_ptr< ContentTypeType > p);
-
-      ::std::unique_ptr< ContentTypeType >
-      setDetachContent_type ();
-
-      // data
-      //
-      typedef ::Xsd::Fthttp::Data DataType;
-      typedef ::xsd::cxx::tree::traits< DataType, char > DataTraits;
-
-      const DataType&
-      getData () const;
-
-      DataType&
-      getData ();
-
-      void
-      setData (const DataType& x);
-
-      void
-      setData (::std::unique_ptr< DataType > p);
-
-      ::std::unique_ptr< DataType >
-      setDetachData ();
-
-      // any
-      //
-      typedef ::xsd::cxx::tree::element_sequence AnySequence;
-      typedef AnySequence::iterator AnyIterator;
-      typedef AnySequence::const_iterator AnyConstIterator;
-
-      const AnySequence&
-      getAny () const;
-
-      AnySequence&
-      getAny ();
-
-      void
-      setAny (const AnySequence& s);
-
-      // type
-      //
-      typedef ::Xsd::Fthttp::Type TypeType;
-      typedef ::xsd::cxx::tree::traits< TypeType, char > TypeTraits;
-
-      const TypeType&
-      getType () const;
-
-      TypeType&
-      getType ();
-
-      void
-      setType (const TypeType& x);
-
-      void
-      setType (::std::unique_ptr< TypeType > p);
-
-      ::std::unique_ptr< TypeType >
-      setDetachType ();
-
-      // file-disposition
-      //
-      typedef ::Xsd::Fthttp::FileDisposition FileDispositionType;
-      typedef ::xsd::cxx::tree::optional< FileDispositionType > FileDispositionOptional;
-      typedef ::xsd::cxx::tree::traits< FileDispositionType, char > FileDispositionTraits;
-
-      const FileDispositionOptional&
-      getFileDisposition () const;
-
-      FileDispositionOptional&
-      getFileDisposition ();
-
-      void
-      setFileDisposition (const FileDispositionType& x);
-
-      void
-      setFileDisposition (const FileDispositionOptional& x);
-
-      void
-      setFileDisposition (::std::unique_ptr< FileDispositionType > p);
-
-      // any_attribute
-      //
-      typedef ::xsd::cxx::tree::attribute_set< char > AnyAttributeSet;
-      typedef AnyAttributeSet::iterator AnyAttributeIterator;
-      typedef AnyAttributeSet::const_iterator AnyAttributeConstIterator;
-
-      const AnyAttributeSet&
-      getAnyAttribute () const;
-
-      AnyAttributeSet&
-      getAnyAttribute ();
-
-      void
-      setAnyAttribute (const AnyAttributeSet& s);
-
-      // DOMDocument for wildcard content.
-      //
-      const ::xercesc::DOMDocument&
-      getDomDocument () const;
-
-      ::xercesc::DOMDocument&
-      getDomDocument ();
-
-      // Constructors.
-      //
-      FileInfo (const FileSizeType&,
-                const ContentTypeType&,
-                const DataType&,
-                const TypeType&);
-
-      FileInfo (const FileSizeType&,
-                const ContentTypeType&,
-                ::std::unique_ptr< DataType >,
-                const TypeType&);
-
-      FileInfo (const ::xercesc::DOMElement& e,
-                ::Xsd::XmlSchema::Flags f = 0,
-                ::Xsd::XmlSchema::Container* c = 0);
-
-      FileInfo (const FileInfo& x,
-                ::Xsd::XmlSchema::Flags f = 0,
-                ::Xsd::XmlSchema::Container* c = 0);
-
-      virtual FileInfo*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
-
-      FileInfo&
-      operator= (const FileInfo& x);
-
-      virtual 
-      ~FileInfo ();
-
-      // Implementation.
-      //
-      protected:
-      void
-      parse (::xsd::cxx::xml::dom::parser< char >&,
-             ::Xsd::XmlSchema::Flags);
-
-      protected:
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
-
-      ::xsd::cxx::tree::one< FileSizeType > file_size_;
-      FileNameOptional file_name_;
-      ::xsd::cxx::tree::one< ContentTypeType > content_type_;
-      ::xsd::cxx::tree::one< DataType > data_;
-      AnySequence any_;
-      ::xsd::cxx::tree::one< TypeType > type_;
-      FileDispositionOptional file_disposition_;
-      AnyAttributeSet any_attribute_;
-    };
-
-    class FileSize: public ::xsd::cxx::tree::fundamental_base< ::Xsd::XmlSchema::Integer, char, ::Xsd::XmlSchema::SimpleType >
-    {
-      public:
-      // Constructors.
-      //
-      FileSize (const ::Xsd::XmlSchema::Integer&);
-
-      FileSize (const ::xercesc::DOMElement& e,
-                ::Xsd::XmlSchema::Flags f = 0,
-                ::Xsd::XmlSchema::Container* c = 0);
-
-      FileSize (const ::xercesc::DOMAttr& a,
-                ::Xsd::XmlSchema::Flags f = 0,
-                ::Xsd::XmlSchema::Container* c = 0);
-
-      FileSize (const ::std::string& s,
-                const ::xercesc::DOMElement* e,
-                ::Xsd::XmlSchema::Flags f = 0,
-                ::Xsd::XmlSchema::Container* c = 0);
-
-      FileSize (const FileSize& x,
-                ::Xsd::XmlSchema::Flags f = 0,
-                ::Xsd::XmlSchema::Container* c = 0);
-
-      virtual FileSize*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
-
-      virtual 
-      ~FileSize ();
-    };
-
-    class FileName: public ::Xsd::XmlSchema::String
-    {
-      public:
-      // Constructors.
-      //
-      FileName ();
-
-      FileName (const char*);
-
-      FileName (const ::std::string&);
-
-      FileName (const ::Xsd::XmlSchema::String&);
-
-      FileName (const ::xercesc::DOMElement& e,
-                ::Xsd::XmlSchema::Flags f = 0,
-                ::Xsd::XmlSchema::Container* c = 0);
-
-      FileName (const ::xercesc::DOMAttr& a,
-                ::Xsd::XmlSchema::Flags f = 0,
-                ::Xsd::XmlSchema::Container* c = 0);
-
-      FileName (const ::std::string& s,
-                const ::xercesc::DOMElement* e,
-                ::Xsd::XmlSchema::Flags f = 0,
-                ::Xsd::XmlSchema::Container* c = 0);
-
-      FileName (const FileName& x,
-                ::Xsd::XmlSchema::Flags f = 0,
-                ::Xsd::XmlSchema::Container* c = 0);
-
-      virtual FileName*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
-
-      virtual 
-      ~FileName ();
-    };
-
-    class ContentType: public ::Xsd::XmlSchema::String
-    {
-      public:
-      // Constructors.
-      //
-      ContentType ();
-
-      ContentType (const char*);
-
-      ContentType (const ::std::string&);
-
-      ContentType (const ::Xsd::XmlSchema::String&);
-
-      ContentType (const ::xercesc::DOMElement& e,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   ::Xsd::XmlSchema::Container* c = 0);
-
-      ContentType (const ::xercesc::DOMAttr& a,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   ::Xsd::XmlSchema::Container* c = 0);
-
-      ContentType (const ::std::string& s,
-                   const ::xercesc::DOMElement* e,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   ::Xsd::XmlSchema::Container* c = 0);
-
-      ContentType (const ContentType& x,
-                   ::Xsd::XmlSchema::Flags f = 0,
-                   ::Xsd::XmlSchema::Container* c = 0);
-
-      virtual ContentType*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
-
-      virtual 
-      ~ContentType ();
-    };
-
-    class Data: public ::Xsd::XmlSchema::Type
-    {
-      public:
-      // url
-      //
-      typedef ::Xsd::XmlSchema::Uri UrlType;
-      typedef ::xsd::cxx::tree::traits< UrlType, char > UrlTraits;
-
-      const UrlType&
-      getUrl () const;
-
-      UrlType&
-      getUrl ();
-
-      void
-      setUrl (const UrlType& x);
-
-      void
-      setUrl (::std::unique_ptr< UrlType > p);
-
-      ::std::unique_ptr< UrlType >
-      setDetachUrl ();
-
-      // until
-      //
-      typedef ::Xsd::XmlSchema::DateTime UntilType;
-      typedef ::xsd::cxx::tree::traits< UntilType, char > UntilTraits;
-
-      const UntilType&
-      getUntil () const;
-
-      UntilType&
-      getUntil ();
-
-      void
-      setUntil (const UntilType& x);
-
-      void
-      setUntil (::std::unique_ptr< UntilType > p);
-
-      ::std::unique_ptr< UntilType >
-      setDetachUntil ();
-
-      // any_attribute
-      //
-      typedef ::xsd::cxx::tree::attribute_set< char > AnyAttributeSet;
-      typedef AnyAttributeSet::iterator AnyAttributeIterator;
-      typedef AnyAttributeSet::const_iterator AnyAttributeConstIterator;
-
-      const AnyAttributeSet&
-      getAnyAttribute () const;
-
-      AnyAttributeSet&
-      getAnyAttribute ();
-
-      void
-      setAnyAttribute (const AnyAttributeSet& s);
-
-      // DOMDocument for wildcard content.
-      //
-      const ::xercesc::DOMDocument&
-      getDomDocument () const;
-
-      ::xercesc::DOMDocument&
-      getDomDocument ();
-
-      // Constructors.
-      //
-      Data (const UrlType&,
-            const UntilType&);
-
-      Data (const ::xercesc::DOMElement& e,
-            ::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0);
-
-      Data (const Data& x,
-            ::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0);
-
-      virtual Data*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
-
-      Data&
-      operator= (const Data& x);
-
-      virtual 
-      ~Data ();
-
-      // Implementation.
-      //
-      protected:
-      void
-      parse (::xsd::cxx::xml::dom::parser< char >&,
-             ::Xsd::XmlSchema::Flags);
-
-      protected:
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
-
-      ::xsd::cxx::tree::one< UrlType > url_;
-      ::xsd::cxx::tree::one< UntilType > until_;
-      AnyAttributeSet any_attribute_;
-    };
-
-    class Type: public ::Xsd::XmlSchema::String
-    {
-      public:
-      enum Value
+      class File: public ::flexisip::Xsd::XmlSchema::Type
       {
-        file,
-        thumbnail
+        public:
+        // file-info
+        //
+        typedef ::flexisip::Xsd::Fthttp::FileInfo FileInfoType;
+        typedef ::xsd::cxx::tree::sequence< FileInfoType > FileInfoSequence;
+        typedef FileInfoSequence::iterator FileInfoIterator;
+        typedef FileInfoSequence::const_iterator FileInfoConstIterator;
+        typedef ::xsd::cxx::tree::traits< FileInfoType, char > FileInfoTraits;
+
+        const FileInfoSequence&
+        getFileInfo () const;
+
+        FileInfoSequence&
+        getFileInfo ();
+
+        void
+        setFileInfo (const FileInfoSequence& s);
+
+        // any
+        //
+        typedef ::xsd::cxx::tree::element_sequence AnySequence;
+        typedef AnySequence::iterator AnyIterator;
+        typedef AnySequence::const_iterator AnyConstIterator;
+
+        const AnySequence&
+        getAny () const;
+
+        AnySequence&
+        getAny ();
+
+        void
+        setAny (const AnySequence& s);
+
+        // DOMDocument for wildcard content.
+        //
+        const ::xercesc::DOMDocument&
+        getDomDocument () const;
+
+        ::xercesc::DOMDocument&
+        getDomDocument ();
+
+        // Constructors.
+        //
+        File ();
+
+        File (const ::xercesc::DOMElement& e,
+              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+              ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        File (const File& x,
+              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+              ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        virtual File*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
+
+        File&
+        operator= (const File& x);
+
+        virtual 
+        ~File ();
+
+        // Implementation.
+        //
+        protected:
+        void
+        parse (::xsd::cxx::xml::dom::parser< char >&,
+               ::flexisip::Xsd::XmlSchema::Flags);
+
+        protected:
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
+
+        FileInfoSequence file_info_;
+        AnySequence any_;
       };
 
-      Type (Value v);
-
-      Type (const char* v);
-
-      Type (const ::std::string& v);
-
-      Type (const ::Xsd::XmlSchema::String& v);
-
-      Type (const ::xercesc::DOMElement& e,
-            ::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0);
-
-      Type (const ::xercesc::DOMAttr& a,
-            ::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0);
-
-      Type (const ::std::string& s,
-            const ::xercesc::DOMElement* e,
-            ::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0);
-
-      Type (const Type& x,
-            ::Xsd::XmlSchema::Flags f = 0,
-            ::Xsd::XmlSchema::Container* c = 0);
-
-      virtual Type*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
-
-      Type&
-      operator= (Value v);
-
-      virtual
-      operator Value () const
+      class FileInfo: public ::flexisip::Xsd::XmlSchema::Type
       {
-        return _xsd_Type_convert ();
-      }
+        public:
+        // file-size
+        //
+        typedef ::flexisip::Xsd::Fthttp::FileSize FileSizeType;
+        typedef ::xsd::cxx::tree::traits< FileSizeType, char > FileSizeTraits;
 
-      protected:
-      Value
-      _xsd_Type_convert () const;
+        const FileSizeType&
+        getFileSize () const;
 
-      public:
-      static const char* const _xsd_Type_literals_[2];
-      static const Value _xsd_Type_indexes_[2];
-    };
+        FileSizeType&
+        getFileSize ();
 
-    class FileDisposition: public ::Xsd::XmlSchema::String
-    {
-      public:
-      enum Value
-      {
-        render,
-        attachment
+        void
+        setFileSize (const FileSizeType& x);
+
+        void
+        setFileSize (::std::unique_ptr< FileSizeType > p);
+
+        ::std::unique_ptr< FileSizeType >
+        setDetachFile_size ();
+
+        // file-name
+        //
+        typedef ::flexisip::Xsd::Fthttp::FileName FileNameType;
+        typedef ::xsd::cxx::tree::optional< FileNameType > FileNameOptional;
+        typedef ::xsd::cxx::tree::traits< FileNameType, char > FileNameTraits;
+
+        const FileNameOptional&
+        getFileName () const;
+
+        FileNameOptional&
+        getFileName ();
+
+        void
+        setFileName (const FileNameType& x);
+
+        void
+        setFileName (const FileNameOptional& x);
+
+        void
+        setFileName (::std::unique_ptr< FileNameType > p);
+
+        // content-type
+        //
+        typedef ::flexisip::Xsd::Fthttp::ContentType ContentTypeType;
+        typedef ::xsd::cxx::tree::traits< ContentTypeType, char > ContentTypeTraits;
+
+        const ContentTypeType&
+        getContentType () const;
+
+        ContentTypeType&
+        getContentType ();
+
+        void
+        setContentType (const ContentTypeType& x);
+
+        void
+        setContentType (::std::unique_ptr< ContentTypeType > p);
+
+        ::std::unique_ptr< ContentTypeType >
+        setDetachContent_type ();
+
+        // data
+        //
+        typedef ::flexisip::Xsd::Fthttp::Data DataType;
+        typedef ::xsd::cxx::tree::traits< DataType, char > DataTraits;
+
+        const DataType&
+        getData () const;
+
+        DataType&
+        getData ();
+
+        void
+        setData (const DataType& x);
+
+        void
+        setData (::std::unique_ptr< DataType > p);
+
+        ::std::unique_ptr< DataType >
+        setDetachData ();
+
+        // any
+        //
+        typedef ::xsd::cxx::tree::element_sequence AnySequence;
+        typedef AnySequence::iterator AnyIterator;
+        typedef AnySequence::const_iterator AnyConstIterator;
+
+        const AnySequence&
+        getAny () const;
+
+        AnySequence&
+        getAny ();
+
+        void
+        setAny (const AnySequence& s);
+
+        // type
+        //
+        typedef ::flexisip::Xsd::Fthttp::Type TypeType;
+        typedef ::xsd::cxx::tree::traits< TypeType, char > TypeTraits;
+
+        const TypeType&
+        getType () const;
+
+        TypeType&
+        getType ();
+
+        void
+        setType (const TypeType& x);
+
+        void
+        setType (::std::unique_ptr< TypeType > p);
+
+        ::std::unique_ptr< TypeType >
+        setDetachType ();
+
+        // file-disposition
+        //
+        typedef ::flexisip::Xsd::Fthttp::FileDisposition FileDispositionType;
+        typedef ::xsd::cxx::tree::optional< FileDispositionType > FileDispositionOptional;
+        typedef ::xsd::cxx::tree::traits< FileDispositionType, char > FileDispositionTraits;
+
+        const FileDispositionOptional&
+        getFileDisposition () const;
+
+        FileDispositionOptional&
+        getFileDisposition ();
+
+        void
+        setFileDisposition (const FileDispositionType& x);
+
+        void
+        setFileDisposition (const FileDispositionOptional& x);
+
+        void
+        setFileDisposition (::std::unique_ptr< FileDispositionType > p);
+
+        // any_attribute
+        //
+        typedef ::xsd::cxx::tree::attribute_set< char > AnyAttributeSet;
+        typedef AnyAttributeSet::iterator AnyAttributeIterator;
+        typedef AnyAttributeSet::const_iterator AnyAttributeConstIterator;
+
+        const AnyAttributeSet&
+        getAnyAttribute () const;
+
+        AnyAttributeSet&
+        getAnyAttribute ();
+
+        void
+        setAnyAttribute (const AnyAttributeSet& s);
+
+        // DOMDocument for wildcard content.
+        //
+        const ::xercesc::DOMDocument&
+        getDomDocument () const;
+
+        ::xercesc::DOMDocument&
+        getDomDocument ();
+
+        // Constructors.
+        //
+        FileInfo (const FileSizeType&,
+                  const ContentTypeType&,
+                  const DataType&,
+                  const TypeType&);
+
+        FileInfo (const FileSizeType&,
+                  const ContentTypeType&,
+                  ::std::unique_ptr< DataType >,
+                  const TypeType&);
+
+        FileInfo (const ::xercesc::DOMElement& e,
+                  ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                  ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        FileInfo (const FileInfo& x,
+                  ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                  ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        virtual FileInfo*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
+
+        FileInfo&
+        operator= (const FileInfo& x);
+
+        virtual 
+        ~FileInfo ();
+
+        // Implementation.
+        //
+        protected:
+        void
+        parse (::xsd::cxx::xml::dom::parser< char >&,
+               ::flexisip::Xsd::XmlSchema::Flags);
+
+        protected:
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
+
+        ::xsd::cxx::tree::one< FileSizeType > file_size_;
+        FileNameOptional file_name_;
+        ::xsd::cxx::tree::one< ContentTypeType > content_type_;
+        ::xsd::cxx::tree::one< DataType > data_;
+        AnySequence any_;
+        ::xsd::cxx::tree::one< TypeType > type_;
+        FileDispositionOptional file_disposition_;
+        AnyAttributeSet any_attribute_;
       };
 
-      FileDisposition (Value v);
-
-      FileDisposition (const char* v);
-
-      FileDisposition (const ::std::string& v);
-
-      FileDisposition (const ::Xsd::XmlSchema::String& v);
-
-      FileDisposition (const ::xercesc::DOMElement& e,
-                       ::Xsd::XmlSchema::Flags f = 0,
-                       ::Xsd::XmlSchema::Container* c = 0);
-
-      FileDisposition (const ::xercesc::DOMAttr& a,
-                       ::Xsd::XmlSchema::Flags f = 0,
-                       ::Xsd::XmlSchema::Container* c = 0);
-
-      FileDisposition (const ::std::string& s,
-                       const ::xercesc::DOMElement* e,
-                       ::Xsd::XmlSchema::Flags f = 0,
-                       ::Xsd::XmlSchema::Container* c = 0);
-
-      FileDisposition (const FileDisposition& x,
-                       ::Xsd::XmlSchema::Flags f = 0,
-                       ::Xsd::XmlSchema::Container* c = 0);
-
-      virtual FileDisposition*
-      _clone (::Xsd::XmlSchema::Flags f = 0,
-              ::Xsd::XmlSchema::Container* c = 0) const;
-
-      FileDisposition&
-      operator= (Value v);
-
-      virtual
-      operator Value () const
+      class FileSize: public ::xsd::cxx::tree::fundamental_base< ::flexisip::Xsd::XmlSchema::Integer, char, ::flexisip::Xsd::XmlSchema::SimpleType >
       {
-        return _xsd_FileDisposition_convert ();
-      }
+        public:
+        // Constructors.
+        //
+        FileSize (const ::flexisip::Xsd::XmlSchema::Integer&);
 
-      protected:
-      Value
-      _xsd_FileDisposition_convert () const;
+        FileSize (const ::xercesc::DOMElement& e,
+                  ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                  ::flexisip::Xsd::XmlSchema::Container* c = 0);
 
-      public:
-      static const char* const _xsd_FileDisposition_literals_[2];
-      static const Value _xsd_FileDisposition_indexes_[2];
-    };
+        FileSize (const ::xercesc::DOMAttr& a,
+                  ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                  ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        FileSize (const ::std::string& s,
+                  const ::xercesc::DOMElement* e,
+                  ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                  ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        FileSize (const FileSize& x,
+                  ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                  ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        virtual FileSize*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
+
+        virtual 
+        ~FileSize ();
+      };
+
+      class FileName: public ::flexisip::Xsd::XmlSchema::String
+      {
+        public:
+        // Constructors.
+        //
+        FileName ();
+
+        FileName (const char*);
+
+        FileName (const ::std::string&);
+
+        FileName (const ::flexisip::Xsd::XmlSchema::String&);
+
+        FileName (const ::xercesc::DOMElement& e,
+                  ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                  ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        FileName (const ::xercesc::DOMAttr& a,
+                  ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                  ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        FileName (const ::std::string& s,
+                  const ::xercesc::DOMElement* e,
+                  ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                  ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        FileName (const FileName& x,
+                  ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                  ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        virtual FileName*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
+
+        virtual 
+        ~FileName ();
+      };
+
+      class ContentType: public ::flexisip::Xsd::XmlSchema::String
+      {
+        public:
+        // Constructors.
+        //
+        ContentType ();
+
+        ContentType (const char*);
+
+        ContentType (const ::std::string&);
+
+        ContentType (const ::flexisip::Xsd::XmlSchema::String&);
+
+        ContentType (const ::xercesc::DOMElement& e,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        ContentType (const ::xercesc::DOMAttr& a,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        ContentType (const ::std::string& s,
+                     const ::xercesc::DOMElement* e,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        ContentType (const ContentType& x,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                     ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        virtual ContentType*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
+
+        virtual 
+        ~ContentType ();
+      };
+
+      class Data: public ::flexisip::Xsd::XmlSchema::Type
+      {
+        public:
+        // url
+        //
+        typedef ::flexisip::Xsd::XmlSchema::Uri UrlType;
+        typedef ::xsd::cxx::tree::traits< UrlType, char > UrlTraits;
+
+        const UrlType&
+        getUrl () const;
+
+        UrlType&
+        getUrl ();
+
+        void
+        setUrl (const UrlType& x);
+
+        void
+        setUrl (::std::unique_ptr< UrlType > p);
+
+        ::std::unique_ptr< UrlType >
+        setDetachUrl ();
+
+        // until
+        //
+        typedef ::flexisip::Xsd::XmlSchema::DateTime UntilType;
+        typedef ::xsd::cxx::tree::traits< UntilType, char > UntilTraits;
+
+        const UntilType&
+        getUntil () const;
+
+        UntilType&
+        getUntil ();
+
+        void
+        setUntil (const UntilType& x);
+
+        void
+        setUntil (::std::unique_ptr< UntilType > p);
+
+        ::std::unique_ptr< UntilType >
+        setDetachUntil ();
+
+        // any_attribute
+        //
+        typedef ::xsd::cxx::tree::attribute_set< char > AnyAttributeSet;
+        typedef AnyAttributeSet::iterator AnyAttributeIterator;
+        typedef AnyAttributeSet::const_iterator AnyAttributeConstIterator;
+
+        const AnyAttributeSet&
+        getAnyAttribute () const;
+
+        AnyAttributeSet&
+        getAnyAttribute ();
+
+        void
+        setAnyAttribute (const AnyAttributeSet& s);
+
+        // DOMDocument for wildcard content.
+        //
+        const ::xercesc::DOMDocument&
+        getDomDocument () const;
+
+        ::xercesc::DOMDocument&
+        getDomDocument ();
+
+        // Constructors.
+        //
+        Data (const UrlType&,
+              const UntilType&);
+
+        Data (const ::xercesc::DOMElement& e,
+              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+              ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        Data (const Data& x,
+              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+              ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        virtual Data*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
+
+        Data&
+        operator= (const Data& x);
+
+        virtual 
+        ~Data ();
+
+        // Implementation.
+        //
+        protected:
+        void
+        parse (::xsd::cxx::xml::dom::parser< char >&,
+               ::flexisip::Xsd::XmlSchema::Flags);
+
+        protected:
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > dom_document_;
+
+        ::xsd::cxx::tree::one< UrlType > url_;
+        ::xsd::cxx::tree::one< UntilType > until_;
+        AnyAttributeSet any_attribute_;
+      };
+
+      class Type: public ::flexisip::Xsd::XmlSchema::String
+      {
+        public:
+        enum Value
+        {
+          file,
+          thumbnail
+        };
+
+        Type (Value v);
+
+        Type (const char* v);
+
+        Type (const ::std::string& v);
+
+        Type (const ::flexisip::Xsd::XmlSchema::String& v);
+
+        Type (const ::xercesc::DOMElement& e,
+              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+              ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        Type (const ::xercesc::DOMAttr& a,
+              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+              ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        Type (const ::std::string& s,
+              const ::xercesc::DOMElement* e,
+              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+              ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        Type (const Type& x,
+              ::flexisip::Xsd::XmlSchema::Flags f = 0,
+              ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        virtual Type*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
+
+        Type&
+        operator= (Value v);
+
+        virtual
+        operator Value () const
+        {
+          return _xsd_Type_convert ();
+        }
+
+        protected:
+        Value
+        _xsd_Type_convert () const;
+
+        public:
+        static const char* const _xsd_Type_literals_[2];
+        static const Value _xsd_Type_indexes_[2];
+      };
+
+      class FileDisposition: public ::flexisip::Xsd::XmlSchema::String
+      {
+        public:
+        enum Value
+        {
+          render,
+          attachment
+        };
+
+        FileDisposition (Value v);
+
+        FileDisposition (const char* v);
+
+        FileDisposition (const ::std::string& v);
+
+        FileDisposition (const ::flexisip::Xsd::XmlSchema::String& v);
+
+        FileDisposition (const ::xercesc::DOMElement& e,
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                         ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        FileDisposition (const ::xercesc::DOMAttr& a,
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                         ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        FileDisposition (const ::std::string& s,
+                         const ::xercesc::DOMElement* e,
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                         ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        FileDisposition (const FileDisposition& x,
+                         ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                         ::flexisip::Xsd::XmlSchema::Container* c = 0);
+
+        virtual FileDisposition*
+        _clone (::flexisip::Xsd::XmlSchema::Flags f = 0,
+                ::flexisip::Xsd::XmlSchema::Container* c = 0) const;
+
+        FileDisposition&
+        operator= (Value v);
+
+        virtual
+        operator Value () const
+        {
+          return _xsd_FileDisposition_convert ();
+        }
+
+        protected:
+        Value
+        _xsd_FileDisposition_convert () const;
+
+        public:
+        static const char* const _xsd_FileDisposition_literals_[2];
+        static const Value _xsd_FileDisposition_indexes_[2];
+      };
+    }
   }
 }
 
 #include <iosfwd>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace Fthttp
+  namespace Xsd
   {
-    ::std::ostream&
-    operator<< (::std::ostream&, const File&);
+    namespace Fthttp
+    {
+      ::std::ostream&
+      operator<< (::std::ostream&, const File&);
 
-    ::std::ostream&
-    operator<< (::std::ostream&, const FileInfo&);
+      ::std::ostream&
+      operator<< (::std::ostream&, const FileInfo&);
 
-    ::std::ostream&
-    operator<< (::std::ostream&, const FileSize&);
+      ::std::ostream&
+      operator<< (::std::ostream&, const FileSize&);
 
-    ::std::ostream&
-    operator<< (::std::ostream&, const FileName&);
+      ::std::ostream&
+      operator<< (::std::ostream&, const FileName&);
 
-    ::std::ostream&
-    operator<< (::std::ostream&, const ContentType&);
+      ::std::ostream&
+      operator<< (::std::ostream&, const ContentType&);
 
-    ::std::ostream&
-    operator<< (::std::ostream&, const Data&);
+      ::std::ostream&
+      operator<< (::std::ostream&, const Data&);
 
-    ::std::ostream&
-    operator<< (::std::ostream&, Type::Value);
+      ::std::ostream&
+      operator<< (::std::ostream&, Type::Value);
 
-    ::std::ostream&
-    operator<< (::std::ostream&, const Type&);
+      ::std::ostream&
+      operator<< (::std::ostream&, const Type&);
 
-    ::std::ostream&
-    operator<< (::std::ostream&, FileDisposition::Value);
+      ::std::ostream&
+      operator<< (::std::ostream&, FileDisposition::Value);
 
-    ::std::ostream&
-    operator<< (::std::ostream&, const FileDisposition&);
+      ::std::ostream&
+      operator<< (::std::ostream&, const FileDisposition&);
+    }
   }
 }
 
@@ -963,102 +975,105 @@ namespace Xsd
 #include <xercesc/dom/DOMDocument.hpp>
 #include <xercesc/dom/DOMErrorHandler.hpp>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace Fthttp
+  namespace Xsd
   {
-    // Parse a URI or a local file.
-    //
+    namespace Fthttp
+    {
+      // Parse a URI or a local file.
+      //
 
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (const ::std::string& uri,
-               ::Xsd::XmlSchema::Flags f = 0,
-               const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (const ::std::string& uri,
+                 ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (const ::std::string& uri,
-               ::Xsd::XmlSchema::ErrorHandler& eh,
-               ::Xsd::XmlSchema::Flags f = 0,
-               const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (const ::std::string& uri,
+                 ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                 ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (const ::std::string& uri,
-               ::xercesc::DOMErrorHandler& eh,
-               ::Xsd::XmlSchema::Flags f = 0,
-               const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (const ::std::string& uri,
+                 ::xercesc::DOMErrorHandler& eh,
+                 ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    // Parse std::istream.
-    //
+      // Parse std::istream.
+      //
 
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (::std::istream& is,
-               ::Xsd::XmlSchema::Flags f = 0,
-               const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (::std::istream& is,
+                 ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (::std::istream& is,
-               ::Xsd::XmlSchema::ErrorHandler& eh,
-               ::Xsd::XmlSchema::Flags f = 0,
-               const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (::std::istream& is,
+                 ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                 ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (::std::istream& is,
-               ::xercesc::DOMErrorHandler& eh,
-               ::Xsd::XmlSchema::Flags f = 0,
-               const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (::std::istream& is,
+                 ::xercesc::DOMErrorHandler& eh,
+                 ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (::std::istream& is,
-               const ::std::string& id,
-               ::Xsd::XmlSchema::Flags f = 0,
-               const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (::std::istream& is,
+                 const ::std::string& id,
+                 ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (::std::istream& is,
-               const ::std::string& id,
-               ::Xsd::XmlSchema::ErrorHandler& eh,
-               ::Xsd::XmlSchema::Flags f = 0,
-               const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (::std::istream& is,
+                 const ::std::string& id,
+                 ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                 ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (::std::istream& is,
-               const ::std::string& id,
-               ::xercesc::DOMErrorHandler& eh,
-               ::Xsd::XmlSchema::Flags f = 0,
-               const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (::std::istream& is,
+                 const ::std::string& id,
+                 ::xercesc::DOMErrorHandler& eh,
+                 ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    // Parse xercesc::InputSource.
-    //
+      // Parse xercesc::InputSource.
+      //
 
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (::xercesc::InputSource& is,
-               ::Xsd::XmlSchema::Flags f = 0,
-               const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (::xercesc::InputSource& is,
+                 ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (::xercesc::InputSource& is,
-               ::Xsd::XmlSchema::ErrorHandler& eh,
-               ::Xsd::XmlSchema::Flags f = 0,
-               const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (::xercesc::InputSource& is,
+                 ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                 ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (::xercesc::InputSource& is,
-               ::xercesc::DOMErrorHandler& eh,
-               ::Xsd::XmlSchema::Flags f = 0,
-               const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (::xercesc::InputSource& is,
+                 ::xercesc::DOMErrorHandler& eh,
+                 ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    // Parse xercesc::DOMDocument.
-    //
+      // Parse xercesc::DOMDocument.
+      //
 
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (const ::xercesc::DOMDocument& d,
-               ::Xsd::XmlSchema::Flags f = 0,
-               const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (const ::xercesc::DOMDocument& d,
+                 ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
 
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
-               ::Xsd::XmlSchema::Flags f = 0,
-               const ::Xsd::XmlSchema::Properties& p = ::Xsd::XmlSchema::Properties ());
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
+                 ::flexisip::Xsd::XmlSchema::Flags f = 0,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p = ::flexisip::Xsd::XmlSchema::Properties ());
+    }
   }
 }
 
@@ -1070,136 +1085,139 @@ namespace Xsd
 
 #include <xsd/cxx/xml/dom/auto-ptr.hxx>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace Fthttp
+  namespace Xsd
   {
-    // Serialize to std::ostream.
-    //
+    namespace Fthttp
+    {
+      // Serialize to std::ostream.
+      //
 
-    void
-    serializeFile (::std::ostream& os,
-                   const ::Xsd::Fthttp::File& x, 
-                   const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                   const ::std::string& e = "UTF-8",
-                   ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializeFile (::std::ostream& os,
+                     const ::flexisip::Xsd::Fthttp::File& x, 
+                     const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                     const ::std::string& e = "UTF-8",
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    void
-    serializeFile (::std::ostream& os,
-                   const ::Xsd::Fthttp::File& x, 
-                   ::Xsd::XmlSchema::ErrorHandler& eh,
-                   const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                   const ::std::string& e = "UTF-8",
-                   ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializeFile (::std::ostream& os,
+                     const ::flexisip::Xsd::Fthttp::File& x, 
+                     ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                     const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                     const ::std::string& e = "UTF-8",
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    void
-    serializeFile (::std::ostream& os,
-                   const ::Xsd::Fthttp::File& x, 
-                   ::xercesc::DOMErrorHandler& eh,
-                   const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                   const ::std::string& e = "UTF-8",
-                   ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializeFile (::std::ostream& os,
+                     const ::flexisip::Xsd::Fthttp::File& x, 
+                     ::xercesc::DOMErrorHandler& eh,
+                     const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                     const ::std::string& e = "UTF-8",
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    // Serialize to xercesc::XMLFormatTarget.
-    //
+      // Serialize to xercesc::XMLFormatTarget.
+      //
 
-    void
-    serializeFile (::xercesc::XMLFormatTarget& ft,
-                   const ::Xsd::Fthttp::File& x, 
-                   const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                   const ::std::string& e = "UTF-8",
-                   ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializeFile (::xercesc::XMLFormatTarget& ft,
+                     const ::flexisip::Xsd::Fthttp::File& x, 
+                     const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                     const ::std::string& e = "UTF-8",
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    void
-    serializeFile (::xercesc::XMLFormatTarget& ft,
-                   const ::Xsd::Fthttp::File& x, 
-                   ::Xsd::XmlSchema::ErrorHandler& eh,
-                   const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                   const ::std::string& e = "UTF-8",
-                   ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializeFile (::xercesc::XMLFormatTarget& ft,
+                     const ::flexisip::Xsd::Fthttp::File& x, 
+                     ::flexisip::Xsd::XmlSchema::ErrorHandler& eh,
+                     const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                     const ::std::string& e = "UTF-8",
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    void
-    serializeFile (::xercesc::XMLFormatTarget& ft,
-                   const ::Xsd::Fthttp::File& x, 
-                   ::xercesc::DOMErrorHandler& eh,
-                   const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                   const ::std::string& e = "UTF-8",
-                   ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializeFile (::xercesc::XMLFormatTarget& ft,
+                     const ::flexisip::Xsd::Fthttp::File& x, 
+                     ::xercesc::DOMErrorHandler& eh,
+                     const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                     const ::std::string& e = "UTF-8",
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    // Serialize to an existing xercesc::DOMDocument.
-    //
+      // Serialize to an existing xercesc::DOMDocument.
+      //
 
-    void
-    serializeFile (::xercesc::DOMDocument& d,
-                   const ::Xsd::Fthttp::File& x,
-                   ::Xsd::XmlSchema::Flags f = 0);
+      void
+      serializeFile (::xercesc::DOMDocument& d,
+                     const ::flexisip::Xsd::Fthttp::File& x,
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    // Serialize to a new xercesc::DOMDocument.
-    //
+      // Serialize to a new xercesc::DOMDocument.
+      //
 
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
-    serializeFile (const ::Xsd::Fthttp::File& x, 
-                   const ::Xsd::XmlSchema::NamespaceInfomap& m = ::Xsd::XmlSchema::NamespaceInfomap (),
-                   ::Xsd::XmlSchema::Flags f = 0);
+      ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
+      serializeFile (const ::flexisip::Xsd::Fthttp::File& x, 
+                     const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m = ::flexisip::Xsd::XmlSchema::NamespaceInfomap (),
+                     ::flexisip::Xsd::XmlSchema::Flags f = 0);
 
-    void
-    operator<< (::xercesc::DOMElement&, const File&);
+      void
+      operator<< (::xercesc::DOMElement&, const File&);
 
-    void
-    operator<< (::xercesc::DOMElement&, const FileInfo&);
+      void
+      operator<< (::xercesc::DOMElement&, const FileInfo&);
 
-    void
-    operator<< (::xercesc::DOMElement&, const FileSize&);
+      void
+      operator<< (::xercesc::DOMElement&, const FileSize&);
 
-    void
-    operator<< (::xercesc::DOMAttr&, const FileSize&);
+      void
+      operator<< (::xercesc::DOMAttr&, const FileSize&);
 
-    void
-    operator<< (::Xsd::XmlSchema::ListStream&,
-                const FileSize&);
+      void
+      operator<< (::flexisip::Xsd::XmlSchema::ListStream&,
+                  const FileSize&);
 
-    void
-    operator<< (::xercesc::DOMElement&, const FileName&);
+      void
+      operator<< (::xercesc::DOMElement&, const FileName&);
 
-    void
-    operator<< (::xercesc::DOMAttr&, const FileName&);
+      void
+      operator<< (::xercesc::DOMAttr&, const FileName&);
 
-    void
-    operator<< (::Xsd::XmlSchema::ListStream&,
-                const FileName&);
+      void
+      operator<< (::flexisip::Xsd::XmlSchema::ListStream&,
+                  const FileName&);
 
-    void
-    operator<< (::xercesc::DOMElement&, const ContentType&);
+      void
+      operator<< (::xercesc::DOMElement&, const ContentType&);
 
-    void
-    operator<< (::xercesc::DOMAttr&, const ContentType&);
+      void
+      operator<< (::xercesc::DOMAttr&, const ContentType&);
 
-    void
-    operator<< (::Xsd::XmlSchema::ListStream&,
-                const ContentType&);
+      void
+      operator<< (::flexisip::Xsd::XmlSchema::ListStream&,
+                  const ContentType&);
 
-    void
-    operator<< (::xercesc::DOMElement&, const Data&);
+      void
+      operator<< (::xercesc::DOMElement&, const Data&);
 
-    void
-    operator<< (::xercesc::DOMElement&, const Type&);
+      void
+      operator<< (::xercesc::DOMElement&, const Type&);
 
-    void
-    operator<< (::xercesc::DOMAttr&, const Type&);
+      void
+      operator<< (::xercesc::DOMAttr&, const Type&);
 
-    void
-    operator<< (::Xsd::XmlSchema::ListStream&,
-                const Type&);
+      void
+      operator<< (::flexisip::Xsd::XmlSchema::ListStream&,
+                  const Type&);
 
-    void
-    operator<< (::xercesc::DOMElement&, const FileDisposition&);
+      void
+      operator<< (::xercesc::DOMElement&, const FileDisposition&);
 
-    void
-    operator<< (::xercesc::DOMAttr&, const FileDisposition&);
+      void
+      operator<< (::xercesc::DOMAttr&, const FileDisposition&);
 
-    void
-    operator<< (::Xsd::XmlSchema::ListStream&,
-                const FileDisposition&);
+      void
+      operator<< (::flexisip::Xsd::XmlSchema::ListStream&,
+                  const FileDisposition&);
+    }
   }
 }
 

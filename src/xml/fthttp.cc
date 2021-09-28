@@ -48,487 +48,490 @@
 
 #include "fthttp.hh"
 
-namespace Xsd
+namespace flexisip
 {
-  namespace Fthttp
+  namespace Xsd
   {
-    // File
-    // 
-
-    const File::FileInfoSequence& File::
-    getFileInfo () const
-    {
-      return this->file_info_;
-    }
-
-    File::FileInfoSequence& File::
-    getFileInfo ()
-    {
-      return this->file_info_;
-    }
-
-    void File::
-    setFileInfo (const FileInfoSequence& s)
-    {
-      this->file_info_ = s;
-    }
-
-    const File::AnySequence& File::
-    getAny () const
-    {
-      return this->any_;
-    }
-
-    File::AnySequence& File::
-    getAny ()
-    {
-      return this->any_;
-    }
-
-    void File::
-    setAny (const AnySequence& s)
-    {
-      this->any_ = s;
-    }
-
-    const ::xercesc::DOMDocument& File::
-    getDomDocument () const
-    {
-      return *this->dom_document_;
-    }
-
-    ::xercesc::DOMDocument& File::
-    getDomDocument ()
-    {
-      return *this->dom_document_;
-    }
-
-
-    // FileInfo
-    // 
-
-    const FileInfo::FileSizeType& FileInfo::
-    getFileSize () const
-    {
-      return this->file_size_.get ();
-    }
-
-    FileInfo::FileSizeType& FileInfo::
-    getFileSize ()
-    {
-      return this->file_size_.get ();
-    }
-
-    void FileInfo::
-    setFileSize (const FileSizeType& x)
-    {
-      this->file_size_.set (x);
-    }
-
-    void FileInfo::
-    setFileSize (::std::unique_ptr< FileSizeType > x)
-    {
-      this->file_size_.set (std::move (x));
-    }
-
-    ::std::unique_ptr< FileInfo::FileSizeType > FileInfo::
-    setDetachFile_size ()
-    {
-      return this->file_size_.detach ();
-    }
-
-    const FileInfo::FileNameOptional& FileInfo::
-    getFileName () const
-    {
-      return this->file_name_;
-    }
-
-    FileInfo::FileNameOptional& FileInfo::
-    getFileName ()
-    {
-      return this->file_name_;
-    }
-
-    void FileInfo::
-    setFileName (const FileNameType& x)
-    {
-      this->file_name_.set (x);
-    }
-
-    void FileInfo::
-    setFileName (const FileNameOptional& x)
-    {
-      this->file_name_ = x;
-    }
-
-    void FileInfo::
-    setFileName (::std::unique_ptr< FileNameType > x)
-    {
-      this->file_name_.set (std::move (x));
-    }
-
-    const FileInfo::ContentTypeType& FileInfo::
-    getContentType () const
-    {
-      return this->content_type_.get ();
-    }
-
-    FileInfo::ContentTypeType& FileInfo::
-    getContentType ()
-    {
-      return this->content_type_.get ();
-    }
-
-    void FileInfo::
-    setContentType (const ContentTypeType& x)
-    {
-      this->content_type_.set (x);
-    }
-
-    void FileInfo::
-    setContentType (::std::unique_ptr< ContentTypeType > x)
-    {
-      this->content_type_.set (std::move (x));
-    }
-
-    ::std::unique_ptr< FileInfo::ContentTypeType > FileInfo::
-    setDetachContent_type ()
-    {
-      return this->content_type_.detach ();
-    }
-
-    const FileInfo::DataType& FileInfo::
-    getData () const
-    {
-      return this->data_.get ();
-    }
-
-    FileInfo::DataType& FileInfo::
-    getData ()
-    {
-      return this->data_.get ();
-    }
-
-    void FileInfo::
-    setData (const DataType& x)
-    {
-      this->data_.set (x);
-    }
-
-    void FileInfo::
-    setData (::std::unique_ptr< DataType > x)
-    {
-      this->data_.set (std::move (x));
-    }
-
-    ::std::unique_ptr< FileInfo::DataType > FileInfo::
-    setDetachData ()
-    {
-      return this->data_.detach ();
-    }
-
-    const FileInfo::AnySequence& FileInfo::
-    getAny () const
-    {
-      return this->any_;
-    }
-
-    FileInfo::AnySequence& FileInfo::
-    getAny ()
-    {
-      return this->any_;
-    }
-
-    void FileInfo::
-    setAny (const AnySequence& s)
-    {
-      this->any_ = s;
-    }
-
-    const FileInfo::TypeType& FileInfo::
-    getType () const
-    {
-      return this->type_.get ();
-    }
-
-    FileInfo::TypeType& FileInfo::
-    getType ()
-    {
-      return this->type_.get ();
-    }
-
-    void FileInfo::
-    setType (const TypeType& x)
-    {
-      this->type_.set (x);
-    }
-
-    void FileInfo::
-    setType (::std::unique_ptr< TypeType > x)
-    {
-      this->type_.set (std::move (x));
-    }
-
-    ::std::unique_ptr< FileInfo::TypeType > FileInfo::
-    setDetachType ()
-    {
-      return this->type_.detach ();
-    }
-
-    const FileInfo::FileDispositionOptional& FileInfo::
-    getFileDisposition () const
-    {
-      return this->file_disposition_;
-    }
-
-    FileInfo::FileDispositionOptional& FileInfo::
-    getFileDisposition ()
-    {
-      return this->file_disposition_;
-    }
-
-    void FileInfo::
-    setFileDisposition (const FileDispositionType& x)
-    {
-      this->file_disposition_.set (x);
-    }
-
-    void FileInfo::
-    setFileDisposition (const FileDispositionOptional& x)
-    {
-      this->file_disposition_ = x;
-    }
-
-    void FileInfo::
-    setFileDisposition (::std::unique_ptr< FileDispositionType > x)
-    {
-      this->file_disposition_.set (std::move (x));
-    }
-
-    const FileInfo::AnyAttributeSet& FileInfo::
-    getAnyAttribute () const
-    {
-      return this->any_attribute_;
-    }
-
-    FileInfo::AnyAttributeSet& FileInfo::
-    getAnyAttribute ()
-    {
-      return this->any_attribute_;
-    }
-
-    void FileInfo::
-    setAnyAttribute (const AnyAttributeSet& s)
-    {
-      this->any_attribute_ = s;
-    }
-
-    const ::xercesc::DOMDocument& FileInfo::
-    getDomDocument () const
-    {
-      return *this->dom_document_;
-    }
-
-    ::xercesc::DOMDocument& FileInfo::
-    getDomDocument ()
-    {
-      return *this->dom_document_;
-    }
-
-
-    // FileSize
-    // 
-
-
-    // FileName
-    // 
-
-
-    // ContentType
-    // 
-
-
-    // Data
-    // 
-
-    const Data::UrlType& Data::
-    getUrl () const
-    {
-      return this->url_.get ();
-    }
-
-    Data::UrlType& Data::
-    getUrl ()
-    {
-      return this->url_.get ();
-    }
-
-    void Data::
-    setUrl (const UrlType& x)
-    {
-      this->url_.set (x);
-    }
-
-    void Data::
-    setUrl (::std::unique_ptr< UrlType > x)
-    {
-      this->url_.set (std::move (x));
-    }
-
-    ::std::unique_ptr< Data::UrlType > Data::
-    setDetachUrl ()
-    {
-      return this->url_.detach ();
-    }
-
-    const Data::UntilType& Data::
-    getUntil () const
-    {
-      return this->until_.get ();
-    }
-
-    Data::UntilType& Data::
-    getUntil ()
-    {
-      return this->until_.get ();
-    }
-
-    void Data::
-    setUntil (const UntilType& x)
-    {
-      this->until_.set (x);
-    }
-
-    void Data::
-    setUntil (::std::unique_ptr< UntilType > x)
-    {
-      this->until_.set (std::move (x));
-    }
-
-    ::std::unique_ptr< Data::UntilType > Data::
-    setDetachUntil ()
-    {
-      return this->until_.detach ();
-    }
-
-    const Data::AnyAttributeSet& Data::
-    getAnyAttribute () const
-    {
-      return this->any_attribute_;
-    }
-
-    Data::AnyAttributeSet& Data::
-    getAnyAttribute ()
-    {
-      return this->any_attribute_;
-    }
-
-    void Data::
-    setAnyAttribute (const AnyAttributeSet& s)
-    {
-      this->any_attribute_ = s;
-    }
-
-    const ::xercesc::DOMDocument& Data::
-    getDomDocument () const
-    {
-      return *this->dom_document_;
-    }
-
-    ::xercesc::DOMDocument& Data::
-    getDomDocument ()
-    {
-      return *this->dom_document_;
-    }
-
-
-    // Type
-    // 
-
-    Type::
-    Type (Value v)
-    : ::Xsd::XmlSchema::String (_xsd_Type_literals_[v])
-    {
-    }
-
-    Type::
-    Type (const char* v)
-    : ::Xsd::XmlSchema::String (v)
-    {
-    }
-
-    Type::
-    Type (const ::std::string& v)
-    : ::Xsd::XmlSchema::String (v)
-    {
-    }
-
-    Type::
-    Type (const ::Xsd::XmlSchema::String& v)
-    : ::Xsd::XmlSchema::String (v)
-    {
-    }
-
-    Type::
-    Type (const Type& v,
-          ::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::String (v, f, c)
-    {
-    }
-
-    Type& Type::
-    operator= (Value v)
-    {
-      static_cast< ::Xsd::XmlSchema::String& > (*this) = 
-      ::Xsd::XmlSchema::String (_xsd_Type_literals_[v]);
-
-      return *this;
-    }
-
-
-    // FileDisposition
-    // 
-
-    FileDisposition::
-    FileDisposition (Value v)
-    : ::Xsd::XmlSchema::String (_xsd_FileDisposition_literals_[v])
-    {
-    }
-
-    FileDisposition::
-    FileDisposition (const char* v)
-    : ::Xsd::XmlSchema::String (v)
-    {
-    }
-
-    FileDisposition::
-    FileDisposition (const ::std::string& v)
-    : ::Xsd::XmlSchema::String (v)
-    {
-    }
-
-    FileDisposition::
-    FileDisposition (const ::Xsd::XmlSchema::String& v)
-    : ::Xsd::XmlSchema::String (v)
-    {
-    }
-
-    FileDisposition::
-    FileDisposition (const FileDisposition& v,
-                     ::Xsd::XmlSchema::Flags f,
-                     ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::String (v, f, c)
-    {
-    }
-
-    FileDisposition& FileDisposition::
-    operator= (Value v)
-    {
-      static_cast< ::Xsd::XmlSchema::String& > (*this) = 
-      ::Xsd::XmlSchema::String (_xsd_FileDisposition_literals_[v]);
-
-      return *this;
+    namespace Fthttp
+    {
+      // File
+      // 
+
+      const File::FileInfoSequence& File::
+      getFileInfo () const
+      {
+        return this->file_info_;
+      }
+
+      File::FileInfoSequence& File::
+      getFileInfo ()
+      {
+        return this->file_info_;
+      }
+
+      void File::
+      setFileInfo (const FileInfoSequence& s)
+      {
+        this->file_info_ = s;
+      }
+
+      const File::AnySequence& File::
+      getAny () const
+      {
+        return this->any_;
+      }
+
+      File::AnySequence& File::
+      getAny ()
+      {
+        return this->any_;
+      }
+
+      void File::
+      setAny (const AnySequence& s)
+      {
+        this->any_ = s;
+      }
+
+      const ::xercesc::DOMDocument& File::
+      getDomDocument () const
+      {
+        return *this->dom_document_;
+      }
+
+      ::xercesc::DOMDocument& File::
+      getDomDocument ()
+      {
+        return *this->dom_document_;
+      }
+
+
+      // FileInfo
+      // 
+
+      const FileInfo::FileSizeType& FileInfo::
+      getFileSize () const
+      {
+        return this->file_size_.get ();
+      }
+
+      FileInfo::FileSizeType& FileInfo::
+      getFileSize ()
+      {
+        return this->file_size_.get ();
+      }
+
+      void FileInfo::
+      setFileSize (const FileSizeType& x)
+      {
+        this->file_size_.set (x);
+      }
+
+      void FileInfo::
+      setFileSize (::std::unique_ptr< FileSizeType > x)
+      {
+        this->file_size_.set (std::move (x));
+      }
+
+      ::std::unique_ptr< FileInfo::FileSizeType > FileInfo::
+      setDetachFile_size ()
+      {
+        return this->file_size_.detach ();
+      }
+
+      const FileInfo::FileNameOptional& FileInfo::
+      getFileName () const
+      {
+        return this->file_name_;
+      }
+
+      FileInfo::FileNameOptional& FileInfo::
+      getFileName ()
+      {
+        return this->file_name_;
+      }
+
+      void FileInfo::
+      setFileName (const FileNameType& x)
+      {
+        this->file_name_.set (x);
+      }
+
+      void FileInfo::
+      setFileName (const FileNameOptional& x)
+      {
+        this->file_name_ = x;
+      }
+
+      void FileInfo::
+      setFileName (::std::unique_ptr< FileNameType > x)
+      {
+        this->file_name_.set (std::move (x));
+      }
+
+      const FileInfo::ContentTypeType& FileInfo::
+      getContentType () const
+      {
+        return this->content_type_.get ();
+      }
+
+      FileInfo::ContentTypeType& FileInfo::
+      getContentType ()
+      {
+        return this->content_type_.get ();
+      }
+
+      void FileInfo::
+      setContentType (const ContentTypeType& x)
+      {
+        this->content_type_.set (x);
+      }
+
+      void FileInfo::
+      setContentType (::std::unique_ptr< ContentTypeType > x)
+      {
+        this->content_type_.set (std::move (x));
+      }
+
+      ::std::unique_ptr< FileInfo::ContentTypeType > FileInfo::
+      setDetachContent_type ()
+      {
+        return this->content_type_.detach ();
+      }
+
+      const FileInfo::DataType& FileInfo::
+      getData () const
+      {
+        return this->data_.get ();
+      }
+
+      FileInfo::DataType& FileInfo::
+      getData ()
+      {
+        return this->data_.get ();
+      }
+
+      void FileInfo::
+      setData (const DataType& x)
+      {
+        this->data_.set (x);
+      }
+
+      void FileInfo::
+      setData (::std::unique_ptr< DataType > x)
+      {
+        this->data_.set (std::move (x));
+      }
+
+      ::std::unique_ptr< FileInfo::DataType > FileInfo::
+      setDetachData ()
+      {
+        return this->data_.detach ();
+      }
+
+      const FileInfo::AnySequence& FileInfo::
+      getAny () const
+      {
+        return this->any_;
+      }
+
+      FileInfo::AnySequence& FileInfo::
+      getAny ()
+      {
+        return this->any_;
+      }
+
+      void FileInfo::
+      setAny (const AnySequence& s)
+      {
+        this->any_ = s;
+      }
+
+      const FileInfo::TypeType& FileInfo::
+      getType () const
+      {
+        return this->type_.get ();
+      }
+
+      FileInfo::TypeType& FileInfo::
+      getType ()
+      {
+        return this->type_.get ();
+      }
+
+      void FileInfo::
+      setType (const TypeType& x)
+      {
+        this->type_.set (x);
+      }
+
+      void FileInfo::
+      setType (::std::unique_ptr< TypeType > x)
+      {
+        this->type_.set (std::move (x));
+      }
+
+      ::std::unique_ptr< FileInfo::TypeType > FileInfo::
+      setDetachType ()
+      {
+        return this->type_.detach ();
+      }
+
+      const FileInfo::FileDispositionOptional& FileInfo::
+      getFileDisposition () const
+      {
+        return this->file_disposition_;
+      }
+
+      FileInfo::FileDispositionOptional& FileInfo::
+      getFileDisposition ()
+      {
+        return this->file_disposition_;
+      }
+
+      void FileInfo::
+      setFileDisposition (const FileDispositionType& x)
+      {
+        this->file_disposition_.set (x);
+      }
+
+      void FileInfo::
+      setFileDisposition (const FileDispositionOptional& x)
+      {
+        this->file_disposition_ = x;
+      }
+
+      void FileInfo::
+      setFileDisposition (::std::unique_ptr< FileDispositionType > x)
+      {
+        this->file_disposition_.set (std::move (x));
+      }
+
+      const FileInfo::AnyAttributeSet& FileInfo::
+      getAnyAttribute () const
+      {
+        return this->any_attribute_;
+      }
+
+      FileInfo::AnyAttributeSet& FileInfo::
+      getAnyAttribute ()
+      {
+        return this->any_attribute_;
+      }
+
+      void FileInfo::
+      setAnyAttribute (const AnyAttributeSet& s)
+      {
+        this->any_attribute_ = s;
+      }
+
+      const ::xercesc::DOMDocument& FileInfo::
+      getDomDocument () const
+      {
+        return *this->dom_document_;
+      }
+
+      ::xercesc::DOMDocument& FileInfo::
+      getDomDocument ()
+      {
+        return *this->dom_document_;
+      }
+
+
+      // FileSize
+      // 
+
+
+      // FileName
+      // 
+
+
+      // ContentType
+      // 
+
+
+      // Data
+      // 
+
+      const Data::UrlType& Data::
+      getUrl () const
+      {
+        return this->url_.get ();
+      }
+
+      Data::UrlType& Data::
+      getUrl ()
+      {
+        return this->url_.get ();
+      }
+
+      void Data::
+      setUrl (const UrlType& x)
+      {
+        this->url_.set (x);
+      }
+
+      void Data::
+      setUrl (::std::unique_ptr< UrlType > x)
+      {
+        this->url_.set (std::move (x));
+      }
+
+      ::std::unique_ptr< Data::UrlType > Data::
+      setDetachUrl ()
+      {
+        return this->url_.detach ();
+      }
+
+      const Data::UntilType& Data::
+      getUntil () const
+      {
+        return this->until_.get ();
+      }
+
+      Data::UntilType& Data::
+      getUntil ()
+      {
+        return this->until_.get ();
+      }
+
+      void Data::
+      setUntil (const UntilType& x)
+      {
+        this->until_.set (x);
+      }
+
+      void Data::
+      setUntil (::std::unique_ptr< UntilType > x)
+      {
+        this->until_.set (std::move (x));
+      }
+
+      ::std::unique_ptr< Data::UntilType > Data::
+      setDetachUntil ()
+      {
+        return this->until_.detach ();
+      }
+
+      const Data::AnyAttributeSet& Data::
+      getAnyAttribute () const
+      {
+        return this->any_attribute_;
+      }
+
+      Data::AnyAttributeSet& Data::
+      getAnyAttribute ()
+      {
+        return this->any_attribute_;
+      }
+
+      void Data::
+      setAnyAttribute (const AnyAttributeSet& s)
+      {
+        this->any_attribute_ = s;
+      }
+
+      const ::xercesc::DOMDocument& Data::
+      getDomDocument () const
+      {
+        return *this->dom_document_;
+      }
+
+      ::xercesc::DOMDocument& Data::
+      getDomDocument ()
+      {
+        return *this->dom_document_;
+      }
+
+
+      // Type
+      // 
+
+      Type::
+      Type (Value v)
+      : ::flexisip::Xsd::XmlSchema::String (_xsd_Type_literals_[v])
+      {
+      }
+
+      Type::
+      Type (const char* v)
+      : ::flexisip::Xsd::XmlSchema::String (v)
+      {
+      }
+
+      Type::
+      Type (const ::std::string& v)
+      : ::flexisip::Xsd::XmlSchema::String (v)
+      {
+      }
+
+      Type::
+      Type (const ::flexisip::Xsd::XmlSchema::String& v)
+      : ::flexisip::Xsd::XmlSchema::String (v)
+      {
+      }
+
+      Type::
+      Type (const Type& v,
+            ::flexisip::Xsd::XmlSchema::Flags f,
+            ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::String (v, f, c)
+      {
+      }
+
+      Type& Type::
+      operator= (Value v)
+      {
+        static_cast< ::flexisip::Xsd::XmlSchema::String& > (*this) = 
+        ::flexisip::Xsd::XmlSchema::String (_xsd_Type_literals_[v]);
+
+        return *this;
+      }
+
+
+      // FileDisposition
+      // 
+
+      FileDisposition::
+      FileDisposition (Value v)
+      : ::flexisip::Xsd::XmlSchema::String (_xsd_FileDisposition_literals_[v])
+      {
+      }
+
+      FileDisposition::
+      FileDisposition (const char* v)
+      : ::flexisip::Xsd::XmlSchema::String (v)
+      {
+      }
+
+      FileDisposition::
+      FileDisposition (const ::std::string& v)
+      : ::flexisip::Xsd::XmlSchema::String (v)
+      {
+      }
+
+      FileDisposition::
+      FileDisposition (const ::flexisip::Xsd::XmlSchema::String& v)
+      : ::flexisip::Xsd::XmlSchema::String (v)
+      {
+      }
+
+      FileDisposition::
+      FileDisposition (const FileDisposition& v,
+                       ::flexisip::Xsd::XmlSchema::Flags f,
+                       ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::String (v, f, c)
+      {
+      }
+
+      FileDisposition& FileDisposition::
+      operator= (Value v)
+      {
+        static_cast< ::flexisip::Xsd::XmlSchema::String& > (*this) = 
+        ::flexisip::Xsd::XmlSchema::String (_xsd_FileDisposition_literals_[v]);
+
+        return *this;
+      }
     }
   }
 }
@@ -537,919 +540,925 @@ namespace Xsd
 
 #include <xsd/cxx/xml/dom/parsing-source.hxx>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace Fthttp
+  namespace Xsd
   {
-    // File
-    //
-
-    File::
-    File ()
-    : ::Xsd::XmlSchema::Type (),
-      dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
-      file_info_ (this),
-      any_ (this->getDomDocument ())
+    namespace Fthttp
     {
-    }
+      // File
+      //
 
-    File::
-    File (const File& x,
-          ::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::Type (x, f, c),
-      dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
-      file_info_ (x.file_info_, f, this),
-      any_ (x.any_, this->getDomDocument ())
-    {
-    }
-
-    File::
-    File (const ::xercesc::DOMElement& e,
-          ::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::Type (e, f | ::Xsd::XmlSchema::Flags::base, c),
-      dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
-      file_info_ (this),
-      any_ (this->getDomDocument ())
-    {
-      if ((f & ::Xsd::XmlSchema::Flags::base) == 0)
+      File::
+      File ()
+      : ::flexisip::Xsd::XmlSchema::Type (),
+        dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
+        file_info_ (this),
+        any_ (this->getDomDocument ())
       {
-        ::xsd::cxx::xml::dom::parser< char > p (e, true, false, false);
-        this->parse (p, f);
       }
-    }
 
-    void File::
-    parse (::xsd::cxx::xml::dom::parser< char >& p,
-           ::Xsd::XmlSchema::Flags f)
-    {
-      for (; p.more_content (); p.next_content (false))
+      File::
+      File (const File& x,
+            ::flexisip::Xsd::XmlSchema::Flags f,
+            ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::Type (x, f, c),
+        dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
+        file_info_ (x.file_info_, f, this),
+        any_ (x.any_, this->getDomDocument ())
       {
-        const ::xercesc::DOMElement& i (p.cur_element ());
-        const ::xsd::cxx::xml::qualified_name< char > n (
-          ::xsd::cxx::xml::dom::name< char > (i));
+      }
 
-        // file-info
-        //
-        if (n.name () == "file-info" && n.namespace_ () == "urn:gsma:params:xml:ns:rcs:rcs:fthttp")
+      File::
+      File (const ::xercesc::DOMElement& e,
+            ::flexisip::Xsd::XmlSchema::Flags f,
+            ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::Type (e, f | ::flexisip::Xsd::XmlSchema::Flags::base, c),
+        dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
+        file_info_ (this),
+        any_ (this->getDomDocument ())
+      {
+        if ((f & ::flexisip::Xsd::XmlSchema::Flags::base) == 0)
         {
-          ::std::unique_ptr< FileInfoType > r (
-            FileInfoTraits::create (i, f, this));
-
-          this->file_info_.push_back (::std::move (r));
-          continue;
+          ::xsd::cxx::xml::dom::parser< char > p (e, true, false, false);
+          this->parse (p, f);
         }
+      }
 
-        // any
-        //
-        if ((!n.namespace_ ().empty () && n.namespace_ () != "urn:gsma:params:xml:ns:rcs:rcs:fthttp"))
+      void File::
+      parse (::xsd::cxx::xml::dom::parser< char >& p,
+             ::flexisip::Xsd::XmlSchema::Flags f)
+      {
+        for (; p.more_content (); p.next_content (false))
         {
-          ::xercesc::DOMElement* r (
-            static_cast< ::xercesc::DOMElement* > (
-              this->getDomDocument ().importNode (
-                const_cast< ::xercesc::DOMElement* > (&i), true)));
-          this->any_.push_back (r);
-          continue;
-        }
+          const ::xercesc::DOMElement& i (p.cur_element ());
+          const ::xsd::cxx::xml::qualified_name< char > n (
+            ::xsd::cxx::xml::dom::name< char > (i));
 
-        break;
-      }
-    }
-
-    File* File::
-    _clone (::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c) const
-    {
-      return new class File (*this, f, c);
-    }
-
-    File& File::
-    operator= (const File& x)
-    {
-      if (this != &x)
-      {
-        static_cast< ::Xsd::XmlSchema::Type& > (*this) = x;
-        this->file_info_ = x.file_info_;
-        this->any_ = x.any_;
-      }
-
-      return *this;
-    }
-
-    File::
-    ~File ()
-    {
-    }
-
-    // FileInfo
-    //
-
-    FileInfo::
-    FileInfo (const FileSizeType& file_size,
-              const ContentTypeType& content_type,
-              const DataType& data,
-              const TypeType& type)
-    : ::Xsd::XmlSchema::Type (),
-      dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
-      file_size_ (file_size, this),
-      file_name_ (this),
-      content_type_ (content_type, this),
-      data_ (data, this),
-      any_ (this->getDomDocument ()),
-      type_ (type, this),
-      file_disposition_ (this),
-      any_attribute_ (this->getDomDocument ())
-    {
-    }
-
-    FileInfo::
-    FileInfo (const FileSizeType& file_size,
-              const ContentTypeType& content_type,
-              ::std::unique_ptr< DataType > data,
-              const TypeType& type)
-    : ::Xsd::XmlSchema::Type (),
-      dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
-      file_size_ (file_size, this),
-      file_name_ (this),
-      content_type_ (content_type, this),
-      data_ (std::move (data), this),
-      any_ (this->getDomDocument ()),
-      type_ (type, this),
-      file_disposition_ (this),
-      any_attribute_ (this->getDomDocument ())
-    {
-    }
-
-    FileInfo::
-    FileInfo (const FileInfo& x,
-              ::Xsd::XmlSchema::Flags f,
-              ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::Type (x, f, c),
-      dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
-      file_size_ (x.file_size_, f, this),
-      file_name_ (x.file_name_, f, this),
-      content_type_ (x.content_type_, f, this),
-      data_ (x.data_, f, this),
-      any_ (x.any_, this->getDomDocument ()),
-      type_ (x.type_, f, this),
-      file_disposition_ (x.file_disposition_, f, this),
-      any_attribute_ (x.any_attribute_, this->getDomDocument ())
-    {
-    }
-
-    FileInfo::
-    FileInfo (const ::xercesc::DOMElement& e,
-              ::Xsd::XmlSchema::Flags f,
-              ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::Type (e, f | ::Xsd::XmlSchema::Flags::base, c),
-      dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
-      file_size_ (this),
-      file_name_ (this),
-      content_type_ (this),
-      data_ (this),
-      any_ (this->getDomDocument ()),
-      type_ (this),
-      file_disposition_ (this),
-      any_attribute_ (this->getDomDocument ())
-    {
-      if ((f & ::Xsd::XmlSchema::Flags::base) == 0)
-      {
-        ::xsd::cxx::xml::dom::parser< char > p (e, true, false, true);
-        this->parse (p, f);
-      }
-    }
-
-    void FileInfo::
-    parse (::xsd::cxx::xml::dom::parser< char >& p,
-           ::Xsd::XmlSchema::Flags f)
-    {
-      for (; p.more_content (); p.next_content (false))
-      {
-        const ::xercesc::DOMElement& i (p.cur_element ());
-        const ::xsd::cxx::xml::qualified_name< char > n (
-          ::xsd::cxx::xml::dom::name< char > (i));
-
-        // file-size
-        //
-        if (n.name () == "file-size" && n.namespace_ () == "urn:gsma:params:xml:ns:rcs:rcs:fthttp")
-        {
-          ::std::unique_ptr< FileSizeType > r (
-            FileSizeTraits::create (i, f, this));
-
-          if (!file_size_.present ())
+          // file-info
+          //
+          if (n.name () == "file-info" && n.namespace_ () == "urn:gsma:params:xml:ns:rcs:rcs:fthttp")
           {
-            this->file_size_.set (::std::move (r));
+            ::std::unique_ptr< FileInfoType > r (
+              FileInfoTraits::create (i, f, this));
+
+            this->file_info_.push_back (::std::move (r));
+            continue;
+          }
+
+          // any
+          //
+          if ((!n.namespace_ ().empty () && n.namespace_ () != "urn:gsma:params:xml:ns:rcs:rcs:fthttp"))
+          {
+            ::xercesc::DOMElement* r (
+              static_cast< ::xercesc::DOMElement* > (
+                this->getDomDocument ().importNode (
+                  const_cast< ::xercesc::DOMElement* > (&i), true)));
+            this->any_.push_back (r);
+            continue;
+          }
+
+          break;
+        }
+      }
+
+      File* File::
+      _clone (::flexisip::Xsd::XmlSchema::Flags f,
+              ::flexisip::Xsd::XmlSchema::Container* c) const
+      {
+        return new class File (*this, f, c);
+      }
+
+      File& File::
+      operator= (const File& x)
+      {
+        if (this != &x)
+        {
+          static_cast< ::flexisip::Xsd::XmlSchema::Type& > (*this) = x;
+          this->file_info_ = x.file_info_;
+          this->any_ = x.any_;
+        }
+
+        return *this;
+      }
+
+      File::
+      ~File ()
+      {
+      }
+
+      // FileInfo
+      //
+
+      FileInfo::
+      FileInfo (const FileSizeType& file_size,
+                const ContentTypeType& content_type,
+                const DataType& data,
+                const TypeType& type)
+      : ::flexisip::Xsd::XmlSchema::Type (),
+        dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
+        file_size_ (file_size, this),
+        file_name_ (this),
+        content_type_ (content_type, this),
+        data_ (data, this),
+        any_ (this->getDomDocument ()),
+        type_ (type, this),
+        file_disposition_ (this),
+        any_attribute_ (this->getDomDocument ())
+      {
+      }
+
+      FileInfo::
+      FileInfo (const FileSizeType& file_size,
+                const ContentTypeType& content_type,
+                ::std::unique_ptr< DataType > data,
+                const TypeType& type)
+      : ::flexisip::Xsd::XmlSchema::Type (),
+        dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
+        file_size_ (file_size, this),
+        file_name_ (this),
+        content_type_ (content_type, this),
+        data_ (std::move (data), this),
+        any_ (this->getDomDocument ()),
+        type_ (type, this),
+        file_disposition_ (this),
+        any_attribute_ (this->getDomDocument ())
+      {
+      }
+
+      FileInfo::
+      FileInfo (const FileInfo& x,
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::Type (x, f, c),
+        dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
+        file_size_ (x.file_size_, f, this),
+        file_name_ (x.file_name_, f, this),
+        content_type_ (x.content_type_, f, this),
+        data_ (x.data_, f, this),
+        any_ (x.any_, this->getDomDocument ()),
+        type_ (x.type_, f, this),
+        file_disposition_ (x.file_disposition_, f, this),
+        any_attribute_ (x.any_attribute_, this->getDomDocument ())
+      {
+      }
+
+      FileInfo::
+      FileInfo (const ::xercesc::DOMElement& e,
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::Type (e, f | ::flexisip::Xsd::XmlSchema::Flags::base, c),
+        dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
+        file_size_ (this),
+        file_name_ (this),
+        content_type_ (this),
+        data_ (this),
+        any_ (this->getDomDocument ()),
+        type_ (this),
+        file_disposition_ (this),
+        any_attribute_ (this->getDomDocument ())
+      {
+        if ((f & ::flexisip::Xsd::XmlSchema::Flags::base) == 0)
+        {
+          ::xsd::cxx::xml::dom::parser< char > p (e, true, false, true);
+          this->parse (p, f);
+        }
+      }
+
+      void FileInfo::
+      parse (::xsd::cxx::xml::dom::parser< char >& p,
+             ::flexisip::Xsd::XmlSchema::Flags f)
+      {
+        for (; p.more_content (); p.next_content (false))
+        {
+          const ::xercesc::DOMElement& i (p.cur_element ());
+          const ::xsd::cxx::xml::qualified_name< char > n (
+            ::xsd::cxx::xml::dom::name< char > (i));
+
+          // file-size
+          //
+          if (n.name () == "file-size" && n.namespace_ () == "urn:gsma:params:xml:ns:rcs:rcs:fthttp")
+          {
+            ::std::unique_ptr< FileSizeType > r (
+              FileSizeTraits::create (i, f, this));
+
+            if (!file_size_.present ())
+            {
+              this->file_size_.set (::std::move (r));
+              continue;
+            }
+          }
+
+          // file-name
+          //
+          if (n.name () == "file-name" && n.namespace_ () == "urn:gsma:params:xml:ns:rcs:rcs:fthttp")
+          {
+            ::std::unique_ptr< FileNameType > r (
+              FileNameTraits::create (i, f, this));
+
+            if (!this->file_name_)
+            {
+              this->file_name_.set (::std::move (r));
+              continue;
+            }
+          }
+
+          // content-type
+          //
+          if (n.name () == "content-type" && n.namespace_ () == "urn:gsma:params:xml:ns:rcs:rcs:fthttp")
+          {
+            ::std::unique_ptr< ContentTypeType > r (
+              ContentTypeTraits::create (i, f, this));
+
+            if (!content_type_.present ())
+            {
+              this->content_type_.set (::std::move (r));
+              continue;
+            }
+          }
+
+          // data
+          //
+          if (n.name () == "data" && n.namespace_ () == "urn:gsma:params:xml:ns:rcs:rcs:fthttp")
+          {
+            ::std::unique_ptr< DataType > r (
+              DataTraits::create (i, f, this));
+
+            if (!data_.present ())
+            {
+              this->data_.set (::std::move (r));
+              continue;
+            }
+          }
+
+          // any
+          //
+          if ((!n.namespace_ ().empty () && n.namespace_ () != "urn:gsma:params:xml:ns:rcs:rcs:fthttp"))
+          {
+            ::xercesc::DOMElement* r (
+              static_cast< ::xercesc::DOMElement* > (
+                this->getDomDocument ().importNode (
+                  const_cast< ::xercesc::DOMElement* > (&i), true)));
+            this->any_.push_back (r);
+            continue;
+          }
+
+          break;
+        }
+
+        if (!file_size_.present ())
+        {
+          throw ::xsd::cxx::tree::expected_element< char > (
+            "file-size",
+            "urn:gsma:params:xml:ns:rcs:rcs:fthttp");
+        }
+
+        if (!content_type_.present ())
+        {
+          throw ::xsd::cxx::tree::expected_element< char > (
+            "content-type",
+            "urn:gsma:params:xml:ns:rcs:rcs:fthttp");
+        }
+
+        if (!data_.present ())
+        {
+          throw ::xsd::cxx::tree::expected_element< char > (
+            "data",
+            "urn:gsma:params:xml:ns:rcs:rcs:fthttp");
+        }
+
+        while (p.more_attributes ())
+        {
+          const ::xercesc::DOMAttr& i (p.next_attribute ());
+          const ::xsd::cxx::xml::qualified_name< char > n (
+            ::xsd::cxx::xml::dom::name< char > (i));
+
+          if (n.name () == "type" && n.namespace_ ().empty ())
+          {
+            this->type_.set (TypeTraits::create (i, f, this));
+            continue;
+          }
+
+          if (n.name () == "file-disposition" && n.namespace_ ().empty ())
+          {
+            this->file_disposition_.set (FileDispositionTraits::create (i, f, this));
+            continue;
+          }
+
+          // any_attribute
+          //
+          if ((!n.namespace_ ().empty () &&
+               n.namespace_ () != "urn:gsma:params:xml:ns:rcs:rcs:fthttp" &&
+               n.namespace_ () != ::xsd::cxx::xml::bits::xmlns_namespace< char > () &&
+               n.namespace_ () != ::xsd::cxx::xml::bits::xsi_namespace< char > ()))
+          {
+            ::xercesc::DOMAttr* r (
+              static_cast< ::xercesc::DOMAttr* > (
+                this->getDomDocument ().importNode (
+                  const_cast< ::xercesc::DOMAttr* > (&i), true)));
+            this->any_attribute_ .insert (r);
             continue;
           }
         }
 
-        // file-name
-        //
-        if (n.name () == "file-name" && n.namespace_ () == "urn:gsma:params:xml:ns:rcs:rcs:fthttp")
+        if (!type_.present ())
         {
-          ::std::unique_ptr< FileNameType > r (
-            FileNameTraits::create (i, f, this));
+          throw ::xsd::cxx::tree::expected_attribute< char > (
+            "type",
+            "");
+        }
+      }
 
-          if (!this->file_name_)
+      FileInfo* FileInfo::
+      _clone (::flexisip::Xsd::XmlSchema::Flags f,
+              ::flexisip::Xsd::XmlSchema::Container* c) const
+      {
+        return new class FileInfo (*this, f, c);
+      }
+
+      FileInfo& FileInfo::
+      operator= (const FileInfo& x)
+      {
+        if (this != &x)
+        {
+          static_cast< ::flexisip::Xsd::XmlSchema::Type& > (*this) = x;
+          this->file_size_ = x.file_size_;
+          this->file_name_ = x.file_name_;
+          this->content_type_ = x.content_type_;
+          this->data_ = x.data_;
+          this->any_ = x.any_;
+          this->type_ = x.type_;
+          this->file_disposition_ = x.file_disposition_;
+          this->any_attribute_ = x.any_attribute_;
+        }
+
+        return *this;
+      }
+
+      FileInfo::
+      ~FileInfo ()
+      {
+      }
+
+      // FileSize
+      //
+
+      FileSize::
+      FileSize (const ::flexisip::Xsd::XmlSchema::Integer& _xsd_Integer_base)
+      : ::xsd::cxx::tree::fundamental_base< ::flexisip::Xsd::XmlSchema::Integer, char, ::flexisip::Xsd::XmlSchema::SimpleType > (_xsd_Integer_base)
+      {
+      }
+
+      FileSize::
+      FileSize (const FileSize& x,
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::xsd::cxx::tree::fundamental_base< ::flexisip::Xsd::XmlSchema::Integer, char, ::flexisip::Xsd::XmlSchema::SimpleType > (x, f, c)
+      {
+      }
+
+      FileSize::
+      FileSize (const ::xercesc::DOMElement& e,
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::xsd::cxx::tree::fundamental_base< ::flexisip::Xsd::XmlSchema::Integer, char, ::flexisip::Xsd::XmlSchema::SimpleType > (e, f, c)
+      {
+      }
+
+      FileSize::
+      FileSize (const ::xercesc::DOMAttr& a,
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::xsd::cxx::tree::fundamental_base< ::flexisip::Xsd::XmlSchema::Integer, char, ::flexisip::Xsd::XmlSchema::SimpleType > (a, f, c)
+      {
+      }
+
+      FileSize::
+      FileSize (const ::std::string& s,
+                const ::xercesc::DOMElement* e,
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::xsd::cxx::tree::fundamental_base< ::flexisip::Xsd::XmlSchema::Integer, char, ::flexisip::Xsd::XmlSchema::SimpleType > (s, e, f, c)
+      {
+      }
+
+      FileSize* FileSize::
+      _clone (::flexisip::Xsd::XmlSchema::Flags f,
+              ::flexisip::Xsd::XmlSchema::Container* c) const
+      {
+        return new class FileSize (*this, f, c);
+      }
+
+      FileSize::
+      ~FileSize ()
+      {
+      }
+
+      // FileName
+      //
+
+      FileName::
+      FileName ()
+      : ::flexisip::Xsd::XmlSchema::String ()
+      {
+      }
+
+      FileName::
+      FileName (const char* _xsd_String_base)
+      : ::flexisip::Xsd::XmlSchema::String (_xsd_String_base)
+      {
+      }
+
+      FileName::
+      FileName (const ::std::string& _xsd_String_base)
+      : ::flexisip::Xsd::XmlSchema::String (_xsd_String_base)
+      {
+      }
+
+      FileName::
+      FileName (const ::flexisip::Xsd::XmlSchema::String& _xsd_String_base)
+      : ::flexisip::Xsd::XmlSchema::String (_xsd_String_base)
+      {
+      }
+
+      FileName::
+      FileName (const FileName& x,
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::String (x, f, c)
+      {
+      }
+
+      FileName::
+      FileName (const ::xercesc::DOMElement& e,
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::String (e, f, c)
+      {
+      }
+
+      FileName::
+      FileName (const ::xercesc::DOMAttr& a,
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::String (a, f, c)
+      {
+      }
+
+      FileName::
+      FileName (const ::std::string& s,
+                const ::xercesc::DOMElement* e,
+                ::flexisip::Xsd::XmlSchema::Flags f,
+                ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::String (s, e, f, c)
+      {
+      }
+
+      FileName* FileName::
+      _clone (::flexisip::Xsd::XmlSchema::Flags f,
+              ::flexisip::Xsd::XmlSchema::Container* c) const
+      {
+        return new class FileName (*this, f, c);
+      }
+
+      FileName::
+      ~FileName ()
+      {
+      }
+
+      // ContentType
+      //
+
+      ContentType::
+      ContentType ()
+      : ::flexisip::Xsd::XmlSchema::String ()
+      {
+      }
+
+      ContentType::
+      ContentType (const char* _xsd_String_base)
+      : ::flexisip::Xsd::XmlSchema::String (_xsd_String_base)
+      {
+      }
+
+      ContentType::
+      ContentType (const ::std::string& _xsd_String_base)
+      : ::flexisip::Xsd::XmlSchema::String (_xsd_String_base)
+      {
+      }
+
+      ContentType::
+      ContentType (const ::flexisip::Xsd::XmlSchema::String& _xsd_String_base)
+      : ::flexisip::Xsd::XmlSchema::String (_xsd_String_base)
+      {
+      }
+
+      ContentType::
+      ContentType (const ContentType& x,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::String (x, f, c)
+      {
+      }
+
+      ContentType::
+      ContentType (const ::xercesc::DOMElement& e,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::String (e, f, c)
+      {
+      }
+
+      ContentType::
+      ContentType (const ::xercesc::DOMAttr& a,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::String (a, f, c)
+      {
+      }
+
+      ContentType::
+      ContentType (const ::std::string& s,
+                   const ::xercesc::DOMElement* e,
+                   ::flexisip::Xsd::XmlSchema::Flags f,
+                   ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::String (s, e, f, c)
+      {
+      }
+
+      ContentType* ContentType::
+      _clone (::flexisip::Xsd::XmlSchema::Flags f,
+              ::flexisip::Xsd::XmlSchema::Container* c) const
+      {
+        return new class ContentType (*this, f, c);
+      }
+
+      ContentType::
+      ~ContentType ()
+      {
+      }
+
+      // Data
+      //
+
+      Data::
+      Data (const UrlType& url,
+            const UntilType& until)
+      : ::flexisip::Xsd::XmlSchema::Type (),
+        dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
+        url_ (url, this),
+        until_ (until, this),
+        any_attribute_ (this->getDomDocument ())
+      {
+      }
+
+      Data::
+      Data (const Data& x,
+            ::flexisip::Xsd::XmlSchema::Flags f,
+            ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::Type (x, f, c),
+        dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
+        url_ (x.url_, f, this),
+        until_ (x.until_, f, this),
+        any_attribute_ (x.any_attribute_, this->getDomDocument ())
+      {
+      }
+
+      Data::
+      Data (const ::xercesc::DOMElement& e,
+            ::flexisip::Xsd::XmlSchema::Flags f,
+            ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::Type (e, f | ::flexisip::Xsd::XmlSchema::Flags::base, c),
+        dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
+        url_ (this),
+        until_ (this),
+        any_attribute_ (this->getDomDocument ())
+      {
+        if ((f & ::flexisip::Xsd::XmlSchema::Flags::base) == 0)
+        {
+          ::xsd::cxx::xml::dom::parser< char > p (e, false, false, true);
+          this->parse (p, f);
+        }
+      }
+
+      void Data::
+      parse (::xsd::cxx::xml::dom::parser< char >& p,
+             ::flexisip::Xsd::XmlSchema::Flags f)
+      {
+        while (p.more_attributes ())
+        {
+          const ::xercesc::DOMAttr& i (p.next_attribute ());
+          const ::xsd::cxx::xml::qualified_name< char > n (
+            ::xsd::cxx::xml::dom::name< char > (i));
+
+          if (n.name () == "url" && n.namespace_ ().empty ())
           {
-            this->file_name_.set (::std::move (r));
+            this->url_.set (UrlTraits::create (i, f, this));
+            continue;
+          }
+
+          if (n.name () == "until" && n.namespace_ ().empty ())
+          {
+            this->until_.set (UntilTraits::create (i, f, this));
+            continue;
+          }
+
+          // any_attribute
+          //
+          if ((!n.namespace_ ().empty () &&
+               n.namespace_ () != "urn:gsma:params:xml:ns:rcs:rcs:fthttp" &&
+               n.namespace_ () != ::xsd::cxx::xml::bits::xmlns_namespace< char > () &&
+               n.namespace_ () != ::xsd::cxx::xml::bits::xsi_namespace< char > ()))
+          {
+            ::xercesc::DOMAttr* r (
+              static_cast< ::xercesc::DOMAttr* > (
+                this->getDomDocument ().importNode (
+                  const_cast< ::xercesc::DOMAttr* > (&i), true)));
+            this->any_attribute_ .insert (r);
             continue;
           }
         }
 
-        // content-type
-        //
-        if (n.name () == "content-type" && n.namespace_ () == "urn:gsma:params:xml:ns:rcs:rcs:fthttp")
+        if (!url_.present ())
         {
-          ::std::unique_ptr< ContentTypeType > r (
-            ContentTypeTraits::create (i, f, this));
-
-          if (!content_type_.present ())
-          {
-            this->content_type_.set (::std::move (r));
-            continue;
-          }
+          throw ::xsd::cxx::tree::expected_attribute< char > (
+            "url",
+            "");
         }
 
-        // data
-        //
-        if (n.name () == "data" && n.namespace_ () == "urn:gsma:params:xml:ns:rcs:rcs:fthttp")
+        if (!until_.present ())
         {
-          ::std::unique_ptr< DataType > r (
-            DataTraits::create (i, f, this));
-
-          if (!data_.present ())
-          {
-            this->data_.set (::std::move (r));
-            continue;
-          }
-        }
-
-        // any
-        //
-        if ((!n.namespace_ ().empty () && n.namespace_ () != "urn:gsma:params:xml:ns:rcs:rcs:fthttp"))
-        {
-          ::xercesc::DOMElement* r (
-            static_cast< ::xercesc::DOMElement* > (
-              this->getDomDocument ().importNode (
-                const_cast< ::xercesc::DOMElement* > (&i), true)));
-          this->any_.push_back (r);
-          continue;
-        }
-
-        break;
-      }
-
-      if (!file_size_.present ())
-      {
-        throw ::xsd::cxx::tree::expected_element< char > (
-          "file-size",
-          "urn:gsma:params:xml:ns:rcs:rcs:fthttp");
-      }
-
-      if (!content_type_.present ())
-      {
-        throw ::xsd::cxx::tree::expected_element< char > (
-          "content-type",
-          "urn:gsma:params:xml:ns:rcs:rcs:fthttp");
-      }
-
-      if (!data_.present ())
-      {
-        throw ::xsd::cxx::tree::expected_element< char > (
-          "data",
-          "urn:gsma:params:xml:ns:rcs:rcs:fthttp");
-      }
-
-      while (p.more_attributes ())
-      {
-        const ::xercesc::DOMAttr& i (p.next_attribute ());
-        const ::xsd::cxx::xml::qualified_name< char > n (
-          ::xsd::cxx::xml::dom::name< char > (i));
-
-        if (n.name () == "type" && n.namespace_ ().empty ())
-        {
-          this->type_.set (TypeTraits::create (i, f, this));
-          continue;
-        }
-
-        if (n.name () == "file-disposition" && n.namespace_ ().empty ())
-        {
-          this->file_disposition_.set (FileDispositionTraits::create (i, f, this));
-          continue;
-        }
-
-        // any_attribute
-        //
-        if ((!n.namespace_ ().empty () &&
-             n.namespace_ () != "urn:gsma:params:xml:ns:rcs:rcs:fthttp" &&
-             n.namespace_ () != ::xsd::cxx::xml::bits::xmlns_namespace< char > () &&
-             n.namespace_ () != ::xsd::cxx::xml::bits::xsi_namespace< char > ()))
-        {
-          ::xercesc::DOMAttr* r (
-            static_cast< ::xercesc::DOMAttr* > (
-              this->getDomDocument ().importNode (
-                const_cast< ::xercesc::DOMAttr* > (&i), true)));
-          this->any_attribute_ .insert (r);
-          continue;
+          throw ::xsd::cxx::tree::expected_attribute< char > (
+            "until",
+            "");
         }
       }
 
-      if (!type_.present ())
+      Data* Data::
+      _clone (::flexisip::Xsd::XmlSchema::Flags f,
+              ::flexisip::Xsd::XmlSchema::Container* c) const
       {
-        throw ::xsd::cxx::tree::expected_attribute< char > (
-          "type",
-          "");
-      }
-    }
-
-    FileInfo* FileInfo::
-    _clone (::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c) const
-    {
-      return new class FileInfo (*this, f, c);
-    }
-
-    FileInfo& FileInfo::
-    operator= (const FileInfo& x)
-    {
-      if (this != &x)
-      {
-        static_cast< ::Xsd::XmlSchema::Type& > (*this) = x;
-        this->file_size_ = x.file_size_;
-        this->file_name_ = x.file_name_;
-        this->content_type_ = x.content_type_;
-        this->data_ = x.data_;
-        this->any_ = x.any_;
-        this->type_ = x.type_;
-        this->file_disposition_ = x.file_disposition_;
-        this->any_attribute_ = x.any_attribute_;
+        return new class Data (*this, f, c);
       }
 
-      return *this;
-    }
-
-    FileInfo::
-    ~FileInfo ()
-    {
-    }
-
-    // FileSize
-    //
-
-    FileSize::
-    FileSize (const ::Xsd::XmlSchema::Integer& _xsd_Integer_base)
-    : ::xsd::cxx::tree::fundamental_base< ::Xsd::XmlSchema::Integer, char, ::Xsd::XmlSchema::SimpleType > (_xsd_Integer_base)
-    {
-    }
-
-    FileSize::
-    FileSize (const FileSize& x,
-              ::Xsd::XmlSchema::Flags f,
-              ::Xsd::XmlSchema::Container* c)
-    : ::xsd::cxx::tree::fundamental_base< ::Xsd::XmlSchema::Integer, char, ::Xsd::XmlSchema::SimpleType > (x, f, c)
-    {
-    }
-
-    FileSize::
-    FileSize (const ::xercesc::DOMElement& e,
-              ::Xsd::XmlSchema::Flags f,
-              ::Xsd::XmlSchema::Container* c)
-    : ::xsd::cxx::tree::fundamental_base< ::Xsd::XmlSchema::Integer, char, ::Xsd::XmlSchema::SimpleType > (e, f, c)
-    {
-    }
-
-    FileSize::
-    FileSize (const ::xercesc::DOMAttr& a,
-              ::Xsd::XmlSchema::Flags f,
-              ::Xsd::XmlSchema::Container* c)
-    : ::xsd::cxx::tree::fundamental_base< ::Xsd::XmlSchema::Integer, char, ::Xsd::XmlSchema::SimpleType > (a, f, c)
-    {
-    }
-
-    FileSize::
-    FileSize (const ::std::string& s,
-              const ::xercesc::DOMElement* e,
-              ::Xsd::XmlSchema::Flags f,
-              ::Xsd::XmlSchema::Container* c)
-    : ::xsd::cxx::tree::fundamental_base< ::Xsd::XmlSchema::Integer, char, ::Xsd::XmlSchema::SimpleType > (s, e, f, c)
-    {
-    }
-
-    FileSize* FileSize::
-    _clone (::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c) const
-    {
-      return new class FileSize (*this, f, c);
-    }
-
-    FileSize::
-    ~FileSize ()
-    {
-    }
-
-    // FileName
-    //
-
-    FileName::
-    FileName ()
-    : ::Xsd::XmlSchema::String ()
-    {
-    }
-
-    FileName::
-    FileName (const char* _xsd_String_base)
-    : ::Xsd::XmlSchema::String (_xsd_String_base)
-    {
-    }
-
-    FileName::
-    FileName (const ::std::string& _xsd_String_base)
-    : ::Xsd::XmlSchema::String (_xsd_String_base)
-    {
-    }
-
-    FileName::
-    FileName (const ::Xsd::XmlSchema::String& _xsd_String_base)
-    : ::Xsd::XmlSchema::String (_xsd_String_base)
-    {
-    }
-
-    FileName::
-    FileName (const FileName& x,
-              ::Xsd::XmlSchema::Flags f,
-              ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::String (x, f, c)
-    {
-    }
-
-    FileName::
-    FileName (const ::xercesc::DOMElement& e,
-              ::Xsd::XmlSchema::Flags f,
-              ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::String (e, f, c)
-    {
-    }
-
-    FileName::
-    FileName (const ::xercesc::DOMAttr& a,
-              ::Xsd::XmlSchema::Flags f,
-              ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::String (a, f, c)
-    {
-    }
-
-    FileName::
-    FileName (const ::std::string& s,
-              const ::xercesc::DOMElement* e,
-              ::Xsd::XmlSchema::Flags f,
-              ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::String (s, e, f, c)
-    {
-    }
-
-    FileName* FileName::
-    _clone (::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c) const
-    {
-      return new class FileName (*this, f, c);
-    }
-
-    FileName::
-    ~FileName ()
-    {
-    }
-
-    // ContentType
-    //
-
-    ContentType::
-    ContentType ()
-    : ::Xsd::XmlSchema::String ()
-    {
-    }
-
-    ContentType::
-    ContentType (const char* _xsd_String_base)
-    : ::Xsd::XmlSchema::String (_xsd_String_base)
-    {
-    }
-
-    ContentType::
-    ContentType (const ::std::string& _xsd_String_base)
-    : ::Xsd::XmlSchema::String (_xsd_String_base)
-    {
-    }
-
-    ContentType::
-    ContentType (const ::Xsd::XmlSchema::String& _xsd_String_base)
-    : ::Xsd::XmlSchema::String (_xsd_String_base)
-    {
-    }
-
-    ContentType::
-    ContentType (const ContentType& x,
-                 ::Xsd::XmlSchema::Flags f,
-                 ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::String (x, f, c)
-    {
-    }
-
-    ContentType::
-    ContentType (const ::xercesc::DOMElement& e,
-                 ::Xsd::XmlSchema::Flags f,
-                 ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::String (e, f, c)
-    {
-    }
-
-    ContentType::
-    ContentType (const ::xercesc::DOMAttr& a,
-                 ::Xsd::XmlSchema::Flags f,
-                 ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::String (a, f, c)
-    {
-    }
-
-    ContentType::
-    ContentType (const ::std::string& s,
-                 const ::xercesc::DOMElement* e,
-                 ::Xsd::XmlSchema::Flags f,
-                 ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::String (s, e, f, c)
-    {
-    }
-
-    ContentType* ContentType::
-    _clone (::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c) const
-    {
-      return new class ContentType (*this, f, c);
-    }
-
-    ContentType::
-    ~ContentType ()
-    {
-    }
-
-    // Data
-    //
-
-    Data::
-    Data (const UrlType& url,
-          const UntilType& until)
-    : ::Xsd::XmlSchema::Type (),
-      dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
-      url_ (url, this),
-      until_ (until, this),
-      any_attribute_ (this->getDomDocument ())
-    {
-    }
-
-    Data::
-    Data (const Data& x,
-          ::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::Type (x, f, c),
-      dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
-      url_ (x.url_, f, this),
-      until_ (x.until_, f, this),
-      any_attribute_ (x.any_attribute_, this->getDomDocument ())
-    {
-    }
-
-    Data::
-    Data (const ::xercesc::DOMElement& e,
-          ::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::Type (e, f | ::Xsd::XmlSchema::Flags::base, c),
-      dom_document_ (::xsd::cxx::xml::dom::create_document< char > ()),
-      url_ (this),
-      until_ (this),
-      any_attribute_ (this->getDomDocument ())
-    {
-      if ((f & ::Xsd::XmlSchema::Flags::base) == 0)
+      Data& Data::
+      operator= (const Data& x)
       {
-        ::xsd::cxx::xml::dom::parser< char > p (e, false, false, true);
-        this->parse (p, f);
-      }
-    }
-
-    void Data::
-    parse (::xsd::cxx::xml::dom::parser< char >& p,
-           ::Xsd::XmlSchema::Flags f)
-    {
-      while (p.more_attributes ())
-      {
-        const ::xercesc::DOMAttr& i (p.next_attribute ());
-        const ::xsd::cxx::xml::qualified_name< char > n (
-          ::xsd::cxx::xml::dom::name< char > (i));
-
-        if (n.name () == "url" && n.namespace_ ().empty ())
+        if (this != &x)
         {
-          this->url_.set (UrlTraits::create (i, f, this));
-          continue;
+          static_cast< ::flexisip::Xsd::XmlSchema::Type& > (*this) = x;
+          this->url_ = x.url_;
+          this->until_ = x.until_;
+          this->any_attribute_ = x.any_attribute_;
         }
 
-        if (n.name () == "until" && n.namespace_ ().empty ())
+        return *this;
+      }
+
+      Data::
+      ~Data ()
+      {
+      }
+
+      // Type
+      //
+
+      Type::
+      Type (const ::xercesc::DOMElement& e,
+            ::flexisip::Xsd::XmlSchema::Flags f,
+            ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::String (e, f, c)
+      {
+        _xsd_Type_convert ();
+      }
+
+      Type::
+      Type (const ::xercesc::DOMAttr& a,
+            ::flexisip::Xsd::XmlSchema::Flags f,
+            ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::String (a, f, c)
+      {
+        _xsd_Type_convert ();
+      }
+
+      Type::
+      Type (const ::std::string& s,
+            const ::xercesc::DOMElement* e,
+            ::flexisip::Xsd::XmlSchema::Flags f,
+            ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::String (s, e, f, c)
+      {
+        _xsd_Type_convert ();
+      }
+
+      Type* Type::
+      _clone (::flexisip::Xsd::XmlSchema::Flags f,
+              ::flexisip::Xsd::XmlSchema::Container* c) const
+      {
+        return new class Type (*this, f, c);
+      }
+
+      Type::Value Type::
+      _xsd_Type_convert () const
+      {
+        ::xsd::cxx::tree::enum_comparator< char > c (_xsd_Type_literals_);
+        const Value* i (::std::lower_bound (
+                          _xsd_Type_indexes_,
+                          _xsd_Type_indexes_ + 2,
+                          *this,
+                          c));
+
+        if (i == _xsd_Type_indexes_ + 2 || _xsd_Type_literals_[*i] != *this)
         {
-          this->until_.set (UntilTraits::create (i, f, this));
-          continue;
+          throw ::xsd::cxx::tree::unexpected_enumerator < char > (*this);
         }
 
-        // any_attribute
-        //
-        if ((!n.namespace_ ().empty () &&
-             n.namespace_ () != "urn:gsma:params:xml:ns:rcs:rcs:fthttp" &&
-             n.namespace_ () != ::xsd::cxx::xml::bits::xmlns_namespace< char > () &&
-             n.namespace_ () != ::xsd::cxx::xml::bits::xsi_namespace< char > ()))
+        return *i;
+      }
+
+      const char* const Type::
+      _xsd_Type_literals_[2] =
+      {
+        "file",
+        "thumbnail"
+      };
+
+      const Type::Value Type::
+      _xsd_Type_indexes_[2] =
+      {
+        ::flexisip::Xsd::Fthttp::Type::file,
+        ::flexisip::Xsd::Fthttp::Type::thumbnail
+      };
+
+      // FileDisposition
+      //
+
+      FileDisposition::
+      FileDisposition (const ::xercesc::DOMElement& e,
+                       ::flexisip::Xsd::XmlSchema::Flags f,
+                       ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::String (e, f, c)
+      {
+        _xsd_FileDisposition_convert ();
+      }
+
+      FileDisposition::
+      FileDisposition (const ::xercesc::DOMAttr& a,
+                       ::flexisip::Xsd::XmlSchema::Flags f,
+                       ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::String (a, f, c)
+      {
+        _xsd_FileDisposition_convert ();
+      }
+
+      FileDisposition::
+      FileDisposition (const ::std::string& s,
+                       const ::xercesc::DOMElement* e,
+                       ::flexisip::Xsd::XmlSchema::Flags f,
+                       ::flexisip::Xsd::XmlSchema::Container* c)
+      : ::flexisip::Xsd::XmlSchema::String (s, e, f, c)
+      {
+        _xsd_FileDisposition_convert ();
+      }
+
+      FileDisposition* FileDisposition::
+      _clone (::flexisip::Xsd::XmlSchema::Flags f,
+              ::flexisip::Xsd::XmlSchema::Container* c) const
+      {
+        return new class FileDisposition (*this, f, c);
+      }
+
+      FileDisposition::Value FileDisposition::
+      _xsd_FileDisposition_convert () const
+      {
+        ::xsd::cxx::tree::enum_comparator< char > c (_xsd_FileDisposition_literals_);
+        const Value* i (::std::lower_bound (
+                          _xsd_FileDisposition_indexes_,
+                          _xsd_FileDisposition_indexes_ + 2,
+                          *this,
+                          c));
+
+        if (i == _xsd_FileDisposition_indexes_ + 2 || _xsd_FileDisposition_literals_[*i] != *this)
         {
-          ::xercesc::DOMAttr* r (
-            static_cast< ::xercesc::DOMAttr* > (
-              this->getDomDocument ().importNode (
-                const_cast< ::xercesc::DOMAttr* > (&i), true)));
-          this->any_attribute_ .insert (r);
-          continue;
+          throw ::xsd::cxx::tree::unexpected_enumerator < char > (*this);
         }
+
+        return *i;
       }
 
-      if (!url_.present ())
+      const char* const FileDisposition::
+      _xsd_FileDisposition_literals_[2] =
       {
-        throw ::xsd::cxx::tree::expected_attribute< char > (
-          "url",
-          "");
-      }
+        "render",
+        "attachment"
+      };
 
-      if (!until_.present ())
+      const FileDisposition::Value FileDisposition::
+      _xsd_FileDisposition_indexes_[2] =
       {
-        throw ::xsd::cxx::tree::expected_attribute< char > (
-          "until",
-          "");
-      }
+        ::flexisip::Xsd::Fthttp::FileDisposition::attachment,
+        ::flexisip::Xsd::Fthttp::FileDisposition::render
+      };
     }
-
-    Data* Data::
-    _clone (::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c) const
-    {
-      return new class Data (*this, f, c);
-    }
-
-    Data& Data::
-    operator= (const Data& x)
-    {
-      if (this != &x)
-      {
-        static_cast< ::Xsd::XmlSchema::Type& > (*this) = x;
-        this->url_ = x.url_;
-        this->until_ = x.until_;
-        this->any_attribute_ = x.any_attribute_;
-      }
-
-      return *this;
-    }
-
-    Data::
-    ~Data ()
-    {
-    }
-
-    // Type
-    //
-
-    Type::
-    Type (const ::xercesc::DOMElement& e,
-          ::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::String (e, f, c)
-    {
-      _xsd_Type_convert ();
-    }
-
-    Type::
-    Type (const ::xercesc::DOMAttr& a,
-          ::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::String (a, f, c)
-    {
-      _xsd_Type_convert ();
-    }
-
-    Type::
-    Type (const ::std::string& s,
-          const ::xercesc::DOMElement* e,
-          ::Xsd::XmlSchema::Flags f,
-          ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::String (s, e, f, c)
-    {
-      _xsd_Type_convert ();
-    }
-
-    Type* Type::
-    _clone (::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c) const
-    {
-      return new class Type (*this, f, c);
-    }
-
-    Type::Value Type::
-    _xsd_Type_convert () const
-    {
-      ::xsd::cxx::tree::enum_comparator< char > c (_xsd_Type_literals_);
-      const Value* i (::std::lower_bound (
-                        _xsd_Type_indexes_,
-                        _xsd_Type_indexes_ + 2,
-                        *this,
-                        c));
-
-      if (i == _xsd_Type_indexes_ + 2 || _xsd_Type_literals_[*i] != *this)
-      {
-        throw ::xsd::cxx::tree::unexpected_enumerator < char > (*this);
-      }
-
-      return *i;
-    }
-
-    const char* const Type::
-    _xsd_Type_literals_[2] =
-    {
-      "file",
-      "thumbnail"
-    };
-
-    const Type::Value Type::
-    _xsd_Type_indexes_[2] =
-    {
-      ::Xsd::Fthttp::Type::file,
-      ::Xsd::Fthttp::Type::thumbnail
-    };
-
-    // FileDisposition
-    //
-
-    FileDisposition::
-    FileDisposition (const ::xercesc::DOMElement& e,
-                     ::Xsd::XmlSchema::Flags f,
-                     ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::String (e, f, c)
-    {
-      _xsd_FileDisposition_convert ();
-    }
-
-    FileDisposition::
-    FileDisposition (const ::xercesc::DOMAttr& a,
-                     ::Xsd::XmlSchema::Flags f,
-                     ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::String (a, f, c)
-    {
-      _xsd_FileDisposition_convert ();
-    }
-
-    FileDisposition::
-    FileDisposition (const ::std::string& s,
-                     const ::xercesc::DOMElement* e,
-                     ::Xsd::XmlSchema::Flags f,
-                     ::Xsd::XmlSchema::Container* c)
-    : ::Xsd::XmlSchema::String (s, e, f, c)
-    {
-      _xsd_FileDisposition_convert ();
-    }
-
-    FileDisposition* FileDisposition::
-    _clone (::Xsd::XmlSchema::Flags f,
-            ::Xsd::XmlSchema::Container* c) const
-    {
-      return new class FileDisposition (*this, f, c);
-    }
-
-    FileDisposition::Value FileDisposition::
-    _xsd_FileDisposition_convert () const
-    {
-      ::xsd::cxx::tree::enum_comparator< char > c (_xsd_FileDisposition_literals_);
-      const Value* i (::std::lower_bound (
-                        _xsd_FileDisposition_indexes_,
-                        _xsd_FileDisposition_indexes_ + 2,
-                        *this,
-                        c));
-
-      if (i == _xsd_FileDisposition_indexes_ + 2 || _xsd_FileDisposition_literals_[*i] != *this)
-      {
-        throw ::xsd::cxx::tree::unexpected_enumerator < char > (*this);
-      }
-
-      return *i;
-    }
-
-    const char* const FileDisposition::
-    _xsd_FileDisposition_literals_[2] =
-    {
-      "render",
-      "attachment"
-    };
-
-    const FileDisposition::Value FileDisposition::
-    _xsd_FileDisposition_indexes_[2] =
-    {
-      ::Xsd::Fthttp::FileDisposition::attachment,
-      ::Xsd::Fthttp::FileDisposition::render
-    };
   }
 }
 
 #include <ostream>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace Fthttp
+  namespace Xsd
   {
-    ::std::ostream&
-    operator<< (::std::ostream& o, const File& i)
+    namespace Fthttp
     {
-      for (File::FileInfoConstIterator
-           b (i.getFileInfo ().begin ()), e (i.getFileInfo ().end ());
-           b != e; ++b)
+      ::std::ostream&
+      operator<< (::std::ostream& o, const File& i)
       {
-        o << ::std::endl << "file-info: " << *b;
+        for (File::FileInfoConstIterator
+             b (i.getFileInfo ().begin ()), e (i.getFileInfo ().end ());
+             b != e; ++b)
+        {
+          o << ::std::endl << "file-info: " << *b;
+        }
+
+        return o;
       }
 
-      return o;
-    }
-
-    ::std::ostream&
-    operator<< (::std::ostream& o, const FileInfo& i)
-    {
-      o << ::std::endl << "file-size: " << i.getFileSize ();
-      if (i.getFileName ())
+      ::std::ostream&
+      operator<< (::std::ostream& o, const FileInfo& i)
       {
-        o << ::std::endl << "file-name: " << *i.getFileName ();
+        o << ::std::endl << "file-size: " << i.getFileSize ();
+        if (i.getFileName ())
+        {
+          o << ::std::endl << "file-name: " << *i.getFileName ();
+        }
+
+        o << ::std::endl << "content-type: " << i.getContentType ();
+        o << ::std::endl << "data: " << i.getData ();
+        o << ::std::endl << "type: " << i.getType ();
+        if (i.getFileDisposition ())
+        {
+          o << ::std::endl << "file-disposition: " << *i.getFileDisposition ();
+        }
+
+        return o;
       }
 
-      o << ::std::endl << "content-type: " << i.getContentType ();
-      o << ::std::endl << "data: " << i.getData ();
-      o << ::std::endl << "type: " << i.getType ();
-      if (i.getFileDisposition ())
+      ::std::ostream&
+      operator<< (::std::ostream& o, const FileSize& i)
       {
-        o << ::std::endl << "file-disposition: " << *i.getFileDisposition ();
+        o << static_cast< const ::xsd::cxx::tree::fundamental_base< ::flexisip::Xsd::XmlSchema::Integer, char, ::flexisip::Xsd::XmlSchema::SimpleType >& > (i);
+
+        return o;
       }
 
-      return o;
-    }
+      ::std::ostream&
+      operator<< (::std::ostream& o, const FileName& i)
+      {
+        o << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
 
-    ::std::ostream&
-    operator<< (::std::ostream& o, const FileSize& i)
-    {
-      o << static_cast< const ::xsd::cxx::tree::fundamental_base< ::Xsd::XmlSchema::Integer, char, ::Xsd::XmlSchema::SimpleType >& > (i);
+        return o;
+      }
 
-      return o;
-    }
+      ::std::ostream&
+      operator<< (::std::ostream& o, const ContentType& i)
+      {
+        o << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
 
-    ::std::ostream&
-    operator<< (::std::ostream& o, const FileName& i)
-    {
-      o << static_cast< const ::Xsd::XmlSchema::String& > (i);
+        return o;
+      }
 
-      return o;
-    }
+      ::std::ostream&
+      operator<< (::std::ostream& o, const Data& i)
+      {
+        o << ::std::endl << "url: " << i.getUrl ();
+        o << ::std::endl << "until: " << i.getUntil ();
+        return o;
+      }
 
-    ::std::ostream&
-    operator<< (::std::ostream& o, const ContentType& i)
-    {
-      o << static_cast< const ::Xsd::XmlSchema::String& > (i);
+      ::std::ostream&
+      operator<< (::std::ostream& o, Type::Value i)
+      {
+        return o << Type::_xsd_Type_literals_[i];
+      }
 
-      return o;
-    }
+      ::std::ostream&
+      operator<< (::std::ostream& o, const Type& i)
+      {
+        return o << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
+      }
 
-    ::std::ostream&
-    operator<< (::std::ostream& o, const Data& i)
-    {
-      o << ::std::endl << "url: " << i.getUrl ();
-      o << ::std::endl << "until: " << i.getUntil ();
-      return o;
-    }
+      ::std::ostream&
+      operator<< (::std::ostream& o, FileDisposition::Value i)
+      {
+        return o << FileDisposition::_xsd_FileDisposition_literals_[i];
+      }
 
-    ::std::ostream&
-    operator<< (::std::ostream& o, Type::Value i)
-    {
-      return o << Type::_xsd_Type_literals_[i];
-    }
-
-    ::std::ostream&
-    operator<< (::std::ostream& o, const Type& i)
-    {
-      return o << static_cast< const ::Xsd::XmlSchema::String& > (i);
-    }
-
-    ::std::ostream&
-    operator<< (::std::ostream& o, FileDisposition::Value i)
-    {
-      return o << FileDisposition::_xsd_FileDisposition_literals_[i];
-    }
-
-    ::std::ostream&
-    operator<< (::std::ostream& o, const FileDisposition& i)
-    {
-      return o << static_cast< const ::Xsd::XmlSchema::String& > (i);
+      ::std::ostream&
+      operator<< (::std::ostream& o, const FileDisposition& i)
+      {
+        return o << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
+      }
     }
   }
 }
@@ -1458,274 +1467,277 @@ namespace Xsd
 #include <xsd/cxx/xml/sax/std-input-source.hxx>
 #include <xsd/cxx/tree/error-handler.hxx>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace Fthttp
+  namespace Xsd
   {
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (const ::std::string& u,
-               ::Xsd::XmlSchema::Flags f,
-               const ::Xsd::XmlSchema::Properties& p)
+    namespace Fthttp
     {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
-
-      ::xsd::cxx::tree::error_handler< char > h;
-
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          u, h, p, f));
-
-      h.throw_if_failed< ::xsd::cxx::tree::parsing< char > > ();
-
-      return ::std::unique_ptr< ::Xsd::Fthttp::File > (
-        ::Xsd::Fthttp::parseFile (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
-
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (const ::std::string& u,
-               ::Xsd::XmlSchema::ErrorHandler& h,
-               ::Xsd::XmlSchema::Flags f,
-               const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
-
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          u, h, p, f));
-
-      if (!d.get ())
-        throw ::xsd::cxx::tree::parsing< char > ();
-
-      return ::std::unique_ptr< ::Xsd::Fthttp::File > (
-        ::Xsd::Fthttp::parseFile (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
-
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (const ::std::string& u,
-               ::xercesc::DOMErrorHandler& h,
-               ::Xsd::XmlSchema::Flags f,
-               const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          u, h, p, f));
-
-      if (!d.get ())
-        throw ::xsd::cxx::tree::parsing< char > ();
-
-      return ::std::unique_ptr< ::Xsd::Fthttp::File > (
-        ::Xsd::Fthttp::parseFile (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
-
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (::std::istream& is,
-               ::Xsd::XmlSchema::Flags f,
-               const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
-
-      ::xsd::cxx::xml::sax::std_input_source isrc (is);
-      return ::Xsd::Fthttp::parseFile (isrc, f, p);
-    }
-
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (::std::istream& is,
-               ::Xsd::XmlSchema::ErrorHandler& h,
-               ::Xsd::XmlSchema::Flags f,
-               const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
-
-      ::xsd::cxx::xml::sax::std_input_source isrc (is);
-      return ::Xsd::Fthttp::parseFile (isrc, h, f, p);
-    }
-
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (::std::istream& is,
-               ::xercesc::DOMErrorHandler& h,
-               ::Xsd::XmlSchema::Flags f,
-               const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::sax::std_input_source isrc (is);
-      return ::Xsd::Fthttp::parseFile (isrc, h, f, p);
-    }
-
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (::std::istream& is,
-               const ::std::string& sid,
-               ::Xsd::XmlSchema::Flags f,
-               const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
-
-      ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
-      return ::Xsd::Fthttp::parseFile (isrc, f, p);
-    }
-
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (::std::istream& is,
-               const ::std::string& sid,
-               ::Xsd::XmlSchema::ErrorHandler& h,
-               ::Xsd::XmlSchema::Flags f,
-               const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0,
-        (f & ::Xsd::XmlSchema::Flags::keep_dom) == 0);
-
-      ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
-      return ::Xsd::Fthttp::parseFile (isrc, h, f, p);
-    }
-
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (::std::istream& is,
-               const ::std::string& sid,
-               ::xercesc::DOMErrorHandler& h,
-               ::Xsd::XmlSchema::Flags f,
-               const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
-      return ::Xsd::Fthttp::parseFile (isrc, h, f, p);
-    }
-
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (::xercesc::InputSource& i,
-               ::Xsd::XmlSchema::Flags f,
-               const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::xsd::cxx::tree::error_handler< char > h;
-
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          i, h, p, f));
-
-      h.throw_if_failed< ::xsd::cxx::tree::parsing< char > > ();
-
-      return ::std::unique_ptr< ::Xsd::Fthttp::File > (
-        ::Xsd::Fthttp::parseFile (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
-
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (::xercesc::InputSource& i,
-               ::Xsd::XmlSchema::ErrorHandler& h,
-               ::Xsd::XmlSchema::Flags f,
-               const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          i, h, p, f));
-
-      if (!d.get ())
-        throw ::xsd::cxx::tree::parsing< char > ();
-
-      return ::std::unique_ptr< ::Xsd::Fthttp::File > (
-        ::Xsd::Fthttp::parseFile (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
-
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (::xercesc::InputSource& i,
-               ::xercesc::DOMErrorHandler& h,
-               ::Xsd::XmlSchema::Flags f,
-               const ::Xsd::XmlSchema::Properties& p)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::parse< char > (
-          i, h, p, f));
-
-      if (!d.get ())
-        throw ::xsd::cxx::tree::parsing< char > ();
-
-      return ::std::unique_ptr< ::Xsd::Fthttp::File > (
-        ::Xsd::Fthttp::parseFile (
-          std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
-    }
-
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (const ::xercesc::DOMDocument& doc,
-               ::Xsd::XmlSchema::Flags f,
-               const ::Xsd::XmlSchema::Properties& p)
-    {
-      if (f & ::Xsd::XmlSchema::Flags::keep_dom)
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (const ::std::string& u,
+                 ::flexisip::Xsd::XmlSchema::Flags f,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p)
       {
-        ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-          static_cast< ::xercesc::DOMDocument* > (doc.cloneNode (true)));
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
 
-        return ::std::unique_ptr< ::Xsd::Fthttp::File > (
-          ::Xsd::Fthttp::parseFile (
-            std::move (d), f | ::Xsd::XmlSchema::Flags::own_dom, p));
+        ::xsd::cxx::tree::error_handler< char > h;
+
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            u, h, p, f));
+
+        h.throw_if_failed< ::xsd::cxx::tree::parsing< char > > ();
+
+        return ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File > (
+          ::flexisip::Xsd::Fthttp::parseFile (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
       }
 
-      const ::xercesc::DOMElement& e (*doc.getDocumentElement ());
-      const ::xsd::cxx::xml::qualified_name< char > n (
-        ::xsd::cxx::xml::dom::name< char > (e));
-
-      if (n.name () == "file" &&
-          n.namespace_ () == "urn:gsma:params:xml:ns:rcs:rcs:fthttp")
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (const ::std::string& u,
+                 ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                 ::flexisip::Xsd::XmlSchema::Flags f,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p)
       {
-        ::std::unique_ptr< ::Xsd::Fthttp::File > r (
-          ::xsd::cxx::tree::traits< ::Xsd::Fthttp::File, char >::create (
-            e, f, 0));
-        return r;
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
+
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            u, h, p, f));
+
+        if (!d.get ())
+          throw ::xsd::cxx::tree::parsing< char > ();
+
+        return ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File > (
+          ::flexisip::Xsd::Fthttp::parseFile (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
       }
 
-      throw ::xsd::cxx::tree::unexpected_element < char > (
-        n.name (),
-        n.namespace_ (),
-        "file",
-        "urn:gsma:params:xml:ns:rcs:rcs:fthttp");
-    }
-
-    ::std::unique_ptr< ::Xsd::Fthttp::File >
-    parseFile (::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
-               ::Xsd::XmlSchema::Flags f,
-               const ::Xsd::XmlSchema::Properties&)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > c (
-        ((f & ::Xsd::XmlSchema::Flags::keep_dom) &&
-         !(f & ::Xsd::XmlSchema::Flags::own_dom))
-        ? static_cast< ::xercesc::DOMDocument* > (d->cloneNode (true))
-        : 0);
-
-      ::xercesc::DOMDocument& doc (c.get () ? *c : *d);
-      const ::xercesc::DOMElement& e (*doc.getDocumentElement ());
-
-      const ::xsd::cxx::xml::qualified_name< char > n (
-        ::xsd::cxx::xml::dom::name< char > (e));
-
-      if (f & ::Xsd::XmlSchema::Flags::keep_dom)
-        doc.setUserData (::Xsd::XmlSchema::dom::treeNodeKey,
-                         (c.get () ? &c : &d),
-                         0);
-
-      if (n.name () == "file" &&
-          n.namespace_ () == "urn:gsma:params:xml:ns:rcs:rcs:fthttp")
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (const ::std::string& u,
+                 ::xercesc::DOMErrorHandler& h,
+                 ::flexisip::Xsd::XmlSchema::Flags f,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p)
       {
-        ::std::unique_ptr< ::Xsd::Fthttp::File > r (
-          ::xsd::cxx::tree::traits< ::Xsd::Fthttp::File, char >::create (
-            e, f, 0));
-        return r;
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            u, h, p, f));
+
+        if (!d.get ())
+          throw ::xsd::cxx::tree::parsing< char > ();
+
+        return ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File > (
+          ::flexisip::Xsd::Fthttp::parseFile (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
       }
 
-      throw ::xsd::cxx::tree::unexpected_element < char > (
-        n.name (),
-        n.namespace_ (),
-        "file",
-        "urn:gsma:params:xml:ns:rcs:rcs:fthttp");
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (::std::istream& is,
+                 ::flexisip::Xsd::XmlSchema::Flags f,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
+
+        ::xsd::cxx::xml::sax::std_input_source isrc (is);
+        return ::flexisip::Xsd::Fthttp::parseFile (isrc, f, p);
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (::std::istream& is,
+                 ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                 ::flexisip::Xsd::XmlSchema::Flags f,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
+
+        ::xsd::cxx::xml::sax::std_input_source isrc (is);
+        return ::flexisip::Xsd::Fthttp::parseFile (isrc, h, f, p);
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (::std::istream& is,
+                 ::xercesc::DOMErrorHandler& h,
+                 ::flexisip::Xsd::XmlSchema::Flags f,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::sax::std_input_source isrc (is);
+        return ::flexisip::Xsd::Fthttp::parseFile (isrc, h, f, p);
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (::std::istream& is,
+                 const ::std::string& sid,
+                 ::flexisip::Xsd::XmlSchema::Flags f,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
+
+        ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
+        return ::flexisip::Xsd::Fthttp::parseFile (isrc, f, p);
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (::std::istream& is,
+                 const ::std::string& sid,
+                 ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                 ::flexisip::Xsd::XmlSchema::Flags f,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0,
+          (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) == 0);
+
+        ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
+        return ::flexisip::Xsd::Fthttp::parseFile (isrc, h, f, p);
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (::std::istream& is,
+                 const ::std::string& sid,
+                 ::xercesc::DOMErrorHandler& h,
+                 ::flexisip::Xsd::XmlSchema::Flags f,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::xml::sax::std_input_source isrc (is, sid);
+        return ::flexisip::Xsd::Fthttp::parseFile (isrc, h, f, p);
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (::xercesc::InputSource& i,
+                 ::flexisip::Xsd::XmlSchema::Flags f,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::xsd::cxx::tree::error_handler< char > h;
+
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            i, h, p, f));
+
+        h.throw_if_failed< ::xsd::cxx::tree::parsing< char > > ();
+
+        return ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File > (
+          ::flexisip::Xsd::Fthttp::parseFile (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (::xercesc::InputSource& i,
+                 ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                 ::flexisip::Xsd::XmlSchema::Flags f,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            i, h, p, f));
+
+        if (!d.get ())
+          throw ::xsd::cxx::tree::parsing< char > ();
+
+        return ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File > (
+          ::flexisip::Xsd::Fthttp::parseFile (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (::xercesc::InputSource& i,
+                 ::xercesc::DOMErrorHandler& h,
+                 ::flexisip::Xsd::XmlSchema::Flags f,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::parse< char > (
+            i, h, p, f));
+
+        if (!d.get ())
+          throw ::xsd::cxx::tree::parsing< char > ();
+
+        return ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File > (
+          ::flexisip::Xsd::Fthttp::parseFile (
+            std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (const ::xercesc::DOMDocument& doc,
+                 ::flexisip::Xsd::XmlSchema::Flags f,
+                 const ::flexisip::Xsd::XmlSchema::Properties& p)
+      {
+        if (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom)
+        {
+          ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+            static_cast< ::xercesc::DOMDocument* > (doc.cloneNode (true)));
+
+          return ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File > (
+            ::flexisip::Xsd::Fthttp::parseFile (
+              std::move (d), f | ::flexisip::Xsd::XmlSchema::Flags::own_dom, p));
+        }
+
+        const ::xercesc::DOMElement& e (*doc.getDocumentElement ());
+        const ::xsd::cxx::xml::qualified_name< char > n (
+          ::xsd::cxx::xml::dom::name< char > (e));
+
+        if (n.name () == "file" &&
+            n.namespace_ () == "urn:gsma:params:xml:ns:rcs:rcs:fthttp")
+        {
+          ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File > r (
+            ::xsd::cxx::tree::traits< ::flexisip::Xsd::Fthttp::File, char >::create (
+              e, f, 0));
+          return r;
+        }
+
+        throw ::xsd::cxx::tree::unexpected_element < char > (
+          n.name (),
+          n.namespace_ (),
+          "file",
+          "urn:gsma:params:xml:ns:rcs:rcs:fthttp");
+      }
+
+      ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File >
+      parseFile (::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d,
+                 ::flexisip::Xsd::XmlSchema::Flags f,
+                 const ::flexisip::Xsd::XmlSchema::Properties&)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > c (
+          ((f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom) &&
+           !(f & ::flexisip::Xsd::XmlSchema::Flags::own_dom))
+          ? static_cast< ::xercesc::DOMDocument* > (d->cloneNode (true))
+          : 0);
+
+        ::xercesc::DOMDocument& doc (c.get () ? *c : *d);
+        const ::xercesc::DOMElement& e (*doc.getDocumentElement ());
+
+        const ::xsd::cxx::xml::qualified_name< char > n (
+          ::xsd::cxx::xml::dom::name< char > (e));
+
+        if (f & ::flexisip::Xsd::XmlSchema::Flags::keep_dom)
+          doc.setUserData (::flexisip::Xsd::XmlSchema::dom::treeNodeKey,
+                           (c.get () ? &c : &d),
+                           0);
+
+        if (n.name () == "file" &&
+            n.namespace_ () == "urn:gsma:params:xml:ns:rcs:rcs:fthttp")
+        {
+          ::std::unique_ptr< ::flexisip::Xsd::Fthttp::File > r (
+            ::xsd::cxx::tree::traits< ::flexisip::Xsd::Fthttp::File, char >::create (
+              e, f, 0));
+          return r;
+        }
+
+        throw ::xsd::cxx::tree::unexpected_element < char > (
+          n.name (),
+          n.namespace_ (),
+          "file",
+          "urn:gsma:params:xml:ns:rcs:rcs:fthttp");
+      }
     }
   }
 }
@@ -1734,434 +1746,437 @@ namespace Xsd
 #include <xsd/cxx/tree/error-handler.hxx>
 #include <xsd/cxx/xml/dom/serialization-source.hxx>
 
-namespace Xsd
+namespace flexisip
 {
-  namespace Fthttp
+  namespace Xsd
   {
-    void
-    serializeFile (::std::ostream& o,
-                   const ::Xsd::Fthttp::File& s,
-                   const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                   const ::std::string& e,
-                   ::Xsd::XmlSchema::Flags f)
+    namespace Fthttp
     {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0);
-
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::Fthttp::serializeFile (s, m, f));
-
-      ::xsd::cxx::tree::error_handler< char > h;
-
-      ::xsd::cxx::xml::dom::ostream_format_target t (o);
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+      void
+      serializeFile (::std::ostream& o,
+                     const ::flexisip::Xsd::Fthttp::File& s,
+                     const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                     const ::std::string& e,
+                     ::flexisip::Xsd::XmlSchema::Flags f)
       {
-        h.throw_if_failed< ::xsd::cxx::tree::serialization< char > > ();
-      }
-    }
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0);
 
-    void
-    serializeFile (::std::ostream& o,
-                   const ::Xsd::Fthttp::File& s,
-                   ::Xsd::XmlSchema::ErrorHandler& h,
-                   const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                   const ::std::string& e,
-                   ::Xsd::XmlSchema::Flags f)
-    {
-      ::xsd::cxx::xml::auto_initializer i (
-        (f & ::Xsd::XmlSchema::Flags::dont_initialize) == 0);
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::Fthttp::serializeFile (s, m, f));
 
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::Fthttp::serializeFile (s, m, f));
-      ::xsd::cxx::xml::dom::ostream_format_target t (o);
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        throw ::xsd::cxx::tree::serialization< char > ();
-      }
-    }
+        ::xsd::cxx::tree::error_handler< char > h;
 
-    void
-    serializeFile (::std::ostream& o,
-                   const ::Xsd::Fthttp::File& s,
-                   ::xercesc::DOMErrorHandler& h,
-                   const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                   const ::std::string& e,
-                   ::Xsd::XmlSchema::Flags f)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::Fthttp::serializeFile (s, m, f));
-      ::xsd::cxx::xml::dom::ostream_format_target t (o);
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        throw ::xsd::cxx::tree::serialization< char > ();
-      }
-    }
-
-    void
-    serializeFile (::xercesc::XMLFormatTarget& t,
-                   const ::Xsd::Fthttp::File& s,
-                   const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                   const ::std::string& e,
-                   ::Xsd::XmlSchema::Flags f)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::Fthttp::serializeFile (s, m, f));
-
-      ::xsd::cxx::tree::error_handler< char > h;
-
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        h.throw_if_failed< ::xsd::cxx::tree::serialization< char > > ();
-      }
-    }
-
-    void
-    serializeFile (::xercesc::XMLFormatTarget& t,
-                   const ::Xsd::Fthttp::File& s,
-                   ::Xsd::XmlSchema::ErrorHandler& h,
-                   const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                   const ::std::string& e,
-                   ::Xsd::XmlSchema::Flags f)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::Fthttp::serializeFile (s, m, f));
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        throw ::xsd::cxx::tree::serialization< char > ();
-      }
-    }
-
-    void
-    serializeFile (::xercesc::XMLFormatTarget& t,
-                   const ::Xsd::Fthttp::File& s,
-                   ::xercesc::DOMErrorHandler& h,
-                   const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                   const ::std::string& e,
-                   ::Xsd::XmlSchema::Flags f)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::Xsd::Fthttp::serializeFile (s, m, f));
-      if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
-      {
-        throw ::xsd::cxx::tree::serialization< char > ();
-      }
-    }
-
-    void
-    serializeFile (::xercesc::DOMDocument& d,
-                   const ::Xsd::Fthttp::File& s,
-                   ::Xsd::XmlSchema::Flags)
-    {
-      ::xercesc::DOMElement& e (*d.getDocumentElement ());
-      const ::xsd::cxx::xml::qualified_name< char > n (
-        ::xsd::cxx::xml::dom::name< char > (e));
-
-      if (n.name () == "file" &&
-          n.namespace_ () == "urn:gsma:params:xml:ns:rcs:rcs:fthttp")
-      {
-        e << s;
-      }
-      else
-      {
-        throw ::xsd::cxx::tree::unexpected_element < char > (
-          n.name (),
-          n.namespace_ (),
-          "file",
-          "urn:gsma:params:xml:ns:rcs:rcs:fthttp");
-      }
-    }
-
-    ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
-    serializeFile (const ::Xsd::Fthttp::File& s,
-                   const ::Xsd::XmlSchema::NamespaceInfomap& m,
-                   ::Xsd::XmlSchema::Flags f)
-    {
-      ::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
-        ::xsd::cxx::xml::dom::serialize< char > (
-          "file",
-          "urn:gsma:params:xml:ns:rcs:rcs:fthttp",
-          m, f));
-
-      ::Xsd::Fthttp::serializeFile (*d, s, f);
-      return d;
-    }
-
-    void
-    operator<< (::xercesc::DOMElement& e, const File& i)
-    {
-      e << static_cast< const ::Xsd::XmlSchema::Type& > (i);
-
-      // file-info
-      //
-      for (File::FileInfoConstIterator
-           b (i.getFileInfo ().begin ()), n (i.getFileInfo ().end ());
-           b != n; ++b)
-      {
-        ::xercesc::DOMElement& s (
-          ::xsd::cxx::xml::dom::create_element (
-            "file-info",
-            "urn:gsma:params:xml:ns:rcs:rcs:fthttp",
-            e));
-
-        s << *b;
+        ::xsd::cxx::xml::dom::ostream_format_target t (o);
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          h.throw_if_failed< ::xsd::cxx::tree::serialization< char > > ();
+        }
       }
 
-      // any
-      //
-      for (File::AnyConstIterator
-           b (i.getAny ().begin ()), n (i.getAny ().end ());
-           b != n; ++b)
+      void
+      serializeFile (::std::ostream& o,
+                     const ::flexisip::Xsd::Fthttp::File& s,
+                     ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                     const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                     const ::std::string& e,
+                     ::flexisip::Xsd::XmlSchema::Flags f)
       {
-        e.appendChild (
-          e.getOwnerDocument ()->importNode (
-            const_cast< ::xercesc::DOMElement* > (&(*b)), true));
+        ::xsd::cxx::xml::auto_initializer i (
+          (f & ::flexisip::Xsd::XmlSchema::Flags::dont_initialize) == 0);
+
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::Fthttp::serializeFile (s, m, f));
+        ::xsd::cxx::xml::dom::ostream_format_target t (o);
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          throw ::xsd::cxx::tree::serialization< char > ();
+        }
       }
-    }
 
-    void
-    operator<< (::xercesc::DOMElement& e, const FileInfo& i)
-    {
-      e << static_cast< const ::Xsd::XmlSchema::Type& > (i);
-
-      // any_attribute
-      //
-      for (FileInfo::AnyAttributeConstIterator
-           b (i.getAnyAttribute ().begin ()), n (i.getAnyAttribute ().end ());
-           b != n; ++b)
+      void
+      serializeFile (::std::ostream& o,
+                     const ::flexisip::Xsd::Fthttp::File& s,
+                     ::xercesc::DOMErrorHandler& h,
+                     const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                     const ::std::string& e,
+                     ::flexisip::Xsd::XmlSchema::Flags f)
       {
-        ::xercesc::DOMAttr* a (
-          static_cast< ::xercesc::DOMAttr* > (
-            e.getOwnerDocument ()->importNode (
-              const_cast< ::xercesc::DOMAttr* > (&(*b)), true)));
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::Fthttp::serializeFile (s, m, f));
+        ::xsd::cxx::xml::dom::ostream_format_target t (o);
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          throw ::xsd::cxx::tree::serialization< char > ();
+        }
+      }
 
-        if (a->getLocalName () == 0)
-          e.setAttributeNode (a);
+      void
+      serializeFile (::xercesc::XMLFormatTarget& t,
+                     const ::flexisip::Xsd::Fthttp::File& s,
+                     const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                     const ::std::string& e,
+                     ::flexisip::Xsd::XmlSchema::Flags f)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::Fthttp::serializeFile (s, m, f));
+
+        ::xsd::cxx::tree::error_handler< char > h;
+
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          h.throw_if_failed< ::xsd::cxx::tree::serialization< char > > ();
+        }
+      }
+
+      void
+      serializeFile (::xercesc::XMLFormatTarget& t,
+                     const ::flexisip::Xsd::Fthttp::File& s,
+                     ::flexisip::Xsd::XmlSchema::ErrorHandler& h,
+                     const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                     const ::std::string& e,
+                     ::flexisip::Xsd::XmlSchema::Flags f)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::Fthttp::serializeFile (s, m, f));
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          throw ::xsd::cxx::tree::serialization< char > ();
+        }
+      }
+
+      void
+      serializeFile (::xercesc::XMLFormatTarget& t,
+                     const ::flexisip::Xsd::Fthttp::File& s,
+                     ::xercesc::DOMErrorHandler& h,
+                     const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                     const ::std::string& e,
+                     ::flexisip::Xsd::XmlSchema::Flags f)
+      {
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::flexisip::Xsd::Fthttp::serializeFile (s, m, f));
+        if (!::xsd::cxx::xml::dom::serialize (t, *d, e, h, f))
+        {
+          throw ::xsd::cxx::tree::serialization< char > ();
+        }
+      }
+
+      void
+      serializeFile (::xercesc::DOMDocument& d,
+                     const ::flexisip::Xsd::Fthttp::File& s,
+                     ::flexisip::Xsd::XmlSchema::Flags)
+      {
+        ::xercesc::DOMElement& e (*d.getDocumentElement ());
+        const ::xsd::cxx::xml::qualified_name< char > n (
+          ::xsd::cxx::xml::dom::name< char > (e));
+
+        if (n.name () == "file" &&
+            n.namespace_ () == "urn:gsma:params:xml:ns:rcs:rcs:fthttp")
+        {
+          e << s;
+        }
         else
-          e.setAttributeNodeNS (a);
+        {
+          throw ::xsd::cxx::tree::unexpected_element < char > (
+            n.name (),
+            n.namespace_ (),
+            "file",
+            "urn:gsma:params:xml:ns:rcs:rcs:fthttp");
+        }
       }
 
-      // file-size
-      //
+      ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument >
+      serializeFile (const ::flexisip::Xsd::Fthttp::File& s,
+                     const ::flexisip::Xsd::XmlSchema::NamespaceInfomap& m,
+                     ::flexisip::Xsd::XmlSchema::Flags f)
       {
-        ::xercesc::DOMElement& s (
-          ::xsd::cxx::xml::dom::create_element (
-            "file-size",
+        ::flexisip::Xsd::XmlSchema::dom::unique_ptr< ::xercesc::DOMDocument > d (
+          ::xsd::cxx::xml::dom::serialize< char > (
+            "file",
             "urn:gsma:params:xml:ns:rcs:rcs:fthttp",
-            e));
+            m, f));
 
-        s << i.getFileSize ();
+        ::flexisip::Xsd::Fthttp::serializeFile (*d, s, f);
+        return d;
       }
 
-      // file-name
-      //
-      if (i.getFileName ())
+      void
+      operator<< (::xercesc::DOMElement& e, const File& i)
       {
-        ::xercesc::DOMElement& s (
-          ::xsd::cxx::xml::dom::create_element (
-            "file-name",
-            "urn:gsma:params:xml:ns:rcs:rcs:fthttp",
-            e));
+        e << static_cast< const ::flexisip::Xsd::XmlSchema::Type& > (i);
 
-        s << *i.getFileName ();
-      }
+        // file-info
+        //
+        for (File::FileInfoConstIterator
+             b (i.getFileInfo ().begin ()), n (i.getFileInfo ().end ());
+             b != n; ++b)
+        {
+          ::xercesc::DOMElement& s (
+            ::xsd::cxx::xml::dom::create_element (
+              "file-info",
+              "urn:gsma:params:xml:ns:rcs:rcs:fthttp",
+              e));
 
-      // content-type
-      //
-      {
-        ::xercesc::DOMElement& s (
-          ::xsd::cxx::xml::dom::create_element (
-            "content-type",
-            "urn:gsma:params:xml:ns:rcs:rcs:fthttp",
-            e));
+          s << *b;
+        }
 
-        s << i.getContentType ();
-      }
-
-      // data
-      //
-      {
-        ::xercesc::DOMElement& s (
-          ::xsd::cxx::xml::dom::create_element (
-            "data",
-            "urn:gsma:params:xml:ns:rcs:rcs:fthttp",
-            e));
-
-        s << i.getData ();
-      }
-
-      // any
-      //
-      for (FileInfo::AnyConstIterator
-           b (i.getAny ().begin ()), n (i.getAny ().end ());
-           b != n; ++b)
-      {
-        e.appendChild (
-          e.getOwnerDocument ()->importNode (
-            const_cast< ::xercesc::DOMElement* > (&(*b)), true));
-      }
-
-      // type
-      //
-      {
-        ::xercesc::DOMAttr& a (
-          ::xsd::cxx::xml::dom::create_attribute (
-            "type",
-            e));
-
-        a << i.getType ();
-      }
-
-      // file-disposition
-      //
-      if (i.getFileDisposition ())
-      {
-        ::xercesc::DOMAttr& a (
-          ::xsd::cxx::xml::dom::create_attribute (
-            "file-disposition",
-            e));
-
-        a << *i.getFileDisposition ();
-      }
-    }
-
-    void
-    operator<< (::xercesc::DOMElement& e, const FileSize& i)
-    {
-      e << static_cast< const ::xsd::cxx::tree::fundamental_base< ::Xsd::XmlSchema::Integer, char, ::Xsd::XmlSchema::SimpleType >& > (i);
-    }
-
-    void
-    operator<< (::xercesc::DOMAttr& a, const FileSize& i)
-    {
-      a << static_cast< const ::xsd::cxx::tree::fundamental_base< ::Xsd::XmlSchema::Integer, char, ::Xsd::XmlSchema::SimpleType >& > (i);
-    }
-
-    void
-    operator<< (::Xsd::XmlSchema::ListStream& l,
-                const FileSize& i)
-    {
-      l << static_cast< const ::xsd::cxx::tree::fundamental_base< ::Xsd::XmlSchema::Integer, char, ::Xsd::XmlSchema::SimpleType >& > (i);
-    }
-
-    void
-    operator<< (::xercesc::DOMElement& e, const FileName& i)
-    {
-      e << static_cast< const ::Xsd::XmlSchema::String& > (i);
-    }
-
-    void
-    operator<< (::xercesc::DOMAttr& a, const FileName& i)
-    {
-      a << static_cast< const ::Xsd::XmlSchema::String& > (i);
-    }
-
-    void
-    operator<< (::Xsd::XmlSchema::ListStream& l,
-                const FileName& i)
-    {
-      l << static_cast< const ::Xsd::XmlSchema::String& > (i);
-    }
-
-    void
-    operator<< (::xercesc::DOMElement& e, const ContentType& i)
-    {
-      e << static_cast< const ::Xsd::XmlSchema::String& > (i);
-    }
-
-    void
-    operator<< (::xercesc::DOMAttr& a, const ContentType& i)
-    {
-      a << static_cast< const ::Xsd::XmlSchema::String& > (i);
-    }
-
-    void
-    operator<< (::Xsd::XmlSchema::ListStream& l,
-                const ContentType& i)
-    {
-      l << static_cast< const ::Xsd::XmlSchema::String& > (i);
-    }
-
-    void
-    operator<< (::xercesc::DOMElement& e, const Data& i)
-    {
-      e << static_cast< const ::Xsd::XmlSchema::Type& > (i);
-
-      // any_attribute
-      //
-      for (Data::AnyAttributeConstIterator
-           b (i.getAnyAttribute ().begin ()), n (i.getAnyAttribute ().end ());
-           b != n; ++b)
-      {
-        ::xercesc::DOMAttr* a (
-          static_cast< ::xercesc::DOMAttr* > (
+        // any
+        //
+        for (File::AnyConstIterator
+             b (i.getAny ().begin ()), n (i.getAny ().end ());
+             b != n; ++b)
+        {
+          e.appendChild (
             e.getOwnerDocument ()->importNode (
-              const_cast< ::xercesc::DOMAttr* > (&(*b)), true)));
-
-        if (a->getLocalName () == 0)
-          e.setAttributeNode (a);
-        else
-          e.setAttributeNodeNS (a);
+              const_cast< ::xercesc::DOMElement* > (&(*b)), true));
+        }
       }
 
-      // url
-      //
+      void
+      operator<< (::xercesc::DOMElement& e, const FileInfo& i)
       {
-        ::xercesc::DOMAttr& a (
-          ::xsd::cxx::xml::dom::create_attribute (
-            "url",
-            e));
+        e << static_cast< const ::flexisip::Xsd::XmlSchema::Type& > (i);
 
-        a << i.getUrl ();
+        // any_attribute
+        //
+        for (FileInfo::AnyAttributeConstIterator
+             b (i.getAnyAttribute ().begin ()), n (i.getAnyAttribute ().end ());
+             b != n; ++b)
+        {
+          ::xercesc::DOMAttr* a (
+            static_cast< ::xercesc::DOMAttr* > (
+              e.getOwnerDocument ()->importNode (
+                const_cast< ::xercesc::DOMAttr* > (&(*b)), true)));
+
+          if (a->getLocalName () == 0)
+            e.setAttributeNode (a);
+          else
+            e.setAttributeNodeNS (a);
+        }
+
+        // file-size
+        //
+        {
+          ::xercesc::DOMElement& s (
+            ::xsd::cxx::xml::dom::create_element (
+              "file-size",
+              "urn:gsma:params:xml:ns:rcs:rcs:fthttp",
+              e));
+
+          s << i.getFileSize ();
+        }
+
+        // file-name
+        //
+        if (i.getFileName ())
+        {
+          ::xercesc::DOMElement& s (
+            ::xsd::cxx::xml::dom::create_element (
+              "file-name",
+              "urn:gsma:params:xml:ns:rcs:rcs:fthttp",
+              e));
+
+          s << *i.getFileName ();
+        }
+
+        // content-type
+        //
+        {
+          ::xercesc::DOMElement& s (
+            ::xsd::cxx::xml::dom::create_element (
+              "content-type",
+              "urn:gsma:params:xml:ns:rcs:rcs:fthttp",
+              e));
+
+          s << i.getContentType ();
+        }
+
+        // data
+        //
+        {
+          ::xercesc::DOMElement& s (
+            ::xsd::cxx::xml::dom::create_element (
+              "data",
+              "urn:gsma:params:xml:ns:rcs:rcs:fthttp",
+              e));
+
+          s << i.getData ();
+        }
+
+        // any
+        //
+        for (FileInfo::AnyConstIterator
+             b (i.getAny ().begin ()), n (i.getAny ().end ());
+             b != n; ++b)
+        {
+          e.appendChild (
+            e.getOwnerDocument ()->importNode (
+              const_cast< ::xercesc::DOMElement* > (&(*b)), true));
+        }
+
+        // type
+        //
+        {
+          ::xercesc::DOMAttr& a (
+            ::xsd::cxx::xml::dom::create_attribute (
+              "type",
+              e));
+
+          a << i.getType ();
+        }
+
+        // file-disposition
+        //
+        if (i.getFileDisposition ())
+        {
+          ::xercesc::DOMAttr& a (
+            ::xsd::cxx::xml::dom::create_attribute (
+              "file-disposition",
+              e));
+
+          a << *i.getFileDisposition ();
+        }
       }
 
-      // until
-      //
+      void
+      operator<< (::xercesc::DOMElement& e, const FileSize& i)
       {
-        ::xercesc::DOMAttr& a (
-          ::xsd::cxx::xml::dom::create_attribute (
-            "until",
-            e));
-
-        a << i.getUntil ();
+        e << static_cast< const ::xsd::cxx::tree::fundamental_base< ::flexisip::Xsd::XmlSchema::Integer, char, ::flexisip::Xsd::XmlSchema::SimpleType >& > (i);
       }
-    }
 
-    void
-    operator<< (::xercesc::DOMElement& e, const Type& i)
-    {
-      e << static_cast< const ::Xsd::XmlSchema::String& > (i);
-    }
+      void
+      operator<< (::xercesc::DOMAttr& a, const FileSize& i)
+      {
+        a << static_cast< const ::xsd::cxx::tree::fundamental_base< ::flexisip::Xsd::XmlSchema::Integer, char, ::flexisip::Xsd::XmlSchema::SimpleType >& > (i);
+      }
 
-    void
-    operator<< (::xercesc::DOMAttr& a, const Type& i)
-    {
-      a << static_cast< const ::Xsd::XmlSchema::String& > (i);
-    }
+      void
+      operator<< (::flexisip::Xsd::XmlSchema::ListStream& l,
+                  const FileSize& i)
+      {
+        l << static_cast< const ::xsd::cxx::tree::fundamental_base< ::flexisip::Xsd::XmlSchema::Integer, char, ::flexisip::Xsd::XmlSchema::SimpleType >& > (i);
+      }
 
-    void
-    operator<< (::Xsd::XmlSchema::ListStream& l,
-                const Type& i)
-    {
-      l << static_cast< const ::Xsd::XmlSchema::String& > (i);
-    }
+      void
+      operator<< (::xercesc::DOMElement& e, const FileName& i)
+      {
+        e << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
+      }
 
-    void
-    operator<< (::xercesc::DOMElement& e, const FileDisposition& i)
-    {
-      e << static_cast< const ::Xsd::XmlSchema::String& > (i);
-    }
+      void
+      operator<< (::xercesc::DOMAttr& a, const FileName& i)
+      {
+        a << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
+      }
 
-    void
-    operator<< (::xercesc::DOMAttr& a, const FileDisposition& i)
-    {
-      a << static_cast< const ::Xsd::XmlSchema::String& > (i);
-    }
+      void
+      operator<< (::flexisip::Xsd::XmlSchema::ListStream& l,
+                  const FileName& i)
+      {
+        l << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
+      }
 
-    void
-    operator<< (::Xsd::XmlSchema::ListStream& l,
-                const FileDisposition& i)
-    {
-      l << static_cast< const ::Xsd::XmlSchema::String& > (i);
+      void
+      operator<< (::xercesc::DOMElement& e, const ContentType& i)
+      {
+        e << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
+      }
+
+      void
+      operator<< (::xercesc::DOMAttr& a, const ContentType& i)
+      {
+        a << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
+      }
+
+      void
+      operator<< (::flexisip::Xsd::XmlSchema::ListStream& l,
+                  const ContentType& i)
+      {
+        l << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
+      }
+
+      void
+      operator<< (::xercesc::DOMElement& e, const Data& i)
+      {
+        e << static_cast< const ::flexisip::Xsd::XmlSchema::Type& > (i);
+
+        // any_attribute
+        //
+        for (Data::AnyAttributeConstIterator
+             b (i.getAnyAttribute ().begin ()), n (i.getAnyAttribute ().end ());
+             b != n; ++b)
+        {
+          ::xercesc::DOMAttr* a (
+            static_cast< ::xercesc::DOMAttr* > (
+              e.getOwnerDocument ()->importNode (
+                const_cast< ::xercesc::DOMAttr* > (&(*b)), true)));
+
+          if (a->getLocalName () == 0)
+            e.setAttributeNode (a);
+          else
+            e.setAttributeNodeNS (a);
+        }
+
+        // url
+        //
+        {
+          ::xercesc::DOMAttr& a (
+            ::xsd::cxx::xml::dom::create_attribute (
+              "url",
+              e));
+
+          a << i.getUrl ();
+        }
+
+        // until
+        //
+        {
+          ::xercesc::DOMAttr& a (
+            ::xsd::cxx::xml::dom::create_attribute (
+              "until",
+              e));
+
+          a << i.getUntil ();
+        }
+      }
+
+      void
+      operator<< (::xercesc::DOMElement& e, const Type& i)
+      {
+        e << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
+      }
+
+      void
+      operator<< (::xercesc::DOMAttr& a, const Type& i)
+      {
+        a << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
+      }
+
+      void
+      operator<< (::flexisip::Xsd::XmlSchema::ListStream& l,
+                  const Type& i)
+      {
+        l << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
+      }
+
+      void
+      operator<< (::xercesc::DOMElement& e, const FileDisposition& i)
+      {
+        e << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
+      }
+
+      void
+      operator<< (::xercesc::DOMAttr& a, const FileDisposition& i)
+      {
+        a << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
+      }
+
+      void
+      operator<< (::flexisip::Xsd::XmlSchema::ListStream& l,
+                  const FileDisposition& i)
+      {
+        l << static_cast< const ::flexisip::Xsd::XmlSchema::String& > (i);
+      }
     }
   }
 }
