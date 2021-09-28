@@ -62,4 +62,4 @@ install(FILES ${generated_services} DESTINATION "${FLEXISIP_SYSTEMD_INSTALL_DIR}
 
 
 # flexisip_cli.py
-install(PROGRAMS flexisip_cli.py TYPE "BIN")
+install(PROGRAMS flexisip_cli.py DESTINATION "${CMAKE_INSTALL_BINDIR}")
