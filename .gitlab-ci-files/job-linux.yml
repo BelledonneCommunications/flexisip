@@ -153,7 +153,8 @@ tests-flexisip-mr:
     variables:
       - $DEPLOY_RUN
       - $DEPLOY_UBUNTU
-
+  needs :
+    - docker-build-flexisip-src
   variables:
     #No need to modify
     LIBLINPHONE_DOCKER_IMAGE: liblinphone_tester_for_flexisip
