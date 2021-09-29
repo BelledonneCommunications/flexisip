@@ -374,8 +374,8 @@ struct Statistics {
 	uint64_t sent = 0;
 	static void log(const Statistics st[2], const std::string & identifier){
 		LOGD("%s statistics: \n"
-			"RTP port  : %i\t Received packets: %lu\tSent packets: %lu\n"
-			"RTCP port : %i\t Received packets: %lu\tSent packets: %lu\n",
+			 "RTP port  : %i\t Received packets: %llu\tSent packets: %llu\n"
+			 "RTCP port : %i\t Received packets: %llu\tSent packets: %llu\n",
 			identifier.c_str(),
 			st[0].port, st[0].recv, st[0].sent,
 			st[1].port, st[1].recv, st[1].sent);
