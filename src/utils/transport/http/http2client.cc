@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <sstream>
+#include <array>
 
 #include <nghttp2/nghttp2ver.h>
 

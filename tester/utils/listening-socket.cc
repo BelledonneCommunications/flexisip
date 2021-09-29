@@ -24,10 +24,10 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-using namespace std;
+
 using namespace flexisip;
 
-void ListeningSocket::listenUntil(promise<void>& barrier) {
+void ListeningSocket::listenUntil(std::promise<void>& barrier) {
 	int sock;
 	struct sockaddr_in addr;
 

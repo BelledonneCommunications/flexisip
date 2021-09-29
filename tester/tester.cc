@@ -86,11 +86,15 @@ void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_
 
 	bc_tester_add_suite(&agent_suite);
 	bc_tester_add_suite(&boolean_expressions_suite);
+#if ENABLE_CONFERENCE
 	bc_tester_add_suite(&conference_suite);
+#endif
 	bc_tester_add_suite(&extended_contact_suite);
 	bc_tester_add_suite(&fork_context_suite);
 	bc_tester_add_suite(&module_pushnitification_suite);
+#if ENABLE_UNIT_TESTS_PUSH_NOTIFICATION
 	bc_tester_add_suite(&push_notification_suite);
+#endif
 	bc_tester_add_suite(&register_suite);
 	bc_tester_add_suite(&router_suite);
 

@@ -21,33 +21,40 @@
 ############################################################################
 
 find_package(Threads REQUIRED)
-find_package(LibNgHttp2Asio REQUIRED)
+find_package(LibNgHttp2Asio)
 find_package(Boost COMPONENTS system REQUIRED)
 
 add_executable(flexisip_tester
         agent-tester.cc
         boolean-expressions.cc
-        conference-tester.cc
         extended-contact-tester.cc
         fork-context-tester.cc
         fork-context-mysql-tester.cc
-        push-notification-tester.cc
         module-pushnotification-tester.cc
         register-tester.cc
         router-tester.cc
         tester.cc tester.hh
-        utils/pns-mock.cc utils/pns-mock.hh
         utils/listening-socket.cc utils/listening-socket.hh
         utils/bellesip-utils.cc utils/bellesip-utils.hh
         )
 
 if (ENABLE_CONFERENCE)
     target_sources(flexisip_tester PRIVATE registration-event-tester.cc)
+    target_sources(flexisip_tester PRIVATE conference-tester.cc)
+endif ()
+
+if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
+    target_sources(flexisip_tester PRIVATE push-notification-tester.cc utils/pns-mock.cc utils/pns-mock.hh )
+elseif (ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
+    message(FATAL_ERROR "Module LibNgHttp2Asio is required for push notification tester. Either install it or disable push notification tester using -DENABLE_PUSH_NOTIF_UNIT_TESTS=Off") 
 endif ()
 
 target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
-target_link_libraries(flexisip_tester PRIVATE bctoolbox-tester flexisip linphone++ bellesip LibNgHttp2Asio OpenSSL::SSL
+target_link_libraries(flexisip_tester PRIVATE bctoolbox-tester flexisip linphone++ bellesip OpenSSL::SSL
         OpenSSL::Crypto Threads::Threads Boost::system)
+if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
+	target_link_libraries(flexisip_tester PRIVATE LibNgHttp2Asio)
+endif()
 
 install(TARGETS flexisip_tester
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
