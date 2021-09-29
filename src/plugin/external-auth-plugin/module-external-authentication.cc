@@ -70,7 +70,7 @@ void ModuleExternalAuthentication::onLoad(const GenericStruct *mc) {
 
 FlexisipAuthModuleBase *ModuleExternalAuthentication::createAuthModule(const std::string &domain, int nonceExpire, bool qopAuth) {
 	try {
-		auto *am = new ExternalAuthModule(getAgent()->getRoot(), domain, nonceExpire, qopAuth);
+		auto *am = new ExternalAuthModule(getAgent()->getRoot()->getCPtr(), domain, nonceExpire, qopAuth);
 		am->getFormater().setTemplate(mRemoteUri);
 		return am;
 	} catch (const invalid_argument &e) {
