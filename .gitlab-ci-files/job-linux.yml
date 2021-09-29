@@ -280,9 +280,12 @@ tests-flexisip-mr:
 
     - |
         for service in $(docker-compose $docker_compose_options ps --services); do
-        echo $service &
-        grep $service logs_all >> ${service}_stdout.log &
-        echo "grep $service logs_all" &
+          filename="${service}_stdout.log"
+          echo "Writting ${filename}..."
+          (
+            docker-compose $docker_compose_options logs ${service} >> ${filename}
+            echo "Writting ${filename}... done"
+          ) &
         done
 
     #we wait for each grep to end before stopping containers
