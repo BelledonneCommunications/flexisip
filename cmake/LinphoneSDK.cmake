@@ -84,7 +84,9 @@ if(ENABLE_TRANSCODER)
 	set(ENABLE_G729B_CNG OFF) # Disalbe for lisence conformity
 	set(ENABLE_RESAMPLE ON)
 
-	set(ENABLE_VIDEO OFF)
+	set(ENABLE_VPX OFF)
+
+	set(ENABLE_VIDEO ON)
 	set(ENABLE_MKV OFF)
 	set(ENABLE_JPEG OFF)
 
@@ -131,7 +133,8 @@ if(ENABLE_CONFERENCE)
 	set(ENABLE_TUTORIALS OFF)
 	set(ENABLE_UPDATE_CHECK OFF)
 	set(ENABLE_VCARD OFF)
-	set(ENABLE_VIDEO OFF)
+	set(ENABLE_VIDEO ON)
+	set(ENABLE_VPX OFF)
 	set(ENABLE_ASSETS OFF)
 
 	set(ENABLE_UNIT_TESTS OFF) # override Flexisip ENABLE_UNIT_TESTS option by using a local variable
