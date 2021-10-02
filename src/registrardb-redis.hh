@@ -18,12 +18,18 @@
 
 #pragma once
 
+#ifndef INTERNAL_LIBHIREDIS
+#include <hiredis/hiredis.h>
+#include <hiredis/async.h>
+#else
+#include <hiredis.h>
+#include <async.h>
+#endif
+
 #include <flexisip/registrardb.hh>
 #include "recordserializer.hh"
 #include <sofia-sip/sip.h>
 #include <sofia-sip/nta.h>
-#include <hiredis/hiredis.h>
-#include <hiredis/async.h>
 #include <flexisip/agent.hh>
 
 namespace flexisip {

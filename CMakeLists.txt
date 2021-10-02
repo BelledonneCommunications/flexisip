@@ -59,7 +59,8 @@ option(ENABLE_JWE_AUTH_PLUGIN "Enable JweAuth plugin support" ON)
 option(ENABLE_UNIT_TESTS "Enable flexisip unit tests (low level tests)" OFF)
 add_ccache_option(ON)
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
-option(INTERNAL_LIBSRTP2 "Build SRTP2 source code present as linphone-sdk submodules instead of searching it in system libraries" OFF)
+option(INTERNAL_LIBHIREDIS "Build libhiredis source code present as Flexisip submodule instead of searching it in system libraries" OFF)
+option(INTERNAL_LIBSRTP2 "Build SRTP2 source code present as linphone-sdk submodule instead of searching it in system libraries" OFF)
 set(CPACK_GENERATOR "" CACHE STRING "Generator to use for making package. Supported values: 'RPM', 'DEB'")
 set(SYSCONF_INSTALL_DIR "" CACHE STRING
 	"Config directory, the place where flexisip expects its flexisip.conf file to reside. Always equal to '${CMAKE_INSTALL_FULL_SYSCONFDIR}' if empty."
@@ -139,6 +140,7 @@ if(ENABLE_SPECIFIC_FEATURES)
 	set(MEDIARELAY_SPECIFIC_FEATURES_ENABLED ON)
 endif()
 
+
 if(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS)
 	set(MONOTONIC_CLOCK_REGISTRATIONS ON)
 endif()
@@ -147,7 +149,7 @@ if(ENABLE_DATEHANDLER)
 	set(HAVE_DATEHANDLER ON)
 endif()
 
-if(ENABLE_REDIS)
+if(ENABLE_REDIS AND NOT INTERNAL_LIBHIREDIS)
 	find_package(Hiredis REQUIRED)
 	if(NOT HIREDIS_ASYNC_ENABLED)
 		message(FATAL_ERROR "Hiredis needs support for async commands")
