@@ -29,6 +29,11 @@ set(ENABLE_UNIT_TESTS OFF)
 add_subdirectory("submodules/externals/sofia-sip")
 unset(ENABLE_UNIT_TESTS)
 
+# Add libhiredis
+if(ENABLE_REDIS AND INTERNAL_LIBHIREDIS)
+	add_subdirectory("submodules/externals/hiredis")
+endif()
+
 # Configure and add Soci
 if(ENABLE_SOCI OR ENABLE_CONFERENCE_SERVER)
 	set(SOCI_SHARED ON)
