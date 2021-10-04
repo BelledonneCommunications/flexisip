@@ -20,17 +20,18 @@
 #include "flexisip/agent.hh"
 #include "flexisip/registrardb.hh"
 
+#include "sofia-wrapper/su-root.hh"
 #include "tester.hh"
 
 using namespace std;
 using namespace std::chrono;
 using namespace flexisip;
 
-static su_root_t* root = nullptr;
-static shared_ptr<Agent> agent = nullptr;
+static shared_ptr<sofiasip::SuRoot> root{};
+static shared_ptr<Agent> agent{};
 
 static void beforeEach() {
-	root = su_root_create(nullptr);
+	root = make_shared<sofiasip::SuRoot>();
 	agent = make_shared<Agent>(root);
 }
 
@@ -38,7 +39,7 @@ static void afterEach() {
 	agent->unloadConfig();
 	RegistrarDb::resetDB();
 	agent.reset();
-	su_root_destroy(root);
+	root.reset();
 }
 
 static void transportsAndIsUsTest() {

@@ -18,13 +18,18 @@
 
 #pragma once
 
-#include <sofia-sip/su_wait.h>
+#include <memory>
+
+#include "flexisip/utils/timer.hh"
+
+#include "sofia-wrapper/su-root.hh"
 
 namespace flexisip {
 
 class ServiceServer {
 public:
-	ServiceServer(su_root_t* root);
+	template <typename SuRootPtr>
+	ServiceServer(SuRootPtr&& root) : mRoot{std::forward<SuRootPtr>(root)} {}
 	virtual ~ServiceServer() = default;
 
 	void init();
@@ -36,15 +41,9 @@ public:
 	virtual void _run() = 0;
 	virtual void _stop() = 0;
 protected:
-	bool mStarted;
-	su_root_t* mRoot;
-	su_timer_t *mTimer;
-
-	static void timerFunc(su_root_magic_t *magic, su_timer_t *t, ServiceServer* thiz) {
-		if (thiz->mStarted) {
-			thiz->_run();
-		}
-	};
+	bool mStarted{true};
+	std::shared_ptr<sofiasip::SuRoot> mRoot{};
+	std::unique_ptr<sofiasip::Timer> mTimer{};
 };
 
 } //namespace flexisip
