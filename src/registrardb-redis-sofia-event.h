@@ -18,9 +18,16 @@
 
 #pragma once
 
-#include <flexisip/common.hh>
+#ifndef INTERNAL_LIBHIREDIS
 #include <hiredis/hiredis.h>
 #include <hiredis/async.h>
+#else
+#include <hiredis.h>
+#include <async.h>
+#endif
+
+#include <flexisip/common.hh>
+
 
 #ifndef SU_WAIT_H
 #define SU_WAKEUP_ARG_T redisSofiaEvents

@@ -29,7 +29,11 @@
 
 #include <flexisip/configmanager.hh>
 
+#ifndef INTERNAL_LIBHIREDIS
 #include <hiredis/hiredis.h>
+#else
+#include <hiredis.h>
+#endif
 
 #include "registrardb-redis-sofia-event.h"
 #include <sofia-sip/sip_protos.h>
