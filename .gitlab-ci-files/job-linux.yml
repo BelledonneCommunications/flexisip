@@ -286,6 +286,10 @@ tests-flexisip-mr:
           echo " done"
         done
 
+    - |
+        echo "Writting Flexisip's log tail"
+        time docker-compose $docker_compose_options logs --since 1m flexisip_1 > flexisip_1_tail.log
+
     #we wait for each grep to end before stopping containers
     - wait
 
