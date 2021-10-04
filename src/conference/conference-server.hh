@@ -38,8 +38,8 @@ namespace flexisip {
 		, public linphone::ChatRoomListener
 	{
 	public:
-		ConferenceServer (const std::string &path, su_root_t *root);
-		~ConferenceServer ();
+		template <typename StrT, typename SuRootPtr>
+		ConferenceServer(StrT&& path, SuRootPtr&& root) : ServiceServer{std::forward<SuRootPtr>(root)}, mPath{std::forward<StrT>(path)}, mSubscriptionHandler{*this} {}
 
 		void bindAddresses ();
 

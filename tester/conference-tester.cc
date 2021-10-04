@@ -28,8 +28,8 @@ using namespace std::chrono_literals;
 using namespace std::chrono;
 using namespace flexisip;
 
-static su_root_t* root = nullptr;
-static shared_ptr<Agent> agent = nullptr;
+static shared_ptr<sofiasip::SuRoot> root{};
+static shared_ptr<Agent> agent{};
 static int listenerCalled = 0;
 
 class ConferenceBindListener : public ContactUpdateListener {
@@ -62,7 +62,7 @@ public:
 };
 
 static void beforeEach() {
-	root = su_root_create(nullptr);
+	root = make_shared<sofiasip::SuRoot>();
 	agent = make_shared<Agent>(root);
 }
 
@@ -70,7 +70,7 @@ static void afterEach() {
 	agent->unloadConfig();
 	RegistrarDb::resetDB();
 	agent.reset();
-	su_root_destroy(root);
+	root.reset();
 }
 
 /**
@@ -105,7 +105,7 @@ static void chatRoomBindingOnInitTest() {
 	// Timer to break infinite loop on test error
 	auto beforePlus5 = system_clock::now() + 5s;
 	while (listenerCalled != 2 && beforePlus5 >= system_clock::now()) {
-		su_root_step(agent->getRoot(), 100);
+		agent->getRoot()->step(100ms);
 	}
 
 	BC_ASSERT_EQUAL(listenerCalled, 2, int, "%i");

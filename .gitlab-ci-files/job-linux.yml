@@ -122,7 +122,7 @@ docker-build-flexisip-src:
       - $DEPLOY_RUN
       - $DEPLOY_UBUNTU
   variables:
-    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA -f docker/flex-from-src --build-arg=njobs=12 --build-arg=sanitizer=ON"
+    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA -f docker/flex-from-src --build-arg=njobs=12 --build-arg=build_type=Sanitizer"
   script:
     - docker image ls
     - echo $DOCKER_BUILD_OPTIONS
@@ -280,9 +280,10 @@ tests-flexisip-mr:
 
     - |
         for service in $(docker-compose $docker_compose_options ps --services); do
-        echo $service &
-        grep $service logs_all >> ${service}_stdout.log &
-        echo "grep $service logs_all" &
+          filename="${service}_stdout.log"
+          echo "Writting ${filename}..."
+          time docker-compose $docker_compose_options logs ${service} >> ${filename}
+          echo "Writting ${filename}... done"
         done
 
     #we wait for each grep to end before stopping containers

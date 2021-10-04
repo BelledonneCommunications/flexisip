@@ -296,7 +296,7 @@ bool Authentication::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 // ================================================================================================================= //
 
 FlexisipAuthModuleBase *Authentication::createAuthModule(const std::string &domain, int nonceExpire, bool qopAuth) {
-	FlexisipAuthModule *authModule = new FlexisipAuthModule(getAgent()->getRoot(), domain, nonceExpire, qopAuth);
+	FlexisipAuthModule *authModule = new FlexisipAuthModule(getAgent()->getRoot()->getCPtr(), domain, nonceExpire, qopAuth);
 	authModule->setOnPasswordFetchResultCb([this](bool passFound){passFound ? mCountPassFound++ : mCountPassNotFound++;});
 	SLOGI << "Found auth domain: " << domain;
 	return authModule;
