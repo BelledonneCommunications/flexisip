@@ -51,7 +51,7 @@ job-centos7-ninja-gcc:
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
-    CMAKE_OPTIONS: -DINTERNAL_LIBSRTP2=ON
+    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DINTERNAL_LIBSRTP2=ON
     CC: gcc
     CXX: g++
   extends: .scheduled-job-linux
@@ -69,7 +69,7 @@ job-centos7-ninja-clang:
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
-    CMAKE_OPTIONS: -DINTERNAL_LIBSRTP2=ON
+    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DINTERNAL_LIBSRTP2=ON
     CC: clang
     CXX: clang++
   extends: .job-linux
@@ -85,7 +85,7 @@ job-centos7-rpm:
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos7:$CENTOS_7_IMAGE_VERSION
   extends: .job-linux-rpm
   variables:
-    CMAKE_OPTIONS: -DINTERNAL_LIBSRTP2=ON
+    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DINTERNAL_LIBSRTP2=ON
   before_script:
     - source /opt/rh/devtoolset-8/enable
 
