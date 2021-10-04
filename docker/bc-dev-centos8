@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make bc-dev-centos8:20210624_packaging
+# Dockerfile used to make bc-dev-centos8:20211004_remove_hiredis
 ###############################################################################
 
 FROM gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos8:20210407_cmake_from_targz
@@ -7,5 +7,5 @@ FROM gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos8:20210407_cma
 MAINTAINER François Grisez <francois.grisez@belledonne-communications.com>
 
 # Install extra Flexisip dependencies
-RUN sudo su -c 'dnf -y install hiredis-devel jansson-devel libnghttp2-devel net-snmp-devel protobuf-devel speexdsp-devel && dnf -y clean all'
+RUN sudo su -c 'dnf -y install jansson-devel libnghttp2-devel net-snmp-devel protobuf-devel speexdsp-devel && dnf -y clean all'
 
