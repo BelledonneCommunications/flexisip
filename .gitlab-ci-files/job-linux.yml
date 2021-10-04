@@ -286,6 +286,12 @@ tests-flexisip-mr:
           echo " done"
         done
 
+    - |
+        filename=flexisip_stdout_tail.log
+        echo -n "Writting ${filename}..."
+        time docker-compose $docker_compose_options logs --no-color --tail=100000 flexisip > ${filename}
+        echo " done"
+
     #we wait for each grep to end before stopping containers
     - wait
 
@@ -296,8 +302,6 @@ tests-flexisip-mr:
     - gzip *.log
 
     - gzip */*.log
-
-    - tree
 
     - exit $EXIT
 
