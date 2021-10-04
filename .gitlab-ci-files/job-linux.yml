@@ -286,6 +286,14 @@ tests-flexisip-mr:
           echo " done"
         done
 
+    - |
+        filename=flexisip_stdout_tail.log
+        echo -n "Writting ${filename}..."
+        command="docker-compose $docker_compose_options logs --since $(date --iso-8601=seconds -d '5 minute ago') flexisip"
+        echo "\nExecute: ${command}"
+        time ${command} > ${filename}
+        echo " done"
+
     #we wait for each grep to end before stopping containers
     - wait
 
