@@ -30,7 +30,6 @@ Conference::Conference(ConferenceServer &server, const std::shared_ptr<const lin
 	// TODO: control audio enablement (not so useful actually).
 	params->setVideoEnabled(mServer.getMediaConfig().videoEnabled);
 	params->setLocalParticipantEnabled(false);
-	params->setOneParticipantConferenceEnabled(true);
 	params->setVideoEnabled(true);
 	params->setLayout(linphone::ConferenceLayout::Grid);
 	mConference = mServer.getCore()->createConferenceWithParams(params);
