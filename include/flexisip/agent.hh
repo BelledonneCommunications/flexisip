@@ -23,6 +23,8 @@
 #define FLEXISIP_INCLUDED
 #endif
 
+#include "sofia-wrapper/su-root.hh"
+
 #include <flexisip/common.hh>
 #include <flexisip/configmanager.hh>
 #include <flexisip/event.hh>
@@ -117,7 +119,7 @@ private:
 	void doSendEvent(std::shared_ptr<SipEventT> ev, const ModuleIter &begin, const ModuleIter &end);
 
 public:
-	Agent(su_root_t *root);
+	Agent(const std::shared_ptr<sofiasip::SuRoot>& root);
 	void start(const std::string &transport_override, const std::string &passphrase);
 	void loadConfig(GenericManager *cm);
 	void unloadConfig();
@@ -171,9 +173,7 @@ public:
 	const std::string &getUniqueId() const;
 	void idle();
 	bool isUs(const url_t *url, bool check_aliases = true) const;
-	su_root_t *getRoot() const {
-		return mRoot;
-	}
+	std::shared_ptr<sofiasip::SuRoot> getRoot() const noexcept {return mRoot;}
 	nta_agent_t *getSofiaAgent() const {
 		return mAgent;
 	}
@@ -247,7 +247,7 @@ private:
 	std::string mPublicIpV4, mPublicIpV6, mPublicResolvedIpV4, mPublicResolvedIpV6;
 	std::vector<Transport> mTransports{};
 	nta_agent_t *mAgent = nullptr;
-	su_root_t *mRoot = nullptr;
+	std::shared_ptr<sofiasip::SuRoot> mRoot{};
 	nth_engine_t *mHttpEngine = nullptr;
 	su_home_t mHome;
 	su_timer_t *mTimer = nullptr;

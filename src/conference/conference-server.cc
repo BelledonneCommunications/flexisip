@@ -36,13 +36,6 @@ namespace flexisip {
 sofiasip::Home ConferenceServer::mHome;
 ConferenceServer::Init ConferenceServer::sStaticInit;
 
-ConferenceServer::ConferenceServer (
-	const string &path,
-	su_root_t *root
-) : ServiceServer(root), mPath(path), mSubscriptionHandler(*this) {}
-
-ConferenceServer::~ConferenceServer () {}
-
 void ConferenceServer::_init () {
 	string bindAddress{};
 

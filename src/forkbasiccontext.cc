@@ -32,7 +32,7 @@ ForkBasicContext::ForkBasicContext(Agent* agent, const std::shared_ptr<RequestSi
 	LOGD("New ForkBasicContext %p", this);
 	mDecisionTimer = NULL;
 	// start the acceptance timer immediately
-	mDecisionTimer = su_timer_create(su_root_task(mAgent->getRoot()), 0);
+	mDecisionTimer = su_timer_create(mAgent->getRoot()->getTask(), 0);
 	su_timer_set_interval(mDecisionTimer, &ForkBasicContext::sOnDecisionTimer, this, (su_duration_t)20000);
 }
 
