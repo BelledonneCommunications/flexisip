@@ -122,7 +122,7 @@ docker-build-flexisip-src:
       - $DEPLOY_RUN
       - $DEPLOY_UBUNTU
   variables:
-    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA -f docker/flex-from-src --build-arg=njobs=12 --build-arg=sanitizer=ON"
+    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA -f docker/flex-from-src --build-arg=njobs=12 --build-arg=build_type=Sanitizer"
   script:
     - docker image ls
     - echo $DOCKER_BUILD_OPTIONS
@@ -190,7 +190,6 @@ tests-flexisip-mr:
     - echo "SDK commit sha " $LIBLINPHONE_DOCKER_TAG
     - cd ..
 
-    - docker image ls
     # used to ensure there will be not network name conflict for parallel 
     #   docker-compose executions
     - export COMPOSE_PROJECT_NAME=$RANDOM
@@ -280,10 +279,17 @@ tests-flexisip-mr:
 
     - |
         for service in $(docker-compose $docker_compose_options ps --services); do
-        echo $service &
-        grep $service logs_all >> ${service}_stdout.log &
-        echo "grep $service logs_all" &
+          filename="${service}_stdout.log"
+          echo -n "Writting ${filename}..."
+          grep $service logs_all >> ${filename}.log
+          echo " done"
         done
+
+    - |
+        filename=flexisip_stdout_tail.log
+        echo -n "Writting ${filename}..."
+        docker-compose $docker_compose_options logs --no-color --tail=100000 flexisip > ${filename}
+        echo " done"
 
     #we wait for each grep to end before stopping containers
     - wait
@@ -296,13 +302,9 @@ tests-flexisip-mr:
 
     - gzip */*.log
 
-    - tree
-
     - exit $EXIT
 
   after_script:
-
-    - docker image ls
 
     #content of $workspace (set like this because the variable can't be resolved here)
     - cd ${CI_PROJECT_DIR}/liblinphone_tester_workspace
