@@ -67,7 +67,7 @@ public:
 
 class PresenceServer : public PresentityManager, public ServiceServer {
 public:
-	PresenceServer(su_root_t* root);
+	PresenceServer(const std::shared_ptr<sofiasip::SuRoot>& root);
 	~PresenceServer();
 	void _init() override;
 	void _run() override;

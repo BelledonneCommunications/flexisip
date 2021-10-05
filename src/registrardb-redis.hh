@@ -26,11 +26,14 @@
 #include <async.h>
 #endif
 
-#include <flexisip/registrardb.hh>
-#include "recordserializer.hh"
-#include <sofia-sip/sip.h>
 #include <sofia-sip/nta.h>
-#include <flexisip/agent.hh>
+#include <sofia-sip/sip.h>
+
+#include "flexisip/agent.hh"
+#include "flexisip/registrardb.hh"
+
+#include "recordserializer.hh"
+#include "sofia-wrapper/su-root.hh"
 
 namespace flexisip {
 
@@ -106,7 +109,7 @@ struct RegistrarUserData {
 class RegistrarDbRedisAsync : public RegistrarDb {
 public:
 	RegistrarDbRedisAsync(Agent* agent, RedisParameters params);
-	RegistrarDbRedisAsync(const std::string& preferredRoute, su_root_t* root, RecordSerializer* serializer,
+	RegistrarDbRedisAsync(const std::string& preferredRoute, const std::shared_ptr<sofiasip::SuRoot>& root, RecordSerializer* serializer,
 	                      RedisParameters params);
 	~RegistrarDbRedisAsync() override;
 
@@ -197,7 +200,7 @@ private:
 	RecordSerializer* mSerializer;
 	RedisParameters mParams{};
 	RedisParameters mLastActiveParams{};
-	su_root_t* mRoot{nullptr};
+	std::shared_ptr<sofiasip::SuRoot> mRoot{};
 	std::vector<RedisHost> mSlaves{};
 	decltype(mSlaves)::const_iterator mCurSlave = mSlaves.cend();
 	std::unique_ptr<sofiasip::Timer> mReplicationTimer{nullptr};

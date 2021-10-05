@@ -122,9 +122,8 @@ DomainRegistrationManager::~DomainRegistrationManager() {
 	if(mNbRegistration > 0) {
 		LOGD("Starting domain un-registration");
 		for_each(mRegistrations.begin(), mRegistrations.end(), mem_fn(&DomainRegistration::stop));
-		mTimer = NULL;
-		mTimer = mAgent->createTimer(5000, unregisterTimeout, mAgent->getRoot());
-		su_root_run(mAgent->getRoot()); // Correctly wait for domain un-registration
+		mTimer = mAgent->createTimer(5000, unregisterTimeout, mAgent->getRoot()->getCPtr());
+		mAgent->getRoot()->run(); // Correctly wait for domain un-registration
 	}
 }
 
@@ -395,7 +394,7 @@ void DomainRegistration::onConnectionBroken(tport_t *tport, msg_t *msg, int erro
 		su_timer_destroy(mTimer);
 		mTimer = NULL;
 	}
-	mTimer = su_timer_create(su_root_task(mManager.mAgent->getRoot()), 0);
+	mTimer = su_timer_create(su_root_task(mManager.mAgent->getRoot()->getCPtr()), 0);
 	LOGD("Scheduling next domain register refresh for %s in %i seconds", mFrom->url_host, nextSchedule);
 	su_timer_set_interval(mTimer, &DomainRegistration::sRefreshRegistration, this, (su_duration_t)nextSchedule * 1000);
 	LOGD("DomainRegistration::onConnectionBroken(), restarting registration in %i seconds", nextSchedule);
@@ -415,7 +414,7 @@ void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp
 		su_timer_destroy(mTimer);
 		mTimer = NULL;
 	}
-	mTimer = su_timer_create(su_root_task(mManager.mAgent->getRoot()), 0);
+	mTimer = su_timer_create(mManager.mAgent->getRoot()->getTask(), 0);
 	if (resp) {
 		msg_t *msg = nta_outgoing_getresponse(orq);
 		SLOGD << "DomainRegistration::responseCallback(): receiving response:" << endl
