@@ -190,7 +190,6 @@ tests-flexisip-mr:
     - echo "SDK commit sha " $LIBLINPHONE_DOCKER_TAG
     - cd ..
 
-    - docker image ls
     # used to ensure there will be not network name conflict for parallel 
     #   docker-compose executions
     - export COMPOSE_PROJECT_NAME=$RANDOM
@@ -310,8 +309,6 @@ tests-flexisip-mr:
     - exit $EXIT
 
   after_script:
-
-    - docker image ls
 
     #content of $workspace (set like this because the variable can't be resolved here)
     - cd ${CI_PROJECT_DIR}/liblinphone_tester_workspace
