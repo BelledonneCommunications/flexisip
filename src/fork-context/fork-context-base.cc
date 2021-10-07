@@ -22,6 +22,7 @@
 #include "flexisip/fork-context/fork-context-base.hh"
 
 using namespace std;
+using namespace std::chrono;
 using namespace flexisip;
 
 const int ForkContextBase::sUrgentCodes[] = {401, 407, 415, 420, 484, 488, 606, 603, 0};
@@ -30,14 +31,24 @@ const int ForkContextBase::sAllCodesUrgent[] = {-1, 0};
 
 ForkContextBase::ForkContextBase(Agent* agent, const shared_ptr<RequestSipEvent>& event,
                                  const shared_ptr<ForkContextConfig>& cfg,
-                                 const weak_ptr<ForkContextListener>& listener, const weak_ptr<StatPair>& counter)
+                                 const weak_ptr<ForkContextListener>& listener, const weak_ptr<StatPair>& counter,
+                                 bool isRestored)
     : mListener(listener), mNextBranchesTimer(agent->getRoot()), mStatCounter(counter), mCurrentPriority(-1),
       mAgent(agent), mEvent(make_shared<RequestSipEvent>(event)), // Is this deep copy really necessary ?
       mCfg(cfg), mLateTimer(agent->getRoot()), mFinishTimer(agent->getRoot()) {
 	if (auto sharedCounter = mStatCounter.lock()) {
 		sharedCounter->incrStart();
 	}
-	init();
+	if (!isRestored) {
+		mIncoming = mEvent->createIncomingTransaction();
+
+		if (mCfg->mForkLate) {
+			// this timer is for when outgoing transaction all die prematuraly, we still need to wait that late register
+			// arrive.
+			mLateTimer.set([this]() { processLateTimeout(); },
+			               static_cast<su_duration_t>(mCfg->mDeliveryTimeout) * 1000);
+		}
+	}
 }
 
 ForkContextBase::~ForkContextBase() {
@@ -245,16 +256,6 @@ bool ForkContextBase::onNewRegister(const url_t *url, const string &uid) {
 	return true;
 }
 
-void ForkContextBase::init() {
-	mIncoming = mEvent->createIncomingTransaction();
-
-	if (mCfg->mForkLate && !mLateTimer.isRunning()) {
-		/*this timer is for when outgoing transaction all die prematuraly, we still need to wait that late register
-		 * arrive.*/
-		mLateTimer.set([this](){processLateTimeout();}, static_cast<su_duration_t>(mCfg->mDeliveryTimeout) * 1000);
-	}
-}
-
 bool compareGreaterBranch(const shared_ptr<BranchInfo> &lhs, const shared_ptr<BranchInfo> &rhs) {
 	return lhs->mPriority > rhs->mPriority;
 }
@@ -416,12 +417,12 @@ void ForkContextBase::onCancel(const shared_ptr<RequestSipEvent> &ev) {
 	}
 }
 
-void ForkContextBase::addKey(const string &key) {
-     mKeys.push_back(key);
+void ForkContextBase::addKey(const string& key) {
+	mKeys.push_back(key);
 }
 
-const list<string> & ForkContextBase::getKeys() const{
-     return mKeys;
+const vector<string>& ForkContextBase::getKeys() const {
+	return mKeys;
 }
 
 shared_ptr<BranchInfo> ForkContextBase::createBranchInfo() {

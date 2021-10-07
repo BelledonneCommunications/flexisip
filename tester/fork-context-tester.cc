@@ -29,9 +29,35 @@ using namespace std::chrono_literals;
 using namespace std::chrono;
 using namespace flexisip;
 
+using days = duration<int, ratio_multiply<ratio<24>, hours::period>>;
+
 static su_root_t* root = nullptr;
 static shared_ptr<Agent> agent = nullptr;
 static bool responseReceived = false;
+
+static string rawRequest{R"sip(MESSAGE sip:francois.grisez@sip.linphone.org SIP/2.0
+Via: SIP/2.0/TLS [2a01:e0a:278:9f60:7a23:c334:1651:2503]:36676;branch=z9hG4bK.ChN0lTDpQ;rport
+From: <sip:anthony.gauchy@sip.linphone.org>;tag=iXiKd6FuX
+To: sip:francois.grisez@sip.linphone.org
+CSeq: 20 MESSAGE
+Call-ID: NISmf-QTgo
+Max-Forwards: 70
+Supported: replaces, outbound, gruu
+Date: Wed, 06 Oct 2021 08:43:31 GMT
+Content-Type: text/plain
+Content-Length: 4
+User-Agent: Linphone Desktop/4.3.0-beta-33-gc3ac9637 (Manjaro Linux, Qt 5.12.5) LinphoneCore/5.0.22-1-g8c5243994
+Proxy-Authorization:  Digest realm="sip.linphone.org", nonce="1tMH5QAAAABVHBjkAADjdHyvMMkAAAAA", algorithm=SHA-256, opaque="+GNywA==", username="anthony.gauchy",  uri="sip:francois.grisez@sip.linphone.org", response="787857520cf0cd3f3f451ff7e867aa03536e8a7fed461fe2d14569d928f9296d", cnonce="UVZ7dG3P9Kx6j0na", nc=0000003f, qop=auth
+
+\0st)sip"};
+
+string rawResponse{R"sip(SIP/2.0 200 Ok
+Via: SIP/2.0/TLS [2a01:e0a:278:9f60:7a23:c334:1651:2503]:36676;branch=z9hG4bK.ChN0lTDpQ;rport=36676
+From: <sip:anthony.gauchy@sip.linphone.org>;tag=iXiKd6FuX
+To: <sip:francois.grisez@sip.linphone.org>;tag=B2cE8pa
+Call-ID: NISmf-QTgo
+CSeq: 20 MESSAGE
+Content-Length: 0)sip"};
 
 /**
  * Empty implementation for testing purpose
@@ -210,9 +236,64 @@ static void notRtpPortAndForkCallContext() {
 	}
 }
 
+static void forkMessageContextSociRepositoryMysqlUnitTests() {
+	ForkMessageContextSociRepository::prepareConfiguration(
+	    "mysql", "db='flexisip_messages' user='flexisip' password='flexisipass' host='localhost'", 10);
+	auto request = std::make_shared<MsgSip>(msg_make(sip_default_mclass(), 0, rawRequest.c_str(), rawRequest.size()));
+	auto reqSipEvent = std::make_shared<RequestSipEvent>(agent, request);
+
+	// Save and find test
+	auto nowPlusDays = system_clock::now() + days{7};
+	std::time_t t = system_clock::to_time_t(nowPlusDays);
+	ForkMessageContextDb fakeDbObject{1, 3, true, false, *localtime(&t)};
+	fakeDbObject.dbKeys = vector<string>{"key1", "key2", "key3"};
+	auto expectedFork =
+	    ForkMessageContext::make(agent.get(), reqSipEvent, shared_ptr<ForkContextConfig>{},
+	                             shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, fakeDbObject);
+	auto insertedUuid = ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork);
+	auto dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
+	auto actualFork = ForkMessageContext::make(agent.get(), reqSipEvent, shared_ptr<ForkContextConfig>{},
+	                                           shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, dbFork);
+	actualFork->assertEqual(expectedFork);
+
+	// Update and find test
+	nowPlusDays = system_clock::now() + days{10};
+	t = system_clock::to_time_t(nowPlusDays);
+	fakeDbObject = ForkMessageContextDb{2, 10, false, true, *localtime(&t)};
+	fakeDbObject.dbKeys = vector<string>{"key1", "key2", "key3"}; // We keep the same keys because they are not updated
+	expectedFork = ForkMessageContext::make(agent.get(), reqSipEvent, shared_ptr<ForkContextConfig>{},
+	                                        shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, fakeDbObject);
+	ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(expectedFork, insertedUuid);
+	dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
+	actualFork = ForkMessageContext::make(agent.get(), reqSipEvent, shared_ptr<ForkContextConfig>{},
+	                                      shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, dbFork);
+	actualFork->assertEqual(expectedFork);
+
+	// Save and find with branch info
+	nowPlusDays = system_clock::now() + days{400};
+	t = system_clock::to_time_t(nowPlusDays);
+	fakeDbObject = ForkMessageContextDb{1.52, 5, false, true, *localtime(&t)};
+	fakeDbObject.dbKeys = vector<string>{"key1"};
+	expectedFork = ForkMessageContext::make(agent.get(), reqSipEvent, shared_ptr<ForkContextConfig>{},
+	                                        shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, fakeDbObject);
+
+	BranchInfoDb branchInfoDb{"contactUid", 4.0, rawRequest, rawResponse, true};
+	BranchInfoDb branchInfoDb2{"contactUid2", 1.0, rawRequest, rawResponse, false};
+	BranchInfoDb branchInfoDb3{"contactUid3", 2.42, rawRequest, rawResponse, true};
+	expectedFork->restoreBranch(branchInfoDb);
+	expectedFork->restoreBranch(branchInfoDb2);
+	expectedFork->restoreBranch(branchInfoDb3);
+	insertedUuid = ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork);
+	dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
+	actualFork = ForkMessageContext::make(agent.get(), reqSipEvent, shared_ptr<ForkContextConfig>{},
+	                                      shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, dbFork);
+	actualFork->assertEqual(expectedFork);
+}
+
 static test_t tests[] = {
     TEST_NO_TAG("Max forward 0 and ForkBasicContext leak", nullMaxFrowardAndForkBasicContext),
     TEST_NO_TAG("No RTP port available and ForkCallContext leak", notRtpPortAndForkCallContext),
+    TEST_NO_TAG("Max forward 0 and ForkBasicContext leak", forkMessageContextSociRepositoryMysqlUnitTests),
 };
 
 test_suite_t fork_context_suite = {

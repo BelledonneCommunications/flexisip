@@ -36,6 +36,7 @@ shared_ptr<ForkCallContext> ForkCallContext::make(Agent* agent, const shared_ptr
                                                   const shared_ptr<ForkContextConfig>& cfg,
                                                   const weak_ptr<ForkContextListener>& listener,
                                                   const weak_ptr<StatPair>& counter) {
+	// new because make_shared require a public constructor.
 	const shared_ptr<ForkCallContext> shared{new ForkCallContext(agent, event, cfg, listener, counter)};
 	return shared;
 }
