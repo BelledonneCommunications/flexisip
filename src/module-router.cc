@@ -1,25 +1,27 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <sofia-sip/sip_status.h>
+
+#include "domain-registrations.hh"
+#include "flexisip/logmanager.hh"
 
 #include <flexisip/module-router.hh>
-#include <flexisip/logmanager.hh>
-#include "domain-registrations.hh"
-#include <sofia-sip/sip_status.h>
 
 using namespace std;
 using namespace flexisip;
@@ -86,6 +88,20 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 		 "non-standard behavior.",
 		 "false"},
 		{BooleanExpr, "fallback-route-filter", "Only use the fallback route if the expression is true.", "true"},
+	    {Boolean, "save-fork-late-message-in-db",
+	     "Save message to database when they enter in db waiting phase of fork-late mode. message-fork-late MUST be "
+	     "true",
+	     "false"},
+	    {String, "message-database-backend",
+	     "Choose the type of backend that Soci will use for the connection. Depending on your Soci package and the "
+	     "modules you installed, the supported databases are:`mysql` (and `sqlite3` soon)",
+	     "mysql"},
+	    {String, "message-database-connection-string",
+	     "The configuration parameters of the backend. The basic format is \"key=value key2=value2\". For a mysql "
+	     "backend, this is a valid config: \"db=mydb user=user password='pass' host=myhost.com\". Please refer to "
+	     "the Soci documentation of your backend, for instance: "
+	     "http://soci.sourceforge.net/doc/master/backends/#supported-backends-and-features",
+	     "db='mydb' user='myuser' password='mypass' host='myhost.com'"},
 
 		// deprecated parameters
 		{Boolean, "stateful",
@@ -97,7 +113,7 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 		 "Require presence of authorization header for specified realm. [Realm]", ""},
 		{Boolean, "generate-contact-even-on-filled-aor", "Generate a contact route even on filled AOR.", "false"},
 		{String, "preroute", "Rewrite username with given value.", ""},
-		config_item_end};
+	    config_item_end};
 	mc->addChildrenValues(configs);
 
 	// deprecated since 2020-01-28 (2.0.0)
@@ -119,13 +135,7 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 	mStats.mCountBasicForks = mc->createStats("count-basic-forks", "Number of basic forks");
 	mStats.mCountCallForks = mc->createStats("count-call-forks", "Number of call forks");
 	mStats.mCountMessageForks = mc->createStats("count-message-forks", "Number of message forks");
-
-	mStats.mCountForkTransactions =
-		mc->createStats("count-fork-transactions", "Number of outgoing transaction created for forking");
-
-	mStats.mCountNonForks = mc->createStat("count-non-forked", "Number of non forked invites.");
-	mStats.mCountLocalActives =
-		mc->createStat("count-local-registered-users", "Number of users currently registered through this server.");
+	mStats.mCountMessageProxyForks = mc->createStats("count-message-proxy-forks", "Number of proxy message forks");
 }
 
 void ModuleRouter::onLoad(const GenericStruct *mc) {
@@ -172,6 +182,34 @@ void ModuleRouter::onLoad(const GenericStruct *mc) {
 		mFallbackRouteParsed = sipUrlMake(mHome.home(), mFallbackRoute.c_str());
 		if (!mFallbackRouteParsed) LOGF("Bad value [%s] for fallback-route in module::Router.", mFallbackRoute.c_str());
 	}
+
+	if ((mSaveForkMessageEnabled = mc->get<ConfigBoolean>("save-fork-late-message-in-db")->read())) {
+		ForkMessageContextSociRepository::prepareConfiguration(
+		    mc->get<ConfigString>("message-database-backend")->read(),
+		    mc->get<ConfigString>("message-database-connection-string")->read(), 10);
+
+		restoreForksFromDatabase();
+	}
+}
+
+void ModuleRouter::restoreForksFromDatabase() {
+	SLOGI << "Fork message to DB is enabled, retrieving previous messages in DB ...";
+	auto allDbMessages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
+	SLOGD << " ... " << allDbMessages.size() << " messages found in DB ...";
+	for (auto& dbMessage : allDbMessages) {
+		auto request = make_shared<MsgSip>(
+			msg_make(sip_default_mclass(), 0, dbMessage.request.c_str(), dbMessage.request.size()));
+		auto event = RequestSipEvent::makeRestored(mAgent->shared_from_this(), request, shared_from_this());
+		auto restoredForkMessage =
+			ForkMessageContextDbProxy::make(getAgent(), event, mMessageForkCfg, shared_from_this(),
+		                                    mStats.mCountMessageForks, mStats.mCountMessageProxyForks, dbMessage);
+		for (const auto& key : restoredForkMessage->getKeys()) {
+			mForks.emplace(key, restoredForkMessage);
+			auto listener = make_shared<OnContactRegisteredListener>(this, key);
+			RegistrarDb::get()->subscribe(key, listener);
+		}
+	}
+	SLOGI << " ... " << mForks.size() << " fork message restored from DB.";
 }
 
 void ModuleRouter::sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason, int warn_code,
@@ -216,59 +254,11 @@ string ModuleRouter::routingKey(const url_t *sipUri) {
 	return oss.str();
 }
 
-/**
- * Check if the contact is in one via.
- * Avoid to check a contact information that already known
- */
-static bool contactUrlInVia(const url_t *url, sip_via_t *via) {
-	while (via != NULL) {
-		if (via->v_host && url->url_host && !strcmp(via->v_host, url->url_host)) {
-			const char *port1 = (via->v_port) ? via->v_port : "5060";
-			const char *port2 = (url->url_port) ? url->url_port : "5060";
-			if (!strcmp(port1, port2))
-				return true;
-		}
-		via = via->v_next;
-	}
-
-	return false;
-}
-
-bool ModuleRouter::rewriteContactUrl(const shared_ptr<MsgSip> &ms, const url_t *ct_url, const char *route) {
-	sip_t *sip = ms->getSip();
-	su_home_t *home = ms->getHome();
-
-	if (!contactUrlInVia(ct_url, sip->sip_via)) {
-		/*sanity check on the contact address: might be '*' or whatever useless information*/
-		if (ct_url->url_host != NULL && ct_url->url_host[0] != '\0') {
-			LOGD("ModuleRouter: found contact information in database, rewriting request uri");
-			/*rewrite request-uri */
-			sip->sip_request->rq_url[0] = *url_hdup(home, ct_url);
-			if (route && 0 != strcmp(mAgent->getPreferredRoute().c_str(), route)) {
-				LOGD("This flexisip instance is not responsible for contact %s:%s:%s -> %s",
-					 ct_url->url_user ? ct_url->url_user : "", ct_url->url_host ? ct_url->url_host : "",
-					 ct_url->url_params ? ct_url->url_params : "", route);
-				cleanAndPrependRoute(mAgent, ms->getMsg(), sip, sip_route_make(home, route));
-			}
-			// Back to work
-			return true;
-		} else {
-			LOGW("Unrouted request because of incorrect address of record.");
-		}
-	} else {
-		LOGW("Contact is already routed");
-	}
-	return false;
-}
-
-bool ModuleRouter::lateDispatch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact,
-							shared_ptr<ForkContext> context, const string &targetUris) {
-	return dispatch(ev, contact, context, targetUris);
-}
-
-bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact,
-							shared_ptr<ForkContext> context, const string &targetUris) {
-	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
+void ModuleRouter::dispatch(const shared_ptr<ForkContext> context,
+                            const shared_ptr<ExtendedContact>& contact,
+                            const string& targetUris) {
+	const auto& ev = context->getEvent();
+	const auto& ms = ev->getMsgSip();
 	time_t now = getCurrentTime();
 	sip_contact_t *ct = contact->toSofiaContact(ms->getHome(), now);
 	url_t *dest = ct->m_url;
@@ -276,18 +266,12 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_
 
 	/*sanity check on the contact address: might be '*' or whatever useless information*/
 	if (dest->url_host == NULL || dest->url_host[0] == '\0') {
-		LOGW("Unrouted request because of incorrect address of contact");
-		return false;
+		LOGW("Request is not routed because of incorrect address of contact");
+		return;
 	}
 
 	char *contact_url_string = url_as_string(ms->getHome(), dest);
-	shared_ptr<RequestSipEvent> new_ev;
-	if (context) {
-		// duplicate the SIP event
-		new_ev = make_shared<RequestSipEvent>(ev);
-	} else {
-		new_ev = ev;
-	}
+	shared_ptr<RequestSipEvent> new_ev = make_shared<RequestSipEvent>(ev);
 	auto new_msgsip = new_ev->getMsgSip();
 	msg_t *new_msg = new_msgsip->getMsg();
 	sip_t *new_sip = new_msgsip->getSip();
@@ -329,22 +313,18 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_
 		sip_header_insert(new_msg, new_sip, (sip_header_t *)sip_unknown_format(msg_home(new_msg), "X-Target-Uris: %s",
 																			   targetUris.c_str()));
 	}
-	new_sip->sip_route = NULL;
+	new_sip->sip_route = nullptr;
 	cleanAndPrependRoute(getAgent(), new_msg, new_sip, routes);
 
-	if (context) {
-		context->addBranch(new_ev, contact);
-		SLOGD << "Fork to " << contact_url_string;
-	} else {
-		LOGD("Dispatch to %s", contact_url_string);
-	}
-
-	return true;
+	SLOGD << "Fork to " << contact_url_string;
+	context->addBranch(new_ev, contact);
 }
 
-void ModuleRouter::onContactRegistered(const shared_ptr<OnContactRegisteredListener> &listener, const string &uid, const shared_ptr<Record> &record, const url_t *sipUri) {
+void ModuleRouter::onContactRegistered(const shared_ptr<OnContactRegisteredListener>& listener,
+                                       const string& uid,
+                                       const shared_ptr<Record>& record,
+                                       const string& sipKey) {
 	sofiasip::Home home;
-	sip_path_t *path = NULL;
 	sip_contact_t *contact = NULL;
 	bool forksFound = false;
 
@@ -355,59 +335,41 @@ void ModuleRouter::onContactRegistered(const shared_ptr<OnContactRegisteredListe
 
 	if (!mForkCfg->mForkLate && !mMessageForkCfg->mForkLate)
 		return;
-	if (!sipUri)
+	if (sipKey.empty())
 		return; // nothing to do
 
-	char sipUriRef[256] = {0};
-	url_t urlcopy = *sipUri;
-
-	if (mUseGlobalDomain) {
-		urlcopy.url_host = "merged";
-	}
-	url_e(sipUriRef, sizeof(sipUriRef) - 1, &urlcopy);
-
 	// Find all contexts
-	const auto key = routingKey(sipUri);
-	auto range = getLateForks(key);
-	SLOGD << "Searching for fork context with key " << key;
+	auto range = getLateForks(sipKey);
+	SLOGD << "Searching for fork context with key " << sipKey;
 
-	if (range.size() > 0){
+	if (range.size() > 0) {
 		forksFound = true;
 		const shared_ptr<ExtendedContact> ec = record->extractContactByUniqueId(uid);
 		if (ec) {
 			contact = ec->toSofiaContact(home.home(), ec->mExpireAt - 1);
-			path = ec->toSofiaRoute(home.home());
 
 			// First use sipURI
-			for (const auto &context : range) {
-				if (context->onNewRegister(contact->m_url, uid)) {
-					SLOGD << "Found a pending context for key " << key << ": " << context.get();
-					lateDispatch(context->getEvent(), ec, context, "");
-				} else
-					LOGD("Found a pending context but not interested in this new register.");
+			for (const auto& context : range) {
+				context->onNewRegister(SipUri{contact->m_url}, uid,
+				                       [this, context, ec]() { this->dispatch(context, ec, ""); });
 			}
 		}
 	}
 
-	// If not found, search in aliases
-	const auto &contacts = record->getExtendedContacts();
-	for (const auto &ec : contacts) {
-		if (!ec || !ec->mAlias)
-			continue;
+	const auto& contacts = record->getExtendedContacts();
+	for (const auto& ec : contacts) {
+		if (!ec || !ec->mAlias) continue;
 
 		// Find all contexts
 		contact = ec->toSofiaContact(home.home(), ec->mExpireAt - 1);
-		path = ec->toSofiaRoute(home.home());
 		auto rang = getLateForks(ExtendedContact::urlToString(ec->mSipContact->m_url));
-		for (const auto &context : rang) {
+		for (const auto& context : rang) {
 			forksFound = true;
-			if (context->onNewRegister(contact->m_url, uid)) {
-				LOGD("Found a pending context for contact %s: %p", ExtendedContact::urlToString(ec->mSipContact->m_url).c_str(), context.get());
-				auto stlpath = Record::route_to_stl(path);
-				lateDispatch(context->getEvent(), ec, context, "");
-			}
+			context->onNewRegister(SipUri{contact->m_url}, uid,
+			                       [this, context, ec]() { this->dispatch(context, ec, ""); });
 		}
 	}
+
 	if (!forksFound){
 		/*
 		 * REVISIT: late cleanup. This is really not the best option. I did this change because previous way of cleaning was not working.
@@ -416,8 +378,8 @@ void ModuleRouter::onContactRegistered(const shared_ptr<OnContactRegisteredListe
 		 * the topic + a list of ForkContext. When the list becomes empty, we know that we can clear the structure from mForks.
 		 * --SM
 		 */
-		LOGD("Router module no longer interested in contact registered notification for topic = %s.", key.c_str());
-		RegistrarDb::get()->unsubscribe(key, listener);
+		SLOGD << "Router module no longer interested in contact registered notification for topic = " << sipKey;
+		RegistrarDb::get()->unsubscribe(sipKey, listener);
 	}
 }
 
@@ -564,7 +526,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 
 	mStats.mCountForks->incrStart();
 
-	// Init context if needed
+	// Init context
 	shared_ptr<ForkContext> context;
 	if (sip->sip_request->rq_method == sip_method_invite) {
 		context = ForkCallContext::make(getAgent(), ev, mForkCfg, shared_from_this(), mStats.mCountCallForks);
@@ -574,26 +536,33 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 	             strcasecmp(sip->sip_content_type->c_type, "application/im-iscomposing+xml") == 0) &&
 	           !(sip->sip_expires && sip->sip_expires->ex_delta == 0)) {
 		// Use the basic fork context for "im-iscomposing+xml" messages to prevent storing useless messages
-		context = ForkMessageContextDbProxy::make(getAgent(), ev, mMessageForkCfg, shared_from_this(),
-		                                          mStats.mCountMessageForks);
-	} else if (sip->sip_request->rq_method == sip_method_refer &&
-	           (sip->sip_refer_to != NULL && msg_params_find(sip->sip_refer_to->r_params, "text") != NULL)) {
-		// Use the message fork context only for refers that are text to prevent storing useless refers
-		context = ForkMessageContextDbProxy::make(getAgent(), ev, mMessageForkCfg, shared_from_this(),
-		                                          mStats.mCountMessageForks);
-	} else {
-		context =
-		    ForkBasicContext::make(getAgent(), ev, mOtherForkCfg, shared_from_this(), mStats.mCountBasicForks);
-	}
-	if (context) {
-		const auto key = routingKey(sipUri);
-		context->addKey(key);
-		mForks.emplace(key, context);
-		SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
-		if (context->getConfig()->mForkLate && countLateForks(key) == 1) {
-			auto listener = make_shared<OnContactRegisteredListener>(this, sipUri);
-			RegistrarDb::get()->subscribe(key, listener);
+		if (mSaveForkMessageEnabled) {
+			context = ForkMessageContextDbProxy::make(getAgent(), ev, mMessageForkCfg, shared_from_this(),
+			                                          mStats.mCountMessageForks, mStats.mCountMessageProxyForks);
+		} else {
+			context = ForkMessageContext::make(getAgent(), ev, mMessageForkCfg, shared_from_this(),
+			                                   mStats.mCountMessageForks);
 		}
+	} else if (sip->sip_request->rq_method == sip_method_refer &&
+	           (sip->sip_refer_to != nullptr && msg_params_find(sip->sip_refer_to->r_params, "text") != nullptr)) {
+		// Use the message fork context only for refers that are text to prevent storing useless refers
+		if (mSaveForkMessageEnabled) {
+			context = ForkMessageContextDbProxy::make(getAgent(), ev, mMessageForkCfg, shared_from_this(),
+			                                          mStats.mCountMessageForks, mStats.mCountMessageProxyForks);
+		} else {
+			context = ForkMessageContext::make(getAgent(), ev, mMessageForkCfg, shared_from_this(),
+			                                   mStats.mCountMessageForks);
+		}
+	} else {
+		context = ForkBasicContext::make(getAgent(), ev, mOtherForkCfg, shared_from_this(), mStats.mCountBasicForks);
+	}
+	const auto key = routingKey(sipUri);
+	context->addKey(key);
+	mForks.emplace(key, context);
+	SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
+	if (context->getConfig()->mForkLate && countLateForks(key) == 1) {
+		auto listener = make_shared<OnContactRegisteredListener>(this, key);
+		RegistrarDb::get()->subscribe(key, listener);
 	}
 
 	// now sort usable_contacts to form groups, if grouping is allowed
@@ -611,7 +580,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 		const string &targetUris = (*it).mTargetUris;
 
 		if (!ec->mAlias) {
-			dispatch(ev, ec, context, targetUris);
+			dispatch(context, ec, targetUris);
 		} else {
 			if (context->getConfig()->mForkLate && isManagedDomain(ct->m_url)) {
 				sip_contact_t *temp_ctt = sip_contact_create(ms->getHome(), (url_string_t*)ec->mSipContact->m_url, NULL);
@@ -620,14 +589,14 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 					temp_ctt->m_url->url_host = "merged";
 					temp_ctt->m_url->url_port = NULL;
 				}
-				const string key(routingKey(temp_ctt->m_url));
-				context->addKey(key);
-				mForks.emplace(key, context);
-				if (countLateForks(key) == 1) {
-					auto listener = make_shared<OnContactRegisteredListener>(this, temp_ctt->m_url);
-					RegistrarDb::get()->subscribe(key, listener);
+				const string aliasKey(routingKey(temp_ctt->m_url));
+				context->addKey(aliasKey);
+				mForks.emplace(aliasKey, context);
+				if (countLateForks(aliasKey) == 1) {
+					auto listener = make_shared<OnContactRegisteredListener>(this, aliasKey);
+					RegistrarDb::get()->subscribe(aliasKey, listener);
 				}
-				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), key.c_str());
+				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), aliasKey.c_str());
 			}
 		}
 	}

@@ -1,0 +1,6 @@
+# Build/install
+*build*/
+*install*/
+
+# Unused
+test_deprecated/

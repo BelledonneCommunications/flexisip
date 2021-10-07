@@ -44,7 +44,7 @@ public:
 	 * @throw std::logic_error if the timer couldn't been created.
 	 */
 	Timer(su_root_t *root, unsigned intervalMs = 0);
-	Timer(const std::shared_ptr<sofiasip::SuRoot>& root, unsigned internalMs = 0) : Timer{root->getCPtr(), internalMs} {}
+	Timer(const std::shared_ptr<SuRoot>& root, unsigned internalMs = 0) : Timer{root->getCPtr(), internalMs} {}
 	~Timer();
 
 	/**

@@ -26,8 +26,8 @@
 #include <flexisip/event.hh>
 #include <flexisip/fork-context/fork-call-context.hh>
 #include <flexisip/module.hh>
+#include <flexisip/sofia-wrapper/timer.hh>
 #include <flexisip/transaction.hh>
-#include <flexisip/utils/timer.hh>
 
 #include "pushnotification/genericpush.hh"
 #include "pushnotification/service.hh"

@@ -19,6 +19,7 @@
 #pragma once
 
 #include <chrono>
+#include <functional>
 #include <stdexcept>
 
 #include <sofia-sip/su_wait.h>
@@ -50,8 +51,11 @@ public:
 	void quit() {su_root_break(mCPtr);}
 	_su_task_r getTask() {return su_root_task(mCPtr);}
 
+	void addToMainLoop(std::function<void()> function);
 
 private:
+	static void mainLoopFunctionCallback(su_root_magic_t* rm, su_msg_r msg, void* u);
+
 	::su_root_t* mCPtr {nullptr};
 };
 

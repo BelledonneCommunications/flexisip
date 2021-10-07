@@ -22,22 +22,35 @@
 #include "flexisip/fork-context/fork-context-base.hh"
 
 using namespace std;
+using namespace std::chrono;
 using namespace flexisip;
 
 const int ForkContextBase::sUrgentCodes[] = {401, 407, 415, 420, 484, 488, 606, 603, 0};
 
 const int ForkContextBase::sAllCodesUrgent[] = {-1, 0};
 
-ForkContextBase::ForkContextBase(Agent* agent, const shared_ptr<RequestSipEvent>& event,
+ForkContextBase::ForkContextBase(Agent* agent,
+                                 const shared_ptr<RequestSipEvent>& event,
                                  const shared_ptr<ForkContextConfig>& cfg,
-                                 const weak_ptr<ForkContextListener>& listener, const weak_ptr<StatPair>& counter)
+                                 const weak_ptr<ForkContextListener>& listener,
+                                 const weak_ptr<StatPair>& counter,
+                                 bool isRestored)
     : mListener(listener), mNextBranchesTimer(agent->getRoot()), mStatCounter(counter), mCurrentPriority(-1),
       mAgent(agent), mEvent(make_shared<RequestSipEvent>(event)), // Is this deep copy really necessary ?
       mCfg(cfg), mLateTimer(agent->getRoot()), mFinishTimer(agent->getRoot()) {
 	if (auto sharedCounter = mStatCounter.lock()) {
 		sharedCounter->incrStart();
 	}
-	init();
+	mIncoming = mEvent->createIncomingTransaction();
+
+	if (!isRestored) {
+		if (mCfg->mForkLate) {
+			// this timer is for when outgoing transaction all die prematuraly, we still need to wait that late register
+			// arrive.
+			mLateTimer.set([this]() { processLateTimeout(); },
+			               static_cast<su_duration_t>(mCfg->mDeliveryTimeout) * 1000);
+		}
+	}
 }
 
 ForkContextBase::~ForkContextBase() {
@@ -53,17 +66,17 @@ void ForkContextBase::processLateTimeout() {
 }
 
 struct dest_finder {
-	dest_finder(const url_t *ctt) {
-		cttport = url_port(ctt);
-		ctthost = ctt->url_host;
+	dest_finder(const SipUri& ctt) {
+		cttport = ctt.getPort();
+		ctthost = ctt.getHost();
 		// don't care about transport
 	}
 	bool operator()(const shared_ptr<BranchInfo> &br) {
-		const url_t *dest = br->mRequest->getMsgSip()->getSip()->sip_request->rq_url;
-		return 0 == strcmp(url_port(dest), cttport) && 0 == strcmp(dest->url_host, ctthost);
+		SipUri destUri{br->mRequest->getMsgSip()->getSip()->sip_request->rq_url};
+		return cttport == destUri.getPort() && ctthost == destUri.getHost();
 	}
-	const char *ctthost;
-	const char *cttport;
+	string ctthost;
+	string cttport;
 };
 
 struct uid_finder {
@@ -85,7 +98,7 @@ shared_ptr<BranchInfo> ForkContextBase::findBranchByUid(const string &uid) {
 	return shared_ptr<BranchInfo>();
 }
 
-shared_ptr<BranchInfo> ForkContextBase::findBranchByDest(const url_t *dest) {
+shared_ptr<BranchInfo> ForkContextBase::findBranchByDest(const SipUri& dest) {
 	auto it = find_if(mWaitingBranches.begin(), mWaitingBranches.end(), dest_finder(dest));
 
 	if (it != mWaitingBranches.end())
@@ -197,26 +210,30 @@ const list<shared_ptr<BranchInfo>> & ForkContextBase::getBranches() const {
 
 // this implementation looks for already pending or failed transactions and then rejects handling of a new one that
 // would already been tried.
-bool ForkContextBase::onNewRegister(const url_t *url, const string &uid) {
+bool ForkContextBase::onNewRegister(const SipUri& dest,
+                                    const std::string& uid,
+                                    const function<void()>& dispatchFunction) {
 	shared_ptr<BranchInfo> br, br_by_url;
 
 	/*
-	 * Check gruu. If the request was targeting a gruu address, the uid of the contact who has just registered shall match.
+	 * Check gruu. If the request was targeting a gruu address, the uid of the contact who has just registered shall
+	 * match.
 	 */
 	string target_gr;
 	if (ModuleToolbox::getUriParameter(mEvent->getSip()->sip_request->rq_url, "gr", target_gr)) {
-		if (uid.find(target_gr) == string::npos){ //to compare regardless of < >
+		if (uid.find(target_gr) == string::npos) { // to compare regardless of < >
 			/* This request was targetting a gruu address, but this REGISTER is not coming from our target contact.*/
 			return false;
 		}
 	}
 
 	br = findBranchByUid(uid);
-	br_by_url = findBranchByDest(url);
+	br_by_url = findBranchByDest(dest);
 	if (br) {
 		int code = br->getStatus();
-		if (code == 503 || code == 408){
+		if (code == 503 || code == 408) {
 			LOGD("ForkContext %p: onNewRegister(): instance failed to receive the request previously.", this);
+			dispatchFunction();
 			return true;
 		} else if (code >= 200) {
 			/*
@@ -232,8 +249,9 @@ bool ForkContextBase::onNewRegister(const url_t *url, const string &uid) {
 			 * However, if the contact's uri is new, there is a high probability that the client reconnected
 			 * from a new socket, in which case the current branch will receive no response.
 			 */
-			if (br_by_url == nullptr){
+			if (br_by_url == nullptr) {
 				LOGD("ForkContext %p: onNewRegister(): instance reconnected.", this);
+				dispatchFunction();
 				return true;
 			}
 		}
@@ -242,24 +260,17 @@ bool ForkContextBase::onNewRegister(const url_t *url, const string &uid) {
 		LOGD("ForkContext %p: onNewRegister(): pending transaction for this destination.", this);
 		return false;
 	}
+
+	dispatchFunction();
 	return true;
-}
-
-void ForkContextBase::init() {
-	mIncoming = mEvent->createIncomingTransaction();
-
-	if (mCfg->mForkLate && !mLateTimer.isRunning()) {
-		/*this timer is for when outgoing transaction all die prematuraly, we still need to wait that late register
-		 * arrive.*/
-		mLateTimer.set([this](){processLateTimeout();}, static_cast<su_duration_t>(mCfg->mDeliveryTimeout) * 1000);
-	}
 }
 
 bool compareGreaterBranch(const shared_ptr<BranchInfo> &lhs, const shared_ptr<BranchInfo> &rhs) {
 	return lhs->mPriority > rhs->mPriority;
 }
 
-void ForkContextBase::addBranch(const shared_ptr<RequestSipEvent> &ev, const shared_ptr<ExtendedContact> &contact) {
+shared_ptr<BranchInfo> ForkContextBase::addBranch(const std::shared_ptr<RequestSipEvent>& ev,
+                                const std::shared_ptr<ExtendedContact>& contact) {
 	auto ot = ev->createOutgoingTransaction();
 	auto br = createBranchInfo();
 
@@ -300,6 +311,8 @@ void ForkContextBase::addBranch(const shared_ptr<RequestSipEvent> &ev, const sha
 	}
 
 	LOGD("ForkContext [%p]: new fork branch [%p]", this, br.get());
+
+	return br;
 }
 
 void ForkContextBase::onNextBranches() {
@@ -416,12 +429,12 @@ void ForkContextBase::onCancel(const shared_ptr<RequestSipEvent> &ev) {
 	}
 }
 
-void ForkContextBase::addKey(const string &key) {
-     mKeys.push_back(key);
+void ForkContextBase::addKey(const string& key) {
+	mKeys.push_back(key);
 }
 
-const list<string> & ForkContextBase::getKeys() const{
-     return mKeys;
+const vector<string>& ForkContextBase::getKeys() const {
+	return mKeys;
 }
 
 shared_ptr<BranchInfo> ForkContextBase::createBranchInfo() {

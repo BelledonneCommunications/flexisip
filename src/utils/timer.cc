@@ -20,7 +20,7 @@
 
 #include <sofia-sip/su_wait.h>
 
-#include "flexisip/utils/timer.hh"
+#include "flexisip/sofia-wrapper/timer.hh"
 
 using namespace std;
 

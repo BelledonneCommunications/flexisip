@@ -59,7 +59,7 @@ public:
 	static bool processResponse(const std::shared_ptr<ResponseSipEvent>& ev);
 
 	// Called by the Router module to create a new branch.
-	virtual void addBranch(const std::shared_ptr<RequestSipEvent>& ev,
+	virtual std::shared_ptr<BranchInfo> addBranch(const std::shared_ptr<RequestSipEvent>& ev,
 	                       const std::shared_ptr<ExtendedContact>& contact) = 0;
 	virtual bool allCurrentBranchesAnswered(bool ignore_errors_and_timeouts = false) const = 0;
 	// Request if the fork has other branches with lower priorities to try
@@ -75,14 +75,15 @@ public:
 	virtual void start() = 0;
 
 	virtual void addKey(const std::string& key) = 0;
-	virtual const std::list<std::string>& getKeys() const = 0;
+	virtual const std::vector<std::string>& getKeys() const = 0;
 
-	/*
+	/**
 	 * Informs the forked call context that a new register from a potential destination of the fork just arrived.
-	 * If the fork context is interested in handling this new destination, then it should return true, false otherwise.
-	 * Typical case for refusing it is when another transaction already exists or existed for this contact.
-	 **/
-	virtual bool onNewRegister(const url_t* dest, const std::string& uid) = 0;
+	 * If the fork context is interested in handling this new destination, then it should add the dispatch function to
+	 * the main loop, do nothing otherwise. Typical case for refusing it is when another transaction already exists or
+	 * existed for this contact.
+	 */
+	virtual bool onNewRegister(const SipUri& dest, const std::string& uid, const std::function<void()>& dispatchFunction) = 0;
 	virtual void onPushSent(const std::shared_ptr<OutgoingTransaction>& tr) = 0;
 	virtual void onPushError(const std::shared_ptr<OutgoingTransaction>& tr, const std::string& errormsg) = 0;
 	// Notifies the cancellation of the fork process.

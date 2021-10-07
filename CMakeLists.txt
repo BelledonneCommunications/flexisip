@@ -23,6 +23,10 @@
 # CMake 3.13 required by some sub-projects.
 cmake_minimum_required(VERSION 3.13)
 
+# Require C++14
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # Ensure compiler optimizations are off when compiling in debug mode
 set(CMAKE_C_FLAGS_DEBUG_INIT "-O0")
 set(CMAKE_CXX_FLAGS_DEBUG_INIT "-O0")
@@ -66,6 +70,7 @@ option(ENABLE_MDNS "Build multicast DNS support" OFF)
 option(ENABLE_EXTERNAL_AUTH_PLUGIN "Enable ExternalAuth plugin support" ON)
 option(ENABLE_JWE_AUTH_PLUGIN "Enable JweAuth plugin support" ON)
 option(ENABLE_UNIT_TESTS "Enable flexisip unit tests (low level tests)" OFF)
+option(ENABLE_UNIT_TESTS_MYSQL "Enable flexisip unit tests that use mysql" OFF)
 add_ccache_option(ON)
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
 option(INTERNAL_LIBHIREDIS "Build libhiredis source code present as Flexisip submodule instead of searching it in system libraries" OFF)
@@ -90,12 +95,6 @@ endif()
 if(FLEXISIP_SYSTEMD_INSTALL_DIR STREQUAL "")
 	set(FLEXISIP_SYSTEMD_INSTALL_DIR "${CMAKE_INSTALL_FULL_DATAROOTDIR}/systemd/system")
 endif()
-
-
-# Require C++14
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 
 find_package(Threads)
 

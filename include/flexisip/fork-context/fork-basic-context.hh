@@ -40,7 +40,9 @@ public:
 
 protected:
 	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& event) override;
-	bool onNewRegister(const url_t* url, const std::string& uid) override;
+	bool onNewRegister(const SipUri& url, const std::string& uid, const std::function<void()>& dispatchFunction) override {
+		return false;
+	}
 
 private:
 	ForkBasicContext(Agent* agent, const std::shared_ptr<RequestSipEvent>& event,

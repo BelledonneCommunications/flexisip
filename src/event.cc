@@ -212,6 +212,16 @@ void RequestSipEvent::checkContentLength(const url_t *url) {
 	}
 }
 
+std::shared_ptr<RequestSipEvent> RequestSipEvent::makeRestored(std::shared_ptr<IncomingAgent> incomingAgent,
+                                                               const std::shared_ptr<MsgSip>& msgSip,
+                                                               const std::weak_ptr<Module>& currModule) {
+	auto shared = make_shared<RequestSipEvent>(incomingAgent, msgSip);
+	shared->mCurrModule = currModule;
+	shared->mState = SUSPENDED;
+
+	return shared;
+}
+
 RequestSipEvent::RequestSipEvent(shared_ptr<IncomingAgent> incomingAgent, const shared_ptr<MsgSip> &msgSip,
 								 tport_t *tport)
 	: SipEvent(incomingAgent, msgSip), mRecordRouteAdded(false) {

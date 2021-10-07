@@ -35,7 +35,7 @@
 #include <bctoolbox/logging.h>
 
 #include "flexisip/sip-boolean-expressions.hh"
-#include "flexisip/utils/timer.hh"
+#include "flexisip/sofia-wrapper/timer.hh"
 
 /*
  * These are the classic C-style logging macros.

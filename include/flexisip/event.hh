@@ -170,10 +170,16 @@ class SipEvent : public std::enable_shared_from_this<SipEvent> {
 };
 
 class RequestSipEvent : public SipEvent {
-  public:
-	RequestSipEvent(std::shared_ptr<IncomingAgent> incomingAgent, const std::shared_ptr<MsgSip> &msgSip,
-					tport_t *tport = NULL);
-	RequestSipEvent(const std::shared_ptr<RequestSipEvent> &sipEvent);
+public:
+	RequestSipEvent(std::shared_ptr<IncomingAgent> incomingAgent,
+	                const std::shared_ptr<MsgSip>& msgSip,
+	                tport_t* tport = NULL);
+	RequestSipEvent(const std::shared_ptr<RequestSipEvent>& sipEvent);
+
+	// Sip event extends enable_shared_from_this and constructor should be private.
+	static std::shared_ptr<RequestSipEvent> makeRestored(std::shared_ptr<IncomingAgent> incomingAgent,
+	                                                     const std::shared_ptr<MsgSip>& msgSip,
+	                                                     const std::weak_ptr<Module>& currModule);
 
 	virtual void suspendProcessing();
 	std::shared_ptr<IncomingTransaction> createIncomingTransaction();

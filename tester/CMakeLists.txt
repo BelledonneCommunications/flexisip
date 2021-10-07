@@ -30,6 +30,7 @@ add_executable(flexisip_tester
         conference-tester.cc
         extended-contact-tester.cc
         fork-context-tester.cc
+        fork-context-mysql-tester.cc
         push-notification-tester.cc
         register-tester.cc
         router-tester.cc

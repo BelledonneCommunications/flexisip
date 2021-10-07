@@ -26,7 +26,7 @@
 #include <openssl/ssl.h>
 #include <sofia-sip/su_wait.h>
 
-#include <flexisip/utils/timer.hh>
+#include <flexisip/sofia-wrapper/timer.hh>
 
 #include "http-message-context.hh"
 #include "http-message.hh"

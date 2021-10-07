@@ -20,7 +20,7 @@
 
 #include <memory>
 
-#include "flexisip/utils/timer.hh"
+#include "flexisip/sofia-wrapper/timer.hh"
 
 #include "sofia-wrapper/su-root.hh"
 

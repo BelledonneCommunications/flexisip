@@ -64,7 +64,7 @@ job-debian10-ninja-clang:
     CMAKE_GENERATOR: Ninja
     CC: clang
     CXX: clang++
-    CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON
+    CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON
   extends: .job-linux
   artifacts:
     paths:

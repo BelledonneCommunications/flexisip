@@ -21,10 +21,9 @@
 #include <regex>
 #include <thread>
 
-#include <flexisip/utils/timer.hh>
-
 #include "flexisip-config.h"
 #include "flexisip/logmanager.hh"
+#include "flexisip/sofia-wrapper/timer.hh"
 
 #include "pushnotification/apple/apple-client.hh"
 #include "pushnotification/firebase/firebase-client.hh"

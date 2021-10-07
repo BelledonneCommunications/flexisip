@@ -36,6 +36,7 @@ shared_ptr<ForkCallContext> ForkCallContext::make(Agent* agent, const shared_ptr
                                                   const shared_ptr<ForkContextConfig>& cfg,
                                                   const weak_ptr<ForkContextListener>& listener,
                                                   const weak_ptr<StatPair>& counter) {
+	// new because make_shared require a public constructor.
 	const shared_ptr<ForkCallContext> shared{new ForkCallContext(agent, event, cfg, listener, counter)};
 	return shared;
 }
@@ -195,11 +196,12 @@ void ForkCallContext::logResponse(const shared_ptr<ResponseSipEvent> &ev) {
 	}
 }
 
-bool ForkCallContext::onNewRegister(const url_t *url, const string &uid) {
-	if (isCompleted())
-		return false;
+bool ForkCallContext::onNewRegister(const SipUri& url,
+                                    const std::string& uid,
+                                    const function<void()>& dispatchFunction) {
+	if (isCompleted()) return false;
 
-	return ForkContextBase::onNewRegister(url, uid);
+	return ForkContextBase::onNewRegister(url, uid, dispatchFunction);
 }
 
 bool ForkCallContext::isCompleted() const {

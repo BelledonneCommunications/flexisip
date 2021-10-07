@@ -29,6 +29,7 @@ shared_ptr<ForkBasicContext> ForkBasicContext::make(Agent* agent, const shared_p
                                                     const shared_ptr<ForkContextConfig>& cfg,
                                                     const weak_ptr<ForkContextListener>& listener,
                                                     const weak_ptr<StatPair>& counter) {
+	// new because make_shared require a public constructor.
 	const shared_ptr<ForkBasicContext> shared{new ForkBasicContext(agent, event, cfg, listener, counter)};
 	return shared;
 }
@@ -75,10 +76,6 @@ void ForkBasicContext::finishIncomingTransaction() {
 void ForkBasicContext::onDecisionTimer() {
 	LOGD("ForkBasicContext::onDecisionTimer()");
 	finishIncomingTransaction();
-}
-
-bool ForkBasicContext::onNewRegister(const url_t* url, const string& uid) {
-	return false;
 }
 
 void ForkBasicContext::processInternalError(int status, const char* phrase) {

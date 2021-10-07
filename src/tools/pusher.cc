@@ -19,7 +19,7 @@
 #include <string>
 
 #include <flexisip/common.hh>
-#include <flexisip/utils/timer.hh>
+#include <flexisip/sofia-wrapper/timer.hh>
 
 #include "pushnotification/service.hh"
 
