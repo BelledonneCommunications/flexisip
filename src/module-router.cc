@@ -1,25 +1,27 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <sofia-sip/sip_status.h>
+
+#include "domain-registrations.hh"
+#include "flexisip/logmanager.hh"
 
 #include <flexisip/module-router.hh>
-#include <flexisip/logmanager.hh>
-#include "domain-registrations.hh"
-#include <sofia-sip/sip_status.h>
 
 using namespace std;
 using namespace flexisip;
@@ -86,6 +88,20 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 		 "non-standard behavior.",
 		 "false"},
 		{BooleanExpr, "fallback-route-filter", "Only use the fallback route if the expression is true.", "true"},
+	    {Boolean, "save-fork-late-message-in-db",
+	     "Save message to database when they enter in db waiting phase of fork-late mode. message-fork-late MUST be "
+	     "true",
+	     "false"},
+	    {String, "message-database-backend",
+	     "Choose the type of backend that Soci will use for the connection. Depending on your Soci package and the "
+	     "modules you installed, the supported databases are:`mysql` (and `sqlite3` soon)",
+	     "mysql"},
+	    {String, "message-database-connection-string",
+	     "The configuration parameters of the backend. The basic format is \"key=value key2=value2\". For a mysql "
+	     "backend, this is a valid config: \"db=mydb user=user password='pass' host=myhost.com\". Please refer to "
+	     "the Soci documentation of your backend, for instance: "
+	     "http://soci.sourceforge.net/doc/master/backends/#supported-backends-and-features",
+	     "db='mydb' user='myuser' password='mypass' host='myhost.com'"},
 
 		// deprecated parameters
 		{Boolean, "stateful",
@@ -97,7 +113,7 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 		 "Require presence of authorization header for specified realm. [Realm]", ""},
 		{Boolean, "generate-contact-even-on-filled-aor", "Generate a contact route even on filled AOR.", "false"},
 		{String, "preroute", "Rewrite username with given value.", ""},
-		config_item_end};
+	    config_item_end};
 	mc->addChildrenValues(configs);
 
 	// deprecated since 2020-01-28 (2.0.0)
@@ -119,13 +135,7 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 	mStats.mCountBasicForks = mc->createStats("count-basic-forks", "Number of basic forks");
 	mStats.mCountCallForks = mc->createStats("count-call-forks", "Number of call forks");
 	mStats.mCountMessageForks = mc->createStats("count-message-forks", "Number of message forks");
-
-	mStats.mCountForkTransactions =
-		mc->createStats("count-fork-transactions", "Number of outgoing transaction created for forking");
-
-	mStats.mCountNonForks = mc->createStat("count-non-forked", "Number of non forked invites.");
-	mStats.mCountLocalActives =
-		mc->createStat("count-local-registered-users", "Number of users currently registered through this server.");
+	mStats.mCountMessageProxyForks = mc->createStats("count-message-proxy-forks", "Number of proxy message forks");
 }
 
 void ModuleRouter::onLoad(const GenericStruct *mc) {
@@ -172,6 +182,26 @@ void ModuleRouter::onLoad(const GenericStruct *mc) {
 		mFallbackRouteParsed = sipUrlMake(mHome.home(), mFallbackRoute.c_str());
 		if (!mFallbackRouteParsed) LOGF("Bad value [%s] for fallback-route in module::Router.", mFallbackRoute.c_str());
 	}
+
+	if ((mSaveForkMessageEnabled = mc->get<ConfigBoolean>("save-fork-late-message-in-db")->read())) {
+		ForkMessageContextSociRepository::prepareConfiguration(
+		    mc->get<ConfigString>("message-database-backend")->read(),
+		    mc->get<ConfigString>("message-database-connection-string")->read(), 10);
+		ForkMessageContextSociRepository::getInstance();
+
+		SLOGI << "Fork message to DB is enabled, retrieving previous messages in DB ...";
+		auto allDbMessages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
+		SLOGD << " ... " << allDbMessages.size() << " messages found in DB ...";
+		for (auto& dbMessage : allDbMessages) {
+			auto restoredForkMessage = ForkMessageContextDbProxy::make(
+			    getAgent(), shared_ptr<RequestSipEvent>{}, mMessageForkCfg, shared_from_this(),
+			    mStats.mCountMessageForks, mStats.mCountMessageProxyForks, dbMessage);
+			for(const auto& key : restoredForkMessage->getKeys()) {
+				mForks.emplace(key, restoredForkMessage);
+			}
+		}
+		SLOGI << " ... " << mForks.size() << " fork message restored from DB.";
+ 	}
 }
 
 void ModuleRouter::sendReply(shared_ptr<RequestSipEvent> &ev, int code, const char *reason, int warn_code,
@@ -344,7 +374,6 @@ bool ModuleRouter::dispatch(const shared_ptr<RequestSipEvent> &ev, const shared_
 
 void ModuleRouter::onContactRegistered(const shared_ptr<OnContactRegisteredListener> &listener, const string &uid, const shared_ptr<Record> &record, const url_t *sipUri) {
 	sofiasip::Home home;
-	sip_path_t *path = NULL;
 	sip_contact_t *contact = NULL;
 	bool forksFound = false;
 
@@ -376,10 +405,10 @@ void ModuleRouter::onContactRegistered(const shared_ptr<OnContactRegisteredListe
 		const shared_ptr<ExtendedContact> ec = record->extractContactByUniqueId(uid);
 		if (ec) {
 			contact = ec->toSofiaContact(home.home(), ec->mExpireAt - 1);
-			path = ec->toSofiaRoute(home.home());
 
 			// First use sipURI
 			for (const auto &context : range) {
+				// TODO async
 				if (context->onNewRegister(contact->m_url, uid)) {
 					SLOGD << "Found a pending context for key " << key << ": " << context.get();
 					lateDispatch(context->getEvent(), ec, context, "");
@@ -389,7 +418,6 @@ void ModuleRouter::onContactRegistered(const shared_ptr<OnContactRegisteredListe
 		}
 	}
 
-	// If not found, search in aliases
 	const auto &contacts = record->getExtendedContacts();
 	for (const auto &ec : contacts) {
 		if (!ec || !ec->mAlias)
@@ -397,17 +425,16 @@ void ModuleRouter::onContactRegistered(const shared_ptr<OnContactRegisteredListe
 
 		// Find all contexts
 		contact = ec->toSofiaContact(home.home(), ec->mExpireAt - 1);
-		path = ec->toSofiaRoute(home.home());
 		auto rang = getLateForks(ExtendedContact::urlToString(ec->mSipContact->m_url));
 		for (const auto &context : rang) {
 			forksFound = true;
 			if (context->onNewRegister(contact->m_url, uid)) {
 				LOGD("Found a pending context for contact %s: %p", ExtendedContact::urlToString(ec->mSipContact->m_url).c_str(), context.get());
-				auto stlpath = Record::route_to_stl(path);
 				lateDispatch(context->getEvent(), ec, context, "");
 			}
 		}
 	}
+
 	if (!forksFound){
 		/*
 		 * REVISIT: late cleanup. This is really not the best option. I did this change because previous way of cleaning was not working.
@@ -574,16 +601,25 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent> &ev, const shared_pt
 	             strcasecmp(sip->sip_content_type->c_type, "application/im-iscomposing+xml") == 0) &&
 	           !(sip->sip_expires && sip->sip_expires->ex_delta == 0)) {
 		// Use the basic fork context for "im-iscomposing+xml" messages to prevent storing useless messages
-		context = ForkMessageContextDbProxy::make(getAgent(), ev, mMessageForkCfg, shared_from_this(),
-		                                          mStats.mCountMessageForks);
+		if (mSaveForkMessageEnabled) {
+			context = ForkMessageContextDbProxy::make(getAgent(), ev, mMessageForkCfg, shared_from_this(),
+			                                          mStats.mCountMessageForks, mStats.mCountMessageProxyForks);
+		} else {
+			context = ForkMessageContext::make(getAgent(), ev, mMessageForkCfg, shared_from_this(),
+			                                   mStats.mCountMessageForks);
+		}
 	} else if (sip->sip_request->rq_method == sip_method_refer &&
-	           (sip->sip_refer_to != NULL && msg_params_find(sip->sip_refer_to->r_params, "text") != NULL)) {
+	           (sip->sip_refer_to != nullptr && msg_params_find(sip->sip_refer_to->r_params, "text") != nullptr)) {
 		// Use the message fork context only for refers that are text to prevent storing useless refers
-		context = ForkMessageContextDbProxy::make(getAgent(), ev, mMessageForkCfg, shared_from_this(),
-		                                          mStats.mCountMessageForks);
+		if (mSaveForkMessageEnabled) {
+			context = ForkMessageContextDbProxy::make(getAgent(), ev, mMessageForkCfg, shared_from_this(),
+			                                          mStats.mCountMessageForks, mStats.mCountMessageProxyForks);
+		} else {
+			context = ForkMessageContext::make(getAgent(), ev, mMessageForkCfg, shared_from_this(),
+			                                   mStats.mCountMessageForks);
+		}
 	} else {
-		context =
-		    ForkBasicContext::make(getAgent(), ev, mOtherForkCfg, shared_from_this(), mStats.mCountBasicForks);
+		context = ForkBasicContext::make(getAgent(), ev, mOtherForkCfg, shared_from_this(), mStats.mCountBasicForks);
 	}
 	if (context) {
 		const auto key = routingKey(sipUri);
