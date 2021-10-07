@@ -49,6 +49,8 @@ add_library(flexisip SHARED
 	fork-context/fork-basic-context.cc
 	fork-context/fork-call-context.cc
 	fork-context/fork-context-base.cc
+	fork-context/fork-message-context-db-proxy.cc
+	fork-context/fork-message-context-soci-repository.cc
 	fork-context/fork-message-context.cc
 	fork-context/fork-context.cc
 	h264iframefilter.cc
@@ -141,6 +143,10 @@ target_link_libraries(flexisip
 	PUBLIC
 		sofia-sip-ua
 )
+if (ENABLE_UNIT_TESTS)
+	target_link_libraries(flexisip PRIVATE bctoolbox-tester)
+endif ()
+
 add_dependencies(flexisip flexisip-git-version)
 
 if(ENABLE_MSGPACK)
@@ -285,7 +291,6 @@ endif()
 if(XercesC_FOUND)
 	target_include_directories(flexisip PRIVATE "${PROJECT_SOURCE_DIR}/libxsd")
 	target_link_libraries(flexisip PRIVATE "XercesC::XercesC")
-	list(APPEND XML_SOURCES xml/fthttp.cc xml/fthttp.hh)
 endif()
 if(ENABLE_PRESENCE OR ENABLE_MDNS)
 	target_link_libraries(flexisip PUBLIC bellesip)
