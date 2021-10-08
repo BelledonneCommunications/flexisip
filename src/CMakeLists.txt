@@ -256,6 +256,15 @@ if(ENABLE_CONFERENCE)
 		xml/reginfo.hh
 	)
 endif()
+if(ENABLE_B2BUA)
+	target_sources(flexisip PRIVATE
+		b2bua/b2bua-server.cc
+		b2bua/b2bua-server.hh
+	)
+	target_link_libraries(flexisip
+		PUBLIC linphone++
+	)
+endif()
 if(ENABLE_PUSHNOTIFICATION)
 	target_sources(flexisip PRIVATE
 		module-pushnotification.cc
@@ -308,6 +317,10 @@ endif()
 
 if(ENABLE_JWE_AUTH_PLUGIN)
 	add_subdirectory(plugin/jwe-auth-plugin)
+endif()
+
+if(ENABLE_B2BUA)
+	add_subdirectory(plugin/b2bua-plugin)
 endif()
 
 #######################################################################################################################
