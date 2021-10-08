@@ -20,8 +20,12 @@
 #
 ############################################################################
 
-# CMake 3.13 required by some sub-projects.
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.2)
+
+# CMP0077 is required to masquerade the options declared by the submodules.
+if(NOT CMAKE_VERSION VERSION_LESS 3.13)
+	cmake_policy(SET CMP0077 NEW)
+endif()
 
 # Add 'Sanitizer' CMake build type.
 # MUST be before project declaration.
