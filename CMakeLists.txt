@@ -20,8 +20,13 @@
 #
 ############################################################################
 
-# CMake 3.13 required by some sub-projects.
-cmake_minimum_required(VERSION 3.13)
+# CMake 3.3 is required for the usage of IN_LIST operator in if() command.
+cmake_minimum_required(VERSION 3.3)
+
+# CMP0077 is required to correctly force the value of subprojects' cache variables.
+if(NOT CMAKE_VERSION VERSION_LESS 3.13)
+	cmake_policy(SET CMP0077 NEW)
+endif()
 
 # Add 'Sanitizer' CMake build type.
 # MUST be before project declaration.
