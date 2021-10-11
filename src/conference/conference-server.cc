@@ -95,19 +95,19 @@ void ConferenceServer::_init () {
 		configLinphone->setString("storage", "uri", dbUri);
 	}else{
 		configLinphone->setString("storage", "uri", "null");
-		
+
 	}
 	configLinphone->setInt("misc", "max_calls", 1000);
 	configLinphone->setBool("sip", "reject_duplicated_calls", false);
 	configLinphone->setInt("sound", "conference_rate", 48000);
 	configLinphone->setBool("rtp", "symmetric", true);
 	configLinphone->setBool("rtp", "rtcp_enabled", true);
-	configLinphone->setBool("rtp", "rtcp_mux", true);
+	configLinphone->setBool("rtp", "rtcp_mux", false);
 	configLinphone->setBool("video", "dont_check_codecs", true);
 
 	mCore = linphone::Factory::get()->createCoreWithConfig(configLinphone, nullptr);
 
-	mCore->enableRtpBundle(true);
+	mCore->enableRtpBundle(false);
 	mCore->enableEchoCancellation(false);
 
 	mCore->setUserAgent("Flexisip-conference", FLEXISIP_GIT_VERSION);
