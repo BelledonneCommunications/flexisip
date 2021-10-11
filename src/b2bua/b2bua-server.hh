@@ -20,7 +20,7 @@
 
 #include <memory>
 
-#include <linphone++/linphone.hh>
+#include "linphone++/linphone.hh"
 
 #include "service-server.hh"
 
