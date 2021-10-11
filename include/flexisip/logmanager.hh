@@ -22,7 +22,6 @@
 #include <memory>
 #include <mutex>
 
-#define BCTBX_DEBUG_MODE 1 // Flexisip extensively use SLOD
 #ifndef FLEXISIP_USER_ERRORS_LOG_DOMAIN
 #define FLEXISIP_USER_ERRORS_LOG_DOMAIN "flexisip-users"
 #endif
