@@ -101,11 +101,12 @@ void ConferenceServer::_init () {
 	configLinphone->setBool("sip", "reject_duplicated_calls", false);
 	configLinphone->setInt("sound", "conference_rate", 48000);
 	configLinphone->setBool("rtp", "symmetric", true);
-	configLinphone->setBool("rtp", "rtcp_mux", true);
 	configLinphone->setBool("video", "dont_check_codecs", true);
 
-	mCore->enableRtcp(true);
-	mCore->enableRtpBundle(true);
+// ------------------  START: Temporary conference parameters ------------------------- //
+	// FIXME: Need to agree on default values
+	//configLinphone->setBool("rtp", "bundle", true);
+// ------------------  END: Temporary conference parameters ------------------------- //
 
 	mCore = linphone::Factory::get()->createCoreWithConfig(configLinphone, nullptr);
 	mCore->enableEchoCancellation(false);
