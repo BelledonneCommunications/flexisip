@@ -352,13 +352,11 @@ void ConferenceServer::onCallStateChanged(const std::shared_ptr<linphone::Core> 
 	if (remoteParams->audioEnabled()) {
 		auto audioStats = call->getAudioStats();
 		auto iceState = audioStats->getIceState();
-	LOGD("%s DEBUG DEBUG audio ice state %0d", __func__, iceState);
 		iceNegotiationOngoing |= (iceState != linphone::IceState::InProgress);
 	}
 	if (remoteParams->videoEnabled()) {
 		auto videoStats = call->getVideoStats();
 		auto iceState = videoStats->getIceState();
-	LOGD("%s DEBUG DEBUG video ice state %0d", __func__, iceState);
 		iceNegotiationOngoing |= (iceState != linphone::IceState::InProgress);
 	}
 	auto it = mConferences.find(to->getUsername());
