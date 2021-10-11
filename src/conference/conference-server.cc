@@ -361,7 +361,7 @@ void ConferenceServer::onCallStateChanged(const std::shared_ptr<linphone::Core> 
 			}
 		break;
 		case linphone::Call::State::StreamsRunning:
-			if ((iceState != InProgress) && (it != mConferences.end())){
+			if ((iceState != linphone::IceState::InProgress) && (it != mConferences.end())){
 				(*it).second->addCall(call);
 			}else{
 				LOGD("Unable to add participant [%s] to any conference", call->getRemoteAddress()->asString().c_str());
