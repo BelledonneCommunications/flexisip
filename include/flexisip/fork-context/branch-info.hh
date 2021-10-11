@@ -20,15 +20,37 @@
 
 #include <memory>
 
+#include "flexisip/fork-context/branch-info-db.hh"
 #include "flexisip/fork-context/fork-context.hh"
 #include "flexisip/registrardb.hh"
 #include "flexisip/transaction.hh"
+
+#if ENABLE_UNIT_TESTS
+#include "bctoolbox/tester.h"
+#endif
 
 namespace flexisip {
 
 class BranchInfo {
 public:
 	template <typename T> BranchInfo(T&& ctx) : mForkCtx{std::forward<T>(ctx)} {
+	}
+
+	/**
+	 * Used when restoring BranchInfo from database in fork-late mode.
+	 */
+	template <typename T>
+	BranchInfo(T&& ctx, const BranchInfoDb& dbObject, const std::shared_ptr<Agent>& agent)
+	    : mForkCtx{std::forward<T>(ctx)} {
+		mUid = dbObject.contactUid;
+		mPushSent = dbObject.isPushSent;
+		mPriority = dbObject.priority;
+		auto request = std::make_shared<MsgSip>(
+		    msg_make(sip_default_mclass(), 0, dbObject.request.c_str(), dbObject.request.size()));
+		mRequest = std::make_shared<RequestSipEvent>(agent, request);
+		auto lastResponse = std::make_shared<MsgSip>(
+		    msg_make(sip_default_mclass(), 0, dbObject.lastResponse.c_str(), dbObject.request.size()));
+		mLastResponse = std::make_shared<ResponseSipEvent>(agent, lastResponse);
 	}
 
 	void clear() {
@@ -51,6 +73,23 @@ public:
 	static void setBranchInfo(const std::shared_ptr<OutgoingTransaction>& tr, const std::weak_ptr<BranchInfo> br) {
 		tr->setProperty("BranchInfo", br);
 	}
+
+	BranchInfoDb getDbInfo() {
+		std::string request{mRequest->getMsgSip()->print()};
+		std::string lastResponse{mLastResponse->getMsgSip()->print()};
+		BranchInfoDb branchInfoDb{mUid, mPriority, request, lastResponse, mPushSent};
+		return branchInfoDb;
+	}
+
+#ifdef ENABLE_UNIT_TESTS
+	void assertEqual(const std::shared_ptr<BranchInfo>& expected){
+		BC_ASSERT_STRING_EQUAL(mUid.c_str(), expected->mUid.c_str());
+		BC_ASSERT_EQUAL(mPriority, expected->mPriority, float, "%f");
+
+		BC_ASSERT_STRING_EQUAL(mRequest->getMsgSip()->print(), expected->mRequest->getMsgSip()->print());
+		BC_ASSERT_STRING_EQUAL(mLastResponse->getMsgSip()->print(), expected->mLastResponse->getMsgSip()->print());
+	}
+#endif
 
 	std::weak_ptr<ForkContext> mForkCtx{};
 	std::string mUid{};
