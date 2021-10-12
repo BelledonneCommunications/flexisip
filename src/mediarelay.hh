@@ -46,6 +46,7 @@ class MediaRelay : public Module, protected ModuleToolbox {
 	virtual void onDeclare(GenericStruct *mc);
 
   private:
+	bool isInviteOrUpdate(sip_method_t method) const;
 	void createServers();
 	bool processNewInvite(const std::shared_ptr<RelayedCall> &c, const std::shared_ptr<OutgoingTransaction> &transaction,
 						  const std::shared_ptr<RequestSipEvent> &ev);
