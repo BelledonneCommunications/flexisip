@@ -102,8 +102,7 @@ void ConferenceServer::_init () {
 	configLinphone->setInt("sound", "conference_rate", 48000);
 	configLinphone->setBool("rtp", "symmetric", true);
 	configLinphone->setBool("rtp", "rtcp_enabled", true);
-	//configLinphone->setBool("rtp", "rtcp_mux", true);
-	configLinphone->setBool("rtp", "rtcp_mux", false);
+	configLinphone->setBool("rtp", "rtcp_mux", true);
 	configLinphone->setBool("video", "dont_check_codecs", true);
 
 	mCore = linphone::Factory::get()->createCoreWithConfig(configLinphone, nullptr);
