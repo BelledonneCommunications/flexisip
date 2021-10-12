@@ -178,6 +178,9 @@ else()
 	message(STATUS "MSGPACK not found")
 endif()
 
+# Allow to use SLOGD and LOGD macros.
+add_definitions("-DBCTBX_DEBUG_MODE")
+
 
 find_package(OpenSSL 0.9.8 REQUIRED)
 
