@@ -168,6 +168,10 @@ void MediaRelay::onUnload() {
 	mServers.clear();
 }
 
+bool MediaRelay::isInviteOrUpdate(sip_method_t method) const{
+	return method == sip_method_invite || method == sip_method_update;
+}
+
 
 bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared_ptr<OutgoingTransaction>& transaction, const shared_ptr<RequestSipEvent> &ev) {
 	sip_t *sip = ev->getMsgSip()->getSip();
@@ -266,7 +270,7 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent> &ev) {
 
 	shared_ptr<RelayedCall> c;
 
-	if (sip->sip_request->rq_method == sip_method_invite) {
+	if (isInviteOrUpdate(sip->sip_request->rq_method)) {
 		shared_ptr<IncomingTransaction> it = ev->createIncomingTransaction();
 		shared_ptr<OutgoingTransaction> ot = ev->createOutgoingTransaction();
 		bool newContext=false;
@@ -366,7 +370,7 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	if (ot != NULL) {
 		c = ot->getProperty<RelayedCall>(getModuleName());
 		if (c) {
-			if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite) {
+			if (sip->sip_cseq && isInviteOrUpdate(sip->sip_cseq->cs_method)) {
 				fixAuthChallengeForSDP(ms->getHome(), msg, sip);
 				if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
 					processResponseWithSDP(c, ot, ev->getMsgSip());
@@ -380,7 +384,7 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	if (it && (c = it->getProperty<RelayedCall>(getModuleName()))!=NULL){
 		//This is a response sent to the incoming transaction.
 		LOGD("call context %p",c.get());
-		if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite){
+		if (sip->sip_cseq && isInviteOrUpdate(sip->sip_cseq->cs_method)){
 			//Check for failure code, in which case the call context can be destroyed immediately.
 			if ( sip->sip_status->st_status >= 300){
 				if (!c->isDialogEstablished()){
@@ -397,7 +401,7 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 		}
 	}
 
-	if (ot==NULL && it==NULL && sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite && sip->sip_status->st_status == 200) {
+	if (ot==NULL && it==NULL && sip->sip_cseq && isInviteOrUpdate(sip->sip_cseq->cs_method) && sip->sip_status->st_status == 200) {
 		//Out of transaction 200Ok for invite.
 		//Check if it matches an established dialog whose to-tag is different, then it is a 200Ok sent by the client
 		//before receiving the Cancel.

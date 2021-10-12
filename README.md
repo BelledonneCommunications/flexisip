@@ -85,7 +85,7 @@ The following options are relevant for packaging:
 | `CPACK_GENERATOR`      | Select the kind of package. “RPM” or “DEB”.                                  |
 
 ```bash
-cmake ./build -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communiactions -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSYSCONF_INSTALL_DIR=/etc -DCPACK_GENERATOR=RPM
+cmake ./build -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSYSCONF_INSTALL_DIR=/etc -DCPACK_GENERATOR=RPM
 make -C ./build -j<njobs> package
 ```
 
