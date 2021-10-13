@@ -361,6 +361,7 @@ void ConferenceServer::onCallStateChanged(const std::shared_ptr<linphone::Core> 
 	LOGW("%s DEBUG DEBUG video ice state %0d", __func__, (int)iceState);
 		iceNegotiationOngoing |= (iceState == linphone::IceState::InProgress);
 	}
+LOGW("%s DEBUG DEBUG ice negotiation ongoing: %0d", __func__, iceNegotiationOngoing);
 	auto it = mConferences.find(to->getUsername());
 	switch(cstate){
 		case linphone::Call::State::IncomingReceived:
@@ -374,9 +375,12 @@ void ConferenceServer::onCallStateChanged(const std::shared_ptr<linphone::Core> 
 			}
 		break;
 		case linphone::Call::State::StreamsRunning:
-			if (!iceNegotiationOngoing && (it != mConferences.end())){
-				(*it).second->addCall(call);
+			if (it != mConferences.end()){
+				if (!iceNegotiationOngoing){
+					(*it).second->addCall(call);
+				}
 			}else{
+LOGW("Unable to add participant [%s] to any conference", call->getRemoteAddress()->asString().c_str());
 				LOGD("Unable to add participant [%s] to any conference", call->getRemoteAddress()->asString().c_str());
 			}
 		break;
