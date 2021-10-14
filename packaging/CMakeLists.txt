@@ -35,14 +35,6 @@ set(extra_dependencies
 list(JOIN extra_dependencies ", " extra_dependencies_str)
 
 set(obsolete_packets
-	"bc-hiredis-devel"
-	"bc-soci-devel"
-	"bc-soci-mysql"
-	"bc-soci-mysql-devel"
-	"bc-soci-postgresql"
-	"bc-soci-postgresql-devel"
-	"bc-soci-sqlite3"
-	"bc-soci-sqlite3-devel"
 	"bc-bctoolbox"
 	"bc-bctoolbox-devel"
 	"bc-belle-sip"
@@ -52,6 +44,7 @@ set(obsolete_packets
 	"bc-flexisip-external-auth-plugin"
 	"bc-flexisip-jwe-auth-plugin"
 	"bc-hiredis"
+	"bc-hiredis-devel"
 	"bc-jose"
 	"bc-jose-devel"
 	"bc-liblinphone"
@@ -62,6 +55,13 @@ set(obsolete_packets
 	"bc-ortp"
 	"bc-ortp-devel"
 	"bc-soci"
+	"bc-soci-devel"
+	"bc-soci-mysql"
+	"bc-soci-mysql-devel"
+	"bc-soci-postgresql"
+	"bc-soci-postgresql-devel"
+	"bc-soci-sqlite3"
+	"bc-soci-sqlite3-devel"
 	"bc-sofia-sip"
 	"bc-sofia-sip-devel"
 	"bc-sofia-sip-utils"
@@ -80,6 +80,14 @@ if(ENABLE_CONFERENCE)
 endif()
 
 
+# List of files to mark as config files. That prevent them to be replaced by package update.
+# Add flexisip-logrotate.conf and SystemD services
+set(CONFIG_FILES "${FLEXISIP_LOGROTATE_INSTALL_LOCATION}")
+foreach(service ${FLEXISIP_SYSTEMD_SERVICES})
+	list(APPEND CONFIG_FILES "${FLEXISIP_SYSTEMD_INSTALL_DIR}/${service}")
+endforeach()
+
+
 #######################################################################################################################
 # RedHat/CentOS package
 #######################################################################################################################
@@ -96,7 +104,6 @@ if("RPM" IN_LIST CPACK_GENERATOR)
 	set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION "/opt/belledonne-communications/include")
 	set(CPACK_RPM_FILE_NAME "${CPACK_PACKAGE_NAME}-${version}-${release}.${CMAKE_HOST_SYSTEM_PROCESSOR}.rpm")
 	set(CPACK_RPM_PACKAGE_RELEASE_DIST ON)
-	set(CPACK_RPM_USER_FILELIST "%config(noreplace) ${FLEXISIP_LOGROTATE_INSTALL_LOCATION}")
 	set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
 	       "/etc/logrotate.d"
 	       "/lib"
@@ -140,11 +147,10 @@ if("RPM" IN_LIST CPACK_GENERATOR)
 		set(CPACK_RPM_${SECNAME}_SCRIPT_FILE "${CMAKE_CURRENT_BINARY_DIR}/rpm/${secname}.spec")
 	endforeach()
 
-	## Protect every installed SystemD unit against replacement while update
-	foreach(service ${FLEXISIP_SYSTEMD_SERVICES})
-		list(APPEND CPACK_RPM_USER_FILELIST "%config(noreplace) ${FLEXISIP_SYSTEMD_INSTALL_DIR}/${service}")
+	## Declare config files
+	foreach(conffile ${CONFIG_FILES})
+		list(APPEND CPACK_RPM_USER_FILELIST "%config(noreplace) ${conffile}")
 	endforeach()
-
 endif()
 
 
@@ -174,6 +180,14 @@ if("DEB" IN_LIST CPACK_GENERATOR)
 
 	# Use Debian convention for package naming
 	set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
+
+	# Generate conffiles control file
+	set(conffiles_path "${CMAKE_CURRENT_BINARY_DIR}/deb/conffiles")
+	file(WRITE "${conffiles_path}" "")
+	foreach(conffile ${CONFIG_FILES})
+		file(APPEND "${conffiles_path}" "${conffile}\n")
+	endforeach()
+	list(APPEND CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${conffiles_path}")
 
 	# Add control scripts
 	set(control_files "postinst" "prerm" "postrm")
