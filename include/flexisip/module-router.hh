@@ -1,20 +1,20 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2019  Belledonne Communications SARL.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #pragma once
 
@@ -22,6 +22,7 @@
 #include "flexisip/fork-context/fork-basic-context.hh"
 #include "flexisip/fork-context/fork-call-context.hh"
 #include "flexisip/fork-context/fork-message-context-db-proxy.hh"
+#include "flexisip/fork-context/fork-message-context-soci-repository.hh"
 #include "flexisip/fork-context/fork-message-context.hh"
 #include "flexisip/module.hh"
 #include "flexisip/registrardb.hh"
@@ -33,9 +34,7 @@ struct RouterStats {
 	std::shared_ptr<StatPair> mCountBasicForks;
 	std::shared_ptr<StatPair> mCountCallForks;
 	std::shared_ptr<StatPair> mCountMessageForks;
-	std::unique_ptr<StatPair> mCountForkTransactions;
-	StatCounter64 *mCountNonForks = nullptr;
-	StatCounter64 *mCountLocalActives = nullptr;
+	std::shared_ptr<StatPair> mCountMessageProxyForks;
 };
 
 class ModuleRouter : public Module,
@@ -66,7 +65,7 @@ public:
 	               const char* warning = nullptr);
 	void routeRequest(std::shared_ptr<RequestSipEvent>& ev, const std::shared_ptr<Record>& aor, const url_t* sipUri);
 	void onContactRegistered(const std::shared_ptr<OnContactRegisteredListener>& listener, const std::string& uid,
-	                         const std::shared_ptr<Record>& aor, const url_t* sipUri);
+	                         const std::shared_ptr<Record>& aor, const std::string& sipKey);
 
 	const std::string& getFallbackRoute() const {
 		return mFallbackRoute;
@@ -125,32 +124,27 @@ private:
 	bool rewriteContactUrl(const std::shared_ptr<MsgSip>& ms, const url_t* ct_url, const char* route);
 	static ModuleInfo<ModuleRouter> sInfo;
 	std::shared_ptr<SipBooleanExpression> mFallbackRouteFilter;
+	bool mSaveForkMessageEnabled = false;
 };
 
 class OnContactRegisteredListener : public ContactRegisteredListener, public ContactUpdateListener, public std::enable_shared_from_this<OnContactRegisteredListener> {
 	friend class ModuleRouter;
 	ModuleRouter *mModule;
-	url_t *mSipUri;
-	std::string mSipUriAsString;
+	std::string mSipKey;
 	sofiasip::Home mHome;
 
   public:
-	OnContactRegisteredListener(ModuleRouter *module, const url_t *sipUri)
+	OnContactRegisteredListener(ModuleRouter *module, const std::string& sipKey)
 	: mModule(module) {
-		mSipUri = url_hdup(mHome.home(), sipUri);
-		if (url_has_param(mSipUri, "gr")) {
-			LOGD("Trying to create a ContactRegistered listener using a SIP URI with a gruu, let's remove it");
-			mSipUri->url_params = url_strip_param_string((char*)mSipUri->url_params, "gr");
-		}
-		mSipUriAsString = url_as_string(mHome.home(), mSipUri);
-		LOGD("Listener created for sipUri = %s", mSipUriAsString.c_str());
+		mSipKey = sipKey;
+		SLOGD << "OnContactRegisteredListener created for sipKey = " << mSipKey;
 	}
 
 	~OnContactRegisteredListener() = default;
 
 	void onContactRegistered(const std::shared_ptr<Record> &r, const std::string &uid) override{
-		LOGD("Listener invoked for topic = %s, uid = %s, sipUri = %s", r->getKey().c_str(), uid.c_str(), mSipUriAsString.c_str());
-		if (r) mModule->onContactRegistered(shared_from_this(), uid, r, mSipUri);
+		LOGD("Listener invoked for topic = %s, uid = %s, sipKey = %s", r->getKey().c_str(), uid.c_str(), mSipKey.c_str());
+		if (r) mModule->onContactRegistered(shared_from_this(), uid, r, mSipKey);
 	}
 	void onRecordFound(const std::shared_ptr<Record> &r) override{
 	}

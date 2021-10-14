@@ -59,7 +59,7 @@ public:
 	static bool processResponse(const std::shared_ptr<ResponseSipEvent>& ev);
 
 	// Called by the Router module to create a new branch.
-	virtual void addBranch(const std::shared_ptr<RequestSipEvent>& ev,
+	virtual std::shared_ptr<BranchInfo> addBranch(const std::shared_ptr<RequestSipEvent>& ev,
 	                       const std::shared_ptr<ExtendedContact>& contact) = 0;
 	virtual bool allCurrentBranchesAnswered(bool ignore_errors_and_timeouts = false) const = 0;
 	// Request if the fork has other branches with lower priorities to try
@@ -75,7 +75,7 @@ public:
 	virtual void start() = 0;
 
 	virtual void addKey(const std::string& key) = 0;
-	virtual const std::list<std::string>& getKeys() const = 0;
+	virtual const std::vector<std::string>& getKeys() const = 0;
 
 	/*
 	 * Informs the forked call context that a new register from a potential destination of the fork just arrived.

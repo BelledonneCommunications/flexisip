@@ -18,7 +18,12 @@
 
 #pragma once
 
+#include "flexisip/fork-context/fork-message-context-soci-repository.hh"
 #include "flexisip/fork-context/fork-message-context.hh"
+
+#if ENABLE_UNIT_TESTS
+#include "bctoolbox/tester.h"
+#endif
 
 namespace flexisip {
 
@@ -26,27 +31,37 @@ class ForkMessageContextDbProxy : public ForkContext,
                                   public ForkContextListener,
                                   public std::enable_shared_from_this<ForkMessageContextDbProxy> {
 public:
-	static std::shared_ptr<ForkMessageContextDbProxy> make(Agent* agent, const std::shared_ptr<RequestSipEvent>& event,
+	static std::shared_ptr<ForkMessageContextDbProxy> make(Agent* agent,
+	                                                       const std::shared_ptr<RequestSipEvent>& event,
 	                                                       const std::shared_ptr<ForkContextConfig>& cfg,
 	                                                       const std::weak_ptr<ForkContextListener>& listener,
-	                                                       const std::weak_ptr<StatPair>& counter) {
-		const std::shared_ptr<ForkMessageContextDbProxy> shared{new ForkMessageContextDbProxy(listener)};
-		shared->mForkMessage = ForkMessageContext::make(agent, event, cfg, shared, counter);
+	                                                       const std::weak_ptr<StatPair>& messageCounter,
+	                                                       const std::weak_ptr<StatPair>& proxyCounter);
 
-		return shared;
-	}
+	static std::shared_ptr<ForkMessageContextDbProxy> make(Agent* agent,
+	                                                       const std::shared_ptr<RequestSipEvent>& event,
+	                                                       const std::shared_ptr<ForkContextConfig>& cfg,
+	                                                       const std::weak_ptr<ForkContextListener>& listener,
+	                                                       const std::weak_ptr<StatPair>& messageCounter,
+	                                                       const std::weak_ptr<StatPair>& proxyCounter,
+	                                                       ForkMessageContextDb& forkFromDb);
+
+	~ForkMessageContextDbProxy();
 
 	/**
 	 * Called by the Router module to create a new branch.
 	 */
-	void addBranch(const std::shared_ptr<RequestSipEvent>& ev,
-	               const std::shared_ptr<ExtendedContact>& contact) override {
+	std::shared_ptr<BranchInfo> addBranch(const std::shared_ptr<RequestSipEvent>& ev,
+	                                      const std::shared_ptr<ExtendedContact>& contact) override {
 		if (!mForkMessage) loadFromDb();
-		mForkMessage->addBranch(ev, contact);
+		auto newBranch = mForkMessage->addBranch(ev, contact);
+		newBranch->mForkCtx = shared_from_this();
+
+		return newBranch;
 	}
 
 	bool allCurrentBranchesAnswered(bool ignore_errors_and_timeouts = false) const override {
-		if (!mForkMessage) loadFromDb();
+		if (!mForkMessage) return true;
 		return mForkMessage->allCurrentBranchesAnswered(ignore_errors_and_timeouts);
 	}
 
@@ -54,7 +69,7 @@ public:
 	 * Request if the fork has other branches with lower priorities to try
 	 */
 	bool hasNextBranches() const override {
-		if (!mForkMessage) loadFromDb();
+		if (!mForkMessage) return false;
 		return mForkMessage->hasNextBranches();
 	}
 
@@ -82,7 +97,7 @@ public:
 		mForkMessage->addKey(key);
 	}
 
-	const std::list<std::string>& getKeys() const override {
+	const std::vector<std::string>& getKeys() const override {
 		if (!mForkMessage) loadFromDb();
 		return mForkMessage->getKeys();
 	}
@@ -119,18 +134,22 @@ public:
 	 * Notifies the arrival of a new response on a given branch
 	 */
 	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& event) override {
+		LOGD("ForkMessageContextDbProxy[%p] onResponse", this);
 		if (!mForkMessage) loadFromDb();
 		mForkMessage->onResponse(br, event);
+		if (!mForkUuidInDb.empty()) {
+			saveToDb(); // Only necessary if we keep deleted messages
+		} else if (mForkMessage->allBranchesAnswered() && !mForkMessage->isFinished()) {
+			saveToDb();
+		}
 	}
 
 	const std::shared_ptr<RequestSipEvent>& getEvent() override {
-		if (!mForkMessage) loadFromDb();
-		return mForkMessage->getEvent();
+		return savedRequest;
 	}
 
 	const std::shared_ptr<ForkContextConfig>& getConfig() const override {
-		if (!mForkMessage) loadFromDb();
-		return mForkMessage->getConfig();
+		return savedConfig;
 	}
 
 	bool isFinished() const override {
@@ -138,27 +157,35 @@ public:
 		return mForkMessage->isFinished();
 	}
 
+#ifdef ENABLE_UNIT_TESTS
+	void assertEqual(const std::shared_ptr<ForkMessageContextDbProxy>& expected) {
+		BC_ASSERT_STRING_EQUAL(mForkUuidInDb.c_str(), expected->mForkUuidInDb.c_str());
+		mForkMessage->assertEqual(expected->mForkMessage);
+	}
+#endif
+
 private:
-	ForkMessageContextDbProxy(const std::weak_ptr<ForkContextListener>& listener)
-	    : mForkMessage{}, mOriginListener{listener} {
-	}
+	ForkMessageContextDbProxy(Agent* agent,
+	                          const std::shared_ptr<RequestSipEvent>& event,
+	                          const std::shared_ptr<ForkContextConfig>& cfg,
+	                          const std::weak_ptr<ForkContextListener>& listener,
+	                          const std::weak_ptr<StatPair>& messageCounter,
+	                          const std::weak_ptr<StatPair>& proxyCounter);
 
-	void loadFromDb() const {
-		SLOGD << "Fork loaded from DB";
-	}
+	void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) override;
 
-	void saveToDb() {
-		SLOGD << "Fork saved to DB";
-	}
-
-	void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) override {
-		if (auto originListener = mOriginListener.lock()) {
-			originListener->onForkContextFinished(shared_from_this());
-		}
-	}
+	void loadFromDb() const;
+	void saveToDb();
 
 	mutable std::shared_ptr<ForkMessageContext> mForkMessage;
 	std::weak_ptr<ForkContextListener> mOriginListener;
+	std::string mForkUuidInDb{};
+	std::weak_ptr<StatPair> mCounter;
+
+	Agent* savedAgent;
+	std::shared_ptr<RequestSipEvent> savedRequest;
+	std::shared_ptr<ForkContextConfig> savedConfig;
+	std::weak_ptr<StatPair> savedCounter;
 };
 
 } // namespace flexisip
