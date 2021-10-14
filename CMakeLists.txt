@@ -23,10 +23,14 @@
 # CMake 3.13 required by some sub-projects.
 cmake_minimum_required(VERSION 3.13)
 
+# Ensure compiler optimizations are off when compiling in debug mode
+set(CMAKE_C_FLAGS_DEBUG_INIT "-O0")
+set(CMAKE_CXX_FLAGS_DEBUG_INIT "-O0")
+
 # Add 'Sanitizer' CMake build type.
 # MUST be before project declaration.
-set(CMAKE_C_FLAGS_SANITIZER_INIT "-g -fsanitize=address,undefined")
-set(CMAKE_CXX_FLAGS_SANITIZER_INIT "-g -fsanitize=address,undefined")
+set(CMAKE_C_FLAGS_SANITIZER_INIT "-g -O0 -fsanitize=address,undefined")
+set(CMAKE_CXX_FLAGS_SANITIZER_INIT "-g -O0 -fsanitize=address,undefined")
 
 # Set project version by using the Git describe
 include("./linphone-sdk/bctoolbox/cmake/BcToolboxCMakeUtils.cmake")
