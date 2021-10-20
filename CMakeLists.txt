@@ -78,6 +78,10 @@ set(FLEXISIP_SYSTEMD_INSTALL_DIR "" CACHE STRING
 	"Where to install the SystemD units. Always equal to '${CMAKE_INSTALL_FULL_DATAROOTDIR}/systemd/system' if empty."
 )
 
+# Advanced options (i.e. hidden to the user by default)
+option(ENABLE_LIBLINPHONE_TESTER "Build liblinphone_tester executable." OFF)
+mark_as_advanced(ENABLE_LIBLINPHONE_TESTER)
+
 # Handle the default value of installation paths. That ensures that they are
 # always relative to the install prefix when the user hasn't set them explicitly.
 if(SYSCONF_INSTALL_DIR STREQUAL "")
