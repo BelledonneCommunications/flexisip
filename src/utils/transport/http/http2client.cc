@@ -45,7 +45,7 @@ Http2Client::Http2Client(su_root_t& root, const string& host, const string& port
 
 	SLOGD << mLogPrefix << ": constructing Http2Client with TlsConnection[" << mConn.get() << "]";
 
-	mState = State::Disconnected;
+	setState(State::Disconnected);
 }
 
 Http2Client::Http2Client(su_root_t& root, const string& host, const string& port, const string& trustStorePath,
@@ -59,7 +59,7 @@ Http2Client::Http2Client(su_root_t& root, const string& host, const string& port
 
 	SLOGD << mLogPrefix << ": constructing Http2Client with TlsConnection[" << mConn.get() << "]";
 
-	mState = State::Disconnected;
+	setState(State::Disconnected);
 }
 
 void Http2Client::sendAllPendingRequests() {
@@ -137,7 +137,7 @@ void Http2Client::tlsConnect() {
 	if (mState != State::Disconnected) {
 		throw BadStateError(mState);
 	}
-	mState = State::Connecting;
+	setState(State::Connecting);
 
 	mConn->connectAsync(mRoot, [this]() { this->onTlsConnectCb(); });
 }
@@ -147,6 +147,7 @@ void Http2Client::onTlsConnectCb() {
 		http2Setup();
 	} else {
 		discardAllPendingRequests();
+		setState(State::Disconnected);
 	}
 }
 

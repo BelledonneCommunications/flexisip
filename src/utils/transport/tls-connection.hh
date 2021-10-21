@@ -67,7 +67,7 @@ public:
 	 * @param root sofia-sip loop root object
 	 * @param onConnectCb callback to call after connection success/error
 	 */
-	void connectAsync(su_root_t& root, std::function<void()> onConnectCb) noexcept;
+	void connectAsync(su_root_t& root, const std::function<void()>& onConnectCb) noexcept;
 
 	void disconnect() noexcept {
 		mBio.reset();
@@ -139,7 +139,7 @@ private:
 	static int getFd(BIO& bio);
 
 	static void doConnectCb(su_root_magic_t* rm, su_msg_r msg, void* u);
-	void doConnectAsync(su_root_t& root, std::function<void()> onConnectCb);
+	void doConnectAsync(su_root_t& root, const std::function<void()>& onConnectCb);
 
 	BIOUniquePtr mBio{nullptr};
 	SSLCtxUniquePtr mCtx{nullptr};
