@@ -14,9 +14,43 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
 
-## [unreleased]
+## [2.1.0] - 2021-10-20
 ### [Added]
-- `module::Authentication/realm` parameter.
+- New Flexisip service, 'RegEvent server', available through flexisip-regevent SystemD service.
+  The RegEvent server is in charge of responding to SIP SUBSCRIBEs for the 'reg' event as defined by
+  [RFC3680 - A Session Initiation Protocol (SIP) Event Package for Registrations](https://tools.ietf.org/html/rfc3680).
+  To generate the outgoing NOTIFY, it relies upon the registrar database, as setup in module::Registrar section.
+- **Proxy** New transport URI parameter: `tls-allow-missing-client-certificate=<true/false>`.
+  This allows to accept TLS connections from clients which haven't any X.509 certificate
+  even if `tls-verify-incoming` has been enabled. Valid for SIPS transport only.
+- **Proxy** Add `module::DoSProtection/white-list` parameter in flexisip.conf to allow packets from
+  given IP addresses to bypass the DoS protection system.
+- **Proxy** Add `module::Authentication/realm` parameter that allows to force the realm
+  offered by the proxy to user agents during authentication (401/407 responses).
+- **Conference server** Several factory URIs can be handled by the server.
+- **Push notifications** New option `--custom-payload` for flexisip_pusher utility that allows to
+  manually set the payload sent to push notificaiton server (Apple push only).
+- **Flexisip CLI** Add `REGISTRAR_DUMP` CLI command to dump all addresses of record registered locally.
+- **Packaging** Support of CentOS 8 and Debian 10 GNU/Linux distributions.
+
+### [Changed]
+- **Proxy** `regex` operator of filter expressions in flexisip.conf now
+  uses [ECMAScript grammar](https://en.cppreference.com/w/cpp/regex/ecmascript) from C++ specification.
+- **Proxy** Firebase push notifications are now sent by using HTTP/2 protocol.
+- **Presence server** Moving `soci-user-with-phone-request` and `soci-users-with-phones-request` parameters
+  from _[module::Authenticaiton]_ section to _[presence-server]_.
+- **Conference server** Conformance to 1.1 specification.
+- **Packaging** Packaging process has entirely been reworked in order to embed Flexisip and Linphone SDK
+  inside a single package. Thus, a given version of Flexisip is strongly bound to a specific version
+  of Linphone SDK.
+
+### [Deprecated]
+- **Presence server** Setting `module::Authentication/soci-user-with-phone-request` and
+  `module::Authentication/soci-users-with-phones-request` parameters still works but will raise a warning.
+
+### [Removed]
+- **Proxy/Push notifications** `pn-silent` push parameter has no more effect.
+- **Proxy/Push notifications** Remove legacy `form-uri` key-value from Firebase push notification body.
 
 
 ## [2.0.9] - 2021-08-10

@@ -35,6 +35,7 @@
 using namespace flexisip;
 using namespace flexisip::pushnotification;
 using namespace std;
+using namespace std::chrono;
 
 static su_root_t* root = nullptr;
 
@@ -70,8 +71,12 @@ static void startPushTest(Client& client, const shared_ptr<Request>& request, co
 	// Send the push notification and wait until the request the request state is "Successful" or "Failed"
 	client.sendPush(request);
 	sofiasip::Timer timer{root, 500};
-	timer.run([request]() {
+	auto beforePlus2 = system_clock::now() + 2s;
+	timer.run([&request, &beforePlus2, &timeout]() {
 		if (request->getState() == Request::State::Successful || request->getState() == Request::State::Failed) {
+			su_root_break(root);
+		} else if (beforePlus2 >= system_clock::now() && !timeout) {
+			SLOGW << "Test without timeout did not update request state";
 			su_root_break(root);
 		}
 	});
@@ -193,7 +198,6 @@ static void applePushTestOkRemoteBasic(void) {
 	pushInfo.mTtl = 42;
 	pushInfo.mUid = "a-uid-42";
 
-	// Not checked during timeout test
 	string reqBodyPattern{R"json(\{
 	"aps": \{
 		"alert": \{
@@ -226,7 +230,6 @@ static void applePushTestOkPushkit(void) {
 	pushInfo.mAppId = "org.linphone.phone.voip.prod";
 	pushInfo.mTtl = 42;
 
-	// Not checked during timeout test
 	string reqBodyPattern{R"json(\{
 	"aps": \{
 		"sound": "",
@@ -258,7 +261,6 @@ static void applePushTestOkBackground(void) {
 	pushInfo.mTtl = 42;
 	pushInfo.mUid = "a-uid-42";
 
-	// Not checked during timeout test
 	string reqBodyPattern{R"json(\{
 	"aps": \{
 		"badge": 0,
@@ -294,7 +296,6 @@ static void applePushTestOkRemoteWithMutableContent(void) {
 	pushInfo.mTtl = 42;
 	pushInfo.mUid = "a-uid-42";
 
-	// Not checked during timeout test
 	string reqBodyPattern{R"json(\{
 	"aps": \{
 		"alert": \{
@@ -325,7 +326,6 @@ static void applePushTestKo(void) {
 	pushInfo.mFromName = "PushTestOk";
 	pushInfo.mFromUri = "sip:kijou@sip.linphone.org";
 
-	// Not checked during timeout test
 	string reqBodyPattern{R"json(\{
 	"aps": \{
 		"alert": \{
@@ -378,6 +378,60 @@ static void applePushTestTimeout(void) {
 	startApplePushTest(pushInfo, reqBodyPattern, 200, "Ok", Request::State::Failed, true);
 }
 
+static void applePushTestConnectErrorAndReconnect(void) {
+	PushInfo pushInfo{};
+	pushInfo.mApplePushType = ApplePushType::RemoteBasic;
+	pushInfo.mCustomPayload = "{customData=\"CustomValue\"}";
+	pushInfo.mDeviceToken = "6464646464646464646464646464646464646464646464646464646464646464";
+	pushInfo.mAlertMsgId = "msgId";
+	pushInfo.mAlertSound = "DuHast";
+	pushInfo.mFromName = "PushTestOk";
+	pushInfo.mFromUri = "sip:kijou@sip.linphone.org";
+	pushInfo.mCallId = "CallId";
+	pushInfo.mAppId = "org.linphone.phone.prod";
+	pushInfo.mTtl = 42;
+	pushInfo.mUid = "a-uid-42";
+
+	string reqBodyPattern{R"json(\{
+	"aps": \{
+		"alert": \{
+			"loc-key": "msgId",
+			"loc-args": \["PushTestOk"\]
+		\},
+		"sound": "DuHast",
+		"badge": 1
+	\},
+	"from-uri": "sip:kijou@sip.linphone.org",
+	"display-name": "PushTestOk",
+	"call-id": "CallId",
+	"pn_ttl": 42,
+	"uuid": "a-uid-42",
+	"send-time": "[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}",
+	"customPayload": \{customData="CustomValue"\}
+\})json"};
+
+	// We first send a request with mock off, leading to TLS connection error.
+	AppleClient::APN_DEV_ADDRESS = "localhost";
+	AppleClient::APN_PORT = "3000";
+	AppleClient appleClient{*root, "", TESTER_DATA_DIR + string("/cert/apple.test.dev.pem"), "apple.test.dev.pem"};
+	appleClient.enableInsecureTestMode();
+
+	auto request = make_shared<AppleRequest>(pushInfo);
+
+	appleClient.sendPush(request);
+
+	auto beforePlus1 = system_clock::now() + 1s;
+	while (beforePlus1 >= system_clock::now()) {
+		su_root_step(root, 100);
+	}
+
+	BC_ASSERT_TRUE(request->getState() == Request::State::Failed);
+
+	// And then using the same AppleClient (so the same Http2Client) we send a second request with mock on this time and
+	// check everything goes fine.
+	startPushTest(appleClient, move(request), reqBodyPattern, 200, "Ok", Request::State::Successful, false);
+}
+
 static void tlsTimeoutTest(void) {
 	FirebaseClient::FIREBASE_ADDRESS = "localhost";
 	FirebaseClient::FIREBASE_PORT = "3000";
@@ -426,9 +480,12 @@ static test_t tests[] = {
     TEST_NO_TAG("Firebase push notification test KO", firebasePushTestKo),
     TEST_NO_TAG("Apple push notification test KO", applePushTestKo),
     TEST_NO_TAG("Apple push notification test KO wrong type", applePushTestKoWrongType),
+    TEST_NO_TAG("Apple push notification test with a first connection failed and a reconnection (fix)",
+                applePushTestConnectErrorAndReconnect),
     TEST_NO_TAG("Tls timeout test", tlsTimeoutTest),
     TEST_NO_TAG("Firebase push notification test timeout", firebasePushTestTimeout),
-    TEST_NO_TAG("Apple push notification test timeout", applePushTestTimeout)};
+    TEST_NO_TAG("Apple push notification test timeout", applePushTestTimeout)
+};
 
 test_suite_t push_notification_suite = {
     "Push notification", beforeSuite, afterSuite, nullptr, nullptr, sizeof(tests) / sizeof(tests[0]), tests};

@@ -366,11 +366,22 @@ void RegistrarDbRedisAsync::handleReplicationInfoReply(const char* reply) {
 
 void RegistrarDbRedisAsync::handleAuthReply(const redisReply *reply) {
 	if (!reply || reply->type == REDIS_REPLY_ERROR) {
-		LOGE("Couldn't authenticate with redis server");
+		LOGE("Couldn't authenticate with Redis server");
 		disconnect();
-	} else {
-		getReplicationInfo();
+		return;
 	}
+	/*
+		Calling getReplicationInfo() whereas we are not connected (i.e. mContext is null) would cause a crash.
+		This isn't to happen since reply->type is to be equal to REDIS_REPLY_ERROR when the waiting AUTH request cannot
+		be sent because the connection to Redis database has failed. But somehow, this has happened in production
+		and we couldn't be able to find the exact scenario to reproduce the bug.
+	 */
+	if (!isConnected()) {
+		SLOGE << "Receiving success response to Redis AUTH request whereas we are not connected anymore. This "
+		         "should never happen! Aborting replication info fetch!";
+		return;
+	}
+	getReplicationInfo();
 }
 
 void RegistrarDbRedisAsync::getReplicationInfo() {

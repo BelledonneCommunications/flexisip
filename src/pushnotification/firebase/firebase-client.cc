@@ -50,19 +50,11 @@ void FirebaseClient::sendPush(const std::shared_ptr<Request>& req) {
 
 void FirebaseClient::onResponse(const std::shared_ptr<HttpMessage>& request,
                                 const std::shared_ptr<HttpResponse>& response) {
-	SLOGD << mLogPrefix << ": onResponseCb " << response->toString();
-
 	auto firebaseReq = dynamic_pointer_cast<FirebaseRequest>(request);
-	if (response->getStatusCode() == 200) {
-		firebaseReq->setState(Request::State::Successful);
-	} else {
-		firebaseReq->setState(Request::State::Failed);
-	}
+	firebaseReq->setState(response->getStatusCode() == 200 ? Request::State::Successful : Request::State::Failed);
 }
 
 void FirebaseClient::onError(const std::shared_ptr<HttpMessage>& request) {
-	SLOGD << mLogPrefix << ": onErrorCb";
-
 	auto firebaseReq = dynamic_pointer_cast<FirebaseRequest>(request);
 	firebaseReq->setState(Request::State::Failed);
 }

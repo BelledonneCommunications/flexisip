@@ -93,11 +93,11 @@ TlsConnection::TlsConnection(const string& host, const string& port, const strin
 	mCtx.reset(ctx);
 }
 
-void TlsConnection::connectAsync(su_root_t& root, function<void()> onConnectCb) noexcept {
+void TlsConnection::connectAsync(su_root_t& root, const function<void()>& onConnectCb) noexcept {
 	auto result = async(launch::async, [this, &root, onConnectCb]() { this->doConnectAsync(root, onConnectCb); });
 }
 
-void TlsConnection::doConnectAsync(su_root_t& root, function<void()> onConnectCb) {
+void TlsConnection::doConnectAsync(su_root_t& root, const function<void()>& onConnectCb) {
 	connect();
 
 	su_msg_r mamc = SU_MSG_R_INIT;
@@ -226,7 +226,6 @@ int TlsConnection::read(void* data, int dlen, chrono::milliseconds timeout) noex
 		err << "TlsConnection[" << this << "]: error while reading data. ";
 		handleBioError(err.str(), nread);
 	}
-
 	return nread;
 }
 

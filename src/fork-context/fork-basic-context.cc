@@ -41,7 +41,6 @@ ForkBasicContext::ForkBasicContext(Agent* agent, const shared_ptr<RequestSipEven
 	mDecisionTimer = make_unique<sofiasip::Timer>(mAgent->getRoot(), 20000);
 	// start the acceptance timer immediately
 	mDecisionTimer->set([this]() { onDecisionTimer(); });
-
 }
 
 ForkBasicContext::~ForkBasicContext() {
