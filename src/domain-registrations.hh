@@ -122,7 +122,7 @@ class DomainRegistrationManager : public LocalRegExpireListener, public std::ena
 	 * Check if a we have to relay registration requests to its domain controller for a given domain.
 	 * If url_host is an empty string, then the global relay registration to domain cfg status is returned.
 	 */
-	bool haveToRelayRegToDomain(const std::string url_host);
+	bool haveToRelayRegToDomain(const std::string &url_host);
 
   private:
 	Agent *mAgent;

@@ -188,7 +188,6 @@ void OutgoingTransaction::destroy() {
 			}
 		}
 		mOutgoing = NULL;
-		looseProperties();
 		mIncoming.reset();
 		mSofiaRef.reset(); // This must be the last instruction of this function because it may destroy this
 		                   // OutgoingTransaction.
@@ -294,7 +293,6 @@ void IncomingTransaction::destroy() {
 		nta_incoming_bind(mIncoming, NULL, NULL); // avoid callbacks
 		nta_incoming_destroy(mIncoming);
 		mIncoming = NULL;
-		looseProperties();
 		mOutgoing.reset();
 		mSofiaRef.reset(); // This MUST be the last instruction of this function, because it may destroy the
 		                   // IncomingTransaction.

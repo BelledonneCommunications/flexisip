@@ -141,6 +141,21 @@ int DomainRegistrationManager::load(string passphrase) {
 	mVerifyServerCerts = domainRegistrationCfg->get<ConfigBoolean>("verify-server-certs")->read();
 	mKeepaliveInterval = domainRegistrationCfg->get<ConfigInt>("keepalive-interval")->read();
 	
+	mRegisterWhenNeeded = domainRegistrationCfg->get<ConfigBoolean>("reg-when-needed")->read();
+
+	mRelayRegsToDomains = domainRegistrationCfg->get<ConfigBoolean>("relay-reg-to-domains")->read();
+	relayRegsToDomainsRegex = domainRegistrationCfg->get<ConfigString>("relay-reg-to-domains-regex")->read();
+	if (!relayRegsToDomainsRegex.empty()) {
+		try {
+			mRelayRegsToDomainsRegex = std::regex(relayRegsToDomainsRegex);
+		} catch (const std::regex_error &e) {
+			LOGF("invalid regex in 'relay-reg-to-domains-regex': %s", e.what());
+		}
+		LOGD("Found relay-reg-to-domain regex: %s", relayRegsToDomainsRegex.c_str());
+	}
+
+	/* Parse the client domain registration file if any */
+	
 	if (configFile.empty())
 		return 0;
 
@@ -195,25 +210,12 @@ int DomainRegistrationManager::load(string passphrase) {
 		lineIndex++;
 		mRegistrations.push_back(dr);
 	} while (!ifs.eof() && !ifs.bad());
-
-	mRegisterWhenNeeded = domainRegistrationCfg->get<ConfigBoolean>("reg-when-needed")->read();
-
+	
 	if (mRegisterWhenNeeded) {
 		mDomainRegistrationsStarted = false;
 		RegistrarDb::get()->subscribeLocalRegExpire(this);
 	} else {
 		for_each(mRegistrations.begin(), mRegistrations.end(), mem_fn(&DomainRegistration::start));
-	}
-
-	mRelayRegsToDomains = domainRegistrationCfg->get<ConfigBoolean>("relay-reg-to-domains")->read();
-	relayRegsToDomainsRegex = domainRegistrationCfg->get<ConfigString>("relay-reg-to-domains-regex")->read();
-	if (!relayRegsToDomainsRegex.empty()) {
-		try {
-			mRelayRegsToDomainsRegex = std::regex(relayRegsToDomainsRegex);
-		} catch (const std::regex_error &e) {
-			LOGF("invalid regex in 'relay-reg-to-domains-regex': %s", e.what());
-		}
-		LOGD("Found relay-reg-to-domain regex: %s", relayRegsToDomainsRegex.c_str());
 	}
 
 	return 0;
@@ -261,9 +263,10 @@ void DomainRegistrationManager::onLocalRegExpireUpdated(unsigned int count) {
 	}
 }
 
-bool DomainRegistrationManager::haveToRelayRegToDomain(const std::string url_host) {
+bool DomainRegistrationManager::haveToRelayRegToDomain(const std::string &url_host) {
 	bool ret;
 
+	LOGD("mRelayRegsToDomains=%i", (int) mRelayRegsToDomains);
 	if (url_host.empty())
 		return mRelayRegsToDomains; // no host provided - just return global relay reg cfg status
 
