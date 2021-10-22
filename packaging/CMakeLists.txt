@@ -102,7 +102,7 @@ if("RPM" IN_LIST CPACK_GENERATOR)
 	set(CPACK_RPM_PACKAGE_REQUIRES "${extra_dependencies_str}")
 	set(CPACK_RPM_PACKAGE_OBSOLETES "${obsolete_packets_str}")
 	set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION "/opt/belledonne-communications/include")
-	set(CPACK_RPM_FILE_NAME "${CPACK_PACKAGE_NAME}-${version}-${release}.${CMAKE_HOST_SYSTEM_PROCESSOR}.rpm")
+	set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
 	set(CPACK_RPM_PACKAGE_RELEASE_DIST ON)
 	set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
 	       "/etc/logrotate.d"
