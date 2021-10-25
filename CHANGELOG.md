@@ -14,6 +14,12 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
 
+## [2.1.1] - 2021-10-25
+### [Fixed]
+- Fix an issue in the CPack script that caused the name of CentOS packages to not conform
+  with CentOS format, because the distribution tag (el7, el8, etc.) was missing.
+
+
 ## [2.1.0] - 2021-10-20
 ### [Added]
 - New Flexisip service, 'RegEvent server', available through flexisip-regevent SystemD service.
