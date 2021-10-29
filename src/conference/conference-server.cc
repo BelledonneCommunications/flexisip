@@ -29,6 +29,7 @@
 #include "utils/uri-utils.hh"
 
 using namespace std;
+using namespace std::chrono;
 using namespace linphone;
 
 namespace flexisip {
@@ -113,8 +114,14 @@ void ConferenceServer::_init () {
 		bindAddresses();
 }
 
-void ConferenceServer::_run () {
+void ConferenceServer::_run() {
+	const auto start = high_resolution_clock::now();
 	mCore->iterate();
+	const auto stop = high_resolution_clock::now();
+	const auto duration = duration_cast<milliseconds>(stop - start);
+	if (duration > 100ms) {
+		SLOGW << "Be careful mCore->iterate() took more than 100ms [" << duration.count() << " ms] and delay main loop";
+	}
 }
 
 void ConferenceServer::_stop () {

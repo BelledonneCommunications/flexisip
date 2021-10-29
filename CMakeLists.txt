@@ -29,8 +29,8 @@ set(CMAKE_CXX_FLAGS_DEBUG_INIT "-O0")
 
 # Add 'Sanitizer' CMake build type.
 # MUST be before project declaration.
-set(CMAKE_C_FLAGS_SANITIZER_INIT "-g -O0 -fsanitize=address,undefined")
-set(CMAKE_CXX_FLAGS_SANITIZER_INIT "-g -O0 -fsanitize=address,undefined")
+set(CMAKE_C_FLAGS_SANITIZER_INIT "-g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer")
+set(CMAKE_CXX_FLAGS_SANITIZER_INIT "-g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer")
 
 # Set project version by using the Git describe
 include("./linphone-sdk/bctoolbox/cmake/BcToolboxCMakeUtils.cmake")
