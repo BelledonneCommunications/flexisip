@@ -122,7 +122,7 @@ docker-build-flexisip-src:
       - $DEPLOY_RUN
       - $DEPLOY_UBUNTU
   variables:
-    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA -f docker/flex-from-src --build-arg=njobs=12 --build-arg=build_type=Sanitizer"
+    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t flexisip-from-src:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA -f docker/flex-from-src --build-arg=njobs=12 --build-arg=build_type=RelWithDebInfo"
   script:
     - docker image ls
     - echo $DOCKER_BUILD_OPTIONS
@@ -155,18 +155,6 @@ tests-flexisip-mr:
       - $DEPLOY_UBUNTU
 
   variables:
-    #No need to modify
-    LIBLINPHONE_DOCKER_IMAGE: liblinphone_tester_for_flexisip
-
-    #/!\ if you work with Lime-server, account-manager or file-transfer server dev packages,
-    # you MUST ensure that these packages are available in one of the BC snapshot repositories.
-    # Otherwize the docker images won't use the latest versions.
-    # You can use the latest version available of Lime-server, account-manager, file-transfer-server with the version number "latest"
-    # /!\ In this case, there MUST be NO image with the same name on the nuc, otherwize the docker images won't be rebuilt
-    LIME_SERVER_VERSION: "1.0-30.el7"
-    ACCOUNT_MANAGER_VERSION: "1.1.0-99.el7"
-    FILE_TRANSFER_SERVER_VERSION: "1.0-8.el7"
-
     #Branch of the Flexisip-tester project to use. Could be modified to test fixes or features in the Flexisip-tester
     FLEXISIP_TESTER_BRANCH: "master"
 
@@ -174,8 +162,7 @@ tests-flexisip-mr:
     workspace: "${CI_PROJECT_DIR}/liblinphone_tester_workspace"
 
     #Flexisip docker image is build from source in the build stage (job docker-build-flexisip-src)
-    #No need to modify these values
-    FLEXISIP_DOCKER_IMAGE: "gitlab.linphone.org:4567/bc/public/flexisip/flexisip-from-src"
+    #No need to modify these value
     FLEXISIP_DOCKER_TAG: "$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA"
 
     # Docker run options are only used for coredump display if any
@@ -211,14 +198,8 @@ tests-flexisip-mr:
     - git clone -b $FLEXISIP_TESTER_BRANCH --single-branch git@gitlab.linphone.org:BC/private/flexisip-tester --jobs 12
 
     #We make sure that the variables we set here can be accessed by the docker-compose scripts (in the flexisip-tester project).
-
-    - export FLEXISIP_DOCKER_IMAGE="$FLEXISIP_DOCKER_IMAGE"
     - export FLEXISIP_DOCKER_TAG="$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA"
-    - export LIBLINPHONE_DOCKER_IMAGE=$LIBLINPHONE_DOCKER_IMAGE
     - export LIBLINPHONE_DOCKER_TAG=$LIBLINPHONE_DOCKER_TAG
-    - export LIME_SERVER_VERSION="$LIME_SERVER_VERSION"
-    - export ACCOUNT_MANAGER_VERSION="$ACCOUNT_MANAGER_VERSION"
-    - export FILE_TRANSFER_SERVER_VERSION="$FILE_TRANSFER_SERVER_VERSION"
 
     - |
         if [ -z $workspace ]; then
