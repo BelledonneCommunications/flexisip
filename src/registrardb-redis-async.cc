@@ -756,9 +756,9 @@ void RegistrarDbRedisAsync::doBind(const MsgSip &msg, int globalExpire, bool ali
 		delete data;
 		return;
 	}
-	string mss_expires = RegistrarDb::get()->getMessageExpires(sip->sip_contact->m_params);
-	int message_expires = mss_expires.empty() ? 0 : stoi(mss_expires);
-	const char *key = data->mRecord->getKey().c_str();
+	const auto mss_expires = sip->sip_contact ? RegistrarDb::get()->getMessageExpires(sip->sip_contact->m_params) : "";
+	const auto message_expires = mss_expires.empty() ? 0 : stoi(mss_expires);
+	const auto key = data->mRecord->getKey().c_str();
 	string uid = "";
 	if (data->mRecord->getExtendedContacts().empty()) {
 		LOGW("No extended contact found for %s, can't remove it from REDIS.", key);
