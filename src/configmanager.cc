@@ -933,8 +933,12 @@ GenericManager::GenericManager()
 		 "for more details. If sending large packets over UDP is not a problem, then set a big value such as 65535. "
 		 "Unlike the recommandation of the RFC, the default value of UDP MTU is 1460 in Flexisip (instead of 1300).",
 		 "1460"},
+	    {StringList, "rtp-bind-address",
+	     "You can specify the bind address for all RTP streams (MediaRelay and Transcoder). This parameter is only "
+	     "useful for some specific networks, keeping the default value is recommended.",
+	     "0.0.0.0 ::0"},
 
-		// TLS settings
+	    // TLS settings
 		{String, "tls-certificates-dir",
 		 "Path to the directory where TLS server certificate and private key can be found,"
 		 " concatenated inside an 'agent.pem' file. Any chain certificates must be put into a file named 'cafile.pem'. "

@@ -111,6 +111,13 @@ void Agent::onDeclare(GenericStruct *root) {
 			SLOGE << "'uniqueId' parameter must have 16 characters. Skipping it";
 		}
 	}
+
+	const auto rtpBindAddress = global->get<ConfigStringList>("rtp-bind-address")->read();
+	if (rtpBindAddress.size() != 2) {
+		LOGA("Config entry [rtp-bind-address] must have 2 and only 2 ip addresses, IPV4 first, IPV6 second");
+	}
+	mRtpBindIp = rtpBindAddress.front();
+	mRtpBindIp6 = rtpBindAddress.back();
 }
 
 void Agent::startLogWriter() {
