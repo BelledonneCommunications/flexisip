@@ -34,3 +34,4 @@ add_custom_target(flexisip-git-version ALL
 )
 
 install(DIRECTORY flexisip DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(FILES "${flexisip_version_h}" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/flexisip")
