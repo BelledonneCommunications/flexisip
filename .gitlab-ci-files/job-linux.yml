@@ -210,7 +210,7 @@ tests-flexisip-mr:
     - mkdir -p $workspace
     - rm -rf $workspace/*
 
-    - mkdir -p $workspace/{bin,flexiapi,ext,lime-server-apache}
+    - mkdir -p $workspace/{bin,flexiapi,ext,lime,lime-ext}
 
     # workaround for logs writing (apache chown for lime-server)
     - sudo chown apache:apache $workspace
@@ -237,11 +237,9 @@ tests-flexisip-mr:
 
     - cd $workspace
 
-    - docker-compose $docker_compose_options down
-    - |
-        if [ "$REBUILD_FLEXISIP_AUXILIARIES" = "true" ]; then
-        docker-compose $docker_compose_options build
-        fi
+    # Stop and remove containers, networks and volumes from previous tests.
+    # Already done after tests, should do nothing except if previous job crashed.
+    - docker-compose $docker_compose_options down --volumes --remove-orphans
 
     - echo "COMPOSE_PROJECT_NAME=$COMPOSE_PROJECT_NAME" > savedEnv
 
@@ -253,7 +251,7 @@ tests-flexisip-mr:
     #--exit-code-from Exits with the return code from the specified container (implies --abort-on-container-exit)
     #In the grep we are searching only for the logs related to liblinphone_tester and docker build, so we remove output from all other services.
 
-    - docker-compose $docker_compose_options up -V --exit-code-from liblinphone_tester |& tee logs_all | grep -v 'redis_server_1\|flexisip_1\|flexisip-regevent_1\|flexisip-external_1\|flexisip-external-domain_1\|lime-server_1\|lime-external-server\|dbserver_1\|account-manager_1\|file-transfer-server_1\|http-proxy_1' || EXIT=$?
+    - docker-compose $docker_compose_options up --build -V --exit-code-from liblinphone_tester |& tee logs_all | grep -v 'redis_server_1\|flexisip_1\|flexisip-regevent_1\|flexisip-external_1\|flexisip-external-domain_1\|lime-server_1\|lime-external-server\|dbserver_1\|account-manager_1\|file-transfer-server_1\|http-proxy_1\|ldap-server_1' || EXIT=$?
 
     #docker-compose log command isn't used anymore because of bad performance
     #the logs were converted by docker in json format, then reconverted to txt, which is useless (doing this made the job last for 20-30 minutes for 9 minutes of tests)
@@ -277,7 +275,8 @@ tests-flexisip-mr:
 
     # The sleep command was removed because we now wait for the db socket to open (in compose file) before launching tests
 
-    - docker-compose $docker_compose_options down || true
+    # Stop and remove containers, networks and volumes from previous tests
+    - docker-compose $docker_compose_options down --volumes --remove-orphans || true
 
     - gzip *.log
 
