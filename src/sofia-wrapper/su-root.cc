@@ -16,9 +16,9 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <flexisip/logmanager.hh>
+#include "flexisip/logmanager.hh"
 
-#include "su-root.hh"
+#include "flexisip/sofia-wrapper/su-root.hh"
 
 using namespace std;
 

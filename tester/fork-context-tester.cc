@@ -18,10 +18,10 @@
 
 #include <chrono>
 
-#include <flexisip/agent.hh>
-#include <flexisip/module-router.hh>
+#include "flexisip/agent.hh"
+#include "flexisip/module-router.hh"
+#include "flexisip/sofia-wrapper/su-root.hh"
 
-#include "sofia-wrapper/su-root.hh"
 #include "tester.hh"
 #include "utils/bellesip-utils.hh"
 

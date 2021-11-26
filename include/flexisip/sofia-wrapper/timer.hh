@@ -23,7 +23,7 @@
 
 #include <sofia-sip/su_wait.h>
 
-#include "sofia-wrapper/su-root.hh"
+#include "flexisip/sofia-wrapper/su-root.hh"
 
 namespace sofiasip {
 

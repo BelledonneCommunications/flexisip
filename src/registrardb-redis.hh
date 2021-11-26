@@ -31,9 +31,9 @@
 
 #include "flexisip/agent.hh"
 #include "flexisip/registrardb.hh"
+#include "flexisip/sofia-wrapper/su-root.hh"
 
 #include "recordserializer.hh"
-#include "sofia-wrapper/su-root.hh"
 
 namespace flexisip {
 

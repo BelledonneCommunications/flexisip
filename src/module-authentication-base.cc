@@ -20,11 +20,12 @@
 #include <sofia-sip/sip_extra.h>
 #include <sofia-sip/sip_status.h>
 
-#include <flexisip/agent.hh>
-#include <flexisip/module-authentication-base.hh>
+#include "flexisip/agent.hh"
 
+#include "auth/realm-extractor.hh"
 #include "utils/string-utils.hh"
 
+#include "flexisip/module-authentication-base.hh"
 
 using namespace std;
 
@@ -40,6 +41,10 @@ ModuleAuthenticationBase::ModuleAuthenticationBase(Agent *agent) : Module(agent)
 	mRegistrarChallenger.ach_phrase = sip_401_Unauthorized;
 	mRegistrarChallenger.ach_header = sip_www_authenticate_class;
 	mRegistrarChallenger.ach_info = sip_authentication_info_class;
+}
+
+ModuleAuthenticationBase::~ModuleAuthenticationBase() {
+	if (mRealmExtractor) delete mRealmExtractor;
 }
 
 void ModuleAuthenticationBase::onDeclare(GenericStruct *mc) {
@@ -144,12 +149,12 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct *mc) {
 	}
 	if (!realmRegex.empty()) {
 		try {
-			mRealmExtractor = make_unique<RegexRealmExtractor>(move(realmRegex));
+			mRealmExtractor = new RegexRealmExtractor{move(realmRegex)};
 		} catch (const regex_error &e) {
 			LOGF("invalid regex in 'realm-regex': %s", e.what());
 		}
 	} else if (!realm.empty()) {
-		mRealmExtractor = make_unique<StaticRealmExtractor>(move(realm));
+		mRealmExtractor = new StaticRealmExtractor{move(realm)};
 	}
 
 	mNo403Expr = mc->get<ConfigBooleanExpression>("no-403")->read();
