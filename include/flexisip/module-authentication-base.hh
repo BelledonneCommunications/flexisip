@@ -27,7 +27,8 @@
 #include "flexisip/auth/flexisip-auth-module-base.hh"
 #include "flexisip/module.hh"
 
-#include "auth/realm-extractor.hh"
+// Foraward declaration to avoid to have to publish the RealmExtractor class header.
+class RealmExtractor;
 
 namespace flexisip {
 
@@ -37,7 +38,7 @@ namespace flexisip {
 class ModuleAuthenticationBase : public Module {
 public:
 	ModuleAuthenticationBase(Agent *agent);
-	~ModuleAuthenticationBase() = default;
+	~ModuleAuthenticationBase();
 
 protected:
 	/**
@@ -99,7 +100,9 @@ protected:
 	std::list<std::string> mAlgorithms;
 	auth_challenger_t mRegistrarChallenger;
 	auth_challenger_t mProxyChallenger;
-	std::unique_ptr<RealmExtractor> mRealmExtractor{};
+	RealmExtractor* mRealmExtractor{nullptr}; /* initialy, this attribute was declared as std::unique_ptr<RealmExtractor>
+		but that broke the compilation on Debian/Ubuntu platforms although the default destructor of
+		ModuleAuthenticationBase was declared in the .cc file */
 	std::shared_ptr<SipBooleanExpression> mNo403Expr;
 
 	static const std::array<std::string, 2> sValidAlgos;

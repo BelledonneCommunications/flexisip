@@ -17,8 +17,8 @@
  */
 
 #include "flexisip/registrardb.hh"
+#include "flexisip/sofia-wrapper/su-root.hh"
 
-#include "sofia-wrapper/su-root.hh"
 #include "tester.hh"
 
 using namespace flexisip;

@@ -20,9 +20,8 @@
 
 #include <memory>
 
+#include "flexisip/sofia-wrapper/su-root.hh"
 #include "flexisip/utils/timer.hh"
-
-#include "sofia-wrapper/su-root.hh"
 
 namespace flexisip {
 

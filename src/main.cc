@@ -59,6 +59,7 @@
 #include <flexisip/flexisip-version.h>
 #include <flexisip/logmanager.hh>
 #include <flexisip/module.hh>
+#include <flexisip/sofia-wrapper/su-root.hh>
 
 #ifdef HAVE_CONFIG_H
 #include "flexisip-config.h"
@@ -74,7 +75,6 @@
 #include "configdumper.hh"
 #include "etchosts.hh"
 #include "monitor.hh"
-#include "sofia-wrapper/su-root.hh"
 #include "stun.hh"
 
 #ifdef ENABLE_CONFERENCE
