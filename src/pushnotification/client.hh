@@ -19,15 +19,26 @@
 #pragma once
 
 #include "request.hh"
+#include "service.hh"
 
 namespace flexisip {
 namespace pushnotification {
 
+class Service;
+
 class Client {
 public:
+	Client(const Service* service = nullptr) : mService{service} {};
 	virtual ~Client() = default;
 	virtual void sendPush(const std::shared_ptr<Request>& req) = 0;
 	virtual bool isIdle() const noexcept = 0;
+
+protected:
+	void incrSentCounter();
+	void incrFailedCounter();
+
+private:
+	const Service* mService;
 };
 
 } // namespace pushnotification

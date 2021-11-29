@@ -31,8 +31,12 @@ std::string AppleClient::APN_DEV_ADDRESS{"api.development.push.apple.com"};
 std::string AppleClient::APN_PROD_ADDRESS{"api.push.apple.com"};
 std::string AppleClient::APN_PORT{"443"};
 
-AppleClient::AppleClient(su_root_t& root, const string& trustStorePath, const string& certPath,
-                         const string& certName) {
+AppleClient::AppleClient(su_root_t& root,
+                         const std::string& trustStorePath,
+                         const std::string& certPath,
+                         const std::string& certName,
+                         const Service* service)
+    : Client{service} {
 	ostringstream os{};
 	os << "AppleClient[" << this << "]";
 	mLogPrefix = os.str();
@@ -71,11 +75,19 @@ void AppleClient::onResponse(const std::shared_ptr<HttpMessage>& request,
                              const std::shared_ptr<HttpResponse>& response) {
 	auto appleReq = dynamic_pointer_cast<AppleRequest>(request);
 	appleReq->setState(response->getStatusCode() == 200 ? Request::State::Successful : Request::State::Failed);
+
+	if (appleReq->getState() == Request::State::Successful) {
+		incrSentCounter();
+	} else {
+		incrFailedCounter();
+	}
 }
 
 void AppleClient::onError(const std::shared_ptr<HttpMessage>& request) {
 	auto appleReq = dynamic_pointer_cast<AppleRequest>(request);
 	appleReq->setState(Request::State::Failed);
+
+	incrFailedCounter();
 }
 
 } // namespace pushnotification

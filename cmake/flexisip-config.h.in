@@ -13,7 +13,6 @@
 #cmakedefine ENABLE_ODBC 1
 #cmakedefine ENABLE_REDIS 1
 #cmakedefine ENABLE_SOCI 1
-#cmakedefine ENABLE_PUSHNOTIFICATION 1
 #cmakedefine ENABLE_MDNS 1
 #cmakedefine ENABLE_UNIT_TESTS 1
 #cmakedefine ENABLE_UNIT_TESTS_MYSQL 1

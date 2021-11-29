@@ -81,18 +81,18 @@ int Service::sendPush(const std::shared_ptr<Request> &pn){
 					mClients[wpClient] = make_unique<ClientWp>(
 						make_unique<TlsTransport>(move(conn)),
 						wpClient,
-						*this,
 						mMaxQueueSize,
 						mWindowsPhonePackageSID,
-						mWindowsPhoneApplicationSecret
+						mWindowsPhoneApplicationSecret,
+					    this
 					);
 				} else {
 					auto conn = make_unique<TlsConnection>(pn->getAppIdentifier(), "80", "", "");
 					mClients[wpClient] = make_unique<LegacyClient>(
 						make_unique<TlsTransport>(move(conn)),
 						wpClient,
-						*this,
-						mMaxQueueSize
+						mMaxQueueSize,
+					    this
 					);
 				}
 				client = mClients[wpClient].get();
@@ -113,21 +113,16 @@ bool Service::isIdle() const noexcept {
 	return true;
 }
 
-
-void Service::setupGenericClient(const url_t *url) {
+void Service::setupGenericClient(const url_t* url) {
 	unique_ptr<TlsConnection> conn;
-	if(url->url_type == url_https) {
+	if (url->url_type == url_https) {
 		conn = make_unique<TlsConnection>(url->url_host, url_port(url));
 	} else {
 		conn = make_unique<TlsConnection>(url->url_host, url_port(url), "", "");
 	}
 
-	mClients["generic"] = make_unique<LegacyClient>(
-		make_unique<TlsTransport>(move(conn)),
-		"generic",
-		*this,
-		mMaxQueueSize
-	);
+	mClients["generic"] =
+	    make_unique<LegacyClient>(make_unique<TlsTransport>(move(conn)), "generic", mMaxQueueSize, this);
 }
 
 void Service::setupiOSClient(const std::string& certdir, const std::string& cafile) {
@@ -159,7 +154,7 @@ void Service::setupiOSClient(const std::string& certdir, const std::string& cafi
 		}
 		string certpath = string(certdir) + "/" + cert;
 		string certName = cert.substr(0, cert.size() - 4); // Remove .pem at the end of cert
-		mClients[certName] = make_unique<AppleClient>(mRoot, cafile, certpath, certName);
+		mClients[certName] = make_unique<AppleClient>(mRoot, cafile, certpath, certName, this);
 		SLOGD << "Adding ios push notification client [" << certName << "]";
 	}
 	closedir(dirp);
@@ -169,7 +164,7 @@ void Service::setupFirebaseClient(const std::map<std::string, std::string> &fire
 	for (const auto &entry : firebaseKeys) {
 		const auto &firebaseAppId = entry.first;
 
-		mClients[firebaseAppId] = make_unique<FirebaseClient>(mRoot);
+		mClients[firebaseAppId] = make_unique<FirebaseClient>(mRoot, this);
 		SLOGD << "Adding firebase push notification client [" << firebaseAppId << "]";
 	}
 }

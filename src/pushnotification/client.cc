@@ -16,35 +16,27 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
+#include "client.hh"
 
-#include "legacy-client.hh"
-#include "request.hh"
-
+using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
-class ClientWp : public LegacyClient {
-public:
-	ClientWp(std::unique_ptr<Transport>&& transport,
-	         const std::string& name,
-	         unsigned maxQueueSize,
-	         const std::string& packageSID,
-	         const std::string& applicationSecret,
-	         const Service* service = nullptr);
-	~ClientWp() override = default;
+void Client::incrSentCounter() {
+	if (mService) {
+		if (auto counter = mService->getSentCounter()) {
+			counter->incr();
+		}
+	}
+}
 
-	void sendPush(const std::shared_ptr<Request>& req) override;
-
-protected:
-	void retrieveAccessToken();
-
-private:
-	std::string mPackageSID{};
-	std::string mApplicationSecret{};
-	std::string mAccessToken{};
-	time_t mTokenExpiring{0};
-};
+void Client::incrFailedCounter() {
+	if (mService) {
+		if (auto counter = mService->getFailedCounter()) {
+			counter->incr();
+		}
+	}
+}
 
 } // namespace pushnotification
 } // namespace flexisip

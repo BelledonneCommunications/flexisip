@@ -125,9 +125,11 @@ int TlsTransport::sendPush(Request &req, bool hurryUp, const OnSuccessCb &onSucc
 	return 0;
 }
 
-LegacyClient::LegacyClient(std::unique_ptr<Transport> &&transport, const string &name, const Service &service,
-						   unsigned maxQueueSize)
-	: mName{name}, mService{service}, mTransport{move(transport)}, mMaxQueueSize{maxQueueSize} {
+LegacyClient::LegacyClient(std::unique_ptr<Transport>&& transport,
+                           const string& name,
+                           unsigned maxQueueSize,
+                           const Service* service)
+    : Client{service}, mName{name}, mTransport{move(transport)}, mMaxQueueSize{maxQueueSize} {
 }
 
 LegacyClient::~LegacyClient() {
@@ -198,19 +200,15 @@ void LegacyClient::run() {
 	}
 }
 
-void LegacyClient::onError(Request &req, const string &msg) {
+void LegacyClient::onError(Request& req, const string& msg) {
 	SLOGW << "LegacyClient PushNotificationClient " << mName << " PNR " << &req << " failed: " << msg;
 	req.setState(Request::State::Failed);
-	auto countFailed = mService.getFailedCounter();
-	if (countFailed)
-		countFailed->incr();
+	incrFailedCounter();
 }
 
-void LegacyClient::onSuccess(Request &req) {
+void LegacyClient::onSuccess(Request& req) {
 	req.setState(Request::State::Successful);
-	auto countSent = mService.getSentCounter();
-	if (countSent)
-		countSent->incr();
+	incrSentCounter();
 }
 
 } // namespace pushnotification

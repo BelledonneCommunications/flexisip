@@ -79,13 +79,13 @@ add_library(flexisip SHARED
 	module.cc
 	monitor.cc
 	plugin/plugin-loader.cc
-	pushnotification/apple/apple-client.cc pushnotification/apple/apple-client.hh
-	pushnotification/apple/apple-request.cc pushnotification/apple/apple-request.hh
-	pushnotification/firebase/firebase-client.cc pushnotification/firebase/firebase-client.hh
-	pushnotification/firebase/firebase-request.cc pushnotification/firebase/firebase-request.hh
-	pushnotification/client.hh
+	pushnotification/apple/apple-client.cc
+	pushnotification/apple/apple-request.cc
+	pushnotification/firebase/firebase-client.cc
+	pushnotification/firebase/firebase-request.cc
+	pushnotification/client.cc
 	pushnotification/genericpush.cc
-	pushnotification/legacy-client.cc pushnotification/legacy-client.hh
+	pushnotification/legacy-client.cc
 	pushnotification/microsoftpush.cc
 	pushnotification/request.cc
 	pushnotification/service.cc
@@ -111,13 +111,12 @@ add_library(flexisip SHARED
 	utils/string-utils.cc
 	utils/threadpool.cc
 	utils/timer.cc
-	utils/transport/http/http2client.cc utils/transport/http/http2client.hh
-	utils/transport/http/http-headers.cc utils/transport/http/http-headers.hh
-	utils/transport/http/http-message-context.hh
-	utils/transport/http/http-message.cc utils/transport/http/http-message.hh
-	utils/transport/http/http-response.cc utils/transport/http/http-response.hh
-	utils/transport/http/ng-data-provider.cc utils/transport/http/ng-data-provider.hh
-	utils/transport/tls-connection.cc utils/transport/tls-connection.hh
+	utils/transport/http/http2client.cc
+	utils/transport/http/http-headers.cc
+	utils/transport/http/http-message.cc
+	utils/transport/http/http-response.cc
+	utils/transport/http/ng-data-provider.cc
+	utils/transport/tls-connection.cc
 	utils/uri-utils.cc
 )
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -264,27 +263,6 @@ if(ENABLE_CONFERENCE)
 	list(APPEND XML_SOURCES
 		xml/reginfo.cc
 		xml/reginfo.hh
-	)
-endif()
-if(ENABLE_PUSHNOTIFICATION)
-	target_sources(flexisip PRIVATE
-		module-pushnotification.cc
-		pushnotification/applepush.cc
-		pushnotification/applepush.hh
-		pushnotification/firebasepush.cc
-		pushnotification/firebasepush.hh
-		pushnotification/genericpush.cc
-		pushnotification/genericpush.hh
-		pushnotification/googlepush.cc
-		pushnotification/googlepush.hh
-		pushnotification/microsoftpush.cc
-		pushnotification/microsoftpush.hh
-		pushnotification/pushnotificationclient.cc
-		pushnotification/pushnotificationclient.hh
-		pushnotification/pushnotificationclient_wp.cc
-		pushnotification/pushnotificationclient_wp.hh
-		pushnotification/pushnotificationservice.cc
-		pushnotification/pushnotificationservice.hh
 	)
 endif()
 if(ENABLE_SOCI)

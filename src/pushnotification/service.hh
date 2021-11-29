@@ -32,6 +32,8 @@
 namespace flexisip {
 namespace pushnotification {
 
+class Client;
+
 class Service {
 public:
 	Service(su_root_t &root, unsigned maxQueueSize);
@@ -55,8 +57,6 @@ public:
 	bool isIdle() const noexcept;
 
 private:
-	void setupClients(const std::string &certdir, const std::string &ca, int maxQueueSize);
-
 	su_root_t &mRoot;
 	unsigned mMaxQueueSize{0};
 	std::map<std::string, std::unique_ptr<Client>> mClients{};

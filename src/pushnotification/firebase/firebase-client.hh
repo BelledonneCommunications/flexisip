@@ -35,12 +35,12 @@ namespace pushnotification {
  */
 class FirebaseClient : public Client {
 public:
-	FirebaseClient(su_root_t& root);
+	FirebaseClient(su_root_t& root, const Service* service = nullptr);
 
 	/**
 	 * Send the request to the Firebase PNR server. If the request succeed, if a response is received, the
-	 * FirebaseClient::onResponse method is called. If the request failed, no response/timeout, tls/handshake errors... the
-	 * FirebaseClient::onError method is called.
+	 * FirebaseClient::onResponse method is called. If the request failed, no response/timeout, tls/handshake errors...
+	 * the FirebaseClient::onError method is called.
 	 *
 	 * @param req The request to send, this MUST be of FirebaseRequest type.
 	 */

@@ -76,9 +76,11 @@ class TlsTransport : public Transport {
 };
 
 class LegacyClient : public Client {
-  public:
-	LegacyClient(std::unique_ptr<Transport> &&transport, const std::string &name, const Service &service,
-				 unsigned maxQueueSize);
+public:
+	LegacyClient(std::unique_ptr<Transport>&& transport,
+	             const std::string& name,
+	             unsigned maxQueueSize,
+	             const Service* service = nullptr);
 	~LegacyClient() override;
 
 	void sendPush(const std::shared_ptr<Request> &req) override;
@@ -87,18 +89,17 @@ class LegacyClient : public Client {
 		return mThreadWaiting;
 	}
 
-  protected:
+protected:
 	void run();
 	void onError(Request &req, const std::string &msg);
 	void onSuccess(Request &req);
 
 	std::string mName{};
-	const Service &mService;
 	std::unique_ptr<Transport> mTransport{};
 	std::queue<std::shared_ptr<Request>> mRequestQueue{};
 	unsigned mMaxQueueSize{0};
 
-  private:
+private:
 	std::thread mThread{};
 	std::mutex mMutex{};
 	std::condition_variable mCondVar{};

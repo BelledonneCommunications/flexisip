@@ -35,8 +35,11 @@ namespace pushnotification {
  */
 class AppleClient : public Client {
 public:
-	AppleClient(su_root_t& root, const std::string& trustStorePath, const std::string& certPath,
-	            const std::string& certName);
+	AppleClient(su_root_t& root,
+	            const std::string& trustStorePath,
+	            const std::string& certPath,
+	            const std::string& certName,
+	            const Service* service = nullptr);
 
 	/**
 	 * Send the request to the apple PNR service. If the request succeed, if a response is received, the

@@ -32,10 +32,14 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
-ClientWp::ClientWp(std::unique_ptr<Transport> &&transport, const std::string &name,
-			const Service &service, unsigned maxQueueSize,
-			const std::string &packageSID, const std::string &applicationSecret)
-: LegacyClient{move(transport), name, service, maxQueueSize}, mPackageSID{packageSID}, mApplicationSecret{applicationSecret} {}
+ClientWp::ClientWp(std::unique_ptr<Transport>&& transport,
+                   const std::string& name,
+                   unsigned maxQueueSize,
+                   const std::string& packageSID,
+                   const std::string& applicationSecret,
+                   const Service* service)
+    : LegacyClient{move(transport), name, maxQueueSize, service},
+      mPackageSID{packageSID}, mApplicationSecret{applicationSecret} {}
 
 
 void ClientWp::retrieveAccessToken() {

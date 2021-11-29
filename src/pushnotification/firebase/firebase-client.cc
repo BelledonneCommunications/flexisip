@@ -30,7 +30,7 @@ namespace pushnotification {
 std::string FirebaseClient::FIREBASE_ADDRESS{"fcm.googleapis.com"};
 std::string FirebaseClient::FIREBASE_PORT{"443"};
 
-FirebaseClient::FirebaseClient(su_root_t& root) {
+FirebaseClient::FirebaseClient(su_root_t& root, const Service* service) : Client{service} {
 	ostringstream os{};
 	os << "FirebaseClient[" << this << "]";
 	mLogPrefix = os.str();
@@ -52,11 +52,19 @@ void FirebaseClient::onResponse(const std::shared_ptr<HttpMessage>& request,
                                 const std::shared_ptr<HttpResponse>& response) {
 	auto firebaseReq = dynamic_pointer_cast<FirebaseRequest>(request);
 	firebaseReq->setState(response->getStatusCode() == 200 ? Request::State::Successful : Request::State::Failed);
+
+	if (firebaseReq->getState() == Request::State::Successful) {
+		incrSentCounter();
+	} else {
+		incrFailedCounter();
+	}
 }
 
 void FirebaseClient::onError(const std::shared_ptr<HttpMessage>& request) {
 	auto firebaseReq = dynamic_pointer_cast<FirebaseRequest>(request);
 	firebaseReq->setState(Request::State::Failed);
+
+	incrFailedCounter();
 }
 
 } // namespace pushnotification
