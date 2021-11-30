@@ -43,61 +43,67 @@ ForkMessageContextSociRepository::ForkMessageContextSociRepository(const string&
                                                                    unsigned int nbThreadsMax)
     : mConnectionPool{nbThreadsMax} {
 
-	for (size_t i = 0; i != nbThreadsMax; ++i) {
-		session& sql = mConnectionPool.at(i);
-		sql.open(backendString, connectionString);
+	try {
+		for (size_t i = 0; i != nbThreadsMax; ++i) {
+			session& sql = mConnectionPool.at(i);
+			sql.open(backendString, connectionString);
+		}
+
+		session sql(mConnectionPool);
+		// Database creation, modify existing request only in case of emergency.
+		// Only add request so the database can be created/updated from any version.
+		sql << R"sql(CREATE TABLE IF NOT EXISTS fork_message_context (
+		uuid BINARY(16) PRIMARY KEY,
+		current_priority FLOAT NOT NULL,
+		delivered_count INT NOT NULL,
+		is_finished TINYINT NOT NULL,
+		is_message TINYINT NOT NULL,
+		expiration_date TIMESTAMP NOT NULL,
+		request BLOB NOT NULL))sql";
+
+		sql << R"sql(CREATE TABLE IF NOT EXISTS branch_info (
+		fork_uuid BINARY(16) NOT NULL,
+		contact_uid VARCHAR(255) NOT NULL,
+		request BLOB NOT NULL,
+		last_response BLOB,
+		priority FLOAT NOT NULL,
+		is_push_sent TINYINT NOT NULL,
+		PRIMARY KEY (fork_uuid, contact_uid),
+		FOREIGN KEY (fork_uuid) REFERENCES fork_message_context(uuid) ON DELETE CASCADE))sql";
+
+		sql << R"sql(CREATE TABLE IF NOT EXISTS fork_key (
+		fork_uuid BINARY(16),
+		key_value VARCHAR(255),
+		PRIMARY KEY (fork_uuid, key_value),
+		FOREIGN KEY (fork_uuid) REFERENCES fork_message_context(uuid) ON DELETE CASCADE))sql";
+
+		// See https://mariadb.com/kb/en/guiduuid-performance/ for more info about those two functions
+		sql << R"sql(CREATE OR REPLACE FUNCTION UuidToBin(_uuid BINARY(36))
+			RETURNS BINARY(16)
+			LANGUAGE SQL  DETERMINISTIC  CONTAINS SQL  SQL SECURITY INVOKER
+		RETURN
+			UNHEX(CONCAT(
+				SUBSTR(_uuid, 15, 4),
+				SUBSTR(_uuid, 10, 4),
+				SUBSTR(_uuid,  1, 8),
+				SUBSTR(_uuid, 20, 4),
+				SUBSTR(_uuid, 25) ));)sql";
+
+		sql << R"sql(CREATE OR REPLACE FUNCTION UuidFromBin(_bin BINARY(16))
+			RETURNS BINARY(36)
+			LANGUAGE SQL  DETERMINISTIC  CONTAINS SQL  SQL SECURITY INVOKER
+		RETURN
+			LCASE(CONCAT_WS('-',
+				HEX(SUBSTR(_bin,  5, 4)),
+				HEX(SUBSTR(_bin,  3, 2)),
+				HEX(SUBSTR(_bin,  1, 2)),
+				HEX(SUBSTR(_bin,  9, 2)),
+				HEX(SUBSTR(_bin, 11))));)sql";
+	} catch (const runtime_error& e) {
+		LOGF("ForkMessageContextSociRepository - A problem occurred during database creation. Fix it or disable "
+		     "save-fork-late-message-in-db before restart. \nException : %s",
+		     e.what());
 	}
-
-	session sql(mConnectionPool);
-	// Database creation, modify existing request only in case of emergency.
-	// Only add request so the database can be created/updated from any version.
-	sql << R"sql(CREATE TABLE IF NOT EXISTS fork_message_context (
-	uuid BINARY(16) PRIMARY KEY,
-	current_priority FLOAT NOT NULL,
-	delivered_count INT NOT NULL,
-	is_finished TINYINT NOT NULL,
-	is_message TINYINT NOT NULL,
-	expiration_date TIMESTAMP NOT NULL,
-	request BLOB NOT NULL))sql";
-
-	sql << R"sql(CREATE TABLE IF NOT EXISTS branch_info (
-	fork_uuid BINARY(16) NOT NULL,
-	contact_uid VARCHAR(255) NOT NULL,
-	request BLOB NOT NULL,
-	last_response BLOB,
-	priority FLOAT NOT NULL,
-	is_push_sent TINYINT NOT NULL,
-	PRIMARY KEY (fork_uuid, contact_uid),
-	FOREIGN KEY (fork_uuid) REFERENCES fork_message_context(uuid) ON DELETE CASCADE))sql";
-
-	sql << R"sql(CREATE TABLE IF NOT EXISTS fork_key (
-	fork_uuid BINARY(16),
-	key_value VARCHAR(255),
-	PRIMARY KEY (fork_uuid, key_value),
-	FOREIGN KEY (fork_uuid) REFERENCES fork_message_context(uuid) ON DELETE CASCADE))sql";
-
-	// See https://mariadb.com/kb/en/guiduuid-performance/ for more info about those two functions
-	sql << R"sql(CREATE OR REPLACE FUNCTION UuidToBin(_uuid BINARY(36))
-		RETURNS BINARY(16)
-		LANGUAGE SQL  DETERMINISTIC  CONTAINS SQL  SQL SECURITY INVOKER
-	RETURN
-		UNHEX(CONCAT(
-			SUBSTR(_uuid, 15, 4),
-			SUBSTR(_uuid, 10, 4),
-			SUBSTR(_uuid,  1, 8),
-			SUBSTR(_uuid, 20, 4),
-			SUBSTR(_uuid, 25) ));)sql";
-
-	sql << R"sql(CREATE OR REPLACE FUNCTION UuidFromBin(_bin BINARY(16))
-		RETURNS BINARY(36)
-		LANGUAGE SQL  DETERMINISTIC  CONTAINS SQL  SQL SECURITY INVOKER
-	RETURN
-		LCASE(CONCAT_WS('-',
-			HEX(SUBSTR(_bin,  5, 4)),
-			HEX(SUBSTR(_bin,  3, 2)),
-			HEX(SUBSTR(_bin,  1, 2)),
-			HEX(SUBSTR(_bin,  9, 2)),
-			HEX(SUBSTR(_bin, 11))));)sql";
 }
 
 ForkMessageContextDb ForkMessageContextSociRepository::findForkMessageByUuid(const string& uuid) {
