@@ -192,7 +192,7 @@ static void forkMessageContextSociRepositoryFullLoadMysqlUnitTests() {
 	for (const auto& actualFork : actualForks) {
 		auto it = expectedForks.find(actualFork.first);
 		if (it != expectedForks.end()) {
-			actualFork.second->assertEqual(it->second);
+			actualFork.second->assertEqualMinimal(it->second);
 		} else {
 			BC_FAIL("Forks with UUID " << actualFork.first << "not expected");
 		}

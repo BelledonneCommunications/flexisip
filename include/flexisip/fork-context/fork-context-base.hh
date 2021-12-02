@@ -61,7 +61,7 @@ protected:
 	virtual bool shouldFinish();
 	// Notifies the destruction of the fork context. Implementors should use it to perform their unitialization, but
 	// shall never forget to upcall to the parent class !*/
-	virtual void onFinished();
+	void onFinished();
 	// Request the forwarding the last response from a given branch
 	std::shared_ptr<ResponseSipEvent> forwardResponse(const std::shared_ptr<BranchInfo> &br);
 	// Request the forwarding of a response supplied in argument.

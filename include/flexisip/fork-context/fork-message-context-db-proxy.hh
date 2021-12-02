@@ -135,13 +135,26 @@ private:
 	                          const std::weak_ptr<StatPair>& proxyCounter);
 
 	void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) override;
+
+	/**
+	 * Be careful, blocking I/O with DB, should be called in a thread.
+	 */
 	void loadFromDb() const;
+
+	/**
+	 * Be careful, blocking I/O with DB, should be called in a thread.
+	 */
 	bool saveToDb();
 	void checkState(const std::string& methodName, const ForkMessageContextDbProxy::State& expectedState) const;
+	void startTimerAndResetFork();
 
+	// All those attributes are mark as mutable because they are used in const methods from ForkContext API, but they
+	// need to be modified because we are in the proxy object.
 	mutable std::shared_ptr<ForkMessageContext> mForkMessage;
 	mutable std::mutex mMutex;
 	mutable State mState;
+	mutable sofiasip::Timer mProxyLateTimer;
+
 	std::weak_ptr<ForkContextListener> mOriginListener;
 	std::weak_ptr<StatPair> mCounter;
 	std::string mForkUuidInDb{};

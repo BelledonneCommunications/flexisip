@@ -37,12 +37,15 @@ static bool needsDelivery(int code) {
 	return code < 200 || code == 503 || code == 408;
 }
 
-shared_ptr<ForkMessageContext> ForkMessageContext::make(Agent* agent, const shared_ptr<RequestSipEvent>& event,
-                                                        const shared_ptr<ForkContextConfig>& cfg,
-                                                        const weak_ptr<ForkContextListener>& listener,
-                                                        const weak_ptr<StatPair>& counter) {
+shared_ptr<ForkMessageContext> ForkMessageContext::make(Agent* agent,
+                                                        const std::shared_ptr<RequestSipEvent>& event,
+                                                        const std::shared_ptr<ForkContextConfig>& cfg,
+                                                        const std::weak_ptr<ForkContextListener>& listener,
+                                                        const std::weak_ptr<StatPair>& counter,
+                                                        bool isProxyfied) {
 	// new because make_shared require a public constructor.
-	shared_ptr<ForkMessageContext> shared{new ForkMessageContext(agent, event, cfg, listener, counter)};
+	shared_ptr<ForkMessageContext> shared{
+	    new ForkMessageContext(agent, event, cfg, listener, counter, false, isProxyfied)};
 	return shared;
 }
 
@@ -53,7 +56,7 @@ shared_ptr<ForkMessageContext> ForkMessageContext::make(Agent* agent,
                                                         const std::weak_ptr<StatPair>& counter,
                                                         ForkMessageContextDb& forkFromDb) {
 	// new because make_shared require a public constructor.
-	shared_ptr<ForkMessageContext> shared{new ForkMessageContext(agent, event, cfg, listener, counter, true)};
+	shared_ptr<ForkMessageContext> shared{new ForkMessageContext(agent, event, cfg, listener, counter, true, true)};
 	shared->mIsMessage = forkFromDb.isMessage;
 	shared->mFinished = forkFromDb.isFinished;
 	shared->mDeliveredCount = forkFromDb.deliveredCount;
@@ -77,14 +80,17 @@ shared_ptr<ForkMessageContext> ForkMessageContext::make(Agent* agent,
 	return shared;
 }
 
-ForkMessageContext::ForkMessageContext(Agent* agent, const shared_ptr<RequestSipEvent>& event,
-                                       const shared_ptr<ForkContextConfig>& cfg,
-                                       const weak_ptr<ForkContextListener>& listener, const weak_ptr<StatPair>& counter,
-                                       bool isRestored)
+ForkMessageContext::ForkMessageContext(Agent* agent,
+                                       const std::shared_ptr<RequestSipEvent>& event,
+                                       const std::shared_ptr<ForkContextConfig>& cfg,
+                                       const std::weak_ptr<ForkContextListener>& listener,
+                                       const std::weak_ptr<StatPair>& counter,
+                                       bool isRestored,
+                                       bool isProxyfied)
     : ForkContextBase(agent, event, cfg, listener, counter, isRestored) {
 	if (!isRestored) {
 		LOGD("New ForkMessageContext %p", this);
-		// start the acceptance timer immediately
+		// Start the acceptance timer immediately.
 		if (mCfg->mForkLate && mCfg->mDeliveryTimeout > 30) {
 			mExpirationDate = system_clock::to_time_t(system_clock::now() + seconds(mCfg->mDeliveryTimeout));
 
@@ -331,5 +337,10 @@ void ForkMessageContext::assertEqual(const shared_ptr<ForkMessageContext>& expec
 	} else {
 		BC_FAIL("Waiting branch list is not the same size");
 	}
+}
+
+void ForkMessageContext::assertEqualMinimal(const shared_ptr<ForkMessageContext>& expected) {
+	BC_ASSERT_TRUE(mExpirationDate == expected->mExpirationDate);
+	BC_ASSERT_STRING_EQUAL(mEvent->getMsgSip()->print(), expected->mEvent->getMsgSip()->print());
 }
 #endif

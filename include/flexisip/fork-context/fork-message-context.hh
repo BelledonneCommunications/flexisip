@@ -35,7 +35,8 @@ public:
 	                                                const std::shared_ptr<RequestSipEvent>& event,
 	                                                const std::shared_ptr<ForkContextConfig>& cfg,
 	                                                const std::weak_ptr<ForkContextListener>& listener,
-	                                                const std::weak_ptr<StatPair>& counter);
+	                                                const std::weak_ptr<StatPair>& counter,
+	                                                bool isProxyfied = false);
 
 	static std::shared_ptr<ForkMessageContext> make(Agent* agent,
 	                                                const std::shared_ptr<RequestSipEvent>& event,
@@ -46,19 +47,23 @@ public:
 
 	virtual ~ForkMessageContext();
 
-	virtual bool onNewRegister(const SipUri& dest, const std::string& uid, const std::function<void()>& dispatchFunction);
-	virtual void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& ev);
+	bool onNewRegister(const SipUri& dest, const std::string& uid, const std::function<void()>& dispatchFunction) override;
+	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& ev) override;
 
 	ForkMessageContextDb getDbObject();
 	void restoreBranch(const BranchInfoDb& dbBranch);
+	time_t getExpirationDate() const {
+		return mExpirationDate;
+	}
 
 #ifdef ENABLE_UNIT_TESTS
 	void assertEqual(const std::shared_ptr<ForkMessageContext>& expected);
+	void assertEqualMinimal(const std::shared_ptr<ForkMessageContext>& expected);
 #endif
 
 protected:
-	virtual void onNewBranch(const std::shared_ptr<BranchInfo>& br);
-	virtual bool shouldFinish();
+	void onNewBranch(const std::shared_ptr<BranchInfo>& br) override;
+	bool shouldFinish() override;
 
 private:
 	ForkMessageContext(Agent* agent,
@@ -66,7 +71,8 @@ private:
 	                   const std::shared_ptr<ForkContextConfig>& cfg,
 	                   const std::weak_ptr<ForkContextListener>& listener,
 	                   const std::weak_ptr<StatPair>& counter,
-	                   bool isRestored = false);
+	                   bool isRestored = false,
+	                   bool isProxyfied = false);
 
 	void acceptMessage();
 	void onAcceptanceTimer();

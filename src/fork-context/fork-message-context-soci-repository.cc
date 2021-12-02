@@ -182,21 +182,13 @@ std::vector<ForkMessageContextDb> ForkMessageContextSociRepository::findAllForkM
 	session sql(mConnectionPool);
 	vector<ForkMessageContextDb> allForkMessages;
 	ForkMessageContextDb currentFork{};
-	int isFinishedIntValue;
-	int isMessageIntValue;
 
 	soci::statement forkSt =
-	    (sql.prepare << "select UuidFromBin(uuid), current_priority, delivered_count, is_finished, is_message, "
-	                    "expiration_date, request from fork_message_context",
-	     into(currentFork.uuid), into(currentFork.currentPriority), into(currentFork.deliveredCount),
-	     into(isFinishedIntValue), into(isMessageIntValue), into(currentFork.expirationDate),
-	     into(currentFork.request));
+	    (sql.prepare << "select UuidFromBin(uuid), expiration_date, request from fork_message_context",
+	     into(currentFork.uuid), into(currentFork.expirationDate), into(currentFork.request));
+
 	forkSt.execute();
 	while (forkSt.fetch()) {
-		currentFork.isFinished = isFinishedIntValue;
-		currentFork.isMessage = isMessageIntValue;
-		findAndPushBackKeys(currentFork.uuid, currentFork, sql);
-		findAndPushBackBranches(currentFork.uuid, currentFork, sql);
 		allForkMessages.push_back(currentFork);
 	}
 

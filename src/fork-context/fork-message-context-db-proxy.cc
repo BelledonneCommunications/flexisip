@@ -33,7 +33,8 @@ shared_ptr<ForkMessageContextDbProxy> ForkMessageContextDbProxy::make(Agent* age
 	// new because make_shared require a public constructor.
 	const shared_ptr<ForkMessageContextDbProxy> shared{
 	    new ForkMessageContextDbProxy(agent, event, cfg, listener, messageCounter, proxyCounter)};
-	shared->mForkMessage = ForkMessageContext::make(agent, event, cfg, shared, messageCounter);
+
+	shared->mForkMessage = ForkMessageContext::make(agent, event, cfg, shared, messageCounter, true);
 
 	return shared;
 }
@@ -49,9 +50,9 @@ shared_ptr<ForkMessageContextDbProxy> ForkMessageContextDbProxy::make(Agent* age
 	// new because make_shared require a public constructor.
 	const shared_ptr<ForkMessageContextDbProxy> shared{
 	    new ForkMessageContextDbProxy(agent, event, cfg, listener, messageCounter, proxyCounter)};
-	shared->mForkMessage = ForkMessageContext::make(agent, event, cfg, shared, messageCounter, forkFromDb);
 
 	shared->mForkUuidInDb = forkFromDb.uuid;
+	shared->mState = State::IN_DATABASE;
 
 	return shared;
 }
@@ -62,7 +63,8 @@ ForkMessageContextDbProxy::ForkMessageContextDbProxy(Agent* agent,
                                                      const weak_ptr<ForkContextListener>& listener,
                                                      const weak_ptr<StatPair>& messageCounter,
                                                      const weak_ptr<StatPair>& proxyCounter)
-    : mForkMessage{}, mState{State::IN_MEMORY}, mOriginListener{listener}, mCounter{proxyCounter},
+    : mForkMessage{}, mState{State::IN_MEMORY}, mProxyLateTimer{agent->getRoot()},
+      mOriginListener{listener}, mCounter{proxyCounter},
       savedAgent(agent), savedRequest{event}, savedConfig{cfg}, savedCounter{messageCounter} {
 
 	LOGD("New ForkMessageContextDbProxy %p", this);
@@ -94,6 +96,8 @@ void ForkMessageContextDbProxy::loadFromDb() const {
 	auto nonConstShared = const_pointer_cast<ForkMessageContextDbProxy>(shared_from_this());
 	mForkMessage =
 	    ForkMessageContext::make(savedAgent, savedRequest, savedConfig, nonConstShared, savedCounter, dbFork);
+	// Timer is now handle by the newly restored inner ForkMessageContext
+	mProxyLateTimer.reset();
 }
 
 bool ForkMessageContextDbProxy::saveToDb() {
@@ -107,7 +111,7 @@ bool ForkMessageContextDbProxy::saveToDb() {
 			ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(mForkMessage, mForkUuidInDb);
 		}
 		// Do not reset mForkMessage directly in a thread
-		savedAgent->getRoot()->addToMainLoop([this]() { mForkMessage.reset(); });
+		savedAgent->getRoot()->addToMainLoop([this]() { startTimerAndResetFork(); });
 	} catch (const exception& e) {
 		SLOGE << "A problem occurred during ForkMessageContext saving, it will remain in memory : " << e.what();
 		return false;
@@ -188,6 +192,16 @@ void ForkMessageContextDbProxy::checkState(const string& methodName,
 		SLOGE << ss.str();
 		throw logic_error{ss.str()};
 	}
+}
+
+void ForkMessageContextDbProxy::startTimerAndResetFork() {
+	LOGD("ForkMessageContextDbProxy[%p] startTimerAndResetFork", this);
+	// We need to handle fork late timer in proxy object in case it expire while inner object is still in database.
+	const auto utcNow = time(nullptr);
+	auto timeout = difftime(mForkMessage->getExpirationDate() , utcNow);
+	mProxyLateTimer.set([this]() { onForkContextFinished(nullptr); }, timeout * 1000);
+
+	mForkMessage.reset();
 }
 
 ostream& operator<<(ostream& os, flexisip::ForkMessageContextDbProxy::State state) noexcept {

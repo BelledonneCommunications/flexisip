@@ -57,6 +57,9 @@ public:
 
 	ForkMessageContextDb findForkMessageByUuid(const std::string& uuid);
 
+	/**
+	 * Load minimal information about all fork_message_context to re-create proxy objects in Database state.
+	 */
 	std::vector<ForkMessageContextDb> findAllForkMessage();
 
 	std::string saveForkMessageContext(const std::shared_ptr<ForkMessageContext>& forkMessageContext);
