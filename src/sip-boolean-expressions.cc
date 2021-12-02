@@ -54,6 +54,10 @@ static ExpressionRules<sip_t> rules = {
 		{"to.uri.user", [](const sip_t &sip)->string {return stringFromC(sip.sip_to ? sip.sip_to->a_url->url_user : nullptr);} },
 		{"to.uri.params", [](const sip_t &sip)->string {return stringFromC(sip.sip_to ? sip.sip_to->a_url->url_params : nullptr);} },
 		
+		{"contact.uri.domain", [](const sip_t &sip)->string {return stringFromC(sip.sip_contact ? sip.sip_contact->m_url->url_host : nullptr);} },
+		{"contact.uri.user", [](const sip_t &sip)->string {return stringFromC(sip.sip_contact ? sip.sip_contact->m_url->url_user : nullptr);} },
+		{"contact.uri.params", [](const sip_t &sip)->string {return stringFromC(sip.sip_contact ? sip.sip_contact->m_url->url_params : nullptr);} },
+		
 		{"user-agent", [](const sip_t &sip)->string {return stringFromC(sip.sip_user_agent ? sip.sip_user_agent->g_string : nullptr);} },
 		
 		{"call-id", [](const sip_t &sip)->string {return stringFromC(sip.sip_call_id ? sip.sip_call_id->i_id : nullptr);} },
