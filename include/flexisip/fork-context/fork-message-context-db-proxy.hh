@@ -18,9 +18,10 @@
 
 #pragma once
 
+#include <string>
+
 #include "flexisip/fork-context/fork-message-context-soci-repository.hh"
 #include "flexisip/fork-context/fork-message-context.hh"
-#include <string>
 
 #if ENABLE_UNIT_TESTS
 #include "bctoolbox/tester.h"
@@ -34,6 +35,9 @@ class ForkMessageContextDbProxy : public ForkContext,
 public:
 	enum class State : uint8_t { IN_DATABASE, SAVING, RESTORING, IN_MEMORY };
 
+	/**
+	 * Used to create a ForkMessageContextDbProxy and its inner ForkMessageContext when needed at runtime.
+	 */
 	static std::shared_ptr<ForkMessageContextDbProxy> make(Agent* agent,
 	                                                       const std::shared_ptr<RequestSipEvent>& event,
 	                                                       const std::shared_ptr<ForkContextConfig>& cfg,
@@ -41,15 +45,18 @@ public:
 	                                                       const std::weak_ptr<StatPair>& messageCounter,
 	                                                       const std::weak_ptr<StatPair>& proxyCounter);
 
+	/**
+	 * Used to create a ForkMessageContextDbProxy object for a ForkMessage that already exist in database at server
+	 * restart.
+	 */
 	static std::shared_ptr<ForkMessageContextDbProxy> make(Agent* agent,
-	                                                       const std::shared_ptr<RequestSipEvent>& event,
 	                                                       const std::shared_ptr<ForkContextConfig>& cfg,
 	                                                       const std::weak_ptr<ForkContextListener>& listener,
 	                                                       const std::weak_ptr<StatPair>& messageCounter,
 	                                                       const std::weak_ptr<StatPair>& proxyCounter,
 	                                                       ForkMessageContextDb& forkFromDb);
 
-	~ForkMessageContextDbProxy();
+	~ForkMessageContextDbProxy() override;
 
 	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& event) override;
 	bool onNewRegister(const SipUri& dest, const std::string& uid, const std::function<void()>& dispatchFunc) override;
@@ -89,13 +96,30 @@ public:
 	}
 
 	const std::vector<std::string>& getKeys() const override {
-		checkState(__FUNCTION__, State::IN_MEMORY);
-		return mForkMessage->getKeys();
+		if(mState == State::IN_MEMORY) {
+			return mForkMessage->getKeys();
+		} else {
+			return mSavedKeys;
+		}
 	}
 
 	void onPushSent(const std::shared_ptr<OutgoingTransaction>& tr) override {
 		checkState(__FUNCTION__, State::IN_MEMORY);
 		mForkMessage->onPushSent(tr);
+	}
+
+	bool isFinished() const override {
+		checkState(__FUNCTION__, State::IN_MEMORY);
+		return mForkMessage->isFinished();
+	}
+
+	const std::shared_ptr<RequestSipEvent>& getEvent() override {
+		checkState(__FUNCTION__, State::IN_MEMORY);
+		return mForkMessage->getEvent();
+	}
+
+	const std::shared_ptr<ForkContextConfig>& getConfig() const override {
+		return mSavedConfig;
 	}
 
 	void onPushError(const std::shared_ptr<OutgoingTransaction>& tr, const std::string& errormsg) override {
@@ -104,19 +128,6 @@ public:
 
 	void onCancel(const std::shared_ptr<RequestSipEvent>& ev) override {
 		// Does nothing for fork late ForkMessageContext
-	}
-
-	const std::shared_ptr<RequestSipEvent>& getEvent() override {
-		return savedRequest;
-	}
-
-	const std::shared_ptr<ForkContextConfig>& getConfig() const override {
-		return savedConfig;
-	}
-
-	bool isFinished() const override {
-		if (!mForkMessage) loadFromDb();
-		return mForkMessage->isFinished();
 	}
 
 #ifdef ENABLE_UNIT_TESTS
@@ -128,13 +139,27 @@ public:
 
 private:
 	ForkMessageContextDbProxy(Agent* agent,
-	                          const std::shared_ptr<RequestSipEvent>& event,
 	                          const std::shared_ptr<ForkContextConfig>& cfg,
 	                          const std::weak_ptr<ForkContextListener>& listener,
 	                          const std::weak_ptr<StatPair>& messageCounter,
 	                          const std::weak_ptr<StatPair>& proxyCounter);
 
+	ForkMessageContextDbProxy(Agent* agent,
+	                          const std::shared_ptr<ForkContextConfig>& cfg,
+	                          const std::weak_ptr<ForkContextListener>& listener,
+	                          const std::weak_ptr<StatPair>& messageCounter,
+	                          const std::weak_ptr<StatPair>& proxyCounter,
+	                          ForkMessageContextDb& forkFromDb);
+
 	void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) override;
+	void runSavingThread();
+
+	/**
+	 * This method call the onNewRegister method and remove the ForkMessageContext from memory onNewRegister return
+	 * false. Should be called on the main loop from a thread : @see ForkMessageContextDbProxy::onNewRegister.
+	 * Must only be used when ForkMessageContextDbProxy has already been saved in DB once.
+	 */
+	void delayedOnNewRegister(const SipUri& dest, const std::string& uid, const std::function<void()>& dispatchFunc);
 
 	/**
 	 * Be careful, blocking I/O with DB, should be called in a thread.
@@ -146,6 +171,7 @@ private:
 	 */
 	bool saveToDb();
 	void checkState(const std::string& methodName, const ForkMessageContextDbProxy::State& expectedState) const;
+	void startTimerAndResetFork(time_t expirationDate, const std::vector<std::string>& keys);
 	void startTimerAndResetFork();
 
 	// All those attributes are mark as mutable because they are used in const methods from ForkContext API, but they
@@ -158,11 +184,12 @@ private:
 	std::weak_ptr<ForkContextListener> mOriginListener;
 	std::weak_ptr<StatPair> mCounter;
 	std::string mForkUuidInDb{};
+	bool mIsFinished = false;
 
-	Agent* savedAgent;
-	std::shared_ptr<RequestSipEvent> savedRequest;
-	std::shared_ptr<ForkContextConfig> savedConfig;
-	std::weak_ptr<StatPair> savedCounter;
+	Agent* mSavedAgent;
+	std::shared_ptr<ForkContextConfig> mSavedConfig;
+	std::weak_ptr<StatPair> mSavedCounter;
+	std::vector<std::string> mSavedKeys{};
 };
 
 std::ostream& operator<<(std::ostream& os, flexisip::ForkMessageContextDbProxy::State state) noexcept;

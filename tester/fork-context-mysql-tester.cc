@@ -84,95 +84,86 @@ static void afterEach() {
 }
 
 static void forkMessageContextSociRepositoryMysqlUnitTests() {
-	auto request = std::make_shared<MsgSip>(msg_make(sip_default_mclass(), 0, rawRequest.c_str(), rawRequest.size()));
-	auto reqSipEvent = std::make_shared<RequestSipEvent>(agent, request);
-
 	// Save and find test
 	auto nowPlusDays = system_clock::now() + days{7};
 	std::time_t t = system_clock::to_time_t(nowPlusDays);
-	ForkMessageContextDb fakeDbObject{1, 3, true, false, *gmtime(&t)};
+	ForkMessageContextDb fakeDbObject{1, 3, true, false, *gmtime(&t), rawRequest};
 	fakeDbObject.dbKeys = vector<string>{"key1", "key2", "key3"};
 	auto expectedFork =
-	    ForkMessageContext::make(agent.get(), reqSipEvent, shared_ptr<ForkContextConfig>{},
-	                             shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, fakeDbObject);
+	    ForkMessageContext::make(agent.get(), shared_ptr<ForkContextConfig>{}, shared_ptr<ForkContextListener>{},
+	                             shared_ptr<StatPair>{}, fakeDbObject);
 	auto insertedUuid = ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork);
 	auto dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
-	auto actualFork = ForkMessageContext::make(agent.get(), reqSipEvent, shared_ptr<ForkContextConfig>{},
+	auto actualFork = ForkMessageContext::make(agent.get(), shared_ptr<ForkContextConfig>{},
 	                                           shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, dbFork);
 	actualFork->assertEqual(expectedFork);
 
 	// Update and find test
 	nowPlusDays = system_clock::now() + days{10};
 	t = system_clock::to_time_t(nowPlusDays);
-	fakeDbObject = ForkMessageContextDb{2, 10, false, true, *gmtime(&t)};
+	fakeDbObject = ForkMessageContextDb{2, 10, false, true, *gmtime(&t), rawRequest};
 	fakeDbObject.dbKeys = vector<string>{"key1", "key2", "key3"}; // We keep the same keys because they are not updated
-	expectedFork = ForkMessageContext::make(agent.get(), reqSipEvent, shared_ptr<ForkContextConfig>{},
+	expectedFork = ForkMessageContext::make(agent.get(), shared_ptr<ForkContextConfig>{},
 	                                        shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, fakeDbObject);
 	ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(expectedFork, insertedUuid);
 	dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
-	actualFork = ForkMessageContext::make(agent.get(), reqSipEvent, shared_ptr<ForkContextConfig>{},
+	actualFork = ForkMessageContext::make(agent.get(), shared_ptr<ForkContextConfig>{},
 	                                      shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, dbFork);
 	actualFork->assertEqual(expectedFork);
 }
 
 static void forkMessageContextWithBranchesSociRepositoryMysqlUnitTests() {
-	auto request = std::make_shared<MsgSip>(msg_make(sip_default_mclass(), 0, rawRequest.c_str(), rawRequest.size()));
-	auto reqSipEvent = std::make_shared<RequestSipEvent>(agent, request);
-
 	// Save and find with branch info test
 	auto nowPlusDays = system_clock::now() + days{400};
 	auto t = system_clock::to_time_t(nowPlusDays);
-	auto fakeDbObject = ForkMessageContextDb{1.52, 5, false, true, *gmtime(&t)};
+	auto fakeDbObject = ForkMessageContextDb{1.52, 5, false, true, *gmtime(&t), rawRequest};
 	fakeDbObject.dbKeys = vector<string>{"key1"};
 	BranchInfoDb branchInfoDb{"contactUid", 4.0, rawRequest, rawResponse, true};
 	BranchInfoDb branchInfoDb2{"contactUid2", 1.0, rawRequest, rawResponse, false};
 	BranchInfoDb branchInfoDb3{"contactUid3", 2.42, rawRequest, rawResponse, true};
 	fakeDbObject.dbBranches = vector<BranchInfoDb>{branchInfoDb, branchInfoDb2, branchInfoDb3};
 	auto expectedFork =
-	    ForkMessageContext::make(agent.get(), reqSipEvent, shared_ptr<ForkContextConfig>{},
-	                             shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, fakeDbObject);
+	    ForkMessageContext::make(agent.get(), shared_ptr<ForkContextConfig>{}, shared_ptr<ForkContextListener>{},
+	                             shared_ptr<StatPair>{}, fakeDbObject);
 
 	auto insertedUuid = ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork);
 	auto dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
-	auto actualFork = ForkMessageContext::make(agent.get(), reqSipEvent, shared_ptr<ForkContextConfig>{},
+	auto actualFork = ForkMessageContext::make(agent.get(), shared_ptr<ForkContextConfig>{},
 	                                           shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, dbFork);
 	actualFork->assertEqual(expectedFork);
 
 	// Update and find with branch info test
 	nowPlusDays = system_clock::now() + days{10};
 	t = system_clock::to_time_t(nowPlusDays);
-	fakeDbObject = ForkMessageContextDb{10, 1000, true, false, *gmtime(&t)};
+	fakeDbObject = ForkMessageContextDb{10, 1000, true, false, *gmtime(&t), rawRequest};
 	fakeDbObject.dbKeys = vector<string>{"key1"}; // We keep the same keys because they are not updated
 	branchInfoDb = BranchInfoDb{"contactUid", 3.0, rawRequest, rawResponse, false};
 	branchInfoDb2 = BranchInfoDb{"contactUid2", 3.0, rawRequest, rawResponse, true};
 	branchInfoDb3 = BranchInfoDb{"contactUid3", 3.42, rawRequest, rawResponse, false};
 	fakeDbObject.dbBranches = vector<BranchInfoDb>{branchInfoDb, branchInfoDb2, branchInfoDb3};
-	expectedFork = ForkMessageContext::make(agent.get(), reqSipEvent, shared_ptr<ForkContextConfig>{},
+	expectedFork = ForkMessageContext::make(agent.get(), shared_ptr<ForkContextConfig>{},
 	                                        shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, fakeDbObject);
 	ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(expectedFork, insertedUuid);
 	dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
-	actualFork = ForkMessageContext::make(agent.get(), reqSipEvent, shared_ptr<ForkContextConfig>{},
+	actualFork = ForkMessageContext::make(agent.get(), shared_ptr<ForkContextConfig>{},
 	                                      shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, dbFork);
 	actualFork->assertEqual(expectedFork);
 }
 
 static void forkMessageContextSociRepositoryFullLoadMysqlUnitTests() {
-	auto request = std::make_shared<MsgSip>(msg_make(sip_default_mclass(), 0, rawRequest.c_str(), rawRequest.size()));
-	auto reqSipEvent = std::make_shared<RequestSipEvent>(agent, request);
-
 	map<string, shared_ptr<ForkMessageContext>> expectedForks{};
 	for (int i = 0; i < 10; i++) {
 		auto nowPlusDays = system_clock::now() + days{400};
 		auto t = system_clock::to_time_t(nowPlusDays);
-		auto fakeDbObject = ForkMessageContextDb{1.52, 5, false, true, *gmtime(&t)};
+		auto fakeDbObject = ForkMessageContextDb{1.52, 5, false, true, *gmtime(&t), rawRequest};
 		fakeDbObject.dbKeys = vector<string>{"key"};
 		BranchInfoDb branchInfoDb{"contactUid", 4.0, rawRequest, rawResponse, true};
 		BranchInfoDb branchInfoDb2{"contactUid2", 1.0, rawRequest, rawResponse, false};
 		BranchInfoDb branchInfoDb3{"contactUid3", 2.42, rawRequest, rawResponse, true};
 		fakeDbObject.dbBranches = vector<BranchInfoDb>{branchInfoDb, branchInfoDb2, branchInfoDb3};
 		auto expectedFork =
-		    ForkMessageContext::make(agent.get(), reqSipEvent, shared_ptr<ForkContextConfig>{},
-		                             shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, fakeDbObject);
+		    ForkMessageContext::make(agent.get(), shared_ptr<ForkContextConfig>{}, shared_ptr<ForkContextListener>{},
+		                             shared_ptr<StatPair>{}, fakeDbObject);
 		auto insertedUuid = ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork);
 		expectedForks.insert(make_pair(insertedUuid, expectedFork));
 	}
@@ -181,9 +172,10 @@ static void forkMessageContextSociRepositoryFullLoadMysqlUnitTests() {
 	map<string, shared_ptr<ForkMessageContext>> actualForks{};
 
 	for (auto dbFork : dbForks) {
-		auto actualFork = ForkMessageContext::make(agent.get(), reqSipEvent, shared_ptr<ForkContextConfig>{},
+		auto actualFork = ForkMessageContext::make(agent.get(), shared_ptr<ForkContextConfig>{},
 		                                           shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, dbFork);
 		actualForks.insert(make_pair(dbFork.uuid, actualFork));
+		BC_ASSERT_TRUE(!dbFork.dbKeys.empty());
 	}
 
 	if (actualForks.size() != expectedForks.size()) {
@@ -197,7 +189,7 @@ static void forkMessageContextSociRepositoryFullLoadMysqlUnitTests() {
 			BC_FAIL("Forks with UUID " << actualFork.first << "not expected");
 		}
 	}
-};
+}
 
 static test_t tests[] = {
     TEST_NO_TAG("Unit test fork message repository with mysql", forkMessageContextSociRepositoryMysqlUnitTests),

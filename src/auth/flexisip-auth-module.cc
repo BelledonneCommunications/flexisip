@@ -175,7 +175,7 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *au,
 		int pnc = mNonceStore.getNc(ar->ar_nonce);
 		int nnc = (int)strtoul(ar->ar_nc, NULL, 16);
 		if (pnc == -1 || pnc >= nnc) {
-			LOGE("Bad nonce count %d -> %d for %s", pnc, nnc, ar->ar_nonce);
+			LOGW("Bad nonce count %d -> %d for %s", pnc, nnc, ar->ar_nonce);
 			as.blacklist(mAm->am_blacklist);
 			challenge(as, ach);
 			notify(as);

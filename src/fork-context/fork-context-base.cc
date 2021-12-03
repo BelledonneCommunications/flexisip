@@ -45,7 +45,7 @@ ForkContextBase::ForkContextBase(Agent* agent,
 
 	if (!isRestored) {
 		if (mCfg->mForkLate) {
-			// this timer is for when outgoing transaction all die prematuraly, we still need to wait that late register
+			// this timer is for when outgoing transaction all die prematurely, we still need to wait that late register
 			// arrive.
 			mLateTimer.set([this]() { processLateTimeout(); },
 			               static_cast<su_duration_t>(mCfg->mDeliveryTimeout) * 1000);
@@ -201,7 +201,6 @@ void ForkContextBase::removeBranch(const shared_ptr<BranchInfo> &br) {
 
 	mWaitingBranches.remove(br);
 	mCurrentBranches.remove(br);
-	br->clear();
 }
 
 const list<shared_ptr<BranchInfo>> & ForkContextBase::getBranches() const {
@@ -386,18 +385,6 @@ const shared_ptr<RequestSipEvent> & ForkContextBase::getEvent() {
 }
 
 void ForkContextBase::onFinished() {
-	mFinishTimer.reset();
-
-	// force references to be loosed immediately, to avoid circular dependencies.
-	mEvent.reset();
-	mIncoming.reset();
-
-	for_each(mWaitingBranches.begin(), mWaitingBranches.end(), mem_fn(&BranchInfo::clear));
-	mWaitingBranches.clear();
-
-	for_each(mCurrentBranches.begin(), mCurrentBranches.end(), mem_fn(&BranchInfo::clear));
-	mCurrentBranches.clear();
-
 	if (auto listener = mListener.lock()) {
 		listener->onForkContextFinished(shared_from_this());
 	}
@@ -413,7 +400,13 @@ void ForkContextBase::setFinished() {
 	mLateTimer.reset();
 	mNextBranchesTimer.reset();
 
-	mFinishTimer.set([self = shared_from_this()](){self->onFinished();}, 0);
+	mFinishTimer.set(
+	    [weak = weak_ptr<ForkContextBase>{shared_from_this()}]() {
+		    if (auto shared = weak.lock()) {
+			    shared->onFinished();
+		    }
+	    },
+	    0);
 }
 
 bool ForkContextBase::shouldFinish() {

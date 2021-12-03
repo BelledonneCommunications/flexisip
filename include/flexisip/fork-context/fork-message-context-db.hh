@@ -38,10 +38,14 @@ namespace flexisip {
 class ForkMessageContextDb {
 public:
 	ForkMessageContextDb() = default;
-	ForkMessageContextDb(
-	    double currentPriority, int deliveredCount, bool isFinished, bool isMessage, const tm& expirationDate)
+	ForkMessageContextDb(double currentPriority,
+	                     int deliveredCount,
+	                     bool isFinished,
+	                     bool isMessage,
+	                     const tm& expirationDate,
+	                     const std::string& request)
 	    : currentPriority(currentPriority), deliveredCount(deliveredCount), isFinished(isFinished),
-	      isMessage(isMessage), expirationDate(expirationDate) {
+	      isMessage(isMessage), expirationDate(expirationDate), request(request) {
 	}
 
 	std::string uuid{};

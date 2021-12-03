@@ -78,8 +78,8 @@ private:
 	                                 const std::string& connectionString,
 	                                 unsigned int nbThreadsMax);
 
-	void findAndPushBackKeys(const std::string& uuid, ForkMessageContextDb& dbFork, soci::session& sql) const;
-	void findAndPushBackBranches(const std::string& uuid, ForkMessageContextDb& dbFork, soci::session& sql) const;
+	static void findAndPushBackKeys(const std::string& uuid, ForkMessageContextDb& dbFork, soci::session& sql);
+	static void findAndPushBackBranches(const std::string& uuid, ForkMessageContextDb& dbFork, soci::session& sql);
 
 	soci::connection_pool mConnectionPool;
 

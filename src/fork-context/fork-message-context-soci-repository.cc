@@ -106,7 +106,7 @@ ForkMessageContextSociRepository::ForkMessageContextSociRepository(const string&
 	} catch (const runtime_error& e) {
 		LOGF("ForkMessageContextSociRepository - A problem occurred during database creation. Fix it or disable "
 		     "save-fork-late-message-in-db before restart. \nException : %s",
-		     e.what());
+		     e.what())
 	}
 }
 
@@ -189,6 +189,7 @@ std::vector<ForkMessageContextDb> ForkMessageContextSociRepository::findAllForkM
 
 	forkSt.execute();
 	while (forkSt.fetch()) {
+		findAndPushBackKeys(currentFork.uuid, currentFork, sql);
 		allForkMessages.push_back(currentFork);
 	}
 
@@ -197,7 +198,7 @@ std::vector<ForkMessageContextDb> ForkMessageContextSociRepository::findAllForkM
 
 void ForkMessageContextSociRepository::findAndPushBackKeys(const string& uuid,
                                                            ForkMessageContextDb& dbFork,
-                                                           session& sql) const {
+                                                           session& sql) {
 	string dbKey;
 	dbFork.dbKeys.clear();
 
@@ -211,7 +212,7 @@ void ForkMessageContextSociRepository::findAndPushBackKeys(const string& uuid,
 
 void ForkMessageContextSociRepository::findAndPushBackBranches(const std::string& uuid,
                                                                ForkMessageContextDb& dbFork,
-                                                               soci::session& sql) const { // branch_info
+                                                               soci::session& sql) {
 	BranchInfoDb dbBranch;
 	dbFork.dbBranches.clear();
 

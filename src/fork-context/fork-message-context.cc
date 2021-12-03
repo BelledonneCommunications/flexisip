@@ -41,22 +41,25 @@ shared_ptr<ForkMessageContext> ForkMessageContext::make(Agent* agent,
                                                         const std::shared_ptr<RequestSipEvent>& event,
                                                         const std::shared_ptr<ForkContextConfig>& cfg,
                                                         const std::weak_ptr<ForkContextListener>& listener,
-                                                        const std::weak_ptr<StatPair>& counter,
-                                                        bool isProxyfied) {
+                                                        const std::weak_ptr<StatPair>& counter) {
 	// new because make_shared require a public constructor.
-	shared_ptr<ForkMessageContext> shared{
-	    new ForkMessageContext(agent, event, cfg, listener, counter, false, isProxyfied)};
+	shared_ptr<ForkMessageContext> shared{new ForkMessageContext(agent, event, cfg, listener, counter, false)};
 	return shared;
 }
 
 shared_ptr<ForkMessageContext> ForkMessageContext::make(Agent* agent,
-                                                        const std::shared_ptr<RequestSipEvent>& event,
                                                         const std::shared_ptr<ForkContextConfig>& cfg,
                                                         const std::weak_ptr<ForkContextListener>& listener,
                                                         const std::weak_ptr<StatPair>& counter,
                                                         ForkMessageContextDb& forkFromDb) {
+	auto msgSipFromDB =
+	    make_shared<MsgSip>(msg_make(sip_default_mclass(), 0, forkFromDb.request.c_str(), forkFromDb.request.size()));
+	auto requestSipEventFromDb =
+	    RequestSipEvent::makeRestored(agent->shared_from_this(), msgSipFromDB, agent->findModule("Router"));
+
 	// new because make_shared require a public constructor.
-	shared_ptr<ForkMessageContext> shared{new ForkMessageContext(agent, event, cfg, listener, counter, true, true)};
+	shared_ptr<ForkMessageContext> shared{
+	    new ForkMessageContext(agent, requestSipEventFromDb, cfg, listener, counter, true)};
 	shared->mIsMessage = forkFromDb.isMessage;
 	shared->mFinished = forkFromDb.isFinished;
 	shared->mDeliveredCount = forkFromDb.deliveredCount;
@@ -65,7 +68,14 @@ shared_ptr<ForkMessageContext> ForkMessageContext::make(Agent* agent,
 	shared->mExpirationDate = timegm(&forkFromDb.expirationDate);
 	const auto utcNow = time(nullptr);
 	auto timeout = difftime(shared->mExpirationDate, utcNow);
-	shared->mLateTimer.set([shared]() { shared->processLateTimeout(); }, timeout * 1000);
+	if(timeout < 0) timeout = 0;
+	shared->mLateTimer.set(
+	    [weak = weak_ptr<ForkMessageContext>{shared}]() {
+		    if (auto sharedPtr = weak.lock()) {
+			    sharedPtr->processLateTimeout();
+		    }
+	    },
+	    timeout * 1000);
 
 	for (const auto& dbKey : forkFromDb.dbKeys) {
 		shared->addKey(dbKey);
@@ -85,11 +95,10 @@ ForkMessageContext::ForkMessageContext(Agent* agent,
                                        const std::shared_ptr<ForkContextConfig>& cfg,
                                        const std::weak_ptr<ForkContextListener>& listener,
                                        const std::weak_ptr<StatPair>& counter,
-                                       bool isRestored,
-                                       bool isProxyfied)
+                                       bool isRestored)
     : ForkContextBase(agent, event, cfg, listener, counter, isRestored) {
+	LOGD("New ForkMessageContext %p", this);
 	if (!isRestored) {
-		LOGD("New ForkMessageContext %p", this);
 		// Start the acceptance timer immediately.
 		if (mCfg->mForkLate && mCfg->mDeliveryTimeout > 30) {
 			mExpirationDate = system_clock::to_time_t(system_clock::now() + seconds(mCfg->mDeliveryTimeout));
@@ -107,7 +116,7 @@ ForkMessageContext::~ForkMessageContext() {
 }
 
 bool ForkMessageContext::shouldFinish() {
-	return mCfg->mForkLate ? false : true; // the messaging fork context controls its termination in late forking mode.
+	return !mCfg->mForkLate; // the messaging fork context controls its termination in late forking mode.
 }
 
 void ForkMessageContext::checkFinished() {
@@ -268,13 +277,13 @@ bool ForkMessageContext::onNewRegister(const SipUri& dest,
 			// this is a new client instance. The message needs
 			// to be delivered.
 			LOGD("ForkMessageContext::onNewRegister(): this is a new client instance.");
-			mAgent->getRoot()->addToMainLoop(dispatchFunction);
+			dispatchFunction();
 			return true;
 		} else if (needsDelivery(br->getStatus())) {
 			// this is a client for which the message wasn't delivered yet (or failed to be delivered). The message
 			// needs to be delivered.
 			LOGD("ForkMessageContext::onNewRegister(): this client is reconnecting but was not delivered before.");
-			mAgent->getRoot()->addToMainLoop(dispatchFunction);
+			dispatchFunction();
 			return true;
 		}
 	}
@@ -298,7 +307,7 @@ ForkMessageContextDb ForkMessageContext::getDbObject() {
 	dbObject.expirationDate = *gmtime(&mExpirationDate);
 	dbObject.request = mEvent->getMsgSip()->print();
 	dbObject.dbKeys.insert(dbObject.dbKeys.end(), mKeys.begin(), mKeys.end());
-	for (const auto& waitingBranch  : mWaitingBranches) {
+	for (const auto& waitingBranch : mWaitingBranches) {
 		dbObject.dbBranches.push_back(waitingBranch->getDbObject());
 	}
 

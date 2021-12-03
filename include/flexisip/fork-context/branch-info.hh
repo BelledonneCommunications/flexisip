@@ -54,13 +54,6 @@ public:
 		mLastResponse->setIncomingAgent(std::shared_ptr<IncomingAgent>());
 	}
 
-	void clear() {
-		mTransaction.reset();
-		mRequest.reset();
-		mLastResponse.reset();
-		mForkCtx.reset();
-	}
-
 	int getStatus() {
 		return mLastResponse ? mLastResponse->getMsgSip()->getSip()->sip_status->st_status : 0;
 	}

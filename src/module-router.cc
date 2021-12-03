@@ -197,16 +197,15 @@ void ModuleRouter::restoreForksFromDatabase() {
 	auto allDbMessages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
 	SLOGD << " ... " << allDbMessages.size() << " messages found in DB ...";
 	for (auto& dbMessage : allDbMessages) {
-		auto request = make_shared<MsgSip>(
-			msg_make(sip_default_mclass(), 0, dbMessage.request.c_str(), dbMessage.request.size()));
-		auto event = RequestSipEvent::makeRestored(mAgent->shared_from_this(), request, shared_from_this());
 		auto restoredForkMessage =
-			ForkMessageContextDbProxy::make(getAgent(), event, mMessageForkCfg, shared_from_this(),
-		                                    mStats.mCountMessageForks, mStats.mCountMessageProxyForks, dbMessage);
-		for (const auto& key : restoredForkMessage->getKeys()) {
+		    ForkMessageContextDbProxy::make(getAgent(), mMessageForkCfg, shared_from_this(), mStats.mCountMessageForks,
+		                                    mStats.mCountMessageProxyForks, dbMessage);
+		for (const auto& key : dbMessage.dbKeys) {
 			mForks.emplace(key, restoredForkMessage);
 			auto listener = make_shared<OnContactRegisteredListener>(this, key);
-			RegistrarDb::get()->subscribe(key, listener);
+			if (countLateForks(key) == 1) {
+				RegistrarDb::get()->subscribe(key, listener);
+			}
 		}
 	}
 	SLOGI << " ... " << mForks.size() << " fork message restored from DB.";

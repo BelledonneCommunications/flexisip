@@ -31,16 +31,15 @@ shared_ptr<ForkMessageContextDbProxy> ForkMessageContextDbProxy::make(Agent* age
 
 	SLOGD << "Make ForkMessageContextDbProxy";
 	// new because make_shared require a public constructor.
-	const shared_ptr<ForkMessageContextDbProxy> shared{
-	    new ForkMessageContextDbProxy(agent, event, cfg, listener, messageCounter, proxyCounter)};
+	shared_ptr<ForkMessageContextDbProxy> shared{
+	    new ForkMessageContextDbProxy(agent, cfg, listener, messageCounter, proxyCounter)};
 
-	shared->mForkMessage = ForkMessageContext::make(agent, event, cfg, shared, messageCounter, true);
+	shared->mForkMessage = ForkMessageContext::make(agent, event, cfg, shared, messageCounter);
 
 	return shared;
 }
 
 shared_ptr<ForkMessageContextDbProxy> ForkMessageContextDbProxy::make(Agent* agent,
-                                                                      const shared_ptr<RequestSipEvent>& event,
                                                                       const shared_ptr<ForkContextConfig>& cfg,
                                                                       const weak_ptr<ForkContextListener>& listener,
                                                                       const weak_ptr<StatPair>& messageCounter,
@@ -48,29 +47,39 @@ shared_ptr<ForkMessageContextDbProxy> ForkMessageContextDbProxy::make(Agent* age
                                                                       ForkMessageContextDb& forkFromDb) {
 	SLOGD << "Make ForkMessageContextDbProxy from a restored message";
 	// new because make_shared require a public constructor.
-	const shared_ptr<ForkMessageContextDbProxy> shared{
-	    new ForkMessageContextDbProxy(agent, event, cfg, listener, messageCounter, proxyCounter)};
+	shared_ptr<ForkMessageContextDbProxy> shared{
+	    new ForkMessageContextDbProxy(agent, cfg, listener, messageCounter, proxyCounter, forkFromDb)};
 
-	shared->mForkUuidInDb = forkFromDb.uuid;
-	shared->mState = State::IN_DATABASE;
+	shared->startTimerAndResetFork(timegm(&forkFromDb.expirationDate), forkFromDb.dbKeys);
 
 	return shared;
 }
 
 ForkMessageContextDbProxy::ForkMessageContextDbProxy(Agent* agent,
-                                                     const shared_ptr<RequestSipEvent>& event,
                                                      const shared_ptr<ForkContextConfig>& cfg,
                                                      const weak_ptr<ForkContextListener>& listener,
                                                      const weak_ptr<StatPair>& messageCounter,
                                                      const weak_ptr<StatPair>& proxyCounter)
     : mForkMessage{}, mState{State::IN_MEMORY}, mProxyLateTimer{agent->getRoot()},
       mOriginListener{listener}, mCounter{proxyCounter},
-      savedAgent(agent), savedRequest{event}, savedConfig{cfg}, savedCounter{messageCounter} {
+      mSavedAgent(agent), mSavedConfig{cfg}, mSavedCounter{messageCounter} {
 
 	LOGD("New ForkMessageContextDbProxy %p", this);
 	if (auto sharedCounter = mCounter.lock()) {
 		sharedCounter->incrStart();
 	}
+}
+
+ForkMessageContextDbProxy::ForkMessageContextDbProxy(Agent* agent,
+                                                     const shared_ptr<ForkContextConfig>& cfg,
+                                                     const weak_ptr<ForkContextListener>& listener,
+                                                     const weak_ptr<StatPair>& messageCounter,
+                                                     const weak_ptr<StatPair>& proxyCounter,
+                                                     ForkMessageContextDb& forkFromDb)
+    : ForkMessageContextDbProxy(agent, cfg, listener, messageCounter, proxyCounter) {
+
+	mForkUuidInDb = forkFromDb.uuid;
+	mState = State::IN_DATABASE;
 }
 
 ForkMessageContextDbProxy::~ForkMessageContextDbProxy() {
@@ -79,10 +88,7 @@ ForkMessageContextDbProxy::~ForkMessageContextDbProxy() {
 		sharedCounter->incrFinish();
 	}
 
-	if (mForkMessage && !mForkMessage->isFinished()) {
-		// Should be shutting down the server save everything you can.
-		saveToDb();
-	} else if (!mForkUuidInDb.empty()) {
+	if (!mForkUuidInDb.empty() && mIsFinished) {
 		// Destructor is called because the ForkContext is finished, removing info from database
 		LOGD("ForkMessageContextDbProxy[%p] was present in DB, cleaning UUID[%s]", this, mForkUuidInDb.c_str());
 		ForkMessageContextSociRepository::getInstance()->deleteByUuid(mForkUuidInDb);
@@ -92,10 +98,12 @@ ForkMessageContextDbProxy::~ForkMessageContextDbProxy() {
 void ForkMessageContextDbProxy::loadFromDb() const {
 	LOGI("ForkMessageContextDbProxy[%p] retrieving message in DB for UUID [%s]", this, mForkUuidInDb.c_str());
 	auto dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(mForkUuidInDb);
+
 	// loadFromDb() need to stay const (mForkMessage is mutable) but we need a non const shared_ptr
 	auto nonConstShared = const_pointer_cast<ForkMessageContextDbProxy>(shared_from_this());
-	mForkMessage =
-	    ForkMessageContext::make(savedAgent, savedRequest, savedConfig, nonConstShared, savedCounter, dbFork);
+
+	mForkMessage = ForkMessageContext::make(mSavedAgent, mSavedConfig, nonConstShared, mSavedCounter, dbFork);
+
 	// Timer is now handle by the newly restored inner ForkMessageContext
 	mProxyLateTimer.reset();
 }
@@ -110,8 +118,12 @@ bool ForkMessageContextDbProxy::saveToDb() {
 			LOGD("ForkMessageContextDbProxy[%p] already in DB with UUID[%s], updating", this, mForkUuidInDb.c_str());
 			ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(mForkMessage, mForkUuidInDb);
 		}
-		// Do not reset mForkMessage directly in a thread
-		savedAgent->getRoot()->addToMainLoop([this]() { startTimerAndResetFork(); });
+		if(mForkUuidInDb.empty()) {
+			LOGE("ForkMessageContextDbProxy[%p] mForkUuidInDb empty after save, keeping message in memory", this);
+			return false;
+		}
+
+		startTimerAndResetFork();
 	} catch (const exception& e) {
 		SLOGE << "A problem occurred during ForkMessageContext saving, it will remain in memory : " << e.what();
 		return false;
@@ -120,9 +132,24 @@ bool ForkMessageContextDbProxy::saveToDb() {
 }
 
 void ForkMessageContextDbProxy::onForkContextFinished(const shared_ptr<ForkContext>& ctx) {
+	mIsFinished = true;
 	if (auto originListener = mOriginListener.lock()) {
 		originListener->onForkContextFinished(shared_from_this());
 	}
+}
+
+void ForkMessageContextDbProxy::runSavingThread() {
+	mState = State::SAVING;
+
+	thread savingThread([this]() {
+		lock_guard<mutex> lock(mMutex);
+		if(saveToDb()) {
+			mState = State::IN_DATABASE;
+		} else {
+			mState = State::IN_MEMORY;
+		}
+	});
+	savingThread.detach();
 }
 
 void ForkMessageContextDbProxy::onResponse(const shared_ptr<BranchInfo>& br,
@@ -133,26 +160,16 @@ void ForkMessageContextDbProxy::onResponse(const shared_ptr<BranchInfo>& br,
 	mForkMessage->onResponse(br, event);
 
 	if (mForkMessage->allBranchesAnswered() && !mForkMessage->isFinished()) {
-		mState = State::SAVING;
-		thread savingThread([this]() {
-			lock_guard<mutex> lock(mMutex);
-			if(mState == State::IN_DATABASE) {
-				return;
-			}
-			if(!saveToDb()) {
-				mState = State::IN_MEMORY;
-			}
-		  	mState = State::IN_DATABASE;
-		});
-		savingThread.detach();
+		runSavingThread();
 	}
 }
 
 bool ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
                                               const string& uid,
                                               const function<void()>& dispatchFunc) {
-
+	LOGD("ForkMessageContextDbProxy[%p] onNewRegister", this);
 	if (mState != State::IN_MEMORY) {
+
 		thread restoringThread([this, dest, uid, dispatchFunc]() {
 			// If multiples onNewRegister are active at the same time on one ForkMessage only one should access DB
 			// at the same time
@@ -162,24 +179,35 @@ bool ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
 				mState = State::RESTORING;
 				try {
 					loadFromDb();
+					mState = State::IN_MEMORY;
 				} catch (const exception& e) {
 					SLOGE << "Error loading ForkMessageContext from db : " << e.what();
 					mState = State::IN_DATABASE;
-					// Returning cancel the onNewRegister process but the user can still receive the message with his
-					// next register.
-					return;
 				}
-				mState = State::IN_MEMORY;
+
 			}
-			savedAgent->getRoot()->addToMainLoop(
-			    [this, dest, uid, dispatchFunc]() { mForkMessage->onNewRegister(dest, uid, dispatchFunc); });
+			mSavedAgent->getRoot()->addToMainLoop(
+			    [weak = weak_ptr<ForkMessageContextDbProxy>{shared_from_this()}, dest, uid, dispatchFunc]() {
+				    if (auto shared = weak.lock()) {
+					    shared->delayedOnNewRegister(dest, uid, dispatchFunc);
+				    }
+			    });
 		});
 		restoringThread.detach();
 
-		// This return value is never used and ,for now, arbitrary
+		// Always return true here in case you were called by delayedOnNewRegister.
 		return true;
 	} else {
 		return mForkMessage->onNewRegister(dest, uid, dispatchFunc);
+	}
+}
+
+void ForkMessageContextDbProxy::delayedOnNewRegister(const SipUri& dest,
+                                                     const string& uid,
+                                                     const function<void()>& dispatchFunc) {
+	if(!onNewRegister(dest, uid, dispatchFunc) && mForkMessage->allBranchesAnswered()) {
+		startTimerAndResetFork();
+		mState = State::IN_DATABASE;
 	}
 }
 
@@ -187,21 +215,35 @@ void ForkMessageContextDbProxy::checkState(const string& methodName,
                                            const ForkMessageContextDbProxy::State& expectedState) const {
 	if (mState != expectedState) {
 		stringstream ss;
-		ss << "Bad ForkMessageContextDbProxy state :  actual [" << mState << "] expected [" << expectedState << "] in "
-		   << methodName;
+		ss << "Bad ForkMessageContextDbProxy[" << this << "] state :  actual [" << mState << "] expected ["
+		   << expectedState << "] in " << methodName;
 		SLOGE << ss.str();
 		throw logic_error{ss.str()};
 	}
 }
 
-void ForkMessageContextDbProxy::startTimerAndResetFork() {
+void ForkMessageContextDbProxy::startTimerAndResetFork(time_t expirationDate, const vector<string>& keys) {
 	LOGD("ForkMessageContextDbProxy[%p] startTimerAndResetFork", this);
 	// We need to handle fork late timer in proxy object in case it expire while inner object is still in database.
 	const auto utcNow = time(nullptr);
-	auto timeout = difftime(mForkMessage->getExpirationDate() , utcNow);
-	mProxyLateTimer.set([this]() { onForkContextFinished(nullptr); }, timeout * 1000);
+	auto timeout = difftime(expirationDate, utcNow);
+	if(timeout < 0) timeout = 0;
+	mProxyLateTimer.set(
+	    [weak = weak_ptr<ForkMessageContextDbProxy>{shared_from_this()}]() {
+		    if (auto shared = weak.lock()) {
+			    shared->onForkContextFinished(nullptr);
+		    }
+	    },
+	    timeout * 1000);
+
+	// If timer expire while ForkMessage is still in DB we need to keep track of keys to remove proxy from Fork list.
+	mSavedKeys = vector<string>{keys};
 
 	mForkMessage.reset();
+}
+
+void ForkMessageContextDbProxy::startTimerAndResetFork() {
+	startTimerAndResetFork(mForkMessage->getExpirationDate(), mForkMessage->getKeys());
 }
 
 ostream& operator<<(ostream& os, flexisip::ForkMessageContextDbProxy::State state) noexcept {
@@ -214,7 +256,7 @@ ostream& operator<<(ostream& os, flexisip::ForkMessageContextDbProxy::State stat
 			return os << "Saving";
 		case flexisip::ForkMessageContextDbProxy::State::RESTORING:
 			return os << "Restoring";
-	};
+	}
 	return os << "Unknown";
 }
 
