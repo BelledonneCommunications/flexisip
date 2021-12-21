@@ -17,11 +17,15 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <flexisip/common.hh>
-#include <flexisip/registrardb.hh>
-#include "recordserializer.hh"
-#include "recordserializer-protobuf.pb.h"
 #include <sofia-sip/sip_protos.h>
+
+#include "flexisip/common.hh"
+#include "flexisip/registrardb.hh"
+
+#include "recordserializer.hh"
+#include "utils/string-utils.hh"
+
+#include "recordserializer-protobuf.pb.h"
 
 using namespace std;
 using namespace flexisip;
@@ -56,9 +60,16 @@ bool RecordSerializerPb::parse(const char *str, int len, Record *r) {
 			acceptHeaders.push_back(c.accept_header(p));
 		}
 
+		/* Some Protobuf serializer versions were encoding the Contact-URI as Contact header.
+		   Workaround it by removing first and last characters if the URI is enclosed by '<>'. */
+		auto uri = c.uri();
+		if (uri.size() >= 2 && uri[0] == '<' && uri[uri.size()-1] == '>') {
+			uri = uri.substr(1, uri.size()-2);
+		}
+
 		ExtendedContactCommon ecc(c.contact_id().c_str(), stlpath, c.call_id().c_str(),
 				c.has_line_value_copy() ? c.line_value_copy().c_str() : NULL);
-		r->update(ecc, c.uri().c_str(), (time_t)c.expires_at(), c.q(), (uint32_t)c.cseq(), c.update_time(), false,
+		r->update(ecc, uri.c_str(), (time_t)c.expires_at(), c.q(), (uint32_t)c.cseq(), c.update_time(), false,
 				acceptHeaders, c.has_used_as_route() ? c.used_as_route() : false, NULL);
 	}
 	return true;
