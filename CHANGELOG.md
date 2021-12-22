@@ -14,6 +14,18 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
 
+## [2.1.2] - 2021-12-22
+### [Added]
+- `rtp_bind_address` configuration parameter, which allow to choose the listening
+  address of the media relay.
+- Allow boolean expression filter to access the Contact header of the request.
+
+### [Fixed]
+- Have the CMake script to install flexisip-version.h header and embed it
+  in the RPM/DEB package.
+- Crash of the proxy when using `REGISTERAR_DELETE` command in flexisip_cli.
+- Fix problems in migration of old protobuf-encoded Registrar entries.
+
 ## [2.1.1] - 2021-10-25
 ### [Fixed]
 - Fix an issue in the CPack script that caused the name of CentOS packages to not conform
