@@ -38,7 +38,7 @@ public:
 	                                             const std::weak_ptr<StatPair>& counter);
 	~ForkCallContext();
 
-	void sendResponse(int status, char const* phrase);
+	void sendResponse(int status, char const* phrase, bool addToTag = false);
 
 	bool isCompleted() const;
 	bool isRingingSomewhere() const;

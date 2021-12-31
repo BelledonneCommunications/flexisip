@@ -23,17 +23,18 @@
 
 typedef struct sip_s sip_t;
 
-namespace flexisip{
+namespace flexisip {
 
-typedef BooleanExpression<sip_t> SipBooleanExpression;
+using SipBooleanExpression = BooleanExpression<sip_t>;
 
-class SipBooleanExpressionBuilder : public BooleanExpressionBuilder<sip_t>{
+class SipBooleanExpressionBuilder : public BooleanExpressionBuilder<sip_t> {
 public:
 	static SipBooleanExpressionBuilder &get();
 	std::shared_ptr<SipBooleanExpression> parse(const std::string &expression);
+
 private:
 	SipBooleanExpressionBuilder();
 	static std::shared_ptr<SipBooleanExpressionBuilder> sInstance;
 };
 
-}//end of namespace
+} //end of namespace

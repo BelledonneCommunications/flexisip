@@ -19,6 +19,8 @@
 #pragma once
 
 #include "flexisip/module.hh"
+
+#include "sip-boolean-expressions.hh"
 #include "pushnotification/service.hh"
 
 namespace flexisip {
@@ -91,6 +93,7 @@ private:
 	static ModuleInfo<PushNotification> sInfo;
 	url_t* mExternalPushUri = nullptr;
 	std::string mExternalPushMethod;
+	std::shared_ptr<SipBooleanExpression> mAddToTagFilter{};
 	int mTimeout = 0;
 	int mCallTtl = 0;    // Push notification ttl for calls.
 	int mMessageTtl = 0; // Push notification ttl for IM.

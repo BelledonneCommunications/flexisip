@@ -157,24 +157,29 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo> &br, const shared_
 
 // This is actually called when we want to simulate a ringing event by sending a 180, or for example to signal the caller that we've sent
 // a push notification.
-void ForkCallContext::sendResponse(int code, char const *phrase) {
+void ForkCallContext::sendResponse(int code, char const *phrase, bool addToTag) {
 	if (!mCfg->mPermitSelfGeneratedProvisionalResponse){
 		LOGD("ForkCallContext::sendResponse(): self-generated provisional response are disabled by configuration.");
 		return;
 	}
 	
-	int previousCode = getLastResponseCode();
+	auto previousCode = getLastResponseCode();
 	if (previousCode > code || !mIncoming){
 		/* Don't send a response with status code lesser than last transmitted response. */
 		return;
 	}
 
-	shared_ptr<MsgSip> msgsip(mIncoming->createResponse(code, phrase));
+	auto msgsip = mIncoming->createResponse(code, phrase);
 	if (!msgsip)
 		return;
 
-	shared_ptr<ResponseSipEvent> ev(
-		new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
+	auto ev = make_shared<ResponseSipEvent>(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip);
+
+	// add a to tag, no set by sofia here.
+	if (addToTag) {
+		auto totag = nta_agent_newtag(msgsip->getHome(), "%s", mAgent->getSofiaAgent());
+		sip_to_tag(msgsip->getHome(), msgsip->getSip()->sip_to, totag);
+	}
 
 	mPushTimer.reset();
 	if (mCfg->mPushResponseTimeout > 0) {
