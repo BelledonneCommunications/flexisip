@@ -1,20 +1,20 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include "domain-registrations.hh"
 #include <flexisip/agent.hh>
@@ -34,6 +34,7 @@
 
 using namespace std;
 using namespace flexisip;
+using namespace sofiasip;
 
 DomainRegistrationManager::DomainRegistrationManager(Agent *agent) : mAgent(agent), mRegisterWhenNeeded(false) {
 	GenericManager *mgr = GenericManager::get();
@@ -195,18 +196,16 @@ int DomainRegistrationManager::load(string passphrase) {
 			goto error;
 		}
 		if (uri[0] == '<') uri = uri.substr(1, uri.size()-2);
-		url_t *url = url_make(home.home(), uri.c_str());
-		if (!url) {
-			LOGE("Bad URI '%s' in domain registration definition.", uri.c_str());
-			goto error;
+
+		Url url{uri};
+		auto clientTlsConf = url.getTlsConfigInfo();
+		if(clientTlsConf.mode != TlsMode::NONE) {
+			url.removeParam("tls-certificates-dir");
+			url.removeParam("tls-certificates-file");
+			url.removeParam("tls-certificates-private-key");
+			url.removeParam("tls-certificates-ca-file");
 		}
-		/*extract the certificate directory parameter if given, and remove it before passing the URI to the
-		 * DomainRegistration object*/
-		char clientCertdir[256] = {0};
-		if (url_param(url->url_params, "tls-certificates-dir", clientCertdir, sizeof(clientCertdir)) > 0) {
-			url->url_params = url_strip_param_string(su_strdup(home.home(), url->url_params), "tls-certificates-dir");
-		}
-		auto dr = make_shared<DomainRegistration>(*this, domain, url, password, clientCertdir, passphrase.c_str(), lineIndex);
+		auto dr = make_shared<DomainRegistration>(*this, domain, url, password, clientTlsConf, passphrase.c_str(), lineIndex);
 		lineIndex++;
 		mRegistrations.push_back(dr);
 	} while (!ifs.eof() && !ifs.bad());
@@ -279,27 +278,29 @@ bool DomainRegistrationManager::haveToRelayRegToDomain(const std::string &url_ho
 	return ret;
 }
 
-DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const string &localDomain,
-									   const url_t *parent_proxy, const std::string &password, const string &clientCertdir, const string &passphrase, int lineIndex)
-	: mManager(mgr){
-	char transport[64] = {0};
+DomainRegistration::DomainRegistration(DomainRegistrationManager& mgr,
+                                       const string& localDomain,
+                                       const sofiasip::Url& parentProxy,
+                                       const std::string& password,
+                                       const TlsConfigInfo& clientCertConf,
+                                       const string& passphrase,
+                                       int lineIndex)
+    : mManager(mgr) {
 	tp_name_t tpn = {0};
-	bool usingTls;
 	int verifyPolicy = mgr.mVerifyServerCerts ? TPTLS_VERIFY_OUT | TPTLS_VERIFY_SUBJECTS_OUT : TPTLS_VERIFY_NONE;
 	nta_agent_t *agent = mManager.mAgent->getSofiaAgent();
 
 	su_home_init(&mHome);
-	mFrom = url_format(&mHome, "%s:%s", parent_proxy->url_type == url_sips ? "sips" : "sip", localDomain.c_str());
+	mFrom = url_format(&mHome, "%s:%s", parentProxy.get()->url_type == url_sips ? "sips" : "sip", localDomain.c_str());
 	mPassword = password;
-	mProxy = url_hdup(&mHome, parent_proxy);
+	mProxy = url_hdup(&mHome, parentProxy.get());
 
-	url_param(parent_proxy->url_params, "transport", transport, sizeof(transport) - 1);
+	const auto transport = parentProxy.getParam("transport");
+	const auto usingTls = parentProxy.get()->url_type == url_sips || strcasecmp(transport.c_str(), "tls") == 0;
 
-	usingTls = parent_proxy->url_type == url_sips || strcasecmp(transport, "tls") == 0;
-
-	if (usingTls && !clientCertdir.empty()) {
-		string mainTlsCertsDir = GenericManager::get()->getRoot()->get<GenericStruct>("global")->get<ConfigString>("tls-certificates-dir")->read();
-		if (strcmp(mainTlsCertsDir.c_str(), clientCertdir.c_str()) == 0) {
+	if (usingTls && clientCertConf.mode != TlsMode::NONE) {
+		const auto mainTlsConfigInfo = Agent::getTlsConfigInfo();
+		if (mainTlsConfigInfo == clientCertConf) {
 			// Certs dir is the same as for the existing tport
 			LOGD("Domain registration certificates are the same as the one for existing tports, let's use them");
 			mPrimaryTport = nta_agent_tports(agent);
@@ -317,10 +318,22 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const str
 				url_t *tportUri = NULL;
 				const tp_name_t *name = (*it);
 				tportUri = url_format(&mHome, "sips:%s:0;maddr=%s", name->tpn_canon, name->tpn_host);
-				/* need to add a new tport because we want to use a specific certificate for this connection*/
-				nta_agent_add_tport(agent, (url_string_t *)tportUri, TPTAG_CERTIFICATE(clientCertdir.c_str()), TPTAG_TLS_PASSPHRASE(passphrase.c_str()),
-									TPTAG_IDENT(localDomain.c_str()),
-									TPTAG_TLS_VERIFY_POLICY(verifyPolicy), TAG_END());
+
+				// Need to add a new tport because we want to use a specific certificate for this connection.
+				if (clientCertConf.mode == TlsMode::OLD) {
+					nta_agent_add_tport(agent, (url_string_t*)tportUri,
+					                    TPTAG_CERTIFICATE(clientCertConf.certifDir.c_str()),
+					                    TPTAG_TLS_PASSPHRASE(passphrase.c_str()), TPTAG_IDENT(localDomain.c_str()),
+					                    TPTAG_TLS_VERIFY_POLICY(verifyPolicy), TAG_END());
+				} else {
+					nta_agent_add_tport(agent, (url_string_t*)tportUri,
+					                    TPTAG_CERTIFICATE_FILE(clientCertConf.certifFile.c_str()),
+					                    TPTAG_CERTIFICATE_PRIVATE_KEY(clientCertConf.certifPrivateKey.c_str()),
+					                    TPTAG_CERTIFICATE_CA_FILE(clientCertConf.certifCaFile.c_str()),
+					                    TPTAG_TLS_PASSPHRASE(passphrase.c_str()), TPTAG_IDENT(localDomain.c_str()),
+					                    TPTAG_TLS_VERIFY_POLICY(verifyPolicy), TAG_END());
+				}
+
 				tpn.tpn_ident = localDomain.c_str();
 				mPrimaryTport = tport_by_name(nta_agent_tports(agent), &tpn);
 				if (!mPrimaryTport) {
@@ -329,7 +342,7 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const str
 			}
 		}
 	} else {
-		/*otherwise we can use the agent's already existing transports*/
+		// Otherwise, we can use the agent's already existing transports.
 		mPrimaryTport = nta_agent_tports(agent);
 	}
 

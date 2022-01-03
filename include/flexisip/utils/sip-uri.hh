@@ -1,20 +1,20 @@
 /*
- Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2019  Belledonne Communications SARL.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as
- published by the Free Software Foundation, either version 3 of the
- License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #pragma once
 
@@ -60,6 +60,15 @@ namespace sofiasip {
 	public:
 		using logic_error::logic_error;
 	};
+
+    enum class TlsMode : uint8_t { NONE, OLD, NEW };
+    struct TlsConfigInfo {
+	    std::string certifDir{};
+	    std::string certifFile{};
+	    std::string certifPrivateKey{};
+	    std::string certifCaFile{};
+	    TlsMode mode = TlsMode::NONE;
+    };
 
 	/**
 	 * Wrapper for SofiaSip's URLs.
@@ -136,11 +145,20 @@ namespace sofiasip {
 		bool hasParam(const std::string &name) const noexcept {return hasParam(name.c_str());}
 		bool hasParam(const char *name) const noexcept {return url_has_param(_url, name);}
 
+	    std::string getParam(const std::string& paramName) const;
+	    bool getBoolParam(const std::string& paramName, bool defaultValue) const;
+
+	    void removeParam(const std::string& paramName);
+
+	    TlsConfigInfo getTlsConfigInfo() const;
+
 	protected:
 		Home _home;
-		const url_t *_url = nullptr;
+		url_t *_url = nullptr;
 		mutable std::string _urlAsStr;
 	};
+
+    bool operator==(const TlsConfigInfo& lhs, const TlsConfigInfo& rhs);
 }
 
 inline std::ostream &operator<<(std::ostream &os, const sofiasip::Url &url) {return os << url.str();}

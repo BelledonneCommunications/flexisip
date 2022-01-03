@@ -1,36 +1,41 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #pragma once
+
+#include <ifaddrs.h>
+#include <memory>
+#include <sstream>
+#include <string>
 
 #if defined(HAVE_CONFIG_H) && !defined(FLEXISIP_INCLUDED)
 #include "flexisip-config.h"
 #define FLEXISIP_INCLUDED
 #endif
 
+#include "common.hh"
+#include "configmanager.hh"
+#include "event.hh"
+#include "eventlogs.hh"
 #include "sofia-wrapper/su-root.hh"
-
-#include <flexisip/common.hh>
-#include <flexisip/configmanager.hh>
-#include <flexisip/event.hh>
-#include <flexisip/eventlogs.hh>
-#include <flexisip/transaction.hh>
-#include <flexisip/transport.hh>
+#include "transaction.hh"
+#include "transport.hh"
+#include "utils/sip-uri.hh"
 
 #include <sofia-sip/sip.h>
 #include <sofia-sip/sip_protos.h>
@@ -41,10 +46,6 @@
 #include <sofia-sip/nta_stateless.h>
 #include <sofia-sip/nth.h>
 
-#include <string>
-#include <sstream>
-#include <memory>
-#include <ifaddrs.h>
 
 #if ENABLE_MDNS
 #include "belle-sip/belle-sip.h"
@@ -201,6 +202,9 @@ public:
 	}
 	url_t* urlFromTportName(su_home_t* home, const tp_name_t* name);
 	void applyProxyToProxyTransportSettings(tport_t *tp);
+
+	static sofiasip::TlsConfigInfo
+	getTlsConfigInfo(const GenericStruct* global = GenericManager::get()->getRoot()->get<GenericStruct>("global"));
 private:
 	// Private types
 	class Network {

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -44,6 +44,7 @@
 #define IPADDR_SIZE 64
 
 using namespace std;
+using namespace sofiasip;
 
 namespace flexisip {
 
@@ -164,6 +165,9 @@ void Agent::checkAllowedParams(const url_t *uri) {
 	char *params = su_strdup(home.home(), uri->url_params);
 	/*remove all the allowed params and see if something else is remaning at the end*/
 	params = url_strip_param_string(params, "tls-certificates-dir");
+	params = url_strip_param_string(params, "tls-certificates-file");
+	params = url_strip_param_string(params, "tls-certificates-private-key");
+	params = url_strip_param_string(params, "tls-certificates-ca-file");
 	params = url_strip_param_string(params, "require-peer-certificate");
 	params = url_strip_param_string(params, "maddr");
 	params = url_strip_param_string(params, "tls-verify-incoming");
@@ -215,14 +219,6 @@ void Agent::loadModules() {
 	}
 	if (mDrm) mDrm->load(mPassphrase);
 	mPassphrase = "";
-}
-
-bool getUriParameter(const url_t *url, const char *param, string &value){
-	return ModuleToolbox::getUriParameter(url, param, value);
-}
-
-bool getBoolUriParameter(const url_t *url, const char *param, bool defaultValue){
-	return ModuleToolbox::getBoolUriParameter(url, param, defaultValue);
 }
 
 #if ENABLE_MDNS
@@ -294,7 +290,6 @@ void Agent::start(const string &transport_override, const string &passphrase) {
 	// sofia needs a value in millseconds.
 	unsigned int tports_idle_timeout = 1000 * (unsigned int)global->get<ConfigInt>("idle-timeout")->read();
 	bool globalVerifyIn = global->get<ConfigBoolean>("require-peer-certificate")->read();
-	string mainTlsCertsDir = global->get<ConfigString>("tls-certificates-dir")->read();
 	unsigned int t1x64 = (unsigned int)global->get<ConfigInt>("transaction-timeout")->read();
 	int udpmtu = global->get<ConfigInt>("udp-mtu")->read();
 	unsigned int incompleteIncomingMessageTimeout = 600 * 1000; /*milliseconds*/
@@ -307,65 +302,73 @@ void Agent::start(const string &transport_override, const string &passphrase) {
 	mTimer = su_timer_create(mRoot->getTask(), 5000);
 	su_timer_set_for_ever(mTimer, reinterpret_cast<su_timer_f>(timerfunc), this);
 
-	mainTlsCertsDir = absolutePath(currDir, mainTlsCertsDir);
-
-	SLOGD << "Main tls certs dir : " << mainTlsCertsDir;
-
 	nta_agent_set_params(mAgent, NTATAG_SIP_T1X64(t1x64), NTATAG_RPORT(1), NTATAG_TCP_RPORT(1),
 						 NTATAG_TLS_RPORT(1), // use rport in vias added to outgoing requests for all protocols
 						 NTATAG_SERVER_RPORT(2), // always add a rport parameter even if the request doesn't have it*/
 						 NTATAG_UDP_MTU(udpmtu), TAG_END());
+
+	const auto mainTlsConfigInfo = getTlsConfigInfo(global);
 
 	if (!transport_override.empty()) {
 		transports = ConfigStringList::parse(transport_override);
 	}
 
 	for (const auto &uri : transports) {
-		url_t *url;
+		Url url{uri};
 		int err;
 		su_home_t home;
 		su_home_init(&home);
-		url = url_make(&home, uri.c_str());
 		LOGD("Enabling transport %s", uri.c_str());
 		if (uri.find("sips") == 0) {
-			string keys;
-			string value;
 			unsigned int tls_policy = 0;
 
 			if (globalVerifyIn) tls_policy |= TPTLS_VERIFY_INCOMING;
 
-			if (getUriParameter(url, "tls-certificates-dir", value)){
-				keys = absolutePath(currDir, value);
-			}else{
-				keys = mainTlsCertsDir;
-			}
-
-			if (getBoolUriParameter(url, "tls-verify-incoming", false) || getBoolUriParameter(url, "require-peer-certificate", false)){
+			if (url.getBoolParam("tls-verify-incoming", false) || url.getBoolParam("require-peer-certificate", false)){
 				tls_policy |= TPTLS_VERIFY_INCOMING;
 			}
 
-			if (getBoolUriParameter(url, "tls-allow-missing-client-certificate", false)){
+			if (url.getBoolParam("tls-allow-missing-client-certificate", false)){
 				tls_policy |= TPTLS_VERIFY_ALLOW_MISSING_CERT_IN;
 			}
 
-			if (getBoolUriParameter(url, "tls-verify-outgoing", true)){
+			if (url.getBoolParam("tls-verify-outgoing", true)){
 				tls_policy |= TPTLS_VERIFY_OUTGOING | TPTLS_VERIFY_SUBJECTS_OUT;
 			}
 
-			checkAllowedParams(url);
+			checkAllowedParams(url.get());
 			mPassphrase = passphrase;
-			err = nta_agent_add_tport(
-				mAgent, (const url_string_t *)url, TPTAG_CERTIFICATE(keys.c_str()),
-				TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()), TPTAG_TLS_CIPHERS(ciphers.c_str()),
-				TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
-				TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
-				TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1),
-				TPTAG_QUEUESIZE(queueSize),
-				TAG_END()
-			);
+
+			auto uriTlsConfigInfo = url.getTlsConfigInfo();
+			auto finalTlsConfigInfo =
+			    uriTlsConfigInfo.mode != TlsMode::NONE ? move(uriTlsConfigInfo) : mainTlsConfigInfo;
+			if (finalTlsConfigInfo.mode == TlsMode::OLD) {
+				finalTlsConfigInfo.certifDir = absolutePath(currDir, finalTlsConfigInfo.certifDir);
+
+				err = nta_agent_add_tport(
+				    mAgent, (const url_string_t*)url.get(), TPTAG_CERTIFICATE(finalTlsConfigInfo.certifDir.c_str()),
+				    TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()), TPTAG_TLS_CIPHERS(ciphers.c_str()),
+				    TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
+				    TPTAG_TIMEOUT(incompleteIncomingMessageTimeout), TPTAG_KEEPALIVE(keepAliveInterval),
+				    TPTAG_SDWN_ERROR(1), TPTAG_QUEUESIZE(queueSize), TAG_END());
+			} else {
+				finalTlsConfigInfo.certifFile = absolutePath(currDir, finalTlsConfigInfo.certifFile);
+				finalTlsConfigInfo.certifPrivateKey = absolutePath(currDir, finalTlsConfigInfo.certifPrivateKey);
+				finalTlsConfigInfo.certifCaFile = absolutePath(currDir, finalTlsConfigInfo.certifCaFile);
+
+				err = nta_agent_add_tport(mAgent, (const url_string_t*)url.get(),
+				                          TPTAG_CERTIFICATE_FILE(finalTlsConfigInfo.certifFile.c_str()),
+				                          TPTAG_CERTIFICATE_PRIVATE_KEY(finalTlsConfigInfo.certifPrivateKey.c_str()),
+				                          TPTAG_CERTIFICATE_CA_FILE(finalTlsConfigInfo.certifCaFile.c_str()),
+				                          TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()), TPTAG_TLS_CIPHERS(ciphers.c_str()),
+				                          TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
+				                          TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
+				                          TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1),
+				                          TPTAG_QUEUESIZE(queueSize), TAG_END());
+			}
 		} else {
 			err = nta_agent_add_tport(
-				mAgent, (const url_string_t *)url, TPTAG_IDLE(tports_idle_timeout),
+				mAgent, (const url_string_t *)url.get(), TPTAG_IDLE(tports_idle_timeout),
 				TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
 				TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1),
 				TPTAG_QUEUESIZE(queueSize),
@@ -373,15 +376,12 @@ void Agent::start(const string &transport_override, const string &passphrase) {
 			);
 		}
 		if (err == -1) {
-			if (url_has_param(url, "transport")) {
-				char transport[64] = {0};
-				url_param(url->url_params, "transport", transport, sizeof(transport));
-				if (strcasecmp(transport, "tls") == 0) {
-					LOGF("Specifying an URI with transport=tls is not understood in flexisip configuration. Use 'sips' uri scheme "
-						 "instead.");
-				}
+			const auto transport = url.getParam("transport");
+			if (strcasecmp(transport.c_str(), "tls") == 0) {
+				LOGF("Specifying an URI with transport=tls is not understood in flexisip configuration. Use 'sips' uri "
+				     "scheme instead.");
 			}
-			LOGF("Could not enable transport %s: %s", uri.c_str(), strerror(errno));
+			LOGF("Could not enable transport %s: %s", uri.c_str(), strerror(errno))
 		}
 		su_home_deinit(&home);
 	}
@@ -511,6 +511,30 @@ void Agent::start(const string &transport_override, const string &passphrase) {
 	startLogWriter();
 
 	loadModules();
+}
+
+TlsConfigInfo Agent::getTlsConfigInfo(const GenericStruct* global) {
+	TlsConfigInfo tlsConfigInfoFromConf{};
+	tlsConfigInfoFromConf.certifDir = global->get<ConfigString>("tls-certificates-dir")->read();
+	tlsConfigInfoFromConf.certifFile = global->get<ConfigString>("tls-certificates-file")->read();
+	tlsConfigInfoFromConf.certifPrivateKey = global->get<ConfigString>("tls-certificates-private-key")->read();
+	tlsConfigInfoFromConf.certifCaFile = global->get<ConfigString>("tls-certificates-ca-file")->read();
+	if (tlsConfigInfoFromConf.certifFile.empty() ^ tlsConfigInfoFromConf.certifPrivateKey.empty()) {
+		LOGA("If you specified tls-certificates-file you MUST specify tls-certificates-private-key too and vice versa");
+	}
+	if (!tlsConfigInfoFromConf.certifFile.empty()) {
+		tlsConfigInfoFromConf.mode = TlsMode::NEW;
+		SLOGD << "Main tls certs file [" << tlsConfigInfoFromConf.certifFile << "], main private key file ["
+		      << tlsConfigInfoFromConf.certifPrivateKey << "], main CA file ["
+		      << tlsConfigInfoFromConf.certifCaFile << "].";
+
+	} else {
+		tlsConfigInfoFromConf.mode = TlsMode::OLD;
+		SLOGD << "Main tls certs dir : " << tlsConfigInfoFromConf.certifDir
+		      << " . Be careful you are using a deprecated config tls-certificates-dir.";
+	}
+
+	return tlsConfigInfoFromConf;
 }
 
 // -----------------------------------------------------------------------------

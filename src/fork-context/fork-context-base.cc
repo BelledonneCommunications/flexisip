@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -218,9 +218,10 @@ bool ForkContextBase::onNewRegister(const SipUri& dest,
 	 * Check gruu. If the request was targeting a gruu address, the uid of the contact who has just registered shall
 	 * match.
 	 */
-	string target_gr;
-	if (ModuleToolbox::getUriParameter(mEvent->getSip()->sip_request->rq_url, "gr", target_gr)) {
-		if (uid.find(target_gr) == string::npos) { // to compare regardless of < >
+	sofiasip::Url url{mEvent->getSip()->sip_request->rq_url};
+	const auto targetGr = url.getParam("gr");
+	if (!targetGr.empty()) {
+		if (uid.find(targetGr) == string::npos) { // to compare regardless of < >
 			/* This request was targetting a gruu address, but this REGISTER is not coming from our target contact.*/
 			return false;
 		}

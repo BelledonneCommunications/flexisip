@@ -1,20 +1,20 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include <algorithm>
 #include <cstring>
@@ -886,6 +886,12 @@ GenericManager::GenericManager()
 		 "The 'sips' transport definitions accept two optional parameters:\n"
 		 " - 'tls-certificates-dir' taking for value a path, with the same meaning as the 'tls-certificates-dir' "
 		 "property of this section and overriding it for this given transport.\n"
+	     " - 'tls-certificates-file' taking for value a file path, with the same meaning as the 'tls-certificates-file' "
+	     "property of this section and overriding it for this given transport.\n"
+	     " - 'tls-certificates-private-key' taking for value a file path, with the same meaning as the 'tls-certificates-private-key' "
+	     "property of this section and overriding it for this given transport.\n"
+	     " - 'tls-certificates-ca-file' taking for value a file path, with the same meaning as the 'tls-certificates-ca-file' "
+	     "property of this section and overriding it for this given transport.\n"
 		 " - 'tls-verify-incoming' taking for value '0' or '1', to indicate whether clients connecting are "
 		 "required to present a valid client certificate. Default value is 0.\n"
 		 " - 'tls-allow-missing-client-certificate' taking for value '0' or '1', to allow connections from clients "
@@ -944,7 +950,19 @@ GenericManager::GenericManager()
 		 " concatenated inside an 'agent.pem' file. Any chain certificates must be put into a file named 'cafile.pem'. "
 		 "The setup of agent.pem, and eventually cafile.pem is required for TLS transport to work.",
 		 "/etc/flexisip/tls/"},
-		{String, "tls-ciphers",
+	    {String, "tls-certificates-file",
+	     "Path to the file containing the server certificate chain. The file must be in PEM format, see OpenSSL"
+	     "SSL_CTX_use_certificate_chain_file documentation. If used tls-certificates-private-key MUST be set.",
+	     ""},
+	    {String, "tls-certificates-private-key",
+	     "Path to the file containing the private key. See OpenSSL SSL_CTX_use_PrivateKey_file documentation. If used "
+	     "tls-certificates-file MUST be set.",
+	     ""},
+	    {String, "tls-certificates-ca-file",
+	     "Path to the file contain CA certificates. See OpenSSL SSL_CTX_load_verify_locations and "
+	     "SSL_CTX_set_client_CA_list documentation. Can be empty.",
+	     ""},
+	    {String, "tls-ciphers",
 		 "Ciphers string to pass to OpenSSL in order to limit the cipher suites to use while establishing TLS sessions."
 		 " Please take a look to ciphers(1) UNIX manual to get the list of keywords supported by your current version"
 		 " of OpenSSL. You might visit https://www.openssl.org/docs/manmaster/man1/ciphers.html too. The default value"
@@ -1016,6 +1034,10 @@ GenericManager::GenericManager()
 	global->get<ConfigByteSize>("max-log-size")->setDeprecated({"2019-05-17", "2.0.0"});
 	global->get<ConfigBoolean>("use-maddr")
 	    ->setDeprecated({"2020-04-08", "2.0.0", "This parameter has no effect anymore."});
+	global->get<ConfigString>("tls-certificates-dir")
+	    ->setDeprecated({"2022-01-04", "2.2.0",
+	                     "Prefer the new way of declaring TLS certificate with 'tls-certificates-file', "
+	                     "'tls-certificates-private-key' and 'tls-certificates-ca-file'. "});
 	global->setConfigListener(this);
 
 	auto version = make_unique<ConfigString>("version-number", "Flexisip version.", FLEXISIP_GIT_VERSION, 999);

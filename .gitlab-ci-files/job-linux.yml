@@ -177,7 +177,7 @@ tests-flexisip-mr:
     - docker-build-flexisip-src
   variables:
     #Branch of the Flexisip-tester project to use. Could be modified to test fixes or features in the Flexisip-tester
-    FLEXISIP_TESTER_BRANCH: "feat/persist_messages_on"
+    FLEXISIP_TESTER_BRANCH: "release/flexisip_2.2"
 
     #This value specifies the workspace where we from all tests outputs.
     workspace: "${CI_PROJECT_DIR}/liblinphone_tester_workspace"
