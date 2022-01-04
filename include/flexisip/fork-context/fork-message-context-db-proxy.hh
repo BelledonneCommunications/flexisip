@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -152,7 +152,6 @@ private:
 	                          ForkMessageContextDb& forkFromDb);
 
 	void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) override;
-	void runSavingThread();
 
 	/**
 	 * This method call the onNewRegister method and remove the ForkMessageContext from memory onNewRegister return
@@ -170,13 +169,17 @@ private:
 	 * Be careful, blocking I/O with DB, should be called in a thread.
 	 */
 	bool saveToDb();
+
 	void checkState(const std::string& methodName, const ForkMessageContextDbProxy::State& expectedState) const;
 	void startTimerAndResetFork(time_t expirationDate, const std::vector<std::string>& keys);
 	void startTimerAndResetFork();
+	void restoreForkIfNeeded();
+	void runSavingThread();
 
 	// All those attributes are mark as mutable because they are used in const methods from ForkContext API, but they
 	// need to be modified because we are in the proxy object.
 	mutable std::shared_ptr<ForkMessageContext> mForkMessage;
+	mutable std::unique_ptr<ForkMessageContextDb> mDbFork{nullptr};
 	mutable std::mutex mMutex;
 	mutable State mState;
 	mutable sofiasip::Timer mProxyLateTimer;

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -97,15 +97,8 @@ ForkMessageContextDbProxy::~ForkMessageContextDbProxy() {
 
 void ForkMessageContextDbProxy::loadFromDb() const {
 	LOGI("ForkMessageContextDbProxy[%p] retrieving message in DB for UUID [%s]", this, mForkUuidInDb.c_str());
-	auto dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(mForkUuidInDb);
-
-	// loadFromDb() need to stay const (mForkMessage is mutable) but we need a non const shared_ptr
-	auto nonConstShared = const_pointer_cast<ForkMessageContextDbProxy>(shared_from_this());
-
-	mForkMessage = ForkMessageContext::make(mSavedAgent, mSavedConfig, nonConstShared, mSavedCounter, dbFork);
-
-	// Timer is now handle by the newly restored inner ForkMessageContext
-	mProxyLateTimer.reset();
+	mDbFork = make_unique<ForkMessageContextDb>(
+	    ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(mForkUuidInDb));
 }
 
 bool ForkMessageContextDbProxy::saveToDb() {
@@ -122,8 +115,6 @@ bool ForkMessageContextDbProxy::saveToDb() {
 			LOGE("ForkMessageContextDbProxy[%p] mForkUuidInDb empty after save, keeping message in memory", this);
 			return false;
 		}
-
-		startTimerAndResetFork();
 	} catch (const exception& e) {
 		SLOGE << "A problem occurred during ForkMessageContext saving, it will remain in memory : " << e.what();
 		return false;
@@ -145,6 +136,14 @@ void ForkMessageContextDbProxy::runSavingThread() {
 		lock_guard<mutex> lock(mMutex);
 		if(saveToDb()) {
 			mState = State::IN_DATABASE;
+			mSavedAgent->getRoot()->addToMainLoop(
+			    [weak = weak_ptr<ForkMessageContextDbProxy>{shared_from_this()}]() {
+				    if (auto shared = weak.lock()) {
+					    if(shared->mState == State::IN_DATABASE){
+							shared->startTimerAndResetFork();
+						}
+				    }
+			    });
 		} else {
 			mState = State::IN_MEMORY;
 		}
@@ -198,6 +197,7 @@ bool ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
 		// Always return true here in case you were called by delayedOnNewRegister.
 		return true;
 	} else {
+		restoreForkIfNeeded();
 		return mForkMessage->onNewRegister(dest, uid, dispatchFunc);
 	}
 }
@@ -205,9 +205,20 @@ bool ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
 void ForkMessageContextDbProxy::delayedOnNewRegister(const SipUri& dest,
                                                      const string& uid,
                                                      const function<void()>& dispatchFunc) {
+	restoreForkIfNeeded();
 	if(!onNewRegister(dest, uid, dispatchFunc) && mForkMessage->allBranchesAnswered()) {
 		startTimerAndResetFork();
 		mState = State::IN_DATABASE;
+	}
+}
+
+void ForkMessageContextDbProxy::restoreForkIfNeeded() {
+	if(mDbFork) {
+		mForkMessage = ForkMessageContext::make(mSavedAgent, mSavedConfig, shared_from_this(), mSavedCounter, *mDbFork);
+		mDbFork.reset();
+
+		// Timer is now handle by the newly restored inner ForkMessageContext
+		mProxyLateTimer.reset();
 	}
 }
 
