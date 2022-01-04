@@ -1,3 +1,15 @@
+.set-max-jobs: &set-max-jobs
+  - |
+      case "$CMAKE_GENERATOR" in
+        'Unix Makefiles')
+          export CMAKE_BUILD_PARALLEL_LEVEL=$MAKEFILE_JOBS ;;
+        'Ninja')
+          export CMAKE_BUILD_PARALLEL_LEVEL=$NINJA_JOBS ;;
+        *)
+          export CMAKE_BUILD_PARALLEL_LEVEL=1 ;;
+      esac
+      echo "CMAKE_BUILD_PARALLEL_LEVEL='$CMAKE_BUILD_PARALLEL_LEVEL'"
+
 .linux-ccache:
 
   cache:
@@ -24,10 +36,10 @@
   script:
     - export CC=$CC
     - export CXX=$CXX
-    - git submodule foreach --recursive git fetch --tags --force
+    - *set-max-jobs
     - mkdir work && cd work
     - cmake -G "$CMAKE_GENERATOR" $DEFAULT_CMAKE_OPTIONS -DCMAKE_INSTALL_PREFIX="$PWD/../OUTPUT" $CMAKE_OPTIONS ..
-    - cmake --build . --target install -- $ADDITIONAL_BUILD_OPTIONS
+    - cmake --build . --target install
 
 #################################################
 # RPM
@@ -40,10 +52,14 @@
     variables:
       - $DEPLOY_UBUNTU
 
+  variables:
+    CMAKE_GENERATOR: 'Ninja'
+
   script:
+    - *set-max-jobs
     - mkdir build && cd build
-    - cmake -G Ninja $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS -DCPACK_GENERATOR=RPM $PACKAGING_EXTRA_CMAKE_OPTIONS ..
-    - cmake --build . --target package -- $ADDITIONAL_BUILD_OPTIONS
+    - cmake -G $CMAKE_GENERATOR $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS -DCPACK_GENERATOR=RPM $PACKAGING_EXTRA_CMAKE_OPTIONS ..
+    - cmake --build . --target package
 
   artifacts:
     paths:
@@ -59,10 +75,14 @@
 
   stage: package
 
+  variables:
+    CMAKE_GENERATOR: 'Ninja'
+
   script:
+    - *set-max-jobs
     - mkdir build && cd build
-    - cmake -G Ninja $DEFAULT_CMAKE_OPTIONS -DCPACK_GENERATOR=DEB $PACKAGING_EXTRA_CMAKE_OPTIONS ..
-    - cmake --build . --target package -- $ADDITIONAL_BUILD_OPTIONS
+    - cmake -G $CMAKE_GENERATOR $DEFAULT_CMAKE_OPTIONS -DCPACK_GENERATOR=DEB $PACKAGING_EXTRA_CMAKE_OPTIONS ..
+    - cmake --build . --target package
 
   artifacts:
     paths:

@@ -15,7 +15,6 @@
 #    CMAKE_OPTIONS: -DINTERNAL_LIBSRTP2=ON
 #    CC: gcc
 #    CXX: g++
-#    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
 #  extends: .scheduled-job-linux
 #
 #job-centos8-makefile-clang:
@@ -31,7 +30,6 @@
 #    CMAKE_OPTIONS: -DINTERNAL_LIBSRTP2=ON
 #    CC: clang
 #    CXX: clang++
-#    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
 #  extends: .job-linux
 
 #################################################

@@ -10,7 +10,6 @@ job-ubuntu-rolling-makefile-gcc:
     CMAKE_GENERATOR: Unix Makefiles
     CC: gcc
     CXX: g++
-    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
   except:
     variables:
       - $DEPLOY_RUN
@@ -30,7 +29,6 @@ job-ubuntu-rolling-makefile-clang:
     CMAKE_GENERATOR: Unix Makefiles
     CC: clang
     CXX: clang++
-    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
   extends: .scheduled-job-linux
 
 #################################################

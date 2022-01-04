@@ -11,9 +11,10 @@
     - ccache -s
     - export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
     - export MYSQL_DIR=/usr/local/opt/mysql-client
+    - export CMAKE_BUILD_PARALLEL_LEVEL=$NJOBS
     - mkdir work
     - cmake -S . -B work -G "$CMAKE_GENERATOR" $DEFAULT_MACOS_CMAKE_OPTIONS $CMAKE_OPTIONS
-    - cmake --build work -- $ADDITIONAL_BUILD_OPTIONS
+    - cmake --build work
     - ccache -s
 
 
@@ -33,7 +34,7 @@ job-macosx-makefile:
 
   variables:
     CMAKE_GENERATOR: Unix Makefiles
-    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
+    NJOBS: $MAKEFILE_JOBS
   extends: .scheduled-job-macosx
 
 #################################################
@@ -43,6 +44,7 @@ job-macosx-makefile:
 job-macosx-ninja:
   variables:
     CMAKE_GENERATOR: Ninja
+    NJOBS: $NINJA_JOBS
   extends: .job-macosx
 
 #################################################
@@ -52,5 +54,5 @@ job-macosx-ninja:
 job-macosx-xcode:
   variables:
     CMAKE_GENERATOR: Xcode
-    ADDITIONAL_BUILD_OPTIONS: -IDEBuildOperationMaxNumberOfConcurrentCompileTasks=$MAX_NUMBER_TASK_XCODE
+    NJOBS: $MAX_NUMBER_TASK_XCODE
   extends: .scheduled-job-macosx

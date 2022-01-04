@@ -14,7 +14,6 @@
 #    CMAKE_GENERATOR: Unix Makefiles
 #    CC: gcc
 #    CXX: g++
-#    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
 #  extends: .scheduled-job-linux
 #  before_script:
 #    - source /opt/rh/devtoolset-8/enable
@@ -32,7 +31,6 @@
 #    CMAKE_GENERATOR: Unix Makefiles
 #    CC: clang
 #    CXX: clang++
-#    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
 #  extends: .job-linux
 #  before_script:
 #    - source /opt/rh/llvm-toolset-7/enable
