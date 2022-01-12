@@ -43,8 +43,6 @@ public:
 	bool isCompleted() const;
 	bool isRingingSomewhere() const;
 
-	void onPushSent(const std::shared_ptr<OutgoingTransaction>& tr) override;
-	void onPushError(const std::shared_ptr<OutgoingTransaction>& tr, const std::string& errormsg) override;
 	void onCancel(const std::shared_ptr<RequestSipEvent>& ev) override;
 
 	void processInternalError(int status, const char* phrase) override;
@@ -70,7 +68,6 @@ private:
 	std::unique_ptr<sofiasip::Timer> mPushTimer{};  // used to track push responses
 	std::shared_ptr<CallLog> mLog{};
 	bool mCancelled = false;
-	int mActivePushes = 0;
 };
 
 } // namespace flexisip

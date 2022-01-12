@@ -43,13 +43,11 @@ public:
 	BranchInfo(T&& ctx, const BranchInfoDb& dbObject, const std::shared_ptr<Agent>& agent)
 	    : mForkCtx{std::forward<T>(ctx)} {
 		mUid = dbObject.contactUid;
-		mPushSent = dbObject.isPushSent;
+		mClearedCount = dbObject.clearedCount;
 		mPriority = dbObject.priority;
-		auto request = std::make_shared<MsgSip>(
-		    msg_make(sip_default_mclass(), 0, dbObject.request.c_str(), dbObject.request.size()));
+		auto request = std::make_shared<MsgSip>(0, dbObject.request);
 		mRequest = std::make_shared<RequestSipEvent>(agent, request);
-		auto lastResponse = std::make_shared<MsgSip>(
-		    msg_make(sip_default_mclass(), 0, dbObject.lastResponse.c_str(), dbObject.lastResponse.size()));
+		auto lastResponse = std::make_shared<MsgSip>(0, dbObject.lastResponse);
 		mLastResponse = std::make_shared<ResponseSipEvent>(agent, lastResponse);
 		mLastResponse->setIncomingAgent(std::shared_ptr<IncomingAgent>());
 	}
@@ -60,18 +58,18 @@ public:
 
 	// Obtain the BranchInfo corresponding to an outgoing transaction
 	static std::shared_ptr<BranchInfo> getBranchInfo(const std::shared_ptr<OutgoingTransaction>& tr) {
-		return tr->getProperty<BranchInfo>("BranchInfo");
+		return tr ? tr->getProperty<BranchInfo>("BranchInfo") : nullptr;
 	}
 
 	// Set the BranchInfo managed by an outoing transaction
 	static void setBranchInfo(const std::shared_ptr<OutgoingTransaction>& tr, const std::weak_ptr<BranchInfo> br) {
-		tr->setProperty("BranchInfo", br);
+		if(tr) tr->setProperty("BranchInfo", br);
 	}
 
 	BranchInfoDb getDbObject() {
-		std::string request{mRequest->getMsgSip()->print()};
-		std::string lastResponse{mLastResponse->getMsgSip()->print()};
-		BranchInfoDb branchInfoDb{mUid, mPriority, request, lastResponse, mPushSent};
+		std::string request{mRequest->getMsgSip()->printString()};
+		std::string lastResponse{mLastResponse->getMsgSip()->printString()};
+		BranchInfoDb branchInfoDb{mUid, mPriority, request, lastResponse, mClearedCount}                                                          ;
 		return branchInfoDb;
 	}
 
@@ -80,8 +78,8 @@ public:
 		BC_ASSERT_STRING_EQUAL(mUid.c_str(), expected->mUid.c_str());
 		BC_ASSERT_EQUAL(mPriority, expected->mPriority, float, "%f");
 
-		BC_ASSERT_STRING_EQUAL(mRequest->getMsgSip()->print(), expected->mRequest->getMsgSip()->print());
-		BC_ASSERT_STRING_EQUAL(mLastResponse->getMsgSip()->print(), expected->mLastResponse->getMsgSip()->print());
+		BC_ASSERT_TRUE(mRequest->getMsgSip()->printString() == expected->mRequest->getMsgSip()->printString());
+		BC_ASSERT_TRUE(mLastResponse->getMsgSip()->printString() == expected->mLastResponse->getMsgSip()->printString());
 	}
 #endif
 
@@ -92,7 +90,12 @@ public:
 	std::shared_ptr<ResponseSipEvent> mLastResponse{};
 	std::shared_ptr<ExtendedContact> mContact{};
 	float mPriority{1.0f};
-	bool mPushSent{false}; // Whether  push notification has been sent for this branch.
+
+	/*
+	 * Count every time a branch with the same Uid is cleared for a given fork context.
+	 * Can be used to know if a push notification has already been sent for this branch.
+	 */
+	int mClearedCount{0};
 };
 
 } // namespace flexisip

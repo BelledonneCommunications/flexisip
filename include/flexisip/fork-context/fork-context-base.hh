@@ -127,8 +127,6 @@ public:
 	 * Typical case for refusing it is when another transaction already exists or existed for this contact.
 	 **/
 	bool onNewRegister(const SipUri& dest, const std::string& uid, const std::function<void()>& dispatchFunction) override;
-	void onPushSent(const std::shared_ptr<OutgoingTransaction>& tr) override;
-	void onPushError(const std::shared_ptr<OutgoingTransaction>& tr, const std::string& errormsg) override;
 	// Notifies the cancellation of the fork process.
 	void onCancel(const std::shared_ptr<RequestSipEvent> &ev) override;
 	const std::shared_ptr<RequestSipEvent>& getEvent() override;

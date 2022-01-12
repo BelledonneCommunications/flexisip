@@ -62,10 +62,9 @@ public:
 	 */
 	std::vector<ForkMessageContextDb> findAllForkMessage();
 
-	std::string saveForkMessageContext(const std::shared_ptr<ForkMessageContext>& forkMessageContext);
+	std::string saveForkMessageContext(const ForkMessageContextDb& dbFork);
 
-	void updateForkMessageContext(const std::shared_ptr<ForkMessageContext>& forkMessageContext,
-	                              const std::string& uuid);
+	void updateForkMessageContext(const ForkMessageContextDb& dbFork, const std::string& uuid);
 
 	void deleteByUuid(const std::string& uuid);
 
@@ -82,6 +81,8 @@ private:
 	static void findAndPushBackBranches(const std::string& uuid, ForkMessageContextDb& dbFork, soci::session& sql);
 
 	soci::connection_pool mConnectionPool;
+	std::vector<std::string> mUuidsToDelete{};
+	std::mutex mMutex{};
 
 	static std::string sBackendString;
 	static std::string sConnectionString;

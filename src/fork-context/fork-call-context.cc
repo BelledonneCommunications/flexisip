@@ -260,22 +260,6 @@ void ForkCallContext::onPushTimer() {
 	mPushTimer.reset();
 }
 
-void ForkCallContext::onPushSent(const shared_ptr<OutgoingTransaction> &tr) {
-	ForkContextBase::onPushSent(tr);
-	++mActivePushes;
-}
-
-void ForkCallContext::onPushError(const shared_ptr<OutgoingTransaction> &tr, const string &errormsg) {
-	ForkContextBase::onPushError(tr, errormsg);
-	--mActivePushes;
-
-	if (mActivePushes != 0)
-		return;
-
-	SLOGD << "Early fail due to all push requests having failed";
-	onPushTimer();
-}
-
 void ForkCallContext::processInternalError(int status, const char* phrase) {
 	ForkContextBase::processInternalError(status, phrase);
 	cancelOthers(shared_ptr<BranchInfo>(), nullptr);

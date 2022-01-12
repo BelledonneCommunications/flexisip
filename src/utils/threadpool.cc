@@ -25,6 +25,19 @@ using namespace std;
 
 namespace flexisip {
 
+std::unique_ptr<ThreadPool> ThreadPool::sGlobalThreadPool{};
+
+std::unique_ptr<ThreadPool>& ThreadPool::getGlobalThreadPool() {
+	if(!sGlobalThreadPool) {
+		unsigned int cores = std::thread::hardware_concurrency();
+		auto threadCount = (cores ? cores : 8) * 4;
+
+		sGlobalThreadPool = std::make_unique<ThreadPool>(threadCount, 0);
+	}
+
+	return sGlobalThreadPool;
+}
+
 ThreadPool::ThreadPool(unsigned int nThreads, unsigned int maxQueueSize) : mMaxQueueSize(maxQueueSize) {
 	SLOGD << "ThreadPool [" << this << "]: init with " << nThreads << " threads and queue size " << maxQueueSize;
 
@@ -46,15 +59,16 @@ bool ThreadPool::run(Task t) {
 		unique_lock<mutex> lock(mTasksMutex);
 
 		// Push task into queue.
-		if (mTasks.size() < mMaxQueueSize) {
+		if (mMaxQueueSize == 0 || mTasks.size() < mMaxQueueSize) {
 			mTasks.push(t);
 			enqueued = true;
 		}
 	}
 
 	// Wake up one thread if the task was successfully queued
-	if (enqueued)
+	if (enqueued) {
 		mCondition.notify_one();
+	}
 
 	return enqueued;
 }
@@ -94,9 +108,7 @@ void ThreadPool::_run() {
 			unique_lock<mutex> lock(mTasksMutex);
 
 			// Wait until queue is not empty or termination signal is sent.
-			ThreadPool *thiz = this;
-			mCondition.wait(lock, [thiz](){return !thiz->mTasks.empty() || thiz->mState == Shutdown;});
-
+			mCondition.wait(lock, [this]() { return !mTasks.empty() || mState == Shutdown; });
 			// If termination signal received and queue is empty then exit else continue clearing the queue.
 			if (mState == Shutdown && mTasks.empty()) {
 				SLOGD << "ThreadPool [" << this << "]: terminate thread";
@@ -109,9 +121,10 @@ void ThreadPool::_run() {
 			// Remove it from the queue.
 			mTasks.pop();
 		}
-
 		// Execute the task.
 		task();
+		// Keep this to trigger task destructor out of locked scope
+		task = nullptr;
 	}
 }
 

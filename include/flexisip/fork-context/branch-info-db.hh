@@ -36,9 +36,9 @@ public:
 	             double priority,
 	             const std::string& request,
 	             const std::string& lastResponse,
-	             bool isPushSent)
+	             int clearedCount)
 	    : contactUid(contactUid), priority(priority), request(request), lastResponse(lastResponse),
-	      isPushSent(isPushSent) {
+	      clearedCount(clearedCount) {
 	}
 
 public:
@@ -46,7 +46,7 @@ public:
 	double priority = 0;
 	std::string request{};
 	std::string lastResponse{};
-	bool isPushSent = false;
+	int clearedCount = 0;
 };
 
 } // namespace flexisip
@@ -65,7 +65,7 @@ public:
 		bi.priority = v.get<double>("priority");
 		bi.request = v.get<std::string>("request");
 		bi.lastResponse = v.get<std::string>("last_response");
-		bi.isPushSent = v.get<int>("is_push_sent");
+		bi.clearedCount = v.get<int>("cleared_count");
 	}
 
 	static void to_base(flexisip::BranchInfoDb& bi, values& v, indicator& ind) {
@@ -73,7 +73,7 @@ public:
 		v.set("priority", bi.priority);
 		v.set("request", bi.request);
 		v.set("last_response", bi.lastResponse);
-		v.set("is_push_sent", (int)bi.isPushSent);
+		v.set("cleared_count", bi.clearedCount);
 		ind = i_ok;
 	}
 };

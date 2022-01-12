@@ -131,6 +131,9 @@ void ModuleRouter::onDeclare(GenericStruct *mc) {
 		mc->get<ConfigString>("preroute")->setDeprecated(removedFeatureDepInfo);
 	}
 
+	mc->get<ConfigInt>("call-push-response-timeout")
+	    ->setDeprecated({"2022-02-03", "2.2.0", "This feature will be removed in a future version."});
+
 	mStats.mCountForks = mc->createStats("count-forks", "Number of forks");
 	mStats.mCountBasicForks = mc->createStats("count-basic-forks", "Number of basic forks");
 	mStats.mCountCallForks = mc->createStats("count-call-forks", "Number of call forks");

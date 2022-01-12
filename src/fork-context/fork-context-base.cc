@@ -296,8 +296,12 @@ shared_ptr<BranchInfo> ForkContextBase::addBranch(const std::shared_ptr<RequestS
 	if (oldBr && oldBr->getStatus() >= 200){
 		LOGD("ForkContext [%p]: new fork branch [%p] clears out old branch [%p]", this, br.get(), oldBr.get());
 		removeBranch(oldBr);
-		br->mPushSent = oldBr->mPushSent; /* We need to remember if a push was sent for this branch, because in some cases (iOS) we must
-				absolutely not re-send a new one.*/
+		/*
+		 * We need to remember how many times branches for a given uid have been cleared.
+		 * Because in some cases (iOS) we must absolutely not re-send a push notification, and we send one only if
+		 * br->mClearedCount == 0 (See PushNotification::makePushNotification).
+		 */
+		br->mClearedCount = oldBr->mClearedCount + 1;
 	}
 
 	onNewBranch(br);
@@ -487,18 +491,6 @@ int ForkContextBase::getLastResponseCode() const {
 		return mLastResponseSent->getMsgSip()->getSip()->sip_status->st_status;
 
 	return 0;
-}
-
-void ForkContextBase::onPushSent(const std::shared_ptr<OutgoingTransaction> &tr){
-	shared_ptr<BranchInfo> br = BranchInfo::getBranchInfo(tr);
-	if (!br){
-		LOGE("ForkContext[%p]: no branch for transaction [%p]", this, tr.get());
-		return;
-	}
-	br->mPushSent = true;
-}
-
-void ForkContextBase::onPushError(const std::shared_ptr<OutgoingTransaction> &tr, const std::string &errormsg){
 }
 
 shared_ptr<ResponseSipEvent> ForkContextBase::forwardCustomResponse(int status, const char* phrase) {

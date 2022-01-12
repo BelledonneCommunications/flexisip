@@ -91,7 +91,8 @@ ForkMessageContextDbProxy::~ForkMessageContextDbProxy() {
 	if (!mForkUuidInDb.empty() && mIsFinished) {
 		// Destructor is called because the ForkContext is finished, removing info from database
 		LOGD("ForkMessageContextDbProxy[%p] was present in DB, cleaning UUID[%s]", this, mForkUuidInDb.c_str());
-		ForkMessageContextSociRepository::getInstance()->deleteByUuid(mForkUuidInDb);
+		ThreadPool::getGlobalThreadPool()->run(
+		    [uuid = mForkUuidInDb]() { ForkMessageContextSociRepository::getInstance()->deleteByUuid(uuid); });
 	}
 }
 
@@ -101,15 +102,15 @@ void ForkMessageContextDbProxy::loadFromDb() const {
 	    ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(mForkUuidInDb));
 }
 
-bool ForkMessageContextDbProxy::saveToDb() {
+bool ForkMessageContextDbProxy::saveToDb(const ForkMessageContextDb& dbFork) {
 	LOGI("ForkMessageContextDbProxy[%p] saving ForkMessage to DB.", this);
 	try {
 		if (mForkUuidInDb.empty()) {
 			LOGD("ForkMessageContextDbProxy[%p] not saved before, creating a new entry.", this);
-			mForkUuidInDb = ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(mForkMessage);
+			mForkUuidInDb = ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(dbFork);
 		} else {
 			LOGD("ForkMessageContextDbProxy[%p] already in DB with UUID[%s], updating", this, mForkUuidInDb.c_str());
-			ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(mForkMessage, mForkUuidInDb);
+			ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(dbFork, mForkUuidInDb);
 		}
 		if(mForkUuidInDb.empty()) {
 			LOGE("ForkMessageContextDbProxy[%p] mForkUuidInDb empty after save, keeping message in memory", this);
@@ -131,24 +132,22 @@ void ForkMessageContextDbProxy::onForkContextFinished(const shared_ptr<ForkConte
 
 void ForkMessageContextDbProxy::runSavingThread() {
 	mState = State::SAVING;
-
-	thread savingThread([this]() {
+	const auto& dbFork = mForkMessage->getDbObject();
+	ThreadPool::getGlobalThreadPool()->run([this, dbFork]() {
 		lock_guard<mutex> lock(mMutex);
-		if(saveToDb()) {
+		if (saveToDb(dbFork)) {
 			mState = State::IN_DATABASE;
-			mSavedAgent->getRoot()->addToMainLoop(
-			    [weak = weak_ptr<ForkMessageContextDbProxy>{shared_from_this()}]() {
-				    if (auto shared = weak.lock()) {
-					    if(shared->mState == State::IN_DATABASE){
-							shared->startTimerAndResetFork();
-						}
-				    }
-			    });
+			mSavedAgent->getRoot()->addToMainLoop([weak = weak_ptr<ForkMessageContextDbProxy>{shared_from_this()}]() {
+				if (auto shared = weak.lock()) {
+					if (shared->mState == State::IN_DATABASE) {
+						shared->startTimerAndResetFork();
+					}
+				}
+			});
 		} else {
 			mState = State::IN_MEMORY;
 		}
 	});
-	savingThread.detach();
 }
 
 void ForkMessageContextDbProxy::onResponse(const shared_ptr<BranchInfo>& br,
@@ -168,8 +167,7 @@ bool ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
                                               const function<void()>& dispatchFunc) {
 	LOGD("ForkMessageContextDbProxy[%p] onNewRegister", this);
 	if (mState != State::IN_MEMORY) {
-
-		thread restoringThread([this, dest, uid, dispatchFunc]() {
+		ThreadPool::getGlobalThreadPool()->run([this, dest, uid, dispatchFunc]() {
 			// If multiples onNewRegister are active at the same time on one ForkMessage only one should access DB
 			// at the same time
 			lock_guard<mutex> lock(mMutex);
@@ -183,7 +181,6 @@ bool ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
 					SLOGE << "Error loading ForkMessageContext from db : " << e.what();
 					mState = State::IN_DATABASE;
 				}
-
 			}
 			mSavedAgent->getRoot()->addToMainLoop(
 			    [weak = weak_ptr<ForkMessageContextDbProxy>{shared_from_this()}, dest, uid, dispatchFunc]() {
@@ -192,7 +189,6 @@ bool ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
 				    }
 			    });
 		});
-		restoringThread.detach();
 
 		// Always return true here in case you were called by delayedOnNewRegister.
 		return true;

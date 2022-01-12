@@ -92,7 +92,7 @@ static void forkMessageContextSociRepositoryMysqlUnitTests() {
 	auto expectedFork =
 	    ForkMessageContext::make(agent.get(), shared_ptr<ForkContextConfig>{}, shared_ptr<ForkContextListener>{},
 	                             shared_ptr<StatPair>{}, fakeDbObject);
-	auto insertedUuid = ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork);
+	auto insertedUuid = ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork->getDbObject());
 	auto dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
 	auto actualFork = ForkMessageContext::make(agent.get(), shared_ptr<ForkContextConfig>{},
 	                                           shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, dbFork);
@@ -105,7 +105,7 @@ static void forkMessageContextSociRepositoryMysqlUnitTests() {
 	fakeDbObject.dbKeys = vector<string>{"key1", "key2", "key3"}; // We keep the same keys because they are not updated
 	expectedFork = ForkMessageContext::make(agent.get(), shared_ptr<ForkContextConfig>{},
 	                                        shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, fakeDbObject);
-	ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(expectedFork, insertedUuid);
+	ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(expectedFork->getDbObject(), insertedUuid);
 	dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
 	actualFork = ForkMessageContext::make(agent.get(), shared_ptr<ForkContextConfig>{},
 	                                      shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, dbFork);
@@ -126,7 +126,7 @@ static void forkMessageContextWithBranchesSociRepositoryMysqlUnitTests() {
 	    ForkMessageContext::make(agent.get(), shared_ptr<ForkContextConfig>{}, shared_ptr<ForkContextListener>{},
 	                             shared_ptr<StatPair>{}, fakeDbObject);
 
-	auto insertedUuid = ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork);
+	auto insertedUuid = ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork->getDbObject());
 	auto dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
 	auto actualFork = ForkMessageContext::make(agent.get(), shared_ptr<ForkContextConfig>{},
 	                                           shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, dbFork);
@@ -143,7 +143,7 @@ static void forkMessageContextWithBranchesSociRepositoryMysqlUnitTests() {
 	fakeDbObject.dbBranches = vector<BranchInfoDb>{branchInfoDb, branchInfoDb2, branchInfoDb3};
 	expectedFork = ForkMessageContext::make(agent.get(), shared_ptr<ForkContextConfig>{},
 	                                        shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, fakeDbObject);
-	ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(expectedFork, insertedUuid);
+	ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(expectedFork->getDbObject(), insertedUuid);
 	dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
 	actualFork = ForkMessageContext::make(agent.get(), shared_ptr<ForkContextConfig>{},
 	                                      shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, dbFork);
@@ -164,7 +164,7 @@ static void forkMessageContextSociRepositoryFullLoadMysqlUnitTests() {
 		auto expectedFork =
 		    ForkMessageContext::make(agent.get(), shared_ptr<ForkContextConfig>{}, shared_ptr<ForkContextListener>{},
 		                             shared_ptr<StatPair>{}, fakeDbObject);
-		auto insertedUuid = ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork);
+		auto insertedUuid = ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork->getDbObject());
 		expectedForks.insert(make_pair(insertedUuid, expectedFork));
 	}
 

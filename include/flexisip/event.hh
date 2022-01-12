@@ -49,27 +49,40 @@ class MsgSip {
 	friend class IncomingTransaction;
 	friend class OutgoingTransaction;
 
-  public:
+public:
 	MsgSip();
-	MsgSip(msg_t *msg);
-	MsgSip(const MsgSip &msgSip);
+	MsgSip(msg_t* msg);
+	MsgSip(const MsgSip& msgSip);
+	MsgSip(int flags, const std::string& msg);
 	~MsgSip();
 
-	msg_t *getMsg() const {return mMsg;}
-	sip_t *getSip() const {return (sip_t *)msg_object(mMsg);}
-	su_home_t *getHome() const {return msg_home(mMsg);}
+	msg_t* getMsg() const {
+		return mMsg;
+	}
+	sip_t* getSip() const {
+		return (sip_t*)msg_object(mMsg);
+	}
+	su_home_t* getHome() const {
+		return msg_home(mMsg);
+	}
 
-	msg_header_t *findHeader(const std::string &name, bool searchUnknowns = false);
-	const msg_header_t *findHeader(const std::string &name) const {return const_cast<MsgSip *>(this)->findHeader(name);}
+	const msg_header_t* findHeader(const std::string& name) const {
+		return const_cast<MsgSip*>(this)->findHeader(name);
+	}
 
-	void serialize() const {msg_serialize(mMsg, (msg_pub_t *)getSip());}
-	const char *print();
+	void serialize() const {
+		msg_serialize(mMsg, (msg_pub_t*)getSip());
+	}
+
+	const char* print() const;
+	std::string printString() const;
 	std::string printContext() const;
+	msg_header_t* findHeader(const std::string& name, bool searchUnknowns = false);
 
-  private:
-	void assignMsg(msg_t *msg);
+private:
+	void assignMsg(msg_t* msg);
 
-	msg_t *mMsg{nullptr};
+	msg_t* mMsg{nullptr};
 };
 
 class SipEvent : public std::enable_shared_from_this<SipEvent> {

@@ -36,7 +36,7 @@ void MsgSip::assignMsg(msg_t *msg) {
 MsgSip::MsgSip() : mMsg{msg_create(sip_default_mclass(), 0)} {
 }
 
-MsgSip::MsgSip(msg_t *msg) {
+MsgSip::MsgSip(msg_t* msg) {
 	assignMsg(msg);
 }
 
@@ -47,6 +47,10 @@ MsgSip::MsgSip(const MsgSip &msgSip) {
 	assignMsg(freshCopy);
 	msg_destroy(freshCopy);
 	LOGD("New MsgSip %p copied from MsgSip %p", this, &msgSip);
+}
+
+MsgSip::MsgSip(int flags, const std::string& msg) {
+    mMsg = msg_make(sip_default_mclass(), flags, msg.c_str(), msg.size());
 }
 
 msg_header_t *MsgSip::findHeader(const std::string &name, bool searchUnknowns) {
@@ -73,11 +77,19 @@ msg_header_t *MsgSip::findHeader(const std::string &name, bool searchUnknowns) {
 	return nullptr;
 }
 
-const char *MsgSip::print() {
+const char* MsgSip::print() const {
 	// make sure the message is serialized before showing it; it can be very confusing.
 	size_t msg_size;
-	msg_serialize(mMsg, (msg_pub_t *)getSip());
+	msg_serialize(mMsg, (msg_pub_t*)getSip());
 	return msg_as_string(getHome(), mMsg, NULL, 0, &msg_size);
+}
+
+std::string MsgSip::printString() const {
+	// make sure the message is serialized before showing it; it can be very confusing.
+	size_t msg_size;
+	msg_serialize(mMsg, (msg_pub_t*)getSip());
+	const auto cStr = msg_as_string(getHome(), mMsg, nullptr, 0, &msg_size);
+	return string{cStr, msg_size};
 }
 
 std::string MsgSip::printContext() const {

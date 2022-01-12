@@ -56,7 +56,6 @@ class DoSProtection : public Module, ModuleToolbox {
 	set<BinaryIp> mWhiteList;
 	unordered_map<string, DosContext> mDosContexts;
 	unordered_map<string, DosContext>::iterator mDOSHashtableIterator;
-	ThreadPool *mThreadPool;
 	string mFlexisipChain;
 
 	int runIptables(const string & arguments, bool ipv6=false, bool dumpErrors=true){
@@ -268,7 +267,7 @@ class DoSProtection : public Module, ModuleToolbox {
 		string ip = ctx->ip;
 		string port = ctx->port;
 		
-		mThreadPool->run([&, protocol, ip, port] {
+		ThreadPool::getGlobalThreadPool()->run([&, protocol, ip, port] {
 			char iptables_cmd[512];
 			bool is_ipv6 = strchr(ip.c_str(), ':') != nullptr;
 			snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -D %s -p %s -s %s -m multiport --sports %s -j REJECT",
@@ -346,7 +345,7 @@ class DoSProtection : public Module, ModuleToolbox {
 					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol udp for %i minutes",
 						 dosContext.packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
 					if (!isIpWhiteListed(ip)) {
-						mThreadPool->run([&, ip, port] { banIP(ip, port, "udp"); });
+						ThreadPool::getGlobalThreadPool()->run([&, ip, port] { banIP(ip, port, "udp"); });
 						createBanContextAndPostInFuture(ip, port, "udp");
 						ev->terminateProcessing(); // the event is discarded
 					} else {
@@ -370,7 +369,7 @@ class DoSProtection : public Module, ModuleToolbox {
 					LOGW("Packet count rate (%lu) >= limit (%i), blocking ip/port %s/%s on protocol tcp for %i minutes",
 						 packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
 					if (!isIpWhiteListed(ip)) {
-						mThreadPool->run([&, ip, port] { banIP(ip, port, "tcp"); });
+						ThreadPool::getGlobalThreadPool()->run([&, ip, port] { banIP(ip, port, "tcp"); });
 						createBanContextAndPostInFuture(ip, port, "tcp");
 						ev->terminateProcessing(); // the event is discarded
 					} else {
@@ -392,12 +391,9 @@ class DoSProtection : public Module, ModuleToolbox {
 	DoSProtection(Agent *ag) : Module(ag) {
 		mIptablesVersionChecked = false;
 		mIptablesSupportsWait = false;
-		mThreadPool = new ThreadPool(1, 1000);
 	}
 
-	~DoSProtection() {
-		delete mThreadPool;
-	}
+	~DoSProtection() = default;
 };
 
 ModuleInfo<DoSProtection> DoSProtection::sInfo(

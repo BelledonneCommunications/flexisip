@@ -84,8 +84,6 @@ public:
 	 * existed for this contact.
 	 */
 	virtual bool onNewRegister(const SipUri& dest, const std::string& uid, const std::function<void()>& dispatchFunction) = 0;
-	virtual void onPushSent(const std::shared_ptr<OutgoingTransaction>& tr) = 0;
-	virtual void onPushError(const std::shared_ptr<OutgoingTransaction>& tr, const std::string& errormsg) = 0;
 	// Notifies the cancellation of the fork process.
 	virtual void onCancel(const std::shared_ptr<RequestSipEvent>& ev) = 0;
 	// Notifies the arrival of a new response on a given branch

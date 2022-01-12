@@ -73,9 +73,7 @@ void PushNotificationContext::onTimeout() {
 		if (forkCtx->isFinished()) {
 			LOGD("Call is already established or canceled, so push notification is not sent but cleared.");
 			return;
-		} 
-		SLOGD << "PNR " << mPushNotificationRequest.get() << ": notifying call context...";
-		forkCtx->onPushSent(mTransaction);
+		}
 	}
 
 	mModule->getService().sendPush(mPushNotificationRequest);
@@ -400,7 +398,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip> &ms,
 		const auto& br = BranchInfo::getBranchInfo(transaction);
 		if (br) {
 			pinfo.mUid = br->mUid;
-			if (br->mPushSent) {
+			if (br->mClearedCount) {
 				LOGD("A push notification was sent to this iOS>=13 ready device already, so we won't resend.");
 				return;
 			}

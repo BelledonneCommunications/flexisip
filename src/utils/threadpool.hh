@@ -45,6 +45,8 @@ public:
 	ThreadPool(unsigned int nThreads, unsigned int maxQueueSize);
 	~ThreadPool();
 
+	static std::unique_ptr<ThreadPool>& getGlobalThreadPool();
+
 	/**
 	 * Assign a task to a thread for execution. If no thread is available
 	 * while this method is called, then the task is queued until a thread
@@ -73,12 +75,14 @@ private:
 	 */
 	void _run();
 
-	std::vector<std::thread> mThreadPool;
-	std::queue<Task> mTasks;
-	std::mutex mTasksMutex;
-	std::condition_variable mCondition;
-	unsigned mMaxQueueSize;
+	std::vector<std::thread> mThreadPool{};
+	std::mutex mTasksMutex{};
+	std::queue<Task> mTasks{};
+	std::condition_variable mCondition{};
+	unsigned mMaxQueueSize = 0;
 	State mState = Running;
+
+	static std::unique_ptr<ThreadPool> sGlobalThreadPool;
 };
 
 

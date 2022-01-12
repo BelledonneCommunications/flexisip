@@ -52,8 +52,7 @@ shared_ptr<ForkMessageContext> ForkMessageContext::make(Agent* agent,
                                                         const std::weak_ptr<ForkContextListener>& listener,
                                                         const std::weak_ptr<StatPair>& counter,
                                                         ForkMessageContextDb& forkFromDb) {
-	auto msgSipFromDB =
-	    make_shared<MsgSip>(msg_make(sip_default_mclass(), 0, forkFromDb.request.c_str(), forkFromDb.request.size()));
+	auto msgSipFromDB = make_shared<MsgSip>(0, forkFromDb.request);
 	auto requestSipEventFromDb =
 	    RequestSipEvent::makeRestored(agent->shared_from_this(), msgSipFromDB, agent->findModule("Router"));
 
@@ -269,7 +268,7 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 bool ForkMessageContext::onNewRegister(const SipUri& dest,
                                        const std::string& uid,
                                        const function<void()>& dispatchFunction) {
-	bool already_have_transaction = !ForkContextBase::onNewRegister(dest, uid, dispatchFunction);
+	bool already_have_transaction = !ForkContextBase::onNewRegister(dest, uid, [](){});
 	if (already_have_transaction) return false;
 	if (uid.size() > 0) {
 		shared_ptr<BranchInfo> br = findBranchByUid(uid);
@@ -291,7 +290,7 @@ bool ForkMessageContext::onNewRegister(const SipUri& dest,
 	LOGD("Message has been delivered %i times.", mDeliveredCount);
 
 	if (mDeliveredCount == 0) {
-		mAgent->getRoot()->addToMainLoop(dispatchFunction);
+		dispatchFunction();
 		return true;
 	}
 
@@ -305,7 +304,7 @@ ForkMessageContextDb ForkMessageContext::getDbObject() {
 	dbObject.deliveredCount = mDeliveredCount;
 	dbObject.currentPriority = mCurrentPriority;
 	dbObject.expirationDate = *gmtime(&mExpirationDate);
-	dbObject.request = mEvent->getMsgSip()->print();
+	dbObject.request = mEvent->getMsgSip()->printString();
 	dbObject.dbKeys.insert(dbObject.dbKeys.end(), mKeys.begin(), mKeys.end());
 	for (const auto& waitingBranch : mWaitingBranches) {
 		dbObject.dbBranches.push_back(waitingBranch->getDbObject());
@@ -325,7 +324,7 @@ void ForkMessageContext::assertEqual(const shared_ptr<ForkMessageContext>& expec
 	BC_ASSERT_EQUAL(mDeliveredCount, expected->mDeliveredCount, int, "%d");
 	BC_ASSERT_EQUAL(mCurrentPriority, expected->mCurrentPriority, float, "%f");
 	BC_ASSERT_TRUE(mExpirationDate == expected->mExpirationDate);
-	BC_ASSERT_STRING_EQUAL(mEvent->getMsgSip()->print(), expected->mEvent->getMsgSip()->print());
+	BC_ASSERT_TRUE(mEvent->getMsgSip()->printString() == expected->mEvent->getMsgSip()->printString());
 
 	if (mKeys.size() == expected->mKeys.size()) {
 		sort(mKeys.begin(), mKeys.end());
@@ -350,6 +349,6 @@ void ForkMessageContext::assertEqual(const shared_ptr<ForkMessageContext>& expec
 
 void ForkMessageContext::assertEqualMinimal(const shared_ptr<ForkMessageContext>& expected) {
 	BC_ASSERT_TRUE(mExpirationDate == expected->mExpirationDate);
-	BC_ASSERT_STRING_EQUAL(mEvent->getMsgSip()->print(), expected->mEvent->getMsgSip()->print());
+	BC_ASSERT_TRUE(mEvent->getMsgSip()->printString() == expected->mEvent->getMsgSip()->printString());
 }
 #endif

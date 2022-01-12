@@ -103,14 +103,8 @@ public:
 		}
 	}
 
-	void onPushSent(const std::shared_ptr<OutgoingTransaction>& tr) override {
-		checkState(__FUNCTION__, State::IN_MEMORY);
-		mForkMessage->onPushSent(tr);
-	}
-
 	bool isFinished() const override {
-		checkState(__FUNCTION__, State::IN_MEMORY);
-		return mForkMessage->isFinished();
+		return mIsFinished;
 	}
 
 	const std::shared_ptr<RequestSipEvent>& getEvent() override {
@@ -120,10 +114,6 @@ public:
 
 	const std::shared_ptr<ForkContextConfig>& getConfig() const override {
 		return mSavedConfig;
-	}
-
-	void onPushError(const std::shared_ptr<OutgoingTransaction>& tr, const std::string& errormsg) override {
-		// Does nothing for ForkMessageContext
 	}
 
 	void onCancel(const std::shared_ptr<RequestSipEvent>& ev) override {
@@ -168,7 +158,7 @@ private:
 	/**
 	 * Be careful, blocking I/O with DB, should be called in a thread.
 	 */
-	bool saveToDb();
+	bool saveToDb(const ForkMessageContextDb& dbFork);
 
 	void checkState(const std::string& methodName, const ForkMessageContextDbProxy::State& expectedState) const;
 	void startTimerAndResetFork(time_t expirationDate, const std::vector<std::string>& keys);

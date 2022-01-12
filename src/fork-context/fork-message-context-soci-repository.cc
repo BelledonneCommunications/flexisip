@@ -67,7 +67,7 @@ ForkMessageContextSociRepository::ForkMessageContextSociRepository(const string&
 		request BLOB NOT NULL,
 		last_response BLOB,
 		priority FLOAT NOT NULL,
-		is_push_sent TINYINT NOT NULL,
+		cleared_count INT NOT NULL,
 		PRIMARY KEY (fork_uuid, contact_uid),
 		FOREIGN KEY (fork_uuid) REFERENCES fork_message_context(uuid) ON DELETE CASCADE))sql";
 
@@ -128,8 +128,7 @@ ForkMessageContextDb ForkMessageContextSociRepository::findForkMessageByUuid(con
 }
 
 string
-ForkMessageContextSociRepository::saveForkMessageContext(const shared_ptr<ForkMessageContext>& forkMessageContext) {
-	auto dbFork = forkMessageContext->getDbObject();
+ForkMessageContextSociRepository::saveForkMessageContext(const ForkMessageContextDb& dbFork) {
 	session sql(mConnectionPool);
 	string insertedUuid{};
 
@@ -147,17 +146,16 @@ ForkMessageContextSociRepository::saveForkMessageContext(const shared_ptr<ForkMe
 	}
 
 	for (const auto& dbBranch : dbFork.dbBranches) {
-		sql << "insert into branch_info(fork_uuid, contact_uid, request, last_response, priority, is_push_sent) values "
-		       "(UuidToBin(:fork_uuid), :contact_uid, :request, :last_response, :priority, :is_push_sent)",
+		sql << "insert into branch_info(fork_uuid, contact_uid, request, last_response, priority, cleared_count) values "
+		       "(UuidToBin(:fork_uuid), :contact_uid, :request, :last_response, :priority, :cleared_count)",
 		    use(insertedUuid, "fork_uuid"), use(dbBranch);
 	}
 
 	return insertedUuid;
 }
 
-void ForkMessageContextSociRepository::updateForkMessageContext(
-    const std::shared_ptr<ForkMessageContext>& forkMessageContext, const std::string& uuid) {
-	auto dbFork = forkMessageContext->getDbObject();
+void ForkMessageContextSociRepository::updateForkMessageContext(const ForkMessageContextDb& dbFork,
+                                                                const std::string& uuid) {
 	session sql(mConnectionPool);
 
 	sql << "update fork_message_context set current_priority = :current_priority, delivered_count = :delivered_count, "
@@ -170,10 +168,10 @@ void ForkMessageContextSociRepository::updateForkMessageContext(
 	for (const auto& dbBranch : dbFork.dbBranches) {
 		// Delete all branch before this could be considered because of test's cases scenario,
 		// but in real life no branch is never removed (only replaced).
-		sql << "insert into branch_info(fork_uuid, contact_uid, request, last_response, priority, is_push_sent) values "
-		       "(UuidToBin(:fork_uuid), :contact_uid, :request, :last_response, :priority, :is_push_sent)"
+		sql << "insert into branch_info(fork_uuid, contact_uid, request, last_response, priority, cleared_count) values "
+		       "(UuidToBin(:fork_uuid), :contact_uid, :request, :last_response, :priority, :cleared_count)"
 		       "ON DUPLICATE KEY UPDATE contact_uid=:contact_uid, request=:request, last_response=:last_response, "
-		       "priority=:priority, is_push_sent=:is_push_sent",
+		       "priority=:priority, cleared_count=:cleared_count",
 		    use(uuid, "fork_uuid"), use(dbBranch);
 	}
 }
@@ -216,7 +214,7 @@ void ForkMessageContextSociRepository::findAndPushBackBranches(const std::string
 	BranchInfoDb dbBranch;
 	dbFork.dbBranches.clear();
 
-	statement st = (sql.prepare << "select contact_uid, request, last_response, priority, is_push_sent from "
+	statement st = (sql.prepare << "select contact_uid, request, last_response, priority, cleared_count from "
 	                               "branch_info where fork_uuid = UuidToBin(:v)",
 	                use(uuid), into(dbBranch));
 	st.execute();
@@ -226,9 +224,21 @@ void ForkMessageContextSociRepository::findAndPushBackBranches(const std::string
 }
 
 void ForkMessageContextSociRepository::deleteByUuid(const string& uuid) {
-	session sql(mConnectionPool);
+	lock_guard<mutex> lock(mMutex);
+	mUuidsToDelete.push_back(uuid);
+	try {
+		session sql(mConnectionPool);
 
-	sql << "delete from fork_message_context where uuid=UuidToBin(:v)", use(uuid);
+		auto iterator = begin(mUuidsToDelete);
+		while (iterator != end(mUuidsToDelete)) {
+			sql << "delete from fork_message_context where uuid=UuidToBin(:v)", use(*iterator);
+			iterator = mUuidsToDelete.erase(iterator);
+		}
+	} catch (const exception& e) {
+		SLOGW << "An SQL error occurred while removing fork message from DB. It will be removed with the next one. "
+		         "Error :"
+		      << e.what();
+	}
 }
 
 #ifdef ENABLE_UNIT_TESTS
