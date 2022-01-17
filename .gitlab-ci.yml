@@ -15,6 +15,7 @@ variables:
   CENTOS_8_IMAGE_VERSION: 20211004_remove_hiredis
   DEBIAN_9_IMAGE_VERSION: 20210624_packaging
   DEBIAN_10_IMAGE_VERSION: 20211018_mariadb_server
+  DEBIAN_11_IMAGE_VERSION: 20220117_init
   UBUNTU_18_04_IMAGE_VERSION: 20210624_packaging
   UBUNTU_ROLLING_IMAGE_VERSION: 20210624_packaging
 
@@ -32,6 +33,7 @@ include:
   - '.gitlab-ci-files/job-linux-centos8.yml'
   - '.gitlab-ci-files/job-linux-debian9.yml'
   - '.gitlab-ci-files/job-linux-debian10.yml'
+  - '.gitlab-ci-files/job-linux-debian11.yml'
 #  - '.gitlab-ci-files/job-linux-ubuntu-rolling.yml'
   - '.gitlab-ci-files/job-linux-ubuntu-18.04.yml'
 #  - '.gitlab-ci-files/job-macosx.yml'

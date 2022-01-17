@@ -4,7 +4,7 @@
 
 job-ubuntu-rolling-makefile-gcc:
 
-  tags: [ "docker-ubuntu-rolling" ]
+  tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-rolling:$UBUNTU_ROLLING_IMAGE_VERSION
   variables:
     CMAKE_GENERATOR: Unix Makefiles
@@ -19,7 +19,7 @@ job-ubuntu-rolling-makefile-gcc:
 
 job-ubuntu-rolling-makefile-clang:
 
-  tags: [ "docker-ubuntu-rolling" ]
+  tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-rolling:$UBUNTU_ROLLING_IMAGE_VERSION
   except:
     variables:
@@ -37,7 +37,7 @@ job-ubuntu-rolling-makefile-clang:
 
 job-ubuntu-rolling-ninja-gcc:
 
-  tags: [ "docker-ubuntu-rolling" ]
+  tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-rolling:$UBUNTU_ROLLING_IMAGE_VERSION
   except:
     variables:
@@ -52,7 +52,7 @@ job-ubuntu-rolling-ninja-gcc:
 
 job-ubuntu-rolling-ninja-clang:
 
-  tags: [ "docker-ubuntu-rolling" ]
+  tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-rolling:$UBUNTU_ROLLING_IMAGE_VERSION
   except:
     variables:

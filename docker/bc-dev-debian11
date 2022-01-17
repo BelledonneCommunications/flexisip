@@ -1,0 +1,56 @@
+###############################################################################
+# Dockerfile used to make bc-dev-debian11:20220117_init
+###############################################################################
+
+FROM debian:bullseye
+
+MAINTAINER Anthony Gauchy <anthony.gauchy@belledonne-communications.com>
+
+# Update
+RUN apt-get -y update
+
+# Install common tools
+RUN apt-get -y install sudo vim wget file
+
+# Install development tools
+RUN apt-get install -y ccache clang cmake doxygen g++ gdb git make ninja-build python3 python3-pip
+
+# Install all dependencies needed for Flexisip
+RUN apt-get -y install libssl-dev libboost-dev libboost-system-dev libboost-thread-dev libhiredis-dev libjansson-dev \
+        libsqlite3-dev libpq-dev libmariadb-dev libmariadb-dev-compat mariadb-server libnghttp2-dev libprotobuf-dev libsnmp-dev \
+        libxerces-c-dev libsrtp2-dev libgsm1-dev libopus-dev libmbedtls-dev libspeex-dev libspeexdsp-dev libxml2-dev protobuf-compiler redis-server
+
+# Clean
+RUN apt-get -y autoremove && apt-get -y clean
+
+# Install libnghttp2_asio
+RUN wget https://github.com/nghttp2/nghttp2/releases/download/v1.43.0/nghttp2-1.43.0.tar.bz2 && \
+	tar xf nghttp2-1.43.0.tar.bz2 && \
+	cd nghttp2-1.43.0 && \
+	./configure --prefix=/usr/local --disable-examples --disable-python-bindings --enable-lib-only --enable-asio-lib && \
+	make && \
+	sudo make -C src install && \
+	cd - && \
+	rm -rf nghttp2-1.43.0.tar.bz2 nghttp2-1.43.0
+
+# Configure user bc
+RUN useradd -ms /bin/bash bc && \
+    echo 'bc:cotcot' | chpasswd && \
+    echo 'bc ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+# Switch for 'bc' user
+USER bc
+WORKDIR /home/bc
+
+# Install python3 modules.
+# This must be done as 'bc' user because some python modules are installed into /usr/local/lib when pip is invoked
+# as root, and rpmbuild prevent python from seaching its modules in this prefix. Using 'bc' user make the python
+# modules to be installed into /home/bc/.local/bin.
+RUN python3 -m pip install --user pystache six
+ENV PATH=$PATH:/home/bc/.local/bin
+
+# MYSQL DB for unit tests
+COPY mariadb-entrypoint.sh /
+RUN sudo chmod a+x /mariadb-entrypoint.sh
+
+ENTRYPOINT ["/mariadb-entrypoint.sh", "mariadb"]
