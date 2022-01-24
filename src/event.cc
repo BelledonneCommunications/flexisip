@@ -141,7 +141,7 @@ SipEvent::SipEvent(const SipEvent &sipEvent): enable_shared_from_this<SipEvent>(
 }
 
 SipEvent::~SipEvent() {
-	// LOGD("Destroy SipEvent %p", this);
+	LOGD("Destroy SipEvent %p", this);
 }
 
 void SipEvent::flushLog() {
