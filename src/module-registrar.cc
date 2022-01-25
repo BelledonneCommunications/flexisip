@@ -730,8 +730,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 }
 
 void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
-	if (!mUpdateOnResponse && !getAgent()->getDRM()->haveToRelayRegToDomain(std::string("")))
-		return;
+	if (!mUpdateOnResponse) return;
 	const shared_ptr<MsgSip> &reMs = ev->getMsgSip();
 	sip_t *reSip = reMs->getSip();
 
@@ -792,6 +791,7 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	if (reSip->sip_status->st_status >= 200) {
 		/*for all final responses, drop the context anyway*/
 		mRespContexes.remove(context);
+		transaction->removeProperty(getModuleName());
 	}
 }
 
