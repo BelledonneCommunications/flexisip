@@ -100,13 +100,10 @@ public:
 	void onInvalid()override;
 };
 
-class ResponseContext {
-  public:
-	ResponseContext(std::shared_ptr<RequestSipEvent> &ev, int globalDelta);
 
-	static std::shared_ptr<ResponseContext> createInTransaction(std::shared_ptr<RequestSipEvent> ev, int globalDelta, const std::string &tag);
-	static bool match(const std::shared_ptr<ResponseContext> &ctx, const char *fromtag);
-	
+class ResponseContext {
+public:
+	ResponseContext(const std::shared_ptr<RequestSipEvent> &ev, int globalDelta);
 	const std::shared_ptr<RequestSipEvent> mRequestSipEvent;
 	sip_contact_t *mOriginalContacts{nullptr};
 };
@@ -141,6 +138,9 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 	void readStaticRecords();
 
   private:
+	std::shared_ptr<ResponseContext> createResponseContext(const std::shared_ptr<RequestSipEvent> &ev, int globalDelta);
+	void deleteResponseContext(const std::shared_ptr<ResponseContext> &ctx);
+	
 	static void sighandler(int signum, siginfo_t *info, void *ptr);
 
 	void updateLocalRegExpire();
@@ -164,7 +164,6 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 	bool mAssumeUniqueDomains;
 	struct sigaction mSigaction;
 	static ModuleInfo<ModuleRegistrar> sInfo;
-	std::list<std::shared_ptr<ResponseContext>> mRespContexes;
 	bool mUseGlobalDomain;
 	int mExpireRandomizer;
 	std::list<std::string> mParamsToRemove;

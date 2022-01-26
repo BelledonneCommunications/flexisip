@@ -200,25 +200,14 @@ void FakeFetchListener::onInvalid() {
 void FakeFetchListener::onContactUpdated(const shared_ptr<ExtendedContact> &ec) {
 }
 
-shared_ptr<ResponseContext> ResponseContext::createInTransaction(shared_ptr<RequestSipEvent> ev, int globalDelta,
-														const string &tag) {
-	auto otr = ev->createOutgoingTransaction();
-	auto context = make_shared<ResponseContext>(ev, globalDelta);
-	otr->setProperty(tag, context);
-	return context;
-}
 
-ResponseContext::ResponseContext(shared_ptr<RequestSipEvent> &ev, int globalDelta) : mRequestSipEvent{ev} {
+ResponseContext::ResponseContext(const shared_ptr<RequestSipEvent> &ev, int globalDelta) : mRequestSipEvent{ev} {
 	sip_t *sip = ev->getMsgSip()->getSip();
 	mOriginalContacts = sip_contact_dup(mRequestSipEvent->getHome(), sip->sip_contact);
 	for (sip_contact_t *it = mOriginalContacts; it; it = it->m_next) {
 		int cExpire = ExtendedContact::resolveExpire(it->m_expires, globalDelta);
 		it->m_expires = su_sprintf(mRequestSipEvent->getHome(), "%d", cExpire);
 	}
-}
-
-bool ResponseContext::match(const shared_ptr<ResponseContext> &ctx, const char *fromtag) {
-	return fromtag && strcmp(ctx->mRequestSipEvent->getSip()->sip_from->a_tag, fromtag) == 0;
 }
 
 /**
@@ -471,6 +460,18 @@ void ModuleRegistrar::idle() {
 	}
 }
 
+std::shared_ptr<ResponseContext> ModuleRegistrar::createResponseContext(const std::shared_ptr<RequestSipEvent> &ev, int globalDelta){
+	auto otr = ev->createOutgoingTransaction();
+	auto context = make_shared<ResponseContext>(ev, globalDelta);
+	otr->setProperty(getModuleName(), context);
+	return context;
+}
+
+void ModuleRegistrar::deleteResponseContext(const std::shared_ptr<ResponseContext> &ctx){
+	auto otr = ctx->mRequestSipEvent->getOutgoingTransaction();
+	if (otr) otr->removeProperty(getModuleName());
+}
+
 void ModuleRegistrar::updateLocalRegExpire() {
 	RegistrarDb::get()->mLocalRegExpire->removeExpiredBefore(getCurrentTime());
 	mStats.mCountLocalActives->set(RegistrarDb::get()->mLocalRegExpire->countActives());
@@ -703,9 +704,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		ev->createIncomingTransaction();
 		ev->reply(SIP_100_TRYING, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 
-		auto context = ResponseContext::createInTransaction(ev, maindelta, getModuleName());
-		// Store a reference to the ResponseContext to prevent its destruction
-		mRespContexes.push_back(context);
+		auto context = createResponseContext(ev, maindelta);
 
 		su_home_t *home = ev->getMsgSip()->getHome();
 		url_t *gruuAddress;
@@ -790,8 +789,7 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	}
 	if (reSip->sip_status->st_status >= 200) {
 		/*for all final responses, drop the context anyway*/
-		mRespContexes.remove(context);
-		transaction->removeProperty(getModuleName());
+		deleteResponseContext(context);
 	}
 }
 
