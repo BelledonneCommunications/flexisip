@@ -47,7 +47,7 @@ public:
 	static std::unique_ptr<Request> makePushRequest(const PushInfo &pinfo);
 
 	int sendPush(const std::shared_ptr<Request> &pn);
-	void setupGenericClient(const url_t *url);
+	void setupGenericClient(const url_t* url, const SSL_METHOD* tlsProtocol);
 	void setupiOSClient(const std::string &certdir, const std::string &cafile);
 	void setupFirebaseClient(const std::map<std::string, std::string> &firebaseKeys);
 	void setupWindowsPhoneClient(const std::string &packageSID, const std::string &applicationSecret);

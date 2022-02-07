@@ -80,6 +80,7 @@ public:
 
 private:
 	void loadAppleForcePnType(const GenericStruct &moduleCfg);
+	const SSL_METHOD* loadExternalPushTlsProtocol(const GenericStruct& cfg) const;
 	bool needsPush(const sip_t *sip);
 	void makePushNotification(const std::shared_ptr<MsgSip> &ms, const std::shared_ptr<OutgoingTransaction> &transaction);
 	void removePushNotification(PushNotificationContext *pn);
@@ -271,6 +272,8 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		 "Example: http://292.168.0.2/$type/$event?from-uri=$from-uri&tag=$from-tag&callid=$callid&to=$to-uri",
 		 ""},
 		{String, "external-push-method", "Method for reaching external-push-uri, typically GET or POST", "GET"},
+		{String, "external-push-tls-protocol", "Version of the TLS protocol to use for HTTPS connections. "
+			"Supported values are TLSv1.0, TLSv1.1, TLSv1.2", "TLSv1.0"},
 
 		// deprecated parameters
 		{Boolean, "google", "Enable push notification for android devices (for compatibility only)", "true"},
@@ -345,6 +348,7 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 			return;
 		}
 	}
+	auto* tlsProtocol = loadExternalPushTlsProtocol(*mc);
 
 	mFirebaseKeys.clear();
 	for (auto it = firebaseKeys.cbegin(); it != firebaseKeys.cend(); ++it) {
@@ -356,7 +360,7 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 	mPNS = make_unique<pushnotification::Service>(*getAgent()->getRoot(), maxQueueSize);
 	mPNS->setStatCounters(mCountFailed, mCountSent);
 	if (mExternalPushUri)
-		mPNS->setupGenericClient(mExternalPushUri);
+		mPNS->setupGenericClient(mExternalPushUri, tlsProtocol);
 	if (appleEnabled)
 		mPNS->setupiOSClient(certdir, "");
 	if (firebaseEnabled)
@@ -776,6 +780,21 @@ void PushNotification::loadAppleForcePnType(const GenericStruct &moduleCfg) {
 	}
 	if (!forceType.empty()) {
 		LOGW("'%s' parameter set to '%s'", forceTypeParam->getCompleteName().c_str(), forceType.c_str());
+	}
+}
+
+const SSL_METHOD* PushNotification::loadExternalPushTlsProtocol(const GenericStruct& cfg) const {
+	auto proto = cfg.get<ConfigString>("external-push-tls-protocol")->read();
+	if (proto == "TLSv1.0") {
+		return TLSv1_client_method();
+	} else if (proto == "TLSv1.1") {
+		return TLSv1_1_client_method();
+	} else if (proto == "TLSv1.2") {
+		return TLSv1_2_client_method();
+	} else {
+		ostringstream msg{};
+		msg << cfg.getCompleteName() << " paramter has an invalid protocol name [" << proto << "]";
+		throw ConfigurationLoadingError{msg.str()};
 	}
 }
 

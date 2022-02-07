@@ -121,8 +121,8 @@ bool Service::isIdle() const noexcept {
 }
 
 
-void Service::setupGenericClient(const url_t *url) {
-	auto sslMethod = url->url_type == url_https ? TLSv1_client_method() : nullptr;
+void Service::setupGenericClient(const url_t* url, const SSL_METHOD* tlsProtocol) {
+	auto* sslMethod = url->url_type == url_https ? tlsProtocol : nullptr;
 	auto conn = make_unique<TlsConnection>(url->url_host, url_port(url), sslMethod);
 	mClients["generic"] = make_unique<LegacyClient>(
 		make_unique<TlsTransport>(move(conn)),

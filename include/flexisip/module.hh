@@ -48,6 +48,12 @@ enum class ModuleClass {
 
 extern "C" Module *__flexisipCreatePlugin(Agent *agent, SharedLibrary *sharedLibrary);
 
+// Exception raised when a module fails to load its configuration.
+class ConfigurationLoadingError : public std::runtime_error {
+public:
+	using std::runtime_error::runtime_error;
+};
+
 /**
  * Abstract base class for all Flexisip module.
  * A module is an object that is able to process sip requests and sip responses.
