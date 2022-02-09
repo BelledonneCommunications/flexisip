@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <flexisip/logmanager.hh>
+
 #include <chrono>
 #include <condition_variable>
 #include <vector>
@@ -86,22 +88,38 @@ public:
 	}
 	int getFd() const noexcept;
 
-	int read(void* data, int dlen, std::chrono::milliseconds timeout = std::chrono::milliseconds{2000}) noexcept;
+	int read(void* data, int dlen) noexcept;
 
 	template <typename ContainerT>
 	int readAll(ContainerT& result, std::chrono::milliseconds timeout = std::chrono::milliseconds{2000}) noexcept {
+		auto now = std::chrono::steady_clock::now();
+		auto nowPlusTimeout = now + timeout;
 		char readBuffer[1024];
+		int nbRead = 0;
 		result.clear();
 
-		// first read with timeout
-		auto nbRead = this->read(readBuffer, sizeof(readBuffer), timeout);
-		if (nbRead < 0) {
-			return nbRead;
+		while (nbRead == 0 && now < nowPlusTimeout) {
+			try {
+				if (!waitForData(std::chrono::duration_cast<std::chrono::milliseconds>(nowPlusTimeout - now))) {
+					return 0;
+				}
+			} catch (const std::runtime_error& e) {
+				return -1;
+			}
+
+			// Read can return 0 if only TLS data were present.
+			nbRead = this->read(readBuffer, sizeof(readBuffer));
+
+			if (nbRead < 0) {
+				return nbRead;
+			} else if (nbRead == 0) {
+				now = std::chrono::steady_clock::now();
+			}
 		}
 		result.insert(result.end(), readBuffer, readBuffer + nbRead);
 
 		// read until the socket is empty or an error occurs.
-		while ((nbRead = this->read(readBuffer, sizeof(readBuffer), std::chrono::milliseconds{0})) > 0) {
+		while ((nbRead = this->read(readBuffer, sizeof(readBuffer))) > 0) {
 			result.insert(result.end(), readBuffer, readBuffer + nbRead);
 		}
 		if (nbRead < 0) {

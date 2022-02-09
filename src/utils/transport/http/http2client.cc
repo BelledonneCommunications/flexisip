@@ -241,7 +241,7 @@ ssize_t Http2Client::doSend(nghttp2_session& session, const uint8_t* data, size_
 
 ssize_t Http2Client::doRecv(nghttp2_session& session, uint8_t* data, size_t length) noexcept {
 	length = min(length, size_t(numeric_limits<int>::max()));
-	auto nread = mConn->read(data, length, 0ms);
+	auto nread = mConn->read(data, length);
 	if (nread < 0) {
 		SLOGE << mLogPrefix << ": error while reading socket. " << strerror(errno);
 		return NGHTTP2_ERR_CALLBACK_FAILURE;

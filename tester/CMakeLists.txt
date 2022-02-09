@@ -33,9 +33,12 @@ add_executable(flexisip_tester
         module-pushnotification-tester.cc
         register-tester.cc
         router-tester.cc
-        tester.cc tester.hh
-        utils/listening-socket.cc utils/listening-socket.hh
-        utils/bellesip-utils.cc utils/bellesip-utils.hh
+        tester.cc
+        tls-connection-tester.cc
+        utils/bellesip-utils.cc
+        utils/listening-socket.cc
+        utils/tcp-server.cc
+        utils/tls-server.cc
         )
 
 if (ENABLE_CONFERENCE)
@@ -44,9 +47,9 @@ if (ENABLE_CONFERENCE)
 endif ()
 
 if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
-    target_sources(flexisip_tester PRIVATE push-notification-tester.cc utils/pns-mock.cc utils/pns-mock.hh )
+    target_sources(flexisip_tester PRIVATE push-notification-tester.cc utils/pns-mock.cc)
 elseif (ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
-    message(FATAL_ERROR "Module LibNgHttp2Asio is required for push notification tester. Either install it or disable push notification tester using -DENABLE_PUSH_NOTIF_UNIT_TESTS=Off") 
+    message(FATAL_ERROR "Module LibNgHttp2Asio is required for push notification tester. Either install it or disable push notification tester using -DENABLE_UNIT_TESTS_PUSH_NOTIFICATION=OFF")
 endif ()
 
 target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
