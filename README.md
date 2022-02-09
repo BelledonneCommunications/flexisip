@@ -1,7 +1,7 @@
 Flexisip is a complete, modular and scalable SIP server suite written in C++14, comprising proxy, presence and group chat functions.
 It also includes a push gateway, to deliver SIP incoming calls or text messages on mobile device platforms where push notifications are required to receive information when the app is not active in the foreground.
 
-Flexisip instances can be deployed on server machines to run a SIP VoIP service. 
+Flexisip instances can be deployed on server machines to run a SIP VoIP service.
 The free linphone.org SIP service has run on Flexisip since 2011, and enables Linphone users to create SIP addresses in order to connect with each other.
 
 It can also be embedded and run perfectly on small hardware systems.
@@ -25,6 +25,7 @@ Flexisip is dual licensed, and can be licensed and distributed:
 | :---            | :---                                                                                                                                     | :---:     | :---:              |
 | OpenSSL         | TLS stack.                                                                                                                               | X         |                    |
 | LibNgHttp2      | HTTP2 stack.                                                                                                                             | X         |                    |
+| libsrtp2        | Secure RTP (SRTP) and UST Reference Implementations                                                                                      | X         |
 | SQLite3         | Library for handling SQlite3 file                                                                                                        | X         |                    |
 | libmysql-client | Client library for MySQL database.                                                                                                       | X         |                    |
 | Hiredis         | Redis DB client library, used for Registrar DB and communications between Flexisip instances of a same cluster. (-DENABLE\_REDIS=YES)    |           | X                  |
