@@ -1,5 +1,5 @@
-### Default build directory ###
-/build
+### Any build directory ###
+/build*
 
 ### IDE or editor files ###
 *.kdev4

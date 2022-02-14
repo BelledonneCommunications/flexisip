@@ -100,6 +100,26 @@ A docker image can be build from sources with command:
 docker build -t flexisip --build-arg='njobs=<njobs>' -f docker/flex-from-src .
 ```
 
+## Nix ❄️
+
+Flexisip can also be compiled with [Nix]. You can obtain a development shell with: (from the root of the repository)
+
+```sh
+nix-shell
+```
+
+Nix makes it easier to have a reproducible development environment on
+any Linux distribution, and doesn't interfere with other installed tooling.
+It is just an additional, **optional** way to build flexisip.
+
+### Note to maintainers
+
+At the exception of [`shell.nix`](./shell.nix), `.nix` files should live inside the [`nix/`](./nix/) folder.
+
+All `.nix` files should be formatted with `nixpkgs-fmt`.
+
+[Nix]: https://nixos.org/
+
 # Configuration
 
 Flexisip needs a configuration file to run correctly.
