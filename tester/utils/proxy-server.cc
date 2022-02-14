@@ -18,23 +18,27 @@
 
 #include "proxy-server.hh"
 #include "flexisip/registrardb.hh"
+
+using namespace flexisip;
+using namespace std;
+using namespace std::chrono;
 /**
  * A class to manage the flexisip proxy server
  */
 Server::Server(const std::string& configFile) {
 	// Agent initialisation
-	mRoot = std::make_shared<sofiasip::SuRoot>();
-	mAgent = std::make_shared<flexisip::Agent>(mRoot);
+	mRoot = make_shared<sofiasip::SuRoot>();
+	mAgent = make_shared<Agent>(mRoot);
 
 	if (!configFile.empty()) {
-		flexisip::GenericManager* cfg = flexisip::GenericManager::get();
+		GenericManager* cfg = GenericManager::get();
 
 		auto configFilePath = bcTesterRes(configFile);
 		int ret = -1;
 		if (bctbx_file_exist(configFilePath.c_str()) == 0) {
 			ret = cfg->load(configFilePath);
 		} else {
-			ret = cfg->load(std::string(TESTER_DATA_DIR).append(configFile));
+			ret = cfg->load(string(TESTER_DATA_DIR).append(configFile));
 		}
 		if (ret != 0) {
 			BC_FAIL("Unable to load configuration file");
@@ -45,5 +49,12 @@ Server::Server(const std::string& configFile) {
 
 Server::~Server() {
 	mAgent->unloadConfig();
-	flexisip::RegistrarDb::resetDB();
+	RegistrarDb::resetDB();
+}
+
+void Server::runFor(std::chrono::milliseconds duration) {
+	auto beforePlusDuration = steady_clock::now() + duration;
+	while (beforePlusDuration >= steady_clock::now()) {
+		mRoot->step(100ms);
+	}
 }

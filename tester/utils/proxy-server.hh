@@ -28,17 +28,19 @@ private:
 
 public:
 	// Accessors
-	std::shared_ptr<sofiasip::SuRoot> getRoot() noexcept {
+	const std::shared_ptr<sofiasip::SuRoot>& getRoot() noexcept {
 		return mRoot;
 	}
 
-	std::shared_ptr<flexisip::Agent> getAgent() noexcept {
+	const std::shared_ptr<flexisip::Agent>& getAgent() noexcept {
 		return mAgent;
 	}
 
 	void start() {
 		mAgent->start("", "");
 	}
+
+	void runFor(std::chrono::milliseconds duration);
 
 	/**
 	 * Create the sofiasip root, the Agent and load the config file given as parameter

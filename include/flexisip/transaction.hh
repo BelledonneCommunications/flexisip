@@ -35,6 +35,7 @@ namespace flexisip {
 class OutgoingTransaction;
 class IncomingTransaction;
 class Agent;
+class BranchInfo;
 
 class IncomingAgent {
 public:
@@ -155,8 +156,8 @@ public:
 	int getResponseCode() const;
 	std::shared_ptr<MsgSip> getRequestMsg();
 
-	void cancel();
-	void cancelWithReason(sip_reason_t* reason);
+	void cancel(std::weak_ptr<BranchInfo> branch = std::weak_ptr<BranchInfo>{});
+	void cancelWithReason(sip_reason_t* reason, std::weak_ptr<BranchInfo> branch);
 
 private:
 	void
@@ -164,6 +165,8 @@ private:
 	void destroy();
 
 	static int _callback(nta_outgoing_magic_t* magic, nta_outgoing_t* irq, const sip_t* sip);
+
+	static int onCancelResponse(nta_outgoing_magic_t* magic, nta_outgoing_t* irq, const sip_t* sip);
 
 	sofiasip::Home mHome{};
 	nta_outgoing_t* mOutgoing{nullptr};

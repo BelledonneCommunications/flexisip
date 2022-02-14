@@ -59,7 +59,9 @@ public:
 	~ForkMessageContextDbProxy() override;
 
 	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& event) override;
-	bool onNewRegister(const SipUri& dest, const std::string& uid, const std::function<void()>& dispatchFunc) override;
+
+	std::shared_ptr<BranchInfo>
+	onNewRegister(const SipUri& dest, const std::string& uid, const DispatchFunction& dispatchFunc) override;
 
 	std::shared_ptr<BranchInfo> addBranch(const std::shared_ptr<RequestSipEvent>& ev,
 	                                      const std::shared_ptr<ExtendedContact>& contact) override {
@@ -107,6 +109,11 @@ public:
 		return mIsFinished;
 	}
 
+	void checkFinished() override {
+		checkState(__FUNCTION__, State::IN_MEMORY);
+		mForkMessage->checkFinished();
+	}
+
 	const std::shared_ptr<RequestSipEvent>& getEvent() override {
 		checkState(__FUNCTION__, State::IN_MEMORY);
 		return mForkMessage->getEvent();
@@ -126,6 +133,12 @@ public:
 		mForkMessage->assertEqual(expected->mForkMessage);
 	}
 #endif
+
+protected:
+	static constexpr auto CLASS_NAME = "ForkMessageContextDbProxy";
+	const char* getClassName() const override {
+		return CLASS_NAME;
+	};
 
 private:
 	ForkMessageContextDbProxy(Agent* agent,
@@ -148,7 +161,7 @@ private:
 	 * false. Should be called on the main loop from a thread : @see ForkMessageContextDbProxy::onNewRegister.
 	 * Must only be used when ForkMessageContextDbProxy has already been saved in DB once.
 	 */
-	void delayedOnNewRegister(const SipUri& dest, const std::string& uid, const std::function<void()>& dispatchFunc);
+	void delayedOnNewRegister(const SipUri& dest, const std::string& uid, const DispatchFunction& dispatchFunc);
 
 	/**
 	 * Be careful, blocking I/O with DB, should be called in a thread.

@@ -28,8 +28,7 @@ using namespace std;
 
 namespace flexisip {
 
-template <typename T>
-static bool contains(const list<T>& l, T value) {
+template <typename T> static bool contains(const list<T>& l, T value) {
 	return find(l.cbegin(), l.cend(), value) != l.cend();
 }
 
@@ -70,45 +69,44 @@ void ForkCallContext::onCancel(const shared_ptr<RequestSipEvent>& ev) {
 }
 
 void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo>& br, sip_t* received_cancel) {
+	if (!mCancelReason) {
+		if (received_cancel && received_cancel->sip_reason) {
+			mCancelReason = sip_reason_dup(mHome.home(), received_cancel->sip_reason);
+		}
+	}
 	const auto branches = getBranches(); // work on a copy of the list of branches
 	for (const auto& brit : branches) {
 		if (brit != br) {
-			auto& tr = brit->mTransaction;
-			if (tr && brit->getStatus() < 200) {
-				if (received_cancel && received_cancel->sip_reason) {
-					sip_reason_t* reason = sip_reason_dup(tr->getHome(), received_cancel->sip_reason);
-					tr->cancelWithReason(reason);
-				} else {
-					tr->cancel();
-				}
-			}
-
-			removeBranch(brit);
+			cancelBranch(brit);
 		}
 	}
 }
 
 void ForkCallContext::cancelOthersWithStatus(const shared_ptr<BranchInfo>& br, ForkStatus status) {
+	if (!mCancelReason) {
+		if (status == ForkStatus::AcceptedElsewhere) {
+			mCancelReason = sip_reason_make(mHome.home(), "SIP;cause=200;text=\"Call completed elsewhere\"");
+		} else if (status == ForkStatus::DeclineElsewhere) {
+			mCancelReason = sip_reason_make(mHome.home(), "SIP;cause=600;text=\"Busy Everywhere\"");
+		}
+	}
+
 	const auto branches = getBranches(); // work on a copy of the list of branches
 	for (const auto& brit : branches) {
 		if (brit != br) {
-			auto& tr = brit->mTransaction;
-			if (tr && brit->getStatus() < 200) {
-				if (status == ForkStatus::AcceptedElsewhere) {
-					sip_reason_t* reason =
-					    sip_reason_make(tr->getHome(), "SIP;cause=200;text=\"Call completed elsewhere\"");
-					tr->cancelWithReason(reason);
-				} else if (status == ForkStatus::DeclineElsewhere) {
-					sip_reason_t* reason = sip_reason_make(tr->getHome(), "SIP;cause=600;text=\"Busy Everywhere\"");
-					tr->cancelWithReason(reason);
-				} else {
-					tr->cancel();
-				}
-			}
-
-			removeBranch(brit);
+			cancelBranch(brit);
 		}
 	}
+}
+
+void ForkCallContext::cancelBranch(const std::shared_ptr<BranchInfo>& brit) {
+	auto& tr = brit->mTransaction;
+	if (tr && brit->getStatus() < 200) {
+		if (mCancelReason) tr->cancelWithReason(mCancelReason, brit);
+		else tr->cancel(brit);
+	}
+
+	if (!mCfg->mForkLate) removeBranch(brit);
 }
 
 const int ForkCallContext::sUrgentCodesWithout603[] = {401, 407, 415, 420, 484, 488, 606, 0};
@@ -125,36 +123,37 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, const shared_
 	const shared_ptr<MsgSip>& ms = event->getMsgSip();
 	sip_t* sip = ms->getSip();
 	int code = sip->sip_status->st_status;
+	LOGD("ForkCallContext[%p]::onResponse()", this);
 
 	if (code >= 300) {
-		/*in fork-late mode, we must not consider that 503 and 408 resonse codes (which are send by sofia in case of i/o
-		 * error or timeouts) are branches that are answered)
-		 * Instead we must wait for the duration of the fork for new registers*/
+		/*
+		 * In fork-late mode, we must not consider that 503 and 408 response codes (which are sent by sofia in case of
+		 * i/o error or timeouts) are branches that are answered. Instead, we must wait for the duration of the fork for
+		 * new registers.
+		 */
 		if (allBranchesAnswered(mCfg->mForkLate)) {
 			shared_ptr<BranchInfo> best = findBestBranch(getUrgentCodes(), mCfg->mForkLate);
 			if (best) logResponse(forwardResponse(best));
-			return;
-		}
-
-		if (isUrgent(code, getUrgentCodes()) && mShortTimer == nullptr) {
+		} else if (isUrgent(code, getUrgentCodes()) && mShortTimer == nullptr) {
 			mShortTimer = make_unique<sofiasip::Timer>(mAgent->getRoot());
 			mShortTimer->set([this]() { onShortTimer(); }, mCfg->mUrgentTimeout * 1000);
-			return;
-		}
-
-		if (code >= 600) {
+		} else if (code >= 600) {
 			/*6xx response are normally treated as global faillures */
 			if (!mCfg->mForkNoGlobalDecline) {
 				logResponse(forwardResponse(br));
+				mCancelled = true;
 				cancelOthersWithStatus(br, ForkStatus::DeclineElsewhere);
 			}
 		}
 	} else if (code >= 200) {
 		logResponse(forwardResponse(br));
+		mCancelled = true;
 		cancelOthersWithStatus(br, ForkStatus::AcceptedElsewhere);
 	} else if (code >= 100) {
 		logResponse(forwardResponse(br));
 	}
+
+	checkFinished();
 }
 
 // This is actually called when we want to simulate a ringing event by sending a 180, or for example to signal the
@@ -201,12 +200,20 @@ void ForkCallContext::logResponse(const shared_ptr<ResponseSipEvent>& ev) {
 	}
 }
 
-bool ForkCallContext::onNewRegister(const SipUri& url,
-                                    const std::string& uid,
-                                    const function<void()>& dispatchFunction) {
-	if (isCompleted()) return false;
+std::shared_ptr<BranchInfo>
+ForkCallContext::onNewRegister(const SipUri& url, const std::string& uid, const DispatchFunction& dispatchFunction) {
+	LOGD("ForkCallContext[%p]::onNewRegister()", this);
+	if (isCompleted() && !mCfg->mForkLate) return nullptr;
 
-	return ForkContextBase::onNewRegister(url, uid, dispatchFunction);
+	auto dispatchedBranch = ForkContextBase::onNewRegister(url, uid, dispatchFunction);
+
+	if (dispatchedBranch && isCompleted()) {
+		cancelBranch(dispatchedBranch);
+	}
+
+	checkFinished();
+
+	return dispatchedBranch;
 }
 
 bool ForkCallContext::isCompleted() const {

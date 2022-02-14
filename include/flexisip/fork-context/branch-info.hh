@@ -33,9 +33,13 @@ namespace flexisip {
 
 class BranchInfo {
 public:
-	template <typename T>
-	BranchInfo(T&& ctx) : mForkCtx{std::forward<T>(ctx)} {
+	template <typename T> BranchInfo(T&& ctx) : mForkCtx{std::forward<T>(ctx)} {
 	}
+
+	/**
+	 * Used to create an empty fake branch
+	 */
+	BranchInfo() = default;
 
 	/**
 	 * Used when restoring BranchInfo from database in fork-late mode.
@@ -66,6 +70,13 @@ public:
 	// Set the BranchInfo managed by an outoing transaction
 	static void setBranchInfo(const std::shared_ptr<OutgoingTransaction>& tr, const std::weak_ptr<BranchInfo> br) {
 		if (tr) tr->setProperty("BranchInfo", br);
+	}
+
+	bool needsDelivery() {
+		if (cancelCompleted) return false;
+
+		auto currentStatus = getStatus();
+		return currentStatus < 200 || currentStatus == 503 || currentStatus == 408;
 	}
 
 	BranchInfoDb getDbObject() {
@@ -99,6 +110,11 @@ public:
 	 * Can be used to know if a push notification has already been sent for this branch.
 	 */
 	int mClearedCount{0};
+
+	/**
+	 * Only used with Invite/ForkCall
+	 */
+	bool cancelCompleted = false;
 };
 
 } // namespace flexisip

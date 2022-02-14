@@ -259,9 +259,9 @@ string ModuleRouter::routingKey(const url_t* sipUri) {
 	return oss.str();
 }
 
-void ModuleRouter::dispatch(const shared_ptr<ForkContext> context,
-                            const shared_ptr<ExtendedContact>& contact,
-                            const string& targetUris) {
+shared_ptr<BranchInfo> ModuleRouter::dispatch(const shared_ptr<ForkContext> context,
+                                              const shared_ptr<ExtendedContact>& contact,
+                                              const string& targetUris) {
 	const auto& ev = context->getEvent();
 	const auto& ms = ev->getMsgSip();
 	time_t now = getCurrentTime();
@@ -271,7 +271,7 @@ void ModuleRouter::dispatch(const shared_ptr<ForkContext> context,
 	/*sanity check on the contact address: might be '*' or whatever useless information*/
 	if (dest->url_host == NULL || dest->url_host[0] == '\0') {
 		LOGW("Request is not routed because of incorrect address of contact");
-		return;
+		return nullptr;
 	}
 
 	char* contact_url_string = url_as_string(ms->getHome(), dest);
@@ -321,7 +321,8 @@ void ModuleRouter::dispatch(const shared_ptr<ForkContext> context,
 	cleanAndPrependRoute(getAgent(), new_msg, new_sip, routes);
 
 	SLOGD << "Fork to " << contact_url_string;
-	context->addBranch(new_ev, contact);
+
+	return context->addBranch(new_ev, contact);
 }
 
 void ModuleRouter::onContactRegistered(const shared_ptr<OnContactRegisteredListener>& listener,
@@ -353,7 +354,7 @@ void ModuleRouter::onContactRegistered(const shared_ptr<OnContactRegisteredListe
 			// First use sipURI
 			for (const auto& context : range) {
 				context->onNewRegister(SipUri{contact->m_url}, uid,
-				                       [this, context, ec]() { this->dispatch(context, ec, ""); });
+				                       [this, context, ec]() { return this->dispatch(context, ec, ""); });
 			}
 		}
 	}
@@ -368,7 +369,7 @@ void ModuleRouter::onContactRegistered(const shared_ptr<OnContactRegisteredListe
 		for (const auto& context : rang) {
 			forksFound = true;
 			context->onNewRegister(SipUri{contact->m_url}, uid,
-			                       [this, context, ec]() { this->dispatch(context, ec, ""); });
+			                       [this, context, ec]() { return this->dispatch(context, ec, ""); });
 		}
 	}
 

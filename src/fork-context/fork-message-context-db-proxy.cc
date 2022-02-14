@@ -172,9 +172,8 @@ void ForkMessageContextDbProxy::onResponse(const shared_ptr<BranchInfo>& br,
 	}
 }
 
-bool ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
-                                              const string& uid,
-                                              const function<void()>& dispatchFunc) {
+std::shared_ptr<BranchInfo>
+ForkMessageContextDbProxy::onNewRegister(const SipUri& dest, const string& uid, const DispatchFunction& dispatchFunc) {
 	LOGD("ForkMessageContextDbProxy[%p] onNewRegister", this);
 	if (mState != State::IN_MEMORY) {
 		ThreadPool::getGlobalThreadPool()->run([this, dest, uid, dispatchFunc]() {
@@ -202,17 +201,17 @@ bool ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
 			    });
 		});
 
-		// Always return true here in case you were called by delayedOnNewRegister.
-		return true;
+		// Always return a fake empty branch here in case you were called by delayedOnNewRegister.
+		return make_shared<BranchInfo>();
 	} else {
 		if (restoreForkIfNeeded()) return mForkMessage->onNewRegister(dest, uid, dispatchFunc);
-		else return false;
+		else return nullptr;
 	}
 }
 
 void ForkMessageContextDbProxy::delayedOnNewRegister(const SipUri& dest,
                                                      const string& uid,
-                                                     const function<void()>& dispatchFunc) {
+                                                     const DispatchFunction& dispatchFunc) {
 	if (restoreForkIfNeeded() && !onNewRegister(dest, uid, dispatchFunc) && mForkMessage->allBranchesAnswered()) {
 		startTimerAndResetFork();
 		mState = State::IN_DATABASE;

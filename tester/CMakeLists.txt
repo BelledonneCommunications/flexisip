@@ -35,6 +35,7 @@ add_executable(flexisip_tester
         agent-tester.cc
         boolean-expressions.cc
         extended-contact-tester.cc
+        fork-call-tester.cc
         fork-context-tester.cc
         fork-context-mysql-tester.cc
         module-pushnotification-tester.cc

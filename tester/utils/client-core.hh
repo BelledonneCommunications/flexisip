@@ -17,6 +17,7 @@
 */
 
 #pragma once
+
 #include "../tester.hh"
 #include "proxy-server.hh"
 
@@ -54,14 +55,14 @@ public:
 	 * @param[in] me		address of local account
 	 * @param[in] server	server to register to
 	 */
-	CoreClient(const std::string me, std::shared_ptr<Server> server);
+	CoreClient(const std::string me, const std::shared_ptr<Server>& server);
 
 	/**
 	 * Create an account(using address given at client creation) and register to the given server
 	 *
 	 * @param[in] server	server to register to
 	 */
-	void registerTo(std::shared_ptr<Server> server);
+	void registerTo(const std::shared_ptr<Server>& server);
 
 	~CoreClient();
 
@@ -74,9 +75,24 @@ public:
 	 *
 	 * @return the established call from caller side, nullptr on failure
 	 */
-	std::shared_ptr<linphone::Call> call(std::shared_ptr<CoreClient> callee,
-	                                     std::shared_ptr<linphone::CallParams> callerCallParams = nullptr,
-	                                     std::shared_ptr<linphone::CallParams> calleeCallParams = nullptr);
+	std::shared_ptr<linphone::Call> call(const std::shared_ptr<CoreClient>& callee,
+	                                     const std::shared_ptr<linphone::CallParams>& callerCallParams = nullptr,
+	                                     const std::shared_ptr<linphone::CallParams>& calleeCallParams = nullptr,
+	                                     const std::vector<std::shared_ptr<CoreClient>>& calleeIdleDevices = {});
+
+	/**
+	 * Establish a call, but cancel before callee receive it
+	 *
+	 * @param[in] callee 			client to call
+	 * @param[in] callerCallParams	call params used by the caller to answer the call. nullptr to use default callParams
+	 * @param[in] calleeCallParams	call params used by the callee to accept the call. nullptr to use default callParams
+	 *
+	 * @return the established call from caller side, nullptr on failure
+	 */
+	std::shared_ptr<linphone::Call>
+	callWithEarlyCancel(const std::shared_ptr<CoreClient>& callee,
+	                    const std::shared_ptr<linphone::CallParams>& callerCallParams = nullptr,
+	                    bool isCalleeAway = false);
 
 	/**
 	 * Establish a video call.
@@ -88,9 +104,9 @@ public:
 	 *
 	 * @return the established call from caller side, nullptr on failure
 	 */
-	std::shared_ptr<linphone::Call> callVideo(std::shared_ptr<CoreClient> callee,
-	                                          std::shared_ptr<linphone::CallParams> callerCallParams = nullptr,
-	                                          std::shared_ptr<linphone::CallParams> calleeCallParams = nullptr);
+	std::shared_ptr<linphone::Call> callVideo(const std::shared_ptr<CoreClient>& callee,
+	                                          const std::shared_ptr<linphone::CallParams>& callerCallParams = nullptr,
+	                                          const std::shared_ptr<linphone::CallParams>& calleeCallParams = nullptr);
 
 	/**
 	 * Update an ongoing call.
@@ -101,7 +117,8 @@ public:
 	 *
 	 * @return true if all asserts in the callUpdate succeded, false otherwise
 	 */
-	bool callUpdate(std::shared_ptr<CoreClient> peer, std::shared_ptr<linphone::CallParams> callerCallParams);
+	bool callUpdate(const std::shared_ptr<CoreClient>& peer,
+	                const std::shared_ptr<linphone::CallParams>& callerCallParams);
 
 	/**
 	 * Get from the two sides the current call and terminate if from this side
@@ -111,5 +128,7 @@ public:
 	 *
 	 * @return true if all asserts in the function succeded, false otherwise
 	 */
-	bool endCurrentCall(std::shared_ptr<CoreClient> peer);
+	bool endCurrentCall(const std::shared_ptr<CoreClient>& peer);
+
+	void runFor(std::chrono::milliseconds duration);
 }; // class CoreClient

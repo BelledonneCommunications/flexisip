@@ -45,8 +45,8 @@ public:
 
 	virtual ~ForkMessageContext();
 
-	bool
-	onNewRegister(const SipUri& dest, const std::string& uid, const std::function<void()>& dispatchFunction) override;
+	std::shared_ptr<BranchInfo>
+	onNewRegister(const SipUri& dest, const std::string& uid, const DispatchFunction& dispatchFunction) override;
 	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& ev) override;
 
 	ForkMessageContextDb getDbObject();
@@ -64,6 +64,11 @@ protected:
 	void onNewBranch(const std::shared_ptr<BranchInfo>& br) override;
 	bool shouldFinish() override;
 
+	static constexpr auto CLASS_NAME = "ForkMessageContext";
+	const char* getClassName() const override {
+		return CLASS_NAME;
+	};
+
 private:
 	ForkMessageContext(Agent* agent,
 	                   const std::shared_ptr<RequestSipEvent>& event,
@@ -76,7 +81,6 @@ private:
 	void onAcceptanceTimer();
 	void logReceivedFromUserEvent(const std::shared_ptr<RequestSipEvent>& reqEv,
 	                              const std::shared_ptr<ResponseSipEvent>& respEv);
-	void checkFinished();
 	void logDeliveredToUserEvent(const std::shared_ptr<RequestSipEvent>& reqEv,
 	                             const std::shared_ptr<ResponseSipEvent>& respEv);
 

@@ -52,6 +52,7 @@ extern test_suite_t agent_suite;
 extern test_suite_t boolean_expressions_suite;
 extern test_suite_t conference_suite;
 extern test_suite_t extended_contact_suite;
+extern test_suite_t fork_call_suite;
 extern test_suite_t fork_context_suite;
 extern test_suite_t fork_context_mysql_suite;
 extern test_suite_t module_pushnitification_suite;

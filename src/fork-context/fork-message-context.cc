@@ -33,10 +33,6 @@ using namespace std;
 using namespace std::chrono;
 using namespace flexisip;
 
-static bool needsDelivery(int code) {
-	return code < 200 || code == 503 || code == 408;
-}
-
 shared_ptr<ForkMessageContext> ForkMessageContext::make(Agent* agent,
                                                         const std::shared_ptr<RequestSipEvent>& event,
                                                         const std::shared_ptr<ForkContextConfig>& cfg,
@@ -114,34 +110,6 @@ ForkMessageContext::~ForkMessageContext() {
 
 bool ForkMessageContext::shouldFinish() {
 	return !mCfg->mForkLate; // the messaging fork context controls its termination in late forking mode.
-}
-
-void ForkMessageContext::checkFinished() {
-	if (mIncoming == nullptr && !mCfg->mForkLate) {
-		setFinished();
-		return;
-	}
-
-	auto branches = getBranches();
-	bool allBranchesTerminated = true;
-
-	if (!mCfg->mForkLate) {
-		allBranchesTerminated = allBranchesAnswered();
-	} else {
-		for (auto it = branches.begin(); it != branches.end(); ++it) {
-			if (needsDelivery((*it)->getStatus())) {
-				allBranchesTerminated = false;
-				break;
-			}
-		}
-	}
-	if (allBranchesTerminated) {
-		shared_ptr<BranchInfo> br = findBestBranch(sUrgentCodes);
-		if (br) {
-			forwardResponse(br);
-		}
-		setFinished();
-	}
 }
 
 void ForkMessageContext::logDeliveredToUserEvent(const shared_ptr<RequestSipEvent>& reqEv,
@@ -261,36 +229,34 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo>& br) {
 	}
 }
 
-bool ForkMessageContext::onNewRegister(const SipUri& dest,
-                                       const std::string& uid,
-                                       const function<void()>& dispatchFunction) {
-	bool already_have_transaction = !ForkContextBase::onNewRegister(dest, uid, []() {});
-	if (already_have_transaction) return false;
+std::shared_ptr<BranchInfo> ForkMessageContext::onNewRegister(const SipUri& dest,
+                                                              const std::string& uid,
+                                                              const DispatchFunction& dispatchFunction) {
+	shared_ptr<BranchInfo> fakeBranch{};
+	auto alreadyHaveTransaction = ForkContextBase::onNewRegister(dest, uid, [&fakeBranch]() { return fakeBranch; });
+	if (alreadyHaveTransaction != fakeBranch) return nullptr;
 	if (uid.size() > 0) {
 		shared_ptr<BranchInfo> br = findBranchByUid(uid);
 		if (br == nullptr) {
 			// this is a new client instance. The message needs
 			// to be delivered.
 			LOGD("ForkMessageContext::onNewRegister(): this is a new client instance.");
-			dispatchFunction();
-			return true;
-		} else if (needsDelivery(br->getStatus())) {
+			return dispatchFunction();
+		} else if (br->needsDelivery()) {
 			// this is a client for which the message wasn't delivered yet (or failed to be delivered). The message
 			// needs to be delivered.
 			LOGD("ForkMessageContext::onNewRegister(): this client is reconnecting but was not delivered before.");
-			dispatchFunction();
-			return true;
+			return dispatchFunction();
 		}
 	}
 	// in all other case we can accept a new transaction only if the message hasn't been delivered already.
 	LOGD("Message has been delivered %i times.", mDeliveredCount);
 
 	if (mDeliveredCount == 0) {
-		dispatchFunction();
-		return true;
+		return dispatchFunction();
 	}
 
-	return false;
+	return nullptr;
 }
 
 ForkMessageContextDb ForkMessageContext::getDbObject() {

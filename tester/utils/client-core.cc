@@ -16,12 +16,21 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "asserts.hh"
 #include <chrono>
 
-#include "client-core.hh"
-#include <mediastreamer2/mediastream.h>
 #include <linphone/core.h>
+#include <mediastreamer2/mediastream.h>
+
+#include "asserts.hh"
+#include "flexisip/module-router.hh"
+
+#include "client-core.hh"
+
+using namespace flexisip;
+using namespace std;
+using namespace std::chrono;
+using namespace linphone;
+
 /**
  * Class to manage a client Core
  */
@@ -67,11 +76,11 @@ CoreClient::CoreClient(const std::string me) {
 	mCore->start();
 }
 
-CoreClient::CoreClient(std::string me, std::shared_ptr<Server> server) : CoreClient(me) {
+CoreClient::CoreClient(const string me, const shared_ptr<Server>& server) : CoreClient(me) {
 	registerTo(server);
 }
 
-void CoreClient::registerTo(std::shared_ptr<Server> server) {
+void CoreClient::registerTo(const shared_ptr<Server>& server) {
 	mServer = server;
 
 	// Clients register to the first of the list of transports read in the proxy configuration
@@ -113,9 +122,9 @@ CoreClient::~CoreClient() {
 	});
 }
 
-std::shared_ptr<linphone::Call> CoreClient::callVideo(std::shared_ptr<CoreClient> callee,
-                                                      std::shared_ptr<linphone::CallParams> callerCallParams,
-                                                      std::shared_ptr<linphone::CallParams> calleeCallParams) {
+std::shared_ptr<linphone::Call> CoreClient::callVideo(const std::shared_ptr<CoreClient>& callee,
+                                                      const std::shared_ptr<linphone::CallParams>& callerCallParams,
+                                                      const std::shared_ptr<linphone::CallParams>& calleeCallParams) {
 	std::shared_ptr<linphone::CallParams> callParams = callerCallParams;
 	if (callParams == nullptr) {
 		callParams = mCore->createCallParams(nullptr);
@@ -124,28 +133,52 @@ std::shared_ptr<linphone::Call> CoreClient::callVideo(std::shared_ptr<CoreClient
 	return call(callee, callParams, calleeCallParams);
 }
 
-std::shared_ptr<linphone::Call> CoreClient::call(std::shared_ptr<CoreClient> callee,
-                                                 std::shared_ptr<linphone::CallParams> callerCallParams,
-                                                 std::shared_ptr<linphone::CallParams> calleeCallParams) {
-	std::shared_ptr<linphone::CallParams> callParams = callerCallParams;
+std::shared_ptr<linphone::Call> CoreClient::call(const std::shared_ptr<CoreClient>& callee,
+                                                 const std::shared_ptr<linphone::CallParams>& callerCallParams,
+                                                 const std::shared_ptr<linphone::CallParams>& calleeCallParams,
+                                                 const std::vector<std::shared_ptr<CoreClient>>& calleeIdleDevices) {
+	shared_ptr<CallParams> callParams = callerCallParams;
 	if (callParams == nullptr) {
 		callParams = mCore->createCallParams(nullptr);
 	}
-	auto callerCall = mCore->inviteAddressWithParams(callee->getAccount()->getContactAddress(), callParams);
+
+	auto addressWithoutGr = callee->getAccount()->getContactAddress();
+	addressWithoutGr->removeUriParam("gr");
+	auto callerCall = mCore->inviteAddressWithParams(addressWithoutGr, callParams);
 
 	if (callerCall == nullptr) {
 		BC_FAIL("Invite failed");
 		return nullptr;
 	}
 
-	std::initializer_list<std::shared_ptr<linphone::Core>> coreList = {mCore, callee->getCore()};
+	vector<shared_ptr<Core>> coreList = {mCore, callee->getCore()};
+
+	vector<shared_ptr<Core>> idleCoreList = {mCore};
+	for (const auto& calleeDevice : calleeIdleDevices) {
+		idleCoreList.push_back(calleeDevice->getCore());
+	}
+
 	// Check call get the incoming call and caller is in OutgoingRinging state
 	if (!BC_ASSERT_TRUE(CoreAssert(coreList, mServer->getAgent()).waitUntil(std::chrono::seconds(5), [callee] {
-		    return ((callee->getCore()->getCurrentCall() != nullptr) &&
-		            (callee->getCore()->getCurrentCall()->getState() == linphone::Call::State::IncomingReceived));
+		    return (callee->getCore()->getCurrentCall() != nullptr &&
+		            callee->getCore()->getCurrentCall()->getState() == linphone::Call::State::IncomingReceived);
 	    }))) {
 		return nullptr;
 	}
+	if (!calleeIdleDevices.empty()) {
+		// If callee also have idle devices check that they are ringing too
+		if (!BC_ASSERT_TRUE(CoreAssert(idleCoreList, mServer->getAgent()).wait([calleeIdleDevices] {
+			    return all_of(calleeIdleDevices.cbegin(), calleeIdleDevices.cend(),
+			                  [](const shared_ptr<CoreClient>& idleDevice) {
+				                  return idleDevice->getCore()->getCurrentCall() != nullptr &&
+				                         idleDevice->getCore()->getCurrentCall()->getState() ==
+				                             linphone::Call::State::IncomingReceived;
+			                  });
+		    }))) {
+			return nullptr;
+		}
+	}
+
 	auto calleeCall = callee->getCore()->getCurrentCall();
 	if (calleeCall == nullptr) {
 		BC_FAIL("No call received");
@@ -171,6 +204,19 @@ std::shared_ptr<linphone::Call> CoreClient::call(std::shared_ptr<CoreClient> cal
 		BC_ASSERT_TRUE(callerCall->getState() == linphone::Call::State::StreamsRunning);
 		BC_ASSERT_TRUE(calleeCall->getState() == linphone::Call::State::StreamsRunning);
 		return nullptr;
+	}
+	if (!calleeIdleDevices.empty()) {
+		// If callee also have idle devices check that they are not ringing anymore / got cancelled.
+		if (!BC_ASSERT_TRUE(CoreAssert(idleCoreList, mServer->getAgent()).wait([calleeIdleDevices] {
+			    return all_of(
+			        calleeIdleDevices.cbegin(), calleeIdleDevices.cend(), [](const shared_ptr<CoreClient>& idleDevice) {
+				        return idleDevice->getCore()->getCurrentCall() == nullptr ||
+				               idleDevice->getCore()->getCurrentCall()->getState() == linphone::Call::State::End ||
+				               idleDevice->getCore()->getCurrentCall()->getState() == linphone::Call::State::Released;
+			        });
+		    }))) {
+			return nullptr;
+		}
 	}
 
 	if (!BC_ASSERT_TRUE(CoreAssert(coreList, mServer->getAgent())
@@ -220,7 +266,74 @@ std::shared_ptr<linphone::Call> CoreClient::call(std::shared_ptr<CoreClient> cal
 	return callerCall;
 }
 
-bool CoreClient::callUpdate(std::shared_ptr<CoreClient> peer, std::shared_ptr<linphone::CallParams> callParams) {
+std::shared_ptr<linphone::Call>
+CoreClient::callWithEarlyCancel(const std::shared_ptr<CoreClient>& callee,
+                                const std::shared_ptr<linphone::CallParams>& callerCallParams,
+                                bool isCalleeAway) {
+	shared_ptr<linphone::CallParams> callParams = callerCallParams;
+	if (callParams == nullptr) {
+		callParams = mCore->createCallParams(nullptr);
+	}
+
+	auto addressWithoutGr = callee->getAccount()->getContactAddress();
+	addressWithoutGr->removeUriParam("gr");
+	auto callerCall = mCore->inviteAddressWithParams(addressWithoutGr, callParams);
+
+	if (callerCall == nullptr) {
+		BC_FAIL("Invite failed");
+		return nullptr;
+	}
+
+	vector<shared_ptr<linphone::Core>> coreList = {mCore};
+	if (isCalleeAway) {
+		// Register callee to update the registrar DB
+		if (!BC_ASSERT_TRUE(CoreAssert(coreList, mServer->getAgent()).wait([callee] {
+			    return callee->getAccount()->getState() == linphone::RegistrationState::Ok;
+		    }))) {
+			return nullptr;
+		}
+
+		callee->getCore()->setNetworkReachable(false);
+
+		// But simulate that callee goes offline
+		coreList = {mCore};
+	} else {
+		coreList.push_back(callee->getCore());
+	}
+
+	// Check call get the incoming call and caller is in OutgoingRinging state
+	if (!BC_ASSERT_TRUE(CoreAssert(coreList, mServer->getAgent())
+	                        .waitUntil(seconds(10), [&callerCall, isCalleeAway, &agent = mServer->getAgent(), &callee] {
+		                        if (isCalleeAway) {
+			                        const auto& moduleRouter =
+			                            dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+			                        return callerCall->getState() == linphone::Call::State::OutgoingProgress &&
+			                               moduleRouter->mStats.mCountCallForks->start->read() == 1;
+		                        } else {
+
+			                        return callerCall->getState() == linphone::Call::State::OutgoingRinging &&
+			                               callee->getCore()->getCurrentCall() &&
+			                               callee->getCore()->getCurrentCall()->getState() ==
+			                                   Call::State::IncomingReceived;
+		                        }
+	                        }))) {
+		return nullptr;
+	}
+
+	callerCall->terminate();
+
+	if (!BC_ASSERT_TRUE(CoreAssert(coreList, mServer->getAgent()).wait([&callerCall, isCalleeAway, &callee] {
+		    return callerCall->getState() == linphone::Call::State::Released &&
+		           (isCalleeAway || !callee->getCore()->getCurrentCall() ||
+		            callee->getCore()->getCurrentCall()->getState() == Call::State::Released);
+	    }))) {
+		return nullptr;
+	}
+	return callerCall;
+}
+
+bool CoreClient::callUpdate(const std::shared_ptr<CoreClient>& peer,
+                            const std::shared_ptr<linphone::CallParams>& callParams) {
 	if (callParams == nullptr) {
 		BC_FAIL("Cannot update call without new call params");
 	}
@@ -272,7 +385,7 @@ bool CoreClient::callUpdate(std::shared_ptr<CoreClient> peer, std::shared_ptr<li
 	return true;
 }
 
-bool CoreClient::endCurrentCall(std::shared_ptr<CoreClient> peer) {
+bool CoreClient::endCurrentCall(const std::shared_ptr<CoreClient>& peer) {
 	auto selfCall = mCore->getCurrentCall();
 	auto peerCall = peer->getCore()->getCurrentCall();
 	if (selfCall == nullptr || peerCall == nullptr) {
@@ -290,4 +403,11 @@ bool CoreClient::endCurrentCall(std::shared_ptr<CoreClient> peer) {
 		return false;
 	}
 	return true;
+}
+
+void CoreClient::runFor(std::chrono::milliseconds duration) {
+	auto beforePlusDuration = steady_clock::now() + duration;
+	while (beforePlusDuration >= steady_clock::now()) {
+		mCore->iterate();
+	}
 }

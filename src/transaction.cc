@@ -25,6 +25,8 @@
 #include "flexisip/agent.hh"
 #include "flexisip/common.hh"
 #include "flexisip/event.hh"
+#include "flexisip/fork-context/branch-info.hh"
+
 #include "flexisip/transaction.hh"
 
 using namespace std;
@@ -69,23 +71,45 @@ su_home_t* OutgoingTransaction::getHome() {
 	return mHome.home();
 }
 
-void OutgoingTransaction::cancel() {
+void OutgoingTransaction::cancel(std::weak_ptr<BranchInfo> branch) {
 	if (mOutgoing) {
-		nta_outgoing_cancel(mOutgoing);
-		destroy();
+		// WARNING : magicWeak MUST be deleted in callback
+		auto* magicWeak = new weak_ptr<BranchInfo>(branch);
+		nta_outgoing_tcancel(mOutgoing, OutgoingTransaction::onCancelResponse, (nta_outgoing_magic_t*)magicWeak,
+		                     TAG_END());
 	} else {
 		LOGE("OutgoingTransaction::cancel(): transaction already destroyed.");
 	}
 }
 
-void OutgoingTransaction::cancelWithReason(sip_reason_t* reason) {
+void OutgoingTransaction::cancelWithReason(sip_reason_t* reason, std::weak_ptr<BranchInfo> branch) {
 	if (mOutgoing) {
-		// nta_outgoing_cancel(mOutgoing);
-		nta_outgoing_tcancel(mOutgoing, NULL, NULL, SIPTAG_REASON(reason), TAG_END());
-		destroy();
+		// WARNING : magicWeak MUST be deleted in callback
+		auto* magicWeak = new weak_ptr<BranchInfo>(branch);
+		nta_outgoing_tcancel(mOutgoing, OutgoingTransaction::onCancelResponse, (nta_outgoing_magic_t*)magicWeak,
+		                     SIPTAG_REASON(reason), TAG_END());
 	} else {
 		LOGE("OutgoingTransaction::cancel(): transaction already destroyed.");
 	}
+}
+
+int OutgoingTransaction::onCancelResponse(nta_outgoing_magic_t* magic, nta_outgoing_t* irq, const sip_t* sip) {
+	auto* magicWeakBranch = reinterpret_cast<weak_ptr<BranchInfo>*>(magic);
+
+	if (sip != nullptr) {
+		if (sip->sip_status && sip->sip_status->st_status >= 200 && sip->sip_status->st_status < 300) {
+			if (auto sharedBranch = magicWeakBranch->lock()) {
+				sharedBranch->cancelCompleted = true;
+				if (auto sharedFork = sharedBranch->mForkCtx.lock()) {
+					sharedFork->checkFinished();
+				}
+			}
+		}
+	}
+
+	delete magicWeakBranch;
+
+	return 0;
 }
 
 const url_t* OutgoingTransaction::getRequestUri() const {

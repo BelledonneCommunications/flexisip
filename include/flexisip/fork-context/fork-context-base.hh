@@ -124,13 +124,8 @@ public:
 	void addKey(const std::string& key) override;
 	const std::vector<std::string>& getKeys() const override;
 
-	/*
-	 * Informs the forked call context that a new register from a potential destination of the fork just arrived.
-	 * If the fork context is interested in handling this new destination, then it should return true, false otherwise.
-	 * Typical case for refusing it is when another transaction already exists or existed for this contact.
-	 **/
-	bool
-	onNewRegister(const SipUri& dest, const std::string& uid, const std::function<void()>& dispatchFunction) override;
+	std::shared_ptr<BranchInfo>
+	onNewRegister(const SipUri& dest, const std::string& uid, const DispatchFunction& dispatchFunction) override;
 	// Notifies the cancellation of the fork process.
 	void onCancel(const std::shared_ptr<RequestSipEvent>& ev) override;
 	const std::shared_ptr<RequestSipEvent>& getEvent() override;
@@ -140,6 +135,7 @@ public:
 	bool isFinished() const override {
 		return mFinished;
 	};
+	void checkFinished() override;
 
 	static const int sUrgentCodes[];
 	static const int sAllCodesUrgent[];

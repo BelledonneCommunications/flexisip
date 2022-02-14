@@ -52,12 +52,12 @@ private:
 
 class CoreAssert : public BcAssert {
 public:
-	CoreAssert(std::initializer_list<std::shared_ptr<linphone::Core>> cores) {
-		for (std::shared_ptr<linphone::Core> core : cores) {
+	CoreAssert(const std::vector<std::shared_ptr<linphone::Core>>& cores) {
+		for (const auto& core : cores) {
 			addCustomIterate([core] { core->iterate(); });
 		}
 	}
-	CoreAssert(std::initializer_list<std::shared_ptr<linphone::Core>> cores, std::shared_ptr<flexisip::Agent> agent)
+	CoreAssert(const std::vector<std::shared_ptr<linphone::Core>>& cores, const std::shared_ptr<flexisip::Agent>& agent)
 	    : CoreAssert(cores) {
 		addCustomIterate([agent] { agent->getRoot()->step(std::chrono::milliseconds(1)); });
 	}

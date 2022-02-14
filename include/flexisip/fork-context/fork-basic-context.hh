@@ -41,10 +41,16 @@ public:
 
 protected:
 	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& event) override;
-	bool
-	onNewRegister(const SipUri& url, const std::string& uid, const std::function<void()>& dispatchFunction) override {
-		return false;
+
+	std::shared_ptr<BranchInfo>
+	onNewRegister(const SipUri& url, const std::string& uid, const DispatchFunction& dispatchFunction) override {
+		return std::shared_ptr<BranchInfo>{};
 	}
+
+	static constexpr auto CLASS_NAME = "ForkBasicContext";
+	const char* getClassName() const override {
+		return CLASS_NAME;
+	};
 
 private:
 	ForkBasicContext(Agent* agent,

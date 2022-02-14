@@ -41,7 +41,7 @@ ForkContextBase::ForkContextBase(Agent* agent,
 	if (auto sharedCounter = mStatCounter.lock()) {
 		sharedCounter->incrStart();
 	} else {
-		SLOGE << errorLogPrefix() << "weak_ptr mStatCounter should be present here.";
+		SLOGE << "ForkContextBase [" << this << "] - fork error - weak_ptr mStatCounter should be present here.";
 	}
 
 	if (!isRestored) {
@@ -59,7 +59,7 @@ ForkContextBase::~ForkContextBase() {
 	if (auto sharedCounter = mStatCounter.lock()) {
 		sharedCounter->incrFinish();
 	} else {
-		SLOGE << errorLogPrefix() << "weak_ptr mStatCounter should be present here.";
+		SLOGE << "ForkContextBase [" << this << "] - fork error -weak_ptr mStatCounter should be present here.";
 	}
 }
 
@@ -200,9 +200,8 @@ const list<shared_ptr<BranchInfo>>& ForkContextBase::getBranches() const {
 
 // this implementation looks for already pending or failed transactions and then rejects handling of a new one that
 // would already been tried.
-bool ForkContextBase::onNewRegister(const SipUri& dest,
-                                    const std::string& uid,
-                                    const function<void()>& dispatchFunction) {
+std::shared_ptr<BranchInfo>
+ForkContextBase::onNewRegister(const SipUri& dest, const std::string& uid, const DispatchFunction& dispatchFunction) {
 	shared_ptr<BranchInfo> br, br_by_url;
 
 	/*
@@ -214,7 +213,7 @@ bool ForkContextBase::onNewRegister(const SipUri& dest,
 	if (!targetGr.empty()) {
 		if (uid.find(targetGr) == string::npos) { // to compare regardless of < >
 			/* This request was targetting a gruu address, but this REGISTER is not coming from our target contact.*/
-			return false;
+			return nullptr;
 		}
 	}
 
@@ -224,15 +223,14 @@ bool ForkContextBase::onNewRegister(const SipUri& dest,
 		int code = br->getStatus();
 		if (code == 503 || code == 408) {
 			LOGD("ForkContext %p: onNewRegister(): instance failed to receive the request previously.", this);
-			dispatchFunction();
-			return true;
+			return dispatchFunction();
 		} else if (code >= 200) {
 			/*
 			 * This instance has already accepted or declined the request.
 			 * We should not send it the request again.
 			 */
 			LOGD("ForkContext %p: onNewRegister(): instance has already answered the request.", this);
-			return false;
+			return nullptr;
 		} else {
 			/*
 			 * No response, or a provisional response is received. We can cannot conclude on what to do.
@@ -242,18 +240,16 @@ bool ForkContextBase::onNewRegister(const SipUri& dest,
 			 */
 			if (br_by_url == nullptr) {
 				LOGD("ForkContext %p: onNewRegister(): instance reconnected.", this);
-				dispatchFunction();
-				return true;
+				return dispatchFunction();
 			}
 		}
 	}
 	if (br_by_url) {
 		LOGD("ForkContext %p: onNewRegister(): pending transaction for this destination.", this);
-		return false;
+		return nullptr;
 	}
 
-	dispatchFunction();
-	return true;
+	return dispatchFunction();
 }
 
 bool compareGreaterBranch(const shared_ptr<BranchInfo>& lhs, const shared_ptr<BranchInfo>& rhs) {
@@ -503,4 +499,28 @@ shared_ptr<ResponseSipEvent> ForkContextBase::forwardCustomResponse(int status, 
 
 void ForkContextBase::processInternalError(int status, const char* phrase) {
 	forwardCustomResponse(status, phrase);
+}
+
+void ForkContextBase::checkFinished() {
+	if (mIncoming == nullptr && !mCfg->mForkLate) {
+		setFinished();
+		return;
+	}
+
+	auto branches = getBranches();
+	bool allBranchesTerminated = true;
+
+	if (!mCfg->mForkLate) {
+		allBranchesTerminated = allBranchesAnswered();
+	} else {
+		allBranchesTerminated = !any_of(branches.cbegin(), branches.cend(),
+		                                [](const shared_ptr<BranchInfo>& branch) { return branch->needsDelivery(); });
+	}
+	if (allBranchesTerminated) {
+		shared_ptr<BranchInfo> br = findBestBranch(sUrgentCodes);
+		if (br) {
+			forwardResponse(br);
+		}
+		setFinished();
+	}
 }
