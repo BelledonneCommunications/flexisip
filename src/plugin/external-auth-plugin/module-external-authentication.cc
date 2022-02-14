@@ -61,6 +61,9 @@ void ModuleExternalAuthentication::onDeclare(GenericStruct *mc) {
 		config_item_end
 	};
 	mc->addChildrenValues(items);
+
+	// Change the default value of 'trusted-hosts'
+	mc->get<ConfigStringList>("trusted-hosts")->setDefault("${module::Authentication/trusted-hosts}");
 }
 
 void ModuleExternalAuthentication::onLoad(const GenericStruct *mc) {

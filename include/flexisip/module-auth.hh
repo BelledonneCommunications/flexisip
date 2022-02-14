@@ -20,7 +20,6 @@
 
 #include "auth-module.hh"
 #include "module-authentication-base.hh"
-#include <set>
 
 namespace flexisip {
 
@@ -36,7 +35,6 @@ public:
 
 	void onDeclare(GenericStruct *mc) override;
 	void onLoad(const GenericStruct *mc) override;
-	bool isTrustedPeer(const std::shared_ptr<RequestSipEvent> &ev);
 	bool tlsClientCertificatePostCheck(const std::shared_ptr<RequestSipEvent> &ev);
 	virtual bool handleTlsClientAuthentication(const std::shared_ptr<RequestSipEvent> &ev);
 	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) override;
@@ -46,15 +44,11 @@ public:
 private:
 	FlexisipAuthModuleBase *createAuthModule(const std::string &domain, int nonceExpire, bool qopAuth) override;
 
-	void validateRequest(const std::shared_ptr<RequestSipEvent> &request) override;
 	void processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am) override;
 
-	bool empty(const char *value) {return value == NULL || value[0] == '\0';}
 	const char *findIncomingSubjectInTrusted(const std::shared_ptr<RequestSipEvent> &ev, const char *fromDomain);
-	void loadTrustedHosts(const ConfigStringList &trustedHosts);
 
 	static ModuleInfo<Authentication> sInfo;
-	std::set<BinaryIp> mTrustedHosts;
 	std::list<std::string> mTrustedClientCertificates;
 	regex_t mRequiredSubject;
 	bool mNewAuthOn407 = false;

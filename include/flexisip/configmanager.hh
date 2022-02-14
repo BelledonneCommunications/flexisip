@@ -341,8 +341,8 @@ public:
 	void addChildrenValues(ConfigItemDescriptor* items, bool hashed);
 	void deprecateChild(const char* name, DeprecationInfo&& info);
 	const std::list<std::unique_ptr<GenericEntry>>& getChildren() const;
-	template <typename _retType> _retType* get(const char* name) const;
-	template <typename _retType> _retType* getDeep(const char* name, bool strict) const;
+	template <typename _retType, typename StrT> _retType* get(StrT&& name) const;
+	template <typename _retType> _retType* getDeep(const std::string& name, bool strict) const;
 
 	template <typename Str> GenericEntry* find(Str&& name) const {
 		auto it = find_if(mEntries.cbegin(), mEntries.cend(), [&name](const auto& e) { return e->getName() == name; });
@@ -570,36 +570,36 @@ class ConfigBooleanExpression : public ConfigValue {
 	std::shared_ptr<SipBooleanExpression> read() const;
 };
 
-template <typename _retType> _retType *GenericStruct::get(const char *name) const {
+template <typename _retType, typename StrT> _retType *GenericStruct::get(StrT&& name) const {
 	GenericEntry *e = find(name);
 	if (e == NULL) {
-		LOGA("No ConfigEntry with name [%s] in struct [%s]", name, getName().c_str());
+		std::ostringstream err{};
+		err << "No ConfigEntry with name [" << name << "] in struct [" << getName() << "]";
+		LOGA("%s", err.str().c_str());
 	}
 	_retType *ret = dynamic_cast<_retType *>(e);
 	if (ret == NULL) {
 		int status;
 		std::string type_name = abi::__cxa_demangle(typeid(_retType).name(), 0, 0, &status);
-		LOGA("Config entry [%s] in struct [%s] does not have the expected type '%s'.", name,
-			 e->getParent()->getName().c_str(), type_name.c_str());
+		std::ostringstream err{};
+		err << "Config entry [" << name << "] in struct [" << e->getParent()->getName()
+		    << "] does not have the expected type '" << type_name << "'.";
+		LOGA("%s", err.str().c_str());
 	}
 	return ret;
 };
 
-template <typename _retType> _retType *GenericStruct::getDeep(const char *name, bool strict) const {
-	if (!name)
-		return NULL;
-	std::string sname(name);
-
-	size_t len = sname.length();
+template <typename _retType> _retType *GenericStruct::getDeep(const std::string& name, bool strict) const {
+	size_t len = name.length();
 	size_t next, prev = 0;
 	const GenericStruct *next_node, *prev_node = this;
-	while (std::string::npos != (next = sname.find('/', prev))) {
-		std::string next_node_name = sname.substr(prev, next - prev);
+	while (std::string::npos != (next = name.find('/', prev))) {
+		std::string next_node_name = name.substr(prev, next - prev);
 		GenericEntry *e = find(next_node_name.c_str());
 		if (!e) {
 			if (!strict)
 				return NULL;
-			LOGE("No ConfigEntry with name [%s] in struct [%s]", name, prev_node->getName().c_str());
+			LOGE("No ConfigEntry with name [%s] in struct [%s]", name.c_str(), prev_node->getName().c_str());
 			for (auto it = prev_node->mEntries.begin(); it != prev_node->mEntries.end(); ++it) {
 				LOGE("-> %s", (*it)->getName().c_str());
 			}
@@ -616,7 +616,7 @@ template <typename _retType> _retType *GenericStruct::getDeep(const char *name, 
 		prev = next + 1;
 	}
 
-	std::string leaf(sname.substr(prev, len - prev));
+	std::string leaf(name.substr(prev, len - prev));
 	return prev_node->get<_retType>(leaf.c_str());
 };
 

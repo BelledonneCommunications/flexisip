@@ -48,7 +48,14 @@ ModuleAuthenticationBase::~ModuleAuthenticationBase() {
 }
 
 void ModuleAuthenticationBase::onDeclare(GenericStruct *mc) {
-	ConfigItemDescriptor items[] = {{
+	ConfigItemDescriptor items[] = {
+	{
+		StringList,
+		"trusted-hosts",
+		"List of whitespace-separated IP addresses which will be judged as trustful. Messages coming from these "
+		"addresses won't be challenged.",
+		""
+	}, {
 		StringList,
 		"auth-domains",
 		"List of whitespace separated domains to challenge. Others are automatically denied. The wildcard domain '*' is accepted, "
@@ -115,7 +122,9 @@ void ModuleAuthenticationBase::onDeclare(GenericStruct *mc) {
 }
 
 void ModuleAuthenticationBase::onLoad(const GenericStruct *mc) {
-	list<string> authDomains = mc->get<ConfigStringList>("auth-domains")->read();
+	loadTrustedHosts(*mc->get<ConfigStringList>("trusted-hosts"));
+
+	auto authDomains = mc->get<ConfigStringList>("auth-domains")->read();
 
 	mAlgorithms = mc->get<ConfigStringList>("available-algorithms")->read();
 	mAlgorithms.unique();
@@ -128,8 +137,8 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct *mc) {
 	}
 	if (mAlgorithms.empty()) mAlgorithms.assign(sValidAlgos.cbegin(), sValidAlgos.cend());
 
-	bool disableQOPAuth = mc->get<ConfigBoolean>("disable-qop-auth")->read();
-	int nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
+	auto disableQOPAuth = mc->get<ConfigBoolean>("disable-qop-auth")->read();
+	auto nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
 
 	for (const string &domain : authDomains) {
 		unique_ptr<FlexisipAuthModuleBase> am(createAuthModule(domain, nonceExpires, !disableQOPAuth));
@@ -241,6 +250,10 @@ void ModuleAuthenticationBase::validateRequest(const std::shared_ptr<RequestSipE
 		/*ack and cancel shall never be challenged according to the RFC.*/
 		throw StopRequestProcessing();
 	}
+
+	// Check trusted peer
+	if (isTrustedPeer(request))
+		throw StopRequestProcessing();
 }
 
 void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am) {
@@ -362,6 +375,68 @@ void ModuleAuthenticationBase::errorReply(const FlexisipAuthStatus &as) {
 			  SIPTAG_SERVER_STR(getAgent()->getServerString()),
 			  TAG_END()
 	);
+}
+
+void ModuleAuthenticationBase::loadTrustedHosts(const ConfigStringList& trustedHosts) {
+	const regex parameterRef{R"re(\$\{([0-9A-Za-z:-]+)/([0-9A-Za-z:-]+)\})re"};
+	smatch m{};
+
+	auto hosts = trustedHosts.read();
+	for (const auto& host : hosts) {
+		if (regex_match(host, m, parameterRef)) {
+			auto paramRefValues = GenericManager::get()->getRoot()
+				->get<GenericStruct>(m.str(1))->get<ConfigStringList>(m.str(2))->read();
+			for (const auto& value : paramRefValues) {
+				BinaryIp::emplace(mTrustedHosts, value);
+			}
+		} else {
+			BinaryIp::emplace(mTrustedHosts, host);
+		}
+	}
+
+	const auto* clusterSection = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
+	auto clusterEnabled = clusterSection->get<ConfigBoolean>("enabled")->read();
+	if (clusterEnabled) {
+		auto clusterNodes = clusterSection->get<ConfigStringList>("nodes")->read();
+		for (const auto& host : clusterNodes) {
+			BinaryIp::emplace(mTrustedHosts, host);
+		}
+	}
+
+	const auto* presenceSection = GenericManager::get()->getRoot()->get<GenericStruct>("module::Presence");
+	auto presenceServer = presenceSection->get<ConfigBoolean>("enabled")->read();
+	if (presenceServer) {
+		sofiasip::Home home{};
+		auto presenceServer = presenceSection->get<ConfigString>("presence-server")->read();
+		const auto* contact = sip_contact_make(home.home(), presenceServer.c_str());
+		const auto* url = contact ? contact->m_url : nullptr;
+		if (url && url->url_host) {
+			BinaryIp::emplace(mTrustedHosts, url->url_host);
+			SLOGI << "Added presence server '" << url->url_host << "' to trusted hosts";
+		} else {
+			SLOGW << "Could not parse presence server URL '" << presenceServer
+			      << "', cannot be added to trusted hosts!";
+		}
+	}
+	for (const auto& trustedHosts : mTrustedHosts) {
+		SLOGI << "IP " << trustedHosts << " added to trusted hosts";
+	}
+}
+
+bool ModuleAuthenticationBase::isTrustedPeer(const shared_ptr<RequestSipEvent> &ev) {
+	sip_t *sip = ev->getSip();
+
+	// Check for trusted host
+	sip_via_t *via = sip->sip_via;
+	const char *printableReceivedHost = !empty(via->v_received) ? via->v_received : via->v_host;
+
+	BinaryIp receivedHost(printableReceivedHost);
+
+	if (mTrustedHosts.find(receivedHost) != mTrustedHosts.end()){
+		LOGD("Allowing message from trusted host %s", printableReceivedHost);
+		return true;
+	}
+	return false;
 }
 
 bool ModuleAuthenticationBase::validAlgo(const std::string &algo) {

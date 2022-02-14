@@ -84,6 +84,10 @@ private:
 		FlexisipAuthStatus &as;
 		const auth_challenger_t &ach;
 		msg_auth_t &creds;
+
+		HttpRequestCtx(ExternalAuthModule& am, FlexisipAuthStatus& as, const auth_challenger_t& ach, msg_auth_t& creds)
+		    : am{am}, as{as}, ach{ach}, creds{creds} {
+		}
 	};
 
 	void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) override;
@@ -97,9 +101,10 @@ private:
 	static std::string toString(const http_payload_t *httpPayload);
 	static bool validSipCode(int sipCode);
 
-	nth_engine_t *mEngine = nullptr;
-	HttpUriFormater mUriFormater;
-	std::queue<HttpRequestCtx*> pendingAuthRequests{};
+	nth_engine_t *mEngine{nullptr};
+	HttpUriFormater mUriFormater{};
+	std::queue<std::unique_ptr<HttpRequestCtx>> pendingAuthRequests{};
+	bool mWaitingForResponse{false};
 
 	static std::array<int, 4> sValidSipCodes;
 };

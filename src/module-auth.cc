@@ -42,8 +42,6 @@ Authentication::~Authentication() {
 void Authentication::onDeclare(GenericStruct *mc) {
 	ModuleAuthenticationBase::onDeclare(mc);
 	ConfigItemDescriptor items[] = {
-		{StringList, "trusted-hosts", "List of whitespace-separated IP addresses which will be judged as trustful. "
-			"Messages coming from these addresses won't be challenged.", ""},
 		{Boolean, "reject-wrong-client-certificates",
 			"If set to true, the module will simply reject with \"403 forbidden\" any request coming from clients "
 			"which have presented a bad TLS certificate (regardless of reason: improper signature, unmatched subjects). "
@@ -118,7 +116,6 @@ void Authentication::onDeclare(GenericStruct *mc) {
 void Authentication::onLoad(const GenericStruct *mc) {
 	ModuleAuthenticationBase::onLoad(mc);
 
-	loadTrustedHosts(*mc->get<ConfigStringList>("trusted-hosts"));
 	mNewAuthOn407 = mc->get<ConfigBoolean>("new-auth-on-407")->read();
 	mTrustedClientCertificates = mc->get<ConfigStringList>("trusted-client-certificates")->read();
 	mTrustDomainCertificates = mc->get<ConfigBoolean>("trust-domain-certificates")->read();
@@ -137,22 +134,6 @@ void Authentication::onLoad(const GenericStruct *mc) {
 	}
 	mRejectWrongClientCertificates = mc->get<ConfigBoolean>("reject-wrong-client-certificates")->read();
 	AuthDbBackend::get(); // force instanciation of the AuthDbBackend NOW, to force errors to arrive now if any.
-}
-
-bool Authentication::isTrustedPeer(const shared_ptr<RequestSipEvent> &ev) {
-	sip_t *sip = ev->getSip();
-
-	// Check for trusted host
-	sip_via_t *via = sip->sip_via;
-	const char *printableReceivedHost = !empty(via->v_received) ? via->v_received : via->v_host;
-
-	BinaryIp receivedHost(printableReceivedHost);
-	
-	if (mTrustedHosts.find(receivedHost) != mTrustedHosts.end()){
-		LOGD("Allowing message from trusted host %s", printableReceivedHost);
-		return true;
-	}
-	return false;
 }
 
 bool Authentication::tlsClientCertificatePostCheck(const shared_ptr<RequestSipEvent> &ev){
@@ -302,14 +283,6 @@ FlexisipAuthModuleBase *Authentication::createAuthModule(const std::string &doma
 	return authModule;
 }
 
-void Authentication::validateRequest(const std::shared_ptr<RequestSipEvent> &request) {
-	ModuleAuthenticationBase::validateRequest(request);
-
-	// Check trusted peer
-	if (isTrustedPeer(request))
-		throw StopRequestProcessing();
-}
-
 void Authentication::processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am) {
 	// check if TLS client certificate provides sufficent authentication for this request.
 	if (handleTlsClientAuthentication(request))
@@ -330,42 +303,6 @@ const char *Authentication::findIncomingSubjectInTrusted(const shared_ptr<Reques
 	}
 	const char *res = ev->findIncomingSubject(toCheck);
 	return res;
-}
-
-void Authentication::loadTrustedHosts(const ConfigStringList &trustedHosts) {
-	list<string> hosts = trustedHosts.read();
-	
-	for(const auto &host : hosts){
-		BinaryIp::emplace(mTrustedHosts, host);
-	}
-
-	const GenericStruct *clusterSection = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
-	bool clusterEnabled = clusterSection->get<ConfigBoolean>("enabled")->read();
-	if (clusterEnabled) {
-		list<string> clusterNodes = clusterSection->get<ConfigStringList>("nodes")->read();
-		for(const auto &host : clusterNodes){
-			BinaryIp::emplace(mTrustedHosts, host);
-		}
-	}
-
-	const GenericStruct *presenceSection = GenericManager::get()->getRoot()->get<GenericStruct>("module::Presence");
-	bool presenceServer = presenceSection->get<ConfigBoolean>("enabled")->read();
-	if (presenceServer) {
-		sofiasip::Home home;
-		string presenceServer = presenceSection->get<ConfigString>("presence-server")->read();
-		sip_contact_t *contact = sip_contact_make(home.home(), presenceServer.c_str());
-		url_t *url = contact ? contact->m_url : NULL;
-		if (url && url->url_host) {
-			BinaryIp::emplace(mTrustedHosts, url->url_host);
-			SLOGI << "Added presence server '" << url->url_host << "' to trusted hosts";
-		} else {
-			SLOGW << "Could not parse presence server URL '" << presenceServer
-				<< "', cannot be added to trusted hosts!";
-		}
-	}
-	for (auto trustedHosts :mTrustedHosts) {
-		SLOGI << "IP "<< trustedHosts << " added to trusted hosts";
-	}
 }
 
 ModuleInfo<Authentication> Authentication::sInfo(

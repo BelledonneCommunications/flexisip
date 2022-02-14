@@ -22,6 +22,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 
 #include "flexisip/auth/flexisip-auth-module-base.hh"
@@ -40,7 +41,13 @@ public:
 	ModuleAuthenticationBase(Agent *agent);
 	~ModuleAuthenticationBase();
 
+	bool isTrustedPeer(const std::shared_ptr<RequestSipEvent> &ev);
+
 protected:
+	// ================
+	//  Proteted types
+	// ================
+
 	/**
 	 * This exception is globally caught by ModuleAuthenticationBase::onRequest()
 	 * causing onRequest() return. It is to used in any sub-functions
@@ -49,6 +56,9 @@ protected:
 	 */
 	class StopRequestProcessing : public std::exception {};
 
+	// ==================
+	//  Proteted methods
+	// ==================
 	void onDeclare(GenericStruct *root) override;
 	void onLoad(const GenericStruct *root) override;
 	void onRequest(std::shared_ptr<RequestSipEvent> &ev) override;
@@ -70,11 +80,7 @@ protected:
 	 */
 	void configureAuthStatus(FlexisipAuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev);
 
-
-	/**
-	 * These two methods might be overridden to customize onRequest().
-	 */
-	virtual void validateRequest(const std::shared_ptr<RequestSipEvent> &request);
+	void validateRequest(const std::shared_ptr<RequestSipEvent> &request);
 	virtual void processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am);
 
 	/**
@@ -90,12 +96,18 @@ protected:
 	virtual void onSuccess(const FlexisipAuthStatus &as);
 	virtual void errorReply(const FlexisipAuthStatus &as);
 
+	void loadTrustedHosts(const ConfigStringList &trustedHosts);
+	bool empty(const char *value) {return value == NULL || value[0] == '\0';}
+
 	/**
 	 * Test whether a string match a valid algorithm in specified by sValidAlgos.
 	 */
 	static bool validAlgo(const std::string &algo);
 
-protected:
+	// =====================
+	//  Proteted attributes
+	// =====================
+	std::set<BinaryIp> mTrustedHosts;
 	std::map<std::string, std::unique_ptr<FlexisipAuthModuleBase>> mAuthModules;
 	std::list<std::string> mAlgorithms;
 	auth_challenger_t mRegistrarChallenger;
