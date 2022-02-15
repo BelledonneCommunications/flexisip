@@ -5,10 +5,12 @@
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   CCACHE_SIZE: 2G
-  ## Enable B2BUA and internal MbedTLS
-  DEFAULT_CMAKE_OPTIONS: '-DCMAKE_BUILD_TYPE=RelWithDebInfo'
+  # For build and test on Linux
+  DEFAULT_CMAKE_OPTIONS: '-DCMAKE_BUILD_TYPE=Sanitizer'
+  # For build on MacOS
   DEFAULT_MACOS_CMAKE_OPTIONS: ''
-  PACKAGING_EXTRA_CMAKE_OPTIONS: '-DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc -DFLEXISIP_SYSTEMD_INSTALL_DIR=/lib/systemd/system'
+  # For packaging, deb and rpm
+  DEFAULT_PACKAGING_CMAKE_OPTIONS: '-DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc -DFLEXISIP_SYSTEMD_INSTALL_DIR=/lib/systemd/system'
 
   # Docker image version
   ARCHLINUX_IMAGE_VERSION: 20220414_remove_ffmpeg

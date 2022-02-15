@@ -111,6 +111,7 @@ job-debian10-unit-test:
     - job-debian10-ninja-clang
   script :
     - export LD_LIBRARY_PATH=/usr/local/lib
+    - export LSAN_OPTIONS="suppressions=./sanitizer_ignore.txt"
     - ./OUTPUT/bin/flexisip_tester --verbose --resource-dir ./OUTPUT/share/flexisip-tester || exit $?
   artifacts :
     reports :

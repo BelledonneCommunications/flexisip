@@ -270,6 +270,10 @@ static void globalTest() {
 }
 
 /**
+ * This test is a performance test, and too much system dependant.
+ */
+#ifdef false
+/**
  * Same test as globalTest, but this time we send a lot of large message while receiver is not reachable.
  * This test try to saturate sofia-sip queue when receiver register again. If all messages are received test is passed.
  */
@@ -316,6 +320,7 @@ static void globalTestMultipleMessages() {
 		bellesipUtils.stackSleep(10);
 		server->getAgent()->getRoot()->step(10ms);
 	}
+	BC_ASSERT_EQUAL(nbAcceptedMessages, i, int, "%i");
 
 	/*
 	 * Assert that db fork is still present because device is offline, message fork is destroyed because message is
@@ -356,6 +361,7 @@ static void globalTestMultipleMessages() {
 	// MANDATORY, see first line of this test
 	bctbx_set_log_level(nullptr, BCTBX_LOG_DEBUG);
 }
+#endif
 
 /*
  * We send a message to a client with one idle device, to force the message saving in DB.
@@ -438,7 +444,6 @@ static test_t tests[] = {
     TEST_NO_TAG("Unit test fork message repository with mysql, load at startup",
                 forkMessageContextSociRepositoryFullLoadMysqlUnitTests),
     TEST_NO_TAG("Global test ForkMessage with mysql", globalTest),
-    TEST_NO_TAG("Global test ForkMessage with mysql, sending a lot of large messages", globalTestMultipleMessages),
     TEST_NO_TAG("Global test fork message with mysql, db deleted before restoration", globalTestDatabaseDeleted),
 };
 

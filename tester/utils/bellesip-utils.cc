@@ -81,7 +81,7 @@ void BellesipUtils::sendRawRequest(const string& rawMessage, const string& rawBo
 }
 
 void BellesipUtils::stackSleep(unsigned int milliseconds) {
-	belle_sip_stack_sleep(mStack, 100);
+	belle_sip_stack_sleep(mStack, milliseconds);
 }
 
 } // namespace flexisip

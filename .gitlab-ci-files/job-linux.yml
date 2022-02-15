@@ -60,7 +60,7 @@
   script:
     - *set-max-jobs
     - mkdir build && cd build
-    - cmake -G $CMAKE_GENERATOR $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS -DCPACK_GENERATOR=RPM $PACKAGING_EXTRA_CMAKE_OPTIONS ..
+    - cmake -G $CMAKE_GENERATOR $DEFAULT_PACKAGING_CMAKE_OPTIONS $CMAKE_OPTIONS -DCPACK_GENERATOR=RPM ..
     - cmake --build . --target package
 
   artifacts:
@@ -83,7 +83,7 @@
   script:
     - *set-max-jobs
     - mkdir build && cd build
-    - cmake -G $CMAKE_GENERATOR $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS -DCPACK_GENERATOR=DEB $PACKAGING_EXTRA_CMAKE_OPTIONS ..
+    - cmake -G $CMAKE_GENERATOR $DEFAULT_PACKAGING_CMAKE_OPTIONS $CMAKE_OPTIONS -DCPACK_GENERATOR=DEB ..
     - cmake --build . --target package
 
   artifacts:
