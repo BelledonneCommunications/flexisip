@@ -293,9 +293,11 @@ shared_ptr<BranchInfo> ForkContextBase::addBranch(const std::shared_ptr<RequestS
 
 	// Clear answered branches with same uid.
 	auto oldBr = findBranchByUid(br->mUid);
-	if (oldBr && oldBr->getStatus() >= 200){
-		LOGD("ForkContext [%p]: new fork branch [%p] clears out old branch [%p]", this, br.get(), oldBr.get());
-		removeBranch(oldBr);
+	if (oldBr) {
+		if (oldBr->getStatus() >= 200) {
+			LOGD("ForkContext [%p]: new fork branch [%p] clears out old branch [%p]", this, br.get(), oldBr.get());
+			removeBranch(oldBr);
+		}
 		/*
 		 * We need to remember how many times branches for a given uid have been cleared.
 		 * Because in some cases (iOS) we must absolutely not re-send a push notification, and we send one only if
