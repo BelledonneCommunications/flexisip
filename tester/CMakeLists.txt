@@ -34,6 +34,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 add_executable(flexisip_tester
         agent-tester.cc
         boolean-expressions.cc
+        cli-tester.cc
         extended-contact-tester.cc
         fork-call-tester.cc
         fork-context-tester.cc
@@ -69,6 +70,8 @@ endif ()
 
 if (ENABLE_B2BUA)
     target_sources(flexisip_tester PRIVATE b2bua-tester.cc)
+    include(${CMAKE_SOURCE_DIR}/src/jsoncpp.cmake)
+    target_link_libraries(flexisip_tester PRIVATE jsoncpp_lib)
 endif ()
 
 target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})

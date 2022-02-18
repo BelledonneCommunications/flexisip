@@ -22,6 +22,7 @@
 #include "flexisip/utils/sip-uri.hh"
 
 #include "b2bua-server.hh"
+#include "external-provider-bridge.hh"
 #include "trenscrypter.hh"
 
 using namespace std;
@@ -57,7 +58,7 @@ std::shared_ptr<linphone::Call> getPeerCall(std::shared_ptr<linphone::Call> call
 }
 } // namespace
 
-B2buaServer::B2buaServer(const std::shared_ptr<sofiasip::SuRoot>& root) : ServiceServer(root) {
+B2buaServer::B2buaServer(const std::shared_ptr<sofiasip::SuRoot>& root) : ServiceServer(root), mCli("b2bua") {
 }
 
 B2buaServer::~B2buaServer() {
@@ -71,17 +72,16 @@ void B2buaServer::onCallStateChanged(const std::shared_ptr<linphone::Core>& core
 	      << ((call->getDir() == linphone::Call::Dir::Outgoing) ? "legB" : "legA");
 	switch (state) {
 		case linphone::Call::State::IncomingReceived: {
-			auto calleeAddress = call->getToAddress()->asString();
-			auto callerAddress = call->getRemoteAddress()->asString();
-			SLOGD << "b2bua server onCallStateChanged incomingReceived, to " << calleeAddress << " from "
-			      << callerAddress;
+			auto callee = call->getRequestAddress()->clone();
+			SLOGD << "b2bua server onCallStateChanged incomingReceived, to " << callee->asString() << " from "
+			      << call->getRemoteAddress()->asString();
 			// Create outgoing call using parameters created from the incoming call in order to avoid duplicating the
 			// callId
 			auto outgoingCallParams = mCore->createCallParams(call);
 			// add this custom header so this call will not be intercepted by the b2bua
 			outgoingCallParams->addCustomHeader("flexisip-b2bua", "ignore");
 
-			const auto decline = mDelegate->onCallCreate(*outgoingCallParams, *call);
+			const auto decline = mApplication->onCallCreate(*call, *callee, *outgoingCallParams);
 			if (decline != linphone::Reason::None) {
 				call->decline(decline);
 				return;
@@ -97,8 +97,13 @@ void B2buaServer::onCallStateChanged(const std::shared_ptr<linphone::Core>& core
 			auto conference = mCore->createConferenceWithParams(conferenceParams);
 
 			// create legB and add it to the conference
-			auto callee = call->getToAddress()->clone();
 			auto legB = mCore->inviteAddressWithParams(callee, outgoingCallParams);
+			if (!legB) {
+				// E.g. TLS is not supported
+				SLOGE << "Could not establish bridge call. Please check your config.";
+				call->decline(linphone::Reason::NotImplemented);
+				return;
+			}
 			conference->addParticipant(legB);
 
 			// add legA to the conference, but do not answer now
@@ -182,7 +187,7 @@ void B2buaServer::onCallStateChanged(const std::shared_ptr<linphone::Core>& core
 		case linphone::Call::State::Error:
 			// when call in error we shall kill the conf, just do as in End
 		case linphone::Call::State::End: {
-			mDelegate->onCallEnd(*call);
+			mApplication->onCallEnd(*call);
 			// If there are some data in that call, it is the first one to end
 			if (call->dataExists(B2buaServer::confKey)) {
 				auto peerCall = getPeerCall(call);
@@ -328,10 +333,21 @@ void B2buaServer::_init() {
 	mCore->setTransports(b2buaTransport);
 	mCore->addListener(shared_from_this());
 
-	mDelegate = std::make_unique<b2bua::trenscrypter::Trenscrypter>();
-	mDelegate->init(mCore, *configRoot);
+	auto applicationType = config->get<ConfigString>("application")->read();
+	SLOGD << "B2BUA server starting with '" << applicationType << "' application";
+	if (applicationType == "trenscrypter") {
+		mApplication = std::make_unique<b2bua::trenscrypter::Trenscrypter>();
+	} else if (applicationType == "sip-bridge") {
+		auto bridge = std::make_unique<b2bua::bridge::AccountManager>();
+		mCli.registerHandler(*bridge);
+		mApplication = std::move(bridge);
+	} else {
+		LOGF("Unknown B2BUA application type: %s", applicationType.c_str());
+	}
+	mApplication->init(mCore, *configRoot);
 
 	mCore->start();
+	mCli.start();
 }
 
 void B2buaServer::_run() {
@@ -340,12 +356,18 @@ void B2buaServer::_run() {
 
 void B2buaServer::_stop() {
 	mCore->removeListener(shared_from_this());
+	mCli.stop();
 }
 
 namespace {
 // Statically define default configuration items
 auto defineConfig = [] {
 	ConfigItemDescriptor items[] = {
+	    {String, "application",
+	     "The type of application that will handle calls bridged through the B2BUA. Possible values:\n"
+	     "- `trenscrypter` Bridge different encryption types on both ends transparently.\n"
+	     "- `sip-bridge` Bridge calls through an external SIP provider. (e.g. for PSTN gateways)",
+	     "trenscrypter"},
 	    {String, "transport", "SIP uri on which the back-to-back user agent server is listening on.",
 	     "sip:127.0.0.1:6067;transport=tcp"},
 	    {String, "data-directory",

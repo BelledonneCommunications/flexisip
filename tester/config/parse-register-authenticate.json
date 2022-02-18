@@ -1,0 +1,24 @@
+[
+	{
+		"name": "provider1",
+		"pattern": "sip:\\+39.*",
+		"outboundProxy": "<sip:127.0.0.1:5860;transport=tcp>",
+		"registrationRequired": true,
+		"maxCallsPerLine": 1,
+		"accounts": [ 
+			{
+				"uri": "sip:wrongpassword@auth.provider1.com",
+				"password": "!"
+			},
+			{
+				"uri": "sip:unregistered@auth.provider1.com",
+				"userid": "irrelevant",
+				"password": "irrelevant"
+			},
+			{
+				"uri": "sip:registered@auth.provider1.com",
+				"password": "Lcq5DzJQpUoqPkf4"
+			}
+		]
+	}
+]

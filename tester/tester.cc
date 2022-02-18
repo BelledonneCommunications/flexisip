@@ -97,6 +97,7 @@ void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_
 
 	bc_tester_add_suite(&flexisip::tester::agentSuite);
 	bc_tester_add_suite(&boolean_expressions_suite);
+	bc_tester_add_suite(&cli_suite);
 #if ENABLE_CONFERENCE
 	bc_tester_add_suite(&conference_suite);
 #endif

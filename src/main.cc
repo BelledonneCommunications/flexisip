@@ -582,6 +582,9 @@ static string version() {
 	version << "- Conference\n";
 	version << "- RegEvent\n";
 #endif
+#ifdef ENABLE_B2BUA
+	version << "- B2BUA\n";
+#endif
 
 	return version.str();
 }
@@ -617,8 +620,20 @@ int main(int argc, char* argv[]) {
 	string versionString = version();
 	// clang-format off
 	TCLAP::CmdLine cmd("", ' ', versionString);
-	TCLAP::ValueArg<string>     functionName("", "server", 		"Specify the server function to operate: 'proxy', 'presence', 'regevent', 'conference', or 'all'.", TCLAP::ValueArgOptional, "", "server function", cmd);
-	TCLAP::ValueArg<string>     configFile("c", "config", 			"Specify the location of the configuration file.", TCLAP::ValueArgOptional, CONFIG_DIR "/flexisip.conf", "file", cmd);
+	TCLAP::ValueArg<string>     functionName("", "server", 		"Specify the server function to operate: 'proxy',"
+#if ENABLE_PRESENCE
+	" 'presence',"
+#endif
+#if ENABLE_CONFERENCE
+	" 'regevent', 'conference',"
+#endif
+#ifdef ENABLE_B2BUA
+	" 'b2bua',"
+#endif
+	" or 'all'.", TCLAP::ValueArgOptional, "", "server function", cmd);
+
+#define DEFAULT_CONFIG_FILE CONFIG_DIR "/flexisip.conf"
+	TCLAP::ValueArg<string>     configFile("c", "config", 			"Specify the location of the configuration file. Default is " DEFAULT_CONFIG_FILE, TCLAP::ValueArgOptional, DEFAULT_CONFIG_FILE, "file", cmd);
 
 	TCLAP::SwitchArg            daemonMode("",  "daemon", 			"Launch in daemon mode.", cmd);
 	TCLAP::SwitchArg              useDebug("d", "debug", 			"Force output of all logs, including debug logs, to the terminal (does not affect the log level applied to log files).", cmd);

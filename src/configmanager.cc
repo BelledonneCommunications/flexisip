@@ -1092,6 +1092,7 @@ bool GenericManager::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 }
 
 int GenericManager::load(const std::string &configfile) {
+	SLOGI<<"Loading config file "<<configfile;
 	mConfigFile = configfile;
 	int res = mReader.read(configfile);
 	applyOverrides(false);

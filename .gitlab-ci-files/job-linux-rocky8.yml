@@ -1,8 +1,11 @@
+variables:
+  ROCKY8_CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DINTERNAL_JSONCPP=ON
+
 .rocky8-image-variables:
   image:
     name: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:$ROCKY_8_IMAGE_VERSION
   variables:
-    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
+    CMAKE_OPTIONS: ${ROCKY8_CMAKE_OPTIONS}
 
 #################################################
 # Makefile
@@ -34,7 +37,7 @@ job-rocky8-ninja-clang:
     - .job-ninja-clang
     - .rocky8-image-variables
   variables:
-    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON
+    CMAKE_OPTIONS: ${ROCKY8_CMAKE_OPTIONS} -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON
   artifacts:
     paths:
       - OUTPUT/*

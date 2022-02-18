@@ -68,15 +68,17 @@ static void callWithEarlyCancelCalleeOffline() {
 
 	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server);
 	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server);
-	auto calleeIdleClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server, true);
+	const auto calleeIdleClient =
+	    ClientBuilder("sip:calleeClient@sip.test.org").setApplePushConfig().registerTo(server);
+	const auto calleeIdleClientCore = calleeIdleClient.getCore();
 
 	// Check that call log is empty before test
-	if (!BC_ASSERT_TRUE(CoreAssert({calleeIdleClient->getCore()}, server->getAgent()).wait([calleeIdleClient] {
-		    return calleeIdleClient->getCore()->getCallLogs().empty();
+	if (!BC_ASSERT_TRUE(CoreAssert({calleeIdleClientCore}, server->getAgent()).wait([&calleeIdleClientCore] {
+		    return calleeIdleClientCore->getCallLogs().empty();
 	    }))) {
 	}
 
-	calleeIdleClient->getCore()->setNetworkReachable(false);
+	calleeIdleClientCore->setNetworkReachable(false);
 	// Call with callee offline with one device
 	callerClient->callWithEarlyCancel(calleeClient, nullptr);
 
@@ -87,22 +89,22 @@ static void callWithEarlyCancelCalleeOffline() {
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 0, int, "%i");
 
 	// Callee idle device came back online, sending a new Register
-	calleeIdleClient->getCore()->setNetworkReachable(true);
+	calleeIdleClientCore->setNetworkReachable(true);
 	// Wait for registration OK and check that call log is not empty anymore
-	BC_ASSERT_TRUE(CoreAssert({calleeIdleClient->getCore()}, server->getAgent()).wait([calleeIdleClient] {
-		return calleeIdleClient->getAccount()->getState() == RegistrationState::Ok &&
-		       !calleeIdleClient->getCore()->getCallLogs().empty();
+	BC_ASSERT_TRUE(CoreAssert({calleeIdleClientCore}, server->getAgent()).wait([&calleeIdleClient] {
+		return calleeIdleClient.getAccount()->getState() == RegistrationState::Ok &&
+		       !calleeIdleClient.getCore()->getCallLogs().empty();
 	}));
 
 	// Assert CANCEL is received
-	BC_ASSERT_TRUE(CoreAssert({calleeIdleClient->getCore()}, server->getAgent()).wait([calleeIdleClient] {
-		return !calleeIdleClient->getCore()->getCurrentCall() ||
-		       calleeIdleClient->getCore()->getCurrentCall()->getState() == Call::State::End ||
-		       calleeIdleClient->getCore()->getCurrentCall()->getState() == Call::State::Released;
+	BC_ASSERT_TRUE(CoreAssert({calleeIdleClientCore}, server->getAgent()).wait([&calleeIdleClientCore] {
+		return !calleeIdleClientCore->getCurrentCall() ||
+		       calleeIdleClientCore->getCurrentCall()->getState() == Call::State::End ||
+		       calleeIdleClientCore->getCurrentCall()->getState() == Call::State::Released;
 	}));
 
 	// Assert Fork is destroyed
-	BC_ASSERT_TRUE(CoreAssert({calleeIdleClient->getCore()}, server->getAgent()).wait([agent = server->getAgent()] {
+	BC_ASSERT_TRUE(CoreAssert({calleeIdleClientCore}, server->getAgent()).wait([agent = server->getAgent()] {
 		const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
 		return moduleRouter->mStats.mCountCallForks->finish->read() == 1;
 	}));
@@ -115,9 +117,11 @@ static void calleeOfflineWithOneDevice() {
 
 	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server);
 	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server);
-	auto calleeClientOfflineDevice = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server, true);
+	auto calleeClientOfflineDevice =
+	    ClientBuilder("sip:calleeClient@sip.test.org").setApplePushConfig().registerTo(server);
+	auto calleeOfflineDeviceCore = calleeClientOfflineDevice.getCore();
 
-	calleeClientOfflineDevice->getCore()->setNetworkReachable(false);
+	calleeOfflineDeviceCore->setNetworkReachable(false);
 
 	callerClient->call(calleeClient);
 	callerClient->endCurrentCall(calleeClient);
@@ -129,28 +133,25 @@ static void calleeOfflineWithOneDevice() {
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 0, int, "%i");
 
 	// Offline device came back online, sending a new Register
-	calleeClientOfflineDevice->getCore()->setNetworkReachable(true);
+	calleeOfflineDeviceCore->setNetworkReachable(true);
 	// Wait for registration OK and check that call log is not empty anymore
-	BC_ASSERT_TRUE(
-	    CoreAssert({calleeClientOfflineDevice->getCore()}, server->getAgent()).wait([calleeClientOfflineDevice] {
-		    return calleeClientOfflineDevice->getAccount()->getState() == RegistrationState::Ok &&
-		           !calleeClientOfflineDevice->getCore()->getCallLogs().empty();
-	    }));
+	BC_ASSERT_TRUE(CoreAssert({calleeOfflineDeviceCore}, server->getAgent()).wait([&calleeClientOfflineDevice] {
+		return calleeClientOfflineDevice.getAccount()->getState() == RegistrationState::Ok &&
+		       !calleeClientOfflineDevice.getCore()->getCallLogs().empty();
+	}));
 
 	// Assert CANCEL is received
-	BC_ASSERT_TRUE(
-	    CoreAssert({calleeClientOfflineDevice->getCore()}, server->getAgent()).wait([calleeClientOfflineDevice] {
-		    return !calleeClientOfflineDevice->getCore()->getCurrentCall() ||
-		           calleeClientOfflineDevice->getCore()->getCurrentCall()->getState() == Call::State::End ||
-		           calleeClientOfflineDevice->getCore()->getCurrentCall()->getState() == Call::State::Released;
-	    }));
+	BC_ASSERT_TRUE(CoreAssert({calleeOfflineDeviceCore}, server->getAgent()).wait([&calleeOfflineDeviceCore] {
+		return !calleeOfflineDeviceCore->getCurrentCall() ||
+		       calleeOfflineDeviceCore->getCurrentCall()->getState() == Call::State::End ||
+		       calleeOfflineDeviceCore->getCurrentCall()->getState() == Call::State::Released;
+	}));
 
 	// Assert Fork is destroyed
-	BC_ASSERT_TRUE(
-	    CoreAssert({calleeClientOfflineDevice->getCore()}, server->getAgent()).wait([agent = server->getAgent()] {
-		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
-		    return moduleRouter->mStats.mCountCallForks->finish->read() == 1;
-	    }));
+	BC_ASSERT_TRUE(CoreAssert({calleeOfflineDeviceCore}, server->getAgent()).wait([agent = server->getAgent()] {
+		const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		return moduleRouter->mStats.mCountCallForks->finish->read() == 1;
+	}));
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
 }
 

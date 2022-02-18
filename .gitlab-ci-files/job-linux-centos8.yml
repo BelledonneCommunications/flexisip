@@ -1,7 +1,7 @@
 .centos8-image-variables:
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos8:$CENTOS_8_IMAGE_VERSION
   variables:
-    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
+    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DINTERNAL_JSONCPP=ON
 
 #################################################
 # Makefile

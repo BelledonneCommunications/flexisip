@@ -27,24 +27,60 @@
 #include "linphone++/linphone.hh"
 #include "proxy-server.hh"
 
+struct AssertionResult {
+	const char* const file;
+	const int line;
+	const char* const reason;
+
+	// Asserts that the assertion passed. Logs the error otherwise.
+	bool assert_passed() const {
+		return bc_assert(file, line, operator bool(), reason);
+	}
+
+	operator bool() const { // Assertion is true iff there is no failure reason
+		return reason == nullptr;
+	}
+
+	AssertionResult(const char* const file, const int line, const char* const reason)
+	    : file(file), line(line), reason(reason) {
+	}
+
+	AssertionResult(const bool b) // Convert from bool for seemless integration with existing code
+	    : file(__FILE__), line(__LINE__),
+	      reason(b ? nullptr : "Context Missing. Please rewrite your test to use AssertionResult insted of bool.") {
+	}
+};
+
+#define ASSERTION_FAILED(reason) AssertionResult(__FILE__, __LINE__, "ASSERTION_FAILED(" reason ")")
+#define ASSERTION_PASSED() AssertionResult(__FILE__, __LINE__, nullptr)
+
+#define FAIL_IF(assertion)                                                                                             \
+	if (assertion) return AssertionResult(__FILE__, __LINE__, "FAIL_IF(" #assertion ")")
+
 class BcAssert {
 public:
 	void addCustomIterate(const std::function<void()>& iterate) {
 		mIterateFuncs.push_back(iterate);
 	}
-	bool waitUntil(std::chrono::duration<double> timeout, const std::function<bool()>& condition) {
-		auto start = std::chrono::steady_clock::now();
+	template <typename Func>
+	AssertionResult waitUntil(const std::chrono::duration<double> timeout, Func condition) {
+		const auto timeLimit = std::chrono::steady_clock::now() + timeout;
 
-		bool result;
-		while (!(result = condition()) && (std::chrono::steady_clock::now() - start < timeout)) {
+		while (true) {
 			for (const auto& iterate : mIterateFuncs) {
 				iterate();
 			}
+			const auto result = condition();
+			if (result || timeLimit < std::chrono::steady_clock::now()) {
+				return result;
+			}
+
 			std::this_thread::sleep_for(std::chrono::milliseconds(10));
 		}
-		return result;
 	}
-	bool wait(const std::function<bool()>& condition) {
+
+	template <typename Func>
+	AssertionResult wait(Func condition) {
 		return waitUntil(std::chrono::seconds(2), condition);
 	}
 

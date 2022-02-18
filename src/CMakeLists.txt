@@ -292,16 +292,23 @@ if (ENABLE_CONFERENCE)
             )
 endif ()
 if (ENABLE_B2BUA)
+    include(${CMAKE_SOURCE_DIR}/src/jsoncpp.cmake)
+
     target_sources(flexisip PRIVATE
             b2bua/b2bua-server.cc
             b2bua/b2bua-server.hh
             b2bua/trenscrypter.cc
             b2bua/trenscrypter.hh
+            b2bua/external-provider-bridge.hh
+            b2bua/external-provider-bridge.cc
             )
     target_link_libraries(flexisip
             PUBLIC linphone++ linphone
             )
-    target_link_libraries(flexisip PRIVATE mediastreamer)
+	target_link_libraries(flexisip PRIVATE
+            jsoncpp_lib
+            mediastreamer
+            )
 endif ()
 if (ENABLE_SOCI)
     target_compile_definitions(flexisip PRIVATE "ENABLE_SOCI")

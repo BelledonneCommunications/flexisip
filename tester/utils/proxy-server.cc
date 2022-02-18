@@ -43,7 +43,14 @@ Server::Server(const std::string& configFile) {
 		if (ret != 0) {
 			BC_FAIL("Unable to load configuration file");
 		}
-		mAgent->loadConfig(cfg);
+		mAgent->loadConfig(cfg); // Don't modify cfg before this line as it gets reloaded here
+
+		// For testing purposes, override the auth file path to be relative to the config file.
+		const auto& configFolderPath = configFilePath.substr(0, configFilePath.find_last_of('/') + 1);
+		auto authFilePath = cfg->getRoot()
+		                        ->get<flexisip::GenericStruct>("module::Authentication")
+		                        ->get<flexisip::ConfigString>("file-path");
+		authFilePath->set(configFolderPath + authFilePath->read());
 	}
 }
 

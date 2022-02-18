@@ -53,15 +53,16 @@ public:
 /**
  * Media encryption transcoder
  */
-class Trenscrypter : public BridgedCallDelegate {
+class Trenscrypter : public BridgedCallApplication {
 	std::shared_ptr<linphone::Core> mCore;
 	std::list<encryptionConfiguration> mOutgoingEncryption;
 	std::list<srtpConfiguration> mSrtpConf;
 
 public:
 	void init(const std::shared_ptr<linphone::Core>& core, const flexisip::GenericStruct& config) override;
-	linphone::Reason onCallCreate(linphone::CallParams& outgoingCallParams,
-	                              const linphone::Call& incomingCall) override;
+	linphone::Reason onCallCreate(const linphone::Call& incomingCall,
+	                              linphone::Address& callee,
+	                              linphone::CallParams& outgoingCallParams) override;
 };
 
 } // namespace trenscrypter

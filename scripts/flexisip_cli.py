@@ -17,8 +17,8 @@ def parse_args():
 		help="""PID of the process to communicate with. If 0 is given, the pid will be automatically found from /var/run/flexisip-<server_type>.pid or,
 		if no pid file has been found, by picking the pid of the first process which name matches flexisip-<server_type>. (default: 0)"""
 	)
-	parser.add_argument('-s', '--server', choices=('proxy', 'presence'), default='proxy',
-		help="""Type of the server to communicate with. This only influences the selected PID should no PID be explicitly given. See '--pid'. (default: proxy)""")
+	parser.add_argument('-s', '--server', choices=('proxy', 'presence', 'b2bua'), default='proxy',
+		help="""Type of the server to communicate with. (default: proxy)""")
 
 	commands = {
 		'CONFIG_GET': {'help': 'Get the value of an internal variable of Flexisip.'},
@@ -27,7 +27,8 @@ def parse_args():
 		'REGISTRAR_GET': {'help': 'List all bindings under an address of record from registrar database.'},
 		'REGISTRAR_DELETE': {'help': 'Remove a specific binding of an address of record from the registrar database.'},
 		'REGISTRAR_CLEAR': {'help': 'Remove an address-of-record from the registrar database.'},
-		'REGISTRAR_DUMP': {'help': 'Dump list of registered address-of-records for this proxy instance only (not all the cluster !)'}
+		'REGISTRAR_DUMP': {'help': 'Dump list of registered address-of-records for this proxy instance only (not all the cluster !)'},
+		'SIP_BRIDGE': {'help': 'Send commands to the external SIP provider bridge. (If active)'},
 	}
 
 	kargs = {
@@ -55,14 +56,14 @@ def parse_args():
 	commands['REGISTRAR_GET']['parser'].add_argument('uri', help='AOR sip uri.')
 	commands['REGISTRAR_DELETE']['parser'].add_argument('uri', help='AOR sip uri.')
 	commands['REGISTRAR_DELETE']['parser'].add_argument('uuid', help='+sip.instance value identifying the binding.')
+	commands['SIP_BRIDGE']['parser'].add_argument('subcommand', help='The command to send to the bridge. Valid commands: INFO')
 
 	return parser.parse_args()
 
 
-def getpid(serverType):
+def getpid(procName: str) -> int:
 	from subprocess import check_output, CalledProcessError
 
-	procName = 'flexisip-' + serverType
 	pidFile = '/var/run/{procName}.pid'.format(procName=procName)
 
 	try:
@@ -95,6 +96,8 @@ def formatMessage(args):
 	elif args.command == 'REGISTRAR_DELETE':
 		messageArgs.append(args.uri)
 		messageArgs.append(args.uuid)
+	elif args.command == 'SIP_BRIDGE':
+		messageArgs.append(args.subcommand)
 	return ' '.join(messageArgs)
 
 
@@ -115,14 +118,12 @@ def sendMessage(remote_socket, message):
 def main():
 	args = parse_args()
 
-	socket_path_base = '/tmp/flexisip-'
-	socket_path_server = 'proxy-'
-	serverType = args.server
 	pid = args.pid
-
+	proc_name = 'flexisip-{}'.format(args.server)
 	if pid == 0:
-		pid = getpid(serverType)
-	socket = socket_path_base + socket_path_server + str(pid)
+		pid = getpid(proc_name)
+
+	socket = '/tmp/{}-{}'.format(proc_name, pid)
 
 	message = formatMessage(args)
 	sendMessage(socket, message)

@@ -84,6 +84,7 @@ cmake_dependent_option(ENABLE_TEST_COVERAGE_REPORTS "Enable flexisip clang test 
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable media relay specific features" OFF "ENABLE_TRANSCODER" OFF)
 option(INTERNAL_LIBHIREDIS "Build libhiredis source code present as Flexisip submodule instead of searching it in system libraries" OFF)
 option(INTERNAL_LIBSRTP2 "Build SRTP2 source code present as linphone-sdk submodule instead of searching it in system libraries" ON)
+option(INTERNAL_JSONCPP "Build and use vendored Jsoncpp source code instead of searching for it in system libraries" OFF)
 set(CPACK_GENERATOR "" CACHE STRING "Generator to use for making package. Supported values: 'RPM', 'DEB'")
 set(SYSCONF_INSTALL_DIR "" CACHE STRING
 	"Configuration directory, the place where Flexisip expects its flexisip.conf file to reside. Always equal to '${CMAKE_INSTALL_FULL_SYSCONFDIR}' if empty."

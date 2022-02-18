@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian11:20220613_remove_entrypoint
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian11:20220708_add_jsoncpp
 ###############################################################################
 
 FROM debian:bullseye
@@ -32,6 +32,7 @@ RUN apt-get -y update \
                        libboost-thread-dev \
                        libhiredis-dev \
                        libjansson-dev \
+                       libjsoncpp-dev \
                        libsqlite3-dev \
                        libpq-dev \
                        libmariadb-dev \

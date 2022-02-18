@@ -89,6 +89,7 @@ if(INTERNAL_MBEDTLS)
 	endif()
 	set(ENABLE_PROGRAMS OFF)
 	set(ENABLE_TESTING OFF)
+	set(MBEDTLS_FATAL_WARNINGS ${ENABLE_STRICT_LINPHONESDK})
 	add_subdirectory("linphone-sdk/external/mbedtls")
 endif()
 

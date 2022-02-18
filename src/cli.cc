@@ -37,9 +37,9 @@
 using namespace flexisip;
 using namespace std;
 
-CommandLineInterface::CommandLineInterface(const std::string &name) : mName(name) {
-	if (pipe(mControlFds) == -1)
-		LOGF("Cannot create control pipe of CommandLineInterface thread: %s", strerror(errno));
+CommandLineInterface::CommandLineInterface(const std::string& name)
+    : mName(name), handlers(std::make_shared<CliHandler::HandlerTable>()) {
+	if (pipe(mControlFds) == -1) LOGF("Cannot create control pipe of CommandLineInterface thread: %s", strerror(errno));
 }
 
 CommandLineInterface::~CommandLineInterface() {
@@ -49,6 +49,21 @@ CommandLineInterface::~CommandLineInterface() {
 	close(mControlFds[1]);
 }
 
+void CliHandler::unregister() {
+	if (auto table = registration.lock()) {
+		table->remove_if([this](const CliHandler& elem) { return &elem == this; });
+	}
+}
+
+void CliHandler::registerTo(const std::shared_ptr<HandlerTable>& table) {
+	unregister();
+	table->push_front(*this);
+	registration = table;
+}
+
+CliHandler::~CliHandler() {
+	unregister();
+}
 
 void CommandLineInterface::start() {
 	mRunning = true;
@@ -79,7 +94,27 @@ void CommandLineInterface::parseAndAnswer(unsigned int socket, const std::string
 	else if ((command == "CONFIG_SET") || (command == "SET"))
 		handleConfigSet(socket, args);
 	else
-		answer(socket, "Error: unknown command " + command);
+		dispatch(socket, command, args);
+}
+
+void CommandLineInterface::dispatch(unsigned int socket,
+                                    const std::string& command,
+                                    const std::vector<std::string>& args) {
+	auto output = std::string();
+	for (CliHandler& handler : *handlers) {
+		output = handler.handleCommand(command, args);
+		if (!output.empty()) {
+			break;
+		}
+	}
+	if (output.empty()) {
+		output = "Error: unknown command " + command;
+	}
+	answer(socket, output);
+}
+
+void CommandLineInterface::registerHandler(CliHandler& handler) {
+	handler.registerTo(handlers);
 }
 
 GenericEntry *CommandLineInterface::getGenericEntry(const std::string &arg) const {

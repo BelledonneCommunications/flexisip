@@ -26,35 +26,45 @@
 #include "flexisip/configmanager.hh"
 
 #include "service-server.hh"
+#include "cli.hh"
+
+namespace b2buatester{
+class B2buaServer;
+}
 
 namespace flexisip {
 namespace b2bua {
-class BridgedCallDelegate {
+class BridgedCallApplication {
 public:
 	virtual void init(const std::shared_ptr<linphone::Core>& core, const flexisip::GenericStruct& configRoot) = 0;
 	/**
-	 * lets the delegate run some business logic before the outgoing call is placed.
+	 * lets the application run some business logic before the outgoing call is placed.
 	 *
-	 * @param[inout]	outgoingCallParams	the params of the outgoing call to be created. They will be modified
-	 *according to the business logic of the delegate.
 	 * @param[in]	incomingCall	the call that triggered the B2BUA.
+	 * @param[inout]	callee	the address to call, can be mangled according to internal business logic.
+	 * @param[inout]	outgoingCallParams	the params of the outgoing call to be created. They will be modified
+	 *according to the business logic of the application.
 	 * @return		a reason to abort the bridging and decline the incoming call. Reason::None if the call should go
 	 *through.
 	 **/
-	virtual linphone::Reason onCallCreate(linphone::CallParams& outgoingCallParams,
-	                                      const linphone::Call& incomingCall) = 0;
+	virtual linphone::Reason onCallCreate(const linphone::Call& incomingCall,
+	                                      linphone::Address& callee,
+	                                      linphone::CallParams& outgoingCallParams) = 0;
 	virtual void onCallEnd(const linphone::Call& call) {
 	}
-	virtual ~BridgedCallDelegate() = default;
+	virtual ~BridgedCallApplication() = default;
 };
 
 // Name of the corresponding section in the configuration file
 constexpr auto configSection = "b2bua-server";
 
 } // namespace b2bua
+
 class B2buaServer : public ServiceServer,
                     public std::enable_shared_from_this<B2buaServer>,
                     public linphone::CoreListener {
+	friend class b2buatester::B2buaServer;
+
 public:
 	B2buaServer(const std::shared_ptr<sofiasip::SuRoot>& root);
 	~B2buaServer();
@@ -72,7 +82,8 @@ protected:
 
 private:
 	std::shared_ptr<linphone::Core> mCore;
-	std::unique_ptr<b2bua::BridgedCallDelegate> mDelegate;
+	std::unique_ptr<b2bua::BridgedCallApplication> mApplication;
+	CommandLineInterface mCli;
 };
 
 } // namespace flexisip

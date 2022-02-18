@@ -7,6 +7,6 @@ import ./nix/base.nix ({
   additionalInputs = ps: with ps; [
     nixpkgs-fmt
     ccache
-    clang
+    clang_13
   ];
 } // args)
