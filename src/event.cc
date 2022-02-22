@@ -306,8 +306,9 @@ void RequestSipEvent::linkTransactions() {
 	shared_ptr<OutgoingTransaction> ot;
 	shared_ptr<IncomingTransaction> it;
 
-	if (mOutgoingAgent && mIncomingAgent && (ot = dynamic_pointer_cast<OutgoingTransaction>(mOutgoingAgent)) != NULL &&
-		(it = dynamic_pointer_cast<IncomingTransaction>(mIncomingAgent)) != NULL) {
+	if (mOutgoingAgent && mIncomingAgent &&
+	    (ot = dynamic_pointer_cast<OutgoingTransaction>(mOutgoingAgent)) != nullptr &&
+	    (it = dynamic_pointer_cast<IncomingTransaction>(mIncomingAgent)) != nullptr) {
 		ot->mIncoming = it;
 		it->mOutgoing = ot;
 	}

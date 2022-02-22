@@ -172,7 +172,7 @@ static void destroy_transaction(su_root_magic_t* rm, su_msg_r msg, void* u) {
 }
 
 void OutgoingTransaction::destroy() {
-	if (mSofiaRef != NULL) {
+	if (mSofiaRef) {
 		nta_outgoing_bind(mOutgoing, NULL, NULL); // avoid callbacks
 		{
 			// invoke nta_outgoing_destroy() at a later time.
@@ -289,10 +289,10 @@ shared_ptr<MsgSip> IncomingTransaction::getLastResponse() {
 }
 
 void IncomingTransaction::destroy() {
-	if (mSofiaRef != NULL) {
+	if (mSofiaRef) {
 		nta_incoming_bind(mIncoming, NULL, NULL); // avoid callbacks
 		nta_incoming_destroy(mIncoming);
-		mIncoming = NULL;
+		mIncoming = nullptr;
 		mOutgoing.reset();
 		mSofiaRef.reset(); // This MUST be the last instruction of this function, because it may destroy the
 		                   // IncomingTransaction.

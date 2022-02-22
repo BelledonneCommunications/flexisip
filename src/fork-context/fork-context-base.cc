@@ -41,9 +41,9 @@ ForkContextBase::ForkContextBase(Agent* agent,
 	if (auto sharedCounter = mStatCounter.lock()) {
 		sharedCounter->incrStart();
 	}
-	mIncoming = mEvent->createIncomingTransaction();
 
 	if (!isRestored) {
+		mIncoming = mEvent->createIncomingTransaction();
 		if (mCfg->mForkLate) {
 			// this timer is for when outgoing transaction all die prematurely, we still need to wait that late register
 			// arrive.

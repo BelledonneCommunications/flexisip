@@ -84,8 +84,6 @@ shared_ptr<ForkMessageContext> ForkMessageContext::make(Agent* agent,
 		shared->restoreBranch(dbBranch);
 	}
 
-	shared->mIncoming.reset();
-
 	return shared;
 }
 
