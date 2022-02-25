@@ -278,17 +278,14 @@ tests-flexisip-mr:
 
     - |
         for service in $(docker-compose $docker_compose_options ps --services); do
+          if [[ "${service}" == "flexisip" ]]; then
+            continue
+          fi
           filename="${service}_stdout.log"
           echo -n "Writting ${filename}..."
           grep $service logs_all >> ${filename}.log
           echo " done"
         done
-
-    - |
-        filename=flexisip_stdout_tail.log
-        echo -n "Writting ${filename}..."
-        docker-compose $docker_compose_options logs --no-color --tail=100000 flexisip > ${filename}
-        echo " done"
 
     #we wait for each grep to end before stopping containers
     - wait

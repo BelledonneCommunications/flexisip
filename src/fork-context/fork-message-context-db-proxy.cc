@@ -134,7 +134,7 @@ void ForkMessageContextDbProxy::runSavingThread() {
 	mState = State::SAVING;
 	const auto& dbFork = mForkMessage->getDbObject();
 	ThreadPool::getGlobalThreadPool()->run([this, dbFork]() {
-		lock_guard<mutex> lock(mMutex);
+		unique_lock<mutex> lock(mMutex);
 		if (saveToDb(dbFork)) {
 			mState = State::IN_DATABASE;
 			mSavedAgent->getRoot()->addToMainLoop([weak = weak_ptr<ForkMessageContextDbProxy>{shared_from_this()}]() {
@@ -147,6 +147,8 @@ void ForkMessageContextDbProxy::runSavingThread() {
 		} else {
 			mState = State::IN_MEMORY;
 		}
+		lock.unlock();
+		mCondition.notify_all();
 	});
 }
 
@@ -168,9 +170,11 @@ bool ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
 	LOGD("ForkMessageContextDbProxy[%p] onNewRegister", this);
 	if (mState != State::IN_MEMORY) {
 		ThreadPool::getGlobalThreadPool()->run([this, dest, uid, dispatchFunc]() {
+			unique_lock<mutex> lock(mMutex);
+			// Wait if state == SAVING
+			mCondition.wait(lock, [this]() { return !(mState == State::SAVING); });
 			// If multiples onNewRegister are active at the same time on one ForkMessage only one should access DB
-			// at the same time
-			lock_guard<mutex> lock(mMutex);
+			// at the same time, this is ensured by mCondition.wait taking a lock.
 			if (mState != State::IN_MEMORY) {
 				checkState("restoringThread exec", State::IN_DATABASE);
 				mState = State::RESTORING;

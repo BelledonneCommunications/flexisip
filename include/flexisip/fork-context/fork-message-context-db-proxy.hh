@@ -170,7 +170,8 @@ private:
 	// need to be modified because we are in the proxy object.
 	mutable std::shared_ptr<ForkMessageContext> mForkMessage;
 	mutable std::unique_ptr<ForkMessageContextDb> mDbFork{nullptr};
-	mutable std::mutex mMutex;
+	mutable std::mutex mMutex{};
+	mutable std::condition_variable mCondition{};
 	mutable State mState;
 	mutable sofiasip::Timer mProxyLateTimer;
 
