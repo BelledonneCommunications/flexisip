@@ -76,6 +76,7 @@ class DomainRegistration {
 	static void sRefreshRegistration(su_root_magic_t *magic, su_timer_t *timer, su_timer_arg_t *arg);
 	void responseCallback(nta_outgoing_t *orq, const sip_t *resp);
 	void onConnectionBroken(tport_t *tport, msg_t *msg, int error);
+	void setCurrentTport(tport_t *tport);
 	void cleanCurrentTport();
 	void sendRequest();
 	int generateUuid(const std::string &uniqueId);

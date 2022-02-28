@@ -456,6 +456,7 @@ void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp
 			nextSchedule = 0;
 		}
 		mLastResponseWas401 = true;
+		setCurrentTport(nta_outgoing_transport(orq));
 		/* will retry immediately */
 	}else if (resp->sip_status->st_status != 200) {
 		/*the registration failed for whatever reason. Retry shortly.*/
@@ -480,13 +481,7 @@ void DomainRegistration::responseCallback(nta_outgoing_t *orq, const sip_t *resp
 				LOGD("Decrementing number of domain registration to : %d.", mManager.mNbRegistration);
 			}
 		}
-		tport_t *tport = nta_outgoing_transport(orq);
-		unsigned int keepAliveInterval = mManager.mKeepaliveInterval * 1000;
-		
-		cleanCurrentTport();
-		mCurrentTport = tport;
-		tport_set_params(tport, TPTAG_SDWN_ERROR(1), TPTAG_KEEPALIVE(keepAliveInterval), TAG_END());
-		mPendId = tport_pend(tport, NULL, &DomainRegistration::sOnConnectionBroken, (tp_client_t *)this);
+		setCurrentTport(nta_outgoing_transport(orq));
 		nextSchedule = ((expire * 90) / 100) + 1;
 		LOGD("Scheduling next domain register refresh for %s in %i seconds", mFrom->url_host, nextSchedule);
 	
@@ -643,6 +638,17 @@ void DomainRegistration::start() {
 	sendRequest();
 }
 
+void DomainRegistration::setCurrentTport(tport_t *tport) {
+	if (!tport)
+		return;
+	if (mCurrentTport == tport) return;
+	unsigned int keepAliveInterval = mManager.mKeepaliveInterval * 1000;
+	cleanCurrentTport();
+	mCurrentTport = tport;
+	tport_set_params(tport, TPTAG_SDWN_ERROR(1), TPTAG_KEEPALIVE(keepAliveInterval), TAG_END());
+	mPendId = tport_pend(tport, NULL, &DomainRegistration::sOnConnectionBroken, (tp_client_t *)this);
+}
+
 void DomainRegistration::cleanCurrentTport() {
 	if (mCurrentTport) {
 		tport_release(mCurrentTport, mPendId, NULL, NULL, (tp_client_t *)this, 0);
@@ -653,7 +659,6 @@ void DomainRegistration::cleanCurrentTport() {
 }
 
 void DomainRegistration::stop() {
-	cleanCurrentTport();
 	LOGD("Unregistering domain.");
 	mExpires = 0;
 	sendRequest();
