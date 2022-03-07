@@ -200,6 +200,7 @@ void ModuleRouter::restoreForksFromDatabase() {
 	auto allDbMessages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
 	SLOGD << " ... " << allDbMessages.size() << " messages found in DB ...";
 	for (auto& dbMessage : allDbMessages) {
+		mStats.mCountForks->incrStart();
 		auto restoredForkMessage =
 		    ForkMessageContextDbProxy::make(getAgent(), mMessageForkCfg, shared_from_this(), mStats.mCountMessageForks,
 		                                    mStats.mCountMessageProxyForks, dbMessage);
