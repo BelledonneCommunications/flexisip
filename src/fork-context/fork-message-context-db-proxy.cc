@@ -67,6 +67,8 @@ ForkMessageContextDbProxy::ForkMessageContextDbProxy(Agent* agent,
 	LOGD("New ForkMessageContextDbProxy %p", this);
 	if (auto sharedCounter = mCounter.lock()) {
 		sharedCounter->incrStart();
+	} else {
+		SLOGE << errorLogPrefix() << "weak_ptr mCounter should be present here.";
 	}
 }
 
@@ -86,6 +88,8 @@ ForkMessageContextDbProxy::~ForkMessageContextDbProxy() {
 	LOGD("Destroy ForkMessageContextDbProxy %p", this);
 	if (auto sharedCounter = mCounter.lock()) {
 		sharedCounter->incrFinish();
+	} else {
+		SLOGE << errorLogPrefix() << "weak_ptr mCounter should be present here.";
 	}
 
 	if (!mForkUuidInDb.empty() && mIsFinished) {
@@ -113,20 +117,24 @@ bool ForkMessageContextDbProxy::saveToDb(const ForkMessageContextDb& dbFork) {
 			ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(dbFork, mForkUuidInDb);
 		}
 		if(mForkUuidInDb.empty()) {
-			LOGE("ForkMessageContextDbProxy[%p] mForkUuidInDb empty after save, keeping message in memory", this);
+			SLOGE << errorLogPrefix() << "mForkUuidInDb empty after save, keeping message in memory";
 			return false;
 		}
 	} catch (const exception& e) {
-		SLOGE << "A problem occurred during ForkMessageContext saving, it will remain in memory : " << e.what();
+		SLOGE << errorLogPrefix()
+		      << "A problem occurred during ForkMessageContext saving, it will remain in memory : " << e.what();
 		return false;
 	}
 	return true;
 }
 
 void ForkMessageContextDbProxy::onForkContextFinished(const shared_ptr<ForkContext>& ctx) {
+	LOGD("ForkMessageContextDbProxy[%p] onForkContextFinished", this);
 	mIsFinished = true;
 	if (auto originListener = mOriginListener.lock()) {
 		originListener->onForkContextFinished(shared_from_this());
+	} else {
+		SLOGE << errorLogPrefix() << "weak_ptr mOriginListener should be present here.";
 	}
 }
 
@@ -182,7 +190,7 @@ bool ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
 					loadFromDb();
 					mState = State::IN_MEMORY;
 				} catch (const exception& e) {
-					SLOGE << "Error loading ForkMessageContext from db : " << e.what();
+					SLOGE << errorLogPrefix() << "Error loading ForkMessageContext from db : " << e.what();
 					mState = State::IN_DATABASE;
 				}
 			}
@@ -226,8 +234,8 @@ void ForkMessageContextDbProxy::checkState(const string& methodName,
                                            const ForkMessageContextDbProxy::State& expectedState) const {
 	if (mState != expectedState) {
 		stringstream ss;
-		ss << "Bad ForkMessageContextDbProxy[" << this << "] state :  actual [" << mState << "] expected ["
-		   << expectedState << "] in " << methodName;
+		ss << errorLogPrefix() << "Bad state :  actual [" << mState << "] expected [" << expectedState << "] in "
+		   << methodName;
 		SLOGE << ss.str();
 		throw logic_error{ss.str()};
 	}

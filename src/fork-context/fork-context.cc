@@ -84,3 +84,9 @@ bool ForkContext::processResponse(const shared_ptr<ResponseSipEvent>& ev) {
 
 	return false;
 }
+
+std::string ForkContext::errorLogPrefix() const {
+	std::stringstream prefix;
+	prefix << typeid(this).name() << "[" << this << "] - fork error - ";
+	return prefix.str();
+}

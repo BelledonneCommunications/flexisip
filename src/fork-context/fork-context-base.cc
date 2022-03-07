@@ -40,6 +40,8 @@ ForkContextBase::ForkContextBase(Agent* agent,
       mCfg(cfg), mLateTimer(agent->getRoot()), mFinishTimer(agent->getRoot()) {
 	if (auto sharedCounter = mStatCounter.lock()) {
 		sharedCounter->incrStart();
+	} else {
+		SLOGE << errorLogPrefix() << "weak_ptr mStatCounter should be present here.";
 	}
 
 	if (!isRestored) {
@@ -56,6 +58,8 @@ ForkContextBase::ForkContextBase(Agent* agent,
 ForkContextBase::~ForkContextBase() {
 	if (auto sharedCounter = mStatCounter.lock()) {
 		sharedCounter->incrFinish();
+	} else {
+		SLOGE << errorLogPrefix() << "weak_ptr mStatCounter should be present here.";
 	}
 }
 
@@ -360,7 +364,7 @@ void ForkContextBase::nextBranches() {
 
 void ForkContextBase::start() {
 	if (mFinished) {
-		LOGE("Calling start() on a completed ForkContext[%p]. Doing nothing", this);
+		SLOGE << errorLogPrefix() << "Calling start() on a completed. Doing nothing";
 		return;
 	}
 
@@ -394,6 +398,8 @@ const shared_ptr<RequestSipEvent> & ForkContextBase::getEvent() {
 void ForkContextBase::onFinished() {
 	if (auto listener = mListener.lock()) {
 		listener->onForkContextFinished(shared_from_this());
+	} else {
+		SLOGE << errorLogPrefix() << "weak_ptr mListener should be present here.";
 	}
 }
 
@@ -457,7 +463,7 @@ shared_ptr<ResponseSipEvent> ForkContextBase::forwardResponse(const shared_ptr<B
 		} else
 			br->mLastResponse->setIncomingAgent(shared_ptr<IncomingAgent>());
 	} else {
-		LOGE("ForkContext::forwardResponse(): no response received on this branch");
+		SLOGE << errorLogPrefix() << "forwardResponse(): no response received on this branch";
 	}
 
 	return shared_ptr<ResponseSipEvent>();
@@ -497,7 +503,8 @@ int ForkContextBase::getLastResponseCode() const {
 
 shared_ptr<ResponseSipEvent> ForkContextBase::forwardCustomResponse(int status, const char* phrase) {
 	if (mIncoming == nullptr) {
-		LOGE("ForkContext[%p]: cannot forward SIP response [%d %s]: no incoming transaction.", this, status, phrase);
+		SLOGE << errorLogPrefix() << "cannot forward SIP response [" << status << " " << phrase
+		      << "]: no incoming transaction.";
 		return nullptr;
 	}
 	auto msgsip = mIncoming->createResponse(status, phrase);
@@ -506,7 +513,8 @@ shared_ptr<ResponseSipEvent> ForkContextBase::forwardCustomResponse(int status, 
 		    make_shared<ResponseSipEvent>(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip);
 		return forwardResponse(ev);
 	} else { // Should never happen
-		LOGE("Because MsgSip can't be created ForkContext[%p] is finished without forwarding any response.", this);
+		SLOGE << errorLogPrefix()
+		      << "Because MsgSip can't be created fork is finished without forwarding any response.";
 		setFinished();
 	}
 	return nullptr;

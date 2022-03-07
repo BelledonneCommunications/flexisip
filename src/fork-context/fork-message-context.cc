@@ -259,7 +259,7 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 			removeBranch(tmp);
 		}
 	} else {
-		SLOGE << "No unique id found for contact";
+		SLOGE << errorLogPrefix() << "No unique id found for contact";
 	}
 }
 

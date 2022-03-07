@@ -83,7 +83,8 @@ public:
 	 * the main loop, do nothing otherwise. Typical case for refusing it is when another transaction already exists or
 	 * existed for this contact.
 	 */
-	virtual bool onNewRegister(const SipUri& dest, const std::string& uid, const std::function<void()>& dispatchFunction) = 0;
+	virtual bool
+	onNewRegister(const SipUri& dest, const std::string& uid, const std::function<void()>& dispatchFunction) = 0;
 	// Notifies the cancellation of the fork process.
 	virtual void onCancel(const std::shared_ptr<RequestSipEvent>& ev) = 0;
 	// Notifies the arrival of a new response on a given branch
@@ -91,6 +92,9 @@ public:
 	virtual const std::shared_ptr<RequestSipEvent>& getEvent() = 0;
 	virtual const std::shared_ptr<ForkContextConfig>& getConfig() const = 0;
 	virtual bool isFinished() const = 0;
+
+protected:
+	std::string errorLogPrefix() const;
 };
 
 class ForkContextListener {
