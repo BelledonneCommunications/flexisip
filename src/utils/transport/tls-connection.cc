@@ -23,6 +23,7 @@
 #include <thread>
 
 #include <poll.h>
+#include <math.h>
 
 #include <nghttp2/nghttp2.h>
 #include <nghttp2/nghttp2ver.h>
@@ -131,7 +132,6 @@ void TlsConnection::connect() noexcept {
 	if (isSecured()) {
 		newBio = BIOUniquePtr{BIO_new_ssl_connect(mCtx.get())};
 		BIO_set_conn_hostname(newBio.get(), hostname.c_str());
-		BIO_set_nbio(newBio.get(), 1);
 		BIO_get_ssl(newBio.get(), &ssl);
 		SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
 		SSL_set_options(ssl, SSL_OP_ALL);
@@ -144,6 +144,7 @@ void TlsConnection::connect() noexcept {
 		// keep the const_cast() here because BIO_new_connect() takes a 'char *' in old revision of OpenSSL.
 		newBio = BIOUniquePtr{BIO_new_connect(const_cast<char*>(hostname.c_str()))};
 	}
+	BIO_set_nbio(newBio.get(), 1);
 
 	/* Ensure that the error queue is empty */
 	ERR_clear_error();
@@ -202,18 +203,7 @@ int TlsConnection::getFd(BIO& bio) {
 	return fd;
 }
 
-int TlsConnection::read(void* data, int dlen, chrono::milliseconds timeout) noexcept {
-
-	if (timeout != 0ms) {
-		try {
-			if (!waitForData(timeout)) {
-				return 0;
-			}
-		} catch (const runtime_error& e) {
-			return -1;
-		}
-	}
-
+int TlsConnection::read(void* data, int dlen) noexcept {
 	auto nread = BIO_read(mBio.get(), data, dlen);
 	if (nread < 0) {
 		if (errno == EWOULDBLOCK || BIO_should_retry(mBio.get())) {
