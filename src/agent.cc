@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #include <algorithm>
 #include <memory>
@@ -373,7 +373,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 				LOGF("Specifying an URI with transport=tls is not understood in flexisip configuration. Use 'sips' uri "
 				     "scheme instead.");
 			}
-			LOGF("Could not enable transport %s: %s", uri.c_str(), strerror(errno))
+			LOGF("Could not enable transport %s: %s", uri.c_str(), strerror(errno));
 		}
 		su_home_deinit(&home);
 	}
@@ -791,6 +791,8 @@ bool Agent::Network::isInNetwork(const struct sockaddr* addr) const {
 	} else {
 		LOGF("Network::isInNetwork: cannot happen");
 	}
+
+	return false;
 }
 
 string Agent::Network::print(const struct ifaddrs* ifaddr) {
@@ -914,11 +916,9 @@ void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	const sip_request_t* req = sip->sip_request;
 	const url_t* from_url = sip->sip_from ? sip->sip_from->a_url : NULL;
 
-	if (LOGD_ENABLED()) {
-		auto from = from_url ? url_as_string(ev->getHome(), from_url) : "<invalid from>";
-		SLOGD << "Receiving new Request SIP message " << req->rq_method_name << " from " << from << " :\n"
-		      << *ev->getMsgSip();
-	}
+	SLOGD << "Receiving new Request SIP message " << req->rq_method_name << " from "
+	      << (from_url ? url_as_string(ev->getHome(), from_url) : "<invalid from>") << " :\n"
+	      << *ev->getMsgSip();
 	switch (req->rq_method) {
 		case sip_method_register:
 			++*mCountIncomingRegister;
@@ -964,10 +964,8 @@ void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 	}
 	SipLogContext ctx(ev->getMsgSip());
 
-	if (LOGD_ENABLED()) {
-		SLOGD << "Receiving new Response SIP message: " << ev->getMsgSip()->getSip()->sip_status->st_status << "\n"
-		      << *ev->getMsgSip();
-	}
+	SLOGD << "Receiving new Response SIP message: " << ev->getMsgSip()->getSip()->sip_status->st_status << "\n"
+	      << *ev->getMsgSip();
 
 	sip_t* sip = ev->getMsgSip()->getSip();
 	switch (sip->sip_status->st_status) {
@@ -1021,10 +1019,8 @@ void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	SipLogContext ctx{ev->getMsgSip()};
 	auto currModule = ev->mCurrModule.lock(); // Used to be a basic pointer
-	if (LOGD_ENABLED()) {
-		SLOGD << "Inject request SIP event [" << ev << "] after " << currModule->getModuleName() << ":\n"
-		      << *ev->getMsgSip();
-	}
+	SLOGD << "Inject request SIP event [" << ev << "] after " << currModule->getModuleName() << ":\n"
+	      << *ev->getMsgSip();
 	ev->restartProcessing();
 	auto it = find(mModules.cbegin(), mModules.cend(), currModule);
 	doSendEvent(ev, ++it, mModules.cend());
@@ -1034,10 +1030,8 @@ void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
 void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 	SipLogContext ctx{ev->getMsgSip()};
 	auto currModule = ev->mCurrModule.lock(); // Used to be a basic pointer
-	if (LOGD_ENABLED()) {
-		SLOGD << "Injecting response SIP event [" << ev << "] after " << currModule->getModuleName() << ":\n"
-		      << *ev->getMsgSip();
-	}
+	SLOGD << "Injecting response SIP event [" << ev << "] after " << currModule->getModuleName() << ":\n"
+	      << *ev->getMsgSip();
 	ev->restartProcessing();
 	auto it = find(mModules.cbegin(), mModules.cend(), currModule);
 	doSendEvent(ev, ++it, mModules.cend());

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -425,7 +425,7 @@ static void forkAndDetach(const string& pidfile, bool auto_respawn, bool startMo
 		/* This is the initial process.
 		 * It should block until flexisip has started sucessfully or rejected to start.
 		 */
-		LOGE("[LAUNCHER] Watchdog PID: %d", pid);
+		LOGD("[LAUNCHER] Watchdog PID: %d", pid);
 		uint8_t buf[4];
 		// we don't need the write side of the pipe:
 		close(pipe_launcher_wdog[1]);
@@ -878,17 +878,18 @@ int main(int argc, char* argv[]) {
 		makePidFile(pidFile.getValue());
 	}
 
-	/* Log initialisation.
+	/*
+	 * Log initialisation.
 	 * This must be done after forking in order the log file be reopen after respawn should Flexisip crash.
-	 * The condition intent to avoid log initialization should the user have passed command line options that doesn't
-	 * require to start the server e.g. dumping default configuration file. */
+	 * The condition intent to avoid log initialisation should the user have passed command line options that doesn't
+	 * require to start the server e.g. dumping default configuration file.
+	 */
 	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !listSections &&
 	    !dumpMibs && !dumpAll) {
 		if (cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read() !=
 		    static_cast<ConfigByteSize::ValueType>(-1)) {
-			LOGF("Setting 'global/max-log-size' parameter has been forbbiden since log size control was delegated to "
-			     "logrotate. Please "
-			     "edit /etc/logrotate.d/flexisip-logrotate for log rotation customization.");
+			LOGF("Setting 'global/max-log-size' parameter has been forbidden since log size control was delegated to "
+			     "logrotate. Please edit /etc/logrotate.d/flexisip-logrotate for log rotation customization.");
 		}
 
 		const auto& logFilename = cfg->getGlobal()->get<ConfigString>("log-filename")->read();
@@ -919,8 +920,10 @@ int main(int argc, char* argv[]) {
 
 	increase_fd_limit();
 
-	// we create an Agent in all cases, because it will declare config items that are necessary for presence server to
-	// run.
+	/*
+	 * We create an Agent in all cases, because it will declare config items that are necessary for presence server to
+	 * run.
+	 */
 	a = make_shared<Agent>(root);
 	setOpenSSLThreadSafe();
 	a->loadConfig(cfg);

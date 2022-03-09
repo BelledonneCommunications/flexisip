@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -247,12 +247,11 @@ RequestSipEvent::RequestSipEvent(const shared_ptr<RequestSipEvent>& sipEvent)
 
 void RequestSipEvent::send(
     const shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) {
-	if (mOutgoingAgent != NULL) {
-		if (LOGD_ENABLED()) {
-			SLOGD << "Sending Request SIP message to " << (u ? url_as_string(msg->getHome(), (url_t const*)u) : "NULL")
-			      << "\n"
-			      << *msg;
-		}
+
+	if (mOutgoingAgent != nullptr) {
+		SLOGD << "Sending Request SIP message to " << (u ? url_as_string(msg->getHome(), (url_t const*)u) : "NULL")
+		      << "\n"
+		      << *msg;
 		ta_list ta;
 		ta_start(ta, tag, value);
 		mOutgoingAgent->send(msg, u, ta_tags(ta));
@@ -389,16 +388,14 @@ void ResponseSipEvent::checkContentLength(const shared_ptr<MsgSip>& msg, const s
 
 void ResponseSipEvent::send(
     const shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) {
-	if (mIncomingAgent != NULL) {
+	if (mIncomingAgent != nullptr) {
 		bool via_popped = false;
 		if (mPopVia && msg == mMsgSip) {
 			sip_via_remove(msg->getMsg(), msg->getSip());
 			via_popped = true;
 		}
 		if (msg->getSip()->sip_via) checkContentLength(msg, msg->getSip()->sip_via);
-		if (LOGD_ENABLED()) {
-			SLOGD << "Sending response:" << (via_popped ? " (via popped) " : "") << endl << *msg;
-		}
+		SLOGD << "Sending response:" << (via_popped ? " (via popped) " : "") << endl << *msg;
 		ta_list ta;
 		ta_start(ta, tag, value);
 		mIncomingAgent->send(msg, u, ta_tags(ta));

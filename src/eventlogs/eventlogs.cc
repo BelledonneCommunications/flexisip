@@ -429,6 +429,9 @@ constexpr int SqlAuthEventLogId = 3;
 constexpr int SqlCallQualityEventLogId = 4;
 } // namespace
 
+// redundant declaration (required for C++14 compatibility)
+constexpr unsigned int DataBaseEventLogWriter::sRequiredSchemaVersion;
+
 std::unique_ptr<DataBaseEventLogWriter::BackendInfo>
 DataBaseEventLogWriter::BackendInfo::getBackendInfo(const std::string& backendName) {
 	if (backendName == "mysql") return make_unique<MysqlInfo>();

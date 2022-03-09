@@ -1,20 +1,20 @@
 /*
- Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2017  Belledonne Communications SARL.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as
- published by the Free Software Foundation, either version 3 of the
- License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <belle-sip/utils.h>
 
@@ -67,13 +67,18 @@ void ConferenceServer::_init() {
 	// Core
 	auto configLinphone = Factory::get()->createConfig("");
 	configLinphone->setString("sip", "bind_address", bindAddress);
-	configLinphone->setBool("misc", "conference_server_enabled", 1);
-	configLinphone->setBool("misc", "enable_one_to_one_chat_room",
-	                        config->get<ConfigBoolean>("enable-one-to-one-chat-room")->read());
+
+	configLinphone->setBool("misc", "conference_server_enabled", true);
 	configLinphone->setInt("misc", "hide_empty_chat_rooms", 0);
 	configLinphone->setInt("misc", "hide_chat_rooms_from_removed_proxies", 0);
+	configLinphone->setBool("misc", "enable_one_to_one_chat_room",
+	                        config->get<ConfigBoolean>("enable-one-to-one-chat-room")->read());
+
 	configLinphone->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
 	configLinphone->setString("storage", "uri", config->get<ConfigString>("database-connection-string")->read());
+
+	configLinphone->setBool("logging", "disable_stdout", true);
+
 	mCore = Factory::get()->createCoreWithConfig(configLinphone, nullptr);
 	mCore->setUserAgent("Flexisip-conference", FLEXISIP_GIT_VERSION);
 	mCore->addListener(shared_from_this());

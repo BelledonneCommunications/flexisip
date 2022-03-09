@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #include <sys/stat.h>
 #include <syslog.h>
@@ -27,8 +27,6 @@
 #include "flexisip/logmanager.hh"
 
 using namespace std;
-
-static BctbxLogLevel flexisip_sysLevelMin = BCTBX_LOG_ERROR;
 
 namespace flexisip {
 
@@ -103,9 +101,11 @@ void LogManager::initialize(const Parameters& params) {
 	if (!params.logFilename.empty()) {
 		ostringstream pathStream;
 		struct ::stat st;
-		/* Handle the case where the log directory is not created.
+		/*
+		 * Handle the case where the log directory is not created.
 		 * This is for convenience, because our rpm and deb packages create it already.
-		 * However, in other case (like developper environnement) this is painful to create it all the time manually.*/
+		 * However, in other case (like developer environment) this is painful to create it all the time manually.
+		 */
 		if (stat(params.logDirectory.c_str(), &st) != 0 && errno == ENOENT) {
 			printf("Creating log directory %s.\n", params.logDirectory.c_str());
 			string command("mkdir -p");
@@ -126,8 +126,9 @@ void LogManager::initialize(const Parameters& params) {
 
 		mLogHandler =
 		    bctbx_create_file_log_handler(params.fileMaxSize, params.logDirectory.c_str(), params.logFilename.c_str());
-		if (mLogHandler) bctbx_add_log_handler(mLogHandler);
-		else {
+		if (mLogHandler) {
+			bctbx_add_log_handler(mLogHandler);
+		} else {
 			if (params.enableSyslog) ::syslog(LOG_ERR, "Could not create log file handler.");
 			if (!params.enableStdout) {
 				LOGF("Could not create/open log file '%s'.", pathStream.str().c_str());

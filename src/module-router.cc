@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #include <sofia-sip/sip_status.h>
 
@@ -887,8 +887,7 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent>& ev) {
 		return;
 	}
 	if ((next_hop = ModuleToolbox::getNextHop(getAgent(), sip, &isRoute)) != NULL && isRoute) {
-		if (LOGD_ENABLED())
-			LOGD("Route header found [%s] but not us, skipping.", url_as_string(ms->getHome(), next_hop));
+		LOGD("Route header found [%s] but not us, skipping.", url_as_string(ms->getHome(), next_hop));
 		return;
 	}
 

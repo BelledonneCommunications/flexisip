@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <cstdio>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -39,13 +40,7 @@
 
 /*
  * These are the classic C-style logging macros.
- * When performance matters, they must be prefered over C++ style logging macros.
- * Indeed, the C macros first check whether log must be output, then format the log.
- * The C++ macros first format an ostringstream, and then check whether the log must be output.
- * In a running system in production where debug logs are disabled, this means that all debug messages
- * will be formatted throug an ostringstream for nothing.
  */
-
 #define LOGD bctbx_debug
 #define LOGI bctbx_message
 #define LOGW bctbx_warning
@@ -56,64 +51,14 @@
 #define LOGDV(thefmt, theargs) LOGV(BCTBX_LOG_DEBUG, thefmt, theargs)
 
 /*
- * These are test macros, useful to avoid doing anything when the log is not needed and the formating of the log
- * arguments is costly, for example when logging a SIP message.
- */
-#define LOGD_ENABLED() (bctbx_log_level_enabled(BCTBX_LOG_DOMAIN, BCTBX_LOG_DEBUG))
-#define LOGI_ENABLED() (bctbx_log_level_enabled(BCTBX_LOG_DOMAIN, BCTBX_LOG_MESSAGE))
-
-/*
  * These are the C++ logging macros, that can be used with << operator.
- * Though they are convenient, they are not performant, see comment above.
  */
-
-#define SLOGA_FL(file, line) throw FlexisipException() << " " << file << ":" << line << " "
-
 #define SLOG(thelevel) BCTBX_SLOG(FLEXISIP_LOG_DOMAIN, thelevel)
 #define SLOGD SLOG(BCTBX_LOG_DEBUG)
 #define SLOGI SLOG(BCTBX_LOG_MESSAGE)
 #define SLOGW SLOG(BCTBX_LOG_WARNING)
 #define SLOGE SLOG(BCTBX_LOG_ERROR)
 #define SLOGUE BCTBX_SLOG(FLEXISIP_USER_ERRORS_LOG_DOMAIN, BCTBX_LOG_ERROR)
-
-#define LOGDFN(boolFn, streamFn)                                                                                       \
-	do {                                                                                                               \
-		if (bctbx_get_log_level_mask(FLEXISIP_LOG_DOMAIN, (BCTBX_LOG_DEBUG)) && (boolFn())) {                          \
-			pumpstream pump(BCTBX_LOG_DEBUG);                                                                          \
-			(streamFn)(pump);                                                                                          \
-		}                                                                                                              \
-	} while (0)
-
-/*
- * We want LOGN to output all the time: this is for startup notice.
- */
-#define LOGN(args...)                                                                                                  \
-	do {                                                                                                               \
-		bctbx_set_thread_log_level(NULL, BCTBX_LOG_MESSAGE);                                                           \
-		bctbx_message(args);                                                                                           \
-		bctbx_clear_thread_log_level(NULL);                                                                            \
-		fprintf(stdout, args);                                                                                         \
-		fprintf(stdout, "\n");                                                                                         \
-	} while (0);
-
-/** LOGEN and LOGF must be used to report any startup or configuration fatal error that needs to be seen by the
- *operator.
- * This is why it goes to syslog (if syslog is used) and standart output.
- **/
-#define LOGEN(args...)                                                                                                 \
-	do {                                                                                                               \
-		fprintf(stderr, args);                                                                                         \
-		fprintf(stderr, "\n");                                                                                         \
-		bctbx_set_thread_log_level(NULL, BCTBX_LOG_MESSAGE);                                                           \
-		bctbx_log(BCTBX_LOG_DOMAIN, BCTBX_LOG_ERROR, args);                                                            \
-		bctbx_clear_thread_log_level(NULL);                                                                            \
-	} while (0);
-
-#define LOGF(args...)                                                                                                  \
-	do {                                                                                                               \
-		LOGEN(args);                                                                                                   \
-		exit(-1);                                                                                                      \
-	} while (0);
 
 namespace flexisip {
 
@@ -139,6 +84,9 @@ public:
 		bool enableStdout = false;
 	};
 
+	LogManager(const LogManager&) = delete;
+	~LogManager();
+
 	BctbxLogLevel logLevelFromName(const std::string& name) const;
 	// Initialize logging system
 	void initialize(const Parameters& params);
@@ -160,6 +108,10 @@ public:
 	// Disable all logs.
 	void disable();
 
+	bool syslogEnabled() const {
+		return mSysLogHandler != nullptr;
+	};
+
 	/**
 	 * @brief Require the reopening of each log file.
 	 * @note This method can be used inside UNIX signal handlers.
@@ -168,12 +120,10 @@ public:
 		mReopenRequired = true;
 	}
 
-	~LogManager();
-
 private:
-	static void logStub(const char* domain, BctbxLogLevel level, const char* msg, va_list args);
 	LogManager() = default;
-	LogManager(const LogManager&) = delete;
+
+	static void logStub(const char* domain, BctbxLogLevel level, const char* msg, va_list args);
 	void setCurrentContext(const SipLogContext& ctx);
 	void clearCurrentContext();
 	void checkForReopening();
@@ -200,7 +150,7 @@ public:
 /*
  * Class for contextual logs.
  * For now it just uses the MsgSip being processed by flexisip.
- * This class should typically be instanciated on stack (not with new).
+ * This class should typically be instantiated on stack (not with new).
  * When it goes out of scope, it automatically clears the context with the LogManager.
  */
 class SipLogContext : public LogContext {
@@ -215,3 +165,54 @@ private:
 };
 
 } // end of namespace flexisip
+
+static BctbxLogLevel flexisip_sysLevelMin = BCTBX_LOG_ERROR;
+
+/*
+ * We want LOGN to output all the time (in standard output or syslog): this is for startup notice.
+ */
+template <typename... Args>
+inline void LOGN(const char* format, const Args&... args) {
+	if (!flexisip::LogManager::get().syslogEnabled()) {
+		fprintf(stdout, format, args...);
+		fprintf(stdout, "\n");
+	} else if (flexisip_sysLevelMin >= BCTBX_LOG_MESSAGE) {
+		syslog(LOG_INFO, format, args...);
+	}
+	bctbx_set_thread_log_level(NULL, BCTBX_LOG_MESSAGE);
+	bctbx_log(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_MESSAGE, format, args...);
+	bctbx_clear_thread_log_level(NULL);
+}
+
+/**
+ * LOGEN and LOGF must be used to report any startup or configuration fatal error that needs to be seen by the
+ * operator.
+ * This is why it goes to standard output if syslog is not used (mostly for daemon mode).
+ **/
+template <typename... Args>
+inline void LOGEN(const char* format, const Args&... args) {
+	if (!flexisip::LogManager::get().syslogEnabled()) {
+		fprintf(stderr, format, args...);
+		fprintf(stderr, "\n");
+	}
+	bctbx_set_thread_log_level(NULL, BCTBX_LOG_MESSAGE);
+	bctbx_log(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_ERROR, format, args...);
+	bctbx_clear_thread_log_level(NULL);
+}
+
+template <typename... Args>
+inline void LOGF(const char* format, const Args&... args) {
+	LOGEN(format, args...);
+	exit(-1);
+}
+
+/**
+ * Remove and secure : warning - format string is not a string literal (potentially insecure)
+ * While using a string with no arguments
+ */
+inline void LOGEN(const char* simpleLog) {
+	LOGEN("%s", simpleLog);
+}
+inline void LOGF(const char* simpleLog) {
+	LOGF("%s", simpleLog);
+}
