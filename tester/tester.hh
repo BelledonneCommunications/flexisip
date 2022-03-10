@@ -1,6 +1,6 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+ Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
@@ -16,8 +16,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef flexisip_tester_hpp
-#define flexisip_tester_hpp
+#pragma once
 
 extern "C" {
 #include "bctoolbox/tester.h"
@@ -30,6 +29,7 @@ extern "C" {
 
 #include <chrono>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -40,12 +40,16 @@ extern "C" {
 #include <thread>
 #include <chrono>
 
+#include <bctoolbox/tester.h>
+
+#include <flexisip/sofia-wrapper/su-root.hh>
+
+#include "flexisip-tester-config.hh"
+
 std::string bcTesterFile(const std::string& name);
 std::string bcTesterRes(const std::string& name);
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 extern test_suite_t agent_suite;
 extern test_suite_t boolean_expressions_suite;
@@ -66,7 +70,13 @@ extern test_suite_t b2bua_suite;
 void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_list args));
 void flexisip_tester_uninit(void);
 
-#ifdef __cplusplus
-};
-#endif
-#endif
+}; // extern "C"
+
+namespace flexisip {
+namespace tester {
+
+extern test_suite_t registarDbSuite;
+
+} // namespace tester
+} // namespace flexisip
+

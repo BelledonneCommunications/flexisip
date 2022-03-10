@@ -1,6 +1,6 @@
 ############################################################################
 # ExternalDependencies.cmake
-# Copyright (C) 2010-2021  Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2022  Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -39,8 +39,13 @@ endif()
 
 # Configure and add Soci
 if(ENABLE_SOCI OR ENABLE_CONFERENCE_SERVER)
-	set(SOCI_SHARED ON)
-	set(SOCI_STATIC OFF)
+	if(BUILD_SHARED_LIBS)
+		set(SOCI_SHARED ON)
+		set(SOCI_STATIC OFF)
+	else()
+		set(SOCI_SHARED OFF)
+		set(SOCI_STATIC ON)
+	endif()
 	set(SOCI_FRAMEWORK OFF)
 	set(SOCI_TESTS OFF)
 	set(SOCI_ASAN OFF)

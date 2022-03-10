@@ -1,6 +1,6 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+ Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
@@ -96,6 +96,7 @@ void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_
 	bc_tester_add_suite(&push_notification_suite);
 #endif
 	bc_tester_add_suite(&register_suite);
+	bc_tester_add_suite(&flexisip::tester::registarDbSuite);
 	bc_tester_add_suite(&router_suite);
 	bc_tester_add_suite(&tls_connection_suite);
 #if ENABLE_B2BUA

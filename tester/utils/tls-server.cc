@@ -18,8 +18,9 @@
 
 #include <thread>
 
-#include "flexisip-config.h"
 #include "flexisip/logmanager.hh"
+
+#include "flexisip-tester-config.hh"
 
 #include "tls-server.hh"
 

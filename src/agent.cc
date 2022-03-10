@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -646,16 +646,16 @@ bool Agent::doOnConfigStateChanged(const ConfigValue &conf, ConfigState state) {
 	return mBaseConfigListener->onConfigStateChanged(conf, state);
 }
 
-void Agent::loadConfig(GenericManager *cm) {
-	cm->loadStrict(); // now that each module has declared its settings, we need to reload from the config file
+void Agent::loadConfig(GenericManager *cm, bool strict) {
+	if (strict) cm->loadStrict(); // now that each module has declared its settings, we need to reload from the config file
 	if (!mBaseConfigListener) {
 		mBaseConfigListener = cm->getGlobal()->getConfigListener();
 	}
 	cm->getRoot()->get<GenericStruct>("global")->setConfigListener(this);
 	mAliases = cm->getGlobal()->get<ConfigStringList>("aliases")->read();
 	LOGD("List of host aliases:");
-	for (list<string>::iterator it = mAliases.begin(); it != mAliases.end(); ++it) {
-		LOGD("%s", (*it).c_str());
+	for (const auto& alias : mAliases) {
+		LOGD("%s", alias.c_str());
 	}
 
 	RegistrarDb::initialize(this);

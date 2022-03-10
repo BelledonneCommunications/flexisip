@@ -1,6 +1,6 @@
 ############################################################################
 # LinphoneSDK.cmake
-# Copyright (C) 2010-2021  Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2022 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -28,8 +28,14 @@
 set(DISABLE_BC_PACKAGE_SEARCH ON)
 set(BCUNIT_TARGETNAME "bcunit")
 set(BCTOOLBOX_CMAKE_UTILS_DIR "${CMAKE_CURRENT_BINARY_DIR}/linphone-sdk/bctoolbox")
-set(ENABLE_SHARED ON)
-set(ENABLE_STATIC OFF)
+if(BUILD_SHARED_LIBS)
+	set(ENABLE_SHARED ON)
+	set(ENABLE_STATIC OFF)
+else()
+	set(ENABLE_SHARED OFF)
+	set(ENABLE_STATIC ON)
+endif()
+set(ENABLE_STRICT ${ENABLE_STRICT_LINPHONESDK})
 set(ENABLE_TOOLS OFF)
 set(ENABLE_TEST OFF)
 set(ENABLE_TESTS OFF)

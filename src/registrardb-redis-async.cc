@@ -1,6 +1,6 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+ Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
@@ -503,8 +503,10 @@ void RegistrarDbRedisAsync::subscribe(const string &topic, const shared_ptr<Cont
 
 void RegistrarDbRedisAsync::unsubscribe(const string &topic, const shared_ptr<ContactRegisteredListener> &listener) {
 	RegistrarDb::unsubscribe(topic, listener);
-	if (mContactListenersMap.count(topic) == 0)
+	if (mContactListenersMap.count(topic) == 0) {
+		SLOGD << "Sending UNSUBSCRIBE command to Redis for topic '" << topic << "'";
 		redisAsyncCommand(mSubscribeContext, nullptr, nullptr, "UNSUBSCRIBE %s", topic.c_str());
+	}
 }
 
 void RegistrarDbRedisAsync::publish(const string &topic, const string &uid) {
@@ -547,16 +549,23 @@ void RegistrarDbRedisAsync::sSubscribeDisconnectCallback(const redisAsyncContext
 }
 
 void RegistrarDbRedisAsync::sPublishCallback(redisAsyncContext *c, void *r, void *privdata) {
-	redisReply *reply = (redisReply *)r;
+	const auto* reply = static_cast<redisReply*>(r);
 	if (reply == nullptr) return;
 
 	if (reply->type == REDIS_REPLY_ARRAY) {
-		LOGD("Publish array received: [%s, %s, %s/%i]", reply->element[0]->str, reply->element[1]->str, reply->element[2]->str, (int)reply->element[2]->integer);
-		if (reply->element[2]->str != nullptr) {
-			RegistrarDbRedisAsync *zis = (RegistrarDbRedisAsync *)c->data;
+		const auto& messageType = reply->element[0]->str;
+		const auto& channel = reply->element[1]->str;
+		if (strcasecmp(messageType, "message") == 0) {
+			const auto& message = reply->element[2]->str;
+			SLOGD << "Publish array received: [" << messageType << ", " << channel << ", " << message << "]";
+			auto* zis = static_cast<RegistrarDbRedisAsync*>(c->data);
 			if (zis) {
 				zis->notifyContactListener(reply->element[1]->str, reply->element[2]->str);
 			}
+		} else {
+			const auto& nSubscriptions = reply->element[2]->integer;
+			SLOGD << "'" << messageType << "' request on '" << channel << "' channel succeeded. "
+			      << nSubscriptions << " actual subscriptions";
 		}
 	}
 }
