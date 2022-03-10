@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -249,53 +249,62 @@ void ModuleInfoManager::dumpModuleDependencies(const list<ModuleInfoBase *> &l)c
 	SLOGD << ostr.str();
 }
 
-void ModuleInfoManager::eliminateReplacedModules(list<ModuleInfoBase *> &sortedList)const{
-	for (auto it = sortedList.begin() ; it != sortedList.end(); ++it){
-		const string &replace = (*it)->getReplace();
-		if (!replace.empty()) {
-			const string &moduleName = (*it)->getModuleName();
-			auto replacedModuleIterator = find_if(sortedList.begin(), sortedList.end(), [&replace](const ModuleInfoBase *module) {
-				return module->getModuleName() == replace;
-			});
-			if (replacedModuleIterator == sortedList.end()) {
-				SLOGE << "Unable to find module [" << replace << "] to be replaced by module [" << moduleName << "]";
-				continue;
-			}
-			
-			SLOGW << "Module " << "[" << moduleName << "] will replace module [" << replace << "].";
-			// Eliminate the replaced module. The replacing module remains at its place.
-			sortedList.erase(replacedModuleIterator);
+void ModuleInfoManager::replaceModules(std::list<ModuleInfoBase*>& sortedList,
+                                                 const std::list<ModuleInfoBase*>& replacingModules) const {
+	for (auto* module : replacingModules) {
+		const auto& moduleName = module->getModuleName();
+		const auto& replace = module->getReplace();
+		auto replacedModule = find_if(sortedList.begin(), sortedList.end(), [&replace](const ModuleInfoBase* module) {
+			return module->getModuleName() == replace;
+		});
+		if (replacedModule == sortedList.end()) {
+			SLOGE << "Unable to find module [" << replace << "] to be replaced by module [" << moduleName << "]";
+			continue;
 		}
+
+		SLOGW << "Module " << "[" << moduleName << "] will replace module [" << replace << "].";
+		*replacedModule = module;
 	}
 }
 
-std::list<ModuleInfoBase*> ModuleInfoManager::buildModuleChain()const{
-	list<ModuleInfoBase *> sortedList;
-	list<ModuleInfoBase *> pending = mRegisteredModuleInfo;
-	
-	while (!pending.empty()){
-		bool sortProgressing = false;
-		for (auto module_it = pending.begin(); module_it != pending.end(); ){
-			ModuleInfoBase *module = *module_it;
+std::list<ModuleInfoBase*> ModuleInfoManager::buildModuleChain() const {
+	// Extract the modules which are to replace other modules from the others.
+	decltype(mRegisteredModuleInfo) sortedList{}, pendingModules{}, replacingModules{};
+	for (auto* modInfo : mRegisteredModuleInfo) {
+		if (modInfo->getReplace().empty()) {
+			pendingModules.emplace_back(modInfo);
+		} else {
+			replacingModules.emplace_back(modInfo);
+		}
+	}
+
+	// Sort the no-replacing modules according their declared previous module.
+	while (!pendingModules.empty()) {
+		auto sortProgressing = false;
+		for (auto module_it = pendingModules.begin(); module_it != pendingModules.end();) {
+			auto* module = *module_it;
 			// Make sure the module has already its dependencies in the sortedList
-			if (moduleDependenciesPresent(sortedList, module)){
-				/* Good, this module has all its dependencies placed before it in the sorted list. 
+			if (moduleDependenciesPresent(sortedList, module)) {
+				/* Good, this module has all its dependencies placed before it in the sorted list.
 				 * We can append it to the sorted list, and remove it from the pending list.*/
 				sortedList.push_back(module);
-				module_it = pending.erase(module_it);
+				module_it = pendingModules.erase(module_it);
 				sortProgressing = true;
-			}else{
+			} else {
 				/* Some dependencies are not found. Continue iterating on the pending list. */
 				++module_it;
 			}
 		}
-		if (!sortProgressing && !pending.empty()){
+		if (!sortProgressing && !pendingModules.empty()) {
 			LOGE("Some modules have position references to other modules that could not be found:");
-			dumpModuleDependencies(pending);
-			LOGF("Somes modules could not be positionned in the module's processing chain. It is usually caused by an invalid module declaration Flexisip's source code, or in a loaded plugin.");
+			dumpModuleDependencies(pendingModules);
+			LOGF("Somes modules could not be positionned in the module's processing chain. It is usually caused by an "
+			     "invalid module declaration Flexisip's source code, or in a loaded plugin.");
 		}
 	}
-	eliminateReplacedModules(sortedList);
+
+	// Replace the modules which are targeted by replacingModules.
+	replaceModules(sortedList, replacingModules);
 	LOGD("Module chain computed succesfully.");
 	return sortedList;
 }

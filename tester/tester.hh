@@ -75,6 +75,7 @@ void flexisip_tester_uninit(void);
 namespace flexisip {
 namespace tester {
 
+extern test_suite_t moduleInfoSuite;
 extern test_suite_t registarDbSuite;
 
 } // namespace tester

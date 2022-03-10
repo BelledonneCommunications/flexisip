@@ -1,6 +1,6 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+	Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as
@@ -500,6 +500,6 @@ void GatewayAdapter::nua_callback(nua_event_t event, int status, char const *phr
 ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo(
 	"GatewayAdapter",
 	"No documentation at the moment.",
-	{ "Redirect" },
+	{ "RegEvent" },
 	ModuleInfoBase::ModuleOid::GatewayAdapter, ModuleClass::Experimental
 );
