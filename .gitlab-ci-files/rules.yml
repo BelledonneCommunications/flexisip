@@ -1,0 +1,44 @@
+# https://docs.gitlab.com/ee/ci/yaml/index.html#rules
+#
+# All `rules` should be gathered in this file.
+# 
+# Gitlab lets us merge job definitions through inheritance with the `extends` section.
+# However, if two jobs merged in this fashion define the same section (e.g. `rules`) the sections themselves will not be
+# merged: the last will override the first. In the case of arrays (like `scripts` or `rules`) this is a problem,
+# because we usually would like to merge them, but there is no mechanism to do so.
+# 
+# A workaround is to use YAML anchors (`&` and `*`) to reuse previously defined `rules` items, and ease refactoring.
+# However, YAML anchors only work within the same file (so not across Gitlab `include` boundaries).
+# Hence: this file.
+#
+# Every time you need a new set of `rules` for a job, you SHOULD define it here, reusing other `rules` items as
+# building blocks, then use `extends` to apply it to your job.
+# (This is to ease maintenance, as rules can then be changed quickly in one place.)
+#
+# You SHOULD NOT write `rules` outside this file. (This is to ease debugging, because, as explained above, `rules` can
+# override one another in an inheritance tree. This is not a strict rule however, and can be bypassed when justified.)
+#
+# This file MUST only contain hidden jobs (beginning with `.`) and these jobs MUST only contain a `rules` section
+
+# Master, releases and scheduled pipelines
+.rules-deploy:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+    - if: $CI_COMMIT_BRANCH =~  /^release/
+    - if: $SCHEDULE_RUN
+
+# Development branches (excluded from deployments)
+.rules-dev:
+  rules:
+    - &exclude-from-deploy
+      if: $DEPLOY_RUN
+      when: never
+    - &manual
+      when: manual  # But still overridden by the `workflow` rules
+
+.rules-nightly:
+  rules:
+    - if: '$NIGHTLY == null'
+      when: never
+    - *exclude-from-deploy
+    - *manual

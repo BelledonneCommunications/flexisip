@@ -3,70 +3,56 @@
 #################################################
 
 job-debian9-makefile-gcc:
+  extends: .job-linux-nightly
 
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian9:$DEBIAN_9_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
     CC: gcc
     CXX: g++
-  extends: .scheduled-job-linux
 
 
 job-debian9-makefile-clang:
+  extends: .job-linux-nightly
 
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian9:$DEBIAN_9_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
     CC: clang
     CXX: clang++
-  extends: .scheduled-job-linux
 
 #################################################
 # Ninja
 #################################################
 
 job-debian9-ninja-gcc:
+  extends: .job-linux-nightly
 
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian9:$DEBIAN_9_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
     CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
     CC: gcc
     CXX: g++
-  extends: .scheduled-job-linux
 
 
 job-debian9-ninja-clang:
+  extends:
+    - .job-linux
+    - .rules-dev  # ⚠ See `rules.yml`
 
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian9:$DEBIAN_9_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
     CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
     CC: clang
     CXX: clang++
-  extends: .job-linux
 
 
 #################################################
@@ -78,32 +64,16 @@ job-debian9-deb:
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian9:$DEBIAN_9_IMAGE_VERSION
   extends: .job-linux-deb
-  except:
-    variables:
-      - $DEPLOY_UBUNTU
   variables:
     CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
 
 
 job-debian9-deb-deploy:
+  extends: .job-debian-deb-deploy
 
-  except:
-    variables:
-      - $DEPLOY_UBUNTU
   variables:
     RELEASE: stretch
     FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
-  extends: .job-debian-deb-deploy
   dependencies:
     - job-debian9-deb
-    
-    
-#################################################
-# Docker
-#################################################
 
-job-flexisip-debian9-image-deploy:
-
-  dependencies:
-    - job-debian9-deb
-  extends: .job-flexisip-image-deploy

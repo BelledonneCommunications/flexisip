@@ -3,67 +3,53 @@
 #################################################
 
 job-debian11-makefile-gcc:
+  extends: .job-linux-nightly
 
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian11:$DEBIAN_11_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: gcc
     CXX: g++
-  extends: .scheduled-job-linux
 
 
 job-debian11-makefile-clang:
+  extends: .job-linux-nightly
 
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian11:$DEBIAN_11_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: clang
     CXX: clang++
-  extends: .scheduled-job-linux
 
 #################################################
 # Ninja
 #################################################
 
 job-debian11-ninja-gcc:
+  extends: .job-linux-nightly
 
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian11:$DEBIAN_11_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
     CC: gcc
     CXX: g++
-  extends: .scheduled-job-linux
 
 
 job-debian11-ninja-clang:
+  extends:
+    - .job-linux
+    - .rules-dev  # ⚠ See `rules.yml`
 
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian11:$DEBIAN_11_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
     CC: clang
     CXX: clang++
     CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON
-  extends: .job-linux
   artifacts:
     paths:
        - OUTPUT/*
@@ -72,13 +58,12 @@ job-debian11-ninja-clang:
 # XWiki reference documentation
 #################################################
 job-debian11-xwiki-doc-deploy:
+  extends:
+    - .rules-deploy  # ⚠ See `rules.yml`
+
   stage: build
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian11:$DEBIAN_11_IMAGE_VERSION
-
-  only:
-    variables:
-      - $SCHEDULE_RUN
 
   script:
     - prefix=/opt/belledonne-communications
@@ -99,20 +84,14 @@ job-debian11-deb:
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian11:$DEBIAN_11_IMAGE_VERSION
   extends: .job-linux-deb
-  except:
-    variables:
-      - $DEPLOY_UBUNTU
 
 
 job-debian11-deb-deploy:
+  extends: .job-debian-deb-deploy
 
-  except:
-    variables:
-      - $DEPLOY_UBUNTU
   variables:
     RELEASE: bullseye
     FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
-  extends: .job-debian-deb-deploy
   dependencies:
     - job-debian11-deb
 
@@ -122,13 +101,11 @@ job-debian11-deb-deploy:
 #################################################
 
 job-debian11-unit-test:
+  extends: .rules-dev  # ⚠ See `rules.yml`
+
   stage : test
   tags: [ "docker-test" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian11:$DEBIAN_11_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
   needs :
     - job-debian11-ninja-clang
   script :

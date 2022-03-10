@@ -1,11 +1,6 @@
 .job-macosx:
   stage: build
   tags: [ "macosx-xcode12" ]
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
-
   script:
     - ccache -s
     - export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
@@ -17,41 +12,41 @@
     - ccache -s
 
 
-.scheduled-job-macosx:
-
-  extends: .job-macosx
-  only:
-    variables:
-      - $NIGHTLY_MASTER
-      - $NIGHTLY_RELEASE
-
 #################################################
 # Makefile
 #################################################
 
 job-macosx-makefile:
+  extends:
+    - .job-macosx
+    - .rules-nightly  # ⚠ See `rules.yml`
 
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     NJOBS: $MAKEFILE_JOBS
-  extends: .scheduled-job-macosx
 
 #################################################
 # Ninja
 #################################################
 
 job-macosx-ninja:
+  extends:
+    - .job-macosx
+    - .rules-dev  # ⚠ See `rules.yml`
+
   variables:
     CMAKE_GENERATOR: Ninja
     NJOBS: $NINJA_JOBS
-  extends: .job-macosx
 
 #################################################
 # Xcode
 #################################################
 
 job-macosx-xcode:
+  extends:
+    - .job-macosx
+    - .rules-nightly  # ⚠ See `rules.yml`
+
   variables:
     CMAKE_GENERATOR: Xcode
     NJOBS: $MAX_NUMBER_TASK_XCODE
-  extends: .scheduled-job-macosx

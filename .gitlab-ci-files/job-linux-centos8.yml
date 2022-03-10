@@ -15,7 +15,7 @@
 #    CMAKE_OPTIONS: -DINTERNAL_LIBSRTP2=ON
 #    CC: gcc
 #    CXX: g++
-#  extends: .scheduled-job-linux
+#  extends: .job-linux-nightly
 #
 #job-centos8-makefile-clang:
 #
@@ -37,34 +37,28 @@
 #################################################
 
 job-centos8-ninja-gcc:
+  extends: .job-linux-nightly
 
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos8:$CENTOS_8_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
     CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DINTERNAL_LIBSRTP2=ON
     CC: gcc
     CXX: g++
-  extends: .scheduled-job-linux
 
 job-centos8-ninja-clang:
+  extends:
+    - .job-linux
+    - .rules-dev  # ⚠ See `rules.yml`
 
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos8:$CENTOS_8_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
     CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DINTERNAL_LIBSRTP2=ON
     CC: clang
     CXX: clang++
-  extends: .job-linux
 
 #################################################
 # RPM
@@ -79,16 +73,13 @@ job-centos8-rpm:
   extends: .job-linux-rpm
 
 job-centos8-rpm-deploy:
+  extends: .rules-deploy  # ⚠ See `rules.yml`
+
   stage: deploy
   tags: [ "deploy" ]
-
-  extends: .job-deploy
 
   dependencies:
     - job-centos8-rpm
 
-  except:
-    variables:
-      - $DEPLOY_UBUNTU
   script: ./.gitlab-ci-files/deploy.sh centos
 

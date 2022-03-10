@@ -3,67 +3,53 @@
 #################################################
 
 job-debian10-makefile-gcc:
+  extends: .job-linux-nightly
 
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: gcc
     CXX: g++
-  extends: .scheduled-job-linux
 
 
 job-debian10-makefile-clang:
+  extends: .job-linux-nightly
 
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: clang
     CXX: clang++
-  extends: .scheduled-job-linux
 
 #################################################
 # Ninja
 #################################################
 
 job-debian10-ninja-gcc:
+  extends: .job-linux-nightly
 
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
     CC: gcc
     CXX: g++
-  extends: .scheduled-job-linux
 
 
 job-debian10-ninja-clang:
+  extends:
+    - .job-linux
+    - .rules-dev  # ⚠ See `rules.yml`
 
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
     CC: clang
     CXX: clang++
     CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON
-  extends: .job-linux
   artifacts:
     paths:
        - OUTPUT/*
@@ -77,20 +63,14 @@ job-debian10-deb:
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
   extends: .job-linux-deb
-  except:
-    variables:
-      - $DEPLOY_UBUNTU
 
 
 job-debian10-deb-deploy:
+  extends: .job-debian-deb-deploy
 
-  except:
-    variables:
-      - $DEPLOY_UBUNTU
   variables:
     RELEASE: buster
     FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
-  extends: .job-debian-deb-deploy
   dependencies:
     - job-debian10-deb
 
@@ -100,13 +80,11 @@ job-debian10-deb-deploy:
 #################################################
 
 job-debian10-unit-test:
+  extends: .rules-dev  # ⚠ See `rules.yml`
+
   stage : test
   tags: [ "docker-test" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
   needs :
     - job-debian10-ninja-clang
   script :

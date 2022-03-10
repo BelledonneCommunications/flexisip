@@ -1,3 +1,7 @@
+#################################################
+# Global
+#################################################
+
 .set-max-jobs: &set-max-jobs
   - |
       case "$CMAKE_GENERATOR" in
@@ -11,12 +15,10 @@
       echo "CMAKE_BUILD_PARALLEL_LEVEL='$CMAKE_BUILD_PARALLEL_LEVEL'"
 
 .linux-ccache:
-
   cache:
     key: $CI_JOB_NAME
     paths:
       - ccache/
-
   before_script:
     - mkdir -p ccache
     - echo "max_size = $CCACHE_SIZE" > ccache/ccache.conf
@@ -31,10 +33,8 @@
     - ccache -s
 
 .job-linux:
-
   stage: build
   extends: .linux-ccache
-
   script:
     - export CC=$CC
     - export CXX=$CXX
@@ -43,26 +43,20 @@
     - cmake -G "$CMAKE_GENERATOR" $DEFAULT_CMAKE_OPTIONS -DCMAKE_INSTALL_PREFIX="$PWD/../OUTPUT" $CMAKE_OPTIONS ..
     - cmake --build . --target install
 
+
 #################################################
 # RPM
 #################################################
 
 .job-linux-rpm:
-
   stage: package
-  except:
-    variables:
-      - $DEPLOY_UBUNTU
-
   variables:
     CMAKE_GENERATOR: 'Ninja'
-
   script:
     - *set-max-jobs
     - mkdir build && cd build
     - cmake -G $CMAKE_GENERATOR $DEFAULT_PACKAGING_CMAKE_OPTIONS $CMAKE_OPTIONS -DCPACK_GENERATOR=RPM ..
     - cmake --build . --target package
-
   artifacts:
     paths:
       - build/*.rpm
@@ -74,18 +68,14 @@
 #################################################
 
 .job-linux-deb:
-
   stage: package
-
   variables:
     CMAKE_GENERATOR: 'Ninja'
-
   script:
     - *set-max-jobs
     - mkdir build && cd build
     - cmake -G $CMAKE_GENERATOR $DEFAULT_PACKAGING_CMAKE_OPTIONS $CMAKE_OPTIONS -DCPACK_GENERATOR=DEB ..
     - cmake --build . --target package
-
   artifacts:
     paths:
       - build/*.deb
@@ -93,22 +83,12 @@
     when: always
     expire_in: 1 week
 
-.job-deploy:
-  before_script:
-    - git submodule foreach --recursive git fetch --tags --force
-  only:
-    refs:
-      - master
-      - /release/.*/
-    variables: [$SCHEDULE_RUN]
 
 .job-debian-deb-deploy:
+  extends: .rules-deploy  # ⚠ See `rules.yml`
 
   stage: deploy
   tags: [ "deploy" ]
-
-  extends: .job-deploy
-
   script: ./.gitlab-ci-files/deploy.sh debian
 
 #################################################
@@ -116,15 +96,10 @@
 #################################################
 
 .job-flexisip-image-deploy:
+  extends: .rules-deploy  # ⚠ See `rules.yml`
 
   stage: image
   tags: [ "linux-deploy" ]
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
-  only:
-    - schedules
 
   before_script:
     - git submodule foreach --recursive git fetch --tags --force
@@ -137,13 +112,10 @@
 
 # Enable this to use tests-flexisip-mr
 #docker-build-flexisip-src:
+#  extends: .rules-dev  # ⚠ See `rules.yml`
 #
 #  stage: build
 #  tags: [ "linux-nuc-build" ]
-#  except:
-#    variables:
-#      - $DEPLOY_RUN
-#      - $DEPLOY_UBUNTU
 #  variables:
 #    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t flexisip-from-src:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA -f docker/flex-from-src --build-arg=njobs=12 --build-arg=build_type=RelWithDebInfo"
 #  script:
@@ -153,16 +125,63 @@
 #    - docker image ls
 
 #################################################
-# Schedule
+# Nightly only
 #################################################
 
-.scheduled-job-linux:
+.job-linux-nightly:
+  extends:
+    - .job-linux
+    - .rules-nightly  # ⚠ See `rules.yml`
 
-  extends: .job-linux
-  only:
-    variables:
-      - $NIGHTLY_MASTER
-      - $NIGHTLY_RELEASE
+#################################################
+# Build Makefile
+#################################################
+
+.job-makefile-gcc:
+  extends: .job-linux-nightly
+
+  tags: [ "docker" ]
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    CC: gcc
+    CXX: g++
+
+
+.job-makefile-clang:
+  extends: .job-linux-nightly
+
+  tags: [ "docker" ]
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    CC: clang
+    CXX: clang++
+
+#################################################
+# Build Ninja
+#################################################
+
+.job-ninja-gcc:
+  extends:
+    - .job-linux
+    - .rules-dev  # ⚠ See `rules.yml`
+
+  tags: [ "docker" ]
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CC: gcc
+    CXX: g++
+
+
+.job-ninja-clang:
+  extends:
+    - .job-linux
+    - .rules-dev  # ⚠ See `rules.yml`
+
+  tags: [ "docker" ]
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CC: clang
+    CXX: clang++
 
 #################################################
 # Tests

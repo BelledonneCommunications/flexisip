@@ -15,7 +15,7 @@
 #    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DINTERNAL_LIBSRTP2=ON
 #    CC: gcc
 #    CXX: g++
-#  extends: .scheduled-job-linux
+#  extends: .job-linux-nightly
 #  before_script:
 #    - source /opt/rh/devtoolset-8/enable
 #
@@ -42,37 +42,31 @@
 #################################################
 
 job-centos7-ninja-gcc:
+  extends: .job-linux-nightly
 
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos7:$CENTOS_7_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
     CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DINTERNAL_LIBSRTP2=ON
     CC: gcc
     CXX: g++
-  extends: .scheduled-job-linux
   before_script:
     - source /opt/rh/devtoolset-8/enable
 
 
 job-centos7-ninja-clang:
+  extends:
+    - .job-linux
+    - .rules-dev  # ⚠ See `rules.yml`
 
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos7:$CENTOS_7_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
     CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DINTERNAL_LIBSRTP2=ON
     CC: clang
     CXX: clang++
-  extends: .job-linux
   before_script:
     - source /opt/rh/llvm-toolset-7/enable
 
@@ -91,17 +85,13 @@ job-centos7-rpm:
 
 
 job-centos7-rpm-deploy:
+  extends: .rules-deploy  # ⚠ See `rules.yml`
 
   stage: deploy
   tags: [ "deploy" ]
 
-  extends: .job-deploy
-
   dependencies:
     - job-centos7-rpm
 
-  except:
-   variables:
-      - $DEPLOY_UBUNTU
   script: ./.gitlab-ci-files/deploy.sh centos
 

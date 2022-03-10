@@ -3,6 +3,7 @@
 #################################################
 
 job-ubuntu-rolling-makefile-gcc:
+  extends: .job-linux-nightly
 
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-rolling:$UBUNTU_ROLLING_IMAGE_VERSION
@@ -10,56 +11,41 @@ job-ubuntu-rolling-makefile-gcc:
     CMAKE_GENERATOR: Unix Makefiles
     CC: gcc
     CXX: g++
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
-  extends: .scheduled-job-linux
 
 
 job-ubuntu-rolling-makefile-clang:
+  extends: .job-linux-nightly
 
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-rolling:$UBUNTU_ROLLING_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     CC: clang
     CXX: clang++
-  extends: .scheduled-job-linux
 
 #################################################
 # Ninja
 #################################################
 
 job-ubuntu-rolling-ninja-gcc:
+  extends:
+    - .job-linux
+    - .rules-dev  # ⚠ See `rules.yml`
 
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-rolling:$UBUNTU_ROLLING_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
     CC: gcc
     CXX: g++
-  extends: .job-linux
 
 
 job-ubuntu-rolling-ninja-clang:
+  extends: .job-linux-nightly
 
   tags: [ "docker" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-rolling:$UBUNTU_ROLLING_IMAGE_VERSION
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
     CC: clang
     CXX: clang++
-  extends: .scheduled-job-linux
