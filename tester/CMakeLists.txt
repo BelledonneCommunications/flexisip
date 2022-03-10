@@ -37,6 +37,7 @@ add_executable(flexisip_tester
         conference-tester.cc
         extended-contact-tester.cc
         fork-context-tester.cc
+        module-info-tester.cc
         push-notification-tester.cc
         register-tester.cc
         registrardb-tester.cc

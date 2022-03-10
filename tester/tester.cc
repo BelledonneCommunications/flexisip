@@ -93,12 +93,10 @@ void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_
 	bc_tester_add_suite(&register_suite);
 	bc_tester_add_suite(&flexisip::tester::registarDbSuite);
 	bc_tester_add_suite(&router_suite);
-
-	/*
-	#if ENABLE_CONFERENCE
-	    bc_tester_add_suite(&registration_event_suite);
-	#endif
-	*/
+	bc_tester_add_suite(&flexisip::tester::moduleInfoSuite);
+#if ENABLE_CONFERENCE && 0 // Remove '&& 0' when the 'Registration Event' suite is fixed.
+	bc_tester_add_suite(&registration_event_suite);
+#endif
 }
 
 void flexisip_tester_uninit(void) {

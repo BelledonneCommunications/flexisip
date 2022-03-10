@@ -21,31 +21,12 @@
 
 #include "tester.hh"
 #include "utils/redis-server.hh"
+#include "utils/test-wrapper.hh"
 
 using namespace std;
 
 namespace flexisip {
 namespace tester {
-
-// Interface for all the classes which are to be executed as unit test.
-// The test is executed by calling () operator.
-class Test {
-public:
-	virtual ~Test() = default;
-	virtual void operator()() noexcept = 0;
-};
-
-// Wrapper object that allow BCUnit to easily call a Test-deviled class.
-// It is to be derived by the Test class to wrap by using the name
-// of the Test class as TestT template parameter.
-// Then, the method TestT::run() can be used in a BCUnit test suite array.
-template <typename TestT> class TestWrapper {
-public:
-	static void run() noexcept {
-		TestT test{};
-		test();
-	}
-};
 
 // Base class for all the tests concerning the RegistrarDB class.
 // It automatically instantiate an Agent which can be configured

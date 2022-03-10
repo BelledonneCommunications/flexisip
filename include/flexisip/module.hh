@@ -1,6 +1,6 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+	Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as
@@ -125,7 +125,7 @@ public:
 	const std::list<ModuleInfoBase *> &getRegisteredModuleInfo() const {
 		return mRegisteredModuleInfo;
 	}
-	std::list<ModuleInfoBase*> buildModuleChain()const;
+	std::list<ModuleInfoBase*> buildModuleChain() const;
 
 	static ModuleInfoManager *get();
 
@@ -134,7 +134,8 @@ private:
 	void unregisterModuleInfo(ModuleInfoBase *moduleInfo);
 	void dumpModuleDependencies(const std::list<ModuleInfoBase *> &l) const;
 	bool moduleDependenciesPresent(const std::list<ModuleInfoBase *> &sortedList, ModuleInfoBase *module) const;
-	void eliminateReplacedModules(std::list<ModuleInfoBase *> &sortedList) const;
+	void replaceModules(std::list<ModuleInfoBase*>& sortedList,
+	                              const std::list<ModuleInfoBase*>& replacingModules) const;
 	
 	std::list<ModuleInfoBase *> mRegisteredModuleInfo;
 
