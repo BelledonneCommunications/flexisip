@@ -1,6 +1,6 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+	Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as
@@ -346,9 +346,9 @@ void ConfigValue::checkType(const string & value, bool isDefault){
 	}
 }
 
-void ConfigValue::set(std::string &&value) {
+void ConfigValue::set(const std::string& value) {
 	checkType(value, false);
-	mValue = move(value);
+	mValue = value;
 	mNextValue = mValue;
 	mIsDefault = false;
 }

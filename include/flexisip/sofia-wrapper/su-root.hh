@@ -1,6 +1,6 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2021  Belledonne Communications SARL.
+	Copyright (C) 2010-2022 Belledonne Communications SARL.
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as
@@ -27,7 +27,7 @@ namespace sofiasip {
 
 class SuRoot {
 public:
-	using Duration = std::chrono::duration<su_duration_t, std::milli>;
+	using NativeDuration = std::chrono::duration<su_duration_t, std::milli>;
 
 	SuRoot() : mCPtr{su_root_create(nullptr)} {
 		if (mCPtr == nullptr) {
@@ -39,11 +39,13 @@ public:
 
 	su_root_t* getCPtr() const noexcept {return mCPtr;}
 
-	Duration step(Duration timeout) {
-		return static_cast<Duration>(su_root_step(mCPtr, timeout.count()));
+	template <typename Duration>
+	auto step(Duration timeout) {
+		return static_cast<NativeDuration>(su_root_step(mCPtr, std::chrono::duration_cast<NativeDuration>(timeout).count()));
 	}
-	Duration sleep(Duration duration) {
-		return static_cast<Duration>(su_root_sleep(mCPtr, duration.count()));
+	template <typename Duration>
+	auto sleep(Duration duration) {
+		return static_cast<NativeDuration>(su_root_sleep(mCPtr, std::chrono::duration_cast<NativeDuration>(duration).count()));
 	}
 
 	void run() {su_root_run(mCPtr);}

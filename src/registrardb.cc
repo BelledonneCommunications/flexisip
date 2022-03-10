@@ -1,6 +1,6 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+	Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as
@@ -746,7 +746,7 @@ void RegistrarDb::subscribe(const SipUri &url, const shared_ptr<ContactRegistere
 
 void RegistrarDb::subscribe(const string &topic, const shared_ptr<ContactRegisteredListener> &listener) {
 	LOGD("Subscribe topic = %s with listener %p", topic.c_str(), listener.get());
-	mContactListenersMap.insert(make_pair(topic, listener));
+	mContactListenersMap.emplace(topic, listener);
 }
 
 void RegistrarDb::unsubscribe(const string &topic, const shared_ptr<ContactRegisteredListener> &listener) {
@@ -775,7 +775,7 @@ public:
 private:
 	// ContactUpdateListener implementation
 	void onRecordFound (const shared_ptr<Record> &r) override {
-		const shared_ptr<Record> record = r?:make_shared<Record>(mAor);
+		auto record = r ?: make_shared<Record>(mAor);
 		mDb->notifyContactListener(record, mUid);
 	}
 	void onError () override {}
@@ -797,13 +797,14 @@ void RegistrarDb::notifyContactListener(const string &key, const string &uid) {
 
 void RegistrarDb::notifyContactListener (const shared_ptr<Record> &r, const string &uid) {
 	auto range = mContactListenersMap.equal_range(r->getKey());
-	list<shared_ptr<ContactRegisteredListener>> listeners;
+
 	/* Because invoking the listener might indirectly unregister listeners from the RegistrarDb, it is required
 	 * to first create a local copy of the list of listeners we are going to invoke. */
+	vector<shared_ptr<ContactRegisteredListener>> listeners{};
 	for (auto it = range.first; it != range.second; it++) {
-		listeners.push_back(it->second);
+		listeners.emplace_back(it->second);
 	}
-	for (auto l : listeners){
+	for (const auto& l : listeners){
 		LOGD("Notify topic = %s to listener %p", r->getKey().c_str(), l.get());
 		l->onContactRegistered(r, uid);
 	}

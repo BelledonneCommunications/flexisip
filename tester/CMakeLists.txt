@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2021  Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2022 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -24,6 +24,13 @@ find_package(Threads REQUIRED)
 find_package(LibNgHttp2Asio REQUIRED)
 find_package(Boost COMPONENTS system REQUIRED)
 
+# Generate flexisip-tester-config.h
+set(TESTER_DATA_DIR "${CMAKE_INSTALL_PREFIX}/share/flexisip-tester")
+find_program(REDIS_SERVER_EXEC NAMES redis-server REQUIRED)
+configure_file(flexisip-tester-config.hh.in flexisip-tester-config.hh)
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
 add_executable(flexisip_tester
         agent-tester.cc
         boolean-expressions.cc
@@ -32,12 +39,14 @@ add_executable(flexisip_tester
         fork-context-tester.cc
         push-notification-tester.cc
         register-tester.cc
+        registrardb-tester.cc
         router-tester.cc
         tester.cc tester.hh
-        utils/pns-mock.cc utils/pns-mock.hh
-        utils/listening-socket.cc utils/listening-socket.hh
         utils/bellesip-utils.cc utils/bellesip-utils.hh
-        )
+        utils/listening-socket.cc utils/listening-socket.hh
+        utils/pns-mock.cc utils/pns-mock.hh
+        utils/redis-server.cc
+)
 
 if (ENABLE_CONFERENCE)
     target_sources(flexisip_tester PRIVATE registration-event-tester.cc)

@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2020  Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2022  Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -56,28 +56,28 @@ include(GNUInstallDirs)
 include("cmake/FlexisipUtils.cmake")
 
 option(ENABLE_STRICT "Pass strict flags to the compiler" ON)
+option(ENABLE_STRICT_LINPHONESDK "Pass strict flags to the compiler for all Linphone SDK submodules" ON)
 option(ENABLE_DATEHANDLER "Build DateHandler module" OFF)
-option(ENABLE_PDFDOC "Build pdf documentation" OFF)
+option(ENABLE_PDFDOC "Build PDF documentation" OFF)
 option(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS "Enable monotonic clock for registrations" OFF)
 option(ENABLE_PRESENCE "Build presence support" ON)
 option(ENABLE_CONFERENCE "Build conference support" ON)
-option(ENABLE_PROTOBUF "Build with protobuf support" ON)
+option(ENABLE_PROTOBUF "Build with Protobuf support" ON)
 option(ENABLE_REDIS "Build with Redis support" ON)
 option(ENABLE_SNMP "Build with SNMP support" ON)
 option(ENABLE_SOCI "Build with SOCI support" ON)
-option(ENABLE_STATIC "Build static library (default is shared library)." OFF)
 option(ENABLE_TRANSCODER "Build transcoder support" ON)
 option(ENABLE_MDNS "Build multicast DNS support" OFF)
 option(ENABLE_EXTERNAL_AUTH_PLUGIN "Enable ExternalAuth plugin support" ON)
 option(ENABLE_JWE_AUTH_PLUGIN "Enable JweAuth plugin support" ON)
-option(ENABLE_UNIT_TESTS "Enable flexisip unit tests (low level tests)" OFF)
+option(ENABLE_UNIT_TESTS "Enable Flexisip unit tests (low level tests)" OFF)
 add_ccache_option(ON)
-cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable mediarelay specific features" OFF "ENABLE_TRANSCODER" OFF)
+cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable media relay specific features" OFF "ENABLE_TRANSCODER" OFF)
 option(INTERNAL_LIBHIREDIS "Build libhiredis source code present as Flexisip submodule instead of searching it in system libraries" OFF)
 option(INTERNAL_LIBSRTP2 "Build SRTP2 source code present as linphone-sdk submodule instead of searching it in system libraries" OFF)
 set(CPACK_GENERATOR "" CACHE STRING "Generator to use for making package. Supported values: 'RPM', 'DEB'")
 set(SYSCONF_INSTALL_DIR "" CACHE STRING
-	"Config directory, the place where flexisip expects its flexisip.conf file to reside. Always equal to '${CMAKE_INSTALL_FULL_SYSCONFDIR}' if empty."
+	"Configuration directory, the place where Flexisip expects its flexisip.conf file to reside. Always equal to '${CMAKE_INSTALL_FULL_SYSCONFDIR}' if empty."
 )
 set(FLEXISIP_SYSTEMD_INSTALL_DIR "" CACHE STRING
 	"Where to install the SystemD units. Always equal to '${CMAKE_INSTALL_FULL_DATAROOTDIR}/systemd/system' if empty."
@@ -92,6 +92,8 @@ if(FLEXISIP_SYSTEMD_INSTALL_DIR STREQUAL "")
 	set(FLEXISIP_SYSTEMD_INSTALL_DIR "${CMAKE_INSTALL_FULL_DATAROOTDIR}/systemd/system")
 endif()
 
+# Build libflexisip and all its dependencies as shared libraries
+set(BUILD_SHARED_LIBS ON)
 
 # Require C++14
 set(CMAKE_CXX_STANDARD 14)
@@ -109,10 +111,6 @@ set(CONFIG_DIR "${SYSCONF_INSTALL_DIR}/flexisip")
 message(STATUS "Config dir: ${CONFIG_DIR}")
 
 set(INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
-if(ENABLE_UNIT_TESTS)
-	set(TESTER_DATA_DIR ${CMAKE_INSTALL_PREFIX}/share/flexisip-tester)
-	find_program(REDIS_SERVER_EXEC NAMES redis-server REQUIRED)
-endif()
 
 function(FIND_PROGRAM_REQUIRED varname progname)
 	find_program(${varname} NAMES "${progname}")
