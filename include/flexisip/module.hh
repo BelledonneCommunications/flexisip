@@ -164,6 +164,7 @@ public:
 		Redirect = 290,
 		Presence = 300,
 		RegEvent = 305,
+		B2bua = 307,
 		InterDomainConnections = 310,
 		Plugin = 320
 	};

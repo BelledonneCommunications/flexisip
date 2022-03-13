@@ -395,7 +395,7 @@ static void startTest() {
 static void duplicatePushTokenRegisterInternalDbTest() {
 	// Agent initialization
 	auto cfg = GenericManager::get();
-	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_register.conf").c_str());
+	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_register.conf"));
 	agent->loadConfig(cfg);
 
 	auto registrarConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
@@ -416,7 +416,7 @@ static void duplicatePushTokenRegisterRedisTest() {
 
 	// Agent initialization
 	auto cfg = GenericManager::get();
-	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_register_redis.conf").c_str());
+	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_register_redis.conf"));
 	agent->loadConfig(cfg);
 
 	startTest();

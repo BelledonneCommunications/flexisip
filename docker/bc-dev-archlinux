@@ -15,11 +15,11 @@ ENV SHELL=/bin/bash
 
 # 1. Update the system
 # 2. Install development tools
-# 3. Install Flexisip dependencies
+# 3. Install Flexisip dependencies (FFMPEG<5.0 is required for the ENABLE_VIDEO option to work)
 # 4. Clean package cache
 RUN pacman --noconfirm --noprogressbar -Syu && \
-    pacman --noconfirm --noprogressbar -S ccache clang cmake doxygen gcc git make nasm ninja python-pip python-pystache python-six yasm && \
-    pacman --noconfirm --noprogressbar -S gsm hiredis jansson libsrtp libxml2 mariadb mbedtls net-snmp openssl opus postgresql protobuf speex speexdsp sqlite xerces-c && \
+    pacman --noconfirm --noprogressbar -S ccache clang cmake doxygen gcc git make nasm ninja python-pip python-pystache python-six sudo locate yasm && \
+    pacman --noconfirm --noprogressbar -S ffmpeg4.4 glew gsm hiredis jansson libsrtp libxml2 mariadb mbedtls net-snmp openssl opus postgresql protobuf speex speexdsp sqlite xerces-c && \
 	pacman --noconfirm -Scc
 
 # Configure user bc

@@ -1,6 +1,3 @@
-/* flexisip-config.h.  Generated from flexisip-config.h.in by configure.  */
-/* flexisip-config.h.in.  Generated from configure.ac by autoheader.  */
-
 #cmakedefine CONFIG_DIR "${CONFIG_DIR}"
 #cmakedefine INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}"
 
@@ -9,6 +6,7 @@
 #cmakedefine ENABLE_TRANSCODER 1
 #cmakedefine ENABLE_PRESENCE 1
 #cmakedefine ENABLE_CONFERENCE 1
+#cmakedefine ENABLE_B2BUA 1
 #cmakedefine ENABLE_PROTOBUF 1
 #cmakedefine ENABLE_ODBC 1
 #cmakedefine ENABLE_REDIS 1
@@ -39,6 +37,9 @@
 
 /* Default log directory */
 #define DEFAULT_LOG_DIR "@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/log/flexisip"
+
+/* Default b2bua data dir */
+#define DEFAULT_B2BUA_DATA_DIR "@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/flexisip/b2b"
 
 /* Default directory for Flexisip's plugins */
 #define DEFAULT_PLUGINS_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/flexisip/plugins"

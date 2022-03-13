@@ -24,6 +24,9 @@
 # Add some external dependencies as subproject
 ############################################################################
 
+# Add subdirectory for DECAF, needed for full support of ZRTP
+# add_subdirectory("linphone-sdk/external/decaf")
+
 # Configure and add SofiaSip
 set(ENABLE_UNIT_TESTS OFF)
 add_subdirectory("submodules/externals/sofia-sip")
@@ -75,3 +78,9 @@ if(ENABLE_JWE_AUTH_PLUGIN)
 	add_subdirectory("submodules/externals/jose")
 endif()
 
+# Configure and add mbedtls
+set(USE_SHARED_MBEDTLS_LIBRARY ON)
+set(USE_STATIC_MBEDTLS_LIBRARY NO)
+set(ENABLE_PROGRAMS NO)
+set(ENABLE_TESTING NO)
+add_subdirectory("linphone-sdk/external/mbedtls")

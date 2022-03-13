@@ -48,8 +48,9 @@ add_subdirectory("linphone-sdk/bcunit")
 # BcToolbox specific config
 set(ENABLE_POLARSSL OFF)
 set(ENABLE_MBEDTLS ON)
-set(ENABLE_DECAF OFF)
+set(ENABLE_DECAF ON)
 set(ENABLE_TESTS_COMPONENT ${ENABLE_UNIT_TESTS})
+set(DISABLE_MBEDTLS_SEARCH ON)
 add_subdirectory("linphone-sdk/bctoolbox")
 
 # oRTP specific config
@@ -62,7 +63,9 @@ add_subdirectory("linphone-sdk/ortp")
 add_subdirectory("linphone-sdk/belr")
 
 # Mediastreamer specific config
-if(ENABLE_TRANSCODER)
+if(ENABLE_TRANSCODER OR ENABLE_B2BUA)
+	add_subdirectory("linphone-sdk/bzrtp")
+
 	set(ENABLE_DEBUG_LOGS OFF)
 	set(ENABLE_FIXED_POINT "Turn on fixed point computations." OFF)
 	set(ENABLE_NON_FREE_CODECS OFF)
@@ -80,17 +83,18 @@ if(ENABLE_TRANSCODER)
 	set(ENABLE_OPUS ON)
 	set(ENABLE_SPEEX_CODEC ON)
 	set(ENABLE_SPEEX_DSP ON)
-	set(ENABLE_G729 OFF) # Disable for lisence conformity
-	set(ENABLE_G729B_CNG OFF) # Disalbe for lisence conformity
+	set(ENABLE_G729 OFF) # Disable for license conformity
+	set(ENABLE_G729B_CNG OFF) # Disable for license conformity
 	set(ENABLE_RESAMPLE ON)
-
-	set(ENABLE_VIDEO OFF)
+	set(ENABLE_VIDEO ${ENABLE_B2BUA})
 	set(ENABLE_MKV OFF)
 	set(ENABLE_JPEG OFF)
+	set(ENABLE_THEORA OFF)
 
 	set(DISABLE_SRTP_SEARCH ${INTERNAL_LIBSRTP2})
 	add_subdirectory("linphone-sdk/mediastreamer2")
 endif()
+
 
 # Belle-sip specific config
 if(ENABLE_PRESENCE OR ENABLE_MDNS OR ENABLE_CONFERENCE OR ENABLE_UNIT_TESTS)
@@ -130,7 +134,7 @@ if(ENABLE_CONFERENCE)
 	set(ENABLE_TUTORIALS OFF)
 	set(ENABLE_UPDATE_CHECK OFF)
 	set(ENABLE_VCARD OFF)
-	set(ENABLE_VIDEO OFF)
+	set(ENABLE_VIDEO ${ENABLE_B2BUA})
 	set(ENABLE_ASSETS OFF)
 
 	set(ENABLE_UNIT_TESTS ${ENABLE_LIBLINPHONE_TESTER}) # override Flexisip ENABLE_UNIT_TESTS option by using a local variable

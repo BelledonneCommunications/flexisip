@@ -51,6 +51,12 @@ if(ENABLE_CONFERENCE)
 	        "flexisip-regevent@.service"
 	)
 endif()
+if(ENABLE_B2BUA)
+	list(APPEND systemd_services
+		"flexisip-b2bua.service"
+		"flexisip-b2bua@.service"
+	)
+endif()
 set(FLEXISIP_SYSTEMD_SERVICES ${systemd_services} PARENT_SCOPE)
 
 foreach(service ${systemd_services})

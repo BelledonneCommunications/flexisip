@@ -81,6 +81,9 @@
 #include "conference/conference-server.hh"
 #include "registration-events/server.hh"
 #endif
+#ifdef ENABLE_B2BUA
+#include "b2bua/b2bua-server.hh"
+#endif //ENABLE_B2BUA
 #ifdef ENABLE_PRESENCE
 #include "presence/presence-server.hh"
 #include "presence/presence-longterm.hh"
@@ -104,6 +107,9 @@ static std::shared_ptr<flexisip::PresenceServer> presenceServer;
 static std::shared_ptr<flexisip::ConferenceServer> conferenceServer;
 static std::shared_ptr<flexisip::RegistrationEvent::Server> regEventServer;
 #endif // ENABLE_CONFERENCE
+#if ENABLE_B2BUA
+static std::shared_ptr<flexisip::B2buaServer> b2buaServer;
+#endif //ENABLE_B2BUA
 
 using namespace std;
 using namespace flexisip;
@@ -526,12 +532,13 @@ static void list_sections(bool moduleOnly = false) {
 	}
 }
 
-static const string getFunctionName(bool startProxy, bool startPresence, bool startConference, bool regEvent){
+static const string getFunctionName(bool startProxy, bool startPresence, bool startConference, bool regEvent, bool b2bua){
 	string functions;
 	if(startProxy) functions = "proxy";
 	if(startPresence) functions += ((functions.empty()) ? "" : "+") + string("presence");
 	if(startConference) functions += ((functions.empty()) ? "" : "+") + string("conference");
 	if(regEvent) functions += ((functions.empty()) ? "" : "+") + string("regevent");
+	if(b2bua) functions += ((functions.empty()) ? "" : "+") + string("b2bua");
 
 	return (functions.empty()) ? "none" : functions;
 }
@@ -737,7 +744,7 @@ int main(int argc, char *argv[]) {
 		return EXIT_SUCCESS;
 	}
 
-	if (cfg->load(configFile.getValue().c_str()) == -1) {
+	if (cfg->load(configFile.getValue()) == -1) {
 		fprintf(stderr, "Flexisip version %s\n"
 						"No configuration file found at %s.\nPlease specify a valid configuration file.\n"
 						"A default flexisip.conf.sample configuration file should be installed in " CONFIG_DIR "\n"
@@ -761,6 +768,7 @@ int main(int argc, char *argv[]) {
 	bool startPresence = false;
 	bool startConference = false;
 	bool startRegEvent = false;
+	bool startB2bua = false;
 
 	if (functionName.getValue() == "proxy"){
 		startProxy = true;
@@ -777,13 +785,19 @@ int main(int argc, char *argv[]) {
 	}else if (functionName.getValue() == "regevent"){
 		startRegEvent = true;
 #ifndef ENABLE_CONFERENCE
-		LOGF("Flexisip was compiled without regevent server extension.")
+		LOGF("Flexisip was compiled without regevent server extension.");
+#endif
+	}else if (functionName.getValue() == "b2bua"){
+		startB2bua = true;
+#ifndef ENABLE_B2BUA
+		LOGF("Flexisip was compiled without back-to-back user agent server extension.");
 #endif
 	}else if (functionName.getValue() == "all"){
 		startPresence = true;
 		startProxy = true;
 		startConference = true;
 		startRegEvent = true;
+		startB2bua = true;
 	}else if (functionName.getValue().empty()){
 		auto default_servers = cfg->getGlobal()->get<ConfigStringList>("default-servers");
 		if (default_servers->contains("proxy")){
@@ -798,13 +812,16 @@ int main(int argc, char *argv[]) {
 		if (default_servers->contains("regevent")){
 			startRegEvent = true;
 		}
+		if (default_servers->contains("b2bua")){
+			startB2bua = true;
+		}
 		if (!startPresence && !startProxy && !startConference){
 			LOGF("Bad default-servers definition '%s'.", default_servers->get().c_str());
 		}
 	}else{
 		LOGF("There is no server function '%s'.", functionName.getValue().c_str());
 	}
-	string fName = getFunctionName(startProxy, startPresence, startConference, startRegEvent);
+	string fName = getFunctionName(startProxy, startPresence, startConference, startRegEvent, startB2bua);
 	// Initialize
 	std::string log_level = cfg->getGlobal()->get<ConfigString>("log-level")->read();
 	std::string syslog_level = cfg->getGlobal()->get<ConfigString>("syslog-level")->read();
@@ -987,9 +1004,23 @@ int main(int argc, char *argv[]) {
 		try {
 			regEventServer->init();
 		} catch(FlexisipException &e) {
-			LOGF("Fail to start flexisip conference server");
+			LOGF("Fail to start flexisip registration event server");
 		}
 #endif // ENABLE_CONFERENCE
+	}
+
+	if (startB2bua) {
+#if ENABLE_B2BUA
+		b2buaServer = make_shared<flexisip::B2buaServer>(root);
+		if (daemonMode) {
+			notifyWatchDog();
+		}
+		try {
+			b2buaServer->init();
+		} catch(FlexisipException &e) {
+			LOGF("Fail to start flexisip back to back user agent server");
+		}
+#endif //ENABLE_B2BUA
 	}
 
 	if (run) root->run();
@@ -1008,6 +1039,9 @@ int main(int argc, char *argv[]) {
 
 	if (regEventServer) regEventServer->stop();
 #endif // ENABLE_CONFERENCE
+#if ENABLE_B2BUA
+	if (b2buaServer) b2buaServer->stop();
+#endif //ENABLE_B2BUA
 
 	if (stun) {
 		stun->stop();

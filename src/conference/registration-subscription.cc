@@ -126,7 +126,9 @@ void OwnRegistrationSubscription::processRecord(const shared_ptr<Record> &r){
 					addr, RegistrationEvent::Utils::getDeviceName(ec));
 				identity->setCapabilityDescriptor(StringUtils::unquote(ec->getOrgLinphoneSpecs()));
 				compatibleParticipantDevices.push_back(identity);
-			} else LOGD("OwnRegistrationSubscription::processRecord(): %s does not have the required capabilities.", addr->asStringUriOnly().c_str());
+			} else {
+                LOGD("OwnRegistrationSubscription::processRecord(): %s does not have the required capabilities.", addr->asStringUriOnly().c_str());
+            }
 		}
 	}
 	notify(compatibleParticipantDevices);

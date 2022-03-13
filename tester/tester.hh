@@ -19,7 +19,14 @@
 #ifndef flexisip_tester_hpp
 #define flexisip_tester_hpp
 
+extern "C" {
 #include "bctoolbox/tester.h"
+}
+#include "flexisip/agent.hh"
+#include <linphone++/linphone.hh>
+#include "flexisip/sofia-wrapper/su-root.hh"
+#include "utils/asserts.hh"
+
 
 #include <chrono>
 #include <fstream>
@@ -28,6 +35,10 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <functional>
+#include <list>
+#include <thread>
+#include <chrono>
 
 std::string bcTesterFile(const std::string& name);
 std::string bcTesterRes(const std::string& name);
@@ -48,6 +59,9 @@ extern test_suite_t register_suite;
 extern test_suite_t registration_event_suite;
 extern test_suite_t router_suite;
 extern test_suite_t tls_connection_suite;
+#if ENABLE_B2BUA
+extern test_suite_t b2bua_suite;
+#endif
 
 void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_list args));
 void flexisip_tester_uninit(void);
@@ -55,5 +69,4 @@ void flexisip_tester_uninit(void);
 #ifdef __cplusplus
 };
 #endif
-
 #endif

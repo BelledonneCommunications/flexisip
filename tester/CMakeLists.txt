@@ -39,6 +39,8 @@ add_executable(flexisip_tester
         utils/listening-socket.cc
         utils/tcp-server.cc
         utils/tls-server.cc
+        utils/client-core.cc
+        utils/proxy-server.cc
         )
 
 if (ENABLE_CONFERENCE)
@@ -50,6 +52,10 @@ if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
     target_sources(flexisip_tester PRIVATE push-notification-tester.cc utils/pns-mock.cc)
 elseif (ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
     message(FATAL_ERROR "Module LibNgHttp2Asio is required for push notification tester. Either install it or disable push notification tester using -DENABLE_UNIT_TESTS_PUSH_NOTIFICATION=OFF")
+endif ()
+
+if (ENABLE_B2BUA)
+    target_sources(flexisip_tester PRIVATE b2bua-tester.cc)
 endif ()
 
 target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
@@ -75,5 +81,13 @@ install(DIRECTORY config
         )
 
 install(DIRECTORY db
+        DESTINATION ${TESTER_DATA_DIR}
+        )
+
+install(DIRECTORY sounds
+        DESTINATION ${TESTER_DATA_DIR}
+        )
+
+install(DIRECTORY images
         DESTINATION ${TESTER_DATA_DIR}
         )

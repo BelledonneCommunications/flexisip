@@ -1091,7 +1091,7 @@ bool GenericManager::doOnConfigStateChanged(const ConfigValue &conf, ConfigState
 	return true;
 }
 
-int GenericManager::load(const char *configfile) {
+int GenericManager::load(const std::string &configfile) {
 	mConfigFile = configfile;
 	int res = mReader.read(configfile);
 	applyOverrides(false);
@@ -1125,14 +1125,14 @@ const GenericStruct *GenericManager::getGlobal() {
 	return mConfigRoot.get<GenericStruct>("global");
 }
 
-int FileConfigReader::read(const char* filename) {
+int FileConfigReader::read(const std::string &filename) {
 	int err;
 	if (mCfg) {
 		lp_config_destroy(mCfg);
 	}
 	mCfg = lp_config_new(NULL);
 	mFilename = filename;
-	err = lp_config_read_file(mCfg, filename);
+	err = lp_config_read_file(mCfg, filename.c_str());
 	read2(mRoot, 0);
 	return err;
 }

@@ -98,6 +98,9 @@ void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_
 	bc_tester_add_suite(&register_suite);
 	bc_tester_add_suite(&router_suite);
 	bc_tester_add_suite(&tls_connection_suite);
+#if ENABLE_B2BUA
+	bc_tester_add_suite(&b2bua_suite);
+#endif
 
 #ifdef ENABLE_UNIT_TESTS_MYSQL
 	bc_tester_add_suite(&fork_context_mysql_suite);

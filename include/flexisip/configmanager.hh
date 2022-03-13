@@ -624,7 +624,7 @@ class FileConfigReader {
   public:
 	FileConfigReader(GenericStruct *root) : mRoot(root), mCfg(NULL), mHaveUnreads(false) {
 	}
-	int read(const char *filename);
+	int read(const std::string &filename);
 	int reload();
 	void checkUnread();
 	~FileConfigReader();
@@ -658,7 +658,7 @@ class GenericManager : protected ConfigValueListener {
   public:
 	static GenericManager* get();
 
-	int load(const char *configFile);
+	int load(const std::string &configFile);
 	GenericStruct *getRoot();
 	std::string &getConfigFile() {
 		return mConfigFile;

@@ -76,6 +76,7 @@ add_library(flexisip SHARED
 	module-sanitychecker.cc
 	module-statistics-collector.cc
 	module-transcode.cc
+	module-b2bua.cc
 	module.cc
 	monitor.cc
 	plugin/plugin-loader.cc
@@ -264,6 +265,18 @@ if(ENABLE_CONFERENCE)
 		xml/reginfo.cc
 		xml/reginfo.hh
 	)
+endif()
+if(ENABLE_B2BUA)
+	target_sources(flexisip PRIVATE
+		b2bua/b2bua-server.cc
+		b2bua/b2bua-server.hh
+		b2bua/trenscrypter.cc
+		b2bua/trenscrypter.hh
+	)
+	target_link_libraries(flexisip
+		PUBLIC linphone++
+	)
+	target_link_libraries(flexisip PRIVATE mediastreamer)
 endif()
 if(ENABLE_SOCI)
 	target_compile_definitions(flexisip PRIVATE "ENABLE_SOCI")

@@ -52,7 +52,7 @@ static void afterEach() {
 static void fallbackRouteFilter() {
 	// Agent initialization
 	auto cfg = GenericManager::get();
-	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_router.conf").c_str());
+	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_router.conf"));
 	agent->loadConfig(cfg);
 
 	auto registrarConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");

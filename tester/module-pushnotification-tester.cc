@@ -44,7 +44,7 @@ static void afterEach() {
 static void pushIsSentOnInvite() {
 	// Agent initialization
 	auto cfg = GenericManager::get();
-	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_module_push.conf").c_str());
+	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_module_push.conf"));
 	agent->loadConfig(cfg);
 
 	FirebaseClient::FIREBASE_ADDRESS = "randomHost";
@@ -118,7 +118,7 @@ a=rtcp-fb:* ccm tmmbr)sip"};
 static void pushIsNotSentOnInviteWithReplacesHeader() {
 	// Agent initialization
 	auto cfg = GenericManager::get();
-	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_module_push.conf").c_str());
+	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_module_push.conf"));
 	agent->loadConfig(cfg);
 
 	FirebaseClient::FIREBASE_ADDRESS = "randomHost";

@@ -81,7 +81,7 @@ static void chatRoomBindingOnInitTest() {
 
 	// Agent initialization
 	auto cfg = GenericManager::get();
-	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_conference.conf").c_str());
+	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_conference.conf"));
 	agent->loadConfig(cfg);
 
 	// Conference Server configuration

@@ -43,7 +43,7 @@ static void basic() {
 	Agent *agent = a->getAgent();
 
 	GenericManager *cfg = GenericManager::get();
-	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_regevent.conf").c_str());
+	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_regevent.conf"));
 	agent->loadConfig(cfg);
 
 	// Client initialisation
@@ -206,41 +206,6 @@ static void basic() {
 	auto chatRoomParams = clientCore->createDefaultChatRoomParams();
 	chatRoomParams->enableGroup(true);
 	auto chatRoom = clientCore->createChatRoom(chatRoomParams, proxy->getContact(), "Chatroom with remote", participants);
-
-	class BcAssert {
-	public:
-		void addCustomIterate(const std::function<void ()> &iterate) {
-			mIterateFuncs.push_back(iterate);
-		}
-		bool waitUntil( std::chrono::duration<double> timeout ,const std::function<bool ()> &condition) {
-			auto start = std::chrono::steady_clock::now();
-
-			bool_t result;
-			while (!(result = condition()) && (std::chrono::steady_clock::now() - start < timeout)) {
-				for (const auto &iterate:mIterateFuncs) {
-					iterate();
-				}
-				usleep(100);
-			}
-			return result;
-		}
-		bool wait(const std::function<bool ()> &condition) {
-			return waitUntil(std::chrono::seconds(2),condition);
-		}
-	private:
-		list<std::function<void ()>> mIterateFuncs;
-	};
-
-	class CoreAssert : public BcAssert {
-	public:
-		CoreAssert(std::initializer_list<shared_ptr<linphone::Core>> cores) {
-			for (shared_ptr<linphone::Core> core: cores) {
-				addCustomIterate([core] {
-					core->iterate();
-				});
-			}
-		}
-	};
 
 	class RegEventAssert : public CoreAssert {
 	public :

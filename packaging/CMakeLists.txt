@@ -78,6 +78,9 @@ endif()
 if(ENABLE_CONFERENCE)
 	string(APPEND FLEXISIP_SERVICES " flexisip-conference")
 endif()
+if(ENABLE_B2BUA)
+	string(APPEND FLEXISIP_SERVICES " flexisip-b2bua")
+endif()
 
 
 # List of files to mark as config files. That prevent them to be replaced by package update.
@@ -141,6 +144,7 @@ if("RPM" IN_LIST CPACK_GENERATOR)
 
 	## Configure %post, %postun, %preun rpmbuild section
 	set(FLEXISIP_LOGDIR "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log")
+	set(FLEXISIP_B2BUA_DATADIR "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/flexisip/b2b")
 	foreach(secname "post_install" "pre_uninstall" "post_uninstall")
 		configure_file("rpm/${secname}.spec.in" "rpm/${secname}.spec" @ONLY)
 		string(TOUPPER "${secname}" SECNAME)
