@@ -1,30 +1,62 @@
 ###############################################################################
-# Dockerfile used to make bc-dev-debian11:20220221_add_FFMPEG
+# Dockerfile used to make bc-dev-debian11:20220420_remove_ffmpeg
 ###############################################################################
 
 FROM debian:bullseye
 
 MAINTAINER Anthony Gauchy <anthony.gauchy@belledonne-communications.com>
 
-# Update
-RUN apt-get -y update
-
-# Install common tools
-RUN apt-get -y install sudo vim wget file
-
-# Install development tools
-RUN apt-get install -y ccache clang cmake doxygen g++ gdb git make ninja-build python3 python3-pip
-
-# Dependencies of b2b user agent:
-# libasound2-dev libavcodec-dev libavutil-dev libegl1-mesa-dev libglew-dev libswscale-dev libv4l-dev libvpx-dev libxv-dev 
-
-# Install all dependencies needed for Flexisip
-RUN apt-get -y install libavcodec-dev libavutil-dev libegl1-mesa-dev libglew-dev libswscale-dev libv4l-dev libvpx-dev ffmpeg libssl-dev libboost-dev libboost-system-dev libboost-thread-dev libhiredis-dev libjansson-dev \
-        libsqlite3-dev libpq-dev libmariadb-dev libmariadb-dev-compat mariadb-server libnghttp2-dev libprotobuf-dev libsnmp-dev \
-        libxerces-c-dev libsrtp2-dev libgsm1-dev libopus-dev libmbedtls-dev libspeex-dev libspeexdsp-dev libxml2-dev protobuf-compiler redis-server
-
-# Clean
-RUN apt-get -y autoremove && apt-get -y clean
+  # Update
+RUN apt-get -y update \
+  # Install common tools
+ && apt-get -y install sudo \
+                       vim \
+                       wget \
+                       file \
+                     # Install development tools
+                       ccache \
+                       clang \
+                       cmake \
+                       doxygen \
+                       g++ \
+                       gdb \
+                       git \
+                       make \
+                       ninja-build \
+                       python3 \
+                       python3-pip \
+                     # Install all dependencies needed for Flexisip
+                       libssl-dev \
+                       libboost-dev \
+                       libboost-system-dev \
+                       libboost-thread-dev \
+                       libhiredis-dev \
+                       libjansson-dev \
+                       libsqlite3-dev \
+                       libpq-dev \
+                       libmariadb-dev \
+                       libmariadb-dev-compat \
+                       mariadb-server \
+                       libnghttp2-dev \
+                       libprotobuf-dev \
+                       libsnmp-dev \
+                       libxerces-c-dev \
+                       libsrtp2-dev \
+                       libgsm1-dev \
+                       libopus-dev \
+                       libmbedtls-dev \
+                       libspeex-dev \
+                       libspeexdsp-dev \
+                       libxml2-dev \
+                       protobuf-compiler \
+                       redis-server \
+                     # Dependencies of the B2BUA
+                       libegl1-mesa-dev \
+                       libglew-dev \
+                       libvpx-dev \
+  # Clean
+ && apt-get -y autoremove \
+ && apt-get -y clean
 
 # Install libnghttp2_asio
 RUN wget https://github.com/nghttp2/nghttp2/releases/download/v1.43.0/nghttp2-1.43.0.tar.bz2 && \

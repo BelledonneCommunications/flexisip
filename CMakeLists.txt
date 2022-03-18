@@ -75,7 +75,7 @@ option(ENABLE_TRANSCODER "Build transcoder support" ON)
 option(ENABLE_MDNS "Build multicast DNS support" OFF)
 option(ENABLE_EXTERNAL_AUTH_PLUGIN "Enable ExternalAuth plugin support" ON)
 option(ENABLE_JWE_AUTH_PLUGIN "Enable JweAuth plugin support" ON)
-option(ENABLE_B2BUA "Enable Back2back user agent support" OFF)
+option(ENABLE_B2BUA "Enable Back2back user agent support" ON)
 option(ENABLE_UNIT_TESTS "Enable Flexisip unit tests (low level tests)" OFF)
 cmake_dependent_option(ENABLE_UNIT_TESTS_PUSH_NOTIFICATION "Enable flexisip push notification unit tests (requires libnghttp2_asio)"  ON "ENABLE_UNIT_TESTS" ON )
 option(ENABLE_UNIT_TESTS_MYSQL "Enable flexisip unit tests that use mysql" OFF)
@@ -127,7 +127,7 @@ endfunction()
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-set(INTERNAL_MBEDTLS OFF)
+set(INTERNAL_MBEDTLS ON)
 include("cmake/ExternalDependencies.cmake")
 include("cmake/LinphoneSDK.cmake")
 

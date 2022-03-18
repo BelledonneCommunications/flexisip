@@ -274,7 +274,7 @@ if(ENABLE_B2BUA)
 		b2bua/trenscrypter.hh
 	)
 	target_link_libraries(flexisip
-		PUBLIC linphone++
+		PUBLIC linphone++ linphone
 	)
 	target_link_libraries(flexisip PRIVATE mediastreamer)
 endif()

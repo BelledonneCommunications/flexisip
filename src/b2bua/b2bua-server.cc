@@ -286,7 +286,8 @@ void B2buaServer::_init() {
 	configLinphone->setBool("sip", "reject_duplicated_calls", false);
 	configLinphone->setBool("sip", "defer_update_default",
 	                        true); // do not automatically accept update: we might want to update peer call before
-	configLinphone->setInt("misc", "conference_layout", static_cast<int>(linphone::ConferenceLayout::Legacy));
+	configLinphone->setBool("misc", "conference_event_log_enabled", 0);
+	configLinphone->setInt("misc", "conference_layout", static_cast<int>(linphone::ConferenceLayout::ActiveSpeaker));
 	mCore = Factory::get()->createCoreWithConfig(configLinphone, nullptr);
 	mCore->getConfig()->setString("storage", "backend", "sqlite3");
 	mCore->getConfig()->setString("storage", "uri", ":memory:");
