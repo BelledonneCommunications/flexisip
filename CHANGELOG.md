@@ -14,6 +14,17 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
 
+## [2.1.3] - 2022-03-18
+### [Fixed]
+- ExternalPusher: the response to each HTTP request systematically has a delay of
+  a few seconds when using a TCP connection instead of TLS.
+- Race condition around Redis SUBSCRIBEs/UNSUBSCRIBEs that causes Flexisip to
+  wrongly thinks that it is subscribed to some fork contexts. Finally, that
+  causes to have end-users' device receiving push notifications for a message
+  but no message is delivered by Flexisip once the application registers again.
+- Weakness in the module replacement algorithm that causes some modules coming
+  from plugins to be inserted in bad position in the modules list.
+
 ## [2.1.2] - 2021-12-22
 ### [Added]
 - `rtp_bind_address` configuration parameter, which allow to choose the listening
