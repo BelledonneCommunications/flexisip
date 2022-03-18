@@ -127,6 +127,7 @@ endfunction()
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
+set(INTERNAL_MBEDTLS OFF)
 include("cmake/ExternalDependencies.cmake")
 include("cmake/LinphoneSDK.cmake")
 
