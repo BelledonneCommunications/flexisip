@@ -194,7 +194,11 @@ int RelayChannel::recv(int i, uint8_t *buf, size_t buflen, time_t curTime) {
 		mRecvErrorCount[i] = 0;
 		if (addrsize != mSockAddrSize[i] || memcmp(&ss, &mSockAddr[i], addrsize) != 0){
 			if (curTime - mSockAddrLastUseTime[i] > sDestinationSwitchTimeout){
-				LOGD("RelayChannel[%p] destination address changed.", this);
+				char ipPort[128] = {0};
+				string localIp = mRelayTransport.mPreferredFamily == AF_INET6 ? (string("[") + mRelayTransport.mIpv6Address + string("]")) : mRelayTransport.mIpv4Address;
+				bctbx_sockaddr_to_printable_ip_address((struct sockaddr*)&ss, addrsize, ipPort, sizeof(ipPort));
+				LOGD("RelayChannel [%p] destination address updated for [%s]: local=[%s:%i]  remote=[%s]", this,
+					i == 0 ? "RTP" : "RTCP", localIp.c_str(), i == 0 ? mRelayTransport.mRtpPort : mRelayTransport.mRtcpPort, ipPort);
 				mSockAddrSize[i] = addrsize;
 				memcpy(&mSockAddr[i], &ss, addrsize);
 				mDestAddrChanged = true;
