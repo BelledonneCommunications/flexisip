@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -29,8 +29,8 @@
 #include <flexisip/common.hh>
 #include <flexisip/logmanager.hh>
 
-#include "request.hh"
-#include "service.hh"
+#include "pushnotification/request.hh"
+#include "pushnotification/service.hh"
 
 #include "legacy-client.hh"
 
@@ -39,7 +39,7 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
-int TlsTransport::sendPush(Request& req, bool hurryUp, const OnSuccessCb& onSuccess, const OnErrorCb& onError) {
+int TlsTransport::sendPush(LegacyRequest& req, bool hurryUp, const OnSuccessCb& onSuccess, const OnErrorCb& onError) {
 	if (mLastUse == 0 || !mConn->isConnected()) {
 		mConn->resetConnection();
 		/*the client was inactive possibly for a long time. In such case, close and re-create the socket.*/
@@ -56,7 +56,7 @@ int TlsTransport::sendPush(Request& req, bool hurryUp, const OnSuccessCb& onSucc
 
 	/* send push to the server */
 	mLastUse = getCurrentTime();
-	auto buffer = req.getData();
+	auto buffer = req.getData(mUrl, mMethod);
 	int wcount = mConn->write(buffer);
 
 	SLOGD << "PushNotificationTransportTls PNR " << &req << " sent " << wcount << "/" << buffer.size() << " data";
@@ -116,7 +116,7 @@ int TlsTransport::sendPush(Request& req, bool hurryUp, const OnSuccessCb& onSucc
 	string error = req.isValidResponse(responseStr);
 	if (!error.empty()) {
 		onError(req, "Invalid server response: " + error);
-		// on iOS at least, when an error happens, the socket is semibroken (server ignore all future requests),
+		// on iOS at least, when an error happens, the socket is semi-broken (server ignore all future requests),
 		// so we force to recreate the connection
 		mConn->resetConnection();
 		return -1;
@@ -143,6 +143,8 @@ LegacyClient::~LegacyClient() {
 }
 
 void LegacyClient::sendPush(const std::shared_ptr<Request>& req) {
+	auto legacyReq = dynamic_pointer_cast<LegacyRequest>(req);
+
 	if (!mThreadRunning) {
 		// start thread only when we have at least one push to send
 		mThreadRunning = true;
@@ -154,14 +156,15 @@ void LegacyClient::sendPush(const std::shared_ptr<Request>& req) {
 	auto size = mRequestQueue.size();
 	if (size >= mMaxQueueSize) {
 		mMutex.unlock();
-		SLOGW << "LegacyClient PushNotificationClient " << mName << " PNR " << req.get() << " queue full, push lost";
-		onError(*req, "Error queue full");
-		req->setState(Request::State::Failed);
+		SLOGW << "LegacyClient PushNotificationClient " << mName << " PNR " << legacyReq.get()
+		      << " queue full, push lost";
+		onError(*legacyReq, "Error queue full");
+		legacyReq->setState(Request::State::Failed);
 	} else {
-		req->setState(Request::State::InProgress);
-		mRequestQueue.push(req);
+		legacyReq->setState(Request::State::InProgress);
+		mRequestQueue.push(legacyReq);
 		/*client is running, it will pop the queue as soon he is finished with current request*/
-		SLOGD << "LegacyClient PushNotificationClient " << mName << " PNR " << req.get()
+		SLOGD << "LegacyClient PushNotificationClient " << mName << " PNR " << legacyReq.get()
 		      << " running, queue_size=" << size;
 
 		if (mThreadWaiting) mCondVar.notify_one();
@@ -180,8 +183,8 @@ void LegacyClient::run() {
 			lock.unlock();
 
 			// send push to the server and wait for its answer
-			auto _onSuccess = [this](Request& req) { this->onSuccess(req); };
-			auto _onError = [this](Request& req, const std::string& msg) { this->onError(req, msg); };
+			auto _onSuccess = [this](auto& req) { this->onSuccess(req); };
+			auto _onError = [this](auto& req, const std::string& msg) { this->onError(req, msg); };
 			bool hurryUp = size > 2;
 			if (mTransport->sendPush(*req, hurryUp, _onSuccess, _onError) == -2) {
 				SLOGD << "LegacyClient PushNotificationClient " << mName << " PNR " << req.get()
@@ -198,13 +201,13 @@ void LegacyClient::run() {
 	}
 }
 
-void LegacyClient::onError(Request& req, const string& msg) {
+void LegacyClient::onError(LegacyRequest& req, const string& msg) {
 	SLOGW << "LegacyClient PushNotificationClient " << mName << " PNR " << &req << " failed: " << msg;
 	req.setState(Request::State::Failed);
 	incrFailedCounter();
 }
 
-void LegacyClient::onSuccess(Request& req) {
+void LegacyClient::onSuccess(LegacyRequest& req) {
 	req.setState(Request::State::Successful);
 	incrSentCounter();
 }

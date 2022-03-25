@@ -22,6 +22,7 @@
 
 #include "flexisip/fork-context/branch-info-db.hh"
 #include "flexisip/fork-context/fork-context.hh"
+#include "flexisip/fork-context/fork-status.hh"
 #include "flexisip/registrardb.hh"
 #include "flexisip/transaction.hh"
 
@@ -31,31 +32,47 @@
 
 namespace flexisip {
 
-class BranchInfo {
+/**
+ * Interface for BranchInfo listener.
+ *
+ * BranchInfo listeners allow to be notified when a branch is canceled by
+ * the ForkContext and when a branch is completed (i.e. received its final response).
+ *
+ * @warning Should fork-late mode be enabled, a branch may be removed to be replaced
+ * by a new one with the same device UID. Then, the listener is automatically moved
+ * in the new branch. So, when you attach a listener to a branch, keep in mind that
+ * you subscribe to the event of a given UID instead of a specific branch.
+ */
+class BranchInfoListener {
 public:
-	template <typename T> BranchInfo(T&& ctx) : mForkCtx{std::forward<T>(ctx)} {
+	virtual ~BranchInfoListener() noexcept = default;
+
+	/**
+	 * Called when the branch is canceled by the ForkContext.
+	 * @param[in] br The branch which has been canceled.
+	 * @param[in] cancelReason Give information about the scenario which caused the cancellation.
+	 */
+	virtual void onBranchCanceled(const std::shared_ptr<BranchInfo>& br, ForkStatus cancelReason) noexcept {
+	}
+	/**
+	 * Called when a branch receives a final response (statusCode >= 200).
+	 */
+	virtual void onBranchCompleted(const std::shared_ptr<BranchInfo>& br) noexcept {
+	}
+};
+
+class BranchInfo : public std::enable_shared_from_this<BranchInfo> {
+public:
+	// Call the matching private ctor and instantiate as a shared_ptr.
+	template <typename... Args> static std::shared_ptr<BranchInfo> make(Args&&... args) {
+		return std::shared_ptr<BranchInfo>{new BranchInfo{std::forward<Args>(args)...}};
 	}
 
-	/**
-	 * Used to create an empty fake branch
-	 */
-	BranchInfo() = default;
-
-	/**
-	 * Used when restoring BranchInfo from database in fork-late mode.
-	 */
-	template <typename T>
-	BranchInfo(T&& ctx, const BranchInfoDb& dbObject, const std::shared_ptr<Agent>& agent)
-	    : mForkCtx{std::forward<T>(ctx)} {
-		mUid = dbObject.contactUid;
-		mClearedCount = dbObject.clearedCount;
-		mPriority = dbObject.priority;
-		auto request = std::make_shared<MsgSip>(0, dbObject.request);
-		mRequest = std::make_shared<RequestSipEvent>(agent, request);
-		auto lastResponse =
-		    !dbObject.lastResponse.empty() ? std::make_shared<MsgSip>(0, dbObject.lastResponse) : nullptr;
-		mLastResponse = std::make_shared<ResponseSipEvent>(agent, lastResponse);
-		mLastResponse->setIncomingAgent(std::shared_ptr<IncomingAgent>());
+	void notifyBranchCanceled(ForkStatus cancelReason) noexcept {
+		if (auto listener = mListener.lock()) listener->onBranchCanceled(shared_from_this(), cancelReason);
+	}
+	void notifyBranchCompleted() noexcept {
+		if (auto listener = mListener.lock()) listener->onBranchCompleted(shared_from_this());
 	}
 
 	int getStatus() {
@@ -98,6 +115,7 @@ public:
 #endif
 
 	std::weak_ptr<ForkContext> mForkCtx{};
+	std::weak_ptr<BranchInfoListener> mListener{};
 	std::string mUid{};
 	std::shared_ptr<RequestSipEvent> mRequest{};
 	std::shared_ptr<OutgoingTransaction> mTransaction{};
@@ -115,6 +133,41 @@ public:
 	 * Only used with Invite/ForkCall
 	 */
 	bool cancelCompleted = false;
+
+private:
+	// Private ctors
+
+	/**
+	 * Used to create an empty fake branch
+	 */
+	BranchInfo() = default;
+
+	template <typename T> BranchInfo(T&& ctx) : mForkCtx{std::forward<T>(ctx)} {
+	}
+
+	/**
+	 * Used when restoring BranchInfo from database in fork-late mode.
+	 */
+	template <typename T>
+	BranchInfo(T&& ctx, const BranchInfoDb& dbObject, const std::shared_ptr<Agent>& agent)
+	    : mForkCtx{std::forward<T>(ctx)} {
+		mUid = dbObject.contactUid;
+		mClearedCount = dbObject.clearedCount;
+		mPriority = dbObject.priority;
+		auto request = std::make_shared<MsgSip>(0, dbObject.request);
+		mRequest = std::make_shared<RequestSipEvent>(agent, request);
+		auto lastResponse =
+			!dbObject.lastResponse.empty() ? std::make_shared<MsgSip>(0, dbObject.lastResponse) : nullptr;
+		mLastResponse = std::make_shared<ResponseSipEvent>(agent, lastResponse);
+		mLastResponse->setIncomingAgent(std::shared_ptr<IncomingAgent>());
+	}
 };
+
+inline std::ostream& operator<<(std::ostream& os, const BranchInfo* br) noexcept {
+	return (os << "BranchInfo[" << static_cast<const void*>(br) << "]");
+}
+inline std::ostream& operator<<(std::ostream& os, const std::shared_ptr<BranchInfo>& br) noexcept {
+	return operator<<(os, br.get());
+}
 
 } // namespace flexisip

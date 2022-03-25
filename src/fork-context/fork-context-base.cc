@@ -188,7 +188,7 @@ bool ForkContextBase::allCurrentBranchesAnswered(bool ignore_errors_and_timeouts
 }
 
 void ForkContextBase::removeBranch(const shared_ptr<BranchInfo>& br) {
-	SLOGD << "ForkContext [" << this << "] branch [" << br.get() << "] removed.";
+	SLOGD << "ForkContext [" << this << "] " << br << " removed.";
 
 	mWaitingBranches.remove(br);
 	mCurrentBranches.remove(br);
@@ -291,6 +291,10 @@ shared_ptr<BranchInfo> ForkContextBase::addBranch(const std::shared_ptr<RequestS
 		 * br->mClearedCount == 0 (See PushNotification::makePushNotification).
 		 */
 		br->mClearedCount = oldBr->mClearedCount + 1;
+
+		// The listener of the old branch must be moved in the new one
+		// to be notified of the last events about the actual UID.
+		br->mListener = move(oldBr->mListener);
 	}
 
 	onNewBranch(br);
@@ -359,7 +363,7 @@ void ForkContextBase::start() {
 	for (const auto& br : mCurrentBranches) {
 		mAgent->injectRequestEvent(br->mRequest);
 		if (mCurrentBranches.empty()) {
-			// Can only occured if an internal error append
+			// Can only occur if an internal error append
 			break;
 		}
 	}
@@ -406,13 +410,17 @@ bool ForkContextBase::shouldFinish() {
 	return true;
 }
 
-void ForkContextBase::onNewBranch(const shared_ptr<BranchInfo>& br) {
+void ForkContextBase::onNewBranch(const std::shared_ptr<BranchInfo>& br) {
 }
 
-void ForkContextBase::onCancel(const shared_ptr<RequestSipEvent>& ev) {
+void ForkContextBase::onCancel(const std::shared_ptr<RequestSipEvent>& ev) {
 	if (shouldFinish()) {
 		setFinished();
 	}
+}
+
+void ForkContextBase::onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& ev) {
+	if (br->getStatus() >= 200) br->notifyBranchCompleted();
 }
 
 void ForkContextBase::addKey(const string& key) {
@@ -424,10 +432,10 @@ const vector<string>& ForkContextBase::getKeys() const {
 }
 
 shared_ptr<BranchInfo> ForkContextBase::createBranchInfo() {
-	return make_shared<BranchInfo>(shared_from_this());
+	return BranchInfo::make(shared_from_this());
 }
 
-// called by implementors to request the forwarding of a response from this branch, regardless of whether it was
+// called by implementers to request the forwarding of a response from this branch, regardless of whether it was
 // retained previously or not*/
 shared_ptr<ResponseSipEvent> ForkContextBase::forwardResponse(const shared_ptr<BranchInfo>& br) {
 	if (br->mLastResponse) {

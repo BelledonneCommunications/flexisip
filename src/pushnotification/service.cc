@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -31,8 +31,9 @@
 
 #include "apple/apple-client.hh"
 #include "firebase/firebase-client.hh"
-#include "microsoftpush.hh"
-#include "wp-client.hh"
+#include "legacy/genericpush.hh"
+#include "legacy/microsoftpush.hh"
+#include "legacy/wp-client.hh"
 
 #include "service.hh"
 
@@ -42,6 +43,7 @@ namespace flexisip {
 namespace pushnotification {
 
 static constexpr const char* WPPN_PORT = "443";
+const std::string Service::sGenericClientName{"generic"};
 
 Service::Service(su_root_t& root, unsigned maxQueueSize) : mRoot{root}, mMaxQueueSize{maxQueueSize} {
 	SSL_library_init();
@@ -52,51 +54,40 @@ Service::~Service() {
 	ERR_free_strings();
 }
 
-std::unique_ptr<Request> Service::makePushRequest(const PushInfo& pinfo) {
-	if (pinfo.mType == "apple") return make_unique<AppleRequest>(pinfo);
-	if (pinfo.mType == "firebase") return make_unique<FirebaseRequest>(pinfo);
-	if (pinfo.mType == "wp" || pinfo.mType == "wp10") return make_unique<WindowsPhoneRequest>(pinfo);
-	throw invalid_argument("invalid service type [" + pinfo.mType + "]");
+std::shared_ptr<Request> Service::makeRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo) const {
+	// Create a generic request if the generic client has been set.
+	auto genericClient = mClients.find(sGenericClientName);
+	if (genericClient != mClients.cend() && genericClient->second != nullptr) {
+		return make_shared<GenericRequest>(pType, pInfo);
+	}
+
+	// No generic client set, then create a native request for the target platform.
+	const auto& provider = pInfo->getPNProvider();
+	if (provider == "apns" || provider == "apns.dev") {
+		return make_shared<AppleRequest>(pType, pInfo);
+	} else if (provider == "fcm") {
+		return make_shared<FirebaseRequest>(pType, pInfo);
+	} else if (provider == "wp") {
+		return make_shared<WindowsPhoneRequest>(pType, pInfo);
+	} else if (provider == "w10") {
+		return make_shared<Windows10Request>(pType, pInfo);
+	} else {
+		throw runtime_error{"unsupported PN provider [" + provider + "]"};
+	}
 }
 
-int Service::sendPush(const std::shared_ptr<Request>& pn) {
-	auto client = mClients[pn->getAppIdentifier()].get();
+void Service::sendPush(const std::shared_ptr<Request>& pn) {
+	auto* client = mClients[pn->getAppIdentifier()].get();
 	if (client == nullptr) {
-		auto isW10 = (pn->getType() == "w10");
-		auto isWP = (pn->getType() == "wp");
-		if (isW10 || isWP) {
-			// In Windows case we can't create all push notification clients at start up since we need to wait the
-			// registration of all AppID Therefore we create the push notification client just before sending the push.
-			if (isW10 && (mWindowsPhonePackageSID.empty() || mWindowsPhoneApplicationSecret.empty())) {
-				SLOGE << "Windows Phone not configured for push notifications ("
-				         "package sid is "
-				      << (mWindowsPhonePackageSID.empty() ? "NOT configured" : "configured") << " and "
-				      << "application secret is "
-				      << (mWindowsPhoneApplicationSecret.empty() ? "NOT configured" : "configured") << ").";
-				return -1;
-			} else {
-				auto wpClient = pn->getAppIdentifier();
-
-				LOGD("Creating PN client for %s", pn->getAppIdentifier().c_str());
-				if (isW10) {
-					auto conn = make_unique<TlsConnection>(pn->getAppIdentifier(), WPPN_PORT);
-					mClients[wpClient] =
-					    make_unique<ClientWp>(make_unique<TlsTransport>(move(conn)), wpClient, mMaxQueueSize,
-					                          mWindowsPhonePackageSID, mWindowsPhoneApplicationSecret, this);
-				} else {
-					auto conn = make_unique<TlsConnection>(pn->getAppIdentifier(), "80", "", "");
-					mClients[wpClient] =
-					    make_unique<LegacyClient>(make_unique<TlsTransport>(move(conn)), wpClient, mMaxQueueSize, this);
-				}
-				client = mClients[wpClient].get();
-			}
+		if (auto microsoftReq = dynamic_pointer_cast<MicrosoftRequest>(pn)) {
+			client = createWindowsClient(microsoftReq);
 		} else {
-			SLOGE << "No push notification client available for push notification request : " << pn;
-			return -1;
+			ostringstream os{};
+			os << "No push notification client available for push notification request : " << pn;
+			throw runtime_error{os.str()};
 		}
 	}
 	client->sendPush(pn);
-	return 0;
 }
 
 bool Service::isIdle() const noexcept {
@@ -106,16 +97,22 @@ bool Service::isIdle() const noexcept {
 	return true;
 }
 
-void Service::setupGenericClient(const url_t* url) {
-	unique_ptr<TlsConnection> conn;
-	if (url->url_type == url_https) {
-		conn = make_unique<TlsConnection>(url->url_host, url_port(url));
-	} else {
-		conn = make_unique<TlsConnection>(url->url_host, url_port(url), "", "");
+void Service::setupGenericClient(const sofiasip::Url& url, Method method) {
+	if (method != Method::HttpGet && method != Method::HttpPost) {
+		ostringstream msg{};
+		msg << "invalid method value [" << static_cast<int>(method) << "]. Only HttpGet and HttpPost are authorized";
+		throw invalid_argument{msg.str()};
 	}
 
-	mClients["generic"] =
-	    make_unique<LegacyClient>(make_unique<TlsTransport>(move(conn)), "generic", mMaxQueueSize, this);
+	unique_ptr<TlsConnection> conn{};
+	if (url.getType() == url_https) {
+		conn = make_unique<TlsConnection>(url.getHost(), url.getPort(true));
+	} else {
+		conn = make_unique<TlsConnection>(url.getHost(), url.getPort(true), "", "");
+	}
+
+	mClients[sGenericClientName] = make_unique<LegacyClient>(make_unique<TlsTransport>(move(conn), method),
+	                                                         sGenericClientName, mMaxQueueSize, this);
 }
 
 void Service::setupiOSClient(const std::string& certdir, const std::string& cafile) {
@@ -166,6 +163,34 @@ void Service::setupWindowsPhoneClient(const std::string& packageSID, const std::
 	mWindowsPhonePackageSID = packageSID;
 	mWindowsPhoneApplicationSecret = applicationSecret;
 	SLOGD << "Adding Windows push notification client for pacakge SID [" << packageSID << "]";
+}
+
+Client* Service::createWindowsClient(const std::shared_ptr<MicrosoftRequest>& pnImpl) {
+	auto isW10 = (dynamic_pointer_cast<Windows10Request>(pnImpl) != nullptr);
+
+	// In Windows case we can't create all push notification clients at start up since we need to wait the registration
+	// of all AppID Therefore we create the push notification client just before sending the push.
+	if (isW10 && (mWindowsPhonePackageSID.empty() || mWindowsPhoneApplicationSecret.empty())) {
+		ostringstream msg{};
+		msg << "Windows Phone not configured for push notifications ("
+		       "package sid is "
+		    << (mWindowsPhonePackageSID.empty() ? "NOT configured" : "configured") << " and "
+		    << "application secret is " << (mWindowsPhoneApplicationSecret.empty() ? "NOT configured" : "configured")
+		    << ").";
+		throw runtime_error{msg.str()};
+	}
+	const auto& wpClient = pnImpl->getAppIdentifier();
+	LOGD("Creating PN client for %s", pnImpl->getAppIdentifier().c_str());
+	auto& client = mClients[wpClient];
+	if (isW10) {
+		auto conn = make_unique<TlsConnection>(pnImpl->getAppIdentifier(), WPPN_PORT);
+		client = make_unique<ClientWp>(make_unique<TlsTransport>(move(conn)), wpClient, mMaxQueueSize,
+		                               mWindowsPhonePackageSID, mWindowsPhoneApplicationSecret, this);
+	} else {
+		auto conn = make_unique<TlsConnection>(pnImpl->getAppIdentifier(), "80", "", "");
+		client = make_unique<LegacyClient>(make_unique<TlsTransport>(move(conn)), wpClient, mMaxQueueSize, this);
+	}
+	return client.get();
 }
 
 } // namespace pushnotification

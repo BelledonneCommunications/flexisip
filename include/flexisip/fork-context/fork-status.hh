@@ -18,31 +18,18 @@
 
 #pragma once
 
-#include "pushnotification/request.hh"
-#include "utils/transport/http/http-message.hh"
-
 namespace flexisip {
-namespace pushnotification {
 
 /**
- * This class represent one Firebase push notification request. This class inherits from Request, so it can be treated
- * like another type of PNR by the Flexisip push notification module, and from HttpMessage so it can be sent by the
- * Http2Client.
- *
- * This supports the legacy http (http2 compatible) Firebase protocol:
- * https://firebase.google.com/docs/cloud-messaging/http-server-ref
+ * This enumeration is used while call cancellation to clarify
+ * the scenario which caused the cancellation.
 */
-class FirebaseRequest : public Request, public HttpMessage {
-public:
-	FirebaseRequest(PushType pType, const std::shared_ptr<const PushInfo>& pinfo);
-
-	const std::string& getAppId() const noexcept {
-		return getDestination().getParam();
-	}
-
-private:
-	static const std::chrono::seconds FIREBASE_MAX_TTL;
+enum class ForkStatus {
+	AcceptedElsewhere, /**< The call branch is canceled because the call has been accepted in another branch of the
+	                      ForkContext. */
+	DeclineElsewhere,  /**< The call branch is canceled because the call has been declined in another branch of the
+	                      ForkContext. */
+	Standard           /**< The call branch is canceled because the call has been canceled by the caller. */
 };
 
-} // namespace pushnotification
 } // namespace flexisip

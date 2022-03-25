@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #pragma once
 
@@ -81,7 +81,7 @@ private:
 	void sendRequest();
 	int generateUuid(const std::string& uniqueId);
 	DomainRegistrationManager& mManager;
-	StatCounter64* mRegistrationStatus; // This contains the lastest SIP response code of the REGISTER transaction.
+	StatCounter64* mRegistrationStatus; // This contains the latest SIP response code of the REGISTER transaction.
 	su_home_t mHome;
 	nta_leg_t* mLeg;
 	tport_t* mPrimaryTport; // the tport that has the configuration
@@ -133,18 +133,18 @@ public:
 	bool haveToRelayRegToDomain(const std::string& url_host);
 
 private:
-	Agent* mAgent;
-	std::list<std::shared_ptr<DomainRegistration>> mRegistrations;
-	int mNbRegistration = 0;
-	su_timer_t* mTimer;
-	std::list<std::string> mRegistrationList;
-	GenericStruct* mDomainRegistrationArea; /*this is used to place statistics values*/
-	int mKeepaliveInterval;
-	bool mVerifyServerCerts;
-	bool mRegisterWhenNeeded;
-	bool mDomainRegistrationsStarted;
-	bool mRelayRegsToDomains;
-	std::regex mRelayRegsToDomainsRegex;
+	Agent* mAgent{nullptr};
+	std::list<std::shared_ptr<DomainRegistration>> mRegistrations{};
+	int mNbRegistration{0};
+	su_timer_t* mTimer{nullptr};
+	std::list<std::string> mRegistrationList{};
+	GenericStruct* mDomainRegistrationArea{nullptr}; /*this is used to place statistics values*/
+	int mKeepaliveInterval{0};
+	bool mVerifyServerCerts{false};
+	bool mRegisterWhenNeeded{false};
+	bool mDomainRegistrationsStarted{false};
+	bool mRelayRegsToDomains{false};
+	std::regex mRelayRegsToDomainsRegex{};
 
 	static void unregisterTimeout(su_root_magic_t* magic, su_timer_t* t, void* data) {
 		su_root_t* root = (su_root_t*)data;

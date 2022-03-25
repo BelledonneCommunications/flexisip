@@ -18,30 +18,37 @@
 
 #pragma once
 
-#include "pushnotification/request.hh"
-#include "utils/transport/http/http-message.hh"
+#include "flexisip/utils/sip-uri.hh"
+
+#include "legacy-request.hh"
 
 namespace flexisip {
 namespace pushnotification {
 
-/**
- * This class represent one Firebase push notification request. This class inherits from Request, so it can be treated
- * like another type of PNR by the Flexisip push notification module, and from HttpMessage so it can be sent by the
- * Http2Client.
- *
- * This supports the legacy http (http2 compatible) Firebase protocol:
- * https://firebase.google.com/docs/cloud-messaging/http-server-ref
-*/
-class FirebaseRequest : public Request, public HttpMessage {
+class GenericRequest : public LegacyRequest {
 public:
-	FirebaseRequest(PushType pType, const std::shared_ptr<const PushInfo>& pinfo);
+	// Public ctors
+	using LegacyRequest::LegacyRequest;
 
-	const std::string& getAppId() const noexcept {
-		return getDestination().getParam();
+	// Public methods
+	const std::string& getLegacyServiceName() const noexcept;
+	std::string getAppIdentifier() const noexcept override {
+		return "generic";
+	}
+
+	const std::vector<char>& getData(const sofiasip::Url& url, Method method) override;
+
+	std::string isValidResponse(const std::string& str) override;
+	bool isServerAlwaysResponding() override {
+		return true;
 	}
 
 private:
-	static const std::chrono::seconds FIREBASE_MAX_TTL;
+	// Private methods
+	std::string& substituteArgs(std::string& input, const PushInfo& pinfo);
+
+	// Private attributes
+	std::vector<char> mBuffer{};
 };
 
 } // namespace pushnotification

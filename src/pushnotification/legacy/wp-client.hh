@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,30 +18,32 @@
 
 #pragma once
 
+#include "legacy-client.hh"
 #include "pushnotification/request.hh"
-#include "utils/transport/http/http-message.hh"
 
 namespace flexisip {
 namespace pushnotification {
 
-/**
- * This class represent one Firebase push notification request. This class inherits from Request, so it can be treated
- * like another type of PNR by the Flexisip push notification module, and from HttpMessage so it can be sent by the
- * Http2Client.
- *
- * This supports the legacy http (http2 compatible) Firebase protocol:
- * https://firebase.google.com/docs/cloud-messaging/http-server-ref
-*/
-class FirebaseRequest : public Request, public HttpMessage {
+class ClientWp : public LegacyClient {
 public:
-	FirebaseRequest(PushType pType, const std::shared_ptr<const PushInfo>& pinfo);
+	ClientWp(std::unique_ptr<Transport>&& transport,
+	         const std::string& name,
+	         unsigned maxQueueSize,
+	         const std::string& packageSID,
+	         const std::string& applicationSecret,
+	         const Service* service = nullptr);
+	~ClientWp() override = default;
 
-	const std::string& getAppId() const noexcept {
-		return getDestination().getParam();
-	}
+	void sendPush(const std::shared_ptr<Request>& req) override;
+
+protected:
+	void retrieveAccessToken();
 
 private:
-	static const std::chrono::seconds FIREBASE_MAX_TTL;
+	std::string mPackageSID{};
+	std::string mApplicationSecret{};
+	std::string mAccessToken{};
+	time_t mTokenExpiring{0};
 };
 
 } // namespace pushnotification

@@ -128,8 +128,9 @@ void ForkMessageContext::logDeliveredToUserEvent(const shared_ptr<RequestSipEven
 }
 
 void ForkMessageContext::onResponse(const shared_ptr<BranchInfo>& br, const shared_ptr<ResponseSipEvent>& event) {
-	sip_t* sip = event->getMsgSip()->getSip();
-	int code = sip->sip_status->st_status;
+	ForkContextBase::onResponse(br, event);
+
+	const auto code = event->getMsgSip()->getSip()->sip_status->st_status;
 	LOGD("ForkMessageContext[%p]::onResponse()", this);
 
 	if (code > 100 && code < 300) {
@@ -183,7 +184,7 @@ void ForkMessageContext::acceptMessage() {
 	    new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
 	forwardResponse(ev);
 	if (mIsMessage)
-		logReceivedFromUserEvent(mEvent, ev); /*in the sender's log will appear the 202 accepted from flexisip server*/
+		logReceivedFromUserEvent(mEvent, ev); /*in the sender's log will appear the 202 accepted from Flexisip server*/
 }
 
 void ForkMessageContext::onAcceptanceTimer() {
@@ -276,7 +277,7 @@ ForkMessageContextDb ForkMessageContext::getDbObject() {
 }
 
 void ForkMessageContext::restoreBranch(const BranchInfoDb& dbBranch) {
-	mWaitingBranches.push_back(make_shared<BranchInfo>(shared_from_this(), dbBranch, mAgent->shared_from_this()));
+	mWaitingBranches.push_back(BranchInfo::make(shared_from_this(), dbBranch, mAgent->shared_from_this()));
 }
 
 #ifdef ENABLE_UNIT_TESTS

@@ -31,6 +31,8 @@
 #include <sofia-sip/sip.h>
 #include <sofia-sip/tport.h>
 
+#include "sofia-wrapper/msg-sip.hh"
+
 namespace flexisip {
 
 class Agent;
@@ -41,55 +43,7 @@ class IncomingTransaction;
 class OutgoingTransaction;
 class EventLog;
 
-class MsgSip {
-	friend class Agent;
-	friend class SipEvent;
-	friend class RequestSipEvent;
-	friend class ResponseSipEvent;
-	friend class IncomingTransaction;
-	friend class OutgoingTransaction;
-
-public:
-	MsgSip();
-	MsgSip(msg_t* msg);
-	MsgSip(const MsgSip& msgSip);
-
-	/**
-	 * Construct a MsgSip parsing the string parameter.
-	 *
-	 * @throw Throw std::runtime_error if a parsing error occurred.
-	 */
-	MsgSip(int flags, const std::string& msg);
-	~MsgSip();
-
-	msg_t* getMsg() const {
-		return mMsg;
-	}
-	sip_t* getSip() const {
-		return (sip_t*)msg_object(mMsg);
-	}
-	su_home_t* getHome() const {
-		return msg_home(mMsg);
-	}
-
-	const msg_header_t* findHeader(const std::string& name) const {
-		return const_cast<MsgSip*>(this)->findHeader(name);
-	}
-
-	void serialize() const {
-		msg_serialize(mMsg, (msg_pub_t*)getSip());
-	}
-
-	const char* print() const;
-	std::string printString() const;
-	std::string printContext() const;
-	msg_header_t* findHeader(const std::string& name, bool searchUnknowns = false);
-
-private:
-	void assignMsg(msg_t* msg);
-
-	msg_t* mMsg{nullptr};
-};
+using MsgSip = sofiasip::MsgSip;
 
 class SipEvent : public std::enable_shared_from_this<SipEvent> {
 	friend class Agent;
@@ -161,7 +115,7 @@ public:
 		return std::dynamic_pointer_cast<_eventLogT>(mEventLog);
 	}
 	void setEventLog(const std::shared_ptr<EventLog>& log);
-	void flushLog(); /*to be used exceptionally when an eventlog needs to be flushed immediately, for example because
+	void flushLog(); /*to be used exceptionally when an event log needs to be flushed immediately, for example because
 	                    you need to submit a new one.*/
 	std::shared_ptr<IncomingTransaction> getIncomingTransaction();
 	std::shared_ptr<OutgoingTransaction> getOutgoingTransaction();
@@ -255,16 +209,6 @@ private:
 	void checkContentLength(const std::shared_ptr<MsgSip>& msg, const sip_via_t* via);
 	bool mPopVia; // set to true if the response comes from an outgoing transaction.
 };
-
-inline std::ostream& operator<<(std::ostream& strm, MsgSip const& obj) {
-	// Here we hack out the constness.
-	// The print method is non const as it will modify the underlying msg_t
-	// during serialization. Moreover, the underlying sofia calls also take
-	// a non const sip_t...
-	MsgSip& hack = const_cast<MsgSip&>(obj);
-	strm << hack.print();
-	return strm;
-}
 
 /*
  * Nice << operator to serialize sofia-sip 's url_t */

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,9 +14,14 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #pragma once
+
+#include <string>
+
+#include <soci/type-conversion-traits.h>
+#include <soci/values.h>
 
 namespace flexisip {
 
@@ -28,7 +33,7 @@ namespace flexisip {
  *std::shared_ptr<Agent>& agent).
  *
  * @see BranchInfo
- */
+*/
 class BranchInfoDb {
 public:
 	BranchInfoDb() = default;
@@ -54,8 +59,8 @@ public:
 namespace soci {
 
 /**
- * Used by soci to transform database result to BranchInfoDb and vice-versa.
- */
+ * Used by Soci to transform database result to BranchInfoDb and vice-versa.
+*/
 template <> class type_conversion<flexisip::BranchInfoDb> {
 public:
 	typedef values base_type;

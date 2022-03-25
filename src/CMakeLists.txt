@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2021  Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2022 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -26,24 +26,24 @@
 add_library(flexisip SHARED
 	agent.cc
 	auth/auth-module.cc
-	auth/flexisip-auth-module.cc
+	auth/flexisip-auth-module.cc auth/flexisip-auth-module.hh
 	auth/flexisip-auth-module-base.cc
 	auth/realm-extractor.hh
 	auth/nonce-store.cc
 	authdb-file.cc
-	authdb.cc
-	callcontext-mediarelay.cc
-	callstore.cc
-	cli.cc
+	authdb.cc authdb.hh
+	callcontext-mediarelay.cc callcontext-mediarelay.hh
+	callstore.cc callstore.hh
+	cli.cc cli.hh
 	cJSON.c
 	common.cc
 	sip-boolean-expressions.cc
-	configdumper.cc
+	configdumper.cc configdumper.hh
 	configmanager.cc
-	contact-masquerader.cc
-	domain-registrations.cc
+	contact-masquerader.cc contact-masquerader.hh
+	domain-registrations.cc domain-registrations.hh
 	entryfilter.cc
-	etchosts.cc
+	etchosts.cc etchosts.hh
 	event.cc
 	eventlogs/eventlogs.cc
 	fork-context/fork-basic-context.cc
@@ -53,10 +53,10 @@ add_library(flexisip SHARED
 	fork-context/fork-message-context-soci-repository.cc
 	fork-context/fork-message-context.cc
 	fork-context/fork-context.cc
-	h264iframefilter.cc
+	h264iframefilter.cc h264iframefilter.hh
 	log/logmanager.cc
 	lpconfig.cc
-	mediarelay.cc
+	mediarelay.cc mediarelay.hh
 	module-auth.cc
 	module-authentication-base.cc
 	module-contact-route-inserter.cc
@@ -67,58 +67,64 @@ add_library(flexisip SHARED
 	module-loadbalancer.cc
 	module-mediarelay.cc
 	module-nat-helper.cc
-	module-pushnotification.cc
 	module-redirect.cc
 	module-presence.cc
+	module-pushnotification.cc
 	module-regevent.cc
 	module-registrar.cc
 	module-router.cc
 	module-sanitychecker.cc
 	module-statistics-collector.cc
-	module-transcode.cc
+	module-transcode.cc module-transcode.hh
 	module-b2bua.cc
 	module.cc
-	monitor.cc
-	plugin/plugin-loader.cc
-	pushnotification/apple/apple-client.cc
-	pushnotification/apple/apple-request.cc
-	pushnotification/firebase/firebase-client.cc
-	pushnotification/firebase/firebase-request.cc
-	pushnotification/client.cc
-	pushnotification/genericpush.cc
-	pushnotification/legacy-client.cc
-	pushnotification/microsoftpush.cc
-	pushnotification/request.cc
-	pushnotification/service.cc
-	pushnotification/wp-client.cc
+	monitor.cc monitor.hh
+	plugin/plugin-loader.cc plugin/plugin-loader.hh
+	pushnotification/apple/apple-client.cc pushnotification/apple/apple-client.hh
+	pushnotification/apple/apple-request.cc pushnotification/apple/apple-request.hh
+	pushnotification/client.cc pushnotification/client.hh
+	pushnotification/firebase/firebase-client.cc pushnotification/firebase/firebase-client.hh
+	pushnotification/firebase/firebase-request.cc pushnotification/firebase/firebase-request.hh
+	pushnotification/legacy/genericpush.cc pushnotification/legacy/genericpush.hh
+	pushnotification/legacy/legacy-client.cc pushnotification/legacy/legacy-client.hh
+	pushnotification/legacy/microsoftpush.cc pushnotification/legacy/microsoftpush.hh
+	pushnotification/legacy/wp-client.cc pushnotification/legacy/wp-client.hh
+	pushnotification/pushnotification-context.cc pushnotification/pushnotification-context.hh
+	pushnotification/push-info.cc pushnotification/push-info.hh
+	pushnotification/push-type.cc pushnotification/push-type.hh
+	pushnotification/request.cc pushnotification/request.hh
+	pushnotification/rfc8599-push-params.cc pushnotification/rfc8599-push-params.hh
+	pushnotification/service.cc pushnotification/service.hh
+	pushnotification/strategy/remote-push-strategy.cc pushnotification/strategy/remote-push-strategy.hh
 	push-param.cc
 	recordserializer-c.cc
 	recordserializer-json.cc
-	registrardb-internal.cc
+	registrardb-internal.cc registrardb-internal.hh
 	registrardb.cc
-	sdp-modifier.cc
-	service-server.cc
+	sdp-modifier.cc sdp-modifier.hh
+	service-server.cc service-server.hh
+	sofia-wrapper/msg-sip.cc sofia-wrapper/msg-sip.hh
 	sofia-wrapper/su-root.cc
-	stun.cc
+	stun.cc stun.hh
 	stun/stun_udp.c
 	stun/stun.c
-	telephone-event-filter.cc
+	telephone-event-filter.cc telephone-event-filter.hh
 	transaction.cc
 	transport.cc
-	uac-register.cc
+	uac-register.cc uac-register.hh
 	utils/digest.cc utils/digest.hh
 	utils/sip-uri.cc
-	utils/string-formater.cc
-	utils/string-utils.cc
-	utils/threadpool.cc
+	utils/string-formater.cc utils/string-formater.hh
+	utils/string-utils.cc utils/string-utils.hh
+	utils/threadpool.cc utils/threadpool.hh
 	utils/timer.cc
-	utils/transport/http/http2client.cc
-	utils/transport/http/http-headers.cc
-	utils/transport/http/http-message.cc
-	utils/transport/http/http-response.cc
-	utils/transport/http/ng-data-provider.cc
-	utils/transport/tls-connection.cc
-	utils/uri-utils.cc
+	utils/transport/http/http2client.cc utils/transport/http/http2client.hh
+	utils/transport/http/http-headers.cc utils/transport/http/http-headers.hh
+	utils/transport/http/http-message.cc utils/transport/http/http-message.hh
+	utils/transport/http/http-response.cc utils/transport/http/http-response.hh
+	utils/transport/http/ng-data-provider.cc utils/transport/http/ng-data-provider.hh
+	utils/transport/tls-connection.cc utils/transport/tls-connection.hh
+	utils/uri-utils.cc utils/uri-utils.hh
 )
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 6.0.0)

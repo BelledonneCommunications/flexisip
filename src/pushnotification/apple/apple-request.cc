@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,12 +14,17 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
+#include <algorithm>
 #include <regex>
 #include <string>
 
-#include <flexisip/common.hh>
+#include "flexisip/common.hh"
+
+#include "sofia-wrapper/msg-sip.hh"
+#include "utils/string-utils.hh"
+#include "utils/uri-utils.hh"
 
 #include "apple-request.hh"
 
@@ -28,30 +33,26 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
-// redundant declaration (required for C++14 compatibility)
-constexpr std::size_t AppleRequest::MAXPAYLOAD_SIZE;
-constexpr std::size_t AppleRequest::DEVICE_BINARY_SIZE;
-
-AppleRequest::AppleRequest(const PushInfo& info) : Request(info.mAppId, "apple"), mPayloadType{info.mApplePushType} {
-	const string& deviceToken = info.mDeviceToken;
-	const string& msg_id = info.mAlertMsgId;
-	const string& arg = info.mFromName.empty() ? info.mFromUri : info.mFromName;
-	const string& sound = info.mAlertSound;
-	const string& callid = info.mCallId;
-	string date = getPushTimeStamp();
+AppleRequest::AppleRequest(PushType pType, const std::shared_ptr<const PushInfo>& info) : Request{pType, info} {
+	const auto& deviceToken = getDeviceToken();
+	const auto& msg_id = mPInfo->mAlertMsgId;
+	const auto& arg = mPInfo->mFromName.empty() ? mPInfo->mFromUri : mPInfo->mFromName;
+	const auto& sound = mPInfo->mAlertSound;
+	const auto& callid = mPInfo->mCallId;
+	auto date = getPushTimeStamp();
+	auto ttl = static_cast<int>(mPInfo->mTtl.count());
 	int nwritten = 0;
 
 	mBody.assign(MAXPAYLOAD_SIZE + 1, '\0');
 
-	mDeviceToken = deviceToken;
 	checkDeviceToken();
 
-	string customPayload = (info.mCustomPayload.empty()) ? "{}" : info.mCustomPayload;
+	auto customPayload = mPInfo->mCustomPayload.empty() ? string{"{}"} : mPInfo->mCustomPayload;
 
-	switch (info.mApplePushType) {
-		case ApplePushType::Unknown:
+	switch (pType) {
+		case PushType::Unknown:
 			throw invalid_argument{"Apple push type not set"};
-		case ApplePushType::Pushkit: {
+		case PushType::VoIP: {
 			// We also need msg_id and callid in case the push is received but the device cannot register
 			constexpr auto rawPayload = R"json({
 	"aps": {
@@ -68,11 +69,11 @@ AppleRequest::AppleRequest(const PushInfo& info) : Request(info.mAppId, "apple")
 	"customPayload": %s
 })json";
 			nwritten = snprintf(mBody.data(), mBody.size(), rawPayload, msg_id.c_str(), arg.c_str(), callid.c_str(),
-			                    quoteStringIfNeeded(info.mUid).c_str(), date.c_str(), info.mFromUri.c_str(),
-			                    info.mFromName.c_str(), info.mTtl, customPayload.c_str());
+			                    quoteStringIfNeeded(mPInfo->mUid).c_str(), date.c_str(), mPInfo->mFromUri.c_str(),
+			                    mPInfo->mFromName.c_str(), ttl, customPayload.c_str());
 			break;
 		}
-		case ApplePushType::Background: {
+		case PushType::Background: {
 			// Use a normal push notification with content-available set to 1, no alert, no sound.
 			constexpr auto rawPayload = R"json({
 	"aps": {
@@ -90,37 +91,11 @@ AppleRequest::AppleRequest(const PushInfo& info) : Request(info.mAppId, "apple")
 	"customPayload": %s
 })json";
 			nwritten = snprintf(mBody.data(), mBody.size(), rawPayload, msg_id.c_str(), arg.c_str(), callid.c_str(),
-			                    quoteStringIfNeeded(info.mUid).c_str(), date.c_str(), info.mFromUri.c_str(),
-			                    info.mFromName.c_str(), info.mTtl, customPayload.c_str());
+			                    quoteStringIfNeeded(mPInfo->mUid).c_str(), date.c_str(), mPInfo->mFromUri.c_str(),
+			                    mPInfo->mFromName.c_str(), ttl, customPayload.c_str());
 			break;
 		}
-		case ApplePushType::RemoteBasic: {
-			/* some apps don't want the push to update the badge - but if they do,
-			we always put the badge value to 1 because we want to notify the user that
-			he/she has unread messages even if we do not know the exact count */
-			constexpr auto rawPayload = R"json({
-	"aps": {
-		"alert": {
-			"loc-key": "%s",
-			"loc-args": ["%s"]
-		},
-		"sound": "%s",
-		"badge": %d
-	},
-	"from-uri": "%s",
-	"display-name": "%s",
-	"call-id": "%s",
-	"pn_ttl": %d,
-	"uuid": %s,
-	"send-time": "%s",
-	"customPayload": %s
-})json";
-			nwritten = snprintf(mBody.data(), mBody.size(), rawPayload, msg_id.c_str(), arg.c_str(), sound.c_str(),
-			                    (info.mNoBadge ? 0 : 1), info.mFromUri.c_str(), info.mFromName.c_str(), callid.c_str(),
-			                    info.mTtl, quoteStringIfNeeded(info.mUid).c_str(), date.c_str(), customPayload.c_str());
-			break;
-		}
-		case ApplePushType::RemoteWithMutableContent: {
+		case PushType::Message: {
 			/* some apps don't want the push to update the badge - but if they do,
 			we always put the badge value to 1 because we want to notify the user that
 			he/she has unread messages even if we do not know the exact count */
@@ -144,9 +119,9 @@ AppleRequest::AppleRequest(const PushInfo& info) : Request(info.mAppId, "apple")
 	"customPayload": %s
 })json";
 			nwritten = snprintf(mBody.data(), mBody.size(), rawPayload, msg_id.c_str(), arg.c_str(), sound.c_str(),
-			                    (info.mNoBadge ? 0 : 1), info.mFromUri.c_str(), info.mFromName.c_str(), callid.c_str(),
-			                    info.mTtl, quoteStringIfNeeded(info.mUid).c_str(), date.c_str(),
-			                    info.mChatRoomAddr.c_str(), customPayload.c_str());
+			                    (mPInfo->mNoBadge ? 0 : 1), mPInfo->mFromUri.c_str(), mPInfo->mFromName.c_str(),
+			                    callid.c_str(), ttl, quoteStringIfNeeded(mPInfo->mUid).c_str(), date.c_str(),
+			                    mPInfo->mChatRoomAddr.c_str(), customPayload.c_str());
 			break;
 		}
 	}
@@ -160,50 +135,72 @@ AppleRequest::AppleRequest(const PushInfo& info) : Request(info.mAppId, "apple")
 	mBody.resize(nwritten);
 
 	auto expire = 0;
-	if (info.mTtl > 0) {
-		expire = time(nullptr) + info.mTtl;
+	if (ttl > 0) {
+		expire = time(nullptr) + ttl;
 	}
-	auto path = string{"/3/device/"} + mDeviceToken;
-	auto topicLen = mAppId.rfind(".");
-	auto apnsTopic = mAppId.substr(0, topicLen);
+	auto path = "/3/device/" + deviceToken;
+	auto collapseId = mPInfo->mCollapseId;
+	if (collapseId.size() > 64) {
+		ostringstream msg{};
+		msg << "apns-collapse-id value exceeds 64 characters. Shrinking '" << collapseId << "' -> '";
+		collapseId.resize(64);
+		msg << collapseId << "'";
+		SLOGW << msg.str();
+	}
 
 	HttpHeaders headers{};
 	headers.add(":method", "POST");
 	headers.add(":scheme", "https");
-	headers.add(":path", move(path));
+	headers.add(":path", path);
 	headers.add("apns-expiration", to_string(expire));
-	headers.add("apns-topic", apnsTopic);
-	headers.add("apns-push-type", pushTypeToApnsPushType(mPayloadType));
+	headers.add("apns-topic", getAPNSTopic());
+	headers.add("apns-push-type", pushTypeToApnsPushType(pType));
+	headers.add("apns-priority", "10");
+	if (!collapseId.empty()) headers.add("apns-collapse-id", collapseId);
 	this->setHeaders(headers);
 
 	SLOGD << "Apple PNR  " << this << " https headers are :\n" << headers.toString();
 }
 
+std::string AppleRequest::getAppIdentifier() const noexcept {
+	return getAPNSTopic() + (StringUtils::endsWith(getDestination().getProvider(), ".dev") ? ".dev" : ".prod");
+}
+
+std::string AppleRequest::getAPNSTopic() const noexcept {
+	const auto& topic = getDestination().getParam();
+	return topic.substr(topic.find('.') + 1);
+}
+
+std::string AppleRequest::getTeamId() const noexcept {
+	const auto& pnParam = getDestination().getParam();
+	return pnParam.substr(0, pnParam.find('.'));
+}
+
 void AppleRequest::checkDeviceToken() const {
 	static const regex tokenMatch{R"regex([0-9A-Za-z]+)regex"};
-	if (!regex_match(mDeviceToken, tokenMatch) || mDeviceToken.size() != DEVICE_BINARY_SIZE * 2) {
+	const auto& deviceToken = getDeviceToken();
+	if (!regex_match(deviceToken, tokenMatch) || deviceToken.size() != DEVICE_BINARY_SIZE * 2) {
 		throw runtime_error("ApplePushNotification: Invalid deviceToken");
 	}
 }
 
-string AppleRequest::pushTypeToApnsPushType(ApplePushType type) {
-	string res{};
+string AppleRequest::pushTypeToApnsPushType(PushType type) {
 	switch (type) {
-		case ApplePushType::Unknown:
-			throw invalid_argument("no 'apns-push-type' value for 'ApplePushType::Unknown'");
-		case ApplePushType::RemoteBasic:
-		case ApplePushType::RemoteWithMutableContent:
-			res = "alert";
-			break;
-		case ApplePushType::Background:
-			res = "background";
-			break;
-		case ApplePushType::Pushkit:
-			res = "voip";
-			break;
+		case PushType::Unknown:
+			throw invalid_argument{"no 'apns-push-type' value for 'PushType::Unknown'"};
+		case PushType::Message:
+			return "alert";
+		case PushType::Background:
+			return "background";
+		case PushType::VoIP:
+			return "voip";
 	}
-	return res;
+	throw invalid_argument{to_string(static_cast<int>(type)) + " isn't a valid PushType value"};
 }
+
+// redundant declaration (required for C++14 compatibility)
+constexpr std::size_t AppleRequest::MAXPAYLOAD_SIZE;
+constexpr std::size_t AppleRequest::DEVICE_BINARY_SIZE;
 
 } // namespace pushnotification
 } // namespace flexisip

@@ -18,30 +18,24 @@
 
 #pragma once
 
-#include "pushnotification/request.hh"
-#include "utils/transport/http/http-message.hh"
+#include "strategy.hh"
 
 namespace flexisip {
 namespace pushnotification {
 
-/**
- * This class represent one Firebase push notification request. This class inherits from Request, so it can be treated
- * like another type of PNR by the Flexisip push notification module, and from HttpMessage so it can be sent by the
- * Http2Client.
- *
- * This supports the legacy http (http2 compatible) Firebase protocol:
- * https://firebase.google.com/docs/cloud-messaging/http-server-ref
-*/
-class FirebaseRequest : public Request, public HttpMessage {
+class VoIPPushStrategy : public Strategy {
 public:
-	FirebaseRequest(PushType pType, const std::shared_ptr<const PushInfo>& pinfo);
+	using Strategy::Strategy;
 
-	const std::string& getAppId() const noexcept {
-		return getDestination().getParam();
+	void sendMessageNotification(const std::shared_ptr<const PushInfo>& pInfo) override {
+		std::ostringstream err{};
+		err << __PRETTY_FUNCTION__ << "() not implemented by VoIPPushStrategy";
+		throw std::logic_error{err.str()};
 	}
-
-private:
-	static const std::chrono::seconds FIREBASE_MAX_TTL;
+	void sendCallNotification(const std::shared_ptr<const PushInfo>& pInfo) override {
+		auto req = mService->makeRequest(PushType::VoIP, pInfo);
+		mService->sendPush(req);
+	}
 };
 
 } // namespace pushnotification

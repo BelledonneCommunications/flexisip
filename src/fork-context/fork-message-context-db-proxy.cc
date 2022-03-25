@@ -202,7 +202,7 @@ ForkMessageContextDbProxy::onNewRegister(const SipUri& dest, const string& uid, 
 		});
 
 		// Always return a fake empty branch here in case you were called by delayedOnNewRegister.
-		return make_shared<BranchInfo>();
+		return BranchInfo::make();
 	} else {
 		if (restoreForkIfNeeded()) return mForkMessage->onNewRegister(dest, uid, dispatchFunc);
 		else return nullptr;

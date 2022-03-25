@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,53 +14,93 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
-#pragma once
+#include <stdexcept>
 
 #include "flexisip/module.hh"
 
 #include "pushnotification/service.hh"
-#include "sip-boolean-expressions.hh"
+#include "pushnotification/strategy/strategy.hh"
+
+#pragma once
 
 namespace flexisip {
 
 class PushNotification;
 
+/**
+ * Abstract class which PNContextCall and PNContextMessage inherit from.
+ *
+ * It is instantiated and held by PushNotification module class until the push notification which it is in charge
+ * is actually sent to the according PN service. It may also be prematurely canceled to avoid useless PN sending
+ * when a provisional response is received on its associated outgoing transaction.
+ *
+ * Once the PushNotificatonContext is created, the start() method must be called to start a timer which will
+ * trigger the PN after a given delay. A delay of 0s will cause the push notification to be sent asynchronously
+ * as soon as possible. The kind and the payload of the PN to sent is affected by the sub-class used on construction
+ * and the information stored in the PushInfo structure.
+*/
 class PushNotificationContext {
 public:
-	PushNotificationContext(const std::shared_ptr<OutgoingTransaction>& transaction,
-	                        PushNotification* module,
-	                        const std::shared_ptr<pushnotification::Request>& pnr,
-	                        const std::string& pnKey,
-	                        unsigned retryCount,
-	                        unsigned retryInterval);
-	PushNotificationContext(const PushNotificationContext&) = delete;
-	~PushNotificationContext() = default;
+	virtual ~PushNotificationContext() = default;
 
 	const std::string& getKey() const {
 		return mKey;
 	}
-	const std::shared_ptr<pushnotification::Request>& getPushRequest() const {
-		return mPushNotificationRequest;
+	const std::shared_ptr<const pushnotification::PushInfo>& getPushInfo() const noexcept {
+		return mPInfo;
 	}
 
-	void start(int seconds, bool sendRinging);
+	/**
+	 * Enable PN retransmission system.
+	 * Allow to send the same push notification several times with a given time interval
+	 * between each PNR.
+	 * @param[in] retryCounter Number of retransmission. 0 means that only one PN will be sent.
+	 * @param[in] retryInterval Delay between two subsequent push notifications.
+	 */
+	void setRetransmission(int retryCounter, std::chrono::seconds retryInterval) noexcept {
+		mRetryCounter = retryCounter;
+		mRetryInterval = retryInterval;
+	}
+
+	/**
+	 * Schedule the sending of the push notification.
+	 * @param[in] delay Delay before the PN is actually sent.
+	 */
+	void start(std::chrono::seconds delay);
+	/**
+	 * Cancel the sending of the push notification.
+	 * That unschedules the PN sending if it hasn't been carry out yet and stop any further retransmissions.
+	 */
 	void cancel();
 
-private:
-	void onTimeout();
+protected:
+	// Protected ctors
+	PushNotificationContext(const std::shared_ptr<OutgoingTransaction>& transaction,
+	                        PushNotification* _module,
+	                        const std::shared_ptr<const pushnotification::PushInfo>& pInfo,
+	                        const std::string& pnKey);
+	PushNotificationContext(const PushNotificationContext&) = delete;
 
-	std::string mKey; // unique key for the push notification, identifiying the device and the call.
-	PushNotification* mModule = nullptr;
-	std::shared_ptr<pushnotification::Request> mPushNotificationRequest;
-	std::shared_ptr<OutgoingTransaction> mTransaction;
-	sofiasip::Timer mTimer;    // timer after which push is sent
-	sofiasip::Timer mEndTimer; // timer to automatically remove the PN 30 seconds after starting
-	int mRetryCounter = 0;
-	unsigned mRetryInterval = 0;
-	bool mSendRinging = true;
-	bool mPushSentResponseSent = false; // whether the 110 Push sent was sent already
+	// Protected methods
+	void onTimeout();
+	virtual void sendPush() = 0;
+
+	// Protected attributes
+	std::string mKey{}; /**< unique key for the push notification, identifying the device and the call. */
+	PushNotification* mModule{nullptr}; /**< Back pointer to the PushNotification module. */
+	std::shared_ptr<const pushnotification::PushInfo> mPInfo{};
+	std::shared_ptr<OutgoingTransaction> mTransaction{};
+	std::shared_ptr<pushnotification::Strategy> mStrategy{}; /**< A delegate object that affect how the client will be notified. */
+
+	sofiasip::Timer mTimer;    /**< timer after which push is sent */
+	sofiasip::Timer mEndTimer; /**< timer to automatically remove the PN 30 seconds after starting */
+	int mRetryCounter{0};
+	std::chrono::seconds mRetryInterval{0};
+	bool mPushSentResponseSent = false; /**< whether the 110 Push sent was sent already */
+	int mPushSentSatusCode{0};
+	const char* mPushSentPhrase{nullptr};
 };
 
 class PushNotification : public Module, public ModuleToolbox {
@@ -71,40 +111,53 @@ public:
 	void onRequest(std::shared_ptr<RequestSipEvent>& ev) override;
 	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override;
 	void onLoad(const GenericStruct* mc) override;
-	pushnotification::Service& getService() const {
-		return *mPNS;
+
+	const std::shared_ptr<pushnotification::Service>& getService() const {
+		return mPNS;
 	}
 
 private:
+	// Private types
+	class InvalidMethodError : public std::invalid_argument {
+	public:
+		using std::invalid_argument::invalid_argument;
+	};
+
+	// Private methods
 	bool needsPush(const sip_t* sip);
+
+	/**
+	 * Gathers all the information required to create a PushNotificationContext
+	 * and create an instance of it by using the right implementation. Then,
+	 * add it to the map of pending notifications.
+	 */
 	void makePushNotification(const std::shared_ptr<MsgSip>& ms,
 	                          const std::shared_ptr<OutgoingTransaction>& transaction);
 	void removePushNotification(PushNotificationContext* pn);
-	void parsePushParams(const std::shared_ptr<MsgSip>& ms, const char* params, pushnotification::PushInfo& pinfo);
-	void
-	parseLegacyPushParams(const std::shared_ptr<MsgSip>& ms, const char* params, pushnotification::PushInfo& pinfo);
-	bool isGroupChatInvite(sip_t* sip);
+	std::chrono::seconds getCallRemotePushInterval(const char* pushParams) const noexcept;
 
+	static pushnotification::Method stringToLegacyMethod(const std::string& methodStr);
+
+	// Private attributes
 	std::map<std::string, std::shared_ptr<PushNotificationContext>>
 	    mPendingNotifications; // map of pending push notifications. Its
 	                           // purpose is to avoid sending multiples
 	                           // notifications for the same call attempt
 	                           // to a given device.
 	static ModuleInfo<PushNotification> sInfo;
-	url_t* mExternalPushUri = nullptr;
-	std::string mExternalPushMethod;
 	std::shared_ptr<SipBooleanExpression> mAddToTagFilter{};
-	int mTimeout = 0;
-	int mCallTtl = 0;    // Push notification ttl for calls.
-	int mMessageTtl = 0; // Push notification ttl for IM.
-	unsigned mRetransmissionCount = 0;
-	unsigned mRetransmissionInterval = 0;
-	std::map<std::string, std::string> mFirebaseKeys;
-	std::unique_ptr<pushnotification::Service> mPNS;
-	StatCounter64* mCountFailed = nullptr;
-	StatCounter64* mCountSent = nullptr;
-	bool mNoBadgeiOS = false;
-	bool mDisplayFromUri = false;
+	std::chrono::seconds mTimeout{0};
+	std::chrono::seconds mCallTtl{0};    // Push notification TTL for calls.
+	std::chrono::seconds mMessageTtl{0}; // Push notification TTL for IM.
+	unsigned mRetransmissionCount{0};
+	std::chrono::seconds mRetransmissionInterval{0};
+	std::chrono::seconds mCallRemotePushInterval{0};
+	std::map<std::string, std::string> mFirebaseKeys{};
+	std::shared_ptr<pushnotification::Service> mPNS{};
+	StatCounter64* mCountFailed{nullptr};
+	StatCounter64* mCountSent{nullptr};
+	bool mNoBadgeiOS{false};
+	bool mDisplayFromUri{false};
 
 	friend class PushNotificationContext;
 };

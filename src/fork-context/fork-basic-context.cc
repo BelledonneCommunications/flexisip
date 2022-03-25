@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #include <algorithm>
 #include <flexisip/common.hh>
@@ -52,6 +52,8 @@ ForkBasicContext::~ForkBasicContext() {
 }
 
 void ForkBasicContext::onResponse(const shared_ptr<BranchInfo>& br, const shared_ptr<ResponseSipEvent>& event) {
+	ForkContextBase::onResponse(br, event);
+
 	int code = br->getStatus();
 	if (code >= 200) {
 		if (code < 300) {

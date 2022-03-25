@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #pragma once
 
@@ -162,7 +162,7 @@ public:
 	}
 	/**
 	 * Equal to the node or cluster URI depending on whether cluster mode has
-	 * been enabled in settings and a cluster domain has been decladed.
+	 * been enabled in settings and a cluster domain has been declared.
 	 */
 	const url_t* getDefaultUri() const {
 		return mDefaultUri;
@@ -173,7 +173,7 @@ public:
 	const std::string& getUniqueId() const;
 	void idle();
 	bool isUs(const url_t* url, bool check_aliases = true) const;
-	std::shared_ptr<sofiasip::SuRoot> getRoot() const noexcept {
+	const std::shared_ptr<sofiasip::SuRoot>& getRoot() const noexcept {
 		return mRoot;
 	}
 	nta_agent_t* getSofiaAgent() const {

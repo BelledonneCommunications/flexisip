@@ -53,7 +53,7 @@ static void startPushTest(Client& client,
                           const string& reqBodyPattern,
                           int responseCode,
                           const string& responseBody,
-                          const Request::State& expectedFinalState,
+                          Request::State expectedFinalState,
                           bool timeout = false) {
 	std::promise<bool> barrier{};
 	std::future<bool> barrier_future = barrier.get_future();
@@ -98,45 +98,49 @@ static void startPushTest(Client& client,
 	}
 }
 
-static void startApplePushTest(const PushInfo& pushInfo,
+static void startApplePushTest(PushType pType,
+                               const std::shared_ptr<PushInfo>& pushInfo,
                                const string& reqBodyPattern,
                                int responseCode,
                                const string& responseBody,
-                               const Request::State& expectedFinalState,
+                               Request::State expectedFinalState,
                                bool timeout = false) {
 	AppleClient::APN_DEV_ADDRESS = "localhost";
 	AppleClient::APN_PORT = "3000";
 	AppleClient appleClient{*root, "", TESTER_DATA_DIR + string("/cert/apple.test.dev.pem"), "apple.test.dev.pem"};
 	appleClient.enableInsecureTestMode();
 
-	auto request = make_shared<AppleRequest>(pushInfo);
+	auto request = make_shared<AppleRequest>(pType, pushInfo);
 
 	startPushTest(appleClient, move(request), reqBodyPattern, responseCode, responseBody, expectedFinalState, timeout);
 }
 
-static void startFirebasePushTest(const PushInfo& pushInfo,
+static void startFirebasePushTest(PushType pType,
+                                  const std::shared_ptr<PushInfo>& pushInfo,
                                   const string& reqBodyPattern,
                                   int responseCode,
                                   const string& responseBody,
-                                  const Request::State& expectedFinalState,
+                                  Request::State expectedFinalState,
                                   bool timeout = false) {
 	FirebaseClient::FIREBASE_ADDRESS = "localhost";
 	FirebaseClient::FIREBASE_PORT = "3000";
 	FirebaseClient firebaseClient{*root};
 	firebaseClient.enableInsecureTestMode();
 
-	auto request = make_shared<FirebaseRequest>(pushInfo);
+	auto request = make_shared<FirebaseRequest>(pType, pushInfo);
 
 	startPushTest(firebaseClient, move(request), reqBodyPattern, responseCode, responseBody, expectedFinalState,
 	              timeout);
 }
 
 static void firebasePushTestOk(void) {
-	PushInfo pushInfo{};
-	pushInfo.mFromName = "PushTestOk";
-	pushInfo.mFromUri = "sip:kijou@sip.linphone.org";
-	pushInfo.mTtl = 42;
-	pushInfo.mUid = "a-uid-42";
+	auto dest = make_shared<RFC8599PushParams>("fcm", "", "");
+	auto pushInfo = make_shared<PushInfo>();
+	pushInfo->addDestination(dest);
+	pushInfo->mFromName = "PushTestOk";
+	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
+	pushInfo->mTtl = 42s;
+	pushInfo->mUid = "a-uid-42";
 
 	string reqBodyPattern{R"json(\{
 	"to":"",
@@ -154,15 +158,17 @@ static void firebasePushTestOk(void) {
 	\}
 \})json"};
 
-	startFirebasePushTest(pushInfo, reqBodyPattern, 200, "ok", Request::State::Successful);
+	startFirebasePushTest(PushType::Background, pushInfo, reqBodyPattern, 200, "ok", Request::State::Successful);
 }
 
 static void firebasePushTestKo(void) {
-	PushInfo pushInfo{};
-	pushInfo.mAlertMsgId = "MessID";
-	pushInfo.mFromUri = "sip:kijou@sip.linphone.org";
-	pushInfo.mCallId = "CallID";
-	pushInfo.mTtl = (4 * 7 * 24 * 3600) + 1; // 2419201, more than max 2419200 allowed
+	auto dest = make_shared<RFC8599PushParams>("fcm", "", "");
+	auto pushInfo = make_shared<PushInfo>();
+	pushInfo->addDestination(dest);
+	pushInfo->mAlertMsgId = "MessID";
+	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
+	pushInfo->mCallId = "CallID";
+	pushInfo->mTtl = (4 * 7 * 24h) + 1s; // intentionally set more than the allowed 4 weeks
 
 	string reqBodyPattern{R"json(\{
 	"to":"",
@@ -180,65 +186,34 @@ static void firebasePushTestKo(void) {
 	\}
 \})json"};
 
-	startFirebasePushTest(pushInfo, reqBodyPattern, 500, "Internal error", Request::State::Failed);
+	startFirebasePushTest(PushType::Background, pushInfo, reqBodyPattern, 500, "Internal error",
+	                      Request::State::Failed);
 }
 
 static void firebasePushTestTimeout(void) {
-	PushInfo pushInfo{};
-	pushInfo.mFromName = "PushTest";
-	pushInfo.mFromUri = "sip:kijou@sip.linphone.org";
+	auto dest = make_shared<RFC8599PushParams>("fcm", "", "");
+	auto pushInfo = make_shared<PushInfo>();
+	pushInfo->addDestination(dest);
+	pushInfo->mFromName = "PushTest";
+	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
 
 	// Not checked during timeout test
 	string reqBodyPattern{""};
 
-	startFirebasePushTest(pushInfo, reqBodyPattern, 200, "Ok", Request::State::Failed, true);
-}
-
-static void applePushTestOkRemoteBasic(void) {
-	PushInfo pushInfo{};
-	pushInfo.mApplePushType = ApplePushType::RemoteBasic;
-	pushInfo.mCustomPayload = "{customData=\"CustomValue\"}";
-	pushInfo.mDeviceToken = "6464646464646464646464646464646464646464646464646464646464646464";
-	pushInfo.mAlertMsgId = "msgId";
-	pushInfo.mAlertSound = "DuHast";
-	pushInfo.mFromName = "PushTestOk";
-	pushInfo.mFromUri = "sip:kijou@sip.linphone.org";
-	pushInfo.mCallId = "CallId";
-	pushInfo.mAppId = "org.linphone.phone.prod";
-	pushInfo.mTtl = 42;
-	pushInfo.mUid = "a-uid-42";
-
-	string reqBodyPattern{R"json(\{
-	"aps": \{
-		"alert": \{
-			"loc-key": "msgId",
-			"loc-args": \["PushTestOk"\]
-		\},
-		"sound": "DuHast",
-		"badge": 1
-	\},
-	"from-uri": "sip:kijou@sip.linphone.org",
-	"display-name": "PushTestOk",
-	"call-id": "CallId",
-	"pn_ttl": 42,
-	"uuid": "a-uid-42",
-	"send-time": "[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}",
-	"customPayload": \{customData="CustomValue"\}
-\})json"};
-
-	startApplePushTest(pushInfo, reqBodyPattern, 200, "Ok", Request::State::Successful);
+	startFirebasePushTest(PushType::Background, pushInfo, reqBodyPattern, 200, "Ok", Request::State::Failed, true);
 }
 
 static void applePushTestOkPushkit(void) {
-	PushInfo pushInfo{};
-	pushInfo.mApplePushType = ApplePushType::Pushkit;
-	pushInfo.mDeviceToken = "6464646464646464646464646464646464646464646464646464646464646464";
-	pushInfo.mAlertMsgId = "msgId2";
-	pushInfo.mAlertSound = "Sonne";
-	pushInfo.mFromUri = "sip:kijou@sip.linphone.org";
-	pushInfo.mCallId = "CallId2";
-	pushInfo.mAppId = "org.linphone.phone.voip.prod";
-	pushInfo.mTtl = 42;
+	auto dest = make_shared<RFC8599PushParams>("apns", "ABCD1234.org.linphone.phone.voip",
+	                                           "6464646464646464646464646464646464646464646464646464646464646464");
+
+	auto pushInfo = make_shared<PushInfo>();
+	pushInfo->addDestination(dest);
+	pushInfo->mAlertMsgId = "msgId2";
+	pushInfo->mAlertSound = "Sonne";
+	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
+	pushInfo->mCallId = "CallId2";
+	pushInfo->mTtl = 42s;
 
 	string reqBodyPattern{R"json(\{
 	"aps": \{
@@ -255,21 +230,22 @@ static void applePushTestOkPushkit(void) {
 	"customPayload": \{\}
 \})json"};
 
-	startApplePushTest(pushInfo, reqBodyPattern, 200, "Ok", Request::State::Successful);
+	startApplePushTest(PushType::VoIP, pushInfo, reqBodyPattern, 200, "Ok", Request::State::Successful);
 }
 
 static void applePushTestOkBackground(void) {
-	PushInfo pushInfo{};
-	pushInfo.mApplePushType = ApplePushType::Background;
-	pushInfo.mCustomPayload = "{customData=\"CustomValue\"}";
-	pushInfo.mDeviceToken = "6464646464646464646464646464646464646464646464646464646464646464";
-	pushInfo.mAlertMsgId = "msgId";
-	pushInfo.mFromName = "PushTestOkBackground";
-	pushInfo.mFromUri = "sip:kijou@sip.linphone.org";
-	pushInfo.mCallId = "CallId";
-	pushInfo.mAppId = "org.linphone.phone.prod";
-	pushInfo.mTtl = 42;
-	pushInfo.mUid = "a-uid-42";
+	auto dest = make_shared<RFC8599PushParams>("apns", "ABCD1234.org.linphone.phone",
+	                                           "6464646464646464646464646464646464646464646464646464646464646464");
+
+	auto pushInfo = make_shared<PushInfo>();
+	pushInfo->addDestination(dest);
+	pushInfo->mCustomPayload = "{customData=\"CustomValue\"}";
+	pushInfo->mAlertMsgId = "msgId";
+	pushInfo->mFromName = "PushTestOkBackground";
+	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
+	pushInfo->mCallId = "CallId";
+	pushInfo->mTtl = 42s;
+	pushInfo->mUid = "a-uid-42";
 
 	string reqBodyPattern{R"json(\{
 	"aps": \{
@@ -287,24 +263,25 @@ static void applePushTestOkBackground(void) {
 	"customPayload": \{customData="CustomValue"\}
 \})json"};
 
-	startApplePushTest(pushInfo, reqBodyPattern, 200, "Ok", Request::State::Successful);
+	startApplePushTest(PushType::Background, pushInfo, reqBodyPattern, 200, "Ok", Request::State::Successful);
 }
 
 static void applePushTestOkRemoteWithMutableContent(void) {
-	PushInfo pushInfo{};
-	pushInfo.mApplePushType = ApplePushType::RemoteWithMutableContent;
-	pushInfo.mCustomPayload = "{customData=\"CustomValue\"}";
-	pushInfo.mChatRoomAddr = "conference-0@sip.test.linphone.org";
-	pushInfo.mDeviceToken = "6464646464646464646464646464646464646464646464646464646464646464";
-	pushInfo.mAlertMsgId = "msgId";
-	pushInfo.mAlertSound = "DuHast";
-	pushInfo.mFromName = "PushTestOk";
-	pushInfo.mFromUri = "sip:kijou@sip.linphone.org";
-	pushInfo.mNoBadge = true;
-	pushInfo.mCallId = "CallId";
-	pushInfo.mAppId = "org.linphone.phone.prod";
-	pushInfo.mTtl = 42;
-	pushInfo.mUid = "a-uid-42";
+	auto dest = make_shared<RFC8599PushParams>("apns", "ABCD1234.org.linphone.phone",
+	                                           "6464646464646464646464646464646464646464646464646464646464646464");
+
+	auto pushInfo = make_shared<PushInfo>();
+	pushInfo->addDestination(dest);
+	pushInfo->mCustomPayload = "{customData=\"CustomValue\"}";
+	pushInfo->mChatRoomAddr = "conference-0@sip.test.linphone.org";
+	pushInfo->mAlertMsgId = "msgId";
+	pushInfo->mAlertSound = "DuHast";
+	pushInfo->mFromName = "PushTestOk";
+	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
+	pushInfo->mNoBadge = true;
+	pushInfo->mCallId = "CallId";
+	pushInfo->mTtl = 42s;
+	pushInfo->mUid = "a-uid-42";
 
 	string reqBodyPattern{R"json(\{
 	"aps": \{
@@ -326,23 +303,26 @@ static void applePushTestOkRemoteWithMutableContent(void) {
 	"customPayload": \{customData="CustomValue"\}
 \})json"};
 
-	startApplePushTest(pushInfo, reqBodyPattern, 200, "Ok", Request::State::Successful);
+	startApplePushTest(PushType::Message, pushInfo, reqBodyPattern, 200, "Ok", Request::State::Successful);
 }
 
 static void applePushTestKo(void) {
-	PushInfo pushInfo{};
-	pushInfo.mApplePushType = ApplePushType::RemoteBasic;
-	pushInfo.mDeviceToken = "6464646464646464646464646464646464646464646464646464646464646464";
-	pushInfo.mFromName = "PushTestOk";
-	pushInfo.mFromUri = "sip:kijou@sip.linphone.org";
+	auto dest =
+	    make_shared<RFC8599PushParams>("apns", "", "6464646464646464646464646464646464646464646464646464646464646464");
 
-	string reqBodyPattern{R"json(\{
+	auto pushInfo = make_shared<PushInfo>();
+	pushInfo->addDestination(dest);
+	pushInfo->mFromName = "PushTestOk";
+	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
+
+	const string reqBodyPattern{R"json(\{
 	"aps": \{
 		"alert": \{
 			"loc-key": "",
 			"loc-args": \["PushTestOk"\]
 		\},
 		"sound": "",
+		"mutable-content": 1,
 		"badge": 1
 	\},
 	"from-uri": "sip:kijou@sip.linphone.org",
@@ -351,64 +331,79 @@ static void applePushTestKo(void) {
 	"pn_ttl": 0,
 	"uuid": "",
 	"send-time": "[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}",
+	"chat-room-addr": "",
 	"customPayload": \{\}
 \})json"};
 
-	startApplePushTest(pushInfo, reqBodyPattern, 404, "Not found", Request::State::Failed);
+	startApplePushTest(PushType::Message, pushInfo, reqBodyPattern, 404, "Not found", Request::State::Failed);
 }
 
 static void applePushTestKoWrongType(void) {
-	PushInfo pushInfo{};
-	// PushType and appId don't match ("voip" not present)
-	pushInfo.mApplePushType = ApplePushType::Pushkit;
-	pushInfo.mAppId = "org.linphone.phone.prod";
+	auto dest = make_shared<RFC8599PushParams>(
+	    "apns",
+	    "ABCD1234.org.linphone.phone", // PushType and appId don't match ("voip" not present)
+	    "6464646464646464646464646464646464646464646464646464646464646464");
 
-	pushInfo.mDeviceToken = "6464646464646464646464646464646464646464646464646464646464646464";
-	pushInfo.mAlertMsgId = "msgId2";
-	pushInfo.mAlertSound = "Sonne";
-	pushInfo.mFromUri = "sip:kijou@sip.linphone.org";
-	pushInfo.mCallId = "CallId2";
-	pushInfo.mTtl = 42;
+	auto pushInfo = make_shared<PushInfo>();
+	pushInfo->mAlertMsgId = "msgId2";
+	pushInfo->mAlertSound = "Sonne";
+	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
+	pushInfo->mCallId = "CallId2";
+	pushInfo->mTtl = 42s;
 
 	// The request will not be send to the server, we disable request check with timeout=true
 	string reqBodyPattern{""};
-	startApplePushTest(pushInfo, reqBodyPattern, 0, "Doesn't even matter", Request::State::Failed, true);
+
+	try {
+		startApplePushTest(PushType::VoIP, pushInfo, reqBodyPattern, 0, "Doesn't even matter", Request::State::Failed,
+		                   true);
+	} catch (const invalid_argument& e) {
+		// Instantiating a request of given type whereas no RFC8599 parameters are available for this type is
+		// now a fatal error and the higher-level code must protect against that. Then, we expect a invalid_argument
+		// exception.
+		return;
+	}
+	BC_FAIL("No exception has been raised.");
 }
 
 static void applePushTestTimeout(void) {
-	PushInfo pushInfo{};
-	pushInfo.mApplePushType = ApplePushType::RemoteBasic;
-	pushInfo.mDeviceToken = "6464646464646464646464646464646464646464646464646464646464646464";
-	pushInfo.mFromName = "PushTest";
-	pushInfo.mFromUri = "sip:kijou@sip.linphone.org";
+	auto dest =
+	    make_shared<RFC8599PushParams>("apns", "", "6464646464646464646464646464646464646464646464646464646464646464");
+
+	auto pushInfo = make_shared<PushInfo>();
+	pushInfo->addDestination(dest);
+	pushInfo->mFromName = "PushTest";
+	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
 
 	// Not checked during timeout test
 	string reqBodyPattern{""};
 
-	startApplePushTest(pushInfo, reqBodyPattern, 200, "Ok", Request::State::Failed, true);
+	startApplePushTest(PushType::Message, pushInfo, reqBodyPattern, 200, "Ok", Request::State::Failed, true);
 }
 
 static void applePushTestConnectErrorAndReconnect(void) {
-	PushInfo pushInfo{};
-	pushInfo.mApplePushType = ApplePushType::RemoteBasic;
-	pushInfo.mCustomPayload = "{customData=\"CustomValue\"}";
-	pushInfo.mDeviceToken = "6464646464646464646464646464646464646464646464646464646464646464";
-	pushInfo.mAlertMsgId = "msgId";
-	pushInfo.mAlertSound = "DuHast";
-	pushInfo.mFromName = "PushTestOk";
-	pushInfo.mFromUri = "sip:kijou@sip.linphone.org";
-	pushInfo.mCallId = "CallId";
-	pushInfo.mAppId = "org.linphone.phone.prod";
-	pushInfo.mTtl = 42;
-	pushInfo.mUid = "a-uid-42";
+	auto dest = make_shared<RFC8599PushParams>("apns", "ABCD1234.org.linphone.phone",
+	                                           "6464646464646464646464646464646464646464646464646464646464646464");
 
-	string reqBodyPattern{R"json(\{
+	auto pushInfo = make_shared<PushInfo>();
+	pushInfo->addDestination(dest);
+	pushInfo->mCustomPayload = "{customData=\"CustomValue\"}";
+	pushInfo->mAlertMsgId = "msgId";
+	pushInfo->mAlertSound = "DuHast";
+	pushInfo->mFromName = "PushTestOk";
+	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
+	pushInfo->mCallId = "CallId";
+	pushInfo->mTtl = 42s;
+	pushInfo->mUid = "a-uid-42";
+
+	const string reqBodyPattern{R"json(\{
 	"aps": \{
 		"alert": \{
 			"loc-key": "msgId",
 			"loc-args": \["PushTestOk"\]
 		\},
 		"sound": "DuHast",
+		"mutable-content": 1,
 		"badge": 1
 	\},
 	"from-uri": "sip:kijou@sip.linphone.org",
@@ -417,6 +412,7 @@ static void applePushTestConnectErrorAndReconnect(void) {
 	"pn_ttl": 42,
 	"uuid": "a-uid-42",
 	"send-time": "[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}",
+	"chat-room-addr": "",
 	"customPayload": \{customData="CustomValue"\}
 \})json"};
 
@@ -426,7 +422,7 @@ static void applePushTestConnectErrorAndReconnect(void) {
 	AppleClient appleClient{*root, "", TESTER_DATA_DIR + string("/cert/apple.test.dev.pem"), "apple.test.dev.pem"};
 	appleClient.enableInsecureTestMode();
 
-	auto request = make_shared<AppleRequest>(pushInfo);
+	auto request = make_shared<AppleRequest>(PushType::Message, pushInfo);
 
 	appleClient.sendPush(request);
 
@@ -449,11 +445,15 @@ static void tlsTimeoutTest(void) {
 	firebaseClient.enableInsecureTestMode();
 
 	// Minimal request creation, values don't matter for this test
-	PushInfo pushInfo{};
-	auto request = make_shared<FirebaseRequest>(pushInfo);
-	auto request2 = make_shared<FirebaseRequest>(pushInfo);
-	auto request3 = make_shared<FirebaseRequest>(pushInfo);
-	auto request4 = make_shared<FirebaseRequest>(pushInfo);
+	auto dest = make_shared<RFC8599PushParams>("fcm", "", "");
+	auto pushInfo = make_shared<PushInfo>();
+	pushInfo->addDestination(dest);
+
+	constexpr auto pType = PushType::Background;
+	auto request = make_shared<FirebaseRequest>(pType, pushInfo);
+	auto request2 = make_shared<FirebaseRequest>(pType, pushInfo);
+	auto request3 = make_shared<FirebaseRequest>(pType, pushInfo);
+	auto request4 = make_shared<FirebaseRequest>(pType, pushInfo);
 
 	std::promise<void> barrier{};
 	// Start listening on port 3000 with no response to simulate tls timeout
@@ -483,7 +483,6 @@ static void tlsTimeoutTest(void) {
 
 static test_t tests[] = {
     TEST_NO_TAG("Firebase push notification test OK", firebasePushTestOk),
-    TEST_NO_TAG("Apple push notification test OK RemoteBasic", applePushTestOkRemoteBasic),
     TEST_NO_TAG("Apple push notification test OK PushKit", applePushTestOkPushkit),
     TEST_NO_TAG("Apple push notification test OK Background", applePushTestOkBackground),
     TEST_NO_TAG("Apple push notification test OK RemoteWithMutableContent", applePushTestOkRemoteWithMutableContent),

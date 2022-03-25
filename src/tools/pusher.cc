@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,9 +18,13 @@
 
 #include <string>
 
-#include <flexisip/common.hh>
-#include <flexisip/sofia-wrapper/timer.hh>
+#include "flexisip/common.hh"
+#include "flexisip/sofia-wrapper/su-root.hh"
+#include "flexisip/sofia-wrapper/timer.hh"
 
+#include "pushnotification/apple/apple-request.hh"
+#include "pushnotification/firebase/firebase-request.hh"
+#include "pushnotification/legacy/microsoftpush.hh"
 #include "pushnotification/service.hh"
 
 using namespace std;
@@ -38,7 +42,7 @@ struct PusherArgs {
 	string apikey{};
 	string packageSID{};
 	string customPayload;
-	ApplePushType applePushType{ApplePushType::Pushkit};
+	PushType applePushType{PushType::Background};
 	bool legacyPush{false};
 
 	// Standard params
@@ -113,13 +117,11 @@ struct PusherArgs {
 			} else if (EQ1(i, "--apple-push-type")) {
 				const char* aspt = argv[++i];
 				if (string(aspt) == "PushKit") {
-					applePushType = ApplePushType::Pushkit;
-				} else if (string(aspt) == "RemoteBasic") {
-					applePushType = ApplePushType::RemoteBasic;
+					applePushType = PushType::VoIP;
 				} else if (string(aspt) == "RemoteWithMutableContent") {
-					applePushType = ApplePushType::RemoteWithMutableContent;
+					applePushType = PushType::Message;
 				} else if (string(aspt) == "Background") {
-					applePushType = ApplePushType::Background;
+					applePushType = PushType::Background;
 				} else {
 					usage(*argv);
 					exit(-1);
@@ -178,81 +180,75 @@ struct PusherArgs {
 	}
 };
 
-static vector<PushInfo> createPushInfosFromArgs(const PusherArgs& args) {
-	vector<PushInfo> pushInfos;
+struct Stats {
+	int failed{0};
+	int success{0};
+	int inprogress{0};
+	int notsubmitted{0};
+
+	int total() const noexcept {
+		return failed + success + inprogress + notsubmitted;
+	}
+};
+
+static vector<std::unique_ptr<PushInfo>> createPushInfosFromArgs(const PusherArgs& args) {
+	vector<unique_ptr<PushInfo>> pushInfos{};
 	// Parameters in common between Legacy and Standard push
-	auto createAndInitializePushInfo = [](const PusherArgs& args) -> PushInfo {
-		PushInfo pinfo;
+	auto fillCommonPushParams = [](PushInfo& pinfo) {
 		pinfo.mFromName = "Pusher";
 		pinfo.mFromUri = "sip:toto@sip.linphone.org";
-		return pinfo;
 	};
 
 	// Parameters in common between Legacy and Standard push, specifically for apple push notification
 	auto fillAppleGenericParams = [&args](PushInfo& pinfo) {
 		pinfo.mAlertMsgId = "IM_MSG";
 		pinfo.mAlertSound = "msg.caf";
-		pinfo.mTtl = 2592000;
+		pinfo.mTtl = 30 * 24h;
 		pinfo.mCustomPayload = args.customPayload;
-		pinfo.mApplePushType = args.applePushType;
 	};
 
 	if (args.legacyPush) { // Legacy push
 		for (const auto& pntok : args.pntok) {
-			PushInfo pinfo = createAndInitializePushInfo(args);
-			pinfo.mType = args.pntype;
+			auto pinfo = make_unique<PushInfo>();
 			if (args.pntype == "firebase") {
-				pinfo.mCallId = "fb14b5fe-a9ab-1231-9485-7d582244ba3d";
-				pinfo.mFromName = "+33681741738";
-				pinfo.mDeviceToken = pntok;
-				pinfo.mAppId = args.appid;
-				pinfo.mApiKey = args.apikey;
-			} else if (args.pntype == "wp") {
-				pinfo.mAppId = args.appid;
-				pinfo.mDeviceToken = pntok;
-				pinfo.mEvent = PushInfo::Event::Message;
-				pinfo.mText = "Hi here!";
-			} else if (args.pntype == "w10") {
-				pinfo.mAppId = args.appid;
-				pinfo.mEvent = PushInfo::Event::Message;
-				pinfo.mDeviceToken = pntok;
-				pinfo.mText = "Hi here!";
+				pinfo->mCallId = "fb14b5fe-a9ab-1231-9485-7d582244ba3d";
+				pinfo->mFromName = "+33681741738";
+				pinfo->mApiKey = args.apikey;
+			} else if (args.pntype == "wp" || args.pntype == "wp10") {
+				pinfo->mText = "Hi here!";
 			} else if (args.pntype == "apple") {
-				fillAppleGenericParams(pinfo);
-				pinfo.mAppId = args.appid;
-				pinfo.mDeviceToken = pntok;
+				fillAppleGenericParams(*pinfo);
 			}
-			pushInfos.push_back(pinfo);
+
+			auto dest = make_shared<RFC8599PushParams>();
+			dest->setFromLegacyParams(args.pntype, args.appid, pntok);
+			pinfo->addDestination(dest);
+			fillCommonPushParams(*pinfo);
+			pushInfos.emplace_back(move(pinfo));
 		}
 	} else { // StandardPush
-		RFC8599PushParams standardParams;
-		standardParams.pnProvider = args.pnProvider;
-		standardParams.pnParam = args.pnParam;
 		for (const auto& pnPrid : args.pnPrids) {
-			standardParams.pnPrid = pnPrid;
-			PushInfo pinfo = createAndInitializePushInfo(args);
-			pinfo.readRFC8599PushParams(standardParams);
-			if (pinfo.mType == "apple") {
-				fillAppleGenericParams(pinfo);
-				// apple-push-type is still required in order to be able to know if the notification is a remote or
-				// background. Background notification aren't specified in the standard push params, but rather in the
-				// content of the push notification
-				pinfo.mApplePushType = args.applePushType;
+			auto standardParams = make_shared<RFC8599PushParams>(args.pnProvider, args.pnParam, pnPrid);
+			auto pinfo = make_unique<PushInfo>();
+			pinfo->addDestination(standardParams);
+			fillCommonPushParams(*pinfo);
+			if (args.pnProvider == "apns" || args.pnProvider == "apns.dev") {
+				fillAppleGenericParams(*pinfo);
 			}
-			pinfo.mApiKey = args.apikey;
-			pushInfos.push_back(pinfo);
+			if (args.pnProvider == "fcm") {
+				pinfo->mApiKey = args.apikey;
+			}
+			pushInfos.emplace_back(move(pinfo));
 		}
 	}
 	return pushInfos;
 }
 
 int main(int argc, char* argv[]) {
-	int ret = 0;
-	PusherArgs args;
+	PusherArgs args{};
 	args.parse(argc, argv);
 
-	LogManager::Parameters logParams;
-
+	LogManager::Parameters logParams{};
 	logParams.logDirectory =
 	    "/var/opt/belledonne-communications/log/flexisip"; // Sorry but ConfigManager is not accessible in this tool.
 	logParams.logFilename = "flexisip-pusher.log";
@@ -261,76 +257,75 @@ int main(int argc, char* argv[]) {
 	logParams.enableStdout = true;
 	LogManager::get().initialize(logParams);
 
+	Stats stats{};
+
 	{
-		auto root = su_root_create(nullptr);
-		Service service{*root, MAX_QUEUE_SIZE};
+		sofiasip::SuRoot root{};
+		Service service{*root.getCPtr(), MAX_QUEUE_SIZE};
 		auto pushInfos = createPushInfosFromArgs(args);
 
 		// Cannot be empty, or the program would have exited while parsing parameters. All pushInfos have the same
 		// mType, so we just take the front one.
-		string pnType = pushInfos.front().mType;
-		if (pnType == "apple") {
+		const auto& provider = pushInfos.front()->mDestinations.cbegin()->second->getProvider();
+		if (provider == "apns" || provider == "apns.dev") {
 			service.setupiOSClient(args.prefix + "/apn", "");
-		} else if (pnType == "firebase") {
-			map<string, string> firebaseKey;
-			firebaseKey.emplace(pushInfos.front().mAppId, pushInfos.front().mApiKey);
+		} else if (provider == "fcm") {
+			map<string, string> firebaseKey{};
+			auto& firstPI = *pushInfos.front();
+			firebaseKey.emplace(firstPI.mDestinations.cbegin()->second->getParam(), firstPI.mApiKey);
 			service.setupFirebaseClient(firebaseKey);
-		} else if (pnType == "wp" || pnType == "w10") {
+		} else if (provider == "wp" || provider == "w10") {
 			service.setupWindowsPhoneClient(args.packageSID, args.apikey);
 		}
 
-		vector<shared_ptr<Request>> pushRequests;
+		vector<shared_ptr<Request>> pushRequests{};
 
-		for (const PushInfo& pinfo : pushInfos) {
+		for (auto& pinfo : pushInfos) {
 			try {
-				pushRequests.push_back(Service::makePushRequest(pinfo));
+				pushRequests.emplace_back(service.makeRequest(args.applePushType, move(pinfo)));
 			} catch (const invalid_argument& msg) {
-				cerr << msg.what() << endl;
+				SLOGE << msg.what();
 				exit(-1);
 			}
 		}
+
 		for (const auto& push : pushRequests) {
-			ret += service.sendPush(push);
+			try {
+				service.sendPush(push);
+			} catch (const runtime_error& e) {
+				SLOGE << e.what();
+				stats.failed++;
+			}
 		}
 
-		sofiasip::Timer timer{root, 1000};
-		timer.run([root, &service]() {
-			if (service.isIdle()) su_root_break(root);
-		});
-		su_root_run(root);
-
-		int failed = 0;
-		int success = 0;
-		int inprogress = 0;
-		int notsubmitted = 0;
-		int total = 0;
+		while (!service.isIdle())
+			root.step(100ms);
 
 		for (const auto& request : pushRequests) {
 			switch (request->getState()) {
 				case Request::State::NotSubmitted:
-					notsubmitted++;
+					stats.notsubmitted++;
 					break;
 				case Request::State::InProgress:
-					inprogress++;
+					stats.inprogress++;
 					break;
 				case Request::State::Failed:
-					failed++;
+					stats.failed++;
 					break;
 				case Request::State::Successful:
-					success++;
+					stats.success++;
 					break;
 			}
-			total++;
 		}
-		cout << total << " push notification(s) sent, " << success << " successfully and " << failed << " failed."
-		     << endl;
-		if (failed > 0) {
-			cout << "There are failed requests, relaunch with --debug to consult exact error cause." << endl;
+		SLOGI << stats.total() << " push notification(s) sent, " << stats.success << " successfully and "
+		      << stats.failed << " failed.";
+		if (stats.failed > 0) {
+			SLOGI << "There are failed requests, relaunch with --debug to consult exact error cause.";
 		}
-		if (notsubmitted > 0 || inprogress > 0) {
-			cerr << "There were unsubmitted or uncompleted requests, this is a bug." << endl;
+		if (stats.notsubmitted > 0 || stats.inprogress > 0) {
+			SLOGI << "There were unsubmitted or uncompleted requests, this is a bug.";
 		}
 	}
-	cout << "job is done, thanks for using " << argv[0] << ". Bye!" << endl;
-	return ret;
+	SLOGI << "job is done, thanks for using " << argv[0] << ". Bye!";
+	return stats.failed;
 }

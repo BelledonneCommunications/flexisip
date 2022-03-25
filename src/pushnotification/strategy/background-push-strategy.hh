@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,34 +16,25 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
+#include "strategy.hh"
 
-#include "legacy-client.hh"
-#include "request.hh"
+#pragma once
 
 namespace flexisip {
 namespace pushnotification {
 
-class ClientWp : public LegacyClient {
+class BackgroundPushStrategy : public Strategy {
 public:
-	ClientWp(std::unique_ptr<Transport>&& transport,
-	         const std::string& name,
-	         unsigned maxQueueSize,
-	         const std::string& packageSID,
-	         const std::string& applicationSecret,
-	         const Service* service = nullptr);
-	~ClientWp() override = default;
+	using Strategy::Strategy;
 
-	void sendPush(const std::shared_ptr<Request>& req) override;
-
-protected:
-	void retrieveAccessToken();
-
-private:
-	std::string mPackageSID{};
-	std::string mApplicationSecret{};
-	std::string mAccessToken{};
-	time_t mTokenExpiring{0};
+	void sendMessageNotification(const std::shared_ptr<const PushInfo>& pInfo) override {
+		auto req = mService->makeRequest(PushType::Background, pInfo);
+		mService->sendPush(req);
+	}
+	void sendCallNotification(const std::shared_ptr<const PushInfo>& pInfo) override {
+		auto req = mService->makeRequest(PushType::Background, pInfo);
+		mService->sendPush(req);
+	}
 };
 
 } // namespace pushnotification

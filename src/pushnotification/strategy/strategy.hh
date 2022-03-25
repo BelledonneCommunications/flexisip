@@ -18,31 +18,29 @@
 
 #pragma once
 
+#include <memory>
+
+#include "pushnotification/push-info.hh"
 #include "pushnotification/request.hh"
-#include "utils/transport/http/http-message.hh"
+#include "pushnotification/service.hh"
 
 namespace flexisip {
 namespace pushnotification {
 
-/**
- * This class represent one Firebase push notification request. This class inherits from Request, so it can be treated
- * like another type of PNR by the Flexisip push notification module, and from HttpMessage so it can be sent by the
- * Http2Client.
- *
- * This supports the legacy http (http2 compatible) Firebase protocol:
- * https://firebase.google.com/docs/cloud-messaging/http-server-ref
-*/
-class FirebaseRequest : public Request, public HttpMessage {
+class Strategy {
 public:
-	FirebaseRequest(PushType pType, const std::shared_ptr<const PushInfo>& pinfo);
-
-	const std::string& getAppId() const noexcept {
-		return getDestination().getParam();
+	Strategy(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<Service>& service) noexcept
+	    : mRoot{root}, mService{service} {
 	}
+	virtual ~Strategy() = default;
 
-private:
-	static const std::chrono::seconds FIREBASE_MAX_TTL;
+	virtual void sendMessageNotification(const std::shared_ptr<const PushInfo>& pInfo) = 0;
+	virtual void sendCallNotification(const std::shared_ptr<const PushInfo>& pInfo) = 0;
+
+protected:
+	std::shared_ptr<sofiasip::SuRoot> mRoot{};
+	std::shared_ptr<Service> mService{};
 };
 
-} // namespace pushnotification
-} // namespace flexisip
+}; // namespace pushnotification
+}; // namespace flexisip

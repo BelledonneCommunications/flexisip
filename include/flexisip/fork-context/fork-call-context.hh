@@ -22,13 +22,13 @@
 
 #include "flexisip/agent.hh"
 #include "flexisip/event.hh"
+#include "flexisip/fork-context/fork-status.hh"
 #include "flexisip/sofia-wrapper/timer.hh"
 #include "flexisip/transaction.hh"
+
 #include "fork-context-base.hh"
 
 namespace flexisip {
-
-enum class ForkStatus { AcceptedElsewhere, DeclineElsewhere, Standard };
 
 class ForkCallContext : public ForkContextBase {
 public:
@@ -79,7 +79,7 @@ private:
 	static const int sUrgentCodesWithout603[];
 
 	sofiasip::Home mHome{};
-	std::unique_ptr<sofiasip::Timer> mShortTimer{}; // optionaly used to send retryable responses
+	std::unique_ptr<sofiasip::Timer> mShortTimer{}; // optionally used to send retryable responses
 	std::unique_ptr<sofiasip::Timer> mPushTimer{};  // used to track push responses
 	std::shared_ptr<CallLog> mLog{};
 	bool mCancelled = false;

@@ -62,7 +62,7 @@ protected:
 	virtual void onLateTimeout(){};
 	// Requests the derived class if the fork context should finish now.
 	virtual bool shouldFinish();
-	// Notifies the destruction of the fork context. Implementors should use it to perform their unitialization, but
+	// Notifies the destruction of the fork context. Implementers should use it to perform their initialization, but
 	// shall never forget to upcall to the parent class !*/
 	void onFinished();
 	// Request the forwarding the last response from a given branch
@@ -79,7 +79,7 @@ protected:
 
 	// Get a branch by specifying its unique id
 	std::shared_ptr<BranchInfo> findBranchByUid(const std::string& uid);
-	// Get a branch by specifying its request uri destination.
+	// Get a branch by specifying its request URI destination.
 	std::shared_ptr<BranchInfo> findBranchByDest(const SipUri& dest);
 	// Get the best candidate among all branches for forwarding its responses.
 	std::shared_ptr<BranchInfo> findBestBranch(const int urgentReplies[], bool avoid503And408 = false);
@@ -126,8 +126,10 @@ public:
 
 	std::shared_ptr<BranchInfo>
 	onNewRegister(const SipUri& dest, const std::string& uid, const DispatchFunction& dispatchFunction) override;
+
 	// Notifies the cancellation of the fork process.
 	void onCancel(const std::shared_ptr<RequestSipEvent>& ev) override;
+	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& ev) override;
 	const std::shared_ptr<RequestSipEvent>& getEvent() override;
 	const std::shared_ptr<ForkContextConfig>& getConfig() const override {
 		return mCfg;

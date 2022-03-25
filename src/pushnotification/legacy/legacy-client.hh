@@ -29,8 +29,9 @@
 
 #include <openssl/ssl.h>
 
-#include "client.hh"
-#include "request.hh"
+#include "legacy-request.hh"
+#include "method.hh"
+#include "pushnotification/client.hh"
 #include "utils/transport/tls-connection.hh"
 
 namespace flexisip {
@@ -40,8 +41,8 @@ class Service;
 
 class Transport {
 public:
-	using OnSuccessCb = std::function<void(Request&)>;
-	using OnErrorCb = std::function<void(Request&, const std::string&)>;
+	using OnSuccessCb = std::function<void(LegacyRequest&)>;
+	using OnErrorCb = std::function<void(LegacyRequest&, const std::string&)>;
 
 	Transport() = default;
 	Transport(const Transport&) = delete;
@@ -54,14 +55,17 @@ public:
 	 *	-1: failure
 	 *	-2: failure due to stale socket. You may try to send the push again.
 	 */
-	virtual int sendPush(Request& req, bool hurryUp, const OnSuccessCb& onSuccess, const OnErrorCb& onError) = 0;
+	virtual int sendPush(LegacyRequest& req, bool hurryUp, const OnSuccessCb& onSuccess, const OnErrorCb& onError) = 0;
 };
 
 class TlsTransport : public Transport {
 public:
-	TlsTransport(std::unique_ptr<TlsConnection>&& connection) noexcept : Transport{}, mConn{std::move(connection)} {
+	TlsTransport(std::unique_ptr<TlsConnection>&& connection,
+	             Method method = Method::Raw,
+	             const sofiasip::Url& url = sofiasip::Url{}) noexcept
+	    : Transport{}, mConn{std::move(connection)}, mMethod{method}, mUrl{url} {
 	}
-	int sendPush(Request& req, bool hurryUp, const OnSuccessCb& onSuccess, const OnErrorCb& onError) override;
+	int sendPush(LegacyRequest& req, bool hurryUp, const OnSuccessCb& onSuccess, const OnErrorCb& onError) override;
 
 private:
 	struct BIODeleter {
@@ -72,6 +76,8 @@ private:
 	using BIOUniquePtr = std::unique_ptr<BIO, BIODeleter>;
 
 	std::unique_ptr<TlsConnection> mConn{};
+	Method mMethod{Method::Raw};
+	sofiasip::Url mUrl{};
 	time_t mLastUse{0};
 };
 
@@ -83,7 +89,7 @@ public:
 	             const Service* service = nullptr);
 	~LegacyClient() override;
 
-	void sendPush(const std::shared_ptr<Request>& req) override;
+	void sendPush(const std::shared_ptr<flexisip::pushnotification::Request>& req) override;
 
 	bool isIdle() const noexcept override {
 		return mThreadWaiting;
@@ -91,12 +97,12 @@ public:
 
 protected:
 	void run();
-	void onError(Request& req, const std::string& msg);
-	void onSuccess(Request& req);
+	void onError(LegacyRequest& req, const std::string& msg);
+	void onSuccess(LegacyRequest& req);
 
 	std::string mName{};
 	std::unique_ptr<Transport> mTransport{};
-	std::queue<std::shared_ptr<Request>> mRequestQueue{};
+	std::queue<std::shared_ptr<LegacyRequest>> mRequestQueue{};
 	unsigned mMaxQueueSize{0};
 
 private:

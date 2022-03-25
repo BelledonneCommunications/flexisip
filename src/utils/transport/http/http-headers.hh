@@ -1,6 +1,6 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+ Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
@@ -14,7 +14,7 @@
 
  You should have received a copy of the GNU Affero General Public License
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #pragma once
 
@@ -28,13 +28,13 @@ namespace flexisip {
 /**
  * This class represent a list of HTTP headers.
  * This implementation also allow to get the list as an nghttp2 formatted header list, see HttpHeaders::makeCHeaderList
- */
+*/
 class HttpHeaders {
 public:
 	struct Header {
 		std::string name{};
 		std::string value{};
-		uint8_t flags{NGHTTP2_FLAG_NONE};
+		std::uint8_t flags{NGHTTP2_FLAG_NONE};
 	};
 
 	using HeadersList = std::vector<Header>;
@@ -51,7 +51,7 @@ public:
 		return mHList;
 	}
 
-	void add(std::string name, std::string value, uint8_t flags = NGHTTP2_FLAG_NONE) noexcept;
+	void add(const std::string& name, const std::string& value, std::uint8_t flags = NGHTTP2_FLAG_NONE) noexcept;
 	std::string toString() const noexcept;
 
 	CHeaderList makeCHeaderList() const noexcept;

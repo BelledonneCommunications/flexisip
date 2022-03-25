@@ -108,11 +108,11 @@ a=rtcp-fb:* ccm tmmbr)sip"};
 	modulePush->onRequest(reqSipEvent);
 
 	auto beforePlus2 = system_clock::now() + 2s;
-	while (beforePlus2 >= system_clock::now() && modulePush->getService().getFailedCounter()->read() != 1) {
+	while (beforePlus2 >= system_clock::now() && modulePush->getService()->getFailedCounter()->read() != 1) {
 		root->step(20ms);
 	}
 
-	BC_ASSERT_EQUAL(modulePush->getService().getFailedCounter()->read(), 1, int, "%i");
+	BC_ASSERT_EQUAL(modulePush->getService()->getFailedCounter()->read(), 1, int, "%i");
 }
 
 static void pushIsNotSentOnInviteWithReplacesHeader() {
@@ -184,12 +184,12 @@ a=rtcp-fb:* ccm tmmbr)sip"};
 
 	auto beforePlus2 = system_clock::now() + 2s;
 	while (beforePlus2 >= system_clock::now() && beforePlus2 >= system_clock::now() &&
-	       modulePush->getService().getFailedCounter()->read() != 1) {
+	       modulePush->getService()->getFailedCounter()->read() != 1) {
 		root->step(20ms);
 	}
 
-	BC_ASSERT_EQUAL(modulePush->getService().getSentCounter()->read(), 0, int, "%i");
-	BC_ASSERT_EQUAL(modulePush->getService().getFailedCounter()->read(), 0, int, "%i");
+	BC_ASSERT_EQUAL(modulePush->getService()->getSentCounter()->read(), 0, int, "%i");
+	BC_ASSERT_EQUAL(modulePush->getService()->getFailedCounter()->read(), 0, int, "%i");
 }
 
 static test_t tests[] = {

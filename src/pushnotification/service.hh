@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -24,15 +24,18 @@
 #include <string>
 #include <thread>
 
-#include <flexisip/configmanager.hh>
+#include "flexisip/configmanager.hh"
+#include "flexisip/utils/sip-uri.hh"
 
 #include "client.hh"
+#include "legacy/method.hh"
 #include "request.hh"
 
 namespace flexisip {
 namespace pushnotification {
 
 class Client;
+class MicrosoftRequest;
 
 class Service {
 public:
@@ -45,15 +48,14 @@ public:
 	StatCounter64* getSentCounter() const noexcept {
 		return mCountSent;
 	}
-	void setStatCounters(StatCounter64* countFailed, StatCounter64* countSent) {
+	void setStatCounters(StatCounter64* countFailed, StatCounter64* countSent) noexcept {
 		mCountFailed = countFailed;
 		mCountSent = countSent;
 	}
 
-	static std::unique_ptr<Request> makePushRequest(const PushInfo& pinfo);
-
-	int sendPush(const std::shared_ptr<Request>& pn);
-	void setupGenericClient(const url_t* url);
+	std::shared_ptr<Request> makeRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo) const;
+	void sendPush(const std::shared_ptr<Request>& pn);
+	void setupGenericClient(const sofiasip::Url& url, Method method);
 	void setupiOSClient(const std::string& certdir, const std::string& cafile);
 	void setupFirebaseClient(const std::map<std::string, std::string>& firebaseKeys);
 	void setupWindowsPhoneClient(const std::string& packageSID, const std::string& applicationSecret);
@@ -61,6 +63,11 @@ public:
 	bool isIdle() const noexcept;
 
 private:
+	// Private methods
+	void setupClients(const std::string& certdir, const std::string& ca, int maxQueueSize);
+	Client* createWindowsClient(const std::shared_ptr<MicrosoftRequest>& pnImpl);
+
+	// Private attributes
 	su_root_t& mRoot;
 	unsigned mMaxQueueSize{0};
 	std::map<std::string, std::unique_ptr<Client>> mClients{};
@@ -68,6 +75,8 @@ private:
 	std::string mWindowsPhoneApplicationSecret{};
 	StatCounter64* mCountFailed{nullptr};
 	StatCounter64* mCountSent{nullptr};
+
+	static const std::string sGenericClientName;
 };
 
 } // namespace pushnotification

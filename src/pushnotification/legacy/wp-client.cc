@@ -143,7 +143,7 @@ void ClientWp::sendPush(const std::shared_ptr<Request>& req) {
 	}
 	if (mTokenExpiring != 0) {
 		// we must add the authorization token
-		auto req2 = static_cast<WindowsPhoneRequest*>(req.get());
+		auto req2 = static_cast<MicrosoftRequest*>(req.get());
 		req2->createHTTPRequest(mAccessToken);
 		return LegacyClient::sendPush(req);
 	} else {

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #include <flexisip/logmanager.hh>
 
@@ -48,19 +48,6 @@ AppleClient::AppleClient(su_root_t& root,
 
 void AppleClient::sendPush(const std::shared_ptr<Request>& req) {
 	auto appleReq = dynamic_pointer_cast<AppleRequest>(req);
-
-	auto topicLen = appleReq->getAppIdentifier().rfind(".");
-	auto apnsTopic = appleReq->getAppIdentifier().substr(0, topicLen);
-	// Check whether the appId is compatible with the payload type
-	auto endsWithVoip = StringUtils::endsWith(apnsTopic, ".voip");
-	if ((appleReq->mPayloadType == ApplePushType::Pushkit && !endsWithVoip) ||
-	    (appleReq->mPayloadType != ApplePushType::Pushkit && endsWithVoip)) {
-		SLOGE << mLogPrefix << ": apns-topic [" << apnsTopic << "] not compatible with payload type ["
-		      << toString(appleReq->mPayloadType) << "]. Aborting";
-
-		appleReq->setState(Request::State::Failed);
-		return;
-	}
 
 	auto host = mHttp2Client->getHost();
 	appleReq->getHeaders().add("host", host);

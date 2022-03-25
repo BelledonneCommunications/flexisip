@@ -1,6 +1,6 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+ Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
@@ -14,7 +14,7 @@
 
  You should have received a copy of the GNU Affero General Public License
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #include "http-headers.hh"
 
@@ -25,17 +25,17 @@ using namespace std;
 
 namespace flexisip {
 
-void HttpHeaders::add(string name, string value, uint8_t flags) noexcept {
+void HttpHeaders::add(const std::string& name, const std::string& value, std::uint8_t flags) noexcept {
 	auto it = find_if(mHList.begin(), mHList.end(), [&name](const Header& h) { return h.name == name; });
 	if (it == mHList.end()) {
 		it = mHList.emplace(mHList.end());
 	}
-	it->name = move(name);
-	it->value = move(value);
+	it->name = name;
+	it->value = value;
 	it->flags = flags;
 }
 
-string HttpHeaders::toString() const noexcept {
+std::string HttpHeaders::toString() const noexcept {
 	ostringstream os{};
 	for (const auto& h : mHList) {
 		os << h.name << " = " << h.value << endl;

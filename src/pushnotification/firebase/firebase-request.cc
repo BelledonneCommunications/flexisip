@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -33,11 +33,11 @@ namespace flexisip {
 namespace pushnotification {
 
 // redundant declaration (required for C++14 compatibility)
-constexpr int FirebaseRequest::FIREBASE_MAX_TTL;
+const std::chrono::seconds FirebaseRequest::FIREBASE_MAX_TTL{4 * 7 * 24 * 3600}; // 4 weeks
 
-FirebaseRequest::FirebaseRequest(const PushInfo& pinfo) : Request(pinfo.mAppId, "firebase") {
-	const string& from = pinfo.mFromName.empty() ? pinfo.mFromUri : pinfo.mFromName;
-	auto ttl = min(pinfo.mTtl, FIREBASE_MAX_TTL);
+FirebaseRequest::FirebaseRequest(PushType pType, const std::shared_ptr<const PushInfo>& pinfo) : Request{pType, pinfo} {
+	const string& from = mPInfo->mFromName.empty() ? mPInfo->mFromUri : mPInfo->mFromName;
+	auto ttl = min(mPInfo->mTtl, FIREBASE_MAX_TTL);
 
 	// clang-format off
 	StringFormater strFormatter(
@@ -59,14 +59,14 @@ FirebaseRequest::FirebaseRequest(const PushInfo& pinfo) : Request(pinfo.mAppId, 
 		'@', '@');
 
 	std::map<std::string, std::string> values = {
-		{"to", pinfo.mDeviceToken},
-		{"ttl", to_string(ttl)},
-		{"uuid", StringUtils::unquote(pinfo.mUid)},
-		{"from-uri", pinfo.mFromUri},
-		{"display-name", pinfo.mFromName},
-		{"call-id", pinfo.mCallId},
+		{"to", getDestination().getPrid()},
+		{"ttl", to_string(ttl.count())},
+		{"uuid", StringUtils::unquote(mPInfo->mUid)},
+		{"from-uri", mPInfo->mFromUri},
+		{"display-name", mPInfo->mFromName},
+		{"call-id", mPInfo->mCallId},
 		{"sip-from", from},
-		{"loc-key", pinfo.mAlertMsgId},
+		{"loc-key", mPInfo->mAlertMsgId},
 		{"loc-args", from},
 		{"send-time", getPushTimeStamp()}
 	};
@@ -84,7 +84,7 @@ FirebaseRequest::FirebaseRequest(const PushInfo& pinfo) : Request(pinfo.mAppId, 
 	headers.add(":path", "/fcm/send");
 	headers.add(":authority", string(FirebaseClient::FIREBASE_ADDRESS) + ":" + string(FirebaseClient::FIREBASE_PORT));
 	headers.add("content-type", "application/json");
-	headers.add("authorization", "key=" + pinfo.mApiKey);
+	headers.add("authorization", "key=" + mPInfo->mApiKey);
 	this->setHeaders(headers);
 
 	SLOGD << "Firebase request creation  " << this << " https headers are :\n" << headers.toString();

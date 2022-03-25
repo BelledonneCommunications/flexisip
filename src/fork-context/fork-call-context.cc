@@ -59,7 +59,7 @@ void ForkCallContext::onCancel(const shared_ptr<RequestSipEvent>& ev) {
 	mLog->setCancelled();
 	mLog->setCompleted();
 	mCancelled = true;
-	cancelOthers(shared_ptr<BranchInfo>(), ev->getSip());
+	cancelOthers(nullptr, ev->getSip());
 	// The event log must be placed in a sip event in order to be written into DB.
 	ev->setEventLog(mLog);
 
@@ -78,6 +78,7 @@ void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo>& br, sip_t* rece
 	for (const auto& brit : branches) {
 		if (brit != br) {
 			cancelBranch(brit);
+			brit->notifyBranchCanceled(ForkStatus::Standard);
 		}
 	}
 }
@@ -95,6 +96,7 @@ void ForkCallContext::cancelOthersWithStatus(const shared_ptr<BranchInfo>& br, F
 	for (const auto& brit : branches) {
 		if (brit != br) {
 			cancelBranch(brit);
+			brit->notifyBranchCanceled(status);
 		}
 	}
 }
@@ -120,11 +122,11 @@ const int* ForkCallContext::getUrgentCodes() {
 }
 
 void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, const shared_ptr<ResponseSipEvent>& event) {
-	const shared_ptr<MsgSip>& ms = event->getMsgSip();
-	sip_t* sip = ms->getSip();
-	int code = sip->sip_status->st_status;
 	LOGD("ForkCallContext[%p]::onResponse()", this);
 
+	ForkContextBase::onResponse(br, event);
+
+	const auto code = event->getMsgSip()->getSip()->sip_status->st_status;
 	if (code >= 300) {
 		/*
 		 * In fork-late mode, we must not consider that 503 and 408 response codes (which are sent by sofia in case of
@@ -138,7 +140,7 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, const shared_
 			mShortTimer = make_unique<sofiasip::Timer>(mAgent->getRoot());
 			mShortTimer->set([this]() { onShortTimer(); }, mCfg->mUrgentTimeout * 1000);
 		} else if (code >= 600) {
-			/*6xx response are normally treated as global faillures */
+			/*6xx response are normally treated as global failures */
 			if (!mCfg->mForkNoGlobalDecline) {
 				logResponse(forwardResponse(br));
 				mCancelled = true;

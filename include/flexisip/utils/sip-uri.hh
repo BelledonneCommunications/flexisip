@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #pragma once
 
@@ -32,7 +32,7 @@ namespace sofiasip {
 /**
  * Exception thrown while trying to create a new URL from
  * an invalid string or url_t.
- */
+*/
 class InvalidUrlError : public std::invalid_argument {
 public:
 	template <typename T, typename U>
@@ -60,7 +60,7 @@ private:
 
 /**
  * Exception thrown when an URL couldn't be modified.
- */
+*/
 class UrlModificationError : public std::logic_error {
 public:
 	using logic_error::logic_error;
@@ -77,7 +77,7 @@ struct TlsConfigInfo {
 
 /**
  * Wrapper for SofiaSip's URLs.
- */
+*/
 class Url {
 public:
 	/**
@@ -125,9 +125,17 @@ public:
 	}
 	/**
 	 * Format the URL as string.
-	 * @note The result of formating is cached.
+	 * @note The result of formatting is cached.
 	 */
 	const std::string& str() const noexcept;
+	/**
+	 * Returns the type of the URL as url_type_e enum.
+	 * @return Returns any value of url_type_e if non-empty,
+	 * _url_none otherwise.
+	 */
+	url_type_e getType() const noexcept {
+		return _url ? static_cast<url_type_e>(_url->url_type) : _url_none;
+	}
 
 #define getUrlAttr(attr) _url && _url->attr ? _url->attr : ""
 	std::string getScheme() const noexcept {
@@ -142,8 +150,8 @@ public:
 	std::string getHost() const noexcept {
 		return getUrlAttr(url_host);
 	}
-	std::string getPort() const noexcept {
-		return getUrlAttr(url_port);
+	std::string getPort(bool usingFallback = false) const noexcept {
+		return usingFallback ? url_port(_url) : getUrlAttr(url_port);
 	}
 	std::string getPath() const noexcept {
 		return getUrlAttr(url_path);
@@ -201,7 +209,7 @@ namespace flexisip {
 /**
  * A specialisation of sofiasip::Url which ensures that the URL is a
  * SIP or SIPS URI.
- */
+*/
 class SipUri : public sofiasip::Url {
 public:
 	SipUri() = default;
