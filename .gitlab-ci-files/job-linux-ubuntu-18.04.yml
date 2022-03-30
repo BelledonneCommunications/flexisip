@@ -12,6 +12,7 @@ job-ubuntu-18.04-makefile-gcc:
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
+    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
     CC: gcc
     CXX: g++
     ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
@@ -28,6 +29,7 @@ job-ubuntu-18.04-makefile-clang:
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
+    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
     CC: clang
     CXX: clang++
     ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
@@ -47,6 +49,7 @@ job-ubuntu-18.04-ninja-gcc:
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
+    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
     CC: gcc
     CXX: g++
   extends: .job-linux
@@ -62,6 +65,7 @@ job-ubuntu-18.04-ninja-clang:
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
+    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
     CC: clang
     CXX: clang++
   extends: .scheduled-job-linux
@@ -77,6 +81,8 @@ job-ubuntu-18.04-deb:
   extends: .job-linux-deb
   only:
     - schedules
+  variables:
+    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
 
 
 

@@ -12,6 +12,7 @@ job-debian9-makefile-gcc:
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
+    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
     CC: gcc
     CXX: g++
     ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
@@ -28,6 +29,7 @@ job-debian9-makefile-clang:
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Unix Makefiles
+    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
     CC: clang
     CXX: clang++
     ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
@@ -47,6 +49,7 @@ job-debian9-ninja-gcc:
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
+    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
     CC: gcc
     CXX: g++
   extends: .scheduled-job-linux
@@ -62,6 +65,7 @@ job-debian9-ninja-clang:
       - $DEPLOY_UBUNTU
   variables:
     CMAKE_GENERATOR: Ninja
+    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
     CC: clang
     CXX: clang++
   extends: .job-linux
@@ -79,6 +83,8 @@ job-debian9-deb:
   except:
     variables:
       - $DEPLOY_UBUNTU
+  variables:
+    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
 
 
 job-debian9-deb-deploy:

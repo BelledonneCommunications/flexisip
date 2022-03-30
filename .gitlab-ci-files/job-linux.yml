@@ -61,7 +61,7 @@
 
   script:
     - mkdir build && cd build
-    - cmake -G Ninja $DEFAULT_CMAKE_OPTIONS -DCPACK_GENERATOR=DEB $PACKAGING_EXTRA_CMAKE_OPTIONS ..
+    - cmake -G Ninja $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS -DCPACK_GENERATOR=DEB $PACKAGING_EXTRA_CMAKE_OPTIONS ..
     - cmake --build . --target package -- $ADDITIONAL_BUILD_OPTIONS
 
   artifacts:

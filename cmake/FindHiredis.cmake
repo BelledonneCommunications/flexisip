@@ -28,28 +28,51 @@
 #  HIREDIS_ASYNC_ENABLED - The found libhiredis library supports async commands
 
 
+# Find out the include directory
 find_path(HIREDIS_INCLUDE_DIRS
 	NAMES hiredis/hiredis.h
 	PATH_SUFFIXES include
 )
 
+# Find out the path to the library
 find_library(HIREDIS_LIBRARIES
 	NAMES hiredis
 )
 
 if(HIREDIS_INCLUDE_DIRS AND HIREDIS_LIBRARIES)
-	# check that the async mode is supported
+	# Extract the version number from the header files
+	function(extract_version version_header range output_var)
+		string(TOUPPER ${range} range)
+		set(define_line_regex "^#define HIREDIS_${range} ([0-9]+)$")
+		file(STRINGS ${version_header} define_line REGEX "${define_line_regex}")
+		if(NOT define_line)
+			message(FATAL_ERROR "HIREDIS_${range} isn't defined in '${version_header}'")
+		endif()
+		string(REGEX REPLACE ${define_line_regex} "\\1" version_range_value "${define_line}")
+		set(${output_var} ${version_range_value} PARENT_SCOPE)
+	endfunction()
+	set(version_header "${HIREDIS_INCLUDE_DIRS}/hiredis/hiredis.h")
+	extract_version(${version_header} major HIREDIS_VERSION_MAJOR)
+	extract_version(${version_header} minor HIREDIS_VERSION_MINOR)
+	extract_version(${version_header} patch HIREDIS_VERSION_PATCH)
+	set(HIREDIS_VERSION "${HIREDIS_VERSION_MAJOR}.${HIREDIS_VERSION_MINOR}.${HIREDIS_VERSION_PATCH}")
+
+	# Check that the async mode is supported
 	cmake_push_check_state(RESET)
 	list(APPEND CMAKE_REQUIRED_INCLUDES ${HIREDIS_INCLUDE_DIRS})
 	list(APPEND CMAKE_REQUIRED_LIBRARIES ${HIREDIS_LIBRARIES})
 	check_symbol_exists("redisAsyncCommand" "hiredis/async.h" HIREDIS_ASYNC_ENABLED)
 	cmake_pop_check_state()
+	if(NOT HIREDIS_ASYNC_ENABLED)
+		message(FATAL_ERROR "redisAsyncCommand() not found")
+	endif()
 endif()
 
+# Define HIREDIS_FOUND output variable and define the 'hiredis' imported target
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Hiredis
-	DEFAULT_MSG
-	HIREDIS_INCLUDE_DIRS HIREDIS_LIBRARIES
+	REQUIRED_VARS HIREDIS_INCLUDE_DIRS HIREDIS_LIBRARIES
+	VERSION_VAR HIREDIS_VERSION
 )
 
 mark_as_advanced(HIREDIS_INCLUDE_DIRS HIREDIS_LIBRARIES HIREDIS_ASYNC_ENABLED)
