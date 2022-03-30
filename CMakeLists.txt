@@ -168,10 +168,7 @@ if(ENABLE_DATEHANDLER)
 endif()
 
 if(ENABLE_REDIS AND NOT INTERNAL_LIBHIREDIS)
-	find_package(Hiredis REQUIRED)
-	if(NOT HIREDIS_ASYNC_ENABLED)
-		message(FATAL_ERROR "Hiredis needs support for async commands")
-	endif()
+	find_package(Hiredis 0.14 REQUIRED)
 endif()
 
 if(ENABLE_PROTOBUF)

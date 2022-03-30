@@ -81,7 +81,7 @@
   script:
     - *set-max-jobs
     - mkdir build && cd build
-    - cmake -G $CMAKE_GENERATOR $DEFAULT_CMAKE_OPTIONS -DCPACK_GENERATOR=DEB $PACKAGING_EXTRA_CMAKE_OPTIONS ..
+    - cmake -G $CMAKE_GENERATOR $DEFAULT_CMAKE_OPTIONS $CMAKE_OPTIONS -DCPACK_GENERATOR=DEB $PACKAGING_EXTRA_CMAKE_OPTIONS ..
     - cmake --build . --target package
 
   artifacts:
