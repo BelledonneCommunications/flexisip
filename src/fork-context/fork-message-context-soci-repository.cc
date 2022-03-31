@@ -127,8 +127,7 @@ ForkMessageContextDb ForkMessageContextSociRepository::findForkMessageByUuid(con
 	return dbFork;
 }
 
-string
-ForkMessageContextSociRepository::saveForkMessageContext(const ForkMessageContextDb& dbFork) {
+string ForkMessageContextSociRepository::saveForkMessageContext(const ForkMessageContextDb& dbFork) {
 	session sql(mConnectionPool);
 	string insertedUuid{};
 
@@ -146,7 +145,8 @@ ForkMessageContextSociRepository::saveForkMessageContext(const ForkMessageContex
 	}
 
 	for (const auto& dbBranch : dbFork.dbBranches) {
-		sql << "insert into branch_info(fork_uuid, contact_uid, request, last_response, priority, cleared_count) values "
+		sql << "insert into branch_info(fork_uuid, contact_uid, request, last_response, priority, cleared_count) "
+		       "values "
 		       "(UuidToBin(:fork_uuid), :contact_uid, :request, :last_response, :priority, :cleared_count)",
 		    use(insertedUuid, "fork_uuid"), use(dbBranch);
 	}
@@ -168,7 +168,8 @@ void ForkMessageContextSociRepository::updateForkMessageContext(const ForkMessag
 	for (const auto& dbBranch : dbFork.dbBranches) {
 		// Delete all branch before this could be considered because of test's cases scenario,
 		// but in real life no branch is never removed (only replaced).
-		sql << "insert into branch_info(fork_uuid, contact_uid, request, last_response, priority, cleared_count) values "
+		sql << "insert into branch_info(fork_uuid, contact_uid, request, last_response, priority, cleared_count) "
+		       "values "
 		       "(UuidToBin(:fork_uuid), :contact_uid, :request, :last_response, :priority, :cleared_count)"
 		       "ON DUPLICATE KEY UPDATE contact_uid=:contact_uid, request=:request, last_response=:last_response, "
 		       "priority=:priority, cleared_count=:cleared_count",

@@ -1,35 +1,36 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <flexisip/agent.hh>
-#include <flexisip/event.hh>
-#include <flexisip/transaction.hh>
-#include <flexisip/common.hh>
-#include <flexisip/module.hh>
 #include <sofia-sip/sip_protos.h>
 #include <sofia-sip/su_tagarg.h>
-#include <sofia-sip/msg_addr.h>
+
+#include "flexisip/agent.hh"
+#include "flexisip/common.hh"
+#include "flexisip/module.hh"
+#include "flexisip/transaction.hh"
+
+#include "flexisip/event.hh"
 
 using namespace std;
 
 namespace flexisip {
 
-void MsgSip::assignMsg(msg_t *msg) {
+void MsgSip::assignMsg(msg_t* msg) {
 	mMsg = msg_ref_create(msg);
 }
 
@@ -41,24 +42,24 @@ MsgSip::MsgSip(msg_t* msg) {
 }
 
 /*Invoking the copy constructor of MsgSip implies the deep copy of the underlying msg_t */
-MsgSip::MsgSip(const MsgSip &msgSip) {
+MsgSip::MsgSip(const MsgSip& msgSip) {
 	msgSip.serialize();
-	msg_t *freshCopy = msg_dup(msgSip.mMsg);
+	msg_t* freshCopy = msg_dup(msgSip.mMsg);
 	assignMsg(freshCopy);
 	msg_destroy(freshCopy);
 	LOGD("New MsgSip %p copied from MsgSip %p", this, &msgSip);
 }
 
 MsgSip::MsgSip(int flags, const std::string& msg) {
-    mMsg = msg_make(sip_default_mclass(), flags, msg.c_str(), msg.size());
+	mMsg = msg_make(sip_default_mclass(), flags, msg.c_str(), msg.size());
 }
 
-msg_header_t *MsgSip::findHeader(const std::string &name, bool searchUnknowns) {
-	const sip_t *sip = getSip();
-	auto begin = reinterpret_cast<msg_header_t * const *>(&sip->sip_via);
-	auto end = reinterpret_cast<msg_header_t * const *>(&sip->sip_unknown);
+msg_header_t* MsgSip::findHeader(const std::string& name, bool searchUnknowns) {
+	const sip_t* sip = getSip();
+	auto begin = reinterpret_cast<msg_header_t* const*>(&sip->sip_via);
+	auto end = reinterpret_cast<msg_header_t* const*>(&sip->sip_unknown);
 	for (auto it = begin; it < end; it++) {
-		msg_header_t *header = *it;
+		msg_header_t* header = *it;
 		if (header && strcasecmp(header->sh_common->h_class->hc_name, name.c_str()) == 0) {
 			return header;
 		}
@@ -66,13 +67,12 @@ msg_header_t *MsgSip::findHeader(const std::string &name, bool searchUnknowns) {
 
 	if (searchUnknowns && sip->sip_unknown) {
 		/* Search through unknown/custom headers, too */
-		msg_unknown_t *unknown = sip->sip_unknown;
-		do
-		{
+		msg_unknown_t* unknown = sip->sip_unknown;
+		do {
 			if (strcasecmp(unknown->un_name, name.c_str()) == 0) {
-				return reinterpret_cast<msg_header_t * >(unknown);
+				return reinterpret_cast<msg_header_t*>(unknown);
 			}
-		} while ( (unknown = unknown->un_next) );
+		} while ((unknown = unknown->un_next));
 	}
 	return nullptr;
 }
@@ -94,19 +94,19 @@ std::string MsgSip::printString() const {
 
 std::string MsgSip::printContext() const {
 	ostringstream os;
-	sip_t *sip = getSip();
+	sip_t* sip = getSip();
 	vector<char> buffer(4096);
 
-	sip_from_e(buffer.data(), buffer.size(), (msg_header_t *)sip->sip_from, 0);
+	sip_from_e(buffer.data(), buffer.size(), (msg_header_t*)sip->sip_from, 0);
 	os << "From: " << buffer.data() << endl;
 
-	sip_to_e(buffer.data(), buffer.size(), (msg_header_t *)sip->sip_to, 0);
+	sip_to_e(buffer.data(), buffer.size(), (msg_header_t*)sip->sip_to, 0);
 	os << "To: " << buffer.data() << endl;
 
-	sip_call_id_e(buffer.data(), buffer.size(), (msg_header_t *)sip->sip_call_id, 0);
+	sip_call_id_e(buffer.data(), buffer.size(), (msg_header_t*)sip->sip_call_id, 0);
 	os << "Call-ID: " << buffer.data() << endl;
 
-	sip_cseq_e(buffer.data(), buffer.size(), (msg_header_t *)sip->sip_cseq, 0);
+	sip_cseq_e(buffer.data(), buffer.size(), (msg_header_t*)sip->sip_cseq, 0);
 	os << "CSeq: " << buffer.data();
 
 	return os.str();
@@ -116,8 +116,8 @@ MsgSip::~MsgSip() {
 	msg_unref(mMsg);
 }
 
-SipEvent::SipEvent(const shared_ptr<IncomingAgent> &inAgent, const shared_ptr<MsgSip> &msgSip)
-	: mCurrModule{}, mMsgSip(msgSip), mState(STARTED) {
+SipEvent::SipEvent(const shared_ptr<IncomingAgent>& inAgent, const shared_ptr<MsgSip>& msgSip)
+    : mCurrModule{}, mMsgSip(msgSip), mState(STARTED) {
 	LOGD("New SipEvent %p - msg %p", this, msgSip->getMsg());
 	mIncomingAgent = inAgent;
 	mAgent = inAgent->getAgent();
@@ -129,8 +129,8 @@ SipEvent::SipEvent(const shared_ptr<IncomingAgent> &inAgent, const shared_ptr<Ms
 	}
 }
 
-SipEvent::SipEvent(const shared_ptr<OutgoingAgent> &outAgent, const shared_ptr<MsgSip> &msgSip)
-	: mCurrModule{}, mMsgSip(msgSip), mState(STARTED) {
+SipEvent::SipEvent(const shared_ptr<OutgoingAgent>& outAgent, const shared_ptr<MsgSip>& msgSip)
+    : mCurrModule{}, mMsgSip(msgSip), mState(STARTED) {
 	LOGD("New SipEvent %p - %p", this, msgSip->getMsg());
 	mOutgoingAgent = outAgent;
 	mAgent = outAgent->getAgent();
@@ -140,13 +140,12 @@ SipEvent::SipEvent(const shared_ptr<OutgoingAgent> &outAgent, const shared_ptr<M
 		// A response SipEvent is generated either from a stateless response or from a response from an outgoing
 		// transaction.
 		mIncomingAgent = ot->getIncomingTransaction();
-	} else
-		mIncomingAgent = mAgent->shared_from_this();
+	} else mIncomingAgent = mAgent->shared_from_this();
 }
 
-SipEvent::SipEvent(const SipEvent &sipEvent): enable_shared_from_this<SipEvent>(),
-	  mCurrModule(sipEvent.mCurrModule), mIncomingAgent(sipEvent.mIncomingAgent),
-	  mOutgoingAgent(sipEvent.mOutgoingAgent), mAgent(sipEvent.mAgent), mState(sipEvent.mState) {
+SipEvent::SipEvent(const SipEvent& sipEvent)
+    : enable_shared_from_this<SipEvent>(), mCurrModule(sipEvent.mCurrModule), mIncomingAgent(sipEvent.mIncomingAgent),
+      mOutgoingAgent(sipEvent.mOutgoingAgent), mAgent(sipEvent.mAgent), mState(sipEvent.mState) {
 	LOGD("New SipEvent %p with state %s", this, stateStr(mState).c_str());
 	// make a copy of the msgsip when the SipEvent is copy-constructed
 	mMsgSip = make_shared<MsgSip>(*sipEvent.mMsgSip);
@@ -163,7 +162,7 @@ void SipEvent::flushLog() {
 	}
 }
 
-void SipEvent::setEventLog(const std::shared_ptr<EventLog> &log) {
+void SipEvent::setEventLog(const std::shared_ptr<EventLog>& log) {
 	mEventLog = log;
 	if (mState == TERMINATED) {
 		flushLog();
@@ -210,8 +209,8 @@ std::shared_ptr<OutgoingTransaction> SipEvent::getOutgoingTransaction() {
 	return dynamic_pointer_cast<OutgoingTransaction>(getOutgoingAgent());
 }
 
-void RequestSipEvent::checkContentLength(const url_t *url) {
-	sip_t *sip = mMsgSip->getSip();
+void RequestSipEvent::checkContentLength(const url_t* url) {
+	sip_t* sip = mMsgSip->getSip();
 	if (sip->sip_content_length == NULL) {
 		string transport = ModuleToolbox::urlGetTransport(url);
 		if (strcasecmp(transport.c_str(), "UDP") != 0) {
@@ -234,24 +233,25 @@ std::shared_ptr<RequestSipEvent> RequestSipEvent::makeRestored(std::shared_ptr<I
 	return shared;
 }
 
-RequestSipEvent::RequestSipEvent(shared_ptr<IncomingAgent> incomingAgent, const shared_ptr<MsgSip> &msgSip,
-								 tport_t *tport)
-	: SipEvent(incomingAgent, msgSip), mRecordRouteAdded(false) {
+RequestSipEvent::RequestSipEvent(shared_ptr<IncomingAgent> incomingAgent,
+                                 const shared_ptr<MsgSip>& msgSip,
+                                 tport_t* tport)
+    : SipEvent(incomingAgent, msgSip), mRecordRouteAdded(false) {
 
-	if (tport)
-		mIncomingTport = shared_ptr<tport_t>(tport_ref(tport), tport_unref);
+	if (tport) mIncomingTport = shared_ptr<tport_t>(tport_ref(tport), tport_unref);
 }
 
-RequestSipEvent::RequestSipEvent(const shared_ptr<RequestSipEvent> &sipEvent)
-	: SipEvent(*sipEvent), mRecordRouteAdded(sipEvent->mRecordRouteAdded), mIncomingTport(sipEvent->mIncomingTport) {
+RequestSipEvent::RequestSipEvent(const shared_ptr<RequestSipEvent>& sipEvent)
+    : SipEvent(*sipEvent), mRecordRouteAdded(sipEvent->mRecordRouteAdded), mIncomingTport(sipEvent->mIncomingTport) {
 }
 
-void RequestSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value,
-						   ...) {
+void RequestSipEvent::send(
+    const shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) {
 	if (mOutgoingAgent != NULL) {
-		if (LOGD_ENABLED()){
-			SLOGD << "Sending Request SIP message to " << (u ? url_as_string(msg->getHome(), (url_t const *)u) : "NULL")
-			  << "\n" << *msg;
+		if (LOGD_ENABLED()) {
+			SLOGD << "Sending Request SIP message to " << (u ? url_as_string(msg->getHome(), (url_t const*)u) : "NULL")
+			      << "\n"
+			      << *msg;
 		}
 		ta_list ta;
 		ta_start(ta, tag, value);
@@ -263,7 +263,7 @@ void RequestSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u,
 	terminateProcessing();
 }
 
-void RequestSipEvent::reply(int status, char const *phrase, tag_type_t tag, tag_value_t value, ...) {
+void RequestSipEvent::reply(int status, char const* phrase, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncomingAgent != NULL) {
 		SLOGD << "Replying Request SIP message: " << status << " " << phrase;
 		ta_list ta;
@@ -273,11 +273,10 @@ void RequestSipEvent::reply(int status, char const *phrase, tag_type_t tag, tag_
 	} else {
 		SLOGD << "The Request SIP message is not replied";
 	}
-	if (status >= 200)
-		terminateProcessing();
+	if (status >= 200) terminateProcessing();
 }
 
-void RequestSipEvent::setIncomingAgent(const shared_ptr<IncomingAgent> &agent) {
+void RequestSipEvent::setIncomingAgent(const shared_ptr<IncomingAgent>& agent) {
 	LOGA("Can't change incoming agent in request sip event");
 }
 
@@ -319,7 +318,7 @@ void RequestSipEvent::unlinkTransactions() {
 	shared_ptr<IncomingTransaction> it;
 
 	if (mOutgoingAgent && mIncomingAgent && (ot = dynamic_pointer_cast<OutgoingTransaction>(mOutgoingAgent)) != NULL &&
-		(it = dynamic_pointer_cast<IncomingTransaction>(mIncomingAgent)) != NULL) {
+	    (it = dynamic_pointer_cast<IncomingTransaction>(mIncomingAgent)) != NULL) {
 		ot->mIncoming.reset();
 		it->mOutgoing.reset();
 	}
@@ -328,7 +327,8 @@ void RequestSipEvent::unlinkTransactions() {
 void RequestSipEvent::suspendProcessing() {
 	SipEvent::suspendProcessing();
 
-	if (getSip()->sip_request->rq_method != sip_method_ack) {//Currently does not make sens to create incoming transaction in case of ACK, specialy by forward module.
+	if (getSip()->sip_request->rq_method != sip_method_ack) { // Currently does not make sens to create incoming
+		                                                      // transaction in case of ACK, specialy by forward module.
 		// Become stateful if not already the case.
 		createIncomingTransaction();
 	}
@@ -337,69 +337,66 @@ void RequestSipEvent::suspendProcessing() {
 RequestSipEvent::~RequestSipEvent() {
 }
 
-bool RequestSipEvent::matchIncomingSubject(regex_t *regex){
-	const su_strlst_t *strlst = tport_delivered_from_subjects(mIncomingTport.get(), mMsgSip->getMsg());
+bool RequestSipEvent::matchIncomingSubject(regex_t* regex) {
+	const su_strlst_t* strlst = tport_delivered_from_subjects(mIncomingTport.get(), mMsgSip->getMsg());
 	int count = su_strlst_len(strlst);
 
-	for (int k = 0 ; k < count ; ++k){
-		const char *subj = su_strlst_item(strlst, k);
+	for (int k = 0; k < count; ++k) {
+		const char* subj = su_strlst_item(strlst, k);
 		LOGD("matchIncomingSubject %s", subj);
 		int res = regexec(regex, subj, 0, NULL, 0);
 		if (res == 0) {
 			return true;
-		}else if (res != REG_NOMATCH){
+		} else if (res != REG_NOMATCH) {
 			LOGE("RequestSipEvent::matchIncomingSubject() regexec() returned unexpected %i", res);
 		}
 	}
 	return false;
 }
 
-bool RequestSipEvent::findIncomingSubject(const char *searched) const {
+bool RequestSipEvent::findIncomingSubject(const char* searched) const {
 	auto strlst = tport_delivered_from_subjects(mIncomingTport.get(), mMsgSip->getMsg());
 	return !!tport_subject_search(searched, strlst);
 }
 
-const char *RequestSipEvent::findIncomingSubject(const list<string> &in) const {
-	if (in.empty())
-		return NULL;
+const char* RequestSipEvent::findIncomingSubject(const list<string>& in) const {
+	if (in.empty()) return NULL;
 	auto strlst = tport_delivered_from_subjects(mIncomingTport.get(), mMsgSip->getMsg());
 	for (auto it = in.cbegin(); it != in.cend(); ++it) {
-		if (tport_subject_search(it->c_str(), strlst))
-			return it->c_str();
+		if (tport_subject_search(it->c_str(), strlst)) return it->c_str();
 	}
 	return NULL;
 }
 
-ResponseSipEvent::ResponseSipEvent(shared_ptr<OutgoingAgent> outgoingAgent, const shared_ptr<MsgSip> &msgSip)
-	: SipEvent(outgoingAgent, msgSip), mPopVia(false) {
+ResponseSipEvent::ResponseSipEvent(shared_ptr<OutgoingAgent> outgoingAgent, const shared_ptr<MsgSip>& msgSip)
+    : SipEvent(outgoingAgent, msgSip), mPopVia(false) {
 	mPopVia = mAgent != mOutgoingAgent.get(); // we pop the via if sending through transaction
 }
 
-ResponseSipEvent::ResponseSipEvent(const shared_ptr<ResponseSipEvent> &sipEvent)
-	: SipEvent(*sipEvent), mPopVia(sipEvent->mPopVia) {
+ResponseSipEvent::ResponseSipEvent(const shared_ptr<ResponseSipEvent>& sipEvent)
+    : SipEvent(*sipEvent), mPopVia(sipEvent->mPopVia) {
 }
 
-void ResponseSipEvent::checkContentLength(const shared_ptr<MsgSip> &msg, const sip_via_t *via) {
+void ResponseSipEvent::checkContentLength(const shared_ptr<MsgSip>& msg, const sip_via_t* via) {
 	if (msg->getSip()->sip_content_length == NULL && strcasecmp(via->v_protocol, "UDP") != 0) {
 		/*if there is no Content-length and we are switching to a non-udp transport, we have to add a Content-Length, as
 		 * requested by
-			 * RFC3261 for reliable transports*/
+		 * RFC3261 for reliable transports*/
 		LOGD("Automatically adding content-length because going to a stream-based transport");
 		msg->getSip()->sip_content_length = sip_content_length_make(mMsgSip->getHome(), "0");
 	}
 }
 
-void ResponseSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u, tag_type_t tag, tag_value_t value,
-							...) {
+void ResponseSipEvent::send(
+    const shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncomingAgent != NULL) {
 		bool via_popped = false;
 		if (mPopVia && msg == mMsgSip) {
 			sip_via_remove(msg->getMsg(), msg->getSip());
 			via_popped = true;
 		}
-		if (msg->getSip()->sip_via)
-			checkContentLength(msg, msg->getSip()->sip_via);
-		if (LOGD_ENABLED()){
+		if (msg->getSip()->sip_via) checkContentLength(msg, msg->getSip()->sip_via);
+		if (LOGD_ENABLED()) {
 			SLOGD << "Sending response:" << (via_popped ? " (via popped) " : "") << endl << *msg;
 		}
 		ta_list ta;
@@ -412,16 +409,16 @@ void ResponseSipEvent::send(const shared_ptr<MsgSip> &msg, url_string_t const *u
 	terminateProcessing();
 }
 
-void ResponseSipEvent::setOutgoingAgent(const shared_ptr<OutgoingAgent> &agent) {
+void ResponseSipEvent::setOutgoingAgent(const shared_ptr<OutgoingAgent>& agent) {
 	LOGA("Can't change outgoing agent in response sip event");
 }
 
 ResponseSipEvent::~ResponseSipEvent() {
 }
 
-std::ostream &operator<<(std::ostream &strm, const url_t &obj){
+std::ostream& operator<<(std::ostream& strm, const url_t& obj) {
 	sofiasip::Home home;
-	strm<<url_as_string(home.home(), &obj);
+	strm << url_as_string(home.home(), &obj);
 	return strm;
 }
 

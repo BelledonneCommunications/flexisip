@@ -1,19 +1,19 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <csignal>
@@ -37,8 +37,8 @@
 #include <mediastreamer2/msfactory.h>
 #endif
 
-#include <openssl/opensslconf.h>
 #include <openssl/crypto.h>
+#include <openssl/opensslconf.h>
 #if defined(OPENSSL_THREADS)
 // thread support enabled
 #else
@@ -83,10 +83,10 @@
 #endif
 #ifdef ENABLE_B2BUA
 #include "b2bua/b2bua-server.hh"
-#endif //ENABLE_B2BUA
+#endif // ENABLE_B2BUA
 #ifdef ENABLE_PRESENCE
-#include "presence/presence-server.hh"
 #include "presence/presence-longterm.hh"
+#include "presence/presence-server.hh"
 #endif
 
 #ifdef ENABLE_SNMP
@@ -95,7 +95,7 @@
 
 static int run = 1;
 static int pipe_wdog_flexisip[2] = {
-	-1}; // This is the pipe that flexisip will write to to signify it has started to the Watchdog
+    -1}; // This is the pipe that flexisip will write to to signify it has started to the Watchdog
 static pid_t flexisip_pid = -1;
 static pid_t monitor_pid = -1;
 static std::shared_ptr<sofiasip::SuRoot> root{};
@@ -109,25 +109,23 @@ static std::shared_ptr<flexisip::RegistrationEvent::Server> regEventServer;
 #endif // ENABLE_CONFERENCE
 #if ENABLE_B2BUA
 static std::shared_ptr<flexisip::B2buaServer> b2buaServer;
-#endif //ENABLE_B2BUA
+#endif // ENABLE_B2BUA
 
 using namespace std;
 using namespace flexisip;
 
-unsigned long threadid_cb(){
+unsigned long threadid_cb() {
 	return (unsigned long)pthread_self();
 }
 
-void locking_function(int mode, int n, const char *file, int line){
-	static mutex *mutextab=NULL;
-	if (mutextab==NULL)
-		mutextab=new mutex[CRYPTO_num_locks()];
-	if (mode & CRYPTO_LOCK)
-		mutextab[n].lock();
+void locking_function(int mode, int n, const char* file, int line) {
+	static mutex* mutextab = NULL;
+	if (mutextab == NULL) mutextab = new mutex[CRYPTO_num_locks()];
+	if (mode & CRYPTO_LOCK) mutextab[n].lock();
 	else mutextab[n].unlock();
 }
 
-static void setOpenSSLThreadSafe(){
+static void setOpenSSLThreadSafe() {
 	CRYPTO_set_id_callback(&threadid_cb);
 	CRYPTO_set_locking_callback(&locking_function);
 }
@@ -143,31 +141,31 @@ static void flexisip_stop(int signum) {
 
 		run = 0;
 		if (root) root->quit();
-	} //else nop
+	} // else nop
 }
 
 static void flexisip_reopen_log_files(int signum) {
 	LogManager::get().reopenFiles();
 }
 
-static void sofiaLogHandler(void *, const char *fmt, va_list ap) {
+static void sofiaLogHandler(void*, const char* fmt, va_list ap) {
 	// remove final \n from sofia
 	if (fmt) {
-		char* copy= strdup(fmt);
-		copy[strlen(copy)-1] = '\0';
+		char* copy = strdup(fmt);
+		copy[strlen(copy) - 1] = '\0';
 		LOGDV(copy, ap);
 		free(copy);
 	}
 }
 
-static std::map<msg_t *, string> msg_map;
+static std::map<msg_t*, string> msg_map;
 
-static void flexisip_msg_create(msg_t *msg) {
+static void flexisip_msg_create(msg_t* msg) {
 	msg_map[msg] = "";
 	LOGE("New <-> msg %p", msg);
 }
 
-static void flexisip_msg_destroy(msg_t *msg) {
+static void flexisip_msg_destroy(msg_t* msg) {
 	auto it = msg_map.find(msg);
 	if (it != msg_map.end()) {
 		msg_map.erase(it);
@@ -226,13 +224,13 @@ static void increase_fd_limit(void) {
 		unsigned new_limit = (unsigned)getSystemFdLimit();
 		int old_lim = (int)lm.rlim_cur;
 		LOGI("Maximum number of open file descriptors is %i, limit=%i, system wide limit=%i", (int)lm.rlim_cur,
-			 (int)lm.rlim_max, getSystemFdLimit());
+		     (int)lm.rlim_max, getSystemFdLimit());
 
 		if (lm.rlim_cur < new_limit) {
 			lm.rlim_cur = lm.rlim_max = new_limit;
 			if (setrlimit(RLIMIT_NOFILE, &lm) == -1) {
 				LOGE("setrlimit(RLIMIT_NOFILE) failed: %s. Limit of number of file descriptors is low (%i).",
-					 strerror(errno), old_lim);
+				     strerror(errno), old_lim);
 				LOGE("Flexisip will not be able to process a big number of calls.");
 			}
 			if (getrlimit(RLIMIT_NOFILE, &lm) == 0) {
@@ -257,19 +255,19 @@ static void detach() {
 	close(fd);
 }
 
-static void makePidFile(const string &pidfile) {
+static void makePidFile(const string& pidfile) {
 	if (!pidfile.empty()) {
-		FILE *f = fopen(pidfile.c_str(), "w");
-		if (f){
+		FILE* f = fopen(pidfile.c_str(), "w");
+		if (f) {
 			fprintf(f, "%i", getpid());
 			fclose(f);
-		}else{
+		} else {
 			LOGE("Could not write pid file [%s]", pidfile.c_str());
 		}
 	}
 }
 
-static void set_process_name(const string &process_name) {
+static void set_process_name(const string& process_name) {
 #ifdef PR_SET_NAME
 	if (prctl(PR_SET_NAME, process_name.c_str(), NULL, NULL, NULL) == -1) {
 		LOGW("prctl() failed: %s", strerror(errno));
@@ -277,7 +275,7 @@ static void set_process_name(const string &process_name) {
 #endif
 }
 
-static void forkAndDetach(const string &pidfile, bool auto_respawn, bool startMonitor, const string &functionName) {
+static void forkAndDetach(const string& pidfile, bool auto_respawn, bool startMonitor, const string& functionName) {
 	int pipe_launcher_wdog[2];
 	int err = pipe(pipe_launcher_wdog);
 	bool launcherExited = false;
@@ -296,7 +294,7 @@ static void forkAndDetach(const string &pidfile, bool auto_respawn, bool startMo
 		/* We are in the watch-dog process */
 		uint8_t buf[4];
 		close(pipe_launcher_wdog[0]);
-		set_process_name("flexisipwd-"+functionName);
+		set_process_name("flexisipwd-" + functionName);
 
 	/* Creation of the flexisip process */
 	fork_flexisip:
@@ -316,7 +314,7 @@ static void forkAndDetach(const string &pidfile, bool auto_respawn, bool startMo
 			 * We can proceed with real start
 			 */
 			close(pipe_wdog_flexisip[0]);
-			set_process_name("flexisip-"+functionName);
+			set_process_name("flexisip-" + functionName);
 			makePidFile(pidfile);
 			return;
 		} else {
@@ -398,8 +396,7 @@ static void forkAndDetach(const string &pidfile, bool auto_respawn, bool startMo
 			pid_t retpid = wait(&status);
 			if (retpid > 0) {
 				if (retpid == flexisip_pid) {
-					if (startMonitor)
-						kill(monitor_pid, SIGTERM);
+					if (startMonitor) kill(monitor_pid, SIGTERM);
 					if (WIFEXITED(status)) {
 						if (WEXITSTATUS(status) == RESTART_EXIT_CODE) {
 							LOGI("Flexisip restart to apply new config...");
@@ -451,10 +448,8 @@ static void depthFirstSearch(string& path, GenericEntry* config, list<string>& a
 	auto gStruct = dynamic_cast<GenericStruct*>(config);
 	if (gStruct) {
 		string newpath;
-		if (!path.empty())
-			newpath += path + "/";
-		if (config->getName() != "flexisip")
-			newpath += config->getName();
+		if (!path.empty()) newpath += path + "/";
+		if (config->getName() != "flexisip") newpath += config->getName();
 		for (auto it = gStruct->getChildren().cbegin(); it != gStruct->getChildren().cend(); ++it) {
 			depthFirstSearch(newpath, it->get(), allCompletions);
 		}
@@ -464,16 +459,19 @@ static void depthFirstSearch(string& path, GenericEntry* config, list<string>& a
 	auto cValue = dynamic_cast<ConfigValue*>(config);
 	if (cValue) {
 		string completion;
-		if (!path.empty())
-			completion += path + "/";
+		if (!path.empty()) completion += path + "/";
 		completion += cValue->getName();
 		allCompletions.push_back(completion);
 	}
 }
 
-static void dump_config(const std::shared_ptr<sofiasip::SuRoot>& root, const std::string &dump_cfg_part, bool with_experimental, bool dumpDefault, const string &format) {
+static void dump_config(const std::shared_ptr<sofiasip::SuRoot>& root,
+                        const std::string& dump_cfg_part,
+                        bool with_experimental,
+                        bool dumpDefault,
+                        const string& format) {
 	GenericManager::get()->applyOverrides(true);
-	auto *pluginsDirEntry = GenericManager::get()->getGlobal()->get<ConfigString>("plugins-dir");
+	auto* pluginsDirEntry = GenericManager::get()->getGlobal()->get<ConfigString>("plugins-dir");
 	if (pluginsDirEntry->get().empty()) {
 		pluginsDirEntry->set(DEFAULT_PLUGINS_DIR);
 	}
@@ -481,10 +479,10 @@ static void dump_config(const std::shared_ptr<sofiasip::SuRoot>& root, const std
 	auto a = make_shared<Agent>(root);
 	if (!dumpDefault) a->loadConfig(GenericManager::get());
 
-	auto *rootStruct = GenericManager::get()->getRoot();
+	auto* rootStruct = GenericManager::get()->getRoot();
 	if (dump_cfg_part != "all") {
 		smatch m;
-		rootStruct = dynamic_cast<GenericStruct *>(rootStruct->find(dump_cfg_part));
+		rootStruct = dynamic_cast<GenericStruct*>(rootStruct->find(dump_cfg_part));
 		if (rootStruct == nullptr) {
 			cerr << "Couldn't find node " << dump_cfg_part << endl;
 			exit(EXIT_FAILURE);
@@ -494,7 +492,7 @@ static void dump_config(const std::shared_ptr<sofiasip::SuRoot>& root, const std
 			const auto& module = a->findModule(moduleName);
 			if (module && module->getClass() == ModuleClass::Experimental && !with_experimental) {
 				cerr << "Module " << moduleName
-					 << " is experimental, not returning anything. To override, specify '--show-experimental'" << endl;
+				     << " is experimental, not returning anything. To override, specify '--show-experimental'" << endl;
 				exit(EXIT_FAILURE);
 			}
 		}
@@ -507,7 +505,8 @@ static void dump_config(const std::shared_ptr<sofiasip::SuRoot>& root, const std
 		dumper = make_unique<DokuwikiConfigDumper>(rootStruct);
 	} else if (format == "file") {
 		auto fileDumper = make_unique<FileConfigDumper>(rootStruct);
-		fileDumper->setMode(dumpDefault ? FileConfigDumper::Mode::DefaultValue : FileConfigDumper::Mode::DefaultIfUnset);
+		fileDumper->setMode(dumpDefault ? FileConfigDumper::Mode::DefaultValue
+		                                : FileConfigDumper::Mode::DefaultIfUnset);
 		dumper = move(fileDumper);
 	} else if (format == "media") {
 		dumper = make_unique<MediaWikiConfigDumper>(rootStruct);
@@ -532,20 +531,21 @@ static void list_sections(bool moduleOnly = false) {
 	}
 }
 
-static const string getFunctionName(bool startProxy, bool startPresence, bool startConference, bool regEvent, bool b2bua){
+static const string
+getFunctionName(bool startProxy, bool startPresence, bool startConference, bool regEvent, bool b2bua) {
 	string functions;
-	if(startProxy) functions = "proxy";
-	if(startPresence) functions += ((functions.empty()) ? "" : "+") + string("presence");
-	if(startConference) functions += ((functions.empty()) ? "" : "+") + string("conference");
-	if(regEvent) functions += ((functions.empty()) ? "" : "+") + string("regevent");
-	if(b2bua) functions += ((functions.empty()) ? "" : "+") + string("b2bua");
+	if (startProxy) functions = "proxy";
+	if (startPresence) functions += ((functions.empty()) ? "" : "+") + string("presence");
+	if (startConference) functions += ((functions.empty()) ? "" : "+") + string("conference");
+	if (regEvent) functions += ((functions.empty()) ? "" : "+") + string("regevent");
+	if (b2bua) functions += ((functions.empty()) ? "" : "+") + string("b2bua");
 
 	return (functions.empty()) ? "none" : functions;
 }
 
-static void notifyWatchDog(){
+static void notifyWatchDog() {
 	static bool notified = false;
-	if (!notified){
+	if (!notified) {
 		if (write(pipe_wdog_flexisip[1], "ok", 3) == -1) {
 			LOGF("Failed to write starter pipe: %s", strerror(errno));
 		}
@@ -556,7 +556,7 @@ static void notifyWatchDog(){
 
 static string version() {
 	ostringstream version;
-	version <<  FLEXISIP_GIT_VERSION "\n";
+	version << FLEXISIP_GIT_VERSION "\n";
 
 	version << "sofia-sip version " SOFIA_SIP_VERSION "\n";
 	version << "\nCompiled with:\n";
@@ -586,14 +586,14 @@ static string version() {
 	return version.str();
 }
 
-static string getPkcsPassphrase(TCLAP::ValueArg<string> &pkcsFile){
+static string getPkcsPassphrase(TCLAP::ValueArg<string>& pkcsFile) {
 	string passphrase;
-	if(!pkcsFile.getValue().empty()) {
+	if (!pkcsFile.getValue().empty()) {
 		ifstream dacb(pkcsFile.getValue());
-		if(!dacb.is_open()) {
+		if (!dacb.is_open()) {
 			SLOGE << "Can't open pkcs passphrase file : " << pkcsFile.getValue();
 		} else {
-			while(!dacb.eof()){
+			while (!dacb.eof()) {
 				dacb >> passphrase;
 			}
 		}
@@ -601,9 +601,9 @@ static string getPkcsPassphrase(TCLAP::ValueArg<string> &pkcsFile){
 	return passphrase;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
 	shared_ptr<Agent> a;
-	StunServer *stun = NULL;
+	StunServer* stun = NULL;
 	unique_ptr<CommandLineInterface> proxy_cli;
 #ifdef ENABLE_PRESENCE
 	unique_ptr<CommandLineInterface> presence_cli;
@@ -669,17 +669,17 @@ int main(int argc, char *argv[]) {
 		cmd.parse(argc, argv);
 		debug = useDebug.getValue();
 
-	} catch (TCLAP::ArgException &e) {
+	} catch (TCLAP::ArgException& e) {
 
 		cerr << "Error parsing arguments: " << e.error() << " for arg " << e.argId() << endl;
 		exit(EXIT_FAILURE);
 	}
 
 	map<string, string> oset;
-	for (const string &kv : overrideConfig.getValue()) {
+	for (const string& kv : overrideConfig.getValue()) {
 		auto equal = find(kv.cbegin(), kv.cend(), '=');
 		if (equal != kv.cend()) {
-			oset[string(kv.cbegin(), equal)] = string(equal+1, kv.cend());
+			oset[string(kv.cbegin(), equal)] = string(equal + 1, kv.cend());
 		}
 	}
 
@@ -691,7 +691,7 @@ int main(int argc, char *argv[]) {
 	signal(SIGHUP, flexisip_reopen_log_files);
 
 	// Instanciate the Generic manager
-	GenericManager *cfg = GenericManager::get();
+	GenericManager* cfg = GenericManager::get();
 	cfg->setOverrideMap(oset);
 
 	// list default config and exit
@@ -730,7 +730,7 @@ int main(int argc, char *argv[]) {
 		allCompletions.push_back("nosnmp");
 
 		string empty;
-		string &filter = listOverrides.getValue();
+		string& filter = listOverrides.getValue();
 
 		depthFirstSearch(empty, GenericManager::get()->getRoot(), allCompletions);
 
@@ -745,13 +745,14 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (cfg->load(configFile.getValue()) == -1) {
-		fprintf(stderr, "Flexisip version %s\n"
-						"No configuration file found at %s.\nPlease specify a valid configuration file.\n"
-						"A default flexisip.conf.sample configuration file should be installed in " CONFIG_DIR "\n"
-						"Please edit it and restart flexisip when ready.\n"
-						"Alternatively a default configuration sample file can be generated at any time using "
-						"'--dump-default all' option.\n",
-				versionString.c_str(), configFile.getValue().c_str());
+		fprintf(stderr,
+		        "Flexisip version %s\n"
+		        "No configuration file found at %s.\nPlease specify a valid configuration file.\n"
+		        "A default flexisip.conf.sample configuration file should be installed in " CONFIG_DIR "\n"
+		        "Please edit it and restart flexisip when ready.\n"
+		        "Alternatively a default configuration sample file can be generated at any time using "
+		        "'--dump-default all' option.\n",
+		        versionString.c_str(), configFile.getValue().c_str());
 		return -1;
 	}
 
@@ -759,7 +760,7 @@ int main(int argc, char *argv[]) {
 		dump_config(root, "all", displayExperimental, false, "file");
 	}
 
-	//if --debug is given, enable user-errors logs as well.
+	// if --debug is given, enable user-errors logs as well.
 	if (debug) user_errors = true;
 
 	bool dump_cores = cfg->getGlobal()->get<ConfigBoolean>("dump-corefiles")->read();
@@ -770,55 +771,55 @@ int main(int argc, char *argv[]) {
 	bool startRegEvent = false;
 	bool startB2bua = false;
 
-	if (functionName.getValue() == "proxy"){
+	if (functionName.getValue() == "proxy") {
 		startProxy = true;
-	}else if (functionName.getValue() == "presence"){
+	} else if (functionName.getValue() == "presence") {
 		startPresence = true;
 #ifndef ENABLE_PRESENCE
 		LOGF("Flexisip was compiled without presence server extension.");
 #endif
-	}else if (functionName.getValue() == "conference"){
+	} else if (functionName.getValue() == "conference") {
 		startConference = true;
 #ifndef ENABLE_CONFERENCE
 		LOGF("Flexisip was compiled without conference server extension.");
 #endif
-	}else if (functionName.getValue() == "regevent"){
+	} else if (functionName.getValue() == "regevent") {
 		startRegEvent = true;
 #ifndef ENABLE_CONFERENCE
 		LOGF("Flexisip was compiled without regevent server extension.");
 #endif
-	}else if (functionName.getValue() == "b2bua"){
+	} else if (functionName.getValue() == "b2bua") {
 		startB2bua = true;
 #ifndef ENABLE_B2BUA
 		LOGF("Flexisip was compiled without back-to-back user agent server extension.");
 #endif
-	}else if (functionName.getValue() == "all"){
+	} else if (functionName.getValue() == "all") {
 		startPresence = true;
 		startProxy = true;
 		startConference = true;
 		startRegEvent = true;
 		startB2bua = true;
-	}else if (functionName.getValue().empty()){
+	} else if (functionName.getValue().empty()) {
 		auto default_servers = cfg->getGlobal()->get<ConfigStringList>("default-servers");
-		if (default_servers->contains("proxy")){
+		if (default_servers->contains("proxy")) {
 			startProxy = true;
 		}
-		if (default_servers->contains("presence")){
+		if (default_servers->contains("presence")) {
 			startPresence = true;
 		}
-		if (default_servers->contains("conference")){
+		if (default_servers->contains("conference")) {
 			startConference = true;
 		}
-		if (default_servers->contains("regevent")){
+		if (default_servers->contains("regevent")) {
 			startRegEvent = true;
 		}
-		if (default_servers->contains("b2bua")){
+		if (default_servers->contains("b2bua")) {
 			startB2bua = true;
 		}
-		if (!startPresence && !startProxy && !startConference){
+		if (!startPresence && !startProxy && !startConference) {
 			LOGF("Bad default-servers definition '%s'.", default_servers->get().c_str());
 		}
-	}else{
+	} else {
 		LOGF("There is no server function '%s'.", functionName.getValue().c_str());
 	}
 	string fName = getFunctionName(startProxy, startPresence, startConference, startRegEvent, startB2bua);
@@ -864,7 +865,7 @@ int main(int argc, char *argv[]) {
 	/*
 	 * Perform the fork of the watchdog, followed by the fork of the worker daemon, in forkAndDetach().
 	 * NEVER NEVER create pthreads before this point : threads do not survive the fork below !!!!!!!!!!
-	*/
+	 */
 	bool monitorEnabled = cfg->getRoot()->get<GenericStruct>("monitor")->get<ConfigBoolean>("enabled")->read();
 	if (daemonMode) {
 		/*now that we have successfully loaded the config, there is nothing that can prevent us to start (normally).
@@ -881,14 +882,16 @@ int main(int argc, char *argv[]) {
 	 * This must be done after forking in order the log file be reopen after respawn should Flexisip crash.
 	 * The condition intent to avoid log initialization should the user have passed command line options that doesn't
 	 * require to start the server e.g. dumping default configuration file. */
-	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !listSections && !dumpMibs && !dumpAll) {
-		if (cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read() != static_cast<ConfigByteSize::ValueType>(-1)) {
-			LOGF("Setting 'global/max-log-size' parameter has been forbbiden since log size control was delegated to logrotate. Please "
-				"edit /etc/logrotate.d/flexisip-logrotate for log rotation customization."
-			);
+	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !listSections &&
+	    !dumpMibs && !dumpAll) {
+		if (cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read() !=
+		    static_cast<ConfigByteSize::ValueType>(-1)) {
+			LOGF("Setting 'global/max-log-size' parameter has been forbbiden since log size control was delegated to "
+			     "logrotate. Please "
+			     "edit /etc/logrotate.d/flexisip-logrotate for log rotation customization.");
 		}
 
-		const auto &logFilename = cfg->getGlobal()->get<ConfigString>("log-filename")->read();
+		const auto& logFilename = cfg->getGlobal()->get<ConfigString>("log-filename")->read();
 
 		LogManager::Parameters logParams{};
 		logParams.root = root->getCPtr();
@@ -901,32 +904,35 @@ int main(int argc, char *argv[]) {
 		logParams.enableUserErrors = user_errors;
 		LogManager::get().initialize(logParams);
 		LogManager::get().setContextualFilter(cfg->getGlobal()->get<ConfigString>("contextual-log-filter")->read());
-		LogManager::get().setContextualLevel(LogManager::get().logLevelFromName(cfg->getGlobal()->get<ConfigString>("contextual-log-level")->read()));
+		LogManager::get().setContextualLevel(
+		    LogManager::get().logLevelFromName(cfg->getGlobal()->get<ConfigString>("contextual-log-level")->read()));
 	} else {
 		LogManager::get().disable();
 	}
 
 	/*
-	 * From now on, we are a flexisip daemon, that is a process that will run proxy, presence, regevent or conference server.
+	 * From now on, we are a flexisip daemon, that is a process that will run proxy, presence, regevent or conference
+	 * server.
 	 */
 	LOGN("Starting flexisip %s-server version %s", fName.c_str(), FLEXISIP_GIT_VERSION);
-	GenericManager::get()->sendTrap("Flexisip "+ fName + "-server starting");
+	GenericManager::get()->sendTrap("Flexisip " + fName + "-server starting");
 
 	increase_fd_limit();
 
-	//we create an Agent in all cases, because it will declare config items that are necessary for presence server to run.
+	// we create an Agent in all cases, because it will declare config items that are necessary for presence server to
+	// run.
 	a = make_shared<Agent>(root);
 	setOpenSSLThreadSafe();
 	a->loadConfig(cfg);
 
-	if (startProxy){
+	if (startProxy) {
 		a->start(transportsArg.getValue(), passphrase);
-	#ifdef ENABLE_SNMP
+#ifdef ENABLE_SNMP
 		bool snmpEnabled = cfg->getGlobal()->get<ConfigBoolean>("enable-snmp")->read();
 		if (snmpEnabled) {
 			snmpAgent.reset(new SnmpAgent(*a, *cfg, oset));
 		}
-	#endif
+#endif
 
 		cfg->applyOverrides(true); // using default + overrides
 
@@ -934,7 +940,7 @@ int main(int argc, char *argv[]) {
 		if (monitorEnabled) {
 			try {
 				Monitor::createAccounts();
-			} catch (const FlexisipException &e) {
+			} catch (const FlexisipException& e) {
 				LOGE("Could not create test accounts for the monitor. %s", e.str().c_str());
 			}
 		}
@@ -951,13 +957,13 @@ int main(int argc, char *argv[]) {
 		proxy_cli = unique_ptr<CommandLineInterface>(new ProxyCommandLineInterface(a));
 		proxy_cli->start();
 
-		if (trackAllocs)
-			msg_set_callbacks(flexisip_msg_create, flexisip_msg_destroy);
+		if (trackAllocs) msg_set_callbacks(flexisip_msg_create, flexisip_msg_destroy);
 	}
 
-	if (startPresence){
+	if (startPresence) {
 #ifdef ENABLE_PRESENCE
-		bool enableLongTermPresence = (cfg->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read());
+		bool enableLongTermPresence =
+		    (cfg->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read());
 		presenceServer = make_shared<flexisip::PresenceServer>(root);
 		if (enableLongTermPresence) {
 			auto presenceLongTerm = make_shared<flexisip::PresenceLongterm>(presenceServer->getBelleSipMainLoop());
@@ -966,10 +972,11 @@ int main(int argc, char *argv[]) {
 		if (daemonMode) {
 			notifyWatchDog();
 		}
-		try{
+		try {
 			presenceServer->init();
-		}catch(FlexisipException &e){
-			/* Catch the presence server exception, which is generally caused by a failure while binding the SIP listening points.
+		} catch (FlexisipException& e) {
+			/* Catch the presence server exception, which is generally caused by a failure while binding the SIP
+			 * listening points.
 			 * Since it prevents from starting and it is not a crash, it shall be notified to the user with LOGF*/
 			LOGF("Fail to start flexisip presence server");
 		}
@@ -979,16 +986,17 @@ int main(int argc, char *argv[]) {
 #endif
 	}
 
-	if (startConference){
+	if (startConference) {
 #ifdef ENABLE_CONFERENCE
 		conferenceServer = make_shared<flexisip::ConferenceServer>(a->getPreferredRoute(), root);
 		if (daemonMode) {
 			notifyWatchDog();
 		}
-		try{
+		try {
 			conferenceServer->init();
-		}catch(FlexisipException &e){
-			/* Catch the conference server exception, which is generally caused by a failure while binding the SIP listening points.
+		} catch (FlexisipException& e) {
+			/* Catch the conference server exception, which is generally caused by a failure while binding the SIP
+			 * listening points.
 			 * Since it prevents from starting and it is not a crash, it shall be notified to the user with LOGF*/
 			LOGF("Fail to start flexisip conference server");
 		}
@@ -1003,7 +1011,7 @@ int main(int argc, char *argv[]) {
 		}
 		try {
 			regEventServer->init();
-		} catch(FlexisipException &e) {
+		} catch (FlexisipException& e) {
 			LOGF("Fail to start flexisip registration event server");
 		}
 #endif // ENABLE_CONFERENCE
@@ -1017,10 +1025,10 @@ int main(int argc, char *argv[]) {
 		}
 		try {
 			b2buaServer->init();
-		} catch(FlexisipException &e) {
+		} catch (FlexisipException& e) {
 			LOGF("Fail to start flexisip back to back user agent server");
 		}
-#endif //ENABLE_B2BUA
+#endif // ENABLE_B2BUA
 	}
 
 	if (run) root->run();
@@ -1041,7 +1049,7 @@ int main(int argc, char *argv[]) {
 #endif // ENABLE_CONFERENCE
 #if ENABLE_B2BUA
 	if (b2buaServer) b2buaServer->stop();
-#endif //ENABLE_B2BUA
+#endif // ENABLE_B2BUA
 
 	if (stun) {
 		stun->stop();
@@ -1050,9 +1058,8 @@ int main(int argc, char *argv[]) {
 	proxy_cli = nullptr;
 
 	LOGN("Flexisip %s-server exiting normally.", fName.c_str());
-	if (trackAllocs)
-		dump_remaining_msgs();
-	GenericManager::get()->sendTrap("Flexisip "+ fName + "-server exiting normally");
+	if (trackAllocs) dump_remaining_msgs();
+	GenericManager::get()->sendTrap("Flexisip " + fName + "-server exiting normally");
 
 	bctbx_uninit_logger();
 	return 0;

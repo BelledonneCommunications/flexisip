@@ -1,35 +1,32 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <iomanip>
 #include <iostream>
-#include <sstream>
 #include <typeinfo>
 
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <sys/types.h>
-
-#include <flexisip/configmanager.hh>
-#include <flexisip/eventlogs.hh>
 
 #include "db/db-transaction.hh"
-#include "utils/string-utils.hh"
+#include "flexisip/configmanager.hh"
+
+#include "flexisip/eventlogs.hh"
 
 using namespace std;
 
@@ -39,37 +36,42 @@ EventLog::Init EventLog::evStaticInit;
 
 EventLog::Init::Init() {
 	ConfigItemDescriptor items[] = {
-		{Boolean, "enabled", "Enable event logs.", "false"},
-		{String, "logger", "Define logger for storing logs. It supports \"filesystem\" and \"database\".",
-		 "filesystem"},
-		{String, "filesystem-directory", "Directory where event logs are written as a filesystem (case when filesystem "
-		 "output is choosed).",
-		 "/var/log/flexisip"},
-		{String, "database-backend", "Choose the type of backend that Soci will use for the connection.\n"
-		 "Depending on your Soci package and the modules you installed, the supported databases are:"
-		 "`mysql`, `sqlite3` and `postgresql`",
-		 "mysql"},
-		{String, "database-connection-string", "The configuration parameters of the backend.\n"
-		 "The basic format is \"key=value key2=value2\". For a mysql backend, this "
-		 "is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
-		 "Please refer to the Soci documentation of your backend, for instance: "
-		 "http://soci.sourceforge.net/doc/master/backends/#supported-backends-and-features",
-		 "db='mydb' user='myuser' password='mypass' host='myhost.com'"},
-		{Integer, "database-max-queue-size",
-		 "Amount of queries that will be allowed to be queued before bailing password requests.\n"
-		 "This value should be chosen accordingly with 'database-nb-threads-max', so that you have a "
-		 "coherent behavior.\n"
-		 "This limit is here mainly as a safeguard against out-of-control growth of the queue in the event of a flood "
-		 "or big delays in the database backend.",
-		 "100"},
-		{Integer, "database-nb-threads-max", "Maximum number of threads for writing in database.\n"
-		 "If you get a `database is locked` error with sqlite3, you must set this variable to 1.",
-		 "10"},
+	    {Boolean, "enabled", "Enable event logs.", "false"},
+	    {String, "logger", "Define logger for storing logs. It supports \"filesystem\" and \"database\".",
+	     "filesystem"},
+	    {String, "filesystem-directory",
+	     "Directory where event logs are written as a filesystem (case when filesystem "
+	     "output is choosed).",
+	     "/var/log/flexisip"},
+	    {String, "database-backend",
+	     "Choose the type of backend that Soci will use for the connection.\n"
+	     "Depending on your Soci package and the modules you installed, the supported databases are:"
+	     "`mysql`, `sqlite3` and `postgresql`",
+	     "mysql"},
+	    {String, "database-connection-string",
+	     "The configuration parameters of the backend.\n"
+	     "The basic format is \"key=value key2=value2\". For a mysql backend, this "
+	     "is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
+	     "Please refer to the Soci documentation of your backend, for instance: "
+	     "http://soci.sourceforge.net/doc/master/backends/#supported-backends-and-features",
+	     "db='mydb' user='myuser' password='mypass' host='myhost.com'"},
+	    {Integer, "database-max-queue-size",
+	     "Amount of queries that will be allowed to be queued before bailing password requests.\n"
+	     "This value should be chosen accordingly with 'database-nb-threads-max', so that you have a "
+	     "coherent behavior.\n"
+	     "This limit is here mainly as a safeguard against out-of-control growth of the queue in the event of a flood "
+	     "or big delays in the database backend.",
+	     "100"},
+	    {Integer, "database-nb-threads-max",
+	     "Maximum number of threads for writing in database.\n"
+	     "If you get a `database is locked` error with sqlite3, you must set this variable to 1.",
+	     "10"},
 
-		 // Deprecated parameters
-		{String, "dir", "Directory where event logs are written as a filesystem (case when filesystem output is choosed).",
-		 "/var/log/flexisip"},
-		config_item_end};
+	    // Deprecated parameters
+	    {String, "dir",
+	     "Directory where event logs are written as a filesystem (case when filesystem output is choosed).",
+	     "/var/log/flexisip"},
+	    config_item_end};
 
 	auto uEv = make_unique<GenericStruct>(
 	    "event-logs",
@@ -82,76 +84,69 @@ EventLog::Init::Init() {
 	ev->get<ConfigString>("dir")->setDeprecated({"2020-02-19", "2.0.0", "Replaced by 'filesystem-directory'"});
 }
 
-EventLog::EventLog(const sip_t *sip):
-	mFrom{sip_from_dup(mHome.home(), sip->sip_from)},
-	mTo{sip_to_dup(mHome.home(), sip->sip_to)},
-	mUA{sip->sip_user_agent ? sip_user_agent_dup(mHome.home(), sip->sip_user_agent) : nullptr},
-	mDate{time(nullptr)},
-	mCallId{sip->sip_call_id->i_id} {}
+EventLog::EventLog(const sip_t* sip)
+    : mFrom{sip_from_dup(mHome.home(), sip->sip_from)}, mTo{sip_to_dup(mHome.home(), sip->sip_to)},
+      mUA{sip->sip_user_agent ? sip_user_agent_dup(mHome.home(), sip->sip_user_agent) : nullptr}, mDate{time(nullptr)},
+      mCallId{sip->sip_call_id->i_id} {
+}
 
-RegistrationLog::RegistrationLog(const sip_t *sip, const sip_contact_t *contacts) : EventLog(sip) {
-	mType = (sip->sip_expires && sip->sip_expires->ex_delta == 0)
-		? Type::Unregister // REVISIT not 100% exact.
-		: Type::Register;
+RegistrationLog::RegistrationLog(const sip_t* sip, const sip_contact_t* contacts) : EventLog(sip) {
+	mType = (sip->sip_expires && sip->sip_expires->ex_delta == 0) ? Type::Unregister // REVISIT not 100% exact.
+	                                                              : Type::Register;
 
 	mContacts = sip_contact_dup(mHome.home(), contacts);
 }
 
-void RegistrationLog::write(EventLogWriter &writer) const {
+void RegistrationLog::write(EventLogWriter& writer) const {
 	writer.writeRegistrationLog(*this);
 }
 
-void CallLog::write(EventLogWriter &writer) const {
+void CallLog::write(EventLogWriter& writer) const {
 	writer.writeCallLog(*this);
 }
 
-void MessageLog::write(EventLogWriter &writer) const {
+void MessageLog::write(EventLogWriter& writer) const {
 	writer.writeMessageLog(*this);
 }
 
-AuthLog::AuthLog(const sip_t *sip, bool userExists)
-:
-	EventLog(sip),
-	mMethod{sip->sip_request->rq_method_name},
-	mUserExists{userExists}
-{
+AuthLog::AuthLog(const sip_t* sip, bool userExists)
+    : EventLog(sip), mMethod{sip->sip_request->rq_method_name}, mUserExists{userExists} {
 	setOrigin(sip->sip_via);
 }
 
-void AuthLog::setOrigin(const sip_via_t *via) {
-	const char *protocol = strchr(via->v_protocol, '/') + 1;
-	const char *port = via->v_rport ? via->v_rport : via->v_port;
-	const char *ip = via->v_received ? via->v_received : via->v_host;
+void AuthLog::setOrigin(const sip_via_t* via) {
+	const char* protocol = strchr(via->v_protocol, '/') + 1;
+	const char* port = via->v_rport ? via->v_rport : via->v_port;
+	const char* ip = via->v_received ? via->v_received : via->v_host;
 
 	protocol = strchr(protocol, '/') + 1;
 
 	mOrigin = url_format(mHome.home(), "sip:%s", ip);
-	if (!mOrigin){
+	if (!mOrigin) {
 		LOGE("AuthLog: invalid via with host %s", ip);
 		mOrigin = url_format(mHome.home(), "sip:invalid.host");
 	}
-	if (port){
+	if (port) {
 		mOrigin->url_port = su_strdup(mHome.home(), port);
 	}
-	if (protocol){
+	if (protocol) {
 		mOrigin->url_params = su_sprintf(mHome.home(), "transport=%s", protocol);
 	}
 }
 
-void AuthLog::write(EventLogWriter &writer) const {
+void AuthLog::write(EventLogWriter& writer) const {
 	writer.writeAuthLog(*this);
 }
 
-CallQualityStatisticsLog::CallQualityStatisticsLog(const sip_t *sip)
-:
-	EventLog(sip),
-	mReport{sip->sip_payload && sip->sip_payload->pl_data ? sip->sip_payload->pl_data : nullptr} {}
+CallQualityStatisticsLog::CallQualityStatisticsLog(const sip_t* sip)
+    : EventLog(sip), mReport{sip->sip_payload && sip->sip_payload->pl_data ? sip->sip_payload->pl_data : nullptr} {
+}
 
-void CallQualityStatisticsLog::write(EventLogWriter &writer) const {
+void CallQualityStatisticsLog::write(EventLogWriter& writer) const {
 	writer.writeCallQualityStatisticsLog(*this);
 }
 
-static bool createDirectoryIfNotExist(const char *path) {
+static bool createDirectoryIfNotExist(const char* path) {
 	if (access(path, R_OK | W_OK) == -1) {
 		if (mkdir(path, S_IRUSR | S_IWUSR | S_IXUSR) == -1) {
 			LOGE("Cannot create directory %s: %s", path, strerror(errno));
@@ -161,23 +156,22 @@ static bool createDirectoryIfNotExist(const char *path) {
 	return true;
 }
 
-static ostream &operator<<(ostream &ostr, const sip_user_agent_t *ua) {
+static ostream& operator<<(ostream& ostr, const sip_user_agent_t* ua) {
 	char tmp[500] = {0};
-	sip_user_agent_e(tmp, sizeof(tmp) - 1, (msg_header_t *)ua, 0);
+	sip_user_agent_e(tmp, sizeof(tmp) - 1, (msg_header_t*)ua, 0);
 	ostr << tmp;
 	return ostr;
 }
 
-static ostream &operator<<(ostream &ostr, const url_t *url) {
+static ostream& operator<<(ostream& ostr, const url_t* url) {
 	char tmp[500] = {0};
 	url_e(tmp, sizeof(tmp) - 1, url);
 	ostr << tmp;
 	return ostr;
 }
 
-static ostream &operator<<(ostream &ostr, const sip_from_t *from) {
-	if (from->a_display && *from->a_display != '\0')
-		ostr << from->a_display;
+static ostream& operator<<(ostream& ostr, const sip_from_t* from) {
+	if (from->a_display && *from->a_display != '\0') ostr << from->a_display;
 	ostr << " <" << from->a_url << ">";
 	return ostr;
 }
@@ -188,18 +182,17 @@ struct PrettyTime {
 	time_t _t;
 };
 
-static std::ostream &operator<<(std::ostream &ostr, const PrettyTime &t) {
+static std::ostream& operator<<(std::ostream& ostr, const PrettyTime& t) {
 	char tmp[128] = {0};
 	int len;
 	ctime_r(&t._t, tmp);
 	len = strlen(tmp);
-	if (tmp[len - 1] == '\n')
-		tmp[len - 1] = '\0'; // because ctime_r adds a '\n'
+	if (tmp[len - 1] == '\n') tmp[len - 1] = '\0'; // because ctime_r adds a '\n'
 	ostr << tmp;
 	return ostr;
 }
 
-static std::ostream &operator<<(std::ostream &ostr, RegistrationLog::Type type) {
+static std::ostream& operator<<(std::ostream& ostr, RegistrationLog::Type type) {
 	switch (type) {
 		case RegistrationLog::Type::Register:
 			ostr << "Registered";
@@ -214,7 +207,7 @@ static std::ostream &operator<<(std::ostream &ostr, RegistrationLog::Type type) 
 	return ostr;
 }
 
-static std::ostream &operator<<(std::ostream &ostr, MessageLog::ReportType type) {
+static std::ostream& operator<<(std::ostream& ostr, MessageLog::ReportType type) {
 	switch (type) {
 		case MessageLog::ReportType::ReceivedFromUser:
 			ostr << "Received from user";
@@ -226,61 +219,53 @@ static std::ostream &operator<<(std::ostream &ostr, MessageLog::ReportType type)
 	return ostr;
 }
 
-FilesystemEventLogWriter::FilesystemEventLogWriter(const std::string &rootpath) : mRootPath(rootpath) {
+FilesystemEventLogWriter::FilesystemEventLogWriter(const std::string& rootpath) : mRootPath(rootpath) {
 	if (rootpath[0] != '/') {
 		LOGE("Path for event log writer must be absolute.");
 		return;
 	}
-	if (!createDirectoryIfNotExist(rootpath.c_str()))
-		return;
+	if (!createDirectoryIfNotExist(rootpath.c_str())) return;
 
 	mIsReady = true;
 }
 
-int FilesystemEventLogWriter::openPath(const url_t *uri, const char *kind, time_t curtime, int errorcode) {
+int FilesystemEventLogWriter::openPath(const url_t* uri, const char* kind, time_t curtime, int errorcode) {
 	ostringstream path;
 
 	if (errorcode == 0) {
-		const char *username = uri->url_user;
-		const char *domain = uri->url_host;
+		const char* username = uri->url_user;
+		const char* domain = uri->url_host;
 
 		path << mRootPath << "/users";
 
-		if (!createDirectoryIfNotExist(path.str().c_str()))
-			return -1;
+		if (!createDirectoryIfNotExist(path.str().c_str())) return -1;
 
 		path << "/" << domain;
 
-		if (!createDirectoryIfNotExist(path.str().c_str()))
-			return -1;
+		if (!createDirectoryIfNotExist(path.str().c_str())) return -1;
 
-		if (!username)
-			username = "anonymous";
+		if (!username) username = "anonymous";
 
 		path << "/" << username;
 
-		if (!createDirectoryIfNotExist(path.str().c_str()))
-			return -1;
+		if (!createDirectoryIfNotExist(path.str().c_str())) return -1;
 		path << "/" << kind;
 
-		if (!createDirectoryIfNotExist(path.str().c_str()))
-			return -1;
+		if (!createDirectoryIfNotExist(path.str().c_str())) return -1;
 	} else {
-		path << mRootPath << "/" << "errors/";
-		if (!createDirectoryIfNotExist(path.str().c_str()))
-			return -1;
+		path << mRootPath << "/"
+		     << "errors/";
+		if (!createDirectoryIfNotExist(path.str().c_str())) return -1;
 		path << kind;
-		if (!createDirectoryIfNotExist(path.str().c_str()))
-			return -1;
+		if (!createDirectoryIfNotExist(path.str().c_str())) return -1;
 		path << "/" << errorcode;
-		if (!createDirectoryIfNotExist(path.str().c_str()))
-			return -1;
+		if (!createDirectoryIfNotExist(path.str().c_str())) return -1;
 	}
 
 	struct tm tm;
 	localtime_r(&curtime, &tm);
-	path << "/" << 1900 + tm.tm_year << "-" << std::setfill('0') << std::setw(2) << tm.tm_mon + 1 << "-" <<
-		std::setfill('0') << std::setw(2) << tm.tm_mday << ".log";
+	path << "/" << 1900 + tm.tm_year << "-" << std::setfill('0') << std::setw(2) << tm.tm_mon + 1 << "-"
+	     << std::setfill('0') << std::setw(2) << tm.tm_mday << ".log";
 
 	int fd = open(path.str().c_str(), O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
 	if (fd == -1) {
@@ -290,18 +275,15 @@ int FilesystemEventLogWriter::openPath(const url_t *uri, const char *kind, time_
 	return fd;
 }
 
-void FilesystemEventLogWriter::writeRegistrationLog(const RegistrationLog &rlog) {
-	const char *label = "registers";
+void FilesystemEventLogWriter::writeRegistrationLog(const RegistrationLog& rlog) {
+	const char* label = "registers";
 	int fd = openPath(rlog.getFrom()->a_url, label, rlog.getDate());
-	if (fd == -1)
-		return;
+	if (fd == -1) return;
 
 	ostringstream msg;
 	msg << PrettyTime(rlog.getDate()) << ": " << rlog.getType() << " " << rlog.getFrom();
-	if (rlog.getContacts())
-		msg << " (" << rlog.getContacts()->m_url << ") ";
-	if (rlog.getUserAgent())
-		msg << rlog.getUserAgent();
+	if (rlog.getContacts()) msg << " (" << rlog.getContacts()->m_url << ") ";
+	if (rlog.getUserAgent()) msg << rlog.getUserAgent();
 	msg << endl;
 
 	if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {
@@ -313,18 +295,16 @@ void FilesystemEventLogWriter::writeRegistrationLog(const RegistrationLog &rlog)
 	}
 }
 
-void FilesystemEventLogWriter::writeCallLog(const CallLog &calllog) {
-	const char *label = "calls";
+void FilesystemEventLogWriter::writeCallLog(const CallLog& calllog) {
+	const char* label = "calls";
 	int fd1 = openPath(calllog.getFrom()->a_url, label, calllog.getDate());
 	int fd2 = openPath(calllog.getTo()->a_url, label, calllog.getDate());
 
 	ostringstream msg;
 
 	msg << PrettyTime(calllog.getDate()) << ": " << calllog.getFrom() << " --> " << calllog.getTo() << " ";
-	if (calllog.isCancelled())
-		msg << "Cancelled";
-	else
-		msg << calllog.getStatusCode() << " " << calllog.getReason();
+	if (calllog.isCancelled()) msg << "Cancelled";
+	else msg << calllog.getStatusCode() << " " << calllog.getReason();
 	msg << endl;
 
 	if (fd1 == -1 || ::write(fd1, msg.str().c_str(), msg.str().size()) == -1) {
@@ -337,38 +317,35 @@ void FilesystemEventLogWriter::writeCallLog(const CallLog &calllog) {
 			LOGE("Fail to write registration log: %s", strerror(errno));
 		}
 	}
-	if (fd1 != -1)
-		close(fd1);
-	if (fd2 != -1)
-		close(fd2);
+	if (fd1 != -1) close(fd1);
+	if (fd2 != -1) close(fd2);
 	if (calllog.getStatusCode() >= 300) {
 		writeErrorLog(calllog, label, msg.str());
 	}
 }
 
-void FilesystemEventLogWriter::writeMessageLog(const MessageLog &mlog) {
-	const char *label = "messages";
+void FilesystemEventLogWriter::writeMessageLog(const MessageLog& mlog) {
+	const char* label = "messages";
 	ostringstream msg;
 
-	msg << PrettyTime(mlog.getDate()) << ": " << mlog.getReportType() << " id:" << std::hex << mlog.getCallId() << " " <<
-		std::dec;
+	msg << PrettyTime(mlog.getDate()) << ": " << mlog.getReportType() << " id:" << std::hex << mlog.getCallId() << " "
+	    << std::dec;
 	msg << mlog.getFrom() << " --> " << mlog.getTo();
-	if (mlog.getUri())
-		msg << " (" << mlog.getUri() << ") ";
+	if (mlog.getUri()) msg << " (" << mlog.getUri() << ") ";
 	msg << mlog.getStatusCode() << " " << mlog.getReason() << endl;
 
-	if (mlog.getReportType() == MessageLog::ReportType::ReceivedFromUser){
+	if (mlog.getReportType() == MessageLog::ReportType::ReceivedFromUser) {
 		int fd = openPath(mlog.getFrom()->a_url, label, mlog.getDate());
-		if (fd != -1){
+		if (fd != -1) {
 			if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {
 				LOGE("Fail to write message log: %s", strerror(errno));
 			}
 			close(fd);
 		}
-	}else { //MessageLog::DeliveredToUser
+	} else { // MessageLog::DeliveredToUser
 		/*the event is added into the sender's log file and the receiver's log file, for convenience*/
 		int fd = openPath(mlog.getFrom()->a_url, label, mlog.getDate());
-		if (fd != -1){
+		if (fd != -1) {
 			if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {
 				LOGE("Fail to write message log: %s", strerror(errno));
 			}
@@ -376,9 +353,9 @@ void FilesystemEventLogWriter::writeMessageLog(const MessageLog &mlog) {
 		}
 		// Avoid to write logs for users that possibly do not exist.
 		// However the error will be reported in the errors directory.
-		if (mlog.getStatusCode() != 404){
+		if (mlog.getStatusCode() != 404) {
 			fd = openPath(mlog.getTo()->a_url, label, mlog.getDate());
-			if (fd != -1){
+			if (fd != -1) {
 				if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {
 					LOGE("Fail to write message log: %s", strerror(errno));
 				}
@@ -391,11 +368,10 @@ void FilesystemEventLogWriter::writeMessageLog(const MessageLog &mlog) {
 	}
 }
 
-void FilesystemEventLogWriter::writeCallQualityStatisticsLog(const CallQualityStatisticsLog &mlog) {
-	const char *label = "statistics_reports";
+void FilesystemEventLogWriter::writeCallQualityStatisticsLog(const CallQualityStatisticsLog& mlog) {
+	const char* label = "statistics_reports";
 	int fd = openPath(mlog.getFrom()->a_url, label, mlog.getDate());
-	if (fd == -1)
-		return;
+	if (fd == -1) return;
 	ostringstream msg;
 
 	msg << PrettyTime(mlog.getDate()) << " ";
@@ -413,14 +389,12 @@ void FilesystemEventLogWriter::writeCallQualityStatisticsLog(const CallQualitySt
 	}
 }
 
-void FilesystemEventLogWriter::writeAuthLog(const AuthLog &alog) {
-	const char *label = "auth";
+void FilesystemEventLogWriter::writeAuthLog(const AuthLog& alog) {
+	const char* label = "auth";
 	ostringstream msg;
 	msg << PrettyTime(alog.getDate()) << " " << alog.getMethod() << " " << alog.getFrom();
-	if (alog.getOrigin())
-		msg << " (" << alog.getOrigin() << ") ";
-	if (alog.getUserAgent())
-		msg << " (" << alog.getUserAgent() << ") ";
+	if (alog.getOrigin()) msg << " (" << alog.getOrigin() << ") ";
+	if (alog.getUserAgent()) msg << " (" << alog.getUserAgent() << ") ";
 	msg << " --> " << alog.getTo() << " ";
 	msg << alog.getStatusCode() << " " << alog.getReason() << endl;
 
@@ -436,13 +410,9 @@ void FilesystemEventLogWriter::writeAuthLog(const AuthLog &alog) {
 	writeErrorLog(alog, "auth", msg.str());
 }
 
-void FilesystemEventLogWriter::writeErrorLog(
-	const EventLog &log, const char *kind,
-	const std::string &logstr
-) {
+void FilesystemEventLogWriter::writeErrorLog(const EventLog& log, const char* kind, const std::string& logstr) {
 	int fd = openPath(NULL, kind, log.getDate(), log.getStatusCode());
-	if (fd == -1)
-		return;
+	if (fd == -1) return;
 	if (::write(fd, logstr.c_str(), logstr.size()) == -1) {
 		LOGE("Fail to write error log: %s", strerror(errno));
 	}
@@ -452,21 +422,22 @@ void FilesystemEventLogWriter::writeErrorLog(
 #if ENABLE_SOCI
 
 namespace {
-	constexpr int SqlRegistrationEventLogId = 0;
-	constexpr int SqlCallEventLogId = 1;
-	constexpr int SqlMessageEventLogId = 2;
-	constexpr int SqlAuthEventLogId = 3;
-	constexpr int SqlCallQualityEventLogId = 4;
-}
+constexpr int SqlRegistrationEventLogId = 0;
+constexpr int SqlCallEventLogId = 1;
+constexpr int SqlMessageEventLogId = 2;
+constexpr int SqlAuthEventLogId = 3;
+constexpr int SqlCallQualityEventLogId = 4;
+} // namespace
 
-std::unique_ptr<DataBaseEventLogWriter::BackendInfo> DataBaseEventLogWriter::BackendInfo::getBackendInfo(const std::string &backendName) {
+std::unique_ptr<DataBaseEventLogWriter::BackendInfo>
+DataBaseEventLogWriter::BackendInfo::getBackendInfo(const std::string& backendName) {
 	if (backendName == "mysql") return make_unique<MysqlInfo>();
 	if (backendName == "sqlite3") return make_unique<Sqlite3Info>();
 	if (backendName == "postgresql") return make_unique<PostgresqlInfo>();
 	throw invalid_argument("invalid Soci backend for event log [" + backendName + "]");
 }
 
-static string sipDataToString(const url_t *url) {
+static string sipDataToString(const url_t* url) {
 	if (!url) {
 		return string();
 	}
@@ -476,7 +447,7 @@ static string sipDataToString(const url_t *url) {
 	return string(tmp);
 }
 
-static string sipDataToString(const sip_from_t *from) {
+static string sipDataToString(const sip_from_t* from) {
 	string str;
 
 	if (!from) {
@@ -493,17 +464,17 @@ static string sipDataToString(const sip_from_t *from) {
 	return str;
 }
 
-static string sipDataToString(const sip_user_agent_t *ua) {
+static string sipDataToString(const sip_user_agent_t* ua) {
 	if (!ua) {
 		return string();
 	}
 
 	char tmp[256] = {};
-	sip_user_agent_e(tmp, sizeof(tmp) - 1, (msg_header_t *)ua, 0);
+	sip_user_agent_e(tmp, sizeof(tmp) - 1, (msg_header_t*)ua, 0);
 	return string(tmp);
 }
 
-static string sipDataToString(const sip_contact_t *contact) {
+static string sipDataToString(const sip_contact_t* contact) {
 	if (!contact) {
 		return string();
 	}
@@ -519,8 +490,8 @@ static string boolToSqlString(bool value) {
 	return value ? "Y" : "N";
 }
 
-DataBaseEventLogWriter::BackendInfo::BackendInfo() noexcept:
-	mInsertPrefix{"INSERT INTO"} {}
+DataBaseEventLogWriter::BackendInfo::BackendInfo() noexcept : mInsertPrefix{"INSERT INTO"} {
+}
 
 DataBaseEventLogWriter::Sqlite3Info::Sqlite3Info() noexcept : BackendInfo{} {
 	mInsertPrefix = "INSERT OR IGNORE INTO";
@@ -540,162 +511,164 @@ DataBaseEventLogWriter::PostgresqlInfo::PostgresqlInfo() noexcept : BackendInfo{
 	mPrimaryKeyIncrementType = "AUTO_INCREMENT";
 	mLastIdFunction = "lastval()";
 	mOnConflictType = "ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type";
-	mTableNamesQuery = "SELECT table_name AS \"TABLE_NAME\"FROM information_schema.tables WHERE table_schema = 'public'";
+	mTableNamesQuery =
+	    "SELECT table_name AS \"TABLE_NAME\"FROM information_schema.tables WHERE table_schema = 'public'";
 }
 
-bool DataBaseEventLogWriter::BackendInfo::databaseIsEmpty(soci::session &session) {
+bool DataBaseEventLogWriter::BackendInfo::databaseIsEmpty(soci::session& session) {
 	string tableName{};
-	session << mTableNamesQuery , soci::into(tableName);
+	session << mTableNamesQuery, soci::into(tableName);
 	return tableName.empty();
 }
 
-void DataBaseEventLogWriter::BackendInfo::createSchemaVersionTable(soci::session &session) {
+void DataBaseEventLogWriter::BackendInfo::createSchemaVersionTable(soci::session& session) {
 	session << "CREATE TABLE IF NOT EXISTS schema_version (version BIGINT UNSIGNED) " + mTableOptions;
 }
 
-unsigned int DataBaseEventLogWriter::BackendInfo::getSchemaVersion(soci::session &session) {
+unsigned int DataBaseEventLogWriter::BackendInfo::getSchemaVersion(soci::session& session) {
 	auto version = 0u;
 	createSchemaVersionTable(session);
-	session << "SELECT version FROM schema_version" , soci::into(version);
+	session << "SELECT version FROM schema_version", soci::into(version);
 	return version;
 }
 
-void DataBaseEventLogWriter::BackendInfo::setSchemaVersion(soci::session &session, unsigned int version) {
+void DataBaseEventLogWriter::BackendInfo::setSchemaVersion(soci::session& session, unsigned int version) {
 	createSchemaVersionTable(session);
 	session << "DELETE FROM schema_version";
 	session << "INSERT INTO schema_version (version) VALUES (" + to_string(version) + ")";
 }
 
-void DataBaseEventLogWriter::BackendInfo::initTables(soci::session &session) {
+void DataBaseEventLogWriter::BackendInfo::initTables(soci::session& session) {
 	// Create schema version table
 	setSchemaVersion(session, sRequiredSchemaVersion);
 
 	// Create types (event, registration, message).
-	session <<
-		"CREATE TABLE IF NOT EXISTS event_type ("
-		"  id TINYINT UNSIGNED PRIMARY KEY,"
-		"  type VARCHAR(255) NOT NULL UNIQUE"
-		")" + mTableOptions;
+	session << "CREATE TABLE IF NOT EXISTS event_type ("
+	           "  id TINYINT UNSIGNED PRIMARY KEY,"
+	           "  type VARCHAR(255) NOT NULL UNIQUE"
+	           ")" +
+	               mTableOptions;
 
-	session <<
-		"CREATE TABLE IF NOT EXISTS registration_type ("
-		"  id TINYINT UNSIGNED PRIMARY KEY,"
-		"  type VARCHAR(255) NOT NULL UNIQUE"
-		")" + mTableOptions;
+	session << "CREATE TABLE IF NOT EXISTS registration_type ("
+	           "  id TINYINT UNSIGNED PRIMARY KEY,"
+	           "  type VARCHAR(255) NOT NULL UNIQUE"
+	           ")" +
+	               mTableOptions;
 
-	session <<
-		"CREATE TABLE IF NOT EXISTS message_type ("
-		"  id TINYINT UNSIGNED PRIMARY KEY,"
-		"  type VARCHAR(255) NOT NULL UNIQUE"
-		")" + mTableOptions;
+	session << "CREATE TABLE IF NOT EXISTS message_type ("
+	           "  id TINYINT UNSIGNED PRIMARY KEY,"
+	           "  type VARCHAR(255) NOT NULL UNIQUE"
+	           ")" +
+	               mTableOptions;
 
 	// Main events table.
-	session <<
-		"CREATE TABLE IF NOT EXISTS event_log ( id BIGINT UNSIGNED PRIMARY KEY " + mPrimaryKeyIncrementType + ", "
-		"  type_id TINYINT UNSIGNED NOT NULL,"
-		"  sip_from VARCHAR(255) NOT NULL,"
-		"  sip_to VARCHAR(255) NOT NULL,"
-		"  user_agent VARCHAR(255) NOT NULL,"
-		"  date TIMESTAMP NOT NULL,"
-		"  status_code SMALLINT UNSIGNED NOT NULL,"
-		"  reason VARCHAR(255) NOT NULL,"
-		"  completed CHAR(1) NOT NULL,"
-		"  call_id VARCHAR(255) NOT NULL,"
-		"  priority VARCHAR(255) NOT NULL,"
-		"  FOREIGN KEY (type_id) REFERENCES event_type(id)"
-		")" + mTableOptions;
+	session << "CREATE TABLE IF NOT EXISTS event_log ( id BIGINT UNSIGNED PRIMARY KEY " + mPrimaryKeyIncrementType +
+	               ", "
+	               "  type_id TINYINT UNSIGNED NOT NULL,"
+	               "  sip_from VARCHAR(255) NOT NULL,"
+	               "  sip_to VARCHAR(255) NOT NULL,"
+	               "  user_agent VARCHAR(255) NOT NULL,"
+	               "  date TIMESTAMP NOT NULL,"
+	               "  status_code SMALLINT UNSIGNED NOT NULL,"
+	               "  reason VARCHAR(255) NOT NULL,"
+	               "  completed CHAR(1) NOT NULL,"
+	               "  call_id VARCHAR(255) NOT NULL,"
+	               "  priority VARCHAR(255) NOT NULL,"
+	               "  FOREIGN KEY (type_id) REFERENCES event_type(id)"
+	               ")" +
+	               mTableOptions;
 
 	// Specialized events table.
-	session <<
-		"CREATE TABLE IF NOT EXISTS event_registration_log ("
-		"  id BIGINT UNSIGNED PRIMARY KEY,"
-		"  type_id TINYINT UNSIGNED NOT NULL,"
-		"  contacts VARCHAR(255) NOT NULL,"
+	session << "CREATE TABLE IF NOT EXISTS event_registration_log ("
+	           "  id BIGINT UNSIGNED PRIMARY KEY,"
+	           "  type_id TINYINT UNSIGNED NOT NULL,"
+	           "  contacts VARCHAR(255) NOT NULL,"
 
-		"  FOREIGN KEY (id)"
-		"    REFERENCES event_log(id)"
-		"    ON DELETE CASCADE,"
+	           "  FOREIGN KEY (id)"
+	           "    REFERENCES event_log(id)"
+	           "    ON DELETE CASCADE,"
 
-		"  FOREIGN KEY (type_id)"
-		"    REFERENCES registration_type(id)"
-		")" + mTableOptions;
+	           "  FOREIGN KEY (type_id)"
+	           "    REFERENCES registration_type(id)"
+	           ")" +
+	               mTableOptions;
 
-	session <<
-		"CREATE TABLE IF NOT EXISTS event_call_log ("
-		"  id BIGINT UNSIGNED PRIMARY KEY,"
-		"  cancelled CHAR(1) NOT NULL,"
+	session << "CREATE TABLE IF NOT EXISTS event_call_log ("
+	           "  id BIGINT UNSIGNED PRIMARY KEY,"
+	           "  cancelled CHAR(1) NOT NULL,"
 
-		"  FOREIGN KEY (id)"
-		"    REFERENCES event_log(id)"
-		"    ON DELETE CASCADE"
-		")" + mTableOptions;
+	           "  FOREIGN KEY (id)"
+	           "    REFERENCES event_log(id)"
+	           "    ON DELETE CASCADE"
+	           ")" +
+	               mTableOptions;
 
-	session <<
-		"CREATE TABLE IF NOT EXISTS event_message_log ("
-		"  id BIGINT UNSIGNED PRIMARY KEY,"
-		"  type_id TINYINT UNSIGNED NOT NULL,"
-		"  uri VARCHAR(255) NOT NULL,"
+	session << "CREATE TABLE IF NOT EXISTS event_message_log ("
+	           "  id BIGINT UNSIGNED PRIMARY KEY,"
+	           "  type_id TINYINT UNSIGNED NOT NULL,"
+	           "  uri VARCHAR(255) NOT NULL,"
 
-		"  FOREIGN KEY (id)"
-		"    REFERENCES event_log(id)"
-		"    ON DELETE CASCADE,"
+	           "  FOREIGN KEY (id)"
+	           "    REFERENCES event_log(id)"
+	           "    ON DELETE CASCADE,"
 
-		"  FOREIGN KEY (type_id)"
-		"    REFERENCES message_type(id)"
-		"    ON DELETE CASCADE"
-		")" + mTableOptions;
+	           "  FOREIGN KEY (type_id)"
+	           "    REFERENCES message_type(id)"
+	           "    ON DELETE CASCADE"
+	           ")" +
+	               mTableOptions;
 
-	session <<
-		"CREATE TABLE IF NOT EXISTS event_auth_log ("
-		"  id BIGINT UNSIGNED PRIMARY KEY,"
-		"  method VARCHAR(255) NOT NULL,"
-		"  origin VARCHAR(255) NOT NULL,"
-		"  user_exists CHAR(1) NOT NULL,"
+	session << "CREATE TABLE IF NOT EXISTS event_auth_log ("
+	           "  id BIGINT UNSIGNED PRIMARY KEY,"
+	           "  method VARCHAR(255) NOT NULL,"
+	           "  origin VARCHAR(255) NOT NULL,"
+	           "  user_exists CHAR(1) NOT NULL,"
 
-		"  FOREIGN KEY (id)"
-		"    REFERENCES event_log(id)"
-		"    ON DELETE CASCADE"
-		")" + mTableOptions;
+	           "  FOREIGN KEY (id)"
+	           "    REFERENCES event_log(id)"
+	           "    ON DELETE CASCADE"
+	           ")" +
+	               mTableOptions;
 
-	session <<
-		"CREATE TABLE IF NOT EXISTS event_call_quality_statistics_log ("
-		"  id BIGINT UNSIGNED PRIMARY KEY,"
-		"  report TEXT NOT NULL,"
+	session << "CREATE TABLE IF NOT EXISTS event_call_quality_statistics_log ("
+	           "  id BIGINT UNSIGNED PRIMARY KEY,"
+	           "  report TEXT NOT NULL,"
 
-		"  FOREIGN KEY (id)"
-		"    REFERENCES event_log(id)"
-		"    ON DELETE CASCADE"
-		")" + mTableOptions;
+	           "  FOREIGN KEY (id)"
+	           "    REFERENCES event_log(id)"
+	           "    ON DELETE CASCADE"
+	           ")" +
+	               mTableOptions;
 
 	// Set types values if necessary.
 	session << mInsertPrefix + " event_type (id, type)" +
-		"  VALUES"
-		"  (0, 'Registration'),"
-		"  (1, 'Call'),"
-		"  (2, 'Message'),"
-		"  (3, 'Auth'),"
-		"  (4, 'QualityStatistics')" + mOnConflictType;
+	               "  VALUES"
+	               "  (0, 'Registration'),"
+	               "  (1, 'Call'),"
+	               "  (2, 'Message'),"
+	               "  (3, 'Auth'),"
+	               "  (4, 'QualityStatistics')" +
+	               mOnConflictType;
 
 	session << mInsertPrefix + " registration_type (id, type)" +
-		"  VALUES"
-		"  (0, 'Register'),"
-		"  (1, 'Unregister'),"
-		"  (2, 'Expired')" + mOnConflictType;
+	               "  VALUES"
+	               "  (0, 'Register'),"
+	               "  (1, 'Unregister'),"
+	               "  (2, 'Expired')" +
+	               mOnConflictType;
 
 	session << mInsertPrefix + " message_type (id, type)" +
-		"  VALUES"
-		"  (0, 'Received'),"
-		"  (1, 'Delivered')" + mOnConflictType;
+	               "  VALUES"
+	               "  (0, 'Received'),"
+	               "  (1, 'Delivered')" +
+	               mOnConflictType;
 }
 
-DataBaseEventLogWriter::DataBaseEventLogWriter(
-	const std::string &backendString,
-	const std::string &connectionString,
-	unsigned int maxQueueSize,
-	unsigned int nbThreadsMax
-) :
-	mMaxQueueSize{maxQueueSize}
-{
+DataBaseEventLogWriter::DataBaseEventLogWriter(const std::string& backendString,
+                                               const std::string& connectionString,
+                                               unsigned int maxQueueSize,
+                                               unsigned int nbThreadsMax)
+    : mMaxQueueSize{maxQueueSize} {
 	try {
 		mConnectionPool = make_unique<soci::connection_pool>(nbThreadsMax);
 		mThreadPool = make_unique<ThreadPool>(nbThreadsMax, maxQueueSize);
@@ -709,12 +682,12 @@ DataBaseEventLogWriter::DataBaseEventLogWriter(
 		{
 			unsigned int schemaVersion;
 			soci::session session(*mConnectionPool);
-			if (!backend->databaseIsEmpty(session)
-				&& (schemaVersion = backend->getSchemaVersion(session)) < sRequiredSchemaVersion)
-			{
+			if (!backend->databaseIsEmpty(session) &&
+			    (schemaVersion = backend->getSchemaVersion(session)) < sRequiredSchemaVersion) {
 				LOGF("Event log database as an invalid schema version. Please backup and clear your current "
-					"database and start Flexisip again to generate an up-to-date schema. [currentVersion: %u, "
-					"requiredVersion: %u]", schemaVersion, sRequiredSchemaVersion);
+				     "database and start Flexisip again to generate an up-to-date schema. [currentVersion: %u, "
+				     "requiredVersion: %u]",
+				     schemaVersion, sRequiredSchemaVersion);
 			}
 			DB_TRANSACTION(&session) {
 				backend->initTables(session);
@@ -723,29 +696,28 @@ DataBaseEventLogWriter::DataBaseEventLogWriter(
 		}
 
 		// Build insert requests.
-		const auto &lastIdFunction = backend->lastIdFunction();
+		const auto& lastIdFunction = backend->lastIdFunction();
 		mInsertReq[SqlRegistrationEventLogId] =
-			"INSERT INTO event_registration_log VALUES (" + lastIdFunction + ", :typeId, :contacts)";
+		    "INSERT INTO event_registration_log VALUES (" + lastIdFunction + ", :typeId, :contacts)";
 
-		mInsertReq[SqlCallEventLogId] =
-			"INSERT INTO event_call_log VALUES (" + lastIdFunction + ", :cancelled)";
+		mInsertReq[SqlCallEventLogId] = "INSERT INTO event_call_log VALUES (" + lastIdFunction + ", :cancelled)";
 
 		mInsertReq[SqlMessageEventLogId] =
-			"INSERT INTO event_message_log VALUES (" + lastIdFunction + ", :typeId, :uri)";
+		    "INSERT INTO event_message_log VALUES (" + lastIdFunction + ", :typeId, :uri)";
 
 		mInsertReq[SqlAuthEventLogId] =
-			"INSERT INTO event_auth_log VALUES (" +	lastIdFunction + ", :method, :origin, :userExists)";
+		    "INSERT INTO event_auth_log VALUES (" + lastIdFunction + ", :method, :origin, :userExists)";
 
 		mInsertReq[SqlCallQualityEventLogId] =
-			"INSERT INTO event_call_quality_log VALUES (" + lastIdFunction + ", :report)";
+		    "INSERT INTO event_call_quality_log VALUES (" + lastIdFunction + ", :report)";
 
 		mIsReady = true;
-	} catch (exception const &e) {
+	} catch (exception const& e) {
 		LOGE("DataBaseEventLogWriter: could not create logger: %s", e.what());
 	}
 }
 
-void DataBaseEventLogWriter::writeEventLog(soci::session &session, const EventLog &evlog, int typeId) {
+void DataBaseEventLogWriter::writeEventLog(soci::session& session, const EventLog& evlog, int typeId) {
 	tm date;
 	auto from = sipDataToString(evlog.getFrom());
 	auto to = sipDataToString(evlog.getTo());
@@ -753,11 +725,12 @@ void DataBaseEventLogWriter::writeEventLog(soci::session &session, const EventLo
 	auto completed = boolToSqlString(evlog.isCompleted());
 
 	session << "INSERT INTO event_log "
-		"(type_id, sip_from, sip_to, user_agent, date, status_code, reason, completed, call_id, priority)"
-		"VALUES (:typeId, :sipFrom, :sipTo, :userAgent, :date, :statusCode, :reason, :completed, :callId, :priority)",
-		soci::use(typeId), soci::use(from), soci::use(to),
-		soci::use(ua), soci::use(*gmtime_r(&evlog.getDate(), &date)), soci::use(evlog.getStatusCode()),
-		soci::use(evlog.getReason()), soci::use(completed), soci::use(evlog.getCallId()), soci::use(evlog.getPriority());
+	           "(type_id, sip_from, sip_to, user_agent, date, status_code, reason, completed, call_id, priority)"
+	           "VALUES (:typeId, :sipFrom, :sipTo, :userAgent, :date, :statusCode, :reason, :completed, :callId, "
+	           ":priority)",
+	    soci::use(typeId), soci::use(from), soci::use(to), soci::use(ua), soci::use(*gmtime_r(&evlog.getDate(), &date)),
+	    soci::use(evlog.getStatusCode()), soci::use(evlog.getReason()), soci::use(completed),
+	    soci::use(evlog.getCallId()), soci::use(evlog.getPriority());
 }
 
 // IMPORTANT
@@ -771,7 +744,7 @@ void DataBaseEventLogWriter::writeEventLog(soci::session &session, const EventLo
 // So the choice here is to use the `LAST_INSERT_ID()` and `last_insert_rowid()`
 // from MySQL and SQlite3 directly in SQL.
 
-void DataBaseEventLogWriter::writeRegistrationLog(const RegistrationLog &evlog) {
+void DataBaseEventLogWriter::writeRegistrationLog(const RegistrationLog& evlog) {
 	soci::session session{*mConnectionPool};
 	DB_TRANSACTION(&session) {
 		auto contact = sipDataToString(evlog.getContacts());
@@ -781,7 +754,7 @@ void DataBaseEventLogWriter::writeRegistrationLog(const RegistrationLog &evlog) 
 	};
 }
 
-void DataBaseEventLogWriter::writeCallLog(const CallLog &evlog) {
+void DataBaseEventLogWriter::writeCallLog(const CallLog& evlog) {
 	soci::session session{*mConnectionPool};
 	DB_TRANSACTION(&session) {
 		auto cancelled = boolToSqlString(evlog.isCancelled());
@@ -791,7 +764,7 @@ void DataBaseEventLogWriter::writeCallLog(const CallLog &evlog) {
 	};
 }
 
-void DataBaseEventLogWriter::writeMessageLog(const MessageLog &evlog) {
+void DataBaseEventLogWriter::writeMessageLog(const MessageLog& evlog) {
 	soci::session session{*mConnectionPool};
 	DB_TRANSACTION(&session) {
 		auto uri = sipDataToString(evlog.getUri());
@@ -801,18 +774,19 @@ void DataBaseEventLogWriter::writeMessageLog(const MessageLog &evlog) {
 	};
 }
 
-void DataBaseEventLogWriter::writeAuthLog(const AuthLog &evlog) {
+void DataBaseEventLogWriter::writeAuthLog(const AuthLog& evlog) {
 	soci::session session{*mConnectionPool};
 	DB_TRANSACTION(&session) {
 		auto origin = sipDataToString(evlog.getOrigin());
 		auto userExists = boolToSqlString(evlog.userExists());
 		writeEventLog(session, evlog, SqlAuthEventLogId);
-		session << mInsertReq[SqlAuthEventLogId], soci::use(evlog.getMethod()), soci::use(origin), soci::use(userExists);
+		session << mInsertReq[SqlAuthEventLogId], soci::use(evlog.getMethod()), soci::use(origin),
+		    soci::use(userExists);
 		tr.commit();
 	};
 }
 
-void DataBaseEventLogWriter::writeCallQualityStatisticsLog(const CallQualityStatisticsLog &evlog) {
+void DataBaseEventLogWriter::writeCallQualityStatisticsLog(const CallQualityStatisticsLog& evlog) {
 	soci::session session{*mConnectionPool};
 	DB_TRANSACTION(&session) {
 		writeEventLog(session, evlog, SqlCallQualityEventLogId);
@@ -848,4 +822,4 @@ void DataBaseEventLogWriter::write(std::shared_ptr<const EventLog> evlog) {
 
 #endif
 
-} // flexisip namespace
+} // namespace flexisip
