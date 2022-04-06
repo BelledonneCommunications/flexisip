@@ -74,7 +74,7 @@ PnsMock::handleRequest(int code, const string& body, const string& reqBodyPatter
 		});
 		res.write_head(code);
 		if (timeout) {
-			this_thread::sleep_for(chrono::milliseconds(32000));
+			this_thread::sleep_for(3s);
 		}
 		res.end(body);
 	};

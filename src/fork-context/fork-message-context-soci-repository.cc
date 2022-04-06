@@ -59,13 +59,13 @@ ForkMessageContextSociRepository::ForkMessageContextSociRepository(const string&
 		is_finished TINYINT NOT NULL,
 		is_message TINYINT NOT NULL,
 		expiration_date TIMESTAMP NOT NULL,
-		request BLOB NOT NULL))sql";
+		request MEDIUMBLOB NOT NULL))sql";
 
 		sql << R"sql(CREATE TABLE IF NOT EXISTS branch_info (
 		fork_uuid BINARY(16) NOT NULL,
 		contact_uid VARCHAR(255) NOT NULL,
-		request BLOB NOT NULL,
-		last_response BLOB,
+		request MEDIUMBLOB NOT NULL,
+		last_response MEDIUMBLOB,
 		priority FLOAT NOT NULL,
 		cleared_count INT NOT NULL,
 		PRIMARY KEY (fork_uuid, contact_uid),

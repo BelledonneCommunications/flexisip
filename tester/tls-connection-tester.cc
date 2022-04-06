@@ -44,7 +44,7 @@ static void tcpRead() {
 	tlsConnection.connect();
 
 	char readBuffer[1024];
-	this_thread::sleep_for(1s);
+	this_thread::sleep_for(100ms);
 	auto nbRead = tlsConnection.read(readBuffer, sizeof(readBuffer));
 
 	string readStr{};
@@ -71,12 +71,12 @@ static void tcpReadAllWithTimeout() {
 
 	string responseStr{};
 	auto start = steady_clock::now();
-	tlsConnection.readAll(responseStr, 1000ms);
+	tlsConnection.readAll(responseStr, 500ms);
 	auto end = steady_clock::now();
 	auto elapsedTimeMs = (int)duration_cast<milliseconds>(end - start).count();
 
 	BC_ASSERT_STRING_EQUAL(responseStr.c_str(), expectedResponse.c_str());
-	BC_ASSERT_LOWER_STRICT(elapsedTimeMs, 1000, int, "%i");
+	BC_ASSERT_LOWER_STRICT(elapsedTimeMs, 500, int, "%i");
 	BC_ASSERT_TRUE(requestMatch.get());
 }
 
@@ -86,7 +86,7 @@ static void tcpReadAllWithTimeoutDelayedResponse() {
 
 	TcpServer tcpServer{1234};
 	auto requestMatch = async(launch::async, [&tcpServer, &request, &expectedResponse]() {
-		return tcpServer.runServerForTest(request, expectedResponse, 2s);
+		return tcpServer.runServerForTest(request, expectedResponse, 500ms);
 	});
 
 	TlsConnection tlsConnection{"127.0.0.1", "1234", "", "", false};
@@ -102,8 +102,8 @@ static void tcpReadAllWithTimeoutDelayedResponse() {
 	auto elapsedTimeMs = (int)duration_cast<milliseconds>(end - start).count();
 
 	BC_ASSERT_STRING_EQUAL(responseStr.c_str(), expectedResponse.c_str());
-	BC_ASSERT_GREATER(elapsedTimeMs, 2000, int, "%i");
-	BC_ASSERT_LOWER_STRICT(elapsedTimeMs, 2500, int, "%i");
+	BC_ASSERT_GREATER(elapsedTimeMs, 500, int, "%i");
+	BC_ASSERT_LOWER_STRICT(elapsedTimeMs, 750, int, "%i");
 	BC_ASSERT_TRUE(requestMatch.get());
 }
 
@@ -113,7 +113,7 @@ static void tcpReadAllWithTimeoutLateResponse() {
 
 	TcpServer tcpServer{1234};
 	auto requestMatch = async(launch::async, [&tcpServer, &request, &expectedResponse]() {
-		return tcpServer.runServerForTest(request, expectedResponse, 4s);
+		return tcpServer.runServerForTest(request, expectedResponse, 1s);
 	});
 
 	TlsConnection tlsConnection{"127.0.0.1", "1234", "", "", false};
@@ -124,14 +124,14 @@ static void tcpReadAllWithTimeoutLateResponse() {
 
 	string responseStr{};
 	auto start = steady_clock::now();
-	tlsConnection.readAll(responseStr, 2000ms);
+	tlsConnection.readAll(responseStr, 500ms);
 	auto end = steady_clock::now();
 	auto elapsedTimeMs = (int)duration_cast<milliseconds>(end - start).count();
 
 	// We did not wait for response
 	BC_ASSERT_STRING_NOT_EQUAL(responseStr.c_str(), expectedResponse.c_str());
-	BC_ASSERT_GREATER(elapsedTimeMs, 1999, int, "%i");
-	BC_ASSERT_LOWER_STRICT(elapsedTimeMs, 2020, int, "%i");
+	BC_ASSERT_GREATER(elapsedTimeMs, 499, int, "%i");
+	BC_ASSERT_LOWER_STRICT(elapsedTimeMs, 1020, int, "%i");
 
 	BC_ASSERT_TRUE(requestMatch.get());
 }
@@ -150,7 +150,7 @@ static void tlsRead() {
 	tlsConnection.connect();
 
 	char readBuffer[1024];
-	this_thread::sleep_for(1s);
+	this_thread::sleep_for(100ms);
 	auto nbRead = tlsConnection.read(readBuffer, sizeof(readBuffer));
 
 	string readStr{};
@@ -177,12 +177,12 @@ static void tlsReadAllWithTimeout() {
 
 	string responseStr{};
 	auto start = steady_clock::now();
-	tlsConnection.readAll(responseStr, 1000ms);
+	tlsConnection.readAll(responseStr, 500ms);
 	auto end = steady_clock::now();
 	auto elapsedTimeMs = (int)duration_cast<milliseconds>(end - start).count();
 
 	BC_ASSERT_STRING_EQUAL(responseStr.c_str(), expectedResponse.c_str());
-	BC_ASSERT_LOWER_STRICT(elapsedTimeMs, 1000, int, "%i");
+	BC_ASSERT_LOWER_STRICT(elapsedTimeMs, 500, int, "%i");
 	BC_ASSERT_TRUE(requestMatch.get());
 }
 
@@ -192,7 +192,7 @@ static void tlsReadAllWithTimeoutDelayedResponse() {
 
 	TlsServer tlsServer{1234};
 	auto requestMatch = async(launch::async, [&tlsServer, &request, &expectedResponse]() {
-		return tlsServer.runServerForTest(request, expectedResponse, 2s);
+		return tlsServer.runServerForTest(request, expectedResponse, 500ms);
 	});
 
 	TlsConnection tlsConnection{"127.0.0.1", "1234", false};
@@ -208,8 +208,8 @@ static void tlsReadAllWithTimeoutDelayedResponse() {
 	auto elapsedTimeMs = (int)duration_cast<milliseconds>(end - start).count();
 
 	BC_ASSERT_STRING_EQUAL(responseStr.c_str(), expectedResponse.c_str());
-	BC_ASSERT_GREATER(elapsedTimeMs, 2000, int, "%i");
-	BC_ASSERT_LOWER_STRICT(elapsedTimeMs, 2500, int, "%i");
+	BC_ASSERT_GREATER(elapsedTimeMs, 500, int, "%i");
+	BC_ASSERT_LOWER_STRICT(elapsedTimeMs, 750, int, "%i");
 	BC_ASSERT_TRUE(requestMatch.get());
 }
 
@@ -219,7 +219,7 @@ static void tlsReadAllWithTimeoutLateResponse() {
 
 	TlsServer tlsServer{1234};
 	auto requestMatch = async(launch::async, [&tlsServer, &request, &expectedResponse]() {
-		return tlsServer.runServerForTest(request, expectedResponse, 4s);
+		return tlsServer.runServerForTest(request, expectedResponse, 1s);
 	});
 
 	TlsConnection tlsConnection{"127.0.0.1", "1234", false};
@@ -230,14 +230,14 @@ static void tlsReadAllWithTimeoutLateResponse() {
 
 	string responseStr{};
 	auto start = steady_clock::now();
-	tlsConnection.readAll(responseStr, 2000ms);
+	tlsConnection.readAll(responseStr, 500ms);
 	auto end = steady_clock::now();
 	auto elapsedTimeMs = (int)duration_cast<milliseconds>(end - start).count();
 
 	// We did not wait for response
 	BC_ASSERT_STRING_NOT_EQUAL(responseStr.c_str(), expectedResponse.c_str());
-	BC_ASSERT_GREATER(elapsedTimeMs, 1999, int, "%i");
-	BC_ASSERT_LOWER_STRICT(elapsedTimeMs, 2020, int, "%i");
+	BC_ASSERT_GREATER(elapsedTimeMs, 499, int, "%i");
+	BC_ASSERT_LOWER_STRICT(elapsedTimeMs, 1020, int, "%i");
 	BC_ASSERT_TRUE(requestMatch.get());
 }
 

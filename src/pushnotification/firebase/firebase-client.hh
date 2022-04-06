@@ -53,6 +53,10 @@ public:
 		mHttp2Client->enableInsecureTestMode();
 	}
 
+	void setRequestTimeout(unsigned requestTimeout) override {
+		mHttp2Client->setRequestTimeout(requestTimeout);
+	}
+
 	static std::string FIREBASE_ADDRESS;
 	static std::string FIREBASE_PORT;
 

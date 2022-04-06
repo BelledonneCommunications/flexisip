@@ -58,6 +58,10 @@ public:
 		mHttp2Client->enableInsecureTestMode();
 	}
 
+	void setRequestTimeout(unsigned requestTimeout) override {
+		mHttp2Client->setRequestTimeout(requestTimeout);
+	}
+
 	static std::string APN_DEV_ADDRESS;
 	static std::string APN_PORT;
 

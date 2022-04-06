@@ -48,7 +48,8 @@ public:
 		mPriority = dbObject.priority;
 		auto request = std::make_shared<MsgSip>(0, dbObject.request);
 		mRequest = std::make_shared<RequestSipEvent>(agent, request);
-		auto lastResponse = std::make_shared<MsgSip>(0, dbObject.lastResponse);
+		auto lastResponse =
+		    !dbObject.lastResponse.empty() ? std::make_shared<MsgSip>(0, dbObject.lastResponse) : nullptr;
 		mLastResponse = std::make_shared<ResponseSipEvent>(agent, lastResponse);
 		mLastResponse->setIncomingAgent(std::shared_ptr<IncomingAgent>());
 	}

@@ -205,29 +205,43 @@ bool ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
 		// Always return true here in case you were called by delayedOnNewRegister.
 		return true;
 	} else {
-		restoreForkIfNeeded();
-		return mForkMessage->onNewRegister(dest, uid, dispatchFunc);
+		if (restoreForkIfNeeded()) return mForkMessage->onNewRegister(dest, uid, dispatchFunc);
+		else return false;
 	}
 }
 
 void ForkMessageContextDbProxy::delayedOnNewRegister(const SipUri& dest,
                                                      const string& uid,
                                                      const function<void()>& dispatchFunc) {
-	restoreForkIfNeeded();
-	if (!onNewRegister(dest, uid, dispatchFunc) && mForkMessage->allBranchesAnswered()) {
+
+	if (restoreForkIfNeeded() && !onNewRegister(dest, uid, dispatchFunc) && mForkMessage->allBranchesAnswered()) {
 		startTimerAndResetFork();
 		mState = State::IN_DATABASE;
 	}
 }
 
-void ForkMessageContextDbProxy::restoreForkIfNeeded() {
+bool ForkMessageContextDbProxy::restoreForkIfNeeded() {
 	if (mDbFork) {
-		mForkMessage = ForkMessageContext::make(mSavedAgent, mSavedConfig, shared_from_this(), mSavedCounter, *mDbFork);
-		mDbFork.reset();
+		try {
+			mForkMessage =
+			    ForkMessageContext::make(mSavedAgent, mSavedConfig, shared_from_this(), mSavedCounter, *mDbFork);
+			mDbFork.reset();
 
-		// Timer is now handle by the newly restored inner ForkMessageContext
-		mProxyLateTimer.reset();
+			// Timer is now handle by the newly restored inner ForkMessageContext
+			mProxyLateTimer.reset();
+			return true;
+		} catch (const runtime_error& e) {
+			SLOGE << errorLogPrefix() << "An error occurred during ForkMessage creation from DB object with uuid ["
+			      << mForkUuidInDb << "] : \n"
+			      << e.what();
+
+			mForkMessage.reset();
+			mState = State::IN_DATABASE;
+			onForkContextFinished(nullptr);
+			return false;
+		}
 	}
+	return true;
 }
 
 void ForkMessageContextDbProxy::checkState(const string& methodName,

@@ -52,6 +52,9 @@ MsgSip::MsgSip(const MsgSip& msgSip) {
 
 MsgSip::MsgSip(int flags, const std::string& msg) {
 	mMsg = msg_make(sip_default_mclass(), flags, msg.c_str(), msg.size());
+	if (!mMsg || msg_has_error(mMsg)) {
+		throw runtime_error("Error during message parsing from string : \n" + msg);
+	}
 }
 
 msg_header_t* MsgSip::findHeader(const std::string& name, bool searchUnknowns) {

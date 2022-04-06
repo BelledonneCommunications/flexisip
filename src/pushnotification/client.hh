@@ -33,6 +33,8 @@ public:
 	virtual void sendPush(const std::shared_ptr<Request>& req) = 0;
 	virtual bool isIdle() const noexcept = 0;
 
+	virtual void setRequestTimeout(unsigned requestTimeout){};
+
 protected:
 	void incrSentCounter();
 	void incrFailedCounter();

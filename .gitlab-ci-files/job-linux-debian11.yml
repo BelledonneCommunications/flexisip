@@ -133,7 +133,7 @@ job-debian11-unit-test:
     - job-debian11-ninja-clang
   script :
     - export LD_LIBRARY_PATH=/usr/local/lib
-    - ./OUTPUT/bin/flexisip_tester --verbose --parallel --resource-dir ./OUTPUT/share/flexisip-tester || exit $?
+    - ./OUTPUT/bin/flexisip_tester --verbose --resource-dir ./OUTPUT/share/flexisip-tester || exit $?
   artifacts :
     reports :
         junit :

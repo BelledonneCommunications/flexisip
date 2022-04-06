@@ -163,7 +163,12 @@ private:
 	void checkState(const std::string& methodName, const ForkMessageContextDbProxy::State& expectedState) const;
 	void startTimerAndResetFork(time_t expirationDate, const std::vector<std::string>& keys);
 	void startTimerAndResetFork();
-	void restoreForkIfNeeded();
+
+	/**
+	 * Restore mForkMessage from mDbFork if mDbFork != nullptr
+	 * @return true if the restoration succeed or wasn't needed. false in case of error.
+	 */
+	bool restoreForkIfNeeded();
 	void runSavingThread();
 
 	// All those attributes are mark as mutable because they are used in const methods from ForkContext API, but they

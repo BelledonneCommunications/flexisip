@@ -53,6 +53,12 @@ public:
 	MsgSip();
 	MsgSip(msg_t* msg);
 	MsgSip(const MsgSip& msgSip);
+
+	/**
+	 * Construct a MsgSip parsing the string parameter.
+	 *
+	 * @throw Throw std::runtime_error if a parsing error occurred.
+	 */
 	MsgSip(int flags, const std::string& msg);
 	~MsgSip();
 

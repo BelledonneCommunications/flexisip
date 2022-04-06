@@ -133,7 +133,7 @@ static void insertContact(const string& sipUri, const string& paramList) {
 	expectedBidingDone++;
 	auto beforePlus2 = system_clock::now() + 2s;
 	while (bidingDone != expectedBidingDone && beforePlus2 >= system_clock::now()) {
-		agent->getRoot()->step(100ms);
+		agent->getRoot()->step(20ms);
 	}
 }
 
@@ -169,17 +169,17 @@ static void sendRegisterRequest(const string& sipUri, const string& paramList, c
 	expectedResponseReceived++;
 	auto beforePlus2 = system_clock::now() + 2s;
 	while (responseReceived != expectedResponseReceived && beforePlus2 >= system_clock::now()) {
-		agent->getRoot()->step(100ms);
-		bellesipUtils.stackSleep(100);
+		agent->getRoot()->step(20ms);
+		bellesipUtils.stackSleep(20);
 	}
 }
 
 static void checkResultInDb(SipUri uri, shared_ptr<RegisterFetchListener> fetchListener, bool recursive) {
 	RegistrarDb::get()->fetch(uri, fetchListener, recursive);
 	expectedFetchingDone++;
-	auto beforePlus2 = system_clock::now() + 2s;
-	while (fetchingDone != expectedFetchingDone && beforePlus2 >= system_clock::now()) {
-		agent->getRoot()->step(100ms);
+	auto beforePlus1 = system_clock::now() + 1s;
+	while (fetchingDone != expectedFetchingDone && beforePlus1 >= system_clock::now()) {
+		agent->getRoot()->step(20ms);
 	}
 }
 
@@ -412,7 +412,7 @@ static void duplicatePushTokenRegisterRedisTest() {
 	}
 
 	// Redis need a bit of time to start
-	sleep(2);
+	sleep(1);
 
 	// Agent initialization
 	auto cfg = GenericManager::get();

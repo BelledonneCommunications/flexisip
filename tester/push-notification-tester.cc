@@ -71,9 +71,10 @@ static void startPushTest(Client& client,
 		BC_FAIL("Http2 mock server didn't start correctly");
 	}
 
+	if (timeout) client.setRequestTimeout(2);
 	// Send the push notification and wait until the request the request state is "Successful" or "Failed"
 	client.sendPush(request);
-	sofiasip::Timer timer{root, 500};
+	sofiasip::Timer timer{root, 50};
 	auto beforePlus2 = system_clock::now() + 2s;
 	timer.run([&request, &beforePlus2, &timeout]() {
 		if (request->getState() == Request::State::Successful || request->getState() == Request::State::Failed) {
@@ -463,7 +464,7 @@ static void tlsTimeoutTest(void) {
 	firebaseClient.sendPush(request2);
 	firebaseClient.sendPush(request3);
 	firebaseClient.sendPush(request4);
-	sofiasip::Timer timer{root, 500};
+	sofiasip::Timer timer{root, 50};
 	timer.run([request, &barrier]() {
 		// All the requests should be rejected in the same loop, we can only watch one of them.
 		if (request->getState() == Request::State::Successful || request->getState() == Request::State::Failed) {

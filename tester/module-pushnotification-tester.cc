@@ -69,7 +69,7 @@ User-Agent: LinphoneiOS/4.5.1 (iPhone de Kijou) LinphoneSDK/5.0.40-pre.2+ea19d3d
 Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK, UPDATE
 Supported: replaces, outbound, gruu
 Content-Type: application/sdp
-Content-Length: 1081
+Content-Length: 1041
 
 v=0
 o=kijou 2959 756 IN IP4 192.168.1.197
@@ -109,7 +109,7 @@ a=rtcp-fb:* ccm tmmbr)sip"};
 
 	auto beforePlus2 = system_clock::now() + 2s;
 	while (beforePlus2 >= system_clock::now() && modulePush->getService().getFailedCounter()->read() != 1) {
-		root->step(100ms);
+		root->step(20ms);
 	}
 
 	BC_ASSERT_EQUAL(modulePush->getService().getFailedCounter()->read(), 1, int, "%i");
@@ -144,7 +144,7 @@ Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INF
 Supported: replaces, outbound, gruu
 Replaces: 6g7z4~lD7M
 Content-Type: application/sdp
-Content-Length: 1081
+Content-Length: 1041
 
 v=0
 o=kijou 2959 756 IN IP4 192.168.1.197
@@ -185,7 +185,7 @@ a=rtcp-fb:* ccm tmmbr)sip"};
 	auto beforePlus2 = system_clock::now() + 2s;
 	while (beforePlus2 >= system_clock::now() && beforePlus2 >= system_clock::now() &&
 	       modulePush->getService().getFailedCounter()->read() != 1) {
-		root->step(100ms);
+		root->step(20ms);
 	}
 
 	BC_ASSERT_EQUAL(modulePush->getService().getSentCounter()->read(), 0, int, "%i");
