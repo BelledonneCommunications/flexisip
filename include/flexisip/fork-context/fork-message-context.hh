@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #pragma once
 
@@ -32,10 +32,10 @@ namespace flexisip {
 class ForkMessageContext : public ForkContextBase {
 public:
 	static std::shared_ptr<ForkMessageContext> make(Agent* agent,
-	                                           const std::shared_ptr<RequestSipEvent>& event,
-	                                           const std::shared_ptr<ForkContextConfig>& cfg,
-	                                           const std::weak_ptr<ForkContextListener>& listener,
-	                                           const std::weak_ptr<StatPair>& counter);
+	                                                const std::shared_ptr<RequestSipEvent>& event,
+	                                                const std::shared_ptr<ForkContextConfig>& cfg,
+	                                                const std::weak_ptr<ForkContextListener>& listener,
+	                                                const std::weak_ptr<StatPair>& counter);
 
 	static std::shared_ptr<ForkMessageContext> make(Agent* agent,
 	                                                const std::shared_ptr<ForkContextConfig>& cfg,
@@ -45,7 +45,8 @@ public:
 
 	virtual ~ForkMessageContext();
 
-	bool onNewRegister(const SipUri& dest, const std::string& uid, const std::function<void()>& dispatchFunction) override;
+	bool
+	onNewRegister(const SipUri& dest, const std::string& uid, const std::function<void()>& dispatchFunction) override;
 	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& ev) override;
 
 	ForkMessageContextDb getDbObject();

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #pragma once
 
@@ -42,18 +42,15 @@ class ModuleRouter : public Module,
                      public ForkContextListener,
                      public std::enable_shared_from_this<ModuleRouter> {
 public:
-	ModuleRouter(Agent* ag) : Module(ag) {
-	}
+	ModuleRouter(Agent* ag) : Module(ag){};
 
-	~ModuleRouter() {
-	}
+	~ModuleRouter(){};
 
 	virtual void onDeclare(GenericStruct* mc) override;
 
 	virtual void onLoad(const GenericStruct* mc) override;
 
-	virtual void onUnload() override {
-	}
+	virtual void onUnload() override{};
 
 	virtual void onRequest(std::shared_ptr<RequestSipEvent>& ev) override;
 
@@ -61,11 +58,16 @@ public:
 
 	virtual void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) override;
 
-	void sendReply(std::shared_ptr<RequestSipEvent>& ev, int code, const char* reason, int warn_code = 0,
+	void sendReply(std::shared_ptr<RequestSipEvent>& ev,
+	               int code,
+	               const char* reason,
+	               int warn_code = 0,
 	               const char* warning = nullptr);
 	void routeRequest(std::shared_ptr<RequestSipEvent>& ev, const std::shared_ptr<Record>& aor, const url_t* sipUri);
-	void onContactRegistered(const std::shared_ptr<OnContactRegisteredListener>& listener, const std::string& uid,
-	                         const std::shared_ptr<Record>& aor, const std::string& sipKey);
+	void onContactRegistered(const std::shared_ptr<OnContactRegisteredListener>& listener,
+	                         const std::string& uid,
+	                         const std::shared_ptr<Record>& aor,
+	                         const std::string& sipKey);
 
 	const std::string& getFallbackRoute() const {
 		return mFallbackRoute;
@@ -92,7 +94,7 @@ public:
 
 	RouterStats mStats;
 
-  protected:
+protected:
 	using ForkMapElem = std::shared_ptr<ForkContext>;
 	using ForkMap = std::multimap<std::string, ForkMapElem>;
 	using ForkRefList = std::vector<ForkMapElem>;
@@ -126,33 +128,31 @@ private:
 	bool mSaveForkMessageEnabled = false;
 };
 
-class OnContactRegisteredListener : public ContactRegisteredListener, public ContactUpdateListener, public std::enable_shared_from_this<OnContactRegisteredListener> {
+class OnContactRegisteredListener : public ContactRegisteredListener,
+                                    public ContactUpdateListener,
+                                    public std::enable_shared_from_this<OnContactRegisteredListener> {
 	friend class ModuleRouter;
-	ModuleRouter *mModule;
+	ModuleRouter* mModule;
 	std::string mSipKey;
 	sofiasip::Home mHome;
 
-  public:
-	OnContactRegisteredListener(ModuleRouter *module, const std::string& sipKey)
-	: mModule(module) {
+public:
+	OnContactRegisteredListener(ModuleRouter* module, const std::string& sipKey) : mModule(module) {
 		mSipKey = sipKey;
 		SLOGD << "OnContactRegisteredListener created for sipKey = " << mSipKey;
 	}
 
 	~OnContactRegisteredListener() = default;
 
-	void onContactRegistered(const std::shared_ptr<Record> &r, const std::string &uid) override{
-		LOGD("Listener invoked for topic = %s, uid = %s, sipKey = %s", r->getKey().c_str(), uid.c_str(), mSipKey.c_str());
+	void onContactRegistered(const std::shared_ptr<Record>& r, const std::string& uid) override {
+		LOGD("Listener invoked for topic = %s, uid = %s, sipKey = %s", r->getKey().c_str(), uid.c_str(),
+		     mSipKey.c_str());
 		if (r) mModule->onContactRegistered(shared_from_this(), uid, r, mSipKey);
 	}
-	void onRecordFound(const std::shared_ptr<Record> &r) override{
-	}
-	void onError() override{
-	}
-	void onInvalid() override{
-	}
-	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override{
-	}
+	void onRecordFound(const std::shared_ptr<Record>& r) override{};
+	void onError() override{};
+	void onInvalid() override{};
+	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override{};
 };
 
-}
+} // namespace flexisip

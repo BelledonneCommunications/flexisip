@@ -1,20 +1,20 @@
 /*
- Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as
- published by the Free Software Foundation, either version 3 of the
- License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <algorithm>
 
@@ -37,8 +37,7 @@ Transaction::Property Transaction::_getProperty(const std::string& name) const n
 		return it->second;
 	} else {
 		auto wit = mWeakProperties.find(name);
-		if (wit == mWeakProperties.cend())
-			return Property{};
+		if (wit == mWeakProperties.cend()) return Property{};
 		const auto& prop = wit->second;
 		return Property{prop.value.lock(), prop.type};
 	}
@@ -116,8 +115,8 @@ shared_ptr<MsgSip> OutgoingTransaction::getRequestMsg() {
 	return request;
 }
 
-void OutgoingTransaction::send(const shared_ptr<MsgSip>& ms, url_string_t const* u, tag_type_t tag, tag_value_t value,
-                               ...) {
+void OutgoingTransaction::send(
+    const shared_ptr<MsgSip>& ms, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) {
 	ta_list ta;
 
 	LOGD("Message is sent through an outgoing transaction.");
@@ -229,8 +228,8 @@ shared_ptr<MsgSip> IncomingTransaction::createResponse(int status, char const* p
 	return shared_ptr<MsgSip>();
 }
 
-void IncomingTransaction::send(const shared_ptr<MsgSip>& ms, url_string_t const* u, tag_type_t tag, tag_value_t value,
-                               ...) {
+void IncomingTransaction::send(
+    const shared_ptr<MsgSip>& ms, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncoming) {
 		msg_t* msg =
 		    msg_ref_create(ms->getMsg()); // need to increment refcount of the message because mreply will decrement it.
@@ -244,8 +243,8 @@ void IncomingTransaction::send(const shared_ptr<MsgSip>& ms, url_string_t const*
 	}
 }
 
-void IncomingTransaction::reply(const shared_ptr<MsgSip>& msgIgnored, int status, char const* phrase, tag_type_t tag,
-                                tag_value_t value, ...) {
+void IncomingTransaction::reply(
+    const shared_ptr<MsgSip>& msgIgnored, int status, char const* phrase, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncoming) {
 		mAgent->incrReplyStat(status);
 		ta_list ta;

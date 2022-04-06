@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -42,10 +42,10 @@ public:
 	IncomingAgent(const IncomingAgent&) = delete;
 	virtual ~IncomingAgent() = default;
 
-	virtual void send(const std::shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value,
-	                  ...) = 0;
-	virtual void reply(const std::shared_ptr<MsgSip>& msg, int status, char const* phrase, tag_type_t tag,
-	                   tag_value_t value, ...) = 0;
+	virtual void
+	send(const std::shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) = 0;
+	virtual void reply(
+	    const std::shared_ptr<MsgSip>& msg, int status, char const* phrase, tag_type_t tag, tag_value_t value, ...) = 0;
 	virtual Agent* getAgent() = 0;
 };
 
@@ -55,8 +55,8 @@ public:
 	OutgoingAgent(const OutgoingAgent&) = delete;
 	virtual ~OutgoingAgent() = default;
 
-	virtual void send(const std::shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value,
-	                  ...) = 0;
+	virtual void
+	send(const std::shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) = 0;
 	virtual Agent* getAgent() = 0;
 };
 
@@ -71,22 +71,24 @@ public:
 		return mAgent;
 	}
 
-	template <typename T, typename StrT> void setProperty(StrT&& name, const std::shared_ptr<T>& value) noexcept {
+	template <typename T, typename StrT>
+	void setProperty(StrT&& name, const std::shared_ptr<T>& value) noexcept {
 		auto typeName = typeid(T).name();
 		mWeakProperties.erase(name); // ensures the property value isn't in the two lists both.
 		mProperties[std::forward<StrT>(name)] = Property{value, typeName};
 	}
 
-	template <typename T, typename StrT> void setProperty(StrT&& name, const std::weak_ptr<T>& value) noexcept {
+	template <typename T, typename StrT>
+	void setProperty(StrT&& name, const std::weak_ptr<T>& value) noexcept {
 		auto typeName = typeid(T).name();
 		mProperties.erase(name); // ensures the property value isn't in the two lists both.
 		mWeakProperties[std::forward<StrT>(name)] = WProperty{value, typeName};
 	}
 
-	template <typename T> std::shared_ptr<T> getProperty(const std::string& name) const {
+	template <typename T>
+	std::shared_ptr<T> getProperty(const std::string& name) const {
 		auto prop = _getProperty(name);
-		if (prop.value == nullptr)
-			return nullptr;
+		if (prop.value == nullptr) return nullptr;
 		if (std::strcmp(prop.type, typeid(T).name()) != 0) {
 			throw std::bad_cast{};
 		}
@@ -157,8 +159,8 @@ public:
 	void cancelWithReason(sip_reason_t* reason);
 
 private:
-	void send(const std::shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value,
-	          ...) override;
+	void
+	send(const std::shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) override;
 	void destroy();
 
 	static int _callback(nta_outgoing_magic_t* magic, nta_outgoing_t* irq, const sip_t* sip);
@@ -194,9 +196,13 @@ public:
 	std::shared_ptr<MsgSip> getLastResponse();
 
 private:
-	void send(const std::shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value,
-	          ...) override;
-	void reply(const std::shared_ptr<MsgSip>& msg, int status, char const* phrase, tag_type_t tag, tag_value_t value,
+	void
+	send(const std::shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) override;
+	void reply(const std::shared_ptr<MsgSip>& msg,
+	           int status,
+	           char const* phrase,
+	           tag_type_t tag,
+	           tag_value_t value,
 	           ...) override;
 	void destroy();
 

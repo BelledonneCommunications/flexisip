@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #pragma once
 
@@ -44,9 +44,12 @@ private:
 	std::weak_ptr<StatPair> mStatCounter;
 
 protected:
-	ForkContextBase(Agent* agent, const std::shared_ptr<RequestSipEvent>& event,
-	                const std::shared_ptr<ForkContextConfig>& cfg, const std::weak_ptr<ForkContextListener>& listener,
-	                const std::weak_ptr<StatPair>& counter, bool isRestored = false);
+	ForkContextBase(Agent* agent,
+	                const std::shared_ptr<RequestSipEvent>& event,
+	                const std::shared_ptr<ForkContextConfig>& cfg,
+	                const std::weak_ptr<ForkContextListener>& listener,
+	                const std::weak_ptr<StatPair>& counter,
+	                bool isRestored = false);
 
 	// Mark the fork process as terminated. The real destruction is performed asynchronously, in next main loop
 	// iteration.
@@ -54,18 +57,18 @@ protected:
 	// Used by derived class to allocate a derived type of BranchInfo if necessary.
 	virtual std::shared_ptr<BranchInfo> createBranchInfo();
 	// Notifies derived class of the creation of a new branch
-	virtual void onNewBranch(const std::shared_ptr<BranchInfo> &br);
+	virtual void onNewBranch(const std::shared_ptr<BranchInfo>& br);
 	// Notifies the expiry of the final fork timeout.
-	virtual void onLateTimeout() {};
+	virtual void onLateTimeout(){};
 	// Requests the derived class if the fork context should finish now.
 	virtual bool shouldFinish();
 	// Notifies the destruction of the fork context. Implementors should use it to perform their unitialization, but
 	// shall never forget to upcall to the parent class !*/
 	void onFinished();
 	// Request the forwarding the last response from a given branch
-	std::shared_ptr<ResponseSipEvent> forwardResponse(const std::shared_ptr<BranchInfo> &br);
+	std::shared_ptr<ResponseSipEvent> forwardResponse(const std::shared_ptr<BranchInfo>& br);
 	// Request the forwarding of a response supplied in argument.
-	std::shared_ptr<ResponseSipEvent> forwardResponse(const std::shared_ptr<ResponseSipEvent> &br);
+	std::shared_ptr<ResponseSipEvent> forwardResponse(const std::shared_ptr<ResponseSipEvent>& br);
 	/**
 	 * Request the forwarding of a custom response created from parameters.
 	 * @param status The status of the custom response to send.
@@ -75,14 +78,14 @@ protected:
 	std::shared_ptr<ResponseSipEvent> forwardCustomResponse(int status, const char* phrase);
 
 	// Get a branch by specifying its unique id
-	std::shared_ptr<BranchInfo> findBranchByUid(const std::string &uid);
+	std::shared_ptr<BranchInfo> findBranchByUid(const std::string& uid);
 	// Get a branch by specifying its request uri destination.
 	std::shared_ptr<BranchInfo> findBranchByDest(const SipUri& dest);
 	// Get the best candidate among all branches for forwarding its responses.
 	std::shared_ptr<BranchInfo> findBestBranch(const int urgentReplies[], bool avoid503And408 = false);
 	int getLastResponseCode() const;
-	void removeBranch(const std::shared_ptr<BranchInfo> &br);
-	const std::list<std::shared_ptr<BranchInfo>> &getBranches() const;
+	void removeBranch(const std::shared_ptr<BranchInfo>& br);
+	const std::list<std::shared_ptr<BranchInfo>>& getBranches() const;
 	static bool isUrgent(int code, const int urgentCodes[]);
 	void processLateTimeout();
 
@@ -103,7 +106,7 @@ public:
 
 	// Called by the Router module to create a new branch.
 	std::shared_ptr<BranchInfo> addBranch(const std::shared_ptr<RequestSipEvent>& ev,
-	               const std::shared_ptr<ExtendedContact>& contact) override;
+	                                      const std::shared_ptr<ExtendedContact>& contact) override;
 	bool allCurrentBranchesAnswered(bool ignore_errors_and_timeouts = false) const override;
 	bool allBranchesAnswered(bool ignore_errors_and_timeouts = false) const;
 	// Request if the fork has other branches with lower priorities to try
@@ -126,9 +129,10 @@ public:
 	 * If the fork context is interested in handling this new destination, then it should return true, false otherwise.
 	 * Typical case for refusing it is when another transaction already exists or existed for this contact.
 	 **/
-	bool onNewRegister(const SipUri& dest, const std::string& uid, const std::function<void()>& dispatchFunction) override;
+	bool
+	onNewRegister(const SipUri& dest, const std::string& uid, const std::function<void()>& dispatchFunction) override;
 	// Notifies the cancellation of the fork process.
-	void onCancel(const std::shared_ptr<RequestSipEvent> &ev) override;
+	void onCancel(const std::shared_ptr<RequestSipEvent>& ev) override;
 	const std::shared_ptr<RequestSipEvent>& getEvent() override;
 	const std::shared_ptr<ForkContextConfig>& getConfig() const override {
 		return mCfg;
@@ -141,4 +145,4 @@ public:
 	static const int sAllCodesUrgent[];
 };
 
-}
+} // namespace flexisip

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #pragma once
 
@@ -60,7 +60,7 @@ public:
 
 	// Called by the Router module to create a new branch.
 	virtual std::shared_ptr<BranchInfo> addBranch(const std::shared_ptr<RequestSipEvent>& ev,
-	                       const std::shared_ptr<ExtendedContact>& contact) = 0;
+	                                              const std::shared_ptr<ExtendedContact>& contact) = 0;
 	virtual bool allCurrentBranchesAnswered(bool ignore_errors_and_timeouts = false) const = 0;
 	// Request if the fork has other branches with lower priorities to try
 	virtual bool hasNextBranches() const = 0;

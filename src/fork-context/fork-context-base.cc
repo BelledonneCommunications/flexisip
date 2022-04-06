@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #include "flexisip/agent.hh"
 #include "flexisip/registrardb.hh"
@@ -75,7 +75,7 @@ struct dest_finder {
 		ctthost = ctt.getHost();
 		// don't care about transport
 	}
-	bool operator()(const shared_ptr<BranchInfo> &br) {
+	bool operator()(const shared_ptr<BranchInfo>& br) {
 		SipUri destUri{br->mRequest->getMsgSip()->getSip()->sip_request->rq_url};
 		return cttport == destUri.getPort() && ctthost == destUri.getHost();
 	}
@@ -84,20 +84,18 @@ struct dest_finder {
 };
 
 struct uid_finder {
-	uid_finder(const string &uid) : mUid(uid) {
+	uid_finder(const string& uid) : mUid(uid) {
 	}
-	bool operator()(const shared_ptr<BranchInfo> &br) {
+	bool operator()(const shared_ptr<BranchInfo>& br) {
 		return mUid == br->mUid;
 	}
 	const string mUid;
 };
 
-
-shared_ptr<BranchInfo> ForkContextBase::findBranchByUid(const string &uid) {
+shared_ptr<BranchInfo> ForkContextBase::findBranchByUid(const string& uid) {
 	auto it = find_if(mWaitingBranches.begin(), mWaitingBranches.end(), uid_finder(uid));
 
-	if (it != mWaitingBranches.end())
-		return *it;
+	if (it != mWaitingBranches.end()) return *it;
 
 	return shared_ptr<BranchInfo>();
 }
@@ -105,25 +103,22 @@ shared_ptr<BranchInfo> ForkContextBase::findBranchByUid(const string &uid) {
 shared_ptr<BranchInfo> ForkContextBase::findBranchByDest(const SipUri& dest) {
 	auto it = find_if(mWaitingBranches.begin(), mWaitingBranches.end(), dest_finder(dest));
 
-	if (it != mWaitingBranches.end())
-		return *it;
+	if (it != mWaitingBranches.end()) return *it;
 
 	return shared_ptr<BranchInfo>();
 }
 
 bool ForkContextBase::isUrgent(int code, const int urgentCodes[]) {
-	if (urgentCodes[0] == -1)
-		return true; /*everything is urgent*/
+	if (urgentCodes[0] == -1) return true; /*everything is urgent*/
 
 	for (int i = 0; urgentCodes[i] != 0; i++) {
-		if (code == urgentCodes[i])
-			return true;
+		if (code == urgentCodes[i]) return true;
 	}
 
 	return false;
 }
 
-static bool isConsidered(int code, bool ignore503And408){
+static bool isConsidered(int code, bool ignore503And408) {
 	return ignore503And408 ? (!(code == 503 || code == 408)) : true;
 }
 
@@ -136,20 +131,18 @@ shared_ptr<BranchInfo> ForkContextBase::_findBestBranch(const int urgentCodes[],
 			if (best == NULL) {
 				best = br;
 			} else {
-				if (br->getStatus() / 100 < best->getStatus() / 100)
-					best = br;
+				if (br->getStatus() / 100 < best->getStatus() / 100) best = br;
 			}
 		}
 	}
 
-	if (best == NULL)
-		return shared_ptr<BranchInfo>();
+	if (best == NULL) return shared_ptr<BranchInfo>();
 
 	if (urgentCodes) {
 		for (const auto& br : mWaitingBranches) {
 			int code = br->getStatus();
 
-			if (code > 0  && isConsidered(code, ignore503And408) && isUrgent(code, urgentCodes)) {
+			if (code > 0 && isConsidered(code, ignore503And408) && isUrgent(code, urgentCodes)) {
 				best = br;
 				break;
 			}
@@ -159,16 +152,14 @@ shared_ptr<BranchInfo> ForkContextBase::_findBestBranch(const int urgentCodes[],
 	return best;
 }
 
-shared_ptr<BranchInfo> ForkContextBase::findBestBranch(const int urgentCodes[], bool avoid503And408){
+shared_ptr<BranchInfo> ForkContextBase::findBestBranch(const int urgentCodes[], bool avoid503And408) {
 	shared_ptr<BranchInfo> ret;
 
-	if (avoid503And408 == false)
-		ret = _findBestBranch(urgentCodes, false);
+	if (avoid503And408 == false) ret = _findBestBranch(urgentCodes, false);
 	else {
 		ret = _findBestBranch(urgentCodes, true);
 
-		if (ret == NULL)
-			ret = _findBestBranch(urgentCodes, false);
+		if (ret == NULL) ret = _findBestBranch(urgentCodes, false);
 	}
 
 	return ret;
@@ -178,10 +169,8 @@ bool ForkContextBase::allBranchesAnswered(bool ignore_errors_and_timeouts) const
 	for (const auto& br : mWaitingBranches) {
 		int code = br->getStatus();
 
-		if (code < 200)
-			return false;
-		if ((code == 503 || code == 408) && ignore_errors_and_timeouts)
-			return false;
+		if (code < 200) return false;
+		if ((code == 503 || code == 408) && ignore_errors_and_timeouts) return false;
 	}
 
 	return true;
@@ -191,23 +180,21 @@ bool ForkContextBase::allCurrentBranchesAnswered(bool ignore_errors_and_timeouts
 	for (const auto& br : mCurrentBranches) {
 		int code = br->getStatus();
 
-		if (code < 200)
-			return false;
-		if ((code == 503 || code == 408) && ignore_errors_and_timeouts)
-			return false;
+		if (code < 200) return false;
+		if ((code == 503 || code == 408) && ignore_errors_and_timeouts) return false;
 	}
 
 	return true;
 }
 
-void ForkContextBase::removeBranch(const shared_ptr<BranchInfo> &br) {
+void ForkContextBase::removeBranch(const shared_ptr<BranchInfo>& br) {
 	SLOGD << "ForkContext [" << this << "] branch [" << br.get() << "] removed.";
 
 	mWaitingBranches.remove(br);
 	mCurrentBranches.remove(br);
 }
 
-const list<shared_ptr<BranchInfo>> & ForkContextBase::getBranches() const {
+const list<shared_ptr<BranchInfo>>& ForkContextBase::getBranches() const {
 	return mWaitingBranches;
 }
 
@@ -269,12 +256,12 @@ bool ForkContextBase::onNewRegister(const SipUri& dest,
 	return true;
 }
 
-bool compareGreaterBranch(const shared_ptr<BranchInfo> &lhs, const shared_ptr<BranchInfo> &rhs) {
+bool compareGreaterBranch(const shared_ptr<BranchInfo>& lhs, const shared_ptr<BranchInfo>& rhs) {
 	return lhs->mPriority > rhs->mPriority;
 }
 
 shared_ptr<BranchInfo> ForkContextBase::addBranch(const std::shared_ptr<RequestSipEvent>& ev,
-                                const std::shared_ptr<ExtendedContact>& contact) {
+                                                  const std::shared_ptr<ExtendedContact>& contact) {
 	auto ot = ev->createOutgoingTransaction();
 	auto br = createBranchInfo();
 
@@ -326,17 +313,14 @@ shared_ptr<BranchInfo> ForkContextBase::addBranch(const std::shared_ptr<RequestS
 }
 
 void ForkContextBase::onNextBranches() {
-	if (hasNextBranches())
-		start();
+	if (hasNextBranches()) start();
 }
 
 bool ForkContextBase::hasNextBranches() const {
 	const auto& wBrs = mWaitingBranches;
-	auto findCond = [this] (const auto& br) {return br->mPriority < mCurrentPriority;};
-	return !mFinished && (
-		( mCurrentPriority == -1 && !mWaitingBranches.empty() ) ||
-		find_if(wBrs.cbegin(), wBrs.cend(), findCond) != wBrs.cend()
-	);
+	auto findCond = [this](const auto& br) { return br->mPriority < mCurrentPriority; };
+	return !mFinished && ((mCurrentPriority == -1 && !mWaitingBranches.empty()) ||
+	                      find_if(wBrs.cbegin(), wBrs.cend(), findCond) != wBrs.cend());
 }
 
 void ForkContextBase::nextBranches() {
@@ -347,7 +331,7 @@ void ForkContextBase::nextBranches() {
 	if (mCurrentPriority == -1 && !mWaitingBranches.empty()) {
 		mCurrentPriority = mWaitingBranches.front()->mPriority;
 	} else {
-		for(const auto& br : mWaitingBranches) {
+		for (const auto& br : mWaitingBranches) {
 			if (br->mPriority < mCurrentPriority) {
 				mCurrentPriority = br->mPriority;
 				break;
@@ -356,9 +340,8 @@ void ForkContextBase::nextBranches() {
 	}
 
 	/* Stock all wanted branches */
-	for(const auto& br : mWaitingBranches) {
-		if (br->mPriority == mCurrentPriority)
-			mCurrentBranches.push_back(br);
+	for (const auto& br : mWaitingBranches) {
+		if (br->mPriority == mCurrentPriority) mCurrentBranches.push_back(br);
 	}
 }
 
@@ -377,9 +360,9 @@ void ForkContextBase::start() {
 	LOGD("Started forking branches with priority [%p]: %f", this, mCurrentPriority);
 
 	/* Start the processing */
-	for(const auto& br : mCurrentBranches) {
+	for (const auto& br : mCurrentBranches) {
 		mAgent->injectRequestEvent(br->mRequest);
-		if(mCurrentBranches.empty()) {
+		if (mCurrentBranches.empty()) {
 			// Can only occured if an internal error append
 			break;
 		}
@@ -387,11 +370,12 @@ void ForkContextBase::start() {
 
 	if (mCfg->mCurrentBranchesTimeout > 0 && hasNextBranches()) {
 		/* Start the timer for next branches */
-		mNextBranchesTimer.set([this](){onNextBranches();}, static_cast<su_duration_t>(mCfg->mCurrentBranchesTimeout) * 1000);
+		mNextBranchesTimer.set([this]() { onNextBranches(); },
+		                       static_cast<su_duration_t>(mCfg->mCurrentBranchesTimeout) * 1000);
 	}
 }
 
-const shared_ptr<RequestSipEvent> & ForkContextBase::getEvent() {
+const shared_ptr<RequestSipEvent>& ForkContextBase::getEvent() {
 	return mEvent;
 }
 
@@ -426,10 +410,10 @@ bool ForkContextBase::shouldFinish() {
 	return true;
 }
 
-void ForkContextBase::onNewBranch(const shared_ptr<BranchInfo> &br) {
+void ForkContextBase::onNewBranch(const shared_ptr<BranchInfo>& br) {
 }
 
-void ForkContextBase::onCancel(const shared_ptr<RequestSipEvent> &ev) {
+void ForkContextBase::onCancel(const shared_ptr<RequestSipEvent>& ev) {
 	if (shouldFinish()) {
 		setFinished();
 	}
@@ -449,7 +433,7 @@ shared_ptr<BranchInfo> ForkContextBase::createBranchInfo() {
 
 // called by implementors to request the forwarding of a response from this branch, regardless of whether it was
 // retained previously or not*/
-shared_ptr<ResponseSipEvent> ForkContextBase::forwardResponse(const shared_ptr<BranchInfo> &br) {
+shared_ptr<ResponseSipEvent> ForkContextBase::forwardResponse(const shared_ptr<BranchInfo>& br) {
 	if (br->mLastResponse) {
 		if (mIncoming) {
 			int code = br->mLastResponse->getMsgSip()->getSip()->sip_status->st_status;
@@ -460,8 +444,7 @@ shared_ptr<ResponseSipEvent> ForkContextBase::forwardResponse(const shared_ptr<B
 			}
 
 			return br->mLastResponse;
-		} else
-			br->mLastResponse->setIncomingAgent(shared_ptr<IncomingAgent>());
+		} else br->mLastResponse->setIncomingAgent(shared_ptr<IncomingAgent>());
 	} else {
 		SLOGE << errorLogPrefix() << "forwardResponse(): no response received on this branch";
 	}
@@ -469,7 +452,7 @@ shared_ptr<ResponseSipEvent> ForkContextBase::forwardResponse(const shared_ptr<B
 	return shared_ptr<ResponseSipEvent>();
 }
 
-shared_ptr<ResponseSipEvent> ForkContextBase::forwardResponse(const shared_ptr<ResponseSipEvent> &ev) {
+shared_ptr<ResponseSipEvent> ForkContextBase::forwardResponse(const shared_ptr<ResponseSipEvent>& ev) {
 	if (mIncoming) {
 		int code = ev->getMsgSip()->getSip()->sip_status->st_status;
 		ev->setIncomingAgent(mIncoming);
@@ -484,8 +467,7 @@ shared_ptr<ResponseSipEvent> ForkContextBase::forwardResponse(const shared_ptr<R
 		if (code >= 200) {
 			mIncoming.reset();
 
-			if (shouldFinish())
-				setFinished();
+			if (shouldFinish()) setFinished();
 		}
 
 		return ev;
@@ -495,8 +477,7 @@ shared_ptr<ResponseSipEvent> ForkContextBase::forwardResponse(const shared_ptr<R
 }
 
 int ForkContextBase::getLastResponseCode() const {
-	if (mLastResponseSent)
-		return mLastResponseSent->getMsgSip()->getSip()->sip_status->st_status;
+	if (mLastResponseSent) return mLastResponseSent->getMsgSip()->getSip()->sip_status->st_status;
 
 	return 0;
 }

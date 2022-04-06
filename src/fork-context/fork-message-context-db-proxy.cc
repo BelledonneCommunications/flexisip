@@ -213,7 +213,6 @@ bool ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
 void ForkMessageContextDbProxy::delayedOnNewRegister(const SipUri& dest,
                                                      const string& uid,
                                                      const function<void()>& dispatchFunc) {
-
 	if (restoreForkIfNeeded() && !onNewRegister(dest, uid, dispatchFunc) && mForkMessage->allBranchesAnswered()) {
 		startTimerAndResetFork();
 		mState = State::IN_DATABASE;
