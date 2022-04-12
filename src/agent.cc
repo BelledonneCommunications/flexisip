@@ -289,8 +289,13 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	int udpmtu = global->get<ConfigInt>("udp-mtu")->read();
 	unsigned int incompleteIncomingMessageTimeout = 600 * 1000; /*milliseconds*/
 	unsigned int keepAliveInterval = global->get<ConfigInt>("keepalive-interval")->read() * 1000;
-	unsigned int queueSize = 256; /*number of SIP message that sofia can queue in a tport (a connection). It is 64 by
-	            default, hardcoded in sofia-sip. This is not sufficient for IM.*/
+
+	/*
+	 * number of SIP message that sofia can queue in a tport (a connection).
+	 * It is 64 by default, hardcoded in sofia-sip. This is not sufficient for IM.
+	 * If you want more than 1000 sofia-sip code need to be modified.
+	 */
+	unsigned int queueSize = 1000;
 
 	mProxyToProxyKeepAliveInterval = global->get<ConfigInt>("proxy-to-proxy-keepalive-interval")->read() * 1000;
 

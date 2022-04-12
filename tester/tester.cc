@@ -16,8 +16,11 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <bctoolbox/logging.h>
+
+#include <sofia-sip/su_log.h>
+
 #include "tester.hh"
-#include "bctoolbox/logging.h"
 
 #ifdef HAVE_CONFIG_H
 #include "flexisip-config.h"
@@ -38,7 +41,8 @@ std::string bcTesterRes(const std::string& name) {
 }
 
 static int verbose_arg_func(const char* arg) {
-	bctbx_set_log_level(NULL, BCTBX_LOG_DEBUG);
+	bctbx_set_log_level(nullptr, BCTBX_LOG_DEBUG);
+	su_log_set_level(nullptr, 9);
 	return 0;
 }
 
@@ -78,6 +82,14 @@ static void log_handler(int lev, const char* fmt, va_list args) {
 }
 
 void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_list args)) {
+	su_log_redirect(
+	    nullptr,
+	    [](void*, const char* fmt, va_list ap) {
+		    // remove final \n from SofiaSip
+		    std::string copy{fmt, strlen(fmt) - 1};
+		    LOGDV(copy.c_str(), ap);
+	    },
+	    nullptr);
 	bc_tester_set_verbose_func(verbose_arg_func);
 
 	if (ftester_printf == nullptr) ftester_printf = log_handler;
