@@ -1,19 +1,19 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -88,19 +88,19 @@ private:
 class SipEvent : public std::enable_shared_from_this<SipEvent> {
 	friend class Agent;
 
-  public:
-	SipEvent(const std::shared_ptr<IncomingAgent> &inAgent, const std::shared_ptr<MsgSip> &msgSip);
-	SipEvent(const std::shared_ptr<OutgoingAgent> &outAgent, const std::shared_ptr<MsgSip> &msgSip);
-	SipEvent(const SipEvent &sipEvent);
+public:
+	SipEvent(const std::shared_ptr<IncomingAgent>& inAgent, const std::shared_ptr<MsgSip>& msgSip);
+	SipEvent(const std::shared_ptr<OutgoingAgent>& outAgent, const std::shared_ptr<MsgSip>& msgSip);
+	SipEvent(const SipEvent& sipEvent);
 
-	inline const std::shared_ptr<MsgSip> &getMsgSip() const {
+	inline const std::shared_ptr<MsgSip>& getMsgSip() const {
 		return mMsgSip;
 	}
 
-	inline su_home_t *getHome() const {
+	inline su_home_t* getHome() const {
 		return mMsgSip->getHome();
 	}
-	inline sip_t *getSip() const {
+	inline sip_t* getSip() const {
 		return mMsgSip->getSip();
 	}
 
@@ -122,24 +122,27 @@ class SipEvent : public std::enable_shared_from_this<SipEvent> {
 		return mState == TERMINATED;
 	}
 
-	inline const std::shared_ptr<IncomingAgent> &getIncomingAgent() {
+	inline const std::shared_ptr<IncomingAgent>& getIncomingAgent() {
 		return mIncomingAgent;
 	}
 
-	inline const std::shared_ptr<OutgoingAgent> &getOutgoingAgent() {
+	inline const std::shared_ptr<OutgoingAgent>& getOutgoingAgent() {
 		return mOutgoingAgent;
 	}
 
-	virtual inline void setIncomingAgent(const std::shared_ptr<IncomingAgent> &agent) {
+	virtual inline void setIncomingAgent(const std::shared_ptr<IncomingAgent>& agent) {
 		mIncomingAgent = agent;
 	}
 
-	virtual inline void setOutgoingAgent(const std::shared_ptr<OutgoingAgent> &agent) {
+	virtual inline void setOutgoingAgent(const std::shared_ptr<OutgoingAgent>& agent) {
 		mOutgoingAgent = agent;
 	}
 
-	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u = NULL, tag_type_t tag = 0,
-					  tag_value_t value = 0, ...) = 0;
+	virtual void send(const std::shared_ptr<MsgSip>& msg,
+	                  url_string_t const* u = NULL,
+	                  tag_type_t tag = 0,
+	                  tag_value_t value = 0,
+	                  ...) = 0;
 
 	virtual ~SipEvent();
 
@@ -147,22 +150,23 @@ class SipEvent : public std::enable_shared_from_this<SipEvent> {
 		return mCurrModule;
 	}
 
-	template <typename _eventLogT> std::shared_ptr<_eventLogT> getEventLog() {
+	template <typename _eventLogT>
+	std::shared_ptr<_eventLogT> getEventLog() {
 		return std::dynamic_pointer_cast<_eventLogT>(mEventLog);
 	}
-	void setEventLog(const std::shared_ptr<EventLog> &log);
+	void setEventLog(const std::shared_ptr<EventLog>& log);
 	void flushLog(); /*to be used exceptionally when an eventlog needs to be flushed immediately, for example because
-						you need to submit a new one.*/
+	                    you need to submit a new one.*/
 	std::shared_ptr<IncomingTransaction> getIncomingTransaction();
 	std::shared_ptr<OutgoingTransaction> getOutgoingTransaction();
 
-  protected:
+protected:
 	std::weak_ptr<Module> mCurrModule;
 	std::shared_ptr<MsgSip> mMsgSip;
 	std::shared_ptr<IncomingAgent> mIncomingAgent;
 	std::shared_ptr<OutgoingAgent> mOutgoingAgent;
 	std::shared_ptr<EventLog> mEventLog;
-	Agent *mAgent;
+	Agent* mAgent;
 
 	enum State {
 		STARTED,
@@ -198,60 +202,66 @@ public:
 	std::shared_ptr<IncomingTransaction> createIncomingTransaction();
 	std::shared_ptr<OutgoingTransaction> createOutgoingTransaction();
 
-	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u = NULL, tag_type_t tag = 0,
-					  tag_value_t value = 0, ...);
+	virtual void send(const std::shared_ptr<MsgSip>& msg,
+	                  url_string_t const* u = NULL,
+	                  tag_type_t tag = 0,
+	                  tag_value_t value = 0,
+	                  ...);
 
-	virtual void reply(int status, char const *phrase, tag_type_t tag, tag_value_t value, ...);
+	virtual void reply(int status, char const* phrase, tag_type_t tag, tag_value_t value, ...);
 
-	virtual void setIncomingAgent(const std::shared_ptr<IncomingAgent> &agent);
+	virtual void setIncomingAgent(const std::shared_ptr<IncomingAgent>& agent);
 
 	~RequestSipEvent();
 
 	/** Find if incoming tport TLS client certificate contains a given entry */
-	bool findIncomingSubject(const char *searched) const;
-	const char *findIncomingSubject(const std::list<std::string> &in) const;
-	bool matchIncomingSubject(regex_t *regex);
+	bool findIncomingSubject(const char* searched) const;
+	const char* findIncomingSubject(const std::list<std::string>& in) const;
+	bool matchIncomingSubject(regex_t* regex);
 	void unlinkTransactions();
-	const std::shared_ptr<tport_t> &getIncomingTport() const {
+	const std::shared_ptr<tport_t>& getIncomingTport() const {
 		return mIncomingTport;
 	}
 	bool mRecordRouteAdded;
 
-  private:
-	void checkContentLength(const url_t *url);
+private:
+	void checkContentLength(const url_t* url);
 	void linkTransactions();
 	std::shared_ptr<tport_t> mIncomingTport;
 };
 
 class ResponseSipEvent : public SipEvent {
-  public:
-	ResponseSipEvent(std::shared_ptr<OutgoingAgent> outgoingAgent, const std::shared_ptr<MsgSip> &msgSip);
-	ResponseSipEvent(const std::shared_ptr<ResponseSipEvent> &sipEvent);
+public:
+	ResponseSipEvent(std::shared_ptr<OutgoingAgent> outgoingAgent, const std::shared_ptr<MsgSip>& msgSip);
+	ResponseSipEvent(const std::shared_ptr<ResponseSipEvent>& sipEvent);
 
-	virtual void send(const std::shared_ptr<MsgSip> &msg, url_string_t const *u = NULL, tag_type_t tag = 0,
-					  tag_value_t value = 0, ...);
+	virtual void send(const std::shared_ptr<MsgSip>& msg,
+	                  url_string_t const* u = NULL,
+	                  tag_type_t tag = 0,
+	                  tag_value_t value = 0,
+	                  ...);
 
-	virtual void setOutgoingAgent(const std::shared_ptr<OutgoingAgent> &agent);
+	virtual void setOutgoingAgent(const std::shared_ptr<OutgoingAgent>& agent);
 
 	~ResponseSipEvent();
 
-  private:
-	void checkContentLength(const std::shared_ptr<MsgSip> &msg, const sip_via_t *via);
+private:
+	void checkContentLength(const std::shared_ptr<MsgSip>& msg, const sip_via_t* via);
 	bool mPopVia; // set to true if the response comes from an outgoing transaction.
 };
 
-inline std::ostream &operator<<(std::ostream &strm, MsgSip const &obj) {
+inline std::ostream& operator<<(std::ostream& strm, MsgSip const& obj) {
 	// Here we hack out the constness.
 	// The print method is non const as it will modify the underlying msg_t
 	// during serialization. Moreover, the underlying sofia calls also take
 	// a non const sip_t...
-	MsgSip &hack = const_cast<MsgSip &>(obj);
+	MsgSip& hack = const_cast<MsgSip&>(obj);
 	strm << hack.print();
 	return strm;
 }
 
 /*
  * Nice << operator to serialize sofia-sip 's url_t */
-std::ostream &operator<<(std::ostream &strm, const url_t &obj);
+std::ostream& operator<<(std::ostream& strm, const url_t& obj);
 
-}
+} // namespace flexisip

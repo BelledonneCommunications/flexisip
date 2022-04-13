@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #include "flexisip/fork-context/fork-message-context-db-proxy.hh"
 
@@ -116,7 +116,7 @@ bool ForkMessageContextDbProxy::saveToDb(const ForkMessageContextDb& dbFork) {
 			LOGD("ForkMessageContextDbProxy[%p] already in DB with UUID[%s], updating", this, mForkUuidInDb.c_str());
 			ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(dbFork, mForkUuidInDb);
 		}
-		if(mForkUuidInDb.empty()) {
+		if (mForkUuidInDb.empty()) {
 			SLOGE << errorLogPrefix() << "mForkUuidInDb empty after save, keeping message in memory";
 			return false;
 		}
@@ -214,14 +214,14 @@ void ForkMessageContextDbProxy::delayedOnNewRegister(const SipUri& dest,
                                                      const string& uid,
                                                      const function<void()>& dispatchFunc) {
 	restoreForkIfNeeded();
-	if(!onNewRegister(dest, uid, dispatchFunc) && mForkMessage->allBranchesAnswered()) {
+	if (!onNewRegister(dest, uid, dispatchFunc) && mForkMessage->allBranchesAnswered()) {
 		startTimerAndResetFork();
 		mState = State::IN_DATABASE;
 	}
 }
 
 void ForkMessageContextDbProxy::restoreForkIfNeeded() {
-	if(mDbFork) {
+	if (mDbFork) {
 		mForkMessage = ForkMessageContext::make(mSavedAgent, mSavedConfig, shared_from_this(), mSavedCounter, *mDbFork);
 		mDbFork.reset();
 
@@ -246,7 +246,7 @@ void ForkMessageContextDbProxy::startTimerAndResetFork(time_t expirationDate, co
 	// We need to handle fork late timer in proxy object in case it expire while inner object is still in database.
 	const auto utcNow = time(nullptr);
 	auto timeout = difftime(expirationDate, utcNow);
-	if(timeout < 0) timeout = 0;
+	if (timeout < 0) timeout = 0;
 	mProxyLateTimer.set(
 	    [weak = weak_ptr<ForkMessageContextDbProxy>{shared_from_this()}]() {
 		    if (auto shared = weak.lock()) {

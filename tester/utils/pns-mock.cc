@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #include "pns-mock.hh"
 
@@ -34,8 +34,8 @@ using namespace boost::asio::ssl;
 namespace flexisip {
 namespace pushnotification {
 
-bool PnsMock::exposeMock(int code, const string& body, const string& reqBodyPattern, promise<bool>&& barrier,
-                          bool timeout) {
+bool PnsMock::exposeMock(
+    int code, const string& body, const string& reqBodyPattern, promise<bool>&& barrier, bool timeout) {
 	bool assert = false;
 	try {
 		boost::system::error_code ec{};

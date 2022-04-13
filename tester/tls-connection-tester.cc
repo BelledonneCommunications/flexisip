@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,7 +14,8 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
+
 #include <chrono>
 #include <future>
 #include <thread>
@@ -72,7 +73,7 @@ static void tcpReadAllWithTimeout() {
 	auto start = steady_clock::now();
 	tlsConnection.readAll(responseStr, 1000ms);
 	auto end = steady_clock::now();
-	auto elapsedTimeMs = (int) duration_cast<milliseconds>(end - start).count();
+	auto elapsedTimeMs = (int)duration_cast<milliseconds>(end - start).count();
 
 	BC_ASSERT_STRING_EQUAL(responseStr.c_str(), expectedResponse.c_str());
 	BC_ASSERT_LOWER_STRICT(elapsedTimeMs, 1000, int, "%i");
@@ -98,7 +99,7 @@ static void tcpReadAllWithTimeoutDelayedResponse() {
 	auto start = steady_clock::now();
 	tlsConnection.readAll(responseStr, 5000ms);
 	auto end = steady_clock::now();
-	auto elapsedTimeMs = (int) duration_cast<milliseconds>(end - start).count();
+	auto elapsedTimeMs = (int)duration_cast<milliseconds>(end - start).count();
 
 	BC_ASSERT_STRING_EQUAL(responseStr.c_str(), expectedResponse.c_str());
 	BC_ASSERT_GREATER(elapsedTimeMs, 2000, int, "%i");
@@ -125,7 +126,7 @@ static void tcpReadAllWithTimeoutLateResponse() {
 	auto start = steady_clock::now();
 	tlsConnection.readAll(responseStr, 2000ms);
 	auto end = steady_clock::now();
-	auto elapsedTimeMs = (int) duration_cast<milliseconds>(end - start).count();
+	auto elapsedTimeMs = (int)duration_cast<milliseconds>(end - start).count();
 
 	// We did not wait for response
 	BC_ASSERT_STRING_NOT_EQUAL(responseStr.c_str(), expectedResponse.c_str());
@@ -178,7 +179,7 @@ static void tlsReadAllWithTimeout() {
 	auto start = steady_clock::now();
 	tlsConnection.readAll(responseStr, 1000ms);
 	auto end = steady_clock::now();
-	auto elapsedTimeMs = (int) duration_cast<milliseconds>(end - start).count();
+	auto elapsedTimeMs = (int)duration_cast<milliseconds>(end - start).count();
 
 	BC_ASSERT_STRING_EQUAL(responseStr.c_str(), expectedResponse.c_str());
 	BC_ASSERT_LOWER_STRICT(elapsedTimeMs, 1000, int, "%i");
@@ -204,7 +205,7 @@ static void tlsReadAllWithTimeoutDelayedResponse() {
 	auto start = steady_clock::now();
 	tlsConnection.readAll(responseStr, 5000ms);
 	auto end = steady_clock::now();
-	auto elapsedTimeMs = (int) duration_cast<milliseconds>(end - start).count();
+	auto elapsedTimeMs = (int)duration_cast<milliseconds>(end - start).count();
 
 	BC_ASSERT_STRING_EQUAL(responseStr.c_str(), expectedResponse.c_str());
 	BC_ASSERT_GREATER(elapsedTimeMs, 2000, int, "%i");
@@ -231,7 +232,7 @@ static void tlsReadAllWithTimeoutLateResponse() {
 	auto start = steady_clock::now();
 	tlsConnection.readAll(responseStr, 2000ms);
 	auto end = steady_clock::now();
-	auto elapsedTimeMs = (int) duration_cast<milliseconds>(end - start).count();
+	auto elapsedTimeMs = (int)duration_cast<milliseconds>(end - start).count();
 
 	// We did not wait for response
 	BC_ASSERT_STRING_NOT_EQUAL(responseStr.c_str(), expectedResponse.c_str());
@@ -251,5 +252,5 @@ static test_t tests[] = {
     TEST_NO_TAG("TLS readAll with timeout, response from server is late.", tlsReadAllWithTimeoutLateResponse),
 };
 
-test_suite_t tls_connection_suite = {"TlsConnection unit tests", nullptr, nullptr, nullptr, nullptr,
+test_suite_t tls_connection_suite = {"TlsConnection unit tests",       nullptr, nullptr, nullptr, nullptr,
                                      sizeof(tests) / sizeof(tests[0]), tests};

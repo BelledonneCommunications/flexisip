@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #pragma once
 
@@ -33,7 +33,8 @@ namespace flexisip {
 
 class BranchInfo {
 public:
-	template <typename T> BranchInfo(T&& ctx) : mForkCtx{std::forward<T>(ctx)} {
+	template <typename T>
+	BranchInfo(T&& ctx) : mForkCtx{std::forward<T>(ctx)} {
 	}
 
 	/**
@@ -63,23 +64,24 @@ public:
 
 	// Set the BranchInfo managed by an outoing transaction
 	static void setBranchInfo(const std::shared_ptr<OutgoingTransaction>& tr, const std::weak_ptr<BranchInfo> br) {
-		if(tr) tr->setProperty("BranchInfo", br);
+		if (tr) tr->setProperty("BranchInfo", br);
 	}
 
 	BranchInfoDb getDbObject() {
 		std::string request{mRequest->getMsgSip()->printString()};
 		std::string lastResponse{mLastResponse->getMsgSip()->printString()};
-		BranchInfoDb branchInfoDb{mUid, mPriority, request, lastResponse, mClearedCount}                                                          ;
+		BranchInfoDb branchInfoDb{mUid, mPriority, request, lastResponse, mClearedCount};
 		return branchInfoDb;
 	}
 
 #ifdef ENABLE_UNIT_TESTS
-	void assertEqual(const std::shared_ptr<BranchInfo>& expected){
+	void assertEqual(const std::shared_ptr<BranchInfo>& expected) {
 		BC_ASSERT_STRING_EQUAL(mUid.c_str(), expected->mUid.c_str());
 		BC_ASSERT_EQUAL(mPriority, expected->mPriority, float, "%f");
 
 		BC_ASSERT_TRUE(mRequest->getMsgSip()->printString() == expected->mRequest->getMsgSip()->printString());
-		BC_ASSERT_TRUE(mLastResponse->getMsgSip()->printString() == expected->mLastResponse->getMsgSip()->printString());
+		BC_ASSERT_TRUE(mLastResponse->getMsgSip()->printString() ==
+		               expected->mLastResponse->getMsgSip()->printString());
 	}
 #endif
 

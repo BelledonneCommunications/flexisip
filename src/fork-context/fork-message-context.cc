@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #include <algorithm>
 #include <chrono>
@@ -67,7 +67,7 @@ shared_ptr<ForkMessageContext> ForkMessageContext::make(Agent* agent,
 	shared->mExpirationDate = timegm(&forkFromDb.expirationDate);
 	const auto utcNow = time(nullptr);
 	auto timeout = difftime(shared->mExpirationDate, utcNow);
-	if(timeout < 0) timeout = 0;
+	if (timeout < 0) timeout = 0;
 	shared->mLateTimer.set(
 	    [weak = weak_ptr<ForkMessageContext>{shared}]() {
 		    if (auto sharedPtr = weak.lock()) {
@@ -144,10 +144,10 @@ void ForkMessageContext::checkFinished() {
 	}
 }
 
-void ForkMessageContext::logDeliveredToUserEvent(const shared_ptr<RequestSipEvent> &reqEv,
-										  const shared_ptr<ResponseSipEvent> &respEv) {
-	sip_t *sip = respEv->getMsgSip()->getSip();
-	const sip_t *sipRequest = reqEv->getMsgSip()->getSip();
+void ForkMessageContext::logDeliveredToUserEvent(const shared_ptr<RequestSipEvent>& reqEv,
+                                                 const shared_ptr<ResponseSipEvent>& respEv) {
+	sip_t* sip = respEv->getMsgSip()->getSip();
+	const sip_t* sipRequest = reqEv->getMsgSip()->getSip();
 	auto log = make_shared<MessageLog>(sip, MessageLog::ReportType::DeliveredToUser);
 	log->setDestination(sipRequest->sip_request->rq_url);
 	log->setStatusCode(sip->sip_status->st_status, sip->sip_status->st_phrase);
@@ -159,8 +159,8 @@ void ForkMessageContext::logDeliveredToUserEvent(const shared_ptr<RequestSipEven
 	respEv->flushLog();
 }
 
-void ForkMessageContext::onResponse(const shared_ptr<BranchInfo> &br, const shared_ptr<ResponseSipEvent> &event) {
-	sip_t *sip = event->getMsgSip()->getSip();
+void ForkMessageContext::onResponse(const shared_ptr<BranchInfo>& br, const shared_ptr<ResponseSipEvent>& event) {
+	sip_t* sip = event->getMsgSip()->getSip();
 	int code = sip->sip_status->st_status;
 	LOGD("ForkMessageContext[%p]::onResponse()", this);
 
@@ -169,21 +169,19 @@ void ForkMessageContext::onResponse(const shared_ptr<BranchInfo> &br, const shar
 			mDeliveredCount++;
 			if (mAcceptanceTimer) {
 				if (mIncoming && mIsMessage)
-					logReceivedFromUserEvent(mEvent, event); /*in the sender's log will appear the status code from the receiver*/
+					logReceivedFromUserEvent(
+					    mEvent, event); /*in the sender's log will appear the status code from the receiver*/
 				mAcceptanceTimer.reset(nullptr);
 			}
 		}
-		if (mIsMessage)
-			logDeliveredToUserEvent(br->mRequest, event);
+		if (mIsMessage) logDeliveredToUserEvent(br->mRequest, event);
 		forwardResponse(br);
-	} else if (code >= 300 && !mCfg->mForkLate && isUrgent(code, sUrgentCodes)){
+	} else if (code >= 300 && !mCfg->mForkLate && isUrgent(code, sUrgentCodes)) {
 		/*expedite back any urgent replies if late forking is disabled */
-		if (mIsMessage)
-			logDeliveredToUserEvent(br->mRequest, event);
+		if (mIsMessage) logDeliveredToUserEvent(br->mRequest, event);
 		forwardResponse(br);
 	} else {
-		if (mIsMessage)
-			logDeliveredToUserEvent(br->mRequest, event);
+		if (mIsMessage) logDeliveredToUserEvent(br->mRequest, event);
 	}
 	checkFinished();
 	if (mAcceptanceTimer && allBranchesAnswered() && !isFinished()) {
@@ -193,9 +191,10 @@ void ForkMessageContext::onResponse(const shared_ptr<BranchInfo> &br, const shar
 	}
 }
 
-void ForkMessageContext::logReceivedFromUserEvent(const shared_ptr<RequestSipEvent> &reqEv, const shared_ptr<ResponseSipEvent> &respEv) {
-	sip_t *sip = respEv->getMsgSip()->getSip();
-	const sip_t *sipRequest = reqEv->getMsgSip()->getSip();
+void ForkMessageContext::logReceivedFromUserEvent(const shared_ptr<RequestSipEvent>& reqEv,
+                                                  const shared_ptr<ResponseSipEvent>& respEv) {
+	sip_t* sip = respEv->getMsgSip()->getSip();
+	const sip_t* sipRequest = reqEv->getMsgSip()->getSip();
 	auto log = make_shared<MessageLog>(sip, MessageLog::ReportType::ReceivedFromUser);
 	log->setStatusCode(sip->sip_status->st_status, sip->sip_status->st_phrase);
 	if (sipRequest->sip_priority && sipRequest->sip_priority->g_string) {
@@ -208,13 +207,12 @@ void ForkMessageContext::logReceivedFromUserEvent(const shared_ptr<RequestSipEve
 
 /*we are called here if no good response has been received from any branch, in fork-late mode only */
 void ForkMessageContext::acceptMessage() {
-	if (mIncoming == nullptr)
-		return;
+	if (mIncoming == nullptr) return;
 
 	/*in fork late mode, never answer a service unavailable*/
 	shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_202_ACCEPTED));
 	shared_ptr<ResponseSipEvent> ev(
-		new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
+	    new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
 	forwardResponse(ev);
 	if (mIsMessage)
 		logReceivedFromUserEvent(mEvent, ev); /*in the sender's log will appear the 202 accepted from flexisip server*/
@@ -226,17 +224,17 @@ void ForkMessageContext::onAcceptanceTimer() {
 	mAcceptanceTimer.reset(nullptr);
 }
 
-bool isMessageARCSFileTransferMessage(shared_ptr<RequestSipEvent> &ev) {
-	sip_t *sip = ev->getSip();
+bool isMessageARCSFileTransferMessage(shared_ptr<RequestSipEvent>& ev) {
+	sip_t* sip = ev->getSip();
 
 	if (sip->sip_content_type && sip->sip_content_type->c_type &&
-		strcasecmp(sip->sip_content_type->c_type, "application/vnd.gsma.rcs-ft-http+xml") == 0) {
+	    strcasecmp(sip->sip_content_type->c_type, "application/vnd.gsma.rcs-ft-http+xml") == 0) {
 		return true;
 	}
 	return false;
 }
 
-bool isConversionFromRcsToExternalBodyUrlNeeded(shared_ptr<ExtendedContact> &ec) {
+bool isConversionFromRcsToExternalBodyUrlNeeded(shared_ptr<ExtendedContact>& ec) {
 	list<string> acceptHeaders = ec->mAcceptHeader;
 	if (acceptHeaders.size() == 0) {
 		return true;
@@ -251,7 +249,7 @@ bool isConversionFromRcsToExternalBodyUrlNeeded(shared_ptr<ExtendedContact> &ec)
 	return true;
 }
 
-void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
+void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo>& br) {
 	if (br->mUid.size() > 0) {
 		/*check for a branch already existing with this uid, and eventually clean it*/
 		shared_ptr<BranchInfo> tmp = findBranchByUid(br->mUid);
@@ -266,7 +264,7 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo> &br) {
 bool ForkMessageContext::onNewRegister(const SipUri& dest,
                                        const std::string& uid,
                                        const function<void()>& dispatchFunction) {
-	bool already_have_transaction = !ForkContextBase::onNewRegister(dest, uid, [](){});
+	bool already_have_transaction = !ForkContextBase::onNewRegister(dest, uid, []() {});
 	if (already_have_transaction) return false;
 	if (uid.size() > 0) {
 		shared_ptr<BranchInfo> br = findBranchByUid(uid);

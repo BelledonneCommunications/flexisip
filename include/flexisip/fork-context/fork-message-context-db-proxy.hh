@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #pragma once
 
@@ -96,7 +96,7 @@ public:
 	}
 
 	const std::vector<std::string>& getKeys() const override {
-		if(mState == State::IN_MEMORY) {
+		if (mState == State::IN_MEMORY) {
 			return mForkMessage->getKeys();
 		} else {
 			return mSavedKeys;

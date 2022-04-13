@@ -51,7 +51,7 @@ add_executable(flexisip_tester
         utils/tls-server.cc
         utils/client-core.cc
         utils/proxy-server.cc
-)
+        )
 
 if (ENABLE_CONFERENCE)
     target_sources(flexisip_tester PRIVATE registration-event-tester.cc)
@@ -72,8 +72,8 @@ target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FL
 target_link_libraries(flexisip_tester PRIVATE bctoolbox-tester flexisip linphone++ bellesip OpenSSL::SSL
         OpenSSL::Crypto Threads::Threads Boost::system)
 if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
-	target_link_libraries(flexisip_tester PRIVATE LibNgHttp2Asio)
-endif()
+    target_link_libraries(flexisip_tester PRIVATE LibNgHttp2Asio)
+endif ()
 
 install(TARGETS flexisip_tester
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
