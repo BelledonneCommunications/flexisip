@@ -113,21 +113,22 @@
     - make flexisip-deb-build
     - make flexisip-deb-push
 
-docker-build-flexisip-src:
-
-  stage: build
-  tags: [ "linux-nuc-build" ]
-  except:
-    variables:
-      - $DEPLOY_RUN
-      - $DEPLOY_UBUNTU
-  variables:
-    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t flexisip-from-src:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA -f docker/flex-from-src --build-arg=njobs=12 --build-arg=build_type=RelWithDebInfo"
-  script:
-    - docker image ls
-    - echo $DOCKER_BUILD_OPTIONS
-    - docker build $DOCKER_BUILD_OPTIONS .
-    - docker image ls
+# Enable this to use tests-flexisip-mr
+#docker-build-flexisip-src:
+#
+#  stage: build
+#  tags: [ "linux-nuc-build" ]
+#  except:
+#    variables:
+#      - $DEPLOY_RUN
+#      - $DEPLOY_UBUNTU
+#  variables:
+#    DOCKER_BUILD_OPTIONS: "--no-cache --force-rm -t flexisip-from-src:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA -f docker/flex-from-src --build-arg=njobs=12 --build-arg=build_type=RelWithDebInfo"
+#  script:
+#    - docker image ls
+#    - echo $DOCKER_BUILD_OPTIONS
+#    - docker build $DOCKER_BUILD_OPTIONS .
+#    - docker image ls
 
 #################################################
 # Schedule
