@@ -244,7 +244,7 @@ shared_ptr<Constant<_valuesT>> BooleanExpressionBuilder<_valuesT>::buildConstant
 
 template< typename _valuesT>
 std::shared_ptr<ExpressionElement> BooleanExpressionBuilder<_valuesT>::buildElement(const std::string &expr, size_t *newpos){
-	while (expr[*newpos] == ' '){
+	while (expr[*newpos] == ' ' || expr[*newpos] == '\t'){
 		*newpos += 1;
 	}
 	if (expr[*newpos] == '\'') {

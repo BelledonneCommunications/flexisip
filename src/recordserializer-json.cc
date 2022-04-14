@@ -84,7 +84,7 @@ bool RecordSerializerJson::parse(const char *str, int len, Record *r) {
 			acceptHeaders.push_back(cJSON_GetArrayItem(accept, p)->valuestring);
 		}
 
-		ExtendedContactCommon ecc(contactId, stlpath, call_id, lineValue);
+		ExtendedContactCommon ecc(stlpath, call_id, lineValue);
 		r->update(ecc, sip_contact, expire, q, cseq, update_time, alias, acceptHeaders, false, NULL);
 		contact = contact->next;
 		++i;
@@ -124,7 +124,7 @@ bool RecordSerializerJson::serialize(Record *r, string &serialized, bool log) {
 		cJSON_AddItemToObject(c, "accept", acceptHeaders);
 		cJSON_AddNumberToObject(c, "alias", ec->mAlias ? 1 : 0);
 		cJSON_AddNumberToObject(c, "update-time", ec->mUpdatedTime);
-		cJSON_AddStringToObject(c, "contact-id", ec->contactId());
+	
 
 		for (auto pit = ec->mPath.cbegin(); pit != ec->mPath.cend(); ++pit) {
 			cJSON *pitem = cJSON_CreateString(pit->c_str());

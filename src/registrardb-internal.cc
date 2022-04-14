@@ -34,7 +34,7 @@ RegistrarDbInternal::RegistrarDbInternal(Agent *ag) : RegistrarDb(ag) {
 	mWritable = true;
 }
 
-void RegistrarDbInternal::doBind(const MsgSip &msg, int globalExpire, bool alias, int version, const shared_ptr<ContactUpdateListener> &listener) {
+void RegistrarDbInternal::doBind(const MsgSip &msg, const BindingParameters &parameters, const shared_ptr<ContactUpdateListener> &listener) {
 	auto sip = msg.getSip();
 	SipUri fromUri;
 	try {
@@ -62,7 +62,7 @@ void RegistrarDbInternal::doBind(const MsgSip &msg, int globalExpire, bool alias
 		return;
 	}
 
-	r->update(sip, globalExpire, alias, version, listener);
+	r->update(sip, parameters, listener);
 
 	mLocalRegExpire->update(r);
 	if (listener) listener->onRecordFound(r);

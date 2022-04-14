@@ -79,7 +79,10 @@ int test_bind_without_ecc(ExtendedContactCommon &ecc, const unique_ptr<RecordSer
 	sip->sip_expires = sip_expires_create(homeSip, now);
 	sip->sip_cseq = sip_cseq_create(homeSip, cseq, sip_method_unknown, nullptr);
 
-	initial.update(sip, globalexpire, alias, 0, nullptr);
+	BindingParameters parameters;
+	parameters.globalExpire = globalexpire;
+	parameters.alias = alias;
+	initial.update(sip, parameters, nullptr);
 
 	msg_unref(msg);
 
@@ -138,7 +141,7 @@ int main(int argc, char **argv) {
 	float quality = 1;
 	bool alias = false;
 
-	ExtendedContactCommon ecc(contactid.c_str(), paths, callid.c_str(), line.c_str());
+	ExtendedContactCommon ecc( paths, callid.c_str(), line.c_str());
 
 	sip_contact_t *sip_contact =
 		sip_contact_format(home.h, "<%s>;q=%f;expires=%d", contact.c_str(), quality, expire_delta);

@@ -21,6 +21,7 @@
 #include "sofia-sip/sip.h"
 #include "sofia-sip/sip_parser.h"
 #include "flexisip/sip-boolean-expressions.hh"
+#include "conditional-routes.hh"
 
 
 using namespace flexisip;
@@ -56,6 +57,39 @@ static const char * raw_response = "SIP/2.0 180 Ringing\r\n"
 			"Content-Length: 0\r\n"
 			"\r\n";
 
+static const char* raw_request_2 = "INVITE sip:+331233412341234@sip.example.org;user=phone SIP/2.0\r\n"\
+							"Via: SIP/2.0/UDP 192.168.1.8:5062;rport;branch=z9hG4bK1439638806\r\n"\
+							"From: <sip:josette@sip.linphone.org>;tag=465687829\r\n"\
+							"To: <sip:ghislaine@sip.linphone.org>\r\n"\
+							"Call-ID: 1053183492\r\n"\
+							"CSeq: 1 INVITE\r\n"\
+							"Contact: <sip:josette@192.168.1.8:5062>\r\n"\
+							"Max-Forwards: 70\r\n"\
+							"User-Agent: Linphone/12.0\r\n"\
+							"Content-Length: 0\r\n\r\n123456789";
+							
+static const char* raw_request_3 = "INVITE sip:+331233412341234@sip.example.org;user=phone SIP/2.0\r\n"\
+							"Via: SIP/2.0/UDP 192.168.1.8:5062;rport;branch=z9hG4bK1439638806\r\n"\
+							"From: <sip:jean-patrick@sip.linphone.org>;tag=465687829\r\n"\
+							"To: <sip:jeanne@sip.linphone.org>\r\n"\
+							"Call-ID: 1053183492\r\n"\
+							"CSeq: 1 INVITE\r\n"\
+							"Contact: <sip:jean-patrick@192.168.1.8:5062>\r\n"\
+							"Max-Forwards: 70\r\n"\
+							"User-Agent: Linphone/12.0\r\n"\
+							"Content-Length: 0\r\n\r\n123456789";
+
+static const char* raw_request_4 = "SUBSCRIBE sip:choupinette@sip.example.org;user=phone SIP/2.0\r\n"\
+							"Via: SIP/2.0/UDP 192.168.1.8:5062;rport;branch=z9hG4bK1439638806\r\n"\
+							"From: <sip:jean-patrick@sip.linphone.org>;tag=465687829\r\n"\
+							"To: <sip:jeanne@sip.linphone.org>\r\n"\
+							"Call-ID: 1053183492\r\n"\
+							"CSeq: 1 SUBSCRIBE\r\n"\
+							"Contact: <sip:jean-patrick@192.168.1.8:5062>\r\n"\
+							"Max-Forwards: 70\r\n"\
+							"User-Agent: Linphone/12.0\r\n"\
+							"Content-Length: 0\r\n\r\n123456789";
+
 static int beforeSuite(){
 	sipRequest = msg_make(sip_default_mclass(), 0, raw_request, strlen(raw_request));
 	sipResponse = msg_make(sip_default_mclass(), 0, raw_response, strlen(raw_response));
@@ -72,6 +106,10 @@ static int afterSuite(){
 
 static const sip_t & getRequest(){
 	return *(sip_t*) msg_object(sipRequest);
+}
+
+static msg_t * makeRequest(const char *raw){
+	return msg_make(sip_default_mclass(), 0, raw, strlen(raw));
 }
 
 static const sip_t & getResponse(){
@@ -220,12 +258,65 @@ static void invalid_expressions(void){
 	
 }
 
+string serializeRoute(const sip_route_t *route){
+	string ret;
+	size_t len;
+	ret.resize(256);
+	len = sip_route_e(&ret[0], ret.size(), (const msg_header_t*)route, 0);
+	ret.resize(len);
+	return ret;
+}
+
+static void route_condition_map(void){
+	ConditionalRouteMap routeMap;
+	bool loading_ok;
+	try{
+		routeMap.loadConfig(string(TESTER_DATA_DIR).append("/config/routes.conf"));
+		loading_ok = true;
+	}catch(const exception &e){
+		bctbx_error("%s", e.what());
+		loading_ok = false;
+	}
+	BC_ASSERT_TRUE(loading_ok);
+	
+	const sip_route_t *route;
+	string routeStr;
+
+	route = routeMap.resolveRoute(MsgSip(makeRequest(raw_request), true));
+	BC_ASSERT_PTR_NOT_NULL(route);
+	if (route) {
+		routeStr = serializeRoute(route);
+		BC_ASSERT_STRING_EQUAL(routeStr.c_str(), "<sip:sip1.example.org;transport=tls;lr>");
+	}
+
+	route = routeMap.resolveRoute(MsgSip(makeRequest(raw_request_2), true));
+	BC_ASSERT_PTR_NOT_NULL(route);
+	if (route) {
+		routeStr = serializeRoute(route);
+		BC_ASSERT_STRING_EQUAL(routeStr.c_str(), "<sips:sip2.example.org;lr>");
+	}
+	
+	route = routeMap.resolveRoute(MsgSip(makeRequest(raw_request_3), true));
+	BC_ASSERT_PTR_NOT_NULL(route);
+	if (route) {
+		routeStr = serializeRoute(route);
+		BC_ASSERT_STRING_EQUAL(routeStr.c_str(), "<sips:sip3.example.org;lr>");
+	}
+	route = routeMap.resolveRoute(MsgSip(makeRequest(raw_request_4), true));
+	BC_ASSERT_PTR_NOT_NULL(route);
+	if (route) {
+		routeStr = serializeRoute(route);
+		BC_ASSERT_STRING_EQUAL(routeStr.c_str(), "<sip:example.org;transport=tcp;lr>");
+	}
+}
+
 
 static test_t tests[] = {
 	TEST_NO_TAG("Basic expression", basic_expression),
 	TEST_NO_TAG("Basic message inspection", basic_message_inspection),
 	TEST_NO_TAG("More complex expressions", complex_expressions),
-	TEST_NO_TAG("Invalid expressions", invalid_expressions)
+	TEST_NO_TAG("Invalid expressions", invalid_expressions),
+	TEST_NO_TAG("Route-condition map", route_condition_map)
 };
 
 test_suite_t boolean_expressions_suite = {

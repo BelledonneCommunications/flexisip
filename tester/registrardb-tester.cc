@@ -109,10 +109,148 @@ protected:
 	RedisServer mRedisServer{};
 };
 
+
+class RegistrarTester : public RegistrarDbTest{
+	
+protected:
+	class TestListener : public ContactUpdateListener{
+	public:
+		virtual void onRecordFound(const std::shared_ptr<Record> &r) override{
+			mRecord = r;
+		}
+		virtual void onError() override{
+		}
+		virtual void onInvalid() override{
+		}
+		virtual void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override{
+			
+		}
+		std::shared_ptr<Record> getRecord()const{
+			return mRecord;
+		}
+		void reset(){
+			mRecord.reset();
+		}
+	private:
+		std::shared_ptr<Record> mRecord;
+	};
+	
+	void checkFetch(const std::shared_ptr<Record> & recordAfterBind){
+		auto* regDb = RegistrarDb::get();
+		std::shared_ptr<TestListener> listener = make_shared<TestListener>();
+		/* Ensure that the Record obtained after fetch operation is the same as the one after the initial bind() */
+		regDb->fetch(recordAfterBind->getAor(), listener);
+		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
+		if (listener->getRecord()){
+			BC_ASSERT_TRUE(listener->getRecord()->isSame(*recordAfterBind));
+		}
+		
+	}
+	// Protected methods
+	void onExec() noexcept override {
+		sofiasip::Home home;
+		auto* regDb = RegistrarDb::get();
+		std::shared_ptr<TestListener> listener = make_shared<TestListener>();
+		
+		SipUri from("sip:bob@example.org");
+		BindingParameters params;
+		params.globalExpire = 5;
+		params.callId = "xyz";
+		
+		sip_contact_t *ct;
+		
+		/* Add a simple contact */
+		ct = sip_contact_create(home.home(), (url_string_t*)"sip:bob@192.168.0.2;transport=tcp", nullptr);
+		regDb->bind(from, ct, params, listener);
+		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
+		if (listener->getRecord()) {
+			BC_ASSERT_TRUE( listener->getRecord()->getExtendedContacts().size() == 1);
+			checkFetch(listener->getRecord());
+		}
+		
+		/* Remove this contact with an expire parameter */
+		listener->reset();
+		ct = sip_contact_create(home.home(), (url_string_t*)"sip:bob@192.168.0.2;transport=tcp", "expires=0", nullptr);
+		regDb->bind(from, ct, params, listener);
+		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
+		if (listener->getRecord()) {
+			BC_ASSERT_TRUE( listener->getRecord()->getExtendedContacts().size() == 0);
+			checkFetch(listener->getRecord());
+		}
+		
+		/* Add a simple contact */
+		listener->reset();
+		from = SipUri("sip:bobby@example.net");
+		ct = sip_contact_create(home.home(), (url_string_t*)"sip:bobby@192.168.0.2;transport=tcp", nullptr);
+		regDb->bind(from, ct, params, listener);
+		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
+		if (listener->getRecord()) {
+			BC_ASSERT_TRUE( listener->getRecord()->getExtendedContacts().size() == 1);
+			checkFetch(listener->getRecord());
+		}
+		
+		/* Remove this contact with an expire parameter but with a different call-id */
+		listener->reset();
+		ct = sip_contact_create(home.home(), (url_string_t*)"sip:bobby@192.168.0.2;transport=tcp", "expires=0", nullptr);
+		params.callId = "abcdef";
+		regDb->bind(from, ct, params, listener);
+		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
+		if (listener->getRecord()) {
+			BC_ASSERT_TRUE( listener->getRecord()->getExtendedContacts().size() == 0);
+			checkFetch(listener->getRecord());
+		}
+		
+		/* Add a contact with a unique id */
+		from = SipUri("sip:alice@example.net");
+		listener->reset();
+		ct = sip_contact_create(home.home(), (url_string_t*)"sip:alice@10.0.0.2;transport=tcp", "+sip.instance=\"<urn::uuid::abcd>\"", nullptr);
+		regDb->bind(from, ct, params, listener);
+		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
+		if (listener->getRecord()) {
+			BC_ASSERT_TRUE( listener->getRecord()->getExtendedContacts().size() == 1);
+			checkFetch(listener->getRecord());
+		}
+		
+		/* Update this contact */
+		listener->reset();
+		ct = sip_contact_create(home.home(), (url_string_t*)"sip:alice@10.0.0.3;transport=tcp", "+sip.instance=\"<urn::uuid::abcd>\"", nullptr);
+		regDb->bind(from, ct, params, listener);
+		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
+		if (listener->getRecord()) {
+			if (BC_ASSERT_TRUE( listener->getRecord()->getExtendedContacts().size() == 1)){
+				BC_ASSERT_STRING_EQUAL( listener->getRecord()->getExtendedContacts().front()->mSipContact->m_url->url_host,
+							"10.0.0.3");
+			}
+			checkFetch(listener->getRecord());
+		}
+		
+	}
+	// Protected methods
+	void onAgentConfiguration(GenericManager& cfg) override {
+		auto redisPort = mRedisServer.start();
+
+		auto* registrarConf = cfg.getRoot()->get<GenericStruct>("module::Registrar");
+		registrarConf->get<ConfigValue>("db-implementation")->set("redis");
+		registrarConf->get<ConfigValue>("redis-server-domain")->set("localhost");
+		registrarConf->get<ConfigValue>("redis-server-port")->set(std::to_string(redisPort));
+	}
+	RedisServer mRedisServer;
+};
+
+} // namespace tester
+} // namespace flexisip
+
+namespace flexisip {
+namespace tester {
+
+
 static test_t tests[] = {TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with internal backend",
                                      run<SubsequentUnsubscribeSubscribeWithInternalDbTest>),
                          TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with Redis backend",
-                                     run<SubsequentUnsubscribeSubscribeWithRedisTest>)};
+                                     run<SubsequentUnsubscribeSubscribeWithRedisTest>),
+			TEST_NO_TAG("Registrations with Redis backend",
+                                     run<RegistrarTester>)
+};
 
 test_suite_t registarDbSuite = {
     "RegistrarDB",                    // Suite name

@@ -711,6 +711,9 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			parameter.alias = false;
 			parameter.globalExpire = maindelta;
 			parameter.version = 0;
+			parameter.isAliasFunction = [this](const url_t *ct)->bool{
+				return isManagedDomain(ct);
+			};
 			RegistrarDb::get()->bind(*ms, parameter, listener);
 			return;
 		}
@@ -794,6 +797,9 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 			parameter.alias = false;
 			parameter.globalExpire = maindelta;
 			parameter.version = 0;
+			parameter.isAliasFunction = [this](const url_t *ct)->bool{
+				return isManagedDomain(ct);
+			};
 			listener->addStatCounter(mStats.mCountBind->finish);
 			
 			/* Before submiting the bind() request to the RegistrarDb, restore the Contact header as it was found in the original request received

@@ -67,7 +67,7 @@ bool RecordSerializerPb::parse(const char *str, int len, Record *r) {
 			uri = uri.substr(1, uri.size()-2);
 		}
 
-		ExtendedContactCommon ecc(c.contact_id().c_str(), stlpath, c.call_id().c_str(),
+		ExtendedContactCommon ecc(stlpath, c.call_id().c_str(),
 				c.has_line_value_copy() ? c.line_value_copy().c_str() : NULL);
 		r->update(ecc, uri.c_str(), (time_t)c.expires_at(), c.q(), (uint32_t)c.cseq(), c.update_time(), false,
 				acceptHeaders, c.has_used_as_route() ? c.used_as_route() : false, NULL);
@@ -86,7 +86,7 @@ bool RecordSerializerPb::serialize(Record *r, string &serialized, bool log) {
 		auto ec = (*it);
 		RecordContactPb *c = pbContacts.add_contact();
 		c->set_uri(ExtendedContact::urlToString(ec->mSipContact->m_url));
-		c->set_contact_id(ec->mContactId);
+		c->set_contact_id("deprecated");
 		if (ec->line())
 			c->set_line_value_copy(ec->line());
 		c->set_expires_at(ec->mExpireAt);

@@ -38,12 +38,13 @@ void TcpServer::accept() {
 
 std::string TcpServer::read() {
 	LOGD("TcpServer[%p] entering read", this);
-	string data;
-	size_t n = read_until(mSocket, dynamic_buffer(data), "\n");
-	string line = data.substr(0, n);
-	data.erase(0, n);
-	LOGD("TcpServer[%p] read : %s", this, line.c_str());
-	return line;
+	boost::asio::streambuf b;
+	read_until(mSocket, b, "\n");
+	std::istream is(&b);
+	ostringstream line;
+	line << is.rdbuf();
+	LOGD("TcpServer[%p] read : %s", this, line.str().c_str());
+	return line.str();
 }
 
 void TcpServer::send(const std::string& message) {

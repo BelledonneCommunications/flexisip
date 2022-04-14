@@ -190,6 +190,11 @@ public:
 	void removeParam(const std::string& paramName);
 
 	TlsConfigInfo getTlsConfigInfo() const;
+	
+	bool operator==(const Url &other)const;
+	bool operator!=(const Url &other)const{
+		return !(*this == other);
+	}
 
 protected:
 	Home _home;

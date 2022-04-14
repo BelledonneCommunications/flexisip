@@ -31,15 +31,21 @@ class MsgSip {
 public:
 	MsgSip() : mMsg{msg_create(sip_default_mclass(), 0)} {
 	}
-	MsgSip(msg_t* msg) {
-		assignMsg(msg);
+	/**
+	 * Construct a MsgSip providing a sofia-sip msg_t.
+	 * If transferOwnership is true, the msg_t is directly taken without taking a ref,
+	 * in other words the caller transfers the reference it owns to the MsgSip object.
+	 */
+	MsgSip(msg_t* msg, bool transferOwnership = false) {
+		if (!transferOwnership) assignMsg(msg);
+		else mMsg = msg;
 	}
 	MsgSip(const MsgSip& msgSip);
 	/**
-     * Construct a MsgSip parsing the string parameter.
-     *
-     * @throw Throw std::runtime_error if a parsing error occurred.
-     */
+	* Construct a MsgSip parsing the string parameter.
+	*
+	* @throw Throw std::runtime_error if a parsing error occurred.
+	*/
 	MsgSip(int flags, const std::string& msg);
 	~MsgSip() noexcept {
 		msg_unref(mMsg);

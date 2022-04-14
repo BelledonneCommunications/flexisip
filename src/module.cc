@@ -493,7 +493,7 @@ void ModuleToolbox::urlSetHost(su_home_t *home, url_t *url, const char *host) {
 }
 
 bool ModuleToolbox::urlIsResolved(url_t *uri) {
-	return isNumeric(uri->url_host) || (uri->url_port && strlen(uri->url_port)!= 0);
+	return isNumeric(uri->url_host) || (uri->url_port && uri->url_port[0] != '\0');
 }
 
 string ModuleToolbox::getHost(const char *host) {

@@ -106,6 +106,10 @@ bool Url::getBoolParam(const string& paramName, bool defaultValue) const {
 	return defaultValue;
 }
 
+bool Url::operator==(const Url & other) const {
+	return url_cmp_all(_url, other._url) == 0;
+}
+
 TlsConfigInfo Url::getTlsConfigInfo() const {
 	TlsConfigInfo tlsConfigInfo{};
 	tlsConfigInfo.certifDir = getParam("tls-certificates-dir");

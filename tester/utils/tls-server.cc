@@ -30,7 +30,13 @@ using ip::tcp;
 using ssl::context;
 
 TlsServer::TlsServer(int port)
-    : mIoService{}, mAcceptor{mIoService, tcp::endpoint(tcp::v4(), port)}, mContext{ssl::context::tls_server} {
+    : mIoService{}, mAcceptor{mIoService, tcp::endpoint(tcp::v4(), port)}, 
+#if BOOST_VERSION > 105300
+    mContext{ssl::context::tls_server} 
+#else
+    mContext{ssl::context::tlsv1_server} 
+#endif
+    {
 	mContext.set_options(ssl::context::default_workarounds | ssl::context::verify_none | ssl::context::no_sslv2 |
 	                     ssl::context::no_sslv3);
 	mContext.use_certificate_chain_file(TESTER_DATA_DIR + string("/cert/self.signed.cert.test.pem"));
@@ -49,12 +55,13 @@ void TlsServer::accept() {
 
 std::string TlsServer::read() {
 	LOGD("TlsServer[%p] entering read", this);
-	string data;
-	size_t n = read_until(*mSocket, dynamic_buffer(data), "\n");
-	string line = data.substr(0, n);
-	data.erase(0, n);
-	LOGD("TlsServer[%p] read : %s", this, line.c_str());
-	return line;
+	boost::asio::streambuf b;
+	read_until(*mSocket, b, "\n");
+	std::istream is(&b);
+	ostringstream line;
+	line << is.rdbuf();
+	LOGD("TlsServer[%p] read : %s", this, line.str().c_str());
+	return line.str();
 }
 
 void TlsServer::send(const std::string& message) {

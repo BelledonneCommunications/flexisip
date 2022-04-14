@@ -82,28 +82,70 @@ struct RedisHost {
 
 
 /******
- * RegistrarUserData helper class
+ * RedisRegisterContext helper class
  */
 class RegistrarDbRedisAsync;
-struct RegistrarUserData;
+struct RedisRegisterContext;
 
-typedef void(forwardFn)(redisAsyncContext *, redisReply *, RegistrarUserData *);
+typedef void(forwardFn)(redisAsyncContext *, redisReply *, RedisRegisterContext *);
 
-struct RegistrarUserData {
+struct RedisRegisterContext {
 	RegistrarDbRedisAsync *self = nullptr;
 	std::shared_ptr<ContactUpdateListener> listener;
-	std::shared_ptr<Record> mRecord; // The record contaning all fetched contacts.
-	std::shared_ptr<Record> mRecordToSend; // The record contaning the contacts to SET into redis.
+	std::shared_ptr<Record> mRecord;
 	unsigned long token = 0;
 	su_timer_t *mRetryTimer = nullptr;
 	int mRetryCount = 0;
-	std::string mUniqueId;
+	MsgSip mMsg;
+	BindingParameters mBindingParameters;
+	std::string mUniqueIdToFetch;
 	bool mUpdateExpire = false;
-	bool mIsUnregister = false;
 
 	template <typename T>
-	RegistrarUserData(RegistrarDbRedisAsync *s, T &&url, const std::shared_ptr<ContactUpdateListener> &listener) :
+	RedisRegisterContext(RegistrarDbRedisAsync *s, T &&url, const std::shared_ptr<ContactUpdateListener> &listener) :
 		self(s), listener(listener), mRecord(std::make_shared<Record>(std::forward<T>(url))) {}
+	RedisRegisterContext(RegistrarDbRedisAsync *s, const MsgSip &msg, const BindingParameters &params, const std::shared_ptr<ContactUpdateListener> &listener) :
+		self(s), listener(listener), 
+		mRecord(std::make_shared<Record>(SipUri(msg.getSip()->sip_from->a_url))), 
+			mMsg(msg.getMsg()), 
+			mBindingParameters(params) {
+			// Note that MsgSip copy constructor is not invoked in order to avoid a deep copy.
+			// Instead, mMsg just takes a ref on the underlying sofia-sip msg_t.
+		}
+};
+
+/* Utility struct to create argument vectors to pass to redis, for HSET and HDEL requests for example.*/
+class RedisArgsPacker{
+public:
+	RedisArgsPacker(const std::string &command, const std::string &key){
+		addArg(command);
+		addArg(key);
+	}
+	void addPair(const std::string & fieldName, const std::string &value){
+		addArg(fieldName);
+		addArg(value);
+	}
+	void addFieldName(const std::string & fieldName){
+		addArg(fieldName);
+	}
+	const char **getCArgs(){
+		return &mCArgs[0];
+	}
+	const size_t *getArgSizes(){
+		return &mArgsSize[0];
+	}
+	size_t getArgCount()const{
+		return mCArgs.size();
+	}
+private:
+	void addArg(const std::string &arg){
+		mArgs.emplace_back(arg);
+		mCArgs.emplace_back(mArgs.back().c_str()); // The C string pointer is held within mArgs
+		mArgsSize.push_back(arg.size());
+	}
+	std::list<std::string> mArgs;
+	std::vector<const char*> mCArgs;
+	std::vector<size_t> mArgsSize; 
 };
 
 class RegistrarDbRedisAsync : public RegistrarDb {
@@ -117,7 +159,7 @@ public:
 	bool disconnect();
 
 protected:
-	void doBind(const MsgSip &msg, int globalExpire, bool alias, int version, const std::shared_ptr<ContactUpdateListener> &listener) override;
+	void doBind(const MsgSip &msg, const BindingParameters &parameters, const std::shared_ptr<ContactUpdateListener> &listener) override;
 	void doClear(const MsgSip &msg, const std::shared_ptr<ContactUpdateListener> &listener) override;
 	void doFetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener) override;
 	void doFetchInstance(const SipUri &url, const std::string &uniqueId, const std::shared_ptr<ContactUpdateListener> &listener) override;
@@ -139,20 +181,20 @@ private:
 
 	friend class RegistrarDb;
 
-	void serializeAndSendToRedis(RegistrarUserData *data, forwardFn *forward_fn);
-	bool handleRedisStatus(const std::string &desc, int redisStatus, RegistrarUserData *data);
-	void onErrorData(RegistrarUserData *data);
+	void serializeAndSendToRedis(RedisRegisterContext *data, forwardFn *forward_fn);
+	bool handleRedisStatus(const std::string &desc, int redisStatus, RedisRegisterContext *data);
+	void onErrorData(RedisRegisterContext *data);
 	void subscribeTopic(const std::string &topic);
 	void subscribeAll();
 	void subscribeToKeyExpiration();
-	void parseAndClean(redisReply *reply, RegistrarUserData *data);
+	void parseAndClean(redisReply *reply, RedisRegisterContext *data);
 
 	/* callbacks */
 	void handleAuthReply(const redisReply *reply);
-	void handleBind(redisReply *reply, RegistrarUserData *data);
-	void handleBindReplyAorSet(redisReply *reply, RegistrarUserData *data);
-	void handleClear(redisReply *reply, RegistrarUserData *data);
-	void handleFetch(redisReply *reply, RegistrarUserData *data);
+	void handleBind(redisReply *reply, RedisRegisterContext *data);
+	void handleBindReplyAorSet(redisReply *reply, RedisRegisterContext *data);
+	void handleClear(redisReply *reply, RedisRegisterContext *data);
+	void handleFetch(redisReply *reply, RedisRegisterContext *data);
 	
 	/**
 	 * This callback is called when the Redis instance answered our "INFO replication" message.
@@ -161,8 +203,8 @@ private:
 	 * @param str Redis answer
 	 */
 	void handleReplicationInfoReply(const char *str);
-	void handleMigration(redisReply *reply, RegistrarUserData *data);
-	void handleRecordMigration(redisReply *reply, RegistrarUserData *data);
+	void handleMigration(redisReply *reply, RedisRegisterContext *data);
+	void handleRecordMigration(redisReply *reply, RedisRegisterContext *data);
 	void onConnect(const redisAsyncContext *c, int status);
 	void onDisconnect(const redisAsyncContext *c, int status);
 	void onSubscribeConnect(const redisAsyncContext *c, int status);
@@ -176,14 +218,14 @@ private:
 	/* static handlers */
 	//static void sHandleAorGetReply(struct redisAsyncContext *, void *r, void *privdata);
 	static void sHandleAuthReply(redisAsyncContext *ac, void *r, void *privdata);
-	static void sHandleBindStart(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
-	static void sHandleBindFinish(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
-	static void sHandleClear(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
-	static void sHandleFetch(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
+	static void sHandleBindStart(redisAsyncContext *ac, redisReply *reply, RedisRegisterContext *data);
+	static void sHandleBindFinish(redisAsyncContext *ac, redisReply *reply, RedisRegisterContext *data);
+	static void sHandleClear(redisAsyncContext *ac, redisReply *reply, RedisRegisterContext *data);
+	static void sHandleFetch(redisAsyncContext *ac, redisReply *reply, RedisRegisterContext *data);
 	static void sHandleReplicationInfoReply(redisAsyncContext *ac, void *r, void *privdata);
 	static void sHandleSet(redisAsyncContext *ac, void *r, void *privdata);
-	static void sHandleMigration(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
-	static void sHandleRecordMigration(redisAsyncContext *ac, redisReply *reply, RegistrarUserData *data);
+	static void sHandleMigration(redisAsyncContext *ac, redisReply *reply, RedisRegisterContext *data);
+	static void sHandleRecordMigration(redisAsyncContext *ac, redisReply *reply, RedisRegisterContext *data);
 
 	/**
 	 * This callback is called periodically to check if the current REDIS connection is valid
