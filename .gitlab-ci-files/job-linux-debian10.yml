@@ -101,7 +101,7 @@ job-debian10-deb-deploy:
 
 job-debian10-unit-test:
   stage : test
-  tags: [ "docker" ]
+  tags: [ "docker-test" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
   except:
     variables:

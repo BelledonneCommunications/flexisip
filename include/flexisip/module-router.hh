@@ -66,8 +66,7 @@ public:
 	void routeRequest(std::shared_ptr<RequestSipEvent>& ev, const std::shared_ptr<Record>& aor, const url_t* sipUri);
 	void onContactRegistered(const std::shared_ptr<OnContactRegisteredListener>& listener,
 	                         const std::string& uid,
-	                         const std::shared_ptr<Record>& aor,
-	                         const std::string& sipKey);
+	                         const std::shared_ptr<Record>& aor);
 
 	const std::string& getFallbackRoute() const {
 		return mFallbackRoute;
@@ -105,7 +104,6 @@ protected:
 	std::string routingKey(const url_t* sipUri);
 	std::vector<std::string> split(const char* data, const char* delim);
 	ForkRefList getLateForks(const std::string& key) const noexcept;
-	unsigned countLateForks(const std::string& key) const noexcept;
 
 	std::list<std::string> mDomains;
 	std::shared_ptr<ForkContextConfig> mForkCfg;
@@ -125,7 +123,7 @@ private:
 
 	static ModuleInfo<ModuleRouter> sInfo;
 	std::shared_ptr<SipBooleanExpression> mFallbackRouteFilter;
-	bool mSaveForkMessageEnabled = false;
+	std::shared_ptr<OnContactRegisteredListener> mOnContactRegisteredListener{nullptr};
 };
 
 class OnContactRegisteredListener : public ContactRegisteredListener,
@@ -133,26 +131,28 @@ class OnContactRegisteredListener : public ContactRegisteredListener,
                                     public std::enable_shared_from_this<OnContactRegisteredListener> {
 	friend class ModuleRouter;
 	ModuleRouter* mModule;
-	std::string mSipKey;
 	sofiasip::Home mHome;
 
 public:
-	OnContactRegisteredListener(ModuleRouter* module, const std::string& sipKey) : mModule(module) {
-		mSipKey = sipKey;
-		SLOGD << "OnContactRegisteredListener created for sipKey = " << mSipKey;
+	OnContactRegisteredListener(ModuleRouter* module) : mModule(module) {
+		SLOGD << "OnContactRegisteredListener created";
 	}
 
 	~OnContactRegisteredListener() = default;
 
 	void onContactRegistered(const std::shared_ptr<Record>& r, const std::string& uid) override {
-		LOGD("Listener invoked for topic = %s, uid = %s, sipKey = %s", r->getKey().c_str(), uid.c_str(),
-		     mSipKey.c_str());
-		if (r) mModule->onContactRegistered(shared_from_this(), uid, r, mSipKey);
+		LOGD("Listener invoked for topic = %s, uid = %s", r->getKey().c_str(), uid.c_str());
+		if (r) mModule->onContactRegistered(shared_from_this(), uid, r);
 	}
-	void onRecordFound(const std::shared_ptr<Record>& r) override{};
-	void onError() override{};
-	void onInvalid() override{};
-	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override{};
+
+	void onRecordFound(const std::shared_ptr<Record>& r) override {
+	}
+	void onError() override {
+	}
+	void onInvalid() override {
+	}
+	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+	}
 };
 
 } // namespace flexisip

@@ -188,12 +188,17 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 		if (!mFallbackRouteParsed) LOGF("Bad value [%s] for fallback-route in module::Router.", mFallbackRoute.c_str());
 	}
 
-	if ((mSaveForkMessageEnabled = mc->get<ConfigBoolean>("save-fork-late-message-in-db")->read())) {
-		ForkMessageContextSociRepository::prepareConfiguration(
-		    mc->get<ConfigString>("message-database-backend")->read(),
-		    mc->get<ConfigString>("message-database-connection-string")->read(), 10);
+	if (mMessageForkCfg->mForkLate) {
+		mOnContactRegisteredListener = make_shared<OnContactRegisteredListener>(this);
+		if ((mMessageForkCfg->mSaveForkMessageEnabled =
+		         mc->get<ConfigBoolean>("save-fork-late-message-in-db")->read())) {
 
-		restoreForksFromDatabase();
+			ForkMessageContextSociRepository::prepareConfiguration(
+			    mc->get<ConfigString>("message-database-backend")->read(),
+			    mc->get<ConfigString>("message-database-connection-string")->read(), 10);
+
+			restoreForksFromDatabase();
+		}
 	}
 }
 
@@ -208,10 +213,7 @@ void ModuleRouter::restoreForksFromDatabase() {
 		                                    mStats.mCountMessageProxyForks, dbMessage);
 		for (const auto& key : dbMessage.dbKeys) {
 			mForks.emplace(key, restoredForkMessage);
-			auto listener = make_shared<OnContactRegisteredListener>(this, key);
-			if (countLateForks(key) == 1) {
-				RegistrarDb::get()->subscribe(key, listener);
-			}
+			RegistrarDb::get()->subscribe(key, mOnContactRegisteredListener);
 		}
 	}
 	SLOGI << " ... " << mForks.size() << " fork message restored from DB.";
@@ -325,10 +327,9 @@ shared_ptr<BranchInfo> ModuleRouter::dispatch(const shared_ptr<ForkContext> cont
 	return context->addBranch(new_ev, contact);
 }
 
-void ModuleRouter::onContactRegistered(const shared_ptr<OnContactRegisteredListener>& listener,
-                                       const string& uid,
-                                       const shared_ptr<Record>& record,
-                                       const string& sipKey) {
+void ModuleRouter::onContactRegistered(const std::shared_ptr<OnContactRegisteredListener>& listener,
+                                       const std::string& uid,
+                                       const std::shared_ptr<Record>& record) {
 	sofiasip::Home home;
 	sip_contact_t* contact = NULL;
 	bool forksFound = false;
@@ -339,11 +340,10 @@ void ModuleRouter::onContactRegistered(const shared_ptr<OnContactRegisteredListe
 	}
 
 	if (!mForkCfg->mForkLate && !mMessageForkCfg->mForkLate) return;
-	if (sipKey.empty()) return; // nothing to do
 
 	// Find all contexts
-	auto range = getLateForks(sipKey);
-	SLOGD << "Searching for fork context with key " << sipKey;
+	auto range = getLateForks(record->getKey());
+	SLOGD << "Searching for fork context with key " << record->getKey();
 
 	if (range.size() > 0) {
 		forksFound = true;
@@ -382,8 +382,9 @@ void ModuleRouter::onContactRegistered(const shared_ptr<OnContactRegisteredListe
 		 * list becomes empty, we know that we can clear the structure from mForks.
 		 * --SM
 		 */
-		SLOGD << "Router module no longer interested in contact registered notification for topic = " << sipKey;
-		RegistrarDb::get()->unsubscribe(sipKey, listener);
+		SLOGD << "Router module no longer interested in contact registered notification for topic = "
+		      << record->getKey();
+		RegistrarDb::get()->unsubscribe(record->getKey(), listener);
 	}
 }
 
@@ -538,7 +539,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 	             strcasecmp(sip->sip_content_type->c_type, "application/im-iscomposing+xml") == 0) &&
 	           !(sip->sip_expires && sip->sip_expires->ex_delta == 0)) {
 		// Use the basic fork context for "im-iscomposing+xml" messages to prevent storing useless messages
-		if (mSaveForkMessageEnabled) {
+		if (mMessageForkCfg->mSaveForkMessageEnabled) {
 			context = ForkMessageContextDbProxy::make(getAgent(), ev, mMessageForkCfg, shared_from_this(),
 			                                          mStats.mCountMessageForks, mStats.mCountMessageProxyForks);
 		} else {
@@ -548,7 +549,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 	} else if (sip->sip_request->rq_method == sip_method_refer &&
 	           (sip->sip_refer_to != nullptr && msg_params_find(sip->sip_refer_to->r_params, "text") != nullptr)) {
 		// Use the message fork context only for refers that are text to prevent storing useless refers
-		if (mSaveForkMessageEnabled) {
+		if (mMessageForkCfg->mSaveForkMessageEnabled) {
 			context = ForkMessageContextDbProxy::make(getAgent(), ev, mMessageForkCfg, shared_from_this(),
 			                                          mStats.mCountMessageForks, mStats.mCountMessageProxyForks);
 		} else {
@@ -562,9 +563,8 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 	context->addKey(key);
 	mForks.emplace(key, context);
 	SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
-	if (context->getConfig()->mForkLate && countLateForks(key) == 1) {
-		auto listener = make_shared<OnContactRegisteredListener>(this, key);
-		RegistrarDb::get()->subscribe(key, listener);
+	if (context->getConfig()->mForkLate) {
+		RegistrarDb::get()->subscribe(key, mOnContactRegisteredListener);
 	}
 
 	// now sort usable_contacts to form groups, if grouping is allowed
@@ -595,9 +595,8 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 				const string aliasKey(routingKey(temp_ctt->m_url));
 				context->addKey(aliasKey);
 				mForks.emplace(aliasKey, context);
-				if (countLateForks(aliasKey) == 1) {
-					auto listener = make_shared<OnContactRegisteredListener>(this, aliasKey);
-					RegistrarDb::get()->subscribe(aliasKey, listener);
+				if (context->getConfig()->mForkLate) {
+					RegistrarDb::get()->subscribe(aliasKey, mOnContactRegisteredListener);
 				}
 				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), aliasKey.c_str());
 			}
@@ -866,16 +865,6 @@ ModuleRouter::ForkRefList ModuleRouter::getLateForks(const std::string& key) con
 	return lateForks;
 }
 
-unsigned ModuleRouter::countLateForks(const std::string& key) const noexcept {
-	auto count = 0u;
-	auto range = mForks.equal_range(key);
-	for (auto it = range.first; it != range.second; ++it) {
-		const auto& forkCtx = it->second;
-		if (forkCtx->getConfig()->mForkLate) ++count;
-	}
-	return count;
-}
-
 void ModuleRouter::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	sip_t* sip = ms->getSip();
@@ -970,12 +959,12 @@ void ModuleRouter::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 void ModuleRouter::onForkContextFinished(const shared_ptr<ForkContext>& ctx) {
 	const auto& keys = ctx->getKeys();
 	for (const auto& key : keys) {
-		LOGD("Looking at fork contexts with key %s", key.c_str());
+		SLOGD << "Looking at fork contexts with key " << key;
 
-		auto range = mForks.equal_range(key.c_str());
+		auto range = mForks.equal_range(key);
 		for (auto it = range.first; it != range.second;) {
 			if (it->second == ctx) {
-				LOGD("Remove fork %s from store", it->first.c_str());
+				SLOGD << "Remove fork " << it->first << " from store";
 				mStats.mCountForks->incrFinish();
 				auto cur_it = it;
 				++it;

@@ -123,7 +123,7 @@ job-debian11-deb-deploy:
 
 job-debian11-unit-test:
   stage : test
-  tags: [ "docker" ]
+  tags: [ "docker-test" ]
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian11:$DEBIAN_11_IMAGE_VERSION
   except:
     variables:

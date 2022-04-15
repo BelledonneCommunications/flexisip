@@ -233,6 +233,7 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo>& br) {
 std::shared_ptr<BranchInfo> ForkMessageContext::onNewRegister(const SipUri& dest,
                                                               const std::string& uid,
                                                               const DispatchFunction& dispatchFunction) {
+	LOGD("ForkMessageContext[%p] onNewRegister", this);
 	shared_ptr<BranchInfo> fakeBranch{};
 	auto alreadyHaveTransaction = ForkContextBase::onNewRegister(dest, uid, [&fakeBranch]() { return fakeBranch; });
 	if (alreadyHaveTransaction != fakeBranch) return nullptr;

@@ -307,7 +307,7 @@ static void globalTestMultipleMessages() {
 		              "Route: <sip:127.0.0.1:5960;transport=tcp;lr>\r\n"
 		              "Supported: replaces, outbound, gruu\r\n"
 		              "Date: Fri, 01 Apr 2022 11:18:26 GMT\r\n"
-		              "Content-Type: text/plain\r\n";
+		              "Content-Type: text/plain\r\n\r\n";
 		bellesipUtils.sendRawRequest(rawHeaders.str(), rawBody);
 	}
 
@@ -359,7 +359,7 @@ static void globalTestMultipleMessages() {
 /*
  * We send a message to a client with one idle device, to force the message saving in DB.
  * To simulate a problem with the message in DB we delete everything in DB.
- * Then we put the client back online and we check that nothing is delivered and that no crash happened.
+ * Then we put the client back online, and we check that nothing is delivered and that no crash happened.
  * All along we check fork stats and client state.
  */
 static void globalTestDatabaseDeleted() {

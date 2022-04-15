@@ -36,6 +36,7 @@ struct ForkContextConfig {
 	int mPushResponseTimeout = 0;    /*timeout for receiving response to push */
 	int mCurrentBranchesTimeout = 0; /*timeout for receiving response on current branches*/
 	bool mForkLate = false;
+	bool mSaveForkMessageEnabled = false;
 	bool mTreatAllErrorsAsUrgent = false; /*treat all SIP response code as urgent replies in the fork mechanism.*/
 	bool mForkNoGlobalDecline = false;
 	bool mTreatDeclineAsUrgent =
