@@ -57,7 +57,6 @@ public:
 
 #ifdef ENABLE_UNIT_TESTS
 	void assertEqual(const std::shared_ptr<ForkMessageContext>& expected);
-	void assertEqualMinimal(const std::shared_ptr<ForkMessageContext>& expected);
 #endif
 
 protected:

@@ -166,11 +166,12 @@ static void forkMessageContextSociRepositoryFullLoadMysqlUnitTests() {
 	}
 
 	auto dbForks = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
-	map<string, shared_ptr<ForkMessageContext>> actualForks{};
+	map<string, shared_ptr<ForkMessageContextDbProxy>> actualForks{};
 
 	for (auto dbFork : dbForks) {
-		auto actualFork = ForkMessageContext::make(server->getAgent().get(), shared_ptr<ForkContextConfig>{},
-		                                           shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, dbFork);
+		auto actualFork = ForkMessageContextDbProxy::make(server->getAgent().get(), shared_ptr<ForkContextConfig>{},
+		                                                  shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{},
+		                                                  shared_ptr<StatPair>{}, dbFork);
 		actualForks.insert(make_pair(dbFork.uuid, actualFork));
 		BC_ASSERT_TRUE(!dbFork.dbKeys.empty());
 	}
@@ -180,9 +181,7 @@ static void forkMessageContextSociRepositoryFullLoadMysqlUnitTests() {
 	}
 	for (const auto& actualFork : actualForks) {
 		auto it = expectedForks.find(actualFork.first);
-		if (it != expectedForks.end()) {
-			actualFork.second->assertEqualMinimal(it->second);
-		} else {
+		if (it == expectedForks.end()) {
 			BC_FAIL("Forks with UUID " << actualFork.first << "not expected");
 		}
 	}
@@ -247,9 +246,10 @@ static void globalTest() {
 	// Check that request in DB is the same that request sent.
 	auto allMessages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
 	if (allMessages.size() == 1) {
-		auto requestInDb = allMessages.cbegin()->request;
-		if (requestInDb.find(rawBody) == string::npos) BC_FAIL("Body not found");
+		auto requestInDb =
+		    ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(allMessages.cbegin()->uuid).request;
 		// We only compare body because headers can be modified a bit by the proxy
+		if (requestInDb.find(rawBody) == string::npos) BC_FAIL("Body not found");
 	} else BC_FAIL("No message in DB, or too much");
 
 	// Client REGISTER and receive message
@@ -340,7 +340,7 @@ static void globalTestMultipleMessages() {
 	}
 
 	// Assert Fork is destroyed after being delivered
-	if (!CoreAssert({receiverClient->getCore()}, server->getAgent()).waitUntil(5s, [agent = server->getAgent(), i] {
+	if (!CoreAssert({receiverClient->getCore()}, server->getAgent()).waitUntil(10s, [agent = server->getAgent(), i] {
 		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
 		    return moduleRouter->mStats.mCountMessageProxyForks->finish->read() == i;
 	    })) {

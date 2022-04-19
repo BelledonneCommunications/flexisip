@@ -310,9 +310,4 @@ void ForkMessageContext::assertEqual(const shared_ptr<ForkMessageContext>& expec
 		BC_FAIL("Waiting branch list is not the same size");
 	}
 }
-
-void ForkMessageContext::assertEqualMinimal(const shared_ptr<ForkMessageContext>& expected) {
-	BC_ASSERT_TRUE(mExpirationDate == expected->mExpirationDate);
-	BC_ASSERT_TRUE(mEvent->getMsgSip()->printString() == expected->mEvent->getMsgSip()->printString());
-}
 #endif

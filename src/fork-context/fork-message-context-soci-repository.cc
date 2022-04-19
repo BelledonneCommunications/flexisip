@@ -61,6 +61,12 @@ ForkMessageContextSociRepository::ForkMessageContextSociRepository(const string&
 		expiration_date TIMESTAMP NOT NULL,
 		request MEDIUMBLOB NOT NULL))sql";
 
+		try {
+			sql << R"sql(CREATE INDEX expiration_date_index ON fork_message_context (expiration_date))sql";
+		} catch (const soci_error& e) {
+			SLOGD << "ForkMessageContextSociRepository - Index was already created.";
+		}
+
 		sql << R"sql(CREATE TABLE IF NOT EXISTS branch_info (
 		fork_uuid BINARY(16) NOT NULL,
 		contact_uid VARCHAR(255) NOT NULL,
@@ -183,8 +189,8 @@ std::vector<ForkMessageContextDb> ForkMessageContextSociRepository::findAllForkM
 	ForkMessageContextDb currentFork{};
 
 	soci::statement forkSt =
-	    (sql.prepare << "select UuidFromBin(uuid), expiration_date, request from fork_message_context",
-	     into(currentFork.uuid), into(currentFork.expirationDate), into(currentFork.request));
+	    (sql.prepare << "select UuidFromBin(uuid), expiration_date from fork_message_context order by expiration_date",
+	     into(currentFork.uuid), into(currentFork.expirationDate));
 
 	forkSt.execute();
 	while (forkSt.fetch()) {
