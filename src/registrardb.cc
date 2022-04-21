@@ -744,15 +744,18 @@ void RegistrarDb::subscribe(const SipUri &url, const shared_ptr<ContactRegistere
 	this->subscribe(Record::defineKeyFromUrl(url.get()), listener);
 }
 
-void RegistrarDb::subscribe(const string &topic, const shared_ptr<ContactRegisteredListener> &listener) {
-	auto alreadyRegisteredListener = mContactListenersMap.equal_range(topic);
-	for (auto it = alreadyRegisteredListener.first; it != alreadyRegisteredListener.second;) {
-		if (it->second == listener) {
-			LOGD("Already subscribe topic = %s with listener %p", topic.c_str(), listener.get());
-			return;
-		}
-		it++;
+void RegistrarDb::subscribe(const string& topic, const shared_ptr<ContactRegisteredListener>& listener) {
+	const auto& alreadyRegisteredListener = mContactListenersMap.equal_range(topic);
+
+	const auto listenerAlreadyPresent =
+	    find_if(alreadyRegisteredListener.first, alreadyRegisteredListener.second, [&listener](const auto& mapEntry) {
+		    return mapEntry.second == listener;
+	    }) != alreadyRegisteredListener.second;
+	if (listenerAlreadyPresent) {
+		LOGD("Already subscribe topic = %s with listener %p", topic.c_str(), listener.get());
+		return;
 	}
+
 	LOGD("Subscribe topic = %s with listener %p", topic.c_str(), listener.get());
 	mContactListenersMap.emplace(topic, listener);
 }

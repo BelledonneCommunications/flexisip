@@ -81,7 +81,7 @@ ForkMessageContextDbProxy::ForkMessageContextDbProxy(Agent* agent,
     : ForkMessageContextDbProxy(agent, cfg, listener, messageCounter, proxyCounter) {
 
 	mForkUuidInDb = forkFromDb.uuid;
-	mState = State::IN_DATABASE;
+	setState(State::IN_DATABASE);
 }
 
 ForkMessageContextDbProxy::~ForkMessageContextDbProxy() {
@@ -139,21 +139,21 @@ void ForkMessageContextDbProxy::onForkContextFinished(const shared_ptr<ForkConte
 }
 
 void ForkMessageContextDbProxy::runSavingThread() {
-	mState = State::SAVING;
+	setState(State::SAVING);
 	const auto& dbFork = mForkMessage->getDbObject();
 	ThreadPool::getGlobalThreadPool()->run([this, dbFork]() {
-		unique_lock<mutex> lock(mMutex);
+		unique_lock<mutex> lock(mConditionMutex);
 		if (saveToDb(dbFork)) {
-			mState = State::IN_DATABASE;
+			setState(State::IN_DATABASE);
 			mSavedAgent->getRoot()->addToMainLoop([weak = weak_ptr<ForkMessageContextDbProxy>{shared_from_this()}]() {
 				if (auto shared = weak.lock()) {
-					if (shared->mState == State::IN_DATABASE) {
+					if (shared->getState() == State::IN_DATABASE) {
 						shared->startTimerAndResetFork();
 					}
 				}
 			});
 		} else {
-			mState = State::IN_MEMORY;
+			setState(State::IN_MEMORY);
 		}
 		lock.unlock();
 		mCondition.notify_all();
@@ -175,24 +175,29 @@ void ForkMessageContextDbProxy::onResponse(const shared_ptr<BranchInfo>& br,
 std::shared_ptr<BranchInfo>
 ForkMessageContextDbProxy::onNewRegister(const SipUri& dest, const string& uid, const DispatchFunction& dispatchFunc) {
 	LOGD("ForkMessageContextDbProxy[%p] onNewRegister", this);
-	if (mState != State::IN_MEMORY) {
+	if (getState() != State::IN_MEMORY) {
 		ThreadPool::getGlobalThreadPool()->run([this, dest, uid, dispatchFunc]() {
-			unique_lock<mutex> lock(mMutex);
+			unique_lock<mutex> lock(mConditionMutex);
 			// Wait if state == SAVING
-			mCondition.wait(lock, [this]() { return !(mState == State::SAVING); });
-			// If multiples onNewRegister are active at the same time on one ForkMessage only one should access DB
-			// at the same time, this is ensured by mCondition.wait taking a lock.
+			mCondition.wait(lock, [this]() { return getState() != State::SAVING; });
+			// If multiples onNewRegister are active at the same time only one ForkMessage should access DB at the same
+			// time, this is ensured by mCondition.wait taking a lock.
+			unique_lock<recursive_mutex> lockState(mStateMutex);
 			if (mState != State::IN_MEMORY) {
 				checkState("restoringThread exec", State::IN_DATABASE);
 				mState = State::RESTORING;
+				lockState.unlock();
 				try {
 					loadFromDb();
-					mState = State::IN_MEMORY;
+					setState(State::IN_MEMORY);
 				} catch (const exception& e) {
 					SLOGE << errorLogPrefix() << "Error loading ForkMessageContext from db : " << e.what();
-					mState = State::IN_DATABASE;
+					setState(State::IN_DATABASE);
 				}
+			} else {
+				lockState.unlock();
 			}
+
 			mSavedAgent->getRoot()->addToMainLoop(
 			    [weak = weak_ptr<ForkMessageContextDbProxy>{shared_from_this()}, dest, uid, dispatchFunc]() {
 				    if (auto shared = weak.lock()) {
@@ -214,12 +219,14 @@ void ForkMessageContextDbProxy::delayedOnNewRegister(const SipUri& dest,
                                                      const DispatchFunction& dispatchFunc) {
 	if (restoreForkIfNeeded() && !onNewRegister(dest, uid, dispatchFunc) && mForkMessage->allBranchesAnswered()) {
 		startTimerAndResetFork();
-		mState = State::IN_DATABASE;
+		setState(State::IN_DATABASE);
 	}
 }
 
 bool ForkMessageContextDbProxy::restoreForkIfNeeded() {
-	if (mDbFork) {
+	if (getState() != State::IN_MEMORY) {
+		return false;
+	} else if (mDbFork) {
 		try {
 			mForkMessage =
 			    ForkMessageContext::make(mSavedAgent, mSavedConfig, shared_from_this(), mSavedCounter, *mDbFork);
@@ -234,7 +241,7 @@ bool ForkMessageContextDbProxy::restoreForkIfNeeded() {
 			      << e.what();
 
 			mForkMessage.reset();
-			mState = State::IN_DATABASE;
+			setState(State::IN_DATABASE);
 			onForkContextFinished(nullptr);
 			return false;
 		}
@@ -244,6 +251,7 @@ bool ForkMessageContextDbProxy::restoreForkIfNeeded() {
 
 void ForkMessageContextDbProxy::checkState(const string& methodName,
                                            const ForkMessageContextDbProxy::State& expectedState) const {
+	lock_guard<recursive_mutex> lock(mStateMutex);
 	if (mState != expectedState) {
 		stringstream ss;
 		ss << errorLogPrefix() << "Bad state :  actual [" << mState << "] expected [" << expectedState << "] in "
@@ -255,7 +263,7 @@ void ForkMessageContextDbProxy::checkState(const string& methodName,
 
 void ForkMessageContextDbProxy::startTimerAndResetFork(time_t expirationDate, const vector<string>& keys) {
 	LOGD("ForkMessageContextDbProxy[%p] startTimerAndResetFork", this);
-	// We need to handle fork late timer in proxy object in case it expire while inner object is still in database.
+	// We need to handle fork late timer in proxy object in case it expires while inner object is still in database.
 	const auto utcNow = time(nullptr);
 	auto timeout = difftime(expirationDate, utcNow);
 	if (timeout < 0) timeout = 0;
@@ -265,7 +273,7 @@ void ForkMessageContextDbProxy::startTimerAndResetFork(time_t expirationDate, co
 			    shared->onForkContextFinished(nullptr);
 		    }
 	    },
-	    timeout * 1000);
+	    (unsigned)timeout * 1000);
 
 	// If timer expire while ForkMessage is still in DB we need to keep track of keys to remove proxy from Fork list.
 	mSavedKeys = vector<string>{keys};
@@ -275,6 +283,16 @@ void ForkMessageContextDbProxy::startTimerAndResetFork(time_t expirationDate, co
 
 void ForkMessageContextDbProxy::startTimerAndResetFork() {
 	startTimerAndResetFork(mForkMessage->getExpirationDate(), mForkMessage->getKeys());
+}
+
+ForkMessageContextDbProxy::State ForkMessageContextDbProxy::getState() const {
+	lock_guard<recursive_mutex> lock(mStateMutex);
+	return mState;
+}
+
+void ForkMessageContextDbProxy::setState(ForkMessageContextDbProxy::State state) {
+	lock_guard<recursive_mutex> lock(mStateMutex);
+	mState = state;
 }
 
 ostream& operator<<(ostream& os, flexisip::ForkMessageContextDbProxy::State state) noexcept {

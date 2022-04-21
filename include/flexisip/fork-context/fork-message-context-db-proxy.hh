@@ -73,12 +73,12 @@ public:
 	}
 
 	bool allCurrentBranchesAnswered(bool ignore_errors_and_timeouts = false) const override {
-		if (mState != State::IN_MEMORY) return true;
+		if (getState() != State::IN_MEMORY) return true;
 		return mForkMessage->allCurrentBranchesAnswered(ignore_errors_and_timeouts);
 	}
 
 	bool hasNextBranches() const override {
-		if (mState != State::IN_MEMORY) return false;
+		if (getState() != State::IN_MEMORY) return false;
 		return mForkMessage->hasNextBranches();
 	}
 
@@ -98,7 +98,7 @@ public:
 	}
 
 	const std::vector<std::string>& getKeys() const override {
-		if (mState == State::IN_MEMORY) {
+		if (getState() == State::IN_MEMORY) {
 			return mForkMessage->getKeys();
 		} else {
 			return mSavedKeys;
@@ -184,13 +184,17 @@ private:
 	bool restoreForkIfNeeded();
 	void runSavingThread();
 
+	State getState() const;
+	void setState(State mState);
+
 	// All those attributes are mark as mutable because they are used in const methods from ForkContext API, but they
 	// need to be modified because we are in the proxy object.
 	mutable std::shared_ptr<ForkMessageContext> mForkMessage;
 	mutable std::unique_ptr<ForkMessageContextDb> mDbFork{nullptr};
-	mutable std::mutex mMutex{};
+	mutable std::recursive_mutex mStateMutex{};
+	mutable std::mutex mConditionMutex{};
 	mutable std::condition_variable mCondition{};
-	mutable State mState;
+	mutable State mState; // never access mState without mStateMutex locked, you can use locked getter and setter
 	mutable sofiasip::Timer mProxyLateTimer;
 
 	std::weak_ptr<ForkContextListener> mOriginListener;
