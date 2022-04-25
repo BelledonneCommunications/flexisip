@@ -70,8 +70,19 @@ if (ENABLE_B2BUA)
 endif ()
 
 target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
-target_link_libraries(flexisip_tester PRIVATE bctoolbox-tester flexisip linphone++ bellesip OpenSSL::SSL
-        OpenSSL::Crypto Threads::Threads Boost::system)
+target_link_libraries(flexisip_tester PRIVATE
+        Boost::system
+        OpenSSL::Crypto
+        OpenSSL::SSL
+        Threads::Threads
+        bctoolbox-tester
+        bellesip
+        flexisip
+        linphone
+        linphone++
+        mediastreamer
+        ortp
+)
 if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
     target_link_libraries(flexisip_tester PRIVATE LibNgHttp2Asio)
 endif ()

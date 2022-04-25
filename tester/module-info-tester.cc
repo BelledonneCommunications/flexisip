@@ -19,7 +19,7 @@
 #include "flexisip/module.hh"
 
 #include "tester.hh"
-#include "utils/test-wrapper.hh"
+#include "utils/test-paterns/test.hh"
 
 using namespace std;
 

@@ -40,11 +40,11 @@ using namespace std;
 
 namespace flexisip {
 
-TlsConnection::TlsConnection(const string& host, const string& port, bool mustBeHttp2) noexcept
+TlsConnection::TlsConnection(const string& host, const string& port, bool mustBeHttp2)
     : mHost{host}, mPort{port}, mMustBeHttp2{mustBeHttp2} {
 
-	auto ctx = getDefaultCtx();
-	SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+	auto* ctx = getDefaultCtx();
+	SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, nullptr);
 	mCtx.reset(ctx);
 }
 
@@ -60,13 +60,14 @@ TlsConnection::TlsConnection(
 	auto ctx = getDefaultCtx();
 
 	if (trustStorePath.empty()) {
-		SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+		SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, nullptr);
 	} else {
-		SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
-		SSL_CTX_set_cert_verify_callback(ctx, handleVerifyCallback, NULL);
+		SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, nullptr);
+		SSL_CTX_set_cert_verify_callback(ctx, handleVerifyCallback, nullptr);
 	}
 
-	if (!SSL_CTX_load_verify_locations(ctx, trustStorePath.empty() ? NULL : trustStorePath.c_str(), "/etc/ssl/certs")) {
+	if (!SSL_CTX_load_verify_locations(ctx, trustStorePath.empty() ? nullptr : trustStorePath.c_str(),
+	                                   "/etc/ssl/certs")) {
 		SLOGE << "Error loading trust store";
 		ERR_print_errors_fp(stderr);
 		throw runtime_error("Error during TlsConnection creation");
@@ -95,7 +96,7 @@ TlsConnection::TlsConnection(
 }
 
 void TlsConnection::connectAsync(su_root_t& root, const function<void()>& onConnectCb) noexcept {
-	auto result = async(launch::async, [this, &root, onConnectCb]() { this->doConnectAsync(root, onConnectCb); });
+	thread{[this, &root, onConnectCb]() { this->doConnectAsync(root, onConnectCb); }}.detach();
 }
 
 void TlsConnection::doConnectAsync(su_root_t& root, const function<void()>& onConnectCb) {

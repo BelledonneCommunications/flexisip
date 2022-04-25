@@ -18,26 +18,46 @@
 
 #pragma once
 
+#include <stdexcept>
+#include <type_traits>
+
+#include <bctoolbox/tester.h>
+
 namespace flexisip {
 namespace tester {
+
+class TestAssertFailedException : public std::exception {};
+
+inline void bc_hard_assert(const char* file, int line, int predicate, const char* format) {
+	bc_assert(file, line, predicate, format);
+	if (!predicate) throw TestAssertFailedException{};
+}
+
+#define BC_HARD_ASSERT_TRUE(value) bc_hard_assert(__FILE__, __LINE__, (value), "BC_HARD_ASSERT_TRUE(" #value ")")
+#define BC_HARD_ASSERT_FALSE(value) bc_hard_assert(__FILE__, __LINE__, !(value), "BC_HARD_ASSERT_FALSE(" #value ")")
 
 // Interface for all the classes which are to be executed as unit test.
 // The test is executed by calling () operator.
 class Test {
 public:
 	virtual ~Test() = default;
-	virtual void operator()() noexcept = 0;
+
+	// May throw TestAssetFailedException
+	virtual void operator()() = 0;
 };
 
-// Wrapper object that allow BCUnit to easily call a Test-deviled class.
-// It is to be derived by the Test class to wrap by using the name
-// of the Test class as TestT template parameter.
-// Then, the method TestT::run() can be used in a BCUnit test suite array.
-template <typename TestT> class TestWrapper {
-public:
-	static void run() noexcept {
+/**
+ * This function allows BCUnit to easily call a Test-derived class.
+ * The template instantiation fits the restrictions to be placed
+ * in a BCUnit test suites array.
+ * @param TestT The Test-derived class to execute.
+ */
+template <typename TestT>
+void run() noexcept {
+	try {
 		TestT test{};
 		test();
+	} catch (const TestAssertFailedException&) {
 	}
 };
 

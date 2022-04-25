@@ -21,70 +21,18 @@
 
 #include "tester.hh"
 #include "utils/redis-server.hh"
-#include "utils/test-wrapper.hh"
+#include "utils/test-paterns/agent-test.hh"
 
 using namespace std;
 
 namespace flexisip {
 namespace tester {
 
-// Base class for all the tests concerning the RegistrarDB class.
-// It automatically instantiate an Agent which can be configured
-// by redefining onAgentConfiguration() method. Furthermore, it
-// ensures that the RegistrarDB singleton is destroyed once the test
-// is completed.
-// The test can be specialized by redefining onExec() method.
-class RegistrarDbTest : public Test {
+class RegistrarDbTest : public AgentTest {
 public:
-	~RegistrarDbTest() {
-		RegistrarDb::resetDB();
+	// The agent hasn't to be run for testing the registrar DB.
+	RegistrarDbTest() noexcept : AgentTest(false) {
 	}
-
-	void operator()() noexcept override {
-		configureAgent();
-		onExec();
-	};
-
-protected:
-	// Protected methods
-	void configureAgent() {
-		auto* cfg = GenericManager::get();
-		cfg->load("");
-		onAgentConfiguration(*cfg);
-		mAgent->loadConfig(cfg, false);
-	};
-
-	/**
-	 * Run the SofiaSip main loop for a given time.
-	 * This methods is to be used by an overload of onExec().
-	 */
-	template <typename Duration> void waitFor(Duration timeout) noexcept {
-		using namespace std::chrono;
-		for (auto now = steady_clock::now(), end = now + timeout; now < end; now = steady_clock::now()) {
-			mRoot->step(end - now);
-		}
-	}
-
-	/**
-	 * Run the SofiaSip main loop until a given condition is fulfil or the timeout is reached.
-	 * This methods is to be used by an overload of onExec().
-	 * @return true, if the break condition has been fulfil before the timeout.
-	 */
-	template <typename Duration> bool waitFor(const std::function<bool()>& breakCondition, Duration timeout) {
-		using namespace std::chrono;
-		for (auto now = steady_clock::now(), end = now + timeout; now < end; now = steady_clock::now()) {
-			if (breakCondition()) return true;
-			mRoot->step(end - now);
-		}
-		return false;
-	}
-
-	virtual void onAgentConfiguration(GenericManager& cfg) = 0;
-	virtual void onExec() = 0;
-
-	// Protected attributes
-	std::shared_ptr<sofiasip::SuRoot> mRoot{std::make_shared<sofiasip::SuRoot>()};
-	std::shared_ptr<Agent> mAgent{std::make_shared<Agent>(mRoot)};
 };
 
 // Base class for testing UNSUBSCRIBE/SUBSCRIBE scenario.
@@ -104,7 +52,7 @@ protected:
 	};
 
 	// Protected methods
-	void onExec() noexcept override {
+	void onExec() noexcept {
 		auto* regDb = RegistrarDb::get();
 
 		auto stats = make_shared<RegistrarStats>();
@@ -133,22 +81,22 @@ protected:
 };
 
 // Test UNSUBSCRIBE/SUBSCRIBE scenario with the 'internal' RegistrarDB backend.
-class SubsequentUnsubscribeSubscribeWithInternalDbTest
-    : public SubsequentUnsubscribeSubscribeTest,
-      public TestWrapper<SubsequentUnsubscribeSubscribeWithInternalDbTest> {
+class SubsequentUnsubscribeSubscribeWithInternalDbTest : public SubsequentUnsubscribeSubscribeTest {
 protected:
 	void onAgentConfiguration(GenericManager& cfg) override {
+		AgentTest::onAgentConfiguration(cfg);
 		auto* registrarConf = cfg.getRoot()->get<GenericStruct>("module::Registrar");
 		registrarConf->get<ConfigValue>("db-implementation")->set("internal");
 	}
 };
 
 // Test UNSUBSCRIBE/SUBSCRIBE scenario with the 'redis' RegistrarDB backend.
-class SubsequentUnsubscribeSubscribeWithRedisTest : public SubsequentUnsubscribeSubscribeTest,
-                                                    public TestWrapper<SubsequentUnsubscribeSubscribeWithRedisTest> {
+class SubsequentUnsubscribeSubscribeWithRedisTest : public SubsequentUnsubscribeSubscribeTest {
 protected:
 	// Protected methods
 	void onAgentConfiguration(GenericManager& cfg) override {
+		AgentTest::onAgentConfiguration(cfg);
+
 		auto redisPort = mRedisServer.start();
 
 		auto* registrarConf = cfg.getRoot()->get<GenericStruct>("module::Registrar");
@@ -161,16 +109,10 @@ protected:
 	RedisServer mRedisServer{};
 };
 
-} // namespace tester
-} // namespace flexisip
-
-namespace flexisip {
-namespace tester {
-
 static test_t tests[] = {TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with internal backend",
-                                     SubsequentUnsubscribeSubscribeWithInternalDbTest::run),
+                                     run<SubsequentUnsubscribeSubscribeWithInternalDbTest>),
                          TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with Redis backend",
-                                     SubsequentUnsubscribeSubscribeWithRedisTest::run)};
+                                     run<SubsequentUnsubscribeSubscribeWithRedisTest>)};
 
 test_suite_t registarDbSuite = {
     "RegistrarDB",                    // Suite name

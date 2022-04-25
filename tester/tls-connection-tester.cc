@@ -19,6 +19,7 @@
 #include <chrono>
 #include <future>
 #include <thread>
+#include <type_traits>
 
 #include "utils/tcp-server.hh"
 #include "utils/tls-server.hh"
@@ -30,22 +31,35 @@ using namespace std;
 using namespace std::chrono;
 using namespace flexisip;
 
-static void tcpRead() {
-	string expectedRead{"To read !"};
+template <typename ServerT, typename HostStr, typename PortStr>
+static std::unique_ptr<TlsConnection> makeClientFor(HostStr&& host, PortStr&& port) {
+	constexpr auto needTls = is_same<typename decay<ServerT>::type, TlsServer>::value;
+	if (needTls) {
+		return make_unique<TlsConnection>(std::forward<HostStr>(host), std::forward<PortStr>(port), false);
+	} else {
+		// Using an empty certPath cause TlsConnection to behave as a raw TCP connection.
+		return make_unique<TlsConnection>(std::forward<HostStr>(host), std::forward<PortStr>(port), "", "", false);
+	}
+}
 
-	TcpServer tcpServer{1234};
-	auto serverStatus = async(launch::async, [&tcpServer, &expectedRead]() {
-		tcpServer.accept();
-		tcpServer.send(expectedRead);
+template <typename ServerT> static void readTest() {
+	string expectedRead{"To read !"};
+	constexpr auto host = "127.0.0.1";
+	constexpr auto port = 1234;
+
+	ServerT server{port};
+	auto serverStatus = async(launch::async, [&server, &expectedRead]() {
+		server.accept();
+		server.send(expectedRead);
 		return true;
 	});
 
-	TlsConnection tlsConnection{"127.0.0.1", "1234", "", "", false};
-	tlsConnection.connect();
+	auto tlsConnection = makeClientFor<ServerT>(host, to_string(port));
+	tlsConnection->connect();
 
 	char readBuffer[1024];
 	this_thread::sleep_for(100ms);
-	auto nbRead = tlsConnection.read(readBuffer, sizeof(readBuffer));
+	auto nbRead = tlsConnection->read(readBuffer, sizeof(readBuffer));
 
 	string readStr{};
 	readStr.insert(readStr.end(), readBuffer, readBuffer + nbRead);
@@ -54,202 +68,87 @@ static void tcpRead() {
 	BC_ASSERT_TRUE(serverStatus.get());
 }
 
-static void tcpReadAllWithTimeout() {
+struct ReadAllWithTimeoutParams {
+	std::chrono::milliseconds responseDelay{0};
+	std::chrono::milliseconds readAllTimeoutDelay{500ms};
+	std::chrono::milliseconds minElapsedTime{0};
+	std::chrono::milliseconds maxElapsedTime{500ms};
+	bool noResponseExpected{false};
+};
+
+template <typename ServerT> static void readAllWithTimeoutBase(const ReadAllWithTimeoutParams& params) {
 	string request{"Hello World!\n"};
 	string expectedResponse{"aaa"};
+	constexpr auto host = "127.0.0.1";
+	constexpr auto port = 1234;
 
-	TcpServer tcpServer{1234};
-	auto requestMatch = async(launch::async, [&tcpServer, &request, &expectedResponse]() {
-		return tcpServer.runServerForTest(request, expectedResponse);
+	ServerT server{port};
+	auto requestMatch = async(launch::async, [&server, &request, &expectedResponse, &params]() {
+		return server.runServerForTest(request, expectedResponse, params.responseDelay);
 	});
 
-	TlsConnection tlsConnection{"127.0.0.1", "1234", "", "", false};
-	tlsConnection.connect();
+	auto tlsConnection = makeClientFor<ServerT>(host, to_string(port));
+	tlsConnection->connect();
 
 	std::vector<char> vectorReq(request.begin(), request.end());
-	tlsConnection.write(vectorReq);
+	tlsConnection->write(vectorReq);
 
 	string responseStr{};
 	auto start = steady_clock::now();
-	tlsConnection.readAll(responseStr, 500ms);
+	tlsConnection->readAll(responseStr, params.readAllTimeoutDelay);
 	auto end = steady_clock::now();
 	auto elapsedTimeMs = (int)duration_cast<milliseconds>(end - start).count();
 
-	BC_ASSERT_STRING_EQUAL(responseStr.c_str(), expectedResponse.c_str());
-	BC_ASSERT_LOWER_STRICT(elapsedTimeMs, 500, int, "%i");
+	auto minElapsedTimeMs = duration_cast<milliseconds>(params.minElapsedTime).count();
+	auto maxElapsedTimeMs = duration_cast<milliseconds>(params.maxElapsedTime).count();
+	if (!params.noResponseExpected) {
+		BC_ASSERT_STRING_EQUAL(responseStr.c_str(), expectedResponse.c_str());
+	} else {
+		BC_ASSERT_STRING_EQUAL(responseStr.c_str(), "");
+	}
+	BC_ASSERT_GREATER(elapsedTimeMs, minElapsedTimeMs, int, "%i");
+	BC_ASSERT_LOWER_STRICT(elapsedTimeMs, maxElapsedTimeMs, int, "%i");
 	BC_ASSERT_TRUE(requestMatch.get());
+};
+
+template <typename ServerT> static void readAllWithTimeout() {
+	ReadAllWithTimeoutParams params{};
+	readAllWithTimeoutBase<ServerT>(params);
 }
 
-static void tcpReadAllWithTimeoutDelayedResponse() {
-	string request{"Hello World!\n"};
-	string expectedResponse{"aaa"};
-
-	TcpServer tcpServer{1234};
-	auto requestMatch = async(launch::async, [&tcpServer, &request, &expectedResponse]() {
-		return tcpServer.runServerForTest(request, expectedResponse, 500ms);
-	});
-
-	TlsConnection tlsConnection{"127.0.0.1", "1234", "", "", false};
-	tlsConnection.connect();
-
-	std::vector<char> vectorReq(request.begin(), request.end());
-	tlsConnection.write(vectorReq);
-
-	string responseStr{};
-	auto start = steady_clock::now();
-	tlsConnection.readAll(responseStr, 5000ms);
-	auto end = steady_clock::now();
-	auto elapsedTimeMs = (int)duration_cast<milliseconds>(end - start).count();
-
-	BC_ASSERT_STRING_EQUAL(responseStr.c_str(), expectedResponse.c_str());
-	BC_ASSERT_GREATER(elapsedTimeMs, 500, int, "%i");
-	BC_ASSERT_LOWER_STRICT(elapsedTimeMs, 750, int, "%i");
-	BC_ASSERT_TRUE(requestMatch.get());
+template <typename ServerT> static void readAllWithTimeoutDelayedResponse() {
+	ReadAllWithTimeoutParams params{};
+	params.responseDelay = 500ms;
+	params.readAllTimeoutDelay = 5s;
+	params.minElapsedTime = 500ms;
+	params.maxElapsedTime = 750ms;
+	readAllWithTimeoutBase<ServerT>(params);
 }
 
-static void tcpReadAllWithTimeoutLateResponse() {
-	string request{"Hello World!\n"};
-	string expectedResponse{"aaa"};
-
-	TcpServer tcpServer{1234};
-	auto requestMatch = async(launch::async, [&tcpServer, &request, &expectedResponse]() {
-		return tcpServer.runServerForTest(request, expectedResponse, 1s);
-	});
-
-	TlsConnection tlsConnection{"127.0.0.1", "1234", "", "", false};
-	tlsConnection.connect();
-
-	std::vector<char> vectorReq(request.begin(), request.end());
-	tlsConnection.write(vectorReq);
-
-	string responseStr{};
-	auto start = steady_clock::now();
-	tlsConnection.readAll(responseStr, 500ms);
-	auto end = steady_clock::now();
-	auto elapsedTimeMs = (int)duration_cast<milliseconds>(end - start).count();
+template <typename ServerT> static void readAllWithTimeoutLateResponse() {
+	ReadAllWithTimeoutParams params{};
+	params.responseDelay = 1s;
+	params.readAllTimeoutDelay = 500ms;
 
 	// We did not wait for response
-	BC_ASSERT_STRING_NOT_EQUAL(responseStr.c_str(), expectedResponse.c_str());
-	BC_ASSERT_GREATER(elapsedTimeMs, 499, int, "%i");
-	BC_ASSERT_LOWER_STRICT(elapsedTimeMs, 1020, int, "%i");
+	params.minElapsedTime = 499ms;
+	params.maxElapsedTime = 520ms;
+	params.noResponseExpected = true;
 
-	BC_ASSERT_TRUE(requestMatch.get());
-}
-
-static void tlsRead() {
-	string expectedRead{"To read !"};
-
-	TlsServer tlsServer{1234};
-	auto serverStatus = async(launch::async, [&tlsServer, &expectedRead]() {
-		tlsServer.accept();
-		tlsServer.send(expectedRead);
-		return 0;
-	});
-
-	TlsConnection tlsConnection{"127.0.0.1", "1234", false};
-	tlsConnection.connect();
-
-	char readBuffer[1024];
-	this_thread::sleep_for(100ms);
-	auto nbRead = tlsConnection.read(readBuffer, sizeof(readBuffer));
-
-	string readStr{};
-	readStr.insert(readStr.end(), readBuffer, readBuffer + nbRead);
-
-	BC_ASSERT_STRING_EQUAL(readStr.c_str(), expectedRead.c_str());
-	BC_ASSERT_TRUE(serverStatus.get() == 0);
-}
-
-static void tlsReadAllWithTimeout() {
-	string request{"Hello World!\n"};
-	string expectedResponse{"aaa"};
-
-	TlsServer tlsServer{1234};
-	auto requestMatch = async(launch::async, [&tlsServer, &request, &expectedResponse]() {
-		return tlsServer.runServerForTest(request, expectedResponse);
-	});
-
-	TlsConnection tlsConnection{"127.0.0.1", "1234", false};
-	tlsConnection.connect();
-
-	std::vector<char> vectorReq(request.begin(), request.end());
-	tlsConnection.write(vectorReq);
-
-	string responseStr{};
-	auto start = steady_clock::now();
-	tlsConnection.readAll(responseStr, 500ms);
-	auto end = steady_clock::now();
-	auto elapsedTimeMs = (int)duration_cast<milliseconds>(end - start).count();
-
-	BC_ASSERT_STRING_EQUAL(responseStr.c_str(), expectedResponse.c_str());
-	BC_ASSERT_LOWER_STRICT(elapsedTimeMs, 500, int, "%i");
-	BC_ASSERT_TRUE(requestMatch.get());
-}
-
-static void tlsReadAllWithTimeoutDelayedResponse() {
-	string request{"Hello World!\n"};
-	string expectedResponse{"aaa"};
-
-	TlsServer tlsServer{1234};
-	auto requestMatch = async(launch::async, [&tlsServer, &request, &expectedResponse]() {
-		return tlsServer.runServerForTest(request, expectedResponse, 500ms);
-	});
-
-	TlsConnection tlsConnection{"127.0.0.1", "1234", false};
-	tlsConnection.connect();
-
-	std::vector<char> vectorReq(request.begin(), request.end());
-	tlsConnection.write(vectorReq);
-
-	string responseStr{};
-	auto start = steady_clock::now();
-	tlsConnection.readAll(responseStr, 5000ms);
-	auto end = steady_clock::now();
-	auto elapsedTimeMs = (int)duration_cast<milliseconds>(end - start).count();
-
-	BC_ASSERT_STRING_EQUAL(responseStr.c_str(), expectedResponse.c_str());
-	BC_ASSERT_GREATER(elapsedTimeMs, 500, int, "%i");
-	BC_ASSERT_LOWER_STRICT(elapsedTimeMs, 750, int, "%i");
-	BC_ASSERT_TRUE(requestMatch.get());
-}
-
-static void tlsReadAllWithTimeoutLateResponse() {
-	string request{"Hello World!\n"};
-	string expectedResponse{"aaa"};
-
-	TlsServer tlsServer{1234};
-	auto requestMatch = async(launch::async, [&tlsServer, &request, &expectedResponse]() {
-		return tlsServer.runServerForTest(request, expectedResponse, 1s);
-	});
-
-	TlsConnection tlsConnection{"127.0.0.1", "1234", false};
-	tlsConnection.connect();
-
-	std::vector<char> vectorReq(request.begin(), request.end());
-	tlsConnection.write(vectorReq);
-
-	string responseStr{};
-	auto start = steady_clock::now();
-	tlsConnection.readAll(responseStr, 500ms);
-	auto end = steady_clock::now();
-	auto elapsedTimeMs = (int)duration_cast<milliseconds>(end - start).count();
-
-	// We did not wait for response
-	BC_ASSERT_STRING_NOT_EQUAL(responseStr.c_str(), expectedResponse.c_str());
-	BC_ASSERT_GREATER(elapsedTimeMs, 499, int, "%i");
-	BC_ASSERT_LOWER_STRICT(elapsedTimeMs, 1020, int, "%i");
-	BC_ASSERT_TRUE(requestMatch.get());
+	readAllWithTimeoutBase<ServerT>(params);
 }
 
 static test_t tests[] = {
-    TEST_NO_TAG("TCP read", tcpRead),
-    TEST_NO_TAG("TCP readAll with timeout", tcpReadAllWithTimeout),
-    TEST_NO_TAG("TCP readAll with timeout, response from server is delayed.", tcpReadAllWithTimeoutDelayedResponse),
-    TEST_NO_TAG("TCP readAll with timeout, response from server is late.", tcpReadAllWithTimeoutLateResponse),
-    TEST_NO_TAG("TLS read", tlsRead),
-    TEST_NO_TAG("TLS readAll with timeout", tlsReadAllWithTimeout),
-    TEST_NO_TAG("TLS readAll with timeout, response from server is delayed.", tlsReadAllWithTimeoutDelayedResponse),
-    TEST_NO_TAG("TLS readAll with timeout, response from server is late.", tlsReadAllWithTimeoutLateResponse),
+    TEST_NO_TAG("TCP read", readTest<TcpServer>),
+    TEST_NO_TAG("TCP readAll with timeout", readAllWithTimeout<TcpServer>),
+    TEST_NO_TAG("TCP readAll with timeout, response from server is delayed.",
+                readAllWithTimeoutDelayedResponse<TcpServer>),
+    TEST_NO_TAG("TCP readAll with timeout, response from server is late.", readAllWithTimeoutLateResponse<TcpServer>),
+    TEST_NO_TAG("TLS read", readTest<TlsServer>),
+    TEST_NO_TAG("TLS readAll with timeout", readAllWithTimeout<TlsServer>),
+    TEST_NO_TAG("TLS readAll with timeout, response from server is delayed.",
+                readAllWithTimeoutDelayedResponse<TlsServer>),
+    TEST_NO_TAG("TLS readAll with timeout, response from server is late.", readAllWithTimeoutLateResponse<TlsServer>),
 };
 
 test_suite_t tls_connection_suite = {"TlsConnection unit tests",       nullptr, nullptr, nullptr, nullptr,

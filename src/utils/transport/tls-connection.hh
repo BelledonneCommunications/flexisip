@@ -22,6 +22,7 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <cstring>
 #include <vector>
 
 #include <openssl/ssl.h>
@@ -42,7 +43,7 @@ public:
 	};
 	using SSLCtxUniquePtr = std::unique_ptr<SSL_CTX, SSLCtxDeleter>;
 
-	TlsConnection(const std::string& host, const std::string& port, bool mustBeHttp2 = false) noexcept;
+	TlsConnection(const std::string& host, const std::string& port, bool mustBeHttp2 = false);
 	TlsConnection(const std::string& host,
 	              const std::string& port,
 	              const std::string& trustStorePath,
@@ -91,6 +92,12 @@ public:
 	}
 	int getFd() const noexcept;
 
+	int read(std::vector<char>& data, int readSize) noexcept {
+		data.resize(readSize);
+		auto nRead = read(data.data(), readSize);
+		data.resize(std::max(0, nRead));
+		return nRead;
+	}
 	int read(void* data, int dlen) noexcept;
 
 	template <typename ContainerT>
@@ -132,8 +139,11 @@ public:
 		return result.size();
 	}
 
-	int write(const std::vector<char>& data) noexcept {
+	template <typename ContinuousContainer> int write(const ContinuousContainer& data) noexcept {
 		return write(data.data(), data.size());
+	}
+	int write(const char* cStr) noexcept {
+		return write(cStr, std::strlen(cStr));
 	}
 	int write(const void* data, int dlen) noexcept;
 
