@@ -24,7 +24,6 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-
 using namespace flexisip;
 
 void ListeningSocket::listenUntil(std::promise<void>& barrier) {

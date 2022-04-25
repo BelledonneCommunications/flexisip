@@ -49,7 +49,7 @@ std::string TcpServer::read() {
 void TcpServer::send(const std::string& message) {
 	LOGD("TcpServer[%p] entering send", this);
 	const string msg = message + "\n";
-	boost::asio::write( mSocket,  boost::asio::buffer(message));
+	boost::asio::write(mSocket, boost::asio::buffer(message));
 	LOGD("TcpServer[%p] send : %s", this, message.c_str());
 }
 

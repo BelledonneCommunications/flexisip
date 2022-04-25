@@ -43,8 +43,11 @@ public:
 	using SSLCtxUniquePtr = std::unique_ptr<SSL_CTX, SSLCtxDeleter>;
 
 	TlsConnection(const std::string& host, const std::string& port, bool mustBeHttp2 = false) noexcept;
-	TlsConnection(const std::string& host, const std::string& port, const std::string& trustStorePath,
-	              const std::string& certPath, bool mustBeHttp2 = false);
+	TlsConnection(const std::string& host,
+	              const std::string& port,
+	              const std::string& trustStorePath,
+	              const std::string& certPath,
+	              bool mustBeHttp2 = false);
 	TlsConnection(const TlsConnection&) = delete;
 	TlsConnection(TlsConnection&&) = delete;
 

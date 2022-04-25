@@ -41,5 +41,5 @@ public:
 	}
 };
 
-} // namespace flexisip::tester
+} // namespace tester
 } // namespace flexisip

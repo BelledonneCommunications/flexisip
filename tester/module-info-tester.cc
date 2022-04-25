@@ -30,8 +30,10 @@ class DummyModule : public Module {
 public:
 	using Module::Module;
 
-	void onRequest(std::shared_ptr<RequestSipEvent> &ev) override {}
-	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) override {}
+	void onRequest(std::shared_ptr<RequestSipEvent>& ev) override {
+	}
+	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override {
+	}
 };
 
 class DummyRegistrarModule : public DummyModule {
@@ -91,7 +93,8 @@ static void moduleReplacement() noexcept {
 	ModuleInfo<DummyRegistrarModule> dummyRegistrarInfo{
 	    "DummyRegistrar", "", {""}, ModuleInfoBase::ModuleOid::Registrar, ModuleClass::Production, "Registrar"};
 	ModuleInfo<DummyAuthModule> dummyAuthInfo{
-	    "DummyAuthentication", "", {""}, ModuleInfoBase::ModuleOid::Registrar, ModuleClass::Production, "Authentication"};
+	    "DummyAuthentication", "", {""}, ModuleInfoBase::ModuleOid::Registrar, ModuleClass::Production,
+	    "Authentication"};
 	ModuleInfo<DummyRouterModule> dummyRouterInfo{
 	    "DummyRouter", "", {""}, ModuleInfoBase::ModuleOid::Registrar, ModuleClass::Production, "Router"};
 
@@ -105,10 +108,8 @@ static void moduleReplacement() noexcept {
 	}
 }
 
-static test_t tests[] = {
-	TEST_NO_TAG("Module sorting", moduleSorting),
-	TEST_NO_TAG("Module replacement", moduleReplacement)
-};
+static test_t tests[] = {TEST_NO_TAG("Module sorting", moduleSorting),
+                         TEST_NO_TAG("Module replacement", moduleReplacement)};
 
 test_suite_t moduleInfoSuite = {
     "ModuleInfo",                     // Suite name
