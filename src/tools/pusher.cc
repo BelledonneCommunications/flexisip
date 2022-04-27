@@ -1,19 +1,19 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <string>
@@ -26,7 +26,6 @@
 using namespace std;
 using namespace flexisip;
 using namespace flexisip::pushnotification;
-
 
 static constexpr int MAX_QUEUE_SIZE = 3000;
 
@@ -47,41 +46,43 @@ struct PusherArgs {
 	string pnParam{};
 	vector<string> pnPrids{};
 
-	void usage(const char *app) {
-		cout << "Standard push notifications usage:" << endl << "    "
-			<< app << " [options] --pn-provider provider --pn-param params --pn-prid prid1 [prid2 prid3 ...]" << endl
-			<< endl
-			<< "Legacy push notifications usage:" << endl << "    "
-			<< app << " [options] --pntype {google|firebase|wp|w10|apple} --appid id --key --pntok id1 [id2 id3 ...] apikey(secretkey) --sid ms-app://value --prefix dir" << endl
-			<< endl
-			<< "Generic options:" << endl
-			<< "    --customPayload json" << endl
-			<< "    --apple-push-type {RemoteBasic|RemoteWithMutableContent|Background|PushKit}, PushKit by default" << endl
-			<< "    --prefix dir" << endl
-			<< "    --debug" << endl;
+	void usage(const char* app) {
+		cout << "Standard push notifications usage:" << endl
+		     << "    " << app << " [options] --pn-provider provider --pn-param params --pn-prid prid1 [prid2 prid3 ...]"
+		     << endl
+		     << endl
+		     << "Legacy push notifications usage:" << endl
+		     << "    " << app
+		     << " [options] --pntype {google|firebase|wp|w10|apple} --appid id --key --pntok id1 [id2 id3 ...] "
+		        "apikey(secretkey) --sid ms-app://value --prefix dir"
+		     << endl
+		     << endl
+		     << "Generic options:" << endl
+		     << "    --customPayload json" << endl
+		     << "    --apple-push-type {RemoteBasic|RemoteWithMutableContent|Background|PushKit}, PushKit by default"
+		     << endl
+		     << "    --prefix dir" << endl
+		     << "    --debug" << endl;
 	}
 
-	const char *parseUrlParams(const char *params) {
+	const char* parseUrlParams(const char* params) {
 		char tmp[64];
 		if (url_param(params, "pn-type", tmp, sizeof(tmp)) == 0) {
 			return "no pn-type";
-		} else
-			pntype = tmp;
+		} else pntype = tmp;
 
 		if (url_param(params, "app-id", tmp, sizeof(tmp)) == 0) {
 			return "no app-id";
-		} else
-			appid = tmp;
+		} else appid = tmp;
 
 		if (url_param(params, "pn-tok", tmp, sizeof(tmp)) == 0) {
 			return "no pn-tok";
-		} else
-			pntok.push_back(tmp);
+		} else pntok.push_back(tmp);
 
 		return NULL;
 	}
 
-	void parse(int argc, char *argv[]) {
+	void parse(int argc, char* argv[]) {
 		prefix = "/etc/flexisip";
 		pntype = "";
 
@@ -107,10 +108,10 @@ struct PusherArgs {
 				packageSID = argv[++i];
 			} else if (EQ0(i, "--debug")) {
 				debug = true;
-			}else if (EQ0(i, "--silent")) {
+			} else if (EQ0(i, "--silent")) {
 				cout << "WARNING: --silent has no more effect (deprecated)" << endl;
 			} else if (EQ1(i, "--apple-push-type")) {
-				const char *aspt = argv[++i];
+				const char* aspt = argv[++i];
 				if (string(aspt) == "PushKit") {
 					applePushType = ApplePushType::Pushkit;
 				} else if (string(aspt) == "RemoteBasic") {
@@ -125,14 +126,14 @@ struct PusherArgs {
 				}
 			} else if (EQ1(i, "--pntok")) {
 				found_Legacy_Params = true;
-				while (i+1 < argc && strncmp(argv[i+1], "--", 2) != 0) {
+				while (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
 					i++;
 					pntok.push_back(argv[i]);
 				}
 			} else if (EQ1(i, "--key")) {
 				apikey = argv[++i];
 			} else if (EQ1(i, "--raw")) {
-				const char *res = parseUrlParams(argv[++i]);
+				const char* res = parseUrlParams(argv[++i]);
 				if (res) {
 					cerr << "? raw " << res << endl;
 					showUsageAndExit();
@@ -142,7 +143,7 @@ struct PusherArgs {
 				pnProvider = argv[++i];
 			} else if (EQ1(i, "--pn-prid")) {
 				found_RFC_8599_Params = true;
-				while (i+1 < argc && strncmp(argv[i+1], "--", 2) != 0) {
+				while (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
 					i++;
 					pnPrids.push_back(argv[i]);
 				}
@@ -177,10 +178,10 @@ struct PusherArgs {
 	}
 };
 
-static vector<PushInfo> createPushInfosFromArgs(const PusherArgs &args) {
+static vector<PushInfo> createPushInfosFromArgs(const PusherArgs& args) {
 	vector<PushInfo> pushInfos;
 	// Parameters in common between Legacy and Standard push
-	auto createAndInitializePushInfo = [](const PusherArgs &args) -> PushInfo {
+	auto createAndInitializePushInfo = [](const PusherArgs& args) -> PushInfo {
 		PushInfo pinfo;
 		pinfo.mFromName = "Pusher";
 		pinfo.mFromUri = "sip:toto@sip.linphone.org";
@@ -188,7 +189,7 @@ static vector<PushInfo> createPushInfosFromArgs(const PusherArgs &args) {
 	};
 
 	// Parameters in common between Legacy and Standard push, specifically for apple push notification
-	auto fillAppleGenericParams = [&args](PushInfo &pinfo) {
+	auto fillAppleGenericParams = [&args](PushInfo& pinfo) {
 		pinfo.mAlertMsgId = "IM_MSG";
 		pinfo.mAlertSound = "msg.caf";
 		pinfo.mTtl = 2592000;
@@ -197,7 +198,7 @@ static vector<PushInfo> createPushInfosFromArgs(const PusherArgs &args) {
 	};
 
 	if (args.legacyPush) { // Legacy push
-		for (const auto &pntok : args.pntok) {
+		for (const auto& pntok : args.pntok) {
 			PushInfo pinfo = createAndInitializePushInfo(args);
 			pinfo.mType = args.pntype;
 			if (args.pntype == "firebase") {
@@ -227,14 +228,15 @@ static vector<PushInfo> createPushInfosFromArgs(const PusherArgs &args) {
 		RFC8599PushParams standardParams;
 		standardParams.pnProvider = args.pnProvider;
 		standardParams.pnParam = args.pnParam;
-		for (const auto &pnPrid : args.pnPrids) {
+		for (const auto& pnPrid : args.pnPrids) {
 			standardParams.pnPrid = pnPrid;
 			PushInfo pinfo = createAndInitializePushInfo(args);
 			pinfo.readRFC8599PushParams(standardParams);
 			if (pinfo.mType == "apple") {
 				fillAppleGenericParams(pinfo);
-				// apple-push-type is still required in order to be able to know if the notification is a remote or background.
-				// Background notification aren't specified in the standard push params, but rather in the content of the push notification
+				// apple-push-type is still required in order to be able to know if the notification is a remote or
+				// background. Background notification aren't specified in the standard push params, but rather in the
+				// content of the push notification
 				pinfo.mApplePushType = args.applePushType;
 			}
 			pinfo.mApiKey = args.apikey;
@@ -244,14 +246,15 @@ static vector<PushInfo> createPushInfosFromArgs(const PusherArgs &args) {
 	return pushInfos;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
 	int ret = 0;
 	PusherArgs args;
 	args.parse(argc, argv);
 
 	LogManager::Parameters logParams;
 
-	logParams.logDirectory = "/var/opt/belledonne-communications/log/flexisip"; //Sorry but ConfigManager is not accessible in this tool.
+	logParams.logDirectory =
+	    "/var/opt/belledonne-communications/log/flexisip"; // Sorry but ConfigManager is not accessible in this tool.
 	logParams.logFilename = "flexisip-pusher.log";
 	logParams.level = args.debug ? BCTBX_LOG_DEBUG : BCTBX_LOG_ERROR;
 	logParams.enableSyslog = false;
@@ -263,7 +266,8 @@ int main(int argc, char *argv[]) {
 		Service service{*root, MAX_QUEUE_SIZE};
 		auto pushInfos = createPushInfosFromArgs(args);
 
-		// Cannot be empty, or the program would have exited while parsing parameters. All pushInfos have the same mType, so we just take the front one.
+		// Cannot be empty, or the program would have exited while parsing parameters. All pushInfos have the same
+		// mType, so we just take the front one.
 		string pnType = pushInfos.front().mType;
 		if (pnType == "apple") {
 			service.setupiOSClient(args.prefix + "/apn", "");
@@ -277,24 +281,22 @@ int main(int argc, char *argv[]) {
 
 		vector<shared_ptr<Request>> pushRequests;
 
-		for (const PushInfo &pinfo : pushInfos) {
+		for (const PushInfo& pinfo : pushInfos) {
 			try {
 				pushRequests.push_back(Service::makePushRequest(pinfo));
-			} catch (const invalid_argument &msg) {
+			} catch (const invalid_argument& msg) {
 				cerr << msg.what() << endl;
 				exit(-1);
 			}
 		}
-		for (const auto &push : pushRequests) {
+		for (const auto& push : pushRequests) {
 			ret += service.sendPush(push);
 		}
 
 		sofiasip::Timer timer{root, 1000};
-		timer.run(
-			[root, &service] () {
-				if (service.isIdle()) su_root_break(root);
-			}
-		);
+		timer.run([root, &service]() {
+			if (service.isIdle()) su_root_break(root);
+		});
 		su_root_run(root);
 
 		int failed = 0;
@@ -303,28 +305,29 @@ int main(int argc, char *argv[]) {
 		int notsubmitted = 0;
 		int total = 0;
 
-		for(const auto &request : pushRequests){
-			switch(request->getState()){
+		for (const auto& request : pushRequests) {
+			switch (request->getState()) {
 				case Request::State::NotSubmitted:
 					notsubmitted++;
-				break;
+					break;
 				case Request::State::InProgress:
 					inprogress++;
-				break;
+					break;
 				case Request::State::Failed:
 					failed++;
-				break;
+					break;
 				case Request::State::Successful:
 					success++;
-				break;
+					break;
 			}
 			total++;
 		}
-		cout << total << " push notification(s) sent, " << success << " successfully and " << failed << " failed." << endl;
-		if (failed > 0 ){
+		cout << total << " push notification(s) sent, " << success << " successfully and " << failed << " failed."
+		     << endl;
+		if (failed > 0) {
 			cout << "There are failed requests, relaunch with --debug to consult exact error cause." << endl;
 		}
-		if (notsubmitted > 0 || inprogress > 0){
+		if (notsubmitted > 0 || inprogress > 0) {
 			cerr << "There were unsubmitted or uncompleted requests, this is a bug." << endl;
 		}
 	}

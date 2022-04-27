@@ -1,19 +1,19 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2020  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2020  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <iostream>
@@ -32,7 +32,8 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
-GenericRequest::GenericRequest(const PushInfo &pinfo, const url_t *url, const string &method) : Request("generic", "generic") {
+GenericRequest::GenericRequest(const PushInfo& pinfo, const url_t* url, const string& method)
+    : Request("generic", "generic") {
 	ostringstream httpMessage;
 	string path(url->url_path ? url->url_path : "");
 	string headers(url->url_headers ? url->url_headers : "");
@@ -41,18 +42,15 @@ GenericRequest::GenericRequest(const PushInfo &pinfo, const url_t *url, const st
 	substituteArgs(headers, pinfo);
 
 	httpMessage << method << " /" << path;
-	if (!headers.empty())
-		httpMessage << "?" << headers;
+	if (!headers.empty()) httpMessage << "?" << headers;
 	httpMessage << " HTTP/1.1\r\n";
 	httpMessage << "Host: " << url->url_host;
-	if (url->url_port)
-		httpMessage << ":" << url->url_port;
+	if (url->url_port) httpMessage << ":" << url->url_port;
 	httpMessage << "\r\n";
 	if (!pinfo.mText.empty()) {
 		httpMessage << "Content-Type: text/plain\r\n";
 		httpMessage << "Content-Length: " << pinfo.mText.size() << "\r\n";
-	} else
-		httpMessage << "Content-Length: 0\r\n";
+	} else httpMessage << "Content-Length: 0\r\n";
 	httpMessage << "\r\n";
 	if (!pinfo.mText.empty()) {
 		httpMessage << pinfo.mText;
@@ -68,31 +66,31 @@ void GenericRequest::createPushNotification() {
 	mBuffer.clear();
 	mBuffer.resize(headerLength);
 
-	char *binaryMessageBuff = &mBuffer[0];
-	char *binaryMessagePt = binaryMessageBuff;
+	char* binaryMessageBuff = &mBuffer[0];
+	char* binaryMessagePt = binaryMessageBuff;
 
 	memcpy(binaryMessagePt, &mHttpMessage[0], headerLength);
 	binaryMessagePt += headerLength;
 }
 
-const vector<char> &GenericRequest::getData() {
+const vector<char>& GenericRequest::getData() {
 	createPushNotification();
 	return mBuffer;
 }
 
-string GenericRequest::isValidResponse(const string &str) {
+string GenericRequest::isValidResponse(const string& str) {
 	// LOGD("GenericPushNotificationRequest: http response is \n%s", str.c_str());
 	return "";
 }
 
 struct KeyVal {
-	KeyVal(const char *keyword, const string &value) : mKeyword(keyword), mValue(value) {
+	KeyVal(const char* keyword, const string& value) : mKeyword(keyword), mValue(value) {
 	}
-	const char *mKeyword;
+	const char* mKeyword;
 	const string mValue;
 };
 
-string &GenericRequest::substituteArgs(string &input, const PushInfo &pinfo) {
+string& GenericRequest::substituteArgs(string& input, const PushInfo& pinfo) {
 	list<KeyVal> keyvals;
 	keyvals.push_back(KeyVal("$type", pinfo.mType));
 	keyvals.push_back(KeyVal("$token", pinfo.mDeviceToken));
@@ -103,11 +101,9 @@ string &GenericRequest::substituteArgs(string &input, const PushInfo &pinfo) {
 	keyvals.push_back(KeyVal("$from-tag", pinfo.mFromTag));
 	keyvals.push_back(KeyVal("$to-uri", pinfo.mToUri));
 	keyvals.push_back(KeyVal("$call-id", pinfo.mCallId));
-	keyvals.push_back(KeyVal("$event", pinfo.mEvent == PushInfo::Event::Call
-		? "call"
-		: pinfo.mEvent == PushInfo::Event::Message
-			? "message"
-			: "refer"));
+	keyvals.push_back(KeyVal("$event", pinfo.mEvent == PushInfo::Event::Call      ? "call"
+	                                   : pinfo.mEvent == PushInfo::Event::Message ? "message"
+	                                                                              : "refer"));
 	keyvals.push_back(KeyVal("$sound", pinfo.mAlertSound));
 	keyvals.push_back(KeyVal("$msgid", pinfo.mAlertMsgId));
 	keyvals.push_back(KeyVal("$uid", pinfo.mUid));
@@ -123,5 +119,5 @@ string &GenericRequest::substituteArgs(string &input, const PushInfo &pinfo) {
 	return input;
 }
 
-}
-}
+} // namespace pushnotification
+} // namespace flexisip

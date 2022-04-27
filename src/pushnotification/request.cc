@@ -1,19 +1,19 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <ctime>
@@ -37,13 +37,14 @@ static const std::regex sApplePnProviderRegex("apns|apns\\.dev");
    pn-param:
    * all the characters before the first point are taken as the team ID;
    * all the characters between the first and the last point are taken as the bundle ID
-	 and may contains points;
+     and may contains points;
    * all the characters after the last point are taken as the service type. It may be
-	 'voip' or 'remote' or 'voip&remote' if the application needs the two kinds of
-	 push notification.
+     'voip' or 'remote' or 'voip&remote' if the application needs the two kinds of
+     push notification.
 */
 static const std::regex sPnParamRegex("([^.]+)\\.(.+)\\.((?:voip|remote|&)+)");
-static const std::regex sPnParamNoServiceRegex("([^.]+)\\.(.+)"); // If no service type is specified, we assume that the service type is "remote"
+static const std::regex sPnParamNoServiceRegex(
+    "([^.]+)\\.(.+)"); // If no service type is specified, we assume that the service type is "remote"
 
 /*
    Regex to use for extracting information from 'pn-prid' parameter when only one token has been
@@ -60,21 +61,25 @@ static const std::regex sPnPridOneTokenRegex("([^:]+)(?::(voip|remote))?");
 */
 static const std::regex sPnPridMultipleTokensRegex("([^:]+):(voip|remote)");
 
-
 string toString(ApplePushType type) noexcept {
 	switch (type) {
-		case ApplePushType::Unknown: return "Unknown";
-		case ApplePushType::Pushkit: return "PushKit";
-		case ApplePushType::RemoteBasic: return "RemoteBasic";
-		case ApplePushType::RemoteWithMutableContent: return "RemoteWithMutableContent";
-		case ApplePushType::Background: return "BackGround";
+		case ApplePushType::Unknown:
+			return "Unknown";
+		case ApplePushType::Pushkit:
+			return "PushKit";
+		case ApplePushType::RemoteBasic:
+			return "RemoteBasic";
+		case ApplePushType::RemoteWithMutableContent:
+			return "RemoteWithMutableContent";
+		case ApplePushType::Background:
+			return "BackGround";
 	};
 	return "<invalid>";
 }
 
-void PushInfo::readRFC8599PushParams(const RFC8599PushParams &params) {
+void PushInfo::readRFC8599PushParams(const RFC8599PushParams& params) {
 	smatch match;
-	
+
 	if (params.pnProvider == "fcm") { // firebase
 		mType = "firebase";
 		mDeviceToken = params.pnPrid;
@@ -96,8 +101,7 @@ void PushInfo::readRFC8599PushParams(const RFC8599PushParams &params) {
 			bundleId = match[2].str();
 			// if "remote" or "voip" services are not specified, we assume that the service type is "remote"
 			servicesAvailable.emplace_back("remote");
-		}
-		else {
+		} else {
 			throw runtime_error("pn-param invalid syntax");
 		}
 
@@ -116,10 +120,11 @@ void PushInfo::readRFC8599PushParams(const RFC8599PushParams &params) {
 
 		if (!params.pnPrid.empty()) {
 			const auto tokenList = StringUtils::split(params.pnPrid, "&");
-			for (const auto &tokenAndService : tokenList) {
+			for (const auto& tokenAndService : tokenList) {
 				if (tokenList.size() == 1) {
 					if (regex_match(tokenAndService, match, sPnPridOneTokenRegex)) {
-						// If ":remote" or ":voip" was not specificed, we assume that the token match the requested service
+						// If ":remote" or ":voip" was not specificed, we assume that the token match the requested
+						// service
 						if (match[2].str().empty() || match[2].str() == requiredService) {
 							deviceToken = match[1].str();
 						}
@@ -143,7 +148,8 @@ void PushInfo::readRFC8599PushParams(const RFC8599PushParams &params) {
 		}
 
 		mDeviceToken = deviceToken;
-		mAppId = bundleId + (mApplePushType == pushnotification::ApplePushType::Pushkit ? ".voip" : "") + (isDev ? ".dev" : ".prod");
+		mAppId = bundleId + (mApplePushType == pushnotification::ApplePushType::Pushkit ? ".voip" : "") +
+		         (isDev ? ".dev" : ".prod");
 	} else {
 		throw runtime_error(string("pn-provider unsupported value: " + params.pnProvider));
 	}
@@ -158,7 +164,7 @@ void Request::setState(State state) noexcept {
 	mState = state;
 }
 
-string Request::quoteStringIfNeeded(const string &str) const noexcept {
+string Request::quoteStringIfNeeded(const string& str) const noexcept {
 	if (str[0] == '"') {
 		return str;
 	} else {
@@ -174,17 +180,16 @@ string Request::getPushTimeStamp() const noexcept {
 	gmtime_r(&t, &time);
 	char date[20] = {0};
 	size_t ret = strftime(date, sizeof(date), "%Y-%m-%d %H:%M:%S", &time);
-	if (ret == 0)
-		SLOGE << "Invalid time stamp for push notification PNR: " << this;
+	if (ret == 0) SLOGE << "Invalid time stamp for push notification PNR: " << this;
 
 	return string(date);
 }
 
 std::ostream& operator<<(std::ostream& os, Request::State state) noexcept {
-	#define stateCase(stateEnumName) \
-		case Request::State::stateEnumName: \
-			os << #stateEnumName; \
-			break
+#define stateCase(stateEnumName)                                                                                       \
+	case Request::State::stateEnumName:                                                                                \
+		os << #stateEnumName;                                                                                          \
+		break
 
 	switch (state) {
 		stateCase(NotSubmitted);
@@ -194,11 +199,10 @@ std::ostream& operator<<(std::ostream& os, Request::State state) noexcept {
 	}
 	return os;
 
-	#undef stateCase
+#undef stateCase
 }
 
 // ====================================================================================================================
 
-
-} // end of pushnotification namespace
-} // end of flexisip namespace
+} // namespace pushnotification
+} // namespace flexisip

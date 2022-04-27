@@ -1,19 +1,19 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2020  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2020  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <openssl/err.h>
@@ -26,7 +26,6 @@
 #include "microsoftpush.hh"
 #include "wp-client.hh"
 
-
 using namespace std;
 
 namespace flexisip {
@@ -38,9 +37,9 @@ ClientWp::ClientWp(std::unique_ptr<Transport>&& transport,
                    const std::string& packageSID,
                    const std::string& applicationSecret,
                    const Service* service)
-    : LegacyClient{move(transport), name, maxQueueSize, service},
-      mPackageSID{packageSID}, mApplicationSecret{applicationSecret} {}
-
+    : LegacyClient{move(transport), name, maxQueueSize, service}, mPackageSID{packageSID}, mApplicationSecret{
+                                                                                               applicationSecret} {
+}
 
 void ClientWp::retrieveAccessToken() {
 	mAccessToken = "";
@@ -52,7 +51,7 @@ void ClientWp::retrieveAccessToken() {
 
 	SSL_CTX* ctx = SSL_CTX_new(SSLv23_method());
 	BIO* bio;
-	SSL * ssl = NULL;
+	SSL* ssl = NULL;
 	SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
 	const char* hostname = "login.live.com:443";
 
@@ -70,10 +69,10 @@ void ClientWp::retrieveAccessToken() {
 	ostringstream httpHeader;
 
 	if (sat <= 0) {
-		SLOGE << "Error attempting to connect to " << hostname << ": " << sat << " - " << strerror( errno);
+		SLOGE << "Error attempting to connect to " << hostname << ": " << sat << " - " << strerror(errno);
 		goto error;
 	} else if ((sat = BIO_do_handshake(bio)) <= 0) {
-		SLOGE << "Error attempting to handshake to " << hostname << ": " << sat << " - " << strerror( errno);
+		SLOGE << "Error attempting to handshake to " << hostname << ": " << sat << " - " << strerror(errno);
 		goto error;
 	}
 
@@ -81,9 +80,11 @@ void ClientWp::retrieveAccessToken() {
 	httpBody << "grant_type=client_credentials";
 	httpBody << "&client_id=" << UriUtils::escape(mPackageSID, UriUtils::httpQueryKeyValReserved);
 	httpBody << "&client_secret=" << UriUtils::escape(mApplicationSecret, UriUtils::httpQueryKeyValReserved);
-	httpBody << "&scope=" << "notify.windows.com";
+	httpBody << "&scope="
+	         << "notify.windows.com";
 
-	httpHeader << "POST /accesstoken.srf HTTP/1.1\r\nContent-Type: application/x-www-form-urlencoded\r\nHost: " << hostname << "\r\nContent-Length: " << httpBody.str().size() << "\r\n\r\n";
+	httpHeader << "POST /accesstoken.srf HTTP/1.1\r\nContent-Type: application/x-www-form-urlencoded\r\nHost: "
+	           << hostname << "\r\nContent-Length: " << httpBody.str().size() << "\r\n\r\n";
 
 	buffer << httpHeader.str() << httpBody.str();
 
@@ -95,14 +96,14 @@ void ClientWp::retrieveAccessToken() {
 	}
 
 	char r[1024];
-	sat = BIO_read(bio, r, sizeof(r)-1);
+	sat = BIO_read(bio, r, sizeof(r) - 1);
 	if (sat > 0) {
 		r[sat] = 0;
 		string responsestr(r, sat);
 
 		if (responsestr.find("HTTP/1.1 200 OK") == 0) {
 			string json = responsestr.substr(responsestr.find('{'));
-			cJSON *root = cJSON_Parse(json.c_str());
+			cJSON* root = cJSON_Parse(json.c_str());
 			if (!root) {
 				SLOGE << "Error parsing JSON response: " << cJSON_GetErrorPtr();
 				return;
@@ -126,24 +127,23 @@ void ClientWp::retrieveAccessToken() {
 	}
 	return;
 
-	error:
-		ERR_print_errors_fp(stderr);
-		if (bio) {
-			BIO_free_all(bio);
-		}
-		if (ctx) {
-			SSL_CTX_free(ctx);
-		}
+error:
+	ERR_print_errors_fp(stderr);
+	if (bio) {
+		BIO_free_all(bio);
+	}
+	if (ctx) {
+		SSL_CTX_free(ctx);
+	}
 }
 
-
-void ClientWp::sendPush(const std::shared_ptr<Request> &req) {
+void ClientWp::sendPush(const std::shared_ptr<Request>& req) {
 	if (time(0) > mTokenExpiring) {
 		this->retrieveAccessToken();
 	}
 	if (mTokenExpiring != 0) {
 		// we must add the authorization token
-		auto req2 = static_cast<WindowsPhoneRequest *>(req.get());
+		auto req2 = static_cast<WindowsPhoneRequest*>(req.get());
 		req2->createHTTPRequest(mAccessToken);
 		return LegacyClient::sendPush(req);
 	} else {
@@ -151,5 +151,5 @@ void ClientWp::sendPush(const std::shared_ptr<Request> &req) {
 	}
 }
 
-} // end of pushnotification namespace
-} // end of flexisip namespace
+} // namespace pushnotification
+} // namespace flexisip

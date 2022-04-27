@@ -29,180 +29,213 @@
 
 namespace sofiasip {
 
-	/**
-	 * Exception thrown while trying to create a new URL from
-	 * an invalid string or url_t.
-	 */
-	class InvalidUrlError : public std::invalid_argument {
-	public:
-		template <typename T, typename U>
-		InvalidUrlError(T &&url, U &&reason) noexcept:
-			invalid_argument(url), _url(std::forward<T>(url)), _reason(std::forward<U>(reason)) {}
-
-		/**
-		 * Get the string that couldn't be parsed.
-		 */
-		const std::string &getUrl() const noexcept {return _url;}
-		/**
-		 * Get the reason of the parsing failure.
-		 */
-		const std::string &getReason() const noexcept {return _reason;}
-
-	private:
-		std::string _url;
-		std::string _reason;
-	};
+/**
+ * Exception thrown while trying to create a new URL from
+ * an invalid string or url_t.
+ */
+class InvalidUrlError : public std::invalid_argument {
+public:
+	template <typename T, typename U>
+	InvalidUrlError(T&& url, U&& reason) noexcept
+	    : invalid_argument(url), _url(std::forward<T>(url)), _reason(std::forward<U>(reason)) {
+	}
 
 	/**
-	 * Exception thrown when an URL couldn't be modified.
+	 * Get the string that couldn't be parsed.
 	 */
-	class UrlModificationError : public std::logic_error {
-	public:
-		using logic_error::logic_error;
-	};
+	const std::string& getUrl() const noexcept {
+		return _url;
+	}
+	/**
+	 * Get the reason of the parsing failure.
+	 */
+	const std::string& getReason() const noexcept {
+		return _reason;
+	}
 
-    enum class TlsMode : uint8_t { NONE, OLD, NEW };
-    struct TlsConfigInfo {
-	    std::string certifDir{};
-	    std::string certifFile{};
-	    std::string certifPrivateKey{};
-	    std::string certifCaFile{};
-	    TlsMode mode = TlsMode::NONE;
-    };
+private:
+	std::string _url;
+	std::string _reason;
+};
+
+/**
+ * Exception thrown when an URL couldn't be modified.
+ */
+class UrlModificationError : public std::logic_error {
+public:
+	using logic_error::logic_error;
+};
+
+enum class TlsMode : uint8_t { NONE, OLD, NEW };
+struct TlsConfigInfo {
+	std::string certifDir{};
+	std::string certifFile{};
+	std::string certifPrivateKey{};
+	std::string certifCaFile{};
+	TlsMode mode = TlsMode::NONE;
+};
+
+/**
+ * Wrapper for SofiaSip's URLs.
+ */
+class Url {
+public:
+	/**
+	 * Create an empty URL.
+	 */
+	Url() = default;
+	/**
+	 * Create an URL by parsing a string.
+	 * @exception InvalidUrlError Error while parsing the string.
+	 */
+	explicit Url(const std::string& str);
+	/**
+	 * Create an URL from a SofiaSip's url_t structure.
+	 * The url_t structure isn't modified and all the allocated
+	 * string are duplicated.
+	 */
+	explicit Url(const url_t* src) noexcept;
+	Url(const Url& src) noexcept;
+	/**
+	 * Move constructor.
+	 * @note src become an empty URL after the process.
+	 */
+	Url(Url&& src) noexcept;
+	virtual ~Url() = default;
+
+	Url& operator=(const Url& src) noexcept;
+	/**
+	 * Move assign operator.
+	 * @note src become an empty URL after the process.
+	 */
+	Url& operator=(Url&& src) noexcept;
 
 	/**
-	 * Wrapper for SofiaSip's URLs.
+	 * Test whether the URL is empty.
 	 */
-	class Url {
-	public:
-		/**
-		 * Create an empty URL.
-		 */
-		Url() = default;
-		/**
-		 * Create an URL by parsing a string.
-		 * @exception InvalidUrlError Error while parsing the string.
-		 */
-		explicit Url(const std::string &str);
-		/**
-		 * Create an URL from a SofiaSip's url_t structure.
-		 * The url_t structure isn't modified and all the allocated
-		 * string are duplicated.
-		 */
-		explicit Url(const url_t *src) noexcept;
-		Url(const Url &src) noexcept;
-		/**
-		 * Move constructor.
-		 * @note src become an empty URL after the process.
-		 */
-		Url(Url &&src) noexcept;
-		virtual ~Url() = default;
+	bool empty() const noexcept {
+		return _url == nullptr;
+	}
 
-		Url &operator=(const Url &src) noexcept;
-		/**
-		 * Move assign operator.
-		 * @note src become an empty URL after the process.
-		 */
-		Url &operator=(Url &&src) noexcept;
+	/**
+	 * Return a pointer on the underlying sip_t structure.
+	 */
+	const url_t* get() const noexcept {
+		return _url;
+	}
+	/**
+	 * Format the URL as string.
+	 * @note The result of formating is cached.
+	 */
+	const std::string& str() const noexcept;
 
-		/**
-		 * Test whether the URL is empty.
-		 */
-		bool empty() const noexcept {return _url == nullptr;}
+#define getUrlAttr(attr) _url && _url->attr ? _url->attr : ""
+	std::string getScheme() const noexcept {
+		return getUrlAttr(url_scheme);
+	}
+	std::string getUser() const noexcept {
+		return getUrlAttr(url_user);
+	}
+	std::string getPassword() const noexcept {
+		return getUrlAttr(url_password);
+	}
+	std::string getHost() const noexcept {
+		return getUrlAttr(url_host);
+	}
+	std::string getPort() const noexcept {
+		return getUrlAttr(url_port);
+	}
+	std::string getPath() const noexcept {
+		return getUrlAttr(url_path);
+	}
+	std::string getParams() const noexcept {
+		return getUrlAttr(url_params);
+	}
+	std::string getHeaders() const noexcept {
+		return getUrlAttr(url_headers);
+	}
+	std::string getFragment() const noexcept {
+		return getUrlAttr(url_fragment);
+	}
+#undef getUrlAttr
 
-		/**
-		 * Return a pointer on the underlying sip_t structure.
-		 */
-		const url_t *get() const noexcept {return _url;}
-		/**
-		 * Format the URL as string.
-		 * @note The result of formating is cached.
-		 */
-		const std::string &str() const noexcept;
+	/**
+	 * Create a new URL by replacing the user past by another string.
+	 * @throw UrlModificationError when the actual URL is empty or
+	 * the new URL would be invalid.
+	 */
+	Url replaceUser(const std::string& newUser) const;
 
-		#define getUrlAttr(attr) _url && _url->attr ? _url->attr : ""
-		std::string getScheme() const noexcept {return getUrlAttr(url_scheme);}
-		std::string getUser() const noexcept {return getUrlAttr(url_user);}
-		std::string getPassword() const noexcept {return getUrlAttr(url_password);}
-		std::string getHost() const noexcept {return getUrlAttr(url_host);}
-		std::string getPort() const noexcept {return getUrlAttr(url_port);}
-		std::string getPath() const noexcept {return getUrlAttr(url_path);}
-		std::string getParams() const noexcept {return getUrlAttr(url_params);}
-		std::string getHeaders() const noexcept {return getUrlAttr(url_headers);}
-		std::string getFragment() const noexcept {return getUrlAttr(url_fragment);}
-		#undef getUrlAttr
+	/**
+	 * Test whether the URL has a given param by its name.
+	 */
+	bool hasParam(const std::string& name) const noexcept {
+		return hasParam(name.c_str());
+	}
+	bool hasParam(const char* name) const noexcept {
+		return url_has_param(_url, name);
+	}
 
-		/**
-		 * Create a new URL by replacing the user past by another string.
-		 * @throw UrlModificationError when the actual URL is empty or
-		 * the new URL would be invalid.
-		 */
-		Url replaceUser(const std::string &newUser) const;
+	std::string getParam(const std::string& paramName) const;
+	bool getBoolParam(const std::string& paramName, bool defaultValue) const;
 
-		/**
-		 * Test whether the URL has a given param by its name.
-		 */
-		bool hasParam(const std::string &name) const noexcept {return hasParam(name.c_str());}
-		bool hasParam(const char *name) const noexcept {return url_has_param(_url, name);}
+	void removeParam(const std::string& paramName);
 
-	    std::string getParam(const std::string& paramName) const;
-	    bool getBoolParam(const std::string& paramName, bool defaultValue) const;
+	TlsConfigInfo getTlsConfigInfo() const;
 
-	    void removeParam(const std::string& paramName);
+protected:
+	Home _home;
+	url_t* _url = nullptr;
+	mutable std::string _urlAsStr;
+};
 
-	    TlsConfigInfo getTlsConfigInfo() const;
+bool operator==(const TlsConfigInfo& lhs, const TlsConfigInfo& rhs);
+} // namespace sofiasip
 
-	protected:
-		Home _home;
-		url_t *_url = nullptr;
-		mutable std::string _urlAsStr;
-	};
-
-    bool operator==(const TlsConfigInfo& lhs, const TlsConfigInfo& rhs);
+inline std::ostream& operator<<(std::ostream& os, const sofiasip::Url& url) {
+	return os << url.str();
 }
-
-inline std::ostream &operator<<(std::ostream &os, const sofiasip::Url &url) {return os << url.str();}
 
 namespace flexisip {
 
+/**
+ * A specialisation of sofiasip::Url which ensures that the URL is a
+ * SIP or SIPS URI.
+ */
+class SipUri : public sofiasip::Url {
+public:
+	SipUri() = default;
 	/**
-	 * A specialisation of sofiasip::Url which ensures that the URL is a
-	 * SIP or SIPS URI.
+	 * @throw sofiasip::InvalidUrlError if str isn't a SIP or SIPS URI.
 	 */
-	class SipUri : public sofiasip::Url {
-	public:
-		SipUri() = default;
-		/**
-		 * @throw sofiasip::InvalidUrlError if str isn't a SIP or SIPS URI.
-		 */
-		explicit SipUri(const std::string &str);
-		/**
-		 * @throw sofiasip::InvalidUrlError if str isn't a SIP or SIPS URI.
-		 */
-		explicit SipUri(const url_t *src);
-		/**
-		 * @throw sofiasip::InvalidUrlError if str isn't a SIP or SIPS URI.
-		 */
-		explicit SipUri(const sofiasip::Url &src);
-		/**
-		 * @throw sofiasip::InvalidUrlError if str isn't a SIP or SIPS URI.
-		 */
-		explicit SipUri(sofiasip::Url &&src);
-		SipUri(const SipUri &src) noexcept = default;
-		SipUri(SipUri &&src) noexcept = default;
-		~SipUri() override = default;
+	explicit SipUri(const std::string& str);
+	/**
+	 * @throw sofiasip::InvalidUrlError if str isn't a SIP or SIPS URI.
+	 */
+	explicit SipUri(const url_t* src);
+	/**
+	 * @throw sofiasip::InvalidUrlError if str isn't a SIP or SIPS URI.
+	 */
+	explicit SipUri(const sofiasip::Url& src);
+	/**
+	 * @throw sofiasip::InvalidUrlError if str isn't a SIP or SIPS URI.
+	 */
+	explicit SipUri(sofiasip::Url&& src);
+	SipUri(const SipUri& src) noexcept = default;
+	SipUri(SipUri&& src) noexcept = default;
+	~SipUri() override = default;
 
-		SipUri &operator=(const SipUri &src) noexcept = default;
-		SipUri &operator=(SipUri &&src) noexcept = default;
+	SipUri& operator=(const SipUri& src) noexcept = default;
+	SipUri& operator=(SipUri&& src) noexcept = default;
 
-		/**
-		 * @throw sofiasip::UrlModificationError if the URL is empty or
-		 * the result would be an invalid SIP URI.
-		 */
-		SipUri replaceUser(const std::string &newUser) const;
+	/**
+	 * @throw sofiasip::UrlModificationError if the URL is empty or
+	 * the result would be an invalid SIP URI.
+	 */
+	SipUri replaceUser(const std::string& newUser) const;
 
-	private:
-		static void checkUrl(const sofiasip::Url &url);
-	};
+private:
+	static void checkUrl(const sofiasip::Url& url);
+};
 
-}
+} // namespace flexisip

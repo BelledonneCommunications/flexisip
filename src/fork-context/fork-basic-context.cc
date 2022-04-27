@@ -25,7 +25,8 @@
 using namespace std;
 using namespace flexisip;
 
-shared_ptr<ForkBasicContext> ForkBasicContext::make(Agent* agent, const shared_ptr<RequestSipEvent>& event,
+shared_ptr<ForkBasicContext> ForkBasicContext::make(Agent* agent,
+                                                    const shared_ptr<RequestSipEvent>& event,
                                                     const shared_ptr<ForkContextConfig>& cfg,
                                                     const weak_ptr<ForkContextListener>& listener,
                                                     const weak_ptr<StatPair>& counter) {
@@ -34,9 +35,11 @@ shared_ptr<ForkBasicContext> ForkBasicContext::make(Agent* agent, const shared_p
 	return shared;
 }
 
-ForkBasicContext::ForkBasicContext(Agent* agent, const shared_ptr<RequestSipEvent>& event,
+ForkBasicContext::ForkBasicContext(Agent* agent,
+                                   const shared_ptr<RequestSipEvent>& event,
                                    const shared_ptr<ForkContextConfig>& cfg,
-                                   const weak_ptr<ForkContextListener>& listener, const weak_ptr<StatPair>& counter)
+                                   const weak_ptr<ForkContextListener>& listener,
+                                   const weak_ptr<StatPair>& counter)
     : ForkContextBase(agent, event, cfg, listener, counter) {
 	LOGD("New ForkBasicContext %p", this);
 	mDecisionTimer = make_unique<sofiasip::Timer>(mAgent->getRoot(), 20000);

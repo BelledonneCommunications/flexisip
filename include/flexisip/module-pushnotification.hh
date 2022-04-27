@@ -20,8 +20,8 @@
 
 #include "flexisip/module.hh"
 
-#include "sip-boolean-expressions.hh"
 #include "pushnotification/service.hh"
+#include "sip-boolean-expressions.hh"
 
 namespace flexisip {
 
