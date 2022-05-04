@@ -69,7 +69,7 @@ public:
 	/**
 	 * Parse the RFC8599-extended parameters and returns a map which associates
 	 * a PushType to the according RFC8599 parameter set.
-	 * @throw std::runtime_error if one given parameter has an invalid syntax.
+	 * @throw std::runtime_error if one given parameter has an invalid syntax or the provider isn't supported.
 	 */
 	static ParsingResult
 	parsePushParams(const std::string& pnProvider, const std::string& pnParam, const std::string& pnPrid);
@@ -82,7 +82,8 @@ public:
 	 */
 	static ParsingResult parsePushParams(const char* params);
 	/**
-	 * Same as before but expect the legacy parameter instead of RFC8599.
+	 * Same as parsePushParams() but expect the legacy parameters instead of RFC8599.
+	 * @throw std::runtime_error if the legacy parameters couldn't be translated in the RFC8599 format.
 	 */
 	static ParsingResult parseLegacyPushParams(const char* params);
 

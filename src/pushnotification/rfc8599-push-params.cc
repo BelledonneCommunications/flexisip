@@ -17,6 +17,9 @@
 */
 
 #include <regex>
+#include <sstream>
+
+#include "flexisip/logmanager.hh"
 
 #include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
@@ -31,6 +34,9 @@ namespace pushnotification {
 void RFC8599PushParams::setFromPushParams(const std::string& pnProvider,
                                           const std::string& pnParam,
                                           const std::string& pnPrid) {
+	if (pnProvider == "android" || pnProvider == "firebase") {
+		SLOGW << "'" << pnProvider << "' provider is invalid according rfc8599 and is often mistaken with 'fcm'";
+	}
 	mProvider = pnProvider;
 	mParam = pnParam;
 	mPrid = pnPrid;
@@ -141,6 +147,14 @@ RFC8599PushParams::ParsingResult RFC8599PushParams::parsePushParams(const std::s
 			res.emplace(pnType, dest);
 		}
 	}
+
+	// At this point, an empty map means that the provider isn't known by getSupportedPNTypes()
+	if (res.empty()) {
+		ostringstream os{};
+		os << "'" << pnProvider << "' provider not supported";
+		throw runtime_error{os.str()};
+	}
+
 	return res;
 }
 
@@ -186,6 +200,14 @@ RFC8599PushParams::ParsingResult RFC8599PushParams::parseLegacyPushParams(const 
 	for (auto pnType : dest->getSupportedPNTypes()) {
 		res.emplace(pnType, dest);
 	}
+
+	// At this point, an empty map means that the provider isn't known by getSupportedPNTypes()
+	if (res.empty()) {
+		ostringstream os{};
+		os << "'" << pnType << "' legacy provider type not supported";
+		throw runtime_error{os.str()};
+	}
+
 	return res;
 }
 
