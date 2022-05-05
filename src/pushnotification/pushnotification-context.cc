@@ -55,7 +55,7 @@ PNContextCall::PNContextCall(const std::shared_ptr<OutgoingTransaction>& transac
 		remoteStrategy->setCallPushInterval(callPushInterval);
 		mStrategy = move(remoteStrategy);
 	} else {
-		throw logic_error{"no suitable destination for CallNotification"};
+		throw runtime_error{"no suitable available destinations for PNContextCall"};
 	}
 }
 
@@ -77,7 +77,7 @@ PNContextMessage::PNContextMessage(const std::shared_ptr<OutgoingTransaction>& t
 	} else if (pInfo->mDestinations.find(PushType::Background) != pInfo->mDestinations.cend()) {
 		mStrategy = make_shared<BackgroundPushStrategy>(root, _module->getService());
 	} else {
-		throw logic_error{"no suitable destination for MessageNotification"};
+		throw runtime_error{"no suitable available destinations for PNContextMessage"};
 	}
 }
 

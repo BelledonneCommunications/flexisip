@@ -475,16 +475,19 @@ bool PushNotification::needsPush(const sip_t* sip) {
 }
 
 void PushNotification::onRequest(std::shared_ptr<RequestSipEvent>& ev) {
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
-	sip_t* sip = ms->getSip();
+	const auto& ms = ev->getMsgSip();
+	auto* sip = ms->getSip();
 	if (needsPush(sip)) {
 		shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 		if (transaction != NULL) {
 			if (sip->sip_request->rq_url->url_params != NULL) {
 				try {
 					makePushNotification(ms, transaction);
+				} catch (const PushInfo::NoPushParamtersError& e) {
+					SLOGD << e.what() << ". Skip";
+					return;
 				} catch (const runtime_error& e) {
-					LOGE("Could not create push notification: %s.", e.what());
+					SLOGE << "Could not create push notification: %s" << e.what();
 				}
 			}
 		}

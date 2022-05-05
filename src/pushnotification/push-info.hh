@@ -35,6 +35,16 @@ namespace pushnotification {
 class Request;
 
 struct PushInfo {
+	/**
+	 * Exception thrown by the constructor of PushInfo that takes a SIP message as argument when no push notification
+	 * parameters are present in the Request-URI. The structure cannot be completely filled then.
+	 */
+	class NoPushParamtersError : public std::runtime_error {
+	public:
+		NoPushParamtersError() noexcept : std::runtime_error{"No push parameters found in the request URI"} {
+		}
+	};
+
 	// Generic attributes
 
 	/**
@@ -86,6 +96,12 @@ struct PushInfo {
 public:
 	// Public ctors
 	PushInfo() = default;
+	/**
+	 * Fill the PushInfo structure by parsing the information from a SIP message.
+	 * @throw NoPushParamtersError when neither RFC8599, nor legacy push parameters are present in
+	 * the Request-URI of the SIP message. mDestinations attribute would be empty then.
+	 * @throw std::runtime_error for other parsing errors.
+	 */
 	PushInfo(const sofiasip::MsgSip& msg);
 	virtual ~PushInfo() = default;
 

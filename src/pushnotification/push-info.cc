@@ -43,7 +43,7 @@ PushInfo::PushInfo(const sofiasip::MsgSip& msg) {
 	} else if (url_has_param(url, "pn-tok")) { // Flexisip and Linphone legacy parameters
 		mDestinations = RFC8599PushParams::parseLegacyPushParams(url->url_params);
 	} else {
-		throw runtime_error{"No push parameters found in the request URI"};
+		throw NoPushParamtersError{};
 	}
 
 	this->mCallId = sip->sip_call_id->i_id;
