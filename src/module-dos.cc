@@ -1,29 +1,29 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <flexisip/module.hh>
+#include "utils/threadpool.hh"
 #include <flexisip/agent.hh>
 #include <flexisip/logmanager.hh>
-#include "utils/threadpool.hh"
-#include <sofia-sip/tport.h>
-#include <sofia-sip/msg_addr.h>
-#include <unordered_map>
+#include <flexisip/module.hh>
 #include <set>
+#include <sofia-sip/msg_addr.h>
+#include <sofia-sip/tport.h>
+#include <unordered_map>
 
 using namespace std;
 using namespace flexisip;
@@ -41,12 +41,12 @@ typedef struct BanContext {
 	string port;
 	string protocol;
 	std::function<void(BanContext*)> lambda;
-	su_timer_t *timer;
+	su_timer_t* timer;
 } BanContext;
 
 class DoSProtection : public Module, ModuleToolbox {
 
-  private:
+private:
 	static ModuleInfo<DoSProtection> sInfo;
 	int mTimePeriod;
 	int mPacketRateLimit;
@@ -58,24 +58,23 @@ class DoSProtection : public Module, ModuleToolbox {
 	unordered_map<string, DosContext>::iterator mDOSHashtableIterator;
 	string mFlexisipChain;
 
-	int runIptables(const string & arguments, bool ipv6=false, bool dumpErrors=true){
+	int runIptables(const string& arguments, bool ipv6 = false, bool dumpErrors = true) {
 		ostringstream command;
-		char output[512] = { 0 };
-		
+		char output[512] = {0};
+
 		command << (ipv6 ? "/sbin/ip6tables" : "/sbin/iptables");
 		command << " " << arguments;
 		command << " 2>&1";
-		FILE *f = popen(command.str().c_str(), "r");
-		if (f == nullptr){
+		FILE* f = popen(command.str().c_str(), "r");
+		if (f == nullptr) {
 			LOGE("DoSProtection: popen() failed: %s", strerror(errno));
 			return -1;
 		}
-		size_t readCount = fread(output, 1, sizeof(output)-1, f);
+		size_t readCount = fread(output, 1, sizeof(output) - 1, f);
 		int ret = pclose(f);
-		if (WIFEXITED(ret))
-			ret = WEXITSTATUS(ret);
-		if (ret != 0){
-			if (dumpErrors){
+		if (WIFEXITED(ret)) ret = WEXITSTATUS(ret);
+		if (ret != 0) {
+			if (dumpErrors) {
 				LOGE("DoSProtection: '%s' failed with output '%s'.", command.str().c_str(), output);
 			}
 		}
@@ -83,50 +82,52 @@ class DoSProtection : public Module, ModuleToolbox {
 		(void)readCount; // This variable is useless here, I know.
 		return ret;
 	}
-	
-	void onDeclare(GenericStruct *module_config) {
+
+	void onDeclare(GenericStruct* module_config) {
 		ConfigItemDescriptor configs[] = {
-			{Integer, "time-period", "Number of milliseconds to consider to compute the packet rate", "3000"},
-			{Integer, "packet-rate-limit", "Maximum packet rate in packets/seconds,  averaged over [time-period] "
-										   "millisecond(s) to consider it as a DoS attack.",
-			 "20"},
-			{Integer, "ban-time", "Number of minutes to ban the ip/port using iptables", "2"},
-			{String, "iptables-chain", "Name of the chain flexisip will create to store the banned IPs", "FLEXISIP"},
-			{StringList, "white-list", "List of IP addresses or hostnames for which no DoS protection is made."
-				" This is typically for trusted servers from which we can receive high traffic. "
-				"Please note that nodes from the local flexisip cluster (see [cluster] section) are automatically "
-				"added to the white list, as well as 127.0.0.1 and ::1.\n"
-				"Example:\n"
-				"white-list=sip.example.org sip.linphone.org 15.128.128.93", ""},
-			config_item_end};
+		    {Integer, "time-period", "Number of milliseconds to consider to compute the packet rate", "3000"},
+		    {Integer, "packet-rate-limit",
+		     "Maximum packet rate in packets/seconds,  averaged over [time-period] "
+		     "millisecond(s) to consider it as a DoS attack.",
+		     "20"},
+		    {Integer, "ban-time", "Number of minutes to ban the ip/port using iptables", "2"},
+		    {String, "iptables-chain", "Name of the chain flexisip will create to store the banned IPs", "FLEXISIP"},
+		    {StringList, "white-list",
+		     "List of IP addresses or hostnames for which no DoS protection is made."
+		     " This is typically for trusted servers from which we can receive high traffic. "
+		     "Please note that nodes from the local flexisip cluster (see [cluster] section) are automatically "
+		     "added to the white list, as well as 127.0.0.1 and ::1.\n"
+		     "Example:\n"
+		     "white-list=sip.example.org sip.linphone.org 15.128.128.93",
+		     ""},
+		    config_item_end};
 		module_config->get<ConfigBoolean>("enabled")->setDefault("true");
 		module_config->addChildrenValues(configs);
 	}
 
-	void onLoad(const GenericStruct *mc) {
+	void onLoad(const GenericStruct* mc) {
 		mTimePeriod = mc->get<ConfigInt>("time-period")->read();
 		mPacketRateLimit = mc->get<ConfigInt>("packet-rate-limit")->read();
 		mBanTime = mc->get<ConfigInt>("ban-time")->read();
 		mFlexisipChain = mc->get<ConfigString>("iptables-chain")->read();
 		mDOSHashtableIterator = mDosContexts.begin();
 
-		GenericStruct *cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
+		GenericStruct* cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
 		list<string> whiteList = cluster->get<ConfigStringList>("nodes")->read();
 		whiteList.splice(whiteList.end(), mc->get<ConfigStringList>("white-list")->read());
-		
+
 		LOGI("IP 127.0.0.1 and ::1 automatically added to DOS protection white list");
 		whiteList.push_back("127.0.0.1");
 		whiteList.push_back("::1");
 		for (auto it = whiteList.begin(); it != whiteList.end(); ++it) {
-			const char *white_ip = (*it).c_str();
+			const char* white_ip = (*it).c_str();
 			LOGI("Host %s is in DOS protection white list", white_ip);
 			BinaryIp::emplace(mWhiteList, white_ip);
 		}
-		
-		tport_t *primaries = tport_primaries(nta_agent_tports(mAgent->getSofiaAgent()));
-		if (primaries == NULL)
-			LOGF("No sip transport defined.");
-		for (tport_t *tport = primaries; tport != NULL; tport = tport_next(tport)) {
+
+		tport_t* primaries = tport_primaries(nta_agent_tports(mAgent->getSofiaAgent()));
+		if (primaries == NULL) LOGF("No sip transport defined.");
+		for (tport_t* tport = primaries; tport != NULL; tport = tport_next(tport)) {
 			tport_set_params(tport, TPTAG_DOS(mTimePeriod), TAG_END());
 		}
 		if (getuid() != 0) {
@@ -136,34 +137,42 @@ class DoSProtection : public Module, ModuleToolbox {
 
 		// Let's remove the Flexisip's chain in case the previous run crashed
 		char iptables_cmd[512];
-		
+
 		// First we have to empty the chain, for ipv4
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -F %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -F %s", mIptablesSupportsWait ? "-w" : "",
+		         mFlexisipChain.c_str());
 		if (runIptables(iptables_cmd) == 0) {
 			// Then we have to remove the link to be able to remove the chain itself
-			snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -t filter -D INPUT -j %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+			snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -t filter -D INPUT -j %s",
+			         mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
 			runIptables(iptables_cmd);
 
-			snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -X %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+			snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -X %s", mIptablesSupportsWait ? "-w" : "",
+			         mFlexisipChain.c_str());
 			runIptables(iptables_cmd);
 		}
 		// Same thing for IPv6
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -F %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -F %s", mIptablesSupportsWait ? "-w" : "",
+		         mFlexisipChain.c_str());
 		if (runIptables(iptables_cmd, true) == 0) {
 			// Then we have to remove the link to be able to remove the chain itself
-			snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -t filter -D INPUT -j %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+			snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -t filter -D INPUT -j %s",
+			         mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
 			runIptables(iptables_cmd, true);
 
-			snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -X %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+			snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -X %s", mIptablesSupportsWait ? "-w" : "",
+			         mFlexisipChain.c_str());
 			runIptables(iptables_cmd, true);
 		}
 
 		// Now let's create it
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -N %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -N %s", mIptablesSupportsWait ? "-w" : "",
+		         mFlexisipChain.c_str());
 		runIptables(iptables_cmd);
 		runIptables(iptables_cmd, true);
-		//Finally let's add a jump from the INPUT chain to ours
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -t filter -A INPUT -j %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		// Finally let's add a jump from the INPUT chain to ours
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -t filter -A INPUT -j %s", mIptablesSupportsWait ? "-w" : "",
+		         mFlexisipChain.c_str());
 		runIptables(iptables_cmd);
 		runIptables(iptables_cmd, true);
 	}
@@ -172,24 +181,26 @@ class DoSProtection : public Module, ModuleToolbox {
 		// Let's remove the Flexisip's chain
 		char iptables_cmd[512];
 		// First we have to empty the chain
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -F %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -F %s", mIptablesSupportsWait ? "-w" : "",
+		         mFlexisipChain.c_str());
 		runIptables(iptables_cmd);
 		runIptables(iptables_cmd, true);
 
 		// Then we have to remove the link to be able to remove the chain itself
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -t filter -D INPUT -j %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -t filter -D INPUT -j %s", mIptablesSupportsWait ? "-w" : "",
+		         mFlexisipChain.c_str());
 		runIptables(iptables_cmd);
 		runIptables(iptables_cmd, true);
 
-		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -X %s", mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str());
+		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -X %s", mIptablesSupportsWait ? "-w" : "",
+		         mFlexisipChain.c_str());
 		runIptables(iptables_cmd);
 		runIptables(iptables_cmd, true);
 	}
 
-	virtual bool isValidNextConfig( const ConfigValue &value ) {
-		GenericStruct *module_config = dynamic_cast<GenericStruct *>(value.getParent());
-		if (!module_config->get<ConfigBoolean>("enabled")->readNext())
-			return true;
+	virtual bool isValidNextConfig(const ConfigValue& value) {
+		GenericStruct* module_config = dynamic_cast<GenericStruct*>(value.getParent());
+		if (!module_config->get<ConfigBoolean>("enabled")->readNext()) return true;
 		else {
 #if __APPLE__
 			module_config->get<ConfigBoolean>("enabled")->set("false");
@@ -237,66 +248,68 @@ class DoSProtection : public Module, ModuleToolbox {
 
 			if (now_in_millis - started_time_in_millis >= 100) { // Do not use more than 100ms to clean the hashtable
 				LOGW("Started to clean dos hashtable %fms ago, let's stop for now a continue later",
-					 now_in_millis - started_time_in_millis);
+				     now_in_millis - started_time_in_millis);
 				break;
 			}
 		}
 	}
 
-	bool isIpWhiteListed(const char *ip) {
+	bool isIpWhiteListed(const char* ip) {
 		if (!ip) return true; // If IP is null, is useless to try to add it in iptables...
 		return mWhiteList.find(BinaryIp(ip)) != mWhiteList.end();
 	}
 
-	void banIP(const char *ip, const char *port, const char *protocol) {
+	void banIP(const char* ip, const char* port, const char* protocol) {
 		char iptables_cmd[512];
 		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -C %s -p %s -s %s -m multiport --sports %s -j REJECT",
-				 mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), protocol, ip, port);
+		         mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), protocol, ip, port);
 		bool is_ipv6 = strchr(ip, ':') != nullptr;
 		if (runIptables(iptables_cmd, is_ipv6, false) == 0) {
-			LOGW("IP %s port %s on protocol %s is already in the iptables banned list, skipping...", ip, port, protocol);
+			LOGW("IP %s port %s on protocol %s is already in the iptables banned list, skipping...", ip, port,
+			     protocol);
 		} else {
 			snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -A %s -p %s -s %s -m multiport --sports %s -j REJECT",
-				mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), protocol, ip, port);
+			         mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), protocol, ip, port);
 			runIptables(iptables_cmd, is_ipv6);
 		}
 	}
 
-	void unbanIP(BanContext *ctx) {
+	void unbanIP(BanContext* ctx) {
 		string protocol = ctx->protocol;
 		string ip = ctx->ip;
 		string port = ctx->port;
-		
+
 		ThreadPool::getGlobalThreadPool()->run([&, protocol, ip, port] {
 			char iptables_cmd[512];
 			bool is_ipv6 = strchr(ip.c_str(), ':') != nullptr;
 			snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -D %s -p %s -s %s -m multiport --sports %s -j REJECT",
-				mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), protocol.c_str(), ip.c_str(), port.c_str());
+			         mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), protocol.c_str(), ip.c_str(),
+			         port.c_str());
 			runIptables(iptables_cmd, is_ipv6);
 		});
 		delete ctx;
 	}
 
-	static void invokeLambdaFromSofiaTimerCallback(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) {
-		BanContext *ctx = (BanContext *)arg;
+	static void invokeLambdaFromSofiaTimerCallback(su_root_magic_t* magic, su_timer_t* t, su_timer_arg_t* arg) {
+		BanContext* ctx = (BanContext*)arg;
 		su_timer_destroy(ctx->timer);
 		ctx->timer = NULL;
 		ctx->lambda(ctx);
 	}
 
-	void createBanContextAndPostInFuture(const char *ip, const char *port, const string &protocol) {
-		BanContext *ctx = new BanContext();
+	void createBanContextAndPostInFuture(const char* ip, const char* port, const string& protocol) {
+		BanContext* ctx = new BanContext();
 		ctx->ip = ip;
 		ctx->port = port;
 		ctx->protocol = protocol;
-		ctx->lambda = [&](BanContext *context) { unbanIP(context); };
+		ctx->lambda = [&](BanContext* context) { unbanIP(context); };
 		ctx->timer = su_timer_create(mAgent->getRoot()->getTask(), 0);
 		su_timer_set_interval(ctx->timer, invokeLambdaFromSofiaTimerCallback, ctx, mBanTime * 60 * 1000);
 	}
 
-	void onRequest(shared_ptr<RequestSipEvent> &ev) {
+	void onRequest(shared_ptr<RequestSipEvent>& ev) {
 		shared_ptr<tport_t> inTport = ev->getIncomingTport();
-		tport_t *tport = inTport.get();
+		tport_t* tport = inTport.get();
 
 		if (tport == NULL) {
 			LOGE("Tport is null, can't check the packet count rate");
@@ -304,12 +317,12 @@ class DoSProtection : public Module, ModuleToolbox {
 		}
 
 		if (tport_is_udp(tport)) { // Sofia doesn't create a secondary tport for udp, so it will ban the primary and we
-								   // don't want that
+			                       // don't want that
 			shared_ptr<MsgSip> msg = ev->getMsgSip();
-			MsgSip *msgSip = msg.get();
+			MsgSip* msgSip = msg.get();
 			su_sockaddr_t su[1];
 			socklen_t len = sizeof su;
-			sockaddr *addr = NULL;
+			sockaddr* addr = NULL;
 			char ip[NI_MAXHOST], port[NI_MAXSERV];
 			int err;
 
@@ -317,10 +330,10 @@ class DoSProtection : public Module, ModuleToolbox {
 			addr = &(su[0].su_sa);
 
 			if ((err = getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV)) ==
-				0) {
+			    0) {
 				string id = string(ip) + ":" + string(port);
 				struct timeval now;
-				DosContext &dosContext = mDosContexts[id];
+				DosContext& dosContext = mDosContexts[id];
 				double now_in_millis, time_elapsed;
 
 				dosContext.recv_msg_count_since_last_check++;
@@ -343,7 +356,7 @@ class DoSProtection : public Module, ModuleToolbox {
 
 				if (dosContext.packet_count_rate >= mPacketRateLimit) {
 					LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol udp for %i minutes",
-						 dosContext.packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
+					     dosContext.packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
 					if (!isIpWhiteListed(ip)) {
 						ThreadPool::getGlobalThreadPool()->run([&, ip, port] { banIP(ip, port, "udp"); });
 						createBanContextAndPostInFuture(ip, port, "udp");
@@ -358,16 +371,16 @@ class DoSProtection : public Module, ModuleToolbox {
 			}
 		} else {
 			unsigned long packet_count_rate = tport_get_packet_count_rate(tport);
-			if (packet_count_rate >= (unsigned long) mPacketRateLimit) {
-				sockaddr *addr = tport_get_address(tport)->ai_addr;
+			if (packet_count_rate >= (unsigned long)mPacketRateLimit) {
+				sockaddr* addr = tport_get_address(tport)->ai_addr;
 				socklen_t len = tport_get_address(tport)->ai_addrlen;
 				char ip[NI_MAXHOST], port[NI_MAXSERV];
 				int err;
 
 				if ((err = getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port),
-									   NI_NUMERICHOST | NI_NUMERICSERV)) == 0) {
+				                       NI_NUMERICHOST | NI_NUMERICSERV)) == 0) {
 					LOGW("Packet count rate (%lu) >= limit (%i), blocking ip/port %s/%s on protocol tcp for %i minutes",
-						 packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
+					     packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
 					if (!isIpWhiteListed(ip)) {
 						ThreadPool::getGlobalThreadPool()->run([&, ip, port] { banIP(ip, port, "tcp"); });
 						createBanContextAndPostInFuture(ip, port, "tcp");
@@ -383,12 +396,12 @@ class DoSProtection : public Module, ModuleToolbox {
 		}
 	}
 
-	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) {
+	void onResponse(std::shared_ptr<ResponseSipEvent>& ev){
 
 	};
 
-  public:
-	DoSProtection(Agent *ag) : Module(ag) {
+public:
+	DoSProtection(Agent* ag) : Module(ag) {
 		mIptablesVersionChecked = false;
 		mIptablesSupportsWait = false;
 	}
@@ -396,10 +409,9 @@ class DoSProtection : public Module, ModuleToolbox {
 	~DoSProtection() = default;
 };
 
-ModuleInfo<DoSProtection> DoSProtection::sInfo(
-	"DoSProtection",
-	"This module bans user when they are sending too much packets within a given timeframe. "
-	"To see the list of currently banned IPs/ports, use iptables -L. ",
-	{ "" },
-	ModuleInfoBase::ModuleOid::DoSProtection
-);
+ModuleInfo<DoSProtection>
+    DoSProtection::sInfo("DoSProtection",
+                         "This module bans user when they are sending too much packets within a given timeframe. "
+                         "To see the list of currently banned IPs/ports, use iptables -L. ",
+                         {""},
+                         ModuleInfoBase::ModuleOid::DoSProtection);
