@@ -13,12 +13,13 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #pragma once
 
 #include <stdexcept>
+#include <thread>
 #include <type_traits>
 
 #include <bctoolbox/tester.h>
@@ -44,6 +45,19 @@ public:
 
 	// May throw TestAssetFailedException
 	virtual void operator()() = 0;
+
+protected:
+	template <typename Duration>
+	bool waitFor(const std::function<bool()>& breakCondition, Duration timeout) {
+		using namespace std::chrono;
+		for (auto now = steady_clock::now(), end = now + timeout; now < end; now = steady_clock::now()) {
+			if (breakCondition()) return true;
+			// Steps must not exceed 10ms in order the break condition be evaluated several times.
+			auto stepTimeout = std::min(duration_cast<milliseconds>(end - now), 10ms);
+			std::this_thread::sleep_for(stepTimeout);
+		}
+		return false;
+	}
 };
 
 /**

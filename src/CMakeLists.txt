@@ -116,7 +116,10 @@ add_library(flexisip SHARED
         utils/sip-uri.cc
         utils/string-formater.cc utils/string-formater.hh
         utils/string-utils.cc utils/string-utils.hh
-        utils/threadpool.cc utils/threadpool.hh
+        utils/thread/auto-thread-pool.cc utils/thread/auto-thread-pool.hh
+        utils/thread/basic-thread-pool.cc utils/thread/basic-thread-pool.hh
+        utils/thread/base-thread-pool.cc utils/thread/base-thread-pool.hh
+        utils/thread/thread-pool.hh
         utils/timer.cc
         utils/transport/http/http2client.cc utils/transport/http/http2client.hh
         utils/transport/http/http-headers.cc utils/transport/http/http-headers.hh
@@ -126,6 +129,7 @@ add_library(flexisip SHARED
         utils/transport/tls-connection.cc utils/transport/tls-connection.hh
         utils/uri-utils.cc utils/uri-utils.hh
         )
+
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 6.0.0)
         set_source_files_properties(cJSON.c PROPERTIES COMPILE_OPTIONS "-Wno-error=misleading-indentation")

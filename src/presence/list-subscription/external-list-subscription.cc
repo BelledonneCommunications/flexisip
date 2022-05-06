@@ -23,8 +23,8 @@
 
 #include "bellesip-signaling-exception.hh"
 #include "external-list-subscription.hh"
+#include "flexisip/logmanager.hh"
 #include "soci-helper.hh"
-#include <flexisip/logmanager.hh>
 
 using namespace std;
 using namespace chrono;

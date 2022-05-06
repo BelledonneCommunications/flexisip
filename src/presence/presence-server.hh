@@ -30,7 +30,7 @@
 #include "etag-manager.hh"
 #include "presentity-manager.hh"
 #include "service-server.hh"
-#include "utils/threadpool.hh"
+#include "utils/thread/thread-pool.hh"
 
 typedef struct belle_sip_main_loop belle_sip_main_loop_t;
 typedef struct belle_sip_stack belle_sip_stack_t;
@@ -92,7 +92,7 @@ private:
 #if ENABLE_SOCI
 	soci::connection_pool* mConnPool = nullptr;
 #endif
-	ThreadPool* mThreadPool = nullptr;
+	std::unique_ptr<ThreadPool> mThreadPool{};
 	bool mEnabled;
 	size_t mMaxPresenceInfoNotifiedAtATime;
 

@@ -74,6 +74,7 @@ namespace tester {
 extern test_suite_t agentSuite;
 extern test_suite_t moduleInfoSuite;
 extern test_suite_t registarDbSuite;
+extern test_suite_t threadPoolSuite;
 
 } // namespace tester
 } // namespace flexisip

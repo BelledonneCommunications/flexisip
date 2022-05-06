@@ -110,6 +110,7 @@ void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_
 	bc_tester_add_suite(&register_suite);
 	bc_tester_add_suite(&flexisip::tester::registarDbSuite);
 	bc_tester_add_suite(&router_suite);
+	bc_tester_add_suite(&flexisip::tester::threadPoolSuite);
 	bc_tester_add_suite(&tls_connection_suite);
 #if ENABLE_B2BUA
 	bc_tester_add_suite(&b2bua_suite);

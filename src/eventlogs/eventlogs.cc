@@ -25,6 +25,7 @@
 
 #include "db/db-transaction.hh"
 #include "flexisip/configmanager.hh"
+#include "utils/thread/auto-thread-pool.hh"
 
 #include "flexisip/eventlogs.hh"
 
@@ -674,7 +675,7 @@ DataBaseEventLogWriter::DataBaseEventLogWriter(const std::string& backendString,
     : mMaxQueueSize{maxQueueSize} {
 	try {
 		mConnectionPool = make_unique<soci::connection_pool>(nbThreadsMax);
-		mThreadPool = make_unique<ThreadPool>(nbThreadsMax, maxQueueSize);
+		mThreadPool = make_unique<AutoThreadPool>(nbThreadsMax, mMaxQueueSize);
 
 		for (unsigned int i = 0; i < nbThreadsMax; i++) {
 			mConnectionPool->at(i).open(backendString, connectionString);

@@ -23,6 +23,7 @@
 #include "soci-helper.hh"
 #include "utils/digest.hh"
 #include "utils/string-utils.hh"
+#include "utils/thread/auto-thread-pool.hh"
 
 #include "authdb.hh"
 
@@ -151,7 +152,7 @@ SociAuthDB::SociAuthDB() {
 	check_domain_in_presence_results = mp->get<ConfigBoolean>("check-domain-in-presence-results")->read();
 
 	conn_pool.reset(new connection_pool(poolSize));
-	thread_pool.reset(new ThreadPool(poolSize, max_queue_size));
+	thread_pool = make_unique<AutoThreadPool>(poolSize, max_queue_size);
 
 	LOGD("[SOCI] Authentication provider for backend %s created. Pooled for %zu connections", backend.c_str(),
 	     poolSize);

@@ -267,7 +267,7 @@ private:
 
 #include <soci/soci.h>
 
-#include "utils/threadpool.hh"
+#include "utils/thread/thread-pool.hh"
 
 namespace flexisip {
 

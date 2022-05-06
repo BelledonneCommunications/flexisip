@@ -272,7 +272,7 @@ public:
 #if ENABLE_SOCI
 
 #include "soci/soci.h"
-#include "utils/threadpool.hh"
+#include "utils/thread/thread-pool.hh"
 
 namespace flexisip {
 

@@ -386,29 +386,37 @@ class RegistrarDb {
 	void fetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive);
 	void fetchList(const std::vector<SipUri > urls, const std::shared_ptr<ListContactUpdateListener> &listener);
 	void notifyContactListener (const std::shared_ptr<Record> &r /*might be empty record*/, const std::string &uid);
-	void updateRemoteExpireTime(const std::string &key, time_t expireat);
+	void updateRemoteExpireTime(const std::string& key, time_t expireat);
 	unsigned long countLocalActiveRecords() {
 		return mLocalRegExpire->countActives();
 	}
 
-	void addStateListener (const std::shared_ptr<RegistrarDbStateListener> &listener);
-	void removeStateListener (const std::shared_ptr<RegistrarDbStateListener> &listener);
-	bool isWritable () const { return mWritable; }
-	void subscribe(const SipUri &url, const std::shared_ptr<ContactRegisteredListener> &listener);
+	void addStateListener(const std::shared_ptr<RegistrarDbStateListener>& listener);
+	void removeStateListener(const std::shared_ptr<RegistrarDbStateListener>& listener);
+	bool isWritable() const {
+		return mWritable;
+	}
+	void subscribe(const SipUri& url, const std::shared_ptr<ContactRegisteredListener>& listener);
 	/* Returns true if bindings can create a pub-gruu address (when supported by the registering client)*/
-	bool gruuEnabled() const { return mGruuEnabled;};
+	bool gruuEnabled() const {
+		return mGruuEnabled;
+	};
+
+	/**
+	 * @return true if a subscribe was necessary (not already subscribed topic)
+	 */
 	virtual bool subscribe(const std::string& topic, const std::shared_ptr<ContactRegisteredListener>& listener);
 	virtual void unsubscribe(const std::string& topic, const std::shared_ptr<ContactRegisteredListener>& listener);
-	virtual void publish(const std::string &topic, const std::string &uid) = 0;
-	bool useGlobalDomain()const{
+	virtual void publish(const std::string& topic, const std::string& uid) = 0;
+	bool useGlobalDomain() const {
 		return mUseGlobalDomain;
 	}
-	const std::string &messageExpiresName() {
+	const std::string& messageExpiresName() {
 		return mMessageExpiresName;
 	}
-	const std::string getMessageExpires(const msg_param_t *m_params);
+	const std::string getMessageExpires(const msg_param_t* m_params);
 
-	void subscribeLocalRegExpire(LocalRegExpireListener *listener) {
+	void subscribeLocalRegExpire(LocalRegExpireListener* listener) {
 		mLocalRegExpire->subscribe(listener);
 	}
 	void unsubscribeLocalRegExpire(LocalRegExpireListener *listener) {

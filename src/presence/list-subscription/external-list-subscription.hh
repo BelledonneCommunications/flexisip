@@ -22,7 +22,7 @@
 #include "soci/soci.h"
 
 #include "list-subscription.hh"
-#include "utils/threadpool.hh"
+#include "utils/thread/thread-pool.hh"
 
 typedef struct _belle_sip_uri belle_sip_uri_t;
 typedef struct belle_sip_server_transaction belle_sip_server_transaction_t;
