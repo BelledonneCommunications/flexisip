@@ -314,7 +314,7 @@ auto defineConfig = [] {
 	     "AES_CM_128_HMAC_SHA1_80, AES_CM_128_HMAC_SHA1_32\n"
 	     "AES_192_CM_HMAC_SHA1_80, AES_192_CM_HMAC_SHA1_32 // currently not supported\n"
 	     "AES_256_CM_HMAC_SHA1_80, AES_256_CM_HMAC_SHA1_80\n"
-	     "AEAD_AES_128_GCM, AEAD_AES_256_GCM // currently not supported\n"
+	     "AEAD_AES_128_GCM, AEAD_AES_256_GCM\n"
 	     "\n"
 	     "The list is formatted in the following mode:\n"
 	     "cryptoSuiteList1 regex1 cryptoSuiteList2 regex2 ... crytoSuiteListn regexn\n"

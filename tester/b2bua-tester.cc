@@ -258,6 +258,7 @@ static void sdes2sdes256(bool video) {
 		// Create and register clients
 		auto sdes = std::make_shared<CoreClient>("sip:b2bua_srtp@sip.example.org", server);
 		auto sdes256 = std::make_shared<CoreClient>("sip:b2bua_srtp256@sip.example.org", server);
+		auto sdes256gcm = std::make_shared<CoreClient>("sip:b2bua_srtpgcm@sip.example.org", server);
 
 		// Call from SDES to SDES256
 		auto sdesCallParams = sdes->getCore()->createCallParams(nullptr);
@@ -277,7 +278,7 @@ static void sdes2sdes256(bool video) {
 		sdes->endCurrentCall(sdes256);
 
 		// Call from SDES256 to SDES
-		auto sdes256CallParams = sdes->getCore()->createCallParams(nullptr);
+		auto sdes256CallParams = sdes256->getCore()->createCallParams(nullptr);
 		sdes256CallParams->setMediaEncryption(linphone::MediaEncryption::SRTP);
 		sdes256CallParams->setSrtpSuites(
 		    {linphone::SrtpSuite::AES256CMHMACSHA180, linphone::SrtpSuite::AES256CMHMACSHA132});
@@ -292,6 +293,24 @@ static void sdes2sdes256(bool video) {
 		BC_ASSERT_TRUE(sdes256->getCore()->getCurrentCall()->getCurrentParams()->getSrtpSuites().front() ==
 		               linphone::SrtpSuite::AES256CMHMACSHA180);
 		sdes->endCurrentCall(sdes256);
+
+		// Call from SDES256 to SDES256gcm
+		sdes256CallParams = sdes256->getCore()->createCallParams(nullptr);
+		sdes256CallParams->setMediaEncryption(linphone::MediaEncryption::SRTP);
+		sdes256CallParams->setSrtpSuites(
+		    {linphone::SrtpSuite::AES256CMHMACSHA180, linphone::SrtpSuite::AES256CMHMACSHA132});
+		sdes256CallParams->enableVideo(video);
+		if (!BC_ASSERT_PTR_NOT_NULL(sdes256->call(sdes256gcm, sdes256CallParams))) return;
+		BC_ASSERT_TRUE(sdes256gcm->getCore()->getCurrentCall()->getCurrentParams()->getMediaEncryption() ==
+		               linphone::MediaEncryption::SRTP);
+		BC_ASSERT_TRUE(sdes256gcm->getCore()->getCurrentCall()->getCurrentParams()->getSrtpSuites().front() ==
+		               linphone::SrtpSuite::AEADAES256GCM);
+		BC_ASSERT_TRUE(sdes256->getCore()->getCurrentCall()->getCurrentParams()->getMediaEncryption() ==
+		               linphone::MediaEncryption::SRTP);
+		BC_ASSERT_TRUE(sdes256->getCore()->getCurrentCall()->getCurrentParams()->getSrtpSuites().front() ==
+		               linphone::SrtpSuite::AES256CMHMACSHA180);
+		sdes256gcm->endCurrentCall(sdes256);
+
 	}
 }
 

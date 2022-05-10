@@ -73,11 +73,6 @@ if(ENABLE_SOCI OR ENABLE_CONFERENCE_SERVER)
 	add_subdirectory("linphone-sdk/external/soci")
 endif()
 
-# Configure and add SRTP2
-if(INTERNAL_LIBSRTP2)
-	add_subdirectory("linphone-sdk/external/srtp")
-endif()
-
 # Configure and add Jose
 if(ENABLE_JWE_AUTH_PLUGIN)
 	add_subdirectory("submodules/externals/jose")
@@ -95,4 +90,11 @@ if(INTERNAL_MBEDTLS)
 	set(ENABLE_PROGRAMS OFF)
 	set(ENABLE_TESTING OFF)
 	add_subdirectory("linphone-sdk/external/mbedtls")
+endif()
+
+# Configure and add SRTP2
+if(INTERNAL_LIBSRTP2)
+	set(TEST_APPS OFF CACHE BOOL "Build test applications" FORCE)
+	set(ENABLE_MBEDTLS ON CACHE BOOL "Use Mbedtls backend" FORCE)
+	add_subdirectory("linphone-sdk/external/srtp")
 endif()
