@@ -30,8 +30,6 @@
 #include "registration-events/server.hh"
 #include "tester.hh"
 #include "utils/asserts.hh"
-#include "utils/client-core.hh"
-#include "utils/proxy-server.hh"
 
 using namespace std;
 using namespace linphone;

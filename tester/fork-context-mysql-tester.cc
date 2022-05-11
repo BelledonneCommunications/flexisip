@@ -21,9 +21,8 @@
 #include "flexisip/agent.hh"
 #include "flexisip/module-router.hh"
 
+#include "utils/asserts.hh"
 #include "utils/bellesip-utils.hh"
-#include "utils/client-core.hh"
-#include "utils/proxy-server.hh"
 
 using namespace std;
 using namespace std::chrono_literals;
@@ -269,6 +268,150 @@ static void globalTest() {
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), 2, int, "%i");
 }
 
+static void globalTestMultipleDevices() {
+	auto server = make_shared<Server>("/config/flexisip_fork_context_db.conf");
+	server->start();
+
+	vector<shared_ptr<CoreClient>> clientOnDevices{};
+	for (int i = 0; i < 3; ++i) {
+		clientOnDevices.emplace_back(make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server));
+	}
+
+	vector<shared_ptr<CoreClient>> clientOffDevices1{};
+	for (int i = 0; i < 3; ++i) {
+		auto client = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server);
+		client->getCore()->setNetworkReachable(false);
+		clientOffDevices1.emplace_back(client);
+	}
+
+	vector<shared_ptr<CoreClient>> clientOffDevices2{};
+	for (int i = 0; i < 3; ++i) {
+		auto client = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server);
+		client->getCore()->setNetworkReachable(false);
+		clientOffDevices2.emplace_back(client);
+	}
+
+	bool isRequestAccepted = false;
+	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP", [&isRequestAccepted](int status) {
+		                            if (status != 100) {
+			                            BC_ASSERT_EQUAL(status, 202, int, "%i");
+			                            isRequestAccepted = true;
+		                            }
+	                            }};
+
+	std::string rawBody(10, 'a');
+	rawBody.insert(0, "C'est pas faux ");
+	rawBody.append("\r\n\r\n");
+	bellesipUtils.sendRawRequest("MESSAGE sip:provencal_le_gaulois@sip.test.org SIP/2.0\r\n"
+	                             "Via: SIP/2.0/TCP 127.0.0.1:6066;branch=z9hG4bK.PAWTmCZv1;rport=49828\r\n"
+	                             "From: <sip:kijou@sip.linphone.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
+	                             "To: <sip:provencal_le_gaulois@sip.test.org>\r\n"
+	                             "CSeq: 20 MESSAGE\r\n"
+	                             "Call-ID: Tvw6USHXYv\r\n"
+	                             "Max-Forwards: 70\r\n"
+	                             "Route: <sip:127.0.0.1:5960;transport=tcp;lr>\r\n"
+	                             "Supported: replaces, outbound, gruu\r\n"
+	                             "Date: Fri, 01 Apr 2022 11:18:26 GMT\r\n"
+	                             "Content-Type: text/plain\r\n",
+	                             rawBody);
+	auto beforePlus2 = system_clock::now() + 2s;
+	while (!isRequestAccepted && beforePlus2 >= system_clock::now()) {
+		server->getAgent()->getRoot()->step(20ms);
+		bellesipUtils.stackSleep(20);
+	}
+
+	BC_ASSERT_TRUE(CoreAssert(server, clientOnDevices, clientOffDevices1, clientOffDevices2).wait([&clientOnDevices] {
+		return all_of(clientOnDevices.begin(), clientOnDevices.end(), [](const auto& clientOnDevice) {
+			return clientOnDevice->getAccount()->getState() == RegistrationState::Ok &&
+			       clientOnDevice->getCore()->getUnreadChatMessageCount() == 1;
+		});
+	}));
+
+	/*
+	 * Assert that db fork is still present because device is offline, message fork is destroyed because message is
+	 * saved
+	 */
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
+	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
+	BC_ASSERT_TRUE(
+	    CoreAssert(server, clientOnDevices, clientOffDevices1, clientOffDevices2).wait([agent = server->getAgent()] {
+		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		    return moduleRouter->mStats.mCountMessageForks->finish->read() == 1;
+	    }));
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 1, int, "%i");
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0, int, "%i");
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 1, int, "%i");
+
+	// Check that request in DB is the same that request sent.
+	auto allMessages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
+	if (allMessages.size() == 1) {
+		auto requestInDb =
+		    ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(allMessages.cbegin()->uuid).request;
+		// We only compare body because headers can be modified a bit by the proxy
+		if (requestInDb.find(rawBody) == string::npos) BC_FAIL("Body not found");
+	} else BC_FAIL("No message in DB, or too much");
+
+	// REGISTER first group of devices and receive message
+	for_each(clientOffDevices1.begin(), clientOffDevices1.end(),
+	         [](const auto& core) { core->getCore()->setNetworkReachable(true); });
+	BC_ASSERT_TRUE(CoreAssert(server, clientOnDevices, clientOffDevices1, clientOffDevices2).wait([&clientOffDevices1] {
+		return all_of(clientOffDevices1.begin(), clientOffDevices1.end(), [](const auto& clientOffDevice) {
+			return clientOffDevice->getAccount()->getState() == RegistrationState::Ok &&
+			       clientOffDevice->getCore()->getUnreadChatMessageCount() == 1;
+		});
+	}));
+
+	// Unregister initial group of device, for a future register
+	for_each(clientOnDevices.begin(), clientOnDevices.end(),
+	         [](const auto& core) { core->getCore()->setNetworkReachable(false); });
+
+	/*
+	 * Assert that db fork is still present because device is offline, message fork is destroyed because message is
+	 * saved
+	 */
+	BC_ASSERT_TRUE(
+	    CoreAssert(server, clientOnDevices, clientOffDevices1, clientOffDevices2).wait([agent = server->getAgent()] {
+		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		    return moduleRouter->mStats.mCountMessageForks->finish->read() == 2;
+	    }));
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 1, int, "%i");
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0, int, "%i");
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 2, int, "%i");
+
+	// Re-REGISTER initial group, ForkMessage is retrieve from DB, but no message is sent
+	for_each(clientOnDevices.begin(), clientOnDevices.end(),
+	         [](const auto& core) { core->getCore()->setNetworkReachable(true); });
+	for_each(clientOnDevices.begin(), clientOnDevices.end(),
+	         [](const auto& core) { core->getCore()->getChatRooms().begin()->get()->markAsRead(); });
+	// REGISTER second group of devices and receive message
+	for_each(clientOffDevices2.begin(), clientOffDevices2.end(),
+	         [](const auto& core) { core->getCore()->setNetworkReachable(true); });
+	BC_ASSERT_TRUE(
+	    CoreAssert(server, clientOnDevices, clientOffDevices1, clientOffDevices2)
+	        .wait([&clientOnDevices, &clientOffDevices2] {
+		        return all_of(clientOffDevices2.begin(), clientOffDevices2.end(),
+		                      [](const auto& clientOffDevice) {
+			                      return clientOffDevice->getAccount()->getState() == RegistrationState::Ok &&
+			                             clientOffDevice->getCore()->getUnreadChatMessageCount() == 1;
+		                      }) &&
+		               all_of(clientOnDevices.begin(), clientOnDevices.end(), [](const auto& clientOffDevice) {
+			               return clientOffDevice->getAccount()->getState() == RegistrationState::Ok &&
+			                      clientOffDevice->getCore()->getUnreadChatMessageCount() == 0;
+		               });
+	        }));
+
+	// Assert Fork is destroyed after being delivered (from memory AND database)
+	BC_ASSERT_TRUE(
+	    CoreAssert(server, clientOnDevices, clientOffDevices1, clientOffDevices2).wait([agent = server->getAgent()] {
+		    const auto& allMessages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
+		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		    return moduleRouter->mStats.mCountMessageProxyForks->finish->read() == 1 && allMessages.empty();
+	    }));
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 1, int, "%i");
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 3, int, "%i");
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), 3, int, "%i");
+}
+
 /**
  * This test is a performance test, and too much system dependant.
  */
@@ -444,6 +587,7 @@ static test_t tests[] = {
     TEST_NO_TAG("Unit test fork message repository with mysql, load at startup",
                 forkMessageContextSociRepositoryFullLoadMysqlUnitTests),
     TEST_NO_TAG("Global test ForkMessage with mysql", globalTest),
+    TEST_NO_TAG("Global test ForkMessage with mysql, multiple devices", globalTestMultipleDevices),
     TEST_NO_TAG("Global test fork message with mysql, db deleted before restoration", globalTestDatabaseDeleted),
 };
 

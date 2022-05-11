@@ -120,6 +120,8 @@ ForkMessageContextDb ForkMessageContextSociRepository::findForkMessageByUuid(con
 	session sql(mConnectionPool);
 	ForkMessageContextDb dbFork{};
 
+	transaction tr(sql);
+
 	// fork_message_context
 	sql << "select current_priority, delivered_count, is_finished, is_message, expiration_date, request from "
 	       "fork_message_context where uuid = UuidToBin(:v)",
@@ -130,12 +132,16 @@ ForkMessageContextDb ForkMessageContextSociRepository::findForkMessageByUuid(con
 	// branch_info
 	findAndPushBackBranches(uuid, dbFork, sql);
 
+	tr.commit();
+
 	return dbFork;
 }
 
 string ForkMessageContextSociRepository::saveForkMessageContext(const ForkMessageContextDb& dbFork) {
 	session sql(mConnectionPool);
 	string insertedUuid{};
+
+	transaction tr(sql);
 
 	sql << "SET @uuid=UUID()";
 	sql << "insert into fork_message_context(uuid, current_priority, delivered_count, is_finished, is_message, "
@@ -157,12 +163,16 @@ string ForkMessageContextSociRepository::saveForkMessageContext(const ForkMessag
 		    use(insertedUuid, "fork_uuid"), use(dbBranch);
 	}
 
+	tr.commit();
+
 	return insertedUuid;
 }
 
 void ForkMessageContextSociRepository::updateForkMessageContext(const ForkMessageContextDb& dbFork,
                                                                 const std::string& uuid) {
 	session sql(mConnectionPool);
+
+	transaction tr(sql);
 
 	sql << "update fork_message_context set current_priority = :current_priority, delivered_count = :delivered_count, "
 	       "is_finished = :is_finished, is_message = :is_message, expiration_date = :expiration_date, request = "
@@ -181,6 +191,8 @@ void ForkMessageContextSociRepository::updateForkMessageContext(const ForkMessag
 		       "priority=:priority, cleared_count=:cleared_count",
 		    use(uuid, "fork_uuid"), use(dbBranch);
 	}
+
+	tr.commit();
 }
 
 std::vector<ForkMessageContextDb> ForkMessageContextSociRepository::findAllForkMessage() {

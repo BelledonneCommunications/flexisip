@@ -20,9 +20,7 @@
 
 #include "flexisip/module-router.hh"
 
-#include "tester.hh"
-#include "utils/client-core.hh"
-#include "utils/proxy-server.hh"
+#include "utils/asserts.hh"
 
 using namespace std;
 using namespace std::chrono;

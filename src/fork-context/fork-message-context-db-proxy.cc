@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "flexisip/fork-context/fork-message-context-db-proxy.hh"
@@ -81,6 +81,7 @@ ForkMessageContextDbProxy::ForkMessageContextDbProxy(Agent* agent,
     : ForkMessageContextDbProxy(agent, cfg, listener, messageCounter, proxyCounter) {
 
 	mForkUuidInDb = forkFromDb.uuid;
+	mLastSavedVersion = mCurrentVersion.load();
 	setState(State::IN_DATABASE);
 }
 
@@ -139,25 +140,21 @@ void ForkMessageContextDbProxy::onForkContextFinished(const shared_ptr<ForkConte
 }
 
 void ForkMessageContextDbProxy::runSavingThread() {
-	setState(State::SAVING);
 	const auto& dbFork = mForkMessage->getDbObject();
-	ThreadPool::getGlobalThreadPool()->run([this, dbFork]() {
-		unique_lock<mutex> lock(mConditionMutex);
-		if (saveToDb(dbFork)) {
-			setState(State::IN_DATABASE);
-			mSavedAgent->getRoot()->addToMainLoop([weak = weak_ptr<ForkMessageContextDbProxy>{shared_from_this()}]() {
-				if (auto shared = weak.lock()) {
-					if (shared->getState() == State::IN_DATABASE) {
-						shared->startTimerAndResetFork();
-					}
-				}
-			});
-		} else {
-			setState(State::IN_MEMORY);
-		}
-		lock.unlock();
-		mCondition.notify_all();
-	});
+	ThreadPool::getGlobalThreadPool()->run(
+	    [thiz = shared_from_this(), dbFork, dbForkVersion = mCurrentVersion.load()]() {
+		    lock_guard<mutex> lock(thiz->mDbAccessMutex);
+		    if (dbForkVersion == thiz->mCurrentVersion && thiz->mLastSavedVersion < dbForkVersion &&
+		        thiz->saveToDb(dbFork)) {
+			    thiz->mLastSavedVersion = dbForkVersion;
+			    thiz->mSavedAgent->getRoot()->addToMainLoop(
+			        [weak = weak_ptr<ForkMessageContextDbProxy>{thiz->shared_from_this()}]() {
+				        if (auto shared = weak.lock()) {
+					        shared->clearMemoryIfPossible();
+				        }
+			        });
+		    }
+	    });
 }
 
 void ForkMessageContextDbProxy::onResponse(const shared_ptr<BranchInfo>& br,
@@ -167,7 +164,7 @@ void ForkMessageContextDbProxy::onResponse(const shared_ptr<BranchInfo>& br,
 
 	mForkMessage->onResponse(br, event);
 
-	if (mForkMessage->allBranchesAnswered() && !mForkMessage->isFinished()) {
+	if (canBeSaved()) {
 		runSavingThread();
 	}
 }
@@ -175,58 +172,59 @@ void ForkMessageContextDbProxy::onResponse(const shared_ptr<BranchInfo>& br,
 std::shared_ptr<BranchInfo>
 ForkMessageContextDbProxy::onNewRegister(const SipUri& dest, const string& uid, const DispatchFunction& dispatchFunc) {
 	LOGD("ForkMessageContextDbProxy[%p] onNewRegister", this);
-	if (getState() != State::IN_MEMORY) {
-		ThreadPool::getGlobalThreadPool()->run([this, dest, uid, dispatchFunc]() {
-			unique_lock<mutex> lock(mConditionMutex);
-			// Wait if state == SAVING
-			mCondition.wait(lock, [this]() { return getState() != State::SAVING; });
-			// If multiples onNewRegister are active at the same time only one ForkMessage should access DB at the same
-			// time, this is ensured by mCondition.wait taking a lock.
-			unique_lock<recursive_mutex> lockState(mStateMutex);
-			if (mState != State::IN_MEMORY) {
-				checkState("restoringThread exec", State::IN_DATABASE);
-				mState = State::RESTORING;
-				lockState.unlock();
+
+	// First try to restore the ForkMessage from a previous recursive call.
+	if (!restoreForkIfNeeded()) return nullptr; // runtime_error during restoration
+
+	// If the ForkMessage is only in database create a thread access database and then recursively call this method.
+	if (getState() == State::IN_DATABASE) {
+		ThreadPool::getGlobalThreadPool()->run([thiz = shared_from_this(), dest, uid, dispatchFunc]() {
+			lock_guard<mutex> lock(thiz->mDbAccessMutex);
+			if (thiz->getState() == State::IN_DATABASE && !thiz->mDbFork) {
 				try {
-					loadFromDb();
-					setState(State::IN_MEMORY);
+					thiz->loadFromDb();
 				} catch (const exception& e) {
-					SLOGE << errorLogPrefix() << "Error loading ForkMessageContext from db : " << e.what();
-					setState(State::IN_DATABASE);
+					SLOGE << thiz->errorLogPrefix() << "Error loading ForkMessageContext from db : " << e.what();
 				}
-			} else {
-				lockState.unlock();
 			}
 
-			mSavedAgent->getRoot()->addToMainLoop(
-			    [weak = weak_ptr<ForkMessageContextDbProxy>{shared_from_this()}, dest, uid, dispatchFunc]() {
+			thiz->mSavedAgent->getRoot()->addToMainLoop(
+			    [weak = weak_ptr<ForkMessageContextDbProxy>{thiz->shared_from_this()}, dest, uid, dispatchFunc]() {
 				    if (auto shared = weak.lock()) {
-					    shared->delayedOnNewRegister(dest, uid, dispatchFunc);
+					    shared->onNewRegister(dest, uid, dispatchFunc);
 				    }
 			    });
 		});
 
 		// Always return a fake empty branch here in case you were called by delayedOnNewRegister.
 		return BranchInfo::make();
-	} else {
-		if (restoreForkIfNeeded()) return mForkMessage->onNewRegister(dest, uid, dispatchFunc);
-		else return nullptr;
 	}
+
+	// Call the reel OnNewRegister method on the proxified object.
+	auto newRegisterResult = mForkMessage->onNewRegister(dest, uid, dispatchFunc);
+
+	if (!newRegisterResult) {
+		clearMemoryIfPossible();
+	} else {
+		mCurrentVersion++;
+	}
+
+	return newRegisterResult;
 }
 
-void ForkMessageContextDbProxy::delayedOnNewRegister(const SipUri& dest,
-                                                     const string& uid,
-                                                     const DispatchFunction& dispatchFunc) {
-	if (restoreForkIfNeeded() && !onNewRegister(dest, uid, dispatchFunc) && mForkMessage->allBranchesAnswered()) {
-		startTimerAndResetFork();
+bool ForkMessageContextDbProxy::canBeSaved() const {
+	return getState() == State::IN_MEMORY && mForkMessage->allBranchesAnswered() && !mForkMessage->isFinished();
+}
+
+void ForkMessageContextDbProxy::clearMemoryIfPossible() {
+	if (mLastSavedVersion == mCurrentVersion && canBeSaved()) {
 		setState(State::IN_DATABASE);
+		startTimerAndResetFork();
 	}
 }
 
 bool ForkMessageContextDbProxy::restoreForkIfNeeded() {
-	if (getState() != State::IN_MEMORY) {
-		return false;
-	} else if (mDbFork) {
+	if (mDbFork) {
 		try {
 			mForkMessage =
 			    ForkMessageContext::make(mSavedAgent, mSavedConfig, shared_from_this(), mSavedCounter, *mDbFork);
@@ -234,7 +232,7 @@ bool ForkMessageContextDbProxy::restoreForkIfNeeded() {
 
 			// Timer is now handle by the newly restored inner ForkMessageContext
 			mProxyLateTimer.reset();
-			return true;
+			setState(State::IN_MEMORY);
 		} catch (const runtime_error& e) {
 			SLOGE << errorLogPrefix() << "An error occurred during ForkMessage creation from DB object with uuid ["
 			      << mForkUuidInDb << "] : \n"
@@ -298,13 +296,9 @@ void ForkMessageContextDbProxy::setState(ForkMessageContextDbProxy::State state)
 ostream& operator<<(ostream& os, flexisip::ForkMessageContextDbProxy::State state) noexcept {
 	switch (state) {
 		case flexisip::ForkMessageContextDbProxy::State::IN_DATABASE:
-			return os << "In database";
+			return os << "IN_DATABASE";
 		case flexisip::ForkMessageContextDbProxy::State::IN_MEMORY:
-			return os << "In memory";
-		case flexisip::ForkMessageContextDbProxy::State::SAVING:
-			return os << "Saving";
-		case flexisip::ForkMessageContextDbProxy::State::RESTORING:
-			return os << "Restoring";
+			return os << "IN_MEMORY";
 	}
 	return os << "Unknown";
 }

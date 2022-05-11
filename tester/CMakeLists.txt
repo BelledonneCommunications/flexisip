@@ -45,6 +45,7 @@ add_executable(flexisip_tester
         router-tester.cc
         tester.cc
         tls-connection-tester.cc
+        utils/asserts.hh
         utils/bellesip-utils.cc
         utils/listening-socket.cc
         utils/redis-server.cc
@@ -82,7 +83,7 @@ target_link_libraries(flexisip_tester PRIVATE
         linphone++
         mediastreamer
         ortp
-)
+        )
 if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
     target_link_libraries(flexisip_tester PRIVATE LibNgHttp2Asio)
 endif ()

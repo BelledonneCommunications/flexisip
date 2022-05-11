@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <string>
 
 #include "flexisip/fork-context/fork-message-context-soci-repository.hh"
@@ -33,17 +34,12 @@ class ForkMessageContextDbProxy : public ForkContext,
                                   public ForkContextListener,
                                   public std::enable_shared_from_this<ForkMessageContextDbProxy> {
 public:
-	enum class State : uint8_t { IN_DATABASE, SAVING, RESTORING, IN_MEMORY };
-
 	/**
-	 * Used to create a ForkMessageContextDbProxy and its inner ForkMessageContext when needed at runtime.
+	 * IN_DATABASE : means that ForkMessageContext is not present in memory and should be restored from DB before
+	 * accessing it.
+	 * IN_MEMORY : means that ForkMessageContext is present in memory, no restoration needed.
 	 */
-	static std::shared_ptr<ForkMessageContextDbProxy> make(Agent* agent,
-	                                                       const std::shared_ptr<RequestSipEvent>& event,
-	                                                       const std::shared_ptr<ForkContextConfig>& cfg,
-	                                                       const std::weak_ptr<ForkContextListener>& listener,
-	                                                       const std::weak_ptr<StatPair>& messageCounter,
-	                                                       const std::weak_ptr<StatPair>& proxyCounter);
+	enum class State : uint8_t { IN_DATABASE, IN_MEMORY };
 
 	/**
 	 * Used to create a ForkMessageContextDbProxy object for a ForkMessage that already exist in database at server
@@ -55,6 +51,16 @@ public:
 	                                                       const std::weak_ptr<StatPair>& messageCounter,
 	                                                       const std::weak_ptr<StatPair>& proxyCounter,
 	                                                       ForkMessageContextDb& forkFromDb);
+
+	/**
+	 * Used to create a ForkMessageContextDbProxy and its inner ForkMessageContext when needed at runtime.
+	 */
+	static std::shared_ptr<ForkMessageContextDbProxy> make(Agent* agent,
+	                                                       const std::shared_ptr<RequestSipEvent>& event,
+	                                                       const std::shared_ptr<ForkContextConfig>& cfg,
+	                                                       const std::weak_ptr<ForkContextListener>& listener,
+	                                                       const std::weak_ptr<StatPair>& messageCounter,
+	                                                       const std::weak_ptr<StatPair>& proxyCounter);
 
 	~ForkMessageContextDbProxy() override;
 
@@ -157,13 +163,6 @@ private:
 	void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) override;
 
 	/**
-	 * This method call the onNewRegister method and remove the ForkMessageContext from memory onNewRegister return
-	 * false. Should be called on the main loop from a thread : @see ForkMessageContextDbProxy::onNewRegister.
-	 * Must only be used when ForkMessageContextDbProxy has already been saved in DB once.
-	 */
-	void delayedOnNewRegister(const SipUri& dest, const std::string& uid, const DispatchFunction& dispatchFunc);
-
-	/**
 	 * Be careful, blocking I/O with DB, should be called in a thread.
 	 */
 	void loadFromDb() const;
@@ -174,6 +173,8 @@ private:
 	bool saveToDb(const ForkMessageContextDb& dbFork);
 
 	void checkState(const std::string& methodName, const ForkMessageContextDbProxy::State& expectedState) const;
+	bool canBeSaved() const;
+	void clearMemoryIfPossible();
 	void startTimerAndResetFork(time_t expirationDate, const std::vector<std::string>& keys);
 	void startTimerAndResetFork();
 
@@ -192,9 +193,10 @@ private:
 	mutable std::shared_ptr<ForkMessageContext> mForkMessage;
 	mutable std::unique_ptr<ForkMessageContextDb> mDbFork{nullptr};
 	mutable std::recursive_mutex mStateMutex{};
-	mutable std::mutex mConditionMutex{};
-	mutable std::condition_variable mCondition{};
+	mutable std::mutex mDbAccessMutex{};
 	mutable State mState; // never access mState without mStateMutex locked, you can use locked getter and setter
+	mutable std::atomic_uint mCurrentVersion{1};
+	mutable std::atomic_uint mLastSavedVersion{0};
 	mutable sofiasip::Timer mProxyLateTimer;
 
 	std::weak_ptr<ForkContextListener> mOriginListener;

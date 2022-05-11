@@ -30,6 +30,7 @@
 #include "registration-events/client.hh"
 #include "registration-events/server.hh"
 #include "tester.hh"
+#include "utils/asserts.hh"
 
 using namespace std;
 using namespace linphone;

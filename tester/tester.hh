@@ -23,7 +23,6 @@ extern "C" {
 }
 #include "flexisip/agent.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
-#include "utils/asserts.hh"
 #include <linphone++/linphone.hh>
 
 #include <chrono>

@@ -19,8 +19,10 @@
 #pragma once
 
 #include "../tester.hh"
+#include "linphone++/linphone.hh"
 #include "proxy-server.hh"
 
+class Server;
 /**
  * Class to manage a client Core
  */
