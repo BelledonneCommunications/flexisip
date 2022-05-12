@@ -492,13 +492,16 @@ void RegistrarDbRedisAsync::subscribeTopic(const string &topic) {
 }
 
 /*TODO: the listener should be also used to report when the subscription is active.
- * Indeed if we send a push notification to a device while REDIS has not yet confirmed the subscription, we will not do anything
- * when receiving the REGISTER from the device. The router module should wait confirmation that subscription is active before injecting the forked request
- * to the module chain.*/
-void RegistrarDbRedisAsync::subscribe(const string &topic, const shared_ptr<ContactRegisteredListener> &listener) {
-	RegistrarDb::subscribe(topic, listener);
-	if (mContactListenersMap.count(topic) == 1)
+ * Indeed if we send a push notification to a device while REDIS has not yet confirmed the subscription, we will not do
+ * anything when receiving the REGISTER from the device. The router module should wait confirmation that subscription is
+ * active before injecting the forked request to the module chain.*/
+bool RegistrarDbRedisAsync::subscribe(const string& topic, const shared_ptr<ContactRegisteredListener>& listener) {
+	auto shouldSubscribe = RegistrarDb::subscribe(topic, listener);
+	if (shouldSubscribe) {
 		subscribeTopic(topic);
+		return true;
+	}
+	return false;
 }
 
 void RegistrarDbRedisAsync::unsubscribe(const string &topic, const shared_ptr<ContactRegisteredListener> &listener) {

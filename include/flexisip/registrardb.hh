@@ -396,9 +396,9 @@ class RegistrarDb {
 	bool isWritable () const { return mWritable; }
 	void subscribe(const SipUri &url, const std::shared_ptr<ContactRegisteredListener> &listener);
 	/* Returns true if bindings can create a pub-gruu address (when supported by the registering client)*/
-	bool gruuEnabled() const { return mGruuEnabled;}; 
-	virtual void subscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
-	virtual void unsubscribe(const std::string &topic, const std::shared_ptr<ContactRegisteredListener> &listener);
+	bool gruuEnabled() const { return mGruuEnabled;};
+	virtual bool subscribe(const std::string& topic, const std::shared_ptr<ContactRegisteredListener>& listener);
+	virtual void unsubscribe(const std::string& topic, const std::shared_ptr<ContactRegisteredListener>& listener);
 	virtual void publish(const std::string &topic, const std::string &uid) = 0;
 	bool useGlobalDomain()const{
 		return mUseGlobalDomain;
