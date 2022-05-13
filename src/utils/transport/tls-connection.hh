@@ -176,7 +176,7 @@ private:
 	SSLCtxUniquePtr mCtx{nullptr};
 	std::string mHost{}, mPort{};
 	bool mMustBeHttp2 = false;
-	std::chrono::milliseconds mTimeout{5000};
+	std::chrono::milliseconds mTimeout{20000};
 };
 
 } // namespace flexisip
