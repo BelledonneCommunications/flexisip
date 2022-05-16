@@ -30,7 +30,7 @@ std::unique_ptr<ThreadPool> ThreadPool::sGlobalThreadPool{};
 std::unique_ptr<ThreadPool>& ThreadPool::getGlobalThreadPool() {
 	if(!sGlobalThreadPool) {
 		unsigned int cores = std::thread::hardware_concurrency();
-		auto threadCount = (cores ? cores : 8) * 4;
+		auto threadCount = (cores ? cores : 8) * 8;
 
 		sGlobalThreadPool = std::make_unique<ThreadPool>(threadCount, 0);
 	}
