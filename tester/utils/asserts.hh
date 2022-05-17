@@ -64,10 +64,19 @@ public:
 		addCustomIterate([agent] { agent->getRoot()->step(std::chrono::milliseconds(1)); });
 	}
 
+	CoreAssert(const std::shared_ptr<CoreClient>& core) {
+		addCustomIterate([core] { core->getCore()->iterate(); });
+	}
+
 	CoreAssert(const std::vector<std::shared_ptr<CoreClient>>& cores) {
 		for (const auto& core : cores) {
 			addCustomIterate([core] { core->getCore()->iterate(); });
 		}
+	}
+
+	template <class... Args>
+	CoreAssert(const std::shared_ptr<CoreClient>& core, const Args&... args) : CoreAssert{args...} {
+		addCustomIterate([core] { core->getCore()->iterate(); });
 	}
 
 	template <class... Args>

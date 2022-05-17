@@ -177,6 +177,7 @@ private:
 	void clearMemoryIfPossible();
 	void startTimerAndResetFork(time_t expirationDate, const std::vector<std::string>& keys);
 	void startTimerAndResetFork();
+	bool isAlreadyDelivered(const SipUri& uri, const std::string& uid);
 
 	/**
 	 * Restore mForkMessage from mDbFork if mDbFork != nullptr
@@ -198,6 +199,8 @@ private:
 	mutable std::atomic_uint mCurrentVersion{1};
 	mutable std::atomic_uint mLastSavedVersion{0};
 	mutable sofiasip::Timer mProxyLateTimer;
+	// tuple<host, port, uid>
+	mutable std::vector<std::tuple<std::string, std::string, std::string>> mAlreadyDelivered;
 
 	std::weak_ptr<ForkContextListener> mOriginListener;
 	std::weak_ptr<StatPair> mCounter;

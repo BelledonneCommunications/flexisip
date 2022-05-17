@@ -173,10 +173,15 @@ std::shared_ptr<BranchInfo>
 ForkMessageContextDbProxy::onNewRegister(const SipUri& dest, const string& uid, const DispatchFunction& dispatchFunc) {
 	LOGD("ForkMessageContextDbProxy[%p] onNewRegister", this);
 
-	// First try to restore the ForkMessage from a previous recursive call.
+	// Do not access DB or call OnNewRegister if we already know that this device is delivered.
+	if (isAlreadyDelivered(dest, uid)) {
+		return nullptr;
+	}
+
+	// Try to restore the ForkMessage from a previous recursive call.
 	if (!restoreForkIfNeeded()) return nullptr; // runtime_error during restoration
 
-	// If the ForkMessage is only in database create a thread access database and then recursively call this method.
+	// If the ForkMessage is only in database create a thread to access database and then recursively call this method.
 	if (getState() == State::IN_DATABASE) {
 		ThreadPool::getGlobalThreadPool()->run([thiz = shared_from_this(), dest, uid, dispatchFunc]() {
 			lock_guard<mutex> lock(thiz->mDbAccessMutex);
@@ -205,6 +210,7 @@ ForkMessageContextDbProxy::onNewRegister(const SipUri& dest, const string& uid, 
 
 	if (!newRegisterResult) {
 		clearMemoryIfPossible();
+		mAlreadyDelivered.emplace_back(dest.getHost(), dest.getPort(), uid);
 	} else {
 		mCurrentVersion++;
 	}
@@ -221,6 +227,20 @@ void ForkMessageContextDbProxy::clearMemoryIfPossible() {
 		setState(State::IN_DATABASE);
 		startTimerAndResetFork();
 	}
+}
+
+bool ForkMessageContextDbProxy::isAlreadyDelivered(const SipUri& uri, const string& uid) {
+	const auto host = uri.getHost();
+	const auto port = uri.getPort();
+	return any_of(mAlreadyDelivered.begin(), mAlreadyDelivered.end(),
+	              [&](const std::tuple<std::string, std::string, std::string>& item) {
+		              const auto& itemUid = get<2>(item);
+		              if (!uid.empty() || !itemUid.empty()) {
+			              return uid == itemUid;
+		              } else {
+			              return host == get<0>(item) && port == get<1>(item);
+		              }
+	              });
 }
 
 bool ForkMessageContextDbProxy::restoreForkIfNeeded() {
