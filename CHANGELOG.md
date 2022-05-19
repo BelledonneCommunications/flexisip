@@ -13,9 +13,18 @@ Group changes to describe their impact on the project, as follows:
 | Fixed          | Any bug fixes                                         |
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
+## [2.1.4] - 2022-05-19
+
+### [Fixed]
+
+- Fix warning about failing SQL request on conference server starting.
+- Make Flexisip to require Hiredis >= 0.14.
+- Remove Sofia-SIP implementation of some functions that must be found on system.
 
 ## [2.1.3] - 2022-03-18
+
 ### [Fixed]
+
 - ExternalPusher: the response to each HTTP request systematically has a delay of
   a few seconds when using a TCP connection instead of TLS.
 - Race condition around Redis SUBSCRIBEs/UNSUBSCRIBEs that causes Flexisip to
