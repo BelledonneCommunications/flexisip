@@ -168,10 +168,10 @@ void PushNotification::onDeclare(GenericStruct* module_config) {
 	     "com.somephone.voip.dev.pem etc...",
 	     "/etc/flexisip/apn"},
 	    {Boolean, "no-badge", "Set the badge value to 0 for Apple push", "false"},
-	    {Boolean, "firebase", "Enable push notification for Android devices (new method for Android)", "true"},
+	    {Boolean, "firebase", "Enable push notification for Android devices.", "true"},
 	    {StringList, "firebase-projects-api-keys",
-	     "List of couples projectId:ApiKey for each Android project that supports push notifications (new method for "
-	     "Android)",
+	     "List of couples [Firebase Project Number]:[Firebase Cloud Messaging API (Legacy) Server Key] (without []) "
+	     "for each Android project that supports push notifications.",
 	     ""},
 	    {Boolean, "windowsphone", "Enable push notification for Windows Phone 8 devices", "true"},
 	    {String, "windowsphone-package-sid",
