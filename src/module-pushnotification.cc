@@ -149,7 +149,7 @@ void PushNotificationContext::onTimeout() {
 		if (forkCtx->isFinished()) {
 			LOGD("Call is already established or canceled, so push notification is not sent but cleared.");
 			return;
-		} 
+		}
 		SLOGD << "PNR " << mPushNotificationRequest.get() << ": notifying call context...";
 		forkCtx->onPushSent(mTransaction);
 	}
@@ -185,7 +185,7 @@ ModuleInfo<PushNotification> PushNotification::sInfo(
 	" - if it is for a call (INVITE), it will be set equal 'call-fork-timeout' property of the Router module,"
 	" which corresponds to the maximum time for a call attempt.\n"
 	" - if it is for an IM (MESSAGE or INVITE for a text session), then it will be set equal to the 'message-time-to-live'"
-	" property.", 
+	" property.",
 	{ "Router" },
 	ModuleInfoBase::ModuleOid::PushNotification
 );
@@ -225,12 +225,13 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 		 "certificate followed by private key. For example: org.linphone.voip.dev.pem org.linphone.voip.prod.pem "
 		 "com.somephone.voip.dev.pem etc...", "/etc/flexisip/apn"},
 		{Boolean, "no-badge", "Set the badge value to 0 for Apple push", "false"},
-		{Boolean, "firebase", "Enable push notification for Android devices (new method for Android)", "true"},
-		{StringList, "firebase-projects-api-keys",
-		 "List of couples projectId:ApiKey for each Android project that supports push notifications (new method for "
-		 "Android)", ""},
-		{Boolean, "windowsphone", "Enable push notification for Windows Phone 8 devices", "true"},
-		{String, "windowsphone-package-sid", "Unique identifier for your Windows Store app.\n"
+	    {Boolean, "firebase", "Enable push notification for Android devices.", "true"},
+	    {StringList, "firebase-projects-api-keys",
+	     "List of couples [Firebase Project Number]:[Firebase Cloud Messaging API (Legacy) Server Key] (without []) "
+	     "for each Android project that supports push notifications.",
+	     ""},
+	    {Boolean, "windowsphone", "Enable push notification for Windows Phone 8 devices", "true"},
+	    {String, "windowsphone-package-sid", "Unique identifier for your Windows Store app.\n"
 			"For example: ms-app://s-1-15-2-2345030743-3098444494-743537440-5853975885-5950300305-5348553438-505324794", ""},
 		{String, "windowsphone-application-secret", "Client secret. For example: Jrp1UoVt4C6CYpVVJHUPdcXLB1pEdRoB", ""},
 		{String, "external-push-uri",
@@ -287,7 +288,7 @@ void PushNotification::onDeclare(GenericStruct *module_config) {
 void PushNotification::onLoad(const GenericStruct *mc) {
 	GenericStruct *root = GenericManager::get()->getRoot();
 	const GenericStruct *mRouter = root->get<GenericStruct>("module::Router");
-	
+
 	mNoBadgeiOS = mc->get<ConfigBoolean>("no-badge")->read();
 	mTimeout = mc->get<ConfigInt>("timeout")->read();
 	mMessageTtl = mc->get<ConfigInt>("message-time-to-live")->read();
@@ -342,8 +343,8 @@ void PushNotification::onLoad(const GenericStruct *mc) {
 		mPNS->setupFirebaseClient(mFirebaseKeys);
 	if(windowsPhoneEnabled)
 		mPNS->setupWindowsPhoneClient(windowsPhonePackageSID, windowsPhoneApplicationSecret);
-	
-	
+
+
 	mCallTtl = mRouter->get<ConfigInt>("call-fork-timeout")->read();
 	LOGD("PushNotification module loaded. Push ttl for calls is %i seconds, and for IM %i seconds.", mCallTtl, mMessageTtl);
 }
