@@ -135,8 +135,52 @@ job-debian11-unit-test:
     - export LD_LIBRARY_PATH=/usr/local/lib
     - export LSAN_OPTIONS="suppressions=./sanitizer_ignore.txt"
     - ./OUTPUT/bin/flexisip_tester --verbose --resource-dir ./OUTPUT/share/flexisip-tester --xml || exit $?
+  after_script:
+    - ls -lah #default.profraw should exist
+    - llvm-profdata merge -sparse default.profraw -o default.profdata
   artifacts :
     reports :
-        junit :
-          - BCUnitAutomated-Results.xml
+      junit :
+        - BCUnitAutomated-Results.xml
+    paths:
+      - default.profdata
+      - OUTPUT/lib/libflexisip.so
+    when: always
+    expire_in: 1 week
 
+debian11-coverage:
+  stage : coverage
+  tags: [ "docker-test" ]
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian11:$DEBIAN_11_IMAGE_VERSION
+  except:
+    variables:
+      - $DEPLOY_RUN
+      - $DEPLOY_UBUNTU
+  needs :
+    - job-debian11-unit-test
+  script :
+    - export TERM=xterm-color
+    - echo "Full coverage of Flexisip library"
+    - llvm-cov show $PWD/OUTPUT/lib/libflexisip.so -instr-profile=default.profdata include/flexisip src -use-color > flexisip_coverage_lines_full.txt
+    - echo "Display coverage by file of Flexisip library"
+    - llvm-cov report $PWD/OUTPUT/lib/libflexisip.so -instr-profile=default.profdata include/flexisip src -use-color | tee flexisip_coverage_report_by_file.txt
+    - echo "filtering output of report to get global coverage %"
+    - cat flexisip_coverage_report_by_file.txt| grep -E "TOTAL" | grep -Po "\d+\.\d+\%" | sed -n '3p'
+    - echo "Export results in JSON format"
+    - llvm-cov export $PWD/OUTPUT/lib/libflexisip.so -instr-profile=default.profdata -format=text include/flexisip src -use-color > flexisip_coverage_export.txt
+    - echo "Export results in Lcov format"
+    - llvm-cov export $PWD/OUTPUT/lib/libflexisip.so -instr-profile=default.profdata -format=lcov include/flexisip src -use-color > flexisip_coverage_export.lcov
+    - lcov_cobertura flexisip_coverage_export.lcov
+  coverage: '/[0-9][0-9]\.[0-9]+\%/'
+
+  artifacts :
+    reports :
+      cobertura: coverage.xml
+    paths:
+      - default.profdata
+      - flexisip_coverage_report_by_file.txt
+      - flexisip_coverage_lines_full.txt
+      - flexisip_coverage_export.lcov
+      - flexisip_coverage_export.txt
+      - coverage.xml
+    expire_in: 1 week

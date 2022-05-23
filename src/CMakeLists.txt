@@ -142,6 +142,21 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set_source_files_properties(stun/stun.c PROPERTIES COMPILE_OPTIONS "${stun_c_compile_options}")
     unset(stun_c_compile_options)
 endif ()
+
+#Generates information for test coverage reports.
+#If flexisip lib needs to be static, add this rule:
+#list(APPEND STATIC_LIBRARY_OPTIONS "-fprofile-instr-generate")
+if (ENABLE_TEST_COVERAGE_REPORTS) 
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang") 
+        target_compile_options(flexisip PRIVATE "-fprofile-instr-generate")
+        target_compile_options(flexisip PRIVATE "-fcoverage-mapping")
+        target_link_options(flexisip PRIVATE "-fprofile-instr-generate")
+    else ()
+        message(WARNING "CMAKE_CXX_COMPILER_ID is set to ${CMAKE_CXX_COMPILER_ID}. Test coverage works only under Clang. Skipping this part.")
+    endif()
+endif()
+
+
 target_compile_features(flexisip PRIVATE cxx_auto_type cxx_variadic_macros)
 target_link_libraries(flexisip
         PRIVATE

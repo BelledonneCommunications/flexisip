@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make bc-dev-debian11:20220420_remove_ffmpeg
+# Dockerfile used to make bc-dev-debian11:20220608_add_llvm_coverage_tools
 ###############################################################################
 
 FROM debian:bullseye
@@ -54,6 +54,8 @@ RUN apt-get -y update \
                        libegl1-mesa-dev \
                        libglew-dev \
                        libvpx-dev \
+                     # Dependencies of clang test coverage
+                       llvm \
   # Clean
  && apt-get -y autoremove \
  && apt-get -y clean
@@ -67,6 +69,9 @@ RUN wget https://github.com/nghttp2/nghttp2/releases/download/v1.43.0/nghttp2-1.
 	sudo make -C src install && \
 	cd - && \
 	rm -rf nghttp2-1.43.0.tar.bz2 nghttp2-1.43.0
+
+# Dependency of clang test coverage (converts lcov format to cobertura so Gitlab can display code coverage for files in diff view)
+RUN pip install lcov_cobertura
 
 # Configure user bc
 RUN useradd -ms /bin/bash bc && \

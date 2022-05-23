@@ -18,7 +18,7 @@ variables:
   CENTOS_8_IMAGE_VERSION: 20211004_remove_hiredis
   DEBIAN_9_IMAGE_VERSION: 20210624_packaging
   DEBIAN_10_IMAGE_VERSION: 20211018_mariadb_server
-  DEBIAN_11_IMAGE_VERSION: 20220420_remove_ffmpeg
+  DEBIAN_11_IMAGE_VERSION: 20220608_add_llvm_coverage_tools
   UBUNTU_18_04_IMAGE_VERSION: 20210624_packaging
   UBUNTU_ROLLING_IMAGE_VERSION: 20210624_packaging
 
@@ -46,6 +46,7 @@ include:
 stages:
  - build
  - test
+ - coverage
  - package
  - image
  - deploy
