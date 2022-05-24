@@ -68,7 +68,7 @@ static void callWithEarlyCancelCalleeOffline() {
 
 	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server);
 	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server);
-	auto calleeIdleClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server);
+	auto calleeIdleClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server, true);
 
 	// Check that call log is empty before test
 	if (!BC_ASSERT_TRUE(CoreAssert({calleeIdleClient->getCore()}, server->getAgent()).wait([calleeIdleClient] {
@@ -115,7 +115,7 @@ static void calleeOfflineWithOneDevice() {
 
 	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server);
 	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server);
-	auto calleeClientOfflineDevice = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server);
+	auto calleeClientOfflineDevice = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server, true);
 
 	calleeClientOfflineDevice->getCore()->setNetworkReachable(false);
 

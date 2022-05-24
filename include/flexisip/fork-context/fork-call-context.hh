@@ -54,6 +54,8 @@ protected:
 	std::shared_ptr<BranchInfo>
 	onNewRegister(const SipUri& url, const std::string& uid, const DispatchFunction& dispatchFunction) override;
 
+	void start() override;
+
 	static constexpr auto CLASS_NAME = "ForkCallContext";
 	const char* getClassName() const override {
 		return CLASS_NAME;

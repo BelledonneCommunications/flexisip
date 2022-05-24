@@ -81,6 +81,7 @@ void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo>& br, sip_t* rece
 			brit->notifyBranchCanceled(ForkStatus::Standard);
 		}
 	}
+	mNextBranchesTimer.reset();
 }
 
 void ForkCallContext::cancelOthersWithStatus(const shared_ptr<BranchInfo>& br, ForkStatus status) {
@@ -99,6 +100,7 @@ void ForkCallContext::cancelOthersWithStatus(const shared_ptr<BranchInfo>& br, F
 			brit->notifyBranchCanceled(status);
 		}
 	}
+	mNextBranchesTimer.reset();
 }
 
 void ForkCallContext::cancelBranch(const std::shared_ptr<BranchInfo>& brit) {
@@ -207,9 +209,13 @@ ForkCallContext::onNewRegister(const SipUri& url, const std::string& uid, const 
 	LOGD("ForkCallContext[%p]::onNewRegister()", this);
 	if (isCompleted() && !mCfg->mForkLate) return nullptr;
 
-	auto dispatchedBranch = ForkContextBase::onNewRegister(url, uid, dispatchFunction);
+	const auto dispatchPair = shouldDispatch(url, uid);
 
-	if (dispatchedBranch && isCompleted()) {
+	shared_ptr<BranchInfo> dispatchedBranch{nullptr};
+	if (!isCompleted() && dispatchPair.first) {
+		dispatchedBranch = dispatchFunction();
+	} else if (dispatchPair.first && dispatchPair.second && dispatchPair.second->iosPushSent) {
+		dispatchedBranch = dispatchFunction();
 		cancelBranch(dispatchedBranch);
 	}
 
@@ -246,16 +252,18 @@ void ForkCallContext::onShortTimer() {
 }
 
 void ForkCallContext::onLateTimeout() {
-	auto br = findBestBranch(getUrgentCodes(), mCfg->mForkLate);
+	if (mIncoming) {
+		auto br = findBestBranch(getUrgentCodes(), mCfg->mForkLate);
 
-	if (!br || br->getStatus() == 0 || br->getStatus() == 503) {
-		logResponse(forwardCustomResponse(SIP_408_REQUEST_TIMEOUT));
-	} else {
-		logResponse(forwardResponse(br));
+		if (!br || br->getStatus() == 0 || br->getStatus() == 503) {
+			logResponse(forwardCustomResponse(SIP_408_REQUEST_TIMEOUT));
+		} else {
+			logResponse(forwardResponse(br));
+		}
+
+		/*cancel all possibly pending outgoing transactions*/
+		cancelOthers(shared_ptr<BranchInfo>(), nullptr);
 	}
-
-	/*cancel all possibly pending outgoing transactions*/
-	cancelOthers(shared_ptr<BranchInfo>(), nullptr);
 }
 
 void ForkCallContext::onPushTimer() {
@@ -268,6 +276,12 @@ void ForkCallContext::onPushTimer() {
 void ForkCallContext::processInternalError(int status, const char* phrase) {
 	ForkContextBase::processInternalError(status, phrase);
 	cancelOthers(shared_ptr<BranchInfo>(), nullptr);
+}
+
+void ForkCallContext::start() {
+	if (!isCompleted()) {
+		ForkContextBase::start();
+	}
 }
 
 } // namespace flexisip

@@ -41,6 +41,11 @@ PNContextCall::PNContextCall(const std::shared_ptr<OutgoingTransaction>& transac
 	mPushSentSatusCode = 180;
 	mPushSentPhrase = sip_180_Ringing;
 
+	auto br = BranchInfo::getBranchInfo(transaction);
+	if (br && pInfo->isApple()) {
+		br->iosPushSent = true;
+	}
+
 	const auto& root = _module->getAgent()->getRoot();
 	const auto& dests = pInfo->mDestinations;
 	if (dests.find(PushType::VoIP) != dests.cend()) {
@@ -50,7 +55,6 @@ PNContextCall::PNContextCall(const std::shared_ptr<OutgoingTransaction>& transac
 		// is limited to 3 per day on this platform.
 		mStrategy = make_shared<BackgroundPushStrategy>(root, _module->getService());
 	} else if (dests.find(PushType::Message) != dests.cend()) {
-		auto br = BranchInfo::getBranchInfo(transaction);
 		auto remoteStrategy = RemotePushStrategy::make(root, _module->getService(), br);
 		remoteStrategy->setCallPushInterval(callPushInterval);
 		mStrategy = move(remoteStrategy);

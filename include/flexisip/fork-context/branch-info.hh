@@ -133,6 +133,7 @@ public:
 	 * Only used with Invite/ForkCall
 	 */
 	bool cancelCompleted = false;
+	bool iosPushSent = false;
 
 private:
 	// Private ctors

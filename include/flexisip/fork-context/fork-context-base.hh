@@ -39,7 +39,6 @@ private:
 	void onNextBranches();
 
 	std::weak_ptr<ForkContextListener> mListener;
-	sofiasip::Timer mNextBranchesTimer;
 	std::list<std::shared_ptr<BranchInfo>> mCurrentBranches;
 	std::weak_ptr<StatPair> mStatCounter;
 
@@ -89,6 +88,15 @@ protected:
 	static bool isUrgent(int code, const int urgentCodes[]);
 	void processLateTimeout();
 
+	/**
+	 * This implementation looks for already pending or failed transactions.
+	 *
+	 * @return Return a pair with :
+	 *  - bool : tell if you should dispatch a new branch/transaction to the device targeted by dest/uid.
+	 *  - std::shared_ptr<BranchInfo> : the failed/unfinished branch/transaction you will replace if it exist or nullptr.
+	 */
+	std::pair<bool, std::shared_ptr<BranchInfo>> shouldDispatch(const SipUri& dest, const std::string& uid);
+
 	bool mFinished = false;
 	float mCurrentPriority;
 	Agent* mAgent;
@@ -100,6 +108,7 @@ protected:
 	sofiasip::Timer mFinishTimer;
 	std::vector<std::string> mKeys;
 	std::list<std::shared_ptr<BranchInfo>> mWaitingBranches;
+	sofiasip::Timer mNextBranchesTimer;
 
 public:
 	virtual ~ForkContextBase();
@@ -123,9 +132,6 @@ public:
 
 	void addKey(const std::string& key) override;
 	const std::vector<std::string>& getKeys() const override;
-
-	std::shared_ptr<BranchInfo>
-	onNewRegister(const SipUri& dest, const std::string& uid, const DispatchFunction& dispatchFunction) override;
 
 	// Notifies the cancellation of the fork process.
 	void onCancel(const std::shared_ptr<RequestSipEvent>& ev) override;

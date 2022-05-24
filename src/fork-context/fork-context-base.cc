@@ -35,9 +35,9 @@ ForkContextBase::ForkContextBase(Agent* agent,
                                  const weak_ptr<ForkContextListener>& listener,
                                  const weak_ptr<StatPair>& counter,
                                  bool isRestored)
-    : mListener(listener), mNextBranchesTimer(agent->getRoot()), mStatCounter(counter), mCurrentPriority(-1),
-      mAgent(agent), mEvent(make_shared<RequestSipEvent>(event)), // Is this deep copy really necessary ?
-      mCfg(cfg), mLateTimer(agent->getRoot()), mFinishTimer(agent->getRoot()) {
+    : mListener(listener), mStatCounter(counter), mCurrentPriority(-1), mAgent(agent),
+      mEvent(make_shared<RequestSipEvent>(event)), // Is this deep copy really necessary ?
+      mCfg(cfg), mLateTimer(agent->getRoot()), mFinishTimer(agent->getRoot()), mNextBranchesTimer(agent->getRoot()) {
 	if (auto sharedCounter = mStatCounter.lock()) {
 		sharedCounter->incrStart();
 	} else {
@@ -198,10 +198,8 @@ const list<shared_ptr<BranchInfo>>& ForkContextBase::getBranches() const {
 	return mWaitingBranches;
 }
 
-// this implementation looks for already pending or failed transactions and then rejects handling of a new one that
-// would already been tried.
-std::shared_ptr<BranchInfo>
-ForkContextBase::onNewRegister(const SipUri& dest, const std::string& uid, const DispatchFunction& dispatchFunction) {
+std::pair<bool, std::shared_ptr<BranchInfo>> ForkContextBase::shouldDispatch(const SipUri& dest,
+                                                                             const std::string& uid) {
 	shared_ptr<BranchInfo> br, br_by_url;
 
 	/*
@@ -213,7 +211,7 @@ ForkContextBase::onNewRegister(const SipUri& dest, const std::string& uid, const
 	if (!targetGr.empty()) {
 		if (uid.find(targetGr) == string::npos) { // to compare regardless of < >
 			/* This request was targetting a gruu address, but this REGISTER is not coming from our target contact.*/
-			return nullptr;
+			return make_pair(false, nullptr);
 		}
 	}
 
@@ -222,15 +220,15 @@ ForkContextBase::onNewRegister(const SipUri& dest, const std::string& uid, const
 	if (br) {
 		int code = br->getStatus();
 		if (code == 503 || code == 408) {
-			LOGD("ForkContext %p: onNewRegister(): instance failed to receive the request previously.", this);
-			return dispatchFunction();
+			LOGD("ForkContext %p: shouldDispatch(): instance failed to receive the request previously.", this);
+			return make_pair(true, br);
 		} else if (code >= 200) {
 			/*
 			 * This instance has already accepted or declined the request.
 			 * We should not send it the request again.
 			 */
-			LOGD("ForkContext %p: onNewRegister(): instance has already answered the request.", this);
-			return nullptr;
+			LOGD("ForkContext %p: shouldDispatch(): instance has already answered the request.", this);
+			return make_pair(false, nullptr);
 		} else {
 			/*
 			 * No response, or a provisional response is received. We can cannot conclude on what to do.
@@ -239,17 +237,17 @@ ForkContextBase::onNewRegister(const SipUri& dest, const std::string& uid, const
 			 * from a new socket, in which case the current branch will receive no response.
 			 */
 			if (br_by_url == nullptr) {
-				LOGD("ForkContext %p: onNewRegister(): instance reconnected.", this);
-				return dispatchFunction();
+				LOGD("ForkContext %p: shouldDispatch(): instance reconnected.", this);
+				return make_pair(true, br);
 			}
 		}
 	}
 	if (br_by_url) {
-		LOGD("ForkContext %p: onNewRegister(): pending transaction for this destination.", this);
-		return nullptr;
+		LOGD("ForkContext %p: shouldDispatch(): pending transaction for this destination.", this);
+		return make_pair(false, nullptr);
 	}
 
-	return dispatchFunction();
+	return make_pair(true, nullptr);
 }
 
 bool compareGreaterBranch(const shared_ptr<BranchInfo>& lhs, const shared_ptr<BranchInfo>& rhs) {
@@ -295,6 +293,8 @@ shared_ptr<BranchInfo> ForkContextBase::addBranch(const std::shared_ptr<RequestS
 		// The listener of the old branch must be moved in the new one
 		// to be notified of the last events about the actual UID.
 		br->mListener = move(oldBr->mListener);
+
+		br->iosPushSent = oldBr->iosPushSent;
 	}
 
 	onNewBranch(br);

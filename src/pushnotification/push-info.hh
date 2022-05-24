@@ -108,6 +108,10 @@ public:
 	void addDestination(const std::shared_ptr<const RFC8599PushParams>& dest) noexcept;
 	const std::string& getPNProvider() const;
 
+	bool isApple() const {
+		return mDestinations.empty() ? false : mDestinations.cbegin()->second->isApns();
+	}
+
 private:
 	// Private methods
 	void parseAppleSpecifics(const sofiasip::MsgSip& msg);

@@ -76,11 +76,11 @@ CoreClient::CoreClient(const std::string me) {
 	mCore->start();
 }
 
-CoreClient::CoreClient(const string me, const shared_ptr<Server>& server) : CoreClient(me) {
-	registerTo(server);
+CoreClient::CoreClient(const string me, const shared_ptr<Server>& server, bool isApple) : CoreClient(me) {
+	registerTo(server, isApple);
 }
 
-void CoreClient::registerTo(const shared_ptr<Server>& server) {
+void CoreClient::registerTo(const shared_ptr<Server>& server, bool isApple) {
 	mServer = server;
 
 	// Clients register to the first of the list of transports read in the proxy configuration
@@ -96,6 +96,16 @@ void CoreClient::registerTo(const shared_ptr<Server>& server) {
 	clientAccountParams->enableRegister(true);
 	clientAccountParams->setServerAddress(route);
 	clientAccountParams->setRoutesAddresses({route});
+
+	if (isApple) {
+		const auto pushConfig = clientAccountParams->getPushNotificationConfig();
+		pushConfig->setProvider("apns");
+		pushConfig->setPrid("AAAAAAAAAAAAAAAAAAAA7DF897B431746F49E271E66BBF655C13C2BBD70FFC18:remote&8A499FF20722E0C47A4F52657554B22E2AE6BF45AC91AAAAAAAAAAAAAAAAAAAA:voip");
+		pushConfig->setParam("ABCD1234.org.linphone.phone.remote&voip");
+		clientAccountParams->setPushNotificationAllowed(true);
+		mCore->enablePushNotification(true);
+	}
+
 	auto account =
 	    mCore->createAccount(clientAccountParams); // store the account pointer in local var to capture it in lambda
 	mCore->addAccount(account);

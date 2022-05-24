@@ -33,15 +33,15 @@ public:
 		unique_ptr<ThreadPool> threadPool = make_unique<ThreadPoolType>(5, 5);
 
 		for (int i = 0; i < 5; i++) {
-			auto taskAdded = threadPool->run([this]() { _run(); });
+			auto taskAdded = threadPool->run([&]() { _run(); });
 			BC_HARD_ASSERT_TRUE(taskAdded);
 		}
-		BC_HARD_ASSERT_TRUE(waitFor([this]() { return mStartedCounter == 5; }, 100ms));
+		BC_HARD_ASSERT_TRUE(waitFor([&]() { return mStartedCounter == 5; }, 100ms));
 		BC_HARD_ASSERT_TRUE(mRunningCounter == 0);
 		BC_HARD_ASSERT_TRUE(mEndedCounter == 0);
 
 		for (int i = 0; i < 5; i++) {
-			auto taskAdded = threadPool->run([this]() { _run(); });
+			auto taskAdded = threadPool->run([&]() { _run(); });
 			BC_HARD_ASSERT_TRUE(taskAdded);
 		}
 		BC_HARD_ASSERT_TRUE(mStartedCounter == 5);
@@ -49,7 +49,7 @@ public:
 		BC_HARD_ASSERT_TRUE(mEndedCounter == 0);
 
 		for (int i = 0; i < 5; i++) {
-			auto taskAdded = threadPool->run([this]() { _run(); });
+			auto taskAdded = threadPool->run([&]() { _run(); });
 			BC_HARD_ASSERT_FALSE(taskAdded);
 		}
 		BC_HARD_ASSERT_TRUE(mStartedCounter == 5);
@@ -58,21 +58,21 @@ public:
 
 		mCanRun = true;
 		mCondition.notify_all();
-		BC_HARD_ASSERT_TRUE(waitFor([this]() { return mRunningCounter == 5; }, 200ms));
+		BC_HARD_ASSERT_TRUE(waitFor([&]() { return mRunningCounter == 5; }, 200ms));
 		BC_HARD_ASSERT_TRUE(mStartedCounter == 5);
 		BC_HARD_ASSERT_TRUE(mEndedCounter == 0);
 
 		mCanRun = false;
 		mCanStop = true;
 		mCondition.notify_all();
-		BC_HARD_ASSERT_TRUE(waitFor([this]() { return mEndedCounter == 5; }, 200ms));
-		BC_HARD_ASSERT_TRUE(waitFor([this]() { return mStartedCounter == 10; }, 200ms));
+		BC_HARD_ASSERT_TRUE(waitFor([&]() { return mEndedCounter == 5; }, 200ms));
+		BC_HARD_ASSERT_TRUE(waitFor([&]() { return mStartedCounter == 10; }, 200ms));
 		BC_HARD_ASSERT_TRUE(mRunningCounter == 5);
 
 		mCanRun = true;
 		mCanStop = false;
 		mCondition.notify_all();
-		BC_HARD_ASSERT_TRUE(waitFor([this]() { return mRunningCounter == 10; }, 200ms));
+		BC_HARD_ASSERT_TRUE(waitFor([&]() { return mRunningCounter == 10; }, 200ms));
 		BC_HARD_ASSERT_TRUE(mStartedCounter == 10);
 		BC_HARD_ASSERT_TRUE(mEndedCounter == 5);
 
@@ -88,12 +88,12 @@ private:
 	void _run() {
 		mStartedCounter++;
 		unique_lock<mutex> lock(mCondMutex);
-		mCondition.wait(lock, [this]() { return mCanRun; });
+		mCondition.wait(lock, [&]() { return mCanRun.load(); });
 		lock.unlock();
 		mRunningCounter++;
 
 		lock.lock();
-		mCondition.wait(lock, [this]() { return mCanStop; });
+		mCondition.wait(lock, [&]() { return mCanStop.load(); });
 		lock.unlock();
 		mEndedCounter++;
 	};
@@ -102,8 +102,8 @@ private:
 	std::atomic_uint mRunningCounter;
 	std::atomic_uint mEndedCounter;
 
-	bool mCanRun = false;
-	bool mCanStop = false;
+	std::atomic_bool mCanRun{false};
+	std::atomic_bool mCanStop{false};
 
 	std::mutex mCondMutex;
 	std::condition_variable mCondition{};

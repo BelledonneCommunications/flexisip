@@ -56,15 +56,17 @@ public:
 	 *
 	 * @param[in] me		address of local account
 	 * @param[in] server	server to register to
+	 * @param[in] isApple	if true some apple push info are added to REGISTERs
 	 */
-	CoreClient(const std::string me, const std::shared_ptr<Server>& server);
+	CoreClient(const std::string me, const std::shared_ptr<Server>& server, bool isApple = false);
 
 	/**
 	 * Create an account(using address given at client creation) and register to the given server
 	 *
 	 * @param[in] server	server to register to
+	 * @param[in] isApple	if true some apple push info are added to REGISTERs
 	 */
-	void registerTo(const std::shared_ptr<Server>& server);
+	void registerTo(const std::shared_ptr<Server>& server, bool isApple = false);
 
 	~CoreClient();
 
