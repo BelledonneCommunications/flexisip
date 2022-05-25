@@ -88,9 +88,7 @@ void AutoThreadPool::_run() {
 			// If termination signal received and queue is empty then exit else continue clearing the queue.
 			if (mTasks.empty() && mState == Shutdown) {
 				SLOGD << "AutoThreadPool [" << this << "]: terminate threads";
-				for(auto& thread : mThreadPool) {
-					thread.join();
-				}
+				mCondition.wait(lock, [this]() { return mCurrentThreadNumber == 0; });
 				return;
 			}
 
@@ -99,7 +97,8 @@ void AutoThreadPool::_run() {
 
 			try {
 				// launch the task on a new thread
-				mThreadPool.emplace_back(&AutoThreadPool::_subThreadRun, this, task);
+				thread taskRunner{&AutoThreadPool::_subThreadRun, this, task};
+				taskRunner.detach();
 				mCurrentThreadNumber++;
 
 				// Remove task from the queue.
