@@ -84,6 +84,7 @@ void ConferenceServer::_init() {
 	mCore->addListener(shared_from_this());
 	mCore->enableConferenceServer(true);
 	mCore->setTransports(cTransport);
+	mCore->enableLimeX3Dh(true);
 
 	loadFactoryUris();
 	bool defaultProxyConfigSet = false;

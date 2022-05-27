@@ -117,8 +117,21 @@ if(ENABLE_PRESENCE OR ENABLE_MDNS OR ENABLE_CONFERENCE OR ENABLE_UNIT_TESTS)
 	add_subdirectory("linphone-sdk/belle-sip")
 endif()
 
-# Liblinphone specific config
+
 if(ENABLE_CONFERENCE)
+	# Lime specific config
+	set(DISABLE_SOCI_PACKAGE_SEARCH ON)
+
+	set(ENABLE_CURVE25519 YES)
+	set(ENABLE_CURVE448 YES)
+	set(ENABLE_PROFILING NO)
+	set(ENABLE_C_INTERFACE NO)
+	set(ENABLE_JNI NO)
+	set(ENABLE_PACKAGE_SOURCE OFF)
+	set(ENABLE_UNIT_TESTS ${ENABLE_LIBLINPHONE_TESTER}) # override Flexisip ENABLE_UNIT_TESTS option by using a local variable
+	add_subdirectory("linphone-sdk/lime")
+
+	# Liblinphone specific config
 	set(DISABLE_SOCI_PACKAGE_SEARCH ON)
 
 	set(ENABLE_ADVANCED_IM ON)
@@ -132,7 +145,7 @@ if(ENABLE_CONFERENCE)
 	set(ENABLE_JAZZY_DOC OFF)
 	set(ENABLE_DATE OFF)
 	set(ENABLE_DEBUG_LOGS OFF)
-	set(ENABLE_LIME_X3DH OFF)
+	set(ENABLE_LIME_X3DH ON)
 	set(ENABLE_JAVA_WRAPPER OFF)
 	set(ENABLE_JAVADOC OFF)
 	set(ENABLE_LDAP OFF)
@@ -151,6 +164,7 @@ if(ENABLE_CONFERENCE)
 	else ()
 		set(ENABLE_DAEMON ON)
 	endif()
+
 	add_subdirectory("linphone-sdk/liblinphone")
 	unset(ENABLE_UNIT_TESTS) # remove the overriding
 endif()
