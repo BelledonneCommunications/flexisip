@@ -134,7 +134,7 @@ job-debian11-unit-test:
   script :
     - export LD_LIBRARY_PATH=/usr/local/lib
     - export LSAN_OPTIONS="suppressions=./sanitizer_ignore.txt"
-    - ./OUTPUT/bin/flexisip_tester --verbose --resource-dir ./OUTPUT/share/flexisip-tester || exit $?
+    - ./OUTPUT/bin/flexisip_tester --verbose --resource-dir ./OUTPUT/share/flexisip-tester --xml || exit $?
   artifacts :
     reports :
         junit :
