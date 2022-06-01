@@ -655,7 +655,8 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		addPathHeader(getAgent(), ev, ev->getIncomingTport().get());
 	}
 
-	// Init conn id in tport
+	/* Initialize a connection ID, so that registration can be matched with the tport, 
+	   in order to later identify aborted connections during subsequent registrations. */
 	{
 		ostringstream os;
 		uintptr_t connId = (tport_get_user_data(ev->getIncomingTport().get())) ?
@@ -673,8 +674,22 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 		return;
 	}
 
-	// Handle modifications
-	if (!mUpdateOnResponse || sipurl.getUser().empty() || !getAgent()->getDRM()->haveToRelayRegToDomain(sipurl.getHost())) {
+	/* Evaluate whether the REGISTER needs to be answered and processed directly, or forwarded to an upstream server 
+	 * which is the case when reg-on-response is enabled, but with a few exceptions listed below. */
+	bool updateOnResponse = mUpdateOnResponse;
+	if (updateOnResponse){
+		if (sipurl.getUser().empty()) {
+			// This is a domain registration, it has to be answered directly.
+			updateOnResponse = false; 
+		} else if (mAllowDomainRegistrations){
+			/* Domain registrations are enabled. In this case we evaluate whether the
+			 * relay-reg-to-domains and the relay-reg-to-domains-regex properties allow this REGISTER
+			 * to be sent upstream. */
+			updateOnResponse = getAgent()->getDRM()->haveToRelayRegToDomain(sipurl.getHost());
+		}
+	}
+	if (!updateOnResponse) {
+		// Main case: the module directly answers to the REGISTER.
 		if ('*' == sip->sip_contact->m_url[0].url_scheme[0]) {
 			auto listener = make_shared<OnRequestBindListener>(this, ev);
 			mStats.mCountClear->incrStart();
@@ -700,7 +715,9 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent> &ev) {
 			return;
 		}
 	} else {
-		// Go stateful to stop retransmissions
+		/* Case where the module let the REGISTER being forwared upstream.
+		 * The final response is generated upon receiving the response from the upstream server
+		 * in onResponse(). */
 		ev->createIncomingTransaction();
 		ev->reply(SIP_100_TRYING, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 
