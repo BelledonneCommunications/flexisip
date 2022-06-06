@@ -23,6 +23,7 @@
 #include "flexisip/fork-context/branch-info-db.hh"
 #include "flexisip/fork-context/fork-context.hh"
 #include "flexisip/fork-context/fork-status.hh"
+#include "flexisip/module-pushnotification.hh"
 #include "flexisip/registrardb.hh"
 #include "flexisip/transaction.hh"
 
@@ -133,7 +134,7 @@ public:
 	 * Only used with Invite/ForkCall
 	 */
 	bool cancelCompleted = false;
-	bool iosPushSent = false;
+	std::weak_ptr<PushNotificationContext> pushContext{};
 
 private:
 	// Private ctors

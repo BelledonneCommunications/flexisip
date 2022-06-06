@@ -294,7 +294,7 @@ shared_ptr<BranchInfo> ForkContextBase::addBranch(const std::shared_ptr<RequestS
 		// to be notified of the last events about the actual UID.
 		br->mListener = move(oldBr->mListener);
 
-		br->iosPushSent = oldBr->iosPushSent;
+		br->pushContext = oldBr->pushContext;
 	}
 
 	onNewBranch(br);

@@ -404,6 +404,9 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip>& ms,
 		SLOGD << "Creating a push notif context PNR " << pinfo << " to send in " << timeout.count() << "s";
 		if (isCall) {
 			context = make_shared<PNContextCall>(transaction, this, pinfo, getCallRemotePushInterval(params), pnKey);
+			if (br) {
+				br->pushContext = context;
+			}
 		} else {
 			context = make_shared<PNContextMessage>(transaction, this, pinfo, pnKey);
 		}

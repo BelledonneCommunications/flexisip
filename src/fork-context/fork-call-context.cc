@@ -214,9 +214,13 @@ ForkCallContext::onNewRegister(const SipUri& url, const std::string& uid, const 
 	shared_ptr<BranchInfo> dispatchedBranch{nullptr};
 	if (!isCompleted() && dispatchPair.first) {
 		dispatchedBranch = dispatchFunction();
-	} else if (dispatchPair.first && dispatchPair.second && dispatchPair.second->iosPushSent) {
-		dispatchedBranch = dispatchFunction();
-		cancelBranch(dispatchedBranch);
+	} else if (dispatchPair.first && dispatchPair.second) {
+		if (auto pushContext = dispatchPair.second->pushContext.lock()) {
+			if (pushContext->getPushInfo()->isApple()) {
+				dispatchedBranch = dispatchFunction();
+				cancelBranch(dispatchedBranch);
+			}
+		}
 	}
 
 	checkFinished();
