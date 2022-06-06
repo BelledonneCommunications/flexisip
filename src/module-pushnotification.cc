@@ -498,12 +498,12 @@ void PushNotification::onRequest(std::shared_ptr<RequestSipEvent>& ev) {
 }
 
 void PushNotification::onResponse(std::shared_ptr<ResponseSipEvent>& ev) {
-	auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 	const auto& code = ev->getMsgSip()->getSip()->sip_status->st_status;
-	if (transaction && code >= 180 && code != 503) {
-		/*any response >=180 except 503 (which is sofia's internal response for broken transports) should cancel the
-		 * push*/
-		auto pnr = transaction->getProperty<PushNotificationContext>(getModuleName());
+	if (code >= 200 && code != 503) {
+		/* any response >= 200 except 503 (which is SofiaSip's internal response for broken transports) should cancel the
+		 * push notification */
+		auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+		auto pnr = transaction ? transaction->getProperty<PushNotificationContext>(getModuleName()) : nullptr;
 		if (pnr) {
 			SLOGD << "Transaction[" << transaction << "] has been answered. Canceling the associated PNR[" << pnr << "]";
 			pnr->cancel();
