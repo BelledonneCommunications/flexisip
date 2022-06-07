@@ -29,7 +29,11 @@ class RegistrarDbInternal : public RegistrarDb {
 	RegistrarDbInternal(Agent *ag);
 	void clearAll();
 
-  private:
+	void fetchExpiringContacts(time_t startTimestamp,
+	                           std::chrono::seconds timeRange,
+	                           std::function<void(std::vector<ExtendedContact>&&)>&& callback) const override;
+
+private:
 	void doBind(const MsgSip &msg, const BindingParameters &parameters, const std::shared_ptr<ContactUpdateListener> &listener) override;
 	void doClear(const MsgSip &msg, const std::shared_ptr<ContactUpdateListener> &listener) override;
 	void doFetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener) override;

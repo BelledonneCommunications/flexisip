@@ -35,7 +35,7 @@ namespace pushnotification {
  */
 class FirebaseClient : public Client {
 public:
-	FirebaseClient(su_root_t& root, const Service* service = nullptr);
+	FirebaseClient(sofiasip::SuRoot& root, const std::string& apiKey, const Service* service = nullptr);
 
 	/**
 	 * Send the request to the Firebase PNR server. If the request succeed, if a response is received, the
@@ -70,6 +70,7 @@ private:
 
 	std::shared_ptr<Http2Client> mHttp2Client;
 	std::string mLogPrefix{};
+	std::string mApiKey;
 };
 
 } // namespace pushnotification

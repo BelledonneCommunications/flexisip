@@ -23,7 +23,7 @@
 #include "flexisip/dos/dos-executor/ban-executor.hh"
 #include "flexisip/dos/module-dos.hh"
 #include "utils/bellesip-utils.hh"
-#include "utils/test-paterns/agent-test.hh"
+#include "utils/test-patterns/agent-test.hh"
 
 #include "tester.hh"
 

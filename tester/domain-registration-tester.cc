@@ -25,7 +25,7 @@
 #include "tester.hh"
 #include "utils/proxy-server-process.hh"
 #include "utils/rand.hh"
-#include "utils/test-paterns/agent-test.hh"
+#include "utils/test-patterns/agent-test.hh"
 
 using namespace std;
 

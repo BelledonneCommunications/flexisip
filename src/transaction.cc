@@ -22,6 +22,8 @@
 #include <sofia-sip/su_random.h>
 #include <sofia-sip/su_tagarg.h>
 
+#include <bctoolbox/ownership.hh>
+
 #include "flexisip/agent.hh"
 #include "flexisip/common.hh"
 #include "flexisip/event.hh"
@@ -135,10 +137,8 @@ shared_ptr<MsgSip> OutgoingTransaction::getRequestMsg() {
 		LOGE("OutgoingTransaction::getRequestMsg(): transaction not started !");
 		return NULL;
 	}
-	msg_t* msg = nta_outgoing_getrequest(mOutgoing.borrow());
-	auto request = make_shared<MsgSip>(msg);
-	msg_destroy(msg);
-	return request;
+
+	return make_shared<MsgSip>(ownership::owned(nta_outgoing_getrequest(mOutgoing.borrow())));
 }
 
 void OutgoingTransaction::send(
@@ -175,11 +175,9 @@ int OutgoingTransaction::_callback(nta_outgoing_magic_t* magic, nta_outgoing_t* 
 	OutgoingTransaction* otr = reinterpret_cast<OutgoingTransaction*>(magic);
 	LOGD("OutgoingTransaction callback %p", otr);
 	if (sip != NULL) {
-		msg_t* msg = nta_outgoing_getresponse(otr->mOutgoing.borrow());
 		auto oagent = dynamic_pointer_cast<OutgoingAgent>(otr->shared_from_this());
-		auto msgsip = make_shared<MsgSip>(msg);
+		auto msgsip = make_shared<MsgSip>(ownership::owned(nta_outgoing_getresponse(otr->mOutgoing.borrow())));
 		shared_ptr<ResponseSipEvent> sipevent = make_shared<ResponseSipEvent>(oagent, msgsip);
-		msg_destroy(msg);
 
 		otr->mAgent->sendResponseEvent(sipevent);
 
@@ -231,14 +229,13 @@ IncomingTransaction::~IncomingTransaction() {
 
 shared_ptr<MsgSip> IncomingTransaction::createResponse(int status, char const* phrase) {
 	if (mIncoming) {
-		msg_t* msg = nta_incoming_create_response(mIncoming, status, phrase);
+		auto msg = ownership::owned(nta_incoming_create_response(mIncoming, status, phrase));
 		if (!msg) {
 			LOGE("IncomingTransaction::createResponse(): this=%p cannot create response.", this);
 			return shared_ptr<MsgSip>();
 		}
-		shared_ptr<MsgSip> ms = make_shared<MsgSip>(msg);
-		msg_destroy(msg);
-		return ms;
+
+		return make_shared<MsgSip>(move(msg));
 	}
 	LOGE("IncomingTransaction::createResponse(): this=%p transaction is finished, cannot create response.", this);
 	return shared_ptr<MsgSip>();
@@ -279,9 +276,9 @@ int IncomingTransaction::_callback(nta_incoming_magic_t* magic, nta_incoming_t* 
 	IncomingTransaction* it = reinterpret_cast<IncomingTransaction*>(magic);
 	LOGD("IncomingTransaction callback %p", it);
 	if (sip != NULL) {
-		msg_t* msg = nta_incoming_getrequest_ackcancel(it->mIncoming);
-		auto ev = make_shared<RequestSipEvent>(it->shared_from_this(), make_shared<MsgSip>(msg));
-		msg_destroy(msg);
+		auto ev = make_shared<RequestSipEvent>(
+		    it->shared_from_this(),
+		    make_shared<MsgSip>(ownership::owned(nta_incoming_getrequest_ackcancel(it->mIncoming))));
 		it->mAgent->sendRequestEvent(ev);
 		if (sip->sip_request && sip->sip_request->rq_method == sip_method_cancel) {
 			it->destroy();
@@ -293,14 +290,12 @@ int IncomingTransaction::_callback(nta_incoming_magic_t* magic, nta_incoming_t* 
 }
 
 shared_ptr<MsgSip> IncomingTransaction::getLastResponse() {
-	shared_ptr<MsgSip> msgsip;
-	msg_t* msg =
-	    nta_incoming_getresponse(mIncoming); // warning: nta_incoming_getresponse() creates a new ref to the msg_t.
-	if (msg) {
-		msgsip = make_shared<MsgSip>(msg);
-		msg_unref(msg); // MsgSip constructor takes a ref.
+	auto msg = ownership::owned(nta_incoming_getresponse(mIncoming));
+	if (!msg) {
+		return shared_ptr<MsgSip>();
 	}
-	return msgsip;
+
+	return make_shared<MsgSip>(std::move(msg));
 }
 
 void IncomingTransaction::destroy() {

@@ -15,24 +15,28 @@
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <unistd.h>
+
 #include <cerrno>
 #include <cstring>
-#include <poll.h>
+#include <stdlib.h>
 
-#include "cli.hh"
-#include "recordserializer.hh"
+#include <poll.h>
+#include <stdio.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include <bctoolbox/ownership.hh>
+
 #include <flexisip/common.hh>
 #include <flexisip/logmanager.hh>
 #include <flexisip/registrardb.hh>
 
 #include "cJSON.h"
+
+#include "recordserializer.hh"
+
+#include "cli.hh"
 
 using namespace flexisip;
 using namespace std;
@@ -433,30 +437,24 @@ void ProxyCommandLineInterface::handleRegistrarDelete(unsigned int socket, const
 	std::string from = args.at(0);
 	std::string uuid = args.at(1);
 
-	auto msg = nta_msg_create(mAgent->getSofiaAgent(), 0);
-	msg_header_add_dup(
-		msg,
-		nullptr,
-		reinterpret_cast<msg_header_t*>(sip_request_make(msg_home(msg), "MESSAGE sip:abcd SIP/2.0\r\n"))
-	);
+	auto msg = MsgSip(ownership::owned(nta_msg_create(mAgent->getSofiaAgent(), 0)));
+	auto msgHome = msg.getHome();
+	msg_header_add_dup(msg.getMsg(), nullptr,
+	                   reinterpret_cast<msg_header_t*>(sip_request_make(msgHome, "MESSAGE sip:abcd SIP/2.0\r\n")));
 
 	BindingParameters parameter;
 	parameter.globalExpire = 0;
 
 	// We forge a fake SIP message
-	auto sip = sip_object(msg);
-	sip->sip_from = sip_from_create(msg_home(msg), (url_string_t *)from.c_str());
-	sip->sip_contact = sip_contact_create(
-		msg_home(msg),
-		(url_string_t *)from.c_str(),
-		string("+sip.instance=").append(uuid).c_str(),
-		nullptr
-	);
-	sip->sip_call_id = sip_call_id_make(msg_home(msg), "foobar");
+	auto sip = msg.getSip();
+	sip->sip_from = sip_from_create(msgHome, (url_string_t*)from.c_str());
+	sip->sip_contact = sip_contact_create(msgHome, (url_string_t*)from.c_str(),
+	                                      string("+sip.instance=").append(uuid).c_str(), nullptr);
+	sip->sip_call_id = sip_call_id_make(msgHome, "foobar");
 
 	auto listener = std::make_shared<DeleteListener>(this, socket);
 
-	RegistrarDb::get()->bind(MsgSip{msg}, parameter, listener);
+	RegistrarDb::get()->bind(msg, parameter, listener);
 }
 
 void ProxyCommandLineInterface::handleRegistrarClear(unsigned int socket, const std::vector<std::string> &args) {
@@ -489,11 +487,11 @@ void ProxyCommandLineInterface::handleRegistrarClear(unsigned int socket, const 
 	};
 
 	std::string arg = args.front();
-	auto msg = nta_msg_create(mAgent->getSofiaAgent(), 0);
-	auto sip = sip_object(msg);
-	sip->sip_from = sip_from_create(msg_home(msg), (url_string_t *)arg.c_str());
+	auto msg = MsgSip(ownership::owned(nta_msg_create(mAgent->getSofiaAgent(), 0)));
+	auto sip = msg.getSip();
+	sip->sip_from = sip_from_create(msg.getHome(), (url_string_t*)arg.c_str());
 	auto listener = std::make_shared<ClearListener>(this, socket, arg);
-	RegistrarDb::get()->clear(MsgSip{msg}, listener);
+	RegistrarDb::get()->clear(msg, listener);
 }
 
 void ProxyCommandLineInterface::handleRegistrarDump(unsigned int socket, const std::vector<std::string> &args){

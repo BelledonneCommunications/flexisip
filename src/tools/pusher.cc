@@ -261,19 +261,17 @@ int main(int argc, char* argv[]) {
 
 	{
 		sofiasip::SuRoot root{};
-		Service service{*root.getCPtr(), MAX_QUEUE_SIZE};
+		Service service{root, MAX_QUEUE_SIZE};
 		auto pushInfos = createPushInfosFromArgs(args);
 
 		// Cannot be empty, or the program would have exited while parsing parameters. All pushInfos have the same
 		// mType, so we just take the front one.
-		const auto& provider = pushInfos.front()->mDestinations.cbegin()->second->getProvider();
+		const auto& pushParams = pushInfos.front()->mDestinations.cbegin()->second;
+		const auto& provider = pushParams->getProvider();
 		if (provider == "apns" || provider == "apns.dev") {
 			service.setupiOSClient(args.prefix + "/apn", "");
 		} else if (provider == "fcm") {
-			map<string, string> firebaseKey{};
-			auto& firstPI = *pushInfos.front();
-			firebaseKey.emplace(firstPI.mDestinations.cbegin()->second->getParam(), firstPI.mApiKey);
-			service.setupFirebaseClient(firebaseKey);
+			service.addFirebaseClient(pushParams->getParam());
 		} else if (provider == "wp" || provider == "w10") {
 			service.setupWindowsPhoneClient(args.packageSID, args.apikey);
 		}

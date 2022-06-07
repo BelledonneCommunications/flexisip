@@ -19,7 +19,7 @@
 #include <bctoolbox/tester.h>
 
 #include "tester.hh"
-#include "utils/test-paterns/test.hh"
+#include "utils/test-patterns/test.hh"
 #include "utils/uri-utils.hh"
 
 using namespace std;

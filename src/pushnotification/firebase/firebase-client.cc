@@ -30,7 +30,8 @@ namespace pushnotification {
 std::string FirebaseClient::FIREBASE_ADDRESS{"fcm.googleapis.com"};
 std::string FirebaseClient::FIREBASE_PORT{"443"};
 
-FirebaseClient::FirebaseClient(su_root_t& root, const Service* service) : Client{service} {
+FirebaseClient::FirebaseClient(sofiasip::SuRoot& root, const std::string& apiKey, const Service* service)
+    : Client{service}, mApiKey(apiKey) {
 	ostringstream os{};
 	os << "FirebaseClient[" << this << "]";
 	mLogPrefix = os.str();
@@ -41,6 +42,9 @@ FirebaseClient::FirebaseClient(su_root_t& root, const Service* service) : Client
 
 void FirebaseClient::sendPush(const std::shared_ptr<Request>& req) {
 	auto firebaseReq = dynamic_pointer_cast<FirebaseRequest>(req);
+	if (!mApiKey.empty()) {
+		firebaseReq->getHeaders().add("authorization", "key=" + mApiKey);
+	}
 
 	firebaseReq->setState(Request::State::InProgress);
 	mHttp2Client->send(

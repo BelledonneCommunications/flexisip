@@ -22,6 +22,8 @@
 
 #include <nghttp2/asio_http2_server.h>
 
+namespace ssl = boost::asio::ssl;
+
 namespace flexisip {
 namespace pushnotification {
 
@@ -30,7 +32,13 @@ namespace pushnotification {
  */
 class PnsMock {
 public:
-	PnsMock() = default;
+	PnsMock();
+	~PnsMock() {
+		forceCloseServer();
+	}
+
+	void onPushRequest(nghttp2::asio_http2::server::request_cb cb);
+	bool serveAsync(const std::string& port);
 
 	/**
 	 * Expose a mock server answering every request with the same code and body passed as parameters.
@@ -50,6 +58,7 @@ public:
 
 private:
 	nghttp2::asio_http2::server::http2 mServer{};
+	ssl::context mCtx;
 
 	std::function<void(const nghttp2::asio_http2::server::request&, const nghttp2::asio_http2::server::response&)>
 	handleRequest(int code, const std::string& body, const std::string& reqBodyPattern, bool& assert, bool timeout);

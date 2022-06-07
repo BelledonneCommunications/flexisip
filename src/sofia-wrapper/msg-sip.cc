@@ -27,16 +27,13 @@ using namespace std;
 namespace sofiasip {
 
 /*Invoking the copy constructor of MsgSip implies the deep copy of the underlying msg_t */
-MsgSip::MsgSip(const MsgSip& msgSip) {
-	msgSip.serialize();
-	msg_t* freshCopy = msg_dup(msgSip.mMsg);
-	assignMsg(freshCopy);
-	msg_destroy(freshCopy);
+MsgSip::MsgSip(const MsgSip& msgSip) : mMsg(msg_dup(msgSip.mMsg)) {
+	serialize();
 	LOGD("New MsgSip %p copied from MsgSip %p", this, &msgSip);
 }
 
-MsgSip::MsgSip(int flags, const std::string& msg) {
-	mMsg = msg_make(sip_default_mclass(), flags, msg.c_str(), msg.size());
+MsgSip::MsgSip(int flags, const std::string& msg)
+    : mMsg(msg_make(sip_default_mclass(), flags, msg.c_str(), msg.size())) {
 	if (!mMsg || msg_has_error(mMsg)) {
 		throw runtime_error("Error during message parsing from string : \n" + msg);
 	}
@@ -65,19 +62,18 @@ msg_header_t* MsgSip::findHeader(const std::string& name, bool searchUnknowns) {
 	return nullptr;
 }
 
-const char* MsgSip::print() const {
-	// make sure the message is serialized before showing it; it can be very confusing.
+std::pair<char*, size_t> MsgSip::asString() {
 	size_t msg_size;
-	msg_serialize(mMsg, (msg_pub_t*)getSip());
-	return msg_as_string(getHome(), mMsg, NULL, 0, &msg_size);
+	return make_pair(msg_as_string(getHome(), mMsg.borrow(), nullptr, 0, &msg_size), msg_size);
 }
 
-std::string MsgSip::printString() const {
-	// make sure the message is serialized before showing it; it can be very confusing.
-	size_t msg_size;
-	msg_serialize(mMsg, (msg_pub_t*)getSip());
-	const auto cStr = msg_as_string(getHome(), mMsg, nullptr, 0, &msg_size);
-	return string{cStr, msg_size};
+const char* MsgSip::print() {
+	return asString().first;
+}
+
+std::string MsgSip::printString() {
+	auto raw = asString();
+	return string{raw.first, raw.second};
 }
 
 std::string MsgSip::printContext() const {

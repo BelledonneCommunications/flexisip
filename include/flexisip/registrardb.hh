@@ -392,6 +392,10 @@ class RegistrarDb {
 	 */
 	static void resetDB();
 	static RegistrarDb *initialize(Agent *ag);
+	/**
+	 * Errors if the DB has not been initialized yet. Make sure to call Agent::loadConfig() before calling
+	 * RegistrarDb::get()
+	 */
 	static RegistrarDb *get();
 	void bind(const MsgSip &sipMsg, const BindingParameters &parameter, const std::shared_ptr<ContactUpdateListener> &listener);
 	void bind(const SipUri &from, const sip_contact_t *contact, const BindingParameters &parameter, const std::shared_ptr<ContactUpdateListener> &listener);
@@ -399,6 +403,9 @@ class RegistrarDb {
 	void fetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive = false);
 	void fetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive);
 	void fetchList(const std::vector<SipUri > urls, const std::shared_ptr<ListContactUpdateListener> &listener);
+	virtual void fetchExpiringContacts(time_t startTimestamp,
+	                                   std::chrono::seconds timeRange,
+	                                   std::function<void(std::vector<ExtendedContact>&&)>&& callback) const = 0;
 	void notifyContactListener (const std::shared_ptr<Record> &r /*might be empty record*/, const std::string &uid);
 	void updateRemoteExpireTime(const std::string& key, time_t expireat);
 	unsigned long countLocalActiveRecords() {

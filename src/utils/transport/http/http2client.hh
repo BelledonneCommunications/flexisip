@@ -53,6 +53,20 @@ public:
 		static std::string formatWhatArg(State state) noexcept;
 	};
 
+	class SessionSettings {
+	public:
+		SessionSettings(uint32_t maxConcurrentStreams = 1000)
+		    : mSettings{{{NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, maxConcurrentStreams}}} {
+		}
+
+		int submitTo(nghttp2_session* session) {
+			return nghttp2_submit_settings(session, NGHTTP2_FLAG_NONE, mSettings.data(), mSettings.size());
+		}
+
+	private:
+		std::array<nghttp2_settings_entry, 1> mSettings;
+	};
+
 	template <typename... Args>
 	static std::shared_ptr<Http2Client> make(Args&&... args) {
 		// new because make_shared need a public constructor.
@@ -104,6 +118,14 @@ public:
 		return mConn;
 	}
 
+	/**
+	 * Number of requests pending to be sent by the nghttp2 session
+	 */
+	size_t getOutboundQueueSize() {
+		if (!mHttpSession) return 0;
+		return nghttp2_session_get_outbound_queue_size(mHttpSession.get());
+	}
+
 private:
 	struct NgHttp2SessionDeleter {
 		void operator()(nghttp2_session* ptr) const noexcept {
@@ -112,13 +134,17 @@ private:
 	};
 
 	// Constructors must be private because Http2Client extends enable_shared_from_this. Use make instead.
-	Http2Client(su_root_t& root, const std::string& host, const std::string& port);
-
-	Http2Client(su_root_t& root,
+	Http2Client(sofiasip::SuRoot& root, std::unique_ptr<TlsConnection>&& connection, SessionSettings&& sessionSettings);
+	Http2Client(sofiasip::SuRoot& root,
+	            const std::string& host,
+	            const std::string& port,
+	            SessionSettings&& sessionSettings = SessionSettings());
+	Http2Client(sofiasip::SuRoot& root,
 	            const std::string& host,
 	            const std::string& port,
 	            const std::string& trustStorePath,
-	            const std::string& certPath);
+	            const std::string& certPath,
+	            SessionSettings&& sessionSettings = SessionSettings());
 
 	/* Private methods */
 	void sendAllPendingRequests();
@@ -150,11 +176,15 @@ private:
 	void http2Setup();
 	void disconnect();
 
+	int sendAll() {
+		return nghttp2_session_send(mHttpSession.get());
+	}
+
 	void setState(State state) noexcept;
 
 	State mState{State::Disconnected};
 	std::unique_ptr<TlsConnection> mConn{};
-	su_root_t& mRoot;
+	sofiasip::SuRoot& mRoot;
 	su_wait_t mPollInWait{0};
 	sofiasip::Timer mIdleTimer;
 	std::string mLogPrefix{};
@@ -162,6 +192,7 @@ private:
 
 	using NgHttp2SessionPtr = std::unique_ptr<nghttp2_session, NgHttp2SessionDeleter>;
 	NgHttp2SessionPtr mHttpSession{};
+	SessionSettings mSessionSettings{};
 
 	using HttpContextList = std::vector<std::shared_ptr<HttpMessageContext>>;
 	HttpContextList mPendingHttpContexts{};

@@ -20,6 +20,7 @@
 
 #include "flexisip/module.hh"
 
+#include "pushnotification/contact-expiration-notifier.hh"
 #include "pushnotification/service.hh"
 #include "pushnotification/strategy/strategy.hh"
 
@@ -152,12 +153,13 @@ private:
 	unsigned mRetransmissionCount{0};
 	std::chrono::seconds mRetransmissionInterval{0};
 	std::chrono::seconds mCallRemotePushInterval{0};
-	std::map<std::string, std::string> mFirebaseKeys{};
 	std::shared_ptr<pushnotification::Service> mPNS{};
 	StatCounter64* mCountFailed{nullptr};
 	StatCounter64* mCountSent{nullptr};
 	bool mNoBadgeiOS{false};
 	bool mDisplayFromUri{false};
+
+	std::unique_ptr<ContactExpirationNotifier> mExpirationNotifier = nullptr;
 
 	friend class PushNotificationContext;
 };

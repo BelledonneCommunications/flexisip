@@ -19,6 +19,7 @@
 #include <stdexcept>
 
 #include "flexisip/logmanager.hh"
+#include "flexisip/registrardb.hh"
 
 #include "apple/apple-request.hh"
 #include "firebase/firebase-request.hh"
@@ -36,15 +37,8 @@ namespace pushnotification {
 
 PushInfo::PushInfo(const sofiasip::MsgSip& msg) {
 	const auto* sip = msg.getSip();
-	const auto* url = sip->sip_request->rq_url;
 
-	if (url_has_param(url, "pn-provider")) { // RFC8599
-		mDestinations = RFC8599PushParams::parsePushParams(url->url_params);
-	} else if (url_has_param(url, "pn-tok")) { // Flexisip and Linphone legacy parameters
-		mDestinations = RFC8599PushParams::parseLegacyPushParams(url->url_params);
-	} else {
-		throw NoPushParamtersError{};
-	}
+	setDestinations(sip->sip_request->rq_url);
 
 	this->mCallId = sip->sip_call_id->i_id;
 	if (msg.isGroupChatInvite()) {
@@ -74,6 +68,23 @@ PushInfo::PushInfo(const sofiasip::MsgSip& msg) {
 		parseAppleSpecifics(msg);
 	}
 }
+
+PushInfo::PushInfo(const ExtendedContact& contact) {
+	setDestinations(contact.mSipContact->m_url);
+	mCallId = contact.mCallId;
+	mFromUri = mToUri = contact.contactId();
+}
+
+void PushInfo::setDestinations(const url_t* url) {
+	if (url_has_param(url, "pn-provider")) { // RFC8599
+		mDestinations = RFC8599PushParams::parsePushParams(url->url_params);
+	} else if (url_has_param(url, "pn-tok")) { // Flexisip and Linphone legacy parameters
+		mDestinations = RFC8599PushParams::parseLegacyPushParams(url->url_params);
+	} else {
+		throw NoPushParamtersError{};
+	}
+}
+
 
 void PushInfo::addDestination(const std::shared_ptr<const RFC8599PushParams>& dest) noexcept {
 	for (auto pnType : dest->getSupportedPNTypes()) {

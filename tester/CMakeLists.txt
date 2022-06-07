@@ -63,8 +63,8 @@ add_executable(flexisip_tester
 	utils/proxy-server-process.cc utils/proxy-server-process.hh
 	utils/redis-server.cc utils/redis-server.hh
 	utils/tcp-server.cc utils/tcp-server.hh
-	utils/test-paterns/agent-test.hh
-	utils/test-paterns/test.hh
+	utils/test-patterns/agent-test.hh
+	utils/test-patterns/test.hh
 	utils/tls-server.cc utils/tls-server.hh
 )
 

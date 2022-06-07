@@ -17,30 +17,27 @@
  */
 
 #include "flexisip/configmanager.hh"
+#include "flexisip/module-pushnotification.hh"
 #include "flexisip/registrardb.hh"
 
+#include "pushnotification/firebase/firebase-client.hh"
+
 #include "tester.hh"
-#include "utils/redis-server.hh"
-#include "utils/test-paterns/agent-test.hh"
+#include "utils/test-patterns/registrardb-test.hh"
 
 using namespace std;
+namespace pn = flexisip::pushnotification;
 
 namespace flexisip {
 namespace tester {
-
-class RegistrarDbTest : public AgentTest {
-public:
-	// The agent hasn't to be run for testing the registrar DB.
-	RegistrarDbTest() noexcept : AgentTest(false) {
-	}
-};
 
 // Base class for testing UNSUBSCRIBE/SUBSCRIBE scenario.
 // That tests that the subscription is still on if subscribe() methods
 // is immediately called after unsubscribe(). We found out that with some
 // backend (e.g. Redis) that may lead to a race condition that caused the subscription
 // to be off.
-class SubsequentUnsubscribeSubscribeTest : public RegistrarDbTest {
+template <typename TDatabase>
+class SubsequentUnsubscribeSubscribeTest : public RegistrarDbTest<TDatabase> {
 protected:
 	// Protected types
 	struct RegistrarStats : public ContactRegisteredListener {
@@ -52,7 +49,7 @@ protected:
 	};
 
 	// Protected methods
-	void onExec() noexcept {
+	void onExec() noexcept override {
 		auto* regDb = RegistrarDb::get();
 
 		auto stats = make_shared<RegistrarStats>();
@@ -61,123 +58,141 @@ protected:
 		const string uuid{"dummy-uuid"};
 		SLOGD << "Subscribing to '" << topic << "'";
 		regDb->subscribe(topic, stats);
-		waitFor(1s);
+		this->waitFor(1s);
 
 		SLOGD << "Notifying topic[" << topic << "] with uuid[" << uuid << "]";
 		regDb->publish(topic, uuid);
-		BC_ASSERT_TRUE(waitFor([&stats]() { return stats->onContactRegisteredCount >= 1; }, 1s));
+		BC_ASSERT_TRUE(this->waitFor([&stats]() { return stats->onContactRegisteredCount >= 1; }, 1s));
 		BC_ASSERT_EQUAL(stats->onContactRegisteredCount, 1, int, "%d");
 
 		SLOGD << "Subsequent Redis UNSUBSCRIBE/SUBSCRIBE";
 		regDb->unsubscribe(topic, stats);
 		regDb->subscribe(topic, stats);
-		waitFor(1s);
+		this->waitFor(1s);
 
 		SLOGD << "Secondly Notifying topic[" << topic << "] with uuid[" << uuid << "]";
 		regDb->publish(topic, uuid);
-		BC_ASSERT_TRUE(waitFor([&stats]() { return stats->onContactRegisteredCount >= 2; }, 1s));
+		BC_ASSERT_TRUE(this->waitFor([&stats]() { return stats->onContactRegisteredCount >= 2; }, 1s));
 		BC_ASSERT_EQUAL(stats->onContactRegisteredCount, 2, int, "%d");
 	}
 };
 
-// Test UNSUBSCRIBE/SUBSCRIBE scenario with the 'internal' RegistrarDB backend.
-class SubsequentUnsubscribeSubscribeWithInternalDbTest : public SubsequentUnsubscribeSubscribeTest {
-protected:
-	void onAgentConfiguration(GenericManager& cfg) override {
-		AgentTest::onAgentConfiguration(cfg);
-		auto* registrarConf = cfg.getRoot()->get<GenericStruct>("module::Registrar");
-		registrarConf->get<ConfigValue>("db-implementation")->set("internal");
+/**
+ * Should return contacts expiring within [startTimestamp ; startTimestamp + timeRange[
+ */
+template <typename TDatabase>
+class TestFetchExpiringContacts : public RegistrarDbTest<TDatabase> {
+	void onExec() noexcept override {
+		auto* regDb = RegistrarDb::get();
+		auto inserter = ContactInserter(*regDb, *this->mAgent);
+		inserter.insert("sip:expected1@te.st", 1s);
+		inserter.insert("sip:unexpected@te.st", 3s);
+		inserter.insert("sip:expected2@te.st", 2s);
+		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
+		auto targetTimestamp = getCurrentTime() + 1;
+		auto timeRange = 2s;
+
+		// Cold loading script
+		auto expiringContacts = std::vector<ExtendedContact>();
+		regDb->fetchExpiringContacts(targetTimestamp, timeRange, [&expiringContacts](auto&& returnedContacts) {
+			expiringContacts = std::move(returnedContacts);
+		});
+
+		BC_ASSERT_TRUE(this->waitFor([&expiringContacts] { return !expiringContacts.empty(); }, 1s));
+		BC_ASSERT_TRUE(expiringContacts.size() == 2);
+		std::unordered_set<std::string> expectedContactStrings = {"sip:expected1@te.st", "sip:expected2@te.st"};
+		for (const auto& contact : expiringContacts) {
+			// Fail if the returned contact is not in the expected strings
+			BC_ASSERT_TRUE(expectedContactStrings.erase(ExtendedContact::urlToString(contact.mSipContact->m_url)) == 1);
+		}
+		// Assert all expected contacts have been returned
+		BC_ASSERT_TRUE(expectedContactStrings.empty());
+
+		// Script should be hot
+		expiringContacts.clear();
+		regDb->fetchExpiringContacts(targetTimestamp, timeRange, [&expiringContacts](auto&& returnedContacts) {
+			expiringContacts = std::move(returnedContacts);
+		});
+
+		BC_ASSERT_TRUE(this->waitFor([&expiringContacts] { return !expiringContacts.empty(); }, 1s));
+		BC_ASSERT_TRUE(expiringContacts.size() == 2);
+		expectedContactStrings = {"sip:expected1@te.st", "sip:expected2@te.st"};
+		for (const auto& contact : expiringContacts) {
+			// Fail if the returned contact is not in the expected strings
+			BC_ASSERT_TRUE(expectedContactStrings.erase(ExtendedContact::urlToString(contact.mSipContact->m_url)) == 1);
+		}
+		// Assert all expected contacts have been returned
+		BC_ASSERT_TRUE(expectedContactStrings.empty());
 	}
 };
 
-// Test UNSUBSCRIBE/SUBSCRIBE scenario with the 'redis' RegistrarDB backend.
-class SubsequentUnsubscribeSubscribeWithRedisTest : public SubsequentUnsubscribeSubscribeTest {
+class RegistrarTester : public RegistrarDbTest<DbImplementation::Redis> {
+
 protected:
-	// Protected methods
-	void onAgentConfiguration(GenericManager& cfg) override {
-		AgentTest::onAgentConfiguration(cfg);
-
-		auto redisPort = mRedisServer.start();
-
-		auto* registrarConf = cfg.getRoot()->get<GenericStruct>("module::Registrar");
-		registrarConf->get<ConfigValue>("db-implementation")->set("redis");
-		registrarConf->get<ConfigValue>("redis-server-domain")->set("localhost");
-		registrarConf->get<ConfigValue>("redis-server-port")->set(std::to_string(redisPort));
-	}
-
-	// Protected attributes
-	RedisServer mRedisServer{};
-};
-
-
-class RegistrarTester : public RegistrarDbTest{
-	
-protected:
-	class TestListener : public ContactUpdateListener{
+	class TestListener : public ContactUpdateListener {
 	public:
-		virtual void onRecordFound(const std::shared_ptr<Record> &r) override{
+		virtual void onRecordFound(const std::shared_ptr<Record>& r) override {
 			mRecord = r;
 		}
-		virtual void onError() override{
+		virtual void onError() override {
 		}
-		virtual void onInvalid() override{
+		virtual void onInvalid() override {
 		}
-		virtual void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override{
-			
+		virtual void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
 		}
-		std::shared_ptr<Record> getRecord()const{
+		std::shared_ptr<Record> getRecord() const {
 			return mRecord;
 		}
-		void reset(){
+		void reset() {
 			mRecord.reset();
 		}
+
 	private:
 		std::shared_ptr<Record> mRecord;
 	};
-	
-	void checkFetch(const std::shared_ptr<Record> & recordAfterBind){
+
+	void checkFetch(const std::shared_ptr<Record>& recordAfterBind) {
 		auto* regDb = RegistrarDb::get();
 		std::shared_ptr<TestListener> listener = make_shared<TestListener>();
 		/* Ensure that the Record obtained after fetch operation is the same as the one after the initial bind() */
 		regDb->fetch(recordAfterBind->getAor(), listener);
 		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
-		if (listener->getRecord()){
+		if (listener->getRecord()) {
 			BC_ASSERT_TRUE(listener->getRecord()->isSame(*recordAfterBind));
 		}
-		
 	}
 	// Protected methods
 	void onExec() noexcept override {
 		sofiasip::Home home;
 		auto* regDb = RegistrarDb::get();
 		std::shared_ptr<TestListener> listener = make_shared<TestListener>();
-		
+
 		SipUri from("sip:bob@example.org");
 		BindingParameters params;
 		params.globalExpire = 5;
 		params.callId = "xyz";
-		
-		sip_contact_t *ct;
-		
+
+		sip_contact_t* ct;
+
 		/* Add a simple contact */
 		ct = sip_contact_create(home.home(), (url_string_t*)"sip:bob@192.168.0.2;transport=tcp", nullptr);
 		regDb->bind(from, ct, params, listener);
 		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
 		if (listener->getRecord()) {
-			BC_ASSERT_TRUE( listener->getRecord()->getExtendedContacts().size() == 1);
+			BC_ASSERT_TRUE(listener->getRecord()->getExtendedContacts().size() == 1);
 			checkFetch(listener->getRecord());
 		}
-		
+
 		/* Remove this contact with an expire parameter */
 		listener->reset();
 		ct = sip_contact_create(home.home(), (url_string_t*)"sip:bob@192.168.0.2;transport=tcp", "expires=0", nullptr);
 		regDb->bind(from, ct, params, listener);
 		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
 		if (listener->getRecord()) {
-			BC_ASSERT_TRUE( listener->getRecord()->getExtendedContacts().size() == 0);
+			BC_ASSERT_TRUE(listener->getRecord()->getExtendedContacts().size() == 0);
 			checkFetch(listener->getRecord());
 		}
-		
+
 		/* Add a simple contact */
 		listener->reset();
 		from = SipUri("sip:bobby@example.net");
@@ -185,7 +200,7 @@ protected:
 		regDb->bind(from, ct, params, listener);
 		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
 		if (listener->getRecord()) {
-			BC_ASSERT_TRUE( listener->getRecord()->getExtendedContacts().size() == 1);
+			BC_ASSERT_TRUE(listener->getRecord()->getExtendedContacts().size() == 1);
 			checkFetch(listener->getRecord());
 		}
 
@@ -205,19 +220,21 @@ protected:
 
 		/* Remove this contact with an expire parameter but with a different call-id */
 		listener->reset();
-		ct = sip_contact_create(home.home(), (url_string_t*)"sip:bobby@192.168.0.2;transport=tcp", "expires=0", nullptr);
+		ct =
+		    sip_contact_create(home.home(), (url_string_t*)"sip:bobby@192.168.0.2;transport=tcp", "expires=0", nullptr);
 		params.callId = "abcdef";
 		regDb->bind(from, ct, params, listener);
 		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
 		if (listener->getRecord()) {
-			BC_ASSERT_TRUE( listener->getRecord()->getExtendedContacts().size() == 0);
+			BC_ASSERT_TRUE(listener->getRecord()->getExtendedContacts().size() == 0);
 			checkFetch(listener->getRecord());
 		}
 
 		/* Add a contact with a unique id */
 		from = SipUri("sip:alice@example.net");
 		listener->reset();
-		ct = sip_contact_create(home.home(), (url_string_t*)"sip:alice@10.0.0.2;transport=tcp", "+sip.instance=\"<urn::uuid::abcd>\"", nullptr);
+		ct = sip_contact_create(home.home(), (url_string_t*)"sip:alice@10.0.0.2;transport=tcp",
+		                        "+sip.instance=\"<urn::uuid::abcd>\"", nullptr);
 		regDb->bind(from, ct, params, listener);
 		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
 		if (listener->getRecord()) {
@@ -226,47 +243,31 @@ protected:
 			BC_ASSERT_TRUE(contacts.front()->getUniqueId() == "\"<urn::uuid::abcd>\"");
 			checkFetch(listener->getRecord());
 		}
-		
+
 		/* Update this contact */
 		listener->reset();
-		ct = sip_contact_create(home.home(), (url_string_t*)"sip:alice@10.0.0.3;transport=tcp", "+sip.instance=\"<urn::uuid::abcd>\"", nullptr);
+		ct = sip_contact_create(home.home(), (url_string_t*)"sip:alice@10.0.0.3;transport=tcp",
+		                        "+sip.instance=\"<urn::uuid::abcd>\"", nullptr);
 		regDb->bind(from, ct, params, listener);
 		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
 		if (listener->getRecord()) {
-			if (BC_ASSERT_TRUE( listener->getRecord()->getExtendedContacts().size() == 1)){
-				BC_ASSERT_STRING_EQUAL( listener->getRecord()->getExtendedContacts().front()->mSipContact->m_url->url_host,
-							"10.0.0.3");
+			if (BC_ASSERT_TRUE(listener->getRecord()->getExtendedContacts().size() == 1)) {
+				BC_ASSERT_STRING_EQUAL(
+				    listener->getRecord()->getExtendedContacts().front()->mSipContact->m_url->url_host, "10.0.0.3");
 			}
 			checkFetch(listener->getRecord());
 		}
 	}
-
-	// Protected methods
-	void onAgentConfiguration(GenericManager& cfg) override {
-		auto redisPort = mRedisServer.start();
-
-		auto* registrarConf = cfg.getRoot()->get<GenericStruct>("module::Registrar");
-		registrarConf->get<ConfigValue>("db-implementation")->set("redis");
-		registrarConf->get<ConfigValue>("redis-server-domain")->set("localhost");
-		registrarConf->get<ConfigValue>("redis-server-port")->set(std::to_string(redisPort));
-	}
-	RedisServer mRedisServer;
 };
 
-} // namespace tester
-} // namespace flexisip
-
-namespace flexisip {
-namespace tester {
-
-
-static test_t tests[] = {TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with internal backend",
-                                     run<SubsequentUnsubscribeSubscribeWithInternalDbTest>),
-                         TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with Redis backend",
-                                     run<SubsequentUnsubscribeSubscribeWithRedisTest>),
-			TEST_NO_TAG("Registrations with Redis backend",
-                                     run<RegistrarTester>)
-};
+static test_t tests[] = {
+    TEST_NO_TAG("Fetch expiring contacts on Redis", run<TestFetchExpiringContacts<DbImplementation::Redis>>),
+    TEST_NO_TAG("Fetch expiring contacts in Internal DB", run<TestFetchExpiringContacts<DbImplementation::Internal>>),
+    TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with internal backend",
+                run<SubsequentUnsubscribeSubscribeTest<DbImplementation::Internal>>),
+    TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with Redis backend",
+                run<SubsequentUnsubscribeSubscribeTest<DbImplementation::Redis>>),
+    TEST_NO_TAG("Registrations with Redis backend", run<RegistrarTester>)};
 
 test_suite_t registarDbSuite = {
     "RegistrarDB",                    // Suite name

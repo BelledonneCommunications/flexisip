@@ -16,18 +16,12 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "recordserializer.hh"
-#include "registrardb-redis.hh"
-#include <flexisip/common.hh>
-
-#include <ctime>
-#include <cstdio>
-#include <vector>
 #include <algorithm>
+#include <cstdio>
+#include <ctime>
 #include <iterator>
 #include <set>
-
-#include <flexisip/configmanager.hh>
+#include <vector>
 
 #ifndef INTERNAL_LIBHIREDIS
 #include <hiredis/hiredis.h>
@@ -35,15 +29,31 @@
 #include <hiredis.h>
 #endif
 
-#include "registrardb-redis-sofia-event.h"
 #include <sofia-sip/sip_protos.h>
 
+#include <flexisip/common.hh>
+#include <flexisip/configmanager.hh>
+
+#include "recordserializer.hh"
+#include "redis-async-script.hh"
+#include "registrardb-redis-sofia-event.h"
+
+#include "registrardb-redis.hh"
 
 /* The timeout to retry a bind request after encountering a failure. It gives us a chance to reconnect to a new master.*/
 constexpr int redisRetryTimeoutMs = 5000;
 
 using namespace std;
 using namespace flexisip;
+
+namespace {
+
+const auto FETCH_EXPIRING_CONTACTS_SCRIPT = redis::AsyncScript<uint64_t, uint64_t>(
+#include "fetch-expiring-contacts.lua.hh"
+    , // sed -n '/R"lua(/,/)lua"/p' fetch-expiring-contacts.lua.hh | sed 's/R"lua(//' | head -n-1 | sha1sum
+    "19c02eaa010d82352e6df056e3302bc5a0a5f85b");
+
+} // namespace
 
 /******
  * RegistrarDbRedisAsync class
@@ -880,6 +890,23 @@ void RegistrarDbRedisAsync::doFetch(const SipUri &url, const shared_ptr<ContactU
 	LOGD("Fetching fs:%s [%lu]", key, context->token);
 	check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleFetch,
 		context, "HGETALL fs:%s", key), context);
+}
+
+void RegistrarDbRedisAsync::fetchExpiringContacts(
+    time_t startTimestamp,
+    std::chrono::seconds timeRange,
+    std::function<void(std::vector<ExtendedContact>&&)>&& callback) const {
+	FETCH_EXPIRING_CONTACTS_SCRIPT.with(startTimestamp, timeRange.count())
+	    .then([callback = std::move(callback)](redisReply* reply) {
+		    auto count = reply->elements;
+		    auto expiringContacts = std::vector<ExtendedContact>();
+		    expiringContacts.reserve(count);
+		    for (size_t i = 0; i < count; i++) {
+			    expiringContacts.emplace_back("", reply->element[i]->str);
+		    }
+		    callback(std::move(expiringContacts));
+	    })
+	    .call(mContext);
 }
 
 void RegistrarDbRedisAsync::doFetchInstance(const SipUri &url, const string &uniqueId, const shared_ptr<ContactUpdateListener> &listener) {

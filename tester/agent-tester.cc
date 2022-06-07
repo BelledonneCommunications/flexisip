@@ -24,7 +24,7 @@
 
 #include "tester.hh"
 #include "utils/string-utils.hh"
-#include "utils/test-paterns/agent-test.hh"
+#include "utils/test-patterns/agent-test.hh"
 #include "utils/transport/tls-connection.hh"
 
 using namespace std;

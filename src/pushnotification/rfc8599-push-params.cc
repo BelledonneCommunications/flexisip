@@ -170,7 +170,7 @@ RFC8599PushParams::ParsingResult RFC8599PushParams::parsePushParams(const char* 
 	}
 	auto pnParam = UriUtils::getParamValue(params, "pn-param");
 	if (pnParam.empty()) {
-		throw runtime_error{errPrefix + "no pn-prid"};
+		throw runtime_error{errPrefix + "no pn-param"};
 	}
 	return RFC8599PushParams::parsePushParams(pnProvider, pnParam, pnPrid);
 }

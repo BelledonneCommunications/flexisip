@@ -45,7 +45,7 @@ namespace pushnotification {
 static constexpr const char* WPPN_PORT = "443";
 const std::string Service::sGenericClientName{"generic"};
 
-Service::Service(su_root_t& root, unsigned maxQueueSize) : mRoot{root}, mMaxQueueSize{maxQueueSize} {
+Service::Service(sofiasip::SuRoot& root, unsigned maxQueueSize) : mRoot{root}, mMaxQueueSize{maxQueueSize} {
 	SSL_library_init();
 	SSL_load_error_strings();
 }
@@ -150,13 +150,17 @@ void Service::setupiOSClient(const std::string& certdir, const std::string& cafi
 	closedir(dirp);
 }
 
-void Service::setupFirebaseClient(const std::map<std::string, std::string>& firebaseKeys) {
-	for (const auto& entry : firebaseKeys) {
-		const auto& firebaseAppId = entry.first;
-
-		mClients[firebaseAppId] = make_unique<FirebaseClient>(mRoot, this);
-		SLOGD << "Adding firebase push notification client [" << firebaseAppId << "]";
+void Service::setupFirebaseClients(const std::list<std::string>& firebaseKeys) {
+	for (auto it = firebaseKeys.cbegin(); it != firebaseKeys.cend(); ++it) {
+		const string& keyval = *it;
+		size_t sep = keyval.find(":");
+		addFirebaseClient(keyval.substr(0, sep), keyval.substr(sep + 1));
 	}
+}
+
+void Service::addFirebaseClient(const std::string& appId, const std::string& apiKey) {
+	mClients[appId] = make_unique<FirebaseClient>(mRoot, apiKey, this);
+	SLOGD << "Adding firebase push notification client [" << appId << "]";
 }
 
 void Service::setupWindowsPhoneClient(const std::string& packageSID, const std::string& applicationSecret) {

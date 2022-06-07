@@ -17,7 +17,7 @@
 */
 
 #include "tester.hh"
-#include "utils/test-paterns/test.hh"
+#include "utils/test-patterns/test.hh"
 #include "utils/thread/auto-thread-pool.hh"
 #include "utils/thread/basic-thread-pool.hh"
 

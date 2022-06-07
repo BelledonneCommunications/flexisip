@@ -18,16 +18,16 @@
 
 #pragma once
 
-#include <flexisip/logmanager.hh>
-
 #include <chrono>
 #include <condition_variable>
 #include <cstring>
-#include <vector>
 #include <thread>
+#include <vector>
 
 #include <openssl/ssl.h>
 #include <sofia-sip/su_wait.h>
+
+#include <flexisip/logmanager.hh>
 
 #include "../thread/must-finish-thread.hh"
 

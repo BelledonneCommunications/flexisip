@@ -131,12 +131,12 @@ void PushNotification::onDeclare(GenericStruct* module_config) {
 	     "5"},
 	    {Integer, "call-remote-push-interval",
 	     "Default interval between to subsequent PNs when remote push notifications are used to notify a call invite to "
-		 "a clients that haven't published any token for VoIP and background push notifications. In that case, "
-		 "several PNs are sent subsequently until the call is picked up, declined or canceled. This parameter can "
-		 "be overridden by the client by using the 'pn-call-remote-push-interval' push parameter.\n"
-		 "A value of zero will cause the deactivation of push notification repetitions and the sending of the"
-		 "final notification. Thus, only the first push notification will be sent.\n"
-		 "The value must be in [0;30]",
+	     "a clients that haven't published any token for VoIP and background push notifications. In that case, "
+	     "several PNs are sent subsequently until the call is picked up, declined or canceled. This parameter can "
+	     "be overridden by the client by using the 'pn-call-remote-push-interval' push parameter.\n"
+	     "A value of zero will cause the deactivation of push notification repetitions and the sending of the"
+	     "final notification. Thus, only the first push notification will be sent.\n"
+	     "The value must be in [0;30]",
 	     "0"},
 	    {Boolean, "display-from-uri",
 	     "If true, the following key in the payload of the push request will be set:\n"
@@ -202,6 +202,10 @@ void PushNotification::onDeclare(GenericStruct* module_config) {
 	     "Example: http://292.168.0.2/$type/$event?from-uri=$from-uri&tag=$from-tag&callid=$callid&to=$to-uri",
 	     ""},
 	    {String, "external-push-method", "Method for reaching external-push-uri, typically GET or POST", "GET"},
+	    {Integer, "register-wakeup-interval",
+	     "Send service push notification every n minutes to all devices that are about to expire and should wake up to "
+	     "REGISTER back. 0 to disable. Recommended value: 30",
+	     "0"},
 
 	    // deprecated parameters
 	    {Boolean, "google", "Enable push notification for android devices (for compatibility only)", "true"},
@@ -278,7 +282,7 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	}
 	mCallRemotePushInterval = static_cast<chrono::seconds>(callRemotePushInterval);
 
-	mPNS = make_unique<pushnotification::Service>(*getAgent()->getRoot()->getCPtr(), maxQueueSize);
+	mPNS = make_unique<pushnotification::Service>(*getAgent()->getRoot(), maxQueueSize);
 
 	// Load the 'add-to-tag-filter' parameter
 	const auto* addToTagFilterCfg = mc->get<ConfigString>("add-to-tag-filter");
@@ -307,17 +311,13 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 		}
 	}
 
-	mFirebaseKeys.clear();
-	for (auto it = firebaseKeys.cbegin(); it != firebaseKeys.cend(); ++it) {
-		const string& keyval = *it;
-		size_t sep = keyval.find(":");
-		mFirebaseKeys.insert(make_pair(keyval.substr(0, sep), keyval.substr(sep + 1)));
-	}
-
 	mPNS->setStatCounters(mCountFailed, mCountSent);
 	if (appleEnabled) mPNS->setupiOSClient(certdir, "");
-	if (firebaseEnabled) mPNS->setupFirebaseClient(mFirebaseKeys);
+	if (firebaseEnabled) mPNS->setupFirebaseClients(firebaseKeys);
 	if (windowsPhoneEnabled) mPNS->setupWindowsPhoneClient(windowsPhonePackageSID, windowsPhoneApplicationSecret);
+
+	mExpirationNotifier =
+	    ContactExpirationNotifier::make_unique(*mc, mAgent->getRoot(), getService(), *RegistrarDb::get());
 
 	mCallTtl = chrono::seconds{mRouter->get<ConfigInt>("call-fork-timeout")->read()};
 	SLOGD << "PushNotification module loaded. Push ttl for calls is " << mCallTtl.count() << " seconds, and for IM "
@@ -347,22 +347,6 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip>& ms,
 	if (!mDisplayFromUri) {
 		pinfo->mFromName = "";
 		pinfo->mFromUri = "";
-	}
-
-	// Android specific configuration
-	{
-		auto it = find_if(pinfo->mDestinations.cbegin(), pinfo->mDestinations.cend(),
-		                  [](const auto& kv) { return kv.second->getProvider() == "fcm"; });
-		if (it != pinfo->mDestinations.cend()) {
-			const auto& firebaseDest = it->second;
-			auto apiKeyIt = mFirebaseKeys.find(firebaseDest->getParam());
-			if (apiKeyIt != mFirebaseKeys.end()) {
-				pinfo->mApiKey = apiKeyIt->second;
-				SLOGD << "Creating Firebase push notif request";
-			} else {
-				SLOGD << "No Key matching appId " << firebaseDest->getParam();
-			}
-		}
 	}
 
 	// Extract the unique id if possible.

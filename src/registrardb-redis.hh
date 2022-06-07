@@ -107,7 +107,7 @@ struct RedisRegisterContext {
 	RedisRegisterContext(RegistrarDbRedisAsync *s, const MsgSip &msg, const BindingParameters &params, const std::shared_ptr<ContactUpdateListener> &listener) :
 		self(s), listener(listener), 
 		mRecord(std::make_shared<Record>(SipUri(msg.getSip()->sip_from->a_url))), 
-			mMsg(msg.getMsg()), 
+			mMsg(const_cast<MsgSip&>(msg).getMsg()), // Forcefully take a ref, instead of cloning
 			mBindingParameters(params) {
 			// Note that MsgSip copy constructor is not invoked in order to avoid a deep copy.
 			// Instead, mMsg just takes a ref on the underlying sofia-sip msg_t.
@@ -154,6 +154,10 @@ public:
 	RegistrarDbRedisAsync(const std::string& preferredRoute, const std::shared_ptr<sofiasip::SuRoot>& root, RecordSerializer* serializer,
 	                      RedisParameters params);
 	~RegistrarDbRedisAsync() override;
+
+	void fetchExpiringContacts(time_t startTimestamp,
+	                           std::chrono::seconds timeRange,
+	                           std::function<void(std::vector<ExtendedContact>&&)>&& callback) const override;
 
 	bool connect();
 	bool disconnect();

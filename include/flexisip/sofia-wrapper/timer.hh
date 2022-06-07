@@ -48,15 +48,10 @@ public:
 	explicit Timer(su_root_t* root, su_duration_t intervalMs = 0);
 
 	Timer(su_root_t* root, NativeDuration interval) : Timer{root, interval.count()} {};
-	template <typename Duration>
-	Timer(su_root_t* root, Duration interval) : Timer{root, std::chrono::duration_cast<NativeDuration>(interval)} {};
 
 	explicit Timer(const std::shared_ptr<sofiasip::SuRoot>& root, su_duration_t intervalMs = 0);
 
 	Timer(const std::shared_ptr<sofiasip::SuRoot>& root, NativeDuration interval);
-	template <typename Duration>
-	Timer(const std::shared_ptr<sofiasip::SuRoot>& root, Duration interval)
-	    : Timer{root, std::chrono::duration_cast<NativeDuration>(interval)} {};
 
 	~Timer();
 

@@ -25,40 +25,47 @@
 #include <sofia-sip/sip_protos.h>
 #include <sofia-sip/su_alloc.h>
 
+#include <bctoolbox/ownership.hh>
+
+using namespace ownership;
+
 namespace sofiasip {
 
 class MsgSip {
 public:
 	MsgSip() : mMsg{msg_create(sip_default_mclass(), 0)} {
 	}
-	/**
-	 * Construct a MsgSip providing a sofia-sip msg_t.
-	 * If transferOwnership is true, the msg_t is directly taken without taking a ref,
-	 * in other words the caller transfers the reference it owns to the MsgSip object.
-	 */
-	MsgSip(msg_t* msg, bool transferOwnership = false) {
-		if (!transferOwnership) assignMsg(msg);
-		else mMsg = msg;
+	MsgSip(Owned<msg_t>&& msg) : mMsg(std::move(msg)) {
 	}
-	MsgSip(const MsgSip& msgSip);
+	MsgSip(BorrowedMut<msg_t> msg) : mMsg(msg_ref_create(msg)) {
+	}
+	MsgSip(MsgSip&& other) : mMsg(std::move(other.mMsg)) {
+	}
+	MsgSip(const MsgSip& other);
 	/**
-	* Construct a MsgSip parsing the string parameter.
-	*
-	* @throw Throw std::runtime_error if a parsing error occurred.
-	*/
+	 * Construct a MsgSip parsing the string parameter.
+	 *
+	 * @throw Throw std::runtime_error if a parsing error occurred.
+	 */
 	MsgSip(int flags, const std::string& msg);
+
 	~MsgSip() noexcept {
-		msg_unref(mMsg);
+		msg_destroy(mMsg.take());
 	}
 
-	msg_t* getMsg() const {
-		return mMsg;
+	MsgSip& operator=(MsgSip&& other) {
+		mMsg = std::move(other.mMsg);
+		return *this;
+	}
+
+	BorrowedMut<msg_t> getMsg() {
+		return mMsg.borrow();
 	}
 	sip_t* getSip() const {
 		return (sip_t*)msg_object(mMsg);
 	}
-	su_home_t* getHome() const {
-		return msg_home(mMsg);
+	su_home_t* getHome() {
+		return msg_home(static_cast<msg_t*>(mMsg.borrow()));
 	}
 
 	msg_header_t* findHeader(const std::string& name, bool searchUnknowns = false);
@@ -66,23 +73,21 @@ public:
 		return const_cast<MsgSip*>(this)->findHeader(name);
 	}
 
-	void serialize() const {
-		msg_serialize(mMsg, (msg_pub_t*)getSip());
+	void serialize() {
+		msg_serialize(mMsg.borrow(), (msg_pub_t*)getSip());
 	}
-	const char* print() const;
-	std::string printString() const;
+	const char* print();
+	std::string printString();
 	std::string printContext() const;
 
 	bool isGroupChatInvite() const noexcept;
 
 private:
 	// Private methods
-	void assignMsg(msg_t* msg) {
-		mMsg = msg_ref_create(msg);
-	}
+	std::pair<char*, size_t> asString();
 
 	// Private attributes
-	msg_t* mMsg{nullptr};
+	Owned<msg_t> mMsg{nullptr};
 };
 
 inline std::ostream& operator<<(std::ostream& strm, const sofiasip::MsgSip& obj) {

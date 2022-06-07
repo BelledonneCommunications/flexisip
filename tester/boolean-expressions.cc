@@ -16,13 +16,18 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <net-snmp/net-snmp-config.h>
+#include <net-snmp/net-snmp-includes.h>
 
-#include "tester.hh"
-#include "sofia-sip/sip.h"
-#include "sofia-sip/sip_parser.h"
-#include "flexisip/sip-boolean-expressions.hh"
+#include <sofia-sip/sip.h>
+#include <sofia-sip/sip_parser.h>
+
+#include <bctoolbox/ownership.hh>
+
+#include <flexisip/sip-boolean-expressions.hh>
+
 #include "conditional-routes.hh"
-
+#include "tester.hh"
 
 using namespace flexisip;
 using namespace flexisip::tester;
@@ -109,8 +114,8 @@ static const sip_t & getRequest(){
 	return *(sip_t*) msg_object(sipRequest);
 }
 
-static msg_t * makeRequest(const char *raw){
-	return msg_make(sip_default_mclass(), 0, raw, strlen(raw));
+static auto makeRequest(const char* raw) {
+	return ownership::owned(msg_make(sip_default_mclass(), 0, raw, strlen(raw)));
 }
 
 static const sip_t & getResponse(){
@@ -283,27 +288,27 @@ static void route_condition_map(void){
 	const sip_route_t *route;
 	string routeStr;
 
-	route = routeMap.resolveRoute(MsgSip(makeRequest(raw_request), true));
+	route = routeMap.resolveRoute(MsgSip(makeRequest(raw_request)));
 	BC_ASSERT_PTR_NOT_NULL(route);
 	if (route) {
 		routeStr = serializeRoute(route);
 		BC_ASSERT_STRING_EQUAL(routeStr.c_str(), "<sip:sip1.example.org;transport=tls;lr>");
 	}
 
-	route = routeMap.resolveRoute(MsgSip(makeRequest(raw_request_2), true));
+	route = routeMap.resolveRoute(MsgSip(makeRequest(raw_request_2)));
 	BC_ASSERT_PTR_NOT_NULL(route);
 	if (route) {
 		routeStr = serializeRoute(route);
 		BC_ASSERT_STRING_EQUAL(routeStr.c_str(), "<sips:sip2.example.org;lr>");
 	}
-	
-	route = routeMap.resolveRoute(MsgSip(makeRequest(raw_request_3), true));
+
+	route = routeMap.resolveRoute(MsgSip(makeRequest(raw_request_3)));
 	BC_ASSERT_PTR_NOT_NULL(route);
 	if (route) {
 		routeStr = serializeRoute(route);
 		BC_ASSERT_STRING_EQUAL(routeStr.c_str(), "<sips:sip3.example.org;lr>");
 	}
-	route = routeMap.resolveRoute(MsgSip(makeRequest(raw_request_4), true));
+	route = routeMap.resolveRoute(MsgSip(makeRequest(raw_request_4)));
 	BC_ASSERT_PTR_NOT_NULL(route);
 	if (route) {
 		routeStr = serializeRoute(route);

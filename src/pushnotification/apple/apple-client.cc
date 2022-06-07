@@ -31,7 +31,7 @@ std::string AppleClient::APN_DEV_ADDRESS{"api.development.push.apple.com"};
 std::string AppleClient::APN_PROD_ADDRESS{"api.push.apple.com"};
 std::string AppleClient::APN_PORT{"443"};
 
-AppleClient::AppleClient(su_root_t& root,
+AppleClient::AppleClient(sofiasip::SuRoot& root,
                          const std::string& trustStorePath,
                          const std::string& certPath,
                          const std::string& certName,

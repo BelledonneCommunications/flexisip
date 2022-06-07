@@ -22,6 +22,8 @@
 #include <memory>
 #include <string>
 
+#include <flexisip/registrardb.hh>
+
 #include "push-type.hh"
 #include "rfc8599-push-params.hh"
 
@@ -103,6 +105,7 @@ public:
 	 * @throw std::runtime_error for other parsing errors.
 	 */
 	PushInfo(const sofiasip::MsgSip& msg);
+	PushInfo(const ExtendedContact& contact);
 	virtual ~PushInfo() = default;
 
 	void addDestination(const std::shared_ptr<const RFC8599PushParams>& dest) noexcept;
@@ -115,6 +118,7 @@ public:
 private:
 	// Private methods
 	void parseAppleSpecifics(const sofiasip::MsgSip& msg);
+	void setDestinations(const url_t* url);
 };
 
 } // namespace pushnotification

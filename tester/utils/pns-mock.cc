@@ -36,27 +36,22 @@ using namespace boost::asio::ssl;
 namespace flexisip {
 namespace pushnotification {
 
+PnsMock::PnsMock() : mCtx(ssl::context::tls) {
+	mCtx.use_private_key_file(bcTesterRes("cert/self.signed.key.test.pem"), context::pem);
+	mCtx.use_certificate_chain_file(bcTesterRes("cert/self.signed.cert.test.pem"));
+}
+
 bool PnsMock::exposeMock(
     int code, const string& body, const string& reqBodyPattern, promise<bool>&& barrier, bool timeout) {
 	bool assert = false;
 	try {
-		boost::system::error_code ec{};
+		onPushRequest(handleRequest(code, body, reqBodyPattern, assert, timeout));
 
-		context tls(context::tls);
-		tls.use_private_key_file(bcTesterRes("cert/self.signed.key.test.pem"), context::pem);
-		tls.use_certificate_chain_file(bcTesterRes("cert/self.signed.cert.test.pem"));
-		configure_tls_context_easy(ec, tls);
-
-		mServer.handle("/fcm/send", handleRequest(code, body, reqBodyPattern, assert, timeout));
-		mServer.handle("/3/device/", handleRequest(code, body, reqBodyPattern, assert, timeout));
-
-		if (mServer.listen_and_serve(ec, tls, "localhost", "3000", true)) {
-			SLOGE << "error: " << ec.message() << std::endl;
-			barrier.set_value(false);
-			return assert;
+		bool success = serveAsync("3000");
+		barrier.set_value(success);
+		if (success) {
+			mServer.join();
 		}
-		barrier.set_value(true);
-		mServer.join();
 		return assert;
 	} catch (boost::system::system_error& e) {
 		SLOGD << e.what();
@@ -64,7 +59,7 @@ bool PnsMock::exposeMock(
 	}
 }
 
-std::function<void(const request&, const response&)>
+request_cb
 PnsMock::handleRequest(int code, const string& body, const string& reqBodyPattern, bool& assert, bool timeout) {
 	return [code, body, reqBodyPattern, &assert, timeout](const request& req, const response& res) {
 		req.on_data([reqBodyPattern, &assert](const uint8_t* data, std::size_t len) {
@@ -80,6 +75,23 @@ PnsMock::handleRequest(int code, const string& body, const string& reqBodyPatter
 		}
 		res.end(body);
 	};
+}
+
+void PnsMock::onPushRequest(request_cb cb) {
+	mServer.handle("/fcm/send", cb);
+	mServer.handle("/3/device/", cb);
+}
+
+bool PnsMock::serveAsync(const std::string& port) {
+	boost::system::error_code ec{};
+
+	configure_tls_context_easy(ec, mCtx);
+
+	if (mServer.listen_and_serve(ec, mCtx, "localhost", port, true)) {
+		SLOGE << "error: " << ec.message() << std::endl;
+		return false;
+	}
+	return true;
 }
 
 void PnsMock::forceCloseServer() {

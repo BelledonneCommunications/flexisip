@@ -24,6 +24,7 @@
 #include <nghttp2/nghttp2ver.h>
 
 #include "flexisip/logmanager.hh"
+#include "flexisip/sofia-wrapper/su-root.hh"
 
 #include "ng-data-provider.hh"
 
@@ -40,31 +41,31 @@ string Http2Client::BadStateError::formatWhatArg(State state) noexcept {
 	return string{"bad state ["} + to_string(unsigned(state)) + "]";
 }
 
-Http2Client::Http2Client(su_root_t& root, const string& host, const string& port)
-    : mRoot{root}, mIdleTimer{&root, mIdleTimeout} {
-	mConn = make_unique<TlsConnection>(host, port, true);
+Http2Client::Http2Client(sofiasip::SuRoot& root, decltype(mConn)&& connection, SessionSettings&& sessionSettings)
+    : mConn(move(connection)), mRoot(root), mIdleTimer(root.getCPtr(), mIdleTimeout),
+      mSessionSettings(move(sessionSettings)) {
 
 	ostringstream os{};
 	os << "Http2Client[" << this << "]";
 	mLogPrefix = os.str();
 
 	SLOGD << mLogPrefix << ": constructing Http2Client with TlsConnection[" << mConn.get() << "]";
-
-	setState(State::Disconnected);
 }
 
-Http2Client::Http2Client(
-    su_root_t& root, const string& host, const string& port, const string& trustStorePath, const string& certPath)
-    : mRoot{root}, mIdleTimer{&root, mIdleTimeout} {
-	mConn = make_unique<TlsConnection>(host, port, trustStorePath, certPath, true);
+Http2Client::Http2Client(sofiasip::SuRoot& root,
+                         const string& host,
+                         const string& port,
+                         SessionSettings&& sessionSettings)
+    : Http2Client(root, make_unique<TlsConnection>(host, port, true), move(sessionSettings)) {
+}
 
-	ostringstream os{};
-	os << "Http2Client[" << this << "]";
-	mLogPrefix = os.str();
-
-	SLOGD << mLogPrefix << ": constructing Http2Client with TlsConnection[" << mConn.get() << "]";
-
-	setState(State::Disconnected);
+Http2Client::Http2Client(sofiasip::SuRoot& root,
+                         const string& host,
+                         const string& port,
+                         const string& trustStorePath,
+                         const string& certPath,
+                         SessionSettings&& sessionSettings)
+    : Http2Client(root, make_unique<TlsConnection>(host, port, trustStorePath, certPath, true), move(sessionSettings)) {
 }
 
 void Http2Client::sendAllPendingRequests() {
@@ -100,7 +101,7 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request, const OnResponseC
 
 	SLOGD << logPrefix << ": sending request[" << request << "]:\n" << request->toString();
 
-	auto context = make_shared<HttpMessageContext>(request, onResponseCb, onErrorCb, mRoot, mRequestTimeout);
+	auto context = make_shared<HttpMessageContext>(request, onResponseCb, onErrorCb, *mRoot.getCPtr(), mRequestTimeout);
 
 	if (mState == State::Disconnected) {
 		SLOGD << logPrefix << ": not connected. Trying to connect...";
@@ -126,7 +127,7 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request, const OnResponseC
 	// In fact if you watch the Http2Client::resetTimeoutTimer the context need to be in map for the timer to be
 	// reset/start properly.
 	mActiveHttpContexts.emplace(streamId, move(context));
-	auto status = nghttp2_session_send(mHttpSession.get());
+	auto status = sendAll();
 	if (status < 0) {
 		SLOGE << logPrefix << ": push request sending failed. reason=[" << nghttp2_strerror(status) << "]";
 		mActiveHttpContexts.erase(streamId);
@@ -143,7 +144,7 @@ void Http2Client::tlsConnect() {
 	}
 	setState(State::Connecting);
 
-	mConn->connectAsync(mRoot, [weakThis = weak_ptr<Http2Client>{this->shared_from_this()}]() {
+	mConn->connectAsync(*mRoot.getCPtr(), [weakThis = weak_ptr<Http2Client>{this->shared_from_this()}]() {
 		if (auto sharedThis = weakThis.lock()) {
 			sharedThis->onTlsConnectCb();
 		}
@@ -218,7 +219,7 @@ void Http2Client::http2Setup() {
 	NgHttp2SessionPtr httpSession{session};
 
 	int status;
-	if ((status = nghttp2_submit_settings(session, NGHTTP2_FLAG_NONE, nullptr, 0)) != 0) {
+	if ((status = mSessionSettings.submitTo(session)) != 0) {
 		SLOGE << mLogPrefix << ": submitting settings failed [status=" << to_string(status) << "]";
 		disconnect();
 		return;
@@ -227,7 +228,7 @@ void Http2Client::http2Setup() {
 	mHttpSession = move(httpSession);
 
 	su_wait_create(&mPollInWait, mConn->getFd(), SU_WAIT_IN);
-	su_root_register(&mRoot, &mPollInWait, onPollInCb, this, su_pri_normal);
+	su_root_register(mRoot.getCPtr(), &mPollInWait, onPollInCb, this, su_pri_normal);
 	resetIdleTimer();
 
 	setState(State::Connected);
@@ -378,6 +379,24 @@ void Http2Client::onStreamClosed(nghttp2_session& session, int32_t stream_id, ui
 				context->getOnErrorCb()(context->getRequest());
 			}
 		}
+
+		auto queueSize = getOutboundQueueSize();
+		if (0 < queueSize) {
+			// When nghttp2 reaches a maximum number of concurrent streams, it starts queueing up messages.
+			// A stream has just closed, we should start sending those queued up messages
+			mRoot.addToMainLoop([weakThis = weak_ptr<Http2Client>{this->shared_from_this()},
+			                     previousSize = queueSize]() {
+				auto sharedThis = weakThis.lock();
+				if (!sharedThis || sharedThis->getOutboundQueueSize() < previousSize)
+					return; // Something triggered a resend in the meantime. Nothing to do. (If the queue is still not
+					        // empty, it's probably stuck again, and we should wait anyway for another stream to close)
+				auto status = sharedThis->sendAll();
+				if (status < 0) {
+					SLOGE << sharedThis->mLogPrefix << ": failure while trying to catch up queued messages. reason=["
+					      << nghttp2_strerror(status) << "]";
+				}
+			});
+		}
 	} else {
 		SLOGD << logPrefix << ": stream closed with error code [" << error_code
 		      << "] : " << nghttp2_http2_strerror(error_code);
@@ -395,7 +414,7 @@ void Http2Client::disconnect() {
 	}
 	discardAllPendingRequests();
 	discardAllActiveRequests();
-	su_root_unregister(&mRoot, &mPollInWait, onPollInCb, this);
+	su_root_unregister(mRoot.getCPtr(), &mPollInWait, onPollInCb, this);
 	mHttpSession.reset();
 	mConn->disconnect();
 	mLastSID = -1;

@@ -27,9 +27,13 @@
 
 #include "pushnotification/apple/apple-client.hh"
 #include "pushnotification/firebase/firebase-client.hh"
+
 #include "tester.hh"
 #include "utils/listening-socket.hh"
 #include "utils/pns-mock.hh"
+#include "utils/test-patterns/registrardb-test.hh"
+
+#include "flexisip/module-pushnotification.hh"
 
 using namespace flexisip;
 using namespace flexisip::pushnotification;
@@ -37,15 +41,17 @@ using namespace flexisip::tester;
 using namespace std;
 using namespace std::chrono;
 
-static su_root_t* root = nullptr;
+namespace server = nghttp2::asio_http2::server;
+
+static std::unique_ptr<sofiasip::SuRoot> root = nullptr;
 
 static int beforeSuite() {
-	root = su_root_create(nullptr);
+	root = make_unique<sofiasip::SuRoot>();
 	return 0;
 }
 
 static int afterSuite() {
-	su_root_destroy(root);
+	root.reset();
 	return 0;
 }
 
@@ -75,17 +81,17 @@ static void startPushTest(Client& client,
 	if (timeout) client.setRequestTimeout(2s);
 	// Send the push notification and wait until the request the request state is "Successful" or "Failed"
 	client.sendPush(request);
-	sofiasip::Timer timer{root, 50ms};
+	sofiasip::Timer timer{root->getCPtr(), 50ms};
 	auto beforePlus2 = system_clock::now() + 2s;
 	timer.run([&request, &beforePlus2, &timeout]() {
 		if (request->getState() == Request::State::Successful || request->getState() == Request::State::Failed) {
-			su_root_break(root);
+			su_root_break(root->getCPtr());
 		} else if (beforePlus2 < system_clock::now() && !timeout) {
 			SLOGW << "Test without timeout did not update request state";
-			su_root_break(root);
+			su_root_break(root->getCPtr());
 		}
 	});
-	su_root_run(root);
+	su_root_run(root->getCPtr());
 
 	// NgHttp2 serveur normally don't stop until all connections are closed
 	pnsMock.forceCloseServer();
@@ -125,7 +131,7 @@ static void startFirebasePushTest(PushType pType,
                                   bool timeout = false) {
 	FirebaseClient::FIREBASE_ADDRESS = "localhost";
 	FirebaseClient::FIREBASE_PORT = "3000";
-	FirebaseClient firebaseClient{*root};
+	FirebaseClient firebaseClient{*root, ""};
 	firebaseClient.enableInsecureTestMode();
 
 	auto request = make_shared<FirebaseRequest>(pType, pushInfo);
@@ -429,7 +435,7 @@ static void applePushTestConnectErrorAndReconnect(void) {
 
 	auto beforePlus1 = system_clock::now() + 1s;
 	while (beforePlus1 >= system_clock::now()) {
-		su_root_step(root, 100);
+		su_root_step(root->getCPtr(), 100);
 	}
 
 	BC_ASSERT_TRUE(request->getState() == Request::State::Failed);
@@ -442,7 +448,7 @@ static void applePushTestConnectErrorAndReconnect(void) {
 static void tlsTimeoutTest(void) {
 	FirebaseClient::FIREBASE_ADDRESS = "localhost";
 	FirebaseClient::FIREBASE_PORT = "3000";
-	FirebaseClient firebaseClient{*root};
+	FirebaseClient firebaseClient{*root, ""};
 	firebaseClient.enableInsecureTestMode();
 	firebaseClient.getHttp2Client()->getConnection()->setTimeout(500ms);
 
@@ -466,15 +472,15 @@ static void tlsTimeoutTest(void) {
 	firebaseClient.sendPush(request2);
 	firebaseClient.sendPush(request3);
 	firebaseClient.sendPush(request4);
-	sofiasip::Timer timer{root, 50ms};
+	sofiasip::Timer timer{root->getCPtr(), 50ms};
 	timer.run([request, &barrier]() {
 		// All the requests should be rejected in the same loop, we can only watch one of them.
 		if (request->getState() == Request::State::Successful || request->getState() == Request::State::Failed) {
-			su_root_break(root);
+			su_root_break(root->getCPtr());
 			barrier.set_value();
 		}
 	});
-	su_root_run(root);
+	su_root_run(root->getCPtr());
 
 	// Client onError is called and response status is well managed, no crash occurred
 	BC_ASSERT_TRUE(request->getState() == Request::State::Failed);
@@ -483,7 +489,173 @@ static void tlsTimeoutTest(void) {
 	BC_ASSERT_TRUE(request4->getState() == Request::State::Failed);
 }
 
+namespace {
+
+constexpr auto suitePort = "57005";
+
+class Contact {
+	ostringstream mStream;
+
+public:
+	template <typename T>
+	Contact(T&& name) {
+		mStream << name;
+	}
+
+	template <typename T>
+	Contact& withFirebasePushParams(T&& appId) {
+		mStream << ";pn-provider=fcm;pn-prid=placeholder-prid;pn-param=" << appId;
+		return *this;
+	}
+
+	operator string() const {
+		return mStream.str();
+	}
+};
+
+struct TestNotifyExpiringContact : public RegistrarDbTest<DbImplementation::Internal> {
+	TestNotifyExpiringContact() {
+		FirebaseClient::FIREBASE_ADDRESS = "localhost";
+		FirebaseClient::FIREBASE_PORT = suitePort;
+	}
+
+	void onExec() noexcept override {
+		auto& regDb = *RegistrarDb::get();
+		auto service = std::make_shared<pushnotification::Service>(*mRoot, 0xdead);
+		auto interval = 1s;
+		ContactExpirationNotifier notifier(interval, mRoot, service,
+		                                   regDb); // Notifies within [interval ; interval x 3[
+
+		auto appId = "fakeAppId";
+		service->addFirebaseClient(appId);
+		auto inserter = ContactInserter(regDb, *this->mAgent);
+		inserter.insert(Contact("sip:expected2@te.st").withFirebasePushParams(appId), interval * 2);
+		inserter.insert(Contact("sip:expected1@te.st").withFirebasePushParams(appId), interval * 1);
+		inserter.insert(Contact("sip:unexpected@te.st").withFirebasePushParams(appId), interval * 4);
+		inserter.insert(Contact("sip:expected3@te.st").withFirebasePushParams(appId), interval * 3);
+		inserter.insert("sip:unnotifiable@te.st", interval * 2); // within range, but nothing to do
+		auto expectedUris = unordered_set<string>{"expected1:te.st", "expected2:te.st", "expected3:te.st"};
+
+		pn::PnsMock pnServer;
+		pnServer.onPushRequest(
+		    [&sofiaLoop = *mRoot, &expectedUris](const server::request& req, const server::response& res) {
+			    res.write_head(200);
+			    res.end("ok");
+
+			    req.on_data([&sofiaLoop, &expectedUris](const uint8_t* data, std::size_t len) {
+				    if (0 < len) {
+					    auto body = string(reinterpret_cast<const char*>(data), len);
+					    static const auto extractFromUri = regex(R"r("from-uri":"(.*)",)r", regex::ECMAScript);
+					    std::smatch matches;
+					    regex_search(body, matches, extractFromUri);
+					    // Fail when receiving push for unexpected contact
+					    BC_ASSERT_TRUE(expectedUris.erase(matches[1]));
+					    if (expectedUris.empty()) {
+						    sofiaLoop.quit(); // Test passed
+					    }
+				    }
+			    });
+		    });
+		pnServer.serveAsync(suitePort);
+
+		sofiasip::Timer timeout(mRoot, interval * 2 - 100ms); // Right before the notifier would run again
+		timeout.set([&sofiaLoop = *mRoot, &inserter] {
+			BC_FAIL("Test timed out");
+			BC_ASSERT_TRUE(inserter.finished());
+			sofiaLoop.quit();
+		});
+
+		mRoot->run(); // Notifier executes after `interval`, if something went wrong the timeout will trigger
+	}
+};
+
+// Because this test relies heavily on callbacks, it's easier to read it from the bottom up
+void test_http2client__requests_that_can_not_be_sent_are_queued_and_sent_later() {
+	sofiasip::SuRoot root{};
+	uint32_t sentCount = 0;
+	uint32_t respondedCount = 0;
+	atomic<uint32_t> receivedCount(0);
+
+	sofiasip::Timer checkProgress(root.getCPtr(), 50ms);
+	uint32_t previous = 0;
+	auto progressChecker = [&previous, &respondedCount, &root]() mutable {
+		// if something changed, we're good
+		if (previous != respondedCount) {
+			previous = respondedCount;
+			return;
+		}
+
+		BC_FAIL("Test seems stuck. Aborting");
+		root.quit();
+	};
+
+	auto onError = [&root](const auto& req) {
+		BC_FAIL("Request error");
+		root.quit();
+	};
+	auto onResponse = [&respondedCount, &sentCount, &root](const auto& req, const auto& res) {
+		respondedCount++;
+		if (respondedCount == sentCount) {
+			root.quit();
+		}
+	};
+
+	pn::PnsMock pnServer{};
+	std::mutex serverProcessing{};
+	pnServer.onPushRequest([&receivedCount, &serverProcessing](const auto& req, const auto& res) {
+		receivedCount++;
+		serverProcessing.lock();
+		serverProcessing.unlock();
+		res.write_head(200);
+		res.end("ok");
+	});
+	pnServer.serveAsync(suitePort);
+
+	// Send a first request to establish the connection
+	auto client = Http2Client::make(root, "localhost", suitePort);
+	auto request = [] {
+		HttpHeaders headers{};
+		headers.add(":method", "POST");
+		headers.add(":scheme", "https");
+		headers.add(":path", "/fcm/send");
+		headers.add(":authority", string("localhost:") + suitePort);
+		return make_shared<Http2Client::HttpRequest>(headers, std::vector<char>(0x100, '!'));
+	}();
+	client->send(
+	    request,
+	    [&receivedCount, &serverProcessing, &client, &request, &onResponse, &onError, &sentCount, &checkProgress,
+	     &progressChecker](const auto& req, const auto& res) {
+		    // Connection established
+		    BC_ASSERT_EQUAL(receivedCount, 1, uint32_t, "%i");
+		    receivedCount = 0;
+		    serverProcessing.lock();
+		    while (client->getOutboundQueueSize() < 2) {
+			    client->send(request, onResponse, onError);
+			    sentCount++;
+		    }
+		    // We've hit a buffer limit (probably the max number of concurrent streams)
+		    // If we send twice as much, then we should reach that limit a second time after we've unlocked processing,
+		    // and that should be enough for this test
+		    for (size_t _ = 0; _ < sentCount; _++) {
+			    client->send(request, onResponse, onError);
+		    }
+		    sentCount *= 2;
+		    serverProcessing.unlock();
+		    checkProgress.setForEver(progressChecker); // Assert requests are being handled
+	    },
+	    onError);
+
+	root.run();
+
+	SLOGD << __FUNCTION__ << " - Number of requests sent: " << sentCount;
+	BC_ASSERT_EQUAL(receivedCount, sentCount, uint32_t, "%i");
+	BC_ASSERT_EQUAL(respondedCount, sentCount, uint32_t, "%i");
+}
+
+} // namespace
+
 static test_t tests[] = {
+    TEST_NO_TAG_AUTO_NAMED(test_http2client__requests_that_can_not_be_sent_are_queued_and_sent_later),
     TEST_NO_TAG("Firebase push notification test OK", firebasePushTestOk),
     TEST_NO_TAG("Apple push notification test OK PushKit", applePushTestOkPushkit),
     TEST_NO_TAG("Apple push notification test OK Background", applePushTestOkBackground),

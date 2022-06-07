@@ -29,6 +29,8 @@
 #include <sofia-sip/tport.h>
 #include <sofia-sip/tport_tag.h>
 
+#include <bctoolbox/ownership.hh>
+
 #include <flexisip/agent.hh>
 #include <flexisip/flexisip-version.h>
 #include <flexisip/logmanager.hh>
@@ -1066,16 +1068,15 @@ int Agent::onIncomingMessage(msg_t* msg, const sip_t* sip) {
 		return -1;
 	}
 	// Assuming sip is derived from msg
-	auto ms = make_shared<MsgSip>(msg);
+	auto ms = make_shared<MsgSip>(ownership::owned(msg));
 	if (sip->sip_request) {
-		auto ev = make_shared<RequestSipEvent>(shared_from_this(), ms, getIncomingTport(msg, this));
+		auto ev = make_shared<RequestSipEvent>(shared_from_this(), ms, getIncomingTport(ms->getMsg(), this));
 		sendRequestEvent(ev);
 	} else {
 		auto ev = make_shared<ResponseSipEvent>(shared_from_this(), ms);
 		sendResponseEvent(ev);
 	}
 	printEventTailSeparator();
-	msg_destroy(msg);
 	return 0;
 }
 

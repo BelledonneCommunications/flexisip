@@ -39,7 +39,7 @@ class MicrosoftRequest;
 
 class Service {
 public:
-	Service(su_root_t& root, unsigned maxQueueSize);
+	Service(sofiasip::SuRoot& root, unsigned maxQueueSize);
 	~Service();
 
 	StatCounter64* getFailedCounter() const noexcept {
@@ -57,7 +57,8 @@ public:
 	void sendPush(const std::shared_ptr<Request>& pn);
 	void setupGenericClient(const sofiasip::Url& url, Method method);
 	void setupiOSClient(const std::string& certdir, const std::string& cafile);
-	void setupFirebaseClient(const std::map<std::string, std::string>& firebaseKeys);
+	void setupFirebaseClients(const std::list<std::string>& firebaseKeys);
+	void addFirebaseClient(const std::string& firebaseAppId, const std::string& apiKey = "");
 	void setupWindowsPhoneClient(const std::string& packageSID, const std::string& applicationSecret);
 
 	bool isIdle() const noexcept;
@@ -68,7 +69,7 @@ private:
 	Client* createWindowsClient(const std::shared_ptr<MicrosoftRequest>& pnImpl);
 
 	// Private attributes
-	su_root_t& mRoot;
+	sofiasip::SuRoot& mRoot;
 	unsigned mMaxQueueSize{0};
 	std::map<std::string, std::unique_ptr<Client>> mClients{};
 	std::string mWindowsPhonePackageSID{};

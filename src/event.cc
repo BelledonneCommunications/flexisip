@@ -32,7 +32,7 @@ namespace flexisip {
 
 SipEvent::SipEvent(const shared_ptr<IncomingAgent>& inAgent, const shared_ptr<MsgSip>& msgSip)
     : mCurrModule{}, mMsgSip(msgSip), mState(STARTED) {
-	LOGD("New SipEvent %p - msg %p", this, msgSip->getMsg());
+	SLOGD << "New SipEvent " << this << " - msg " << msgSip->getMsg();
 	mIncomingAgent = inAgent;
 	mAgent = inAgent->getAgent();
 	auto it = dynamic_pointer_cast<IncomingTransaction>(inAgent);
@@ -45,7 +45,7 @@ SipEvent::SipEvent(const shared_ptr<IncomingAgent>& inAgent, const shared_ptr<Ms
 
 SipEvent::SipEvent(const shared_ptr<OutgoingAgent>& outAgent, const shared_ptr<MsgSip>& msgSip)
     : mCurrModule{}, mMsgSip(msgSip), mState(STARTED) {
-	LOGD("New SipEvent %p - %p", this, msgSip->getMsg());
+	SLOGD << "New SipEvent " << this << " - msg " << msgSip->getMsg();
 	mOutgoingAgent = outAgent;
 	mAgent = outAgent->getAgent();
 	shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(outAgent);

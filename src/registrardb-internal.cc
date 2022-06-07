@@ -117,6 +117,22 @@ void RegistrarDbInternal::doFetchInstance(const SipUri &url, const string &uniqu
 	listener->onRecordFound(retRecord);
 }
 
+void RegistrarDbInternal::fetchExpiringContacts(time_t startTimestamp,
+                                                std::chrono::seconds timeRange,
+                                                std::function<void(std::vector<ExtendedContact>&&)>&& callback) const {
+	const auto deadline = startTimestamp + timeRange.count();
+	auto expiringContacts = std::vector<ExtendedContact>();
+	for (const auto& pair : mRecords) {
+		for (const auto& contact : pair.second->getExtendedContacts()) {
+			const auto expirationTime = contact->mExpireAt;
+			if (startTimestamp <= expirationTime && expirationTime < deadline) {
+				expiringContacts.emplace_back(*contact);
+			}
+		}
+	}
+	callback(std::move(expiringContacts));
+}
+
 void RegistrarDbInternal::doClear(const MsgSip &msg, const shared_ptr<ContactUpdateListener> &listener) {
 	auto sip = msg.getSip();
 	string key = Record::defineKeyFromUrl(sip->sip_from->a_url);
