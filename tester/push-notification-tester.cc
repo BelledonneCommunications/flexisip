@@ -443,6 +443,7 @@ static void tlsTimeoutTest(void) {
 	FirebaseClient::FIREBASE_PORT = "3000";
 	FirebaseClient firebaseClient{*root};
 	firebaseClient.enableInsecureTestMode();
+	firebaseClient.getHttp2Client()->getConnection()->setTimeout(500ms);
 
 	// Minimal request creation, values don't matter for this test
 	auto dest = make_shared<RFC8599PushParams>("fcm", "", "");
@@ -459,7 +460,7 @@ static void tlsTimeoutTest(void) {
 	// Start listening on port 3000 with no response to simulate tls timeout
 	auto isReqPatternMatched = async(launch::async, [&barrier]() { ListeningSocket::listenUntil(barrier); });
 
-	// Send the push notifications and wait until the request the request state is "Successful" or "Failed"
+	// Send the push notifications and wait until the request state is "Successful" or "Failed"
 	firebaseClient.sendPush(request);
 	firebaseClient.sendPush(request2);
 	firebaseClient.sendPush(request3);
@@ -474,7 +475,7 @@ static void tlsTimeoutTest(void) {
 	});
 	su_root_run(root);
 
-	// Client onError is called and response status is well managed, no crash occured
+	// Client onError is called and response status is well managed, no crash occurred
 	BC_ASSERT_TRUE(request->getState() == Request::State::Failed);
 	BC_ASSERT_TRUE(request2->getState() == Request::State::Failed);
 	BC_ASSERT_TRUE(request3->getState() == Request::State::Failed);

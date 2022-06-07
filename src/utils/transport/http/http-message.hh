@@ -18,9 +18,11 @@
 
 #pragma once
 
+#include <memory>
 #include <string>
 
 #include "http-headers.hh"
+#include "ng-data-provider.hh"
 
 namespace flexisip {
 
@@ -57,11 +59,24 @@ public:
 		this->mHeaders = headers;
 	}
 
+	/**
+	 * WARNING: if you modify the body after a first call to getCDataProvider, the provider will be the same on the
+	 * next call to getCDataProvider. Only call this when you are ready to send the request.
+	 */
+	const nghttp2_data_provider* getCDataProvider() {
+		if (!mDataProvider) {
+			mDataProvider = std::make_unique<NgDataProvider>(mBody);
+		}
+
+		return mDataProvider->getCStruct();
+	}
+
 	std::string toString() const noexcept;
 
 protected:
 	HttpHeaders mHeaders{};
 	std::vector<char> mBody{};
+	std::unique_ptr<NgDataProvider> mDataProvider{};
 };
 
 } // namespace flexisip

@@ -108,10 +108,9 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request, const OnResponseC
 		return;
 	}
 
-	NgDataProvider dataProv{request->getBody()};
 	auto streamId =
 	    nghttp2_submit_request(mHttpSession.get(), nullptr, request->getHeaders().makeCHeaderList().data(),
-	                           request->getHeaders().getHeadersList().size(), dataProv.getCStruct(), nullptr);
+	                           request->getHeaders().getHeadersList().size(), request->getCDataProvider(), nullptr);
 	if (streamId < 0) {
 		SLOGE << logPrefix << ": push request submit failed. reason=[" << nghttp2_strerror(streamId) << "]";
 		onErrorCb(request);

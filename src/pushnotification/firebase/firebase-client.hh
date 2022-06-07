@@ -57,6 +57,10 @@ public:
 		mHttp2Client->setRequestTimeout(requestTimeout);
 	}
 
+	const std::unique_ptr<Http2Client>& getHttp2Client() const {
+		return mHttp2Client;
+	}
+
 	static std::string FIREBASE_ADDRESS;
 	static std::string FIREBASE_PORT;
 

@@ -152,6 +152,10 @@ public:
 		return waitForData(std::chrono::milliseconds{0});
 	}
 
+	void setTimeout(const std::chrono::milliseconds& timeout) {
+		TlsConnection::mTimeout = timeout;
+	}
+
 	void enableInsecureTestMode();
 
 private:

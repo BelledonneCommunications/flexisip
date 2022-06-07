@@ -98,6 +98,10 @@ public:
 		mConn->enableInsecureTestMode();
 	}
 
+	const std::unique_ptr<TlsConnection>& getConnection() const {
+		return mConn;
+	}
+
 private:
 	struct NgHttp2SessionDeleter {
 		void operator()(nghttp2_session* ptr) const noexcept {
