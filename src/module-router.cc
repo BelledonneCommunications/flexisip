@@ -195,7 +195,7 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 
 			ForkMessageContextSociRepository::prepareConfiguration(
 			    mc->get<ConfigString>("message-database-backend")->read(),
-			    mc->get<ConfigString>("message-database-connection-string")->read(), 50);
+			    mc->get<ConfigString>("message-database-connection-string")->read(), 10);
 
 			restoreForksFromDatabase();
 		}
