@@ -15,10 +15,11 @@ variables:
   # Docker image version
   ARCHLINUX_IMAGE_VERSION: 20220414_remove_ffmpeg
   CENTOS_7_IMAGE_VERSION: 20220112_add_libasan
-  CENTOS_8_IMAGE_VERSION: 20211004_remove_hiredis
+  CENTOS_8_IMAGE_VERSION: 20220613_add_rocky
+  ROCKY_8_IMAGE_VERSION: 20220613_add_rocky
   DEBIAN_9_IMAGE_VERSION: 20210624_packaging
-  DEBIAN_10_IMAGE_VERSION: 20211018_mariadb_server
-  DEBIAN_11_IMAGE_VERSION: 20220608_add_llvm_coverage_tools
+  DEBIAN_10_IMAGE_VERSION: 20220613_remove_entrypoint
+  DEBIAN_11_IMAGE_VERSION: 20220613_remove_entrypoint
   UBUNTU_18_04_IMAGE_VERSION: 20210624_packaging
   UBUNTU_ROLLING_IMAGE_VERSION: 20210624_packaging
 
@@ -43,19 +44,18 @@ include:
   - '.gitlab-ci-files/job-linux-archlinux.yml'
   - '.gitlab-ci-files/job-linux-centos7.yml'
   - '.gitlab-ci-files/job-linux-centos8.yml'
+  - '.gitlab-ci-files/job-linux-rocky8.yml'
   - '.gitlab-ci-files/job-linux-debian9.yml'
   - '.gitlab-ci-files/job-linux-debian10.yml'
   - '.gitlab-ci-files/job-linux-debian11.yml'
-  - '.gitlab-ci-files/job-linux-ubuntu-rolling.yml'
-  - '.gitlab-ci-files/job-linux-ubuntu-18.04.yml'
+  - '.gitlab-ci-files/job-linux-ubuntu-18-04.yml'
   - '.gitlab-ci-files/job-macosx.yml'
 
 
 
 stages:
- - build
- - test
- - coverage
- - package
- - image
- - deploy
+  - build 🏗
+  - test 🧪
+  - coverage 📑
+  - package 📦
+  - deploy 🚀

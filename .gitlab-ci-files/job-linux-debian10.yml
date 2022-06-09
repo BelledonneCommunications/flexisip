@@ -1,99 +1,73 @@
+.debian10-image:
+  image:
+    name: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
+
 #################################################
 # Makefile
 #################################################
 
 job-debian10-makefile-gcc:
-  extends: .job-linux-nightly
-
-  tags: [ "docker" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
-  variables:
-    CMAKE_GENERATOR: Unix Makefiles
-    CC: gcc
-    CXX: g++
+  extends:
+    - .job-makefile-gcc
+    - .debian10-image
+    - .rules-never-run  # ⚠ See `rules.yml`, override .job-makefile-gcc rules
 
 
 job-debian10-makefile-clang:
-  extends: .job-linux-nightly
-
-  tags: [ "docker" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
-  variables:
-    CMAKE_GENERATOR: Unix Makefiles
-    CC: clang
-    CXX: clang++
+  extends:
+    - .job-makefile-clang
+    - .debian10-image
+    - .rules-never-run  # ⚠ See `rules.yml`, override .job-makefile-clang rules
 
 #################################################
 # Ninja
 #################################################
 
 job-debian10-ninja-gcc:
-  extends: .job-linux-nightly
-
-  tags: [ "docker" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
-  variables:
-    CMAKE_GENERATOR: Ninja
-    CC: gcc
-    CXX: g++
+  extends:
+    - .job-ninja-gcc
+    - .debian10-image
 
 
 job-debian10-ninja-clang:
   extends:
-    - .job-linux
-    - .rules-dev  # ⚠ See `rules.yml`
-
-  tags: [ "docker" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
+    - .job-ninja-clang
+    - .debian10-image
   variables:
-    CMAKE_GENERATOR: Ninja
-    CC: clang
-    CXX: clang++
     CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON
   artifacts:
     paths:
-       - OUTPUT/*
-
-#################################################
-# DEB
-#################################################
-
-job-debian10-deb:
-
-  tags: [ "docker" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
-  extends: .job-linux-deb
-
-
-job-debian10-deb-deploy:
-  extends: .job-debian-deb-deploy
-
-  variables:
-    RELEASE: buster
-    FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
-  dependencies:
-    - job-debian10-deb
-
+      - OUTPUT/*
 
 #################################################
 # UNIT TESTS
 #################################################
 
 job-debian10-unit-test:
-  extends: .rules-dev  # ⚠ See `rules.yml`
-
-  stage : test
-  tags: [ "docker-test" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
-  needs :
+  extends:
+    - .unit-test
+    - .debian10-image
+  image:
+    entrypoint: [ "/mariadb-entrypoint.sh", "service mysql start" ]
+  needs:
     - job-debian10-ninja-clang
-  script :
-    - export LD_LIBRARY_PATH=/usr/local/lib
-    - export LSAN_OPTIONS="suppressions=./sanitizer_ignore.txt"
-    - ./OUTPUT/bin/flexisip_tester --verbose --resource-dir ./OUTPUT/share/flexisip-tester --xml || exit $?
-  artifacts :
-    reports :
-      junit :
-        - BCUnitAutomated-Results.xml
-    when: always
-    expire_in: 1 week
+
+#################################################
+# DEB
+#################################################
+
+job-debian10-deb:
+  extends:
+    - .job-linux-deb
+    - .debian10-image
+
+
+job-debian10-deb-deploy:
+  extends: .job-debian-deb-deploy
+  variables:
+    RELEASE: buster
+    FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
+  dependencies:
+    - job-debian10-deb
+  needs:
+    - job-debian10-deb

@@ -1,0 +1,74 @@
+.rocky8-image-variables:
+  image:
+    name: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:$ROCKY_8_IMAGE_VERSION
+  variables:
+    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DINTERNAL_LIBSRTP2=ON
+
+#################################################
+# Makefile
+#################################################
+
+job-rocky8-makefile-gcc:
+  extends:
+    - .job-makefile-gcc
+    - .rocky8-image-variables
+
+
+job-rocky8-makefile-clang:
+  extends:
+    - .job-makefile-clang
+    - .rocky8-image-variables
+
+#################################################
+# Ninja
+#################################################
+
+job-rocky8-ninja-gcc:
+  extends:
+    - .job-ninja-gcc
+    - .rocky8-image-variables
+
+
+job-rocky8-ninja-clang:
+  extends:
+    - .job-ninja-clang
+    - .rocky8-image-variables
+  variables:
+    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DINTERNAL_LIBSRTP2=ON -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON
+  artifacts:
+    paths:
+      - OUTPUT/*
+
+#################################################
+# UNIT TESTS
+#################################################
+
+job-rocky8-unit-test:
+  extends:
+    - .unit-test
+    - .rocky8-image-variables
+  image:
+    entrypoint: [ "/home/bc/mariadb-entrypoint.sh", "/usr/bin/systemctl start mariadb" ]
+  needs:
+    - job-rocky8-ninja-clang
+  allow_failure: true # Sanitizer leaks to investigate
+
+#################################################
+# RPM
+#################################################
+
+job-rocky8-rpm:
+  extends:
+    - .job-linux-rpm
+    - .rocky8-image-variables
+
+job-rocky8-rpm-deploy:
+  extends: .job-rpm-deploy
+  dependencies:
+    - job-rocky8-rpm
+  needs:
+    - job-rocky8-rpm
+  variables:
+    DISTRIB: rockylinux
+
+

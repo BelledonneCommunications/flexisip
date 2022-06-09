@@ -1,5 +1,5 @@
 .job-macosx:
-  stage: build
+  stage: build 🏗
   tags: [ "macosx-xcode12" ]
   script:
     - ccache -s
@@ -20,7 +20,6 @@ job-macosx-makefile:
   extends:
     - .job-macosx
     - .rules-nightly  # ⚠ See `rules.yml`
-
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     NJOBS: $MAKEFILE_JOBS
@@ -33,7 +32,6 @@ job-macosx-ninja:
   extends:
     - .job-macosx
     - .rules-dev  # ⚠ See `rules.yml`
-
   variables:
     CMAKE_GENERATOR: Ninja
     NJOBS: $NINJA_JOBS
@@ -46,7 +44,6 @@ job-macosx-xcode:
   extends:
     - .job-macosx
     - .rules-nightly  # ⚠ See `rules.yml`
-
   variables:
     CMAKE_GENERATOR: Xcode
     NJOBS: $MAX_NUMBER_TASK_XCODE

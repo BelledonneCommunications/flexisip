@@ -1,85 +1,54 @@
+.centos8-image-variables:
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos8:$CENTOS_8_IMAGE_VERSION
+  variables:
+    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DINTERNAL_LIBSRTP2=ON
+
 #################################################
 # Makefile
 #################################################
 
-#job-centos8-makefile-gcc:
-#
-#  tags: [ "docker" ]
-#  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos8:$CENTOS_8_IMAGE_VERSION
-#  except:
-#    variables:
-#      - $DEPLOY_RUN
-#      - $DEPLOY_UBUNTU
-#  variables:
-#    CMAKE_GENERATOR: Unix Makefiles
-#    CMAKE_OPTIONS: -DINTERNAL_LIBSRTP2=ON
-#    CC: gcc
-#    CXX: g++
-#  extends: .job-linux-nightly
-#
-#job-centos8-makefile-clang:
-#
-#  tags: [ "docker" ]
-#  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos8:$CENTOS_8_IMAGE_VERSION
-#  except:
-#    variables:
-#      - $DEPLOY_RUN
-#      - $DEPLOY_UBUNTU
-#  variables:
-#    CMAKE_GENERATOR: Unix Makefiles
-#    CMAKE_OPTIONS: -DINTERNAL_LIBSRTP2=ON
-#    CC: clang
-#    CXX: clang++
-#  extends: .job-linux
+job-centos8-makefile-gcc:
+  extends:
+    - .job-makefile-gcc
+    - .centos8-image-variables
+    - .rules-never-run  # ⚠ See `rules.yml`, override .job-makefile-gcc rules
+
+
+job-centos8-makefile-clang:
+  extends:
+    - .job-makefile-clang
+    - .centos8-image-variables
+    - .rules-never-run  # ⚠ See `rules.yml`, override .job-makefile-clang rules
 
 #################################################
 # Ninja
 #################################################
 
 job-centos8-ninja-gcc:
-  extends: .job-linux-nightly
+  extends:
+    - .job-ninja-gcc
+    - .centos8-image-variables
 
-  tags: [ "docker" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos8:$CENTOS_8_IMAGE_VERSION
-  variables:
-    CMAKE_GENERATOR: Ninja
-    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DINTERNAL_LIBSRTP2=ON
-    CC: gcc
-    CXX: g++
 
 job-centos8-ninja-clang:
   extends:
-    - .job-linux
-    - .rules-dev  # ⚠ See `rules.yml`
-
-  tags: [ "docker" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos8:$CENTOS_8_IMAGE_VERSION
-  variables:
-    CMAKE_GENERATOR: Ninja
-    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DINTERNAL_LIBSRTP2=ON
-    CC: clang
-    CXX: clang++
+    - .job-ninja-clang
+    - .centos8-image-variables
 
 #################################################
 # RPM
 #################################################
 
 job-centos8-rpm:
-  allow_failure: true
-  tags: [ "docker" ]
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos8:$CENTOS_8_IMAGE_VERSION
-  variables:
-    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DINTERNAL_LIBSRTP2=ON
-  extends: .job-linux-rpm
+  extends:
+    - .job-linux-rpm
+    - .centos8-image-variables
 
 job-centos8-rpm-deploy:
-  extends: .rules-deploy  # ⚠ See `rules.yml`
-
-  stage: deploy
-  tags: [ "deploy" ]
-
+  extends: .job-rpm-deploy
   dependencies:
     - job-centos8-rpm
-
-  script: ./.gitlab-ci-files/deploy.sh centos
-
+  needs:
+    - job-centos8-rpm
+  variables:
+    DISTRIB: centos

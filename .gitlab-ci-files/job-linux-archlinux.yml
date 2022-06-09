@@ -1,25 +1,34 @@
+.archlinux-image:
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:$ARCHLINUX_IMAGE_VERSION
+
 #################################################
 # Makefile
 #################################################
 
-job-archlinux-latest-makefile-gcc:
-  extends: .job-makefile-gcc
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:$ARCHLINUX_IMAGE_VERSION
+job-archlinux-makefile-gcc:
+  extends:
+    - .job-makefile-gcc
+    - .archlinux-image
+    - .rules-never-run  # ⚠ See `rules.yml`, override .job-makefile-gcc rules
 
 
-job-archlinux-latest-makefile-clang:
-  extends: .job-makefile-clang
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:$ARCHLINUX_IMAGE_VERSION
+job-archlinux-makefile-clang:
+  extends:
+    - .job-makefile-clang
+    - .archlinux-image
+    - .rules-never-run  # ⚠ See `rules.yml`, override .job-makefile-clang rules
 
 #################################################
 # Ninja
 #################################################
 
-job-archlinux-latest-ninja-gcc:
-  extends: .job-ninja-gcc
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:$ARCHLINUX_IMAGE_VERSION
+job-archlinux-ninja-gcc:
+  extends:
+    - .job-ninja-gcc
+    - .archlinux-image
 
 
-job-archlinux-latest-ninja-clang:
-  extends: .job-ninja-clang
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:$ARCHLINUX_IMAGE_VERSION
+job-archlinux-ninja-clang:
+  extends:
+    - .job-ninja-clang
+    - .archlinux-image

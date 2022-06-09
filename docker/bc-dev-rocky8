@@ -1,14 +1,10 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos8:20220613_add_rocky
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20220613_add_rocky
 ###############################################################################
 
-FROM centos:8
+FROM rockylinux:8
 
 MAINTAINER Anthony Gauchy <anthony.gauchy@belledonne-communications.com>
-
-# Because of centos8 EOL
-RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
-RUN sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
 
 # Install common general tools
 RUN dnf install -y sudo vim wget
@@ -66,8 +62,18 @@ RUN sudo dnf -y install ccache \
                  # Dependencies of the B2BUA
                    mesa-libEGL-devel \
                    glew-devel \
-                   libvpx-devel\
+                   libvpx-devel  \
                &&  dnf -y clean all
+
+# Install libnghttp2_asio
+RUN wget https://github.com/nghttp2/nghttp2/releases/download/v1.39.2/nghttp2-1.39.2.tar.bz2 && \
+	tar -xf nghttp2-1.39.2.tar.bz2 && \
+	cd nghttp2-1.39.2 && \
+	./configure --prefix=/usr/local --disable-examples --disable-python-bindings --enable-lib-only --enable-asio-lib && \
+	sudo make && \
+	sudo make -C src install && \
+	cd - && \
+	rm -rf nghttp2-1.39.2.tar.bz2 nghttp2-1.39.2
 
 # Configure user bc
 RUN useradd -ms /bin/bash bc && \
@@ -86,3 +92,10 @@ RUN python3 -m pip install --user pystache six
 ENV PATH=$PATH:/home/bc/.local/bin
 
 ENV PS1='\[\e[34m\]\u@bc-dev-rocky8>\[\e[0m\] '
+
+# MYSQL DB for unit tests
+COPY systemctl.py /usr/bin/systemctl
+RUN sudo chmod a+x /usr/bin/systemctl
+
+COPY mariadb-entrypoint.sh /home/bc/
+RUN sudo chmod a+x /home/bc/mariadb-entrypoint.sh

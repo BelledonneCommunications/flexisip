@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make bc-dev-debian11:20220608_add_llvm_coverage_tools
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian11:20220613_remove_entrypoint
 ###############################################################################
 
 FROM debian:bullseye
@@ -92,5 +92,3 @@ ENV PATH=$PATH:/home/bc/.local/bin
 # MYSQL DB for unit tests
 COPY mariadb-entrypoint.sh /
 RUN sudo chmod a+x /mariadb-entrypoint.sh
-
-ENTRYPOINT ["/mariadb-entrypoint.sh", "mariadb"]

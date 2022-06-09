@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make bc-dev-debian10:20211018_mariadb_server
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:20220613_remove_entrypoint
 ###############################################################################
 
 FROM gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian10:20210421_python3_fix_pip
@@ -41,5 +41,3 @@ RUN ./cmake_install.sh 3.20.5 && rm cmake_install.sh
 # MYSQL DB for unit tests
 COPY mariadb-entrypoint.sh /
 RUN sudo chmod a+x /mariadb-entrypoint.sh
-
-ENTRYPOINT ["/mariadb-entrypoint.sh"]
