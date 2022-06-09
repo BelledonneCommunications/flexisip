@@ -13,16 +13,22 @@ Group changes to describe their impact on the project, as follows:
 | Fixed          | Any bug fixes                                         |
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
-## [2.1.4] - 2022-05-19
 
+
+## [2.1.5] - 2022-06-09
+### [Fixed]
+
+- 'reg-on-response' parameter no longer worked since Flexisip 2.1.0
+
+## [2.1.4] - 2022-05-19
 ### [Fixed]
 
 - Fix warning about failing SQL request on conference server starting.
 - Make Flexisip to require Hiredis >= 0.14.
 - Remove Sofia-SIP implementation of some functions that must be found on system.
 
-## [2.1.3] - 2022-03-18
 
+## [2.1.3] - 2022-03-18
 ### [Fixed]
 
 - ExternalPusher: the response to each HTTP request systematically has a delay of
@@ -33,6 +39,7 @@ Group changes to describe their impact on the project, as follows:
   but no message is delivered by Flexisip once the application registers again.
 - Weakness in the module replacement algorithm that causes some modules coming
   from plugins to be inserted in bad position in the modules list.
+
 
 ## [2.1.2] - 2021-12-22
 ### [Added]
