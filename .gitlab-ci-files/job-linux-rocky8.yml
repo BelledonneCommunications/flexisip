@@ -51,7 +51,6 @@ job-rocky8-unit-test:
     entrypoint: [ "/home/bc/mariadb-entrypoint.sh", "/usr/bin/systemctl start mariadb" ]
   needs:
     - job-rocky8-ninja-clang
-  allow_failure: true # Sanitizer leaks to investigate
 
 #################################################
 # RPM
