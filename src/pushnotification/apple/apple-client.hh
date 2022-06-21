@@ -69,7 +69,7 @@ private:
 	void onResponse(const std::shared_ptr<HttpMessage>& request, const std::shared_ptr<HttpResponse>& response);
 	void onError(const std::shared_ptr<HttpMessage>& request);
 
-	std::unique_ptr<Http2Client> mHttp2Client;
+	std::shared_ptr<Http2Client> mHttp2Client;
 	std::string mLogPrefix{};
 
 	static std::string APN_PROD_ADDRESS;

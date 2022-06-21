@@ -40,7 +40,7 @@ namespace flexisip {
  * Can be used to established one connection to a remote remote server and send multiple request over this connection.
  * Tls connection and http/2 connection handling is done by the Http2Client.
  */
-class Http2Client {
+class Http2Client : public std::enable_shared_from_this<Http2Client> {
 public:
 	enum class State : uint8_t { Disconnected, Connected, Connecting };
 
@@ -53,9 +53,11 @@ public:
 		static std::string formatWhatArg(State state) noexcept;
 	};
 
-	Http2Client(su_root_t& root, const std::string& host, const std::string& port);
-	Http2Client(su_root_t& root, const std::string& host, const std::string& port, const std::string& trustStorePath,
-	            const std::string& certPath);
+	template <typename... Args>
+	static std::shared_ptr<Http2Client> make(Args&&... args) {
+		// new because make_shared need a public constructor.
+		return std::shared_ptr<Http2Client>{new Http2Client{std::forward<Args>(args)...}};
+	};
 	virtual ~Http2Client() = default;
 
 	using HttpRequest = HttpMessage;
@@ -108,6 +110,15 @@ private:
 			nghttp2_session_del(ptr);
 		}
 	};
+
+	// Constructors must be private because Http2Client extends enable_shared_from_this. Use make instead.
+	Http2Client(su_root_t& root, const std::string& host, const std::string& port);
+
+	Http2Client(su_root_t& root,
+	            const std::string& host,
+	            const std::string& port,
+	            const std::string& trustStorePath,
+	            const std::string& certPath);
 
 	/* Private methods */
 	void sendAllPendingRequests();

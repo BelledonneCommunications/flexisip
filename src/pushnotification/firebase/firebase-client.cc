@@ -36,7 +36,7 @@ FirebaseClient::FirebaseClient(su_root_t& root, const Service* service) : Client
 	mLogPrefix = os.str();
 	SLOGD << mLogPrefix << ": constructing FirebaseClient";
 
-	mHttp2Client = make_unique<Http2Client>(root, FIREBASE_ADDRESS, FIREBASE_PORT);
+	mHttp2Client = Http2Client::make(root, FIREBASE_ADDRESS, FIREBASE_PORT);
 }
 
 void FirebaseClient::sendPush(const std::shared_ptr<Request>& req) {

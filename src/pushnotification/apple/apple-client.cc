@@ -43,7 +43,7 @@ AppleClient::AppleClient(su_root_t& root,
 	SLOGD << mLogPrefix << ": constructing AppleClient";
 
 	const auto apn_server = (certName.find(".dev") != string::npos) ? APN_DEV_ADDRESS : APN_PROD_ADDRESS;
-	mHttp2Client = make_unique<Http2Client>(root, apn_server, APN_PORT, trustStorePath, certPath);
+	mHttp2Client = Http2Client::make(root, apn_server, APN_PORT, trustStorePath, certPath);
 }
 
 void AppleClient::sendPush(const std::shared_ptr<Request>& req) {
