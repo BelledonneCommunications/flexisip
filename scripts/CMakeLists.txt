@@ -39,7 +39,7 @@ endif()
 
 
 # systemd
-set(systemd_services "flexisip-proxy.service" "flexisip-proxy@.service")
+set(systemd_services "flexisip-proxy.service" "flexisip-proxy@.service" "flexisip-linphone-daemon.service")
 if(ENABLE_PRESENCE)
 	list(APPEND systemd_services "flexisip-presence.service" "flexisip-presence@.service")
 endif()

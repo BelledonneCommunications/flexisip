@@ -1,0 +1,10 @@
+[Unit]
+Description=Flexisip Linphone Daemon
+Documentation=http://www.linphone.org/technical-corner/flexisip/overview
+After=syslog.target network.service network.target flexisip-proxy.service
+
+[Service]
+ExecStart=@bindir@/linphone-daemon /var/run/flexisip-linphone-daemon.pid
+
+[Install]
+WantedBy=multi-user.target
