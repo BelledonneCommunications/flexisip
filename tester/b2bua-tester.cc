@@ -38,26 +38,23 @@ using namespace flexisip;
 namespace b2buatester {
 // B2bua is configured to set media encryption according to a regex on the callee URI
 // define uri to match each of the possible media encryption
-static std::string srtpUri("sip:b2bua_srtp@sip.example.org");
-static std::string zrtpUri("sip:b2bua_zrtp@sip.example.org");
-static std::string dtlsUri("sip:b2bua_dtlsp@sip.example.org");
+static constexpr auto srtpUri = "sip:b2bua_srtp@sip.example.org";
+static constexpr auto zrtpUri = "sip:b2bua_zrtp@sip.example.org";
+static constexpr auto dtlsUri = "sip:b2bua_dtlsp@sip.example.org";
 
 class B2buaServer : public Server {
 private:
 	std::shared_ptr<flexisip::B2buaServer> mB2buaServer;
 
 public:
-	B2buaServer(const std::string& configFile = std::string()) : Server(configFile) {
+	explicit B2buaServer(const std::string& configFile = "") : Server(configFile) {
 		// Configure B2bua Server
-		GenericStruct* b2buaServerConf = GenericManager::get()->getRoot()->get<GenericStruct>("b2bua-server");
-		// b2bua server needs an outbound proxy to route all sip messages to the proxy, set it to the internal-transport
-		// of the proxy
-		b2buaServerConf->get<ConfigString>("outbound-proxy")
-		    ->set(GenericManager::get()
-		              ->getRoot()
-		              ->get<GenericStruct>("cluster")
-		              ->get<ConfigString>("internal-transport")
-		              ->read());
+		auto* b2buaServerConf = GenericManager::get()->getRoot()->get<GenericStruct>("b2bua-server");
+		// b2bua server needs an outbound proxy to route all sip messages to the proxy, set it to the first transport
+		// of the proxy.
+		auto proxyTransports =
+		    GenericManager::get()->getRoot()->get<GenericStruct>("global")->get<ConfigStringList>("transports")->read();
+		b2buaServerConf->get<ConfigString>("outbound-proxy")->set(proxyTransports.front());
 		// need a writable dir to store DTLS-SRTP self signed certificate
 		b2buaServerConf->get<ConfigString>("data-directory")->set(bc_tester_get_writable_dir_prefix());
 
@@ -136,9 +133,9 @@ static void basic() {
  *
  * @return true when everything went well
  */
-static bool mixedEncryption(const std::string marieName,
+static bool mixedEncryption(const std::string& marieName,
                             linphone::MediaEncryption marieEncryption,
-                            const std::string paulineName,
+                            const std::string& paulineName,
                             linphone::MediaEncryption paulineEncryption,
                             bool video) {
 	// initialize and start the proxy and B2bua server
@@ -367,5 +364,6 @@ static test_t tests[] = {
 };
 
 } // namespace b2buatester
-test_suite_t b2bua_suite = {
-    "B2bua", NULL, NULL, NULL, NULL, sizeof(b2buatester::tests) / sizeof(b2buatester::tests[0]), b2buatester::tests};
+test_suite_t b2bua_suite = {"B2bua",           nullptr, nullptr,
+                            nullptr,           nullptr, sizeof(b2buatester::tests) / sizeof(b2buatester::tests[0]),
+                            b2buatester::tests};
