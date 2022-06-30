@@ -1,19 +1,19 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2016  Belledonne Communications SARL.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -26,20 +26,34 @@
  */
 class UriUtils {
 public:
-
 	/* Constants to use with escape() method */
 
-	static constexpr const char *uriReserved = "!\"#$%&'()*+,/:;<=>?@[\\]^`{|}"; /**< Default reserved characters for generic URI */
-	static constexpr const char *uriUserInfoReserved = "\"#%/<>?@[\\]^`{|}"; /**< Reserved characters for UserInfo part of generic URI, i.e. the part before '@' character */
-	static constexpr const char *uriQueryReserved = "\"#%<>[\\]^`{|}"; /** Reserved characters for the query part of generic URI, i.e. the part between '?' and '#' */
+	/**< Default reserved characters for generic URI */
+	static constexpr const char* uriReserved = "!\"#$%&'()*+,/:;<=>?@[\\]^`{|}";
 
-	static constexpr const char *httpReserved = uriReserved; /**< Default reserved character for HTTP URI */
-	static constexpr const char *httpQueryKeyValReserved = "\"#%&/<=>?[\\]^`{|}"; /**< Reserved characters for key or value of query elements in HTTP URI */
+	/**< Reserved characters for UserInfo part of generic URI, i.e. the part before '@' character */
+	static constexpr const char* uriUserInfoReserved = "\"#%/<>?@[\\]^`{|}";
 
-	static constexpr const char *sipReserved = "\"#$%&+,/:;<=>?@[\\]^`{|}"; /**< Default reserved character for SIP URI */
-	static constexpr const char *sipUserReseverd = "\"#%:<>@[\\]^`{|}"; /**< Reserved characters for user in SIP URI */
-	static constexpr const char *sipPasswordReserved = "\"#%/:;<>?@[\\]^`{|}"; /**< Reserved characters for passwords in SIP URI */
-	static constexpr const char *sipUriParamValueReserved = "\"#&,;<=>@\\^`{|}%"; /**< Characters to be escaped for SIP URI param name and value. */
+	/** Reserved characters for the query part of generic URI, i.e. the part between '?' and '#' */
+	static constexpr const char* uriQueryReserved = "\"#%<>[\\]^`{|}";
+
+	/**< Default reserved character for HTTP URI */
+	static constexpr const char* httpReserved = uriReserved;
+
+	/**< Reserved characters for key or value of query elements in HTTP URI */
+	static constexpr const char* httpQueryKeyValReserved = "\"#%&/<=>?[\\]^`{|}";
+
+	/**< Default reserved character for SIP URI */
+	static constexpr const char* sipReserved = "\"#$%&+,/:;<=>?@[\\]^`{|}";
+
+	/**< Reserved characters for user in SIP URI */
+	static constexpr const char* sipUserReseverd = "\"#%:<>@[\\]^`{|}";
+
+	/**< Reserved characters for passwords in SIP URI */
+	static constexpr const char* sipPasswordReserved = "\"#%/:;<>?@[\\]^`{|}";
+
+	/**< Characters to be escaped for SIP URI param name and value. */
+	static constexpr const char* sipUriParamValueReserved = "\"#&,;<=>@\\^`{|}%";
 
 	/**
 	 * @brief Escape all the characters in str that match one character of reserved.
@@ -53,14 +67,20 @@ public:
 	 * of constants defined above may be used.
 	 * @return A copy of str with all reserved characters escaped.
 	 */
-	static std::string escape(const char *str, const char *reserved) noexcept;
-	static std::string escape(const std::string &str, const char *reserved) noexcept {return escape(str.c_str(), reserved);}
+	static std::string escape(const char* str, const char* reserved) noexcept;
+	static std::string escape(const std::string& str, const char* reserved) noexcept {
+		return escape(str.c_str(), reserved);
+	}
 
 	/**
 	 * @brief Replace each "% HEXDIG HEXDIG" sequence by the matching ASCII character.
 	 */
-	static std::string unescape(const char *str) noexcept {return unescape(str, strlen(str));}
-	static std::string unescape(const std::string &str) noexcept {return unescape(str.c_str(), str.size());}
+	static std::string unescape(const char* str) noexcept {
+		return unescape(str, strlen(str));
+	}
+	static std::string unescape(const std::string& str) noexcept {
+		return unescape(str.c_str(), str.size());
+	}
 
 	/**
 	 * @brief Return the value of a given param from a string that contains a list
@@ -69,11 +89,15 @@ public:
 	 * @param paramName The name of the parameter to seek.
 	 * @param defaultValue The string to return if the parameter doesn't exist or has no value.
 	 */
-	static std::string getParamValue(const char *paramList, const char *paramName, const char *defaultValue = "") noexcept;
-	static std::string getParamValue(const std::string &paramList, const std::string &paramName) noexcept {
+	static std::string
+	getParamValue(const char* paramList, const char* paramName, const char* defaultValue = "") noexcept;
+
+	static std::string getParamValue(const std::string& paramList, const std::string& paramName) noexcept {
 		return getParamValue(paramList.c_str(), paramName.c_str());
 	}
-	static std::string getParamValue(const std::string &paramList, const std::string &paramName, const std::string &defaultValue) noexcept {
+	static std::string getParamValue(const std::string& paramList,
+	                                 const std::string& paramName,
+	                                 const std::string& defaultValue) noexcept {
 		return getParamValue(paramList.c_str(), paramName.c_str(), defaultValue.c_str());
 	}
 
@@ -85,16 +109,16 @@ public:
 	 * double-quotes and then '< >' characters. The return string is
 	 * empty if the input string doesn't match the expected format.
 	 */
-	static std::string uniqueIdToGr(const std::string &uid) noexcept;
+	static std::string uniqueIdToGr(const std::string& uid) noexcept;
 
 	/**
 	 * @brief Format an UUID extracted for a GRUU into
 	 * a string ready to used as vaule of +sip.instance parameter.
 	 */
-	static std::string grToUniqueId(const std::string &gr) noexcept;
+	static std::string grToUniqueId(const std::string& gr) noexcept;
 
 private:
-	static std::string unescape(const char *str, size_t n) noexcept;
+	static std::string unescape(const char* str, size_t n) noexcept;
 
 	static constexpr size_t _bufferSize = 255;
 };
