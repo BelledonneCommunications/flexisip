@@ -16,12 +16,18 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "proxy-server.hh"
+#include <algorithm>
+
 #include "flexisip/registrardb.hh"
 
-using namespace flexisip;
+#include "proxy-server.hh"
+
 using namespace std;
 using namespace std::chrono;
+
+namespace flexisip {
+namespace tester {
+
 /**
  * A class to manage the flexisip proxy server
  */
@@ -65,3 +71,6 @@ void Server::runFor(std::chrono::milliseconds duration) {
 		mRoot->step(100ms);
 	}
 }
+
+} // namespace tester
+} // namespace flexisip

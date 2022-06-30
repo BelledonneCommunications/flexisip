@@ -27,8 +27,10 @@
 using namespace std;
 using namespace std::chrono_literals;
 using namespace std::chrono;
-using namespace flexisip;
 using namespace linphone;
+
+namespace flexisip {
+namespace tester {
 
 using days = duration<int, ratio_multiply<ratio<24>, hours::period>>;
 
@@ -697,3 +699,6 @@ static test_t tests[] = {
 
 test_suite_t fork_context_mysql_suite = {
     "Fork context mysql", beforeAll, nullptr, nullptr, afterEach, sizeof(tests) / sizeof(tests[0]), tests};
+
+} // namespace tester
+} // namespace flexisip

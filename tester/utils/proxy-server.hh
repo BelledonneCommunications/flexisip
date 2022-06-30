@@ -18,6 +18,10 @@
 
 #pragma once
 #include "../tester.hh"
+
+namespace flexisip {
+namespace tester {
+
 /**
  * A class to manage the flexisip proxy server
  */
@@ -50,3 +54,6 @@ public:
 	Server(const std::string& configFile = std::string());
 	virtual ~Server();
 }; // Class Server
+
+} // namespace tester
+} // namespace flexisip

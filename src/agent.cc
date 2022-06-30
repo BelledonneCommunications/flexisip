@@ -1109,8 +1109,8 @@ const string& Agent::getUniqueId() const {
 	return mUniqueId;
 }
 
-su_timer_t* Agent::createTimer(int milliseconds, timerCallback cb, void* data, bool repeating) {
-	su_timer_t* timer = su_timer_create(mRoot->getTask(), milliseconds);
+su_timer_t* Agent::createTimer(int milliseconds, TimerCallback cb, void* data, bool repeating) {
+	auto* timer = su_timer_create(mRoot->getTask(), milliseconds);
 	if (repeating) su_timer_set_for_ever(timer, (su_timer_f)cb, data);
 	else su_timer_set(timer, (su_timer_f)cb, data);
 	return timer;

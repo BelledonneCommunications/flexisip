@@ -42,37 +42,37 @@ extern "C" {
 
 #include "flexisip-tester-config.hh"
 
-std::string bcTesterFile(const std::string& name);
-std::string bcTesterRes(const std::string& name);
-
 extern "C" {
 
 extern test_suite_t boolean_expressions_suite;
 extern test_suite_t cli_suite;
 extern test_suite_t conference_suite;
 extern test_suite_t extended_contact_suite;
-extern test_suite_t fork_call_suite;
 extern test_suite_t fork_context_suite;
-extern test_suite_t fork_context_mysql_suite;
 extern test_suite_t module_pushnitification_suite;
 extern test_suite_t push_notification_suite;
 extern test_suite_t register_suite;
 extern test_suite_t registration_event_suite;
 extern test_suite_t router_suite;
 extern test_suite_t tls_connection_suite;
-#if ENABLE_B2BUA
-extern test_suite_t b2bua_suite;
-#endif
-
-void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_list args));
-void flexisip_tester_uninit(void);
 
 }; // extern "C"
 
 namespace flexisip {
 namespace tester {
 
+std::string bcTesterFile(const std::string& name);
+std::string bcTesterRes(const std::string& name);
+
+void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_list args));
+void flexisip_tester_uninit();
+
 extern test_suite_t agentSuite;
+#if ENABLE_B2BUA
+extern test_suite_t b2bua_suite;
+#endif
+extern test_suite_t fork_call_suite;
+extern test_suite_t fork_context_mysql_suite;
 extern test_suite_t moduleInfoSuite;
 extern test_suite_t registarDbSuite;
 extern test_suite_t threadPoolSuite;

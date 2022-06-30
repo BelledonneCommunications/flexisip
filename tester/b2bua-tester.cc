@@ -40,6 +40,8 @@ using namespace std;
 using namespace linphone;
 using namespace flexisip;
 
+namespace flexisip {
+namespace tester {
 namespace b2buatester {
 // B2bua is configured to set media encryption according to a regex on the callee URI
 // define uri to match each of the possible media encryption
@@ -777,6 +779,10 @@ static test_t tests[] = {
 };
 
 } // namespace b2buatester
+
 test_suite_t b2bua_suite = {"B2bua",           nullptr, nullptr,
                             nullptr,           nullptr, sizeof(b2buatester::tests) / sizeof(b2buatester::tests[0]),
                             b2buatester::tests};
+
+} // namespace tester
+} // namespace flexisip

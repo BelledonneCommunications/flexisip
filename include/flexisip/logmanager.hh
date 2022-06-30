@@ -75,24 +75,24 @@ using MsgSip = sofiasip::MsgSip;
  */
 class LogManager {
 public:
-	friend class SipLogContext;
-	friend class LogContext;
-	static LogManager& get();
+	// Public types
 	struct Parameters {
-		su_root_t* root = nullptr; /* MUST be set to have reopenFiles() working. */
-		std::string logDirectory;
-		std::string logFilename;
-		size_t fileMaxSize = -1;
-		BctbxLogLevel level = BCTBX_LOG_ERROR;
-		BctbxLogLevel syslogLevel = BCTBX_LOG_ERROR;
-		bool enableSyslog = true;
-		bool enableUserErrors = false;
-		bool enableStdout = false;
+		su_root_t* root{nullptr}; /* MUST be set to have reopenFiles() working. */
+		std::string logDirectory{};
+		std::string logFilename{};
+		size_t fileMaxSize{std::numeric_limits<decltype(fileMaxSize)>::max()};
+		BctbxLogLevel level{BCTBX_LOG_ERROR};
+		BctbxLogLevel syslogLevel{BCTBX_LOG_ERROR};
+		bool enableSyslog{true};
+		bool enableUserErrors{false};
+		bool enableStdout{false};
 	};
 
+	// Public ctor
 	LogManager(const LogManager&) = delete;
 	~LogManager();
 
+	// Public methods
 	BctbxLogLevel logLevelFromName(const std::string& name) const;
 	// Initialize logging system
 	void initialize(const Parameters& params);
@@ -126,25 +126,40 @@ public:
 		mReopenRequired = true;
 	}
 
+	// Public class methods
+	static LogManager& get();
+
 private:
+	// Private ctor
 	LogManager() = default;
 
-	static void logStub(const char* domain, BctbxLogLevel level, const char* msg, va_list args);
+	// Private methods
 	void setCurrentContext(const SipLogContext& ctx);
 	void clearCurrentContext();
 	void checkForReopening();
+	static void stdoutLogHandler(const char* domain, BctbxLogLevel level, const char* msg, va_list args);
+	static void logStub(const char* domain, BctbxLogLevel level, const char* msg, va_list args);
 
-	std::mutex mMutex;
-	std::shared_ptr<SipBooleanExpression> mCurrentFilter;
-	BctbxLogLevel mLevel = BCTBX_LOG_ERROR;        // The normal log level.
-	BctbxLogLevel mContextLevel = BCTBX_LOG_ERROR; // The log level when log context matches the condition.
-	bctbx_log_handler_t* mLogHandler = nullptr;
-	bctbx_log_handler_t* mSysLogHandler = nullptr;
-	std::unique_ptr<sofiasip::Timer> mTimer;
-	bool mInitialized = false;
-	bool mReopenRequired = false;
+	// Private attributes
+	std::mutex mMutex{};
+	mutable std::mutex mRootDomainMutex{};
+	std::shared_ptr<SipBooleanExpression> mCurrentFilter{};
+	std::string mRootDomain{}; // This domain prefixed the domain part of every log message. Useful to distinct the log
+	                           // messages comming from other processus.
+	BctbxLogLevel mLevel{BCTBX_LOG_ERROR};        // The normal log level.
+	BctbxLogLevel mContextLevel{BCTBX_LOG_ERROR}; // The log level when log context matches the condition.
+	bctbx_log_handler_t* mLogHandler{nullptr};
+	bctbx_log_handler_t* mSysLogHandler{nullptr};
+	std::unique_ptr<sofiasip::Timer> mTimer{};
+	bool mInitialized{false};
+	bool mReopenRequired{false};
 
+	// Private class attributes
 	static LogManager* sInstance;
+
+	// Friendship
+	friend class SipLogContext;
+	friend class LogContext;
 };
 
 class LogContext {

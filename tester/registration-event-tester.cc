@@ -33,7 +33,9 @@
 
 using namespace std;
 using namespace linphone;
-using namespace flexisip;
+
+namespace flexisip {
+namespace tester {
 
 static void basic() {
 	// Agent initialisation
@@ -342,3 +344,6 @@ static test_t tests[] = {
 
 test_suite_t registration_event_suite = {
     "Registration Event", NULL, NULL, NULL, NULL, sizeof(tests) / sizeof(tests[0]), tests};
+
+} // namespace tester
+} // namespace flexisip

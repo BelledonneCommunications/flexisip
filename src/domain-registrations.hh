@@ -18,23 +18,23 @@
 
 #pragma once
 
+#include <list>
+#include <regex>
+
 #include <sofia-sip/msg.h>
 #include <sofia-sip/nta.h>
 #include <sofia-sip/su_wait.h>
 #include <sofia-sip/tport.h>
 
-#include <flexisip/common.hh>
-#include <flexisip/configmanager.hh>
-#include <flexisip/registrardb.hh>
-
-#include <list>
-#include <regex>
+#include "flexisip/common.hh"
+#include "flexisip/configmanager.hh"
+#include "flexisip/registrardb.hh"
 
 namespace flexisip {
 
-class LocalRegExpireListener;
-class DomainRegistrationManager;
 class Agent;
+class DomainRegistrationManager;
+class LocalRegExpireListener;
 
 class DomainRegistration {
 public:
@@ -45,10 +45,14 @@ public:
 	                   const sofiasip::TlsConfigInfo& clientCertConf,
 	                   const std::string& passphrase,
 	                   int lineIndex);
+	~DomainRegistration();
+
 	void start();
 	void stop();
+
 	bool isUs(const url_t* url);
 	bool hasTport(const tport_t* tport) const;
+
 	const url_t* getPublicUri() const;
 	const url_t* getProxy() const {
 		return mProxy;
@@ -56,9 +60,9 @@ public:
 	tport_t* getTport() const {
 		return mCurrentTport;
 	}
-	~DomainRegistration();
 
 private:
+	// Private types
 	struct uuid_t {
 		unsigned int time_low;
 		unsigned short time_mid;
@@ -68,35 +72,37 @@ private:
 		unsigned char node[6];
 	};
 
+	// Private methods
 	void setContact(msg_t* msg);
-	int getExpires(nta_outgoing_t* orq, const sip_t* response);
+	std::chrono::seconds getExpires(nta_outgoing_t* orq, const sip_t* response);
 	static void sOnConnectionBroken(tp_stack_t* stack, tp_client_t* client, tport_t* tport, msg_t* msg, int error);
 	static int sLegCallback(nta_leg_magic_t* ctx, nta_leg_t* leg, nta_incoming_t* incoming, const sip_t* request);
 	static int sResponseCallback(nta_outgoing_magic_t* ctx, nta_outgoing_t* orq, const sip_t* resp);
-	static void sRefreshRegistration(su_root_magic_t* magic, su_timer_t* timer, su_timer_arg_t* arg);
 	void responseCallback(nta_outgoing_t* orq, const sip_t* resp);
 	void onConnectionBroken(tport_t* tport, msg_t* msg, int error);
 	void setCurrentTport(tport_t* tport);
 	void cleanCurrentTport();
 	void sendRequest();
 	int generateUuid(const std::string& uniqueId);
+
+	// Private attributes
 	DomainRegistrationManager& mManager;
-	StatCounter64* mRegistrationStatus; // This contains the latest SIP response code of the REGISTER transaction.
-	su_home_t mHome;
-	nta_leg_t* mLeg;
-	tport_t* mPrimaryTport; // the tport that has the configuration
-	tport_t* mCurrentTport; // the secondary tport that has the active connection.
-	int mPendId;
-	su_timer_t* mTimer;
-	url_t* mFrom;
-	std::string mPassword;
-	url_t* mProxy;
-	sip_contact_t* mExternalContact;
-	std::string mUuid;
-	nta_outgoing_t* mOutgoing;
-	int mExpires = 600;
-	bool mLastResponseWas401 = false;
-	;
+	StatCounter64* mRegistrationStatus{
+	    nullptr}; // This contains the latest SIP response code of the REGISTER transaction.
+	sofiasip::Home mHome{};
+	nta_leg_t* mLeg{nullptr};
+	tport_t* mPrimaryTport{nullptr}; // the tport that has the configuration
+	tport_t* mCurrentTport{nullptr}; // the secondary tport that has the active connection.
+	int mPendId{0};
+	std::unique_ptr<sofiasip::Timer> mTimer{};
+	url_t* mFrom{nullptr};
+	std::string mPassword{};
+	url_t* mProxy{nullptr};
+	sip_contact_t* mExternalContact{nullptr};
+	std::string mUuid{};
+	nta_outgoing_t* mOutgoing{nullptr};
+	std::chrono::seconds mExpires{600};
+	bool mLastResponseWas401{false};
 };
 
 class DomainRegistrationManager : public LocalRegExpireListener,
@@ -104,8 +110,8 @@ class DomainRegistrationManager : public LocalRegExpireListener,
 	friend class DomainRegistration;
 
 public:
-	DomainRegistrationManager(Agent* agent);
-	int load(std::string passphrase);
+	explicit DomainRegistrationManager(Agent* agent);
+	int load(const std::string& passphrase);
 	/**
 	 * check is url is a local contact of any existing domain registration.
 	 */
@@ -115,11 +121,9 @@ public:
 	 * This is useful for setting correct Record-Routes for request arriving through these connections.
 	 **/
 	const url_t* getPublicUri(const tport_t* tport) const;
-	~DomainRegistrationManager();
+	~DomainRegistrationManager() override;
 
-	void onRegUpdated();
-
-	void onLocalRegExpireUpdated(unsigned int count);
+	void onLocalRegExpireUpdated(unsigned int count) override;
 
 	/**
 	 * Search for a DomainRegistration whose remote proxy matches destUrl, and return the tport_t it uses.
@@ -136,20 +140,15 @@ private:
 	Agent* mAgent{nullptr};
 	std::list<std::shared_ptr<DomainRegistration>> mRegistrations{};
 	int mNbRegistration{0};
-	su_timer_t* mTimer{nullptr};
+	std::unique_ptr<sofiasip::Timer> mTimer{};
 	std::list<std::string> mRegistrationList{};
 	GenericStruct* mDomainRegistrationArea{nullptr}; /*this is used to place statistics values*/
-	int mKeepaliveInterval{0};
+	std::chrono::seconds mKeepaliveInterval{0};
 	bool mVerifyServerCerts{false};
 	bool mRegisterWhenNeeded{false};
 	bool mDomainRegistrationsStarted{false};
 	bool mRelayRegsToDomains{false};
 	std::regex mRelayRegsToDomainsRegex{};
-
-	static void unregisterTimeout(su_root_magic_t* magic, su_timer_t* t, void* data) {
-		su_root_t* root = (su_root_t*)data;
-		su_root_break(root);
-	}
 };
 
 } // namespace flexisip

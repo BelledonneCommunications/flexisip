@@ -24,8 +24,10 @@
 
 using namespace std;
 using namespace std::chrono;
-using namespace flexisip;
 using namespace linphone;
+
+namespace flexisip {
+namespace tester {
 
 static void basicCall() {
 	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
@@ -186,3 +188,6 @@ static test_t tests[] = {
 
 test_suite_t fork_call_suite = {"Fork call context suite",        nullptr, nullptr, nullptr, nullptr,
                                 sizeof(tests) / sizeof(tests[0]), tests};
+
+} // namespace tester
+} // namespace flexisip

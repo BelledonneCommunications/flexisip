@@ -183,8 +183,8 @@ public:
 	bool isUs(const char* host, const char* port, bool check_aliases) const;
 	sip_via_t* getNextVia(sip_t* response);
 	const char* getServerString() const;
-	typedef void (*timerCallback)(void* unused, su_timer_t* t, void* data);
-	su_timer_t* createTimer(int milliseconds, timerCallback cb, void* data, bool repeating = true);
+	typedef void (*TimerCallback)(void* unused, su_timer_t* t, void* data);
+	su_timer_t* createTimer(int milliseconds, TimerCallback cb, void* data, bool repeating = true);
 	void stopTimer(su_timer_t* t);
 	void injectRequestEvent(std::shared_ptr<RequestSipEvent> ev);
 	void injectResponseEvent(std::shared_ptr<ResponseSipEvent> ev);

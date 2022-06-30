@@ -28,11 +28,14 @@
 #include "cli.hh"
 #include "service-server.hh"
 
+namespace flexisip {
+
+namespace tester {
 namespace b2buatester {
 class B2buaServer;
 }
+} // namespace tester
 
-namespace flexisip {
 namespace b2bua {
 class BridgedCallApplication {
 public:
@@ -63,7 +66,7 @@ constexpr auto configSection = "b2bua-server";
 class B2buaServer : public ServiceServer,
                     public std::enable_shared_from_this<B2buaServer>,
                     public linphone::CoreListener {
-	friend class b2buatester::B2buaServer;
+	friend class tester::b2buatester::B2buaServer;
 
 public:
 	B2buaServer(const std::shared_ptr<sofiasip::SuRoot>& root);

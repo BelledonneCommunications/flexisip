@@ -26,6 +26,9 @@
 #include "flexisip-config.h"
 #endif
 
+namespace flexisip {
+namespace tester {
+
 std::string bcTesterFile(const std::string& name) {
 	char* file = bc_tester_file(name.c_str());
 	std::string ret(file);
@@ -44,27 +47,6 @@ static int verbose_arg_func(const char* arg) {
 	bctbx_set_log_level(nullptr, BCTBX_LOG_DEBUG);
 	su_log_set_level(nullptr, 9);
 	return 0;
-}
-
-int main(int argc, char* argv[]) {
-	int ret;
-
-	flexisip_tester_init(NULL);
-
-	for (auto i = 1; i < argc; ++i) {
-		ret = bc_tester_parse_args(argc, argv, i);
-		if (ret > 0) {
-			i += ret - 1;
-			continue;
-		} else if (ret < 0) {
-			bc_tester_helper(argv[0], "");
-		}
-		return ret;
-	}
-
-	ret = bc_tester_start(argv[0]);
-	flexisip_tester_uninit();
-	return ret;
 }
 
 static void log_handler(int lev, const char* fmt, va_list args) {
@@ -102,7 +84,7 @@ void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_
 	bc_tester_add_suite(&conference_suite);
 #endif
 	bc_tester_add_suite(&extended_contact_suite);
-	bc_tester_add_suite(&fork_call_suite);
+	bc_tester_add_suite(&flexisip::tester::fork_call_suite);
 	bc_tester_add_suite(&fork_context_suite);
 	bc_tester_add_suite(&module_pushnitification_suite);
 #if ENABLE_UNIT_TESTS_PUSH_NOTIFICATION
@@ -114,10 +96,10 @@ void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_
 	bc_tester_add_suite(&flexisip::tester::threadPoolSuite);
 	bc_tester_add_suite(&tls_connection_suite);
 #if ENABLE_B2BUA
-	bc_tester_add_suite(&b2bua_suite);
+	bc_tester_add_suite(&flexisip::tester::b2bua_suite);
 #endif
 #ifdef ENABLE_UNIT_TESTS_MYSQL
-	bc_tester_add_suite(&fork_context_mysql_suite);
+	bc_tester_add_suite(&flexisip::tester::fork_context_mysql_suite);
 #endif
 	bc_tester_add_suite(&flexisip::tester::moduleInfoSuite);
 #if ENABLE_CONFERENCE && 0 // Remove '&& 0' when the 'Registration Event' suite is fixed.
@@ -127,4 +109,28 @@ void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_
 
 void flexisip_tester_uninit(void) {
 	bc_tester_uninit();
+}
+
+} // namespace tester
+} // namespace flexisip
+
+int main(int argc, char* argv[]) {
+	using namespace flexisip::tester;
+
+	flexisip_tester_init(nullptr);
+
+	for (auto i = 1; i < argc; ++i) {
+		auto ret = bc_tester_parse_args(argc, argv, i);
+		if (ret > 0) {
+			i += ret - 1;
+			continue;
+		} else if (ret < 0) {
+			bc_tester_helper(argv[0], "");
+		}
+		return ret;
+	}
+
+	auto ret = bc_tester_start(argv[0]);
+	flexisip_tester_uninit();
+	return ret;
 }

@@ -26,10 +26,12 @@
 
 #include "client-core.hh"
 
-using namespace flexisip;
 using namespace std;
 using namespace std::chrono;
 using namespace linphone;
+
+namespace flexisip {
+namespace tester {
 
 namespace {
 
@@ -451,3 +453,6 @@ std::shared_ptr<linphone::CallLog> CoreClient::getCallLog() const {
 	if (!current_call) return nullptr;
 	return current_call->getCallLog();
 }
+
+} // namespace tester
+} // namespace flexisip

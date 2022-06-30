@@ -27,6 +27,9 @@
 #include "linphone++/linphone.hh"
 #include "proxy-server.hh"
 
+namespace flexisip {
+namespace tester {
+
 struct AssertionResult {
 	const char* const file;
 	const int line;
@@ -127,3 +130,6 @@ public:
 		addCustomIterate([server] { server->getRoot()->step(std::chrono::milliseconds(1)); });
 	}
 };
+
+} // namespace tester
+} // namespace flexisip
