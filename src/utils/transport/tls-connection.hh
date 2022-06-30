@@ -24,9 +24,12 @@
 #include <condition_variable>
 #include <cstring>
 #include <vector>
+#include <thread>
 
 #include <openssl/ssl.h>
 #include <sofia-sip/su_wait.h>
+
+#include "../thread/must-finish-thread.hh"
 
 namespace flexisip {
 
@@ -188,6 +191,7 @@ private:
 	std::string mHost{}, mPort{};
 	bool mMustBeHttp2 = false;
 	std::chrono::milliseconds mTimeout{20000};
+	MustFinishThread mThread;
 };
 
 } // namespace flexisip

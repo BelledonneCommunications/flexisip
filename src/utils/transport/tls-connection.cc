@@ -98,7 +98,8 @@ TlsConnection::TlsConnection(
 }
 
 void TlsConnection::connectAsync(su_root_t& root, const function<void()>& onConnectCb) noexcept {
-	thread{[this, &root, onConnectCb]() { this->doConnectAsync(root, onConnectCb); }}.detach();
+	// SAFETY: The thread MUST NOT outlive `this`;
+	mThread = thread{[this, &root, onConnectCb]() { this->doConnectAsync(root, onConnectCb); }};
 }
 
 void TlsConnection::doConnectAsync(su_root_t& root, const function<void()>& onConnectCb) {

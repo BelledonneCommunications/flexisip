@@ -80,7 +80,7 @@ static void startPushTest(Client& client,
 	timer.run([&request, &beforePlus2, &timeout]() {
 		if (request->getState() == Request::State::Successful || request->getState() == Request::State::Failed) {
 			su_root_break(root);
-		} else if (beforePlus2 >= system_clock::now() && !timeout) {
+		} else if (beforePlus2 < system_clock::now() && !timeout) {
 			SLOGW << "Test without timeout did not update request state";
 			su_root_break(root);
 		}
