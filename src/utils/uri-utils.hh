@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <arpa/inet.h>
+
 #include <cstring>
 #include <string>
 
@@ -116,6 +118,16 @@ public:
 	 * a string ready to used as vaule of +sip.instance parameter.
 	 */
 	static std::string grToUniqueId(const std::string& gr) noexcept;
+
+	static bool isIpv4Address(const std::string& str) {
+		struct sockaddr_in sa;
+		return inet_pton(AF_INET, str.c_str(), &(sa.sin_addr)) != 0;
+	}
+
+	static bool isIpv6Address(const std::string& str) {
+		struct sockaddr_in6 sa;
+		return inet_pton(AF_INET6, str.c_str(), &(sa.sin6_addr)) != 0;
+	}
 
 private:
 	static std::string unescape(const char* str, size_t n) noexcept;

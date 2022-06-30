@@ -38,6 +38,7 @@
 #include "domain-registrations.hh"
 #include "etchosts.hh"
 #include "plugin/plugin-loader.hh"
+#include "utils/uri-utils.hh"
 
 #define IPADDR_SIZE 64
 
@@ -687,7 +688,10 @@ string Agent::computeResolvedPublicIp(const string& host, int family) const {
 			LOGE("getnameinfo error: %s for host [%s]", gai_strerror(err), host.c_str());
 		}
 	} else {
-		LOGW("getaddrinfo error: %s for host [%s] and family=[%i]", gai_strerror(err), host.c_str(), family);
+		if (!((UriUtils::isIpv4Address(dest) && family != AF_INET) ||
+		      (UriUtils::isIpv6Address(dest) && family != AF_INET6))) {
+			LOGW("getaddrinfo error: %s for host [%s] and family=[%i]", gai_strerror(err), host.c_str(), family);
+		}
 	}
 	return "";
 }

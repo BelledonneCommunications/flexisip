@@ -52,6 +52,7 @@ add_executable(flexisip_tester
         tester.cc
         thread-pool-tester.cc
         tls-connection-tester.cc
+        utils-tester.cc
         utils/asserts.hh
         utils/bellesip-utils.cc utils/bellesip-utils.hh
         utils/client-core.cc utils/client-core.hh
