@@ -18,9 +18,7 @@ variables:
   # Docker image version
   ARCHLINUX_IMAGE_VERSION: 20220902_git_cve_fix
   CENTOS_7_IMAGE_VERSION: 20220902_git_cve_fix
-  CENTOS_8_IMAGE_VERSION: 20220902_git_cve_fix
   ROCKY_8_IMAGE_VERSION: 20220902_git_cve_fix
-  DEBIAN_9_IMAGE_VERSION: 20220902_git_cve_fix
   DEBIAN_10_IMAGE_VERSION: 20220902_git_cve_fix
   DEBIAN_11_IMAGE_VERSION: 20220902_git_cve_fix
   UBUNTU_18_04_IMAGE_VERSION: 20220902_git_cve_fix
@@ -45,9 +43,7 @@ include:
   - '.gitlab-ci-files/job-linux.yml'
   - '.gitlab-ci-files/job-linux-archlinux.yml'
   - '.gitlab-ci-files/job-linux-centos7.yml'
-  - '.gitlab-ci-files/job-linux-centos8.yml'
   - '.gitlab-ci-files/job-linux-rocky8.yml'
-  - '.gitlab-ci-files/job-linux-debian9.yml'
   - '.gitlab-ci-files/job-linux-debian10.yml'
   - '.gitlab-ci-files/job-linux-debian11.yml'
   - '.gitlab-ci-files/job-linux-ubuntu-18-04.yml'
