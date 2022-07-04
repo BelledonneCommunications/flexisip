@@ -21,7 +21,6 @@ variables:
   DEBIAN_10_IMAGE_VERSION: 20220613_remove_entrypoint
   DEBIAN_11_IMAGE_VERSION: 20220613_remove_entrypoint
   UBUNTU_18_04_IMAGE_VERSION: 20210624_packaging
-  UBUNTU_ROLLING_IMAGE_VERSION: 20210624_packaging
 
 #https://docs.gitlab.com/ee/ci/yaml/index.html#workflow
 workflow:
