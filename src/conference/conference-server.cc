@@ -84,7 +84,7 @@ void ConferenceServer::_init() {
 	mCore->addListener(shared_from_this());
 	mCore->enableConferenceServer(true);
 	mCore->setTransports(cTransport);
-	mCore->enableLimeX3Dh(true);
+	mCore->enableLimeX3Dh(config->get<ConfigBoolean>("enable-lime")->read());
 
 	loadFactoryUris();
 	bool defaultProxyConfigSet = false;
@@ -311,6 +311,7 @@ ConferenceServer::Init::Init() {
 	     " in order to indicate whether they support group chat and secured group chat.",
 	     "true"},
 	    {Boolean, "enable-one-to-one-chat-room", "Whether one-to-one chat room creation is allowed or not.", "true"},
+	    {Boolean, "enable-lime", "Whether lime is enabled or not.", "false"},
 	    config_item_end};
 
 	auto uS = make_unique<GenericStruct>(
