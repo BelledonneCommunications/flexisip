@@ -109,7 +109,8 @@ class InternalClient {
 	std::shared_ptr<linphone::Address> toInternal(std::shared_ptr<linphone::Address>&& external) const;
 
 public:
-	template <typename... _Args> InternalClient(_Args&&... __args) : client(std::forward<_Args>(__args)...) {
+	template <typename... _Args>
+	InternalClient(_Args&&... __args) : client(std::forward<_Args>(__args)...) {
 	}
 
 	std::shared_ptr<linphone::Call> invite(const ExternalClient& external) const;
@@ -130,7 +131,8 @@ class ExternalClient {
 public:
 	ExternalClient(CoreClient&& client) : client(std::move(client)) {
 	}
-	template <typename... _Args> ExternalClient(_Args&&... __args) : client(std::forward<_Args>(__args)...) {
+	template <typename... _Args>
+	ExternalClient(_Args&&... __args) : client(std::forward<_Args>(__args)...) {
 	}
 
 	auto hasReceivedCallFrom(const InternalClient& internal) const {
@@ -698,7 +700,6 @@ static void sdes2sdes256(bool video) {
 		BC_ASSERT_TRUE(sdes256->getCore()->getCurrentCall()->getCurrentParams()->getSrtpSuites().front() ==
 		               linphone::SrtpSuite::AES256CMHMACSHA180);
 		sdes256gcm->endCurrentCall(sdes256);
-
 	}
 }
 

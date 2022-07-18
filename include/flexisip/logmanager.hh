@@ -40,7 +40,7 @@
 
 /*
  * These are the classic C-style logging macros.
-*/
+ */
 #define LOGD bctbx_debug
 #define LOGI bctbx_message
 #define LOGW bctbx_warning
@@ -52,14 +52,13 @@
 
 /*
  * These are the C++ logging macros, that can be used with << operator.
-*/
+ */
 #define SLOG(thelevel) BCTBX_SLOG(FLEXISIP_LOG_DOMAIN, thelevel)
 #define SLOGD SLOG(BCTBX_LOG_DEBUG)
 #define SLOGI SLOG(BCTBX_LOG_MESSAGE)
 #define SLOGW SLOG(BCTBX_LOG_WARNING)
 #define SLOGE SLOG(BCTBX_LOG_ERROR)
 #define SLOGUE BCTBX_SLOG(FLEXISIP_USER_ERRORS_LOG_DOMAIN, BCTBX_LOG_ERROR)
-
 
 namespace sofiasip {
 class MsgSip;
@@ -73,7 +72,7 @@ using MsgSip = sofiasip::MsgSip;
 
 /*
  * The LogManager is the main entry point to configure logs in Flexisip.
-*/
+ */
 class LogManager {
 public:
 	friend class SipLogContext;
@@ -159,7 +158,7 @@ public:
  * For now it just uses the MsgSip being processed by Flexisip.
  * This class should typically be instantiated on stack (not with new).
  * When it goes out of scope, it automatically clears the context with the LogManager.
-*/
+ */
 class SipLogContext : public LogContext {
 	friend class LogManager;
 
@@ -177,7 +176,7 @@ static BctbxLogLevel flexisip_sysLevelMin = BCTBX_LOG_ERROR;
 
 /*
  * We want LOGN to output all the time (in standard output or syslog): this is for startup notice.
-*/
+ */
 template <typename... Args>
 inline void LOGN(const char* format, const Args&... args) {
 	if (!flexisip::LogManager::get().syslogEnabled()) {
@@ -216,7 +215,7 @@ inline void LOGF(const char* format, const Args&... args) {
 /**
  * Remove and secure : warning - format string is not a string literal (potentially insecure)
  * While using a string with no arguments
-*/
+ */
 inline void LOGEN(const char* simpleLog) {
 	LOGEN("%s", simpleLog);
 }

@@ -25,10 +25,10 @@
 
 #include "flexisip/configmanager.hh"
 
-#include "service-server.hh"
 #include "cli.hh"
+#include "service-server.hh"
 
-namespace b2buatester{
+namespace b2buatester {
 class B2buaServer;
 }
 

@@ -16,7 +16,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-
 #include <bctoolbox/logging.h>
 
 #include <linphone++/linphone.hh>
@@ -41,20 +40,20 @@ static void basic() {
 
 	auto root = make_shared<sofiasip::SuRoot>();
 	shared_ptr<Agent> a = make_shared<Agent>(root);
-	Agent *agent = a->getAgent();
+	Agent* agent = a->getAgent();
 
-	GenericManager *cfg = GenericManager::get();
+	GenericManager* cfg = GenericManager::get();
 	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_regevent.conf"));
 	agent->loadConfig(cfg);
 
 	// Client initialisation
 
-	shared_ptr<Core> clientCore = Factory::get()->createCore("","", nullptr);
+	shared_ptr<Core> clientCore = Factory::get()->createCore("", "", nullptr);
 	clientCore->getConfig()->setString("storage", "backend", "sqlite3");
 	clientCore->getConfig()->setString("storage", "uri", ":memory:");
 
 	shared_ptr<Transports> clientTransport = Factory::get()->createTransports();
-	clientTransport->setTcpPort(rand() %0x0FFF + 1014);
+	clientTransport->setTcpPort(rand() % 0x0FFF + 1014);
 	clientCore->setTransports(clientTransport);
 	clientCore->start();
 
@@ -76,7 +75,7 @@ static void basic() {
 	regEventCore->getConfig()->setString("storage", "uri", ":memory:");
 
 	shared_ptr<Transports> regEventTransport = Factory::get()->createTransports();
-	int regEventPort = rand() %0x0FFF + 1014;
+	int regEventPort = rand() % 0x0FFF + 1014;
 	regEventTransport->setTcpPort(regEventPort);
 	regEventCore->setTransports(regEventTransport);
 	regEventCore->addListener(make_shared<flexisip::RegistrationEvent::Server>(root));
@@ -84,7 +83,7 @@ static void basic() {
 
 	// Conference Server
 
-	GenericStruct *gs = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
+	GenericStruct* gs = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
 	gs->get<ConfigString>("database-backend")->set("sqlite");
 	gs->get<ConfigString>("database-connection-string")->set(":memory:");
 	gs->get<ConfigString>("outbound-proxy")->set("sip:127.0.0.1:5060;transport=tcp");
@@ -99,16 +98,17 @@ static void basic() {
 
 	// Proxy configuration
 
-	GenericStruct *global = GenericManager::get()->getRoot()->get<GenericStruct>("global");
+	GenericStruct* global = GenericManager::get()->getRoot()->get<GenericStruct>("global");
 	global->get<ConfigStringList>("transports")->set("sip:127.0.0.1:5060;transport=tcp");
 
 	// Configure module regevent
 
-	GenericStruct *registrarConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
+	GenericStruct* registrarConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
 	registrarConf->get<ConfigStringList>("reg-domains")->set("sip.example.org");
 
-	GenericStruct *regEventConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::RegEvent");
-	regEventConf->get<ConfigString>("regevent-server")->set(string("sip:127.0.0.1:").append(to_string(regEventPort)).append(";transport=tcp"));
+	GenericStruct* regEventConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::RegEvent");
+	regEventConf->get<ConfigString>("regevent-server")
+	    ->set(string("sip:127.0.0.1:").append(to_string(regEventPort)).append(";transport=tcp"));
 
 	agent->start("", "");
 
@@ -121,10 +121,14 @@ static void basic() {
 
 	class BindListener : public ContactUpdateListener {
 	public:
-		void onRecordFound(const shared_ptr<Record> &r) override {}
-		void onError() override {}
-		void onInvalid() override {}
-		void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override {}
+		void onRecordFound(const shared_ptr<Record>& r) override {
+		}
+		void onError() override {
+		}
+		void onInvalid() override {
+		}
+		void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+		}
 	};
 
 	sofiasip::Home home;
@@ -144,20 +148,12 @@ static void basic() {
 	parameter.userAgent = "Linphone1 (Ubuntu) LinphoneCore";
 	parameter.withGruu = true;
 
-	auto participantContact = sip_contact_create(
-		home.home(),
-		(url_string_t *)participantFrom.c_str(),
-		string("+sip.instance=\"<f75b0df3-1836-4b83-b7f6-00e48842c9a7-ubuntu>\"").c_str(),
-		string("+org.linphone.specs=\"groupchat,lime\"").c_str(),
-		nullptr
-	);
+	auto participantContact =
+	    sip_contact_create(home.home(), (url_string_t*)participantFrom.c_str(),
+	                       string("+sip.instance=\"<f75b0df3-1836-4b83-b7f6-00e48842c9a7-ubuntu>\"").c_str(),
+	                       string("+org.linphone.specs=\"groupchat,lime\"").c_str(), nullptr);
 
-	RegistrarDb::get()->bind(
-		participantUrl,
-		participantContact,
-		parameter,
-		make_shared<BindListener>()
-	);
+	RegistrarDb::get()->bind(participantUrl, participantContact, parameter, make_shared<BindListener>());
 
 	string firstDeviceName = "RedHat";
 
@@ -168,17 +164,11 @@ static void basic() {
 	parameter2.withGruu = true;
 
 	RegistrarDb::get()->bind(
-		otherParticipantUrl,
-		sip_contact_create(
-			home.home(),
-			(url_string_t *)otherParticipantFrom.c_str(),
-			string("+sip.instance=\"<ab959409-7076-464e-85f8-7f8a84864618-redhat>\"").c_str(),
-			string("+org.linphone.specs=\"groupchat,lime\"").c_str(),
-			nullptr
-		),
-		parameter2,
-		make_shared<BindListener>()
-	);
+	    otherParticipantUrl,
+	    sip_contact_create(home.home(), (url_string_t*)otherParticipantFrom.c_str(),
+	                       string("+sip.instance=\"<ab959409-7076-464e-85f8-7f8a84864618-redhat>\"").c_str(),
+	                       string("+org.linphone.specs=\"groupchat,lime\"").c_str(), nullptr),
+	    parameter2, make_shared<BindListener>());
 
 	string lastDeviceName = "Debian";
 
@@ -189,16 +179,10 @@ static void basic() {
 	parameter3.withGruu = true;
 
 	RegistrarDb::get()->bind(
-		otherParticipantUrl,
-		sip_contact_create(
-			home.home(),
-			(url_string_t *)otherParticipantFrom.c_str(),
-			string("+sip.instance=\"<6d6ed907-dbd0-4dfc-abf8-6470310bc4ed-debian>\"").c_str(),
-			nullptr
-		),
-		parameter3,
-		make_shared<BindListener>()
-	);
+	    otherParticipantUrl,
+	    sip_contact_create(home.home(), (url_string_t*)otherParticipantFrom.c_str(),
+	                       string("+sip.instance=\"<6d6ed907-dbd0-4dfc-abf8-6470310bc4ed-debian>\"").c_str(), nullptr),
+	    parameter3, make_shared<BindListener>());
 
 	list<shared_ptr<Address>> participants;
 	participants.push_back(Factory::get()->createAddress(participantFrom));
@@ -206,18 +190,19 @@ static void basic() {
 
 	auto chatRoomParams = clientCore->createDefaultChatRoomParams();
 	chatRoomParams->enableGroup(true);
-	auto chatRoom = clientCore->createChatRoom(chatRoomParams, proxy->getContact(), "Chatroom with remote", participants);
+	auto chatRoom =
+	    clientCore->createChatRoom(chatRoomParams, proxy->getContact(), "Chatroom with remote", participants);
 
 	class RegEventAssert : public CoreAssert {
-	public :
+	public:
 		RegEventAssert(std::initializer_list<shared_ptr<linphone::Core>> cores, Agent* a) : CoreAssert(cores) {
 			addCustomIterate([a] { a->getRoot()->step(10ms); });
 		}
 	};
 
-	BC_ASSERT_TRUE(RegEventAssert({clientCore,regEventCore},agent).wait([chatRoom] {
+	BC_ASSERT_TRUE(RegEventAssert({clientCore, regEventCore}, agent).wait([chatRoom] {
 		int numberOfDevices = 0;
-		for (auto participant: chatRoom->getParticipants()) {
+		for (auto participant : chatRoom->getParticipants()) {
 			numberOfDevices += participant->getDevices().size();
 		}
 
@@ -239,25 +224,17 @@ static void basic() {
 	parameter4.userAgent = string("Linphone2 (").append(newDeviceName).append(") LinphoneCore");
 	parameter4.withGruu = true;
 
-	auto otherParticipantContact = sip_contact_create(
-		home.home(),
-		(url_string_t *)otherParticipantFrom.c_str(),
-		string("+sip.instance=\"<9db326ca-1ee5-400b-b7f1-d31086530a35-new-device>\"").c_str(),
-		string("+org.linphone.specs=\"groupchat,lime\"").c_str(),
-		nullptr
-	);
+	auto otherParticipantContact =
+	    sip_contact_create(home.home(), (url_string_t*)otherParticipantFrom.c_str(),
+	                       string("+sip.instance=\"<9db326ca-1ee5-400b-b7f1-d31086530a35-new-device>\"").c_str(),
+	                       string("+org.linphone.specs=\"groupchat,lime\"").c_str(), nullptr);
 
-	RegistrarDb::get()->bind(
-		otherParticipantUrl,
-		otherParticipantContact,
-		parameter4,
-		make_shared<BindListener>()
-	);
+	RegistrarDb::get()->bind(otherParticipantUrl, otherParticipantContact, parameter4, make_shared<BindListener>());
 	RegistrarDb::get()->publish(otherParticipantFrom.substr(4).c_str(), "");
 
-	BC_ASSERT_TRUE(RegEventAssert({clientCore,regEventCore},agent).wait([chatRoom] {
+	BC_ASSERT_TRUE(RegEventAssert({clientCore, regEventCore}, agent).wait([chatRoom] {
 		int numberOfDevices = 0;
-		for (auto participant: chatRoom->getParticipants()) {
+		for (auto participant : chatRoom->getParticipants()) {
 			numberOfDevices += participant->getDevices().size();
 		}
 
@@ -275,17 +252,12 @@ static void basic() {
 	parameter4.globalExpire = 0;
 	parameter4.callId = "random_id_necessary_to_bind_5";
 
-	RegistrarDb::get()->bind(
-		otherParticipantUrl,
-		otherParticipantContact,
-		parameter4,
-		make_shared<BindListener>()
-	);
+	RegistrarDb::get()->bind(otherParticipantUrl, otherParticipantContact, parameter4, make_shared<BindListener>());
 	RegistrarDb::get()->publish(otherParticipantFrom.substr(4).c_str(), "");
 
-	BC_ASSERT_TRUE(RegEventAssert({clientCore,regEventCore},agent).wait([chatRoom] {
+	BC_ASSERT_TRUE(RegEventAssert({clientCore, regEventCore}, agent).wait([chatRoom] {
 		int numberOfDevices = 0;
-		for (auto participant: chatRoom->getParticipants()) {
+		for (auto participant : chatRoom->getParticipants()) {
 			numberOfDevices += participant->getDevices().size();
 		}
 
@@ -305,17 +277,12 @@ static void basic() {
 	parameter.globalExpire = 0;
 	parameter.callId = "random_id_necessary_to_bind_6";
 
-	RegistrarDb::get()->bind(
-		participantUrl,
-		participantContact,
-		parameter,
-		make_shared<BindListener>()
-	);
+	RegistrarDb::get()->bind(participantUrl, participantContact, parameter, make_shared<BindListener>());
 	RegistrarDb::get()->publish(participantFrom.substr(4).c_str(), "");
 
-	BC_ASSERT_TRUE(RegEventAssert({clientCore,regEventCore},agent).wait([chatRoom] {
+	BC_ASSERT_TRUE(RegEventAssert({clientCore, regEventCore}, agent).wait([chatRoom] {
 		int numberOfDevices = 0;
-		for (auto participant: chatRoom->getParticipants()) {
+		for (auto participant : chatRoom->getParticipants()) {
 			numberOfDevices += participant->getDevices().size();
 		}
 
@@ -339,27 +306,21 @@ static void basic() {
 	parameterReBind.userAgent = "Linphone1 (Ubuntu) LinphoneCore";
 	parameterReBind.withGruu = true;
 
-	auto participantReBindContact = sip_contact_create(
-		home.home(),
-		(url_string_t *)participantRebindFrom.c_str(),
-		string("+sip.instance=\"<f75b0df3-1836-4b83-b7f6-00e48842c9a7-re-ubuntu>\"").c_str(),
-		string("+org.linphone.specs=\"groupchat,lime\"").c_str(),
-		nullptr
-	);
+	auto participantReBindContact =
+	    sip_contact_create(home.home(), (url_string_t*)participantRebindFrom.c_str(),
+	                       string("+sip.instance=\"<f75b0df3-1836-4b83-b7f6-00e48842c9a7-re-ubuntu>\"").c_str(),
+	                       string("+org.linphone.specs=\"groupchat,lime\"").c_str(), nullptr);
 
-	RegistrarDb::get()->bind(
-		participantRebindUrl,
-		participantReBindContact,
-		parameterReBind,
-		make_shared<BindListener>()
-	);
+	RegistrarDb::get()->bind(participantRebindUrl, participantReBindContact, parameterReBind,
+	                         make_shared<BindListener>());
 
-	shared_ptr<linphone::Address> reBindParticipant = linphone::Factory::get()->createAddress(participantRebindFrom.c_str());
+	shared_ptr<linphone::Address> reBindParticipant =
+	    linphone::Factory::get()->createAddress(participantRebindFrom.c_str());
 	chatRoom->addParticipant(reBindParticipant);
 
-	BC_ASSERT_TRUE(RegEventAssert({clientCore,regEventCore},agent).wait([chatRoom] {
+	BC_ASSERT_TRUE(RegEventAssert({clientCore, regEventCore}, agent).wait([chatRoom] {
 		int numberOfDevices = 0;
-		for (auto participant: chatRoom->getParticipants()) {
+		for (auto participant : chatRoom->getParticipants()) {
 			numberOfDevices += participant->getDevices().size();
 		}
 
@@ -376,15 +337,8 @@ static void basic() {
 }
 
 static test_t tests[] = {
-	TEST_NO_TAG("Basic sub", basic),
+    TEST_NO_TAG("Basic sub", basic),
 };
 
 test_suite_t registration_event_suite = {
-	"Registration Event",
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	sizeof(tests) / sizeof(tests[0]),
-	tests
-};
+    "Registration Event", NULL, NULL, NULL, NULL, sizeof(tests) / sizeof(tests[0]), tests};

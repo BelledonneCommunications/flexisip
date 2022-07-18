@@ -293,7 +293,8 @@ std::shared_ptr<linphone::Call> CoreClient::call(const CoreClient& callee,
                                                  const std::shared_ptr<linphone::CallParams>& callerCallParams,
                                                  const std::shared_ptr<linphone::CallParams>& calleeCallParams,
                                                  const std::vector<std::shared_ptr<CoreClient>>& calleeIdleDevices) {
-	return call(callee, callee.getAccount()->getContactAddress(), callerCallParams, calleeCallParams, calleeIdleDevices);
+	return call(callee, callee.getAccount()->getContactAddress(), callerCallParams, calleeCallParams,
+	            calleeIdleDevices);
 }
 
 std::shared_ptr<linphone::Call> CoreClient::call(const std::shared_ptr<CoreClient>& callee,

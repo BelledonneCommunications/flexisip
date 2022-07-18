@@ -27,7 +27,7 @@ class CoreClient;
 
 /**
  * CoreClient builder.
- * 
+ *
  * Use the `registerTo` method to finish building the client
  */
 class ClientBuilder {

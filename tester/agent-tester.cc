@@ -111,8 +111,8 @@ public:
 		}
 
 		std::string mHost{"localhost"}; /**< Listening address of the Agent */
-		std::string mPort{"6060"}; /**< Listening port of the Agent */
-		std::string mProtoName; /**< String that describe the protocol used for the test ('TCP' or 'TLS'). */
+		std::string mPort{"6060"};      /**< Listening port of the Agent */
+		std::string mProtoName;         /**< String that describe the protocol used for the test ('TCP' or 'TLS'). */
 	};
 
 	/**

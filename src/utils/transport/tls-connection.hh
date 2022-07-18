@@ -139,7 +139,8 @@ public:
 		return result.size();
 	}
 
-	template <typename ContinuousContainer> int write(const ContinuousContainer& data) noexcept {
+	template <typename ContinuousContainer>
+	int write(const ContinuousContainer& data) noexcept {
 		return write(data.data(), data.size());
 	}
 	int write(const char* cStr) noexcept {
