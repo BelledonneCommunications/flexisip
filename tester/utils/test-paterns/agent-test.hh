@@ -64,10 +64,7 @@ protected:
 	 */
 	template <typename Duration>
 	void waitFor(Duration timeout) noexcept {
-		using namespace std::chrono;
-		for (auto now = steady_clock::now(), end = now + timeout; now < end; now = steady_clock::now()) {
-			mRoot->step(end - now);
-		}
+		waitFor([]() { return false; }, timeout);
 	}
 
 	/**

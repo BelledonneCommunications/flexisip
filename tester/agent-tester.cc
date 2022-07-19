@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,7 +20,10 @@
 
 #include <bctoolbox/tester.h>
 
+#include <sofia-sip/msg_buffer.h>
+
 #include "tester.hh"
+#include "utils/string-utils.hh"
 #include "utils/test-paterns/agent-test.hh"
 #include "utils/transport/tls-connection.hh"
 
@@ -90,10 +93,13 @@ public:
 			return mHost;
 		}
 		const std::string& getPort() const noexcept {
-			return mHost;
+			return mPort;
 		}
 		const std::string& getProtoName() const noexcept {
 			return mProtoName;
+		}
+		auto useOutbound() const noexcept {
+			return mUseOutbound;
 		}
 
 		/**
@@ -103,7 +109,11 @@ public:
 		/**
 		 * Configure the agent. It is usually used to populate the 'transport=' line.
 		 */
-		virtual void configureAgent(GenericManager& cfg) = 0;
+		virtual void configureAgent(GenericManager& cfg) {
+			auto registrarCfg = cfg.getRoot()->get<GenericStruct>("module::Registrar");
+			registrarCfg->get<ConfigValue>("enabled")->set("true");
+			registrarCfg->get<ConfigValue>("reg-domains")->set("sip.example.org");
+		}
 
 	protected:
 		template <typename T>
@@ -113,6 +123,7 @@ public:
 		std::string mHost{"localhost"}; /**< Listening address of the Agent */
 		std::string mPort{"6060"};      /**< Listening port of the Agent */
 		std::string mProtoName;         /**< String that describe the protocol used for the test ('TCP' or 'TLS'). */
+		bool mUseOutbound{true};        /**< Place 'Supported: outbound' header in the REGISTER request. */
 	};
 
 	/**
@@ -127,6 +138,7 @@ public:
 			return make_unique<TlsConnection>(mHost, mPort, "", "");
 		}
 		void configureAgent(GenericManager& cfg) override {
+			Config::configureAgent(cfg);
 			ostringstream transport{};
 			transport << "sip:" << mHost << ":" << mPort << ";transport=tcp";
 			auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
@@ -143,6 +155,7 @@ public:
 			return make_unique<TlsConnection>(mHost, mPort);
 		}
 		void configureAgent(GenericManager& cfg) override {
+			Config::configureAgent(cfg);
 			ostringstream transport{};
 			transport << "sips:" << mHost << ":" << mPort;
 
@@ -203,6 +216,7 @@ public:
 			return make_unique<TlsConnection>(mHost, mPort, "", "");
 		}
 		void configureAgent(GenericManager& cfg) override {
+			Config::configureAgent(cfg);
 			ostringstream transport{};
 			transport << "sip:" << mHost << ":" << mPort << ";transport=tcp";
 			auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
@@ -211,6 +225,17 @@ public:
 			auto* clusterCfg = cfg.getRoot()->get<GenericStruct>("cluster");
 			clusterCfg->get<ConfigValue>("enabled")->set("true");
 			clusterCfg->get<ConfigValue>("internal-transport")->set(transport.str());
+		}
+	};
+
+	/**
+	 * Config to test that no PONG is sent by the proxy if the client hasn't declared to
+	 * support 'outbound' feature.
+	 */
+	class OutboundNotSupported : public TcpConfig {
+	public:
+		OutboundNotSupported() {
+			mUseOutbound = false;
 		}
 	};
 
@@ -234,6 +259,9 @@ private:
 		conn->connectAsync(*mRoot->getCPtr(), [&conn, &connected]() { connected = conn->isConnected(); });
 		BC_HARD_ASSERT_TRUE(waitFor([&connected]() { return connected; }, 1s));
 
+		SLOGD << "Send register to the agent and wait for successful response";
+		doRegistration(*conn);
+
 		SLOGD << "Sending double CRLF";
 		BC_HARD_ASSERT_TRUE(conn->write("\r\n\r\n") > 0);
 
@@ -247,7 +275,60 @@ private:
 			}
 			return false;
 		};
-		BC_HARD_ASSERT_TRUE(waitFor(pongReceived, 1s));
+		if (mConfig->useOutbound()) {
+			BC_HARD_ASSERT_TRUE(waitFor(pongReceived, 1s));
+		} else {
+			BC_HARD_ASSERT_FALSE(waitFor(pongReceived, 1s));
+		}
+	}
+
+	void doRegistration(TlsConnection& conn) {
+		auto localPort = conn.getLocalPort();
+		const auto& protoName = mConfig->getProtoName();
+		auto transport = StringUtils::toLower(mConfig->getProtoName());
+		auto supportedHeader = mConfig->useOutbound() ? "Supported: outbound\r\n" : "";
+
+		ostringstream reqStream{};
+		reqStream << "REGISTER sip:localhost:" << mConfig->getPort() << ";transport=" << transport << " SIP/2.0\r\n"
+		          << "Via: SIP/2.0/" << protoName << " localhost:" << localPort
+		          << ";rport;branch=z9hG4bKg75aK9eUg15NS\r\n"
+		          << "Max-Forwards: 70\r\n"
+		          << "From: sip:user@sip.example.org;tag=5Nm3000eSje9a\r\n"
+		          << "To: sip:user@sip.example.org\r\n"
+		          << "Call-ID: 50573f6b-7d6d-123b-5b92-04d4c4159ac6\r\n"
+		          << "CSeq: 966679804 REGISTER\r\n"
+		          << "Contact: <sip:user@localhost:" << localPort << ">;transport=" << transport
+		          << ";+sip.instance=\"<urn:uuid:61643831-6465-4037-a135-356537616633>\"\r\n"
+		          << "Expires: 600\r\n"
+		          << supportedHeader << "Content-Length: 0\r\n"
+		          << "\r\n";
+		auto req = reqStream.str();
+
+		SLOGD << "Sending request:\n" << req;
+		auto nwritten = conn.write(req);
+		BC_HARD_ASSERT_TRUE(nwritten == static_cast<int>(req.size()));
+
+		constexpr auto bufSize = 1024;
+		std::unique_ptr<msg_t, void (*)(msg_t*)> msg{msg_create(sip_default_mclass(), 0), msg_unref};
+		auto buf = msg_buf_alloc(msg.get(), bufSize);
+		auto responseReceived = waitFor(
+		    [&msg, &buf, &conn]() {
+			    auto nread = conn.read(buf, bufSize);
+			    BC_HARD_ASSERT_TRUE(nread >= 0);
+			    if (nread > 0) {
+				    msg_buf_commit(msg.get(), nread, 1);
+				    return true;
+			    }
+			    return false;
+		    },
+		    1s);
+		BC_HARD_ASSERT_TRUE(responseReceived);
+		BC_HARD_ASSERT_TRUE(msg_extract(msg.get()) > 0);
+
+		auto sip = reinterpret_cast<sip_t*>(msg_object(msg.get()));
+		BC_HARD_ASSERT_TRUE(sip->sip_status != nullptr);
+		BC_HARD_ASSERT_TRUE(sip->sip_status->st_status == 200);
+		BC_HARD_ASSERT_TRUE(sip->sip_cseq->cs_method == sip_method_register);
 	}
 
 	// Private attributes
@@ -269,6 +350,7 @@ using TCP = RFC5626KeepAliveWithCRLFBase::TcpConfig;
 using NewTLS = RFC5626KeepAliveWithCRLFBase::NewTlsConfig;
 using LegacyTLS = RFC5626KeepAliveWithCRLFBase::LegacyTlsConfig;
 using InternalTransport = RFC5626KeepAliveWithCRLFBase::InternalTransportConfig;
+using OutboundNotSupported = RFC5626KeepAliveWithCRLFBase::OutboundNotSupported;
 
 static test_t tests[] = {
     TEST_NO_TAG("Transports loading from conf and isUs method testing", run<TransportsAndIsUsTest>),
@@ -276,7 +358,9 @@ static test_t tests[] = {
     TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) on TLS", run<RFC5626KeepAliveWithCRLF<NewTLS>>),
     TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) on TLS (legacy parameters)", run<RFC5626KeepAliveWithCRLF<LegacyTLS>>),
     TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) on the internal transport",
-                run<RFC5626KeepAliveWithCRLF<InternalTransport>>)};
+                run<RFC5626KeepAliveWithCRLF<InternalTransport>>),
+    TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) - no PONG if 'outbound' not supported",
+                run<RFC5626KeepAliveWithCRLF<OutboundNotSupported>>)};
 
 test_suite_t agentSuite = {
     "Agent unit tests", nullptr, nullptr, nullptr, nullptr, sizeof(tests) / sizeof(tests[0]), tests};

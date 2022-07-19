@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 Belledonne Communications SARL
+ * Copyright (C) 2010-2022 Belledonne Communications SARL
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

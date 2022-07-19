@@ -29,18 +29,23 @@ set(TESTER_DATA_DIR "${CMAKE_INSTALL_PREFIX}/share/flexisip-tester")
 find_program(REDIS_SERVER_EXEC NAMES redis-server REQUIRED)
 configure_file(flexisip-tester-config.hh.in flexisip-tester-config.hh)
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
 
 add_executable(flexisip_tester
         agent-tester.cc
         boolean-expressions.cc
         cli-tester.cc
+        domain-registration-tester.cc
         extended-contact-tester.cc
+        ${CMAKE_CURRENT_BINARY_DIR}/flexisip-tester-config.hh flexisip-tester-config.hh.in
         fork-call-tester.cc
         fork-context-tester.cc
         fork-context-mysql-tester.cc
-        module-pushnotification-tester.cc
         module-info-tester.cc
+        module-pushnotification-tester.cc
         register-tester.cc
         registrardb-tester.cc
         router-tester.cc
@@ -48,14 +53,17 @@ add_executable(flexisip_tester
         thread-pool-tester.cc
         tls-connection-tester.cc
         utils/asserts.hh
-        utils/bellesip-utils.cc
-        utils/listening-socket.cc
-        utils/redis-server.cc
-        utils/tcp-server.cc
-        utils/tls-server.cc
-        utils/client-core.cc
-        utils/proxy-server.cc
-        )
+        utils/bellesip-utils.cc utils/bellesip-utils.hh
+        utils/client-core.cc utils/client-core.hh
+        utils/listening-socket.cc utils/listening-socket.hh
+        utils/proxy-server.cc utils/proxy-server.hh
+        utils/proxy-server-process.cc utils/proxy-server-process.hh
+        utils/redis-server.cc utils/redis-server.hh
+        utils/tcp-server.cc utils/tcp-server.hh
+        utils/test-paterns/agent-test.hh
+        utils/test-paterns/test.hh
+        utils/tls-server.cc utils/tls-server.hh
+)
 
 if (ENABLE_CONFERENCE)
     target_sources(flexisip_tester PRIVATE registration-event-tester.cc)

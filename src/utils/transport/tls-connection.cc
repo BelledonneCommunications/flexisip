@@ -1,6 +1,6 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+ Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
@@ -192,6 +192,25 @@ int TlsConnection::getFd() const noexcept {
 		return -1;
 	}
 	return getFd(*mBio);
+}
+
+std::uint16_t TlsConnection::getLocalPort() const {
+	auto fd = getFd();
+	if (fd <= 0) return 0;
+	struct sockaddr addr {};
+	socklen_t addrLen{sizeof(addr)};
+	if (getsockname(fd, &addr, &addrLen) < 0) {
+		throw system_error{errno, system_category()};
+	}
+	if (addr.sa_family == AF_INET6) {
+		auto in6Addr = reinterpret_cast<sockaddr_in6*>(&addr);
+		return ntohs(in6Addr->sin6_port);
+	} else if (addr.sa_family == AF_INET) {
+		auto inAddr = reinterpret_cast<sockaddr_in*>(&addr);
+		return ntohs(inAddr->sin_port);
+	} else {
+		throw logic_error{string{"invalid address family ["} + to_string(addr.sa_family) + "]"};
+	}
 }
 
 int TlsConnection::getFd(BIO& bio) {

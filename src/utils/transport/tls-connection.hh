@@ -1,6 +1,6 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+ Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
@@ -91,6 +91,12 @@ public:
 		return mBio.get();
 	}
 	int getFd() const noexcept;
+	/**
+	 * @brief Return the local port which has been attributed while connection.
+	 * @return The local port or 0 if isConnected() == false.
+	 * @throw std::system_error if the socket name couldn't be fetched.
+	 */
+	std::uint16_t getLocalPort() const;
 
 	int read(std::vector<char>& data, int readSize) noexcept {
 		data.resize(readSize);

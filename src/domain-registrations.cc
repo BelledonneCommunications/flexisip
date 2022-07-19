@@ -95,9 +95,18 @@ DomainRegistrationManager::DomainRegistrationManager(Agent* agent) : mAgent(agen
 	     "Disabling this option is only for test, because it is a security flaw",
 	     "true"},
 	    {Integer, "keepalive-interval",
-	     "Interval in seconds for sending \\r\\n\\r\\n keepalives throug the outgoing domain registration connection."
+	     "Interval in seconds for sending \\r\\n\\r\\n keepalives through the outgoing domain registration connection."
 	     "A value of zero disables keepalives.",
 	     "30"},
+	    {Integer, "ping-pong-timeout-delay",
+	     "Delay in milliseconds after which TCP/TLS connections will be considered as broken if no CRLF pong has been"
+	     "received from the remote peer. A delay of 0 means that no pong is expected after ping.\n"
+	     "Warning: This parameter must be strictly lower than “keepalive-interval”.",
+	     "0"},
+	    {Integer, "reconnection-delay",
+	     "Delay in seconds before creating a new connection after connection is known as broken. Set '0' in order the "
+		 "connection be recreated immediately.",
+	     "5"},
 	    {Boolean, "reg-when-needed",
 	     "Whether Flexisip shall only send a domain registration when a device is registered", "false"},
 	    {Boolean, "relay-reg-to-domains",
@@ -146,7 +155,18 @@ int DomainRegistrationManager::load(const string& passphrase) {
 	configFile = domainRegistrationCfg->get<ConfigString>("domain-registrations")->read();
 
 	mVerifyServerCerts = domainRegistrationCfg->get<ConfigBoolean>("verify-server-certs")->read();
-	mKeepaliveInterval = chrono::seconds{domainRegistrationCfg->get<ConfigInt>("keepalive-interval")->read()};
+
+	auto keepAliveIntervalCfg = domainRegistrationCfg->get<ConfigInt>("keepalive-interval");
+	auto pingPongTimeoutDelayCfg = domainRegistrationCfg->get<ConfigInt>("ping-pong-timeout-delay");
+	auto reconnectionDelayCfg = domainRegistrationCfg->get<ConfigInt>("reconnection-delay");
+	mKeepaliveInterval = chrono::seconds{keepAliveIntervalCfg->read()};
+	mPingPongTimeoutDelay = chrono::milliseconds{pingPongTimeoutDelayCfg->read()};
+	if (mPingPongTimeoutDelay >= mKeepaliveInterval) {
+		LOGF("'%s' value [%ums] must be strictly lower than '%s' [%us]",
+		     pingPongTimeoutDelayCfg->getCompleteName().c_str(), static_cast<unsigned>(mPingPongTimeoutDelay.count()),
+		     keepAliveIntervalCfg->getCompleteName().c_str(), static_cast<unsigned>(mKeepaliveInterval.count()));
+	}
+	mReconnectionDelay = chrono::seconds{reconnectionDelayCfg->read()};
 
 	mRegisterWhenNeeded = domainRegistrationCfg->get<ConfigBoolean>("reg-when-needed")->read();
 
@@ -205,17 +225,17 @@ int DomainRegistrationManager::load(const string& passphrase) {
 			url.removeParam("tls-certificates-private-key");
 			url.removeParam("tls-certificates-ca-file");
 		}
-		auto dr =
-		    make_shared<DomainRegistration>(*this, domain, url, password, clientTlsConf, passphrase.c_str(), lineIndex);
-		lineIndex++;
-		mRegistrations.push_back(dr);
+		addDomainRegistration(
+		    make_shared<DomainRegistration>(*this, domain, url, password, clientTlsConf, passphrase, lineIndex++));
 	} while (!ifs.eof() && !ifs.bad());
 
 	if (mRegisterWhenNeeded) {
 		mDomainRegistrationsStarted = false;
 		RegistrarDb::get()->subscribeLocalRegExpire(this);
 	} else {
-		for_each(mRegistrations.begin(), mRegistrations.end(), mem_fn(&DomainRegistration::start));
+		for (const auto& reg : mRegistrations) {
+			reg->start();
+		}
 	}
 
 	return 0;
@@ -385,7 +405,8 @@ std::chrono::seconds DomainRegistration::getExpires(nta_outgoing_t* orq, const s
 }
 
 void DomainRegistration::onConnectionBroken(tport_t* tport, msg_t* msg, int error) {
-	constexpr std::chrono::seconds nextSchedule{5};
+	using namespace std::chrono;
+
 	// restart registration...
 	if (tport == mCurrentTport) {
 		/* Cleanup current tport here, to force creation of a new one upon next registraion attempt */
@@ -393,13 +414,14 @@ void DomainRegistration::onConnectionBroken(tport_t* tport, msg_t* msg, int erro
 		cleanCurrentTport();
 	}
 
+	const auto& nextSchedule = mManager.mReconnectionDelay;
 	mTimer.reset(); // Cancel the old timer
 	mTimer = make_unique<sofiasip::Timer>(mManager.mAgent->getRoot(), 0);
-	SLOGD << "Scheduling next domain register refresh for " << mFrom->url_host << " in " << nextSchedule.count()
-	      << " seconds";
+	SLOGD << "Scheduling next domain register refresh for " << mFrom->url_host << " in "
+	      << duration_cast<seconds>(nextSchedule).count() << " seconds";
 	mTimer->set([this]() { this->sendRequest(); }, nextSchedule);
-	SLOGD << "DomainRegistration::onConnectionBroken(), restarting registration in " << nextSchedule.count()
-	      << " seconds";
+	SLOGD << "DomainRegistration::onConnectionBroken(), restarting registration in "
+	      << duration_cast<seconds>(nextSchedule).count() << " seconds";
 	mRegistrationStatus->set(503);
 }
 
@@ -560,16 +582,16 @@ int DomainRegistration::generateUuid(const string& uniqueId) {
 }
 
 void DomainRegistration::sendRequest() {
-	msg_t* msg;
 	/* Re-use current transport, whenever possible */
-	tport_t* tport = mCurrentTport ? mCurrentTport : mPrimaryTport;
+	auto tport = mCurrentTport ? mCurrentTport : mPrimaryTport;
 
 	mTimer.reset();
 
-	msg = nta_msg_create(mManager.mAgent->getSofiaAgent(), 0);
+	auto msg = nta_msg_create(mManager.mAgent->getSofiaAgent(), 0);
 	if (nta_msg_request_complete(msg, mLeg, sip_method_register, nullptr, (url_string_t*)mProxy) != 0) {
 		LOGE("nta_msg_request_complete() failed");
 	}
+	auto sip = sip_object(msg);
 	msg_header_insert(msg, msg_object(msg), (msg_header_t*)sip_expires_create(msg_home(msg), mExpires.count()));
 
 	if (mOutgoing) {
@@ -585,7 +607,6 @@ void DomainRegistration::sendRequest() {
 				auth_client_t* aucs = nullptr;
 				auc_challenge(&aucs, msg_home(msg), respSip->sip_www_authenticate, sip_authorization_class);
 				auc_all_credentials(&aucs, "DIGEST", realm, user, pwd);
-				sip_t* sip = sip_object(msg);
 				auc_authorization_headers(&aucs, msg_home(msg), "REGISTER", (url_t*)sip->sip_request->rq_url,
 				                          sip->sip_payload, &authHeaders);
 				msg_header_insert(msg, msg_object(msg), authHeaders);
@@ -594,12 +615,13 @@ void DomainRegistration::sendRequest() {
 		}
 	}
 	setContact(msg);
+	msg_header_insert(msg, msg_object(msg),
+	                  reinterpret_cast<msg_header_t*>(sip_supported_make(msg_home(msg), "outbound")));
 	sip_complete_message(msg);
 	msg_serialize(msg, msg_object(msg));
-	su_home_t home;
-	su_home_init(&home);
-	LOGD("Domain registration about to be sent:\n%s", msg_as_string(&home, msg, msg_object(msg), 0, nullptr));
-	su_home_deinit(&home);
+
+	LOGD("Domain registration about to be sent:\n%s",
+	     msg_as_string(sofiasip::Home{}.home(), msg, msg_object(msg), 0, nullptr));
 
 	if (mOutgoing) {
 		nta_outgoing_destroy(mOutgoing);
@@ -621,10 +643,17 @@ void DomainRegistration::setCurrentTport(tport_t* tport) {
 
 	if (!tport) return;
 	if (mCurrentTport == tport) return;
+
+	/*
+	 * We cast the duration here because SofiaSip requires that those be express in milliseconds. Thus, the code
+	 * won't be broken if we change the type of mKeepaliveInterval or mPingPongTimeoutDelay.
+	 */
 	auto keepAliveInterval = duration_cast<milliseconds>(mManager.mKeepaliveInterval);
+	auto pingPongTimeoutDelay = duration_cast<milliseconds>(mManager.mPingPongTimeoutDelay);
 	cleanCurrentTport();
 	mCurrentTport = tport;
-	tport_set_params(tport, TPTAG_SDWN_ERROR(1), TPTAG_KEEPALIVE(keepAliveInterval.count()), TAG_END());
+	tport_set_params(tport, TPTAG_SDWN_ERROR(1), TPTAG_KEEPALIVE(keepAliveInterval.count()),
+	                 TPTAG_PINGPONG(pingPongTimeoutDelay.count()), TAG_END());
 	mPendId = tport_pend(tport, nullptr, &DomainRegistration::sOnConnectionBroken, (tp_client_t*)this);
 }
 

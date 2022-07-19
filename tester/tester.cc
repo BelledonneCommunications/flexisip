@@ -102,6 +102,7 @@ void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_
 	bc_tester_add_suite(&flexisip::tester::fork_context_mysql_suite);
 #endif
 	bc_tester_add_suite(&flexisip::tester::moduleInfoSuite);
+	bc_tester_add_suite(&flexisip::tester::domain_registration_suite);
 #if ENABLE_CONFERENCE && 0 // Remove '&& 0' when the 'Registration Event' suite is fixed.
 	bc_tester_add_suite(&registration_event_suite);
 #endif

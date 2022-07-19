@@ -60,6 +60,9 @@ public:
 	tport_t* getTport() const {
 		return mCurrentTport;
 	}
+	StatCounter64* getRegistrationStatus() const noexcept {
+		return mRegistrationStatus;
+	}
 
 private:
 	// Private types
@@ -111,7 +114,23 @@ class DomainRegistrationManager : public LocalRegExpireListener,
 
 public:
 	explicit DomainRegistrationManager(Agent* agent);
+	~DomainRegistrationManager() override;
+
 	int load(const std::string& passphrase);
+
+	template <typename DomainRegistrationPtr>
+	void addDomainRegistration(DomainRegistrationPtr&& dr) noexcept {
+		mRegistrations.emplace_back(std::forward<DomainRegistrationPtr>(dr));
+	}
+
+	auto getReconnectionDelay() const noexcept {
+		return mReconnectionDelay;
+	}
+
+	auto getRegistrationCount() const noexcept {
+		return mNbRegistration;
+	}
+
 	/**
 	 * check is url is a local contact of any existing domain registration.
 	 */
@@ -121,7 +140,6 @@ public:
 	 * This is useful for setting correct Record-Routes for request arriving through these connections.
 	 **/
 	const url_t* getPublicUri(const tport_t* tport) const;
-	~DomainRegistrationManager() override;
 
 	void onLocalRegExpireUpdated(unsigned int count) override;
 
@@ -144,6 +162,8 @@ private:
 	std::list<std::string> mRegistrationList{};
 	GenericStruct* mDomainRegistrationArea{nullptr}; /*this is used to place statistics values*/
 	std::chrono::seconds mKeepaliveInterval{0};
+	std::chrono::milliseconds mPingPongTimeoutDelay{0};
+	std::chrono::seconds mReconnectionDelay{0};
 	bool mVerifyServerCerts{false};
 	bool mRegisterWhenNeeded{false};
 	bool mDomainRegistrationsStarted{false};

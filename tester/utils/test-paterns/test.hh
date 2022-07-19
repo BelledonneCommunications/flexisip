@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <sstream>
 #include <stdexcept>
 #include <thread>
 #include <type_traits>
@@ -36,6 +37,7 @@ inline void bc_hard_assert(const char* file, int line, int predicate, const char
 
 #define BC_HARD_ASSERT_TRUE(value) bc_hard_assert(__FILE__, __LINE__, (value), "BC_HARD_ASSERT_TRUE(" #value ")")
 #define BC_HARD_ASSERT_FALSE(value) bc_hard_assert(__FILE__, __LINE__, !(value), "BC_HARD_ASSERT_FALSE(" #value ")")
+#define BC_HARD_FAIL(msg) bc_hard_assert(__FILE__, __LINE__, 0, msg)
 
 // Interface for all the classes which are to be executed as unit test.
 // The test is executed by calling () operator.
@@ -72,6 +74,10 @@ void run() noexcept {
 		TestT test{};
 		test();
 	} catch (const TestAssertFailedException&) {
+	} catch (const std::runtime_error& e) {
+		std::ostringstream msg{};
+		msg << "runtime_error exception: " << e.what();
+		bc_assert(__FILE__, __LINE__, 0, msg.str().c_str());
 	}
 };
 

@@ -17,6 +17,7 @@
 */
 
 #pragma once
+
 #include "../tester.hh"
 
 namespace flexisip {
@@ -26,11 +27,22 @@ namespace tester {
  * A class to manage the flexisip proxy server
  */
 class Server {
-private:
-	std::shared_ptr<sofiasip::SuRoot> mRoot;
-	std::shared_ptr<flexisip::Agent> mAgent;
-
 public:
+	/**
+	 * @brief Create a SofiaSip root, an Agent and load the config file given as parameter.
+	 * @param[in] configFile The path to the config file. Search for it in the resource directory
+	 * and TESTER_DATA_DIR. An empty path will cause the Agent to use its default configuration.
+	 */
+	explicit Server(const std::string& configFile = "");
+	/**
+	 * @brief Same as before but use a map instead of a file to configure the agent.
+	 * @param config Agent configuration as a map. The key is the name of the paramter
+	 * to change (e.g. 'module::Registrar/reg-domains') and the value is the new
+	 * value of the parameter as string.
+	 */
+	explicit Server(const std::map<std::string, std::string>& config);
+	virtual ~Server();
+
 	// Accessors
 	const std::shared_ptr<sofiasip::SuRoot>& getRoot() noexcept {
 		return mRoot;
@@ -40,19 +52,21 @@ public:
 		return mAgent;
 	}
 
+	/**
+	 * @brief Start the Agent.
+	 */
 	virtual void start() {
 		mAgent->start("", "");
 	}
 
+	/**
+	 * @brief Run the main loop for a given time.
+	 */
 	void runFor(std::chrono::milliseconds duration);
 
-	/**
-	 * Create the sofiasip root, the Agent and load the config file given as parameter
-	 *
-	 * @param[in] configFile	The path to config file. Search for it in the resource directory and TESTER_DATA_DIR
-	 */
-	Server(const std::string& configFile = std::string());
-	virtual ~Server();
+private:
+	std::shared_ptr<sofiasip::SuRoot> mRoot{std::make_shared<sofiasip::SuRoot>()};
+	std::shared_ptr<flexisip::Agent> mAgent{std::make_shared<Agent>(mRoot)};
 }; // Class Server
 
 } // namespace tester

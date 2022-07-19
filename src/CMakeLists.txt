@@ -114,6 +114,7 @@ add_library(flexisip SHARED
         uac-register.cc uac-register.hh
         conditional-routes.cc conditional-routes.hh
         utils/digest.cc utils/digest.hh
+        utils/rand.cc utils/rand.hh
         utils/sip-uri.cc
         utils/string-formater.cc utils/string-formater.hh
         utils/string-utils.cc utils/string-utils.hh
@@ -290,7 +291,7 @@ if (ENABLE_CONFERENCE)
     list(APPEND XML_SOURCES
             xml/reginfo.cc
             xml/reginfo.hh
-            )
+    )
 endif ()
 if (ENABLE_B2BUA)
     include(${CMAKE_SOURCE_DIR}/src/jsoncpp.cmake)

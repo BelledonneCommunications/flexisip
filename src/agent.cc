@@ -350,7 +350,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 				    TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()), TPTAG_TLS_CIPHERS(ciphers.c_str()),
 				    TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
 				    TPTAG_TIMEOUT(incompleteIncomingMessageTimeout), TPTAG_KEEPALIVE(keepAliveInterval),
-				    TPTAG_SDWN_ERROR(1), TPTAG_QUEUESIZE(queueSize), TPTAG_PONG2PING(1), TAG_END());
+				    TPTAG_SDWN_ERROR(1), TPTAG_QUEUESIZE(queueSize), TAG_END());
 			} else {
 				finalTlsConfigInfo.certifFile = absolutePath(currDir, finalTlsConfigInfo.certifFile);
 				finalTlsConfigInfo.certifPrivateKey = absolutePath(currDir, finalTlsConfigInfo.certifPrivateKey);
@@ -364,13 +364,13 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 				                          TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
 				                          TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
 				                          TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1),
-				                          TPTAG_QUEUESIZE(queueSize), TPTAG_PONG2PING(1), TAG_END());
+				                          TPTAG_QUEUESIZE(queueSize), TAG_END());
 			}
 		} else {
 			err =
 			    nta_agent_add_tport(mAgent, (const url_string_t*)url.get(), TPTAG_IDLE(tports_idle_timeout),
 			                        TPTAG_TIMEOUT(incompleteIncomingMessageTimeout), TPTAG_KEEPALIVE(keepAliveInterval),
-			                        TPTAG_SDWN_ERROR(1), TPTAG_QUEUESIZE(queueSize), TPTAG_PONG2PING(1), TAG_END());
+			                        TPTAG_SDWN_ERROR(1), TPTAG_QUEUESIZE(queueSize), TAG_END());
 		}
 		if (err == -1) {
 			const auto transport = url.getParam("transport");
@@ -388,7 +388,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 		if (nta_agent_add_tport(mAgent, (const url_string_t*)mPreferredRouteV4, TPTAG_IDLE(tports_idle_timeout),
 		                        TPTAG_TIMEOUT(incompleteIncomingMessageTimeout), TPTAG_IDENT(sInternalTransportIdent),
 		                        TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_QUEUESIZE(queueSize), TPTAG_SDWN_ERROR(1),
-		                        TPTAG_PONG2PING(1), TAG_END()) == -1) {
+		                        TAG_END()) == -1) {
 			char prefRouteV4[266];
 			url_e(prefRouteV4, sizeof(prefRouteV4), mPreferredRouteV4);
 			LOGF("Could not enable internal transport %s: %s", prefRouteV4, strerror(errno));

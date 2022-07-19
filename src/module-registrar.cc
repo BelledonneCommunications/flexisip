@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2012 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -97,11 +97,20 @@ void OnRequestBindListener::onRecordFound(const shared_ptr<Record>& r) {
 	if (r) {
 		addEventLogRecordFound(mEv, mContact);
 		mModule->reply(mEv, 200, "Registration successful", r->getContacts(ms->getHome(), now));
-
 		if (mContact) {
 			string uid = Record::extractUniqueId(mContact);
 			string topic = mModule->routingKey(mSipFrom->a_url);
 			RegistrarDb::get()->publish(topic, uid);
+		}
+		/*
+		 * Tell SofiaSip to reply to CRLF pings only if
+		 * the 'outbound' extension is supported by the client.
+		 */
+		auto sip = mEv->getMsgSip()->getSip();
+		if (sip_has_supported(sip->sip_supported, "outbound")) {
+			auto tport = mEv->getIncomingTport();
+			SLOGD << "Enable Pong2ping on IncomingTport[" << tport << "]";
+			tport_set_params(tport.get(), TPTAG_PONG2PING(1), TAG_END());
 		}
 	} else {
 		LOGE("OnRequestBindListener::onRecordFound(): Record is null");
