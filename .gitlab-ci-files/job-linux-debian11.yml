@@ -44,7 +44,7 @@ job-debian11-ninja-clang:
 #################################################
 
 job-debian11-xwiki-doc-deploy:
-  stage: build 🏗
+  stage: deploy 🚀
   tags: [ "docker" ]
   extends:
     - .rules-deploy  # ⚠ See `rules.yml`
