@@ -60,6 +60,7 @@ job-debian10-deb:
   extends:
     - .job-linux-deb
     - .debian10-image
+    - .rules-manual # ⚠ See `rules.yml`, override .job-linux-deb rules
 
 
 job-debian10-deb-deploy:

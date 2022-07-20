@@ -47,6 +47,7 @@ job-centos7-rpm:
   extends:
     - .job-linux-rpm
     - .centos7-image-variables-before
+    - .rules-manual # ⚠ See `rules.yml`, override .job-linux-rpm rules
 
 
 job-centos7-rpm-deploy:

@@ -43,6 +43,7 @@ job-centos8-rpm:
   extends:
     - .job-linux-rpm
     - .centos8-image-variables
+    - .rules-manual # ⚠ See `rules.yml`, override .job-linux-rpm rules
 
 job-centos8-rpm-deploy:
   extends: .job-rpm-deploy

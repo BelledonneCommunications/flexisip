@@ -4,7 +4,10 @@
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
+  GIT_SUBMODULE_UPDATE_FLAGS: --jobs 8
+
   CCACHE_SIZE: 2G
+
   # For build and test on Linux
   DEFAULT_CMAKE_OPTIONS: '-DCMAKE_BUILD_TYPE=Sanitizer'
   # For build on MacOS
@@ -31,7 +34,7 @@ workflow:
     - if: $CI_PIPELINE_SOURCE == "schedule"
 
 before_script:
-  - git submodule foreach --recursive git fetch --tags
+  - git submodule foreach --recursive git fetch --tags --force
 
 #################################################
 # Platforms to test
