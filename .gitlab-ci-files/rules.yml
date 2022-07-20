@@ -20,14 +20,19 @@
 #
 # This file MUST only contain hidden jobs (beginning with `.`) and these jobs MUST only contain a `rules` section
 
+# Jobs that always run with the default gitlab policy
+.rules-default:
+  rules:
+    - &otherwise-run  # Default gitlab policy that we have to explicitely add back
+      when: on_success
+
 # Jobs that always run, except for DEPLOY_ONLY pipelines.
 .rules-dev:
   rules:
     - &exclude-from-deploy
       if: $DEPLOY_ONLY
       when: never
-    - &otherwise-run  # Default gitlab policy that we have to explicitely add back
-      when: on_success
+    - *otherwise-run
 
 # Jobs that only run in NIGHTLY pipelines
 .rules-nightly:

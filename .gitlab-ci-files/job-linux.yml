@@ -54,7 +54,7 @@
   stage: package 📦
   tags: [ "docker" ]
   extends:
-    - .rules-dev  # ⚠ See `rules.yml`
+    - .rules-default  # ⚠ See `rules.yml`
   variables:
     CMAKE_GENERATOR: 'Ninja'
   script:
@@ -82,7 +82,7 @@
   stage: package 📦
   tags: [ "docker" ]
   extends:
-    - .rules-dev  # ⚠ See `rules.yml`
+    - .rules-default  # ⚠ See `rules.yml`
   variables:
     CMAKE_GENERATOR: 'Ninja'
   script:
