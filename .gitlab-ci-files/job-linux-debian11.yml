@@ -51,7 +51,7 @@ job-debian11-xwiki-doc-deploy:
     - .debian11-image
   script:
     - prefix=/opt/belledonne-communications
-    - builddir=build
+    - builddir=wikiBuild
     - sudo mkdir -p $prefix
     - sudo chown bc:bc $prefix
     - mkdir $builddir
