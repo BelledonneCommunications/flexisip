@@ -44,6 +44,7 @@ add_executable(flexisip_tester
         fork-call-tester.cc
         fork-context-tester.cc
         fork-context-mysql-tester.cc
+        module-dos-tester.cc
         module-info-tester.cc
         module-pushnotification-tester.cc
         register-tester.cc

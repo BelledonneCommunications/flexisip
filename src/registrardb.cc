@@ -1001,7 +1001,7 @@ RegistrarDb* RegistrarDb::initialize(Agent* ag) {
 		params.port = registrar->get<ConfigInt>("redis-server-port")->read();
 		params.timeout = registrar->get<ConfigInt>("redis-server-timeout")->read();
 		params.auth = registrar->get<ConfigString>("redis-auth-password")->read();
-		params.mSlaveCheckTimeout = registrar->get<ConfigInt>("redis-slave-check-period")->read();
+		params.mSlaveCheckTimeout = chrono::seconds{registrar->get<ConfigInt>("redis-slave-check-period")->read()};
 		params.useSlavesAsBackup = registrar->get<ConfigBoolean>("redis-use-slaves-as-backup")->read();
 
 		sUnique = make_unique<RegistrarDbRedisAsync>(ag, params);

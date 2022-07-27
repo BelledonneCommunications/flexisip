@@ -13,35 +13,34 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
 
-#include "request.hh"
-#include "service.hh"
+#include <string>
+
+#include "flexisip/dos/dos-executor/ban-executor.hh"
 
 namespace flexisip {
-namespace pushnotification {
 
-class Service;
+class IptablesExecutor : public BanExecutor {
 
-class Client {
 public:
-	Client(const Service* service = nullptr) : mService{service} {};
-	virtual ~Client() = default;
-	virtual void sendPush(const std::shared_ptr<Request>& req) = 0;
-	virtual bool isIdle() const noexcept = 0;
+	IptablesExecutor() = default;
 
-	virtual void setRequestTimeout(std::chrono::seconds requestTimeout){};
+	void checkConfig() override;
 
-protected:
-	void incrSentCounter();
-	void incrFailedCounter();
+	void onLoad(const flexisip::GenericStruct* dosModuleConfig) override;
+	void onUnload() override;
+	void banIP(const std::string& ip, const std::string& port, const std::string& protocol) override;
+	void unbanIP(const std::string& ip, const std::string& port, const std::string& protocol) override;
 
 private:
-	const Service* mService;
+	static int runIptables(const std::string& arguments, bool ipv6 = false, bool dumpErrors = true);
+
+	bool mIptablesSupportsWait = false;
+	std::string mFlexisipChain{};
 };
 
-} // namespace pushnotification
 } // namespace flexisip

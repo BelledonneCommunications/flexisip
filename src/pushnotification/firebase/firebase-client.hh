@@ -53,7 +53,7 @@ public:
 		mHttp2Client->enableInsecureTestMode();
 	}
 
-	void setRequestTimeout(unsigned requestTimeout) override {
+	void setRequestTimeout(std::chrono::seconds requestTimeout) override {
 		mHttp2Client->setRequestTimeout(requestTimeout);
 	}
 

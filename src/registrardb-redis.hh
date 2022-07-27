@@ -42,7 +42,7 @@ struct RedisParameters {
 	std::string auth{};
 	int port = 0;
 	int timeout = 0;
-	int mSlaveCheckTimeout = 0;
+	std::chrono::seconds mSlaveCheckTimeout{0};
 	bool useSlavesAsBackup = true;
 };
 

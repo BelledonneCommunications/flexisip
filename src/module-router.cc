@@ -154,8 +154,8 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 	mForkCfg->mForkLate = mc->get<ConfigBoolean>("fork-late")->read();
 	mForkCfg->mTreatAllErrorsAsUrgent = mc->get<ConfigBoolean>("treat-all-as-urgent")->read();
 	mForkCfg->mForkNoGlobalDecline = mc->get<ConfigBoolean>("fork-no-global-decline")->read();
-	mForkCfg->mUrgentTimeout = mc->get<ConfigInt>("call-fork-urgent-timeout")->read();
-	mForkCfg->mPushResponseTimeout = mc->get<ConfigInt>("call-push-response-timeout")->read();
+	mForkCfg->mUrgentTimeout = chrono::seconds{mc->get<ConfigInt>("call-fork-urgent-timeout")->read()};
+	mForkCfg->mPushResponseTimeout = chrono::seconds{mc->get<ConfigInt>("call-push-response-timeout")->read()};
 	mForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("call-fork-timeout")->read();
 	mForkCfg->mTreatDeclineAsUrgent = mc->get<ConfigBoolean>("treat-decline-as-urgent")->read();
 	mForkCfg->mCurrentBranchesTimeout = mc->get<ConfigInt>("call-fork-current-branches-timeout")->read();
@@ -166,7 +166,7 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 	mMessageForkCfg = make_shared<ForkContextConfig>();
 	mMessageForkCfg->mForkLate = mc->get<ConfigBoolean>("message-fork-late")->read();
 	mMessageForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("message-delivery-timeout")->read();
-	mMessageForkCfg->mUrgentTimeout = mc->get<ConfigInt>("message-accept-timeout")->read();
+	mMessageForkCfg->mUrgentTimeout = chrono::seconds{mc->get<ConfigInt>("message-accept-timeout")->read()};
 
 	// Forking configuration for other kind of requests.
 	mOtherForkCfg = make_shared<ForkContextConfig>();

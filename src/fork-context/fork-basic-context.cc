@@ -42,7 +42,7 @@ ForkBasicContext::ForkBasicContext(Agent* agent,
                                    const weak_ptr<StatPair>& counter)
     : ForkContextBase(agent, event, cfg, listener, counter) {
 	LOGD("New ForkBasicContext %p", this);
-	mDecisionTimer = make_unique<sofiasip::Timer>(mAgent->getRoot(), 20000);
+	mDecisionTimer = make_unique<sofiasip::Timer>(mAgent->getRoot(), 20s);
 	// start the acceptance timer immediately
 	mDecisionTimer->set([this]() { onDecisionTimer(); });
 }

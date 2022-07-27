@@ -140,7 +140,7 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, const shared_
 			if (best) logResponse(forwardResponse(best));
 		} else if (isUrgent(code, getUrgentCodes()) && mShortTimer == nullptr) {
 			mShortTimer = make_unique<sofiasip::Timer>(mAgent->getRoot());
-			mShortTimer->set([this]() { onShortTimer(); }, mCfg->mUrgentTimeout * 1000);
+			mShortTimer->set([this]() { onShortTimer(); }, mCfg->mUrgentTimeout);
 		} else if (code >= 600) {
 			/*6xx response are normally treated as global failures */
 			if (!mCfg->mForkNoGlobalDecline) {
@@ -186,9 +186,9 @@ void ForkCallContext::sendResponse(int code, char const* phrase, bool addToTag) 
 	}
 
 	mPushTimer.reset();
-	if (mCfg->mPushResponseTimeout > 0) {
+	if (mCfg->mPushResponseTimeout.count() > 0) {
 		mPushTimer = make_unique<sofiasip::Timer>(mAgent->getRoot());
-		mPushTimer->set([this]() { onPushTimer(); }, mCfg->mPushResponseTimeout * 1000);
+		mPushTimer->set([this]() { onPushTimer(); }, mCfg->mPushResponseTimeout);
 	}
 	forwardResponse(ev);
 }

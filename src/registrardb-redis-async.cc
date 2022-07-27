@@ -280,7 +280,7 @@ void RegistrarDbRedisAsync::tryReconnect() {
 
 	if (chrono::system_clock::now() - mLastReconnectRotation < 1s) {
 		if (!mReconnectTimer.get()) {
-			mReconnectTimer = make_unique<sofiasip::Timer>(mRoot, 1000);
+			mReconnectTimer = make_unique<sofiasip::Timer>(mRoot, 1s);
 			mReconnectTimer->set([this]() { onTryReconnectTimer(); });
 		}
 		return;
@@ -355,8 +355,8 @@ void RegistrarDbRedisAsync::handleReplicationInfoReply(const char* reply) {
 			SLOGW << "Unknown role '" << role << "'";
 		}
 		if (!mReplicationTimer.get()) {
-			SLOGD << "Creating replication timer with delay of " << mParams.mSlaveCheckTimeout << "s";
-			mReplicationTimer = make_unique<sofiasip::Timer>(mRoot, mParams.mSlaveCheckTimeout * 1000);
+			SLOGD << "Creating replication timer with delay of " << mParams.mSlaveCheckTimeout.count() << "s";
+			mReplicationTimer = make_unique<sofiasip::Timer>(mRoot, mParams.mSlaveCheckTimeout);
 			mReplicationTimer->run([this]() { onHandleInfoTimer(); });
 		}
 	} else {

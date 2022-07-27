@@ -13,35 +13,29 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
 
-#include "request.hh"
-#include "service.hh"
+#include <string>
+
+#include "flexisip/configmanager.hh"
 
 namespace flexisip {
-namespace pushnotification {
 
-class Service;
-
-class Client {
+/**
+ * You can implement this interface if you want to change the default ban actions (iptables) of ModuleDoSProtection.
+ */
+class BanExecutor {
 public:
-	Client(const Service* service = nullptr) : mService{service} {};
-	virtual ~Client() = default;
-	virtual void sendPush(const std::shared_ptr<Request>& req) = 0;
-	virtual bool isIdle() const noexcept = 0;
+	virtual ~BanExecutor() = default;
 
-	virtual void setRequestTimeout(std::chrono::seconds requestTimeout){};
-
-protected:
-	void incrSentCounter();
-	void incrFailedCounter();
-
-private:
-	const Service* mService;
+	virtual void checkConfig() = 0;
+	virtual void onLoad(const flexisip::GenericStruct* dosModuleConfig) = 0;
+	virtual void onUnload() = 0;
+	virtual void banIP(const std::string& ip, const std::string& port, const std::string& protocol) = 0;
+	virtual void unbanIP(const std::string& ip, const std::string& port, const std::string& protocol) = 0;
 };
 
-} // namespace pushnotification
 } // namespace flexisip

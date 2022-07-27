@@ -24,8 +24,8 @@ namespace flexisip {
 
 void ServiceServer::init() {
 	if (mRoot) {
-		mTimer = make_unique<sofiasip::Timer>(mRoot->getCPtr(), 10);
-		mTimer->setForEver([this](){
+		mTimer = make_unique<sofiasip::Timer>(mRoot->getCPtr(), 10ms);
+		mTimer->setForEver([this]() {
 			if (mStarted) {
 				_run();
 			}

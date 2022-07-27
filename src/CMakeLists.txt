@@ -42,6 +42,8 @@ add_library(flexisip SHARED
         configmanager.cc
         contact-masquerader.cc contact-masquerader.hh
         domain-registrations.cc domain-registrations.hh
+        dos/dos-executor/iptables-executor.cc dos/dos-executor/iptables-executor.hh
+        dos/module-dos.cc
         entryfilter.cc
         etchosts.cc etchosts.hh
         event.cc
@@ -60,7 +62,6 @@ add_library(flexisip SHARED
         module-auth.cc
         module-authentication-base.cc
         module-contact-route-inserter.cc
-        module-dos.cc
         module-forward.cc
         module-garbage-in.cc
         module-gatewayadapter.cc

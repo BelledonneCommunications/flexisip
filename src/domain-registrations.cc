@@ -416,7 +416,7 @@ void DomainRegistration::onConnectionBroken(tport_t* tport, msg_t* msg, int erro
 
 	const auto& nextSchedule = mManager.mReconnectionDelay;
 	mTimer.reset(); // Cancel the old timer
-	mTimer = make_unique<sofiasip::Timer>(mManager.mAgent->getRoot(), 0);
+	mTimer = make_unique<sofiasip::Timer>(mManager.mAgent->getRoot(), 0ms);
 	SLOGD << "Scheduling next domain register refresh for " << mFrom->url_host << " in "
 	      << duration_cast<seconds>(nextSchedule).count() << " seconds";
 	mTimer->set([this]() { this->sendRequest(); }, nextSchedule);
@@ -435,7 +435,7 @@ void DomainRegistration::responseCallback(nta_outgoing_t* orq, const sip_t* resp
 	sofiasip::Home home{};
 
 	mTimer.reset();
-	mTimer = make_unique<sofiasip::Timer>(mManager.mAgent->getRoot(), 0);
+	mTimer = make_unique<sofiasip::Timer>(mManager.mAgent->getRoot(), 0ms);
 	if (resp) {
 		msg_t* msg = nta_outgoing_getresponse(orq);
 		SLOGD << "DomainRegistration::responseCallback(): receiving response:" << endl

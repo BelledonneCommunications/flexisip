@@ -62,15 +62,15 @@ shared_ptr<ForkMessageContext> ForkMessageContext::make(Agent* agent,
 
 	shared->mExpirationDate = timegm(&forkFromDb.expirationDate);
 	const auto utcNow = time(nullptr);
-	auto timeout = difftime(shared->mExpirationDate, utcNow);
-	if (timeout < 0) timeout = 0;
+	auto timeout = duration<double>{difftime(shared->mExpirationDate, utcNow)};
+	if (timeout < 0s) timeout = 0s;
 	shared->mLateTimer.set(
 	    [weak = weak_ptr<ForkMessageContext>{shared}]() {
 		    if (auto sharedPtr = weak.lock()) {
 			    sharedPtr->processLateTimeout();
 		    }
 	    },
-	    timeout * 1000);
+	    timeout);
 
 	for (const auto& dbKey : forkFromDb.dbKeys) {
 		shared->addKey(dbKey);
@@ -96,7 +96,7 @@ ForkMessageContext::ForkMessageContext(Agent* agent,
 		if (mCfg->mForkLate && mCfg->mDeliveryTimeout > 30) {
 			mExpirationDate = system_clock::to_time_t(system_clock::now() + seconds(mCfg->mDeliveryTimeout));
 
-			mAcceptanceTimer = make_unique<sofiasip::Timer>(mAgent->getRoot(), mCfg->mUrgentTimeout * 1000);
+			mAcceptanceTimer = make_unique<sofiasip::Timer>(mAgent->getRoot(), mCfg->mUrgentTimeout);
 			mAcceptanceTimer->set([this]() { onAcceptanceTimer(); });
 		}
 		mDeliveredCount = 0;

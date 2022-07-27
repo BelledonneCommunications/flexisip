@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -24,20 +24,20 @@
 
 #include <sofia-sip/su_wait.h>
 
-#include "flexisip/sofia-wrapper/su-root.hh"
-
 namespace sofiasip {
+
+class SuRoot;
 
 /**
  * @brief Helping class for manipulating SofiaSip's timers.
-*/
+ */
 class Timer {
 public:
 	/**
 	 * @brief Callbacks that is called when the timer expires.
 	 */
 	using Func = std::function<void()>;
-	using milliseconds = std::chrono::duration<unsigned, std::milli>;
+	using NativeDuration = std::chrono::duration<su_duration_t, std::milli>;
 
 	/**
 	 * @brief Create a timer.
@@ -45,12 +45,19 @@ public:
 	 * @param[in] intervalMs Default timer expiration interval in milliseconds.
 	 * @throw std::logic_error if the timer couldn't been created.
 	 */
-	Timer(su_root_t* root, unsigned intervalMs = 0);
-	Timer(const std::shared_ptr<sofiasip::SuRoot>& root, unsigned intervalMs = 0) : Timer{root->getCPtr(), intervalMs} {
-	}
-	Timer(const std::shared_ptr<sofiasip::SuRoot>& root, milliseconds interval)
-	    : Timer{root->getCPtr(), interval.count()} {
-	}
+	explicit Timer(su_root_t* root, su_duration_t intervalMs = 0);
+
+	Timer(su_root_t* root, NativeDuration interval) : Timer{root, interval.count()} {};
+	template <typename Duration>
+	Timer(su_root_t* root, Duration interval) : Timer{root, std::chrono::duration_cast<NativeDuration>(interval)} {};
+
+	explicit Timer(const std::shared_ptr<sofiasip::SuRoot>& root, su_duration_t intervalMs = 0);
+
+	Timer(const std::shared_ptr<sofiasip::SuRoot>& root, NativeDuration interval);
+	template <typename Duration>
+	Timer(const std::shared_ptr<sofiasip::SuRoot>& root, Duration interval)
+	    : Timer{root, std::chrono::duration_cast<NativeDuration>(interval)} {};
+
 	~Timer();
 
 	/**
@@ -75,13 +82,17 @@ public:
 	 * @param[in] intervalMs The expiration time in ms.
 	 * @throw std::logic_error if the timer couldn't been set.
 	 */
-	void set(const Func& func, unsigned intervalMs);
+	void set(const Func& func, su_duration_t intervalMs);
 
 	/**
 	 * @brief Same as before, but using std::chrono for time interval.
 	 */
-	void set(const Func& func, milliseconds interval) {
+	void set(const Func& func, NativeDuration interval) {
 		set(func, interval.count());
+	}
+	template <typename Duration>
+	void set(const Func& func, Duration interval) {
+		set(func, std::chrono::duration_cast<NativeDuration>(interval));
 	}
 	/**
 	 * @brief Start the timer to be executed regularly.

@@ -74,6 +74,7 @@ extern test_suite_t b2bua_suite;
 extern test_suite_t domain_registration_suite;
 extern test_suite_t fork_call_suite;
 extern test_suite_t fork_context_mysql_suite;
+extern test_suite_t moduleDosSuite;
 extern test_suite_t moduleInfoSuite;
 extern test_suite_t registarDbSuite;
 extern test_suite_t threadPoolSuite;

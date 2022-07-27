@@ -285,15 +285,15 @@ void ForkMessageContextDbProxy::startTimerAndResetFork(time_t expirationDate, co
 	LOGD("ForkMessageContextDbProxy[%p] startTimerAndResetFork", this);
 	// We need to handle fork late timer in proxy object in case it expires while inner object is still in database.
 	const auto utcNow = time(nullptr);
-	auto timeout = difftime(expirationDate, utcNow);
-	if (timeout < 0) timeout = 0;
+	auto timeout = chrono::duration<double>{difftime(expirationDate, utcNow)};
+	if (timeout < 0s) timeout = 0s;
 	mProxyLateTimer.set(
 	    [weak = weak_ptr<ForkMessageContextDbProxy>{shared_from_this()}]() {
 		    if (auto shared = weak.lock()) {
 			    shared->onForkContextFinished(nullptr);
 		    }
 	    },
-	    (unsigned)timeout * 1000);
+	    timeout);
 
 	// If timer expire while ForkMessage is still in DB we need to keep track of keys to remove proxy from Fork list.
 	mSavedKeys = vector<string>{keys};

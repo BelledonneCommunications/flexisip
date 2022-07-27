@@ -145,7 +145,7 @@ void LogManager::initialize(const Parameters& params) {
 		bctbx_set_log_handler(logStub);
 	}
 	if (params.root) {
-		mTimer.reset(new sofiasip::Timer(params.root, 1000));
+		mTimer.reset(new sofiasip::Timer(params.root, 1000ms));
 		mTimer->run(bind(&LogManager::checkForReopening, this));
 	}
 }

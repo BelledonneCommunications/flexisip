@@ -403,7 +403,7 @@ void ForkContextBase::setFinished() {
 			    shared->onFinished();
 		    }
 	    },
-	    0);
+	    0ms);
 }
 
 bool ForkContextBase::shouldFinish() {

@@ -33,12 +33,15 @@ using namespace std;
 
 namespace flexisip {
 
+// Needed before c++17
+constexpr std::chrono::seconds Http2Client::mIdleTimeout;
+
 string Http2Client::BadStateError::formatWhatArg(State state) noexcept {
 	return string{"bad state ["} + to_string(unsigned(state)) + "]";
 }
 
 Http2Client::Http2Client(su_root_t& root, const string& host, const string& port)
-    : mRoot{root}, mIdleTimer{&root, sIdleTimeout * 1000} {
+    : mRoot{root}, mIdleTimer{&root, mIdleTimeout} {
 	mConn = make_unique<TlsConnection>(host, port, true);
 
 	ostringstream os{};
@@ -50,9 +53,9 @@ Http2Client::Http2Client(su_root_t& root, const string& host, const string& port
 	setState(State::Disconnected);
 }
 
-Http2Client::Http2Client(su_root_t& root, const string& host, const string& port, const string& trustStorePath,
-                         const string& certPath)
-    : mRoot{root}, mIdleTimer{&root, sIdleTimeout * 1000} {
+Http2Client::Http2Client(
+    su_root_t& root, const string& host, const string& port, const string& trustStorePath, const string& certPath)
+    : mRoot{root}, mIdleTimer{&root, mIdleTimeout} {
 	mConn = make_unique<TlsConnection>(host, port, trustStorePath, certPath, true);
 
 	ostringstream os{};

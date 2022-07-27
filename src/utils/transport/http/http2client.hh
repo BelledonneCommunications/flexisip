@@ -91,7 +91,7 @@ public:
 	 * work properly.
 	 * The new timeout is valid only for future requests.
 	 */
-	Http2Client& setRequestTimeout(unsigned requestTimeout) {
+	Http2Client& setRequestTimeout(std::chrono::seconds requestTimeout) {
 		this->mRequestTimeout = requestTimeout;
 		return *this;
 	}
@@ -175,12 +175,12 @@ private:
 	/**
 	 * Delay (in second) for one request timeout, default is 30. Must be inferior to Http2Client::sIdleTimeout.
 	 */
-	unsigned mRequestTimeout = 30;
+	std::chrono::seconds mRequestTimeout{30};
 
 	/**
 	 * Delay (in second) before the connection with the distant HTTP2 server is closed because of inactivity.
 	 */
-	static constexpr unsigned sIdleTimeout = 60;
+	constexpr static std::chrono::seconds mIdleTimeout{60};
 };
 
 class Http2Tools {

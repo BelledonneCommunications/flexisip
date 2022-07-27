@@ -33,9 +33,12 @@ public:
 	using OnResponseCb = std::function<void(const std::shared_ptr<HttpRequest>&, const std::shared_ptr<HttpResponse>&)>;
 	using OnErrorCb = std::function<void(const std::shared_ptr<HttpRequest>&)>;
 
-	HttpMessageContext(const std::shared_ptr<HttpRequest>& request, const OnResponseCb& onResponseCb,
-	                   const OnErrorCb& onErrorCb, su_root_t& root, const unsigned timeout)
-	    : mRequest{request}, mResponse{std::make_shared<HttpResponse>()}, mTimeoutTimer{&root, timeout * 1000},
+	HttpMessageContext(const std::shared_ptr<HttpRequest>& request,
+	                   const OnResponseCb& onResponseCb,
+	                   const OnErrorCb& onErrorCb,
+	                   su_root_t& root,
+	                   const std::chrono::milliseconds timeout)
+	    : mRequest{request}, mResponse{std::make_shared<HttpResponse>()}, mTimeoutTimer{&root, timeout},
 	      mOnResponseCb{onResponseCb}, mOnErrorCb{onErrorCb} {};
 
 	const OnErrorCb& getOnErrorCb() const {
