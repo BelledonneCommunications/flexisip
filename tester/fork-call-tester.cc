@@ -21,6 +21,8 @@
 #include "flexisip/module-router.hh"
 
 #include "utils/asserts.hh"
+#include "utils/client-core.hh"
+#include "utils/core-assert.hh"
 
 using namespace std;
 using namespace std::chrono;
@@ -93,10 +95,13 @@ static void callWithEarlyCancelCalleeOffline() {
 	// Callee idle device came back online, sending a new Register
 	calleeIdleClientCore->setNetworkReachable(true);
 	// Wait for registration OK and check that call log is not empty anymore
-	BC_ASSERT_TRUE(CoreAssert({calleeIdleClientCore}, server->getAgent()).wait([&calleeIdleClient] {
-		return calleeIdleClient.getAccount()->getState() == RegistrationState::Ok &&
-		       !calleeIdleClient.getCore()->getCallLogs().empty();
-	}));
+	CoreAssert({calleeIdleClientCore}, server->getAgent())
+	    .wait([&calleeIdleClient] {
+		    FAIL_IF(calleeIdleClient.getAccount()->getState() != RegistrationState::Ok);
+		    FAIL_IF(calleeIdleClient.getCore()->getCallLogs().empty());
+		    return ASSERTION_PASSED();
+	    })
+	    .assert_passed();
 
 	// Assert CANCEL is received
 	BC_ASSERT_TRUE(CoreAssert({calleeIdleClientCore}, server->getAgent()).wait([&calleeIdleClientCore] {
@@ -106,10 +111,12 @@ static void callWithEarlyCancelCalleeOffline() {
 	}));
 
 	// Assert Fork is destroyed
-	BC_ASSERT_TRUE(CoreAssert({calleeIdleClientCore}, server->getAgent()).wait([agent = server->getAgent()] {
-		const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
-		return moduleRouter->mStats.mCountCallForks->finish->read() == 1;
-	}));
+	CoreAssert({calleeIdleClientCore}, server->getAgent())
+	    .wait([&moduleRouter = *moduleRouter] {
+		    FAIL_IF(moduleRouter.mStats.mCountCallForks->finish->read() < 1);
+		    FAIL_IF(1 < moduleRouter.mStats.mCountCallForks->finish->read());
+		    return ASSERTION_PASSED();
+	    }).assert_passed();
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
 }
 

@@ -86,7 +86,7 @@ struct ExtendedContact {
 
 	const char *callId() const {return mCallId.c_str();}
 	const char *line() const {return mUniqueId.c_str();}
-	std::string contactId(){
+	std::string contactId() const {
 		// A contact identifies by its unique-id if given. Otherwise, it identifies thanks to its sip uri.
 		if (!mUniqueId.empty()) return mUniqueId;
 		return urlToString(mSipContact->m_url);

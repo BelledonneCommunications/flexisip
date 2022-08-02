@@ -23,6 +23,8 @@
 
 #include "utils/asserts.hh"
 #include "utils/bellesip-utils.hh"
+#include "utils/client-core.hh"
+#include "utils/core-assert.hh"
 
 using namespace std;
 using namespace std::chrono_literals;

@@ -27,8 +27,12 @@
 #include <sofia-sip/nta.h>
 #include <sofia-sip/sip.h>
 
+#include <bctoolbox/ownership.hh>
+
 #include "flexisip/event.hh"
 #include "flexisip/sofia-wrapper/home.hh"
+
+using namespace ownership;
 
 namespace flexisip {
 
@@ -162,15 +166,18 @@ public:
 private:
 	void
 	send(const std::shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) override;
-	void destroy();
+	/* Break self-reference on the next main loop iteration */
+	void queueFree();
 
 	static int _callback(nta_outgoing_magic_t* magic, nta_outgoing_t* irq, const sip_t* sip);
 
+	template <typename... Tags>
+	void _cancel(std::weak_ptr<BranchInfo>& branch, Tags... tags);
 	static int onCancelResponse(nta_outgoing_magic_t* magic, nta_outgoing_t* irq, const sip_t* sip);
 
 	sofiasip::Home mHome{};
-	nta_outgoing_t* mOutgoing{nullptr};
-	std::shared_ptr<OutgoingTransaction> mSofiaRef{};
+	Owned<nta_outgoing_t> mOutgoing{nullptr};
+	std::shared_ptr<OutgoingTransaction> mSelfRef{};
 	std::string mBranchId{};
 	std::weak_ptr<IncomingTransaction> mIncoming; // The incoming transaction from which the message comes from, if any.
 

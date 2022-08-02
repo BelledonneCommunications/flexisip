@@ -21,8 +21,10 @@
 #include <linphone/core.h>
 #include <mediastreamer2/mediastream.h>
 
-#include "asserts.hh"
 #include "flexisip/module-router.hh"
+
+#include "asserts.hh"
+#include "core-assert.hh"
 
 #include "client-core.hh"
 
@@ -131,6 +133,11 @@ ClientBuilder& ClientBuilder::setPassword(const std::string& password) {
 	if (!password.empty()) {
 		mCore->addAuthInfo(mFactory->createAuthInfo(mMe->getUsername(), "", password, "", "", mMe->getDomain()));
 	}
+	return *this;
+}
+
+ClientBuilder& ClientBuilder::setCustomContact(const std::string& contact) {
+	mAccountParams->setCustomContact(mCore->createAddress(contact));
 	return *this;
 }
 
@@ -437,10 +444,12 @@ void CoreClient::runFor(std::chrono::milliseconds duration) {
 	}
 }
 
-bool CoreClient::hasReceivedCallFrom(const CoreClient& peer) const {
+AssertionResult CoreClient::hasReceivedCallFrom(const CoreClient& peer) const {
 	return CoreAssert({mCore, peer.getCore()}, mServer->getAgent()).waitUntil(std::chrono::seconds(5), [this] {
 		const auto& current_call = mCore->getCurrentCall();
-		return current_call != nullptr && current_call->getState() == linphone::Call::State::IncomingReceived;
+		FAIL_IF(current_call == nullptr);
+		FAIL_IF(current_call->getState() != linphone::Call::State::IncomingReceived);
+		return ASSERTION_PASSED();
 	});
 }
 

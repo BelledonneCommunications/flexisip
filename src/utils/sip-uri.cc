@@ -106,7 +106,7 @@ bool Url::getBoolParam(const string& paramName, bool defaultValue) const {
 	return defaultValue;
 }
 
-bool Url::operator==(const Url & other) const {
+bool Url::compareAll(const Url& other) const {
 	return url_cmp_all(_url, other._url) == 0;
 }
 
@@ -188,7 +188,9 @@ void SipUri::checkUrl(const sofiasip::Url& url) {
 	const auto* pUrl = url.get();
 	if (pUrl == nullptr) return;
 	if (pUrl->url_scheme == nullptr) throw sofiasip::InvalidUrlError(url.str(), "no scheme found");
-	if (strcmp(pUrl->url_scheme, "sip") != 0 && strcmp(pUrl->url_scheme, "sips") != 0) {
+	std::string scheme = pUrl->url_scheme;
+	std::transform(scheme.begin(), scheme.end(), scheme.begin(), ::tolower);
+	if (scheme != "sip" && scheme != "sips") {
 		ostringstream os;
 		os << "invalid scheme (" << pUrl->url_scheme << ")";
 		throw sofiasip::InvalidUrlError(url.str(), os.str());
@@ -200,6 +202,198 @@ void SipUri::checkUrl(const sofiasip::Url& url) {
 	if (strchr(pUrl->url_host, '@') != nullptr) {
 		throw sofiasip::InvalidUrlError(url.str(), "forbidden '@' character found in host part");
 	}
+}
+
+SipUri::Params::Params(const char* c) {
+	if (!c) return;
+
+	auto value = std::string();
+	auto name = std::string();
+	auto* current = &name;
+	auto store = [&params = mParams, &value, &name] {
+		if (name.empty()) {
+			value.clear();
+			return;
+		}
+		params.emplace(std::move(name), std::move(value));
+	};
+	for (; *c; c++) {
+		switch (*c) {
+			case ';':
+				store();
+				current = &name;
+				break;
+			case '=':
+				current = &value;
+				break;
+			default:
+				current->push_back(std::tolower(*c));
+				break;
+		}
+	}
+	store();
+}
+
+bool SipUri::Params::operator==(const SipUri::Params& other) const {
+	// "A user, ttl, or method uri-parameter appearing in only one URI never matches, even if it contains the default
+	// value"
+	static const std::unordered_set<string> shouldBothHave = {"user", "ttl", "method"};
+
+	for (const auto& pair : mParams) {
+		const auto& name = pair.first;
+		std::string theirs;
+		try {
+			theirs = other.mParams.at(name);
+		} catch (const std::out_of_range& _) {
+			// "A URI that includes an maddr parameter will not match a URI that contains no maddr parameter."
+			if (shouldBothHave.count(name) || name == "maddr") return false;
+			// "All other uri-parameters appearing in only one URI are ignored when comparing the URIs."
+			continue;
+		}
+		if (theirs != pair.second) return false;
+	}
+	for (const auto& name : shouldBothHave) {
+		if (other.mParams.count(name) && !mParams.count(name)) return false;
+	}
+	return true;
+}
+
+SipUri::Headers::Headers(const char* c) {
+	if (!c) return;
+
+	enum Parsing { Name, Value };
+	enum Case { Sensitive, Insensitive, ForcedSensitive, ForcedInsensitive };
+
+	auto value = std::string();
+	auto name = std::string();
+	auto state = Parsing::Name;
+	auto store = [&headers = mHeaders, &value, &name] {
+		if (name.empty()) {
+			value.clear();
+			return;
+		}
+		headers.emplace(std::move(name), std::move(value));
+	};
+	// "Unless otherwise stated in the definition of a particular header field, field values,
+	// parameter names, and parameter values are case-insensitive."
+	auto caseSensitive = Case::Insensitive;
+	for (; *c; c++) {
+		switch (*c) {
+			case '&':
+				store();
+				state = Parsing::Name;
+				break;
+			case '=': {
+				switch (state) {
+					case Parsing::Name:
+						state = Parsing::Value;
+						caseSensitive = Case::Insensitive;
+						if (name == "call-id" || name == "i") {
+							name = "call-id";
+							caseSensitive = Case::ForcedSensitive;
+						} else if (name == "content-encoding" || name == "e") {
+							name = "content-encoding";
+							caseSensitive = Case::ForcedInsensitive;
+						} else if (name == "contact" || name == "m") {
+							name = "contact";
+							caseSensitive = Case::ForcedSensitive;
+						} else if (name == "from" || name == "f") {
+							name = "from";
+							caseSensitive = Case::ForcedSensitive;
+						} else if (name == "to" || name == "t") {
+							name = "to";
+							caseSensitive = Case::ForcedSensitive;
+						} else if (name == "via" || name == "v") {
+							name = "via";
+							caseSensitive = Case::ForcedSensitive;
+						} else if (name == "date") {
+							caseSensitive = Case::ForcedSensitive;
+						} else if (name == "content-length" || name == "l") {
+							name = "content-length";
+						} else if (name == "content-type" || name == "c") {
+							name = "content-type";
+						} else if (name == "subject" || name == "s") {
+							name = "subject";
+						} else if (name == "supported" || name == "k") {
+							name = "supported";
+						}
+						break;
+
+					case Parsing::Value:
+						value.push_back('=');
+						break;
+				}
+			} break;
+			default: {
+				switch (state) {
+					case Parsing::Name:
+						// "When comparing header fields, field names are always case-insensitive"
+						name.push_back(std::tolower(*c));
+						break;
+
+					case Parsing::Value: {
+						switch (caseSensitive) {
+							case Case::Insensitive:
+								// "Unless specified otherwise, values expressed as quoted strings are case-sensitive"
+								if (*c == '"') caseSensitive = Case::Sensitive;
+								/* fallthrough */
+							case Case::ForcedInsensitive:
+								value.push_back(std::tolower(*c));
+								break;
+
+							case Case::Sensitive:
+								if (*c == '"') caseSensitive = Case::Insensitive;
+								/* fallthrough */
+							case Case::ForcedSensitive:
+								value.push_back(*c);
+								break;
+						}
+					} break;
+				}
+			} break;
+		}
+	}
+	store();
+}
+
+bool SipUri::Headers::operator==(const SipUri::Headers& other) const {
+	// "Any present header component MUST be present in both URIs"
+	if (mHeaders.size() != other.mHeaders.size()) return false;
+
+	static const std::unordered_set<string> specialChecks = {"contact", "from", "to"};
+
+	for (const auto& pair : mHeaders) {
+		const auto& name = pair.first;
+		std::string theirs;
+		try {
+			theirs = other.mHeaders.at(name);
+		} catch (const std::out_of_range& _) {
+			return false;
+		}
+
+		if (specialChecks.count(name)) {
+			if (!SipUri(theirs).rfc3261Compare(SipUri(pair.second))) return false;
+		} else {
+			// TODO: Parse and handle Via properly
+			if (name == "via") SLOGW << "'Via' SIP Header comparison is not properly implemented";
+			if (theirs != pair.second) return false;
+		}
+	}
+
+	return true;
+}
+
+bool SipUri::rfc3261Compare(const url_t* other) const {
+	// Handles user, host, and port
+	if (url_cmp(_url, other) != 0) return false;
+
+	// uri-parameters
+	if (Params(_url->url_params) != other->url_params) return false;
+
+	// headers
+	if (Headers(_url->url_headers) != other->url_headers) return false;
+
+	return true;
 }
 
 } // namespace flexisip

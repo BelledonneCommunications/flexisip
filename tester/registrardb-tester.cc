@@ -188,7 +188,21 @@ protected:
 			BC_ASSERT_TRUE( listener->getRecord()->getExtendedContacts().size() == 1);
 			checkFetch(listener->getRecord());
 		}
-		
+
+		/* Add this contact again (duplicated, without unique id) */
+		listener->reset();
+		params.callId = "duplicate";
+		ct = sip_contact_create(home.home(), (url_string_t*)"sip:bobby@192.168.0.2;transport=tcp;new-param=added",
+		                        nullptr);
+		regDb->bind(from, ct, params, listener);
+		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
+		if (listener->getRecord()) {
+			auto contacts = listener->getRecord()->getExtendedContacts();
+			BC_ASSERT_TRUE(contacts.size() == 1);
+			BC_ASSERT_STRING_EQUAL(contacts.front()->mSipContact->m_url->url_params, "transport=tcp;new-param=added");
+			checkFetch(listener->getRecord());
+		}
+
 		/* Remove this contact with an expire parameter but with a different call-id */
 		listener->reset();
 		ct = sip_contact_create(home.home(), (url_string_t*)"sip:bobby@192.168.0.2;transport=tcp", "expires=0", nullptr);
@@ -199,7 +213,7 @@ protected:
 			BC_ASSERT_TRUE( listener->getRecord()->getExtendedContacts().size() == 0);
 			checkFetch(listener->getRecord());
 		}
-		
+
 		/* Add a contact with a unique id */
 		from = SipUri("sip:alice@example.net");
 		listener->reset();
@@ -207,7 +221,9 @@ protected:
 		regDb->bind(from, ct, params, listener);
 		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
 		if (listener->getRecord()) {
-			BC_ASSERT_TRUE( listener->getRecord()->getExtendedContacts().size() == 1);
+			auto contacts = listener->getRecord()->getExtendedContacts();
+			BC_ASSERT_TRUE(contacts.size() == 1);
+			BC_ASSERT_TRUE(contacts.front()->getUniqueId() == "\"<urn::uuid::abcd>\"");
 			checkFetch(listener->getRecord());
 		}
 		
@@ -223,8 +239,8 @@ protected:
 			}
 			checkFetch(listener->getRecord());
 		}
-		
 	}
+
 	// Protected methods
 	void onAgentConfiguration(GenericManager& cfg) override {
 		auto redisPort = mRedisServer.start();

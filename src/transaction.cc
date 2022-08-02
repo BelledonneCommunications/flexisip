@@ -62,6 +62,10 @@ OutgoingTransaction::OutgoingTransaction(Agent* agent) : Transaction{agent}, mBr
 
 OutgoingTransaction::~OutgoingTransaction() {
 	LOGD("Delete OutgoingTransaction %p", this);
+	auto outgoing = mOutgoing.take();
+	if (outgoing && !mAgent->mTerminating /* Transaction is already freed by sofia when agent is terminating */) {
+		nta_outgoing_destroy(outgoing);
+	}
 }
 
 const string& OutgoingTransaction::getBranchId() const {
@@ -71,30 +75,30 @@ su_home_t* OutgoingTransaction::getHome() {
 	return mHome.home();
 }
 
-void OutgoingTransaction::cancel(std::weak_ptr<BranchInfo> branch) {
+template <typename... Tags>
+void OutgoingTransaction::_cancel(std::weak_ptr<BranchInfo>& branch, Tags... tags) {
 	if (mOutgoing) {
 		// WARNING : magicWeak MUST be deleted in callback
-		auto* magicWeak = new weak_ptr<BranchInfo>(branch);
-		nta_outgoing_tcancel(mOutgoing, OutgoingTransaction::onCancelResponse, (nta_outgoing_magic_t*)magicWeak,
-		                     TAG_END());
+		auto magicWeak = make_unique<weak_ptr<BranchInfo>>(branch);
+		nta_outgoing_tcancel(mOutgoing.borrow(), OutgoingTransaction::onCancelResponse,
+		                     (nta_outgoing_magic_t*)magicWeak.release(), tags..., TAG_END());
+		mSelfRef.reset();
 	} else {
 		LOGE("OutgoingTransaction::cancel(): transaction already destroyed.");
 	}
+}
+
+void OutgoingTransaction::cancel(std::weak_ptr<BranchInfo> branch) {
+	_cancel(branch);
 }
 
 void OutgoingTransaction::cancelWithReason(sip_reason_t* reason, std::weak_ptr<BranchInfo> branch) {
-	if (mOutgoing) {
-		// WARNING : magicWeak MUST be deleted in callback
-		auto* magicWeak = new weak_ptr<BranchInfo>(branch);
-		nta_outgoing_tcancel(mOutgoing, OutgoingTransaction::onCancelResponse, (nta_outgoing_magic_t*)magicWeak,
-		                     SIPTAG_REASON(reason), TAG_END());
-	} else {
-		LOGE("OutgoingTransaction::cancel(): transaction already destroyed.");
-	}
+	_cancel(branch, SIPTAG_REASON(reason));
 }
 
 int OutgoingTransaction::onCancelResponse(nta_outgoing_magic_t* magic, nta_outgoing_t* irq, const sip_t* sip) {
-	auto* magicWeakBranch = reinterpret_cast<weak_ptr<BranchInfo>*>(magic);
+	using BranchPtr = weak_ptr<BranchInfo>;
+	auto magicWeakBranch = unique_ptr<BranchPtr>(reinterpret_cast<BranchPtr*>(magic));
 
 	if (sip != nullptr) {
 		if (sip->sip_status && sip->sip_status->st_status >= 200 && sip->sip_status->st_status < 300) {
@@ -106,8 +110,6 @@ int OutgoingTransaction::onCancelResponse(nta_outgoing_magic_t* magic, nta_outgo
 			}
 		}
 	}
-
-	delete magicWeakBranch;
 
 	return 0;
 }
@@ -133,7 +135,7 @@ shared_ptr<MsgSip> OutgoingTransaction::getRequestMsg() {
 		LOGE("OutgoingTransaction::getRequestMsg(): transaction not started !");
 		return NULL;
 	}
-	msg_t* msg = nta_outgoing_getrequest(mOutgoing);
+	msg_t* msg = nta_outgoing_getrequest(mOutgoing.borrow());
 	auto request = make_shared<MsgSip>(msg);
 	msg_destroy(msg);
 	return request;
@@ -148,15 +150,15 @@ void OutgoingTransaction::send(
 	if (!mOutgoing) {
 		msg_t* msg = msg_ref_create(ms->getMsg());
 		ta_start(ta, tag, value);
-		mOutgoing = nta_outgoing_mcreate(mAgent->mAgent, OutgoingTransaction::_callback, (nta_outgoing_magic_t*)this, u,
-		                                 msg, ta_tags(ta), TAG_END());
+		mOutgoing = ownership::owned(nta_outgoing_mcreate(mAgent->mAgent, OutgoingTransaction::_callback,
+		                                                  (nta_outgoing_magic_t*)this, u, msg, ta_tags(ta), TAG_END()));
 		ta_end(ta);
 		if (mOutgoing == NULL) {
 			/*when nta_outgoing_mcreate() fails, we must destroy the message because it won't take the reference*/
 			LOGE("Error during outgoing transaction creation");
 			msg_destroy(msg);
 		} else {
-			mSofiaRef = shared_from_this();
+			mSelfRef = shared_from_this();
 		}
 	} else {
 		// sofia transaction already created, this happens when attempting to forward a cancel
@@ -173,47 +175,37 @@ int OutgoingTransaction::_callback(nta_outgoing_magic_t* magic, nta_outgoing_t* 
 	OutgoingTransaction* otr = reinterpret_cast<OutgoingTransaction*>(magic);
 	LOGD("OutgoingTransaction callback %p", otr);
 	if (sip != NULL) {
-		msg_t* msg = nta_outgoing_getresponse(otr->mOutgoing);
+		msg_t* msg = nta_outgoing_getresponse(otr->mOutgoing.borrow());
 		auto oagent = dynamic_pointer_cast<OutgoingAgent>(otr->shared_from_this());
 		auto msgsip = make_shared<MsgSip>(msg);
 		shared_ptr<ResponseSipEvent> sipevent = make_shared<ResponseSipEvent>(oagent, msgsip);
 		msg_destroy(msg);
 
 		otr->mAgent->sendResponseEvent(sipevent);
+
 		if (sip->sip_status && sip->sip_status->st_status >= 200) {
-			otr->destroy();
+			otr->queueFree();
 		}
 	} else {
-		otr->destroy();
+		otr->queueFree();
 	}
 	return 0;
 }
 
-static void destroy_transaction(su_root_magic_t* rm, su_msg_r msg, void* u) {
-	nta_outgoing_t* tr = *static_cast<nta_outgoing_t**>(su_msg_data(msg));
-	nta_outgoing_destroy(tr);
-}
-
-void OutgoingTransaction::destroy() {
-	if (mSofiaRef) {
-		nta_outgoing_bind(mOutgoing, NULL, NULL); // avoid callbacks
-		{
-			// invoke nta_outgoing_destroy() at a later time.
-			su_msg_r mamc = SU_MSG_R_INIT;
-			if (-1 == su_msg_create(mamc, mAgent->getRoot()->getTask(), mAgent->getRoot()->getTask(),
-			                        destroy_transaction, sizeof(nta_outgoing_t*))) {
-				LOGF("Couldn't create async message to destroy transaction.");
-			}
-			nta_outgoing_t** outgoingStorage = (nta_outgoing_t**)su_msg_data(mamc);
-			*outgoingStorage = mOutgoing;
-			if (-1 == su_msg_send(mamc)) {
-				LOGF("Couldn't send async message to destroy transaction.");
-			}
-		}
-		mOutgoing = NULL;
-		mIncoming.reset();
-		mSofiaRef.reset(); // This must be the last instruction of this function because it may destroy this
-		                   // OutgoingTransaction.
+void OutgoingTransaction::queueFree() {
+	/* Postpone the destruction of sofia sip outgoing transaction.
+	   The cancellation of an INVITE transaction may result in the transaction callback
+	   being invoked, which results in the transaction being destroyed immediately while still doing processing with
+	   the creation of the cancel transaction. The exact case would be that the sending of the CANCEL generates a
+	   transport error that is immediately notified to the INVITE transaction (because the CANCEL and the INVITE use
+	   the same transport) with an internal 503 response, which goes to flexisip, and would reset mSelfRef, which would
+	   call nta_outgoing_destroy(). nta_outgoing_tcancel() is then left with the INVITE transaction freed (full of
+	   0xaaaaaaaa), which crashes.
+	*/
+	mAgent->getRoot()->addToMainLoop([self = move(mSelfRef)] {});
+	mIncoming.reset();
+	if (mOutgoing) {
+		nta_outgoing_bind(mOutgoing.borrow(), NULL, NULL); // avoid callbacks
 	}
 }
 

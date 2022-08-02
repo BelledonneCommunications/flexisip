@@ -77,6 +77,7 @@ extern test_suite_t fork_context_mysql_suite;
 extern test_suite_t moduleDosSuite;
 extern test_suite_t moduleInfoSuite;
 extern test_suite_t registarDbSuite;
+extern test_suite_t sip_uri_tests;
 extern test_suite_t threadPoolSuite;
 extern test_suite_t utilsSuite;
 

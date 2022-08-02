@@ -50,6 +50,7 @@ add_executable(flexisip_tester
         register-tester.cc
         registrardb-tester.cc
         router-tester.cc
+        sip-uri-tests.cc
         tester.cc
         thread-pool-tester.cc
         tls-connection-tester.cc

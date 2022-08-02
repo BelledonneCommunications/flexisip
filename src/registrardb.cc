@@ -41,6 +41,57 @@
 using namespace std;
 using namespace flexisip;
 
+namespace {
+
+enum class ContactMatch {
+	Skip,           // Does not match the newly registered contact. Nothing to do.
+	EraseAndNotify, // Update or Remove
+	ForceErase,     // Service clean up
+};
+
+ContactMatch matchContacts(const ExtendedContact& existing, const ExtendedContact& neo) {
+	if (existing.mPushParamList == neo.mPushParamList) {
+		if (existing.mUpdatedTime <= neo.mUpdatedTime) {
+			SLOGD << "Removing contact [" << existing.contactId() << "] with identical push params : new["
+			      << neo.mPushParamList << "], current[" << existing.mPushParamList << "]";
+			return ContactMatch::ForceErase;
+		} else {
+			SLOGW << "Inserted contact has the same push parameters as another more recent contact, this should not "
+			         "happen. (existing: "
+			      << existing.mUpdatedTime << " ≮ new: " << neo.mUpdatedTime << ")";
+		}
+	}
+
+	/* Existing contact has a unique id that is not a placeholder */
+	if (!existing.mUniqueId.empty() && existing.mUniqueId != existing.mCallId) {
+		if (existing.mUniqueId == neo.mUniqueId) {
+			SLOGD << "Contact [" << existing << "] matches [" << neo << "] based on unique id";
+			return ContactMatch::EraseAndNotify;
+		}
+
+		return ContactMatch::Skip; // no need to match further
+	}
+
+	if (existing.mCallId == neo.mCallId) {
+		SLOGD << "Contact [" << existing << "] matches [" << neo << "] based on Call-ID";
+		return ContactMatch::EraseAndNotify;
+	}
+
+	if (SipUri(existing.mSipContact->m_url).rfc3261Compare(neo.mSipContact->m_url)) {
+		SLOGD << "Contact [" << existing << "] matches [" << neo << "] based on URI";
+		return ContactMatch::EraseAndNotify;
+	}
+
+	if (existing.mExpireAt <= time(nullptr)) {
+		SLOGD << "Cleaning expired contact '" << existing.contactId() << "'";
+		return ContactMatch::ForceErase;
+	}
+
+	return ContactMatch::Skip;
+}
+
+} // namespace
+
 ostream &ExtendedContact::print(ostream &stream, time_t _now, time_t _offset) const {
 	time_t now = _now;
 	time_t offset = _offset;
@@ -248,57 +299,41 @@ SipUri Record::makeUrlFromKey(const string &key) {
 	return SipUri("sip:" + key);
 }
 
-void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const shared_ptr<ContactUpdateListener> &listener) {
-	time_t now = time(NULL);
-
+void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact>& ec,
+                                   const shared_ptr<ContactUpdateListener>& listener) {
 	SLOGD << "Updating record with contact " << *ec;
 
 	if (sAssumeUniqueDomains && mIsDomain) {
 		for (auto & ct : mContacts) mContactsToRemove.push_back(ct);
 		mContacts.clear();
 	}
+
+	/* Clean up existing contacts */
 	for (auto it = mContacts.begin(); it != mContacts.end();) {
-		if (!(*it)->mUniqueId.empty() && (*it)->mUniqueId == ec->mUniqueId) {
-			if (ec->isExpired()){
-				SLOGD << "Contact removed based on unique id";
-				mContactsToRemove.push_back(*it);
-			}else{
-				SLOGD << "Contact updated based on unique id";
+		auto existing = *it;
+		auto remove = true;
+
+		switch (matchContacts(*existing, *ec)) {
+			case ContactMatch::Skip:
+				it++;
+				break;
+			case ContactMatch::EraseAndNotify: {
+				if (listener) listener->onContactUpdated(existing);
+				remove = ec->isExpired();
 			}
-			if (listener) listener->onContactUpdated(*it);
-			it = mContacts.erase(it);
-		} else if ((*it)->mUniqueId.empty() && (*it)->callId() && (*it)->mCallId == ec->mCallId) {
-			if (ec->isExpired()){
-				SLOGD << "Contact removed based on Call-ID";
-				mContactsToRemove.push_back(*it);
-			}else{
-				SLOGD << "Contact updated based on Call-ID";
-			}
-			if (listener) listener->onContactUpdated(*it);
-			it = mContacts.erase(it);
-		} else if ((*it)->mPushParamList == ec->mPushParamList) {
-			if((*it)->mUpdatedTime < ec->mUpdatedTime) {
-				SLOGD << "Removing contact [" << (*it)->contactId() << "] with push param in common : new[" << ec->mPushParamList << "], actual["
-				      << (*it)->mPushParamList << "]";
-				mContactsToRemove.push_back(*it);
+			/* fallthrough */
+			case ContactMatch::ForceErase:
+				if (remove) {
+					SLOGD << "Removing " << *existing;
+					mContactsToRemove.push_back(existing);
+				} else {
+					SLOGD << "Updating " << *existing;
+				}
 				it = mContacts.erase(it);
-			} else {
-				SLOGW << "Inserted contact has same push parameters of another more recent contact, this should not happen.";
-				++it;
-			}
-		} else if (ec->isExpired() && url_cmp_all(ec->mSipContact->m_url, (*it)->mSipContact->m_url) == 0 ){
-			/*case of ;expires=0 in contact header. Try to match the uri content directly.*/
-			SLOGD << "Contact removed based on uri match.";
-			mContactsToRemove.push_back(*it);
-			it = mContacts.erase(it);
-		} else if (now >= (*it)->mExpireAt) {
-			SLOGD << "Cleaning expired contact '" << (*it)->contactId() << "'";
-			mContactsToRemove.push_back(*it);
-			it = mContacts.erase(it);
-		}else {
-			++it;
+				break;
 		}
 	}
+
 	/* Add the new contact, if not expired (ie with expires=0) */
 	if (!ec->isExpired()){
 		mContacts.push_back(ec);
@@ -661,7 +696,7 @@ void Record::update(const ExtendedContactCommon &ecc, const char *sipuri, long e
 
 /* This function is designed for non-regression tests. It is not performant and non-exhaustive in the compararison */
 bool Record::isSame(const Record & other) const{
-	if (getAor() != other.getAor()) {
+	if (!getAor().compareAll(other.getAor())) {
 		LOGD("Record::isSame(): aors differ.");
 		return false;
 	}

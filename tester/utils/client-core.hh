@@ -18,8 +18,11 @@
 
 #pragma once
 
-#include "../tester.hh"
 #include "linphone++/linphone.hh"
+
+#include "../tester.hh"
+
+#include "asserts.hh"
 #include "proxy-server.hh"
 
 namespace flexisip {
@@ -48,6 +51,7 @@ public:
 	ClientBuilder(const std::string& me);
 
 	ClientBuilder& setPassword(const std::string& password);
+	ClientBuilder& setCustomContact(const std::string& contact);
 
 	/**
 	 * Add some Apple-specific push info to REGISTERs
@@ -181,7 +185,7 @@ public:
 	 *
 	 * @return true if there is a current call in IncomingReceived state
 	 */
-	bool hasReceivedCallFrom(const CoreClient& peer) const;
+	AssertionResult hasReceivedCallFrom(const CoreClient& peer) const;
 
 	/**
 	 * Invites another CoreClient but makes no asserts. Does not iterate any of the Cores.

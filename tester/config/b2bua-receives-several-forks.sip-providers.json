@@ -1,0 +1,15 @@
+[
+	{
+		"name": "provider1",
+		"pattern": "sip:.*",
+		"outboundProxy": "<sip:127.0.0.1:5860;transport=tcp>",
+		"registrationRequired": false,
+		"maxCallsPerLine": 2,
+		"accounts": [ 
+			{
+				"uri": "sip:bridge@sip.provider1.com",
+				"password": "unneeded"
+			}
+		]
+	}
+]
