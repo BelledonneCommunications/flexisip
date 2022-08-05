@@ -23,7 +23,7 @@ variables:
   DEBIAN_9_IMAGE_VERSION: 20220323_add_jsoncpp
   DEBIAN_10_IMAGE_VERSION: 20220708_add_jsoncpp
   DEBIAN_11_IMAGE_VERSION: 20220708_add_jsoncpp
-  UBUNTU_18_04_IMAGE_VERSION: 20220323_add_jsoncpp
+  UBUNTU_18_04_IMAGE_VERSION: 20220805_from_scratch
 
 #https://docs.gitlab.com/ee/ci/yaml/index.html#workflow
 workflow:

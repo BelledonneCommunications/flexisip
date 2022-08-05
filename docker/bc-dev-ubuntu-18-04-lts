@@ -1,18 +1,81 @@
 ###############################################################################
-# Dockerfile used to make bc-dev-ubuntu-18-04-lts:20220323_add_jsoncpp
+# Dockerfile used to make bc-dev-ubuntu-18-04-lts:20220805_from_scratch
 ###############################################################################
 
-FROM gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu-18-04-lts:20210421_python3_fix_pip
+FROM ubuntu:18.04
 
-MAINTAINER François Grisez <francois.grisez@belledonne-communications.com>
+MAINTAINER Anthony Gauchy <anthony.gauchy@belledonne-communications.com>
 
-ARG njobs=1
+  # Update
+RUN apt-get -y --fix-missing update \
+  # Install common tools
+ && apt-get -y --fix-missing install sudo \
+                       vim \
+                       wget \
+                       file \
+                       rsync \
+                     # Install development tools
+                       ccache \
+                       clang \
+                       cmake \
+                       doxygen \
+                       g++ \
+                       gdb \
+                       git \
+                       make \
+                       ninja-build \
+                       python3 \
+                       python3-pip \
+                       rpm \
+                     # Install all dependencies needed for Flexisip
+                       libssl-dev \
+                       libboost-dev \
+                       libboost-system-dev \
+                       libboost-thread-dev \
+                       libhiredis-dev \
+                       libjansson-dev \
+                       libjsoncpp-dev \
+                       libsqlite3-dev \
+                       libpq-dev \
+                       libmariadb-dev \
+                       libmariadb-dev-compat \
+                       mariadb-server \
+                       libnghttp2-dev \
+                       libprotobuf-dev \
+                       libsnmp-dev \
+                       libxerces-c-dev \
+                       libsrtp2-dev \
+                       libgsm1-dev \
+                       libopus-dev \
+                       libmbedtls-dev \
+                       libspeex-dev \
+                       libspeexdsp-dev \
+                       libxml2-dev \
+                       protobuf-compiler \
+                       redis-server \
+                     # Dependencies of the B2BUA
+                       libegl1-mesa-dev \
+                       libglew-dev \
+                       libvpx-dev \
+  # Clean
+ && apt-get -y autoremove \
+ && apt-get -y clean
 
-# Allow make to use several jobs basing on 'njobs' parameter.
-ENV MAKEFLAGS="${MAKEFLAGS} -j${njobs}"
+# Configure user bc
+RUN useradd -ms /bin/bash bc && \
+    echo 'bc:cotcot' | chpasswd && \
+    echo 'bc ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
-# Install extra Flexisip dependencies
-RUN sudo su -c 'apt-get -y update && apt-get -y install libhiredis-dev libjansson-dev libjsoncpp-dev libnghttp2-dev libprotobuf-dev libsnmp-dev protobuf-compiler wget && apt-get -y clean'
+# Switch for 'bc' user
+USER bc
+WORKDIR /home/bc
+
+# Install python3 modules.
+# This must be done as 'bc' user because some python modules are installed into /usr/local/lib when pip is invoked
+# as root, and rpmbuild prevent python from seaching its modules in this prefix. Using 'bc' user make the python
+# modules to be installed into /home/bc/.local/bin.
+RUN python3 -m pip install --user pystache six
+ENV PATH=$PATH:/home/bc/.local/bin
 
 # Install CMake 3.20.5
 COPY cmake_install.sh .

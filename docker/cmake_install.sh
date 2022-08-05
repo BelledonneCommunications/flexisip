@@ -24,8 +24,8 @@ wget $url \
 
 cd $bindir \
 	&& cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local $srcdir \
-	&& make \
-	&& sudo make install \
+	&& make -j8 \
+	&& sudo make -j8 install \
 	|| exit 1
 
 popd
