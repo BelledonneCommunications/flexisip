@@ -295,7 +295,7 @@ if (ENABLE_CONFERENCE)
     )
 endif ()
 if (ENABLE_B2BUA)
-    include(${CMAKE_SOURCE_DIR}/src/jsoncpp.cmake)
+    find_package(jsoncpp "1.1.0" REQUIRED)
 
     target_sources(flexisip PRIVATE
             b2bua/b2bua-server.cc

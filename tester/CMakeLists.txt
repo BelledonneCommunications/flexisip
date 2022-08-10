@@ -80,8 +80,8 @@ elseif (ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
 endif ()
 
 if (ENABLE_B2BUA)
+    find_package(jsoncpp "1.1.0" REQUIRED)
     target_sources(flexisip_tester PRIVATE b2bua-tester.cc)
-    include(${CMAKE_SOURCE_DIR}/src/jsoncpp.cmake)
     target_link_libraries(flexisip_tester PRIVATE jsoncpp_lib)
 endif ()
 

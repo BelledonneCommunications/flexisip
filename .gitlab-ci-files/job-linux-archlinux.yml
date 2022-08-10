@@ -1,8 +1,5 @@
 .archlinux-image-variables:
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:$ARCHLINUX_IMAGE_VERSION
-  variables:
-    # As of 2022-04-14 the jsoncpp provided by the Arch repo does not include a cmake definition and can't be discovered
-    CMAKE_OPTIONS: -DINTERNAL_JSONCPP=ON
 
 #################################################
 # Makefile

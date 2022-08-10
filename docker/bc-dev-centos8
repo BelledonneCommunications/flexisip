@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos8:20220621_add_llvm
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos8:20220810_add_jsoncpp
 ###############################################################################
 
 FROM centos:8
@@ -67,7 +67,8 @@ RUN sudo dnf -y install ccache \
                  # Dependencies of the B2BUA
                    mesa-libEGL-devel \
                    glew-devel \
-                   libvpx-devel\
+                   libvpx-devel \
+                   jsoncpp-devel \
                &&  dnf -y clean all
 
 # Configure user bc

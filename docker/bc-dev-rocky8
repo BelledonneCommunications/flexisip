@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20220621_add_llvm
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20220810_add_jsoncpp
 ###############################################################################
 
 FROM rockylinux:8
@@ -19,25 +19,28 @@ RUN dnf install -y epel-release && \
 RUN sudo dnf makecache --refresh && dnf -y update
 
  # Install development tools
-RUN sudo dnf -y install ccache \
+RUN sudo dnf -y install \
+                   bzip2 \
+                   ccache \
                    clang \
                    cmake \
+                   c-ares-devel \
                    doxygen \
+                   gcc \
+                   gcc-c++ \
                    gdb \
                    git \
+                   libasan \
+                   libev-devel \
+                   libubsan \
+                   libuv-devel \
+                   llvm \
                    make \
                    ninja-build \
                    python3 \
                    python3-pip \
-                   bzip2 \
-                   c-ares-devel \
-                   libev-devel \
-                   zlib-devel \
-                   libuv-devel \
-                   gcc-toolset-9-libasan-devel \
-                   gcc-toolset-9-libubsan-devel \
                    rpm-build \
-                   llvm \
+                   zlib-devel \
                  # Install all dependencies needed for Flexisip
                    openssl-devel \
                    boost-devel \
@@ -64,17 +67,16 @@ RUN sudo dnf -y install ccache \
                    mesa-libEGL-devel \
                    glew-devel \
                    libvpx-devel  \
+                   jsoncpp-devel \
                &&  dnf -y clean all
 
 # Install libnghttp2_asio
-RUN wget https://github.com/nghttp2/nghttp2/releases/download/v1.39.2/nghttp2-1.39.2.tar.bz2 && \
-	tar -xf nghttp2-1.39.2.tar.bz2 && \
-	cd nghttp2-1.39.2 && \
-	./configure --prefix=/usr/local --disable-examples --disable-python-bindings --enable-lib-only --enable-asio-lib && \
-	sudo make && \
-	sudo make -C src install && \
-	cd - && \
-	rm -rf nghttp2-1.39.2.tar.bz2 nghttp2-1.39.2
+RUN ver=1.39.2 && srcdir=nghttp2-${ver} && srcpkg=${srcdir}.tar.gz && bindir=build && \
+	wget https://github.com/nghttp2/nghttp2/releases/download/v${ver}/${srcpkg} && \
+	tar -xf ${srcpkg} && \
+	mkdir ${bindir} && cmake -S ${srcdir} -B ${bindir} -GNinja -DENABLE_ASIO_LIB=ON && \
+	cmake --build ${bindir} --target install && \
+	rm -rf ${srcpkg} ${srcdir} ${bindir}
 
 # Configure user bc
 RUN useradd -ms /bin/bash bc && \

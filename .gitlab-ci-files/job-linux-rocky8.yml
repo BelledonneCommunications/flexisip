@@ -1,5 +1,5 @@
 variables:
-  ROCKY8_CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DINTERNAL_JSONCPP=ON
+  ROCKY8_CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
 
 .rocky8-image-variables:
   image:
@@ -37,7 +37,8 @@ job-rocky8-ninja-clang:
     - .job-ninja-clang
     - .rocky8-image-variables
   variables:
-    CMAKE_OPTIONS: ${ROCKY8_CMAKE_OPTIONS} -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON
+    # -DCMAKE_PREFIX_PATH=/usr/local: Unit tests require libnghttp2_asio, which has been build and intalled into /usr/local
+    CMAKE_OPTIONS: ${ROCKY8_CMAKE_OPTIONS} -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON -DCMAKE_PREFIX_PATH=/usr/local -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON
   artifacts:
     paths:
       - OUTPUT/*
