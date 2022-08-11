@@ -133,6 +133,7 @@ bool RegistrarDbRedisAsync::isConnected() {
 }
 
 void RegistrarDbRedisAsync::setWritable (bool value) {
+	SLOGD << "Switch Redis RegistrarDB backend 'writable' flag [ " << mWritable << " -> " << value << " ]";
 	mWritable = value;
 	notifyStateListener();
 }
@@ -319,18 +320,18 @@ void RegistrarDbRedisAsync::tryReconnect() {
 }
 
 void RegistrarDbRedisAsync::handleReplicationInfoReply(const char* reply) {
-
+	SLOGD << "Redis replication information received";
 	auto replyMap = parseKeyValue(reply);
 	if (replyMap.find("role") != replyMap.end()) {
 		string role = replyMap["role"];
 		if (role == "master") {
 			// We are speaking to the master, set the DB as writable and update the list of slaves
+			SLOGD << "Redis server is a master";
 			setWritable(true);
 			if (mParams.useSlavesAsBackup) {
 				updateSlavesList(replyMap);
 			}
 		} else if (role == "slave") {
-
 			// woops, we are connected to a slave. We should go to the master
 			string masterAddress = replyMap["master_host"];
 			int masterPort = atoi(replyMap["master_port"].c_str());
@@ -381,21 +382,25 @@ void RegistrarDbRedisAsync::handleAuthReply(const redisReply *reply) {
 		         "should never happen! Aborting replication info fetch!";
 		return;
 	}
+	SLOGD << "Redis authentication succeeded";
 	getReplicationInfo();
 }
 
 void RegistrarDbRedisAsync::getReplicationInfo() {
+	SLOGD << "Collecting replication information";
 	redisAsyncCommand(mContext, sHandleReplicationInfoReply, this, "INFO replication");
 	// Workaround for issue https://github.com/redis/hiredis/issues/396
 	redisAsyncCommand(mSubscribeContext, sPublishCallback, nullptr, "SUBSCRIBE %s", "FLEXISIP");
 }
 
 bool RegistrarDbRedisAsync::connect() {
+	SLOGD << "Connecting to Redis server tcp://" << mParams.domain << ":" << mParams.port;
 	if (isConnected()) {
 		LOGW("Redis already connected");
 		return true;
 	}
 
+	SLOGD << "Creating main Redis connection";
 	mContext = redisAsyncConnect(mParams.domain.c_str(), mParams.port);
 	mContext->data = this;
 	if (mContext->err) {
@@ -405,6 +410,7 @@ bool RegistrarDbRedisAsync::connect() {
 		return false;
 	}
 
+	SLOGD << "Creating subscription Redis connection";
 	mSubscribeContext = redisAsyncConnect(mParams.domain.c_str(), mParams.port);
 	mSubscribeContext->data = this;
 	if (mSubscribeContext->err) {
@@ -436,6 +442,7 @@ bool RegistrarDbRedisAsync::connect() {
 	}
 
 	if (!mParams.auth.empty()) {
+		SLOGD << "Authenticating to Redis server";
 		redisAsyncCommand(mContext, sHandleAuthReply, this, "AUTH %s", mParams.auth.c_str());
 		redisAsyncCommand(mSubscribeContext, sHandleAuthReply, this, "AUTH %s", mParams.auth.c_str());
 	} else {
@@ -447,7 +454,6 @@ bool RegistrarDbRedisAsync::connect() {
 }
 
 bool RegistrarDbRedisAsync::disconnect() {
-	LOGD("disconnect(%p)", mContext);
 	bool status = false;
 	setWritable(false);
 	if (mContext) {
@@ -461,6 +467,7 @@ bool RegistrarDbRedisAsync::disconnect() {
 		redisAsyncDisconnect(mSubscribeContext);
 		mSubscribeContext = nullptr;
 	}
+	SLOGD << "Redis server disconnected";
 	return status;
 }
 
