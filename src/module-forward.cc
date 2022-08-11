@@ -259,8 +259,9 @@ public:
 		sip_contact_t *ct = contact->toSofiaContact(ms->getHome(), now);
 		url_t *dest = ct->m_url;
 		mEv->getSip()->sip_request->rq_url[0] = *url_hdup(msg_home(ms->getHome()), dest);
-		mEv->getSip()->sip_request->rq_url->url_params = url_strip_param_string(su_strdup(ms->getHome(),mEv->getSip()->sip_request->rq_url->url_params) , "gr");
-		mModule->sendRequest(mEv,dest);
+		// No reason to remove "gr" parameter: the RegistrarDb provides a resolved uri (that may be an uri with "gr" parameter from another domain).
+		//mEv->getSip()->sip_request->rq_url->url_params = url_strip_param_string(su_strdup(ms->getHome(),mEv->getSip()->sip_request->rq_url->url_params) , "gr");
+		mModule->sendRequest(mEv, mEv->getSip()->sip_request->rq_url);
 	}
 	virtual void onError() override{
 		SLOGE << "RegistrarListener error";
@@ -402,8 +403,18 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 	}
 
 	// Add path
-	if (mAddPath && method == sip_method_register) {
-		addPathHeader(getAgent(), ev, tport, getAgent()->getUniqueId().c_str());
+	if (method == sip_method_register) {
+		if (mAddPath){
+			addPathHeader(getAgent(), ev, tport, getAgent()->getUniqueId().c_str());
+		}else{
+			// Path headers are added for internal processing within Flexisip, and recorded into RegistrarDb.
+			// However, if Forward module has to send a REGISTER with path headers but add-path is set to false,
+			// they must be removed.
+			while (sip->sip_path != nullptr && isUs(getAgent(), sip->sip_path)) {
+				LOGD("Removing path '%s'", url_as_string(ms->getHome(), sip->sip_path->r_url));
+				msg_header_remove(msg, (msg_pub_t*)sip, (msg_header_t*)sip->sip_path);
+			}
+		}
 	}
 
 	// Clean push notifs params from contacts

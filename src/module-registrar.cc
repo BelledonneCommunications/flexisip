@@ -763,11 +763,6 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			removeParamsFromContacts(home, sip->sip_contact, mParamsToRemove);
 			SLOGD << "Removed instance and push params: \n" << sip->sip_contact;
 		}
-
-		if (sip->sip_path) {
-			sip->sip_path = nullptr;
-			SLOGD << "Removed paths";
-		}
 		// Let the modified initial event flow (will not be forked).
 	}
 }
