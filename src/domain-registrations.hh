@@ -162,7 +162,7 @@ private:
 	std::list<std::string> mRegistrationList{};
 	GenericStruct* mDomainRegistrationArea{nullptr}; /*this is used to place statistics values*/
 	std::chrono::seconds mKeepaliveInterval{0};
-	std::chrono::milliseconds mPingPongTimeoutDelay{0};
+	std::chrono::seconds mPingPongTimeoutDelay{0};
 	std::chrono::seconds mReconnectionDelay{0};
 	bool mVerifyServerCerts{false};
 	bool mRegisterWhenNeeded{false};

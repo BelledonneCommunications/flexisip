@@ -160,9 +160,9 @@ int DomainRegistrationManager::load(const string& passphrase) {
 	auto pingPongTimeoutDelayCfg = domainRegistrationCfg->get<ConfigInt>("ping-pong-timeout-delay");
 	auto reconnectionDelayCfg = domainRegistrationCfg->get<ConfigInt>("reconnection-delay");
 	mKeepaliveInterval = chrono::seconds{keepAliveIntervalCfg->read()};
-	mPingPongTimeoutDelay = chrono::milliseconds{pingPongTimeoutDelayCfg->read()};
+	mPingPongTimeoutDelay = chrono::seconds{pingPongTimeoutDelayCfg->read()};
 	if (mPingPongTimeoutDelay >= mKeepaliveInterval) {
-		LOGF("'%s' value [%ums] must be strictly lower than '%s' [%us]",
+		LOGF("'%s' value [%us] must be strictly lower than '%s' [%us]",
 		     pingPongTimeoutDelayCfg->getCompleteName().c_str(), static_cast<unsigned>(mPingPongTimeoutDelay.count()),
 		     keepAliveIntervalCfg->getCompleteName().c_str(), static_cast<unsigned>(mKeepaliveInterval.count()));
 	}

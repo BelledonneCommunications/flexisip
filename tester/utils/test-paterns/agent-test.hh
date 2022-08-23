@@ -75,7 +75,11 @@ protected:
 	template <typename Duration>
 	bool waitFor(const std::function<bool()>& breakCondition, Duration timeout) {
 		using namespace std::chrono;
-		for (auto now = steady_clock::now(), end = now + timeout; now < end; now = steady_clock::now()) {
+		using clock_type = steady_clock;
+
+		auto now = clock_type::now();
+		auto end = now + duration_cast<clock_type::duration>(timeout);
+		for (; now < end; now = clock_type::now()) {
 			if (breakCondition()) return true;
 
 			// The main loop step must not exceed 50ms in order the break condition be evaluated several times.

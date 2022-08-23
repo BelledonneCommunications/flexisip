@@ -69,8 +69,8 @@ private:
 		cfg.getRoot()->get<GenericStruct>("global")->get<ConfigValue>("transports")->set(localProxyTransport);
 
 		auto interDomainCfg = cfg.getRoot()->get<GenericStruct>("inter-domain-connections");
-		interDomainCfg->get<ConfigValue>("keepalive-interval")->set("1");
-		interDomainCfg->get<ConfigValue>("ping-pong-timeout-delay")->set("500");
+		interDomainCfg->get<ConfigValue>("keepalive-interval")->set(to_string(mKeepAliveInterval.count()));
+		interDomainCfg->get<ConfigValue>("ping-pong-timeout-delay")->set(to_string(mPingPongTimoutDelay.count()));
 		interDomainCfg->get<ConfigValue>("reconnection-delay")->set("0");
 	}
 	void onExec() override {
@@ -87,11 +87,13 @@ private:
 
 		SLOGD << "Waiting for several PING sendings";
 		// Check that the connection hasn't been broken for the last seconds
-		BC_HARD_ASSERT_FALSE(waitFor([&reg]() { return reg->getRegistrationStatus()->read() != 200; }, 2s));
+		const auto timeout = (2 * mKeepAliveInterval) * 1.05;
+		BC_HARD_ASSERT_FALSE(waitFor([&reg]() { return reg->getRegistrationStatus()->read() != 200; }, timeout));
 
 		SLOGD << "Pausing the remote proxy in order to simulate a network problem";
 		mRemoteProxy.pause();
-		BC_HARD_ASSERT_TRUE(waitFor([&reg]() { return reg->getRegistrationStatus()->read() == 503; }, 1500ms + 25ms));
+		const auto timeout2 = (mKeepAliveInterval + mPingPongTimoutDelay) * 1.05;
+		BC_HARD_ASSERT_TRUE(waitFor([&reg]() { return reg->getRegistrationStatus()->read() == 503; }, timeout2));
 
 		SLOGD << "Resume the remote proxy and wait for a new successfull registration";
 		mRemoteProxy.unpause();
@@ -107,6 +109,8 @@ private:
 	int mRemoteProxyPort{0};
 	std::string mRemoteProxyTransport{};
 	bool mUseTls{false};
+	std::chrono::seconds mKeepAliveInterval{2};
+	std::chrono::seconds mPingPongTimoutDelay{1};
 };
 
 template <typename ProtoT>
