@@ -25,4 +25,4 @@
 #define REDIS_SERVER_DEFAULT_PORT 6379
 
 // Location of tester resource directory
-#cmakedefine TESTER_DATA_DIR "${TESTER_DATA_DIR}"
+#cmakedefine FLEXISIP_TESTER_DATA_SRCDIR "${FLEXISIP_TESTER_DATA_SRCDIR}"

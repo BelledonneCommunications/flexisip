@@ -25,7 +25,7 @@ find_package(LibNgHttp2Asio)
 find_package(Boost COMPONENTS system REQUIRED)
 
 # Generate flexisip-tester-config.h
-set(TESTER_DATA_DIR "${CMAKE_INSTALL_PREFIX}/share/flexisip-tester")
+set(FLEXISIP_TESTER_DATA_SRCDIR "${CMAKE_CURRENT_SOURCE_DIR}")
 find_program(REDIS_SERVER_EXEC NAMES redis-server REQUIRED)
 configure_file(flexisip-tester-config.hh.in flexisip-tester-config.hh)
 
@@ -98,7 +98,8 @@ target_link_libraries(flexisip_tester PRIVATE
         linphone++
         mediastreamer
         ortp
-        )
+)
+
 if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
     target_link_libraries(flexisip_tester PRIVATE LibNgHttp2Asio)
 endif ()
@@ -107,25 +108,27 @@ install(TARGETS flexisip_tester
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+		RESOURCE DESTINATION ${CMAKE_INSTALL_DATADIR}/flexisip-tester
         PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-        )
+)
 
+set(FLEXISIP_TESTER_INSTALL_DATADIR "${CMAKE_INSTALL_DATADIR}/flexisip-tester")
 install(DIRECTORY cert
-        DESTINATION ${TESTER_DATA_DIR}
-        )
+		DESTINATION ${FLEXISIP_TESTER_INSTALL_DATADIR}
+)
 
 install(DIRECTORY config
-        DESTINATION ${TESTER_DATA_DIR}
-        )
+		DESTINATION ${FLEXISIP_TESTER_INSTALL_DATADIR}
+)
 
 install(DIRECTORY db
-        DESTINATION ${TESTER_DATA_DIR}
-        )
+		DESTINATION ${FLEXISIP_TESTER_INSTALL_DATADIR}
+)
 
 install(DIRECTORY sounds
-        DESTINATION ${TESTER_DATA_DIR}
-        )
+		DESTINATION ${FLEXISIP_TESTER_INSTALL_DATADIR}
+)
 
 install(DIRECTORY images
-        DESTINATION ${TESTER_DATA_DIR}
-        )
+		DESTINATION ${FLEXISIP_TESTER_INSTALL_DATADIR}
+)

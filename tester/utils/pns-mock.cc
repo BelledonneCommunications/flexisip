@@ -25,8 +25,10 @@
 #include <flexisip/logmanager.hh>
 
 #include "flexisip-tester-config.hh"
+#include "tester.hh"
 
 using namespace std;
+using namespace flexisip::tester;
 using namespace nghttp2::asio_http2;
 using namespace nghttp2::asio_http2::server;
 using namespace boost::asio::ssl;
@@ -41,8 +43,8 @@ bool PnsMock::exposeMock(
 		boost::system::error_code ec{};
 
 		context tls(context::tls);
-		tls.use_private_key_file(TESTER_DATA_DIR + string("/cert/self.signed.key.test.pem"), context::pem);
-		tls.use_certificate_chain_file(TESTER_DATA_DIR + string("/cert/self.signed.cert.test.pem"));
+		tls.use_private_key_file(bcTesterRes("cert/self.signed.key.test.pem"), context::pem);
+		tls.use_certificate_chain_file(bcTesterRes("cert/self.signed.cert.test.pem"));
 		configure_tls_context_easy(ec, tls);
 
 		mServer.handle("/fcm/send", handleRequest(code, body, reqBodyPattern, assert, timeout));

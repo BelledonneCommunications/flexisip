@@ -25,6 +25,7 @@
 
 
 using namespace flexisip;
+using namespace flexisip::tester;
 using namespace std;
 
 static msg_t *sipRequest = nullptr;
@@ -271,7 +272,7 @@ static void route_condition_map(void){
 	ConditionalRouteMap routeMap;
 	bool loading_ok;
 	try{
-		routeMap.loadConfig(string(TESTER_DATA_DIR).append("/config/routes.conf"));
+		routeMap.loadConfig(bcTesterRes("config/routes.conf"));
 		loading_ok = true;
 	}catch(const exception &e){
 		bctbx_error("%s", e.what());

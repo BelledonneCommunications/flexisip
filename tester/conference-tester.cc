@@ -27,6 +27,7 @@ using namespace std;
 using namespace std::chrono_literals;
 using namespace std::chrono;
 using namespace flexisip;
+using namespace flexisip::tester;
 
 static shared_ptr<sofiasip::SuRoot> root{};
 static shared_ptr<Agent> agent{};
@@ -81,15 +82,14 @@ static void chatRoomBindingOnInitTest() {
 
 	// Agent initialization
 	auto cfg = GenericManager::get();
-	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_conference.conf"));
+	cfg->load(bcTesterRes("config/flexisip_conference.conf"));
 	agent->loadConfig(cfg);
 
 	// Conference Server configuration
 	auto gs = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
 	gs->get<ConfigString>("database-backend")->set("sqlite");
 	// This database already contains 2 chatrooms
-	gs->get<ConfigString>("database-connection-string")
-	    ->set(string(TESTER_DATA_DIR).append("/db/conference_tester.db"));
+	gs->get<ConfigString>("database-connection-string")->set(bcTesterRes("db/conference_tester.db"));
 	gs->get<ConfigString>("outbound-proxy")->set("sip:127.0.0.1:5060;transport=tcp");
 	gs->get<ConfigString>("transport")->set("sip:127.0.0.1:6064;transport=tcp");
 	gs->get<ConfigString>("conference-factory-uri")->set("sip:focus@sip.example.org");

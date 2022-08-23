@@ -29,6 +29,7 @@ using namespace std;
 using namespace std::chrono_literals;
 using namespace std::chrono;
 using namespace flexisip;
+using namespace flexisip::tester;
 
 static shared_ptr<sofiasip::SuRoot> root{};
 static shared_ptr<Agent> agent{};
@@ -65,7 +66,7 @@ static void afterEach() {
 static void nullMaxFrowardAndForkBasicContext() {
 	// Agent initialization
 	auto cfg = GenericManager::get();
-	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_fork_context.conf"));
+	cfg->load(bcTesterRes("config/flexisip_fork_context.conf"));
 	agent->loadConfig(cfg);
 
 	auto registrarConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
@@ -126,7 +127,7 @@ static void nullMaxFrowardAndForkBasicContext() {
 static void notRtpPortAndForkCallContext() {
 	// Agent initialization
 	auto cfg = GenericManager::get();
-	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_fork_context_media_relay.conf"));
+	cfg->load(bcTesterRes("config/flexisip_fork_context_media_relay.conf"));
 	agent->loadConfig(cfg);
 
 	auto registrarConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");

@@ -25,6 +25,7 @@ using namespace std;
 using namespace std::chrono;
 using namespace flexisip;
 using namespace flexisip::pushnotification;
+using namespace flexisip::tester;
 
 static shared_ptr<sofiasip::SuRoot> root{};
 static shared_ptr<Agent> agent{};
@@ -44,7 +45,7 @@ static void afterEach() {
 static void pushIsSentOnInvite() {
 	// Agent initialization
 	auto cfg = GenericManager::get();
-	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_module_push.conf"));
+	cfg->load(bcTesterRes("config/flexisip_module_push.conf"));
 	agent->loadConfig(cfg);
 
 	FirebaseClient::FIREBASE_ADDRESS = "randomHost";
@@ -118,7 +119,7 @@ a=rtcp-fb:* ccm tmmbr)sip"};
 static void pushIsNotSentOnInviteWithReplacesHeader() {
 	// Agent initialization
 	auto cfg = GenericManager::get();
-	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_module_push.conf"));
+	cfg->load(bcTesterRes("config/flexisip_module_push.conf"));
 	agent->loadConfig(cfg);
 
 	FirebaseClient::FIREBASE_ADDRESS = "randomHost";

@@ -33,6 +33,7 @@
 
 using namespace flexisip;
 using namespace flexisip::pushnotification;
+using namespace flexisip::tester;
 using namespace std;
 using namespace std::chrono;
 
@@ -107,7 +108,7 @@ static void startApplePushTest(PushType pType,
                                bool timeout = false) {
 	AppleClient::APN_DEV_ADDRESS = "localhost";
 	AppleClient::APN_PORT = "3000";
-	AppleClient appleClient{*root, "", TESTER_DATA_DIR + string("/cert/apple.test.dev.pem"), "apple.test.dev.pem"};
+	AppleClient appleClient{*root, "", bcTesterRes("cert/apple.test.dev.pem"), "apple.test.dev.pem"};
 	appleClient.enableInsecureTestMode();
 
 	auto request = make_shared<AppleRequest>(pType, pushInfo);
@@ -419,7 +420,7 @@ static void applePushTestConnectErrorAndReconnect(void) {
 	// We first send a request with mock off, leading to TLS connection error.
 	AppleClient::APN_DEV_ADDRESS = "localhost";
 	AppleClient::APN_PORT = "3000";
-	AppleClient appleClient{*root, "", TESTER_DATA_DIR + string("/cert/apple.test.dev.pem"), "apple.test.dev.pem"};
+	AppleClient appleClient{*root, "", bcTesterRes("cert/apple.test.dev.pem"), "apple.test.dev.pem"};
 	appleClient.enableInsecureTestMode();
 
 	auto request = make_shared<AppleRequest>(PushType::Message, pushInfo);

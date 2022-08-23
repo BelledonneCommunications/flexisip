@@ -448,7 +448,7 @@ static void external_provider_bridge__b2bua_receives_several_forks() {
 		// managed domains
 		root->get<GenericStruct>("module::Forward")
 		    ->get<ConfigValue>("routes-config-path")
-		    ->set(bcTesterRes("/config/forward_phone_to_b2bua.rules"));
+			->set(bcTesterRes("config/forward_phone_to_b2bua.rules"));
 	}
 	server->start();
 

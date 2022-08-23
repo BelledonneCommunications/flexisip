@@ -29,6 +29,7 @@ using namespace std;
 using namespace std::chrono_literals;
 using namespace std::chrono;
 using namespace flexisip;
+using namespace flexisip::tester;
 
 static shared_ptr<sofiasip::SuRoot> root{};
 static shared_ptr<Agent> agent{};
@@ -52,7 +53,7 @@ static void afterEach() {
 static void fallbackRouteFilter() {
 	// Agent initialization
 	auto cfg = GenericManager::get();
-	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_router.conf"));
+	cfg->load(bcTesterRes("config/flexisip_router.conf"));
 	agent->loadConfig(cfg);
 
 	auto registrarConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");

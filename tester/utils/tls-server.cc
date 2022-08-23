@@ -21,11 +21,12 @@
 #include "flexisip/logmanager.hh"
 
 #include "flexisip-tester-config.hh"
-
+#include "tester.hh"
 #include "tls-server.hh"
 
 using namespace std;
 using namespace boost::asio;
+using namespace flexisip::tester;
 using ip::tcp;
 using ssl::context;
 
@@ -39,8 +40,8 @@ TlsServer::TlsServer(int port)
     {
 	mContext.set_options(ssl::context::default_workarounds | ssl::context::verify_none | ssl::context::no_sslv2 |
 	                     ssl::context::no_sslv3);
-	mContext.use_certificate_chain_file(TESTER_DATA_DIR + string("/cert/self.signed.cert.test.pem"));
-	mContext.use_private_key_file(TESTER_DATA_DIR + string("/cert/self.signed.key.test.pem"),
+	mContext.use_certificate_chain_file(bcTesterRes("cert/self.signed.cert.test.pem"));
+	mContext.use_private_key_file(bcTesterRes("cert/self.signed.key.test.pem"),
 	                              boost::asio::ssl::context::pem);
 	mSocket = make_unique<ssl::stream<ip::tcp::socket>>(mIoService, mContext);
 }

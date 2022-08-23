@@ -22,6 +22,7 @@
 #include "tester.hh"
 
 using namespace flexisip;
+using namespace flexisip::tester;
 using namespace std;
 
 static shared_ptr<sofiasip::SuRoot> root{};
@@ -59,7 +60,7 @@ static void qValueConstructorTest(const SipUri& inputUri, const string& inputRou
 
 static void qValueConstructorTests(void) {
 	auto cfg = GenericManager::get();
-	cfg->load(string(TESTER_DATA_DIR).append("/config/flexisip_fork_context.conf"));
+	cfg->load(bcTesterRes("config/flexisip_fork_context.conf"));
 	agent->loadConfig(cfg);
 
 	qValueConstructorTest(SipUri{"sip:kijou@sip.linphone.org:4242"}, string{"sip:185.11.220.105;transport=udp"}, 0.555,

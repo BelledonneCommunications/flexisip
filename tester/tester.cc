@@ -64,6 +64,7 @@ static void log_handler(int lev, const char* fmt, va_list args) {
 }
 
 void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_list args)) {
+	// Initialize logs
 	su_log_redirect(
 	    nullptr,
 	    [](void*, const char* fmt, va_list ap) {
@@ -73,10 +74,13 @@ void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_
 	    },
 	    nullptr);
 	bc_tester_set_verbose_func(verbose_arg_func);
-
 	if (ftester_printf == nullptr) ftester_printf = log_handler;
 	bc_tester_init(ftester_printf, BCTBX_LOG_MESSAGE, BCTBX_LOG_ERROR, ".");
 
+	// Make the default resource dir point to the 'tester' directory in the source code
+	bc_tester_set_resource_dir_prefix(FLEXISIP_TESTER_DATA_SRCDIR);
+
+	// Declare all test suites
 	bc_tester_add_suite(&flexisip::tester::agentSuite);
 	bc_tester_add_suite(&boolean_expressions_suite);
 #if ENABLE_B2BUA

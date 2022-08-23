@@ -44,7 +44,7 @@ Server::Server(const std::string& configFile) {
 		if (bctbx_file_exist(configFilePath.c_str()) == 0) {
 			ret = cfg->load(configFilePath);
 		} else {
-			ret = cfg->load(string(TESTER_DATA_DIR).append(configFile));
+			ret = cfg->load(bcTesterRes(configFile));
 		}
 		if (ret != 0) {
 			BC_FAIL("Unable to load configuration file");
