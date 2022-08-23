@@ -30,105 +30,89 @@ find_program(REDIS_SERVER_EXEC NAMES redis-server REQUIRED)
 configure_file(flexisip-tester-config.hh.in flexisip-tester-config.hh)
 
 include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_BINARY_DIR}
+	${CMAKE_CURRENT_SOURCE_DIR}
+	${CMAKE_CURRENT_BINARY_DIR}
 )
 
 add_executable(flexisip_tester
-        agent-tester.cc
-        boolean-expressions.cc
-        cli-tester.cc
-        domain-registration-tester.cc
-        extended-contact-tester.cc
-        ${CMAKE_CURRENT_BINARY_DIR}/flexisip-tester-config.hh flexisip-tester-config.hh.in
-        fork-call-tester.cc
-        fork-context-tester.cc
-        fork-context-mysql-tester.cc
-        module-dos-tester.cc
-        module-info-tester.cc
-        module-pushnotification-tester.cc
-        register-tester.cc
-        registrardb-tester.cc
-        router-tester.cc
-        sip-uri-tests.cc
-        tester.cc
-        thread-pool-tester.cc
-        tls-connection-tester.cc
-        utils-tester.cc
-        utils/asserts.hh
-        utils/bellesip-utils.cc utils/bellesip-utils.hh
-        utils/client-core.cc utils/client-core.hh
-        utils/listening-socket.cc utils/listening-socket.hh
-        utils/proxy-server.cc utils/proxy-server.hh
-        utils/proxy-server-process.cc utils/proxy-server-process.hh
-        utils/redis-server.cc utils/redis-server.hh
-        utils/tcp-server.cc utils/tcp-server.hh
-        utils/test-paterns/agent-test.hh
-        utils/test-paterns/test.hh
-        utils/tls-server.cc utils/tls-server.hh
+	agent-tester.cc
+	boolean-expressions.cc
+	cli-tester.cc
+	domain-registration-tester.cc
+	extended-contact-tester.cc
+	${CMAKE_CURRENT_BINARY_DIR}/flexisip-tester-config.hh flexisip-tester-config.hh.in
+	fork-call-tester.cc
+	fork-context-tester.cc
+	fork-context-mysql-tester.cc
+	module-dos-tester.cc
+	module-info-tester.cc
+	module-pushnotification-tester.cc
+	register-tester.cc
+	registrardb-tester.cc
+	router-tester.cc
+	sip-uri-tests.cc
+	tester.cc
+	thread-pool-tester.cc
+	tls-connection-tester.cc
+	utils-tester.cc
+	utils/asserts.hh
+	utils/bellesip-utils.cc utils/bellesip-utils.hh
+	utils/client-core.cc utils/client-core.hh
+	utils/listening-socket.cc utils/listening-socket.hh
+	utils/proxy-server.cc utils/proxy-server.hh
+	utils/proxy-server-process.cc utils/proxy-server-process.hh
+	utils/redis-server.cc utils/redis-server.hh
+	utils/tcp-server.cc utils/tcp-server.hh
+	utils/test-paterns/agent-test.hh
+	utils/test-paterns/test.hh
+	utils/tls-server.cc utils/tls-server.hh
 )
 
 if (ENABLE_CONFERENCE)
-    target_sources(flexisip_tester PRIVATE registration-event-tester.cc)
-    target_sources(flexisip_tester PRIVATE conference-tester.cc)
+	target_sources(flexisip_tester PRIVATE registration-event-tester.cc)
+	target_sources(flexisip_tester PRIVATE conference-tester.cc)
 endif ()
 
 if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
-    target_sources(flexisip_tester PRIVATE push-notification-tester.cc utils/pns-mock.cc)
+	target_sources(flexisip_tester PRIVATE push-notification-tester.cc utils/pns-mock.cc)
 elseif (ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
-    message(FATAL_ERROR "Module LibNgHttp2Asio is required for push notification tester. Either install it or disable push notification tester using -DENABLE_UNIT_TESTS_PUSH_NOTIFICATION=OFF")
+	message(FATAL_ERROR "Module LibNgHttp2Asio is required for push notification tester. Either install it or disable push notification tester using -DENABLE_UNIT_TESTS_PUSH_NOTIFICATION=OFF")
 endif ()
 
 if (ENABLE_B2BUA)
-    find_package(jsoncpp "1.1.0" REQUIRED)
-    target_sources(flexisip_tester PRIVATE b2bua-tester.cc)
-    target_link_libraries(flexisip_tester PRIVATE jsoncpp_lib)
+	find_package(jsoncpp "1.1.0" REQUIRED)
+	target_sources(flexisip_tester PRIVATE b2bua-tester.cc)
+	target_link_libraries(flexisip_tester PRIVATE jsoncpp_lib)
 endif ()
 
 target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
 target_link_libraries(flexisip_tester PRIVATE
-        Boost::system
-        OpenSSL::Crypto
-        OpenSSL::SSL
-        Threads::Threads
-        bctoolbox-tester
-        bellesip
-        flexisip
-        linphone
-        linphone++
-        mediastreamer
-        ortp
+	Boost::system
+	OpenSSL::Crypto
+	OpenSSL::SSL
+	Threads::Threads
+	bctoolbox-tester
+	bellesip
+	flexisip
+	linphone
+	linphone++
+	mediastreamer
+	ortp
 )
 
 if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
-    target_link_libraries(flexisip_tester PRIVATE LibNgHttp2Asio)
+	target_link_libraries(flexisip_tester PRIVATE LibNgHttp2Asio)
 endif ()
 
 install(TARGETS flexisip_tester
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-		RESOURCE DESTINATION ${CMAKE_INSTALL_DATADIR}/flexisip-tester
-        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	RESOURCE DESTINATION ${CMAKE_INSTALL_DATADIR}/flexisip-tester
+	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
 )
 
 set(FLEXISIP_TESTER_INSTALL_DATADIR "${CMAKE_INSTALL_DATADIR}/flexisip-tester")
-install(DIRECTORY cert
-		DESTINATION ${FLEXISIP_TESTER_INSTALL_DATADIR}
-)
-
-install(DIRECTORY config
-		DESTINATION ${FLEXISIP_TESTER_INSTALL_DATADIR}
-)
-
-install(DIRECTORY db
-		DESTINATION ${FLEXISIP_TESTER_INSTALL_DATADIR}
-)
-
-install(DIRECTORY sounds
-		DESTINATION ${FLEXISIP_TESTER_INSTALL_DATADIR}
-)
-
-install(DIRECTORY images
-		DESTINATION ${FLEXISIP_TESTER_INSTALL_DATADIR}
+install(DIRECTORY cert config db sounds images
+	DESTINATION ${FLEXISIP_TESTER_INSTALL_DATADIR}
 )
