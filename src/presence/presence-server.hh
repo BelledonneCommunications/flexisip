@@ -136,11 +136,7 @@ private:
 	void modifyEtag(const std::string& oldEtag, const std::string& newEtag) override;
 	void addEtag(const std::shared_ptr<PresentityPresenceInformation>& info, const std::string& etag) override;
 	std::map<std::string, std::shared_ptr<PresentityPresenceInformation>> mPresenceInformationsByEtag;
-	std::unordered_map<const belle_sip_uri_t*,
-	                   std::shared_ptr<PresentityPresenceInformation>,
-	                   std::hash<const belle_sip_uri_t*>,
-	                   bellesip::UriComparator>
-	    mPresenceInformations;
+	std::unordered_map<const belle_sip_uri_t*, std::shared_ptr<PresentityPresenceInformation>> mPresenceInformations;
 
 	/*
 	 *Presentity API

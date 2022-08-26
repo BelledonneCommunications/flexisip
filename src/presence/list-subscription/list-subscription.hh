@@ -107,8 +107,7 @@ private:
 	void addInstanceToResource(Xsd::Rlmi::Resource &resource, std::list<belle_sip_body_handler_t *> &multipartList,
 							   PresentityPresenceInformation &presentityInformation, bool extended);
 
-	using PendingStateType = std::unordered_map<const belle_sip_uri_t *, std::pair<std::shared_ptr<PresentityPresenceInformation>,bool>,
-						  std::hash<const belle_sip_uri_t *>, bellesip::UriComparator>;
+	using PendingStateType = std::unordered_map<const belle_sip_uri_t *, std::pair<std::shared_ptr<PresentityPresenceInformation>,bool>>;
 	PendingStateType mPendingStates; // map of Presentity to be notified by uri
 	std::chrono::time_point<std::chrono::system_clock> mLastNotify{std::chrono::system_clock::time_point::min()};
 	std::chrono::seconds mMinNotifyInterval{2};
