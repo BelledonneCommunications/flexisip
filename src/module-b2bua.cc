@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <flexisip/agent.hh>
@@ -55,7 +55,7 @@ private:
 ModuleInfo<B2bua>
     B2bua::sInfo("B2bua",
                  "This module is in charge of intercepting calls and route them to the back-to-back user agent server",
-                 {"Authentication"},
+                 {"Authentication", "ExternalAuthentication"},
                  ModuleInfoBase::ModuleOid::B2bua);
 
 // -----------------------------------------------------------------------------
