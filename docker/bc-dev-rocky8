@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20220810_add_jsoncpp
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20220902_git_cve_fix
 ###############################################################################
 
 FROM rockylinux:8
@@ -102,3 +102,6 @@ RUN sudo chmod a+x /usr/bin/systemctl
 
 COPY mariadb-entrypoint.sh /home/bc/
 RUN sudo chmod a+x /home/bc/mariadb-entrypoint.sh
+
+# CVE-2022-24765, from git 2.35.2 onward
+RUN git config --global --add safe.directory *

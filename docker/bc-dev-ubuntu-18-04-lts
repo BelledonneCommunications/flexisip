@@ -1,13 +1,17 @@
 ###############################################################################
-# Dockerfile used to make bc-dev-ubuntu-18-04-lts:20220805_from_scratch
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-18-04-lts:20220902_git_cve_fix
 ###############################################################################
 
 FROM ubuntu:18.04
 
 MAINTAINER Anthony Gauchy <anthony.gauchy@belledonne-communications.com>
 
+  # Dirty fix to make next install work - try to remove on next update
+RUN apt-get -y update && apt-get -y --allow-downgrades install libudev1=237-3ubuntu10.53
+
   # Update
 RUN apt-get -y --fix-missing update \
+ && apt-get -y upgrade \
   # Install common tools
  && apt-get -y --fix-missing install sudo \
                        vim \
@@ -80,3 +84,6 @@ ENV PATH=$PATH:/home/bc/.local/bin
 # Install CMake 3.20.5
 COPY cmake_install.sh .
 RUN ./cmake_install.sh 3.20.5 && rm cmake_install.sh
+
+# CVE-2022-24765, from git 2.35.2 onward
+RUN git config --global --add safe.directory *

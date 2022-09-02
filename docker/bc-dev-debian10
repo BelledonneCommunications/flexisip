@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:20220708_add_jsoncpp
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:20220902_git_cve_fix
 ###############################################################################
 
 FROM gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian10:20210421_python3_fix_pip
@@ -41,3 +41,6 @@ RUN ./cmake_install.sh 3.20.5 && rm cmake_install.sh
 # MYSQL DB for unit tests
 COPY mariadb-entrypoint.sh /
 RUN sudo chmod a+x /mariadb-entrypoint.sh
+
+# CVE-2022-24765, from git 2.35.2 onward
+RUN git config --global --add safe.directory *

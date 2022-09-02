@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos8:20220810_add_jsoncpp
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos8:20220902_git_cve_fix
 ###############################################################################
 
 FROM centos:8
@@ -88,3 +88,6 @@ RUN python3 -m pip install --user pystache six
 ENV PATH=$PATH:/home/bc/.local/bin
 
 ENV PS1='\[\e[34m\]\u@bc-dev-rocky8>\[\e[0m\] '
+
+# CVE-2022-24765, from git 2.35.2 onward
+RUN git config --global --add safe.directory *
