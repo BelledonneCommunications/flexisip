@@ -63,11 +63,19 @@ auto assert_data_transmitted(linphone::Call& calleeCall, linphone::Call& callerC
 
 } // namespace
 
+std::shared_ptr<linphone::Core> minimal_core(linphone::Factory& factory) {
+	auto linphoneConfig = factory.createConfig("");
+	linphoneConfig->setBool("logging", "disable_stdout", true);
+	auto core = factory.createCoreWithConfig(linphoneConfig, nullptr);
+	auto clientTransport = factory.createTransports();
+	clientTransport->setTcpPort(LC_SIP_TRANSPORT_DONTBIND);
+	core->setTransports(clientTransport);
+	return core;
+}
+
 ClientBuilder::ClientBuilder(const std::string& me)
-    : mFactory(linphone::Factory::get()), mMe(mFactory->createAddress(me)) {
-	auto configLinphone = Factory::get()->createConfig("");
-	configLinphone->setBool("logging", "disable_stdout", true);
-	mCore = mFactory->createCoreWithConfig(configLinphone, nullptr);
+    : mFactory(linphone::Factory::get()), mCore(minimal_core(*mFactory)), mMe(mFactory->createAddress(me)),
+      mAccountParams(mCore->createAccountParams()) {
 	mCore->setPrimaryContact(me);
 
 	mAccountParams = mCore->createAccountParams();
@@ -77,11 +85,6 @@ ClientBuilder::ClientBuilder(const std::string& me)
 		config->setString("storage", "backend", "sqlite3");
 		config->setString("storage", "uri", ":memory:");
 		config->setString("storage", "call_logs_db_uri", "null");
-	}
-	{
-		auto clientTransport = mFactory->createTransports();
-		clientTransport->setTcpPort(-2); // -2 for LC_SIP_TRANSPORT_DONTBIND)
-		mCore->setTransports(clientTransport);
 	}
 
 	mCore->setZrtpSecretsFile("null");

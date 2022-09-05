@@ -1,4 +1,5 @@
-/*  SPDX-License-Identifier: GPL-3.0-or-later
+/** Copyright (C) 2010-2022 Belledonne Communications SARL
+    SPDX-License-Identifier: AGPL-3.0-or-later
 
 	You can set your editor to Lua for this file to get syntax highlighting.
 

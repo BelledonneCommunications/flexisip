@@ -19,6 +19,7 @@
 #include <bctoolbox/tester.h>
 
 #include "tester.hh"
+#include "utils/rand.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/uri-utils.hh"
 
@@ -59,8 +60,20 @@ public:
 	}
 };
 
+class RandomStringGeneratorTest : public Test {
+public:
+	void operator()() override {
+		RandomStringGenerator rsg(0x5EED);
+
+		const auto result = rsg(10);
+
+		BC_ASSERT_STRING_EQUAL(result.c_str(), "Mf9qx7OFl-");
+	}
+};
+
 static test_t tests[] = {
     TEST_NO_TAG("UriUtils isIpv4Address and isIpv6Address method test", run<UriUtilsIsIpvXTest>),
+    CLASSY_TEST(RandomStringGeneratorTest),
 };
 
 test_suite_t utilsSuite = {

@@ -49,7 +49,7 @@ struct AssertionResult {
 
 	AssertionResult(const bool b) // Convert from bool for seemless integration with existing code
 	    : file(__FILE__), line(__LINE__),
-	      reason(b ? nullptr : "Context Missing. Please rewrite your test to use AssertionResult insted of bool.") {
+	      reason(b ? nullptr : "Context Missing. Please rewrite your test to use AssertionResult instead of bool.") {
 	}
 };
 
@@ -58,6 +58,9 @@ struct AssertionResult {
 
 #define FAIL_IF(assertion)                                                                                             \
 	if (assertion) return AssertionResult(__FILE__, __LINE__, "FAIL_IF(" #assertion ")")
+
+#define ASSERT_PASSED(assertionResult)                                                                                 \
+	bc_assert(__FILE__, __LINE__, assertionResult.assert_passed(), "ASSERT_PASSED(" #assertionResult ")")
 
 class BcAssert {
 public:

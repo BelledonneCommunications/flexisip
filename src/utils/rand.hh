@@ -21,6 +21,9 @@
 #include <cstdlib>
 #include <ctime>
 #include <memory>
+#include <random>
+
+#include <flexisip/logmanager.hh>
 
 namespace flexisip {
 
@@ -49,6 +52,32 @@ private:
 	static void makeSeed() noexcept;
 
 	static bool sSeeded; /**< True if the seed has been intialized, False otherwise. */
+};
+
+/* Generates random strings of given lengths with uniform probability accross .kAlphabet. If no seed is given at
+ * construction, seeds itself from the system's random source. */
+class RandomStringGenerator {
+public:
+	// base64url alphabet as defined in RFC 4648 §5
+	static constexpr const char kAlphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+	static constexpr const auto kCharCount = sizeof(kAlphabet) - 1; // Null-terminated string
+
+	std::default_random_engine mEngine;
+	std::uniform_int_distribution<size_t> mDist;
+
+	explicit RandomStringGenerator(uint_fast32_t seed = std::random_device()())
+	    : mEngine(seed), mDist(0, kCharCount - 1 /* Array indexing starts at 0 and dist() is inclusive */) {
+	}
+
+	std::string operator()(std::size_t length) {
+		std::string result(length, '\0');
+
+		for (char& c : result) {
+			c = kAlphabet[mDist(mEngine)];
+		}
+
+		return result;
+	}
 };
 
 } // namespace flexisip

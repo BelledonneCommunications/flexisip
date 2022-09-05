@@ -16,6 +16,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <cstdlib>
+
 #include "flexisip/configmanager.hh"
 #include "flexisip/module-pushnotification.hh"
 #include "flexisip/registrardb.hh"
@@ -23,6 +25,7 @@
 #include "pushnotification/firebase/firebase-client.hh"
 
 #include "tester.hh"
+#include "utils/asserts.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 
 using namespace std;
@@ -151,16 +154,6 @@ protected:
 		std::shared_ptr<Record> mRecord;
 	};
 
-	void checkFetch(const std::shared_ptr<Record>& recordAfterBind) {
-		auto* regDb = RegistrarDb::get();
-		std::shared_ptr<TestListener> listener = make_shared<TestListener>();
-		/* Ensure that the Record obtained after fetch operation is the same as the one after the initial bind() */
-		regDb->fetch(recordAfterBind->getAor(), listener);
-		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
-		if (listener->getRecord()) {
-			BC_ASSERT_TRUE(listener->getRecord()->isSame(*recordAfterBind));
-		}
-	}
 	// Protected methods
 	void onExec() noexcept override {
 		sofiasip::Home home;
@@ -170,95 +163,121 @@ protected:
 		SipUri from("sip:bob@example.org");
 		BindingParameters params;
 		params.globalExpire = 5;
-		params.callId = "xyz";
+		params.callId = "bob";
 
 		sip_contact_t* ct;
 
+		auto bind = [regDb, &from, &ct, &params, &listener, this, home = home.home()](auto contact, auto... args) {
+			listener->reset();
+			ct = sip_contact_create(home, (url_string_t*)contact, args..., nullptr);
+			regDb->bind(from, ct, params, listener);
+			return waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s);
+		};
+
+		// Make sure the record inserted in the DB is what was intended
+		auto checkFetch = [regDb, &listener, this]() {
+			const auto recordAfterBind = listener->getRecord();
+			listener->reset();
+			regDb->fetch(recordAfterBind->getAor(), listener);
+			FAIL_IF(!waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
+			const auto fetched = listener->getRecord();
+			if (fetched && !fetched->isSame(*recordAfterBind)) {
+				const auto& fetchedContacts = fetched->getExtendedContacts();
+				BC_ASSERT_EQUAL(fetchedContacts.size(), recordAfterBind->getExtendedContacts().size(), size_t, "%zx");
+
+				return ASSERTION_FAILED(
+				    "Record obtained after fetch operation is NOT the same as after the initial bind()");
+			}
+			return ASSERTION_PASSED();
+		};
+
 		/* Add a simple contact */
-		ct = sip_contact_create(home.home(), (url_string_t*)"sip:bob@192.168.0.2;transport=tcp", nullptr);
-		regDb->bind(from, ct, params, listener);
-		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
+		BC_ASSERT_TRUE(bind("sip:bob@192.168.0.2;transport=tcp"));
 		if (listener->getRecord()) {
-			BC_ASSERT_TRUE(listener->getRecord()->getExtendedContacts().size() == 1);
-			checkFetch(listener->getRecord());
+			BC_ASSERT_EQUAL(listener->getRecord()->getExtendedContacts().size(), 1, size_t, "%zx");
+			ASSERT_PASSED(checkFetch());
 		}
 
 		/* Remove this contact with an expire parameter */
-		listener->reset();
-		ct = sip_contact_create(home.home(), (url_string_t*)"sip:bob@192.168.0.2;transport=tcp", "expires=0", nullptr);
-		regDb->bind(from, ct, params, listener);
-		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
+		BC_ASSERT_TRUE(bind("sip:bob@192.168.0.2;transport=tcp", "expires=0"));
 		if (listener->getRecord()) {
-			BC_ASSERT_TRUE(listener->getRecord()->getExtendedContacts().size() == 0);
-			checkFetch(listener->getRecord());
+			BC_ASSERT_EQUAL(listener->getRecord()->getExtendedContacts().size(), 0, size_t, "%zx");
+			ASSERT_PASSED(checkFetch());
 		}
 
 		/* Add a simple contact */
-		listener->reset();
 		from = SipUri("sip:bobby@example.net");
-		ct = sip_contact_create(home.home(), (url_string_t*)"sip:bobby@192.168.0.2;transport=tcp", nullptr);
-		regDb->bind(from, ct, params, listener);
-		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
+		params.callId = "bobby";
+		BC_ASSERT_TRUE(bind("sip:bobby@192.168.0.2;transport=tcp"));
 		if (listener->getRecord()) {
-			BC_ASSERT_TRUE(listener->getRecord()->getExtendedContacts().size() == 1);
-			checkFetch(listener->getRecord());
+			BC_ASSERT_EQUAL(listener->getRecord()->getExtendedContacts().size(), 1, size_t, "%zx");
+			ASSERT_PASSED(checkFetch());
 		}
 
-		/* Add this contact again (duplicated, without unique id) */
-		listener->reset();
-		params.callId = "duplicate";
-		ct = sip_contact_create(home.home(), (url_string_t*)"sip:bobby@192.168.0.2;transport=tcp;new-param=added",
-		                        nullptr);
-		regDb->bind(from, ct, params, listener);
-		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
+		/* Update this contact based on URI comparison rules */
+		BC_ASSERT_TRUE(bind("sip:bobby@192.168.0.2;transport=tcp;new-param=added"));
 		if (listener->getRecord()) {
-			auto contacts = listener->getRecord()->getExtendedContacts();
-			BC_ASSERT_TRUE(contacts.size() == 1);
+			const auto& contacts = listener->getRecord()->getExtendedContacts();
+			BC_ASSERT_EQUAL(contacts.size(), 1, size_t, "%zx");
 			BC_ASSERT_STRING_EQUAL(contacts.front()->mSipContact->m_url->url_params, "transport=tcp;new-param=added");
-			checkFetch(listener->getRecord());
+			ASSERT_PASSED(checkFetch());
 		}
 
-		/* Remove this contact with an expire parameter but with a different call-id */
-		listener->reset();
-		ct =
-		    sip_contact_create(home.home(), (url_string_t*)"sip:bobby@192.168.0.2;transport=tcp", "expires=0", nullptr);
-		params.callId = "abcdef";
-		regDb->bind(from, ct, params, listener);
-		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
+		/* Add secondary contact */
+		BC_ASSERT_TRUE(bind("sip:alias@192.168.0.2;transport=tcp"));
 		if (listener->getRecord()) {
-			BC_ASSERT_TRUE(listener->getRecord()->getExtendedContacts().size() == 0);
-			checkFetch(listener->getRecord());
+			const auto& contacts = listener->getRecord()->getExtendedContacts();
+			BC_ASSERT_EQUAL(contacts.size(), 2, size_t, "%zx");
+			BC_ASSERT_STRING_EQUAL(contacts.back()->mSipContact->m_url->url_user, "alias");
+			BC_ASSERT_STRING_EQUAL(contacts.back()->mSipContact->m_url->url_params, "transport=tcp"); // No new-param
+			ASSERT_PASSED(checkFetch());
+		}
+
+		/* Remove these contacts with an expire parameter but with a different call-id */
+		params.callId = "not-bobby";
+		BC_ASSERT_TRUE(bind("sip:bobby@192.168.0.2;transport=tcp;debug-tag=delete", "expires=0"));
+		if (listener->getRecord()) {
+			BC_ASSERT_EQUAL(listener->getRecord()->getExtendedContacts().size(), 1, size_t, "%zx");
+			ASSERT_PASSED(checkFetch());
+		}
+
+		BC_ASSERT_TRUE(bind("sip:alias@192.168.0.2;transport=tcp", "expires=0"));
+		if (listener->getRecord()) {
+			BC_ASSERT_EQUAL(listener->getRecord()->getExtendedContacts().size(), 0, size_t, "%zx");
+			ASSERT_PASSED(checkFetch());
 		}
 
 		/* Add a contact with a unique id */
 		from = SipUri("sip:alice@example.net");
-		listener->reset();
-		ct = sip_contact_create(home.home(), (url_string_t*)"sip:alice@10.0.0.2;transport=tcp",
-		                        "+sip.instance=\"<urn::uuid::abcd>\"", nullptr);
-		regDb->bind(from, ct, params, listener);
-		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
+		params.callId = "alice";
+		BC_ASSERT_TRUE(bind("sip:alice@10.0.0.2;transport=tcp", "+sip.instance=\"<urn::uuid::abcd>\""));
 		if (listener->getRecord()) {
-			auto contacts = listener->getRecord()->getExtendedContacts();
-			BC_ASSERT_TRUE(contacts.size() == 1);
-			BC_ASSERT_TRUE(contacts.front()->getUniqueId() == "\"<urn::uuid::abcd>\"");
-			checkFetch(listener->getRecord());
+			const auto& contacts = listener->getRecord()->getExtendedContacts();
+			BC_ASSERT_EQUAL(contacts.size(), 1, size_t, "%zx");
+			BC_ASSERT_STRING_EQUAL(contacts.front()->getUniqueId().c_str(), "\"<urn::uuid::abcd>\"");
+			ASSERT_PASSED(checkFetch());
 		}
 
-		/* Update this contact */
-		listener->reset();
-		ct = sip_contact_create(home.home(), (url_string_t*)"sip:alice@10.0.0.3;transport=tcp",
-		                        "+sip.instance=\"<urn::uuid::abcd>\"", nullptr);
-		regDb->bind(from, ct, params, listener);
-		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
+		/* Update this contact based on uuid */
+		BC_ASSERT_TRUE(bind("sip:alice@10.0.0.3;transport=tcp", "+sip.instance=\"<urn::uuid::abcd>\""));
 		if (listener->getRecord()) {
-			if (BC_ASSERT_TRUE(listener->getRecord()->getExtendedContacts().size() == 1)) {
-				BC_ASSERT_STRING_EQUAL(
-				    listener->getRecord()->getExtendedContacts().front()->mSipContact->m_url->url_host, "10.0.0.3");
-			}
-			checkFetch(listener->getRecord());
+			const auto& contacts = listener->getRecord()->getExtendedContacts();
+			BC_ASSERT_EQUAL(contacts.size(), 1, size_t, "%zx");
+			BC_ASSERT_STRING_EQUAL(contacts.front()->mSipContact->m_url->url_host, "10.0.0.3");
+			ASSERT_PASSED(checkFetch());
 		}
 	}
 };
+
+namespace {
+int seed_instance_id_rsg() noexcept {
+	const auto* seed = std::getenv("FLEXISEED");
+	if (seed) {
+		flexisip::InstanceID::sRsg.mEngine.seed(std::stoll(seed)); // will throw (and abort) if seed is not an integer
+	}
+	return 0;
+}
+} // namespace
 
 static test_t tests[] = {
     TEST_NO_TAG("Fetch expiring contacts on Redis", run<TestFetchExpiringContacts<DbImplementation::Redis>>),
@@ -271,7 +290,7 @@ static test_t tests[] = {
 
 test_suite_t registarDbSuite = {
     "RegistrarDB",                    // Suite name
-    nullptr,                          // Before suite
+    seed_instance_id_rsg,             // Before suite
     nullptr,                          // After suite
     nullptr,                          // Before each test
     nullptr,                          // After each test

@@ -24,11 +24,15 @@
 
 #pragma once
 
-#include "b2bua-server.hh"
-#include "cli.hh"
-#include "linphone++/linphone.hh"
 #include <regex>
 #include <unordered_map>
+
+#include "linphone++/enums.hh"
+#include "linphone++/linphone.hh"
+
+#include "b2bua-server.hh"
+#include "cli.hh"
+#include "utils/stl-backports.hh"
 
 namespace flexisip {
 namespace b2bua {
@@ -56,19 +60,26 @@ public:
 class ExternalSipProvider {
 	friend class AccountManager;
 
+public:
+	// Move constructor
+	ExternalSipProvider(ExternalSipProvider&& other) = default;
+
+private:
 	std::regex pattern;
 	std::vector<Account> accounts;
 	std::string name;
+	stl_backports::optional<bool> overrideAvpf;
+	stl_backports::optional<linphone::MediaEncryption> overrideEncryption;
 
-	ExternalSipProvider(std::string&& pattern, std::vector<Account>&& accounts, std::string&& name);
+	ExternalSipProvider(std::string&& pattern,
+	                    std::vector<Account>&& accounts,
+	                    std::string&& name,
+	                    const stl_backports::optional<bool>& overrideAvpf,
+	                    const stl_backports::optional<linphone::MediaEncryption>& overrideEncryption);
 
 	// Disable copy semantics
 	ExternalSipProvider(const ExternalSipProvider&) = delete;
 	ExternalSipProvider& operator=(const ExternalSipProvider&) = delete;
-
-public:
-	// Move constructor
-	ExternalSipProvider(ExternalSipProvider&& other) = default;
 };
 
 struct AccountDesc {
@@ -84,15 +95,11 @@ struct ProviderDesc {
 	bool registrationRequired;
 	uint32_t maxCallsPerLine;
 	std::vector<AccountDesc> accounts;
+	stl_backports::optional<bool> overrideAvpf;
+	stl_backports::optional<linphone::MediaEncryption> overrideEncryption;
 };
 
 class AccountManager : public BridgedCallApplication, public CliHandler {
-	std::vector<ExternalSipProvider> providers;
-	std::unordered_map<std::string, Account*> occupiedSlots;
-
-	void initFromDescs(linphone::Core& core, std::vector<ProviderDesc>&& provDescs);
-	Account* findAccountToCall(const std::string& destinationUri);
-
 public:
 	AccountManager() {
 	}
@@ -106,6 +113,15 @@ public:
 	void onCallEnd(const linphone::Call& call) override;
 
 	std::string handleCommand(const std::string& command, const std::vector<std::string>& args) override;
+
+private:
+	std::vector<ExternalSipProvider> providers;
+	std::unordered_map<std::string, Account*> occupiedSlots;
+
+	void initFromDescs(linphone::Core& core, std::vector<ProviderDesc>&& provDescs);
+
+	std::unique_ptr<std::pair<std::reference_wrapper<ExternalSipProvider>, std::reference_wrapper<Account>>>
+	findAccountToCall(const std::string& destinationUri);
 };
 
 } // namespace bridge

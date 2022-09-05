@@ -81,5 +81,7 @@ void run() noexcept {
 	}
 };
 
+#define CLASSY_TEST(test_class) TEST_NO_TAG(#test_class, run<test_class>)
+
 } // namespace tester
 } // namespace flexisip

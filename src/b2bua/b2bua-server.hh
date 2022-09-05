@@ -77,6 +77,9 @@ public:
 	                        const std::shared_ptr<linphone::Call>& call,
 	                        linphone::Call::State state,
 	                        const std::string& message) override;
+	void onDtmfReceived(const std::shared_ptr<linphone::Core>& core,
+	                    const std::shared_ptr<linphone::Call>& call,
+	                    int dtmf) override;
 
 protected:
 	void _init() override;
