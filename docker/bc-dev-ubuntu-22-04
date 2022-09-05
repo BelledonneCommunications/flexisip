@@ -1,43 +1,32 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-18-04-lts:20220906_libnghttp2_asio_script
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-22-04:20220905_from_scratch
 ###############################################################################
 
-FROM ubuntu:18.04
+FROM ubuntu:22.04
 
 MAINTAINER Anthony Gauchy <anthony.gauchy@belledonne-communications.com>
 
-  # Add repositories
-RUN apt-get -y --fix-missing update && apt-get -y install software-properties-common \
-    && add-apt-repository "deb http://us.archive.ubuntu.com/ubuntu/ bionic universe multiverse" \
-    && add-apt-repository "deb http://us.archive.ubuntu.com/ubuntu/ bionic-updates universe multiverse"
-
-  # Dirty fix to make next install work - try to remove on next update
-RUN apt-get -y update && apt-get -y --allow-downgrades install libudev1=237-3ubuntu10.53
-
   # Update
-RUN apt-get -y --fix-missing update \
- && apt-get -y upgrade \
+RUN apt-get -y update \
   # Install common tools
- && apt-get -y --fix-missing install sudo \
+ && apt-get -y install sudo \
                        vim \
                        wget \
                        file \
-                       rsync \
                      # Install development tools
                        ccache \
+                       clang \
                        cmake \
                        doxygen \
                        elfutils \
                        g++ \
                        gdb \
                        git \
-                       llvm-10 \
-                       clang-10 \
+                       llvm \
                        make \
                        ninja-build \
                        python3 \
                        python3-pip \
-                       rpm \
                      # Install all dependencies needed for Flexisip
                        libssl-dev \
                        libboost-dev \
@@ -48,8 +37,9 @@ RUN apt-get -y --fix-missing update \
                        libjsoncpp-dev \
                        libsqlite3-dev \
                        libpq-dev \
-                       libmariadbclient-dev \
-                       libmariadbclient-dev-compat \
+                       libmariadb-dev \
+                       libmariadb-dev-compat \
+                       mariadb-server \
                        libnghttp2-dev \
                        libprotobuf-dev \
                        libsnmp-dev \
@@ -69,10 +59,11 @@ RUN apt-get -y --fix-missing update \
                        libvpx-dev \
   # Clean
  && apt-get -y autoremove \
- && apt-get -y clean \
-  # Configure clang
- && sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-10 100 \
- && sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-10 100
+ && apt-get -y clean
+
+# Install libnghttp2_asio 1.43.0
+COPY libnghttp2_asio_install.sh .
+RUN ./libnghttp2_asio_install.sh 1.43.0 && rm libnghttp2_asio_install.sh
 
 # Configure user bc
 RUN useradd -ms /bin/bash bc && \
@@ -90,13 +81,5 @@ WORKDIR /home/bc
 RUN python3 -m pip install --user pystache six
 ENV PATH=$PATH:/home/bc/.local/bin
 
-# Install CMake 3.20.5
-COPY cmake_install.sh .
-RUN ./cmake_install.sh 3.20.5 && rm cmake_install.sh
-
-# Install libnghttp2_asio 1.30.0
-COPY libnghttp2_asio_install.sh .
-RUN sudo ./libnghttp2_asio_install.sh 1.30.0 && rm libnghttp2_asio_install.sh
-
 # CVE-2022-24765, from git 2.35.2 onward
-RUN git config --global --add safe.directory *
+RUN git config --global --add safe.directory /builds/BC/public/flexisip

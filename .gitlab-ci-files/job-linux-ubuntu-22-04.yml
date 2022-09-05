@@ -1,38 +1,38 @@
-.debian10-image:
+.ubuntu-22-04-image:
   image:
-    name: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:$DEBIAN_10_IMAGE_VERSION
+    name: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-22-04:$UBUNTU_22_04_IMAGE_VERSION
 
 #################################################
 # Makefile
 #################################################
 
-job-debian10-makefile-gcc:
+job-ubuntu-22-04-makefile-gcc:
   extends:
     - .job-makefile-gcc
-    - .debian10-image
+    - .ubuntu-22-04-image
     - .rules-never-run  # ⚠ See `rules.yml`, override .job-makefile-gcc rules
 
 
-job-debian10-makefile-clang:
+job-ubuntu-22-04-makefile-clang:
   extends:
     - .job-makefile-clang
-    - .debian10-image
+    - .ubuntu-22-04-image
     - .rules-never-run  # ⚠ See `rules.yml`, override .job-makefile-clang rules
 
 #################################################
 # Ninja
 #################################################
 
-job-debian10-ninja-gcc:
+job-ubuntu-22-04-ninja-gcc:
   extends:
     - .job-ninja-gcc
-    - .debian10-image
+    - .ubuntu-22-04-image
 
 
-job-debian10-ninja-clang:
+job-ubuntu-22-04-ninja-clang:
   extends:
     - .job-ninja-clang
-    - .debian10-image
+    - .ubuntu-22-04-image
   variables:
     CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON
   artifacts:
@@ -43,30 +43,32 @@ job-debian10-ninja-clang:
 # UNIT TESTS
 #################################################
 
-job-debian10-unit-test:
+job-ubuntu-22-04-unit-test:
   extends:
     - .unit-test
-    - .debian10-image
+    - .ubuntu-22-04-image
   needs:
-    - job-debian10-ninja-clang
+    - job-ubuntu-22-04-ninja-clang
 
 #################################################
 # DEB
 #################################################
 
-job-debian10-deb:
+job-ubuntu-22-04-deb:
   extends:
     - .job-linux-deb
-    - .debian10-image
+    - .ubuntu-22-04-image
     - .rules-manual # ⚠ See `rules.yml`, override .job-linux-deb rules
 
 
-job-debian10-deb-deploy:
-  extends: .job-debian-deb-deploy
+job-ubuntu-22-04-deb-deploy:
+  extends:
+    - .job-debian-deb-deploy
+    - .ubuntu-22-04-image
   variables:
-    RELEASE: buster
-    FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
+    RELEASE: bionic
+    FREIGHT_PATH: $UBUNTU_FREIGHT_CONF_PATH
   dependencies:
-    - job-debian10-deb
+    - job-ubuntu-22-04-deb
   needs:
-    - job-debian10-deb
+    - job-ubuntu-22-04-deb

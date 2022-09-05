@@ -61,8 +61,11 @@ CSeq: 20 MESSAGE
 Content-Length: 0)sip"};
 
 static int beforeAll() {
+	char const* cHost = getenv("BC_MYSQL_HOST");
+	auto host = (cHost == NULL) ? "" : string(cHost);
+	if (host == "") host = "127.0.0.1";
 	ForkMessageContextSociRepository::prepareConfiguration(
-	    "mysql", "db='flexisip_messages' user='belledonne' password='cOmmu2015nicatiOns' host='127.0.0.1'", 10);
+	    "mysql", "db='flexisip_messages' user='belledonne' password='cOmmu2015nicatiOns' host='" + host + "'", 10);
 
 	return 0;
 }
@@ -398,9 +401,9 @@ static void globalTestMultipleDevices() {
 			                      return clientOffDevice->getAccount()->getState() == RegistrationState::Ok &&
 			                             clientOffDevice->getCore()->getUnreadChatMessageCount() == 1;
 		                      }) &&
-		               all_of(clientOnDevices.begin(), clientOnDevices.end(), [](const auto& clientOffDevice) {
-			               return clientOffDevice->getAccount()->getState() == RegistrationState::Ok &&
-			                      clientOffDevice->getCore()->getUnreadChatMessageCount() == 0;
+		               all_of(clientOnDevices.begin(), clientOnDevices.end(), [](const auto& clientOnDevice) {
+			               return clientOnDevice->getAccount()->getState() == RegistrationState::Ok &&
+			                      clientOnDevice->getCore()->getUnreadChatMessageCount() == 0;
 		               });
 	        }));
 

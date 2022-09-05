@@ -21,6 +21,8 @@
     paths:
       - ccache/
   before_script:
+    - git submodule foreach --recursive git fetch --tags --force
+    - "[[ -f /opt/rh/devtoolset-8/enable ]] && source /opt/rh/devtoolset-8/enable"
     - mkdir -p ccache
     - echo "max_size = $CCACHE_SIZE" > ccache/ccache.conf
     - export CCACHE_BASEDIR=${PWD}
@@ -36,8 +38,6 @@
   tags: [ "docker" ]
   extends: .linux-ccache
   script:
-    - export CC=$CC
-    - export CXX=$CXX
     - *set-max-jobs
     - mkdir work && cd work
     - cmake -G "$CMAKE_GENERATOR" $DEFAULT_CMAKE_OPTIONS -DCMAKE_INSTALL_PREFIX="$PWD/../OUTPUT" $CMAKE_OPTIONS ..
@@ -56,6 +56,7 @@
   variables:
     CMAKE_GENERATOR: 'Ninja'
   script:
+    - "[[ -f /opt/rh/devtoolset-8/enable ]] && source /opt/rh/devtoolset-8/enable"
     - *set-max-jobs
     - mkdir build && cd build
     - cmake -G $CMAKE_GENERATOR $DEFAULT_PACKAGING_CMAKE_OPTIONS $CMAKE_OPTIONS -DCPACK_GENERATOR=RPM ..
@@ -110,8 +111,6 @@
   stage: image
   tags: [ "linux-deploy" ]
   extends: .rules-deploy  # ⚠ See `rules.yml`
-  before_script:
-    - git submodule foreach --recursive git fetch --tags --force
   script:
     - mkdir -p docker/DEBS && mv build/*.{deb,ddeb} docker/DEBS
     - cd docker
@@ -189,8 +188,17 @@
 
 .unit-test:
   stage: test 🧪
-  tags: [ "docker-test" ]
+  tags: [ "docker-test-flexisip" ]
   extends: .rules-dev  # ⚠ See `rules.yml`
+  variables:
+    # Configure mariadb service (https://hub.docker.com/_/mariadb)
+    MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+    MARIADB_DATABASE: "flexisip_messages"
+    MARIADB_USER: "belledonne"
+    MARIADB_PASSWORD: "cOmmu2015nicatiOns"
+    BC_MYSQL_HOST: "mariadb"
+  services:
+    - mariadb:latest
   script:
     - export LD_LIBRARY_PATH=/usr/local/lib
     - export LSAN_OPTIONS="suppressions=./sanitizer_ignore.txt"

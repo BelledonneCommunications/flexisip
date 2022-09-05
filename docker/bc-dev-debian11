@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian11:20220902_git_cve_fix
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian11:20220913_mariadb_as_service
 ###############################################################################
 
 FROM debian:bullseye
@@ -37,7 +37,6 @@ RUN apt-get -y update \
                        libpq-dev \
                        libmariadb-dev \
                        libmariadb-dev-compat \
-                       mariadb-server \
                        libnghttp2-dev \
                        libprotobuf-dev \
                        libsnmp-dev \
@@ -89,10 +88,6 @@ WORKDIR /home/bc
 # modules to be installed into /home/bc/.local/bin.
 RUN python3 -m pip install --user pystache six
 ENV PATH=$PATH:/home/bc/.local/bin
-
-# MYSQL DB for unit tests
-COPY mariadb-entrypoint.sh /
-RUN sudo chmod a+x /mariadb-entrypoint.sh
 
 # CVE-2022-24765, from git 2.35.2 onward
 RUN git config --global --add safe.directory *

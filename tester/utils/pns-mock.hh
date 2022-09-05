@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <future>
 #include <string>
 
 #include <nghttp2/asio_http2_server.h>

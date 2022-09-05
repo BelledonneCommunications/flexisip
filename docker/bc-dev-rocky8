@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20220902_git_cve_fix
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20220906_libnghttp2_asio_script
 ###############################################################################
 
 FROM rockylinux:8
@@ -49,7 +49,6 @@ RUN sudo dnf -y install \
                    libsqlite3x-devel \
                    libpq-devel \
                    mariadb-devel \
-                   mariadb-server \
                    nghttp2 \
                    libnghttp2-devel \
                    protobuf-devel \
@@ -70,13 +69,9 @@ RUN sudo dnf -y install \
                    jsoncpp-devel \
                &&  dnf -y clean all
 
-# Install libnghttp2_asio
-RUN ver=1.39.2 && srcdir=nghttp2-${ver} && srcpkg=${srcdir}.tar.gz && bindir=build && \
-	wget https://github.com/nghttp2/nghttp2/releases/download/v${ver}/${srcpkg} && \
-	tar -xf ${srcpkg} && \
-	mkdir ${bindir} && cmake -S ${srcdir} -B ${bindir} -GNinja -DENABLE_ASIO_LIB=ON && \
-	cmake --build ${bindir} --target install && \
-	rm -rf ${srcpkg} ${srcdir} ${bindir}
+# Install libnghttp2_asio 1.39.2
+COPY libnghttp2_asio_install.sh .
+RUN ./libnghttp2_asio_install.sh 1.39.2 && rm libnghttp2_asio_install.sh
 
 # Configure user bc
 RUN useradd -ms /bin/bash bc && \
@@ -95,13 +90,6 @@ RUN python3 -m pip install --user pystache six
 ENV PATH=$PATH:/home/bc/.local/bin
 
 ENV PS1='\[\e[34m\]\u@bc-dev-rocky8>\[\e[0m\] '
-
-# MYSQL DB for unit tests
-COPY systemctl.py /usr/bin/systemctl
-RUN sudo chmod a+x /usr/bin/systemctl
-
-COPY mariadb-entrypoint.sh /home/bc/
-RUN sudo chmod a+x /home/bc/mariadb-entrypoint.sh
 
 # CVE-2022-24765, from git 2.35.2 onward
 RUN git config --global --add safe.directory *

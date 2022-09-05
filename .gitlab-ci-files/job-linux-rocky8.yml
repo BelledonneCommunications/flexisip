@@ -51,8 +51,6 @@ job-rocky8-unit-test:
   extends:
     - .unit-test
     - .rocky8-image-variables
-  image:
-    entrypoint: [ "/home/bc/mariadb-entrypoint.sh", "/usr/bin/systemctl start mariadb" ]
   needs:
     - job-rocky8-ninja-clang
 

@@ -34,7 +34,7 @@ job-debian11-ninja-clang:
     - .job-ninja-clang
     - .debian11-image
   variables:
-    CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON
+    CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON -DENABLE_COVERAGE=ON
   artifacts:
     paths:
       - OUTPUT/*
@@ -67,8 +67,6 @@ job-debian11-unit-test:
   extends:
     - .unit-test
     - .debian11-image
-  image:
-    entrypoint: [ "/mariadb-entrypoint.sh", "service mariadb start" ]
   needs:
     - job-debian11-ninja-clang
   after_script:
@@ -82,7 +80,7 @@ job-debian11-unit-test:
 
 debian11-coverage:
   stage: coverage 📑
-  tags: [ "docker-test" ]
+  tags: [ "docker-test-flexisip" ]
   extends:
     - .rules-dev
     - .debian11-image

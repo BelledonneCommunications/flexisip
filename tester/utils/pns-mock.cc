@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "pns-mock.hh"
@@ -24,7 +24,6 @@
 
 #include <flexisip/logmanager.hh>
 
-#include "flexisip-tester-config.hh"
 #include "tester.hh"
 
 using namespace std;
@@ -42,7 +41,7 @@ PnsMock::PnsMock() : mCtx(ssl::context::tls) {
 }
 
 bool PnsMock::exposeMock(
-    int code, const string& body, const string& reqBodyPattern, promise<bool>&& barrier, bool timeout) {
+    int code, const string& body, const string& reqBodyPattern, std::promise<bool>&& barrier, bool timeout) {
 	bool assert = false;
 	try {
 		onPushRequest(handleRequest(code, body, reqBodyPattern, assert, timeout));
