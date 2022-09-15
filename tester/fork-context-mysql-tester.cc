@@ -200,6 +200,7 @@ static void forkMessageContextSociRepositoryFullLoadMysqlUnitTests() {
  * All along we check fork stats and client state.
  */
 static void globalTest() {
+	SLOGD << "Step 1: Setup";
 	auto server = make_shared<Server>("/config/flexisip_fork_context_db.conf");
 	server->start();
 
@@ -214,6 +215,7 @@ static void globalTest() {
 		                            }
 	                            }};
 
+	SLOGD << "Step 2: Send message";
 	std::string rawBody(100000, 'a');
 	rawBody.insert(0, "C'est pas faux ");
 	rawBody.append("\r\n\r\n");
@@ -235,10 +237,8 @@ static void globalTest() {
 		bellesipUtils.stackSleep(20);
 	}
 
-	/*
-	 * Assert that db fork is still present because device is offline, message fork is destroyed because message is
-	 * saved
-	 */
+	SLOGD << "Step 3: Assert that db fork is still present because device is offline, message fork is destroyed "
+	         "because message is saved";
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	BC_ASSERT_TRUE(CoreAssert({receiverClient->getCore()}, server->getAgent()).wait([agent = server->getAgent()] {
@@ -249,7 +249,7 @@ static void globalTest() {
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0, int, "%i");
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 1, int, "%i");
 
-	// Check that request in DB is the same that request sent.
+	SLOGD << "Step 4: Check that request in DB is the same that request sent";
 	auto allMessages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
 	if (allMessages.size() == 1) {
 		auto requestInDb =
@@ -258,14 +258,14 @@ static void globalTest() {
 		if (requestInDb.find(rawBody) == string::npos) BC_FAIL("Body not found");
 	} else BC_FAIL("No message in DB, or too much");
 
-	// Client REGISTER and receive message
+	SLOGD << "Step 5: Client REGISTER, then receive message";
 	receiverClient->getCore()->setNetworkReachable(true);
 	BC_ASSERT_TRUE(CoreAssert({receiverClient->getCore()}, server->getAgent()).wait([receiverClient] {
 		return receiverClient->getAccount()->getState() == RegistrationState::Ok &&
 		       receiverClient->getCore()->getUnreadChatMessageCount() == 1;
 	}));
 
-	// Assert Fork is destroyed after being delivered
+	SLOGD << "Step 6: Client REGISTER, then receive message";
 	BC_ASSERT_TRUE(CoreAssert({receiverClient->getCore()}, server->getAgent()).wait([agent = server->getAgent()] {
 		const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
 		return moduleRouter->mStats.mCountMessageProxyForks->finish->read() == 1;
@@ -276,6 +276,7 @@ static void globalTest() {
 }
 
 static void globalTestMultipleDevices() {
+	SLOGD << "Step 1: Setup";
 	auto server = make_shared<Server>("/config/flexisip_fork_context_db.conf");
 	server->start();
 
@@ -298,6 +299,7 @@ static void globalTestMultipleDevices() {
 		clientOffDevices2.emplace_back(client);
 	}
 
+	SLOGD << "Step 2: Send message";
 	bool isRequestAccepted = false;
 	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP", [&isRequestAccepted](int status) {
 		                            if (status != 100) {
@@ -334,10 +336,8 @@ static void globalTestMultipleDevices() {
 		});
 	}));
 
-	/*
-	 * Assert that db fork is still present because device is offline, message fork is destroyed because message is
-	 * saved
-	 */
+	SLOGD << "Step 3: Assert that db fork is still present because some devices are offline, message fork is destroyed "
+	         "because message is saved";
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	BC_ASSERT_TRUE(
@@ -349,7 +349,7 @@ static void globalTestMultipleDevices() {
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0, int, "%i");
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 1, int, "%i");
 
-	// Check that request in DB is the same that request sent.
+	SLOGD << "Step 4: Check that request in DB is the same that request sent";
 	auto allMessages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
 	if (allMessages.size() == 1) {
 		auto requestInDb =
@@ -358,7 +358,7 @@ static void globalTestMultipleDevices() {
 		if (requestInDb.find(rawBody) == string::npos) BC_FAIL("Body not found");
 	} else BC_FAIL("No message in DB, or too much");
 
-	// REGISTER first group of devices and receive message
+	SLOGD << "Step 5: REGISTER first group of devices and receive message";
 	for_each(clientOffDevices1.begin(), clientOffDevices1.end(),
 	         [](const auto& core) { core->getCore()->setNetworkReachable(true); });
 	BC_ASSERT_TRUE(CoreAssert(server, clientOnDevices, clientOffDevices1, clientOffDevices2).wait([&clientOffDevices1] {
@@ -368,14 +368,12 @@ static void globalTestMultipleDevices() {
 		});
 	}));
 
-	// Unregister initial group of device, for a future register
+	SLOGD << "Step 6: Unregister initial group of device, for a future register";
 	for_each(clientOnDevices.begin(), clientOnDevices.end(),
 	         [](const auto& core) { core->getCore()->setNetworkReachable(false); });
 
-	/*
-	 * Assert that db fork is still present because device is offline, message fork is destroyed because message is
-	 * saved
-	 */
+	SLOGD << "Step 7: Assert that db fork is still present because some devices are offline, message fork is destroyed "
+	         "because message is saved";
 	BC_ASSERT_TRUE(
 	    CoreAssert(server, clientOnDevices, clientOffDevices1, clientOffDevices2).wait([agent = server->getAgent()] {
 		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
@@ -385,12 +383,12 @@ static void globalTestMultipleDevices() {
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0, int, "%i");
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 2, int, "%i");
 
-	// Re-REGISTER initial group, ForkMessage is retrieve from DB, but no message is sent
+	SLOGD << "Step 8: Re-REGISTER initial group, ForkMessage is retrieve from DB, but no message is sent";
 	for_each(clientOnDevices.begin(), clientOnDevices.end(),
 	         [](const auto& core) { core->getCore()->setNetworkReachable(true); });
 	for_each(clientOnDevices.begin(), clientOnDevices.end(),
 	         [](const auto& core) { core->getCore()->getChatRooms().begin()->get()->markAsRead(); });
-	// REGISTER second group of devices and receive message
+	SLOGD << "Step 8b: REGISTER second group of devices and receive message";
 	for_each(clientOffDevices2.begin(), clientOffDevices2.end(),
 	         [](const auto& core) { core->getCore()->setNetworkReachable(true); });
 	BC_ASSERT_TRUE(
@@ -407,7 +405,7 @@ static void globalTestMultipleDevices() {
 		               });
 	        }));
 
-	// Assert Fork is destroyed after being delivered (from memory AND database)
+	SLOGD << "Step 9: Assert Fork is destroyed after being delivered (from memory AND database)";
 	BC_ASSERT_TRUE(
 	    CoreAssert(server, clientOnDevices, clientOffDevices1, clientOffDevices2).wait([agent = server->getAgent()] {
 		    const auto& allMessages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
@@ -415,11 +413,14 @@ static void globalTestMultipleDevices() {
 		    return moduleRouter->mStats.mCountMessageProxyForks->finish->read() == 1 && allMessages.empty();
 	    }));
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 1, int, "%i");
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 3, int, "%i");
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), 3, int, "%i");
+	BC_ASSERT_GREATER(moduleRouter->mStats.mCountMessageForks->start->read(), 3, int, "%i");
+	BC_ASSERT_GREATER(moduleRouter->mStats.mCountMessageForks->finish->read(), 3, int, "%i");
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(),
+	                moduleRouter->mStats.mCountMessageForks->finish->read(), int, "%i");
 }
 
 static void testDBAccessOptimization() {
+	SLOGD << "Step 1: Setup";
 	auto server = make_shared<Server>("/config/flexisip_fork_context_db.conf");
 	server->start();
 
@@ -436,6 +437,7 @@ static void testDBAccessOptimization() {
 		                            }
 	                            }};
 
+	SLOGD << "Step 2: Send message";
 	std::string rawBody(10, 'a');
 	rawBody.insert(0, "C'est pas faux ");
 	rawBody.append("\r\n\r\n");
@@ -462,10 +464,8 @@ static void testDBAccessOptimization() {
 		       clientOnDevice->getCore()->getUnreadChatMessageCount() == 1;
 	}));
 
-	/*
-	 * Assert that db fork is still present because device is offline, message fork is destroyed because message is
-	 * saved
-	 */
+	SLOGD << "Step 3: Assert that db fork is still present because device is offline, message fork is destroyed "
+	         "because message is saved";
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	BC_ASSERT_TRUE(CoreAssert(server, clientOnDevice, clientOffDevice).wait([agent = server->getAgent()] {
@@ -476,7 +476,7 @@ static void testDBAccessOptimization() {
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0, int, "%i");
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 1, int, "%i");
 
-	// Force a second register, fork is re-created from DB
+	SLOGD << "Step 4: Force a second register, fork is re-created from DB";
 	clientOnDevice->getCore()->setNetworkReachable(false);
 	clientOnDevice->getCore()->iterate();
 	clientOnDevice->getCore()->setNetworkReachable(true);
@@ -491,7 +491,7 @@ static void testDBAccessOptimization() {
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0, int, "%i");
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 2, int, "%i");
 
-	// Force a third register, fork is NOT re-created from DB
+	SLOGD << "Step 5: Force a third register, fork is NOT re-created from DB";
 	clientOnDevice->getCore()->setNetworkReachable(false);
 	clientOnDevice->getCore()->iterate();
 	clientOnDevice->getCore()->setNetworkReachable(true);
@@ -506,7 +506,7 @@ static void testDBAccessOptimization() {
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0, int, "%i");
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 2, int, "%i");
 
-	// Register second devices, check fork destruction
+	SLOGD << "Step 6: Register second devices, check fork destruction";
 	clientOffDevice->getCore()->setNetworkReachable(true);
 	BC_ASSERT_TRUE(CoreAssert(server, clientOnDevice, clientOffDevice).wait([&clientOffDevice] {
 		return clientOffDevice->getAccount()->getState() == RegistrationState::Ok &&
@@ -623,6 +623,7 @@ static void globalTestMultipleMessages() {
  * All along we check fork stats and client state.
  */
 static void globalTestDatabaseDeleted() {
+	SLOGD << "Step 1: Setup";
 	auto server = make_shared<Server>("/config/flexisip_fork_context_db.conf");
 	server->start();
 
@@ -637,6 +638,7 @@ static void globalTestDatabaseDeleted() {
 		                            }
 	                            }};
 
+	SLOGD << "Step 2: Send message";
 	bellesipUtils.sendRawRequest("MESSAGE sip:provencal_le_gaulois@sip.test.org SIP/2.0\r\n"
 	                             "Via: SIP/2.0/TCP 127.0.0.1:6066;branch=z9hG4bK.PAWTmCZv1;rport=49828\r\n"
 	                             "From: <sip:kijou@sip.linphone.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
@@ -656,10 +658,8 @@ static void globalTestDatabaseDeleted() {
 		bellesipUtils.stackSleep(20);
 	}
 
-	/*
-	 * Assert that db fork is still present because device is offline, message fork is destroyed because message is
-	 * saved
-	 */
+	SLOGD << "Step 3: Assert that db fork is still present because device is offline, message fork is destroyed "
+	         "because message is saved";
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	BC_ASSERT_TRUE(CoreAssert({receiverClient->getCore()}, server->getAgent()).wait([agent = server->getAgent()] {
@@ -670,17 +670,17 @@ static void globalTestDatabaseDeleted() {
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0, int, "%i");
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 1, int, "%i");
 
-	// Clear database to simulate DB errors on Client REGISTER.
+	SLOGD << "Step 4: Clear database to simulate DB errors on Client REGISTER.";
 	ForkMessageContextSociRepository::getInstance()->deleteAll();
 
-	// Client REGISTER, no message received
+	SLOGD << "Step 4b: Client REGISTER, no message received.";
 	receiverClient->getCore()->setNetworkReachable(true);
 	BC_ASSERT_TRUE(CoreAssert({receiverClient->getCore()}, server->getAgent()).wait([receiverClient] {
 		return receiverClient->getAccount()->getState() == RegistrationState::Ok &&
 		       receiverClient->getCore()->getUnreadChatMessageCount() == 0;
 	}));
 
-	// Assert Fork is destroyed even if the ForkMessage can't be rebuilt because of an empty database
+	SLOGD << "Step 5: Assert Fork is destroyed even if the ForkMessage can't be rebuilt because of an empty database.";
 	BC_ASSERT_TRUE(CoreAssert({receiverClient->getCore()}, server->getAgent()).wait([agent = server->getAgent()] {
 		const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
 		return moduleRouter->mStats.mCountMessageProxyForks->finish->read() == 1;
