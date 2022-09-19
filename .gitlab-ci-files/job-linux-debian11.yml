@@ -57,7 +57,7 @@ job-debian11-xwiki-doc-deploy:
     - mkdir $builddir
     - cmake -S . -B $builddir -G Ninja -DCMAKE_INSTALL_PREFIX=$prefix -DCMAKE_PREFIX_PATH=$prefix $DEFAULT_CMAKE_OPTIONS
     - cmake --build $builddir
-    - /usr/bin/python3 ./doc/xw.py --flexisip-binary $builddir/src/flexisip -H $XWIKI_HOSTNAME -u $XWIKI_USERNAME -p $XWIKI_PASSWORD
+    - /usr/bin/python3 ./doc/xw.py --flexisip-binary $builddir/bin/flexisip -H $XWIKI_HOSTNAME -u $XWIKI_USERNAME -p $XWIKI_PASSWORD
 
 #################################################
 # UNIT TESTS
