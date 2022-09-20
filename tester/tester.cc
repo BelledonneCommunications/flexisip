@@ -44,8 +44,15 @@ std::string bcTesterRes(const std::string& name) {
 }
 
 static int verbose_arg_func(const char* arg) {
-	bctbx_set_log_level(nullptr, BCTBX_LOG_DEBUG);
+	LogManager::get().setLogLevel(BCTBX_LOG_DEBUG);
 	su_log_set_level(nullptr, 9);
+	return 0;
+}
+
+static int silent_arg_func(const char* arg) {
+	LogManager::get().setLogLevel(BCTBX_LOG_FATAL);
+	LogManager::get().enableUserErrorsLogs(false);
+	su_log_set_level(nullptr, 0);
 	return 0;
 }
 
@@ -63,8 +70,15 @@ static void log_handler(int lev, const char* fmt, va_list args) {
 #endif
 }
 
-void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_list args)) {
+void flexisip_tester_init() {
 	// Initialize logs
+	LogManager::Parameters logParams{};
+	logParams.level = BCTBX_LOG_WARNING;
+	logParams.enableSyslog = false;
+	logParams.enableStdout = true;
+	logParams.enableUserErrors = true;
+	LogManager::get().initialize(logParams);
+
 	su_log_redirect(
 	    nullptr,
 	    [](void*, const char* fmt, va_list ap) {
@@ -74,8 +88,8 @@ void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_
 	    },
 	    nullptr);
 	bc_tester_set_verbose_func(verbose_arg_func);
-	if (ftester_printf == nullptr) ftester_printf = log_handler;
-	bc_tester_init(ftester_printf, BCTBX_LOG_MESSAGE, BCTBX_LOG_ERROR, ".");
+	bc_tester_set_silent_func(silent_arg_func);
+	bc_tester_init(log_handler, BCTBX_LOG_MESSAGE, BCTBX_LOG_ERROR, ".");
 
 	// Make the default resource dir point to the 'tester' directory in the source code
 	bc_tester_set_resource_dir_prefix(FLEXISIP_TESTER_DATA_SRCDIR);
@@ -126,7 +140,7 @@ void flexisip_tester_uninit(void) {
 int main(int argc, char* argv[]) {
 	using namespace flexisip::tester;
 
-	flexisip_tester_init(nullptr);
+	flexisip_tester_init();
 
 	for (auto i = 1; i < argc; ++i) {
 		auto ret = bc_tester_parse_args(argc, argv, i);

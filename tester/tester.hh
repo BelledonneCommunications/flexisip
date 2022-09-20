@@ -64,7 +64,7 @@ namespace tester {
 std::string bcTesterFile(const std::string& name);
 std::string bcTesterRes(const std::string& name);
 
-void flexisip_tester_init(void (*ftester_printf)(int level, const char* fmt, va_list args));
+void flexisip_tester_init();
 void flexisip_tester_uninit();
 
 extern test_suite_t agentSuite;

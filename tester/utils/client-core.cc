@@ -64,9 +64,13 @@ auto assert_data_transmitted(linphone::Call& calleeCall, linphone::Call& callerC
 } // namespace
 
 ClientBuilder::ClientBuilder(const std::string& me)
-    : mFactory(linphone::Factory::get()), mCore(mFactory->createCore("", "", nullptr)),
-      mMe(mFactory->createAddress(me)), mAccountParams(mCore->createAccountParams()) {
+    : mFactory(linphone::Factory::get()), mMe(mFactory->createAddress(me)) {
+	auto configLinphone = Factory::get()->createConfig("");
+	configLinphone->setBool("logging", "disable_stdout", true);
+	mCore = mFactory->createCoreWithConfig(configLinphone, nullptr);
 	mCore->setPrimaryContact(me);
+
+	mAccountParams = mCore->createAccountParams();
 
 	{
 		auto config = mCore->getConfig();
