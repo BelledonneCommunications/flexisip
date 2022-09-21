@@ -78,6 +78,7 @@ void AuthModule::registerScheme() {
 			os << "couldn't register '" << sMethodName << "' authentication plugin";
 			throw logic_error(os.str());
 		}
+		sSchemeRegistered = true;
 	}
 }
 
