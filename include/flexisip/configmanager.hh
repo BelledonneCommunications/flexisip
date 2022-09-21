@@ -286,8 +286,11 @@ public:
 		return mConfigListener;
 	}
 
-	void setDeprecated(DeprecationInfo info) {
-		mDeprecationInfo = std::move(info);
+	void setDeprecated(const DeprecationInfo& info) {
+		mDeprecationInfo = info;
+	}
+	void setDeprecated(const std::string& aDate, const std::string& aVersion, const std::string& aText = "") {
+		mDeprecationInfo.setAsDeprecaded(aDate, aVersion, aText);
 	}
 	bool isDeprecated() const {
 		return mDeprecationInfo.isDeprecated();
@@ -370,7 +373,7 @@ public:
 
 	void addChildrenValues(ConfigItemDescriptor* items);
 	void addChildrenValues(ConfigItemDescriptor* items, bool hashed);
-	void deprecateChild(const char* name, DeprecationInfo&& info);
+	void deprecateChild(const char* name, const DeprecationInfo& info);
 	const std::list<std::unique_ptr<GenericEntry>>& getChildren() const;
 	template <typename _retType, typename StrT>
 	_retType* get(StrT&& name) const;

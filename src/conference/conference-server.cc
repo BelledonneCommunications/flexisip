@@ -84,7 +84,11 @@ void ConferenceServer::_init() {
 	mCore->addListener(shared_from_this());
 	mCore->enableConferenceServer(true);
 	mCore->setTransports(cTransport);
-	mCore->enableLimeX3Dh(config->get<ConfigBoolean>("enable-lime")->read());
+
+	// Make LinphoneCore to slice incoming LIME multipart messages in order
+	// each forwarded message contains only one encrypted message instead
+	// of having the encrypted version for each recipient.
+	mCore->enableLimeX3Dh(true);
 
 	loadFactoryUris();
 	bool defaultProxyConfigSet = false;
@@ -271,10 +275,6 @@ ConferenceServer::Init::Init() {
 	     "true"},
 	    {String, "transport", "URI where the conference server must listen. Only one URI can be specified.",
 	     "sip:127.0.0.1:6064;transport=tcp"},
-	    {String, "conference-factory-uri",
-	     "uri where the client must ask to create a conference. For example:\n"
-	     "conference-factory-uri=sip:conference-factory@sip.linphone.org",
-	     ""},
 	    {StringList, "conference-factory-uris",
 	     "List of SIP uris used by clients to create a conference. This implicitely defines the list of SIP domains "
 	     "managed by the conference server. For example:\n"
@@ -310,8 +310,14 @@ ConferenceServer::Init::Init() {
 	     "The capability check is currently limited to Linphone client that put a +org.linphone.specs contact parameter"
 	     " in order to indicate whether they support group chat and secured group chat.",
 	     "true"},
+
+	    // Deprecated paramters:
+	    {String, "conference-factory-uri",
+	     "uri where the client must ask to create a conference. For example:\n"
+	     "conference-factory-uri=sip:conference-factory@sip.linphone.org",
+	     ""},
 	    {Boolean, "enable-one-to-one-chat-room", "Whether one-to-one chat room creation is allowed or not.", "true"},
-	    {Boolean, "enable-lime", "Whether lime is enabled or not.", "false"},
+
 	    config_item_end};
 
 	auto uS = make_unique<GenericStruct>(
@@ -325,8 +331,10 @@ ConferenceServer::Init::Init() {
 	auto s = GenericManager::get()->getRoot()->addChild(move(uS));
 	s->addChildrenValues(items);
 	s->get<ConfigString>("conference-factory-uri")
-	    ->setDeprecated({"2020-09-30", "2.1.0",
-	                     "Use 'conference-factory-uris' instead, that allows to declare multiple factory uris."});
+	    ->setDeprecated("2020-09-30", "2.1.0",
+	                    "Use 'conference-factory-uris' instead, that allows to declare multiple factory uris.");
+	s->get<ConfigBoolean>("enable-one-to-one-chat-room")
+	    ->setDeprecated("2022-09-21", "2.2.0", "This parameter will be forced to 'true' in further versions.");
 }
 
 } // namespace flexisip

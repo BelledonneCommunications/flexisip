@@ -10,3 +10,5 @@ leak:LinphonePrivate
 leak:ConferenceServer
 
 leak:conference-tester.cc
+
+leak:bzrtp_processMessage

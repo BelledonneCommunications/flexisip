@@ -470,9 +470,9 @@ void GenericStruct::setParent(GenericEntry* parent) {
 #endif
 }
 
-void GenericStruct::deprecateChild(const char* name, DeprecationInfo&& info) {
+void GenericStruct::deprecateChild(const char* name, const DeprecationInfo& info) {
 	GenericEntry* e = find(name);
-	if (e) e->setDeprecated(std::move(info));
+	if (e) e->setDeprecated(info);
 }
 
 void GenericStruct::addChildrenValues(ConfigItemDescriptor* items) {
