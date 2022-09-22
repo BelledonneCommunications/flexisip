@@ -73,7 +73,7 @@ private:
 		interDomainCfg->get<ConfigValue>("ping-pong-timeout-delay")->set(to_string(mPingPongTimoutDelay.count()));
 		interDomainCfg->get<ConfigValue>("reconnection-delay")->set("0");
 	}
-	void onExec() override {
+	void testExec() override {
 		sofiasip::Url proxyUri{"sip:127.0.0.1:" + to_string(mRemoteProxyPort) +
 		                       ";transport=" + (mUseTls ? "tls" : "tcp")};
 		auto drm = mAgent->getDRM();

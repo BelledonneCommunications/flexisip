@@ -143,12 +143,14 @@ static void insertContact(const string& sipUri, const string& paramList) {
  */
 static void sendRegisterRequest(const string& sipUri, const string& paramList, const string& uuid) {
 
-	BellesipUtils bellesipUtils{"0.0.0.0", -1, "UDP", [](int status) {
+	BellesipUtils bellesipUtils{"0.0.0.0", -1, "UDP",
+	                            [](int status) {
 		                            if (status != 100) {
 			                            BC_ASSERT_EQUAL(status, 200, int, "%i");
 			                            responseReceived++;
 		                            }
-	                            }};
+	                            },
+	                            nullptr};
 
 	// clang-format off
 	bellesipUtils.sendRawRequest(

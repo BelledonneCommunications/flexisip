@@ -24,9 +24,13 @@ using namespace std;
 
 namespace flexisip {
 
-BellesipUtils::BellesipUtils(const string& ipaddress, int port, const string& transport,
-                             const ProcessResponseEventCb& processResponseEventCb) {
+BellesipUtils::BellesipUtils(const string& ipaddress,
+                             int port,
+                             const string& transport,
+                             const ProcessResponseEventCb& processResponseEventCb,
+                             const ProcessRequestEventCb& processRequestEventCb) {
 	mProcessResponseEventCb = processResponseEventCb;
+	mProcessRequestEventCb = processRequestEventCb;
 	mStack = belle_sip_stack_new(nullptr);
 	mListeningPoint = belle_sip_stack_create_listening_point(mStack, ipaddress.c_str(), port, transport.c_str());
 	mProvider = belle_sip_stack_create_provider(mStack, mListeningPoint);
@@ -35,6 +39,7 @@ BellesipUtils::BellesipUtils(const string& ipaddress, int port, const string& tr
 	belle_sip_listener_callbacks_t listener_callbacks{};
 	listener_callbacks.process_response_event = [](void* userCtx, const belle_sip_response_event_t* event) {
 		int status;
+		auto thiz = static_cast<BellesipUtils*>(userCtx);
 		if (!BC_ASSERT_PTR_NOT_NULL(belle_sip_response_event_get_response(event))) {
 			return;
 		}
@@ -42,7 +47,9 @@ BellesipUtils::BellesipUtils(const string& ipaddress, int port, const string& tr
 		                  status = belle_sip_response_get_status_code(belle_sip_response_event_get_response(event)),
 		                  belle_sip_response_get_reason_phrase(belle_sip_response_event_get_response(event)));
 
-		static_cast<BellesipUtils*>(userCtx)->mProcessResponseEventCb.operator()(status);
+		if (thiz->mProcessResponseEventCb != nullptr) {
+			thiz->mProcessResponseEventCb.operator()(status);
+		}
 	};
 
 	listener_callbacks.process_request_event = [](void* userCtx, const belle_sip_request_event_t* event) {
@@ -56,7 +63,9 @@ BellesipUtils::BellesipUtils(const string& ipaddress, int port, const string& tr
 		resp = belle_sip_response_create_from_request(belle_sip_request_event_get_request(event), 200);
 		belle_sip_provider_send_response(thiz->mProvider, resp);
 
-		thiz->mProcessResponseEventCb.operator()(-1);
+		if (thiz->mProcessRequestEventCb != nullptr) {
+			thiz->mProcessRequestEventCb.operator()(event);
+		}
 	};
 
 	mListener = belle_sip_listener_create_from_callbacks(&listener_callbacks, this);

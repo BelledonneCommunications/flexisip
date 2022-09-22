@@ -114,12 +114,12 @@ void flexisip_tester_init() {
 	bc_tester_add_suite(&flexisip::tester::moduleDosSuite);
 	bc_tester_add_suite(&flexisip::tester::moduleInfoSuite);
 	bc_tester_add_suite(&module_pushnitification_suite);
+	bc_tester_add_suite(&flexisip::tester::moduleRouterSuite);
 #if ENABLE_UNIT_TESTS_PUSH_NOTIFICATION
 	bc_tester_add_suite(&push_notification_suite);
 #endif
 	bc_tester_add_suite(&register_suite);
 	bc_tester_add_suite(&flexisip::tester::registarDbSuite);
-	bc_tester_add_suite(&router_suite);
 	bc_tester_add_suite(&flexisip::tester::sip_uri_tests);
 	bc_tester_add_suite(&flexisip::tester::threadPoolSuite);
 	bc_tester_add_suite(&tls_connection_suite);

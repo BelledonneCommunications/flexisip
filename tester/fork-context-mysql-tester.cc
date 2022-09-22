@@ -213,7 +213,8 @@ static void globalTest() {
 			                            BC_ASSERT_EQUAL(status, 202, int, "%i");
 			                            isRequestAccepted = true;
 		                            }
-	                            }};
+	                            },
+	                            nullptr};
 
 	SLOGD << "Step 2: Send message";
 	std::string rawBody(100000, 'a');
@@ -306,7 +307,8 @@ static void globalTestMultipleDevices() {
 			                            BC_ASSERT_EQUAL(status, 202, int, "%i");
 			                            isRequestAccepted = true;
 		                            }
-	                            }};
+	                            },
+	                            nullptr};
 
 	std::string rawBody(10, 'a');
 	rawBody.insert(0, "C'est pas faux ");
@@ -435,7 +437,8 @@ static void testDBAccessOptimization() {
 			                            BC_ASSERT_EQUAL(status, 202, int, "%i");
 			                            isRequestAccepted = true;
 		                            }
-	                            }};
+	                            },
+	                            nullptr};
 
 	SLOGD << "Step 2: Send message";
 	std::string rawBody(10, 'a');
@@ -545,7 +548,7 @@ static void globalTestMultipleMessages() {
 			                            BC_ASSERT_EQUAL(status, 202, int, "%i");
 			                            ++nbAcceptedMessages;
 		                            }
-	                            }};
+	                            }, nullptr};
 
 	unsigned int i = 0;
 	std::string rawBody(10000, 'a');
@@ -636,7 +639,8 @@ static void globalTestDatabaseDeleted() {
 			                            BC_ASSERT_EQUAL(status, 202, int, "%i");
 			                            isRequestAccepted = true;
 		                            }
-	                            }};
+	                            },
+	                            nullptr};
 
 	SLOGD << "Step 2: Send message";
 	bellesipUtils.sendRawRequest("MESSAGE sip:provencal_le_gaulois@sip.test.org SIP/2.0\r\n"
