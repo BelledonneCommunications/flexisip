@@ -44,6 +44,7 @@ namespace pushnotification {
 
 static constexpr const char* WPPN_PORT = "443";
 const std::string Service::sGenericClientName{"generic"};
+const std::string Service::sFallbackClientKey{"fallback"};
 
 Service::Service(sofiasip::SuRoot& root, unsigned maxQueueSize) : mRoot{root}, mMaxQueueSize{maxQueueSize} {
 	SSL_library_init();
@@ -77,15 +78,21 @@ std::shared_ptr<Request> Service::makeRequest(PushType pType, const std::shared_
 }
 
 void Service::sendPush(const std::shared_ptr<Request>& pn) {
-	auto* client = mClients[pn->getAppIdentifier()].get();
+	auto it = mClients.find(pn->getAppIdentifier());
+	auto client = it != mClients.cend() ? it->second.get() : nullptr;
 	if (client == nullptr) {
 		if (auto microsoftReq = dynamic_pointer_cast<MicrosoftRequest>(pn)) {
 			client = createWindowsClient(microsoftReq);
-		} else {
-			ostringstream os{};
-			os << "No push notification client available for push notification request : " << pn;
-			throw runtime_error{os.str()};
 		}
+	}
+	if (client == nullptr) {
+		it = mClients.find(sFallbackClientKey);
+		client = it != mClients.cend() ? it->second.get() : nullptr;
+	}
+	if (client == nullptr) {
+		ostringstream os{};
+		os << "No push notification client available for push notification request : " << pn;
+		throw runtime_error{os.str()};
 	}
 	client->sendPush(pn);
 }
@@ -167,6 +174,11 @@ void Service::setupWindowsPhoneClient(const std::string& packageSID, const std::
 	mWindowsPhonePackageSID = packageSID;
 	mWindowsPhoneApplicationSecret = applicationSecret;
 	SLOGD << "Adding Windows push notification client for pacakge SID [" << packageSID << "]";
+}
+
+void Service::setFallbackClient(const std::shared_ptr<Client>& fallbackClient) {
+	if (fallbackClient) fallbackClient->mService = this;
+	mClients[sFallbackClientKey] = fallbackClient;
 }
 
 Client* Service::createWindowsClient(const std::shared_ptr<MicrosoftRequest>& pnImpl) {

@@ -39,6 +39,22 @@ inline void bc_hard_assert(const char* file, int line, int predicate, const char
 #define BC_HARD_ASSERT_FALSE(value) bc_hard_assert(__FILE__, __LINE__, !(value), "BC_HARD_ASSERT_FALSE(" #value ")")
 #define BC_HARD_FAIL(msg) bc_hard_assert(__FILE__, __LINE__, 0, msg)
 
+/**
+ * Assert the equality of two expressions whatever their types. The '==' and '<<' operators
+ * must be declared for the type of the two operands.
+ * BC_ASSERT_CPP_EQUAL_BASE must not be used directly. Use BC_HARD_ASSERT_CPP_EQUAL() to have TestAssertFailedException
+ * raised if the assert fails; use BC_ASSERT_CPP_EQUAL() otherwise.
+ */
+#define BC_ASSERT_CPP_EQUAL_BASE(assertFunction, value, expected)                                                      \
+	do {                                                                                                               \
+		std::ostringstream os{};                                                                                       \
+		os << "BC_ASSERT_CPP_EQUAL(" #value ", " #expected "), value: " << (value) << ", expected: " << (expected);    \
+		assertFunction(__FILE__, __LINE__, value == expected, os.str().c_str());                                       \
+	} while (0)
+
+#define BC_ASSERT_CPP_EQUAL(value, expected) BC_ASSERT_CPP_EQUAL_BASE(bc_assert, value, expected)
+#define BC_HARD_ASSERT_CPP_EQUAL(value, expected) BC_ASSERT_CPP_EQUAL_BASE(bc_hard_assert, value, expected)
+
 // Interface for all the classes which are to be executed as unit test.
 // The test is executed by calling () operator.
 class Test {

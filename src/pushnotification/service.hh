@@ -61,6 +61,12 @@ public:
 	void addFirebaseClient(const std::string& firebaseAppId, const std::string& apiKey = "");
 	void setupWindowsPhoneClient(const std::string& packageSID, const std::string& applicationSecret);
 
+	/**
+	 * Add a PN client to use when no other client can handle a PN request
+	 * given to sendPush().
+	 */
+	void setFallbackClient(const std::shared_ptr<Client>& fallbackClient);
+
 	bool isIdle() const noexcept;
 
 private:
@@ -71,13 +77,14 @@ private:
 	// Private attributes
 	sofiasip::SuRoot& mRoot;
 	unsigned mMaxQueueSize{0};
-	std::map<std::string, std::unique_ptr<Client>> mClients{};
+	std::map<std::string, std::shared_ptr<Client>> mClients{};
 	std::string mWindowsPhonePackageSID{};
 	std::string mWindowsPhoneApplicationSecret{};
 	StatCounter64* mCountFailed{nullptr};
 	StatCounter64* mCountSent{nullptr};
 
 	static const std::string sGenericClientName;
+	static const std::string sFallbackClientKey;
 };
 
 } // namespace pushnotification

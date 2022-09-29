@@ -31,7 +31,7 @@ namespace pushnotification {
 
 /**
  * Class that represents a set of consistent push parameters as defined in RFC8599.
-*/
+ */
 class RFC8599PushParams {
 public:
 	RFC8599PushParams() = default;
@@ -58,14 +58,73 @@ public:
 	 */
 	void setFromLegacyParams(const std::string& pnType, const std::string& pnParam, const std::string& pnTok);
 
+	/**
+	 * @brief Return the set of supported push notification types
+	 * according the value of the 'provider' and 'param' parameters.
+	 */
 	std::set<PushType> getSupportedPNTypes() const noexcept;
 
+	/**
+	 * @brief Test whether the provider matches the Apple Push Notification Sevice.
+	 */
 	bool isApns() const noexcept {
-		return mProvider == "apns" || mProvider == "apns.dev";
+		return isApns(mProvider);
 	}
 
-	using ParsingResult = std::map<PushType, std::shared_ptr<const RFC8599PushParams>>;
+	/**
+	 * @brief Equality operator definition.
+	 * @param aOther the other push params object to compare with.
+	 * @return true when the (provider, param, prid) triplets are strictly equal.
+	 */
+	bool operator==(const RFC8599PushParams& aOther) const noexcept {
+		return getProvider() == aOther.getProvider() && getParam() == aOther.getParam() &&
+		       getPrid() == aOther.getPrid();
+	}
 
+	/**
+	 * @brief Serialize the object as semi-colomn separated
+	 * list of URI paramters as described by RFC8599 i.e.
+	 * 'pn-provider=<provider>;pn-param=<param>;pn-prid=<prid>'
+	 */
+	std::string toUriParams() const;
+
+	/**
+	 * Returns a RFC8599 triplet with values randomly generated according
+	 * the format of a given provider.
+	 * @param aProvider The provider to use. Accepted values: 'apns', 'apns.dev', 'fcm'.
+	 * @param aPType For 'apns' and 'apns.dev' providers, the value of 'pn-params' parameter
+	 * depends of the kind of push notification. Use PushType::Message or PushType::Background
+	 * to generate 'remote' PN parameters and PushType::VoIP for 'voip' PN parameters.
+	 * PushType::Unknown is denied.
+	 * @throw std::invalid_argument if the given provider is unsupported, or pType is
+	 * PushType::Unknown whereas the provider matches 'apns{,.dev}'.
+	 */
+	static RFC8599PushParams generatePushParams(const std::string& provider, PushType pType = PushType::Unknown);
+	/**
+	 * Forge a single RFC8599 paramters triplet from an APNS remote and
+	 * an APNS voip push paramters triplets.
+	 * @param aRemotePushParams The 'remote' push paramters.
+	 * @param aVoipPushParams The 'voip' push parameters.
+	 * @return A push paramters triplet containing the information
+	 * of the two given triplets, formated like this:
+	 *   * pn-provider: 'apns' or 'apns.dev';
+	 *   * pn-param: '<ProjectID>.<AppID>.remote&voip';
+	 *   * pn-prid: '<remoteToken>:remote&<voipToken>:voip'
+	 *
+	 * @throw std::invalid_argument if the two given triplets cannot be mixed i.e.:
+	 *   * the provider of one doesn't match 'apns{,.dev}';
+	 *   * the two triplets haven't the same provider;
+	 *   * the 'pn-param' parameter of the two triplet haven't the same '<ProjectID>.<AppID>' string;
+	 *   * aRemotePushParams has invalid values for 'remote' PN;
+	 *   * aVoipPashParams has invalid values for 'voip' PN.
+	 */
+	static RFC8599PushParams concatPushParams(const RFC8599PushParams& aRemotePushParams,
+	                                          const RFC8599PushParams& aVoipPushParams);
+
+	/**
+	 * Return type of parse*() methods.
+	 */
+	using ParsingResult = std::map<PushType, std::shared_ptr<const RFC8599PushParams>>;
 	/**
 	 * Parse the RFC8599-extended parameters and returns a map which associates
 	 * a PushType to the according RFC8599 parameter set.
@@ -88,6 +147,15 @@ public:
 	static ParsingResult parseLegacyPushParams(const char* params);
 
 private:
+	// Private methods
+	/**
+	 * Test whether a given 'pn-provider' parameter matches the Apple Push Notification Service.
+	 */
+	static bool isApns(const std::string& aProvider) noexcept {
+		return aProvider == "apns" || aProvider == "apns.dev";
+	}
+
+	// Private attributes
 	std::string mProvider{}; /**< Value of 'pn-provider' */
 	std::string mParam{};    /**< Value of 'pn-param' */
 	std::string mPrid{};     /**< Value of 'pn-prid' */
@@ -100,4 +168,24 @@ private:
 };
 
 } // namespace pushnotification
+
+inline std::ostream& operator<<(std::ostream& aOs, const pushnotification::RFC8599PushParams& aPushParams) noexcept {
+	return aOs << "{'" << aPushParams.getProvider() << "', '" << aPushParams.getProvider() << "', '"
+	           << aPushParams.getPrid() << "'}";
+}
+
 } // namespace flexisip
+
+namespace std {
+
+/**
+ * Allow to use RFC8599PushParams class as key of std::unordered_map
+ */
+template <>
+struct hash<flexisip::pushnotification::RFC8599PushParams> {
+	auto operator()(const flexisip::pushnotification::RFC8599PushParams& key) const {
+		return std::hash<std::string>{}(key.getProvider() + key.getParam() + key.getPrid());
+	}
+};
+
+} // namespace std

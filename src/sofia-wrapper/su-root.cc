@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -39,7 +39,7 @@ void SuRoot::addToMainLoop(const function<void()>& functionToAdd) {
 	}
 }
 
-void SuRoot::mainLoopFunctionCallback(su_root_magic_t* rm, su_msg_t** msg, void* u) {
+void SuRoot::mainLoopFunctionCallback(su_root_magic_t* rm, su_msg_t** msg, void* u) noexcept {
 	auto clientCb = *reinterpret_cast<function<void()>**>(su_msg_data(msg));
 	(*clientCb)();
 	delete clientCb;
