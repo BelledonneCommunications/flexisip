@@ -208,7 +208,8 @@ static void globalTest() {
 	receiverClient->getCore()->setNetworkReachable(false);
 
 	bool isRequestAccepted = false;
-	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP", [&isRequestAccepted](int status) {
+	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP",
+	                            [&isRequestAccepted](int status) {
 		                            if (status != 100) {
 			                            BC_ASSERT_EQUAL(status, 202, int, "%i");
 			                            isRequestAccepted = true;
@@ -302,7 +303,8 @@ static void globalTestMultipleDevices() {
 
 	SLOGD << "Step 2: Send message";
 	bool isRequestAccepted = false;
-	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP", [&isRequestAccepted](int status) {
+	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP",
+	                            [&isRequestAccepted](int status) {
 		                            if (status != 100) {
 			                            BC_ASSERT_EQUAL(status, 202, int, "%i");
 			                            isRequestAccepted = true;
@@ -432,7 +434,8 @@ static void testDBAccessOptimization() {
 	clientOffDevice->getCore()->setNetworkReachable(false);
 
 	bool isRequestAccepted = false;
-	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP", [&isRequestAccepted](int status) {
+	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP",
+	                            [&isRequestAccepted](int status) {
 		                            if (status != 100) {
 			                            BC_ASSERT_EQUAL(status, 202, int, "%i");
 			                            isRequestAccepted = true;
@@ -543,12 +546,14 @@ static void globalTestMultipleMessages() {
 	receiverClient->getCore()->setNetworkReachable(false);
 
 	unsigned nbAcceptedMessages = 0;
-	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP", [&nbAcceptedMessages](int status) {
+	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP",
+	                            [&nbAcceptedMessages](int status) {
 		                            if (status != 100) {
 			                            BC_ASSERT_EQUAL(status, 202, int, "%i");
 			                            ++nbAcceptedMessages;
 		                            }
-	                            }, nullptr};
+	                            },
+	                            nullptr};
 
 	unsigned int i = 0;
 	std::string rawBody(10000, 'a');
@@ -634,7 +639,8 @@ static void globalTestDatabaseDeleted() {
 	receiverClient->getCore()->setNetworkReachable(false);
 
 	bool isRequestAccepted = false;
-	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP", [&isRequestAccepted](int status) {
+	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP",
+	                            [&isRequestAccepted](int status) {
 		                            if (status != 100) {
 			                            BC_ASSERT_EQUAL(status, 202, int, "%i");
 			                            isRequestAccepted = true;
