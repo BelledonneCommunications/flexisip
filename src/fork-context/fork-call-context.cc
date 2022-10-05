@@ -28,7 +28,8 @@ using namespace std;
 
 namespace flexisip {
 
-template <typename T> static bool contains(const list<T>& l, T value) {
+template <typename T>
+static bool contains(const list<T>& l, T value) {
 	return find(l.cbegin(), l.cend(), value) != l.cend();
 }
 

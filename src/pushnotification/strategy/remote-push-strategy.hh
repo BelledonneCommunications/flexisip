@@ -33,14 +33,19 @@ class RemotePushStrategy : public Strategy,
                            public BranchInfoListener,
                            public std::enable_shared_from_this<RemotePushStrategy> {
 public:
-	template <typename... Args> static std::shared_ptr<RemotePushStrategy> make(Args&&... args) {
+	template <typename... Args>
+	static std::shared_ptr<RemotePushStrategy> make(Args&&... args) {
 		return std::shared_ptr<RemotePushStrategy>{new RemotePushStrategy{std::forward<Args>(args)...}};
 	};
 
 	// Set the interval between two subsequent notifications when this strategy is used for call invite notification.
-	void setCallPushInterval(std::chrono::seconds interval) noexcept {mCallPushInterval = interval;}
+	void setCallPushInterval(std::chrono::seconds interval) noexcept {
+		mCallPushInterval = interval;
+	}
 
-	bool pushRepetitionEnabled() const noexcept {return mCallPushInterval.count() > 0;}
+	bool pushRepetitionEnabled() const noexcept {
+		return mCallPushInterval.count() > 0;
+	}
 
 	void sendMessageNotification(const std::shared_ptr<const PushInfo>& pInfo) override;
 	void sendCallNotification(const std::shared_ptr<const PushInfo>& pInfo) override;

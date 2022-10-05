@@ -41,7 +41,7 @@ class PushNotification;
  * trigger the PN after a given delay. A delay of 0s will cause the push notification to be sent asynchronously
  * as soon as possible. The kind and the payload of the PN to sent is affected by the sub-class used on construction
  * and the information stored in the PushInfo structure.
-*/
+ */
 class PushNotificationContext {
 public:
 	virtual ~PushNotificationContext() = default;
@@ -93,7 +93,8 @@ protected:
 	PushNotification* mModule{nullptr}; /**< Back pointer to the PushNotification module. */
 	std::shared_ptr<const pushnotification::PushInfo> mPInfo{};
 	std::shared_ptr<OutgoingTransaction> mTransaction{};
-	std::shared_ptr<pushnotification::Strategy> mStrategy{}; /**< A delegate object that affect how the client will be notified. */
+	std::shared_ptr<pushnotification::Strategy>
+	    mStrategy{}; /**< A delegate object that affect how the client will be notified. */
 
 	sofiasip::Timer mTimer;    /**< timer after which push is sent */
 	sofiasip::Timer mEndTimer; /**< timer to automatically remove the PN 30 seconds after starting */

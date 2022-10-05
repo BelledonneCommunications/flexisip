@@ -93,7 +93,8 @@ protected:
 	 *
 	 * @return Return a pair with :
 	 *  - bool : tell if you should dispatch a new branch/transaction to the device targeted by dest/uid.
-	 *  - std::shared_ptr<BranchInfo> : the failed/unfinished branch/transaction you will replace if it exist or nullptr.
+	 *  - std::shared_ptr<BranchInfo> : the failed/unfinished branch/transaction you will replace if it exist or
+	 * nullptr.
 	 */
 	std::pair<bool, std::shared_ptr<BranchInfo>> shouldDispatch(const SipUri& dest, const std::string& uid);
 
