@@ -33,6 +33,8 @@
 
 namespace flexisip {
 
+class ForkContext;
+
 /**
  * Interface for BranchInfo listener.
  *

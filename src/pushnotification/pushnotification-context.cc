@@ -32,26 +32,19 @@ namespace flexisip {
 
 using namespace pushnotification;
 
-PNContextCall::PNContextCall(const std::shared_ptr<OutgoingTransaction>& transaction,
-                             PushNotification* _module,
-                             const std::shared_ptr<const pushnotification::PushInfo>& pInfo,
-                             std::chrono::seconds callPushInterval,
-                             const std::string& pnKey)
-    : PushNotificationContext{transaction, _module, pInfo, pnKey} {
-	mPushSentSatusCode = 180;
-	mPushSentPhrase = sip_180_Ringing;
-	const auto& root = _module->getAgent()->getRoot();
-	const auto& dests = pInfo->mDestinations;
+void PNContextCall::init(std::chrono::seconds aCallPushInterval) {
+	const auto& root = mModule->getAgent()->getRoot();
+	const auto& dests = mPInfo->mDestinations;
 	if (dests.find(PushType::VoIP) != dests.cend()) {
-		mStrategy = make_shared<VoIPPushStrategy>(root, _module->getService());
+		mStrategy = VoIPPushStrategy::make(shared_from_this(), root, mModule->getService());
 	} else if (dests.find(PushType::Background) != dests.cend() && !dests.begin()->second->isApns()) {
 		// Background strategy is excluded for Apple devices because the rate of background push notifications
 		// is limited to 3 per day on this platform.
-		mStrategy = make_shared<BackgroundPushStrategy>(root, _module->getService());
+		mStrategy = BackgroundPushStrategy::make(shared_from_this(), root, mModule->getService());
 	} else if (dests.find(PushType::Message) != dests.cend()) {
-		auto br = BranchInfo::getBranchInfo(transaction);
-		auto remoteStrategy = RemotePushStrategy::make(root, _module->getService(), br);
-		remoteStrategy->setCallPushInterval(callPushInterval);
+		auto br = BranchInfo::getBranchInfo(mTransaction);
+		auto remoteStrategy = RemotePushStrategy::make(shared_from_this(), root, mModule->getService(), br);
+		remoteStrategy->setCallPushInterval(aCallPushInterval);
 		mStrategy = move(remoteStrategy);
 	} else {
 		throw runtime_error{"no suitable available destinations for PNContextCall"};
@@ -62,19 +55,12 @@ void PNContextCall::sendPush() {
 	mStrategy->sendCallNotification(mPInfo);
 }
 
-PNContextMessage::PNContextMessage(const std::shared_ptr<OutgoingTransaction>& transaction,
-                                   PushNotification* _module,
-                                   const std::shared_ptr<const pushnotification::PushInfo>& pInfo,
-                                   const std::string& pnKey)
-    : PushNotificationContext{transaction, _module, pInfo, pnKey} {
-	mPushSentSatusCode = 110;
-	mPushSentPhrase = "Push sent";
-
-	const auto& root = _module->getAgent()->getRoot();
-	if (pInfo->mDestinations.find(PushType::Message) != pInfo->mDestinations.cend()) {
-		mStrategy = RemotePushStrategy::make(root, _module->getService(), nullptr);
-	} else if (pInfo->mDestinations.find(PushType::Background) != pInfo->mDestinations.cend()) {
-		mStrategy = make_shared<BackgroundPushStrategy>(root, _module->getService());
+void PNContextMessage::init() {
+	const auto& root = mModule->getAgent()->getRoot();
+	if (mPInfo->mDestinations.find(PushType::Message) != mPInfo->mDestinations.cend()) {
+		mStrategy = RemotePushStrategy::make(shared_from_this(), root, mModule->getService(), nullptr);
+	} else if (mPInfo->mDestinations.find(PushType::Background) != mPInfo->mDestinations.cend()) {
+		mStrategy = BackgroundPushStrategy::make(shared_from_this(), root, mModule->getService());
 	} else {
 		throw runtime_error{"no suitable available destinations for PNContextMessage"};
 	}

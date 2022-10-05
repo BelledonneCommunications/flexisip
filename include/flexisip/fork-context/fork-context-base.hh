@@ -97,7 +97,16 @@ protected:
 	 * nullptr.
 	 */
 	std::pair<bool, std::shared_ptr<BranchInfo>> shouldDispatch(const SipUri& dest, const std::string& uid);
+	/**
+	 * Send a response in the incoming transaction associated to this ForkContext.
+	 * @param status SIP response status.
+	 * @param phrase SIP response phrase.
+	 * @param addToTag If true, add a generated 'tag' parameter to the To-URI.
+	 */
+	void sendResponse(int status, char const* phrase, bool addToTag = false);
 
+	// Protected attributes
+	bool m110Sent = false; /**< Whether a "110 Push sent" response has already been sent in the incoming transaction. */
 	bool mFinished = false;
 	float mCurrentPriority;
 	Agent* mAgent;
@@ -114,12 +123,16 @@ protected:
 public:
 	virtual ~ForkContextBase();
 
-	// Called by the Router module to create a new branch.
+	/**
+	 * Called by the Router module to create a new branch.
+	 */
 	std::shared_ptr<BranchInfo> addBranch(const std::shared_ptr<RequestSipEvent>& ev,
 	                                      const std::shared_ptr<ExtendedContact>& contact) override;
 	bool allCurrentBranchesAnswered(bool ignore_errors_and_timeouts = false) const override;
 	bool allBranchesAnswered(bool ignore_errors_and_timeouts = false) const;
-	// Request if the fork has other branches with lower priorities to try
+	/**
+	 * Request if the fork has other branches with lower priorities to try
+	 */
 	bool hasNextBranches() const override;
 	/**
 	 * Called when a fatal internal error is thrown in Flexisip. Send a custom response and cancel all branches if
@@ -134,9 +147,15 @@ public:
 	void addKey(const std::string& key) override;
 	const std::vector<std::string>& getKeys() const override;
 
-	// Notifies the cancellation of the fork process.
+	/**
+	 * Notifies the cancellation of the fork process.
+	 */
 	void onCancel(const std::shared_ptr<RequestSipEvent>& ev) override;
 	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& ev) override;
+	/**
+	 * See PushNotificationContextObserver::onPushSent().
+	 */
+	void onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept override;
 	const std::shared_ptr<RequestSipEvent>& getEvent() override;
 	const std::shared_ptr<ForkContextConfig>& getConfig() const override {
 		return mCfg;

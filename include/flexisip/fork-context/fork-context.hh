@@ -26,6 +26,8 @@
 #include "flexisip/registrardb.hh"
 #include "flexisip/transaction.hh"
 
+#include "pushnotification/pushnotification-context-observer.hh"
+
 namespace flexisip {
 
 class BranchInfo;
@@ -44,7 +46,7 @@ struct ForkContextConfig {
 	bool mPermitSelfGeneratedProvisionalResponse = true; /* Self explicit. Ex: 110 Push sent, 180 Ringing*/
 };
 
-class ForkContext {
+class ForkContext : public PushNotificationContextObserver {
 public:
 	virtual ~ForkContext() = default;
 
@@ -98,6 +100,7 @@ public:
 	virtual void checkFinished() = 0;
 
 protected:
+	// Protected methods
 	std::string errorLogPrefix() const;
 	virtual const char* getClassName() const = 0;
 };

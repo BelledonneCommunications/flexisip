@@ -250,6 +250,34 @@ std::pair<bool, std::shared_ptr<BranchInfo>> ForkContextBase::shouldDispatch(con
 	return make_pair(true, nullptr);
 }
 
+// This is actually called when we want to simulate a ringing event by sending a 180, or for example to signal the
+// caller that we've sent a push notification.
+void ForkContextBase::sendResponse(int code, char const* phrase, bool addToTag) {
+	if (!mCfg->mPermitSelfGeneratedProvisionalResponse) {
+		LOGD("ForkCallContext::sendResponse(): self-generated provisional response are disabled by configuration.");
+		return;
+	}
+
+	auto previousCode = getLastResponseCode();
+	if (previousCode > code || !mIncoming) {
+		/* Don't send a response with status code lesser than last transmitted response. */
+		return;
+	}
+
+	auto msgsip = mIncoming->createResponse(code, phrase);
+	if (!msgsip) return;
+
+	auto ev = make_shared<ResponseSipEvent>(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip);
+
+	// add a to tag, no set by sofia here.
+	if (addToTag) {
+		auto totag = nta_agent_newtag(msgsip->getHome(), "%s", mAgent->getSofiaAgent());
+		sip_to_tag(msgsip->getHome(), msgsip->getSip()->sip_to, totag);
+	}
+
+	forwardResponse(ev);
+}
+
 bool compareGreaterBranch(const shared_ptr<BranchInfo>& lhs, const shared_ptr<BranchInfo>& rhs) {
 	return lhs->mPriority > rhs->mPriority;
 }
@@ -421,6 +449,13 @@ void ForkContextBase::onCancel(const std::shared_ptr<RequestSipEvent>& ev) {
 
 void ForkContextBase::onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& ev) {
 	if (br->getStatus() >= 200) br->notifyBranchCompleted();
+}
+
+void ForkContextBase::onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept {
+	if (!m110Sent) {
+		sendResponse(110, "Push sent");
+		m110Sent = true;
+	}
 }
 
 void ForkContextBase::addKey(const string& key) {

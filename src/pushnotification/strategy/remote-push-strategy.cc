@@ -26,6 +26,7 @@ namespace pushnotification {
 void RemotePushStrategy::sendMessageNotification(const std::shared_ptr<const PushInfo>& pInfo) {
 	auto req = mService->makeRequest(PushType::Message, pInfo);
 	mService->sendPush(req);
+	notifyPushSent();
 }
 
 void RemotePushStrategy::sendCallNotification(const std::shared_ptr<const PushInfo>& pInfo) {
@@ -51,6 +52,7 @@ void RemotePushStrategy::sendCallNotification(const std::shared_ptr<const PushIn
 		mService->sendPush(req);
 	};
 	sendPush();
+	notifyPushSent(true);
 
 	if (pushRepetitionEnabled()) {
 		auto pushTimer = std::make_shared<sofiasip::Timer>(mRoot, mCallPushInterval);

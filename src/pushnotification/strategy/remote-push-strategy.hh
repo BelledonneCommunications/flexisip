@@ -52,10 +52,11 @@ public:
 
 private:
 	// Private ctor
-	RemotePushStrategy(const std::shared_ptr<sofiasip::SuRoot>& root,
-	                   const std::shared_ptr<Service>& service,
-	                   const std::shared_ptr<BranchInfo>& br)
-	    : Strategy{root, service}, mBranchInfo{br} {
+	RemotePushStrategy(const std::weak_ptr<PushNotificationContext>& aPNContext,
+	                   const std::shared_ptr<sofiasip::SuRoot>& aRoot,
+	                   const std::shared_ptr<Service>& aService,
+	                   const std::shared_ptr<BranchInfo>& aBr)
+	    : Strategy{aPNContext, aRoot, aService}, mBranchInfo{aBr} {
 	}
 
 	// Private methods

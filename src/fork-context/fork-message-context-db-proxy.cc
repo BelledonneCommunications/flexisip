@@ -171,6 +171,18 @@ void ForkMessageContextDbProxy::onResponse(const shared_ptr<BranchInfo>& br,
 	}
 }
 
+void ForkMessageContextDbProxy::onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept {
+	// Not using checkState() here because onPushSent() may be called whatever the state of the proxy.
+	// If the ForkMessageContext is already in database when the PN is sent, then no need to restore it
+	// because the incoming transaction is closed anyway and the “110 Push sent” response cannot be sent.
+	// If the ForkMessageContext is in memory, then the event is forwarded to it and “110 Push sent” response
+	// is sent depending whether the incoming transaction is still current.
+	lock_guard<recursive_mutex>{mStateMutex};
+	if (mState == State::IN_MEMORY) {
+		mForkMessage->onPushSent(aPNCtx, aRingingPush);
+	}
+}
+
 std::shared_ptr<BranchInfo>
 ForkMessageContextDbProxy::onNewRegister(const SipUri& dest, const string& uid, const DispatchFunction& dispatchFunc) {
 	LOGD("ForkMessageContextDbProxy[%p] onNewRegister", this);

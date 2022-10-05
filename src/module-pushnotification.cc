@@ -68,16 +68,6 @@ void PushNotificationContext::onTimeout() {
 		SLOGE << e.what();
 	}
 
-	if (forkCtx && !mPushSentResponseSent) {
-		auto callCtx = dynamic_pointer_cast<ForkCallContext>(forkCtx);
-		if (callCtx && !callCtx->isRingingSomewhere()) {
-			const auto& ev = callCtx->getEvent();
-			auto addToTag = mModule->mAddToTagFilter && mModule->mAddToTagFilter->eval(*ev->getSip());
-			callCtx->sendResponse(mPushSentSatusCode, mPushSentPhrase, addToTag);
-		}
-		mPushSentResponseSent = true;
-	}
-
 	if (mRetryCounter > 0) {
 		SLOGD << "PNR " << mPInfo.get() << ": setting retry timer to " << mRetryInterval.count() << "s";
 		mRetryCounter--;
@@ -388,14 +378,18 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip>& ms,
 		// Actually create the PushNotificationContext
 		SLOGD << "Creating a push notif context PNR " << pinfo << " to send in " << timeout.count() << "s";
 		if (isCall) {
-			context = make_shared<PNContextCall>(transaction, this, pinfo, getCallRemotePushInterval(params), pnKey);
+			context = PNContextCall::make(transaction, this, pinfo, getCallRemotePushInterval(params), pnKey);
 			if (br) {
 				br->pushContext = context;
 			}
 		} else {
-			context = make_shared<PNContextMessage>(transaction, this, pinfo, pnKey);
+			context = PNContextMessage::make(transaction, this, pinfo, pnKey);
 		}
 		context->setRetransmission(mRetransmissionCount, mRetransmissionInterval);
+		context->enableToTag(mAddToTagFilter && mAddToTagFilter->eval(*sip));
+		if (br) {
+			context->addObserver(br->mForkCtx.lock());
+		}
 		context->start(timeout);
 		mPendingNotifications.emplace(pnKey, context);
 	}

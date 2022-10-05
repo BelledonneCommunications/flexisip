@@ -16,34 +16,19 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
+#include "flexisip/module-pushnotification.hh"
 
 #include "strategy.hh"
 
 namespace flexisip {
 namespace pushnotification {
 
-class VoIPPushStrategy : public Strategy {
-public:
-	template <typename... Args>
-	static std::shared_ptr<VoIPPushStrategy> make(Args&&... args) {
-		return std::shared_ptr<VoIPPushStrategy>{new VoIPPushStrategy{std::forward<Args>(args)...}};
+void Strategy::notifyPushSent(bool aRinging) {
+	auto pnContext = mPNContext.lock();
+	if (pnContext) {
+		pnContext->notifyPushSent(aRinging);
 	}
-
-	void sendMessageNotification(const std::shared_ptr<const PushInfo>& pInfo) override {
-		std::ostringstream err{};
-		err << __PRETTY_FUNCTION__ << "() not implemented by VoIPPushStrategy";
-		throw std::logic_error{err.str()};
-	}
-	void sendCallNotification(const std::shared_ptr<const PushInfo>& pInfo) override {
-		auto req = mService->makeRequest(PushType::VoIP, pInfo);
-		mService->sendPush(req);
-		notifyPushSent();
-	}
-
-private:
-	using Strategy::Strategy;
-};
+}
 
 } // namespace pushnotification
 } // namespace flexisip

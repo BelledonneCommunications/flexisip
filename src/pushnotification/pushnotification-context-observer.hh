@@ -18,32 +18,23 @@
 
 #pragma once
 
-#include "strategy.hh"
-
 namespace flexisip {
-namespace pushnotification {
 
-class VoIPPushStrategy : public Strategy {
+class PushNotificationContext;
+
+/**
+ * Interface for PushNotificationContext observers.
+ */
+class PushNotificationContextObserver {
 public:
-	template <typename... Args>
-	static std::shared_ptr<VoIPPushStrategy> make(Args&&... args) {
-		return std::shared_ptr<VoIPPushStrategy>{new VoIPPushStrategy{std::forward<Args>(args)...}};
-	}
-
-	void sendMessageNotification(const std::shared_ptr<const PushInfo>& pInfo) override {
-		std::ostringstream err{};
-		err << __PRETTY_FUNCTION__ << "() not implemented by VoIPPushStrategy";
-		throw std::logic_error{err.str()};
-	}
-	void sendCallNotification(const std::shared_ptr<const PushInfo>& pInfo) override {
-		auto req = mService->makeRequest(PushType::VoIP, pInfo);
-		mService->sendPush(req);
-		notifyPushSent();
-	}
-
-private:
-	using Strategy::Strategy;
+	virtual ~PushNotificationContextObserver() = default;
+	/**
+	 * Notify the observer that a push notification has been sent by the PushNotificationContext.
+	 * @param aPNCtx The PushNotificationContext that has sent the PN.
+	 * @param aRingingPush Tells whether the sent PN makes the callee's device to ring without
+	 * waking the user agent up.
+	 */
+	virtual void onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept = 0;
 };
 
-} // namespace pushnotification
 } // namespace flexisip

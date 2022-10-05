@@ -25,16 +25,24 @@ namespace pushnotification {
 
 class BackgroundPushStrategy : public Strategy {
 public:
-	using Strategy::Strategy;
+	template <typename... Args>
+	static std::shared_ptr<BackgroundPushStrategy> make(Args&&... args) {
+		return std::shared_ptr<BackgroundPushStrategy>{new BackgroundPushStrategy{std::forward<Args>(args)...}};
+	}
 
 	void sendMessageNotification(const std::shared_ptr<const PushInfo>& pInfo) override {
 		auto req = mService->makeRequest(PushType::Background, pInfo);
 		mService->sendPush(req);
+		notifyPushSent();
 	}
 	void sendCallNotification(const std::shared_ptr<const PushInfo>& pInfo) override {
 		auto req = mService->makeRequest(PushType::Background, pInfo);
 		mService->sendPush(req);
+		notifyPushSent();
 	}
+
+private:
+	using Strategy::Strategy;
 };
 
 } // namespace pushnotification

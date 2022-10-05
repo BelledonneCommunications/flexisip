@@ -23,6 +23,10 @@
 #######################################################################################################################
 # Build the Flexisip library
 #######################################################################################################################
+
+add_subdirectory(sofia-wrapper)
+add_subdirectory(utils)
+
 add_library(flexisip SHARED
 	agent.cc
 	auth/auth-module.cc
@@ -91,12 +95,14 @@ add_library(flexisip SHARED
 	pushnotification/legacy/microsoftpush.cc pushnotification/legacy/microsoftpush.hh
 	pushnotification/legacy/wp-client.cc pushnotification/legacy/wp-client.hh
 	pushnotification/pushnotification-context.cc pushnotification/pushnotification-context.hh
+	pushnotification/pushnotification-context-observer.hh
 	pushnotification/push-info.cc pushnotification/push-info.hh
 	pushnotification/push-type.cc pushnotification/push-type.hh
 	pushnotification/request.cc pushnotification/request.hh
 	pushnotification/rfc8599-push-params.cc pushnotification/rfc8599-push-params.hh
 	pushnotification/service.cc pushnotification/service.hh
 	pushnotification/strategy/remote-push-strategy.cc pushnotification/strategy/remote-push-strategy.hh
+	pushnotification/strategy/strategy.cc pushnotification/strategy/strategy.hh
 	push-param.cc
 	recordserializer-c.cc
 	recordserializer-json.cc
@@ -104,8 +110,6 @@ add_library(flexisip SHARED
 	registrardb.cc
 	sdp-modifier.cc sdp-modifier.hh
 	service-server.cc service-server.hh
-	sofia-wrapper/msg-sip.cc sofia-wrapper/msg-sip.hh
-	sofia-wrapper/su-root.cc
 	stun.cc stun.hh
 	stun/stun_udp.c
 	stun/stun.c
@@ -114,23 +118,8 @@ add_library(flexisip SHARED
 	transport.cc
 	uac-register.cc uac-register.hh
 	conditional-routes.cc conditional-routes.hh
-	utils/digest.cc utils/digest.hh
-	utils/rand.cc utils/rand.hh
-	utils/sip-uri.cc
-	utils/string-formater.cc utils/string-formater.hh
-	utils/string-utils.cc utils/string-utils.hh
-	utils/thread/auto-thread-pool.cc utils/thread/auto-thread-pool.hh
-	utils/thread/basic-thread-pool.cc utils/thread/basic-thread-pool.hh
-	utils/thread/base-thread-pool.cc utils/thread/base-thread-pool.hh
-	utils/thread/thread-pool.hh
-	utils/timer.cc
-	utils/transport/http/http2client.cc utils/transport/http/http2client.hh
-	utils/transport/http/http-headers.cc utils/transport/http/http-headers.hh
-	utils/transport/http/http-message.cc utils/transport/http/http-message.hh
-	utils/transport/http/http-response.cc utils/transport/http/http-response.hh
-	utils/transport/http/ng-data-provider.cc utils/transport/http/ng-data-provider.hh
-	utils/transport/tls-connection.cc utils/transport/tls-connection.hh
-	utils/uri-utils.cc utils/uri-utils.hh
+	$<TARGET_OBJECTS:flexisip-sofia-wrapper>
+	$<TARGET_OBJECTS:flexisip-utils>
 )
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
