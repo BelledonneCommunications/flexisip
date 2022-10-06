@@ -922,6 +922,12 @@ int main(int argc, char* argv[]) {
 		LogManager::get().setContextualFilter(cfg->getGlobal()->get<ConfigString>("contextual-log-filter")->read());
 		LogManager::get().setContextualLevel(
 		    LogManager::get().logLevelFromName(cfg->getGlobal()->get<ConfigString>("contextual-log-level")->read()));
+		try {
+			MsgSip::addShowBodyFor(cfg->getGlobal()->get<ConfigStringList>("show-body-for")->read());
+		} catch (const invalid_argument& e) {
+			LOGF("Setting 'global/show-body-for' must only contains sip method names, whitespace separated. %s",
+			     e.what());
+		}
 	} else {
 		LogManager::get().disable();
 	}

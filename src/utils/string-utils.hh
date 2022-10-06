@@ -147,4 +147,33 @@ public:
 	static bool endsWith(const std::string& str, const std::string& suffix) noexcept {
 		return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 	}
+
+	/**
+	 * Concat all strings from the args parameter into one whitespace separated string.
+	 *
+	 * @tparam StringList Any container type with iterator available.
+	 * @param args A container of strings to concat.
+	 * @param fromIndex If you want not to start at the beginning of args. If fromIndex => args.size(), return an empty
+	 * string.
+	 * @return A string, can be empty, no trailing whitespace added.
+	 */
+	template <class StringList>
+	static std::string join(const StringList& args, size_t fromIndex = 0) {
+		std::string ret{""};
+		if (args.size() <= fromIndex) {
+			return ret;
+		}
+
+		auto iter = args.begin();
+		std::advance(iter, fromIndex);
+		for (; iter != args.end(); iter++) {
+			ret.append(*iter).append(" ");
+		}
+
+		if (!ret.empty()) {
+			ret.resize(ret.size() - 1);
+		}
+
+		return ret;
+	}
 };

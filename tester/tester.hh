@@ -76,6 +76,7 @@ extern test_suite_t moduleDosSuite;
 extern test_suite_t moduleInfoSuite;
 extern test_suite_t moduleRouterSuite;
 extern test_suite_t modulePushNotificationSuite;
+extern test_suite_t msgSipSuite;
 extern test_suite_t registarDbSuite;
 extern test_suite_t sip_uri_tests;
 extern test_suite_t threadPoolSuite;

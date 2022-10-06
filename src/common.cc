@@ -16,12 +16,12 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "flexisip-config.h"
 #include <cstring>
-#include <flexisip/common.hh>
-#include <stdarg.h>
-#include <stdio.h>
 #include <time.h>
+
+#include "flexisip-config.h"
+
+#include "flexisip/common.hh"
 
 using namespace flexisip;
 
@@ -166,15 +166,6 @@ std::string BinaryIp::asString() const {
 }
 std::ostream& operator<<(std::ostream& os, const BinaryIp& ip) {
 	return os << ip.asString();
-}
-
-std::vector<std::string> split(const std::string& str, const std::string& delimiter) {
-	std::vector<std::string> out;
-	size_t pos = 0, oldPos = 0;
-	for (; (pos = str.find(delimiter, pos)) != std::string::npos; oldPos = pos + 1, pos = oldPos)
-		out.push_back(str.substr(oldPos, pos - oldPos));
-	out.push_back(str.substr(oldPos));
-	return out;
 }
 
 } // namespace flexisip

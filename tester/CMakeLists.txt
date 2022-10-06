@@ -48,6 +48,7 @@ add_executable(flexisip_tester
 	module-info-tester.cc
 	module-pushnotification-tester.cc
 	module-router-tester.cc
+    msg-sip-tester.cc
 	register-tester.cc
 	registrardb-tester.cc
 	sip-uri-tests.cc

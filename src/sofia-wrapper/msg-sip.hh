@@ -18,7 +18,9 @@
 
 #pragma once
 
+#include <algorithm>
 #include <ostream>
+#include <set>
 #include <string>
 
 #include <sofia-sip/msg_types.h>
@@ -73,6 +75,11 @@ public:
 		return const_cast<MsgSip*>(this)->findHeader(name);
 	}
 
+	sip_method_t getSipMethod() const {
+		const auto rq = getSip()->sip_request;
+		return rq != nullptr ? rq->rq_method : sip_method_unknown;
+	}
+
 	void serialize() {
 		msg_serialize(mMsg.borrow(), (msg_pub_t*)getSip());
 	}
@@ -82,22 +89,35 @@ public:
 
 	bool isGroupChatInvite() const noexcept;
 
+	/**
+	 * Add a sip method to the list of methods for which Flexisip shows request's body in logs.
+	 *
+	 * @param sipMethod string containing the name of the method.
+	 * @throw invalid_argument if sipMethod not in : INVITE ACK CANCEL BYE OPTIONS REGISTER INFO PRACK UPDATE MESSAGE
+	 * SUBSCRIBE
+	 */
+	static void addShowBodyFor(const std::string& sipMethod);
+	template <class Container>
+	static void addShowBodyFor(const Container& sipMethods) {
+		for (const auto& sipMethod : sipMethods) {
+			MsgSip::addShowBodyFor(sipMethod);
+		}
+	}
+
+	static std::set<sip_method_t>& getShowBodyFor() {
+		return sShowBodyFor;
+	}
+
 private:
 	// Private methods
 	std::pair<char*, size_t> asString();
 
 	// Private attributes
 	Owned<msg_t> mMsg{nullptr};
+
+	static std::set<sip_method_t> sShowBodyFor;
 };
 
-inline std::ostream& operator<<(std::ostream& strm, const sofiasip::MsgSip& obj) {
-	// Here we hack out the constness.
-	// The print method is non const as it will modify the underlying msg_t
-	// during serialization. Moreover, the underlying sofia calls also take
-	// a non const sip_t...
-	auto& hack = const_cast<sofiasip::MsgSip&>(obj);
-	strm << hack.print();
-	return strm;
-}
+std::ostream& operator<<(std::ostream& strm, const sofiasip::MsgSip& obj) noexcept;
 
 }; // namespace sofiasip

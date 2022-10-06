@@ -34,6 +34,7 @@
 #endif
 
 #include <bctoolbox/logging.h>
+#include <sofia-sip/sip.h>
 
 #include "flexisip/sip-boolean-expressions.hh"
 #include "flexisip/sofia-wrapper/timer.hh"

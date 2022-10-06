@@ -894,6 +894,10 @@ GenericManager::GenericManager()
 	    {String, "contextual-log-level",
 	     "Verbosity of contextual logs to output when the condition defined in 'contextual-log-filter' is met.",
 	     "debug"},
+	    {StringList, "show-body-for",
+	     "Request type for which you want body in logs, white space separated. Full list: INVITE ACK CANCEL BYE "
+	     "OPTIONS REGISTER INFO PRACK UPDATE MESSAGE SUBSCRIBE NOTIFY REFER PUBLISH. Example : REGISTER INVITE.",
+	     "INVITE"},
 
 	    // network settings
 	    {StringList, "transports",

@@ -21,20 +21,17 @@
 #include <stdlib.h>
 
 #include <poll.h>
-#include <stdio.h>
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 #include <bctoolbox/ownership.hh>
 
-#include <flexisip/common.hh>
 #include <flexisip/logmanager.hh>
 #include <flexisip/registrardb.hh>
 
 #include "cJSON.h"
-
 #include "recordserializer.hh"
+#include "utils/string-utils.hh"
 
 #include "cli.hh"
 
@@ -118,7 +115,7 @@ void CommandLineInterface::registerHandler(CliHandler& handler) {
 }
 
 GenericEntry* CommandLineInterface::getGenericEntry(const std::string& arg) const {
-	std::vector<std::string> arg_split = split(arg, '/');
+	std::vector<std::string> arg_split = StringUtils::split(arg, "/");
 	GenericManager* manager = GenericManager::get();
 	GenericStruct* root = manager->getRoot();
 
@@ -160,14 +157,6 @@ void CommandLineInterface::handleConfigList(unsigned int socket, const std::vect
 	else answer(socket, printEntry(entry, true));
 }
 
-string CommandLineInterface::agregate(const std::vector<std::string>& args, size_t from_pos) {
-	ostringstream ostr;
-	for (size_t i = from_pos; i < args.size(); ++i) {
-		ostr << args[i] << " ";
-	}
-	return ostr.str();
-}
-
 void CommandLineInterface::handleConfigSet(unsigned int socket, const std::vector<std::string>& args) {
 	if (args.size() < 2) {
 		answer(socket, "Error: at least 2 arguments are expected for the CONFIG_SET command");
@@ -182,7 +171,7 @@ void CommandLineInterface::handleConfigSet(unsigned int socket, const std::vecto
 	}
 
 	std::string value = args.at(1);
-	ConfigValue* config_value = dynamic_cast<ConfigValue*>(entry);
+	auto* config_value = dynamic_cast<ConfigValue*>(entry);
 	if (config_value && (arg == "global/debug")) {
 		config_value->set(value);
 		LogManager::get().setLogLevel(BCTBX_LOG_DEBUG);
@@ -200,10 +189,24 @@ void CommandLineInterface::handleConfigSet(unsigned int socket, const std::vecto
 		LogManager::get().setContextualLevel(LogManager::get().logLevelFromName(value));
 		answer(socket, "contextual-log-level : " + value);
 	} else if (config_value && (arg == "global/contextual-log-filter")) {
-		value = agregate(args, 1);
+		value = StringUtils::join(args, 1);
 		config_value->set(value);
 		LogManager::get().setContextualFilter(value);
 		answer(socket, "contextual-log-filter : " + value);
+	} else if (config_value && (arg == "global/show-body-for")) {
+		auto previousConfSave = MsgSip::getShowBodyFor();
+		MsgSip::getShowBodyFor().clear();
+
+		try {
+			value = StringUtils::join(args, 1);
+			MsgSip::addShowBodyFor(StringUtils::split(value, " "));
+			config_value->set(value);
+			answer(socket, "show-body-for : " + value);
+		} catch (const invalid_argument& e) {
+			MsgSip::getShowBodyFor().clear();
+			MsgSip::getShowBodyFor().insert(previousConfSave.cbegin(), previousConfSave.cend());
+			answer(socket, "show-body-for : not modified, errors in args. "s + e.what());
+		}
 	} else {
 		answer(socket, "Only debug, log-level and syslog-level from global can be updated while flexisip is running");
 	}
@@ -272,7 +275,7 @@ void CommandLineInterface::run() {
 				finished = true;
 			} else if (n > 0) {
 				SLOGD << "CommandLineInterface " << mName << " received: " << buffer;
-				auto split_query = split(buffer, ' ');
+				auto split_query = StringUtils::split(buffer, " ");
 				std::string command = split_query.front();
 				split_query.erase(split_query.begin());
 				parseAndAnswer(child_socket, command, split_query);

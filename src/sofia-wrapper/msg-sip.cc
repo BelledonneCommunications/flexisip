@@ -110,4 +110,41 @@ bool MsgSip::isGroupChatInvite() const noexcept {
 	return true;
 }
 
+std::set<sip_method_t> MsgSip::sShowBodyFor = set<sip_method_t>{};
+
+void MsgSip::addShowBodyFor(const string& sipMethod) {
+	const auto sofiaSipMethod = sip_method_code(sipMethod.c_str());
+	if (sofiaSipMethod == sip_method_unknown || sofiaSipMethod == sip_method_invalid) {
+		throw invalid_argument("SIP method [" + sipMethod + "] is not a valid one.");
+	}
+
+	sShowBodyFor.insert(sofiaSipMethod);
+}
+
+std::ostream& operator<<(std::ostream& strm, const sofiasip::MsgSip& obj) noexcept {
+	// Here we hack out the constness.
+	// The print method is non const as it will modify the underlying msg_t
+	// during serialization. Moreover, the underlying sofia calls also take
+	// a non const sip_t...
+	auto& hack = const_cast<sofiasip::MsgSip&>(obj);
+
+	auto messageString = hack.printString();
+	const auto& showBodyForList = MsgSip::getShowBodyFor();
+
+	if (showBodyForList.find(obj.getSipMethod()) == showBodyForList.cend()) {
+		// If message method is not in the "show body" whitelist, remove body.
+		const auto endOfHeaders = messageString.find("\r\n\r\n");
+		const auto removedBodySize = endOfHeaders != std::string::npos ? messageString.size() - (endOfHeaders + 4) : 0;
+		if (removedBodySize != 0) {
+			messageString.resize(endOfHeaders);
+			strm << messageString << "\r\n\r\n[" << removedBodySize << " bytes of body hidden]\r\n\r\n";
+			return strm;
+		}
+	}
+
+	strm << messageString;
+
+	return strm;
+}
+
 }; // namespace sofiasip

@@ -115,6 +115,7 @@ void flexisip_tester_init() {
 	bc_tester_add_suite(&moduleInfoSuite);
 	bc_tester_add_suite(&modulePushNotificationSuite);
 	bc_tester_add_suite(&moduleRouterSuite);
+	bc_tester_add_suite(&msgSipSuite);
 #if ENABLE_UNIT_TESTS_PUSH_NOTIFICATION
 	bc_tester_add_suite(&push_notification_suite);
 #endif
