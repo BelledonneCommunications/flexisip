@@ -339,6 +339,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip>& ms,
 		pinfo->mFromName = "";
 		pinfo->mFromUri = "";
 	}
+	pinfo->mEvent = isCall ? "call" : "message";
 
 	// Extract the unique id if possible.
 	const auto& br = BranchInfo::getBranchInfo(transaction);
@@ -361,7 +362,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip>& ms,
 		context = it->second;
 	}
 
-	// No PushNotificatonContext exists for this call/message and device, creating it.
+	// No PushNotificationContext exists for this call/message and device, creating it.
 	if (context == nullptr) {
 		// Compute the delay before the PN is actually sent
 		auto timeout = mTimeout;

@@ -96,8 +96,14 @@ public:
 		return mConn->getPort() == "443" ? mConn->getHost() : mConn->getHost() + ":" + mConn->getPort();
 	}
 
+	/**
+	 * Test whether the client is processing an HTTP request.
+	 * A request is under processing when it has been sent to the HTTP server
+	 * or it has been queued until the connection on the server is completed.
+	 * @return True when the client isn't processing any request.
+	 */
 	bool isIdle() const {
-		return mActiveHttpContexts.empty();
+		return mActiveHttpContexts.empty() && mPendingHttpContexts.empty();
 	}
 
 	/**
@@ -182,6 +188,7 @@ private:
 
 	void setState(State state) noexcept;
 
+	// Private attributes
 	State mState{State::Disconnected};
 	std::unique_ptr<TlsConnection> mConn{};
 	sofiasip::SuRoot& mRoot;

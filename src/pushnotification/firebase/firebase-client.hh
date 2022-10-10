@@ -37,6 +37,10 @@ class FirebaseClient : public Client {
 public:
 	FirebaseClient(sofiasip::SuRoot& root, const std::string& apiKey, const Service* service = nullptr);
 
+	const std::string& getApiKey() const noexcept {
+		return mApiKey;
+	}
+
 	/**
 	 * Send the request to the Firebase PNR server. If the request succeed, if a response is received, the
 	 * FirebaseClient::onResponse method is called. If the request failed, no response/timeout, tls/handshake errors...

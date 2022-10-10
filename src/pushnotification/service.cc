@@ -59,7 +59,7 @@ std::shared_ptr<Request> Service::makeRequest(PushType pType, const std::shared_
 	// Create a generic request if the generic client has been set.
 	auto genericClient = mClients.find(sGenericClientName);
 	if (genericClient != mClients.cend() && genericClient->second != nullptr) {
-		return make_shared<GenericRequest>(pType, pInfo);
+		return makeGenericRequest(pType, pInfo);
 	}
 
 	// No generic client set, then create a native request for the target platform.
@@ -98,10 +98,7 @@ void Service::sendPush(const std::shared_ptr<Request>& pn) {
 }
 
 bool Service::isIdle() const noexcept {
-	for (const auto& entry : mClients) {
-		if (!entry.second->isIdle()) return false;
-	}
-	return true;
+	return all_of(mClients.cbegin(), mClients.cend(), [](const auto& kv) { return kv.second->isIdle(); });
 }
 
 void Service::setupGenericClient(const sofiasip::Url& url, Method method) {
@@ -118,7 +115,7 @@ void Service::setupGenericClient(const sofiasip::Url& url, Method method) {
 		conn = make_unique<TlsConnection>(url.getHost(), url.getPort(true), "", "");
 	}
 
-	mClients[sGenericClientName] = make_unique<LegacyClient>(make_unique<TlsTransport>(move(conn), method),
+	mClients[sGenericClientName] = make_unique<LegacyClient>(make_unique<TlsTransport>(move(conn), method, url),
 	                                                         sGenericClientName, mMaxQueueSize, this);
 }
 
@@ -207,6 +204,20 @@ Client* Service::createWindowsClient(const std::shared_ptr<MicrosoftRequest>& pn
 		client = make_unique<LegacyClient>(make_unique<TlsTransport>(move(conn)), wpClient, mMaxQueueSize, this);
 	}
 	return client.get();
+}
+
+std::shared_ptr<GenericRequest> Service::makeGenericRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo) const {
+	auto request = make_shared<GenericRequest>(pType, pInfo);
+
+	// Set the authentication key in case the native PNR is for the Firebase service.
+	const auto& destination = request->getDestination();
+	if (destination.getProvider() == "fcm") {
+		const auto& projectID = destination.getParam();
+		const auto& apiKey = dynamic_pointer_cast<FirebaseClient>(mClients.at(projectID))->getApiKey();
+		request->setFirebaseAuthKey(apiKey);
+	}
+
+	return request;
 }
 
 } // namespace pushnotification

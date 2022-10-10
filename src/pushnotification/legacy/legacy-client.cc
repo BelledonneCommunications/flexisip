@@ -56,7 +56,7 @@ int TlsTransport::sendPush(LegacyRequest& req, bool hurryUp, const OnSuccessCb& 
 
 	/* send push to the server */
 	mLastUse = getCurrentTime();
-	auto buffer = req.getData(mUrl, mMethod);
+	const auto& buffer = req.getData(mUrl, mMethod);
 	int wcount = mConn->write(buffer);
 
 	SLOGD << "PushNotificationTransportTls PNR " << &req << " sent " << wcount << "/" << buffer.size() << " data";

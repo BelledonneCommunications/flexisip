@@ -35,6 +35,7 @@ namespace flexisip {
 namespace pushnotification {
 
 class Client;
+class GenericRequest;
 class MicrosoftRequest;
 
 class Service {
@@ -73,6 +74,7 @@ private:
 	// Private methods
 	void setupClients(const std::string& certdir, const std::string& ca, int maxQueueSize);
 	Client* createWindowsClient(const std::shared_ptr<MicrosoftRequest>& pnImpl);
+	std::shared_ptr<GenericRequest> makeGenericRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo) const;
 
 	// Private attributes
 	sofiasip::SuRoot& mRoot;

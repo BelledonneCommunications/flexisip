@@ -51,22 +51,89 @@ struct PusherArgs {
 	vector<string> pnPrids{};
 
 	void usage(const char* app) {
-		cout << "Standard push notifications usage:" << endl
-		     << "    " << app << " [options] --pn-provider provider --pn-param params --pn-prid prid1 [prid2 prid3 ...]"
-		     << endl
-		     << endl
-		     << "Legacy push notifications usage:" << endl
-		     << "    " << app
-		     << " [options] --pntype {google|firebase|wp|w10|apple} --appid id --key --pntok id1 [id2 id3 ...] "
-		        "apikey(secretkey) --sid ms-app://value --prefix dir"
-		     << endl
-		     << endl
-		     << "Generic options:" << endl
-		     << "    --customPayload json" << endl
-		     << "    --apple-push-type {RemoteBasic|RemoteWithMutableContent|Background|PushKit}, PushKit by default"
-		     << endl
-		     << "    --prefix dir" << endl
-		     << "    --debug" << endl;
+		cout << "usage: " << app << " "
+R"doc([options] --pn-provider {apns,apns.dev,fcm} --pn-param <param> --pn-prid <prid> [<prid> ...]
+
+A tool to send push notifications to Android and iOS applications, based on parameters defined by RFC8599.
+
+Mandatory parameters:
+---------------------
+  --pn-provider {apns,apns.dev,fcm}  The service in charge to send the push notification.
+                                       * 'apns'     for iOS production applications;
+                                       * 'apns.dev' for iOS development applications;
+                                       * 'fcm'      for Android applications.
+
+  --pn-param <param>                 Provider specific ID of the application.
+                                       * Android:   Firebase Project ID.
+                                       * iOS:       <TeamID>.<BundleID>[.voip], where '.voip' is only added
+                                                    for VoIP push notification.
+
+
+  --pn-prid <prid>                   Provider specific ID of the targeted application instance.
+                                       * Android:   Registration token.
+                                       * iOS:       Device token.
+
+
+General options:
+----------------
+  -h, --help                         Show this help message and exit.
+  --debug                            Print all debug messages on the standard output.
+
+
+Android specific options:
+-------------------------
+  --key <ProjectID>(<SecretKey>)     Specify the secret key to put in the HTTP/2 headers to be authenticated
+                                     by Firebase push notification service.
+
+
+iOS specific options:
+---------------------
+  --prefix <path>                    Path to the directory where the APNS certificates are stored. The certificates
+                                     must actually be placed in a subdirectory named 'apns' just like a standard
+                                     Flexisip configuration directory.
+
+  --apple-push-type {Background,RemoteWithMutableContent,PushKit}
+                                     The kind of push notification to send to the iOS device. Default: PushKit.
+                                       * Background: only wake the application up without displaying anything to
+                                         the user;
+                                       * RemoteWithMutableContent: a message is displayed to the user;
+                                       * PushKit: require the application to use CallKit API to display the incoming
+                                         call view.
+
+  --customPayload <payload>          Add custom parameters in the PN request body. <payload> must be a JSON structure
+                                     and will be placed in the top-level JSON attribute.
+
+
+Examples:
+---------
+* Send a data push notification to an Android application:
+
+    ./flexisip_pusher --key '<ProjectID>(<SecretKey>)' --pn-provider 'fcm' --pn-param '<ProjectID>' --pn-prid '<token>'
+
+
+* Send a remote message push notification to an iOS production application:
+
+    ./flexisip_pusher --prefix /etc/flexisip --pn-provider 'apns' --pn-param '<TeamID>.<BundleID>'
+                      --pn-prid '<token>' --apple-push-type RemoteWithMutableContent
+
+
+* Send a remote message push notification to an iOS development application:
+
+    ./flexisip_pusher --prefix /etc/flexisip --pn-provider 'apns.dev' --pn-param '<TeamID>.<BundleID>'
+                      --pn-prid '<token>' --apple-push-type RemoteWithMutableContent
+
+
+* Send a VoIP push notification to an iOS production application:
+
+    ./flexisip_pusher --prefix /etc/flexisip --pn-provider 'apns' --pn-param '<TeamID>.<BundleID>.voip'
+                      --pn-prid '<token>' --apple-push-type PushKit
+
+
+* Send a background push notification (remote PN without alert section) to an iOS production application:
+
+    ./flexisip_pusher --prefix /etc/flexisip --pn-provider 'apns' --pn-param '<TeamID>.<BundleID>'
+                      --pn-prid '<token>' --apple-push-type Background
+)doc";
 	}
 
 	const char* parseUrlParams(const char* params) {
@@ -213,7 +280,6 @@ static vector<std::unique_ptr<PushInfo>> createPushInfosFromArgs(const PusherArg
 			if (args.pntype == "firebase") {
 				pinfo->mCallId = "fb14b5fe-a9ab-1231-9485-7d582244ba3d";
 				pinfo->mFromName = "+33681741738";
-				pinfo->mApiKey = args.apikey;
 			} else if (args.pntype == "wp" || args.pntype == "wp10") {
 				pinfo->mText = "Hi here!";
 			} else if (args.pntype == "apple") {
@@ -235,9 +301,6 @@ static vector<std::unique_ptr<PushInfo>> createPushInfosFromArgs(const PusherArg
 			if (args.pnProvider == "apns" || args.pnProvider == "apns.dev") {
 				fillAppleGenericParams(*pinfo);
 			}
-			if (args.pnProvider == "fcm") {
-				pinfo->mApiKey = args.apikey;
-			}
 			pushInfos.emplace_back(move(pinfo));
 		}
 	}
@@ -252,7 +315,7 @@ int main(int argc, char* argv[]) {
 	logParams.logDirectory =
 	    "/var/opt/belledonne-communications/log/flexisip"; // Sorry but ConfigManager is not accessible in this tool.
 	logParams.logFilename = "flexisip-pusher.log";
-	logParams.level = args.debug ? BCTBX_LOG_DEBUG : BCTBX_LOG_ERROR;
+	logParams.level = args.debug ? BCTBX_LOG_DEBUG : BCTBX_LOG_MESSAGE;
 	logParams.enableSyslog = false;
 	logParams.enableStdout = true;
 	LogManager::get().initialize(logParams);
@@ -271,7 +334,17 @@ int main(int argc, char* argv[]) {
 		if (provider == "apns" || provider == "apns.dev") {
 			service.setupiOSClient(args.prefix + "/apn", "");
 		} else if (provider == "fcm") {
-			service.addFirebaseClient(pushParams->getParam());
+			const auto& apiKey = args.apikey;
+			if (apiKey.empty()) {
+				SLOGE << "Missing Firebase API key. Use '--key'";
+				return 2;
+			}
+			smatch m{};
+			if (!regex_match(apiKey, m, regex{R"regex(^([[:print:]]+)\(([[:print:]]+)\)$)regex"})) {
+				SLOGE << "Invalid Firebase API key format. See '--key' parameter documentation.";
+				return 2;
+			}
+			service.addFirebaseClient(pushParams->getParam(), m.str(2));
 		} else if (provider == "wp" || provider == "w10") {
 			service.setupWindowsPhoneClient(args.packageSID, args.apikey);
 		}
@@ -296,8 +369,9 @@ int main(int argc, char* argv[]) {
 			}
 		}
 
-		while (!service.isIdle())
+		while (!service.isIdle()) {
 			root.step(100ms);
+		}
 
 		for (const auto& request : pushRequests) {
 			switch (request->getState()) {
