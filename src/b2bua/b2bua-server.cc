@@ -224,9 +224,9 @@ void B2buaServer::onCallStateChanged(const std::shared_ptr<linphone::Core>& core
 		case linphone::Call::State::UpdatedByRemote: {
 			// Manage add/remove video - ignore for other changes
 			auto peerCall = getPeerCall(call);
-			auto peerCallParams = peerCall->getCurrentParams()->copy();
-			auto selfCallParams = call->getCurrentParams()->copy();
-			auto selfRemoteCallParams = call->getRemoteParams()->copy();
+			auto peerCallParams = mCore->createCallParams(peerCall);
+			const auto selfCallParams = call->getCurrentParams();
+			const auto selfRemoteCallParams = call->getRemoteParams();
 			bool update = false;
 			if (selfRemoteCallParams->videoEnabled() != selfCallParams->videoEnabled()) {
 				update = true;
@@ -238,6 +238,8 @@ void B2buaServer::onCallStateChanged(const std::shared_ptr<linphone::Core>& core
 			}
 			if (update) {
 				SLOGD << "update peer call";
+				// add this custom header so this call will not be intercepted by the b2bua
+				peerCallParams->addCustomHeader("flexisip-b2bua", "ignore");
 				peerCall->update(peerCallParams);
 				call->deferUpdate();
 			} else { // no update on video/audio status, just accept it with requested params
