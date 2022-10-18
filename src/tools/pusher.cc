@@ -294,11 +294,13 @@ static vector<std::unique_ptr<PushInfo>> createPushInfosFromArgs(const PusherArg
 		}
 	} else { // StandardPush
 		for (const auto& pnPrid : args.pnPrids) {
-			auto standardParams = make_shared<RFC8599PushParams>(args.pnProvider, args.pnParam, pnPrid);
+			auto destinations = RFC8599PushParams::parsePushParams(args.pnProvider, args.pnParam, pnPrid);
 			auto pinfo = make_unique<PushInfo>();
-			pinfo->addDestination(standardParams);
+			for (const auto& kv : destinations) {
+				pinfo->addDestination(kv.second);
+			}
 			fillCommonPushParams(*pinfo);
-			if (args.pnProvider == "apns" || args.pnProvider == "apns.dev") {
+			if (pinfo->isApple()) {
 				fillAppleGenericParams(*pinfo);
 			}
 			pushInfos.emplace_back(move(pinfo));
