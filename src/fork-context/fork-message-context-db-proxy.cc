@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -24,47 +24,34 @@ using namespace std;
 
 namespace flexisip {
 
-shared_ptr<ForkMessageContextDbProxy> ForkMessageContextDbProxy::make(Agent* agent,
-                                                                      const shared_ptr<RequestSipEvent>& event,
-                                                                      const shared_ptr<ForkContextConfig>& cfg,
-                                                                      const weak_ptr<ForkContextListener>& listener,
-                                                                      const weak_ptr<StatPair>& messageCounter,
-                                                                      const weak_ptr<StatPair>& proxyCounter) {
-
+std::shared_ptr<ForkMessageContextDbProxy> ForkMessageContextDbProxy::make(const shared_ptr<ModuleRouter>& router,
+                                                                           const shared_ptr<RequestSipEvent>& event,
+                                                                           sofiasip::MsgSipPriority priority) {
 	SLOGD << "Make ForkMessageContextDbProxy";
 	// new because make_shared require a public constructor.
-	shared_ptr<ForkMessageContextDbProxy> shared{
-	    new ForkMessageContextDbProxy(agent, cfg, listener, messageCounter, proxyCounter)};
+	shared_ptr<ForkMessageContextDbProxy> shared{new ForkMessageContextDbProxy(router, priority)};
 
-	shared->mForkMessage = ForkMessageContext::make(agent, event, cfg, shared, messageCounter);
+	shared->mForkMessage = ForkMessageContext::make(router, event, shared, priority);
 
 	return shared;
 }
 
-shared_ptr<ForkMessageContextDbProxy> ForkMessageContextDbProxy::make(Agent* agent,
-                                                                      const shared_ptr<ForkContextConfig>& cfg,
-                                                                      const weak_ptr<ForkContextListener>& listener,
-                                                                      const weak_ptr<StatPair>& messageCounter,
-                                                                      const weak_ptr<StatPair>& proxyCounter,
+shared_ptr<ForkMessageContextDbProxy> ForkMessageContextDbProxy::make(const shared_ptr<ModuleRouter>& router,
                                                                       ForkMessageContextDb& forkFromDb) {
 	SLOGD << "Make ForkMessageContextDbProxy from a restored message";
 	// new because make_shared require a public constructor.
-	shared_ptr<ForkMessageContextDbProxy> shared{
-	    new ForkMessageContextDbProxy(agent, cfg, listener, messageCounter, proxyCounter, forkFromDb)};
+	shared_ptr<ForkMessageContextDbProxy> shared{new ForkMessageContextDbProxy(router, forkFromDb)};
 
 	shared->startTimerAndResetFork(timegm(&forkFromDb.expirationDate), forkFromDb.dbKeys);
 
 	return shared;
 }
 
-ForkMessageContextDbProxy::ForkMessageContextDbProxy(Agent* agent,
-                                                     const shared_ptr<ForkContextConfig>& cfg,
-                                                     const weak_ptr<ForkContextListener>& listener,
-                                                     const weak_ptr<StatPair>& messageCounter,
-                                                     const weak_ptr<StatPair>& proxyCounter)
-    : mForkMessage{}, mState{State::IN_MEMORY}, mProxyLateTimer{agent->getRoot()},
-      mOriginListener{listener}, mCounter{proxyCounter},
-      mSavedAgent(agent), mSavedConfig{cfg}, mSavedCounter{messageCounter} {
+ForkMessageContextDbProxy::ForkMessageContextDbProxy(const std::shared_ptr<ModuleRouter> router,
+                                                     sofiasip::MsgSipPriority priority)
+    : mForkMessage{}, mState{State::IN_MEMORY},
+      mProxyLateTimer{router->getAgent()->getRoot()}, mCounter{router->mStats.mCountMessageProxyForks},
+      mSavedRouter{router}, mSavedConfig{router->getMessageForkCfg()}, mSavedMsgPriority{priority} {
 
 	LOGD("New ForkMessageContextDbProxy %p", this);
 	if (auto sharedCounter = mCounter.lock()) {
@@ -74,13 +61,9 @@ ForkMessageContextDbProxy::ForkMessageContextDbProxy(Agent* agent,
 	}
 }
 
-ForkMessageContextDbProxy::ForkMessageContextDbProxy(Agent* agent,
-                                                     const shared_ptr<ForkContextConfig>& cfg,
-                                                     const weak_ptr<ForkContextListener>& listener,
-                                                     const weak_ptr<StatPair>& messageCounter,
-                                                     const weak_ptr<StatPair>& proxyCounter,
+ForkMessageContextDbProxy::ForkMessageContextDbProxy(const std::shared_ptr<ModuleRouter> router,
                                                      ForkMessageContextDb& forkFromDb)
-    : ForkMessageContextDbProxy(agent, cfg, listener, messageCounter, proxyCounter) {
+    : ForkMessageContextDbProxy(router, forkFromDb.msgPriority) {
 
 	mForkUuidInDb = forkFromDb.uuid;
 	mLastSavedVersion = mCurrentVersion.load();
@@ -134,10 +117,43 @@ bool ForkMessageContextDbProxy::saveToDb(const ForkMessageContextDb& dbFork) {
 void ForkMessageContextDbProxy::onForkContextFinished(const shared_ptr<ForkContext>& ctx) {
 	LOGD("ForkMessageContextDbProxy[%p] onForkContextFinished", this);
 	mIsFinished = true;
-	if (auto originListener = mOriginListener.lock()) {
-		originListener->onForkContextFinished(shared_from_this());
+	if (auto savedRouter = mSavedRouter.lock()) {
+		savedRouter->onForkContextFinished(shared_from_this());
 	} else {
-		SLOGE << errorLogPrefix() << "weak_ptr mOriginListener should be present here.";
+		SLOGE << errorLogPrefix() << "weak_ptr mSavedRouter should be present here (onForkContextFinished).";
+	}
+}
+
+std::shared_ptr<BranchInfo> ForkMessageContextDbProxy::onDispatchNeeded(const shared_ptr<ForkContext>& ctx,
+                                                                        const shared_ptr<ExtendedContact>& newContact) {
+	if (auto savedRouter = mSavedRouter.lock()) {
+		mCurrentVersion++;
+		return savedRouter->onDispatchNeeded(shared_from_this(), newContact);
+	} else {
+		SLOGE << errorLogPrefix() << "weak_ptr mSavedRouter should be present here (onDispatchNeeded).";
+		return nullptr;
+	}
+}
+
+void ForkMessageContextDbProxy::onUselessRegisterNotification(const std::shared_ptr<ForkContext>& ctx,
+                                                              const std::shared_ptr<ExtendedContact>& newContact,
+                                                              const SipUri& dest,
+                                                              const std::string& uid,
+                                                              const DispatchStatus reason) {
+	clearMemoryIfPossible();
+
+	/*
+	 * If reason == DispatchStatus::PendingTransaction the transaction may or may not be successful in the future,
+	 * so we need to wait before storing this destination as already delivered.
+	 */
+	if (reason != DispatchStatus::PendingTransaction) {
+		mAlreadyDelivered.emplace(dest.getHost(), dest.getPort(), uid);
+	}
+
+	if (auto savedRouter = mSavedRouter.lock()) {
+		savedRouter->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid, reason);
+	} else {
+		SLOGE << errorLogPrefix() << "weak_ptr mSavedRouter should be present here (onUselessRegisterNotification).";
 	}
 }
 
@@ -149,12 +165,15 @@ void ForkMessageContextDbProxy::runSavingThread() {
 		    if (dbForkVersion == thiz->mCurrentVersion && thiz->mLastSavedVersion < dbForkVersion &&
 		        thiz->saveToDb(dbFork)) {
 			    thiz->mLastSavedVersion = dbForkVersion;
-			    thiz->mSavedAgent->getRoot()->addToMainLoop(
-			        [weak = weak_ptr<ForkMessageContextDbProxy>{thiz->shared_from_this()}]() {
-				        if (auto shared = weak.lock()) {
-					        shared->clearMemoryIfPossible();
-				        }
-			        });
+
+			    if (auto router = thiz->mSavedRouter.lock()) {
+				    router->getAgent()->getRoot()->addToMainLoop(
+				        [weak = weak_ptr<ForkMessageContextDbProxy>{thiz->shared_from_this()}]() {
+					        if (auto shared = weak.lock()) {
+						        shared->clearMemoryIfPossible();
+					        }
+				        });
+			    }
 		    }
 	    });
 }
@@ -183,21 +202,30 @@ void ForkMessageContextDbProxy::onPushSent(PushNotificationContext& aPNCtx, bool
 	}
 }
 
-ForkContext::OnNewRegisterAction
-ForkMessageContextDbProxy::onNewRegister(const SipUri& dest, const string& uid, const DispatchFunction& dispatchFunc) {
+void ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
+                                              const std::string& uid,
+                                              const std::shared_ptr<ExtendedContact>& newContact) {
 	LOGD("ForkMessageContextDbProxy[%p] onNewRegister", this);
+	const auto& sharedRouter = mSavedRouter.lock();
+	if (!sharedRouter) {
+		return;
+	}
 
 	// Do not access DB or call OnNewRegister if we already know that this device is delivered.
 	if (isAlreadyDelivered(dest, uid)) {
-		return OnNewRegisterAction::NoChanges;
+		sharedRouter->removeInjectContext(shared_from_this(), newContact->contactId());
+		return;
 	}
 
 	// Try to restore the ForkMessage from a previous recursive call.
-	if (!restoreForkIfNeeded()) return OnNewRegisterAction::NoChanges; // runtime_error during restoration
+	if (!restoreForkIfNeeded()) { // runtime_error during restoration
+		sharedRouter->removeInjectContext(shared_from_this(), newContact->contactId());
+		return;
+	}
 
 	// If the ForkMessage is only in database create a thread to access database and then recursively call this method.
 	if (getState() == State::IN_DATABASE) {
-		AutoThreadPool::getGlobalThreadPool()->run([thiz = shared_from_this(), dest, uid, dispatchFunc]() {
+		AutoThreadPool::getGlobalThreadPool()->run([thiz = shared_from_this(), dest, uid, newContact]() {
 			lock_guard<mutex> lock(thiz->mDbAccessMutex);
 			if (thiz->getState() == State::IN_DATABASE && !thiz->mDbFork) {
 				try {
@@ -207,28 +235,21 @@ ForkMessageContextDbProxy::onNewRegister(const SipUri& dest, const string& uid, 
 				}
 			}
 
-			thiz->mSavedAgent->getRoot()->addToMainLoop(
-			    [weak = weak_ptr<ForkMessageContextDbProxy>{thiz->shared_from_this()}, dest, uid, dispatchFunc]() {
-				    if (auto shared = weak.lock()) {
-					    shared->onNewRegister(dest, uid, dispatchFunc);
-				    }
-			    });
+			if (auto router = thiz->mSavedRouter.lock()) {
+				router->getAgent()->getRoot()->addToMainLoop(
+				    [weak = weak_ptr<ForkMessageContextDbProxy>{thiz->shared_from_this()}, dest, uid, newContact]() {
+					    if (auto shared = weak.lock()) {
+						    shared->onNewRegister(dest, uid, newContact);
+					    }
+				    });
+			}
 		});
 
-		return OnNewRegisterAction::NoChanges;
+		return;
 	}
 
 	// Call the reel OnNewRegister method on the proxified object.
-	auto newRegisterResult = mForkMessage->onNewRegister(dest, uid, dispatchFunc);
-
-	if (newRegisterResult == OnNewRegisterAction::NoChanges) {
-		clearMemoryIfPossible();
-		mAlreadyDelivered.emplace_back(dest.getHost(), dest.getPort(), uid);
-	} else {
-		mCurrentVersion++;
-	}
-
-	return newRegisterResult;
+	mForkMessage->onNewRegister(dest, uid, newContact);
 }
 
 bool ForkMessageContextDbProxy::canBeSaved() const {
@@ -259,8 +280,11 @@ bool ForkMessageContextDbProxy::isAlreadyDelivered(const SipUri& uri, const stri
 bool ForkMessageContextDbProxy::restoreForkIfNeeded() {
 	if (mDbFork) {
 		try {
-			mForkMessage =
-			    ForkMessageContext::make(mSavedAgent, mSavedConfig, shared_from_this(), mSavedCounter, *mDbFork);
+			if (auto router = mSavedRouter.lock()) {
+				mForkMessage = ForkMessageContext::make(router, shared_from_this(), *mDbFork);
+			} else {
+				return false;
+			}
 			mDbFork.reset();
 
 			// Timer is now handle by the newly restored inner ForkMessageContext

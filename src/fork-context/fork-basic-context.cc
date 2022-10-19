@@ -25,22 +25,10 @@
 using namespace std;
 using namespace flexisip;
 
-shared_ptr<ForkBasicContext> ForkBasicContext::make(Agent* agent,
-                                                    const shared_ptr<RequestSipEvent>& event,
-                                                    const shared_ptr<ForkContextConfig>& cfg,
-                                                    const weak_ptr<ForkContextListener>& listener,
-                                                    const weak_ptr<StatPair>& counter) {
-	// new because make_shared require a public constructor.
-	const shared_ptr<ForkBasicContext> shared{new ForkBasicContext(agent, event, cfg, listener, counter)};
-	return shared;
-}
-
-ForkBasicContext::ForkBasicContext(Agent* agent,
-                                   const shared_ptr<RequestSipEvent>& event,
-                                   const shared_ptr<ForkContextConfig>& cfg,
-                                   const weak_ptr<ForkContextListener>& listener,
-                                   const weak_ptr<StatPair>& counter)
-    : ForkContextBase(agent, event, cfg, listener, counter) {
+ForkBasicContext::ForkBasicContext(const std::shared_ptr<ModuleRouter>& router,
+                                   const std::shared_ptr<RequestSipEvent>& event,
+                                   sofiasip::MsgSipPriority priority)
+    : ForkContextBase(router, event, router->getOtherForkCfg(), router, router->mStats.mCountBasicForks, priority) {
 	LOGD("New ForkBasicContext %p", this);
 	mDecisionTimer = make_unique<sofiasip::Timer>(mAgent->getRoot(), 20s);
 	// start the acceptance timer immediately

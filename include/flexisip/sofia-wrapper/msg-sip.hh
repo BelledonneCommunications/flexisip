@@ -35,6 +35,8 @@ using namespace ownership;
 
 namespace sofiasip {
 
+enum class MsgSipPriority { NonUrgent = 0, Normal = 1, Urgent = 2, Emergency = 3 };
+
 class MsgSip {
 public:
 	MsgSip() : mMsg{msg_create(sip_default_mclass(), 0)} {
@@ -82,6 +84,10 @@ public:
 		return rq != nullptr ? rq->rq_method : sip_method_unknown;
 	}
 
+	std::string getCallID() const;
+
+	MsgSipPriority getPriority() const;
+
 	void serialize() {
 		msg_serialize(mMsg.borrow(), (msg_pub_t*)getSip());
 	}
@@ -105,6 +111,12 @@ public:
 		}
 		return sShowBodyFor;
 	}
+
+	/**
+	 * Return the priority just before the one in parameter;
+	 * @throw logic_error if current == MsgSipPriority::NonUrgent
+	 */
+	static MsgSipPriority getPreviousPriority(MsgSipPriority current);
 
 private:
 	// Private methods

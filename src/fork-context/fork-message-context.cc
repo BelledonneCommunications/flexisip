@@ -9,11 +9,11 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <algorithm>
@@ -33,28 +33,23 @@ using namespace std;
 using namespace std::chrono;
 using namespace flexisip;
 
-shared_ptr<ForkMessageContext> ForkMessageContext::make(Agent* agent,
+shared_ptr<ForkMessageContext> ForkMessageContext::make(const std::shared_ptr<ModuleRouter>& router,
                                                         const std::shared_ptr<RequestSipEvent>& event,
-                                                        const std::shared_ptr<ForkContextConfig>& cfg,
                                                         const std::weak_ptr<ForkContextListener>& listener,
-                                                        const std::weak_ptr<StatPair>& counter) {
-	// new because make_shared require a public constructor.
-	shared_ptr<ForkMessageContext> shared{new ForkMessageContext(agent, event, cfg, listener, counter, false)};
-	return shared;
+                                                        sofiasip::MsgSipPriority priority) {
+	return std::shared_ptr<ForkMessageContext>(new ForkMessageContext(router, event, listener, priority));
 }
 
-shared_ptr<ForkMessageContext> ForkMessageContext::make(Agent* agent,
-                                                        const std::shared_ptr<ForkContextConfig>& cfg,
+shared_ptr<ForkMessageContext> ForkMessageContext::make(const std::shared_ptr<ModuleRouter> router,
                                                         const std::weak_ptr<ForkContextListener>& listener,
-                                                        const std::weak_ptr<StatPair>& counter,
                                                         ForkMessageContextDb& forkFromDb) {
 	auto msgSipFromDB = make_shared<MsgSip>(0, forkFromDb.request);
-	auto requestSipEventFromDb =
-	    RequestSipEvent::makeRestored(agent->shared_from_this(), msgSipFromDB, agent->findModule("Router"));
+	auto requestSipEventFromDb = RequestSipEvent::makeRestored(router->getAgent()->shared_from_this(), msgSipFromDB,
+	                                                           router->getAgent()->findModule("Router"));
 
 	// new because make_shared require a public constructor.
 	shared_ptr<ForkMessageContext> shared{
-	    new ForkMessageContext(agent, requestSipEventFromDb, cfg, listener, counter, true)};
+	    new ForkMessageContext(router, requestSipEventFromDb, listener, forkFromDb.msgPriority, true)};
 	shared->mIsMessage = forkFromDb.isMessage;
 	shared->mFinished = forkFromDb.isFinished;
 	shared->mDeliveredCount = forkFromDb.deliveredCount;
@@ -83,13 +78,18 @@ shared_ptr<ForkMessageContext> ForkMessageContext::make(Agent* agent,
 	return shared;
 }
 
-ForkMessageContext::ForkMessageContext(Agent* agent,
+ForkMessageContext::ForkMessageContext(const std::shared_ptr<ModuleRouter>& router,
                                        const std::shared_ptr<RequestSipEvent>& event,
-                                       const std::shared_ptr<ForkContextConfig>& cfg,
                                        const std::weak_ptr<ForkContextListener>& listener,
-                                       const std::weak_ptr<StatPair>& counter,
+                                       sofiasip::MsgSipPriority msgPriority,
                                        bool isRestored)
-    : ForkContextBase(agent, event, cfg, listener, counter, isRestored) {
+    : ForkContextBase(router,
+                      event,
+                      router->getMessageForkCfg(),
+                      listener,
+                      router->mStats.mCountMessageForks,
+                      msgPriority,
+                      isRestored) {
 	LOGD("New ForkMessageContext %p", this);
 	if (!isRestored) {
 		// Start the acceptance timer immediately.
@@ -230,13 +230,20 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo>& br) {
 	}
 }
 
-ForkContext::OnNewRegisterAction ForkMessageContext::onNewRegister(const SipUri& dest,
-                                                                   const std::string& uid,
-                                                                   const DispatchFunction& dispatchFunction) {
+void ForkMessageContext::onNewRegister(const SipUri& dest,
+                                       const std::string& uid,
+                                       const std::shared_ptr<ExtendedContact>& newContact) {
 	LOGD("ForkMessageContext[%p] onNewRegister", this);
+	const auto& sharedListener = mListener.lock();
+	if (!sharedListener) {
+		return;
+	}
 
 	const auto dispatchPair = shouldDispatch(dest, uid);
-	if (dispatchPair.first != DispatchStatus::DispatchNeeded) return OnNewRegisterAction::NoChanges;
+	if (dispatchPair.first != DispatchStatus::DispatchNeeded) {
+		sharedListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid, dispatchPair.first);
+		return;
+	}
 
 	if (uid.size() > 0) {
 		shared_ptr<BranchInfo> br = findBranchByUid(uid);
@@ -244,31 +251,34 @@ ForkContext::OnNewRegisterAction ForkMessageContext::onNewRegister(const SipUri&
 			// this is a new client instance. The message needs
 			// to be delivered.
 			LOGD("ForkMessageContext::onNewRegister(): this is a new client instance.");
-			dispatchFunction();
-			return OnNewRegisterAction::NewBranchAdded;
+			sharedListener->onDispatchNeeded(shared_from_this(), newContact);
+			return;
 		} else if (br->needsDelivery()) {
 			// this is a client for which the message wasn't delivered yet (or failed to be delivered). The message
 			// needs to be delivered.
 			LOGD("ForkMessageContext::onNewRegister(): this client is reconnecting but was not delivered before.");
-			dispatchFunction();
-			return OnNewRegisterAction::NewBranchAdded;
+			sharedListener->onDispatchNeeded(shared_from_this(), newContact);
+			return;
 		}
 	}
 	// in all other case we can accept a new transaction only if the message hasn't been delivered already.
 	LOGD("Message has been delivered %i times.", mDeliveredCount);
 
 	if (mDeliveredCount == 0) {
-		dispatchFunction();
-		return OnNewRegisterAction::NewBranchAdded;
+		sharedListener->onDispatchNeeded(shared_from_this(), newContact);
+		return;
 	}
 
-	return OnNewRegisterAction::NoChanges;
+	sharedListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid,
+	                                              DispatchStatus::DispatchNotNeeded);
+	return;
 }
 
 ForkMessageContextDb ForkMessageContext::getDbObject() {
 	ForkMessageContextDb dbObject{};
 	dbObject.isMessage = mIsMessage;
 	dbObject.isFinished = mFinished;
+	dbObject.msgPriority = mMsgPriority;
 	dbObject.deliveredCount = mDeliveredCount;
 	dbObject.currentPriority = mCurrentPriority;
 	dbObject.expirationDate = *gmtime(&mExpirationDate);
@@ -289,6 +299,7 @@ void ForkMessageContext::restoreBranch(const BranchInfoDb& dbBranch) {
 void ForkMessageContext::assertEqual(const shared_ptr<ForkMessageContext>& expected) {
 	BC_ASSERT_EQUAL(mIsMessage, expected->mIsMessage, bool, "%d");
 	BC_ASSERT_EQUAL(mFinished, expected->mFinished, bool, "%d");
+	BC_ASSERT_EQUAL((int)mMsgPriority, (int)expected->mMsgPriority, int, "%i");
 	BC_ASSERT_EQUAL(mDeliveredCount, expected->mDeliveredCount, int, "%d");
 	BC_ASSERT_EQUAL(mCurrentPriority, expected->mCurrentPriority, float, "%f");
 	BC_ASSERT_TRUE(mExpirationDate == expected->mExpirationDate);

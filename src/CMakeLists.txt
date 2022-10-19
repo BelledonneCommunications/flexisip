@@ -24,9 +24,6 @@
 # Build the Flexisip library
 #######################################################################################################################
 
-add_subdirectory(sofia-wrapper)
-add_subdirectory(utils)
-
 add_library(flexisip SHARED
 	agent.cc
 	auth/auth-module.cc
@@ -119,9 +116,11 @@ add_library(flexisip SHARED
 	transport.cc
 	uac-register.cc uac-register.hh
 	conditional-routes.cc conditional-routes.hh
-	$<TARGET_OBJECTS:flexisip-sofia-wrapper>
-	$<TARGET_OBJECTS:flexisip-utils>
 )
+
+add_subdirectory(router)
+add_subdirectory(sofia-wrapper)
+add_subdirectory(utils)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 6.0.0)

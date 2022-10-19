@@ -19,17 +19,21 @@
 #include <chrono>
 
 #include "flexisip/agent.hh"
+#include "flexisip/fork-context/fork-message-context-db-proxy.hh"
+#include "flexisip/fork-context/fork-message-context-soci-repository.hh"
 #include "flexisip/module-router.hh"
 
 #include "utils/asserts.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
+#include "utils/test-patterns/test.hh"
 
 using namespace std;
 using namespace std::chrono_literals;
 using namespace std::chrono;
 using namespace linphone;
+using namespace sofiasip;
 
 namespace flexisip {
 namespace tester {
@@ -70,6 +74,10 @@ static int beforeAll() {
 	return 0;
 }
 
+static void beforeEach() {
+	ForkMessageContextSociRepository::getInstance()->deleteAll();
+}
+
 static void afterEach() {
 	ForkMessageContextSociRepository::getInstance()->deleteAll();
 	RegistrarDb::resetDB();
@@ -77,95 +85,87 @@ static void afterEach() {
 
 static void forkMessageContextSociRepositoryMysqlUnitTests() {
 	auto server = make_unique<Server>("/config/flexisip_fork_context_db.conf");
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
 
 	// Save and find test
 	auto nowPlusDays = system_clock::now() + days{7};
 	std::time_t t = system_clock::to_time_t(nowPlusDays);
-	ForkMessageContextDb fakeDbObject{1, 3, true, false, *gmtime(&t), rawRequest};
+	ForkMessageContextDb fakeDbObject{1, 3, true, false, *gmtime(&t), rawRequest, MsgSipPriority::NonUrgent};
 	fakeDbObject.dbKeys = vector<string>{"key1", "key2", "key3"};
-	auto expectedFork =
-	    ForkMessageContext::make(server->getAgent().get(), shared_ptr<ForkContextConfig>{},
-	                             shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, fakeDbObject);
+	auto expectedFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, fakeDbObject);
 	auto insertedUuid =
 	    ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork->getDbObject());
 	auto dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
-	auto actualFork = ForkMessageContext::make(server->getAgent().get(), shared_ptr<ForkContextConfig>{},
-	                                           shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, dbFork);
+	auto actualFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, dbFork);
 	actualFork->assertEqual(expectedFork);
 
 	// Update and find test
 	nowPlusDays = system_clock::now() + days{10};
 	t = system_clock::to_time_t(nowPlusDays);
-	fakeDbObject = ForkMessageContextDb{2, 10, false, true, *gmtime(&t), rawRequest};
+	fakeDbObject = ForkMessageContextDb{2, 10, false, true, *gmtime(&t), rawRequest, MsgSipPriority::Urgent};
 	fakeDbObject.dbKeys = vector<string>{"key1", "key2", "key3"}; // We keep the same keys because they are not updated
-	expectedFork = ForkMessageContext::make(server->getAgent().get(), shared_ptr<ForkContextConfig>{},
-	                                        shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, fakeDbObject);
+	expectedFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, fakeDbObject);
 	ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(expectedFork->getDbObject(),
 	                                                                          insertedUuid);
 	dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
-	actualFork = ForkMessageContext::make(server->getAgent().get(), shared_ptr<ForkContextConfig>{},
-	                                      shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, dbFork);
+	actualFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, dbFork);
 	actualFork->assertEqual(expectedFork);
 }
 
 static void forkMessageContextWithBranchesSociRepositoryMysqlUnitTests() {
 	auto server = make_unique<Server>("/config/flexisip_fork_context_db.conf");
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
 
 	// Save and find with branch info test
 	auto nowPlusDays = system_clock::now() + days{400};
 	auto t = system_clock::to_time_t(nowPlusDays);
-	auto fakeDbObject = ForkMessageContextDb{1.52, 5, false, true, *gmtime(&t), rawRequest};
+	auto fakeDbObject = ForkMessageContextDb{1.52, 5, false, true, *gmtime(&t), rawRequest, MsgSipPriority::Normal};
 	fakeDbObject.dbKeys = vector<string>{"key1"};
 	BranchInfoDb branchInfoDb{"contactUid", 4.0, rawRequest, rawResponse, true};
 	BranchInfoDb branchInfoDb2{"contactUid2", 1.0, rawRequest, rawResponse, false};
 	BranchInfoDb branchInfoDb3{"contactUid3", 2.42, rawRequest, rawResponse, true};
 	fakeDbObject.dbBranches = vector<BranchInfoDb>{branchInfoDb, branchInfoDb2, branchInfoDb3};
-	auto expectedFork =
-	    ForkMessageContext::make(server->getAgent().get(), shared_ptr<ForkContextConfig>{},
-	                             shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, fakeDbObject);
+	auto expectedFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, fakeDbObject);
 
 	auto insertedUuid =
 	    ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork->getDbObject());
 	auto dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
-	auto actualFork = ForkMessageContext::make(server->getAgent().get(), shared_ptr<ForkContextConfig>{},
-	                                           shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, dbFork);
+	auto actualFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, dbFork);
 	actualFork->assertEqual(expectedFork);
 
 	// Update and find with branch info test
 	nowPlusDays = system_clock::now() + days{10};
 	t = system_clock::to_time_t(nowPlusDays);
-	fakeDbObject = ForkMessageContextDb{10, 1000, true, false, *gmtime(&t), rawRequest};
+	fakeDbObject = ForkMessageContextDb{10, 1000, true, false, *gmtime(&t), rawRequest, MsgSipPriority::Emergency};
 	fakeDbObject.dbKeys = vector<string>{"key1"}; // We keep the same keys because they are not updated
 	branchInfoDb = BranchInfoDb{"contactUid", 3.0, rawRequest, rawResponse, false};
 	branchInfoDb2 = BranchInfoDb{"contactUid2", 3.0, rawRequest, rawResponse, true};
 	branchInfoDb3 = BranchInfoDb{"contactUid3", 3.42, rawRequest, rawResponse, false};
 	fakeDbObject.dbBranches = vector<BranchInfoDb>{branchInfoDb, branchInfoDb2, branchInfoDb3};
-	expectedFork = ForkMessageContext::make(server->getAgent().get(), shared_ptr<ForkContextConfig>{},
-	                                        shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, fakeDbObject);
+	expectedFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, fakeDbObject);
 	ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(expectedFork->getDbObject(),
 	                                                                          insertedUuid);
 	dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
-	actualFork = ForkMessageContext::make(server->getAgent().get(), shared_ptr<ForkContextConfig>{},
-	                                      shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, dbFork);
+	actualFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, dbFork);
 	actualFork->assertEqual(expectedFork);
 }
 
 static void forkMessageContextSociRepositoryFullLoadMysqlUnitTests() {
 	auto server = make_unique<Server>("/config/flexisip_fork_context_db.conf");
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
 
 	map<string, shared_ptr<ForkMessageContext>> expectedForks{};
 	for (int i = 0; i < 10; i++) {
 		auto nowPlusDays = system_clock::now() + days{400};
 		auto t = system_clock::to_time_t(nowPlusDays);
-		auto fakeDbObject = ForkMessageContextDb{1.52, 5, false, true, *gmtime(&t), rawRequest};
+		auto fakeDbObject =
+		    ForkMessageContextDb{1.52, 5, false, true, *gmtime(&t), rawRequest, MsgSipPriority::NonUrgent};
 		fakeDbObject.dbKeys = vector<string>{"key"};
 		BranchInfoDb branchInfoDb{"contactUid", 4.0, rawRequest, rawResponse, true};
 		BranchInfoDb branchInfoDb2{"contactUid2", 1.0, rawRequest, rawResponse, false};
 		BranchInfoDb branchInfoDb3{"contactUid3", 2.42, rawRequest, rawResponse, true};
 		fakeDbObject.dbBranches = vector<BranchInfoDb>{branchInfoDb, branchInfoDb2, branchInfoDb3};
-		auto expectedFork =
-		    ForkMessageContext::make(server->getAgent().get(), shared_ptr<ForkContextConfig>{},
-		                             shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{}, fakeDbObject);
+		auto expectedFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, fakeDbObject);
 		auto insertedUuid =
 		    ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork->getDbObject());
 		expectedForks.insert(make_pair(insertedUuid, expectedFork));
@@ -175,9 +175,7 @@ static void forkMessageContextSociRepositoryFullLoadMysqlUnitTests() {
 	map<string, shared_ptr<ForkMessageContextDbProxy>> actualForks{};
 
 	for (auto dbFork : dbForks) {
-		auto actualFork = ForkMessageContextDbProxy::make(server->getAgent().get(), shared_ptr<ForkContextConfig>{},
-		                                                  shared_ptr<ForkContextListener>{}, shared_ptr<StatPair>{},
-		                                                  shared_ptr<StatPair>{}, dbFork);
+		auto actualFork = ForkMessageContextDbProxy::make(moduleRouter, dbFork);
 		actualForks.insert(make_pair(dbFork.uuid, actualFork));
 		BC_ASSERT_TRUE(!dbFork.dbKeys.empty());
 	}
@@ -700,6 +698,111 @@ static void globalTestDatabaseDeleted() {
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), 1, int, "%i");
 }
 
+string getMessagesHeaders(uint callIdPostfix = 0, string msgPriority = "normal"s) {
+	return "MESSAGE sip:provencal_le_gaulois@sip.test.org SIP/2.0\r\n"
+	       "Via: SIP/2.0/TCP 127.0.0.1:6066;branch=z9hG4bK.PAWTmCZv1;rport=49828\r\n"
+	       "From: <sip:kijou@sip.linphone.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
+	       "To: <sip:provencal_le_gaulois@sip.test.org>\r\n"
+	       "CSeq: 20 MESSAGE\r\n"
+	       "Priority: " +
+	       msgPriority +
+	       "\r\n"
+	       "Call-ID: Tvw6USHXYv" +
+	       to_string(callIdPostfix) +
+	       "\r\n"
+	       "Max-Forwards: 70\r\n"
+	       "Route: <sip:127.0.0.1:5960;transport=tcp;lr>\r\n"
+	       "Supported: replaces, outbound, gruu\r\n"
+	       "Date: Fri, 01 Apr 2022 11:18:26 GMT\r\n"
+	       "Content-Type: text/plain\r\n";
+}
+/**
+ * We send multiples message to a client with one idle device, to force the messages saving in DB.
+ * Then we put the client back online and see if the messages are correctly delivered AND IN ORDER.
+ * All along we check fork stats and client state.
+ */
+static void globalOrderTest() {
+	SLOGD << "Step 1: Setup";
+	auto server = make_shared<Server>("/config/flexisip_fork_context_db.conf");
+	server->start();
+	ModuleRouter::setMaxPriorityHandled(sofiasip::MsgSipPriority::Emergency);
+
+	auto receiverClient = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server);
+	receiverClient->getCore()->setNetworkReachable(false);
+
+	uint isRequestAccepted = 0;
+	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP",
+	                            [&isRequestAccepted](int status) {
+		                            if (status != 100) {
+			                            BC_ASSERT_EQUAL(status, 202, int, "%i");
+			                            isRequestAccepted++;
+		                            }
+	                            },
+	                            nullptr};
+
+	SLOGD << "Step 2: Send messages, in priority disorder.";
+	uint messageSent = 0;
+	uint reelOrderIndex = 0;
+	const auto& priorities = vector<string>{"non-urgent", "emergency", "normal", "urgent", "normal", "emergency"};
+	const auto& reelOrders =
+	    vector<vector<uint>>{{16, 17, 18}, {1, 2, 3}, {10, 11, 12}, {7, 8, 9}, {13, 14, 15}, {4, 5, 6}};
+
+	for (const auto& priority : priorities) {
+		for (const auto orderValue : reelOrders.at(reelOrderIndex)) {
+			bellesipUtils.sendRawRequest(getMessagesHeaders(orderValue, priority),
+			                             "C'est pas faux "s + to_string(orderValue) + "\r\n\r\n");
+			messageSent++;
+			auto beforePlus2 = system_clock::now() + 2s;
+			while (isRequestAccepted != messageSent && beforePlus2 >= system_clock::now()) {
+				bellesipUtils.stackSleep(10);
+				server->getAgent()->getRoot()->step(10ms);
+			}
+		}
+		reelOrderIndex++;
+	}
+
+	SLOGD << "Step 3: Assert that db fork is still present because device is offline, message fork is destroyed "
+	         "because message is saved";
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
+	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
+	BC_ASSERT_TRUE(
+	    CoreAssert({receiverClient->getCore()}, server->getAgent()).wait([agent = server->getAgent(), &messageSent] {
+		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		    return moduleRouter->mStats.mCountMessageForks->finish->read() == messageSent;
+	    }));
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), messageSent, int, "%i");
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0, int, "%i");
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), messageSent, int, "%i");
+
+	SLOGD << "Step 4: Client REGISTER, then receive message";
+	receiverClient->getCore()->setNetworkReachable(true);
+	BC_ASSERT_TRUE(CoreAssert({receiverClient->getCore()}, server->getAgent()).wait([receiverClient, &messageSent] {
+		return receiverClient->getAccount()->getState() == RegistrationState::Ok &&
+		       (uint)receiverClient->getCore()->getUnreadChatMessageCount() == messageSent;
+	}));
+
+	SLOGD << "Step 5: Check messages order";
+	auto messages = receiverClient->getChatMessages();
+	uint order = 1;
+	for (auto message : messages) {
+		auto actual = message->getUtf8Text();
+		string expected{"C'est pas faux "s + to_string(order) + "\r\n\r\n"};
+		BC_ASSERT_CPP_EQUAL(actual, expected);
+		order++;
+	}
+	BC_ASSERT_CPP_EQUAL(order - 1, messageSent);
+
+	SLOGD << "Step 6: Check fork stats";
+	BC_ASSERT_TRUE(
+	    CoreAssert({receiverClient->getCore()}, server->getAgent()).wait([agent = server->getAgent(), &messageSent] {
+		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		    return moduleRouter->mStats.mCountMessageProxyForks->finish->read() == messageSent;
+	    }));
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), messageSent, int, "%i");
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 2 * messageSent, int, "%i");
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), 2 * messageSent, int, "%i");
+}
+
 static test_t tests[] = {
     TEST_NO_TAG("Unit test fork message repository with mysql", forkMessageContextSociRepositoryMysqlUnitTests),
     TEST_NO_TAG("Unit test fork message with branches repository with mysql",
@@ -710,10 +813,11 @@ static test_t tests[] = {
     TEST_NO_TAG("Global test ForkMessage with mysql, multiple devices", globalTestMultipleDevices),
     TEST_NO_TAG("Test that multiple register in a row do not lead to multiple access in DB", testDBAccessOptimization),
     TEST_NO_TAG("Global test fork message with mysql, db deleted before restoration", globalTestDatabaseDeleted),
+    TEST_NO_TAG("Global test ForkMessage with mysql, orderPreservedTest", globalOrderTest),
 };
 
 test_suite_t fork_context_mysql_suite = {
-    "Fork context mysql", beforeAll, nullptr, nullptr, afterEach, sizeof(tests) / sizeof(tests[0]), tests};
+    "Fork context mysql", beforeAll, nullptr, beforeEach, afterEach, sizeof(tests) / sizeof(tests[0]), tests};
 
 } // namespace tester
 } // namespace flexisip

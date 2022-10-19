@@ -9,44 +9,45 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
 
 #include <list>
 #include <map>
+#include <memory>
 
 #include "flexisip/agent.hh"
 #include "flexisip/event.hh"
 #include "flexisip/fork-context/fork-context-base.hh"
 #include "flexisip/fork-context/fork-message-context-db.hh"
+#include "flexisip/module-router.hh"
 #include "flexisip/transaction.hh"
 
 namespace flexisip {
+class ModuleRouter;
 
 class ForkMessageContext : public ForkContextBase {
 public:
-	static std::shared_ptr<ForkMessageContext> make(Agent* agent,
+	static std::shared_ptr<ForkMessageContext> make(const std::shared_ptr<ModuleRouter>& router,
 	                                                const std::shared_ptr<RequestSipEvent>& event,
-	                                                const std::shared_ptr<ForkContextConfig>& cfg,
 	                                                const std::weak_ptr<ForkContextListener>& listener,
-	                                                const std::weak_ptr<StatPair>& counter);
+	                                                sofiasip::MsgSipPriority priority);
 
-	static std::shared_ptr<ForkMessageContext> make(Agent* agent,
-	                                                const std::shared_ptr<ForkContextConfig>& cfg,
+	static std::shared_ptr<ForkMessageContext> make(const std::shared_ptr<ModuleRouter> router,
 	                                                const std::weak_ptr<ForkContextListener>& listener,
-	                                                const std::weak_ptr<StatPair>& counter,
 	                                                ForkMessageContextDb& forkFromDb);
 
 	virtual ~ForkMessageContext();
 
-	OnNewRegisterAction
-	onNewRegister(const SipUri& dest, const std::string& uid, const DispatchFunction& dispatchFunction) override;
+	void onNewRegister(const SipUri& dest,
+	                   const std::string& uid,
+	                   const std::shared_ptr<ExtendedContact>& newContact) override;
 	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& ev) override;
 
 	ForkMessageContextDb getDbObject();
@@ -69,12 +70,11 @@ protected:
 	};
 
 private:
-	ForkMessageContext(Agent* agent,
+	ForkMessageContext(const std::shared_ptr<ModuleRouter>& router,
 	                   const std::shared_ptr<RequestSipEvent>& event,
-	                   const std::shared_ptr<ForkContextConfig>& cfg,
 	                   const std::weak_ptr<ForkContextListener>& listener,
-	                   const std::weak_ptr<StatPair>& counter,
-	                   bool isRestored);
+	                   sofiasip::MsgSipPriority msgPriority,
+	                   bool isRestored = false);
 
 	void acceptMessage();
 	void onAcceptanceTimer();

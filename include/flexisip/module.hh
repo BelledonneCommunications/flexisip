@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,12 +9,12 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #pragma once
 
@@ -68,47 +68,66 @@ public:
 	Agent *getAgent() const {return mAgent;}
 	nta_agent_t *getSofiaAgent() const;
 	const std::string &getModuleName() const;
-	const std::string &getModuleConfigName() const;
-	void declare(GenericStruct *root);
+	const std::string& getModuleConfigName() const;
+	void declare(GenericStruct* root);
 	void checkConfig();
 	void load();
 	void unload();
 	void reload();
-	StatCounter64 &findStat(const std::string &statName) const;
+	StatCounter64& findStat(const std::string& statName) const;
 	void idle();
 	bool isEnabled() const;
 	ModuleClass getClass() const;
 
-	void processRequest(std::shared_ptr<RequestSipEvent> &ev);
-	void processResponse(std::shared_ptr<ResponseSipEvent> &ev);
-	void process(std::shared_ptr<RequestSipEvent> &ev) {processRequest(ev);}
-	void process(std::shared_ptr<ResponseSipEvent> &ev) {processResponse(ev);}
+	void processRequest(std::shared_ptr<RequestSipEvent>& ev);
+	void processResponse(std::shared_ptr<ResponseSipEvent>& ev);
+	void process(std::shared_ptr<RequestSipEvent>& ev) {
+		processRequest(ev);
+	}
+	void process(std::shared_ptr<ResponseSipEvent>& ev) {
+		processResponse(ev);
+	}
+	virtual void injectRequestEvent(const std::shared_ptr<RequestSipEvent>& ev) {
+		mAgent->injectRequestEvent(ev);
+	};
 
-	ModuleInfoBase *getInfo() const {return mInfo;}
-	void setInfo(ModuleInfoBase *moduleInfo);
+	ModuleInfoBase* getInfo() const {
+		return mInfo;
+	}
+	void setInfo(ModuleInfoBase* moduleInfo);
 
 protected:
-	virtual void onDeclare(GenericStruct *root) {}
-	virtual void onLoad(const GenericStruct *root) {}
-	virtual void onUnload() {}
+	virtual void onDeclare(GenericStruct* root) {
+	}
+	virtual void onLoad(const GenericStruct* root) {
+	}
+	virtual void onUnload() {
+	}
 
-	virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev) = 0;
-	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev) = 0;
+	virtual void onRequest(std::shared_ptr<RequestSipEvent>& ev) = 0;
+	virtual void onResponse(std::shared_ptr<ResponseSipEvent>& ev) = 0;
 
-	virtual bool doOnConfigStateChanged(const ConfigValue &conf, ConfigState state);
-	virtual void onIdle() {}
+	virtual bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state);
+	virtual void onIdle() {
+	}
 
-	virtual bool onCheckValidNextConfig() {return true;}
+	virtual bool onCheckValidNextConfig() {
+		return true;
+	}
 
-	virtual bool isValidNextConfig(const ConfigValue &cv) {return true;}
+	virtual bool isValidNextConfig(const ConfigValue& cv) {
+		return true;
+	}
 
-	void sendTrap(const std::string &msg) {GenericManager::get()->sendTrap(mModuleConfig, msg);}
+	void sendTrap(const std::string& msg) {
+		GenericManager::get()->sendTrap(mModuleConfig, msg);
+	}
 
 protected:
 	sofiasip::Home mHome;
-	Agent *mAgent = nullptr;
-	ModuleInfoBase *mInfo = nullptr;
-	GenericStruct *mModuleConfig = nullptr;
+	Agent* mAgent = nullptr;
+	ModuleInfoBase* mInfo = nullptr;
+	GenericStruct* mModuleConfig = nullptr;
 	std::unique_ptr<EntryFilter> mFilter;
 };
 

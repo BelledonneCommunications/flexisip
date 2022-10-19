@@ -20,10 +20,10 @@
 
 #include <memory>
 
-#include "flexisip/agent.hh"
 #include "flexisip/event.hh"
 #include "flexisip/fork-context/branch-info.hh"
 #include "flexisip/fork-context/fork-context.hh"
+#include "flexisip/module-router.hh"
 #include "flexisip/registrardb.hh"
 #include "flexisip/transaction.hh"
 
@@ -34,12 +34,6 @@ class OnContactRegisteredListener;
 class ForkContextBase : public ForkContext, public std::enable_shared_from_this<ForkContextBase> {
 public:
 	virtual ~ForkContextBase();
-
-	enum class DispatchStatus {
-		DispatchNeeded,
-		DispatchNotNeeded,
-		PendingTransaction,
-	};
 
 	using ShouldDispatchType = std::pair<DispatchStatus, std::shared_ptr<BranchInfo>>;
 
@@ -84,16 +78,20 @@ public:
 		return mFinished;
 	};
 	void checkFinished() override;
+	sofiasip::MsgSipPriority getMsgPriority() const override {
+		return mMsgPriority;
+	};
 
 	static const int sUrgentCodes[];
 	static const int sAllCodesUrgent[];
 
 protected:
-	ForkContextBase(Agent* agent,
+	ForkContextBase(const std::shared_ptr<ModuleRouter>& router,
 	                const std::shared_ptr<RequestSipEvent>& event,
 	                const std::shared_ptr<ForkContextConfig>& cfg,
 	                const std::weak_ptr<ForkContextListener>& listener,
 	                const std::weak_ptr<StatPair>& counter,
+	                sofiasip::MsgSipPriority priority,
 	                bool isRestored = false);
 
 	// Mark the fork process as terminated. The real destruction is performed asynchronously, in next main loop
@@ -151,11 +149,16 @@ protected:
 	 */
 	void sendResponse(int status, char const* phrase, bool addToTag = false);
 
+	const ForkContext* getPtrForEquality() const override {
+		return this;
+	}
+
 	// Protected attributes
 	bool m110Sent = false; /**< Whether a "110 Push sent" response has already been sent in the incoming transaction. */
 	bool mFinished = false;
 	float mCurrentPriority;
 	Agent* mAgent;
+	std::weak_ptr<ModuleRouter> mRouter;
 	std::shared_ptr<RequestSipEvent> mEvent;
 	std::shared_ptr<ResponseSipEvent> mLastResponseSent;
 	std::shared_ptr<IncomingTransaction> mIncoming;
@@ -165,6 +168,8 @@ protected:
 	std::vector<std::string> mKeys;
 	std::list<std::shared_ptr<BranchInfo>> mWaitingBranches;
 	sofiasip::Timer mNextBranchesTimer;
+	sofiasip::MsgSipPriority mMsgPriority = sofiasip::MsgSipPriority::Normal;
+	std::weak_ptr<ForkContextListener> mListener;
 
 private:
 	std::shared_ptr<BranchInfo> _findBestBranch(const int urgentReplies[], bool ignore503And408);
@@ -172,7 +177,6 @@ private:
 	void nextBranches();
 	void onNextBranches();
 
-	std::weak_ptr<ForkContextListener> mListener;
 	std::list<std::shared_ptr<BranchInfo>> mCurrentBranches;
 	std::weak_ptr<StatPair> mStatCounter;
 };

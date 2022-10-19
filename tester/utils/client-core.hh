@@ -207,6 +207,12 @@ public:
 	std::shared_ptr<linphone::Call> invite(const CoreClient& peer) const;
 
 	std::shared_ptr<linphone::CallLog> getCallLog() const;
+
+	/**
+	 * @return The message list for THE FIRST chatroom in the chatroom list
+	 */
+	std::list<std::shared_ptr<linphone::ChatMessage>> getChatMessages();
+
 }; // class CoreClient
 
 } // namespace tester

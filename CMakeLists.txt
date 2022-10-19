@@ -21,12 +21,12 @@
 ############################################################################
 
 # CMake 3.3 is required for the usage of IN_LIST operator in if() command.
-cmake_minimum_required(VERSION 3.3)
+cmake_minimum_required(VERSION 3.13)
 
+# CMP0076 is required to use relative path in target_sources
+cmake_policy(SET CMP0076 NEW)
 # CMP0077 is required to correctly force the value of subprojects' cache variables.
-if(NOT CMAKE_VERSION VERSION_LESS 3.13)
-	cmake_policy(SET CMP0077 NEW)
-endif()
+cmake_policy(SET CMP0077 NEW)
 
 # Require C++14
 set(CMAKE_CXX_STANDARD 14)
