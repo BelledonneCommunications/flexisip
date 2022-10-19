@@ -9,11 +9,11 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <algorithm>
@@ -33,22 +33,11 @@ static bool contains(const list<T>& l, T value) {
 	return find(l.cbegin(), l.cend(), value) != l.cend();
 }
 
-shared_ptr<ForkCallContext> ForkCallContext::make(Agent* agent,
-                                                  const shared_ptr<RequestSipEvent>& event,
-                                                  const shared_ptr<ForkContextConfig>& cfg,
-                                                  const weak_ptr<ForkContextListener>& listener,
-                                                  const weak_ptr<StatPair>& counter) {
-	// new because make_shared require a public constructor.
-	const shared_ptr<ForkCallContext> shared{new ForkCallContext(agent, event, cfg, listener, counter)};
-	return shared;
-}
-
-ForkCallContext::ForkCallContext(Agent* agent,
-                                 const shared_ptr<RequestSipEvent>& event,
-                                 const shared_ptr<ForkContextConfig>& cfg,
-                                 const weak_ptr<ForkContextListener>& listener,
-                                 const weak_ptr<StatPair>& counter)
-    : ForkContextBase(agent, event, cfg, listener, counter), mLog{event->getEventLog<CallLog>()} {
+ForkCallContext::ForkCallContext(const shared_ptr<ModuleRouter>& router,
+                                 const std::shared_ptr<RequestSipEvent>& event,
+                                 sofiasip::MsgSipPriority priority)
+    : ForkContextBase(router, event, router->getCallForkCfg(), router, router->mStats.mCountCallForks, priority),
+      mLog{event->getEventLog<CallLog>()} {
 	SLOGD << "New ForkCallContext " << this;
 }
 
@@ -179,34 +168,47 @@ void ForkCallContext::logResponse(const shared_ptr<ResponseSipEvent>& ev) {
 	}
 }
 
-ForkContext::OnNewRegisterAction
-ForkCallContext::onNewRegister(const SipUri& url, const std::string& uid, const DispatchFunction& dispatchFunction) {
+void ForkCallContext::onNewRegister(const SipUri& dest,
+                                    const std::string& uid,
+                                    const std::shared_ptr<ExtendedContact>& newContact) {
+
 	LOGD("ForkCallContext[%p]::onNewRegister()", this);
-	if (isCompleted() && !mCfg->mForkLate) return OnNewRegisterAction::NoChanges;
-
-	const auto dispatchPair = shouldDispatch(url, uid);
-
-	if (dispatchPair.first != DispatchStatus::DispatchNeeded) {
-		return OnNewRegisterAction::NoChanges;
+	const auto& sharedListener = mListener.lock();
+	if (!sharedListener) {
+		return;
 	}
 
-	shared_ptr<BranchInfo> dispatchedBranch{nullptr};
+	if (isCompleted() && !mCfg->mForkLate) {
+		sharedListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid,
+		                                              DispatchStatus::DispatchNotNeeded);
+		return;
+	}
+
+	const auto dispatchPair = shouldDispatch(dest, uid);
+
+	if (dispatchPair.first != DispatchStatus::DispatchNeeded) {
+		sharedListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid, dispatchPair.first);
+		return;
+	}
+
 	if (!isCompleted()) {
-		dispatchFunction();
+		sharedListener->onDispatchNeeded(shared_from_this(), newContact);
 		checkFinished();
-		return OnNewRegisterAction::NewBranchAdded;
+		return;
 	} else if (dispatchPair.second) {
 		if (auto pushContext = dispatchPair.second->pushContext.lock()) {
 			if (pushContext->getPushInfo()->isApple()) {
-				dispatchedBranch = dispatchFunction();
+				const auto& dispatchedBranch = sharedListener->onDispatchNeeded(shared_from_this(), newContact);
 				cancelBranch(dispatchedBranch);
 				checkFinished();
-				return OnNewRegisterAction::NewBranchAdded;
+				return;
 			}
 		}
 	}
 
-	return OnNewRegisterAction::NoChanges;
+	sharedListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid,
+	                                              DispatchStatus::DispatchNotNeeded);
+	return;
 }
 
 bool ForkCallContext::isCompleted() const {

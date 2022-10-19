@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -30,6 +30,8 @@
 
 namespace flexisip {
 
+class ModuleRouter;
+
 class ForkMessageContextDbProxy : public ForkContext,
                                   public ForkContextListener,
                                   public std::enable_shared_from_this<ForkMessageContextDbProxy> {
@@ -45,22 +47,15 @@ public:
 	 * Used to create a ForkMessageContextDbProxy object for a ForkMessage that already exist in database at server
 	 * restart.
 	 */
-	static std::shared_ptr<ForkMessageContextDbProxy> make(Agent* agent,
-	                                                       const std::shared_ptr<ForkContextConfig>& cfg,
-	                                                       const std::weak_ptr<ForkContextListener>& listener,
-	                                                       const std::weak_ptr<StatPair>& messageCounter,
-	                                                       const std::weak_ptr<StatPair>& proxyCounter,
+	static std::shared_ptr<ForkMessageContextDbProxy> make(const std::shared_ptr<ModuleRouter>& router,
 	                                                       ForkMessageContextDb& forkFromDb);
 
 	/**
 	 * Used to create a ForkMessageContextDbProxy and its inner ForkMessageContext when needed at runtime.
 	 */
-	static std::shared_ptr<ForkMessageContextDbProxy> make(Agent* agent,
+	static std::shared_ptr<ForkMessageContextDbProxy> make(const std::shared_ptr<ModuleRouter>& router,
 	                                                       const std::shared_ptr<RequestSipEvent>& event,
-	                                                       const std::shared_ptr<ForkContextConfig>& cfg,
-	                                                       const std::weak_ptr<ForkContextListener>& listener,
-	                                                       const std::weak_ptr<StatPair>& messageCounter,
-	                                                       const std::weak_ptr<StatPair>& proxyCounter);
+	                                                       sofiasip::MsgSipPriority priority);
 
 	~ForkMessageContextDbProxy() override;
 
@@ -70,8 +65,9 @@ public:
 	 */
 	void onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept override;
 
-	OnNewRegisterAction
-	onNewRegister(const SipUri& dest, const std::string& uid, const DispatchFunction& dispatchFunc) override;
+	void onNewRegister(const SipUri& dest,
+	                   const std::string& uid,
+	                   const std::shared_ptr<ExtendedContact>& newContact) override;
 
 	std::shared_ptr<BranchInfo> addBranch(const std::shared_ptr<RequestSipEvent>& ev,
 	                                      const std::shared_ptr<ExtendedContact>& contact) override {
@@ -137,6 +133,10 @@ public:
 		// Does nothing for fork late ForkMessageContext
 	}
 
+	sofiasip::MsgSipPriority getMsgPriority() const override {
+		return mSavedMsgPriority;
+	};
+
 #ifdef ENABLE_UNIT_TESTS
 	void assertEqual(const std::shared_ptr<ForkMessageContextDbProxy>& expected) {
 		BC_ASSERT_STRING_EQUAL(mForkUuidInDb.c_str(), expected->mForkUuidInDb.c_str());
@@ -144,27 +144,31 @@ public:
 	}
 #endif
 
+	void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) override;
+	std::shared_ptr<BranchInfo> onDispatchNeeded(const std::shared_ptr<ForkContext>& ctx,
+	                                             const std::shared_ptr<ExtendedContact>& newContact) override;
+	void onUselessRegisterNotification(const std::shared_ptr<ForkContext>& ctx,
+	                                   const std::shared_ptr<ExtendedContact>& newContact,
+	                                   const SipUri& dest,
+	                                   const std::string& uid,
+	                                   const DispatchStatus reason) override;
+
 protected:
 	static constexpr auto CLASS_NAME = "ForkMessageContextDbProxy";
 	const char* getClassName() const override {
 		return CLASS_NAME;
 	};
 
+	const ForkContext* getPtrForEquality() const override {
+		if (mForkMessage) {
+			return mForkMessage.get();
+		}
+		return this;
+	}
+
 private:
-	ForkMessageContextDbProxy(Agent* agent,
-	                          const std::shared_ptr<ForkContextConfig>& cfg,
-	                          const std::weak_ptr<ForkContextListener>& listener,
-	                          const std::weak_ptr<StatPair>& messageCounter,
-	                          const std::weak_ptr<StatPair>& proxyCounter);
-
-	ForkMessageContextDbProxy(Agent* agent,
-	                          const std::shared_ptr<ForkContextConfig>& cfg,
-	                          const std::weak_ptr<ForkContextListener>& listener,
-	                          const std::weak_ptr<StatPair>& messageCounter,
-	                          const std::weak_ptr<StatPair>& proxyCounter,
-	                          ForkMessageContextDb& forkFromDb);
-
-	void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) override;
+	ForkMessageContextDbProxy(const std::shared_ptr<ModuleRouter> router, sofiasip::MsgSipPriority priority);
+	ForkMessageContextDbProxy(const std::shared_ptr<ModuleRouter> router, ForkMessageContextDb& forkFromDb);
 
 	/**
 	 * Be careful, blocking I/O with DB, should be called in a thread.
@@ -204,17 +208,16 @@ private:
 	mutable std::atomic_uint mLastSavedVersion{0};
 	mutable sofiasip::Timer mProxyLateTimer;
 	// tuple<host, port, uid>
-	mutable std::vector<std::tuple<std::string, std::string, std::string>> mAlreadyDelivered;
+	mutable std::set<std::tuple<std::string, std::string, std::string>> mAlreadyDelivered;
 
-	std::weak_ptr<ForkContextListener> mOriginListener;
 	std::weak_ptr<StatPair> mCounter;
 	std::string mForkUuidInDb{};
 	bool mIsFinished = false;
 
-	Agent* mSavedAgent;
+	std::weak_ptr<ModuleRouter> mSavedRouter;
 	std::shared_ptr<ForkContextConfig> mSavedConfig;
-	std::weak_ptr<StatPair> mSavedCounter;
 	std::vector<std::string> mSavedKeys{};
+	sofiasip::MsgSipPriority mSavedMsgPriority;
 };
 
 std::ostream& operator<<(std::ostream& os, flexisip::ForkMessageContextDbProxy::State state) noexcept;

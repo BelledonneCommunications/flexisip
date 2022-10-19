@@ -9,11 +9,11 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -61,6 +61,10 @@ public:
 	// called by the router module to notify the arrival of a response.
 	static bool processResponse(const std::shared_ptr<ResponseSipEvent>& ev);
 
+	bool isEqual(const std::shared_ptr<ForkContext>& other) const {
+		return getPtrForEquality() == other->getPtrForEquality();
+	}
+
 	// Called by the Router module to create a new branch.
 	virtual std::shared_ptr<BranchInfo> addBranch(const std::shared_ptr<RequestSipEvent>& ev,
 	                                              const std::shared_ptr<ExtendedContact>& contact) = 0;
@@ -80,22 +84,15 @@ public:
 	virtual void addKey(const std::string& key) = 0;
 	virtual const std::vector<std::string>& getKeys() const = 0;
 
-	using DispatchFunction = std::function<std::shared_ptr<BranchInfo>()>;
-	enum class OnNewRegisterAction {
-		NoChanges,
-		NewBranchAdded,
-	};
 	/**
 	 * Informs the forked call context that a new register from a potential destination of the fork just arrived.
-	 * If the fork context is interested in handling this new destination, then it run the dispatch function, do nothing
-	 * otherwise.
-	 * Typical case for refusing it is when another transaction already exists or existed for this contact.
+	 * If the fork context is interested in handling this new destination he can call
+	 * ForkContextListener::onDispatchNeeded, call ForkContextListener::onUselessRegisterNotification otherwise.
 	 *
-	 * @return OnNewRegisterAction::NoChanges if nothing was done. OnNewRegisterAction::NewBranchAdded if a new branch
-	 * is added to dispatch the message.
+	 * Typical case for refusing it is when another transaction already exists or existed for this contact.
 	 */
-	virtual OnNewRegisterAction
-	onNewRegister(const SipUri& dest, const std::string& uid, const DispatchFunction& dispatchFunction) = 0;
+	virtual void
+	onNewRegister(const SipUri& dest, const std::string& uid, const std::shared_ptr<ExtendedContact>& newContact) = 0;
 	// Notifies the cancellation of the fork process.
 	virtual void onCancel(const std::shared_ptr<RequestSipEvent>& ev) = 0;
 	// Notifies the arrival of a new response on a given branch
@@ -104,17 +101,41 @@ public:
 	virtual const std::shared_ptr<ForkContextConfig>& getConfig() const = 0;
 	virtual bool isFinished() const = 0;
 	virtual void checkFinished() = 0;
+	virtual sofiasip::MsgSipPriority getMsgPriority() const = 0;
 
 protected:
 	// Protected methods
 	std::string errorLogPrefix() const;
 	virtual const char* getClassName() const = 0;
+	virtual const ForkContext* getPtrForEquality() const = 0;
+};
+
+enum class DispatchStatus {
+	DispatchNeeded,
+	DispatchNotNeeded,
+	PendingTransaction,
 };
 
 class ForkContextListener {
 public:
 	virtual ~ForkContextListener() = default;
+
 	virtual void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) = 0;
+
+	/**
+	 * Called when a fork context need a dispatch for specific contact.
+	 */
+	virtual std::shared_ptr<BranchInfo> onDispatchNeeded(const std::shared_ptr<ForkContext>& ctx,
+	                                                     const std::shared_ptr<ExtendedContact>& newContact) = 0;
+
+	/**
+	 * Called when onNewRegister was called on a fork and that no dispatch was needed for this contact.
+	 */
+	virtual void onUselessRegisterNotification(const std::shared_ptr<ForkContext>& ctx,
+	                                           const std::shared_ptr<ExtendedContact>& newContact,
+	                                           const SipUri& dest,
+	                                           const std::string& uid,
+	                                           const DispatchStatus reason) = 0;
 };
 
 } // namespace flexisip

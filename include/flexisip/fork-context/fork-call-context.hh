@@ -9,20 +9,20 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
 
 #include <list>
 
-#include "flexisip/agent.hh"
 #include "flexisip/event.hh"
 #include "flexisip/fork-context/fork-status.hh"
+#include "flexisip/module-router.hh"
 #include "flexisip/sofia-wrapper/timer.hh"
 #include "flexisip/transaction.hh"
 
@@ -32,12 +32,12 @@ namespace flexisip {
 
 class ForkCallContext : public ForkContextBase {
 public:
-	// Public ctors
-	static std::shared_ptr<ForkCallContext> make(Agent* agent,
-	                                             const std::shared_ptr<RequestSipEvent>& event,
-	                                             const std::shared_ptr<ForkContextConfig>& cfg,
-	                                             const std::weak_ptr<ForkContextListener>& listener,
-	                                             const std::weak_ptr<StatPair>& counter);
+	// Call the matching private ctor and instantiate as a shared_ptr.
+	template <typename... Args>
+	static std::shared_ptr<ForkCallContext> make(Args&&... args) {
+		return std::shared_ptr<ForkCallContext>{new ForkCallContext{std::forward<Args>(args)...}};
+	}
+
 	~ForkCallContext();
 
 	// Public methods
@@ -57,8 +57,9 @@ protected:
 	 */
 	void onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept override;
 
-	OnNewRegisterAction
-	onNewRegister(const SipUri& url, const std::string& uid, const DispatchFunction& dispatchFunction) override;
+	void onNewRegister(const SipUri& dest,
+	                   const std::string& uid,
+	                   const std::shared_ptr<ExtendedContact>& newContact) override;
 
 	void start() override;
 
@@ -68,11 +69,9 @@ protected:
 
 private:
 	// Private ctors
-	ForkCallContext(Agent* agent,
+	ForkCallContext(const std::shared_ptr<ModuleRouter>& router,
 	                const std::shared_ptr<RequestSipEvent>& event,
-	                const std::shared_ptr<ForkContextConfig>& cfg,
-	                const std::weak_ptr<ForkContextListener>& listener,
-	                const std::weak_ptr<StatPair>& counter);
+	                sofiasip::MsgSipPriority priority);
 
 	// Private methods
 	const int* getUrgentCodes();

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -29,16 +29,17 @@ const int ForkContextBase::sUrgentCodes[] = {401, 407, 415, 420, 484, 488, 606, 
 
 const int ForkContextBase::sAllCodesUrgent[] = {-1, 0};
 
-ForkContextBase::ForkContextBase(Agent* agent,
-                                 const shared_ptr<RequestSipEvent>& event,
-                                 const shared_ptr<ForkContextConfig>& cfg,
-                                 const weak_ptr<ForkContextListener>& listener,
-                                 const weak_ptr<StatPair>& counter,
+ForkContextBase::ForkContextBase(const std::shared_ptr<ModuleRouter>& router,
+                                 const std::shared_ptr<RequestSipEvent>& event,
+                                 const std::shared_ptr<ForkContextConfig>& cfg,
+                                 const std::weak_ptr<ForkContextListener>& listener,
+                                 const std::weak_ptr<StatPair>& counter,
+                                 sofiasip::MsgSipPriority priority,
                                  bool isRestored)
-    : mCurrentPriority(-1), mAgent(agent),
+    : mCurrentPriority(-1), mAgent(router->getAgent()), mRouter(router),
       mEvent(make_shared<RequestSipEvent>(event)), // Is this deep copy really necessary ?
-      mCfg(cfg), mLateTimer(agent->getRoot()), mFinishTimer(agent->getRoot()), mNextBranchesTimer(agent->getRoot()),
-      mListener(listener), mStatCounter(counter) {
+      mCfg(cfg), mLateTimer(mAgent->getRoot()), mFinishTimer(mAgent->getRoot()), mNextBranchesTimer(mAgent->getRoot()),
+      mMsgPriority(priority), mListener(listener), mStatCounter(counter) {
 	if (auto sharedCounter = mStatCounter.lock()) {
 		sharedCounter->incrStart();
 	} else {
@@ -320,7 +321,7 @@ shared_ptr<BranchInfo> ForkContextBase::addBranch(const std::shared_ptr<RequestS
 
 		// The listener of the old branch must be moved in the new one
 		// to be notified of the last events about the actual UID.
-		br->mListener = move(oldBr->mListener);
+		br->mListener = std::move(oldBr->mListener);
 
 		br->pushContext = oldBr->pushContext;
 	}
@@ -330,9 +331,14 @@ shared_ptr<BranchInfo> ForkContextBase::addBranch(const std::shared_ptr<RequestS
 	mWaitingBranches.push_back(br);
 	mWaitingBranches.sort(compareGreaterBranch);
 
+	// if mCurrentPriority != -1 it means that this fork is already started
 	if (mCurrentPriority != -1 && mCurrentPriority <= br->mPriority) {
 		mCurrentBranches.push_back(br);
-		mAgent->injectRequestEvent(br->mRequest);
+		if (auto router = mRouter.lock()) {
+			router->sendToInjector(br->mRequest, shared_from_this(), contact->contactId());
+		} else {
+			mAgent->injectRequestEvent(br->mRequest);
+		}
 	}
 
 	LOGD("ForkContext [%p]: new fork branch [%p]", this, br.get());
@@ -389,7 +395,11 @@ void ForkContextBase::start() {
 
 	/* Start the processing */
 	for (const auto& br : mCurrentBranches) {
-		mAgent->injectRequestEvent(br->mRequest);
+		if (auto router = mRouter.lock()) {
+			router->sendToInjector(br->mRequest, shared_from_this(), br->mContact->contactId());
+		} else {
+			mAgent->injectRequestEvent(br->mRequest);
+		}
 		if (mCurrentBranches.empty()) {
 			// Can only occur if an internal error append
 			break;

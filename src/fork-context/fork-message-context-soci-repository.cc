@@ -110,6 +110,13 @@ ForkMessageContextSociRepository::ForkMessageContextSociRepository(const string&
 				HEX(SUBSTR(_bin,  1, 2)),
 				HEX(SUBSTR(_bin,  9, 2)),
 				HEX(SUBSTR(_bin, 11))));)sql";
+
+		// DB Schema update for Flexisip 2.2.1
+		try {
+			sql << R"sql(ALTER TABLE fork_message_context ADD COLUMN msg_priority TINYINT NOT NULL DEFAULT 0;)sql";
+		} catch (const soci_error& e) {
+			SLOGD << "ForkMessageContextSociRepository - ADD COLUMN msg_priority already done";
+		}
 	} catch (const runtime_error& e) {
 		LOGF("ForkMessageContextSociRepository - A problem occurred during database creation. Fix it or disable "
 		     "message-database-enabled before restart. \nException : %s",
@@ -125,8 +132,8 @@ ForkMessageContextDb ForkMessageContextSociRepository::findForkMessageByUuid(con
 		transaction tr(sql);
 
 		// fork_message_context
-		sql << "select current_priority, delivered_count, is_finished, is_message, expiration_date, request from "
-		       "fork_message_context where uuid = UuidToBin(:v)",
+		sql << "select current_priority, delivered_count, is_finished, is_message, expiration_date, request, "
+		       "msg_priority from fork_message_context where uuid = UuidToBin(:v)",
 		    use(uuid), into(dbFork);
 
 		// fork_key
@@ -148,8 +155,8 @@ string ForkMessageContextSociRepository::saveForkMessageContext(const ForkMessag
 
 		sql << "SET @uuid=UUID()";
 		sql << "insert into fork_message_context(uuid, current_priority, delivered_count, is_finished, is_message, "
-		       "expiration_date, request) values(UuidToBin(@uuid), :current_priority, :delivered_count, :is_finished "
-		       ",:is_message, :expiration_date, :request);",
+		       "expiration_date, request, msg_priority) values(UuidToBin(@uuid), :current_priority, :delivered_count, "
+		       ":is_finished ,:is_message, :expiration_date, :request, :msg_priority);",
 		    use(dbFork);
 		sql << "SET @uuid = IF(ROW_COUNT(), @uuid, null)";
 		sql << "SELECT @uuid", into(insertedUuid);
@@ -180,7 +187,7 @@ void ForkMessageContextSociRepository::updateForkMessageContext(const ForkMessag
 
 		sql << "update fork_message_context set current_priority = :current_priority, delivered_count = "
 		       ":delivered_count, is_finished = :is_finished, is_message = :is_message, expiration_date = "
-		       ":expiration_date, request = :request where uuid = UuidToBin(:uuid)",
+		       ":expiration_date, request = :request, msg_priority = :msg_priority where uuid = UuidToBin(:uuid)",
 		    use(dbFork), use(uuid, "uuid");
 
 		// Keys in table fork_key are not updated because they always remain the same.

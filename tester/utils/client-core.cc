@@ -491,5 +491,13 @@ std::shared_ptr<linphone::CallLog> CoreClient::getCallLog() const {
 	return current_call->getCallLog();
 }
 
+std::list<std::shared_ptr<linphone::ChatMessage>> CoreClient::getChatMessages() {
+	const auto& chatRooms = getCore()->getChatRooms();
+	if (chatRooms.empty()) {
+		return {};
+	}
+	return chatRooms.begin()->get()->getHistory(0);
+}
+
 } // namespace tester
 } // namespace flexisip

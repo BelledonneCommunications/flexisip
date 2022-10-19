@@ -9,22 +9,29 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <sofia-sip/sip_status.h>
 
 #include "domain-registrations.hh"
+#include "flexisip/fork-context/fork-basic-context.hh"
+#include "flexisip/fork-context/fork-call-context.hh"
+#include "flexisip/fork-context/fork-message-context-db-proxy.hh"
+#include "flexisip/fork-context/fork-message-context.hh"
 #include "flexisip/logmanager.hh"
+#include "router/agent-injector.hh"
+#include "router/schedule-injector.hh"
 
 #include "flexisip/module-router.hh"
 
 using namespace std;
 using namespace flexisip;
+using namespace sofiasip;
 
 void ModuleRouter::onDeclare(GenericStruct* mc) {
 	ConfigItemDescriptor configs[] = {
@@ -148,16 +155,16 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 	mDomains = mReg->get<ConfigStringList>("reg-domains")->read();
 
 	// Forking configuration for INVITEs
-	mForkCfg = make_shared<ForkContextConfig>();
-	mForkCfg->mForkLate = mc->get<ConfigBoolean>("fork-late")->read();
-	mForkCfg->mTreatAllErrorsAsUrgent = mc->get<ConfigBoolean>("treat-all-as-urgent")->read();
-	mForkCfg->mForkNoGlobalDecline = mc->get<ConfigBoolean>("fork-no-global-decline")->read();
-	mForkCfg->mUrgentTimeout = chrono::seconds{mc->get<ConfigInt>("call-fork-urgent-timeout")->read()};
-	mForkCfg->mPushResponseTimeout = chrono::seconds{mc->get<ConfigInt>("call-push-response-timeout")->read()};
-	mForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("call-fork-timeout")->read();
-	mForkCfg->mTreatDeclineAsUrgent = mc->get<ConfigBoolean>("treat-decline-as-urgent")->read();
-	mForkCfg->mCurrentBranchesTimeout = mc->get<ConfigInt>("call-fork-current-branches-timeout")->read();
-	mForkCfg->mPermitSelfGeneratedProvisionalResponse =
+	mCallForkCfg = make_shared<ForkContextConfig>();
+	mCallForkCfg->mForkLate = mc->get<ConfigBoolean>("fork-late")->read();
+	mCallForkCfg->mTreatAllErrorsAsUrgent = mc->get<ConfigBoolean>("treat-all-as-urgent")->read();
+	mCallForkCfg->mForkNoGlobalDecline = mc->get<ConfigBoolean>("fork-no-global-decline")->read();
+	mCallForkCfg->mUrgentTimeout = chrono::seconds{mc->get<ConfigInt>("call-fork-urgent-timeout")->read()};
+	mCallForkCfg->mPushResponseTimeout = chrono::seconds{mc->get<ConfigInt>("call-push-response-timeout")->read()};
+	mCallForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("call-fork-timeout")->read();
+	mCallForkCfg->mTreatDeclineAsUrgent = mc->get<ConfigBoolean>("treat-decline-as-urgent")->read();
+	mCallForkCfg->mCurrentBranchesTimeout = mc->get<ConfigInt>("call-fork-current-branches-timeout")->read();
+	mCallForkCfg->mPermitSelfGeneratedProvisionalResponse =
 	    mc->get<ConfigBoolean>("permit-self-generated-provisional-response")->read();
 
 	// Forking configuration for MESSAGEs
@@ -189,12 +196,14 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 	if (mMessageForkCfg->mForkLate) {
 		mOnContactRegisteredListener = make_shared<OnContactRegisteredListener>(this);
 		if ((mMessageForkCfg->mSaveForkMessageEnabled = mc->get<ConfigBoolean>("message-database-enabled")->read())) {
-
+			mInjector = make_unique<ScheduleInjector>(this);
 			ForkMessageContextSociRepository::prepareConfiguration(
 			    mc->get<ConfigString>("message-database-backend")->read(),
 			    mc->get<ConfigString>("message-database-connection-string")->read(), 10);
 
 			restoreForksFromDatabase();
+		} else {
+			mInjector = make_unique<AgentInjector>(this);
 		}
 	}
 }
@@ -205,9 +214,7 @@ void ModuleRouter::restoreForksFromDatabase() {
 	SLOGD << " ... " << allDbMessages.size() << " messages found in DB ...";
 	for (auto& dbMessage : allDbMessages) {
 		mStats.mCountForks->incrStart();
-		auto restoredForkMessage =
-		    ForkMessageContextDbProxy::make(getAgent(), mMessageForkCfg, shared_from_this(), mStats.mCountMessageForks,
-		                                    mStats.mCountMessageProxyForks, dbMessage);
+		auto restoredForkMessage = ForkMessageContextDbProxy::make(shared_from_this(), dbMessage);
 		for (const auto& key : dbMessage.dbKeys) {
 			mForks.emplace(key, restoredForkMessage);
 			RegistrarDb::get()->subscribe(key, mOnContactRegisteredListener);
@@ -258,9 +265,10 @@ string ModuleRouter::routingKey(const url_t* sipUri) {
 	return oss.str();
 }
 
-shared_ptr<BranchInfo> ModuleRouter::dispatch(const shared_ptr<ForkContext> context,
-                                              const shared_ptr<ExtendedContact>& contact,
-                                              const string& targetUris) {
+std::shared_ptr<BranchInfo> ModuleRouter::dispatch(const shared_ptr<ForkContext>& context,
+                                                   const std::shared_ptr<ExtendedContact>& contact,
+                                                   const std::string& targetUris) {
+
 	const auto& ev = context->getEvent();
 	const auto& ms = ev->getMsgSip();
 	time_t now = getCurrentTime();
@@ -334,7 +342,7 @@ void ModuleRouter::onContactRegistered(const std::shared_ptr<OnContactRegistered
 		return;
 	}
 
-	if (!mForkCfg->mForkLate && !mMessageForkCfg->mForkLate) return;
+	if (!mCallForkCfg->mForkLate && !mMessageForkCfg->mForkLate) return;
 
 	// Find all contexts
 	auto range = getLateForks(record->getKey());
@@ -348,8 +356,10 @@ void ModuleRouter::onContactRegistered(const std::shared_ptr<OnContactRegistered
 
 			// First use sipURI
 			for (const auto& context : range) {
-				context->onNewRegister(SipUri{contact->m_url}, uid,
-				                       [this, context, ec]() { return this->dispatch(context, ec, ""); });
+				mInjector->addContext(context, ec->contactId());
+			}
+			for (const auto& context : range) {
+				context->onNewRegister(SipUri{contact->m_url}, uid, ec);
 			}
 		}
 	}
@@ -362,9 +372,11 @@ void ModuleRouter::onContactRegistered(const std::shared_ptr<OnContactRegistered
 		contact = ec->toSofiaContact(home.home(), ec->mExpireAt - 1);
 		auto rang = getLateForks(ExtendedContact::urlToString(ec->mSipContact->m_url));
 		for (const auto& context : rang) {
+			mInjector->addContext(context, ec->contactId());
+		}
+		for (const auto& context : rang) {
 			forksFound = true;
-			context->onNewRegister(SipUri{contact->m_url}, uid,
-			                       [this, context, ec]() { return this->dispatch(context, ec, ""); });
+			context->onNewRegister(SipUri{contact->m_url}, uid, ec);
 		}
 	}
 
@@ -526,8 +538,10 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 
 	// Init context
 	shared_ptr<ForkContext> context;
+	auto msgPriority = ms->getPriority();
+	msgPriority = msgPriority <= sMaxPriorityHandled ? msgPriority : sMaxPriorityHandled;
 	if (sip->sip_request->rq_method == sip_method_invite) {
-		context = ForkCallContext::make(getAgent(), ev, mForkCfg, shared_from_this(), mStats.mCountCallForks);
+		context = ForkCallContext::make(shared_from_this(), ev, MsgSipPriority::Urgent);
 		isInvite = true;
 	} else if ((sip->sip_request->rq_method == sip_method_message) &&
 	           !(sip->sip_content_type &&
@@ -535,24 +549,20 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 	           !(sip->sip_expires && sip->sip_expires->ex_delta == 0)) {
 		// Use the basic fork context for "im-iscomposing+xml" messages to prevent storing useless messages
 		if (mMessageForkCfg->mSaveForkMessageEnabled) {
-			context = ForkMessageContextDbProxy::make(getAgent(), ev, mMessageForkCfg, shared_from_this(),
-			                                          mStats.mCountMessageForks, mStats.mCountMessageProxyForks);
+			context = ForkMessageContextDbProxy::make(shared_from_this(), ev, msgPriority);
 		} else {
-			context = ForkMessageContext::make(getAgent(), ev, mMessageForkCfg, shared_from_this(),
-			                                   mStats.mCountMessageForks);
+			context = ForkMessageContext::make(shared_from_this(), ev, shared_from_this(), msgPriority);
 		}
 	} else if (sip->sip_request->rq_method == sip_method_refer &&
 	           (sip->sip_refer_to != nullptr && msg_params_find(sip->sip_refer_to->r_params, "text") != nullptr)) {
 		// Use the message fork context only for refers that are text to prevent storing useless refers
 		if (mMessageForkCfg->mSaveForkMessageEnabled) {
-			context = ForkMessageContextDbProxy::make(getAgent(), ev, mMessageForkCfg, shared_from_this(),
-			                                          mStats.mCountMessageForks, mStats.mCountMessageProxyForks);
+			context = ForkMessageContextDbProxy::make(shared_from_this(), ev, msgPriority);
 		} else {
-			context = ForkMessageContext::make(getAgent(), ev, mMessageForkCfg, shared_from_this(),
-			                                   mStats.mCountMessageForks);
+			context = ForkMessageContext::make(shared_from_this(), ev, shared_from_this(), msgPriority);
 		}
 	} else {
-		context = ForkBasicContext::make(getAgent(), ev, mOtherForkCfg, shared_from_this(), mStats.mCountBasicForks);
+		context = ForkBasicContext::make(shared_from_this(), ev, msgPriority);
 	}
 	const auto key = routingKey(sipUri);
 	context->addKey(key);
@@ -577,6 +587,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 		const string& targetUris = (*it).mTargetUris;
 
 		if (!ec->mAlias) {
+			mInjector->addContext(context, ec->contactId());
 			dispatch(context, ec, targetUris);
 		} else {
 			if (context->getConfig()->mForkLate && isManagedDomain(ct->m_url)) {
@@ -692,7 +703,7 @@ public:
 			for (sip_route_t* iter = routes; iter; iter = iter->r_next) {
 				try {
 					SipUri uri(iter->r_url);
-					mUriList.push_back(move(uri));
+					mUriList.push_back(std::move(uri));
 				} catch (const sofiasip::InvalidUrlError& e) {
 					vector<char> buffer(1024);
 					sip_unknown_e(buffer.data(), buffer.size(), (msg_header_t*)target_uris, 0);
@@ -973,6 +984,19 @@ void ModuleRouter::onForkContextFinished(const shared_ptr<ForkContext>& ctx) {
 	}
 }
 
+shared_ptr<BranchInfo> ModuleRouter::onDispatchNeeded(const shared_ptr<ForkContext>& ctx,
+                                                      const shared_ptr<ExtendedContact>& newContact) {
+	return dispatch(ctx, newContact);
+}
+
+void ModuleRouter::onUselessRegisterNotification(const std::shared_ptr<ForkContext>& ctx,
+                                                 const std::shared_ptr<ExtendedContact>& newContact,
+                                                 const SipUri& dest,
+                                                 const std::string& uid,
+                                                 const DispatchStatus reason) {
+	mInjector->removeContext(ctx, newContact->contactId());
+}
+
 ModuleInfo<ModuleRouter> ModuleRouter::sInfo(
     "Router",
     "The Router module routes requests for domains it manages.\n"
@@ -999,3 +1023,5 @@ ModuleInfo<ModuleRouter> ModuleRouter::sInfo(
     "case the incoming transaction will be terminated with a 202 Accepted response.",
     {"ContactRouteInserter"},
     ModuleInfoBase::ModuleOid::Router);
+
+sofiasip::MsgSipPriority ModuleRouter::sMaxPriorityHandled = sofiasip::MsgSipPriority::Normal;

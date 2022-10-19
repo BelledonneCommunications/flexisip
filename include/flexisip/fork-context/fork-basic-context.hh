@@ -9,11 +9,11 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -21,20 +21,21 @@
 #include <list>
 #include <map>
 
-#include <flexisip/agent.hh>
-#include <flexisip/event.hh>
-#include <flexisip/fork-context/fork-context-base.hh>
-#include <flexisip/transaction.hh>
+#include "flexisip/event.hh"
+#include "flexisip/fork-context/fork-context-base.hh"
+#include "flexisip/module-router.hh"
+#include "flexisip/transaction.hh"
 
 namespace flexisip {
 
 class ForkBasicContext : public ForkContextBase {
 public:
-	static std::shared_ptr<ForkBasicContext> make(Agent* agent,
-	                                              const std::shared_ptr<RequestSipEvent>& event,
-	                                              const std::shared_ptr<ForkContextConfig>& cfg,
-	                                              const std::weak_ptr<ForkContextListener>& listener,
-	                                              const std::weak_ptr<StatPair>& counter);
+	// Call the matching private ctor and instantiate as a shared_ptr.
+	template <typename... Args>
+	static std::shared_ptr<ForkBasicContext> make(Args&&... args) {
+		return std::shared_ptr<ForkBasicContext>{new ForkBasicContext{std::forward<Args>(args)...}};
+	}
+
 	virtual ~ForkBasicContext();
 
 	void processInternalError(int status, const char* phrase) override;
@@ -42,9 +43,13 @@ public:
 protected:
 	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& event) override;
 
-	OnNewRegisterAction
-	onNewRegister(const SipUri& url, const std::string& uid, const DispatchFunction& dispatchFunction) override {
-		return OnNewRegisterAction::NoChanges;
+	void onNewRegister(const SipUri& dest,
+	                   const std::string& uid,
+	                   const std::shared_ptr<ExtendedContact>& newContact) override {
+		if (auto listener = mListener.lock()) {
+			listener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid,
+			                                        DispatchStatus::DispatchNotNeeded);
+		}
 	}
 
 	static constexpr auto CLASS_NAME = "ForkBasicContext";
@@ -53,11 +58,9 @@ protected:
 	};
 
 private:
-	ForkBasicContext(Agent* agent,
+	ForkBasicContext(const std::shared_ptr<ModuleRouter>& router,
 	                 const std::shared_ptr<RequestSipEvent>& event,
-	                 const std::shared_ptr<ForkContextConfig>& cfg,
-	                 const std::weak_ptr<ForkContextListener>& listener,
-	                 const std::weak_ptr<StatPair>& counter);
+	                 sofiasip::MsgSipPriority priority);
 
 	void finishIncomingTransaction();
 	void onDecisionTimer();

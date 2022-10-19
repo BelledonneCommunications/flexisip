@@ -20,10 +20,8 @@
 #
 ############################################################################
 
-add_library(flexisip-sofia-wrapper OBJECT
+target_sources(flexisip PRIVATE
 	msg-sip.cc
 	su-root.cc
 	timer.cc
 )
-target_compile_options(flexisip-sofia-wrapper PRIVATE "-fPIC")
-target_link_libraries(flexisip-sofia-wrapper PUBLIC bctoolbox sofia-sip-ua)

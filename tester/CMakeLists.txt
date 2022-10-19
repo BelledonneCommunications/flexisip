@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2022 Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2023 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -55,6 +55,7 @@ add_executable(flexisip_tester
 	registrardb-tester.cc
 	registrardb-redis-tester.cc
 	sip-uri-tests.cc
+	schedule-injector-tester.cc
 	sofia-tester.cc
 	sofia-driven-signal-handler-tester.cc
 	tester.cc

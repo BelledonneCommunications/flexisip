@@ -65,7 +65,8 @@ inline void bc_hard_assert(const char* file, int line, int predicate, const char
 #define BC_ASSERT_CPP_EQUAL_BASE(assertFunction, value, expected)                                                      \
 	do {                                                                                                               \
 		std::ostringstream os{};                                                                                       \
-		os << "BC_ASSERT_CPP_EQUAL(" #value ", " #expected "), value: " << (value) << ", expected: " << (expected);    \
+		os << "BC_ASSERT_CPP_EQUAL(" #value ", " #expected "), value: \"" << (value) << "\", expected: \""             \
+		   << (expected) << "\"";                                                                                      \
 		assertFunction(__FILE__, __LINE__, value == expected, os.str().c_str());                                       \
 	} while (0)
 /**

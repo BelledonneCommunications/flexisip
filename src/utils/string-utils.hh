@@ -48,6 +48,14 @@ public:
 		return strip(str, '"');
 	}
 
+	/**
+	 * Compare string a and string b ignoring case.
+	 */
+	static bool iequals(const std::string& a, const std::string& b) {
+		return std::equal(a.begin(), a.end(), b.begin(), b.end(),
+		                  [](char a, char b) { return tolower(a) == tolower(b); });
+	}
+
 	/* Remove the surrounding given character, if present. */
 	static std::string strip(const char* str, char c) noexcept;
 	static std::string strip(const std::string& str, char c) noexcept;

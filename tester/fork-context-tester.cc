@@ -24,6 +24,10 @@
 
 #include "tester.hh"
 #include "utils/bellesip-utils.hh"
+#include "utils/client-core.hh"
+#include "utils/core-assert.hh"
+#include "utils/proxy-server.hh"
+#include "utils/test-patterns/test.hh"
 
 using namespace std;
 using namespace std::chrono_literals;
@@ -216,9 +220,102 @@ static void notRtpPortAndForkCallContext() {
 	}
 }
 
+/**
+ * We send multiples message to a client with one idle device, to force the messages saving in DB.
+ * Then we put the client back online and see if the messages are correctly delivered AND IN ORDER.
+ * All along we check fork stats and client state.
+ */
+static void globalOrderTestNoSql() {
+	SLOGD << "Step 1: Setup";
+	auto server = make_shared<Server>("/config/flexisip_fork_context.conf");
+	server->start();
+
+	auto receiverClient = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server);
+	receiverClient->getCore()->setNetworkReachable(false);
+
+	uint isRequestAccepted = 0;
+	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP",
+	                            [&isRequestAccepted](int status) {
+		                            if (status != 100) {
+			                            BC_ASSERT_EQUAL(status, 202, int, "%i");
+			                            isRequestAccepted++;
+		                            }
+	                            },
+	                            nullptr};
+
+	SLOGD << "Step 2: Send messages, non-urgent first";
+	uint nbOfMessages = 20;
+	for (uint i = 1; i <= nbOfMessages; ++i) {
+		std::string rawBody("C'est pas faux "s + to_string(i));
+		rawBody.append("\r\n\r\n");
+		bellesipUtils.sendRawRequest("MESSAGE sip:provencal_le_gaulois@sip.test.org SIP/2.0\r\n"
+		                             "Via: SIP/2.0/TCP 127.0.0.1:6066;branch=z9hG4bK.PAWTmCZv1;rport=49828\r\n"
+		                             "From: <sip:kijou@sip.linphone.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
+		                             "To: <sip:provencal_le_gaulois@sip.test.org>\r\n"
+		                             "CSeq: 20 MESSAGE\r\n"
+		                             "Call-ID: Tvw6USHXYv"s +
+		                                 to_string(i) +
+		                                 "\r\n"
+		                                 "Max-Forwards: 70\r\n"
+		                                 "Route: <sip:127.0.0.1:5360;transport=tcp;lr>\r\n"
+		                                 "Supported: replaces, outbound, gruu\r\n"
+		                                 "Date: Fri, 01 Apr 2022 11:18:26 GMT\r\n"
+		                                 "Content-Type: text/plain\r\n",
+		                             rawBody);
+		auto beforePlus2 = system_clock::now() + 2s;
+		while (isRequestAccepted != i && beforePlus2 >= system_clock::now()) {
+			server->getAgent()->getRoot()->step(10ms);
+			bellesipUtils.stackSleep(10);
+		}
+	}
+
+	SLOGD << "Step 3: Assert that fork is still present because device is offline. No db fork because no db.";
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
+	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
+	BC_ASSERT_TRUE(
+	    CoreAssert({receiverClient->getCore()}, server->getAgent()).wait([agent = server->getAgent(), &nbOfMessages] {
+		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		    return moduleRouter->mStats.mCountMessageForks->start->read() == nbOfMessages;
+	    }));
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 0, int, "%i");
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0, int, "%i");
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), 0, int, "%i");
+
+	SLOGD << "Step 4: Client REGISTER, then receive message";
+	receiverClient->getCore()->setNetworkReachable(true);
+	BC_ASSERT_TRUE(CoreAssert({receiverClient->getCore()}, server->getAgent()).wait([receiverClient, &nbOfMessages] {
+		return receiverClient->getAccount()->getState() == linphone::RegistrationState::Ok &&
+		       (uint)receiverClient->getCore()->getUnreadChatMessageCount() == nbOfMessages;
+	}));
+
+	SLOGD << "Step 5: Check messages order";
+	auto messages = receiverClient->getChatMessages();
+	uint order = 1;
+	for (auto message : messages) {
+		auto actual = message->getUtf8Text();
+		string expected{"C'est pas faux "s + to_string(order) + "\r\n\r\n"};
+		BC_ASSERT_CPP_EQUAL(actual, expected);
+		order++;
+	}
+	BC_ASSERT_CPP_EQUAL(order - 1, nbOfMessages);
+
+	SLOGD << "Step 6: Check fork stats";
+	BC_ASSERT_TRUE(
+	    CoreAssert({receiverClient->getCore()}, server->getAgent()).wait([agent = server->getAgent(), &nbOfMessages] {
+		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		    return moduleRouter->mStats.mCountMessageForks->finish->read() == nbOfMessages;
+	    }));
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 0, int, "%i");
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0, int, "%i");
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), nbOfMessages, int, "%i");
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), nbOfMessages, int, "%i");
+}
+
 static test_t tests[] = {
     TEST_NO_TAG("Max forward 0 and ForkBasicContext leak", nullMaxFrowardAndForkBasicContext),
     TEST_NO_TAG("No RTP port available and ForkCallContext leak", notRtpPortAndForkCallContext),
+    TEST_NO_TAG("Fork message context with fork late and no database : retention and order check",
+                globalOrderTestNoSql),
 };
 
 test_suite_t fork_context_suite = {
