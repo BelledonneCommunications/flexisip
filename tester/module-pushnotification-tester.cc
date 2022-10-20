@@ -20,13 +20,11 @@
 #include <string>
 
 #include "flexisip/module-pushnotification.hh"
-#include "flexisip/registrardb.hh"
 
 #include "pushnotification/client.hh"
-#include "pushnotification/firebase/firebase-client.hh"
 #include "pushnotification/rfc8599-push-params.hh"
-#include "tester.hh"
 #include "utils/client-core.hh"
+#include "utils/core-assert.hh"
 #include "utils/test-patterns/agent-test.hh"
 
 using namespace std;
@@ -145,6 +143,16 @@ private:
  */
 class PushNotificationTest : public AgentTest {
 protected:
+	// Protected ctors
+	PushNotificationTest() = default;
+	/**
+	 * Construct a PushNotificationTest by specifying a custom PN client.
+	 */
+	template <typename PushClientPtr>
+	PushNotificationTest(PushClientPtr&& aPushClient) : mPushClient{std::forward<PushClientPtr>(aPushClient)} {
+	}
+
+	// Protected methods
 	void onAgentConfiguration(GenericManager& cfg) override {
 		AgentTest::onAgentConfiguration(cfg);
 
@@ -165,14 +173,13 @@ protected:
 	}
 
 	void onAgentStarted() override {
-		mPushClient = make_shared<DummyPushClient>(mRoot);
 		mPushModule = dynamic_pointer_cast<PushNotification>(mAgent->findModule("PushNotification"));
 		mPushModule->getService()->setFallbackClient(mPushClient);
 	}
 
 	// Protected attributes
 	std::shared_ptr<PushNotification> mPushModule{};
-	std::shared_ptr<DummyPushClient> mPushClient{};
+	std::shared_ptr<pushnotification::Client> mPushClient{make_shared<DummyPushClient>(mRoot)};
 };
 
 /****************************** Top-level base classes ***************************************************************/
@@ -239,7 +246,7 @@ protected:
 		postRequestEvent(request);
 		waitFor(1s);
 
-		BC_ASSERT_EQUAL(mPushClient->getSendPushCallCounter(), 0, int, "%i");
+		BC_ASSERT_EQUAL(dynamic_pointer_cast<DummyPushClient>(mPushClient)->getSendPushCallCounter(), 0, int, "%i");
 		BC_ASSERT_EQUAL(mPushModule->getService()->getSentCounter()->read(), 0, int, "%i");
 		BC_ASSERT_EQUAL(mPushModule->getService()->getFailedCounter()->read(), 0, int, "%i");
 	}
@@ -290,88 +297,6 @@ protected:
 	// Protected attributes
 	RFC8599PushParams mContactPushParams{};
 	PushType mExpectedPushType{PushType::Unknown};
-};
-
-/**
- * Interface used by CallInviteOnOfflineDevice test class to delegate
- * the tests to do when a user agent receives a push notification.
- */
-class PNHandler {
-public:
-	template <typename T>
-	PNHandler(T&& aPlatform) : mPlatform{std::forward<T>(aPlatform)} {
-	}
-	virtual ~PNHandler() = default;
-
-	/**
-	 * Some PNHandler expect that the same PN is received at regular interval.
-	 * This getter returns the expected delay between two successive PN.
-	 */
-	std::chrono::seconds getCallRemotePushInterval() const noexcept {
-		return mCallRemotePushInterval;
-	}
-	/**
-	 * Some test need to extend the delay before the callee gives up to wait the incoming INVITE.
-	 * This getter returns an extra delay to add to the default delay defined by the CoreClient class.
-	 */
-	virtual std::chrono::seconds getCallInviteReceivedExtraDelay() const noexcept = 0;
-
-	/**
-	 * Method to implement to define what to do on PN reception.
-	 */
-	virtual void onPNReceived(const std::shared_ptr<CoreClient>& aUserAgent, const Request& aPNRequest) = 0;
-
-protected:
-	std::shared_ptr<ClientPlatform> mPlatform{};   /**< The actual platform used on the test. */
-	std::chrono::seconds mCallRemotePushInterval{0}; /**< Expected interval between two successive PN. */
-};
-
-/**
- * Default PNHandler if no one is specified on CallInviteOnOfflineDevice instantiation.
- * Defined below.
- */
-class DefaultPNHandler;
-
-/**
- * Test that when a client call another offline client, then the callee
- * actually received a push notification of the expected type and received
- * the call after registration.
- */
-template <typename ClientPlatformT, typename PNHandlerT = DefaultPNHandler>
-class CallInviteOnOfflineDevice : public PushNotificationTest {
-protected:
-	void onAgentConfiguration(GenericManager& cfg) override {
-		PushNotificationTest::onAgentConfiguration(cfg);
-		cfg.getRoot()
-		    ->get<GenericStruct>("module::PushNotification")
-		    ->get<ConfigValue>("call-remote-push-interval")
-		    ->set(to_string(mPNHandler->getCallRemotePushInterval().count()));
-	}
-
-	void testExec() override {
-		auto proxy = make_shared<Server>(mAgent);
-		auto core1 = make_shared<CoreClient>("sip:user1@sip.example.org", proxy);
-		auto core2 = make_shared<CoreClient>(
-			move(ClientBuilder{"sip:user2@sip.example.org"}.setPushParams(mPlatform->getContactPushParams())), proxy);
-		core2->getCore()->setNetworkReachable(false);
-		core2->setCallInviteReceivedDelay(core2->getCallInviteReceivedDelay() +
-		                                  mPNHandler->getCallInviteReceivedExtraDelay());
-
-		for (const auto& pushParams : mPlatform->getRegistrationPushParams()) {
-			mPushClient->registerUserAgent(
-			    pushParams, core2,
-			    [aPNHandler = weak_ptr<PNHandler>{mPNHandler}](const auto& aUserAgent, const auto& aPNRequest) {
-				    auto pnHandler = aPNHandler.lock();
-				    if (pnHandler) pnHandler->onPNReceived(aUserAgent, aPNRequest);
-			    });
-		}
-
-		core1->call(core2);
-	}
-
-	// Protected attributes
-	std::shared_ptr<ClientPlatform> mPlatform{std::make_shared<ClientPlatformT>()};
-	std::shared_ptr<PNHandler> mPNHandler{std::make_shared<PNHandlerT>(mPlatform)};
 };
 
 /**
@@ -449,8 +374,42 @@ public:
 };
 
 /**
+ * Interface used by CallInviteOnOfflineDevice test class to delegate
+ * the tests to do when a user agent receives a push notification.
+ */
+class PNHandler {
+public:
+	template <typename T>
+	PNHandler(T&& aPlatform) : mPlatform{std::forward<T>(aPlatform)} {
+	}
+	virtual ~PNHandler() = default;
+
+	/**
+	 * Some PNHandler expect that the same PN is received at regular interval.
+	 * This getter returns the expected delay between two successive PN.
+	 */
+	std::chrono::seconds getCallRemotePushInterval() const noexcept {
+		return mCallRemotePushInterval;
+	}
+	/**
+	 * Some test need to extend the delay before the callee gives up to wait the incoming INVITE.
+	 * This getter returns an extra delay to add to the default delay defined by the CoreClient class.
+	 */
+	virtual std::chrono::seconds getCallInviteReceivedExtraDelay() const noexcept = 0;
+
+	/**
+	 * Method to implement to define what to do on PN reception.
+	 */
+	virtual void onPNReceived(const std::shared_ptr<CoreClient>& aUserAgent, const Request& aPNRequest) = 0;
+
+protected:
+	std::shared_ptr<ClientPlatform> mPlatform{};     /**< The actual platform used on the test. */
+	std::chrono::seconds mCallRemotePushInterval{0}; /**< Expected interval between two successive PN. */
+};
+
+/**
  * Default PNHandler that just expect a single PN with the expected push type
- * and RFC8599 paramters.
+ * and RFC8599 parameters.
  */
 class DefaultPNHandler : public PNHandler {
 public:
@@ -508,6 +467,141 @@ private:
 	const int mExpectedReceivedRingingPN{3}; /**< Expected number of ringing PNs. */
 };
 
+/**
+ * Test that when a client call another offline client, then the callee
+ * actually received a push notification of the expected type and received
+ * the call after registration.
+ */
+template <typename ClientPlatformT, typename PNHandlerT = DefaultPNHandler>
+class CallInviteOnOfflineDevice : public PushNotificationTest {
+protected:
+	void onAgentConfiguration(GenericManager& cfg) override {
+		PushNotificationTest::onAgentConfiguration(cfg);
+		cfg.getRoot()
+		    ->get<GenericStruct>("module::PushNotification")
+		    ->get<ConfigValue>("call-remote-push-interval")
+		    ->set(to_string(mPNHandler->getCallRemotePushInterval().count()));
+	}
+
+	void testExec() override {
+		auto proxy = make_shared<Server>(mAgent);
+		auto core1 = make_shared<CoreClient>("sip:user1@sip.example.org", proxy);
+		auto core2 = make_shared<CoreClient>(
+		    move(ClientBuilder{"sip:user2@sip.example.org"}.setPushParams(mPlatform->getContactPushParams())), proxy);
+		core2->getCore()->setNetworkReachable(false);
+		core2->setCallInviteReceivedDelay(core2->getCallInviteReceivedDelay() +
+		                                  mPNHandler->getCallInviteReceivedExtraDelay());
+
+		for (const auto& pushParams : mPlatform->getRegistrationPushParams()) {
+			dynamic_pointer_cast<DummyPushClient>(mPushClient)
+			    ->registerUserAgent(
+			        pushParams, core2,
+			        [aPNHandler = weak_ptr<PNHandler>{mPNHandler}](const auto& aUserAgent, const auto& aPNRequest) {
+				        auto pnHandler = aPNHandler.lock();
+				        if (pnHandler) pnHandler->onPNReceived(aUserAgent, aPNRequest);
+			        });
+		}
+
+		core1->call(core2);
+	}
+
+	// Protected attributes
+	std::shared_ptr<ClientPlatform> mPlatform{std::make_shared<ClientPlatformT>()};
+	std::shared_ptr<PNHandler> mPNHandler{std::make_shared<PNHandlerT>(mPlatform)};
+};
+
+/**
+ * Test that the proxy hasn't an undefined behavior when the RemotePushStrategy is used to notify a call, the caller
+ * cancels the call before the callee accept the invite and the final remote push notification cannot be sent because
+ * for any reason. Especially, the exception thrown by pushnotification::Service::sentPush() must be caught.
+ */
+class CallRemotePNCancelation : public PushNotificationTest {
+public:
+	CallRemotePNCancelation() : PushNotificationTest{make_shared<_DummyPushClient>()} {
+	}
+
+	void onAgentConfiguration(GenericManager& cfg) override {
+		PushNotificationTest::onAgentConfiguration(cfg);
+		cfg.getRoot()
+		    ->get<GenericStruct>("module::PushNotification")
+		    ->get<ConfigValue>("call-remote-push-interval")
+		    ->set("1");
+	}
+
+	void testExec() override {
+		auto proxy = make_shared<Server>(mAgent);
+		auto core1 = make_shared<CoreClient>("sip:user1@sip.example.org", proxy);
+		auto core2 = make_shared<CoreClient>(
+		    move(ClientBuilder{"sip:user2@sip.example.org"}.setPushParams(mPlatform->getContactPushParams())), proxy);
+		core2->getCore()->setNetworkReachable(false);
+
+		auto pushClient = dynamic_pointer_cast<_DummyPushClient>(mPushClient);
+
+		SLOGI << "Send INVITE to the callee and wait for the first ringing PN sending";
+		auto call = core1->invite(*core2);
+		auto ringingPushSent = CoreAssert{proxy->getAgent(), core1, core2}.wait([&pushClient]() {
+			BC_HARD_ASSERT(pushClient->getRingingPNCount() <= 1);
+			return pushClient->getRingingPNCount() == 1 ? ASSERTION_PASSED() : ASSERTION_CONTINUE();
+		});
+		BC_HARD_ASSERT(ringingPushSent);
+
+		SLOGI << "Canceling the current call";
+		call->terminate();
+		auto callReleased = CoreAssert{proxy->getAgent(), core1, core2}.wait([&call]() {
+			return call->getState() == linphone::Call::State::Released ? ASSERTION_PASSED() : ASSERTION_CONTINUE();
+		});
+		BC_HARD_ASSERT(callReleased);
+		BC_HARD_ASSERT_CPP_EQUAL(pushClient->getFinalPNSendingFailureCount(), 1);
+
+		// Workaround: register core2 again in order to avoid assertion failure on core2 destruction.
+		core2->getCore()->setNetworkReachable(true);
+		CoreAssert{proxy->getAgent(), core1, core2}.wait([&core2] {
+			return core2->getAccount()->getState() == linphone::RegistrationState::Ok ? ASSERTION_PASSED()
+			                                                                          : ASSERTION_CONTINUE();
+		});
+	}
+
+private:
+	// Private types
+	/**
+	 * Specific call client that simulate that the final push notification fails to be sent.
+	 */
+	class _DummyPushClient : public pushnotification::Client {
+	public:
+		int getRingingPNCount() const noexcept {
+			return mRingingPushCount;
+		}
+		int getFinalPNSendingFailureCount() const noexcept {
+			return mFinalPNSendingFailureCount;
+		}
+
+		void sendPush(const std::shared_ptr<Request>& req) override {
+			const auto& pInfo = req->getPInfo();
+			BC_HARD_ASSERT_CPP_EQUAL(req->getPushType(), PushType::Message);
+			BC_HARD_ASSERT_CPP_NOT_EQUAL(pInfo.mAlertMsgId, pInfo.mAcceptedElsewhereMsg);
+			BC_HARD_ASSERT_CPP_NOT_EQUAL(pInfo.mAlertMsgId, pInfo.mDeclinedElsewhereMsg);
+			if (pInfo.mAlertMsgId == pInfo.mMissingCallMsg) {
+				// Final PN sent when a call is canceled
+				++mFinalPNSendingFailureCount;
+				throw runtime_error{"simulated PN sending error"};
+			} else {
+				// Ringing PN
+				++mRingingPushCount;
+			}
+		}
+		bool isIdle() const noexcept override {
+			return false;
+		}
+
+	private:
+		int mRingingPushCount{0};           /**< Number of sent ringing push notifications. */
+		int mFinalPNSendingFailureCount{0}; /**< Number of failing trial for sending a final PN.  */
+	};
+
+	// Private attributes
+	std::shared_ptr<IOSRemoteOnly> mPlatform{make_shared<IOSRemoteOnly>()};
+};
+
 /*********** CoreClient based tests **********************************************************************************/
 
 /**
@@ -528,7 +622,8 @@ static test_t tests[] = {
     makeTest<CallInviteOnOfflineDevice<IOS>>("Call invite on offline device (iOS)"),
     makeTest<CallInviteOnOfflineDevice<IOSVoIPOnly>>("Call invite on offline device (iOS, VoIP only)"),
     makeTest<CallInviteOnOfflineDevice<IOSRemoteOnly, RingingRemotePNHandler>>(
-        "Call invite on offline device (iOS, Remote only)")};
+        "Call invite on offline device (iOS, Remote only)"),
+    makeTest<CallRemotePNCancelation>("Cancel a call notified by ringing remote push notifications")};
 
 test_suite_t modulePushNotificationSuite = {"Module push-notification",       nullptr, nullptr, nullptr, nullptr,
                                             sizeof(tests) / sizeof(tests[0]), tests};
