@@ -110,6 +110,8 @@ protected:
 	ModuleInfoBase *mInfo = nullptr;
 	GenericStruct *mModuleConfig = nullptr;
 	std::unique_ptr<EntryFilter> mFilter;
+	bool mDirtyConfig = false;
+
 };
 
 // -----------------------------------------------------------------------------
