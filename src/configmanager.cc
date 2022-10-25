@@ -894,10 +894,12 @@ GenericManager::GenericManager()
 	    {String, "contextual-log-level",
 	     "Verbosity of contextual logs to output when the condition defined in 'contextual-log-filter' is met.",
 	     "debug"},
-	    {StringList, "show-body-for",
-	     "Request type for which you want body in logs, white space separated. Full list: INVITE ACK CANCEL BYE "
-	     "OPTIONS REGISTER INFO PRACK UPDATE MESSAGE SUBSCRIBE NOTIFY REFER PUBLISH. Example : REGISTER INVITE.",
-	     "INVITE"},
+	    {String, "show-body-for",
+	     "Filter expression applied to all messages, if true message body is shown, if false not. Can not be empty, "
+	     "use 'true' or 'false' constants instead. The definition of the SIP boolean expression is documented here: "
+	     "https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/\n"
+	     "Example : content-type == 'application/sdp' && request.method == 'MESSAGE'",
+	     "content-type == 'application/sdp'"},
 
 	    // network settings
 	    {StringList, "transports",

@@ -110,15 +110,13 @@ bool MsgSip::isGroupChatInvite() const noexcept {
 	return true;
 }
 
-std::set<sip_method_t> MsgSip::sShowBodyFor = set<sip_method_t>{};
+shared_ptr<flexisip::SipBooleanExpression> MsgSip::sShowBodyFor{nullptr};
 
-void MsgSip::addShowBodyFor(const string& sipMethod) {
-	const auto sofiaSipMethod = sip_method_code(sipMethod.c_str());
-	if (sofiaSipMethod == sip_method_unknown || sofiaSipMethod == sip_method_invalid) {
-		throw invalid_argument("SIP method [" + sipMethod + "] is not a valid one.");
+void MsgSip::setShowBodyFor(const string& filterString) {
+	if (filterString.empty()) {
+		throw invalid_argument("show_body-for-filter can't be empty. Use true to see all body, false to see none.");
 	}
-
-	sShowBodyFor.insert(sofiaSipMethod);
+	sShowBodyFor = flexisip::SipBooleanExpressionBuilder::get().parse(filterString);
 }
 
 std::ostream& operator<<(std::ostream& strm, const sofiasip::MsgSip& obj) noexcept {
@@ -129,9 +127,8 @@ std::ostream& operator<<(std::ostream& strm, const sofiasip::MsgSip& obj) noexce
 	auto& hack = const_cast<sofiasip::MsgSip&>(obj);
 
 	auto messageString = hack.printString();
-	const auto& showBodyForList = MsgSip::getShowBodyFor();
 
-	if (showBodyForList.find(obj.getSipMethod()) == showBodyForList.cend()) {
+	if (!MsgSip::getShowBodyForFilter()->eval(*obj.getSip())) {
 		// If message method is not in the "show body" whitelist, remove body.
 		const auto endOfHeaders = messageString.find("\r\n\r\n");
 		const auto removedBodySize = endOfHeaders != std::string::npos ? messageString.size() - (endOfHeaders + 4) : 0;

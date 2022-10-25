@@ -90,7 +90,7 @@ string rawInvite =
     "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
     "CSeq: 1 INVITE\r\n"
     "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK\r\n"
-    "Content-Type: application/sdp"
+    "Content-Type: application/sdp\r\n"
     "Supported: replaces\r\n"
     "Supported: 100rel\r\n"
     "Authorization: Digest username=\"003332176\", realm=\"sip.ovh.net\", "
@@ -125,7 +125,7 @@ public:
 		/*
 		 * CASE : NOT IN SHOW BODY FOR
 		 */
-		MsgSip::addShowBodyFor("MESSAGE"s);
+		MsgSip::setShowBodyFor("request.method == 'MESSAGE'"s);
 		stringstream out;
 		out << invite;
 		auto invitePrinted = out.str();
@@ -137,7 +137,7 @@ public:
 		/*
 		 * CASE : ADDED IN SHOW BODY FOR
 		 */
-		MsgSip::addShowBodyFor("INVITE"s);
+		MsgSip::setShowBodyFor("request.method == 'INVITE'"s);
 		out.str("");
 		out << invite;
 		invitePrinted = out.str();
@@ -145,9 +145,9 @@ public:
 		/*-------------------------------*/
 
 		/*
-		 * CASE : CLEAR SHOW BODY FOR
+		 * CASE : FALSE SHOW BODY FOR
 		 */
-		MsgSip::getShowBodyFor().clear();
+		MsgSip::setShowBodyFor("false");
 		out.str("");
 		out << invite;
 		invitePrinted = out.str();
@@ -163,7 +163,8 @@ public:
 		MsgSip registerSip{0, rawRegister};
 		MsgSip subscribe{0, rawSubscribe};
 		MsgSip emptySubscribe{0, rawEmptySubscribe};
-		MsgSip::addShowBodyFor(set<string>{"INVITE", "MESSAGE", "REGISTER"});
+		MsgSip::setShowBodyFor(
+		    "request.method == 'INVITE' || request.method == 'MESSAGE' || request.method == 'REGISTER'");
 
 		out.str("");
 		out << invite;
@@ -192,6 +193,46 @@ public:
 		auto emptySubscribePrinted = out.str();
 		// Not in the list, but empty body, nothing to remove
 		BC_ASSERT_TRUE(emptySubscribePrinted == emptySubscribe.printString());
+
+		/*
+		 * CASE : FILTER ON CONTENT-TYPE
+		 */
+		MsgSip::setShowBodyFor("content-type == 'application/sdp'");
+
+		// Invite content-type is application/sdp
+		out.str("");
+		out << invite;
+		invitePrinted = out.str();
+		BC_ASSERT_TRUE(invitePrinted == invite.printString());
+
+		// Message content-type is not application/sdp
+		out.str("");
+		out << message;
+		messagePrinted = out.str();
+		BC_ASSERT_TRUE(messagePrinted != message.printString());
+		BC_ASSERT_TRUE(messagePrinted.find(" bytes of body hidden]") != string::npos);
+		BC_ASSERT_TRUE(messagePrinted.find("1234") == string::npos);
+
+		/*
+		 * CASE : COMPLEX WITH CONTENT-TYPE AND METHOD
+		 */
+		MsgSip::setShowBodyFor("content-type == 'application/sdp' && request.method == 'MESSAGE'");
+
+		// Invite content-type is application/sdp
+		out.str("");
+		out << invite;
+		invitePrinted = out.str();
+		BC_ASSERT_TRUE(invitePrinted != invite.printString());
+		BC_ASSERT_TRUE(invitePrinted.find(" bytes of body hidden]") != string::npos);
+		BC_ASSERT_TRUE(invitePrinted.find("v=0\r\n") == string::npos);
+
+		// Message content-type is not application/sdp
+		out.str("");
+		out << message;
+		messagePrinted = out.str();
+		BC_ASSERT_TRUE(messagePrinted != message.printString());
+		BC_ASSERT_TRUE(messagePrinted.find(" bytes of body hidden]") != string::npos);
+		BC_ASSERT_TRUE(messagePrinted.find("1234") == string::npos);
 	}
 };
 

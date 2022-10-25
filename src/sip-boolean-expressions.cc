@@ -113,6 +113,11 @@ static ExpressionRules<sip_t> rules = {
 	         if (sip.sip_status) ostr << sip.sip_status->st_status;
 	         return ostr.str();
          }},
+
+        {"content-type",
+         [](const sip_t& sip) -> string {
+	         return stringFromC(sip.sip_content_type ? sip.sip_content_type->c_type : nullptr);
+         }},
     },
     {
         {"is_request", [](const sip_t& sip) -> bool { return sip.sip_request != nullptr; }},

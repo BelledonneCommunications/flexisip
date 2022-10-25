@@ -194,17 +194,12 @@ void CommandLineInterface::handleConfigSet(unsigned int socket, const std::vecto
 		LogManager::get().setContextualFilter(value);
 		answer(socket, "contextual-log-filter : " + value);
 	} else if (config_value && (arg == "global/show-body-for")) {
-		auto previousConfSave = MsgSip::getShowBodyFor();
-		MsgSip::getShowBodyFor().clear();
-
 		try {
 			value = StringUtils::join(args, 1);
-			MsgSip::addShowBodyFor(StringUtils::split(value, " "));
+			MsgSip::setShowBodyFor(value);
 			config_value->set(value);
 			answer(socket, "show-body-for : " + value);
-		} catch (const invalid_argument& e) {
-			MsgSip::getShowBodyFor().clear();
-			MsgSip::getShowBodyFor().insert(previousConfSave.cbegin(), previousConfSave.cend());
+		} catch (const exception& e) {
 			answer(socket, "show-body-for : not modified, errors in args. "s + e.what());
 		}
 	} else {

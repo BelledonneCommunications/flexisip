@@ -29,6 +29,8 @@
 
 #include <bctoolbox/ownership.hh>
 
+#include "flexisip/sip-boolean-expressions.hh"
+
 using namespace ownership;
 
 namespace sofiasip {
@@ -90,21 +92,17 @@ public:
 	bool isGroupChatInvite() const noexcept;
 
 	/**
-	 * Add a sip method to the list of methods for which Flexisip shows request's body in logs.
+	 * Change the sip filter used by Flexisip to show or not request's body in logs.
 	 *
-	 * @param sipMethod string containing the name of the method.
-	 * @throw invalid_argument if sipMethod not in : INVITE ACK CANCEL BYE OPTIONS REGISTER INFO PRACK UPDATE MESSAGE
-	 * SUBSCRIBE
+	 * @param filterString string containing the name of the method.
+	 * @throw invalid_argument if filterString is not valid, or empty.
 	 */
-	static void addShowBodyFor(const std::string& sipMethod);
-	template <class Container>
-	static void addShowBodyFor(const Container& sipMethods) {
-		for (const auto& sipMethod : sipMethods) {
-			MsgSip::addShowBodyFor(sipMethod);
-		}
-	}
+	static void setShowBodyFor(const std::string& filterString);
 
-	static std::set<sip_method_t>& getShowBodyFor() {
+	static std::shared_ptr<flexisip::SipBooleanExpression>& getShowBodyForFilter() {
+		if (!sShowBodyFor) {
+			sShowBodyFor = flexisip::SipBooleanExpressionBuilder::get().parse("content-type == 'application/sdp'");
+		}
 		return sShowBodyFor;
 	}
 
@@ -115,7 +113,7 @@ private:
 	// Private attributes
 	Owned<msg_t> mMsg{nullptr};
 
-	static std::set<sip_method_t> sShowBodyFor;
+	static std::shared_ptr<flexisip::SipBooleanExpression> sShowBodyFor;
 };
 
 std::ostream& operator<<(std::ostream& strm, const sofiasip::MsgSip& obj) noexcept;
