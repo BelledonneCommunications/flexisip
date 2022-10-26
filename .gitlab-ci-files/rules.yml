@@ -51,6 +51,14 @@
     - when: manual
       allow_failure: true # This allows pipeline to continue without blocking on only manual jobs.
 
+# Jobs that run in NIGHTLY pipelines, are added in manual mode to all pipelines.
+.rules-manual-deploy:
+  rules:
+    - if: '$NIGHTLY != null'
+      when: on_success
+    - when: manual
+      allow_failure: true # This allows pipeline to continue without blocking on only manual jobs.
+
 # Jobs that run only for DEPLOY or DEPLOY_ONLY pipelines.
 .rules-deploy:
   rules:
