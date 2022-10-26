@@ -8,6 +8,6 @@ import ./nix/base.nix ({
     nixpkgs-fmt
     ccache
     clang_13
-    libllvm  # Adds llvm-symbolizer which adds line numbers to AddressSanitizer traces when compiling with clang
+    libllvm # Adds llvm-symbolizer which adds line numbers to AddressSanitizer traces when compiling with clang
   ];
 } // args)

@@ -21,6 +21,7 @@
 #include <linphone/core.h>
 #include <mediastreamer2/mediastream.h>
 
+#include "bctoolbox/tester.h"
 #include "flexisip/module-router.hh"
 
 #include "asserts.hh"
@@ -46,7 +47,10 @@ auto assert_data_transmitted(linphone::Call& calleeCall, linphone::Call& callerC
 		// Check both sides for download and upload
 		FAIL_IF(calleeAudioStats->getDownloadBandwidth() < 10);
 		FAIL_IF(callerAudioStats->getDownloadBandwidth() < 10);
+
 		if (videoOriginallyEnabled) { // Not VideoEnabled() of current call. Callee could have declined
+			FAIL_IF(!calleeCall.getCurrentParams()->videoEnabled());
+			FAIL_IF(!callerCall.getCurrentParams()->videoEnabled());
 			const auto& calleeVideoStats = calleeCall.getVideoStats();
 			FAIL_IF(calleeVideoStats == nullptr);
 			const auto& callerVideoStats = callerCall.getVideoStats();
@@ -57,6 +61,7 @@ auto assert_data_transmitted(linphone::Call& calleeCall, linphone::Call& callerC
 			FAIL_IF(callerCall.getCurrentParams()->videoEnabled());
 			FAIL_IF(calleeCall.getCurrentParams()->videoEnabled());
 		}
+
 		return ASSERTION_PASSED();
 	};
 }
