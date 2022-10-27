@@ -17,11 +17,13 @@
 */
 
 #include <chrono>
+#include <iostream>
 
 #include <linphone/core.h>
 #include <mediastreamer2/mediastream.h>
 
 #include "bctoolbox/tester.h"
+#include "flexisip/logmanager.hh"
 #include "flexisip/module-router.hh"
 
 #include "asserts.hh"
@@ -406,14 +408,20 @@ bool CoreClient::callUpdate(const std::shared_ptr<CoreClient>& peer,
 
 	// peer is set to auto accept update so just check the changes after
 	selfCall->update(callParams);
+	using State = linphone::Call::State;
+	BC_ASSERT_TRUE(selfCall->getState() == State::Updating);
+	BC_ASSERT_TRUE(peerCall->getState() == State::StreamsRunning);
 
 	// Wait for the update to be concluded
 	if (!BC_ASSERT_TRUE(CoreAssert({mCore, peer->getCore()}, mServer->getAgent())
-	                        .waitUntil(std::chrono::seconds(3), [selfCall, peerCall] {
-		                        return (selfCall->getState() == linphone::Call::State::StreamsRunning &&
-		                                peerCall->getState() == linphone::Call::State::StreamsRunning);
-	                        })))
+	                        .iterateUpTo(5,
+	                                     [&selfCall = *selfCall] {
+		                                     FAIL_IF(selfCall.getState() != State::StreamsRunning);
+		                                     return ASSERTION_PASSED();
+	                                     })
+	                        .assert_passed()))
 		return false;
+	BC_ASSERT_TRUE(peerCall->getState() == State::StreamsRunning);
 
 	if (!CoreAssert({mCore, peer->getCore()}, mServer->getAgent())
 	         .waitUntil(std::chrono::seconds(12),

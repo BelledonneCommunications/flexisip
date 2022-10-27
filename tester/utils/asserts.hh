@@ -68,25 +68,37 @@ public:
 		mIterateFuncs.push_back(iterate);
 	}
 	template <typename Func>
-	AssertionResult waitUntil(const std::chrono::duration<double> timeout, Func condition) {
+	AssertionResult waitUntil(const std::chrono::duration<double> timeout, Func&& condition) {
 		const auto timeLimit = std::chrono::steady_clock::now() + timeout;
 
-		while (true) {
-			for (const auto& iterate : mIterateFuncs) {
-				iterate();
-			}
-			const auto result = condition();
-			if (result || timeLimit < std::chrono::steady_clock::now()) {
-				return result;
-			}
-
-			std::this_thread::sleep_for(std::chrono::milliseconds(10));
-		}
+		return loopAssert([&timeLimit] { return timeLimit < std::chrono::steady_clock::now(); },
+		                  std::forward<Func>(condition));
 	}
 
 	template <typename Func>
 	AssertionResult wait(Func condition) {
 		return waitUntil(std::chrono::seconds(2), condition);
+	}
+
+	template <typename Func>
+	AssertionResult iterateUpTo(const uint32_t iterations, Func condition) {
+		auto remaining = iterations;
+		return loopAssert([&remaining] { return --remaining == 0; }, std::forward<Func>(condition));
+	}
+
+	template <typename AssertFunc, typename StopFunc>
+	AssertionResult loopAssert(StopFunc stopCondition, AssertFunc assertion) {
+		while (true) {
+			for (const auto& iterate : mIterateFuncs) {
+				iterate();
+			}
+			const auto result = assertion();
+			if (result || stopCondition()) {
+				return result;
+			}
+
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		}
 	}
 
 private:
