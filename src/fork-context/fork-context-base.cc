@@ -35,9 +35,10 @@ ForkContextBase::ForkContextBase(Agent* agent,
                                  const weak_ptr<ForkContextListener>& listener,
                                  const weak_ptr<StatPair>& counter,
                                  bool isRestored)
-    : mListener(listener), mStatCounter(counter), mCurrentPriority(-1), mAgent(agent),
+    : mCurrentPriority(-1), mAgent(agent),
       mEvent(make_shared<RequestSipEvent>(event)), // Is this deep copy really necessary ?
-      mCfg(cfg), mLateTimer(agent->getRoot()), mFinishTimer(agent->getRoot()), mNextBranchesTimer(agent->getRoot()) {
+      mCfg(cfg), mLateTimer(agent->getRoot()), mFinishTimer(agent->getRoot()), mNextBranchesTimer(agent->getRoot()),
+      mListener(listener), mStatCounter(counter) {
 	if (auto sharedCounter = mStatCounter.lock()) {
 		sharedCounter->incrStart();
 	} else {
