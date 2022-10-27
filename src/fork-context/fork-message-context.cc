@@ -230,13 +230,13 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo>& br) {
 	}
 }
 
-std::shared_ptr<BranchInfo> ForkMessageContext::onNewRegister(const SipUri& dest,
-                                                              const std::string& uid,
-                                                              const DispatchFunction& dispatchFunction) {
+ForkContext::OnNewRegisterAction ForkMessageContext::onNewRegister(const SipUri& dest,
+                                                                   const std::string& uid,
+                                                                   const DispatchFunction& dispatchFunction) {
 	LOGD("ForkMessageContext[%p] onNewRegister", this);
 
 	const auto dispatchPair = shouldDispatch(dest, uid);
-	if (!dispatchPair.first) return nullptr;
+	if (dispatchPair.first != DispatchStatus::DispatchNeeded) return OnNewRegisterAction::NoChanges;
 
 	if (uid.size() > 0) {
 		shared_ptr<BranchInfo> br = findBranchByUid(uid);
@@ -244,22 +244,25 @@ std::shared_ptr<BranchInfo> ForkMessageContext::onNewRegister(const SipUri& dest
 			// this is a new client instance. The message needs
 			// to be delivered.
 			LOGD("ForkMessageContext::onNewRegister(): this is a new client instance.");
-			return dispatchFunction();
+			dispatchFunction();
+			return OnNewRegisterAction::NewBranchAdded;
 		} else if (br->needsDelivery()) {
 			// this is a client for which the message wasn't delivered yet (or failed to be delivered). The message
 			// needs to be delivered.
 			LOGD("ForkMessageContext::onNewRegister(): this client is reconnecting but was not delivered before.");
-			return dispatchFunction();
+			dispatchFunction();
+			return OnNewRegisterAction::NewBranchAdded;
 		}
 	}
 	// in all other case we can accept a new transaction only if the message hasn't been delivered already.
 	LOGD("Message has been delivered %i times.", mDeliveredCount);
 
 	if (mDeliveredCount == 0) {
-		return dispatchFunction();
+		dispatchFunction();
+		return OnNewRegisterAction::NewBranchAdded;
 	}
 
-	return nullptr;
+	return OnNewRegisterAction::NoChanges;
 }
 
 ForkMessageContextDb ForkMessageContext::getDbObject() {

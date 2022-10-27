@@ -35,6 +35,14 @@ class ForkContextBase : public ForkContext, public std::enable_shared_from_this<
 public:
 	virtual ~ForkContextBase();
 
+	enum class DispatchStatus {
+		DispatchNeeded,
+		DispatchNotNeeded,
+		PendingTransaction,
+	};
+
+	using ShouldDispatchType = std::pair<DispatchStatus, std::shared_ptr<BranchInfo>>;
+
 	/**
 	 * Called by the Router module to create a new branch.
 	 */
@@ -130,11 +138,11 @@ protected:
 	 * This implementation looks for already pending or failed transactions.
 	 *
 	 * @return Return a pair with :
-	 *  - bool : tell if you should dispatch a new branch/transaction to the device targeted by dest/uid.
+	 *  - DispatchStatus : tell if you should dispatch a new branch/transaction to the device targeted by dest/uid.
 	 *  - std::shared_ptr<BranchInfo> : the failed/unfinished branch/transaction you will replace if it exist or
 	 * nullptr.
 	 */
-	std::pair<bool, std::shared_ptr<BranchInfo>> shouldDispatch(const SipUri& dest, const std::string& uid);
+	ShouldDispatchType shouldDispatch(const SipUri& dest, const std::string& uid);
 	/**
 	 * Send a response in the incoming transaction associated to this ForkContext.
 	 * @param status SIP response status.

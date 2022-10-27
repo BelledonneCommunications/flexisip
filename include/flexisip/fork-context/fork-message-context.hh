@@ -45,7 +45,7 @@ public:
 
 	virtual ~ForkMessageContext();
 
-	std::shared_ptr<BranchInfo>
+	OnNewRegisterAction
 	onNewRegister(const SipUri& dest, const std::string& uid, const DispatchFunction& dispatchFunction) override;
 	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& ev) override;
 

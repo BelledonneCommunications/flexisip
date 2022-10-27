@@ -179,28 +179,34 @@ void ForkCallContext::logResponse(const shared_ptr<ResponseSipEvent>& ev) {
 	}
 }
 
-std::shared_ptr<BranchInfo>
+ForkContext::OnNewRegisterAction
 ForkCallContext::onNewRegister(const SipUri& url, const std::string& uid, const DispatchFunction& dispatchFunction) {
 	LOGD("ForkCallContext[%p]::onNewRegister()", this);
-	if (isCompleted() && !mCfg->mForkLate) return nullptr;
+	if (isCompleted() && !mCfg->mForkLate) return OnNewRegisterAction::NoChanges;
 
 	const auto dispatchPair = shouldDispatch(url, uid);
 
+	if (dispatchPair.first != DispatchStatus::DispatchNeeded) {
+		return OnNewRegisterAction::NoChanges;
+	}
+
 	shared_ptr<BranchInfo> dispatchedBranch{nullptr};
-	if (!isCompleted() && dispatchPair.first) {
-		dispatchedBranch = dispatchFunction();
-	} else if (dispatchPair.first && dispatchPair.second) {
+	if (!isCompleted()) {
+		dispatchFunction();
+		checkFinished();
+		return OnNewRegisterAction::NewBranchAdded;
+	} else if (dispatchPair.second) {
 		if (auto pushContext = dispatchPair.second->pushContext.lock()) {
 			if (pushContext->getPushInfo()->isApple()) {
 				dispatchedBranch = dispatchFunction();
 				cancelBranch(dispatchedBranch);
+				checkFinished();
+				return OnNewRegisterAction::NewBranchAdded;
 			}
 		}
 	}
 
-	checkFinished();
-
-	return dispatchedBranch;
+	return OnNewRegisterAction::NoChanges;
 }
 
 bool ForkCallContext::isCompleted() const {

@@ -183,17 +183,17 @@ void ForkMessageContextDbProxy::onPushSent(PushNotificationContext& aPNCtx, bool
 	}
 }
 
-std::shared_ptr<BranchInfo>
+ForkContext::OnNewRegisterAction
 ForkMessageContextDbProxy::onNewRegister(const SipUri& dest, const string& uid, const DispatchFunction& dispatchFunc) {
 	LOGD("ForkMessageContextDbProxy[%p] onNewRegister", this);
 
 	// Do not access DB or call OnNewRegister if we already know that this device is delivered.
 	if (isAlreadyDelivered(dest, uid)) {
-		return nullptr;
+		return OnNewRegisterAction::NoChanges;
 	}
 
 	// Try to restore the ForkMessage from a previous recursive call.
-	if (!restoreForkIfNeeded()) return nullptr; // runtime_error during restoration
+	if (!restoreForkIfNeeded()) return OnNewRegisterAction::NoChanges; // runtime_error during restoration
 
 	// If the ForkMessage is only in database create a thread to access database and then recursively call this method.
 	if (getState() == State::IN_DATABASE) {
@@ -215,14 +215,13 @@ ForkMessageContextDbProxy::onNewRegister(const SipUri& dest, const string& uid, 
 			    });
 		});
 
-		// Always return a fake empty branch here in case you were called by delayedOnNewRegister.
-		return BranchInfo::make();
+		return OnNewRegisterAction::NoChanges;
 	}
 
 	// Call the reel OnNewRegister method on the proxified object.
 	auto newRegisterResult = mForkMessage->onNewRegister(dest, uid, dispatchFunc);
 
-	if (!newRegisterResult) {
+	if (newRegisterResult == OnNewRegisterAction::NoChanges) {
 		clearMemoryIfPossible();
 		mAlreadyDelivered.emplace_back(dest.getHost(), dest.getPort(), uid);
 	} else {

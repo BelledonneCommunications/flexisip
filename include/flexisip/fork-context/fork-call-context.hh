@@ -57,7 +57,7 @@ protected:
 	 */
 	void onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept override;
 
-	std::shared_ptr<BranchInfo>
+	OnNewRegisterAction
 	onNewRegister(const SipUri& url, const std::string& uid, const DispatchFunction& dispatchFunction) override;
 
 	void start() override;
