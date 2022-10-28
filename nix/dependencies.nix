@@ -43,4 +43,7 @@ with pkgs;
   xorg.libX11
   jsoncpp
 ]
-++ optional (enableB2bua && enableUnitTests) glew
+++ optionals (enableB2bua && enableUnitTests) [
+  glew
+  libvpx # We need a video codec for video calls to establish successfully
+]

@@ -28,6 +28,8 @@
 namespace flexisip {
 namespace tester {
 
+std::shared_ptr<linphone::Core> minimal_core(linphone::Factory& factory);
+
 class Server;
 class CoreClient;
 

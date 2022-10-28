@@ -38,7 +38,9 @@
 #include <flexisip/module.hh>
 #include <flexisip/push-param.hh>
 
+#include "utils/rand.hh"
 #include "utils/sip-uri.hh"
+#include "utils/string-utils.hh"
 
 namespace flexisip {
 
@@ -59,12 +61,67 @@ struct ExtendedContactCommon {
 	ExtendedContactCommon(const std::string &route) : mPath{route} {}
 };
 
+// String wrapper. If initialized with an empty string, will take a randomly generated placeholder value instead.
+class InstanceID {
+public:
+	static constexpr const char kAutoGenTag[] = "fs-gen-";
+	static RandomStringGenerator sRsg;
+
+	template <class... Args>
+	InstanceID(Args&&... args) : mValue(std::forward<Args>(args)...) {
+		if (mValue.empty()) mValue = placeholder();
+	}
+
+	bool isPlaceholder() const {
+		return StringUtils::startsWith(mValue, kAutoGenTag);
+	}
+
+	std::string& str() {
+		return mValue;
+	}
+	const std::string& str() const {
+		return mValue;
+	}
+
+	operator std::string&() {
+		return mValue;
+	}
+	operator const std::string&() const {
+		return mValue;
+	}
+
+	bool operator==(const std::string& other) const {
+		return mValue == other;
+	}
+
+private:
+	std::string mValue;
+
+	// The probability of collisions for v4 UUIDs is considered negligible for most use cases.
+	// That's a collision space of 2¹²² possibilities; Which gives us an upper bound since we don't need to be
+	// "universally" unique.
+	static constexpr auto requiredCharCountForUniqueness() {
+		auto charCount = sRsg.kCharCount;
+		auto approximatePowerOf2 = 0;
+		while (charCount >>= 1) {
+			approximatePowerOf2 += 1;
+		}
+		return 122 / approximatePowerOf2;
+	}
+
+	// Generate a random unique identifier for internal use in the Registrar
+	static std::string placeholder() {
+		constexpr auto size = requiredCharCountForUniqueness();
+		return std::string{kAutoGenTag} + sRsg(size);
+	}
+};
+
 struct ExtendedContact {
 	class Record;
 	friend class Record;
 
 	std::string mCallId{};
-	std::string mUniqueId{};
+	InstanceID mUniqueId{};
 	std::list<std::string> mPath{}; //list of urls as string (not enclosed with brakets)
 	std::string mUserAgent{};
 	sip_contact_t *mSipContact{nullptr}; // Full contact
@@ -85,10 +142,12 @@ struct ExtendedContact {
 	PushParamList mPushParamList{};
 
 	const char *callId() const {return mCallId.c_str();}
-	const char *line() const {return mUniqueId.c_str();}
+	const char* line() const {
+		return mUniqueId.str().c_str();
+	}
 	std::string contactId() const {
 		// A contact identifies by its unique-id if given. Otherwise, it identifies thanks to its sip uri.
-		if (!mUniqueId.empty()) return mUniqueId;
+		if (!mUniqueId.isPlaceholder()) return mUniqueId.str();
 		return urlToString(mSipContact->m_url);
 	}
 	const char *route() const {return (mPath.empty() ? nullptr : mPath.cbegin()->c_str());}
@@ -123,9 +182,8 @@ struct ExtendedContact {
 		}
 		return std::string(url);
 	}
-	/* In absence of the uniqueID, the registration are referenced by their call-id */
 	const std::string &getUniqueId() const {
-		return (mUniqueId.empty() ? mCallId : mUniqueId);
+		return mUniqueId;
 	}
 
 	time_t getExpireNotAtMessage() const {
@@ -141,10 +199,7 @@ struct ExtendedContact {
 	void init(bool initExpire = true);
 	void extractInfoFromUrl(const char* full_url);
 
-	ExtendedContact(const char *uniqueId, const char* fullUrl)
-	:
-		mUniqueId{uniqueId ? uniqueId : ""}
-	{
+	ExtendedContact(const char* uniqueId, const char* fullUrl) : mUniqueId(uniqueId) {
 		extractInfoFromUrl(fullUrl);
 		init();
 	}
@@ -220,7 +275,15 @@ class Record {
 	SipUri mAor;
 	bool mIsDomain = false; /*is a domain registration*/
 	bool mOnlyStaticContacts = true;
-	static void eliminateAmbiguousContacts(std::list<std::shared_ptr<ExtendedContact>> & extendedContacts);
+	static void eliminateAmbiguousContacts(std::list<std::unique_ptr<ExtendedContact>> & extendedContacts);
+
+	enum class ContactMatch {
+		Skip,           // Does not match the newly registered contact. Nothing to do.
+		EraseAndNotify, // Update or Remove
+		ForceErase,     // Service clean up
+	};
+
+	static ContactMatch matchContacts(const ExtendedContact& existing, const ExtendedContact& neo);
 
   public:
 	static std::list<std::string> sLineFieldNames;
@@ -239,7 +302,7 @@ class Record {
 	//Get address of record
 	const SipUri &getAor() const {return mAor;}
 
-	void insertOrUpdateBinding(const std::shared_ptr<ExtendedContact> &ec, const std::shared_ptr<ContactUpdateListener> &listener);
+	void insertOrUpdateBinding(std::unique_ptr<ExtendedContact>&& ec, ContactUpdateListener* listener);
 	const std::shared_ptr<ExtendedContact> extractContactByUniqueId(const std::string &uid) const;
 	sip_contact_t *getContacts(su_home_t *home, time_t now);
 	void pushContact(const std::shared_ptr<ExtendedContact> &ct) {mContacts.push_back(ct);}
@@ -254,7 +317,7 @@ class Record {
 	void update(const ExtendedContactCommon &ecc, const char *sipuri, long int expireAt, float q, uint32_t cseq,
 				time_t updated_time, bool alias, const std::list<std::string> accept, bool usedAsRoute,
 				const std::shared_ptr<ContactUpdateListener> &listener);
-	bool updateFromUrlEncodedParams(const char *uid, const char *full_url, const std::shared_ptr<ContactUpdateListener> &listener);
+	bool updateFromUrlEncodedParams(const char* uid, const char* full_url, ContactUpdateListener* listener);
 
 	void print(std::ostream &stream) const;
 	bool isEmpty() const {return mContacts.empty();}
@@ -291,9 +354,24 @@ class Record {
 	static std::string defineKeyFromUrl(const url_t *aor);
 	static SipUri makeUrlFromKey(const std::string &key);
 	static std::string extractUniqueId(const sip_contact_t *contact);
-	
 
-	
+	auto debugFmt() const {
+		std::ostringstream stream;
+		stream << "Record { address: " << this << ", mKey: " << mKey << ", mAor: " << mAor.str() << ", mContacts: [";
+		for (const auto& contact : mContacts) {
+			stream << "\nContact { " << *contact << " },";
+		}
+		stream << " ], mContactsToRemove: [";
+		for (const auto& contact : mContactsToRemove) {
+			stream << "\nContact { " << *contact << " },";
+		}
+		stream << " ], mContactsToAddOrUpdate: [";
+		for (const auto& contact : mContactsToAddOrUpdate) {
+			stream << "\nContact { " << *contact << " },";
+		}
+		stream << " ] }";
+		return stream.str();
+	}
 };
 
 template <typename TraitsT>

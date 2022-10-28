@@ -36,4 +36,6 @@ void Rand::makeSeed() noexcept {
 
 bool Rand::sSeeded{false};
 
+constexpr const char RandomStringGenerator::kAlphabet[];
+
 } // namespace flexisip

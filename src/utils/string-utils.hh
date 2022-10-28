@@ -25,6 +25,10 @@
 #include <string>
 #include <vector>
 
+#include "linphone++/enums.hh"
+
+#include "utils/stl-backports.hh"
+
 class StringUtils {
 public:
 	/**
@@ -137,8 +141,10 @@ public:
 	}
 
 	// Returns 'true' if 'str' starts with 'prefix'.
-	static bool startsWith(const std::string &str, const std::string &prefix) noexcept {
-		return str.compare(0, prefix.size(), prefix) == 0;
+	template <typename StringLike>
+	static bool startsWith(const std::string& str, const StringLike prefix) noexcept {
+		// https://stackoverflow.com/a/40441240
+		return str.rfind(prefix, 0) == 0;
 	}
 
 	// Returns 'true' if 'str' ends with 'prefix'.
@@ -146,4 +152,24 @@ public:
 		return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 	}
 
+	/**
+	 * Parse a string into a linphone::MediaEncryption
+	 *
+	 * @param[in]	configString	the configuration string, one of: zrtp, sdes, dtls-srtp, none
+	 **/
+	static flexisip::stl_backports::optional<linphone::MediaEncryption> string2MediaEncryption(const std::string& str) {
+		using enc = linphone::MediaEncryption;
+
+		if (str == "zrtp") {
+			return enc::ZRTP;
+		} else if (str == "sdes") {
+			return enc::SRTP;
+		} else if (str == "dtls-srtp") {
+			return enc::DTLS;
+		} else if (str == "none") {
+			return enc::None;
+		}
+
+		return {};
+	}
 };

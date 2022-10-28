@@ -16,15 +16,25 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "b2bua/external-provider-bridge.hh"
-#include "linphone++/linphone.hh"
-#include "linphone/misc.h"
 #include <fstream>
 #include <iostream>
-#include <json/json.h>
 #include <regex>
 
+#include <json/json.h>
+
+#include "linphone++/enums.hh"
+#include "linphone++/linphone.hh"
+#include "linphone/misc.h"
+
+#include "utils/stl-backports.hh"
+#include "utils/string-utils.hh"
+
+#include "external-provider-bridge.hh"
+
+using namespace std;
+
 namespace flexisip {
+using namespace stl_backports;
 namespace b2bua {
 namespace bridge {
 
@@ -55,15 +65,15 @@ Here is a template of what should be in this file:
 
 	GenericManager::get()
 	    ->getRoot()
-	    ->addChild(std::make_unique<GenericStruct>(configSection, "External SIP Provider Bridge parameters.", 0))
+	    ->addChild(make_unique<GenericStruct>(configSection, "External SIP Provider Bridge parameters.", 0))
 	    ->addChildrenValues(items);
 
 	return nullptr;
 }();
 } // namespace
 
-Account::Account(std::shared_ptr<linphone::Account>&& account, uint16_t&& freeSlots)
-    : account(std::move(account)), freeSlots(std::move(freeSlots)) {
+Account::Account(shared_ptr<linphone::Account>&& account, uint16_t&& freeSlots)
+    : account(move(account)), freeSlots(move(freeSlots)) {
 }
 
 bool Account::isAvailable() const {
@@ -76,11 +86,16 @@ bool Account::isAvailable() const {
 	return true;
 }
 
-ExternalSipProvider::ExternalSipProvider(std::string&& pattern, std::vector<Account>&& accounts, std::string&& name)
-    : pattern(std::move(pattern)), accounts(std::move(accounts)), name(std::move(name)) {
+ExternalSipProvider::ExternalSipProvider(string&& pattern,
+                                         vector<Account>&& accounts,
+                                         string&& name,
+                                         const optional<bool>& overrideAvpf,
+                                         const optional<linphone::MediaEncryption>& overrideEncryption)
+    : pattern(move(pattern)), accounts(move(accounts)), name(move(name)), overrideAvpf(overrideAvpf),
+      overrideEncryption(overrideEncryption) {
 }
 
-void AccountManager::initFromDescs(linphone::Core& core, std::vector<ProviderDesc>&& provDescs) {
+void AccountManager::initFromDescs(linphone::Core& core, vector<ProviderDesc>&& provDescs) {
 	providers.reserve(provDescs.size());
 	const auto factory = linphone::Factory::get();
 	auto params = core.createAccountParams();
@@ -106,7 +121,7 @@ void AccountManager::initFromDescs(linphone::Core& core, std::vector<ProviderDes
 		params->setRoutesAddresses({route});
 		params->enableRegister(provDesc.registrationRequired);
 
-		auto accounts = std::vector<Account>();
+		auto accounts = vector<Account>();
 		accounts.reserve(provDesc.accounts.size());
 		for (const auto& accountDesc : provDesc.accounts) {
 			if (accountDesc.uri.empty()) {
@@ -122,18 +137,18 @@ void AccountManager::initFromDescs(linphone::Core& core, std::vector<ProviderDes
 				                                         accountDesc.password, "", "", address->getDomain()));
 			}
 
-			accounts.emplace_back(Account(std::move(account), std::move(provDesc.maxCallsPerLine)));
+			accounts.emplace_back(Account(move(account), move(provDesc.maxCallsPerLine)));
 		}
-		providers.emplace_back(
-		    ExternalSipProvider(std::move(provDesc.pattern), std::move(accounts), std::move(provDesc.name)));
+		providers.emplace_back(ExternalSipProvider(move(provDesc.pattern), move(accounts), move(provDesc.name),
+		                                           provDesc.overrideAvpf, provDesc.overrideEncryption));
 	}
 }
 
-AccountManager::AccountManager(linphone::Core& core, std::vector<ProviderDesc>&& provDescs) {
-	initFromDescs(core, std::move(provDescs));
+AccountManager::AccountManager(linphone::Core& core, vector<ProviderDesc>&& provDescs) {
+	initFromDescs(core, move(provDescs));
 }
 
-void AccountManager::init(const std::shared_ptr<linphone::Core>& core, const flexisip::GenericStruct& config) {
+void AccountManager::init(const shared_ptr<linphone::Core>& core, const flexisip::GenericStruct& config) {
 	auto filePath = config.get<GenericStruct>(configSection)->get<ConfigString>(providersConfigItem)->read();
 	if (filePath[0] != '/') {
 		// Interpret as relative to config file
@@ -141,7 +156,7 @@ void AccountManager::init(const std::shared_ptr<linphone::Core>& core, const fle
 		const auto configFolderPath = configFilePath.substr(0, configFilePath.find_last_of('/') + 1);
 		filePath = configFolderPath + filePath;
 	}
-	auto fileStream = std::ifstream(filePath);
+	auto fileStream = ifstream(filePath);
 	constexpr auto fileDesignation = "external SIP providers JSON configuration file";
 	if (!fileStream.is_open()) {
 		LOGF("Failed to open %s '%s'", fileDesignation, filePath.c_str());
@@ -154,27 +169,40 @@ void AccountManager::init(const std::shared_ptr<linphone::Core>& core, const fle
 		LOGF("Failed to parse %s '%s':\n%s", fileDesignation, filePath.c_str(), errs.c_str());
 	}
 
-	auto providers = std::vector<ProviderDesc>();
+	auto providers = vector<ProviderDesc>();
 	for (auto pit = jsonProviders.begin(); pit != jsonProviders.end(); pit++) {
 		auto& provider = *pit;
 		auto& jsonAccounts = provider["accounts"];
-		auto accounts = std::vector<AccountDesc>();
+		auto accounts = vector<AccountDesc>();
 		for (auto ait = jsonAccounts.begin(); ait != jsonAccounts.end(); ait++) {
 			auto& account = *ait;
 			accounts.emplace_back(
 			    AccountDesc{account["uri"].asString(), account["userid"].asString(), account["password"].asString()});
 		}
-		providers.emplace_back(ProviderDesc{
-		    provider["name"].asString(), provider["pattern"].asString(), provider["outboundProxy"].asString(),
-		    provider["registrationRequired"].asBool(), provider["maxCallsPerLine"].asUInt(), std::move(accounts)});
+
+		optional<linphone::MediaEncryption> overrideEncryption{};
+		auto& mediaEncryption = provider["mediaEncryption"];
+		if (mediaEncryption.isString()) {
+			overrideEncryption = StringUtils::string2MediaEncryption(mediaEncryption.asString());
+		}
+		optional<bool> overrideAvpf{};
+		auto& enableAvpf = provider["enableAvpf"];
+		if (enableAvpf.isBool()) {
+			overrideAvpf = enableAvpf.asBool();
+		}
+		providers.emplace_back(
+		    ProviderDesc{provider["name"].asString(), provider["pattern"].asString(),
+		                 provider["outboundProxy"].asString(), provider["registrationRequired"].asBool(),
+		                 provider["maxCallsPerLine"].asUInt(), move(accounts), overrideAvpf, overrideEncryption});
 	}
 
-	initFromDescs(*core, std::move(providers));
+	initFromDescs(*core, move(providers));
 }
 
-Account* AccountManager::findAccountToCall(const std::string& destinationUri) {
+unique_ptr<pair<reference_wrapper<ExternalSipProvider>, reference_wrapper<Account>>>
+AccountManager::findAccountToCall(const string& destinationUri) {
 	for (auto& provider : providers) {
-		if (!std::regex_match(destinationUri, provider.pattern)) {
+		if (!regex_match(destinationUri, provider.pattern)) {
 			continue;
 		}
 
@@ -185,7 +213,8 @@ Account* AccountManager::findAccountToCall(const std::string& destinationUri) {
 		for (int i = seed; i < (seed + max); i++) {
 			auto& account = accounts[i % max];
 			if (account.isAvailable()) {
-				return &account;
+				return make_unique<pair<reference_wrapper<ExternalSipProvider>, reference_wrapper<Account>>>(
+				    make_pair<reference_wrapper<ExternalSipProvider>, reference_wrapper<Account>>(provider, account));
 			}
 		}
 	}
@@ -196,16 +225,25 @@ Account* AccountManager::findAccountToCall(const std::string& destinationUri) {
 linphone::Reason AccountManager::onCallCreate(const linphone::Call& incomingCall,
                                               linphone::Address& callee,
                                               linphone::CallParams& outgoingCallParams) {
-	const auto account = findAccountToCall(callee.asStringUriOnly());
-	if (!account) {
+	const auto pair = findAccountToCall(callee.asStringUriOnly());
+	if (!pair) {
 		SLOGD << "No external accounts available to bridge the call";
 		return linphone::Reason::NotAcceptable;
 	}
 
-	occupiedSlots[incomingCall.getCallLog()->getCallId()] = account;
-	account->freeSlots--;
-	outgoingCallParams.setAccount(account->account);
-	callee.setDomain(account->account->getParams()->getIdentityAddress()->getDomain());
+	auto& extAccount = pair->second.get();
+	occupiedSlots[incomingCall.getCallLog()->getCallId()] = &extAccount;
+	extAccount.freeSlots--;
+	const auto& linAccount = extAccount.account;
+	callee.setDomain(linAccount->getParams()->getIdentityAddress()->getDomain());
+	outgoingCallParams.setAccount(linAccount);
+	const auto& provider = pair->first.get();
+	if (const auto& mediaEncryption = provider.overrideEncryption) {
+		outgoingCallParams.setMediaEncryption(*mediaEncryption);
+	}
+	if (const auto& enableAvpf = provider.overrideAvpf) {
+		outgoingCallParams.enableAvpf(*enableAvpf);
+	}
 
 	return linphone::Reason::None;
 }
@@ -219,7 +257,7 @@ void AccountManager::onCallEnd(const linphone::Call& call) {
 	occupiedSlots.erase(it);
 }
 
-std::string AccountManager::handleCommand(const std::string& command, const std::vector<std::string>& args) {
+string AccountManager::handleCommand(const string& command, const vector<string>& args) {
 	if (command != "SIP_BRIDGE") {
 		return "";
 	}
@@ -238,21 +276,21 @@ std::string AccountManager::handleCommand(const std::string& command, const std:
 			const auto registerEnabled = params->registerEnabled();
 			const auto status = [registerEnabled, account]() {
 				if (!registerEnabled) {
-					return std::string{"OK"};
+					return string{"OK"};
 				}
 				const auto state = account->getState();
 				switch (state) {
 					case linphone::RegistrationState::Ok:
-						return std::string{"OK"};
+						return string{"OK"};
 					case linphone::RegistrationState::None:
-						return std::string{"Should register"};
+						return string{"Should register"};
 					case linphone::RegistrationState::Progress:
-						return std::string{"Registration in progress"};
+						return string{"Registration in progress"};
 					case linphone::RegistrationState::Failed:
-						return std::string{"Registration failed: "} +
+						return string{"Registration failed: "} +
 						       linphone_reason_to_string(static_cast<LinphoneReason>(account->getError()));
 					default:
-						return std::string{"Unexpected state: "} +
+						return string{"Unexpected state: "} +
 						       linphone_registration_state_to_string(static_cast<LinphoneRegistrationState>(state));
 				}
 			}();

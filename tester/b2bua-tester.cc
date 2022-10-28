@@ -121,6 +121,10 @@ public:
 	std::shared_ptr<linphone::Call> call(const ExternalClient& external);
 
 	void endCurrentCall(const ExternalClient& other);
+
+	auto getCore() {
+		return client.getCore();
+	}
 };
 
 class ExternalClient {
@@ -149,6 +153,10 @@ public:
 	auto endCurrentCall(const InternalClient& other) {
 		return client.endCurrentCall(other.client);
 	}
+
+	auto getCore() {
+		return client.getCore();
+	}
 };
 
 std::shared_ptr<linphone::Address> InternalClient::toInternal(std::shared_ptr<linphone::Address>&& external) const {
@@ -167,6 +175,28 @@ std::shared_ptr<linphone::Call> InternalClient::call(const ExternalClient& exter
 void InternalClient::endCurrentCall(const ExternalClient& other) {
 	client.endCurrentCall(other.client);
 }
+
+struct DtmfListener : public linphone::CallListener {
+	std::vector<int> received{};
+
+	void onDtmfReceived(const std::shared_ptr<linphone::Call>& _call, int dtmf) {
+		received.push_back(dtmf);
+	}
+};
+
+struct TempFile {
+	const char* name;
+
+	template <class Streamable>
+	TempFile(Streamable content) : name(std::tmpnam(nullptr)) {
+		std::ofstream file(name);
+		file << content;
+	}
+
+	~TempFile() {
+		std::remove(name);
+	}
+};
 
 static void external_provider_bridge__one_provider_one_line() {
 	using namespace flexisip::b2bua;
@@ -213,6 +243,45 @@ static void external_provider_bridge__one_provider_one_line() {
 	BC_ASSERT_TRUE(com_to_bridge->getCallLog()->getCallId() != outgoing_log->getCallId());
 	BC_ASSERT_TRUE(outgoing_log->getRemoteAddress()->asString() == line1);
 	other_intercom.endCurrentCall(other_phone);
+}
+
+static void external_provider_bridge__dtmf_forwarding() {
+	using namespace flexisip::b2bua;
+	auto server = std::make_shared<B2buaServer>("/config/flexisip_b2bua.conf");
+	auto providers = {bridge::ProviderDesc{"provider1",
+	                                       "sip:\\+39.*",
+	                                       outboundProxy,
+	                                       false,
+	                                       1,
+	                                       {bridge::AccountDesc{
+	                                           "sip:bridge@sip.provider1.com",
+	                                           "",
+	                                           "",
+	                                       }}}};
+	server->configureExternalProviderBridge(std::move(providers));
+	auto intercom = InternalClient("sip:intercom@sip.company1.com", server);
+	auto phone = ExternalClient("sip:+39064728917@sip.provider1.com;user=phone", server);
+	auto asserter = CoreAssert({intercom.getCore(), phone.getCore()}, server->getAgent());
+	auto legAListener = make_shared<DtmfListener>();
+	auto legBListener = make_shared<DtmfListener>();
+
+	auto legA = intercom.call(phone);
+	if (!BC_ASSERT_PTR_NOT_NULL(legA)) return;
+	legA->addListener(legAListener);
+	auto legB = phone.getCore()->getCurrentCall();
+	legB->addListener(legBListener);
+
+	legB->sendDtmf('9');
+	const auto& legAReceived = legAListener->received;
+	asserter.wait([&legAReceived]() { return !legAReceived.empty(); }).assert_passed();
+	BC_ASSERT_EQUAL(legAReceived.size(), 1, size_t, "%zx");
+	BC_ASSERT_EQUAL(legAReceived.front(), '9', char, "%c");
+
+	legA->sendDtmf('6');
+	const auto& legBReceived = legBListener->received;
+	asserter.wait([&legBReceived]() { return !legBReceived.empty(); }).assert_passed();
+	BC_ASSERT_EQUAL(legBReceived.size(), 1, size_t, "%zx");
+	BC_ASSERT_EQUAL(legBReceived.front(), '6', char, "%c");
 }
 
 // Assert that when a call ends, the appropriate account is updated
@@ -407,6 +476,40 @@ static void external_provider_bridge__parse_register_authenticate() {
 	BC_ASSERT_TRUE(info == expected);
 
 	intercom.endCurrentCall(phone);
+}
+
+static void external_provider_bridge__override_special_options() {
+	TempFile providersJson(R"([
+		{"mediaEncryption": "none",
+		 "enableAvpf": false,
+		 "name": "Test Provider",
+		 "pattern": "sip:unique-pattern.*",
+		 "outboundProxy": "<sip:127.0.0.1:3125;transport=scp>",
+		 "maxCallsPerLine": 173,
+		 "accounts": [
+			{"uri": "sip:bridge@sip.provider1.com"}
+		 ]
+		}
+	])");
+	ConfigItemDescriptor configItems[] = {{String, "providers", "help", providersJson.name}, config_item_end};
+	RootConfigStruct config("placeholder", "A stub config root for testing", {});
+	config.addChild(make_unique<GenericStruct>("b2bua-server::sip-bridge", "help", 0))->addChildrenValues(configItems);
+	b2bua::bridge::AccountManager accman{};
+	const auto core = minimal_core(*linphone::Factory::get());
+	accman.init(core, config);
+	auto calleeAddr = core->createAddress("sip:unique-pattern@example.org");
+	const auto call = core->inviteAddress(calleeAddr);
+	BC_ASSERT_PTR_NOT_NULL(call);
+	auto params = core->createCallParams(call);
+	params->setMediaEncryption(MediaEncryption::ZRTP);
+	params->enableAvpf(true);
+
+	const auto decline = accman.onCallCreate(*call, *calleeAddr, *params);
+
+	BC_ASSERT_TRUE(decline == linphone::Reason::None);
+	// Special call params overriden
+	BC_ASSERT_TRUE(params->getMediaEncryption() == MediaEncryption::None);
+	BC_ASSERT_TRUE(params->avpfEnabled() == false);
 }
 
 static void external_provider_bridge__b2bua_receives_several_forks() {
@@ -869,6 +972,8 @@ static test_t tests[] = {
     TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__cli),
     TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__parse_register_authenticate),
     TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__b2bua_receives_several_forks),
+    TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__dtmf_forwarding),
+    TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__override_special_options),
     TEST_NO_TAG("Basic", basic),
     TEST_NO_TAG("Forward Media Encryption", forward),
     TEST_NO_TAG("SDES to ZRTP call", sdes2zrtp),

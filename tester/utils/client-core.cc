@@ -17,10 +17,13 @@
 */
 
 #include <chrono>
+#include <iostream>
 
 #include <linphone/core.h>
 #include <mediastreamer2/mediastream.h>
 
+#include "bctoolbox/tester.h"
+#include "flexisip/logmanager.hh"
 #include "flexisip/module-router.hh"
 
 #include "asserts.hh"
@@ -46,7 +49,10 @@ auto assert_data_transmitted(linphone::Call& calleeCall, linphone::Call& callerC
 		// Check both sides for download and upload
 		FAIL_IF(calleeAudioStats->getDownloadBandwidth() < 10);
 		FAIL_IF(callerAudioStats->getDownloadBandwidth() < 10);
+
 		if (videoOriginallyEnabled) { // Not VideoEnabled() of current call. Callee could have declined
+			FAIL_IF(!calleeCall.getCurrentParams()->videoEnabled());
+			FAIL_IF(!callerCall.getCurrentParams()->videoEnabled());
 			const auto& calleeVideoStats = calleeCall.getVideoStats();
 			FAIL_IF(calleeVideoStats == nullptr);
 			const auto& callerVideoStats = callerCall.getVideoStats();
@@ -57,17 +63,26 @@ auto assert_data_transmitted(linphone::Call& calleeCall, linphone::Call& callerC
 			FAIL_IF(callerCall.getCurrentParams()->videoEnabled());
 			FAIL_IF(calleeCall.getCurrentParams()->videoEnabled());
 		}
+
 		return ASSERTION_PASSED();
 	};
 }
 
 } // namespace
 
+std::shared_ptr<linphone::Core> minimal_core(linphone::Factory& factory) {
+	auto linphoneConfig = factory.createConfig("");
+	linphoneConfig->setBool("logging", "disable_stdout", true);
+	auto core = factory.createCoreWithConfig(linphoneConfig, nullptr);
+	auto clientTransport = factory.createTransports();
+	clientTransport->setTcpPort(LC_SIP_TRANSPORT_DONTBIND);
+	core->setTransports(clientTransport);
+	return core;
+}
+
 ClientBuilder::ClientBuilder(const std::string& me)
-    : mFactory(linphone::Factory::get()), mMe(mFactory->createAddress(me)) {
-	auto configLinphone = Factory::get()->createConfig("");
-	configLinphone->setBool("logging", "disable_stdout", true);
-	mCore = mFactory->createCoreWithConfig(configLinphone, nullptr);
+    : mFactory(linphone::Factory::get()), mCore(minimal_core(*mFactory)), mMe(mFactory->createAddress(me)),
+      mAccountParams(mCore->createAccountParams()) {
 	mCore->setPrimaryContact(me);
 
 	mAccountParams = mCore->createAccountParams();
@@ -77,11 +92,6 @@ ClientBuilder::ClientBuilder(const std::string& me)
 		config->setString("storage", "backend", "sqlite3");
 		config->setString("storage", "uri", ":memory:");
 		config->setString("storage", "call_logs_db_uri", "null");
-	}
-	{
-		auto clientTransport = mFactory->createTransports();
-		clientTransport->setTcpPort(-2); // -2 for LC_SIP_TRANSPORT_DONTBIND)
-		mCore->setTransports(clientTransport);
 	}
 
 	mCore->setZrtpSecretsFile("null");
@@ -398,14 +408,20 @@ bool CoreClient::callUpdate(const std::shared_ptr<CoreClient>& peer,
 
 	// peer is set to auto accept update so just check the changes after
 	selfCall->update(callParams);
+	using State = linphone::Call::State;
+	BC_ASSERT_TRUE(selfCall->getState() == State::Updating);
+	BC_ASSERT_TRUE(peerCall->getState() == State::StreamsRunning);
 
 	// Wait for the update to be concluded
 	if (!BC_ASSERT_TRUE(CoreAssert({mCore, peer->getCore()}, mServer->getAgent())
-	                        .waitUntil(std::chrono::seconds(3), [selfCall, peerCall] {
-		                        return (selfCall->getState() == linphone::Call::State::StreamsRunning &&
-		                                peerCall->getState() == linphone::Call::State::StreamsRunning);
-	                        })))
+	                        .iterateUpTo(5,
+	                                     [&selfCall = *selfCall] {
+		                                     FAIL_IF(selfCall.getState() != State::StreamsRunning);
+		                                     return ASSERTION_PASSED();
+	                                     })
+	                        .assert_passed()))
 		return false;
+	BC_ASSERT_TRUE(peerCall->getState() == State::StreamsRunning);
 
 	if (!CoreAssert({mCore, peer->getCore()}, mServer->getAgent())
 	         .waitUntil(std::chrono::seconds(12),

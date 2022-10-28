@@ -224,9 +224,9 @@ void B2buaServer::onCallStateChanged(const std::shared_ptr<linphone::Core>& core
 		case linphone::Call::State::UpdatedByRemote: {
 			// Manage add/remove video - ignore for other changes
 			auto peerCall = getPeerCall(call);
-			auto peerCallParams = peerCall->getCurrentParams()->copy();
-			auto selfCallParams = call->getCurrentParams()->copy();
-			auto selfRemoteCallParams = call->getRemoteParams()->copy();
+			auto peerCallParams = mCore->createCallParams(peerCall);
+			const auto selfCallParams = call->getCurrentParams();
+			const auto selfRemoteCallParams = call->getRemoteParams();
 			bool update = false;
 			if (selfRemoteCallParams->videoEnabled() != selfCallParams->videoEnabled()) {
 				update = true;
@@ -238,6 +238,8 @@ void B2buaServer::onCallStateChanged(const std::shared_ptr<linphone::Core>& core
 			}
 			if (update) {
 				SLOGD << "update peer call";
+				// add this custom header so this call will not be intercepted by the b2bua
+				peerCallParams->addCustomHeader("flexisip-b2bua", "ignore");
 				peerCall->update(peerCallParams);
 				call->deferUpdate();
 			} else { // no update on video/audio status, just accept it with requested params
@@ -259,6 +261,14 @@ void B2buaServer::onCallStateChanged(const std::shared_ptr<linphone::Core>& core
 			break;
 	}
 }
+
+void B2buaServer::onDtmfReceived(const std::shared_ptr<linphone::Core>& _core,
+                                 const std::shared_ptr<linphone::Call>& call,
+                                 int dtmf) {
+	auto otherLeg = getPeerCall(call);
+	SLOGD << "Forwarding DTMF " << dtmf << " from " << call->getCallLog()->getCallId() << " to " << otherLeg->getCallLog()->getCallId();
+	otherLeg->sendDtmf(dtmf);
+};
 
 void B2buaServer::_init() {
 	// Parse configuration for Data Dir
@@ -289,6 +299,8 @@ void B2buaServer::_init() {
 	configLinphone->setInt("misc", "max_calls", 1000);
 	configLinphone->setInt("misc", "media_resources_mode", 1); // share media resources
 	configLinphone->setBool("sip", "reject_duplicated_calls", false);
+	configLinphone->setBool("sip", "use_rfc2833", true); // Forward DTMF via out-of-band RTP...
+	configLinphone->setBool("sip", "use_info", true); // ...or via SIP INFO if unsupported by media
 	configLinphone->setBool("sip", "defer_update_default",
 	                        true); // do not automatically accept update: we might want to update peer call before
 	configLinphone->setBool("misc", "conference_event_log_enabled", 0);
@@ -303,6 +315,7 @@ void B2buaServer::_init() {
 	mCore->enableAutoSendRinging(
 	    false); // Do not auto answer a 180 on incoming calls, relay the one from the other part.
 	mCore->setZrtpSecretsFile("null");
+	mCore->setInCallTimeout(30 * 60); // Give enough time to the outgoing call (legB) to establish while we leave the incoming one (legA) ringing
 
 	// b2bua shall never take the initiative of accepting or starting video calls
 	// stick to incoming call parameters for that
