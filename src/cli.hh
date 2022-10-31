@@ -18,11 +18,13 @@
 
 #pragma once
 
-#include <flexisip/configmanager.hh>
-#include <pthread.h>
+#include <future>
 #include <string>
+
+#include <pthread.h>
 #include <sys/un.h>
 
+#include <flexisip/configmanager.hh>
 namespace flexisip {
 class CliHandler {
 public:
@@ -50,26 +52,44 @@ private:
 
 class Agent;
 
+// Wraps a socket handle to close it automatically on destruction
+class SocketHandle {
+public:
+	explicit SocketHandle(int handle);
+	~SocketHandle();
+
+	int send(const std::string& message);
+	int recv(void* buffer, size_t length, int flags);
+
+	SocketHandle(SocketHandle&& other);
+
+	SocketHandle(const SocketHandle& other) = delete;
+	SocketHandle& operator=(const SocketHandle& other) = delete;
+	SocketHandle& operator=(SocketHandle&& other) = delete;
+
+protected:
+	int mHandle;
+};
+
 class CommandLineInterface {
 public:
 	CommandLineInterface(const std::string& name);
 	virtual ~CommandLineInterface();
 
-	void start();
+	std::future<void> start();
 	void stop();
 
 	void registerHandler(CliHandler& handler);
 
 protected:
-	void answer(unsigned int socket, const std::string& message);
-	virtual void parseAndAnswer(unsigned int socket, const std::string& command, const std::vector<std::string>& args);
+	virtual void parseAndAnswer(SocketHandle&& socket, const std::string& command, const std::vector<std::string>& args);
 
 private:
-	GenericEntry* getGenericEntry(const std::string& arg) const;
-	void handleConfigGet(unsigned int socket, const std::vector<std::string>& args);
-	void handleConfigList(unsigned int socket, const std::vector<std::string>& args);
-	void handleConfigSet(unsigned int socket, const std::vector<std::string>& args);
-	void dispatch(unsigned int socket, const std::string& command, const std::vector<std::string>& args);
+	GenericEntry* getGenericEntry(const std::string &arg) const;
+	void handleConfigGet(SocketHandle&& socket, const std::vector<std::string>& args);
+	void handleConfigList(SocketHandle&& socket, const std::vector<std::string>& args);
+	void handleConfigSet(SocketHandle&& socket, const std::vector<std::string>& args);
+	void dispatch(SocketHandle&& socket, const std::string& command, const std::vector<std::string>& args);
 	void run();
 
 	static GenericEntry* find(GenericStruct* root, std::vector<std::string>& path);
@@ -83,6 +103,7 @@ private:
 	int mControlFds[2] = {0, 0};
 	bool mRunning = false;
 	std::shared_ptr<CliHandler::HandlerTable> handlers;
+	std::promise<void> mReady;
 };
 
 class ProxyCommandLineInterface : public CommandLineInterface {
@@ -90,11 +111,12 @@ public:
 	ProxyCommandLineInterface(const std::shared_ptr<Agent>& agent);
 
 private:
-	void handleRegistrarClear(unsigned int socket, const std::vector<std::string>& args);
-	void handleRegistrarDelete(unsigned int socket, const std::vector<std::string>& args);
-	void handleRegistrarGet(unsigned int socket, const std::vector<std::string>& args);
-	void handleRegistrarDump(unsigned int socket, const std::vector<std::string>& args);
-	void parseAndAnswer(unsigned int socket, const std::string& command, const std::vector<std::string>& args) override;
+	void handleRegistrarClear(SocketHandle&& socket, const std::vector<std::string>& args);
+	void handleRegistrarDelete(SocketHandle&& socket, const std::vector<std::string>& args);
+	void handleRegistrarUpsert(SocketHandle&& socket, const std::vector<std::string>& args);
+	void handleRegistrarGet(SocketHandle&& socket, const std::vector<std::string>& args);
+	void handleRegistrarDump(SocketHandle&& socket, const std::vector<std::string>& args);
+	void parseAndAnswer(SocketHandle&& socket, const std::string& command, const std::vector<std::string>& args) override;
 
 	std::shared_ptr<Agent> mAgent;
 };

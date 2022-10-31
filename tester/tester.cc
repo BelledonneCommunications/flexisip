@@ -100,7 +100,6 @@ void flexisip_tester_init() {
 #if ENABLE_B2BUA
 	bc_tester_add_suite(&b2bua_suite);
 #endif
-	bc_tester_add_suite(&cli_suite);
 #if ENABLE_CONFERENCE
 	bc_tester_add_suite(&conference_suite);
 #endif

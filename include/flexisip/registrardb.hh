@@ -93,6 +93,8 @@ public:
 		return mValue == other;
 	}
 
+	static std::string generateUniqueId();
+
 private:
 	std::string mValue;
 
@@ -110,8 +112,7 @@ private:
 
 	// Generate a random unique identifier for internal use in the Registrar
 	static std::string placeholder() {
-		constexpr auto size = requiredCharCountForUniqueness();
-		return std::string{kAutoGenTag} + sRsg(size);
+		return std::string{kAutoGenTag} + generateUniqueId();
 	}
 };
 
@@ -526,6 +527,8 @@ public:
 	 * RegistrarDb::get()
 	 */
 	static RegistrarDb* get();
+	void
+	bind(MsgSip&& sipMsg, const BindingParameters& parameter, const std::shared_ptr<ContactUpdateListener>& listener);
 	void bind(const MsgSip& sipMsg,
 	          const BindingParameters& parameter,
 	          const std::shared_ptr<ContactUpdateListener>& listener);
@@ -533,13 +536,14 @@ public:
 	          const sip_contact_t* contact,
 	          const BindingParameters& parameter,
 	          const std::shared_ptr<ContactUpdateListener>& listener);
-	void clear(const MsgSip& sip, const std::shared_ptr<ContactUpdateListener>& listener);
-	void fetch(const SipUri& url, const std::shared_ptr<ContactUpdateListener>& listener, bool recursive = false);
-	void fetch(const SipUri& url,
-	           const std::shared_ptr<ContactUpdateListener>& listener,
-	           bool includingDomains,
-	           bool recursive);
-	void fetchList(const std::vector<SipUri> urls, const std::shared_ptr<ListContactUpdateListener>& listener);
+	void bind(const SipUri& from,
+	          const SipUri& contact,
+	          const BindingParameters& parameter,
+	          const std::shared_ptr<ContactUpdateListener>& listener);
+	void clear(const MsgSip &sip, const std::shared_ptr<ContactUpdateListener> &listener);
+	void fetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive = false);
+	void fetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive);
+	void fetchList(const std::vector<SipUri > urls, const std::shared_ptr<ListContactUpdateListener> &listener);
 	virtual void fetchExpiringContacts(time_t startTimestamp,
 	                                   std::chrono::seconds timeRange,
 	                                   std::function<void(std::vector<ExtendedContact>&&)>&& callback) const = 0;

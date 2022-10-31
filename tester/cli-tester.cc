@@ -1,25 +1,43 @@
-/*
- * Copyright (C) 2020 Belledonne Communications SARL
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+/** Copyright (C) 2010-2022 Belledonne Communications SARL
+ *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include "cli.hh"
+#include <cerrno>
+#include <chrono>
+#include <future>
+#include <string>
+
+#include <sysexits.h>
+
+#include <json/json.h>
+
+#include "utils/string-utils.hh"
+#include <flexisip/logmanager.hh>
+
 #include "tester.hh"
+#include "utils/asserts.hh"
+#include "utils/proxy-server.hh"
+#include "utils/redis-server.hh"
+#include "utils/test-patterns/registrardb-test.hh"
+#include "utils/test-patterns/test.hh"
+
+#include "cli.hh"
+
+using namespace std::string_literals;
+using namespace std::chrono_literals;
+
+namespace {
+
+constexpr const auto socket_connect = connect;
+
+}
+
+namespace flexisip {
+namespace tester {
 
 namespace cli_tests {
+
+using CapturedCalls = std::vector<std::string>;
 
 struct TestCli : public flexisip::CommandLineInterface {
 
@@ -27,11 +45,9 @@ struct TestCli : public flexisip::CommandLineInterface {
 	}
 
 	void send(const std::string& command) {
-		parseAndAnswer(0, command, {});
+		parseAndAnswer(flexisip::SocketHandle(0), command, {});
 	}
 };
-
-using CapturedCalls = std::vector<std::string>;
 
 struct TestHandler : public flexisip::CliHandler {
 	std::string output;
@@ -46,8 +62,28 @@ struct TestHandler : public flexisip::CliHandler {
 	}
 };
 
-static void handler_registration_and_dispatch() {
-	auto socket_listener = TestCli();
+class SocketClientHandle : public SocketHandle {
+public:
+	SocketClientHandle() : SocketHandle(socket(AF_UNIX, SOCK_STREAM, 0)) {
+	}
+
+	int connect(sockaddr_un& address) {
+		return socket_connect(mHandle, (sockaddr*)&address, sizeof(address));
+	}
+
+	std::string recv(size_t size) {
+		std::string output(size, '\0');
+		auto nread = SocketHandle::recv(&output.front(), output.size(), 0);
+		if (nread < 0) {
+			BC_HARD_FAIL(("Recv error "s + std::to_string(errno) + ": " + std::strerror(errno)).c_str());
+		}
+		output.resize(nread + 1);
+		return output;
+	}
+};
+
+void handler_registration_and_dispatch() {
+	TestCli socket_listener{};
 	auto passthrough_handler = TestHandler("");
 	socket_listener.registerHandler(passthrough_handler);
 
@@ -102,17 +138,245 @@ static void handler_registration_and_dispatch() {
 
 	// Cli with a shorter lifetime than the handler
 	{
-
-		auto temp_listener = TestCli();
+		TestCli temp_listener{};
 		temp_listener.registerHandler(passthrough_handler);
 	}
 	passthrough_handler.unregister(); // No asserts, this would simply crash the program
 }
 
-static test_t tests[] = {
-    TEST_NO_TAG_AUTO_NAMED(handler_registration_and_dispatch),
-};
-} // namespace cli_tests
+/**
+ * A note on deadlocks:
+ *
+ * The ProxyCommandLineInterface spawns its own thread to accept connections on the Unix socket.
+ * For our test purposes, we connect to that socket, send a command, and wait to receive a reply (blocking that thread).
+ * The CLI thread accepts and handles the command, but when using Redis, will initiate an async exchange. It will then
+ * be up to the sofia loop to step through the rest of the operations with Redis. Only at the end of that exchange will
+ * the temp socket be closed, and the thread that sent the command released. If that thread is the same as (or waiting
+ * on) the one that created the sofia loop, then it's a deadlock, since it can't possibly iterate the loop.
+ */
+template <typename Database>
+void flexisip_cli_dot_py() {
+	Database db{};
+	Server proxyServer(db.configAsMap());
+	ProxyCommandLineInterface cli(proxyServer.getAgent());
+	const auto cliReady = cli.start();
+	BcAssert asserter{};
+	asserter.addCustomIterate([&root = *proxyServer.getRoot()] { root.step(1ms); });
+	const auto pid = std::to_string(getpid());
+	const auto callScript = [pyScript = std::string(FLEXISIP_TESTER_DATA_SRCDIR) +
+	                                    "/../scripts/flexisip_cli.py --pid " + pid + " --server proxy ",
+	                         &asserter](const std::string& command, int expected_status) {
+		auto fut = std::async(std::launch::async, [command = pyScript + command, expected_status] {
+			auto* handle = popen(command.c_str(), "r");
+			BC_HARD_ASSERT_TRUE(handle != nullptr);
+			std::string output(0xFFFF, '\0');
+			auto nread = fread(&output.front(), sizeof(decltype(output)::value_type), output.size(), handle);
+			if (ferror(handle)) {
+				BC_HARD_FAIL(("Error "s + std::strerror(errno) + " reading from subprocess' stdout").c_str());
+			}
+			int exitStatus = pclose(handle);
+			if (exitStatus < 0) {
+				BC_HARD_FAIL(("Error "s + std::strerror(errno) + " closing process").c_str());
+			}
+			if (WIFEXITED(exitStatus)) exitStatus = WEXITSTATUS(exitStatus);
+			BC_ASSERT_EQUAL(exitStatus, expected_status, int, "%i");
+			output.resize(nread);
+			return output;
+		});
 
-test_suite_t cli_suite = {
-    "CLI", NULL, NULL, NULL, NULL, sizeof(cli_tests::tests) / sizeof(cli_tests::tests[0]), cli_tests::tests};
+		BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(15, [&fut] { return fut.wait_for(0s) == std::future_status::ready; }));
+
+		return fut.get();
+	};
+	auto callSocket = [address =
+	                       [&pid] {
+		                       sockaddr_un address;
+		                       address.sun_family = AF_UNIX;
+		                       strcpy(address.sun_path, ("/tmp/flexisip-proxy-"s + pid).c_str());
+		                       return address;
+	                       }(),
+	                   &asserter](const std::string& command) mutable {
+		// Must be created *before* the handle so it is destructed *after* it. In case of a timeout, the destructor
+		// would wait on the socket resulting in a deadlock
+		std::future<std::string> fut{};
+		SocketClientHandle handle{};
+
+		fut = std::async(std::launch::async, [command, &handle, &address] {
+			BC_HARD_ASSERT_TRUE(handle.connect(address) == 0);
+			BC_HARD_ASSERT_TRUE(0 < handle.send(command));
+			return handle.recv(0xFFFF);
+		});
+
+		BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(7, [&fut] { return fut.wait_for(0s) == std::future_status::ready; }));
+
+		return fut.get();
+	};
+	const auto deserialize = [reader = std::unique_ptr<Json::CharReader>([]() {
+		                          Json::CharReaderBuilder builder{};
+		                          return builder.newCharReader();
+	                          }())](const std::string& json_str) {
+		JSONCPP_STRING err;
+		Json::Value deserialized;
+		if (!reader->parse(&json_str.front(), &json_str.back(), &deserialized, &err)) {
+			BC_HARD_FAIL(err.c_str());
+		}
+		return deserialized;
+	};
+	const auto aor = "sip:test@sip.example.org";
+	const auto contact = "sip:test@[2a01:278:e0a:9f60:3a:29d7:6b2d:d48c]:47913";
+	const auto contactParams = ";transport=tls;fs-conn-id=dfa162d66fd19310";
+	std::ostringstream command{};
+
+	BC_HARD_ASSERT_TRUE(cliReady.wait_for(1s) == std::future_status::ready);
+
+	// Insert contact (and record)
+	command << "REGISTRAR_UPSERT " << aor << " " << contact << contactParams << " 055";
+	const auto returned_contacts = deserialize(callSocket(command.str()))["contacts"];
+	BC_ASSERT_EQUAL(returned_contacts.size(), 1, int, "%i");
+	const auto returned_contact = returned_contacts[0];
+	BC_ASSERT_STRING_EQUAL(returned_contact["call-id"].asCString(), "fs-cli-upsert");
+	BC_ASSERT_STRING_EQUAL(returned_contact["contact"].asCString(), contact);
+	const auto uid = returned_contact["unique-id"].asString();
+	BC_ASSERT_TRUE(StringUtils::startsWith(uid, "fs-cli-gen"));
+
+	{ // Get record
+		command.str("");
+		command << "REGISTRAR_GET " << aor;
+		const auto returned_contacts = deserialize(callScript(command.str(), EX_OK))["contacts"];
+		BC_ASSERT_EQUAL(returned_contacts.size(), 1, int, "%i");
+		const auto returned_contact = returned_contacts[0];
+		BC_ASSERT_STRING_EQUAL(returned_contact["unique-id"].asCString(), uid.c_str());
+		BC_ASSERT_STRING_EQUAL(returned_contact["call-id"].asCString(), "fs-cli-upsert");
+		BC_ASSERT_STRING_EQUAL(returned_contact["contact"].asCString(), contact);
+	}
+
+	{ // Modify contact
+		command.str("");
+		const auto modifiedContact = "sip:test2@[9f60:278:e0a:2a01:3a:d48c:6b2d:29d7]:91347";
+		command << "REGISTRAR_UPSERT " << aor << " '" << modifiedContact << "' 096 " << uid;
+		const auto returned_contacts = deserialize(callScript(command.str(), EX_OK))["contacts"];
+		BC_ASSERT_EQUAL(returned_contacts.size(), 1, int, "%i");
+		const auto returned_contact = returned_contacts[0];
+		BC_ASSERT_STRING_EQUAL(returned_contact["unique-id"].asCString(), uid.c_str());
+		BC_ASSERT_STRING_EQUAL(returned_contact["call-id"].asCString(), "fs-cli-upsert");
+		BC_ASSERT_STRING_EQUAL(returned_contact["contact"].asCString(), modifiedContact);
+	}
+
+	{ // Abuse matching rules to insert or update contacts based on RFC3261 matching rules
+		const auto aor = "sip:test2@sip.example.org";
+		const auto bogusUid = "fs-gen-something"; // Interpreted as placeholder because of the prefix
+		command.str("");
+		command << "REGISTRAR_UPSERT " << aor << " " << aor << " 173 " << bogusUid;
+		auto returned_contacts = deserialize(callScript(command.str(), EX_OK))["contacts"];
+		BC_ASSERT_EQUAL(returned_contacts.size(), 1, int, "%i");
+		auto returned_contact = returned_contacts[0];
+		BC_ASSERT_STRING_EQUAL(returned_contact["contact"].asCString(), aor);
+		BC_ASSERT_STRING_EQUAL(returned_contact["unique-id"].asCString(), bogusUid);
+
+		// Update contact despite uids not matching
+		const auto modifiedContact = "sip:test2@sip.EXAMPLE.org";
+		BC_ASSERT_STRING_NOT_EQUAL(aor, modifiedContact); // but matching according to RFC3261
+		const auto differentUid = "fs-gen-something_else";
+		command.str("");
+		command << "REGISTRAR_UPSERT " << aor << " " << modifiedContact << " 682 " << differentUid;
+		returned_contacts = deserialize(callScript(command.str(), EX_OK))["contacts"];
+		BC_ASSERT_EQUAL(returned_contacts.size(), 1, int, "%i");
+		returned_contact = returned_contacts[0];
+		BC_ASSERT_STRING_EQUAL(returned_contact["contact"].asCString(), modifiedContact);
+		BC_ASSERT_STRING_EQUAL(returned_contact["unique-id"].asCString(), bogusUid);
+
+		// Insert new contact despite specifying an existing uid
+		const auto differentUsername = "sip:test3@sip.example.org";
+		command.str("");
+		command << "REGISTRAR_UPSERT " << aor << " " << differentUsername << " 106 " << bogusUid;
+		returned_contacts = deserialize(callScript(command.str(), EX_OK))["contacts"];
+		BC_ASSERT_EQUAL(returned_contacts.size(), 2, int, "%i");
+		BC_ASSERT_STRING_EQUAL(returned_contacts[0]["unique-id"].asCString(), bogusUid);
+		BC_ASSERT_STRING_EQUAL(returned_contacts[1]["unique-id"].asCString(), bogusUid);
+	}
+
+	// TODO: Test parallel requests to the socket
+
+	{ // Insert contact. Id passed as argument is ignored/overriden by instance-id embedded in the contact
+		const auto returned_contacts =
+		    deserialize(callScript("REGISTRAR_UPSERT sip:test3@sip.example.org "
+		                           "'sip:test3@sip.example.org;+sip.instance=embedded' 3000 passed-as-argument",
+		                           EX_OK))["contacts"];
+		BC_ASSERT_EQUAL(returned_contacts.size(), 1, int, "%i");
+		const auto returned_contact = returned_contacts[0];
+		BC_ASSERT_STRING_EQUAL(returned_contact["unique-id"].asCString(), "embedded");
+	}
+
+	{ // Get Unknown Record (CLI)
+		const auto result = callScript("REGISTRAR_GET sip:unknown@sip.example.org", EX_USAGE);
+		BC_ASSERT_STRING_EQUAL(result.c_str(),
+		                       "Error 404: Not Found. The Registrar does not contain the requested AOR.\n");
+	}
+
+	{ // Get Unknown Record (Socket)
+		const auto result = callSocket("REGISTRAR_GET sip:unknown@sip.example.org");
+		BC_ASSERT_STRING_EQUAL(result.c_str(),
+		                       "Error 404: Not Found. The Registrar does not contain the requested AOR.");
+	}
+
+	{ // Unsupported command (The script will allow it)
+		const auto result = callScript("SIP_BRIDGE INFO", EX_USAGE);
+		BC_ASSERT_STRING_EQUAL(result.c_str(), "Error: unknown command SIP_BRIDGE\n");
+	}
+
+	{ // Unknown command (The script will reject it)
+		const auto result = callScript("unknown 2>&1", 2);
+		BC_ASSERT_TRUE(StringUtils::startsWith(result, "usage: flexisip_cli.py"));
+	}
+
+	{ // Unknown command (Socket)
+		const auto result = callSocket("unknown");
+		BC_ASSERT_STRING_EQUAL(result.c_str(), "Error: unknown command unknown");
+	}
+
+	{ // REGISTRAR_UPSERT Not enough arguments
+		const auto result = callSocket("REGISTRAR_UPSERT one short");
+		BC_ASSERT_TRUE(StringUtils::startsWith(
+		    result, "Error: REGISTRAR_UPSERT expects at least 3 arguments: <aor> <contact_address> <expire>"));
+	}
+
+	{ // REGISTRAR_UPSERT Too many arguments
+		const auto result = callSocket("REGISTRAR_UPSERT five is one too many");
+		BC_ASSERT_TRUE(StringUtils::startsWith(
+		    result,
+		    "Error: REGISTRAR_UPSERT expects at most 4 arguments: <aor> <contact_address> <expire> <unique-id>"));
+	}
+
+	{ // REGISTRAR_UPSERT invalid aor
+		const auto result = callSocket("REGISTRAR_UPSERT looks@valid2.me placholder placeholder");
+		BC_ASSERT_TRUE(StringUtils::startsWith(result, "Error: aor parameter is not a valid SIP address"));
+	}
+
+	{ // REGISTRAR_UPSERT invalid contact_address
+		const auto result = callSocket("REGISTRAR_UPSERT sip:valid@example.com looks@valid2.me placeholder");
+		BC_ASSERT_TRUE(StringUtils::startsWith(result, "Error: contact_address parameter is not a valid SIP address"));
+	}
+
+	{ // REGISTRAR_UPSERT bogus expire
+		const auto result = callSocket("REGISTRAR_UPSERT sip:valid@example.com sip:valid@example.com N0T4NUM83R");
+		BC_ASSERT_STRING_EQUAL(
+		    result.c_str(),
+		    "Error: expire parameter is not strictly positive. Use REGISTRAR_DELETE if you want to remove a binding.");
+	}
+}
+
+auto _ = [] {
+	using namespace DbImplementation;
+	static test_t tests[] = {
+	    CLASSY_TEST(handler_registration_and_dispatch),
+	    CLASSY_TEST(flexisip_cli_dot_py<Internal>),
+	    CLASSY_TEST(flexisip_cli_dot_py<Redis>),
+	};
+	static test_suite_t suite{"CLI", NULL, NULL, NULL, NULL, sizeof(tests) / sizeof(tests[0]), tests};
+	bc_tester_add_suite(&suite);
+	return nullptr;
+}();
+
+} // namespace cli_tests
+} // namespace tester
+} // namespace flexisip

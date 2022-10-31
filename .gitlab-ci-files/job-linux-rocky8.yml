@@ -36,13 +36,10 @@ job-rocky8-ninja-clang:
   extends:
     - .job-ninja-clang
     - .rocky8-image-variables
+    - .tester-artifacts
   variables:
     # -DCMAKE_PREFIX_PATH=/usr/local: Unit tests require libnghttp2_asio, which has been build and intalled into /usr/local
     CMAKE_OPTIONS: ${ROCKY8_CMAKE_OPTIONS} -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON -DCMAKE_PREFIX_PATH=/usr/local -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON
-  artifacts:
-    paths:
-      - OUTPUT/*
-      - sanitizer_ignore.txt
 
 #################################################
 # UNIT TESTS

@@ -44,6 +44,11 @@ using namespace flexisip;
 RandomStringGenerator InstanceID::sRsg{}; // String generator is automatically seeded here
 constexpr const char InstanceID::kAutoGenTag[];
 
+std::string InstanceID::generateUniqueId() {
+	constexpr auto size = requiredCharCountForUniqueness();
+	return sRsg(size);
+}
+
 ostream& ExtendedContact::print(ostream& stream, time_t _now, time_t _offset) const {
 	time_t now = _now;
 	time_t offset = _offset;
@@ -1292,17 +1297,22 @@ void RegistrarDb::bind(const MsgSip& sipMsg,
                        const BindingParameters& parameter,
                        const shared_ptr<ContactUpdateListener>& listener) {
 	/* Copy the SIP message because the below code modifies the message whereas bind() API suggests that it does not. */
-	MsgSip msgCopy{sipMsg};
-	sip_t* sip = msgCopy.getSip();
+	bind(MsgSip(sipMsg), parameter, listener);
+}
+
+void RegistrarDb::bind(MsgSip&& sipMsg,
+                       const BindingParameters& parameter,
+                       const shared_ptr<ContactUpdateListener>& listener) {
+	sip_t* sip = sipMsg.getSip();
 
 	bool gruu_assigned = false;
 	if (mGruuEnabled) {
-		url_t* gruuUri = synthesizePubGruu(msgCopy.getHome(), msgCopy);
+		url_t* gruuUri = synthesizePubGruu(sipMsg.getHome(), sipMsg);
 		if (gruuUri) {
 			/* assign a public gruu address to this contact */
 			msg_header_replace_param(
-			    msgCopy.getHome(), (msg_common_t*)sip->sip_contact,
-			    su_sprintf(msgCopy.getHome(), "pub-gruu=\"%s\"", url_as_string(msgCopy.getHome(), gruuUri)));
+			    sipMsg.getHome(), (msg_common_t*)sip->sip_contact,
+			    su_sprintf(sipMsg.getHome(), "pub-gruu=\"%s\"", url_as_string(sipMsg.getHome(), gruuUri)));
 			gruu_assigned = true;
 		}
 	}
@@ -1310,8 +1320,8 @@ void RegistrarDb::bind(const MsgSip& sipMsg,
 		/* Set an empty pub-gruu meaning that this client hasn't requested any pub-gruu from this server.
 		 * This is to preserve compatibility with previous RegistrarDb storage, where only gr parameter was stored.
 		 * This couldn't work because a client can use a "gr" parameter in its contact uri.*/
-		msg_header_replace_param(msgCopy.getHome(), (msg_common_t*)sip->sip_contact,
-		                         su_sprintf(msgCopy.getHome(), "pub-gruu"));
+		msg_header_replace_param(sipMsg.getHome(), (msg_common_t*)sip->sip_contact,
+		                         su_sprintf(sipMsg.getHome(), "pub-gruu"));
 	}
 
 	int countSipContacts = this->countSipContacts(sip->sip_contact);
@@ -1322,7 +1332,7 @@ void RegistrarDb::bind(const MsgSip& sipMsg,
 		return;
 	}
 
-	doBind(msgCopy, parameter, listener);
+	doBind(sipMsg, parameter, listener);
 }
 
 void RegistrarDb::bind(const SipUri& aor,
@@ -1356,7 +1366,14 @@ void RegistrarDb::bind(const SipUri& aor,
 
 	sip->sip_expires = sip_expires_create(homeSip, 0);
 
-	bind(msg, parameter, listener);
+	bind(move(msg), parameter, listener);
+}
+
+void RegistrarDb::bind(const SipUri& aor,
+                       const SipUri& contact,
+                       const BindingParameters& parameter,
+                       const shared_ptr<ContactUpdateListener>& listener) {
+	bind(aor, contact.asContact(), parameter, listener);
 }
 
 class AgregatorRegistrarDbListener : public ContactUpdateListener {

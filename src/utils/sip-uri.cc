@@ -20,10 +20,12 @@
 #include <sstream>
 #include <stdexcept>
 
-#include "flexisip/configmanager.hh"
-#include "flexisip/utils/sip-uri.hh"
-
+#include "sofia-sip/sip_extra.h"
 #include "sofia-sip/url.h"
+
+#include "flexisip/configmanager.hh"
+
+#include "flexisip/utils/sip-uri.hh"
 
 using namespace std;
 
@@ -394,6 +396,10 @@ bool SipUri::rfc3261Compare(const url_t* other) const {
 	if (Headers(_url->url_headers) != other->url_headers) return false;
 
 	return true;
+}
+
+ownership::BorrowedMut<sip_contact_t> SipUri::asContact() const {
+	return ownership::borrowed_mut(sip_contact_make(_home.home(), str().c_str()));
 }
 
 } // namespace flexisip

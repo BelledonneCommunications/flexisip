@@ -22,6 +22,12 @@ public:
 		auto* registrarConf = cfg.getRoot()->get<GenericStruct>("module::Registrar");
 		registrarConf->get<ConfigValue>("db-implementation")->set("internal");
 	}
+
+	std::map<std::string, std::string> configAsMap() {
+		return {
+		    {"module::Registrar/db-implementation", "internal"},
+		};
+	}
 };
 
 class Redis {
@@ -35,6 +41,12 @@ public:
 		registrarConf->get<ConfigValue>("db-implementation")->set("redis");
 		registrarConf->get<ConfigValue>("redis-server-domain")->set("localhost");
 		registrarConf->get<ConfigValue>("redis-server-port")->set(to_string(redisPort));
+	}
+
+	std::map<std::string, std::string> configAsMap() {
+		return {{"module::Registrar/db-implementation", "redis"},
+		        {"module::Registrar/redis-server-domain", "localhost"},
+		        {"module::Registrar/redis-server-port", std::to_string(mRedisServer.start())}};
 	}
 };
 

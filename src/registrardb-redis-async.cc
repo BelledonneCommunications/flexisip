@@ -986,6 +986,7 @@ void RegistrarDbRedisAsync::handleRecordMigration(redisReply* reply, RedisRegist
 				return;
 			}
 		} else {
+			// Anchor WKADREGMIGDELREC
 			// This is a workaround required in case of unregister (expire set to 0) because
 			// if there is only one entry, it will be deleted first so the fetch will come back empty
 			// and flexisip will answer 480 instead of 200.

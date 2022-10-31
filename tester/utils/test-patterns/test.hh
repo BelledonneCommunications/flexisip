@@ -121,6 +121,28 @@ protected:
 };
 
 /**
+ * Wraps the test function in a try {} catch {} to enable BC_HARD_ASSERTs and graceful exception handling
+ * @param TestFunction The plain test function to wrap
+ */
+template <void TestFunction()>
+void run() noexcept {
+	try {
+		TestFunction();
+	} catch (const TestAssertFailedException&) {
+	} catch (const std::exception& e) {
+		std::ostringstream msg{};
+		msg << "runtime_error exception: " << e.what();
+		bc_assert(__FILE__, __LINE__, 0, msg.str().c_str());
+	}
+};
+
+template <typename TestT>
+void instanciateAndCall() {
+	TestT test{};
+	test();
+}
+
+/**
  * This function allows BCUnit to easily call a Test-derived class.
  * The template instantiation fits the restrictions to be placed
  * in a BCUnit test suites array.
@@ -128,15 +150,7 @@ protected:
  */
 template <typename TestT>
 void run() noexcept {
-	try {
-		TestT test{};
-		test();
-	} catch (const TestAssertFailedException&) {
-	} catch (const std::runtime_error& e) {
-		std::ostringstream msg{};
-		msg << "runtime_error exception: " << e.what();
-		bc_assert(__FILE__, __LINE__, 0, msg.str().c_str());
-	}
+	run<instanciateAndCall<TestT>>();
 };
 
 #define CLASSY_TEST(test_class) TEST_NO_TAG(#test_class, run<test_class>)

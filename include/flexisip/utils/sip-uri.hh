@@ -24,6 +24,9 @@
 #include <string>
 #include <unordered_map>
 
+#include <bctoolbox/ownership.hh>
+
+#include <sofia-sip/sip.h>
 #include <sofia-sip/url.h>
 
 #include <flexisip/sofia-wrapper/home.hh>
@@ -198,7 +201,7 @@ public:
 	bool compareAll(const Url& other) const;
 
 protected:
-	Home _home;
+	mutable Home _home;
 	url_t* _url = nullptr;
 	mutable std::string _urlAsStr;
 };
@@ -282,6 +285,12 @@ public:
 	bool rfc3261Compare(const SipUri& other) const {
 		return rfc3261Compare(other._url);
 	}
+
+	/**
+	 * Returns a sip_contact_t* with the same lifetime as the SipUri.
+	 * (It's allocated in the same sofia home)
+	 */
+	ownership::BorrowedMut<sip_contact_t> asContact() const;
 
 private:
 	static void checkUrl(const sofiasip::Url& url);

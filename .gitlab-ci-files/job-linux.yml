@@ -43,6 +43,14 @@
     - cmake -G "$CMAKE_GENERATOR" $DEFAULT_CMAKE_OPTIONS -DCMAKE_INSTALL_PREFIX="$PWD/../OUTPUT" $CMAKE_OPTIONS ..
     - cmake --build . --target install
 
+# Files required by the flexisip_tester bin
+.tester-artifacts:
+  artifacts:
+    paths:
+      - OUTPUT/bin/flexisip_tester
+      - OUTPUT/lib{,64}/
+      - OUTPUT/share/flexisip-tester/
+      - OUTPUT/share/belr/grammars/
 
 #################################################
 # RPM
@@ -204,8 +212,6 @@
     MARIADB_USER: "belledonne"
     MARIADB_PASSWORD: "cOmmu2015nicatiOns"
     BC_MYSQL_HOST: "mariadb"
-    # Do not clone, only use artifacts
-    GIT_STRATEGY: none
   services:
     - mariadb:latest
   script:
