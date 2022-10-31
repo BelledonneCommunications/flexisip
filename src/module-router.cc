@@ -47,19 +47,17 @@ void ModuleRouter::onDeclare(GenericStruct* mc) {
 	    {Integer, "call-fork-current-branches-timeout",
 	     "Maximum time in seconds before trying the next set of lower priority contacts.", "10"},
 	    {Integer, "call-push-response-timeout", "Optional timer to detect lack of push response, in seconds.", "0"},
-	    {Boolean, "message-fork-late", "Fork MESSAGE requests to client registering lately. ", "true"},
+	    {Boolean, "message-fork-late", "Fork MESSAGE requests to client registering lately.", "true"},
 	    {Integer, "message-delivery-timeout",
-	     "Maximum duration for delivering a MESSAGE request. This property applies only"
-	     " if message-fork-late if set to true, otherwise the duration can't exceed the normal transaction duration.",
+	     "Maximum duration for delivering a MESSAGE request. This property applies only if message-fork-late is "
+	     "'true'; otherwise, the duration can't exceed the normal transaction duration.",
 	     "604800"},
 	    {Integer, "message-accept-timeout",
-	     "Maximum duration for accepting a MESSAGE request if no response is received from any recipients."
-	     " This property is meaningful when message-fork-late is set to true.",
+	     "Maximum duration (in seconds) for accepting a MESSAGE request if no response is received from any "
+	     "recipients. This property is meaningful when message-fork-late is set to true.",
 	     "5"},
-	    {Boolean, "save-fork-late-message-in-db",
-	     "Save message to database when they enter in db waiting phase of fork-late mode. message-fork-late MUST be "
-	     "true",
-	     "false"},
+	    {Boolean, "message-database-enabled",
+	     "If 'true', the message that are waiting for delivery will be stored in database instead of memory.", "false"},
 	    {String, "message-database-backend",
 	     "Choose the type of backend that Soci will use for the connection. Depending on your Soci package and the "
 	     "modules you installed, the supported databases are:`mysql` (and `sqlite3` soon)",
@@ -190,8 +188,7 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 
 	if (mMessageForkCfg->mForkLate) {
 		mOnContactRegisteredListener = make_shared<OnContactRegisteredListener>(this);
-		if ((mMessageForkCfg->mSaveForkMessageEnabled =
-		         mc->get<ConfigBoolean>("save-fork-late-message-in-db")->read())) {
+		if ((mMessageForkCfg->mSaveForkMessageEnabled = mc->get<ConfigBoolean>("message-database-enabled")->read())) {
 
 			ForkMessageContextSociRepository::prepareConfiguration(
 			    mc->get<ConfigString>("message-database-backend")->read(),

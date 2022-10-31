@@ -14,11 +14,57 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
 
+## [2.2.0] - 2022-10-28
+### [Added]
+
+- [Back-to-back user agent service](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/C.%20Features/3.%20Back-to-back%20User%20Agent%20server)
+- `module::Router/message-database-enabled` parameter: allow to store the chat messages that are waiting for delivery
+  in a SQL database instead of memory (experimental).
+  Associated parameters: `message-database-backend`, `message-database-connection-string`.
+- [Filter syntax](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/) getter
+  additions:
+	- `contact.uri.{user,domain,params}`: get parts of the Contact-URI of the current SIP message;
+	- `content-type`: get the full Content-type of the body as string.
+- `module::ExternalAuth/trusted-hosts` parameter: allow to let requests coming from given IP addresses pass the
+   ExternalAuth module. This module is provided by 'libexternal-auth' plugin.
+- Make the proxy to answer to double-CRLF ping sequence (RFC5626 §4.4.1).
+- Use double-CRLF ping sequence (RFC5626 §4.4.1) to maintain connections made by the domain registration feature.
+- Packaging for Rocky Linux 8, Debian 11, Ubuntu 22.04 LTS.
+
+### [Changed]
+
+- Improve the usage of iOS remote push notifications for notifying incoming calls. This is useful for home-automation
+  applications that haven't any VoIP push notification token. In such a case, Flexisip will send several alert PNs to
+  the application until one called device accept the call, and then, send a final alert PN to all the other devices
+  telling that the call has been answered elsewhere. Furthermore, all the called devices receive a final PN should
+  the caller cancel the call. Related parameters: `module::PushNotification/call-remote-push-interval`.
+- The body of the SIP messages are hidden by default except the body of type `application/sdp`. This behaviour may be
+  customized by `global/show-body-for` parameter that allows to modify the condition that discriminates which request
+  should have their body displayed.
+
+### [Fixed]
+
+- Make the MediaRelay module to handle UPDATE requests.
+- Issue where a 200 Ok for REGISTER coming from an upstream server is discarded instead of being routed back
+  the originator of the REGISTER. Only concerns user of `module::Registrar/reg-on-response` feature.
+- Avoid push notification sending while forwarding INVITE requests with `Replace` header.
+- Issue with domain registration digest authentication which failed because of the selection of a different SRV node
+  between first and authenticated request.
+- Add a mechanism to ensure that all devices receive an INVITE followed by a CANCEL when a caller cancel a call
+  invitation. This is useful for iOS devices that are ringing before receiving the INVITE request because they
+  are notified by a VoIP push notification. Thus, such devices need to receive a CANCEL request to stop ringing.
+
+### [Deprecated]
+
+- `conference-server/enable-one-to-one-chat-room` parameter. Will force to `true` in further versions.
+- Package for Debian 9.
+
 
 ## [2.1.5] - 2022-06-09
 ### [Fixed]
 
 - 'reg-on-response' parameter no longer worked since Flexisip 2.1.0
+
 
 ## [2.1.4] - 2022-05-19
 ### [Fixed]
@@ -223,7 +269,7 @@ Group changes to describe their impact on the project, as follows:
  - `module::PushNotification/retransmission-interval` (PNR retransmission feature)
  - `module::PushNotification/display-from-uri`: controls whether the From URI is print in PN payloads.
  - `module::MediaRelay/force-public-ip-for-sdp-masquerading`: force the MediaRelay module to put the public IP address of the proxy while
-   modifying the SDP body of INVITE requests. Only useful when the server is behind a NAT router.
+   modifying the SDP body of INVITE requests. Only useful when the server is behind a NAT router.
  - `conference-server/check-capabalities` (see [Reference Documentation](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/A.%20Configuration%20Reference%20Guide/2.0.0/conference-server))
 
 **Proxy**
