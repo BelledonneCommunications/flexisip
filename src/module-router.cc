@@ -56,6 +56,20 @@ void ModuleRouter::onDeclare(GenericStruct* mc) {
 	     "Maximum duration for accepting a MESSAGE request if no response is received from any recipients."
 	     " This property is meaningful when message-fork-late is set to true.",
 	     "5"},
+	    {Boolean, "save-fork-late-message-in-db",
+	     "Save message to database when they enter in db waiting phase of fork-late mode. message-fork-late MUST be "
+	     "true",
+	     "false"},
+	    {String, "message-database-backend",
+	     "Choose the type of backend that Soci will use for the connection. Depending on your Soci package and the "
+	     "modules you installed, the supported databases are:`mysql` (and `sqlite3` soon)",
+	     "mysql"},
+	    {String, "message-database-connection-string",
+	     "The configuration parameters of the backend. The basic format is \"key=value key2=value2\". For a mysql "
+	     "backend, this is a valid config: \"db=mydb user=user password='pass' host=myhost.com\". Please refer to "
+	     "the Soci documentation of your backend, for instance: "
+	     "http://soci.sourceforge.net/doc/master/backends/#supported-backends-and-features",
+	     "db='mydb' user='myuser' password='mypass' host='myhost.com'"},
 	    {String, "fallback-route",
 	     "Default route to apply when the recipient is unreachable or when when all attempted destination have failed."
 	     "It is given as a SIP URI, for example: sip:example.org;transport=tcp (without surrounding brakets)",
@@ -88,20 +102,6 @@ void ModuleRouter::onDeclare(GenericStruct* mc) {
 	     "non-standard behavior.",
 	     "false"},
 	    {BooleanExpr, "fallback-route-filter", "Only use the fallback route if the expression is true.", "true"},
-	    {Boolean, "save-fork-late-message-in-db",
-	     "Save message to database when they enter in db waiting phase of fork-late mode. message-fork-late MUST be "
-	     "true",
-	     "false"},
-	    {String, "message-database-backend",
-	     "Choose the type of backend that Soci will use for the connection. Depending on your Soci package and the "
-	     "modules you installed, the supported databases are:`mysql` (and `sqlite3` soon)",
-	     "mysql"},
-	    {String, "message-database-connection-string",
-	     "The configuration parameters of the backend. The basic format is \"key=value key2=value2\". For a mysql "
-	     "backend, this is a valid config: \"db=mydb user=user password='pass' host=myhost.com\". Please refer to "
-	     "the Soci documentation of your backend, for instance: "
-	     "http://soci.sourceforge.net/doc/master/backends/#supported-backends-and-features",
-	     "db='mydb' user='myuser' password='mypass' host='myhost.com'"},
 
 	    // deprecated parameters
 	    {Boolean, "stateful",
