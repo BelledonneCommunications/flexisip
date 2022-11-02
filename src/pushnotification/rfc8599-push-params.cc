@@ -21,6 +21,7 @@
 
 #include "flexisip/logmanager.hh"
 
+#include "utils/rand.hh"
 #include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
 
@@ -74,6 +75,51 @@ std::set<PushType> RFC8599PushParams::getSupportedPNTypes() const noexcept {
 	} else {
 		return {};
 	}
+}
+
+std::string RFC8599PushParams::toUriParams() const {
+	ostringstream params{};
+	params << "pn-provider=" << mProvider << ";pn-param=" << mParam << ";pn-prid=" << mPrid;
+	return params.str();
+}
+
+RFC8599PushParams RFC8599PushParams::generatePushParams(const std::string& aProvider, PushType aPType) {
+	string pnParam{};
+	string pnPrid{};
+	if (isApns(aProvider)) {
+		if (aPType == PushType::Unknown) {
+			throw invalid_argument{"PushType must be set for APNS push params"};
+		}
+		const auto hexdigitClass = CharClass{{{'0', '9'}, {'A', 'F'}}};
+		pnParam = "ABCD1234.org.example.phone"s + (aPType == PushType::VoIP ? ".voip" : "");
+		pnPrid = Rand::generate(64, hexdigitClass);
+	} else if (aProvider == "fcm") {
+		const auto numClass = CharClass{{{'0', '9'}}};
+		const auto alnumClass = CharClass{{{'0', '9'}, {'A', 'Z'}, {'a', 'z'}}};
+		const auto wordClass = CharClass{{{'0', '9'}, {'A', 'Z'}, {'a', 'z'}, {'-', '-'}, {'_', '_'}}};
+		pnParam = Rand::generate(12, numClass);
+		pnPrid = Rand::generate(11, alnumClass) + ':' + Rand::generate(140, wordClass);
+	} else {
+		throw invalid_argument{"not supported provider [" + aProvider + "]"};
+	}
+	return {aProvider, pnParam, pnPrid};
+}
+
+RFC8599PushParams RFC8599PushParams::concatPushParams(const RFC8599PushParams& aRemotePushParams,
+                                                      const RFC8599PushParams& aVoipPushParams) {
+	if (!aRemotePushParams.isApns() || aRemotePushParams.getProvider() != aVoipPushParams.getProvider()) {
+		throw invalid_argument{
+		    "one of the argument is not APNS paramters or the two arguments have not the same provider"};
+	}
+	const auto& voipTopic = aVoipPushParams.getParam();
+	if (!StringUtils::endsWith(voipTopic, ".voip")) {
+		throw invalid_argument{"second argument isn't a VoIP push parameter set"};
+	}
+	if (voipTopic.substr(0, voipTopic.size() - 5) != aRemotePushParams.getParam()) {
+		throw invalid_argument{"Apple app ID mismatch"};
+	}
+	return RFC8599PushParams{aRemotePushParams.getProvider(), aRemotePushParams.getParam() + ".remote&voip",
+	                         aRemotePushParams.getPrid() + ":remote&" + aVoipPushParams.getPrid() + ":voip"};
 }
 
 RFC8599PushParams::ParsingResult RFC8599PushParams::parsePushParams(const std::string& pnProvider,

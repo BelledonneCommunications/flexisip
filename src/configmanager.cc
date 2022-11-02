@@ -855,11 +855,16 @@ GenericManager::GenericManager()
 	     "E.g. putting 'jweauth' in this setting will make libjweauth.so library to be load on runtime.",
 	     ""},
 	    {Boolean, "dump-corefiles",
-	     "Generate a corefile when crashing. "
-	     "Note that by default linux will generate coredumps in '/' which is not so convenient. The following shell "
-	     "command can be added to"
-	     " /etc/rc.local in order to write core dumps a in specific directory, for example /home/cores:\n"
-	     "\techo \"/home/cores/core.\%e.\%t.\%p\" >/proc/sys/kernel/core_pattern",
+	     "Generate a core file on crash.\n"
+	     "On GNU/Linux, the action to do on core dump is defined by the kernel file '/proc/sys/kernel/core_pattern'. "
+	     "On recent distributions like RHEL 8, the generated cores is given by default to the core manager of SystemD "
+	     "and the core can be easily listed by using coredumpctl(1) command.\n"
+	     "On older distributions, the cores are often written in '/' directory. If your root directory has little "
+	     "available space, it is recommended to relocate your core dumps in another place by modifying the "
+	     "'core_pattern' file on system boot. This may be done by adding this line in '/etc/rc.local':\n"
+	     "    echo '/home/cores/core.\%e.\%t.\%p' > /proc/sys/kernel/core_pattern\n"
+	     "\n"
+	     "See core(5) manual for more information about core handling on GNU/Linux.",
 	     "false"},
 	    {Boolean, "enable-snmp", "Enable SNMP.", "false"},
 
@@ -894,6 +899,12 @@ GenericManager::GenericManager()
 	    {String, "contextual-log-level",
 	     "Verbosity of contextual logs to output when the condition defined in 'contextual-log-filter' is met.",
 	     "debug"},
+	    {String, "show-body-for",
+	     "Filter expression applied to all messages, if true message body is shown, if false not. Can not be empty, "
+	     "use 'true' or 'false' constants instead. The definition of the SIP boolean expression is documented here: "
+	     "https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/\n"
+	     "Example : content-type == 'application/sdp' && request.method == 'MESSAGE'",
+	     "content-type == 'application/sdp'"},
 
 	    // network settings
 	    {StringList, "transports",

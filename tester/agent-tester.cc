@@ -43,7 +43,7 @@ private:
 		cfg.getRoot()->get<GenericStruct>("module::DoSProtection")->get<ConfigBoolean>("enabled")->set("true");
 	}
 
-	void onExec() override {
+	void testExec() override {
 		// 6060
 		BC_ASSERT_TRUE(mAgent->isUs("localhost", "6060", false)); // hostname
 		BC_ASSERT_TRUE(mAgent->isUs("127.0.0.1", "6060", false)); // resolved ipv4
@@ -250,7 +250,7 @@ private:
 		mConfig->configureAgent(cfg);
 	}
 
-	void onExec() override {
+	void testExec() override {
 		auto conn = mConfig->makeConnection();
 
 		SLOGD << "Connecting on " << mConfig->getHost() << ":" << mConfig->getPort() << " using "

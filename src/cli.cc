@@ -1,19 +1,19 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2016  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <cerrno>
@@ -21,20 +21,17 @@
 #include <stdlib.h>
 
 #include <poll.h>
-#include <stdio.h>
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 #include <bctoolbox/ownership.hh>
 
-#include <flexisip/common.hh>
 #include <flexisip/logmanager.hh>
 #include <flexisip/registrardb.hh>
 
 #include "cJSON.h"
-
 #include "recordserializer.hh"
+#include "utils/string-utils.hh"
 
 #include "cli.hh"
 
@@ -47,8 +44,7 @@ CommandLineInterface::CommandLineInterface(const std::string& name)
 }
 
 CommandLineInterface::~CommandLineInterface() {
-	if (mRunning)
-		stop();
+	if (mRunning) stop();
 	close(mControlFds[0]);
 	close(mControlFds[1]);
 }
@@ -75,8 +71,7 @@ void CommandLineInterface::start() {
 }
 
 void CommandLineInterface::stop() {
-	if (!mRunning)
-		return;
+	if (!mRunning) return;
 
 	mRunning = false;
 	if (write(mControlFds[1], "please stop", 1) == -1)
@@ -84,21 +79,19 @@ void CommandLineInterface::stop() {
 	pthread_join(mThread, nullptr);
 }
 
-void CommandLineInterface::answer(unsigned int socket, const std::string &message) {
+void CommandLineInterface::answer(unsigned int socket, const std::string& message) {
 	send(socket, message.c_str(), message.length(), 0);
 	shutdown(socket, SHUT_RDWR);
 	close(socket);
 }
 
-void CommandLineInterface::parseAndAnswer(unsigned int socket, const std::string &command, const std::vector<std::string> &args) {
-	if ((command == "CONFIG_GET") || (command == "GET"))
-		handleConfigGet(socket, args);
-	else if ((command == "CONFIG_LIST") || (command == "LIST"))
-		handleConfigList(socket, args);
-	else if ((command == "CONFIG_SET") || (command == "SET"))
-		handleConfigSet(socket, args);
-	else
-		dispatch(socket, command, args);
+void CommandLineInterface::parseAndAnswer(unsigned int socket,
+                                          const std::string& command,
+                                          const std::vector<std::string>& args) {
+	if ((command == "CONFIG_GET") || (command == "GET")) handleConfigGet(socket, args);
+	else if ((command == "CONFIG_LIST") || (command == "LIST")) handleConfigList(socket, args);
+	else if ((command == "CONFIG_SET") || (command == "SET")) handleConfigSet(socket, args);
+	else dispatch(socket, command, args);
 }
 
 void CommandLineInterface::dispatch(unsigned int socket,
@@ -121,77 +114,64 @@ void CommandLineInterface::registerHandler(CliHandler& handler) {
 	handler.registerTo(handlers);
 }
 
-GenericEntry *CommandLineInterface::getGenericEntry(const std::string &arg) const {
-	std::vector<std::string> arg_split = split(arg, '/');
-	GenericManager *manager = GenericManager::get();
-	GenericStruct *root = manager->getRoot();
+GenericEntry* CommandLineInterface::getGenericEntry(const std::string& arg) const {
+	std::vector<std::string> arg_split = StringUtils::split(arg, "/");
+	GenericManager* manager = GenericManager::get();
+	GenericStruct* root = manager->getRoot();
 
-	if (arg == "all")
-		return root;
+	if (arg == "all") return root;
 	return find(root, arg_split);
 }
 
-void CommandLineInterface::handleConfigGet(unsigned int socket, const std::vector<std::string> &args) {
+void CommandLineInterface::handleConfigGet(unsigned int socket, const std::vector<std::string>& args) {
 	if (args.size() < 1) {
 		answer(socket, "Error: at least 1 argument is expected for the CONFIG_GET command");
 		return;
 	}
 
-	GenericEntry *entry = getGenericEntry(args.front());
+	GenericEntry* entry = getGenericEntry(args.front());
 	if (!entry) {
 		answer(socket, "Error: " + args.front() + " not found");
 		return;
 	}
 
-	GenericStruct *gstruct = dynamic_cast<GenericStruct *>(entry);
-	if (gstruct)
-		answer(socket, printSection(gstruct, false));
-	else
-		answer(socket, printEntry(entry, false));
+	GenericStruct* gstruct = dynamic_cast<GenericStruct*>(entry);
+	if (gstruct) answer(socket, printSection(gstruct, false));
+	else answer(socket, printEntry(entry, false));
 }
 
-void CommandLineInterface::handleConfigList(unsigned int socket, const std::vector<std::string> &args) {
+void CommandLineInterface::handleConfigList(unsigned int socket, const std::vector<std::string>& args) {
 	if (args.size() < 1) {
 		answer(socket, "Error: at least 1 argument is expected for the CONFIG_LIST command");
 		return;
 	}
 
-	GenericEntry *entry = getGenericEntry(args.front());
+	GenericEntry* entry = getGenericEntry(args.front());
 	if (!entry) {
 		answer(socket, "Error: " + args.front() + " not found");
 		return;
 	}
 
-	GenericStruct *gstruct = dynamic_cast<GenericStruct *>(entry);
-	if (gstruct)
-		answer(socket, printSection(gstruct, true));
-	else
-		answer(socket, printEntry(entry, true));
+	GenericStruct* gstruct = dynamic_cast<GenericStruct*>(entry);
+	if (gstruct) answer(socket, printSection(gstruct, true));
+	else answer(socket, printEntry(entry, true));
 }
 
-string CommandLineInterface::agregate(const std::vector<std::string> &args, size_t from_pos){
-	ostringstream ostr;
-	for (size_t i = from_pos; i < args.size(); ++i){
-		ostr << args[i] << " ";
-	}
-	return ostr.str();
-}
-
-void CommandLineInterface::handleConfigSet(unsigned int socket, const std::vector<std::string> &args) {
+void CommandLineInterface::handleConfigSet(unsigned int socket, const std::vector<std::string>& args) {
 	if (args.size() < 2) {
 		answer(socket, "Error: at least 2 arguments are expected for the CONFIG_SET command");
 		return;
 	}
 
 	std::string arg = args.front();
-	GenericEntry *entry = getGenericEntry(arg);
+	GenericEntry* entry = getGenericEntry(arg);
 	if (!entry) {
 		answer(socket, "Error: " + args.front() + " not found");
 		return;
 	}
 
 	std::string value = args.at(1);
-	ConfigValue *config_value = dynamic_cast<ConfigValue *>(entry);
+	auto* config_value = dynamic_cast<ConfigValue*>(entry);
 	if (config_value && (arg == "global/debug")) {
 		config_value->set(value);
 		LogManager::get().setLogLevel(BCTBX_LOG_DEBUG);
@@ -208,11 +188,20 @@ void CommandLineInterface::handleConfigSet(unsigned int socket, const std::vecto
 		config_value->set(value);
 		LogManager::get().setContextualLevel(LogManager::get().logLevelFromName(value));
 		answer(socket, "contextual-log-level : " + value);
-	}else if (config_value && (arg == "global/contextual-log-filter")) {
-		value = agregate(args, 1);
+	} else if (config_value && (arg == "global/contextual-log-filter")) {
+		value = StringUtils::join(args, 1);
 		config_value->set(value);
 		LogManager::get().setContextualFilter(value);
 		answer(socket, "contextual-log-filter : " + value);
+	} else if (config_value && (arg == "global/show-body-for")) {
+		try {
+			value = StringUtils::join(args, 1);
+			MsgSip::setShowBodyFor(value);
+			config_value->set(value);
+			answer(socket, "show-body-for : " + value);
+		} catch (const exception& e) {
+			answer(socket, "show-body-for : not modified, errors in args. "s + e.what());
+		}
 	} else {
 		answer(socket, "Only debug, log-level and syslog-level from global can be updated while flexisip is running");
 	}
@@ -233,7 +222,7 @@ void CommandLineInterface::run() {
 	strcpy(local.sun_path, path.c_str());
 	unlink(local.sun_path);
 	int local_length = strlen(local.sun_path) + sizeof(local.sun_family);
-	if (::bind(server_socket, (struct sockaddr *)&local, local_length) == -1) {
+	if (::bind(server_socket, (struct sockaddr*)&local, local_length) == -1) {
 		SLOGE << "Bind error " << errno << ": " << std::strerror(errno);
 		stop();
 	}
@@ -253,8 +242,7 @@ void CommandLineInterface::run() {
 
 		int ret = poll(pfd, 2, -1);
 		if (ret == -1) {
-			if (errno != EINTR)
-				SLOGE << "CommandLineInterface thread getting poll() error: " << strerror(errno);
+			if (errno != EINTR) SLOGE << "CommandLineInterface thread getting poll() error: " << strerror(errno);
 			continue;
 		} else if (ret == 0) {
 			continue; // Timeout not possible
@@ -264,8 +252,8 @@ void CommandLineInterface::run() {
 		// Otherwise we have something to accept on our server_socket
 
 		struct sockaddr_un remote;
-		auto remote_length = (socklen_t )sizeof(remote);
-		int child_socket = accept(server_socket, (struct sockaddr *)&remote, &remote_length);
+		auto remote_length = (socklen_t)sizeof(remote);
+		int child_socket = accept(server_socket, (struct sockaddr*)&remote, &remote_length);
 		if (child_socket == -1) {
 			SLOGE << "Accept error " << errno << ": " << std::strerror(errno);
 			continue;
@@ -273,7 +261,7 @@ void CommandLineInterface::run() {
 
 		bool finished = false;
 		do {
-			char buffer[512] = { 0 };
+			char buffer[512] = {0};
 			int n = recv(child_socket, buffer, sizeof(buffer) - 1, 0);
 			if (n < 0) {
 				SLOGE << "Recv error " << errno << ": " << std::strerror(errno);
@@ -282,7 +270,7 @@ void CommandLineInterface::run() {
 				finished = true;
 			} else if (n > 0) {
 				SLOGD << "CommandLineInterface " << mName << " received: " << buffer;
-				auto split_query = split(buffer, ' ');
+				auto split_query = StringUtils::split(buffer, " ");
 				std::string command = split_query.front();
 				split_query.erase(split_query.begin());
 				parseAndAnswer(child_socket, command, split_query);
@@ -300,44 +288,39 @@ GenericEntry* CommandLineInterface::find(GenericStruct* root, std::vector<std::s
 	std::string elem = path.front();
 	path.erase(path.begin());
 	for (const auto& entry : root->getChildren()) {
-		if (!entry || (entry->getName() != elem))
-			continue;
+		if (!entry || (entry->getName() != elem)) continue;
 
 		if (path.empty()) {
 			return entry.get();
 		} else {
 			auto gstruct = dynamic_cast<GenericStruct*>(entry.get());
-			if (gstruct)
-				return find(gstruct, path);
+			if (gstruct) return find(gstruct, path);
 			return nullptr;
 		}
 	}
 	return nullptr;
 }
 
-std::string CommandLineInterface::printEntry(GenericEntry *entry, bool printHelpInsteadOfValue) {
-	auto gstruct = dynamic_cast<GenericStruct *>(entry);
+std::string CommandLineInterface::printEntry(GenericEntry* entry, bool printHelpInsteadOfValue) {
+	auto gstruct = dynamic_cast<GenericStruct*>(entry);
 	bool isNode = (gstruct != nullptr);
 	std::string answer;
 
 	if (printHelpInsteadOfValue) {
-		if (isNode)
-			answer += "[";
+		if (isNode) answer += "[";
 		answer += entry->getName();
-		if (isNode)
-			answer += "]";
+		if (isNode) answer += "]";
 		answer += " : " + entry->getHelp();
 	} else {
 		if (isNode) {
 			answer += "[" + gstruct->getName() + "]";
 		} else {
-			auto counter = dynamic_cast<StatCounter64 *>(entry);
+			auto counter = dynamic_cast<StatCounter64*>(entry);
 			if (counter) {
 				answer += counter->getName() + " : " + std::to_string(counter->read());
 			} else {
-				auto value = dynamic_cast<ConfigValue *>(entry);
-				if (value)
-					answer += value->getName() + " : " + value->get();
+				auto value = dynamic_cast<ConfigValue*>(entry);
+				if (value) answer += value->getName() + " : " + value->get();
 			}
 		}
 	}
@@ -347,22 +330,22 @@ std::string CommandLineInterface::printEntry(GenericEntry *entry, bool printHelp
 std::string CommandLineInterface::printSection(GenericStruct* gstruct, bool printHelpInsteadOfValue) {
 	std::string answer = "";
 	for (const auto& child : gstruct->getChildren()) {
-		if (child)
-			answer += printEntry(child.get(), printHelpInsteadOfValue) + "\r\n";
+		if (child) answer += printEntry(child.get(), printHelpInsteadOfValue) + "\r\n";
 	}
 	return answer;
 }
 
-void *CommandLineInterface::threadfunc(void *arg) {
-	CommandLineInterface *thiz = reinterpret_cast<CommandLineInterface *>(arg);
+void* CommandLineInterface::threadfunc(void* arg) {
+	CommandLineInterface* thiz = reinterpret_cast<CommandLineInterface*>(arg);
 	thiz->run();
 	return nullptr;
 }
 
+ProxyCommandLineInterface::ProxyCommandLineInterface(const std::shared_ptr<Agent>& agent)
+    : CommandLineInterface("proxy"), mAgent(agent) {
+}
 
-ProxyCommandLineInterface::ProxyCommandLineInterface(const std::shared_ptr<Agent> &agent) : CommandLineInterface("proxy"), mAgent(agent) {}
-
-void ProxyCommandLineInterface::handleRegistrarGet(unsigned int socket, const std::vector<std::string> &args) {
+void ProxyCommandLineInterface::handleRegistrarGet(unsigned int socket, const std::vector<std::string>& args) {
 	if (args.size() < 1) {
 		answer(socket, "Error: a SIP address argument is expected for the REGISTRAR_GET command");
 		return;
@@ -370,10 +353,10 @@ void ProxyCommandLineInterface::handleRegistrarGet(unsigned int socket, const st
 
 	class RawListener : public ContactUpdateListener {
 	public:
-		RawListener(ProxyCommandLineInterface *cli, unsigned int socket)
-			: mCli{cli}, mSocket{socket} {}
+		RawListener(ProxyCommandLineInterface* cli, unsigned int socket) : mCli{cli}, mSocket{socket} {
+		}
 
-		void onRecordFound(const shared_ptr<Record> &r) override {
+		void onRecordFound(const shared_ptr<Record>& r) override {
 			std::string serialized;
 			RecordSerializerJson serializer;
 			serializer.serialize(r.get(), serialized, false);
@@ -386,10 +369,11 @@ void ProxyCommandLineInterface::handleRegistrarGet(unsigned int socket, const st
 			mCli->answer(mSocket, "INVALID");
 		}
 		// Mandatory since we inherit from ContactUpdateListener
-		void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override {}
+		void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+		}
 
 	private:
-		ProxyCommandLineInterface *mCli{nullptr};
+		ProxyCommandLineInterface* mCli{nullptr};
 		unsigned int mSocket{0};
 	};
 
@@ -397,13 +381,13 @@ void ProxyCommandLineInterface::handleRegistrarGet(unsigned int socket, const st
 		SipUri url{args.front().c_str()};
 		auto listener = make_shared<RawListener>(this, socket);
 		RegistrarDb::get()->fetch(url, listener, false);
-	} catch (const sofiasip::InvalidUrlError &e) {
+	} catch (const sofiasip::InvalidUrlError& e) {
 		answer(socket, string{"Error: invalid SIP address ["} + e.what() + "]");
 		return;
 	}
 }
 
-void ProxyCommandLineInterface::handleRegistrarDelete(unsigned int socket, const std::vector<std::string> &args) {
+void ProxyCommandLineInterface::handleRegistrarDelete(unsigned int socket, const std::vector<std::string>& args) {
 	if (args.size() < 2) {
 		answer(socket, "Error: an URI arguments is expected for the REGISTRAR_DELETE command");
 		return;
@@ -411,10 +395,10 @@ void ProxyCommandLineInterface::handleRegistrarDelete(unsigned int socket, const
 
 	class DeleteListener : public ContactUpdateListener {
 	public:
-		DeleteListener(ProxyCommandLineInterface *cli, unsigned int socket)
-			: mCli(cli), mSocket(socket) {}
+		DeleteListener(ProxyCommandLineInterface* cli, unsigned int socket) : mCli(cli), mSocket(socket) {
+		}
 
-		void onRecordFound(const shared_ptr<Record> &r) override {
+		void onRecordFound(const shared_ptr<Record>& r) override {
 			std::string serialized;
 			RecordSerializerJson serializer;
 			serializer.serialize(r.get(), serialized, false);
@@ -427,10 +411,11 @@ void ProxyCommandLineInterface::handleRegistrarDelete(unsigned int socket, const
 			mCli->answer(mSocket, "INVALID");
 		}
 		// Mandatory since we inherit from ContactUpdateListener
-		void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override {}
+		void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+		}
 
 	private:
-		ProxyCommandLineInterface *mCli = nullptr;
+		ProxyCommandLineInterface* mCli = nullptr;
 		unsigned int mSocket = 0;
 	};
 
@@ -457,7 +442,7 @@ void ProxyCommandLineInterface::handleRegistrarDelete(unsigned int socket, const
 	RegistrarDb::get()->bind(msg, parameter, listener);
 }
 
-void ProxyCommandLineInterface::handleRegistrarClear(unsigned int socket, const std::vector<std::string> &args) {
+void ProxyCommandLineInterface::handleRegistrarClear(unsigned int socket, const std::vector<std::string>& args) {
 	if (args.size() < 1) {
 		answer(socket, "Error: a SIP address argument is expected for the REGISTRAR_CLEAR command");
 		return;
@@ -465,10 +450,11 @@ void ProxyCommandLineInterface::handleRegistrarClear(unsigned int socket, const 
 
 	class ClearListener : public ContactUpdateListener {
 	public:
-		ClearListener(ProxyCommandLineInterface *cli, unsigned int socket, const std::string &uri)
-			: mCli(cli), mSocket(socket), mUri(uri) {}
+		ClearListener(ProxyCommandLineInterface* cli, unsigned int socket, const std::string& uri)
+		    : mCli(cli), mSocket(socket), mUri(uri) {
+		}
 
-		void onRecordFound(const shared_ptr<Record> &r) override {
+		void onRecordFound(const shared_ptr<Record>& r) override {
 			RegistrarDb::get()->publish(mUri, "");
 			mCli->answer(mSocket, "Done: cleared record " + mUri);
 		}
@@ -478,10 +464,11 @@ void ProxyCommandLineInterface::handleRegistrarClear(unsigned int socket, const 
 		void onInvalid() override {
 			mCli->answer(mSocket, "Error: cannot clear record " + mUri);
 		}
-		void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override {}
+		void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+		}
 
 	private:
-		ProxyCommandLineInterface *mCli = nullptr;
+		ProxyCommandLineInterface* mCli = nullptr;
 		unsigned int mSocket = 0;
 		std::string mUri;
 	};
@@ -494,35 +481,37 @@ void ProxyCommandLineInterface::handleRegistrarClear(unsigned int socket, const 
 	RegistrarDb::get()->clear(msg, listener);
 }
 
-void ProxyCommandLineInterface::handleRegistrarDump(unsigned int socket, const std::vector<std::string> &args){
+void ProxyCommandLineInterface::handleRegistrarDump(unsigned int socket, const std::vector<std::string>& args) {
 	list<string> aorList;
-	
-	RegistrarDb::get()->getLocalRegisteredAors(aorList); 
-	
-	cJSON *root = cJSON_CreateObject();
-	cJSON *contacts = cJSON_CreateArray();
-	
+
+	RegistrarDb::get()->getLocalRegisteredAors(aorList);
+
+	cJSON* root = cJSON_CreateObject();
+	cJSON* contacts = cJSON_CreateArray();
+
 	cJSON_AddItemToObject(root, "aors", contacts);
-	for(auto & aor : aorList) {
-		cJSON *pitem = cJSON_CreateString(aor.c_str());
+	for (auto& aor : aorList) {
+		cJSON* pitem = cJSON_CreateString(aor.c_str());
 		cJSON_AddItemToArray(contacts, pitem);
 	}
-	char *jsonOutput = cJSON_Print(root);
+	char* jsonOutput = cJSON_Print(root);
 	answer(socket, jsonOutput);
 	free(jsonOutput);
 	cJSON_Delete(root);
 }
 
-void ProxyCommandLineInterface::parseAndAnswer(unsigned int socket, const std::string &command, const std::vector<std::string> &args) {
-	if (command == "REGISTRAR_CLEAR"){
+void ProxyCommandLineInterface::parseAndAnswer(unsigned int socket,
+                                               const std::string& command,
+                                               const std::vector<std::string>& args) {
+	if (command == "REGISTRAR_CLEAR") {
 		handleRegistrarClear(socket, args);
-	}else if (command == "REGISTRAR_DELETE"){
+	} else if (command == "REGISTRAR_DELETE") {
 		handleRegistrarDelete(socket, args);
-	}else if (command == "REGISTRAR_GET"){
+	} else if (command == "REGISTRAR_GET") {
 		handleRegistrarGet(socket, args);
-	}else if (command == "REGISTRAR_DUMP"){
+	} else if (command == "REGISTRAR_DUMP") {
 		handleRegistrarDump(socket, args);
-	}else{
+	} else {
 		CommandLineInterface::parseAndAnswer(socket, command, args);
 	}
 }

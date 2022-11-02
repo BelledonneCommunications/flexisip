@@ -65,8 +65,12 @@ public:
 	~ForkMessageContextDbProxy() override;
 
 	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& event) override;
+	/**
+	 * See PushNotificationContextObserver::onPushSent().
+	 */
+	void onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept override;
 
-	std::shared_ptr<BranchInfo>
+	OnNewRegisterAction
 	onNewRegister(const SipUri& dest, const std::string& uid, const DispatchFunction& dispatchFunc) override;
 
 	std::shared_ptr<BranchInfo> addBranch(const std::shared_ptr<RequestSipEvent>& ev,

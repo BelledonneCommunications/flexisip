@@ -52,7 +52,7 @@ struct PushInfo {
 	/**
 	 * The list of supported destinations supported by the device to notify. That especially allows the constructor
 	 * of PushNotificationContext to know which kind of push notifications the device supports and then to
-	 * instantiate the right pushnotificaton::Strategy.
+	 * instantiate the right pushnotification::Strategy.
 	 */
 	RFC8599PushParams::ParsingResult mDestinations{};
 	std::string mAlertMsgId{}; /**< ID of message to show to user */
@@ -92,8 +92,13 @@ struct PushInfo {
 	std::string mAlertSound{}; /**< sound to play */
 	std::string mCustomPayload{};
 
-	// Specific to Firebase (Android)
-	std::string mApiKey{}; /**< api key (magic number required for Google) */
+	// Specific to Generic Push Notifications
+	/**
+	 * A string that indicate the kind of event that have triggered the push notification, classically
+	 * 'message' or 'call'. It is a free label that will replace the occurrences of '$event' in the
+	 * HTTP request sent to the server in charge of sending the push notification.
+	 */
+	std::string mEvent{};
 
 public:
 	// Public ctors

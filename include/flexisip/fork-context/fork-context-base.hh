@@ -9,11 +9,11 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -32,15 +32,61 @@ namespace flexisip {
 class OnContactRegisteredListener;
 
 class ForkContextBase : public ForkContext, public std::enable_shared_from_this<ForkContextBase> {
-private:
-	std::shared_ptr<BranchInfo> _findBestBranch(const int urgentReplies[], bool ignore503And408);
-	// Set the next branches to try and process them
-	void nextBranches();
-	void onNextBranches();
+public:
+	virtual ~ForkContextBase();
 
-	std::weak_ptr<ForkContextListener> mListener;
-	std::list<std::shared_ptr<BranchInfo>> mCurrentBranches;
-	std::weak_ptr<StatPair> mStatCounter;
+	enum class DispatchStatus {
+		DispatchNeeded,
+		DispatchNotNeeded,
+		PendingTransaction,
+	};
+
+	using ShouldDispatchType = std::pair<DispatchStatus, std::shared_ptr<BranchInfo>>;
+
+	/**
+	 * Called by the Router module to create a new branch.
+	 */
+	std::shared_ptr<BranchInfo> addBranch(const std::shared_ptr<RequestSipEvent>& ev,
+	                                      const std::shared_ptr<ExtendedContact>& contact) override;
+	bool allCurrentBranchesAnswered(bool ignore_errors_and_timeouts = false) const override;
+	bool allBranchesAnswered(bool ignore_errors_and_timeouts = false) const;
+	/**
+	 * Request if the fork has other branches with lower priorities to try
+	 */
+	bool hasNextBranches() const override;
+	/**
+	 * Called when a fatal internal error is thrown in Flexisip. Send a custom response and cancel all branches if
+	 * necessary.
+	 * @param status The status of the custom response to send.
+	 * @param phrase The content of the custom response to send.
+	 */
+	void processInternalError(int status, const char* phrase) override;
+	// Start the processing of the highest priority branches that are not completed yet
+	void start() override;
+
+	void addKey(const std::string& key) override;
+	const std::vector<std::string>& getKeys() const override;
+
+	/**
+	 * Notifies the cancellation of the fork process.
+	 */
+	void onCancel(const std::shared_ptr<RequestSipEvent>& ev) override;
+	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& ev) override;
+	/**
+	 * See PushNotificationContextObserver::onPushSent().
+	 */
+	void onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept override;
+	const std::shared_ptr<RequestSipEvent>& getEvent() override;
+	const std::shared_ptr<ForkContextConfig>& getConfig() const override {
+		return mCfg;
+	}
+	bool isFinished() const override {
+		return mFinished;
+	};
+	void checkFinished() override;
+
+	static const int sUrgentCodes[];
+	static const int sAllCodesUrgent[];
 
 protected:
 	ForkContextBase(Agent* agent,
@@ -92,11 +138,21 @@ protected:
 	 * This implementation looks for already pending or failed transactions.
 	 *
 	 * @return Return a pair with :
-	 *  - bool : tell if you should dispatch a new branch/transaction to the device targeted by dest/uid.
-	 *  - std::shared_ptr<BranchInfo> : the failed/unfinished branch/transaction you will replace if it exist or nullptr.
+	 *  - DispatchStatus : tell if you should dispatch a new branch/transaction to the device targeted by dest/uid.
+	 *  - std::shared_ptr<BranchInfo> : the failed/unfinished branch/transaction you will replace if it exist or
+	 * nullptr.
 	 */
-	std::pair<bool, std::shared_ptr<BranchInfo>> shouldDispatch(const SipUri& dest, const std::string& uid);
+	ShouldDispatchType shouldDispatch(const SipUri& dest, const std::string& uid);
+	/**
+	 * Send a response in the incoming transaction associated to this ForkContext.
+	 * @param status SIP response status.
+	 * @param phrase SIP response phrase.
+	 * @param addToTag If true, add a generated 'tag' parameter to the To-URI.
+	 */
+	void sendResponse(int status, char const* phrase, bool addToTag = false);
 
+	// Protected attributes
+	bool m110Sent = false; /**< Whether a "110 Push sent" response has already been sent in the incoming transaction. */
 	bool mFinished = false;
 	float mCurrentPriority;
 	Agent* mAgent;
@@ -110,43 +166,15 @@ protected:
 	std::list<std::shared_ptr<BranchInfo>> mWaitingBranches;
 	sofiasip::Timer mNextBranchesTimer;
 
-public:
-	virtual ~ForkContextBase();
+private:
+	std::shared_ptr<BranchInfo> _findBestBranch(const int urgentReplies[], bool ignore503And408);
+	// Set the next branches to try and process them
+	void nextBranches();
+	void onNextBranches();
 
-	// Called by the Router module to create a new branch.
-	std::shared_ptr<BranchInfo> addBranch(const std::shared_ptr<RequestSipEvent>& ev,
-	                                      const std::shared_ptr<ExtendedContact>& contact) override;
-	bool allCurrentBranchesAnswered(bool ignore_errors_and_timeouts = false) const override;
-	bool allBranchesAnswered(bool ignore_errors_and_timeouts = false) const;
-	// Request if the fork has other branches with lower priorities to try
-	bool hasNextBranches() const override;
-	/**
-	 * Called when a fatal internal error is thrown in Flexisip. Send a custom response and cancel all branches if
-	 * necessary.
-	 * @param status The status of the custom response to send.
-	 * @param phrase The content of the custom response to send.
-	 */
-	void processInternalError(int status, const char* phrase) override;
-	// Start the processing of the highest priority branches that are not completed yet
-	void start() override;
-
-	void addKey(const std::string& key) override;
-	const std::vector<std::string>& getKeys() const override;
-
-	// Notifies the cancellation of the fork process.
-	void onCancel(const std::shared_ptr<RequestSipEvent>& ev) override;
-	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& ev) override;
-	const std::shared_ptr<RequestSipEvent>& getEvent() override;
-	const std::shared_ptr<ForkContextConfig>& getConfig() const override {
-		return mCfg;
-	}
-	bool isFinished() const override {
-		return mFinished;
-	};
-	void checkFinished() override;
-
-	static const int sUrgentCodes[];
-	static const int sAllCodesUrgent[];
+	std::weak_ptr<ForkContextListener> mListener;
+	std::list<std::shared_ptr<BranchInfo>> mCurrentBranches;
+	std::weak_ptr<StatPair> mStatCounter;
 };
 
 } // namespace flexisip

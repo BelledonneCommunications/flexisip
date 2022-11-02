@@ -20,6 +20,7 @@
 
 #include "tester.hh"
 #include "utils/rand.hh"
+#include "utils/string-utils.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/uri-utils.hh"
 
@@ -71,9 +72,49 @@ public:
 	}
 };
 
+class StringUtilsJoinTest : public Test {
+public:
+	void operator()() override {
+		// Basic + template tests
+		vector<string> stringVector{"0", "1", "2", "3", "4", "5"};
+		const auto& vectorJoined = StringUtils::join(stringVector);
+		BC_ASSERT_TRUE(vectorJoined == "0 1 2 3 4 5");
+
+		list<string> stringList{"0", "1", "2", "3", "4", "5"};
+		const auto& listJoined = StringUtils::join(stringList);
+		BC_ASSERT_TRUE(listJoined == "0 1 2 3 4 5");
+
+		set<string> stringSet{"0", "1", "2", "3", "4", "5"};
+		const auto& setJoined = StringUtils::join(stringSet);
+		BC_ASSERT_TRUE(setJoined == "0 1 2 3 4 5");
+
+		// Tests with fromIndex
+		const auto& vectorJoinedFrom1 = StringUtils::join(stringVector, 1);
+		BC_ASSERT_TRUE(vectorJoinedFrom1 == "1 2 3 4 5");
+
+		const auto& vectorJoinedFrom3 = StringUtils::join(stringVector, 3);
+		BC_ASSERT_TRUE(vectorJoinedFrom3 == "3 4 5");
+
+		const auto& vectorJoinedFrom8 = StringUtils::join(stringVector, 8);
+		BC_ASSERT_TRUE(vectorJoinedFrom8 == "");
+
+		// Borderline cases
+		vector<string> emptyVector{};
+		const auto& emptyJoined = StringUtils::join(emptyVector);
+		BC_ASSERT_TRUE(emptyJoined == "");
+		const auto& emptyJoinedFrom5 = StringUtils::join(emptyVector, 5);
+		BC_ASSERT_TRUE(emptyJoinedFrom5 == "");
+
+		const auto& vectorJoinedFromNegative = StringUtils::join(stringVector, -1);
+		// fromIndex must be unsigned
+		BC_ASSERT_TRUE(vectorJoinedFromNegative == "");
+	}
+};
+
 static test_t tests[] = {
     TEST_NO_TAG("UriUtils isIpv4Address and isIpv6Address method test", run<UriUtilsIsIpvXTest>),
     CLASSY_TEST(RandomStringGeneratorTest),
+    TEST_NO_TAG("StringUtil::join method test", run<StringUtilsJoinTest>)
 };
 
 test_suite_t utilsSuite = {

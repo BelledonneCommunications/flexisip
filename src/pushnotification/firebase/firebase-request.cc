@@ -84,7 +84,6 @@ FirebaseRequest::FirebaseRequest(PushType pType, const std::shared_ptr<const Pus
 	headers.add(":path", "/fcm/send");
 	headers.add(":authority", string(FirebaseClient::FIREBASE_ADDRESS) + ":" + string(FirebaseClient::FIREBASE_PORT));
 	headers.add("content-type", "application/json");
-	headers.add("authorization", "key=" + mPInfo->mApiKey);
 	this->setHeaders(headers);
 
 	SLOGD << "Firebase request creation  " << this << " https headers are :\n" << headers.toString();

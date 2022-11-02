@@ -21,8 +21,10 @@
 #include "flexisip/module.hh"
 
 #include "pushnotification/contact-expiration-notifier.hh"
+#include "pushnotification/pushnotification-context-observer.hh"
 #include "pushnotification/service.hh"
 #include "pushnotification/strategy/strategy.hh"
+#include "utils/observable.hh"
 
 #pragma once
 
@@ -37,12 +39,13 @@ class PushNotification;
  * is actually sent to the according PN service. It may also be prematurely canceled to avoid useless PN sending
  * when a provisional response is received on its associated outgoing transaction.
  *
- * Once the PushNotificatonContext is created, the start() method must be called to start a timer which will
+ * Once the PushNotificationContext is created, the start() method must be called to start a timer which will
  * trigger the PN after a given delay. A delay of 0s will cause the push notification to be sent asynchronously
  * as soon as possible. The kind and the payload of the PN to sent is affected by the sub-class used on construction
  * and the information stored in the PushInfo structure.
-*/
-class PushNotificationContext {
+ */
+class PushNotificationContext : public Observable<PushNotificationContextObserver>,
+                                public std::enable_shared_from_this<PushNotificationContext> {
 public:
 	virtual ~PushNotificationContext() = default;
 
@@ -51,6 +54,13 @@ public:
 	}
 	const std::shared_ptr<const pushnotification::PushInfo>& getPushInfo() const noexcept {
 		return mPInfo;
+	}
+
+	bool toTagEnabled() const noexcept {
+		return mToTagEnabled;
+	}
+	void enableToTag(bool aEnabled) noexcept {
+		mToTagEnabled = aEnabled;
 	}
 
 	/**
@@ -87,21 +97,25 @@ protected:
 	// Protected methods
 	void onTimeout();
 	virtual void sendPush() = 0;
+	void notifyPushSent(bool aRingingPush = false) {
+		notify([this, aRingingPush](auto& aObserver) { aObserver.onPushSent(*this, aRingingPush); });
+	}
 
 	// Protected attributes
 	std::string mKey{}; /**< unique key for the push notification, identifying the device and the call. */
 	PushNotification* mModule{nullptr}; /**< Back pointer to the PushNotification module. */
 	std::shared_ptr<const pushnotification::PushInfo> mPInfo{};
 	std::shared_ptr<OutgoingTransaction> mTransaction{};
-	std::shared_ptr<pushnotification::Strategy> mStrategy{}; /**< A delegate object that affect how the client will be notified. */
-
+	std::shared_ptr<pushnotification::Strategy>
+	    mStrategy{};           /**< A delegate object that affect how the client will be notified. */
 	sofiasip::Timer mTimer;    /**< timer after which push is sent */
 	sofiasip::Timer mEndTimer; /**< timer to automatically remove the PN 30 seconds after starting */
 	int mRetryCounter{0};
 	std::chrono::seconds mRetryInterval{0};
-	bool mPushSentResponseSent = false; /**< whether the 110 Push sent was sent already */
-	int mPushSentSatusCode{0};
-	const char* mPushSentPhrase{nullptr};
+	bool mToTagEnabled{false};
+
+	// Friendship
+	friend class pushnotification::Strategy; /**< Allow Strategy to invoke notifyPushSent(). */
 };
 
 class PushNotification : public Module, public ModuleToolbox {

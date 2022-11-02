@@ -519,7 +519,7 @@ struct TestNotifyExpiringContact : public RegistrarDbTest<DbImplementation::Inte
 		FirebaseClient::FIREBASE_PORT = suitePort;
 	}
 
-	void onExec() noexcept override {
+	void testExec() noexcept override {
 		auto& regDb = *RegistrarDb::get();
 		auto service = std::make_shared<pushnotification::Service>(*mRoot, 0xdead);
 		auto interval = 1s;

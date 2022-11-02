@@ -47,15 +47,27 @@ void ModuleRouter::onDeclare(GenericStruct* mc) {
 	    {Integer, "call-fork-current-branches-timeout",
 	     "Maximum time in seconds before trying the next set of lower priority contacts.", "10"},
 	    {Integer, "call-push-response-timeout", "Optional timer to detect lack of push response, in seconds.", "0"},
-	    {Boolean, "message-fork-late", "Fork MESSAGE requests to client registering lately. ", "true"},
+	    {Boolean, "message-fork-late", "Fork MESSAGE requests to client registering lately.", "true"},
 	    {Integer, "message-delivery-timeout",
-	     "Maximum duration for delivering a MESSAGE request. This property applies only"
-	     " if message-fork-late if set to true, otherwise the duration can't exceed the normal transaction duration.",
+	     "Maximum duration for delivering a MESSAGE request. This property applies only if message-fork-late is "
+	     "'true'; otherwise, the duration can't exceed the normal transaction duration.",
 	     "604800"},
 	    {Integer, "message-accept-timeout",
-	     "Maximum duration for accepting a MESSAGE request if no response is received from any recipients."
-	     " This property is meaningful when message-fork-late is set to true.",
+	     "Maximum duration (in seconds) for accepting a MESSAGE request if no response is received from any "
+	     "recipients. This property is meaningful when message-fork-late is set to true.",
 	     "5"},
+	    {Boolean, "message-database-enabled",
+	     "If 'true', the message that are waiting for delivery will be stored in database instead of memory.", "false"},
+	    {String, "message-database-backend",
+	     "Choose the type of backend that Soci will use for the connection. Depending on your Soci package and the "
+	     "modules you installed, the supported databases are:`mysql` (and `sqlite3` soon)",
+	     "mysql"},
+	    {String, "message-database-connection-string",
+	     "The configuration parameters of the backend. The basic format is \"key=value key2=value2\". For a mysql "
+	     "backend, this is a valid config: \"db=mydb user=user password='pass' host=myhost.com\". Please refer to "
+	     "the Soci documentation of your backend, for instance: "
+	     "http://soci.sourceforge.net/doc/master/backends/#supported-backends-and-features",
+	     "db='mydb' user='myuser' password='mypass' host='myhost.com'"},
 	    {String, "fallback-route",
 	     "Default route to apply when the recipient is unreachable or when when all attempted destination have failed."
 	     "It is given as a SIP URI, for example: sip:example.org;transport=tcp (without surrounding brakets)",
@@ -88,20 +100,6 @@ void ModuleRouter::onDeclare(GenericStruct* mc) {
 	     "non-standard behavior.",
 	     "false"},
 	    {BooleanExpr, "fallback-route-filter", "Only use the fallback route if the expression is true.", "true"},
-	    {Boolean, "save-fork-late-message-in-db",
-	     "Save message to database when they enter in db waiting phase of fork-late mode. message-fork-late MUST be "
-	     "true",
-	     "false"},
-	    {String, "message-database-backend",
-	     "Choose the type of backend that Soci will use for the connection. Depending on your Soci package and the "
-	     "modules you installed, the supported databases are:`mysql` (and `sqlite3` soon)",
-	     "mysql"},
-	    {String, "message-database-connection-string",
-	     "The configuration parameters of the backend. The basic format is \"key=value key2=value2\". For a mysql "
-	     "backend, this is a valid config: \"db=mydb user=user password='pass' host=myhost.com\". Please refer to "
-	     "the Soci documentation of your backend, for instance: "
-	     "http://soci.sourceforge.net/doc/master/backends/#supported-backends-and-features",
-	     "db='mydb' user='myuser' password='mypass' host='myhost.com'"},
 
 	    // deprecated parameters
 	    {Boolean, "stateful",
@@ -190,8 +188,7 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 
 	if (mMessageForkCfg->mForkLate) {
 		mOnContactRegisteredListener = make_shared<OnContactRegisteredListener>(this);
-		if ((mMessageForkCfg->mSaveForkMessageEnabled =
-		         mc->get<ConfigBoolean>("save-fork-late-message-in-db")->read())) {
+		if ((mMessageForkCfg->mSaveForkMessageEnabled = mc->get<ConfigBoolean>("message-database-enabled")->read())) {
 
 			ForkMessageContextSociRepository::prepareConfiguration(
 			    mc->get<ConfigString>("message-database-backend")->read(),
@@ -319,7 +316,6 @@ shared_ptr<BranchInfo> ModuleRouter::dispatch(const shared_ptr<ForkContext> cont
 		    new_msg, new_sip,
 		    (sip_header_t*)sip_unknown_format(msg_home(new_msg), "X-Target-Uris: %s", targetUris.c_str()));
 	}
-	new_sip->sip_route = nullptr;
 	cleanAndPrependRoute(getAgent(), new_msg, new_sip, routes);
 
 	SLOGD << "Fork to " << contact_url_string;

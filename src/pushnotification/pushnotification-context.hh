@@ -34,23 +34,47 @@ namespace flexisip {
 
 class PNContextCall : public PushNotificationContext {
 public:
-	PNContextCall(const std::shared_ptr<OutgoingTransaction>& transaction,
-	              PushNotification* _module,
-	              const std::shared_ptr<const pushnotification::PushInfo>& pInfo,
-                  std::chrono::seconds callPushInterval,
-	              const std::string& pnKey);
+	static std::shared_ptr<PNContextCall> make(const std::shared_ptr<OutgoingTransaction>& transaction,
+	                                           PushNotification* _module,
+	                                           const std::shared_ptr<const pushnotification::PushInfo>& pInfo,
+	                                           std::chrono::seconds callPushInterval,
+	                                           const std::string& pnKey) {
+		auto obj = std::shared_ptr<PNContextCall>{new PNContextCall{transaction, _module, pInfo, pnKey}};
+		obj->init(callPushInterval);
+		return obj;
+	}
 
 	void sendPush() override;
+
+private:
+	using PushNotificationContext::PushNotificationContext;
+
+	/**
+	 * Post construction initializations.
+	 */
+	void init(std::chrono::seconds aCallPushInterval);
 };
 
 class PNContextMessage : public PushNotificationContext {
 public:
-	PNContextMessage(const std::shared_ptr<OutgoingTransaction>& transaction,
-	                 PushNotification* _module,
-	                 const std::shared_ptr<const pushnotification::PushInfo>& pInfo,
-	                 const std::string& pnKey);
+	static std::shared_ptr<PNContextMessage> make(const std::shared_ptr<OutgoingTransaction>& transaction,
+	                                              PushNotification* _module,
+	                                              const std::shared_ptr<const pushnotification::PushInfo>& pInfo,
+	                                              const std::string& pnKey) {
+		auto obj = std::shared_ptr<PNContextMessage>{new PNContextMessage{transaction, _module, pInfo, pnKey}};
+		obj->init();
+		return obj;
+	}
 
 	void sendPush() override;
+
+private:
+	using PushNotificationContext::PushNotificationContext;
+
+	/**
+	 * Post construction initializations.
+	 */
+	void init();
 };
 
 }; // namespace flexisip

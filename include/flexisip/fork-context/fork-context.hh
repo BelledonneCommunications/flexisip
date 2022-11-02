@@ -26,6 +26,8 @@
 #include "flexisip/registrardb.hh"
 #include "flexisip/transaction.hh"
 
+#include "pushnotification/pushnotification-context-observer.hh"
+
 namespace flexisip {
 
 class BranchInfo;
@@ -44,7 +46,7 @@ struct ForkContextConfig {
 	bool mPermitSelfGeneratedProvisionalResponse = true; /* Self explicit. Ex: 110 Push sent, 180 Ringing*/
 };
 
-class ForkContext {
+class ForkContext : public PushNotificationContextObserver {
 public:
 	virtual ~ForkContext() = default;
 
@@ -79,14 +81,20 @@ public:
 	virtual const std::vector<std::string>& getKeys() const = 0;
 
 	using DispatchFunction = std::function<std::shared_ptr<BranchInfo>()>;
+	enum class OnNewRegisterAction {
+		NoChanges,
+		NewBranchAdded,
+	};
 	/**
 	 * Informs the forked call context that a new register from a potential destination of the fork just arrived.
 	 * If the fork context is interested in handling this new destination, then it run the dispatch function, do nothing
-	 * otherwise. If dispatch function return a newly created branch, OnNewRegister must return it too, an empty
-	 * shared_ptr otherwise.
+	 * otherwise.
 	 * Typical case for refusing it is when another transaction already exists or existed for this contact.
+	 *
+	 * @return OnNewRegisterAction::NoChanges if nothing was done. OnNewRegisterAction::NewBranchAdded if a new branch
+	 * is added to dispatch the message.
 	 */
-	virtual std::shared_ptr<BranchInfo>
+	virtual OnNewRegisterAction
 	onNewRegister(const SipUri& dest, const std::string& uid, const DispatchFunction& dispatchFunction) = 0;
 	// Notifies the cancellation of the fork process.
 	virtual void onCancel(const std::shared_ptr<RequestSipEvent>& ev) = 0;
@@ -98,6 +106,7 @@ public:
 	virtual void checkFinished() = 0;
 
 protected:
+	// Protected methods
 	std::string errorLogPrefix() const;
 	virtual const char* getClassName() const = 0;
 };

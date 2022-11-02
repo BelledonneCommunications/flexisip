@@ -110,4 +110,38 @@ bool MsgSip::isGroupChatInvite() const noexcept {
 	return true;
 }
 
+shared_ptr<flexisip::SipBooleanExpression> MsgSip::sShowBodyFor{nullptr};
+
+void MsgSip::setShowBodyFor(const string& filterString) {
+	if (filterString.empty()) {
+		throw invalid_argument("show_body-for-filter can't be empty. Use true to see all body, false to see none.");
+	}
+	sShowBodyFor = flexisip::SipBooleanExpressionBuilder::get().parse(filterString);
+}
+
+std::ostream& operator<<(std::ostream& strm, const sofiasip::MsgSip& obj) noexcept {
+	// Here we hack out the constness.
+	// The print method is non const as it will modify the underlying msg_t
+	// during serialization. Moreover, the underlying sofia calls also take
+	// a non const sip_t...
+	auto& hack = const_cast<sofiasip::MsgSip&>(obj);
+
+	auto messageString = hack.printString();
+
+	if (!MsgSip::getShowBodyForFilter()->eval(*obj.getSip())) {
+		// If message method is not in the "show body" whitelist, remove body.
+		const auto endOfHeaders = messageString.find("\r\n\r\n");
+		const auto removedBodySize = endOfHeaders != std::string::npos ? messageString.size() - (endOfHeaders + 4) : 0;
+		if (removedBodySize != 0) {
+			messageString.resize(endOfHeaders);
+			strm << messageString << "\r\n\r\n[" << removedBodySize << " bytes of body hidden]\r\n\r\n";
+			return strm;
+		}
+	}
+
+	strm << messageString;
+
+	return strm;
+}
+
 }; // namespace sofiasip

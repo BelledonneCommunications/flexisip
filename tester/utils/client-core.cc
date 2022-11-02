@@ -19,10 +19,12 @@
 #include <chrono>
 #include <iostream>
 
+#include <bctoolbox/tester.h>
+
 #include <linphone/core.h>
+
 #include <mediastreamer2/mediastream.h>
 
-#include "bctoolbox/tester.h"
 #include "flexisip/logmanager.hh"
 #include "flexisip/module-router.hh"
 
@@ -155,6 +157,11 @@ ClientBuilder& ClientBuilder::setCustomContact(const std::string& contact) {
 	return *this;
 }
 
+ClientBuilder& ClientBuilder::setPushParams(const pushnotification::RFC8599PushParams& params) {
+	mAccountParams->setContactUriParameters(params.toUriParams());
+	return *this;
+}
+
 ClientBuilder& ClientBuilder::setApplePushConfig() {
 	const auto pushConfig = mAccountParams->getPushNotificationConfig();
 	pushConfig->setProvider("apns");
@@ -219,7 +226,7 @@ std::shared_ptr<linphone::Call> CoreClient::callVideo(const std::shared_ptr<Core
 }
 
 std::shared_ptr<linphone::Call> CoreClient::call(const CoreClient& callee,
-                                                 const std::shared_ptr<linphone::Address>& calleeAddress,
+                                                 const std::shared_ptr<const linphone::Address>& calleeAddress,
                                                  const std::shared_ptr<linphone::CallParams>& callerCallParams,
                                                  const std::shared_ptr<linphone::CallParams>& calleeCallParams,
                                                  const std::vector<std::shared_ptr<CoreClient>>& calleeIdleDevices) {
@@ -228,8 +235,9 @@ std::shared_ptr<linphone::Call> CoreClient::call(const CoreClient& callee,
 		callParams = mCore->createCallParams(nullptr);
 	}
 
-	calleeAddress->removeUriParam("gr");
-	auto callerCall = mCore->inviteAddressWithParams(calleeAddress, callParams);
+	auto _calleeAddress = calleeAddress->clone();
+	_calleeAddress->removeUriParam("gr");
+	auto callerCall = mCore->inviteAddressWithParams(_calleeAddress, callParams);
 
 	if (callerCall == nullptr) {
 		BC_FAIL("Invite failed");
@@ -316,8 +324,8 @@ std::shared_ptr<linphone::Call> CoreClient::call(const CoreClient& callee,
                                                  const std::shared_ptr<linphone::CallParams>& callerCallParams,
                                                  const std::shared_ptr<linphone::CallParams>& calleeCallParams,
                                                  const std::vector<std::shared_ptr<CoreClient>>& calleeIdleDevices) {
-	return call(callee, callee.getAccount()->getContactAddress(), callerCallParams, calleeCallParams,
-	            calleeIdleDevices);
+	auto calleeAddress = callee.getAccount()->getParams()->getIdentityAddress();
+	return call(callee, calleeAddress, callerCallParams, calleeCallParams, calleeIdleDevices);
 }
 
 std::shared_ptr<linphone::Call> CoreClient::call(const std::shared_ptr<CoreClient>& callee,
@@ -465,7 +473,7 @@ void CoreClient::runFor(std::chrono::milliseconds duration) {
 }
 
 AssertionResult CoreClient::hasReceivedCallFrom(const CoreClient& peer) const {
-	return CoreAssert({mCore, peer.getCore()}, mServer->getAgent()).waitUntil(std::chrono::seconds(5), [this] {
+	return CoreAssert({mCore, peer.getCore()}, mServer->getAgent()).waitUntil(mCallInviteReceivedDelay, [this] {
 		const auto& current_call = mCore->getCurrentCall();
 		FAIL_IF(current_call == nullptr);
 		FAIL_IF(current_call->getState() != linphone::Call::State::IncomingReceived);

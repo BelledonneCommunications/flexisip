@@ -44,9 +44,13 @@ public:
 		}
 	}
 
-	template <class... Args>
-	CoreAssert(const std::shared_ptr<Server>& server, const Args&... args) : CoreAssert{args...} {
-		addCustomIterate([server] { server->getRoot()->step(std::chrono::milliseconds(1)); });
+	/**
+	 * @param server Takes a shared_ptr on either a tester::Server or a flexisip::Agent.
+	 * @param args The list of ClientCore on which to iterate.
+	 */
+	template <typename ServerT, typename... Args>
+	CoreAssert(const std::shared_ptr<ServerT>& server, const Args&... args) : CoreAssert{args...} {
+		addCustomIterate([&server] { server->getRoot()->step(std::chrono::milliseconds(1)); });
 	}
 };
 

@@ -70,12 +70,16 @@ add_subdirectory("linphone-sdk/ortp")
 # Belr specific config
 add_subdirectory("linphone-sdk/belr")
 
-# Mediastreamer specific config
-if(ENABLE_TRANSCODER OR ENABLE_B2BUA)
+if(ENABLE_TRANSCODER OR ENABLE_CONFERENCE OR ENABLE_B2BUA)
+	# BZRTP specific config
+	set(ENABLE_ZIDCACHE ON)
+	set(ENABLE_EXPORTEDKEY_V1_0_RETROCOMPATIBILITY OFF)
+	set(ENABLE_GOCLEAR ON)
 	add_subdirectory("linphone-sdk/bzrtp")
 
+	# Mediastreamer specific config
 	set(ENABLE_DEBUG_LOGS OFF)
-	set(ENABLE_FIXED_POINT "Turn on fixed point computations." OFF)
+	set(ENABLE_FIXED_POINT OFF)
 	set(ENABLE_NON_FREE_CODECS OFF)
 	set(ENABLE_PCAP OFF)
 	set(ENABLE_RELATIVE_PREFIX OFF)
@@ -120,7 +124,7 @@ if(ENABLE_PRESENCE OR ENABLE_MDNS OR ENABLE_CONFERENCE OR ENABLE_UNIT_TESTS)
 endif()
 
 
-if(ENABLE_CONFERENCE)
+if(ENABLE_CONFERENCE OR ENABLE_B2BUA)
 	# Lime specific config
 	set(DISABLE_SOCI_PACKAGE_SEARCH ON)
 
@@ -147,11 +151,11 @@ if(ENABLE_CONFERENCE)
 	set(ENABLE_JAZZY_DOC OFF)
 	set(ENABLE_DATE OFF)
 	set(ENABLE_DEBUG_LOGS OFF)
-	set(ENABLE_LIME_X3DH ON)
 	set(ENABLE_JAVA_WRAPPER OFF)
 	set(ENABLE_JAVADOC OFF)
 	set(ENABLE_LDAP OFF)
 	set(ENABLE_LIME OFF)
+	set(ENABLE_LIME_X3DH ON)
 	set(ENABLE_RELATIVE_PREFIX OFF)
 	set(ENABLE_TUNNEL OFF)
 	set(ENABLE_TUTORIALS OFF)
@@ -169,4 +173,8 @@ if(ENABLE_CONFERENCE)
 
 	add_subdirectory("linphone-sdk/liblinphone")
 	unset(ENABLE_UNIT_TESTS) # remove the overriding
+
+	# Declare that liblinphone and liblinphone++ have been found.
+	set(HAVE_LIBLINPHONE YES)
+	set(HAVE_LIBLINPHONECXX YES)
 endif()

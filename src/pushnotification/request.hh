@@ -35,6 +35,9 @@ public:
 	Request(const Request&) = delete;
 	virtual ~Request() = default;
 
+	PushType getPushType() const noexcept {
+		return mPType;
+	}
 	const PushInfo& getPInfo() const noexcept {
 		return *mPInfo;
 	}

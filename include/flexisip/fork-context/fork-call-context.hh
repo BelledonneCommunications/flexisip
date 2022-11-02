@@ -32,6 +32,7 @@ namespace flexisip {
 
 class ForkCallContext : public ForkContextBase {
 public:
+	// Public ctors
 	static std::shared_ptr<ForkCallContext> make(Agent* agent,
 	                                             const std::shared_ptr<RequestSipEvent>& event,
 	                                             const std::shared_ptr<ForkContextConfig>& cfg,
@@ -39,8 +40,7 @@ public:
 	                                             const std::weak_ptr<StatPair>& counter);
 	~ForkCallContext();
 
-	void sendResponse(int status, char const* phrase, bool addToTag = false);
-
+	// Public methods
 	bool isCompleted() const;
 	bool isRingingSomewhere() const;
 
@@ -49,27 +49,34 @@ public:
 	void processInternalError(int status, const char* phrase) override;
 
 protected:
+	// Protected methods
 	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& event) override;
 
-	std::shared_ptr<BranchInfo>
+	/**
+	 * See PushNotificationContextObserver::onPushSent()
+	 */
+	void onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept override;
+
+	OnNewRegisterAction
 	onNewRegister(const SipUri& url, const std::string& uid, const DispatchFunction& dispatchFunction) override;
 
 	void start() override;
 
-	static constexpr auto CLASS_NAME = "ForkCallContext";
 	const char* getClassName() const override {
 		return CLASS_NAME;
 	};
 
 private:
+	// Private ctors
 	ForkCallContext(Agent* agent,
 	                const std::shared_ptr<RequestSipEvent>& event,
 	                const std::shared_ptr<ForkContextConfig>& cfg,
 	                const std::weak_ptr<ForkContextListener>& listener,
 	                const std::weak_ptr<StatPair>& counter);
+
+	// Private methods
 	const int* getUrgentCodes();
 	void onShortTimer();
-	void onPushTimer();
 	void onLateTimeout() override;
 	void cancelOthers(const std::shared_ptr<BranchInfo>& br, sip_t* received_cancel);
 	void cancelOthersWithStatus(const std::shared_ptr<BranchInfo>& br, ForkStatus status);
@@ -78,14 +85,15 @@ private:
 	bool shouldFinish() override {
 		return !mCfg->mForkLate;
 	}
-	static const int sUrgentCodesWithout603[];
 
+	// Private attributes
 	sofiasip::Home mHome{};
 	std::unique_ptr<sofiasip::Timer> mShortTimer{}; // optionally used to send retryable responses
-	std::unique_ptr<sofiasip::Timer> mPushTimer{};  // used to track push responses
 	std::shared_ptr<CallLog> mLog{};
 	bool mCancelled = false;
 	sip_reason_t* mCancelReason = nullptr;
+	static const int sUrgentCodesWithout603[];
+	static constexpr auto CLASS_NAME = "ForkCallContext";
 };
 
 } // namespace flexisip

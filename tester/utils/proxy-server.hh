@@ -41,11 +41,16 @@ public:
 	 * value of the parameter as string.
 	 */
 	explicit Server(const std::map<std::string, std::string>& config);
+	/**
+	 * @brief Cast an Agent into Server
+	 */
+	explicit Server(const std::shared_ptr<Agent>& agent) : mAgent{agent} {
+	}
 	virtual ~Server();
 
 	// Accessors
 	const std::shared_ptr<sofiasip::SuRoot>& getRoot() noexcept {
-		return mRoot;
+		return mAgent->getRoot();
 	}
 
 	const std::shared_ptr<flexisip::Agent>& getAgent() noexcept {
@@ -65,8 +70,7 @@ public:
 	void runFor(std::chrono::milliseconds duration);
 
 private:
-	std::shared_ptr<sofiasip::SuRoot> mRoot{std::make_shared<sofiasip::SuRoot>()};
-	std::shared_ptr<flexisip::Agent> mAgent{std::make_shared<Agent>(mRoot)};
+	std::shared_ptr<flexisip::Agent> mAgent{std::make_shared<Agent>(std::make_shared<sofiasip::SuRoot>())};
 }; // Class Server
 
 } // namespace tester

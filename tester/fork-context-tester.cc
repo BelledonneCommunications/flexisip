@@ -87,12 +87,14 @@ static void nullMaxFrowardAndForkBasicContext() {
 	agent->start("", "");
 
 	// Sending a request with Max-Forwards = 0
-	BellesipUtils bellesipUtils{"0.0.0.0", -1, "UDP", [](int status) {
+	BellesipUtils bellesipUtils{"0.0.0.0", -1, "UDP",
+	                            [](int status) {
 		                            if (status != 100) {
 			                            BC_ASSERT_EQUAL(status, 483, int, "%i");
 			                            responseReceived = true;
 		                            }
-	                            }};
+	                            },
+	                            nullptr};
 	bellesipUtils.sendRawRequest("OPTIONS sip:participant1@127.0.0.1:5360 SIP/2.0\r\n"
 	                             "Via: SIP/2.0/UDP 10.10.10.10:5060;rport;branch=z9hG4bK1439638806\r\n"
 	                             "From: <sip:anthony@127.0.0.1>;tag=465687829\r\n"
@@ -148,12 +150,14 @@ static void notRtpPortAndForkCallContext() {
 	agent->start("", "");
 
 	// Sending a request with Max-Forwards = 0
-	BellesipUtils bellesipUtils{"0.0.0.0", -1, "UDP", [](int status) {
+	BellesipUtils bellesipUtils{"0.0.0.0", -1, "UDP",
+	                            [](int status) {
 		                            if (status != 100) {
 			                            BC_ASSERT_EQUAL(status, 500, int, "%i");
 			                            responseReceived = true;
 		                            }
-	                            }};
+	                            },
+	                            nullptr};
 	bellesipUtils.sendRawRequest(
 	    // Sip message
 	    "INVITE sip:participant1@127.0.0.1:5360 SIP/2.0\r\n"

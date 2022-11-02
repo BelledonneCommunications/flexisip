@@ -33,24 +33,30 @@ class RemotePushStrategy : public Strategy,
                            public BranchInfoListener,
                            public std::enable_shared_from_this<RemotePushStrategy> {
 public:
-	template <typename... Args> static std::shared_ptr<RemotePushStrategy> make(Args&&... args) {
+	template <typename... Args>
+	static std::shared_ptr<RemotePushStrategy> make(Args&&... args) {
 		return std::shared_ptr<RemotePushStrategy>{new RemotePushStrategy{std::forward<Args>(args)...}};
 	};
 
 	// Set the interval between two subsequent notifications when this strategy is used for call invite notification.
-	void setCallPushInterval(std::chrono::seconds interval) noexcept {mCallPushInterval = interval;}
+	void setCallPushInterval(std::chrono::seconds interval) noexcept {
+		mCallPushInterval = interval;
+	}
 
-	bool pushRepetitionEnabled() const noexcept {return mCallPushInterval.count() > 0;}
+	bool pushRepetitionEnabled() const noexcept {
+		return mCallPushInterval.count() > 0;
+	}
 
 	void sendMessageNotification(const std::shared_ptr<const PushInfo>& pInfo) override;
 	void sendCallNotification(const std::shared_ptr<const PushInfo>& pInfo) override;
 
 private:
 	// Private ctor
-	RemotePushStrategy(const std::shared_ptr<sofiasip::SuRoot>& root,
-	                   const std::shared_ptr<Service>& service,
-	                   const std::shared_ptr<BranchInfo>& br)
-	    : Strategy{root, service}, mBranchInfo{br} {
+	RemotePushStrategy(const std::weak_ptr<PushNotificationContext>& aPNContext,
+	                   const std::shared_ptr<sofiasip::SuRoot>& aRoot,
+	                   const std::shared_ptr<Service>& aService,
+	                   const std::shared_ptr<BranchInfo>& aBr)
+	    : Strategy{aPNContext, aRoot, aService}, mBranchInfo{aBr} {
 	}
 
 	// Private methods

@@ -33,6 +33,8 @@
 
 namespace flexisip {
 
+class ForkContext;
+
 /**
  * Interface for BranchInfo listener.
  *
@@ -65,7 +67,8 @@ public:
 class BranchInfo : public std::enable_shared_from_this<BranchInfo> {
 public:
 	// Call the matching private ctor and instantiate as a shared_ptr.
-	template <typename... Args> static std::shared_ptr<BranchInfo> make(Args&&... args) {
+	template <typename... Args>
+	static std::shared_ptr<BranchInfo> make(Args&&... args) {
 		return std::shared_ptr<BranchInfo>{new BranchInfo{std::forward<Args>(args)...}};
 	}
 
@@ -144,7 +147,8 @@ private:
 	 */
 	BranchInfo() = default;
 
-	template <typename T> BranchInfo(T&& ctx) : mForkCtx{std::forward<T>(ctx)} {
+	template <typename T>
+	BranchInfo(T&& ctx) : mForkCtx{std::forward<T>(ctx)} {
 	}
 
 	/**
@@ -159,7 +163,7 @@ private:
 		auto request = std::make_shared<MsgSip>(0, dbObject.request);
 		mRequest = std::make_shared<RequestSipEvent>(agent, request);
 		auto lastResponse =
-			!dbObject.lastResponse.empty() ? std::make_shared<MsgSip>(0, dbObject.lastResponse) : nullptr;
+		    !dbObject.lastResponse.empty() ? std::make_shared<MsgSip>(0, dbObject.lastResponse) : nullptr;
 		mLastResponse = std::make_shared<ResponseSipEvent>(agent, lastResponse);
 		mLastResponse->setIncomingAgent(std::shared_ptr<IncomingAgent>());
 	}

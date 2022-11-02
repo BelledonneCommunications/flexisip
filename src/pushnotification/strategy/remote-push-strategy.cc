@@ -26,6 +26,7 @@ namespace pushnotification {
 void RemotePushStrategy::sendMessageNotification(const std::shared_ptr<const PushInfo>& pInfo) {
 	auto req = mService->makeRequest(PushType::Message, pInfo);
 	mService->sendPush(req);
+	notifyPushSent();
 }
 
 void RemotePushStrategy::sendCallNotification(const std::shared_ptr<const PushInfo>& pInfo) {
@@ -51,6 +52,7 @@ void RemotePushStrategy::sendCallNotification(const std::shared_ptr<const PushIn
 		mService->sendPush(req);
 	};
 	sendPush();
+	notifyPushSent(true);
 
 	if (pushRepetitionEnabled()) {
 		auto pushTimer = std::make_shared<sofiasip::Timer>(mRoot, mCallPushInterval);
@@ -78,20 +80,24 @@ void RemotePushStrategy::onBranchCanceled(const std::shared_ptr<BranchInfo>& br,
 	mCallRingingTimeoutTimer.reset();
 
 	// Send the final PN
-	SLOGD << this << ": sending last message PN";
-	switch (cancelReason) {
-		case ForkStatus::AcceptedElsewhere:
-			mCallPushInfo->mAlertMsgId = mCallPushInfo->mAcceptedElsewhereMsg;
-			break;
-		case ForkStatus::DeclineElsewhere:
-			mCallPushInfo->mAlertMsgId = mCallPushInfo->mDeclinedElsewhereMsg;
-			break;
-		case ForkStatus::Standard:
-			mCallPushInfo->mAlertMsgId = mCallPushInfo->mMissingCallMsg;
-			break;
+	try {
+		SLOGD << this << ": sending last message PN";
+		switch (cancelReason) {
+			case ForkStatus::AcceptedElsewhere:
+				mCallPushInfo->mAlertMsgId = mCallPushInfo->mAcceptedElsewhereMsg;
+				break;
+			case ForkStatus::DeclineElsewhere:
+				mCallPushInfo->mAlertMsgId = mCallPushInfo->mDeclinedElsewhereMsg;
+				break;
+			case ForkStatus::Standard:
+				mCallPushInfo->mAlertMsgId = mCallPushInfo->mMissingCallMsg;
+				break;
+		}
+		auto req = mService->makeRequest(PushType::Message, mCallPushInfo);
+		mService->sendPush(req);
+	} catch (const std::runtime_error& e) {
+		SLOGE << this << ": last message PN sending failed: " << e.what();
 	}
-	auto req = mService->makeRequest(PushType::Message, mCallPushInfo);
-	mService->sendPush(req);
 }
 
 void RemotePushStrategy::onBranchCompleted(const std::shared_ptr<BranchInfo>& br) noexcept {

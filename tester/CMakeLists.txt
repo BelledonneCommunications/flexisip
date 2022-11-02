@@ -47,9 +47,10 @@ add_executable(flexisip_tester
 	module-dos-tester.cc
 	module-info-tester.cc
 	module-pushnotification-tester.cc
+	module-router-tester.cc
+    msg-sip-tester.cc
 	register-tester.cc
 	registrardb-tester.cc
-	router-tester.cc
 	sip-uri-tests.cc
 	tester.cc
 	thread-pool-tester.cc

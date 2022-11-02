@@ -28,7 +28,8 @@ using namespace std;
 
 namespace flexisip {
 
-template <typename T> static bool contains(const list<T>& l, T value) {
+template <typename T>
+static bool contains(const list<T>& l, T value) {
 	return find(l.cbegin(), l.cend(), value) != l.cend();
 }
 
@@ -160,37 +161,11 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, const shared_
 	checkFinished();
 }
 
-// This is actually called when we want to simulate a ringing event by sending a 180, or for example to signal the
-// caller that we've sent a push notification.
-void ForkCallContext::sendResponse(int code, char const* phrase, bool addToTag) {
-	if (!mCfg->mPermitSelfGeneratedProvisionalResponse) {
-		LOGD("ForkCallContext::sendResponse(): self-generated provisional response are disabled by configuration.");
-		return;
+void ForkCallContext::onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept {
+	ForkContextBase::onPushSent(aPNCtx, aRingingPush); // Send "110 Push sent"
+	if (aRingingPush && !isRingingSomewhere()) {
+		sendResponse(180, sip_180_Ringing, aPNCtx.toTagEnabled());
 	}
-
-	auto previousCode = getLastResponseCode();
-	if (previousCode > code || !mIncoming) {
-		/* Don't send a response with status code lesser than last transmitted response. */
-		return;
-	}
-
-	auto msgsip = mIncoming->createResponse(code, phrase);
-	if (!msgsip) return;
-
-	auto ev = make_shared<ResponseSipEvent>(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip);
-
-	// add a to tag, no set by sofia here.
-	if (addToTag) {
-		auto totag = nta_agent_newtag(msgsip->getHome(), "%s", mAgent->getSofiaAgent());
-		sip_to_tag(msgsip->getHome(), msgsip->getSip()->sip_to, totag);
-	}
-
-	mPushTimer.reset();
-	if (mCfg->mPushResponseTimeout.count() > 0) {
-		mPushTimer = make_unique<sofiasip::Timer>(mAgent->getRoot());
-		mPushTimer->set([this]() { onPushTimer(); }, mCfg->mPushResponseTimeout);
-	}
-	forwardResponse(ev);
 }
 
 void ForkCallContext::logResponse(const shared_ptr<ResponseSipEvent>& ev) {
@@ -204,28 +179,34 @@ void ForkCallContext::logResponse(const shared_ptr<ResponseSipEvent>& ev) {
 	}
 }
 
-std::shared_ptr<BranchInfo>
+ForkContext::OnNewRegisterAction
 ForkCallContext::onNewRegister(const SipUri& url, const std::string& uid, const DispatchFunction& dispatchFunction) {
 	LOGD("ForkCallContext[%p]::onNewRegister()", this);
-	if (isCompleted() && !mCfg->mForkLate) return nullptr;
+	if (isCompleted() && !mCfg->mForkLate) return OnNewRegisterAction::NoChanges;
 
 	const auto dispatchPair = shouldDispatch(url, uid);
 
+	if (dispatchPair.first != DispatchStatus::DispatchNeeded) {
+		return OnNewRegisterAction::NoChanges;
+	}
+
 	shared_ptr<BranchInfo> dispatchedBranch{nullptr};
-	if (!isCompleted() && dispatchPair.first) {
-		dispatchedBranch = dispatchFunction();
-	} else if (dispatchPair.first && dispatchPair.second) {
+	if (!isCompleted()) {
+		dispatchFunction();
+		checkFinished();
+		return OnNewRegisterAction::NewBranchAdded;
+	} else if (dispatchPair.second) {
 		if (auto pushContext = dispatchPair.second->pushContext.lock()) {
 			if (pushContext->getPushInfo()->isApple()) {
 				dispatchedBranch = dispatchFunction();
 				cancelBranch(dispatchedBranch);
+				checkFinished();
+				return OnNewRegisterAction::NewBranchAdded;
 			}
 		}
 	}
 
-	checkFinished();
-
-	return dispatchedBranch;
+	return OnNewRegisterAction::NoChanges;
 }
 
 bool ForkCallContext::isCompleted() const {
@@ -268,13 +249,6 @@ void ForkCallContext::onLateTimeout() {
 		/*cancel all possibly pending outgoing transactions*/
 		cancelOthers(shared_ptr<BranchInfo>(), nullptr);
 	}
-}
-
-void ForkCallContext::onPushTimer() {
-	if (!isCompleted() && getLastResponseCode() < 180) {
-		SLOGD << "ForkCallContext [" << this << "] push timer : no uac response";
-	}
-	mPushTimer.reset();
 }
 
 void ForkCallContext::processInternalError(int status, const char* phrase) {

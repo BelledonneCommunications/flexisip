@@ -35,6 +35,12 @@ public:
 	std::string getAppIdentifier() const noexcept override {
 		return "generic";
 	}
+	const std::string& getFirebaseAuthKey() const noexcept {
+		return mFirebaseAuthKey;
+	}
+	void setFirebaseAuthKey(const std::string& aAuthKey) noexcept {
+		mFirebaseAuthKey = aAuthKey;
+	}
 
 	const std::vector<char>& getData(const sofiasip::Url& url, Method method) override;
 
@@ -45,10 +51,11 @@ public:
 
 private:
 	// Private methods
-	std::string& substituteArgs(std::string& input, const PushInfo& pinfo);
+	std::string& substituteArgs(std::string& input);
 
 	// Private attributes
-	std::vector<char> mBuffer{};
+	std::vector<char> mBuffer{}; /**< Buffer returned by getData(). */
+	std::string mFirebaseAuthKey{}; /**< Authentication key required by Firebase service. */
 };
 
 } // namespace pushnotification

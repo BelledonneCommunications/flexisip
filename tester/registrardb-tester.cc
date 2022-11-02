@@ -52,7 +52,7 @@ protected:
 	};
 
 	// Protected methods
-	void onExec() noexcept override {
+	void testExec() noexcept override {
 		auto* regDb = RegistrarDb::get();
 
 		auto stats = make_shared<RegistrarStats>();
@@ -85,7 +85,7 @@ protected:
  */
 template <typename TDatabase>
 class TestFetchExpiringContacts : public RegistrarDbTest<TDatabase> {
-	void onExec() noexcept override {
+	void testExec() noexcept override {
 		auto* regDb = RegistrarDb::get();
 		auto inserter = ContactInserter(*regDb, *this->mAgent);
 		inserter.insert("sip:expected1@te.st", 1s);
@@ -155,7 +155,7 @@ protected:
 	};
 
 	// Protected methods
-	void onExec() noexcept override {
+	void testExec() noexcept override {
 		sofiasip::Home home;
 		auto* regDb = RegistrarDb::get();
 		std::shared_ptr<TestListener> listener = make_shared<TestListener>();

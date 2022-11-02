@@ -143,12 +143,14 @@ static void insertContact(const string& sipUri, const string& paramList) {
  */
 static void sendRegisterRequest(const string& sipUri, const string& paramList, const string& uuid) {
 
-	BellesipUtils bellesipUtils{"0.0.0.0", -1, "UDP", [](int status) {
+	BellesipUtils bellesipUtils{"0.0.0.0", -1, "UDP",
+	                            [](int status) {
 		                            if (status != 100) {
 			                            BC_ASSERT_EQUAL(status, 200, int, "%i");
 			                            responseReceived++;
 		                            }
-	                            }};
+	                            },
+	                            nullptr};
 
 	// clang-format off
 	bellesipUtils.sendRawRequest(
@@ -203,39 +205,43 @@ static void startTest() {
 
 	// APNS (with 2 tokens)
 	insertContact("sip:apns4@sip.example.org", "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
-	                                     "param=aProjectID.aBundleID.remote&voip");
-	insertContact("sip:apns5@sip.example.org", "pn-provider=apns;pn-prid=aUniqueRemoteToken:remote&aPushKitToken:voip;pn-"
-	                                     "param=aProjectID.aBundleID.remote&voip");
-	insertContact("sip:apns6@sip.example.org", "pn-provider=apns;pn-prid=aRemoteToken:remote&aUniquePushKitToken:voip;pn-"
-	                                     "param=aProjectID.aBundleID.remote&voip");
+	                                           "param=aProjectID.aBundleID.remote&voip");
+	insertContact("sip:apns5@sip.example.org",
+	              "pn-provider=apns;pn-prid=aUniqueRemoteToken:remote&aPushKitToken:voip;pn-"
+	              "param=aProjectID.aBundleID.remote&voip");
+	insertContact("sip:apns6@sip.example.org",
+	              "pn-provider=apns;pn-prid=aRemoteToken:remote&aUniquePushKitToken:voip;pn-"
+	              "param=aProjectID.aBundleID.remote&voip");
 	insertContact("sip:apns7@sip.example.org", "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
-	                                     "param=aUniqueProjectID.aBundleID.remote&voip");
+	                                           "param=aUniqueProjectID.aBundleID.remote&voip");
 	insertContact("sip:apns8@sip.example.org", "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
-	                                     "param=aProjectID.aBundleID.remote&voip");
+	                                           "param=aProjectID.aBundleID.remote&voip");
 	insertContact("sip:apns9@sip.example.org", "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
-	                                     "param=aProjectID.aBundleID.remote&voip");
+	                                           "param=aProjectID.aBundleID.remote&voip");
 	insertContact("sip:apns10@sip.example.org", "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
-	                                      "param=aProjectID.aBundleID.remote&voip");
+	                                            "param=aProjectID.aBundleID.remote&voip");
 	insertContact("sip:apns11@sip.example.org",
 	              "pn-provider=apns;pn-prid=:remote&:voip;pn-param=aProjectID.aBundleID.remote&voip");
 	insertContact("sip:apns12@sip.example.org", "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
-	                                      "param=aProjectID.aBundleID.remote&voip");
+	                                            "param=aProjectID.aBundleID.remote&voip");
 	insertContact("sip:apns13@sip.example.org", "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
-	                                      "param=aProjectID.aBundleID.remote&voip");
+	                                            "param=aProjectID.aBundleID.remote&voip");
 
 	// Multiple entries with same tokens are possible with Redis because no cleaning is done on biding, except if unique
 	// key are the same.
 	insertContact("sip:elisa@sip.example.org", "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
-	                                     "param=aProjectID.aBundleID.remote&voip");
+	                                           "param=aProjectID.aBundleID.remote&voip");
 	insertContact("sip:elisa@sip.example.org", "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
-	                                     "param=aProjectID.aBundleID.remote&voip");
+	                                           "param=aProjectID.aBundleID.remote&voip");
 	insertContact("sip:elisa@sip.example.org", "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
-	                                     "param=aProjectID.aBundleID.remote&voip");
+	                                           "param=aProjectID.aBundleID.remote&voip");
 
 	// Legacy contact parameters (apple)
 	insertContact("sip:apns14@sip.example.org", "pn-provider=apns;pn-prid=aRemoteToken;pn-param=ABCD1234.aBundleId");
-	insertContact("sip:apns15@sip.example.org", "pn-provider=apns.dev;pn-prid=aRemoteToken;pn-param=ABCD1234.aBundleId");
-	insertContact("sip:apns16@sip.example.org", "pn-provider=apns;pn-prid=aUniqueRemoteToken;pn-param=ABCD1234.aBundleId");
+	insertContact("sip:apns15@sip.example.org",
+	              "pn-provider=apns.dev;pn-prid=aRemoteToken;pn-param=ABCD1234.aBundleId");
+	insertContact("sip:apns16@sip.example.org",
+	              "pn-provider=apns;pn-prid=aUniqueRemoteToken;pn-param=ABCD1234.aBundleId");
 
 	// Legacy contact parameters (firebase)
 	insertContact("sip:fcm5@sip.example.org", "pn-provider=fcm;pn-prid=aToken;pn-param=aProjectId");
@@ -254,8 +260,8 @@ static void startTest() {
 	                    "fcm4Reg");
 
 	// APNS (simple ones)
-	sendRegisterRequest("sip:apns1@sip.example.org", "pn-provider=apns;pn-prid=aRemoteToken;pn-param=aProjectId.aBundleId",
-	                    "apns1Reg");
+	sendRegisterRequest("sip:apns1@sip.example.org",
+	                    "pn-provider=apns;pn-prid=aRemoteToken;pn-param=aProjectId.aBundleId", "apns1Reg");
 	sendRegisterRequest("sip:apns2@sip.example.org",
 	                    "pn-provider=apns.dev;pn-prid=aOtherUniqueRemoteToken;pn-param=aProjectId.aBundleId",
 	                    "apns2Reg");
@@ -325,14 +331,17 @@ static void startTest() {
 	                    "elisa15");
 
 	// Legacy contact parameters (apple)
-	sendRegisterRequest("sip:apns14@sip.example.org", "pn-type=apple;pn-tok=aRemoteToken;app-id=aBundleId.prod", "apns14Reg");
-	sendRegisterRequest("sip:apns15@sip.example.org", "pn-type=apple;pn-tok=aRemoteToken;app-id=aBundleId.dev", "apns15Reg");
-	sendRegisterRequest("sip:apns16@sip.example.org", "pn-type=apple;pn-tok=aOtherUniqueRemoteToken;app-id=aBundleId.prod",
-	                    "apns16Reg");
+	sendRegisterRequest("sip:apns14@sip.example.org", "pn-type=apple;pn-tok=aRemoteToken;app-id=aBundleId.prod",
+	                    "apns14Reg");
+	sendRegisterRequest("sip:apns15@sip.example.org", "pn-type=apple;pn-tok=aRemoteToken;app-id=aBundleId.dev",
+	                    "apns15Reg");
+	sendRegisterRequest("sip:apns16@sip.example.org",
+	                    "pn-type=apple;pn-tok=aOtherUniqueRemoteToken;app-id=aBundleId.prod", "apns16Reg");
 
 	// Legacy contact parameters (firebase)
 	sendRegisterRequest("sip:fcm5@sip.example.org", "pn-type=google;pn-tok=aToken;app-id=aProjectId", "fcm5Reg");
-	sendRegisterRequest("sip:fcm6@sip.example.org", "pn-type=firebase;pn-tok=aOtherUniqueToken;app-id=aProjectId", "fcm6Reg");
+	sendRegisterRequest("sip:fcm6@sip.example.org", "pn-type=firebase;pn-tok=aOtherUniqueToken;app-id=aProjectId",
+	                    "fcm6Reg");
 
 	// FCM
 	// Same prid and param --> replaced

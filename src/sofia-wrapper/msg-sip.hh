@@ -18,7 +18,9 @@
 
 #pragma once
 
+#include <algorithm>
 #include <ostream>
+#include <set>
 #include <string>
 
 #include <sofia-sip/msg_types.h>
@@ -26,6 +28,8 @@
 #include <sofia-sip/su_alloc.h>
 
 #include <bctoolbox/ownership.hh>
+
+#include "flexisip/sip-boolean-expressions.hh"
 
 using namespace ownership;
 
@@ -73,6 +77,11 @@ public:
 		return const_cast<MsgSip*>(this)->findHeader(name);
 	}
 
+	sip_method_t getSipMethod() const {
+		const auto rq = getSip()->sip_request;
+		return rq != nullptr ? rq->rq_method : sip_method_unknown;
+	}
+
 	void serialize() {
 		msg_serialize(mMsg.borrow(), (msg_pub_t*)getSip());
 	}
@@ -82,22 +91,31 @@ public:
 
 	bool isGroupChatInvite() const noexcept;
 
+	/**
+	 * Change the sip filter used by Flexisip to show or not request's body in logs.
+	 *
+	 * @param filterString string containing the name of the method.
+	 * @throw invalid_argument if filterString is not valid, or empty.
+	 */
+	static void setShowBodyFor(const std::string& filterString);
+
+	static std::shared_ptr<flexisip::SipBooleanExpression>& getShowBodyForFilter() {
+		if (!sShowBodyFor) {
+			sShowBodyFor = flexisip::SipBooleanExpressionBuilder::get().parse("content-type == 'application/sdp'");
+		}
+		return sShowBodyFor;
+	}
+
 private:
 	// Private methods
 	std::pair<char*, size_t> asString();
 
 	// Private attributes
 	Owned<msg_t> mMsg{nullptr};
+
+	static std::shared_ptr<flexisip::SipBooleanExpression> sShowBodyFor;
 };
 
-inline std::ostream& operator<<(std::ostream& strm, const sofiasip::MsgSip& obj) {
-	// Here we hack out the constness.
-	// The print method is non const as it will modify the underlying msg_t
-	// during serialization. Moreover, the underlying sofia calls also take
-	// a non const sip_t...
-	auto& hack = const_cast<sofiasip::MsgSip&>(obj);
-	strm << hack.print();
-	return strm;
-}
+std::ostream& operator<<(std::ostream& strm, const sofiasip::MsgSip& obj) noexcept;
 
 }; // namespace sofiasip

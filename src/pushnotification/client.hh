@@ -41,6 +41,8 @@ protected:
 
 private:
 	const Service* mService;
+
+	friend class Service;
 };
 
 } // namespace pushnotification

@@ -45,8 +45,12 @@ public:
 
 	void operator()() override {
 		configureAgent();
-		if (mRunAgent) mAgent->start("", "");
-		onExec();
+		onAgentConfigured();
+		if (mRunAgent) {
+			mAgent->start("", "");
+			onAgentStarted();
+		}
+		testExec();
 	};
 
 protected:
@@ -60,7 +64,7 @@ protected:
 
 	/**
 	 * Run the SofiaSip main loop for a given time.
-	 * This methods is to be used by an overload of onExec().
+	 * This methods is to be used by an overload of testExec().
 	 */
 	template <typename Duration>
 	void waitFor(Duration timeout) noexcept {
@@ -69,7 +73,7 @@ protected:
 
 	/**
 	 * Run the SofiaSip main loop until a given condition is fulfil or the timeout is reached.
-	 * This methods is to be used by an overload of onExec().
+	 * This methods is to be used by an overload of testExec().
 	 * @return true, if the break condition has been fulfil before the timeout.
 	 */
 	template <typename Duration>
@@ -93,7 +97,14 @@ protected:
 		auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
 		globalCfg->get<ConfigBoolean>("enable-snmp")->set("false");
 	}
-	virtual void onExec() = 0;
+
+	virtual void onAgentStarted() {
+	}
+
+	virtual void onAgentConfigured() {
+	}
+
+	virtual void testExec() = 0;
 
 	// Protected attributes
 	std::shared_ptr<sofiasip::SuRoot> mRoot{std::make_shared<sofiasip::SuRoot>()};

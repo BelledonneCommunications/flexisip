@@ -42,9 +42,9 @@ public:
 protected:
 	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& event) override;
 
-	std::shared_ptr<BranchInfo>
+	OnNewRegisterAction
 	onNewRegister(const SipUri& url, const std::string& uid, const DispatchFunction& dispatchFunction) override {
-		return std::shared_ptr<BranchInfo>{};
+		return OnNewRegisterAction::NoChanges;
 	}
 
 	static constexpr auto CLASS_NAME = "ForkBasicContext";

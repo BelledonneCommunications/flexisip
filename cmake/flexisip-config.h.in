@@ -38,6 +38,12 @@
 #cmakedefine HAVE_ARC4RANDOM 1
 #cmakedefine HAVE_SYS_PRCTL_H 1
 
+/* Whether the liblinphone library has been found. */
+#cmakedefine HAVE_LIBLINPHONE 1
+
+/* Whether the liblinphone++ library has been found. */
+#cmakedefine HAVE_LIBLINPHONECXX 1
+
 #cmakedefine MEDIARELAY_SPECIFIC_FEATURES_ENABLED 1
 #cmakedefine MONOTONIC_CLOCK_REGISTRATIONS 1
 

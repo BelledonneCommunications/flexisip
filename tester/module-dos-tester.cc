@@ -68,14 +68,14 @@ private:
 		    ->set(to_string(timePeriod.count()));
 	}
 
-	void onExec() override {
+	void testExec() override {
 		const auto testExecutor = make_shared<TestBanExecutor>();
 
 		const auto moduleDos = dynamic_pointer_cast<ModuleDoSProtection>(mAgent->findModule("DoSProtection"));
 		moduleDos->clearWhiteList();
 		moduleDos->setBanExecutor(testExecutor);
 
-		BellesipUtils bellesipUtils{"0.0.0.0", -1, protocolConfig->getProtocol(), [](int) {}};
+		BellesipUtils bellesipUtils{"0.0.0.0", -1, protocolConfig->getProtocol(), nullptr, nullptr};
 
 		int i = 0;
 		const auto before = system_clock::now();

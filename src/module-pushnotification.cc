@@ -68,16 +68,6 @@ void PushNotificationContext::onTimeout() {
 		SLOGE << e.what();
 	}
 
-	if (forkCtx && !mPushSentResponseSent) {
-		auto callCtx = dynamic_pointer_cast<ForkCallContext>(forkCtx);
-		if (callCtx && !callCtx->isRingingSomewhere()) {
-			const auto& ev = callCtx->getEvent();
-			auto addToTag = mModule->mAddToTagFilter && mModule->mAddToTagFilter->eval(*ev->getSip());
-			callCtx->sendResponse(mPushSentSatusCode, mPushSentPhrase, addToTag);
-		}
-		mPushSentResponseSent = true;
-	}
-
 	if (mRetryCounter > 0) {
 		SLOGD << "PNR " << mPInfo.get() << ": setting retry timer to " << mRetryInterval.count() << "s";
 		mRetryCounter--;
@@ -130,7 +120,8 @@ void PushNotification::onDeclare(GenericStruct* module_config) {
 	     "a retransmission-count has been specified above.",
 	     "5"},
 	    {Integer, "call-remote-push-interval",
-	     "Default interval between to subsequent PNs when remote push notifications are used to notify a call invite to "
+	     "Default interval between to subsequent PNs when remote push notifications are used to notify a call invite "
+	     "to "
 	     "a clients that haven't published any token for VoIP and background push notifications. In that case, "
 	     "several PNs are sent subsequently until the call is picked up, declined or canceled. This parameter can "
 	     "be overridden by the client by using the 'pn-call-remote-push-interval' push parameter.\n"
@@ -348,6 +339,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip>& ms,
 		pinfo->mFromName = "";
 		pinfo->mFromUri = "";
 	}
+	pinfo->mEvent = isCall ? "call" : "message";
 
 	// Extract the unique id if possible.
 	const auto& br = BranchInfo::getBranchInfo(transaction);
@@ -366,11 +358,11 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip>& ms,
 	auto it = mPendingNotifications.find(pnKey);
 	if (it != mPendingNotifications.end()) {
 		LOGD("Another push notification is pending for this call %s and this device token %s, not creating a new one",
-			 pinfo->mCallId.c_str(), dest->getPrid().c_str());
+		     pinfo->mCallId.c_str(), dest->getPrid().c_str());
 		context = it->second;
 	}
 
-	// No PushNotificatonContext exists for this call/message and device, creating it.
+	// No PushNotificationContext exists for this call/message and device, creating it.
 	if (context == nullptr) {
 		// Compute the delay before the PN is actually sent
 		auto timeout = mTimeout;
@@ -387,14 +379,18 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip>& ms,
 		// Actually create the PushNotificationContext
 		SLOGD << "Creating a push notif context PNR " << pinfo << " to send in " << timeout.count() << "s";
 		if (isCall) {
-			context = make_shared<PNContextCall>(transaction, this, pinfo, getCallRemotePushInterval(params), pnKey);
+			context = PNContextCall::make(transaction, this, pinfo, getCallRemotePushInterval(params), pnKey);
 			if (br) {
 				br->pushContext = context;
 			}
 		} else {
-			context = make_shared<PNContextMessage>(transaction, this, pinfo, pnKey);
+			context = PNContextMessage::make(transaction, this, pinfo, pnKey);
 		}
 		context->setRetransmission(mRetransmissionCount, mRetransmissionInterval);
+		context->enableToTag(mAddToTagFilter && mAddToTagFilter->eval(*sip));
+		if (br) {
+			context->addObserver(br->mForkCtx.lock());
+		}
 		context->start(timeout);
 		mPendingNotifications.emplace(pnKey, context);
 	}
@@ -484,12 +480,13 @@ void PushNotification::onRequest(std::shared_ptr<RequestSipEvent>& ev) {
 void PushNotification::onResponse(std::shared_ptr<ResponseSipEvent>& ev) {
 	const auto& code = ev->getMsgSip()->getSip()->sip_status->st_status;
 	if (code >= 200 && code != 503) {
-		/* any response >= 200 except 503 (which is SofiaSip's internal response for broken transports) should cancel the
-		 * push notification */
+		/* any response >= 200 except 503 (which is SofiaSip's internal response for broken transports) should cancel
+		 * the push notification */
 		auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 		auto pnr = transaction ? transaction->getProperty<PushNotificationContext>(getModuleName()) : nullptr;
 		if (pnr) {
-			SLOGD << "Transaction[" << transaction << "] has been answered. Canceling the associated PNR[" << pnr << "]";
+			SLOGD << "Transaction[" << transaction << "] has been answered. Canceling the associated PNR[" << pnr
+			      << "]";
 			pnr->cancel();
 			removePushNotification(pnr.get());
 		}

@@ -64,8 +64,8 @@ const std::vector<char>& GenericRequest::getData(const sofiasip::Url& url, Metho
 	auto path = url.getPath();
 	auto headers = url.getHeaders();
 
-	substituteArgs(path, *mPInfo);
-	substituteArgs(headers, *mPInfo);
+	substituteArgs(path);
+	substituteArgs(headers);
 
 	ostringstream httpMessage{};
 	httpMessage << methodStr << " /" << path;
@@ -94,7 +94,7 @@ std::string GenericRequest::isValidResponse(const std::string& str) {
 	return "";
 }
 
-std::string& GenericRequest::substituteArgs(std::string& input, const PushInfo& pinfo) {
+std::string& GenericRequest::substituteArgs(std::string& input) {
 	map<string, string> keyvals{
 		{"$type", getLegacyServiceName()},
 		{"$token", getDestination().getPrid()},
@@ -104,11 +104,11 @@ std::string& GenericRequest::substituteArgs(std::string& input, const PushInfo& 
 		{"$from-tag", mPInfo->mFromTag},
 		{"$to-uri", mPInfo->mToUri},
 		{"$call-id", mPInfo->mCallId},
-		{"$event", ""},
+		{"$event", mPInfo->mEvent},
 		{"$uid", mPInfo->mUid},
 		{"$msgid", mPInfo->mAlertMsgId},
 		{"$sound", mPInfo->mAlertSound},
-		{"$api-key", mPInfo->mApiKey}
+		{"$api-key", mFirebaseAuthKey}
 	};
 
 	for (const auto& keyval : keyvals) {

@@ -39,7 +39,7 @@ struct AssertionResult {
 		return bc_assert(file, line, operator bool(), reason);
 	}
 
-	operator bool() const { // Assertion is true iff there is no failure reason
+	operator bool() const { // Assertion is true if there is no failure reason
 		return reason == nullptr;
 	}
 
@@ -55,6 +55,7 @@ struct AssertionResult {
 
 #define ASSERTION_FAILED(reason) AssertionResult(__FILE__, __LINE__, "ASSERTION_FAILED(" reason ")")
 #define ASSERTION_PASSED() AssertionResult(__FILE__, __LINE__, nullptr)
+#define ASSERTION_CONTINUE() AssertionResult(false)
 
 #define FAIL_IF(assertion)                                                                                             \
 	if (assertion) return AssertionResult(__FILE__, __LINE__, "FAIL_IF(" #assertion ")")

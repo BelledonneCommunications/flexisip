@@ -16,47 +16,194 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <map>
+#include <string>
+
 #include "flexisip/module-pushnotification.hh"
-#include "flexisip/registrardb.hh"
-#include "pushnotification/firebase/firebase-client.hh"
-#include "tester.hh"
+
+#include "pushnotification/client.hh"
+#include "pushnotification/rfc8599-push-params.hh"
+#include "utils/client-core.hh"
+#include "utils/core-assert.hh"
+#include "utils/test-patterns/agent-test.hh"
 
 using namespace std;
 using namespace std::chrono;
-using namespace flexisip;
-using namespace flexisip::pushnotification;
-using namespace flexisip::tester;
 
-static shared_ptr<sofiasip::SuRoot> root{};
-static shared_ptr<Agent> agent{};
+namespace flexisip {
 
-static void beforeEach() {
-	root = make_shared<sofiasip::SuRoot>();
-	agent = make_shared<Agent>(root);
-}
+using namespace pushnotification;
 
-static void afterEach() {
-	agent->unloadConfig();
-	RegistrarDb::resetDB();
-	agent.reset();
-	root.reset();
-}
+namespace tester {
 
-static void pushIsSentOnInvite() {
-	// Agent initialization
-	auto cfg = GenericManager::get();
-	cfg->load(bcTesterRes("config/flexisip_module_push.conf"));
-	agent->loadConfig(cfg);
+/*********************************************************************************************************************/
+/* Top-level base classes                                                                                            */
+/*********************************************************************************************************************/
 
-	FirebaseClient::FIREBASE_ADDRESS = "randomHost";
-	FirebaseClient::FIREBASE_PORT = "3000";
+/**
+ * A dummy push notification client that can be given as fallback client
+ * to the PN service. It allows to simulate a push notification server
+ * by providing the method registerUserAgent() that allow to associate
+ * a function to call when the PN service try to send a push notification
+ * with a given triplet of RFC8599 parameters.
+ */
+class DummyPushClient : public pushnotification::Client {
+public:
+	/**
+	 * Prototype of the function to call when a push notification as been sent for the
+	 * registered user agent.
+	 * @param userAgent The user agent to notify.
+	 * @param req The PN request that the proxy has given to its PN service.
+	 */
+	using PNHandler = std::function<void(const std::shared_ptr<CoreClient>& userAgent, const Request& req)>;
 
-	// Starting Flexisip
-	agent->start("", "");
+	/**
+	 * Make a dummy push client running on the given main loop.
+	 * @param root The main loop.
+	 */
+	DummyPushClient(const std::shared_ptr<sofiasip::SuRoot>& root) : mRoot{root} {
+	}
 
-	const auto& modulePush = dynamic_pointer_cast<PushNotification>(agent->findModule("PushNotification"));
-	string rawRequest{
-	    R"sip(INVITE sip:jean.claude@90.112.184.171:41404;pn-prid=cUNaHkG98QM:APA91bE83L4-r_EVyMXxCJHVSND_GvNRpsxp3o8FoY4oRT0f1Iv9TdNhcoLh7xp2rqY-yXkf4m0JNrbS3ZueJnTF3Xjj1MwK86qSOQ5rScM824_lJlUBy9wKwLrp0gMdSmuZPlszN-Np;pn-provider=fcm;pn-param=ARandomKey;pn-silent=1;pn-timeout=0;transport=tls;fs-conn-id=169505b723d9857 SIP/2.0
+	/**
+	 * Return a counter that holds the number of PN requests the dummy client has sent.
+	 */
+	auto getSendPushCallCounter() const noexcept {
+		return mSendPushCallCounter;
+	}
+
+	/**
+	 * Associate a user agent with RFC8599 push parameters in order to be notified
+	 * when a PN request is sent with these parameters.
+	 * @param aPushParams The RFC8599 parameters.
+	 * @param aUAClient The user agent to notify.
+	 * @param aFunc The function to call when the PN is theoretically received by the user agent device.
+	 */
+	void registerUserAgent(const RFC8599PushParams& aPushParams,
+	                       const std::weak_ptr<CoreClient>& aUAClient,
+	                       const PNHandler& aFunc = nullptr) {
+		mRegisteredUA[aPushParams] = {aUAClient, aFunc};
+	}
+
+	void sendPush(const std::shared_ptr<Request>& req) override {
+		++mSendPushCallCounter;
+		req->setState(Request::State::InProgress);
+		mRoot->addToMainLoop([this, req]() {
+			try {
+				if (req) req->setState(Request::State::Successful);
+				this->incrSentCounter();
+				notifyUserAgent(*req);
+			} catch (const TestAssertFailedException& e) {
+				BC_FAIL(("One assert failed while UserAgent notification: "s + e.what()).c_str());
+			} catch (const runtime_error& e) {
+				BC_FAIL(("Unhandled runtime exception while UserAgent notification: "s + e.what()).c_str());
+			}
+		});
+	}
+
+	/**
+	 * Unused
+	 */
+	bool isIdle() const noexcept override {
+		return true;
+	}
+
+private:
+	struct UARegistrationEntry {
+		std::weak_ptr<CoreClient> userAgent{};
+		PNHandler pnHandler{};
+	};
+
+	void notifyUserAgent(const Request& aPushRequest) {
+		const auto& pushParams = aPushRequest.getDestination();
+		auto registeredClientIt = mRegisteredUA.find(pushParams);
+		if (registeredClientIt != mRegisteredUA.end()) {
+			const auto& userAgent = registeredClientIt->second.userAgent.lock();
+			if (userAgent == nullptr) {
+				SLOGE << "CoreClient vanished. Unregistering";
+				mRegisteredUA.erase(registeredClientIt);
+				return;
+			}
+
+			const auto& checkFunc = registeredClientIt->second.pnHandler;
+			if (checkFunc) checkFunc(userAgent, aPushRequest);
+		}
+	}
+
+	// Private attributes
+	std::shared_ptr<sofiasip::SuRoot> mRoot{};
+	int mSendPushCallCounter{0};
+	std::unordered_map<RFC8599PushParams, UARegistrationEntry> mRegisteredUA{};
+};
+
+/**
+ * Base class for all tests around push notification. It set the proxy agent
+ * in order to handle SIP requests that contain push notifications parameters
+ * and automatically instantiate a dummy PN client to be notified when a PN
+ * is sent to a user agent.
+ */
+class PushNotificationTest : public AgentTest {
+protected:
+	// Protected ctors
+	PushNotificationTest() = default;
+	/**
+	 * Construct a PushNotificationTest by specifying a custom PN client.
+	 */
+	template <typename PushClientPtr>
+	PushNotificationTest(PushClientPtr&& aPushClient) : mPushClient{std::forward<PushClientPtr>(aPushClient)} {
+	}
+
+	// Protected methods
+	void onAgentConfiguration(GenericManager& cfg) override {
+		AgentTest::onAgentConfiguration(cfg);
+
+		cfg.getRoot()
+		    ->get<GenericStruct>("global")
+		    ->get<ConfigValue>("transports")
+		    ->set("sip:127.0.0.1:5660;transport=tcp");
+		cfg.getRoot()->get<GenericStruct>("module::DoSProtection")->get<ConfigValue>("enabled")->set("false");
+		cfg.getRoot()->get<GenericStruct>("module::MediaRelay")->get<ConfigValue>("enabled")->set("false");
+		cfg.getRoot()->get<GenericStruct>("module::Router")->get<ConfigValue>("fork-late")->set("true");
+
+		auto regCfg = cfg.getRoot()->get<GenericStruct>("module::Registrar");
+		regCfg->get<ConfigValue>("enabled")->set("true");
+		regCfg->get<ConfigValue>("reg-domains")->set("sip.example.org");
+
+		auto pushCfg = cfg.getRoot()->get<GenericStruct>("module::PushNotification");
+		pushCfg->get<ConfigValue>("enabled")->set("true");
+	}
+
+	void onAgentStarted() override {
+		mPushModule = dynamic_pointer_cast<PushNotification>(mAgent->findModule("PushNotification"));
+		mPushModule->getService()->setFallbackClient(mPushClient);
+	}
+
+	// Protected attributes
+	std::shared_ptr<PushNotification> mPushModule{};
+	std::shared_ptr<pushnotification::Client> mPushClient{make_shared<DummyPushClient>(mRoot)};
+};
+
+/****************************** Top-level base classes ***************************************************************/
+
+/*********************************************************************************************************************/
+/* Module based tests                                                                                                */
+/*********************************************************************************************************************/
+
+/**
+ * Base class for tests that directly post requests in the input
+ * of the PushNotification module.
+ */
+class PushModuleTest : public PushNotificationTest {
+protected:
+	void postRequestEvent(const std::shared_ptr<MsgSip>& request) {
+		auto reqSipEvent = std::make_shared<RequestSipEvent>(mAgent, request);
+		reqSipEvent->setOutgoingAgent(mAgent);
+		reqSipEvent->createOutgoingTransaction();
+		mPushModule->onRequest(reqSipEvent);
+	}
+
+	std::shared_ptr<MsgSip> forgeInvite(bool replaceHeader = false) {
+		string rawRequest{
+		    R"sip(INVITE sip:jean.claude@90.112.184.171:41404;pn-prid=cUNaHkG98QM:APA91bE83L4-r_EVyMXxCJHVSND_GvNRpsxp3o8FoY4oRT0f1Iv9TdNhcoLh7xp2rqY-yXkf4m0JNrbS3ZueJnTF3Xjj1MwK86qSOQ5rScM824_lJlUBy9wKwLrp0gMdSmuZPlszN-Np;pn-provider=fcm;pn-param=ARandomKey;pn-silent=1;pn-timeout=0;transport=tls;fs-conn-id=169505b723d9857 SIP/2.0
 Via: SIP/2.0/TLS 192.168.1.197:49812;branch=z9hG4bK.BJKV8sLmg;rport=49812;received=151.127.31.93
 Route: <sip:91.121.209.194:5059;transport=tcp;lr>
 Record-Route: <sips:sip1.linphone.org:5061;lr>
@@ -70,133 +217,416 @@ User-Agent: LinphoneiOS/4.5.1 (iPhone de Kijou) LinphoneSDK/5.0.40-pre.2+ea19d3d
 Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK, UPDATE
 Supported: replaces, outbound, gruu
 Content-Type: application/sdp
-Content-Length: 1041
+Content-Length: 0)sip"};
 
-v=0
-o=kijou 2959 756 IN IP4 192.168.1.197
-s=Talk
-c=IN IP4 192.168.1.197
-t=0 0
-a=ice-pwd:fe26e5da31eb0957ad9eb1f0
-a=ice-ufrag:caba7d03
-a=rtcp-xr:rcvr-rtt=all:10000 stat-summary=loss,dup,jitt,TTL voip-metrics
-a=Ik:YgB4l8QfvS6iTr9Krd/eQHVPF/beS0cJ8YCJDKmkI2I=
-m=audio 7254 RTP/AVPF 96 97 98 0 8 18 99 100 101
-c=IN IP4 151.127.31.93
-a=rtpmap:96 opus/48000/2
-a=fmtp:96 useinbandfec=1
-a=rtpmap:97 speex/16000
-a=fmtp:97 vbr=on
-a=rtpmap:98 speex/8000
-a=fmtp:98 vbr=on
-a=fmtp:18 mode=30
-a=rtpmap:99 telephone-event/48000
-a=rtpmap:100 telephone-event/16000
-a=rtpmap:101 telephone-event/8000
-a=candidate:1 1 UDP 2130706303 192.168.1.197 7254 typ host
-a=candidate:1 2 UDP 2130706302 192.168.1.197 7255 typ host
-a=candidate:2 1 UDP 2130706303 10.85.99.47 7254 typ host
-a=candidate:2 2 UDP 2130706302 10.85.99.47 7255 typ host
-a=candidate:3 1 UDP 1694498687 151.127.31.93 7254 typ srflx raddr 192.168.1.197 rport 7254
-a=candidate:3 2 UDP 1694498686 151.127.31.93 7255 typ srflx raddr 192.168.1.197 rport 7255
-a=rtcp-fb:* trr-int 1000
-a=rtcp-fb:* ccm tmmbr)sip"};
-	auto request = std::make_shared<MsgSip>(0, rawRequest);
-	auto reqSipEvent = std::make_shared<RequestSipEvent>(agent, request);
-	reqSipEvent->setOutgoingAgent(agent);
-	reqSipEvent->createOutgoingTransaction();
+		auto request = make_shared<MsgSip>(0, rawRequest);
+		if (replaceHeader) {
+			auto replacesHdr = sip_replaces_make(request->getHome(), "6g7z4~lD7M");
+			sip_header_insert(request->getMsg(), request->getSip(), reinterpret_cast<sip_header_t*>(replacesHdr));
+		}
+		return request;
+	}
+};
 
-	modulePush->onRequest(reqSipEvent);
+/**
+ * Test that no push notification is sent when an invite with PN parameters in
+ * its request URI and a replace header pass through the PushNotification module.
+ * Reason: the Replace header is used to replace a participant of a previously
+ * established call session. As the receiver of the INVITE has a call established,
+ * its device is online and no push notification is required. Besides, on iOS,
+ * receiving a PN in this situation would trigger the CallKit view, which would be
+ * unexpected.
+ * See https://datatracker.ietf.org/doc/html/rfc3891 for more information about
+ * Replace header.
+ */
+class PushIsNotSentOnInviteWithReplacesHeader : public PushModuleTest {
+protected:
+	void testExec() override {
+		auto request = forgeInvite(true);
+		postRequestEvent(request);
+		waitFor(1s);
 
-	auto beforePlus2 = system_clock::now() + 2s;
-	while (beforePlus2 >= system_clock::now() && modulePush->getService()->getFailedCounter()->read() != 1) {
-		root->step(20ms);
+		BC_ASSERT_EQUAL(dynamic_pointer_cast<DummyPushClient>(mPushClient)->getSendPushCallCounter(), 0, int, "%i");
+		BC_ASSERT_EQUAL(mPushModule->getService()->getSentCounter()->read(), 0, int, "%i");
+		BC_ASSERT_EQUAL(mPushModule->getService()->getFailedCounter()->read(), 0, int, "%i");
+	}
+};
+
+/************************************************* Module based tests ************************************************/
+
+/*********************************************************************************************************************/
+/* CoreClient based tests                                                                                            */
+/*********************************************************************************************************************/
+
+/**
+ * Interface used by CallInviteOnOfflineDevice test class to modify the behavior
+ * of the test according the callee's platform (OS).
+ */
+class ClientPlatform {
+public:
+	virtual ~ClientPlatform() = default;
+
+	/**
+	 * Push params will be placed in the Contact URI of the callee
+	 * while registration.
+	 */
+	const RFC8599PushParams& getContactPushParams() const noexcept {
+		return mContactPushParams;
 	}
 
-	BC_ASSERT_EQUAL(modulePush->getService()->getFailedCounter()->read(), 1, int, "%i");
+	/**
+	 * List of push params to use to registrate the callee to the dummy push server.
+	 */
+	virtual std::vector<RFC8599PushParams> getRegistrationPushParams() const noexcept = 0;
+
+	/**
+	 * The expected type of the received push notification by the callee.
+	 */
+	PushType getExpectedPushType() const noexcept {
+		return mExpectedPushType;
+	}
+	/**
+	 * Expected push parameters when the push notification is received by the callee.
+	 */
+	virtual const RFC8599PushParams& getExpectedPushParams() const noexcept = 0;
+
+protected:
+	ClientPlatform(PushType aPType) : mExpectedPushType{aPType} {};
+	ClientPlatform(const ClientPlatform&) = delete;
+
+	// Protected attributes
+	RFC8599PushParams mContactPushParams{};
+	PushType mExpectedPushType{PushType::Unknown};
+};
+
+/**
+ * Android platform case
+ */
+class Android : public ClientPlatform {
+public:
+	Android() noexcept : ClientPlatform{PushType::Background} {
+		mContactPushParams = RFC8599PushParams::generatePushParams("fcm");
+	}
+
+	std::vector<RFC8599PushParams> getRegistrationPushParams() const noexcept override {
+		return {mContactPushParams};
+	}
+	const RFC8599PushParams& getExpectedPushParams() const noexcept override {
+		return mContactPushParams;
+	}
+};
+
+/**
+ * IOS client both registering to Remote and VoIP push notifications.
+ */
+class IOS : public ClientPlatform {
+public:
+	IOS() noexcept : ClientPlatform{PushType::VoIP} {
+		mRemotePushParams = RFC8599PushParams::generatePushParams("apns", PushType::Message);
+		mVoipPushParams = RFC8599PushParams::generatePushParams("apns", PushType::VoIP);
+		mContactPushParams = RFC8599PushParams::concatPushParams(mRemotePushParams, mVoipPushParams);
+	}
+
+	std::vector<RFC8599PushParams> getRegistrationPushParams() const noexcept override {
+		return {mRemotePushParams, mVoipPushParams};
+	}
+	const RFC8599PushParams& getExpectedPushParams() const noexcept override {
+		return mVoipPushParams;
+	}
+
+private:
+	RFC8599PushParams mRemotePushParams{};
+	RFC8599PushParams mVoipPushParams{};
+};
+
+/**
+ * IOS client only registering for VoIP push notifications
+ */
+class IOSVoIPOnly : public ClientPlatform {
+public:
+	IOSVoIPOnly() noexcept : ClientPlatform{PushType::VoIP} {
+		mContactPushParams = RFC8599PushParams::generatePushParams("apns", PushType::VoIP);
+	}
+
+	std::vector<RFC8599PushParams> getRegistrationPushParams() const noexcept override {
+		return {mContactPushParams};
+	}
+	const RFC8599PushParams& getExpectedPushParams() const noexcept override {
+		return mContactPushParams;
+	}
+};
+
+/**
+ * IOS client only registering for Remote push notifications
+ */
+class IOSRemoteOnly : public ClientPlatform {
+public:
+	IOSRemoteOnly() noexcept : ClientPlatform{PushType::Message} {
+		mContactPushParams = RFC8599PushParams::generatePushParams("apns", PushType::Message);
+	}
+
+	std::vector<RFC8599PushParams> getRegistrationPushParams() const noexcept override {
+		return {mContactPushParams};
+	}
+	const RFC8599PushParams& getExpectedPushParams() const noexcept override {
+		return mContactPushParams;
+	}
+};
+
+/**
+ * Interface used by CallInviteOnOfflineDevice test class to delegate
+ * the tests to do when a user agent receives a push notification.
+ */
+class PNHandler {
+public:
+	template <typename T>
+	PNHandler(T&& aPlatform) : mPlatform{std::forward<T>(aPlatform)} {
+	}
+	virtual ~PNHandler() = default;
+
+	/**
+	 * Some PNHandler expect that the same PN is received at regular interval.
+	 * This getter returns the expected delay between two successive PN.
+	 */
+	std::chrono::seconds getCallRemotePushInterval() const noexcept {
+		return mCallRemotePushInterval;
+	}
+	/**
+	 * Some test need to extend the delay before the callee gives up to wait the incoming INVITE.
+	 * This getter returns an extra delay to add to the default delay defined by the CoreClient class.
+	 */
+	virtual std::chrono::seconds getCallInviteReceivedExtraDelay() const noexcept = 0;
+
+	/**
+	 * Method to implement to define what to do on PN reception.
+	 */
+	virtual void onPNReceived(const std::shared_ptr<CoreClient>& aUserAgent, const Request& aPNRequest) = 0;
+
+protected:
+	std::shared_ptr<ClientPlatform> mPlatform{};     /**< The actual platform used on the test. */
+	std::chrono::seconds mCallRemotePushInterval{0}; /**< Expected interval between two successive PN. */
+};
+
+/**
+ * Default PNHandler that just expect a single PN with the expected push type
+ * and RFC8599 parameters.
+ */
+class DefaultPNHandler : public PNHandler {
+public:
+	using PNHandler::PNHandler;
+
+	std::chrono::seconds getCallInviteReceivedExtraDelay() const noexcept override {
+		return 0s;
+	}
+
+	void onPNReceived(const std::shared_ptr<CoreClient>& aUserAgent, const Request& aPNRequest) override {
+		BC_HARD_ASSERT_CPP_EQUAL(aPNRequest.getPushType(), mPlatform->getExpectedPushType());
+		BC_HARD_ASSERT_CPP_EQUAL(aPNRequest.getDestination(), mPlatform->getExpectedPushParams());
+
+		SLOGD << "Waking up CoreClient[" << aUserAgent << "]";
+		aUserAgent->getCore()->setNetworkReachable(true);
+	}
+};
+
+/**
+ * PN handler that expects that several "ringing" PN be received. It wakes the callee's
+ * client up after receiving a given number of PN and expect that no more PN be received
+ * after the client is awake.
+ */
+class RingingRemotePNHandler : public PNHandler {
+public:
+	template <typename T>
+	RingingRemotePNHandler(T&& aPlatform) : PNHandler{std::forward<T>(aPlatform)} {
+		mCallRemotePushInterval = 1s;
+	}
+
+	std::chrono::seconds getCallInviteReceivedExtraDelay() const noexcept override {
+		using namespace std::chrono;
+		return duration_cast<seconds>(mExpectedReceivedRingingPN * mCallRemotePushInterval);
+	}
+
+	void onPNReceived(const std::shared_ptr<CoreClient>& aUserAgent, const Request& aPNRequest) override {
+		if (mClientAwake) {
+			BC_HARD_FAIL("Ringing PN received whereas the callee is awake.");
+		}
+
+		BC_HARD_ASSERT_CPP_EQUAL(aPNRequest.getPushType(), mPlatform->getExpectedPushType());
+		BC_HARD_ASSERT_CPP_EQUAL(aPNRequest.getDestination(), mPlatform->getExpectedPushParams());
+		if (mReceivedRingingPN < mExpectedReceivedRingingPN) {
+			SLOGD << "Receiving ringing PN #" << ++mReceivedRingingPN;
+		} else {
+			SLOGD << "Waking up CoreClient[" << aUserAgent << "]";
+			aUserAgent->getCore()->setNetworkReachable(true);
+			mClientAwake = true;
+		}
+	}
+
+private:
+	int mReceivedRingingPN{0};               /**< Incremented on each ringing PN reception. */
+	bool mClientAwake{false};                /**< Tell whether the callee has get the network back. */
+	const int mExpectedReceivedRingingPN{3}; /**< Expected number of ringing PNs. */
+};
+
+/**
+ * Test that when a client call another offline client, then the callee
+ * actually received a push notification of the expected type and received
+ * the call after registration.
+ */
+template <typename ClientPlatformT, typename PNHandlerT = DefaultPNHandler>
+class CallInviteOnOfflineDevice : public PushNotificationTest {
+protected:
+	void onAgentConfiguration(GenericManager& cfg) override {
+		PushNotificationTest::onAgentConfiguration(cfg);
+		cfg.getRoot()
+		    ->get<GenericStruct>("module::PushNotification")
+		    ->get<ConfigValue>("call-remote-push-interval")
+		    ->set(to_string(mPNHandler->getCallRemotePushInterval().count()));
+	}
+
+	void testExec() override {
+		auto proxy = make_shared<Server>(mAgent);
+		auto core1 = make_shared<CoreClient>("sip:user1@sip.example.org", proxy);
+		auto core2 = make_shared<CoreClient>(
+		    move(ClientBuilder{"sip:user2@sip.example.org"}.setPushParams(mPlatform->getContactPushParams())), proxy);
+		core2->getCore()->setNetworkReachable(false);
+		core2->setCallInviteReceivedDelay(core2->getCallInviteReceivedDelay() +
+		                                  mPNHandler->getCallInviteReceivedExtraDelay());
+
+		for (const auto& pushParams : mPlatform->getRegistrationPushParams()) {
+			dynamic_pointer_cast<DummyPushClient>(mPushClient)
+			    ->registerUserAgent(
+			        pushParams, core2,
+			        [aPNHandler = weak_ptr<PNHandler>{mPNHandler}](const auto& aUserAgent, const auto& aPNRequest) {
+				        auto pnHandler = aPNHandler.lock();
+				        if (pnHandler) pnHandler->onPNReceived(aUserAgent, aPNRequest);
+			        });
+		}
+
+		core1->call(core2);
+	}
+
+	// Protected attributes
+	std::shared_ptr<ClientPlatform> mPlatform{std::make_shared<ClientPlatformT>()};
+	std::shared_ptr<PNHandler> mPNHandler{std::make_shared<PNHandlerT>(mPlatform)};
+};
+
+/**
+ * Test that the proxy hasn't an undefined behavior when the RemotePushStrategy is used to notify a call, the caller
+ * cancels the call before the callee accept the invite and the final remote push notification cannot be sent because
+ * for any reason. Especially, the exception thrown by pushnotification::Service::sentPush() must be caught.
+ */
+class CallRemotePNCancelation : public PushNotificationTest {
+public:
+	CallRemotePNCancelation() : PushNotificationTest{make_shared<_DummyPushClient>()} {
+	}
+
+	void onAgentConfiguration(GenericManager& cfg) override {
+		PushNotificationTest::onAgentConfiguration(cfg);
+		cfg.getRoot()
+		    ->get<GenericStruct>("module::PushNotification")
+		    ->get<ConfigValue>("call-remote-push-interval")
+		    ->set("1");
+	}
+
+	void testExec() override {
+		auto proxy = make_shared<Server>(mAgent);
+		auto core1 = make_shared<CoreClient>("sip:user1@sip.example.org", proxy);
+		auto core2 = make_shared<CoreClient>(
+		    move(ClientBuilder{"sip:user2@sip.example.org"}.setPushParams(mPlatform->getContactPushParams())), proxy);
+		core2->getCore()->setNetworkReachable(false);
+
+		auto pushClient = dynamic_pointer_cast<_DummyPushClient>(mPushClient);
+
+		SLOGI << "Send INVITE to the callee and wait for the first ringing PN sending";
+		auto call = core1->invite(*core2);
+		auto ringingPushSent = CoreAssert{proxy->getAgent(), core1, core2}.wait([&pushClient]() {
+			BC_HARD_ASSERT(pushClient->getRingingPNCount() <= 1);
+			return pushClient->getRingingPNCount() == 1 ? ASSERTION_PASSED() : ASSERTION_CONTINUE();
+		});
+		BC_HARD_ASSERT(ringingPushSent);
+
+		SLOGI << "Canceling the current call";
+		call->terminate();
+		auto callReleased = CoreAssert{proxy->getAgent(), core1, core2}.wait([&call]() {
+			return call->getState() == linphone::Call::State::Released ? ASSERTION_PASSED() : ASSERTION_CONTINUE();
+		});
+		BC_HARD_ASSERT(callReleased);
+		BC_HARD_ASSERT_CPP_EQUAL(pushClient->getFinalPNSendingFailureCount(), 1);
+
+		// Workaround: register core2 again in order to avoid assertion failure on core2 destruction.
+		core2->getCore()->setNetworkReachable(true);
+		CoreAssert{proxy->getAgent(), core1, core2}.wait([&core2] {
+			return core2->getAccount()->getState() == linphone::RegistrationState::Ok ? ASSERTION_PASSED()
+			                                                                          : ASSERTION_CONTINUE();
+		});
+	}
+
+private:
+	// Private types
+	/**
+	 * Specific call client that simulate that the final push notification fails to be sent.
+	 */
+	class _DummyPushClient : public pushnotification::Client {
+	public:
+		int getRingingPNCount() const noexcept {
+			return mRingingPushCount;
+		}
+		int getFinalPNSendingFailureCount() const noexcept {
+			return mFinalPNSendingFailureCount;
+		}
+
+		void sendPush(const std::shared_ptr<Request>& req) override {
+			const auto& pInfo = req->getPInfo();
+			BC_HARD_ASSERT_CPP_EQUAL(req->getPushType(), PushType::Message);
+			BC_HARD_ASSERT_CPP_NOT_EQUAL(pInfo.mAlertMsgId, pInfo.mAcceptedElsewhereMsg);
+			BC_HARD_ASSERT_CPP_NOT_EQUAL(pInfo.mAlertMsgId, pInfo.mDeclinedElsewhereMsg);
+			if (pInfo.mAlertMsgId == pInfo.mMissingCallMsg) {
+				// Final PN sent when a call is canceled
+				++mFinalPNSendingFailureCount;
+				throw runtime_error{"simulated PN sending error"};
+			} else {
+				// Ringing PN
+				++mRingingPushCount;
+			}
+		}
+		bool isIdle() const noexcept override {
+			return false;
+		}
+
+	private:
+		int mRingingPushCount{0};           /**< Number of sent ringing push notifications. */
+		int mFinalPNSendingFailureCount{0}; /**< Number of failing trial for sending a final PN.  */
+	};
+
+	// Private attributes
+	std::shared_ptr<IOSRemoteOnly> mPlatform{make_shared<IOSRemoteOnly>()};
+};
+
+/*********** CoreClient based tests **********************************************************************************/
+
+/**
+ * These function has been created because BC_TEST_NO_TAG doesn't
+ * work when the test class takes several pattern parameters.
+ */
+constexpr test_t makeTest(const char* aName, test_function_t aFunc) {
+	return {aName, aFunc, {0}};
 }
-
-static void pushIsNotSentOnInviteWithReplacesHeader() {
-	// Agent initialization
-	auto cfg = GenericManager::get();
-	cfg->load(bcTesterRes("config/flexisip_module_push.conf"));
-	agent->loadConfig(cfg);
-
-	FirebaseClient::FIREBASE_ADDRESS = "randomHost";
-	FirebaseClient::FIREBASE_PORT = "3000";
-
-	// Starting Flexisip
-	agent->start("", "");
-
-	const auto& modulePush = dynamic_pointer_cast<PushNotification>(agent->findModule("PushNotification"));
-	string rawRequest{
-	    R"sip(INVITE sip:jean.claude@90.112.184.171:41404;pn-prid=cUNaHkG98QM:APA91bE83L4-r_EVyMXxCJHVSND_GvNRpsxp3o8FoY4oRT0f1Iv9TdNhcoLh7xp2rqY-yXkf4m0JNrbS3ZueJnTF3Xjj1MwK86qSOQ5rScM824_lJlUBy9wKwLrp0gMdSmuZPlszN-Np;pn-provider=fcm;pn-param=ARandomKey;pn-silent=1;pn-timeout=0;transport=tls;fs-conn-id=169505b723d9857 SIP/2.0
-Via: SIP/2.0/TLS 192.168.1.197:49812;branch=z9hG4bK.BJKV8sLmg;rport=49812;received=151.127.31.93
-Route: <sip:91.121.209.194:5059;transport=tcp;lr>
-Record-Route: <sips:sip1.linphone.org:5061;lr>
-Max-Forwards: 70
-From: "Kijou" <sip:kijou@sip.linphone.org>;tag=08HMIWXqx
-To: "Jean Claude" <sip:jean.claude@sip.linphone.org>
-Call-ID: 6g7z4~lD8M
-CSeq: 20 INVITE
-Contact: <sip:kijou@sip.linphone.org;gr=urn:uuid:5c3651e6-3767-0091-968b-42c911ba7c7b>;+org.linphone.specs="ephemeral,groupchat,groupchat/1.1,lime"
-User-Agent: LinphoneiOS/4.5.1 (iPhone de Kijou) LinphoneSDK/5.0.40-pre.2+ea19d3d
-Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK, UPDATE
-Supported: replaces, outbound, gruu
-Replaces: 6g7z4~lD7M
-Content-Type: application/sdp
-Content-Length: 1041
-
-v=0
-o=kijou 2959 756 IN IP4 192.168.1.197
-s=Talk
-c=IN IP4 192.168.1.197
-t=0 0
-a=ice-pwd:fe26e5da31eb0957ad9eb1f0
-a=ice-ufrag:caba7d03
-a=rtcp-xr:rcvr-rtt=all:10000 stat-summary=loss,dup,jitt,TTL voip-metrics
-a=Ik:YgB4l8QfvS6iTr9Krd/eQHVPF/beS0cJ8YCJDKmkI2I=
-m=audio 7254 RTP/AVPF 96 97 98 0 8 18 99 100 101
-c=IN IP4 151.127.31.93
-a=rtpmap:96 opus/48000/2
-a=fmtp:96 useinbandfec=1
-a=rtpmap:97 speex/16000
-a=fmtp:97 vbr=on
-a=rtpmap:98 speex/8000
-a=fmtp:98 vbr=on
-a=fmtp:18 mode=30
-a=rtpmap:99 telephone-event/48000
-a=rtpmap:100 telephone-event/16000
-a=rtpmap:101 telephone-event/8000
-a=candidate:1 1 UDP 2130706303 192.168.1.197 7254 typ host
-a=candidate:1 2 UDP 2130706302 192.168.1.197 7255 typ host
-a=candidate:2 1 UDP 2130706303 10.85.99.47 7254 typ host
-a=candidate:2 2 UDP 2130706302 10.85.99.47 7255 typ host
-a=candidate:3 1 UDP 1694498687 151.127.31.93 7254 typ srflx raddr 192.168.1.197 rport 7254
-a=candidate:3 2 UDP 1694498686 151.127.31.93 7255 typ srflx raddr 192.168.1.197 rport 7255
-a=rtcp-fb:* trr-int 1000
-a=rtcp-fb:* ccm tmmbr)sip"};
-	auto request = std::make_shared<MsgSip>(0, rawRequest);
-	auto reqSipEvent = std::make_shared<RequestSipEvent>(agent, request);
-	reqSipEvent->setOutgoingAgent(agent);
-	reqSipEvent->createOutgoingTransaction();
-
-	modulePush->onRequest(reqSipEvent);
-
-	auto beforePlus2 = system_clock::now() + 2s;
-	while (beforePlus2 >= system_clock::now() && beforePlus2 >= system_clock::now() &&
-	       modulePush->getService()->getFailedCounter()->read() != 1) {
-		root->step(20ms);
-	}
-
-	BC_ASSERT_EQUAL(modulePush->getService()->getSentCounter()->read(), 0, int, "%i");
-	BC_ASSERT_EQUAL(modulePush->getService()->getFailedCounter()->read(), 0, int, "%i");
+template <typename TestT>
+constexpr test_t makeTest(const char* aName) {
+	return makeTest(aName, run<TestT>);
 }
 
 static test_t tests[] = {
-    TEST_NO_TAG("Push is sent on Invite", pushIsSentOnInvite),
-    TEST_NO_TAG("Push is not sent on Invite with Replaces Header", pushIsNotSentOnInviteWithReplacesHeader),
-};
+    makeTest<PushIsNotSentOnInviteWithReplacesHeader>("Push is not sent on Invite with Replaces Header"),
+    makeTest<CallInviteOnOfflineDevice<Android>>("Call invite on offline device (Android)"),
+    makeTest<CallInviteOnOfflineDevice<IOS>>("Call invite on offline device (iOS)"),
+    makeTest<CallInviteOnOfflineDevice<IOSVoIPOnly>>("Call invite on offline device (iOS, VoIP only)"),
+    makeTest<CallInviteOnOfflineDevice<IOSRemoteOnly, RingingRemotePNHandler>>(
+        "Call invite on offline device (iOS, Remote only)"),
+    makeTest<CallRemotePNCancelation>("Cancel a call notified by ringing remote push notifications")};
 
-test_suite_t module_pushnitification_suite = {"Module push-notification",       nullptr, nullptr, beforeEach, afterEach,
-                                              sizeof(tests) / sizeof(tests[0]), tests};
+test_suite_t modulePushNotificationSuite = {"Module push-notification",       nullptr, nullptr, nullptr, nullptr,
+                                            sizeof(tests) / sizeof(tests[0]), tests};
+
+} // namespace tester
+} // namespace flexisip

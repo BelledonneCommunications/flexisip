@@ -30,14 +30,72 @@ namespace tester {
 
 class TestAssertFailedException : public std::exception {};
 
+/**
+ * Base function for BC_HARD_ASSERT_* macro.
+ * These macros throw an TestAssertFailedException in addition of marking the test as failed when
+ * predicate is false.
+ */
 inline void bc_hard_assert(const char* file, int line, int predicate, const char* format) {
 	bc_assert(file, line, predicate, format);
 	if (!predicate) throw TestAssertFailedException{};
 }
 
-#define BC_HARD_ASSERT_TRUE(value) bc_hard_assert(__FILE__, __LINE__, (value), "BC_HARD_ASSERT_TRUE(" #value ")")
-#define BC_HARD_ASSERT_FALSE(value) bc_hard_assert(__FILE__, __LINE__, !(value), "BC_HARD_ASSERT_FALSE(" #value ")")
+/**
+ * Basic hard assert: mark the test as failed if the given expression is false.
+ */
+#define BC_HARD_ASSERT(expression) bc_hard_assert(__FILE__, __LINE__, (expression), "BC_HARD_ASSERT(" #expression ")")
+/**
+ * Same as BC_HARD_ASSERT().
+ */
+#define BC_HARD_ASSERT_TRUE(expression)                                                                                \
+	bc_hard_assert(__FILE__, __LINE__, (expression), "BC_HARD_ASSERT_TRUE(" #expression ")")
+/**
+ * Mark the test as failed if the given expression is true.
+ */
+#define BC_HARD_ASSERT_FALSE(expression)                                                                               \
+	bc_hard_assert(__FILE__, __LINE__, !(expression), "BC_HARD_ASSERT_FALSE(" #expression ")")
+/**
+ * Make the test fails systematically with a custom message.
+ */
 #define BC_HARD_FAIL(msg) bc_hard_assert(__FILE__, __LINE__, 0, msg)
+
+/**
+ * Base macro for BC_ASSERT_CPP_EQUAL() and BC_HARD_ASSERT_CPP_EQUAL().
+ */
+#define BC_ASSERT_CPP_EQUAL_BASE(assertFunction, value, expected)                                                      \
+	do {                                                                                                               \
+		std::ostringstream os{};                                                                                       \
+		os << "BC_ASSERT_CPP_EQUAL(" #value ", " #expected "), value: " << (value) << ", expected: " << (expected);    \
+		assertFunction(__FILE__, __LINE__, value == expected, os.str().c_str());                                       \
+	} while (0)
+/**
+ * Assert the equality of two expressions whatever their types. The '==' and '<<' operators must be declared for
+ * the type of the two operands.
+ */
+#define BC_ASSERT_CPP_EQUAL(value, expected) BC_ASSERT_CPP_EQUAL_BASE(bc_assert, value, expected)
+/**
+ * Same as BC_ASSERT_CPP_EQUAL() but send an exception in addition of marking the test as failed.
+ */
+#define BC_HARD_ASSERT_CPP_EQUAL(value, expected) BC_ASSERT_CPP_EQUAL_BASE(bc_hard_assert, value, expected)
+
+/**
+ * Base macro for BC_ASSERT_CPP_NOT_EQUAL() and BC_HARD_ASSERT_CPP_NOT_EQUAL().
+ */
+#define BC_ASSERT_CPP_NOT_EQUAL_BASE(assertFunction, value, expected)                                                  \
+	do {                                                                                                               \
+		std::ostringstream os{};                                                                                       \
+		os << "BC_ASSERT_CPP_NOT_EQUAL(" #value ", " #expected "), value: " << (value)                                 \
+		   << ", expected: " << (expected);                                                                            \
+		assertFunction(__FILE__, __LINE__, value != expected, os.str().c_str());                                       \
+	} while (0)
+/**
+ * Same as BC_ASSERT_CPP_EQUAL() but test that the two expressions aren't equal.
+ */
+#define BC_ASSERT_CPP_NOT_EQUAL(value, expected) BC_ASSERT_CPP_NOT_EQUAL_BASE(bc_assert, value, expected)
+/**
+ * Same as BC_ASSERT_CPP_NOT_EQUAL() but send an exception in addition of marking the test as failed.
+ */
+#define BC_HARD_ASSERT_CPP_NOT_EQUAL(value, expected) BC_ASSERT_CPP_NOT_EQUAL_BASE(bc_hard_assert, value, expected)
 
 // Interface for all the classes which are to be executed as unit test.
 // The test is executed by calling () operator.

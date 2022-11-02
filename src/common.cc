@@ -1,27 +1,27 @@
 /*
- Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010  Belledonne Communications SARL.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as
- published by the Free Software Foundation, either version 3 of the
- License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-#include <stdarg.h>
-#include <stdio.h>
-#include <time.h>
-#include <flexisip/common.hh>
-#include "flexisip-config.h"
 #include <cstring>
+#include <time.h>
+
+#include "flexisip-config.h"
+
+#include "flexisip/common.hh"
 
 using namespace flexisip;
 
@@ -130,51 +130,42 @@ void Mutex::unlock() {
 	}
 }
 
-struct addrinfo *BinaryIp::resolve(const std::string &hostname, bool numericOnly = false){
+struct addrinfo* BinaryIp::resolve(const std::string& hostname, bool numericOnly = false) {
 	// Warning: IPv6 can use brakets.
 	std::string hostnameCopy;
-	struct addrinfo *res = NULL;
+	struct addrinfo* res = NULL;
 	if (hostname[0] == '[') hostnameCopy = hostname.substr(1, hostname.size() - 2);
 	else hostnameCopy = hostname;
-	if ( (res = bctbx_name_to_addrinfo(AF_INET6, SOCK_DGRAM, hostnameCopy.c_str(), 0)) == NULL){
+	if ((res = bctbx_name_to_addrinfo(AF_INET6, SOCK_DGRAM, hostnameCopy.c_str(), 0)) == NULL) {
 		LOGE("getaddrinfo failed with %s", hostnameCopy.c_str());
 	}
 	return res;
 }
 
-BinaryIp::BinaryIp(const struct addrinfo *ai){
-	mAddr = ((struct sockaddr_in6 *)ai->ai_addr)->sin6_addr;
+BinaryIp::BinaryIp(const struct addrinfo* ai) {
+	mAddr = ((struct sockaddr_in6*)ai->ai_addr)->sin6_addr;
 }
 
-BinaryIp::BinaryIp(const char *ip){
-	struct addrinfo *ai = resolve(ip, true);
-	if (ai){
-		mAddr = ((struct sockaddr_in6 *)ai->ai_addr)->sin6_addr;
+BinaryIp::BinaryIp(const char* ip) {
+	struct addrinfo* ai = resolve(ip, true);
+	if (ai) {
+		mAddr = ((struct sockaddr_in6*)ai->ai_addr)->sin6_addr;
 		freeaddrinfo(ai);
-	}else{
+	} else {
 		memset(&mAddr, 0, sizeof(mAddr));
 	}
 }
-std::string BinaryIp::asString() const{
+std::string BinaryIp::asString() const {
 	char ip[64];
 	struct sockaddr_in6 addr = {0};
 	addr.sin6_family = AF_INET6;
-	memcpy(&addr.sin6_addr, (const void *)&mAddr, sizeof(mAddr));
-	//might be better to use bctbx_getnameinfo instead
-	bctbx_sockaddr_to_printable_ip_address((struct sockaddr *)&addr,sizeof(addr),ip,sizeof(ip));
+	memcpy(&addr.sin6_addr, (const void*)&mAddr, sizeof(mAddr));
+	// might be better to use bctbx_getnameinfo instead
+	bctbx_sockaddr_to_printable_ip_address((struct sockaddr*)&addr, sizeof(addr), ip, sizeof(ip));
 	return ip;
 }
-std::ostream & operator<<(std::ostream &os, const BinaryIp &ip) {
+std::ostream& operator<<(std::ostream& os, const BinaryIp& ip) {
 	return os << ip.asString();
-}
-
-std::vector<std::string> split(const std::string& str, const std::string& delimiter) {
-	std::vector<std::string> out;
-	size_t pos = 0, oldPos = 0;
-	for (; (pos = str.find(delimiter, pos)) != std::string::npos; oldPos = pos + 1, pos = oldPos)
-		out.push_back(str.substr(oldPos, pos - oldPos));
-	out.push_back(str.substr(oldPos));
-	return out;
 }
 
 } // namespace flexisip

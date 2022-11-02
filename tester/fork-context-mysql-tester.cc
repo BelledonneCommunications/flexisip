@@ -208,12 +208,14 @@ static void globalTest() {
 	receiverClient->getCore()->setNetworkReachable(false);
 
 	bool isRequestAccepted = false;
-	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP", [&isRequestAccepted](int status) {
+	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP",
+	                            [&isRequestAccepted](int status) {
 		                            if (status != 100) {
 			                            BC_ASSERT_EQUAL(status, 202, int, "%i");
 			                            isRequestAccepted = true;
 		                            }
-	                            }};
+	                            },
+	                            nullptr};
 
 	SLOGD << "Step 2: Send message";
 	std::string rawBody(100000, 'a');
@@ -301,12 +303,14 @@ static void globalTestMultipleDevices() {
 
 	SLOGD << "Step 2: Send message";
 	bool isRequestAccepted = false;
-	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP", [&isRequestAccepted](int status) {
+	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP",
+	                            [&isRequestAccepted](int status) {
 		                            if (status != 100) {
 			                            BC_ASSERT_EQUAL(status, 202, int, "%i");
 			                            isRequestAccepted = true;
 		                            }
-	                            }};
+	                            },
+	                            nullptr};
 
 	std::string rawBody(10, 'a');
 	rawBody.insert(0, "C'est pas faux ");
@@ -430,12 +434,14 @@ static void testDBAccessOptimization() {
 	clientOffDevice->getCore()->setNetworkReachable(false);
 
 	bool isRequestAccepted = false;
-	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP", [&isRequestAccepted](int status) {
+	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP",
+	                            [&isRequestAccepted](int status) {
 		                            if (status != 100) {
 			                            BC_ASSERT_EQUAL(status, 202, int, "%i");
 			                            isRequestAccepted = true;
 		                            }
-	                            }};
+	                            },
+	                            nullptr};
 
 	SLOGD << "Step 2: Send message";
 	std::string rawBody(10, 'a');
@@ -540,12 +546,14 @@ static void globalTestMultipleMessages() {
 	receiverClient->getCore()->setNetworkReachable(false);
 
 	unsigned nbAcceptedMessages = 0;
-	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP", [&nbAcceptedMessages](int status) {
+	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP",
+	                            [&nbAcceptedMessages](int status) {
 		                            if (status != 100) {
 			                            BC_ASSERT_EQUAL(status, 202, int, "%i");
 			                            ++nbAcceptedMessages;
 		                            }
-	                            }};
+	                            },
+	                            nullptr};
 
 	unsigned int i = 0;
 	std::string rawBody(10000, 'a');
@@ -631,12 +639,14 @@ static void globalTestDatabaseDeleted() {
 	receiverClient->getCore()->setNetworkReachable(false);
 
 	bool isRequestAccepted = false;
-	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP", [&isRequestAccepted](int status) {
+	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP",
+	                            [&isRequestAccepted](int status) {
 		                            if (status != 100) {
 			                            BC_ASSERT_EQUAL(status, 202, int, "%i");
 			                            isRequestAccepted = true;
 		                            }
-	                            }};
+	                            },
+	                            nullptr};
 
 	SLOGD << "Step 2: Send message";
 	bellesipUtils.sendRawRequest("MESSAGE sip:provencal_le_gaulois@sip.test.org SIP/2.0\r\n"

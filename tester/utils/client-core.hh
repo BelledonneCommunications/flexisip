@@ -18,12 +18,12 @@
 
 #pragma once
 
-#include "linphone++/linphone.hh"
-
-#include "../tester.hh"
+#include <linphone++/linphone.hh>
 
 #include "asserts.hh"
 #include "proxy-server.hh"
+#include "pushnotification/rfc8599-push-params.hh"
+#include "tester.hh"
 
 namespace flexisip {
 namespace tester {
@@ -54,6 +54,7 @@ public:
 
 	ClientBuilder& setPassword(const std::string& password);
 	ClientBuilder& setCustomContact(const std::string& contact);
+	ClientBuilder& setPushParams(const pushnotification::RFC8599PushParams& params);
 
 	/**
 	 * Add some Apple-specific push info to REGISTERs
@@ -74,6 +75,7 @@ class CoreClient {
 	std::shared_ptr<linphone::Account> mAccount;
 	std::shared_ptr<const linphone::Address> mMe;
 	std::shared_ptr<Server> mServer; /**< Server we're registered to */
+	std::chrono::seconds mCallInviteReceivedDelay{5};
 
 public:
 	std::shared_ptr<linphone::Core> getCore() const noexcept {
@@ -86,6 +88,13 @@ public:
 		return mMe;
 	}
 
+	std::chrono::seconds getCallInviteReceivedDelay() const noexcept {
+		return mCallInviteReceivedDelay;
+	}
+	void setCallInviteReceivedDelay(std::chrono::seconds aDelay) noexcept {
+		mCallInviteReceivedDelay = aDelay;
+	}
+
 	CoreClient(ClientBuilder&& builder, const std::shared_ptr<Server>& server);
 
 	/**
@@ -94,7 +103,8 @@ public:
 	 * @param[in] me		address of local account
 	 * @param[in] server	server to register to
 	 */
-	CoreClient(const std::string& me, const std::shared_ptr<Server>& server) : CoreClient(ClientBuilder(me), server) {
+	template <typename ServerT>
+	CoreClient(const std::string& me, ServerT&& server) : CoreClient(ClientBuilder(me), std::forward<ServerT>(server)) {
 	}
 
 	CoreClient(const CoreClient& other) = delete;
@@ -113,7 +123,7 @@ public:
 	 * @return the established call from caller side, nullptr on failure
 	 */
 	std::shared_ptr<linphone::Call> call(const CoreClient& callee,
-	                                     const std::shared_ptr<linphone::Address>& calleeAddress,
+	                                     const std::shared_ptr<const linphone::Address>& calleeAddress,
 	                                     const std::shared_ptr<linphone::CallParams>& callerCallParams = nullptr,
 	                                     const std::shared_ptr<linphone::CallParams>& calleeCallParams = nullptr,
 	                                     const std::vector<std::shared_ptr<CoreClient>>& calleeIdleDevices = {});

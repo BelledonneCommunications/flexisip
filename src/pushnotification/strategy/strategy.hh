@@ -25,19 +25,38 @@
 #include "pushnotification/service.hh"
 
 namespace flexisip {
+
+class PushNotificationContext;
+
 namespace pushnotification {
 
 class Strategy {
 public:
-	Strategy(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<Service>& service) noexcept
-	    : mRoot{root}, mService{service} {
-	}
 	virtual ~Strategy() = default;
 
 	virtual void sendMessageNotification(const std::shared_ptr<const PushInfo>& pInfo) = 0;
 	virtual void sendCallNotification(const std::shared_ptr<const PushInfo>& pInfo) = 0;
 
 protected:
+	// Protected ctors
+	Strategy(const std::weak_ptr<PushNotificationContext>& aPNContext,
+	         const std::shared_ptr<sofiasip::SuRoot>& aRoot,
+	         const std::shared_ptr<Service>& aService) noexcept
+	    : mPNContext{aPNContext}, mRoot{aRoot}, mService{aService} {
+	}
+
+	// Protected methods
+	/**
+	 * Request the associated PushNotificationContext to notify its observers
+	 * that a push notification has been sent.
+	 * @param aRinging Tell whether the sent PN makes the callee's device to
+	 * ring without waking the SIP user agent up.
+	 */
+	void notifyPushSent(bool aRinging = false);
+
+	// Protected attributes
+	std::weak_ptr<PushNotificationContext>
+	    mPNContext{}; /**< Back pointer to the PushNotificationContext that owns this Strategy object. */
 	std::shared_ptr<sofiasip::SuRoot> mRoot{};
 	std::shared_ptr<Service> mService{};
 };

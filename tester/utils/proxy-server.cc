@@ -32,10 +32,6 @@ namespace tester {
  * A class to manage the flexisip proxy server
  */
 Server::Server(const std::string& configFile) {
-	// Agent initialisation
-	mRoot = make_shared<sofiasip::SuRoot>();
-	mAgent = make_shared<Agent>(mRoot);
-
 	if (!configFile.empty()) {
 		GenericManager* cfg = GenericManager::get();
 
@@ -88,7 +84,7 @@ Server::~Server() {
 void Server::runFor(std::chrono::milliseconds duration) {
 	auto beforePlusDuration = steady_clock::now() + duration;
 	while (beforePlusDuration >= steady_clock::now()) {
-		mRoot->step(100ms);
+		mAgent->getRoot()->step(100ms);
 	}
 }
 

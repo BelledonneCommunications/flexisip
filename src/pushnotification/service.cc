@@ -44,6 +44,7 @@ namespace pushnotification {
 
 static constexpr const char* WPPN_PORT = "443";
 const std::string Service::sGenericClientName{"generic"};
+const std::string Service::sFallbackClientKey{"fallback"};
 
 Service::Service(sofiasip::SuRoot& root, unsigned maxQueueSize) : mRoot{root}, mMaxQueueSize{maxQueueSize} {
 	SSL_library_init();
@@ -58,7 +59,7 @@ std::shared_ptr<Request> Service::makeRequest(PushType pType, const std::shared_
 	// Create a generic request if the generic client has been set.
 	auto genericClient = mClients.find(sGenericClientName);
 	if (genericClient != mClients.cend() && genericClient->second != nullptr) {
-		return make_shared<GenericRequest>(pType, pInfo);
+		return makeGenericRequest(pType, pInfo);
 	}
 
 	// No generic client set, then create a native request for the target platform.
@@ -77,24 +78,27 @@ std::shared_ptr<Request> Service::makeRequest(PushType pType, const std::shared_
 }
 
 void Service::sendPush(const std::shared_ptr<Request>& pn) {
-	auto* client = mClients[pn->getAppIdentifier()].get();
+	auto it = mClients.find(pn->getAppIdentifier());
+	auto client = it != mClients.cend() ? it->second.get() : nullptr;
 	if (client == nullptr) {
 		if (auto microsoftReq = dynamic_pointer_cast<MicrosoftRequest>(pn)) {
 			client = createWindowsClient(microsoftReq);
-		} else {
-			ostringstream os{};
-			os << "No push notification client available for push notification request : " << pn;
-			throw runtime_error{os.str()};
 		}
+	}
+	if (client == nullptr) {
+		it = mClients.find(sFallbackClientKey);
+		client = it != mClients.cend() ? it->second.get() : nullptr;
+	}
+	if (client == nullptr) {
+		ostringstream os{};
+		os << "No push notification client available for push notification request : " << pn;
+		throw runtime_error{os.str()};
 	}
 	client->sendPush(pn);
 }
 
 bool Service::isIdle() const noexcept {
-	for (const auto& entry : mClients) {
-		if (!entry.second->isIdle()) return false;
-	}
-	return true;
+	return all_of(mClients.cbegin(), mClients.cend(), [](const auto& kv) { return kv.second->isIdle(); });
 }
 
 void Service::setupGenericClient(const sofiasip::Url& url, Method method) {
@@ -111,7 +115,7 @@ void Service::setupGenericClient(const sofiasip::Url& url, Method method) {
 		conn = make_unique<TlsConnection>(url.getHost(), url.getPort(true), "", "");
 	}
 
-	mClients[sGenericClientName] = make_unique<LegacyClient>(make_unique<TlsTransport>(move(conn), method),
+	mClients[sGenericClientName] = make_unique<LegacyClient>(make_unique<TlsTransport>(move(conn), method, url),
 	                                                         sGenericClientName, mMaxQueueSize, this);
 }
 
@@ -169,6 +173,11 @@ void Service::setupWindowsPhoneClient(const std::string& packageSID, const std::
 	SLOGD << "Adding Windows push notification client for pacakge SID [" << packageSID << "]";
 }
 
+void Service::setFallbackClient(const std::shared_ptr<Client>& fallbackClient) {
+	if (fallbackClient) fallbackClient->mService = this;
+	mClients[sFallbackClientKey] = fallbackClient;
+}
+
 Client* Service::createWindowsClient(const std::shared_ptr<MicrosoftRequest>& pnImpl) {
 	auto isW10 = (dynamic_pointer_cast<Windows10Request>(pnImpl) != nullptr);
 
@@ -195,6 +204,20 @@ Client* Service::createWindowsClient(const std::shared_ptr<MicrosoftRequest>& pn
 		client = make_unique<LegacyClient>(make_unique<TlsTransport>(move(conn)), wpClient, mMaxQueueSize, this);
 	}
 	return client.get();
+}
+
+std::shared_ptr<GenericRequest> Service::makeGenericRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo) const {
+	auto request = make_shared<GenericRequest>(pType, pInfo);
+
+	// Set the authentication key in case the native PNR is for the Firebase service.
+	const auto& destination = request->getDestination();
+	if (destination.getProvider() == "fcm") {
+		const auto& projectID = destination.getParam();
+		const auto& apiKey = dynamic_pointer_cast<FirebaseClient>(mClients.at(projectID))->getApiKey();
+		request->setFirebaseAuthKey(apiKey);
+	}
+
+	return request;
 }
 
 } // namespace pushnotification
