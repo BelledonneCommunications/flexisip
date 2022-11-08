@@ -4,15 +4,15 @@
 
 .set-max-jobs: &set-max-jobs
   - |
-      case "$CMAKE_GENERATOR" in
-        'Unix Makefiles')
-          export CMAKE_BUILD_PARALLEL_LEVEL=$MAKEFILE_JOBS ;;
-        'Ninja')
-          export CMAKE_BUILD_PARALLEL_LEVEL=$NINJA_JOBS ;;
-        *)
-          export CMAKE_BUILD_PARALLEL_LEVEL=1 ;;
-      esac
-      echo "CMAKE_BUILD_PARALLEL_LEVEL='$CMAKE_BUILD_PARALLEL_LEVEL'"
+    case "$CMAKE_GENERATOR" in
+      'Unix Makefiles')
+        export CMAKE_BUILD_PARALLEL_LEVEL=$MAKEFILE_JOBS ;;
+      'Ninja')
+        export CMAKE_BUILD_PARALLEL_LEVEL=$NINJA_JOBS ;;
+      *)
+        export CMAKE_BUILD_PARALLEL_LEVEL=1 ;;
+    esac
+    echo "CMAKE_BUILD_PARALLEL_LEVEL='$CMAKE_BUILD_PARALLEL_LEVEL'"
 
 
 .linux-ccache:
@@ -64,6 +64,7 @@
   artifacts:
     paths:
       - build/*.rpm
+      - .gitlab-ci-files/deploy.sh
     when: always
     expire_in: 1 week
 
@@ -71,6 +72,9 @@
   stage: deploy 🚀
   tags: [ "deploy" ]
   extends: .rules-deploy  # ⚠ See `rules.yml`
+  variables:
+    # Do not clone, only use artifacts
+    GIT_STRATEGY: none
   script: ./.gitlab-ci-files/deploy.sh ${DISTRIB}
 
 #################################################
@@ -101,6 +105,9 @@
   stage: deploy 🚀
   tags: [ "deploy" ]
   extends: .rules-deploy  # ⚠ See `rules.yml`
+  variables:
+    # Do not clone, only use artifacts
+    GIT_STRATEGY: none
   script: ./.gitlab-ci-files/deploy.sh debian
 
 #################################################
@@ -197,6 +204,8 @@
     MARIADB_USER: "belledonne"
     MARIADB_PASSWORD: "cOmmu2015nicatiOns"
     BC_MYSQL_HOST: "mariadb"
+    # Do not clone, only use artifacts
+    GIT_STRATEGY: none
   services:
     - mariadb:latest
   script:

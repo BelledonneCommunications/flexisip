@@ -17,7 +17,7 @@ fi
 dist="$1"
 
 
-id=$(cat /dev/urandom | tr -dc '[:alnum:]' | fold -w 10 | head -n 1)
+id=$(cat /dev/urandom | env LC_ALL=C tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1) || exit $?
 tmpdir="$MAKE_REPO_TMP/tmp-$id"
 rsync_dest="$DEPLOY_SERVER:$tmpdir/"
 

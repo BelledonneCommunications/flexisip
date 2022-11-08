@@ -35,6 +35,7 @@ job-centos7-ninja-gcc:
   artifacts:
     paths:
       - OUTPUT/*
+      - sanitizer_ignore.txt
 
 # DO NOT WORK, compilation errors
 #job-centos7-ninja-clang:

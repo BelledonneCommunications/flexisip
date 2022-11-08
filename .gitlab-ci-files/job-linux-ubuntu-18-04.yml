@@ -40,6 +40,7 @@ job-ubuntu-18-04-ninja-clang:
   artifacts:
     paths:
       - OUTPUT/*
+      - sanitizer_ignore.txt
 
 #################################################
 # UNIT TESTS
