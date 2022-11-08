@@ -42,6 +42,7 @@ job-rocky8-ninja-clang:
   artifacts:
     paths:
       - OUTPUT/*
+      - sanitizer_ignore.txt
 
 #################################################
 # UNIT TESTS

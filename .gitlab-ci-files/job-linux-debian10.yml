@@ -38,6 +38,7 @@ job-debian10-ninja-clang:
   artifacts:
     paths:
       - OUTPUT/*
+      - sanitizer_ignore.txt
 
 #################################################
 # UNIT TESTS

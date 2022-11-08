@@ -34,7 +34,10 @@ workflow:
     - if: $CI_PIPELINE_SOURCE == "schedule"
 
 before_script:
-  - git submodule foreach --recursive git fetch --tags --force
+  - |
+    if [ "$GIT_STRATEGY" != "none" ]; then
+      git submodule foreach --recursive git fetch --tags --force
+    fi
 
 #################################################
 # Platforms to test

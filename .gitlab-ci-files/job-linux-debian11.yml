@@ -38,6 +38,7 @@ job-debian11-ninja-clang:
   artifacts:
     paths:
       - OUTPUT/*
+      - sanitizer_ignore.txt
 
 #################################################
 # XWiki reference documentation

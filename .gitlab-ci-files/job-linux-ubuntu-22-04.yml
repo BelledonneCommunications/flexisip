@@ -38,6 +38,7 @@ job-ubuntu-22-04-ninja-clang:
   artifacts:
     paths:
       - OUTPUT/*
+      - sanitizer_ignore.txt
 
 #################################################
 # UNIT TESTS
