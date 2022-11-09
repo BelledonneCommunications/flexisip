@@ -20,11 +20,8 @@
 
 #include "flexisip/logmanager.hh"
 #include "flexisip/registrardb.hh"
+#include "flexisip/sofia-wrapper/msg-sip.hh"
 
-#include "apple/apple-request.hh"
-#include "firebase/firebase-request.hh"
-#include "legacy/microsoftpush.hh"
-#include "sofia-wrapper/msg-sip.hh"
 #include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
 
@@ -84,7 +81,6 @@ void PushInfo::setDestinations(const url_t* url) {
 		throw NoPushParamtersError{};
 	}
 }
-
 
 void PushInfo::addDestination(const std::shared_ptr<const RFC8599PushParams>& dest) noexcept {
 	for (auto pnType : dest->getSupportedPNTypes()) {

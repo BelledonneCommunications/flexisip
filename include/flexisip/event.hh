@@ -31,7 +31,7 @@
 #include <sofia-sip/sip.h>
 #include <sofia-sip/tport.h>
 
-#include "sofia-wrapper/msg-sip.hh"
+#include "flexisip/sofia-wrapper/msg-sip.hh"
 
 namespace flexisip {
 

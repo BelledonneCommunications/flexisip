@@ -20,7 +20,7 @@
 
 #include "flexisip/logmanager.hh"
 
-#include "msg-sip.hh"
+#include "flexisip/sofia-wrapper/msg-sip.hh"
 
 using namespace std;
 
