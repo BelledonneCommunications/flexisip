@@ -21,7 +21,7 @@
 ############################################################################
 
 add_library(flexisip-sofia-wrapper OBJECT
-	msg-sip.cc msg-sip.hh
+	msg-sip.cc
 	su-root.cc
 	timer.cc
 )

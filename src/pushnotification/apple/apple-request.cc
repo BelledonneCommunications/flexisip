@@ -21,8 +21,8 @@
 #include <string>
 
 #include "flexisip/common.hh"
+#include "flexisip/sofia-wrapper/msg-sip.hh"
 
-#include "sofia-wrapper/msg-sip.hh"
 #include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
 
