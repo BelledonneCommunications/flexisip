@@ -101,12 +101,14 @@ DomainRegistrationManager::DomainRegistrationManager(Agent* agent) : mAgent(agen
 	     "30"},
 	    {Integer, "ping-pong-timeout-delay",
 	     "Delay in milliseconds after which TCP/TLS connections will be considered as broken if no CRLF pong has been"
-	     "received from the remote peer. A delay of 0 means that no pong is expected after ping.\n"
+	     "received from the registrar. A delay of 0 means that no pong is expected after ping. "
+	     "The registrar must advertise the 'outbound' option tag in a Supported header for this detection to be "
+	     "active.\n"
 	     "Warning: This parameter must be strictly lower than “keepalive-interval”.",
 	     "0"},
 	    {Integer, "reconnection-delay",
 	     "Delay in seconds before creating a new connection after connection is known as broken. Set '0' in order the "
-		 "connection be recreated immediately.",
+	     "connection be recreated immediately.",
 	     "5"},
 	    {Boolean, "reg-when-needed",
 	     "Whether Flexisip shall only send a domain registration when a device is registered", "false"},
@@ -489,6 +491,7 @@ void DomainRegistration::responseCallback(nta_outgoing_t* orq, const sip_t* resp
 				LOGD("Decrementing number of domain registration to : %d.", mManager.mNbRegistration);
 			}
 		}
+		mPongsExpected = !!sip_has_supported(resp->sip_supported, "outbound");
 		setCurrentTport(nta_outgoing_transport(orq));
 		nextSchedule = ((expire * 90) / 100) + 1s;
 		SLOGD << "Scheduling next domain register refresh for " << mFrom->url_host << " in " << nextSchedule.count()
@@ -650,9 +653,10 @@ void DomainRegistration::setCurrentTport(tport_t* tport) {
 	 * won't be broken if we change the type of mKeepaliveInterval or mPingPongTimeoutDelay.
 	 */
 	auto keepAliveInterval = duration_cast<milliseconds>(mManager.mKeepaliveInterval);
-	auto pingPongTimeoutDelay = duration_cast<milliseconds>(mManager.mPingPongTimeoutDelay);
+	auto pingPongTimeoutDelay = mPongsExpected ? duration_cast<milliseconds>(mManager.mPingPongTimeoutDelay) : 0ms;
 	cleanCurrentTport();
 	mCurrentTport = tport;
+	if (pingPongTimeoutDelay.count() > 0) LOGD("Enabling PING/PONG for broken connection detection.");
 	tport_set_params(tport, TPTAG_SDWN_ERROR(1), TPTAG_KEEPALIVE(keepAliveInterval.count()),
 	                 TPTAG_PINGPONG(pingPongTimeoutDelay.count()), TAG_END());
 	mPendId = tport_pend(tport, nullptr, &DomainRegistration::sOnConnectionBroken, (tp_client_t*)this);

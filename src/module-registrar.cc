@@ -542,6 +542,7 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent>& ev,
 	sip_t* sip = ms->getSip();
 	int expire = sip->sip_expires ? sip->sip_expires->ex_delta : 0;
 	string expire_str = std::to_string(expire);
+	const char* supported = "path, outbound"; // indicate that the registrar supports these extensions
 
 	replyPopulateEventLog(ev, sip, code, reason);
 
@@ -567,34 +568,35 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent>& ev,
 		if (expire > 0) {
 			ev->reply(code, reason, SIPTAG_CONTACT(modified_contacts), SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
 			          SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()),
-			          TAG_END());
+			          SIPTAG_SUPPORTED_STR(supported), TAG_END());
 		} else {
 			ev->reply(code, reason, SIPTAG_CONTACT(modified_contacts), SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
-			          SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+			          SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_SUPPORTED_STR(supported), TAG_END());
 		}
 	} else if (modified_contacts) {
 		if (expire > 0) {
 			ev->reply(code, reason, SIPTAG_CONTACT(modified_contacts), SIPTAG_SERVER_STR(getAgent()->getServerString()),
-			          SIPTAG_EXPIRES_STR(expire_str.c_str()), TAG_END());
+			          SIPTAG_EXPIRES_STR(expire_str.c_str()), SIPTAG_SUPPORTED_STR(supported), TAG_END());
 		} else {
 			ev->reply(code, reason, SIPTAG_CONTACT(modified_contacts), SIPTAG_SERVER_STR(getAgent()->getServerString()),
-			          TAG_END());
+			          SIPTAG_SUPPORTED_STR(supported), TAG_END());
 		}
 	} else if (!mServiceRoute.empty()) {
 		if (expire > 0) {
 			ev->reply(code, reason, SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
 			          SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()),
-			          TAG_END());
+			          SIPTAG_SUPPORTED_STR(supported), TAG_END());
 		} else {
 			ev->reply(code, reason, SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
-			          SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+			          SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_SUPPORTED_STR(supported), TAG_END());
 		}
 	} else {
 		if (expire > 0) {
 			ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()),
-			          SIPTAG_EXPIRES_STR(expire_str.c_str()), TAG_END());
+			          SIPTAG_EXPIRES_STR(expire_str.c_str()), SIPTAG_SUPPORTED_STR(supported), TAG_END());
 		} else {
-			ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+			ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_SUPPORTED_STR(supported),
+			          TAG_END());
 		}
 	}
 }

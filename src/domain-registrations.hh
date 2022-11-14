@@ -109,6 +109,7 @@ private:
 	nta_outgoing_t* mOutgoing{nullptr};
 	std::chrono::seconds mExpires{600};
 	bool mLastResponseWas401{false};
+	bool mPongsExpected{false};
 };
 
 class DomainRegistrationManager : public LocalRegExpireListener,
