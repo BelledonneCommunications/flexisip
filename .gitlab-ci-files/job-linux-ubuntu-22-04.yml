@@ -67,7 +67,7 @@ job-ubuntu-22-04-deb-deploy:
     - .job-debian-deb-deploy
     - .ubuntu-22-04-image
   variables:
-    RELEASE: bionic
+    RELEASE: jammy
     FREIGHT_PATH: $UBUNTU_FREIGHT_CONF_PATH
   dependencies:
     - job-ubuntu-22-04-deb
