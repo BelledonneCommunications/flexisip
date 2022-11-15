@@ -295,6 +295,13 @@ void RegistrarDbRedisAsync::updateSlavesList(const map<string, string> redisRepl
 	} catch (const out_of_range&) {
 	}
 
+	for (const auto& oldSlave : mSlaves) {
+		if (find(newSlaves.begin(), newSlaves.end(), oldSlave) == newSlaves.end()) {
+			LOGD("Replication: Removing host %d %s:%d previous state:%s", oldSlave.id, oldSlave.address.c_str(),
+			     oldSlave.port, oldSlave.state.c_str());
+		}
+	}
+
 	// replace the slaves array
 	mSlaves = std::move(newSlaves);
 	mCurSlave = mSlaves.cend();
