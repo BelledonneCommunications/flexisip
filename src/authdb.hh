@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -18,24 +18,24 @@
 
 #pragma once
 
-#include <mutex>
-#include <string>
-
-#include <flexisip/agent.hh>
-#include <flexisip/common.hh>
-
 #include <stdio.h>
-#include <vector>
 
 #include <map>
+#include <mutex>
 #include <set>
+#include <string>
 #include <thread>
+#include <vector>
 
 #include "sofia-sip/auth_module.h"
 #include "sofia-sip/auth_plugin.h"
 
 #include "belr/grammarbuilder.h"
 #include "belr/parser.h"
+
+#include "flexisip/common.hh"
+
+#include "agent.hh"
 
 namespace flexisip {
 

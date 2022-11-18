@@ -20,7 +20,7 @@
 
 #include <linphone++/linphone.hh>
 
-#include <flexisip/registrar/listeners.hh>
+#include "flexisip/registrar/registar-listeners.hh"
 
 namespace flexisip {
 namespace RegistrationEvent {

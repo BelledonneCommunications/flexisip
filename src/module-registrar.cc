@@ -16,25 +16,24 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "flexisip/module-registrar.hh"
+
 #include <algorithm>
+
 #include <csignal>
 #include <fstream>
 #include <functional>
 #include <ostream>
 #include <regex>
-#include <sstream>
-#include <string>
 
-#include <flexisip/logmanager.hh>
-#include <flexisip/module-registrar.hh>
-#include <flexisip/registrar/record.hh>
-#include <flexisip/registrar/extended-contact.hh>
-#include <flexisip/registrar/registrar-db.hh>
-#include <flexisip/registrar/binding-parameters.hh>
+#include "flexisip/logmanager.hh"
+#include "flexisip/signal-handling/sofia-driven-signal-handler.hh"
 
 #include "domain-registrations.hh"
-
-#include "signal-handling/sofia-driven-signal-handler.hh"
+#include "registrar/binding-parameters.hh"
+#include "registrar/extended-contact.hh"
+#include "registrar/record.hh"
+#include "registrar/registrar-db.hh"
 
 using namespace std;
 using namespace flexisip;
@@ -297,7 +296,8 @@ static void replyPopulateEventLog(shared_ptr<SipEvent> ev, const sip_t* sip, int
 	}
 }
 
-static void staticRoutesRereadTimerfunc([[maybe_unused]] su_root_magic_t* magic, [[maybe_unused]] su_timer_t* t, void* data) {
+static void
+staticRoutesRereadTimerfunc([[maybe_unused]] su_root_magic_t* magic, [[maybe_unused]] su_timer_t* t, void* data) {
 	ModuleRegistrar* r = (ModuleRegistrar*)data;
 	r->readStaticRecords();
 }

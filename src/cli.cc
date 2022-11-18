@@ -16,31 +16,30 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "cli.hh"
+
 #include <cerrno>
 #include <cstring>
-#include <stdlib.h>
 
 #include <poll.h>
+#include <stdlib.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
 #include <bctoolbox/ownership.hh>
 
-#include <flexisip/agent.hh>
-#include <flexisip/logmanager.hh>
-#include <flexisip/registrar/binding-parameters.hh>
-#include <flexisip/registrar/contact-key.hh>
-#include <flexisip/registrar/listeners.hh>
-#include <flexisip/registrar/registrar-db.hh>
-#include <flexisip/sofia-wrapper/msg-sip.hh>
-#include <flexisip/utils/sip-uri.hh>
+#include "flexisip/logmanager.hh"
+#include "flexisip/registrar/registar-listeners.hh"
+#include "flexisip/sofia-wrapper/msg-sip.hh"
+#include "flexisip/utils/sip-uri.hh"
 
+#include "agent.hh"
 #include "cJSON.h"
-
 #include "recordserializer.hh"
+#include "registrar/binding-parameters.hh"
+#include "registrar/contact-key.hh"
+#include "registrar/registrar-db.hh"
 #include "utils/string-utils.hh"
-
-#include "cli.hh"
 
 using namespace flexisip;
 using namespace std;
@@ -49,7 +48,7 @@ namespace {
 
 constexpr const auto socket_send = send;
 constexpr const auto socket_recv = recv;
-}
+} // namespace
 
 CommandLineInterface::CommandLineInterface(const std::string& name)
     : mName(name), handlers(std::make_shared<CliHandler::HandlerTable>()) {

@@ -16,11 +16,9 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "flexisip/fork-context/fork-message-context-db-proxy.hh"
-
+#include "fork-context/fork-message-context-db-proxy.hh"
 #include "router/inject-context.hh"
 #include "router/schedule-injector.hh"
-
 #include "utils/test-patterns/agent-test.hh"
 #include "utils/test-patterns/test.hh"
 

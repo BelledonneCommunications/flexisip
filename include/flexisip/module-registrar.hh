@@ -1,44 +1,38 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022  Belledonne Communications SARL.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
 
-#include <flexisip/module.hh>
-#include <flexisip/agent.hh>
-#include <flexisip/registrar/listeners.hh>
-
 #include <sofia-sip/sip_status.h>
 #include <sofia-sip/su_random.h>
 
-#include <signal.h>
+#include "flexisip/module.hh"
+#include "flexisip/registrar/registar-listeners.hh"
+#include "flexisip/signal-handling/sofia-driven-signal-handler.hh"
+
+#include "agent.hh"
 
 namespace flexisip {
-
-namespace signal_handling {
-
-class SofiaDrivenSignalHandler;
-
-} // namespace signal_handling
 
 struct RegistrarStats {
 	std::unique_ptr<StatPair> mCountBind;
 	std::unique_ptr<StatPair> mCountClear;
-	StatCounter64 *mCountLocalActives;
+	StatCounter64* mCountLocalActives;
 };
 
 class ModuleRegistrar;
@@ -46,22 +40,25 @@ class ResponseContext;
 
 // Listener class NEED to copy the shared pointer
 class OnRequestBindListener : public ContactUpdateListener {
-	ModuleRegistrar *mModule;
+	ModuleRegistrar* mModule;
 	std::shared_ptr<RequestSipEvent> mEv;
-	sip_from_t *mSipFrom;
+	sip_from_t* mSipFrom;
 	su_home_t mHome;
-	sip_contact_t *mContact;
-	sip_path_t *mPath;
+	sip_contact_t* mContact;
+	sip_path_t* mPath;
 
-  public:
-	OnRequestBindListener(ModuleRegistrar *module, std::shared_ptr<RequestSipEvent> ev, const sip_from_t *sipuri = NULL,
-						  sip_contact_t *contact = NULL, sip_path_t *path = NULL);
+public:
+	OnRequestBindListener(ModuleRegistrar* module,
+	                      std::shared_ptr<RequestSipEvent> ev,
+	                      const sip_from_t* sipuri = NULL,
+	                      sip_contact_t* contact = NULL,
+	                      sip_path_t* path = NULL);
 	~OnRequestBindListener();
 
-	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override;
-	void onRecordFound(const std::shared_ptr<Record> &r)override;
-	void onError()override;
-	void onInvalid()override;
+	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override;
+	void onRecordFound(const std::shared_ptr<Record>& r) override;
+	void onError() override;
+	void onInvalid() override;
 };
 
 class OnResponseBindListener : public ContactUpdateListener {

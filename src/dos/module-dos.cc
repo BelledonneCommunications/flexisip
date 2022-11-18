@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -22,10 +22,10 @@
 #include "sofia-sip/msg_addr.h"
 #include "sofia-sip/tport.h"
 
-#include "flexisip/agent.hh"
 #include "flexisip/logmanager.hh"
 #include "flexisip/module.hh"
 
+#include "agent.hh"
 #include "dos-executor/iptables-executor.hh"
 #include "utils/thread/basic-thread-pool.hh"
 
@@ -98,6 +98,10 @@ void ModuleDoSProtection::onLoad(const GenericStruct* mc) {
 	}
 
 	mBanExecutor->onLoad(mc);
+}
+
+void ModuleDoSProtection::onUnload() {
+	mBanExecutor->onUnload();
 }
 
 bool ModuleDoSProtection::isValidNextConfig(const ConfigValue& value) {
@@ -255,3 +259,15 @@ void ModuleDoSProtection::onRequest(shared_ptr<RequestSipEvent>& ev) {
 		}
 	}
 }
+
+#ifdef ENABLE_UNIT_TESTS
+
+void ModuleDoSProtection::setBanExecutor(const shared_ptr<BanExecutor>& executor) {
+	if (mBanExecutor) {
+		mBanExecutor->onUnload();
+	}
+	mBanExecutor = executor;
+	mBanExecutor->onLoad(nullptr);
+}
+
+#endif

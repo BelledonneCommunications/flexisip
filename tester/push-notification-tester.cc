@@ -25,12 +25,11 @@
 
 #include "flexisip-config.h"
 #include "flexisip/logmanager.hh"
-#include "flexisip/module-pushnotification.hh"
 #include "flexisip/sofia-wrapper/timer.hh"
 
+#include "module-pushnotification.hh"
 #include "pushnotification/apple/apple-client.hh"
 #include "pushnotification/firebase/firebase-client.hh"
-
 #include "tester.hh"
 #include "utils/listening-socket.hh"
 #include "utils/pns-mock.hh"

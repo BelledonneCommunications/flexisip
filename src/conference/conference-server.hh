@@ -1,27 +1,26 @@
 /*
- Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2017  Belledonne Communications SARL.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as
- published by the Free Software Foundation, either version 3 of the
- License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #pragma once
 
 #include <memory>
 
 #include <linphone++/linphone.hh>
-
 
 #include "participant-registration-subscription-handler.hh"
 #include "registration-subscription.hh"
@@ -32,27 +31,25 @@
 #endif // DEFAULT_LIB_DIR
 
 namespace flexisip {
-	class ConferenceServer
-		: public ServiceServer
-		, public RegistrarDbStateListener
-		, public std::enable_shared_from_this<ConferenceServer>
-		, public linphone::CoreListener
-		, public linphone::ChatRoomListener
-	{
-	public:
-		template <typename StrT, typename SuRootPtr>
-		ConferenceServer(StrT&& path, SuRootPtr&& root) : ServiceServer{std::forward<SuRootPtr>(root)}, mPath{std::forward<StrT>(path)}, mSubscriptionHandler{*this} {}
+class ConferenceServer : public ServiceServer,
+                         public RegistrarDbStateListener,
+                         public std::enable_shared_from_this<ConferenceServer>,
+                         public linphone::CoreListener,
+                         public linphone::ChatRoomListener {
+public:
+	template <typename StrT, typename SuRootPtr>
+	ConferenceServer(StrT&& path, SuRootPtr&& root)
+	    : ServiceServer{std::forward<SuRootPtr>(root)}, mPath{std::forward<StrT>(path)}, mSubscriptionHandler{*this} {
+	}
 
-		void bindAddresses ();
+	void bindAddresses();
 
-		void bindChatRoom (
-			const std::string &bindingUrl,
-			const std::string &contact,
-			const std::string &gruu,
-			const std::shared_ptr<ContactUpdateListener> &listener
-		);
+	void bindChatRoom(const std::string& bindingUrl,
+	                  const std::string& contact,
+	                  const std::string& gruu,
+	                  const std::shared_ptr<ContactUpdateListener>& listener);
 
-		/**
+	/**
 		 * Bind conference factory uris and focus uris on the registrardb
 		**/
 		void bindFactoryUris ();

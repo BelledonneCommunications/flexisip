@@ -6,13 +6,13 @@
 
 #include <bctoolbox/ownership.hh>
 
-#include <flexisip/registrar/listeners.hh>
-#include <flexisip/registrar/record.hh>
-#include <flexisip/registrar/extended-contact.hh>
-#include <flexisip/registrar/binding-parameters.hh>
+#include "flexisip/registrar/registar-listeners.hh"
 
-#include "../redis-server.hh"
 #include "agent-test.hh"
+#include "registrar/binding-parameters.hh"
+#include "registrar/extended-contact.hh"
+#include "registrar/record.hh"
+#include "utils/redis-server.hh"
 
 using namespace std;
 

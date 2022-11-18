@@ -2,16 +2,16 @@
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <flexisip/registrar/record.hh>
-#include <flexisip/configmanager.hh>
-#include <flexisip/registrar/listeners.hh>
-#include <flexisip/registrar/extended-contact.hh>
+#include "registrar-db.hh"
 
+#include "flexisip/configmanager.hh"
+#include "flexisip/registrar/registar-listeners.hh"
+
+#include "extended-contact.hh"
+#include "record.hh"
 #include "registrardb-internal.hh"
 #include "registrardb-redis.hh"
 #include "utils/uri-utils.hh"
-
-#include <flexisip/registrar/registrar-db.hh>
 
 using namespace std;
 

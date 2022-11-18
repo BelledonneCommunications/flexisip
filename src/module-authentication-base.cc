@@ -20,7 +20,7 @@
 #include <sofia-sip/sip_extra.h>
 #include <sofia-sip/sip_status.h>
 
-#include "flexisip/agent.hh"
+#include "agent.hh"
 
 #include "auth/realm-extractor.hh"
 #include "utils/string-utils.hh"
@@ -31,7 +31,7 @@ using namespace std;
 
 namespace flexisip {
 
-ModuleAuthenticationBase::ModuleAuthenticationBase(Agent *agent) : Module(agent) {
+ModuleAuthenticationBase::ModuleAuthenticationBase(Agent* agent) : Module(agent) {
 	mProxyChallenger.ach_status = 407; /*SIP_407_PROXY_AUTH_REQUIRED*/
 	mProxyChallenger.ach_phrase = sip_407_Proxy_auth_required;
 	mProxyChallenger.ach_header = sip_proxy_authenticate_class;
@@ -47,88 +47,72 @@ ModuleAuthenticationBase::~ModuleAuthenticationBase() {
 	if (mRealmExtractor) delete mRealmExtractor;
 }
 
-void ModuleAuthenticationBase::onDeclare(GenericStruct *mc) {
+void ModuleAuthenticationBase::onDeclare(GenericStruct* mc) {
 	ConfigItemDescriptor items[] = {
-	{
-		StringList,
-		"trusted-hosts",
-		"List of whitespace-separated IP addresses which will be judged as trustful. Messages coming from these "
-		"addresses won't be challenged.",
-		""
-	}, {
-		StringList,
-		"auth-domains",
-		"List of whitespace separated domains to challenge. Others are automatically denied. The wildcard domain '*' is accepted, "
-		"which means that requests are challenged whatever the originating domain is. This is convenient for a proxy serving multiple SIP domains. ",
-		"localhost"
-	}, {
-		StringList,
-		"available-algorithms",
-		"List of digest algorithms to use for password hashing. Think this setting as filter applied after fetching "
-		"the credentials of a user from the user database. For example, if a user has its password hashed by MD5 and "
-		"SHA-256 but 'available-algorithms' only has MD5, then only a MD5-based challenged will be submited to the "
-		"UAC.\n"
-		"Furthermore, should a user have several hashed passwords and these are present in the list, then a challenge "
-		"header will be put in the 401 response for each fetched password in the order given by the list.\n"
-		"Supported algorithems are MD5 and SHA-256.",
-		"MD5"
-	}, {
-		Boolean,
-		"disable-qop-auth",
-		"Disable the QOP authentication method. Default is to use it, use this flag to disable it if needed.",
-		"false"
-	}, {
-		BooleanExpr,
-		"no-403",
-		"Don't reply 403 when authentication fails. Instead, generate a new 401 (or 407) response containing "
-		"a new challenge.",
-		"false"
-	}, {
-		Integer,
-		"nonce-expires",
-		"Expiration time before generating a new nonce.\n"
-		"Unit: second",
-		"3600"
-	}, {
-		String,
-		"realm",
-		"The realm to use for digest authentication. It will used whatever the domain of the From-URI.\n"
-		"If the value starts with 'regex:', then this parameter will have the same effect than 'realm-regex', "
-		"using all the remaining string as regular expression.\n"
-		"WARNING: this parameter is exclusive with 'realm-regex'\n"
-		"\n"
-		"Examples:\n"
-		"\trealm=sip.example.org\n"
-		"\trealm=regex:sip:.*@sip\\.(.*)\\.com\n",
-		""
-	}, {
-		String,
-		"realm-regex",
-		"Extraction regex applied on the URI of the 'from' header (or P-Prefered-Identity header if present) in order "
-		"to extract the realm. The realm is found out by getting the first slice of the URI that matches the regular "
-		"expression. If it has one or more capturing parentheses, the content of the first one is used as realm.\n"
-		"If no regex is specified, then the realm will be the domain part of the URI.\n"
-		"\n"
-		"For instance, given auth-domains=sip.example.com, you might use 'sip:.*@sip\\.(.*)\\.com' in order to "
-		"use 'example' as realm.\n"
-		"\n"
-		"WARNING: this parameter is exclusive with 'realm'",
-		""
-	},
-	config_item_end
-	};
+	    {StringList, "trusted-hosts",
+	     "List of whitespace-separated IP addresses which will be judged as trustful. Messages coming from these "
+	     "addresses won't be challenged.",
+	     ""},
+	    {StringList, "auth-domains",
+	     "List of whitespace separated domains to challenge. Others are automatically denied. The wildcard domain '*' "
+	     "is accepted, "
+	     "which means that requests are challenged whatever the originating domain is. This is convenient for a proxy "
+	     "serving multiple SIP domains. ",
+	     "localhost"},
+	    {StringList, "available-algorithms",
+	     "List of digest algorithms to use for password hashing. Think this setting as filter applied after fetching "
+	     "the credentials of a user from the user database. For example, if a user has its password hashed by MD5 and "
+	     "SHA-256 but 'available-algorithms' only has MD5, then only a MD5-based challenged will be submited to the "
+	     "UAC.\n"
+	     "Furthermore, should a user have several hashed passwords and these are present in the list, then a challenge "
+	     "header will be put in the 401 response for each fetched password in the order given by the list.\n"
+	     "Supported algorithems are MD5 and SHA-256.",
+	     "MD5"},
+	    {Boolean, "disable-qop-auth",
+	     "Disable the QOP authentication method. Default is to use it, use this flag to disable it if needed.",
+	     "false"},
+	    {BooleanExpr, "no-403",
+	     "Don't reply 403 when authentication fails. Instead, generate a new 401 (or 407) response containing "
+	     "a new challenge.",
+	     "false"},
+	    {Integer, "nonce-expires",
+	     "Expiration time before generating a new nonce.\n"
+	     "Unit: second",
+	     "3600"},
+	    {String, "realm",
+	     "The realm to use for digest authentication. It will used whatever the domain of the From-URI.\n"
+	     "If the value starts with 'regex:', then this parameter will have the same effect than 'realm-regex', "
+	     "using all the remaining string as regular expression.\n"
+	     "WARNING: this parameter is exclusive with 'realm-regex'\n"
+	     "\n"
+	     "Examples:\n"
+	     "\trealm=sip.example.org\n"
+	     "\trealm=regex:sip:.*@sip\\.(.*)\\.com\n",
+	     ""},
+	    {String, "realm-regex",
+	     "Extraction regex applied on the URI of the 'from' header (or P-Prefered-Identity header if present) in order "
+	     "to extract the realm. The realm is found out by getting the first slice of the URI that matches the regular "
+	     "expression. If it has one or more capturing parentheses, the content of the first one is used as realm.\n"
+	     "If no regex is specified, then the realm will be the domain part of the URI.\n"
+	     "\n"
+	     "For instance, given auth-domains=sip.example.com, you might use 'sip:.*@sip\\.(.*)\\.com' in order to "
+	     "use 'example' as realm.\n"
+	     "\n"
+	     "WARNING: this parameter is exclusive with 'realm'",
+	     ""},
+	    config_item_end};
 	mc->addChildrenValues(items);
 	mc->get<ConfigBoolean>("enabled")->setDefault("false");
 }
 
-void ModuleAuthenticationBase::onLoad(const GenericStruct *mc) {
+void ModuleAuthenticationBase::onLoad(const GenericStruct* mc) {
 	loadTrustedHosts(*mc->get<ConfigStringList>("trusted-hosts"));
 
 	auto authDomains = mc->get<ConfigStringList>("auth-domains")->read();
 
 	mAlgorithms = mc->get<ConfigStringList>("available-algorithms")->read();
 	mAlgorithms.unique();
-	auto it = find_if(mAlgorithms.cbegin(), mAlgorithms.cend(), [](const string &algo){return !validAlgo(algo);});
+	auto it = find_if(mAlgorithms.cbegin(), mAlgorithms.cend(), [](const string& algo) { return !validAlgo(algo); });
 	if (it != mAlgorithms.cend()) {
 		ostringstream os;
 		os << "invalid algorithm (" << *it << ") set in '" << mc->getName() << "/available-algorithms'. ";
@@ -140,18 +124,19 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct *mc) {
 	auto disableQOPAuth = mc->get<ConfigBoolean>("disable-qop-auth")->read();
 	auto nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
 
-	for (const string &domain : authDomains) {
+	for (const string& domain : authDomains) {
 		unique_ptr<FlexisipAuthModuleBase> am(createAuthModule(domain, nonceExpires, !disableQOPAuth));
 		mAuthModules[domain] = move(am);
 	}
 
 	const string regexPrefix{"regex:"};
-	const auto *realmCfg = mc->get<ConfigString>("realm");
-	const auto *realmRegexCfg = mc->get<ConfigString>("realm-regex");
+	const auto* realmCfg = mc->get<ConfigString>("realm");
+	const auto* realmRegexCfg = mc->get<ConfigString>("realm-regex");
 	auto realm = realmCfg->read();
 	auto realmRegex = realmRegexCfg->read();
 	if (!realm.empty() && !realmRegex.empty()) {
-		LOGF("setting both '%s' and '%s' is forbidden", realmCfg->getCompleteName().c_str(), realmRegexCfg->getCompleteName().c_str());
+		LOGF("setting both '%s' and '%s' is forbidden", realmCfg->getCompleteName().c_str(),
+		     realmRegexCfg->getCompleteName().c_str());
 	}
 	if (realmRegex.empty() && StringUtils::startsWith(realm, regexPrefix)) {
 		realmRegex = realm.substr(regexPrefix.size());
@@ -159,7 +144,7 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct *mc) {
 	if (!realmRegex.empty()) {
 		try {
 			mRealmExtractor = new RegexRealmExtractor{move(realmRegex)};
-		} catch (const regex_error &e) {
+		} catch (const regex_error& e) {
 			LOGF("invalid regex in 'realm-regex': %s", e.what());
 		}
 	} else if (!realm.empty()) {
@@ -169,23 +154,21 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct *mc) {
 	mNo403Expr = mc->get<ConfigBooleanExpression>("no-403")->read();
 }
 
-void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
-	sip_t *sip = ev->getMsgSip()->getSip();
+void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent>& ev) {
+	sip_t* sip = ev->getMsgSip()->getSip();
 
 	try {
 		validateRequest(ev);
 
-		sip_p_preferred_identity_t *ppi = nullptr;
-		const char *fromDomain = sip->sip_from->a_url[0].url_host;
+		sip_p_preferred_identity_t* ppi = nullptr;
+		const char* fromDomain = sip->sip_from->a_url[0].url_host;
 		if (fromDomain && strcmp(fromDomain, "anonymous.invalid") == 0) {
 			ppi = sip_p_preferred_identity(sip);
-			if (ppi)
-				fromDomain = ppi->ppid_url->url_host;
-			else
-				LOGD("There is no p-preferred-identity");
+			if (ppi) fromDomain = ppi->ppid_url->url_host;
+			else LOGD("There is no p-preferred-identity");
 		}
 
-		FlexisipAuthModuleBase *am = findAuthModule(fromDomain);
+		FlexisipAuthModuleBase* am = findAuthModule(fromDomain);
 		if (am == nullptr) {
 			SLOGI << "Registration failure, domain is forbidden: " << fromDomain;
 			ev->reply(403, "Domain forbidden", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
@@ -193,30 +176,31 @@ void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent> &ev) {
 		}
 
 		processAuthentication(ev, *am);
-	} catch (const runtime_error &e) {
+	} catch (const runtime_error& e) {
 		SLOGE << e.what();
 		ev->reply(500, "Internal error", TAG_END());
-	} catch (const StopRequestProcessing &) {}
+	} catch (const StopRequestProcessing&) {
+	}
 }
 
-FlexisipAuthStatus *ModuleAuthenticationBase::createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) {
-	auto *as = new FlexisipAuthStatus(ev);
+FlexisipAuthStatus* ModuleAuthenticationBase::createAuthStatus(const std::shared_ptr<RequestSipEvent>& ev) {
+	auto* as = new FlexisipAuthStatus(ev);
 	LOGD("New FlexisipAuthStatus [%p]", as);
 	ModuleAuthenticationBase::configureAuthStatus(*as, ev);
 	return as;
 }
 
-void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const std::shared_ptr<RequestSipEvent> &ev) {
-	const shared_ptr<MsgSip> &ms = ev->getMsgSip();
-	sip_t *sip = ms->getSip();
-	const sip_p_preferred_identity_t *ppi = sip_p_preferred_identity(sip);
-	const url_t *userUri = ppi ? ppi->ppid_url : sip->sip_from->a_url;
+void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus& as, const std::shared_ptr<RequestSipEvent>& ev) {
+	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
+	sip_t* sip = ms->getSip();
+	const sip_p_preferred_identity_t* ppi = sip_p_preferred_identity(sip);
+	const url_t* userUri = ppi ? ppi->ppid_url : sip->sip_from->a_url;
 
 	string realm{};
 	if (mRealmExtractor) {
 		auto userUriStr = url_as_string(ev->getHome(), userUri);
-		LOGD("AuthStatus[%p]: searching for realm in %s URI (%s)",
-			&as, ppi ? "P-Prefered-Identity" : "From", userUriStr);
+		LOGD("AuthStatus[%p]: searching for realm in %s URI (%s)", &as, ppi ? "P-Prefered-Identity" : "From",
+		     userUriStr);
 
 		realm = mRealmExtractor->extract(userUriStr);
 		if (realm.empty()) throw runtime_error{"couldn't find the realm out"};
@@ -239,25 +223,25 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus &as, const
 	as.no403(mNo403Expr->eval(*ev->getSip()));
 }
 
-void ModuleAuthenticationBase::validateRequest(const std::shared_ptr<RequestSipEvent> &request) {
-	sip_t *sip = request->getMsgSip()->getSip();
+void ModuleAuthenticationBase::validateRequest(const std::shared_ptr<RequestSipEvent>& request) {
+	sip_t* sip = request->getMsgSip()->getSip();
 
 	// Do it first to make sure no transaction is created which
 	// would send an inappropriate 100 trying response.
 	if (sip->sip_request->rq_method == sip_method_ack || sip->sip_request->rq_method == sip_method_cancel ||
-		sip->sip_request->rq_method == sip_method_bye // same as in the sofia auth modules
+	    sip->sip_request->rq_method == sip_method_bye // same as in the sofia auth modules
 	) {
 		/*ack and cancel shall never be challenged according to the RFC.*/
 		throw StopRequestProcessing();
 	}
 
 	// Check trusted peer
-	if (isTrustedPeer(request))
-		throw StopRequestProcessing();
+	if (isTrustedPeer(request)) throw StopRequestProcessing();
 }
 
-void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<RequestSipEvent> &request, FlexisipAuthModuleBase &am) {
-	sip_t *sip = request->getMsgSip()->getSip();
+void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<RequestSipEvent>& request,
+                                                     FlexisipAuthModuleBase& am) {
+	sip_t* sip = request->getMsgSip()->getSip();
 
 #if 0
 	const shared_ptr<MsgSip> &ms = request->getMsgSip();
@@ -277,7 +261,7 @@ void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<Reque
 
 	LOGD("start digest authentication");
 
-	FlexisipAuthStatus *as = createAuthStatus(request);
+	FlexisipAuthStatus* as = createAuthStatus(request);
 
 	// Attention: the auth_mod_verify method should not send by itself any message but
 	// return after having set the as status and phrase.
@@ -292,10 +276,9 @@ void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<Reque
 	processAuthModuleResponse(*as);
 }
 
-FlexisipAuthModuleBase *ModuleAuthenticationBase::findAuthModule(const std::string name) {
+FlexisipAuthModuleBase* ModuleAuthenticationBase::findAuthModule(const std::string name) {
 	auto it = mAuthModules.find(name);
-	if (it == mAuthModules.end())
-		it = mAuthModules.find("*");
+	if (it == mAuthModules.end()) it = mAuthModules.find("*");
 	if (it == mAuthModules.end()) {
 		for (auto it2 = mAuthModules.begin(); it2 != mAuthModules.end(); ++it2) {
 			string domainName = it2->first;
@@ -316,9 +299,9 @@ FlexisipAuthModuleBase *ModuleAuthenticationBase::findAuthModule(const std::stri
 	return it->second.get();
 }
 
-void ModuleAuthenticationBase::processAuthModuleResponse(AuthStatus &as) {
-	auto &fAs = dynamic_cast<FlexisipAuthStatus &>(as);
-	const shared_ptr<RequestSipEvent> &ev = fAs.event();
+void ModuleAuthenticationBase::processAuthModuleResponse(AuthStatus& as) {
+	auto& fAs = dynamic_cast<FlexisipAuthStatus&>(as);
+	const shared_ptr<RequestSipEvent>& ev = fAs.event();
 	if (as.status() == 0) {
 		onSuccess(fAs);
 		if (ev->isSuspended()) {
@@ -343,38 +326,27 @@ void ModuleAuthenticationBase::processAuthModuleResponse(AuthStatus &as) {
 	delete &as;
 }
 
-void ModuleAuthenticationBase::onSuccess(const FlexisipAuthStatus &as) {
-	msg_auth_t *au;
-	const shared_ptr<MsgSip> &ms = as.event()->getMsgSip();
-	sip_t *sip = ms->getSip();
+void ModuleAuthenticationBase::onSuccess(const FlexisipAuthStatus& as) {
+	msg_auth_t* au;
+	const shared_ptr<MsgSip>& ms = as.event()->getMsgSip();
+	sip_t* sip = ms->getSip();
 	if (sip->sip_request->rq_method == sip_method_register) {
-		au = ModuleToolbox::findAuthorizationForRealm(
-			ms->getHome(),
-			sip->sip_authorization,
-			as.realm()
-		);
+		au = ModuleToolbox::findAuthorizationForRealm(ms->getHome(), sip->sip_authorization, as.realm());
 	} else {
-		au = ModuleToolbox::findAuthorizationForRealm(
-			ms->getHome(),
-			sip->sip_proxy_authorization,
-			as.realm()
-		);
+		au = ModuleToolbox::findAuthorizationForRealm(ms->getHome(), sip->sip_proxy_authorization, as.realm());
 	}
 	while (au) {
-		msg_auth_t *nextAu = au->au_next;
-		msg_header_remove(ms->getMsg(), (msg_pub_t *)sip, (msg_header_t *)au);
+		msg_auth_t* nextAu = au->au_next;
+		msg_header_remove(ms->getMsg(), (msg_pub_t*)sip, (msg_header_t*)au);
 		au = nextAu;
 	}
 }
 
-void ModuleAuthenticationBase::errorReply(const FlexisipAuthStatus &as) {
-	const std::shared_ptr<RequestSipEvent> &ev = as.event();
-	ev->reply(as.status(), as.phrase(),
-			  SIPTAG_HEADER(reinterpret_cast<sip_header_t *>(as.info())),
-			  SIPTAG_HEADER(reinterpret_cast<sip_header_t *>(as.response())),
-			  SIPTAG_SERVER_STR(getAgent()->getServerString()),
-			  TAG_END()
-	);
+void ModuleAuthenticationBase::errorReply(const FlexisipAuthStatus& as) {
+	const std::shared_ptr<RequestSipEvent>& ev = as.event();
+	ev->reply(as.status(), as.phrase(), SIPTAG_HEADER(reinterpret_cast<sip_header_t*>(as.info())),
+	          SIPTAG_HEADER(reinterpret_cast<sip_header_t*>(as.response())),
+	          SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 }
 
 void ModuleAuthenticationBase::loadTrustedHosts(const ConfigStringList& trustedHosts) {
@@ -384,8 +356,8 @@ void ModuleAuthenticationBase::loadTrustedHosts(const ConfigStringList& trustedH
 	auto hosts = trustedHosts.read();
 	for (const auto& host : hosts) {
 		if (regex_match(host, m, parameterRef)) {
-			auto paramRefValues = GenericManager::get()->getRoot()
-				->get<GenericStruct>(m.str(1))->get<ConfigStringList>(m.str(2))->read();
+			auto paramRefValues =
+			    GenericManager::get()->getRoot()->get<GenericStruct>(m.str(1))->get<ConfigStringList>(m.str(2))->read();
 			for (const auto& value : paramRefValues) {
 				BinaryIp::emplace(mTrustedHosts, value);
 			}
@@ -423,27 +395,27 @@ void ModuleAuthenticationBase::loadTrustedHosts(const ConfigStringList& trustedH
 	}
 }
 
-bool ModuleAuthenticationBase::isTrustedPeer(const shared_ptr<RequestSipEvent> &ev) {
-	sip_t *sip = ev->getSip();
+bool ModuleAuthenticationBase::isTrustedPeer(const shared_ptr<RequestSipEvent>& ev) {
+	sip_t* sip = ev->getSip();
 
 	// Check for trusted host
-	sip_via_t *via = sip->sip_via;
-	const char *printableReceivedHost = !empty(via->v_received) ? via->v_received : via->v_host;
+	sip_via_t* via = sip->sip_via;
+	const char* printableReceivedHost = !empty(via->v_received) ? via->v_received : via->v_host;
 
 	BinaryIp receivedHost(printableReceivedHost);
 
-	if (mTrustedHosts.find(receivedHost) != mTrustedHosts.end()){
+	if (mTrustedHosts.find(receivedHost) != mTrustedHosts.end()) {
 		LOGD("Allowing message from trusted host %s", printableReceivedHost);
 		return true;
 	}
 	return false;
 }
 
-bool ModuleAuthenticationBase::validAlgo(const std::string &algo) {
+bool ModuleAuthenticationBase::validAlgo(const std::string& algo) {
 	auto it = find(sValidAlgos.cbegin(), sValidAlgos.cend(), algo);
 	return it != sValidAlgos.cend();
 }
 
-const std::array<std::string, 2> ModuleAuthenticationBase::sValidAlgos = {{ "MD5", "SHA-256" }};
+const std::array<std::string, 2> ModuleAuthenticationBase::sValidAlgos = {{"MD5", "SHA-256"}};
 
-}
+} // namespace flexisip

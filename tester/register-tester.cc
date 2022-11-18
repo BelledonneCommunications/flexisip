@@ -22,14 +22,14 @@
 
 #include <signal.h>
 
-#include <bctoolbox/tester.h>
+#include "flexisip/module-router.hh"
 
-#include <flexisip/agent.hh>
-#include <flexisip/module-router.hh>
-#include <flexisip/registrar/binding-parameters.hh>
-#include <flexisip/registrar/registrar-db.hh>
-
+#include "agent.hh"
 #include "flexisip-tester-config.hh"
+#include "registrar/binding-parameters.hh"
+#include "registrar/extended-contact.hh"
+#include "registrar/record.hh"
+#include "registrar/registrar-db.hh"
 #include "tester.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/proxy-server.hh"

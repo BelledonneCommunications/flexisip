@@ -29,7 +29,7 @@
 #include <sofia-sip/sip.h>
 #include <sofia-sip/url.h>
 
-#include <flexisip/sofia-wrapper/home.hh>
+#include "flexisip/sofia-wrapper/home.hh"
 
 namespace sofiasip {
 

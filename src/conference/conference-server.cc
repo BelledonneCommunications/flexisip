@@ -22,12 +22,12 @@
 #include <belle-sip/utils.h>
 #include <sofia-sip/sip_header.h>
 
+#include "registrar/binding-parameters.hh"
+#include "registrar/extended-contact.hh"
+#include "registrar/record.hh"
+#include "registrar/registrar-db.hh"
 #include <flexisip/configmanager.hh>
 #include <flexisip/flexisip-version.h>
-#include <flexisip/registrar/binding-parameters.hh>
-#include <flexisip/registrar/extended-contact.hh>
-#include <flexisip/registrar/record.hh>
-#include <flexisip/registrar/registrar-db.hh>
 
 #include "conference-address-generator.hh"
 #include "registration-events/client.hh"

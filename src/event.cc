@@ -9,20 +9,21 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <sofia-sip/sip_protos.h>
 #include <sofia-sip/su_tagarg.h>
 
-#include "flexisip/agent.hh"
 #include "flexisip/common.hh"
 #include "flexisip/module.hh"
-#include "flexisip/transaction.hh"
+
+#include "agent.hh"
+#include "transaction.hh"
 
 #include "flexisip/event.hh"
 

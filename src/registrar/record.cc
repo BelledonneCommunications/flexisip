@@ -2,15 +2,16 @@
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <flexisip/agent.hh>
-#include <flexisip/registrar/binding-parameters.hh>
-#include <flexisip/registrar/change-set.hh>
-#include <flexisip/registrar/exceptions.hh>
-#include <flexisip/registrar/extended-contact.hh>
-#include <flexisip/registrar/listeners.hh>
-#include <flexisip/registrar/registrar-db.hh>
+#include "flexisip/registrar/registar-listeners.hh"
 
-#include <flexisip/registrar/record.hh>
+#include "agent.hh"
+#include "binding-parameters.hh"
+#include "change-set.hh"
+#include "exceptions.hh"
+#include "extended-contact.hh"
+#include "registrar-db.hh"
+
+#include "record.hh"
 
 using namespace std;
 

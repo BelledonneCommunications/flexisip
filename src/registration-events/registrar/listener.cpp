@@ -16,8 +16,8 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <flexisip/registrar/record.hh>
-#include <flexisip/registrar/extended-contact.hh>
+#include "registrar/extended-contact.hh"
+#include "registrar/record.hh"
 
 #include "utils/string-utils.hh"
 #include "xml/reginfo.hh"

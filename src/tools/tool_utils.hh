@@ -23,8 +23,8 @@
 #include <map>
 #include <memory>
 
+#include "registrar/extended-contact.hh"
 #include <flexisip/logmanager.hh>
-#include <flexisip/registrar/extended-contact.hh>
 
 #include "../recordserializer.hh"
 

@@ -16,17 +16,18 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "fork-context/fork-message-context.hh"
+
 #include <algorithm>
 #include <chrono>
 
-#include "flexisip/common.hh"
-#include "sofia-sip/sip_status.h"
-
-#include "flexisip/fork-context/fork-message-context.hh"
+#include <sofia-sip/sip_status.h>
 
 #if ENABLE_UNIT_TESTS
 #include "bctoolbox/tester.h"
 #endif
+
+#include "flexisip/common.hh"
 
 using namespace std;
 using namespace std::chrono;

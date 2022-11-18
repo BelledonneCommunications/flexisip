@@ -16,12 +16,11 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "flexisip/fork-context/branch-info.hh"
-#include "flexisip/fork-context/fork-call-context.hh"
-#include "flexisip/module-pushnotification.hh"
+#include "module-pushnotification.hh"
 
+#include "agent.hh"
+#include "fork-context/branch-info.hh"
 #include "pushnotification/apple/apple-request.hh"
-#include "pushnotification/firebase/firebase-request.hh"
 #include "pushnotification/pushnotification-context.hh"
 #include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"

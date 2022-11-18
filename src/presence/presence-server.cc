@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,12 +9,14 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+
+#include "presence-server.hh"
 
 #include <algorithm>
 #include <signal.h>
@@ -26,20 +28,18 @@
 #endif
 
 #include "flexisip/configmanager.hh"
-#include "utils/thread/auto-thread-pool.hh"
 
 #include "bellesip-signaling-exception.hh"
 #include "list-subscription/body-list-subscription.hh"
-#if ENABLE_SOCI
-#include "list-subscription/external-list-subscription.hh"
-#endif
 #include "presentity-presenceinformation.hh"
 #include "subscription.hh"
 #include "utils/belle-sip-utils.hh"
+#include "utils/thread/auto-thread-pool.hh"
 #include "xml/pidf+xml.hh"
 #include "xml/resource-lists.hh"
-
-#include "presence-server.hh"
+#if ENABLE_SOCI
+#include "list-subscription/external-list-subscription.hh"
+#endif
 
 using namespace flexisip;
 using namespace pidf;

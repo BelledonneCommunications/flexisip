@@ -1,7 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL.
-    Author: Guillaume Beraudo
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -17,14 +16,15 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "recordserializer.hh"
+
 #include <sstream>
 
 #include <sofia-sip/sip_protos.h>
 
-#include <flexisip/common.hh>
-#include <flexisip/registrar/extended-contact.hh>
+#include "flexisip/common.hh"
 
-#include "recordserializer.hh"
+#include "registrar/extended-contact.hh"
 
 using namespace std;
 using namespace flexisip;
@@ -35,8 +35,8 @@ using namespace flexisip;
 		free(rc);                                                                                                      \
 		return false;                                                                                                  \
 	}
-//#define CHECK_VAL(msg, test, value) if (test) { SLOGE << "Invalid serialized contact " << i << " " << msg << " " <<
-// value; free(rc); return false; }
+// #define CHECK_VAL(msg, test, value) if (test) { SLOGE << "Invalid serialized contact " << i << " " << msg << " " <<
+//  value; free(rc); return false; }
 
 /**
  * 	#<sip:guillaume@domain:port;transport=toto;e=titi>#45#q=1#45646#1325691167#ci=call_id#5
@@ -110,8 +110,7 @@ bool RecordSerializerC::serialize(Record* r, string& serialized, bool log) {
 		oss << "#" << ec->contactId();
 		oss << "#"; // route
 		oss << "#";
-		if (!ec->mKey.isPlaceholder())
-			oss << ec->mKey.str();
+		if (!ec->mKey.isPlaceholder()) oss << ec->mKey.str();
 		oss << "#" << ec->mUpdatedTime;
 		oss << "#" << ec->callId() << "#" << ec->mCSeq << "#" << (ec->mAlias ? "true" : "false");
 		string pathstr;

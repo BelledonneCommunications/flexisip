@@ -18,12 +18,13 @@
 
 #include <chrono>
 
-#include <flexisip/agent.hh>
-#include <flexisip/registrar/extended-contact.hh>
-#include <flexisip/registrar/record.hh>
-#include <flexisip/registrar/registrar-db.hh>
+#include "flexisip/registrar/registar-listeners.hh"
 
+#include "agent.hh"
 #include "conference/conference-server.hh"
+#include "registrar/extended-contact.hh"
+#include "registrar/record.hh"
+#include "registrar/registrar-db.hh"
 #include "tester.hh"
 #include "utils/test-suite.hh"
 

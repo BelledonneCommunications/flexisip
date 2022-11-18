@@ -4,11 +4,12 @@
 
 #include <chrono>
 
+#include "flexisip/registrar/registar-listeners.hh"
+
+#include "registrardb-redis.hh"
 #include "utils/asserts.hh"
 #include "utils/proxy-server.hh"
 #include "utils/redis-server.hh"
-
-#include "registrardb-redis.hh"
 #include "utils/test-suite.hh"
 
 using namespace std::chrono_literals;

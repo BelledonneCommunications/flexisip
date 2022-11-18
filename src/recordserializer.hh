@@ -1,7 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL.
-    Author: Guillaume Beraudo
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -21,7 +20,7 @@
 
 #include <string>
 
-#include <flexisip/registrar/record.hh>
+#include "registrar/record.hh"
 
 namespace flexisip {
 

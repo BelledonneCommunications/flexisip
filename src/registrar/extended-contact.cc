@@ -4,12 +4,12 @@
 
 #include <sofia-sip/sip_tag.h>
 
-#include <flexisip/registrar/registrar-db.hh>
-#include <flexisip/utils/utf8-string.hh>
+#include "registrar-db.hh"
 
 #include "utils/uri-utils.hh"
+#include "utils/utf8-string.hh"
 
-#include <flexisip/registrar/extended-contact.hh>
+#include "extended-contact.hh"
 
 using namespace std;
 

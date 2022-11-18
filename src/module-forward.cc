@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,54 +9,59 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-#include <flexisip/module.hh>
-#include <flexisip/agent.hh>
-#include <flexisip/transaction.hh>
-#include <flexisip/module-router.hh>
-#include <flexisip/registrar/registrar-db.hh>
-
-#include "etchosts.hh"
-#include "conditional-routes.hh"
-#include "domain-registrations.hh"
 #include <sstream>
 
-#include <sofia-sip/su_md5.h>
 #include <sofia-sip/sip_status.h>
+#include <sofia-sip/su_md5.h>
 #include <sofia-sip/tport.h>
+
+#include "flexisip/module-router.hh"
+#include "flexisip/module.hh"
+
+#include "agent.hh"
+#include "conditional-routes.hh"
+#include "domain-registrations.hh"
+#include "etchosts.hh"
+#include "registrar/extended-contact.hh"
+#include "registrar/record.hh"
+#include "transaction.hh"
 
 using namespace std;
 using namespace flexisip;
 
-static char const *compute_branch(nta_agent_t *sa, msg_t *msg, sip_t const *sip, char const *string_server,
-								  const shared_ptr<OutgoingTransaction> &outTr);
+static char const* compute_branch(nta_agent_t* sa,
+                                  msg_t* msg,
+                                  sip_t const* sip,
+                                  char const* string_server,
+                                  const shared_ptr<OutgoingTransaction>& outTr);
 
 class ForwardModule : public Module, ModuleToolbox {
-  public:
-	ForwardModule(Agent *ag);
+public:
+	ForwardModule(Agent* ag);
 	virtual ~ForwardModule();
-	virtual void onDeclare(GenericStruct *module_config);
-	virtual void onLoad(const GenericStruct *root);
-	virtual void onRequest(shared_ptr<RequestSipEvent> &ev);
-	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev);
-	void sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest);
+	virtual void onDeclare(GenericStruct* module_config);
+	virtual void onLoad(const GenericStruct* root);
+	virtual void onRequest(shared_ptr<RequestSipEvent>& ev);
+	virtual void onResponse(shared_ptr<ResponseSipEvent>& ev);
+	void sendRequest(shared_ptr<RequestSipEvent>& ev, url_t* dest);
 
-  private:
+private:
 	std::weak_ptr<ModuleRouter> mRouterModule;
-	url_t *overrideDest(shared_ptr<RequestSipEvent> &ev, url_t *dest);
-	url_t *getDestinationFromRoute(su_home_t *home, sip_t *sip);
-	bool isLooping(shared_ptr<RequestSipEvent> &ev, const char *branch);
-	unsigned int countVia(shared_ptr<RequestSipEvent> &ev);
-	bool isAClusterNode(const url_t *url);
+	url_t* overrideDest(shared_ptr<RequestSipEvent>& ev, url_t* dest);
+	url_t* getDestinationFromRoute(su_home_t* home, sip_t* sip);
+	bool isLooping(shared_ptr<RequestSipEvent>& ev, const char* branch);
+	unsigned int countVia(shared_ptr<RequestSipEvent>& ev);
+	bool isAClusterNode(const url_t* url);
 	su_home_t mHome;
 	ConditionalRouteMap mRoutesMap;
-	sip_route_t *mOutRoute;
+	sip_route_t* mOutRoute;
 	string mDefaultTransport;
 	std::list<std::string> mParamsToRemove;
 	list<string> mClusterNodes;

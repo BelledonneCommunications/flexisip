@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,12 +9,12 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <cstring>
 #include <string>
@@ -22,10 +22,10 @@
 #include "bctoolbox/tester.h"
 
 #include "flexisip/configmanager.hh"
-#include "flexisip/module-pushnotification.hh"
+#include "flexisip/registrar/registar-listeners.hh"
 
+#include "module-pushnotification.hh"
 #include "pushnotification/firebase/firebase-client.hh"
-
 #include "utils/asserts.hh"
 #include "utils/override-static.hh"
 #include "utils/redis-sync-access.hh"

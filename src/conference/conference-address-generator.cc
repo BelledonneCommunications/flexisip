@@ -18,8 +18,8 @@
 
 #include <belle-sip/utils.h>
 
-#include <flexisip/registrar/registrar-db.hh>
-#include <flexisip/registrar/record.hh>
+#include "registrar/record.hh"
+#include "registrar/registrar-db.hh"
 
 #include "conference-address-generator.hh"
 #include "conference-server.hh"

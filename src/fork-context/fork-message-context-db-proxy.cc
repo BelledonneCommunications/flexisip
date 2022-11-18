@@ -16,10 +16,10 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "utils/thread/auto-thread-pool.hh"
+#include "fork-message-context-db-proxy.hh"
 
-#include "flexisip/fork-context/fork-message-context-db-proxy.hh"
-#include "flexisip/fork-context/fork-message-context-soci-repository.hh"
+#include "fork-message-context-soci-repository.hh"
+#include "utils/thread/auto-thread-pool.hh"
 
 using namespace std;
 

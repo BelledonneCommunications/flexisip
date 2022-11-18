@@ -9,29 +9,25 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <algorithm>
 #include <cstdio>
 #include <ctime>
 #include <vector>
 
-#include <sofia-sip/sip_protos.h>
+#include "flexisip/common.hh"
+#include "flexisip/registrar/registar-listeners.hh"
+#include "flexisip/sofia-wrapper/msg-sip.hh"
 
-#include <flexisip/common.hh>
-#include <flexisip/registrar/change-set.hh>
-#include <flexisip/registrar/exceptions.hh>
-#include <flexisip/registrar/extended-contact.hh>
-#include <flexisip/registrar/listeners.hh>
-#include <flexisip/registrar/record.hh>
-#include <flexisip/sofia-wrapper/msg-sip.hh>
-#include <flexisip/utils/sip-uri.hh>
-
+#include "registrar/change-set.hh"
+#include "registrar/exceptions.hh"
+#include "registrar/extended-contact.hh"
+#include "registrar/record.hh"
 #include "registrardb-internal.hh"
 
 using namespace std;
@@ -57,7 +53,7 @@ void RegistrarDbInternal::doBind(const MsgSip& msg,
 	auto it = mRecords.find(key);
 	shared_ptr<Record> r;
 	if (it == mRecords.end()) {
-		r = make_shared<Record>(move(fromUri));
+		r = make_shared<Record>(std::move(fromUri));
 		mRecords.insert(make_pair(key, r));
 		LOGD("Creating AOR %s association", key.c_str());
 	} else {

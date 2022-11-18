@@ -24,7 +24,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include "belle-sip/sip-uri.h"
+#include <belle-sip/sip-uri.h>
+#if ENABLE_SOCI
+#include <soci/soci.h>
+#endif
 
 #include "bellesip-signaling-exception.hh"
 #include "etag-manager.hh"

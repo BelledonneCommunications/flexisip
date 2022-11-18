@@ -23,8 +23,8 @@
 #include <sofia-sip/tport.h>
 
 #include "flexisip/configmanager.hh"
-#include "flexisip/entryfilter.hh"
 #include "flexisip/event.hh"
+#include "flexisip/sofia-wrapper/home.hh"
 
 namespace flexisip {
 
@@ -40,6 +40,7 @@ template<typename T>
 class ModuleInfo;
 
 class SharedLibrary;
+class EntryFilter;
 
 enum class ModuleClass {
 	Experimental,
@@ -56,18 +57,20 @@ extern "C" Module *__flexisipCreatePlugin(Agent *agent, SharedLibrary *sharedLib
  * virtual void onResponse(SipEvent *ev)=0;
 **/
 class Module : protected ConfigValueListener {
-	template<typename T>
+	template <typename T>
 	friend class ModuleInfo;
 
-	friend Module *__flexisipCreatePlugin(Agent *agent, SharedLibrary *sharedLibrary);
+	friend Module* __flexisipCreatePlugin(Agent* agent, SharedLibrary* sharedLibrary);
 
 public:
-	Module(Agent *agent);
-	virtual ~Module() = default;
+	Module(Agent* agent);
+	virtual ~Module();
 
-	Agent *getAgent() const {return mAgent;}
-	nta_agent_t *getSofiaAgent() const;
-	const std::string &getModuleName() const;
+	Agent* getAgent() const {
+		return mAgent;
+	}
+	nta_agent_t* getSofiaAgent() const;
+	const std::string& getModuleName() const;
 	const std::string& getModuleConfigName() const;
 	void declare(GenericStruct* root);
 	void checkConfig();
@@ -87,9 +90,7 @@ public:
 	void process(std::shared_ptr<ResponseSipEvent>& ev) {
 		processResponse(ev);
 	}
-	virtual void injectRequestEvent(const std::shared_ptr<RequestSipEvent>& ev) {
-		mAgent->injectRequestEvent(ev);
-	};
+	virtual void injectRequestEvent(const std::shared_ptr<RequestSipEvent>& ev);
 
 	ModuleInfoBase* getInfo() const {
 		return mInfo;

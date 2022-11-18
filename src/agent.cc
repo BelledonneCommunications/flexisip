@@ -31,12 +31,11 @@
 
 #include <bctoolbox/ownership.hh>
 
-#include <flexisip/agent.hh>
-#include <flexisip/flexisip-version.h>
-#include <flexisip/logmanager.hh>
-#include <flexisip/module.hh>
-#include <flexisip/registrar/registrar-db.hh>
+#include "flexisip/flexisip-version.h"
+#include "flexisip/logmanager.hh"
+#include "flexisip/module.hh"
 
+#include "agent.hh"
 #include "domain-registrations.hh"
 #include "etchosts.hh"
 #include "plugin/plugin-loader.hh"
@@ -146,7 +145,7 @@ void Agent::startLogWriter() {
 		} else {
 			const auto& logdir = cr->get<ConfigString>("filesystem-directory")->read();
 			unique_ptr<FilesystemEventLogWriter> lw(new FilesystemEventLogWriter(logdir));
-			if (lw->isReady()) mLogWriter = move(lw);
+			if (lw->isReady()) mLogWriter = std::move(lw);
 		}
 	}
 }
@@ -338,7 +337,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 
 			auto uriTlsConfigInfo = url.getTlsConfigInfo();
 			auto finalTlsConfigInfo =
-			    uriTlsConfigInfo.mode != TlsMode::NONE ? move(uriTlsConfigInfo) : mainTlsConfigInfo;
+			    uriTlsConfigInfo.mode != TlsMode::NONE ? std::move(uriTlsConfigInfo) : mainTlsConfigInfo;
 			if (finalTlsConfigInfo.mode == TlsMode::OLD) {
 				finalTlsConfigInfo.certifDir = absolutePath(currDir, finalTlsConfigInfo.certifDir);
 

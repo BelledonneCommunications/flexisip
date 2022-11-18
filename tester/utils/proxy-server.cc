@@ -16,13 +16,13 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "proxy-server.hh"
+
 #include <algorithm>
 
 #include "bctoolbox/tester.h"
 
-#include <flexisip/registrar/registrar-db.hh>
-
-#include "proxy-server.hh"
+#include "registrar/registrar-db.hh"
 #include "tester.hh"
 
 using namespace std;

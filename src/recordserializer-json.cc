@@ -1,7 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL.
-    Author: Guillaume Beraudo
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -17,13 +16,14 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "recordserializer.hh"
+
 #include <sofia-sip/sip_protos.h>
 
 #include <flexisip/common.hh>
-#include <flexisip/registrar/extended-contact.hh>
 
 #include "cJSON.h"
-#include "recordserializer.hh"
+#include "registrar/extended-contact.hh"
 
 using namespace std;
 using namespace flexisip;
@@ -114,7 +114,7 @@ bool RecordSerializerJson::serialize(Record* r, string& serialized, bool log) {
 		cJSON_AddNumberToObject(c, "expires-at", ec->mExpireAt);
 		cJSON_AddNumberToObject(c, "q", ec->mQ ? ec->mQ : 0);
 		cJSON_AddStringToObject(c, "unique-id", ec->mKey.str().c_str());
-		
+
 		cJSON_AddStringToObject(c, "user-agent", ec->getUserAgent().c_str());
 
 		cJSON_AddStringToObject(c, "call-id", ec->callId());

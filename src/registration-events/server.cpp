@@ -16,12 +16,12 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "server.hh"
+
 #include <flexisip/utils/sip-uri.hh>
-#include <flexisip/registrar/registrar-db.hh>
 
 #include "registrar/listener.hh"
-
-#include "server.hh"
+#include "registrar/registrar-db.hh"
 
 using namespace std;
 using namespace linphone;

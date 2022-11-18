@@ -2,7 +2,7 @@
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <flexisip/registrar/contact-key.hh>
+#include "contact-key.hh"
 
 namespace flexisip {
 

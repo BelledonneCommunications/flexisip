@@ -24,13 +24,12 @@
 
 #include <bctoolbox/ownership.hh>
 
-#include <flexisip/agent.hh>
-#include <flexisip/common.hh>
-#include <flexisip/event.hh>
-#include <flexisip/fork-context/branch-info.hh>
-#include <flexisip/fork-context/fork-context.hh>
+#include "flexisip/common.hh"
+#include "flexisip/event.hh"
 
-#include "flexisip/transaction.hh"
+#include "agent.hh"
+#include "fork-context/branch-info.hh"
+#include "transaction.hh"
 
 using namespace std;
 
@@ -202,7 +201,7 @@ void OutgoingTransaction::queueFree() {
 	   call nta_outgoing_destroy(). nta_outgoing_tcancel() is then left with the INVITE transaction freed (full of
 	   0xaaaaaaaa), which crashes.
 	*/
-	mAgent->getRoot()->addToMainLoop([self = move(mSelfRef)] {});
+	mAgent->getRoot()->addToMainLoop([self = std::move(mSelfRef)] {});
 	mIncoming.reset();
 	if (mOutgoing) {
 		nta_outgoing_bind(mOutgoing.borrow(), NULL, NULL); // avoid callbacks
@@ -237,7 +236,7 @@ shared_ptr<MsgSip> IncomingTransaction::createResponse(int status, char const* p
 			return shared_ptr<MsgSip>();
 		}
 
-		return make_shared<MsgSip>(move(msg));
+		return make_shared<MsgSip>(std::move(msg));
 	}
 	LOGE("IncomingTransaction::createResponse(): this=%p transaction is finished, cannot create response.", this);
 	return shared_ptr<MsgSip>();

@@ -18,12 +18,12 @@
 
 #include <chrono>
 
-#include <flexisip/agent.hh>
-#include <flexisip/module-router.hh>
-#include <flexisip/registrar/binding-parameters.hh>
-#include <flexisip/registrar/registrar-db.hh>
-#include <flexisip/sofia-wrapper/su-root.hh>
+#include "flexisip/module-router.hh"
+#include "flexisip/registrar/registar-listeners.hh"
 
+#include "agent.hh"
+#include "registrar/binding-parameters.hh"
+#include "registrar/registrar-db.hh"
 #include "tester.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/client-core.hh"

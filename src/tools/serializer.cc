@@ -16,9 +16,9 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "registrar/binding-parameters.hh"
+#include "registrar/change-set.hh"
 #include <flexisip/utils/sip-uri.hh>
-#include <flexisip/registrar/binding-parameters.hh>
-#include <flexisip/registrar/change-set.hh>
 
 #include "tool_utils.hh"
 

@@ -1,20 +1,22 @@
 /*
- Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as
- published by the Free Software Foundation, either version 3 of the
- License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+
+#include "registrardb-redis.hh"
 
 #include <algorithm>
 #include <cstdio>
@@ -23,20 +25,18 @@
 #include <set>
 #include <vector>
 
-#include "compat/hiredis/hiredis.h"
-
 #include <sofia-sip/sip_protos.h>
 
-#include <flexisip/common.hh>
-#include <flexisip/configmanager.hh>
-#include <flexisip/registrar/exceptions.hh>
-#include <flexisip/registrar/extended-contact.hh>
+#include "flexisip/common.hh"
+#include "flexisip/configmanager.hh"
+#include "flexisip/registrar/registar-listeners.hh"
 
+#include "compat/hiredis/hiredis.h"
 #include "recordserializer.hh"
 #include "redis-async-script.hh"
+#include "registrar/exceptions.hh"
+#include "registrar/extended-contact.hh"
 #include "registrardb-redis-sofia-event.h"
-
-#include "registrardb-redis.hh"
 
 /* The timeout to retry a bind request after encountering a failure. It gives us a chance to reconnect to a new
  * master.*/
@@ -296,7 +296,7 @@ void RegistrarDbRedisAsync::updateSlavesList(const map<string, string> redisRepl
 	}
 
 	// replace the slaves array
-	mSlaves = move(newSlaves);
+	mSlaves = std::move(newSlaves);
 	mCurSlave = mSlaves.cend();
 }
 

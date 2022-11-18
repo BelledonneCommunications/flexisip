@@ -6,12 +6,11 @@
 
 #include "bctoolbox/tester.h"
 
-#include <flexisip/registrar/extended-contact.hh>
-#include <flexisip/registrar/listeners.hh>
-#include <flexisip/registrar/record.hh>
-#include <flexisip/registrar/registrar-db.hh>
-#include <flexisip/sofia-wrapper/waker.hh>
+#include "flexisip/registrar/registar-listeners.hh"
 
+#include "registrar/extended-contact.hh"
+#include "registrar/record.hh"
+#include "registrar/registrar-db.hh"
 #include "utils/proxy-server.hh"
 #include "utils/temp-file.hh"
 

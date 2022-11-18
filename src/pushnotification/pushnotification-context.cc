@@ -9,22 +9,23 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "flexisip/fork-context/fork-call-context.hh"
-#include "flexisip/logmanager.hh"
-#include "flexisip/module-pushnotification.hh"
+#include "pushnotification-context.hh"
 
+#include "flexisip/logmanager.hh"
+
+#include "agent.hh"
+#include "fork-context/fork-call-context.hh"
+#include "module-pushnotification.hh"
 #include "pushnotification/strategy/background-push-strategy.hh"
 #include "pushnotification/strategy/remote-push-strategy.hh"
 #include "pushnotification/strategy/voip-push-strategy.hh"
-
-#include "pushnotification-context.hh"
 
 using namespace std;
 

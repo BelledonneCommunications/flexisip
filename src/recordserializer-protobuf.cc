@@ -1,7 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL.
-    Author: Guillaume Beraudo
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -17,15 +16,15 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "recordserializer.hh"
+
 #include <sofia-sip/sip_protos.h>
 
-#include <flexisip/common.hh>
-#include <flexisip/registrar/extended-contact.hh>
-
-#include "recordserializer.hh"
-#include "utils/string-utils.hh"
+#include "flexisip/common.hh"
 
 #include "recordserializer-protobuf.pb.h"
+#include "registrar/extended-contact.hh"
+#include "utils/string-utils.hh"
 
 using namespace std;
 using namespace flexisip;

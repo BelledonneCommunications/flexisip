@@ -4,8 +4,7 @@
 
 #include "db/db-transaction.hh"
 
-#include "flexisip/eventlogs.hh"
-
+#include "eventlogs.hh"
 #include "utils/thread/auto-thread-pool.hh"
 
 using namespace std;
