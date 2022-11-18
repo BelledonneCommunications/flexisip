@@ -20,12 +20,13 @@
 
 #include <memory>
 
-#include "flexisip/fork-context/branch-info-db.hh"
 #include "flexisip/fork-context/fork-context.hh"
-#include "flexisip/fork-context/fork-status.hh"
-#include "flexisip/module-pushnotification.hh"
-#include "flexisip/registrardb.hh"
-#include "flexisip/transaction.hh"
+
+#include "branch-info-db.hh"
+#include "fork-status.hh"
+#include "module-pushnotification.hh"
+#include "registrardb.hh"
+#include "transaction.hh"
 
 #if ENABLE_UNIT_TESTS
 #include "bctoolbox/tester.h"

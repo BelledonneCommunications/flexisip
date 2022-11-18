@@ -1,4 +1,4 @@
-/** Copyright (C) 2010-2022 Belledonne Communications SARL
+/** Copyright (C) 2010-2023 Belledonne Communications SARL
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
@@ -6,9 +6,9 @@
 
 #include "bctoolbox/tester.h"
 
-#include <flexisip/registrardb.hh>
-#include <flexisip/sofia-wrapper/waker.hh>
+#include "flexisip/sofia-wrapper/waker.hh"
 
+#include "registrardb.hh"
 #include "utils/proxy-server.hh"
 #include "utils/temp-file.hh"
 

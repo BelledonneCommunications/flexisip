@@ -19,9 +19,9 @@
 #include <stdexcept>
 
 #include "flexisip/logmanager.hh"
-#include "flexisip/registrardb.hh"
 #include "flexisip/sofia-wrapper/msg-sip.hh"
 
+#include "registrardb.hh"
 #include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
 

@@ -1,37 +1,38 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <stdexcept>
 
-#include <flexisip/entryfilter.hh>
-#include <flexisip/module.hh>
-#include <flexisip/sip-boolean-expressions.hh>
+#include "flexisip/module.hh"
+#include "flexisip/sip-boolean-expressions.hh"
+
+#include "entryfilter.hh"
 
 using namespace std;
 using namespace flexisip;
 
 static ConfigItemDescriptor config[] = {
-	{Boolean, "enabled", "Indicate whether the module is activated.", "true"},
-	{BooleanExpr, "filter",
-	 "A request/response enters module if the boolean filter evaluates to true. Ex: from.uri.domain contains "
-	 "'sip.linphone.org', from.uri.domain in 'a.org b.org c.org', (to.uri.domain in 'a.org b.org c.org') && "
-	 "(user-agent == 'Linphone v2'). You can consult the full filter documentation here : "
-	 "https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/",
+    {Boolean, "enabled", "Indicate whether the module is activated.", "true"},
+    {BooleanExpr, "filter",
+     "A request/response enters module if the boolean filter evaluates to true. Ex: from.uri.domain contains "
+     "'sip.linphone.org', from.uri.domain in 'a.org b.org c.org', (to.uri.domain in 'a.org b.org c.org') && "
+     "(user-agent == 'Linphone v2'). You can consult the full filter documentation here : "
+     "https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/",
 	 ""},
 
 	// Deprecated parameters

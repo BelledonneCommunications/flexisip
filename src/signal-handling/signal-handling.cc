@@ -1,6 +1,8 @@
-/** Copyright (C) 2010-2022 Belledonne Communications SARL
+/** Copyright (C) 2010-2023 Belledonne Communications SARL
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
+ 
+#include "flexisip/signal-handling/signal-handling.hh"
 
 #include <unistd.h>
 
@@ -8,8 +10,6 @@
 #include <stdexcept>
 #include <unordered_map>
 #include <vector>
-
-#include "signal-handling.hh"
 
 namespace {
 

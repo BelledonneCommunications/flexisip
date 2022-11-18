@@ -9,18 +9,20 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <algorithm>
-#include <flexisip/common.hh>
-#include <flexisip/fork-context/fork-basic-context.hh>
-#include <flexisip/registrardb.hh>
 #include <sofia-sip/sip_status.h>
+
+#include "flexisip/common.hh"
+
+#include "registrardb.hh"
+
+#include "fork-basic-context.hh"
 
 using namespace std;
 using namespace flexisip;

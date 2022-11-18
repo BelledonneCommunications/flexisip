@@ -1,4 +1,4 @@
-/** Copyright (C) 2010-2022 Belledonne Communications SARL
+/** Copyright (C) 2010-2023 Belledonne Communications SARL
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
@@ -6,8 +6,8 @@
 
 #include <functional>
 
-#include <flexisip/logmanager.hh>
-#include <flexisip/sofia-wrapper/waker.hh>
+#include "flexisip/logmanager.hh"
+#include "flexisip/sofia-wrapper/waker.hh"
 
 #include "signal-handling.hh"
 

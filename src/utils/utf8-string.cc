@@ -2,13 +2,12 @@
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <cstddef>
+#include "utf8-string.hh"
+
 #include <sstream>
 #include <string>
 
 #include <iconv.h>
-
-#include "flexisip/utils/utf8-string.hh"
 
 namespace {
 

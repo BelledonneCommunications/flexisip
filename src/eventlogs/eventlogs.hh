@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -27,8 +27,8 @@
 #include <sofia-sip/sip.h>
 #include <sofia-sip/sip_protos.h>
 
-#include <flexisip/common.hh>
-#include <flexisip/sofia-wrapper/home.hh>
+#include "flexisip/common.hh"
+#include "flexisip/sofia-wrapper/home.hh"
 
 namespace flexisip {
 

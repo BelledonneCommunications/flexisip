@@ -22,12 +22,13 @@
 #include <map>
 #include <memory>
 
-#include "flexisip/agent.hh"
 #include "flexisip/event.hh"
-#include "flexisip/fork-context/fork-context-base.hh"
-#include "flexisip/fork-context/fork-message-context-db.hh"
 #include "flexisip/module-router.hh"
-#include "flexisip/transaction.hh"
+
+#include "agent.hh"
+#include "fork-context-base.hh"
+#include "fork-message-context-db.hh"
+#include "transaction.hh"
 
 namespace flexisip {
 class ModuleRouter;

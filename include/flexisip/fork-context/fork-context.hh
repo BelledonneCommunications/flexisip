@@ -18,19 +18,23 @@
 
 #pragma once
 
+#include <chrono>
 #include <memory>
+#include <vector>
 
-#include "flexisip/agent.hh"
-#include "flexisip/event.hh"
-#include "flexisip/fork-context/branch-info.hh"
-#include "flexisip/registrardb.hh"
-#include "flexisip/transaction.hh"
-
-#include "pushnotification/pushnotification-context-observer.hh"
+#include "flexisip/pushnotification/pushnotification-context-observer.hh"
+#include "flexisip/sofia-wrapper/msg-sip.hh"
 
 namespace flexisip {
 
 class BranchInfo;
+class IncomingTransaction;
+class OutgoingTransaction;
+class RequestSipEvent;
+class ResponseSipEvent;
+class SipUri;
+
+struct ExtendedContact;
 
 struct ForkContextConfig {
 	int mDeliveryTimeout = 0;               /* in seconds, used for "late" forking*/

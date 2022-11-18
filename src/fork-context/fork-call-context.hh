@@ -21,10 +21,11 @@
 #include <list>
 
 #include "flexisip/event.hh"
-#include "flexisip/fork-context/fork-status.hh"
 #include "flexisip/module-router.hh"
 #include "flexisip/sofia-wrapper/timer.hh"
-#include "flexisip/transaction.hh"
+
+#include "fork-status.hh"
+#include "transaction.hh"
 
 #include "fork-context-base.hh"
 

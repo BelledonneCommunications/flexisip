@@ -31,15 +31,15 @@
 
 #include <bctoolbox/ownership.hh>
 
-#include <flexisip/agent.hh>
-#include <flexisip/flexisip-version.h>
-#include <flexisip/logmanager.hh>
-#include <flexisip/module.hh>
-#include <flexisip/registrardb.hh>
+#include "flexisip/flexisip-version.h"
+#include "flexisip/logmanager.hh"
+#include "flexisip/module.hh"
 
+#include "agent.hh"
 #include "domain-registrations.hh"
 #include "etchosts.hh"
 #include "plugin/plugin-loader.hh"
+#include "registrardb.hh"
 #include "utils/uri-utils.hh"
 
 #define IPADDR_SIZE 64

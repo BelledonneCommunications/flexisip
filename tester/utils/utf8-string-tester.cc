@@ -2,18 +2,12 @@
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include <cstdint>
-#include <iomanip>
 #include <ios>
-#include <iostream>
-#include <ostream>
-#include <utility>
 
 #include "bctoolbox/tester.h"
 
 #include "utils/test-suite.hh"
-
-#include "flexisip/utils/utf8-string.hh"
+#include "utils/utf8-string.hh"
 
 using namespace flexisip::utils;
 

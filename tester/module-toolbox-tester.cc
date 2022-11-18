@@ -18,7 +18,6 @@
 
 #include <chrono>
 
-#include "flexisip/agent.hh"
 #include "flexisip/module-router.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
 

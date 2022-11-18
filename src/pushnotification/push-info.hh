@@ -22,10 +22,9 @@
 #include <memory>
 #include <string>
 
-#include <flexisip/registrardb.hh>
-
 #include "push-type.hh"
 #include "pushnotification/push-notification-error.hh"
+#include "registrardb.hh"
 #include "rfc8599-push-params.hh"
 
 namespace sofiasip {

@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -27,10 +27,10 @@
 #include <bctoolbox/ownership.hh>
 
 #include <flexisip/logmanager.hh>
-#include <flexisip/registrardb.hh>
 
 #include "cJSON.h"
 #include "recordserializer.hh"
+#include "registrardb.hh"
 #include "utils/string-utils.hh"
 
 #include "cli.hh"

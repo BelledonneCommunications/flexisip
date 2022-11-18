@@ -22,9 +22,10 @@
 #include <map>
 
 #include "flexisip/event.hh"
-#include "flexisip/fork-context/fork-context-base.hh"
 #include "flexisip/module-router.hh"
-#include "flexisip/transaction.hh"
+
+#include "fork-context-base.hh"
+#include "transaction.hh"
 
 namespace flexisip {
 

@@ -1,10 +1,13 @@
-/** Copyright (C) 2010-2022 Belledonne Communications SARL
+/** Copyright (C) 2010-2023 Belledonne Communications SARL
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #pragma once
 
+#include <unistd.h>
+
 #include <csignal>
+#include <cstdint>
 #include <unordered_map>
 #include <vector>
 

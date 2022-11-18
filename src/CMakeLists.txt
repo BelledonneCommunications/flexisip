@@ -25,8 +25,7 @@
 #######################################################################################################################
 
 add_library(flexisip SHARED
-	agent.cc
-	auth/auth-module.cc
+	agent.cc agent.hh
 	auth/flexisip-auth-module.cc auth/flexisip-auth-module.hh
 	auth/flexisip-auth-module-base.cc
 	auth/realm-extractor.hh
@@ -43,17 +42,22 @@ add_library(flexisip SHARED
 	configmanager.cc
 	contact-masquerader.cc contact-masquerader.hh
 	domain-registrations.cc domain-registrations.hh
+	dos/dos-executor/ban-executor.hh
 	dos/dos-executor/iptables-executor.cc dos/dos-executor/iptables-executor.hh
 	dos/module-dos.cc
-	entryfilter.cc
+	entryfilter.cc entryfilter.hh
 	etchosts.cc etchosts.hh
 	event.cc
-	eventlogs/eventlogs.cc
-	fork-context/fork-basic-context.cc
-	fork-context/fork-call-context.cc
-	fork-context/fork-context-base.cc
-	fork-context/fork-message-context.cc
+	eventlogs/eventlogs.cc eventlogs/eventlogs.hh
+	fork-context/branch-info.hh
+	fork-context/branch-info-db.hh
+	fork-context/fork-basic-context.cc fork-context/fork-basic-context.hh
+	fork-context/fork-call-context.cc fork-context/fork-call-context.hh
+	fork-context/fork-context-base.cc fork-context/fork-context-base.hh
+	fork-context/fork-message-context-db.hh
+	fork-context/fork-message-context.cc fork-context/fork-message-context.hh
 	fork-context/fork-context.cc
+	fork-context/fork-status.hh
 	h264iframefilter.cc h264iframefilter.hh
 	log/logmanager.cc
 	lpconfig.cc
@@ -69,7 +73,7 @@ add_library(flexisip SHARED
 	module-nat-helper.cc
 	module-redirect.cc
 	module-presence.cc
-	module-pushnotification.cc
+	module-pushnotification.cc module-pushnotification.hh
 	module-regevent.cc
 	module-registrar.cc
 	module-router.cc
@@ -90,19 +94,18 @@ add_library(flexisip SHARED
 	pushnotification/legacy/microsoftpush.cc pushnotification/legacy/microsoftpush.hh
 	pushnotification/legacy/wp-client.cc pushnotification/legacy/wp-client.hh
 	pushnotification/pushnotification-context.cc pushnotification/pushnotification-context.hh
-	pushnotification/pushnotification-context-observer.hh
 	pushnotification/push-info.cc pushnotification/push-info.hh
+	pushnotification/push-param.cc pushnotification/push-param.hh
 	pushnotification/push-type.cc pushnotification/push-type.hh
 	pushnotification/request.cc pushnotification/request.hh
 	pushnotification/rfc8599-push-params.cc pushnotification/rfc8599-push-params.hh
 	pushnotification/service.cc pushnotification/service.hh
 	pushnotification/strategy/remote-push-strategy.cc pushnotification/strategy/remote-push-strategy.hh
 	pushnotification/strategy/strategy.cc pushnotification/strategy/strategy.hh
-	push-param.cc
 	recordserializer-c.cc
 	recordserializer-json.cc
 	registrardb-internal.cc registrardb-internal.hh
-	registrardb.cc
+	registrardb.cc registrardb.hh
 	sdp-modifier.cc sdp-modifier.hh
 	service-server.cc service-server.hh
 	signal-handling/signal-handling.cc
@@ -110,8 +113,8 @@ add_library(flexisip SHARED
 	stun/stun_udp.c
 	stun/stun.c
 	telephone-event-filter.cc telephone-event-filter.hh
-	transaction.cc
-	transport.cc
+	transaction.cc transaction.hh
+	transport.cc transport.hh
 	uac-register.cc uac-register.hh
 	conditional-routes.cc conditional-routes.hh
 )
@@ -317,10 +320,9 @@ if (ENABLE_SOCI)
 	target_sources(flexisip PRIVATE
 		authdb-soci.cc
 		eventlogs/eventlogs-soci.cc
-		fork-context/fork-message-context-soci-repository.cc
-		fork-context/fork-message-context-db-proxy.cc
-		soci-helper.cc
-		soci-helper.hh
+		fork-context/fork-message-context-soci-repository.cc fork-context/fork-message-context-soci-repository.hh
+		fork-context/fork-message-context-db-proxy.cc fork-context/fork-message-context-db-proxy.hh
+		soci-helper.cc soci-helper.hh
 	)
 	target_link_libraries(flexisip PUBLIC soci_core soci_mysql)
 endif ()

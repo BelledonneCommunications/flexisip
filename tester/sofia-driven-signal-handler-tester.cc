@@ -1,4 +1,4 @@
-/** Copyright (C) 2010-2022 Belledonne Communications SARL
+/** Copyright (C) 2010-2023 Belledonne Communications SARL
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
@@ -6,11 +6,10 @@
 
 #include "bctoolbox/tester.h"
 
-#include <flexisip/sofia-wrapper/su-root.hh>
+#include "flexisip/signal-handling/sofia-driven-signal-handler.hh"
+#include "flexisip/sofia-wrapper/su-root.hh"
 
 #include "tester.hh"
-
-#include "signal-handling/sofia-driven-signal-handler.hh"
 
 using namespace std::chrono_literals;
 

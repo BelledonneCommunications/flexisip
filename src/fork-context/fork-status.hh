@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -18,24 +18,18 @@
 
 #pragma once
 
-#include <string>
-
-#include "flexisip/configmanager.hh"
-
 namespace flexisip {
 
 /**
- * You can implement this interface if you want to change the default ban actions (iptables) of ModuleDoSProtection.
- */
-class BanExecutor {
-public:
-	virtual ~BanExecutor() = default;
-
-	virtual void checkConfig() = 0;
-	virtual void onLoad(const flexisip::GenericStruct* dosModuleConfig) = 0;
-	virtual void onUnload() = 0;
-	virtual void banIP(const std::string& ip, const std::string& port, const std::string& protocol) = 0;
-	virtual void unbanIP(const std::string& ip, const std::string& port, const std::string& protocol) = 0;
+ * This enumeration is used while call cancellation to clarify
+ * the scenario which caused the cancellation.
+*/
+enum class ForkStatus {
+	AcceptedElsewhere, /**< The call branch is canceled because the call has been accepted in another branch of the
+	                      ForkContext. */
+	DeclineElsewhere,  /**< The call branch is canceled because the call has been declined in another branch of the
+	                      ForkContext. */
+	Standard           /**< The call branch is canceled because the call has been canceled by the caller. */
 };
 
 } // namespace flexisip

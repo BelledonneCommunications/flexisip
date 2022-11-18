@@ -21,11 +21,12 @@
 #include <memory>
 
 #include "flexisip/event.hh"
-#include "flexisip/fork-context/branch-info.hh"
 #include "flexisip/fork-context/fork-context.hh"
 #include "flexisip/module-router.hh"
-#include "flexisip/registrardb.hh"
-#include "flexisip/transaction.hh"
+
+#include "branch-info.hh"
+#include "registrardb.hh"
+#include "transaction.hh"
 
 namespace flexisip {
 

@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -19,13 +19,16 @@
 #pragma once
 
 #include <set>
+#include <unordered_map>
 
-#include "flexisip/dos/dos-executor/ban-executor.hh"
 #include "flexisip/module.hh"
 
 #include "utils/thread/thread-pool.hh"
 
 namespace flexisip {
+
+class ThreadPool;
+class BanExecutor;
 
 struct DosContext {
 	uint64_t recv_msg_count_since_last_check = 0;
@@ -44,13 +47,7 @@ public:
 		mWhiteList.clear();
 	}
 
-	void setBanExecutor(const std::shared_ptr<BanExecutor>& executor) {
-		if (mBanExecutor) {
-			mBanExecutor->onUnload();
-		}
-		mBanExecutor = executor;
-		mBanExecutor->onLoad(nullptr);
-	}
+	void setBanExecutor(const std::shared_ptr<BanExecutor>& executor);
 #endif
 
 private:
@@ -67,9 +64,7 @@ private:
 
 	void onDeclare(GenericStruct* module_config);
 	void onLoad(const GenericStruct* mc);
-	void onUnload() {
-		mBanExecutor->onUnload();
-	}
+	void onUnload();
 	void onRequest(std::shared_ptr<RequestSipEvent>& ev);
 	void onResponse(std::shared_ptr<ResponseSipEvent>& ev){};
 	void onIdle();

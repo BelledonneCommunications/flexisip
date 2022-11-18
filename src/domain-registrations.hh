@@ -28,7 +28,8 @@
 
 #include "flexisip/common.hh"
 #include "flexisip/configmanager.hh"
-#include "flexisip/registrardb.hh"
+
+#include "registrardb.hh"
 
 namespace flexisip {
 

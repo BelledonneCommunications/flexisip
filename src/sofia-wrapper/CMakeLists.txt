@@ -21,6 +21,7 @@
 ############################################################################
 
 target_sources(flexisip PRIVATE
+	auth-module.cc
 	msg-sip.cc
 	su-root.cc
 	timer.cc

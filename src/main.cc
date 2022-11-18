@@ -9,11 +9,11 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <csignal>
@@ -54,7 +54,6 @@
 
 #include <tclap/CmdLine.h>
 
-#include <flexisip/agent.hh>
 #include <flexisip/expressionparser.hh>
 #include <flexisip/flexisip-version.h>
 #include <flexisip/logmanager.hh>
@@ -71,6 +70,7 @@
 #define FLEXISIP_GIT_VERSION "undefined"
 #endif
 
+#include "agent.hh"
 #include "cli.hh"
 #include "configdumper.hh"
 #include "etchosts.hh"

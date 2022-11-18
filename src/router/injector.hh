@@ -23,10 +23,9 @@
 
 #include "flexisip/event.hh"
 #include "flexisip/fork-context/fork-context.hh"
+#include "flexisip/module-router.hh"
 
 namespace flexisip {
-
-class ModuleRouter;
 
 /**
  * Interface you need to implement to be used as an injector by ModuleRouter.

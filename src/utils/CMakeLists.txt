@@ -38,5 +38,5 @@ target_sources(flexisip PRIVATE
 	transport/http/ng-data-provider.cc transport/http/ng-data-provider.hh
 	transport/tls-connection.cc transport/tls-connection.hh
 	uri-utils.cc uri-utils.hh
-	utf8-string.cc
+	utf8-string.cc utf8-string.hh
 )

@@ -22,7 +22,7 @@
 
 #include "flexisip/common.hh"
 
-#include "flexisip/fork-context/fork-call-context.hh"
+#include "fork-call-context.hh"
 
 using namespace std;
 

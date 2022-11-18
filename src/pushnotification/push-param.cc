@@ -1,26 +1,28 @@
 /*
- Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as
- published by the Free Software Foundation, either version 3 of the
- License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include <stdexcept>
 
 #include "flexisip/logmanager.hh"
+
 #include "utils/string-utils.hh"
 
-#include "flexisip/push-param.hh"
+#include "push-param.hh"
 
 using namespace std;
 
@@ -36,7 +38,9 @@ bool PushParam::operator==(const PushParam& pp) const {
 	return pp.mPrId == mPrId && pp.mParam == mParam;
 }
 
-PushParamList::PushParamList(const string& provider, const string& customPrId, const string& customParam,
+PushParamList::PushParamList(const string& provider,
+                             const string& customPrId,
+                             const string& customParam,
                              bool isLegacyContactParams) {
 	if (isLegacyContactParams) {
 		constructFromLegacyContactParameters(provider, customPrId, customParam);
@@ -45,7 +49,8 @@ PushParamList::PushParamList(const string& provider, const string& customPrId, c
 	}
 }
 
-void PushParamList::constructFromLegacyContactParameters(const string& pnType, const string& pnTok,
+void PushParamList::constructFromLegacyContactParameters(const string& pnType,
+                                                         const string& pnTok,
                                                          const string& appId) {
 	string provider{};
 	if (pnType == "firebase" || pnType == "google") {
@@ -67,7 +72,8 @@ void PushParamList::constructFromLegacyContactParameters(const string& pnType, c
 	}
 }
 
-void PushParamList::constructFromContactParameters(const string& provider, const string& customPrId,
+void PushParamList::constructFromContactParameters(const string& provider,
+                                                   const string& customPrId,
                                                    const string& customParam) {
 	mProvider = provider;
 	if (mProvider == "fcm" || (StringUtils::startsWith(mProvider, "apns") && customPrId.find("&") == string::npos)) {

@@ -28,27 +28,28 @@
 #define FLEXISIP_INCLUDED
 #endif
 
-#include "common.hh"
-#include "configmanager.hh"
-#include "event.hh"
-#include "eventlogs.hh"
-#include "sofia-wrapper/su-root.hh"
-#include "transaction.hh"
-#include "transport.hh"
-#include "utils/sip-uri.hh"
-
-#include <sofia-sip/msg.h>
-#include <sofia-sip/nta.h>
-#include <sofia-sip/nta_stateless.h>
-#include <sofia-sip/nth.h>
-#include <sofia-sip/sip.h>
-#include <sofia-sip/sip_protos.h>
-#include <sofia-sip/sip_tag.h>
-#include <sofia-sip/sip_util.h>
-
 #if ENABLE_MDNS
 #include "belle-sip/belle-sip.h"
 #endif
+
+#include "sofia-sip/msg.h"
+#include "sofia-sip/nta.h"
+#include "sofia-sip/nta_stateless.h"
+#include "sofia-sip/nth.h"
+#include "sofia-sip/sip.h"
+#include "sofia-sip/sip_util.h"
+#include "submodules/externals/sofia-sip/libsofia-sip-ua/sip/sofia-sip/sip_protos.h"
+#include "submodules/externals/sofia-sip/libsofia-sip-ua/sip/sofia-sip/sip_tag.h"
+
+#include "flexisip/common.hh"
+#include "flexisip/configmanager.hh"
+#include "flexisip/event.hh"
+#include "flexisip/sofia-wrapper/su-root.hh"
+#include "flexisip/utils/sip-uri.hh"
+
+#include "eventlogs/eventlogs.hh"
+#include "transaction.hh"
+#include "transport.hh"
 
 namespace flexisip {
 

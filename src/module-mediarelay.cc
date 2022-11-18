@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,32 +9,31 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <algorithm>
 #include <vector>
 
-#include <flexisip/fork-context/fork-context-base.hh>
-#include <flexisip/transaction.hh>
-
 #include "callcontext-mediarelay.hh"
+#include "fork-context/fork-context-base.hh"
 #include "h264iframefilter.hh"
 #include "mediarelay.hh"
 #include "sdp-modifier.hh"
+#include "transaction.hh"
 
 using namespace std;
 using namespace ::std::placeholders;
 using namespace flexisip;
 
-static bool isEarlyMedia(sip_t *sip) {
+static bool isEarlyMedia(sip_t* sip) {
 	if (sip->sip_status->st_status == 180 || sip->sip_status->st_status == 183) {
-		sip_payload_t *payload = sip->sip_payload;
-		//TODO: should check if it is application/sdp
+		sip_payload_t* payload = sip->sip_payload;
+		// TODO: should check if it is application/sdp
 		return payload != NULL;
 	}
 	return false;

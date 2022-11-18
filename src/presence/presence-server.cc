@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -26,7 +26,6 @@
 #endif
 
 #include "flexisip/configmanager.hh"
-#include "flexisip/registrardb.hh"
 #include "utils/thread/auto-thread-pool.hh"
 
 #include "bellesip-signaling-exception.hh"
@@ -35,6 +34,7 @@
 #include "list-subscription/external-list-subscription.hh"
 #endif
 #include "presentity-presenceinformation.hh"
+#include "registrardb.hh"
 #include "subscription.hh"
 #include "utils/belle-sip-utils.hh"
 #include "xml/pidf+xml.hh"

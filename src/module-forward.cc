@@ -22,15 +22,15 @@
 #include <sofia-sip/su_md5.h>
 #include <sofia-sip/tport.h>
 
-#include "flexisip/agent.hh"
 #include "flexisip/module-router.hh"
 #include "flexisip/module.hh"
-#include "flexisip/registrardb.hh"
-#include "flexisip/transaction.hh"
 
+#include "agent.hh"
 #include "conditional-routes.hh"
 #include "domain-registrations.hh"
 #include "etchosts.hh"
+#include "registrardb.hh"
+#include "transaction.hh"
 
 using namespace std;
 using namespace flexisip;
