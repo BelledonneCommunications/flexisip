@@ -33,7 +33,7 @@ namespace sofiasip {
 /**
  * Exception thrown while trying to create a new URL from
  * an invalid string or url_t.
-*/
+ */
 class InvalidUrlError : public std::invalid_argument {
 public:
 	template <typename T, typename U>
@@ -61,7 +61,7 @@ private:
 
 /**
  * Exception thrown when an URL couldn't be modified.
-*/
+ */
 class UrlModificationError : public std::logic_error {
 public:
 	using logic_error::logic_error;
@@ -78,7 +78,7 @@ struct TlsConfigInfo {
 
 /**
  * Wrapper for SofiaSip's URLs.
-*/
+ */
 class Url {
 public:
 	/**
@@ -215,7 +215,7 @@ namespace flexisip {
 /**
  * A specialisation of sofiasip::Url which ensures that the URL is a
  * SIP or SIPS URI.
-*/
+ */
 class SipUri : public sofiasip::Url {
 public:
 	class Params {

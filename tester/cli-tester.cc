@@ -102,7 +102,7 @@ static void handler_registration_and_dispatch() {
 
 	// Cli with a shorter lifetime than the handler
 	{
-		
+
 		auto temp_listener = TestCli();
 		temp_listener.registerHandler(passthrough_handler);
 	}
