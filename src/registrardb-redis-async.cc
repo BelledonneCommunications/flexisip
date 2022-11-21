@@ -74,6 +74,7 @@ RegistrarDbRedisAsync::~RegistrarDbRedisAsync() {
 	}
 }
 
+// "The context object is always freed after the disconnect callback fired"
 void RegistrarDbRedisAsync::onDisconnect(const redisAsyncContext *c, int status) {
 	if (mContext != nullptr && mContext != c) {
 		LOGE("Redis context %p disconnected, but current context is %p", c, mContext);
@@ -91,6 +92,7 @@ void RegistrarDbRedisAsync::onDisconnect(const redisAsyncContext *c, int status)
 
 void RegistrarDbRedisAsync::onConnect(const redisAsyncContext* c, int status) {
 	if (status != REDIS_OK) {
+		// "After a failed connection attempt, the context object is automatically freed by the library after calling the connect callback"
 		LOGE("Couldn't connect to redis: %s", c->errstr);
 		if (mContext != nullptr && mContext != c) {
 			LOGE("Redis context %p connection failed, but current context is %p", c, mContext);
@@ -399,8 +401,10 @@ void RegistrarDbRedisAsync::handleAuthReply(const redisReply *reply) {
 void RegistrarDbRedisAsync::getReplicationInfo() {
 	SLOGD << "Collecting replication information";
 	redisAsyncCommand(mContext, sHandleReplicationInfoReply, this, "INFO replication");
-	// Workaround for issue https://github.com/redis/hiredis/issues/396
-	redisAsyncCommand(mSubscribeContext, sPublishCallback, nullptr, "SUBSCRIBE %s", "FLEXISIP");
+	if (mSubscribeContext) {
+		// Workaround for issue https://github.com/redis/hiredis/issues/396
+		redisAsyncCommand(mSubscribeContext, sPublishCallback, nullptr, "SUBSCRIBE %s", "FLEXISIP");
+	}
 }
 
 bool RegistrarDbRedisAsync::connect() {
@@ -677,12 +681,19 @@ void RegistrarDbRedisAsync::sHandleAuthReply(redisAsyncContext *ac, void *r, voi
 }
 
 void RegistrarDbRedisAsync::serializeAndSendToRedis(RedisRegisterContext *context, forwardFn *forward_fn) {
+	if (!mContext) {
+		SLOGE << "Redis context null, we're probably disconnecting. Aborting " << __FUNCTION__;
+		if (context->listener) context->listener->onError();
+		delete context;
+		return;
+	}
+
 	int setCount = 0;
 	int delCount = 0;
 	string key = string("fs:") + context->mRecord->getKey();
 	
 	/* Start a REDIS transaction */
-	check_redis_command(redisAsyncCommand(context->self->mContext, nullptr, nullptr, "MULTI"), context);
+	check_redis_command(redisAsyncCommand(mContext, nullptr, nullptr, "MULTI"), context);
 	
 	/* First delete contacts that need to be deleted */
 	if (!context->mRecord->getContactsToRemove().empty()){

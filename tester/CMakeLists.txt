@@ -51,6 +51,7 @@ add_executable(flexisip_tester
     msg-sip-tester.cc
 	register-tester.cc
 	registrardb-tester.cc
+	registrardb-redis-tester.cc
 	sip-uri-tests.cc
 	tester.cc
 	thread-pool-tester.cc
