@@ -110,6 +110,7 @@ add_library(flexisip SHARED
 	registrardb.cc
 	sdp-modifier.cc sdp-modifier.hh
 	service-server.cc service-server.hh
+	signal-handling/signal-handling.cc
 	stun.cc stun.hh
 	stun/stun_udp.c
 	stun/stun.c

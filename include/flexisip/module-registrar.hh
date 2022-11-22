@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2012  Belledonne Communications SARL.
+    Copyright (C) 2010-2020  Belledonne Communications SARL.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -28,6 +28,12 @@
 #include <signal.h>
 
 namespace flexisip {
+
+namespace signal_handling {
+
+class SofiaDrivenSignalHandler;
+
+} // namespace signal_handling
 
 struct RegistrarStats {
 	std::unique_ptr<StatPair> mCountBind;
@@ -146,8 +152,6 @@ private:
 	std::shared_ptr<ResponseContext> createResponseContext(const std::shared_ptr<RequestSipEvent>& ev, int globalDelta);
 	void deleteResponseContext(const std::shared_ptr<ResponseContext>& ctx);
 
-	static void sighandler(int signum, siginfo_t* info, void* ptr);
-
 	void updateLocalRegExpire();
 	bool isManagedDomain(const url_t* url);
 	std::string routingKey(const url_t* sipUri);
@@ -167,11 +171,11 @@ private:
 	int mStaticRecordsTimeout;
 	int mStaticRecordsVersion;
 	bool mAssumeUniqueDomains;
-	struct sigaction mSigaction;
 	static ModuleInfo<ModuleRegistrar> sInfo;
 	bool mUseGlobalDomain;
 	int mExpireRandomizer;
 	std::list<std::string> mParamsToRemove;
+	std::unique_ptr<signal_handling::SofiaDrivenSignalHandler> mSignalHandler = nullptr;
 };
 
 class RegistrarMgt {
