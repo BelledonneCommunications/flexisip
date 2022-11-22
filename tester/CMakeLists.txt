@@ -47,6 +47,7 @@ add_executable(flexisip_tester
 	module-dos-tester.cc
 	module-info-tester.cc
 	module-pushnotification-tester.cc
+	module-registrar-tester.cc
 	module-router-tester.cc
 	module-toolbox-tester.cc
     msg-sip-tester.cc
@@ -55,6 +56,7 @@ add_executable(flexisip_tester
 	registrardb-redis-tester.cc
 	sip-uri-tests.cc
 	sofia-tester.cc
+	sofia-driven-signal-handler-tester.cc
 	tester.cc
 	thread-pool-tester.cc
 	tls-connection-tester.cc

@@ -248,6 +248,9 @@ private:
 
 	// Private attributes
 	std::string mServerString;
+	// Placing the SuRoot before the modules ensures it will outlive them, so it is always safe to get (and keep)
+	// references to it from within them
+	std::shared_ptr<sofiasip::SuRoot> mRoot = nullptr;
 	std::list<std::shared_ptr<Module>> mModules;
 	std::list<std::string> mAliases;
 	url_t* mPreferredRouteV4 = nullptr;
@@ -262,7 +265,6 @@ private:
 	std::string mPublicIpV4, mPublicIpV6, mPublicResolvedIpV4, mPublicResolvedIpV6;
 	std::vector<Transport> mTransports{};
 	nta_agent_t* mAgent = nullptr;
-	std::shared_ptr<sofiasip::SuRoot> mRoot{};
 	nth_engine_t* mHttpEngine = nullptr;
 	su_home_t mHome;
 	su_timer_t* mTimer = nullptr;

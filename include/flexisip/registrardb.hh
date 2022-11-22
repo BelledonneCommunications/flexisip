@@ -537,6 +537,7 @@ public:
 	          const BindingParameters& parameter,
 	          const std::shared_ptr<ContactUpdateListener>& listener);
 	void clear(const MsgSip &sip, const std::shared_ptr<ContactUpdateListener> &listener);
+	void clear(const SipUri& url, const std::string& callId, const std::shared_ptr<ContactUpdateListener>& listener);
 	void fetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive = false);
 	void fetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive);
 	void fetchList(const std::vector<SipUri > urls, const std::shared_ptr<ListContactUpdateListener> &listener);

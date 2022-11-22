@@ -29,10 +29,10 @@
 #include <sstream>
 #include <string>
 
+#include "signal-handling/sofia-driven-signal-handler.hh"
+
 using namespace std;
 using namespace flexisip;
-
-static ModuleRegistrar* sRegistrarInstanceForSigAction = nullptr;
 
 template <typename SipEventT>
 static void addEventLogRecordFound(shared_ptr<SipEventT> ev, const sip_contact_t* contacts) {
@@ -298,8 +298,6 @@ static void staticRoutesRereadTimerfunc(su_root_magic_t* magic, su_timer_t* t, v
 }
 
 ModuleRegistrar::ModuleRegistrar(Agent* ag) : Module(ag), mStaticRecordsTimer(nullptr) {
-	sRegistrarInstanceForSigAction = this;
-	memset(&mSigaction, 0, sizeof(mSigaction));
 	mStaticRecordsVersion = 0;
 }
 
@@ -448,16 +446,25 @@ void ModuleRegistrar::onLoad(const GenericStruct* mc) {
 	                       ->get<GenericStruct>("module::Router")
 	                       ->get<ConfigBoolean>("use-global-domain")
 	                       ->read();
-	mSigaction.sa_sigaction = ModuleRegistrar::sighandler;
-	mSigaction.sa_flags = SA_SIGINFO;
-	sigaction(SIGUSR1, &mSigaction, nullptr);
-	sigaction(SIGUSR2, &mSigaction, nullptr);
-
 	mParamsToRemove = GenericManager::get()
 	                      ->getRoot()
 	                      ->get<GenericStruct>("module::Forward")
 	                      ->get<ConfigStringList>("params-to-remove")
 	                      ->read();
+
+	mSignalHandler = std::make_unique<signal_handling::SofiaDrivenSignalHandler>(
+	    getAgent()->getRoot()->getCPtr(), std::vector<int>{SIGUSR1, SIGUSR2},
+	    // SAFETY: Capturing `this` is safe because we keep a handle to the Handler.
+	    [this](auto signum) {
+		    if (signum == SIGUSR1) {
+			    LOGI("Received signal triggering static records file re-read");
+			    readStaticRecords();
+		    } else if (signum == SIGUSR2) {
+			    LOGI("Received signal triggering fake fetch");
+			    auto listener = make_shared<FakeFetchListener>();
+			    RegistrarDb::get()->fetch(SipUri("sip:contact@domain"), listener, false);
+		    }
+	    });
 }
 
 void ModuleRegistrar::onUnload() {
@@ -836,7 +843,10 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 void ModuleRegistrar::readStaticRecords() {
 	int linenum = 0;
 
-	if (mStaticRecordsFile.empty()) return;
+	if (mStaticRecordsFile.empty()) {
+		SLOGW << "No static-records-file configured. Nothing to read.";
+		return;
+	}
 	LOGD("Reading static records file");
 
 	sofiasip::Home home;
@@ -850,7 +860,7 @@ void ModuleRegistrar::readStaticRecords() {
 	string path = getAgent()->getPreferredRoute();
 	mStaticRecordsVersion++;
 
-	const regex isCommentRe(R"regex(^\s*#.*$)regex");
+	const regex isCommentOrEmptyRe(R"regex(^\s*(#.*)?$)regex");
 	const regex isRecordRe(R"regex(^\s*([[:print:]]+)\s+([[:print:]]+)\s*$)regex");
 	while (file.good() && !file.eof()) {
 		string line;
@@ -861,8 +871,8 @@ void ModuleRegistrar::readStaticRecords() {
 		getline(file, line), ++linenum;
 
 		try {
+			if (regex_match(line, m, isCommentOrEmptyRe)) continue;
 
-			if (line.empty() || regex_match(line, m, isCommentRe)) continue;
 			else if (regex_match(line, m, isRecordRe)) {
 				from = m[1];
 				contact_header = m[2];
@@ -876,51 +886,69 @@ void ModuleRegistrar::readStaticRecords() {
 			int expire = mStaticRecordsTimeout + 5; // 5s to avoid race conditions
 
 			if (!url || !contact) {
-				throw runtime_error("one URI is invlaid");
+				throw runtime_error("one URI is invalid");
 			}
 
+			SipUri fromUri;
 			try {
-				SipUri fromUri(url->m_url);
-				while (contact) {
-					BindingParameters parameter;
-					shared_ptr<OnStaticBindListener> listener;
-					string fakeCallId = "static-record-v" + to_string(su_random());
-					bool alias = isManagedDomain(contact->m_url);
-					sip_contact_t* sipContact = sip_contact_dup(home.home(), contact);
-
-					sipContact->m_next = nullptr;
-					listener = make_shared<OnStaticBindListener>(url->m_url, contact);
-
-					parameter.callId = fakeCallId;
-					parameter.path = path;
-					parameter.globalExpire = expire;
-					parameter.alias = alias;
-					parameter.version = mStaticRecordsVersion;
-
-					RegistrarDb::get()->bind(fromUri, sipContact, parameter, listener);
-					contact = contact->m_next;
-				}
+				fromUri = SipUri(url->m_url);
 			} catch (const sofiasip::InvalidUrlError& e) {
 				ostringstream os;
 				os << "'" << e.getUrl() << "' isn't a valid SIP-URI: " << e.getReason();
 				throw runtime_error(os.str());
 			}
 
+			{ // Delete existing record
+				class ClearListener : public ContactUpdateListener {
+				public:
+					ClearListener(const std::string& uri) : mUri(uri) {
+					}
+
+					void onRecordFound(const shared_ptr<Record>& r) override {
+						SLOGD << "Cleared record " << mUri;
+					}
+					void onError() override {
+						SLOGE << "Error: cannot clear record " << mUri;
+					}
+					void onInvalid() override {
+						SLOGE << "Invalid: cannot clear record " << mUri;
+					}
+					void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+						SLOGE << "Unexpected call to " << __FUNCTION__ << " for record " << mUri;
+					}
+
+				private:
+					std::string mUri;
+				};
+
+				RegistrarDb::get()->clear(fromUri, "static-record-v"s + to_string(su_random()),
+				                          std::make_shared<ClearListener>(fromUri.str()));
+			}
+
+			while (contact) {
+				BindingParameters parameter;
+				shared_ptr<OnStaticBindListener> listener;
+				string fakeCallId = "static-record-v" + to_string(su_random());
+				bool alias = isManagedDomain(contact->m_url);
+				sip_contact_t* sipContact = sip_contact_dup(home.home(), contact);
+
+				sipContact->m_next = nullptr;
+				listener = make_shared<OnStaticBindListener>(url->m_url, contact);
+
+				parameter.callId = fakeCallId;
+				parameter.path = path;
+				parameter.globalExpire = expire;
+				parameter.alias = alias;
+				parameter.version = mStaticRecordsVersion;
+
+				RegistrarDb::get()->bind(fromUri, sipContact, parameter, listener);
+				contact = contact->m_next;
+			}
+
 		} catch (const runtime_error& e) {
 			SLOGW << "error while reading the static record file [" << mStaticRecordsFile << ":" << linenum << endl
 			      << "\t`" << line << "`: " << e.what();
 		}
-	}
-}
-
-void ModuleRegistrar::sighandler(int signum, siginfo_t* info, void* ptr) {
-	if (signum == SIGUSR1) {
-		LOGI("Received signal triggering static records file re-read");
-		sRegistrarInstanceForSigAction->readStaticRecords();
-	} else if (signum == SIGUSR2) {
-		LOGI("Received signal triggering fake fetch");
-		auto listener = make_shared<FakeFetchListener>();
-		RegistrarDb::get()->fetch(SipUri("sip:contact@domain"), listener, false);
 	}
 }
 

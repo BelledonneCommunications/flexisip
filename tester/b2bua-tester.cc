@@ -36,6 +36,7 @@
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
 #include "utils/proxy-server.hh"
+#include "utils/temp-file.hh"
 
 using namespace std;
 using namespace linphone;
@@ -181,20 +182,6 @@ struct DtmfListener : public linphone::CallListener {
 
 	void onDtmfReceived(const std::shared_ptr<linphone::Call>& _call, int dtmf) {
 		received.push_back(dtmf);
-	}
-};
-
-struct TempFile {
-	const char* name;
-
-	template <class Streamable>
-	TempFile(Streamable content) : name(std::tmpnam(nullptr)) {
-		std::ofstream file(name);
-		file << content;
-	}
-
-	~TempFile() {
-		std::remove(name);
 	}
 };
 
@@ -551,7 +538,7 @@ static void external_provider_bridge__b2bua_receives_several_forks() {
 		// managed domains
 		root->get<GenericStruct>("module::Forward")
 		    ->get<ConfigValue>("routes-config-path")
-			->set(bcTesterRes("config/forward_phone_to_b2bua.rules"));
+		    ->set(bcTesterRes("config/forward_phone_to_b2bua.rules"));
 	}
 	server->start();
 

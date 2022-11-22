@@ -1072,6 +1072,19 @@ void RegistrarDb::clear(const MsgSip& sip, const shared_ptr<ContactUpdateListene
 	doClear(sip, listener);
 }
 
+void RegistrarDb::clear(const SipUri& url,
+                        const std::string& callId,
+                        const std::shared_ptr<ContactUpdateListener>& listener) {
+	// Forged message
+	MsgSip msg(ownership::owned(nta_msg_create(mAgent->getSofiaAgent(), 0)));
+	auto home = msg.getHome();
+	auto sip = msg.getSip();
+	sip->sip_from = sip_from_create(home, reinterpret_cast<const url_string_t*>(url.get()));
+	sip->sip_call_id = sip_call_id_make(home, callId.c_str());
+	sip->sip_cseq = sip_cseq_create(home, 0xDEADC0DE, SIP_METHOD_REGISTER); // Placeholder
+	clear(msg, listener);
+}
+
 const string RegistrarDb::getMessageExpires(const msg_param_t* m_params) {
 	if (m_params) {
 		// Find message expires time in the contact parameters
