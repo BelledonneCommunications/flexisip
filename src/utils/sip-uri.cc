@@ -398,8 +398,4 @@ bool SipUri::rfc3261Compare(const url_t* other) const {
 	return true;
 }
 
-ownership::BorrowedMut<sip_contact_t> SipUri::asContact() const {
-	return ownership::borrowed_mut(sip_contact_make(_home.home(), str().c_str()));
-}
-
 } // namespace flexisip

@@ -451,11 +451,18 @@ void ProxyCommandLineInterface::handleRegistrarUpsert(SocketHandle&& socket, con
 		instance_id += "fs-cli-gen-" + InstanceID::generateUniqueId();
 	}
 
-	SipUri contact;
+	sofiasip::Home home{};
+	auto* contact = sip_contact_make(home.home(), (args.at(1) + instance_id).c_str());
+	if (!contact) {
+		// Very unlikely, sip_contact_make accepts almost anything
+		socket.send("Error: contact_address parameter is not a valid SIP contact ["s + args.at(1) + "]");
+		return;
+	}
 	try {
-		contact = SipUri(args.at(1) + instance_id);
+		SipUri(contact->m_url);
 	} catch (const sofiasip::InvalidUrlError& e) {
-		socket.send("Error: contact_address parameter is not a valid SIP address ["s + e.what() + "]");
+		socket.send("Error: contact_address parameter does not contain a valid SIP address ["s + e.what() + "] in [" +
+		            args.at(1) + "]");
 		return;
 	}
 

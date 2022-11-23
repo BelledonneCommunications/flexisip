@@ -82,6 +82,24 @@ public:
 	}
 };
 
+class ReturnRecord : public ContactUpdateListener {
+public:
+	std::shared_ptr<Record> mRecord;
+
+	virtual void onRecordFound(const std::shared_ptr<Record>& r) override {
+		mRecord = r;
+	}
+	virtual void onError() override {
+		BC_FAIL(unexpected call to onError);
+	}
+	virtual void onInvalid() override {
+		BC_FAIL(unexpected call to onInvalid);
+	}
+	virtual void onContactUpdated(const std::shared_ptr<ExtendedContact>& _ec) override {
+		BC_FAIL(unexpected call to onContactUpdated);
+	}
+};
+
 void handler_registration_and_dispatch() {
 	TestCli socket_listener{};
 	auto passthrough_handler = TestHandler("");
@@ -218,6 +236,7 @@ void flexisip_cli_dot_py() {
 		JSONCPP_STRING err;
 		Json::Value deserialized;
 		if (!reader->parse(&json_str.front(), &json_str.back(), &deserialized, &err)) {
+			bc_assert(__FILE__, __LINE__, false, json_str.c_str());
 			BC_HARD_FAIL(err.c_str());
 		}
 		return deserialized;
@@ -352,9 +371,16 @@ void flexisip_cli_dot_py() {
 		BC_ASSERT_TRUE(StringUtils::startsWith(result, "Error: aor parameter is not a valid SIP address"));
 	}
 
-	{ // REGISTRAR_UPSERT invalid contact_address
-		const auto result = callSocket("REGISTRAR_UPSERT sip:valid@example.com looks@valid2.me placeholder");
-		BC_ASSERT_TRUE(StringUtils::startsWith(result, "Error: contact_address parameter is not a valid SIP address"));
+	{ // REGISTRAR_UPSERT invalid contact_address (The only edge case I could find for sip_contact_make in sofia's tests)
+		const auto result = callSocket("REGISTRAR_UPSERT sip:valid@example.com ,, placeholder");
+		BC_ASSERT_TRUE(StringUtils::startsWith(result, "Error: contact_address parameter is not a valid SIP contact"));
+	}
+
+	{ // REGISTRAR_UPSERT invalid uri part of contact_address
+		const auto result =
+		    callSocket("REGISTRAR_UPSERT sip:valid@example.com missingsipprefix@example.com placeholder");
+		BC_ASSERT_TRUE(
+		    StringUtils::startsWith(result, "Error: contact_address parameter does not contain a valid SIP address"));
 	}
 
 	{ // REGISTRAR_UPSERT bogus expire
@@ -362,6 +388,31 @@ void flexisip_cli_dot_py() {
 		BC_ASSERT_STRING_EQUAL(
 		    result.c_str(),
 		    "Error: expire parameter is not strictly positive. Use REGISTRAR_DELETE if you want to remove a binding.");
+	}
+
+	{ // REGISTRAR_UPSERT with a contact parameter (priority)
+		const auto aor4 = "sip:test4@sip.example.org";
+		const auto contactWithPriority = "<"s + aor4 + ">;q=0.3";
+		auto* regDb = RegistrarDb::get();
+		const auto listener = std::make_shared<ReturnRecord>();
+
+		command.str("");
+		command << "REGISTRAR_UPSERT " << aor4 << " " << contactWithPriority << " 3001";
+		const auto returned_contacts = deserialize(callSocket(command.str()))["contacts"];
+		BC_ASSERT_EQUAL(returned_contacts.size(), 1, int, "%i");
+		const auto returned_contact = returned_contacts[0];
+		BC_ASSERT_STRING_EQUAL(returned_contact["contact"].asCString(), aor4);
+		const auto uid = returned_contact["unique-id"].asString();
+		BC_ASSERT_TRUE(StringUtils::startsWith(uid, "fs-cli-gen"));
+
+		regDb->fetch(SipUri(aor4), listener);
+		BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(7, [&record = listener->mRecord] { return !!record; }));
+
+		const auto& fetchedContacts = listener->mRecord->getExtendedContacts();
+		BC_ASSERT_EQUAL(fetchedContacts.size(), 1, size_t, "%zx");
+		const auto& contact = *fetchedContacts.front();
+		BC_ASSERT_STRING_EQUAL(contact.line(), uid.c_str());
+		BC_ASSERT_EQUAL(contact.mQ, 0.3, float, "%f");
 	}
 }
 

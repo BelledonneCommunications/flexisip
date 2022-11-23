@@ -1369,13 +1369,6 @@ void RegistrarDb::bind(const SipUri& aor,
 	bind(move(msg), parameter, listener);
 }
 
-void RegistrarDb::bind(const SipUri& aor,
-                       const SipUri& contact,
-                       const BindingParameters& parameter,
-                       const shared_ptr<ContactUpdateListener>& listener) {
-	bind(aor, contact.asContact(), parameter, listener);
-}
-
 class AgregatorRegistrarDbListener : public ContactUpdateListener {
 private:
 	shared_ptr<ContactUpdateListener> mOriginalListener;

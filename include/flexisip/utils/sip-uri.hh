@@ -286,12 +286,6 @@ public:
 		return rfc3261Compare(other._url);
 	}
 
-	/**
-	 * Returns a sip_contact_t* with the same lifetime as the SipUri.
-	 * (It's allocated in the same sofia home)
-	 */
-	ownership::BorrowedMut<sip_contact_t> asContact() const;
-
 private:
 	static void checkUrl(const sofiasip::Url& url);
 };
