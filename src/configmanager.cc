@@ -1030,6 +1030,8 @@ GenericManager::GenericManager()
 	     "Allow flexisip to use maddr in sips connections to verify the CN of the TLS "
 	     "certificate.",
 	     "false"},
+	    {Boolean, "use-rfc2543-record-route",
+	     "Allow Flexisip to use the deprecated param 'transport=tls' in record-route header.", "false"},
 
 	    config_item_end};
 
@@ -1096,6 +1098,9 @@ GenericManager::GenericManager()
 	    ->setDeprecated({"2022-01-04", "2.2.0",
 	                     "Prefer the new way of declaring TLS certificate with 'tls-certificates-file', "
 	                     "'tls-certificates-private-key' and 'tls-certificates-ca-file'. "});
+	global->get<ConfigBoolean>("use-rfc2543-record-route")
+	    ->setDeprecated({"2022-12-01", "2.2.0",
+	                     "Param 'transport=tls' is deprecated in rfc3261, you should now use 'sips:' scheme instead."});
 	global->setConfigListener(this);
 
 	auto version = make_unique<ConfigString>("version-number", "Flexisip version.", FLEXISIP_GIT_VERSION, 999);

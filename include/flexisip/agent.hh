@@ -207,6 +207,8 @@ public:
 	static sofiasip::TlsConfigInfo
 	getTlsConfigInfo(const GenericStruct* global = GenericManager::get()->getRoot()->get<GenericStruct>("global"));
 
+	bool shouldUseRfc2543RecordRoute() const;
+
 private:
 	// Private types
 	class Network {
@@ -272,6 +274,7 @@ private:
 #if ENABLE_MDNS
 	std::vector<belle_sip_mdns_register_t*> mMdnsRegisterList;
 #endif
+	bool mUseRfc2543RecordRoute = false;
 
 	static constexpr const char* sInternalTransportIdent = "internal-transport";
 	static const std::string sEventSeparator;

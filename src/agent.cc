@@ -656,6 +656,8 @@ void Agent::loadConfig(GenericManager* cm, bool strict) {
 		LOGD("%s", alias.c_str());
 	}
 
+	mUseRfc2543RecordRoute = cm->getGlobal()->get<ConfigBoolean>("use-rfc2543-record-route")->read();
+
 	RegistrarDb::initialize(this);
 
 	initializePreferredRoute();
@@ -1201,6 +1203,10 @@ const std::string Agent::sEventSeparator(110, '=');
 
 void Agent::printEventTailSeparator() {
 	LOGD("\n\n%s\n", sEventSeparator.c_str());
+}
+
+bool Agent::shouldUseRfc2543RecordRoute() const {
+	return mUseRfc2543RecordRoute;
 }
 
 } // namespace flexisip

@@ -384,6 +384,13 @@ void ModuleToolbox::addRecordRoute(Agent* ag, const shared_ptr<RequestSipEvent>&
 	}
 
 	url_param_add(home, url, "lr");
+	if (ag->shouldUseRfc2543RecordRoute()) {
+		if (url->url_type == url_sips) {
+			url->url_type = url_sip;
+			url->url_scheme = "sip";
+			url_param_add(home, url, "transport=tls");
+		}
+	}
 	sip_record_route_t* rr = sip_record_route_create(home, url, NULL);
 	if (!rr) {
 		LOGE("ModuleToolbox::addRecordRoute(): sip_record_route_create() returned NULL");
