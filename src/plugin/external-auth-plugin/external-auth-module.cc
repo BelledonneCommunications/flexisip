@@ -36,7 +36,7 @@ namespace flexisip {
 
 ExternalAuthModule::ExternalAuthModule(su_root_t* root, const std::string& domain, int nonceExpire, bool qopAuth)
     : FlexisipAuthModuleBase(root, domain, nonceExpire, qopAuth) {
-	mEngine = nth_engine_create(root, TAG_END());
+	mEngine = nth_engine_create(root, TPTAG_TLS_SNI(true), TAG_END());
 }
 
 ExternalAuthModule::~ExternalAuthModule() {
