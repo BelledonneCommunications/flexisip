@@ -25,8 +25,8 @@
 
 #include <sofia-sip/sip_header.h>
 
-#include <flexisip/logmanager.hh>
 #include "utils/string-utils.hh"
+#include <flexisip/logmanager.hh>
 
 #include "external-auth-module.hh"
 
@@ -34,7 +34,8 @@ using namespace std;
 
 namespace flexisip {
 
-ExternalAuthModule::ExternalAuthModule(su_root_t *root, const std::string &domain, int nonceExpire, bool qopAuth) : FlexisipAuthModuleBase(root, domain, nonceExpire, qopAuth) {
+ExternalAuthModule::ExternalAuthModule(su_root_t* root, const std::string& domain, int nonceExpire, bool qopAuth)
+    : FlexisipAuthModuleBase(root, domain, nonceExpire, qopAuth) {
 	mEngine = nth_engine_create(root, TAG_END());
 }
 
@@ -42,8 +43,9 @@ ExternalAuthModule::~ExternalAuthModule() {
 	nth_engine_destroy(mEngine);
 }
 
-void ExternalAuthModule::checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials,
-										 auth_challenger_t const *ach) {
+void ExternalAuthModule::checkAuthHeader(FlexisipAuthStatus& as,
+                                         msg_auth_t* credentials,
+                                         auth_challenger_t const* ach) {
 	auto ctx = make_unique<HttpRequestCtx>(*this, as, *ach, *credentials);
 	pendingAuthRequests.push(move(ctx));
 	as.status(100);
@@ -57,21 +59,16 @@ void ExternalAuthModule::popAndSendRequest() {
 	auto ctx = move(pendingAuthRequests.front());
 	pendingAuthRequests.pop();
 	try {
-		auto &externalAs = dynamic_cast<ExternalAuthModule::Status &>(ctx->as);
-		auto &credentials = ctx->creds;
-		HttpUriFormater::TranslationFunc func = [&externalAs, &credentials](const string &key) {
+		auto& externalAs = dynamic_cast<ExternalAuthModule::Status&>(ctx->as);
+		auto& credentials = ctx->creds;
+		HttpUriFormater::TranslationFunc func = [&externalAs, &credentials](const string& key) {
 			return extractParameter(externalAs, credentials, key);
 		};
 		string uri = mUriFormater.format(func);
 
-		nth_client_t *request = nth_client_tcreate(mEngine,
-			onHttpResponseCb,
-			reinterpret_cast<nth_client_magic_t*>(ctx.get()),
-			http_method_get,
-			"GET",
-			URL_STRING_MAKE(uri.c_str()),
-			TAG_END()
-		);
+		nth_client_t* request =
+		    nth_client_tcreate(mEngine, onHttpResponseCb, reinterpret_cast<nth_client_magic_t*>(ctx.get()),
+		                       http_method_get, "GET", URL_STRING_MAKE(uri.c_str()), TAG_END());
 		if (request == nullptr) {
 			ostringstream os;
 			os << "HTTP request for '" << uri << "' has failed";
@@ -84,14 +81,14 @@ void ExternalAuthModule::popAndSendRequest() {
 		mWaitingForResponse = true;
 		SLOGD << "HTTP request [" << request << "] to '" << uri << "' successfully sent";
 
-	} catch (const runtime_error &e) {
+	} catch (const runtime_error& e) {
 		SLOGE << e.what();
 		onError(ctx->as);
 		notify(ctx->as);
 	}
 }
 
-void ExternalAuthModule::onHttpResponse(HttpRequestCtx &ctx, nth_client_t *request, const http_t *http) {
+void ExternalAuthModule::onHttpResponse(HttpRequestCtx& ctx, nth_client_t* request, const http_t* http) {
 	shared_ptr<RequestSipEvent> ev;
 
 	try {
@@ -108,7 +105,7 @@ void ExternalAuthModule::onHttpResponse(HttpRequestCtx &ctx, nth_client_t *reque
 
 		auto status = http->http_status->st_status;
 		auto httpBody = toString(http->http_payload);
-		SLOGD << "HTTP response received [" << status << "]: " << endl << (!httpBody.empty() ? httpBody : "<empty>") ;
+		SLOGD << "HTTP response received [" << status << "]: " << endl << (!httpBody.empty() ? httpBody : "<empty>");
 		if (status != 200) {
 			os << "unhandled HTTP status code [" << status << "]";
 			throw runtime_error(os.str());
@@ -125,7 +122,7 @@ void ExternalAuthModule::onHttpResponse(HttpRequestCtx &ctx, nth_client_t *reque
 			phrase = move(kv["Phrase"]);
 			reasonHeaderValue = move(kv["Reason"]);
 			pAssertedIdentity = move(kv["P-Asserted-Identity"]);
-		} catch (const logic_error &e) {
+		} catch (const logic_error& e) {
 			os << "error while parsing HTTP body: " << e.what();
 			throw runtime_error(os.str());
 		}
@@ -135,13 +132,13 @@ void ExternalAuthModule::onHttpResponse(HttpRequestCtx &ctx, nth_client_t *reque
 			throw runtime_error(os.str());
 		}
 
-		auto &httpAuthStatus = dynamic_cast<ExternalAuthModule::Status &>(ctx.as);
+		auto& httpAuthStatus = dynamic_cast<ExternalAuthModule::Status&>(ctx.as);
 		httpAuthStatus.status(sipCode == 200 ? 0 : sipCode);
 		httpAuthStatus.phrase(su_strdup(ctx.as.home(), phrase.c_str()));
 		httpAuthStatus.reason(reasonHeaderValue);
 		httpAuthStatus.pAssertedIdentity(pAssertedIdentity);
 		if (sipCode == 401 || sipCode == 407) challenge(ctx.as, &ctx.ach);
-	} catch (const runtime_error &e) {
+	} catch (const runtime_error& e) {
 		SLOGE << "HTTP request [" << request << "]: " << e.what();
 		onError(ctx.as);
 	} catch (...) {
@@ -152,7 +149,7 @@ void ExternalAuthModule::onHttpResponse(HttpRequestCtx &ctx, nth_client_t *reque
 	if (request) nth_client_destroy(request);
 }
 
-std::map<std::string, std::string> ExternalAuthModule::parseHttpBody(const std::string &body) const {
+std::map<std::string, std::string> ExternalAuthModule::parseHttpBody(const std::string& body) const {
 	istringstream is(body);
 	ostringstream os;
 	map<string, string> result;
@@ -168,8 +165,8 @@ std::map<std::string, std::string> ExternalAuthModule::parseHttpBody(const std::
 			throw invalid_argument(os.str());
 		}
 
-		string &value = result[string(line.cbegin(), column)];
-		auto valueStart = find_if_not(column+1, line.cend(), [](const char &c){return isspace(c) != 0;});
+		string& value = result[string(line.cbegin(), column)];
+		auto valueStart = find_if_not(column + 1, line.cend(), [](const char& c) { return isspace(c) != 0; });
 		if (valueStart == line.cend()) {
 			os << "invalid line '" << line << "': missing value";
 			throw invalid_argument(os.str());
@@ -180,15 +177,16 @@ std::map<std::string, std::string> ExternalAuthModule::parseHttpBody(const std::
 	return result;
 }
 
-std::string ExternalAuthModule::extractParameter(const Status &as, const msg_auth_t &credentials, const std::string &paramName) {
+std::string
+ExternalAuthModule::extractParameter(const Status& as, const msg_auth_t& credentials, const std::string& paramName) {
 	if (paramName.compare(0, 7, "header:") == 0) {
 		string headerName(paramName, 7);
 		if (!headerName.empty()) {
 			char encodedHeader[255];
-			msg_header_t *header = as.event()->getMsgSip()->findHeader(headerName, true);
+			msg_header_t* header = as.event()->getMsgSip()->findHeader(headerName, true);
 			if (header) {
 				cmatch m;
-				sip_header_e(encodedHeader, sizeof(encodedHeader), reinterpret_cast<sip_header_t *>(header), 0);
+				sip_header_e(encodedHeader, sizeof(encodedHeader), reinterpret_cast<sip_header_t*>(header), 0);
 				if (regex_match(encodedHeader, m, regex(".*:\\s*(.*)\r\n"))) {
 					return m.str(1);
 				}
@@ -197,10 +195,10 @@ std::string ExternalAuthModule::extractParameter(const Status &as, const msg_aut
 	}
 
 	for (int i = 0; credentials.au_params[i] != nullptr; i++) {
-		const char *param = credentials.au_params[i];
-		const char *equal = strchr(const_cast<char *>(param), '=');
-		if (paramName.compare(0, paramName.size(), param, equal-param) == 0) {
-			return StringUtils::strip(equal+1, '"');
+		const char* param = credentials.au_params[i];
+		const char* equal = strchr(const_cast<char*>(param), '=');
+		if (paramName.compare(0, paramName.size(), param, equal - param) == 0) {
+			return StringUtils::strip(equal + 1, '"');
 		}
 	}
 
@@ -214,8 +212,9 @@ std::string ExternalAuthModule::extractParameter(const Status &as, const msg_aut
 	return "null";
 }
 
-int ExternalAuthModule::onHttpResponseCb(nth_client_magic_t *magic, nth_client_t *request,
-										 const http_t *http) noexcept {
+int ExternalAuthModule::onHttpResponseCb(nth_client_magic_t* magic,
+                                         nth_client_t* request,
+                                         const http_t* http) noexcept {
 	// Get back the ownership to the HttpRequestCtx
 	unique_ptr<HttpRequestCtx> ctx{reinterpret_cast<HttpRequestCtx*>(magic)};
 
@@ -229,7 +228,7 @@ int ExternalAuthModule::onHttpResponseCb(nth_client_magic_t *magic, nth_client_t
 	return 0;
 }
 
-std::string ExternalAuthModule::toString(const http_payload_t *httpPayload) {
+std::string ExternalAuthModule::toString(const http_payload_t* httpPayload) {
 	if (httpPayload == nullptr || httpPayload->pl_data == nullptr || httpPayload->pl_len == 0) {
 		return string();
 	}
