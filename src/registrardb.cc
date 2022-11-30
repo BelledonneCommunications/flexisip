@@ -42,10 +42,10 @@
 using namespace std;
 using namespace flexisip;
 
-RandomStringGenerator InstanceID::sRsg{}; // String generator is automatically seeded here
-constexpr const char InstanceID::kAutoGenTag[];
+RandomStringGenerator ContactKey::sRsg{}; // String generator is automatically seeded here
+constexpr const char ContactKey::kAutoGenTag[];
 
-std::string InstanceID::generateUniqueId() {
+std::string ContactKey::generateUniqueId() {
 	constexpr auto size = requiredCharCountForUniqueness();
 	return sRsg(size);
 }
@@ -70,7 +70,7 @@ ostream& ExtendedContact::print(ostream& stream, time_t _now, time_t _offset) co
 	stream << "\"";
 	stream << " user-agent=\"" << mUserAgent << "\"";
 	stream << " alias=" << (mAlias ? "yes" : "no");
-	if (!mAlias) stream << " uid=" << mUniqueId.str();
+	if (!mAlias) stream << " uid=" << mKey.str();
 	stream << " expire=" << expireAfter << " s (" << buffer << ")";
 	return stream;
 }
@@ -167,7 +167,7 @@ const shared_ptr<ExtendedContact> Record::extractContactByUniqueId(const string&
 	const auto contacts = getExtendedContacts();
 	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
 		const shared_ptr<ExtendedContact> ec = *it;
-		if (ec && ec->mUniqueId.str().compare(uid) == 0) {
+		if (ec && ec->mKey.str().compare(uid) == 0) {
 			return ec;
 		}
 	}
@@ -248,16 +248,18 @@ SipUri Record::makeUrlFromKey(const string& key) {
 	return SipUri("sip:" + key);
 }
 
-void Record::insertOrUpdateBinding(unique_ptr<ExtendedContact>&& ec, ContactUpdateListener* listener) {
+ChangeSet Record::insertOrUpdateBinding(unique_ptr<ExtendedContact>&& ec, ContactUpdateListener* listener) {
 	SLOGD << "Updating record with contact " << *ec;
+	ChangeSet changeSet{};
 
 	if (sAssumeUniqueDomains && mIsDomain) {
 		for (auto& ct : mContacts)
-			mContactsToRemove.push_back(ct);
+			changeSet.mDelete.push_back(ct);
 		mContacts.clear();
 	}
 
-	/* Clean up existing contacts */
+	auto alreadyMatched = false; // If multiple existing contacts match the new contact (e.g. based on URI) then we
+	                             // update the first one, and delete the others
 	for (auto it = mContacts.begin(); it != mContacts.end();) {
 		auto existing = *it;
 		auto remove = true;
@@ -268,22 +270,20 @@ void Record::insertOrUpdateBinding(unique_ptr<ExtendedContact>&& ec, ContactUpda
 				break;
 			case ContactMatch::EraseAndNotify: {
 				if (listener) listener->onContactUpdated(existing);
-				remove = ec->isExpired();
+				remove = ec->isExpired() || alreadyMatched;
 			}
 			/* fallthrough */
 			case ContactMatch::ForceErase:
 				if (remove) {
 					SLOGD << "Removing " << *existing;
-					mContactsToRemove.push_back(existing);
+					changeSet.mDelete.push_back(existing);
 				} else {
 					SLOGD << "Updating " << *existing;
 
-					const auto& uniqueId = existing->mUniqueId;
-					if (uniqueId.isPlaceholder()) {
-						// Carry over auto-generated internal ID
-						// (otherwise the contact would get duplicated instead of updated)
-						ec->mUniqueId = uniqueId;
-					}
+					// Carry over existing key
+					// (otherwise the contact would get duplicated instead of updated)
+					ec->mKey = existing->mKey;
+					alreadyMatched = true;
 				}
 				it = mContacts.erase(it);
 				break;
@@ -298,8 +298,10 @@ void Record::insertOrUpdateBinding(unique_ptr<ExtendedContact>&& ec, ContactUpda
 	if (!ec->isExpired()) {
 		shared_ptr<ExtendedContact> shared = move(ec);
 		mContacts.push_back(shared);
-		mContactsToAddOrUpdate.push_back(shared);
+		changeSet.mUpsert.push_back(shared);
 	}
+
+	return changeSet;
 }
 
 Record::ContactMatch Record::matchContacts(const ExtendedContact& existing, const ExtendedContact& neo) {
@@ -315,9 +317,9 @@ Record::ContactMatch Record::matchContacts(const ExtendedContact& existing, cons
 		}
 	}
 
-	/* Existing contact has an instance-id that is not a placeholder. RFC 5626 */
-	if (!existing.mUniqueId.isPlaceholder()) {
-		if (existing.mUniqueId == neo.mUniqueId) {
+	// Existing contact has an instance-id that is not a placeholder. RFC 5626
+	if (!existing.mKey.isPlaceholder()) {
+		if (existing.mKey == neo.mKey) {
 			SLOGD << "Contact [" << existing << "] matches [" << neo << "] based on unique id";
 			return ContactMatch::EraseAndNotify;
 		}
@@ -325,9 +327,11 @@ Record::ContactMatch Record::matchContacts(const ExtendedContact& existing, cons
 		return ContactMatch::Skip; // no need to match further
 	}
 
-	// Otherwise, RFC 3261 §10.3
+	// Otherwise, "If the Contact header field does not contain a "+sip.instance" Contact header field parameter, the
+	// registrar processes the request using the Contact binding rules in [RFC3261]." (RFC 5626 §6)
 
 	// "For each address, the registrar [...] searches the list of current bindings using the URI comparison rules"
+	// (RFC 3261 §10.3)
 	if (SipUri(existing.mSipContact->m_url).rfc3261Compare(neo.mSipContact->m_url)) {
 		SLOGD << "Contact [" << existing << "] matches [" << neo << "] based on URI";
 		return ContactMatch::EraseAndNotify;
@@ -414,16 +418,19 @@ static bool compare_contact_using_last_update(shared_ptr<ExtendedContact> first,
 	return first->mUpdatedTime < second->mUpdatedTime;
 }
 
-void Record::applyMaxAor() {
+ChangeSet Record::applyMaxAor() {
+	ChangeSet changeSet{};
 	// If contact doesn't exist and there is space left
 	if (mContacts.size() > (unsigned int)sMaxContacts) {
 		mContacts.sort(compare_contact_using_last_update);
 		do {
 			shared_ptr<ExtendedContact> front = mContacts.front();
 			mContacts.pop_front();
-			mContactsToRemove.push_back(front);
+			changeSet.mDelete.push_back(front);
 		} while (mContacts.size() > (unsigned int)sMaxContacts);
 	}
+
+	return changeSet;
 }
 
 string ExtendedContact::serializeAsUrlEncodedParams() {
@@ -600,7 +607,7 @@ void ExtendedContact::extractInfoFromUrl(const char* full_url) {
 }
 
 bool ExtendedContact::isSame(const ExtendedContact& otherContact) const {
-	return mCallId == otherContact.mCallId && getUniqueId() == otherContact.getUniqueId() &&
+	return mCallId == otherContact.mCallId && mKey == otherContact.mKey &&
 	       url_cmp_all(mSipContact->m_url, otherContact.mSipContact->m_url) == 0;
 	/* FIXME: the comparison is not complete */
 }
@@ -609,11 +616,11 @@ InvalidAorError::InvalidAorError(const url_t* aor) : invalid_argument("") {
 	mAor = url_as_string(mHome.home(), aor);
 }
 
-bool Record::updateFromUrlEncodedParams(const char* uid, const char* full_url, ContactUpdateListener* listener) {
-	auto exc = make_unique<ExtendedContact>(uid, full_url);
+bool Record::updateFromUrlEncodedParams(const char* key, const char* full_url) {
+	auto exc = make_unique<ExtendedContact>(key, full_url);
 
 	if (exc->mSipContact) {
-		insertOrUpdateBinding(move(exc), listener);
+		mContacts.emplace_back(move(exc));
 		return true;
 	}
 	return false;
@@ -629,12 +636,12 @@ void Record::eliminateAmbiguousContacts(list<unique_ptr<ExtendedContact>>& exten
 	 */
 	for (auto it = extendedContacts.begin(); it != extendedContacts.end();) {
 		auto& exc = *it;
-		if (exc->mUpdatedTime == exc->mExpireAt && !exc->mUniqueId.isPlaceholder()) {
+		if (exc->mUpdatedTime == exc->mExpireAt && !exc->mKey.isPlaceholder()) {
 			auto duplicate =
 			    find_if(extendedContacts.begin(), extendedContacts.end(),
-			            [&exc](const auto& exc2) -> bool { return exc != exc2 && exc->mUniqueId == exc2->mUniqueId; });
+			            [&exc](const auto& exc2) -> bool { return exc != exc2 && exc->mKey == exc2->mKey; });
 			if (duplicate != extendedContacts.end()) {
-				LOGD("Eliminating duplicate contact with unique id [%s]", exc->mUniqueId.str().c_str());
+				LOGD("Eliminating duplicate contact with unique id [%s]", exc->mKey.str().c_str());
 				it = extendedContacts.erase(it);
 				continue;
 			}
@@ -643,7 +650,7 @@ void Record::eliminateAmbiguousContacts(list<unique_ptr<ExtendedContact>>& exten
 	}
 }
 
-void Record::update(const sip_t* sip,
+ChangeSet Record::update(const sip_t* sip,
                     const BindingParameters& parameters,
                     const shared_ptr<ContactUpdateListener>& listener) {
 	list<string> stlPath;
@@ -682,13 +689,15 @@ void Record::update(const sip_t* sip,
 	eliminateAmbiguousContacts(extendedContacts);
 
 	// Update the Record.
+	ChangeSet changeSet{};
 	for (auto& exc : extendedContacts) {
-		insertOrUpdateBinding(move(exc), listener.get());
+		changeSet += insertOrUpdateBinding(move(exc), listener.get());
 	}
 
-	applyMaxAor();
+	changeSet += applyMaxAor();
 
 	SLOGD << *this;
+	return changeSet;
 }
 
 void Record::update(const ExtendedContactCommon& ecc,
@@ -724,7 +733,7 @@ void Record::update(const ExtendedContactCommon& ecc,
 
 /* This function is designed for non-regression tests. It is not performant and non-exhaustive in the compararison */
 bool Record::isSame(const Record& other) const {
-	SLOGD << "Comparing " << this->debugFmt() << "\nwith " << other.debugFmt();
+	SLOGD << "Comparing " << this << "\nwith " << other;
 	if (!getAor().compareAll(other.getAor())) {
 		LOGD("Record::isSame(): aors differ.");
 		return false;
@@ -734,9 +743,9 @@ bool Record::isSame(const Record& other) const {
 		return false;
 	}
 	for (const auto& exc : getExtendedContacts()) {
-		const auto& otherExc = extractContactByUniqueId(exc->getUniqueId());
+		const auto& otherExc = extractContactByUniqueId(exc->mKey);
 		if (otherExc == nullptr) {
-			LOGD("Record::isSame(): no contact with uniqueId [%s] in other record.", exc->getUniqueId().c_str());
+			LOGD("Record::isSame(): no contact with uniqueId [%s] in other record.", exc->mKey.str().c_str());
 			return false;
 		}
 		if (!exc->isSame(*otherExc)) {

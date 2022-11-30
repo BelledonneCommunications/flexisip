@@ -84,7 +84,8 @@ bool RecordSerializerPb::serialize(Record* r, string& serialized, bool log) {
 		RecordContactPb* c = pbContacts.add_contact();
 		c->set_uri(ExtendedContact::urlToString(ec->mSipContact->m_url));
 		c->set_contact_id("deprecated");
-		if (ec->line()) c->set_line_value_copy(ec->line());
+		if (!ec->mKey.isPlaceholder())
+			c->set_line_value_copy(ec->mKey.str().c_str());
 		c->set_expires_at(ec->mExpireAt);
 		if (ec->mQ) c->set_q(ec->mQ);
 		c->set_update_time(ec->mUpdatedTime);

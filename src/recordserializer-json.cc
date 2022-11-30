@@ -113,8 +113,8 @@ bool RecordSerializerJson::serialize(Record* r, string& serialized, bool log) {
 		cJSON_AddItemToObject(c, "path", path);
 		cJSON_AddNumberToObject(c, "expires-at", ec->mExpireAt);
 		cJSON_AddNumberToObject(c, "q", ec->mQ ? ec->mQ : 0);
-		if (ec->line()) cJSON_AddStringToObject(c, "unique-id", ec->line());
-
+		cJSON_AddStringToObject(c, "unique-id", ec->mKey.str().c_str());
+		
 		cJSON_AddStringToObject(c, "user-agent", ec->getUserAgent().c_str());
 
 		cJSON_AddStringToObject(c, "call-id", ec->callId());

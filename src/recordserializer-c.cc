@@ -110,7 +110,8 @@ bool RecordSerializerC::serialize(Record* r, string& serialized, bool log) {
 		oss << "#" << ec->contactId();
 		oss << "#"; // route
 		oss << "#";
-		if (ec->line()) oss << ec->line();
+		if (!ec->mKey.isPlaceholder())
+			oss << ec->mKey.str();
 		oss << "#" << ec->mUpdatedTime;
 		oss << "#" << ec->callId() << "#" << ec->mCSeq << "#" << (ec->mAlias ? "true" : "false");
 		string pathstr;

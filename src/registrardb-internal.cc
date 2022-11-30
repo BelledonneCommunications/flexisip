@@ -111,10 +111,10 @@ void RegistrarDbInternal::doFetchInstance(const SipUri& url,
 		return;
 	}
 
-	const list<shared_ptr<ExtendedContact>>& contacts = r->getExtendedContacts();
+	const list<shared_ptr<ExtendedContact>> &contacts = r->getExtendedContacts();
 	shared_ptr<Record> retRecord = make_shared<Record>(url);
 	for (const auto& contact : contacts) {
-		if (contact->mUniqueId == uniqueId) {
+		if (contact->mKey == uniqueId) {
 			retRecord->pushContact(contact);
 			break;
 		}

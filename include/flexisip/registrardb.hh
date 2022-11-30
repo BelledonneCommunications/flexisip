@@ -50,11 +50,11 @@ struct BindingParameters;
 
 struct ExtendedContactCommon {
 	std::string mCallId{};
-	std::string mUniqueId{};
+	std::string mKey{};
 	std::list<std::string> mPath{};
 
-	ExtendedContactCommon(const std::list<std::string>& path, const std::string& callId, const std::string& uniqueId)
-	    : mCallId{callId}, mUniqueId{uniqueId}, mPath{path} {
+	ExtendedContactCommon(const std::list<std::string>& path, const std::string& callId, const std::string& key)
+	    : mCallId{callId}, mKey{key}, mPath{path} {
 	}
 
 	ExtendedContactCommon(const std::string& route) : mPath{route} {
@@ -62,13 +62,13 @@ struct ExtendedContactCommon {
 };
 
 // String wrapper. If initialized with an empty string, will take a randomly generated placeholder value instead.
-class InstanceID {
+class ContactKey {
 public:
 	static constexpr const char kAutoGenTag[] = "fs-gen-";
 	static RandomStringGenerator sRsg;
 
 	template <class... Args>
-	InstanceID(Args&&... args) : mValue(std::forward<Args>(args)...) {
+	ContactKey(Args&&... args) : mValue(std::forward<Args>(args)...) {
 		if (mValue.empty()) mValue = placeholder();
 	}
 
@@ -122,7 +122,8 @@ struct ExtendedContact {
 	friend class Record;
 
 	std::string mCallId{};
-	InstanceID mUniqueId{};
+	ContactKey mKey{}; // If the contact contains an identifier listed in Record::sLineFieldNames, then it is used as
+	                   // key, otherwise a random string
 	std::list<std::string> mPath{}; // list of urls as string (not enclosed with brakets)
 	std::string mUserAgent{};
 	sip_contact_t* mSipContact{nullptr}; // Full contact
@@ -146,12 +147,9 @@ struct ExtendedContact {
 	const char* callId() const {
 		return mCallId.c_str();
 	}
-	const char* line() const {
-		return mUniqueId.str().c_str();
-	}
 	std::string contactId() const {
 		// A contact identifies by its unique-id if given. Otherwise, it identifies thanks to its sip uri.
-		if (!mUniqueId.isPlaceholder()) return mUniqueId.str();
+		if (!mKey.isPlaceholder()) return mKey.str();
 		return urlAsString();
 	}
 	const char* route() const {
@@ -192,9 +190,6 @@ struct ExtendedContact {
 		}
 		return std::string(url);
 	}
-	const std::string& getUniqueId() const {
-		return mUniqueId;
-	}
 
 	/* Converts the m_url field of the sofia sip contact to std::string */
 	std::string urlAsString() const {
@@ -217,7 +212,7 @@ struct ExtendedContact {
 	void init(bool initExpire = true);
 	void extractInfoFromUrl(const char* full_url);
 
-	ExtendedContact(const char* uniqueId, const char* fullUrl) : mUniqueId(uniqueId) {
+	ExtendedContact(const char* key, const char* fullUrl) : mKey(key) {
 		extractInfoFromUrl(fullUrl);
 		init();
 	}
@@ -230,7 +225,7 @@ struct ExtendedContact {
 	                bool alias,
 	                const std::list<std::string>& acceptHeaders,
 	                const std::string& userAgent)
-	    : mCallId(common.mCallId), mUniqueId(common.mUniqueId), mPath(common.mPath), mUserAgent(userAgent),
+	    : mCallId(common.mCallId), mKey(common.mKey), mPath(common.mPath), mUserAgent(userAgent),
 	      mExpireNotAtMessage(global_expire), mUpdatedTime(updateTime), mCSeq(cseq), mAcceptHeader(acceptHeaders),
 	      mAlias(alias) {
 
@@ -253,8 +248,8 @@ struct ExtendedContact {
 	}
 
 	ExtendedContact(const ExtendedContact& ec)
-	    : mCallId(ec.mCallId), mUniqueId(ec.mUniqueId), mPath(ec.mPath), mUserAgent(ec.mUserAgent),
-	      mSipContact(nullptr), mQ(ec.mQ), mExpireAt(ec.mExpireAt), mExpireNotAtMessage(ec.mExpireNotAtMessage),
+	    : mCallId(ec.mCallId), mKey(ec.mKey), mPath(ec.mPath), mUserAgent(ec.mUserAgent), mSipContact(nullptr),
+	      mQ(ec.mQ), mExpireAt(ec.mExpireAt), mExpireNotAtMessage(ec.mExpireNotAtMessage),
 	      mUpdatedTime(ec.mUpdatedTime), mCSeq(ec.mCSeq), mAcceptHeader(ec.mAcceptHeader), mConnId(ec.mConnId), mHome(),
 	      mAlias(ec.mAlias), mUsedAsRoute(ec.mUsedAsRoute), mIsFallback(ec.mIsFallback) {
 		mSipContact = sip_contact_dup(mHome.home(), ec.mSipContact);
@@ -289,6 +284,23 @@ private:
 	const char* mAor = nullptr;
 };
 
+class ChangeSet {
+public:
+	std::list<std::shared_ptr<ExtendedContact>> mDelete{};
+	std::list<std::shared_ptr<ExtendedContact>> mUpsert{};
+
+	ChangeSet(const ChangeSet& other) = delete;
+	ChangeSet& operator=(const ChangeSet& other) = delete;
+
+	ChangeSet(ChangeSet&& other) = default;
+	ChangeSet& operator=(ChangeSet&& other) = default;
+	ChangeSet& operator+=(ChangeSet&& other) {
+		mDelete.merge(other.mDelete);
+		mUpsert.merge(other.mUpsert);
+		return *this;
+	}
+};
+
 class Record {
 	friend class RegistrarDb;
 
@@ -297,10 +309,6 @@ private:
 
 	sofiasip::Home mHome;
 	std::list<std::shared_ptr<ExtendedContact>> mContacts; /* The full list of contacts */
-	std::list<std::shared_ptr<ExtendedContact>>
-	    mContactsToRemove; /* Set by insertOrUpdateBinding(), to keep track of deleted Contacts */
-	std::list<std::shared_ptr<ExtendedContact>>
-	    mContactsToAddOrUpdate; /* Set by insertOrUpdateBinding(), to keep track of new or updated Contacts */
 	std::string mKey;
 	SipUri mAor;
 	bool mIsDomain = false; /*is a domain registration*/
@@ -334,7 +342,7 @@ public:
 		return mAor;
 	}
 
-	void insertOrUpdateBinding(std::unique_ptr<ExtendedContact>&& ec, ContactUpdateListener* listener);
+	ChangeSet insertOrUpdateBinding(std::unique_ptr<ExtendedContact>&& ec, ContactUpdateListener* listener);
 	const std::shared_ptr<ExtendedContact> extractContactByUniqueId(const std::string& uid) const;
 	sip_contact_t* getContacts(su_home_t* home, time_t now);
 	void pushContact(const std::shared_ptr<ExtendedContact>& ct) {
@@ -346,9 +354,9 @@ public:
 	}
 	bool isInvalidRegister(const std::string& call_id, uint32_t cseq);
 	void clean(time_t time, const std::shared_ptr<ContactUpdateListener>& listener);
-	void update(const sip_t* sip,
-	            const BindingParameters& parameters,
-	            const std::shared_ptr<ContactUpdateListener>& listener);
+	ChangeSet update(const sip_t* sip,
+	                 const BindingParameters& parameters,
+	                 const std::shared_ptr<ContactUpdateListener>& listener);
 	// Deprecated: this one is used by protobuf serializer
 	void update(const ExtendedContactCommon& ecc,
 	            const char* sipuri,
@@ -360,7 +368,7 @@ public:
 	            const std::list<std::string> accept,
 	            bool usedAsRoute,
 	            const std::shared_ptr<ContactUpdateListener>& listener);
-	bool updateFromUrlEncodedParams(const char* uid, const char* full_url, ContactUpdateListener* listener);
+	bool updateFromUrlEncodedParams(const char* uid, const char* full_url);
 
 	void print(std::ostream& stream) const;
 	bool isEmpty() const {
@@ -375,16 +383,6 @@ public:
 	const std::list<std::shared_ptr<ExtendedContact>>& getExtendedContacts() const {
 		return mContacts;
 	}
-	const std::list<std::shared_ptr<ExtendedContact>>& getContactsToRemove() const {
-		return mContactsToRemove;
-	}
-	const std::list<std::shared_ptr<ExtendedContact>>& getContactsToAddOrUpdate() const {
-		return mContactsToAddOrUpdate;
-	}
-	void clearChangeLists() {
-		mContactsToRemove.clear();
-		mContactsToAddOrUpdate.clear();
-	}
 
 	/*
 	 * Synthetise the pub-gruu address from an extended contact belonging to this Record.
@@ -397,7 +395,7 @@ public:
 	 * Check if the contacts list size is < to max aor config option and remove older contacts to match restriction if
 	 * needed
 	 */
-	void applyMaxAor();
+	ChangeSet applyMaxAor();
 	static int getMaxContacts() {
 		if (sMaxContacts == -1) init();
 		return sMaxContacts;
@@ -415,24 +413,6 @@ public:
 	static std::string defineKeyFromUrl(const url_t* aor);
 	static SipUri makeUrlFromKey(const std::string& key);
 	static std::string extractUniqueId(const sip_contact_t* contact);
-
-	auto debugFmt() const {
-		std::ostringstream stream;
-		stream << "Record { address: " << this << ", mKey: " << mKey << ", mAor: " << mAor.str() << ", mContacts: [";
-		for (const auto& contact : mContacts) {
-			stream << "\nContact { " << *contact << " },";
-		}
-		stream << " ], mContactsToRemove: [";
-		for (const auto& contact : mContactsToRemove) {
-			stream << "\nContact { " << *contact << " },";
-		}
-		stream << " ], mContactsToAddOrUpdate: [";
-		for (const auto& contact : mContactsToAddOrUpdate) {
-			stream << "\nContact { " << *contact << " },";
-		}
-		stream << " ] }";
-		return stream.str();
-	}
 };
 
 template <typename TraitsT>
@@ -545,11 +525,14 @@ public:
 	          const sip_contact_t* contact,
 	          const BindingParameters& parameter,
 	          const std::shared_ptr<ContactUpdateListener>& listener);
-	void clear(const MsgSip &sip, const std::shared_ptr<ContactUpdateListener> &listener);
+	void clear(const MsgSip& sip, const std::shared_ptr<ContactUpdateListener>& listener);
 	void clear(const SipUri& url, const std::string& callId, const std::shared_ptr<ContactUpdateListener>& listener);
-	void fetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener, bool recursive = false);
-	void fetch(const SipUri &url, const std::shared_ptr<ContactUpdateListener> &listener, bool includingDomains, bool recursive);
-	void fetchList(const std::vector<SipUri > urls, const std::shared_ptr<ListContactUpdateListener> &listener);
+	void fetch(const SipUri& url, const std::shared_ptr<ContactUpdateListener>& listener, bool recursive = false);
+	void fetch(const SipUri& url,
+	           const std::shared_ptr<ContactUpdateListener>& listener,
+	           bool includingDomains,
+	           bool recursive);
+	void fetchList(const std::vector<SipUri> urls, const std::shared_ptr<ListContactUpdateListener>& listener);
 	virtual void fetchExpiringContacts(time_t startTimestamp,
 	                                   std::chrono::seconds timeRange,
 	                                   std::function<void(std::vector<ExtendedContact>&&)>&& callback) const = 0;

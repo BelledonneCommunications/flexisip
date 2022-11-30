@@ -18,7 +18,6 @@
 
 #include "flexisip/module-router.hh"
 
-#include <memory>
 
 #include <sofia-sip/sip_status.h>
 

@@ -413,7 +413,7 @@ void flexisip_cli_dot_py() {
 		const auto& fetchedContacts = listener->mRecord->getExtendedContacts();
 		BC_ASSERT_EQUAL(fetchedContacts.size(), 1, size_t, "%zx");
 		const auto& contact = *fetchedContacts.front();
-		BC_ASSERT_STRING_EQUAL(contact.line(), uid.c_str());
+		BC_ASSERT_STRING_EQUAL(contact.mKey.str().c_str(), uid.c_str());
 		BC_ASSERT_EQUAL(contact.mQ, 0.3, float, "%f");
 	}
 }

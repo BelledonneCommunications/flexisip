@@ -299,7 +299,7 @@ shared_ptr<BranchInfo> ForkContextBase::addBranch(const std::shared_ptr<RequestS
 	ev->unlinkTransactions();
 	br->mRequest = ev;
 	br->mTransaction = ot;
-	br->mUid = contact->mUniqueId;
+	br->mUid = contact->mKey;
 	br->mContact = contact;
 	br->mPriority = contact->mQ;
 

@@ -23,11 +23,7 @@
 #include <set>
 #include <vector>
 
-#ifndef INTERNAL_LIBHIREDIS
-#include <hiredis/hiredis.h>
-#else
-#include <hiredis.h>
-#endif
+#include "compat/hiredis/hiredis.h"
 
 #include <sofia-sip/sip_protos.h>
 
@@ -634,7 +630,7 @@ void RegistrarDbRedisAsync::sHandleBindStart(redisAsyncContext* ac, redisReply* 
 	/* Now update the existing Record with new SIP REGISTER and binding parameters
 	 * insertOrUpdateBinding() will do the job of contact comparison and invoke the onContactUpdated listener*/
 	LOGD("Updating Record content for key [fs:%s] with new contact(s).", context->mRecord->getKey().c_str());
-	context->mRecord->update(context->mMsg.getSip(), context->mBindingParameters, context->listener);
+	context->mChangeSet = context->mRecord->update(context->mMsg.getSip(), context->mBindingParameters, context->listener);
 
 	/* now submit the changes triggered by the update operation to REDIS */
 	LOGD("Sending updated content to REDIS for key [fs:%s].", context->mRecord->getKey().c_str());
@@ -705,10 +701,10 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RedisRegisterContext* contex
 	check_redis_command(redisAsyncCommand(mContext, nullptr, nullptr, "MULTI"), context);
 
 	/* First delete contacts that need to be deleted */
-	if (!context->mRecord->getContactsToRemove().empty()) {
+	if (!context->mChangeSet.mDelete.empty()) {
 		RedisArgsPacker hDelArgs("HDEL", key);
-		for (const auto& ec : context->mRecord->getContactsToRemove()) {
-			hDelArgs.addFieldName(ec->getUniqueId());
+		for (const auto& ec : context->mChangeSet.mDelete) {
+			hDelArgs.addFieldName(ec->mKey);
 			delCount++;
 		}
 		check_redis_command(redisAsyncCommandArgv(mContext, (void (*)(redisAsyncContext*, void*, void*)) nullptr,
@@ -718,11 +714,11 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RedisRegisterContext* contex
 	}
 
 	/* Update or set new ones */
-	if (!context->mRecord->getContactsToAddOrUpdate().empty()) {
+	if (!context->mChangeSet.mUpsert.empty()) {
 		RedisArgsPacker hSetArgs("HMSET", key);
 
-		for (const auto& ec : context->mRecord->getContactsToAddOrUpdate()) {
-			hSetArgs.addPair(ec->getUniqueId(), ec->serializeAsUrlEncodedParams());
+		for (const auto& ec : context->mChangeSet.mUpsert) {
+			hSetArgs.addPair(ec->mKey, ec->serializeAsUrlEncodedParams());
 			setCount++;
 		}
 		check_redis_command(redisAsyncCommandArgv(mContext, (void (*)(redisAsyncContext*, void*, void*)) nullptr,
@@ -829,19 +825,14 @@ void RegistrarDbRedisAsync::parseAndClean(redisReply* reply, RedisRegisterContex
 	for (size_t i = 0; i < reply->elements; i += 2) {
 		// Elements list is twice the size of the contacts list because the key is an element of the list itself
 		redisReply* element = reply->element[i];
-		const char* uid = element->str;
+		const char* key = element->str;
 		element = reply->element[i + 1];
 		const char* contact = element->str;
-		LOGD("Parsing contact %s => %s", uid, contact);
-		if (!context->mRecord->updateFromUrlEncodedParams(uid, contact, context->listener.get())) {
+		LOGD("Parsing contact %s => %s", key, contact);
+		if (!context->mRecord->updateFromUrlEncodedParams(key, contact)) {
 			LOGE("This contact could not be parsed.");
 		}
 	}
-	/* Start recording deleted/added or modified contacts from now on */
-	context->mRecord->clearChangeLists();
-
-	time_t now = getCurrentTime();
-	context->mRecord->clean(now, context->listener);
 }
 
 void RegistrarDbRedisAsync::doClear(const MsgSip& msg, const shared_ptr<ContactUpdateListener>& listener) {
@@ -897,9 +888,7 @@ void RegistrarDbRedisAsync::handleFetch(redisReply* reply, RedisRegisterContext*
 		const char* gruu = context->mUniqueIdToFetch.c_str();
 		if (reply->len > 0) {
 			LOGD("GOT fs:%s [%lu] for gruu %s --> %s", key, context->token, gruu, reply->str);
-			context->mRecord->updateFromUrlEncodedParams(gruu, reply->str, context->listener.get());
-			time_t now = getCurrentTime();
-			context->mRecord->clean(now, context->listener);
+			context->mRecord->updateFromUrlEncodedParams(gruu, reply->str);
 			if (context->listener) context->listener->onRecordFound(context->mRecord);
 		} else {
 			LOGD("Contact matching gruu %s in record fs:%s not found", gruu, key);

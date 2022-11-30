@@ -448,7 +448,7 @@ void ProxyCommandLineInterface::handleRegistrarUpsert(SocketHandle&& socket, con
 		instance_id += args.at(3);
 	} catch (const std::out_of_range& _) {
 		// Generate a unique (enough) ID that will *not* be considered as a placeholder
-		instance_id += "fs-cli-gen-" + InstanceID::generateUniqueId();
+		instance_id += "fs-cli-gen-" + ContactKey::generateUniqueId();
 	}
 
 	sofiasip::Home home{};

@@ -111,6 +111,7 @@ target_link_libraries(flexisip_tester PRIVATE
 	mediastreamer
 	ortp
 	jsoncpp_lib
+	hiredis
 )
 
 if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)

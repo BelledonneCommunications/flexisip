@@ -74,7 +74,7 @@ bool compare(const ExtendedContact& ec1,
              time_t updatedTime) {
 	check("alias", ec1.mAlias, alias);
 	check("callid", ec1.mCallId, common.mCallId);
-	check("line", ec1.mUniqueId.str(), common.mUniqueId);
+	check("line", ec1.mKey.str(), common.mKey);
 	check("path", ec1.mPath, common.mPath);
 	check("cseq", ec1.mCSeq, cseq);
 	check("mExpireAt", ec1.mExpireAt, expireat);
@@ -86,7 +86,7 @@ bool compare(const ExtendedContact& ec1,
 }
 
 bool compare(const ExtendedContact& ec1, const ExtendedContact& ec2) {
-	ExtendedContactCommon ecc(ec2.mPath, ec2.mCallId, ec2.mUniqueId);
+	ExtendedContactCommon ecc(ec2.mPath, ec2.mCallId, ec2.mKey);
 	return compare(ec1, ec2.mAlias, ecc, ec2.mCSeq, ec2.mExpireAt, ec2.mQ,
 	               ExtendedContact::urlToString(ec2.mSipContact->m_url), ec2.mUpdatedTime);
 }

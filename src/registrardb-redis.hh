@@ -18,13 +18,8 @@
 
 #pragma once
 
-#ifndef INTERNAL_LIBHIREDIS
-#include <hiredis/async.h>
-#include <hiredis/hiredis.h>
-#else
-#include <async.h>
-#include <hiredis.h>
-#endif
+#include "compat/hiredis/hiredis.h"
+#include "compat/hiredis/async.h"
 
 #include <sofia-sip/nta.h>
 #include <sofia-sip/sip.h>
@@ -91,6 +86,7 @@ struct RedisRegisterContext {
 	RegistrarDbRedisAsync* self = nullptr;
 	std::shared_ptr<ContactUpdateListener> listener;
 	std::shared_ptr<Record> mRecord;
+	ChangeSet mChangeSet{};
 	unsigned long token = 0;
 	su_timer_t* mRetryTimer = nullptr;
 	int mRetryCount = 0;

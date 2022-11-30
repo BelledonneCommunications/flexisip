@@ -74,12 +74,12 @@ public:
 		BC_ASSERT_EQUAL(extendedContactList.size(), mExpectedNumberOfContact, int, "%i");
 		if (!mMustBePresentUuid.empty()) {
 			auto isPresent = any_of(extendedContactList.begin(), extendedContactList.end(),
-			                        [this](const auto& ec) { return ec->mUniqueId == this->mMustBePresentUuid; });
+			                        [this](const auto& ec) { return ec->mKey == this->mMustBePresentUuid; });
 			BC_ASSERT_TRUE(isPresent);
 			if (!isPresent) {
 				string actualUuid{};
 				for (auto const& i : extendedContactList) {
-					actualUuid.append(i->mUniqueId).append(";");
+					actualUuid.append(i->mKey).append(";");
 				}
 				SLOGD << "Must be present UUID is : " << mMustBePresentUuid << " but only [" << actualUuid
 				      << "] were present.";

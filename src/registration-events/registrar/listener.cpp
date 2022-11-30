@@ -54,7 +54,7 @@ void Listener::processRecord(const shared_ptr<Record>& r, const string& uidOfFre
 
 		for (const shared_ptr<ExtendedContact>& ec : r->getExtendedContacts()) {
 			auto addr = r->getPubGruu(ec, home.home());
-			bool justRegistered = (ec->getUniqueId() == uidOfFreshlyRegistered);
+			bool justRegistered = (ec->mKey == uidOfFreshlyRegistered);
 
 			Contact contact(url_as_string(home.home(), addr), Contact::StateType::active,
 			                justRegistered ? Contact::EventType::refreshed : Contact::EventType::registered,
