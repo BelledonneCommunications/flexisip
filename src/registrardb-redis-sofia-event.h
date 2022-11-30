@@ -18,13 +18,8 @@
 
 #pragma once
 
-#ifndef INTERNAL_LIBHIREDIS
-#include <hiredis/hiredis.h>
-#include <hiredis/async.h>
-#else
-#include <hiredis.h>
-#include <async.h>
-#endif
+#include "compat/hiredis/hiredis.h"
+#include "compat/hiredis/async.h"
 
 #include <flexisip/common.hh>
 

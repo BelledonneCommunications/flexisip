@@ -35,6 +35,7 @@ unset(ENABLE_UNIT_TESTS)
 # Add libhiredis
 if(ENABLE_REDIS AND INTERNAL_LIBHIREDIS)
 	add_subdirectory("submodules/externals/hiredis")
+	target_compile_definitions(hiredis INTERFACE "INTERNAL_LIBHIREDIS")
 endif()
 
 # Configure and add Soci

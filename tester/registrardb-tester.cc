@@ -16,6 +16,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "compat/hiredis/hiredis.h"
+
 #include "flexisip/configmanager.hh"
 #include "flexisip/module-pushnotification.hh"
 #include "flexisip/registrardb.hh"
@@ -123,6 +125,102 @@ class TestFetchExpiringContacts : public RegistrarDbTest<TDatabase> {
 		}
 		// Assert all expected contacts have been returned
 		BC_ASSERT_TRUE(expectedContactStrings.empty());
+	}
+};
+
+template <typename TDatabase>
+class MaxContactsByAorIsHonored : public RegistrarDbTest<TDatabase> {
+	class TestListener : public ContactUpdateListener {
+	public:
+		std::shared_ptr<Record> mRecord{nullptr};
+
+		virtual void onRecordFound(const std::shared_ptr<Record>& r) override {
+			mRecord = r;
+		}
+		virtual void onError() override {
+		}
+		virtual void onInvalid() override {
+		}
+		virtual void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+		}
+	};
+
+	void testExec() noexcept override {
+		auto previous = Record::sMaxContacts;
+		Record::sMaxContacts = 3;
+		auto* regDb = RegistrarDb::get();
+		ContactInserter inserter(*regDb, *this->mAgent);
+		const auto aor = "sip:morethan3@example.org";
+		const auto expire = 87s;
+		inserter.insert(aor, expire, "sip:existing1@example.org");
+		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
+		inserter.insert(aor, expire, "sip:existing2@example.org");
+		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
+		inserter.insert(aor, expire, "sip:existing3@example.org");
+		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
+
+		inserter.insert(aor, expire, "sip:onetoomany@example.org");
+		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
+
+		auto listener = make_shared<TestListener>();
+		regDb->fetch(SipUri(aor), listener);
+		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
+		auto& contacts = listener->mRecord->getExtendedContacts();
+		BC_ASSERT_EQUAL(contacts.size(), 3, int, "%d");
+		Record::sMaxContacts = previous;
+	}
+};
+
+class ContactsAreCorrectlyUpdatedWhenMatchedOnUri : public RegistrarDbTest<DbImplementation::Redis> {
+	class TestListener : public ContactUpdateListener {
+	public:
+		std::shared_ptr<Record> mRecord{nullptr};
+
+		virtual void onRecordFound(const std::shared_ptr<Record>& r) override {
+			mRecord = r;
+		}
+		virtual void onError() override {
+		}
+		virtual void onInvalid() override {
+		}
+		virtual void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+		}
+	};
+
+	void testExec() noexcept override {
+		auto* regDb = RegistrarDb::get();
+		sofiasip::Home home{};
+		const auto contactBase = ":update-test@example.org";
+		const auto contactStr = "sip"s + contactBase;
+		const auto contact =
+		    sip_contact_create(home.home(), reinterpret_cast<const url_string_t*>(contactStr.c_str()), nullptr);
+		const SipUri aor(contactStr);
+		BindingParameters params{};
+		params.globalExpire = 96;
+		params.callId = "insert";
+		const auto listener = make_shared<TestListener>();
+		regDb->bind(aor, contact, params, listener);
+		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
+
+		listener->mRecord = nullptr;
+		params.callId = "update";
+		const auto newContact = sip_contact_create(
+		    home.home(), reinterpret_cast<const url_string_t*>((contactStr + ";new=param").c_str()), nullptr);
+		regDb->bind(aor, newContact, params, listener);
+		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
+
+		auto* ctx = redisConnect("127.0.0.1", this->dbImpl.mPort);
+		BC_ASSERT_TRUE(ctx && !ctx->err);
+		auto* reply = reinterpret_cast<redisReply*>(redisCommand(ctx, "HGETALL fs%s", contactBase));
+		BC_ASSERT_PTR_NOT_NULL(reply);
+		BC_ASSERT_EQUAL(reply->type, REDIS_REPLY_ARRAY, int, "%i");
+		BC_ASSERT_EQUAL(reply->elements, 2, int, "%i");
+		BC_ASSERT_EQUAL(reply->element[0]->type, REDIS_REPLY_STRING, int, "%i");
+		BC_ASSERT_STRING_EQUAL(reply->element[0]->str, "insert");
+		BC_ASSERT_EQUAL(reply->element[1]->type, REDIS_REPLY_STRING, int, "%i");
+		BC_ASSERT_TRUE(std::string(reply->element[1]->str).find("new=param") != std::string::npos);
+		freeReplyObject(reply);
+		redisFree(ctx);
 	}
 };
 
@@ -263,6 +361,12 @@ protected:
 static test_t tests[] = {
     TEST_NO_TAG("Fetch expiring contacts on Redis", run<TestFetchExpiringContacts<DbImplementation::Redis>>),
     TEST_NO_TAG("Fetch expiring contacts in Internal DB", run<TestFetchExpiringContacts<DbImplementation::Internal>>),
+    TEST_NO_TAG("An AOR cannot contain more than max-contacts-by-aor [Internal]",
+                run<MaxContactsByAorIsHonored<DbImplementation::Internal>>),
+    TEST_NO_TAG("An AOR cannot contain more than max-contacts-by-aor [Redis]",
+                run<MaxContactsByAorIsHonored<DbImplementation::Redis>>),
+    TEST_NO_TAG("Contacts are correctly updated when matched on URI [Redis]",
+                run<ContactsAreCorrectlyUpdatedWhenMatchedOnUri>),
     TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with internal backend",
                 run<SubsequentUnsubscribeSubscribeTest<DbImplementation::Internal>>),
     TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with Redis backend",

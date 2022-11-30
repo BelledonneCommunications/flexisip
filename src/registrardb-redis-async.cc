@@ -23,11 +23,7 @@
 #include <set>
 #include <vector>
 
-#ifndef INTERNAL_LIBHIREDIS
-#include <hiredis/hiredis.h>
-#else
-#include <hiredis.h>
-#endif
+#include "compat/hiredis/hiredis.h"
 
 #include <sofia-sip/sip_protos.h>
 

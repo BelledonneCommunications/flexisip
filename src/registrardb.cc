@@ -328,6 +328,10 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact>& ec,
 					mContactsToRemove.push_back(existing);
 				} else {
 					SLOGD << "Updating " << *existing;
+
+					// Carry over call ID
+					// (otherwise the contact would get duplicated instead of updated)
+					ec->mCallId = existing->mCallId;
 				}
 				it = mContacts.erase(it);
 				break;

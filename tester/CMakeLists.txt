@@ -100,6 +100,7 @@ target_link_libraries(flexisip_tester PRIVATE
 	linphone++
 	mediastreamer
 	ortp
+	hiredis
 )
 
 if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
