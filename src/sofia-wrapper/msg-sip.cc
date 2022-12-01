@@ -111,6 +111,19 @@ bool MsgSip::isGroupChatInvite() const noexcept {
 	return true;
 }
 
+bool MsgSip::isChatService() noexcept {
+	const auto* messageTypeHeader = this->findHeader("X-fs-message-type", true);
+	if (!messageTypeHeader) return false;
+
+	const auto messageTypeHeaderCString =
+	    sip_header_as_string(getHome(), reinterpret_cast<const sip_header_t*>(messageTypeHeader));
+	if (!messageTypeHeaderCString) return false;
+
+	if (string{messageTypeHeaderCString} == "X-fs-message-type: chat-service") return true;
+
+	return false;
+}
+
 shared_ptr<flexisip::SipBooleanExpression> MsgSip::sShowBodyFor{nullptr};
 
 void MsgSip::setShowBodyFor(const string& filterString) {

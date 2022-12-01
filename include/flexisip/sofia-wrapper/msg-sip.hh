@@ -75,8 +75,8 @@ public:
 	}
 
 	msg_header_t* findHeader(const std::string& name, bool searchUnknowns = false);
-	const msg_header_t* findHeader(const std::string& name) const {
-		return const_cast<MsgSip*>(this)->findHeader(name);
+	const msg_header_t* findHeader(const std::string& name, bool searchUnknowns = false) const {
+		return const_cast<MsgSip*>(this)->findHeader(name, searchUnknowns);
 	}
 
 	sip_method_t getSipMethod() const {
@@ -96,6 +96,7 @@ public:
 	std::string printContext() const;
 
 	bool isGroupChatInvite() const noexcept;
+	bool isChatService() noexcept;
 
 	/**
 	 * Change the sip filter used by Flexisip to show or not request's body in logs.

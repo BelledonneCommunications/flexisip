@@ -16,9 +16,11 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "flexisip/module-pushnotification.hh"
+#include "sip-tools/sip-headers.h"
+
 #include "flexisip/fork-context/branch-info.hh"
 #include "flexisip/fork-context/fork-call-context.hh"
+#include "flexisip/module-pushnotification.hh"
 
 #include "pushnotification/apple/apple-request.hh"
 #include "pushnotification/firebase/firebase-request.hh"
@@ -425,12 +427,14 @@ std::chrono::seconds PushNotification::getCallRemotePushInterval(const char* pus
 	return mCallRemotePushInterval;
 }
 
-bool PushNotification::needsPush(const sip_t* sip) {
+bool PushNotification::needsPush(const shared_ptr<MsgSip>& msgSip) {
+	auto* sip = msgSip->getSip();
 	if (sip->sip_to->a_tag) return false;
 
-	// Only send push notification for message without non-urgent Priority header.
-	if (sip->sip_priority && sip->sip_priority->g_string && strcasecmp(sip->sip_priority->g_string, "non-urgent") == 0)
-		return false;
+	// Only send push notification for message without :
+	//     - "Priority: non-urgent" header.
+	//     - "X-fs-message-type: chat-service" header.
+	if (msgSip->getPriority() == sofiasip::MsgSipPriority::NonUrgent || msgSip->isChatService()) return false;
 
 	if (sip->sip_request->rq_method == sip_method_refer) return true;
 
@@ -448,7 +452,7 @@ bool PushNotification::needsPush(const sip_t* sip) {
 		    strcasecmp(sip->sip_content_type->c_type, "application/im-iscomposing+xml") == 0)
 			return false;
 
-		// Do not send push for is-composing messages.
+		// Do not send push for imdn messages.
 		if (sip->sip_content_type && sip->sip_content_type->c_type &&
 		    strcasecmp(sip->sip_content_type->c_type, "message/imdn+xml") == 0)
 			return false;
@@ -460,10 +464,10 @@ bool PushNotification::needsPush(const sip_t* sip) {
 
 void PushNotification::onRequest(std::shared_ptr<RequestSipEvent>& ev) {
 	const auto& ms = ev->getMsgSip();
-	auto* sip = ms->getSip();
-	if (needsPush(sip)) {
+	if (needsPush(ms)) {
 		shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 		if (transaction != NULL) {
+			auto* sip = ms->getSip();
 			if (sip->sip_request->rq_url->url_params != NULL) {
 				try {
 					makePushNotification(ms, transaction);
