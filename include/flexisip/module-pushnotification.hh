@@ -122,6 +122,9 @@ class PushNotification : public Module, public ModuleToolbox {
 public:
 	PushNotification(Agent* ag);
 	~PushNotification() override = default;
+
+	static bool needsPush(const std::shared_ptr<MsgSip>& msgSip);
+
 	void onDeclare(GenericStruct* module_config) override;
 	void onRequest(std::shared_ptr<RequestSipEvent>& ev) override;
 	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override;
@@ -139,8 +142,6 @@ private:
 	};
 
 	// Private methods
-	bool needsPush(const sip_t* sip);
-
 	/**
 	 * Gathers all the information required to create a PushNotificationContext
 	 * and create an instance of it by using the right implementation. Then,

@@ -37,6 +37,124 @@ using namespace pushnotification;
 namespace tester {
 
 /*********************************************************************************************************************/
+/* Unit tests                                                                                            			 */
+/*********************************************************************************************************************/
+
+void needsPushTests() {
+	/////// INVITES ///////
+	string rawSipInviteBase =
+	    "INVITE sip:participant1@127.0.0.1:5360 SIP/2.0\r\n"
+	    "To: <sip:participant1@127.0.0.1>\r\n"
+	    "From: <sip:anthony@127.0.0.1>;tag=465687829\r\n"
+	    "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
+	    "CSeq: 1 INVITE\r\n"
+	    "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK\r\n"
+	    "Content-Type: application/sdp\r\n";
+	string rawSipInviteBody = "\r\n"
+	                          "For the Horde!\r\n";
+
+	auto msgSip = make_shared<MsgSip>(0, rawSipInviteBase + rawSipInviteBody);
+	BC_ASSERT_TRUE(PushNotification::needsPush(msgSip));
+
+	// Priority
+	msgSip = make_shared<MsgSip>(0, rawSipInviteBase + "Priority: non-urgent\r\n" + rawSipInviteBody);
+	BC_ASSERT_FALSE(PushNotification::needsPush(msgSip));
+	msgSip = make_shared<MsgSip>(0, rawSipInviteBase + "Priority: normal\r\n" + rawSipInviteBody);
+	BC_ASSERT_TRUE(PushNotification::needsPush(msgSip));
+
+	// X-fs-message-type
+	msgSip = make_shared<MsgSip>(0, rawSipInviteBase + "X-fs-message-type: chat-service\r\n" + rawSipInviteBody);
+	BC_ASSERT_FALSE(PushNotification::needsPush(msgSip));
+	msgSip = make_shared<MsgSip>(0, rawSipInviteBase + "X-fs-message-type: another-type\r\n" + rawSipInviteBody);
+	BC_ASSERT_TRUE(PushNotification::needsPush(msgSip));
+
+	// Replaces
+	auto replaces = "Replaces: 1@1.1.1.3;to-tag=2;from-tag=2\r\n"s;
+	msgSip = make_shared<MsgSip>(0, rawSipInviteBase + replaces + rawSipInviteBody);
+	BC_ASSERT_FALSE(PushNotification::needsPush(msgSip));
+
+	/////// MESSAGES ///////
+	string rawSipMessageBase = "MESSAGE sip:participant1@127.0.0.1:5360 SIP/2.0\r\n"
+	                           "To: <sip:participant1@127.0.0.1>\r\n"
+	                           "From: <sip:anthony@127.0.0.1>;tag=465687829\r\n"
+	                           "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
+	                           "CSeq: 20 MESSAGE\r\n";
+	string rawContentType = "Content-Type: text/plain\r\n";
+	string rawSipMessageBody = "\r\n"
+	                           "Push forward!\r\n";
+
+	msgSip = make_shared<MsgSip>(0, rawSipMessageBase + rawContentType + rawSipMessageBody);
+	BC_ASSERT_TRUE(PushNotification::needsPush(msgSip));
+
+	rawContentType = "Content-Type: application/im-iscomposing+xml\r\n";
+	msgSip = make_shared<MsgSip>(0, rawSipMessageBase + rawContentType + rawSipMessageBody);
+	BC_ASSERT_FALSE(PushNotification::needsPush(msgSip));
+
+	rawContentType = "Content-Type: message/imdn+xml\r\n";
+	msgSip = make_shared<MsgSip>(0, rawSipMessageBase + rawContentType + rawSipMessageBody);
+	BC_ASSERT_FALSE(PushNotification::needsPush(msgSip));
+
+	rawContentType = "Content-Type: another/type\r\n";
+	msgSip = make_shared<MsgSip>(0, rawSipMessageBase + rawContentType + rawSipMessageBody);
+	BC_ASSERT_TRUE(PushNotification::needsPush(msgSip));
+
+	/////// REFERS ///////
+	string rawSipReferBase = "REFER sip:participant1@127.0.0.1:5360 SIP/2.0\r\n"
+	                         "To: <sip:participant1@127.0.0.1>\r\n"
+	                         "From: <sip:anthony@127.0.0.1>;tag=465687829\r\n"
+	                         "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
+	                         "CSeq: 93809823 REFER\r\n";
+	rawContentType = "Content-Type: text/plain\r\n";
+	string rawSipReferBody = "\r\n"
+	                         "Stand. As one. For the Alliance !\r\n";
+
+	msgSip = make_shared<MsgSip>(0, rawSipReferBase + rawContentType + rawSipReferBody);
+	BC_ASSERT_TRUE(PushNotification::needsPush(msgSip));
+
+	rawContentType = "Content-Type: application/im-iscomposing+xml\r\n";
+	msgSip = make_shared<MsgSip>(0, rawSipReferBase + rawContentType + replaces + rawSipReferBody);
+	BC_ASSERT_TRUE(PushNotification::needsPush(msgSip));
+
+	/////// TO tag ///////
+	rawSipInviteBase = "INVITE sip:participant1@127.0.0.1:5360 SIP/2.0\r\n"
+	                   "To: <sip:participant1@127.0.0.1>;tag=1928301774\r\n"
+	                   "From: <sip:anthony@127.0.0.1>;tag=465687829\r\n"
+	                   "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
+	                   "CSeq: 1 INVITE\r\n"
+	                   "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK\r\n"
+	                   "Content-Type: application/sdp\r\n";
+	rawSipInviteBody = "\r\n"
+	                   "v=0\r\n";
+	msgSip = make_shared<MsgSip>(0, rawSipInviteBase + rawSipInviteBody);
+	BC_ASSERT_FALSE(PushNotification::needsPush(msgSip));
+
+	/////// OTHERS ///////
+	string rawOption = "OPTIONS sip:participant1@127.0.0.1:5360 SIP/2.0\r\n"
+	                   "To: <sip:participant1@127.0.0.1>\r\n"
+	                   "From: <sip:anthony@127.0.0.1>;tag=465687829\r\n"
+	                   "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
+	                   "CSeq: 42 OPTIONS\r\n";
+	msgSip = make_shared<MsgSip>(0, rawOption);
+	BC_ASSERT_FALSE(PushNotification::needsPush(msgSip));
+
+	string rawSubscribe = "SUBSCRIBE sip:participant1@127.0.0.1:5360 SIP/2.0\r\n"
+	                      "To: <sip:participant1@127.0.0.1>\r\n"
+	                      "From: <sip:anthony@127.0.0.1>;tag=465687829\r\n"
+	                      "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
+	                      "CSeq: 42 SUBSCRIBE\r\n";
+	msgSip = make_shared<MsgSip>(0, rawSubscribe);
+	BC_ASSERT_FALSE(PushNotification::needsPush(msgSip));
+
+	string rawAck = "ACK sip:participant1@127.0.0.1:5360 SIP/2.0\r\n"
+	                "To: <sip:participant1@127.0.0.1>\r\n"
+	                "From: <sip:anthony@127.0.0.1>;tag=465687829\r\n"
+	                "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
+	                "CSeq: 42 ACK\r\n";
+	msgSip = make_shared<MsgSip>(0, rawAck);
+	BC_ASSERT_FALSE(PushNotification::needsPush(msgSip));
+}
+
+/*********************************************************************************************************************/
 /* Top-level base classes                                                                                            */
 /*********************************************************************************************************************/
 
@@ -665,6 +783,7 @@ constexpr test_t makeTest(const char* aName) {
 }
 
 static test_t tests[] = {
+    TEST_NO_TAG("PushNotification::needsPush full covering test", needsPushTests),
     makeTest<PushIsNotSentOnInviteWithReplacesHeader>("Push is not sent on Invite with Replaces Header"),
     makeTest<CallInviteOnOfflineDevice<Android>>("Call invite on offline device (Android)"),
     makeTest<CallInviteOnOfflineDevice<IOS>>("Call invite on offline device (iOS)"),
