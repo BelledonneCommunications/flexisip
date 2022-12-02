@@ -54,6 +54,7 @@ add_executable(flexisip_tester
 	registrardb-tester.cc
 	registrardb-redis-tester.cc
 	sip-uri-tests.cc
+	sofia-tester.cc
 	tester.cc
 	thread-pool-tester.cc
 	tls-connection-tester.cc

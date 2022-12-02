@@ -80,9 +80,9 @@ template <typename ServerT> static void readAllWithTimeoutBase(const ReadAllWith
 	string request{"Hello World!\n"};
 	string expectedResponse{"aaa"};
 	constexpr auto host = "127.0.0.1";
-	constexpr auto port = 1234;
+	ServerT server{};
+	const auto port = server.getPort();
 
-	ServerT server{port};
 	auto requestMatch = async(launch::async, [&server, &request, &expectedResponse, &params]() {
 		return server.runServerForTest(request, expectedResponse, params.responseDelay);
 	});

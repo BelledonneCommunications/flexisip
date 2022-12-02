@@ -31,18 +31,17 @@ using ip::tcp;
 using ssl::context;
 
 TlsServer::TlsServer(int port)
-    : mIoService{}, mAcceptor{mIoService, tcp::endpoint(tcp::v4(), port)}, 
+    : mIoService{}, mAcceptor{mIoService, tcp::endpoint(tcp::v4(), port)},
 #if BOOST_VERSION > 105300
-    mContext{ssl::context::tls_server} 
+      mContext{ssl::context::tls_server}
 #else
-    mContext{ssl::context::tlsv1_server} 
+      mContext{ssl::context::tlsv1_server}
 #endif
-    {
+{
 	mContext.set_options(ssl::context::default_workarounds | ssl::context::verify_none | ssl::context::no_sslv2 |
 	                     ssl::context::no_sslv3);
 	mContext.use_certificate_chain_file(bcTesterRes("cert/self.signed.cert.test.pem"));
-	mContext.use_private_key_file(bcTesterRes("cert/self.signed.key.test.pem"),
-	                              boost::asio::ssl::context::pem);
+	mContext.use_private_key_file(bcTesterRes("cert/self.signed.key.test.pem"), boost::asio::ssl::context::pem);
 	mSocket = make_unique<ssl::stream<ip::tcp::socket>>(mIoService, mContext);
 }
 
@@ -52,6 +51,26 @@ void TlsServer::accept() {
 	LOGD("TlsServer[%p] new connection accepted, starting handshake", this);
 	mSocket->handshake(boost::asio::ssl::stream_base::server);
 	LOGD("TlsServer[%p] handshake ok", this);
+}
+
+void TlsServer::accept(std::string sniValueExpected) {
+	accept();
+
+	const auto SSL = mSocket->native_handle();
+	const auto sniType = SSL_get_servername_type(SSL);
+
+	if (sniType == -1 && !sniValueExpected.empty()) {
+		BC_FAIL("No SNI found after SSL hanshake.");
+		return;
+	} else if (sniType != -1 && sniValueExpected.empty()) {
+		BC_FAIL("SNI found after SSL hanshake.");
+		return;
+	} else if (sniType == -1 && sniValueExpected.empty()) {
+		return;
+	}
+
+	const auto sniValue = SSL_get_servername(SSL, sniType);
+	BC_ASSERT_STRING_EQUAL(sniValue, sniValueExpected.c_str());
 }
 
 std::string TlsServer::read() {
