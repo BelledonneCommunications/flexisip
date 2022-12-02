@@ -25,15 +25,23 @@
 
 class TlsServer {
 public:
-	TlsServer(int port);
+	/**
+	 * If port = 0 a random one is chosen. You can then use TlsServer::getPort().
+	 */
+	TlsServer(int port = 0);
 
 	bool runServerForTest(const std::string& expectedRequest,
 	                      const std::string& response,
 	                      const std::chrono::milliseconds responseDelay = std::chrono::milliseconds{0});
 
 	void accept();
+	void accept(std::string sniValueExpected);
 	std::string read();
 	void send(const std::string& message);
+
+	int getPort() {
+		return mAcceptor.local_endpoint().port();
+	}
 
 private:
 	boost::asio::io_service mIoService;

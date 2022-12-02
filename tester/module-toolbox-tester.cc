@@ -33,6 +33,7 @@ using namespace flexisip::tester;
 
 namespace flexisip {
 namespace tester {
+namespace module_toolbox_suite {
 
 ////////////////// START OF ModuleToolbox::addRecordRoute TESTS /////////////////////////
 
@@ -132,5 +133,6 @@ auto _ = [] {
 	return nullptr;
 }();
 
+} // namespace module_toolbox_suite
 } // namespace tester
 } // namespace flexisip

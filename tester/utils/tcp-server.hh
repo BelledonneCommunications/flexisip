@@ -26,7 +26,10 @@
 
 class TcpServer {
 public:
-	TcpServer(int port);
+	/**
+	 * If port = 0 a random one is chosen. You can use then TlsServer::getPort().
+	 */
+	TcpServer(int port = 0);
 
 	bool runServerForTest(const std::string& expectedRequest,
 	                      const std::string& response,
@@ -35,6 +38,10 @@ public:
 	void accept();
 	std::string read();
 	void send(const std::string& message);
+
+	int getPort() {
+		return mAcceptor.local_endpoint().port();
+	}
 
 private:
 	boost::asio::io_service mIoService;
