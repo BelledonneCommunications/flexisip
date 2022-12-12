@@ -19,7 +19,8 @@
 #include <flexisip/module.hh>
 #include <flexisip/agent.hh>
 #include <flexisip/transaction.hh>
-#include "flexisip/module-router.hh"
+#include <flexisip/module-router.hh>
+#include <flexisip/registrar/registrar-db.hh>
 
 #include "etchosts.hh"
 #include "conditional-routes.hh"
@@ -29,7 +30,6 @@
 #include <sofia-sip/su_md5.h>
 #include <sofia-sip/sip_status.h>
 #include <sofia-sip/tport.h>
-#include <flexisip/registrardb.hh>
 
 using namespace std;
 using namespace flexisip;
@@ -363,7 +363,7 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent> &ev, url_t *dest) {
 
 	// Check self-forwarding
 	if (ev->getOutgoingAgent() != nullptr && getAgent()->isUs(dest, true)) {
-		SLOGD << "Stopping request to us";
+		SLOGD << "Stopping request to us (" << url_as_string(ms->getHome(), dest) << ")";
 		ev->terminateProcessing();
 		return;
 	}

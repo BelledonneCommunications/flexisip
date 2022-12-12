@@ -4,7 +4,10 @@
 
 #include <belle-sip/belle-sip.h>
 
-#include <flexisip/registrardb.hh>
+#include <flexisip/registrar/extended-contact.hh>
+#include <flexisip/registrar/listeners.hh>
+#include <flexisip/registrar/record.hh>
+#include <flexisip/registrar/registrar-db.hh>
 
 #include "presence-longterm.hh"
 #include "presentity-presenceinformation.hh"

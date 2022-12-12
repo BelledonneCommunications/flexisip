@@ -17,6 +17,8 @@
 */
 
 #include <flexisip/utils/sip-uri.hh>
+#include <flexisip/registrar/binding-parameters.hh>
+#include <flexisip/registrar/change-set.hh>
 
 #include "tool_utils.hh"
 

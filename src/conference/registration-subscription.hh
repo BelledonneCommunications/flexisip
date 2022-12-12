@@ -18,8 +18,11 @@
 
 #pragma once
 
-#include "flexisip/registrardb.hh"
-#include "linphone++/linphone.hh"
+#include <linphone++/linphone.hh>
+
+#include <flexisip/registrar/listeners.hh>
+#include <flexisip/utils/sip-uri.hh>
+
 #include "registration-events/client.hh"
 
 namespace flexisip {

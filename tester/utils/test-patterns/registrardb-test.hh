@@ -1,10 +1,15 @@
-/** Copyright (C) 2010-2022 Belledonne Communications SARL
+/** Copyright (C) 2010-2023 Belledonne Communications SARL
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #pragma once
 
 #include <bctoolbox/ownership.hh>
+
+#include <flexisip/registrar/listeners.hh>
+#include <flexisip/registrar/record.hh>
+#include <flexisip/registrar/extended-contact.hh>
+#include <flexisip/registrar/binding-parameters.hh>
 
 #include "../redis-server.hh"
 #include "agent-test.hh"

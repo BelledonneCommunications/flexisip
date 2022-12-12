@@ -1,0 +1,71 @@
+/** Copyright (C) 2010-2023 Belledonne Communications SARL
+ *  SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+#pragma once
+
+#include <string>
+#include <utility>
+
+#include "utils/rand.hh"
+#include "utils/string-utils.hh"
+
+namespace flexisip {
+
+// String wrapper. If initialized with an empty string, will take a randomly generated placeholder value instead.
+class ContactKey {
+public:
+	static constexpr const char kAutoGenTag[] = "fs-gen-";
+	static RandomStringGenerator sRsg;
+
+	template <class... Args>
+	ContactKey(Args&&... args) : mValue(std::forward<Args>(args)...) {
+		if (mValue.empty()) mValue = placeholder();
+	}
+
+	bool isPlaceholder() const {
+		return StringUtils::startsWith(mValue, kAutoGenTag);
+	}
+
+	std::string& str() {
+		return mValue;
+	}
+	const std::string& str() const {
+		return mValue;
+	}
+
+	operator std::string&() {
+		return mValue;
+	}
+	operator const std::string&() const {
+		return mValue;
+	}
+
+	bool operator==(const std::string& other) const {
+		return mValue == other;
+	}
+
+	static std::string generateUniqueId();
+
+private:
+	std::string mValue;
+
+	// The probability of collisions for v4 UUIDs is considered negligible for most use cases.
+	// That's a collision space of 2¹²² possibilities; Which gives us an upper bound since we don't need to be
+	// "universally" unique.
+	static constexpr auto requiredCharCountForUniqueness() {
+		auto charCount = sRsg.kCharCount;
+		auto approximatePowerOf2 = 0;
+		while (charCount >>= 1) {
+			approximatePowerOf2 += 1;
+		}
+		return 122 / approximatePowerOf2;
+	}
+
+	// Generate a random unique identifier for internal use in the Registrar
+	static std::string placeholder() {
+		return std::string{kAutoGenTag} + generateUniqueId();
+	}
+};
+
+} // namespace flexisip

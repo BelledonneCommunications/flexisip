@@ -22,7 +22,7 @@
 #include <memory>
 #include <string>
 
-#include <flexisip/registrardb.hh>
+#include <flexisip/registrar/extended-contact.hh>
 
 #include "push-type.hh"
 #include "pushnotification/push-notification-error.hh"

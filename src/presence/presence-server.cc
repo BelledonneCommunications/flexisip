@@ -26,7 +26,6 @@
 #endif
 
 #include "flexisip/configmanager.hh"
-#include "flexisip/registrardb.hh"
 #include "utils/thread/auto-thread-pool.hh"
 
 #include "bellesip-signaling-exception.hh"

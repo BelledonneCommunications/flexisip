@@ -28,8 +28,9 @@
 #include <sofia-sip/sip_tag.h>
 #include <sofia-sip/sip_util.h>
 
-#include "flexisip/agent.hh"
-#include "flexisip/module.hh"
+#include <flexisip/agent.hh>
+#include <flexisip/module.hh>
+#include <flexisip/registrar/registrar-db.hh>
 
 #include "domain-registrations.hh"
 

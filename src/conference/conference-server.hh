@@ -22,7 +22,6 @@
 
 #include <linphone++/linphone.hh>
 
-#include "flexisip/registrardb.hh"
 
 #include "participant-registration-subscription-handler.hh"
 #include "registration-subscription.hh"

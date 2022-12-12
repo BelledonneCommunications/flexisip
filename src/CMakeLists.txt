@@ -101,8 +101,14 @@ add_library(flexisip SHARED
 	push-param.cc
 	recordserializer-c.cc
 	recordserializer-json.cc
+	recordserializer.cc
+	registrar/contact-key.cc
+	registrar/exceptions.cc
+	registrar/extended-contact.cc
+	registrar/listeners.cc
+	registrar/record.cc
+	registrar/registrar-db.cc
 	registrardb-internal.cc registrardb-internal.hh
-	registrardb.cc
 	sdp-modifier.cc sdp-modifier.hh
 	service-server.cc service-server.hh
 	signal-handling/signal-handling.cc

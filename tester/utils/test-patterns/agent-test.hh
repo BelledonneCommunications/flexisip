@@ -20,8 +20,8 @@
 
 #include <memory>
 
-#include "flexisip/agent.hh"
-#include "flexisip/registrardb.hh"
+#include <flexisip/agent.hh>
+#include <flexisip/registrar/registrar-db.hh>
 
 #include "test.hh"
 

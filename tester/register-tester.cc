@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,22 +9,31 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <chrono>
+#include <sstream>
+#include <string>
+
 #include <signal.h>
+
+#include <bctoolbox/tester.h>
 
 #include <flexisip/agent.hh>
 #include <flexisip/module-router.hh>
+#include <flexisip/registrar/binding-parameters.hh>
+#include <flexisip/registrar/registrar-db.hh>
 
 #include "flexisip-tester-config.hh"
 #include "tester.hh"
 #include "utils/bellesip-utils.hh"
+#include "utils/proxy-server.hh"
+#include "utils/redis-server.hh"
 #include "utils/test-suite.hh"
 
 using namespace std;
@@ -45,6 +54,8 @@ static int expectedFetchingDone = 0;
 
 class RegisterBindListener : public ContactUpdateListener {
 public:
+	RegisterBindListener(const std::string& user) : mExpectedUser(user) {
+	}
 	void onRecordFound(const shared_ptr<Record>& r) override {
 		bidingDone++;
 	}
@@ -52,11 +63,18 @@ public:
 		BC_FAIL("Only onRecordFound must be called.");
 	}
 	void onInvalid() override {
-		BC_FAIL("Only onRecordFound must be called.");
+		std::ostringstream debugStream{};
+		debugStream << "Unexpected call to onInvalid while trying to bind user : " << mExpectedUser;
+		bc_assert(__FILE__, __LINE__, false, debugStream.str().c_str());
 	}
 	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
-		BC_FAIL("Only onRecordFound must be called.");
+		std::ostringstream debugStream{};
+		debugStream << "contact " << *ec << " unexpectedly updated while trying to bind user : " << mExpectedUser;
+		bc_assert(__FILE__, __LINE__, false, debugStream.str().c_str());
 	}
+
+private:
+	std::string mExpectedUser;
 };
 
 class RegisterFetchListener : public ContactUpdateListener {
@@ -114,7 +132,7 @@ static void insertContact(const string& sipUri, const string& paramList) {
 
 	auto contact = sip_contact_create(home.home(), (url_string_t*)user.str().c_str(), nullptr);
 
-	RegistrarDb::get()->bind(user, contact, parameter, make_shared<RegisterBindListener>());
+	RegistrarDb::get()->bind(user, contact, parameter, make_shared<RegisterBindListener>(user.str()));
 	expectedBidingDone++;
 	auto beforePlus2 = system_clock::now() + 2s;
 	while (bidingDone != expectedBidingDone && beforePlus2 >= system_clock::now()) {
@@ -398,24 +416,19 @@ static void duplicatePushTokenRegisterInternalDbTest() {
 }
 
 static void duplicatePushTokenRegisterRedisTest() {
-	auto pid = fork();
-	if (pid == 0) {
-		const string redisServerPath{REDIS_SERVER_EXEC};
-		execl(redisServerPath.c_str(), redisServerPath.substr(redisServerPath.find_last_of("/") + 1).c_str(), nullptr);
-		exit(1);
-	}
-
-	// Redis need a bit of time to start
-	sleep(1);
-
-	// Agent initialization
-	auto cfg = GenericManager::get();
-	cfg->load(bcTesterRes("config/flexisip_register_redis.conf"));
-	agent->loadConfig(cfg);
+	RedisServer redis{};
+	Server proxyServer({
+	    {"global/transports", "sip:*:5160"},
+	    {"global/aliases", "127.0.0.1"},
+	    {"module::Registrar/reg-domains", "sip.example.org"},
+	    {"module::Registrar/db-implementation", "redis"},
+	    {"module::Registrar/redis-server-domain", "localhost"},
+	    {"module::Registrar/redis-server-port", std::to_string(redis.start())},
+	    {"module::DoSProtection/enabled", "false"},
+	});
+	agent = proxyServer.getAgent();
 
 	startTest();
-
-	kill(pid, 15);
 }
 namespace {
 TestSuite

@@ -16,14 +16,22 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <memory>
+#include <utility>
+
 #include <boost/asio.hpp>
 
+#include "bctoolbox/ownership.hh"
 #include <bctoolbox/tester.h>
 
 #include <sofia-sip/msg_buffer.h>
 
+#include "flexisip/sofia-wrapper/msg-sip.hh"
+
+#include "tester.hh"
 #include "utils/string-utils.hh"
 #include "utils/test-patterns/agent-test.hh"
+#include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 #include "utils/transport/tls-connection.hh"
 
@@ -72,175 +80,221 @@ private:
 };
 
 /**
- * Check that the Agent answers to CRLF-based ping request.
- * 1. Instantiate an agent listening on localhost
- * 2. Make a simple client TCP/TLS connection by using TlsConnection object.
- * 3. Send a double CRLF sequence and wait for a single CRLF sequence as response.
- *
- * This is a generic test which need to be customized by given a Config object
- * on construction. Available Config class are declared as subclasses.
+ * Config based classes are used to customize RFC5626KeepAliveWithCRLF test.
  */
-class RFC5626KeepAliveWithCRLFBase : public AgentTest {
+class TransportConfig {
 public:
-	/**
-	 * Config based classes are used to customize RFC5626KeepAliveWithCRLF test.
-	 */
-	class Config {
-	public:
-		virtual ~Config() = default;
+	virtual ~TransportConfig() = default;
 
-		const std::string& getHost() const noexcept {
-			return mHost;
-		}
-		const std::string& getPort() const noexcept {
-			return mPort;
-		}
-		const std::string& getProtoName() const noexcept {
-			return mProtoName;
-		}
-		auto useOutbound() const noexcept {
-			return mUseOutbound;
-		}
-
-		/**
-		 * Create and configure the TlsConnection object.
-		 */
-		virtual std::unique_ptr<TlsConnection> makeConnection() = 0;
-		/**
-		 * Configure the agent. It is usually used to populate the 'transport=' line.
-		 */
-		virtual void configureAgent(GenericManager& cfg) {
-			auto registrarCfg = cfg.getRoot()->get<GenericStruct>("module::Registrar");
-			registrarCfg->get<ConfigValue>("enabled")->set("true");
-			registrarCfg->get<ConfigValue>("reg-domains")->set("sip.example.org");
-		}
-
-	protected:
-		template <typename T>
-		Config(T&& protoName) : mProtoName{std::forward<T>(protoName)} {
-		}
-
-		std::string mHost{"localhost"}; /**< Listening address of the Agent */
-		std::string mPort{"6060"};      /**< Listening port of the Agent */
-		std::string mProtoName;         /**< String that describe the protocol used for the test ('TCP' or 'TLS'). */
-		bool mUseOutbound{true};        /**< Place 'Supported: outbound' header in the REGISTER request. */
-	};
+	const string& getHost() const noexcept {
+		return mHost;
+	}
+	const string& getPort() const noexcept {
+		return mPort;
+	}
+	const string& getProtoName() const noexcept {
+		return mProtoName;
+	}
+	auto useOutbound() const noexcept {
+		return mUseOutbound;
+	}
 
 	/**
-	 * Config to test TCP transport.
+	 * Create and configure the TlsConnection object.
 	 */
-	class TcpConfig : public Config {
-	public:
-		TcpConfig() : Config("TCP") {
-		}
-
-		std::unique_ptr<TlsConnection> makeConnection() override {
-			return make_unique<TlsConnection>(mHost, mPort, "", "");
-		}
-		void configureAgent(GenericManager& cfg) override {
-			Config::configureAgent(cfg);
-			ostringstream transport{};
-			transport << "sip:" << mHost << ":" << mPort << ";transport=tcp";
-			auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
-			globalCfg->get<ConfigStringList>("transports")->set(transport.str());
-		}
-	};
-
+	virtual unique_ptr<TlsConnection> makeConnection() = 0;
 	/**
-	 * Base class for Config object that allows to test TLS transports.
+	 * Configure the agent. It is usually used to populate the 'transport=' line.
 	 */
-	class TlsConfig : public Config {
-	public:
-		std::unique_ptr<TlsConnection> makeConnection() override {
-			return make_unique<TlsConnection>(mHost, mPort);
-		}
-		void configureAgent(GenericManager& cfg) override {
-			Config::configureAgent(cfg);
-			ostringstream transport{};
-			transport << "sips:" << mHost << ":" << mPort;
-
-			auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
-			globalCfg->get<ConfigStringList>("transports")->set(transport.str());
-		}
-
-	protected:
-		TlsConfig() : Config("TLS") {
-		}
-	};
-
-	/**
-	 * Config to test TLS transport by using the new parameters to set the certificate and the private key.
-	 */
-	class NewTlsConfig : public TlsConfig {
-	public:
-		using TlsConfig::TlsConfig;
-
-		void configureAgent(GenericManager& cfg) override {
-			TlsConfig::configureAgent(cfg);
-
-			auto certfile =
-			    static_cast<string>(bc_tester_get_resource_dir_prefix()) + "/cert/self.signed.cert.test.pem";
-			auto keyfile = static_cast<string>(bc_tester_get_resource_dir_prefix()) + "/cert/self.signed.key.test.pem";
-
-			auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
-			globalCfg->get<ConfigString>("tls-certificates-file")->set(certfile);
-			globalCfg->get<ConfigString>("tls-certificates-private-key")->set(keyfile);
-		}
-	};
-
-	/**
-	 * Same as #NewTlsConfig but use the legacy parameters.
-	 */
-	class LegacyTlsConfig : public TlsConfig {
-	public:
-		using TlsConfig::TlsConfig;
-
-		void configureAgent(GenericManager& cfg) override {
-			TlsConfig::configureAgent(cfg);
-
-			auto certDir = static_cast<string>(bc_tester_get_resource_dir_prefix()) + "/cert/self.signed.legacy";
-			auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
-			globalCfg->get<ConfigString>("tls-certificates-dir")->set(certDir);
-		}
-	};
-
-	/**
-	 * Config to test the transport specified with 'cluster/internal-transport' parameter.
-	 */
-	class InternalTransportConfig : public Config {
-	public:
-		InternalTransportConfig() : Config("TCP") {
-		}
-
-		std::unique_ptr<TlsConnection> makeConnection() override {
-			return make_unique<TlsConnection>(mHost, mPort, "", "");
-		}
-		void configureAgent(GenericManager& cfg) override {
-			Config::configureAgent(cfg);
-			ostringstream transport{};
-			transport << "sip:" << mHost << ":" << mPort << ";transport=tcp";
-			auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
-			globalCfg->get<ConfigStringList>("transports")->set("");
-
-			auto* clusterCfg = cfg.getRoot()->get<GenericStruct>("cluster");
-			clusterCfg->get<ConfigValue>("enabled")->set("true");
-			clusterCfg->get<ConfigValue>("internal-transport")->set(transport.str());
-		}
-	};
-
-	/**
-	 * Config to test that no PONG is sent by the proxy if the client hasn't declared to
-	 * support 'outbound' feature.
-	 */
-	class OutboundNotSupported : public TcpConfig {
-	public:
-		OutboundNotSupported() {
-			mUseOutbound = false;
-		}
-	};
+	virtual void configureAgent(GenericManager& cfg) {
+		auto registrarCfg = cfg.getRoot()->get<GenericStruct>("module::Registrar");
+		registrarCfg->get<ConfigValue>("enabled")->set("true");
+		registrarCfg->get<ConfigValue>("reg-domains")->set("sip.example.org");
+	}
 
 protected:
-	RFC5626KeepAliveWithCRLFBase(const std::shared_ptr<Config>& config) : mConfig{config} {
+	template <typename T>
+	TransportConfig(T&& protoName) : mProtoName{forward<T>(protoName)} {
+	}
+
+	string mHost{"localhost"}; /**< Listening address of the Agent */
+	string mPort{"6060"};      /**< Listening port of the Agent */
+	string mProtoName;         /**< String that describe the protocol used for the test ('TCP' or 'TLS'). */
+	bool mUseOutbound{true};   /**< Place 'Supported: outbound' header in the REGISTER request. */
+};
+
+/**
+ * Config to test TCP transport.
+ */
+class TcpConfig : public TransportConfig {
+public:
+	TcpConfig() : TransportConfig("TCP") {
+	}
+
+	unique_ptr<TlsConnection> makeConnection() override {
+		return make_unique<TlsConnection>(mHost, mPort, "", "");
+	}
+	void configureAgent(GenericManager& cfg) override {
+		TransportConfig::configureAgent(cfg);
+		ostringstream transport{};
+		transport << "sip:" << mHost << ":" << mPort << ";transport=tcp";
+		auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
+		globalCfg->get<ConfigStringList>("transports")->set(transport.str());
+	}
+};
+
+/**
+ * Base class for Config object that allows to test TLS transports.
+ */
+class TlsConfig : public TransportConfig {
+public:
+	unique_ptr<TlsConnection> makeConnection() override {
+		return make_unique<TlsConnection>(mHost, mPort);
+	}
+	void configureAgent(GenericManager& cfg) override {
+		TransportConfig::configureAgent(cfg);
+		ostringstream transport{};
+		transport << "sips:" << mHost << ":" << mPort;
+
+		auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
+		globalCfg->get<ConfigStringList>("transports")->set(transport.str());
+	}
+
+protected:
+	TlsConfig() : TransportConfig("TLS") {
+	}
+};
+
+/**
+ * Config to test TLS transport by using the new parameters to set the certificate and the private key.
+ */
+class NewTlsConfig : public TlsConfig {
+public:
+	using TlsConfig::TlsConfig;
+
+	void configureAgent(GenericManager& cfg) override {
+		TlsConfig::configureAgent(cfg);
+
+		auto certfile = static_cast<string>(bc_tester_get_resource_dir_prefix()) + "/cert/self.signed.cert.test.pem";
+		auto keyfile = static_cast<string>(bc_tester_get_resource_dir_prefix()) + "/cert/self.signed.key.test.pem";
+
+		auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
+		globalCfg->get<ConfigString>("tls-certificates-file")->set(certfile);
+		globalCfg->get<ConfigString>("tls-certificates-private-key")->set(keyfile);
+	}
+};
+
+/**
+ * Same as #NewTlsConfig but use the legacy parameters.
+ */
+class LegacyTlsConfig : public TlsConfig {
+public:
+	using TlsConfig::TlsConfig;
+
+	void configureAgent(GenericManager& cfg) override {
+		TlsConfig::configureAgent(cfg);
+
+		auto certDir = static_cast<string>(bc_tester_get_resource_dir_prefix()) + "/cert/self.signed.legacy";
+		auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
+		globalCfg->get<ConfigString>("tls-certificates-dir")->set(certDir);
+	}
+};
+
+/**
+ * Config to test the transport specified with 'cluster/internal-transport' parameter.
+ */
+class InternalTransportConfig : public TransportConfig {
+public:
+	InternalTransportConfig() : TransportConfig("TCP") {
+	}
+
+	unique_ptr<TlsConnection> makeConnection() override {
+		return make_unique<TlsConnection>(mHost, mPort, "", "");
+	}
+	void configureAgent(GenericManager& cfg) override {
+		TransportConfig::configureAgent(cfg);
+		ostringstream transport{};
+		transport << "sip:" << mHost << ":" << mPort << ";transport=tcp";
+		auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
+		globalCfg->get<ConfigStringList>("transports")->set("");
+
+		auto* clusterCfg = cfg.getRoot()->get<GenericStruct>("cluster");
+		clusterCfg->get<ConfigValue>("enabled")->set("true");
+		clusterCfg->get<ConfigValue>("internal-transport")->set(transport.str());
+	}
+};
+
+/**
+ * Config to test that no PONG is sent by the proxy if the client hasn't declared to
+ * support 'outbound' feature.
+ */
+class OutboundNotSupported : public TcpConfig {
+public:
+	OutboundNotSupported() {
+		mUseOutbound = false;
+	}
+};
+
+class TransportTest : public AgentTest {
+protected:
+	unique_ptr<TransportConfig> mConfig;
+
+	TransportTest(unique_ptr<TransportConfig>&& config) : mConfig(move(config)) {
+	}
+
+	unique_ptr<TlsConnection> connect() {
+		auto conn = mConfig->makeConnection();
+		SLOGD << "Connecting on " << mConfig->getHost() << ":" << mConfig->getPort() << " using "
+		      << mConfig->getProtoName();
+		conn->connectAsync(*mRoot->getCPtr(), []() {});
+		BC_HARD_ASSERT_TRUE(waitFor([&conn]() { return conn->isConnected(); }, 1s));
+		return conn;
+	}
+
+	sofiasip::MsgSip sendRegister(TlsConnection& conn, const char* cseq, const string instanceId = "") {
+		const auto localPort = conn.getLocalPort();
+		const auto& protoName = mConfig->getProtoName();
+		const auto transport = StringUtils::toLower(protoName);
+		const auto supportedHeader = mConfig->useOutbound() ? "Supported: outbound\r\n" : "";
+
+		ostringstream reqStream{};
+		reqStream << "REGISTER sip:localhost:" << mConfig->getPort() << ";transport=" << transport << " SIP/2.0\r\n"
+		          << "Via: SIP/2.0/" << protoName << " localhost:" << localPort
+		          << ";rport;branch=z9hG4bKg75aK9eUg15NS\r\n"
+		          << "Max-Forwards: 70\r\n"
+		          << "From: sip:user@sip.example.org;tag=5Nm3000eSje9a\r\n"
+		          << "To: sip:user@sip.example.org\r\n"
+		          << "Call-ID: 50573f6b-7d6d-123b-5b92-04d4c4159ac6\r\n"
+		          << "CSeq: " << cseq << " REGISTER\r\n"
+		          << "Contact: <sip:user@localhost:" << localPort << ">;transport=" << transport << instanceId << "\r\n"
+		          << "Expires: 600\r\n"
+		          << supportedHeader << "Content-Length: 0\r\n"
+		          << "\r\n";
+		const auto req = reqStream.str();
+
+		SLOGD << "Sending request:\n" << req;
+		const auto nwritten = conn.write(req);
+		BC_ASSERT_EQUAL(nwritten, req.size(), int, "%i");
+		BC_HARD_ASSERT_TRUE(nwritten == static_cast<int>(req.size()));
+
+		sofiasip::MsgSip msg(ownership::owned(msg_create(sip_default_mclass(), 0)));
+		constexpr auto bufSize = 1024;
+		auto buf = msg_buf_alloc(msg.getMsg(), bufSize);
+		const auto responseReceived = waitFor(
+		    [&msg, &buf, &conn]() {
+			    const auto nread = conn.read(buf, bufSize);
+			    BC_HARD_ASSERT_TRUE(nread >= 0);
+			    if (nread > 0) {
+				    msg_buf_commit(msg.getMsg(), nread, 1);
+				    return true;
+			    }
+			    return false;
+		    },
+		    1s);
+		BC_HARD_ASSERT_TRUE(responseReceived);
+		BC_HARD_ASSERT_TRUE(msg_extract(msg.getMsg()) > 0);
+
+		return msg;
 	}
 
 private:
@@ -249,15 +303,26 @@ private:
 		AgentTest::onAgentConfiguration(cfg);
 		mConfig->configureAgent(cfg);
 	}
+};
 
+/**
+ * Check that the Agent answers to CRLF-based ping request.
+ * 1. Instantiate an agent listening on localhost
+ * 2. Make a simple client TCP/TLS connection by using TlsConnection object.
+ * 3. Send a double CRLF sequence and wait for a single CRLF sequence as response.
+ *
+ * This is a generic test which need to be customized by given a Config object
+ * on construction. Available Config class are declared as subclasses.
+ */
+class RFC5626KeepAliveWithCRLFBase : public TransportTest {
+protected:
+	RFC5626KeepAliveWithCRLFBase(unique_ptr<TransportConfig>&& config) : TransportTest(move(config)) {
+	}
+
+private:
+	// Private methods
 	void testExec() override {
-		auto conn = mConfig->makeConnection();
-
-		SLOGD << "Connecting on " << mConfig->getHost() << ":" << mConfig->getPort() << " using "
-		      << mConfig->getProtoName();
-		auto connected = false;
-		conn->connectAsync(*mRoot->getCPtr(), [&conn, &connected]() { connected = conn->isConnected(); });
-		BC_HARD_ASSERT_TRUE(waitFor([&connected]() { return connected; }, 1s));
+		auto conn = connect();
 
 		SLOGD << "Send register to the agent and wait for successful response";
 		doRegistration(*conn);
@@ -283,56 +348,51 @@ private:
 	}
 
 	void doRegistration(TlsConnection& conn) {
-		auto localPort = conn.getLocalPort();
-		const auto& protoName = mConfig->getProtoName();
-		auto transport = StringUtils::toLower(mConfig->getProtoName());
-		auto supportedHeader = mConfig->useOutbound() ? "Supported: outbound\r\n" : "";
+		const auto msg =
+		    sendRegister(conn, "966679804", ";+sip.instance=\"<urn:uuid:61643831-6465-4037-a135-356537616633>\"");
 
-		ostringstream reqStream{};
-		reqStream << "REGISTER sip:localhost:" << mConfig->getPort() << ";transport=" << transport << " SIP/2.0\r\n"
-		          << "Via: SIP/2.0/" << protoName << " localhost:" << localPort
-		          << ";rport;branch=z9hG4bKg75aK9eUg15NS\r\n"
-		          << "Max-Forwards: 70\r\n"
-		          << "From: sip:user@sip.example.org;tag=5Nm3000eSje9a\r\n"
-		          << "To: sip:user@sip.example.org\r\n"
-		          << "Call-ID: 50573f6b-7d6d-123b-5b92-04d4c4159ac6\r\n"
-		          << "CSeq: 966679804 REGISTER\r\n"
-		          << "Contact: <sip:user@localhost:" << localPort << ">;transport=" << transport
-		          << ";+sip.instance=\"<urn:uuid:61643831-6465-4037-a135-356537616633>\"\r\n"
-		          << "Expires: 600\r\n"
-		          << supportedHeader << "Content-Length: 0\r\n"
-		          << "\r\n";
-		auto req = reqStream.str();
-
-		SLOGD << "Sending request:\n" << req;
-		auto nwritten = conn.write(req);
-		BC_HARD_ASSERT_TRUE(nwritten == static_cast<int>(req.size()));
-
-		constexpr auto bufSize = 1024;
-		std::unique_ptr<msg_t, void (*)(msg_t*)> msg{msg_create(sip_default_mclass(), 0), msg_unref};
-		auto buf = msg_buf_alloc(msg.get(), bufSize);
-		auto responseReceived = waitFor(
-		    [&msg, &buf, &conn]() {
-			    auto nread = conn.read(buf, bufSize);
-			    BC_HARD_ASSERT_TRUE(nread >= 0);
-			    if (nread > 0) {
-				    msg_buf_commit(msg.get(), nread, 1);
-				    return true;
-			    }
-			    return false;
-		    },
-		    1s);
-		BC_HARD_ASSERT_TRUE(responseReceived);
-		BC_HARD_ASSERT_TRUE(msg_extract(msg.get()) > 0);
-
-		auto sip = reinterpret_cast<sip_t*>(msg_object(msg.get()));
+		const auto sip = msg.getSip();
 		BC_HARD_ASSERT_TRUE(sip->sip_status != nullptr);
+		BC_ASSERT_EQUAL(sip->sip_status->st_status, 200, int, "%i");
 		BC_HARD_ASSERT_TRUE(sip->sip_status->st_status == 200);
 		BC_HARD_ASSERT_TRUE(sip->sip_cseq->cs_method == sip_method_register);
 	}
+};
 
-	// Private attributes
-	std::shared_ptr<Config> mConfig;
+class CSeqIsCheckedOnRegisterWithoutInstanceId : public TransportTest {
+public:
+	CSeqIsCheckedOnRegisterWithoutInstanceId() : TransportTest(make_unique<TcpConfig>()) {
+	}
+
+private:
+	void testExec() override {
+		auto conn = connect();
+		{ // REGISTERing without Instance-ID will follow the rules of the RFC 3261
+			const auto msg = sendRegister(*conn, "2");
+
+			const auto sip = msg.getSip();
+			BC_HARD_ASSERT_TRUE(sip->sip_status != nullptr);
+			BC_ASSERT_EQUAL(sip->sip_status->st_status, 200, int, "%i");
+			BC_HARD_ASSERT_TRUE(sip->sip_status->st_status == 200);
+			BC_HARD_ASSERT_TRUE(sip->sip_cseq->cs_method == sip_method_register);
+		}
+		{ // Sending a REGISTER with the same Call-ID but a lesser CSeq is invalid (<)
+			const auto msg = sendRegister(*conn, "1");
+
+			const auto sip = msg.getSip();
+			BC_HARD_ASSERT_TRUE(sip->sip_status != nullptr);
+			BC_ASSERT_EQUAL(sip->sip_status->st_status, 400, int, "%i");
+			BC_HARD_ASSERT_TRUE(sip->sip_cseq->cs_method == sip_method_register);
+		}
+		{ // ...Or with the same CSeq (==)
+			const auto msg = sendRegister(*conn, "2");
+
+			const auto sip = msg.getSip();
+			BC_HARD_ASSERT_TRUE(sip->sip_status != nullptr);
+			BC_ASSERT_EQUAL(sip->sip_status->st_status, 400, int, "%i");
+			BC_HARD_ASSERT_TRUE(sip->sip_cseq->cs_method == sip_method_register);
+		}
+	}
 };
 
 /**
@@ -342,19 +402,19 @@ private:
 template <typename ConfigT>
 class RFC5626KeepAliveWithCRLF : public RFC5626KeepAliveWithCRLFBase {
 public:
-	RFC5626KeepAliveWithCRLF() : RFC5626KeepAliveWithCRLFBase{make_shared<ConfigT>()} {
+	RFC5626KeepAliveWithCRLF() : RFC5626KeepAliveWithCRLFBase{make_unique<ConfigT>()} {
 	}
 };
 
 namespace {
-using TCP = RFC5626KeepAliveWithCRLFBase::TcpConfig;
-using NewTLS = RFC5626KeepAliveWithCRLFBase::NewTlsConfig;
-using LegacyTLS = RFC5626KeepAliveWithCRLFBase::LegacyTlsConfig;
-using InternalTransport = RFC5626KeepAliveWithCRLFBase::InternalTransportConfig;
-using OutboundNotSupported = RFC5626KeepAliveWithCRLFBase::OutboundNotSupported;
+using TCP = TcpConfig;
+using NewTLS = NewTlsConfig;
+using LegacyTLS = LegacyTlsConfig;
+using InternalTransport = InternalTransportConfig;
 
 TestSuite _("Agent unit tests",
             {
+                CLASSY_TEST(CSeqIsCheckedOnRegisterWithoutInstanceId),
                 TEST_NO_TAG("Transports loading from conf and isUs method testing", run<TransportsAndIsUsTest>),
                 TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) on TCP", run<RFC5626KeepAliveWithCRLF<TCP>>),
                 TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) on TLS", run<RFC5626KeepAliveWithCRLF<NewTLS>>),

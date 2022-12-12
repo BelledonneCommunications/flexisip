@@ -8,9 +8,9 @@
 
 #include <bctoolbox/logging.h>
 
-#include <flexisip/registrardb.hh>
 #include <flexisip/sofia-wrapper/su-root.hh>
 #include <flexisip/sofia-wrapper/timer.hh>
+#include <flexisip/registrar/registrar-db.hh>
 
 #include "pushnotification/push-info.hh"
 #include "pushnotification/push-notification-error.hh"

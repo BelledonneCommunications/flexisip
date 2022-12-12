@@ -28,7 +28,8 @@
 
 #include "flexisip/common.hh"
 #include "flexisip/configmanager.hh"
-#include "flexisip/registrardb.hh"
+#include "flexisip/registrar/listeners.hh"
+#include "flexisip/utils/sip-uri.hh"
 
 namespace flexisip {
 

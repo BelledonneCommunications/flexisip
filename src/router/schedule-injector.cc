@@ -16,6 +16,8 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <flexisip/module.hh>
+
 #include "schedule-injector.hh"
 
 #include "inject-context.hh"

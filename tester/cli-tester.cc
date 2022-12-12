@@ -282,7 +282,7 @@ void flexisip_cli_dot_py() {
 		BC_ASSERT_STRING_EQUAL(returned_contact["contact"].asCString(), modifiedContact);
 	}
 
-	{ // Abuse matching rules to insert or update contacts based on RFC3261 matching rules
+	{ // Force-matching on RFC3261 rules can insert but not update
 		const auto aor = "sip:test2@sip.example.org";
 		const auto bogusUid = "fs-gen-something"; // Interpreted as placeholder because of the prefix
 		command.str("");
@@ -293,26 +293,14 @@ void flexisip_cli_dot_py() {
 		BC_ASSERT_STRING_EQUAL(returned_contact["contact"].asCString(), aor);
 		BC_ASSERT_STRING_EQUAL(returned_contact["unique-id"].asCString(), bogusUid);
 
-		// Update contact despite uids not matching
+		// Try to update contact despite uids not matching
 		const auto modifiedContact = "sip:test2@sip.EXAMPLE.org";
 		BC_ASSERT_STRING_NOT_EQUAL(aor, modifiedContact); // but matching according to RFC3261
 		const auto differentUid = "fs-gen-something_else";
 		command.str("");
 		command << "REGISTRAR_UPSERT " << aor << " " << modifiedContact << " 682 " << differentUid;
-		returned_contacts = deserialize(callScript(command.str(), EX_OK))["contacts"];
-		BC_ASSERT_EQUAL(returned_contacts.size(), 1, int, "%i");
-		returned_contact = returned_contacts[0];
-		BC_ASSERT_STRING_EQUAL(returned_contact["contact"].asCString(), modifiedContact);
-		BC_ASSERT_STRING_EQUAL(returned_contact["unique-id"].asCString(), bogusUid);
-
-		// Insert new contact despite specifying an existing uid
-		const auto differentUsername = "sip:test3@sip.example.org";
-		command.str("");
-		command << "REGISTRAR_UPSERT " << aor << " " << differentUsername << " 106 " << bogusUid;
-		returned_contacts = deserialize(callScript(command.str(), EX_OK))["contacts"];
-		BC_ASSERT_EQUAL(returned_contacts.size(), 2, int, "%i");
-		BC_ASSERT_STRING_EQUAL(returned_contacts[0]["unique-id"].asCString(), bogusUid);
-		BC_ASSERT_STRING_EQUAL(returned_contacts[1]["unique-id"].asCString(), bogusUid);
+		const auto result = callScript(command.str(), EX_USAGE);
+		BC_ASSERT_STRING_EQUAL(result.c_str(), "INVALID\n"); // CSeq has not been properly incremented
 	}
 
 	// TODO: Test parallel requests to the socket

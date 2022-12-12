@@ -24,7 +24,13 @@
 #include <sofia-sip/sip_protos.h>
 
 #include <flexisip/common.hh>
-#include <flexisip/registrardb.hh>
+#include <flexisip/registrar/change-set.hh>
+#include <flexisip/registrar/exceptions.hh>
+#include <flexisip/registrar/extended-contact.hh>
+#include <flexisip/registrar/listeners.hh>
+#include <flexisip/registrar/record.hh>
+#include <flexisip/sofia-wrapper/msg-sip.hh>
+#include <flexisip/utils/sip-uri.hh>
 
 #include "registrardb-internal.hh"
 
@@ -59,13 +65,12 @@ void RegistrarDbInternal::doBind(const MsgSip& msg,
 		r = it->second;
 	}
 
-	if (sip->sip_call_id && sip->sip_cseq && r->isInvalidRegister(sip->sip_call_id->i_id, sip->sip_cseq->cs_seq)) {
-		LOGD("Invalid register");
+	try {
+		r->update(sip, parameters, listener);
+	} catch (const InvalidCSeq&) {
 		if (listener) listener->onInvalid();
 		return;
 	}
-
-	r->update(sip, parameters, listener);
 
 	mLocalRegExpire->update(r);
 	if (listener) listener->onRecordFound(r);
@@ -156,11 +161,6 @@ void RegistrarDbInternal::doClear(const MsgSip& msg, const shared_ptr<ContactUpd
 
 	LOGD("AOR %s found", key.c_str());
 	shared_ptr<Record> r = (*it).second;
-
-	if (r->isInvalidRegister(sip->sip_call_id->i_id, sip->sip_cseq->cs_seq)) {
-		listener->onInvalid();
-		return;
-	}
 
 	mRecords.erase(it);
 	mLocalRegExpire->remove(key);

@@ -20,7 +20,6 @@
 #include <chrono>
 
 #include "flexisip/common.hh"
-#include "flexisip/registrardb.hh"
 #include "sofia-sip/sip_status.h"
 
 #include "flexisip/fork-context/fork-message-context.hh"

@@ -21,10 +21,8 @@
 #include <memory>
 
 #include "flexisip/fork-context/branch-info-db.hh"
-#include "flexisip/fork-context/fork-context.hh"
 #include "flexisip/fork-context/fork-status.hh"
 #include "flexisip/module-pushnotification.hh"
-#include "flexisip/registrardb.hh"
 #include "flexisip/transaction.hh"
 
 #if ENABLE_UNIT_TESTS
@@ -34,6 +32,7 @@
 namespace flexisip {
 
 class ForkContext;
+struct ExtendedContact;
 
 /**
  * Interface for BranchInfo listener.

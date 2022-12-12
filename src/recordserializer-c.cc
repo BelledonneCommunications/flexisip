@@ -22,7 +22,7 @@
 #include <sofia-sip/sip_protos.h>
 
 #include <flexisip/common.hh>
-#include <flexisip/registrardb.hh>
+#include <flexisip/registrar/extended-contact.hh>
 
 #include "recordserializer.hh"
 

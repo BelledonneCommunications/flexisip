@@ -29,6 +29,8 @@
 
 #include <flexisip/common.hh>
 #include <flexisip/configmanager.hh>
+#include <flexisip/registrar/exceptions.hh>
+#include <flexisip/registrar/extended-contact.hh>
 
 #include "recordserializer.hh"
 #include "redis-async-script.hh"
@@ -51,6 +53,19 @@ const auto FETCH_EXPIRING_CONTACTS_SCRIPT = redis::AsyncScript<uint64_t, uint64_
     "19c02eaa010d82352e6df056e3302bc5a0a5f85b");
 
 } // namespace
+
+namespace flexisip {
+
+ostream& operator<<(ostream& out, const RedisArgsPacker& args) {
+	out << "RedisArgsPacker(\"";
+	for (const auto& arg : args.mArgs) {
+		out << arg << " ";
+	}
+	out << "\")";
+	return out;
+}
+
+} // namespace flexisip
 
 /******
  * RegistrarDbRedisAsync class
@@ -630,7 +645,14 @@ void RegistrarDbRedisAsync::sHandleBindStart(redisAsyncContext* ac, redisReply* 
 	/* Now update the existing Record with new SIP REGISTER and binding parameters
 	 * insertOrUpdateBinding() will do the job of contact comparison and invoke the onContactUpdated listener*/
 	LOGD("Updating Record content for key [fs:%s] with new contact(s).", context->mRecord->getKey().c_str());
-	context->mChangeSet = context->mRecord->update(context->mMsg.getSip(), context->mBindingParameters, context->listener);
+	try {
+		context->mChangeSet =
+		    context->mRecord->update(context->mMsg.getSip(), context->mBindingParameters, context->listener);
+	} catch (const InvalidCSeq&) {
+		if (context->listener) context->listener->onInvalid();
+		delete context;
+		return;
+	}
 
 	/* now submit the changes triggered by the update operation to REDIS */
 	LOGD("Sending updated content to REDIS for key [fs:%s].", context->mRecord->getKey().c_str());
@@ -711,6 +733,8 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RedisRegisterContext* contex
 		                                          context, hDelArgs.getArgCount(), hDelArgs.getCArgs(),
 		                                          hDelArgs.getArgSizes()),
 		                    context);
+
+		SLOGD << hDelArgs;
 	}
 
 	/* Update or set new ones */
@@ -725,6 +749,8 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RedisRegisterContext* contex
 		                                          context, hSetArgs.getArgCount(), hSetArgs.getCArgs(),
 		                                          hSetArgs.getArgSizes()),
 		                    context);
+
+		SLOGD << hSetArgs;
 	}
 
 	LOGD("Binding %s [%i] contact sets, [%i] contacts removed.", key.c_str(), setCount, delCount);
@@ -789,14 +815,14 @@ void RegistrarDbRedisAsync::doBind(const MsgSip& msg,
 	// - push the new record to redis by commiting changes to apply (set or remove).
 	// - notify the onRecordFound().
 
-	RedisRegisterContext* context = new RedisRegisterContext(this, msg, parameters, listener);
-
 	if (!isConnected() && !connect()) {
 		LOGE("Not connected to redis server");
-		if (context->listener) context->listener->onError();
-		delete context;
+		if (listener) listener->onError();
 		return;
 	}
+
+	RedisRegisterContext* context = new RedisRegisterContext(this, msg, parameters, listener);
+
 	check_redis_command(redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleBindStart,
 	                                      context, "HGETALL fs:%s", context->mRecord->getKey().c_str()),
 	                    context);

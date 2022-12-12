@@ -25,7 +25,10 @@
 #include <sofia-sip/sip.h>
 
 #include "flexisip/agent.hh"
-#include "flexisip/registrardb.hh"
+#include "flexisip/registrar/binding-parameters.hh"
+#include "flexisip/registrar/change-set.hh"
+#include "flexisip/registrar/listeners.hh"
+#include "flexisip/registrar/registrar-db.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
 
 #include "recordserializer.hh"
@@ -134,6 +137,8 @@ public:
 	size_t getArgCount() const {
 		return mCArgs.size();
 	}
+
+	friend std::ostream& operator<<(std::ostream& out, const RedisArgsPacker& args);
 
 private:
 	void addArg(const std::string& arg) {

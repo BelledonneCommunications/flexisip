@@ -24,6 +24,7 @@
 #include <memory>
 
 #include <flexisip/logmanager.hh>
+#include <flexisip/registrar/extended-contact.hh>
 
 #include "../recordserializer.hh"
 

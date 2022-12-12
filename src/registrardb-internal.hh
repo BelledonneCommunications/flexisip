@@ -1,6 +1,6 @@
 /*
         Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2012  Belledonne Communications SARL.
+    Copyright (C) 2010-2023 Belledonne Communications SARL.
     Author: Guillaume Beraudo
 
     This program is free software: you can redistribute it and/or modify
@@ -10,17 +10,22 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #pragma once
 
-#include <flexisip/registrardb.hh>
+#include <flexisip/registrar/registrar-db.hh>
+
 #include <sofia-sip/sip.h>
+
+namespace sofiasip {
+class MsgSip;
+}
 
 namespace flexisip {
 
@@ -34,10 +39,10 @@ public:
 	                           std::function<void(std::vector<ExtendedContact>&&)>&& callback) const override;
 
 private:
-	void doBind(const MsgSip& msg,
+	void doBind(const sofiasip::MsgSip& msg,
 	            const BindingParameters& parameters,
 	            const std::shared_ptr<ContactUpdateListener>& listener) override;
-	void doClear(const MsgSip& msg, const std::shared_ptr<ContactUpdateListener>& listener) override;
+	void doClear(const sofiasip::MsgSip& msg, const std::shared_ptr<ContactUpdateListener>& listener) override;
 	void doFetch(const SipUri& url, const std::shared_ptr<ContactUpdateListener>& listener) override;
 	void doFetchInstance(const SipUri& url,
 	                     const std::string& uniqueId,

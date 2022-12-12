@@ -23,7 +23,6 @@
 
 #include "flexisip/configmanager.hh"
 #include "flexisip/module-pushnotification.hh"
-#include "flexisip/registrardb.hh"
 
 #include "pushnotification/firebase/firebase-client.hh"
 
@@ -305,6 +304,7 @@ protected:
 		BindingParameters params;
 		params.globalExpire = 5;
 		params.callId = "bob";
+		params.cSeq = 0;
 
 		sip_contact_t* ct;
 
@@ -312,6 +312,7 @@ protected:
 			listener->mRecord.reset();
 			ct = sip_contact_create(home, (url_string_t*)contact, args..., nullptr);
 			regDb->bind(from, ct, params, listener);
+			params.cSeq++;
 			return waitFor([listener]() { return listener->mRecord != nullptr; }, 1s);
 		};
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2022 Belledonne Communications SARL
+ * Copyright (C) 2010-2023 Belledonne Communications SARL
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -8,7 +8,7 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
@@ -20,10 +20,11 @@
 
 #include <linphone++/linphone.hh>
 
-#include "flexisip/agent.hh"
-#include "flexisip/configmanager.hh"
-#include "flexisip/registrardb.hh"
-#include "flexisip/sofia-wrapper/su-root.hh"
+#include <flexisip/agent.hh>
+#include <flexisip/configmanager.hh>
+#include <flexisip/registrar/binding-parameters.hh>
+#include <flexisip/registrar/registrar-db.hh>
+#include <flexisip/sofia-wrapper/su-root.hh>
 
 #include "conference/conference-server.hh"
 #include "registration-events/client.hh"

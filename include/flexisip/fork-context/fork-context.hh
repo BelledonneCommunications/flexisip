@@ -22,8 +22,7 @@
 
 #include "flexisip/agent.hh"
 #include "flexisip/event.hh"
-#include "flexisip/fork-context/branch-info.hh"
-#include "flexisip/registrardb.hh"
+#include "flexisip/registrar/extended-contact.hh"
 #include "flexisip/transaction.hh"
 
 #include "pushnotification/pushnotification-context-observer.hh"

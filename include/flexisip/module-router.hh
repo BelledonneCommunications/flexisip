@@ -22,7 +22,8 @@
 
 #include "flexisip/agent.hh"
 #include "flexisip/module.hh"
-#include "flexisip/registrardb.hh"
+#include "flexisip/registrar/record.hh"
+#include "flexisip/registrar/listeners.hh"
 #include "router/injector.hh"
 
 namespace flexisip {

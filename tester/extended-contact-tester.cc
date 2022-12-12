@@ -2,8 +2,10 @@
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include "flexisip/registrardb.hh"
-#include "flexisip/sofia-wrapper/su-root.hh"
+#include <flexisip/agent.hh>
+#include <flexisip/registrar/extended-contact.hh>
+#include <flexisip/registrar/registrar-db.hh>
+#include <flexisip/sofia-wrapper/su-root.hh>
 
 #include "tester.hh"
 #include "utils/test-suite.hh"

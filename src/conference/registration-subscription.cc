@@ -16,6 +16,10 @@
  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <flexisip/registrar/registrar-db.hh>
+#include <flexisip/registrar/record.hh>
+#include <flexisip/registrar/extended-contact.hh>
+
 #include "conference-server.hh"
 
 #include "registration-subscription.hh"

@@ -16,7 +16,8 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <flexisip/registrardb.hh>
+#include <flexisip/utils/sip-uri.hh>
+#include <flexisip/registrar/registrar-db.hh>
 
 #include "registrar/listener.hh"
 

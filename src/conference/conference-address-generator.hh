@@ -20,6 +20,9 @@
 
 #include <linphone++/linphone.hh>
 
+#include <flexisip/registrar/listeners.hh>
+#include <flexisip/sofia-wrapper/home.hh>
+
 namespace flexisip {
 
 class ConferenceServer;
