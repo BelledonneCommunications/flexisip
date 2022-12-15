@@ -22,7 +22,6 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <unordered_map>
 
 #include <sofia-sip/url.h>
 
@@ -191,11 +190,11 @@ public:
 	void removeParam(const std::string& paramName);
 
 	TlsConfigInfo getTlsConfigInfo() const;
-
-	/**
-	 * Strictly compare all the components of the URL
-	 */
-	bool compareAll(const Url& other) const;
+	
+	bool operator==(const Url &other)const;
+	bool operator!=(const Url &other)const{
+		return !(*this == other);
+	}
 
 protected:
 	Home _home;
@@ -218,32 +217,6 @@ namespace flexisip {
 */
 class SipUri : public sofiasip::Url {
 public:
-	class Params {
-	public:
-		Params(const char* c);
-
-		bool operator==(const Params& other) const;
-		bool operator!=(const Params& other) const {
-			return !(*this == other);
-		}
-
-	private:
-		std::unordered_map<std::string, std::string> mParams{};
-	};
-
-	class Headers {
-	public:
-		Headers(const char* c);
-
-		bool operator==(const Headers& other) const;
-		bool operator!=(const Headers& other) const {
-			return !(*this == other);
-		}
-
-	private:
-		std::unordered_map<std::string, std::string> mHeaders{};
-	};
-
 	SipUri() = default;
 	/**
 	 * @throw sofiasip::InvalidUrlError if str isn't a SIP or SIPS URI.
@@ -273,15 +246,6 @@ public:
 	 * the result would be an invalid SIP URI.
 	 */
 	SipUri replaceUser(const std::string& newUser) const;
-
-	/**
-	 * True if this URI is the same as the other according to RFC 3261.
-	 * https://www.rfc-editor.org/rfc/rfc3261.html#section-19.1.4
-	 */
-	bool rfc3261Compare(const url_t* other) const;
-	bool rfc3261Compare(const SipUri& other) const {
-		return rfc3261Compare(other._url);
-	}
 
 private:
 	static void checkUrl(const sofiasip::Url& url);

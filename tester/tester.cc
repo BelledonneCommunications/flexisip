@@ -121,7 +121,6 @@ void flexisip_tester_init() {
 #endif
 	bc_tester_add_suite(&register_suite);
 	bc_tester_add_suite(&registarDbSuite);
-	bc_tester_add_suite(&sip_uri_tests);
 	bc_tester_add_suite(&threadPoolSuite);
 	bc_tester_add_suite(&tls_connection_suite);
 	bc_tester_add_suite(&utilsSuite);

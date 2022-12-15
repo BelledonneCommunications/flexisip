@@ -53,7 +53,6 @@ add_executable(flexisip_tester
 	register-tester.cc
 	registrardb-tester.cc
 	registrardb-redis-tester.cc
-	sip-uri-tests.cc
 	sofia-tester.cc
 	tester.cc
 	thread-pool-tester.cc

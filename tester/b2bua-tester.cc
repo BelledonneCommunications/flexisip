@@ -409,104 +409,6 @@ static void external_provider_bridge__parse_register_authenticate() {
 	intercom.endCurrentCall(phone);
 }
 
-static void external_provider_bridge__b2bua_receives_several_forks() {
-	/* Intercom  App1  App2  sip.company1.com  B2BUA  sip.provider1.com  Phone
-	      |       |     |           |            |            |            |
-	      |-A-----|-----|--INVITE-->|            |            |            |
-	      |       |     |<-INVITE-A-|            |            |            |
-	      |       |     |           |-A1-INVITE->|            |            |
-	      |       |<----|--INVITE-A-|            |            |            |
-	      |       |     |           |-A2-INVITE->|            |            |
-	      |       |     |           |            |-B-INVITE-->|            |
-	      |       |     |           |            |            |-B-INVITE-->|
-	      |       |     |           |            |-C-INVITE-->|            |
-	      |       |     |           |            |            |-C-INVITE-->|
-	      |       |     |           |            |            |<--ACCEPT-B-|
-	      |       |     |           |            |<--ACCEPT-B-|            |
-	      |       |     |           |<-ACCEPT-A1-|            |            |
-	      |<------|-----|--ACCEPT-A-|            |            |            |
-	      |       |     |           |-A2-CANCEL->|            |            |
-	      |       |     |<-CANCEL-A-|            |            |            |
-	      |       |<----|--CANCEL-A-|            |            |            |
-	      |       |     |           |            |-C-CANCEL-->|            |
-	      |       |     |           |            |            |-C-CANCEL-->|
-	      |       |     |           |            |            |            |
-	*/
-	using namespace flexisip::b2bua;
-	auto server = std::make_shared<B2buaServer>("/config/flexisip_b2bua.conf", false);
-	{
-		auto root = GenericManager::get()->getRoot();
-		root->get<GenericStruct>("b2bua-server")->get<ConfigString>("application")->set("sip-bridge");
-		root->get<GenericStruct>("b2bua-server::sip-bridge")
-		    ->get<ConfigString>("providers")
-		    ->set("b2bua-receives-several-forks.sip-providers.json");
-		// We don't want *every* call to go through the B2BUA, only those tagged with user=phone
-		root->get<GenericStruct>("module::B2bua")
-		    ->get<ConfigValue>("filter")
-		    ->set("request.uri.params contains 'user=phone'");
-		// But we do want *all* user=phone calls to be routed to the B2BUA, even (especially) if they are not within our
-		// managed domains
-		root->get<GenericStruct>("module::Forward")
-		    ->get<ConfigValue>("routes-config-path")
-			->set(bcTesterRes("config/forward_phone_to_b2bua.rules"));
-	}
-	server->start();
-
-	// 1 Caller
-	auto intercom = CoreClient("sip:intercom@sip.company1.com", server);
-	// 1 Intended destination
-	auto address = "sip:app@sip.company1.com";
-	// 2 Bystanders used to register the same fallback contact twice.
-	auto app1 = ClientBuilder(address)
-	                .setCustomContact("sip:phone@bogus.domain.com;user=phone;some-param=used-to-make-this-unique")
-	                .registerTo(server);
-	auto app2 = ClientBuilder(address)
-	                .setCustomContact("sip:phone@bogus.domain.com;user=phone;some-param=used-to-make-this-different")
-	                .registerTo(server);
-	// 1 Client on an external domain that will answer one of the calls
-	auto phone = CoreClient("sip:phone@sip.provider1.com", server);
-	auto phoneCore = phone.getCore();
-	phoneCore->getConfig()->setBool("sip", "reject_duplicated_calls", false);
-
-	auto call = intercom.getCore()->invite(address);
-
-	// All have received the invite
-	app1.hasReceivedCallFrom(intercom).assert_passed();
-	app2.hasReceivedCallFrom(intercom).assert_passed();
-	phone.hasReceivedCallFrom(intercom).assert_passed();
-	auto phoneCalls = [&phoneCore = *phoneCore] { return phoneCore.getCalls(); };
-	BC_ASSERT_TRUE(phoneCalls().size() == 2);
-	auto asserter = CoreAssert({intercom.getCore(), phoneCore, app1.getCore(), app2.getCore()}, server->getAgent());
-	asserter
-	    .wait([&callerCall = *call] {
-		    FAIL_IF(callerCall.getState() != linphone::Call::State::OutgoingRinging);
-		    return ASSERTION_PASSED();
-	    })
-	    .assert_passed();
-
-	{ // One bridged call successfully established
-		auto bridgedCall = phoneCore->getCurrentCall();
-		bridgedCall->accept();
-		asserter
-		    .wait([&callerCall = *call, &bridgedCall = *bridgedCall] {
-			    FAIL_IF(callerCall.getState() != linphone::Call::State::StreamsRunning);
-			    FAIL_IF(bridgedCall.getState() != linphone::Call::State::StreamsRunning);
-			    return ASSERTION_PASSED();
-		    })
-		    .assert_passed();
-	}
-
-	// All others have been cancelled
-	BC_ASSERT_PTR_NULL(app1.getCore()->getCurrentCall());
-	BC_ASSERT_PTR_NULL(app2.getCore()->getCurrentCall());
-	asserter
-	    .wait([&phoneCalls] {
-		    FAIL_IF(phoneCalls().size() != 1);
-		    return ASSERTION_PASSED();
-	    })
-	    .assert_passed();
-}
-
 // Should display no memory leak when run in sanitizier mode
 static void external_provider_bridge__cli() {
 	using namespace flexisip::b2bua;
@@ -868,7 +770,6 @@ static test_t tests[] = {
     TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__load_balancing),
     TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__cli),
     TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__parse_register_authenticate),
-    TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__b2bua_receives_several_forks),
     TEST_NO_TAG("Basic", basic),
     TEST_NO_TAG("Forward Media Encryption", forward),
     TEST_NO_TAG("SDES to ZRTP call", sdes2zrtp),

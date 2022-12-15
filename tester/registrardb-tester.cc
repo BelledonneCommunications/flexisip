@@ -25,6 +25,7 @@
 #include "pushnotification/firebase/firebase-client.hh"
 
 #include "tester.hh"
+#include "utils/string-utils.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 
 using namespace std;
@@ -171,7 +172,7 @@ class MaxContactsByAorIsHonored : public RegistrarDbTest<TDatabase> {
 	}
 };
 
-class ContactsAreCorrectlyUpdatedWhenMatchedOnUri : public RegistrarDbTest<DbImplementation::Redis> {
+class SameUriButDifferentCallIdInsertsANewContact : public RegistrarDbTest<DbImplementation::Redis> {
 	class TestListener : public ContactUpdateListener {
 	public:
 		std::shared_ptr<Record> mRecord{nullptr};
@@ -197,16 +198,14 @@ class ContactsAreCorrectlyUpdatedWhenMatchedOnUri : public RegistrarDbTest<DbImp
 		const SipUri aor(contactStr);
 		BindingParameters params{};
 		params.globalExpire = 96;
-		params.callId = "insert";
+		params.callId = "insert-1";
 		const auto listener = make_shared<TestListener>();
 		regDb->bind(aor, contact, params, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 
 		listener->mRecord = nullptr;
-		params.callId = "update";
-		const auto newContact = sip_contact_create(
-		    home.home(), reinterpret_cast<const url_string_t*>((contactStr + ";new=param").c_str()), nullptr);
-		regDb->bind(aor, newContact, params, listener);
+		params.callId = "insert-2";
+		regDb->bind(aor, contact, params, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 
 		auto* ctx = redisConnect("127.0.0.1", this->dbImpl.mPort);
@@ -214,11 +213,12 @@ class ContactsAreCorrectlyUpdatedWhenMatchedOnUri : public RegistrarDbTest<DbImp
 		auto* reply = reinterpret_cast<redisReply*>(redisCommand(ctx, "HGETALL fs%s", contactBase));
 		BC_ASSERT_PTR_NOT_NULL(reply);
 		BC_ASSERT_EQUAL(reply->type, REDIS_REPLY_ARRAY, int, "%i");
-		BC_ASSERT_EQUAL(reply->elements, 2, int, "%i");
+		BC_ASSERT_EQUAL(reply->elements, 4, int, "%i");
+		// The call-ids are used as keys
 		BC_ASSERT_EQUAL(reply->element[0]->type, REDIS_REPLY_STRING, int, "%i");
-		BC_ASSERT_STRING_EQUAL(reply->element[0]->str, "insert");
-		BC_ASSERT_EQUAL(reply->element[1]->type, REDIS_REPLY_STRING, int, "%i");
-		BC_ASSERT_TRUE(std::string(reply->element[1]->str).find("new=param") != std::string::npos);
+		BC_ASSERT_TRUE(StringUtils::startsWith(reply->element[0]->str, "insert-"));
+		BC_ASSERT_EQUAL(reply->element[2]->type, REDIS_REPLY_STRING, int, "%i");
+		BC_ASSERT_TRUE(StringUtils::startsWith(reply->element[2]->str, "insert-"));
 		freeReplyObject(reply);
 		redisFree(ctx);
 	}
@@ -301,21 +301,7 @@ protected:
 			BC_ASSERT_TRUE(listener->getRecord()->getExtendedContacts().size() == 1);
 			checkFetch(listener->getRecord());
 		}
-
-		/* Add this contact again (duplicated, without unique id) */
-		listener->reset();
-		params.callId = "duplicate";
-		ct = sip_contact_create(home.home(), (url_string_t*)"sip:bobby@192.168.0.2;transport=tcp;new-param=added",
-		                        nullptr);
-		regDb->bind(from, ct, params, listener);
-		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
-		if (listener->getRecord()) {
-			auto contacts = listener->getRecord()->getExtendedContacts();
-			BC_ASSERT_TRUE(contacts.size() == 1);
-			BC_ASSERT_STRING_EQUAL(contacts.front()->mSipContact->m_url->url_params, "transport=tcp;new-param=added");
-			checkFetch(listener->getRecord());
-		}
-
+		
 		/* Remove this contact with an expire parameter but with a different call-id */
 		listener->reset();
 		ct =
@@ -327,7 +313,7 @@ protected:
 			BC_ASSERT_TRUE(listener->getRecord()->getExtendedContacts().size() == 0);
 			checkFetch(listener->getRecord());
 		}
-
+		
 		/* Add a contact with a unique id */
 		from = SipUri("sip:alice@example.net");
 		listener->reset();
@@ -336,9 +322,7 @@ protected:
 		regDb->bind(from, ct, params, listener);
 		BC_ASSERT_TRUE(waitFor([listener]() { return listener->getRecord() != nullptr; }, 1s));
 		if (listener->getRecord()) {
-			auto contacts = listener->getRecord()->getExtendedContacts();
-			BC_ASSERT_TRUE(contacts.size() == 1);
-			BC_ASSERT_TRUE(contacts.front()->getUniqueId() == "\"<urn::uuid::abcd>\"");
+			BC_ASSERT_TRUE( listener->getRecord()->getExtendedContacts().size() == 1);
 			checkFetch(listener->getRecord());
 		}
 
@@ -355,7 +339,19 @@ protected:
 			}
 			checkFetch(listener->getRecord());
 		}
+		
 	}
+
+	// Protected methods
+	void onAgentConfiguration(GenericManager& cfg) override {
+		auto redisPort = mRedisServer.start();
+
+		auto* registrarConf = cfg.getRoot()->get<GenericStruct>("module::Registrar");
+		registrarConf->get<ConfigValue>("db-implementation")->set("redis");
+		registrarConf->get<ConfigValue>("redis-server-domain")->set("localhost");
+		registrarConf->get<ConfigValue>("redis-server-port")->set(std::to_string(redisPort));
+	}
+	RedisServer mRedisServer;
 };
 
 static test_t tests[] = {
@@ -365,8 +361,8 @@ static test_t tests[] = {
                 run<MaxContactsByAorIsHonored<DbImplementation::Internal>>),
     TEST_NO_TAG("An AOR cannot contain more than max-contacts-by-aor [Redis]",
                 run<MaxContactsByAorIsHonored<DbImplementation::Redis>>),
-    TEST_NO_TAG("Contacts are correctly updated when matched on URI [Redis]",
-                run<ContactsAreCorrectlyUpdatedWhenMatchedOnUri>),
+    TEST_NO_TAG("Registering the same contact twice with a different callid duplicates it [Redis]",
+                run<SameUriButDifferentCallIdInsertsANewContact>),
     TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with internal backend",
                 run<SubsequentUnsubscribeSubscribeTest<DbImplementation::Internal>>),
     TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with Redis backend",
