@@ -224,6 +224,58 @@ class SameUriButDifferentCallIdInsertsANewContact : public RegistrarDbTest<DbImp
 	}
 };
 
+class ContactsAreUpdatedBasedOnCallId : public RegistrarDbTest<DbImplementation::Redis> {
+	class TestListener : public ContactUpdateListener {
+	public:
+		std::shared_ptr<Record> mRecord{nullptr};
+
+		virtual void onRecordFound(const std::shared_ptr<Record>& r) override {
+			mRecord = r;
+		}
+		virtual void onError() override {
+		}
+		virtual void onInvalid() override {
+		}
+		virtual void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+		}
+	};
+
+	void testExec() noexcept override {
+		auto* regDb = RegistrarDb::get();
+		sofiasip::Home home{};
+		const auto contactBase = ":update-test@example.org";
+		const auto contactStr = "sip"s + contactBase;
+		const auto contact =
+		    sip_contact_create(home.home(), reinterpret_cast<const url_string_t*>(contactStr.c_str()), nullptr);
+		const SipUri aor(contactStr);
+		BindingParameters params{};
+		params.globalExpire = 2256;
+		params.callId = "update-based-on-callid";
+		const auto listener = make_shared<TestListener>();
+		regDb->bind(aor, contact, params, listener);
+		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
+
+		listener->mRecord = nullptr;
+		const auto newContact = sip_contact_create(
+		    home.home(), reinterpret_cast<const url_string_t*>("sip:completely-different@example.com"), nullptr);
+		regDb->bind(aor, newContact, params, listener);
+		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
+
+		auto* ctx = redisConnect("127.0.0.1", this->dbImpl.mPort);
+		BC_ASSERT_TRUE(ctx && !ctx->err);
+		auto* reply = reinterpret_cast<redisReply*>(redisCommand(ctx, "HGETALL fs%s", contactBase));
+		BC_ASSERT_PTR_NOT_NULL(reply);
+		BC_ASSERT_EQUAL(reply->type, REDIS_REPLY_ARRAY, int, "%i");
+		BC_ASSERT_EQUAL(reply->elements, 2, int, "%i");
+		BC_ASSERT_EQUAL(reply->element[0]->type, REDIS_REPLY_STRING, int, "%i");
+		BC_ASSERT_STRING_EQUAL(reply->element[0]->str, "update-based-on-callid");
+		BC_ASSERT_EQUAL(reply->element[1]->type, REDIS_REPLY_STRING, int, "%i");
+		BC_ASSERT_TRUE(std::string(reply->element[1]->str).find("completely-different") != std::string::npos);
+		freeReplyObject(reply);
+		redisFree(ctx);
+	}
+};
+
 class RegistrarTester : public RegistrarDbTest<DbImplementation::Redis> {
 
 protected:
@@ -363,6 +415,7 @@ static test_t tests[] = {
                 run<MaxContactsByAorIsHonored<DbImplementation::Redis>>),
     TEST_NO_TAG("Registering the same contact twice with a different callid duplicates it [Redis]",
                 run<SameUriButDifferentCallIdInsertsANewContact>),
+    TEST_NO_TAG("Contacts are updated based on CallID [Redis]", run<ContactsAreUpdatedBasedOnCallId>),
     TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with internal backend",
                 run<SubsequentUnsubscribeSubscribeTest<DbImplementation::Internal>>),
     TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with Redis backend",
