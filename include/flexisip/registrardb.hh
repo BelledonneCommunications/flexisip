@@ -94,8 +94,8 @@ struct ExtendedContact {
 	const char *route() const {return (mPath.empty() ? nullptr : mPath.cbegin()->c_str());}
 	const char *userAgent() const {return mUserAgent.c_str();}
 	const std::string &getUserAgent() const {return mUserAgent;}
-	bool isExpired()const{
-		return mUpdatedTime >= mExpireAt;
+	bool isExpired(time_t now)const{
+		return now >= mExpireAt;
 	}
 
 	static int resolveExpire(const char *contact_expire, int global_expire) {
@@ -239,6 +239,15 @@ class Record {
 	//Get address of record
 	const SipUri &getAor() const {return mAor;}
 
+	/*
+	 * This function updates the Record with the supplied new ExtendedContact.
+	 * It may:
+	 * - replace an existing contact with the new one.
+	 * - remove an existing contact if the new one has expires=0
+	 * - add this new contact.
+	 * Additionally, during this processing it automatically cleans expired contacts.
+	 * The change lists (mContactsToAddOrUpdate / mContactsToRemove) are updated accordingly.
+	 */
 	void insertOrUpdateBinding(const std::shared_ptr<ExtendedContact> &ec, const std::shared_ptr<ContactUpdateListener> &listener);
 	const std::shared_ptr<ExtendedContact> extractContactByUniqueId(const std::string &uid) const;
 	sip_contact_t *getContacts(su_home_t *home, time_t now);
@@ -263,7 +272,8 @@ class Record {
 	const std::list<std::shared_ptr<ExtendedContact>> &getExtendedContacts() const {return mContacts;}
 	const std::list<std::shared_ptr<ExtendedContact>> &getContactsToRemove() const {return mContactsToRemove;}
 	const std::list<std::shared_ptr<ExtendedContact>> &getContactsToAddOrUpdate() const {return mContactsToAddOrUpdate;}
-	void clearChangeLists() {mContactsToRemove.clear(); mContactsToAddOrUpdate.clear();}
+	void clearAddOrUpdateList() { mContactsToAddOrUpdate.clear();}
+	void clearChangeLists() { mContactsToAddOrUpdate.clear(); mContactsToRemove.clear();}
 
 	/*
 	 * Synthetise the pub-gruu address from an extended contact belonging to this Record.

@@ -626,6 +626,13 @@ void RegistrarDbRedisAsync::sHandleBindStart(redisAsyncContext *ac, redisReply *
 	LOGD("Got current Record content for key [fs:%s].", context->mRecord->getKey().c_str()); 
 	//Parse the fetched reply into the Record object (context->mRecord)
 	context->self->parseAndClean(reply, context);
+	/* updateFromUrlEncodedParams() invoked from parseAndClean() has added contacts to the Record, that are automatically
+	 * tracked into the mContactsToAddOrUpdate field of the Record (that was empty in memory previously).
+	 * updateFromUrlEncodedParams() also removed expired contacts, that are tracked into the mContactsToRemove field,
+	 * so that we can eliminate them from Redis subsequently.
+	 * However, it makes no sense to re-add the contacts that were already in REDIS, so clear the mContactsToAddOrUpdate list.
+	 */
+	context->mRecord->clearAddOrUpdateList();
 
 	/* Now update the existing Record with new SIP REGISTER and binding parameters 
 	 * insertOrUpdateBinding() will do the job of contact comparison and invoke the onContactUpdated listener*/
@@ -820,11 +827,6 @@ void RegistrarDbRedisAsync::parseAndClean(redisReply *reply, RedisRegisterContex
 			LOGE("This contact could not be parsed.");
 		}
 	}
-	/* Start recording deleted/added or modified contacts from now on */
-	context->mRecord->clearChangeLists();
-
-	time_t now = getCurrentTime();
-	context->mRecord->clean(now, context->listener);
 }
 
 void RegistrarDbRedisAsync::doClear(const MsgSip &msg, const shared_ptr<ContactUpdateListener> &listener) {
@@ -864,6 +866,7 @@ void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RedisRegisterContext 
 		LOGD("GOT fs:%s [%lu] --> %lu contacts", key, context->token, (reply->elements / 2));
 		if (reply->elements > 0) {
 			parseAndClean(reply, context);
+			context->mRecord->clearChangeLists(); // change lists are useless for a fetch operation.
 			if (context->listener) context->listener->onRecordFound(context->mRecord);
 			delete context;
 		} else {
@@ -878,8 +881,7 @@ void RegistrarDbRedisAsync::handleFetch(redisReply *reply, RedisRegisterContext 
 		if (reply->len > 0) {
 			LOGD("GOT fs:%s [%lu] for gruu %s --> %s", key, context->token, gruu, reply->str);
 			context->mRecord->updateFromUrlEncodedParams(gruu, reply->str, context->listener);
-			time_t now = getCurrentTime();
-			context->mRecord->clean(now, context->listener);
+			context->mRecord->clearChangeLists(); // change lists are useless for a fetch operation.
 			if (context->listener) context->listener->onRecordFound(context->mRecord);
 		} else {
 			LOGD("Contact matching gruu %s in record fs:%s not found", gruu, key);

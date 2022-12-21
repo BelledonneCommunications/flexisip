@@ -51,7 +51,7 @@ ostream &ExtendedContact::print(ostream &stream, time_t _now, time_t _offset) co
 	if (ptm != nullptr) {
 		strftime(buffer, sizeof(buffer) - 1, "%c", ptm);
 	}
-	int expireAfter = mExpireNotAtMessage - now;
+	long expireAfter = mExpireNotAtMessage - now;
 
 	stream << urlToString(mSipContact->m_url) << " path=\"";
 	for (auto it = mPath.cbegin(); it != mPath.cend(); ++it) {
@@ -250,6 +250,7 @@ SipUri Record::makeUrlFromKey(const string &key) {
 
 void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const shared_ptr<ContactUpdateListener> &listener) {
 	time_t now = time(NULL);
+	bool matched = false;
 
 	SLOGD << "Updating record with contact " << *ec;
 
@@ -259,7 +260,8 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 	}
 	for (auto it = mContacts.begin(); it != mContacts.end();) {
 		if (!(*it)->mUniqueId.empty() && (*it)->mUniqueId == ec->mUniqueId) {
-			if (ec->isExpired()){
+			matched = true;
+			if (ec->isExpired(now)){
 				SLOGD << "Contact removed based on unique id";
 				mContactsToRemove.push_back(*it);
 			}else{
@@ -268,7 +270,8 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 			if (listener) listener->onContactUpdated(*it);
 			it = mContacts.erase(it);
 		} else if ((*it)->mUniqueId.empty() && (*it)->callId() && (*it)->mCallId == ec->mCallId) {
-			if (ec->isExpired()){
+			matched = true;
+			if (ec->isExpired(now)){
 				SLOGD << "Contact removed based on Call-ID";
 				mContactsToRemove.push_back(*it);
 			}else{
@@ -278,6 +281,7 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 			it = mContacts.erase(it);
 		} else if ((*it)->mPushParamList == ec->mPushParamList) {
 			if((*it)->mUpdatedTime < ec->mUpdatedTime) {
+				matched = true;
 				SLOGD << "Removing contact [" << (*it)->contactId() << "] with push param in common : new[" << ec->mPushParamList << "], actual["
 				      << (*it)->mPushParamList << "]";
 				mContactsToRemove.push_back(*it);
@@ -286,9 +290,10 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 				SLOGW << "Inserted contact has same push parameters of another more recent contact, this should not happen.";
 				++it;
 			}
-		} else if (ec->isExpired() && url_cmp_all(ec->mSipContact->m_url, (*it)->mSipContact->m_url) == 0 ){
+		} else if (ec->isExpired(now) && url_cmp_all(ec->mSipContact->m_url, (*it)->mSipContact->m_url) == 0 ){
 			/*case of ;expires=0 in contact header. Try to match the uri content directly.*/
 			SLOGD << "Contact removed based on uri match.";
+			matched = true;
 			mContactsToRemove.push_back(*it);
 			it = mContacts.erase(it);
 		} else if (now >= (*it)->mExpireAt) {
@@ -300,9 +305,12 @@ void Record::insertOrUpdateBinding(const shared_ptr<ExtendedContact> &ec, const 
 		}
 	}
 	/* Add the new contact, if not expired (ie with expires=0) */
-	if (!ec->isExpired()){
+	if (!ec->isExpired(now)){
 		mContacts.push_back(ec);
 		mContactsToAddOrUpdate.push_back(ec);
+	}else if (!matched){
+		SLOGD << "This contact is expired.";
+		mContactsToRemove.push_back(ec);
 	}
 
 	if (ec->mCallId.find("static-record") == string::npos) {

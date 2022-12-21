@@ -16,18 +16,12 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <net-snmp/net-snmp-config.h>
-#include <net-snmp/net-snmp-includes.h>
-
-#include <sofia-sip/sip.h>
-#include <sofia-sip/sip_parser.h>
-
-#include <bctoolbox/ownership.hh>
-
-#include <flexisip/sip-boolean-expressions.hh>
-
+#include "bctoolbox/ownership.hh"
+#include "flexisip/sip-boolean-expressions.hh"
 #include "conditional-routes.hh"
 #include "tester.hh"
+
+
 
 using namespace flexisip;
 using namespace flexisip::tester;
