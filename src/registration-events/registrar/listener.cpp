@@ -1,19 +1,19 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2023  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "utils/string-utils.hh"
@@ -33,33 +33,32 @@ namespace flexisip {
 namespace RegistrationEvent {
 namespace Registrar {
 
-Listener::Listener(const shared_ptr<linphone::Event> &lev): mEvent(lev) {}
+Listener::Listener(const shared_ptr<linphone::Event>& lev) : mEvent(lev) {
+}
 
-void Listener::onRecordFound(const shared_ptr<Record> &r) {
+void Listener::onRecordFound(const shared_ptr<Record>& r) {
 	processRecord(r, "");
 }
 
-void Listener::onContactRegistered(const shared_ptr<Record> &r, const string &uid) {
+void Listener::onContactRegistered(const shared_ptr<Record>& r, const string& uid) {
 	processRecord(r, uid);
 }
 
-void Listener::processRecord(const shared_ptr<Record> &r, const string &uidOfFreshlyRegistered) {
+void Listener::processRecord(const shared_ptr<Record>& r, const string& uidOfFreshlyRegistered) {
 	Reginfo ri(0, State::Value::full);
 
 	if (r) {
-		Registration re = Registration(
-			Uri(mEvent->getTo()->asString().c_str()),
-			r->getKey().c_str(),
-			Registration::StateType::active
-		);
+		Registration re = Registration(Uri(mEvent->getTo()->asString().c_str()), r->getKey().c_str(),
+		                               Registration::StateType::active);
 		sofiasip::Home home;
 
-		for (const shared_ptr<ExtendedContact> &ec : r->getExtendedContacts()) {
+		for (const shared_ptr<ExtendedContact>& ec : r->getExtendedContacts()) {
 			auto addr = r->getPubGruu(ec, home.home());
 			bool justRegistered = (ec->getUniqueId() == uidOfFreshlyRegistered);
 
 			Contact contact(url_as_string(home.home(), addr), Contact::StateType::active,
-				justRegistered ?  Contact::EventType::refreshed : Contact::EventType::registered, url_as_string(home.home(), addr));
+			                justRegistered ? Contact::EventType::refreshed : Contact::EventType::registered,
+			                url_as_string(home.home(), addr));
 
 			// expires
 			if (ec->mSipContact->m_expires) {
@@ -101,14 +100,14 @@ void Listener::processRecord(const shared_ptr<Record> &r, const string &uidOfFre
 	string body = xmlBody.str();
 
 	auto notifyContent = Factory::get()->createContent();
-	notifyContent->setBuffer((uint8_t *)body.data(), body.length());
+	notifyContent->setBuffer((uint8_t*)body.data(), body.length());
 	notifyContent->setType("application");
 	notifyContent->setSubtype("reginfo+xml");
 
 	mEvent->notify(notifyContent);
 };
 
-}
-}
+} // namespace Registrar
+} // namespace RegistrationEvent
 
-}
+} // namespace flexisip

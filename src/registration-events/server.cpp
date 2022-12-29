@@ -1,19 +1,19 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2020  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <flexisip/registrardb.hh>
@@ -29,16 +29,14 @@ namespace flexisip {
 
 namespace RegistrationEvent {
 
-static constexpr const char * CONTENT_TYPE = "application/reginfo+xml";
+static constexpr const char* CONTENT_TYPE = "application/reginfo+xml";
 
 Server::Init Server::sStaticInit; // The Init object is instanciated to load the config
 
-void Server::onSubscribeReceived(
-    const shared_ptr<Core> & lc,
-    const shared_ptr<Event> & lev,
-    const string & subscribeEvent,
-    const shared_ptr<const Content> & body
-) noexcept {
+void Server::onSubscribeReceived(const shared_ptr<Core>& lc,
+                                 const shared_ptr<Event>& lev,
+                                 const string& subscribeEvent,
+                                 const shared_ptr<const Content>& body) noexcept {
 	string eventHeader = lev->getName();
 	if (eventHeader != "reg") {
 		lev->denySubscription(Reason::BadEvent);
@@ -57,12 +55,12 @@ void Server::onSubscribeReceived(
 		SipUri url{lev->getTo()->asStringUriOnly()};
 		RegistrarDb::get()->subscribe(url, listener);
 		RegistrarDb::get()->fetch(url, listener, true);
-	} catch (const sofiasip::InvalidUrlError &e) {
+	} catch (const sofiasip::InvalidUrlError& e) {
 		SLOGE << "invalid URI in 'To' header: " << e.getUrl();
 	}
 }
 
-void Server::_init () {
+void Server::_init() {
 	mCore = Factory::get()->createCore("", "", nullptr);
 	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("regevent-server");
 
@@ -72,10 +70,11 @@ void Server::_init () {
 	string mTransport = config->get<ConfigString>("transport")->read();
 	if (mTransport.length() > 0) {
 		sofiasip::Home mHome;
-		url_t *urlTransport = url_make(mHome.home(), mTransport.c_str());
+		url_t* urlTransport = url_make(mHome.home(), mTransport.c_str());
 		if (urlTransport == nullptr || mTransport.at(0) == '<') {
 			LOGF("ConferenceServer: Your configured conference transport(\"%s\") is not an URI.\n"
-				"If you have \"<>\" in your transport, remove them.", mTransport.c_str());
+			     "If you have \"<>\" in your transport, remove them.",
+			     mTransport.c_str());
 		}
 		regEventTransport->setTcpPort(stoi(urlTransport->url_port));
 	}
@@ -85,24 +84,18 @@ void Server::_init () {
 	mCore->start();
 }
 
-void Server::_run () {
+void Server::_run() {
 	mCore->iterate();
 }
 
-void Server::_stop () {
+void Server::_stop() {
 	mCore->removeListener(shared_from_this());
 }
 
 Server::Init::Init() {
-	ConfigItemDescriptor items[] = {
-		{
-			String,
-			"transport",
-			"SIP uri on which the RegEvent server is listening on.",
-			"sip:127.0.0.1:6065;transport=tcp"
-		},
-		config_item_end
-	};
+	ConfigItemDescriptor items[] = {{String, "transport", "SIP uri on which the RegEvent server is listening on.",
+	                                 "sip:127.0.0.1:6065;transport=tcp"},
+	                                config_item_end};
 
 	auto uS = make_unique<GenericStruct>(
 	    "regevent-server",
@@ -116,6 +109,6 @@ Server::Init::Init() {
 	s->addChildrenValues(items);
 }
 
-}
+} // namespace RegistrationEvent
 
-}
+} // namespace flexisip

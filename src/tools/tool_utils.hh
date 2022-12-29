@@ -1,29 +1,31 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
 
-#include "../recordserializer.hh"
-#include <flexisip/logmanager.hh>
-#include <memory>
-#include <map>
-#include <iostream>
 #include <cstring>
+#include <iostream>
+#include <map>
+#include <memory>
+
+#include <flexisip/logmanager.hh>
+
+#include "../recordserializer.hh"
 
 #define BAD(reason)                                                                                                    \
 	do {                                                                                                               \
@@ -35,7 +37,7 @@ namespace flexisip {
 
 void init_tests() {
 	LogManager::Parameters logParams;
-	
+
 	logParams.level = BCTBX_LOG_DEBUG;
 	logParams.enableSyslog = false;
 	logParams.enableStdout = true;
@@ -45,25 +47,31 @@ void init_tests() {
 	Record::sMaxContacts = 10;
 }
 
-ExtendedContact &firstContact(const Record &r) {
+ExtendedContact& firstContact(const Record& r) {
 	return *r.getExtendedContacts().cbegin()->get();
 }
 
-std::ostream &operator<<(std::ostream &stream, const std::list<std::string> &str) {
+std::ostream& operator<<(std::ostream& stream, const std::list<std::string>& str) {
 	for (auto it = str.cbegin(); it != str.cend(); ++it) {
-		if (it != str.cbegin())
-			stream << ",";
+		if (it != str.cbegin()) stream << ",";
 		stream << *it;
 	}
 	return stream;
 }
 
-template <typename CompT> inline void check(const std::string &name, const CompT &v1, const CompT &v2) {
+template <typename CompT>
+inline void check(const std::string& name, const CompT& v1, const CompT& v2) {
 	if (v1 != v2) std::cout << name << " X" << v1 << "X / X" << v2 << "X" << std::endl;
 }
 
-bool compare(const ExtendedContact &ec1, bool alias, const ExtendedContactCommon &common, uint32_t cseq,
-			 time_t expireat, float q, const std::string &sipuri, time_t updatedTime) {
+bool compare(const ExtendedContact& ec1,
+             bool alias,
+             const ExtendedContactCommon& common,
+             uint32_t cseq,
+             time_t expireat,
+             float q,
+             const std::string& sipuri,
+             time_t updatedTime) {
 	check("alias", ec1.mAlias, alias);
 	check("callid", ec1.mCallId, common.mCallId);
 	check("line", ec1.mUniqueId.str(), common.mUniqueId);
@@ -77,13 +85,13 @@ bool compare(const ExtendedContact &ec1, bool alias, const ExtendedContactCommon
 	return true;
 }
 
-bool compare(const ExtendedContact &ec1, const ExtendedContact &ec2) {
+bool compare(const ExtendedContact& ec1, const ExtendedContact& ec2) {
 	ExtendedContactCommon ecc(ec2.mPath, ec2.mCallId, ec2.mUniqueId);
-	return compare(ec1, ec2.mAlias, ecc, ec2.mCSeq, ec2.mExpireAt, ec2.mQ, ExtendedContact::urlToString(ec2.mSipContact->m_url),
-			ec2.mUpdatedTime);
+	return compare(ec1, ec2.mAlias, ecc, ec2.mCSeq, ec2.mExpireAt, ec2.mQ,
+	               ExtendedContact::urlToString(ec2.mSipContact->m_url), ec2.mUpdatedTime);
 }
 
-bool compare(const Record &r1, const Record &r2) {
+bool compare(const Record& r1, const Record& r2) {
 	auto ec1 = r1.getExtendedContacts();
 	auto ec2 = r2.getExtendedContacts();
 	if (ec1.size() != ec2.size()) BAD("ecc size :" << ec1.size() << " / " << ec2.size());
@@ -91,10 +99,10 @@ bool compare(const Record &r1, const Record &r2) {
 	return compare(firstContact(r1), firstContact(r2));
 }
 
-sip_path_t *path_fromstl(su_home_t *h, const std::list<std::string> &path) {
-	sip_path_t *sip_path = NULL;
+sip_path_t* path_fromstl(su_home_t* h, const std::list<std::string>& path) {
+	sip_path_t* sip_path = NULL;
 	for (auto it = path.rbegin(); it != path.rend(); ++it) {
-		sip_path_t *p = sip_path_format(h, "%s", it->c_str());
+		sip_path_t* p = sip_path_format(h, "%s", it->c_str());
 		p->r_next = sip_path;
 		sip_path = p;
 	}
@@ -103,7 +111,7 @@ sip_path_t *path_fromstl(su_home_t *h, const std::list<std::string> &path) {
 }
 
 struct SofiaHome {
-	su_home_t *h;
+	su_home_t* h;
 	SofiaHome() {
 		h = new su_home_t;
 		su_home_init(h);
@@ -114,4 +122,4 @@ struct SofiaHome {
 	}
 };
 
-}
+} // namespace flexisip

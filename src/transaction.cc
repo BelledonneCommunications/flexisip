@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,11 +9,11 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <algorithm>
@@ -177,7 +177,8 @@ int OutgoingTransaction::_callback(nta_outgoing_magic_t* magic, nta_outgoing_t* 
 	if (sip != NULL) {
 		auto oagent = dynamic_pointer_cast<OutgoingAgent>(otr->shared_from_this());
 		auto msgsip = make_shared<MsgSip>(ownership::owned(nta_outgoing_getresponse(otr->mOutgoing.borrow())));
-		shared_ptr<ResponseSipEvent> sipevent = make_shared<ResponseSipEvent>(oagent, msgsip,otr->mAgent->getIncomingTport(msgsip->getMsg()));
+		shared_ptr<ResponseSipEvent> sipevent =
+		    make_shared<ResponseSipEvent>(oagent, msgsip, otr->mAgent->getIncomingTport(msgsip->getMsg()));
 
 		otr->mAgent->sendResponseEvent(sipevent);
 

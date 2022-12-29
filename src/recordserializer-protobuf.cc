@@ -1,26 +1,26 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2012  Belledonne Communications SARL.
-	Author: Guillaume Beraudo
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2023 Belledonne Communications SARL.
+    Author: Guillaume Beraudo
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <sofia-sip/sip_protos.h>
 
-#include "flexisip/common.hh"
-#include "flexisip/registrardb.hh"
+#include <flexisip/common.hh>
+#include <flexisip/registrardb.hh>
 
 #include "recordserializer.hh"
 #include "utils/string-utils.hh"
@@ -36,9 +36,8 @@ RecordSerializerPb::RecordSerializerPb() {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 }
 
-bool RecordSerializerPb::parse(const char *str, int len, Record *r) {
-	if (!str)
-		return true;
+bool RecordSerializerPb::parse(const char* str, int len, Record* r) {
+	if (!str) return true;
 
 	RecordContactListPb contacts;
 	const string container(str, len);
@@ -47,10 +46,9 @@ bool RecordSerializerPb::parse(const char *str, int len, Record *r) {
 	}
 
 	for (int i = 0; i < contacts.contact_size(); ++i) {
-		const RecordContactPb &c = contacts.contact(i);
+		const RecordContactPb& c = contacts.contact(i);
 		list<string> stlpath;
-		if (c.has_route())
-			stlpath.push_back(c.route());
+		if (c.has_route()) stlpath.push_back(c.route());
 		for (int p = 0; p < c.path_size(); ++p) {
 			stlpath.push_back(c.path(p));
 		}
@@ -63,35 +61,32 @@ bool RecordSerializerPb::parse(const char *str, int len, Record *r) {
 		/* Some Protobuf serializer versions were encoding the Contact-URI as Contact header.
 		   Workaround it by removing first and last characters if the URI is enclosed by '<>'. */
 		auto uri = c.uri();
-		if (uri.size() >= 2 && uri[0] == '<' && uri[uri.size()-1] == '>') {
-			uri = uri.substr(1, uri.size()-2);
+		if (uri.size() >= 2 && uri[0] == '<' && uri[uri.size() - 1] == '>') {
+			uri = uri.substr(1, uri.size() - 2);
 		}
 
 		ExtendedContactCommon ecc(stlpath, c.call_id().c_str(),
-				c.has_line_value_copy() ? c.line_value_copy().c_str() : NULL);
+		                          c.has_line_value_copy() ? c.line_value_copy().c_str() : NULL);
 		r->update(ecc, uri.c_str(), (time_t)c.expires_at(), c.q(), (uint32_t)c.cseq(), c.update_time(), false,
-				acceptHeaders, c.has_used_as_route() ? c.used_as_route() : false, NULL);
+		          acceptHeaders, c.has_used_as_route() ? c.used_as_route() : false, NULL);
 	}
 	return true;
 }
 
-bool RecordSerializerPb::serialize(Record *r, string &serialized, bool log) {
-	if (!r)
-		return true;
+bool RecordSerializerPb::serialize(Record* r, string& serialized, bool log) {
+	if (!r) return true;
 
 	RecordContactListPb pbContacts;
 	auto contacts = r->getExtendedContacts();
 	auto it = contacts.begin();
 	for (it = contacts.begin(); it != contacts.end(); ++it) {
 		auto ec = (*it);
-		RecordContactPb *c = pbContacts.add_contact();
+		RecordContactPb* c = pbContacts.add_contact();
 		c->set_uri(ExtendedContact::urlToString(ec->mSipContact->m_url));
 		c->set_contact_id("deprecated");
-		if (ec->line())
-			c->set_line_value_copy(ec->line());
+		if (ec->line()) c->set_line_value_copy(ec->line());
 		c->set_expires_at(ec->mExpireAt);
-		if (ec->mQ)
-			c->set_q(ec->mQ);
+		if (ec->mQ) c->set_q(ec->mQ);
 		c->set_update_time(ec->mUpdatedTime);
 		c->set_call_id(ec->callId());
 		c->set_cseq(ec->mCSeq);
@@ -104,7 +99,6 @@ bool RecordSerializerPb::serialize(Record *r, string &serialized, bool log) {
 		c->set_used_as_route(ec->mUsedAsRoute);
 	}
 
-	if (log)
-		SLOGI << "Serialized " << pbContacts.DebugString() << "initialized: " << pbContacts.IsInitialized();
+	if (log) SLOGI << "Serialized " << pbContacts.DebugString() << "initialized: " << pbContacts.IsInitialized();
 	return pbContacts.SerializeToString(&serialized);
 }
