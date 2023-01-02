@@ -461,7 +461,7 @@ void ModuleRegistrar::onLoad(const GenericStruct* mc) {
 	    [this](auto signum) {
 		    if (signum == SIGUSR1) {
 			    LOGI("Received signal triggering static records file re-read");
-			    readStaticRecords();
+			    this->readStaticRecords();
 		    } else if (signum == SIGUSR2) {
 			    LOGI("Received signal triggering fake fetch");
 			    auto listener = make_shared<FakeFetchListener>();
