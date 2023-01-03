@@ -25,7 +25,7 @@
 #include "utils/bellesip-utils.hh"
 #include "utils/test-patterns/agent-test.hh"
 
-#include "tester.hh"
+#include "utils/test-suite.hh"
 
 using namespace std;
 using namespace std::chrono;
@@ -133,13 +133,12 @@ public:
 	};
 };
 
-static test_t tests[] = {
-    TEST_NO_TAG("Dos protection module UDP ban test", run<BanTest<UDPConfig>>),
-    TEST_NO_TAG("Dos protection module TCP ban test", run<BanTest<TCPConfig>>),
-};
-
-test_suite_t moduleDosSuite = {"Module DOS unit tests",          nullptr, nullptr, nullptr, nullptr,
-                               sizeof(tests) / sizeof(tests[0]), tests};
-
+namespace {
+TestSuite _("Module DOS unit tests",
+            {
+                TEST_NO_TAG("Dos protection module UDP ban test", run<BanTest<UDPConfig>>),
+                TEST_NO_TAG("Dos protection module TCP ban test", run<BanTest<TCPConfig>>),
+            });
+}
 } // namespace tester
 } // namespace flexisip

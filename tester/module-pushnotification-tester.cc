@@ -26,6 +26,7 @@
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
 #include "utils/test-patterns/agent-test.hh"
+#include "utils/test-suite.hh"
 
 using namespace std;
 using namespace std::chrono;
@@ -782,20 +783,20 @@ constexpr test_t makeTest(const char* aName) {
 	return makeTest(aName, run<TestT>);
 }
 
-static test_t tests[] = {
-    TEST_NO_TAG("PushNotification::needsPush full covering test", needsPushTests),
-    makeTest<PushIsNotSentOnInviteWithReplacesHeader>("Push is not sent on Invite with Replaces Header"),
-    makeTest<CallInviteOnOfflineDevice<Android>>("Call invite on offline device (Android)"),
-    makeTest<CallInviteOnOfflineDevice<IOS>>("Call invite on offline device (iOS)"),
-    makeTest<CallInviteOnOfflineDevice<IOSVoIPOnly>>("Call invite on offline device (iOS, VoIP only)"),
-    makeTest<CallInviteOnOfflineDevice<IOSRemoteOnly, RingingRemotePNHandler>>(
-        "Call invite on offline device (iOS, Remote only)"),
-    makeTest<CallRemotePNCancelation>("Cancel a call notified by ringing remote push notifications"),
-    makeTest<CallInviteOnOfflineDeviceWithSamePushParams>("Push module use provider to compare push params"),
-};
-
-test_suite_t modulePushNotificationSuite = {"Module push-notification",       nullptr, nullptr, nullptr, nullptr,
-                                            sizeof(tests) / sizeof(tests[0]), tests};
-
+namespace {
+TestSuite
+    _("Module push-notification",
+      {
+          TEST_NO_TAG("PushNotification::needsPush full covering test", needsPushTests),
+          makeTest<PushIsNotSentOnInviteWithReplacesHeader>("Push is not sent on Invite with Replaces Header"),
+          makeTest<CallInviteOnOfflineDevice<Android>>("Call invite on offline device (Android)"),
+          makeTest<CallInviteOnOfflineDevice<IOS>>("Call invite on offline device (iOS)"),
+          makeTest<CallInviteOnOfflineDevice<IOSVoIPOnly>>("Call invite on offline device (iOS, VoIP only)"),
+          makeTest<CallInviteOnOfflineDevice<IOSRemoteOnly, RingingRemotePNHandler>>(
+              "Call invite on offline device (iOS, Remote only)"),
+          makeTest<CallRemotePNCancelation>("Cancel a call notified by ringing remote push notifications"),
+          makeTest<CallInviteOnOfflineDeviceWithSamePushParams>("Push module use provider to compare push params"),
+      });
+}
 } // namespace tester
 } // namespace flexisip

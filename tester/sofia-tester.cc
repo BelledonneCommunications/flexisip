@@ -18,8 +18,14 @@
 
 #include <future>
 
-#include "tester.hh"
+#include "sofia-sip/http.h"
+#include "sofia-sip/nth.h"
+#include "sofia-sip/tport_tag.h"
+
+#include "flexisip/sofia-wrapper/su-root.hh"
+
 #include "utils/test-patterns/test.hh"
+#include "utils/test-suite.hh"
 #include "utils/tls-server.hh"
 
 using namespace std;
@@ -78,17 +84,13 @@ public:
 	NthEngineWithoutSniTest() : NthEngineTest(false){};
 };
 
-auto _ = [] {
-	static test_t tests[] = {
-	    TEST_NO_TAG("Test sofia nth_engine, with TLS SNI enabled.", run<NthEngineWithSniTest>),
-	    TEST_NO_TAG("Test sofia nth_engine, with TLS SNI support disabled.", run<NthEngineWithoutSniTest>),
-	};
-	static test_suite_t sofiaSuite = {
-	    "Sofia suite", nullptr, nullptr, nullptr, nullptr, sizeof(tests) / sizeof(tests[0]), tests};
-	bc_tester_add_suite(&sofiaSuite);
-	return nullptr;
-}();
-
+namespace {
+TestSuite _("Sofia suite",
+            {
+                TEST_NO_TAG("Test sofia nth_engine, with TLS SNI enabled.", run<NthEngineWithSniTest>),
+                TEST_NO_TAG("Test sofia nth_engine, with TLS SNI support disabled.", run<NthEngineWithoutSniTest>),
+            });
+}
 } // namespace sofia_tester_suite
 } // namespace tester
 } // namespace flexisip

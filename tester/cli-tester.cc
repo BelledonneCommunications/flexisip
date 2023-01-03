@@ -18,7 +18,10 @@
 
 #include "cli.hh"
 #include "tester.hh"
+#include "utils/test-suite.hh"
 
+namespace flexisip {
+namespace tester {
 namespace cli_tests {
 
 struct TestCli : public flexisip::CommandLineInterface {
@@ -102,17 +105,19 @@ static void handler_registration_and_dispatch() {
 
 	// Cli with a shorter lifetime than the handler
 	{
-		
+
 		auto temp_listener = TestCli();
 		temp_listener.registerHandler(passthrough_handler);
 	}
 	passthrough_handler.unregister(); // No asserts, this would simply crash the program
 }
 
-static test_t tests[] = {
-    TEST_NO_TAG_AUTO_NAMED(handler_registration_and_dispatch),
-};
+namespace {
+TestSuite _("CLI",
+            {
+                TEST_NO_TAG_AUTO_NAMED(handler_registration_and_dispatch),
+            });
+}
 } // namespace cli_tests
-
-test_suite_t cli_suite = {
-    "CLI", NULL, NULL, NULL, NULL, sizeof(cli_tests::tests) / sizeof(cli_tests::tests[0]), cli_tests::tests};
+} // namespace tester
+} // namespace flexisip

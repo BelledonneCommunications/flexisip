@@ -22,6 +22,7 @@
 
 #include "conference/conference-server.hh"
 #include "tester.hh"
+#include "utils/test-suite.hh"
 
 using namespace std;
 using namespace std::chrono_literals;
@@ -62,18 +63,6 @@ public:
 	}
 };
 
-static void beforeEach() {
-	root = make_shared<sofiasip::SuRoot>();
-	agent = make_shared<Agent>(root);
-}
-
-static void afterEach() {
-	agent->unloadConfig();
-	RegistrarDb::resetDB();
-	agent.reset();
-	root.reset();
-}
-
 /**
  * Test to acknowledge that conference-server correctly bind the chat rooms from the chat rooms DB into the registrar DB
  * during its initialization.
@@ -111,9 +100,20 @@ static void chatRoomBindingOnInitTest() {
 	BC_ASSERT_EQUAL(listenerCalled, 2, int, "%i");
 }
 
-static test_t tests[] = {
-    TEST_NO_TAG("On conference server load test", chatRoomBindingOnInitTest),
-};
-
-test_suite_t conference_suite = {
-    "Conference", nullptr, nullptr, beforeEach, afterEach, sizeof(tests) / sizeof(tests[0]), tests};
+namespace {
+TestSuite _("Conference",
+            {
+                TEST_NO_TAG("On conference server load test", chatRoomBindingOnInitTest),
+            },
+            Hooks()
+                .beforeEach([] {
+	                root = make_shared<sofiasip::SuRoot>();
+	                agent = make_shared<Agent>(root);
+                })
+                .afterEach([] {
+	                agent->unloadConfig();
+	                RegistrarDb::resetDB();
+	                agent.reset();
+	                root.reset();
+                }));
+}

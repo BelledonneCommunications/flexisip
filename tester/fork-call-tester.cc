@@ -23,6 +23,7 @@
 #include "utils/asserts.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
+#include "utils/test-suite.hh"
 
 using namespace std;
 using namespace std::chrono;
@@ -185,16 +186,15 @@ static void calleeMultipleOnlineDevices() {
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 1, int, "%i");
 }
 
-static test_t tests[] = {
-    TEST_NO_TAG("Basic call -> terminate", basicCall),
-    TEST_NO_TAG("Call with early cancel", callWithEarlyCancel),
-    TEST_NO_TAG("Call an offline user, early cancel", callWithEarlyCancelCalleeOffline),
-    TEST_NO_TAG("Call an online user, with an other offline device", calleeOfflineWithOneDevice),
-    TEST_NO_TAG("Call an online user, with other idle devices", calleeMultipleOnlineDevices),
-};
-
-test_suite_t fork_call_suite = {"Fork call context suite",        nullptr, nullptr, nullptr, nullptr,
-                                sizeof(tests) / sizeof(tests[0]), tests};
-
+namespace {
+TestSuite _("Fork call context suite",
+            {
+                TEST_NO_TAG("Basic call -> terminate", basicCall),
+                TEST_NO_TAG("Call with early cancel", callWithEarlyCancel),
+                TEST_NO_TAG("Call an offline user, early cancel", callWithEarlyCancelCalleeOffline),
+                TEST_NO_TAG("Call an online user, with an other offline device", calleeOfflineWithOneDevice),
+                TEST_NO_TAG("Call an online user, with other idle devices", calleeMultipleOnlineDevices),
+            });
+}
 } // namespace tester
 } // namespace flexisip

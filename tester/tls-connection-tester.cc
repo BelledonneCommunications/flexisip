@@ -25,11 +25,13 @@
 #include "utils/tls-server.hh"
 #include "utils/transport/tls-connection.hh"
 
-#include "tester.hh"
+#include "utils/test-suite.hh"
 
 using namespace std;
 using namespace std::chrono;
-using namespace flexisip;
+
+namespace flexisip {
+namespace tester {
 
 template <typename ServerT, typename HostStr, typename PortStr>
 static std::unique_ptr<TlsConnection> makeClientFor(HostStr&& host, PortStr&& port) {
@@ -138,18 +140,22 @@ template <typename ServerT> static void readAllWithTimeoutLateResponse() {
 	readAllWithTimeoutBase<ServerT>(params);
 }
 
-static test_t tests[] = {
-    TEST_NO_TAG("TCP read", readTest<TcpServer>),
-    TEST_NO_TAG("TCP readAll with timeout", readAllWithTimeout<TcpServer>),
-    TEST_NO_TAG("TCP readAll with timeout, response from server is delayed.",
-                readAllWithTimeoutDelayedResponse<TcpServer>),
-    TEST_NO_TAG("TCP readAll with timeout, response from server is late.", readAllWithTimeoutLateResponse<TcpServer>),
-    TEST_NO_TAG("TLS read", readTest<TlsServer>),
-    TEST_NO_TAG("TLS readAll with timeout", readAllWithTimeout<TlsServer>),
-    TEST_NO_TAG("TLS readAll with timeout, response from server is delayed.",
-                readAllWithTimeoutDelayedResponse<TlsServer>),
-    TEST_NO_TAG("TLS readAll with timeout, response from server is late.", readAllWithTimeoutLateResponse<TlsServer>),
-};
-
-test_suite_t tls_connection_suite = {"TlsConnection unit tests",       nullptr, nullptr, nullptr, nullptr,
-                                     sizeof(tests) / sizeof(tests[0]), tests};
+namespace {
+TestSuite _("TlsConnection unit tests",
+            {
+                TEST_NO_TAG("TCP read", readTest<TcpServer>),
+                TEST_NO_TAG("TCP readAll with timeout", readAllWithTimeout<TcpServer>),
+                TEST_NO_TAG("TCP readAll with timeout, response from server is delayed.",
+                            readAllWithTimeoutDelayedResponse<TcpServer>),
+                TEST_NO_TAG("TCP readAll with timeout, response from server is late.",
+                            readAllWithTimeoutLateResponse<TcpServer>),
+                TEST_NO_TAG("TLS read", readTest<TlsServer>),
+                TEST_NO_TAG("TLS readAll with timeout", readAllWithTimeout<TlsServer>),
+                TEST_NO_TAG("TLS readAll with timeout, response from server is delayed.",
+                            readAllWithTimeoutDelayedResponse<TlsServer>),
+                TEST_NO_TAG("TLS readAll with timeout, response from server is late.",
+                            readAllWithTimeoutLateResponse<TlsServer>),
+            });
+}
+} // namespace tester
+} // namespace flexisip

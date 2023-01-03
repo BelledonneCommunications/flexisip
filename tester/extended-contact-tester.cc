@@ -20,6 +20,7 @@
 #include "flexisip/sofia-wrapper/su-root.hh"
 
 #include "tester.hh"
+#include "utils/test-suite.hh"
 
 using namespace flexisip;
 using namespace flexisip::tester;
@@ -28,21 +29,8 @@ using namespace std;
 static shared_ptr<sofiasip::SuRoot> root{};
 static shared_ptr<Agent> agent{};
 
-static void beforeEach() {
-	// Agent initialization (needed only because ExtendedContact::init relies on RegistrarDb::getMessageExpires)
-	root = make_shared<sofiasip::SuRoot>();
-	agent = make_shared<Agent>(root);
-}
-
-static void afterEach() {
-	agent->unloadConfig();
-	RegistrarDb::resetDB();
-	agent.reset();
-	root.reset();
-}
-
-static void qValueConstructorTest(const SipUri& inputUri, const string& inputRoute, const float inputQ,
-                                  const float expectedQ) {
+static void
+qValueConstructorTest(const SipUri& inputUri, const string& inputRoute, const float inputQ, const float expectedQ) {
 	ExtendedContact extendedContact{inputUri, inputRoute, inputQ};
 
 	BC_ASSERT_EQUAL(extendedContact.mQ, expectedQ, float, "%f");
@@ -76,9 +64,22 @@ static void qValueConstructorTests(void) {
 	                      -0.001, 0.0);
 }
 
-static test_t tests[] = {
-    TEST_NO_TAG("ExtendedContact constructor with qValue tests", qValueConstructorTests),
-};
-
-test_suite_t extended_contact_suite = {
-    "Extended contact", nullptr, nullptr, beforeEach, afterEach, sizeof(tests) / sizeof(tests[0]), tests};
+namespace {
+TestSuite _("Extended contact",
+            {
+                TEST_NO_TAG("ExtendedContact constructor with qValue tests", qValueConstructorTests),
+            },
+            Hooks()
+                .beforeEach([] {
+	                // Agent initialization (needed only because ExtendedContact::init relies on
+	                // RegistrarDb::getMessageExpires)
+	                root = make_shared<sofiasip::SuRoot>();
+	                agent = make_shared<Agent>(root);
+                })
+                .afterEach([] {
+	                agent->unloadConfig();
+	                RegistrarDb::resetDB();
+	                agent.reset();
+	                root.reset();
+                }));
+}

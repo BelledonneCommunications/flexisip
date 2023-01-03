@@ -24,10 +24,10 @@
 
 #include "pushnotification/firebase/firebase-client.hh"
 
-#include "tester.hh"
 #include "utils/redis-sync-access.hh"
 #include "utils/string-utils.hh"
 #include "utils/test-patterns/registrardb-test.hh"
+#include "utils/test-suite.hh"
 
 using namespace std;
 namespace pn = flexisip::pushnotification;
@@ -446,120 +446,19 @@ protected:
 	}
 };
 
-class ExpiredContactsArePurgedFromRedis : public RegistrarDbTest<DbImplementation::Redis> {
-	class TestListener : public ContactUpdateListener {
-	public:
-		std::shared_ptr<Record> mRecord{nullptr};
-
-		virtual void onRecordFound(const std::shared_ptr<Record>& r) override {
-			mRecord = r;
-		}
-		virtual void onError() override {
-		}
-		virtual void onInvalid() override {
-		}
-		virtual void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
-		}
-	};
-
-	void testExec() noexcept override {
-		auto* regDb = RegistrarDb::get();
-		sofiasip::Home home{};
-		const auto contactBase = ":expiration-test@example.org";
-		const auto contactStr = "sip"s + contactBase;
-		const auto contactKey = "expiration-test";
-		auto contact =
-		    sip_contact_create(home.home(), reinterpret_cast<const url_string_t*>(contactStr.c_str()), nullptr);
-		const SipUri aor(contactStr);
-		BindingParameters params{};
-		params.globalExpire = 239;
-		params.callId = contactKey;
-		const auto listener = make_shared<TestListener>();
-		regDb->bind(aor, contact, params, listener);
-		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
-
-		RedisSyncContext redis = redisConnect("127.0.0.1", this->dbImpl.mPort);
-		auto reply = redis.command("HGETALL fs%s", contactBase);
-		BC_ASSERT_EQUAL(reply->type, REDIS_REPLY_ARRAY, int, "%i");
-		BC_ASSERT_EQUAL(reply->elements, 2, int, "%i");
-		BC_ASSERT_EQUAL(reply->element[0]->type, REDIS_REPLY_STRING, int, "%i");
-		BC_ASSERT_STRING_EQUAL(reply->element[0]->str, contactKey);
-		BC_ASSERT_EQUAL(reply->element[1]->type, REDIS_REPLY_STRING, int, "%i");
-		char* serializedContact = reply->element[1]->str;
-		SLOGD << "serializedContact: " << serializedContact;
-
-		// Mangle contact update timestamp inside Redis
-		string param = "updatedAt=";
-		char* index = std::strstr(serializedContact, param.c_str()) + param.size();
-		BC_ASSERT_PTR_NOT_NULL(index);
-		*index = '0'; // Rewinding at least 31 years back, that should expire it
-
-		auto insert = redis.command("HMSET fs%s %s %s", contactBase, contactKey, serializedContact);
-		BC_ASSERT_EQUAL(insert->type, REDIS_REPLY_STATUS, int, "%i");
-		BC_ASSERT_STRING_EQUAL(insert->str, "OK");
-
-		listener->mRecord.reset();
-		regDb->fetch(aor, listener);
-		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
-		{
-			/* The contact is seen as expired, so the record shall be empty,
-			 because expired Contact are filtered out.*/
-			auto& contacts = listener->mRecord->getExtendedContacts();
-			BC_ASSERT_EQUAL(contacts.size(), 0, int, "%d");
-		}
-		/* However, it is still present in REDIS, because a fetch() operation does not write anything to the database.
-		 * Only bind() can clean and write the cleaned Record.*/
-
-		listener->mRecord.reset();
-		params.callId = "trigger-cleanup";
-		contact = sip_contact_create(home.home(),
-		                             reinterpret_cast<const url_string_t*>("sip:trigger-cleanup@example.org"), nullptr);
-		/* Perform a bind() with a new contact. The expired contact shall now disapear from REDIS */
-		regDb->bind(aor, contact, params, listener);
-		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
-		{
-			auto& contacts = listener->mRecord->getExtendedContacts();
-			BC_ASSERT_EQUAL(contacts.size(), 1, int, "%d");
-		}
-		/* The "trigger-cleanup" contact shall be the only remaning one. */
-		{
-			auto reply = redis.command("HGETALL fs%s", contactBase);
-			BC_ASSERT_EQUAL(reply->type, REDIS_REPLY_ARRAY, int, "%i");
-			BC_ASSERT_EQUAL(reply->elements, 2, int, "%i");
-			BC_ASSERT_EQUAL(reply->element[0]->type, REDIS_REPLY_STRING, int, "%i");
-			BC_ASSERT_STRING_EQUAL(reply->element[0]->str, "trigger-cleanup");
-			BC_ASSERT_EQUAL(reply->element[1]->type, REDIS_REPLY_STRING, int, "%i");
-			BC_ASSERT_PTR_NOT_NULL(std::strstr(reply->element[1]->str, "sip:trigger-cleanup@example.org"));
-		}
-	}
-};
-
-static test_t tests[] = {
-    TEST_NO_TAG("Expired contacts are purged from Redis", run<ExpiredContactsArePurgedFromRedis>),
-    TEST_NO_TAG("Fetch expiring contacts on Redis", run<TestFetchExpiringContacts<DbImplementation::Redis>>),
-    TEST_NO_TAG("Fetch expiring contacts in Internal DB", run<TestFetchExpiringContacts<DbImplementation::Internal>>),
-    TEST_NO_TAG("An AOR cannot contain more than max-contacts-by-aor [Internal]",
-                run<MaxContactsByAorIsHonored<DbImplementation::Internal>>),
-    TEST_NO_TAG("An AOR cannot contain more than max-contacts-by-aor [Redis]",
-                run<MaxContactsByAorIsHonored<DbImplementation::Redis>>),
-    TEST_NO_TAG("Registering the same contact twice with a different callid duplicates it [Redis]",
-                run<SameUriButDifferentCallIdInsertsANewContact>),
-    TEST_NO_TAG("Contacts are updated based on CallID [Redis]", run<ContactsAreUpdatedBasedOnCallId>),
-    TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with internal backend",
-                run<SubsequentUnsubscribeSubscribeTest<DbImplementation::Internal>>),
-    TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with Redis backend",
-                run<SubsequentUnsubscribeSubscribeTest<DbImplementation::Redis>>),
-    TEST_NO_TAG("Registrations with Redis backend", run<RegistrarTester>)};
-
-test_suite_t registarDbSuite = {
-    "RegistrarDB",                    // Suite name
-    nullptr,                          // Before suite
-    nullptr,                          // After suite
-    nullptr,                          // Before each test
-    nullptr,                          // After each test
-    sizeof(tests) / sizeof(tests[0]), // test array length
-    tests                             // test array
-};
-
+namespace {
+TestSuite
+    _("RegistrarDB",
+      {
+          TEST_NO_TAG("Fetch expiring contacts on Redis", run<TestFetchExpiringContacts<DbImplementation::Redis>>),
+          TEST_NO_TAG("Fetch expiring contacts in Internal DB",
+                      run<TestFetchExpiringContacts<DbImplementation::Internal>>),
+          TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with internal backend",
+                      run<SubsequentUnsubscribeSubscribeTest<DbImplementation::Internal>>),
+          TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with Redis backend",
+                      run<SubsequentUnsubscribeSubscribeTest<DbImplementation::Redis>>),
+          TEST_NO_TAG("Registrations with Redis backend", run<RegistrarTester>),
+      });
+}
 } // namespace tester
 } // namespace flexisip

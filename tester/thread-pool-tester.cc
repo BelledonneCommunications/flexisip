@@ -16,8 +16,8 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "tester.hh"
 #include "utils/test-patterns/test.hh"
+#include "utils/test-suite.hh"
 #include "utils/thread/auto-thread-pool.hh"
 #include "utils/thread/basic-thread-pool.hh"
 
@@ -109,13 +109,12 @@ private:
 	std::condition_variable mCondition{};
 };
 
-static test_t tests[] = {
-    TEST_NO_TAG("BasicThreadPool testing", run<ThreadPoolTest<BasicThreadPool>>),
-    TEST_NO_TAG("AutoThreadPool testing", run<ThreadPoolTest<AutoThreadPool>>),
-};
-
-test_suite_t threadPoolSuite = {
-    "Thread pool tests", nullptr, nullptr, nullptr, nullptr, sizeof(tests) / sizeof(tests[0]), tests};
-
+namespace {
+TestSuite _("Thread pool tests",
+            {
+                TEST_NO_TAG("BasicThreadPool testing", run<ThreadPoolTest<BasicThreadPool>>),
+                TEST_NO_TAG("AutoThreadPool testing", run<ThreadPoolTest<AutoThreadPool>>),
+            });
+}
 } // namespace tester
 } // namespace flexisip

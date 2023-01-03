@@ -43,7 +43,6 @@ add_executable(flexisip_tester
 	${CMAKE_CURRENT_BINARY_DIR}/flexisip-tester-config.hh flexisip-tester-config.hh.in
 	fork-call-tester.cc
 	fork-context-tester.cc
-	fork-context-mysql-tester.cc
 	module-dos-tester.cc
 	module-info-tester.cc
 	module-pushnotification-tester.cc
@@ -78,6 +77,12 @@ if (ENABLE_CONFERENCE)
 	target_sources(flexisip_tester PRIVATE registration-event-tester.cc)
 	target_sources(flexisip_tester PRIVATE conference-tester.cc)
 endif ()
+
+if (ENABLE_UNIT_TESTS_MYSQL)
+	target_sources(flexisip_tester PRIVATE
+		fork-context-mysql-tester.cc
+	)
+endif(ENABLE_UNIT_TESTS_MYSQL)
 
 if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
 	target_sources(flexisip_tester PRIVATE push-notification-tester.cc utils/pns-mock.cc)

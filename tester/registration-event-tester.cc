@@ -31,6 +31,7 @@
 #include "tester.hh"
 #include "utils/asserts.hh"
 #include "utils/core-assert.hh"
+#include "utils/test-suite.hh"
 
 using namespace std;
 using namespace linphone;
@@ -339,12 +340,12 @@ static void basic() {
 	BC_ASSERT_TRUE(participantsTest.back()->getAddress()->asString() == participantRebindFrom);
 }
 
-static test_t tests[] = {
-    TEST_NO_TAG("Basic sub", basic),
-};
-
-test_suite_t registration_event_suite = {
-    "Registration Event", NULL, NULL, NULL, NULL, sizeof(tests) / sizeof(tests[0]), tests};
-
+namespace {
+TestSuite::Disabled // Remove the "Disabled" suffix when the 'Registration Event' suite is fixed.
+    _("Registration Event",
+      {
+          TEST_NO_TAG("Basic sub", basic),
+      });
+}
 } // namespace tester
 } // namespace flexisip

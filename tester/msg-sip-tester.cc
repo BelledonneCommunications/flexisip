@@ -16,8 +16,11 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "tester.hh"
+#include "flexisip/logmanager.hh"
+#include "flexisip/sofia-wrapper/msg-sip.hh"
+
 #include "utils/test-patterns/test.hh"
+#include "utils/test-suite.hh"
 
 using namespace std;
 
@@ -236,12 +239,11 @@ public:
 	}
 };
 
-static test_t tests[] = {
-    TEST_NO_TAG("Test the MsgSip stream insertion operator.", run<MsgSipLogTest>),
-};
-
-test_suite_t msgSipSuite = {
-    "MsgSip unit tests", nullptr, nullptr, nullptr, nullptr, sizeof(tests) / sizeof(tests[0]), tests};
-
+namespace {
+TestSuite _("MsgSip unit tests",
+            {
+                TEST_NO_TAG("Test the MsgSip stream insertion operator.", run<MsgSipLogTest>),
+            });
+}
 } // namespace tester
 } // namespace flexisip

@@ -20,6 +20,7 @@
 #include "flexisip/sip-boolean-expressions.hh"
 #include "conditional-routes.hh"
 #include "tester.hh"
+#include "utils/test-suite.hh"
 
 
 
@@ -89,20 +90,6 @@ static const char* raw_request_4 = "SUBSCRIBE sip:choupinette@sip.example.org;us
 							"Max-Forwards: 70\r\n"\
 							"User-Agent: Linphone/12.0\r\n"\
 							"Content-Length: 0\r\n\r\n123456789";
-
-static int beforeSuite(){
-	sipRequest = msg_make(sip_default_mclass(), 0, raw_request, strlen(raw_request));
-	sipResponse = msg_make(sip_default_mclass(), 0, raw_response, strlen(raw_response));
-	return 0;
-}
-
-static int afterSuite(){
-	msg_unref(sipRequest);
-	msg_unref(sipResponse);
-	sipRequest = nullptr;
-	sipResponse = nullptr;
-	return 0;
-}
 
 static const sip_t & getRequest(){
 	return *(sip_t*) msg_object(sipRequest);
@@ -310,21 +297,24 @@ static void route_condition_map(void){
 	}
 }
 
-
-static test_t tests[] = {
-	TEST_NO_TAG("Basic expression", basic_expression),
-	TEST_NO_TAG("Basic message inspection", basic_message_inspection),
-	TEST_NO_TAG("More complex expressions", complex_expressions),
-	TEST_NO_TAG("Invalid expressions", invalid_expressions),
-	TEST_NO_TAG("Route-condition map", route_condition_map)
-};
-
-test_suite_t boolean_expressions_suite = {
-	"Boolean expressions",
-	beforeSuite,
-	afterSuite,
-	NULL,
-	NULL,
-	sizeof(tests) / sizeof(tests[0]),
-	tests
-};
+namespace {
+TestSuite _("Boolean expressions",
+            {TEST_NO_TAG("Basic expression", basic_expression),
+             TEST_NO_TAG("Basic message inspection", basic_message_inspection),
+             TEST_NO_TAG("More complex expressions", complex_expressions),
+             TEST_NO_TAG("Invalid expressions", invalid_expressions),
+             TEST_NO_TAG("Route-condition map", route_condition_map)},
+            Hooks()
+                .beforeSuite([] {
+	                sipRequest = msg_make(sip_default_mclass(), 0, raw_request, strlen(raw_request));
+	                sipResponse = msg_make(sip_default_mclass(), 0, raw_response, strlen(raw_response));
+	                return 0;
+                })
+                .afterSuite([] {
+	                msg_unref(sipRequest);
+	                msg_unref(sipResponse);
+	                sipRequest = nullptr;
+	                sipResponse = nullptr;
+	                return 0;
+                }));
+}

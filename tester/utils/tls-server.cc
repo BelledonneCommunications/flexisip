@@ -18,6 +18,8 @@
 
 #include <thread>
 
+#include "bctoolbox/tester.h"
+
 #include "flexisip/logmanager.hh"
 
 #include "flexisip-tester-config.hh"

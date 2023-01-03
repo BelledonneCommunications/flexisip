@@ -22,8 +22,10 @@
 #include <flexisip/agent.hh>
 #include <flexisip/module-router.hh>
 
+#include "flexisip-tester-config.hh"
 #include "tester.hh"
 #include "utils/bellesip-utils.hh"
+#include "utils/test-suite.hh"
 
 using namespace std;
 using namespace std::chrono_literals;
@@ -98,24 +100,6 @@ private:
 	int mExpectedNumberOfContact = 0;
 	string mMustBePresentUuid{};
 };
-
-static void beforeEach() {
-	responseReceived = 0;
-	expectedResponseReceived = 0;
-	bidingDone = 0;
-	expectedBidingDone = 0;
-	fetchingDone = 0;
-	expectedFetchingDone = 0;
-	root = make_shared<sofiasip::SuRoot>();
-	agent = make_shared<Agent>(root);
-}
-
-static void afterEach() {
-	agent->unloadConfig();
-	RegistrarDb::resetDB();
-	agent.reset();
-	root.reset();
-}
 
 /**
  * Insert a contact into the registrarDB.
@@ -433,12 +417,29 @@ static void duplicatePushTokenRegisterRedisTest() {
 
 	kill(pid, 15);
 }
-
-static test_t tests[] = {
-    TEST_NO_TAG("Duplicate push token at register handling, with internal db",
-                duplicatePushTokenRegisterInternalDbTest),
-    TEST_NO_TAG("Duplicate push token at register handling, with Redis db", duplicatePushTokenRegisterRedisTest),
-};
-
-test_suite_t register_suite = {"Register", nullptr, nullptr, beforeEach, afterEach, sizeof(tests) / sizeof(tests[0]),
-                               tests};
+namespace {
+TestSuite
+    _("Register",
+      {
+          TEST_NO_TAG("Duplicate push token at register handling, with internal db",
+                      duplicatePushTokenRegisterInternalDbTest),
+          TEST_NO_TAG("Duplicate push token at register handling, with Redis db", duplicatePushTokenRegisterRedisTest),
+      },
+      Hooks()
+          .beforeEach([] {
+	          responseReceived = 0;
+	          expectedResponseReceived = 0;
+	          bidingDone = 0;
+	          expectedBidingDone = 0;
+	          fetchingDone = 0;
+	          expectedFetchingDone = 0;
+	          root = make_shared<sofiasip::SuRoot>();
+	          agent = make_shared<Agent>(root);
+          })
+          .afterEach([] {
+	          agent->unloadConfig();
+	          RegistrarDb::resetDB();
+	          agent.reset();
+	          root.reset();
+          }));
+}

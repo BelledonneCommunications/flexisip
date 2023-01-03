@@ -18,43 +18,7 @@
 
 #pragma once
 
-extern "C" {
-#include "bctoolbox/tester.h"
-}
-#include "flexisip/agent.hh"
-#include "flexisip/sofia-wrapper/su-root.hh"
-#include <linphone++/linphone.hh>
-
-#include <chrono>
-#include <fstream>
-#include <functional>
-#include <iostream>
-#include <list>
-#include <memory>
-#include <sstream>
 #include <string>
-#include <thread>
-#include <vector>
-
-#include <bctoolbox/tester.h>
-
-#include <flexisip/sofia-wrapper/su-root.hh>
-
-#include "flexisip-tester-config.hh"
-
-extern "C" {
-
-extern test_suite_t boolean_expressions_suite;
-extern test_suite_t cli_suite;
-extern test_suite_t conference_suite;
-extern test_suite_t extended_contact_suite;
-extern test_suite_t fork_context_suite;
-extern test_suite_t push_notification_suite;
-extern test_suite_t register_suite;
-extern test_suite_t registration_event_suite;
-extern test_suite_t tls_connection_suite;
-
-}; // extern "C"
 
 namespace flexisip {
 namespace tester {
@@ -64,22 +28,6 @@ std::string bcTesterRes(const std::string& name);
 
 void flexisip_tester_init();
 void flexisip_tester_uninit();
-
-extern test_suite_t agentSuite;
-#if ENABLE_B2BUA
-extern test_suite_t b2bua_suite;
-#endif
-extern test_suite_t domain_registration_suite;
-extern test_suite_t fork_call_suite;
-extern test_suite_t fork_context_mysql_suite;
-extern test_suite_t moduleDosSuite;
-extern test_suite_t moduleInfoSuite;
-extern test_suite_t moduleRouterSuite;
-extern test_suite_t modulePushNotificationSuite;
-extern test_suite_t msgSipSuite;
-extern test_suite_t registarDbSuite;
-extern test_suite_t threadPoolSuite;
-extern test_suite_t utilsSuite;
 
 } // namespace tester
 } // namespace flexisip

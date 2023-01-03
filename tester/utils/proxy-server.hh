@@ -18,7 +18,13 @@
 
 #pragma once
 
-#include "../tester.hh"
+#include <chrono>
+#include <map>
+#include <memory>
+#include <string>
+
+#include "flexisip/agent.hh"
+#include "flexisip/sofia-wrapper/su-root.hh"
 
 namespace flexisip {
 namespace tester {
