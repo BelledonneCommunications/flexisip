@@ -94,7 +94,6 @@
 #################################################
 
 .job-flexisip-image-deploy:
-
   stage: image
   tags: [ "linux-deploy" ]
   except:
@@ -103,10 +102,10 @@
       - $DEPLOY_UBUNTU
   only:
     - schedules
-
+  when: manual
+  allow_failure: true # Needed for manual jobs
   before_script:
     - git submodule foreach --recursive git fetch --tags --force
-
   script:
     - mkdir -p docker/DEBS && mv build/*.{deb,ddeb} docker/DEBS
     - cd docker

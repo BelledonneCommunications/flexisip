@@ -98,8 +98,8 @@ job-debian9-deb-deploy:
   extends: .job-debian-deb-deploy
   dependencies:
     - job-debian9-deb
-    
-    
+
+
 #################################################
 # Docker
 #################################################
