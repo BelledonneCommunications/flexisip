@@ -2,7 +2,8 @@
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include "tester.hh"
+#include "utils/test-patterns/test.hh"
+#include "utils/test-suite.hh"
 
 #include <flexisip/utils/sip-uri.hh>
 
@@ -207,19 +208,11 @@ void url__rfc3261Compare() {
 	}
 }
 
-static test_t tests[] = {
-    TEST_NO_TAG_AUTO_NAMED(url__rfc3261Compare),
-};
-
-test_suite_t sip_uri_tests = {
-    "sip-uri-tests",                  // Suite name
-    nullptr,                          // Before suite
-    nullptr,                          // After suite
-    nullptr,                          // Before each test
-    nullptr,                          // After each test
-    sizeof(tests) / sizeof(tests[0]), // test array length
-    tests                             // test array
-};
-
+namespace {
+TestSuite _("sip-uri-tests",
+            {
+                CLASSY_TEST(url__rfc3261Compare),
+            });
+}
 } // namespace tester
 } // namespace flexisip

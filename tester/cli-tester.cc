@@ -11,15 +11,16 @@
 
 #include <json/json.h>
 
+#include "bctoolbox/tester.h"
 #include "utils/string-utils.hh"
 #include <flexisip/logmanager.hh>
 
-#include "tester.hh"
 #include "utils/asserts.hh"
 #include "utils/proxy-server.hh"
 #include "utils/redis-server.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-patterns/test.hh"
+#include "utils/test-suite.hh"
 
 #include "cli.hh"
 
@@ -371,7 +372,8 @@ void flexisip_cli_dot_py() {
 		BC_ASSERT_TRUE(StringUtils::startsWith(result, "Error: aor parameter is not a valid SIP address"));
 	}
 
-	{ // REGISTRAR_UPSERT invalid contact_address (The only edge case I could find for sip_contact_make in sofia's tests)
+	{ // REGISTRAR_UPSERT invalid contact_address (The only edge case I could find for sip_contact_make in sofia's
+	  // tests)
 		const auto result = callSocket("REGISTRAR_UPSERT sip:valid@example.com ,, placeholder");
 		BC_ASSERT_TRUE(StringUtils::startsWith(result, "Error: contact_address parameter is not a valid SIP contact"));
 	}
@@ -416,18 +418,15 @@ void flexisip_cli_dot_py() {
 	}
 }
 
-auto _ = [] {
-	using namespace DbImplementation;
-	static test_t tests[] = {
-	    CLASSY_TEST(handler_registration_and_dispatch),
-	    CLASSY_TEST(flexisip_cli_dot_py<Internal>),
-	    CLASSY_TEST(flexisip_cli_dot_py<Redis>),
-	};
-	static test_suite_t suite{"CLI", NULL, NULL, NULL, NULL, sizeof(tests) / sizeof(tests[0]), tests};
-	bc_tester_add_suite(&suite);
-	return nullptr;
-}();
-
+namespace {
+using namespace DbImplementation;
+TestSuite _("CLI",
+            {
+                CLASSY_TEST(handler_registration_and_dispatch),
+                CLASSY_TEST(flexisip_cli_dot_py<Internal>),
+                CLASSY_TEST(flexisip_cli_dot_py<Redis>),
+            });
+} // namespace
 } // namespace cli_tests
 } // namespace tester
 } // namespace flexisip

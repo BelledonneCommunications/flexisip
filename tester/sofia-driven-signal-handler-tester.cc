@@ -4,6 +4,8 @@
 
 #include <chrono>
 
+#include "bctoolbox/tester.h"
+
 #include <flexisip/sofia-wrapper/su-root.hh>
 
 #include "tester.hh"

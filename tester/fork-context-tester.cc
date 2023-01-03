@@ -28,6 +28,7 @@
 #include "utils/core-assert.hh"
 #include "utils/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
+#include "utils/test-suite.hh"
 
 using namespace std;
 using namespace std::chrono_literals;
@@ -53,19 +54,6 @@ public:
 	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
 	}
 };
-
-static void beforeEach() {
-	responseReceived = false;
-	root = make_shared<sofiasip::SuRoot>();
-	agent = make_shared<Agent>(root);
-}
-
-static void afterEach() {
-	agent->unloadConfig();
-	RegistrarDb::resetDB();
-	agent.reset();
-	root.reset();
-}
 
 static void nullMaxFrowardAndForkBasicContext() {
 	// Agent initialization
@@ -311,12 +299,24 @@ static void globalOrderTestNoSql() {
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), nbOfMessages, int, "%i");
 }
 
-static test_t tests[] = {
-    TEST_NO_TAG("Max forward 0 and ForkBasicContext leak", nullMaxFrowardAndForkBasicContext),
-    TEST_NO_TAG("No RTP port available and ForkCallContext leak", notRtpPortAndForkCallContext),
-    TEST_NO_TAG("Fork message context with fork late and no database : retention and order check",
-                globalOrderTestNoSql),
-};
-
-test_suite_t fork_context_suite = {
-    "Fork context", nullptr, nullptr, beforeEach, afterEach, sizeof(tests) / sizeof(tests[0]), tests};
+namespace {
+TestSuite _("Fork context",
+            {
+                TEST_NO_TAG("Max forward 0 and ForkBasicContext leak", nullMaxFrowardAndForkBasicContext),
+                TEST_NO_TAG("No RTP port available and ForkCallContext leak", notRtpPortAndForkCallContext),
+                TEST_NO_TAG("Fork message context with fork late and no database : retention and order check",
+                            globalOrderTestNoSql),
+            },
+            Hooks()
+                .beforeEach([] {
+	                responseReceived = false;
+	                root = make_shared<sofiasip::SuRoot>();
+	                agent = make_shared<Agent>(root);
+                })
+                .afterEach([] {
+	                agent->unloadConfig();
+	                RegistrarDb::resetDB();
+	                agent.reset();
+	                root.reset();
+                }));
+}

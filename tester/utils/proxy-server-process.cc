@@ -18,6 +18,7 @@
 
 #include <csignal>
 #include <stdexcept>
+#include <thread>
 
 #include <sys/wait.h>
 #include <unistd.h>

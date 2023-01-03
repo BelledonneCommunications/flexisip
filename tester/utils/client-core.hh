@@ -23,7 +23,6 @@
 #include "asserts.hh"
 #include "proxy-server.hh"
 #include "pushnotification/rfc8599-push-params.hh"
-#include "tester.hh"
 
 namespace flexisip {
 namespace tester {

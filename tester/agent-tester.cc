@@ -22,9 +22,9 @@
 
 #include <sofia-sip/msg_buffer.h>
 
-#include "tester.hh"
 #include "utils/string-utils.hh"
 #include "utils/test-patterns/agent-test.hh"
+#include "utils/test-suite.hh"
 #include "utils/transport/tls-connection.hh"
 
 using namespace std;
@@ -346,24 +346,25 @@ public:
 	}
 };
 
+namespace {
 using TCP = RFC5626KeepAliveWithCRLFBase::TcpConfig;
 using NewTLS = RFC5626KeepAliveWithCRLFBase::NewTlsConfig;
 using LegacyTLS = RFC5626KeepAliveWithCRLFBase::LegacyTlsConfig;
 using InternalTransport = RFC5626KeepAliveWithCRLFBase::InternalTransportConfig;
 using OutboundNotSupported = RFC5626KeepAliveWithCRLFBase::OutboundNotSupported;
 
-static test_t tests[] = {
-    TEST_NO_TAG("Transports loading from conf and isUs method testing", run<TransportsAndIsUsTest>),
-    TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) on TCP", run<RFC5626KeepAliveWithCRLF<TCP>>),
-    TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) on TLS", run<RFC5626KeepAliveWithCRLF<NewTLS>>),
-    TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) on TLS (legacy parameters)", run<RFC5626KeepAliveWithCRLF<LegacyTLS>>),
-    TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) on the internal transport",
-                run<RFC5626KeepAliveWithCRLF<InternalTransport>>),
-    TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) - no PONG if 'outbound' not supported",
-                run<RFC5626KeepAliveWithCRLF<OutboundNotSupported>>)};
-
-test_suite_t agentSuite = {
-    "Agent unit tests", nullptr, nullptr, nullptr, nullptr, sizeof(tests) / sizeof(tests[0]), tests};
-
+TestSuite _("Agent unit tests",
+            {
+                TEST_NO_TAG("Transports loading from conf and isUs method testing", run<TransportsAndIsUsTest>),
+                TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) on TCP", run<RFC5626KeepAliveWithCRLF<TCP>>),
+                TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) on TLS", run<RFC5626KeepAliveWithCRLF<NewTLS>>),
+                TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) on TLS (legacy parameters)",
+                            run<RFC5626KeepAliveWithCRLF<LegacyTLS>>),
+                TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) on the internal transport",
+                            run<RFC5626KeepAliveWithCRLF<InternalTransport>>),
+                TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) - no PONG if 'outbound' not supported",
+                            run<RFC5626KeepAliveWithCRLF<OutboundNotSupported>>),
+            });
+} // namespace
 } // namespace tester
 } // namespace flexisip

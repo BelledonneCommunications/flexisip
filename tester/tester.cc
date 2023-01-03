@@ -17,14 +17,18 @@
 */
 
 #include <bctoolbox/logging.h>
+#include <bctoolbox/tester.h>
 
 #include <sofia-sip/su_log.h>
-
-#include "tester.hh"
 
 #ifdef HAVE_CONFIG_H
 #include "flexisip-config.h"
 #endif
+
+#include <flexisip/logmanager.hh>
+#include "flexisip-tester-config.hh"
+
+#include "tester.hh"
 
 namespace flexisip {
 namespace tester {
@@ -93,41 +97,6 @@ void flexisip_tester_init() {
 
 	// Make the default resource dir point to the 'tester' directory in the source code
 	bc_tester_set_resource_dir_prefix(FLEXISIP_TESTER_DATA_SRCDIR);
-
-	// Declare all test suites
-	bc_tester_add_suite(&agentSuite);
-	bc_tester_add_suite(&boolean_expressions_suite);
-#if ENABLE_B2BUA
-	bc_tester_add_suite(&b2bua_suite);
-#endif
-#if ENABLE_CONFERENCE
-	bc_tester_add_suite(&conference_suite);
-#endif
-	bc_tester_add_suite(&domain_registration_suite);
-	bc_tester_add_suite(&extended_contact_suite);
-	bc_tester_add_suite(&fork_call_suite);
-#ifdef ENABLE_UNIT_TESTS_MYSQL
-	bc_tester_add_suite(&fork_context_mysql_suite);
-#endif
-	bc_tester_add_suite(&fork_context_suite);
-	bc_tester_add_suite(&moduleDosSuite);
-	bc_tester_add_suite(&moduleInfoSuite);
-	bc_tester_add_suite(&modulePushNotificationSuite);
-	bc_tester_add_suite(&moduleRouterSuite);
-	bc_tester_add_suite(&msgSipSuite);
-#if ENABLE_UNIT_TESTS_PUSH_NOTIFICATION
-	bc_tester_add_suite(&push_notification_suite);
-#endif
-	bc_tester_add_suite(&register_suite);
-	bc_tester_add_suite(&registarDbSuite);
-	bc_tester_add_suite(&sip_uri_tests);
-	bc_tester_add_suite(&threadPoolSuite);
-	bc_tester_add_suite(&tls_connection_suite);
-	bc_tester_add_suite(&utilsSuite);
-
-#if ENABLE_CONFERENCE && 0 // Remove '&& 0' when the 'Registration Event' suite is fixed.
-	bc_tester_add_suite(&registration_event_suite);
-#endif
 }
 
 void flexisip_tester_uninit(void) {

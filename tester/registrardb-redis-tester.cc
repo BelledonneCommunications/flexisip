@@ -4,12 +4,12 @@
 
 #include <chrono>
 
-#include "tester.hh"
 #include "utils/asserts.hh"
 #include "utils/proxy-server.hh"
 #include "utils/redis-server.hh"
 
 #include "registrardb-redis.hh"
+#include "utils/test-suite.hh"
 
 using namespace std::chrono_literals;
 
@@ -60,15 +60,12 @@ void mContext_should_be_checked_on_serializeAndSendToRedis() {
 	BC_ASSERT_TRUE(asserter.iterateUpTo(30, [&finished = listener->finished] { return finished; }));
 }
 
-auto _ = [] {
-	static test_t tests[] = {
-	    TEST_NO_TAG_AUTO_NAMED(mContext_should_be_checked_on_serializeAndSendToRedis),
-	};
-	static test_suite_t suite{"RegistrarDbRedis", NULL, NULL, NULL, NULL, sizeof(tests) / sizeof(tests[0]), tests};
-	bc_tester_add_suite(&suite);
-	return nullptr;
-}();
-
+namespace {
+TestSuite _("RegistrarDbRedis",
+            {
+                TEST_NO_TAG_AUTO_NAMED(mContext_should_be_checked_on_serializeAndSendToRedis),
+            });
+}
 } // namespace registrardb_redis
 } // namespace tester
 } // namespace flexisip

@@ -22,6 +22,8 @@
 #include <functional>
 #include <thread>
 
+#include "bctoolbox/tester.h"
+
 #include "flexisip/agent.hh"
 #include "linphone++/linphone.hh"
 #include "proxy-server.hh"

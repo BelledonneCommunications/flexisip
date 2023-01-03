@@ -24,9 +24,9 @@
 
 #include "pushnotification/firebase/firebase-client.hh"
 
-#include "tester.hh"
 #include "utils/asserts.hh"
 #include "utils/test-patterns/registrardb-test.hh"
+#include "utils/test-suite.hh"
 
 using namespace std;
 namespace pn = flexisip::pushnotification;
@@ -270,33 +270,26 @@ protected:
 };
 
 namespace {
-int seed_instance_id_rsg() noexcept {
-	const auto* seed = std::getenv("FLEXISEED");
-	if (seed) {
-		flexisip::InstanceID::sRsg.mEngine.seed(std::stoll(seed)); // will throw (and abort) if seed is not an integer
-	}
-	return 0;
+TestSuite
+    _("RegistrarDB",
+      {
+          TEST_NO_TAG("Fetch expiring contacts on Redis", run<TestFetchExpiringContacts<DbImplementation::Redis>>),
+          TEST_NO_TAG("Fetch expiring contacts in Internal DB",
+                      run<TestFetchExpiringContacts<DbImplementation::Internal>>),
+          TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with internal backend",
+                      run<SubsequentUnsubscribeSubscribeTest<DbImplementation::Internal>>),
+          TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with Redis backend",
+                      run<SubsequentUnsubscribeSubscribeTest<DbImplementation::Redis>>),
+          TEST_NO_TAG("Registrations with Redis backend", run<RegistrarTester>),
+      },
+      Hooks().beforeSuite([]() noexcept {
+	      const auto* seed = std::getenv("FLEXISEED");
+	      if (seed) {
+		      flexisip::InstanceID::sRsg.mEngine.seed(
+		          std::stoll(seed)); // will throw (and abort) if seed is not an integer
+	      }
+	      return 0;
+      }));
 }
-} // namespace
-
-static test_t tests[] = {
-    TEST_NO_TAG("Fetch expiring contacts on Redis", run<TestFetchExpiringContacts<DbImplementation::Redis>>),
-    TEST_NO_TAG("Fetch expiring contacts in Internal DB", run<TestFetchExpiringContacts<DbImplementation::Internal>>),
-    TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with internal backend",
-                run<SubsequentUnsubscribeSubscribeTest<DbImplementation::Internal>>),
-    TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with Redis backend",
-                run<SubsequentUnsubscribeSubscribeTest<DbImplementation::Redis>>),
-    TEST_NO_TAG("Registrations with Redis backend", run<RegistrarTester>)};
-
-test_suite_t registarDbSuite = {
-    "RegistrarDB",                    // Suite name
-    seed_instance_id_rsg,             // Before suite
-    nullptr,                          // After suite
-    nullptr,                          // Before each test
-    nullptr,                          // After each test
-    sizeof(tests) / sizeof(tests[0]), // test array length
-    tests                             // test array
-};
-
 } // namespace tester
 } // namespace flexisip

@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <functional>
 #include <sstream>
 #include <stdexcept>
 #include <thread>

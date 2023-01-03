@@ -28,6 +28,7 @@
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
 #include "utils/test-patterns/test.hh"
+#include "utils/test-suite.hh"
 
 using namespace std;
 using namespace std::chrono_literals;
@@ -63,25 +64,6 @@ To: <sip:francois.grisez@sip.linphone.org>;tag=B2cE8pa
 Call-ID: NISmf-QTgo
 CSeq: 20 MESSAGE
 Content-Length: 0)sip"};
-
-static int beforeAll() {
-	char const* cHost = getenv("BC_MYSQL_HOST");
-	auto host = (cHost == NULL) ? "" : string(cHost);
-	if (host == "") host = "127.0.0.1";
-	ForkMessageContextSociRepository::prepareConfiguration(
-	    "mysql", "db='flexisip_messages' user='belledonne' password='cOmmu2015nicatiOns' host='" + host + "'", 10);
-
-	return 0;
-}
-
-static void beforeEach() {
-	ForkMessageContextSociRepository::getInstance()->deleteAll();
-}
-
-static void afterEach() {
-	ForkMessageContextSociRepository::getInstance()->deleteAll();
-	RegistrarDb::resetDB();
-}
 
 static void forkMessageContextSociRepositoryMysqlUnitTests() {
 	auto server = make_unique<Server>("/config/flexisip_fork_context_db.conf");
@@ -803,21 +785,38 @@ static void globalOrderTest() {
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), 2 * messageSent, int, "%i");
 }
 
-static test_t tests[] = {
-    TEST_NO_TAG("Unit test fork message repository with mysql", forkMessageContextSociRepositoryMysqlUnitTests),
-    TEST_NO_TAG("Unit test fork message with branches repository with mysql",
-                forkMessageContextWithBranchesSociRepositoryMysqlUnitTests),
-    TEST_NO_TAG("Unit test fork message repository with mysql, load at startup",
-                forkMessageContextSociRepositoryFullLoadMysqlUnitTests),
-    TEST_NO_TAG("Global test ForkMessage with mysql", globalTest),
-    TEST_NO_TAG("Global test ForkMessage with mysql, multiple devices", globalTestMultipleDevices),
-    TEST_NO_TAG("Test that multiple register in a row do not lead to multiple access in DB", testDBAccessOptimization),
-    TEST_NO_TAG("Global test fork message with mysql, db deleted before restoration", globalTestDatabaseDeleted),
-    TEST_NO_TAG("Global test ForkMessage with mysql, orderPreservedTest", globalOrderTest),
-};
+namespace {
+TestSuite
+    _("Fork context mysql",
+      {
+          TEST_NO_TAG("Unit test fork message repository with mysql", forkMessageContextSociRepositoryMysqlUnitTests),
+          TEST_NO_TAG("Unit test fork message with branches repository with mysql",
+                      forkMessageContextWithBranchesSociRepositoryMysqlUnitTests),
+          TEST_NO_TAG("Unit test fork message repository with mysql, load at startup",
+                      forkMessageContextSociRepositoryFullLoadMysqlUnitTests),
+          TEST_NO_TAG("Global test ForkMessage with mysql", globalTest),
+          TEST_NO_TAG("Global test ForkMessage with mysql, multiple devices", globalTestMultipleDevices),
+          TEST_NO_TAG("Test that multiple register in a row do not lead to multiple access in DB",
+                      testDBAccessOptimization),
+          TEST_NO_TAG("Global test fork message with mysql, db deleted before restoration", globalTestDatabaseDeleted),
+          TEST_NO_TAG("Global test ForkMessage with mysql, orderPreservedTest", globalOrderTest),
+      },
+      Hooks()
+          .beforeSuite([] {
+	          char const* cHost = getenv("BC_MYSQL_HOST");
+	          auto host = (cHost == NULL) ? "" : string(cHost);
+	          if (host == "") host = "127.0.0.1";
+	          ForkMessageContextSociRepository::prepareConfiguration(
+	              "mysql", "db='flexisip_messages' user='belledonne' password='cOmmu2015nicatiOns' host='" + host + "'",
+	              10);
 
-test_suite_t fork_context_mysql_suite = {
-    "Fork context mysql", beforeAll, nullptr, beforeEach, afterEach, sizeof(tests) / sizeof(tests[0]), tests};
-
+	          return 0;
+          })
+          .beforeEach([] { ForkMessageContextSociRepository::getInstance()->deleteAll(); })
+          .afterEach([] {
+	          ForkMessageContextSociRepository::getInstance()->deleteAll();
+	          RegistrarDb::resetDB();
+          }));
+}
 } // namespace tester
 } // namespace flexisip

@@ -32,6 +32,7 @@
 #include "core-assert.hh"
 
 #include "client-core.hh"
+#include "tester.hh"
 
 using namespace std;
 using namespace std::chrono;

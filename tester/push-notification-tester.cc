@@ -34,6 +34,7 @@
 #include "utils/test-patterns/registrardb-test.hh"
 
 #include "flexisip/module-pushnotification.hh"
+#include "utils/test-suite.hh"
 
 using namespace flexisip;
 using namespace flexisip::pushnotification;
@@ -44,16 +45,6 @@ using namespace std::chrono;
 namespace server = nghttp2::asio_http2::server;
 
 static std::unique_ptr<sofiasip::SuRoot> root = nullptr;
-
-static int beforeSuite() {
-	root = make_unique<sofiasip::SuRoot>();
-	return 0;
-}
-
-static int afterSuite() {
-	root.reset();
-	return 0;
-}
 
 static void startPushTest(Client& client,
                           const shared_ptr<Request>& request,
@@ -652,22 +643,31 @@ void test_http2client__requests_that_can_not_be_sent_are_queued_and_sent_later()
 	BC_ASSERT_EQUAL(respondedCount, sentCount, uint32_t, "%i");
 }
 
+TestSuite _("Push notification",
+            {
+                TEST_NO_TAG_AUTO_NAMED(test_http2client__requests_that_can_not_be_sent_are_queued_and_sent_later),
+                TEST_NO_TAG("Firebase push notification test OK", firebasePushTestOk),
+                TEST_NO_TAG("Apple push notification test OK PushKit", applePushTestOkPushkit),
+                TEST_NO_TAG("Apple push notification test OK Background", applePushTestOkBackground),
+                TEST_NO_TAG("Apple push notification test OK RemoteWithMutableContent",
+                            applePushTestOkRemoteWithMutableContent),
+                TEST_NO_TAG("Firebase push notification test KO", firebasePushTestKo),
+                TEST_NO_TAG("Apple push notification test KO", applePushTestKo),
+                TEST_NO_TAG("Apple push notification test KO wrong type", applePushTestKoWrongType),
+                TEST_NO_TAG("Apple push notification test with a first connection failed and a reconnection (fix)",
+                            applePushTestConnectErrorAndReconnect),
+                TEST_NO_TAG("Tls timeout test", tlsTimeoutTest),
+                TEST_NO_TAG("Firebase push notification test timeout", firebasePushTestTimeout),
+                TEST_NO_TAG("Apple push notification test timeout", applePushTestTimeout),
+            },
+            Hooks()
+                .beforeSuite([] {
+	                root = make_unique<sofiasip::SuRoot>();
+	                return 0;
+                })
+                .afterSuite([] {
+	                root.reset();
+	                return 0;
+                }));
+
 } // namespace
-
-static test_t tests[] = {
-    TEST_NO_TAG_AUTO_NAMED(test_http2client__requests_that_can_not_be_sent_are_queued_and_sent_later),
-    TEST_NO_TAG("Firebase push notification test OK", firebasePushTestOk),
-    TEST_NO_TAG("Apple push notification test OK PushKit", applePushTestOkPushkit),
-    TEST_NO_TAG("Apple push notification test OK Background", applePushTestOkBackground),
-    TEST_NO_TAG("Apple push notification test OK RemoteWithMutableContent", applePushTestOkRemoteWithMutableContent),
-    TEST_NO_TAG("Firebase push notification test KO", firebasePushTestKo),
-    TEST_NO_TAG("Apple push notification test KO", applePushTestKo),
-    TEST_NO_TAG("Apple push notification test KO wrong type", applePushTestKoWrongType),
-    TEST_NO_TAG("Apple push notification test with a first connection failed and a reconnection (fix)",
-                applePushTestConnectErrorAndReconnect),
-    TEST_NO_TAG("Tls timeout test", tlsTimeoutTest),
-    TEST_NO_TAG("Firebase push notification test timeout", firebasePushTestTimeout),
-    TEST_NO_TAG("Apple push notification test timeout", applePushTestTimeout)};
-
-test_suite_t push_notification_suite = {
-    "Push notification", beforeSuite, afterSuite, nullptr, nullptr, sizeof(tests) / sizeof(tests[0]), tests};

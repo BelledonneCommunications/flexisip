@@ -18,10 +18,10 @@
 
 #include <bctoolbox/tester.h>
 
-#include "tester.hh"
 #include "utils/rand.hh"
 #include "utils/string-utils.hh"
 #include "utils/test-patterns/test.hh"
+#include "utils/test-suite.hh"
 #include "utils/uri-utils.hh"
 
 using namespace std;
@@ -111,14 +111,13 @@ public:
 	}
 };
 
-static test_t tests[] = {
-    TEST_NO_TAG("UriUtils isIpv4Address and isIpv6Address method test", run<UriUtilsIsIpvXTest>),
-    CLASSY_TEST(RandomStringGeneratorTest),
-    TEST_NO_TAG("StringUtil::join method test", run<StringUtilsJoinTest>)
-};
-
-test_suite_t utilsSuite = {
-    "Utils unit tests", nullptr, nullptr, nullptr, nullptr, sizeof(tests) / sizeof(tests[0]), tests};
-
+namespace {
+TestSuite _("Utils unit tests",
+            {
+                TEST_NO_TAG("UriUtils isIpv4Address and isIpv6Address method test", run<UriUtilsIsIpvXTest>),
+                CLASSY_TEST(RandomStringGeneratorTest),
+                TEST_NO_TAG("StringUtil::join method test", run<StringUtilsJoinTest>),
+            });
+}
 } // namespace tester
 } // namespace flexisip

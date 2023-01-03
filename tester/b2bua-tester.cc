@@ -16,6 +16,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#include <fstream>
+
 #include <json/json.h>
 
 #include <bctoolbox/logging.h>
@@ -37,6 +39,7 @@
 #include "utils/core-assert.hh"
 #include "utils/proxy-server.hh"
 #include "utils/temp-file.hh"
+#include "utils/test-suite.hh"
 
 using namespace std;
 using namespace linphone;
@@ -952,29 +955,26 @@ static void videoRejected() {
 	}
 }
 
-static test_t tests[] = {
-    TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__one_provider_one_line),
-    TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__call_release),
-    TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__load_balancing),
-    TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__cli),
-    TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__parse_register_authenticate),
-    TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__b2bua_receives_several_forks),
-    TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__dtmf_forwarding),
-    TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__override_special_options),
-    TEST_NO_TAG("Basic", basic),
-    TEST_NO_TAG("Forward Media Encryption", forward),
-    TEST_NO_TAG("SDES to ZRTP call", sdes2zrtp),
-    TEST_NO_TAG("SDES to DTLS call", sdes2dtls),
-    TEST_NO_TAG("ZRTP to DTLS call", zrtp2dtls),
-    TEST_NO_TAG("SDES to SDES256 call", sdes2sdes256),
-    TEST_NO_TAG("Video rejected by callee", videoRejected),
-};
-
+namespace {
+TestSuite _("B2bua",
+            {
+                TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__one_provider_one_line),
+                TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__call_release),
+                TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__load_balancing),
+                TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__cli),
+                TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__parse_register_authenticate),
+                TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__b2bua_receives_several_forks),
+                TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__dtmf_forwarding),
+                TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__override_special_options),
+                TEST_NO_TAG("Basic", basic),
+                TEST_NO_TAG("Forward Media Encryption", forward),
+                TEST_NO_TAG("SDES to ZRTP call", sdes2zrtp),
+                TEST_NO_TAG("SDES to DTLS call", sdes2dtls),
+                TEST_NO_TAG("ZRTP to DTLS call", zrtp2dtls),
+                TEST_NO_TAG("SDES to SDES256 call", sdes2sdes256),
+                TEST_NO_TAG("Video rejected by callee", videoRejected),
+            });
+}
 } // namespace b2buatester
-
-test_suite_t b2bua_suite = {"B2bua",           nullptr, nullptr,
-                            nullptr,           nullptr, sizeof(b2buatester::tests) / sizeof(b2buatester::tests[0]),
-                            b2buatester::tests};
-
 } // namespace tester
 } // namespace flexisip

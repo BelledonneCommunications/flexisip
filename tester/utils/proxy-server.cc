@@ -18,9 +18,12 @@
 
 #include <algorithm>
 
+#include "bctoolbox/tester.h"
+
 #include "flexisip/registrardb.hh"
 
 #include "proxy-server.hh"
+#include "tester.hh"
 
 using namespace std;
 using namespace std::chrono;

@@ -24,6 +24,7 @@
 
 #include "utils/bellesip-utils.hh"
 #include "utils/test-patterns/registrardb-test.hh"
+#include "utils/test-suite.hh"
 
 using namespace std;
 using namespace std::chrono_literals;
@@ -116,23 +117,17 @@ public:
 
 ////////////////// END OF ModuleToolbox::addRecordRoute TESTS /////////////////////////
 
-auto _ = [] {
-	static test_t tests[] = {
-	    // Start of ModuleToolbox::addRecordRoute tests
-	    TEST_NO_TAG("ModuleToolbox::addRecordRoute sip", run<SipAddRecordRouteTest>),
-	    TEST_NO_TAG("ModuleToolbox::addRecordRoute sip with 'use-rfc2543-record-route=true'",
-	                run<SipRfc2543AddRecordRouteTest>),
-	    TEST_NO_TAG("ModuleToolbox::addRecordRoute sips", run<SipsAddRecordRouteTest>),
-	    TEST_NO_TAG("ModuleToolbox::addRecordRoute sips with 'use-rfc2543-record-route=true'",
-	                run<SipsRfc2543AddRecordRouteTest>),
-	    // End of ModuleToolbox::addRecordRoute tests
-	};
-	static test_suite_t moduleToolboxSuite = {
-	    "Module toolbox", nullptr, nullptr, nullptr, nullptr, sizeof(tests) / sizeof(tests[0]), tests};
-	bc_tester_add_suite(&moduleToolboxSuite);
-	return nullptr;
-}();
-
+namespace {
+TestSuite _("Module toolbox",
+            {
+                TEST_NO_TAG("ModuleToolbox::addRecordRoute sip", run<SipAddRecordRouteTest>),
+                TEST_NO_TAG("ModuleToolbox::addRecordRoute sip with 'use-rfc2543-record-route=true'",
+                            run<SipRfc2543AddRecordRouteTest>),
+                TEST_NO_TAG("ModuleToolbox::addRecordRoute sips", run<SipsAddRecordRouteTest>),
+                TEST_NO_TAG("ModuleToolbox::addRecordRoute sips with 'use-rfc2543-record-route=true'",
+                            run<SipsRfc2543AddRecordRouteTest>),
+            });
+}
 } // namespace module_toolbox_suite
 } // namespace tester
 } // namespace flexisip

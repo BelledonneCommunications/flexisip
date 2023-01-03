@@ -22,10 +22,10 @@
 #include <string>
 
 #include "domain-registrations.hh"
-#include "tester.hh"
 #include "utils/proxy-server-process.hh"
 #include "utils/rand.hh"
 #include "utils/test-patterns/agent-test.hh"
+#include "utils/test-suite.hh"
 
 using namespace std;
 
@@ -128,12 +128,12 @@ struct TLS {
 	static constexpr auto isTls = true;
 };
 
-static test_t tests[] = {
-    TEST_NO_TAG("Ping-Pong: reconnect on PONG timeout (TCP)", run<RFC5626ReconnectOnPongTimeout<TCP>>),
-    TEST_NO_TAG("Ping-Pong: reconnect on PONG timeout (TLS)", run<RFC5626ReconnectOnPongTimeout<TLS>>)};
-
-test_suite_t domain_registration_suite = {
-    "Domain registration", nullptr, nullptr, nullptr, nullptr, sizeof(tests) / sizeof(tests[0]), tests};
-
+namespace {
+TestSuite _("Domain registration",
+            {
+                TEST_NO_TAG("Ping-Pong: reconnect on PONG timeout (TCP)", run<RFC5626ReconnectOnPongTimeout<TCP>>),
+                TEST_NO_TAG("Ping-Pong: reconnect on PONG timeout (TLS)", run<RFC5626ReconnectOnPongTimeout<TLS>>),
+            });
+}
 } // namespace tester
 } // namespace flexisip

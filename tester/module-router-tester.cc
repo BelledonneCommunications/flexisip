@@ -24,6 +24,7 @@
 
 #include "utils/bellesip-utils.hh"
 #include "utils/test-patterns/registrardb-test.hh"
+#include "utils/test-suite.hh"
 
 using namespace std;
 using namespace std::chrono_literals;
@@ -338,14 +339,15 @@ private:
 	}
 };
 
-static test_t tests[] = {
-    TEST_NO_TAG("Disable fallback route for requests not matching fallback-route-filter", run<FallbackRouteFilterTest>),
-    TEST_NO_TAG("Check that module router remove route to itself", run<SelfRouteHeaderRemovingTest>),
-    TEST_NO_TAG("Check that module router don't remove route to others", run<OtherRouteHeaderNotRemovedTest>),
-};
-
-test_suite_t moduleRouterSuite = {
-    "Module router", nullptr, nullptr, nullptr, nullptr, sizeof(tests) / sizeof(tests[0]), tests};
-
+namespace {
+TestSuite
+    _("Module router",
+      {
+          TEST_NO_TAG("Disable fallback route for requests not matching fallback-route-filter",
+                      run<FallbackRouteFilterTest>),
+          TEST_NO_TAG("Check that module router remove route to itself", run<SelfRouteHeaderRemovingTest>),
+          TEST_NO_TAG("Check that module router don't remove route to others", run<OtherRouteHeaderNotRemovedTest>),
+      });
+}
 } // namespace tester
 } // namespace flexisip

@@ -4,6 +4,8 @@
 
 #include <csignal>
 
+#include "bctoolbox/tester.h"
+
 #include <flexisip/registrardb.hh>
 #include <flexisip/sofia-wrapper/waker.hh>
 

@@ -18,8 +18,8 @@
 
 #include "flexisip/module.hh"
 
-#include "tester.hh"
 #include "utils/test-patterns/test.hh"
+#include "utils/test-suite.hh"
 
 using namespace std;
 
@@ -108,18 +108,12 @@ static void moduleReplacement() noexcept {
 	}
 }
 
-static test_t tests[] = {TEST_NO_TAG("Module sorting", moduleSorting),
-                         TEST_NO_TAG("Module replacement", moduleReplacement)};
-
-test_suite_t moduleInfoSuite = {
-    "ModuleInfo",                     // Suite name
-    nullptr,                          // Before suite
-    nullptr,                          // After suite
-    nullptr,                          // Before each test
-    nullptr,                          // After each test
-    sizeof(tests) / sizeof(tests[0]), // test array length
-    tests                             // test array
-};
-
+namespace {
+TestSuite _("ModuleInfo",
+            {
+                TEST_NO_TAG("Module sorting", moduleSorting),
+                TEST_NO_TAG("Module replacement", moduleReplacement),
+            });
+}
 } // namespace tester
 } // namespace flexisip
