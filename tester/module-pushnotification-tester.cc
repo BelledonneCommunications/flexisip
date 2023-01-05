@@ -602,6 +602,54 @@ private:
 	std::shared_ptr<IOSRemoteOnly> mPlatform{make_shared<IOSRemoteOnly>()};
 };
 
+/**
+ * Here we insert an entry with the same PushParams except for the provider.
+ * It used to prevent second push sending. Here we assert that it is not the case anymore.
+ */
+class CallInviteOnOfflineDeviceWithSamePushParams : public PushNotificationTest {
+protected:
+	void onAgentConfiguration(GenericManager& cfg) override {
+		PushNotificationTest::onAgentConfiguration(cfg);
+		cfg.getRoot()
+		    ->get<GenericStruct>("module::PushNotification")
+		    ->get<ConfigValue>("call-remote-push-interval")
+		    ->set(to_string(mPNHandler->getCallRemotePushInterval().count()));
+	}
+
+	void testExec() override {
+		auto proxy = make_shared<Server>(mAgent);
+		auto caller = make_shared<CoreClient>("sip:user1@sip.example.org", proxy);
+
+		auto calleePushParams = mPlatform->getContactPushParams();
+
+		RFC8599PushParams devCalleePushParams{"apns.dev", calleePushParams.getParam(), calleePushParams.getPrid()};
+		auto calleeDevDevice = make_shared<CoreClient>(
+		    move(ClientBuilder{"sip:user2@sip.example.org"}.setPushParams(devCalleePushParams)), proxy);
+
+		auto callee = make_shared<CoreClient>(
+		    move(ClientBuilder{"sip:user2@sip.example.org"}.setPushParams(calleePushParams)), proxy);
+		callee->getCore()->setNetworkReachable(false);
+		callee->setCallInviteReceivedDelay(callee->getCallInviteReceivedDelay() +
+		                                   mPNHandler->getCallInviteReceivedExtraDelay());
+
+		for (const auto& pushParams : mPlatform->getRegistrationPushParams()) {
+			dynamic_pointer_cast<DummyPushClient>(mPushClient)
+			    ->registerUserAgent(
+			        pushParams, callee,
+			        [aPNHandler = weak_ptr<PNHandler>{mPNHandler}](const auto& aUserAgent, const auto& aPNRequest) {
+				        auto pnHandler = aPNHandler.lock();
+				        if (pnHandler) pnHandler->onPNReceived(aUserAgent, aPNRequest);
+			        });
+		}
+
+		caller->call(callee);
+	}
+
+	// Protected attributes
+	std::shared_ptr<ClientPlatform> mPlatform{std::make_shared<IOS>()};
+	std::shared_ptr<PNHandler> mPNHandler{std::make_shared<DefaultPNHandler>(mPlatform)};
+};
+
 /*********** CoreClient based tests **********************************************************************************/
 
 /**
@@ -623,7 +671,9 @@ static test_t tests[] = {
     makeTest<CallInviteOnOfflineDevice<IOSVoIPOnly>>("Call invite on offline device (iOS, VoIP only)"),
     makeTest<CallInviteOnOfflineDevice<IOSRemoteOnly, RingingRemotePNHandler>>(
         "Call invite on offline device (iOS, Remote only)"),
-    makeTest<CallRemotePNCancelation>("Cancel a call notified by ringing remote push notifications")};
+    makeTest<CallRemotePNCancelation>("Cancel a call notified by ringing remote push notifications"),
+    makeTest<CallInviteOnOfflineDeviceWithSamePushParams>("Push module use provider to compare push params"),
+};
 
 test_suite_t modulePushNotificationSuite = {"Module push-notification",       nullptr, nullptr, nullptr, nullptr,
                                             sizeof(tests) / sizeof(tests[0]), tests};
