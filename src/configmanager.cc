@@ -1020,6 +1020,10 @@ GenericManager::GenericManager()
 	     "Unique ID used to identify that instance of Flexisip. It must be a randomly generated "
 	     "16-sized hexadecimal number. If empty, it will be randomly generated on each start of Flexisip.",
 	     ""},
+	    {Integer, "tport-message-queue-size",
+	     "Number of SIP message that sofia can queue in a tport (a connection). It is 64 by default, hardcoded in "
+	     "sofia-sip (sofia-sip also used to hardcode a max value, 1000). This is not sufficient for IM.",
+	     "1000"},
 
 	    // deprecated parameters
 	    {ByteSize, "max-log-size",
