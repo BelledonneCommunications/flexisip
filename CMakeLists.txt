@@ -28,18 +28,21 @@ cmake_policy(SET CMP0076 NEW)
 # CMP0077 is required to correctly force the value of subprojects' cache variables.
 cmake_policy(SET CMP0077 NEW)
 
-# Require C++14
-set(CMAKE_CXX_STANDARD 14)
+# Require C++17
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Ensure compiler optimizations are off when compiling in debug mode
-set(CMAKE_C_FLAGS_DEBUG_INIT "-O0")
-set(CMAKE_CXX_FLAGS_DEBUG_INIT "-O0")
+# Ensure compiler optimizations are minimal when compiling in debug mode
+# _FORTIFY_SOURCE (which is enabled in release mode) requires at least level 1
+# _FORTIFY_SOURCE will trigger additional warnings, which are really better seen earlier
+# than when a packaging job fails
+set(CMAKE_C_FLAGS_DEBUG_INIT "-g -O1")
+set(CMAKE_CXX_FLAGS_DEBUG_INIT "-g -O1")
 
 # Add 'Sanitizer' CMake build type.
 # MUST be before project declaration.
-set(CMAKE_C_FLAGS_SANITIZER_INIT "-g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer")
-set(CMAKE_CXX_FLAGS_SANITIZER_INIT "-g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer")
+set(CMAKE_C_FLAGS_SANITIZER_INIT "-g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer")
+set(CMAKE_CXX_FLAGS_SANITIZER_INIT "-g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer")
 
 # Set project version by using the Git describe
 include("./linphone-sdk/bctoolbox/cmake/BcToolboxCMakeUtils.cmake")
@@ -232,6 +235,11 @@ bc_init_compilation_flags(CPP_BUILD_FLAGS C_BUILD_FLAGS CXX_BUILD_FLAGS ENABLE_S
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION MATCHES "^4\\.9\\.[0-9]+$")
 	list(APPEND CXX_BUILD_FLAGS "-Wno-error=varargs")
 endif()
+list(APPEND CXX_BUILD_FLAGS
+	"-Werror=unused-result" # Packaging (on Ubuntu) has this on, so better catch it sooner
+	"-Werror=format-truncation=1" # GCC on CentOS 7 treats this as an error
+	"-Werror=maybe-uninitialized" # GCC on CentOS 7 treats this as an error
+)
 add_compile_options(${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
 
 add_subdirectory(include)

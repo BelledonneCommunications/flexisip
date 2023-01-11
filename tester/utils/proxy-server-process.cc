@@ -23,6 +23,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "bctoolbox/tester.h"
 #include "flexisip/logmanager.hh"
 
 #include "utils/proxy-server.hh"
@@ -35,7 +36,7 @@ namespace flexisip {
 namespace tester {
 
 ProxyServerProcess::ProxyServerProcess() {
-	pipe(mPipeFds);
+	BC_ASSERT_EQUAL(pipe(mPipeFds), 0, int, "%i");
 }
 
 ProxyServerProcess::~ProxyServerProcess() {
@@ -86,7 +87,8 @@ void ProxyServerProcess::unpause() {
 void ProxyServerProcess::notify() {
 	if (mPID > 0) throw logic_error{"notify(): not a child"};
 	const auto msg = string{"OK"};
-	write(mPipeFds[1], msg.c_str(), msg.size());
+	const auto bytesWritten = write(mPipeFds[1], msg.c_str(), msg.size());
+	BC_ASSERT_EQUAL(bytesWritten, msg.size(), ssize_t, "%zi");
 }
 void ProxyServerProcess::wait() {
 	using namespace std::chrono;
@@ -95,7 +97,7 @@ void ProxyServerProcess::wait() {
 
 	fcntl(mPipeFds[0], F_SETFL, O_NONBLOCK);
 
-	int nread;
+	int nread = -1;
 
 	char buffer[2];
 	const auto startTime = steady_clock::now();
