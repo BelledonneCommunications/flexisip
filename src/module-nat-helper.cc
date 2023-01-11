@@ -83,12 +83,14 @@ public:
 				sip_contact_t *ct = ms->getSip()->sip_contact;
 				if (ct) {
 					bool isVerified = url_has_param(ct->m_url, mContactVerifiedParam.c_str());
-					if (ms->getSip()->sip_via && ms->getSip()->sip_via->v_next && !ms->getSip()->sip_via->v_next->v_next
-					&& isVerified) {
-						// Via contains client and first proxy
-						LOGD("Removing verified param from response contact");
-						ct->m_url->url_params = url_strip_param_string(su_strdup(ms->getHome(), ct->m_url->url_params),
+					bool isLastHop = ms->getSip()->sip_via && ms->getSip()->sip_via->v_next && !ms->getSip()->sip_via->v_next->v_next;
+					if (isLastHop){
+						if (isVerified){
+							// Via contains client and first proxy
+							LOGD("Removing verified param from response contact");
+							ct->m_url->url_params = url_strip_param_string(su_strdup(ms->getHome(), ct->m_url->url_params),
 															 mContactVerifiedParam.c_str());
+						}
 					}else{
 						if (needToBeFixed(ev)) {
 							fixContactInResponse(ms->getHome(), ms->getMsg(), ms->getSip());
