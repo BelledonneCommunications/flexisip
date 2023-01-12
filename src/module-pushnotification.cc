@@ -16,8 +16,6 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "sip-tools/sip-headers.h"
-
 #include "flexisip/fork-context/branch-info.hh"
 #include "flexisip/fork-context/fork-call-context.hh"
 #include "flexisip/module-pushnotification.hh"

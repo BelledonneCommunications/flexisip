@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2022  Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2023  Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -68,26 +68,28 @@ option(ENABLE_DATEHANDLER "Build DateHandler module" OFF)
 option(ENABLE_PDFDOC "Build PDF documentation" OFF)
 option(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS "Enable monotonic clock for registrations" OFF)
 option(ENABLE_PRESENCE "Build presence support" ON)
-option(ENABLE_CONFERENCE "Build conference support" ON)
 option(ENABLE_PROTOBUF "Build with Protobuf support" ON)
 option(ENABLE_REDIS "Build with Redis support" ON)
 option(ENABLE_SNMP "Build with SNMP support" ON)
 option(ENABLE_SOCI "Build with SOCI support" ON)
-option(ENABLE_SOCI_POSTGRESQL_BACKEND "Build with SOCI Postgre sql backend support" ON)
 option(ENABLE_TRANSCODER "Build transcoder support" ON)
 option(ENABLE_MDNS "Build multicast DNS support" OFF)
 option(ENABLE_EXTERNAL_AUTH_PLUGIN "Enable ExternalAuth plugin support" ON)
 option(ENABLE_JWE_AUTH_PLUGIN "Enable JweAuth plugin support" ON)
-option(ENABLE_B2BUA "Enable Back2back user agent support" ON)
 option(ENABLE_UNIT_TESTS "Enable Flexisip unit tests (low level tests)" OFF)
-cmake_dependent_option(ENABLE_UNIT_TESTS_PUSH_NOTIFICATION "Enable flexisip push notification unit tests (requires libnghttp2_asio)"  ON "ENABLE_UNIT_TESTS" ON )
-option(ENABLE_UNIT_TESTS_MYSQL "Enable flexisip unit tests that use mysql" OFF)
 add_ccache_option(ON)
 option(ENABLE_COVERAGE "Enable flexisip clang test coverage reports (add instrumentation)" OFF )
-cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable media relay specific features" OFF "ENABLE_TRANSCODER" OFF)
 option(INTERNAL_LIBHIREDIS "Build libhiredis source code present as Flexisip submodule instead of searching it in system libraries" OFF)
 option(INTERNAL_LIBSRTP2 "Build SRTP2 source code present as linphone-sdk submodule instead of searching it in system libraries" ON)
 option(INTERNAL_JSONCPP "Build and use vendored Jsoncpp source code instead of searching for it in system libraries" OFF)
+
+cmake_dependent_option(ENABLE_CONFERENCE "Build conference support" ON "ENABLE_SOCI" OFF)
+cmake_dependent_option(ENABLE_SOCI_POSTGRESQL_BACKEND "Build with SOCI Postgre sql backend support" ON "ENABLE_SOCI" OFF)
+cmake_dependent_option(ENABLE_B2BUA "Enable Back2back user agent support" ON "ENABLE_SOCI" OFF)
+cmake_dependent_option(ENABLE_UNIT_TESTS_PUSH_NOTIFICATION "Enable flexisip push notification unit tests (requires libnghttp2_asio)"  ON "ENABLE_UNIT_TESTS" ON )
+cmake_dependent_option(ENABLE_UNIT_TESTS_MYSQL "Enable flexisip unit tests that use mysql" OFF "ENABLE_UNIT_TESTS;ENABLE_SOCI" OFF)
+cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable media relay specific features" OFF "ENABLE_TRANSCODER" OFF)
+
 set(CPACK_GENERATOR "" CACHE STRING "Generator to use for making package. Supported values: 'RPM', 'DEB'")
 set(SYSCONF_INSTALL_DIR "" CACHE STRING
 	"Configuration directory, the place where Flexisip expects its flexisip.conf file to reside. Always equal to '${CMAKE_INSTALL_FULL_SYSCONFDIR}' if empty."
@@ -95,6 +97,16 @@ set(SYSCONF_INSTALL_DIR "" CACHE STRING
 set(FLEXISIP_SYSTEMD_INSTALL_DIR "" CACHE STRING
 	"Where to install the SystemD units. Always equal to '${CMAKE_INSTALL_FULL_DATAROOTDIR}/systemd/system' if empty."
 )
+
+if(ENABLE_CONFERENCE OR ENABLE_B2BUA)
+	set(ENABLE_LIBLINPHONE ON)
+	set(HAVE_LIBLINPHONE YES)
+	set(HAVE_LIBLINPHONECXX YES)
+elseif(ENABLE_UNIT_TESTS)
+	set(ENABLE_LIBLINPHONE ON)
+else()
+	set(ENABLE_LIBLINPHONE OFF)
+endif()
 
 # Place the built libraries and executables in top level directories 'lib' and 'bin' in the build tree.
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib" CACHE PATH "Archive output dir.")

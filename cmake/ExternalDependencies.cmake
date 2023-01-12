@@ -1,6 +1,6 @@
 ############################################################################
 # ExternalDependencies.cmake
-# Copyright (C) 2010-2022  Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2023  Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -38,7 +38,7 @@ if(ENABLE_REDIS AND INTERNAL_LIBHIREDIS)
 endif()
 
 # Configure and add Soci
-if(ENABLE_SOCI OR ENABLE_CONFERENCE_SERVER)
+if(ENABLE_SOCI OR ENABLE_LIBLINPHONE)
 	if(BUILD_SHARED_LIBS)
 		set(SOCI_SHARED ON)
 		set(SOCI_STATIC OFF)

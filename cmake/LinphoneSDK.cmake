@@ -1,6 +1,6 @@
 ############################################################################
 # LinphoneSDK.cmake
-# Copyright (C) 2010-2022 Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2023 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -132,7 +132,7 @@ if(ENABLE_PRESENCE OR ENABLE_MDNS OR ENABLE_CONFERENCE OR ENABLE_UNIT_TESTS)
 endif()
 
 
-if(ENABLE_CONFERENCE OR ENABLE_B2BUA)
+if(ENABLE_LIBLINPHONE)
 	# Lime specific config
 	set(DISABLE_SOCI_PACKAGE_SEARCH ON)
 
@@ -181,8 +181,4 @@ if(ENABLE_CONFERENCE OR ENABLE_B2BUA)
 
 	add_subdirectory("linphone-sdk/liblinphone")
 	unset(ENABLE_UNIT_TESTS) # remove the overriding
-
-	# Declare that liblinphone and liblinphone++ have been found.
-	set(HAVE_LIBLINPHONE YES)
-	set(HAVE_LIBLINPHONECXX YES)
 endif()

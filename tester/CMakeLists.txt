@@ -23,6 +23,7 @@
 find_package(Threads REQUIRED)
 find_package(LibNgHttp2Asio)
 find_package(Boost COMPONENTS system REQUIRED)
+find_package(jsoncpp "1.1.0" REQUIRED)
 
 # Generate flexisip-tester-config.h
 set(FLEXISIP_TESTER_DATA_SRCDIR "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -43,7 +44,6 @@ add_executable(flexisip_tester
 	${CMAKE_CURRENT_BINARY_DIR}/flexisip-tester-config.hh flexisip-tester-config.hh.in
 	fork-call-tester.cc
 	fork-context-tester.cc
-	fork-context-mysql-tester.cc
 	module-dos-tester.cc
 	module-info-tester.cc
 	module-pushnotification-tester.cc
@@ -80,6 +80,12 @@ if (ENABLE_CONFERENCE)
 	target_sources(flexisip_tester PRIVATE conference-tester.cc)
 endif ()
 
+if (ENABLE_UNIT_TESTS_MYSQL)
+	target_sources(flexisip_tester PRIVATE
+		fork-context-mysql-tester.cc
+	)
+endif(ENABLE_UNIT_TESTS_MYSQL)
+
 if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
 	target_sources(flexisip_tester PRIVATE push-notification-tester.cc utils/pns-mock.cc)
 elseif (ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
@@ -87,9 +93,7 @@ elseif (ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
 endif ()
 
 if (ENABLE_B2BUA)
-	find_package(jsoncpp "1.1.0" REQUIRED)
 	target_sources(flexisip_tester PRIVATE b2bua-tester.cc)
-	target_link_libraries(flexisip_tester PRIVATE jsoncpp_lib)
 endif ()
 
 target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
@@ -105,6 +109,7 @@ target_link_libraries(flexisip_tester PRIVATE
 	linphone++
 	mediastreamer
 	ortp
+	jsoncpp_lib
 )
 
 if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)

@@ -1,6 +1,6 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+	Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as
@@ -38,10 +38,10 @@
 #cmakedefine HAVE_ARC4RANDOM 1
 #cmakedefine HAVE_SYS_PRCTL_H 1
 
-/* Whether the liblinphone library has been found. */
+/* Whether the liblinphone library has been linked. */
 #cmakedefine HAVE_LIBLINPHONE 1
 
-/* Whether the liblinphone++ library has been found. */
+/* Whether the liblinphone++ library has been linked. */
 #cmakedefine HAVE_LIBLINPHONECXX 1
 
 #cmakedefine MEDIARELAY_SPECIFIC_FEATURES_ENABLED 1

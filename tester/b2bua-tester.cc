@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2022 Belledonne Communications SARL
+ * Copyright (C) 2010-2023 Belledonne Communications SARL
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#include <cstring>
 #include <fstream>
 
 #include <json/json.h>
@@ -653,7 +654,7 @@ static void external_provider_bridge__cli() {
 	if (!BC_ASSERT_TRUE(output == expected)) {
 		SLOGD << "SIP BRIDGE INFO: " << output;
 		SLOGD << "EXPECTED INFO  : " << expected;
-		BC_ASSERT_TRUE(output.size() == sizeof(expected));
+		BC_ASSERT_TRUE(output.size() == strlen(expected));
 		for (size_t i = 0; i < output.size(); i++) {
 			if (output[i] != expected[i]) {
 				SLOGD << "DIFFERING AT INDEX " << i << " ('" << output[i] << "' != '" << expected[i] << "')";
@@ -674,10 +675,9 @@ static void basic() {
 		// create clients and register them on the server
 		// do it in a block to make sure they are destroyed before the server
 
-		// creation and registration in one call (deprecated)
-		auto pauline = std::make_shared<CoreClient>("sip:pauline@sip.example.org", server);
-		// creation then registration
-		auto marie = ClientBuilder("sip:marie@sip.example.org").registerTo(server);
+		auto pauline = std::make_shared<CoreClient>(
+		    ClientBuilder("sip:pauline@sip.example.org").useMireAsCamera().registerTo(server));
+		auto marie = ClientBuilder("sip:marie@sip.example.org").useMireAsCamera().registerTo(server);
 		BC_ASSERT_PTR_NOT_NULL(marie.getAccount());
 
 		// marie calls pauline with default call params
@@ -726,47 +726,47 @@ static bool mixedEncryption(const std::string& marieName,
 	auto server = std::make_shared<B2buaServer>("/config/flexisip_b2bua.conf");
 	{
 		// Create and register clients
-		auto marie = std::make_shared<CoreClient>(marieName, server);
-		auto pauline = std::make_shared<CoreClient>(paulineName, server);
+		auto marie = ClientBuilder(marieName).useMireAsCamera().registerTo(server);
+		auto pauline = ClientBuilder(paulineName).useMireAsCamera().registerTo(server);
 
 		// Marie calls Pauline
-		auto marieCallParams = marie->getCore()->createCallParams(nullptr);
+		auto marieCallParams = marie.getCore()->createCallParams(nullptr);
 		marieCallParams->setMediaEncryption(marieEncryption);
 		marieCallParams->enableVideo(video);
-		if (!BC_ASSERT_PTR_NOT_NULL(marie->call(pauline, marieCallParams))) return false;
-		BC_ASSERT_TRUE(marie->getCore()->getCurrentCall()->getCurrentParams()->getMediaEncryption() == marieEncryption);
-		BC_ASSERT_TRUE(pauline->getCore()->getCurrentCall()->getCurrentParams()->getMediaEncryption() ==
+		if (!BC_ASSERT_PTR_NOT_NULL(marie.call(pauline, marieCallParams))) return false;
+		BC_ASSERT_TRUE(marie.getCore()->getCurrentCall()->getCurrentParams()->getMediaEncryption() == marieEncryption);
+		BC_ASSERT_TRUE(pauline.getCore()->getCurrentCall()->getCurrentParams()->getMediaEncryption() ==
 		               paulineEncryption);
 		// we're going through a back-2-back user agent, so the callIds are not the same
-		BC_ASSERT_TRUE(marie->getCore()->getCurrentCall()->getCallLog()->getCallId() !=
-		               pauline->getCore()->getCurrentCall()->getCallLog()->getCallId());
-		if (!BC_ASSERT_TRUE(marie->endCurrentCall(pauline))) return false;
+		BC_ASSERT_TRUE(marie.getCore()->getCurrentCall()->getCallLog()->getCallId() !=
+		               pauline.getCore()->getCurrentCall()->getCallLog()->getCallId());
+		if (!BC_ASSERT_TRUE(marie.endCurrentCall(pauline))) return false;
 
 		// updating call to add and remove video
 		if (video) {
-			auto marieCallParams = marie->getCore()->createCallParams(nullptr);
+			auto marieCallParams = marie.getCore()->createCallParams(nullptr);
 			marieCallParams->setMediaEncryption(marieEncryption);
 			// Call audio only
-			auto marieCall = marie->call(pauline, marieCallParams);
+			auto marieCall = marie.call(pauline, marieCallParams);
 			if (!BC_ASSERT_PTR_NOT_NULL(marieCall)) return false;
-			auto paulineCall = pauline->getCore()->getCurrentCall();
+			auto paulineCall = pauline.getCore()->getCurrentCall();
 			BC_ASSERT_TRUE(marieCall->getCurrentParams()->getMediaEncryption() == marieEncryption);
 			BC_ASSERT_TRUE(paulineCall->getCurrentParams()->getMediaEncryption() == paulineEncryption);
 			BC_ASSERT_FALSE(marieCall->getCurrentParams()->videoEnabled());
 			BC_ASSERT_FALSE(paulineCall->getCurrentParams()->videoEnabled());
 			// update call to add video
 			marieCallParams->enableVideo(true);
-			if (!BC_ASSERT_TRUE(marie->callUpdate(pauline, marieCallParams)))
+			if (!BC_ASSERT_TRUE(marie.callUpdate(pauline, marieCallParams)))
 				return false; // The callUpdate checks that video is enabled
 			BC_ASSERT_TRUE(marieCall->getCurrentParams()->getMediaEncryption() == marieEncryption);
 			BC_ASSERT_TRUE(paulineCall->getCurrentParams()->getMediaEncryption() == paulineEncryption);
 			// update call to remove video
 			marieCallParams->enableVideo(false);
-			if (!BC_ASSERT_TRUE(marie->callUpdate(pauline, marieCallParams)))
+			if (!BC_ASSERT_TRUE(marie.callUpdate(pauline, marieCallParams)))
 				return false; // The callUpdate checks that video is disabled
 			BC_ASSERT_TRUE(marieCall->getCurrentParams()->getMediaEncryption() == marieEncryption);
 			BC_ASSERT_TRUE(paulineCall->getCurrentParams()->getMediaEncryption() == paulineEncryption);
-			if (!BC_ASSERT_TRUE(marie->endCurrentCall(pauline))) return false;
+			if (!BC_ASSERT_TRUE(marie.endCurrentCall(pauline))) return false;
 		}
 	}
 	return true;
@@ -840,60 +840,60 @@ static void sdes2sdes256(bool video) {
 	auto server = std::make_shared<B2buaServer>("/config/flexisip_b2bua.conf");
 	{
 		// Create and register clients
-		auto sdes = std::make_shared<CoreClient>("sip:b2bua_srtp@sip.example.org", server);
-		auto sdes256 = std::make_shared<CoreClient>("sip:b2bua_srtp256@sip.example.org", server);
-		auto sdes256gcm = std::make_shared<CoreClient>("sip:b2bua_srtpgcm@sip.example.org", server);
+		auto sdes = ClientBuilder("sip:b2bua_srtp@sip.example.org").useMireAsCamera().registerTo(server);
+		auto sdes256 = ClientBuilder("sip:b2bua_srtp256@sip.example.org").useMireAsCamera().registerTo(server);
+		auto sdes256gcm = ClientBuilder("sip:b2bua_srtpgcm@sip.example.org").useMireAsCamera().registerTo(server);
 
 		// Call from SDES to SDES256
-		auto sdesCallParams = sdes->getCore()->createCallParams(nullptr);
+		auto sdesCallParams = sdes.getCore()->createCallParams(nullptr);
 		sdesCallParams->setMediaEncryption(linphone::MediaEncryption::SRTP);
 		sdesCallParams->setSrtpSuites(
 		    {linphone::SrtpSuite::AESCM128HMACSHA180, linphone::SrtpSuite::AESCM128HMACSHA132});
 		sdesCallParams->enableVideo(video);
-		if (!BC_ASSERT_PTR_NOT_NULL(sdes->call(sdes256, sdesCallParams))) return;
-		BC_ASSERT_TRUE(sdes->getCore()->getCurrentCall()->getCurrentParams()->getMediaEncryption() ==
+		if (!BC_ASSERT_PTR_NOT_NULL(sdes.call(sdes256, sdesCallParams))) return;
+		BC_ASSERT_TRUE(sdes.getCore()->getCurrentCall()->getCurrentParams()->getMediaEncryption() ==
 		               linphone::MediaEncryption::SRTP);
-		BC_ASSERT_TRUE(sdes->getCore()->getCurrentCall()->getCurrentParams()->getSrtpSuites().front() ==
+		BC_ASSERT_TRUE(sdes.getCore()->getCurrentCall()->getCurrentParams()->getSrtpSuites().front() ==
 		               linphone::SrtpSuite::AESCM128HMACSHA180);
-		BC_ASSERT_TRUE(sdes256->getCore()->getCurrentCall()->getCurrentParams()->getMediaEncryption() ==
+		BC_ASSERT_TRUE(sdes256.getCore()->getCurrentCall()->getCurrentParams()->getMediaEncryption() ==
 		               linphone::MediaEncryption::SRTP);
-		BC_ASSERT_TRUE(sdes256->getCore()->getCurrentCall()->getCurrentParams()->getSrtpSuites().front() ==
+		BC_ASSERT_TRUE(sdes256.getCore()->getCurrentCall()->getCurrentParams()->getSrtpSuites().front() ==
 		               linphone::SrtpSuite::AES256CMHMACSHA180);
-		sdes->endCurrentCall(sdes256);
+		sdes.endCurrentCall(sdes256);
 
 		// Call from SDES256 to SDES
-		auto sdes256CallParams = sdes256->getCore()->createCallParams(nullptr);
+		auto sdes256CallParams = sdes256.getCore()->createCallParams(nullptr);
 		sdes256CallParams->setMediaEncryption(linphone::MediaEncryption::SRTP);
 		sdes256CallParams->setSrtpSuites(
 		    {linphone::SrtpSuite::AES256CMHMACSHA180, linphone::SrtpSuite::AES256CMHMACSHA132});
 		sdes256CallParams->enableVideo(video);
-		if (!BC_ASSERT_PTR_NOT_NULL(sdes256->call(sdes, sdes256CallParams))) return;
-		BC_ASSERT_TRUE(sdes->getCore()->getCurrentCall()->getCurrentParams()->getMediaEncryption() ==
+		if (!BC_ASSERT_PTR_NOT_NULL(sdes256.call(sdes, sdes256CallParams))) return;
+		BC_ASSERT_TRUE(sdes.getCore()->getCurrentCall()->getCurrentParams()->getMediaEncryption() ==
 		               linphone::MediaEncryption::SRTP);
-		BC_ASSERT_TRUE(sdes->getCore()->getCurrentCall()->getCurrentParams()->getSrtpSuites().front() ==
+		BC_ASSERT_TRUE(sdes.getCore()->getCurrentCall()->getCurrentParams()->getSrtpSuites().front() ==
 		               linphone::SrtpSuite::AESCM128HMACSHA180);
-		BC_ASSERT_TRUE(sdes256->getCore()->getCurrentCall()->getCurrentParams()->getMediaEncryption() ==
+		BC_ASSERT_TRUE(sdes256.getCore()->getCurrentCall()->getCurrentParams()->getMediaEncryption() ==
 		               linphone::MediaEncryption::SRTP);
-		BC_ASSERT_TRUE(sdes256->getCore()->getCurrentCall()->getCurrentParams()->getSrtpSuites().front() ==
+		BC_ASSERT_TRUE(sdes256.getCore()->getCurrentCall()->getCurrentParams()->getSrtpSuites().front() ==
 		               linphone::SrtpSuite::AES256CMHMACSHA180);
-		sdes->endCurrentCall(sdes256);
+		sdes.endCurrentCall(sdes256);
 
 		// Call from SDES256 to SDES256gcm
-		sdes256CallParams = sdes256->getCore()->createCallParams(nullptr);
+		sdes256CallParams = sdes256.getCore()->createCallParams(nullptr);
 		sdes256CallParams->setMediaEncryption(linphone::MediaEncryption::SRTP);
 		sdes256CallParams->setSrtpSuites(
 		    {linphone::SrtpSuite::AES256CMHMACSHA180, linphone::SrtpSuite::AES256CMHMACSHA132});
 		sdes256CallParams->enableVideo(video);
-		if (!BC_ASSERT_PTR_NOT_NULL(sdes256->call(sdes256gcm, sdes256CallParams))) return;
-		BC_ASSERT_TRUE(sdes256gcm->getCore()->getCurrentCall()->getCurrentParams()->getMediaEncryption() ==
+		if (!BC_ASSERT_PTR_NOT_NULL(sdes256.call(sdes256gcm, sdes256CallParams))) return;
+		BC_ASSERT_TRUE(sdes256gcm.getCore()->getCurrentCall()->getCurrentParams()->getMediaEncryption() ==
 		               linphone::MediaEncryption::SRTP);
-		BC_ASSERT_TRUE(sdes256gcm->getCore()->getCurrentCall()->getCurrentParams()->getSrtpSuites().front() ==
+		BC_ASSERT_TRUE(sdes256gcm.getCore()->getCurrentCall()->getCurrentParams()->getSrtpSuites().front() ==
 		               linphone::SrtpSuite::AEADAES256GCM);
-		BC_ASSERT_TRUE(sdes256->getCore()->getCurrentCall()->getCurrentParams()->getMediaEncryption() ==
+		BC_ASSERT_TRUE(sdes256.getCore()->getCurrentCall()->getCurrentParams()->getMediaEncryption() ==
 		               linphone::MediaEncryption::SRTP);
-		BC_ASSERT_TRUE(sdes256->getCore()->getCurrentCall()->getCurrentParams()->getSrtpSuites().front() ==
+		BC_ASSERT_TRUE(sdes256.getCore()->getCurrentCall()->getCurrentParams()->getSrtpSuites().front() ==
 		               linphone::SrtpSuite::AES256CMHMACSHA180);
-		sdes256gcm->endCurrentCall(sdes256);
+		sdes256gcm.endCurrentCall(sdes256);
 	}
 }
 
