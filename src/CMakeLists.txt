@@ -52,8 +52,6 @@ add_library(flexisip SHARED
 	fork-context/fork-basic-context.cc
 	fork-context/fork-call-context.cc
 	fork-context/fork-context-base.cc
-	fork-context/fork-message-context-db-proxy.cc
-	fork-context/fork-message-context-soci-repository.cc
 	fork-context/fork-message-context.cc
 	fork-context/fork-context.cc
 	h264iframefilter.cc h264iframefilter.hh
@@ -318,7 +316,14 @@ if (ENABLE_B2BUA)
 endif ()
 if (ENABLE_SOCI)
 	target_compile_definitions(flexisip PRIVATE "ENABLE_SOCI")
-	target_sources(flexisip PRIVATE authdb-soci.cc soci-helper.cc soci-helper.hh)
+	target_sources(flexisip PRIVATE
+		authdb-soci.cc
+		eventlogs/eventlogs-soci.cc
+		fork-context/fork-message-context-soci-repository.cc
+		fork-context/fork-message-context-db-proxy.cc
+		soci-helper.cc
+		soci-helper.hh
+	)
 	target_link_libraries(flexisip PUBLIC soci_core soci_mysql)
 endif ()
 if (XercesC_FOUND)

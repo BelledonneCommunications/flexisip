@@ -40,9 +40,9 @@ add_executable(flexisip_tester
 	cli-tester.cc
 	domain-registration-tester.cc
 	extended-contact-tester.cc
-	${CMAKE_CURRENT_BINARY_DIR}/flexisip-tester-config.hh flexisip-tester-config.hh.in
 	fork-call-tester.cc
 	fork-context-tester.cc
+	${CMAKE_CURRENT_BINARY_DIR}/flexisip-tester-config.hh flexisip-tester-config.hh.in
 	module-dos-tester.cc
 	module-info-tester.cc
 	module-pushnotification-tester.cc
@@ -105,11 +105,11 @@ target_link_libraries(flexisip_tester PRIVATE
 	bctoolbox-tester
 	bellesip
 	flexisip
-	linphone
-	linphone++
 	mediastreamer
 	ortp
 	hiredis
+	linphone
+	linphone++
 )
 
 if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)

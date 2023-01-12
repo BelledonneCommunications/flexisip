@@ -23,6 +23,8 @@
 #include "flexisip/dos/dos-executor/ban-executor.hh"
 #include "flexisip/module.hh"
 
+#include "utils/thread/thread-pool.hh"
+
 namespace flexisip {
 
 struct DosContext {

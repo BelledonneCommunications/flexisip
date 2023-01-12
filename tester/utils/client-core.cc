@@ -18,6 +18,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <memory>
 
 #include <bctoolbox/tester.h>
 
@@ -107,14 +108,6 @@ ClientBuilder::ClientBuilder(const std::string& me)
 		}
 	}
 
-	{ // Use Mire as camera for video stream
-		auto msFactory = linphone_core_get_ms_factory(mCore->cPtr());
-		auto webCamMan = ms_factory_get_web_cam_manager(msFactory);
-		auto mire_desc = ms_mire_webcam_desc_get();
-		auto mire = ms_web_cam_new(mire_desc);
-		ms_web_cam_manager_add_cam(webCamMan, mire);
-		mCore->setVideoDevice("Mire: Mire (synthetic moving picture)");
-	}
 	{
 		auto policy = mFactory->createVideoActivationPolicy();
 		policy->setAutomaticallyAccept(true);
@@ -164,6 +157,17 @@ ClientBuilder& ClientBuilder::setApplePushConfig() {
 	pushConfig->setParam("ABCD1234.org.linphone.phone.remote&voip");
 	mAccountParams->setPushNotificationAllowed(true);
 	mCore->enablePushNotification(true);
+
+	return *this;
+}
+
+ClientBuilder& ClientBuilder::useMireAsCamera() {
+	auto msFactory = linphone_core_get_ms_factory(mCore->cPtr());
+	auto webCamMan = ms_factory_get_web_cam_manager(msFactory);
+	auto mire_desc = ms_mire_webcam_desc_get();
+	auto mire = ms_web_cam_new(mire_desc);
+	ms_web_cam_manager_add_cam(webCamMan, mire);
+	mCore->setVideoDevice("Mire: Mire (synthetic moving picture)");
 
 	return *this;
 }
@@ -396,14 +400,14 @@ CoreClient::callWithEarlyCancel(const std::shared_ptr<CoreClient>& callee,
 	return callerCall;
 }
 
-bool CoreClient::callUpdate(const std::shared_ptr<CoreClient>& peer,
-                            const std::shared_ptr<linphone::CallParams>& callParams) {
+bool CoreClient::callUpdate(const CoreClient& peer, const std::shared_ptr<linphone::CallParams>& callParams) {
 	if (callParams == nullptr) {
 		BC_FAIL("Cannot update call without new call params");
 	}
 
+	auto peerCore = peer.getCore();
 	auto selfCall = mCore->getCurrentCall();
-	auto peerCall = peer->getCore()->getCurrentCall();
+	auto peerCall = peerCore->getCurrentCall();
 	if (selfCall == nullptr || peerCall == nullptr) {
 		BC_FAIL("Trying to update a call but at least one participant is not currently engaged in one");
 		return false;
@@ -416,7 +420,7 @@ bool CoreClient::callUpdate(const std::shared_ptr<CoreClient>& peer,
 	BC_ASSERT_TRUE(peerCall->getState() == State::StreamsRunning);
 
 	// Wait for the update to be concluded
-	if (!BC_ASSERT_TRUE(CoreAssert({mCore, peer->getCore()}, mServer->getAgent())
+	if (!BC_ASSERT_TRUE(CoreAssert({mCore, peerCore}, mServer->getAgent())
 	                        .iterateUpTo(5,
 	                                     [&selfCall = *selfCall] {
 		                                     FAIL_IF(selfCall.getState() != State::StreamsRunning);
@@ -426,7 +430,7 @@ bool CoreClient::callUpdate(const std::shared_ptr<CoreClient>& peer,
 		return false;
 	BC_ASSERT_TRUE(peerCall->getState() == State::StreamsRunning);
 
-	if (!CoreAssert({mCore, peer->getCore()}, mServer->getAgent())
+	if (!CoreAssert({mCore, peerCore}, mServer->getAgent())
 	         .waitUntil(std::chrono::seconds(12),
 	                    assert_data_transmitted(*peerCall, *selfCall, callParams->videoEnabled()))
 	         .assert_passed())

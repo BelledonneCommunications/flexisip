@@ -19,6 +19,7 @@
 #include "utils/thread/auto-thread-pool.hh"
 
 #include "flexisip/fork-context/fork-message-context-db-proxy.hh"
+#include "flexisip/fork-context/fork-message-context-soci-repository.hh"
 
 using namespace std;
 

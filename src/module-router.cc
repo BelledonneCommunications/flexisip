@@ -32,6 +32,11 @@
 #include "router/inject-context.hh"
 #include "router/schedule-injector.hh"
 
+#if ENABLE_SOCI
+#include "flexisip/fork-context/fork-message-context-soci-repository.hh"
+#include "flexisip/fork-context/fork-message-context-db-proxy.hh"
+#endif
+
 using namespace std;
 using namespace std::chrono;
 using namespace flexisip;
@@ -201,6 +206,7 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 
 	if (mMessageForkCfg->mForkLate) {
 		mOnContactRegisteredListener = make_shared<OnContactRegisteredListener>(this);
+		#if ENABLE_SOCI
 		if ((mMessageForkCfg->mSaveForkMessageEnabled = mc->get<ConfigBoolean>("message-database-enabled")->read())) {
 			InjectContext::setMaxRequestRetentionTime(
 			    seconds{mc->get<ConfigInt>("max-request-retention-time")->read()});
@@ -210,12 +216,15 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 			    mc->get<ConfigString>("message-database-connection-string")->read(), 10);
 
 			restoreForksFromDatabase();
-		} else {
+		} else
+		#endif
+		{
 			mInjector = make_unique<AgentInjector>(this);
 		}
 	}
 }
 
+#if ENABLE_SOCI
 void ModuleRouter::restoreForksFromDatabase() {
 	SLOGI << "Fork message to DB is enabled, retrieving previous messages in DB ...";
 	auto allDbMessages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
@@ -230,6 +239,7 @@ void ModuleRouter::restoreForksFromDatabase() {
 	}
 	SLOGI << " ... " << mForks.size() << " fork message restored from DB.";
 }
+#endif
 
 void ModuleRouter::sendReply(
     shared_ptr<RequestSipEvent>& ev, int code, const char* reason, int warn_code, const char* warning) {
@@ -554,17 +564,23 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 	             strcasecmp(sip->sip_content_type->c_type, "application/im-iscomposing+xml") == 0) &&
 	           !(sip->sip_expires && sip->sip_expires->ex_delta == 0)) {
 		// Use the basic fork context for "im-iscomposing+xml" messages to prevent storing useless messages
+		#if ENABLE_SOCI
 		if (mMessageForkCfg->mSaveForkMessageEnabled) {
 			context = ForkMessageContextDbProxy::make(shared_from_this(), ev, msgPriority);
-		} else {
+		} else
+		#endif
+		{
 			context = ForkMessageContext::make(shared_from_this(), ev, shared_from_this(), msgPriority);
 		}
 	} else if (sip->sip_request->rq_method == sip_method_refer &&
 	           (sip->sip_refer_to != nullptr && msg_params_find(sip->sip_refer_to->r_params, "text") != nullptr)) {
 		// Use the message fork context only for refers that are text to prevent storing useless refers
+		#if ENABLE_SOCI
 		if (mMessageForkCfg->mSaveForkMessageEnabled) {
 			context = ForkMessageContextDbProxy::make(shared_from_this(), ev, msgPriority);
-		} else {
+		} else
+		#endif
+		{
 			context = ForkMessageContext::make(shared_from_this(), ev, shared_from_this(), msgPriority);
 		}
 	} else {

@@ -20,9 +20,6 @@
 
 #include <string>
 
-#include <soci/type-conversion-traits.h>
-#include <soci/values.h>
-
 namespace flexisip {
 
 /**
@@ -56,6 +53,11 @@ public:
 
 } // namespace flexisip
 
+#if ENABLE_SOCI
+
+#include <soci/type-conversion-traits.h>
+#include <soci/values.h>
+
 namespace soci {
 
 /**
@@ -84,3 +86,4 @@ public:
 };
 
 } // namespace soci
+#endif

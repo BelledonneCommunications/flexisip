@@ -21,7 +21,6 @@
 #include <atomic>
 #include <string>
 
-#include "flexisip/fork-context/fork-message-context-soci-repository.hh"
 #include "flexisip/fork-context/fork-message-context.hh"
 
 #if ENABLE_UNIT_TESTS

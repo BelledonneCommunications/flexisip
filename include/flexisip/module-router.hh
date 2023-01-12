@@ -21,7 +21,6 @@
 #include <memory>
 
 #include "flexisip/agent.hh"
-#include "flexisip/fork-context/fork-context.hh"
 #include "flexisip/module.hh"
 #include "flexisip/registrardb.hh"
 #include "router/injector.hh"
@@ -148,7 +147,9 @@ protected:
 	url_t* mFallbackRouteParsed = nullptr;
 
 private:
+#if ENABLE_SOCI
 	void restoreForksFromDatabase();
+#endif
 
 	static ModuleInfo<ModuleRouter> sInfo;
 	static sofiasip::MsgSipPriority sMaxPriorityHandled;

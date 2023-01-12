@@ -53,6 +53,9 @@ public:
 	ClientBuilder& setCustomContact(const std::string& contact);
 	ClientBuilder& setPushParams(const pushnotification::RFC8599PushParams& params);
 
+	// Use Mire as camera for video stream
+	ClientBuilder& useMireAsCamera();
+
 	/**
 	 * Add some Apple-specific push info to REGISTERs
 	 */
@@ -96,6 +99,7 @@ public:
 
 	/**
 	 * Create and start client core, create an account and register to given server
+	 * @deprecated Use a ClientBuilder
 	 *
 	 * @param[in] me		address of local account
 	 * @param[in] server	server to register to
@@ -170,7 +174,7 @@ public:
 	 *
 	 * @return true if all asserts in the callUpdate succeded, false otherwise
 	 */
-	bool callUpdate(const std::shared_ptr<CoreClient>& peer,
+	bool callUpdate(const CoreClient& peer,
 	                const std::shared_ptr<linphone::CallParams>& callerCallParams);
 
 	/**

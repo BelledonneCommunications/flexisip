@@ -64,6 +64,7 @@ public:
 
 } // namespace flexisip
 
+#if ENABLE_SOCI
 namespace soci {
 
 /**
@@ -97,3 +98,4 @@ public:
 };
 
 } // namespace soci
+#endif
