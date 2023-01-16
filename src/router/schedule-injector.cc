@@ -96,10 +96,10 @@ void ScheduleInjector::removeContext(const shared_ptr<ForkContext>& fork, const 
 
 	auto& contactInjectContexts = contactMapEntry->second;
 	// Reverse search and erase
-	const auto& reverseIt = find_if(contactInjectContexts.rbegin(), contactInjectContexts.rend(),
-	                                [&fork](const auto& i) { return i == fork; });
-	if (reverseIt != contactInjectContexts.rend()) {
-		contactInjectContexts.erase(std::next(reverseIt).base()); // trick to erase from a reverse_iterator
+	const auto& it = find_if(contactInjectContexts.begin(), contactInjectContexts.end(),
+	                         [&fork](const auto& i) { return i == fork; });
+	if (it != contactInjectContexts.end()) {
+		contactInjectContexts.erase(it);
 		if (areAllHigherPriorityMapEmpty(currentPriority, contactId)) {
 			startInject(currentPriority, contactInjectContexts, contactId);
 		} else if (contactInjectContexts.empty()) {

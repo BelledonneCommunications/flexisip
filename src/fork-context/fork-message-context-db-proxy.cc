@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -213,13 +213,15 @@ void ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
 
 	// Do not access DB or call OnNewRegister if we already know that this device is delivered.
 	if (isAlreadyDelivered(dest, uid)) {
-		sharedRouter->removeInjectContext(shared_from_this(), newContact->contactId());
+		sharedRouter->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid,
+		                                            DispatchStatus::DispatchNotNeeded);
 		return;
 	}
 
 	// Try to restore the ForkMessage from a previous recursive call.
 	if (!restoreForkIfNeeded()) { // runtime_error during restoration
-		sharedRouter->removeInjectContext(shared_from_this(), newContact->contactId());
+		sharedRouter->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid,
+		                                            DispatchStatus::DispatchNotNeeded);
 		return;
 	}
 
