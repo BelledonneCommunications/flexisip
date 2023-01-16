@@ -60,7 +60,7 @@ public:
 	void addContext(const std::shared_ptr<ForkContext>& fork, const std::string& contactId) override;
 
 	/**
-	 * Starting from the end of the list remove a context that don't need inject.
+	 * Starting from the beginning of the list remove a context that don't need inject.
 	 */
 	void removeContext(const std::shared_ptr<ForkContext>& fork, const std::string& contactId) override;
 
