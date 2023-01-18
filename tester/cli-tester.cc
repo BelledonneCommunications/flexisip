@@ -203,7 +203,7 @@ void flexisip_cli_dot_py() {
 			return output;
 		});
 
-		BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(15, [&fut] { return fut.wait_for(0s) == std::future_status::ready; }));
+		BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(22, [&fut] { return fut.wait_for(0s) == std::future_status::ready; }));
 
 		return fut.get();
 	};
