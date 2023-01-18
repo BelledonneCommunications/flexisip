@@ -348,9 +348,10 @@ CoreClient::callWithEarlyCancel(const std::shared_ptr<CoreClient>& callee,
 	}
 
 	vector<shared_ptr<linphone::Core>> coreList = {mCore};
+	const auto& agent = mServer->getAgent();
 	if (isCalleeAway) {
 		// Register callee to update the registrar DB
-		if (!BC_ASSERT_TRUE(CoreAssert(coreList, mServer->getAgent()).wait([callee] {
+		if (!BC_ASSERT_TRUE(CoreAssert(coreList, agent).wait([callee] {
 			    return callee->getAccount()->getState() == linphone::RegistrationState::Ok;
 		    }))) {
 			return nullptr;
@@ -365,8 +366,8 @@ CoreClient::callWithEarlyCancel(const std::shared_ptr<CoreClient>& callee,
 	}
 
 	// Check call get the incoming call and caller is in OutgoingRinging state
-	if (!BC_ASSERT_TRUE(CoreAssert(coreList, mServer->getAgent())
-	                        .waitUntil(seconds(10), [&callerCall, isCalleeAway, &agent = mServer->getAgent(), &callee] {
+	if (!BC_ASSERT_TRUE(CoreAssert(coreList, agent)
+	                        .waitUntil(seconds(10), [&callerCall, isCalleeAway, &agent, &callee] {
 		                        if (isCalleeAway) {
 			                        const auto& moduleRouter =
 			                            dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
@@ -385,7 +386,7 @@ CoreClient::callWithEarlyCancel(const std::shared_ptr<CoreClient>& callee,
 
 	callerCall->terminate();
 
-	if (!BC_ASSERT_TRUE(CoreAssert(coreList, mServer->getAgent()).wait([&callerCall, isCalleeAway, &callee] {
+	if (!BC_ASSERT_TRUE(CoreAssert(coreList, agent).wait([&callerCall, isCalleeAway, &callee] {
 		    return callerCall->getState() == linphone::Call::State::Released &&
 		           (isCalleeAway || !callee->getCore()->getCurrentCall() ||
 		            callee->getCore()->getCurrentCall()->getState() == Call::State::Released);

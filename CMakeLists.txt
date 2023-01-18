@@ -230,16 +230,38 @@ configure_file(cmake/flexisip-config.h.in flexisip-config.h)
 set_source_files_properties(${PROJECT_BINARY_DIR}/flexisip-config.h PROPERTIES GENERATED ON)
 add_compile_definitions("HAVE_CONFIG_H")
 
-# -Werror=varargs seems to do false positives with GCC 4.9.x
 bc_init_compilation_flags(CPP_BUILD_FLAGS C_BUILD_FLAGS CXX_BUILD_FLAGS ENABLE_STRICT)
+list(APPEND CXX_BUILD_FLAGS
+	"-Werror=unused-result" # Packaging (on Ubuntu) has this on, so better catch it sooner
+	"-Werror=maybe-uninitialized" # GCC on CentOS 7 treats this as an error
+)
+
+# -Werror=varargs seems to do false positives with GCC 4.9.x
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION MATCHES "^4\\.9\\.[0-9]+$")
 	list(APPEND CXX_BUILD_FLAGS "-Wno-error=varargs")
 endif()
-list(APPEND CXX_BUILD_FLAGS
-	"-Werror=unused-result" # Packaging (on Ubuntu) has this on, so better catch it sooner
-	"-Werror=format-truncation=1" # GCC on CentOS 7 treats this as an error
-	"-Werror=maybe-uninitialized" # GCC on CentOS 7 treats this as an error
-)
+
+# Old compilers (gcc6 and clang3 on Debian 9 Stretch) are giving us some troubles...
+if(CMAKE_CXX_COMPILER_VERSION MATCHES "^[0-6]\\..*$")
+	list(APPEND CXX_BUILD_FLAGS
+		"-Wno-error=unused-variable"
+	)
+	if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+		list(APPEND CXX_BUILD_FLAGS
+			"-Wno-error=unknown-attributes"
+		)
+	endif()
+	if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+		list(APPEND CXX_BUILD_FLAGS
+			"-Wno-error=attributes"
+		)
+	endif()
+else()
+	list(APPEND CXX_BUILD_FLAGS
+		"-Werror=format-truncation=1" # GCC on CentOS 7 treats this as an error
+	)
+endif()
+
 add_compile_options(${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
 
 add_subdirectory(include)
