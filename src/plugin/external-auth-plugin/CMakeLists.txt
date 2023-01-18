@@ -27,6 +27,13 @@ add_library(external-auth SHARED
 	module-external-authentication.cc
 )
 
+# Fix for https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105562
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
+		AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12
+		AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
+	set_source_files_properties(external-auth-module.cc PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized")
+endif ()
+
 set_property(TARGET external-auth PROPERTY VERSION ${PROJECT_VERSION})
 
 target_link_libraries(external-auth PRIVATE flexisip sofia-sip-ua)

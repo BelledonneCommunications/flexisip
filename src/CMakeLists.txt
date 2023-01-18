@@ -133,6 +133,24 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	endif ()
 	set_source_files_properties(stun/stun.c PROPERTIES COMPILE_OPTIONS "${stun_c_compile_options}")
 	unset(stun_c_compile_options)
+
+	# Fix for https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105562
+	if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
+		set_source_files_properties(
+				b2bua/external-provider-bridge.cc
+				b2bua/trenscrypter.cc
+				configdumper.cc
+				domain-registrations.cc domain-registrations.hh
+				expressionparser-impl.cc
+				main.cc
+				module-authentication-base.cc
+				module-registrar.cc
+				pushnotification/apple/apple-request.cc
+				pushnotification/rfc8599-push-params.cc pushnotification/rfc8599-push-params.hh
+				sip-boolean-expressions.cc
+				tools/pusher.cc
+				PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized")
+	endif()
 endif ()
 
 #Generates information for test coverage reports.
