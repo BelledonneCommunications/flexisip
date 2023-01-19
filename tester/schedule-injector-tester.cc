@@ -18,9 +18,9 @@
 
 #include "flexisip/fork-context/fork-message-context-db-proxy.hh"
 
+#include "router/inject-context.hh"
 #include "router/schedule-injector.hh"
 
-#include "utils/bellesip-utils.hh"
 #include "utils/test-patterns/agent-test.hh"
 #include "utils/test-patterns/test.hh"
 
@@ -247,6 +247,7 @@ class BorderLineCasesTest : public ScheduleInjectorTest {
 public:
 	void testExec() override {
 		auto nonUrgentFork = this->addFork(sofiasip::MsgSipPriority::NonUrgent);
+		auto nonUrgentFork2 = this->addFork(sofiasip::MsgSipPriority::NonUrgent);
 		vector<shared_ptr<ForkMessageContext>> expectedOrder{};
 
 		mInjector.injectRequestEvent(nonUrgentFork->getEvent(), nonUrgentFork, "BAD_UUID");
@@ -254,14 +255,45 @@ public:
 		expectedOrder.push_back(nonUrgentFork);
 		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
 
+		mInjector.injectRequestEvent(nonUrgentFork->getEvent(), nonUrgentFork, mUuid);
+		expectedOrder.push_back(nonUrgentFork);
+		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
+		// Injected while not in the list anymore, this should not happen, but we prefer to send in wrong order than not
+		// at all.
+		mInjector.injectRequestEvent(nonUrgentFork->getEvent(), nonUrgentFork, mUuid);
+		expectedOrder.push_back(nonUrgentFork);
+		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
+
 		// No crash double remove
-		mInjector.removeContext(nonUrgentFork, mUuid);
-		mInjector.removeContext(nonUrgentFork, mUuid);
+		mInjector.removeContext(nonUrgentFork2, mUuid);
+		mInjector.removeContext(nonUrgentFork2, mUuid);
 
 		// List is still usable
-		auto nonUrgentFork2 = this->addFork(sofiasip::MsgSipPriority::NonUrgent);
-		mInjector.injectRequestEvent(nonUrgentFork2->getEvent(), nonUrgentFork2, mUuid);
-		expectedOrder.push_back(nonUrgentFork2);
+		auto nonUrgentFork3 = this->addFork(sofiasip::MsgSipPriority::NonUrgent);
+		mInjector.injectRequestEvent(nonUrgentFork3->getEvent(), nonUrgentFork3, mUuid);
+		expectedOrder.push_back(nonUrgentFork3);
+		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
+	}
+};
+
+class InjectContextExpiredTest : public ScheduleInjectorTest {
+public:
+	void testExec() override {
+		InjectContext::setMaxRequestRetentionTime(50ms);
+		auto nonUrgentFork = this->addFork(sofiasip::MsgSipPriority::NonUrgent);
+		auto normalFork = this->addFork(sofiasip::MsgSipPriority::Normal);
+		auto urgentFork = this->addFork(sofiasip::MsgSipPriority::Urgent);
+		auto emergencyFork1 = this->addFork(sofiasip::MsgSipPriority::Emergency);
+		auto emergencyFork2 = this->addFork(sofiasip::MsgSipPriority::Emergency);
+
+		mInjector.injectRequestEvent(emergencyFork2->getEvent(), emergencyFork2, mUuid);
+		mInjector.injectRequestEvent(normalFork->getEvent(), normalFork, mUuid);
+		ASSERT_CURRENT_INJECT_ORDER({});
+
+		this_thread::sleep_for(50ms);
+
+		mInjector.injectRequestEvent(nonUrgentFork->getEvent(), nonUrgentFork, mUuid);
+		vector<shared_ptr<ForkMessageContext>> expectedOrder{emergencyFork2, normalFork, nonUrgentFork};
 		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
 	}
 };
@@ -288,7 +320,8 @@ auto _ = [] {
 	    TEST_NO_TAG("Two list test, normal/non-urgent", run<TwoListTestNN>),
 	    TEST_NO_TAG("All list test", run<AllListTest>),
 	    TEST_NO_TAG("Test that remove restart injection of waiting forks.", run<NonBlockingRemoveScheduleInjectorTest>),
-	    TEST_NO_TAG("Test borderline cases (bad contactID, double remove)", run<BorderLineCasesTest>),
+	    TEST_NO_TAG("Test borderline cases (bad contactID, double remove...)", run<BorderLineCasesTest>),
+	    TEST_NO_TAG("Test that expired InjectContext are ignored", run<InjectContextExpiredTest>),
 	};
 	static test_suite_t scheduleInjectorSuite = {"Schedule injector suite",        nullptr, nullptr, nullptr, nullptr,
 	                                             sizeof(tests) / sizeof(tests[0]), tests};

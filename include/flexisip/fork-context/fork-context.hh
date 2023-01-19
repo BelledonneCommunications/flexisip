@@ -102,12 +102,12 @@ public:
 	virtual bool isFinished() const = 0;
 	virtual void checkFinished() = 0;
 	virtual sofiasip::MsgSipPriority getMsgPriority() const = 0;
+	virtual const ForkContext* getPtrForEquality() const = 0;
 
 protected:
 	// Protected methods
 	std::string errorLogPrefix() const;
 	virtual const char* getClassName() const = 0;
-	virtual const ForkContext* getPtrForEquality() const = 0;
 };
 
 enum class DispatchStatus {

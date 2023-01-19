@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,6 +16,10 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "flexisip/module-router.hh"
+
+#include <memory>
+
 #include <sofia-sip/sip_status.h>
 
 #include "domain-registrations.hh"
@@ -25,11 +29,11 @@
 #include "flexisip/fork-context/fork-message-context.hh"
 #include "flexisip/logmanager.hh"
 #include "router/agent-injector.hh"
+#include "router/inject-context.hh"
 #include "router/schedule-injector.hh"
 
-#include "flexisip/module-router.hh"
-
 using namespace std;
+using namespace std::chrono;
 using namespace flexisip;
 using namespace sofiasip;
 
@@ -107,6 +111,8 @@ void ModuleRouter::onDeclare(GenericStruct* mc) {
 	     "non-standard behavior.",
 	     "false"},
 	    {BooleanExpr, "fallback-route-filter", "Only use the fallback route if the expression is true.", "true"},
+	    {Integer, "max-request-retention-time",
+	     "Max time, in seconds, the proxy will retain a request in order to maintain order.", "30"},
 
 	    // deprecated parameters
 	    {Boolean, "stateful",
@@ -196,6 +202,8 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 	if (mMessageForkCfg->mForkLate) {
 		mOnContactRegisteredListener = make_shared<OnContactRegisteredListener>(this);
 		if ((mMessageForkCfg->mSaveForkMessageEnabled = mc->get<ConfigBoolean>("message-database-enabled")->read())) {
+			InjectContext::setMaxRequestRetentionTime(
+			    seconds{mc->get<ConfigInt>("max-request-retention-time")->read()});
 			mInjector = make_unique<ScheduleInjector>(this);
 			ForkMessageContextSociRepository::prepareConfiguration(
 			    mc->get<ConfigString>("message-database-backend")->read(),
@@ -278,6 +286,7 @@ std::shared_ptr<BranchInfo> ModuleRouter::dispatch(const shared_ptr<ForkContext>
 	/*sanity check on the contact address: might be '*' or whatever useless information*/
 	if (dest->url_host == NULL || dest->url_host[0] == '\0') {
 		LOGW("Request is not routed because of incorrect address of contact");
+		mInjector->removeContext(context, contact->contactId());
 		return nullptr;
 	}
 
@@ -356,9 +365,7 @@ void ModuleRouter::onContactRegistered(const std::shared_ptr<OnContactRegistered
 			contact = ec->toSofiaContact(home.home(), ec->mExpireAt - 1);
 
 			// First use sipURI
-			for (const auto& context : range) {
-				mInjector->addContext(context, ec->contactId());
-			}
+			mInjector->addContext(range, ec->contactId());
 			for (const auto& context : range) {
 				context->onNewRegister(SipUri{contact->m_url}, uid, ec);
 			}
@@ -372,9 +379,7 @@ void ModuleRouter::onContactRegistered(const std::shared_ptr<OnContactRegistered
 		// Find all contexts
 		contact = ec->toSofiaContact(home.home(), ec->mExpireAt - 1);
 		auto rang = getLateForks(ExtendedContact::urlToString(ec->mSipContact->m_url));
-		for (const auto& context : rang) {
-			mInjector->addContext(context, ec->contactId());
-		}
+		mInjector->addContext(rang, ec->contactId());
 		for (const auto& context : rang) {
 			forksFound = true;
 			context->onNewRegister(SipUri{contact->m_url}, uid, ec);

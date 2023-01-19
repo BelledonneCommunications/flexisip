@@ -55,6 +55,7 @@
  * These are the C++ logging macros, that can be used with << operator.
  */
 #define SLOG(thelevel) BCTBX_SLOG(FLEXISIP_LOG_DOMAIN, thelevel)
+#define SLOGT SLOG(BCTBX_LOG_DEBUG)
 #define SLOGD SLOG(BCTBX_LOG_DEBUG)
 #define SLOGI SLOG(BCTBX_LOG_MESSAGE)
 #define SLOGW SLOG(BCTBX_LOG_WARNING)

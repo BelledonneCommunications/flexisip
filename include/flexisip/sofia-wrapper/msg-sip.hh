@@ -35,6 +35,9 @@ using namespace ownership;
 
 namespace sofiasip {
 
+/**
+ * Don't forget to update MsgSip::getPreviousPriority and MsgSip::getOrderedPrioritiesList if you update this enum.
+ */
 enum class MsgSipPriority { NonUrgent = 0, Normal = 1, Urgent = 2, Emergency = 3 };
 
 class MsgSip {
@@ -118,6 +121,10 @@ public:
 	 * @throw logic_error if current == MsgSipPriority::NonUrgent
 	 */
 	static MsgSipPriority getPreviousPriority(MsgSipPriority current);
+
+	static std::array<MsgSipPriority, 4> getOrderedPrioritiesList() {
+		return {MsgSipPriority::Emergency, MsgSipPriority::Urgent, MsgSipPriority::Normal, MsgSipPriority::NonUrgent};
+	};
 
 private:
 	// Private methods

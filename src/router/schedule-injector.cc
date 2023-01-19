@@ -16,9 +16,9 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "flexisip/module-router.hh"
-
 #include "schedule-injector.hh"
+
+#include "inject-context.hh"
 
 using namespace std;
 using namespace flexisip;
@@ -27,85 +27,94 @@ using namespace sofiasip;
 void ScheduleInjector::injectRequestEvent(const std::shared_ptr<RequestSipEvent>& ev,
                                           const shared_ptr<ForkContext>& fork,
                                           const std::string& contactId) {
+	SLOGT << "ScheduleInjector::injectRequestEvent. ForkContext[" << fork->getPtrForEquality() << "]";
+
 	auto currentWorkingPriority = fork->getMsgPriority();
 	auto& injectMap = getMapFromPriority(currentWorkingPriority);
 	const auto& contactMapEntry = injectMap.find(contactId);
 
 	if (contactMapEntry == injectMap.end()) {
 		// This should not happen, but we prefer to send in wrong order than not at all.
-		SLOGE << "ForkContext[ " << fork.get() << "], CallID [" << ev->getMsgSip()->getCallID() << "], "
-		      << "was not found in ScheduleInjector maps and is injected out of order to " << contactId;
+		SLOGE << "ScheduleInjector::injectRequestEvent. ForkContext[" << fork->getPtrForEquality() << "], CallID ["
+		      << ev->getMsgSip()->getCallID() << "]. No map found. Injected out of order to " << contactId;
 		mModule->injectRequestEvent(ev);
 		return;
 	}
 
 	auto& contactInjectContexts = contactMapEntry->second;
-	for (auto it = contactInjectContexts.begin(); it != contactInjectContexts.end(); ++it) {
-		if (*it == fork) {
-			it->waitForInject = ev;
-			if (it == contactInjectContexts.begin() &&
-			    areAllHigherPriorityMapEmpty(currentWorkingPriority, contactId)) {
-				startInject(currentWorkingPriority, contactInjectContexts, contactId);
+
+	if (const auto& it = find_if(contactInjectContexts.begin(), contactInjectContexts.end(),
+	                             [&fork](const auto& i) { return i.isEqual(fork); });
+	    it != contactInjectContexts.end()) {
+		it->waitForInject = ev;
+	} else {
+		// This should not happen, but we prefer to send in wrong order than not at all.
+		SLOGE << "ScheduleInjector::injectRequestEvent. ForkContext[" << fork->getPtrForEquality() << "], CallID ["
+		      << ev->getMsgSip()->getCallID() << "], was not found in and is injected out of order to " << contactId;
+		mModule->injectRequestEvent(ev);
+	}
+
+	startInject(contactId);
+}
+
+void ScheduleInjector::startInject(const std::string& contactId) {
+	for (auto priority : MsgSip::getOrderedPrioritiesList()) {
+		auto& injectMap = getMapFromPriority(priority);
+
+		const auto& contactMapEntry = injectMap.find(contactId);
+		if (contactMapEntry == injectMap.end()) {
+			continue;
+		}
+
+		auto& contactInjectContexts = contactMapEntry->second;
+		auto it = contactInjectContexts.begin();
+		while (it != contactInjectContexts.end()) {
+			if (it->waitForInject) {
+				mModule->injectRequestEvent(it->waitForInject);
+				it = contactInjectContexts.erase(it);
+			} else if (it->isExpired()) {
+				SLOGE << "ScheduleInjector::startInject. ForkContext[" << it->mFork->getPtrForEquality()
+				      << "], is expired and is not waiting for inject, removing.";
+				it = contactInjectContexts.erase(it);
+			} else {
+				break;
 			}
-			return;
 		}
-	}
-}
-
-void ScheduleInjector::startInject(sofiasip::MsgSipPriority currentWorkingPriority,
-                                   InjectListType& contactInjectContexts,
-                                   const string& contactId) {
-	auto it = contactInjectContexts.begin();
-	while (it != contactInjectContexts.end() && it->waitForInject) {
-		mModule->injectRequestEvent(it->waitForInject);
-		it = contactInjectContexts.erase(it);
-	}
-
-	if (it == contactInjectContexts.end()) {
-		getMapFromPriority(currentWorkingPriority).erase(contactId);
-		if (currentWorkingPriority != MsgSipPriority::NonUrgent) {
-			continueInjectIfNeeded(MsgSip::getPreviousPriority(currentWorkingPriority), contactId);
+		if (it != contactInjectContexts.end()) {
+			break;
 		}
-	}
-}
-
-void ScheduleInjector::continueInjectIfNeeded(sofiasip::MsgSipPriority currentWorkingPriority,
-                                              const string& contactId) {
-	auto& injectMap = getMapFromPriority(currentWorkingPriority);
-	const auto& contactMapEntry = injectMap.find(contactId);
-
-	if (contactMapEntry != injectMap.end()) {
-		startInject(currentWorkingPriority, contactMapEntry->second, contactId);
-	} else if (currentWorkingPriority != MsgSipPriority::NonUrgent) {
-		continueInjectIfNeeded(MsgSip::getPreviousPriority(currentWorkingPriority), contactId);
 	}
 }
 
 void ScheduleInjector::addContext(const shared_ptr<ForkContext>& fork, const string& contactId) {
+	SLOGT << "ScheduleInjector::addContext. ForkContext[" << fork->getPtrForEquality() << "]";
+	startInject(contactId);
 	getMapFromPriority(fork->getMsgPriority())[contactId].emplace_back(fork);
 }
 
+void ScheduleInjector::addContext(const vector<shared_ptr<ForkContext>>& forks, const string& contactId) {
+	startInject(contactId);
+	for (const auto& fork : forks) {
+		SLOGT << "ScheduleInjector::addContext. ForkContext[" << fork->getPtrForEquality() << "]";
+		getMapFromPriority(fork->getMsgPriority())[contactId].emplace_back(fork);
+	}
+}
+
 void ScheduleInjector::removeContext(const shared_ptr<ForkContext>& fork, const string& contactId) {
+	SLOGT << "ScheduleInjector::removeContext. ForkContext[" << fork->getPtrForEquality() << "]";
 	const auto currentPriority = fork->getMsgPriority();
 	auto& injectMap = getMapFromPriority(currentPriority);
 
-	const auto& contactMapEntry = injectMap.find(contactId);
-	if (contactMapEntry == injectMap.end()) {
-		return;
-	}
-
-	auto& contactInjectContexts = contactMapEntry->second;
-	// Reverse search and erase
-	const auto& it = find_if(contactInjectContexts.begin(), contactInjectContexts.end(),
-	                         [&fork](const auto& i) { return i == fork; });
-	if (it != contactInjectContexts.end()) {
-		contactInjectContexts.erase(it);
-		if (areAllHigherPriorityMapEmpty(currentPriority, contactId)) {
-			startInject(currentPriority, contactInjectContexts, contactId);
-		} else if (contactInjectContexts.empty()) {
-			injectMap.erase(contactId);
+	if (const auto& contactMapEntry = injectMap.find(contactId); contactMapEntry != injectMap.end()) {
+		auto& contactInjectContexts = contactMapEntry->second;
+		const auto& it = find_if(contactInjectContexts.begin(), contactInjectContexts.end(),
+		                         [&fork](const auto& i) { return i.isEqual(fork); });
+		if (it != contactInjectContexts.end()) {
+			contactInjectContexts.erase(it);
 		}
 	}
+
+	startInject(contactId);
 }
 
 ScheduleInjector::InjectContextMap& ScheduleInjector::getMapFromPriority(sofiasip::MsgSipPriority msgSipPriority) {
@@ -123,24 +132,4 @@ ScheduleInjector::InjectContextMap& ScheduleInjector::getMapFromPriority(sofiasi
 			    "ScheduleInjector::getMapFromPriority - sofiasip::MsgSipPriority value is not valid ["s +
 			    to_string(static_cast<int>(msgSipPriority)) + "]");
 	}
-}
-
-bool ScheduleInjector::areAllHigherPriorityMapEmpty(sofiasip::MsgSipPriority msgSipPriority,
-                                                    const string& contactId) const {
-	if (msgSipPriority == MsgSipPriority::Emergency) {
-		return true;
-	}
-
-	auto result = mEmergencyInjectContexts.find(contactId) == mEmergencyInjectContexts.end();
-	if (msgSipPriority == MsgSipPriority::Urgent) {
-		return result;
-	}
-
-	result = result && mUrgentInjectContexts.find(contactId) == mUrgentInjectContexts.end();
-	if (msgSipPriority == MsgSipPriority::Normal) {
-		return result;
-	}
-
-	// MsgSipPriority::NonUrgent
-	return result && mNormalInjectContexts.find(contactId) == mNormalInjectContexts.end();
 }
