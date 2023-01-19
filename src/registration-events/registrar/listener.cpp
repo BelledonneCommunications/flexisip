@@ -1,6 +1,6 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2020  Belledonne Communications SARL, All rights reserved.
+	Copyright (C) 2010-2023  Belledonne Communications SARL, All rights reserved.
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as
@@ -16,7 +16,6 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "registration-events/utils.hh"
 #include "utils/string-utils.hh"
 #include "xml/reginfo.hh"
 #include "xml/resource-lists.hh"
@@ -83,7 +82,7 @@ void Listener::processRecord(const shared_ptr<Record> &r, const string &uidOfFre
 				}
 			}
 
-			contact.setDisplayName(RegistrationEvent::Utils::getDeviceName(ec));
+			contact.setDisplayName(ec->getDeviceName().asString());
 			re.getContact().push_back(contact);
 
 			// If there is some contacts, we set the sate to active

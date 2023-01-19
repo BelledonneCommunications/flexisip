@@ -71,6 +71,7 @@ add_executable(flexisip_tester
 	utils/test-patterns/agent-test.hh
 	utils/test-patterns/test.hh
 	utils/tls-server.cc utils/tls-server.hh
+	utils/utf8-string-tester.cc
 )
 
 if (ENABLE_CONFERENCE)

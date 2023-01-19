@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2022 Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2023 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -277,8 +277,6 @@ if (ENABLE_CONFERENCE)
 		conference/registration-subscription.hh
 		conference/participant-registration-subscription-handler.cc
 		conference/participant-registration-subscription-handler.hh
-		registration-events/utils.cpp
-		registration-events/utils.hh
 		registration-events/client.cpp
 		registration-events/client.hh
 		registration-events/server.cpp

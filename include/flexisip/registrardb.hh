@@ -1,6 +1,6 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+ Copyright (C) 2010-2023  Belledonne Communications SARL, All rights reserved.
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
@@ -38,6 +38,7 @@
 #include <flexisip/module.hh>
 #include <flexisip/push-param.hh>
 
+#include "utils/utf8-string.hh"
 #include "utils/sip-uri.hh"
 
 namespace flexisip {
@@ -132,6 +133,9 @@ struct ExtendedContact {
 	std::string urlAsString() const {
 		return urlToString(mSipContact->m_url);
 	}
+
+	/* Extract printable device name from the User-Agent field */
+	utils::Utf8String getDeviceName() const;
 
 	time_t getExpireNotAtMessage() const {
 		return mExpireNotAtMessage;

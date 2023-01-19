@@ -1,6 +1,6 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+	Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as
@@ -30,6 +30,7 @@
 #include <flexisip/module.hh>
 #include <flexisip/registrardb.hh>
 
+#include "flexisip/utils/utf8-string.hh"
 #include "recordserializer.hh"
 #include "registrardb-internal.hh"
 #ifdef ENABLE_REDIS
@@ -363,6 +364,24 @@ void ExtendedContact::extractInfoFromHeader(const char *urlHeaders) {
 			headers = reinterpret_cast<msg_common_t*>(headers)->h_succ;
 		}
 	}
+}
+
+utils::Utf8String ExtendedContact::getDeviceName() const {
+	const string &userAgent = mUserAgent;
+	size_t begin = userAgent.find("(");
+	string deviceName;
+	if (begin != string::npos) {
+		size_t end = userAgent.find(")", begin);
+		size_t openingParenthesis = userAgent.find("(", begin + 1);
+		while (openingParenthesis != string::npos && openingParenthesis < end) {
+			openingParenthesis = userAgent.find("(", openingParenthesis + 1);
+			end = userAgent.find(")", end + 1);
+		}
+		if (end != string::npos){
+			deviceName = userAgent.substr(begin + 1, end - (begin + 1));
+		}
+	}
+	return deviceName;
 }
 
 static bool compare_contact_using_last_update (shared_ptr<ExtendedContact> first, shared_ptr<ExtendedContact> second) {
