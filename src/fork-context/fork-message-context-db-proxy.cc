@@ -196,7 +196,7 @@ void ForkMessageContextDbProxy::onPushSent(PushNotificationContext& aPNCtx, bool
 	// because the incoming transaction is closed anyway and the “110 Push sent” response cannot be sent.
 	// If the ForkMessageContext is in memory, then the event is forwarded to it and “110 Push sent” response
 	// is sent depending whether the incoming transaction is still current.
-	lock_guard<recursive_mutex>{mStateMutex};
+	lock_guard<recursive_mutex> _{mStateMutex};
 	if (mState == State::IN_MEMORY) {
 		mForkMessage->onPushSent(aPNCtx, aRingingPush);
 	}
