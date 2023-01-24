@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -125,19 +125,19 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, const shared_
 		 * i/o error or timeouts) are branches that are answered. Instead, we must wait for the duration of the fork for
 		 * new registers.
 		 */
-		if (allBranchesAnswered(mCfg->mForkLate)) {
-			shared_ptr<BranchInfo> best = findBestBranch(getUrgentCodes(), mCfg->mForkLate);
-			if (best) logResponse(forwardResponse(best));
-		} else if (isUrgent(code, getUrgentCodes()) && mShortTimer == nullptr) {
-			mShortTimer = make_unique<sofiasip::Timer>(mAgent->getRoot());
-			mShortTimer->set([this]() { onShortTimer(); }, mCfg->mUrgentTimeout);
-		} else if (code >= 600) {
+		if (code >= 600) {
 			/*6xx response are normally treated as global failures */
 			if (!mCfg->mForkNoGlobalDecline) {
 				logResponse(forwardResponse(br));
 				mCancelled = true;
 				cancelOthersWithStatus(br, ForkStatus::DeclineElsewhere);
 			}
+		} else if (allBranchesAnswered(mCfg->mForkLate)) {
+			shared_ptr<BranchInfo> best = findBestBranch(getUrgentCodes(), mCfg->mForkLate);
+			if (best) logResponse(forwardResponse(best));
+		} else if (isUrgent(code, getUrgentCodes()) && mShortTimer == nullptr) {
+			mShortTimer = make_unique<sofiasip::Timer>(mAgent->getRoot());
+			mShortTimer->set([this]() { onShortTimer(); }, mCfg->mUrgentTimeout);
 		}
 	} else if (code >= 200) {
 		logResponse(forwardResponse(br));
