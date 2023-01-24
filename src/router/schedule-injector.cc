@@ -43,9 +43,9 @@ void ScheduleInjector::injectRequestEvent(const std::shared_ptr<RequestSipEvent>
 
 	auto& contactInjectContexts = contactMapEntry->second;
 
-	if (const auto& it = find_if(contactInjectContexts.begin(), contactInjectContexts.end(),
-	                             [&fork](const auto& i) { return i.isEqual(fork); });
-	    it != contactInjectContexts.end()) {
+	const auto& it = find_if(contactInjectContexts.begin(), contactInjectContexts.end(),
+	                         [&fork](const auto& i) { return i.isEqual(fork); });
+	if (it != contactInjectContexts.end()) {
 		it->waitForInject = ev;
 	} else {
 		// This should not happen, but we prefer to send in wrong order than not at all.
@@ -105,7 +105,8 @@ void ScheduleInjector::removeContext(const shared_ptr<ForkContext>& fork, const 
 	const auto currentPriority = fork->getMsgPriority();
 	auto& injectMap = getMapFromPriority(currentPriority);
 
-	if (const auto& contactMapEntry = injectMap.find(contactId); contactMapEntry != injectMap.end()) {
+	const auto& contactMapEntry = injectMap.find(contactId);
+	if (contactMapEntry != injectMap.end()) {
 		auto& contactInjectContexts = contactMapEntry->second;
 		const auto& it = find_if(contactInjectContexts.begin(), contactInjectContexts.end(),
 		                         [&fork](const auto& i) { return i.isEqual(fork); });

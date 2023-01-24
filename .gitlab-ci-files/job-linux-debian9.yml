@@ -4,7 +4,8 @@
 .debian9-image-variables:
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian9:$DEBIAN_9_IMAGE_VERSION
   variables:
-    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
+    # Debian 9 is deprecated and old gcc have some bad warnings, so we disable strict compilation.
+    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DENABLE_STRICT=OFF -DENABLE_STRICT_LINPHONESDK=OFF
 
 #################################################
 # Makefile
