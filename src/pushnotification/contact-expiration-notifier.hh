@@ -1,8 +1,10 @@
-/** Copyright (C) 2010-2022 Belledonne Communications SARL
+/** Copyright (C) 2010-2023 Belledonne Communications SARL
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #pragma once
+
+#include <exception>
 
 #include <bctoolbox/logging.h>
 
@@ -11,6 +13,7 @@
 #include <flexisip/sofia-wrapper/timer.hh>
 
 #include "pushnotification/push-info.hh"
+#include "pushnotification/push-notification-error.hh"
 #include "pushnotification/service.hh"
 
 using namespace std::chrono_literals;
@@ -52,15 +55,13 @@ public:
 			    }
 
 			    for (const auto& contact : contacts) {
-				    std::unique_ptr<pn::PushInfo> pushInfo;
 				    try {
-					    pushInfo = std::make_unique<pn::PushInfo>(contact);
-				    } catch (const std::runtime_error& e) {
-					    SLOGW << "Could not create push notification for " << contact << ": " << e.what();
-					    continue;
+					    pnService->sendPush(pnService->makeRequest(pushType, std::make_unique<pn::PushInfo>(contact)));
+				    } catch (const pushnotification::PushNotificationError& e) {
+					    SLOGD << "Register wake-up PN for " << contact << " skipped: " << e.what();
+				    } catch (const std::exception& e) {
+					    SLOGE << "Could not send register wake-up notification to " << contact << ": " << e.what();
 				    }
-
-				    pnService->sendPush(pnService->makeRequest(pushType, std::move(pushInfo)));
 			    }
 		    });
 	}
