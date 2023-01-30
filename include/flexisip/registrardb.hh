@@ -89,7 +89,7 @@ struct ExtendedContact {
 	std::string contactId() const {
 		// A contact identifies by its unique-id if given. Otherwise, it identifies thanks to its sip uri.
 		if (!mUniqueId.empty()) return mUniqueId;
-		return urlToString(mSipContact->m_url);
+		return urlAsString();
 	}
 	const char *route() const {return (mPath.empty() ? nullptr : mPath.cbegin()->c_str());}
 	const char *userAgent() const {return mUserAgent.c_str();}
@@ -126,6 +126,11 @@ struct ExtendedContact {
 	/* In absence of the uniqueID, the registration are referenced by their call-id */
 	const std::string &getUniqueId() const {
 		return (mUniqueId.empty() ? mCallId : mUniqueId);
+	}
+
+	/* Converts the m_url field of the sofia sip contact to std::string */
+	std::string urlAsString() const {
+		return urlToString(mSipContact->m_url);
 	}
 
 	time_t getExpireNotAtMessage() const {

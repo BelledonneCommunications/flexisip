@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,11 +9,11 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -25,6 +25,7 @@
 #include <flexisip/registrardb.hh>
 
 #include "push-type.hh"
+#include "pushnotification/push-notification-error.hh"
 #include "rfc8599-push-params.hh"
 
 namespace sofiasip {
@@ -41,9 +42,9 @@ struct PushInfo {
 	 * Exception thrown by the constructor of PushInfo that takes a SIP message as argument when no push notification
 	 * parameters are present in the Request-URI. The structure cannot be completely filled then.
 	 */
-	class NoPushParamtersError : public std::runtime_error {
+	class NoPushParametersError : public PushNotificationError {
 	public:
-		NoPushParamtersError() noexcept : std::runtime_error{"No push parameters found in the request URI"} {
+		NoPushParametersError() noexcept : PushNotificationError{"No push parameters found in the request URI"} {
 		}
 	};
 
@@ -105,7 +106,7 @@ public:
 	PushInfo() = default;
 	/**
 	 * Fill the PushInfo structure by parsing the information from a SIP message.
-	 * @throw NoPushParamtersError when neither RFC8599, nor legacy push parameters are present in
+	 * @throw NoPushParametersError when neither RFC8599, nor legacy push parameters are present in
 	 * the Request-URI of the SIP message. mDestinations attribute would be empty then.
 	 * @throw std::runtime_error for other parsing errors.
 	 */

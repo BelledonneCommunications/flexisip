@@ -469,7 +469,7 @@ void PushNotification::onRequest(std::shared_ptr<RequestSipEvent>& ev) {
 			if (sip->sip_request->rq_url->url_params != NULL) {
 				try {
 					makePushNotification(ms, transaction);
-				} catch (const PushInfo::NoPushParamtersError& e) {
+				} catch (const PushInfo::NoPushParametersError& e) {
 					SLOGD << e.what() << ". Skip";
 					return;
 				} catch (const runtime_error& e) {

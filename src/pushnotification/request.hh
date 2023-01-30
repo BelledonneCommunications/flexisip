@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,19 +9,22 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
 
 #include <memory>
+#include <sstream>
 #include <string>
 
 #include "push-info.hh"
+#include "pushnotification/push-notification-error.hh"
+#include "pushnotification/push-type.hh"
 #include "rfc8599-push-params.hh"
 
 namespace flexisip {
@@ -30,6 +33,17 @@ namespace pushnotification {
 class Request {
 public:
 	enum class State { NotSubmitted, InProgress, Successful, Failed };
+
+	class UnsupportedPushType : public PushNotificationError {
+	public:
+		UnsupportedPushType(PushType pType)
+		    : PushNotificationError([pType] {
+			      std::ostringstream msg{};
+			      msg << "Cannot create PN request: no RFC8599 parameters found for '" << pType << "' PN type";
+			      return msg.str();
+		      }()) {
+		}
+	};
 
 	Request(PushType pType, const std::shared_ptr<const PushInfo>& pInfo);
 	Request(const Request&) = delete;

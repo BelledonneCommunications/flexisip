@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,11 +9,11 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <chrono>
@@ -21,8 +21,11 @@
 #include <regex>
 #include <thread>
 
+#include "bctoolbox/tester.h"
+
 #include "flexisip-config.h"
 #include "flexisip/logmanager.hh"
+#include "flexisip/module-pushnotification.hh"
 #include "flexisip/sofia-wrapper/timer.hh"
 
 #include "pushnotification/apple/apple-client.hh"
@@ -32,8 +35,6 @@
 #include "utils/listening-socket.hh"
 #include "utils/pns-mock.hh"
 #include "utils/test-patterns/registrardb-test.hh"
-
-#include "flexisip/module-pushnotification.hh"
 #include "utils/test-suite.hh"
 
 using namespace flexisip;
@@ -499,33 +500,44 @@ public:
 		return *this;
 	}
 
+	Contact& withAppleVoipOnlyPushParams() {
+		mStream << ";pn-provider=apns;pn-prid=placeholder-prid;pn-param=placeholder.voip";
+		return *this;
+	}
+
 	operator string() const {
 		return mStream.str();
 	}
 };
 
-struct TestNotifyExpiringContact : public RegistrarDbTest<DbImplementation::Internal> {
+class TestNotifyExpiringContact : public RegistrarDbTest<DbImplementation::Internal> {
+public:
 	TestNotifyExpiringContact() {
 		FirebaseClient::FIREBASE_ADDRESS = "localhost";
 		FirebaseClient::FIREBASE_PORT = suitePort;
 	}
 
+protected:
 	void testExec() noexcept override {
 		auto& regDb = *RegistrarDb::get();
 		auto service = std::make_shared<pushnotification::Service>(*mRoot, 0xdead);
-		auto interval = 1s;
-		ContactExpirationNotifier notifier(interval, mRoot, service,
-		                                   regDb); // Notifies within [interval ; interval x 3[
+		// SIP only counts contact expiration in seconds, and 1s is apparently not enough to receive everything
+		auto interval = 2s;
+		ContactExpirationNotifier notifier(interval /* Notifies within [interval ; interval x 3[ */, mRoot, service,
+		                                   regDb);
 
 		auto appId = "fakeAppId";
 		service->addFirebaseClient(appId);
 		auto inserter = ContactInserter(regDb, *this->mAgent);
-		inserter.insert(Contact("sip:expected2@te.st").withFirebasePushParams(appId), interval * 2);
-		inserter.insert(Contact("sip:expected1@te.st").withFirebasePushParams(appId), interval * 1);
-		inserter.insert(Contact("sip:unexpected@te.st").withFirebasePushParams(appId), interval * 4);
-		inserter.insert(Contact("sip:expected3@te.st").withFirebasePushParams(appId), interval * 3);
-		inserter.insert("sip:unnotifiable@te.st", interval * 2); // within range, but nothing to do
-		auto expectedUris = unordered_set<string>{"expected1:te.st", "expected2:te.st", "expected3:te.st"};
+		inserter.insert(Contact("sip:expected2@example.org").withFirebasePushParams(appId), interval * 2);
+		inserter.insert(Contact("sip:expected1@example.org").withFirebasePushParams(appId), interval * 1);
+		inserter.insert(Contact("sip:unexpected@example.org").withFirebasePushParams(appId), interval * 4);
+		inserter.insert(Contact("sip:expected3@example.org").withFirebasePushParams(appId), interval * 3);
+		// within range, but nothing to do
+		inserter.insert("sip:unnotifiable@example.org", interval * 2);
+		// within range, but cannot be woken up via Background type notifications
+		inserter.insert(Contact("sip:unwakeable@example.org").withAppleVoipOnlyPushParams(), interval * 2);
+		auto expectedUris = unordered_set<string>{"expected1", "expected2", "expected3"};
 
 		pn::PnsMock pnServer;
 		pnServer.onPushRequest(
@@ -536,7 +548,8 @@ struct TestNotifyExpiringContact : public RegistrarDbTest<DbImplementation::Inte
 			    req.on_data([&sofiaLoop, &expectedUris](const uint8_t* data, std::size_t len) {
 				    if (0 < len) {
 					    auto body = string(reinterpret_cast<const char*>(data), len);
-					    static const auto extractFromUri = regex(R"r("from-uri":"(.*)",)r", regex::ECMAScript);
+					    static const auto extractFromUri =
+					        regex(R"r("from-uri":"sip:(.*)@example.org)r", regex::ECMAScript);
 					    std::smatch matches;
 					    regex_search(body, matches, extractFromUri);
 					    // Fail when receiving push for unexpected contact
@@ -556,7 +569,8 @@ struct TestNotifyExpiringContact : public RegistrarDbTest<DbImplementation::Inte
 			sofiaLoop.quit();
 		});
 
-		mRoot->run(); // Notifier executes after `interval`, if something went wrong the timeout will trigger
+		mRoot->run();     // Notifier executes after `interval`, if something went wrong the timeout will trigger
+		mRoot->step(0ms); // Stepping one more time to let callbacks be cleaned up properly
 	}
 };
 
@@ -645,6 +659,7 @@ void test_http2client__requests_that_can_not_be_sent_are_queued_and_sent_later()
 
 TestSuite _("Push notification",
             {
+                TEST_NO_TAG("TestNotifyExpiringContact", run<TestNotifyExpiringContact>),
                 TEST_NO_TAG_AUTO_NAMED(test_http2client__requests_that_can_not_be_sent_are_queued_and_sent_later),
                 TEST_NO_TAG("Firebase push notification test OK", firebasePushTestOk),
                 TEST_NO_TAG("Apple push notification test OK PushKit", applePushTestOkPushkit),
