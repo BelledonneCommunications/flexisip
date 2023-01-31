@@ -15,14 +15,14 @@ job-debian9-makefile-gcc:
   extends:
     - .job-makefile-gcc
     - .debian9-image-variables
-    - .rules-manual  # ⚠ See `rules.yml`, override .job-makefile-gcc rules
+    - .rules-never-run  # ⚠ See `rules.yml`, override .job-makefile-gcc rules
 
 
 job-debian9-makefile-clang:
   extends:
     - .job-makefile-clang
     - .debian9-image-variables
-    - .rules-manual  # ⚠ See `rules.yml`, override .job-makefile-clang rules
+    - .rules-never-run  # ⚠ See `rules.yml`, override .job-makefile-clang rules
 
 #################################################
 # Ninja
@@ -32,14 +32,12 @@ job-debian9-ninja-gcc:
   extends:
     - .job-ninja-gcc
     - .debian9-image-variables
-    - .rules-manual  # ⚠ See `rules.yml`, override .job-makefile-gcc rules
 
 
 job-debian9-ninja-clang:
   extends:
     - .job-ninja-clang
     - .debian9-image-variables
-    - .rules-manual  # ⚠ See `rules.yml`, override .job-makefile-gcc rules
 
 #################################################
 # DEB
