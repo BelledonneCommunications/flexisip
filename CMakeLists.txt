@@ -243,10 +243,12 @@ set_source_files_properties(${PROJECT_BINARY_DIR}/flexisip-config.h PROPERTIES G
 add_compile_definitions("HAVE_CONFIG_H")
 
 bc_init_compilation_flags(CPP_BUILD_FLAGS C_BUILD_FLAGS CXX_BUILD_FLAGS ENABLE_STRICT)
-list(APPEND CXX_BUILD_FLAGS
-	"-Werror=unused-result" # Packaging (on Ubuntu) has this on, so better catch it sooner
-	"-Werror=maybe-uninitialized" # GCC on CentOS 7 treats this as an error
-)
+if (ENABLE_STRICT)
+	list(APPEND CXX_BUILD_FLAGS
+		"-Werror=unused-result" # Packaging (on Ubuntu) has this on, so better catch it sooner
+		"-Werror=maybe-uninitialized" # GCC on CentOS 7 treats this as an error
+	)
+endif()
 
 # -Werror=varargs seems to do false positives with GCC 4.9.x
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION MATCHES "^4\\.9\\.[0-9]+$")
