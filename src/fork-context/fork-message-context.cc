@@ -56,16 +56,15 @@ shared_ptr<ForkMessageContext> ForkMessageContext::make(const std::shared_ptr<Mo
 	shared->mCurrentPriority = forkFromDb.currentPriority;
 
 	shared->mExpirationDate = timegm(&forkFromDb.expirationDate);
-	const auto utcNow = time(nullptr);
-	auto timeout = duration<double>{difftime(shared->mExpirationDate, utcNow)};
-	if (timeout < 0s) timeout = 0s;
+	auto diff = system_clock::from_time_t(shared->mExpirationDate) - system_clock::now();
+	if (diff < 0s) diff = 0s;
 	shared->mLateTimer.set(
 	    [weak = weak_ptr<ForkMessageContext>{shared}]() {
 		    if (auto sharedPtr = weak.lock()) {
 			    sharedPtr->processLateTimeout();
 		    }
 	    },
-	    timeout);
+	    diff);
 
 	for (const auto& dbKey : forkFromDb.dbKeys) {
 		shared->addKey(dbKey);

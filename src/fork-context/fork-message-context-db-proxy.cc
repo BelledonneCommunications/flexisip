@@ -22,6 +22,7 @@
 #include "flexisip/fork-context/fork-message-context-soci-repository.hh"
 
 using namespace std;
+using namespace std::chrono;
 
 namespace flexisip {
 
@@ -159,7 +160,7 @@ void ForkMessageContextDbProxy::onUselessRegisterNotification(const std::shared_
 }
 
 void ForkMessageContextDbProxy::runSavingThread() {
-	const auto& dbFork = mForkMessage->getDbObject();
+	const auto dbFork = mForkMessage->getDbObject();
 	AutoThreadPool::getGlobalThreadPool()->run(
 	    [thiz = shared_from_this(), dbFork, dbForkVersion = mCurrentVersion.load()]() {
 		    lock_guard<mutex> lock(thiz->mDbAccessMutex);
@@ -320,18 +321,20 @@ void ForkMessageContextDbProxy::checkState(const string& methodName,
 }
 
 void ForkMessageContextDbProxy::startTimerAndResetFork(time_t expirationDate, const vector<string>& keys) {
-	LOGD("ForkMessageContextDbProxy[%p] startTimerAndResetFork", this);
 	// We need to handle fork late timer in proxy object in case it expires while inner object is still in database.
-	const auto utcNow = time(nullptr);
-	auto timeout = chrono::duration<double>{difftime(expirationDate, utcNow)};
-	if (timeout < 0s) timeout = 0s;
+	auto diff = system_clock::from_time_t(expirationDate) - system_clock::now();
+	if (diff < 0s) diff = 0s;
+
+	LOGD("ForkMessageContextDbProxy[%p] startTimerAndResetFork, expiration in : %li s", this,
+	     duration_cast<seconds>(diff).count());
+
 	mProxyLateTimer.set(
 	    [weak = weak_ptr<ForkMessageContextDbProxy>{shared_from_this()}]() {
 		    if (auto shared = weak.lock()) {
 			    shared->onForkContextFinished(nullptr);
 		    }
 	    },
-	    timeout);
+	    diff);
 
 	// If timer expire while ForkMessage is still in DB we need to keep track of keys to remove proxy from Fork list.
 	mSavedKeys = vector<string>{keys};
