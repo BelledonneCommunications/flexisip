@@ -59,4 +59,5 @@ stages:
   - test 🧪
   - coverage 📑
   - package 📦
+  - check-package 📤
   - deploy 🚀

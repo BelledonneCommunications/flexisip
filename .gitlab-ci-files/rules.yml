@@ -23,12 +23,17 @@
 # Jobs that always run with the default gitlab policy
 .rules-default:
   rules:
+    - &manual-override
+      if: $MANUAL_OVERRIDE
+      when: manual
+      allow_failure: true
     - &otherwise-run  # Default gitlab policy that we have to explicitely add back
       when: on_success
 
 # Jobs that always run, except for DEPLOY_ONLY pipelines.
 .rules-dev:
   rules:
+    - *manual-override
     - &exclude-from-deploy
       if: $DEPLOY_ONLY
       when: never
@@ -37,6 +42,7 @@
 # Jobs that only run in NIGHTLY pipelines
 .rules-nightly:
   rules:
+    - *manual-override
     - if: '$NIGHTLY == null'
       when: never
     - *exclude-from-deploy
@@ -62,6 +68,7 @@
 # Jobs that run only for DEPLOY or DEPLOY_ONLY pipelines.
 .rules-deploy:
   rules:
+    - *manual-override
     - if: $DEPLOY
       when: on_success
     - if: $DEPLOY_ONLY
@@ -72,4 +79,5 @@
 # e.g. when you are adding a new platform or upgrading an existing one, and you want to run thorough tests
 .rules-never-run:
   rules:
+    - *manual-override
     - when: never

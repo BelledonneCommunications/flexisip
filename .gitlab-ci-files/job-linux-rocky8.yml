@@ -73,14 +73,46 @@ job-rocky8-rpm:
   extends:
     - .job-linux-rpm
     - .rocky8-image-variables
+  needs:
+    - job: job-rocky8-unit-test
+      optional: true
+      artifacts: false
+    - job: job-rocky8-unit-test-nosoci
+      optional: true
+      artifacts: false
+    - job: job-rocky8-ninja-clang
+      optional: true
+      artifacts: false
+    - job: job-rocky8-ninja-clang-nosoci
+      optional: true
+      artifacts: false
+
+# Test installation of the RPM package and check its feature list
+job-rocky8-rpm-check-features:
+  stage: check-package 📤
+  tags: [ "docker" ]
+  extends:
+    - .rocky8-image-variables
+  rules:
+    - !reference [job-rocky8-rpm, rules]
+  needs:
+    - job: job-rocky8-rpm
+  variables:
+    GIT_STRATEGY: fetch  # TODO Replace me with `none` when Gitlab successfully removes docker volumes again (try it, you'll see)
+  script:
+    - sudo yum -y --nogpgcheck localinstall ./build/*.rpm
+    - VERSION_STRING=$(/opt/belledonne-communications/bin/flexisip --version)
+    - echo $VERSION_STRING | grep B2BUA
+    - echo $VERSION_STRING | grep Conference
+    - echo $VERSION_STRING | grep Presence
+    - echo $VERSION_STRING | grep Redis
+    - echo $VERSION_STRING | grep RegEvent
+    - echo $VERSION_STRING | grep Transcoder
+    - echo $VERSION_STRING | grep Soci
 
 job-rocky8-rpm-deploy:
   extends: .job-rpm-deploy
   dependencies:
     - job-rocky8-rpm
-  needs:
-    - job-rocky8-rpm
   variables:
     DISTRIB: rockylinux
-
-

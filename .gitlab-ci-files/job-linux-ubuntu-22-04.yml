@@ -57,6 +57,13 @@ job-ubuntu-22-04-deb:
     - .job-linux-deb
     - .ubuntu-22-04-image
     - .rules-manual-deploy # ⚠ See `rules.yml`, override .job-linux-deb rules
+  needs:
+    - job: job-ubuntu-22-04-unit-test
+      optional: true
+      artifacts: false
+    - job: job-ubuntu-22-04-ninja-clang
+      optional: true
+      artifacts: false
 
 
 job-ubuntu-22-04-deb-deploy:
@@ -67,6 +74,4 @@ job-ubuntu-22-04-deb-deploy:
     RELEASE: jammy
     FREIGHT_PATH: $UBUNTU_FREIGHT_CONF_PATH
   dependencies:
-    - job-ubuntu-22-04-deb
-  needs:
     - job-ubuntu-22-04-deb
