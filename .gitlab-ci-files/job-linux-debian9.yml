@@ -58,5 +58,3 @@ job-debian9-deb-deploy:
     FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
   dependencies:
     - job-debian9-deb
-  needs:
-    - job-debian9-deb

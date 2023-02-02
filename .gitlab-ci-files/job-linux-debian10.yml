@@ -60,6 +60,13 @@ job-debian10-deb:
     - .job-linux-deb
     - .debian10-image
     - .rules-manual-deploy # ⚠ See `rules.yml`, override .job-linux-deb rules
+  needs:
+    - job: job-debian10-unit-test
+      optional: true
+      artifacts: false
+    - job: job-debian10-ninja-clang
+      optional: true
+      artifacts: false
 
 
 job-debian10-deb-deploy:
@@ -68,6 +75,4 @@ job-debian10-deb-deploy:
     RELEASE: buster
     FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
   dependencies:
-    - job-debian10-deb
-  needs:
     - job-debian10-deb

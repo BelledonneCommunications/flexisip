@@ -121,6 +121,13 @@ job-debian11-deb:
   extends:
     - .job-linux-deb
     - .debian11-image
+  needs:
+    - job: job-debian11-unit-test
+      optional: true
+      artifacts: false
+    - job: job-debian11-ninja-clang
+      optional: true
+      artifacts: false
 
 
 job-debian11-deb-deploy:

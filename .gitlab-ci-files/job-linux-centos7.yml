@@ -66,13 +66,18 @@ job-centos7-rpm:
   variables:
     CC: gcc
     CXX: g++
+  needs:
+    - job: job-centos7-unit-test
+      optional: true
+      artifacts: false
+    - job: job-centos7-ninja-gcc
+      optional: true
+      artifacts: false
 
 
 job-centos7-rpm-deploy:
   extends: .job-rpm-deploy
   dependencies:
-    - job-centos7-rpm
-  needs:
     - job-centos7-rpm
   variables:
     DISTRIB: centos

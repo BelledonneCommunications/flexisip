@@ -62,6 +62,13 @@ job-ubuntu-18-04-deb:
     - .job-linux-deb
     - .ubuntu-18-04-image-variables
     - .rules-manual-deploy # ⚠ See `rules.yml`, override .job-linux-deb rules
+  needs:
+    - job: job-ubuntu-18-04-unit-test
+      optional: true
+      artifacts: false
+    - job: job-ubuntu-18-04-ninja-clang
+      optional: true
+      artifacts: false
 
 
 job-ubuntu-18-04-deb-deploy:
@@ -72,6 +79,4 @@ job-ubuntu-18-04-deb-deploy:
     RELEASE: bionic
     FREIGHT_PATH: $UBUNTU_FREIGHT_CONF_PATH
   dependencies:
-    - job-ubuntu-18-04-deb
-  needs:
     - job-ubuntu-18-04-deb
