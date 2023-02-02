@@ -19,10 +19,15 @@
 #include <chrono>
 #include <iostream>
 #include <memory>
+#include <sstream>
+#include <stdexcept>
 
 #include <bctoolbox/tester.h>
 
 #include <linphone/core.h>
+#include <linphone++/call.hh>
+#include <linphone++/address.hh>
+#include <linphone++/call_params.hh>
 
 #include <mediastreamer2/mediastream.h>
 
@@ -87,6 +92,12 @@ std::shared_ptr<linphone::Core> minimal_core(linphone::Factory& factory) {
 ClientBuilder::ClientBuilder(const std::string& me)
     : mFactory(linphone::Factory::get()), mCore(minimal_core(*mFactory)), mMe(mFactory->createAddress(me)),
       mAccountParams(mCore->createAccountParams()) {
+	if (!mMe) {
+		ostringstream msg{};
+		msg << "Invalid contact adress '" << me << "' did you forget the 'sip:' prefix?";
+		bc_assert(__FILE__, __LINE__, false, msg.str().c_str());
+		throw invalid_argument{msg.str()};
+	}
 	mCore->setPrimaryContact(me);
 
 	mAccountParams = mCore->createAccountParams();
@@ -139,24 +150,24 @@ ClientBuilder::ClientBuilder(const std::string& me)
 	}
 }
 
-ClientBuilder& ClientBuilder::setPassword(const std::string& password) {
+ClientBuilder&& ClientBuilder::setPassword(const std::string& password) && {
 	if (!password.empty()) {
 		mCore->addAuthInfo(mFactory->createAuthInfo(mMe->getUsername(), "", password, "", "", mMe->getDomain()));
 	}
-	return *this;
+	return std::move(*this);
 }
 
-ClientBuilder& ClientBuilder::setCustomContact(const std::string& contact) {
+ClientBuilder&& ClientBuilder::setCustomContact(const std::string& contact) && {
 	mAccountParams->setCustomContact(mCore->createAddress(contact));
-	return *this;
+	return std::move(*this);
 }
 
-ClientBuilder& ClientBuilder::setPushParams(const pushnotification::RFC8599PushParams& params) {
+ClientBuilder&& ClientBuilder::setPushParams(const pushnotification::RFC8599PushParams& params) && {
 	mAccountParams->setContactUriParameters(params.toUriParams());
-	return *this;
+	return std::move(*this);
 }
 
-ClientBuilder& ClientBuilder::setApplePushConfig() {
+ClientBuilder&& ClientBuilder::setApplePushConfig() && {
 	const auto pushConfig = mAccountParams->getPushNotificationConfig();
 	pushConfig->setProvider("apns");
 	pushConfig->setPrid("AAAAAAAAAAAAAAAAAAAA7DF897B431746F49E271E66BBF655C13C2BBD70FFC18:remote&"
@@ -165,10 +176,10 @@ ClientBuilder& ClientBuilder::setApplePushConfig() {
 	mAccountParams->setPushNotificationAllowed(true);
 	mCore->enablePushNotification(true);
 
-	return *this;
+	return std::move(*this);
 }
 
-ClientBuilder& ClientBuilder::useMireAsCamera() {
+ClientBuilder&& ClientBuilder::useMireAsCamera() && {
 	auto msFactory = linphone_core_get_ms_factory(mCore->cPtr());
 	auto webCamMan = ms_factory_get_web_cam_manager(msFactory);
 	auto mire_desc = ms_mire_webcam_desc_get();
@@ -176,10 +187,10 @@ ClientBuilder& ClientBuilder::useMireAsCamera() {
 	ms_web_cam_manager_add_cam(webCamMan, mire);
 	mCore->setVideoDevice("Mire: Mire (synthetic moving picture)");
 
-	return *this;
+	return std::move(*this);
 }
 
-CoreClient ClientBuilder::registerTo(const shared_ptr<Server>& server) {
+CoreClient ClientBuilder::registerTo(const shared_ptr<Server>& server) && {
 	return CoreClient(std::move(*this), server);
 }
 
@@ -219,7 +230,13 @@ CoreClient::~CoreClient() {
 	}
 }
 
-std::shared_ptr<linphone::Call> CoreClient::callVideo(const std::shared_ptr<CoreClient>& callee,
+std::shared_ptr<linphone::Call> CoreClient::callVideo(const std::shared_ptr<const CoreClient>& callee,
+                                                      const std::shared_ptr<linphone::CallParams>& callerCallParams,
+                                                      const std::shared_ptr<linphone::CallParams>& calleeCallParams) {
+	return callVideo(*callee, callerCallParams, calleeCallParams);
+}
+
+std::shared_ptr<linphone::Call> CoreClient::callVideo(const CoreClient& callee,
                                                       const std::shared_ptr<linphone::CallParams>& callerCallParams,
                                                       const std::shared_ptr<linphone::CallParams>& calleeCallParams) {
 	std::shared_ptr<linphone::CallParams> callParams = callerCallParams;
@@ -489,6 +506,10 @@ AssertionResult CoreClient::hasReceivedCallFrom(const CoreClient& peer) const {
 
 std::shared_ptr<linphone::Call> CoreClient::invite(const CoreClient& peer) const {
 	return mCore->inviteAddress(peer.getAccount()->getContactAddress());
+}
+
+std::shared_ptr<linphone::Call> CoreClient::invite(const CoreClient& peer, const shared_ptr<const linphone::CallParams>& params) const {
+	return mCore->inviteAddressWithParams(peer.getAccount()->getContactAddress(), params);
 }
 
 std::shared_ptr<linphone::CallLog> CoreClient::getCallLog() const {

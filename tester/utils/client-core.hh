@@ -18,7 +18,10 @@
 
 #pragma once
 
+#include <memory>
+
 #include <linphone++/linphone.hh>
+#include <linphone++/call_params.hh>
 
 #include "asserts.hh"
 #include "proxy-server.hh"
@@ -51,22 +54,22 @@ public:
 	 */
 	ClientBuilder(const std::string& me);
 
-	ClientBuilder& setPassword(const std::string& password);
-	ClientBuilder& setCustomContact(const std::string& contact);
-	ClientBuilder& setPushParams(const pushnotification::RFC8599PushParams& params);
+	ClientBuilder&& setPassword(const std::string& password) &&;
+	ClientBuilder&& setCustomContact(const std::string& contact) &&;
+	ClientBuilder&& setPushParams(const pushnotification::RFC8599PushParams& params) &&;
 
 	// Use Mire as camera for video stream
-	ClientBuilder& useMireAsCamera();
+	ClientBuilder&& useMireAsCamera() &&;
 
 	/**
 	 * Add some Apple-specific push info to REGISTERs
 	 */
-	ClientBuilder& setApplePushConfig();
+	ClientBuilder&& setApplePushConfig() &&;
 
 	/**
 	 * Finish building the client and register to the server
 	 */
-	CoreClient registerTo(const std::shared_ptr<Server>& server);
+	CoreClient registerTo(const std::shared_ptr<Server>& server) &&;
 };
 
 /**
@@ -163,7 +166,10 @@ public:
 	 *
 	 * @return the established call from caller side, nullptr on failure
 	 */
-	std::shared_ptr<linphone::Call> callVideo(const std::shared_ptr<CoreClient>& callee,
+	std::shared_ptr<linphone::Call> callVideo(const std::shared_ptr<const CoreClient>& callee,
+	                                          const std::shared_ptr<linphone::CallParams>& callerCallParams = nullptr,
+	                                          const std::shared_ptr<linphone::CallParams>& calleeCallParams = nullptr);
+	std::shared_ptr<linphone::Call> callVideo(const CoreClient& callee,
 	                                          const std::shared_ptr<linphone::CallParams>& callerCallParams = nullptr,
 	                                          const std::shared_ptr<linphone::CallParams>& calleeCallParams = nullptr);
 
@@ -210,6 +216,7 @@ public:
 	 * @return the new call. nullptr if the invite failed @maybenil
 	 */
 	std::shared_ptr<linphone::Call> invite(const CoreClient& peer) const;
+	std::shared_ptr<linphone::Call> invite(const CoreClient& peer, const std::shared_ptr<const linphone::CallParams>&) const;
 
 	std::shared_ptr<linphone::CallLog> getCallLog() const;
 

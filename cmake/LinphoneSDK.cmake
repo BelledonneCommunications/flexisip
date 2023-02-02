@@ -98,7 +98,7 @@ if(ENABLE_TRANSCODER OR ENABLE_CONFERENCE OR ENABLE_B2BUA)
 	set(ENABLE_G729 OFF) # Disable for license conformity
 	set(ENABLE_G729B_CNG OFF) # Disable for license conformity
 	set(ENABLE_RESAMPLE ON)
-
+	set(ENABLE_VIDEO ON)
 	set(ENABLE_FFMPEG OFF)
 	set(ENABLE_GL OFF)
 	set(ENABLE_GLX OFF)

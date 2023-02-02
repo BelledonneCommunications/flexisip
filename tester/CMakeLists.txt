@@ -44,6 +44,7 @@ add_executable(flexisip_tester
 	${CMAKE_CURRENT_BINARY_DIR}/flexisip-tester-config.hh flexisip-tester-config.hh.in
 	fork-call-tester.cc
 	fork-context-tester.cc
+	mediarelay-tester.cc
 	module-dos-tester.cc
 	module-info-tester.cc
 	module-pushnotification-tester.cc

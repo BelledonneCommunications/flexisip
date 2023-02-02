@@ -31,7 +31,6 @@ RelayedCall::RelayedCall(const shared_ptr<MediaRelayServer>& server, sip_t* sip)
 	LOGD("New RelayedCall %p", this);
 	mDropTelephoneEvents = false;
 	mIsEstablished = false;
-	mHasSendRecvBack = false;
 	mEarlyMediaRelayCount = 0;
 }
 
@@ -206,14 +205,11 @@ void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier>& m,
 		return;
 	}
 	RelayChannel::Dir dir = RelayChannel::SendRecv;
-	/*The following code is to make sure than only one branch can send media to the caller,
-	    until the call is established.*/
+	/* Make sure that only one device can send media to the caller, until the call is established.*/
 	if (isEarlyMedia && mServer->mModule->mEarlyMediaRelaySingle && !mIsEstablished) {
-		if (mHasSendRecvBack) dir = RelayChannel::SendOnly;
-		else {
-			dir = RelayChannel::SendRecv;
-			mHasSendRecvBack = true;
-		}
+		// First come, first served
+		if (mSendRecvBranch.empty()) mSendRecvBranch = trId;
+		else if (trId != mSendRecvBranch) dir = RelayChannel::SendOnly;
 	}
 
 	shared_ptr<RelaySession> s = mSessions[mline];
