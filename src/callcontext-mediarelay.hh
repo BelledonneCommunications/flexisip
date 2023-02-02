@@ -99,9 +99,9 @@ private:
 	int mEarlyMediaRelayCount;
 	bool mH264DecimOnlyIfLastProxy;
 	bool mDropTelephoneEvents;
-	bool mHasSendRecvBack;
 	bool mIsEstablished;
 	bool mForcePublicAddressEnabled = false;
+	std::string mSendRecvBranch = "";
 };
 
 } // namespace flexisip
