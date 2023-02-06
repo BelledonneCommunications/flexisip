@@ -73,6 +73,8 @@ void ConferenceServer::_init() {
 	configLinphone->setInt("misc", "hide_chat_rooms_from_removed_proxies", 0);
 	configLinphone->setBool("misc", "enable_one_to_one_chat_room",
 	                        config->get<ConfigBoolean>("enable-one-to-one-chat-room")->read());
+	configLinphone->setBool("misc", "empty_chat_room_deletion",
+	                        config->get<ConfigBoolean>("empty-chat-room-deletion")->read());
 
 	configLinphone->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
 	configLinphone->setString("storage", "uri", config->get<ConfigString>("database-connection-string")->read());
@@ -309,6 +311,9 @@ ConferenceServer::Init::Init() {
 	     "Whether the conference server shall check device capabilities before inviting them to a session.\n"
 	     "The capability check is currently limited to Linphone client that put a +org.linphone.specs contact parameter"
 	     " in order to indicate whether they support group chat and secured group chat.",
+	     "true"},
+	    {Boolean, "empty-chat-room-deletion",
+	     "Whether the conference server will delete chat rooms that have no participants registered.\n",
 	     "true"},
 
 	    // Deprecated paramters:
