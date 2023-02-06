@@ -82,6 +82,8 @@ void ConferenceServer::_init () {
 	configLinphone->setString("sip", "bind_address", bindAddress);
 	configLinphone->setBool("misc", "conference_server_enabled", true);
 	configLinphone->setBool("misc", "enable_one_to_one_chat_room", config->get<ConfigBoolean>("enable-one-to-one-chat-room")->read());
+	configLinphone->setBool("misc", "empty_chat_room_deletion",
+	                        config->get<ConfigBoolean>("empty-chat-room-deletion")->read());
 
 	if (mMediaConfig.textEnabled){
 		string dbUri = config->get<ConfigString>("database-connection-string")->read();
@@ -567,7 +569,11 @@ ConferenceServer::Init::Init() {
 	     "nat-addresses=conference.linphone.org\n"
 	     "nat-addresses=5.135.31.160   2001:41d0:303:3aee::1",
 	     ""},
-	    // Deprecated parameters:
+	    {Boolean, "empty-chat-room-deletion",
+	     "Whether the conference server will delete chat rooms that have no participants registered.\n",
+	     "true"},
+
+	    // Deprecated paramters:
 	    {String, "conference-factory-uri",
 	     "uri where the client must ask to create a conference. For example:\n"
 	     "conference-factory-uri=sip:conference-factory@sip.linphone.org",
