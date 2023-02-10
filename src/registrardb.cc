@@ -87,10 +87,7 @@ const string ExtendedContact::getMessageExpires(const msg_param_t* m_params) {
 	return RegistrarDb::get()->getMessageExpires(m_params);
 }
 
-sip_contact_t* ExtendedContact::toSofiaContact(su_home_t* home, time_t now) const {
-	time_t expire = mExpireAt - now;
-	if (expire <= 0) return nullptr;
-
+sip_contact_t* ExtendedContact::toSofiaContact(su_home_t* home) const {
 	mSipContact->m_next = nullptr;
 	return sip_contact_dup(home, mSipContact);
 }
@@ -120,8 +117,12 @@ sip_route_t* ExtendedContact::toSofiaRoute(su_home_t* home) const {
 sip_contact_t* Record::getContacts(su_home_t* home, time_t now) {
 	sip_contact_t* alist = nullptr;
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
-		sip_contact_t* current = (*it)->toSofiaContact(home, now);
-		if (current && alist) {
+		if ((*it)->isExpired(now)) {
+			continue;
+		}
+
+		sip_contact_t* current = (*it)->toSofiaContact(home);
+		if (alist) {
 			current->m_next = alist;
 		}
 		alist = current;
