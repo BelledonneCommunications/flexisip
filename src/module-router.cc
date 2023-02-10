@@ -292,8 +292,7 @@ std::shared_ptr<BranchInfo> ModuleRouter::dispatch(const shared_ptr<ForkContext>
 
 	const auto& ev = context->getEvent();
 	const auto& ms = ev->getMsgSip();
-	time_t now = getCurrentTime();
-	sip_contact_t* ct = contact->toSofiaContact(ms->getHome(), now);
+	sip_contact_t* ct = contact->toSofiaContact(ms->getHome());
 	url_t* dest = ct->m_url;
 
 	/*sanity check on the contact address: might be '*' or whatever useless information*/
@@ -374,7 +373,7 @@ void ModuleRouter::onContactRegistered(const std::shared_ptr<OnContactRegistered
 		forksFound = true;
 		const shared_ptr<ExtendedContact> ec = record->extractContactByUniqueId(uid);
 		if (ec) {
-			contact = ec->toSofiaContact(home.home(), ec->mExpireAt - 1);
+			contact = ec->toSofiaContact(home.home());
 
 			// First use sipURI
 			mInjector->addContext(range, ec->contactId());
@@ -389,7 +388,7 @@ void ModuleRouter::onContactRegistered(const std::shared_ptr<OnContactRegistered
 		if (!ec || !ec->mAlias) continue;
 
 		// Find all contexts
-		contact = ec->toSofiaContact(home.home(), ec->mExpireAt - 1);
+		contact = ec->toSofiaContact(home.home());
 		auto rang = getLateForks(ExtendedContact::urlToString(ec->mSipContact->m_url));
 		mInjector->addContext(rang, ec->contactId());
 		for (const auto& context : rang) {
@@ -509,17 +508,13 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 	// _Copy_ list of extended contacts
 	if (aor) contacts = aor->getExtendedContacts();
 
-	time_t now = getCurrentTime();
+	auto now = getCurrentTime();
 
 	// now, create the list of usable contacts to fork to
 	bool nonSipsFound = false;
 	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
 		const shared_ptr<ExtendedContact>& ec = *it;
-		sip_contact_t* ct = ec->toSofiaContact(ms->getHome(), now);
-		if (!ct) {
-			SLOGE << "Can't create sip_contact of " << ec->mSipContact->m_url;
-			continue;
-		}
+		sip_contact_t* ct = ec->toSofiaContact(ms->getHome());
 		// If it's not a message, verify if it's really expired
 		if (sip->sip_request->rq_method != sip_method_message && (ec->getExpireNotAtMessage() < now)) {
 			LOGD("Sip_contact of %s is expired", url_as_string(ms->getHome(), ec->mSipContact->m_url));

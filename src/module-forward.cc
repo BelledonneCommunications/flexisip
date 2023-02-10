@@ -248,25 +248,26 @@ public:
 	}
 	~RegistrarListener(){};
 	void onRecordFound(const shared_ptr<Record> &r) override {
-		const shared_ptr<MsgSip> &ms = mEv->getMsgSip();
+		    const shared_ptr<MsgSip>& ms = mEv->getMsgSip();
 
-		if (!r || r->count()==0){
-			mEv->reply(404, "Not found", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
-			return;
-		}
-		if (r->count() > 1){
-			mEv->reply(485, "Ambiguous", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
-			return;
-		}
+		    if (!r || r->count() == 0) {
+			        mEv->reply(404, "Not found", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
+			        return;
+		    }
+		    if (r->count() > 1) {
+			        mEv->reply(485, "Ambiguous", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
+			        return;
+		    }
 
-		shared_ptr<ExtendedContact> contact = *r->getExtendedContacts().begin();
-		time_t now = getCurrentTime();
-		sip_contact_t *ct = contact->toSofiaContact(ms->getHome(), now);
-		url_t *dest = ct->m_url;
-		mEv->getSip()->sip_request->rq_url[0] = *url_hdup(msg_home(ms->getHome()), dest);
-		// No reason to remove "gr" parameter: the RegistrarDb provides a resolved uri (that may be an uri with "gr" parameter from another domain).
-		//mEv->getSip()->sip_request->rq_url->url_params = url_strip_param_string(su_strdup(ms->getHome(),mEv->getSip()->sip_request->rq_url->url_params) , "gr");
-		mModule->sendRequest(mEv, mEv->getSip()->sip_request->rq_url);
+		    shared_ptr<ExtendedContact> contact = *r->getExtendedContacts().begin();
+		    sip_contact_t* ct = contact->toSofiaContact(ms->getHome());
+		    url_t* dest = ct->m_url;
+		    mEv->getSip()->sip_request->rq_url[0] = *url_hdup(msg_home(ms->getHome()), dest);
+		    // No reason to remove "gr" parameter: the RegistrarDb provides a resolved uri (that may be an uri with "gr"
+		    // parameter from another domain).
+		    // mEv->getSip()->sip_request->rq_url->url_params =
+		    // url_strip_param_string(su_strdup(ms->getHome(),mEv->getSip()->sip_request->rq_url->url_params) , "gr");
+		    mModule->sendRequest(mEv, mEv->getSip()->sip_request->rq_url);
 	}
 	virtual void onError() override{
 		SLOGE << "RegistrarListener error";

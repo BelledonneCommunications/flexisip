@@ -69,7 +69,7 @@ public:
 	ChangeSet insertOrUpdateBinding(std::unique_ptr<ExtendedContact>&& ec, ContactUpdateListener* listener);
 
 	const std::shared_ptr<ExtendedContact> extractContactByUniqueId(const std::string& uid) const;
-	sip_contact_t* getContacts(su_home_t* home, time_t now);
+	sip_contact_t* getContacts(su_home_t* home);
 	void pushContact(const std::shared_ptr<ExtendedContact>& ct) {
 		mContacts.push_back(ct);
 	}

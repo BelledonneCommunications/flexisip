@@ -17,11 +17,13 @@ using namespace std;
 
 namespace flexisip {
 
-sip_contact_t* Record::getContacts(su_home_t* home, time_t now) {
+sip_contact_t* Record::getContacts(su_home_t* home) {
 	sip_contact_t* alist = nullptr;
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
-		sip_contact_t* current = (*it)->toSofiaContact(home, now);
-		if (current && alist) {
+		if ((*it)->isExpired()) continue;
+
+		sip_contact_t* current = (*it)->toSofiaContact(home);
+		if (alist) {
 			current->m_next = alist;
 		}
 		alist = current;

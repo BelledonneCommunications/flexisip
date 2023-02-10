@@ -98,10 +98,9 @@ void OnRequestBindListener::onContactUpdated(const std::shared_ptr<ExtendedConta
 
 void OnRequestBindListener::onRecordFound(const shared_ptr<Record>& r) {
 	const shared_ptr<MsgSip>& ms = mEv->getMsgSip();
-	time_t now = getCurrentTime();
 	if (r) {
 		addEventLogRecordFound(mEv, mContact);
-		mModule->reply(mEv, 200, "Registration successful", r->getContacts(ms->getHome(), now));
+		mModule->reply(mEv, 200, "Registration successful", r->getContacts(ms->getHome()));
 		if (mContact) {
 			string uid = Record::extractUniqueId(mContact);
 			string topic = mModule->routingKey(mSipFrom->a_url);
@@ -141,7 +140,6 @@ OnResponseBindListener::OnResponseBindListener(ModuleRegistrar* module,
 
 void OnResponseBindListener::onRecordFound(const shared_ptr<Record>& r) {
 	const shared_ptr<MsgSip>& ms = mEv->getMsgSip();
-	time_t now = getCurrentTime();
 
 	if (r == nullptr) {
 		LOGE("OnResponseBindListener::onRecordFound(): Record is null");
@@ -154,7 +152,7 @@ void OnResponseBindListener::onRecordFound(const shared_ptr<Record>& r) {
 	string topic = mModule->routingKey(mCtx->mRequestSipEvent->getSip()->sip_from->a_url);
 	RegistrarDb::get()->publish(topic, uid);
 
-	sip_contact_t* dbContacts = r->getContacts(ms->getHome(), now);
+	sip_contact_t* dbContacts = r->getContacts(ms->getHome());
 
 	// Replace received contacts by our ones
 	auto& reMs = mEv->getMsgSip();

@@ -172,7 +172,7 @@ struct ExtendedContact {
 	}
 
 	std::ostream& print(std::ostream& stream, time_t _now = getCurrentTime(), time_t offset = 0) const;
-	sip_contact_t* toSofiaContact(su_home_t* home, time_t now) const;
+	sip_contact_t* toSofiaContact(su_home_t* home) const;
 	sip_route_t* toSofiaRoute(su_home_t* home) const;
 
 	/*returns a new url_t where ConnId (private flexisip parameter) is removed*/
