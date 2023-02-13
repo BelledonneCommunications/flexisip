@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,55 +9,70 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
 
 #include "callstore.hh"
-#include <memory>
-#include <string>
 #include "mediarelay.hh"
 #include "sdp-modifier.hh"
 #include <map>
+#include <memory>
+#include <string>
 #include <tuple>
 
 namespace flexisip {
 
 class TranscodedCall;
 
-
-
-class RelayedCall: public CallContextBase {
+class RelayedCall : public CallContextBase {
 public:
 	static const int sMaxSessions = 4;
-	RelayedCall(const std::shared_ptr<MediaRelayServer> &server, sip_t *sip);
+	RelayedCall(const std::shared_ptr<MediaRelayServer>& server, sip_t* sip);
 
-	void forcePublicAddress(bool force) {mForcePublicAddressEnabled = force;}
+	void forcePublicAddress(bool force) {
+		mForcePublicAddressEnabled = force;
+	}
 
 	/* Create a channel for each sdp media using defined relay ip for front and back. The transaction
 	 * allow use to identify the callee (we don't have a tag yet).
 	 */
-	void initChannels(const std::shared_ptr<SdpModifier> &m, const std::string &tag, const std::string &trid, const std::string &from_host, const std::string & destHost);
-	
-	/* Obtain the masquerade contexts for given mline. The trid is used when offeredTag is not yet defined.*/
-	MasqueradeContextPair getMasqueradeContexts(int mline, const std::string &offererTag, const std::string &offeredTag, const std::string &trid);
+	void initChannels(const std::shared_ptr<SdpModifier>& m,
+	                  const std::string& tag,
+	                  const std::string& trid,
+	                  const std::string& from_host,
+	                  const std::string& destHost);
 
-	/* Obtain the local addresses and ports used for relaying. May return nullptr in case of invalid usage (such as invalid trId or partyTag)*/
-	const RelayTransport * getChannelSources(int mline, const std::string & partyTag, const std::string &trId);
+	/* Obtain the masquerade contexts for given mline. The trid is used when offeredTag is not yet defined.*/
+	MasqueradeContextPair getMasqueradeContexts(int mline,
+	                                            const std::string& offererTag,
+	                                            const std::string& offeredTag,
+	                                            const std::string& trid);
+
+	/* Obtain the local addresses and ports used for relaying. May return nullptr in case of invalid usage (such as
+	 * invalid trId or partyTag)*/
+	const RelayTransport* getChannelSources(int mline, const std::string& partyTag, const std::string& trId);
 
 	/* Obtain destination (previously set by setChannelDestinations()*/
-	std::tuple<std::string,int,int> getChannelDestinations(int mline, const std::string & partyTag, const std::string &trId);
+	std::tuple<std::string, int, int>
+	getChannelDestinations(int mline, const std::string& partyTag, const std::string& trId);
 
-	void setChannelDestinations(const std::shared_ptr<SdpModifier> &m, int mline, const std::string &ip, int rtp_port, int rtcp_port, const std::string & partyTag, const std::string &trId,
-		bool isEarlyMedia);
+	void setChannelDestinations(const std::shared_ptr<SdpModifier>& m,
+	                            int mline,
+	                            const std::string& ip,
+	                            int rtp_port,
+	                            int rtcp_port,
+	                            const std::string& partyTag,
+	                            const std::string& trId,
+	                            bool isEarlyMedia);
 
-	void removeBranch(const std::string &trId);
-	void setEstablished(const std::string &trId);
+	void removeBranch(const std::string& trId);
+	void setEstablished(const std::string& trId);
 
 	bool checkMediaValid();
 	virtual time_t getLastActivity();
@@ -65,19 +80,20 @@ public:
 
 	virtual ~RelayedCall();
 
-	void configureRelayChannel(std::shared_ptr<RelayChannel> chan,sip_t *sip, sdp_session_t *session, int mline_nr);
+	void configureRelayChannel(std::shared_ptr<RelayChannel> chan, sip_t* sip, sdp_session_t* session, int mline_nr);
 
 	/*Enable filtering of H264 Iframes for low bandwidth.*/
 	void enableH264IFrameFiltering(int bandwidth_threshold, int decim, bool onlyIfLastProxy);
 	/*Enable telephone-event dropping for tls clients*/
 	void enableTelephoneEventDrooping(bool value);
-	const std::shared_ptr<MediaRelayServer> & getServer()const{
+	const std::shared_ptr<MediaRelayServer>& getServer() const {
 		return mServer;
 	}
+
 private:
-	void setupSpecificRelayTransport(RelayTransport *rt, const char *destHost);
+	void setupSpecificRelayTransport(RelayTransport* rt, const char* destHost);
 	std::shared_ptr<RelaySession> mSessions[sMaxSessions];
-	const std::shared_ptr<MediaRelayServer> & mServer;
+	const std::shared_ptr<MediaRelayServer>& mServer;
 	int mBandwidthThres;
 	int mDecim;
 	int mEarlyMediaRelayCount;
@@ -88,4 +104,4 @@ private:
 	bool mForcePublicAddressEnabled = false;
 };
 
-}
+} // namespace flexisip
