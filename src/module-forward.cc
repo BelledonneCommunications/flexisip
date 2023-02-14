@@ -271,7 +271,7 @@ public:
 		SLOGE << "RegistrarListener invalid";
 		mEv->reply(500, "Internal Server Error", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
 	}
-	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override{};
+	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact> &ec) override{};
 	private :
 	ForwardModule *mModule;
 	shared_ptr<RequestSipEvent> mEv;
@@ -478,7 +478,7 @@ void ForwardModule::onResponse(shared_ptr<ResponseSipEvent> &ev) {
 	ev->send(ms);
 }
 
-static char const *compute_branch(nta_agent_t *sa, msg_t *msg, sip_t const *sip, char const *string_server,
+static char const *compute_branch([[maybe_unused]] nta_agent_t *sa, msg_t *msg, sip_t const *sip, char const *string_server,
 								  const shared_ptr<OutgoingTransaction> &outTr) {
 	su_md5_t md5[1];
 	uint8_t digest[SU_MD5_DIGEST_SIZE];

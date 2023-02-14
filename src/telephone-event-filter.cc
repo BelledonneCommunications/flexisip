@@ -24,8 +24,8 @@ using namespace flexisip;
 TelephoneEventFilter::TelephoneEventFilter(int telephone_event_pt) : mTelephoneEventPt(telephone_event_pt) {
 }
 
-bool TelephoneEventFilter::onIncomingTransfer(uint8_t *data, size_t size, const struct sockaddr *sockaddr,
-											  socklen_t addrlen) {
+bool TelephoneEventFilter::onIncomingTransfer(uint8_t *data, size_t size, [[maybe_unused]] const struct sockaddr *sockaddr,
+											 [[maybe_unused]] socklen_t addrlen) {
 	rtp_header_t *h = (rtp_header_t *)data;
 	if (size < sizeof(rtp_header_t))
 		return true;
@@ -36,7 +36,7 @@ bool TelephoneEventFilter::onIncomingTransfer(uint8_t *data, size_t size, const 
 	return true;
 }
 
-bool TelephoneEventFilter::onOutgoingTransfer(uint8_t *data, size_t size, const struct sockaddr *sockaddr,
-											  socklen_t addrlen) {
+bool TelephoneEventFilter::onOutgoingTransfer([[maybe_unused]] uint8_t *data, [[maybe_unused]] size_t size, [[maybe_unused]] const struct sockaddr *sockaddr,
+											  [[maybe_unused]] socklen_t addrlen) {
 	return true;
 }

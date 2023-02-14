@@ -499,7 +499,7 @@ void Transcoder::onTimer() {
 	}
 }
 
-void Transcoder::sOnTimer(void *unused, su_timer_t *t, void *zis) {
+void Transcoder::sOnTimer([[maybe_unused]] void *unused, [[maybe_unused]] su_timer_t *t, void *zis) {
 	((Transcoder *)zis)->onTimer();
 }
 

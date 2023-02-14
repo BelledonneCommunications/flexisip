@@ -115,7 +115,7 @@ ostream &FileConfigDumper::printHelp(ostream &os, const string &help, const stri
 	return os;
 }
 
-ostream &FileConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue *val, int level) const {
+ostream &FileConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue *val, [[maybe_unused]] int level) const {
 	if (!val || !val->isExportable())
 		return ostr;
 	if (!val->isDeprecated()) {
@@ -133,7 +133,7 @@ ostream &FileConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue
 	return ostr;
 }
 
-ostream &FileConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruct *moduleHead, int level) const {
+ostream &FileConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruct *moduleHead, [[maybe_unused]] int level) const {
 	if (!moduleHead || !moduleHead->isExportable())
 		return ostr;
 
@@ -161,7 +161,7 @@ string TexFileConfigDumper::escape(const string &strc) const {
 	});
 }
 
-ostream &TexFileConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruct *cs, int level) const {
+ostream &TexFileConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruct *cs, [[maybe_unused]] int level) const {
 	if (cs->getParent()) {
 		string pn = escape(cs->getPrettyName());
 		ostr << "\\section{" << pn << "}" << endl << endl;
@@ -173,7 +173,7 @@ ostream &TexFileConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericSt
 	return ostr;
 }
 
-ostream &TexFileConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue *val, int level) const {
+ostream &TexFileConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue *val, [[maybe_unused]] int level) const {
 
 	if (!val->isDeprecated()) {
 		ostr << "\\subsubsection{" << escape(val->getName()) << "}" << endl;
@@ -186,7 +186,7 @@ ostream &TexFileConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigVa
 
 /* Dokuwiki */
 
-ostream &DokuwikiConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue *val, int level) const {
+ostream &DokuwikiConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue *val, [[maybe_unused]] int level) const {
 	if (!val->isDeprecated()) {
 
 		// dokuwiki handles line breaks with double backspaces
@@ -205,7 +205,7 @@ ostream &DokuwikiConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigV
 	return ostr;
 }
 
-ostream &DokuwikiConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruct *cs, int level) const {
+ostream &DokuwikiConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruct *cs, [[maybe_unused]] int level) const {
 	// we have a generic struc: we're on top level: get module name and description
 	ostr << "====" << cs->getPrettyName() << "====" << endl;
 	ostr << endl << cs->getHelp() << endl;
@@ -217,7 +217,7 @@ ostream &DokuwikiConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericS
 
 /* MediaWiki */
 
-ostream &MediaWikiConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruct *cs, int level) const {
+ostream &MediaWikiConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruct *cs, [[maybe_unused]] int level) const {
 	// we have a generic struc: we're on top level: get module name and description
 	ostr << "====" << cs->getPrettyName() << "====" << endl;
 	ostr << endl << cs->getHelp() << endl;
@@ -233,7 +233,7 @@ ostream &MediaWikiConfigDumper::dumpModuleHead(std::ostream &ostr, const Generic
 	return ostr;
 }
 
-ostream &MediaWikiConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue *val, int level) const {
+ostream &MediaWikiConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue *val, [[maybe_unused]] int level) const {
 	if (!val->isDeprecated()) {
 
 		// MediaWiki handles line breaks with double backspaces
@@ -253,7 +253,7 @@ ostream &MediaWikiConfigDumper::dumpModuleValue(std::ostream &ostr, const Config
 	return ostr;
 }
 
-ostream &MediaWikiConfigDumper::dumpModuleEnd(std::ostream &ostr, const GenericStruct *cs, int level) const {
+ostream &MediaWikiConfigDumper::dumpModuleEnd(std::ostream &ostr, [[maybe_unused]] const GenericStruct *cs, [[maybe_unused]] int level) const {
 
 	ostr << "|}" << endl;
 
@@ -261,7 +261,7 @@ ostream &MediaWikiConfigDumper::dumpModuleEnd(std::ostream &ostr, const GenericS
 }
 
 
-ostream &XWikiConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruct *cs, int level) const {
+ostream &XWikiConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruct *cs, [[maybe_unused]] int level) const {
 	// we have a generic struc: we're on top level: get module name and description
 	ostr << "=" << cs->getPrettyName() << "=" << endl;
 	ostr << endl << cs->getHelp() << endl;
@@ -276,7 +276,7 @@ ostream &XWikiConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStru
 	return ostr;
 }
 
-ostream &XWikiConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue *val, int level) const {
+ostream &XWikiConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue *val, [[maybe_unused]] int level) const {
 	if (!val->isDeprecated()) {
 		ostr << "|=(% style=\"text-align: center;  vertical-align: middle; border: 1px solid #999\" %)" << val->getName()
 			 << "|(% style=\"text-align: left; border: 1px solid #999\" %)(((" << escape(val->getHelp()) << ")))"

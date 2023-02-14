@@ -33,7 +33,7 @@ public:
 	virtual void onInvalid() override {
 		BC_FAIL(unexpected call to onInvalid);
 	}
-	virtual void onContactUpdated(const std::shared_ptr<ExtendedContact>& _ec) override {
+	virtual void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& _ec) override {
 		BC_FAIL(unexpected call to onContactUpdated);
 	}
 };

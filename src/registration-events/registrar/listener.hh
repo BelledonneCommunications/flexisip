@@ -35,7 +35,7 @@ public:
 	void onInvalid() override {
 	}
 	void onContactRegistered(const std::shared_ptr<Record>& r, const std::string& uid) override;
-	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
 	}
 
 private:

@@ -138,7 +138,7 @@ private:
 			delete this;
 		}
 
-		virtual void finishVerifyAlgos(const vector<passwd_algo_t> &pass) {
+		virtual void finishVerifyAlgos([[maybe_unused]] const vector<passwd_algo_t> &pass) {
 			return;
 		}
 	};
@@ -173,7 +173,7 @@ private:
 			gw->onError("Fetch error.");
 		}
 
-		void onContactUpdated(const shared_ptr<ExtendedContact> &ec) override {}
+		void onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact> &ec) override {}
 	};
 };
 
@@ -479,11 +479,11 @@ void GatewayAdapter::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	}
 }
 
-void GatewayAdapter::onResponse(shared_ptr<ResponseSipEvent> &ev) {
+void GatewayAdapter::onResponse([[maybe_unused]] shared_ptr<ResponseSipEvent> &ev) {
 }
 
-void GatewayAdapter::nua_callback(nua_event_t event, int status, char const *phrase, nua_t *nua, nua_magic_t *ctx,
-								nua_handle_t *nh, nua_hmagic_t *hmagic, sip_t const *sip, tagi_t tags[]) {
+void GatewayAdapter::nua_callback(nua_event_t event, int status, [[maybe_unused]] char const *phrase, [[maybe_unused]] nua_t *nua, nua_magic_t *ctx,
+								[[maybe_unused]] nua_handle_t *nh, nua_hmagic_t *hmagic, sip_t const *sip, [[maybe_unused]] tagi_t tags[]) {
 	GatewayRegister *gr = (GatewayRegister *)hmagic;
 
 	if (event == nua_r_shutdown && status >= 200) {

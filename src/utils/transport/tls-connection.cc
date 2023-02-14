@@ -118,7 +118,7 @@ void TlsConnection::doConnectAsync(su_root_t& root, const function<void()>& onCo
 	}
 }
 
-void TlsConnection::doConnectCb(su_root_magic_t* rm, su_msg_r msg, void* u) {
+void TlsConnection::doConnectCb([[maybe_unused]] su_root_magic_t* rm, su_msg_r msg, [[maybe_unused]] void* u) {
 	auto clientOnConnectCb = *reinterpret_cast<function<void()>**>(su_msg_data(msg));
 	(*clientOnConnectCb)();
 	delete clientOnConnectCb;
@@ -298,7 +298,7 @@ void TlsConnection::handleBioError(const string& msg, int status) {
 	ostringstream os;
 	os << msg << ": " << status << " - " << strerror(errno) << " - SSL error stack:";
 	ERR_print_errors_cb(
-	    [](const char* str, size_t len, void* u) {
+	    [](const char* str, [[maybe_unused]] size_t len, void* u) {
 		    auto& os = *static_cast<ostream*>(u);
 		    os << endl << '\t' << str;
 		    return 0;
@@ -307,7 +307,7 @@ void TlsConnection::handleBioError(const string& msg, int status) {
 	SLOGE << os.str();
 }
 
-int TlsConnection::handleVerifyCallback(X509_STORE_CTX* ctx, void* ud) {
+int TlsConnection::handleVerifyCallback(X509_STORE_CTX* ctx, [[maybe_unused]] void* ud) {
 	char subject_name[256];
 
 	X509* cert = X509_STORE_CTX_get_current_cert(ctx);

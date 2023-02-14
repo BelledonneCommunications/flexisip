@@ -24,7 +24,7 @@ public:
 	OperationFailedListener() {
 	}
 
-	void onRecordFound(const std::shared_ptr<Record>& r) override {
+	void onRecordFound([[maybe_unused]] const std::shared_ptr<Record>& r) override {
 		BC_FAIL(unexpected call to onRecordFound);
 	}
 	void onError() override {
@@ -33,7 +33,7 @@ public:
 	void onInvalid() override {
 		BC_FAIL(unexpected call to onInvalid);
 	}
-	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
 		BC_FAIL(unexpected call to onContactUpdated);
 	}
 };

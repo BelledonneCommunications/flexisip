@@ -97,9 +97,9 @@ public:
 	void setInfo(ModuleInfoBase* moduleInfo);
 
 protected:
-	virtual void onDeclare(GenericStruct* root) {
+	virtual void onDeclare([[maybe_unused]] GenericStruct* root) {
 	}
-	virtual void onLoad(const GenericStruct* root) {
+	virtual void onLoad([[maybe_unused]] const GenericStruct* root) {
 	}
 	virtual void onUnload() {
 	}
@@ -115,7 +115,7 @@ protected:
 		return true;
 	}
 
-	virtual bool isValidNextConfig(const ConfigValue& cv) {
+	virtual bool isValidNextConfig([[maybe_unused]] const ConfigValue& cv) {
 		return true;
 	}
 

@@ -385,7 +385,7 @@ public:
 		mSocket.send("INVALID");
 	}
 	// Mandatory since we inherit from ContactUpdateListener
-	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
 	}
 
 protected:
@@ -529,7 +529,7 @@ void ProxyCommandLineInterface::handleRegistrarClear(SocketHandle&& socket, cons
 		ClearListener(SocketHandle&& socket, const std::string& uri) : CommandListener(move(socket)), mUri(uri) {
 		}
 
-		void onRecordFound(const shared_ptr<Record>& r) override {
+		void onRecordFound([[maybe_unused]] const shared_ptr<Record>& r) override {
 			RegistrarDb::get()->publish(mUri, "");
 			mSocket.send("Done: cleared record " + mUri);
 		}
@@ -552,7 +552,7 @@ void ProxyCommandLineInterface::handleRegistrarClear(SocketHandle&& socket, cons
 	RegistrarDb::get()->clear(msg, listener);
 }
 
-void ProxyCommandLineInterface::handleRegistrarDump(SocketHandle&& socket, const std::vector<std::string>& args) {
+void ProxyCommandLineInterface::handleRegistrarDump(SocketHandle&& socket, [[maybe_unused]] const std::vector<std::string>& args) {
 	list<string> aorList;
 
 	RegistrarDb::get()->getLocalRegisteredAors(aorList);

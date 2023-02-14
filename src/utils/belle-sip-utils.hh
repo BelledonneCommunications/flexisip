@@ -122,7 +122,7 @@ public:
 	shared_ptr<T> lock() const noexcept {return shared_ptr<T>{*this};}
 
 private:
-	static void onDestroyCb(void *userData, belle_sip_object_t *obj) {
+	static void onDestroyCb(void *userData, [[maybe_unused]] belle_sip_object_t *obj) {
 		auto mDataAttr = static_cast<T **>(userData);
 		*mDataAttr = nullptr;
 	};

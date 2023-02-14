@@ -65,7 +65,7 @@ private:
 		ev->reply(SIP_302_MOVED_TEMPORARILY, SIPTAG_CONTACT(sip_contact_dup(&mHome, mContact)),
 		          SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	}
-	void onResponse(std::shared_ptr<ResponseSipEvent>& ev){};
+	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev){};
 
 public:
 	ModuleRedirect(Agent* ag) : Module(ag) {

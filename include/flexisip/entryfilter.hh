@@ -32,8 +32,8 @@ namespace flexisip {
  **/
 class EntryFilter {
   public:
-	virtual void declareConfig(GenericStruct *module_config) {}
-	virtual void loadConfig(const GenericStruct *module_config) {}
+	virtual void declareConfig([[maybe_unused]] GenericStruct *module_config) {}
+	virtual void loadConfig([[maybe_unused]] const GenericStruct *module_config) {}
 	virtual bool canEnter(const std::shared_ptr<MsgSip> &ms) = 0;
 	virtual bool isEnabled() = 0;
 	virtual ~EntryFilter() = default;

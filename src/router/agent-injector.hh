@@ -31,8 +31,8 @@ public:
 	AgentInjector(ModuleRouter* router) : Injector(router){};
 
 	void injectRequestEvent(const std::shared_ptr<RequestSipEvent>& ev,
-	                        const std::shared_ptr<ForkContext>& fork,
-	                        const std::string& contactId) override {
+	                        [[maybe_unused]] const std::shared_ptr<ForkContext>& fork,
+	                        [[maybe_unused]] const std::string& contactId) override {
 		mModule->injectRequestEvent(ev);
 	}
 };

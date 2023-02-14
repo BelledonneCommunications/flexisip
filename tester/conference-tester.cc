@@ -60,7 +60,7 @@ public:
 		listenerCalled++;
 		BC_FAIL("Only onRecordFound must be called.");
 	}
-	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
 		listenerCalled++;
 		BC_FAIL("Only onRecordFound must be called.");
 	}

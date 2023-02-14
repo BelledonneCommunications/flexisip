@@ -35,7 +35,7 @@ using namespace flexisip;
 H264IFrameFilter::H264IFrameFilter(int skipcount) : mSkipCount(skipcount), mLastIframeTimestamp(0), mIframeCount(0) {
 }
 
-bool H264IFrameFilter::onOutgoingTransfer(uint8_t *data, size_t size, const sockaddr *addr, socklen_t addrlen) {
+bool H264IFrameFilter::onOutgoingTransfer(uint8_t *data, size_t size, [[maybe_unused]] const sockaddr *addr, [[maybe_unused]] socklen_t addrlen) {
 	const uint8_t *p = data;
 	bool ret = false;
 	bool isIFrame = false;
@@ -87,6 +87,6 @@ bool H264IFrameFilter::onOutgoingTransfer(uint8_t *data, size_t size, const sock
 	return ret;
 }
 
-bool H264IFrameFilter::onIncomingTransfer(uint8_t *data, size_t size, const sockaddr *addr, socklen_t addrlen) {
+bool H264IFrameFilter::onIncomingTransfer([[maybe_unused]] uint8_t *data, [[maybe_unused]] size_t size, [[maybe_unused]] const sockaddr *addr, [[maybe_unused]] socklen_t addrlen) {
 	return true;
 }

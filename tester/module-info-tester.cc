@@ -30,9 +30,9 @@ class DummyModule : public Module {
 public:
 	using Module::Module;
 
-	void onRequest(std::shared_ptr<RequestSipEvent>& ev) override {
+	void onRequest([[maybe_unused]] std::shared_ptr<RequestSipEvent>& ev) override {
 	}
-	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override {
+	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev) override {
 	}
 };
 

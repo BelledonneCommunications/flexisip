@@ -137,7 +137,7 @@ constexpr auto configSection = "b2bua-server::trenscrypter";
 } // namespace
 
 linphone::Reason Trenscrypter::onCallCreate(const linphone::Call& incomingCall,
-                                            linphone::Address& _callee,
+                                            [[maybe_unused]] linphone::Address& _callee,
                                             linphone::CallParams& outgoingCallParams) {
 	const auto calleeAddressUriOnly = incomingCall.getToAddress()->asStringUriOnly();
 	outgoingCallParams.setFromHeader(incomingCall.getRemoteAddress()->asString());

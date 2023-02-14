@@ -366,7 +366,7 @@ CoreClient::callWithEarlyCancel(const std::shared_ptr<CoreClient>& callee,
 		callParams = mCore->createCallParams(nullptr);
 	}
 
-	auto addressWithoutGr = callee->getAccount()->getContactAddress();
+	auto addressWithoutGr = callee->getAccount()->getContactAddress()->clone();
 	addressWithoutGr->removeUriParam("gr");
 	auto callerCall = mCore->inviteAddressWithParams(addressWithoutGr, callParams);
 

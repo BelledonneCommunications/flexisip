@@ -57,7 +57,7 @@ struct TestHandler : public flexisip::CliHandler {
 	TestHandler(std::string&& output) : output(output) {
 	}
 
-	std::string handleCommand(const std::string& command, const std::vector<std::string>& args) override {
+	std::string handleCommand(const std::string& command, [[maybe_unused]] const std::vector<std::string>& args) override {
 		calls.push_back(command);
 		return output;
 	}
@@ -96,7 +96,7 @@ public:
 	virtual void onInvalid() override {
 		BC_FAIL(unexpected call to onInvalid);
 	}
-	virtual void onContactUpdated(const std::shared_ptr<ExtendedContact>& _ec) override {
+	virtual void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& _ec) override {
 		BC_FAIL(unexpected call to onContactUpdated);
 	}
 };

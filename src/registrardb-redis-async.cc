@@ -75,7 +75,7 @@ RegistrarDbRedisAsync::RegistrarDbRedisAsync(Agent* ag, RedisParameters params)
     : RegistrarDb{ag}, mSerializer{RecordSerializer::get()}, mParams{params}, mRoot{ag->getRoot()} {
 }
 
-RegistrarDbRedisAsync::RegistrarDbRedisAsync(const string& preferredRoute,
+RegistrarDbRedisAsync::RegistrarDbRedisAsync([[maybe_unused]] const string& preferredRoute,
                                              const std::shared_ptr<sofiasip::SuRoot>& root,
                                              RecordSerializer* serializer,
                                              RedisParameters params)
@@ -592,7 +592,7 @@ void RegistrarDbRedisAsync::sSubscribeDisconnectCallback(const redisAsyncContext
 	}
 }
 
-void RegistrarDbRedisAsync::sPublishCallback(redisAsyncContext* c, void* r, void* privcontext) {
+void RegistrarDbRedisAsync::sPublishCallback(redisAsyncContext* c, void* r, [[maybe_unused]] void* privcontext) {
 	const auto* reply = static_cast<redisReply*>(r);
 	if (reply == nullptr) return;
 
@@ -614,7 +614,7 @@ void RegistrarDbRedisAsync::sPublishCallback(redisAsyncContext* c, void* r, void
 	}
 }
 
-void RegistrarDbRedisAsync::sKeyExpirationPublishCallback(redisAsyncContext* c, void* r, void* context) {
+void RegistrarDbRedisAsync::sKeyExpirationPublishCallback(redisAsyncContext* c, void* r, [[maybe_unused]] void* context) {
 	redisReply* reply = reinterpret_cast<redisReply*>(r);
 	if (!reply) return;
 
@@ -631,7 +631,7 @@ void RegistrarDbRedisAsync::sKeyExpirationPublishCallback(redisAsyncContext* c, 
 	}
 }
 
-void RegistrarDbRedisAsync::sHandleBindStart(redisAsyncContext* ac, redisReply* reply, RedisRegisterContext* context) {
+void RegistrarDbRedisAsync::sHandleBindStart([[maybe_unused]] redisAsyncContext* ac, redisReply* reply, RedisRegisterContext* context) {
 
 	if (reply == nullptr) {
 		if (context->listener) context->listener->onError();
@@ -659,29 +659,29 @@ void RegistrarDbRedisAsync::sHandleBindStart(redisAsyncContext* ac, redisReply* 
 	context->self->serializeAndSendToRedis(context, sHandleBindFinish);
 }
 
-void RegistrarDbRedisAsync::sHandleBindFinish(redisAsyncContext* ac, redisReply* reply, RedisRegisterContext* context) {
+void RegistrarDbRedisAsync::sHandleBindFinish([[maybe_unused]] redisAsyncContext* ac, redisReply* reply, RedisRegisterContext* context) {
 	context->self->handleBind(reply, context);
 }
 
-void RegistrarDbRedisAsync::sHandleClear(redisAsyncContext* ac, redisReply* reply, RedisRegisterContext* context) {
+void RegistrarDbRedisAsync::sHandleClear([[maybe_unused]] redisAsyncContext* ac, redisReply* reply, RedisRegisterContext* context) {
 	context->self->handleClear(reply, context);
 }
 
-void RegistrarDbRedisAsync::sHandleFetch(redisAsyncContext* ac, redisReply* reply, RedisRegisterContext* context) {
+void RegistrarDbRedisAsync::sHandleFetch([[maybe_unused]] redisAsyncContext* ac, redisReply* reply, RedisRegisterContext* context) {
 	context->self->handleFetch(reply, context);
 }
 
-void RegistrarDbRedisAsync::sHandleMigration(redisAsyncContext* ac, redisReply* reply, RedisRegisterContext* context) {
+void RegistrarDbRedisAsync::sHandleMigration([[maybe_unused]] redisAsyncContext* ac, redisReply* reply, RedisRegisterContext* context) {
 	context->self->handleMigration(reply, context);
 }
 
-void RegistrarDbRedisAsync::sHandleRecordMigration(redisAsyncContext* ac,
+void RegistrarDbRedisAsync::sHandleRecordMigration([[maybe_unused]] redisAsyncContext* ac,
                                                    redisReply* reply,
                                                    RedisRegisterContext* context) {
 	context->self->handleRecordMigration(reply, context);
 }
 
-void RegistrarDbRedisAsync::sHandleReplicationInfoReply(redisAsyncContext* ac, void* r, void* privcontext) {
+void RegistrarDbRedisAsync::sHandleReplicationInfoReply([[maybe_unused]] redisAsyncContext* ac, void* r, void* privcontext) {
 	redisReply* reply = (redisReply*)r;
 	RegistrarDbRedisAsync* zis = (RegistrarDbRedisAsync*)privcontext;
 
@@ -700,7 +700,7 @@ void RegistrarDbRedisAsync::onHandleInfoTimer() {
 	}
 }
 
-void RegistrarDbRedisAsync::sHandleAuthReply(redisAsyncContext* ac, void* r, void* privcontext) {
+void RegistrarDbRedisAsync::sHandleAuthReply([[maybe_unused]] redisAsyncContext* ac, void* r, void* privcontext) {
 	RegistrarDbRedisAsync* zis = (RegistrarDbRedisAsync*)privcontext;
 	if (zis) {
 		zis->handleAuthReply((const redisReply*)r);
@@ -768,7 +768,7 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RedisRegisterContext* contex
 
 /* Methods called by the callbacks */
 
-void RegistrarDbRedisAsync::sBindRetry(void* unused, su_timer_t* t, void* ud) {
+void RegistrarDbRedisAsync::sBindRetry([[maybe_unused]] void* unused, [[maybe_unused]] su_timer_t* t, void* ud) {
 	RedisRegisterContext* context = (RedisRegisterContext*)ud;
 	su_timer_destroy(context->mRetryTimer);
 	context->mRetryTimer = nullptr;

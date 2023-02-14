@@ -154,7 +154,7 @@ void PresenceSubscription::onInformationChanged(PresentityPresenceInformation &p
 	notify(content_type, body);
 }
 
-void PresenceSubscription::onExpired(PresentityPresenceInformation &presenceInformation) {
+void PresenceSubscription::onExpired([[maybe_unused]] PresentityPresenceInformation &presenceInformation) {
 	// just transition state to expired
 	setState(Subscription::State::terminated);
 }

@@ -122,7 +122,7 @@ public:
 	auth_status_t *getPtr() {return mPriv;}
 
 private:
-	static void responseCb(auth_magic_t *magic, auth_status_t *as) {
+	static void responseCb([[maybe_unused]] auth_magic_t *magic, auth_status_t *as) {
 		AuthStatus &authStatus = *reinterpret_cast<AuthStatus *>(as->as_plugin);
 		if (authStatus.mResponseCb) authStatus.mResponseCb(authStatus);
 	}

@@ -36,13 +36,13 @@ namespace tester {
 class TestBanExecutor : public BanExecutor {
 public:
 	void checkConfig() override{};
-	void onLoad(const flexisip::GenericStruct* dosModuleConfig) override{};
+	void onLoad([[maybe_unused]] const flexisip::GenericStruct* dosModuleConfig) override{};
 	void onUnload() override{};
-	void banIP(const std::string& ip, const std::string& port, const std::string& protocol) override {
+	void banIP([[maybe_unused]] const std::string& ip, [[maybe_unused]] const std::string& port, [[maybe_unused]] const std::string& protocol) override {
 		banIPCalls++;
 	};
 
-	void unbanIP(const std::string& ip, const std::string& port, const std::string& protocol) override{};
+	void unbanIP([[maybe_unused]] const std::string& ip, [[maybe_unused]] const std::string& port, [[maybe_unused]] const std::string& protocol) override{};
 
 	int banIPCalls = 0;
 };

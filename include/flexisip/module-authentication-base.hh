@@ -62,7 +62,7 @@ protected:
 	void onDeclare(GenericStruct *root) override;
 	void onLoad(const GenericStruct *root) override;
 	void onRequest(std::shared_ptr<RequestSipEvent> &ev) override;
-	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) override {}
+	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent> &ev) override {}
 
 	/**
 	 * Override this method to specify the specialization of #FlexisipAuthModuleBase to instantiate.

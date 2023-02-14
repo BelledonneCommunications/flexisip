@@ -71,7 +71,7 @@ private:
 		mBanExecutor->onUnload();
 	}
 	void onRequest(std::shared_ptr<RequestSipEvent>& ev);
-	void onResponse(std::shared_ptr<ResponseSipEvent>& ev){};
+	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev){};
 	void onIdle();
 
 	virtual bool isValidNextConfig(const ConfigValue& value);

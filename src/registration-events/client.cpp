@@ -134,7 +134,7 @@ void Client::onSubscriptionStateChanged(linphone::SubscriptionState state){
 	}
 }
 
-void ClientFactory::onSubscriptionStateChanged(const std::shared_ptr<linphone::Core> & core, const std::shared_ptr<linphone::Event> & linphoneEvent, 
+void ClientFactory::onSubscriptionStateChanged([[maybe_unused]] const std::shared_ptr<linphone::Core> & core, const std::shared_ptr<linphone::Event> & linphoneEvent, 
 					linphone::SubscriptionState state){
 	try{
 		Client &client = linphoneEvent->getData<Client>(Client::eventKey);
@@ -145,9 +145,9 @@ void ClientFactory::onSubscriptionStateChanged(const std::shared_ptr<linphone::C
 }
 
 void ClientFactory::onNotifyReceived(
-    const shared_ptr<Core> & lc,
+    [[maybe_unused]] const shared_ptr<Core> & lc,
     const shared_ptr<linphone::Event> & lev,
-    const string & notifiedEvent,
+    [[maybe_unused]] const string & notifiedEvent,
     const shared_ptr<const Content> & body) {
 	try{
 		Client &client = lev->getData<Client>(Client::eventKey);
@@ -157,13 +157,13 @@ void ClientFactory::onNotifyReceived(
 	}
 }
 
-void ClientFactory::registerClient(Client &client){
+void ClientFactory::registerClient([[maybe_unused]] Client &client){
 	if (mUseCount == 0){
 		mCore->addListener(shared_from_this());
 	}
 	mUseCount++;
 }
-void ClientFactory::unregisterClient(Client &client){
+void ClientFactory::unregisterClient([[maybe_unused]] Client &client){
 	mUseCount--;
 	if (mUseCount == 0){
 		mCore->removeListener(shared_from_this());

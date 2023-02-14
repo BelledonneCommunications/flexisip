@@ -178,7 +178,7 @@ void ListSubscription::notify(bool isFullState) {
 		mLastNotify = chrono::system_clock::now();
 		if (!mPendingStates.empty() && !mTimer) {
 			SLOGD << "Still [" << mPendingStates.size() << "] to be notified for list [" << this << "]";
-			auto func = [this](unsigned int events) {
+			auto func = [this]([[maybe_unused]] unsigned int events) {
 				mTimer.reset(nullptr);
 				notify(false);
 				SLOGD << "defered notify sent on [" << this << "]";
@@ -207,7 +207,7 @@ void ListSubscription::onInformationChanged(PresentityPresenceInformation &prese
 		} else {
 			if (mVersion > 0 /*special case for first notify */ && mTimer == nullptr) {
 				// cb function to invalidate an unrefreshed etag;
-				auto func = [this](unsigned int events) {
+				auto func = [this]([[maybe_unused]] unsigned int events) {
 					notify(false);
 					SLOGD << "defered notify sent on [" << this << "]";
 					mTimer.reset(nullptr);
@@ -296,7 +296,7 @@ void PresentityResourceListener::onInformationChanged(PresentityPresenceInformat
 		presenceInformation.setName(mName);
 	mListSubscription.onInformationChanged(presenceInformation, extended);
 }
-void PresentityResourceListener::onExpired(PresentityPresenceInformation &presenceInformation) {
+void PresentityResourceListener::onExpired([[maybe_unused]] PresentityPresenceInformation &presenceInformation) {
 	// fixme check if enought
 	mListSubscription.setState(Subscription::State::terminated);
 }

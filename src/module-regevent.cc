@@ -82,7 +82,7 @@ private:
 		}
 	}
 
-	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) {};
+	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent> &ev) {};
 
 public:
 	RegEvent(Agent *ag) : Module(ag) {

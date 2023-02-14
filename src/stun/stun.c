@@ -1323,14 +1323,14 @@ randomPort()
 
 #if !HAVE_POLARSSL_SSL_H
 void
-stunCalculateIntegrity_longterm(char* hmac, const char* input, int length,
-					 const char *username, const char *realm, const char *password)
+stunCalculateIntegrity_longterm(char* hmac __attribute__((__unused__)), const char* input __attribute__((__unused__)), int length __attribute__((__unused__)),
+					 const char *username __attribute__((__unused__)), const char *realm __attribute__((__unused__)), const char *password __attribute__((__unused__)))
 {
    strncpy(hmac,"hmac-not-implemented",20);
    ortp_message("hmac-not-implemented for stun");
 }
 void
-stunCalculateIntegrity_shortterm(char* hmac, const char* input, int length, const char* key)
+stunCalculateIntegrity_shortterm(char* hmac __attribute__((__unused__)), const char* input __attribute__((__unused__)), int length __attribute__((__unused__)), const char* key __attribute__((__unused__)))
 {
    strncpy(hmac,"hmac-not-implemented",20);
    ortp_message("hmac-not-implemented for stun");
@@ -1352,7 +1352,7 @@ stunCalculateIntegrity_longterm(char* hmac, const char* input, int length,
 
    sha1_hmac(HA1, sizeof(HA1),
 		(const unsigned char*) input, length,
-		(unsigned char*)hmac);
+		(unsigned char*)hmac __attribute__((__unused__)));
 }
 
 void
@@ -1616,7 +1616,7 @@ stunServerProcessMsg( char* buf,
 					  StunAddress4 *altAddr,
 					  StunMessage *resp,
 					  StunAddress4 *destination,
-					  StunAtrString *hmacPassword,
+					  StunAtrString *hmacPassword __attribute__((__unused__)),
 					  bool_t* changePort,
 					  bool_t* changeIp)
 {

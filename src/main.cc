@@ -118,7 +118,7 @@ unsigned long threadid_cb() {
 	return (unsigned long)pthread_self();
 }
 
-void locking_function(int mode, int n, const char* file, int line) {
+void locking_function(int mode, int n, [[maybe_unused]] const char* file, [[maybe_unused]] int line) {
 	static mutex* mutextab = NULL;
 	if (mutextab == NULL) mutextab = new mutex[CRYPTO_num_locks()];
 	if (mode & CRYPTO_LOCK) mutextab[n].lock();
@@ -144,7 +144,7 @@ static void flexisip_stop(int signum) {
 	} // else nop
 }
 
-static void flexisip_reopen_log_files(int signum) {
+static void flexisip_reopen_log_files([[maybe_unused]] int signum) {
 	LogManager::get().reopenFiles();
 }
 
@@ -267,7 +267,7 @@ static void makePidFile(const string& pidfile) {
 	}
 }
 
-static void set_process_name(const string& process_name) {
+static void set_process_name([[maybe_unused]] const string& process_name) {
 #ifdef PR_SET_NAME
 	if (prctl(PR_SET_NAME, process_name.c_str(), NULL, NULL, NULL) == -1) {
 		LOGW("prctl() failed: %s", strerror(errno));

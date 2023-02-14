@@ -195,7 +195,7 @@ void RequestSipEvent::reply(int status, char const* phrase, tag_type_t tag, tag_
 	if (status >= 200) terminateProcessing();
 }
 
-void RequestSipEvent::setIncomingAgent(const shared_ptr<IncomingAgent>& agent) {
+void RequestSipEvent::setIncomingAgent([[maybe_unused]] const shared_ptr<IncomingAgent>& agent) {
 	LOGA("Can't change incoming agent in request sip event");
 }
 
@@ -328,7 +328,7 @@ void ResponseSipEvent::send(
 	terminateProcessing();
 }
 
-void ResponseSipEvent::setOutgoingAgent(const shared_ptr<OutgoingAgent>& agent) {
+void ResponseSipEvent::setOutgoingAgent([[maybe_unused]] const shared_ptr<OutgoingAgent>& agent) {
 	LOGA("Can't change outgoing agent in response sip event");
 }
 

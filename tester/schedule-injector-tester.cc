@@ -51,8 +51,8 @@ public:
 	vector<shared_ptr<RequestSipEvent>> mOrderedInjectedRequests;
 
 protected:
-	void onRequest(std::shared_ptr<RequestSipEvent>& ev) override{};
-	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override{};
+	void onRequest([[maybe_unused]] std::shared_ptr<RequestSipEvent>& ev) override{};
+	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev) override{};
 };
 
 class ScheduleInjectorTest : public AgentTest {

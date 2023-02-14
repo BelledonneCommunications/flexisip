@@ -56,7 +56,7 @@ class RegisterBindListener : public ContactUpdateListener {
 public:
 	RegisterBindListener(const std::string& user) : mExpectedUser(user) {
 	}
-	void onRecordFound(const shared_ptr<Record>& r) override {
+	void onRecordFound([[maybe_unused]] const shared_ptr<Record>& r) override {
 		bidingDone++;
 	}
 	void onError() override {
@@ -110,7 +110,7 @@ public:
 	void onInvalid() override {
 		BC_FAIL("Only onRecordFound must be called.");
 	}
-	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
 		BC_FAIL("Only onRecordFound must be called.");
 	}
 

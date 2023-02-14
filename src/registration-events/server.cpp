@@ -34,10 +34,10 @@ static constexpr const char* CONTENT_TYPE = "application/reginfo+xml";
 
 Server::Init Server::sStaticInit; // The Init object is instanciated to load the config
 
-void Server::onSubscribeReceived(const shared_ptr<Core>& lc,
+void Server::onSubscribeReceived([[maybe_unused]] const shared_ptr<Core>& lc,
                                  const shared_ptr<Event>& lev,
-                                 const string& subscribeEvent,
-                                 const shared_ptr<const Content>& body) noexcept {
+                                 [[maybe_unused]] const string& subscribeEvent,
+                                 [[maybe_unused]] const shared_ptr<const Content>& body) noexcept {
 	string eventHeader = lev->getName();
 	if (eventHeader != "reg") {
 		lev->denySubscription(Reason::BadEvent);

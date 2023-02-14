@@ -21,7 +21,7 @@ namespace tester {
 void test_sofia_driven_signal_handler() {
 	sofiasip::SuRoot root{};
 	SofiaDrivenSignalHandler shadowed(root.getCPtr(), std::vector<SigNum>{SIGCHLD},
-	                                  [](auto _signal) { BC_FAIL("Shadowed handler should never be called"); });
+	                                  []([[maybe_unused]] auto _signal) { BC_FAIL("Shadowed handler should never be called"); });
 	auto pid = getpid();
 
 	{

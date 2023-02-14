@@ -45,7 +45,7 @@ private:
 	void onError() override;
 	void onInvalid() override {
 	}
-	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
 	}
 	void changeAddress();
 	sofiasip::Home mHome;

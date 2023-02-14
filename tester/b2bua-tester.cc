@@ -184,7 +184,7 @@ void InternalClient::endCurrentCall(const ExternalClient& other) {
 struct DtmfListener : public linphone::CallListener {
 	std::vector<int> received{};
 
-	void onDtmfReceived(const std::shared_ptr<linphone::Call>& _call, int dtmf) {
+	void onDtmfReceived([[maybe_unused]] const std::shared_ptr<linphone::Call>& _call, int dtmf) {
 		received.push_back(dtmf);
 	}
 };

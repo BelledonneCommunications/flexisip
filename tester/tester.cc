@@ -47,13 +47,13 @@ std::string bcTesterRes(const std::string& name) {
 	return ret;
 }
 
-static int verbose_arg_func(const char* arg) {
+static int verbose_arg_func([[maybe_unused]] const char* arg) {
 	LogManager::get().setLogLevel(BCTBX_LOG_DEBUG);
 	su_log_set_level(nullptr, 9);
 	return 0;
 }
 
-static int silent_arg_func(const char* arg) {
+static int silent_arg_func([[maybe_unused]] const char* arg) {
 	LogManager::get().setLogLevel(BCTBX_LOG_FATAL);
 	LogManager::get().enableUserErrorsLogs(false);
 	su_log_set_level(nullptr, 0);

@@ -89,7 +89,7 @@ const std::vector<char>& GenericRequest::getData(const sofiasip::Url& url, Metho
 	return mBuffer;
 }
 
-std::string GenericRequest::isValidResponse(const std::string& str) {
+std::string GenericRequest::isValidResponse([[maybe_unused]] const std::string& str) {
 	// LOGD("GenericPushNotificationRequest: http response is \n%s", str.c_str());
 	return "";
 }

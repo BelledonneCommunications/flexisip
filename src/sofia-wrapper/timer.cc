@@ -83,7 +83,7 @@ bool Timer::isRunning() const {
 	return su_timer_is_running(_timer) != 0;
 }
 
-void Timer::_oneShotTimerCb(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_t *arg) noexcept {
+void Timer::_oneShotTimerCb([[maybe_unused]] su_root_magic_t *magic, [[maybe_unused]] su_timer_t *t, su_timer_arg_t *arg) noexcept {
 	auto *timer = static_cast<Timer *>(arg);
 
 	// timer->_func must be emptied before calling the function to avoid
@@ -94,7 +94,7 @@ void Timer::_oneShotTimerCb(su_root_magic_t *magic, su_timer_t *t, su_timer_arg_
 	func();
 }
 
-void Timer::_regularTimerCb(su_root_magic_t* magic, su_timer_t* t, su_timer_arg_t* arg) noexcept {
+void Timer::_regularTimerCb([[maybe_unused]] su_root_magic_t* magic, [[maybe_unused]] su_timer_t* t, su_timer_arg_t* arg) noexcept {
 	auto* timer = static_cast<Timer*>(arg);
 	timer->_func();
 }

@@ -71,7 +71,7 @@ class SubsequentUnsubscribeSubscribeTest : public RegistrarDbTest<TDatabase> {
 protected:
 	// Protected types
 	struct RegistrarStats : public ContactRegisteredListener {
-		void onContactRegistered(const std::shared_ptr<Record>& r, const std::string& uid) override {
+		void onContactRegistered([[maybe_unused]] const std::shared_ptr<Record>& r, [[maybe_unused]] const std::string& uid) override {
 			++onContactRegisteredCount;
 		}
 

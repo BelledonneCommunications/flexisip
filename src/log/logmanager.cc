@@ -30,7 +30,7 @@ using namespace std;
 
 namespace flexisip {
 
-static void syslogHandler(void* info, const char* domain, BctbxLogLevel log_level, const char* str, va_list l) {
+static void syslogHandler([[maybe_unused]] void* info, [[maybe_unused]] const char* domain, BctbxLogLevel log_level, const char* str, va_list l) {
 	if (log_level >= flexisip_sysLevelMin) {
 		int syslev = LOG_ALERT;
 		switch (log_level) {
@@ -150,7 +150,7 @@ void LogManager::initialize(const Parameters& params) {
 	}
 }
 
-void LogManager::logStub(const char* domain, BctbxLogLevel level, const char* msg, va_list args) {
+void LogManager::logStub([[maybe_unused]] const char* domain, [[maybe_unused]] BctbxLogLevel level, [[maybe_unused]] const char* msg, [[maybe_unused]] va_list args) {
 	/*
 	 * The default log handler of bctoolbox (bctbx_logv_out) outputs to stdout/stderr.
 	 * In order to prevent logs to be output, we need to setup a stub function.

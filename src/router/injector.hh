@@ -49,10 +49,10 @@ public:
 	                                const std::shared_ptr<ForkContext>& fork,
 	                                const std::string& contactId) = 0;
 
-	virtual void addContext(const std::shared_ptr<ForkContext>& fork, const std::string& contactId){};
-	virtual void addContext(const std::vector<std::shared_ptr<ForkContext>>& forks, const std::string& contactId){};
+	virtual void addContext([[maybe_unused]] const std::shared_ptr<ForkContext>& fork, [[maybe_unused]] const std::string& contactId){};
+	virtual void addContext([[maybe_unused]] const std::vector<std::shared_ptr<ForkContext>>& forks, [[maybe_unused]] const std::string& contactId){};
 
-	virtual void removeContext(const std::shared_ptr<ForkContext>& fork, const std::string& contactId){};
+	virtual void removeContext([[maybe_unused]] const std::shared_ptr<ForkContext>& fork, [[maybe_unused]] const std::string& contactId){};
 
 protected:
 	explicit Injector(Module* aModule) : mModule(aModule){};

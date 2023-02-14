@@ -89,7 +89,7 @@ void LoadBalancer::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	}
 }
 
-void LoadBalancer::onResponse(shared_ptr<ResponseSipEvent> &ev) {
+void LoadBalancer::onResponse([[maybe_unused]] shared_ptr<ResponseSipEvent> &ev) {
 	/*nothing to do*/
 }
 

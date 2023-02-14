@@ -51,7 +51,7 @@ public:
 		const auto engine = nth_engine_create(root.getCPtr(), TPTAG_TLS_SNI(mShouldSniBePresent), TAG_END());
 
 		nth_client_t* request = nth_client_tcreate(
-		    engine, [](nth_client_magic_t* magic, nth_client_t* request, const http_t* http) { return 0; }, nullptr,
+		    engine, []([[maybe_unused]] nth_client_magic_t* magic, [[maybe_unused]] nth_client_t* request, [[maybe_unused]] const http_t* http) { return 0; }, nullptr,
 		    http_method_get, "GET", URL_STRING_MAKE(url.c_str()), TAG_END());
 
 		if (request == nullptr) {

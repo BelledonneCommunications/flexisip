@@ -104,13 +104,13 @@ void StatisticsCollector::onRequest(shared_ptr<RequestSipEvent> &ev) {
 	}
 }
 
-void StatisticsCollector::onResponse(shared_ptr<ResponseSipEvent> &ev) {
+void StatisticsCollector::onResponse([[maybe_unused]] shared_ptr<ResponseSipEvent> &ev) {
 }
 
 /*avoid crash if x is NULL on libc versions <4.5.26 */
 #define __strstr(x, y) ((x == NULL) ? NULL : strstr(x, y))
 
-bool StatisticsCollector::containsMandatoryFields(char *body, usize_t len) {
+bool StatisticsCollector::containsMandatoryFields(char *body, [[maybe_unused]] usize_t len) {
 	char *remote_metrics_start = __strstr(body, "RemoteMetrics:");
 
 	if (
