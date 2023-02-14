@@ -16,6 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <cstdlib>
 #include <string>
 
 #include "flexisip/common.hh"
@@ -32,6 +33,7 @@ using namespace flexisip;
 using namespace flexisip::pushnotification;
 
 static constexpr int MAX_QUEUE_SIZE = 3000;
+static constexpr auto PUSHER_DEFAULT_LOG_DIR = "/var/opt/belledonne-communications/log/flexisip";
 
 struct PusherArgs {
 	string prefix{};
@@ -83,7 +85,7 @@ General options:
 
 Android specific options:
 -------------------------
-  --key <ProjectID>(<SecretKey>)     Specify the secret key to put in the HTTP/2 headers to be authenticated
+  --key <SecretKey>                  Specify the secret key to put in the HTTP/2 headers to be authenticated
                                      by Firebase push notification service.
 
 
@@ -109,7 +111,7 @@ Examples:
 ---------
 * Send a data push notification to an Android application:
 
-    ./flexisip_pusher --key '<ProjectID>(<SecretKey>)' --pn-provider 'fcm' --pn-param '<ProjectID>' --pn-prid '<token>'
+    ./flexisip_pusher --key '<SecretKey>' --pn-provider 'fcm' --pn-param '<ProjectID>' --pn-prid '<token>'
 
 
 * Send a remote message push notification to an iOS production application:
@@ -134,7 +136,12 @@ Examples:
 
     ./flexisip_pusher --prefix /etc/flexisip --pn-provider 'apns' --pn-param '<TeamID>.<BundleID>'
                       --pn-prid '<token>' --apple-push-type Background
-)doc";
+
+
+Environment Variables:
+----------------------
+  FS_LOG_DIR    The directory to write logs into. Defaults to )doc"
+		     << PUSHER_DEFAULT_LOG_DIR;
 	}
 
 	const char* parseUrlParams(const char* params) {
@@ -166,7 +173,7 @@ Examples:
 		bool found_Legacy_Params = false;
 
 #define EQ0(i, name) (strcmp(name, argv[i]) == 0)
-#define EQ1(i, name) (strcmp(name, argv[i]) == 0 && argc > i)
+#define EQ1(i, name) (i + 1 < argc && strcmp(name, argv[i]) == 0)
 		for (int i = 1; i < argc; ++i) {
 			if (EQ1(i, "--prefix")) {
 				prefix = argv[++i];
@@ -281,8 +288,6 @@ static vector<std::unique_ptr<PushInfo>> createPushInfosFromArgs(const PusherArg
 			if (args.pntype == "firebase") {
 				pinfo->mCallId = "fb14b5fe-a9ab-1231-9485-7d582244ba3d";
 				pinfo->mFromName = "+33681741738";
-			} else if (args.pntype == "wp" || args.pntype == "wp10") {
-				pinfo->mText = "Hi here!";
 			} else if (args.pntype == "apple") {
 				fillAppleGenericParams(*pinfo);
 			}
@@ -315,8 +320,11 @@ int main(int argc, char* argv[]) {
 	args.parse(argc, argv);
 
 	LogManager::Parameters logParams{};
-	logParams.logDirectory =
-	    "/var/opt/belledonne-communications/log/flexisip"; // Sorry but ConfigManager is not accessible in this tool.
+	// Sorry but ConfigManager is not accessible in this tool.
+	logParams.logDirectory = [] {
+		const char* logDir = std::getenv("FS_LOG_DIR");
+		return logDir ? logDir : PUSHER_DEFAULT_LOG_DIR;
+	}();
 	logParams.logFilename = "flexisip-pusher.log";
 	logParams.level = args.debug ? BCTBX_LOG_DEBUG : BCTBX_LOG_MESSAGE;
 	logParams.enableSyslog = false;
@@ -342,14 +350,7 @@ int main(int argc, char* argv[]) {
 				SLOGE << "Missing Firebase API key. Use '--key'";
 				return 2;
 			}
-			smatch m{};
-			if (!regex_match(apiKey, m, regex{R"regex(^([[:print:]]+)\(([[:print:]]+)\)$)regex"})) {
-				SLOGE << "Invalid Firebase API key format. See '--key' parameter documentation.";
-				return 2;
-			}
-			service.addFirebaseClient(pushParams->getParam(), m.str(2));
-		} else if (provider == "wp" || provider == "w10") {
-			service.setupWindowsPhoneClient(args.packageSID, args.apikey);
+			service.addFirebaseClient(pushParams->getParam(), apiKey);
 		}
 
 		vector<shared_ptr<Request>> pushRequests{};
