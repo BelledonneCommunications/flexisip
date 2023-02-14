@@ -30,7 +30,7 @@ public:
 		return std::shared_ptr<VoIPPushStrategy>{new VoIPPushStrategy{std::forward<Args>(args)...}};
 	}
 
-	void sendMessageNotification(const std::shared_ptr<const PushInfo>& pInfo) override {
+	void sendMessageNotification([[maybe_unused]] const std::shared_ptr<const PushInfo>& pInfo) override {
 		std::ostringstream err{};
 		err << __PRETTY_FUNCTION__ << "() not implemented by VoIPPushStrategy";
 		throw std::logic_error{err.str()};

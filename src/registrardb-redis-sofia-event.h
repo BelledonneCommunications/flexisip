@@ -43,7 +43,7 @@ typedef struct redisSofiaEvents {
 	int eventmask;
 } redisSofiaEvents;
 
-static int redisSofiaEvent(su_root_magic_t *magic, su_wait_t *wait, su_wakeup_arg_t *e) {
+static int redisSofiaEvent([[maybe_unused]] su_root_magic_t *magic, su_wait_t *wait, su_wakeup_arg_t *e) {
 	if (wait->revents & SU_WAIT_IN)
 		redisAsyncHandleRead(((redisSofiaEvents*)e)->context);
 	if (wait->revents & SU_WAIT_OUT)

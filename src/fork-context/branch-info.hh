@@ -56,12 +56,12 @@ public:
 	 * @param[in] br The branch which has been canceled.
 	 * @param[in] cancelReason Give information about the scenario which caused the cancellation.
 	 */
-	virtual void onBranchCanceled(const std::shared_ptr<BranchInfo>& br, ForkStatus cancelReason) noexcept {
+	virtual void onBranchCanceled([[maybe_unused]] const std::shared_ptr<BranchInfo>& br, [[maybe_unused]] ForkStatus cancelReason) noexcept {
 	}
 	/**
 	 * Called when a branch receives a final response (statusCode >= 200).
 	 */
-	virtual void onBranchCompleted(const std::shared_ptr<BranchInfo>& br) noexcept {
+	virtual void onBranchCompleted([[maybe_unused]] const std::shared_ptr<BranchInfo>& br) noexcept {
 	}
 };
 

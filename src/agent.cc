@@ -271,7 +271,7 @@ void Agent::startMdns() {
 #endif
 }
 
-static void timerfunc(su_root_magic_t* magic, su_timer_t* t, Agent* a) {
+static void timerfunc([[maybe_unused]] su_root_magic_t* magic, [[maybe_unused]] su_timer_t* t, Agent* a) {
 	a->idle();
 }
 
@@ -1092,7 +1092,7 @@ url_t* Agent::urlFromTportName(su_home_t* home, const tp_name_t* name) {
 	return url;
 }
 
-int Agent::messageCallback(nta_agent_magic_t* context, nta_agent_t* agent, msg_t* msg, sip_t* sip) {
+int Agent::messageCallback(nta_agent_magic_t* context, [[maybe_unused]] nta_agent_t* agent, msg_t* msg, sip_t* sip) {
 	Agent* a = (Agent*)context;
 	return a->onIncomingMessage(msg, sip);
 }

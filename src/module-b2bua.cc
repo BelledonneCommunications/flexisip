@@ -114,7 +114,7 @@ void B2bua::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	}
 }
 
-void B2bua::onResponse(shared_ptr<ResponseSipEvent>& ev) {
+void B2bua::onResponse([[maybe_unused]] shared_ptr<ResponseSipEvent>& ev) {
 }
 
 } // namespace flexisip

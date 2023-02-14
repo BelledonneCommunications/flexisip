@@ -69,7 +69,7 @@ protected:
 	 * @param level recursion level
 	 * @return the output stream
 	 */
-	virtual std::ostream &dumpModuleEnd(std::ostream &ostr, const GenericStruct *module, int level) const {return ostr;}
+	virtual std::ostream &dumpModuleEnd(std::ostream &ostr, [[maybe_unused]] const GenericStruct *module, [[maybe_unused]] int level) const {return ostr;}
 
 	/**
 	 * Will tell if the module should be dumped. If the module is experimental and the dumpExperimental flag is
@@ -168,8 +168,8 @@ public:
 	std::ostream &dump(std::ostream &ostr) const override;
 
 protected:
-	std::ostream &dumpModuleHead(std::ostream &ostr, const GenericStruct *moduleHead, int level) const override {return ostr;}
-	std::ostream &dumpModuleValue(std::ostream &ostr, const ConfigValue *value, int level) const override {return ostr;}
+	std::ostream &dumpModuleHead(std::ostream &ostr, [[maybe_unused]] const GenericStruct *moduleHead, [[maybe_unused]] int level) const override {return ostr;}
+	std::ostream &dumpModuleValue(std::ostream &ostr, [[maybe_unused]] const ConfigValue *value, [[maybe_unused]] int level) const override {return ostr;}
 
 private:
 	virtual std::ostream &dump2(std::ostream &ostr, GenericEntry *entry, int level) const;

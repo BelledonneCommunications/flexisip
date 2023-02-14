@@ -593,11 +593,11 @@ void test_http2client__requests_that_can_not_be_sent_are_queued_and_sent_later()
 		root.quit();
 	};
 
-	auto onError = [&root](const auto& req) {
+	auto onError = [&root]([[maybe_unused]] const auto& req) {
 		BC_FAIL("Request error");
 		root.quit();
 	};
-	auto onResponse = [&respondedCount, &sentCount, &root](const auto& req, const auto& res) {
+	auto onResponse = [&respondedCount, &sentCount, &root]([[maybe_unused]] const auto& req, [[maybe_unused]] const auto& res) {
 		respondedCount++;
 		if (respondedCount == sentCount) {
 			root.quit();
@@ -606,7 +606,7 @@ void test_http2client__requests_that_can_not_be_sent_are_queued_and_sent_later()
 
 	pn::PnsMock pnServer{};
 	std::mutex serverProcessing{};
-	pnServer.onPushRequest([&receivedCount, &serverProcessing](const auto& req, const auto& res) {
+	pnServer.onPushRequest([&receivedCount, &serverProcessing]([[maybe_unused]] const auto& req, const auto& res) {
 		receivedCount++;
 		serverProcessing.lock();
 		serverProcessing.unlock();
@@ -628,7 +628,7 @@ void test_http2client__requests_that_can_not_be_sent_are_queued_and_sent_later()
 	client->send(
 	    request,
 	    [&receivedCount, &serverProcessing, &client, &request, &onResponse, &onError, &sentCount, &checkProgress,
-	     &progressChecker](const auto& req, const auto& res) {
+	     &progressChecker]([[maybe_unused]] const auto& req, [[maybe_unused]] const auto& res) {
 		    // Connection established
 		    BC_ASSERT_EQUAL(receivedCount, 1, uint32_t, "%i");
 		    receivedCount = 0;

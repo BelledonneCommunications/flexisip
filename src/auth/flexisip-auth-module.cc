@@ -34,7 +34,7 @@ namespace flexisip {
 //  FlexisipAuthModule::AuthenticationListener class
 // ====================================================================================================================
 
-void FlexisipAuthModule::GenericAuthListener::onResult(AuthDbResult result, const std::string &passwd) {
+void FlexisipAuthModule::GenericAuthListener::onResult([[maybe_unused]] AuthDbResult result, [[maybe_unused]] const std::string &passwd) {
 	throw logic_error("FlexisipAuthModule::GenericAuthListener::onResult(AuthDbResult, const std::string &) should never be called");
 }
 
@@ -55,7 +55,7 @@ void FlexisipAuthModule::GenericAuthListener::onResult(AuthDbResult result, cons
 	}
 }
 
-void FlexisipAuthModule::GenericAuthListener::main_thread_async_response_cb(su_root_magic_t *rm, su_msg_r msg, void *u) noexcept {
+void FlexisipAuthModule::GenericAuthListener::main_thread_async_response_cb([[maybe_unused]] su_root_magic_t *rm, su_msg_r msg, [[maybe_unused]] void *u) noexcept {
 	auto *listener = *reinterpret_cast<GenericAuthListener **>(su_msg_data(msg));
 	if (listener->mFunc) listener->mFunc(listener->mResult, listener->mPasswords);
 	delete listener;

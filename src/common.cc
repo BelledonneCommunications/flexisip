@@ -39,7 +39,7 @@ time_t getCurrentTime() {
 #endif
 }
 
-time_t getTimeOffset(time_t current_time) {
+time_t getTimeOffset([[maybe_unused]] time_t current_time) {
 	static time_t empty = {0};
 #ifdef MONOTONIC_CLOCK_REGISTRATIONS
 	time_t offset = time(NULL) - current_time;
@@ -130,7 +130,7 @@ void Mutex::unlock() {
 	}
 }
 
-struct addrinfo* BinaryIp::resolve(const std::string& hostname, bool numericOnly = false) {
+struct addrinfo* BinaryIp::resolve(const std::string& hostname, [[maybe_unused]] bool numericOnly = false) {
 	// Warning: IPv6 can use brakets.
 	std::string hostnameCopy;
 	struct addrinfo* res = NULL;

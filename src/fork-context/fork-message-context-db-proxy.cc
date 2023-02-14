@@ -116,7 +116,7 @@ bool ForkMessageContextDbProxy::saveToDb(const ForkMessageContextDb& dbFork) {
 	return true;
 }
 
-void ForkMessageContextDbProxy::onForkContextFinished(const shared_ptr<ForkContext>& ctx) {
+void ForkMessageContextDbProxy::onForkContextFinished([[maybe_unused]] const shared_ptr<ForkContext>& ctx) {
 	LOGD("ForkMessageContextDbProxy[%p] onForkContextFinished", this);
 	mIsFinished = true;
 	if (auto savedRouter = mSavedRouter.lock()) {
@@ -126,7 +126,7 @@ void ForkMessageContextDbProxy::onForkContextFinished(const shared_ptr<ForkConte
 	}
 }
 
-std::shared_ptr<BranchInfo> ForkMessageContextDbProxy::onDispatchNeeded(const shared_ptr<ForkContext>& ctx,
+std::shared_ptr<BranchInfo> ForkMessageContextDbProxy::onDispatchNeeded([[maybe_unused]] const shared_ptr<ForkContext>& ctx,
                                                                         const shared_ptr<ExtendedContact>& newContact) {
 	if (auto savedRouter = mSavedRouter.lock()) {
 		mCurrentVersion++;
@@ -137,7 +137,7 @@ std::shared_ptr<BranchInfo> ForkMessageContextDbProxy::onDispatchNeeded(const sh
 	}
 }
 
-void ForkMessageContextDbProxy::onUselessRegisterNotification(const std::shared_ptr<ForkContext>& ctx,
+void ForkMessageContextDbProxy::onUselessRegisterNotification([[maybe_unused]] const std::shared_ptr<ForkContext>& ctx,
                                                               const std::shared_ptr<ExtendedContact>& newContact,
                                                               const SipUri& dest,
                                                               const std::string& uid,

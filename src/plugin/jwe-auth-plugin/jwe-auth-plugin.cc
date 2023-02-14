@@ -474,7 +474,7 @@ void JweAuth::insertJweContext(string &&jweKey, const shared_ptr<JweContext> &jw
 	su_timer_set_interval(timer, removeJweContext, jweContext.get(), timeout);
 }
 
-void JweAuth::removeJweContext(su_root_magic_t *, su_timer_t *timer, su_timer_arg_t *arg) {
+void JweAuth::removeJweContext(su_root_magic_t *, [[maybe_unused]] su_timer_t *timer, su_timer_arg_t *arg) {
 	JweContext *jweContext = static_cast<JweContext *>(arg);
 	su_timer_destroy(jweContext->timer);
 	jweContext->timer = nullptr;

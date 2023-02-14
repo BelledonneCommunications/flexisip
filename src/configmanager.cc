@@ -1133,7 +1133,7 @@ GenericManager::GenericManager()
 	mdns->setReadOnly(true);
 }
 
-bool GenericManager::doIsValidNextConfig(const ConfigValue& cv) {
+bool GenericManager::doIsValidNextConfig([[maybe_unused]] const ConfigValue& cv) {
 	return true;
 }
 
@@ -1301,8 +1301,8 @@ int GenericEntry::sHandleSnmpRequest(netsnmp_mib_handler* handler,
 	}
 }
 
-int ConfigRuntimeError::handleSnmpRequest(netsnmp_mib_handler* handler,
-                                          netsnmp_handler_registration* reginfo,
+int ConfigRuntimeError::handleSnmpRequest([[maybe_unused]] netsnmp_mib_handler* handler,
+                                          [[maybe_unused]] netsnmp_handler_registration* reginfo,
                                           netsnmp_agent_request_info* reqinfo,
                                           netsnmp_request_info* requests) {
 	if (reqinfo->mode != MODE_GET) return SNMP_ERR_GENERR;
@@ -1312,8 +1312,8 @@ int ConfigRuntimeError::handleSnmpRequest(netsnmp_mib_handler* handler,
 	return snmp_set_var_typed_value(requests->requestvb, ASN_OCTET_STR, (const u_char*)errors.c_str(), errors.size());
 }
 
-int ConfigValue::handleSnmpRequest(netsnmp_mib_handler* handler,
-                                   netsnmp_handler_registration* reginfo,
+int ConfigValue::handleSnmpRequest([[maybe_unused]] netsnmp_mib_handler* handler,
+                                   [[maybe_unused]] netsnmp_handler_registration* reginfo,
                                    netsnmp_agent_request_info* reqinfo,
                                    netsnmp_request_info* requests) {
 	char* old_value;
@@ -1370,8 +1370,8 @@ int ConfigValue::handleSnmpRequest(netsnmp_mib_handler* handler,
 	return SNMP_ERR_NOERROR;
 }
 
-int ConfigBoolean::handleSnmpRequest(netsnmp_mib_handler* handler,
-                                     netsnmp_handler_registration* reginfo,
+int ConfigBoolean::handleSnmpRequest([[maybe_unused]] netsnmp_mib_handler* handler,
+                                     [[maybe_unused]] netsnmp_handler_registration* reginfo,
                                      netsnmp_agent_request_info* reqinfo,
                                      netsnmp_request_info* requests) {
 	int ret;
@@ -1425,8 +1425,8 @@ int ConfigBoolean::handleSnmpRequest(netsnmp_mib_handler* handler,
 	return SNMP_ERR_NOERROR;
 }
 
-int ConfigInt::handleSnmpRequest(netsnmp_mib_handler* handler,
-                                 netsnmp_handler_registration* reginfo,
+int ConfigInt::handleSnmpRequest([[maybe_unused]] netsnmp_mib_handler* handler,
+                                 [[maybe_unused]] netsnmp_handler_registration* reginfo,
                                  netsnmp_agent_request_info* reqinfo,
                                  netsnmp_request_info* requests) {
 	int* old_value;
@@ -1483,8 +1483,8 @@ int ConfigInt::handleSnmpRequest(netsnmp_mib_handler* handler,
 	return SNMP_ERR_NOERROR;
 }
 
-int StatCounter64::handleSnmpRequest(netsnmp_mib_handler* handler,
-                                     netsnmp_handler_registration* reginfo,
+int StatCounter64::handleSnmpRequest([[maybe_unused]] netsnmp_mib_handler* handler,
+                                     [[maybe_unused]] netsnmp_handler_registration* reginfo,
                                      netsnmp_agent_request_info* reqinfo,
                                      netsnmp_request_info* requests) {
 	//	LOGD("counter64 handleSnmpRequest %s -> %lu", reginfo->handlerName, read());

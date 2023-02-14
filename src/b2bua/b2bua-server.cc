@@ -64,10 +64,10 @@ B2buaServer::B2buaServer(const std::shared_ptr<sofiasip::SuRoot>& root) : Servic
 B2buaServer::~B2buaServer() {
 }
 
-void B2buaServer::onCallStateChanged(const std::shared_ptr<linphone::Core>& core,
+void B2buaServer::onCallStateChanged([[maybe_unused]] const std::shared_ptr<linphone::Core>& core,
                                      const std::shared_ptr<linphone::Call>& call,
                                      linphone::Call::State state,
-                                     const std::string& message) {
+                                     [[maybe_unused]] const std::string& message) {
 	SLOGD << "b2bua server onCallStateChanged to " << (int)state << " "
 	      << ((call->getDir() == linphone::Call::Dir::Outgoing) ? "legB" : "legA");
 	switch (state) {

@@ -47,18 +47,19 @@ namespace flexisip {
 		void run ();
 
 	private:
-		void onRecordFound (const std::shared_ptr<Record> &r) override;
-		void onError () override;
-		void onInvalid () override {}
-		void onContactUpdated (const std::shared_ptr<ExtendedContact> &ec) override {}
+		void onRecordFound(const std::shared_ptr<Record>& r) override;
+		void onError() override;
+		void onInvalid() override {
+		}
+		void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
+		}
 		void changeAddress();
 		sofiasip::Home mHome;
 		const std::shared_ptr<linphone::ChatRoom> mChatRoom;
 		std::shared_ptr<linphone::Address> mConferenceAddr;
 		std::string mUuid;
 		std::string mPath;
-		ConferenceServer *mConferenceServer = nullptr;
+		ConferenceServer* mConferenceServer = nullptr;
 		State mState = State::Fetching;
 	};
-
 } // namespace flexisip

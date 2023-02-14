@@ -459,7 +459,7 @@ bool ModuleToolbox::matchesOneOf(const string& item, const list<string>& set) {
 	return false;
 }
 
-bool ModuleToolbox::fixAuthChallengeForSDP(su_home_t* home, msg_t* msg, sip_t* sip) {
+bool ModuleToolbox::fixAuthChallengeForSDP(su_home_t* home, [[maybe_unused]] msg_t* msg, sip_t* sip) {
 	sip_auth_t* auth;
 	msg_param_t* par;
 	auth = sip->sip_www_authenticate;

@@ -128,7 +128,7 @@ public:
 		return mSavedConfig;
 	}
 
-	void onCancel(const std::shared_ptr<RequestSipEvent>& ev) override {
+	void onCancel([[maybe_unused]] const std::shared_ptr<RequestSipEvent>& ev) override {
 		// Does nothing for fork late ForkMessageContext
 	}
 

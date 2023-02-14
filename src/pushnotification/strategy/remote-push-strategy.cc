@@ -69,7 +69,7 @@ void RemotePushStrategy::sendCallNotification(const std::shared_ptr<const PushIn
 	}
 }
 
-void RemotePushStrategy::onBranchCanceled(const std::shared_ptr<BranchInfo>& br, ForkStatus cancelReason) noexcept {
+void RemotePushStrategy::onBranchCanceled([[maybe_unused]] const std::shared_ptr<BranchInfo>& br, ForkStatus cancelReason) noexcept {
 	if (!pushRepetitionEnabled()) {
 		// Avoid final PN to be sent if repetition hasn't been enabled.
 		return;

@@ -49,7 +49,7 @@ void CallContextBase::updateActivity() {
 	mLastSIPActivity = getCurrentTime();
 }
 
-void CallContextBase::establishDialogWith200Ok(Agent *ag, sip_t *sip) {
+void CallContextBase::establishDialogWith200Ok([[maybe_unused]] Agent *ag, sip_t *sip) {
 	if (sip->sip_status->st_status >= 200 && sip->sip_status->st_status < 300 && mCalleeTag.empty()) {
 		LOGD("Dialog is established");
 		if (sip->sip_to->a_tag)

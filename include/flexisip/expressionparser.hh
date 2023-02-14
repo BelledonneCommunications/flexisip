@@ -91,7 +91,7 @@ class Constant : public Variable<_valuesT>{
   public:
 	Constant(const std::string &val) : Variable<_valuesT>(), mVal(val) {
 	}
-	virtual std::string get(const _valuesT &arg) override{
+	virtual std::string get([[maybe_unused]] const _valuesT &arg) override{
 		return mVal;
 	}
 	std::string get()const{

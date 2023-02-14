@@ -281,7 +281,7 @@ void PresenceServer::processDialogTerminated(PresenceServer* thiz, const belle_s
 		thiz->removeSubscription(sub);
 	} // else  nothing to be done for now because expire is performed at SubscriptionLevel
 }
-void PresenceServer::processIoError(PresenceServer* thiz, const belle_sip_io_error_event_t* event) {
+void PresenceServer::processIoError([[maybe_unused]] PresenceServer* thiz, [[maybe_unused]] const belle_sip_io_error_event_t* event) {
 	SLOGD << "PresenceServer::processIoError not implemented yet";
 }
 void PresenceServer::processRequestEvent(PresenceServer* thiz, const belle_sip_request_event_t* event) {
@@ -320,7 +320,7 @@ void PresenceServer::processRequestEvent(PresenceServer* thiz, const belle_sip_r
 		}
 	}
 }
-void PresenceServer::processResponseEvent(PresenceServer* thiz, const belle_sip_response_event_t* event) {
+void PresenceServer::processResponseEvent([[maybe_unused]] PresenceServer* thiz, const belle_sip_response_event_t* event) {
 	belle_sip_response_t* resp = belle_sip_response_event_get_response(event);
 	int code = belle_sip_response_get_status_code(resp);
 	if (code == 407) {
@@ -339,7 +339,7 @@ void PresenceServer::processTimeout(PresenceServer* thiz, const belle_sip_timeou
 		SLOGD << "Removing subscription [" << subscription << "] because no response received";
 	}
 }
-void PresenceServer::processTransactionTerminated(PresenceServer* thiz,
+void PresenceServer::processTransactionTerminated([[maybe_unused]] PresenceServer* thiz,
                                                   const belle_sip_transaction_terminated_event_t* event) {
 	belle_sip_client_transaction_t* client = belle_sip_transaction_terminated_event_get_client_transaction(event);
 	auto sub = client ? getSubscription(client) : nullptr;

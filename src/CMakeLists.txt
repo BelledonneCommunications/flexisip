@@ -217,6 +217,7 @@ if (ENABLE_PROTOBUF)
 		COMMAND "${PROTOBUF_PROTOC_EXECUTABLE}" "--proto_path=${CMAKE_CURRENT_SOURCE_DIR}" "--cpp_out=${CMAKE_CURRENT_BINARY_DIR}" "${PROTOBUF_PROTO}"
 		COMMENT "Generate protobuf wrappers")
 	set_source_files_properties(${PROTOBUF_GENERATED_FILES} PROPERTIES GENERATED ON)
+	set_source_files_properties(${PROTOBUF_GENERATED_FILES} PROPERTIES COMPILE_OPTIONS "-Wno-unused-parameter")
 
 	target_sources(flexisip PRIVATE recordserializer-protobuf.cc ${PROTOBUF_GENERATED_FILES})
 	target_link_libraries(flexisip PRIVATE "protobuf::libprotobuf")

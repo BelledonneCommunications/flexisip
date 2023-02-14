@@ -44,11 +44,11 @@ public:
 		}
 	}
 
-	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) {
+	virtual void onResponse([[maybe_unused]] shared_ptr<ResponseSipEvent> &ev) {
 		// don't check our responses ;)
 	}
 
-	void onDeclare(GenericStruct *mc) {
+	void onDeclare([[maybe_unused]] GenericStruct *mc) {
 	}
 
 private:

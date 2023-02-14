@@ -28,12 +28,13 @@ namespace Registrar {
 	
 class Listener : public ContactRegisteredListener, public ContactUpdateListener {
 public:
-	Listener(const std::shared_ptr<linphone::Event> &lev);
-	void onRecordFound(const std::shared_ptr<Record> &r) override;
+	Listener(const std::shared_ptr<linphone::Event>& lev);
+	void onRecordFound(const std::shared_ptr<Record>& r) override;
 	void onError() override {}
 	void onInvalid() override {}
-	void onContactRegistered(const std::shared_ptr<Record> &r, const std::string &uid) override;
-	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override {}
+	void onContactRegistered(const std::shared_ptr<Record>& r, const std::string& uid) override;
+	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {}
+
 private:
 	const std::shared_ptr<linphone::Event> mEvent;
 	void processRecord(const std::shared_ptr<Record> &r, const std::string &uidOfFreshlyRegistered);

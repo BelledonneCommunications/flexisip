@@ -67,7 +67,7 @@ public:
 	 */
 	class Disabled {
 	public:
-		Disabled(const char* name, std::vector<test_t>&& tests, const Hooks& hooks = {}) {
+		Disabled(const char* name [[maybe_unused]], [[maybe_unused]] std::vector<test_t>&& tests, [[maybe_unused]] const Hooks& hooks = {}) {
 		}
 	};
 

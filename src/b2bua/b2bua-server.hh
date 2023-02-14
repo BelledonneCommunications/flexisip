@@ -53,7 +53,7 @@ public:
 	virtual linphone::Reason onCallCreate(const linphone::Call& incomingCall,
 	                                      linphone::Address& callee,
 	                                      linphone::CallParams& outgoingCallParams) = 0;
-	virtual void onCallEnd(const linphone::Call& call) {
+	virtual void onCallEnd([[maybe_unused]] const linphone::Call& call) {
 	}
 	virtual ~BridgedCallApplication() = default;
 };

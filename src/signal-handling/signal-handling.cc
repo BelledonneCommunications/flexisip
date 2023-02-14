@@ -34,7 +34,7 @@ PipedSignal::PipedSignal(std::vector<SigNum>&& signals) : mSignals(std::move(sig
 		sigact.sa_flags = SA_SIGINFO;
 		// This lambda MUST be signal-safe
 		// https://en.cppreference.com/w/cpp/utility/program/signal#Signal_handler
-		sigact.sa_sigaction = [](SigNum signum, siginfo_t* _info, void* _ucontext) noexcept {
+		sigact.sa_sigaction = [](SigNum signum, [[maybe_unused]] siginfo_t* _info, [[maybe_unused]] void* _ucontext) noexcept {
 			[[maybe_unused]] auto _ = write(sSignalToPipe[signum], SignalData{signum}.bytes, sizeof(SignalData));
 			// We would like to print something if the write fails, but a safe signal handler cannot lock anything
 			// (including stdout)

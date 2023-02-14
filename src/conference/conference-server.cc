@@ -161,7 +161,7 @@ void ConferenceServer::onRegistrarDbWritable(bool writable) {
 	if (writable) bindAddresses();
 }
 
-void ConferenceServer::onChatRoomStateChanged(const shared_ptr<Core>& lc,
+void ConferenceServer::onChatRoomStateChanged([[maybe_unused]] const shared_ptr<Core>& lc,
                                               const shared_ptr<ChatRoom>& cr,
                                               ChatRoom::State state) {
 	if (state == ChatRoom::State::Instantiated) {
@@ -214,7 +214,7 @@ void ConferenceServer::bindAddresses() {
 
 void ConferenceServer::bindConference() {
 	class FakeListener : public ContactUpdateListener {
-		void onRecordFound(const shared_ptr<Record>& r) override {
+		void onRecordFound([[maybe_unused]] const shared_ptr<Record>& r) override {
 		}
 		void onError() override {
 		}

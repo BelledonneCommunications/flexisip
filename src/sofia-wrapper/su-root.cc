@@ -40,7 +40,7 @@ void SuRoot::addToMainLoop(const function<void()>& functionToAdd) {
 	}
 }
 
-void SuRoot::mainLoopFunctionCallback(su_root_magic_t* rm, su_msg_t** msg, void* u) noexcept {
+void SuRoot::mainLoopFunctionCallback([[maybe_unused]] su_root_magic_t* rm, su_msg_t** msg, [[maybe_unused]] void* u) noexcept {
 	auto clientCb = *reinterpret_cast<function<void()>**>(su_msg_data(msg));
 	(*clientCb)();
 	delete clientCb;

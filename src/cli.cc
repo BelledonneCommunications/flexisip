@@ -369,7 +369,7 @@ void ProxyCommandLineInterface::handleRegistrarGet(unsigned int socket, const st
 			mCli->answer(mSocket, "INVALID");
 		}
 		// Mandatory since we inherit from ContactUpdateListener
-		void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+		void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
 		}
 
 	private:
@@ -411,7 +411,7 @@ void ProxyCommandLineInterface::handleRegistrarDelete(unsigned int socket, const
 			mCli->answer(mSocket, "INVALID");
 		}
 		// Mandatory since we inherit from ContactUpdateListener
-		void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+		void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
 		}
 
 	private:
@@ -454,7 +454,7 @@ void ProxyCommandLineInterface::handleRegistrarClear(unsigned int socket, const 
 		    : mCli(cli), mSocket(socket), mUri(uri) {
 		}
 
-		void onRecordFound(const shared_ptr<Record>& r) override {
+		void onRecordFound([[maybe_unused]] const shared_ptr<Record>& r) override {
 			RegistrarDb::get()->publish(mUri, "");
 			mCli->answer(mSocket, "Done: cleared record " + mUri);
 		}
@@ -464,7 +464,7 @@ void ProxyCommandLineInterface::handleRegistrarClear(unsigned int socket, const 
 		void onInvalid() override {
 			mCli->answer(mSocket, "Error: cannot clear record " + mUri);
 		}
-		void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+		void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
 		}
 
 	private:
@@ -481,7 +481,7 @@ void ProxyCommandLineInterface::handleRegistrarClear(unsigned int socket, const 
 	RegistrarDb::get()->clear(msg, listener);
 }
 
-void ProxyCommandLineInterface::handleRegistrarDump(unsigned int socket, const std::vector<std::string>& args) {
+void ProxyCommandLineInterface::handleRegistrarDump(unsigned int socket, [[maybe_unused]] const std::vector<std::string>& args) {
 	list<string> aorList;
 
 	RegistrarDb::get()->getLocalRegisteredAors(aorList);

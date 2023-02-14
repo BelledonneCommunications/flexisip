@@ -42,7 +42,7 @@ class SubsequentUnsubscribeSubscribeTest : public RegistrarDbTest<TDatabase> {
 protected:
 	// Protected types
 	struct RegistrarStats : public ContactRegisteredListener {
-		void onContactRegistered(const std::shared_ptr<Record>& r, const std::string& uid) override {
+		void onContactRegistered([[maybe_unused]] const std::shared_ptr<Record>& r, [[maybe_unused]] const std::string& uid) override {
 			++onContactRegisteredCount;
 		}
 
@@ -140,7 +140,7 @@ class MaxContactsByAorIsHonored : public RegistrarDbTest<TDatabase> {
 		}
 		virtual void onInvalid() override {
 		}
-		virtual void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+		virtual void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
 		}
 	};
 
@@ -182,7 +182,7 @@ class SameUriButDifferentCallIdInsertsANewContact : public RegistrarDbTest<DbImp
 		}
 		virtual void onInvalid() override {
 		}
-		virtual void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+		virtual void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
 		}
 	};
 
@@ -234,7 +234,7 @@ class ContactsAreUpdatedBasedOnCallId : public RegistrarDbTest<DbImplementation:
 		}
 		virtual void onInvalid() override {
 		}
-		virtual void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+		virtual void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
 		}
 	};
 
@@ -286,7 +286,7 @@ protected:
 		}
 		virtual void onInvalid() override {
 		}
-		virtual void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+		virtual void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
 		}
 		std::shared_ptr<Record> getRecord() const {
 			return mRecord;

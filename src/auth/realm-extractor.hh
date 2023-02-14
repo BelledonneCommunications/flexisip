@@ -50,7 +50,7 @@ public:
 	StaticRealmExtractor(const StaticRealmExtractor &) = delete;
 	StaticRealmExtractor(StaticRealmExtractor &&) = delete;
 
-	std::string extract(const std::string &fromUri) noexcept override {return mRealm;}
+	std::string extract([[maybe_unused]] const std::string &fromUri) noexcept override {return mRealm;}
 
 private:
 	std::string mRealm{};

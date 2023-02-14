@@ -23,7 +23,7 @@ using namespace std;
 
 namespace flexisip {
 
-void AuthDbBackend::ListenerToFunctionWrapper::onResult(AuthDbResult result, const std::string &passwd) {
+void AuthDbBackend::ListenerToFunctionWrapper::onResult([[maybe_unused]] AuthDbResult result, [[maybe_unused]] const std::string &passwd) {
 	delete this;
 }
 
@@ -42,16 +42,16 @@ public:
 	FixedAuthDb() {
 	}
 
-	void getUserWithPhoneFromBackend(const string & phone, const string &domain, AuthDbListener *listener) override {
+	void getUserWithPhoneFromBackend([[maybe_unused]] const string & phone, [[maybe_unused]] const string &domain, AuthDbListener *listener) override {
 		if (listener) listener->onResult(PASSWORD_FOUND, "user@domain.com");
 	}
-	void getPasswordFromBackend(const string &id, const string &domain,
-										const string &authid, AuthDbListener *listener) override {
+	void getPasswordFromBackend([[maybe_unused]] const string &id, [[maybe_unused]] const string &domain,
+										[[maybe_unused]] const string &authid, AuthDbListener *listener) override {
 		if (listener) {
 			listener->onResult(PASSWORD_FOUND, {{"fixed", "CLRTXT"}});
 		}
 	}
-	static void declareConfig(GenericStruct *mc){};
+	static void declareConfig([[maybe_unused]] GenericStruct *mc){};
 };
 
 AuthDbBackend &AuthDbBackend::get() {

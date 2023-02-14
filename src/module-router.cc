@@ -645,7 +645,8 @@ class PreroutingFetcher : public ContactUpdateListener,
 	shared_ptr<Record> m_record;
 
 public:
-	PreroutingFetcher(ModuleRouter* module,
+	// Adding maybe_unused after the argument because of C++ compiler bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81429
+	PreroutingFetcher(ModuleRouter* module [[maybe_unused]],
 	                  shared_ptr<RequestSipEvent> ev,
 	                  const shared_ptr<ContactUpdateListener>& listener,
 	                  const vector<string>& preroutes)
@@ -690,7 +691,7 @@ public:
 		checkFinished();
 	}
 
-	void onContactUpdated(const shared_ptr<ExtendedContact>& ec) override {
+	void onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) override {
 	}
 
 	void checkFinished() {
@@ -712,7 +713,8 @@ class TargetUriListFetcher : public ContactUpdateListener,
 	bool mError = false;
 
 public:
-	TargetUriListFetcher(ModuleRouter* module,
+	// Adding maybe_unused after the argument because of C++ compiler bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81429
+	TargetUriListFetcher(ModuleRouter* module [[maybe_unused]],
 	                     const shared_ptr<RequestSipEvent>& ev,
 	                     const shared_ptr<ContactUpdateListener>& listener,
 	                     sip_unknown_t* target_uris)
@@ -769,7 +771,7 @@ public:
 		checkFinished();
 	}
 
-	void onContactUpdated(const shared_ptr<ExtendedContact>& ec) override {
+	void onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) override {
 	}
 
 	void checkFinished() {
@@ -865,7 +867,7 @@ public:
 		mModule->sendReply(mEv, 400, "Replayed CSeq");
 	}
 
-	void onContactUpdated(const shared_ptr<ExtendedContact>& ec) override {
+	void onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) override {
 	}
 };
 
@@ -1012,9 +1014,9 @@ shared_ptr<BranchInfo> ModuleRouter::onDispatchNeeded(const shared_ptr<ForkConte
 
 void ModuleRouter::onUselessRegisterNotification(const std::shared_ptr<ForkContext>& ctx,
                                                  const std::shared_ptr<ExtendedContact>& newContact,
-                                                 const SipUri& dest,
-                                                 const std::string& uid,
-                                                 const DispatchStatus reason) {
+                                                 [[maybe_unused]] const SipUri& dest,
+                                                 [[maybe_unused]] const std::string& uid,
+                                                 [[maybe_unused]] const DispatchStatus reason) {
 	mInjector->removeContext(ctx, newContact->contactId());
 }
 

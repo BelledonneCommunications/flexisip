@@ -37,7 +37,7 @@ template <typename _valuesT>
 class ConstantBooleanExpression : public BooleanExpression<_valuesT> {
 public:
 	ConstantBooleanExpression(bool ret) : mRet(ret){};
-	virtual bool eval(const _valuesT& args) override {
+	virtual bool eval([[maybe_unused]] const _valuesT &args) override{
 		return mRet;
 	}
 	bool mRet;

@@ -123,7 +123,7 @@ private:
 		if (isMessageAPresenceMessage(ev))
 			route(ev);
 	}
-	void onResponse(std::shared_ptr<ResponseSipEvent> &ev) {};
+	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent> &ev) {};
 
 public:
 	ModulePresence(Agent *ag) : Module(ag) {

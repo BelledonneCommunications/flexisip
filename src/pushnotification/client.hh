@@ -33,7 +33,7 @@ public:
 	virtual void sendPush(const std::shared_ptr<Request>& req) = 0;
 	virtual bool isIdle() const noexcept = 0;
 
-	virtual void setRequestTimeout(std::chrono::seconds requestTimeout){};
+	virtual void setRequestTimeout([[maybe_unused]] std::chrono::seconds requestTimeout){};
 
 protected:
 	void incrSentCounter();

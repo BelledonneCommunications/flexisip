@@ -46,13 +46,13 @@ static bool responseReceived = false;
  */
 class BindListener : public ContactUpdateListener {
 public:
-	void onRecordFound(const shared_ptr<Record>& r) override {
+	void onRecordFound([[maybe_unused]] const shared_ptr<Record>& r) override {
 	}
 	void onError() override {
 	}
 	void onInvalid() override {
 	}
-	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
 	}
 };
 

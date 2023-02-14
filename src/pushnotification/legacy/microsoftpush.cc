@@ -28,7 +28,7 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
-void WindowsPhoneRequest::createHTTPRequest(const std::string& access_token) {
+void WindowsPhoneRequest::createHTTPRequest([[maybe_unused]] const std::string& access_token) {
 	const auto& host = getDestination().getParam();
 	const auto& path = getDestination().getPrid();
 	const auto& message = mPInfo->mText;
@@ -148,7 +148,7 @@ void MicrosoftRequest::createPushNotification() {
 	binaryMessagePt += bodyLength;
 }
 
-const vector<char>& MicrosoftRequest::getData(const sofiasip::Url& url, Method method) {
+const vector<char>& MicrosoftRequest::getData([[maybe_unused]] const sofiasip::Url& url, [[maybe_unused]] Method method) {
 	createPushNotification();
 	return mBuffer;
 }

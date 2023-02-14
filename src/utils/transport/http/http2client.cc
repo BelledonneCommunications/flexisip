@@ -161,12 +161,12 @@ void Http2Client::onTlsConnectCb() {
 }
 
 void Http2Client::http2Setup() {
-	auto sendCb = [](nghttp2_session* session, const uint8_t* data, size_t length, int flags,
+	auto sendCb = [](nghttp2_session* session, const uint8_t* data, size_t length, [[maybe_unused]] int flags,
 	                 void* user_data) noexcept {
 		auto thiz = static_cast<Http2Client*>(user_data);
 		return thiz->doSend(*session, data, length);
 	};
-	auto recvCb = [](nghttp2_session* session, uint8_t* buf, size_t length, int flags, void* user_data) noexcept {
+	auto recvCb = [](nghttp2_session* session, uint8_t* buf, size_t length, [[maybe_unused]] int flags, void* user_data) noexcept {
 		auto thiz = static_cast<Http2Client*>(user_data);
 		return thiz->doRecv(*session, buf, length);
 	};
@@ -235,7 +235,7 @@ void Http2Client::http2Setup() {
 	sendAllPendingRequests();
 }
 
-ssize_t Http2Client::doSend(nghttp2_session& session, const uint8_t* data, size_t length) noexcept {
+ssize_t Http2Client::doSend([[maybe_unused]] nghttp2_session& session, const uint8_t* data, size_t length) noexcept {
 	length = min(length, size_t(numeric_limits<int>::max()));
 	auto nwritten = mConn->write(data, int(length));
 	if (nwritten < 0) {
@@ -247,7 +247,7 @@ ssize_t Http2Client::doSend(nghttp2_session& session, const uint8_t* data, size_
 	return nwritten;
 }
 
-ssize_t Http2Client::doRecv(nghttp2_session& session, uint8_t* data, size_t length) noexcept {
+ssize_t Http2Client::doRecv([[maybe_unused]] nghttp2_session& session, uint8_t* data, size_t length) noexcept {
 	length = min(length, size_t(numeric_limits<int>::max()));
 	auto nread = mConn->read(data, length);
 	if (nread < 0) {
@@ -262,14 +262,14 @@ ssize_t Http2Client::doRecv(nghttp2_session& session, uint8_t* data, size_t leng
 /**
  * Synchronously called by nghttp2_session_send
  */
-void Http2Client::onFrameSent(nghttp2_session& session, const nghttp2_frame& frame) noexcept {
+void Http2Client::onFrameSent([[maybe_unused]] nghttp2_session& session, const nghttp2_frame& frame) noexcept {
 	SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: " << Http2Tools::frameTypeToString(frame.hd.type)
 		<< " frame sent (" << frame.hd.length << "B)";
 	resetTimeoutTimer(frame.hd.stream_id);
 	resetIdleTimer();
 }
 
-void Http2Client::onFrameRecv(nghttp2_session& session, const nghttp2_frame& frame) noexcept {
+void Http2Client::onFrameRecv([[maybe_unused]] nghttp2_session& session, const nghttp2_frame& frame) noexcept {
 	SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: " << Http2Tools::frameTypeToString(frame.hd.type)
 		<< " frame received (" << frame.hd.length << "B)";
 	resetTimeoutTimer(frame.hd.stream_id);
@@ -299,7 +299,7 @@ void Http2Client::onFrameRecv(nghttp2_session& session, const nghttp2_frame& fra
 	}
 }
 
-void Http2Client::onHeaderRecv(nghttp2_session& session, const nghttp2_frame& frame, const string& name,
+void Http2Client::onHeaderRecv([[maybe_unused]] nghttp2_session& session, const nghttp2_frame& frame, const string& name,
                                const string& value, uint8_t flags) noexcept {
 	const auto& streamId = frame.hd.stream_id;
 	auto logPrefix = string{mLogPrefix} + "[" + to_string(streamId) + "]";
@@ -313,7 +313,7 @@ void Http2Client::onHeaderRecv(nghttp2_session& session, const nghttp2_frame& fr
 	}
 }
 
-void Http2Client::onDataReceived(nghttp2_session& session, uint8_t flags, int32_t streamId, const uint8_t* data,
+void Http2Client::onDataReceived([[maybe_unused]] nghttp2_session& session, [[maybe_unused]] uint8_t flags, int32_t streamId, const uint8_t* data,
                                  size_t datalen) noexcept {
 	string stringData(reinterpret_cast<const char*>(data), datalen);
 
@@ -357,7 +357,7 @@ int Http2Client::onPollInCb(su_root_magic_t*, su_wait_t* w, su_wakeup_arg_t* arg
 	return 0;
 }
 
-void Http2Client::onStreamClosed(nghttp2_session& session, int32_t stream_id, uint32_t error_code) noexcept {
+void Http2Client::onStreamClosed([[maybe_unused]] nghttp2_session& session, int32_t stream_id, uint32_t error_code) noexcept {
 	auto logPrefix = mLogPrefix + "[" + to_string(stream_id) + "]";
 
 	shared_ptr<HttpMessageContext> context = nullptr;

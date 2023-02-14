@@ -92,15 +92,16 @@ class OwnRegistrationSubscription
 		virtual void stop() override;
 
 	private:
-		std::shared_ptr<linphone::Address> getPubGruu(const std::shared_ptr<Record> &r, const std::shared_ptr<ExtendedContact> &ec);
-		void processRecord(const std::shared_ptr<Record> &r);
+		std::shared_ptr<linphone::Address> getPubGruu(const std::shared_ptr<Record>& r,
+							      const std::shared_ptr<ExtendedContact>& ec);
+		void processRecord(const std::shared_ptr<Record>& r);
 		/*ContactUpdateListener virtual functions to override*/
-		virtual void onRecordFound (const std::shared_ptr<Record> &r) override;
-		virtual void onError () override {};
-		virtual void onInvalid () override {};
-		virtual void onContactUpdated (const std::shared_ptr<ExtendedContact> &ec) override {}
+		virtual void onRecordFound(const std::shared_ptr<Record>& r) override;
+		virtual void onError() override{};
+		virtual void onInvalid() override{};
+		virtual void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {}
 		/*ContactRegisteredListener overrides*/
-		virtual void onContactRegistered(const std::shared_ptr<Record> &r, const std::string &uid) override;
+		virtual void onContactRegistered(const std::shared_ptr<Record>& r, const std::string& uid) override;
 
 		SipUri mParticipantAor;
 		bool mActive = false;

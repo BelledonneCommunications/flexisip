@@ -57,7 +57,7 @@ class ContactInserter {
 			BC_FAIL("This test doesn't expect an invalid response");
 		}
 		// Mandatory since we inherit from ContatUpdateListener
-		void onContactUpdated(const shared_ptr<ExtendedContact>& ec) override {
+		void onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) override {
 			BC_FAIL("This test doesn't expect a contact to be updated");
 		}
 	};

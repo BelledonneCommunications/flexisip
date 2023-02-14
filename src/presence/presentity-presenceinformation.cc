@@ -91,7 +91,7 @@ PresentityPresenceInformation::~PresentityPresenceInformation() {
 }
 size_t PresentityPresenceInformation::getNumberOfListeners() const {
 	// remove empty weak_ptr before returning the size
-	forEachSubscriber([](const shared_ptr<PresentityPresenceInformationListener> &l){});
+	forEachSubscriber([]([[maybe_unused]] const shared_ptr<PresentityPresenceInformationListener> &l){});
 	return mSubscribers.size();
 }
 std::list<std::shared_ptr<PresentityPresenceInformationListener>> PresentityPresenceInformation::getListeners() const {
@@ -166,7 +166,7 @@ string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequ
 	informationElement->setEtag(generatedETag);
 
 	// cb function to invalidate an unrefreshed etag;
-	auto func = [this, generatedETag](unsigned int events) {
+	auto func = [this, generatedETag]([[maybe_unused]] unsigned int events) {
 		// find information element
 		this->removeTuplesForEtag(generatedETag);
 		mPresentityManager.invalidateETag(generatedETag);
@@ -272,7 +272,7 @@ void PresentityPresenceInformation::addOrUpdateListener(const shared_ptr<Present
 
 		// PresentityPresenceInformationListener* listener_ptr=listener.get();
 		// cb function to invalidate an unrefreshed etag;
-		auto func = [this, listener/*_ptr*/](unsigned int events) {
+		auto func = [this, listener/*_ptr*/]([[maybe_unused]] unsigned int events) {
 			SLOGD << "Listener [" << listener.get() << "] on [" << *this << "] has expired";
 			listener->onExpired(*this);
 			this->mPresentityManager.removeListener(listener);

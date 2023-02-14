@@ -728,7 +728,7 @@ public:
 	void setOverrideMap(const std::map<std::string, std::string>& overrides) {
 		mOverrides = overrides;
 	}
-	void setOverrideMap(std::map<std::string, std::string>&& overrides) {
+	void setOverrideMap([[maybe_unused]] std::map<std::string, std::string>&& overrides) {
 		mOverrides = move(overrides);
 	}
 

@@ -383,10 +383,10 @@ const url_t* DomainRegistration::getPublicUri() const {
 	return mExternalContact->m_url;
 }
 
-int DomainRegistration::sLegCallback(nta_leg_magic_t* ctx,
-                                     nta_leg_t* leg,
-                                     nta_incoming_t* incoming,
-                                     const sip_t* request) {
+int DomainRegistration::sLegCallback([[maybe_unused]] nta_leg_magic_t* ctx,
+                                     [[maybe_unused]] nta_leg_t* leg,
+                                     [[maybe_unused]] nta_incoming_t* incoming,
+                                     [[maybe_unused]] const sip_t* request) {
 	LOGE("legCallback called");
 	return 500;
 }
@@ -406,7 +406,7 @@ std::chrono::seconds DomainRegistration::getExpires(nta_outgoing_t* orq, const s
 	return expires;
 }
 
-void DomainRegistration::onConnectionBroken(tport_t* tport, msg_t* msg, int error) {
+void DomainRegistration::onConnectionBroken(tport_t* tport, [[maybe_unused]] msg_t* msg, [[maybe_unused]] int error) {
 	using namespace std::chrono;
 
 	// restart registration...
@@ -428,7 +428,7 @@ void DomainRegistration::onConnectionBroken(tport_t* tport, msg_t* msg, int erro
 }
 
 void DomainRegistration::sOnConnectionBroken(
-    tp_stack_t* stack, tp_client_t* client, tport_t* tport, msg_t* msg, int error) {
+    [[maybe_unused]] tp_stack_t* stack, tp_client_t* client, tport_t* tport, msg_t* msg, int error) {
 	reinterpret_cast<DomainRegistration*>(client)->onConnectionBroken(tport, msg, error);
 }
 

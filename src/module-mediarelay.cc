@@ -253,7 +253,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall> &c, const shared
 }
 
 
-void MediaRelay::configureContext(shared_ptr<RelayedCall> &c){
+void MediaRelay::configureContext([[maybe_unused]] shared_ptr<RelayedCall> &c){
 #ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
 	if (mH264FilteringBandwidth)
 		c->enableH264IFrameFiltering(mH264FilteringBandwidth,mH264Decim,mH264DecimOnlyIfLastProxy);
