@@ -18,7 +18,7 @@ variables:
   # Docker image version
   ARCHLINUX_IMAGE_VERSION: 20220902_git_cve_fix
   CENTOS_7_IMAGE_VERSION: 20220905_from_scratch
-  DEBIAN_9_IMAGE_VERSION: 20220902_git_cve_fix
+  DEBIAN_9_IMAGE_VERSION: 20230214_update_ca_certs
   ROCKY_8_IMAGE_VERSION: 20220906_libnghttp2_asio_script
   DEBIAN_10_IMAGE_VERSION: 20220913_mariadb_as_service
   DEBIAN_11_IMAGE_VERSION: 20220913_mariadb_as_service
