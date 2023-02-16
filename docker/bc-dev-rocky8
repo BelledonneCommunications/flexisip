@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20220906_libnghttp2_asio_script
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20230220_remove_GL_deps
 ###############################################################################
 
 FROM rockylinux:8
@@ -63,8 +63,6 @@ RUN sudo dnf -y install \
                    protobuf-compiler \
                    redis \
                  # Dependencies of the B2BUA
-                   mesa-libEGL-devel \
-                   glew-devel \
                    libvpx-devel  \
                    jsoncpp-devel \
                &&  dnf -y clean all

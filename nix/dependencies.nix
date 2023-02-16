@@ -39,11 +39,8 @@ with pkgs;
   redis
 ]
 ++ optionals enableB2bua [
-  libv4l
-  xorg.libX11
   jsoncpp
 ]
 ++ optionals (enableB2bua && enableUnitTests) [
-  glew
   libvpx # We need a video codec for video calls to establish successfully
 ]

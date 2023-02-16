@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-18-04-lts:20220906_libnghttp2_asio_script
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-18-04-lts:20230220_remove_GL_deps
 ###############################################################################
 
 FROM ubuntu:18.04
@@ -10,9 +10,6 @@ MAINTAINER Anthony Gauchy <anthony.gauchy@belledonne-communications.com>
 RUN apt-get -y --fix-missing update && apt-get -y install software-properties-common \
     && add-apt-repository "deb http://us.archive.ubuntu.com/ubuntu/ bionic universe multiverse" \
     && add-apt-repository "deb http://us.archive.ubuntu.com/ubuntu/ bionic-updates universe multiverse"
-
-  # Dirty fix to make next install work - try to remove on next update
-RUN apt-get -y update && apt-get -y --allow-downgrades install libudev1=237-3ubuntu10.53
 
   # Update
 RUN apt-get -y --fix-missing update \
@@ -64,8 +61,6 @@ RUN apt-get -y --fix-missing update \
                        protobuf-compiler \
                        redis-server \
                      # Dependencies of the B2BUA
-                       libegl1-mesa-dev \
-                       libglew-dev \
                        libvpx-dev \
   # Clean
  && apt-get -y autoremove \

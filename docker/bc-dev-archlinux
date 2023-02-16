@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:20220902_git_cve_fix
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:20230220_remove_GL_deps
 ###############################################################################
 
 FROM archlinux:base
@@ -19,7 +19,7 @@ ENV SHELL=/bin/bash
 # 4. Clean package cache
 RUN pacman --noconfirm --noprogressbar -Syu && \
     pacman --noconfirm --noprogressbar -S ccache clang cmake doxygen gcc git make nasm ninja python-pip python-pystache python-six sudo locate yasm && \
-    pacman --noconfirm --noprogressbar -S glew gsm hiredis jansson jsoncpp libsrtp libxml2 mariadb mbedtls net-snmp openssl opus postgresql protobuf speex speexdsp sqlite xerces-c && \
+    pacman --noconfirm --noprogressbar -S gsm hiredis jansson jsoncpp libsrtp libxml2 mariadb mbedtls net-snmp openssl opus postgresql protobuf speex speexdsp sqlite xerces-c && \
 	pacman --noconfirm -Scc
 
 # Configure user bc
