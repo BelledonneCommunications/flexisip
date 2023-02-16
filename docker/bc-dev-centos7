@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos7:20220905_from_scratch
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos7:20230220_remove_GL_deps
 ###############################################################################
 
 FROM centos:7
@@ -59,8 +59,6 @@ RUN sudo yum -y install devtoolset-8 \
                    protobuf-compiler \
                    redis \
                  # Dependencies of the B2BUA
-                   mesa-libEGL-devel \
-                   glew-devel \
                    libvpx-devel \
                    jsoncpp-devel \
                &&  yum -y clean all \

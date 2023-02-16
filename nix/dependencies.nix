@@ -39,8 +39,5 @@ with pkgs;
   redis
 ]
 ++ optionals enableB2bua [
-  libv4l
-  xorg.libX11
   jsoncpp
 ]
-++ optional (enableB2bua && enableUnitTests) glew

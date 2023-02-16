@@ -88,6 +88,14 @@ if(ENABLE_TRANSCODER OR ENABLE_CONFERENCE OR ENABLE_B2BUA)
 	set(ENABLE_ZRTP ON)
 
 	set(ENABLE_SOUND OFF) # Disable all sound card backends.
+	set(ENABLE_V4L OFF) # Disable video capture
+	# Disable video rendering
+	set(ENABLE_X11 OFF)
+	set(ENABLE_XV OFF)
+	set(ENABLE_GL OFF)
+	set(ENABLE_GLX OFF)
+
+	set(ENABLE_UNIT_TESTS OFF)
 
 	set(ENABLE_G726 OFF)
 	set(ENABLE_GSM ON)
@@ -107,6 +115,7 @@ if(ENABLE_TRANSCODER OR ENABLE_CONFERENCE OR ENABLE_B2BUA)
 
 	set(DISABLE_SRTP_SEARCH ${INTERNAL_LIBSRTP2})
 	add_subdirectory("linphone-sdk/mediastreamer2")
+	unset(ENABLE_UNIT_TESTS) # remove the overriding
 endif()
 
 
@@ -120,6 +129,14 @@ if(ENABLE_PRESENCE OR ENABLE_MDNS OR ENABLE_CONFERENCE OR ENABLE_UNIT_TESTS)
 	set(ENABLE_64BIT  OFF)
 	set(ENABLE_DEBUGGER OFF)
 
+	if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
+		AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15
+	)
+		# FIXME
+		add_compile_options(
+			"-Wno-error=deprecated-non-prototype"
+		)
+	endif()
 	add_subdirectory("linphone-sdk/belle-sip")
 endif()
 
@@ -171,6 +188,14 @@ if(ENABLE_LIBLINPHONE)
 		set(ENABLE_DAEMON ON)
 	endif()
 
+	if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
+		AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15
+	)
+		# FIXME
+		add_compile_options(
+			"-Wno-error=unqualified-std-cast-call"
+		)
+	endif()
 	add_subdirectory("linphone-sdk/liblinphone")
 	unset(ENABLE_UNIT_TESTS) # remove the overriding
 endif()

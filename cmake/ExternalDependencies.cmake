@@ -91,6 +91,15 @@ if(INTERNAL_MBEDTLS)
 	set(ENABLE_PROGRAMS OFF)
 	set(ENABLE_TESTING OFF)
 	set(MBEDTLS_FATAL_WARNINGS ${ENABLE_STRICT_LINPHONESDK})
+	if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
+		AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15
+	)
+		# FIXME
+		add_compile_options(
+			"-Wno-error=unused-but-set-variable"
+			"-Wno-error=documentation"
+		)
+	endif()
 	add_subdirectory("linphone-sdk/external/mbedtls")
 endif()
 

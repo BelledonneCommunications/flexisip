@@ -16,14 +16,14 @@ variables:
   DEFAULT_PACKAGING_CMAKE_OPTIONS: '-DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc -DFLEXISIP_SYSTEMD_INSTALL_DIR=/lib/systemd/system'
 
   # Docker image version
-  ARCHLINUX_IMAGE_VERSION: 20220902_git_cve_fix
-  CENTOS_7_IMAGE_VERSION: 20220905_from_scratch
+  ARCHLINUX_IMAGE_VERSION: 20230220_remove_GL_deps
+  CENTOS_7_IMAGE_VERSION: 20230220_remove_GL_deps
   DEBIAN_9_IMAGE_VERSION: 20230214_update_ca_certs
-  ROCKY_8_IMAGE_VERSION: 20220906_libnghttp2_asio_script
+  ROCKY_8_IMAGE_VERSION: 20230220_remove_GL_deps
   DEBIAN_10_IMAGE_VERSION: 20220913_mariadb_as_service
-  DEBIAN_11_IMAGE_VERSION: 20220913_mariadb_as_service
-  UBUNTU_18_04_IMAGE_VERSION: 20220906_libnghttp2_asio_script
-  UBUNTU_22_04_IMAGE_VERSION: 20220905_from_scratch
+  DEBIAN_11_IMAGE_VERSION: 20230220_remove_GL_deps
+  UBUNTU_18_04_IMAGE_VERSION: 20230220_remove_GL_deps
+  UBUNTU_22_04_IMAGE_VERSION: 20230220_remove_GL_deps
 
 #https://docs.gitlab.com/ee/ci/yaml/index.html#workflow
 workflow:
