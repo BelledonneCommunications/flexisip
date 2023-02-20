@@ -35,7 +35,7 @@ job-ubuntu-22-04-ninja-clang:
     - .ubuntu-22-04-image
     - .tester-artifacts
   variables:
-    CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON
+    CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON
 
 #################################################
 # UNIT TESTS

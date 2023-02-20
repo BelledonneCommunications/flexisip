@@ -31,7 +31,6 @@
 #cmakedefine ENABLE_SOCI 1
 #cmakedefine ENABLE_MDNS 1
 #cmakedefine ENABLE_UNIT_TESTS 1
-#cmakedefine ENABLE_UNIT_TESTS_MYSQL 1
 #cmakedefine ENABLE_UNIT_TESTS_PUSH_NOTIFICATION 1
 
 #cmakedefine HAVE_DATEHANDLER 1
@@ -46,6 +45,9 @@
 
 #cmakedefine MEDIARELAY_SPECIFIC_FEATURES_ENABLED 1
 #cmakedefine MONOTONIC_CLOCK_REGISTRATIONS 1
+
+// Anything that exits successfully without fuss
+#cmakedefine DUMMY_EXEC "${DUMMY_EXEC}"
 
 #define SNMP_COMPANY_OID 10000
 

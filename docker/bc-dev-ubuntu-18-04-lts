@@ -1,15 +1,24 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-18-04-lts:20230220_remove_GL_deps
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-18-04-lts:20230227_add_mariadb_server
 ###############################################################################
 
 FROM ubuntu:18.04
 
 MAINTAINER Anthony Gauchy <anthony.gauchy@belledonne-communications.com>
+MAINTAINER Thibault Lemaire <thibault.lemaire@belledonne-communications.com>
 
   # Add repositories
-RUN apt-get -y --fix-missing update && apt-get -y install software-properties-common \
-    && add-apt-repository "deb http://us.archive.ubuntu.com/ubuntu/ bionic universe multiverse" \
-    && add-apt-repository "deb http://us.archive.ubuntu.com/ubuntu/ bionic-updates universe multiverse"
+RUN apt-get -y --fix-missing update \
+ && apt-get -y install software-properties-common python-pip \
+ && add-apt-repository "deb http://us.archive.ubuntu.com/ubuntu/ bionic universe multiverse" \
+ && add-apt-repository "deb http://us.archive.ubuntu.com/ubuntu/ bionic-updates universe multiverse" \
+  # Find and set best mirror
+ && pip install apt-mirror-updater \
+ && apt-mirror-updater --auto-change-mirror \
+ && pip uninstall -y apt-mirror-updater \
+ && apt-get -y remove python-pip \
+ && apt-get -y autoremove \
+ && apt-get -y clean
 
   # Update
 RUN apt-get -y --fix-missing update \
@@ -62,6 +71,8 @@ RUN apt-get -y --fix-missing update \
                        redis-server \
                      # Dependencies of the B2BUA
                        libvpx-dev \
+                     # Dependencies of the tester
+                       mariadb-server \
   # Clean
  && apt-get -y autoremove \
  && apt-get -y clean \

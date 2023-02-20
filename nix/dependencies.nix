@@ -37,6 +37,7 @@ with pkgs;
 ++ optionals enableUnitTests [
   boost
   redis
+  mariadb
 ]
 ++ optionals enableB2bua [
   jsoncpp

@@ -28,6 +28,18 @@ find_package(jsoncpp "1.1.0" REQUIRED)
 # Generate flexisip-tester-config.h
 set(FLEXISIP_TESTER_DATA_SRCDIR "${CMAKE_CURRENT_SOURCE_DIR}")
 find_program(REDIS_SERVER_EXEC NAMES redis-server REQUIRED)
+find_program(MYSQL_SERVER_EXEC NAMES mysqld
+	PATHS /usr/libexec # CentOS, Rocky
+	REQUIRED
+)
+
+get_filename_component(MYSQL_BIN_DIR "${MYSQL_SERVER_EXEC}" DIRECTORY)
+find_file(MYSQL_SYSTEM_TABLES_SETUP NAMES mysql_system_tables.sql PATHS
+	"${MYSQL_BIN_DIR}/../share/mysql"
+	"${MYSQL_BIN_DIR}/../share/mariadb"
+REQUIRED)
+
+find_program(CAT_EXEC NAMES cat REQUIRED)
 configure_file(flexisip-tester-config.hh.in flexisip-tester-config.hh)
 
 include_directories(
@@ -68,6 +80,8 @@ add_executable(flexisip_tester
 	utils/bellesip-utils.cc utils/bellesip-utils.hh
 	utils/client-core.cc utils/client-core.hh
 	utils/listening-socket.cc utils/listening-socket.hh
+	utils/mysql-server.cc utils/mysql-server.hh
+	utils/posix-process-tester.cc
 	utils/proxy-server.cc utils/proxy-server.hh
 	utils/proxy-server-process.cc utils/proxy-server-process.hh
 	utils/redis-server.cc utils/redis-server.hh
@@ -76,6 +90,7 @@ add_executable(flexisip_tester
 	utils/test-patterns/presence-test.hh
 	utils/test-patterns/test.hh
 	utils/tls-server.cc utils/tls-server.hh
+	utils/tmp-dir.cc utils/tmp-dir.hh
 	utils/utf8-string-tester.cc
 )
 
@@ -84,11 +99,11 @@ if (ENABLE_CONFERENCE)
 	target_sources(flexisip_tester PRIVATE conference-tester.cc)
 endif ()
 
-if (ENABLE_UNIT_TESTS_MYSQL)
+if (ENABLE_SOCI)
 	target_sources(flexisip_tester PRIVATE
 		fork-context-mysql-tester.cc
 	)
-endif(ENABLE_UNIT_TESTS_MYSQL)
+endif()
 
 if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
 	target_sources(flexisip_tester PRIVATE push-notification-tester.cc utils/pns-mock.cc)

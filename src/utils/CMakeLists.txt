@@ -23,10 +23,13 @@
 target_sources(flexisip PRIVATE
 	digest.cc digest.hh
 	observable.hh
+	pipe.cc pipe.hh
+	posix-process.cc posix-process.hh
 	rand.cc rand.hh
 	sip-uri.cc
 	string-formater.cc string-formater.hh
 	string-utils.cc string-utils.hh
+	sys-err.cc sys-err.hh
 	thread/auto-thread-pool.cc thread/auto-thread-pool.hh
 	thread/basic-thread-pool.cc thread/basic-thread-pool.hh
 	thread/base-thread-pool.cc thread/base-thread-pool.hh
@@ -39,4 +42,5 @@ target_sources(flexisip PRIVATE
 	transport/tls-connection.cc transport/tls-connection.hh
 	uri-utils.cc uri-utils.hh
 	utf8-string.cc utf8-string.hh
+	variant-utils.hh
 )

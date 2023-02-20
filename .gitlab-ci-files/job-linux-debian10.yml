@@ -35,7 +35,7 @@ job-debian10-ninja-clang:
     - .debian10-image
     - .tester-artifacts
   variables:
-    CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON
+    CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON
 
 #################################################
 # UNIT TESTS

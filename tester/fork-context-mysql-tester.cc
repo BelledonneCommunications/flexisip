@@ -17,15 +17,26 @@
 */
 
 #include <chrono>
+#include <future>
+#include <memory>
+#include <optional>
 
+#include <soci/session.h>
+#include <utility>
+
+#include "flexisip/logmanager.hh"
 #include "flexisip/module-router.hh"
 
+#include "agent.hh"
+#include "flexisip-tester-config.hh"
 #include "fork-context/fork-message-context-db-proxy.hh"
 #include "fork-context/fork-message-context-soci-repository.hh"
+#include "tester.hh"
 #include "utils/asserts.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
+#include "utils/mysql-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
@@ -40,7 +51,11 @@ namespace tester {
 
 using days = duration<int, ratio_multiply<ratio<24>, hours::period>>;
 
-static string rawRequest{R"sip(MESSAGE sip:francois.grisez@sip.linphone.org SIP/2.0
+namespace {
+
+optional<MysqlServer> mysqlServer = nullopt;
+
+string rawRequest{R"sip(MESSAGE sip:francois.grisez@sip.linphone.org SIP/2.0
 Via: SIP/2.0/TLS [2a01:e0a:278:9f60:7a23:c334:1651:2503]:36676;branch=z9hG4bK.ChN0lTDpQ;rport
 From: <sip:anthony.gauchy@sip.linphone.org>;tag=iXiKd6FuX
 To: sip:francois.grisez@sip.linphone.org
@@ -64,6 +79,14 @@ Call-ID: NISmf-QTgo
 CSeq: 20 MESSAGE
 Content-Length: 0)sip"};
 
+// Use it to create an instance before the configuration is overriden by a reload
+void forceSociRepositoryInstanciation() {
+	mysqlServer->waitReady();
+	ForkMessageContextSociRepository::getInstance();
+}
+
+} // namespace
+
 static void forkMessageContextSociRepositoryMysqlUnitTests() {
 	auto server = make_unique<Server>("/config/flexisip_fork_context_db.conf");
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
@@ -74,6 +97,7 @@ static void forkMessageContextSociRepositoryMysqlUnitTests() {
 	ForkMessageContextDb fakeDbObject{1, 3, true, false, *gmtime(&t), rawRequest, MsgSipPriority::NonUrgent};
 	fakeDbObject.dbKeys = vector<string>{"key1", "key2", "key3"};
 	auto expectedFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, fakeDbObject);
+	mysqlServer->waitReady();
 	auto insertedUuid =
 	    ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork->getDbObject());
 	auto dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
@@ -108,6 +132,7 @@ static void forkMessageContextWithBranchesSociRepositoryMysqlUnitTests() {
 	fakeDbObject.dbBranches = vector<BranchInfoDb>{branchInfoDb, branchInfoDb2, branchInfoDb3};
 	auto expectedFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, fakeDbObject);
 
+	mysqlServer->waitReady();
 	auto insertedUuid =
 	    ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork->getDbObject());
 	auto dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
@@ -147,6 +172,7 @@ static void forkMessageContextSociRepositoryFullLoadMysqlUnitTests() {
 		BranchInfoDb branchInfoDb3{"contactUid3", 2.42, rawRequest, rawResponse, true};
 		fakeDbObject.dbBranches = vector<BranchInfoDb>{branchInfoDb, branchInfoDb2, branchInfoDb3};
 		auto expectedFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, fakeDbObject);
+		mysqlServer->waitReady();
 		auto insertedUuid =
 		    ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork->getDbObject());
 		expectedForks.insert(make_pair(insertedUuid, expectedFork));
@@ -181,6 +207,7 @@ static void forkMessageContextSociRepositoryFullLoadMysqlUnitTests() {
 static void globalTest() {
 	SLOGD << "Step 1: Setup";
 	auto server = make_shared<Server>("/config/flexisip_fork_context_db.conf");
+	forceSociRepositoryInstanciation();
 	server->start();
 
 	auto receiverClient = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server);
@@ -259,6 +286,7 @@ static void globalTest() {
 static void globalTestMultipleDevices() {
 	SLOGD << "Step 1: Setup";
 	auto server = make_shared<Server>("/config/flexisip_fork_context_db.conf");
+	forceSociRepositoryInstanciation();
 	server->start();
 
 	vector<shared_ptr<CoreClient>> clientOnDevices{};
@@ -405,6 +433,7 @@ static void globalTestMultipleDevices() {
 static void testDBAccessOptimization() {
 	SLOGD << "Step 1: Setup";
 	auto server = make_shared<Server>("/config/flexisip_fork_context_db.conf");
+	forceSociRepositoryInstanciation();
 	server->start();
 
 	shared_ptr<CoreClient> clientOnDevice = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server);
@@ -612,6 +641,7 @@ static void globalTestMultipleMessages() {
 static void globalTestDatabaseDeleted() {
 	SLOGD << "Step 1: Setup";
 	auto server = make_shared<Server>("/config/flexisip_fork_context_db.conf");
+	forceSociRepositoryInstanciation();
 	server->start();
 
 	auto receiverClient = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server);
@@ -705,6 +735,7 @@ string getMessagesHeaders(uint callIdPostfix = 0, string msgPriority = "normal"s
 static void globalOrderTest() {
 	SLOGD << "Step 1: Setup";
 	auto server = make_shared<Server>("/config/flexisip_fork_context_db.conf");
+	forceSociRepositoryInstanciation();
 	server->start();
 	ModuleRouter::setMaxPriorityHandled(sofiasip::MsgSipPriority::Emergency);
 
@@ -802,19 +833,17 @@ TestSuite
       },
       Hooks()
           .beforeSuite([] {
-	          char const* cHost = getenv("BC_MYSQL_HOST");
-	          auto host = (cHost == NULL) ? "" : string(cHost);
-	          if (host == "") host = "127.0.0.1";
-	          ForkMessageContextSociRepository::prepareConfiguration(
-	              "mysql", "db='flexisip_messages' user='belledonne' password='cOmmu2015nicatiOns' host='" + host + "'",
-	              10);
-
+	          mysqlServer.emplace();
+	          ForkMessageContextSociRepository::prepareConfiguration("mysql", mysqlServer->connectionString(), 10);
 	          return 0;
           })
-          .beforeEach([] { ForkMessageContextSociRepository::getInstance()->deleteAll(); })
           .afterEach([] {
 	          ForkMessageContextSociRepository::getInstance()->deleteAll();
 	          RegistrarDb::resetDB();
+          })
+          .afterSuite([] {
+	          mysqlServer.reset();
+	          return 0;
           }));
 }
 } // namespace tester

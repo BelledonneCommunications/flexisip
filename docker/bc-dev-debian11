@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian11:20230220_remove_GL_deps
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian11:20230227_add_mariadb_server
 ###############################################################################
 
 FROM debian:bullseye
@@ -52,6 +52,8 @@ RUN apt-get -y update \
                        redis-server \
                      # Dependencies of the B2BUA
                        libvpx-dev \
+                     # Dependencies of the tester
+                       mariadb-server \
                      # Dependencies of clang test coverage
                        llvm \
   # Clean

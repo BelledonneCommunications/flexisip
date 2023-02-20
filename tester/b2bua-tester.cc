@@ -73,7 +73,7 @@ public:
 		    GenericManager::get()->getRoot()->get<GenericStruct>("global")->get<ConfigStringList>("transports")->read();
 		b2buaServerConf->get<ConfigString>("outbound-proxy")->set(proxyTransports.front());
 		// need a writable dir to store DTLS-SRTP self signed certificate
-		b2buaServerConf->get<ConfigString>("data-directory")->set(bc_tester_get_writable_dir_prefix());
+		b2buaServerConf->get<ConfigString>("data-directory")->set(bcTesterWriteDir());
 
 		mB2buaServer = make_shared<flexisip::B2buaServer>(this->getRoot());
 
