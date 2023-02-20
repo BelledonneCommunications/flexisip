@@ -19,10 +19,10 @@ variables:
   ARCHLINUX_IMAGE_VERSION: 20230220_remove_GL_deps
   CENTOS_7_IMAGE_VERSION: 20230220_remove_GL_deps
   DEBIAN_9_IMAGE_VERSION: 20230214_update_ca_certs
-  ROCKY_8_IMAGE_VERSION: 20230220_remove_GL_deps
-  DEBIAN_10_IMAGE_VERSION: 20220913_mariadb_as_service
-  DEBIAN_11_IMAGE_VERSION: 20230220_remove_GL_deps
-  UBUNTU_18_04_IMAGE_VERSION: 20230220_remove_GL_deps
+  ROCKY_8_IMAGE_VERSION: 20230227_add_mariadb_server
+  DEBIAN_10_IMAGE_VERSION: 20230227_add_mariadb_server
+  DEBIAN_11_IMAGE_VERSION: 20230227_add_mariadb_server
+  UBUNTU_18_04_IMAGE_VERSION: 20230227_add_mariadb_server
   UBUNTU_22_04_IMAGE_VERSION: 20230220_remove_GL_deps
 
 #https://docs.gitlab.com/ee/ci/yaml/index.html#workflow

@@ -20,6 +20,14 @@
 
 // Path to redis-server executable
 #cmakedefine REDIS_SERVER_EXEC "${REDIS_SERVER_EXEC}"
+// Path to mysql server executable
+#cmakedefine MYSQL_SERVER_EXEC "${MYSQL_SERVER_EXEC}"
+// Path to mysql system tables setup commands
+#cmakedefine MYSQL_SYSTEM_TABLES_SETUP "${MYSQL_SYSTEM_TABLES_SETUP}"
+// Path to cat
+#cmakedefine CAT_EXEC "${CAT_EXEC}"
+// Anything that exits successfully without fuss
+#cmakedefine DUMMY_EXEC "${DUMMY_EXEC}"
 
 // Default listen port of Redis server
 #define REDIS_SERVER_DEFAULT_PORT 6379

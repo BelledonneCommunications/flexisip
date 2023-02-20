@@ -20,7 +20,6 @@
 #
 ############################################################################
 
-# CMake 3.3 is required for the usage of IN_LIST operator in if() command.
 cmake_minimum_required(VERSION 3.13)
 
 # CMP0076 is required to use relative path in target_sources
@@ -87,7 +86,7 @@ cmake_dependent_option(ENABLE_CONFERENCE "Build conference support" ON "ENABLE_S
 cmake_dependent_option(ENABLE_SOCI_POSTGRESQL_BACKEND "Build with SOCI Postgre sql backend support" ON "ENABLE_SOCI" OFF)
 cmake_dependent_option(ENABLE_B2BUA "Enable Back2back user agent support" ON "ENABLE_SOCI" OFF)
 cmake_dependent_option(ENABLE_UNIT_TESTS_PUSH_NOTIFICATION "Enable flexisip push notification unit tests (requires libnghttp2_asio)"  ON "ENABLE_UNIT_TESTS" ON )
-cmake_dependent_option(ENABLE_UNIT_TESTS_MYSQL "Enable flexisip unit tests that use mysql" OFF "ENABLE_UNIT_TESTS;ENABLE_SOCI" OFF)
+cmake_dependent_option(ENABLE_UNIT_TESTS_MYSQL "Enable flexisip unit tests that use mysql" ON "ENABLE_UNIT_TESTS;ENABLE_SOCI" OFF)
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable media relay specific features" OFF "ENABLE_TRANSCODER" OFF)
 
 set(CPACK_GENERATOR "" CACHE STRING "Generator to use for making package. Supported values: 'RPM', 'DEB'")
@@ -160,6 +159,9 @@ check_function_exists(arc4random HAVE_ARC4RANDOM)
 find_file(HAVE_SYS_PRCTL_H NAMES sys/prctl.h)
 
 set(CMAKE_REQUIRED_LIBRARIES)
+
+# Enable std::filesystem on old implementations (GNU <9.1, LLVM <9.0)
+link_libraries("stdc++fs")
 
 # Options
 if(ENABLE_SNMP)

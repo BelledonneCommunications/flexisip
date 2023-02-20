@@ -34,7 +34,7 @@ job-ubuntu-22-04-ninja-clang:
     - .job-ninja-clang
     - .ubuntu-22-04-image
   variables:
-    CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON
+    CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON
   artifacts:
     paths:
       - OUTPUT/*

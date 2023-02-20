@@ -25,8 +25,8 @@
 #include "flexisip-config.h"
 #endif
 
-#include <flexisip/logmanager.hh>
 #include "flexisip-tester-config.hh"
+#include <flexisip/logmanager.hh>
 
 #include "tester.hh"
 
@@ -47,7 +47,11 @@ std::string bcTesterRes(const std::string& name) {
 	return ret;
 }
 
-static int verbose_arg_func([[maybe_unused]] const char* arg) {
+std::filesystem::path bcTesterWriteDir() {
+	return std::filesystem::canonical(bc_tester_get_writable_dir_prefix());
+}
+
+static int verbose_arg_func(const char*) {
 	LogManager::get().setLogLevel(BCTBX_LOG_DEBUG);
 	su_log_set_level(nullptr, 9);
 	return 0;

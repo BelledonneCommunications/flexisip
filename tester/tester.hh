@@ -20,11 +20,15 @@
 
 #include <string>
 
+#include "compat/filesystem.hh"
+
 namespace flexisip {
 namespace tester {
 
 std::string bcTesterFile(const std::string& name);
 std::string bcTesterRes(const std::string& name);
+// Canonical path to the configured writable directory for flexisip_tester
+std::filesystem::path bcTesterWriteDir();
 
 void flexisip_tester_init();
 void flexisip_tester_uninit();

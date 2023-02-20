@@ -31,7 +31,7 @@ job-centos7-ninja-gcc:
     - .centos7-image-variables
     - .rules-dev  # ⚠ See `rules.yml`, override .job-ninja-gcc rules
   variables:
-    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DINTERNAL_JSONCPP=ON -DBOOST_INCLUDEDIR=/usr/include/boost169 -DBOOST_LIBRARYDIR=/usr/lib64/boost169 -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON
+    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DINTERNAL_JSONCPP=ON -DBOOST_INCLUDEDIR=/usr/include/boost169 -DBOOST_LIBRARYDIR=/usr/lib64/boost169 -DENABLE_UNIT_TESTS=ON -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON
   artifacts:
     paths:
       - OUTPUT/*

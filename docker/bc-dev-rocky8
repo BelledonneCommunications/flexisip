@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20230220_remove_GL_deps
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20230227_add_mariadb_server
 ###############################################################################
 
 FROM rockylinux:8
@@ -65,6 +65,8 @@ RUN sudo dnf -y install \
                  # Dependencies of the B2BUA
                    libvpx-devel  \
                    jsoncpp-devel \
+                 # Dependencies of the tester
+                   mariadb-server \
                &&  dnf -y clean all
 
 # Install libnghttp2_asio 1.39.2

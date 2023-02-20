@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:20220913_mariadb_as_service
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:20230227_add_mariadb_server
 ###############################################################################
 
 FROM gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian10:20210421_python3_fix_pip
@@ -12,7 +12,7 @@ ARG njobs=1
 ENV MAKEFLAGS="${MAKEFLAGS} -j${njobs}"
 
 # Add extra dependencies for Flexisip
-RUN sudo su -c 'apt-get -y --allow-releaseinfo-change update && apt-get -y install libboost-dev libboost-system-dev libboost-thread-dev libhiredis-dev libjansson-dev libjsoncpp-dev libmariadb-dev-compat libnghttp2-dev libprotobuf-dev libsnmp-dev protobuf-compiler wget redis-server && apt-get -y clean'
+RUN sudo su -c 'apt-get -y --allow-releaseinfo-change update && apt-get -y install libboost-dev libboost-system-dev libboost-thread-dev libhiredis-dev libjansson-dev libjsoncpp-dev libmariadb-dev-compat libnghttp2-dev libprotobuf-dev libsnmp-dev mariadb-server protobuf-compiler wget redis-server && apt-get -y clean'
 
 # Configure OpenSSL policy
 # Setting 'CipherString' to 'DEFAULT@SECLEVEL=1' forces libssl to allow

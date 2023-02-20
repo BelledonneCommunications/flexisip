@@ -198,16 +198,8 @@
   tags: [ "docker-test-flexisip" ]
   extends: .rules-dev  # ⚠ See `rules.yml`
   variables:
-    # Configure mariadb service (https://hub.docker.com/_/mariadb)
-    MARIADB_RANDOM_ROOT_PASSWORD: "yes"
-    MARIADB_DATABASE: "flexisip_messages"
-    MARIADB_USER: "belledonne"
-    MARIADB_PASSWORD: "cOmmu2015nicatiOns"
-    BC_MYSQL_HOST: "mariadb"
     # Do not clone, only use artifacts (TODO 'none' doesn't clean, we are using 'fetch' until we find a way)
     GIT_STRATEGY: fetch
-  services:
-    - mariadb:latest
   script:
     - export LD_LIBRARY_PATH=/usr/local/lib
     - export LSAN_OPTIONS="suppressions=./sanitizer_ignore.txt"

@@ -36,7 +36,7 @@ job-ubuntu-18-04-ninja-clang:
     - .job-ninja-clang
     - .ubuntu-18-04-image-variables
   variables:
-    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON
+    CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DENABLE_UNIT_TESTS=ON
   artifacts:
     paths:
       - OUTPUT/*
