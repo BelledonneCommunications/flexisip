@@ -23,8 +23,6 @@
 
 #include "flexisip/module.hh"
 
-#include "utils/thread/thread-pool.hh"
-
 namespace flexisip {
 
 class ThreadPool;

@@ -7,9 +7,8 @@
 #include <functional>
 
 #include "flexisip/logmanager.hh"
+#include "flexisip/signal-handling/signal-handling.hh"
 #include "flexisip/sofia-wrapper/waker.hh"
-
-#include "signal-handling.hh"
 
 namespace flexisip {
 

@@ -18,14 +18,15 @@
 
 #pragma once
 
-#include <flexisip/logmanager.hh>
+#include <sys/timeb.h>
 
 #include <cstdarg>
 #include <cstdlib>
 #include <map>
 #include <string>
-#include <sys/timeb.h>
 #include <vector>
+
+#include "flexisip/logmanager.hh"
 
 #ifndef MAX
 #define MAX(a, b) (a) > (b) ? (a) : (b)

@@ -24,10 +24,8 @@
 #include <sofia-sip/su_random.h>
 
 #include "flexisip/module.hh"
+#include "flexisip/registrar/registar-listener.hh"
 #include "flexisip/signal-handling/sofia-driven-signal-handler.hh"
-
-#include "agent.hh"
-#include "registrardb.hh"
 
 namespace flexisip {
 
