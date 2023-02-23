@@ -29,6 +29,7 @@
 #include "flexisip/logmanager.hh"
 #include "flexisip/signal-handling/sofia-driven-signal-handler.hh"
 
+#include "agent.hh"
 #include "domain-registrations.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/extended-contact.hh"

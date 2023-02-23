@@ -108,7 +108,7 @@ add_library(flexisip SHARED
 	registrar/contact-key.cc
 	registrar/exceptions.cc
 	registrar/extended-contact.cc
-		registrar/registrar-listeners.cc
+	registrar/registrar-listeners.cc
 	registrar/record.cc
 	registrar/registrar-db.cc
 	registrardb-internal.cc registrardb-internal.hh

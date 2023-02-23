@@ -25,8 +25,6 @@
 #include "flexisip/registrar/registar-listeners.hh"
 #include "flexisip/signal-handling/sofia-driven-signal-handler.hh"
 
-#include "agent.hh"
-
 namespace flexisip {
 
 struct RegistrarStats {

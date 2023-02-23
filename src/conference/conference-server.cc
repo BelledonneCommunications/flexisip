@@ -16,25 +16,25 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "conference-server.hh"
+
 #include <fstream>
 #include <sstream>
 
 #include <belle-sip/utils.h>
 #include <sofia-sip/sip_header.h>
 
-#include "registrar/binding-parameters.hh"
-#include "registrar/extended-contact.hh"
-#include "registrar/record.hh"
-#include "registrar/registrar-db.hh"
 #include <flexisip/configmanager.hh>
 #include <flexisip/flexisip-version.h>
 
 #include "conference-address-generator.hh"
+#include "registrar/binding-parameters.hh"
+#include "registrar/extended-contact.hh"
+#include "registrar/record.hh"
+#include "registrar/registrar-db.hh"
 #include "registration-events/client.hh"
 #include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
-
-#include "conference-server.hh"
 
 using namespace std;
 using namespace std::chrono;
