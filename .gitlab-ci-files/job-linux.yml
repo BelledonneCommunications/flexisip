@@ -73,8 +73,8 @@
   tags: [ "deploy" ]
   extends: .rules-deploy  # ⚠ See `rules.yml`
   variables:
-    # Do not clone, only use artifacts
-    GIT_STRATEGY: none
+    # Do not clone, only use artifacts (TODO 'none' doesn't clean, we are using 'fetch' until we find a way)
+    GIT_STRATEGY: fetch
   script: ./.gitlab-ci-files/deploy.sh ${DISTRIB}
 
 #################################################
@@ -106,8 +106,8 @@
   tags: [ "deploy" ]
   extends: .rules-deploy  # ⚠ See `rules.yml`
   variables:
-    # Do not clone, only use artifacts
-    GIT_STRATEGY: none
+    # Do not clone, only use artifacts (TODO 'none' doesn't clean, we are using 'fetch' until we find a way)
+    GIT_STRATEGY: fetch
   script: ./.gitlab-ci-files/deploy.sh debian
 
 #################################################
@@ -204,8 +204,8 @@
     MARIADB_USER: "belledonne"
     MARIADB_PASSWORD: "cOmmu2015nicatiOns"
     BC_MYSQL_HOST: "mariadb"
-    # Do not clone, only use artifacts
-    GIT_STRATEGY: none
+    # Do not clone, only use artifacts (TODO 'none' doesn't clean, we are using 'fetch' until we find a way)
+    GIT_STRATEGY: fetch
   services:
     - mariadb:latest
   script:

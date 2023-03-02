@@ -13,12 +13,15 @@ Group changes to describe their impact on the project, as follows:
 | Fixed          | Any bug fixes                                         |
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
+## [2.2.1] - 2023-02-24
+### [Fixed]
+- Packaging and deployment used to have issues.
 
 ## [2.2.1] - 2023-02-24
 ### [Added]
 
 - 'global/tport-message-queue-size' parameter in flexisip.conf. That allows to set the size of the message
-  queue which is used when a SIP message cannot be sent because the socket is full.
+  queue which is used when a SIP message cannot be sent because the socket is full.
 
 ### [Changed]
 
