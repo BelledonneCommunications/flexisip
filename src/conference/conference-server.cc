@@ -135,7 +135,11 @@ void ConferenceServer::_init() {
 	mCore->setAudioPort(-1);  // use random ports.
 	mCore->setVideoPort(-1);  // use random ports.
 	mCore->setUseFiles(true); // No sound card shall be used in calls.
-	enableSelectedCodecs(mCore->getAudioPayloadTypes(), {"opus", "speex"});
+	/*
+	 * Let the conference server work with all liblinphone's default audio codec s(opus, speex, pcmu, pcma).
+	 * enableSelectedCodecs(mCore->getAudioPayloadTypes(), {"opus", "speex"});
+	 * We have to restrict for video because as of today only VP8 is supported.
+	*/
 	enableSelectedCodecs(mCore->getVideoPayloadTypes(), {"VP8"});
 
 	string encryption = config->get<ConfigString>("encryption")->read();
