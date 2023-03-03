@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -32,56 +32,64 @@ public:
 	void operator()() override {
 		unique_ptr<ThreadPool> threadPool = make_unique<ThreadPoolType>(5, 5);
 
-		for (int i = 0; i < 5; i++) {
-			auto taskAdded = threadPool->run([&]() { _run(); });
-			BC_HARD_ASSERT_TRUE(taskAdded);
+		try {
+			for (int i = 0; i < 5; i++) {
+				auto taskAdded = threadPool->run([&]() { _run(); });
+				BC_HARD_ASSERT_TRUE(taskAdded);
+			}
+			BC_HARD_ASSERT_TRUE(waitFor([&]() { return mStartedCounter == 5; }, 100ms));
+			BC_HARD_ASSERT_TRUE(mRunningCounter == 0);
+			BC_HARD_ASSERT_TRUE(mEndedCounter == 0);
+
+			for (int i = 0; i < 5; i++) {
+				auto taskAdded = threadPool->run([&]() { _run(); });
+				BC_HARD_ASSERT_TRUE(taskAdded);
+			}
+			BC_HARD_ASSERT_TRUE(mStartedCounter == 5);
+			BC_HARD_ASSERT_TRUE(mRunningCounter == 0);
+			BC_HARD_ASSERT_TRUE(mEndedCounter == 0);
+
+			for (int i = 0; i < 5; i++) {
+				auto taskAdded = threadPool->run([&]() { _run(); });
+				BC_HARD_ASSERT_FALSE(taskAdded);
+			}
+			BC_HARD_ASSERT_TRUE(mStartedCounter == 5);
+			BC_HARD_ASSERT_TRUE(mRunningCounter == 0);
+			BC_HARD_ASSERT_TRUE(mEndedCounter == 0);
+
+			mCanRun = true;
+			mCondition.notify_all();
+			BC_HARD_ASSERT_TRUE(waitFor([&]() { return mRunningCounter == 5; }, 200ms));
+			BC_HARD_ASSERT_TRUE(mStartedCounter == 5);
+			BC_HARD_ASSERT_TRUE(mEndedCounter == 0);
+
+			mCanRun = false;
+			mCanStop = true;
+			mCondition.notify_all();
+			BC_HARD_ASSERT_TRUE(waitFor([&]() { return mEndedCounter == 5; }, 200ms));
+			BC_HARD_ASSERT_TRUE(waitFor([&]() { return mStartedCounter == 10; }, 200ms));
+			BC_HARD_ASSERT_TRUE(mRunningCounter == 5);
+
+			mCanRun = true;
+			mCanStop = false;
+			mCondition.notify_all();
+			BC_HARD_ASSERT_TRUE(waitFor([&]() { return mRunningCounter == 10; }, 200ms));
+			BC_HARD_ASSERT_TRUE(mStartedCounter == 10);
+			BC_HARD_ASSERT_TRUE(mEndedCounter == 5);
+
+			mCanStop = true;
+			mCondition.notify_all();
+			threadPool->stop();
+			BC_HARD_ASSERT_TRUE(mStartedCounter == 10);
+			BC_HARD_ASSERT_TRUE(mRunningCounter == 10);
+			BC_HARD_ASSERT_TRUE(mEndedCounter == 10);
+		} catch (exception& e) {
+			mCanRun = true;
+			mCanStop = true;
+			mCondition.notify_all();
+			threadPool->stop();
+			throw e;
 		}
-		BC_HARD_ASSERT_TRUE(waitFor([&]() { return mStartedCounter == 5; }, 100ms));
-		BC_HARD_ASSERT_TRUE(mRunningCounter == 0);
-		BC_HARD_ASSERT_TRUE(mEndedCounter == 0);
-
-		for (int i = 0; i < 5; i++) {
-			auto taskAdded = threadPool->run([&]() { _run(); });
-			BC_HARD_ASSERT_TRUE(taskAdded);
-		}
-		BC_HARD_ASSERT_TRUE(mStartedCounter == 5);
-		BC_HARD_ASSERT_TRUE(mRunningCounter == 0);
-		BC_HARD_ASSERT_TRUE(mEndedCounter == 0);
-
-		for (int i = 0; i < 5; i++) {
-			auto taskAdded = threadPool->run([&]() { _run(); });
-			BC_HARD_ASSERT_FALSE(taskAdded);
-		}
-		BC_HARD_ASSERT_TRUE(mStartedCounter == 5);
-		BC_HARD_ASSERT_TRUE(mRunningCounter == 0);
-		BC_HARD_ASSERT_TRUE(mEndedCounter == 0);
-
-		mCanRun = true;
-		mCondition.notify_all();
-		BC_HARD_ASSERT_TRUE(waitFor([&]() { return mRunningCounter == 5; }, 200ms));
-		BC_HARD_ASSERT_TRUE(mStartedCounter == 5);
-		BC_HARD_ASSERT_TRUE(mEndedCounter == 0);
-
-		mCanRun = false;
-		mCanStop = true;
-		mCondition.notify_all();
-		BC_HARD_ASSERT_TRUE(waitFor([&]() { return mEndedCounter == 5; }, 200ms));
-		BC_HARD_ASSERT_TRUE(waitFor([&]() { return mStartedCounter == 10; }, 200ms));
-		BC_HARD_ASSERT_TRUE(mRunningCounter == 5);
-
-		mCanRun = true;
-		mCanStop = false;
-		mCondition.notify_all();
-		BC_HARD_ASSERT_TRUE(waitFor([&]() { return mRunningCounter == 10; }, 200ms));
-		BC_HARD_ASSERT_TRUE(mStartedCounter == 10);
-		BC_HARD_ASSERT_TRUE(mEndedCounter == 5);
-
-		mCanStop = true;
-		mCondition.notify_all();
-		threadPool->stop();
-		BC_HARD_ASSERT_TRUE(mStartedCounter == 10);
-		BC_HARD_ASSERT_TRUE(mRunningCounter == 10);
-		BC_HARD_ASSERT_TRUE(mEndedCounter == 10);
 	}
 
 private:
