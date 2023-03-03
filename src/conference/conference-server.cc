@@ -392,11 +392,14 @@ void ConferenceServer::bindFactoryUris() {
 	};
 	shared_ptr<FakeListener> listener = make_shared<FakeListener>();
 
+	string uuid = getUuid();
 	for (auto conferenceFactoryUri : mConfServerUris) {
 		try {
 			BindingParameters parameter;
 			sip_contact_t* sipContact = sip_contact_create(
 			    mHome.home(), reinterpret_cast<const url_string_t*>(url_make(mHome.home(), mTransport.str().c_str())),
+			    !uuid.empty() ? su_strdup(mHome.home(), ("+sip.instance=" + UriUtils::grToUniqueId(uuid)).c_str())
+			                  : nullptr,
 			    nullptr);
 			SipUri factory(conferenceFactoryUri.first);
 
@@ -405,6 +408,7 @@ void ConferenceServer::bindFactoryUris() {
 			parameter.globalExpire = numeric_limits<int>::max();
 			parameter.alias = false;
 			parameter.version = 0;
+			parameter.withGruu = true;
 
 			RegistrarDb::get()->bind(factory, sipContact, parameter, listener);
 
