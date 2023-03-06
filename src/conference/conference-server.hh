@@ -107,7 +107,8 @@ public:
 		void enableSelectedCodecs(const std::list<std::shared_ptr<linphone::PayloadType>>& codecs, const std::list<std::string> &mimeTypes);
 		void configureNatAddresses(std::shared_ptr<linphone::NatPolicy> policy, const std::list<std::string> &addresses);
 		std::string getUuidFilePath() const;
-		std::string getStateDir()const;
+		std::string getStateDir(const std::string &subdir = "")const;
+		void ensureDirectoryCreated(const std::string & directory);
 		const std::string & readUuid();
 		void writeUuid(const std::string & uuid);
 		std::string getUuid();

@@ -147,6 +147,10 @@ void ConferenceServer::_init() {
 	if (encryptionMode) {
 		mCore->setMediaEncryption(*encryptionMode);
 	}
+	/* Create a directory for automatically generated DTLS-SRTP certificates */
+	string dtlsDir = getStateDir("dtls-srtp");
+	ensureDirectoryCreated(dtlsDir);
+	mCore->setUserCertificatesPath(dtlsDir);
 
 	mCore->setVideoDisplayFilter("MSExtDisplay");
 
@@ -601,8 +605,23 @@ ConferenceServer::Init::Init() {
 	    ->setDeprecated("2022-09-21", "2.2.0", "This parameter will be forced to 'true' in further versions.");
 }
 
-string ConferenceServer::getStateDir() const {
-	return string(DEFAULT_LIB_DIR) + std::string("/");
+string ConferenceServer::getStateDir(const std::string &subdir) const {
+	return string(DEFAULT_LIB_DIR) + std::string("/") + subdir + (subdir.empty() ? "" : "/");
+}
+
+void ConferenceServer::ensureDirectoryCreated(const std::string & directory){
+	struct stat st;
+	if (stat(directory.c_str(), &st) != 0 && errno == ENOENT) {
+		LOGD("Creating flexisip's state directory: %s", directory.c_str());
+		string command("mkdir -p");
+		command += " \"" + directory + "\"";
+		int status = system(command.c_str());
+		if (status == -1 || WEXITSTATUS(status) != 0) {
+			LOGF("Directory %s doesn't exist and could not be created (insufficient permissions ?). Please create it "
+			     "manually.",
+			     directory.c_str());
+		}
+	}
 }
 
 string ConferenceServer::getUuidFilePath() const {
@@ -626,23 +645,11 @@ const string& ConferenceServer::readUuid() {
 
 void ConferenceServer::writeUuid(const string& uuid) {
 	ofstream fo;
-	struct stat st;
 	string stateDir = getStateDir();
 
+	ensureDirectoryCreated(stateDir);
+
 	mUuid = uuid;
-
-	if (stat(stateDir.c_str(), &st) != 0 && errno == ENOENT) {
-		LOGD("Creating flexisip's state directory: %s", stateDir.c_str());
-		string command("mkdir -p");
-		command += " \"" + stateDir + "\"";
-		int status = system(command.c_str());
-		if (status == -1 || WEXITSTATUS(status) != 0) {
-			LOGF("Directory %s doesn't exist and could not be created (insufficient permissions ?). Please create it "
-			     "manually.",
-			     stateDir.c_str());
-		}
-	}
-
 	string path = getUuidFilePath();
 	fo.open(path);
 	if (!fo.is_open()) {
