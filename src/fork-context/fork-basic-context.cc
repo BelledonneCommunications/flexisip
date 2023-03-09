@@ -31,7 +31,13 @@ using namespace flexisip;
 ForkBasicContext::ForkBasicContext(const std::shared_ptr<ModuleRouter>& router,
                                    const std::shared_ptr<RequestSipEvent>& event,
                                    sofiasip::MsgSipPriority priority)
-    : ForkContextBase(router, event, router->getOtherForkCfg(), router, router->mStats.mCountBasicForks, priority) {
+    : ForkContextBase(router,
+                      router->getAgent(),
+                      event,
+                      router->getOtherForkCfg(),
+                      router,
+                      router->mStats.mCountBasicForks,
+                      priority) {
 	LOGD("New ForkBasicContext %p", this);
 	mDecisionTimer = make_unique<sofiasip::Timer>(mAgent->getRoot(), 20s);
 	// start the acceptance timer immediately
@@ -61,7 +67,7 @@ void ForkBasicContext::onResponse(const shared_ptr<BranchInfo>& br, const shared
 void ForkBasicContext::finishIncomingTransaction() {
 	mDecisionTimer.reset(nullptr);
 
-	shared_ptr<BranchInfo> best = findBestBranch(sUrgentCodes);
+	shared_ptr<BranchInfo> best = findBestBranch();
 	if (best == nullptr) {
 		forwardCustomResponse(SIP_408_REQUEST_TIMEOUT);
 	} else {

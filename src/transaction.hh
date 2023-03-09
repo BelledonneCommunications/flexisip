@@ -160,8 +160,8 @@ public:
 	int getResponseCode() const;
 	std::shared_ptr<MsgSip> getRequestMsg();
 
-	void cancel(std::weak_ptr<BranchInfo> branch = std::weak_ptr<BranchInfo>{});
-	void cancelWithReason(sip_reason_t* reason, std::weak_ptr<BranchInfo> branch);
+	void cancel();
+	void cancelWithReason(sip_reason_t* reason);
 
 private:
 	void
@@ -172,8 +172,7 @@ private:
 	static int _callback(nta_outgoing_magic_t* magic, nta_outgoing_t* irq, const sip_t* sip);
 
 	template <typename... Tags>
-	void _cancel(std::weak_ptr<BranchInfo>& branch, Tags... tags);
-	static int onCancelResponse(nta_outgoing_magic_t* magic, nta_outgoing_t* irq, const sip_t* sip);
+	void _cancel(Tags... tags);
 
 	sofiasip::Home mHome{};
 	Owned<nta_outgoing_t> mOutgoing{nullptr};

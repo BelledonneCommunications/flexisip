@@ -22,6 +22,7 @@
 
 #include "flexisip/fork-context/fork-context.hh"
 
+#include "agent-interface.hh"
 #include "branch-info-db.hh"
 #include "fork-status.hh"
 #include "module-pushnotification.hh"
@@ -67,6 +68,8 @@ public:
 
 class BranchInfo : public std::enable_shared_from_this<BranchInfo> {
 public:
+	virtual ~BranchInfo() = default;
+
 	// Call the matching private ctor and instantiate as a shared_ptr.
 	template <typename... Args>
 	static std::shared_ptr<BranchInfo> make(Args&&... args) {
@@ -80,7 +83,7 @@ public:
 		if (auto listener = mListener.lock()) listener->onBranchCompleted(shared_from_this());
 	}
 
-	int getStatus() {
+	virtual int getStatus() {
 		return mLastResponse ? mLastResponse->getMsgSip()->getSip()->sip_status->st_status : 0;
 	}
 
@@ -95,8 +98,6 @@ public:
 	}
 
 	bool needsDelivery() {
-		if (cancelCompleted) return false;
-
 		auto currentStatus = getStatus();
 		return currentStatus < 200 || currentStatus == 503 || currentStatus == 408;
 	}
@@ -137,12 +138,9 @@ public:
 	/**
 	 * Only used with Invite/ForkCall
 	 */
-	bool cancelCompleted = false;
 	std::weak_ptr<PushNotificationContext> pushContext{};
 
-private:
-	// Private ctors
-
+protected:
 	/**
 	 * Used to create an empty fake branch
 	 */
@@ -156,16 +154,15 @@ private:
 	 * Used when restoring BranchInfo from database in fork-late mode.
 	 */
 	template <typename T>
-	BranchInfo(T&& ctx, const BranchInfoDb& dbObject, const std::shared_ptr<Agent>& agent)
-	    : mForkCtx{std::forward<T>(ctx)} {
+	BranchInfo(T&& ctx, const BranchInfoDb& dbObject, AgentInterface* agent) : mForkCtx{std::forward<T>(ctx)} {
 		mUid = dbObject.contactUid;
 		mClearedCount = dbObject.clearedCount;
 		mPriority = dbObject.priority;
 		auto request = std::make_shared<MsgSip>(0, dbObject.request);
-		mRequest = std::make_shared<RequestSipEvent>(agent, request);
+		mRequest = std::make_shared<RequestSipEvent>(agent->getIncomingAgent(), request);
 		auto lastResponse =
 		    !dbObject.lastResponse.empty() ? std::make_shared<MsgSip>(0, dbObject.lastResponse) : nullptr;
-		mLastResponse = std::make_shared<ResponseSipEvent>(agent, lastResponse);
+		mLastResponse = std::make_shared<ResponseSipEvent>(agent->getOutgoingAgent(), lastResponse);
 		mLastResponse->setIncomingAgent(std::shared_ptr<IncomingAgent>());
 	}
 };

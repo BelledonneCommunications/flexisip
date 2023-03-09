@@ -20,6 +20,7 @@
 
 #include <memory>
 
+#include "agent-interface.hh"
 #include "flexisip/event.hh"
 #include "flexisip/fork-context/fork-context.hh"
 #include "flexisip/module-router.hh"
@@ -86,7 +87,8 @@ public:
 	static const int sAllCodesUrgent[];
 
 protected:
-	ForkContextBase(const std::shared_ptr<ModuleRouter>& router,
+	ForkContextBase(const std::shared_ptr<ModuleRouterInterface>& router,
+	                AgentInterface* agent,
 	                const std::shared_ptr<RequestSipEvent>& event,
 	                const std::shared_ptr<ForkContextConfig>& cfg,
 	                const std::weak_ptr<ForkContextListener>& listener,
@@ -125,11 +127,12 @@ protected:
 	// Get a branch by specifying its request URI destination.
 	std::shared_ptr<BranchInfo> findBranchByDest(const SipUri& dest);
 	// Get the best candidate among all branches for forwarding its responses.
-	std::shared_ptr<BranchInfo> findBestBranch(const int urgentReplies[], bool avoid503And408 = false);
+	std::shared_ptr<BranchInfo> findBestBranch(bool avoid503And408 = false);
 	int getLastResponseCode() const;
 	void removeBranch(const std::shared_ptr<BranchInfo>& br);
 	const std::list<std::shared_ptr<BranchInfo>>& getBranches() const;
 	static bool isUrgent(int code, const int urgentCodes[]);
+	static bool isUseful4xx(int statusCode);
 	void processLateTimeout();
 
 	/**
@@ -157,8 +160,8 @@ protected:
 	bool m110Sent = false; /**< Whether a "110 Push sent" response has already been sent in the incoming transaction. */
 	bool mFinished = false;
 	float mCurrentPriority;
-	Agent* mAgent;
-	std::weak_ptr<ModuleRouter> mRouter;
+	AgentInterface* mAgent;
+	std::weak_ptr<ModuleRouterInterface> mRouter;
 	std::shared_ptr<RequestSipEvent> mEvent;
 	std::shared_ptr<ResponseSipEvent> mLastResponseSent;
 	std::shared_ptr<IncomingTransaction> mIncoming;
@@ -172,7 +175,7 @@ protected:
 	std::weak_ptr<ForkContextListener> mListener;
 
 private:
-	std::shared_ptr<BranchInfo> _findBestBranch(const int urgentReplies[], bool ignore503And408);
+	std::shared_ptr<BranchInfo> _findBestBranch(bool ignore503And408);
 	// Set the next branches to try and process them
 	void nextBranches();
 	void onNextBranches();

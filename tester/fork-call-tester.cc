@@ -61,10 +61,14 @@ static void callWithEarlyCancel() {
 
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
-	if (moduleRouter) {
-		BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
-		BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 1, int, "%i");
-	}
+	// Assert Fork is destroyed
+	CoreAssert({calleeClient->getCore(), callerClient->getCore()}, server->getAgent())
+	    .wait([&moduleRouter = *moduleRouter] {
+		    FAIL_IF(moduleRouter.mStats.mCountCallForks->start->read() != 1);
+		    FAIL_IF(moduleRouter.mStats.mCountCallForks->finish->read() != 1);
+		    return ASSERTION_PASSED();
+	    })
+	    .assert_passed();
 }
 
 static void callWithEarlyCancelCalleeOffline() {

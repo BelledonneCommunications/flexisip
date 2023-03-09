@@ -1023,10 +1023,6 @@ void ModuleRouter::onUselessRegisterNotification(const std::shared_ptr<ForkConte
 	mInjector->removeContext(ctx, newContact->contactId());
 }
 
-void ModuleRouter::removeInjectContext(const shared_ptr<ForkContext>& context, const string& contactId) {
-	mInjector->removeContext(context, contactId);
-}
-
 void ModuleRouter::sendToInjector(const shared_ptr<RequestSipEvent>& ev,
                                   const shared_ptr<ForkContext>& context,
                                   const string& contactId) {

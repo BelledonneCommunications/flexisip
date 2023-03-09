@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -38,8 +38,6 @@
 #include "sofia-sip/nth.h"
 #include "sofia-sip/sip.h"
 #include "sofia-sip/sip_util.h"
-#include "submodules/externals/sofia-sip/libsofia-sip-ua/sip/sofia-sip/sip_protos.h"
-#include "submodules/externals/sofia-sip/libsofia-sip-ua/sip/sofia-sip/sip_tag.h"
 
 #include "flexisip/common.hh"
 #include "flexisip/configmanager.hh"
@@ -47,6 +45,7 @@
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "flexisip/utils/sip-uri.hh"
 
+#include "agent-interface.hh"
 #include "eventlogs/eventlogs.hh"
 #include "transaction.hh"
 #include "transport.hh"
@@ -63,10 +62,11 @@ class DomainRegistrationManager;
  *
  * Refer to the flexisip.conf.sample installed by "make install" for documentation about what each module does.
  **/
-class Agent : public IncomingAgent,
+class Agent : public AgentInterface,
+              public IncomingAgent,
               public OutgoingAgent,
-              public std::enable_shared_from_this<Agent>,
-              public ConfigValueListener {
+              public ConfigValueListener,
+              public std::enable_shared_from_this<Agent> {
 	friend class IncomingTransaction;
 	friend class OutgoingTransaction;
 	friend class Module;
@@ -140,6 +140,13 @@ public:
 	Agent* getAgent() override {
 		return this;
 	}
+	std::shared_ptr<OutgoingAgent> getOutgoingAgent() override {
+		return shared_from_this();
+	}
+	std::shared_ptr<IncomingAgent> getIncomingAgent() override {
+		return shared_from_this();
+	}
+
 	// Preferred route for inter-proxy communication
 	std::string getPreferredRoute() const;
 	const url_t* getPreferredRouteUrl() const {
@@ -174,10 +181,10 @@ public:
 	const std::string& getUniqueId() const;
 	void idle();
 	bool isUs(const url_t* url, bool check_aliases = true) const;
-	const std::shared_ptr<sofiasip::SuRoot>& getRoot() const noexcept {
+	const std::shared_ptr<sofiasip::SuRoot>& getRoot() const noexcept override {
 		return mRoot;
 	}
-	nta_agent_t* getSofiaAgent() const {
+	nta_agent_t* getSofiaAgent() const override {
 		return mAgent;
 	}
 	int countUsInVia(sip_via_t* via) const;
@@ -187,10 +194,10 @@ public:
 	typedef void (*TimerCallback)(void* unused, su_timer_t* t, void* data);
 	su_timer_t* createTimer(int milliseconds, TimerCallback cb, void* data, bool repeating = true);
 	void stopTimer(su_timer_t* t);
-	void injectRequestEvent(std::shared_ptr<RequestSipEvent> ev);
-	void injectResponseEvent(std::shared_ptr<ResponseSipEvent> ev);
+	void injectRequestEvent(const std::shared_ptr<RequestSipEvent>& ev) override;
+	void injectResponseEvent(const std::shared_ptr<ResponseSipEvent>& ev) override;
 	void sendRequestEvent(std::shared_ptr<RequestSipEvent> ev);
-	void sendResponseEvent(std::shared_ptr<ResponseSipEvent> ev);
+	void sendResponseEvent(const std::shared_ptr<ResponseSipEvent>& ev) override;
 	void incrReplyStat(int status);
 	bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) override;
 	void logEvent(const std::shared_ptr<SipEvent>& ev);

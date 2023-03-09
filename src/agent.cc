@@ -587,8 +587,14 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root) {
 		LOGE("Can't find interface addresses: %s", strerror(err));
 	}
 	mRoot = root;
+
+	/**
+	 * We use NTATAG_CANCEL_487(0) so sofia-sip don't return a 487 responses to incoming CANCEL request automatically.
+	 * In fact CANCEL request will be sent using nta_outgoing_tcancel with NTATAG_CANCEL_2543(1) leading to 487
+	 * responses on each cancelled branches.
+	 */
 	mAgent = nta_agent_create(root->getCPtr(), (url_string_t*)-1, &Agent::messageCallback, (nta_agent_magic_t*)this,
-	                          TAG_END());
+	                          NTATAG_CANCEL_487(0), TAG_END());
 	su_home_init(&mHome);
 	mPreferredRouteV4 = nullptr;
 	mPreferredRouteV6 = nullptr;
@@ -962,7 +968,7 @@ void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	doSendEvent(ev, mModules.begin(), mModules.end());
 }
 
-void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
+void Agent::sendResponseEvent(const shared_ptr<ResponseSipEvent>& ev) {
 	if (mTerminating) {
 		// Avoid throwing a bad weak pointer on GatewayAdapter destruction
 		LOGI("Skipping incoming message on expired agent");
@@ -1022,7 +1028,7 @@ void Agent::sendResponseEvent(shared_ptr<ResponseSipEvent> ev) {
 	doSendEvent(ev, mModules.begin(), mModules.end());
 }
 
-void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
+void Agent::injectRequestEvent(const shared_ptr<RequestSipEvent>& ev) {
 	SipLogContext ctx{ev->getMsgSip()};
 	auto currModule = ev->mCurrModule.lock(); // Used to be a basic pointer
 	SLOGD << "Inject request SIP event [" << ev << "] after " << currModule->getModuleName() << ":\n"
@@ -1033,7 +1039,7 @@ void Agent::injectRequestEvent(shared_ptr<RequestSipEvent> ev) {
 	printEventTailSeparator();
 }
 
-void Agent::injectResponseEvent(shared_ptr<ResponseSipEvent> ev) {
+void Agent::injectResponseEvent(const shared_ptr<ResponseSipEvent>& ev) {
 	SipLogContext ctx{ev->getMsgSip()};
 	auto currModule = ev->mCurrModule.lock(); // Used to be a basic pointer
 	SLOGD << "Injecting response SIP event [" << ev << "] after " << currModule->getModuleName() << ":\n"

@@ -38,7 +38,13 @@ static bool contains(const list<T>& l, T value) {
 ForkCallContext::ForkCallContext(const shared_ptr<ModuleRouter>& router,
                                  const std::shared_ptr<RequestSipEvent>& event,
                                  sofiasip::MsgSipPriority priority)
-    : ForkContextBase(router, event, router->getCallForkCfg(), router, router->mStats.mCountCallForks, priority),
+    : ForkContextBase(router,
+                      router->getAgent(),
+                      event,
+                      router->getCallForkCfg(),
+                      router,
+                      router->mStats.mCountCallForks,
+                      priority),
       mLog{event->getEventLog<CallLog>()} {
 	SLOGD << "New ForkCallContext " << this;
 }
@@ -98,11 +104,9 @@ void ForkCallContext::cancelOthersWithStatus(const shared_ptr<BranchInfo>& br, F
 void ForkCallContext::cancelBranch(const std::shared_ptr<BranchInfo>& brit) {
 	auto& tr = brit->mTransaction;
 	if (tr && brit->getStatus() < 200) {
-		if (mCancelReason) tr->cancelWithReason(mCancelReason, brit);
-		else tr->cancel(brit);
+		if (mCancelReason) tr->cancelWithReason(mCancelReason);
+		else tr->cancel();
 	}
-
-	if (!mCfg->mForkLate) removeBranch(brit);
 }
 
 const int ForkCallContext::sUrgentCodesWithout603[] = {401, 407, 415, 420, 484, 488, 606, 0};
@@ -130,12 +134,11 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, const shared_
 		if (code >= 600) {
 			/*6xx response are normally treated as global failures */
 			if (!mCfg->mForkNoGlobalDecline) {
-				logResponse(forwardResponse(br));
 				mCancelled = true;
 				cancelOthersWithStatus(br, ForkStatus::DeclineElsewhere);
 			}
 		} else if (allBranchesAnswered(mCfg->mForkLate)) {
-			shared_ptr<BranchInfo> best = findBestBranch(getUrgentCodes(), mCfg->mForkLate);
+			shared_ptr<BranchInfo> best = findBestBranch(mCfg->mForkLate);
 			if (best) logResponse(forwardResponse(best));
 		} else if (isUrgent(code, getUrgentCodes()) && mShortTimer == nullptr) {
 			mShortTimer = make_unique<sofiasip::Timer>(mAgent->getRoot());
@@ -235,14 +238,14 @@ void ForkCallContext::onShortTimer() {
 
 	if (isRingingSomewhere()) return; /*it's ringing somewhere*/
 
-	auto br = findBestBranch(getUrgentCodes(), mCfg->mForkLate);
+	auto br = findBestBranch(mCfg->mForkLate);
 
 	if (br) logResponse(forwardResponse(br));
 }
 
 void ForkCallContext::onLateTimeout() {
 	if (mIncoming) {
-		auto br = findBestBranch(getUrgentCodes(), mCfg->mForkLate);
+		auto br = findBestBranch(mCfg->mForkLate);
 
 		if (!br || br->getStatus() == 0 || br->getStatus() == 503) {
 			logResponse(forwardCustomResponse(SIP_408_REQUEST_TIMEOUT));

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -83,6 +83,7 @@ ForkMessageContext::ForkMessageContext(const std::shared_ptr<ModuleRouter>& rout
                                        sofiasip::MsgSipPriority msgPriority,
                                        bool isRestored)
     : ForkContextBase(router,
+                      router->getAgent(),
                       event,
                       router->getMessageForkCfg(),
                       listener,
@@ -179,8 +180,7 @@ void ForkMessageContext::acceptMessage() {
 
 	/*in fork late mode, never answer a service unavailable*/
 	shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_202_ACCEPTED));
-	shared_ptr<ResponseSipEvent> ev(
-	    new ResponseSipEvent(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip));
+	shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(mAgent->getOutgoingAgent(), msgsip));
 	forwardResponse(ev);
 	if (mIsMessage)
 		logReceivedFromUserEvent(mEvent, ev); /*in the sender's log will appear the 202 accepted from Flexisip server*/
@@ -291,7 +291,7 @@ ForkMessageContextDb ForkMessageContext::getDbObject() {
 }
 
 void ForkMessageContext::restoreBranch(const BranchInfoDb& dbBranch) {
-	mWaitingBranches.push_back(BranchInfo::make(shared_from_this(), dbBranch, mAgent->shared_from_this()));
+	mWaitingBranches.push_back(BranchInfo::make(shared_from_this(), dbBranch, mAgent));
 }
 
 #ifdef ENABLE_UNIT_TESTS

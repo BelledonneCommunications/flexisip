@@ -21,6 +21,7 @@
 #include <memory>
 
 #include "flexisip/fork-context/fork-context.hh"
+#include "flexisip/module-router-interface.hh"
 #include "flexisip/module.hh"
 #include "flexisip/registrar/registar-listeners.hh"
 
@@ -40,6 +41,7 @@ class Agent;
 class Record;
 
 class ModuleRouter : public Module,
+                     public ModuleRouterInterface,
                      public ModuleToolbox,
                      public ForkContextListener,
                      public std::enable_shared_from_this<ModuleRouter> {
@@ -112,8 +114,7 @@ public:
 
 	void sendToInjector(const std::shared_ptr<RequestSipEvent>& ev,
 	                    const std::shared_ptr<ForkContext>& context,
-	                    const std::string& contactId);
-	void removeInjectContext(const std::shared_ptr<ForkContext>& context, const std::string& contactId);
+	                    const std::string& contactId) override;
 
 	static void setMaxPriorityHandled(sofiasip::MsgSipPriority maxPriorityHandled) {
 		sMaxPriorityHandled = maxPriorityHandled;

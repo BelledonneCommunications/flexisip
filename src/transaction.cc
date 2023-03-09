@@ -16,6 +16,8 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "transaction.hh"
+
 #include <algorithm>
 
 #include <sofia-sip/su_md5.h>
@@ -29,7 +31,6 @@
 
 #include "agent.hh"
 #include "fork-context/branch-info.hh"
-#include "transaction.hh"
 
 using namespace std;
 
@@ -78,42 +79,22 @@ su_home_t* OutgoingTransaction::getHome() {
 }
 
 template <typename... Tags>
-void OutgoingTransaction::_cancel(std::weak_ptr<BranchInfo>& branch, Tags... tags) {
+void OutgoingTransaction::_cancel(Tags... tags) {
 	if (mOutgoing) {
-		// WARNING : magicWeak MUST be deleted in callback
-		auto magicWeak = make_unique<weak_ptr<BranchInfo>>(branch);
-		nta_outgoing_tcancel(mOutgoing.borrow(), OutgoingTransaction::onCancelResponse,
-		                     (nta_outgoing_magic_t*)magicWeak.release(), tags..., TAG_END());
+		// NTATAG_CANCEL_2543(1) --> the stack generates a 487 response to the request internally
+		nta_outgoing_tcancel(mOutgoing.borrow(), nullptr, nullptr, tags..., NTATAG_CANCEL_2543(1), TAG_END());
 		mSelfRef.reset();
 	} else {
 		LOGE("OutgoingTransaction::cancel(): transaction already destroyed.");
 	}
 }
 
-void OutgoingTransaction::cancel(std::weak_ptr<BranchInfo> branch) {
-	_cancel(branch);
+void OutgoingTransaction::cancel() {
+	_cancel();
 }
 
-void OutgoingTransaction::cancelWithReason(sip_reason_t* reason, std::weak_ptr<BranchInfo> branch) {
-	_cancel(branch, SIPTAG_REASON(reason));
-}
-
-int OutgoingTransaction::onCancelResponse(nta_outgoing_magic_t* magic, [[maybe_unused]] nta_outgoing_t* irq, const sip_t* sip) {
-	using BranchPtr = weak_ptr<BranchInfo>;
-	auto magicWeakBranch = unique_ptr<BranchPtr>(reinterpret_cast<BranchPtr*>(magic));
-
-	if (sip != nullptr) {
-		if (sip->sip_status && sip->sip_status->st_status >= 200 && sip->sip_status->st_status < 300) {
-			if (auto sharedBranch = magicWeakBranch->lock()) {
-				sharedBranch->cancelCompleted = true;
-				if (auto sharedFork = sharedBranch->mForkCtx.lock()) {
-					sharedFork->checkFinished();
-				}
-			}
-		}
-	}
-
-	return 0;
+void OutgoingTransaction::cancelWithReason(sip_reason_t* reason) {
+	_cancel(SIPTAG_REASON(reason));
 }
 
 const url_t* OutgoingTransaction::getRequestUri() const {
@@ -281,9 +262,6 @@ int IncomingTransaction::_callback(nta_incoming_magic_t* magic, [[maybe_unused]]
 		    it->shared_from_this(),
 		    make_shared<MsgSip>(ownership::owned(nta_incoming_getrequest_ackcancel(it->mIncoming))));
 		it->mAgent->sendRequestEvent(ev);
-		if (sip->sip_request && sip->sip_request->rq_method == sip_method_cancel) {
-			it->destroy();
-		}
 	} else {
 		it->destroy();
 	}

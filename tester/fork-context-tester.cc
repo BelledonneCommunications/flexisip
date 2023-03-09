@@ -22,6 +22,7 @@
 #include "flexisip/registrar/registar-listeners.hh"
 
 #include "agent.hh"
+#include "fork-context/fork-context-base.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/registrar-db.hh"
 #include "tester.hh"
@@ -301,6 +302,176 @@ static void globalOrderTestNoSql() {
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), nbOfMessages, int, "%i");
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////// UNIT TESTS findBestBranch//////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////
+
+class AgentMock : public AgentInterface {
+public:
+	~AgentMock() override = default;
+	std::shared_ptr<OutgoingAgent> getOutgoingAgent() override {
+		return std::shared_ptr<OutgoingAgent>();
+	}
+	std::shared_ptr<IncomingAgent> getIncomingAgent() override {
+		return std::shared_ptr<IncomingAgent>();
+	}
+	nta_agent_t* getSofiaAgent() const override {
+		return nullptr;
+	}
+	void injectRequestEvent([[maybe_unused]] const shared_ptr<RequestSipEvent>& ev) override {
+	}
+	void injectResponseEvent([[maybe_unused]] const shared_ptr<ResponseSipEvent>& ev) override {
+	}
+	void sendResponseEvent([[maybe_unused]] const shared_ptr<ResponseSipEvent>& ev) override {
+	}
+	const shared_ptr<sofiasip::SuRoot>& getRoot() const noexcept override {
+		return mRoot;
+	}
+
+private:
+	shared_ptr<sofiasip::SuRoot> mRoot = make_shared<sofiasip::SuRoot>();
+};
+
+class BranchInfoTest : public BranchInfo {
+public:
+	explicit BranchInfoTest(int mTestStatus) : mTestStatus(mTestStatus) {
+	}
+	virtual ~BranchInfoTest() {
+	}
+
+	int getStatus() override {
+		return mTestStatus;
+	}
+
+private:
+	int mTestStatus;
+};
+
+class ForkContextForTest : public ForkContextBase {
+public:
+	ForkContextForTest(AgentInterface* agentMock)
+	    : ForkContextBase(nullptr,
+	                      agentMock,
+	                      nullptr,
+	                      nullptr,
+	                      std::weak_ptr<ForkContextListener>(),
+	                      std::weak_ptr<StatPair>(),
+	                      sofiasip::MsgSipPriority::Normal,
+	                      true) {
+	}
+
+	void addFakeBranch(const std::shared_ptr<BranchInfoTest>& br) {
+		mWaitingBranches.push_back(br);
+	}
+	void onNewRegister([[maybe_unused]] const SipUri& dest,
+	                   [[maybe_unused]] const std::string& uid,
+	                   [[maybe_unused]] const std::shared_ptr<ExtendedContact>& newContact) override{};
+
+	const char* getClassName() const override {
+		return "ForkContextForTest";
+	}
+
+	shared_ptr<BranchInfo> pubFindBestBranch(bool avoid503And408) {
+		return this->findBestBranch(avoid503And408);
+	}
+
+private:
+	unique_ptr<AgentMock> agentMock{};
+};
+
+class FindBestBranchTest : public Test {
+public:
+	FindBestBranchTest(bool brFound, int statusCodeExpected, const vector<int>& statusList, bool avoid503And408 = true)
+	    : mBrFound(brFound), mStatusCodeExpected(statusCodeExpected), mStatusList(statusList),
+	      mAvoid503And408(avoid503And408) {
+	}
+	void operator()() override {
+		ForkContextForTest fork{mAgentMock.get()};
+		for_each(mStatusList.begin(), mStatusList.end(), [&fork](auto i) {
+			const auto br = make_shared<BranchInfoTest>(i);
+			fork.addFakeBranch(br);
+		});
+
+		const auto& br = fork.pubFindBestBranch(mAvoid503And408);
+
+		BC_HARD_ASSERT_TRUE((br != nullptr) == mBrFound);
+		if (br != nullptr) BC_HARD_ASSERT_CPP_EQUAL(br->getStatus(), mStatusCodeExpected);
+	}
+
+private:
+	unique_ptr<AgentMock> mAgentMock = make_unique<AgentMock>();
+	bool mBrFound;
+	int mStatusCodeExpected;
+	vector<int> mStatusList;
+	bool mAvoid503And408;
+	vector<int> mUrgentCode{};
+};
+
+class FindBestBranch6xxTest : public FindBestBranchTest {
+public:
+	FindBestBranch6xxTest() : FindBestBranchTest(true, 600, {420, 300, 603, 600, 301, 504}) {
+	}
+};
+
+class FindBestBranch4xxTest : public FindBestBranchTest {
+public:
+	// 407 is more useful than 410, see SIP RFC.
+	FindBestBranch4xxTest() : FindBestBranchTest(true, 407, {503, 505, 410, 400, 407, 401}) {
+	}
+};
+
+class FindBestBranch3xxTest : public FindBestBranchTest {
+public:
+	FindBestBranch3xxTest() : FindBestBranchTest(true, 302, {503, 302, 410, 400, 407, 401, 300}) {
+	}
+};
+
+class FindBestBranch2xxTest : public FindBestBranchTest {
+public:
+	FindBestBranch2xxTest() : FindBestBranchTest(true, 200, {204, 202, 603, 600, 200, 301, 504, 201}) {
+	}
+};
+
+class FindBestBranchAvoid503Test : public FindBestBranchTest {
+public:
+	FindBestBranchAvoid503Test() : FindBestBranchTest(true, 500, {503, 500}) {
+	}
+};
+
+class FindBestBranchAvoid408Test : public FindBestBranchTest {
+public:
+	FindBestBranchAvoid408Test() : FindBestBranchTest(true, 500, {503, 500, 408}) {
+	}
+};
+
+class FindBestBranchDontAvoid503Test : public FindBestBranchTest {
+public:
+	FindBestBranchDontAvoid503Test() : FindBestBranchTest(true, 503, {503, 500}, false) {
+	}
+};
+
+class FindBestBranchDontAvoid408Test : public FindBestBranchTest {
+public:
+	FindBestBranchDontAvoid408Test() : FindBestBranchTest(true, 408, {503, 500, 408}, false) {
+	}
+};
+
+class FindBestBranchNoBranchConsidered : public FindBestBranchTest {
+public:
+	FindBestBranchNoBranchConsidered() : FindBestBranchTest(false, 0, {180, 100, 42}) {
+	}
+};
+
+class FindBestBranchNoBranchConsidered408Fallback : public FindBestBranchTest {
+public:
+	FindBestBranchNoBranchConsidered408Fallback() : FindBestBranchTest(true, 408, {180, 100, 408, 42}) {
+	}
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////
+
 namespace {
 TestSuite _("Fork context",
             {
@@ -308,6 +479,16 @@ TestSuite _("Fork context",
                 TEST_NO_TAG("No RTP port available and ForkCallContext leak", notRtpPortAndForkCallContext),
                 TEST_NO_TAG("Fork message context with fork late and no database : retention and order check",
                             globalOrderTestNoSql),
+                TEST_NO_TAG_AUTO_NAMED(run<FindBestBranch6xxTest>),
+                TEST_NO_TAG_AUTO_NAMED(run<FindBestBranch4xxTest>),
+                TEST_NO_TAG_AUTO_NAMED(run<FindBestBranch3xxTest>),
+                TEST_NO_TAG_AUTO_NAMED(run<FindBestBranch2xxTest>),
+                TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchAvoid503Test>),
+                TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchAvoid408Test>),
+                TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchDontAvoid503Test>),
+                TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchDontAvoid408Test>),
+                TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchNoBranchConsidered>),
+                TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchNoBranchConsidered408Fallback>),
             },
             Hooks()
                 .beforeEach([] {

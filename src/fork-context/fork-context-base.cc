@@ -30,17 +30,17 @@ const int ForkContextBase::sUrgentCodes[] = {401, 407, 415, 420, 484, 488, 606, 
 
 const int ForkContextBase::sAllCodesUrgent[] = {-1, 0};
 
-ForkContextBase::ForkContextBase(const std::shared_ptr<ModuleRouter>& router,
+ForkContextBase::ForkContextBase(const std::shared_ptr<ModuleRouterInterface>& router,
+                                 AgentInterface* agent,
                                  const std::shared_ptr<RequestSipEvent>& event,
                                  const std::shared_ptr<ForkContextConfig>& cfg,
                                  const std::weak_ptr<ForkContextListener>& listener,
                                  const std::weak_ptr<StatPair>& counter,
                                  sofiasip::MsgSipPriority priority,
                                  bool isRestored)
-    : mCurrentPriority(-1), mAgent(router->getAgent()), mRouter(router),
-      mEvent(make_shared<RequestSipEvent>(event)), // Is this deep copy really necessary ?
-      mCfg(cfg), mLateTimer(mAgent->getRoot()), mFinishTimer(mAgent->getRoot()), mNextBranchesTimer(mAgent->getRoot()),
-      mMsgPriority(priority), mListener(listener), mStatCounter(counter) {
+    : mCurrentPriority(-1), mAgent(agent), mRouter(router), mEvent(event), mCfg(cfg), mLateTimer(mAgent->getRoot()),
+      mFinishTimer(mAgent->getRoot()), mNextBranchesTimer(mAgent->getRoot()), mMsgPriority(priority),
+      mListener(listener), mStatCounter(counter) {
 	if (auto sharedCounter = mStatCounter.lock()) {
 		sharedCounter->incrStart();
 	} else {
@@ -125,29 +125,46 @@ static bool isConsidered(int code, bool ignore503And408) {
 	return ignore503And408 ? (!(code == 503 || code == 408)) : true;
 }
 
-shared_ptr<BranchInfo> ForkContextBase::_findBestBranch(const int urgentCodes[], bool ignore503And408) {
-	shared_ptr<BranchInfo> best;
+bool ForkContextBase::isUseful4xx(int statusCode) {
+	constexpr std::array<int, 5> useful4xxCodes = {401, 407, 415, 420, 484};
+	return (std::find(useful4xxCodes.begin(), useful4xxCodes.end(), statusCode) != useful4xxCodes.end());
+}
+
+std::shared_ptr<BranchInfo> ForkContextBase::_findBestBranch(bool ignore503And408) {
+	shared_ptr<BranchInfo> best{nullptr};
 
 	for (const auto& br : mWaitingBranches) {
-		int code = br->getStatus();
-		if (code >= 200 && isConsidered(code, ignore503And408)) {
-			if (best == NULL) {
+		auto brStatus = br->getStatus();
+		if (brStatus >= 200 && isConsidered(brStatus, ignore503And408)) {
+			if (best == nullptr) {
 				best = br;
-			} else {
-				if (br->getStatus() / 100 < best->getStatus() / 100) best = br;
+				continue;
 			}
-		}
-	}
+			const auto bestStatus = best->getStatus();
+			const auto bestClass = bestStatus / 100;
+			const auto brClass = brStatus / 100;
 
-	if (best == NULL) return shared_ptr<BranchInfo>();
+			// Handle 2xx
+			if (brClass == 2) {
+				if (brStatus < bestStatus) best = br;
+				continue;
+			}
+			if (bestClass == 2) continue;
 
-	if (urgentCodes) {
-		for (const auto& br : mWaitingBranches) {
-			int code = br->getStatus();
+			// Handle 6xx
+			if (brClass == 6) {
+				if (bestClass != 6 || (brStatus < bestStatus && bestClass == 6)) best = br;
+				continue;
+			}
+			if (bestClass == 6) continue;
 
-			if (code > 0 && isConsidered(code, ignore503And408) && isUrgent(code, urgentCodes)) {
+			// Handle 4xx and the rest
+			if (brClass == 4 && bestClass == 4) {
+				if (!isUseful4xx(bestStatus) && isUseful4xx(brStatus)) {
+					best = br;
+				}
+			} else if (brClass < bestClass) {
 				best = br;
-				break;
 			}
 		}
 	}
@@ -155,14 +172,14 @@ shared_ptr<BranchInfo> ForkContextBase::_findBestBranch(const int urgentCodes[],
 	return best;
 }
 
-shared_ptr<BranchInfo> ForkContextBase::findBestBranch(const int urgentCodes[], bool avoid503And408) {
+std::shared_ptr<BranchInfo> ForkContextBase::findBestBranch(bool avoid503And408) {
 	shared_ptr<BranchInfo> ret;
 
-	if (avoid503And408 == false) ret = _findBestBranch(urgentCodes, false);
-	else {
-		ret = _findBestBranch(urgentCodes, true);
-
-		if (ret == NULL) ret = _findBestBranch(urgentCodes, false);
+	if (avoid503And408 == false) {
+		ret = _findBestBranch(false);
+	} else {
+		ret = _findBestBranch(true);
+		if (ret == nullptr) ret = _findBestBranch(false);
 	}
 
 	return ret;
@@ -269,7 +286,7 @@ void ForkContextBase::sendResponse(int code, char const* phrase, bool addToTag) 
 	auto msgsip = mIncoming->createResponse(code, phrase);
 	if (!msgsip) return;
 
-	auto ev = make_shared<ResponseSipEvent>(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip);
+	auto ev = make_shared<ResponseSipEvent>(mAgent->getOutgoingAgent(), msgsip);
 
 	// add a to tag, no set by sofia here.
 	if (addToTag) {
@@ -540,8 +557,7 @@ shared_ptr<ResponseSipEvent> ForkContextBase::forwardCustomResponse(int status, 
 	}
 	auto msgsip = mIncoming->createResponse(status, phrase);
 	if (msgsip) {
-		auto ev =
-		    make_shared<ResponseSipEvent>(dynamic_pointer_cast<OutgoingAgent>(mAgent->shared_from_this()), msgsip);
+		auto ev = make_shared<ResponseSipEvent>(mAgent->getOutgoingAgent(), msgsip);
 		return forwardResponse(ev);
 	} else { // Should never happen
 		SLOGE << errorLogPrefix()
@@ -571,7 +587,7 @@ void ForkContextBase::checkFinished() {
 		                                [](const shared_ptr<BranchInfo>& branch) { return branch->needsDelivery(); });
 	}
 	if (allBranchesTerminated) {
-		shared_ptr<BranchInfo> br = findBestBranch(sUrgentCodes);
+		shared_ptr<BranchInfo> br = findBestBranch();
 		if (br) {
 			forwardResponse(br);
 		}
