@@ -22,6 +22,7 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <limits>
 #include <list>
 #include <regex>
 
@@ -179,64 +180,83 @@ static void dump_remaining_msgs() {
 	}
 }
 
-static int getSystemFdLimit() {
-	static int max_sys_fd = -1;
-	if (max_sys_fd == -1) {
+static rlim_t getSystemFdLimit() {
 #ifdef __linux
-		char tmp[256] = {0}; // make valgrind happy
-		int fd = open("/proc/sys/fs/file-max", O_RDONLY);
-		if (fd != -1) {
-			if (read(fd, tmp, sizeof(tmp)) > 0) {
-				int val = 0;
-				if (sscanf(tmp, "%i", &val) == 1) {
-					max_sys_fd = val;
-					LOGI("System wide maximum number of file descriptors is %i", max_sys_fd);
-				}
-			}
-			close(fd);
-			fd = open("/proc/sys/fs/nr_open", O_RDONLY);
-			if (fd != -1) {
-				if (read(fd, tmp, sizeof(tmp)) > 0) {
-					int val = 0;
-					if (sscanf(tmp, "%i", &val) == 1) {
-						LOGI("System wide maximum number open files is %i", val);
-						if (val < max_sys_fd) {
-							max_sys_fd = val;
-						}
-					}
-				}
-				close(fd);
-			}
+	static rlim_t maxSysFd = 0;
+	constexpr auto systemLimitGetError = "unable to get system limit for number of open file descriptors";
+
+	if (maxSysFd == 0) {
+		auto f = fstream{};
+		f.exceptions(ios::badbit | ios::failbit | ios::eofbit);
+
+		constexpr auto fileMaxFilePath = "/proc/sys/fs/file-max";
+		try {
+			f.open(fileMaxFilePath, ios::in);
+			f >> maxSysFd;
+			SLOGI << "system wide maximum number of file descriptors is " << maxSysFd;
+			f.close();
+		} catch (const exception& e) {
+			SLOGE << "cannot read value from " << fileMaxFilePath << ": " << e.what();
+			throw runtime_error{systemLimitGetError};
 		}
-#else
-		LOGW("Guessing of system wide fd limit is not implemented.");
-		max_sys_fd = 2048;
-#endif
+
+		constexpr auto nrOpenFilePath = "/proc/sys/fs/nr_open";
+		try {
+			f.open(nrOpenFilePath, ios::in);
+			decltype(maxSysFd) value = 0;
+			f >> value;
+			SLOGI << "system wide maximum number open files is " << value;
+			maxSysFd = min(value, maxSysFd);
+			f.close();
+		} catch (const exception& e) {
+			SLOGE << "cannot read value from " << nrOpenFilePath << ": " << e.what();
+		}
 	}
-	return max_sys_fd;
+
+	if (maxSysFd == 0) {
+		throw runtime_error{systemLimitGetError};
+	}
+
+	return maxSysFd;
+#else
+	LOGW("Guessing of system wide fd limit is not implemented.");
+	return 2048;
+#endif
 }
 
-static void increase_fd_limit(void) {
-	struct rlimit lm;
+static void increaseFDLimit() noexcept {
+	struct rlimit lm {};
 	if (getrlimit(RLIMIT_NOFILE, &lm) == -1) {
 		LOGE("getrlimit(RLIMIT_NOFILE) failed: %s", strerror(errno));
-	} else {
-		unsigned new_limit = (unsigned)getSystemFdLimit();
-		int old_lim = (int)lm.rlim_cur;
-		LOGI("Maximum number of open file descriptors is %i, limit=%i, system wide limit=%i", (int)lm.rlim_cur,
-		     (int)lm.rlim_max, getSystemFdLimit());
+		return;
+	}
 
-		if (lm.rlim_cur < new_limit) {
-			lm.rlim_cur = lm.rlim_max = new_limit;
+	auto newLimitAsStr = ""s;
+	try {
+		newLimitAsStr = to_string(getSystemFdLimit());
+	} catch (const exception&) {
+		newLimitAsStr = "<unknown>";
+	}
+
+	SLOGI << "Maximum number of open file descriptors is " << lm.rlim_cur << ", limit=" << lm.rlim_max
+	      << ", system wide limit=" << newLimitAsStr;
+
+	try {
+		const auto systemLimit = getSystemFdLimit();
+		if (lm.rlim_cur < systemLimit) {
+			const auto oldLimit = lm.rlim_cur;
+			lm.rlim_cur = lm.rlim_max = systemLimit;
 			if (setrlimit(RLIMIT_NOFILE, &lm) == -1) {
-				LOGE("setrlimit(RLIMIT_NOFILE) failed: %s. Limit of number of file descriptors is low (%i).",
-				     strerror(errno), old_lim);
-				LOGE("Flexisip will not be able to process a big number of calls.");
+				SLOGE << "setrlimit(RLIMIT_NOFILE) failed: " << strerror(errno)
+				      << ". Limit of number of file descriptors is low (" << oldLimit << ")";
+				SLOGE << "Flexisip will not be able to process a big number of calls.";
 			}
 			if (getrlimit(RLIMIT_NOFILE, &lm) == 0) {
-				LOGI("Maximum number of file descriptor set to %i.", (int)lm.rlim_cur);
+				SLOGI << "Maximum number of file descriptor set to " << lm.rlim_cur;
 			}
 		}
+	} catch (const exception& e) {
+		SLOGE << "error while setting file descriptors limit: " << e.what();
 	}
 }
 
@@ -939,7 +959,7 @@ int main(int argc, char* argv[]) {
 	LOGN("Starting flexisip %s-server version %s", fName.c_str(), FLEXISIP_GIT_VERSION);
 	GenericManager::get()->sendTrap("Flexisip " + fName + "-server starting");
 
-	increase_fd_limit();
+	increaseFDLimit();
 
 	/*
 	 * We create an Agent in all cases, because it will declare config items that are necessary for presence server to
