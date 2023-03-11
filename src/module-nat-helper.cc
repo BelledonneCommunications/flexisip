@@ -243,7 +243,25 @@ private:
 		fixTransport(ms->getHome(), path, transport);
 	}
 	bool isPrivateAddress(const char *host) {
-		return strstr(host, "10.") == host || strstr(host, "192.168.") == host || strstr(host, "176.12.") == host;
+ 			return strstr(host,"10.") == host //RFC1918 Class A
+ 				|| strstr(host,"192.168.") == host //RFC1918 Class C
+				|| strstr(host,"176.12.") == host //Not RFC1918 Flexisip ???
+				|| strstr(host,"172.16.") == host //RFC1918 Class B (from this line until the end of the condition)
+				|| strstr(host,"172.17.") == host
+				|| strstr(host,"172.18.") == host
+				|| strstr(host,"172.19.") == host
+				|| strstr(host,"172.20.") == host
+				|| strstr(host,"172.21.") == host
+				|| strstr(host,"172.22.") == host
+				|| strstr(host,"172.23.") == host
+				|| strstr(host,"172.24.") == host
+				|| strstr(host,"172.25.") == host
+				|| strstr(host,"172.26.") == host
+				|| strstr(host,"172.27.") == host
+				|| strstr(host,"172.28.") == host
+				|| strstr(host,"172.29.") == host
+				|| strstr(host,"172.30.") == host
+				|| strstr(host,"172.31.") == host;
 	}
 	void fixRecordRouteInRequest(shared_ptr<MsgSip> &ms) {
 		sip_t *sip = ms->getSip();

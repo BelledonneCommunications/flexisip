@@ -27,7 +27,7 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
-std::string AppleClient::APN_DEV_ADDRESS{"api.development.push.apple.com"};
+std::string AppleClient::APN_DEV_ADDRESS{"api.sandbox.push.apple.com"};
 std::string AppleClient::APN_PROD_ADDRESS{"api.push.apple.com"};
 std::string AppleClient::APN_PORT{"443"};
 
@@ -40,9 +40,10 @@ AppleClient::AppleClient(sofiasip::SuRoot& root,
 	ostringstream os{};
 	os << "AppleClient[" << this << "]";
 	mLogPrefix = os.str();
-	SLOGD << mLogPrefix << ": constructing AppleClient";
+	SLOGD << mLogPrefix << ": constructing AppleClient certName: " << certName;
 
-	const auto apn_server = (certName.find(".dev") != string::npos) ? APN_DEV_ADDRESS : APN_PROD_ADDRESS;
+	const auto apn_server = StringUtils::endsWith(certName, ".dev") ? APN_DEV_ADDRESS : APN_PROD_ADDRESS;
+	SLOGD << mLogPrefix << ": APNS server " << apn_server;
 	mHttp2Client = Http2Client::make(root, apn_server, APN_PORT, trustStorePath, certPath);
 }
 
