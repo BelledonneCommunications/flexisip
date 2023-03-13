@@ -110,8 +110,9 @@ def sendMessage(remote_socket, message):
 		s.connect(remote_socket)
 		s.send(message.encode())
 		print(s.recv(65535).decode())
-	except socket.error:
-		print('error: could not connect to the socket', file=sys.stderr)
+	except socket.error as err:
+		print('error: could not connect to socket {!r}: {!r}'.format(remote_socket, err), file=sys.stderr)
+		# error: could not connect to socket '/tmp/flexisip-proxy-15150': PermissionError(13, 'Permission denied')
 	s.close()
 
 
