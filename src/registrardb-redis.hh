@@ -139,6 +139,7 @@ public:
 
 	friend std::ostream& operator<<(std::ostream& out, const RedisArgsPacker& args);
 
+
 private:
 	void addArg(const std::string& arg) {
 		mArgs.emplace_back(arg);
