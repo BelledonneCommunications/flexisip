@@ -42,7 +42,7 @@ void RegistrarDbInternal::doBind(const MsgSip& msg,
 	SipUri fromUri;
 	try {
 		fromUri = SipUri(sip->sip_from->a_url);
-	} catch (const invalid_argument &e) {
+	} catch (const invalid_argument& e) {
 		throw InvalidAorError(sip->sip_from->a_url);
 	}
 
@@ -71,7 +71,7 @@ void RegistrarDbInternal::doBind(const MsgSip& msg,
 	if (listener) listener->onRecordFound(r);
 }
 
-void RegistrarDbInternal::doFetch(const SipUri &url, const shared_ptr<ContactUpdateListener> &listener) {
+void RegistrarDbInternal::doFetch(const SipUri& url, const shared_ptr<ContactUpdateListener>& listener) {
 	string key = Record::defineKeyFromUrl(url.get());
 
 	auto it = mRecords.find(key);
@@ -88,7 +88,9 @@ void RegistrarDbInternal::doFetch(const SipUri &url, const shared_ptr<ContactUpd
 	listener->onRecordFound(r);
 }
 
-void RegistrarDbInternal::doFetchInstance(const SipUri &url, const string &uniqueId, const shared_ptr<ContactUpdateListener> &listener) {
+void RegistrarDbInternal::doFetchInstance(const SipUri& url,
+                                          const string& uniqueId,
+                                          const shared_ptr<ContactUpdateListener>& listener) {
 	string key(Record::defineKeyFromUrl(url.get()));
 	sofiasip::Home home;
 
@@ -109,10 +111,10 @@ void RegistrarDbInternal::doFetchInstance(const SipUri &url, const string &uniqu
 		return;
 	}
 
-	const list<shared_ptr<ExtendedContact>> &contacts = r->getExtendedContacts();
+	const list<shared_ptr<ExtendedContact>>& contacts = r->getExtendedContacts();
 	shared_ptr<Record> retRecord = make_shared<Record>(url);
-	for (const auto &contact : contacts) {
-		if (contact->mUniqueId == uniqueId){
+	for (const auto& contact : contacts) {
+		if (contact->mUniqueId == uniqueId) {
 			retRecord->pushContact(contact);
 			break;
 		}
@@ -120,15 +122,19 @@ void RegistrarDbInternal::doFetchInstance(const SipUri &url, const string &uniqu
 	listener->onRecordFound(retRecord);
 }
 
-void RegistrarDbInternal::fetchExpiringContacts(time_t startTimestamp,
-                                                std::chrono::seconds timeRange,
+void RegistrarDbInternal::fetchExpiringContacts(time_t current_time,
+                                                float threshold,
                                                 std::function<void(std::vector<ExtendedContact>&&)>&& callback) const {
-	const auto deadline = startTimestamp + timeRange.count();
 	auto expiringContacts = std::vector<ExtendedContact>();
 	for (const auto& pair : mRecords) {
 		for (const auto& contact : pair.second->getExtendedContacts()) {
-			const auto expirationTime = contact->mExpireAt;
-			if (startTimestamp <= expirationTime && expirationTime < deadline) {
+			const auto& url = contact->mSipContact->m_url;
+			if (!url_has_param(url, "pn-provider") && !url_has_param(url, "pn-type")) continue;
+
+			const auto expiration_time = contact->mExpireNotAtMessage;
+			const auto expires = contact->mExpireNotAtMessage - contact->mUpdatedTime;
+			const auto threshold_time = contact->mUpdatedTime + long(threshold * expires);
+			if (threshold_time < current_time && current_time < expiration_time) {
 				expiringContacts.emplace_back(*contact);
 			}
 		}
@@ -136,7 +142,7 @@ void RegistrarDbInternal::fetchExpiringContacts(time_t startTimestamp,
 	callback(std::move(expiringContacts));
 }
 
-void RegistrarDbInternal::doClear(const MsgSip &msg, const shared_ptr<ContactUpdateListener> &listener) {
+void RegistrarDbInternal::doClear(const MsgSip& msg, const shared_ptr<ContactUpdateListener>& listener) {
 	auto sip = msg.getSip();
 	string key = Record::defineKeyFromUrl(sip->sip_from->a_url);
 
@@ -166,7 +172,6 @@ void RegistrarDbInternal::doClear(const MsgSip &msg, const shared_ptr<ContactUpd
 }
 
 void RegistrarDbInternal::doMigration() {
-
 }
 
 void RegistrarDbInternal::clearAll() {
@@ -174,7 +179,7 @@ void RegistrarDbInternal::clearAll() {
 	mLocalRegExpire->clearAll();
 }
 
-void RegistrarDbInternal::publish(const string &topic, const string &uid) {
+void RegistrarDbInternal::publish(const string& topic, const string& uid) {
 	LOGD("Publish topic = %s, uid = %s", topic.c_str(), uid.c_str());
 	RegistrarDb::notifyContactListener(topic, uid);
 }

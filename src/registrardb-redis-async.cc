@@ -44,10 +44,10 @@ using namespace flexisip;
 
 namespace {
 
-const auto FETCH_EXPIRING_CONTACTS_SCRIPT = redis::AsyncScript<uint64_t, uint64_t>(
+const auto FETCH_EXPIRING_CONTACTS_SCRIPT = redis::AsyncScript<uint64_t, float>(
 #include "fetch-expiring-contacts.lua.hh"
     , // sed -n '/R"lua(/,/)lua"/p' fetch-expiring-contacts.lua.hh | sed 's/R"lua(//' | head -n-1 | sha1sum
-    "19c02eaa010d82352e6df056e3302bc5a0a5f85b");
+    "fe01fa3883fbf822027c5feea866618b612657cb");
 
 } // namespace
 
@@ -914,9 +914,9 @@ void RegistrarDbRedisAsync::doFetch(const SipUri &url, const shared_ptr<ContactU
 
 void RegistrarDbRedisAsync::fetchExpiringContacts(
     time_t startTimestamp,
-    std::chrono::seconds timeRange,
+    float threshold,
     std::function<void(std::vector<ExtendedContact>&&)>&& callback) const {
-	FETCH_EXPIRING_CONTACTS_SCRIPT.with(startTimestamp, timeRange.count())
+	FETCH_EXPIRING_CONTACTS_SCRIPT.with(startTimestamp, threshold)
 	    .then([callback = std::move(callback)](redisReply* reply) {
 		    auto count = reply->elements;
 		    auto expiringContacts = std::vector<ExtendedContact>();
