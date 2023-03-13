@@ -128,7 +128,8 @@ def sendMessage(remote_socket, message):
 				# Probably not JSON, therefore probably an error
 				return os.EX_USAGE
 		except socket.error as err:
-			print('error: could not connect to the socket', repr(err), file=sys.stderr)
+			print('error: could not connect to socket {!r}: {!r}'.format(remote_socket, err), file=sys.stderr)
+			# error: could not connect to socket '/tmp/flexisip-proxy-15150': PermissionError(13, 'Permission denied')
 			return os.EX_UNAVAILABLE
 
 
