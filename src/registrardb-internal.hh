@@ -16,7 +16,7 @@ public:
 	void clearAll();
 
 	void fetchExpiringContacts(time_t startTimestamp,
-	                           std::chrono::seconds timeRange,
+	                           float threshold,
 	                           std::function<void(std::vector<ExtendedContact>&&)>&& callback) const override;
 
 private:

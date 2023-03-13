@@ -88,6 +88,7 @@ add_library(flexisip SHARED
 	pushnotification/apple/apple-client.cc pushnotification/apple/apple-client.hh
 	pushnotification/apple/apple-request.cc pushnotification/apple/apple-request.hh
 	pushnotification/client.cc pushnotification/client.hh
+	pushnotification/contact-expiration-notifier.cc pushnotification/contact-expiration-notifier.hh
 	pushnotification/firebase/firebase-client.cc pushnotification/firebase/firebase-client.hh
 	pushnotification/firebase/firebase-request.cc pushnotification/firebase/firebase-request.hh
 	pushnotification/legacy/genericpush.cc pushnotification/legacy/genericpush.hh

@@ -196,6 +196,9 @@ void PushNotification::onDeclare(GenericStruct* module_config) {
 	     "Send service push notification every n minutes to all devices that are about to expire and should wake up to "
 	     "REGISTER back. 0 to disable. Recommended value: 30",
 	     "0"},
+	    {Integer, "register-wakeup-threshold",
+	     "Start sending wake-up push notifications to contacts when they pass that percentage of their lifetime.",
+	     "50"},
 
 	    // deprecated parameters
 	    {Boolean, "google", "Enable push notification for android devices (for compatibility only)", "true"},

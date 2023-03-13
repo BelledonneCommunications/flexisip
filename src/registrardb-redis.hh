@@ -161,7 +161,7 @@ public:
 	~RegistrarDbRedisAsync() override;
 
 	void fetchExpiringContacts(time_t startTimestamp,
-	                           std::chrono::seconds timeRange,
+	                           float threshold,
 	                           std::function<void(std::vector<ExtendedContact>&&)>&& callback) const override;
 
 	bool connect();

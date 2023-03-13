@@ -71,7 +71,7 @@ class SubsequentUnsubscribeSubscribeTest : public RegistrarDbTest<TDatabase> {
 protected:
 	// Protected types
 	struct RegistrarStats : public ContactRegisteredListener {
-		void onContactRegistered([[maybe_unused]] const std::shared_ptr<Record>& r, [[maybe_unused]] const std::string& uid) override {
+		void onContactRegistered(const std::shared_ptr<Record>&, const std::string&) override {
 			++onContactRegisteredCount;
 		}
 
@@ -108,51 +108,47 @@ protected:
 };
 
 /**
- * Should return contacts expiring within [startTimestamp ; startTimestamp + timeRange[
+ * Returns contacts with push params that have passed `threshold` of their expiration
  */
 template <typename TDatabase>
 class TestFetchExpiringContacts : public RegistrarDbTest<TDatabase> {
 	void testExec() noexcept override {
 		auto* regDb = RegistrarDb::get();
-		auto inserter = ContactInserter(*regDb, *this->mAgent);
-		inserter.insert("sip:expected1@te.st", 1s);
-		inserter.insert("sip:unexpected@te.st", 3s);
-		inserter.insert("sip:expected2@te.st", 2s);
+		ContactInserter inserter(*regDb, *this->mAgent);
+		auto threshold = 20.0 / 100.0;
+		auto targetTimestamp = getCurrentTime() + 21;
+		inserter.insert("sip:expected1@te.st;pn-provider=fake", 100s);
+		inserter.insert("sip:expired@te.st;pn-provider=fake", 10s);
+		inserter.insert("sip:expected2@te.st;pn-type=fake", 90s);
+		inserter.insert("sip:unexpected@te.st;pn-provider=fake", 110s);
+		inserter.insert("sip:unnotifiable@te.st", 100s);
 		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
-		auto targetTimestamp = getCurrentTime() + 1;
-		auto timeRange = 2s;
 
 		// Cold loading script
 		auto expiringContacts = std::vector<ExtendedContact>();
-		regDb->fetchExpiringContacts(targetTimestamp, timeRange, [&expiringContacts](auto&& returnedContacts) {
+		regDb->fetchExpiringContacts(targetTimestamp, threshold, [&expiringContacts](auto&& returnedContacts) {
 			expiringContacts = std::move(returnedContacts);
 		});
 
 		BC_ASSERT_TRUE(this->waitFor([&expiringContacts] { return !expiringContacts.empty(); }, 1s));
-		BC_ASSERT_TRUE(expiringContacts.size() == 2);
-		std::unordered_set<std::string> expectedContactStrings = {"sip:expected1@te.st", "sip:expected2@te.st"};
+		BC_ASSERT_EQUAL(expiringContacts.size(), 2, size_t, "%ld");
+		std::unordered_set<std::string> expectedContactStrings = {"expected1", "expected2"};
 		for (const auto& contact : expiringContacts) {
-			// Fail if the returned contact is not in the expected strings
-			BC_ASSERT_TRUE(expectedContactStrings.erase(ExtendedContact::urlToString(contact.mSipContact->m_url)) == 1);
+			auto contactString = contact.mSipContact->m_url->url_user;
+			auto found = expectedContactStrings.erase(contactString);
+			bc_assert(__FILE__, __LINE__, found == 1, ("unexpected contact returned: "s + contactString).c_str());
 		}
 		// Assert all expected contacts have been returned
-		BC_ASSERT_TRUE(expectedContactStrings.empty());
+		BC_ASSERT_EQUAL(expectedContactStrings.size(), 0, size_t, "%ld");
 
 		// Script should be hot
 		expiringContacts.clear();
-		regDb->fetchExpiringContacts(targetTimestamp, timeRange, [&expiringContacts](auto&& returnedContacts) {
+		regDb->fetchExpiringContacts(targetTimestamp, threshold, [&expiringContacts](auto&& returnedContacts) {
 			expiringContacts = std::move(returnedContacts);
 		});
 
 		BC_ASSERT_TRUE(this->waitFor([&expiringContacts] { return !expiringContacts.empty(); }, 1s));
-		BC_ASSERT_TRUE(expiringContacts.size() == 2);
-		expectedContactStrings = {"sip:expected1@te.st", "sip:expected2@te.st"};
-		for (const auto& contact : expiringContacts) {
-			// Fail if the returned contact is not in the expected strings
-			BC_ASSERT_TRUE(expectedContactStrings.erase(ExtendedContact::urlToString(contact.mSipContact->m_url)) == 1);
-		}
-		// Assert all expected contacts have been returned
-		BC_ASSERT_TRUE(expectedContactStrings.empty());
+		BC_ASSERT_EQUAL(expiringContacts.size(), 2, size_t, "%ld");
 	}
 };
 

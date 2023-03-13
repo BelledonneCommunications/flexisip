@@ -17,8 +17,12 @@
 */
 
 #include <chrono>
+#include <cmath>
 #include <future>
+#include <random>
 #include <regex>
+#include <sstream>
+#include <string>
 #include <thread>
 
 #include "bctoolbox/tester.h"
@@ -42,6 +46,7 @@ using namespace flexisip::tester;
 using namespace std;
 using namespace std::chrono;
 
+namespace pn = flexisip::pushnotification;
 namespace server = nghttp2::asio_http2::server;
 
 static std::unique_ptr<sofiasip::SuRoot> root = nullptr;
@@ -520,33 +525,42 @@ public:
 
 protected:
 	void testExec() noexcept override {
+		auto passed = true;
 		auto& regDb = *RegistrarDb::get();
 		auto service = std::make_shared<pushnotification::Service>(*mRoot, 0xdead);
 		// SIP only counts contact expiration in seconds, and 1s is apparently not enough to receive everything
-		auto interval = 2s;
-		ContactExpirationNotifier notifier(interval /* Notifies within [interval ; interval x 3[ */, mRoot, service,
-		                                   regDb);
+		const auto interval = 2s;
+		const auto threshold = [] {
+			std::default_random_engine engine{std::random_device()()};
+			return std::uniform_real_distribution<float>(1. / 100, 50. / 100)(engine);
+		}();
+		auto minExpiration = interval + 1s;
+		// Any contact expiring later than that should not be returned
+		auto maxExpiration = chrono::seconds(long(ceilf(interval.count() / threshold)) - 1);
+		ContactExpirationNotifier notifier(interval, threshold, mRoot, service, regDb);
 
 		auto appId = "fakeAppId";
 		service->addFirebaseClient(appId);
 		auto inserter = ContactInserter(regDb, *this->mAgent);
-		inserter.insert(Contact("sip:expected2@example.org").withFirebasePushParams(appId), interval * 2);
-		inserter.insert(Contact("sip:expected1@example.org").withFirebasePushParams(appId), interval * 1);
-		inserter.insert(Contact("sip:unexpected@example.org").withFirebasePushParams(appId), interval * 4);
-		inserter.insert(Contact("sip:expected3@example.org").withFirebasePushParams(appId), interval * 3);
+		inserter.insert(Contact("sip:expected2@example.org").withFirebasePushParams(appId), maxExpiration);
+		inserter.insert(Contact("sip:expected1@example.org").withFirebasePushParams(appId),
+		                minExpiration + (maxExpiration - minExpiration) / 2);
+		inserter.insert(Contact("sip:unexpected@example.org").withFirebasePushParams(appId), maxExpiration + 1s);
+		inserter.insert(Contact("sip:expected3@example.org").withFirebasePushParams(appId), minExpiration);
+		inserter.insert(Contact("sip:expired@example.org").withFirebasePushParams(appId), minExpiration - 1s);
 		// within range, but nothing to do
-		inserter.insert("sip:unnotifiable@example.org", interval * 2);
+		inserter.insert("sip:unnotifiable@example.org", maxExpiration);
 		// within range, but cannot be woken up via Background type notifications
-		inserter.insert(Contact("sip:unwakeable@example.org").withAppleVoipOnlyPushParams(), interval * 2);
+		inserter.insert(Contact("sip:unwakeable@example.org").withAppleVoipOnlyPushParams(), maxExpiration);
 		auto expectedUris = unordered_set<string>{"expected1", "expected2", "expected3"};
 
 		pn::PnsMock pnServer;
 		pnServer.onPushRequest(
-		    [&sofiaLoop = *mRoot, &expectedUris](const server::request& req, const server::response& res) {
+		    [&sofiaLoop = *mRoot, &expectedUris, &passed](const server::request& req, const server::response& res) {
 			    res.write_head(200);
 			    res.end("ok");
 
-			    req.on_data([&sofiaLoop, &expectedUris](const uint8_t* data, std::size_t len) {
+			    req.on_data([&sofiaLoop, &expectedUris, &passed](const uint8_t* data, std::size_t len) {
 				    if (0 < len) {
 					    auto body = string(reinterpret_cast<const char*>(data), len);
 					    static const auto extractFromUri =
@@ -554,7 +568,10 @@ protected:
 					    std::smatch matches;
 					    regex_search(body, matches, extractFromUri);
 					    // Fail when receiving push for unexpected contact
-					    BC_ASSERT_TRUE(expectedUris.erase(matches[1]));
+					    string contactString(matches[1]);
+					    auto found = expectedUris.erase(contactString);
+					    passed &= bc_assert(__FILE__, __LINE__, found == 1,
+					                        ("unexpected contact returned: " + contactString).c_str());
 					    if (expectedUris.empty()) {
 						    sofiaLoop.quit(); // Test passed
 					    }
@@ -564,14 +581,21 @@ protected:
 		pnServer.serveAsync(suitePort);
 
 		sofiasip::Timer timeout(mRoot, interval * 2 - 100ms); // Right before the notifier would run again
-		timeout.set([&sofiaLoop = *mRoot, &inserter] {
-			BC_FAIL("Test timed out");
+		timeout.set([&sofiaLoop = *mRoot, &inserter, &expectedUris, &passed] {
+			passed = false;
 			BC_ASSERT_TRUE(inserter.finished());
+			ostringstream msg{};
+			msg << "Test timed out while still expecting: ";
+			for (const auto& remaining : expectedUris) {
+				msg << remaining << " ";
+			}
+			bc_assert(__FILE__, __LINE__, false, msg.str().c_str());
 			sofiaLoop.quit();
 		});
 
 		mRoot->run();     // Notifier executes after `interval`, if something went wrong the timeout will trigger
 		mRoot->step(0ms); // Stepping one more time to let callbacks be cleaned up properly
+		bc_assert(__FILE__, __LINE__, passed, ("Test failed with threshold value: " + to_string(threshold)).c_str());
 	}
 };
 
@@ -599,7 +623,8 @@ void test_http2client__requests_that_can_not_be_sent_are_queued_and_sent_later()
 		BC_FAIL("Request error");
 		root.quit();
 	};
-	auto onResponse = [&respondedCount, &sentCount, &root]([[maybe_unused]] const auto& req, [[maybe_unused]] const auto& res) {
+	auto onResponse = [&respondedCount, &sentCount, &root]([[maybe_unused]] const auto& req,
+	                                                       [[maybe_unused]] const auto& res) {
 		respondedCount++;
 		if (respondedCount == sentCount) {
 			root.quit();

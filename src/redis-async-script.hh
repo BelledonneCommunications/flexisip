@@ -170,7 +170,7 @@ public:
 	 * @param SHA1 The SHA1 checksum of `source`
 	 */
 	AsyncScript(const char* source, const char* SHA1)
-	    : mSHA1(SHA1), mLoadScriptCmd("SCRIPT LOAD %s", source), mCallScriptCmd{"EVALSHA %s 1 fs:* %d %d"} {
+	    : mSHA1(SHA1), mLoadScriptCmd("SCRIPT LOAD %s", source), mCallScriptCmd{"EVALSHA %s 1 fs:* %d %f"} {
 	}
 
 	/**
