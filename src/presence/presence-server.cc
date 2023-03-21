@@ -985,8 +985,7 @@ void PresenceServer::addOrUpdateListeners(list<shared_ptr<PresentityPresenceInfo
 					toListener->onInformationChanged(*toPresenceInfo, true); // to triger notify
 				}
 			}
-		}
-		SLOGD << "Extended presence information forbidden or not available for listener [" << listener << "]";
+		} else SLOGD << "Extended presence information forbidden or not available for listener [" << listener << "]";
 		if (expires > 0) presenceInfo->addOrUpdateListener(listener, expires);
 		else presenceInfo->addOrUpdateListener(listener);
 

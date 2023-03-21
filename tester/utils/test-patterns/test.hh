@@ -127,7 +127,7 @@ protected:
  * @param TestFunction The plain test function to wrap
  */
 template <void TestFunction()>
-void run() noexcept {
+static void run() noexcept {
 	try {
 		TestFunction();
 	} catch (const TestAssertFailedException&) {
@@ -139,7 +139,7 @@ void run() noexcept {
 };
 
 template <typename TestT>
-void instanciateAndCall() {
+static void instanciateAndCall() {
 	TestT test{};
 	test();
 }
@@ -151,7 +151,7 @@ void instanciateAndCall() {
  * @param TestT The Test-derived class to execute.
  */
 template <typename TestT>
-void run() noexcept {
+static void run() noexcept {
 	run<instanciateAndCall<TestT>>();
 };
 

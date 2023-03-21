@@ -60,6 +60,7 @@ add_executable(flexisip_tester
 	sofia-tester.cc
 	sofia-driven-signal-handler-tester.cc
 	tester.cc
+	tests/presence/presence-pidf-tester.cc
 	thread-pool-tester.cc
 	tls-connection-tester.cc
 	utils-tester.cc
@@ -72,6 +73,7 @@ add_executable(flexisip_tester
 	utils/redis-server.cc utils/redis-server.hh
 	utils/tcp-server.cc utils/tcp-server.hh
 	utils/test-patterns/agent-test.hh
+	utils/test-patterns/presence-test.hh
 	utils/test-patterns/test.hh
 	utils/tls-server.cc utils/tls-server.hh
 	utils/utf8-string-tester.cc
