@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <cstring>
 #include <iostream>
 #include <map>
@@ -49,7 +50,7 @@ void init_tests() {
 }
 
 ExtendedContact& firstContact(const Record& r) {
-	return *r.getExtendedContacts().cbegin()->get();
+	return **r.getExtendedContacts().oldest();
 }
 
 std::ostream& operator<<(std::ostream& stream, const std::list<std::string>& str) {
@@ -69,7 +70,7 @@ bool compare(const ExtendedContact& ec1,
              bool alias,
              const ExtendedContactCommon& common,
              uint32_t cseq,
-             time_t expireat,
+             std::chrono::seconds expires,
              float q,
              const std::string& sipuri,
              time_t updatedTime) {
@@ -78,18 +79,18 @@ bool compare(const ExtendedContact& ec1,
 	check("line", ec1.mKey.str(), common.mKey);
 	check("path", ec1.mPath, common.mPath);
 	check("cseq", ec1.mCSeq, cseq);
-	check("mExpireAt", ec1.mExpireAt, expireat);
+	check("mExpires", ec1.getSipExpires().count(), expires.count());
 	check("mQ", ec1.mQ, q);
 	check("mSipUri", ExtendedContact::urlToString(ec1.mSipContact->m_url), sipuri);
-	check("mUpdatedTime", ec1.mUpdatedTime, updatedTime);
+	check("mRegisterTime", ec1.getRegisterTime(), updatedTime);
 
 	return true;
 }
 
 bool compare(const ExtendedContact& ec1, const ExtendedContact& ec2) {
 	ExtendedContactCommon ecc(ec2.mPath, ec2.mCallId, ec2.mKey);
-	return compare(ec1, ec2.mAlias, ecc, ec2.mCSeq, ec2.mExpireAt, ec2.mQ,
-	               ExtendedContact::urlToString(ec2.mSipContact->m_url), ec2.mUpdatedTime);
+	return compare(ec1, ec2.mAlias, ecc, ec2.mCSeq, ec2.getSipExpires(), ec2.mQ,
+	               ExtendedContact::urlToString(ec2.mSipContact->m_url), ec2.getRegisterTime());
 }
 
 bool compare(const Record& r1, const Record& r2) {

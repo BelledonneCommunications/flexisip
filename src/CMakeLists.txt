@@ -107,6 +107,7 @@ add_library(flexisip SHARED
 	recordserializer-c.cc
 	recordserializer-json.cc
 	recordserializer.cc
+	registrar/change-set.cc
 	registrar/contact-key.cc
 	registrar/exceptions.cc
 	registrar/extended-contact.cc

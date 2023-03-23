@@ -123,7 +123,7 @@ void OwnRegistrationSubscription::processRecord(const shared_ptr<Record>& r) {
 	if (!mActive) return;
 	list<shared_ptr<ParticipantDeviceIdentity>> compatibleParticipantDevices;
 	if (r) {
-		for (const shared_ptr<ExtendedContact>& ec : r->getExtendedContacts()) {
+		for (const auto& ec : r->getExtendedContacts()) {
 			auto addr = getPubGruu(r, ec);
 			if (!addr) continue;
 			if (isContactCompatible(ec->getOrgLinphoneSpecs())) {

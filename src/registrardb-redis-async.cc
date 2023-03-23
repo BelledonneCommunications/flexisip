@@ -22,7 +22,10 @@
 #include <cstdio>
 #include <ctime>
 #include <iterator>
+#include <memory>
 #include <set>
+#include <type_traits>
+#include <variant>
 #include <vector>
 
 #include <sofia-sip/sip_protos.h>
@@ -621,7 +624,7 @@ void RegistrarDbRedisAsync::sPublishCallback(redisAsyncContext* c, void* r, [[ma
 	}
 }
 
-void RegistrarDbRedisAsync::sKeyExpirationPublishCallback(redisAsyncContext* c, void* r, [[maybe_unused]] void* context) {
+void RegistrarDbRedisAsync::sKeyExpirationPublishCallback(redisAsyncContext* c, void* r, void*) {
 	redisReply* reply = reinterpret_cast<redisReply*>(r);
 	if (!reply) return;
 
@@ -638,7 +641,7 @@ void RegistrarDbRedisAsync::sKeyExpirationPublishCallback(redisAsyncContext* c, 
 	}
 }
 
-void RegistrarDbRedisAsync::sHandleBindStart([[maybe_unused]] redisAsyncContext* ac, redisReply* reply, RedisRegisterContext* context) {
+void RegistrarDbRedisAsync::sHandleBindStart(redisAsyncContext*, redisReply* reply, RedisRegisterContext* context) {
 
 	if (reply == nullptr) {
 		if (context->listener) context->listener->onError();
@@ -646,49 +649,58 @@ void RegistrarDbRedisAsync::sHandleBindStart([[maybe_unused]] redisAsyncContext*
 		return;
 	}
 	LOGD("Got current Record content for key [fs:%s].", context->mRecord->getKey().c_str());
+	auto& contacts = context->mRecord->getExtendedContacts();
+	auto& changeset = context->mChangeSet;
 	// Parse the fetched reply into the Record object (context->mRecord)
-	context->self->parseAndClean(reply, context);
+	for (auto&& maybeExpired : parseContacts(reply)) {
+		if (maybeExpired->isExpired()) {
+			changeset.mDelete.emplace_back(move(maybeExpired));
+		} else {
+			contacts.emplace(move(maybeExpired));
+		}
+	}
 
 	/* Now update the existing Record with new SIP REGISTER and binding parameters
 	 * insertOrUpdateBinding() will do the job of contact comparison and invoke the onContactUpdated listener*/
 	LOGD("Updating Record content for key [fs:%s] with new contact(s).", context->mRecord->getKey().c_str());
 	try {
-		context->mChangeSet =
-		    context->mRecord->update(context->mMsg.getSip(), context->mBindingParameters, context->listener);
+		changeset += context->mRecord->update(context->mMsg.getSip(), context->mBindingParameters, context->listener);
 	} catch (const InvalidCSeq&) {
 		if (context->listener) context->listener->onInvalid();
 		delete context;
 		return;
 	}
 
+	changeset += context->mRecord->applyMaxAor();
+
 	/* now submit the changes triggered by the update operation to REDIS */
-	LOGD("Sending updated content to REDIS for key [fs:%s].", context->mRecord->getKey().c_str());
+	SLOGD << "Sending updated content to REDIS for key [fs:" << context->mRecord->getKey() << "]: " << changeset;
 	context->self->serializeAndSendToRedis(context, sHandleBindFinish);
 }
 
-void RegistrarDbRedisAsync::sHandleBindFinish([[maybe_unused]] redisAsyncContext* ac, redisReply* reply, RedisRegisterContext* context) {
+void RegistrarDbRedisAsync::sHandleBindFinish(redisAsyncContext*, redisReply* reply, RedisRegisterContext* context) {
 	context->self->handleBind(reply, context);
 }
 
-void RegistrarDbRedisAsync::sHandleClear([[maybe_unused]] redisAsyncContext* ac, redisReply* reply, RedisRegisterContext* context) {
+void RegistrarDbRedisAsync::sHandleClear(redisAsyncContext*, redisReply* reply, RedisRegisterContext* context) {
 	context->self->handleClear(reply, context);
 }
 
-void RegistrarDbRedisAsync::sHandleFetch([[maybe_unused]] redisAsyncContext* ac, redisReply* reply, RedisRegisterContext* context) {
+void RegistrarDbRedisAsync::sHandleFetch(redisAsyncContext*, redisReply* reply, RedisRegisterContext* context) {
 	context->self->handleFetch(reply, context);
 }
 
-void RegistrarDbRedisAsync::sHandleMigration([[maybe_unused]] redisAsyncContext* ac, redisReply* reply, RedisRegisterContext* context) {
+void RegistrarDbRedisAsync::sHandleMigration(redisAsyncContext*, redisReply* reply, RedisRegisterContext* context) {
 	context->self->handleMigration(reply, context);
 }
 
-void RegistrarDbRedisAsync::sHandleRecordMigration([[maybe_unused]] redisAsyncContext* ac,
+void RegistrarDbRedisAsync::sHandleRecordMigration(redisAsyncContext*,
                                                    redisReply* reply,
                                                    RedisRegisterContext* context) {
 	context->self->handleRecordMigration(reply, context);
 }
 
-void RegistrarDbRedisAsync::sHandleReplicationInfoReply([[maybe_unused]] redisAsyncContext* ac, void* r, void* privcontext) {
+void RegistrarDbRedisAsync::sHandleReplicationInfoReply(redisAsyncContext*, void* r, void* privcontext) {
 	redisReply* reply = (redisReply*)r;
 	RegistrarDbRedisAsync* zis = (RegistrarDbRedisAsync*)privcontext;
 
@@ -854,7 +866,8 @@ void RegistrarDbRedisAsync::handleClear(redisReply* reply, RedisRegisterContext*
 	delete context;
 }
 
-void RegistrarDbRedisAsync::parseAndClean(redisReply* reply, RedisRegisterContext* context) {
+vector<unique_ptr<ExtendedContact>> RegistrarDbRedisAsync::parseContacts(redisReply* reply) {
+	decltype(parseContacts(reply)) contacts{};
 	for (size_t i = 0; i < reply->elements; i += 2) {
 		// Elements list is twice the size of the contacts list because the key is an element of the list itself
 		redisReply* element = reply->element[i];
@@ -862,10 +875,14 @@ void RegistrarDbRedisAsync::parseAndClean(redisReply* reply, RedisRegisterContex
 		element = reply->element[i + 1];
 		const char* contact = element->str;
 		LOGD("Parsing contact %s => %s", key, contact);
-		if (!context->mRecord->updateFromUrlEncodedParams(key, contact)) {
+		auto maybeContact = make_unique<ExtendedContact>(key, contact);
+		if (maybeContact->mSipContact) {
+			contacts.push_back(move(maybeContact));
+		} else {
 			LOGE("This contact could not be parsed.");
 		}
 	}
+	return contacts;
 }
 
 void RegistrarDbRedisAsync::doClear(const MsgSip& msg, const shared_ptr<ContactUpdateListener>& listener) {
@@ -896,6 +913,11 @@ void RegistrarDbRedisAsync::doClear(const MsgSip& msg, const shared_ptr<ContactU
 
 void RegistrarDbRedisAsync::handleFetch(redisReply* reply, RedisRegisterContext* context) {
 	const char* key = context->mRecord->getKey().c_str();
+	const auto insertIfActive = [&record = context->mRecord](auto&& contact) {
+		if (!contact->isExpired()) {
+			record->insertOrUpdateBinding(move(contact), nullptr);
+		}
+	};
 
 	if (!reply || reply->type == REDIS_REPLY_ERROR) {
 		LOGE("Redis error: %s", reply ? reply->str : "null reply");
@@ -905,7 +927,9 @@ void RegistrarDbRedisAsync::handleFetch(redisReply* reply, RedisRegisterContext*
 		// This is the most common scenario: we want all contacts inside the record
 		LOGD("GOT fs:%s [%lu] --> %lu contacts", key, context->token, (reply->elements / 2));
 		if (reply->elements > 0) {
-			parseAndClean(reply, context);
+			for (auto&& maybeExpired : parseContacts(reply)) {
+				insertIfActive(maybeExpired);
+			}
 			if (context->listener) context->listener->onRecordFound(context->mRecord);
 			delete context;
 		} else {
@@ -921,7 +945,7 @@ void RegistrarDbRedisAsync::handleFetch(redisReply* reply, RedisRegisterContext*
 		const char* gruu = context->mUniqueIdToFetch.c_str();
 		if (reply->len > 0) {
 			LOGD("GOT fs:%s [%lu] for gruu %s --> %s", key, context->token, gruu, reply->str);
-			context->mRecord->updateFromUrlEncodedParams(gruu, reply->str);
+			insertIfActive(make_unique<ExtendedContact>(gruu, reply->str));
 			if (context->listener) context->listener->onRecordFound(context->mRecord);
 		} else {
 			LOGD("Contact matching gruu %s in record fs:%s not found", gruu, key);

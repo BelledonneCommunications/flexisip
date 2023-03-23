@@ -57,7 +57,7 @@ struct TestHandler : public flexisip::CliHandler {
 	TestHandler(std::string&& output) : output(output) {
 	}
 
-	std::string handleCommand(const std::string& command, [[maybe_unused]] const std::vector<std::string>& args) override {
+	std::string handleCommand(const std::string& command, const std::vector<std::string>&) override {
 		calls.push_back(command);
 		return output;
 	}
@@ -400,7 +400,7 @@ void flexisip_cli_dot_py() {
 
 		const auto& fetchedContacts = listener->mRecord->getExtendedContacts();
 		BC_ASSERT_EQUAL(fetchedContacts.size(), 1, size_t, "%zx");
-		const auto& contact = *fetchedContacts.front();
+		const auto& contact = **fetchedContacts.latest();
 		BC_ASSERT_STRING_EQUAL(contact.mKey.str().c_str(), uid.c_str());
 		BC_ASSERT_EQUAL(contact.mQ, 0.3, float, "%f");
 	}

@@ -25,9 +25,8 @@ using namespace flexisip;
 
 struct MyListener : public ContactUpdateListener {
 	virtual void onRecordFound(Record* r) override {
-		auto ecc = firstContact(*r);
-		long rExpire = ecc.mExpireAt - ecc.mUpdatedTime;
-		check("expire", atol(params.sip.contact->m_expires), rExpire);
+		const auto& ec = *r->getExtendedContacts().oldest();
+		check("expire", atol(params.sip.contact->m_expires), ec->getSipExpires());
 	}
 	virtual void onError() override {
 		BAD("RegistrarDbListener:error");

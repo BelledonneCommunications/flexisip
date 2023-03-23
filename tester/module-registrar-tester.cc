@@ -65,7 +65,7 @@ void static_records_file_is_read_on_SIGUSR1() {
 		regDb.fetch(SipUri(aor), listener);
 		const auto& fetchedContacts = listener->mRecord->getExtendedContacts();
 		BC_ASSERT_EQUAL(fetchedContacts.size(), 3, size_t, "%zx");
-		const auto& last = *fetchedContacts.back();
+		const auto& last = **fetchedContacts.latest();
 		BC_ASSERT_TRUE(url_cmp_all(last.mSipContact->m_url, sofiasip::Url(contact3).get()));
 	}
 
@@ -78,7 +78,7 @@ void static_records_file_is_read_on_SIGUSR1() {
 		regDb.fetch(SipUri(aor), listener);
 		const auto& fetchedContacts = listener->mRecord->getExtendedContacts();
 		BC_ASSERT_EQUAL(fetchedContacts.size(), 2, size_t, "%zx");
-		const auto& last = *fetchedContacts.back();
+		const auto& last = **fetchedContacts.latest();
 		BC_ASSERT_TRUE(url_cmp_all(last.mSipContact->m_url, sofiasip::Url(contact2).get()));
 	}
 }

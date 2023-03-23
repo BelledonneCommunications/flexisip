@@ -89,10 +89,16 @@ public:
 			return;
 		}
 		auto extendedContactList = r->getExtendedContacts();
-		BC_ASSERT_EQUAL(extendedContactList.size(), mExpectedNumberOfContact, int, "%i");
+		if (extendedContactList.size() != static_cast<usize_t>(mExpectedNumberOfContact)) {
+			ostringstream msg{};
+			msg << "Expected " << mExpectedNumberOfContact << " contact but found " << extendedContactList.size()
+			    << " in " << *r;
+			bc_assert(__FILE__, __LINE__, false, msg.str().c_str());
+		}
 		if (!mMustBePresentUuid.empty()) {
-			auto isPresent = any_of(extendedContactList.begin(), extendedContactList.end(),
-			                        [this](const auto& ec) { return ec->mKey == this->mMustBePresentUuid; });
+			auto isPresent = any_of(extendedContactList.begin(), extendedContactList.end(), [this](const auto& ec) {
+				return ec->mKey == this->mMustBePresentUuid;
+			});
 			BC_ASSERT_TRUE(isPresent);
 			if (!isPresent) {
 				string actualUuid{};

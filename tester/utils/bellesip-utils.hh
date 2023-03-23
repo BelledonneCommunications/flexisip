@@ -40,6 +40,7 @@ public:
 	~BellesipUtils();
 	void sendRawRequest(const std::string& rawMessage, const std::string& rawBody = "");
 	void stackSleep(unsigned int milliseconds);
+	int getListeningPort();
 
 private:
 	belle_sip_stack_t* mStack = nullptr;

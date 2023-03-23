@@ -104,14 +104,14 @@ bool RecordSerializerC::serialize(Record* r, string& serialized, bool log) {
 
 	int i = 0;
 	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
-		shared_ptr<ExtendedContact> ec = (*it);
+		shared_ptr<ExtendedContact> ec = *it;
 		if (i != 0) oss << "#";
-		oss << "#" << ec->mSipContact->m_url << "#" << ec->mExpireAt << "#" << ec->mQ;
+		oss << "#" << ec->mSipContact->m_url << "#" << ec->getSipExpireTime() << "#" << ec->mQ;
 		oss << "#" << ec->contactId();
 		oss << "#"; // route
 		oss << "#";
 		if (!ec->mKey.isPlaceholder()) oss << ec->mKey.str();
-		oss << "#" << ec->mUpdatedTime;
+		oss << "#" << ec->getRegisterTime();
 		oss << "#" << ec->callId() << "#" << ec->mCSeq << "#" << (ec->mAlias ? "true" : "false");
 		string pathstr;
 		for (auto pit = ec->mPath.cbegin(); pit != ec->mPath.cend(); ++pit) {

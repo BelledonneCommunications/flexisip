@@ -79,15 +79,15 @@ bool RecordSerializerPb::serialize(Record* r, string& serialized, bool log) {
 	auto contacts = r->getExtendedContacts();
 	auto it = contacts.begin();
 	for (it = contacts.begin(); it != contacts.end(); ++it) {
-		auto ec = (*it);
+		auto ec = *it;
 		RecordContactPb* c = pbContacts.add_contact();
 		c->set_uri(ExtendedContact::urlToString(ec->mSipContact->m_url));
 		c->set_contact_id("deprecated");
 		if (!ec->mKey.isPlaceholder())
 			c->set_line_value_copy(ec->mKey.str().c_str());
-		c->set_expires_at(ec->mExpireAt);
+		c->set_expires_at(ec->getSipExpireTime());
 		if (ec->mQ) c->set_q(ec->mQ);
-		c->set_update_time(ec->mUpdatedTime);
+		c->set_update_time(ec->getRegisterTime());
 		c->set_call_id(ec->callId());
 		c->set_cseq(ec->mCSeq);
 		for (auto pit = ec->mPath.cbegin(); pit != ec->mPath.cend(); ++pit) {

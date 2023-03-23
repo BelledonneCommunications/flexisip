@@ -79,7 +79,7 @@ void RegistrarDbInternal::doFetch(const SipUri& url, const shared_ptr<ContactUpd
 	shared_ptr<Record> r = NULL;
 	if (it != mRecords.end()) {
 		r = (*it).second;
-		r->clean(getCurrentTime(), listener);
+		r->clean(listener);
 		if (r->isEmpty()) {
 			mRecords.erase(it);
 			r = nullptr;
@@ -104,7 +104,7 @@ void RegistrarDbInternal::doFetchInstance(const SipUri& url,
 	}
 
 	r = (*it).second;
-	r->clean(getCurrentTime(), listener);
+	r->clean(listener);
 	if (r->isEmpty()) {
 		mRecords.erase(it);
 		r = nullptr;
@@ -112,11 +112,12 @@ void RegistrarDbInternal::doFetchInstance(const SipUri& url,
 		return;
 	}
 
-	const list<shared_ptr<ExtendedContact>>& contacts = r->getExtendedContacts();
+	const auto& contacts = r->getExtendedContacts();
 	shared_ptr<Record> retRecord = make_shared<Record>(url);
+	auto& retContacts = retRecord->getExtendedContacts();
 	for (const auto& contact : contacts) {
 		if (contact->mKey == uniqueId) {
-			retRecord->pushContact(contact);
+			retContacts.emplace(contact);
 			break;
 		}
 	}
@@ -132,10 +133,9 @@ void RegistrarDbInternal::fetchExpiringContacts(time_t current_time,
 			const auto& url = contact->mSipContact->m_url;
 			if (!url_has_param(url, "pn-provider") && !url_has_param(url, "pn-type")) continue;
 
-			const auto expiration_time = contact->mExpireNotAtMessage;
-			const auto expires = contact->mExpireNotAtMessage - contact->mUpdatedTime;
-			const auto threshold_time = contact->mUpdatedTime + long(threshold * expires);
-			if (threshold_time < current_time && current_time < expiration_time) {
+			const auto expires = contact->getSipExpires().count();
+			const auto threshold_time = contact->getRegisterTime() + long(threshold * expires);
+			if (threshold_time < current_time && current_time < contact->getSipExpireTime()) {
 				expiringContacts.emplace_back(*contact);
 			}
 		}

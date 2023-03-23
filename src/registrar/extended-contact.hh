@@ -4,7 +4,12 @@
 
 #pragma once
 
+#include <chrono>
+#include <ctime>
 #include <list>
+#include <memory>
+#include <sstream>
+#include <stdexcept>
 #include <string>
 
 #include "submodules/externals/sofia-sip/libsofia-sip-ua/sip/sofia-sip/sip_protos.h"
@@ -43,9 +48,6 @@ struct ExtendedContact {
 	std::string mUserAgent{};
 	sip_contact_t* mSipContact{nullptr}; // Full contact
 	float mQ{1.0f};
-	time_t mExpireAt{std::numeric_limits<time_t>::max()};
-	time_t mExpireNotAtMessage{std::numeric_limits<time_t>::max()}; // real expires time but not for message
-	time_t mUpdatedTime{0};
 	uint32_t mCSeq{0};
 	std::list<std::string> mAcceptHeader{};
 	uintptr_t mConnId{0}; // a unique id shared with associate t_port
@@ -76,8 +78,23 @@ struct ExtendedContact {
 	const std::string& getUserAgent() const {
 		return mUserAgent;
 	}
+	std::time_t getRegisterTime() const {
+		return mRegisterTime;
+	}
+	std::chrono::seconds getSipExpires() const {
+		return mExpires;
+	}
+	// The time at which this contact should no longer receive calls
+	std::time_t getSipExpireTime() const {
+		return mRegisterTime + mExpires.count();
+	}
+	// The time at which the contact will no longer be valid. May be beyond the getSipExpireTime() if the custom
+	// `message-expires=` field overrides it
+	std::time_t getExpireTime() const {
+		return mRegisterTime + std::max(mExpires, mMessageExpires).count();
+	}
 	bool isExpired() const {
-		return mUpdatedTime >= mExpireAt;
+		return getExpireTime() <= getCurrentTime();
 	}
 
 	static int resolveExpire(const char* contact_expire, int global_expire) {
@@ -114,10 +131,6 @@ struct ExtendedContact {
 	/* Extract printable device name from the User-Agent field */
 	utils::Utf8String getDeviceName() const;
 
-	time_t getExpireNotAtMessage() const {
-		return mExpireNotAtMessage;
-	}
-
 	std::string serializeAsUrlEncodedParams();
 
 	std::string getOrgLinphoneSpecs() const;
@@ -140,9 +153,8 @@ struct ExtendedContact {
 	                bool alias,
 	                const std::list<std::string>& acceptHeaders,
 	                const std::string& userAgent)
-	    : mCallId(common.mCallId), mKey(common.mKey), mPath(common.mPath), mUserAgent(userAgent),
-	      mExpireNotAtMessage(global_expire), mUpdatedTime(updateTime), mCSeq(cseq), mAcceptHeader(acceptHeaders),
-	      mAlias(alias) {
+	    : mCallId(common.mCallId), mKey(common.mKey), mPath(common.mPath), mUserAgent(userAgent), mCSeq(cseq),
+	      mAcceptHeader(acceptHeaders), mAlias(alias), mRegisterTime(updateTime), mExpires(global_expire) {
 
 		mSipContact = sip_contact_dup(mHome.home(), sip_contact);
 		mSipContact->m_next = nullptr;
@@ -154,19 +166,20 @@ struct ExtendedContact {
 	 * the 'q' parameter of the Contact may be set.
 	 * The new ExtendedConact has the maximum expiration date.
 	 */
-	ExtendedContact(const SipUri& url, const std::string& route, float q = 1.0) : mPath({route}) {
+	ExtendedContact(const SipUri& url, const std::string& route, float q = 1.0)
+	    : mPath({route}), mExpires(std::chrono::seconds::max()) {
 		mSipContact = sip_contact_create(mHome.home(), reinterpret_cast<const url_string_t*>(url.get()), nullptr);
 		q = std::min(1.0f, std::max(0.0f, q)); // force RFC compliance
 		mSipContact->m_q = mHome.sprintf("%.3f", q);
-		init(false); // MUST be called with [initExpire == false] to keep mExpireAt and mExpireNotAtMessage untouched in
-		             // order the contact never expire.
+		init(false); // MUST be called with [initExpire == false] to keep mExpires and mMessageExpires untouched to
+		             // prevent the contact from expiring.
 	}
 
 	ExtendedContact(const ExtendedContact& ec)
 	    : mCallId(ec.mCallId), mKey(ec.mKey), mPath(ec.mPath), mUserAgent(ec.mUserAgent), mSipContact(nullptr),
-	      mQ(ec.mQ), mExpireAt(ec.mExpireAt), mExpireNotAtMessage(ec.mExpireNotAtMessage),
-	      mUpdatedTime(ec.mUpdatedTime), mCSeq(ec.mCSeq), mAcceptHeader(ec.mAcceptHeader), mConnId(ec.mConnId), mHome(),
-	      mAlias(ec.mAlias), mUsedAsRoute(ec.mUsedAsRoute), mIsFallback(ec.mIsFallback) {
+	      mQ(ec.mQ), mCSeq(ec.mCSeq), mAcceptHeader(ec.mAcceptHeader), mConnId(ec.mConnId), mHome(), mAlias(ec.mAlias),
+	      mUsedAsRoute(ec.mUsedAsRoute), mIsFallback(ec.mIsFallback), mRegisterTime(ec.mRegisterTime),
+	      mExpires(ec.mExpires), mMessageExpires(ec.mMessageExpires) {
 		mSipContact = sip_contact_dup(mHome.home(), ec.mSipContact);
 		mSipContact->m_next = nullptr;
 	}
@@ -178,6 +191,11 @@ struct ExtendedContact {
 	/*returns a new url_t where ConnId (private flexisip parameter) is removed*/
 	url_t* toSofiaUrlClean(su_home_t* home);
 	bool isSame(const ExtendedContact& otherContact) const;
+
+private:
+	time_t mRegisterTime{0};
+	std::chrono::seconds mExpires{0};        // Standard SIP expires= field
+	std::chrono::seconds mMessageExpires{0}; // Custom message-expires= override
 };
 
 template <typename TraitsT>

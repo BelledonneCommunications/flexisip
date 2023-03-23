@@ -26,6 +26,8 @@
 #include "fork-context/fork-basic-context.hh"
 #include "fork-context/fork-call-context.hh"
 #include "fork-context/fork-message-context.hh"
+#include "registrar/change-set.hh"
+#include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "router/agent-injector.hh"
 #include "router/inject-context.hh"
@@ -494,7 +496,7 @@ private:
 void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_ptr<Record>& aor, const url_t* sipUri) {
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	sip_t* sip = ms->getSip();
-	list<shared_ptr<ExtendedContact>> contacts;
+	Record::Contacts contacts{};
 	list<pair<sip_contact_t*, shared_ptr<ExtendedContact>>> usable_contacts;
 	bool isInvite = false;
 
@@ -516,7 +518,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 		const shared_ptr<ExtendedContact>& ec = *it;
 		sip_contact_t* ct = ec->toSofiaContact(ms->getHome());
 		// If it's not a message, verify if it's really expired
-		if (sip->sip_request->rq_method != sip_method_message && (ec->getExpireNotAtMessage() < now)) {
+		if (sip->sip_request->rq_method != sip_method_message && (ec->getSipExpireTime() <= now)) {
 			LOGD("Sip_contact of %s is expired", url_as_string(ms->getHome(), ec->mSipContact->m_url));
 			continue;
 		}
@@ -672,9 +674,7 @@ public:
 	void onRecordFound(const shared_ptr<Record>& r) override {
 		--pending;
 		if (r != NULL) {
-			const auto& ctlist = r->getExtendedContacts();
-			for (auto it = ctlist.begin(); it != ctlist.end(); ++it)
-				m_record->pushContact(*it);
+			m_record->appendContactsFrom(r);
 		}
 		checkFinished();
 	}
@@ -753,9 +753,7 @@ public:
 	void onRecordFound(const shared_ptr<Record>& r) override {
 		--mPending;
 		if (r != NULL) {
-			const auto& ctlist = r->getExtendedContacts();
-			for (auto it = ctlist.begin(); it != ctlist.end(); ++it)
-				mRecord->pushContact(*it);
+			mRecord->appendContactsFrom(r);
 		}
 		checkFinished();
 	}
@@ -780,12 +778,13 @@ public:
 			mListener->onError();
 		} else {
 			if (mRecord->count() > 0) {
+				auto& contacts = mRecord->getExtendedContacts();
 				/*also add aliases in the ExtendedContact list for the searched AORs, so that they are added to the
 				 * ForkMap.*/
 				for (const auto& uri : mUriList) {
 					shared_ptr<ExtendedContact> alias = make_shared<ExtendedContact>(uri, "");
 					alias->mAlias = true;
-					mRecord->pushContact(alias);
+					contacts.emplace(move(alias));
 				}
 			}
 			mListener->onRecordFound(mRecord);
@@ -817,10 +816,9 @@ public:
 		}
 
 		if (!mModule->isManagedDomain(mSipUri.get())) {
-			shared_ptr<ExtendedContact> contact = make_shared<ExtendedContact>(mSipUri, "");
-			r->pushContact(contact);
+			const auto contact = r->getExtendedContacts().emplace(make_shared<ExtendedContact>(mSipUri, ""));
 
-			SLOGD << "Record [" << r << "] Original request URI added because domain is not managed: " << *contact;
+			SLOGD << "Record [" << r << "] Original request URI added because domain is not managed: " << **contact;
 		}
 
 		if (!fallbackRoute.empty() && mModule->getFallbackRouteFilter()->eval(*mEv->getMsgSip()->getSip())) {
@@ -828,7 +826,7 @@ public:
 			                                       mModule->getFallbackRouteParsed())) {
 				shared_ptr<ExtendedContact> fallback = make_shared<ExtendedContact>(mSipUri, fallbackRoute, 0.0);
 				fallback->mIsFallback = true;
-				r->pushContact(fallback);
+				r->getExtendedContacts().emplace(fallback);
 				SLOGD << "Record [" << r << "] Fallback route '" << fallbackRoute << "' added: " << *fallback;
 			} else {
 				SLOGD << "Not adding fallback route '" << fallbackRoute

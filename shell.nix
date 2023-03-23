@@ -9,5 +9,6 @@ import ./nix/base.nix ({
     ccache
     clang-tools_13 # clangd, clang-format
     llvmPackages_13.libllvm # Adds llvm-symbolizer which adds line numbers to AddressSanitizer traces when compiling with clang
+    gdb
   ];
 } // args)

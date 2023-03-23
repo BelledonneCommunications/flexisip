@@ -16,6 +16,8 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <chrono>
+
 #include "registrar/binding-parameters.hh"
 #include "registrar/change-set.hh"
 #include <flexisip/utils/sip-uri.hh>
@@ -28,7 +30,7 @@ using namespace flexisip;
 int test_bind_with_ecc(ExtendedContactCommon& ecc,
                        const unique_ptr<RecordSerializer>& serializer,
                        string contact,
-                       time_t expireat,
+                       chrono::seconds expires,
                        float quality,
                        long cseq,
                        time_t now,
@@ -42,8 +44,8 @@ int test_bind_with_ecc(ExtendedContactCommon& ecc,
 		accept = accept->ac_next;
 	}
 
-	initial.update(ecc, contact.c_str(), expireat, quality, cseq, now, alias, acceptHeaders, false, NULL);
-	if (!compare(firstContact(initial), alias, ecc, cseq, expireat, quality, contact, now)) {
+	initial.update(ecc, contact.c_str(), expires.count(), quality, cseq, now, alias, acceptHeaders, false, NULL);
+	if (!compare(firstContact(initial), alias, ecc, cseq, expires, quality, contact, now)) {
 		cerr << "Initial and parameters differ" << endl;
 		return -1;
 	}
@@ -76,7 +78,7 @@ int test_bind_without_ecc(ExtendedContactCommon& ecc,
                           int globalexpire,
                           const char* callid,
                           string contact,
-                          time_t expireat,
+                          chrono::seconds expires,
                           float quality,
                           long cseq,
                           time_t now,
@@ -104,7 +106,7 @@ int test_bind_without_ecc(ExtendedContactCommon& ecc,
 
 	msg_unref(msg);
 
-	if (!compare(firstContact(initial), alias, ecc, cseq, expireat, quality, contact, now)) {
+	if (!compare(firstContact(initial), alias, ecc, cseq, expires, quality, contact, now)) {
 		cerr << "Initial and parameters differ" << endl;
 		return -1;
 	}
@@ -155,7 +157,7 @@ int main(int argc, char** argv) {
 	string contactWithChev = "<" + contact + ">";
 	uint32_t cseq = 123456;
 	time_t now = time(NULL);
-	time_t expireat = now + expire_delta;
+	chrono::seconds expireat{expire_delta};
 	float quality = 1;
 	bool alias = false;
 

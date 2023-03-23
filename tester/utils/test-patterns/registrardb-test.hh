@@ -66,7 +66,7 @@ class ContactInserter {
 
 		void onRecordFound(const shared_ptr<Record>& r) override {
 			for (const auto& contact : r->getExtendedContacts()) {
-				contactsToBeInserted.erase(ExtendedContact::urlToString(contact->mSipContact->m_url));
+				contactsToBeInserted.erase(contact->urlAsString());
 			}
 		}
 		void onError() override {
@@ -98,21 +98,25 @@ public:
 		mForgedMessage.getSip()->sip_call_id = sip_call_id_make(home, "placeholder-call-id");
 	}
 
-	void insert(string aor, chrono::seconds expire, string contact = "", string params = "") {
+	template <typename... Headers>
+	void insert(string aor, chrono::seconds expire, string contact, Headers... headers) {
 		auto aorUrl = (url_string_t*)aor.c_str();
 		contact = contact.empty() ? aor : contact;
 		auto contactUrl = (url_string_t*)contact.c_str();
 		auto sip = mForgedMessage.getSip();
 		auto home = mForgedMessage.getHome();
 		sip->sip_from = sip_from_create(home, aorUrl);
-		sip->sip_contact =
-		    sip_contact_create(home, contactUrl, ("+sip.instance=test-contact-"s + to_string(mCount)).c_str(),
-		                       params.empty() ? nullptr : params.c_str(), nullptr);
+		sip->sip_contact = sip_contact_create(home, contactUrl, headers...,
+		                                      ("+sip.instance=test-contact-"s + to_string(mCount)).c_str(), nullptr);
 		mParameters.globalExpire = expire.count();
 
 		mListener->contactsToBeInserted.insert(contact);
 		mRegDb.bind(mForgedMessage, mParameters, mListener);
 		mCount++;
+	}
+
+	void insert(string aor, chrono::seconds expire, string contact = "") {
+		insert<>(aor, expire, contact);
 	}
 
 	bool finished() const {

@@ -6,6 +6,7 @@
 
 #include <list>
 #include <memory>
+#include <ostream>
 
 namespace flexisip {
 
@@ -27,5 +28,7 @@ public:
 		return *this;
 	}
 };
+
+std::ostream& operator<<(std::ostream&, const ChangeSet&);
 
 } // namespace flexisip

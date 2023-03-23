@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2016 Belledonne Communications SARL.
+    Copyright (C) 2010-2023 Belledonne Communications SARL.
     Author: Guillaume BIENKOWSKI
 
     This program is free software: you can redistribute it and/or modify
@@ -10,11 +10,11 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "recordserializer.hh"
@@ -34,8 +34,8 @@ struct MsgPackContact {
 	std::list<std::string> mPath;
 	std::string mSipUri;
 	float mQ;
-	time_t mExpireAt;
-	time_t mUpdatedTime;
+	time_t mExpireTime;
+	time_t mRegisterTime;
 	uint32_t mCSeq;
 	bool mAlias;
 	std::list<std::string> mAcceptHeader;
@@ -48,8 +48,8 @@ struct MsgPackContact {
 	               mPath,
 	               mSipUri,
 	               mQ,
-	               mExpireAt,
-	               mUpdatedTime,
+	               mExpireTime,
+	               mRegisterTime,
 	               mCSeq,
 	               mAlias,
 	               mAcceptHeader,
@@ -68,7 +68,7 @@ bool RecordSerializerMsgPack::parse(const char* str, int len, Record* r) {
 	for (auto it = list.begin(); it != list.end(); ++it) {
 		MsgPackContact& c = *it;
 		ExtendedContactCommon ecc(c.mContactId.c_str(), c.mPath, c.mCallId.c_str(), c.line.c_str());
-		r->update(ecc, c.mSipUri.c_str(), c.mExpireAt, c.mQ, c.mCSeq, c.mUpdatedTime, c.mAlias, c.mPath,
+		r->update(ecc, c.mSipUri.c_str(), c.mExpireTime, c.mQ, c.mCSeq, c.mRegisterTime, c.mAlias, c.mPath,
 		          c.mUsedAsRoute, 0);
 	}
 
@@ -87,7 +87,7 @@ bool RecordSerializerMsgPack::serialize(Record* r, std::string& serialized, bool
 		SLOGI << "CSeq " << c->mCSeq;
 		contacts.push_back(MsgPackContact{
 		    c->mContactId, c->mCallId, c->mUniqueId, c->mPath, ExtendedContact::urlToString(c->mSipContact->m_url),
-		    c->mQ, c->mExpireAt, c->mUpdatedTime, c->mCSeq, c->mAlias, c->mAcceptHeader, c->mUsedAsRoute, c->line()});
+		    c->mQ, c->mExpireTime, c->mRegisterTime, c->mCSeq, c->mAlias, c->mAcceptHeader, c->mUsedAsRoute, c->line()});
 	}
 	pack(ss, contacts);
 	serialized = ss.str();

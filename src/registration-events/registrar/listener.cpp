@@ -55,7 +55,7 @@ void Listener::processRecord(const shared_ptr<Record>& r, const string& uidOfFre
 		                               Registration::StateType::active);
 		sofiasip::Home home;
 
-		for (const shared_ptr<ExtendedContact>& ec : r->getExtendedContacts()) {
+		for (const auto& ec : r->getExtendedContacts()) {
 			auto addr = r->getPubGruu(ec, home.home());
 			bool justRegistered = (ec->mKey == uidOfFreshlyRegistered);
 

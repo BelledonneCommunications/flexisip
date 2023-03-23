@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <vector>
+
 #include "compat/hiredis/async.h"
 #include "compat/hiredis/hiredis.h"
 
@@ -30,6 +32,7 @@
 #include "recordserializer.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/change-set.hh"
+#include "registrar/extended-contact.hh"
 #include "registrar/registrar-db.hh"
 
 namespace flexisip {
@@ -200,7 +203,7 @@ private:
 	void subscribeTopic(const std::string& topic);
 	void subscribeAll();
 	void subscribeToKeyExpiration();
-	void parseAndClean(redisReply* reply, RedisRegisterContext* data);
+	static std::vector<std::unique_ptr<ExtendedContact>> parseContacts(redisReply*);
 
 	/* callbacks */
 	void handleAuthReply(const redisReply* reply);

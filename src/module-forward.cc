@@ -259,7 +259,7 @@ public:
 			        return;
 		    }
 
-		    shared_ptr<ExtendedContact> contact = *r->getExtendedContacts().begin();
+		    shared_ptr<ExtendedContact> contact = *r->getExtendedContacts().oldest();
 		    sip_contact_t* ct = contact->toSofiaContact(ms->getHome());
 		    url_t* dest = ct->m_url;
 		    mEv->getSip()->sip_request->rq_url[0] = *url_hdup(msg_home(ms->getHome()), dest);

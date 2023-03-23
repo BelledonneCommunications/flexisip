@@ -12,6 +12,7 @@
 #include "registrardb-internal.hh"
 #include "registrardb-redis.hh"
 #include "utils/uri-utils.hh"
+#include <memory>
 
 using namespace std;
 
@@ -338,6 +339,7 @@ public:
 		if (r != nullptr) {
 			auto& extlist = r->getExtendedContacts();
 			list<shared_ptr<ExtendedContact>> vectToRecurseOn;
+			auto& contacts = mRecord->getExtendedContacts();
 			for (auto ec : extlist) {
 				// Also add alias for late forking (context in the forks map for this alias key)
 				SLOGD << "Step: " << mStep << (ec->mAlias ? "\tFound alias " : "\tFound contact ") << mUrl << " -> "
@@ -345,7 +347,7 @@ public:
 				if (!ec->mAlias && ec->mUsedAsRoute) {
 					ec = transformContactUsedAsRoute(mUrl.str(), ec);
 				}
-				mRecord->pushContact(ec);
+				contacts.emplace(ec);
 				ec->mQ = ec->mQ * mOriginalQ;
 				if (ec->mAlias && mStep > 0 && !mRecursionDone) {
 					vectToRecurseOn.push_back(ec);

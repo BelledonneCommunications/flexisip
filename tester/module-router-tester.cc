@@ -17,12 +17,29 @@
 */
 
 #include <chrono>
+#include <memory>
+#include <string>
+#include <unistd.h>
 
+#include "belle-sip/types.h"
+#include "linphone/callbacks.h"
+#include "sofia-sip/nta_tport.h"
+#include "sofia-sip/tport.h"
+
+#include "flexisip/common.hh"
+#include "flexisip/event.hh"
+#include "flexisip/logmanager.hh"
 #include "flexisip/module-router.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
+#include "flexisip/utils/sip-uri.hh"
 
+#include "registrar/extended-contact.hh"
+#include "registrar/registrar-db.hh"
+#include "utils/asserts.hh"
 #include "utils/bellesip-utils.hh"
+#include "utils/proxy-server.hh"
 #include "utils/test-patterns/registrardb-test.hh"
+#include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
 using namespace std;
@@ -338,15 +355,70 @@ private:
 	}
 };
 
+template <typename Database>
+void message_expires() {
+	Database db{};
+	Server proxyServer{[&db]() {
+		auto config = db.configAsMap();
+		config.emplace("global/transports", "sip:127.0.0.1:0;transport=udp");
+		config.emplace("module::Registrar/reg-domains", "127.0.0.1");
+		return config;
+	}()};
+	proxyServer.start();
+	BcAssert asserter{};
+	asserter.addCustomIterate([&root = *proxyServer.getRoot()] { root.step(1ms); });
+	const auto& agent = proxyServer.getAgent();
+	const auto routerModule = static_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+	auto responseCount = 0;
+	BellesipUtils bellesipUtils{"0.0.0.0", 0, "UDP",
+	                            [&responseCount](int status) {
+		                            if (status != 100) {
+			                            ++responseCount;
+		                            }
+	                            },
+	                            nullptr};
+	const string proxyPort = ::tport_name(::tport_primaries(::nta_agent_tports(agent->getSofiaAgent())))->tpn_port;
+	const string clientPort = to_string(bellesipUtils.getListeningPort());
+	ContactInserter inserter(*RegistrarDb::get(), *agent);
+	const auto aor = "sip:message_expires@127.0.0.1";
+	inserter.insert(aor, 0s, "sip:message_expires@127.0.0.1:" + clientPort, "message-expires=1609");
+	BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(5, [&inserter] { return inserter.finished(); }));
+	asserter.addCustomIterate([&bellesipUtils] { bellesipUtils.stackSleep(1); });
+	auto* forks = routerModule->mStats.mCountForks->start;
+	BC_ASSERT_CPP_EQUAL(forks->read(), 0);
+
+	bellesipUtils.sendRawRequest(
+	    "OPTIONS sip:message_expires@127.0.0.1:" + proxyPort + " SIP/2.0\r\n" +
+	    "From: <sip:message_expires_placeholder2@127.0.0.1>;tag=message_expires_placeholder1\r\n"
+	    "To: <sip:message_expires@127.0.0.1>\r\n"
+	    "Via: SIP/2.0/TCP 127.0.0.1\r\n"
+	    "Call-ID: message_expires_placeholder4\r\n"
+	    "CSeq: 55 OPTIONS\r\n");
+	bellesipUtils.sendRawRequest(
+	    "MESSAGE sip:message_expires@127.0.0.1:" + proxyPort + " SIP/2.0\r\n" +
+	    "From: <sip:message_expires_placeholder6@127.0.0.1>;tag=message_expires_placeholder3\r\n"
+	    "To: <sip:message_expires@127.0.0.1>\r\n"
+	    "Via: SIP/2.0/TCP 127.0.0.1\r\n"
+	    "Call-ID: message_expires_placeholder8\r\n"
+	    "CSeq: 2178 MESSAGE\r\n"
+	    "Content-Type: text/plain\r\n"
+	    "\r\n"
+	    "Expiration Date High Score: 24.3\r\n");
+	BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(5, [&responseCount] { return responseCount == 2; }));
+	BC_ASSERT_CPP_EQUAL(forks->read(), 1);
+}
+
 namespace {
 TestSuite
     _("Module router",
       {
+          CLASSY_TEST(message_expires<DbImplementation::Internal>),
+          CLASSY_TEST(message_expires<DbImplementation::Redis>),
           TEST_NO_TAG("Disable fallback route for requests not matching fallback-route-filter",
                       run<FallbackRouteFilterTest>),
           TEST_NO_TAG("Check that module router remove route to itself", run<SelfRouteHeaderRemovingTest>),
           TEST_NO_TAG("Check that module router don't remove route to others", run<OtherRouteHeaderNotRemovedTest>),
       });
-}
+} // namespace
 } // namespace tester
 } // namespace flexisip

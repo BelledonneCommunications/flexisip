@@ -93,4 +93,8 @@ void BellesipUtils::stackSleep(unsigned int milliseconds) {
 	belle_sip_stack_sleep(mStack, milliseconds);
 }
 
+int BellesipUtils::getListeningPort() {
+	return ::belle_sip_listening_point_get_port(mListeningPoint);
+}
+
 } // namespace flexisip

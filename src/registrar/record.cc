@@ -20,8 +20,6 @@ namespace flexisip {
 sip_contact_t* Record::getContacts(su_home_t* home) {
 	sip_contact_t* alist = nullptr;
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
-		if ((*it)->isExpired()) continue;
-
 		sip_contact_t* current = (*it)->toSofiaContact(home);
 		if (alist) {
 			current->m_next = alist;
@@ -61,11 +59,11 @@ const shared_ptr<ExtendedContact> Record::extractContactByUniqueId(const string&
 /**
  * Should first have checked the validity of the register with isValidRegister.
  */
-void Record::clean(time_t now, const shared_ptr<ContactUpdateListener>& listener) {
+void Record::clean(const shared_ptr<ContactUpdateListener>& listener) {
 	auto it = mContacts.begin();
 	while (it != mContacts.end()) {
 		shared_ptr<ExtendedContact> ec = (*it);
-		if (now >= ec->mExpireAt) {
+		if (ec->isExpired()) {
 			if (listener) listener->onContactUpdated(ec);
 			it = mContacts.erase(it);
 		} else {
@@ -76,8 +74,8 @@ void Record::clean(time_t now, const shared_ptr<ContactUpdateListener>& listener
 
 time_t Record::latestExpire() const {
 	time_t latest = 0;
-	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
-		if ((*it)->mExpireAt > latest) latest = (*it)->mExpireAt;
+	for (const auto& contact : mContacts) {
+		latest = std::max(latest, contact->getExpireTime());
 	}
 	return latest;
 }
@@ -87,7 +85,8 @@ time_t Record::latestExpire(Agent* ag) const {
 	sofiasip::Home home;
 
 	for (auto it = mContacts.begin(); it != mContacts.end(); ++it) {
-		if ((*it)->mPath.empty() || (*it)->mExpireAt <= latest) continue;
+		const auto expireTime = (*it)->getExpireTime();
+		if ((*it)->mPath.empty() || expireTime <= latest) continue;
 
 		/* Remove extra parameters */
 		string s = *(*it)->mPath.begin();
@@ -95,7 +94,7 @@ time_t Record::latestExpire(Agent* ag) const {
 		if (n != string::npos) s = s.substr(0, n);
 		url_t* url = url_make(home.home(), s.c_str());
 
-		if (ag->isUs(url)) latest = (*it)->mExpireAt;
+		if (ag->isUs(url)) latest = expireTime;
 	}
 	return latest;
 }
@@ -180,7 +179,7 @@ ChangeSet Record::insertOrUpdateBinding(unique_ptr<ExtendedContact>&& ec, Contac
 	/* Add the new contact, if not expired (ie with expires=0) */
 	if (!ec->isExpired()) {
 		shared_ptr<ExtendedContact> shared = move(ec);
-		mContacts.push_back(shared);
+		mContacts.emplace(shared);
 		changeSet.mUpsert.push_back(shared);
 	}
 
@@ -189,14 +188,14 @@ ChangeSet Record::insertOrUpdateBinding(unique_ptr<ExtendedContact>&& ec, Contac
 
 Record::ContactMatch Record::matchContacts(const ExtendedContact& existing, const ExtendedContact& neo) {
 	if (existing.mPushParamList == neo.mPushParamList) {
-		if (existing.mUpdatedTime <= neo.mUpdatedTime) {
+		if (existing.getRegisterTime() <= neo.getRegisterTime()) {
 			SLOGD << "Removing contact [" << existing.contactId() << "] with identical push params : new["
 			      << neo.mPushParamList << "], current[" << existing.mPushParamList << "]";
 			return ContactMatch::ForceErase;
 		} else {
 			SLOGW << "Inserted contact has the same push parameters as another more recent contact, this should not "
 			         "happen. (existing: "
-			      << existing.mUpdatedTime << " ≮ new: " << neo.mUpdatedTime << ")";
+			      << existing.getRegisterTime() << " ≮ new: " << neo.getRegisterTime() << ")";
 		}
 	}
 
@@ -230,7 +229,7 @@ Record::ContactMatch Record::matchContacts(const ExtendedContact& existing, cons
 		throw InvalidCSeq();
 	}
 
-	if (existing.mExpireAt <= time(nullptr)) {
+	if (existing.isExpired()) {
 		SLOGD << "Cleaning expired contact '" << existing.contactId() << "'";
 		return ContactMatch::ForceErase;
 	}
@@ -238,33 +237,15 @@ Record::ContactMatch Record::matchContacts(const ExtendedContact& existing, cons
 	return ContactMatch::Skip;
 }
 
-static bool compare_contact_using_last_update(shared_ptr<ExtendedContact> first, shared_ptr<ExtendedContact> second) {
-	return first->mUpdatedTime < second->mUpdatedTime;
-}
-
 ChangeSet Record::applyMaxAor() {
 	ChangeSet changeSet{};
-	// If contact doesn't exist and there is space left
-	if (mContacts.size() > (unsigned int)sMaxContacts) {
-		mContacts.sort(compare_contact_using_last_update);
-		do {
-			shared_ptr<ExtendedContact> front = mContacts.front();
-			mContacts.pop_front();
-			changeSet.mDelete.push_back(front);
-		} while (mContacts.size() > (unsigned int)sMaxContacts);
+	while (mContacts.size() > static_cast<size_t>(sMaxContacts)) {
+		const auto oldest = mContacts.oldest();
+		changeSet.mDelete.push_back(*oldest);
+		mContacts.erase(oldest);
 	}
 
 	return changeSet;
-}
-
-bool Record::updateFromUrlEncodedParams(const char* key, const char* full_url) {
-	auto exc = make_unique<ExtendedContact>(key, full_url);
-
-	if (exc->mSipContact) {
-		mContacts.emplace_back(move(exc));
-		return true;
-	}
-	return false;
 }
 
 void Record::eliminateAmbiguousContacts(list<unique_ptr<ExtendedContact>>& extendedContacts) {
@@ -277,7 +258,7 @@ void Record::eliminateAmbiguousContacts(list<unique_ptr<ExtendedContact>>& exten
 	 */
 	for (auto it = extendedContacts.begin(); it != extendedContacts.end();) {
 		auto& exc = *it;
-		if (exc->mUpdatedTime == exc->mExpireAt && !exc->mKey.isPlaceholder()) {
+		if (exc->getSipExpires() == 0s && !exc->mKey.isPlaceholder()) {
 			auto duplicate =
 			    find_if(extendedContacts.begin(), extendedContacts.end(),
 			            [&exc](const auto& exc2) -> bool { return exc != exc2 && exc->mKey == exc2->mKey; });
@@ -486,8 +467,8 @@ void Record::init() {
 void Record::appendContactsFrom(const shared_ptr<Record>& src) {
 	if (!src) return;
 
-	for (auto it = src->mContacts.begin(); it != src->mContacts.end(); ++it) {
-		mContacts.push_back(*it);
+	for (const auto& contact : src->mContacts) {
+		mContacts.emplace(contact);
 	}
 }
 

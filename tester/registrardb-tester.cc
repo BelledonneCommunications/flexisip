@@ -17,6 +17,7 @@
 */
 
 #include <cstring>
+#include <sstream>
 #include <string>
 
 #include "bctoolbox/tester.h"
@@ -131,7 +132,7 @@ class TestFetchExpiringContacts : public RegistrarDbTest<TDatabase> {
 		});
 
 		BC_ASSERT_TRUE(this->waitFor([&expiringContacts] { return !expiringContacts.empty(); }, 1s));
-		BC_ASSERT_EQUAL(expiringContacts.size(), 2, size_t, "%ld");
+		BC_ASSERT_CPP_EQUAL(expiringContacts.size(), 2);
 		std::unordered_set<std::string> expectedContactStrings = {"expected1", "expected2"};
 		for (const auto& contact : expiringContacts) {
 			auto contactString = contact.mSipContact->m_url->url_user;
@@ -148,7 +149,7 @@ class TestFetchExpiringContacts : public RegistrarDbTest<TDatabase> {
 		});
 
 		BC_ASSERT_TRUE(this->waitFor([&expiringContacts] { return !expiringContacts.empty(); }, 1s));
-		BC_ASSERT_EQUAL(expiringContacts.size(), 2, size_t, "%ld");
+		BC_ASSERT_CPP_EQUAL(expiringContacts.size(), 2);
 	}
 };
 
@@ -265,7 +266,7 @@ class ContactsAreCorrectlyUpdatedWhenMatchedOnUri : public RegistrarDbTest<DbImp
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 		{
 			auto& contacts = listener->mRecord->getExtendedContacts();
-			BC_ASSERT_EQUAL(contacts.size(), 4, int, "%d");
+			BC_ASSERT_EQUAL(contacts.size(), 1, int, "%d");
 			SLOGD << *listener->mRecord;
 		}
 
@@ -357,7 +358,8 @@ protected:
 		if (listener->mRecord) {
 			const auto& contacts = listener->mRecord->getExtendedContacts();
 			BC_ASSERT_EQUAL(contacts.size(), 1, size_t, "%zx");
-			BC_ASSERT_STRING_EQUAL(contacts.front()->mSipContact->m_url->url_params, "transport=tcp;new-param=added");
+			BC_ASSERT_STRING_EQUAL((*contacts.latest())->mSipContact->m_url->url_params,
+			                       "transport=tcp;new-param=added");
 			ASSERT_PASSED(checkFetch());
 		}
 
@@ -366,8 +368,10 @@ protected:
 		if (listener->mRecord) {
 			const auto& contacts = listener->mRecord->getExtendedContacts();
 			BC_ASSERT_EQUAL(contacts.size(), 2, size_t, "%zx");
-			BC_ASSERT_STRING_EQUAL(contacts.back()->mSipContact->m_url->url_user, "alias");
-			BC_ASSERT_STRING_EQUAL(contacts.back()->mSipContact->m_url->url_params, "transport=tcp"); // No new-param
+			const auto& latest = *contacts.latest();
+			BC_ASSERT_STRING_EQUAL(latest->mSipContact->m_url->url_user, "alias");
+			BC_ASSERT_STRING_EQUAL(latest->mSipContact->m_url->url_params,
+			                       "transport=tcp"); // No new-param
 			ASSERT_PASSED(checkFetch());
 		}
 
@@ -392,7 +396,7 @@ protected:
 		if (listener->mRecord) {
 			const auto& contacts = listener->mRecord->getExtendedContacts();
 			BC_ASSERT_EQUAL(contacts.size(), 1, size_t, "%zx");
-			BC_ASSERT_STRING_EQUAL(contacts.front()->mKey.str().c_str(), "\"<urn::uuid::abcd>\"");
+			BC_ASSERT_STRING_EQUAL((*contacts.latest())->mKey.str().c_str(), "\"<urn::uuid::abcd>\"");
 			ASSERT_PASSED(checkFetch());
 		}
 
@@ -401,7 +405,7 @@ protected:
 		if (listener->mRecord) {
 			const auto& contacts = listener->mRecord->getExtendedContacts();
 			BC_ASSERT_EQUAL(contacts.size(), 1, size_t, "%zx");
-			BC_ASSERT_STRING_EQUAL(contacts.front()->mSipContact->m_url->url_host, "10.0.0.3");
+			BC_ASSERT_STRING_EQUAL((*contacts.latest())->mSipContact->m_url->url_host, "10.0.0.3");
 			ASSERT_PASSED(checkFetch());
 		}
 	}
@@ -461,9 +465,9 @@ class CallIDsPreviouslyUsedAsKeysAreInterpretedAsUniqueIDs : public RegistrarDbT
 		const auto listener = make_shared<SuccessfulBindListener>();
 		regDb->bind(aor, contact, params, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
-		const auto& contactKey = listener->mRecord->getExtendedContacts().front()->mKey;
+		const auto& contactKey = (*listener->mRecord->getExtendedContacts().latest())->mKey.str();
 		RedisSyncContext redis = redisConnect("127.0.0.1", this->dbImpl.mPort);
-		const auto serializedContact = redis.command("HGET fs%s %s", contactBase, contactKey.str().c_str());
+		const auto serializedContact = redis.command("HGET fs%s %s", contactBase, contactKey.c_str());
 		BC_ASSERT_EQUAL(serializedContact->type, REDIS_REPLY_STRING, int, "%i");
 		// Fake a Call-ID indexed entry by replacing the inserted entry
 		{
@@ -472,7 +476,7 @@ class CallIDsPreviouslyUsedAsKeysAreInterpretedAsUniqueIDs : public RegistrarDbT
 			BC_ASSERT_EQUAL(status->integer, 1, int, "%i");
 		}
 		{
-			const auto status = redis.command("HDEL fs%s %s", contactBase, contactKey.str().c_str());
+			const auto status = redis.command("HDEL fs%s %s", contactBase, contactKey.c_str());
 			BC_ASSERT_EQUAL(status->type, REDIS_REPLY_INTEGER, int, "%i");
 			BC_ASSERT_EQUAL(status->integer, 1, int, "%i");
 		}
@@ -495,7 +499,7 @@ class CallIDsPreviouslyUsedAsKeysAreInterpretedAsUniqueIDs : public RegistrarDbT
 };
 
 class ExpiredContactsArePurgedFromRedis : public RegistrarDbTest<DbImplementation::Redis> {
-	void testExec() noexcept override {
+	void testExec() override {
 		auto* regDb = RegistrarDb::get();
 		sofiasip::Home home{};
 		const auto contactBase = ":expiration-test@example.org";
@@ -526,7 +530,7 @@ class ExpiredContactsArePurgedFromRedis : public RegistrarDbTest<DbImplementatio
 		const char param[] = "updatedAt=";
 		char* index = std::strstr(serializedContact, param) + sizeof(param);
 		BC_ASSERT_PTR_NOT_NULL(index);
-		*index = '0'; // Rewinding at least 31 years back, that should expire it
+		index[0] = '0'; // Rewinding at least 31 years back, that should expire it
 
 		auto insert = redis.command("HMSET fs%s %s %s", contactBase, contactKey, serializedContact);
 		BC_ASSERT_EQUAL(insert->type, REDIS_REPLY_STATUS, int, "%i");
@@ -537,7 +541,7 @@ class ExpiredContactsArePurgedFromRedis : public RegistrarDbTest<DbImplementatio
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 		{
 			auto& contacts = listener->mRecord->getExtendedContacts();
-			BC_ASSERT_EQUAL(contacts.size(), 1, int, "%d");
+			BC_ASSERT_EQUAL(contacts.size(), 0, int, "%d");
 		}
 
 		listener->mRecord.reset();
