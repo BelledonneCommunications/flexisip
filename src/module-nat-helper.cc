@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -265,5 +265,5 @@ ModuleInfo<NatHelper> NatHelper::sInfo(
     "The NatHelper module executes small tasks to make SIP work smoothly despite firewalls. It corrects the Contact "
     "headers that contain obviously inconsistent addresses, and adds a Record-Route to ensure subsequent requests are "
     "routed also by the proxy, through the same UDP or TCP channel used for the initial request.",
-    {"GarbageIn"},
+    {"Capabilities"},
     ModuleInfoBase::ModuleOid::NatHelper);

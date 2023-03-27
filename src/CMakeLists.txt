@@ -64,6 +64,7 @@ add_library(flexisip SHARED
 	mediarelay.cc mediarelay.hh
 	module-auth.cc
 	module-authentication-base.cc
+	module-capabilities.cc module-capabilities.hh
 	module-contact-route-inserter.cc
 	module-forward.cc
 	module-garbage-in.cc
