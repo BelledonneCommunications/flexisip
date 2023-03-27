@@ -153,6 +153,7 @@ static void firebasePushTestOk(void) {
 		"loc-key":"",
 		"loc-args":"PushTestOk",
 		"send-time":"[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}"
+		"custom-payload":\{\}
 	\}
 \})json"};
 
@@ -181,6 +182,7 @@ static void firebasePushTestKo(void) {
 		"loc-key":"MessID",
 		"loc-args":"sip:kijou@sip.linphone.org",
 		"send-time":"[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}"
+		"custom-payload":\{\}
 	\}
 \})json"};
 

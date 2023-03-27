@@ -54,10 +54,12 @@ FirebaseRequest::FirebaseRequest(PushType pType, const std::shared_ptr<const Pus
 		"loc-key":"@loc-key@",
 		"loc-args":"@loc-args@",
 		"send-time":"@send-time@"
+		"custom-payload":@custom-payload@
 	}
 })json",
 		'@', '@');
 
+	auto customPayload = mPInfo->mCustomPayload.empty() ? "{}"s : mPInfo->mCustomPayload;
 	std::map<std::string, std::string> values = {
 		{"to", getDestination().getPrid()},
 		{"ttl", to_string(ttl.count())},
@@ -68,7 +70,8 @@ FirebaseRequest::FirebaseRequest(PushType pType, const std::shared_ptr<const Pus
 		{"sip-from", from},
 		{"loc-key", mPInfo->mAlertMsgId},
 		{"loc-args", from},
-		{"send-time", getPushTimeStamp()}
+		{"send-time", getPushTimeStamp()},
+		{"custom-payload", customPayload},
 	};
 	// clang-format on
 
