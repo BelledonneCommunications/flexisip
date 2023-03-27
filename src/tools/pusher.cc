@@ -82,6 +82,9 @@ General options:
   -h, --help                         Show this help message and exit.
   --debug                            Print all debug messages on the standard output.
 
+  --customPayload <payload>          Add custom parameters in the PN request body. <payload> must be a JSON structure
+								     and will be placed in the top-level JSON attribute.
+
 
 Android specific options:
 -------------------------
@@ -102,10 +105,6 @@ iOS specific options:
                                        * RemoteWithMutableContent: a message is displayed to the user;
                                        * PushKit: require the application to use CallKit API to display the incoming
                                          call view.
-
-  --customPayload <payload>          Add custom parameters in the PN request body. <payload> must be a JSON structure
-                                     and will be placed in the top-level JSON attribute.
-
 
 Examples:
 ---------
@@ -269,34 +268,24 @@ struct Stats {
 static vector<std::unique_ptr<PushInfo>> createPushInfosFromArgs(const PusherArgs& args) {
 	vector<unique_ptr<PushInfo>> pushInfos{};
 	// Parameters in common between Legacy and Standard push
-	auto fillCommonPushParams = [](PushInfo& pinfo) {
+	auto fillCommonPushParams = [&args](PushInfo& pinfo) {
 		pinfo.mFromName = "Pusher";
-		pinfo.mFromUri = "sip:toto@sip.linphone.org";
-	};
-
-	// Parameters in common between Legacy and Standard push, specifically for apple push notification
-	auto fillAppleGenericParams = [&args](PushInfo& pinfo) {
-		pinfo.mAlertMsgId = "IM_MSG";
-		pinfo.mAlertSound = "msg.caf";
+		pinfo.mFromUri = "sip:pusher@sip.example.org";
+		pinfo.mCallId = "fb14b5fe-a9ab-1231-9485-7d582244ba3d";
 		pinfo.mTtl = 30 * 24h;
+		pinfo.mAlertMsgId = "Push test message.";
+		pinfo.mAlertSound = "msg.caf";
 		pinfo.mCustomPayload = args.customPayload;
 	};
 
 	if (args.legacyPush) { // Legacy push
 		for (const auto& pntok : args.pntok) {
 			auto pinfo = make_unique<PushInfo>();
-			if (args.pntype == "firebase") {
-				pinfo->mCallId = "fb14b5fe-a9ab-1231-9485-7d582244ba3d";
-				pinfo->mFromName = "+33681741738";
-			} else if (args.pntype == "apple") {
-				fillAppleGenericParams(*pinfo);
-			}
-
 			auto dest = make_shared<RFC8599PushParams>();
 			dest->setFromLegacyParams(args.pntype, args.appid, pntok);
 			pinfo->addDestination(dest);
 			fillCommonPushParams(*pinfo);
-			pushInfos.emplace_back(move(pinfo));
+			pushInfos.emplace_back(std::move(pinfo));
 		}
 	} else { // StandardPush
 		for (const auto& pnPrid : args.pnPrids) {
@@ -306,10 +295,7 @@ static vector<std::unique_ptr<PushInfo>> createPushInfosFromArgs(const PusherArg
 				pinfo->addDestination(kv.second);
 			}
 			fillCommonPushParams(*pinfo);
-			if (pinfo->isApple()) {
-				fillAppleGenericParams(*pinfo);
-			}
-			pushInfos.emplace_back(move(pinfo));
+			pushInfos.emplace_back(std::move(pinfo));
 		}
 	}
 	return pushInfos;
