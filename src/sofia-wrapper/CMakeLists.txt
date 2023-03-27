@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2022 Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2023 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -23,6 +23,10 @@
 target_sources(flexisip PRIVATE
 	auth-module.cc
 	msg-sip.cc
+	nta-agent.hh
+	nta-outgoing-transaction.hh
+	sip-header-private.hh
 	su-root.cc
 	timer.cc
+	utilities.hh
 )

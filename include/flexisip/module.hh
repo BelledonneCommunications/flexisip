@@ -165,6 +165,7 @@ public:
 		SanityChecker = 3,
 		DoSProtection = 4,
 		GarbageIn = 5,
+		Capabilities = 10,
 		NatHelper = 30,
 		Authentication = 60,
 		CustomAuthentication = 61,

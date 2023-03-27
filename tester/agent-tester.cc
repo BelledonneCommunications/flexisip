@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,6 +18,7 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include <boost/asio.hpp>
 
@@ -25,9 +26,13 @@
 #include <bctoolbox/tester.h>
 
 #include <sofia-sip/msg_buffer.h>
+#include <sofia-sip/msg_header.h>
+#include <sofia-sip/sip_protos.h>
 
 #include "flexisip/sofia-wrapper/msg-sip.hh"
 
+#include "sofia-wrapper/nta-agent.hh"
+#include "sofia-wrapper/sip-header-private.hh"
 #include "tester.hh"
 #include "utils/string-utils.hh"
 #include "utils/test-patterns/agent-test.hh"
@@ -37,8 +42,7 @@
 
 using namespace std;
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 class TransportsAndIsUsTest : public AgentTest {
 private:
@@ -406,13 +410,55 @@ public:
 	}
 };
 
+class ReplyToOptionRequestTest : public AgentTest {
+private:
+	// Private methods
+	void onAgentConfiguration(GenericManager& cfg) override {
+		const auto* globalSection = cfg.getRoot()->get<GenericStruct>("global");
+		globalSection->get<ConfigValue>("transports")->set(kProxyURI);
+		globalSection->get<ConfigValue>("aliases")->set("localhost "s + kDomain);
+	}
+
+	void testExec() override {
+		using namespace sofiasip;
+
+		const auto fromURI = "sip:alice@"s + kDomain;
+		const auto toURI = "sip:"s + kDomain;
+		const auto& requestURI = toURI;
+
+		// Creating the SIP message
+		auto optionRequest = make_unique<MsgSip>();
+		optionRequest->makeAndInsert<SipHeaderRequest>(sip_method_options, requestURI);
+		optionRequest->makeAndInsert<SipHeaderFrom>(fromURI, "dummyTag");
+		optionRequest->makeAndInsert<SipHeaderTo>(toURI);
+		optionRequest->makeAndInsert<SipHeaderCallID>(kDomain);
+		optionRequest->makeAndInsert<SipHeaderCSeq>(20u, sip_method_options);
+
+		// Instantiate the client and send the request through an outgoing transaction
+		auto client = NtaAgent{mRoot, "sip:localhost:0"};
+		auto transaction = client.createOutgoingTransaction(move(optionRequest), kProxyURI);
+
+		// Wait for the transaction completion and check that the server has replied 200.
+		BC_ASSERT_TRUE(waitFor([transaction]() { return transaction->isCompleted(); }, 1s));
+		BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 200);
+	}
+
+	// Private attributes
+	static constexpr auto kDomain = "sip.example.org";
+	static constexpr auto kProxyPort = "6060";
+	static const std::string kProxyURI;
+};
+
+const std::string ReplyToOptionRequestTest::kProxyURI =
+    "sip:"s + kDomain + ":" + kProxyPort + ";maddr=127.0.0.1;transport=tcp";
+
 namespace {
 using TCP = TcpConfig;
 using NewTLS = NewTlsConfig;
 using LegacyTLS = LegacyTlsConfig;
 using InternalTransport = InternalTransportConfig;
 
-TestSuite _("Agent unit tests",
+TestSuite _{"Agent unit tests",
             {
                 CLASSY_TEST(CSeqIsCheckedOnRegisterWithoutInstanceId),
                 TEST_NO_TAG("Transports loading from conf and isUs method testing", run<TransportsAndIsUsTest>),
@@ -424,7 +470,8 @@ TestSuite _("Agent unit tests",
                             run<RFC5626KeepAliveWithCRLF<InternalTransport>>),
                 TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) - no PONG if 'outbound' not supported",
                             run<RFC5626KeepAliveWithCRLF<OutboundNotSupported>>),
-            });
+                TEST_NO_TAG("Agent replies to OPTION requests", run<ReplyToOptionRequestTest>),
+            }};
 } // namespace
-} // namespace tester
-} // namespace flexisip
+
+} // namespace flexisip::tester

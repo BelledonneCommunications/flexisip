@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL.
+    Copyright (C) 2010-2023 Belledonne Communications SARL.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -30,6 +30,8 @@
 #include <bctoolbox/ownership.hh>
 
 #include "flexisip/sip-boolean-expressions.hh"
+
+#include "sip-header.hh"
 
 using namespace ownership;
 
@@ -125,6 +127,26 @@ public:
 	static std::array<MsgSipPriority, 4> getOrderedPrioritiesList() {
 		return {MsgSipPriority::Emergency, MsgSipPriority::Urgent, MsgSipPriority::Normal, MsgSipPriority::NonUrgent};
 	};
+	/**
+	 * Insert or add a SIP header in the SIP message.
+	 * If the header already exists in the message and is to be unique, then the new header replace the old one.
+	 * If the header already exists in the message and isn't to be unique, then the new header is inserted after
+	 * or before the current headers according the kind of the header.
+	 */
+	void insertHeader(SipHeader&& header) {
+		su_home_move(getHome(), header.mHome.home());
+		msg_header_insert(mMsg.borrow(), nullptr, header.mNativePtr);
+		header.mNativePtr = nullptr;
+	}
+	/**
+	 * Create and insert a header in a SIP message.
+	 * @param HeaderT The header type.
+	 * @param args The arguments to give to the header constructor.
+	 */
+	template <typename HeaderT, typename... ArgsT>
+	void makeAndInsert(ArgsT&&... args) {
+		insertHeader(HeaderT{std::forward<ArgsT>(args)...});
+	}
 
 private:
 	// Private methods
