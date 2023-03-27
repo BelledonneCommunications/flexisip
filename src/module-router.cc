@@ -209,7 +209,7 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 
 	if (mMessageForkCfg->mForkLate) {
 		mOnContactRegisteredListener = make_shared<OnContactRegisteredListener>(this);
-		#if ENABLE_SOCI
+#if ENABLE_SOCI
 		if ((mMessageForkCfg->mSaveForkMessageEnabled = mc->get<ConfigBoolean>("message-database-enabled")->read())) {
 			InjectContext::setMaxRequestRetentionTime(
 			    seconds{mc->get<ConfigInt>("max-request-retention-time")->read()});
@@ -220,7 +220,7 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 
 			restoreForksFromDatabase();
 		} else
-		#endif
+#endif
 		{
 			mInjector = make_unique<AgentInjector>(this);
 		}
@@ -560,23 +560,23 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 	           !(sip->sip_content_type &&
 	             strcasecmp(sip->sip_content_type->c_type, "application/im-iscomposing+xml") == 0) &&
 	           !(sip->sip_expires && sip->sip_expires->ex_delta == 0)) {
-		// Use the basic fork context for "im-iscomposing+xml" messages to prevent storing useless messages
-		#if ENABLE_SOCI
+// Use the basic fork context for "im-iscomposing+xml" messages to prevent storing useless messages
+#if ENABLE_SOCI
 		if (mMessageForkCfg->mSaveForkMessageEnabled) {
 			context = ForkMessageContextDbProxy::make(shared_from_this(), ev, msgPriority);
 		} else
-		#endif
+#endif
 		{
 			context = ForkMessageContext::make(shared_from_this(), ev, shared_from_this(), msgPriority);
 		}
 	} else if (sip->sip_request->rq_method == sip_method_refer &&
 	           (sip->sip_refer_to != nullptr && msg_params_find(sip->sip_refer_to->r_params, "text") != nullptr)) {
-		// Use the message fork context only for refers that are text to prevent storing useless refers
-		#if ENABLE_SOCI
+// Use the message fork context only for refers that are text to prevent storing useless refers
+#if ENABLE_SOCI
 		if (mMessageForkCfg->mSaveForkMessageEnabled) {
 			context = ForkMessageContextDbProxy::make(shared_from_this(), ev, msgPriority);
 		} else
-		#endif
+#endif
 		{
 			context = ForkMessageContext::make(shared_from_this(), ev, shared_from_this(), msgPriority);
 		}
@@ -643,7 +643,8 @@ class PreroutingFetcher : public ContactUpdateListener,
 	shared_ptr<Record> m_record;
 
 public:
-	// Adding maybe_unused after the argument because of C++ compiler bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81429
+	// Adding maybe_unused after the argument because of C++ compiler bug:
+	// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81429
 	PreroutingFetcher(ModuleRouter* module [[maybe_unused]],
 	                  shared_ptr<RequestSipEvent> ev,
 	                  const shared_ptr<ContactUpdateListener>& listener,
@@ -711,7 +712,8 @@ class TargetUriListFetcher : public ContactUpdateListener,
 	bool mError = false;
 
 public:
-	// Adding maybe_unused after the argument because of C++ compiler bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81429
+	// Adding maybe_unused after the argument because of C++ compiler bug:
+	// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81429
 	TargetUriListFetcher(ModuleRouter* module [[maybe_unused]],
 	                     const shared_ptr<RequestSipEvent>& ev,
 	                     const shared_ptr<ContactUpdateListener>& listener,
