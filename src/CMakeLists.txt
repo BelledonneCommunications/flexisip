@@ -59,6 +59,7 @@ add_library(flexisip SHARED
 	fork-context/fork-context.cc
 	fork-context/fork-status.hh
 	h264iframefilter.cc h264iframefilter.hh
+	lib/nlohmann-json-3-11-2/json.hpp
 	log/logmanager.cc
 	lpconfig.cc
 	mediarelay.cc mediarelay.hh
@@ -128,6 +129,7 @@ add_library(flexisip SHARED
 	conditional-routes.cc conditional-routes.hh
 )
 
+add_subdirectory(flexiapi)
 add_subdirectory(router)
 add_subdirectory(sofia-wrapper)
 add_subdirectory(utils)

@@ -68,6 +68,10 @@ struct AssertionResult {
 
 class BcAssert {
 public:
+	BcAssert() = default;
+	explicit BcAssert(const std::initializer_list<std::function<void()>>& mIterateFuncs)
+	    : mIterateFuncs(mIterateFuncs) {
+	}
 	void addCustomIterate(const std::function<void()>& iterate) {
 		mIterateFuncs.push_back(iterate);
 	}

@@ -19,6 +19,7 @@
 #pragma once
 
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include <nghttp2/nghttp2.h>
@@ -43,6 +44,14 @@ public:
 	HttpHeaders() = default;
 	HttpHeaders(const HttpHeaders&) = default;
 	HttpHeaders(HttpHeaders&&) = default;
+	HttpHeaders(const std::string& name, const std::string& value, std::uint8_t flags = NGHTTP2_FLAG_NONE) {
+		this->add(name, value, flags);
+	};
+	HttpHeaders(std::initializer_list<std::pair<std::string, std::string>> headers) {
+		for (auto header : headers) {
+			this->add(header.first, header.second);
+		}
+	};
 
 	HttpHeaders& operator=(const HttpHeaders&) = default;
 	HttpHeaders& operator=(HttpHeaders&&) = default;
@@ -52,6 +61,8 @@ public:
 	}
 
 	void add(const std::string& name, const std::string& value, std::uint8_t flags = NGHTTP2_FLAG_NONE) noexcept;
+	void concat(const HttpHeaders& other) noexcept;
+
 	std::string toString() const noexcept;
 
 	CHeaderList makeCHeaderList() const noexcept;

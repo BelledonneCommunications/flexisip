@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-18-04-lts:20230227_add_mariadb_server
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-18-04-lts:20230601_update_libnghttp2_asio
 ###############################################################################
 
 FROM ubuntu:18.04
@@ -15,6 +15,7 @@ RUN apt-get -y --fix-missing update \
   # Find and set best mirror
  && pip install apt-mirror-updater \
  && apt-mirror-updater --auto-change-mirror \
+ && apt-mirror-updater --update-package-lists \
  && pip uninstall -y apt-mirror-updater \
  && apt-get -y remove python-pip \
  && apt-get -y autoremove \
@@ -100,9 +101,9 @@ ENV PATH=$PATH:/home/bc/.local/bin
 COPY cmake_install.sh .
 RUN ./cmake_install.sh 3.20.5 && rm cmake_install.sh
 
-# Install libnghttp2_asio 1.30.0
+# Install libnghttp2_asio 1.39.2
 COPY libnghttp2_asio_install.sh .
-RUN sudo ./libnghttp2_asio_install.sh 1.30.0 && rm libnghttp2_asio_install.sh
+RUN sudo ./libnghttp2_asio_install.sh 1.39.2 && rm libnghttp2_asio_install.sh
 
 # CVE-2022-24765, from git 2.35.2 onward
 RUN git config --global --add safe.directory *

@@ -33,6 +33,9 @@ class HttpMessage {
 public:
 	HttpMessage() = default;
 	HttpMessage(const HttpHeaders& headers, const std::vector<char>& body) : mHeaders(headers), mBody(body){};
+	HttpMessage(const HttpHeaders& headers, const std::string& body) : mHeaders(headers) {
+		mBody.assign(body.cbegin(), body.cend());
+	};
 	virtual ~HttpMessage() = default;
 
 	const std::vector<char>& getBody() const {

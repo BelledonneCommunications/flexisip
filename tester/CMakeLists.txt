@@ -72,10 +72,13 @@ add_executable(flexisip_tester
 	sofia-tester.cc
 	sofia-driven-signal-handler-tester.cc
 	tester.cc
+	tests/flexiapi/flexi-stats-tester.cc
 	tests/presence/presence-pidf-tester.cc
 	tests/pushnotification/service-tester.cc
+	tests/utils/transport/http/rest-client-tester.cc
 	thread-pool-tester.cc
 	tls-connection-tester.cc
+	utils/http-mock/http-mock.cc utils/http-mock/http-mock.hh
 	utils-tester.cc
 	utils/asserts.hh
 	utils/bellesip-utils.cc utils/bellesip-utils.hh

@@ -21,27 +21,16 @@
 ############################################################################
 
 target_sources(flexisip PRIVATE
-	digest.cc digest.hh
-	observable.hh
-	pipe.cc pipe.hh
-	posix-process.cc posix-process.hh
-	rand.cc rand.hh
-	sip-uri.cc
-	string-formater.cc string-formater.hh
-	string-utils.cc string-utils.hh
-	sys-err.cc sys-err.hh
-	thread/auto-thread-pool.cc thread/auto-thread-pool.hh
-	thread/basic-thread-pool.cc thread/basic-thread-pool.hh
-	thread/base-thread-pool.cc thread/base-thread-pool.hh
-	thread/thread-pool.hh
-	transport/http/http2client.cc transport/http/http2client.hh
-	transport/http/http-headers.cc transport/http/http-headers.hh
-	transport/http/http-message.cc transport/http/http-message.hh
-	transport/http/http-response.cc transport/http/http-response.hh
-	transport/http/ng-data-provider.cc transport/http/ng-data-provider.hh
-	transport/http/rest-client.cc transport/http/rest-client.hh
-	transport/tls-connection.cc transport/tls-connection.hh
-	uri-utils.cc uri-utils.hh
-	utf8-string.cc utf8-string.hh
-	variant-utils.hh
-)
+        flexi-stats.cc flexi-stats.hh
+        schemas/api-formatted-uri.hh
+        schemas/call/call.hh
+        schemas/call/call-device-state.hh
+        schemas/call/terminated.hh
+        schemas/conference/conference.hh
+        schemas/conference/participant-device-event.hh
+        schemas/conference/participant-event.hh
+        schemas/iso-8601-date.hh
+        schemas/message/message.hh
+        schemas/message/message-device-response.hh
+        schemas/optional-json.hh
+        )

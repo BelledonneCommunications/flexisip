@@ -35,6 +35,10 @@ void HttpHeaders::add(const std::string& name, const std::string& value, std::ui
 	it->flags = flags;
 }
 
+void HttpHeaders::concat(const HttpHeaders& other) noexcept {
+	mHList.insert(mHList.end(), other.mHList.cbegin(), other.mHList.cend());
+}
+
 std::string HttpHeaders::toString() const noexcept {
 	ostringstream os{};
 	for (const auto& h : mHList) {
