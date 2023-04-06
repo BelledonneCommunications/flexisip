@@ -31,7 +31,7 @@ public:
 	using LegacyRequest::LegacyRequest;
 
 	// Public methods
-	const std::string& getLegacyServiceName() const noexcept;
+	std::tuple<std::string, std::string, std::string> getLegacyParams() const noexcept;
 	std::string getAppIdentifier() const noexcept override {
 		return "generic";
 	}
@@ -54,7 +54,7 @@ private:
 	std::string& substituteArgs(std::string& input);
 
 	// Private attributes
-	std::vector<char> mBuffer{}; /**< Buffer returned by getData(). */
+	std::vector<char> mBuffer{};    /**< Buffer returned by getData(). */
 	std::string mFirebaseAuthKey{}; /**< Authentication key required by Firebase service. */
 };
 

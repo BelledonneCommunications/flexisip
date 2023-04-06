@@ -71,6 +71,10 @@ public:
 		return isApns(mProvider);
 	}
 
+	bool isFirebase() const noexcept {
+		return mProvider == "fcm";
+	}
+
 	/**
 	 * @brief Equality operator definition.
 	 * @param aOther the other push params object to compare with.
