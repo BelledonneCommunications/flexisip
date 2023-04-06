@@ -21,10 +21,6 @@
 #include <stdexcept>
 #include <string.h>
 
-#include "flexisip/common.hh"
-
-#include "pushnotification/apple/apple-request.hh"
-#include "pushnotification/firebase/firebase-request.hh"
 #include "utils/uri-utils.hh"
 
 #include "genericpush.hh"
@@ -34,26 +30,34 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
-const std::string& GenericRequest::getLegacyServiceName() const noexcept {
-	static const std::string invalidType{"<invalid>"};
-	static const std::map<string, string> translationMap {
-		{"apns", "apple"},
-		{"apns.dev", "apple"},
-		{"fcm", "firebase"},
-		{"wp", "wp"},
-		{"wp10", "wp10"}
-	};
-	if (mPInfo == nullptr) {
-		return invalidType;
-	}
+std::tuple<std::string, std::string, std::string> GenericRequest::getLegacyParams() const noexcept {
+	constexpr auto kInvalid = "<invalid>";
 	try {
-		auto provider = mPInfo->getPNProvider();
-		auto it = translationMap.find(provider);
-		if (it == translationMap.end()) return invalidType;
-		return it->second;
+		const auto& rfcPushParams = mPInfo->mDestinations.at(mPType);
+		const auto& pnProvider = rfcPushParams->getProvider();
+		const auto& pnParam = rfcPushParams->getParam();
+		const auto& pnPrid = rfcPushParams->getPrid();
+		if (rfcPushParams->isApns()) {
+			auto appId = string{kInvalid};
+			const auto idx = pnParam.find('.');
+			if (idx != pnParam.npos) {
+				const bool isDev = (pnProvider == "apns.dev");
+				appId = pnParam.substr(idx + 1) + (isDev ? ".dev" : ".prod");
+			}
+			return make_tuple("apple", appId, pnPrid);
+		} else if (rfcPushParams->isFirebase()) {
+			return make_tuple("firebase", pnParam, pnPrid);
+		} else {
+			// wp, wp10 and other
+			return make_tuple(pnProvider, pnParam, pnPrid);
+		}
+	} catch (const std::out_of_range&) {
+		SLOGE << "GenericRequest::" << __func__ << "(): no push parameters found for the given push type [" << mPType
+		      << "]";
+		return make_tuple(kInvalid, kInvalid, kInvalid);
 	} catch (const std::exception& e) {
-		SLOGD << __func__ << "(): " << e.what();
-		return invalidType;
+		SLOGE << "GenericRequest::" << __func__ << "(): unexpected exception: " << e.what();
+		return make_tuple(kInvalid, kInvalid, kInvalid);
 	}
 }
 
@@ -95,21 +99,23 @@ std::string GenericRequest::isValidResponse([[maybe_unused]] const std::string& 
 }
 
 std::string& GenericRequest::substituteArgs(std::string& input) {
-	map<string, string> keyvals{
-		{"$type", getLegacyServiceName()},
-		{"$token", getDestination().getPrid()},
-		{"$app-id", getDestination().getParam()},
-		{"$from-name", mPInfo->mFromName},
-		{"$from-uri", mPInfo->mFromUri},
-		{"$from-tag", mPInfo->mFromTag},
-		{"$to-uri", mPInfo->mToUri},
-		{"$call-id", mPInfo->mCallId},
-		{"$event", mPInfo->mEvent},
-		{"$uid", mPInfo->mUid},
-		{"$msgid", mPInfo->mAlertMsgId},
-		{"$sound", mPInfo->mAlertSound},
-		{"$api-key", mFirebaseAuthKey}
-	};
+	string pnType{};
+	string appID{};
+	string pnTok{};
+	tie(pnType, appID, pnTok) = getLegacyParams();
+	map<string, string> keyvals{{"$type", pnType},
+	                            {"$token", pnTok},
+	                            {"$app-id", appID},
+	                            {"$from-name", mPInfo->mFromName},
+	                            {"$from-uri", mPInfo->mFromUri},
+	                            {"$from-tag", mPInfo->mFromTag},
+	                            {"$to-uri", mPInfo->mToUri},
+	                            {"$call-id", mPInfo->mCallId},
+	                            {"$event", mPInfo->mEvent},
+	                            {"$uid", mPInfo->mUid},
+	                            {"$msgid", mPInfo->mAlertMsgId},
+	                            {"$sound", mPInfo->mAlertSound},
+	                            {"$api-key", mFirebaseAuthKey}};
 
 	for (const auto& keyval : keyvals) {
 		const auto& key = keyval.first;
