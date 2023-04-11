@@ -13,9 +13,18 @@ Group changes to describe their impact on the project, as follows:
 | Fixed          | Any bug fixes                                         |
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
-## [2.2.1] - 2023-02-24
+## [2.2.3] - 2023-04-11
 ### [Fixed]
-- Packaging and deployment used to have issues.
+- CLI: print a more explicite message when the CLI cannot connect to the server socket due to permissions.
+- Pusher: allow to set a custom payload for Firebase push notifications requests, as it is for Apple.
+- Presence server: ensure that capabilities of each devices of a user are concatenated by union while sending
+  a NOTIFY request to the subscriber.
+- Proxy server: make the generic pusher to replace the $app-id paramter by the right value.
+
+## [2.2.2] - 2023-02-24
+### [Fixed]
+- Issue in packaging and deployement scripts.
+
 
 ## [2.2.1] - 2023-02-24
 ### [Added]
