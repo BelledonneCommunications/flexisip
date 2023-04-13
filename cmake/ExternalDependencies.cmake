@@ -24,88 +24,28 @@
 # Add some external dependencies as subproject
 ############################################################################
 
-# Add subdirectory for DECAF, needed for full support of ZRTP
-# add_subdirectory("linphone-sdk/external/decaf")
-
 # Configure and add SofiaSip
-set(ENABLE_UNIT_TESTS OFF)
-add_subdirectory("submodules/externals/sofia-sip")
-unset(ENABLE_UNIT_TESTS)
+function(add_sofiasip) # Use function of override variable without propagating the change afterwards
+	set(ENABLE_UNIT_TESTS OFF)
+	add_subdirectory("submodules/externals/sofia-sip")
+endfunction()
+add_sofiasip()
 
 # Add libhiredis
 if(ENABLE_REDIS AND INTERNAL_LIBHIREDIS)
-	add_subdirectory("submodules/externals/hiredis")
-	target_compile_definitions(hiredis INTERFACE "INTERNAL_LIBHIREDIS")
-endif()
+	function(add_hiredis)
+		set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # Prevent project from overriding the options set at this level
 
-# Configure and add Soci
-if(ENABLE_SOCI OR ENABLE_LIBLINPHONE)
-	if(BUILD_SHARED_LIBS)
-		set(SOCI_SHARED ON)
-		set(SOCI_STATIC OFF)
-	else()
-		set(SOCI_SHARED OFF)
-		set(SOCI_STATIC ON)
-	endif()
-	set(SOCI_FRAMEWORK OFF)
-	set(SOCI_TESTS OFF)
-	set(SOCI_ASAN OFF)
-	set(SOCI_INSTALL_BACKEND_TARGETS OFF) # Setting this option to ON cause an obscure error while first cmake invokation.
-                                          # CMake Error: install(EXPORT "LinphoneTargets" ...) includes target "linphone"
-                                          #   which requires target "soci_core" that is not in this export set, but
-                                          #   in multiple other export sets: cmake/SOCI.cmake, cmake/SOCI.cmake,
-                                          #   cmake/SOCI.cmake, cmake/SOCI.cmake.
-	set(SOCI_EMPTY OFF)
-
-	# Soci backends
-	set(WITH_DB2 OFF)
-	set(WITH_FIREBIRD OFF)
-	set(WITH_MYSQL ON)
-	set(WITH_ODBC OFF)
-	set(WITH_ORACLE OFF)
-	set(WITH_POSTGRESQL ${ENABLE_SOCI_POSTGRESQL_BACKEND})
-	set(WITH_SQLITE3 ON)
-	set(WITH_THREAD_STACK_SIZE 0)
-	set(WITH_VALGRIND OFF)
-
-	set(SOCI_MYSQL ON)
-	set(SOCI_POSTGRESQL ${WITH_POSTGRESQL})
-	set(SOCI_SQLITE3 ON)
-	add_subdirectory("linphone-sdk/external/soci")
+		add_subdirectory("submodules/externals/hiredis")
+		target_compile_definitions(hiredis INTERFACE "INTERNAL_LIBHIREDIS")
+	endfunction()
+	add_hiredis()
 endif()
 
 # Configure and add Jose
 if(ENABLE_JWE_AUTH_PLUGIN)
-	add_subdirectory("submodules/externals/jose")
-endif()
-
-# Configure and add mbedtls
-if(INTERNAL_MBEDTLS)
-	if(BUILD_SHARED_LIBS)
-		set(USE_SHARED_MBEDTLS_LIBRARY ON)
-		set(USE_STATIC_MBEDTLS_LIBRARY OFF)
-	else()
-		set(USE_SHARED_MBEDTLS_LIBRARY OFF)
-		set(USE_STATIC_MBEDTLS_LIBRARY ON)
-	endif()
-	set(ENABLE_PROGRAMS OFF)
-	set(ENABLE_TESTING OFF)
-	set(MBEDTLS_FATAL_WARNINGS ${ENABLE_STRICT_LINPHONESDK})
-	if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
-		AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 15
-	)
-		# FIXME
-		add_compile_options(
-			"-Wno-error=unused-but-set-variable"
-			"-Wno-error=documentation"
-		)
-	endif()
-	add_subdirectory("linphone-sdk/external/mbedtls")
-endif()
-
-# Configure and add SRTP2
-if(INTERNAL_LIBSRTP2)
-	set(TEST_APPS OFF CACHE BOOL "Build test applications" FORCE)
-	set(ENABLE_MBEDTLS ON CACHE BOOL "Use Mbedtls backend" FORCE)
-	add_subdirectory("linphone-sdk/external/srtp")
+	function(add_jose)
+		add_subdirectory("submodules/externals/jose")
+	endfunction()
+	add_jose()
 endif()
