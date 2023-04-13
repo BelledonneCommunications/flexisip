@@ -17,7 +17,7 @@ namespace tester {
 
 ChatRoomBuilder::ChatRoomBuilder(const CoreClient& client)
     : mClient(client), mParams(mClient.getCore()->createDefaultChatRoomParams()) {
-	mParams->setEncryptionBackend(linphone::ChatRoomEncryptionBackend::None);
+	mParams->setEncryptionBackend(linphone::ChatRoom::EncryptionBackend::None);
 }
 
 std::shared_ptr<linphone::ChatRoom>
@@ -39,7 +39,7 @@ const ChatRoomBuilder& ChatRoomBuilder::setSubject(const std::string& subject) c
 	mParams->setSubject(subject);
 	return *this;
 }
-const ChatRoomBuilder& ChatRoomBuilder::setBackend(linphone::ChatRoomBackend backend) const {
+const ChatRoomBuilder& ChatRoomBuilder::setBackend(linphone::ChatRoom::Backend backend) const {
 	mParams->setBackend(backend);
 	return *this;
 }

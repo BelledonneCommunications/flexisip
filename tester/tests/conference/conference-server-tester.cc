@@ -121,7 +121,7 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 	BC_HARD_ASSERT_CPP_EQUAL(records.size(), 2);
 	CoreAssert asserter{proxy, you, me};
 	auto chatroomBuilder = me.chatroomBuilder();
-	chatroomBuilder.setBackend(linphone::ChatRoomBackend::FlexisipChat).setGroup(OnOff::On);
+	chatroomBuilder.setBackend(linphone::ChatRoom::Backend::FlexisipChat).setGroup(OnOff::On);
 	const auto listener = make_shared<AllJoinedWaiter>();
 	const auto conferenceServerUri = [confServerCfg =
 	                                      GenericManager::get()->getRoot()->get<GenericStruct>("conference-server")] {

@@ -429,7 +429,7 @@ void messageToChatroomClearText() {
 	const auto mike = builder.build(expectedTos[2]);
 	CoreAssert asserter{clemence, pauline, tony, mike, agent};
 	const auto clemChat = clemence.chatroomBuilder()
-	                          .setBackend(linphone::ChatRoomBackend::FlexisipChat)
+	                          .setBackend(linphone::ChatRoom::Backend::FlexisipChat)
 	                          .setSubject("GYM")
 	                          .build({pauline.getMe(), tony.getMe(), mike.getMe()});
 	BC_HARD_ASSERT_TRUE(clemChat != nullptr);

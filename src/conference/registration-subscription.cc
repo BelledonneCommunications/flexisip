@@ -66,14 +66,14 @@ int RegistrationSubscription::getMaskFromSpecs(const string& specs) {
 	unsigned int mask = 0;
 
 	// Please excuse the following code that is a bit too basic in terms of parsing:
-	if (specs.find("groupchat") != string::npos) mask |= (unsigned int)ChatRoomCapabilities::Conference;
-	if (specs.find("lime") != string::npos) mask |= (unsigned int)ChatRoomCapabilities::Encrypted;
+	if (specs.find("groupchat") != string::npos) mask |= (unsigned int)ChatRoom::Capabilities::Conference;
+	if (specs.find("lime") != string::npos) mask |= (unsigned int)ChatRoom::Capabilities::Encrypted;
 	return mask;
 }
 
 bool RegistrationSubscription::isContactCompatible(const string& specs) {
 	int mask = getMaskFromSpecs(specs);
-	unsigned int chatRoomCapabilities = mChatRoom->getCapabilities() & ~(int)ChatRoomCapabilities::OneToOne;
+	unsigned int chatRoomCapabilities = mChatRoom->getCapabilities() & ~(int)ChatRoom::Capabilities::OneToOne;
 	return !mServer.capabilityCheckEnabled() || (mask & chatRoomCapabilities) == chatRoomCapabilities;
 }
 
