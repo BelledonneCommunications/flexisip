@@ -1,0 +1,121 @@
+variables:
+  ROCKY9_CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
+  ROCKY9_CMAKE_OPTIONS_UNIT_TESTS: -DINTERNAL_LIBHIREDIS=ON -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON -DCMAKE_PREFIX_PATH=/usr/local -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON
+
+.rocky9-image-variables:
+  image:
+    name: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky9:$ROCKY_9_IMAGE_VERSION
+  variables:
+    CMAKE_OPTIONS: ${ROCKY9_CMAKE_OPTIONS}
+
+#################################################
+# Makefile
+#################################################
+
+job-rocky9-makefile-gcc:
+  extends:
+    - .job-makefile-gcc
+    - .rocky9-image-variables
+
+
+job-rocky9-makefile-clang:
+  extends:
+    - .job-makefile-clang
+    - .rocky9-image-variables
+
+#################################################
+# Ninja
+#################################################
+
+job-rocky9-ninja-gcc:
+  extends:
+    - .job-ninja-gcc
+    - .rocky9-image-variables
+
+
+job-rocky9-ninja-clang:
+  extends:
+    - .job-ninja-clang
+    - .rocky9-image-variables
+    - .tester-artifacts
+  variables:
+    # -DCMAKE_PREFIX_PATH=/usr/local: Unit tests require libnghttp2_asio, which has been build and intalled into /usr/local
+    CMAKE_OPTIONS: ${ROCKY9_CMAKE_OPTIONS_UNIT_TESTS}
+
+job-rocky9-ninja-clang-nosoci:
+  extends:
+    - job-rocky9-ninja-clang
+  variables:
+    CMAKE_OPTIONS: ${ROCKY9_CMAKE_OPTIONS_UNIT_TESTS} -DENABLE_SOCI=OFF -DENABLE_B2BUA=ON -DENABLE_CONFERENCE=ON
+
+#################################################
+# UNIT TESTS
+#################################################
+
+job-rocky9-unit-test:
+  extends:
+    - .unit-test
+    - .rocky9-image-variables
+  needs:
+    - job-rocky9-ninja-clang
+
+job-rocky9-unit-test-nosoci:
+  extends:
+    - job-rocky9-unit-test
+  needs:
+    - job-rocky9-ninja-clang-nosoci
+
+#################################################
+# RPM
+#################################################
+
+job-rocky9-rpm:
+  extends:
+    - .job-linux-rpm
+    - .rocky9-image-variables
+  needs:
+    - job: job-rocky9-unit-test
+      optional: true
+      artifacts: false
+    - job: job-rocky9-unit-test-nosoci
+      optional: true
+      artifacts: false
+    - job: job-rocky9-ninja-clang
+      optional: true
+      artifacts: false
+    - job: job-rocky9-ninja-clang-nosoci
+      optional: true
+      artifacts: false
+
+# Test installation of the RPM package and check its feature list
+job-rocky9-rpm-check-features:
+  stage: check-package 📤
+  tags: [ "docker" ]
+  extends:
+    - .rocky9-image-variables
+  rules:
+    - !reference [job-rocky9-rpm, rules]
+  needs:
+    - job: job-rocky9-rpm
+  variables:
+    GIT_STRATEGY: fetch  # TODO Replace me with `none` when Gitlab successfully removes docker volumes again (try it, you'll see)
+  script:
+    - sudo yum -y --nogpgcheck localinstall ./build/*.rpm
+    - FLEXISIP_BIN=/opt/belledonne-communications/bin/flexisip
+    - VERSION_STRING=$($FLEXISIP_BIN --version)
+    - echo $VERSION_STRING | grep B2BUA
+    - echo $VERSION_STRING | grep Conference
+    - echo $VERSION_STRING | grep Presence
+    - echo $VERSION_STRING | grep Redis
+    - echo $VERSION_STRING | grep RegEvent
+    - echo $VERSION_STRING | grep Transcoder
+    - echo $VERSION_STRING | grep Soci
+    # No graphical dependencies
+    - "! ldd $FLEXISIP_BIN | grep --extended-regexp 'X|GL'"
+
+job-rocky9-rpm-deploy:
+  extends: .job-rpm-deploy
+  dependencies:
+    - job-rocky9-rpm
+  variables:
+    DISTRIB: rockylinux

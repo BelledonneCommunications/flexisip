@@ -1,0 +1,107 @@
+###############################################################################
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky9:20230418_add_rocky9
+###############################################################################
+
+FROM rockylinux:9
+
+MAINTAINER Thibault Lemaire <Thibault.lemaire@belledonne-communications.com>
+
+# Install common general tools
+RUN dnf install -y sudo vim wget
+
+# Configure additional repositories
+RUN dnf install -y \
+        epel-release \
+        dnf-plugins-core \
+  # Code Ready Builder
+ && dnf config-manager -y --set-enabled crb
+
+# Update
+RUN dnf makecache --refresh \
+ && dnf -y update \
+ # Install development tools
+ && dnf -y install \
+        bzip2 \
+        ccache \
+        clang \
+        cmake \
+        c-ares-devel \
+        doxygen \
+        gcc \
+        gcc-c++ \
+        gdb \
+        git \
+        libasan \
+        libev-devel \
+        libubsan \
+        libuv-devel \
+        llvm \
+        make \
+        ninja-build \
+        python3 \
+        python3-pip \
+        rpm-build \
+        zlib-devel \
+      # Install all dependencies needed for Flexisip
+        openssl-devel \
+        boost-devel \
+        hiredis-devel \
+        jansson-devel \
+        libsqlite3x-devel \
+        libpq-devel \
+        mariadb-devel \
+        nghttp2 \
+        libnghttp2-devel \
+        protobuf-devel \
+        net-snmp-devel \
+        xerces-c-devel \
+        gsm-devel \
+        opus-devel \
+        mbedtls-devel \
+        speex-devel \
+        speexdsp-devel \
+        libxml2-devel \
+        protobuf-compiler \
+        redis \
+      # Dependencies of the B2BUA
+        libvpx-devel  \
+        jsoncpp-devel \
+      # Dependencies of the tester
+        mariadb-server \
+ && dnf -y clean all
+
+# Install libnghttp2_asio 1.39.2
+COPY libnghttp2_asio_install.sh .
+RUN ./libnghttp2_asio_install.sh 1.39.2
+
+# Configure user bc
+RUN useradd -ms /bin/bash bc && \
+    echo 'bc:cotcot' | chpasswd && \
+    echo 'bc ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+# Switch to 'bc' user
+USER bc
+WORKDIR /home/bc
+
+# Install python3 modules.
+# This must be done as user 'bc' because python modules are installed in /usr/local/lib when pip is invoked
+# as root, and rpmbuild prevents python from searching its modules in this prefix. Installing with user 'bc' puts
+# the modules in /home/bc/.local/bin.
+RUN python3 -m pip install --user pystache six
+ENV PATH=$PATH:/home/bc/.local/bin
+
+ENV PS1='\[\e[34m\]\u@bc-dev-rocky9>\[\e[0m\] '
+
+# CVE-2022-24765, from git 2.35.2 onward
+RUN git config --global --add safe.directory *
+
+
+# Example build commands
+#
+# export CC=gcc
+# export CXX=g++
+# export BUILD_DIR_NAME="build.rocky9"
+# cd flexisip/
+# cmake -S . -B ./$BUILD_DIR_NAME -G "Ninja" -DCMAKE_BUILD_TYPE=Sanitizer -DCMAKE_INSTALL_PREFIX="$PWD/$BUILD_DIR_NAME/install" -DINTERNAL_LIBHIREDIS=ON -DENABLE_UNIT_TESTS=ON -DCMAKE_PREFIX_PATH=/usr/local -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON
+# cd $BUILD_DIR_NAME
+# cmake --build . --target install

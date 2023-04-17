@@ -96,3 +96,13 @@ ENV PS1='\[\e[34m\]\u@bc-dev-centos7>\[\e[0m\] '
 
 # CVE-2022-24765, from git 2.35.2 onward
 RUN git config --global --add safe.directory *
+
+
+# Example build commands
+#
+# export CC=gcc
+# export CXX=g++
+# export BUILD_DIR_NAME="build.centos7"
+# source /opt/rh/devtoolset-8/enable
+# cmake -S . -B ./$BUILD_DIR_NAME -G "Ninja" -DCMAKE_BUILD_TYPE=Sanitizer -DCMAKE_INSTALL_PREFIX="$PWD/$BUILD_DIR_NAME/install" -DINTERNAL_LIBHIREDIS=ON -DINTERNAL_JSONCPP=ON -DBOOST_INCLUDEDIR=/usr/include/boost169 -DBOOST_LIBRARYDIR=/usr/lib64/boost169 -DENABLE_UNIT_TESTS=ON -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON
+# cmake --build . --target install

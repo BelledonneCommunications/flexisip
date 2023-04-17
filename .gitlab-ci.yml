@@ -19,6 +19,7 @@ variables:
   ARCHLINUX_IMAGE_VERSION: 20230220_remove_GL_deps
   CENTOS_7_IMAGE_VERSION: 20230220_remove_GL_deps
   ROCKY_8_IMAGE_VERSION: 20230227_add_mariadb_server
+  ROCKY_9_IMAGE_VERSION: 20230418_add_rocky9
   DEBIAN_10_IMAGE_VERSION: 20230227_add_mariadb_server
   DEBIAN_11_IMAGE_VERSION: 20230227_add_mariadb_server
   UBUNTU_18_04_IMAGE_VERSION: 20230227_add_mariadb_server
@@ -48,6 +49,7 @@ include:
   - '.gitlab-ci-files/job-linux-archlinux.yml'
   - '.gitlab-ci-files/job-linux-centos7.yml'
   - '.gitlab-ci-files/job-linux-rocky8.yml'
+  - '.gitlab-ci-files/job-linux-rocky9.yml'
   - '.gitlab-ci-files/job-linux-debian10.yml'
   - '.gitlab-ci-files/job-linux-debian11.yml'
   - '.gitlab-ci-files/job-linux-ubuntu-18-04.yml'
