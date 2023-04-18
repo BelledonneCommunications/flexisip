@@ -50,7 +50,7 @@ void PushNotificationContext::cancel() {
 	mTimer.reset();
 }
 
-void PushNotificationContext::onTimeout() {
+void PushNotificationContext::onTimeout() noexcept {
 	SLOGD << "PNR " << mPInfo.get() << ": timeout";
 	auto forkCtx = ForkContext::getFork(mTransaction);
 	if (forkCtx) {
@@ -62,8 +62,8 @@ void PushNotificationContext::onTimeout() {
 
 	try {
 		sendPush();
-	} catch (const runtime_error& e) {
-		SLOGE << e.what();
+	} catch (const exception& e) {
+		SLOGE << "Cannot send push: " << e.what();
 	}
 
 	if (mRetryCounter > 0) {

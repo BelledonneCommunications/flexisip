@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023  Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -172,7 +172,7 @@ void LegacyClient::sendPush(const std::shared_ptr<Request>& req) {
 	}
 }
 
-void LegacyClient::run() {
+void LegacyClient::run() noexcept {
 	std::unique_lock<std::mutex> lock(mMutex);
 	while (mThreadRunning) {
 		if (!mRequestQueue.empty()) {
@@ -186,10 +186,15 @@ void LegacyClient::run() {
 			auto _onSuccess = [this](auto& req) { this->onSuccess(req); };
 			auto _onError = [this](auto& req, const std::string& msg) { this->onError(req, msg); };
 			bool hurryUp = size > 2;
-			if (mTransport->sendPush(*req, hurryUp, _onSuccess, _onError) == -2) {
-				SLOGD << "LegacyClient PushNotificationClient " << mName << " PNR " << req.get()
-				      << ": try to send again";
-				mTransport->sendPush(*req, hurryUp, _onSuccess, _onError);
+			try {
+				if (mTransport->sendPush(*req, hurryUp, _onSuccess, _onError) == -2) {
+					SLOGD << "LegacyClient PushNotificationClient " << mName << " PNR " << req.get()
+					      << ": try to send again";
+					mTransport->sendPush(*req, hurryUp, _onSuccess, _onError);
+				}
+			} catch (const exception& e) {
+				SLOGE << "LegacyClient[" << this << "]: cannot send PNR[" << req.get() << "]: " << e.what();
+				_onError(*req, e.what());
 			}
 
 			lock.lock();

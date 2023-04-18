@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -95,7 +95,7 @@ protected:
 	PushNotificationContext(const PushNotificationContext&) = delete;
 
 	// Protected methods
-	void onTimeout();
+	void onTimeout() noexcept;
 	virtual void sendPush() = 0;
 	void notifyPushSent(bool aRingingPush = false) {
 		notify([this, aRingingPush](auto& aObserver) { aObserver.onPushSent(*this, aRingingPush); });
