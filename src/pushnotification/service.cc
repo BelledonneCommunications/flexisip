@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -206,15 +206,21 @@ Client* Service::createWindowsClient(const std::shared_ptr<MicrosoftRequest>& pn
 	return client.get();
 }
 
-std::shared_ptr<GenericRequest> Service::makeGenericRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo) const {
+std::shared_ptr<GenericRequest> Service::makeGenericRequest(PushType pType,
+                                                            const std::shared_ptr<const PushInfo>& pInfo) const {
 	auto request = make_shared<GenericRequest>(pType, pInfo);
 
 	// Set the authentication key in case the native PNR is for the Firebase service.
 	const auto& destination = request->getDestination();
 	if (destination.getProvider() == "fcm") {
 		const auto& projectID = destination.getParam();
-		const auto& apiKey = dynamic_pointer_cast<FirebaseClient>(mClients.at(projectID))->getApiKey();
-		request->setFirebaseAuthKey(apiKey);
+		auto it = mClients.find(projectID);
+		// The client may not exist if 'module::PushNotification/firebase' parameter is 'false', which isn't
+		// unusual in GenericPush use case.
+		if (it != mClients.end()) {
+			const auto& client = dynamic_pointer_cast<FirebaseClient>(it->second);
+			request->setFirebaseAuthKey(client->getApiKey());
+		}
 	}
 
 	return request;
