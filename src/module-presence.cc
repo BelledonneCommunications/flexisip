@@ -110,11 +110,7 @@ private:
 			return (!mOnlyListSubscription->eval(*ev->getSip()) || support_list_subscription) &&
 				sip->sip_event && strcmp(sip->sip_event->o_type, "presence") == 0;
 		} else if (sip->sip_request->rq_method == sip_method_publish) {
-			return !sip->sip_content_type || (
-				sip->sip_content_type && sip->sip_content_type->c_type &&
-				strcasecmp(sip->sip_content_type->c_type, "application/pidf+xml") == 0 &&
-				sip->sip_content_type->c_subtype && strcasecmp(sip->sip_content_type->c_subtype, "pidf+xml") == 0
-			);
+			return sip->sip_event && strcmp(sip->sip_event->o_type, "presence") == 0;
 		}
 		return false;
 	}
