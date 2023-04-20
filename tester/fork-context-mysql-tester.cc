@@ -20,6 +20,7 @@
 #include <future>
 #include <memory>
 #include <optional>
+#include <random>
 
 #include <soci/session.h>
 #include <utility>
@@ -85,16 +86,31 @@ void forceSociRepositoryInstanciation() {
 	ForkMessageContextSociRepository::getInstance();
 }
 
+class RandomTimestampGenerator {
+public:
+	std::time_t operator()() {
+		return mDistribution(mEngine);
+	}
+
+private:
+	std::default_random_engine mEngine = tester::randomEngine();
+	constexpr static std::time_t minSecondsInAYear = 365 * 24 * 60 * 60;
+	// ⚠️ We use a TIMESTAMP for the expiration date in MySQL which does not support dates beyond 2038
+	std::uniform_int_distribution<std::time_t> mDistribution{0, (2038-1970) * minSecondsInAYear};
+};
+
 } // namespace
 
 static void forkMessageContextSociRepositoryMysqlUnitTests() {
 	auto server = make_unique<Server>("/config/flexisip_fork_context_db.conf");
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
+	RandomTimestampGenerator randomTime{};
 
 	// Save and find test
-	auto nowPlusDays = system_clock::now() + days{7};
-	std::time_t t = system_clock::to_time_t(nowPlusDays);
-	ForkMessageContextDb fakeDbObject{1, 3, true, false, *gmtime(&t), rawRequest, MsgSipPriority::NonUrgent};
+	std::time_t targetTime = randomTime();
+	SLOGD << "Target time: " << targetTime;
+	BC_ASSERT_PTR_NOT_NULL(gmtime(&targetTime));
+	ForkMessageContextDb fakeDbObject{1, 3, true, false, *gmtime(&targetTime), rawRequest, MsgSipPriority::NonUrgent};
 	fakeDbObject.dbKeys = vector<string>{"key1", "key2", "key3"};
 	auto expectedFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, fakeDbObject);
 	mysqlServer->waitReady();
@@ -102,12 +118,13 @@ static void forkMessageContextSociRepositoryMysqlUnitTests() {
 	    ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork->getDbObject());
 	auto dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
 	auto actualFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, dbFork);
+	BC_ASSERT_CPP_EQUAL(std::string{std::asctime(&dbFork.expirationDate)},
+	                    std::string{std::asctime(&fakeDbObject.expirationDate)});
 	actualFork->assertEqual(expectedFork);
 
 	// Update and find test
-	nowPlusDays = system_clock::now() + days{10};
-	t = system_clock::to_time_t(nowPlusDays);
-	fakeDbObject = ForkMessageContextDb{2, 10, false, true, *gmtime(&t), rawRequest, MsgSipPriority::Urgent};
+	targetTime = randomTime();
+	fakeDbObject = ForkMessageContextDb{2, 10, false, true, *gmtime(&targetTime), rawRequest, MsgSipPriority::Urgent};
 	fakeDbObject.dbKeys = vector<string>{"key1", "key2", "key3"}; // We keep the same keys because they are not updated
 	expectedFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, fakeDbObject);
 	ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(expectedFork->getDbObject(),
@@ -120,11 +137,12 @@ static void forkMessageContextSociRepositoryMysqlUnitTests() {
 static void forkMessageContextWithBranchesSociRepositoryMysqlUnitTests() {
 	auto server = make_unique<Server>("/config/flexisip_fork_context_db.conf");
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
+	RandomTimestampGenerator randomTime{};
 
 	// Save and find with branch info test
-	auto nowPlusDays = system_clock::now() + days{400};
-	auto t = system_clock::to_time_t(nowPlusDays);
-	auto fakeDbObject = ForkMessageContextDb{1.52, 5, false, true, *gmtime(&t), rawRequest, MsgSipPriority::Normal};
+	std::time_t targetTime = randomTime();
+	auto fakeDbObject =
+	    ForkMessageContextDb{1.52, 5, false, true, *gmtime(&targetTime), rawRequest, MsgSipPriority::Normal};
 	fakeDbObject.dbKeys = vector<string>{"key1"};
 	BranchInfoDb branchInfoDb{"contactUid", 4.0, rawRequest, rawResponse, true};
 	BranchInfoDb branchInfoDb2{"contactUid2", 1.0, rawRequest, rawResponse, false};
@@ -140,9 +158,9 @@ static void forkMessageContextWithBranchesSociRepositoryMysqlUnitTests() {
 	actualFork->assertEqual(expectedFork);
 
 	// Update and find with branch info test
-	nowPlusDays = system_clock::now() + days{10};
-	t = system_clock::to_time_t(nowPlusDays);
-	fakeDbObject = ForkMessageContextDb{10, 1000, true, false, *gmtime(&t), rawRequest, MsgSipPriority::Emergency};
+	targetTime = randomTime();
+	fakeDbObject =
+	    ForkMessageContextDb{10, 1000, true, false, *gmtime(&targetTime), rawRequest, MsgSipPriority::Emergency};
 	fakeDbObject.dbKeys = vector<string>{"key1"}; // We keep the same keys because they are not updated
 	branchInfoDb = BranchInfoDb{"contactUid", 3.0, rawRequest, rawResponse, false};
 	branchInfoDb2 = BranchInfoDb{"contactUid2", 3.0, rawRequest, rawResponse, true};
@@ -159,13 +177,13 @@ static void forkMessageContextWithBranchesSociRepositoryMysqlUnitTests() {
 static void forkMessageContextSociRepositoryFullLoadMysqlUnitTests() {
 	auto server = make_unique<Server>("/config/flexisip_fork_context_db.conf");
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
+	RandomTimestampGenerator randomTime{};
 
 	map<string, shared_ptr<ForkMessageContext>> expectedForks{};
+	auto targetTime = randomTime();
 	for (int i = 0; i < 10; i++) {
-		auto nowPlusDays = system_clock::now() + days{400};
-		auto t = system_clock::to_time_t(nowPlusDays);
 		auto fakeDbObject =
-		    ForkMessageContextDb{1.52, 5, false, true, *gmtime(&t), rawRequest, MsgSipPriority::NonUrgent};
+		    ForkMessageContextDb{1.52, 5, false, true, *gmtime(&targetTime), rawRequest, MsgSipPriority::NonUrgent};
 		fakeDbObject.dbKeys = vector<string>{"key"};
 		BranchInfoDb branchInfoDb{"contactUid", 4.0, rawRequest, rawResponse, true};
 		BranchInfoDb branchInfoDb2{"contactUid2", 1.0, rawRequest, rawResponse, false};
@@ -319,9 +337,7 @@ static void globalTestMultipleDevices() {
 	                            },
 	                            nullptr};
 
-	std::string rawBody(10, 'a');
-	rawBody.insert(0, "C'est pas faux ");
-	rawBody.append("\r\n\r\n");
+	const std::string rawBody{"C'est pas faux \r\n\r\n"};
 	bellesipUtils.sendRawRequest("MESSAGE sip:provencal_le_gaulois@sip.test.org SIP/2.0\r\n"
 	                             "Via: SIP/2.0/TCP 127.0.0.1:6066;branch=z9hG4bK.PAWTmCZv1;rport=49828\r\n"
 	                             "From: <sip:kijou@sip.linphone.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"

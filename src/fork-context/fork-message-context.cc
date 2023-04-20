@@ -303,7 +303,7 @@ void ForkMessageContext::assertEqual(const shared_ptr<ForkMessageContext>& expec
 	BC_ASSERT_EQUAL((int)mMsgPriority, (int)expected->mMsgPriority, int, "%i");
 	BC_ASSERT_EQUAL(mDeliveredCount, expected->mDeliveredCount, int, "%d");
 	BC_ASSERT_EQUAL(mCurrentPriority, expected->mCurrentPriority, float, "%f");
-	BC_ASSERT_TRUE(mExpirationDate == expected->mExpirationDate);
+	BC_ASSERT_EQUAL(mExpirationDate, expected->mExpirationDate, time_t, "%ld");
 	BC_ASSERT_TRUE(mEvent->getMsgSip()->printString() == expected->mEvent->getMsgSip()->printString());
 
 	if (mKeys.size() == expected->mKeys.size()) {

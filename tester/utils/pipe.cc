@@ -104,7 +104,7 @@ ostream& operator<<(ostream& stream, const WriteOnly& pipe) {
 } // namespace pipe
 
 ostream& operator<<(ostream& stream, const TimeOut& timeout) {
-	return stream << "pipe::TimeOut(" << timeout.duration.count() << "μs)";
+	return stream << "TimeOut(" << timeout.duration.count() << "μs)";
 }
 
 } // namespace flexisip

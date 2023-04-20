@@ -135,7 +135,7 @@ MysqlServer::MysqlServer()
 				                             "Error reading from mysql daemon stderr. read: \n" + fullLog};
 			          else
 				          throw runtime_error("Timed out reading from mysql daemon stderr after " +
-				                              to_string(result.duration.count()) + "s. read: \n" + fullLog);
+				                              to_string(result.duration.count()) + "us. read: \n" + fullLog);
 		          },
 		          standardError->read(0xFF));
 		      if (chunk.find("ready for connections") != string::npos) {

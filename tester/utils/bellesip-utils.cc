@@ -83,7 +83,7 @@ void BellesipUtils::sendRawRequest(const string& rawMessage, const string& rawBo
 	belle_sip_request_t* request = BELLE_SIP_REQUEST(message);
 
 	if (!rawBody.empty()) {
-		belle_sip_message_set_body(BELLE_SIP_MESSAGE(request), rawBody.c_str(), strlen(rawBody.c_str()));
+		belle_sip_message_set_body(BELLE_SIP_MESSAGE(request), rawBody.c_str(), rawBody.size());
 	}
 
 	belle_sip_provider_send_request(mProvider, request);

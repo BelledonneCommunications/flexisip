@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <random>
 #include <string>
 
 #include "compat/filesystem.hh"
@@ -32,6 +33,9 @@ std::filesystem::path bcTesterWriteDir();
 
 void flexisip_tester_init();
 void flexisip_tester_uninit();
+
+std::random_device::result_type seed();
+std::default_random_engine randomEngine();
 
 } // namespace tester
 } // namespace flexisip
