@@ -13,6 +13,18 @@ Group changes to describe their impact on the project, as follows:
 | Fixed          | Any bug fixes                                         |
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
+
+## [2.2.4] - 2023-04-20
+### [Fixed]
+- Bug in SofiaSip that causes the proxy to choose a not fully established TCP connection when it needs
+  to send a SIP message to a user agent. That causes some SIP message losses.
+- Make the proxy to answer “200 Ok” to OPTIONS requests that are directly addressed to itself.
+- Crash when the “Generic Push Notifications” feature is enabled (`module::PushNotification/external-push-uri`)
+  but no Firebase API key has been put in `firebase-projects-api-keys` parameter.
+- Fix a bug that causes some PUBLISH requests that was not related to presence information to be forwarded to the
+  presence server.
+
+
 ## [2.2.3] - 2023-04-11
 ### [Fixed]
 - CLI: print a more explicite message when the CLI cannot connect to the server socket due to permissions.
@@ -20,6 +32,7 @@ Group changes to describe their impact on the project, as follows:
 - Presence server: ensure that capabilities of each devices of a user are concatenated by union while sending
   a NOTIFY request to the subscriber.
 - Proxy server: make the generic pusher to replace the $app-id paramter by the right value.
+
 
 ## [2.2.2] - 2023-02-24
 ### [Fixed]
