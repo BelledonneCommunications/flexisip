@@ -16,6 +16,13 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "tester.hh"
+
+#include <cstdlib>
+#include <random>
+#include <stdexcept>
+#include <string>
+
 #include <bctoolbox/logging.h>
 #include <bctoolbox/tester.h>
 
@@ -28,10 +35,20 @@
 #include "flexisip-tester-config.hh"
 #include <flexisip/logmanager.hh>
 
-#include "tester.hh"
-
 namespace flexisip {
 namespace tester {
+
+namespace {
+auto sSeed = std::random_device()();
+}
+
+std::random_device::result_type seed() {
+	return sSeed;
+}
+
+std::default_random_engine randomEngine() {
+	return std::default_random_engine{seed()};
+}
 
 std::string bcTesterFile(const std::string& name) {
 	char* file = bc_tester_file(name.c_str());
@@ -98,6 +115,16 @@ void flexisip_tester_init() {
 	bc_tester_set_verbose_func(verbose_arg_func);
 	bc_tester_set_silent_func(silent_arg_func);
 	bc_tester_init(log_handler, BCTBX_LOG_MESSAGE, BCTBX_LOG_ERROR, ".");
+
+	try {
+		if (auto envVar = std::getenv("FLEXISEED"))
+			sSeed = std::stoul(envVar, nullptr, 0 /* Autodect base */);
+	} catch (const std::invalid_argument&) {
+		// leave sSeed untouched
+	} catch (const std::out_of_range&) {
+		// leave sSeed untouched
+	}
+	std::cerr << "FLEXISEED=" << sSeed << "\n";
 
 	// Make the default resource dir point to the 'tester' directory in the source code
 	bc_tester_set_resource_dir_prefix(FLEXISIP_TESTER_DATA_SRCDIR);

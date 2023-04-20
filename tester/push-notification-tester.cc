@@ -531,7 +531,7 @@ protected:
 		// SIP only counts contact expiration in seconds, and 1s is apparently not enough to receive everything
 		const auto interval = 2s;
 		const auto threshold = [] {
-			std::default_random_engine engine{std::random_device()()};
+			auto engine = tester::randomEngine();
 			return std::uniform_real_distribution<float>(1. / 100, 50. / 100)(engine);
 		}();
 		auto minExpiration = interval + 1s;

@@ -27,6 +27,7 @@
 
 #include "module-pushnotification.hh"
 #include "pushnotification/firebase/firebase-client.hh"
+#include "tester.hh"
 #include "utils/asserts.hh"
 #include "utils/override-static.hh"
 #include "utils/redis-sync-access.hh"
@@ -588,11 +589,7 @@ TestSuite
           TEST_NO_TAG("Registrations with Redis backend", run<RegistrarTester>),
       },
       Hooks().beforeSuite([]() noexcept {
-	      const auto* seed = std::getenv("FLEXISEED");
-	      if (seed) {
-		      flexisip::ContactKey::sRsg.mEngine.seed(
-		          std::stoll(seed)); // will throw (and abort) if seed is not an integer
-	      }
+	      flexisip::ContactKey::sRsg.mEngine.seed(tester::seed());
 	      return 0;
       }));
 }
