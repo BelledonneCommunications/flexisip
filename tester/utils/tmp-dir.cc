@@ -20,9 +20,5 @@ TmpDir::~TmpDir() {
 	filesystem::remove_all(mPath);
 }
 
-string operator+(const string& str, const TmpDir& tmpDir) {
-	return str + tmpDir.mPath.string();
-}
-
 } // namespace tester
 } // namespace flexisip

@@ -17,20 +17,17 @@ namespace tester {
  * The directory name will start with a random prefix.
  */
 class TmpDir {
-	friend std::string operator+(const std::string&, const TmpDir&);
-
 public:
 	TmpDir(const char*);
 	~TmpDir();
 
+	const auto& path() const {
+		return mPath;
+	}
+
 private:
 	std::filesystem::path mPath;
 };
-
-/**
- * Convenience concat operator to build strings from a TmpDir path
- */
-std::string operator+(const std::string&, const TmpDir&);
 
 } // namespace tester
 } // namespace flexisip

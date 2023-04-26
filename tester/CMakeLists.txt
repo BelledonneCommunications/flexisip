@@ -73,6 +73,7 @@ add_executable(flexisip_tester
 	sofia-driven-signal-handler-tester.cc
 	tester.cc
 	tests/presence/presence-pidf-tester.cc
+	tests/pushnotification/service-tester.cc
 	thread-pool-tester.cc
 	tls-connection-tester.cc
 	utils-tester.cc

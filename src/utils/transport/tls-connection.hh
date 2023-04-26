@@ -1,6 +1,6 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+ Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
@@ -9,11 +9,11 @@
 
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  GNU Affero General Public License for more details.
 
  You should have received a copy of the GNU Affero General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #pragma once
@@ -21,6 +21,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstring>
+#include <stdexcept>
 #include <thread>
 #include <vector>
 
@@ -45,6 +46,12 @@ public:
 		}
 	};
 	using SSLCtxUniquePtr = std::unique_ptr<SSL_CTX, SSLCtxDeleter>;
+
+	class CreationError : public std::runtime_error {
+	public:
+		CreationError() : std::runtime_error("Error during TlsConnection creation") {
+		}
+	};
 
 	TlsConnection(const std::string& host, const std::string& port, bool mustBeHttp2 = false);
 	TlsConnection(const std::string& host,
@@ -180,7 +187,7 @@ private:
 	static int handleVerifyCallback(X509_STORE_CTX* ctx, void* ud);
 	static bool isCertExpired(const std::string& certPath) noexcept;
 	static int ASN1_TIME_toString(const ASN1_TIME* time, char* buffer, uint32_t buff_length);
-	static SSL_CTX* getDefaultCtx();
+	static SSLCtxUniquePtr makeDefaultCtx();
 	static int getFd(BIO& bio);
 
 	static void doConnectCb(su_root_magic_t* rm, su_msg_r msg, void* u);

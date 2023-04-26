@@ -31,7 +31,7 @@ namespace tester {
 
 MysqlServer::MysqlServer()
     : mDatadir(".mysql.db.d"), mDaemon([&datadir = mDatadir] {
-	      auto datadirArg = "--datadir=" + datadir;
+	      auto datadirArg = "--datadir=" + datadir.path().string();
 	      process::Process setup([&datadirArg] {
 		      ::execl(MYSQL_SERVER_EXEC, MYSQL_SERVER_EXEC,
 		              // Some distros pack default install configurations (like default user), ignore that
@@ -104,7 +104,7 @@ MysqlServer::MysqlServer()
 	              // --auth-root-authentication-method=socket (CentOS 7, Debian 11, Ubuntu 18.04)
 	              "--skip-grant-tables",
 	              //
-	              datadirArg.c_str(), ("--socket=" + datadir + kSocketFile).c_str(), nullptr);
+	              datadirArg.c_str(), ("--socket=" + datadir.path().string() + kSocketFile).c_str(), nullptr);
       }),
       mReady(async(launch::async, [&daemon = mDaemon] {
 	      string fullLog{};
@@ -162,7 +162,7 @@ void MysqlServer::waitReady() {
 }
 
 string MysqlServer::connectionString() {
-	return "unix_socket='" + mDatadir + kSocketFile + "' db='" + kDbName + "'";
+	return "unix_socket='" + mDatadir.path().string() + kSocketFile + "' db='" + kDbName + "'";
 }
 
 } // namespace tester

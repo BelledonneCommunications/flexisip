@@ -9,12 +9,14 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+
+#include "service.hh"
 
 #include <sstream>
 
@@ -34,8 +36,7 @@
 #include "legacy/genericpush.hh"
 #include "legacy/microsoftpush.hh"
 #include "legacy/wp-client.hh"
-
-#include "service.hh"
+#include "utils/transport/tls-connection.hh"
 
 using namespace std;
 
@@ -148,8 +149,12 @@ void Service::setupiOSClient(const std::string& certdir, const std::string& cafi
 		}
 		string certpath = string(certdir) + "/" + cert;
 		string certName = cert.substr(0, cert.size() - 4); // Remove .pem at the end of cert
-		mClients[certName] = make_unique<AppleClient>(mRoot, cafile, certpath, certName, this);
-		SLOGD << "Adding ios push notification client [" << certName << "]";
+		try {
+			mClients[certName] = make_unique<AppleClient>(mRoot, cafile, certpath, certName, this);
+			SLOGD << "Adding ios push notification client [" << certName << "]";
+		} catch (const TlsConnection::CreationError& err) {
+			SLOGW << "Couldn't make iOS PN client from [" << certName << "]: " << err.what();
+		}
 	}
 	closedir(dirp);
 }

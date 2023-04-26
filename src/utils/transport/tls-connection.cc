@@ -1,6 +1,6 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+ Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
@@ -9,11 +9,11 @@
 
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  GNU Affero General Public License for more details.
 
  You should have received a copy of the GNU Affero General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <future>
@@ -45,9 +45,8 @@ namespace flexisip {
 TlsConnection::TlsConnection(const string& host, const string& port, bool mustBeHttp2)
     : mHost{host}, mPort{port}, mMustBeHttp2{mustBeHttp2} {
 
-	auto* ctx = getDefaultCtx();
-	SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, nullptr);
-	mCtx.reset(ctx);
+	mCtx = makeDefaultCtx();
+	SSL_CTX_set_verify(mCtx.get(), SSL_VERIFY_NONE, nullptr);
 }
 
 TlsConnection::TlsConnection(
@@ -59,7 +58,8 @@ TlsConnection::TlsConnection(
 		return;
 	}
 
-	auto ctx = getDefaultCtx();
+	mCtx = makeDefaultCtx();
+	auto* ctx = mCtx.get();
 
 	if (trustStorePath.empty()) {
 		SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, nullptr);
@@ -72,14 +72,14 @@ TlsConnection::TlsConnection(
 	                                   "/etc/ssl/certs")) {
 		SLOGE << "Error loading trust store";
 		ERR_print_errors_fp(stderr);
-		throw runtime_error("Error during TlsConnection creation");
+		throw CreationError();
 	}
 
 	if (!certPath.empty()) {
 		int error = SSL_CTX_use_certificate_file(ctx, certPath.c_str(), SSL_FILETYPE_PEM);
 		if (error != 1) {
 			LOGE("SSL_CTX_use_certificate_file for %s failed: %d", certPath.c_str(), error);
-			throw runtime_error("Error during TlsConnection creation");
+			throw CreationError();
 		} else if (isCertExpired(certPath)) {
 			LOGEN("Certificate %s is expired! You won't be able to use it for push notifications. Please update your "
 			      "certificate or remove it entirely.",
@@ -90,11 +90,9 @@ TlsConnection::TlsConnection(
 		int error = SSL_CTX_use_PrivateKey_file(ctx, certPath.c_str(), SSL_FILETYPE_PEM);
 		if (error != 1 || SSL_CTX_check_private_key(ctx) != 1) {
 			SLOGE << "Private key does not match the certificate public key for " << certPath << ": " << error;
-			throw runtime_error("Error during TlsConnection creation");
+			throw CreationError();
 		}
 	}
-
-	mCtx.reset(ctx);
 }
 
 void TlsConnection::connectAsync(su_root_t& root, const function<void()>& onConnectCb) noexcept {
@@ -280,7 +278,7 @@ void TlsConnection::enableInsecureTestMode() {
 	    mCtx.get(), [](auto, auto) { return 1; }, nullptr);
 }
 
-SSL_CTX* TlsConnection::getDefaultCtx() {
+TlsConnection::SSLCtxUniquePtr TlsConnection::makeDefaultCtx() {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 	// from OpenSSL 1.1.0
 	SSL_CTX* ctx = SSL_CTX_new(SSLv23_client_method());
@@ -291,7 +289,7 @@ SSL_CTX* TlsConnection::getDefaultCtx() {
 	SSL_CTX_set_min_proto_version(ctx, TLS1_VERSION);
 #endif
 
-	return ctx;
+	return TlsConnection::SSLCtxUniquePtr(ctx);
 }
 
 void TlsConnection::handleBioError(const string& msg, int status) {
