@@ -139,9 +139,9 @@ std::variant<Unexpected, TimeOut, ExitedNormally, SysErr> Process::wait(chrono::
 	auto& state = std::get<Running>(mState);
 	cerr << "Timed out waiting for " << *this << "\n";
 	if (auto* out = get_if<pipe::ReadOnly>(&state.mStdout))
-		cerr << "stdout: " << print_variant(out->read(0xFFFF)) << "\n";
+		cerr << "stdout: " << StreamableVariant(out->read(0xFFFF)) << "\n";
 	if (auto* err = get_if<pipe::ReadOnly>(&state.mStderr))
-		cerr << "stderr: " << print_variant(err->read(0xFFFF)) << "\n";
+		cerr << "stderr: " << StreamableVariant(err->read(0xFFFF)) << "\n";
 	return TimeOut{timeout};
 }
 
@@ -151,19 +151,29 @@ optional<SysErr> Running::signal(SigNum sig) {
 }
 
 ostream& operator<<(ostream& stream, const Process& process) {
-	return stream << "Process{mState: " << print_variant(process.mState) << "}";
+	return stream << "Process{mState: " << StreamableVariant(process.mState) << "}";
 }
 
 ostream& operator<<(ostream& stream, const ExitedNormally& state) {
-	return stream << "process::ExitedNormally{mExitCode: " << state.mExitCode
-	              << ", mStdout: " << print_variant(state.mStdout) << ", mStderr: " << print_variant(state.mStderr)
+	return stream << "process::ExitedNormally{mExitCode: " << int(state.mExitCode)
+	              << ", mStdout: " << StreamableVariant(state.mStdout) << ", mStderr: " << StreamableVariant(state.mStderr)
 	              << "}";
+}
+ostream& operator<<(ostream& stream, ExitedNormally&& state) {
+	return stream << "process::ExitedNormally{mExitCode: " << int(state.mExitCode)
+	              << ", mStdout: " << StreamableVariant(move(state.mStdout))
+	              << ", mStderr: " << StreamableVariant(move(state.mStderr)) << "}";
 }
 
 ostream& operator<<(ostream& stream, const Running& state) {
-	return stream << "process::Running{mPid: " << state.mPid << ", mStdin: " << print_variant(state.mStdin)
-	              << ", mStdout: " << print_variant(state.mStdout) << ", mStderr: " << print_variant(state.mStderr)
+	return stream << "process::Running{mPid: " << state.mPid << ", mStdin: " << StreamableVariant(state.mStdin)
+	              << ", mStdout: " << StreamableVariant(state.mStdout) << ", mStderr: " << StreamableVariant(state.mStderr)
 	              << "}";
+}
+ostream& operator<<(ostream& stream, Running&& state) {
+	return stream << "process::Running{mPid: " << state.mPid << ", mStdin: " << StreamableVariant(state.mStdin)
+	              << ", mStdout: " << StreamableVariant(move(state.mStdout))
+	              << ", mStderr: " << StreamableVariant(move(state.mStderr)) << "}";
 }
 
 ostream& operator<<(ostream& stream, const Unexpected&) {

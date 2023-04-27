@@ -429,7 +429,7 @@ static void duplicatePushTokenRegisterRedisTest() {
 	    {"module::Registrar/reg-domains", "sip.example.org"},
 	    {"module::Registrar/db-implementation", "redis"},
 	    {"module::Registrar/redis-server-domain", "localhost"},
-	    {"module::Registrar/redis-server-port", std::to_string(redis.start())},
+	    {"module::Registrar/redis-server-port", std::to_string(redis.port())},
 	    {"module::DoSProtection/enabled", "false"},
 	});
 	agent = proxyServer.getAgent();

@@ -34,23 +34,26 @@ public:
 };
 
 class Redis {
-	RedisServer mRedisServer{};
-
 public:
-	int mPort = mRedisServer.start();
-
 	void amendConfiguration(GenericManager& cfg) {
 		auto* registrarConf = cfg.getRoot()->get<GenericStruct>("module::Registrar");
 		registrarConf->get<ConfigValue>("db-implementation")->set("redis");
 		registrarConf->get<ConfigValue>("redis-server-domain")->set("localhost");
-		registrarConf->get<ConfigValue>("redis-server-port")->set(std::to_string(mPort));
+		registrarConf->get<ConfigValue>("redis-server-port")->set(std::to_string(mRedisServer.port()));
 	}
 
 	std::map<std::string, std::string> configAsMap() {
 		return {{"module::Registrar/db-implementation", "redis"},
 		        {"module::Registrar/redis-server-domain", "localhost"},
-		        {"module::Registrar/redis-server-port", std::to_string(mPort)}};
+		        {"module::Registrar/redis-server-port", std::to_string(mRedisServer.port())}};
 	}
+
+	auto port() {
+		return mRedisServer.port();
+	}
+
+private:
+	RedisServer mRedisServer{};
 };
 
 } // namespace DbImplementation

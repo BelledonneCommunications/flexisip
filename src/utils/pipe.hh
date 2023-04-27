@@ -53,8 +53,6 @@ private:
 	Descriptor(RawPipeDesc); // Private constructor for use in the Ready class
 };
 
-std::ostream& operator<<(std::ostream&, const Descriptor&);
-
 /**
  * A closed pipe.
  */
@@ -87,6 +85,8 @@ std::ostream& operator<<(std::ostream&, const Ready&);
  */
 class ReadOnly : public Descriptor {
 	friend std::ostream& operator<<(std::ostream&, const ReadOnly&);
+	// Also read and print the contents of the pipe
+	friend std::ostream& operator<<(std::ostream&, ReadOnly&&);
 
 public:
 	ReadOnly(Ready&&);
@@ -97,7 +97,6 @@ public:
 	[[nodiscard]] std::variant<std::string, TimeOut, SysErr>
 	read(size_t, std::chrono::microseconds timeout = std::chrono::seconds(5));
 };
-std::ostream& operator<<(std::ostream&, const ReadOnly&);
 
 /**
  * The write end of a pipe.
@@ -111,7 +110,6 @@ public:
 	// Attempts to write the string passed as argument to the pipe
 	[[nodiscard]] std::optional<SysErr> write(const std::string&);
 };
-std::ostream& operator<<(std::ostream&, const WriteOnly&);
 
 /**
  * A type-safe interface to Posix pipes. See the possible alternative classes for details.

@@ -57,7 +57,7 @@ void test_echo_stdin_to_stdout() {
 	if (read->empty()) {
 		if (auto* pipe = get_if<pipe::ReadOnly>(&exitedNormally->mStderr)) {
 			ostringstream err{};
-			err << "stderr: " << print_variant(pipe->read(0xFFF));
+			err << "stderr: " << StreamableVariant(pipe->read(0xFFF));
 			bc_assert(__FILE__, __LINE__, false, err.str().c_str());
 		}
 	}

@@ -85,9 +85,9 @@ MysqlServer::MysqlServer()
 			          if (state.mExitCode != 0) {
 				          cerr << "Mysql datadir install failed";
 				          if (auto* out = get_if<pipe::ReadOnly>(&state.mStdout))
-					          cerr << print_variant(out->read(0xFFFF));
+					          cerr << StreamableVariant(out->read(0xFFFF));
 				          if (auto* err = get_if<pipe::ReadOnly>(&state.mStderr))
-					          cerr << print_variant(err->read(0xFFFF));
+					          cerr << StreamableVariant(err->read(0xFFFF));
 				          ::exit(state.mExitCode);
 			          }
 		          } else {

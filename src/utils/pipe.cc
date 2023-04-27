@@ -2,6 +2,8 @@
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+#include "pipe.hh"
+
 #include <cstring>
 #include <ostream>
 #include <stdexcept>
@@ -11,8 +13,8 @@
 #include <unistd.h>
 
 #include "flexisip/logmanager.hh"
-#include "pipe.hh"
 #include "utils/sys-err.hh"
+#include "utils/variant-utils.hh"
 
 using namespace std;
 
@@ -95,6 +97,11 @@ ostream& operator<<(ostream& stream, const Ready& pipe) {
 
 ostream& operator<<(ostream& stream, const ReadOnly& pipe) {
 	return stream << "pipe::ReadOnly(" << pipe.mDesc << ")";
+}
+ostream& operator<<(ostream& stream, ReadOnly&& pipe) {
+	stream << "pipe::ReadOnly(" << pipe.mDesc << ", data:\n";
+	stream << StreamableVariant(pipe.read(0xFFFF)) << "\n";
+	return stream << ")";
 }
 
 ostream& operator<<(ostream& stream, const WriteOnly& pipe) {

@@ -19,15 +19,25 @@
 #include <chrono>
 #include <csignal>
 #include <cstdint>
+#include <exception>
 #include <iostream>
+#include <random>
+#include <sstream>
+#include <stdexcept>
 #include <system_error>
 #include <thread>
+#include <type_traits>
+#include <variant>
 
 #include <sys/wait.h>
 
 #include "flexisip/logmanager.hh"
 
 #include "redis-server.hh"
+#include "tester.hh"
+#include "utils/pipe.hh"
+#include "utils/posix-process.hh"
+#include "utils/variant-utils.hh"
 
 using namespace std;
 using namespace std::chrono;
@@ -35,88 +45,86 @@ using namespace std::chrono;
 namespace flexisip {
 namespace tester {
 
-std::uint16_t RedisServer::start() {
-	constexpr auto ntries = 3;
-	for (auto i = 0; i < ntries; ++i) {
-		auto listenPort = getRandomPort();
-		if (spawn(listenPort)) return listenPort;
+uint16_t RedisServer::genPort() noexcept {
+	static auto engine = tester::randomEngine();
+	static std::uniform_int_distribution<uint16_t> dist(1024, numeric_limits<uint16_t>::max());
+
+	return dist(engine);
+}
+
+process::Process RedisServer::spawn(uint16_t port) {
+	return process::Process([port] {
+		::execl(REDIS_SERVER_EXEC, REDIS_SERVER_EXEC,
+		        // specify listen port
+		        "--port", to_string(port).c_str(),
+		        // disable snapshoting
+		        "--save", "",
+		        //
+		        nullptr);
+	});
+}
+
+RedisServer::RedisServer() : mPort(genPort()), mDaemon(spawn(mPort)) {
+}
+
+RedisServer::~RedisServer() {
+	if (auto* running = get_if<process::Running>(&mDaemon.state())) {
+		if (auto err = running->signal(SIGTERM)) {
+			SLOGE << "Failed to send term signal to redis process: " << *err;
+		}
 	}
+	move(mDaemon).wait();
+}
+
+uint16_t RedisServer::port() {
+	if (mReadyForConnections) {
+		EXPECT_VARIANT(process::Running&).in(mDaemon.state());
+		return mPort;
+	}
+
+	constexpr auto ntries = 3;
+	const auto restart = [this]() {
+		mPort = genPort();
+		mDaemon = spawn(mPort);
+	};
+	for (auto i = 0; i < ntries; ++i) {
+		auto& state = mDaemon.state();
+		auto* running = get_if<process::Running>(&state);
+		if (!running) {
+			SLOGW << "Restarting Redis daemon found in unexpected state: " << StreamableVariant(move(state));
+			restart();
+			continue;
+		}
+		auto& standardOut = EXPECT_VARIANT(pipe::ReadOnly&).in(running->mStdout);
+		string fullLog{};
+		while (true) {
+			auto chunk = [&standardOut, &fullLog] {
+				try {
+					return EXPECT_VARIANT(string).in(standardOut.read(0xFF));
+				} catch (const exception& exc) {
+					ostringstream msg{};
+					msg << "Something went wrong reading Redis stdout: " << exc.what() << ". Read so far: " << fullLog;
+					throw runtime_error{msg.str()};
+				}
+			}();
+			if (chunk.find("Failed listening on port") != string::npos) {
+				SLOGW << "Redis: " << chunk;
+				// Redis should exit on its own at this point, no need to kill it.
+				break;
+			}
+			if (chunk.find("eady to accept connections") != string::npos) {
+				SLOGI << "Redis: " << chunk;
+				mReadyForConnections = true;
+				return mPort;
+			}
+			fullLog += chunk;
+		}
+		restart();
+	}
+
 	ostringstream err{};
 	err << "'redis-server' failed to start " << ntries << " times. Aborting";
 	throw runtime_error{err.str()};
-}
-
-void RedisServer::terminate() {
-	::kill(mPid, SIGTERM);
-	if (waitForTermination(mPid, 2s)) {
-		SLOGD << "'redis-server' terminated";
-		mPid = -1;
-	} else {
-		SLOGD << "'redis-server' terminate timeout";
-		kill();
-	}
-}
-
-void RedisServer::kill() {
-	::kill(mPid, SIGKILL);
-	waitForTermination(mPid);
-	SLOGD << "'redis-server' killed";
-	mPid = -1;
-}
-
-bool RedisServer::spawn(std::uint16_t listenPort) {
-	SLOGD << "Starting 'redis-server' on port " << listenPort;
-
-	// Create a child processus by forking and execute 'redis-server'
-	mPid = fork();
-	if (mPid < 0) {
-		throw system_error{errno, generic_category(), "fork()"};
-	}
-	if (mPid == 0) {
-		execl(mServerPath.c_str(), mServerPath.c_str(), "--port",
-		      to_string(listenPort).c_str(), /* specify listen port */
-		      "--save", "",                  /* disable snapshoting */
-		      nullptr);
-		throw system_error{errno, generic_category(), "execl()"};
-	}
-
-	SLOGD << "Executing 'redis-server' in process " << mPid;
-
-	// Wait one secound to be sure that Redis is ready
-	this_thread::sleep_for(1s);
-
-	// Check whether 'redis-server' has aborted while starting
-	if (waitForTermination(mPid, true)) {
-		SLOGE << "'redis-server' has unexpectedly been terminated on starting";
-		return false;
-	}
-
-	// 'redis-server' is assumed as successfully started if it hasn't been terminated at this point.
-	SLOGD << "'redis-server' successfully started";
-	return true;
-}
-
-std::uint16_t RedisServer::getRandomPort() noexcept {
-	std::srand(std::time(nullptr));
-	return rand() % (numeric_limits<uint16_t>::max() - 1024) + 1024;
-}
-
-bool RedisServer::waitForTermination(pid_t pid, bool noHang) {
-	auto wpid = waitpid(pid, nullptr, noHang ? WNOHANG : 0);
-	if (wpid < 0 && errno != EAGAIN) {
-		throw system_error{errno, generic_category(), "waitpid()"};
-	}
-	return wpid > 0;
-}
-
-template <typename Duration> bool RedisServer::waitForTermination(pid_t pid, Duration timeout) {
-	auto now = steady_clock::now();
-	const auto endTime = now + timeout;
-	for (; now < endTime; now = steady_clock::now()) {
-		if (waitForTermination(pid, true)) return true;
-		this_thread::sleep_for(10ms);
-	}
-	return false;
 }
 
 } // namespace tester

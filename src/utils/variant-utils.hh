@@ -5,28 +5,30 @@
 #pragma once
 
 #include <ostream>
+#include <sstream>
+#include <stdexcept>
+#include <utility>
 #include <variant>
 
 namespace flexisip {
-
-template <typename Variant>
-struct PrintVariant {
-	const Variant& variant;
-};
-
-template <typename Variant>
-std::ostream& operator<<(std::ostream& stream, PrintVariant<Variant> wrapped) {
-	std::visit([&stream](const auto& alternative) { stream << alternative; }, wrapped.variant);
-	return stream;
-}
 
 /**
  * If all alternatives of a std::variant implement the << operator, then this helper template lets you print the
  * alternative currently held by the variant to a stream.
  */
 template <typename Variant>
-auto print_variant(const Variant& v) {
-	return PrintVariant<Variant>{v};
+struct StreamableVariant {
+	Variant variant;
+
+	StreamableVariant(Variant&& v) : variant(std::forward<Variant>(v)) {
+	}
+};
+
+template <typename Variant>
+std::ostream& operator<<(std::ostream& stream, StreamableVariant<Variant>&& wrapped) {
+	std::visit([&stream](auto&& alternative) { stream << std::forward<decltype(alternative)>(alternative); },
+	           std::forward<Variant>(wrapped.variant));
+	return stream;
 }
 
 // helper type for the visitor, see https://en.cppreference.com/w/cpp/utility/variant/visit examples
@@ -45,7 +47,7 @@ public:
 	}
 
 	template <class... Patterns>
-	auto against(Patterns... patterns) && {
+	decltype(auto) against(Patterns... patterns) && {
 		return std::visit(overloaded{patterns...}, std::forward<Variant>(mVariant));
 	}
 
@@ -54,9 +56,38 @@ private:
 };
 
 // explicit deduction guides (not needed as of C++20)
+template <typename T>
+StreamableVariant(T&&) -> StreamableVariant<T>;
 template <class... Ts>
 overloaded(Ts...) -> overloaded<Ts...>;
 template <typename T>
 Match(T&&) -> Match<T>;
+
+template <typename TExpected>
+class Expect {
+public:
+	Expect(const char* expectedTypeName, const char* file, const int line)
+	    : mExpectedTypeName(expectedTypeName), mFile(file), mLine(line) {
+	}
+
+	template <typename TVariant>
+	TExpected in(TVariant&& v) && {
+		return Match<TVariant>(std::forward<TVariant>(v))
+		    .against([](TExpected&& expected) -> TExpected { return std::forward<TExpected>(expected); },
+		             [this](auto&& value) -> TExpected {
+			             std::ostringstream msg{};
+			             msg << mFile << ":" << mLine << ": Unexpected variant found. Expected a `" << mExpectedTypeName
+			                 << "` but found: " << std::move(value);
+			             throw std::runtime_error{msg.str()};
+		             });
+	}
+
+private:
+	const char* mExpectedTypeName;
+	const char* mFile;
+	const int mLine;
+};
+
+#define EXPECT_VARIANT(type) Expect<type>(#type, __FILE__, __LINE__)
 
 } // namespace flexisip

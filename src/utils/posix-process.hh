@@ -33,6 +33,7 @@ std::ostream& operator<<(std::ostream&, const Unexpected&);
 class Running {
 	friend Process;
 	friend std::ostream& operator<<(std::ostream&, const Running&);
+	friend std::ostream& operator<<(std::ostream&, Running&&);
 
 public:
 	pipe::Pipe mStdin;
@@ -50,8 +51,6 @@ private:
 	pid_t mPid;
 };
 
-std::ostream& operator<<(std::ostream&, const Running&);
-
 /**
  * A process that finished executing in normal conditions (e.g. not aborted). A process that exited normally could still
  * be reporting errors in its execution and users are expected to check the exit code.
@@ -59,6 +58,7 @@ std::ostream& operator<<(std::ostream&, const Running&);
 class ExitedNormally {
 	friend Process;
 	friend std::ostream& operator<<(std::ostream&, const ExitedNormally&);
+	friend std::ostream& operator<<(std::ostream&, ExitedNormally&&);
 
 public:
 	uint8_t mExitCode;
@@ -70,8 +70,6 @@ private:
 	    : mExitCode(exitCode), mStdout(std::move(process.mStdout)), mStderr(std::move(process.mStderr)) {
 	}
 };
-
-std::ostream& operator<<(std::ostream&, const Process&);
 
 using State = std::variant<Unexpected, Running, ExitedNormally, SysErr>;
 
@@ -112,8 +110,6 @@ private:
 
 	State mState;
 };
-
-std::ostream& operator<<(std::ostream&, const Process&);
 
 } // namespace process
 } // namespace flexisip

@@ -40,10 +40,10 @@ public:
 };
 
 void mContext_should_be_checked_on_serializeAndSendToRedis() {
-	RedisServer redis;
+	RedisServer redis{};
 	Server proxyServer({{"module::Registrar/db-implementation", "redis"},
 	                    {"module::Registrar/redis-server-domain", "localhost"},
-	                    {"module::Registrar/redis-server-port", std::to_string(redis.start())}});
+	                    {"module::Registrar/redis-server-port", std::to_string(redis.port())}});
 	BcAssert asserter{};
 	asserter.addCustomIterate([&root = *proxyServer.getRoot()] { root.step(1ms); });
 	auto& registrar = *dynamic_cast<RegistrarDbRedisAsync*>(RegistrarDb::get());

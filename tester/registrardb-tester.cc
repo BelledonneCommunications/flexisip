@@ -239,7 +239,7 @@ class ContactsAreCorrectlyUpdatedWhenMatchedOnUri : public RegistrarDbTest<DbImp
 		regDb->bind(aor, newContact, params, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 
-		RedisSyncContext ctx = redisConnect("127.0.0.1", this->dbImpl.mPort);
+		RedisSyncContext ctx = redisConnect("127.0.0.1", this->dbImpl.port());
 		auto reply = ctx.command("HGETALL fs%s", contactBase);
 		BC_ASSERT_EQUAL(reply->type, REDIS_REPLY_ARRAY, int, "%i");
 		BC_ASSERT_EQUAL(reply->elements, 2, int, "%i");
@@ -434,7 +434,7 @@ class InstanceIDFeatureParamIsSerializedToRedis : public RegistrarDbTest<DbImple
 		regDb->bind(aor, contact, params, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 
-		RedisSyncContext redis = redisConnect("127.0.0.1", this->dbImpl.mPort);
+		RedisSyncContext redis = redisConnect("127.0.0.1", this->dbImpl.port());
 		const auto reply = redis.command("HGETALL fs%s", contactBase);
 		BC_ASSERT_EQUAL(reply->type, REDIS_REPLY_ARRAY, int, "%i");
 		BC_ASSERT_EQUAL(reply->elements, 2, int, "%i");
@@ -472,7 +472,7 @@ class CallIDsPreviouslyUsedAsKeysAreInterpretedAsUniqueIDs : public RegistrarDbT
 		regDb->bind(aor, contact, params, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 		const auto& contactKey = (*listener->mRecord->getExtendedContacts().latest())->mKey.str();
-		RedisSyncContext redis = redisConnect("127.0.0.1", this->dbImpl.mPort);
+		RedisSyncContext redis = redisConnect("127.0.0.1", this->dbImpl.port());
 		const auto serializedContact = redis.command("HGET fs%s %s", contactBase, contactKey.c_str());
 		BC_ASSERT_EQUAL(serializedContact->type, REDIS_REPLY_STRING, int, "%i");
 		// Fake a Call-ID indexed entry by replacing the inserted entry
@@ -520,7 +520,7 @@ class ExpiredContactsArePurgedFromRedis : public RegistrarDbTest<DbImplementatio
 		regDb->bind(aor, contact, params, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 
-		RedisSyncContext redis = redisConnect("127.0.0.1", this->dbImpl.mPort);
+		RedisSyncContext redis = redisConnect("127.0.0.1", this->dbImpl.port());
 		auto reply = redis.command("HGETALL fs%s", contactBase);
 		BC_ASSERT_EQUAL(reply->type, REDIS_REPLY_ARRAY, int, "%i");
 		BC_ASSERT_EQUAL(reply->elements, 2, int, "%i");
@@ -591,7 +591,7 @@ private:
 template <tuple<map<string, string>, FailureExpected> setupRedis(RedisSyncContext&)>
 void authenticatedConnectionWithRedis() {
 	DbImplementation::Redis db{};
-	RedisSyncContext redis = redisConnect("127.0.0.1", db.mPort);
+	RedisSyncContext redis = redisConnect("127.0.0.1", db.port());
 	auto auth = setupRedis(redis);
 	Server proxyServer{[&db, &authCfg = std::get<0>(auth)]() {
 		auto config = db.configAsMap();
