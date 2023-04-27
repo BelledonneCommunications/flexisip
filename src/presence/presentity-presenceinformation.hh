@@ -1,19 +1,19 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -34,8 +34,9 @@ namespace flexisip {
    decrementing the refcounter */
 struct BelleSipSourceCancelingDeleter {
 	constexpr BelleSipSourceCancelingDeleter() noexcept = default;
-	constexpr BelleSipSourceCancelingDeleter(BelleSipObjectDeleter<belle_sip_source_t> &&) noexcept {}
-	void operator()(belle_sip_source_t *source) noexcept {
+	constexpr BelleSipSourceCancelingDeleter(BelleSipObjectDeleter<belle_sip_source_t>&&) noexcept {
+	}
+	void operator()(belle_sip_source_t* source) noexcept {
 		belle_sip_source_cancel(source);
 		belle_sip_object_unref(source);
 	}
@@ -43,35 +44,38 @@ struct BelleSipSourceCancelingDeleter {
 
 class PresentityManager;
 class PresenceInformationElement {
-  public:
+public:
 	/* Re-definition of BelleSipSourcePtr in order to use BelleSipSourceCancelingDeleter as deleter */
 	using BelleSipSourcePtr = std::unique_ptr<belle_sip_source_t, BelleSipSourceCancelingDeleter>;
 
-	PresenceInformationElement(Xsd::Pidf::Presence::TupleSequence *tuples, Xsd::DataModel::Person *person,
-							   belle_sip_main_loop_t *mainLoop);
+	PresenceInformationElement(Xsd::Pidf::Presence::TupleSequence* tuples,
+	                           Xsd::DataModel::Person* person,
+	                           belle_sip_main_loop_t* mainLoop);
 	// create an information element with a default tuple set to closed.
-	PresenceInformationElement(const belle_sip_uri_t *contact);
+	PresenceInformationElement(const belle_sip_uri_t* contact);
 	~PresenceInformationElement();
 
 	time_t getExpitationTime() const;
 
 	template <typename T>
-	void setExpiresTimer(T &&timer) {mTimer = std::forward<T>(timer);}
+	void setExpiresTimer(T&& timer) {
+		mTimer = std::forward<T>(timer);
+	}
 
-	const std::unique_ptr<Xsd::Pidf::Tuple> &getTuple(const std::string &id) const;
-	const std::list<std::unique_ptr<Xsd::Pidf::Tuple>> &getTuples() const;
+	const std::unique_ptr<Xsd::Pidf::Tuple>& getTuple(const std::string& id) const;
+	const std::list<std::unique_ptr<Xsd::Pidf::Tuple>>& getTuples() const;
 	const Xsd::DataModel::Person getPerson() const;
 	// void addTuple(pidf::Tuple*);
 	// void removeTuple(pidf::Tuple*);
 	void clearTuples();
-	const std::string &getEtag();
-	void setEtag(const std::string &eTag);
+	const std::string& getEtag();
+	void setEtag(const std::string& eTag);
 
-  private:
+private:
 	std::list<std::unique_ptr<Xsd::Pidf::Tuple>> mTuples;
 	Xsd::DataModel::Person mPerson{""};
 	Xsd::XmlSchema::dom::unique_ptr<xercesc::DOMDocument> mDomDocument; // needed to store extension nodes
-	belle_sip_main_loop_t *mBelleSipMainloop = nullptr;
+	belle_sip_main_loop_t* mBelleSipMainloop = nullptr;
 	BelleSipSourcePtr mTimer;
 	std::string mEtag;
 };
@@ -83,8 +87,8 @@ class PresenceInformationElement {
 
 class PresentityPresenceInformation;
 
-class PresentityPresenceInformationListener  {
-  public:
+class PresentityPresenceInformationListener {
+public:
 	/* Re-definition of BelleSipSourcePtr in order to use BelleSipSourceCancelingDeleter as deleter */
 	using BelleSipSourcePtr = std::unique_ptr<belle_sip_source_t, BelleSipSourceCancelingDeleter>;
 
@@ -92,8 +96,8 @@ class PresentityPresenceInformationListener  {
 	virtual ~PresentityPresenceInformationListener() = default;
 
 	template <typename T>
-	void setExpiresTimer(belle_sip_main_loop_t *ml, T &&timer) {
-		mBelleSipMainloop=ml;
+	void setExpiresTimer(belle_sip_main_loop_t* ml, T&& timer) {
+		mBelleSipMainloop = ml;
 		mTimer = std::forward<T>(timer);
 	}
 
@@ -102,17 +106,19 @@ class PresentityPresenceInformationListener  {
 	void enableBypass(bool enable);
 	bool bypassEnabled();
 	/*returns prsentity uri associated to this Listener*/
-	virtual const belle_sip_uri_t *getPresentityUri() const = 0;
-	virtual std::string getName() const {return "";}
+	virtual const belle_sip_uri_t* getPresentityUri() const = 0;
+	virtual std::string getName() const {
+		return "";
+	}
 	/*invoked on changes*/
-	virtual void onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extended) = 0;
+	virtual void onInformationChanged(PresentityPresenceInformation& presenceInformation, bool extended) = 0;
 	/*invoked on expiration*/
-	virtual void onExpired(PresentityPresenceInformation &presenceInformation) = 0;
+	virtual void onExpired(PresentityPresenceInformation& presenceInformation) = 0;
 	virtual const belle_sip_uri_t* getFrom() = 0;
 	virtual const belle_sip_uri_t* getTo() = 0;
 
-  private:
-	belle_sip_main_loop_t *mBelleSipMainloop = nullptr;
+private:
+	belle_sip_main_loop_t* mBelleSipMainloop = nullptr;
 	BelleSipSourcePtr mTimer;
 	bool mExtendedNotify = false;
 	bool mBypassEnabled = false;
@@ -120,15 +126,17 @@ class PresentityPresenceInformationListener  {
 
 class PresentityPresenceInformation : public std::enable_shared_from_this<PresentityPresenceInformation> {
 
-  public:
-	PresentityPresenceInformation(const belle_sip_uri_t *entity, PresentityManager &presentityManager, belle_sip_main_loop_t *ml);
+public:
+	PresentityPresenceInformation(const belle_sip_uri_t* entity,
+	                              PresentityManager& presentityManager,
+	                              belle_sip_main_loop_t* ml);
 	virtual ~PresentityPresenceInformation();
 
 	/*
 	 * store tuples a new tupple;
 	 * @return new eTag
 	 * */
-	std::string putTuples(Xsd::Pidf::Presence::TupleSequence &tuples, Xsd::DataModel::Person &person, int expires);
+	std::string putTuples(Xsd::Pidf::Presence::TupleSequence& tuples, Xsd::DataModel::Person& person, int expires);
 
 	void setDefaultElement(const char* contact = NULL);
 
@@ -146,40 +154,46 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	 *
 	 * @return new eTag
 	 * */
-	std::string updateTuples(Xsd::Pidf::Presence::TupleSequence &tuples, Xsd::DataModel::Person &person, std::string &eTag,
-						int expires);
+	std::string updateTuples(Xsd::Pidf::Presence::TupleSequence& tuples,
+	                         Xsd::DataModel::Person& person,
+	                         std::string& eTag,
+	                         int expires);
 
 	/*
 	 * refresh a publish
 	 * @return new eTag
 	 * */
-	std::string refreshTuplesForEtag(const std::string &eTag, int expires);
+	std::string refreshTuplesForEtag(const std::string& eTag, int expires);
 
 	/*
-	* refresh a publish
-	* */
-	void removeTuplesForEtag(const std::string &eTag);
+	 * refresh a publish
+	 * */
+	void removeTuplesForEtag(const std::string& eTag);
 
-	const belle_sip_uri_t *getEntity() const;
+	const belle_sip_uri_t* getEntity() const;
 
-	const std::string &getName() { return mName; }
-	void setName(const std::string &name) { mName = name; }
-	void addCapability(const std::string &capability);
+	const std::string& getName() {
+		return mName;
+	}
+	void setName(const std::string& name) {
+		mName = name;
+	}
+	void addCapability(const std::string& capability);
 
 	/**
 	 *add notity listener for an entity
 	 */
-	void addOrUpdateListener(const std::shared_ptr<PresentityPresenceInformationListener> &listener, int expires);
+	void addOrUpdateListener(const std::shared_ptr<PresentityPresenceInformationListener>& listener, int expires);
 
 	/**
 	 *add notity listener for an entity without expiration timer
 	 */
-	void addOrUpdateListener(const std::shared_ptr<PresentityPresenceInformationListener> &listener);
-	void addListenerIfNecessary(const std::shared_ptr<PresentityPresenceInformationListener> &listener);
+	void addOrUpdateListener(const std::shared_ptr<PresentityPresenceInformationListener>& listener);
+	void addListenerIfNecessary(const std::shared_ptr<PresentityPresenceInformationListener>& listener);
 	/*
 	 * remove listener
 	 */
-	void removeListener(const std::shared_ptr<PresentityPresenceInformationListener> &listener);
+	void removeListener(const std::shared_ptr<PresentityPresenceInformationListener>& listener);
 
 	/*
 	 * return the presence information for this entity in a pidf serilized format
@@ -214,41 +228,46 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
 	/*
 	 * return if one of the subscribers subscribed for a presence information
 	 */
-	std::shared_ptr<PresentityPresenceInformationListener> findPresenceInfoListener(std::shared_ptr<PresentityPresenceInformation> &info);
+	std::shared_ptr<PresentityPresenceInformationListener>
+	findPresenceInfoListener(std::shared_ptr<PresentityPresenceInformation>& info);
 
-  private:
+private:
 	PresentityPresenceInformation(const PresentityPresenceInformation& other);
 	/*
 	 * tuples may be null
 	 */
-	std::string setOrUpdate(Xsd::Pidf::Presence::TupleSequence *tuples, Xsd::DataModel::Person *, const std::string *eTag,
-					   int expires);
+	std::string setOrUpdate(Xsd::Pidf::Presence::TupleSequence* tuples,
+	                        Xsd::DataModel::Person*,
+	                        const std::string* eTag,
+	                        int expires);
 
 	/*
 	 *Notify all listener
 	 */
 	void notifyAll();
 
-	std::shared_ptr<PresentityPresenceInformationListener> findSubscriber(std::function<bool(const std::shared_ptr<PresentityPresenceInformationListener> &)> predicate) const;
-	void forEachSubscriber(std::function<void(const std::shared_ptr<PresentityPresenceInformationListener> &)> doFunc) const;
+	std::shared_ptr<PresentityPresenceInformationListener>
+	findSubscriber(std::function<bool(const std::shared_ptr<PresentityPresenceInformationListener>&)> predicate) const;
+	void
+	forEachSubscriber(std::function<void(const std::shared_ptr<PresentityPresenceInformationListener>&)> doFunc) const;
 
-	const belle_sip_uri_t *mEntity;
-	PresentityManager &mPresentityManager;
-	belle_sip_main_loop_t *mBelleSipMainloop;
+	const belle_sip_uri_t* mEntity;
+	PresentityManager& mPresentityManager;
+	belle_sip_main_loop_t* mBelleSipMainloop;
 	// Tuples ordered by Etag.
-	std::map<std::string /*Etag*/, PresenceInformationElement *> mInformationElements;
+	std::map<std::string /*Etag*/, PresenceInformationElement*> mInformationElements;
 
 	// list of subscribers function to be called when a tuple changed
 	mutable std::list<std::weak_ptr<PresentityPresenceInformationListener>> mSubscribers;
 	std::shared_ptr<PresenceInformationElement> mDefaultInformationElement; // purpose of this element is to have a
-																			// default presence status (I.E closed) when
-																			// all publish have expired.
+	                                                                        // default presence status (I.E closed) when
+	                                                                        // all publish have expired.
 	std::string mName;
 	std::string mCapabilities;
 	std::map<std::string, std::string> mAddedCapabilities;
 };
 
-std::ostream &operator<<(std::ostream &__os, const PresentityPresenceInformation &);
-FlexisipException &operator<<(FlexisipException &ex, const PresentityPresenceInformation &);
+std::ostream& operator<<(std::ostream& __os, const PresentityPresenceInformation&);
+FlexisipException& operator<<(FlexisipException& ex, const PresentityPresenceInformation&);
 
 } /* namespace flexisip */
