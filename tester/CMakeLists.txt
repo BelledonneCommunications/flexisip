@@ -21,6 +21,7 @@
 ############################################################################
 
 find_package(Threads REQUIRED)
+find_package(XercesC REQUIRED)
 find_package(LibNgHttp2Asio)
 find_package(Boost COMPONENTS system REQUIRED)
 
@@ -74,6 +75,8 @@ add_executable(flexisip_tester
 	sofia-driven-signal-handler-tester.cc
 	tester.cc
 	tests/presence/presence-pidf-tester.cc
+	tests/presence/presence-publish-tester.cc
+	tests/presence/xsd-utils-tester.cc
 	thread-pool-tester.cc
 	tls-connection-tester.cc
 	utils-tester.cc
@@ -134,11 +137,14 @@ target_link_libraries(flexisip_tester PRIVATE
 	hiredis
 	linphone
 	linphone++
+	XercesC::XercesC
 )
 
 if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
 	target_link_libraries(flexisip_tester PRIVATE LibNgHttp2Asio)
 endif ()
+
+target_include_directories(flexisip_tester PRIVATE "${PROJECT_SOURCE_DIR}/libxsd")
 
 install(TARGETS flexisip_tester
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

@@ -40,4 +40,5 @@ target_sources(flexisip PRIVATE
 	transport/tls-connection.cc transport/tls-connection.hh
 	uri-utils.cc uri-utils.hh
 	utf8-string.cc utf8-string.hh
+	xsd-utils.hh
 )
