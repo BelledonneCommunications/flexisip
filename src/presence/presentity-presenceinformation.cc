@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,11 +9,11 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <functional>
@@ -29,12 +29,14 @@
 #include "presentity-manager.hh"
 #include "presentity-presenceinformation.hh"
 #include "utils/string-utils.hh"
+#include "utils/xsd-utils.hh"
 #include "xml/data-model.hh"
 #include "xml/pidf+xml.hh"
 #include "xml/rpid.hh"
 
 #define ETAG_SIZE 8
 using namespace std;
+using namespace std::chrono;
 
 namespace flexisip {
 
@@ -172,9 +174,9 @@ string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequ
 	// cb function to invalidate an unrefreshed etag;
 	auto func = [this, generatedETag]([[maybe_unused]] unsigned int events) {
 		// find information element
+		SLOGD << "eTag [" << generatedETag << "] has expired";
 		this->removeTuplesForEtag(generatedETag);
 		mPresentityManager.invalidateETag(generatedETag);
-		SLOGD << "eTag [" << generatedETag << "] has expired";
 		return BELLE_SIP_STOP;
 	};
 
@@ -227,6 +229,7 @@ void PresentityPresenceInformation::removeTuplesForEtag(const string& eTag) {
 		PresenceInformationElement* informationElement = it->second;
 		mInformationElements.erase(it);
 		delete informationElement;
+		mLastActivity = std::chrono::system_clock::now();
 		notifyAll(); // Removing an event state change global state, so it should be notified
 	} else SLOGD << "No tuples found for etag [" << eTag << "]";
 }
@@ -365,6 +368,20 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 					}
 					presence.getPerson()->getActivities().push_back(*activity);
 				}
+
+				/*
+				 * We fill the person/timestamp field with the one found in tuples.
+				 * If multiples tuples got the timestamp field we keep the most recent one,
+				 * because this field should represent the date of last activity of the presentity.
+				 */
+				if (presence.getPerson()) {
+					if (!presence.getPerson()->getTimestamp()) {
+						presence.getPerson()->setTimestamp(dm_person.getTimestamp());
+					} else if (dm_person.getTimestamp() &&
+					           dm_person.getTimestamp().get() < presence.getPerson()->getTimestamp().get()) {
+						presence.getPerson()->setTimestamp(dm_person.getTimestamp());
+					}
+				}
 			}
 		}
 		if (mDefaultInformationElement) {
@@ -401,7 +418,7 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 			presence.getTuple().push_back(*tup);
 
 			// copy extensions of default element, only if no elements were given previously.
-			if (mInformationElements.empty()) {
+			if (mInformationElements.empty() || !extended) {
 				Xsd::DataModel::Person dm_person = mDefaultInformationElement->getPerson();
 				for (Xsd::DataModel::Person::ActivitiesIterator activity = dm_person.getActivities().begin();
 				     activity != dm_person.getActivities().end(); activity++) {
@@ -410,6 +427,24 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 						presence.setPerson(person);
 					}
 					presence.getPerson()->getActivities().push_back(*activity);
+				}
+
+				/*
+				 * On tuple expiring mLastActivity is updated with the current timestamp.
+				 * If the field presence/timestamp is not already filled and because all tuple for this
+				 * presentity are already expired we filled it with the last activity timestamp.
+				 */
+				if (!presence.getPerson()->getTimestamp() && mLastActivity && extended) {
+					if (!presence.getPerson()) {
+						Xsd::DataModel::Person person = Xsd::DataModel::Person(dm_person.getId());
+						presence.setPerson(person);
+					}
+					time_t tt = system_clock::to_time_t(mLastActivity.value());
+					tm utc_tm;
+					gmtime_r(&tt, &utc_tm);
+					presence.getPerson()->setTimestamp(
+					    Xsd::XmlSchema::DateTime(utc_tm.tm_year + 1900, utc_tm.tm_mon + 1, utc_tm.tm_mday,
+					                             utc_tm.tm_hour, utc_tm.tm_min, utc_tm.tm_sec));
 				}
 			}
 		}
@@ -502,6 +537,7 @@ PresenceInformationElement::PresenceInformationElement(Xsd::Pidf::Presence::Tupl
 		     activity != person->getActivities().end(); activity++) {
 			mPerson.getActivities().push_back(*activity);
 		}
+		mPerson.setTimestamp(person->getTimestamp());
 	}
 
 	/*for (Xsd::Pidf::Presence::PersonType::iterator domElement = extensions->begin(); domElement != extensions->end();
@@ -543,12 +579,6 @@ const list<unique_ptr<Xsd::Pidf::Tuple>>& PresenceInformationElement::getTuples(
 const Xsd::DataModel::Person PresenceInformationElement::getPerson() const {
 	return mPerson;
 }
-/*	void PresenceInformationElement::addTuple(pidf::Tuple* tup) {
-        mTuples.push_back(tup);
-    }
-    void PresenceInformationElement::removeTuple(pidf::Tuple* tup) {
-        mTuples.remove(tup);
-    }*/
 const string& PresenceInformationElement::getEtag() {
 	return mEtag;
 }

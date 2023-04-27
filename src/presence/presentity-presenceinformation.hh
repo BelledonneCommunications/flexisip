@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,15 +9,16 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
 
+#include "compat/optional.hh"
 #include <list>
 #include <map>
 
@@ -51,7 +52,7 @@ public:
 	PresenceInformationElement(Xsd::Pidf::Presence::TupleSequence* tuples,
 	                           Xsd::DataModel::Person* person,
 	                           belle_sip_main_loop_t* mainLoop);
-	// create an information element with a default tuple set to closed.
+	// create an information element with a default tuple set to open.
 	PresenceInformationElement(const belle_sip_uri_t* contact);
 	~PresenceInformationElement();
 
@@ -80,7 +81,7 @@ private:
 	std::string mEtag;
 };
 /*
- * Presence Information is the key class representy a presentity. This class can be either created bu a Publish for a
+ * Presence Information is the key class representy a presentity. This class can be either created by a Publish for a
  presentiry or by a Subscription to a presentity
 
  */
@@ -260,11 +261,12 @@ private:
 	// list of subscribers function to be called when a tuple changed
 	mutable std::list<std::weak_ptr<PresentityPresenceInformationListener>> mSubscribers;
 	std::shared_ptr<PresenceInformationElement> mDefaultInformationElement; // purpose of this element is to have a
-	                                                                        // default presence status (I.E closed) when
-	                                                                        // all publish have expired.
+	                                                                        // default presence status (I.E closed)
+	                                                                        // when all publish have expired.
 	std::string mName;
 	std::string mCapabilities;
 	std::map<std::string, std::string> mAddedCapabilities;
+	std::optional<std::chrono::system_clock::time_point> mLastActivity = std::nullopt;
 };
 
 std::ostream& operator<<(std::ostream& __os, const PresentityPresenceInformation&);

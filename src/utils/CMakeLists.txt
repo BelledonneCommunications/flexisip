@@ -44,4 +44,5 @@ target_sources(flexisip PRIVATE
 	uri-utils.cc uri-utils.hh
 	utf8-string.cc utf8-string.hh
 	variant-utils.hh
+	xsd-utils.hh
 )

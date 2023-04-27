@@ -21,6 +21,7 @@
 ############################################################################
 
 find_package(Threads REQUIRED)
+find_package(XercesC REQUIRED)
 find_package(LibNgHttp2Asio)
 find_package(Boost COMPONENTS system REQUIRED)
 find_package(jsoncpp "1.1.0" REQUIRED)
@@ -76,6 +77,8 @@ add_executable(flexisip_tester
 	tests/eventlogs/writers/flexi-stats-event-log-writer-tester.cc
 	tests/flexiapi/flexi-stats-tester.cc
 	tests/presence/presence-pidf-tester.cc
+	tests/presence/presence-publish-tester.cc
+	tests/presence/xsd-utils-tester.cc
 	tests/pushnotification/service-tester.cc
 	tests/sofia-wrapper/home-tester.cc
 	tests/utils/transport/http/rest-client-tester.cc
@@ -140,11 +143,14 @@ target_link_libraries(flexisip_tester PRIVATE
 	ortp
 	jsoncpp_lib
 	hiredis
+	XercesC::XercesC
 )
 
 if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
 	target_link_libraries(flexisip_tester PRIVATE LibNgHttp2Asio)
 endif ()
+
+target_include_directories(flexisip_tester PRIVATE "${PROJECT_SOURCE_DIR}/libxsd")
 
 install(TARGETS flexisip_tester
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
