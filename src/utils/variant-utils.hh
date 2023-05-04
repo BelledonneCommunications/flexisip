@@ -29,4 +29,34 @@ auto print_variant(const Variant& v) {
 	return PrintVariant<Variant>{v};
 }
 
+// helper type for the visitor, see https://en.cppreference.com/w/cpp/utility/variant/visit examples
+template <class... Ts>
+struct overloaded : Ts... {
+	using Ts::operator()...;
+};
+
+/**
+ * Fluent interface to pattern match a std::variant against the given lambdas
+ */
+template <class Variant>
+class Match {
+public:
+	Match(Variant&& v) : mVariant(std::forward<Variant>(v)) {
+	}
+
+	template <class... Patterns>
+	auto against(Patterns... patterns) && {
+		return std::visit(overloaded{patterns...}, std::forward<Variant>(mVariant));
+	}
+
+private:
+	Variant mVariant;
+};
+
+// explicit deduction guides (not needed as of C++20)
+template <class... Ts>
+overloaded(Ts...) -> overloaded<Ts...>;
+template <typename T>
+Match(T&&) -> Match<T>;
+
 } // namespace flexisip

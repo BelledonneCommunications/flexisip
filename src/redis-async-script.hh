@@ -1,13 +1,17 @@
-/** Copyright (C) 2010-2022 Belledonne Communications SARL
+/** Copyright (C) 2010-2023 Belledonne Communications SARL
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #pragma once
 
+#include <cstring>
+#include <memory>
+#include <tuple>
+#include <utility>
+
 #include "compat/hiredis/async.h"
 
-using namespace std;
-
+namespace flexisip {
 namespace redis {
 
 struct AsyncCommand {
@@ -24,21 +28,21 @@ struct AsyncCommand {
 
 template <typename... Args>
 class PrefilledAsyncCommand {
-	using TArgs = tuple<Args...>;
+	using TArgs = std::tuple<Args...>;
 
 public:
-	PrefilledAsyncCommand(AsyncCommand command, Args... args) : mCommand(command), mArgs(make_tuple(args...)) {
+	PrefilledAsyncCommand(AsyncCommand command, Args... args) : mCommand(command), mArgs(std::make_tuple(args...)) {
 	}
 	PrefilledAsyncCommand(const char* command, Args... args) : PrefilledAsyncCommand(AsyncCommand{command}, args...) {
 	}
 
 	template <size_t... I>
-	void call(redisAsyncContext* context, redisCallbackFn* fn, void* privdata, index_sequence<I...>) {
-		mCommand.call(context, fn, privdata, get<I>(mArgs)...);
+	void call(redisAsyncContext* context, redisCallbackFn* fn, void* privdata, std::index_sequence<I...>) {
+		mCommand.call(context, fn, privdata, std::get<I>(mArgs)...);
 	}
 
 	void call(redisAsyncContext* context, redisCallbackFn* fn, void* privdata) {
-		call(context, fn, privdata, make_index_sequence<tuple_size<TArgs>::value>());
+		call(context, fn, privdata, std::make_index_sequence<std::tuple_size<TArgs>::value>());
 	}
 
 private:
@@ -55,7 +59,7 @@ public:
 	                   PrefilledAsyncCommand<const char*> loadScriptCmd,
 	                   PrefilledAsyncCommand<const char*, Args...> callScriptCmd,
 	                   TCallback&& callback)
-	    : SHA1(SHA1), loadScriptCmd(loadScriptCmd), callScriptCmd(callScriptCmd), callback(move(callback)) {
+	    : SHA1(SHA1), loadScriptCmd(loadScriptCmd), callScriptCmd(callScriptCmd), callback(std::move(callback)) {
 	}
 
 	void callScript(redisAsyncContext* context) {
@@ -70,14 +74,14 @@ private:
 
 	static void onCommandReturned(redisAsyncContext* context, void* rawReply, void* rawSelf) noexcept {
 		auto reply = static_cast<redisReply*>(rawReply);
-		auto self = unique_ptr<Self>(static_cast<Self*>(rawSelf));
+		auto self = std::unique_ptr<Self>(static_cast<Self*>(rawSelf));
 
 		switch (reply->type) {
 			case REDIS_REPLY_ARRAY: { // Script executed successfully
 				self->callback(reply);
 			} break;
 			case REDIS_REPLY_ERROR: {
-				if (strcmp(reply->str, "NOSCRIPT No matching script. Please use EVAL.") == 0) {
+				if (std::strcmp(reply->str, "NOSCRIPT No matching script. Please use EVAL.") == 0) {
 					// Script cache is cold. Load script and schedule retry
 					self.release()->loadScript(context);
 				} else {
@@ -132,12 +136,13 @@ public:
 	private:
 		using Handler = AsyncScriptHandler<TCallback, Args...>;
 
-		unique_ptr<Handler> mHandler;
+		std::unique_ptr<Handler> mHandler;
 
 		Ready(const AsyncScript& script,
 		      PrefilledAsyncCommand<const char*, Args...>&& callScriptCmd,
 		      TCallback&& callback)
-		    : mHandler(make_unique<Handler>(script.mSHA1, script.mLoadScriptCmd, move(callScriptCmd), move(callback))) {
+		    : mHandler(
+		          std::make_unique<Handler>(script.mSHA1, script.mLoadScriptCmd, std::move(callScriptCmd), std::move(callback))) {
 		}
 	};
 
@@ -153,7 +158,7 @@ public:
 		 */
 		template <typename TCallback>
 		Ready<TCallback> then(TCallback&& callback) {
-			return Ready<TCallback>(mScript, move(mCallScriptCmd), move(callback));
+			return Ready<TCallback>(mScript, std::move(mCallScriptCmd), std::move(callback));
 		}
 
 	private:
@@ -187,3 +192,4 @@ private:
 };
 
 } // namespace redis
+} // namespace flexisip

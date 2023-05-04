@@ -28,6 +28,7 @@
 #include <variant>
 #include <vector>
 
+#include <hiredis/async.h>
 #include <sofia-sip/sip_protos.h>
 
 #include "flexisip/common.hh"
@@ -40,6 +41,7 @@
 #include "registrar/exceptions.hh"
 #include "registrar/extended-contact.hh"
 #include "registrardb-redis-sofia-event.h"
+#include "utils/variant-utils.hh"
 
 /* The timeout to retry a bind request after encountering a failure. It gives us a chance to reconnect to a new
  * master.*/
@@ -484,13 +486,20 @@ bool RegistrarDbRedisAsync::connect() {
 		return false;
 	}
 
-	if (!mParams.auth.empty()) {
-		SLOGD << "Authenticating to Redis server";
-		redisAsyncCommand(mContext, sHandleAuthReply, this, "AUTH %s", mParams.auth.c_str());
-		redisAsyncCommand(mSubscribeContext, sHandleAuthReply, this, "AUTH %s", mParams.auth.c_str());
-	} else {
-		getReplicationInfo();
-	}
+	const auto authenticate = [this](auto&&... args) {
+		const auto authenticateCmd = [this](redisAsyncContext* ctx, auto&&... args) {
+			redisAsyncCommand(ctx, sHandleAuthReply, this, args...);
+		};
+		authenticateCmd(mContext, args...);
+		authenticateCmd(mSubscribeContext, args...);
+	};
+
+	Match(mParams.auth)
+	    .against([this](redis::auth::None) { getReplicationInfo(); },
+	             [&authenticate](redis::auth::Legacy legacy) { authenticate("AUTH %s", legacy.password.c_str()); },
+	             [&authenticate](redis::auth::ACL acl) {
+		             authenticate("AUTH %s %s", acl.user.c_str(), acl.password.c_str());
+	             });
 
 	mLastActiveParams = mParams;
 	return true;
@@ -974,9 +983,7 @@ void RegistrarDbRedisAsync::doFetch(const SipUri& url, const shared_ptr<ContactU
 }
 
 void RegistrarDbRedisAsync::fetchExpiringContacts(
-    time_t startTimestamp,
-    float threshold,
-    std::function<void(std::vector<ExtendedContact>&&)>&& callback) const {
+    time_t startTimestamp, float threshold, std::function<void(std::vector<ExtendedContact>&&)>&& callback) const {
 	FETCH_EXPIRING_CONTACTS_SCRIPT.with(startTimestamp, threshold)
 	    .then([callback = std::move(callback)](redisReply* reply) {
 		    auto count = reply->elements;

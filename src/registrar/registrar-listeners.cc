@@ -18,4 +18,7 @@ ContactRegisteredListener::~ContactRegisteredListener() {
 LocalRegExpireListener::~LocalRegExpireListener() {
 }
 
+RegistrarDbStateListener::~RegistrarDbStateListener() {
+}
+
 } // namespace flexisip

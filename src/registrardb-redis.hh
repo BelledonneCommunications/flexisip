@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <string>
+#include <variant>
 #include <vector>
 
 #include "compat/hiredis/async.h"
@@ -37,9 +39,26 @@
 
 namespace flexisip {
 
+namespace redis {
+namespace auth {
+
+class None {};
+class Legacy {
+public:
+	std::string password;
+};
+class ACL {
+public:
+	std::string user;
+	std::string password;
+};
+
+} // namespace auth
+} // namespace redis
+
 struct RedisParameters {
 	std::string domain{};
-	std::string auth{};
+	std::variant<redis::auth::None, redis::auth::Legacy, redis::auth::ACL> auth{};
 	int port = 0;
 	int timeout = 0;
 	std::chrono::seconds mSlaveCheckTimeout{0};
@@ -141,7 +160,6 @@ public:
 	}
 
 	friend std::ostream& operator<<(std::ostream& out, const RedisArgsPacker& args);
-
 
 private:
 	void addArg(const std::string& arg) {

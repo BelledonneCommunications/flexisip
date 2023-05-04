@@ -354,7 +354,14 @@ void ModuleRegistrar::onDeclare(GenericStruct* mc) {
 	    // Redis config support
 	    {String, "redis-server-domain", "Hostname or address of the Redis server. ", "localhost"},
 	    {Integer, "redis-server-port", "Port of the Redis server.", "6379"},
-	    {String, "redis-auth-password", "Authentication password for Redis. Empty to disable.", ""},
+	    {String, "redis-auth-user",
+	     "ACL username used to authenticate on Redis. Empty to disable. Setting this but not `redis-auth-password` is "
+	     "a misconfiguration, and will be ignored.",
+	     ""},
+	    {String, "redis-auth-password",
+	     "Authentication password for Redis. Empty to disable. If set but `redis-auth-user` is left unset or empty, "
+	     "Flexisip will attempt to register in legacy mode.",
+	     ""},
 	    {Integer, "redis-server-timeout", "Timeout in milliseconds of the Redis connection.", "1500"},
 	    {Integer, "redis-slave-check-period",
 	     "When Redis is configured in master-slave, Flexisip will periodically ask which Redis instances are the "

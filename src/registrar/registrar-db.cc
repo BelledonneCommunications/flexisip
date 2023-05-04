@@ -17,6 +17,7 @@
 using namespace std;
 
 namespace flexisip {
+using namespace redis::auth;
 
 RegistrarDb::LocalRegExpire::LocalRegExpire(Agent* ag) : mAgent(ag) {
 }
@@ -252,7 +253,17 @@ RegistrarDb* RegistrarDb::initialize(Agent* ag) {
 		params.domain = registrar->get<ConfigString>("redis-server-domain")->read();
 		params.port = registrar->get<ConfigInt>("redis-server-port")->read();
 		params.timeout = registrar->get<ConfigInt>("redis-server-timeout")->read();
-		params.auth = registrar->get<ConfigString>("redis-auth-password")->read();
+		params.auth = [&registrar]() -> decltype(params.auth) {
+			const auto& password = registrar->get<ConfigString>("redis-auth-password")->read();
+			if (password.empty()) {
+				return None();
+			}
+			const auto& user = registrar->get<ConfigString>("redis-auth-user")->read();
+			if (user.empty()) {
+				return Legacy{password};
+			}
+			return ACL{user, password};
+		}();
 		params.mSlaveCheckTimeout = chrono::seconds{registrar->get<ConfigInt>("redis-slave-check-period")->read()};
 		params.useSlavesAsBackup = registrar->get<ConfigBoolean>("redis-use-slaves-as-backup")->read();
 

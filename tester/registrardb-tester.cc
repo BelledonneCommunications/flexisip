@@ -17,8 +17,11 @@
 */
 
 #include <cstring>
+#include <hiredis/read.h>
+#include <memory>
 #include <sstream>
 #include <string>
+#include <tuple>
 
 #include "bctoolbox/tester.h"
 
@@ -27,9 +30,11 @@
 
 #include "module-pushnotification.hh"
 #include "pushnotification/firebase/firebase-client.hh"
+#include "registrar/registrar-db.hh"
 #include "tester.hh"
 #include "utils/asserts.hh"
 #include "utils/override-static.hh"
+#include "utils/proxy-server.hh"
 #include "utils/redis-sync-access.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-patterns/test.hh"
@@ -567,11 +572,84 @@ class ExpiredContactsArePurgedFromRedis : public RegistrarDbTest<DbImplementatio
 };
 
 namespace {
+
+enum class FailureExpected : bool {
+	No = false,
+	Yes = true,
+};
+
+class SuccessfulConnectionListener : public RegistrarDbStateListener {
+public:
+	bool successful = false;
+
+private:
+	void onRegistrarDbWritable(bool writable) override {
+		successful = writable;
+	}
+};
+
+template <tuple<map<string, string>, FailureExpected> setupRedis(RedisSyncContext&)>
+void authenticatedConnectionWithRedis() {
+	DbImplementation::Redis db{};
+	RedisSyncContext redis = redisConnect("127.0.0.1", db.mPort);
+	auto auth = setupRedis(redis);
+	Server proxyServer{[&db, &authCfg = std::get<0>(auth)]() {
+		auto config = db.configAsMap();
+		config.emplace("global/transports", "sip:127.0.0.1:0;transport=udp");
+		config.merge(authCfg);
+		return config;
+	}()};
+	proxyServer.start();
+	const auto connectionListener = make_shared<SuccessfulConnectionListener>();
+	RegistrarDb::get()->addStateListener(connectionListener);
+	BcAssert asserter{};
+	asserter.addCustomIterate([&root = *proxyServer.getRoot()]() { root.step(100ms); });
+
+	const auto result = asserter.iterateUpTo(7, [&connection = *connectionListener]() {
+		FAIL_IF(connection.successful == false);
+		return ASSERTION_PASSED();
+	});
+	if (std::get<1>(auth) == FailureExpected::No) {
+		result.assert_passed();
+	} else if (result) {
+		SLOGE << __FUNCTION__ << " test unexpectedly passed!";
+	}
+}
+
+tuple<map<string, string>, FailureExpected> legacyAuth(RedisSyncContext& redis) {
+	constexpr auto password = "correct horse battery staple";
+	auto reply = redis.command("CONFIG SET requirepass %s", password);
+	BC_ASSERT_CPP_EQUAL(reply->type, REDIS_REPLY_STATUS);
+	BC_ASSERT_STRING_EQUAL(reply->str, "OK");
+
+	return {{{"module::Registrar/redis-auth-password", password}}, FailureExpected::Yes};
+}
+
+tuple<map<string, string>, FailureExpected> aclAuth(RedisSyncContext& redis) {
+	constexpr auto user = "mwheeler";
+	constexpr auto password = "Five Five Five Five Five";
+	auto reply = redis.command("acl setuser %s on +@all ~* >%s", user, password);
+	FailureExpected failureExpected = FailureExpected::Yes;
+	if (reply->type != REDIS_REPLY_ERROR) {
+		BC_ASSERT_CPP_EQUAL(reply->type, REDIS_REPLY_STATUS);
+		BC_ASSERT_STRING_EQUAL(reply->str, "OK");
+		failureExpected = FailureExpected::No;
+	}
+
+	return {{
+	            {"module::Registrar/redis-auth-user", user},
+	            {"module::Registrar/redis-auth-password", password},
+	        },
+	        failureExpected};
+}
+
 TestSuite
     _("RegistrarDB",
       {
           CLASSY_TEST(InstanceIDFeatureParamIsSerializedToRedis),
           CLASSY_TEST(CallIDsPreviouslyUsedAsKeysAreInterpretedAsUniqueIDs),
+          CLASSY_TEST(authenticatedConnectionWithRedis<legacyAuth>),
+          CLASSY_TEST(authenticatedConnectionWithRedis<aclAuth>),
           TEST_NO_TAG("Fetch expiring contacts on Redis", run<TestFetchExpiringContacts<DbImplementation::Redis>>),
           TEST_NO_TAG("Fetch expiring contacts in Internal DB",
                       run<TestFetchExpiringContacts<DbImplementation::Internal>>),
@@ -592,6 +670,6 @@ TestSuite
 	      flexisip::ContactKey::sRsg.mEngine.seed(tester::seed());
 	      return 0;
       }));
-}
+} // namespace
 } // namespace tester
 } // namespace flexisip

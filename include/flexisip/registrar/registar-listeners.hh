@@ -77,6 +77,7 @@ public:
 
 class RegistrarDbStateListener {
 public:
+	virtual ~RegistrarDbStateListener();
 	virtual void onRegistrarDbWritable(bool writable) = 0;
 };
 

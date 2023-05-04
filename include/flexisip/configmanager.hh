@@ -729,7 +729,7 @@ public:
 		mOverrides = overrides;
 	}
 	void setOverrideMap(std::map<std::string, std::string>&& overrides) {
-		mOverrides = move(overrides);
+		mOverrides = std::move(overrides);
 	}
 
 	std::map<std::string, std::string>& getOverrideMap() {
