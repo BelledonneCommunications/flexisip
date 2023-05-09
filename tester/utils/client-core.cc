@@ -24,10 +24,10 @@
 
 #include <bctoolbox/tester.h>
 
-#include <linphone/core.h>
-#include <linphone++/call.hh>
 #include <linphone++/address.hh>
+#include <linphone++/call.hh>
 #include <linphone++/call_params.hh>
+#include <linphone/core.h>
 
 #include <mediastreamer2/mediastream.h>
 
@@ -394,21 +394,19 @@ CoreClient::callWithEarlyCancel(const std::shared_ptr<CoreClient>& callee,
 	}
 
 	// Check call get the incoming call and caller is in OutgoingRinging state
-	if (!BC_ASSERT_TRUE(CoreAssert(coreList, agent)
-	                        .waitUntil(seconds(10), [&callerCall, isCalleeAway, &agent, &callee] {
-		                        if (isCalleeAway) {
-			                        const auto& moduleRouter =
-			                            dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
-			                        return callerCall->getState() == linphone::Call::State::OutgoingProgress &&
-			                               moduleRouter->mStats.mCountCallForks->start->read() == 1;
-		                        } else {
+	if (!BC_ASSERT_TRUE(
+	        CoreAssert(coreList, agent).waitUntil(seconds(10), [&callerCall, isCalleeAway, &agent, &callee] {
+		        if (isCalleeAway) {
+			        const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+			        return callerCall->getState() == linphone::Call::State::OutgoingProgress &&
+			               moduleRouter->mStats.mCountCallForks->start->read() == 1;
+		        } else {
 
-			                        return callerCall->getState() == linphone::Call::State::OutgoingRinging &&
-			                               callee->getCore()->getCurrentCall() &&
-			                               callee->getCore()->getCurrentCall()->getState() ==
-			                                   Call::State::IncomingReceived;
-		                        }
-	                        }))) {
+			        return callerCall->getState() == linphone::Call::State::OutgoingRinging &&
+			               callee->getCore()->getCurrentCall() &&
+			               callee->getCore()->getCurrentCall()->getState() == Call::State::IncomingReceived;
+		        }
+	        }))) {
 		return nullptr;
 	}
 
@@ -508,7 +506,8 @@ std::shared_ptr<linphone::Call> CoreClient::invite(const CoreClient& peer) const
 	return mCore->inviteAddress(peer.getAccount()->getContactAddress());
 }
 
-std::shared_ptr<linphone::Call> CoreClient::invite(const CoreClient& peer, const shared_ptr<const linphone::CallParams>& params) const {
+std::shared_ptr<linphone::Call> CoreClient::invite(const CoreClient& peer,
+                                                   const shared_ptr<const linphone::CallParams>& params) const {
 	return mCore->inviteAddressWithParams(peer.getAccount()->getContactAddress(), params);
 }
 

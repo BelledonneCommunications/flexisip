@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -31,8 +31,8 @@ using namespace std;
 
 namespace flexisip {
 
-SipEvent::SipEvent(const shared_ptr<IncomingAgent> &inAgent, const shared_ptr<MsgSip> &msgSip,tport_t *tport)
-	: mCurrModule{}, mMsgSip(msgSip), mState(STARTED) {
+SipEvent::SipEvent(const shared_ptr<IncomingAgent>& inAgent, const shared_ptr<MsgSip>& msgSip, tport_t* tport)
+    : mCurrModule{}, mMsgSip(msgSip), mState(STARTED) {
 	SLOGD << "New SipEvent " << this << " - msg " << msgSip->getMsg();
 	mIncomingAgent = inAgent;
 	mAgent = inAgent->getAgent();
@@ -42,12 +42,11 @@ SipEvent::SipEvent(const shared_ptr<IncomingAgent> &inAgent, const shared_ptr<Ms
 	} else {
 		mOutgoingAgent = inAgent->getAgent()->shared_from_this();
 	}
-	if (tport)
-		mIncomingTport = shared_ptr<tport_t>(tport_ref(tport), tport_unref);
+	if (tport) mIncomingTport = shared_ptr<tport_t>(tport_ref(tport), tport_unref);
 }
 
-SipEvent::SipEvent(const shared_ptr<OutgoingAgent> &outAgent, const shared_ptr<MsgSip> &msgSip, tport_t *tport)
-	: mCurrModule{}, mMsgSip(msgSip), mState(STARTED) {
+SipEvent::SipEvent(const shared_ptr<OutgoingAgent>& outAgent, const shared_ptr<MsgSip>& msgSip, tport_t* tport)
+    : mCurrModule{}, mMsgSip(msgSip), mState(STARTED) {
 	SLOGD << "New SipEvent " << this << " - msg " << msgSip->getMsg();
 	mOutgoingAgent = outAgent;
 	mAgent = outAgent->getAgent();
@@ -57,17 +56,14 @@ SipEvent::SipEvent(const shared_ptr<OutgoingAgent> &outAgent, const shared_ptr<M
 		// A response SipEvent is generated either from a stateless response or from a response from an outgoing
 		// transaction.
 		mIncomingAgent = ot->getIncomingTransaction();
-	} else
-		mIncomingAgent = mAgent->shared_from_this();
-	if (tport)
-		mIncomingTport = shared_ptr<tport_t>(tport_ref(tport), tport_unref);
-
+	} else mIncomingAgent = mAgent->shared_from_this();
+	if (tport) mIncomingTport = shared_ptr<tport_t>(tport_ref(tport), tport_unref);
 }
 
-SipEvent::SipEvent(const SipEvent &sipEvent): enable_shared_from_this<SipEvent>(),
-	  mCurrModule(sipEvent.mCurrModule), mIncomingAgent(sipEvent.mIncomingAgent),
-	  mOutgoingAgent(sipEvent.mOutgoingAgent), mAgent(sipEvent.mAgent), mState(sipEvent.mState),
-	  mIncomingTport(sipEvent.mIncomingTport){
+SipEvent::SipEvent(const SipEvent& sipEvent)
+    : enable_shared_from_this<SipEvent>(), mCurrModule(sipEvent.mCurrModule), mIncomingAgent(sipEvent.mIncomingAgent),
+      mOutgoingAgent(sipEvent.mOutgoingAgent), mAgent(sipEvent.mAgent), mState(sipEvent.mState),
+      mIncomingTport(sipEvent.mIncomingTport) {
 	LOGD("New SipEvent %p with state %s", this, stateStr(mState).c_str());
 	// make a copy of the msgsip when the SipEvent is copy-constructed
 	mMsgSip = make_shared<MsgSip>(*sipEvent.mMsgSip);
@@ -130,7 +126,7 @@ std::shared_ptr<IncomingTransaction> SipEvent::getIncomingTransaction() {
 std::shared_ptr<OutgoingTransaction> SipEvent::getOutgoingTransaction() {
 	return dynamic_pointer_cast<OutgoingTransaction>(getOutgoingAgent());
 }
-const std::shared_ptr<tport_t> &SipEvent::getIncomingTport() const {
+const std::shared_ptr<tport_t>& SipEvent::getIncomingTport() const {
 	return mIncomingTport;
 }
 
@@ -157,13 +153,14 @@ std::shared_ptr<RequestSipEvent> RequestSipEvent::makeRestored(std::shared_ptr<I
 
 	return shared;
 }
-RequestSipEvent::RequestSipEvent(shared_ptr<IncomingAgent> incomingAgent, const shared_ptr<MsgSip> &msgSip,
-								 tport_t *tport)
-	: SipEvent(incomingAgent, msgSip, tport), mRecordRouteAdded(false) {
+RequestSipEvent::RequestSipEvent(shared_ptr<IncomingAgent> incomingAgent,
+                                 const shared_ptr<MsgSip>& msgSip,
+                                 tport_t* tport)
+    : SipEvent(incomingAgent, msgSip, tport), mRecordRouteAdded(false) {
 }
 
-RequestSipEvent::RequestSipEvent(const shared_ptr<RequestSipEvent> &sipEvent)
-	: SipEvent(*sipEvent), mRecordRouteAdded(sipEvent->mRecordRouteAdded) {
+RequestSipEvent::RequestSipEvent(const shared_ptr<RequestSipEvent>& sipEvent)
+    : SipEvent(*sipEvent), mRecordRouteAdded(sipEvent->mRecordRouteAdded) {
 }
 
 void RequestSipEvent::send(
@@ -257,8 +254,8 @@ void RequestSipEvent::suspendProcessing() {
 RequestSipEvent::~RequestSipEvent() {
 }
 
-bool RequestSipEvent::matchIncomingSubject(regex_t *regex){
-	const su_strlst_t *strlst = tport_delivered_from_subjects(getIncomingTport().get(), mMsgSip->getMsg());
+bool RequestSipEvent::matchIncomingSubject(regex_t* regex) {
+	const su_strlst_t* strlst = tport_delivered_from_subjects(getIncomingTport().get(), mMsgSip->getMsg());
 	int count = su_strlst_len(strlst);
 
 	for (int k = 0; k < count; ++k) {
@@ -274,14 +271,13 @@ bool RequestSipEvent::matchIncomingSubject(regex_t *regex){
 	return false;
 }
 
-bool RequestSipEvent::findIncomingSubject(const char *searched) const {
+bool RequestSipEvent::findIncomingSubject(const char* searched) const {
 	auto strlst = tport_delivered_from_subjects(getIncomingTport().get(), mMsgSip->getMsg());
 	return !!tport_subject_search(searched, strlst);
 }
 
-const char *RequestSipEvent::findIncomingSubject(const list<string> &in) const {
-	if (in.empty())
-		return NULL;
+const char* RequestSipEvent::findIncomingSubject(const list<string>& in) const {
+	if (in.empty()) return NULL;
 	auto strlst = tport_delivered_from_subjects(getIncomingTport().get(), mMsgSip->getMsg());
 	for (auto it = in.cbegin(); it != in.cend(); ++it) {
 		if (tport_subject_search(it->c_str(), strlst)) return it->c_str();
@@ -289,9 +285,10 @@ const char *RequestSipEvent::findIncomingSubject(const list<string> &in) const {
 	return NULL;
 }
 
-ResponseSipEvent::ResponseSipEvent(shared_ptr<OutgoingAgent> outgoingAgent, const shared_ptr<MsgSip> &msgSip,
-								   tport_t *tport)
-	: SipEvent(outgoingAgent, msgSip, tport), mPopVia(false) {
+ResponseSipEvent::ResponseSipEvent(shared_ptr<OutgoingAgent> outgoingAgent,
+                                   const shared_ptr<MsgSip>& msgSip,
+                                   tport_t* tport)
+    : SipEvent(outgoingAgent, msgSip, tport), mPopVia(false) {
 	mPopVia = mAgent != mOutgoingAgent.get(); // we pop the via if sending through transaction
 }
 

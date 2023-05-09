@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,11 +9,11 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -48,10 +48,14 @@ using MsgSip = sofiasip::MsgSip;
 class SipEvent : public std::enable_shared_from_this<SipEvent> {
 	friend class Agent;
 
-  public:
-	SipEvent(const std::shared_ptr<IncomingAgent> &inAgent, const std::shared_ptr<MsgSip> &msgSip, tport_t *tport = NULL);
-	SipEvent(const std::shared_ptr<OutgoingAgent> &outAgent, const std::shared_ptr<MsgSip> &msgSip, tport_t *tport = NULL);
-	SipEvent(const SipEvent &sipEvent);
+public:
+	SipEvent(const std::shared_ptr<IncomingAgent>& inAgent,
+	         const std::shared_ptr<MsgSip>& msgSip,
+	         tport_t* tport = NULL);
+	SipEvent(const std::shared_ptr<OutgoingAgent>& outAgent,
+	         const std::shared_ptr<MsgSip>& msgSip,
+	         tport_t* tport = NULL);
+	SipEvent(const SipEvent& sipEvent);
 
 	inline const std::shared_ptr<MsgSip>& getMsgSip() const {
 		return mMsgSip;
@@ -119,8 +123,8 @@ class SipEvent : public std::enable_shared_from_this<SipEvent> {
 	                    you need to submit a new one.*/
 	std::shared_ptr<IncomingTransaction> getIncomingTransaction();
 	std::shared_ptr<OutgoingTransaction> getOutgoingTransaction();
-	
-	const std::shared_ptr<tport_t> &getIncomingTport() const;
+
+	const std::shared_ptr<tport_t>& getIncomingTport() const;
 
 protected:
 	std::weak_ptr<Module> mCurrModule;
@@ -146,6 +150,7 @@ protected:
 		}
 		return "invalid";
 	}
+
 private:
 	std::shared_ptr<tport_t> mIncomingTport;
 };
@@ -191,10 +196,11 @@ private:
 };
 
 class ResponseSipEvent : public SipEvent {
-  public:
-	ResponseSipEvent(std::shared_ptr<OutgoingAgent> outgoingAgent, const std::shared_ptr<MsgSip> &msgSip,
-					 tport_t *tport = NULL);
-	ResponseSipEvent(const std::shared_ptr<ResponseSipEvent> &sipEvent);
+public:
+	ResponseSipEvent(std::shared_ptr<OutgoingAgent> outgoingAgent,
+	                 const std::shared_ptr<MsgSip>& msgSip,
+	                 tport_t* tport = NULL);
+	ResponseSipEvent(const std::shared_ptr<ResponseSipEvent>& sipEvent);
 
 	virtual void send(const std::shared_ptr<MsgSip>& msg,
 	                  url_string_t const* u = NULL,
