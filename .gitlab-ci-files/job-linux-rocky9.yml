@@ -42,6 +42,7 @@ job-rocky9-ninja-clang:
 job-rocky9-ninja-clang-nosoci:
   extends:
     - job-rocky9-ninja-clang
+    - .rules-manual
   variables:
     CMAKE_OPTIONS: ${ROCKY9_CMAKE_OPTIONS_UNIT_TESTS} -DENABLE_SOCI=OFF -DENABLE_B2BUA=ON -DENABLE_CONFERENCE=ON
 
@@ -59,6 +60,7 @@ job-rocky9-unit-test:
 job-rocky9-unit-test-nosoci:
   extends:
     - job-rocky9-unit-test
+    - .rules-manual
   needs:
     - job-rocky9-ninja-clang-nosoci
 
@@ -70,6 +72,7 @@ job-rocky9-rpm:
   extends:
     - .job-linux-rpm
     - .rocky9-image-variables
+    - .rules-manual
   needs:
     - job: job-rocky9-unit-test
       optional: true
@@ -90,6 +93,7 @@ job-rocky9-rpm-check-features:
   tags: [ "docker" ]
   extends:
     - .rocky9-image-variables
+    - .rules-manual
   rules:
     - !reference [job-rocky9-rpm, rules]
   needs:
