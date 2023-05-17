@@ -28,6 +28,7 @@
 #endif
 
 #include "flexisip/common.hh"
+#include "eventlogs/events/eventlogs.hh"
 
 using namespace std;
 using namespace std::chrono;

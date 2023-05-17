@@ -21,6 +21,7 @@
 #include <flexisip/module.hh>
 
 #include "agent.hh"
+#include "eventlogs/writers/event-log-writer.hh"
 
 using namespace std;
 using namespace flexisip;

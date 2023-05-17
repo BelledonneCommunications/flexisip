@@ -19,6 +19,7 @@
 #include "module-pushnotification.hh"
 
 #include "agent.hh"
+#include "eventlogs/writers/event-log-writer.hh"
 #include "fork-context/branch-info.hh"
 #include "pushnotification/apple/apple-request.hh"
 #include "pushnotification/pushnotification-context.hh"

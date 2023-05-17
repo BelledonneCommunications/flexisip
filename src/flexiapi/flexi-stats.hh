@@ -30,7 +30,11 @@ namespace flexiapi {
 
 class FlexiStats {
 public:
-	FlexiStats(sofiasip::SuRoot& root, const std::string& host, const std::string& port, const std::string& token);
+	FlexiStats(sofiasip::SuRoot& root,
+	           const std::string& host,
+	           const std::string& port,
+	           const std::string& apiPrefix,
+	           const std::string& token);
 
 	/********** MESSAGES **********/
 	void postMessage(const Message& message);
@@ -56,7 +60,10 @@ public:
 	                                         const ParticipantDeviceEvent& participantDeviceEvent);
 
 private:
+	std::string toApiPath(const std::string& methodPath);
+
 	RestClient mRestClient;
+	std::string mApiPrefix;
 };
 
 } // namespace flexiapi

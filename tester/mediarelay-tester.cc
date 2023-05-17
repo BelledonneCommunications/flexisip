@@ -14,6 +14,7 @@
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
 #include "utils/proxy-server.hh"
+#include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
 using namespace std;
@@ -52,8 +53,8 @@ void video_is_received_by_caller_in_early_media() {
 		                 return ASSERTION_PASSED();
 	                 })
 	    .assert_passed();
-	BC_ASSERT_EQUAL((int)paulineCall->getState(), (int)linphone::Call::State::OutgoingEarlyMedia, int, "%i");
-	BC_ASSERT_EQUAL((int)clemenceCall->getState(), (int)linphone::Call::State::IncomingEarlyMedia, int, "%i");
+	BC_ASSERT_ENUM_EQUAL(paulineCall->getState(), linphone::Call::State::OutgoingEarlyMedia);
+	BC_ASSERT_ENUM_EQUAL(clemenceCall->getState(), linphone::Call::State::IncomingEarlyMedia);
 
 	asserter
 	    .iterateUpTo(90,

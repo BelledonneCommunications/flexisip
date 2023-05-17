@@ -22,13 +22,12 @@
 #include <sstream>
 #include <stdexcept>
 
+#include "sofia-sip/nta_tport.h"
 #include <bctoolbox/tester.h>
-
 #include <linphone++/address.hh>
 #include <linphone++/call.hh>
 #include <linphone++/call_params.hh>
 #include <linphone/core.h>
-
 #include <mediastreamer2/mediastream.h>
 
 #include "flexisip/logmanager.hh"
@@ -100,7 +99,8 @@ ClientBuilder::ClientBuilder(const std::string& me)
 	}
 	mCore->setPrimaryContact(me);
 
-	mAccountParams = mCore->createAccountParams();
+	mAccountParams->setIdentityAddress(mMe);
+	mAccountParams->enableRegister(true);
 
 	{
 		auto config = mCore->getConfig();
@@ -132,21 +132,6 @@ ClientBuilder::ClientBuilder(const std::string& me)
 		policy->setAutomaticallyInitiate(
 		    false); // requires explicit settings in the parameters to initiate a video call
 		mCore->setVideoActivationPolicy(policy);
-	}
-
-	{
-		// Clients register to the first of the list of transports read in the proxy configuration
-		auto route = mFactory->createAddress(flexisip::GenericManager::get()
-		                                         ->getRoot()
-		                                         ->get<flexisip::GenericStruct>("global")
-		                                         ->get<flexisip::ConfigStringList>("transports")
-		                                         ->read()
-		                                         .front());
-
-		mAccountParams->setIdentityAddress(mMe);
-		mAccountParams->enableRegister(true);
-		mAccountParams->setServerAddress(route);
-		mAccountParams->setRoutesAddresses({route});
 	}
 }
 
@@ -195,8 +180,27 @@ CoreClient ClientBuilder::registerTo(const shared_ptr<Server>& server) && {
 }
 
 CoreClient::CoreClient(ClientBuilder&& builder, const shared_ptr<Server>& server)
-    : mCore(std::move(builder.mCore)), mAccount(mCore->createAccount(builder.mAccountParams)),
-      mMe(std::move(builder.mMe)), mServer(server) {
+    : mCore(std::move(builder.mCore)), mAccount(nullptr), mMe(std::move(builder.mMe)), mServer(server) {
+
+	{
+		// Clients register to the first of the list of transports read in the proxy configuration
+		auto route = builder.mFactory->createAddress(flexisip::GenericManager::get()
+		                                                 ->getRoot()
+		                                                 ->get<flexisip::GenericStruct>("global")
+		                                                 ->get<flexisip::ConfigStringList>("transports")
+		                                                 ->read()
+		                                                 .front());
+		// Fix port if auto-bound
+		if (route->getPort() == 0) {
+			const auto firstTransport = ::tport_primaries(::nta_agent_tports(server->getAgent()->getSofiaAgent()));
+			route->setPort(std::atoi(::tport_name(firstTransport)->tpn_port));
+		}
+
+		builder.mAccountParams->setServerAddress(route);
+		builder.mAccountParams->setRoutesAddresses({route});
+	}
+	mAccount = mCore->createAccount(builder.mAccountParams);
+
 	mCore->start();
 	mCore->addAccount(mAccount);
 	CoreAssert({mCore}, server->getAgent())

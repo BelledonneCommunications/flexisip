@@ -1,180 +1,27 @@
-/*
-    Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+/** Copyright (C) 2010-2023 Belledonne Communications SARL
+ *  SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
+#include "filesystem-event-log-writer.hh"
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-    GNU Affero General Public License for more details.
-
-    You should have received a copy of the GNU Affero General Public License
-    along with this program. If not, see <http://www.gnu.org/licenses/>.
-*/
-
-#include <iomanip>
-#include <iostream>
-#include <typeinfo>
-
-#include <fcntl.h>
 #include <sys/stat.h>
 
-#include "flexisip/configmanager.hh"
-
-#include "utils/thread/auto-thread-pool.hh"
-
-#include "eventlogs.hh"
+#include "eventlogs/events/eventlogs.hh"
+#include "flexisip/logmanager.hh"
 
 using namespace std;
 
 namespace flexisip {
+namespace {
 
-EventLog::Init EventLog::evStaticInit;
-
-EventLog::Init::Init() {
-	ConfigItemDescriptor items[] = {
-	    {Boolean, "enabled", "Enable event logs.", "false"},
-	    {String, "logger", "Define logger for storing logs. It supports \"filesystem\" and \"database\".",
-	     "filesystem"},
-	    {String, "filesystem-directory",
-	     "Directory where event logs are written as a filesystem (case when filesystem "
-	     "output is choosed).",
-	     "/var/log/flexisip"},
-	    {String, "database-backend",
-	     "Choose the type of backend that Soci will use for the connection.\n"
-	     "Depending on your Soci package and the modules you installed, the supported databases are:"
-	     "`mysql`, `sqlite3` and `postgresql`",
-	     "mysql"},
-	    {String, "database-connection-string",
-	     "The configuration parameters of the backend.\n"
-	     "The basic format is \"key=value key2=value2\". For a mysql backend, this "
-	     "is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
-	     "Please refer to the Soci documentation of your backend, for instance: "
-	     "http://soci.sourceforge.net/doc/master/backends/#supported-backends-and-features",
-	     "db='mydb' user='myuser' password='mypass' host='myhost.com'"},
-	    {Integer, "database-max-queue-size",
-	     "Amount of queries that will be allowed to be queued before bailing password requests.\n"
-	     "This value should be chosen accordingly with 'database-nb-threads-max', so that you have a "
-	     "coherent behavior.\n"
-	     "This limit is here mainly as a safeguard against out-of-control growth of the queue in the event of a flood "
-	     "or big delays in the database backend.",
-	     "100"},
-	    {Integer, "database-nb-threads-max",
-	     "Maximum number of threads for writing in database.\n"
-	     "If you get a `database is locked` error with sqlite3, you must set this variable to 1.",
-	     "10"},
-
-	    // Deprecated parameters
-	    {String, "dir",
-	     "Directory where event logs are written as a filesystem (case when filesystem output is choosed).",
-	     "/var/log/flexisip"},
-	    config_item_end};
-
-	auto uEv = make_unique<GenericStruct>(
-	    "event-logs",
-	    "Event logs contain per domain and user information about processed registrations, calls and messages.\n"
-	    "See: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Event%20logs%20and%20queries/ for architecture "
-	    "and queries.",
-	    0);
-	auto ev = GenericManager::get()->getRoot()->addChild(move(uEv));
-	ev->addChildrenValues(items);
-	ev->get<ConfigString>("dir")->setDeprecated({"2020-02-19", "2.0.0", "Replaced by 'filesystem-directory'"});
-}
-
-EventLog::EventLog(const sip_t* sip)
-    : mFrom{sip_from_dup(mHome.home(), sip->sip_from)}, mTo{sip_to_dup(mHome.home(), sip->sip_to)},
-      mUA{sip->sip_user_agent ? sip_user_agent_dup(mHome.home(), sip->sip_user_agent) : nullptr}, mDate{time(nullptr)},
-      mCallId{sip->sip_call_id->i_id} {
-}
-
-RegistrationLog::RegistrationLog(const sip_t* sip, const sip_contact_t* contacts) : EventLog(sip) {
-	mType = (sip->sip_expires && sip->sip_expires->ex_delta == 0) ? Type::Unregister // REVISIT not 100% exact.
-	                                                              : Type::Register;
-
-	mContacts = sip_contact_dup(mHome.home(), contacts);
-}
-
-void RegistrationLog::write(EventLogWriter& writer) const {
-	writer.writeRegistrationLog(*this);
-}
-
-void CallLog::write(EventLogWriter& writer) const {
-	writer.writeCallLog(*this);
-}
-
-void MessageLog::write(EventLogWriter& writer) const {
-	writer.writeMessageLog(*this);
-}
-
-AuthLog::AuthLog(const sip_t* sip, bool userExists)
-    : EventLog(sip), mMethod{sip->sip_request->rq_method_name}, mUserExists{userExists} {
-	setOrigin(sip->sip_via);
-}
-
-void AuthLog::setOrigin(const sip_via_t* via) {
-	const char* protocol = strchr(via->v_protocol, '/') + 1;
-	const char* port = via->v_rport ? via->v_rport : via->v_port;
-	const char* ip = via->v_received ? via->v_received : via->v_host;
-
-	protocol = strchr(protocol, '/') + 1;
-
-	mOrigin = url_format(mHome.home(), "sip:%s", ip);
-	if (!mOrigin) {
-		LOGE("AuthLog: invalid via with host %s", ip);
-		mOrigin = url_format(mHome.home(), "sip:invalid.host");
-	}
-	if (port) {
-		mOrigin->url_port = su_strdup(mHome.home(), port);
-	}
-	if (protocol) {
-		mOrigin->url_params = su_sprintf(mHome.home(), "transport=%s", protocol);
-	}
-}
-
-void AuthLog::write(EventLogWriter& writer) const {
-	writer.writeAuthLog(*this);
-}
-
-CallQualityStatisticsLog::CallQualityStatisticsLog(const sip_t* sip)
-    : EventLog(sip), mReport{sip->sip_payload && sip->sip_payload->pl_data ? sip->sip_payload->pl_data : nullptr} {
-}
-
-void CallQualityStatisticsLog::write(EventLogWriter& writer) const {
-	writer.writeCallQualityStatisticsLog(*this);
-}
-
-static bool createDirectoryIfNotExist(const char* path) {
+bool createDirectoryIfNotExist(const char* path) {
 	if (access(path, R_OK | W_OK) == -1) {
-		if (mkdir(path, S_IRUSR | S_IWUSR | S_IXUSR) == -1) {
+		if (::mkdir(path, S_IRUSR | S_IWUSR | S_IXUSR) == -1) {
 			LOGE("Cannot create directory %s: %s", path, strerror(errno));
 			return false;
 		}
 	}
 	return true;
-}
-
-static ostream& operator<<(ostream& ostr, const sip_user_agent_t* ua) {
-	char tmp[500] = {0};
-	sip_user_agent_e(tmp, sizeof(tmp) - 1, (msg_header_t*)ua, 0);
-	ostr << tmp;
-	return ostr;
-}
-
-static ostream& operator<<(ostream& ostr, const url_t* url) {
-	char tmp[500] = {0};
-	url_e(tmp, sizeof(tmp) - 1, url);
-	ostr << tmp;
-	return ostr;
-}
-
-static ostream& operator<<(ostream& ostr, const sip_from_t* from) {
-	if (from->a_display && *from->a_display != '\0') ostr << from->a_display;
-	ostr << " <" << from->a_url << ">";
-	return ostr;
 }
 
 struct PrettyTime {
@@ -183,7 +30,7 @@ struct PrettyTime {
 	time_t _t;
 };
 
-static std::ostream& operator<<(std::ostream& ostr, const PrettyTime& t) {
+std::ostream& operator<<(std::ostream& ostr, const PrettyTime& t) {
 	char tmp[128] = {0};
 	int len;
 	ctime_r(&t._t, tmp);
@@ -193,7 +40,27 @@ static std::ostream& operator<<(std::ostream& ostr, const PrettyTime& t) {
 	return ostr;
 }
 
-static std::ostream& operator<<(std::ostream& ostr, RegistrationLog::Type type) {
+ostream& operator<<(ostream& ostr, const sip_user_agent_t* ua) {
+	char tmp[500] = {0};
+	sip_user_agent_e(tmp, sizeof(tmp) - 1, (msg_header_t*)ua, 0);
+	ostr << tmp;
+	return ostr;
+}
+
+ostream& operator<<(ostream& ostr, const url_t* url) {
+	char tmp[500] = {0};
+	url_e(tmp, sizeof(tmp) - 1, url);
+	ostr << tmp;
+	return ostr;
+}
+
+ostream& operator<<(ostream& ostr, const sip_from_t* from) {
+	if (from->a_display && *from->a_display != '\0') ostr << from->a_display;
+	ostr << " <" << from->a_url << ">";
+	return ostr;
+}
+
+std::ostream& operator<<(std::ostream& ostr, RegistrationLog::Type type) {
 	switch (type) {
 		case RegistrationLog::Type::Register:
 			ostr << "Registered";
@@ -208,7 +75,7 @@ static std::ostream& operator<<(std::ostream& ostr, RegistrationLog::Type type) 
 	return ostr;
 }
 
-static std::ostream& operator<<(std::ostream& ostr, MessageLog::ReportType type) {
+std::ostream& operator<<(std::ostream& ostr, MessageLog::ReportType type) {
 	switch (type) {
 		case MessageLog::ReportType::ReceivedFromUser:
 			ostr << "Received from user";
@@ -219,6 +86,8 @@ static std::ostream& operator<<(std::ostream& ostr, MessageLog::ReportType type)
 	}
 	return ostr;
 }
+
+} // namespace
 
 FilesystemEventLogWriter::FilesystemEventLogWriter(const std::string& rootpath) : mRootPath(rootpath) {
 	if (rootpath[0] != '/') {
@@ -276,7 +145,7 @@ int FilesystemEventLogWriter::openPath(const url_t* uri, const char* kind, time_
 	return fd;
 }
 
-void FilesystemEventLogWriter::writeRegistrationLog(const RegistrationLog& rlog) {
+void FilesystemEventLogWriter::write(const RegistrationLog& rlog) {
 	const char* label = "registers";
 	int fd = openPath(rlog.getFrom()->a_url, label, rlog.getDate());
 	if (fd == -1) return;
@@ -296,7 +165,7 @@ void FilesystemEventLogWriter::writeRegistrationLog(const RegistrationLog& rlog)
 	}
 }
 
-void FilesystemEventLogWriter::writeCallLog(const CallLog& calllog) {
+void FilesystemEventLogWriter::write(const CallLog& calllog) {
 	const char* label = "calls";
 	int fd1 = openPath(calllog.getFrom()->a_url, label, calllog.getDate());
 	int fd2 = openPath(calllog.getTo()->a_url, label, calllog.getDate());
@@ -325,7 +194,7 @@ void FilesystemEventLogWriter::writeCallLog(const CallLog& calllog) {
 	}
 }
 
-void FilesystemEventLogWriter::writeMessageLog(const MessageLog& mlog) {
+void FilesystemEventLogWriter::write(const MessageLog& mlog) {
 	const char* label = "messages";
 	ostringstream msg;
 
@@ -369,7 +238,7 @@ void FilesystemEventLogWriter::writeMessageLog(const MessageLog& mlog) {
 	}
 }
 
-void FilesystemEventLogWriter::writeCallQualityStatisticsLog(const CallQualityStatisticsLog& mlog) {
+void FilesystemEventLogWriter::write(const CallQualityStatisticsLog& mlog) {
 	const char* label = "statistics_reports";
 	int fd = openPath(mlog.getFrom()->a_url, label, mlog.getDate());
 	if (fd == -1) return;
@@ -390,7 +259,7 @@ void FilesystemEventLogWriter::writeCallQualityStatisticsLog(const CallQualitySt
 	}
 }
 
-void FilesystemEventLogWriter::writeAuthLog(const AuthLog& alog) {
+void FilesystemEventLogWriter::write(const AuthLog& alog) {
 	const char* label = "auth";
 	ostringstream msg;
 	msg << PrettyTime(alog.getDate()) << " " << alog.getMethod() << " " << alog.getFrom();

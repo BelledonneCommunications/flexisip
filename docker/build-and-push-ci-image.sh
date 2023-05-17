@@ -20,7 +20,7 @@ PUSH=${PUSH:-false}
 IMAGE_TAG=$(grep --only-matching --regexp="gitlab.linphone.org.*" $DOCKERFILE | head -1)
 
 if $BUILD; then
-    docker build --pull -t $IMAGE_TAG -f $DOCKERFILE .
+    docker build --pull --network=host -t $IMAGE_TAG -f $DOCKERFILE .
 fi
 if $RUN; then
     docker run --rm -it -v $(pwd)/..:/home/bc/flexisip $IMAGE_TAG /bin/bash

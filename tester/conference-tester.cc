@@ -22,6 +22,7 @@
 
 #include "agent.hh"
 #include "conference/conference-server.hh"
+#include "eventlogs/writers/event-log-writer.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "registrar/registrar-db.hh"

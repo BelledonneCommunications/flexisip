@@ -38,8 +38,14 @@
 #include "agent.hh"
 #include "domain-registrations.hh"
 #include "etchosts.hh"
+#include "eventlogs/writers/filesystem-event-log-writer.hh"
+#include "eventlogs/writers/flexi-stats-event-log-writer.hh"
 #include "plugin/plugin-loader.hh"
 #include "utils/uri-utils.hh"
+
+#if ENABLE_SOCI
+#include "eventlogs/writers/database-event-log-writer.hh"
+#endif
 
 #define IPADDR_SIZE 64
 
@@ -142,6 +148,12 @@ void Agent::startLogWriter() {
 #else
 			LOGF("DataBaseEventLogWriter: unable to use database (`ENABLE_SOCI` is not defined).");
 #endif
+		} else if (cr->get<ConfigString>("logger")->read() == "flexiapi") {
+			const auto& host = cr->get<ConfigString>("flexiapi-host")->read();
+			auto port = cr->get<ConfigInt>("flexiapi-port")->read();
+			const auto& prefix = cr->get<ConfigString>("flexiapi-prefix")->read();
+			const auto& token = cr->get<ConfigString>("flexiapi-token")->read();
+			mLogWriter = make_unique<FlexiStatsEventLogWriter>(*mRoot, host, to_string(port), prefix, token);
 		} else {
 			const auto& logdir = cr->get<ConfigString>("filesystem-directory")->read();
 			unique_ptr<FilesystemEventLogWriter> lw(new FilesystemEventLogWriter(logdir));
@@ -887,15 +899,6 @@ bool Agent::isUs(const url_t* url, bool check_aliases) const {
 		return isUs(maddr, url->url_port, check_aliases);
 	}
 	return isUs(url->url_host, url->url_port, check_aliases);
-}
-
-void Agent::logEvent(const shared_ptr<SipEvent>& ev) {
-	if (mLogWriter) {
-		shared_ptr<EventLog> evlog;
-		if ((evlog = ev->getEventLog<EventLog>())) {
-			if (evlog->isCompleted()) mLogWriter->write(evlog);
-		}
-	}
 }
 
 shared_ptr<Module> Agent::findModule(const string& moduleName) const {

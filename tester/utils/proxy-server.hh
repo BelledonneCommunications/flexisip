@@ -26,6 +26,7 @@
 #include "flexisip/sofia-wrapper/su-root.hh"
 
 #include "agent.hh"
+#include "eventlogs/writers/event-log-writer.hh"
 
 namespace flexisip {
 namespace tester {

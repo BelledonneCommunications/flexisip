@@ -37,6 +37,9 @@ public:
 	operator std::string_view() const {
 		return apiFormattedUri;
 	};
+	operator std::string() && {
+		return std::move(apiFormattedUri);
+	};
 
 	friend void to_json(nlohmann::json& j, const ApiFormattedUri& date) {
 		j = date.apiFormattedUri;

@@ -18,11 +18,13 @@
 
 #include "flexisip/module-router.hh"
 
+#include "sofia-sip/sip.h"
 #include <sofia-sip/sip_status.h>
 
 #include "flexisip/logmanager.hh"
 
 #include "domain-registrations.hh"
+#include "eventlogs/events/calls/call-ended-event-log.hh"
 #include "fork-context/fork-basic-context.hh"
 #include "fork-context/fork-call-context.hh"
 #include "fork-context/fork-message-context.hh"
@@ -897,6 +899,11 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	sip_t* sip = ms->getSip();
 	const url_t* next_hop = nullptr;
 	bool isRoute = false;
+
+	bool iAmTheEdgeProxy = !sip->sip_via || !sip->sip_via->v_next;
+	if (sip->sip_request->rq_method == sip_method_bye && iAmTheEdgeProxy) {
+		ev->writeLog(make_shared<CallEndedEventLog>(*sip));
+	}
 
 	// Handle SipEvent associated with a Stateful transaction
 	if (sip->sip_request->rq_method == sip_method_cancel) {

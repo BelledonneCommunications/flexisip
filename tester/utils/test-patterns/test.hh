@@ -79,6 +79,10 @@ inline void bc_hard_assert(const char* file, int line, int predicate, const char
  * Same as BC_ASSERT_CPP_EQUAL() but send an exception in addition of marking the test as failed.
  */
 #define BC_HARD_ASSERT_CPP_EQUAL(value, expected) BC_ASSERT_CPP_EQUAL_BASE(bc_hard_assert, value, expected)
+/**
+ * Assert the equality of two enums by casting them to int.
+ */
+#define BC_ASSERT_ENUM_EQUAL(value, expected) BC_ASSERT_CPP_EQUAL(int(value), int(expected))
 
 /**
  * Base macro for BC_ASSERT_CPP_NOT_EQUAL() and BC_HARD_ASSERT_CPP_NOT_EQUAL().

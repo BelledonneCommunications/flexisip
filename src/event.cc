@@ -16,6 +16,8 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "flexisip/event.hh"
+
 #include <sofia-sip/sip_protos.h>
 #include <sofia-sip/su_tagarg.h>
 
@@ -23,9 +25,9 @@
 #include "flexisip/module.hh"
 
 #include "agent.hh"
+#include "eventlogs/writers/event-log-writer.hh"
+#include "eventlogs/events/eventlogs.hh"
 #include "transaction.hh"
-
-#include "flexisip/event.hh"
 
 using namespace std;
 
@@ -74,9 +76,13 @@ SipEvent::~SipEvent() {
 }
 
 void SipEvent::flushLog() {
-	if (mEventLog) {
-		mAgent->logEvent(shared_from_this());
-		mEventLog.reset();
+	if (!mEventLog || !mEventLog->isCompleted()) return;
+	writeLog(mEventLog);
+}
+
+void SipEvent::writeLog(const std::shared_ptr<const EventLogWriteDispatcher>& log) {
+	if (auto logWriter = mAgent->getEventLogWriter()) {
+		logWriter->write(log);
 	}
 }
 

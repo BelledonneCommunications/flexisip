@@ -31,6 +31,8 @@
 
 #include "agent.hh"
 #include "domain-registrations.hh"
+#include "eventlogs/writers/event-log-writer.hh"
+#include "eventlogs/events/eventlogs.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
@@ -43,11 +45,11 @@ template <typename SipEventT>
 static void addEventLogRecordFound(shared_ptr<SipEventT> ev, const sip_contact_t* contacts) {
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	string id(contacts ? Record::extractUniqueId(contacts) : "");
-	auto evlog = make_shared<RegistrationLog>(ms->getSip(), contacts);
+	auto evLog = make_shared<RegistrationLog>(ms->getSip(), contacts);
 
-	evlog->setStatusCode(200, "Ok");
-	evlog->setCompleted();
-	ev->setEventLog(evlog);
+	evLog->setStatusCode(200, "Ok");
+	evLog->setCompleted();
+	ev->setEventLog(evLog);
 }
 
 static void _onContactUpdated(ModuleRegistrar* module, tport_t* new_tport, const shared_ptr<ExtendedContact>& ec) {

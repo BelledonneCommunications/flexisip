@@ -35,6 +35,7 @@
 
 #include "agent.hh"
 #include "cJSON.h"
+#include "eventlogs/writers/event-log-writer.hh"
 #include "recordserializer.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/contact-key.hh"

@@ -29,6 +29,7 @@
 #include "conditional-routes.hh"
 #include "domain-registrations.hh"
 #include "etchosts.hh"
+#include "eventlogs/writers/event-log-writer.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "transaction.hh"

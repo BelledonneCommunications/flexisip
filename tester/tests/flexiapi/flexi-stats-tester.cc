@@ -70,7 +70,7 @@ public:
 		int port = httpMock.serveAsync();
 		BC_HARD_ASSERT_TRUE(port > -1);
 
-		FlexiStats flexiStats{mRoot, "localhost", to_string(port), "aRandomApiToken"};
+		FlexiStats flexiStats{mRoot, "localhost", to_string(port), "api////stats//", "aRandomApiToken"};
 
 		sendRequest(flexiStats);
 

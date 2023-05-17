@@ -21,6 +21,7 @@
 #include <memory>
 
 #include "agent.hh"
+#include "eventlogs/writers/event-log-writer.hh"
 #include "registrar/registrar-db.hh"
 
 #include "test.hh"

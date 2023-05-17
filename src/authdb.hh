@@ -36,6 +36,7 @@
 #include "flexisip/common.hh"
 
 #include "agent.hh"
+#include "eventlogs/writers/event-log-writer.hh"
 
 namespace flexisip {
 

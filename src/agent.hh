@@ -46,7 +46,6 @@
 #include "flexisip/utils/sip-uri.hh"
 
 #include "agent-interface.hh"
-#include "eventlogs/eventlogs.hh"
 #include "transaction.hh"
 #include "transport.hh"
 
@@ -54,6 +53,7 @@ namespace flexisip {
 
 class Module;
 class DomainRegistrationManager;
+class EventLogWriter;
 
 /**
  * The agent class represents a SIP agent.
@@ -179,6 +179,14 @@ public:
 	 * return a network unique identifier for this Agent.
 	 */
 	const std::string& getUniqueId() const;
+
+	EventLogWriter* getEventLogWriter() const {
+		return mLogWriter.get();
+	}
+	void setEventLogWriter(std::unique_ptr<EventLogWriter>&& value) {
+		mLogWriter = std::move(value);
+	}
+
 	void idle();
 	bool isUs(const url_t* url, bool check_aliases = true) const;
 	const std::shared_ptr<sofiasip::SuRoot>& getRoot() const noexcept override {
@@ -200,7 +208,6 @@ public:
 	void sendResponseEvent(const std::shared_ptr<ResponseSipEvent>& ev) override;
 	void incrReplyStat(int status);
 	bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) override;
-	void logEvent(const std::shared_ptr<SipEvent>& ev);
 	std::shared_ptr<Module> findModule(const std::string& moduleName) const;
 	std::shared_ptr<Module> findModuleByFunction(const std::string& moduleFunction) const;
 	nth_engine_t* getHttpEngine() {
@@ -211,7 +218,7 @@ public:
 	}
 	url_t* urlFromTportName(su_home_t* home, const tp_name_t* name);
 	void applyProxyToProxyTransportSettings(tport_t* tp);
-	tport_t *getIncomingTport(const msg_t *orig);
+	tport_t* getIncomingTport(const msg_t* orig);
 
 	static sofiasip::TlsConfigInfo
 	getTlsConfigInfo(const GenericStruct* global = GenericManager::get()->getRoot()->get<GenericStruct>("global"));

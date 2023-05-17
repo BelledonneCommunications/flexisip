@@ -31,6 +31,7 @@
 #include "flexisip/sofia-wrapper/su-root.hh"
 
 #include "agent.hh"
+#include "eventlogs/writers/event-log-writer.hh"
 #include "recordserializer.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/change-set.hh"

@@ -42,6 +42,7 @@ class OutgoingAgent;
 class IncomingTransaction;
 class OutgoingTransaction;
 class EventLog;
+class EventLogWriteDispatcher;
 
 using MsgSip = sofiasip::MsgSip;
 
@@ -121,6 +122,8 @@ public:
 	void setEventLog(const std::shared_ptr<EventLog>& log);
 	void flushLog(); /*to be used exceptionally when an event log needs to be flushed immediately, for example because
 	                    you need to submit a new one.*/
+	// Write given EventLog immediately
+	void writeLog(const std::shared_ptr<const EventLogWriteDispatcher>&);
 	std::shared_ptr<IncomingTransaction> getIncomingTransaction();
 	std::shared_ptr<OutgoingTransaction> getOutgoingTransaction();
 

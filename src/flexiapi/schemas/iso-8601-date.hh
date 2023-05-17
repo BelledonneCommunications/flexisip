@@ -21,6 +21,8 @@
 
 #include "lib/nlohmann-json-3-11-2/json.hpp"
 
+#include "eventlogs/events/timestamped.hh"
+
 namespace flexisip {
 namespace flexiapi {
 
@@ -30,6 +32,8 @@ public:
 	ISO8601Date() = default;
 	ISO8601Date(const time_t& t) : isoFormattedDate("1993-06-19T10:10:09Z") {
 		strftime(isoFormattedDate.data(), isoFormattedDate.size() + 1, "%FT%TZ", gmtime(&t)), isoFormattedDate.size();
+	}
+	ISO8601Date(const Timestamp& t) : ISO8601Date(std::chrono::system_clock::to_time_t(t)) {
 	}
 
 	friend void to_json(nlohmann::json& j, const ISO8601Date& date) {

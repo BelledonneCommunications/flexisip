@@ -133,6 +133,11 @@ With sofia-sip, you have the choice between `msg_dup()` and `msg_copy()`,
 `sip_from_dup()` and `sip_from_copy()`, _etc_.
 The difference isn't well documented in sofia-sip documentation but it is
 important to understand that:
-- `*_dup()` makes a copy of the structure plus all included strings inside.
-- `*_copy()` just makes a copy of the structure, not the strings pointed by it. **These functions are
+- `*_dup()` makes a copy of the structure plus all included strings inside. (deep copy)
+- `*_copy()` just makes a copy of the structure, not the strings pointed by it. (shallow copy) **These functions are
 dangerous**; use `*_dup()` versions in doubt.
+
+Your build is broken but you don't see how that's your fault?
+(E.g. trying to compile a file you removed, and you've double-checked it is not referenced anywhere in the source code anymore)
+Try reconfiguring and regenerating.
+(With e.g. `ccmake`)

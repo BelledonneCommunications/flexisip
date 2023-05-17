@@ -25,6 +25,7 @@
 
 #include "flexisip/sofia-wrapper/sip-header.hh"
 
+#include "sofia-sip/sip_protos.h"
 #include "sofia-wrapper/utilities.hh"
 
 namespace sofiasip {
@@ -147,6 +148,20 @@ public:
 	 */
 	SipHeaderCSeq(std::uint32_t cseq, sip_method_t method) {
 		setNativePtr(sip_cseq_create(mHome.home(), cseq, method, nullptr));
+	}
+};
+
+/**
+ * Class that represents a User-Agent header.
+ */
+class SipHeaderUserAgent : public SipHeader {
+public:
+	/**
+	 * Create a User-Agent header.
+	 * @param ua The User-Agent string.
+	 */
+	SipHeaderUserAgent(std::string_view ua) {
+		setNativePtr(::sip_user_agent_make(mHome.home(), ua.data()));
 	}
 };
 

@@ -19,6 +19,7 @@
 #include "fork-context-base.hh"
 
 #include "agent.hh"
+#include "eventlogs/writers/event-log-writer.hh"
 #include "fork-context/branch-info.hh"
 #include "registrar/registrar-db.hh"
 

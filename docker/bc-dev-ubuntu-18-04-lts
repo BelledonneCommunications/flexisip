@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-18-04-lts:20230601_update_libnghttp2_asio
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-18-04-lts:20230608_update_gcc
 ###############################################################################
 
 FROM ubuntu:18.04
@@ -12,17 +12,12 @@ RUN apt-get -y --fix-missing update \
  && apt-get -y install software-properties-common python-pip \
  && add-apt-repository "deb http://us.archive.ubuntu.com/ubuntu/ bionic universe multiverse" \
  && add-apt-repository "deb http://us.archive.ubuntu.com/ubuntu/ bionic-updates universe multiverse" \
-  # Find and set best mirror
- && pip install apt-mirror-updater \
- && apt-mirror-updater --auto-change-mirror \
- && apt-mirror-updater --update-package-lists \
- && pip uninstall -y apt-mirror-updater \
- && apt-get -y remove python-pip \
- && apt-get -y autoremove \
- && apt-get -y clean
+ && add-apt-repository ppa:ubuntu-toolchain-r/test \
+ && pip install apt-mirror-updater
 
   # Update
-RUN apt-get -y --fix-missing update \
+RUN apt-mirror-updater --auto-change-mirror \
+ && apt-mirror-updater --update \
  && apt-get -y upgrade \
   # Install common tools
  && apt-get -y --fix-missing install sudo \
@@ -35,7 +30,8 @@ RUN apt-get -y --fix-missing update \
                        cmake \
                        doxygen \
                        elfutils \
-                       g++ \
+                       gcc-10 \
+                       g++-10 \
                        gdb \
                        git \
                        llvm-10 \
@@ -79,7 +75,9 @@ RUN apt-get -y --fix-missing update \
  && apt-get -y clean \
   # Configure clang
  && sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-10 100 \
- && sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-10 100
+ && sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-10 100 \
+ && sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 \
+ && sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 100
 
 # Configure user bc
 RUN useradd -ms /bin/bash bc && \

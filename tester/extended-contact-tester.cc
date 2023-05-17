@@ -20,6 +20,7 @@
 #include "flexisip/sofia-wrapper/su-root.hh"
 
 #include "agent.hh"
+#include "eventlogs/writers/event-log-writer.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/registrar-db.hh"
 #include "tester.hh"
