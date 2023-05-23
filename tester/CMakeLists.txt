@@ -182,11 +182,11 @@ target_link_libraries(flexisip_tester PRIVATE
 		OpenSSL::SSL
 		Threads::Threads
 		bctoolbox-tester
-		bellesip
+		belle-sip
 		flexisip
-		linphone
-		linphone++
-		mediastreamer
+		liblinphone
+		liblinphone++
+		mediastreamer2
 		ortp
 		jsoncpp_lib
 		hiredis

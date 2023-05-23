@@ -234,7 +234,7 @@ if (ENABLE_SNMP)
 endif ()
 if (ENABLE_TRANSCODER)
 	target_sources(flexisip PRIVATE callcontext-transcoder.cc callcontext-transcoder.hh)
-	target_link_libraries(flexisip PRIVATE mediastreamer)
+	target_link_libraries(flexisip PRIVATE mediastreamer2)
 endif ()
 if (ENABLE_DATEHANDLER)
 	target_sources(flexisip PRIVATE module-datehandler.cc)
@@ -328,8 +328,8 @@ if (ENABLE_CONFERENCE)
 		registration-events/registrar/listener.cpp
 	)
 	target_link_libraries(flexisip
-		PRIVATE bellesip
-		PUBLIC linphone++
+		PRIVATE belle-sip
+		PUBLIC liblinphone++
 	)
 	list(APPEND XML_SOURCES
 		xml/reginfo.cc
@@ -348,11 +348,11 @@ if (ENABLE_B2BUA)
 		b2bua/external-provider-bridge.cc
 	)
 	target_link_libraries(flexisip
-		PUBLIC linphone++ linphone
+		PUBLIC liblinphone++ liblinphone
 	)
 	target_link_libraries(flexisip PRIVATE
 		jsoncpp_lib
-		mediastreamer
+		mediastreamer2
 	)
 endif ()
 if (ENABLE_SOCI)
@@ -376,7 +376,7 @@ if (XercesC_FOUND)
 	target_link_libraries(flexisip PRIVATE "XercesC::XercesC")
 endif ()
 if (ENABLE_PRESENCE OR ENABLE_MDNS)
-	target_link_libraries(flexisip PUBLIC bellesip)
+	target_link_libraries(flexisip PUBLIC belle-sip)
 	target_compile_definitions(flexisip PRIVATE "BELLE_SIP_USE_STL")
 endif ()
 
