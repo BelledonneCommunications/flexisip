@@ -36,56 +36,55 @@ class PluginLoaderPrivate;
 class PluginLoader {
 public:
 	PluginLoader(Agent* agent);
-	PluginLoader(Agent *agent, const std::string &filename);
+	PluginLoader(Agent* agent, const std::string& filename);
 	~PluginLoader();
 
-	const std::string &getFilename() const;
-	void setFilename(const std::string &filename);
+	const std::string& getFilename() const;
+	void setFilename(const std::string& filename);
 
 	bool isLoaded() const;
 	bool load();
 	bool unload();
 
-	Module *get();
+	Module* get();
 
-	const ModuleInfoBase *getModuleInfo();
+	const ModuleInfoBase* getModuleInfo();
 
-	const std::string &getError() const;
+	const std::string& getError() const;
 
 private:
-	PluginLoaderPrivate *mPrivate;
+	PluginLoaderPrivate* mPrivate;
 
 	FLEXISIP_DISABLE_COPY(PluginLoader);
 };
 
 class SharedLibrary {
 public:
-	SharedLibrary(const std::string &filename, void *library) : mFilename(filename), mLibrary(library) {}
+	SharedLibrary(const std::string& filename, void* library) : mFilename(filename), mLibrary(library) {
+	}
 
-	// Workaround for older gcc versions.
-	// Move ctor is not correctly supported with std::pair on older versions of gcc.
-	#if __GNUC__ < 5
-	SharedLibrary(
-		const SharedLibrary &other
-	) : module(other.module), mFilename(move(other.mFilename)), mLibrary(other.mLibrary), mRefCounter(other.mRefCounter) {
-		SharedLibrary &self = const_cast<SharedLibrary &>(other);
+// Workaround for older gcc versions.
+// Move ctor is not correctly supported with std::pair on older versions of gcc.
+#if __GNUC__ < 5
+	SharedLibrary(const SharedLibrary& other)
+	    : module(other.module), mFilename(move(other.mFilename)), mLibrary(other.mLibrary),
+	      mRefCounter(other.mRefCounter) {
+		SharedLibrary& self = const_cast<SharedLibrary&>(other);
 		self.module = nullptr;
 		self.mLibrary = nullptr;
 	}
-	#else
-	SharedLibrary(
-		SharedLibrary &&other
-	) : module(other.module), mFilename(move(other.mFilename)), mLibrary(other.mLibrary), mRefCounter(other.mRefCounter) {
+#else
+	SharedLibrary(SharedLibrary&& other)
+	    : module(other.module), mFilename(move(other.mFilename)), mLibrary(other.mLibrary),
+	      mRefCounter(other.mRefCounter) {
 		other.module = nullptr;
 		other.mLibrary = nullptr;
 	}
-	#endif // if __GNUC__ < 5
+#endif // if __GNUC__ < 5
 
 	~SharedLibrary() {
-		if (module)
-			delete module;
-		if (mLibrary)
-			dlclose(mLibrary);
+		if (module) delete module;
+		if (mLibrary) dlclose(mLibrary);
 	}
 
 	void ref() {
@@ -98,27 +97,29 @@ public:
 
 	bool unload();
 
-	void *get() const { return mLibrary; }
+	void* get() const {
+		return mLibrary;
+	}
 
-	Module *module = nullptr;
+	Module* module = nullptr;
 
 private:
 	std::string mFilename;
-	void *mLibrary;
+	void* mLibrary;
 
 	int mRefCounter;
 };
 
 class PluginLoaderPrivate {
 public:
-	Agent *agent = nullptr;
+	Agent* agent = nullptr;
 	std::string filename;
 
-	SharedLibrary *sharedLibrary = nullptr;
+	SharedLibrary* sharedLibrary = nullptr;
 
 	std::string error;
 
 	int libraryRefCounter = 0;
 };
 
-}
+} // namespace flexisip
