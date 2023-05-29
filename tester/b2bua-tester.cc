@@ -534,12 +534,9 @@ static void external_provider_bridge__b2bua_receives_several_forks() {
 		root->get<GenericStruct>("b2bua-server::sip-bridge")
 		    ->get<ConfigString>("providers")
 		    ->set("b2bua-receives-several-forks.sip-providers.json");
-		// We don't want *every* call to go through the B2BUA, only those tagged with user=phone
-		root->get<GenericStruct>("module::B2bua")
-		    ->get<ConfigValue>("filter")
-		    ->set("request.uri.params contains 'user=phone'");
-		// But we do want *all* user=phone calls to be routed to the B2BUA, even (especially) if they are not within our
-		// managed domains
+		// We don't want *every* call to go through the B2BUA...
+		root->get<GenericStruct>("module::B2bua")->get<ConfigValue>("enabled")->set("false");
+		// ...Only those tagged with `user=phone`, even (especially) if they are not within our managed domains
 		root->get<GenericStruct>("module::Forward")
 		    ->get<ConfigValue>("routes-config-path")
 		    ->set(bcTesterRes("config/forward_phone_to_b2bua.rules"));
@@ -552,10 +549,14 @@ static void external_provider_bridge__b2bua_receives_several_forks() {
 	auto address = "sip:app@sip.company1.com";
 	// 2 Bystanders used to register the same fallback contact twice.
 	auto app1 = ClientBuilder(address)
-	                .setCustomContact("sip:phone@bogus.domain.com;user=phone;some-param=used-to-make-this-unique")
+	                // Whatever follows the @ in a `user=phone` contact has no importance. Only the username (which
+	                // should be a phone number) is used for bridging. It would be tempting, then, to set this to the
+	                // domain of the proxy, however that's a mistake. Doing so will flag the contact as an alias and the
+	                // Router module will discard it before it reaches the Forward module.
+	                .setCustomContact("sip:phone@42.42.42.42:12345;user=phone")
 	                .registerTo(server);
 	auto app2 = ClientBuilder(address)
-	                .setCustomContact("sip:phone@bogus.domain.com;user=phone;some-param=used-to-make-this-different")
+	                .setCustomContact("sip:phone@24.24.24.24:54321;user=phone")
 	                .registerTo(server);
 	// 1 Client on an external domain that will answer one of the calls
 	auto phone = CoreClient("sip:phone@sip.provider1.com", server);
