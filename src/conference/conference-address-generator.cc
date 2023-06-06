@@ -16,13 +16,14 @@
  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "conference-address-generator.hh"
+
 #include <belle-sip/utils.h>
 
+#include "conference-server.hh"
+#include "conference/chatroom-prefix.hh"
 #include "registrar/record.hh"
 #include "registrar/registrar-db.hh"
-
-#include "conference-address-generator.hh"
-#include "conference-server.hh"
 
 using namespace flexisip;
 using namespace std;
@@ -46,7 +47,7 @@ void ConferenceAddressGenerator::changeAddress() {
 	ostringstream os;
 
 	belle_sip_random_token(token, sizeof(token));
-	os << "chatroom-" << token;
+	os << conference::CHATROOM_PREFIX << token;
 	mConferenceAddr->setUsername(os.str());
 }
 

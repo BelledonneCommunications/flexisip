@@ -15,10 +15,17 @@ public:
 	SipEventLog(SipEventLog&&) = default;
 	virtual ~SipEventLog() = default;
 
+	const sip_from_t* getFrom() const {
+		return mFrom;
+	}
+	const sip_to_t* getTo() const {
+		return mTo;
+	}
+
 protected:
 	sofiasip::Home mHome{};
 
-public:
+private:
 	const sip_from_t* const mFrom;
 	const sip_to_t* const mTo;
 };

@@ -2,6 +2,7 @@
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+#include <cstdint>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -108,6 +109,7 @@ MysqlServer::MysqlServer()
       }),
       mReady(async(launch::async, [&daemon = mDaemon] {
 	      string fullLog{};
+	      std::uint16_t iterations{0};
 	      while (true) {
 		      auto& state = daemon.state();
 		      auto* running = get_if<process::Running>(&state);
@@ -126,23 +128,30 @@ MysqlServer::MysqlServer()
 			      throw runtime_error("Mysql daemon stderr wired incorrectly");
 		      }
 
-		      auto chunk = visit(
-		          [&fullLog](auto&& result) -> string {
-			          using T = decay_t<decltype(result)>;
-			          if constexpr (is_same_v<T, string>) return move(result);
-			          else if constexpr (is_same_v<T, SysErr>)
-				          throw system_error{result.number(), generic_category(),
-				                             "Error reading from mysql daemon stderr. read: \n" + fullLog};
-			          else
-				          throw runtime_error("Timed out reading from mysql daemon stderr after " +
-				                              to_string(result.duration.count()) + "us. read: \n" + fullLog);
-		          },
-		          standardError->read(0xFF));
+		      auto chunk =
+		          Match(standardError->read(0xFF, 2s))
+		              .against([](string&& chunk) { return std::move(chunk); },
+		                       [&fullLog](const SysErr& err) -> string {
+			                       throw system_error{err.number(), generic_category(),
+			                                          "Error reading from mysql daemon stderr. read: \n" + fullLog};
+		                       },
+		                       [&fullLog, &standardError, &daemon, &iterations](const TimeOut& timeout) -> string {
+			                       std::ostringstream msg{};
+			                       msg << "Timed out reading from mysql daemon stderr (" << *standardError << ") after "
+			                           << iterations << " iterations, and " << timeout.duration.count() << "µs.";
+			                       if (iterations < 5) {
+				                       SLOGD << msg.str() << " Retrying...";
+				                       return "";
+			                       }
+			                       msg << " read: \n" << fullLog << "\nprocess: " << std::move(daemon);
+			                       throw runtime_error(msg.str());
+		                       });
 		      if (chunk.find("ready for connections") != string::npos) {
 			      SLOGD << chunk;
 			      return;
 		      }
 		      fullLog += chunk;
+		      ++iterations;
 	      }
       })) {
 }
@@ -156,12 +165,12 @@ MysqlServer::~MysqlServer() {
 	move(mDaemon).wait();
 }
 
-void MysqlServer::waitReady() {
+void MysqlServer::waitReady() const {
 	if (!mReady.valid()) return; // Already waited
 	mReady.get();                // Propagates exceptions
 }
 
-string MysqlServer::connectionString() {
+string MysqlServer::connectionString() const {
 	return "unix_socket='" + mDatadir.path().string() + kSocketFile + "' db='" + kDbName + "'";
 }
 

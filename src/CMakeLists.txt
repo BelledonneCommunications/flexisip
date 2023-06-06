@@ -51,11 +51,16 @@ add_library(flexisip SHARED
 	eventlogs/events/calls/call-ended-event-log.cc eventlogs/events/calls/call-ended-event-log.hh
 	eventlogs/events/calls/call-ringing-event-log.cc eventlogs/events/calls/call-ringing-event-log.hh
 	eventlogs/events/calls/call-started-event-log.cc eventlogs/events/calls/call-started-event-log.hh
+	eventlogs/events/calls/invite-kind.cc eventlogs/events/calls/invite-kind.hh
 	eventlogs/events/event-id.cc eventlogs/events/event-id.hh
 	eventlogs/events/event-log-write-dispatcher.hh
 	eventlogs/events/eventlogs.cc eventlogs/events/eventlogs.hh
+	eventlogs/events/message-or-call-started.cc eventlogs/events/message-or-call-started.hh
+    eventlogs/events/messages/with-message-kind.hh
+	eventlogs/events/messages/message-response-from-recipient-event-log.cc eventlogs/events/messages/message-response-from-recipient-event-log.hh
+	eventlogs/events/messages/message-sent-event-log.cc eventlogs/events/messages/message-sent-event-log.hh
 	eventlogs/events/sip-event-log.cc eventlogs/events/sip-event-log.hh
-	eventlogs/writers/event-log-writer.hh
+	eventlogs/writers/event-log-writer.cc eventlogs/writers/event-log-writer.hh
 	eventlogs/writers/filesystem-event-log-writer.cc eventlogs/writers/filesystem-event-log-writer.hh
 	eventlogs/writers/flexi-stats-event-log-writer.cc eventlogs/writers/flexi-stats-event-log-writer.hh
 	fork-context/branch-info.hh
@@ -65,6 +70,7 @@ add_library(flexisip SHARED
 	fork-context/fork-context-base.cc fork-context/fork-context-base.hh
 	fork-context/fork-message-context-db.hh
 	fork-context/fork-message-context.cc fork-context/fork-message-context.hh
+	fork-context/message-kind.cc fork-context/message-kind.hh
 	fork-context/fork-context.cc
 	fork-context/fork-status.hh
 	h264iframefilter.cc h264iframefilter.hh

@@ -26,10 +26,6 @@ shared_ptr<Server> makeAndStartProxy(std::map<std::string, std::string> customCo
 	return proxy;
 }
 
-string uuidOf(const linphone::Core& core) {
-	return core.getConfig()->getString("misc", "uuid", "UNSET!");
-}
-
 } // namespace eventlogs
 } // namespace tester
 } // namespace flexisip

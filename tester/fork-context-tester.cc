@@ -222,7 +222,7 @@ static void globalOrderTestNoSql() {
 	server->start();
 
 	auto receiverClient = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server);
-	receiverClient->getCore()->setNetworkReachable(false);
+	receiverClient->disconnect();
 
 	uint isRequestAccepted = 0;
 	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP",
@@ -263,18 +263,18 @@ static void globalOrderTestNoSql() {
 	SLOGD << "Step 3: Assert that fork is still present because device is offline. No db fork because no db.";
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
-	BC_ASSERT_TRUE(
-	    CoreAssert({receiverClient->getCore()}, server->getAgent()).wait([agent = server->getAgent(), &nbOfMessages] {
-		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
-		    return moduleRouter->mStats.mCountMessageForks->start->read() == nbOfMessages;
-	    }));
+	CoreAssert asserter{receiverClient, server};
+	BC_ASSERT_TRUE(asserter.wait([agent = server->getAgent(), &nbOfMessages] {
+		const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		return moduleRouter->mStats.mCountMessageForks->start->read() == nbOfMessages;
+	}));
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 0, int, "%i");
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0, int, "%i");
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), 0, int, "%i");
 
 	SLOGD << "Step 4: Client REGISTER, then receive message";
-	receiverClient->getCore()->setNetworkReachable(true);
-	BC_ASSERT_TRUE(CoreAssert({receiverClient->getCore()}, server->getAgent()).wait([receiverClient, &nbOfMessages] {
+	receiverClient->reconnect();
+	BC_ASSERT_TRUE(asserter.wait([receiverClient, &nbOfMessages] {
 		return receiverClient->getAccount()->getState() == linphone::RegistrationState::Ok &&
 		       (uint)receiverClient->getCore()->getUnreadChatMessageCount() == nbOfMessages;
 	}));
@@ -291,11 +291,10 @@ static void globalOrderTestNoSql() {
 	BC_ASSERT_CPP_EQUAL(order - 1, nbOfMessages);
 
 	SLOGD << "Step 6: Check fork stats";
-	BC_ASSERT_TRUE(
-	    CoreAssert({receiverClient->getCore()}, server->getAgent()).wait([agent = server->getAgent(), &nbOfMessages] {
-		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
-		    return moduleRouter->mStats.mCountMessageForks->finish->read() == nbOfMessages;
-	    }));
+	BC_ASSERT_TRUE(asserter.wait([agent = server->getAgent(), &nbOfMessages] {
+		const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		return moduleRouter->mStats.mCountMessageForks->finish->read() == nbOfMessages;
+	}));
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 0, int, "%i");
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0, int, "%i");
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), nbOfMessages, int, "%i");

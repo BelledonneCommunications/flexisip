@@ -17,9 +17,11 @@
 */
 
 #include <cstring>
+#include <optional>
 #include <stdexcept>
 
 #include <flexisip/logmanager.hh>
+#include <string_view>
 
 #include "string-utils.hh"
 
@@ -74,11 +76,9 @@ void StringUtils::stripAll(std::string::const_iterator& start, std::string::cons
 		start++;
 }
 
-std::string StringUtils::removePrefix(const std::string& str, const std::string& prefix) {
-	if (str.compare(0, prefix.size(), prefix) != 0) {
-		ostringstream os;
-		os << "'" << prefix << "' is not a prefix of '" << str << "'";
-		throw invalid_argument(os.str());
+optional<string_view> StringUtils::removePrefix(const string_view& str, const string_view& prefix) {
+	if (!startsWith(str, prefix)) {
+		return nullopt;
 	}
 	return str.substr(prefix.size());
 }

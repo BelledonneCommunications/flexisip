@@ -28,7 +28,10 @@
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
 #include "fork-context-base.hh"
+#include "fork-context/branch-info.hh"
+#include "fork-context/message-kind.hh"
 #include "fork-message-context-db.hh"
+#include "registrar/extended-contact.hh"
 #include "transaction.hh"
 
 namespace flexisip {
@@ -57,10 +60,13 @@ public:
 	time_t getExpirationDate() const {
 		return mExpirationDate;
 	}
+	void start() override;
 
 #ifdef ENABLE_UNIT_TESTS
 	void assertEqual(const std::shared_ptr<ForkMessageContext>& expected);
 #endif
+
+	static constexpr auto kEventIdHeader = "X-fs-EventID";
 
 protected:
 	void onNewBranch(const std::shared_ptr<BranchInfo>& br) override;
@@ -80,10 +86,8 @@ private:
 
 	void acceptMessage();
 	void onAcceptanceTimer();
-	void logReceivedFromUserEvent(const std::shared_ptr<RequestSipEvent>& reqEv,
-	                              const std::shared_ptr<ResponseSipEvent>& respEv);
-	void logDeliveredToUserEvent(const std::shared_ptr<RequestSipEvent>& reqEv,
-	                             const std::shared_ptr<ResponseSipEvent>& respEv);
+	void logResponseToSender(const std::shared_ptr<RequestSipEvent>&, const std::shared_ptr<ResponseSipEvent>&);
+	void logResponseFromRecipient(const BranchInfo&, const std::shared_ptr<ResponseSipEvent>&);
 
 	/**
 	 * Timeout after which an answer must be sent through the incoming transaction even if no success response was
@@ -91,10 +95,8 @@ private:
 	 */
 	std::unique_ptr<sofiasip::Timer> mAcceptanceTimer{nullptr};
 	int mDeliveredCount;
-	/**
-	 * Tells if the ForkMessageContext is a message, if false it's a refer.
-	 */
-	bool mIsMessage;
+	// What kind of SIP MESSAGE is this ForkContext handling?
+	MessageKind mKind;
 	/**
 	 * Is used in fork late mode with message saved in DB to remember message expiration date.
 	 */

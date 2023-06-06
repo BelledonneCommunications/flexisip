@@ -74,8 +74,8 @@ add_executable(flexisip_tester
 	sofia-driven-signal-handler-tester.cc
 	tester.cc
 	tests/eventlogs/events/event-log-stats-tester.cc
-	tests/eventlogs/writers/flexi-stats-event-log-writer-tester.cc
 	tests/flexiapi/flexi-stats-tester.cc
+	tests/flexiapi/schemas/iso-8601-date-tester.cc
 	tests/presence/presence-pidf-tester.cc
 	tests/presence/presence-publish-tester.cc
 	tests/presence/xsd-utils-tester.cc
@@ -88,6 +88,8 @@ add_executable(flexisip_tester
 	utils-tester.cc
 	utils/asserts.hh
 	utils/bellesip-utils.cc utils/bellesip-utils.hh
+	utils/chat-room-builder.cc utils/chat-room-builder.hh
+	utils/client-builder.cc utils/client-builder.hh
 	utils/client-core.cc utils/client-core.hh
 	utils/eventlogs/event-logs.cc utils/eventlogs/event-logs.hh
 	utils/eventlogs/writers/event-log-writer-visitor-adapter.hh
@@ -107,8 +109,12 @@ add_executable(flexisip_tester
 )
 
 if (ENABLE_CONFERENCE)
-	target_sources(flexisip_tester PRIVATE registration-event-tester.cc)
-	target_sources(flexisip_tester PRIVATE conference-tester.cc)
+	target_sources(flexisip_tester PRIVATE
+		conference-tester.cc
+		registration-event-tester.cc
+		tests/eventlogs/writers/flexi-stats-event-log-writer-tester.cc
+		utils/test-conference-server.cc utils/test-conference-server.hh
+	)
 endif ()
 
 if (ENABLE_SOCI)

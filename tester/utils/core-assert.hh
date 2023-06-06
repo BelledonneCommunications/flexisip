@@ -4,53 +4,56 @@
 
 #pragma once
 
+#include "agent.hh"
 #include "asserts.hh"
 #include "client-core.hh"
+#include "flexisip/sofia-wrapper/su-root.hh"
+#include "utils/proxy-server.hh"
+#include <memory>
+#include <vector>
 
 namespace flexisip {
 namespace tester {
 
 class CoreAssert : public BcAssert {
 public:
-	CoreAssert(const std::vector<std::shared_ptr<linphone::Core>>& cores) {
-		for (const auto& core : cores) {
-			addCustomIterate([core] { core->iterate(); });
-		}
-	}
-	CoreAssert(const std::vector<std::shared_ptr<linphone::Core>>& cores, const std::shared_ptr<flexisip::Agent>& agent)
-	    : CoreAssert(cores) {
-		addCustomIterate([agent] { agent->getRoot()->step(std::chrono::milliseconds(1)); });
+	template <class... Steppables>
+	CoreAssert(Steppables&&... steppables) : BcAssert({stepperFrom(steppables)...}) {
 	}
 
-	CoreAssert(const std::shared_ptr<CoreClient>& core) {
-		addCustomIterate([core] { core->getCore()->iterate(); });
+	static std::function<void()> stepperFrom(linphone::Core& core) {
+		return [&core] { core.iterate(); };
 	}
-
-	CoreAssert(const std::vector<std::shared_ptr<CoreClient>>& cores) {
-		for (const auto& core : cores) {
-			addCustomIterate([core] { core->getCore()->iterate(); });
-		}
+	static std::function<void()> stepperFrom(sofiasip::SuRoot& root) {
+		using namespace std::chrono_literals;
+		return [&root] { root.step(1ms); };
 	}
-
-	template <class... Args>
-	CoreAssert(const std::shared_ptr<CoreClient>& core, const Args&... args) : CoreAssert{args...} {
-		addCustomIterate([core] { core->getCore()->iterate(); });
+	static std::function<void()> stepperFrom(const std::shared_ptr<linphone::Core>& core) {
+		return stepperFrom(*core);
 	}
-
-	template <class... Args>
-	CoreAssert(const std::vector<std::shared_ptr<CoreClient>>& cores, const Args&... args) : CoreAssert{args...} {
-		for (const auto& core : cores) {
-			addCustomIterate([core] { core->getCore()->iterate(); });
-		}
+	static std::function<void()> stepperFrom(const CoreClient& client) {
+		return stepperFrom(*client.getCore());
 	}
-
+	static std::function<void()> stepperFrom(const std::shared_ptr<CoreClient>& client) {
+		return stepperFrom(*client->getCore());
+	}
+	static std::function<void()> stepperFrom(const Server& server) {
+		return stepperFrom(*server.getRoot());
+	}
+	static std::function<void()> stepperFrom(const Agent* server) {
+		return stepperFrom(*server->getRoot());
+	}
 	/**
-	 * @param server Takes a shared_ptr on either a tester::Server or a flexisip::Agent.
-	 * @param args The list of ClientCore on which to iterate.
+	 * @param server shared_ptr to either a tester::Server or a flexisip::Agent.
 	 */
-	template <typename ServerT, typename... Args>
-	CoreAssert(const std::shared_ptr<ServerT>& server, const Args&... args) : CoreAssert{args...} {
-		addCustomIterate([&server] { server->getRoot()->step(std::chrono::milliseconds(1)); });
+	template <typename ServerT>
+	static std::function<void()> stepperFrom(const std::shared_ptr<ServerT>& server) {
+		return stepperFrom(*server->getRoot());
+	}
+
+	template <class Steppable>
+	void registerSteppable(Steppable&& steppable) {
+		addCustomIterate(stepperFrom(steppable));
 	}
 };
 

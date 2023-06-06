@@ -23,4 +23,7 @@ EventId::EventId(const sip_t& sip)
       }()) {
 }
 
+EventId::EventId(const std::string& id) : mHash(std::stoull(id)) {
+}
+
 } // namespace flexisip

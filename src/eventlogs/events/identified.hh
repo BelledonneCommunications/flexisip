@@ -14,7 +14,14 @@ class Identified {
 public:
 	explicit Identified(const sip_t& sip) : mId(sip) {
 	}
+	explicit Identified(const EventId& sip) : mId(sip) {
+	}
 
+	const EventId& getId() const {
+		return mId;
+	}
+
+private:
 	const EventId mId;
 };
 

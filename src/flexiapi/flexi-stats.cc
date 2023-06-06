@@ -34,7 +34,7 @@ FlexiStats::FlexiStats(sofiasip::SuRoot& root,
                       {":authority"s, host + ":" + port},
                       {"x-api-key"s, token},
                   }),
-      mApiPrefix{filesystem::path{"/" + apiPrefix + "/"}.lexically_normal().string()} {
+      mApiPrefix{filesystem::path{"/" + apiPrefix + "/."}.lexically_normal().string()} {
 }
 
 void FlexiStats::postMessage(const Message& message) {

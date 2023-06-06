@@ -24,6 +24,7 @@
 #include "flexisip/sofia-wrapper/home.hh"
 #include <sofia-sip/sip_protos.h>
 
+#include "eventlogs/events/calls/invite-kind.hh"
 #include "eventlogs/events/event-id.hh"
 #include "eventlogs/events/event-log-write-dispatcher.hh"
 #include "eventlogs/events/identified.hh"
@@ -42,12 +43,6 @@ public:
 	EventLog(EventLog&&) = default;
 	virtual ~EventLog() = default;
 
-	const sip_from_t* getFrom() const {
-		return mFrom;
-	}
-	const sip_from_t* getTo() const {
-		return mTo;
-	}
 	sip_user_agent_t* getUserAgent() const {
 		return mUA;
 	}
@@ -122,9 +117,9 @@ private:
 	sip_contact_t* mContacts{nullptr};
 };
 
-class CallLog : public EventLog, public Identified {
+class CallLog : public EventLog, public Identified, public WithInviteKind {
 public:
-	CallLog(const sip_t* sip) : EventLog(sip), Identified(*sip) {
+	CallLog(const sip_t* sip) : EventLog(sip), Identified(*sip), WithInviteKind(*sip->sip_content_type) {
 	}
 
 	bool isCancelled() const {
@@ -136,23 +131,36 @@ public:
 
 	void write(EventLogWriter& writer) const override;
 
-	ForkStatus mForkStatus = ForkStatus::Standard;
-	std::optional<ExtendedContact> mDevice = std::nullopt;
+	ForkStatus getForkStatus() const {
+		return mForkStatus;
+	}
+	void setForkStatus(ForkStatus value) {
+		mForkStatus = value;
+	}
+	const std::optional<ExtendedContact>& getDevice() const {
+		return mDevice;
+	}
+	void setDevice(const ExtendedContact& value) {
+		mDevice.emplace(value);
+	}
 
 private:
+	ForkStatus mForkStatus = ForkStatus::Standard;
+	std::optional<ExtendedContact> mDevice = std::nullopt;
 	bool mCancelled{false};
 };
 
 class MessageLog : public EventLog {
 public:
 	// Explicit values is necessary for soci. Do not change this.
-	enum class ReportType { ReceivedFromUser = 0, DeliveredToUser = 1 };
+	enum class ReportType { ResponseToSender = 0, ResponseFromRecipient = 1 };
 
-	MessageLog(const sip_t* sip, ReportType report) : EventLog(sip), mReportType{report} {
+	MessageLog(const sip_t& sip) : EventLog(&sip) {
 	}
+	virtual ~MessageLog() = default;
 
-	ReportType getReportType() const {
-		return mReportType;
+	virtual ReportType getReportType() const {
+		return ReportType::ResponseToSender;
 	}
 	const url_t* getUri() const {
 		return mUri;
@@ -165,7 +173,6 @@ public:
 	void write(EventLogWriter& writer) const override;
 
 private:
-	ReportType mReportType{ReportType::ReceivedFromUser};
 	url_t* mUri{nullptr}; // destination uri of message
 };
 

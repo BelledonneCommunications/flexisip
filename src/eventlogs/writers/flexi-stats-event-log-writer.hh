@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <optional>
+#include <string_view>
+
 #include "event-log-writer.hh"
 #include "flexiapi/flexi-stats.hh"
 
@@ -22,6 +25,8 @@ private:
 	void write(const CallRingingEventLog&) override;
 	void write(const CallLog&) override;
 	void write(const CallEndedEventLog&) override;
+	void write(const MessageSentEventLog&) override;
+	void write(const MessageResponseFromRecipientEventLog&) override;
 
 #define STUB(T)                                                                                                        \
 	void write(const T&) override {                                                                                    \
@@ -30,10 +35,11 @@ private:
 
 	STUB(RegistrationLog)
 	STUB(CallQualityStatisticsLog)
-	STUB(MessageLog)
 	STUB(AuthLog)
+	STUB(MessageLog)
 
 #undef STUB
+
 	flexiapi::FlexiStats mRestClient;
 };
 

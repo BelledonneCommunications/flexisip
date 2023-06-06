@@ -199,14 +199,8 @@ static void basic() {
 	auto chatRoom =
 	    clientCore->createChatRoom(chatRoomParams, proxy->getContact(), "Chatroom with remote", participants);
 
-	class RegEventAssert : public CoreAssert {
-	public:
-		RegEventAssert(std::initializer_list<shared_ptr<linphone::Core>> cores, Agent* a) : CoreAssert(cores) {
-			addCustomIterate([a] { a->getRoot()->step(10ms); });
-		}
-	};
-
-	BC_ASSERT_TRUE(RegEventAssert({clientCore, regEventCore}, agent).wait([chatRoom] {
+	CoreAssert asserter{clientCore, regEventCore, agent};
+	BC_ASSERT_TRUE(asserter.wait([chatRoom] {
 		int numberOfDevices = 0;
 		for (auto participant : chatRoom->getParticipants()) {
 			numberOfDevices += participant->getDevices().size();
@@ -238,7 +232,7 @@ static void basic() {
 	RegistrarDb::get()->bind(otherParticipantUrl, otherParticipantContact, parameter4, make_shared<BindListener>());
 	RegistrarDb::get()->publish(otherParticipantFrom.substr(4).c_str(), "");
 
-	BC_ASSERT_TRUE(RegEventAssert({clientCore, regEventCore}, agent).wait([chatRoom] {
+	BC_ASSERT_TRUE(asserter.wait([chatRoom] {
 		int numberOfDevices = 0;
 		for (auto participant : chatRoom->getParticipants()) {
 			numberOfDevices += participant->getDevices().size();
@@ -261,7 +255,7 @@ static void basic() {
 	RegistrarDb::get()->bind(otherParticipantUrl, otherParticipantContact, parameter4, make_shared<BindListener>());
 	RegistrarDb::get()->publish(otherParticipantFrom.substr(4).c_str(), "");
 
-	BC_ASSERT_TRUE(RegEventAssert({clientCore, regEventCore}, agent).wait([chatRoom] {
+	BC_ASSERT_TRUE(asserter.wait([chatRoom] {
 		int numberOfDevices = 0;
 		for (auto participant : chatRoom->getParticipants()) {
 			numberOfDevices += participant->getDevices().size();
@@ -286,7 +280,7 @@ static void basic() {
 	RegistrarDb::get()->bind(participantUrl, participantContact, parameter, make_shared<BindListener>());
 	RegistrarDb::get()->publish(participantFrom.substr(4).c_str(), "");
 
-	BC_ASSERT_TRUE(RegEventAssert({clientCore, regEventCore}, agent).wait([chatRoom] {
+	BC_ASSERT_TRUE(asserter.wait([chatRoom] {
 		int numberOfDevices = 0;
 		for (auto participant : chatRoom->getParticipants()) {
 			numberOfDevices += participant->getDevices().size();
@@ -324,7 +318,7 @@ static void basic() {
 	    linphone::Factory::get()->createAddress(participantRebindFrom.c_str());
 	chatRoom->addParticipant(reBindParticipant);
 
-	BC_ASSERT_TRUE(RegEventAssert({clientCore, regEventCore}, agent).wait([chatRoom] {
+	BC_ASSERT_TRUE(asserter.wait([chatRoom] {
 		int numberOfDevices = 0;
 		for (auto participant : chatRoom->getParticipants()) {
 			numberOfDevices += participant->getDevices().size();

@@ -17,6 +17,8 @@ class CallRingingEventLog;
 class CallLog;
 class CallEndedEventLog;
 class CallQualityStatisticsLog;
+class MessageSentEventLog;
+class MessageResponseFromRecipientEventLog;
 class MessageLog;
 class AuthLog;
 
@@ -37,6 +39,8 @@ protected:
 	friend CallLog;
 	friend CallEndedEventLog;
 	friend CallQualityStatisticsLog;
+	friend MessageSentEventLog;
+	friend MessageResponseFromRecipientEventLog;
 	friend MessageLog;
 	friend AuthLog;
 
@@ -46,6 +50,8 @@ protected:
 	virtual void write(const MessageLog& mlog) = 0;
 	virtual void write(const AuthLog& alog) = 0;
 
+	virtual void write(const MessageResponseFromRecipientEventLog&);
+
 #define STUB(T)                                                                                                        \
 	virtual void write(const T&) {                                                                                     \
 		SLOGD << typeid(*this).name() << " does not implement " << __PRETTY_FUNCTION__;                                \
@@ -54,6 +60,7 @@ protected:
 	STUB(CallStartedEventLog)
 	STUB(CallRingingEventLog)
 	STUB(CallEndedEventLog)
+	STUB(MessageSentEventLog)
 
 #undef STUB
 };

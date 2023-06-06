@@ -377,7 +377,7 @@ void message_expires() {
 		                            }
 	                            },
 	                            nullptr};
-	const string proxyPort = ::tport_name(::tport_primaries(::nta_agent_tports(agent->getSofiaAgent())))->tpn_port;
+	const string proxyPort = proxyServer.getFirstPort();
 	const string clientPort = to_string(bellesipUtils.getListeningPort());
 	ContactInserter inserter(*RegistrarDb::get(), *agent);
 	const auto aor = "sip:message_expires@127.0.0.1";

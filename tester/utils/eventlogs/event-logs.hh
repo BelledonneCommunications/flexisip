@@ -13,7 +13,6 @@ namespace tester {
 namespace eventlogs {
 
 std::shared_ptr<Server> makeAndStartProxy(std::map<std::string, std::string> customConfigs = {});
-std::string uuidOf(const linphone::Core& core);
 
 } // namespace eventlogs
 } // namespace tester

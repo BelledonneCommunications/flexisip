@@ -21,8 +21,10 @@
 #include <algorithm>
 #include <cctype>
 #include <map>
+#include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "flexisip-config.h"
@@ -82,11 +84,9 @@ public:
 	static void stripAll(std::string::const_iterator& start, std::string::const_iterator& end, char c = ' ');
 
 	/**
-	 * @brief Check whether the string 'str' starts with 'prefix' and returned the subsequent
-	 * part of the string.
-	 * @throw invalid_argument when 'str' doesn't start with 'prefix'.
+	 * @brief Returns a view into 'str' with 'prefix' removed, or nullopt if the string does not start with 'prefix'
 	 */
-	static std::string removePrefix(const std::string& str, const std::string& prefix);
+	static std::optional<std::string_view> removePrefix(const std::string_view& str, const std::string_view& prefix);
 
 	/**
 	 * Replace any occurence of 'key' in 'str' by 'value'.
@@ -155,8 +155,7 @@ public:
 	}
 
 	// Returns 'true' if 'str' starts with 'prefix'.
-	template <typename StringLike>
-	static bool startsWith(const std::string& str, const StringLike prefix) noexcept {
+	static bool startsWith(const std::string_view& str, const std::string_view& prefix) noexcept {
 		// https://stackoverflow.com/a/40441240
 		return str.rfind(prefix, 0) == 0;
 	}

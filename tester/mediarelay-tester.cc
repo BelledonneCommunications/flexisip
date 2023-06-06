@@ -11,6 +11,7 @@
 #include "linphone++/call.hh"
 
 #include "utils/asserts.hh"
+#include "utils/client-builder.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
 #include "utils/proxy-server.hh"
@@ -31,9 +32,11 @@ void video_is_received_by_caller_in_early_media() {
 	    {"module::Registrar/reg-domains", "sip.example.org"},
 	}});
 	server->start();
-	const auto pauline = ClientBuilder("sip:pauline@sip.example.org").useMireAsCamera().registerTo(server);
-	const auto clemence = ClientBuilder("sip:clemence@sip.example.org").useMireAsCamera().registerTo(server);
-	CoreAssert asserter({pauline.getCore(), clemence.getCore()}, server->getAgent());
+	auto builder = server->clientBuilder();
+	builder.setVideoDevice(VideoDevice::Mire);
+	const auto pauline = builder.build("sip:pauline@sip.example.org");
+	const auto clemence = builder.build("sip:clemence@sip.example.org");
+	CoreAssert asserter(pauline, clemence, server);
 	const auto params = pauline.getCore()->createCallParams(nullptr);
 	params->enableEarlyMediaSending(true);
 	params->enableVideo(true);
@@ -42,7 +45,7 @@ void video_is_received_by_caller_in_early_media() {
 	if (!BC_ASSERT_TRUE(clemence.hasReceivedCallFrom(pauline))) {
 		return;
 	}
-	const auto clemenceCall = clemence.getCore()->getCurrentCall();
+	const auto clemenceCall = clemence.getCurrentCall();
 	clemenceCall->acceptEarlyMedia();
 
 	asserter

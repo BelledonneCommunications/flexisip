@@ -179,8 +179,7 @@ void flexisip_cli_dot_py() {
 	Server proxyServer(db.configAsMap());
 	ProxyCommandLineInterface cli(proxyServer.getAgent());
 	const auto cliReady = cli.start();
-	BcAssert asserter{};
-	asserter.addCustomIterate([&root = *proxyServer.getRoot()] { root.step(1ms); });
+	BcAssert asserter{[&root = *proxyServer.getRoot()] { root.step(1ms); }};
 	const auto pid = std::to_string(getpid());
 	const auto callScript = [pyScript = std::string(FLEXISIP_TESTER_DATA_SRCDIR) +
 	                                    "/../scripts/flexisip_cli.py --pid " + pid + " --server proxy ",

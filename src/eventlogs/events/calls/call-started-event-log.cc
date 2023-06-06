@@ -2,25 +2,19 @@
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include "eventlogs/events/calls/call-started-event-log.hh"
+#include "call-started-event-log.hh"
 
-#include <type_traits>
-#include <vector>
-
-#include "eventlogs/events/identified.hh"
+#include "eventlogs/events/calls/invite-kind.hh"
+#include "eventlogs/events/message-or-call-started.hh"
 #include "eventlogs/writers/event-log-writer.hh"
-#include "fork-context/branch-info.hh"
 #include "registrar/extended-contact.hh"
 
 namespace flexisip {
 using namespace std;
 
-CallStartedEventLog::CallStartedEventLog(const sip_t& sip, const std::list<std::shared_ptr<BranchInfo>>& branchInfoList)
-    : SipEventLog(sip), Identified(sip) {
-	mDevices.reserve(branchInfoList.size());
-	for (const auto& branchInfo : branchInfoList) {
-		mDevices.emplace_back(*branchInfo->mContact);
-	}
+CallStartedEventLog::CallStartedEventLog(const sip_t& sip,
+                                         const std::list<std::shared_ptr<BranchInfo>>& branchInfoList)
+    : MessageOrCallStarted(sip, branchInfoList), WithInviteKind(*sip.sip_content_type) {
 }
 
 void CallStartedEventLog::write(EventLogWriter& writer) const {

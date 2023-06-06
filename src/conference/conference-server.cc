@@ -291,8 +291,13 @@ void ConferenceServer::_run() {
 }
 
 void ConferenceServer::_stop() {
-	mCore->removeListener(shared_from_this());
-	RegistrarDb::get()->removeStateListener(shared_from_this());
+	const auto sharedThis = shared_from_this();
+	mCore->removeListener(sharedThis);
+	RegistrarDb::get()->removeStateListener(sharedThis);
+	for (const auto& chatroom : mChatRooms) {
+		chatroom->removeListener(sharedThis);
+	}
+	mSubscriptionHandler.unsubscribeAll();
 }
 
 void ConferenceServer::loadFactoryUris() {

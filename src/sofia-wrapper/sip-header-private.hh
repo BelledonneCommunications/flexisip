@@ -165,4 +165,22 @@ public:
 	}
 };
 
+/**
+ * Class that represents a custom (a.k.a "unknown") header.
+ */
+class SipCustomHeader : public SipHeader {
+public:
+	/**
+	 * Create a custom header.
+	 * @param name The name of the custom header.
+	 * @param value The value of the custom header.
+	 */
+	SipCustomHeader(std::string_view name, std::string_view value) {
+		setNativePtr(::sip_unknown_format(mHome.home(), "%s: %s", name.data(), value.data()));
+	}
+
+	SipCustomHeader(const SipCustomHeader&) = default;
+	SipCustomHeader(SipCustomHeader&&) = default;
+};
+
 } // namespace sofiasip

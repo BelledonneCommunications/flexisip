@@ -12,6 +12,11 @@ using Timestamp = std::chrono::time_point<std::chrono::system_clock>;
 
 class Timestamped {
 public:
+	const Timestamp& getTimestamp() const {
+		return mTimestamp;
+	}
+
+private:
 	const Timestamp mTimestamp = std::chrono::system_clock::now();
 };
 

@@ -153,11 +153,14 @@ optional<SysErr> Running::signal(SigNum sig) {
 ostream& operator<<(ostream& stream, const Process& process) {
 	return stream << "Process{mState: " << StreamableVariant(process.mState) << "}";
 }
+ostream& operator<<(ostream& stream, Process&& process) {
+	return stream << "Process{mState: " << StreamableVariant(std::move(process.state())) << "}";
+}
 
 ostream& operator<<(ostream& stream, const ExitedNormally& state) {
 	return stream << "process::ExitedNormally{mExitCode: " << int(state.mExitCode)
-	              << ", mStdout: " << StreamableVariant(state.mStdout) << ", mStderr: " << StreamableVariant(state.mStderr)
-	              << "}";
+	              << ", mStdout: " << StreamableVariant(state.mStdout)
+	              << ", mStderr: " << StreamableVariant(state.mStderr) << "}";
 }
 ostream& operator<<(ostream& stream, ExitedNormally&& state) {
 	return stream << "process::ExitedNormally{mExitCode: " << int(state.mExitCode)
@@ -167,8 +170,8 @@ ostream& operator<<(ostream& stream, ExitedNormally&& state) {
 
 ostream& operator<<(ostream& stream, const Running& state) {
 	return stream << "process::Running{mPid: " << state.mPid << ", mStdin: " << StreamableVariant(state.mStdin)
-	              << ", mStdout: " << StreamableVariant(state.mStdout) << ", mStderr: " << StreamableVariant(state.mStderr)
-	              << "}";
+	              << ", mStdout: " << StreamableVariant(state.mStdout)
+	              << ", mStderr: " << StreamableVariant(state.mStderr) << "}";
 }
 ostream& operator<<(ostream& stream, Running&& state) {
 	return stream << "process::Running{mPid: " << state.mPid << ", mStdin: " << StreamableVariant(state.mStdin)

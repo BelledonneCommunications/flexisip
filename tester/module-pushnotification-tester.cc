@@ -22,6 +22,7 @@
 #include "module-pushnotification.hh"
 #include "pushnotification/client.hh"
 #include "pushnotification/rfc8599-push-params.hh"
+#include "utils/client-builder.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
 #include "utils/test-patterns/agent-test.hh"
@@ -542,7 +543,7 @@ public:
 		BC_HARD_ASSERT_CPP_EQUAL(aPNRequest.getDestination(), mPlatform->getExpectedPushParams());
 
 		SLOGD << "Waking up CoreClient[" << aUserAgent << "]";
-		aUserAgent->getCore()->setNetworkReachable(true);
+		aUserAgent->reconnect();
 	}
 };
 
@@ -574,7 +575,7 @@ public:
 			SLOGD << "Receiving ringing PN #" << ++mReceivedRingingPN;
 		} else {
 			SLOGD << "Waking up CoreClient[" << aUserAgent << "]";
-			aUserAgent->getCore()->setNetworkReachable(true);
+			aUserAgent->reconnect();
 			mClientAwake = true;
 		}
 	}
@@ -603,10 +604,11 @@ protected:
 
 	void testExec() override {
 		auto proxy = make_shared<Server>(mAgent);
-		auto core1 = make_shared<CoreClient>("sip:user1@sip.example.org", proxy);
+		auto builder = proxy->clientBuilder();
+		auto core1 = builder.build("sip:user1@sip.example.org");
 		auto core2 = make_shared<CoreClient>(
-		    move(ClientBuilder{"sip:user2@sip.example.org"}.setPushParams(mPlatform->getContactPushParams())), proxy);
-		core2->getCore()->setNetworkReachable(false);
+		    builder.setPushParams(mPlatform->getContactPushParams()).build("sip:user2@sip.example.org"));
+		core2->disconnect();
 		core2->setCallInviteReceivedDelay(core2->getCallInviteReceivedDelay() +
 		                                  mPNHandler->getCallInviteReceivedExtraDelay());
 
@@ -620,7 +622,7 @@ protected:
 			        });
 		}
 
-		core1->call(core2);
+		core1.call(core2);
 	}
 
 	// Protected attributes
@@ -648,15 +650,15 @@ public:
 
 	void testExec() override {
 		auto proxy = make_shared<Server>(mAgent);
-		auto core1 = make_shared<CoreClient>("sip:user1@sip.example.org", proxy);
-		auto core2 = make_shared<CoreClient>(
-		    move(ClientBuilder{"sip:user2@sip.example.org"}.setPushParams(mPlatform->getContactPushParams())), proxy);
-		core2->getCore()->setNetworkReachable(false);
+		auto builder = proxy->clientBuilder();
+		auto core1 = builder.build("sip:user1@sip.example.org");
+		auto core2 = builder.setPushParams(mPlatform->getContactPushParams()).build("sip:user2@sip.example.org");
+		core2.disconnect();
 
 		auto pushClient = dynamic_pointer_cast<_DummyPushClient>(mPushClient);
 
 		SLOGI << "Send INVITE to the callee and wait for the first ringing PN sending";
-		auto call = core1->invite(*core2);
+		auto call = core1.invite(core2);
 		auto ringingPushSent = CoreAssert{proxy->getAgent(), core1, core2}.wait([&pushClient]() {
 			BC_HARD_ASSERT(pushClient->getRingingPNCount() <= 1);
 			return pushClient->getRingingPNCount() == 1 ? ASSERTION_PASSED() : ASSERTION_CONTINUE();
@@ -672,10 +674,10 @@ public:
 		BC_HARD_ASSERT_CPP_EQUAL(pushClient->getFinalPNSendingFailureCount(), 1);
 
 		// Workaround: register core2 again in order to avoid assertion failure on core2 destruction.
-		core2->getCore()->setNetworkReachable(true);
+		core2.reconnect();
 		CoreAssert{proxy->getAgent(), core1, core2}.wait([&core2] {
-			return core2->getAccount()->getState() == linphone::RegistrationState::Ok ? ASSERTION_PASSED()
-			                                                                          : ASSERTION_CONTINUE();
+			return core2.getAccount()->getState() == linphone::RegistrationState::Ok ? ASSERTION_PASSED()
+			                                                                         : ASSERTION_CONTINUE();
 		});
 	}
 
@@ -741,12 +743,11 @@ protected:
 		auto calleePushParams = mPlatform->getContactPushParams();
 
 		RFC8599PushParams devCalleePushParams{"apns.dev", calleePushParams.getParam(), calleePushParams.getPrid()};
-		auto calleeDevDevice = make_shared<CoreClient>(
-		    move(ClientBuilder{"sip:user2@sip.example.org"}.setPushParams(devCalleePushParams)), proxy);
-
+		auto calleeDevDevice =
+		    proxy->clientBuilder().setPushParams(devCalleePushParams).build("sip:user2@sip.example.org");
 		auto callee = make_shared<CoreClient>(
-		    move(ClientBuilder{"sip:user2@sip.example.org"}.setPushParams(calleePushParams)), proxy);
-		callee->getCore()->setNetworkReachable(false);
+		    proxy->clientBuilder().setPushParams(calleePushParams).build("sip:user2@sip.example.org"));
+		callee->disconnect();
 		callee->setCallInviteReceivedDelay(callee->getCallInviteReceivedDelay() +
 		                                   mPNHandler->getCallInviteReceivedExtraDelay());
 

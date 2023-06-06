@@ -27,6 +27,7 @@
 #include "fork-context/fork-status.hh"
 #include "registrar/extended-contact.hh"
 #include "utils/asserts.hh"
+#include "utils/client-builder.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
 #include "utils/eventlogs/event-logs.hh"
@@ -93,8 +94,9 @@ void callStartedAndEnded() {
 	                           });
 	const string expectedFrom = "tony@sip.example.org";
 	const string expectedTo = "mike@sip.example.org";
-	auto tony = ClientBuilder("sip:" + expectedFrom).registerTo(proxy);
-	auto mike = ClientBuilder("sip:" + expectedTo).registerTo(proxy);
+	const auto builder = proxy->clientBuilder();
+	auto tony = builder.build(expectedFrom);
+	auto mike = builder.build(expectedTo);
 	const auto before = chrono::system_clock::now();
 
 	tony.call(mike);
@@ -104,25 +106,25 @@ void callStartedAndEnded() {
 	BC_ASSERT_CPP_EQUAL(invitesEnded.size(), 1);
 	BC_ASSERT_CPP_EQUAL(callsEnded.size(), 0);
 	const auto& startedEvent = callsStarted[0];
-	BC_ASSERT_TRUE(before < startedEvent.mTimestamp);
-	BC_ASSERT_CPP_EQUAL(toString(startedEvent.mFrom), expectedFrom);
-	BC_ASSERT_CPP_EQUAL(toString(startedEvent.mTo), expectedTo);
-	BC_ASSERT_CPP_EQUAL(startedEvent.mDevices.size(), 1);
-	const string_view deviceKey = startedEvent.mDevices[0].mKey.str();
-	BC_ASSERT_CPP_EQUAL(uuidFromSipInstance(deviceKey), uuidOf(*mike.getCore()));
-	const string eventId = startedEvent.mId;
+	BC_ASSERT_TRUE(before < startedEvent.getTimestamp());
+	BC_ASSERT_CPP_EQUAL(toString(startedEvent.getFrom()), expectedFrom);
+	BC_ASSERT_CPP_EQUAL(toString(startedEvent.getTo()), expectedTo);
+	BC_ASSERT_CPP_EQUAL(startedEvent.getDevices().size(), 1);
+	const string_view deviceKey = startedEvent.getDevices()[0].mKey.str();
+	BC_ASSERT_CPP_EQUAL(uuidFromSipInstance(deviceKey), mike.getUuid());
+	const string eventId = startedEvent.getId();
 	const auto& ringingEvent = callsRung[0];
-	BC_ASSERT_CPP_EQUAL(string(ringingEvent.mId), eventId);
-	BC_ASSERT_CPP_EQUAL(ringingEvent.mDevice.mKey.str(), deviceKey);
-	BC_ASSERT_TRUE(startedEvent.mTimestamp < ringingEvent.mTimestamp);
+	BC_ASSERT_CPP_EQUAL(string(ringingEvent.getId()), eventId);
+	BC_ASSERT_CPP_EQUAL(ringingEvent.getDevice().mKey.str(), deviceKey);
+	BC_ASSERT_TRUE(startedEvent.getTimestamp() < ringingEvent.getTimestamp());
 	const auto& acceptedEvent = invitesEnded[0];
-	BC_ASSERT_CPP_EQUAL(toString(acceptedEvent.mFrom), expectedFrom);
-	BC_ASSERT_CPP_EQUAL(toString(acceptedEvent.mTo), expectedTo);
-	BC_ASSERT_CPP_EQUAL(string(acceptedEvent.mId), eventId);
-	BC_ASSERT_TRUE(acceptedEvent.mDevice != nullopt);
-	BC_ASSERT_CPP_EQUAL(acceptedEvent.mDevice->mKey.str(), deviceKey);
+	BC_ASSERT_CPP_EQUAL(toString(acceptedEvent.getFrom()), expectedFrom);
+	BC_ASSERT_CPP_EQUAL(toString(acceptedEvent.getTo()), expectedTo);
+	BC_ASSERT_CPP_EQUAL(string(acceptedEvent.getId()), eventId);
+	BC_ASSERT_TRUE(acceptedEvent.getDevice() != nullopt);
+	BC_ASSERT_CPP_EQUAL(acceptedEvent.getDevice()->mKey.str(), deviceKey);
 	const auto& acceptedAt = acceptedEvent.getDate();
-	BC_ASSERT_TRUE(chrono::system_clock::to_time_t(ringingEvent.mTimestamp) <=
+	BC_ASSERT_TRUE(chrono::system_clock::to_time_t(ringingEvent.getTimestamp()) <=
 	               acceptedAt
 	                   // Precision? Different clocks? I don't know why, but without this +1 it sometimes fails
 	                   + 1);
@@ -132,8 +134,8 @@ void callStartedAndEnded() {
 
 	BC_ASSERT_CPP_EQUAL(callsEnded.size(), 1);
 	const auto& endedEvent = callsEnded[0];
-	BC_ASSERT_CPP_EQUAL(string(endedEvent.mId), eventId);
-	BC_ASSERT_TRUE(acceptedAt <= chrono::system_clock::to_time_t(endedEvent.mTimestamp));
+	BC_ASSERT_CPP_EQUAL(string(endedEvent.getId()), eventId);
+	BC_ASSERT_TRUE(acceptedAt <= chrono::system_clock::to_time_t(endedEvent.getTimestamp()));
 }
 
 void callInviteStatuses() {
@@ -149,28 +151,25 @@ void callInviteStatuses() {
 	                               Ignore<RegistrationLog>(),
 	                           });
 	const string mike = "sip:mike@sip.example.org";
-	auto tony = ClientBuilder("sip:tony@sip.example.org").registerTo(proxy);
-	auto mikePhone = ClientBuilder(mike).registerTo(proxy);
-	auto mikeDesktop = ClientBuilder(mike).registerTo(proxy);
-	auto tonyCore = tony.getCore();
-	auto mikePhoneCore = mikePhone.getCore();
-	auto mikeDesktopCore = mikeDesktop.getCore();
-	CoreAssert asserter{{tonyCore, mikePhoneCore, mikeDesktopCore}, agent};
-	auto expectedId = [&callsStarted]() -> string { return callsStarted[0].mId; };
+	const auto builder = proxy->clientBuilder();
+	auto tony = builder.build("sip:tony@sip.example.org");
+	auto mikePhone = builder.build(mike);
+	auto mikeDesktop = builder.build(mike);
+	CoreAssert asserter{tony, mikePhone, mikeDesktop, agent};
+	auto expectedId = [&callsStarted]() -> string { return callsStarted[0].getId(); };
 
 	{
-		auto tonyCall = tonyCore->invite(mike);
+		auto tonyCall = tony.invite(mike);
 		mikePhone.hasReceivedCallFrom(tony).assert_passed();
 		mikeDesktop.hasReceivedCallFrom(tony).assert_passed();
 		tonyCall->terminate();
 		asserter
-		    .iterateUpTo(
-		        4,
-		        [mikePhoneCall = mikePhoneCore->getCurrentCall(), mikeDesktopCall = mikeDesktopCore->getCurrentCall()] {
-			        FAIL_IF(mikePhoneCall->getState() != linphone::Call::State::End);
-			        FAIL_IF(mikeDesktopCall->getState() != linphone::Call::State::End);
-			        return ASSERTION_PASSED();
-		        })
+		    .iterateUpTo(4,
+		                 [mikePhoneCall = mikePhone.getCurrentCall(), mikeDesktopCall = mikeDesktop.getCurrentCall()] {
+			                 FAIL_IF(mikePhoneCall->getState() != linphone::Call::State::End);
+			                 FAIL_IF(mikeDesktopCall->getState() != linphone::Call::State::End);
+			                 return ASSERTION_PASSED();
+		                 })
 		    .assert_passed();
 	}
 
@@ -178,21 +177,21 @@ void callInviteStatuses() {
 	BC_ASSERT_CPP_EQUAL(callsStarted.size(), 1);
 	for (const auto& event : invitesEnded) {
 		BC_ASSERT_CPP_EQUAL(event.isCancelled(), true);
-		BC_ASSERT_ENUM_EQUAL(event.mForkStatus, ForkStatus::Standard);
-		BC_ASSERT_CPP_EQUAL(string(event.mId), expectedId());
+		BC_ASSERT_ENUM_EQUAL(event.getForkStatus(), ForkStatus::Standard);
+		BC_ASSERT_CPP_EQUAL(string(event.getId()), expectedId());
 	}
 	auto previousId = expectedId();
 	invitesEnded.clear();
 	callsStarted.clear();
 
 	{
-		auto tonyCall = tonyCore->invite(mike);
+		auto tonyCall = tony.invite(mike);
 		mikePhone.hasReceivedCallFrom(tony).assert_passed();
 		mikeDesktop.hasReceivedCallFrom(tony).assert_passed();
-		mikePhoneCore->getCurrentCall()->decline(linphone::Reason::Declined);
+		mikePhone.getCurrentCall()->decline(linphone::Reason::Declined);
 		asserter
 		    .iterateUpTo(4,
-		                 [&tonyCall, mikeDesktopCall = mikeDesktopCore->getCurrentCall()] {
+		                 [&tonyCall, mikeDesktopCall = mikeDesktop.getCurrentCall()] {
 			                 FAIL_IF(tonyCall->getState() != linphone::Call::State::End);
 			                 FAIL_IF(mikeDesktopCall->getState() != linphone::Call::State::End);
 			                 return ASSERTION_PASSED();
@@ -202,14 +201,14 @@ void callInviteStatuses() {
 
 	BC_ASSERT_CPP_EQUAL(invitesEnded.size(), 2);
 	BC_ASSERT_CPP_EQUAL(callsStarted.size(), 1);
-	const auto mikePhoneUuid = uuidOf(*mikePhoneCore);
-	const auto mikeDesktopUuid = uuidOf(*mikeDesktopCore);
+	const auto mikePhoneUuid = mikePhone.getUuid();
+	const auto mikeDesktopUuid = mikeDesktop.getUuid();
 	unordered_map<string_view, reference_wrapper<const CallLog>> invitesByDeviceUuid{};
 	BC_ASSERT_CPP_NOT_EQUAL(expectedId(), previousId);
 	for (const auto& event : invitesEnded) {
-		BC_ASSERT_TRUE(event.mDevice != nullopt);
-		BC_ASSERT_CPP_EQUAL(string(event.mId), expectedId());
-		invitesByDeviceUuid.emplace(uuidFromSipInstance(event.mDevice->mKey.str()), event);
+		BC_ASSERT_TRUE(event.getDevice() != nullopt);
+		BC_ASSERT_CPP_EQUAL(string(event.getId()), expectedId());
+		invitesByDeviceUuid.emplace(uuidFromSipInstance(event.getDevice()->mKey.str()), event);
 	}
 	{
 		const auto mikePhoneInvite = invitesByDeviceUuid.find(mikePhoneUuid);
@@ -221,20 +220,20 @@ void callInviteStatuses() {
 		BC_ASSERT_TRUE(mikeDesktopInvite != invitesByDeviceUuid.end());
 		const auto& mikeDesktopInviteEvent = mikeDesktopInvite->second.get();
 		BC_ASSERT_CPP_EQUAL(mikeDesktopInviteEvent.isCancelled(), true);
-		BC_ASSERT_ENUM_EQUAL(mikeDesktopInviteEvent.mForkStatus, ForkStatus::DeclineElsewhere);
+		BC_ASSERT_ENUM_EQUAL(mikeDesktopInviteEvent.getForkStatus(), ForkStatus::DeclineElsewhere);
 	}
 	previousId = expectedId();
 	invitesEnded.clear();
 	callsStarted.clear();
 
 	{
-		auto tonyCall = tonyCore->invite(mike);
+		auto tonyCall = tony.invite(mike);
 		mikePhone.hasReceivedCallFrom(tony).assert_passed();
 		mikeDesktop.hasReceivedCallFrom(tony).assert_passed();
-		mikePhoneCore->getCurrentCall()->accept();
+		mikePhone.getCurrentCall()->accept();
 		asserter
 		    .iterateUpTo(4,
-		                 [&tonyCall, mikeDesktopCall = mikeDesktopCore->getCurrentCall()] {
+		                 [&tonyCall, mikeDesktopCall = mikeDesktop.getCurrentCall()] {
 			                 FAIL_IF(tonyCall->getState() != linphone::Call::State::StreamsRunning);
 			                 FAIL_IF(mikeDesktopCall->getState() != linphone::Call::State::End);
 			                 return ASSERTION_PASSED();
@@ -247,9 +246,9 @@ void callInviteStatuses() {
 	BC_ASSERT_CPP_NOT_EQUAL(expectedId(), previousId);
 	invitesByDeviceUuid.clear();
 	for (const auto& event : invitesEnded) {
-		BC_ASSERT_TRUE(event.mDevice != nullopt);
-		BC_ASSERT_CPP_EQUAL(string(event.mId), expectedId());
-		invitesByDeviceUuid.emplace(uuidFromSipInstance(event.mDevice->mKey.str()), event);
+		BC_ASSERT_TRUE(event.getDevice() != nullopt);
+		BC_ASSERT_CPP_EQUAL(string(event.getId()), expectedId());
+		invitesByDeviceUuid.emplace(uuidFromSipInstance(event.getDevice()->mKey.str()), event);
 	}
 	const auto mikePhoneInvite = invitesByDeviceUuid.find(mikePhoneUuid);
 	BC_ASSERT_TRUE(mikePhoneInvite != invitesByDeviceUuid.end());
@@ -260,7 +259,7 @@ void callInviteStatuses() {
 	BC_ASSERT_TRUE(mikeDesktopInvite != invitesByDeviceUuid.end());
 	const auto& mikeDesktopInviteEvent = mikeDesktopInvite->second.get();
 	BC_ASSERT_CPP_EQUAL(mikeDesktopInviteEvent.isCancelled(), true);
-	BC_ASSERT_ENUM_EQUAL(mikeDesktopInviteEvent.mForkStatus, ForkStatus::AcceptedElsewhere);
+	BC_ASSERT_ENUM_EQUAL(mikeDesktopInviteEvent.getForkStatus(), ForkStatus::AcceptedElsewhere);
 }
 
 void callError() {
@@ -273,19 +272,19 @@ void callError() {
 	                               Ignore<CallRingingEventLog>(),
 	                               Ignore<RegistrationLog>(),
 	                           });
-	const string tradeFederation = "sip:TheTradeFederation@sip.example.org";
-	auto galacticRepublicClient = ClientBuilder("sip:TheGalacticRepublic@sip.example.org").registerTo(proxy);
-	auto tradeFederationClient = ClientBuilder(tradeFederation).registerTo(proxy);
-	const auto republicCore = galacticRepublicClient.getCore();
-	const auto federationCore = tradeFederationClient.getCore();
-	CoreAssert asserter{{republicCore, federationCore}, agent};
+	const auto builder = proxy->clientBuilder();
+	auto republic = builder.build("sip:TheGalacticRepublic@sip.example.org");
+	auto federation = builder.build("sip:TheTradeFederation@sip.example.org");
+	const auto republicCore = republic.getCore();
+	const auto federationCore = federation.getCore();
+	CoreAssert asserter{republicCore, federationCore, agent};
 	// The Republic and the Federation won't be able to negotiate a set of compatible params
 	republicCore->setMediaEncryption(linphone::MediaEncryption::None);
 	republicCore->setMediaEncryptionMandatory(false);
 	federationCore->setMediaEncryption(linphone::MediaEncryption::SRTP);
 	federationCore->setMediaEncryptionMandatory(true);
 
-	republicCore->invite(tradeFederation);
+	republic.invite(federation);
 	// "You were right about one thing, Master..."
 	asserter.iterateUpTo(4, [&invitesEnded] {
 		FAIL_IF(invitesEnded.empty());
@@ -310,18 +309,17 @@ void doubleForkContextStart() {
 	                               Ignore<RegistrationLog>(),
 	                           });
 	const string paul = "sip:paulvasquez@sip.example.org";
+	auto builder = proxy->clientBuilder();
+	auto lux = builder.build("sip:luxannacrownguard@sip.example.org");
 	// Registering a secondary contact with higher priority than the real one (>1) means a first round of fork(s) will
 	// fire (and fail) for this (unroutable) contact, before a _second_ round of fork(s) manages to reach the
 	// destination. This should trigger two calls to ForkCallContext::start
-	auto paulClient = ClientBuilder(paul).setCustomContact("<sip:bear@127.0.0.1:666>;q=2.0").registerTo(proxy);
-	auto luxClient = ClientBuilder("sip:luxannacrownguard@sip.example.org").registerTo(proxy);
-	const auto& paulCore = paulClient.getCore();
-	const auto& luxCore = luxClient.getCore();
-	CoreAssert asserter{{luxCore, paulCore}, agent};
+	auto paulClient = builder.setCustomContact("<sip:bear@127.0.0.1:666>;q=2.0").build(paul);
+	CoreAssert asserter{lux, paulClient, agent};
 
-	auto luxCall = luxCore->invite(paul);
-	paulClient.hasReceivedCallFrom(luxClient).assert_passed();
-	paulCore->getCurrentCall()->decline(linphone::Reason::Declined);
+	auto luxCall = lux.invite(paul);
+	paulClient.hasReceivedCallFrom(lux).assert_passed();
+	paulClient.getCurrentCall()->decline(linphone::Reason::Declined);
 
 	BC_ASSERT_CPP_EQUAL(callsStarted.size(), 1);
 

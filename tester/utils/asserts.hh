@@ -69,8 +69,7 @@ struct AssertionResult {
 class BcAssert {
 public:
 	BcAssert() = default;
-	explicit BcAssert(const std::initializer_list<std::function<void()>>& mIterateFuncs)
-	    : mIterateFuncs(mIterateFuncs) {
+	BcAssert(const std::initializer_list<std::function<void()>>& mIterateFuncs) : mIterateFuncs(mIterateFuncs) {
 	}
 	void addCustomIterate(const std::function<void()>& iterate) {
 		mIterateFuncs.push_back(iterate);
@@ -89,9 +88,17 @@ public:
 	}
 
 	template <typename Func>
-	AssertionResult iterateUpTo(const uint32_t iterations, Func condition) {
+	AssertionResult iterateUpTo(const uint32_t iterations,
+	                            Func condition,
+	                            std::chrono::milliseconds minTime = std::chrono::milliseconds{1}) {
 		auto remaining = iterations;
-		return loopAssert([&remaining] { return --remaining == 0; }, std::forward<Func>(condition));
+		auto beforePlusMinTime = std::chrono::system_clock::now() + minTime;
+		return loopAssert(
+		    [&remaining, beforePlusMinTime] {
+			    if (remaining != 0) --remaining;
+			    return remaining == 0 && beforePlusMinTime < std::chrono::system_clock::now();
+		    },
+		    std::forward<Func>(condition));
 	}
 
 	template <typename AssertFunc, typename StopFunc>

@@ -76,3 +76,9 @@ void ParticipantRegistrationSubscriptionHandler::unsubscribe(const shared_ptr<Ch
 		}
 	}
 }
+
+void ParticipantRegistrationSubscriptionHandler::unsubscribeAll() {
+	for (const auto& sub : mSubscriptions) {
+		sub.second->stop();
+	}
+}

@@ -31,6 +31,8 @@
 namespace flexisip {
 namespace tester {
 
+class ClientBuilder;
+
 /**
  * A class to manage the flexisip proxy server
  */
@@ -57,13 +59,14 @@ public:
 	virtual ~Server();
 
 	// Accessors
-	const std::shared_ptr<sofiasip::SuRoot>& getRoot() noexcept {
+	const std::shared_ptr<sofiasip::SuRoot>& getRoot() const noexcept {
 		return mAgent->getRoot();
 	}
 
-	const std::shared_ptr<flexisip::Agent>& getAgent() noexcept {
+	const std::shared_ptr<flexisip::Agent>& getAgent() const noexcept {
 		return mAgent;
 	}
+	const char* getFirstPort() const;
 
 	/**
 	 * @brief Start the Agent.
@@ -76,6 +79,8 @@ public:
 	 * @brief Run the main loop for a given time.
 	 */
 	void runFor(std::chrono::milliseconds duration);
+
+	ClientBuilder clientBuilder() const;
 
 private:
 	std::shared_ptr<flexisip::Agent> mAgent{std::make_shared<Agent>(std::make_shared<sofiasip::SuRoot>())};

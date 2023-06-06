@@ -17,6 +17,12 @@
 */
 #pragma once
 
+#include <chrono>
+#include <ctime>
+#include <iomanip>
+#include <ostream>
+#include <sstream>
+
 #include "flexisip/logmanager.hh"
 
 #include "lib/nlohmann-json-3-11-2/json.hpp"
@@ -30,22 +36,47 @@ class ISO8601Date {
 public:
 	// Do not use default constructor, here only for nlohmann json serialization.
 	ISO8601Date() = default;
-	ISO8601Date(const time_t& t) : isoFormattedDate("1993-06-19T10:10:09Z") {
-		strftime(isoFormattedDate.data(), isoFormattedDate.size() + 1, "%FT%TZ", gmtime(&t)), isoFormattedDate.size();
+	ISO8601Date(const std::time_t& t) : mTimestamp(t) {
 	}
 	ISO8601Date(const Timestamp& t) : ISO8601Date(std::chrono::system_clock::to_time_t(t)) {
 	}
 
 	friend void to_json(nlohmann::json& j, const ISO8601Date& date) {
-		j = date.isoFormattedDate;
+		std::ostringstream ss{};
+		ss << date;
+		j = ss.str();
 	};
 	friend void from_json(const nlohmann::json& j, ISO8601Date& date) {
-		SLOGE << "ISO8601Date::from_json used, this function is not safe (no checks)";
-		date.isoFormattedDate = j.get<std::string>();
+		std::istringstream ss(j.get<std::string>());
+		ss >> date;
+		if (ss.fail())
+			throw nlohmann::json::type_error::create(302, "Not a valid ISO-8601 UTC DateTime: " + ss.str(), &j);
+	}
+
+	friend std::ostream& operator<<(std::ostream& stream, const ISO8601Date& date) {
+		return stream << std::put_time(::gmtime(&date.mTimestamp), kFormatString);
+	}
+	friend std::istream& operator>>(std::istream& stream, ISO8601Date& date) {
+		std::tm t{};
+		stream >> std::get_time(&t, kFormatString);
+		if (!stream.fail()) date.mTimestamp = ::timegm(&t);
+
+		return stream;
+	}
+	friend bool operator<=(const ISO8601Date& lhs, const ISO8601Date& rhs) {
+		return lhs.mTimestamp <= rhs.mTimestamp;
+	}
+	friend bool operator<(const ISO8601Date& lhs, const ISO8601Date& rhs) {
+		return lhs.mTimestamp < rhs.mTimestamp;
+	}
+	friend bool operator==(const ISO8601Date& lhs, const ISO8601Date& rhs) {
+		return lhs.mTimestamp == rhs.mTimestamp;
 	}
 
 private:
-	std::string isoFormattedDate;
+	static constexpr auto kFormatString = "%Y-%m-%dT%H:%M:%SZ";
+
+	std::time_t mTimestamp;
 };
 } // namespace flexiapi
 } // namespace flexisip

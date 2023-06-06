@@ -28,10 +28,11 @@
 #include "agent.hh"
 #include "eventlogs/events/calls/call-ringing-event-log.hh"
 #include "eventlogs/events/calls/call-started-event-log.hh"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "eventlogs/events/eventlogs.hh"
+#include "eventlogs/writers/event-log-writer.hh"
 #include "fork-context/branch-info.hh"
 #include "fork-context/fork-status.hh"
+#include "registrar/extended-contact.hh"
 
 using namespace std;
 
@@ -105,9 +106,9 @@ void ForkCallContext::cancelOthersWithStatus(const shared_ptr<BranchInfo>& br, F
 			brit->notifyBranchCanceled(status);
 
 			auto eventLog = make_shared<CallLog>(mEvent->getMsgSip()->getSip());
-			eventLog->mDevice.emplace(*brit->mContact);
+			eventLog->setDevice(*brit->mContact);
 			eventLog->setCancelled();
-			eventLog->mForkStatus = status;
+			eventLog->setForkStatus(status);
 			mEvent->writeLog(eventLog);
 		}
 	}
@@ -186,7 +187,7 @@ void ForkCallContext::forwardThenLogResponse(const shared_ptr<BranchInfo>& branc
 void ForkCallContext::logResponse(const shared_ptr<ResponseSipEvent>& ev, const BranchInfo* branch) {
 	if (ev) {
 		if (branch) {
-			mLog->mDevice.emplace(*branch->mContact);
+			mLog->setDevice(*branch->mContact);
 		}
 
 		sip_t* sip = ev->getMsgSip()->getSip();
@@ -294,8 +295,8 @@ void ForkCallContext::start() {
 
 	bool firstStart = mCurrentPriority == -1;
 	if (firstStart) {
-		// SOUNDNESS: getBranches() returns the waiting branches. We want all the branches in the event, so that presumes
-		// there are no branches answered yet. We also presume all branches have been added by now.
+		// SOUNDNESS: getBranches() returns the waiting branches. We want all the branches in the event, so that
+		// presumes there are no branches answered yet. We also presume all branches have been added by now.
 		mEvent->writeLog(make_shared<CallStartedEventLog>(*mEvent->getMsgSip()->getSip(), getBranches()));
 	}
 

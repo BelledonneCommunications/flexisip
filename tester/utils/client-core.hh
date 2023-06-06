@@ -25,7 +25,6 @@
 
 #include "asserts.hh"
 #include "proxy-server.hh"
-#include "pushnotification/rfc8599-push-params.hh"
 
 namespace flexisip {
 namespace tester {
@@ -34,63 +33,37 @@ std::shared_ptr<linphone::Core> minimal_core(linphone::Factory& factory);
 
 class Server;
 class CoreClient;
-
-/**
- * CoreClient builder.
- *
- * Use the `registerTo` method to finish building the client
- */
-class ClientBuilder {
-	friend class CoreClient;
-
-	std::shared_ptr<linphone::Factory> mFactory;
-	std::shared_ptr<linphone::Core> mCore;
-	std::shared_ptr<const linphone::Address> mMe;
-	std::shared_ptr<linphone::AccountParams> mAccountParams;
-
-public:
-	/**
-	 * @param[in] me	address of local account
-	 */
-	ClientBuilder(const std::string& me);
-
-	ClientBuilder&& setPassword(const std::string& password) &&;
-	ClientBuilder&& setCustomContact(const std::string& contact) &&;
-	ClientBuilder&& setPushParams(const pushnotification::RFC8599PushParams& params) &&;
-
-	// Use Mire as camera for video stream
-	ClientBuilder&& useMireAsCamera() &&;
-
-	/**
-	 * Add some Apple-specific push info to REGISTERs
-	 */
-	ClientBuilder&& setApplePushConfig() &&;
-
-	/**
-	 * Finish building the client and register to the server
-	 */
-	CoreClient registerTo(const std::shared_ptr<Server>& server) &&;
-};
+class ChatRoomBuilder;
 
 /**
  * Class to manage a client Core
  */
 class CoreClient {
-	std::shared_ptr<linphone::Core> mCore;
-	std::shared_ptr<linphone::Account> mAccount;
-	std::shared_ptr<const linphone::Address> mMe;
-	std::shared_ptr<Server> mServer; /**< Server we're registered to */
-	std::chrono::seconds mCallInviteReceivedDelay{5};
-
 public:
-	std::shared_ptr<linphone::Core> getCore() const noexcept {
+	/**
+	 * @deprecated Use a ClientBuilder
+	 */
+	CoreClient(const std::string& me, const std::shared_ptr<Server>& server);
+
+	CoreClient(const CoreClient& other) = delete;
+	CoreClient(CoreClient&& other) = default;
+
+	~CoreClient();
+
+	const std::shared_ptr<linphone::Core>& getCore() const noexcept {
 		return mCore;
 	}
-	std::shared_ptr<linphone::Account> getAccount() const noexcept {
+	const std::shared_ptr<linphone::Account>& getAccount() const noexcept {
 		return mAccount;
 	}
-	std::shared_ptr<const linphone::Address> getMe() const noexcept {
+	const std::shared_ptr<const linphone::Address>& getMe() const noexcept {
 		return mMe;
+	}
+	std::string getUuid() const {
+		return mCore->getConfig()->getString("misc", "uuid", "UNSET!");
+	}
+	std::string getGruu() const {
+		return "\"<urn:uuid:" + getUuid() + ">\"";
 	}
 
 	std::chrono::seconds getCallInviteReceivedDelay() const noexcept {
@@ -100,23 +73,8 @@ public:
 		mCallInviteReceivedDelay = aDelay;
 	}
 
-	CoreClient(ClientBuilder&& builder, const std::shared_ptr<Server>& server);
-
-	/**
-	 * Create and start client core, create an account and register to given server
-	 * @deprecated Use a ClientBuilder
-	 *
-	 * @param[in] me		address of local account
-	 * @param[in] server	server to register to
-	 */
-	template <typename ServerT>
-	CoreClient(const std::string& me, ServerT&& server) : CoreClient(ClientBuilder(me), std::forward<ServerT>(server)) {
-	}
-
-	CoreClient(const CoreClient& other) = delete;
-	CoreClient(CoreClient&& other) = default;
-
-	~CoreClient();
+	void disconnect() const;
+	void reconnect() const;
 
 	/**
 	 * Establish a call
@@ -217,7 +175,9 @@ public:
 	std::shared_ptr<linphone::Call> invite(const CoreClient& peer) const;
 	std::shared_ptr<linphone::Call> invite(const CoreClient& peer,
 	                                       const std::shared_ptr<const linphone::CallParams>&) const;
+	std::shared_ptr<linphone::Call> invite(const std::string&) const;
 
+	std::shared_ptr<linphone::Call> getCurrentCall() const;
 	std::shared_ptr<linphone::CallLog> getCallLog() const;
 
 	/**
@@ -225,6 +185,23 @@ public:
 	 */
 	std::list<std::shared_ptr<linphone::ChatMessage>> getChatMessages();
 
+	ChatRoomBuilder chatroomBuilder() const;
+
+private:
+	friend class ClientBuilder;
+
+	CoreClient(std::shared_ptr<linphone::Core>&& core,
+	           std::shared_ptr<linphone::Account>&& account,
+	           std::shared_ptr<const linphone::Address>&& me,
+	           const Server& server)
+	    : mCore(std::move(core)), mAccount(std::move(account)), mMe(std::move(me)), mServer(server) {
+	}
+
+	std::shared_ptr<linphone::Core> mCore;
+	std::shared_ptr<linphone::Account> mAccount;
+	std::shared_ptr<const linphone::Address> mMe;
+	const Server& mServer; /**< Server we're registered to */
+	std::chrono::seconds mCallInviteReceivedDelay{5};
 }; // class CoreClient
 
 } // namespace tester

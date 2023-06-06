@@ -77,10 +77,10 @@ std::ostream& operator<<(std::ostream& ostr, RegistrationLog::Type type) {
 
 std::ostream& operator<<(std::ostream& ostr, MessageLog::ReportType type) {
 	switch (type) {
-		case MessageLog::ReportType::ReceivedFromUser:
+		case MessageLog::ReportType::ResponseToSender:
 			ostr << "Received from user";
 			break;
-		case MessageLog::ReportType::DeliveredToUser:
+		case MessageLog::ReportType::ResponseFromRecipient:
 			ostr << "Delivered to user";
 			break;
 	}
@@ -204,7 +204,7 @@ void FilesystemEventLogWriter::write(const MessageLog& mlog) {
 	if (mlog.getUri()) msg << " (" << mlog.getUri() << ") ";
 	msg << mlog.getStatusCode() << " " << mlog.getReason() << endl;
 
-	if (mlog.getReportType() == MessageLog::ReportType::ReceivedFromUser) {
+	if (mlog.getReportType() == MessageLog::ReportType::ResponseToSender) {
 		int fd = openPath(mlog.getFrom()->a_url, label, mlog.getDate());
 		if (fd != -1) {
 			if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {

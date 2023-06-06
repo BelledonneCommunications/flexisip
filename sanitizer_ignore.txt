@@ -1,12 +1,12 @@
 # This is a known leak.
 leak:libstdc++.so
 leak:libsqlite3.so
-leak:libnghttp2_asio.so
 
 leak:ortp_libc_malloc
 leak:bctbx_libc_malloc
 
 leak:LinphonePrivate
 leak:ConferenceServer
+leak:linphone::Factory::createCoreWithConfig
 
 leak:conference-tester.cc

@@ -42,7 +42,7 @@ public:
 	    : ServiceServer{std::forward<SuRootPtr>(root)}, mPath{std::forward<StrT>(path)}, mSubscriptionHandler{*this} {
 	}
 
-	void bindAddresses();
+	virtual void bindAddresses();
 
 	void bindChatRoom(const std::string& bindingUrl,
 	                  const std::string& contact,
@@ -80,6 +80,8 @@ public:
 		void _run () override;
 		void _stop () override;
 
+		SipUri mTransport{};
+
 	private:
 		
 		void loadFactoryUris();
@@ -115,7 +117,6 @@ public:
 		std::shared_ptr<linphone::Core> mCore{};
 		std::shared_ptr<RegistrationEvent::ClientFactory> mRegEventClientFactory{};
 		std::string mPath{};
-		SipUri mTransport{};
 		std::list<std::shared_ptr<linphone::ChatRoom>> mChatRooms{};
 		ParticipantRegistrationSubscriptionHandler mSubscriptionHandler;
 		MediaConfig mMediaConfig;

@@ -19,10 +19,14 @@ class CallRingingEventLog : public EventLogWriteDispatcher, public Identified, p
 public:
 	CallRingingEventLog(const sip_t&, const BranchInfo*);
 
-	const ExtendedContact mDevice;
+	const ExtendedContact& getDevice() const {
+		return mDevice;
+	}
 
 protected:
 	void write(EventLogWriter& writer) const override;
+
+	const ExtendedContact mDevice;
 };
 
 } // namespace flexisip

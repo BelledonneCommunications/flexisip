@@ -21,6 +21,7 @@
 #include <atomic>
 #include <string>
 
+#include "fork-context/fork-context-base.hh"
 #include "fork-message-context.hh"
 
 #if ENABLE_UNIT_TESTS

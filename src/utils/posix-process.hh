@@ -91,6 +91,7 @@ using State = std::variant<Unexpected, Running, ExitedNormally, SysErr>;
  */
 class Process {
 	friend std::ostream& operator<<(std::ostream&, const Process&);
+	friend std::ostream& operator<<(std::ostream&, Process&&);
 
 public:
 	Process(std::function<void()>&&);

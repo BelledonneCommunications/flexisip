@@ -90,7 +90,7 @@ Proxy-Authorization:  Digest realm="sip.linphone.org", nonce="1tMH5QAAAABVHBjkAA
 \0st)sip"};
 
 		std::time_t t = system_clock::to_time_t(system_clock::now());
-		ForkMessageContextDb fakeDbObject{1, 3, true, false, *gmtime(&t), rawRequest, priority};
+		ForkMessageContextDb fakeDbObject{1, 3, true, *gmtime(&t), rawRequest, priority};
 		fakeDbObject.dbKeys = vector<string>{"key1", "key2", "key3"};
 		auto fork = ForkMessageContext::make(mRouterModule, shared_ptr<ForkContextListener>{}, fakeDbObject);
 

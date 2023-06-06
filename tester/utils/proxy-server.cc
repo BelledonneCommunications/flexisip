@@ -21,9 +21,11 @@
 #include <algorithm>
 
 #include "bctoolbox/tester.h"
+#include "sofia-sip/nta_tport.h"
 
 #include "registrar/registrar-db.hh"
 #include "tester.hh"
+#include "utils/client-builder.hh"
 
 using namespace std;
 using namespace std::chrono;
@@ -89,6 +91,14 @@ void Server::runFor(std::chrono::milliseconds duration) {
 	while (beforePlusDuration >= steady_clock::now()) {
 		mAgent->getRoot()->step(100ms);
 	}
+}
+const char* Server::getFirstPort() const {
+	const auto firstTransport = ::tport_primaries(::nta_agent_tports(mAgent->getSofiaAgent()));
+	return ::tport_name(firstTransport)->tpn_port;
+}
+
+ClientBuilder Server::clientBuilder() const {
+	return ClientBuilder(*this);
 }
 
 } // namespace tester

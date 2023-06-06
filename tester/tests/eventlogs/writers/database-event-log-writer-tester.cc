@@ -32,7 +32,7 @@ void logMessage() {
 	msg.makeAndInsert<sofiasip::SipHeaderTo>("msg-event-log-test-to@example.org");
 	msg.makeAndInsert<sofiasip::SipHeaderUserAgent>("msg-event-log-test-user-agent");
 	msg.makeAndInsert<sofiasip::SipHeaderCallID>();
-	auto messageLog = make_shared<MessageLog>(msg.getSip(), MessageLog::ReportType::DeliveredToUser);
+	auto messageLog = make_shared<MessageLog>(*msg.getSip());
 	db.waitReady();
 	DataBaseEventLogWriter logWriter{"mysql", db.connectionString(), 1, 1};
 	BC_HARD_ASSERT_CPP_EQUAL(logWriter.isReady(), true);

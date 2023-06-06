@@ -24,17 +24,17 @@ public:
 
 	// Blocks the current thread until the daemon reports it's ready for connections. Returns immediately if the daemon
 	// is already ready. Can be called any number of times.
-	void waitReady();
+	void waitReady() const;
 
 	// The SOCI connection string to use to connect to this instance.
-	std::string connectionString();
+	std::string connectionString() const;
 
 private:
 	constexpr static char kSocketFile[] = "/mysql.sock";
 	constexpr static char kDbName[] = "flexisip_messages";
 	TmpDir mDatadir; // Mysql mandatory data directory. Cleaned up if the tester didn't crash
 	process::Process mDaemon;
-	std::future<void> mReady;
+	mutable std::future<void> mReady;
 };
 
 } // namespace tester
