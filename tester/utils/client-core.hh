@@ -20,8 +20,8 @@
 
 #include <memory>
 
-#include <linphone++/linphone.hh>
 #include <linphone++/call_params.hh>
+#include <linphone++/linphone.hh>
 
 #include "asserts.hh"
 #include "proxy-server.hh"
@@ -182,8 +182,7 @@ public:
 	 *
 	 * @return true if all asserts in the callUpdate succeded, false otherwise
 	 */
-	bool callUpdate(const CoreClient& peer,
-	                const std::shared_ptr<linphone::CallParams>& callerCallParams);
+	bool callUpdate(const CoreClient& peer, const std::shared_ptr<linphone::CallParams>& callerCallParams);
 
 	/**
 	 * Get from the two sides the current call and terminate if from this side
@@ -216,7 +215,8 @@ public:
 	 * @return the new call. nullptr if the invite failed @maybenil
 	 */
 	std::shared_ptr<linphone::Call> invite(const CoreClient& peer) const;
-	std::shared_ptr<linphone::Call> invite(const CoreClient& peer, const std::shared_ptr<const linphone::CallParams>&) const;
+	std::shared_ptr<linphone::Call> invite(const CoreClient& peer,
+	                                       const std::shared_ptr<const linphone::CallParams>&) const;
 
 	std::shared_ptr<linphone::CallLog> getCallLog() const;
 

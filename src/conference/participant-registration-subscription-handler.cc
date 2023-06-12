@@ -24,19 +24,18 @@ using namespace flexisip;
 using namespace std;
 using namespace linphone;
 
-ParticipantRegistrationSubscriptionHandler::ParticipantRegistrationSubscriptionHandler(const ConferenceServer & server) : mServer(server){
+ParticipantRegistrationSubscriptionHandler::ParticipantRegistrationSubscriptionHandler(const ConferenceServer& server)
+    : mServer(server) {
 }
 
-string ParticipantRegistrationSubscriptionHandler::getKey (const shared_ptr<const Address> &address) {
+string ParticipantRegistrationSubscriptionHandler::getKey(const shared_ptr<const Address>& address) {
 	ostringstream ostr;
 	ostr << address->getUsername() << "@" << address->getDomain();
 	return ostr.str();
 }
 
-void ParticipantRegistrationSubscriptionHandler::subscribe (
-	const shared_ptr<ChatRoom> &chatRoom,
-	const shared_ptr<const Address> &address
-) {
+void ParticipantRegistrationSubscriptionHandler::subscribe(const shared_ptr<ChatRoom>& chatRoom,
+                                                           const shared_ptr<const Address>& address) {
 	bool toSubscribe = true;
 	string key = getKey(address);
 	auto range = mSubscriptions.equal_range(key);
@@ -49,13 +48,13 @@ void ParticipantRegistrationSubscriptionHandler::subscribe (
 	}
 
 	if (toSubscribe) {
-		const auto &domains = mServer.getLocalDomains();
+		const auto& domains = mServer.getLocalDomains();
 		shared_ptr<RegistrationSubscription> subscription;
-		
+
 		if (std::find(domains.begin(), domains.end(), address->getDomain()) != domains.end()) {
 			LOGD("Subscribed address is local [%s]", address->asString().c_str());
 			subscription = make_shared<OwnRegistrationSubscription>(mServer, chatRoom, address);
-		}else{
+		} else {
 			LOGD("Subscribed address is external [%s], subscribe to it", address->asString().c_str());
 			subscription = make_shared<ExternalRegistrationSubscription>(mServer, chatRoom, address);
 		}
@@ -64,10 +63,8 @@ void ParticipantRegistrationSubscriptionHandler::subscribe (
 	}
 }
 
-void ParticipantRegistrationSubscriptionHandler::unsubscribe (
-	const shared_ptr<ChatRoom> &chatRoom,
-	const shared_ptr<const Address> &address
-) {
+void ParticipantRegistrationSubscriptionHandler::unsubscribe(const shared_ptr<ChatRoom>& chatRoom,
+                                                             const shared_ptr<const Address>& address) {
 	string key = getKey(address);
 	auto range = mSubscriptions.equal_range(key);
 	for (auto it = range.first; it != range.second;) {
