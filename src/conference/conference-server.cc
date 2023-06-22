@@ -524,16 +524,23 @@ ConferenceServer::Init::Init() {
 	    {String, "transport", "URI where the conference server must listen. Only one URI can be specified.",
 	     "sip:127.0.0.1:6064;transport=tcp"},
 	    {StringList, "conference-factory-uris",
-	     "List of SIP uris used by clients to create a conference. This implicitely defines the list of SIP domains "
+	     "List of SIP URIs used by clients to create a conference. This implicitely defines the list of SIP domains "
 	     "managed by the conference server. For example:\n"
 	     "conference-factory-uris=sip:conference-factory@sip.linphone.org sip:conference-factory@sip.linhome.org",
 	     ""},
 	    {StringList, "conference-focus-uris",
-	     "uri used as conference server contact address. For example:\n"
-	     "conference-focus-uris=sip:conference-factory@sip.linphone.org sip:conference-factory@sip.linhome.org",
+	     "List of respective template SIP focus URIs to use for conferences created by the factory URIs given in "
+	     "'conference-factory-uris'. "
+	     "The focus URIs are unique SIP URIs targeting a specific conference. A 'conf-id' URI parameter providing "
+	     "uniqueness is automatically "
+	     "appended at runtime. For example, setting:\n"
+	     "conference-focus-uris=sip:conference-focus@sip.linphone.org\n"
+	     "causes the conference server to generate conference URIs in the form of "
+	     "'sip:conference-focus@sip.linphone.org;conf-id=<something random>' "
+	     "when requested to create a conference. ",
 	     ""},
 	    {String, "outbound-proxy",
-	     "The Flexisip proxy URI to which the conference server should sent all its outgoing SIP requests.",
+	     "The SIP proxy URI to which the conference server should sent all its outgoing SIP requests.",
 	     "sip:127.0.0.1:5060;transport=tcp"},
 	    {StringList, "local-domains",
 	     "Domains managed by the local SIP service, ie domains for which user registration information "
@@ -544,13 +551,14 @@ ConferenceServer::Init::Init() {
 	     "Ex: local-domains=sip.linphone.org conf.linphone.org linhome.org",
 	     ""},
 	    {String, "database-backend",
-	     "Choose the type of backend that linphone will use for the connection.\n"
-	     "Depending on your Soci package and the modules you installed, the supported databases are: "
+	     "Choose the type of database backend that the conference server will use persistency of chatrooms and "
+	     "conferences data.\n"
+	     "Provided that the requested Soci modules are installed, the supported database backends are: "
 	     "`mysql`, `sqlite3`",
 	     "mysql"},
 	    {String, "database-connection-string",
-	     "The configuration parameters of the backend.\n"
-	     "The basic format is \"key=value key2=value2\". For a mysql backend, this "
+	     "The configuration parameters of the database backend used for persistency of chatrooms and conference data.\n"
+	     "The basic format is \"key=value key2=value2\". For a MySQL backend, this "
 	     "is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
 	     "Please refer to the Soci documentation of your backend, for instance: "
 	     "http://soci.sourceforge.net/doc/3.2/backends/mysql.html"
@@ -562,12 +570,15 @@ ConferenceServer::Init::Init() {
 	     " in order to indicate whether they support group chat and secured group chat.",
 	     "true"},
 	    {StringList, "supported-media-types",
-	     "List of media supported by the conference server.\n"
+	     "List of media supported by the conference server. This typically allows to specify whether this conference "
+	     "server "
+	     "instance is able to provide chat service or audio/video conference service, or both."
 	     "Valid values are: audio, video and text. For example:\n"
 	     "supported-media-types=audio video text",
 	     "text"},
 	    {String, "encryption",
-	     "The preferred encryption the conference server will offer in the outgoing transactions.\n"
+	     "The media encryption the conference server will offer when calling participants to an audio or video "
+	     "conference .\n"
 	     "Valid values are: none, sdes, zrtp and dtls.",
 	     "none"},
 	    {StringList, "nat-addresses",
@@ -595,11 +606,16 @@ ConferenceServer::Init::Init() {
 
 	auto uS = make_unique<GenericStruct>(
 	    "conference-server",
-	    "Flexisip conference server parameters. "
-	    "The flexisip conference server is a user-agent that handles session-based chat (yes, text only at this time). "
-	    "It requires a mysql database in order to persisently store chatroom state (participants and their devices). "
-	    "It will use the Registrar backend (see section module::Registrar) to discover devices (or client instances) "
-	    "of each participant.",
+	    "Flexisip conference server parameters.\n"
+	    "The Flexisip conference server is in charge of groupchat and audio/video conferences."
+	    "It follows the concepts of RFC4579 for conference establishment and management, and as such factory and focus "
+	    "URIs must be configured.\n"
+	    "It requires a MariaDB/MySQL database in order to persistently store chatroom or conference state "
+	    "(participants and their devices). "
+	    "For chat, it requires the Registrar backend (see section module::Registrar) to discover devices (or client "
+	    "instances) "
+	    "of each participant, which creates an explicit dependency on Flexisip proxy server.\n"
+	    "This dependency is not required for audio/video conferences.",
 	    0);
 	auto s = GenericManager::get()->getRoot()->addChild(move(uS));
 	s->addChildrenValues(items);

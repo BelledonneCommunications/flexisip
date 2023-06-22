@@ -1,5 +1,5 @@
-Flexisip is a complete, modular and scalable SIP server suite written in C++14, comprising proxy, presence and group chat functions.
-It also includes a push gateway, to deliver SIP incoming calls or text messages on mobile device platforms where push notifications are required to receive information when the app is not active in the foreground.
+Flexisip is a complete, modular and scalable SIP server suite written in C++17, comprising proxy, presence and conference functions.
+It also includes a push notification service, to deliver SIP incoming calls or text messages on mobile device platforms where push notifications are required to receive information when the app is not active in the foreground.
 
 Flexisip instances can be deployed on server machines to run a SIP VoIP service.
 The free linphone.org SIP service has run on Flexisip since 2011, and enables Linphone users to create SIP addresses in order to connect with each other.
