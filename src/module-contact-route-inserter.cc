@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,7 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <flexisip/module.hh>
+#include "flexisip/module.hh"
 
 #include "agent.hh"
 #include "contact-masquerader.hh"
@@ -63,7 +63,7 @@ public:
 		if (rq_method != sip_method_register) {
 			// check if request-uri contains a contact-route parameter,
 			// so that we can route back to the client
-			char ctrt[64];
+			char ctrt[512];
 			url_t* dest = sip->sip_request->rq_url;
 			// now need to check if request uri has special param inserted
 			// by contact-route-inserter module
