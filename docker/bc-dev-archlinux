@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:20230220_remove_GL_deps
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:20230704_enable_tests
 ###############################################################################
 
 FROM archlinux:base
@@ -13,14 +13,50 @@ ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
 ENV SHELL=/bin/bash
 
-# 1. Update the system
-# 2. Install development tools
-# 3. Install Flexisip dependencies
-# 4. Clean package cache
-RUN pacman --noconfirm --noprogressbar -Syu && \
-    pacman --noconfirm --noprogressbar -S ccache clang cmake doxygen gcc git make nasm ninja python-pip python-pystache python-six sudo locate yasm && \
-    pacman --noconfirm --noprogressbar -S gsm hiredis jansson jsoncpp libsrtp libxml2 mariadb mbedtls net-snmp openssl opus postgresql protobuf speex speexdsp sqlite xerces-c && \
-	pacman --noconfirm -Scc
+  # Update the system
+RUN pacman --noconfirm --noprogressbar -Syu \
+  # Install development tools
+ && pacman --noconfirm --noprogressbar -S \
+        ccache \
+        clang \
+        cmake \
+        doxygen \
+        gcc \
+        git \
+        make \
+        nasm \
+        ninja \
+        python-pip \
+        python-pystache \
+        python-six \
+        sudo \
+        locate \
+        yasm \
+  # Install Flexisip dependencies
+        gsm \
+        hiredis \
+        jansson \
+        jsoncpp \
+        libsrtp \
+        libxml2 \
+        mariadb \
+        mbedtls \
+        net-snmp \
+        openssl \
+        opus \
+        postgresql \
+        protobuf \
+        speex \
+        speexdsp \
+        sqlite \
+        xerces-c \
+      # Dependencies of the B2BUA (and video tests)
+        libvpx \
+      # Test dependencies
+        boost \
+        redis \
+  # Clean package cache
+ && pacman --noconfirm -Scc
 
 # Configure user bc
 RUN useradd -m -s /bin/bash bc && \
@@ -34,3 +70,11 @@ CMD "--login"
 
 # CVE-2022-24765, from git 2.35.2 onward
 RUN git config --global --add safe.directory *
+
+# Example build commands
+#
+# export CC=gcc
+# export CXX=g++
+# export BUILD_DIR_NAME="build.archlinux"
+# cmake -S . -B ./$BUILD_DIR_NAME -G "Ninja" -DCMAKE_BUILD_TYPE=Sanitizer -DCMAKE_INSTALL_PREFIX="$PWD/$BUILD_DIR_NAME/install" -DENABLE_UNIT_TESTS=OFF
+# cmake --build . --target install

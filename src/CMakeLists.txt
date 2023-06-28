@@ -161,8 +161,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	set_source_files_properties(stun/stun.c PROPERTIES COMPILE_OPTIONS "${stun_c_compile_options}")
 	unset(stun_c_compile_options)
 
-	# Fix for https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105562
-	if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
+	if(HAS_GCC_BUG_105562)
 		set_source_files_properties(
 				b2bua/external-provider-bridge.cc
 				b2bua/trenscrypter.cc

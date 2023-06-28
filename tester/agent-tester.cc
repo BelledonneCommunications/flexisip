@@ -20,8 +20,6 @@
 #include <utility>
 #include <vector>
 
-#include <boost/asio.hpp>
-
 #include "bctoolbox/ownership.hh"
 #include <bctoolbox/tester.h>
 

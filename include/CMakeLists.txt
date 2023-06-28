@@ -36,9 +36,6 @@ add_custom_target(flexisip-git-version ALL
 install(DIRECTORY flexisip DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(FILES "${flexisip_version_h}" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/flexisip")
 
-# Fix for https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105562
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
-		AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12
-		AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
+if(HAS_GCC_BUG_105562)
 	set_source_files_properties(flexisip/expressionparser-impl.cc PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized")
 endif()

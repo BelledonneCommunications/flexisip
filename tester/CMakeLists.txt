@@ -22,9 +22,15 @@
 
 find_package(Threads REQUIRED)
 find_package(XercesC REQUIRED)
-find_package(LibNgHttp2Asio)
 find_package(Boost COMPONENTS system REQUIRED)
 find_package(jsoncpp "1.1.0" REQUIRED)
+find_package(LibNgHttp2Asio)
+
+# Some tests need SDK clients able to stream video (mostly those of the B2BUA).
+# Mediastreamer2 does not enforce any video codec, resulting in tests crashing at runtime.
+# We prefer to detect this at configure time, so we're enforcing VPX
+list(APPEND CMAKE_MODULE_PATH ${flexisip_SOURCE_DIR}/linphone-sdk/mediastreamer2/cmake/)
+find_package(VPX REQUIRED)
 
 # Generate flexisip-tester-config.h
 set(FLEXISIP_TESTER_DATA_SRCDIR "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -74,17 +80,14 @@ add_executable(flexisip_tester
 	sofia-driven-signal-handler-tester.cc
 	tester.cc
 	tests/eventlogs/events/event-log-stats-tester.cc
-	tests/flexiapi/flexi-stats-tester.cc
 	tests/flexiapi/schemas/iso-8601-date-tester.cc
 	tests/presence/presence-pidf-tester.cc
 	tests/presence/presence-publish-tester.cc
 	tests/presence/xsd-utils-tester.cc
 	tests/pushnotification/service-tester.cc
 	tests/sofia-wrapper/home-tester.cc
-	tests/utils/transport/http/rest-client-tester.cc
 	thread-pool-tester.cc
 	tls-connection-tester.cc
-	utils/http-mock/http-mock.cc utils/http-mock/http-mock.hh
 	utils-tester.cc
 	utils/asserts.hh
 	utils/bellesip-utils.cc utils/bellesip-utils.hh
@@ -112,7 +115,6 @@ if (ENABLE_CONFERENCE)
 	target_sources(flexisip_tester PRIVATE
 		conference-tester.cc
 		registration-event-tester.cc
-		tests/eventlogs/writers/flexi-stats-event-log-writer-tester.cc
 		utils/test-conference-server.cc utils/test-conference-server.hh
 	)
 endif ()
@@ -124,11 +126,24 @@ if (ENABLE_SOCI)
 	)
 endif()
 
-if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
-	target_sources(flexisip_tester PRIVATE push-notification-tester.cc utils/pns-mock.cc)
-elseif (ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
-	message(FATAL_ERROR "Module LibNgHttp2Asio is required for push notification tester. Either install it or disable push notification tester using -DENABLE_UNIT_TESTS_PUSH_NOTIFICATION=OFF")
+if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
+	target_sources(flexisip_tester PRIVATE
+		push-notification-tester.cc
+		tests/flexiapi/flexi-stats-tester.cc
+		tests/utils/transport/http/rest-client-tester.cc
+		utils/http-mock/http-mock.cc utils/http-mock/http-mock.hh
+		utils/pns-mock.cc utils/pns-mock.hh
+	)
+elseif (ENABLE_UNIT_TESTS_NGHTTP2ASIO)
+	message(FATAL_ERROR "The LibNgHttp2Asio module is required by some tests. You may disable them with -DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF")
 endif ()
+
+if(ENABLE_CONFERENCE AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
+	target_sources(flexisip_tester PRIVATE
+		tests/eventlogs/writers/flexi-stats-event-log-writer-tester.cc
+	)
+endif()
+
 
 if (ENABLE_B2BUA)
 	target_sources(flexisip_tester PRIVATE b2bua-tester.cc)
@@ -152,7 +167,7 @@ target_link_libraries(flexisip_tester PRIVATE
 	XercesC::XercesC
 )
 
-if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_PUSH_NOTIFICATION)
+if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	target_link_libraries(flexisip_tester PRIVATE LibNgHttp2Asio)
 endif ()
 

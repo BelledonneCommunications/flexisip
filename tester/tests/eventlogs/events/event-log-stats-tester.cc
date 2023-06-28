@@ -33,7 +33,6 @@
 #include "utils/core-assert.hh"
 #include "utils/eventlogs/event-logs.hh"
 #include "utils/eventlogs/writers/event-log-writer-visitor-adapter.hh"
-#include "utils/http-mock/http-mock.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 #include "utils/variant-utils.hh"

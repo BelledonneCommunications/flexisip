@@ -85,7 +85,7 @@ option(INTERNAL_JSONCPP "Build and use vendored Jsoncpp source code instead of s
 cmake_dependent_option(ENABLE_CONFERENCE "Build conference support" ON "ENABLE_SOCI" OFF)
 cmake_dependent_option(ENABLE_SOCI_POSTGRESQL_BACKEND "Build with SOCI Postgre sql backend support" ON "ENABLE_SOCI" OFF)
 cmake_dependent_option(ENABLE_B2BUA "Enable Back2back user agent support" ON "ENABLE_SOCI" OFF)
-cmake_dependent_option(ENABLE_UNIT_TESTS_PUSH_NOTIFICATION "Enable flexisip push notification unit tests (requires libnghttp2_asio)"  ON "ENABLE_UNIT_TESTS" ON )
+cmake_dependent_option(ENABLE_UNIT_TESTS_NGHTTP2ASIO "Enable unit tests requiring libnghttp2_asio"  ON "ENABLE_UNIT_TESTS" ON )
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable media relay specific features" OFF "ENABLE_TRANSCODER" OFF)
 
 set(CPACK_GENERATOR "" CACHE STRING "Generator to use for making package. Supported values: 'RPM', 'DEB'")
@@ -104,6 +104,17 @@ elseif(ENABLE_UNIT_TESTS)
 	set(ENABLE_LIBLINPHONE ON)
 else()
 	set(ENABLE_LIBLINPHONE OFF)
+endif()
+
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105562
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105616
+# It seems -fsanitize=address and -Wuninitialized don't play well together
+if (  CMAKE_BUILD_TYPE STREQUAL "Sanitizer"
+ AND  CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
+ AND (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 12.3.0)
+  OR (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 13.1.1)
+)
+	set(HAS_GCC_BUG_105562 ON)
 endif()
 
 # Place the built libraries and executables in top level directories 'lib' and 'bin' in the build tree.

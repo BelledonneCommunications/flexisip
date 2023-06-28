@@ -10,6 +10,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <vector>
 
 #include "sofia-sip/sip.h"
@@ -127,7 +128,7 @@ protected:
 		Agent* mAgent;
 
 	public:
-		void remove(const std::string key) {
+		void remove(const std::string& key) {
 			std::lock_guard<std::mutex> lock(mMutex);
 			mRegMap.erase(key);
 		}

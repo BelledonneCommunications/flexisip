@@ -75,7 +75,7 @@ void video_is_received_by_caller_in_early_media() {
 namespace {
 TestSuite _("MediaRelay",
             {
-                TEST_NO_TAG_AUTO_NAMED(video_is_received_by_caller_in_early_media),
+                CLASSY_TEST(video_is_received_by_caller_in_early_media),
             });
 }
 } // namespace tester

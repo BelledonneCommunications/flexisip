@@ -31,7 +31,7 @@
 #cmakedefine ENABLE_SOCI 1
 #cmakedefine ENABLE_MDNS 1
 #cmakedefine ENABLE_UNIT_TESTS 1
-#cmakedefine ENABLE_UNIT_TESTS_PUSH_NOTIFICATION 1
+#cmakedefine ENABLE_UNIT_TESTS_NGHTTP2ASIO 1
 
 #cmakedefine HAVE_DATEHANDLER 1
 #cmakedefine HAVE_ARC4RANDOM 1

@@ -42,12 +42,6 @@ job-rocky8-ninja-clang:
     # -DCMAKE_PREFIX_PATH=/usr/local: Unit tests require libnghttp2_asio, which has been build and intalled into /usr/local
     CMAKE_OPTIONS: ${ROCKY8_CMAKE_OPTIONS_UNIT_TESTS}
 
-job-rocky8-ninja-clang-nosoci:
-  extends:
-    - job-rocky8-ninja-clang
-  variables:
-    CMAKE_OPTIONS: ${ROCKY8_CMAKE_OPTIONS_UNIT_TESTS} -DENABLE_SOCI=OFF -DENABLE_B2BUA=ON -DENABLE_CONFERENCE=ON
-
 #################################################
 # UNIT TESTS
 #################################################
@@ -58,12 +52,6 @@ job-rocky8-unit-test:
     - .rocky8-image-variables
   needs:
     - job-rocky8-ninja-clang
-
-job-rocky8-unit-test-nosoci:
-  extends:
-    - job-rocky8-unit-test
-  needs:
-    - job-rocky8-ninja-clang-nosoci
 
 #################################################
 # RPM
@@ -77,13 +65,7 @@ job-rocky8-rpm:
     - job: job-rocky8-unit-test
       optional: true
       artifacts: false
-    - job: job-rocky8-unit-test-nosoci
-      optional: true
-      artifacts: false
     - job: job-rocky8-ninja-clang
-      optional: true
-      artifacts: false
-    - job: job-rocky8-ninja-clang-nosoci
       optional: true
       artifacts: false
 

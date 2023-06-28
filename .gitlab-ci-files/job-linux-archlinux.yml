@@ -1,5 +1,7 @@
 .archlinux-image-variables:
   image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:$ARCHLINUX_IMAGE_VERSION
+  variables:
+    CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF
 
 #################################################
 # Makefile
@@ -26,9 +28,27 @@ job-archlinux-ninja-gcc:
   extends:
     - .job-ninja-gcc
     - .archlinux-image-variables
+  #   Uncomment when re-enabling tests
+  # - .tester-artifacts
+  rules:
+    - !reference [job-archlinux-ninja-clang, rules]
 
 
 job-archlinux-ninja-clang:
   extends:
     - .job-ninja-clang
     - .archlinux-image-variables
+
+#################################################
+# UNIT TESTS
+#################################################
+
+job-archlinux-unit-test:
+  extends:
+    - .unit-test
+    - .archlinux-image-variables
+    # 2023-07-06: The combination of an Ubuntu (22 or 23) host and an Archlinux image somehow breaks port assignments for yet unknown reasons.
+    # Symptoms: "Cannot assign requested address" errors from bctoolbox, sofia, and redis.
+    - .rules-never-run  # ⚠ See `rules.yml`
+  needs:
+    - job-archlinux-ninja-gcc
