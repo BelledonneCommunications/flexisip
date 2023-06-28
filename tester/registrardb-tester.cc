@@ -96,6 +96,11 @@ class TestFetchExpiringContacts : public RegistrarDbTest<TDatabase> {
 		inserter.insert("sip:expected2@te.st;pn-type=fake", 90s);
 		inserter.insert("sip:unexpected@te.st;pn-provider=fake", 110s);
 		inserter.insert("sip:unnotifiable@te.st", 100s);
+		// Registering multiple devices (contacts) for the same address (AoR).
+		inserter.insert("sip:multidevice@example.org", 91s, "sip:multidevice@127.0.0.1:3008;pn-provider=fake");
+		// This last inserted unnotifiable contact will be iterated first by redis. A faulty implementation (one that
+		// would `break` instead of `continue` on unnotifiable contacts) would then skip the previous valid contact
+		inserter.insert("sip:multidevice@example.org", 91s, "sip:multidevice@127.0.0.1:3001;without=push-params");
 		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
 
 		// Cold loading script
@@ -105,8 +110,8 @@ class TestFetchExpiringContacts : public RegistrarDbTest<TDatabase> {
 		});
 
 		BC_ASSERT_TRUE(this->waitFor([&expiringContacts] { return !expiringContacts.empty(); }, 1s));
-		BC_ASSERT_EQUAL(expiringContacts.size(), 2, size_t, "%ld");
-		std::unordered_set<std::string> expectedContactStrings = {"expected1", "expected2"};
+		BC_ASSERT_CPP_EQUAL(expiringContacts.size(), 3);
+		std::unordered_set<std::string> expectedContactStrings = {"expected1", "expected2", "multidevice"};
 		for (const auto& contact : expiringContacts) {
 			auto contactString = contact.mSipContact->m_url->url_user;
 			auto found = expectedContactStrings.erase(contactString);
@@ -122,7 +127,7 @@ class TestFetchExpiringContacts : public RegistrarDbTest<TDatabase> {
 		});
 
 		BC_ASSERT_TRUE(this->waitFor([&expiringContacts] { return !expiringContacts.empty(); }, 1s));
-		BC_ASSERT_EQUAL(expiringContacts.size(), 2, size_t, "%ld");
+		BC_ASSERT_CPP_EQUAL(expiringContacts.size(), 3);
 	}
 };
 

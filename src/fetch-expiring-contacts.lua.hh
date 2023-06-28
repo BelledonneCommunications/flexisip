@@ -24,32 +24,36 @@
 */
 
 R"lua(
-local all_records = redis.call("KEYS", KEYS[1])
 local current_time = tonumber(ARGV[1])
 local threshold_ratio = tonumber(ARGV[2])
 local expiring_contacts = {}
+local function insert_if_expiring(contact)
+	if not contact:find("pn%-provider=") and not contact:find("pn%-type=") then
+		return
+	end
+	local updatedAt = contact:match("updatedAt=(%d+)")
+	if not updatedAt then
+		return
+	end
+	local expires = contact:match("expires=(%d+)")
+	if not expires then
+		return
+	end
+	updatedAt, expires = tonumber(updatedAt), tonumber(expires)
+	local expiration_time = updatedAt + expires
+	local threshold_time = updatedAt + threshold_ratio * expires
+	if threshold_time < current_time and current_time < expiration_time then
+		table.insert(expiring_contacts, contact)
+	end
+end
+
+local all_records = redis.call("KEYS", KEYS[1])
 for _, record in ipairs(all_records) do
 	local pairs = redis.call("HGETALL", record)
 	for i = 2, #pairs, 2 do
-		local contact = pairs[i];
-		if not contact:find("pn%-provider=") and not contact:find("pn%-type=") then
-			break
-		end
-		local updatedAt = contact:match("updatedAt=(%d+)")
-		if not updatedAt then
-			break
-		end
-		local expires = contact:match("expires=(%d+)")
-		if not expires then
-			break
-		end
-		updatedAt, expires = tonumber(updatedAt), tonumber(expires)
-		local expiration_time = updatedAt + expires
-		local threshold_time = updatedAt + threshold_ratio * expires
-		if threshold_time < current_time and current_time < expiration_time then
-			table.insert(expiring_contacts, contact)
-		end
+		insert_if_expiring(pairs[i]);
 	end
 end
+
 return expiring_contacts
 )lua"

@@ -1,6 +1,6 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+ Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
@@ -46,8 +46,8 @@ namespace {
 
 const auto FETCH_EXPIRING_CONTACTS_SCRIPT = redis::AsyncScript<uint64_t, float>(
 #include "fetch-expiring-contacts.lua.hh"
-    , // sed -n '/R"lua(/,/)lua"/p' fetch-expiring-contacts.lua.hh | sed 's/R"lua(//' | head -n-1 | sha1sum
-    "fe01fa3883fbf822027c5feea866618b612657cb");
+    , // ❯ sed -n '/R"lua(/,/)lua"/p' fetch-expiring-contacts.lua.hh | sed 's/R"lua(//' | head -n-1 | sha1sum
+    "8f26674ebf2a65c4eee45d2ae9b98c121cf6ff43");
 
 } // namespace
 
