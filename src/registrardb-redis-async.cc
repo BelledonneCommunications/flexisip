@@ -54,8 +54,8 @@ namespace {
 
 const auto FETCH_EXPIRING_CONTACTS_SCRIPT = redis::AsyncScript<uint64_t, float>(
 #include "fetch-expiring-contacts.lua.hh"
-    , // sed -n '/R"lua(/,/)lua"/p' fetch-expiring-contacts.lua.hh | sed 's/R"lua(//' | head -n-1 | sha1sum
-    "fe01fa3883fbf822027c5feea866618b612657cb");
+    , // ❯ sed -n '/R"lua(/,/)lua"/p' fetch-expiring-contacts.lua.hh | sed 's/R"lua(//' | head -n-1 | sha1sum
+    "8f26674ebf2a65c4eee45d2ae9b98c121cf6ff43");
 
 } // namespace
 
