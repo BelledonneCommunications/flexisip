@@ -33,6 +33,7 @@
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "transaction.hh"
+#include "utils/uri-utils.hh"
 
 using namespace std;
 using namespace flexisip;
@@ -401,7 +402,11 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent>& ev, url_t* dest) {
 				tport_error = true;
 				tport = nullptr;
 			}
-		} else LOGE("tport_name_by_url() failed for url %s", url_as_string(ms->getHome(), dest));
+		} else if (UriUtils::isIpAddress(dest->url_host)) {
+			LOGE("tport_name_by_url() failed for url %s", url_as_string(ms->getHome(), dest));
+		} else {
+			LOGD("This URI [%s] does not match a tport.", url_as_string(ms->getHome(), dest));
+		}
 	}
 
 	// Eventually add second record route with different transport

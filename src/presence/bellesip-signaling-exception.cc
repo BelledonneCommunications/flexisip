@@ -48,7 +48,7 @@ BelleSipSignalingException::BelleSipSignalingException(const BelleSipSignalingEx
 	}
 }
 
-const std::list<belle_sip_header_t*>& BelleSipSignalingException::getHeaders() {
+const std::list<belle_sip_header_t*>& BelleSipSignalingException::getHeaders() const {
 	return mHeaders;
 }
 

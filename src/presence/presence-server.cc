@@ -298,16 +298,16 @@ void PresenceServer::processRequestEvent(PresenceServer* thiz, const belle_sip_r
 			throw BELLESIP_SIGNALING_EXCEPTION_1(405, BELLE_SIP_HEADER(belle_sip_header_allow_create("PUBLISH")))
 			    << "Unsupported method [" << belle_sip_request_get_method(request) << "]";
 		}
-	} catch (BelleSipSignalingException& e) {
-		SLOGE << e.what();
+	} catch (const BelleSipSignalingException& e) {
+		SLOGW << e.what();
 		resp = belle_sip_response_create_from_request(request, e.getStatusCode());
 		for (belle_sip_header_t* header : e.getHeaders())
 			belle_sip_message_add_header(BELLE_SIP_MESSAGE(resp), header);
-	} catch (FlexisipException& e2) {
-		SLOGE << e2;
+	} catch (const FlexisipException& e) {
+		SLOGE << e;
 		resp = belle_sip_response_create_from_request(request, 500);
-	} catch (exception& e3) {
-		SLOGE << "Unknown exception [" << e3.what() << " << use FlexisipException instead";
+	} catch (const exception& e) {
+		SLOGE << "Unknown exception [" << e.what() << " << use FlexisipException instead";
 		resp = belle_sip_response_create_from_request(request, 500);
 	}
 	if (resp) {

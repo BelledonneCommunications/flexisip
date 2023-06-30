@@ -33,7 +33,7 @@ public:
 	BelleSipSignalingException(int statusCode, belle_sip_header_t* header);
 	BelleSipSignalingException(const BelleSipSignalingException& other);
 	virtual ~BelleSipSignalingException() throw();
-	const std::list<belle_sip_header_t*>& getHeaders();
+	const std::list<belle_sip_header_t*>& getHeaders() const;
 	template <typename T2>
 	BelleSipSignalingException& operator<<(const T2& val) {
 		SignalingException::operator<<(val);

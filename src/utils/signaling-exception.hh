@@ -41,12 +41,12 @@ public:
 	virtual ~SignalingException() throw() {
 	}
 
-	int getStatusCode() {
+	int getStatusCode() const {
 		return mStatusCode;
 	}
 	std::string getReason() const {
 		return mReason;
-	};
+	}
 
 	template <typename T2>
 	SignalingException& operator<<(const T2& val) {
