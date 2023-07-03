@@ -168,6 +168,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 				b2bua/trenscrypter.cc
 				configdumper.cc
 				domain-registrations.cc domain-registrations.hh
+				eventlogs/writers/flexi-stats-event-log-writer.cc
 				expressionparser-impl.cc
 				main.cc
 				module-authentication-base.cc
