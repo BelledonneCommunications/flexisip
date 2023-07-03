@@ -20,8 +20,6 @@
 
 #include <sofia-sip/sip_status.h>
 
-#include "flexisip/common.hh"
-
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
 #include "fork-context/branch-info.hh"
