@@ -14,7 +14,7 @@ using namespace std;
 
 CallStartedEventLog::CallStartedEventLog(const sip_t& sip,
                                          const std::list<std::shared_ptr<BranchInfo>>& branchInfoList)
-    : MessageOrCallStarted(sip, branchInfoList), WithInviteKind(*sip.sip_content_type) {
+    : MessageOrCallStarted(sip, branchInfoList), WithInviteKind(sip.sip_content_type) {
 }
 
 void CallStartedEventLog::write(EventLogWriter& writer) const {

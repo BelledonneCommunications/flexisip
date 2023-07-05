@@ -303,6 +303,7 @@ void ForkMessageContext::onNewRegister(const SipUri& dest,
 
 ForkMessageContextDb ForkMessageContext::getDbObject() {
 	ForkMessageContextDb dbObject{};
+	dbObject.isMessage = mKind.getKind() == MessageKind::Kind::Message;
 	dbObject.isFinished = mFinished;
 	dbObject.msgPriority = mMsgPriority;
 	dbObject.deliveredCount = mDeliveredCount;

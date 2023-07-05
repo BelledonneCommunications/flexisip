@@ -21,6 +21,7 @@
 #include "eventlogs/events/calls/call-ended-event-log.hh"
 #include "eventlogs/events/calls/call-ringing-event-log.hh"
 #include "eventlogs/events/calls/call-started-event-log.hh"
+#include "eventlogs/events/calls/invite-kind.hh"
 #include "eventlogs/events/eventlogs.hh"
 #include "eventlogs/writers/event-log-writer.hh"
 #include "flexiapi/schemas/api-formatted-uri.hh"
@@ -333,11 +334,16 @@ void doubleForkContextStart() {
 	    .assert_passed();
 }
 
+void missingContentTypeHeader() {
+	BC_ASSERT_ENUM_EQUAL(WithInviteKind(nullptr).getInviteKind(), InviteKind::Unknown);
+}
+
 TestSuite _("EventLog Stats",
             {
                 CLASSY_TEST(callStartedAndEnded),
                 CLASSY_TEST(callInviteStatuses),
                 CLASSY_TEST(callError),
                 CLASSY_TEST(doubleForkContextStart),
+                CLASSY_TEST(missingContentTypeHeader),
             });
 } // namespace

@@ -12,8 +12,13 @@ using namespace std::string_view_literals;
 
 namespace flexisip {
 
-WithInviteKind::WithInviteKind(const sip_content_type_t& contentType) : mKind(InviteKind::Unknown) {
-	const auto subtype = contentType.c_subtype;
+WithInviteKind::WithInviteKind(const sip_content_type_t* contentType) : mKind(InviteKind::Unknown) {
+	/*
+	   "The Content-Type header field MUST be present if the body is not empty." RFC 3261 §20.15
+	   In other words: It CAN be missing if the body is empty.
+	*/
+	if (contentType == nullptr) return;
+	const auto subtype = contentType->c_subtype;
 	if (subtype == nullptr) return;
 	if (subtype == "resource-lists+xml"sv) {
 		mKind = InviteKind::ChatGroup;

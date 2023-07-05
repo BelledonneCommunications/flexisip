@@ -117,13 +117,6 @@ ForkMessageContextSociRepository::ForkMessageContextSociRepository(const string&
 		} catch (const soci_error& e) {
 			SLOGD << "ForkMessageContextSociRepository - ADD COLUMN msg_priority already done";
 		}
-
-		// DB Schema update for Flexisip 2.3.0
-		try {
-			sql << R"sql(ALTER TABLE fork_message_context DROP COLUMN is_message;)sql";
-		} catch (const soci_error&) {
-			SLOGD << "ForkMessageContextSociRepository - DROP COLUMN is_message already done";
-		}
 	} catch (const runtime_error& e) {
 		LOGF("ForkMessageContextSociRepository - A problem occurred during database creation. Fix it or disable "
 		     "message-database-enabled before restart. \nException : %s",
@@ -139,7 +132,7 @@ ForkMessageContextDb ForkMessageContextSociRepository::findForkMessageByUuid(con
 		transaction tr(sql);
 
 		// fork_message_context
-		sql << "select current_priority, delivered_count, is_finished, expiration_date, request, "
+		sql << "select current_priority, delivered_count, is_finished, is_message, expiration_date, request, "
 		       "msg_priority from fork_message_context where uuid = UuidToBin(:v)",
 		    use(uuid), into(dbFork);
 
@@ -161,9 +154,9 @@ string ForkMessageContextSociRepository::saveForkMessageContext(const ForkMessag
 		transaction tr(sql);
 
 		sql << "SET @uuid=UUID()";
-		sql << "insert into fork_message_context(uuid, current_priority, delivered_count, is_finished, "
+		sql << "insert into fork_message_context(uuid, current_priority, delivered_count, is_finished, is_message, "
 		       "expiration_date, request, msg_priority) values(UuidToBin(@uuid), :current_priority, :delivered_count, "
-		       ":is_finished , :expiration_date, :request, :msg_priority);",
+		       ":is_finished ,:is_message, :expiration_date, :request, :msg_priority);",
 		    use(dbFork);
 		sql << "SET @uuid = IF(ROW_COUNT(), @uuid, null)";
 		sql << "SELECT @uuid", into(insertedUuid);
@@ -193,7 +186,7 @@ void ForkMessageContextSociRepository::updateForkMessageContext(const ForkMessag
 		transaction tr(sql);
 
 		sql << "update fork_message_context set current_priority = :current_priority, delivered_count = "
-		       ":delivered_count, is_finished = :is_finished, expiration_date = "
+		       ":delivered_count, is_finished = :is_finished, is_message = :is_message, expiration_date = "
 		       ":expiration_date, request = :request, msg_priority = :msg_priority where uuid = UuidToBin(:uuid)",
 		    use(dbFork), use(uuid, "uuid");
 

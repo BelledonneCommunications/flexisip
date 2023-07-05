@@ -119,7 +119,7 @@ private:
 
 class CallLog : public EventLog, public Identified, public WithInviteKind {
 public:
-	CallLog(const sip_t* sip) : EventLog(sip), Identified(*sip), WithInviteKind(*sip->sip_content_type) {
+	CallLog(const sip_t* sip) : EventLog(sip), Identified(*sip), WithInviteKind(sip->sip_content_type) {
 	}
 
 	bool isCancelled() const {

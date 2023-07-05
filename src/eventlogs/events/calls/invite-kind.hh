@@ -16,7 +16,7 @@ enum class InviteKind {
 
 class WithInviteKind {
 public:
-	explicit WithInviteKind(const sip_content_type_t&);
+	explicit WithInviteKind(const sip_content_type_t*);
 
 	InviteKind getInviteKind() const {
 		return mKind;
