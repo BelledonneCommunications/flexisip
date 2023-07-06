@@ -18,11 +18,13 @@
 
 #include <cstring>
 #include <fstream>
+#include <sstream>
 
 #include <json/json.h>
 
 #include <bctoolbox/logging.h>
 
+#include "linphone/core.h"
 #include <linphone++/linphone.hh>
 
 #include "flexisip/configmanager.hh"
@@ -42,6 +44,7 @@
 #include "utils/core-assert.hh"
 #include "utils/proxy-server.hh"
 #include "utils/temp-file.hh"
+#include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
 using namespace std;
@@ -898,6 +901,43 @@ static void sdes2sdes256() {
 	sdes2sdes256(true);
 }
 
+static void disableAllVideoCodecs(std::shared_ptr<linphone::Core> core) {
+	auto payloadTypes = core->getVideoPayloadTypes();
+	for (const auto& pt : payloadTypes) {
+		pt->enable(false);
+	}
+}
+
+template <const char codec[]>
+static void trenscrypter__video_call_with_forced_codec() {
+	// initialize and start the proxy and B2bua server
+	B2buaServer server{"/config/flexisip_b2bua.conf"};
+	// Create and register clients
+	auto builder = server.clientBuilder();
+	builder.setVideoSend(OnOff::On);
+	auto pauline = builder.build("sip:pauline@sip.example.org");
+	auto marie = builder.build("sip:marie@sip.example.org");
+
+	// Check we have the requested codec
+	auto payloadTypeMarie = marie.getCore()->getPayloadType(codec, LINPHONE_FIND_PAYLOAD_IGNORE_RATE,
+	                                                        LINPHONE_FIND_PAYLOAD_IGNORE_CHANNELS);
+	auto payloadTypePauline = pauline.getCore()->getPayloadType(codec, LINPHONE_FIND_PAYLOAD_IGNORE_RATE,
+	                                                            LINPHONE_FIND_PAYLOAD_IGNORE_CHANNELS);
+	if (payloadTypeMarie == nullptr || payloadTypePauline == nullptr) {
+		BC_HARD_FAIL(("Video codec not available: "s + codec).c_str());
+	}
+
+	// Force usage of the requested codec
+	disableAllVideoCodecs(marie.getCore());
+	disableAllVideoCodecs(pauline.getCore());
+	payloadTypeMarie->enable(true);
+	payloadTypePauline->enable(true);
+
+	// Place a video call
+	if (!BC_ASSERT_PTR_NOT_NULL(marie.callVideo(pauline))) return;
+	pauline.endCurrentCall(marie);
+}
+
 static void videoRejected() {
 	// initialize and start the proxy and B2bua server
 	auto server = std::make_shared<B2buaServer>("/config/flexisip_b2bua.conf");
@@ -951,6 +991,8 @@ static void videoRejected() {
 }
 
 namespace {
+const char VP8[] = "vp8";
+// const char H264[] = "h264";
 TestSuite _("B2bua",
             {
                 TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__one_provider_one_line),
@@ -967,9 +1009,14 @@ TestSuite _("B2bua",
                 TEST_NO_TAG("SDES to DTLS call", sdes2dtls),
                 TEST_NO_TAG("ZRTP to DTLS call", zrtp2dtls),
                 TEST_NO_TAG("SDES to SDES256 call", sdes2sdes256),
+                CLASSY_TEST(trenscrypter__video_call_with_forced_codec<VP8>),
+                // H264 is not supported in flexisip sdk's build. So even if the b2bua core is able to
+                // relay h264 video without decoding, the test client cannot support it
+                // Uncomment when h264 support can be built
+                // CLASSY_TEST(trenscrypter__video_call_with_forced_codec<H264>),
                 TEST_NO_TAG("Video rejected by callee", videoRejected),
             });
-}
+} // namespace
 } // namespace b2buatester
 } // namespace tester
 } // namespace flexisip

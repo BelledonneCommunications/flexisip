@@ -306,10 +306,12 @@ void B2buaServer::_init() {
 	                        true); // do not automatically accept update: we might want to update peer call before
 	configLinphone->setBool("misc", "conference_event_log_enabled", 0);
 	configLinphone->setInt("misc", "conference_layout", static_cast<int>(linphone::ConferenceLayout::ActiveSpeaker));
-
 	// Prevent the default log handler from being reset while LinphoneCore construction.
 	configLinphone->setBool("logging", "disable_stdout", true);
-
+	// we may want to use unsupported codecs (h264) in the conference
+	configLinphone->setBool("video", "dont_check_codecs", true);
+	// make sure the videostream can be started when using unsupported codec
+	configLinphone->setBool("video", "fallback_to_dummy_codec", true);
 	mCore = Factory::get()->createCoreWithConfig(configLinphone, nullptr);
 	mCore->getConfig()->setString("storage", "backend", "sqlite3");
 	mCore->getConfig()->setString("storage", "uri", ":memory:");
@@ -331,6 +333,23 @@ void B2buaServer::_init() {
 	                                      // from legB is checked before accepting legA
 	policy->setAutomaticallyInitiate(false);
 	mCore->setVideoActivationPolicy(policy);
+
+	// if a video codec is set in config enable only that one
+	std::string cVideoCodec = config->get<ConfigString>("video-codec")->read();
+	if (cVideoCodec.length() > 0) {
+		// disable all video codecs
+		for (const auto& pt : mCore->getVideoPayloadTypes()) {
+			BCTBX_SLOGI << "Disable " << pt->getMimeType() << " codec as only " << cVideoCodec << " should be used";
+			pt->enable(false);
+		}
+		// enable the given one
+		auto enabledCodec = mCore->getPayloadType(cVideoCodec, -1, -1);
+		if (enabledCodec) {
+			enabledCodec->enable(true);
+		} else {
+			BCTBX_SLOGW << "B2bua core failed to enable " << cVideoCodec << " video codec";
+		}
+	}
 
 	// random port for UDP audio and video stream
 	mCore->setAudioPort(-1);
@@ -408,6 +427,10 @@ auto defineConfig = [] {
 	     "Duration after which the B2BUA will terminate a call if no RTP packet is received from the other call "
 	     "participant. Unit: seconds.",
 	     "30"},
+	    {String, "video-codec",
+	     "When not null, force outgoing video call to use the specified codec.\n"
+	     "Warning: all outgoing calls will list only this codec, which means incoming calls must use it too.",
+	     ""},
 	    config_item_end};
 
 	GenericManager::get()
