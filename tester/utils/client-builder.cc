@@ -121,8 +121,9 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 	return CoreClient(std::move(core), std::move(account), std::move(myAddress), mServer);
 }
 
-void ClientBuilder::setConferenceFactoryUri(const std::string& uri) {
+ClientBuilder& ClientBuilder::setConferenceFactoryUri(const std::string& uri) {
 	mAccountParams->setConferenceFactoryUri(uri);
+	return *this;
 }
 
 void ClientBuilder::setLimeX3DH(OnOff state) {

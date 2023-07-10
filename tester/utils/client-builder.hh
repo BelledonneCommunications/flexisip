@@ -40,9 +40,9 @@ public:
 	// We don't want to share e.g. AccountParams between builders
 	ClientBuilder(const ClientBuilder&) = delete;
 
-	void setConferenceFactoryUri(const std::string&);
 	void setLimeX3DH(OnOff);
 	void setVideoDevice(VideoDevice);
+	ClientBuilder& setConferenceFactoryUri(const std::string&);
 	ClientBuilder& setCustomContact(const std::string& contact);
 	ClientBuilder& setPushParams(const pushnotification::RFC8599PushParams& params);
 	/**

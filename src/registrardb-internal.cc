@@ -54,7 +54,7 @@ void RegistrarDbInternal::doBind(const MsgSip& msg,
 	shared_ptr<Record> r;
 	if (it == mRecords.end()) {
 		r = make_shared<Record>(std::move(fromUri));
-		mRecords.insert(make_pair(key, r));
+		it = mRecords.insert(make_pair(key, r)).first;
 		LOGD("Creating AOR %s association", key.c_str());
 	} else {
 		LOGD("AOR %s found", key.c_str());
@@ -69,6 +69,7 @@ void RegistrarDbInternal::doBind(const MsgSip& msg,
 	}
 
 	mLocalRegExpire->update(r);
+	if (r->isEmpty()) mRecords.erase(it);
 	if (listener) listener->onRecordFound(r);
 }
 

@@ -113,8 +113,8 @@ add_executable(flexisip_tester
 
 if (ENABLE_CONFERENCE)
 	target_sources(flexisip_tester PRIVATE
-		conference-tester.cc
 		registration-event-tester.cc
+		tests/conference/conference-server-tester.cc
 		utils/test-conference-server.cc utils/test-conference-server.hh
 	)
 endif ()
@@ -182,6 +182,6 @@ install(TARGETS flexisip_tester
 )
 
 set(FLEXISIP_TESTER_INSTALL_DATADIR "${CMAKE_INSTALL_DATADIR}/flexisip-tester")
-install(DIRECTORY cert config db sounds images
+install(DIRECTORY cert config sounds images
 	DESTINATION ${FLEXISIP_TESTER_INSTALL_DATADIR}
 )

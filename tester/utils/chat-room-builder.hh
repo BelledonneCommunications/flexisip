@@ -10,6 +10,8 @@
 #include "linphone++/enums.hh"
 #include <linphone++/chat_room.hh>
 
+#include "utils/client-builder.hh"
+
 namespace flexisip {
 namespace tester {
 
@@ -21,6 +23,7 @@ public:
 
 	const ChatRoomBuilder& setSubject(const std::string&) const;
 	const ChatRoomBuilder& setBackend(linphone::ChatRoomBackend) const;
+	const ChatRoomBuilder& setGroup(OnOff) const;
 	std::shared_ptr<linphone::ChatRoom>
 	build(const std::initializer_list<std::shared_ptr<const linphone::Address>>&) const;
 

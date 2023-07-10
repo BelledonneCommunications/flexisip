@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <unordered_map>
+
 #include <sofia-sip/sip.h>
 
 #include "registrar/registrar-db.hh"
@@ -19,6 +21,15 @@ public:
 	                           float threshold,
 	                           std::function<void(std::vector<ExtendedContact>&&)>&& callback) const override;
 
+	/**
+	 * Read-only access to the stored records. As of 2023-07-05, only used in tests
+	 */
+	const auto& getAllRecords() const {
+		// reinterpret_cast is safe here because we're *adding* constness to the pointers.
+		// (As long as the container type is the same as that of mRecords)
+		return reinterpret_cast<const std::unordered_map<std::string, std::shared_ptr<const Record>>&>(mRecords);
+	}
+
 private:
 	void doBind(const sofiasip::MsgSip& msg,
 	            const BindingParameters& parameters,
@@ -31,7 +42,7 @@ private:
 	void doMigration() override;
 	void publish(const std::string& topic, const std::string& uid) override;
 
-	std::map<std::string, std::shared_ptr<Record>> mRecords;
+	std::unordered_map<std::string, std::shared_ptr<Record>> mRecords{};
 };
 
 } // namespace flexisip

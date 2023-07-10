@@ -8,6 +8,7 @@
 
 #include "linphone++/enums.hh"
 
+#include "utils/client-builder.hh"
 #include "utils/client-core.hh"
 #include "utils/test-patterns/test.hh"
 
@@ -40,6 +41,10 @@ const ChatRoomBuilder& ChatRoomBuilder::setSubject(const std::string& subject) c
 }
 const ChatRoomBuilder& ChatRoomBuilder::setBackend(linphone::ChatRoomBackend backend) const {
 	mParams->setBackend(backend);
+	return *this;
+}
+const ChatRoomBuilder& ChatRoomBuilder::setGroup(OnOff toggle) const {
+	mParams->enableGroup(bool(toggle));
 	return *this;
 }
 
