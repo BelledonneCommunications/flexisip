@@ -21,7 +21,7 @@ let
   dependencies = import ./dependencies.nix { inherit pkgs enableUnitTests enableB2bua; };
 in
 
-pkgs.mkShell {
+pkgs.mkShell.override { stdenv = pkgs.gcc13Stdenv; } {
   buildInputs = dependencies
     ++ additionalInputs pkgs;
 }

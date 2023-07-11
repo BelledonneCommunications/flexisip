@@ -26,6 +26,8 @@ job-archlinux-ninja-gcc:
   extends:
     - .job-ninja-gcc
     - .archlinux-image-variables
+  rules:
+    - !reference [job-archlinux-ninja-clang, rules]
 
 
 job-archlinux-ninja-clang:
