@@ -165,12 +165,11 @@ std::shared_ptr<linphone::Call> CoreClient::call(const CoreClient& callee,
 	if (!calleeIdleDevices.empty()) {
 		// If callee also have idle devices check that they are ringing too
 		if (!BC_ASSERT_TRUE(idleAsserter.wait([calleeIdleDevices] {
-			    return all_of(calleeIdleDevices.cbegin(), calleeIdleDevices.cend(),
-			                  [](const shared_ptr<CoreClient>& idleDevice) {
-				                  return idleDevice->getCurrentCall() != nullptr &&
-				                         idleDevice->getCurrentCall()->getState() ==
-				                             linphone::Call::State::IncomingReceived;
-			                  });
+			    return all_of(
+			        calleeIdleDevices.cbegin(), calleeIdleDevices.cend(), [](const shared_ptr<CoreClient>& idleDevice) {
+				        return idleDevice->getCurrentCall() != nullptr &&
+				               idleDevice->getCurrentCall()->getState() == linphone::Call::State::IncomingReceived;
+			        });
 		    }))) {
 			return nullptr;
 		}
@@ -203,12 +202,12 @@ std::shared_ptr<linphone::Call> CoreClient::call(const CoreClient& callee,
 	if (!calleeIdleDevices.empty()) {
 		// If callee also have idle devices check that they are not ringing anymore / got cancelled.
 		if (!BC_ASSERT_TRUE(idleAsserter.wait([calleeIdleDevices] {
-			    return all_of(
-			        calleeIdleDevices.cbegin(), calleeIdleDevices.cend(), [](const shared_ptr<CoreClient>& idleDevice) {
-				        return idleDevice->getCurrentCall() == nullptr ||
-				               idleDevice->getCurrentCall()->getState() == linphone::Call::State::End ||
-				               idleDevice->getCurrentCall()->getState() == linphone::Call::State::Released;
-			        });
+			    return all_of(calleeIdleDevices.cbegin(), calleeIdleDevices.cend(),
+			                  [](const shared_ptr<CoreClient>& idleDevice) {
+				                  return idleDevice->getCurrentCall() == nullptr ||
+				                         idleDevice->getCurrentCall()->getState() == linphone::Call::State::End ||
+				                         idleDevice->getCurrentCall()->getState() == linphone::Call::State::Released;
+			                  });
 		    }))) {
 			return nullptr;
 		}
@@ -273,8 +272,7 @@ CoreClient::callWithEarlyCancel(const std::shared_ptr<CoreClient>& callee,
 			           moduleRouter->mStats.mCountCallForks->start->read() == 1;
 		    } else {
 
-			    return callerCall->getState() == linphone::Call::State::OutgoingRinging &&
-			           callee->getCurrentCall() &&
+			    return callerCall->getState() == linphone::Call::State::OutgoingRinging && callee->getCurrentCall() &&
 			           callee->getCurrentCall()->getState() == Call::State::IncomingReceived;
 		    }
 	    }))) {
