@@ -22,6 +22,7 @@
 
 #include <linphone++/call_params.hh>
 #include <linphone++/linphone.hh>
+#include <optional>
 
 #include "asserts.hh"
 #include "proxy-server.hh"
@@ -34,6 +35,8 @@ std::shared_ptr<linphone::Core> minimal_core(linphone::Factory& factory);
 class Server;
 class CoreClient;
 class ChatRoomBuilder;
+class CallBuilder;
+class ClientCall;
 
 /**
  * Class to manage a client Core
@@ -175,9 +178,10 @@ public:
 	std::shared_ptr<linphone::Call> invite(const CoreClient& peer) const;
 	std::shared_ptr<linphone::Call> invite(const CoreClient& peer,
 	                                       const std::shared_ptr<const linphone::CallParams>&) const;
-	std::shared_ptr<linphone::Call> invite(const std::string&) const;
+	std::shared_ptr<linphone::Call> invite(const std::string&,
+	                                       const std::shared_ptr<const linphone::CallParams>& params = nullptr) const;
 
-	std::shared_ptr<linphone::Call> getCurrentCall() const;
+	std::optional<ClientCall> getCurrentCall() const;
 	std::shared_ptr<linphone::CallLog> getCallLog() const;
 
 	/**
@@ -186,6 +190,7 @@ public:
 	std::list<std::shared_ptr<linphone::ChatMessage>> getChatMessages();
 
 	ChatRoomBuilder chatroomBuilder() const;
+	CallBuilder callBuilder() const;
 
 private:
 	friend class ClientBuilder;

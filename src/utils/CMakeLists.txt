@@ -21,6 +21,7 @@
 ############################################################################
 
 target_sources(flexisip PRIVATE
+	cast-to-const.hh
 	digest.cc digest.hh
 	observable.hh
 	pipe.cc pipe.hh

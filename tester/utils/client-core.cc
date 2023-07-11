@@ -19,6 +19,7 @@
 #include <chrono>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 
@@ -36,9 +37,12 @@
 #include "core-assert.hh"
 
 #include "client-core.hh"
+#include "linphone/api/c-call.h"
 #include "tester.hh"
+#include "utils/call-builder.hh"
 #include "utils/chat-room-builder.hh"
 #include "utils/client-builder.hh"
+#include "utils/client-call.hh"
 
 using namespace std;
 using namespace std::chrono;
@@ -167,7 +171,7 @@ std::shared_ptr<linphone::Call> CoreClient::call(const CoreClient& callee,
 		if (!BC_ASSERT_TRUE(idleAsserter.wait([calleeIdleDevices] {
 			    return all_of(
 			        calleeIdleDevices.cbegin(), calleeIdleDevices.cend(), [](const shared_ptr<CoreClient>& idleDevice) {
-				        return idleDevice->getCurrentCall() != nullptr &&
+				        return idleDevice->getCurrentCall() != std::nullopt &&
 				               idleDevice->getCurrentCall()->getState() == linphone::Call::State::IncomingReceived;
 			        });
 		    }))) {
@@ -204,7 +208,7 @@ std::shared_ptr<linphone::Call> CoreClient::call(const CoreClient& callee,
 		if (!BC_ASSERT_TRUE(idleAsserter.wait([calleeIdleDevices] {
 			    return all_of(calleeIdleDevices.cbegin(), calleeIdleDevices.cend(),
 			                  [](const shared_ptr<CoreClient>& idleDevice) {
-				                  return idleDevice->getCurrentCall() == nullptr ||
+				                  return idleDevice->getCurrentCall() == std::nullopt ||
 				                         idleDevice->getCurrentCall()->getState() == linphone::Call::State::End ||
 				                         idleDevice->getCurrentCall()->getState() == linphone::Call::State::Released;
 			                  });
@@ -379,12 +383,15 @@ std::shared_ptr<linphone::Call> CoreClient::invite(const CoreClient& peer,
 	return mCore->inviteAddressWithParams(peer.getAccount()->getContactAddress(), params);
 }
 
-std::shared_ptr<linphone::Call> CoreClient::invite(const string& aor) const {
-	return mCore->invite(aor);
+std::shared_ptr<linphone::Call> CoreClient::invite(const string& aor,
+                                                   const shared_ptr<const linphone::CallParams>& params) const {
+	return params ? mCore->inviteWithParams(aor, params) : mCore->invite(aor);
 }
 
-std::shared_ptr<linphone::Call> CoreClient::getCurrentCall() const {
-	return mCore->getCurrentCall();
+std::optional<ClientCall> CoreClient::getCurrentCall() const {
+	auto maybeCall = mCore->getCurrentCall();
+	if (maybeCall == nullptr) return {};
+	return maybeCall;
 }
 
 std::shared_ptr<linphone::CallLog> CoreClient::getCallLog() const {
@@ -410,6 +417,9 @@ void CoreClient::reconnect() const {
 
 ChatRoomBuilder CoreClient::chatroomBuilder() const {
 	return ChatRoomBuilder(*this);
+}
+CallBuilder CoreClient::callBuilder() const {
+	return CallBuilder(*this);
 }
 
 } // namespace tester

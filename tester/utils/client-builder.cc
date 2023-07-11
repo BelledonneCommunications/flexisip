@@ -19,7 +19,8 @@ namespace tester {
 
 ClientBuilder::ClientBuilder(const Server& server)
     : mFactory(linphone::Factory::get()), mCoreTemplate(mFactory->createCore("", "", nullptr)),
-      mAccountParams(mCoreTemplate->createAccountParams()), mServer(server), mLimeX3DH(OnOff::On) {
+      mAccountParams(mCoreTemplate->createAccountParams()), mServer(server), mLimeX3DH(OnOff::On),
+      mSendVideo(OnOff::Off), mReceiveVideo(OnOff::Off), mSendRtcp(OnOff::On) {
 }
 
 CoreClient ClientBuilder::build(const std::string& baseAddress) const {
@@ -70,14 +71,13 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 		config->setString("storage", "backend", "sqlite3");
 		config->setString("storage", "uri", ":memory:");
 		config->setString("storage", "call_logs_db_uri", "null");
+		config->setBool("rtp", "rtcp_enabled", bool(mSendRtcp));
 	}
 
 	core->setZrtpSecretsFile("null");
 	core->setAudioPort(-1);
 	core->setVideoPort(-1);
 	core->setUseFiles(true);
-	core->enableVideoCapture(true);  // We must be able to simulate capture to make video calls
-	core->enableVideoDisplay(false); // No need to bother displaying the received video
 	// final check on call successfully established is based on bandwidth used,
 	// so use file as input to make sure there is some traffic
 	{
@@ -97,17 +97,26 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 		core->setVideoActivationPolicy(policy);
 	}
 
-	switch (mVideoDevice) {
-		case VideoDevice::Mire: {
-			auto msFactory = linphone_core_get_ms_factory(core->cPtr());
-			auto webCamMan = ms_factory_get_web_cam_manager(msFactory);
-			auto mire_desc = ms_mire_webcam_desc_get();
-			auto mire = ms_web_cam_new(mire_desc);
-			ms_web_cam_manager_add_cam(webCamMan, mire);
-			core->setVideoDevice("Mire: Mire (synthetic moving picture)");
-		} break;
-		default:
-			break;
+	if (bool(mSendVideo)) {
+		auto msFactory = linphone_core_get_ms_factory(core->cPtr());
+		auto webCamMan = ms_factory_get_web_cam_manager(msFactory);
+		auto mire_desc = ms_mire_webcam_desc_get();
+		auto mire = ms_web_cam_new(mire_desc);
+		ms_web_cam_manager_add_cam(webCamMan, mire);
+		core->setVideoDevice("Mire: Mire (synthetic moving picture)");
+		core->enableVideoCapture(true);
+	} else {
+		core->enableVideoCapture(false);
+	}
+
+	if (bool(mReceiveVideo)) {
+		// Enabling display enables video decoding, letting tests setup hooks to get notified of frames decoded.
+		core->enableVideoDisplay(true);
+		// The MSExtDisplay filter is designed to forward buffers to another layer, but when it is not setup it just
+		// does nothing and acts as a void sink.
+		core->setVideoDisplayFilter("MSExtDisplay");
+	} else {
+		core->enableVideoDisplay(false);
 	}
 
 	core->start();
@@ -130,8 +139,18 @@ void ClientBuilder::setLimeX3DH(OnOff state) {
 	mLimeX3DH = state;
 }
 
-void ClientBuilder::setVideoDevice(VideoDevice value) {
-	mVideoDevice = value;
+ClientBuilder& ClientBuilder::setVideoReceive(OnOff value) {
+	mReceiveVideo = value;
+	return *this;
+}
+ClientBuilder& ClientBuilder::setVideoSend(OnOff value) {
+	mSendVideo = value;
+	return *this;
+}
+
+ClientBuilder& ClientBuilder::setRtcpSend(OnOff value) {
+	mSendRtcp = value;
+	return *this;
 }
 
 ClientBuilder& ClientBuilder::setCustomContact(const std::string& contact) {

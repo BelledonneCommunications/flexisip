@@ -174,7 +174,7 @@ public:
 	 **/
 	void setEstablished(const std::string& tr_id);
 
-	std::shared_ptr<RelayChannel> getChannel(const std::string& partyId, const std::string& trId);
+	std::shared_ptr<RelayChannel> getChannel(const std::string& partyId, const std::string& trId) const;
 
 	MediaRelayServer* getRelayServer() {
 		return mServer;
@@ -183,7 +183,7 @@ public:
 
 private:
 	void transfer(time_t current, const std::shared_ptr<RelayChannel>& org, int i);
-	Mutex mMutex;
+	mutable Mutex mMutex;
 	MediaRelayServer* mServer;
 	time_t mLastActivityTime;
 	std::string mFrontId;
@@ -240,13 +240,15 @@ public:
 	bool hasMultipleTargets() const {
 		return mHasMultipleTargets;
 	}
+	void setDirection(Dir);
+	Dir getDirection() const;
+
 	static const char* dirToString(Dir dir);
 
 private:
 	static const int sMaxRecvErrors = 50;
 	static const int sDestinationSwitchTimeout = 5; // seconds
 	void initializeRtpSession(RelaySession* relaySession);
-	Dir mDir;
 	RelayTransport mRelayTransport; // The local addresses and ports used for relaying.
 	std::string mRemoteIp;
 	int mRemotePort[2];
@@ -258,6 +260,7 @@ private:
 	std::shared_ptr<MediaFilter> mFilter;
 	int mPfdIndex;
 	int mRecvErrorCount[2];
+	Dir mDir;
 	uint64_t mPacketsReceived[2];
 	uint64_t mPacketsSent[2];
 	bool mPreventLoop;

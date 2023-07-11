@@ -17,11 +17,17 @@
 */
 
 #include "callcontext-mediarelay.hh"
+
+#include <array>
+#include <memory>
+#include <string>
+
+#include "sofia-sip/su_types.h"
+
 #include "h264iframefilter.hh"
 #include "mediarelay.hh"
 #include "telephone-event-filter.hh"
-#include <memory>
-#include <string>
+#include "utils/cast-to-const.hh"
 
 using namespace std;
 using namespace flexisip;
@@ -204,46 +210,48 @@ void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier>& m,
 	if (mline >= sMaxSessions) {
 		return;
 	}
+	const shared_ptr<RelaySession> s = mSessions[mline];
+	if (s == nullptr) return;
 	RelayChannel::Dir dir = RelayChannel::SendRecv;
+
 	/* Make sure that only one device can send media to the caller, until the call is established.*/
-	if (isEarlyMedia && mServer->mModule->mEarlyMediaRelaySingle && !mIsEstablished) {
-		// First come, first served
-		if (mSendRecvBranch.empty()) mSendRecvBranch = trId;
-		else if (trId != mSendRecvBranch) dir = RelayChannel::SendOnly;
+	if (isEarlyMedia && trId != mSendRecvBranch && mServer->mModule->mEarlyMediaRelaySingle && !mIsEstablished) {
+		// Each new device takes over receive capability from the previous king of the hill
+		if (!mSendRecvBranch.empty()) {
+			s->getChannel("", mSendRecvBranch)->setDirection(RelayChannel::SendOnly);
+		}
+		mSendRecvBranch = trId;
 	}
 
-	shared_ptr<RelaySession> s = mSessions[mline];
-	if (s != NULL) {
-		shared_ptr<RelayChannel> chan = s->getChannel(partyTag, trId);
-		if (chan == NULL) {
-			LOGW("RelayedCall::setChannelDestinations(): no channel");
-			return;
-		}
-		if (chan->getRelayTransport().mRtpPort > 0) {
-			if (isEarlyMedia) {
-				int maxEarlyRelays = mServer->mModule->mMaxRelayedEarlyMedia;
-				if (maxEarlyRelays != 0) {
-					if (chan->hasMultipleTargets()) {
-						/*joker: we cannot be limited by the max number of early media streams.
-						 This is to preserve the possibility for the remote proxy to
-						 distribute early media.
-						 Finally, we wish that only adjacent clients are counted.
-						 */
-					} else if (s->getActiveBranchesCount() >= maxEarlyRelays) {
-						LOGW("Maximum number of relayed early media streams reached for RelayedCall [%p]", this);
-						dir = RelayChannel::Inactive;
-					}
+	shared_ptr<RelayChannel> chan = s->getChannel(partyTag, trId);
+	if (chan == NULL) {
+		LOGW("RelayedCall::setChannelDestinations(): no channel");
+		return;
+	}
+	if (chan->getRelayTransport().mRtpPort > 0) {
+		if (isEarlyMedia) {
+			int maxEarlyRelays = mServer->mModule->mMaxRelayedEarlyMedia;
+			if (maxEarlyRelays != 0) {
+				if (chan->hasMultipleTargets()) {
+					/*joker: we cannot be limited by the max number of early media streams.
+					 This is to preserve the possibility for the remote proxy to
+					 distribute early media.
+					 Finally, we wish that only adjacent clients are counted.
+					 */
+				} else if (s->getActiveBranchesCount() >= maxEarlyRelays) {
+					LOGW("Maximum number of relayed early media streams reached for RelayedCall [%p]", this);
+					dir = RelayChannel::Inactive;
 				}
 			}
-			configureRelayChannel(chan, m->mSip, m->mSession, mline);
-			/* We don't want to update the destination address of this Channel when ICE has completed, because in this
-			 * case the destination address set by the client in the c= line and port in m= lines is the relay address
-			 * itself, because it is set like this for the other party. Flexisip is no longer in the loop and just has
-			 * to keep the relay open in case it is necessary.
-			 */
-			if (chan->getState() != SdpMasqueradeContext::IceCompleted) {
-				chan->setRemoteAddr(ip, rtp_port, rtcp_port, dir);
-			}
+		}
+		configureRelayChannel(chan, m->mSip, m->mSession, mline);
+		/* We don't want to update the destination address of this Channel when ICE has completed, because in this
+		 * case the destination address set by the client in the c= line and port in m= lines is the relay address
+		 * itself, because it is set like this for the other party. Flexisip is no longer in the loop and just has
+		 * to keep the relay open in case it is necessary.
+		 */
+		if (chan->getState() != SdpMasqueradeContext::IceCompleted) {
+			chan->setRemoteAddr(ip, rtp_port, rtcp_port, dir);
 		}
 	}
 }
@@ -361,4 +369,9 @@ void RelayedCall::configureRelayChannel(shared_ptr<RelayChannel> ms, sip_t* sip,
 		}
 	}
 #endif
+}
+
+const std::array<const std::shared_ptr<const RelaySession>, RelayedCall::sMaxSessions>&
+RelayedCall::getSessions() const {
+	return castToConst(mSessions);
 }

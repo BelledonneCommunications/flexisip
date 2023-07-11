@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -62,7 +62,7 @@ unsigned int PollFd::getREvents(int index) const {
 }
 
 RelayChannel::RelayChannel(RelaySession* relaySession, const RelayTransport& rt, bool preventLoops)
-    : mDir(SendRecv), mRelayTransport(rt), mRemoteIp(std::string("undefined")), mPacketsReceived{}, mPacketsSent{} {
+    : mRelayTransport(rt), mRemoteIp(std::string("undefined")), mDir(SendRecv), mPacketsReceived{}, mPacketsSent{} {
 	mPfdIndex = -1;
 	initializeRtpSession(relaySession);
 	mSockAddrSize[0] = mSockAddrSize[1] = 0;
@@ -169,6 +169,13 @@ void RelayChannel::setRemoteAddr(const string& ip, int rtp_port, int rtcp_port, 
 	}
 }
 
+void RelayChannel::setDirection(Dir value) {
+	mDir = value;
+}
+RelayChannel::Dir RelayChannel::getDirection() const {
+	return mDir;
+}
+
 void RelayChannel::fillPollFd(PollFd* pfd) {
 	mPfdIndex = -1;
 	if (mSockets[0] == -1) return; // no socket to monitor
@@ -269,7 +276,7 @@ RelaySession::RelaySession(MediaRelayServer* server, const string& frontId, cons
 	mFront = make_shared<RelayChannel>(this, rt, mServer->loopPreventionEnabled());
 }
 
-shared_ptr<RelayChannel> RelaySession::getChannel(const string& partyId, const string& trId) {
+shared_ptr<RelayChannel> RelaySession::getChannel(const string& partyId, const string& trId) const {
 	if (partyId == mFrontId) return mFront;
 	if (mBack) return mBack;
 
