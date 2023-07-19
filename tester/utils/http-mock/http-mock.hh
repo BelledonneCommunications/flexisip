@@ -28,7 +28,7 @@
 
 namespace ssl = boost::asio::ssl;
 
-namespace flexisip {
+namespace flexisip::tester::http_mock {
 
 class Request {
 public:
@@ -65,4 +65,4 @@ private:
 	std::atomic<int>* mRequestReceivedCount{nullptr};
 };
 
-} // namespace flexisip
+} // namespace flexisip::tester::http_mock

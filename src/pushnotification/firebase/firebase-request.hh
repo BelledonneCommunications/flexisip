@@ -9,11 +9,11 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -34,11 +34,7 @@ namespace pushnotification {
 */
 class FirebaseRequest : public Request, public HttpMessage {
 public:
-	FirebaseRequest(PushType pType, const std::shared_ptr<const PushInfo>& pinfo);
-
-	const std::string& getAppId() const noexcept {
-		return getDestination().getParam();
-	}
+	FirebaseRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo);
 
 private:
 	static const std::chrono::seconds FIREBASE_MAX_TTL;

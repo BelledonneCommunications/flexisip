@@ -78,7 +78,7 @@ void PushNotificationContext::onTimeout() noexcept {
 ModuleInfo<PushNotification> PushNotification::sInfo(
     "PushNotification",
     "This module performs push notifications to mobile phone notification systems: apple, "
-    "android, windows, as well as a generic http get/post to a custom server to which "
+    "android, as well as a generic http get/post to a custom server to which "
     "actual sending of the notification is delegated. The push notification is sent when an "
     "INVITE or MESSAGE request is not answered by the destination of the request "
     "within a certain period of time, configurable hereunder by 'timeout' parameter. "
@@ -164,12 +164,6 @@ void PushNotification::onDeclare(GenericStruct* module_config) {
 	     "List of couples [Firebase Project Number]:[Firebase Cloud Messaging API (Legacy) Server Key] (without []) "
 	     "for each Android project that supports push notifications.",
 	     ""},
-	    {Boolean, "windowsphone", "Enable push notification for Windows Phone 8 devices", "true"},
-	    {String, "windowsphone-package-sid",
-	     "Unique identifier for your Windows Store app.\n"
-	     "For example: ms-app://s-1-15-2-2345030743-3098444494-743537440-5853975885-5950300305-5348553438-505324794",
-	     ""},
-	    {String, "windowsphone-application-secret", "Client secret. For example: Jrp1UoVt4C6CYpVVJHUPdcXLB1pEdRoB", ""},
 	    {String, "external-push-uri",
 	     "Instead of having Flexisip sending the push notification directly to the Google/Apple/Microsoft push "
 	     "servers, send an http request to a server with all required information encoded in the URL, to which the "
@@ -193,6 +187,8 @@ void PushNotification::onDeclare(GenericStruct* module_config) {
 	     "Example: http://292.168.0.2/$type/$event?from-uri=$from-uri&tag=$from-tag&callid=$callid&to=$to-uri",
 	     ""},
 	    {String, "external-push-method", "Method for reaching external-push-uri, typically GET or POST", "GET"},
+	    {String, "external-push-protocol", "Protocol used for reaching external-push-uri, http2 or http (deprecated)",
+	     "http2"},
 	    {Integer, "register-wakeup-interval",
 	     "Send service push notification every n minutes to all devices that are about to expire and should wake up to "
 	     "REGISTER back. 0 to disable. Recommended value: 30",
@@ -212,6 +208,12 @@ void PushNotification::onDeclare(GenericStruct* module_config) {
 	     "Default time to live for the push notifications, in seconds. This parameter shall be "
 	     "set according to mDeliveryTimeout parameter in ForkContext.cc",
 	     "2592000"},
+	    {Boolean, "windowsphone", "Enable push notification for Windows Phone 8 devices", "true"},
+	    {String, "windowsphone-package-sid",
+	     "Unique identifier for your Windows Store app.\n"
+	     "For example: ms-app://s-1-15-2-2345030743-3098444494-743537440-5853975885-5950300305-5348553438-505324794",
+	     ""},
+	    {String, "windowsphone-application-secret", "Client secret. For example: Jrp1UoVt4C6CYpVVJHUPdcXLB1pEdRoB", ""},
 	    config_item_end};
 	module_config->addChildrenValues(items);
 
@@ -228,6 +230,14 @@ void PushNotification::onDeclare(GenericStruct* module_config) {
 	                     "This option should be used to handle application which cannot handle provisional response "
 	                     "without To-tag. "
 	                     "Remove this parameter when all the deployed devices have been updated."});
+
+	// Windows push are not handled anymore
+	module_config->get<ConfigBoolean>("windowsphone")
+	    ->setDeprecated({"2023-07-15", "2.3.0", "Windows push are not handled anymore. This config does nothing."});
+	module_config->get<ConfigString>("windowsphone-package-sid")
+	    ->setDeprecated({"2023-07-15", "2.3.0", "Windows push are not handled anymore. This config does nothing."});
+	module_config->get<ConfigString>("windowsphone-application-secret")
+	    ->setDeprecated({"2023-07-15", "2.3.0", "Windows push are not handled anymore. This config does nothing."});
 
 	mCountFailed = module_config->createStat("count-pn-failed", "Number of push notifications failed to be sent");
 	mCountSent = module_config->createStat("count-pn-sent", "Number of push notifications successfully sent");
@@ -251,10 +261,6 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	auto externalUri = externalUriCfg->read();
 	auto appleEnabled = mc->get<ConfigBoolean>("apple")->read();
 	auto firebaseEnabled = mc->get<ConfigBoolean>("firebase")->read();
-	auto windowsPhoneEnabled = mc->get<ConfigBoolean>("windowsphone")->read();
-	auto windowsPhonePackageSID = windowsPhoneEnabled ? mc->get<ConfigString>("windowsphone-package-sid")->read() : "";
-	auto windowsPhoneApplicationSecret =
-	    windowsPhoneEnabled ? mc->get<ConfigString>("windowsphone-application-secret")->read() : "";
 
 	// Load the push retransmissions parameters.
 	auto retransmissionCount = mModuleConfig->get<ConfigInt>("retransmission-count")->read();
@@ -290,12 +296,14 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	}
 
 	if (!externalUri.empty()) {
-		auto* externalPushMethodCfg = mc->get<ConfigString>("external-push-method");
+		auto const* externalPushMethodCfg = mc->get<ConfigString>("external-push-method");
+		auto const* externalPushProtocolCfg = mc->get<ConfigString>("external-push-protocol");
 		try {
 			auto externalPushUri = static_cast<sofiasip::Url>(externalUri);
-			auto externalPushMethod = stringToLegacyMethod(externalPushMethodCfg->read());
+			auto externalPushMethod = stringToGenericPushMethod(externalPushMethodCfg->read());
+			auto externalPushProtocol = stringToGenericPushProtocol(externalPushProtocolCfg->read());
 			if (!externalPushUri.empty()) {
-				mPNS->setupGenericClient(externalPushUri, externalPushMethod);
+				mPNS->setupGenericClient(externalPushUri, externalPushMethod, externalPushProtocol);
 			}
 		} catch (const sofiasip::InvalidUrlError& e) {
 			LOGF("Invalid value for '%s' parameter: %s", externalUriCfg->getCompleteName().c_str(), e.what());
@@ -308,7 +316,6 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	mPNS->setStatCounters(mCountFailed, mCountSent);
 	if (appleEnabled) mPNS->setupiOSClient(certdir, "");
 	if (firebaseEnabled) mPNS->setupFirebaseClients(firebaseKeys);
-	if (windowsPhoneEnabled) mPNS->setupWindowsPhoneClient(windowsPhonePackageSID, windowsPhoneApplicationSecret);
 
 	mExpirationNotifier =
 	    ContactExpirationNotifier::make_unique(*mc, mAgent->getRoot(), getService(), *RegistrarDb::get());
@@ -318,16 +325,20 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	      << mMessageTtl.count() << " seconds.";
 }
 
-pushnotification::Method PushNotification::stringToLegacyMethod(const std::string& methodStr) {
+pushnotification::Method PushNotification::stringToGenericPushMethod(const std::string& methodStr) {
 	if (methodStr == "GET") return Method::HttpGet;
 	if (methodStr == "POST") return Method::HttpPost;
 	throw InvalidMethodError{methodStr};
 }
 
+pushnotification::Protocol PushNotification::stringToGenericPushProtocol(const std::string& protocolStr) {
+	if (protocolStr == "http") return Protocol::Http;
+	if (protocolStr == "http2") return Protocol::Http2;
+	throw InvalidMethodError{protocolStr};
+}
+
 void PushNotification::makePushNotification(const shared_ptr<MsgSip>& ms,
                                             const shared_ptr<OutgoingTransaction>& transaction) {
-	using namespace pushnotification;
-
 	const auto* sip = ms->getSip();
 
 	const auto* params = sip->sip_request->rq_url->url_params;

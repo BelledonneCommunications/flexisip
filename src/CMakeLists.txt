@@ -100,25 +100,6 @@ add_library(flexisip SHARED
 	module.cc
 	monitor.cc monitor.hh
 	plugin/plugin-loader.cc plugin/plugin-loader.hh
-	pushnotification/apple/apple-client.cc pushnotification/apple/apple-client.hh
-	pushnotification/apple/apple-request.cc pushnotification/apple/apple-request.hh
-	pushnotification/client.cc pushnotification/client.hh
-	pushnotification/contact-expiration-notifier.cc pushnotification/contact-expiration-notifier.hh
-	pushnotification/firebase/firebase-client.cc pushnotification/firebase/firebase-client.hh
-	pushnotification/firebase/firebase-request.cc pushnotification/firebase/firebase-request.hh
-	pushnotification/legacy/genericpush.cc pushnotification/legacy/genericpush.hh
-	pushnotification/legacy/legacy-client.cc pushnotification/legacy/legacy-client.hh
-	pushnotification/legacy/microsoftpush.cc pushnotification/legacy/microsoftpush.hh
-	pushnotification/legacy/wp-client.cc pushnotification/legacy/wp-client.hh
-	pushnotification/pushnotification-context.cc pushnotification/pushnotification-context.hh
-	pushnotification/push-info.cc pushnotification/push-info.hh
-	pushnotification/push-param.cc pushnotification/push-param.hh
-	pushnotification/push-type.cc pushnotification/push-type.hh
-	pushnotification/request.cc pushnotification/request.hh
-	pushnotification/rfc8599-push-params.cc pushnotification/rfc8599-push-params.hh
-	pushnotification/service.cc pushnotification/service.hh
-	pushnotification/strategy/remote-push-strategy.cc pushnotification/strategy/remote-push-strategy.hh
-	pushnotification/strategy/strategy.cc pushnotification/strategy/strategy.hh
 	recordserializer-c.cc
 	recordserializer-json.cc
 	recordserializer.cc
@@ -151,6 +132,7 @@ if(ENABLE_FLEXIAPI)
 	add_subdirectory(flexiapi)
 endif()
 
+add_subdirectory(pushnotification)
 add_subdirectory(router)
 add_subdirectory(sofia-wrapper)
 add_subdirectory(utils)

@@ -66,6 +66,7 @@ PnsMock::handleRequest(int code, const string& body, const string& reqBodyPatter
 				string body{reinterpret_cast<const char*>(data), len};
 				regex bodyRegex(reqBodyPattern, regex::ECMAScript);
 				assert = regex_search(body, bodyRegex);
+				if (!assert) SLOGE << "Body is different, actual body : \n" << body;
 			}
 		});
 		res.write_head(code);
@@ -79,6 +80,7 @@ PnsMock::handleRequest(int code, const string& body, const string& reqBodyPatter
 void PnsMock::onPushRequest(request_cb cb) {
 	mServer.handle("/fcm/send", cb);
 	mServer.handle("/3/device/", cb);
+	mServer.handle("/generic", cb);
 }
 
 bool PnsMock::serveAsync(const std::string& port) {

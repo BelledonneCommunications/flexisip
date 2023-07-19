@@ -9,54 +9,43 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
 
 #include "flexisip/utils/sip-uri.hh"
 
-#include "legacy-request.hh"
+#include "pushnotification/legacy/legacy-request.hh"
 
-namespace flexisip {
-namespace pushnotification {
+namespace flexisip::pushnotification {
 
-class GenericRequest : public LegacyRequest {
+class GenericHttpRequest : public LegacyRequest {
 public:
 	// Public ctors
 	using LegacyRequest::LegacyRequest;
 
 	// Public methods
-	std::tuple<std::string, std::string, std::string> getLegacyParams() const noexcept;
-	std::string getAppIdentifier() const noexcept override {
-		return "generic";
-	}
-	const std::string& getFirebaseAuthKey() const noexcept {
-		return mFirebaseAuthKey;
-	}
-	void setFirebaseAuthKey(const std::string& aAuthKey) noexcept {
+	std::string getAppIdentifier() const noexcept override;
+	const std::vector<char>& getData(const sofiasip::Url& url, Method method) override;
+	std::string isValidResponse(const std::string& str) override;
+
+	void setFirebaseAuthKey(std::string_view aAuthKey) noexcept {
 		mFirebaseAuthKey = aAuthKey;
 	}
 
-	const std::vector<char>& getData(const sofiasip::Url& url, Method method) override;
-
-	std::string isValidResponse(const std::string& str) override;
 	bool isServerAlwaysResponding() override {
 		return true;
 	}
 
 private:
-	// Private methods
-	std::string& substituteArgs(std::string& input);
-
 	// Private attributes
 	std::vector<char> mBuffer{};    /**< Buffer returned by getData(). */
 	std::string mFirebaseAuthKey{}; /**< Authentication key required by Firebase service. */
 };
 
-} // namespace pushnotification
-} // namespace flexisip
+} // namespace flexisip::pushnotification

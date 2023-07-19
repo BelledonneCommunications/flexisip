@@ -120,6 +120,8 @@ public:
 		return mDestinations.empty() ? false : mDestinations.cbegin()->second->isApns();
 	}
 
+	const RFC8599PushParams& getDestination(PushType pType) const;
+
 private:
 	// Private methods
 	void parseAppleSpecifics(const sofiasip::MsgSip& msg);

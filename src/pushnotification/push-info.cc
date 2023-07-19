@@ -16,20 +16,20 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "push-info.hh"
+
 #include <stdexcept>
 
 #include "flexisip/logmanager.hh"
 #include "flexisip/sofia-wrapper/msg-sip.hh"
 
+#include "request.hh"
 #include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
 
-#include "push-info.hh"
-
 using namespace std;
-
-namespace flexisip {
-namespace pushnotification {
+using namespace flexisip;
+using namespace pushnotification;
 
 PushInfo::PushInfo(const sofiasip::MsgSip& msg) {
 	const auto* sip = msg.getSip();
@@ -144,5 +144,9 @@ void PushInfo::parseAppleSpecifics(const sofiasip::MsgSip& msg) {
 	    (sip->sip_request->rq_method == sip_method_invite && this->mChatRoomAddr.empty()) ? call_snd : msg_snd;
 }
 
-} // namespace pushnotification
-} // namespace flexisip
+const RFC8599PushParams& PushInfo::getDestination(PushType pType) const {
+	if (mDestinations.find(pType) == mDestinations.cend()) {
+		throw Request::UnsupportedPushType(pType);
+	}
+	return *mDestinations.at(pType);
+}

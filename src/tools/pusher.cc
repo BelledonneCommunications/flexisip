@@ -25,7 +25,6 @@
 
 #include "pushnotification/apple/apple-request.hh"
 #include "pushnotification/firebase/firebase-request.hh"
-#include "pushnotification/legacy/microsoftpush.hh"
 #include "pushnotification/service.hh"
 
 using namespace std;

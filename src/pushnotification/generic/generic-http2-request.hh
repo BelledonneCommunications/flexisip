@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,35 +18,28 @@
 
 #pragma once
 
-#include "request.hh"
-#include "service.hh"
+#include "generic-enums.hh"
+#include "pushnotification/request.hh"
+#include "pushnotification/service.hh"
+#include "utils/transport/http/http-message.hh"
 
 namespace flexisip::pushnotification {
 
-class Service;
-
-class Client {
+class GenericHttp2Request : public Request, public HttpMessage {
 public:
-	explicit Client(const Service* service = nullptr) : mService{service} {};
-	virtual ~Client() = default;
-	virtual void sendPush(const std::shared_ptr<Request>& req) = 0;
-	virtual std::shared_ptr<Request> makeRequest(PushType,
-	                                             const std::shared_ptr<const PushInfo>&,
-	                                             const std::map<std::string, std::shared_ptr<Client>>& = {}) = 0;
-	virtual bool isIdle() const noexcept = 0;
+	GenericHttp2Request(flexisip::pushnotification::PushType pType,
+	                    const std::shared_ptr<const PushInfo>& pInfo,
+	                    Method method,
+	                    const std::string& host,
+	                    const std::string& port,
+	                    const std::string& authKey,
+	                    std::string path,         // copy needed
+	                    std::string urlParameters // copy needed
+	);
 
-	virtual void setRequestTimeout(std::chrono::seconds){
-	    // Not used by legacy clients
+	std::string getAppIdentifier() const noexcept override {
+		return Service::sGenericClientName;
 	};
-
-protected:
-	void incrSentCounter();
-	void incrFailedCounter();
-
-private:
-	const Service* mService;
-
-	friend class Service;
 };
 
 } // namespace flexisip::pushnotification

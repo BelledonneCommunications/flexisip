@@ -9,11 +9,11 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "firebase-client.hh"
@@ -39,6 +39,12 @@ FirebaseClient::FirebaseClient(sofiasip::SuRoot& root, const std::string& apiKey
 	SLOGD << mLogPrefix << ": constructing FirebaseClient";
 
 	mHttp2Client = Http2Client::make(root, FIREBASE_ADDRESS, FIREBASE_PORT);
+}
+
+std::shared_ptr<Request> FirebaseClient::makeRequest(PushType pType,
+                                                     const shared_ptr<const PushInfo>& pInfo,
+                                                     const map<std::string, std::shared_ptr<Client>>&) {
+	return make_shared<FirebaseRequest>(pType, pInfo);
 }
 
 void FirebaseClient::sendPush(const std::shared_ptr<Request>& req) {

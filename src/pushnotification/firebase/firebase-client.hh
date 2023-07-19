@@ -9,11 +9,11 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -25,8 +25,7 @@
 #include "utils/transport/http/http-response.hh"
 #include "utils/transport/http/http2client.hh"
 
-namespace flexisip {
-namespace pushnotification {
+namespace flexisip::pushnotification {
 
 /**
  * PNR (Push Notification Request) client designed to send push notification to the Firebase push API.
@@ -34,10 +33,6 @@ namespace pushnotification {
 class FirebaseClient : public Client {
 public:
 	FirebaseClient(sofiasip::SuRoot& root, const std::string& apiKey, const Service* service = nullptr);
-
-	const std::string& getApiKey() const noexcept {
-		return mApiKey;
-	}
 
 	/**
 	 * Send the request to the Firebase PNR server. If the request succeed, if a response is received, the
@@ -47,6 +42,14 @@ public:
 	 * @param req The request to send, this MUST be of FirebaseRequest type.
 	 */
 	void sendPush(const std::shared_ptr<Request>& req) override;
+	std::shared_ptr<Request> makeRequest(PushType,
+	                                     const std::shared_ptr<const PushInfo>&,
+	                                     const std::map<std::string, std::shared_ptr<Client>>& = {}) override;
+
+	const std::string& getApiKey() const noexcept {
+		return mApiKey;
+	}
+
 	bool isIdle() const noexcept override {
 		return mHttp2Client->isIdle();
 	}
@@ -75,5 +78,4 @@ private:
 	std::string mApiKey;
 };
 
-} // namespace pushnotification
-} // namespace flexisip
+} // namespace flexisip::pushnotification

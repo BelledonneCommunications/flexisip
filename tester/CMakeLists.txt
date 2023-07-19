@@ -66,11 +66,10 @@ add_executable(flexisip_tester
 	mediarelay-tester.cc
 	module-dos-tester.cc
 	module-info-tester.cc
-	module-pushnotification-tester.cc
 	module-registrar-tester.cc
 	module-router-tester.cc
 	module-toolbox-tester.cc
-    msg-sip-tester.cc
+	msg-sip-tester.cc
 	register-tester.cc
 	registrardb-tester.cc
 	registrardb-redis-tester.cc
@@ -87,6 +86,7 @@ add_executable(flexisip_tester
 	tests/presence/presence-publish-tester.cc
 	tests/presence/xsd-utils-tester.cc
 	tests/pushnotification/rfc8599-push-params-tester.cc
+	tests/pushnotification/module-pushnotification-tester.cc
 	tests/pushnotification/service-tester.cc
 	tests/sofia-wrapper/home-tester.cc
 	thread-pool-tester.cc
@@ -135,7 +135,8 @@ endif()
 
 if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	target_sources(flexisip_tester PRIVATE
-		push-notification-tester.cc
+		tests/pushnotification/global-push-tester.cc
+		tests/pushnotification/push-notification-tester.cc
 		tests/utils/transport/http/rest-client-tester.cc
 		tests/utils/transport/http/http2client-tester.cc
 		utils/http-mock/http-mock.cc utils/http-mock/http-mock.hh
@@ -149,7 +150,7 @@ if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	
 	if(HAS_GCC_BUG_105562)
 		set_source_files_properties(
-			push-notification-tester.cc
+			tests/pushnotification/push-notification-tester.cc
 			utils/pns-mock.cc
 			PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized")
 	endif()
