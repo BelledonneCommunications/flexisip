@@ -9,11 +9,11 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -28,15 +28,14 @@
 #include "flexisip/utils/sip-uri.hh"
 
 #include "client.hh"
-#include "legacy/method.hh"
+#include "pushnotification/generic/generic-enums.hh"
 #include "request.hh"
 
 namespace flexisip {
 namespace pushnotification {
 
 class Client;
-class GenericRequest;
-class MicrosoftRequest;
+class GenericHttpRequest;
 
 class Service {
 public:
@@ -54,13 +53,16 @@ public:
 		mCountSent = countSent;
 	}
 
+	const std::map<std::string, std::shared_ptr<Client>> getClients() {
+		return mClients;
+	}
+
 	std::shared_ptr<Request> makeRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo) const;
 	void sendPush(const std::shared_ptr<Request>& pn);
-	void setupGenericClient(const sofiasip::Url& url, Method method);
+	void setupGenericClient(const sofiasip::Url& url, Method method, Protocol protocol);
 	void setupiOSClient(const std::string& certdir, const std::string& cafile);
 	void setupFirebaseClients(const std::list<std::string>& firebaseKeys);
 	void addFirebaseClient(const std::string& firebaseAppId, const std::string& apiKey = "");
-	void setupWindowsPhoneClient(const std::string& packageSID, const std::string& applicationSecret);
 
 	/**
 	 * Add a PN client to use when no other client can handle a PN request
@@ -70,13 +72,9 @@ public:
 
 	bool isIdle() const noexcept;
 
-private:
-	// Private methods
-	void setupClients(const std::string& certdir, const std::string& ca, int maxQueueSize);
-	Client* createWindowsClient(const std::shared_ptr<MicrosoftRequest>& pnImpl);
-	std::shared_ptr<GenericRequest> makeGenericRequest(PushType pType,
-	                                                   const std::shared_ptr<const PushInfo>& pInfo) const;
+	static const std::string sGenericClientName;
 
+private:
 	// Private attributes
 	sofiasip::SuRoot& mRoot;
 	unsigned mMaxQueueSize{0};
@@ -86,7 +84,6 @@ private:
 	StatCounter64* mCountFailed{nullptr};
 	StatCounter64* mCountSent{nullptr};
 
-	static const std::string sGenericClientName;
 	static const std::string sFallbackClientKey;
 };
 

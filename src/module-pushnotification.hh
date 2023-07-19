@@ -152,7 +152,8 @@ private:
 	void removePushNotification(PushNotificationContext* pn);
 	std::chrono::seconds getCallRemotePushInterval(const char* pushParams) const noexcept;
 
-	static pushnotification::Method stringToLegacyMethod(const std::string& methodStr);
+	static pushnotification::Method stringToGenericPushMethod(const std::string& methodStr);
+	static pushnotification::Protocol stringToGenericPushProtocol(const std::string& protocolStr);
 
 	// Private attributes
 	std::map<std::string, std::shared_ptr<PushNotificationContext>>

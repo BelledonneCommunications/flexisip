@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,34 +20,24 @@
 
 #include <string>
 
+#include "generic-http2-request.hh"
 #include "pushnotification/client.hh"
 #include "utils/transport/http/http-message.hh"
 #include "utils/transport/http/http-response.hh"
 #include "utils/transport/http/http2client.hh"
+#include "utils/transport/tls-connection.hh"
 
-namespace flexisip {
-namespace pushnotification {
+namespace flexisip::pushnotification {
 
 /**
- * PNR (Push Notification Request) client designed to send push notification to the Apple push API.
+ * PNR (Push Notification Request) client designed to send push notification toa custom push API.
  */
-class AppleClient : public Client {
+class GenericHttp2Client : public Client {
 public:
-	AppleClient(sofiasip::SuRoot& root,
-	            const std::string& trustStorePath,
-	            const std::string& certPath,
-	            const std::string& certName,
-	            const Service* service = nullptr);
+	GenericHttp2Client(const sofiasip::Url& url, Method method, sofiasip::SuRoot& root, Service* pushService = nullptr);
 
-	/**
-	 * Send the request to the apple PNR service. If the request succeed, if a response is received, the
-	 * AppleClient::onResponse method is called. If the request failed, no response/timeout, tls/handshake errors... the
-	 * AppleClient::onError method is called.
-	 *
-	 * @param req The request to send, this MUST be of AppleRequest type.
-	 */
-	void sendPush(const std::shared_ptr<Request>& req) override;
-	std::shared_ptr<Request> makeRequest(PushType,
+	void sendPush(const std::shared_ptr<Request>& request) override;
+	std::shared_ptr<Request> makeRequest(flexisip::pushnotification::PushType,
 	                                     const std::shared_ptr<const PushInfo>&,
 	                                     const std::map<std::string, std::shared_ptr<Client>>& = {}) override;
 
@@ -63,8 +53,9 @@ public:
 		mHttp2Client->setRequestTimeout(requestTimeout);
 	}
 
-	static std::string APN_DEV_ADDRESS;
-	static std::string APN_PORT;
+	const std::shared_ptr<Http2Client>& getHttp2Client() const {
+		return mHttp2Client;
+	}
 
 private:
 	void onResponse(const std::shared_ptr<HttpMessage>& request, const std::shared_ptr<HttpResponse>& response);
@@ -72,9 +63,11 @@ private:
 
 	std::shared_ptr<Http2Client> mHttp2Client;
 	std::string mLogPrefix{};
-
-	static std::string APN_PROD_ADDRESS;
+	std::string mHost{};
+	std::string mPort{};
+	std::string mPath{};
+	std::string mUrlParameters{};
+	Method mMethod;
 };
 
-} // namespace pushnotification
-} // namespace flexisip
+} // namespace flexisip::pushnotification

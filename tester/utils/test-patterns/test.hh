@@ -56,6 +56,11 @@ inline void bc_hard_assert(const char* file, int line, int predicate, const char
 #define BC_HARD_ASSERT_FALSE(expression)                                                                               \
 	bc_hard_assert(__FILE__, __LINE__, !(expression), "BC_HARD_ASSERT_FALSE(" #expression ")")
 /**
+ * Mark the test as failed if the given expression is null.
+ */
+#define BC_HARD_ASSERT_NOT_NULL(expression)                                                                            \
+	bc_hard_assert(__FILE__, __LINE__, (expression != nullptr), "BC_HARD_ASSERT_NOT_NULL(" #expression ")")
+/**
  * Make the test fails systematically with a custom message.
  */
 #define BC_HARD_FAIL(msg) bc_hard_assert(__FILE__, __LINE__, 0, msg)

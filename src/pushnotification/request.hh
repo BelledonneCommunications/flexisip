@@ -64,7 +64,7 @@ public:
 	}
 	void setState(State state) noexcept;
 	virtual std::string getAppIdentifier() const noexcept {
-		return mPInfo->mDestinations.at(mPType)->getParam();
+		return getDestination().getParam();
 	}
 
 protected:

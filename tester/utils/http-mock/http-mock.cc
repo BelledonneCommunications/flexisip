@@ -28,12 +28,11 @@
 #include "tester.hh"
 
 using namespace std;
-using namespace flexisip::tester;
 using namespace nghttp2::asio_http2;
 using namespace nghttp2::asio_http2::server;
 using namespace boost::asio::ssl;
 
-namespace flexisip {
+namespace flexisip::tester::http_mock {
 
 HttpMock::HttpMock(const std::initializer_list<std::string> endpoints, std::atomic_int* requestReceivedCount)
     : mCtx(ssl::context::tls), mRequestReceivedCount(requestReceivedCount) {
@@ -65,6 +64,12 @@ void HttpMock::handleRequest(const request& req, const response& res) {
 	});
 	requestReceived->method = req.method();
 	requestReceived->headers = req.header();
+	if (requestReceived->headers.count("content-length") == 1 &&
+	    requestReceived->headers.find("content-length")->second.value == "0") {
+		if (mRequestReceivedCount) {
+			(*mRequestReceivedCount)++;
+		}
+	}
 	requestReceived->path = req.uri().path;
 	mRequestsReceived.push(requestReceived);
 
@@ -102,4 +107,4 @@ std::shared_ptr<Request> HttpMock::popRequestReceived() {
 	return ret;
 }
 
-} // namespace flexisip
+} // namespace flexisip::tester::http_mock

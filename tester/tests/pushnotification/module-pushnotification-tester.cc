@@ -219,6 +219,12 @@ public:
 		});
 	}
 
+	std::shared_ptr<Request> makeRequest(PushType pType,
+	                                     const shared_ptr<const PushInfo>& pInfo,
+	                                     const map<std::string, std::shared_ptr<Client>>& = {}) override {
+		return make_shared<Request>(pType, pInfo);
+	}
+
 	/**
 	 * Unused
 	 */
@@ -709,6 +715,13 @@ private:
 				++mRingingPushCount;
 			}
 		}
+
+		std::shared_ptr<Request> makeRequest(PushType pType,
+		                                     const shared_ptr<const PushInfo>& pInfo,
+		                                     const map<std::string, std::shared_ptr<Client>>& = {}) override {
+			return make_shared<Request>(pType, pInfo);
+		}
+
 		bool isIdle() const noexcept override {
 			return false;
 		}

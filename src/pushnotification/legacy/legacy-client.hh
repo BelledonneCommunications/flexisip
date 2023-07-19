@@ -9,11 +9,11 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -30,8 +30,8 @@
 #include <openssl/ssl.h>
 
 #include "legacy-request.hh"
-#include "method.hh"
 #include "pushnotification/client.hh"
+#include "pushnotification/generic/generic-enums.hh"
 #include "utils/transport/tls-connection.hh"
 
 namespace flexisip {

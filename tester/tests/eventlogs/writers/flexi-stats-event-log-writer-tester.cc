@@ -29,12 +29,11 @@
 #include "utils/test-suite.hh"
 #include "utils/tmp-dir.hh"
 
-namespace {
-using namespace flexisip;
-using namespace flexisip::tester;
-using namespace flexisip::tester::eventlogs;
 using namespace std;
 using namespace nlohmann;
+
+namespace flexisip::tester::eventlogs {
+using namespace flexisip::tester::http_mock;
 
 void callStartedAndEnded() {
 	std::atomic_int requestsReceivedCount{0};
@@ -508,6 +507,7 @@ void messageToChatroomClearText() {
 	}
 }
 
+namespace {
 TestSuite _("FlexiStatsEventLogWriter",
             {
                 CLASSY_TEST(callStartedAndEnded),
@@ -516,4 +516,6 @@ TestSuite _("FlexiStatsEventLogWriter",
                 CLASSY_TEST(messageDeviceUnavailable),
                 CLASSY_TEST(messageToChatroomClearText),
             });
-} // namespace
+}
+
+} // namespace flexisip::tester::eventlogs

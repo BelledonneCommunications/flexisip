@@ -29,8 +29,7 @@ using namespace std;
 using namespace std::chrono;
 using namespace nlohmann;
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester::http_mock {
 
 // ####################################################################################################################
 // ################################################### ABSTRACT TEST CLASS ############################################
@@ -160,5 +159,4 @@ TestSuite _("Rest client unit tests",
 
 } // namespace
 
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester::http_mock

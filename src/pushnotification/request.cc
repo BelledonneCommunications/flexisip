@@ -16,19 +16,15 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "request.hh"
+
 #include <array>
 #include <ctime>
 #include <regex>
 
 #include "flexisip/logmanager.hh"
 
-#include "apple/apple-request.hh"
-#include "firebase/firebase-request.hh"
-#include "legacy/genericpush.hh"
-#include "legacy/microsoftpush.hh"
 #include "utils/string-utils.hh"
-
-#include "request.hh"
 
 using namespace std;
 

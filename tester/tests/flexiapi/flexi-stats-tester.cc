@@ -31,7 +31,7 @@ using namespace nlohmann;
 
 namespace flexisip {
 using namespace flexiapi;
-namespace tester {
+namespace tester::http_mock {
 
 time_t getTestDate() {
 	struct tm tm;
@@ -640,5 +640,5 @@ TestSuite _("FlexiStats client unit tests",
             });
 } // namespace
 
-} // namespace tester
+} // namespace tester::http_mock
 } // namespace flexisip

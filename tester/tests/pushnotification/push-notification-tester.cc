@@ -37,6 +37,7 @@
 #include "pushnotification/contact-expiration-notifier.hh"
 #include "pushnotification/firebase/firebase-client.hh"
 #include "pushnotification/firebase/firebase-request.hh"
+#include "pushnotification/generic/generic-http2-client.hh"
 #include "tester.hh"
 #include "utils/listening-socket.hh"
 #include "utils/pns-mock.hh"
@@ -54,13 +55,16 @@ namespace server = nghttp2::asio_http2::server;
 
 static std::unique_ptr<sofiasip::SuRoot> root = nullptr;
 
+/**
+ * Common method to run a push test
+ */
 static void startPushTest(Client& client,
                           const shared_ptr<Request>& request,
                           const string& reqBodyPattern,
                           int responseCode,
                           const string& responseBody,
                           Request::State expectedFinalState,
-                          bool timeout = false) {
+                          bool timeout) {
 	std::promise<bool> barrier{};
 	std::future<bool> barrier_future = barrier.get_future();
 	PnsMock pnsMock;
@@ -78,7 +82,7 @@ static void startPushTest(Client& client,
 	}
 
 	if (timeout) client.setRequestTimeout(2s);
-	// Send the push notification and wait until the request the request state is "Successful" or "Failed"
+	// Send the push notification and wait until the request state is "Successful" or "Failed"
 	client.sendPush(request);
 	sofiasip::Timer timer{root->getCPtr(), 50ms};
 	auto beforePlus2 = system_clock::now() + 2s;
@@ -104,6 +108,9 @@ static void startPushTest(Client& client,
 	}
 }
 
+/**
+ * Common method to run a test for the apple client
+ */
 static void startApplePushTest(PushType pType,
                                const std::shared_ptr<PushInfo>& pushInfo,
                                const string& reqBodyPattern,
@@ -122,6 +129,9 @@ static void startApplePushTest(PushType pType,
 	              timeout);
 }
 
+/**
+ * Common method to run a test for the firebase client
+ */
 static void startFirebasePushTest(PushType pType,
                                   const std::shared_ptr<PushInfo>& pushInfo,
                                   const string& reqBodyPattern,
@@ -138,6 +148,65 @@ static void startFirebasePushTest(PushType pType,
 
 	startPushTest(firebaseClient, std::move(request), reqBodyPattern, responseCode, responseBody, expectedFinalState,
 	              timeout);
+}
+
+/**
+ * Common method to run a test for the generic pusher
+ */
+static void startGenericPushTest(PushType pType,
+                                 const std::shared_ptr<PushInfo>& pushInfo,
+                                 const string& reqBodyPattern,
+                                 int responseCode,
+                                 const string& responseBody,
+                                 Request::State expectedFinalState,
+                                 bool timeout = false) {
+
+	GenericHttp2Client genericClient{
+	    sofiasip::Url(
+	        "https://localhost:3000/generic?type=$type&from-name=$from-name&from-uri=$from-uri&call-id=$call-id"),
+	    Method::HttpPost, *root};
+	genericClient.enableInsecureTestMode();
+
+	auto request = genericClient.makeRequest(pType, pushInfo);
+
+	startPushTest(genericClient, std::move(request), reqBodyPattern, responseCode, responseBody, expectedFinalState,
+	              timeout);
+}
+
+/**
+ * Send a push with the generic pusher.
+ * Assert that the body is as intended and that the request state is correctly updated.
+ */
+static void genericPushTestOk(void) {
+	auto dest = make_shared<RFC8599PushParams>("fcm", "", "");
+	auto pushInfo = make_shared<PushInfo>();
+	pushInfo->addDestination(dest);
+	pushInfo->mFromName = "PushTestOk";
+	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
+	pushInfo->mTtl = 42s;
+	pushInfo->mUid = "a-uid-42";
+	pushInfo->mText = "A body";
+	pushInfo->mCallId = "callID";
+
+	startGenericPushTest(PushType::Background, pushInfo, pushInfo->mText, 200, "ok", Request::State::Successful);
+}
+
+/**
+ * Send a push with the generic pusher but the mock timeout.
+ * Assert that the request state is correctly updated.
+ */
+static void genericPushTestTimeout(void) {
+	auto dest = make_shared<RFC8599PushParams>("fcm", "", "");
+	auto pushInfo = make_shared<PushInfo>();
+	pushInfo->addDestination(dest);
+	pushInfo->mFromName = "PushTestOk";
+	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
+	pushInfo->mTtl = 42s;
+	pushInfo->mUid = "a-uid-42";
+	pushInfo->mText = "A body";
+	pushInfo->mCallId = "callID";
+
+	startGenericPushTest(PushType::Background, pushInfo, pushInfo->mText, 200, "ok", Request::State::Failed, true);
 }
 
 static void firebasePushTestOk(void) {
@@ -718,6 +787,8 @@ TestSuite _("Push notification",
                 TEST_NO_TAG("Tls timeout test", tlsTimeoutTest),
                 TEST_NO_TAG("Firebase push notification test timeout", firebasePushTestTimeout),
                 TEST_NO_TAG("Apple push notification test timeout", applePushTestTimeout),
+                TEST_NO_TAG("Generic test ok", genericPushTestOk),
+                TEST_NO_TAG("Generic test ko, timeout", genericPushTestTimeout),
             },
             Hooks()
                 .beforeSuite([] {
