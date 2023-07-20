@@ -402,6 +402,7 @@ void ConferenceServer::bindFactoryUris() {
 	shared_ptr<FakeListener> listener = make_shared<FakeListener>();
 
 	string uuid = getUuid();
+	auto* registrar = RegistrarDb::get();
 	for (auto conferenceFactoryUri : mConfServerUris) {
 		try {
 			BindingParameters parameter;
@@ -419,7 +420,10 @@ void ConferenceServer::bindFactoryUris() {
 			parameter.version = 0;
 			parameter.withGruu = true;
 
-			RegistrarDb::get()->bind(factory, sipContact, parameter, listener);
+			// Clear any bindings registered by a conference server in version 2.2. See anchor CNFFACREGKEYMIG
+			registrar->clear(factory, parameter.callId, listener);
+
+			registrar->bind(factory, sipContact, parameter, listener);
 
 		} catch (const sofiasip::InvalidUrlError& e) {
 			LOGF("'conference-server' value isn't a SIP URI [%s]", e.getUrl().c_str());

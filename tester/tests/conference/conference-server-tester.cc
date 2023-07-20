@@ -31,6 +31,7 @@
 #include "conference/chatroom-prefix.hh"
 #include "conference/conference-server.hh"
 #include "eventlogs/writers/event-log-writer.hh"
+#include "registrar/binding-parameters.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "registrar/registrar-db.hh"
@@ -172,8 +173,59 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 	}
 }
 
+// Anchor CNFFACREGKEYMIG
+// Flexisip 2.2 used CallIDs as keys in the Registrar in the absence of a +sip.instance field. The Conference server
+// relied on this to update its contact in the registrar, and now relies on a +sip.instance to achieve the same result.
+// Unfortunately, the transition from 2.2 to 2.3 leaves an entry with the "CONFERENCE" CallID as key that the conference
+// server has to clean up manually.
+void conferenceServerClearsOldBindingsOnInit() {
+	const string confFactoryUri = "sip:conference-factory@sip.example.org";
+	Server proxy{{
+	    // Requesting bind on port 0 to let the kernel find any available port
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+
+	    {"conference-server/database-backend", "sqlite"},
+	    {"conference-server/database-connection-string", "/dev/null"},
+	    {"conference-server/conference-factory-uris", confFactoryUri},
+	}};
+	proxy.start();
+	auto* registrar = dynamic_cast<RegistrarDbInternal*>(RegistrarDb::get());
+	BC_HARD_ASSERT_TRUE(registrar != nullptr);
+	const auto& records = registrar->getAllRecords();
+	BC_HARD_ASSERT_CPP_EQUAL(records.size(), 0);
+	sofiasip::Home home{};
+	const SipUri aor(confFactoryUri);
+	BindingParameters params{};
+	params.globalExpire = 0xdead;
+	params.callId = "CONFERENCE";
+	const auto unexpectedContact = "sip:unexpected@127.0.0.1";
+	const auto contact =
+	    sip_contact_create(home.home(), reinterpret_cast<const url_string_t*>(unexpectedContact), nullptr);
+	// Fake an existing contact as if left over from a previous version
+	registrar->bind(aor, contact, params, nullptr);
+	BC_HARD_ASSERT_CPP_EQUAL(records.size(), 1);
+	{
+		const auto& contacts = records.begin()->second->getExtendedContacts();
+		BC_HARD_ASSERT_CPP_EQUAL(contacts.size(), 1);
+		BC_ASSERT_CPP_EQUAL(contacts.latest()->get()->urlAsString(), unexpectedContact);
+	}
+
+	const TestConferenceServer conferenceServer{*proxy.getAgent()};
+
+	BC_ASSERT_CPP_EQUAL(records.size(), 1);
+	const auto& contacts = records.begin()->second->getExtendedContacts();
+	BC_ASSERT_CPP_EQUAL(contacts.size(), 1);
+	for (const auto& contact : contacts) {
+		// Left over contact has been cleaned up
+		BC_ASSERT_CPP_NOT_EQUAL(contact->urlAsString(), unexpectedContact);
+	}
+}
+
 TestSuite _("Conference",
-            {CLASSY_TEST(conferenceServerBindsChatroomsFromDBOnInit)},
+            {
+                CLASSY_TEST(conferenceServerBindsChatroomsFromDBOnInit),
+                CLASSY_TEST(conferenceServerClearsOldBindingsOnInit),
+            },
             Hooks()
                 .beforeSuite([] {
 	                RegistrarDb::resetDB();
