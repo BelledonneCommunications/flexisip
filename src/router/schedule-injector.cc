@@ -60,6 +60,7 @@ void ScheduleInjector::injectRequestEvent(const std::shared_ptr<RequestSipEvent>
 }
 
 void ScheduleInjector::startInject(const std::string& contactId) {
+	SLOGT << "ScheduleInjector::startInject : for " << contactId;
 	for (auto priority : MsgSip::getOrderedPrioritiesList()) {
 		auto& injectMap = getMapFromPriority(priority);
 
@@ -79,6 +80,7 @@ void ScheduleInjector::startInject(const std::string& contactId) {
 				      << "], is expired and is not waiting for inject, removing.";
 				it = contactInjectContexts.erase(it);
 			} else {
+				SLOGT << "ScheduleInjector::startInject : blocked by fork [" << it->mFork->getPtrForEquality() << "]";
 				break;
 			}
 		}
