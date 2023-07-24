@@ -80,20 +80,16 @@ public:
 	virtual void restartProcessing();
 
 	inline bool isSuspended() const {
-		return mState == SUSPENDED;
+		return mState == State::SUSPENDED;
 	}
 
 	inline bool isTerminated() const {
-		return mState == TERMINATED;
+		return mState == State::TERMINATED;
 	}
 
-	inline const std::shared_ptr<IncomingAgent>& getIncomingAgent() {
-		return mIncomingAgent;
-	}
+	std::shared_ptr<IncomingAgent> getIncomingAgent() const;
 
-	inline const std::shared_ptr<OutgoingAgent>& getOutgoingAgent() {
-		return mOutgoingAgent;
-	}
+	std::shared_ptr<OutgoingAgent> getOutgoingAgent() const;
 
 	virtual inline void setIncomingAgent(const std::shared_ptr<IncomingAgent>& agent) {
 		mIncomingAgent = agent;
@@ -130,32 +126,34 @@ public:
 	const std::shared_ptr<tport_t>& getIncomingTport() const;
 
 protected:
-	std::weak_ptr<Module> mCurrModule;
-	std::shared_ptr<MsgSip> mMsgSip;
-	std::shared_ptr<IncomingAgent> mIncomingAgent;
-	std::shared_ptr<OutgoingAgent> mOutgoingAgent;
-	std::shared_ptr<EventLog> mEventLog;
-	Agent* mAgent;
-
-	enum State {
+	enum class State {
 		STARTED,
 		SUSPENDED,
 		TERMINATED,
-	} mState;
+	};
+
 	static std::string stateStr(State s) {
 		switch (s) {
-			case STARTED:
+			case State::STARTED:
 				return "STARTED";
-			case SUSPENDED:
+			case State::SUSPENDED:
 				return "SUSPENDED";
-			case TERMINATED:
+			case State::TERMINATED:
 				return "TERMINATED";
 		}
 		return "invalid";
 	}
 
+	std::weak_ptr<Module> mCurrModule;
+	std::shared_ptr<MsgSip> mMsgSip;
+	std::shared_ptr<EventLog> mEventLog;
+	std::weak_ptr<Agent> mAgent;
+	State mState;
+
 private:
 	std::shared_ptr<tport_t> mIncomingTport;
+	std::weak_ptr<IncomingAgent> mIncomingAgent;
+	std::weak_ptr<OutgoingAgent> mOutgoingAgent;
 };
 
 class RequestSipEvent : public SipEvent {

@@ -26,7 +26,7 @@
 #include "flexisip/module-router.hh"
 
 #include "branch-info.hh"
-#include "transaction.hh"
+#include "transaction/incoming-transaction.hh"
 
 namespace flexisip {
 

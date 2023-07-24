@@ -30,8 +30,9 @@
 
 #include "linphone++/linphone.hh"
 
-namespace flexisip {
-namespace tester {
+#include "utils/test-patterns/test.hh"
+
+namespace flexisip::tester {
 
 struct AssertionResult {
 	const char* const file;
@@ -41,6 +42,10 @@ struct AssertionResult {
 	// Asserts that the assertion passed. Logs the error otherwise.
 	bool assert_passed() const {
 		return bc_assert(file, line, operator bool(), reason.c_str());
+	}
+
+	void hard_assert_passed() const {
+		bc_hard_assert(file, line, operator bool(), reason.c_str());
 	}
 
 	operator bool() const { // Assertion is true if and only if there is no failure reason
@@ -132,5 +137,4 @@ private:
 	std::list<std::function<void()>> mIterateFuncs;
 };
 
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester

@@ -28,7 +28,6 @@
 #include "module-pushnotification.hh"
 #include "pushnotification/push-info.hh"
 #include "strategy/strategy.hh"
-#include "transaction.hh"
 
 namespace flexisip {
 

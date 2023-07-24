@@ -21,6 +21,8 @@
 #include "agent.hh"
 #include "branch-info.hh"
 #include "eventlogs/writers/event-log-writer.hh"
+#include "transaction/incoming-transaction.hh"
+#include "transaction/outgoing-transaction.hh"
 
 using namespace std;
 using namespace flexisip;

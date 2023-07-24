@@ -26,7 +26,7 @@
 #include "branch-info-db.hh"
 #include "fork-status.hh"
 #include "module-pushnotification.hh"
-#include "transaction.hh"
+#include "transaction/outgoing-transaction.hh"
 
 #if ENABLE_UNIT_TESTS
 #include "bctoolbox/tester.h"

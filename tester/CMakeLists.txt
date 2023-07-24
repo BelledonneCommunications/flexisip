@@ -164,7 +164,8 @@ if(LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 		set_source_files_properties(
 			tests/pushnotification/push-notification-tester.cc
 			utils/pns-mock.cc
-			PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized")
+			PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized"
+		)
 	endif()
 elseif(ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	message(FATAL_ERROR "The LibNgHttp2Asio module is required by some tests. You may disable them with -DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF")

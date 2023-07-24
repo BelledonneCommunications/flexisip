@@ -32,7 +32,6 @@
 #include "fork-context/message-kind.hh"
 #include "fork-message-context-db.hh"
 #include "registrar/extended-contact.hh"
-#include "transaction.hh"
 
 namespace flexisip {
 class ModuleRouter;

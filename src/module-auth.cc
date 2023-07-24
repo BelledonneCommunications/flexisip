@@ -18,11 +18,11 @@
 
 #include <sofia-sip/msg_addr.h>
 #include <sofia-sip/sip_extra.h>
-#include <sofia-sip/sip_status.h>
 
 #include <flexisip/module-auth.hh>
 
 #include "auth/flexisip-auth-module.hh"
+#include "transaction/outgoing-transaction.hh"
 
 using namespace std;
 using namespace flexisip;

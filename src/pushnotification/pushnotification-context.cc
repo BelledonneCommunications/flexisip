@@ -23,7 +23,6 @@
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
 #include "fork-context/fork-call-context.hh"
-#include "module-pushnotification.hh"
 #include "pushnotification/strategy/background-push-strategy.hh"
 #include "pushnotification/strategy/remote-push-strategy.hh"
 #include "pushnotification/strategy/voip-push-strategy.hh"
@@ -44,8 +43,7 @@ void PNContextCall::init(std::chrono::seconds aCallPushInterval) {
 		// is limited to 3 per day on this platform.
 		mStrategy = BackgroundPushStrategy::make(shared_from_this(), root, mModule->getService());
 	} else if (dests.find(PushType::Message) != dests.cend()) {
-		auto br = BranchInfo::getBranchInfo(mTransaction);
-		auto remoteStrategy = RemotePushStrategy::make(shared_from_this(), root, mModule->getService(), br);
+		auto remoteStrategy = MessagePushStrategy::make(shared_from_this(), root, mModule->getService(), mBranchInfo);
 		remoteStrategy->setCallPushInterval(aCallPushInterval);
 		mStrategy = std::move(remoteStrategy);
 	} else {
@@ -60,7 +58,7 @@ void PNContextCall::sendPush() {
 void PNContextMessage::init() {
 	const auto& root = mModule->getAgent()->getRoot();
 	if (mPInfo->mDestinations.find(PushType::Message) != mPInfo->mDestinations.cend()) {
-		mStrategy = RemotePushStrategy::make(shared_from_this(), root, mModule->getService(), nullptr);
+		mStrategy = MessagePushStrategy::make(shared_from_this(), root, mModule->getService(), weak_ptr<BranchInfo>{});
 	} else if (mPInfo->mDestinations.find(PushType::Background) != mPInfo->mDestinations.cend()) {
 		mStrategy = BackgroundPushStrategy::make(shared_from_this(), root, mModule->getService());
 	} else {

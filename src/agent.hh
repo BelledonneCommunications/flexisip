@@ -47,7 +47,9 @@
 
 #include "agent-interface.hh"
 #include "eventlogs/writers/event-log-writer.hh"
-#include "transaction.hh"
+#include "transaction/incoming-agent.hh"
+#include "transaction/outgoing-agent.hh"
+#include "transaction/transaction.hh"
 #include "transport.hh"
 
 namespace flexisip {
@@ -137,8 +139,8 @@ public:
 	const std::string& getResolvedPublicIp(bool ipv6 = false) const {
 		return ipv6 ? mPublicResolvedIpV6 : mPublicResolvedIpV4;
 	}
-	Agent* getAgent() override {
-		return this;
+	std::weak_ptr<Agent> getAgent() noexcept override {
+		return weak_from_this();
 	}
 	std::shared_ptr<OutgoingAgent> getOutgoingAgent() override {
 		return shared_from_this();

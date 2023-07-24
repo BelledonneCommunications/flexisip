@@ -27,14 +27,15 @@
 #include "agent.hh"
 #include "eventlogs/events/eventlogs.hh"
 #include "eventlogs/writers/event-log-writer.hh"
-#include "transaction.hh"
+#include "transaction/incoming-transaction.hh"
+#include "transaction/outgoing-transaction.hh"
 
 using namespace std;
 
 namespace flexisip {
 
 SipEvent::SipEvent(const shared_ptr<IncomingAgent>& inAgent, const shared_ptr<MsgSip>& msgSip, tport_t* tport)
-    : mCurrModule{}, mMsgSip(msgSip), mState(STARTED) {
+    : mCurrModule{}, mMsgSip(msgSip), mState(State::STARTED) {
 	SLOGD << "New SipEvent " << this << " - msg " << msgSip->getMsg();
 	mIncomingAgent = inAgent;
 	mAgent = inAgent->getAgent();
@@ -42,13 +43,15 @@ SipEvent::SipEvent(const shared_ptr<IncomingAgent>& inAgent, const shared_ptr<Ms
 	if (it) {
 		mOutgoingAgent = it->getOutgoingTransaction();
 	} else {
-		mOutgoingAgent = inAgent->getAgent()->shared_from_this();
+		mOutgoingAgent = mAgent;
 	}
-	if (tport) mIncomingTport = shared_ptr<tport_t>(tport_ref(tport), tport_unref);
+	if (tport) {
+		mIncomingTport = shared_ptr<tport_t>(tport_ref(tport), tport_unref);
+	}
 }
 
 SipEvent::SipEvent(const shared_ptr<OutgoingAgent>& outAgent, const shared_ptr<MsgSip>& msgSip, tport_t* tport)
-    : mCurrModule{}, mMsgSip(msgSip), mState(STARTED) {
+    : mCurrModule{}, mMsgSip(msgSip), mState(State::STARTED) {
 	SLOGD << "New SipEvent " << this << " - msg " << msgSip->getMsg();
 	mOutgoingAgent = outAgent;
 	mAgent = outAgent->getAgent();
@@ -58,14 +61,18 @@ SipEvent::SipEvent(const shared_ptr<OutgoingAgent>& outAgent, const shared_ptr<M
 		// A response SipEvent is generated either from a stateless response or from a response from an outgoing
 		// transaction.
 		mIncomingAgent = ot->getIncomingTransaction();
-	} else mIncomingAgent = mAgent->shared_from_this();
-	if (tport) mIncomingTport = shared_ptr<tport_t>(tport_ref(tport), tport_unref);
+	} else {
+		mIncomingAgent = mAgent;
+	}
+	if (tport) {
+		mIncomingTport = shared_ptr<tport_t>(tport_ref(tport), tport_unref);
+	}
 }
 
 SipEvent::SipEvent(const SipEvent& sipEvent)
-    : enable_shared_from_this<SipEvent>(), mCurrModule(sipEvent.mCurrModule), mIncomingAgent(sipEvent.mIncomingAgent),
-      mOutgoingAgent(sipEvent.mOutgoingAgent), mAgent(sipEvent.mAgent), mState(sipEvent.mState),
-      mIncomingTport(sipEvent.mIncomingTport) {
+    : enable_shared_from_this<SipEvent>(), mCurrModule(sipEvent.mCurrModule), mAgent(sipEvent.mAgent),
+      mState(sipEvent.mState), mIncomingTport(sipEvent.mIncomingTport), mIncomingAgent(sipEvent.mIncomingAgent),
+      mOutgoingAgent(sipEvent.mOutgoingAgent) {
 	LOGD("New SipEvent %p with state %s", this, stateStr(mState).c_str());
 	// make a copy of the msgsip when the SipEvent is copy-constructed
 	mMsgSip = make_shared<MsgSip>(*sipEvent.mMsgSip);
@@ -81,26 +88,28 @@ void SipEvent::flushLog() {
 }
 
 void SipEvent::writeLog(const std::shared_ptr<const EventLogWriteDispatcher>& log) {
-	if (auto logWriter = mAgent->getEventLogWriter()) {
-		logWriter->write(log);
+	if (auto sharedAgent = mAgent.lock()) {
+		if (auto logWriter = sharedAgent->getEventLogWriter()) {
+			logWriter->write(log);
+		}
 	}
 }
 
 void SipEvent::setEventLog(const std::shared_ptr<EventLog>& log) {
 	mEventLog = log;
-	if (mState == TERMINATED) {
+	if (mState == State::TERMINATED) {
 		flushLog();
 	}
 }
 
 void SipEvent::terminateProcessing() {
 	LOGD("Terminate SipEvent %p", this);
-	if (mState == STARTED || mState == SUSPENDED) {
-		mState = TERMINATED;
+	if (mState == State::STARTED || mState == State::SUSPENDED) {
+		mState = State::TERMINATED;
 		flushLog();
 		mIncomingAgent.reset();
 		mOutgoingAgent.reset();
-	} else if (mState == TERMINATED) {
+	} else if (mState == State::TERMINATED) {
 		LOGE("SipEvent::terminateProcessing(): event is already terminated. Please fix your code.");
 	} else {
 		LOGA("Can't terminateProcessing: wrong state %s", stateStr(mState).c_str());
@@ -109,8 +118,8 @@ void SipEvent::terminateProcessing() {
 
 void SipEvent::suspendProcessing() {
 	LOGD("Suspend SipEvent %p", this);
-	if (mState == STARTED) {
-		mState = SUSPENDED;
+	if (mState == State::STARTED) {
+		mState = State::SUSPENDED;
 	} else {
 		LOGA("Can't suspendProcessing: wrong state %s", stateStr(mState).c_str());
 	}
@@ -118,8 +127,8 @@ void SipEvent::suspendProcessing() {
 
 void SipEvent::restartProcessing() {
 	LOGD("Restart SipEvent %p", this);
-	if (mState == SUSPENDED) {
-		mState = STARTED;
+	if (mState == State::SUSPENDED) {
+		mState = State::STARTED;
 	} else {
 		LOGA("Can't restartProcessing: wrong state %s", stateStr(mState).c_str());
 	}
@@ -134,6 +143,26 @@ std::shared_ptr<OutgoingTransaction> SipEvent::getOutgoingTransaction() {
 }
 const std::shared_ptr<tport_t>& SipEvent::getIncomingTport() const {
 	return mIncomingTport;
+}
+
+std::shared_ptr<OutgoingAgent> SipEvent::getOutgoingAgent() const {
+	if (auto sharedAgent = mOutgoingAgent.lock()) {
+		return sharedAgent;
+	}
+	if (auto sharedAgent = mAgent.lock()) {
+		return sharedAgent;
+	}
+	return nullptr;
+}
+
+std::shared_ptr<IncomingAgent> SipEvent::getIncomingAgent() const {
+	if (auto sharedAgent = mIncomingAgent.lock()) {
+		return sharedAgent;
+	}
+	if (auto sharedAgent = mAgent.lock()) {
+		return sharedAgent;
+	}
+	return nullptr;
 }
 
 void RequestSipEvent::checkContentLength(const url_t* url) {
@@ -155,7 +184,7 @@ std::shared_ptr<RequestSipEvent> RequestSipEvent::makeRestored(std::shared_ptr<I
                                                                const std::weak_ptr<Module>& currModule) {
 	auto shared = make_shared<RequestSipEvent>(incomingAgent, msgSip);
 	shared->mCurrModule = currModule;
-	shared->mState = SUSPENDED;
+	shared->mState = State::SUSPENDED;
 
 	return shared;
 }
@@ -172,13 +201,13 @@ RequestSipEvent::RequestSipEvent(const shared_ptr<RequestSipEvent>& sipEvent)
 void RequestSipEvent::send(
     const shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) {
 
-	if (mOutgoingAgent != nullptr) {
+	if (auto sharedOutgoingAgent = getOutgoingAgent()) {
 		SLOGD << "Sending Request SIP message to " << (u ? url_as_string(msg->getHome(), (url_t const*)u) : "NULL")
 		      << "\n"
 		      << *msg;
 		ta_list ta;
 		ta_start(ta, tag, value);
-		mOutgoingAgent->send(msg, u, ta_tags(ta));
+		sharedOutgoingAgent->send(msg, u, ta_tags(ta));
 		ta_end(ta);
 	} else {
 		LOGD("The Request SIP message is not send");
@@ -187,11 +216,11 @@ void RequestSipEvent::send(
 }
 
 void RequestSipEvent::reply(int status, char const* phrase, tag_type_t tag, tag_value_t value, ...) {
-	if (mIncomingAgent != NULL) {
+	if (auto sharedIncomingAgent = getIncomingAgent()) {
 		SLOGD << "Replying Request SIP message: " << status << " " << phrase;
 		ta_list ta;
 		ta_start(ta, tag, value);
-		mIncomingAgent->reply(getMsgSip(), status, phrase, ta_tags(ta));
+		sharedIncomingAgent->reply(getMsgSip(), status, phrase, ta_tags(ta));
 		ta_end(ta);
 	} else {
 		SLOGD << "The Request SIP message is not replied";
@@ -204,10 +233,11 @@ void RequestSipEvent::setIncomingAgent([[maybe_unused]] const shared_ptr<Incomin
 }
 
 std::shared_ptr<IncomingTransaction> RequestSipEvent::createIncomingTransaction() {
-	auto transaction = dynamic_pointer_cast<IncomingTransaction>(mIncomingAgent);
-	if (transaction == nullptr) {
-		transaction = IncomingTransaction::makeShared(mIncomingAgent->getAgent());
-		mIncomingAgent = transaction;
+	auto transaction = dynamic_pointer_cast<IncomingTransaction>(getIncomingAgent());
+	auto sharedAgent = mAgent.lock();
+	if (transaction == nullptr && sharedAgent) {
+		transaction = make_shared<IncomingTransaction>(sharedAgent->getAgent());
+		SipEvent::setIncomingAgent(transaction);
 		transaction->handle(mMsgSip);
 		linkTransactions();
 	}
@@ -215,10 +245,11 @@ std::shared_ptr<IncomingTransaction> RequestSipEvent::createIncomingTransaction(
 }
 
 std::shared_ptr<OutgoingTransaction> RequestSipEvent::createOutgoingTransaction() {
-	auto transaction = dynamic_pointer_cast<OutgoingTransaction>(mOutgoingAgent);
-	if (transaction == nullptr) {
-		transaction = make_shared<OutgoingTransaction>(mOutgoingAgent->getAgent());
-		mOutgoingAgent = transaction;
+	auto transaction = dynamic_pointer_cast<OutgoingTransaction>(getOutgoingAgent());
+	auto sharedAgent = mAgent.lock();
+	if (transaction == nullptr && sharedAgent) {
+		transaction = make_shared<OutgoingTransaction>(sharedAgent->getAgent());
+		setOutgoingAgent(transaction);
 		linkTransactions();
 	}
 	return transaction;
@@ -228,11 +259,14 @@ void RequestSipEvent::linkTransactions() {
 	shared_ptr<OutgoingTransaction> ot;
 	shared_ptr<IncomingTransaction> it;
 
-	if (mOutgoingAgent && mIncomingAgent &&
-	    (ot = dynamic_pointer_cast<OutgoingTransaction>(mOutgoingAgent)) != nullptr &&
-	    (it = dynamic_pointer_cast<IncomingTransaction>(mIncomingAgent)) != nullptr) {
-		ot->mIncoming = it;
-		it->mOutgoing = ot;
+	if (auto sharedOutgoingAgent = getOutgoingAgent()) {
+		if (auto sharedIncomingAgent = getIncomingAgent()) {
+			if ((ot = dynamic_pointer_cast<OutgoingTransaction>(sharedOutgoingAgent)) != nullptr &&
+			    (it = dynamic_pointer_cast<IncomingTransaction>(sharedIncomingAgent)) != nullptr) {
+				ot->mIncoming = it;
+				it->mOutgoing = ot;
+			}
+		}
 	}
 }
 
@@ -240,10 +274,14 @@ void RequestSipEvent::unlinkTransactions() {
 	shared_ptr<OutgoingTransaction> ot;
 	shared_ptr<IncomingTransaction> it;
 
-	if (mOutgoingAgent && mIncomingAgent && (ot = dynamic_pointer_cast<OutgoingTransaction>(mOutgoingAgent)) != NULL &&
-	    (it = dynamic_pointer_cast<IncomingTransaction>(mIncomingAgent)) != NULL) {
-		ot->mIncoming.reset();
-		it->mOutgoing.reset();
+	if (auto sharedOutgoingAgent = getOutgoingAgent()) {
+		if (auto sharedIncomingAgent = getIncomingAgent()) {
+			if ((ot = dynamic_pointer_cast<OutgoingTransaction>(sharedOutgoingAgent)) != nullptr &&
+			    (it = dynamic_pointer_cast<IncomingTransaction>(sharedIncomingAgent)) != nullptr) {
+				ot->mIncoming.reset();
+				it->mOutgoing.reset();
+			}
+		}
 	}
 }
 
@@ -295,7 +333,9 @@ ResponseSipEvent::ResponseSipEvent(shared_ptr<OutgoingAgent> outgoingAgent,
                                    const shared_ptr<MsgSip>& msgSip,
                                    tport_t* tport)
     : SipEvent(outgoingAgent, msgSip, tport), mPopVia(false) {
-	mPopVia = mAgent != mOutgoingAgent.get(); // we pop the via if sending through transaction
+
+	// we pop the via if sending through transaction
+	mPopVia = dynamic_pointer_cast<OutgoingTransaction>(getOutgoingAgent()) != nullptr;
 }
 
 ResponseSipEvent::ResponseSipEvent(const shared_ptr<ResponseSipEvent>& sipEvent)
@@ -314,7 +354,7 @@ void ResponseSipEvent::checkContentLength(const shared_ptr<MsgSip>& msg, const s
 
 void ResponseSipEvent::send(
     const shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) {
-	if (mIncomingAgent != nullptr) {
+	if (auto sharedIncomingAgent = getIncomingAgent()) {
 		bool via_popped = false;
 		if (mPopVia && msg == mMsgSip) {
 			sip_via_remove(msg->getMsg(), msg->getSip());
@@ -324,7 +364,7 @@ void ResponseSipEvent::send(
 		SLOGD << "Sending response:" << (via_popped ? " (via popped) " : "") << endl << *msg;
 		ta_list ta;
 		ta_start(ta, tag, value);
-		mIncomingAgent->send(msg, u, ta_tags(ta));
+		sharedIncomingAgent->send(msg, u, ta_tags(ta));
 		ta_end(ta);
 	} else {
 		LOGD("The response is discarded.");

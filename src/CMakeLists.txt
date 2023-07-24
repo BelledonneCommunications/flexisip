@@ -118,7 +118,6 @@ add_library(flexisip SHARED
 	stun/stun_udp.c
 	stun/stun.c
 	telephone-event-filter.cc telephone-event-filter.hh
-	transaction.cc transaction.hh
 	transport.cc transport.hh
 	uac-register.cc uac-register.hh
 	conditional-routes.cc conditional-routes.hh
@@ -135,6 +134,7 @@ endif()
 add_subdirectory(pushnotification)
 add_subdirectory(router)
 add_subdirectory(sofia-wrapper)
+add_subdirectory(transaction)
 add_subdirectory(utils)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

@@ -208,6 +208,8 @@ public:
 	ChatRoomBuilder chatroomBuilder() const;
 	CallBuilder callBuilder() const;
 
+	void setRoute(const std::string& host, const std::string& port);
+
 private:
 	friend class ClientBuilder;
 

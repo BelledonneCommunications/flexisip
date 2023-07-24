@@ -25,10 +25,8 @@
 #include "flexisip/module.hh"
 
 #include "agent.hh"
-#include "etchosts.hh"
 #include "eventlogs/writers/event-log-writer.hh"
 #include "eventlogs/events/eventlogs.hh"
-#include "transaction.hh"
 
 using namespace std;
 using namespace flexisip;

@@ -54,6 +54,7 @@ public:
 	 * Add some Apple-specific push info to REGISTERs
 	 */
 	ClientBuilder& setApplePushConfig();
+	ClientBuilder& setApplePushConfigRemoteOnly();
 	ClientBuilder& setPassword(const std::string_view& password);
 
 	CoreClient build(const std::string&) const;

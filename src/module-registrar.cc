@@ -32,11 +32,12 @@
 #include "agent.hh"
 #include "domain-registrations.hh"
 #include "eventlogs/events/eventlogs.hh"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "registrar/registrar-db.hh"
+#include "transaction/outgoing-agent.hh"
+#include "transaction/outgoing-transaction.hh"
 #include "utils/uri-utils.hh"
 
 using namespace std;

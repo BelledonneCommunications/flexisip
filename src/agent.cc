@@ -503,6 +503,7 @@ TlsConfigInfo Agent::getTlsConfigInfo(const GenericStruct* global) {
 // -----------------------------------------------------------------------------
 
 Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root) {
+	LOGT("New Agent[%p]", this);
 	mHttpEngine = nth_engine_create(root->getCPtr(), NTHTAG_ERROR_MSG(0), TAG_END());
 	GenericStruct* cr = ConfigManager::get()->getRoot();
 
@@ -573,6 +574,7 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root) {
 }
 
 Agent::~Agent() {
+	LOGT("Destroy Agent[%p]", this);
 #if ENABLE_MDNS
 	for (belle_sip_mdns_register_t* reg : mMdnsRegisterList) {
 		belle_sip_mdns_unregister(reg);
@@ -580,6 +582,9 @@ Agent::~Agent() {
 #endif
 
 	mTerminating = true;
+
+	// We need to clear modules before calling destroy on sofia agent.
+	mModules.clear();
 
 	if (mTimer) su_timer_destroy(mTimer);
 	if (mDrm) delete mDrm;

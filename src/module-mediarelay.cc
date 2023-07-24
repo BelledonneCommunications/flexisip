@@ -21,10 +21,8 @@
 
 #include "callcontext-mediarelay.hh"
 #include "fork-context/fork-context-base.hh"
-#include "h264iframefilter.hh"
 #include "mediarelay.hh"
 #include "sdp-modifier.hh"
-#include "transaction.hh"
 
 using namespace std;
 using namespace ::std::placeholders;
@@ -295,14 +293,14 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			c->forcePublicAddress(mUsePublicIpForSdpMasquerading);
 			mCurServer = (mCurServer + 1) % mServers.size();
 			newContext = true;
-			it->setProperty<RelayedCall>(getModuleName(), c);
+			it->setProperty<RelayedCall>(getModuleName(), weak_ptr<RelayedCall>{c});
 			configureContext(c);
 		}
 		if (processNewInvite(c, ot, ev)) {
 			// be in the record-route
 			addRecordRouteIncoming(getAgent(), ev);
 			if (newContext) mCalls->store(c);
-			ot->setProperty(getModuleName(), c);
+			ot->setProperty(getModuleName(), weak_ptr<RelayedCall>{c});
 		}
 	} else if (sip->sip_request->rq_method == sip_method_bye) {
 		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->findEstablishedDialog(getAgent(), sip))) != NULL) {

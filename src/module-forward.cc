@@ -32,7 +32,9 @@
 #include "eventlogs/writers/event-log-writer.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
-#include "transaction.hh"
+#include "transaction/incoming-agent.hh"
+#include "transaction/incoming-transaction.hh"
+#include "transaction/outgoing-transaction.hh"
 #include "utils/uri-utils.hh"
 
 using namespace std;
