@@ -85,6 +85,7 @@ add_executable(flexisip_tester
 	tests/presence/presence-pidf-tester.cc
 	tests/presence/presence-publish-tester.cc
 	tests/presence/xsd-utils-tester.cc
+	tests/pushnotification/rfc8599-push-params-tester.cc
 	tests/pushnotification/service-tester.cc
 	tests/sofia-wrapper/home-tester.cc
 	thread-pool-tester.cc
