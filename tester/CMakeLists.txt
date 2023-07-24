@@ -77,6 +77,7 @@ add_executable(flexisip_tester
 	tests/presence/presence-pidf-tester.cc
 	tests/presence/presence-publish-tester.cc
 	tests/presence/xsd-utils-tester.cc
+	tests/pushnotification/rfc8599-push-params-tester.cc
 	thread-pool-tester.cc
 	tls-connection-tester.cc
 	utils-tester.cc
