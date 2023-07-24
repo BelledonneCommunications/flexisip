@@ -102,10 +102,10 @@ void callStartedAndEnded() {
 
 	tony.call(mike);
 
-	BC_ASSERT_CPP_EQUAL(callsStarted.size(), 1);
-	BC_ASSERT_CPP_EQUAL(callsRung.size(), 1);
-	BC_ASSERT_CPP_EQUAL(invitesEnded.size(), 1);
-	BC_ASSERT_CPP_EQUAL(callsEnded.size(), 0);
+	BC_HARD_ASSERT_CPP_EQUAL(callsStarted.size(), 1);
+	BC_HARD_ASSERT_CPP_EQUAL(callsRung.size(), 1);
+	BC_HARD_ASSERT_CPP_EQUAL(invitesEnded.size(), 1);
+	BC_HARD_ASSERT_CPP_EQUAL(callsEnded.size(), 0);
 	const auto& startedEvent = callsStarted[0];
 	BC_ASSERT_TRUE(before < startedEvent.getTimestamp());
 	BC_ASSERT_CPP_EQUAL(toString(startedEvent.getFrom()), expectedFrom);
@@ -161,8 +161,8 @@ void callInviteStatuses() {
 
 	{
 		auto tonyCall = tony.invite(mike);
-		mikePhone.hasReceivedCallFrom(tony).assert_passed();
-		mikeDesktop.hasReceivedCallFrom(tony).assert_passed();
+		mikePhone.hasReceivedCallFrom(tony).hard_assert_passed();
+		mikeDesktop.hasReceivedCallFrom(tony).hard_assert_passed();
 		tonyCall->terminate();
 		asserter
 		    .iterateUpTo(4,
@@ -187,8 +187,8 @@ void callInviteStatuses() {
 
 	{
 		auto tonyCall = tony.invite(mike);
-		mikePhone.hasReceivedCallFrom(tony).assert_passed();
-		mikeDesktop.hasReceivedCallFrom(tony).assert_passed();
+		mikePhone.hasReceivedCallFrom(tony).hard_assert_passed();
+		mikeDesktop.hasReceivedCallFrom(tony).hard_assert_passed();
 		ClientCall::getLinphoneCall(mikePhone.getCurrentCall().value())->decline(linphone::Reason::Declined);
 		asserter
 		    .iterateUpTo(4,
@@ -229,8 +229,8 @@ void callInviteStatuses() {
 
 	{
 		auto tonyCall = tony.invite(mike);
-		mikePhone.hasReceivedCallFrom(tony).assert_passed();
-		mikeDesktop.hasReceivedCallFrom(tony).assert_passed();
+		mikePhone.hasReceivedCallFrom(tony).hard_assert_passed();
+		mikeDesktop.hasReceivedCallFrom(tony).hard_assert_passed();
 		ClientCall::getLinphoneCall(mikePhone.getCurrentCall().value())->accept();
 		asserter
 		    .iterateUpTo(4,
@@ -292,7 +292,7 @@ void callError() {
 		return ASSERTION_PASSED();
 	});
 
-	BC_ASSERT_CPP_EQUAL(invitesEnded.size(), 1);
+	BC_HARD_ASSERT_CPP_EQUAL(invitesEnded.size(), 1);
 	const auto& errorEvent = invitesEnded[0];
 	BC_ASSERT_CPP_EQUAL(errorEvent.getStatusCode(), 488 /* Not acceptable */);
 	BC_ASSERT_CPP_EQUAL(errorEvent.isCancelled(), false);
@@ -319,10 +319,10 @@ void doubleForkContextStart() {
 	CoreAssert asserter{lux, paulClient, agent};
 
 	auto luxCall = lux.invite(paul);
-	paulClient.hasReceivedCallFrom(lux).assert_passed();
+	paulClient.hasReceivedCallFrom(lux).hard_assert_passed();
 	ClientCall::getLinphoneCall(paulClient.getCurrentCall().value())->decline(linphone::Reason::Declined);
 
-	BC_ASSERT_CPP_EQUAL(callsStarted.size(), 1);
+	BC_HARD_ASSERT_CPP_EQUAL(callsStarted.size(), 1);
 
 	// Cleanup
 	asserter

@@ -41,6 +41,10 @@ public:
 		notifyPushSent();
 	}
 
+	PushType getPushType() const override {
+		return PushType::VoIP;
+	}
+
 private:
 	using Strategy::Strategy;
 };

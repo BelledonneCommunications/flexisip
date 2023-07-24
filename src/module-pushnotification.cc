@@ -18,6 +18,8 @@
 
 #include "module-pushnotification.hh"
 
+#include "flexisip/fork-context/fork-context.hh"
+
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
 #include "fork-context/branch-info.hh"
@@ -36,9 +38,14 @@ PushNotificationContext::PushNotificationContext(const std::shared_ptr<OutgoingT
                                                  PushNotification* _module,
                                                  const std::shared_ptr<const pushnotification::PushInfo>& pInfo,
                                                  const std::string& key)
-    : mKey{key}, mModule{_module}, mPInfo{pInfo}, mTimer{_module->getAgent()->getRoot()},
+    : mKey{key}, mModule{_module}, mPInfo{pInfo}, mBranchInfo{BranchInfo::getBranchInfo(transaction)},
+      mForkContext{ForkContext::getFork(transaction)}, mTimer{_module->getAgent()->getRoot()},
       mEndTimer{_module->getAgent()->getRoot()} {
-	mTransaction = transaction;
+	LOGT("New PushNotificationContext[%p]", this);
+}
+
+PushNotificationContext::~PushNotificationContext() {
+	LOGT("Destroy PushNotificationContext[%p]", this);
 }
 
 void PushNotificationContext::start(std::chrono::seconds delay) {
@@ -54,12 +61,9 @@ void PushNotificationContext::cancel() {
 
 void PushNotificationContext::onTimeout() noexcept {
 	SLOGD << "PNR " << mPInfo.get() << ": timeout";
-	auto forkCtx = ForkContext::getFork(mTransaction);
-	if (forkCtx) {
-		if (forkCtx->isFinished()) {
-			LOGD("Call is already established or canceled, so push notification is not sent but cleared.");
-			return;
-		}
+	if (auto sharedFork = mForkContext.lock(); sharedFork->isFinished()) {
+		LOGD("Call is already established or canceled, so push notification is not sent but cleared.");
+		return;
 	}
 
 	try {

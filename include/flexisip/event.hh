@@ -87,12 +87,12 @@ public:
 		return mState == TERMINATED;
 	}
 
-	inline const std::shared_ptr<IncomingAgent>& getIncomingAgent() {
-		return mIncomingAgent;
+	inline const std::shared_ptr<IncomingAgent> getIncomingAgent() {
+		return mIncomingAgent.lock();
 	}
 
-	inline const std::shared_ptr<OutgoingAgent>& getOutgoingAgent() {
-		return mOutgoingAgent;
+	inline const std::shared_ptr<OutgoingAgent> getOutgoingAgent() {
+		return mOutgoingAgent.lock();
 	}
 
 	virtual inline void setIncomingAgent(const std::shared_ptr<IncomingAgent>& agent) {
@@ -132,10 +132,10 @@ public:
 protected:
 	std::weak_ptr<Module> mCurrModule;
 	std::shared_ptr<MsgSip> mMsgSip;
-	std::shared_ptr<IncomingAgent> mIncomingAgent;
-	std::shared_ptr<OutgoingAgent> mOutgoingAgent;
+	std::weak_ptr<IncomingAgent> mIncomingAgent;
+	std::weak_ptr<OutgoingAgent> mOutgoingAgent;
 	std::shared_ptr<EventLog> mEventLog;
-	Agent* mAgent;
+	std::weak_ptr<Agent> mAgent;
 
 	enum State {
 		STARTED,

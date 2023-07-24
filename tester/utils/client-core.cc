@@ -9,11 +9,11 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <chrono>
@@ -269,18 +269,21 @@ CoreClient::callWithEarlyCancel(const std::shared_ptr<CoreClient>& callee,
 	}
 
 	// Check call get the incoming call and caller is in OutgoingRinging state
-	if (!BC_ASSERT_TRUE(asserter.waitUntil(seconds(10), [&callerCall, isCalleeAway, &agent, &callee] {
-		    if (isCalleeAway) {
+	if (isCalleeAway) {
+		if (!BC_ASSERT_TRUE(asserter.waitUntil(seconds(10), [&callerCall, &agent] {
 			    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
 			    return callerCall->getState() == linphone::Call::State::OutgoingProgress &&
 			           moduleRouter->mStats.mCountCallForks->start->read() == 1;
-		    } else {
-
+		    }))) {
+			return nullptr;
+		}
+	} else {
+		if (!BC_ASSERT_TRUE(asserter.waitUntil(seconds(15), [&callerCall, &callee] {
 			    return callerCall->getState() == linphone::Call::State::OutgoingRinging && callee->getCurrentCall() &&
 			           callee->getCurrentCall()->getState() == Call::State::IncomingReceived;
-		    }
-	    }))) {
-		return nullptr;
+		    }))) {
+			return nullptr;
+		}
 	}
 
 	callerCall->terminate();

@@ -28,6 +28,7 @@
 
 #include "agent.hh"
 #include "proxy-server.hh"
+#include "utils/test-patterns/test.hh"
 
 namespace flexisip {
 namespace tester {
@@ -40,6 +41,10 @@ struct AssertionResult {
 	// Asserts that the assertion passed. Logs the error otherwise.
 	bool assert_passed() const {
 		return bc_assert(file, line, operator bool(), reason);
+	}
+
+	void hard_assert_passed() const {
+		bc_hard_assert(file, line, operator bool(), reason);
 	}
 
 	operator bool() const { // Assertion is true if there is no failure reason

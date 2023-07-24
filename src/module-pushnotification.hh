@@ -18,6 +18,7 @@
 
 #include <stdexcept>
 
+#include "flexisip/fork-context/fork-context.hh"
 #include "flexisip/module.hh"
 #include "flexisip/pushnotification/pushnotification-context-observer.hh"
 
@@ -47,7 +48,7 @@ class PushNotification;
 class PushNotificationContext : public Observable<PushNotificationContextObserver>,
                                 public std::enable_shared_from_this<PushNotificationContext> {
 public:
-	virtual ~PushNotificationContext() = default;
+	virtual ~PushNotificationContext();
 
 	const std::string& getKey() const {
 		return mKey;
@@ -73,6 +74,10 @@ public:
 	void setRetransmission(int retryCounter, std::chrono::seconds retryInterval) noexcept {
 		mRetryCounter = retryCounter;
 		mRetryInterval = retryInterval;
+	}
+
+	const std::shared_ptr<const pushnotification::Strategy> getStrategy() const {
+		return mStrategy;
 	}
 
 	/**
@@ -105,7 +110,8 @@ protected:
 	std::string mKey{}; /**< unique key for the push notification, identifying the device and the call. */
 	PushNotification* mModule{nullptr}; /**< Back pointer to the PushNotification module. */
 	std::shared_ptr<const pushnotification::PushInfo> mPInfo{};
-	std::shared_ptr<OutgoingTransaction> mTransaction{};
+	std::weak_ptr<BranchInfo> mBranchInfo;
+	std::weak_ptr<ForkContext> mForkContext;
 	std::shared_ptr<pushnotification::Strategy>
 	    mStrategy{};           /**< A delegate object that affect how the client will be notified. */
 	sofiasip::Timer mTimer;    /**< timer after which push is sent */

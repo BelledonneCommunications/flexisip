@@ -60,14 +60,17 @@ static string getRandomBranch() {
 	return branch;
 }
 
-OutgoingTransaction::OutgoingTransaction(Agent* agent) : Transaction{agent}, mBranchId{getRandomBranch()} {
+OutgoingTransaction::OutgoingTransaction(std::weak_ptr<Agent> agent)
+    : Transaction{agent}, mBranchId{getRandomBranch()} {
 	LOGD("New OutgoingTransaction %p", this);
 }
 
 OutgoingTransaction::~OutgoingTransaction() {
 	LOGD("Delete OutgoingTransaction %p", this);
 	auto outgoing = mOutgoing.take();
-	if (outgoing && !mAgent->mTerminating /* Transaction is already freed by sofia when agent is terminating */) {
+	auto sharedAgent = mAgent.lock();
+	if (outgoing && sharedAgent &&
+	    !sharedAgent->mTerminating /* Transaction is already freed by sofia when agent is terminating */) {
 		nta_outgoing_destroy(outgoing);
 	}
 }
@@ -132,7 +135,7 @@ void OutgoingTransaction::send(
 	if (!mOutgoing) {
 		msg_t* msg = msg_ref_create(ms->getMsg());
 		ta_start(ta, tag, value);
-		mOutgoing = ownership::owned(nta_outgoing_mcreate(mAgent->mAgent, OutgoingTransaction::_callback,
+		mOutgoing = ownership::owned(nta_outgoing_mcreate(mAgent.lock()->mAgent, OutgoingTransaction::_callback,
 		                                                  (nta_outgoing_magic_t*)this, u, msg, ta_tags(ta), TAG_END()));
 		ta_end(ta);
 		if (mOutgoing == NULL) {
@@ -153,16 +156,16 @@ void OutgoingTransaction::send(
 	}
 }
 
-int OutgoingTransaction::_callback(nta_outgoing_magic_t* magic, [[maybe_unused]] nta_outgoing_t* irq, const sip_t* sip) {
+int OutgoingTransaction::_callback(nta_outgoing_magic_t* magic, nta_outgoing_t*, const sip_t* sip) {
 	OutgoingTransaction* otr = reinterpret_cast<OutgoingTransaction*>(magic);
-	LOGD("OutgoingTransaction callback %p", otr);
+	LOGD("OutgoingTransaction[%p] : _callback", otr);
 	if (sip != NULL) {
-		auto oagent = dynamic_pointer_cast<OutgoingAgent>(otr->shared_from_this());
-		auto msgsip = make_shared<MsgSip>(ownership::owned(nta_outgoing_getresponse(otr->mOutgoing.borrow())));
-		shared_ptr<ResponseSipEvent> sipevent =
-		    make_shared<ResponseSipEvent>(oagent, msgsip, otr->mAgent->getIncomingTport(msgsip->getMsg()));
+		auto outgoingAgent = dynamic_pointer_cast<OutgoingAgent>(otr->shared_from_this());
+		auto msgSip = make_shared<MsgSip>(ownership::owned(nta_outgoing_getresponse(otr->mOutgoing.borrow())));
+		auto sipEvent = make_shared<ResponseSipEvent>(outgoingAgent, msgSip,
+		                                              otr->mAgent.lock()->getIncomingTport(msgSip->getMsg()));
 
-		otr->mAgent->sendResponseEvent(sipevent);
+		otr->mAgent.lock()->sendResponseEvent(sipEvent);
 
 		if (sip->sip_status && sip->sip_status->st_status >= 200) {
 			otr->queueFree();
@@ -183,21 +186,21 @@ void OutgoingTransaction::queueFree() {
 	   call nta_outgoing_destroy(). nta_outgoing_tcancel() is then left with the INVITE transaction freed (full of
 	   0xaaaaaaaa), which crashes.
 	*/
-	mAgent->getRoot()->addToMainLoop([self = std::move(mSelfRef)] {});
+	mAgent.lock()->getRoot()->addToMainLoop([self = std::move(mSelfRef)] {});
 	mIncoming.reset();
 	if (mOutgoing) {
 		nta_outgoing_bind(mOutgoing.borrow(), NULL, NULL); // avoid callbacks
 	}
 }
 
-IncomingTransaction::IncomingTransaction(Agent* agent) : Transaction(agent) {
+IncomingTransaction::IncomingTransaction(std::weak_ptr<Agent> agent) : Transaction(agent) {
 	LOGD("New IncomingTransaction %p", this);
 }
 
 void IncomingTransaction::handle(const shared_ptr<MsgSip>& ms) {
 	msg_t* msg = ms->getMsg();
 	msg = msg_ref_create(msg);
-	mIncoming = nta_incoming_create(mAgent->mAgent, NULL, msg, sip_object(msg), TAG_END());
+	mIncoming = nta_incoming_create(mAgent.lock()->mAgent, NULL, msg, sip_object(msg), TAG_END());
 	if (mIncoming != NULL) {
 		nta_incoming_bind(mIncoming, IncomingTransaction::_callback, (nta_incoming_magic_t*)this);
 		mSofiaRef = shared_from_this();
@@ -224,8 +227,7 @@ shared_ptr<MsgSip> IncomingTransaction::createResponse(int status, char const* p
 	return shared_ptr<MsgSip>();
 }
 
-void IncomingTransaction::send(
-    const shared_ptr<MsgSip>& ms, [[maybe_unused]] url_string_t const* u, [[maybe_unused]] tag_type_t tag, [[maybe_unused]] tag_value_t value, ...) {
+void IncomingTransaction::send(const shared_ptr<MsgSip>& ms, url_string_t const*, tag_type_t, tag_value_t, ...) {
 	if (mIncoming) {
 		msg_t* msg =
 		    msg_ref_create(ms->getMsg()); // need to increment refcount of the message because mreply will decrement it.
@@ -240,9 +242,9 @@ void IncomingTransaction::send(
 }
 
 void IncomingTransaction::reply(
-    [[maybe_unused]] const shared_ptr<MsgSip>& msgIgnored, int status, char const* phrase, tag_type_t tag, tag_value_t value, ...) {
+    const shared_ptr<MsgSip>&, int status, char const* phrase, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncoming) {
-		mAgent->incrReplyStat(status);
+		if (auto sharedAgent = mAgent.lock()) sharedAgent->incrReplyStat(status);
 		ta_list ta;
 		ta_start(ta, tag, value);
 		nta_incoming_treply(mIncoming, status, phrase, ta_tags(ta));
@@ -255,14 +257,14 @@ void IncomingTransaction::reply(
 	}
 }
 
-int IncomingTransaction::_callback(nta_incoming_magic_t* magic, [[maybe_unused]] nta_incoming_t* irq, const sip_t* sip) {
+int IncomingTransaction::_callback(nta_incoming_magic_t* magic, nta_incoming_t*, const sip_t* sip) {
 	IncomingTransaction* it = reinterpret_cast<IncomingTransaction*>(magic);
 	LOGD("IncomingTransaction callback %p", it);
 	if (sip != NULL) {
 		auto ev = make_shared<RequestSipEvent>(
 		    it->shared_from_this(),
 		    make_shared<MsgSip>(ownership::owned(nta_incoming_getrequest_ackcancel(it->mIncoming))));
-		it->mAgent->sendRequestEvent(ev);
+		it->mAgent.lock()->sendRequestEvent(ev);
 	} else {
 		it->destroy();
 	}
