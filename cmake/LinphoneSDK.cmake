@@ -207,3 +207,5 @@ if(ENABLE_LIBLINPHONE)
 	add_subdirectory("linphone-sdk/liblinphone")
 	unset(ENABLE_UNIT_TESTS) # remove the overriding
 endif()
+
+unset(ENABLE_STRICT)
