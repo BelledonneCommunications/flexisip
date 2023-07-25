@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <random>
 #include <string>
 
@@ -36,6 +37,7 @@ void flexisip_tester_uninit();
 
 std::random_device::result_type seed();
 std::default_random_engine randomEngine();
+std::string randomString(std::size_t);
 
 } // namespace tester
 } // namespace flexisip

@@ -24,7 +24,7 @@
 #include "flexisip/registrar/registar-listeners.hh"
 
 #include "agent.hh"
-#include "authdb.hh"
+#include "auth/db/authdb.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/registrar-db.hh"
 

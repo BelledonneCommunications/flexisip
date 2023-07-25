@@ -45,9 +45,10 @@ using namespace flexisip;
 using namespace pidf;
 using namespace std;
 
-PresenceServer::Init PresenceServer::sStaticInit; // The Init object is instanciated to load the config
+// The Init object is instanciated to load the config
+PresenceServer::Init PresenceServer::sStaticInit{*GenericManager::get()->getRoot()};
 
-PresenceServer::Init::Init() {
+PresenceServer::Init::Init(GenericStruct& root) {
 	ConfigItemDescriptor items[] = {
 	    {Boolean, "enabled", "Enable presence server", "true"},
 	    {StringList, "transports",
@@ -100,8 +101,7 @@ PresenceServer::Init::Init() {
 	    {Integer, "max-thread-queue-size", "Max legnth of threads queue.", "50"},
 	    config_item_end};
 
-	auto uS = make_unique<GenericStruct>("presence-server", "Flexisip presence server parameters.", 0);
-	auto s = GenericManager::get()->getRoot()->addChild(move(uS));
+	auto s = root.addChild(make_unique<GenericStruct>("presence-server", "Flexisip presence server parameters.", 0));
 	s->addChildrenValues(items);
 
 	s->get<ConfigString>("bypass-condition")->setExportable(false);

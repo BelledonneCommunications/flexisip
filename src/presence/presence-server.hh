@@ -31,6 +31,7 @@
 
 #include "bellesip-signaling-exception.hh"
 #include "etag-manager.hh"
+#include "flexisip/configmanager.hh"
 #include "presentity-manager.hh"
 #include "service-server.hh"
 #include "utils/thread/thread-pool.hh"
@@ -69,6 +70,12 @@ public:
 
 class PresenceServer : public PresentityManager, public ServiceServer {
 public:
+	// Used to declare the service configuration
+	class Init {
+	public:
+		Init(GenericStruct& configRoot);
+	};
+
 	PresenceServer(const std::shared_ptr<sofiasip::SuRoot>& root);
 	~PresenceServer();
 	void _init() override;
@@ -79,11 +86,6 @@ public:
 	void removePresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver>& observer);
 
 private:
-	// Used to declare the service configuration
-	class Init {
-	public:
-		Init();
-	};
 	static Init sStaticInit;
 	// PresenceConfigManager mConfigManager;
 	belle_sip_stack_t* mStack;

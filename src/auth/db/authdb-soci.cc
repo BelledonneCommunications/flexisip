@@ -16,10 +16,15 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <bitset>
+#include <cstdint>
+#include <regex>
+#include <string_view>
 #include <thread>
 
 #include <soci/mysql/soci-mysql.h>
 
+#include "flexisip/configmanager.hh"
 #include "soci-helper.hh"
 #include "utils/digest.hh"
 #include "utils/string-utils.hh"
@@ -39,6 +44,51 @@ typedef monotonic_clock steady_clock;
 }
 #endif
 using namespace flexisip;
+
+namespace {
+
+// Parse admin-provided request to build appropriate parameter injection
+std::function<soci::rowset<soci::row>(soci::session&, const std::string&, const std::string&, const std::string&)>
+buildSociParamInjecter(std::string_view request) {
+	std::regex paramsRegex("(:domain|:authid)");
+	constexpr std::uint8_t DOMAIN = 0b01;
+	constexpr std::uint8_t AUTHID = 0b10;
+	std::uint8_t paramsFound = 0b00;
+	const std::cregex_iterator paramsEnd{};
+	for (std::cregex_iterator match(request.begin(), request.end(), paramsRegex); match != paramsEnd; ++match) {
+		const auto& match_str = match->str();
+		if (match_str == ":domain") {
+			paramsFound |= DOMAIN;
+		} else if (match_str == ":authid") {
+			paramsFound |= AUTHID;
+		}
+		if (paramsFound == (DOMAIN | AUTHID)) break;
+	}
+	switch (paramsFound) {
+		case (DOMAIN | AUTHID): {
+			return [request](auto& sql, const auto& id, const auto& domain, const auto& authid) {
+				return sql.prepare << request, use(id, "id"), use(domain, "domain"), use(authid, "authid");
+			};
+		} break;
+		case DOMAIN: {
+			return [request](auto& sql, const auto& id, const auto& domain, const auto&) {
+				return sql.prepare << request, use(id, "id"), use(domain, "domain");
+			};
+		} break;
+		case AUTHID: {
+			return [request](auto& sql, const auto& id, const auto&, const auto& authid) {
+				return sql.prepare << request, use(id, "id"), use(authid, "authid");
+			};
+		} break;
+		default: {
+			return [request](auto& sql, const auto& id, const auto&, const auto&) {
+				return sql.prepare << request, use(id, "id");
+			};
+		} break;
+	}
+}
+
+} // namespace
 
 void SociAuthDB::declareConfig(GenericStruct* mc) {
 	// ODBC-specific configuration keys
@@ -130,21 +180,22 @@ void SociAuthDB::declareConfig(GenericStruct* mc) {
 	    {"2020-06-18", "2.1.0",
 	     "This configuration is moved to [presence-server] section. Please move your configuration."});
 
-	auto* ps = GenericManager::get()->getRoot()->get<GenericStruct>("presence-server");
+	auto* ps = dynamic_cast<GenericStruct*>(mc->getParent())->get<GenericStruct>("presence-server");
 	ps->get<ConfigString>("soci-user-with-phone-request")->setFallback(*userWithPhoneReqConf);
 	ps->get<ConfigString>("soci-users-with-phones-request")->setFallback(*usersWithPhonesReqConf);
 }
 
-SociAuthDB::SociAuthDB() {
-	auto* cr = GenericManager::get()->getRoot();
-	auto* ma = cr->get<GenericStruct>("module::Authentication");
-	auto* mp = cr->get<GenericStruct>("module::Presence");
-	auto* ps = cr->get<GenericStruct>("presence-server");
+SociAuthDB::SociAuthDB(const GenericStruct& cr) : AuthDbBackend(cr) {
+	auto* ma = cr.get<GenericStruct>("module::Authentication");
+	auto* mp = cr.get<GenericStruct>("module::Presence");
+	auto* ps = cr.get<GenericStruct>("presence-server");
 
 	poolSize = ma->get<ConfigInt>("soci-poolsize")->read();
 	connection_string = ma->get<ConfigString>("soci-connection-string")->read();
 	backend = ma->get<ConfigString>("soci-backend")->read();
-	get_password_request = ma->get<ConfigString>("soci-password-request")->read();
+
+	mGetPassword = buildSociParamInjecter(ma->get<ConfigString>("soci-password-request")->read());
+
 	auto max_queue_size = (unsigned int)ma->get<ConfigInt>("soci-max-queue-size")->read();
 
 	get_user_with_phone_request = ps->get<ConfigString>("soci-user-with-phone-request")->read();
@@ -196,8 +247,7 @@ void SociAuthDB::getPasswordWithPool(const string& id,
 
 	try {
 		sociHelper.execute([&](session& sql) {
-			rowset<row> results = (sql.prepare << get_password_request, use(unescapedIdStr, "id"),
-			                       use(domain, "domain"), use(authid, "authid"));
+			rowset<row> results = mGetPassword(sql, unescapedIdStr, domain, authid);
 			for (const auto& r : results) {
 				/* If size == 1 then we only have the password so we assume MD5 */
 				auto algo = r.size() > 1 ? r.get<string>(1) : "MD5";

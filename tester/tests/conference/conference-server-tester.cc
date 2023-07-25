@@ -75,7 +75,6 @@ public:
 		for (const auto& chatroom : chatrooms) {
 			chatroom->addListener(self);
 			mChatrooms.emplace_back(chatroom->cPtr());
-			SLOGD << "BEDUG " << __PRETTY_FUNCTION__ << " chatroom: " << chatroom->cPtr();
 		}
 	}
 

@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 
+#include <functional>
 #include <map>
 #include <mutex>
 #include <set>
@@ -27,6 +28,7 @@
 #include <thread>
 #include <vector>
 
+#include "flexisip/configmanager.hh"
 #include "sofia-sip/auth_module.h"
 #include "sofia-sip/auth_plugin.h"
 
@@ -95,7 +97,7 @@ public:
 protected:
 	enum CacheResult { VALID_PASS_FOUND, EXPIRED_PASS_FOUND, NO_PASS_FOUND };
 
-	AuthDbBackend();
+	AuthDbBackend(const GenericStruct&);
 
 	virtual void getUserWithPhoneFromBackend(const std::string&, const std::string&, AuthDbListener* listener) = 0;
 	virtual void getUsersWithPhonesFromBackend(std::list<std::tuple<std::string, std::string, AuthDbListener*>>& creds);
@@ -274,7 +276,11 @@ public:
 
 #if ENABLE_SOCI
 
+#include "soci/row.h"
+#include "soci/rowset.h"
+#include "soci/session.h"
 #include "soci/soci.h"
+
 #include "utils/thread/thread-pool.hh"
 
 namespace flexisip {
@@ -291,9 +297,9 @@ public:
 
 	static void declareConfig(GenericStruct* mc);
 
-private:
-	SociAuthDB();
+	SociAuthDB(const GenericStruct&);
 
+private:
 	void connectDatabase();
 	void closeOpenedSessions();
 
@@ -312,10 +318,13 @@ private:
 	std::unique_ptr<ThreadPool> thread_pool;
 	std::string connection_string;
 	std::string backend;
-	std::string get_password_request;
 	std::string get_user_with_phone_request;
 	std::string get_users_with_phones_request;
 	std::string get_password_algo_request;
+	// Get user password with soci using admin-provided query string.
+	// Will bind only known parameters detected in the query string
+	std::function<soci::rowset<soci::row>(soci::session&, const std::string&, const std::string&, const std::string&)>
+	    mGetPassword;
 	bool check_domain_in_presence_results = false;
 	bool _connected = false;
 
