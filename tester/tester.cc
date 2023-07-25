@@ -17,7 +17,9 @@
 */
 
 #include "tester.hh"
+#include "utils/rand.hh"
 
+#include <cstddef>
 #include <cstdlib>
 #include <random>
 #include <stdexcept>
@@ -48,6 +50,11 @@ std::random_device::result_type seed() {
 
 std::default_random_engine randomEngine() {
 	return std::default_random_engine{seed()};
+}
+
+std::string randomString(std::size_t length) {
+	static RandomStringGenerator generator{seed()};
+	return generator(length);
 }
 
 std::string bcTesterFile(const std::string& name) {

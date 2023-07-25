@@ -26,12 +26,12 @@
 
 add_library(flexisip SHARED
 	agent.cc agent.hh
-	auth/flexisip-auth-module.cc auth/flexisip-auth-module.hh
+	auth/db/authdb-file.cc
+	auth/db/authdb.cc auth/db/authdb.hh
 	auth/flexisip-auth-module-base.cc
-	auth/realm-extractor.hh
+	auth/flexisip-auth-module.cc auth/flexisip-auth-module.hh
 	auth/nonce-store.cc
-	authdb-file.cc
-	authdb.cc authdb.hh
+	auth/realm-extractor.hh
 	callcontext-mediarelay.cc callcontext-mediarelay.hh
 	callstore.cc callstore.hh
 	cli.cc cli.hh
@@ -349,13 +349,18 @@ endif ()
 if (ENABLE_SOCI)
 	target_compile_definitions(flexisip PRIVATE "ENABLE_SOCI")
 	target_sources(flexisip PRIVATE
-		authdb-soci.cc
+		auth/db/authdb-soci.cc
 		eventlogs/writers/database-event-log-writer.cc eventlogs/writers/database-event-log-writer.hh
 		fork-context/fork-message-context-soci-repository.cc fork-context/fork-message-context-soci-repository.hh
 		fork-context/fork-message-context-db-proxy.cc fork-context/fork-message-context-db-proxy.hh
 		soci-helper.cc soci-helper.hh
 	)
 	target_link_libraries(flexisip PUBLIC soci_core soci_mysql)
+	if(HAS_GCC_BUG_105562)
+		set_source_files_properties(
+			auth/db/authdb-soci.cc
+			PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized")
+	endif()
 endif ()
 if (XercesC_FOUND)
 	target_include_directories(flexisip PRIVATE "${PROJECT_SOURCE_DIR}/libxsd")

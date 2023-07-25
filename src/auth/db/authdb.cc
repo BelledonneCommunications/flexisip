@@ -17,6 +17,8 @@
 */
 
 #include "authdb.hh"
+
+#include "flexisip/configmanager.hh"
 #include "utils/digest.hh"
 
 using namespace std;
@@ -40,7 +42,7 @@ AuthDbListener::~AuthDbListener() {
 
 class FixedAuthDb : public AuthDbBackend {
 public:
-	FixedAuthDb() {
+	FixedAuthDb() : AuthDbBackend(*GenericManager::get()->getRoot()) {
 	}
 
 	void getUserWithPhoneFromBackend([[maybe_unused]] const string& phone,
@@ -70,7 +72,7 @@ AuthDbBackend& AuthDbBackend::get() {
 			sUnique.reset(new FileAuthDb());
 #if ENABLE_SOCI
 		} else if (impl == "soci") {
-			sUnique.reset(new SociAuthDB(cr));
+			sUnique.reset(new SociAuthDB(*cr));
 #endif
 		}
 	}
@@ -78,9 +80,8 @@ AuthDbBackend& AuthDbBackend::get() {
 	return *sUnique;
 }
 
-AuthDbBackend::AuthDbBackend() {
-	GenericStruct* cr = GenericManager::get()->getRoot();
-	GenericStruct* ma = cr->get<GenericStruct>("module::Authentication");
+AuthDbBackend::AuthDbBackend(const GenericStruct& root) {
+	GenericStruct* ma = root.get<GenericStruct>("module::Authentication");
 	list<string> domains = ma->get<ConfigStringList>("auth-domains")->read();
 	mCacheExpire = ma->get<ConfigInt>("cache-expire")->read();
 }

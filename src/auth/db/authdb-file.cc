@@ -93,7 +93,7 @@ void FileAuthDb::parsePasswd(const vector<passwd_algo_t>& srcPasswords,
 	}
 }
 
-FileAuthDb::FileAuthDb() {
+FileAuthDb::FileAuthDb() : AuthDbBackend(*GenericManager::get()->getRoot()) {
 	GenericStruct* cr = GenericManager::get()->getRoot();
 	GenericStruct* ma = cr->get<GenericStruct>("module::Authentication");
 

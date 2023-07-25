@@ -31,7 +31,7 @@
 #include "flexisip/auth/nonce-store.hh"
 #include "flexisip/sofia-wrapper/auth-module.hh"
 
-#include "authdb.hh"
+#include "db/authdb.hh"
 #include "utils/digest.hh"
 
 namespace flexisip {
