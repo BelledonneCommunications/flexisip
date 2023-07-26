@@ -33,6 +33,7 @@ with pkgs;
   hiredis
   protobuf
   libmysqlclient
+  ninja # Optional. You can use "Unix makefiles" instead
 ]
 ++ optionals enableUnitTests [
   boost

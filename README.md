@@ -122,9 +122,9 @@ It is just an additional, **optional** way to build flexisip.
 ### Example build commands:
 
 ```sh
-CC=gcc CXX=g++ BUILD_DIR_NAME="build" cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -S . -B ./$BUILD_DIR_NAME -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Sanitizer -DCMAKE_INSTALL_PREFIX="$PWD/$BUILD_DIR_NAME/install" -DENABLE_UNIT_TESTS=ON -DENABLE_STRICT_LINPHONESDK=OFF -DINTERNAL_JSONCPP=OFF -DENABLE_B2BUA=ON
+CC=gcc CXX=g++ BUILD_DIR_NAME="build" cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -S . -B ./$BUILD_DIR_NAME -G "Ninja" -DCMAKE_BUILD_TYPE=Sanitizer -DCMAKE_INSTALL_PREFIX="$PWD/$BUILD_DIR_NAME/install" -DENABLE_UNIT_TESTS=ON -DENABLE_STRICT_LINPHONESDK=OFF -DINTERNAL_JSONCPP=OFF
 cd build
-clear && cmake --build . -j12 --target install && LSAN_OPTIONS="suppressions=../sanitizer_ignore.txt" bin/flexisip_tester --resource-dir "../tester/" --verbose
+clear && cmake --build . --target install && LSAN_OPTIONS="suppressions=../sanitizer_ignore.txt" bin/flexisip_tester --resource-dir "../tester/" --verbose
 ```
 
 ### Note to maintainers
