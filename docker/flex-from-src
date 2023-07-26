@@ -1,8 +1,6 @@
 FROM gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:20220708_add_jsoncpp
 MAINTAINER  Jehan Monnier <jehan.monnier@linphone.org>
 
-# 'sanitizer' parameter has been deprecated since 2021-09-27.
-# Use 'build_type=Sanitizer' instead.
 ARG sanitizer=OFF
 ARG build_type=Debug
 
@@ -18,8 +16,7 @@ COPY --chown=bc:bc . flexisip/
 # Configure & build
 RUN cd flexisip \
 	&& rm -rf work && mkdir work \
-	&& if [ "${sanitizer}" = 'ON' ]; then build_type='Sanitizer'; fi \
-	&& cmake -S . -B work -G Ninja -DCMAKE_BUILD_TYPE=${build_type} -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc \
+	&& cmake -S . -B work -G Ninja -DCMAKE_BUILD_TYPE=${build_type} -DENABLE_SANITIZERS=${sanitizer} -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc \
 	&& cmake --build work \
 	&& sudo cmake --build work --target install
 
