@@ -31,17 +31,10 @@ cmake_policy(SET CMP0077 NEW)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Ensure compiler optimizations are minimal when compiling in debug mode
-# _FORTIFY_SOURCE (which is enabled in release mode) requires at least level 1
-# _FORTIFY_SOURCE will trigger additional warnings, which are really better seen earlier
-# than when a packaging job fails
-set(CMAKE_C_FLAGS_DEBUG_INIT "-g -O1")
-set(CMAKE_CXX_FLAGS_DEBUG_INIT "-g -O1")
-
-# Add 'Sanitizer' CMake build type.
-# MUST be before project declaration.
-set(CMAKE_C_FLAGS_SANITIZER_INIT "-g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer")
-set(CMAKE_CXX_FLAGS_SANITIZER_INIT "-g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer")
+# -O0 disables optimizations. Any level of optimization (higher than 0) will throw off debuggers while stepping through source code.
+# With sanitizers enabled, fortifying source requires some optimizations. This is unwanted in Debug builds.
+set(CMAKE_C_FLAGS_DEBUG_INIT "-g -O0 -U_FORTIFY_SOURCE -fdiagnostics-color=always")
+set(CMAKE_CXX_FLAGS_DEBUG_INIT ${CMAKE_C_FLAGS_DEBUG_INIT})
 
 # Set project version by using the Git describe
 include("./linphone-sdk/bctoolbox/cmake/BcToolboxCMakeUtils.cmake")
@@ -61,6 +54,13 @@ include(CheckCXXSourceCompiles)
 include(GNUInstallDirs)
 include("cmake/FlexisipUtils.cmake")
 
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+	set(IS_DEBUG TRUE)
+else()
+	set(IS_DEBUG FALSE)
+endif()
+
+option(ENABLE_SANITIZERS "Turn on sanitizers, like the LSAN memory leak detector" ${IS_DEBUG})
 option(ENABLE_STRICT "Pass strict flags to the compiler" ON)
 option(ENABLE_STRICT_LINPHONESDK "Pass strict flags to the compiler for all Linphone SDK submodules" ON)
 option(ENABLE_DATEHANDLER "Build DateHandler module" OFF)
@@ -260,8 +260,19 @@ set_source_files_properties(${PROJECT_BINARY_DIR}/flexisip-config.h PROPERTIES G
 add_compile_definitions("HAVE_CONFIG_H")
 
 bc_init_compilation_flags(CPP_BUILD_FLAGS C_BUILD_FLAGS CXX_BUILD_FLAGS ENABLE_STRICT)
+
+if (ENABLE_SANITIZERS)
+	set(SANITIZERS_FLAG "-fsanitize=address,undefined")
+	add_compile_options(
+		${SANITIZERS_FLAG}
+		"-fno-omit-frame-pointer"
+		"-fno-optimize-sibling-calls"
+	)
+	add_link_options(${SANITIZERS_FLAG})
+endif()
+
 if (ENABLE_STRICT)
-	list(APPEND CXX_BUILD_FLAGS
+	add_compile_options(
 		"-Werror=unused-result" # Packaging (on Ubuntu) has this on, so better catch it sooner
 		"-Werror=maybe-uninitialized" # GCC on CentOS 7 treats this as an error
 	)
