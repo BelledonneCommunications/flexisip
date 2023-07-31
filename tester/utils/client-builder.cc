@@ -18,7 +18,7 @@ namespace flexisip {
 namespace tester {
 
 ClientBuilder::ClientBuilder(const Server& server)
-    : mFactory(linphone::Factory::get()), mCoreTemplate(mFactory->createCore("", "", nullptr)),
+    : mFactory(linphone::Factory::get()), mCoreTemplate(tester::minimalCore(*mFactory)),
       mAccountParams(mCoreTemplate->createAccountParams()), mServer(server), mLimeX3DH(OnOff::On),
       mSendVideo(OnOff::Off), mReceiveVideo(OnOff::Off), mSendRtcp(OnOff::On), mIce(OnOff::Off) {
 }
@@ -33,7 +33,7 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 		throw std::invalid_argument{msg.str()};
 	}
 
-	auto core = minimal_core(*mFactory);
+	auto core = minimalCore(*mFactory);
 	core->setPrimaryContact(me);
 
 	auto accountParams = mAccountParams->clone();
@@ -70,11 +70,9 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 		auto config = core->getConfig();
 		config->setString("storage", "backend", "sqlite3");
 		config->setString("storage", "uri", ":memory:");
-		config->setString("storage", "call_logs_db_uri", "null");
 		config->setBool("rtp", "rtcp_enabled", bool(mSendRtcp));
 	}
 
-	core->setZrtpSecretsFile("null");
 	core->setAudioPort(-1);
 	core->setVideoPort(-1);
 	core->setUseFiles(true);

@@ -86,16 +86,16 @@ public:
 	bool isWritable() const {
 		return mWritable;
 	}
-	void subscribe(const SipUri& url, const std::shared_ptr<ContactRegisteredListener>& listener);
 	/* Returns true if bindings can create a pub-gruu address (when supported by the registering client)*/
 	bool gruuEnabled() const {
 		return mGruuEnabled;
 	};
 
+	void subscribe(const SipUri& url, std::weak_ptr<ContactRegisteredListener>&& listener);
 	/**
 	 * @return true if a subscribe was necessary (not already subscribed topic)
 	 */
-	virtual bool subscribe(const std::string& topic, const std::shared_ptr<ContactRegisteredListener>& listener);
+	virtual bool subscribe(const std::string& topic, std::weak_ptr<ContactRegisteredListener>&& listener);
 	virtual void unsubscribe(const std::string& topic, const std::shared_ptr<ContactRegisteredListener>& listener);
 	virtual void publish(const std::string& topic, const std::string& uid) = 0;
 	bool useGlobalDomain() const {
@@ -165,7 +165,7 @@ protected:
 	void notifyStateListener() const;
 
 	RegistrarDb(Agent* ag);
-	std::multimap<std::string, std::shared_ptr<ContactRegisteredListener>> mContactListenersMap;
+	std::multimap<std::string, std::weak_ptr<ContactRegisteredListener>> mContactListenersMap;
 	std::list<std::shared_ptr<RegistrarDbStateListener>> mStateListeners;
 	LocalRegExpire* mLocalRegExpire;
 	std::string mMessageExpiresName;

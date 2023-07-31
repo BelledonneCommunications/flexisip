@@ -16,6 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "registrar/registrar-db.hh"
 #include "registrardb-redis.hh"
 
 #include <algorithm>
@@ -31,7 +32,6 @@
 #include <hiredis/async.h>
 #include <sofia-sip/sip_protos.h>
 
-#include "flexisip/common.hh"
 #include "flexisip/configmanager.hh"
 #include "flexisip/registrar/registar-listeners.hh"
 
@@ -555,8 +555,8 @@ void RegistrarDbRedisAsync::subscribeTopic(const string& topic) {
  * Indeed if we send a push notification to a device while REDIS has not yet confirmed the subscription, we will not do
  * anything when receiving the REGISTER from the device. The router module should wait confirmation that subscription is
  * active before injecting the forked request to the module chain.*/
-bool RegistrarDbRedisAsync::subscribe(const string& topic, const shared_ptr<ContactRegisteredListener>& listener) {
-	auto shouldSubscribe = RegistrarDb::subscribe(topic, listener);
+bool RegistrarDbRedisAsync::subscribe(const string& topic, std::weak_ptr<ContactRegisteredListener>&& listener) {
+	auto shouldSubscribe = RegistrarDb::subscribe(topic, std::move(listener));
 	if (shouldSubscribe) {
 		subscribeTopic(topic);
 		return true;
@@ -663,9 +663,9 @@ void RegistrarDbRedisAsync::sHandleBindStart(redisAsyncContext*, redisReply* rep
 	// Parse the fetched reply into the Record object (context->mRecord)
 	for (auto&& maybeExpired : parseContacts(reply)) {
 		if (maybeExpired->isExpired()) {
-			changeset.mDelete.emplace_back(move(maybeExpired));
+			changeset.mDelete.emplace_back(std::move(maybeExpired));
 		} else {
-			contacts.emplace(move(maybeExpired));
+			contacts.emplace(std::move(maybeExpired));
 		}
 	}
 
@@ -887,7 +887,7 @@ vector<unique_ptr<ExtendedContact>> RegistrarDbRedisAsync::parseContacts(redisRe
 		LOGD("Parsing contact %s => %s", key, contact);
 		auto maybeContact = make_unique<ExtendedContact>(key, contact);
 		if (maybeContact->mSipContact) {
-			contacts.push_back(move(maybeContact));
+			contacts.push_back(std::move(maybeContact));
 		} else {
 			LOGE("This contact could not be parsed.");
 		}
@@ -927,7 +927,7 @@ void RegistrarDbRedisAsync::handleFetch(redisReply* reply, RedisRegisterContext*
 		if (contact->isExpired()) return;
 
 		try {
-			record->insertOrUpdateBinding(move(contact), nullptr);
+			record->insertOrUpdateBinding(std::move(contact), nullptr);
 		} catch (const InvalidCSeq&) {
 			// There can be a race condition on contact registration. If we get more REGISTERs (without sip instance)
 			// before Redis responded to the first, then we issue multiple insertion commands resulting in duplicated
@@ -1076,7 +1076,7 @@ void RegistrarDbRedisAsync::handleMigration(redisReply* reply, RedisRegisterCont
 					continue;
 				}
 				SipUri url(element->str);
-				RedisRegisterContext* new_context = new RedisRegisterContext(this, move(url), nullptr);
+				RedisRegisterContext* new_context = new RedisRegisterContext(this, std::move(url), nullptr);
 				LOGD("Fetching previous record: %s", element->str);
 				check_redis_command(
 				    redisAsyncCommand(mContext, (void (*)(redisAsyncContext*, void*, void*))sHandleRecordMigration,

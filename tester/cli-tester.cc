@@ -12,12 +12,12 @@
 #include <json/json.h>
 
 #include "bctoolbox/tester.h"
+#include "registrar/record.hh"
 #include "utils/string-utils.hh"
 #include <flexisip/logmanager.hh>
 
 #include "utils/asserts.hh"
 #include "utils/proxy-server.hh"
-#include "utils/redis-server.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"

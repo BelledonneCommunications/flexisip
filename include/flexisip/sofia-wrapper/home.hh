@@ -19,8 +19,16 @@
 #pragma once
 
 #include <cctype>
+#include <initializer_list>
+#include <ostream>
+#include <sstream>
+#include <string_view>
+#include <type_traits>
 
-#include <sofia-sip/su_alloc.h>
+#include "sofia-sip/sip_protos.h"
+#include "sofia-sip/su_alloc.h"
+
+#include "flexisip/template-metaprogramming.hh"
 
 namespace sofiasip {
 
@@ -30,53 +38,75 @@ namespace sofiasip {
 class Home {
 public:
 	Home() noexcept {
-		su_home_init(&mHome);
+		su_home_init(mHome);
 	}
 	Home(const Home& src) = delete;
 	Home(Home&& src) noexcept : Home() {
-		su_home_move(&mHome, &src.mHome);
+		su_home_move(mHome, src.mHome);
 	}
 	~Home() noexcept {
-		su_home_deinit(&mHome);
+		su_home_deinit(mHome);
 	}
 
 	Home& operator=(const Home& src) = delete;
 	Home& operator=(Home&& src) noexcept {
 		reset();
-		su_home_move(&mHome, &src.mHome);
+		su_home_move(mHome, src.mHome);
 		return *this;
 	}
 
 	su_home_t* home() noexcept {
-		return &mHome;
+		return mHome;
 	}
 	const su_home_t* home() const noexcept {
-		return &mHome;
+		return mHome;
 	}
 
 	// Free all the buffers which are referenced by this Home.
 	void reset() noexcept {
-		su_home_deinit(&mHome);
-		su_home_init(&mHome);
+		su_home_deinit(mHome);
+		su_home_init(mHome);
 	}
 
 	void* alloc(std::size_t size) noexcept {
-		return su_alloc(&mHome, size);
+		return su_alloc(mHome, size);
 	}
 	void free(void* data) noexcept {
-		return su_free(&mHome, data);
+		return su_free(mHome, data);
 	}
 
 	char* vsprintf(char const* fmt, va_list ap) noexcept {
-		return su_vsprintf(&mHome, fmt, ap);
+		return su_vsprintf(mHome, fmt, ap);
 	}
 	template <typename... Args>
 	char* sprintf(const char* fmt, Args&&... args) noexcept {
-		return su_sprintf(&mHome, fmt, args...);
+		return su_sprintf(mHome, fmt, args...);
+	}
+
+	// Equivalent to sip_contact_create
+	template <typename... IterableOrStreamable>
+	sip_contact_t* createContact(const std::string_view& url, IterableOrStreamable&&... params) {
+		std::ostringstream contact{};
+		contact << '<' << url << '>';
+		(appendParam(contact, params), ...);
+		return sip_contact_make(mHome, contact.str().c_str());
 	}
 
 private:
-	su_home_t mHome{};
+	template <typename IterableOfStreamable,
+	          typename = std::enable_if_t<type::is_iterable<IterableOfStreamable>>,
+	          typename = std::enable_if_t<!type::is_streamable<IterableOfStreamable>>>
+	static void appendParam(std::ostream& contact, const IterableOfStreamable& params) {
+		for (const auto& param : params) {
+			appendParam(contact, param);
+		}
+	}
+	template <typename Streamable, typename = std::enable_if_t<type::is_streamable<Streamable>>>
+	static void appendParam(std::ostream& contact, const Streamable& param) {
+		contact << ';' << param;
+	}
+
+	su_home_t mHome[1]{};
 };
 
 } // namespace sofiasip

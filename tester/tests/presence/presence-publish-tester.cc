@@ -16,7 +16,6 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "tester.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/test-patterns/presence-test.hh"
 #include "utils/test-patterns/test.hh"
@@ -545,8 +544,10 @@ string PublishTest::getSubscribeBody(const string& aor, const string& port) {
 };
 
 void PublishTest::insertRegistrarContact(const string& aor, const string& port) {
-	mInserter->insert(aor, 10s, aor + ":" + port + ";transport=tcp;",
-	                  "+org.linphone.specs=\"conference/2.4,ephemeral\"");
+	mInserter->setAor(aor)
+	    .setExpire(10s)
+	    .setContactParams({"+org.linphone.specs=\"conference/2.4,ephemeral\""})
+	    .insert({aor + ":" + port + ";transport=tcp;"});
 };
 
 } // namespace tester

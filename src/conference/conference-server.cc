@@ -103,6 +103,9 @@ void ConferenceServer::_init() {
 	} else {
 		configLinphone->setString("storage", "uri", "null");
 	}
+	configLinphone->setString("storage", "call_logs_db_uri", "null");
+	configLinphone->setString("storage", "zrtp_secrets_db_uri", "null");
+	configLinphone->setString("lime", "x3dh_db_path", ":memory:");
 
 	configLinphone->setInt("misc", "max_calls", 1000);
 	configLinphone->setBool("sip", "reject_duplicated_calls", false);

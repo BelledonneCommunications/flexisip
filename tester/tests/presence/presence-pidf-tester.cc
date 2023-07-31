@@ -16,7 +16,6 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "tester.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/test-patterns/presence-test.hh"
 #include "utils/test-suite.hh"
@@ -78,8 +77,10 @@ protected:
 class PidfOneDevicesTest : public SubscribeNotifyTest {
 protected:
 	void insertRegistrarContact() override {
-		mInserter->insert("sip:test@127.0.0.1", 100s, "sip:test@127.0.0.1:9999;transport=tcp;",
-		                  "+org.linphone.specs=\"conference/2.4,ephemeral\"");
+		mInserter->setAor("sip:test@127.0.0.1")
+		    .setContactParams({"+org.linphone.specs=\"conference/2.4,ephemeral\""})
+		    .setExpire(100s)
+		    .insert({"sip:test@127.0.0.1:9999;transport=tcp;"});
 	};
 
 	string getSubscribeHeaders() override {
@@ -118,10 +119,12 @@ protected:
 class PidfMultipleDevicesTest : public SubscribeNotifyTest {
 protected:
 	void insertRegistrarContact() override {
-		mInserter->insert("sip:test@127.0.0.1", 100s, "sip:test@127.0.0.1:9999;transport=tcp;",
-		                  "+org.linphone.specs=\"conference/1.8,ephemeral\"");
-		mInserter->insert("sip:test@127.0.0.1", 100s, "sip:test@127.0.0.1:8888;transport=tcp;",
-		                  "+org.linphone.specs=\"groupchat/1.2,lime\"");
+		mInserter->setAor("sip:test@127.0.0.1")
+		    .setExpire(100s)
+		    .setContactParams({"+org.linphone.specs=\"conference/1.8,ephemeral\""})
+		    .insert({"sip:test@127.0.0.1:9999;transport=tcp;"})
+		    .setContactParams({"+org.linphone.specs=\"groupchat/1.2,lime\""})
+		    .insert({"sip:test@127.0.0.1:8888;transport=tcp;"});
 	};
 
 	string getSubscribeHeaders() override {

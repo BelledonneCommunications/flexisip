@@ -27,9 +27,9 @@
 
 #include "flexisip/configmanager.hh"
 #include "flexisip/registrar/registar-listeners.hh"
+#include "flexisip/utils/sip-uri.hh"
 
-#include "module-pushnotification.hh"
-#include "pushnotification/firebase/firebase-client.hh"
+#include "registrar/record.hh"
 #include "registrar/registrar-db.hh"
 #include "tester.hh"
 #include "utils/asserts.hh"
@@ -121,19 +121,23 @@ template <typename TDatabase>
 class TestFetchExpiringContacts : public RegistrarDbTest<TDatabase> {
 	void testExec() noexcept override {
 		auto* regDb = RegistrarDb::get();
-		ContactInserter inserter(*regDb, *this->mAgent);
 		auto threshold = 20.0 / 100.0;
 		auto targetTimestamp = getCurrentTime() + 21;
-		inserter.insert("sip:expected1@te.st;pn-provider=fake", 100s);
-		inserter.insert("sip:expired@te.st;pn-provider=fake", 10s);
-		inserter.insert("sip:expected2@te.st;pn-type=fake", 90s);
-		inserter.insert("sip:unexpected@te.st;pn-provider=fake", 110s);
-		inserter.insert("sip:unnotifiable@te.st", 100s);
-		// Registering multiple devices (contacts) for the same address (AoR).
-		inserter.insert("sip:multidevice@example.org", 91s, "sip:multidevice@127.0.0.1:3008;pn-provider=fake");
-		// This last inserted unnotifiable contact will be iterated first by redis. A faulty implementation (one that
-		// would `break` instead of `continue` on unnotifiable contacts) would then skip the previous valid contact
-		inserter.insert("sip:multidevice@example.org", 91s, "sip:multidevice@127.0.0.1:3001;without=push-params");
+		ContactInserter inserter(*regDb);
+		inserter.withUniqueId(true);
+		inserter.setExpire(100s).setAor("sip:expected1@te.st;pn-provider=fake").insert();
+		inserter.setExpire(10s).setAor("sip:expired@te.st;pn-provider=fake").insert();
+		inserter.setExpire(90s).setAor("sip:expected2@te.st;pn-type=fake").insert();
+		inserter.setExpire(110s).setAor("sip:unexpected@te.st;pn-provider=fake").insert();
+		inserter.setExpire(100s).setAor("sip:unnotifiable@te.st").insert();
+		inserter.setExpire(91s)
+		    .setAor("sip:multidevice@example.org")
+		    // Registering multiple devices (contacts) for the same address (AoR).
+		    .insert({"sip:multidevice@127.0.0.1:3008;pn-provider=fake"})
+		    // This last inserted unnotifiable contact will be iterated first by redis. A faulty implementation (one
+		    // that would `break` instead of `continue` on unnotifiable contacts) would then skip the previous valid
+		    // contact
+		    .insert({"sip:multidevice@127.0.0.1:3001;without=push-params"});
 		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
 
 		// Cold loading script
@@ -171,21 +175,21 @@ class MaxContactsByAorIsHonored : public RegistrarDbTest<TDatabase> {
 		if (uidFields.empty()) uidFields = {"+sip.instance"}; // Do not rely on side-effects from other tests...
 		auto maxContacts = overrideStaticVariable(Record::sMaxContacts, 3);
 		auto* regDb = RegistrarDb::get();
-		ContactInserter inserter(*regDb, *this->mAgent);
-		const auto aor = "sip:morethan3@example.org";
-		const auto expire = 87s;
-		inserter.insert(aor, expire, "sip:existing1@example.org");
+		ContactInserter inserter(*regDb);
+		const SipUri aor{"sip:morethan3@example.org"};
+		inserter.setAor(aor).setExpire(87s);
+		inserter.insert({"sip:existing1@example.org"});
 		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
-		inserter.insert(aor, expire, "sip:existing2@example.org");
+		inserter.insert({"sip:existing2@example.org"});
 		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
-		inserter.insert(aor, expire, "sip:existing3@example.org");
+		inserter.insert({"sip:existing3@example.org"});
 		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
 
-		inserter.insert(aor, expire, "sip:onetoomany@example.org");
+		inserter.insert({"sip:onetoomany@example.org"});
 		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
 
 		auto listener = make_shared<SuccessfulBindListener>();
-		regDb->fetch(SipUri(aor), listener);
+		regDb->fetch(aor, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 		{
 			auto& contacts = listener->mRecord->getExtendedContacts();
@@ -193,13 +197,13 @@ class MaxContactsByAorIsHonored : public RegistrarDbTest<TDatabase> {
 		}
 
 		maxContacts = 5;
-		inserter.insert(aor, expire, "sip:added4@example.org");
+		inserter.insert({"sip:added4@example.org"});
 		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
-		inserter.insert(aor, expire, "sip:added5@example.org");
+		inserter.insert({"sip:added5@example.org"});
 		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
 
 		listener->mRecord.reset();
-		regDb->fetch(SipUri(aor), listener);
+		regDb->fetch(aor, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 		{
 			auto& contacts = listener->mRecord->getExtendedContacts();
@@ -207,11 +211,11 @@ class MaxContactsByAorIsHonored : public RegistrarDbTest<TDatabase> {
 		}
 
 		maxContacts = 2;
-		inserter.insert(aor, expire, "sip:triggerupdate@example.org");
+		inserter.insert({"sip:triggerupdate@example.org"});
 		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
 
 		listener->mRecord.reset();
-		regDb->fetch(SipUri(aor), listener);
+		regDb->fetch(aor, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 		{
 			auto& contacts = listener->mRecord->getExtendedContacts();

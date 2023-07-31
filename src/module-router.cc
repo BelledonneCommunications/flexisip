@@ -18,6 +18,8 @@
 
 #include "flexisip/module-router.hh"
 
+#include <memory>
+
 #include "sofia-sip/sip.h"
 #include <sofia-sip/sip_status.h>
 
@@ -28,7 +30,6 @@
 #include "fork-context/fork-basic-context.hh"
 #include "fork-context/fork-call-context.hh"
 #include "fork-context/fork-message-context.hh"
-#include "registrar/change-set.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "router/agent-injector.hh"
@@ -241,7 +242,7 @@ void ModuleRouter::restoreForksFromDatabase() {
 		auto restoredForkMessage = ForkMessageContextDbProxy::make(shared_from_this(), dbMessage);
 		for (const auto& key : dbMessage.dbKeys) {
 			mForks.emplace(key, restoredForkMessage);
-			RegistrarDb::get()->subscribe(key, mOnContactRegisteredListener);
+			RegistrarDb::get()->subscribe(key, std::weak_ptr(mOnContactRegisteredListener));
 		}
 	}
 	SLOGI << " ... " << mForks.size() << " fork message restored from DB.";
@@ -592,7 +593,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 	mForks.emplace(key, context);
 	SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
 	if (context->getConfig()->mForkLate) {
-		RegistrarDb::get()->subscribe(key, mOnContactRegisteredListener);
+		RegistrarDb::get()->subscribe(key, std::weak_ptr(mOnContactRegisteredListener));
 	}
 
 	// now sort usable_contacts to form groups, if grouping is allowed
@@ -625,7 +626,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 				context->addKey(aliasKey);
 				mForks.emplace(aliasKey, context);
 				if (context->getConfig()->mForkLate) {
-					RegistrarDb::get()->subscribe(aliasKey, mOnContactRegisteredListener);
+					RegistrarDb::get()->subscribe(aliasKey, std::weak_ptr(mOnContactRegisteredListener));
 				}
 				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), aliasKey.c_str());
 			}
@@ -786,7 +787,7 @@ public:
 				for (const auto& uri : mUriList) {
 					shared_ptr<ExtendedContact> alias = make_shared<ExtendedContact>(uri, "");
 					alias->mAlias = true;
-					contacts.emplace(move(alias));
+					contacts.emplace(std::move(alias));
 				}
 			}
 			mListener->onRecordFound(mRecord);

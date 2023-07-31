@@ -4,14 +4,16 @@
 
 #pragma once
 
-#include <bctoolbox/ownership.hh>
+#include <cstdint>
+#include <initializer_list>
+#include <optional>
+#include <string_view>
 
-#include "flexisip/registrar/registar-listeners.hh"
+#include <bctoolbox/ownership.hh>
+#include <utility>
 
 #include "agent-test.hh"
-#include "registrar/binding-parameters.hh"
-#include "registrar/extended-contact.hh"
-#include "registrar/record.hh"
+#include "utils/contact-inserter.hh"
 #include "utils/redis-server.hh"
 
 namespace flexisip {
@@ -58,71 +60,6 @@ private:
 
 } // namespace DbImplementation
 
-// Insert Contacts into the Registrar
-class ContactInserter {
-	struct ContactInsertedListener : public ContactUpdateListener {
-		std::unordered_set<std::string> contactsToBeInserted;
-
-		void onRecordFound(const std::shared_ptr<Record>& r) override {
-			for (const auto& contact : r->getExtendedContacts()) {
-				contactsToBeInserted.erase(contact->urlAsString());
-			}
-		}
-		void onError() override {
-			BC_FAIL("This test doesn't expect an error response");
-		}
-		void onInvalid() override {
-			BC_FAIL("This test doesn't expect an invalid response");
-		}
-		// Mandatory since we inherit from ContatUpdateListener
-		void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
-			BC_FAIL("This test doesn't expect a contact to be updated");
-		}
-	};
-
-	RegistrarDb& mRegDb;
-	std::shared_ptr<ContactInsertedListener> mListener;
-	MsgSip mForgedMessage;
-	BindingParameters mParameters;
-	int mCount = 0;
-
-public:
-	ContactInserter(RegistrarDb& regDb, const flexisip::Agent& agent)
-	    : mRegDb(regDb), mListener(std::make_shared<ContactInsertedListener>()),
-	      mForgedMessage(ownership::owned(nta_msg_create(agent.getSofiaAgent(), 0))) {
-		auto home = mForgedMessage.getHome();
-		msg_header_add_dup(
-		    mForgedMessage.getMsg(), nullptr,
-		    reinterpret_cast<msg_header_t*>(sip_request_make(home, "MESSAGE sip:placeholder-address SIP/2.0\r\n")));
-		mForgedMessage.getSip()->sip_call_id = sip_call_id_make(home, "placeholder-call-id");
-	}
-
-	template <typename... Headers>
-	void insert(std::string aor, std::chrono::seconds expire, std::string contact, Headers... headers) {
-		auto aorUrl = (url_string_t*)aor.c_str();
-		contact = contact.empty() ? aor : contact;
-		auto contactUrl = (url_string_t*)contact.c_str();
-		auto sip = mForgedMessage.getSip();
-		auto home = mForgedMessage.getHome();
-		sip->sip_from = sip_from_create(home, aorUrl);
-		sip->sip_contact = sip_contact_create(
-		    home, contactUrl, headers..., ("+sip.instance=test-contact-" + std::to_string(mCount)).c_str(), nullptr);
-		mParameters.globalExpire = expire.count();
-
-		mListener->contactsToBeInserted.insert(contact);
-		mRegDb.bind(mForgedMessage, mParameters, mListener);
-		mCount++;
-	}
-
-	void insert(std::string aor, std::chrono::seconds expire, std::string contact = "") {
-		insert<>(aor, expire, contact);
-	}
-
-	bool finished() const {
-		return mListener->contactsToBeInserted.empty();
-	}
-};
-
 template <typename TDatabase>
 class RegistrarDbTest : public AgentTest {
 public:
@@ -138,10 +75,10 @@ public:
 	}
 
 	void onAgentConfigured() override {
-		mInserter = std::make_unique<ContactInserter>(*RegistrarDb::get(), *this->mAgent);
+		mInserter.emplace(*RegistrarDb::get());
 	}
 
-	std::unique_ptr<ContactInserter> mInserter{nullptr};
+	std::optional<ContactInserter> mInserter{std::nullopt};
 
 protected:
 	TDatabase dbImpl;

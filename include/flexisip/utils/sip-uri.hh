@@ -22,6 +22,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
 #include <bctoolbox/ownership.hh>
@@ -92,7 +93,7 @@ public:
 	 * Create an URL by parsing a string.
 	 * @exception InvalidUrlError Error while parsing the string.
 	 */
-	explicit Url(const std::string& str);
+	explicit Url(std::string_view);
 	/**
 	 * Create an URL from a SofiaSip's url_t structure.
 	 * The url_t structure isn't modified and all the allocated
@@ -251,7 +252,7 @@ public:
 	/**
 	 * @throw sofiasip::InvalidUrlError if str isn't a SIP or SIPS URI.
 	 */
-	explicit SipUri(const std::string& str);
+	explicit SipUri(std::string_view);
 	/**
 	 * @throw sofiasip::InvalidUrlError if str isn't a SIP or SIPS URI.
 	 */

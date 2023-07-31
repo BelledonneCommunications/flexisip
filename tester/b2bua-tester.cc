@@ -539,7 +539,7 @@ static void external_provider_bridge__override_special_options() {
 	BC_HARD_ASSERT_TRUE(callee.hasReceivedCallFrom(caller));
 	const auto call = ClientCall::getLinphoneCall(*callee.getCurrentCall());
 	BC_HARD_ASSERT_TRUE(call->getRequestAddress()->asStringUriOnly() != "");
-	const auto core = minimal_core(*linphone::Factory::get());
+	const auto core = minimalCore(*linphone::Factory::get());
 	accman.init(core, config);
 	auto params = core->createCallParams(call);
 	params->setMediaEncryption(MediaEncryption::ZRTP);

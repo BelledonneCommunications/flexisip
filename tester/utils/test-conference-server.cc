@@ -6,12 +6,12 @@
 
 #include <cstdlib>
 #include <linphone/misc.h>
+#include <list>
 #include <string>
 #include <tuple>
 
 #include "conference/conference-server.hh"
-#include "eventlogs/writers/event-log-writer.hh"
-#include "flexisip/logmanager.hh"
+#include "eventlogs/writers/event-log-writer.hh" // IWYU pragma: keep
 #include "flexisip/utils/sip-uri.hh"
 
 using namespace std;
@@ -26,6 +26,10 @@ TestConferenceServer::TestConferenceServer(const Agent& agent)
 
 TestConferenceServer::~TestConferenceServer() {
 	mConfServer->stop();
+}
+
+void TestConferenceServer::clearLocalDomainList() {
+	const_cast<std::list<std::string>&>(mConfServer->getLocalDomains()).clear();
 }
 
 void TestConferenceServer::PatchedConferenceServer::bindAddresses() {

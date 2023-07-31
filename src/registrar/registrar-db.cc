@@ -4,6 +4,8 @@
 
 #include "registrar-db.hh"
 
+#include <memory>
+
 #include "flexisip/configmanager.hh"
 #include "flexisip/registrar/registar-listeners.hh"
 
@@ -12,7 +14,6 @@
 #include "registrardb-internal.hh"
 #include "registrardb-redis.hh"
 #include "utils/uri-utils.hh"
-#include <memory>
 
 using namespace std;
 
@@ -46,24 +47,25 @@ void RegistrarDb::notifyStateListener() const {
 		listener->onRegistrarDbWritable(mWritable);
 }
 
-void RegistrarDb::subscribe(const SipUri& url, const shared_ptr<ContactRegisteredListener>& listener) {
-	this->subscribe(Record::defineKeyFromUrl(url.get()), listener);
+void RegistrarDb::subscribe(const SipUri& url, std::weak_ptr<ContactRegisteredListener>&& listener) {
+	this->subscribe(Record::defineKeyFromUrl(url.get()), std::move(listener));
 }
 
-bool RegistrarDb::subscribe(const string& topic, const shared_ptr<ContactRegisteredListener>& listener) {
+bool RegistrarDb::subscribe(const string& topic, std::weak_ptr<ContactRegisteredListener>&& listener) {
 	const auto& alreadyRegisteredListener = mContactListenersMap.equal_range(topic);
 
+	const auto strongPtr = listener.lock();
 	const auto listenerAlreadyPresent =
-	    find_if(alreadyRegisteredListener.first, alreadyRegisteredListener.second, [&listener](const auto& mapEntry) {
-		    return mapEntry.second == listener;
+	    find_if(alreadyRegisteredListener.first, alreadyRegisteredListener.second, [&strongPtr](const auto& mapEntry) {
+		    return mapEntry.second.lock() == strongPtr;
 	    }) != alreadyRegisteredListener.second;
 	if (listenerAlreadyPresent) {
-		LOGD("Already subscribe topic = %s with listener %p", topic.c_str(), listener.get());
+		LOGD("Already subscribe topic = %s with listener %p", topic.c_str(), strongPtr.get());
 		return false;
 	}
 
-	LOGD("Subscribe topic = %s with listener %p", topic.c_str(), listener.get());
-	mContactListenersMap.emplace(topic, listener);
+	LOGD("Subscribe topic = %s with listener %p", topic.c_str(), strongPtr.get());
+	mContactListenersMap.emplace(topic, std::move(listener));
 
 	return true;
 }
@@ -73,7 +75,7 @@ void RegistrarDb::unsubscribe(const string& topic, const shared_ptr<ContactRegis
 	bool found = false;
 	auto range = mContactListenersMap.equal_range(topic);
 	for (auto it = range.first; it != range.second;) {
-		if (it->second == listener) {
+		if (it->second.lock() == listener) {
 			found = true;
 			it = mContactListenersMap.erase(it);
 		} else it++;
@@ -120,8 +122,14 @@ void RegistrarDb::notifyContactListener(const shared_ptr<Record>& r, const strin
 	/* Because invoking the listener might indirectly unregister listeners from the RegistrarDb, it is required
 	 * to first create a local copy of the list of listeners we are going to invoke. */
 	vector<shared_ptr<ContactRegisteredListener>> listeners{};
-	for (auto it = range.first; it != range.second; it++) {
-		listeners.emplace_back(it->second);
+	for (auto it = range.first; it != range.second;) {
+		if (auto strongPtr = it->second.lock()) {
+			listeners.emplace_back(std::move(strongPtr));
+			it++;
+		} else {
+			// Clear expired listener
+			it = mContactListenersMap.erase(it);
+		}
 	}
 	for (const auto& l : listeners) {
 		LOGD("Notify topic = %s to listener %p", r->getKey().c_str(), l.get());
@@ -596,7 +604,7 @@ void RegistrarDb::bind(const SipUri& aor,
 
 	sip->sip_expires = sip_expires_create(homeSip, 0);
 
-	bind(move(msg), parameter, listener);
+	bind(std::move(msg), parameter, listener);
 }
 
 class AgregatorRegistrarDbListener : public ContactUpdateListener {

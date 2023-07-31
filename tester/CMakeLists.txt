@@ -99,6 +99,7 @@ add_executable(flexisip_tester
 	utils/client-builder.cc utils/client-builder.hh
 	utils/client-call.cc utils/client-call.hh
 	utils/client-core.cc utils/client-core.hh
+	utils/contact-inserter.cc utils/contact-inserter.hh
 	utils/eventlogs/event-logs.cc utils/eventlogs/event-logs.hh
 	utils/eventlogs/writers/event-log-writer-visitor-adapter.hh
 	utils/listening-socket.cc utils/listening-socket.hh
