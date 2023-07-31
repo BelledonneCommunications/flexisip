@@ -19,6 +19,7 @@
 #pragma once
 
 #include <linphone++/linphone.hh>
+#include <memory>
 
 #include "flexisip/registrar/registar-listeners.hh"
 
@@ -28,7 +29,7 @@ namespace Registrar {
 
 class Listener : public ContactRegisteredListener, public ContactUpdateListener {
 public:
-	Listener(const std::shared_ptr<linphone::Event>& lev);
+	Listener(const std::shared_ptr<linphone::Event>&);
 	void onRecordFound(const std::shared_ptr<Record>& r) override;
 	void onError() override {
 	}
@@ -39,6 +40,8 @@ public:
 	}
 
 private:
+	// If the lifetime of the linphone::Core that constructed this event is smaller than that of this Listener, then the
+	// belle-sip object is freed regardless of any shared_ptr that this listener might have.
 	const std::shared_ptr<linphone::Event> mEvent;
 	void processRecord(const std::shared_ptr<Record>& r, const std::string& uidOfFreshlyRegistered);
 	// version, previouscontacts

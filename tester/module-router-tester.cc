@@ -22,18 +22,11 @@
 #include <unistd.h>
 
 #include "belle-sip/types.h"
-#include "linphone/callbacks.h"
-#include "sofia-sip/nta_tport.h"
-#include "sofia-sip/tport.h"
 
-#include "flexisip/common.hh"
-#include "flexisip/event.hh"
 #include "flexisip/logmanager.hh"
 #include "flexisip/module-router.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
-#include "flexisip/utils/sip-uri.hh"
 
-#include "registrar/extended-contact.hh"
 #include "registrar/registrar-db.hh"
 #include "utils/asserts.hh"
 #include "utils/bellesip-utils.hh"
@@ -231,7 +224,9 @@ private:
 		                                  },
 		                                  nullptr};
 
-		mInserter->insert("sip:user@test.flexisip.org", 30s, "sip:user@127.0.0.1:8383;transport=tcp;");
+		mInserter->setAor("sip:user@test.flexisip.org")
+		    .setExpire(30s)
+		    .insert({"sip:user@127.0.0.1:8383;transport=tcp;"});
 		BC_ASSERT_TRUE(this->waitFor([this] { return mInserter->finished(); }, 1s));
 
 		SLOGD << "Step 2: Send message";
@@ -323,7 +318,9 @@ private:
 
 		// Because we want to assert that module::Router is skipped and that no user is resolved we insert
 		// a contact pointing to nowhere.
-		mInserter->insert("sip:user@test.flexisip.org", 30s, "sip:user@127.0.0.1:9999;transport=tcp;");
+		mInserter->setAor("sip:user@test.flexisip.org")
+		    .setExpire(30s)
+		    .insert({"sip:user@127.0.0.1:9999;transport=tcp;"});
 		BC_ASSERT_TRUE(this->waitFor([this] { return mInserter->finished(); }, 1s));
 
 		SLOGD << "Step 2: Send message";
@@ -379,9 +376,11 @@ void message_expires() {
 	                            nullptr};
 	const string proxyPort = proxyServer.getFirstPort();
 	const string clientPort = to_string(bellesipUtils.getListeningPort());
-	ContactInserter inserter(*RegistrarDb::get(), *agent);
-	const auto aor = "sip:message_expires@127.0.0.1";
-	inserter.insert(aor, 0s, "sip:message_expires@127.0.0.1:" + clientPort, "message-expires=1609");
+	ContactInserter inserter(*RegistrarDb::get());
+	inserter.setAor("sip:message_expires@127.0.0.1")
+	    .setExpire(0s)
+	    .setContactParams({"message-expires=1609"})
+	    .insert({"sip:message_expires@127.0.0.1:" + clientPort});
 	BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(5, [&inserter] { return inserter.finished(); }));
 	asserter.addCustomIterate([&bellesipUtils] { bellesipUtils.stackSleep(1); });
 	auto* forks = routerModule->mStats.mCountForks->start;

@@ -21,7 +21,8 @@
 
 #include <linphone++/linphone.hh>
 
-#include "conference/conference-server.hh"
+#include "flexisip/logmanager.hh"
+
 #include "utils/string-utils.hh"
 #include "xml/reginfo.hh"
 
@@ -81,17 +82,20 @@ void Client::onNotifyReceived(const std::shared_ptr<const linphone::Content>& bo
 	unique_ptr<Reginfo> ri(parseReginfo(data, Xsd::XmlSchema::Flags::dont_validate));
 
 	for (const auto& registration : ri->getRegistration()) {
+		if (registration.getState() == Registration::StateType::terminated) {
+			if (mListener) mListener->onNotifyReceived({}); // Notifying that 0 devices are registered.
+			continue;
+		}
+
 		list<shared_ptr<ParticipantDeviceIdentity>> participantDevices;
 		size_t refreshed = 0;
-
 		for (const auto& contact : registration.getContact()) {
 			auto partDeviceAddr = Factory::get()->createAddress(contact.getUri());
-
 			Contact::UnknownParamSequence ups = contact.getUnknownParam();
+			string displayName = contact.getDisplayName() ? contact.getDisplayName()->c_str() : string("");
 
 			for (const auto& param : ups) {
 				if (param.getName() != "+org.linphone.specs") continue;
-				string displayName = contact.getDisplayName() ? contact.getDisplayName()->c_str() : string("");
 				shared_ptr<ParticipantDeviceIdentity> identity =
 				    Factory::get()->createParticipantDeviceIdentity(partDeviceAddr, displayName);
 				identity->setCapabilityDescriptor(StringUtils::unquote(param));
@@ -105,14 +109,9 @@ void Client::onNotifyReceived(const std::shared_ptr<const linphone::Content>& bo
 			}
 		}
 
-		auto partAddr = Factory::get()->createAddress(registration.getAor());
-
-		if (registration.getState() == Registration::StateType::terminated) {
-			participantDevices.clear(); // We'll notify that 0 devices are registered.
-		}
-		if (refreshed != participantDevices.size()) {
+		if (refreshed < participantDevices.size()) {
 			if (mListener) mListener->onNotifyReceived(participantDevices);
-		} /*otherwise it's useless */
+		} /* else: Everything is refreshed, notifying a reception would be redundant */
 	}
 }
 

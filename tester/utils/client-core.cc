@@ -30,7 +30,6 @@
 #include <linphone/core.h>
 #include <mediastreamer2/mediastream.h>
 
-#include "flexisip/logmanager.hh"
 #include "flexisip/module-router.hh"
 
 #include "asserts.hh"
@@ -38,7 +37,6 @@
 
 #include "client-core.hh"
 #include "linphone/api/c-call.h"
-#include "tester.hh"
 #include "utils/call-builder.hh"
 #include "utils/chat-room-builder.hh"
 #include "utils/client-builder.hh"
@@ -83,13 +81,19 @@ auto assert_data_transmitted(linphone::Call& calleeCall, linphone::Call& callerC
 
 } // namespace
 
-std::shared_ptr<linphone::Core> minimal_core(linphone::Factory& factory) {
+std::shared_ptr<linphone::Core> minimalCore(linphone::Factory& factory) {
 	auto linphoneConfig = factory.createConfig("");
 	linphoneConfig->setBool("logging", "disable_stdout", true);
+	linphoneConfig->setString("storage", "call_logs_db_uri", "null");
+	linphoneConfig->setString("storage", "zrtp_secrets_db_uri", "null");
+	linphoneConfig->setString("storage", "uri", "null");
+	linphoneConfig->setString("lime", "x3dh_db_path", ":memory:");
 	auto core = factory.createCoreWithConfig(linphoneConfig, nullptr);
 	auto clientTransport = factory.createTransports();
 	clientTransport->setTcpPort(LC_SIP_TRANSPORT_DONTBIND);
 	core->setTransports(clientTransport);
+	core->setZrtpSecretsFile(":memory:");
+	core->enableLimeX3Dh(false);
 	return core;
 }
 

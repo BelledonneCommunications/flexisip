@@ -36,7 +36,7 @@ namespace flexisip {
 namespace RegistrationEvent {
 namespace Registrar {
 
-Listener::Listener(const shared_ptr<linphone::Event>& lev) : mEvent(lev) {
+Listener::Listener(const std::shared_ptr<linphone::Event>& subscriptionEvent) : mEvent(subscriptionEvent) {
 }
 
 void Listener::onRecordFound(const shared_ptr<Record>& r) {
@@ -57,6 +57,11 @@ void Listener::processRecord(const shared_ptr<Record>& r, const string& uidOfFre
 
 		for (const auto& ec : r->getExtendedContacts()) {
 			auto addr = r->getPubGruu(ec, home.home());
+			if (!addr) {
+				SLOGE << "RegistrationEvent::Registrar::Listener - Contact has no GRUU, skipping. (contact: "
+				      << ec->urlAsString() << ", aor: " << r->getKey() << ")";
+				continue;
+			}
 			bool justRegistered = (ec->mKey == uidOfFreshlyRegistered);
 
 			Contact contact(url_as_string(home.home(), addr), Contact::StateType::active,

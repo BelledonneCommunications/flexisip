@@ -17,6 +17,8 @@ public:
 	TestConferenceServer(const Agent&);
 	~TestConferenceServer();
 
+	void clearLocalDomainList();
+
 private:
 	/** Overrides the behaviour of the ConferenceServer to make it use a port chosen at random. This works because it
 	 *  will share the same config as the proxy, so it can hot-patch it with the port bound.

@@ -30,9 +30,10 @@
 #include "flexisip-config.h"
 #include "flexisip/logmanager.hh"
 #include "flexisip/sofia-wrapper/timer.hh"
+#include "flexisip/utils/sip-uri.hh"
 
-#include "module-pushnotification.hh"
 #include "pushnotification/apple/apple-client.hh"
+#include "pushnotification/contact-expiration-notifier.hh"
 #include "pushnotification/firebase/firebase-client.hh"
 #include "tester.hh"
 #include "utils/listening-socket.hh"
@@ -511,8 +512,8 @@ public:
 		return *this;
 	}
 
-	operator string() const {
-		return mStream.str();
+	operator SipUri() const {
+		return SipUri(mStream.str());
 	}
 };
 
@@ -541,17 +542,31 @@ protected:
 
 		auto appId = "fakeAppId";
 		service->addFirebaseClient(appId);
-		auto inserter = ContactInserter(regDb, *this->mAgent);
-		inserter.insert(Contact("sip:expected2@example.org").withFirebasePushParams(appId), maxExpiration);
-		inserter.insert(Contact("sip:expected1@example.org").withFirebasePushParams(appId),
-		                minExpiration + (maxExpiration - minExpiration) / 2);
-		inserter.insert(Contact("sip:unexpected@example.org").withFirebasePushParams(appId), maxExpiration + 1s);
-		inserter.insert(Contact("sip:expected3@example.org").withFirebasePushParams(appId), minExpiration);
-		inserter.insert(Contact("sip:expired@example.org").withFirebasePushParams(appId), minExpiration - 1s);
-		// within range, but nothing to do
-		inserter.insert("sip:unnotifiable@example.org", maxExpiration);
-		// within range, but cannot be woken up via Background type notifications
-		inserter.insert(Contact("sip:unwakeable@example.org").withAppleVoipOnlyPushParams(), maxExpiration);
+		ContactInserter inserter{regDb};
+		inserter.setExpire(maxExpiration)
+		    .setAor(Contact("sip:expected2@example.org").withFirebasePushParams(appId))
+		    .insert();
+		inserter.setExpire(minExpiration + (maxExpiration - minExpiration) / 2)
+		    .setAor(Contact("sip:expected1@example.org").withFirebasePushParams(appId))
+		    .insert();
+		inserter.setExpire(maxExpiration + 1s)
+		    .setAor(Contact("sip:unexpected@example.org").withFirebasePushParams(appId))
+		    .insert();
+		inserter.setExpire(minExpiration)
+		    .setAor(Contact("sip:expected3@example.org").withFirebasePushParams(appId))
+		    .insert();
+		inserter.setExpire(minExpiration - 1s)
+		    .setAor(Contact("sip:expired@example.org").withFirebasePushParams(appId))
+		    .insert();
+		inserter
+		    // within range...
+		    .setExpire(maxExpiration)
+		    // ...but nothing to do
+		    .setAor("sip:unnotifiable@example.org")
+		    .insert()
+		    // ...but cannot be woken up via Background type notifications
+		    .setAor(Contact("sip:unwakeable@example.org").withAppleVoipOnlyPushParams())
+		    .insert();
 		auto expectedUris = unordered_set<string>{"expected1", "expected2", "expected3"};
 
 		pn::PnsMock pnServer;

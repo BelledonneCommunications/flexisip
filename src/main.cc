@@ -24,6 +24,7 @@
 #include <iostream>
 #include <limits>
 #include <list>
+#include <memory>
 #include <regex>
 
 #include <sys/resource.h>
@@ -106,7 +107,7 @@ static std::shared_ptr<flexisip::PresenceServer> presenceServer;
 #endif // ENABLE_PRESENCE
 #if ENABLE_CONFERENCE
 static std::shared_ptr<flexisip::ConferenceServer> conferenceServer;
-static std::shared_ptr<flexisip::RegistrationEvent::Server> regEventServer;
+static std::unique_ptr<flexisip::RegistrationEvent::Server> regEventServer;
 #endif // ENABLE_CONFERENCE
 #if ENABLE_B2BUA
 static std::shared_ptr<flexisip::B2buaServer> b2buaServer;
@@ -1049,7 +1050,7 @@ int main(int argc, char* argv[]) {
 
 	if (startRegEvent) {
 #ifdef ENABLE_CONFERENCE
-		regEventServer = make_shared<flexisip::RegistrationEvent::Server>(root);
+		regEventServer = make_unique<flexisip::RegistrationEvent::Server>(root);
 		if (daemonMode) {
 			notifyWatchDog();
 		}

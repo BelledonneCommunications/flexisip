@@ -19,6 +19,7 @@
 #include "server.hh"
 
 #include <flexisip/utils/sip-uri.hh>
+#include <memory>
 
 #include "registrar/listener.hh"
 #include "registrar/registrar-db.hh"
@@ -34,10 +35,18 @@ static constexpr const char* CONTENT_TYPE = "application/reginfo+xml";
 
 Server::Init Server::sStaticInit; // The Init object is instanciated to load the config
 
-void Server::onSubscribeReceived([[maybe_unused]] const shared_ptr<Core>& lc,
-                                 const shared_ptr<Event>& lev,
-                                 [[maybe_unused]] const string& subscribeEvent,
-                                 [[maybe_unused]] const shared_ptr<const Content>& body) noexcept {
+std::shared_ptr<Registrar::Listener> Server::Subscriptions::makeListener(const shared_ptr<Event>& event) {
+	return {shared_from_this(),
+	        // https://en.cppreference.com/w/cpp/container/unordered_map#Notes
+	        // "References and pointers to either key or data stored in the container are only invalidated by erasing
+	        // that element, even when the corresponding iterator is invalidated."
+	        std::addressof(mListeners.emplace(event.get(), event).first->second)};
+}
+
+void Server::Subscriptions::onSubscribeReceived(const shared_ptr<Core>&,
+                                                const shared_ptr<Event>& lev,
+                                                const string&,
+                                                const shared_ptr<const Content>&) {
 	string eventHeader = lev->getName();
 	if (eventHeader != "reg") {
 		lev->denySubscription(Reason::BadEvent);
@@ -50,12 +59,12 @@ void Server::onSubscribeReceived([[maybe_unused]] const shared_ptr<Core>& lc,
 
 	lev->acceptSubscription();
 
-	auto listener = make_shared<Registrar::Listener>(lev);
+	auto listener = makeListener(lev);
 
 	try {
 		SipUri url{lev->getTo()->asStringUriOnly()};
-		RegistrarDb::get()->subscribe(url, listener);
 		RegistrarDb::get()->fetch(url, listener, true);
+		RegistrarDb::get()->subscribe(url, std::weak_ptr(listener));
 	} catch (const sofiasip::InvalidUrlError& e) {
 		SLOGE << "invalid URI in 'To' header: " << e.getUrl();
 	}
@@ -81,7 +90,7 @@ void Server::_init() {
 	}
 
 	mCore->setTransports(regEventTransport);
-	mCore->addListener(shared_from_this());
+	mCore->addListener(make_shared<Subscriptions>());
 	mCore->start();
 }
 
@@ -90,7 +99,7 @@ void Server::_run() {
 }
 
 void Server::_stop() {
-	mCore->removeListener(shared_from_this());
+	mCore = nullptr;
 }
 
 Server::Init::Init() {
@@ -106,7 +115,7 @@ Server::Init::Init() {
 	    "To generate the outgoing NOTIFY, it will rely upon the registrar database, as setup in module::Registrar "
 	    "section.",
 	    0);
-	auto s = GenericManager::get()->getRoot()->addChild(move(uS));
+	auto s = GenericManager::get()->getRoot()->addChild(std::move(uS));
 	s->addChildrenValues(items);
 }
 

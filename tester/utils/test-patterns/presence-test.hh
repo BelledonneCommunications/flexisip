@@ -26,7 +26,7 @@
 #include "presence/presence-longterm.hh"
 #include "presence/presence-server.hh"
 #include "registrardb-test.hh"
-#include "test.hh"
+#include "tester.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 
 namespace flexisip {

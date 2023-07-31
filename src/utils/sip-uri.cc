@@ -19,6 +19,7 @@
 #include <cstring>
 #include <sstream>
 #include <stdexcept>
+#include <string_view>
 
 #include "sofia-sip/sip_extra.h"
 #include "sofia-sip/url.h"
@@ -31,10 +32,10 @@ using namespace std;
 
 namespace sofiasip {
 
-Url::Url(const std::string& str) {
+Url::Url(std::string_view str) {
 	if (str.empty()) return;
-	_url = url_make(_home.home(), str.c_str());
-	if (_url == nullptr) throw InvalidUrlError(str, "not an URI");
+	_url = url_make(_home.home(), str.data());
+	if (_url == nullptr) throw InvalidUrlError(std::string(str), "not an URI");
 }
 
 Url::Url(const url_t* src) noexcept {
@@ -165,7 +166,7 @@ bool operator==(const TlsConfigInfo& lhs, const TlsConfigInfo& rhs) {
 
 namespace flexisip {
 
-SipUri::SipUri(const std::string& str) : sofiasip::Url(str) {
+SipUri::SipUri(std::string_view str) : sofiasip::Url(str) {
 	checkUrl(*this);
 }
 

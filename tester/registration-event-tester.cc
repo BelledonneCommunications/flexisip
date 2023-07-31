@@ -18,21 +18,28 @@
 
 #include <bctoolbox/logging.h>
 
+#include <memory>
+#include <string>
+
+#include "flexisip/utils/sip-uri.hh"
+#include "linphone/misc.h"
 #include <linphone++/linphone.hh>
 
 #include "flexisip/configmanager.hh"
 #include "flexisip/registrar/registar-listeners.hh"
-#include "flexisip/sofia-wrapper/su-root.hh"
 
 #include "agent.hh"
-#include "conference/conference-server.hh"
-#include "registrar/binding-parameters.hh"
 #include "registrar/registrar-db.hh"
-#include "registration-events/client.hh"
 #include "registration-events/server.hh"
-#include "tester.hh"
 #include "utils/asserts.hh"
+#include "utils/chat-room-builder.hh"
+#include "utils/client-builder.hh"
+#include "utils/client-core.hh"
+#include "utils/contact-inserter.hh"
 #include "utils/core-assert.hh"
+#include "utils/proxy-server.hh"
+#include "utils/test-conference-server.hh"
+#include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
 using namespace std;
@@ -41,307 +48,162 @@ using namespace linphone;
 namespace flexisip {
 namespace tester {
 
-static void basic() {
+class StubListener : public ContactUpdateListener {
+public:
+	void onRecordFound(const shared_ptr<Record>&) override {
+	}
+	void onError() override {
+	}
+	void onInvalid() override {
+	}
+	void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override {
+	}
+};
+
+void basicSubscription() {
 	// Agent initialisation
+	const string confFactoryUri = "sip:conference-factory@sip.example.org";
+	Server proxy{{
+	    // Requesting bind on port 0 to let the kernel find any available port
+	    {"global/transports", "sip:127.0.0.1:0"},
+	    {"module::RegEvent/enabled", "true"},
+	    {"module::DoSProtection/enabled", "false"},
+	    {"module::Registrar/reg-domains", "sip.example.org"},
+	    {"module::Registrar/enable-gruu", "true"},
 
-	auto root = make_shared<sofiasip::SuRoot>();
-	shared_ptr<Agent> a = make_shared<Agent>(root);
-	Agent* agent = a->getAgent();
-
-	GenericManager* cfg = GenericManager::get();
-	cfg->load(bcTesterRes("config/flexisip_regevent.conf"));
-	agent->loadConfig(cfg);
-
-	// Client initialisation
-
-	shared_ptr<Core> clientCore = Factory::get()->createCore("", "", nullptr);
-	clientCore->getConfig()->setString("storage", "backend", "sqlite3");
-	clientCore->getConfig()->setString("storage", "uri", ":memory:");
-
-	shared_ptr<Transports> clientTransport = Factory::get()->createTransports();
-	clientTransport->setTcpPort(rand() % 0x0FFF + 1014);
-	clientCore->setTransports(clientTransport);
-	clientCore->start();
-
-	auto me = Factory::get()->createAddress("sip:test@sip.example.org");
-
-	shared_ptr<ProxyConfig> proxy = clientCore->createProxyConfig();
-	proxy->setIdentityAddress(me);
-	proxy->enableRegister(true);
-	proxy->setConferenceFactoryUri("sip:focus@sip.example.org");
-	proxy->setServerAddr("sip:127.0.0.1:5060;transport=tcp");
-	proxy->setRoute("sip:127.0.0.1:5060;transport=tcp");
-	clientCore->addProxyConfig(proxy);
-	clientCore->setDefaultProxyConfig(proxy);
-
+	    {"conference-server/database-backend", "sqlite"},
+	    {"conference-server/database-connection-string", ":memory:"},
+	    {"conference-server/conference-factory-uris", confFactoryUri},
+	    // Registrars / Local confs
+	    {"conference-server/local-domains", "sip.example.org 127.0.0.1"},
+	}};
 	// RegEvent Server
-
-	shared_ptr<Core> regEventCore = Factory::get()->createCore("", "", nullptr);
-	regEventCore->getConfig()->setString("storage", "backend", "sqlite3");
-	regEventCore->getConfig()->setString("storage", "uri", ":memory:");
-
-	shared_ptr<Transports> regEventTransport = Factory::get()->createTransports();
-	int regEventPort = rand() % 0x0FFF + 1014;
-	regEventTransport->setTcpPort(regEventPort);
-	regEventCore->setTransports(regEventTransport);
-	regEventCore->addListener(make_shared<flexisip::RegistrationEvent::Server>(root));
+	const auto linFactory = Factory::get();
+	const auto regEventCore = tester::minimalCore(*linFactory);
+	{
+		const auto& transports = regEventCore->getTransports();
+		transports->setTcpPort(LC_SIP_TRANSPORT_RANDOM);
+		regEventCore->setTransports(transports);
+	}
+	regEventCore->addListener(make_shared<flexisip::RegistrationEvent::Server::Subscriptions>());
 	regEventCore->start();
-
+	GenericManager::get()
+	    ->getRoot()
+	    ->get<GenericStruct>("module::RegEvent")
+	    ->get<ConfigValue>("regevent-server")
+	    ->set("sip:127.0.0.1:"s + std::to_string(regEventCore->getTransportsUsed()->getTcpPort()) + ";transport=tcp");
+	proxy.start();
+	GenericManager::get()
+	    ->getRoot()
+	    ->get<GenericStruct>("conference-server")
+	    ->get<ConfigValue>("outbound-proxy")
+	    ->set("sip:127.0.0.1:"s + proxy.getFirstPort() + ";transport=tcp");
+	// Client initialisation
+	const auto client = proxy.clientBuilder().setConferenceFactoryUri(confFactoryUri).build("sip:test@sip.example.org");
+	const auto& agent = *proxy.getAgent();
 	// Conference Server
+	TestConferenceServer conferenceServer(agent);
+	auto& regDb = *RegistrarDb::get();
+	ContactInserter inserter{regDb, std::make_shared<AcceptUpdatesListener>()};
+	const string participantTopic = "participant1@localhost";
+	const auto participantFrom = "sip:" + participantTopic;
+	const string otherParticipantTopic = "participant2@localhost";
+	const auto otherParticipantFrom = "sip:" + otherParticipantTopic;
+	// Fill the Regisrar DB with participants
+	inserter.withGruu(true)
+	    .setExpire(1000s)
+	    .setContactParams({R"(+org.linphone.specs="ephemeral/1.1,groupchat/1.2,lime")"})
+	    .setAor(participantFrom)
+	    .insert({.uniqueId = "ubuntu"})
+	    .setAor(otherParticipantFrom)
+	    .insert({.uniqueId = "redhat"})
+	    .insert({.uniqueId = "debian"});
 
-	GenericStruct* gs = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
-	gs->get<ConfigString>("database-backend")->set("sqlite");
-	gs->get<ConfigString>("database-connection-string")->set(":memory:");
-	gs->get<ConfigString>("outbound-proxy")->set("sip:127.0.0.1:5060;transport=tcp");
-	gs->get<ConfigString>("transport")->set("sip:127.0.0.1:6064;transport=tcp");
-	gs->get<ConfigString>("conference-factory-uri")->set("sip:focus@sip.example.org");
+	const auto chatRoom =
+	    client.chatroomBuilder()
+	        .setSubject("reg-event-test")
+	        .build({linFactory->createAddress(participantFrom), linFactory->createAddress(otherParticipantFrom)});
+	const auto totalDevicesCount = [&chatRoom]() {
+		auto count = 0;
+		for (const auto& participant : chatRoom->getParticipants()) {
+			count += participant->getDevices().size();
+		}
+		return count;
+	};
+	CoreAssert asserter{client, regEventCore, agent};
 
-	// Registrars / Local confs
-	gs->get<ConfigStringList>("local-domains")->set("sip.example.org 127.0.0.1 [2a01:e0a:1ce:c860:f03d:d06:649f:6cfc]");
+	BC_ASSERT_TRUE(asserter.iterateUpTo(13, [&totalDevicesCount] { return 3 <= totalDevicesCount(); }));
 
-	auto conferenceServer = make_shared<ConferenceServer>(a->getPreferredRoute(), root);
-	conferenceServer->init();
-
-	// Proxy configuration
-
-	GenericStruct* global = GenericManager::get()->getRoot()->get<GenericStruct>("global");
-	global->get<ConfigStringList>("transports")->set("sip:127.0.0.1:5060;transport=tcp");
-
-	// Configure module regevent
-
-	GenericStruct* registrarConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
-	registrarConf->get<ConfigStringList>("reg-domains")->set("sip.example.org");
-
-	GenericStruct* regEventConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::RegEvent");
-	regEventConf->get<ConfigString>("regevent-server")
-	    ->set(string("sip:127.0.0.1:").append(to_string(regEventPort)).append(";transport=tcp"));
-
-	agent->start("", "");
-
-	while (proxy->getState() != RegistrationState::Ok) {
-		clientCore->iterate();
-		a->getRoot()->step(100ms);
+	{
+		const auto participants = chatRoom->getParticipants();
+		BC_HARD_ASSERT_CPP_EQUAL(participants.size(), 2);
+		const auto& firstParticipant = participants.front();
+		BC_ASSERT_CPP_EQUAL(firstParticipant->getAddress()->asString(), participantFrom);
+		BC_ASSERT_CPP_EQUAL(firstParticipant->getDevices().size(), 1);
+		const auto& secondParticipant = participants.back();
+		BC_ASSERT_CPP_EQUAL(secondParticipant->getAddress()->asString(), otherParticipantFrom);
+		BC_ASSERT_CPP_EQUAL(secondParticipant->getDevices().size(), 2);
 	}
 
-	// Fill the RegistrarDB
-
-	class BindListener : public ContactUpdateListener {
-	public:
-		void onRecordFound([[maybe_unused]] const shared_ptr<Record>& r) override {
-		}
-		void onError() override {
-		}
-		void onInvalid() override {
-		}
-		void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
-		}
-	};
-
-	sofiasip::Home home;
-
-	string participantFrom = "sip:participant1@test.com";
-	SipUri participantUrl{participantFrom};
-	string otherParticipantFrom = "sip:participant2@test.com";
-	SipUri otherParticipantUrl{otherParticipantFrom};
-	string participantRebindFrom = "sip:participant_re_bind@test.com";
-	SipUri participantRebindUrl{participantRebindFrom};
-
-	// Fill the Regisrar DB with participants
-
-	BindingParameters parameter;
-	parameter.globalExpire = 1000;
-	parameter.callId = "random_id_necessary_to_bind_1";
-	parameter.userAgent = "Linphone1 (Ubuntu) LinphoneCore";
-	parameter.withGruu = true;
-
-	auto participantContact =
-	    sip_contact_create(home.home(), (url_string_t*)participantFrom.c_str(),
-	                       string("+sip.instance=\"<f75b0df3-1836-4b83-b7f6-00e48842c9a7-ubuntu>\"").c_str(),
-	                       string("+org.linphone.specs=\"groupchat,lime\"").c_str(), nullptr);
-
-	RegistrarDb::get()->bind(participantUrl, participantContact, parameter, make_shared<BindListener>());
-
-	string firstDeviceName = "RedHat";
-
-	BindingParameters parameter2;
-	parameter2.globalExpire = 1000;
-	parameter2.callId = "random_id_necessary_to_bind_2";
-	parameter2.userAgent = string("Linphone2 (").append(firstDeviceName).append(") LinphoneCore");
-	parameter2.withGruu = true;
-
-	RegistrarDb::get()->bind(
-	    otherParticipantUrl,
-	    sip_contact_create(home.home(), (url_string_t*)otherParticipantFrom.c_str(),
-	                       string("+sip.instance=\"<ab959409-7076-464e-85f8-7f8a84864618-redhat>\"").c_str(),
-	                       string("+org.linphone.specs=\"groupchat,lime\"").c_str(), nullptr),
-	    parameter2, make_shared<BindListener>());
-
-	string lastDeviceName = "Debian";
-
-	BindingParameters parameter3;
-	parameter3.globalExpire = 1000;
-	parameter3.callId = "random_id_necessary_to_bind_3";
-	parameter3.userAgent = string("Linphone2 (").append(lastDeviceName).append(") LinphoneCore");
-	parameter3.withGruu = true;
-
-	RegistrarDb::get()->bind(
-	    otherParticipantUrl,
-	    sip_contact_create(home.home(), (url_string_t*)otherParticipantFrom.c_str(),
-	                       string("+sip.instance=\"<6d6ed907-dbd0-4dfc-abf8-6470310bc4ed-debian>\"").c_str(), nullptr),
-	    parameter3, make_shared<BindListener>());
-
-	list<shared_ptr<Address>> participants;
-	participants.push_back(Factory::get()->createAddress(participantFrom));
-	participants.push_back(Factory::get()->createAddress(otherParticipantFrom));
-
-	auto chatRoomParams = clientCore->createDefaultChatRoomParams();
-	chatRoomParams->enableGroup(true);
-	auto chatRoom =
-	    clientCore->createChatRoom(chatRoomParams, proxy->getContact(), "Chatroom with remote", participants);
-
-	CoreAssert asserter{clientCore, regEventCore, agent};
-	BC_ASSERT_TRUE(asserter.wait([chatRoom] {
-		int numberOfDevices = 0;
-		for (auto participant : chatRoom->getParticipants()) {
-			numberOfDevices += participant->getDevices().size();
-		}
-
-		return numberOfDevices == 2;
-	}));
-
-	auto participantsTest = chatRoom->getParticipants();
-	BC_ASSERT_TRUE(participantsTest.front()->getAddress()->asString() == participantFrom);
-	BC_ASSERT_TRUE(participantsTest.back()->getAddress()->asString() == otherParticipantFrom);
-	BC_ASSERT_TRUE(participantsTest.back()->getDevices().back()->getName() == firstDeviceName);
-
 	// Let's add a new device
+	inserter.insert({.uniqueId = "new-device"});
+	regDb.publish(otherParticipantTopic, "");
+	BC_ASSERT_TRUE(asserter.iterateUpTo(7, [&totalDevicesCount] { return 4 <= totalDevicesCount(); }));
 
-	string newDeviceName = "New Device";
-
-	BindingParameters parameter4;
-	parameter4.globalExpire = 1000;
-	parameter4.callId = "random_id_necessary_to_bind_4";
-	parameter4.userAgent = string("Linphone2 (").append(newDeviceName).append(") LinphoneCore");
-	parameter4.withGruu = true;
-
-	auto otherParticipantContact =
-	    sip_contact_create(home.home(), (url_string_t*)otherParticipantFrom.c_str(),
-	                       string("+sip.instance=\"<9db326ca-1ee5-400b-b7f1-d31086530a35-new-device>\"").c_str(),
-	                       string("+org.linphone.specs=\"groupchat,lime\"").c_str(), nullptr);
-
-	RegistrarDb::get()->bind(otherParticipantUrl, otherParticipantContact, parameter4, make_shared<BindListener>());
-	RegistrarDb::get()->publish(otherParticipantFrom.substr(4).c_str(), "");
-
-	BC_ASSERT_TRUE(asserter.wait([chatRoom] {
-		int numberOfDevices = 0;
-		for (auto participant : chatRoom->getParticipants()) {
-			numberOfDevices += participant->getDevices().size();
-		}
-
-		return numberOfDevices == 3;
-	}));
-
-	participantsTest = chatRoom->getParticipants();
-
-	BC_ASSERT_TRUE(participantsTest.back()->getAddress()->asString() == otherParticipantFrom);
-	BC_ASSERT_TRUE(participantsTest.back()->getDevices().front()->getName() == firstDeviceName);
-	BC_ASSERT_TRUE(participantsTest.back()->getDevices().back()->getName() == newDeviceName);
+	{
+		const auto participants = chatRoom->getParticipants();
+		const auto& secondParticipantDevices = participants.back()->getDevices();
+		BC_ASSERT_CPP_EQUAL(secondParticipantDevices.size(), 3);
+		BC_ASSERT_CPP_EQUAL(secondParticipantDevices.back()->getAddress()->getUriParam("gr"), "new-device");
+	}
 
 	// Remove a device
+	inserter.setExpire(0s).insert({.uniqueId = "new-device"});
+	regDb.publish(otherParticipantTopic, "");
+	BC_ASSERT_TRUE(asserter.iterateUpTo(10, [&totalDevicesCount] { return totalDevicesCount() == 3; }));
 
-	parameter4.globalExpire = 0;
-	parameter4.callId = "random_id_necessary_to_bind_5";
+	{
+		const auto participants = chatRoom->getParticipants();
+		const auto& secondParticipantDevices = participants.back()->getDevices();
+		BC_ASSERT_CPP_EQUAL(secondParticipantDevices.size(), 2);
+		BC_ASSERT_CPP_NOT_EQUAL(secondParticipantDevices.back()->getAddress()->getUriParam("gr"), "new-device");
+	}
 
-	RegistrarDb::get()->bind(otherParticipantUrl, otherParticipantContact, parameter4, make_shared<BindListener>());
-	RegistrarDb::get()->publish(otherParticipantFrom.substr(4).c_str(), "");
+	// Remove the last device of a participant
+	regDb.clear(SipUri(participantFrom), "stub-callid", make_shared<StubListener>());
+	regDb.publish(participantTopic, "");
+	BC_ASSERT_TRUE(asserter.iterateUpTo(3, [&totalDevicesCount] { return totalDevicesCount() == 2; }));
 
-	BC_ASSERT_TRUE(asserter.wait([chatRoom] {
-		int numberOfDevices = 0;
-		for (auto participant : chatRoom->getParticipants()) {
-			numberOfDevices += participant->getDevices().size();
-		}
-
-		return numberOfDevices == 2;
-	}));
-
-	participantsTest = chatRoom->getParticipants();
-
-	BC_ASSERT_TRUE(participantsTest.size() == 2);
-	BC_ASSERT_TRUE(participantsTest.front()->getAddress()->asString() == participantFrom);
-	BC_ASSERT_TRUE(participantsTest.back()->getAddress()->asString() == otherParticipantFrom);
-	BC_ASSERT_TRUE(participantsTest.back()->getDevices().size() == 1);
-	BC_ASSERT_TRUE(participantsTest.back()->getDevices().back()->getName() == firstDeviceName);
-
-	// Remove the first participant
-
-	parameter.globalExpire = 0;
-	parameter.callId = "random_id_necessary_to_bind_6";
-
-	RegistrarDb::get()->bind(participantUrl, participantContact, parameter, make_shared<BindListener>());
-	RegistrarDb::get()->publish(participantFrom.substr(4).c_str(), "");
-
-	BC_ASSERT_TRUE(asserter.wait([chatRoom] {
-		int numberOfDevices = 0;
-		for (auto participant : chatRoom->getParticipants()) {
-			numberOfDevices += participant->getDevices().size();
-		}
-
-		return numberOfDevices == 1;
-	}));
-
-	participantsTest = chatRoom->getParticipants();
-
-	BC_ASSERT_TRUE(participantsTest.size() == 1);
-	BC_ASSERT_TRUE(participantsTest.front()->getAddress()->asString() == otherParticipantFrom);
+	{
+		const auto participants = chatRoom->getParticipants();
+		BC_HARD_ASSERT_CPP_EQUAL(participants.size(), 2);
+		const auto& firstParticipant = *participants.front();
+		BC_ASSERT_CPP_EQUAL(firstParticipant.getAddress()->asString(), participantFrom);
+		BC_ASSERT_CPP_EQUAL(firstParticipant.getDevices().size(), 0);
+	}
 
 	// Reroute everything locally on the Conference Server
+	conferenceServer.clearLocalDomainList();
 
-	gs->get<ConfigStringList>("local-domains")->set("");
-
-	// Re-add the first participant, with the routing disabled
-
-	BindingParameters parameterReBind;
-	parameterReBind.callId = "random_id_necessary_to_rebind_1";
-	parameterReBind.globalExpire = 1000;
-	parameterReBind.userAgent = "Linphone1 (Ubuntu) LinphoneCore";
-	parameterReBind.withGruu = true;
-
-	auto participantReBindContact =
-	    sip_contact_create(home.home(), (url_string_t*)participantRebindFrom.c_str(),
-	                       string("+sip.instance=\"<f75b0df3-1836-4b83-b7f6-00e48842c9a7-re-ubuntu>\"").c_str(),
-	                       string("+org.linphone.specs=\"groupchat,lime\"").c_str(), nullptr);
-
-	RegistrarDb::get()->bind(participantRebindUrl, participantReBindContact, parameterReBind,
-	                         make_shared<BindListener>());
-
-	shared_ptr<linphone::Address> reBindParticipant =
-	    linphone::Factory::get()->createAddress(participantRebindFrom.c_str());
-	chatRoom->addParticipant(reBindParticipant);
-
-	BC_ASSERT_TRUE(asserter.wait([chatRoom] {
-		int numberOfDevices = 0;
-		for (auto participant : chatRoom->getParticipants()) {
-			numberOfDevices += participant->getDevices().size();
-		}
-
-		return numberOfDevices == 2;
-	}));
+	// Add a new participant
+	const string participantRebindFrom = "sip:participant_re_bind@localhost";
+	inserter.setExpire(10s).setAor(participantRebindFrom).insert({.uniqueId = "re-ubuntu"});
+	chatRoom->addParticipant(linFactory->createAddress(participantRebindFrom));
+	BC_ASSERT_TRUE(asserter.iterateUpTo(8, [&totalDevicesCount] { return totalDevicesCount() == 3; }));
 
 	// Check if the participant was still added (locally)
-
-	participantsTest = chatRoom->getParticipants();
-
-	BC_ASSERT_TRUE(participantsTest.size() == 2);
-	BC_ASSERT_TRUE(participantsTest.front()->getAddress()->asString() == otherParticipantFrom);
-	BC_ASSERT_TRUE(participantsTest.back()->getAddress()->asString() == participantRebindFrom);
+	const auto participants = chatRoom->getParticipants();
+	BC_ASSERT_CPP_EQUAL(participants.size(), 3);
+	const auto& newParticipant = *participants.back();
+	BC_ASSERT_CPP_EQUAL(newParticipant.getAddress()->asString(), participantRebindFrom);
+	BC_ASSERT_CPP_EQUAL(newParticipant.getDevices().size(), 1);
 }
 
 namespace {
-TestSuite::Disabled // Remove the "Disabled" suffix when the 'Registration Event' suite is fixed.
-    _("Registration Event",
-      {
-          TEST_NO_TAG("Basic sub", basic),
-      });
+TestSuite _("Registration Event",
+            {
+                CLASSY_TEST(basicSubscription),
+            });
 }
 } // namespace tester
 } // namespace flexisip

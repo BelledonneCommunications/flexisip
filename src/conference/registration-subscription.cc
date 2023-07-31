@@ -16,13 +16,16 @@
  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "registration-subscription.hh"
+
+#include <memory>
+
+#include "flexisip/registrar/registar-listeners.hh"
+
+#include "conference-server.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "registrar/registrar-db.hh"
-
-#include "conference-server.hh"
-
-#include "registration-subscription.hh"
 #include "utils/string-utils.hh"
 
 using namespace std;

@@ -43,6 +43,9 @@ public:
 	static std::function<void()> stepperFrom(const Agent* server) {
 		return stepperFrom(*server->getRoot());
 	}
+	static std::function<void()> stepperFrom(const Agent& server) {
+		return stepperFrom(*server.getRoot());
+	}
 	/**
 	 * @param server shared_ptr to either a tester::Server or a flexisip::Agent.
 	 */

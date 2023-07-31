@@ -199,7 +199,7 @@ protected:
 	                     const std::string& uniqueId,
 	                     const std::shared_ptr<ContactUpdateListener>& listener) override;
 	void doMigration() override;
-	bool subscribe(const std::string& topic, const std::shared_ptr<ContactRegisteredListener>& listener) override;
+	bool subscribe(const std::string& topic, std::weak_ptr<ContactRegisteredListener>&& listener) override;
 	void unsubscribe(const std::string& topic, const std::shared_ptr<ContactRegisteredListener>& listener) override;
 	void publish(const std::string& topic, const std::string& uid) override;
 
