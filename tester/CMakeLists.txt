@@ -139,8 +139,11 @@ if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 		utils/pns-mock.cc utils/pns-mock.hh
 	)
 	if(HAS_GCC_BUG_105562)
-		set_source_files_properties(utils/pns-mock.cc PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized")
-	endif ()
+		set_source_files_properties(
+			push-notification-tester.cc
+			utils/pns-mock.cc
+			PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized")
+	endif()
 elseif (ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	message(FATAL_ERROR "The LibNgHttp2Asio module is required by some tests. You may disable them with -DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF")
 endif ()

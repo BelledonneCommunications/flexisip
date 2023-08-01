@@ -161,19 +161,23 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	set_source_files_properties(stun/stun.c PROPERTIES COMPILE_OPTIONS "${stun_c_compile_options}")
 	unset(stun_c_compile_options)
 
-	if(HAS_GCC_BUG_105562)
+	if(HAS_GCC_BUG_105616 OR HAS_GCC_BUG_105562)
 		set_source_files_properties(
 				b2bua/external-provider-bridge.cc
 				b2bua/trenscrypter.cc
 				configdumper.cc
-				domain-registrations.cc domain-registrations.hh
+				domain-registrations.cc
 				eventlogs/writers/flexi-stats-event-log-writer.cc
-				expressionparser-impl.cc
-				main.cc
 				module-authentication-base.cc
 				module-registrar.cc
 				pushnotification/apple/apple-request.cc
-				pushnotification/rfc8599-push-params.cc pushnotification/rfc8599-push-params.hh
+				pushnotification/rfc8599-push-params.cc
+				main.cc
+				PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized")
+	endif()
+	if(HAS_GCC_BUG_105562)
+		set_source_files_properties(
+				expressionparser-impl.cc
 				sip-boolean-expressions.cc
 				tools/pusher.cc
 				PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized")

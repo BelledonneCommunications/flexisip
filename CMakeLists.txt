@@ -106,15 +106,17 @@ else()
 	set(ENABLE_LIBLINPHONE OFF)
 endif()
 
-# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105562
-# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105616
 # It seems -fsanitize=address and -Wuninitialized don't play well together
-if (  CMAKE_BUILD_TYPE STREQUAL "Sanitizer"
- AND  CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
- AND (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 12.3.0)
-  OR (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 13.1.1)
+if ( CMAKE_BUILD_TYPE STREQUAL "Sanitizer"
+ AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
 )
-	set(HAS_GCC_BUG_105562 ON)
+	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105616
+	if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 13.1.1)
+		set(HAS_GCC_BUG_105616 ON)
+	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105562
+	elseif(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 12.3.0)
+		set(HAS_GCC_BUG_105562 ON)
+	endif()
 endif()
 
 # Place the built libraries and executables in top level directories 'lib' and 'bin' in the build tree.
