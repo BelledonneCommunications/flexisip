@@ -14,6 +14,22 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
 
+## [2.2.5] - 2023-08-02
+### [Added]
+- Presence server: add the timestamp of last activity in the presence notification when the status of
+  a user is 'away' or its client is no more active.
+
+### [Fixed]
+- **Proxy:** fix bug while detection of file descriptor system limit that caused Flexisip to have not enough
+  file descriptors to handle all its connections on some OS.
+- **Proxy – ContactRouteInserter:** increase the max size of the 'CtRtxxxxx' parameter to 512 bytes in order to
+  ensures that a complete domain name can be stored.
+- **Proxy – ExternalPushNotification:** fix bad behavior when an iOS client uses legacy push parameters while
+  registration and the 'app-id' parameter doesn't ends with '.prod' and '.dev'. That caused the '$app-id'
+  placeholder to be replaced by a truncated 'app-id'. The fix makes Flexisip to assume that the 'app-id' ends
+  with '.prod' if the user agent hasn't specified the last component.
+
+
 ## [2.2.4] - 2023-04-20
 ### [Fixed]
 - Bug in SofiaSip that causes the proxy to choose a not fully established TCP connection when it needs
