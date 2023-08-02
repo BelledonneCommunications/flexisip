@@ -91,3 +91,9 @@ std::string ForkContext::errorLogPrefix() const {
 	prefix << this->getClassName() << "[" << this << "] - fork error - ";
 	return prefix.str();
 }
+
+std::string ForkContext::logPrefix() const {
+	std::stringstream prefix;
+	prefix << this->getClassName() << "[" << this << "] - ";
+	return prefix.str();
+}

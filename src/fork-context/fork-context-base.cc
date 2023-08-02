@@ -552,7 +552,7 @@ int ForkContextBase::getLastResponseCode() const {
 
 shared_ptr<ResponseSipEvent> ForkContextBase::forwardCustomResponse(int status, const char* phrase) {
 	if (mIncoming == nullptr) {
-		SLOGE << errorLogPrefix() << "cannot forward SIP response [" << status << " " << phrase
+		SLOGW << logPrefix() << "cannot forward SIP response [" << status << " " << phrase
 		      << "]: no incoming transaction.";
 		return nullptr;
 	}

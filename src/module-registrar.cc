@@ -31,12 +31,13 @@
 
 #include "agent.hh"
 #include "domain-registrations.hh"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "eventlogs/events/eventlogs.hh"
+#include "eventlogs/writers/event-log-writer.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "registrar/registrar-db.hh"
+#include "utils/uri-utils.hh"
 
 using namespace std;
 using namespace flexisip;
@@ -69,9 +70,12 @@ static void _onContactUpdated(ModuleRegistrar* module, tport_t* new_tport, const
 				// 0 close incoming data, 1 close outgoing data, 2 both
 				tport_shutdown(old_tport, 2);
 			}
-		} else {
+		} else if (UriUtils::isIpAddress(ec->mSipContact->m_url->url_host)) {
 			SLOGE << "ContactUpdated: tport_name_by_url() failed for sip uri "
 			      << ExtendedContact::urlToString(ec->mSipContact->m_url);
+		} else {
+			SLOGD << "ContactUpdated: This URI [" << ExtendedContact::urlToString(ec->mSipContact->m_url)
+			      << "] does not match a tport.";
 		}
 	}
 }
