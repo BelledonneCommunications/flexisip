@@ -212,14 +212,15 @@ void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier>& m,
 	}
 	const shared_ptr<RelaySession> s = mSessions[mline];
 	if (s == nullptr) return;
-	RelayChannel::Dir dir = RelayChannel::SendRecv;
 
 	/* Make sure that only one device can send media to the caller, until the call is established.*/
-	if (isEarlyMedia && trId != mSendRecvBranch && mServer->mModule->mEarlyMediaRelaySingle && !mIsEstablished) {
-		// Each new device takes over receive capability from the previous king of the hill
-		if (!mSendRecvBranch.empty()) {
-			s->getChannel("", mSendRecvBranch)->setDirection(RelayChannel::SendOnly);
-		}
+	RelayChannel::Dir dir = RelayChannel::SendRecv;
+	if (isEarlyMedia && !mIsEstablished && trId != mSendRecvBranch && mServer->mModule->mEarlyMediaRelaySingle) {
+		// Each new device takes over receive capability
+		if (!mSendRecvBranch.empty())
+			if (const auto previousKingOfTheHill = s->getChannel("", mSendRecvBranch))
+				previousKingOfTheHill->setDirection(RelayChannel::SendOnly);
+
 		mSendRecvBranch = trId;
 	}
 

@@ -76,6 +76,12 @@ void setChannelDestinationsTakesOverPreviousSendRecvBranch() {
 	BC_HARD_ASSERT_TRUE(secondChannel != nullptr);
 	BC_ASSERT_CPP_EQUAL(secondChannel->getDirection(), RelayChannel::Dir::SendRecv);
 	BC_ASSERT_CPP_EQUAL(firstChannel->getDirection(), RelayChannel::Dir::SendOnly);
+
+	// Smoke test
+	relayedCall.removeBranch(secondTrid);
+	// Passed if this doesn't crash
+	relayedCall.setChannelDestinations(sdpModifier, lineIndex, "stub-ip", 0xdead, 0xdead, "stub-partytag", "third-trid",
+	                                   isEarlyMedia);
 }
 
 namespace {
