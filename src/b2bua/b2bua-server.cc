@@ -336,8 +336,15 @@ void B2buaServer::_init() {
 	mCore->setAudioPort(-1);
 	mCore->setVideoPort(-1);
 
-	shared_ptr<Transports> b2buaTransport = Factory::get()->createTransports();
+	// set no-RTP timeout
+	const auto noRTPTimeout = config->get<ConfigInt>("no-rtp-timeout")->read();
+	if (noRTPTimeout <= 0) {
+		LOGF("'%s' must be higher than 0", config->getCompleteName().c_str());
+	}
+	mCore->setNortpTimeout(noRTPTimeout);
+
 	// Get transport from flexisip configuration
+	shared_ptr<Transports> b2buaTransport = Factory::get()->createTransports();
 	std::string mTransport = config->get<ConfigString>("transport")->read();
 	if (mTransport.length() > 0) {
 		sofiasip::Home mHome;
@@ -397,6 +404,10 @@ auto defineConfig = [] {
 	    {String, "outbound-proxy",
 	     "The Flexisip proxy URI to which the B2bua server should send all its outgoing SIP requests.",
 	     "sip:127.0.0.1:5060;transport=tcp"},
+	    {Integer, "no-rtp-timeout",
+	     "Duration after which the B2BUA will terminate a call if no RTP packet is received from the other call "
+	     "participant. Unit: seconds.",
+	     "30"},
 	    config_item_end};
 
 	GenericManager::get()
