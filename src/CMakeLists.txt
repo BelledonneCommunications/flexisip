@@ -384,6 +384,8 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 		# cannot be fixed thus.
 		set_source_files_properties(${XML_SOURCES} PROPERTIES COMPILE_OPTIONS "-Wno-deprecated-copy")
 	endif ()
+else (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	set_source_files_properties(${XML_SOURCES} PROPERTIES COMPILE_OPTIONS "-Wno-deprecated-copy-with-user-provided-copy")
 endif ()
 
 #######################################################################################################################
