@@ -14,6 +14,28 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
 
+## [2.3.0] - 2023-08-09
+### [Added]
+- **Flexisip proxy:** add `global/tport-message-queue-size` parameter to set the max number of SIP messages to be queued for writing when a socket is full.
+- **Flexisip proxy:** add support for REGISTER requests with several Contact headers.
+- **Flexisip proxy:** reply to OPTIONS requests with “200 Ok”. Useful to keep a connection alive by using OPTIONS requests.
+- **Flexisip proxy:** add `module::Registrar/redis-auth-user` parameter to allow authentication to Redis servers via user/password.
+- **Conference server:** add audio/video conferencing capability.
+- **B2BUA:** forwarding of [RFC2833](https://datatracker.ietf.org/doc/html/rfc2833) and SIP INFO DTMFs.
+- **flexisip_cli.py:** add `REGISTRAR_UPSERT` command that allows to modify or insert any registrar binding for a given
+  Address of Record.
+- **External authentication plugin:** add the SNI header in order to establish TLS connections with HTTPS virtual hosts.
+- Packaging for Rocky Linux 9 and Debian 12.
+- New EventLog backend based on an HTTP REST API (experimental).
+
+### [Changed]
+- **Flexisip proxy:** enforce compliance with [RFC3261](https://datatracker.ietf.org/doc/html/rfc3261) when
+  processing REGISTER requests. The Call-ID is no longer used as unique-id when no `+sip-instance` parameter has
+  been set in the Contact-URI; the Contact-URI is used instead by using URI comparison logic as described in
+  [RFC3261 – Section 10.2.4](https://datatracker.ietf.org/doc/html/rfc3261#section-10.2.4). The CSeq value is now used to
+  avoid replay attacks or SIP race conditions.
+
+
 ## [2.2.5] - 2023-08-02
 ### [Added]
 - **Presence server:** add timestamp of last activity to the presence notification when the status of
