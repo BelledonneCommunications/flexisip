@@ -95,20 +95,10 @@ job-rocky9-rpm-check-features:
   needs:
     - job: job-rocky9-rpm
   variables:
-    GIT_STRATEGY: fetch  # TODO Replace me with `none` when Gitlab successfully removes docker volumes again (try it, you'll see)
+    GIT_STRATEGY: none
   script:
     - sudo yum -y --nogpgcheck localinstall ./build/*.rpm
-    - FLEXISIP_BIN=/opt/belledonne-communications/bin/flexisip
-    - VERSION_STRING=$($FLEXISIP_BIN --version)
-    - echo $VERSION_STRING | grep B2BUA
-    - echo $VERSION_STRING | grep Conference
-    - echo $VERSION_STRING | grep Presence
-    - echo $VERSION_STRING | grep Redis
-    - echo $VERSION_STRING | grep RegEvent
-    - echo $VERSION_STRING | grep Transcoder
-    - echo $VERSION_STRING | grep Soci
-    # No graphical dependencies
-    - "! ldd $FLEXISIP_BIN | grep --extended-regexp 'X|GL'"
+    - !reference [.script-check-features, script]
 
 job-rocky9-rpm-deploy:
   extends: .job-rpm-deploy

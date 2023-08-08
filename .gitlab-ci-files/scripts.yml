@@ -1,0 +1,16 @@
+# This file MUST only contain hidden jobs (beginning with `.`)
+
+# Check available features of an installed flexisip binary
+.script-check-features:
+  script:
+    - FLEXISIP_BIN=/opt/belledonne-communications/bin/flexisip
+    - VERSION_STRING=$($FLEXISIP_BIN --version)
+    - echo $VERSION_STRING | grep B2BUA
+    - echo $VERSION_STRING | grep Conference
+    - echo $VERSION_STRING | grep Presence
+    - echo $VERSION_STRING | grep Redis
+    - echo $VERSION_STRING | grep RegEvent
+    - echo $VERSION_STRING | grep Transcoder
+    - echo $VERSION_STRING | grep Soci
+    # No graphical dependencies
+    - "! ldd $FLEXISIP_BIN | grep --extended-regexp 'X|GL'"

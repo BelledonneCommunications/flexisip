@@ -70,6 +70,21 @@ job-debian12-deb:
       optional: true
       artifacts: false
 
+# Test installation of the DEB package and check its feature list
+job-debian12-deb-check-features:
+  stage: check-package 📤
+  tags: [ "docker" ]
+  image: debian:12
+  rules:
+    - !reference [job-debian12-deb, rules]
+  needs:
+    - job: job-debian12-deb
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - apt update
+    - apt install -y ./build/*.deb
+    - !reference [.script-check-features, script]
 
 job-debian12-deb-deploy:
   extends: .job-debian-deb-deploy

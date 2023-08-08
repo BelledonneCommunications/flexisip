@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian12:20230801_init
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian12:20230808_fix_packaging
 ###############################################################################
 
 FROM debian:12
@@ -56,6 +56,8 @@ RUN apt-get -y update \
       libvpx-dev \
     # Dependencies of the tester
       mariadb-server \
+    # Dependencies of CPack (to build the .deb)
+      dpkg-dev \
   # Clean up
  && apt-get -y autoremove \
  && apt-get -y clean
