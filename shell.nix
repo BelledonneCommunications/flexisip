@@ -7,8 +7,8 @@ import ./nix/base.nix ({
   additionalInputs = ps: with ps; [
     nixpkgs-fmt
     ccache
-    clang-tools_13 # clangd, clang-format
-    llvmPackages_13.libllvm # Adds llvm-symbolizer which adds line numbers to AddressSanitizer traces when compiling with clang
+    clang-tools_16 # clangd, clang-format
+    llvmPackages_16.libllvm # Adds llvm-symbolizer which adds line numbers to AddressSanitizer traces when compiling with clang
     gdb
   ];
 } // args)
