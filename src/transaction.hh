@@ -51,7 +51,7 @@ public:
 	send(const std::shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) = 0;
 	virtual void reply(
 	    const std::shared_ptr<MsgSip>& msg, int status, char const* phrase, tag_type_t tag, tag_value_t value, ...) = 0;
-	virtual std::weak_ptr<Agent> getAgent() = 0;
+	virtual Agent* getAgent() = 0;
 };
 
 class OutgoingAgent {
@@ -62,17 +62,17 @@ public:
 
 	virtual void
 	send(const std::shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) = 0;
-	virtual std::weak_ptr<Agent> getAgent() = 0;
+	virtual Agent* getAgent() = 0;
 };
 
 class Transaction {
 public:
-	Transaction(std::weak_ptr<Agent> agent) noexcept : mAgent{agent} {
+	Transaction(Agent* agent) noexcept : mAgent{agent} {
 	}
 	Transaction(const Transaction&) = delete;
 	virtual ~Transaction() = default;
 
-	std::weak_ptr<Agent> getAgent() const noexcept {
+	Agent* getAgent() const noexcept {
 		return mAgent;
 	}
 
@@ -132,7 +132,7 @@ protected:
 		mWeakProperties.clear();
 	}
 
-	std::weak_ptr<Agent> mAgent = std::weak_ptr<Agent>{};
+	Agent* mAgent{nullptr};
 	std::unordered_map<std::string, Property> mProperties{};
 	std::unordered_map<std::string, WProperty> mWeakProperties{};
 };
@@ -143,10 +143,10 @@ class OutgoingTransaction : public Transaction,
 public:
 	// the use of make_shared() requires the constructor to be public, but don't use it. Use
 	// RequestSipEvent::createOutgoingTransaction().
-	OutgoingTransaction(std::weak_ptr<Agent> agent);
+	OutgoingTransaction(Agent* agent);
 	~OutgoingTransaction();
 
-	std::weak_ptr<Agent> getAgent() override {
+	Agent* getAgent() override {
 		return Transaction::getAgent();
 	}
 
@@ -189,10 +189,10 @@ class IncomingTransaction : public Transaction,
 public:
 	// the use of make_shared() requires the constructor to be public, but don't use it. Use
 	// RequestSipEvent::createIncomingTransaction().
-	IncomingTransaction(std::weak_ptr<Agent> agent);
+	IncomingTransaction(Agent* agent);
 	~IncomingTransaction() override;
 
-	std::weak_ptr<Agent> getAgent() override {
+	Agent* getAgent() override {
 		return Transaction::getAgent();
 	}
 

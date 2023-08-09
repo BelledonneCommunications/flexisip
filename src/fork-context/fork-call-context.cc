@@ -37,7 +37,6 @@
 using namespace std;
 
 namespace flexisip {
-using namespace pushnotification;
 
 template <typename T>
 static bool contains(const list<T>& l, T value) {
@@ -60,9 +59,6 @@ ForkCallContext::ForkCallContext(const shared_ptr<ModuleRouter>& router,
 
 ForkCallContext::~ForkCallContext() {
 	SLOGD << "Destroy ForkCallContext " << this;
-	if (mIncoming) {
-		mEvent->reply(SIP_503_SERVICE_UNAVAILABLE, TAG_END());
-	}
 }
 
 void ForkCallContext::onCancel(const shared_ptr<RequestSipEvent>& ev) {
@@ -232,7 +228,7 @@ void ForkCallContext::onNewRegister(const SipUri& dest,
 		return;
 	} else if (dispatchPair.second) {
 		if (auto pushContext = dispatchPair.second->pushContext.lock()) {
-			if (pushContext->getPushInfo()->isApple() && pushContext->getStrategy()->getPushType() == PushType::VoIP) {
+			if (pushContext->getPushInfo()->isApple()) {
 				const auto& dispatchedBranch = sharedListener->onDispatchNeeded(shared_from_this(), newContact);
 				cancelBranch(dispatchedBranch);
 				checkFinished();
@@ -243,6 +239,7 @@ void ForkCallContext::onNewRegister(const SipUri& dest,
 
 	sharedListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid,
 	                                              DispatchStatus::DispatchNotNeeded);
+	return;
 }
 
 bool ForkCallContext::isCompleted() const {

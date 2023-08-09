@@ -137,8 +137,8 @@ public:
 	const std::string& getResolvedPublicIp(bool ipv6 = false) const {
 		return ipv6 ? mPublicResolvedIpV6 : mPublicResolvedIpV4;
 	}
-	std::weak_ptr<Agent> getAgent() override {
-		return weak_from_this();
+	Agent* getAgent() override {
+		return this;
 	}
 	std::shared_ptr<OutgoingAgent> getOutgoingAgent() override {
 		return shared_from_this();

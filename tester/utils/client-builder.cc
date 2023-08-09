@@ -174,16 +174,6 @@ ClientBuilder& ClientBuilder::setApplePushConfig() {
 	return *this;
 }
 
-ClientBuilder& ClientBuilder::setApplePushConfigRemoteOnly() {
-	const auto pushConfig = mAccountParams->getPushNotificationConfig();
-	pushConfig->setProvider("apns");
-	pushConfig->setPrid("AAAAAAAAAAAAAAAAAAAA7DF897B431746F49E271E66BBF655C13C2BBD70FFC19:remote");
-	pushConfig->setParam("ABCD1234.org.linphone.phone.remote");
-	mAccountParams->setPushNotificationAllowed(true);
-
-	return *this;
-}
-
 ClientBuilder& ClientBuilder::setPassword(const std::string_view& password) {
 	mPassword = password;
 	return *this;

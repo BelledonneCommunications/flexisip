@@ -23,13 +23,13 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
-void MessagePushStrategy::sendMessageNotification(const std::shared_ptr<const PushInfo>& pInfo) {
+void RemotePushStrategy::sendMessageNotification(const std::shared_ptr<const PushInfo>& pInfo) {
 	auto req = mService->makeRequest(PushType::Message, pInfo);
 	mService->sendPush(req);
 	notifyPushSent();
 }
 
-void MessagePushStrategy::sendCallNotification(const std::shared_ptr<const PushInfo>& pInfo) {
+void RemotePushStrategy::sendCallNotification(const std::shared_ptr<const PushInfo>& pInfo) {
 	using namespace std::chrono;
 
 	ostringstream err{};
@@ -69,8 +69,7 @@ void MessagePushStrategy::sendCallNotification(const std::shared_ptr<const PushI
 	}
 }
 
-void MessagePushStrategy::onBranchCanceled([[maybe_unused]] const std::shared_ptr<BranchInfo>& br,
-                                           ForkStatus cancelReason) noexcept {
+void RemotePushStrategy::onBranchCanceled([[maybe_unused]] const std::shared_ptr<BranchInfo>& br, ForkStatus cancelReason) noexcept {
 	if (!pushRepetitionEnabled()) {
 		// Avoid final PN to be sent if repetition hasn't been enabled.
 		return;
@@ -101,7 +100,7 @@ void MessagePushStrategy::onBranchCanceled([[maybe_unused]] const std::shared_pt
 	}
 }
 
-void MessagePushStrategy::onBranchCompleted(const std::shared_ptr<BranchInfo>& br) noexcept {
+void RemotePushStrategy::onBranchCompleted(const std::shared_ptr<BranchInfo>& br) noexcept {
 	if (!pushRepetitionEnabled()) {
 		// Avoid final PN to be sent if repetition hasn't been enabled.
 		return;

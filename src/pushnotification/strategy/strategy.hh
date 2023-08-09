@@ -36,7 +36,6 @@ public:
 
 	virtual void sendMessageNotification(const std::shared_ptr<const PushInfo>& pInfo) = 0;
 	virtual void sendCallNotification(const std::shared_ptr<const PushInfo>& pInfo) = 0;
-	virtual PushType getPushType() const = 0;
 
 protected:
 	// Protected ctors

@@ -46,7 +46,7 @@ static void basic() {
 
 	auto root = make_shared<sofiasip::SuRoot>();
 	shared_ptr<Agent> a = make_shared<Agent>(root);
-	Agent* agent = a->getAgent().lock().get();
+	Agent* agent = a->getAgent();
 
 	GenericManager* cfg = GenericManager::get();
 	cfg->load(bcTesterRes("config/flexisip_regevent.conf"));

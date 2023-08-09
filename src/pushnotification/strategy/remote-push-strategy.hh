@@ -26,15 +26,16 @@
 #include "fork-context/branch-info.hh"
 #include "strategy.hh"
 
-namespace flexisip::pushnotification {
+namespace flexisip {
+namespace pushnotification {
 
-class MessagePushStrategy : public Strategy,
-                            public BranchInfoListener,
-                            public std::enable_shared_from_this<MessagePushStrategy> {
+class RemotePushStrategy : public Strategy,
+                           public BranchInfoListener,
+                           public std::enable_shared_from_this<RemotePushStrategy> {
 public:
 	template <typename... Args>
-	static std::shared_ptr<MessagePushStrategy> make(Args&&... args) {
-		return std::shared_ptr<MessagePushStrategy>{new MessagePushStrategy{std::forward<Args>(args)...}};
+	static std::shared_ptr<RemotePushStrategy> make(Args&&... args) {
+		return std::shared_ptr<RemotePushStrategy>{new RemotePushStrategy{std::forward<Args>(args)...}};
 	};
 
 	// Set the interval between two subsequent notifications when this strategy is used for call invite notification.
@@ -46,19 +47,15 @@ public:
 		return mCallPushInterval.count() > 0;
 	}
 
-	PushType getPushType() const override {
-		return PushType::Message;
-	}
-
 	void sendMessageNotification(const std::shared_ptr<const PushInfo>& pInfo) override;
 	void sendCallNotification(const std::shared_ptr<const PushInfo>& pInfo) override;
 
 private:
 	// Private ctor
-	MessagePushStrategy(const std::weak_ptr<PushNotificationContext>& aPNContext,
-	                    const std::shared_ptr<sofiasip::SuRoot>& aRoot,
-	                    const std::shared_ptr<Service>& aService,
-	                    const std::weak_ptr<BranchInfo>& aBr)
+	RemotePushStrategy(const std::weak_ptr<PushNotificationContext>& aPNContext,
+	                   const std::shared_ptr<sofiasip::SuRoot>& aRoot,
+	                   const std::shared_ptr<Service>& aService,
+	                   const std::shared_ptr<BranchInfo>& aBr)
 	    : Strategy{aPNContext, aRoot, aService}, mBranchInfo{aBr} {
 	}
 
@@ -74,11 +71,12 @@ private:
 	std::unique_ptr<sofiasip::Timer> mCallRingingTimeoutTimer{};
 };
 
-inline std::ostream& operator<<(std::ostream& os, const MessagePushStrategy* s) noexcept {
+inline std::ostream& operator<<(std::ostream& os, const RemotePushStrategy* s) noexcept {
 	return (os << "RemotePushStrategy[" << static_cast<const void*>(s) << "]");
 }
-inline std::ostream& operator<<(std::ostream& os, const std::shared_ptr<MessagePushStrategy>& s) noexcept {
+inline std::ostream& operator<<(std::ostream& os, const std::shared_ptr<RemotePushStrategy>& s) noexcept {
 	return operator<<(os, s.get());
 }
 
-} // namespace flexisip::pushnotification
+} // namespace pushnotification
+} // namespace flexisip

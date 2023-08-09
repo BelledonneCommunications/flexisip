@@ -46,11 +46,8 @@ using namespace flexisip;
 using namespace sofiasip;
 
 ModuleRouter::ModuleRouter(Agent* ag) : Module(ag) {
-	LOGT("New ModuleRouter[%p]", this);
 }
-ModuleRouter::~ModuleRouter() {
-	LOGT("Destroy ModuleRouter[%p]", this);
-};
+ModuleRouter::~ModuleRouter() = default;
 
 void ModuleRouter::onDeclare(GenericStruct* mc) {
 	ConfigItemDescriptor configs[] = {

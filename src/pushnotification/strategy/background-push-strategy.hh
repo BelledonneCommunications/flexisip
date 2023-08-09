@@ -41,10 +41,6 @@ public:
 		notifyPushSent();
 	}
 
-	PushType getPushType() const override {
-		return PushType::Background;
-	}
-
 private:
 	using Strategy::Strategy;
 };

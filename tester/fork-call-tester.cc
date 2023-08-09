@@ -24,7 +24,6 @@
 #include "utils/client-builder.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
-#include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
 using namespace std;
@@ -127,72 +126,6 @@ static void callWithEarlyCancelCalleeOffline() {
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
 }
 
-/**
- * Reconnect two apple devices, one with voip push available and one not, after an early cancel.
- * Assert that only the device with voip push receive an INVITE+CANCEL on register.
- */
-static void callWithEarlyCancelCalleeOfflineNoVOIPPush() {
-	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
-	server->start();
-
-	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server);
-	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server);
-	const auto calleeIdleClientVoip =
-	    server->clientBuilder().setApplePushConfig().build("sip:calleeClient@sip.test.org");
-	const auto calleeIdleClientRemote =
-	    server->clientBuilder().setApplePushConfigRemoteOnly().build("sip:calleeClient@sip.test.org");
-
-	// Prepare asserter
-	const auto calleeIdleClientVoipCore = calleeIdleClientVoip.getCore();
-	const auto calleeIdleClientRemoteCore = calleeIdleClientVoip.getCore();
-	CoreAssert asserter{calleeIdleClientVoip.getCore(), calleeIdleClientRemote.getCore(), server};
-
-	// Check that call log is empty before test
-	BC_HARD_ASSERT_TRUE(calleeIdleClientVoipCore->getCallsNb() == 0);
-	BC_HARD_ASSERT_TRUE(calleeIdleClientRemoteCore->getCallsNb() == 0);
-
-	// Call with callee offline with two device
-	calleeIdleClientVoip.disconnect();
-	calleeIdleClientRemote.disconnect();
-	callerClient->callWithEarlyCancel(calleeClient, nullptr);
-
-	// Assert that fork is still present because callee has two devices offline
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
-	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 0, int, "%i");
-
-	// Callee idle devices came back online, sending a new Register
-	calleeIdleClientVoip.reconnect();
-	calleeIdleClientRemote.reconnect();
-	// Wait for registration OK and check that call log is not empty anymore for client with VOIP push
-	asserter
-	    .wait([&calleeIdleClientVoip, &calleeIdleClientRemote] {
-		    FAIL_IF(calleeIdleClientVoip.getAccount()->getState() != RegistrationState::Ok);
-		    FAIL_IF(calleeIdleClientRemote.getAccount()->getState() != RegistrationState::Ok);
-		    FAIL_IF(calleeIdleClientVoip.getCore()->getCallLogs().empty());
-		    return ASSERTION_PASSED();
-	    })
-	    .assert_passed();
-
-	// Assert CANCEL is received client with VOIP push
-	BC_ASSERT_TRUE(asserter.wait([&calleeIdleClientVoipCore] {
-		return !calleeIdleClientVoipCore->getCurrentCall() ||
-		       calleeIdleClientVoipCore->getCurrentCall()->getState() == Call::State::End ||
-		       calleeIdleClientVoipCore->getCurrentCall()->getState() == Call::State::Released;
-	}));
-
-	// Assert call log is still empty for client with remote push only.
-	asserter
-	    .wait([&calleeIdleClientRemote] {
-		    FAIL_IF(!calleeIdleClientRemote.getCore()->getCallLogs().empty());
-		    return ASSERTION_PASSED();
-	    })
-	    .assert_passed();
-
-	// Fork not destroyed because a branch stay alive forever. Destroyed on timeout or Agent destruction.
-}
-
 static void calleeOfflineWithOneDevice() {
 	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
 	server->start();
@@ -267,7 +200,6 @@ TestSuite _("Fork call context suite",
                 TEST_NO_TAG("Call an offline user, early cancel", callWithEarlyCancelCalleeOffline),
                 TEST_NO_TAG("Call an online user, with an other offline device", calleeOfflineWithOneDevice),
                 TEST_NO_TAG("Call an online user, with other idle devices", calleeMultipleOnlineDevices),
-                CLASSY_TEST(callWithEarlyCancelCalleeOfflineNoVOIPPush),
             });
 }
 } // namespace tester

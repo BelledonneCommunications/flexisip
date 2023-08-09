@@ -42,7 +42,6 @@
 /*
  * These are the classic C-style logging macros.
  */
-#define LOGT bctbx_debug
 #define LOGD bctbx_debug
 #define LOGI bctbx_message
 #define LOGW bctbx_warning
