@@ -1060,6 +1060,10 @@ void RegistrarDbRedisAsync::handleMigration(redisReply* reply, RedisRegisterCont
 		for (size_t i = 0; i < reply->elements; i++) {
 			redisReply* element = reply->element[i];
 			try {
+				if (element->str == nullptr || element->str[0] == '\0') {
+					LOGE("Skipping empty Redis array element. This should never happen!");
+					continue;
+				}
 				SipUri url(element->str);
 				RedisRegisterContext* new_context = new RedisRegisterContext(this, move(url), nullptr);
 				LOGD("Fetching previous record: %s", element->str);
