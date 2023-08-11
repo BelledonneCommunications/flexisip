@@ -266,7 +266,8 @@ void B2buaServer::onDtmfReceived([[maybe_unused]] const std::shared_ptr<linphone
                                  const std::shared_ptr<linphone::Call>& call,
                                  int dtmf) {
 	auto otherLeg = getPeerCall(call);
-	SLOGD << "Forwarding DTMF " << dtmf << " from " << call->getCallLog()->getCallId() << " to " << otherLeg->getCallLog()->getCallId();
+	SLOGD << "Forwarding DTMF " << dtmf << " from " << call->getCallLog()->getCallId() << " to "
+	      << otherLeg->getCallLog()->getCallId();
 	otherLeg->sendDtmf(dtmf);
 };
 
@@ -300,11 +301,15 @@ void B2buaServer::_init() {
 	configLinphone->setInt("misc", "media_resources_mode", 1); // share media resources
 	configLinphone->setBool("sip", "reject_duplicated_calls", false);
 	configLinphone->setBool("sip", "use_rfc2833", true); // Forward DTMF via out-of-band RTP...
-	configLinphone->setBool("sip", "use_info", true); // ...or via SIP INFO if unsupported by media
+	configLinphone->setBool("sip", "use_info", true);    // ...or via SIP INFO if unsupported by media
 	configLinphone->setBool("sip", "defer_update_default",
 	                        true); // do not automatically accept update: we might want to update peer call before
 	configLinphone->setBool("misc", "conference_event_log_enabled", 0);
 	configLinphone->setInt("misc", "conference_layout", static_cast<int>(linphone::ConferenceLayout::ActiveSpeaker));
+
+	// Prevent the default log handler from being reset while LinphoneCore construction.
+	configLinphone->setBool("logging", "disable_stdout", true);
+
 	mCore = Factory::get()->createCoreWithConfig(configLinphone, nullptr);
 	mCore->getConfig()->setString("storage", "backend", "sqlite3");
 	mCore->getConfig()->setString("storage", "uri", ":memory:");
@@ -315,7 +320,9 @@ void B2buaServer::_init() {
 	mCore->enableAutoSendRinging(
 	    false); // Do not auto answer a 180 on incoming calls, relay the one from the other part.
 	mCore->setZrtpSecretsFile("null");
-	mCore->setInCallTimeout(30 * 60); // Give enough time to the outgoing call (legB) to establish while we leave the incoming one (legA) ringing
+	mCore->setInCallTimeout(
+	    30 *
+	    60); // Give enough time to the outgoing call (legB) to establish while we leave the incoming one (legA) ringing
 
 	// b2bua shall never take the initiative of accepting or starting video calls
 	// stick to incoming call parameters for that
