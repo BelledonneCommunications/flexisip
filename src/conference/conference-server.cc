@@ -120,6 +120,9 @@ void ConferenceServer::_init() {
 	string uuid = readUuid();
 	if (!uuid.empty()) configLinphone->setString("misc", "uuid", uuid);
 
+	// Prevent the default log handler from being reset while LinphoneCore construction.
+	configLinphone->setBool("logging", "disable_stdout", true);
+
 	mCore = linphone::Factory::get()->createCoreWithConfig(configLinphone, nullptr);
 
 	mCore->setInCallTimeout(config->get<ConfigInt>("call-timeout")->read());
