@@ -27,7 +27,7 @@ add_library(external-auth SHARED
 	module-external-authentication.cc
 )
 
-if(HAS_GCC_BUG_105562)
+if(HAS_GCC_BUG_105616 OR HAS_GCC_BUG_105562)
 	set_source_files_properties(external-auth-module.cc PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized")
 endif ()
 

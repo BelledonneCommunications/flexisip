@@ -335,11 +335,15 @@ void Http2Client::onDataReceived([[maybe_unused]] nghttp2_session& session, [[ma
 int Http2Client::onPollInCb(su_root_magic_t*, su_wait_t* w, su_wakeup_arg_t* arg) noexcept {
 	auto thiz = static_cast<Http2Client*>(arg);
 
-	if (w->revents & SU_WAIT_ERR) {
-		SLOGE << thiz->mLogPrefix << ": socket error";
-	}
 	if (w->revents & SU_WAIT_HUP) {
 		SLOGD << thiz->mLogPrefix << ": peer has hung up";
+		thiz->disconnect();
+		return 0;
+	}
+	if (w->revents & SU_WAIT_ERR) {
+		SLOGE << thiz->mLogPrefix << ": socket error";
+		thiz->disconnect();
+		return 0;
 	}
 
 	auto status = nghttp2_session_recv(thiz->mHttpSession.get());

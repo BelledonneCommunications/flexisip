@@ -24,8 +24,7 @@
 using namespace std;
 using namespace std::chrono;
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 using namespace Xsd::DataModel;
 using namespace xsd::cxx::tree;
@@ -61,12 +60,13 @@ static void operatorTests() {
 	BC_ASSERT_TRUE(mid2 < superior);
 };
 
+namespace {
+
 TestSuite _("XSD utils test",
             {
                 TEST_NO_TAG_AUTO_NAMED(toTimeTTests),
                 TEST_NO_TAG_AUTO_NAMED(operatorTests),
             });
 
-} // namespace tester
-
-} // namespace flexisip
+}
+} // namespace flexisip::tester

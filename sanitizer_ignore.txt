@@ -4,6 +4,7 @@ leak:libsqlite3.so
 
 leak:ortp_libc_malloc
 leak:bctbx_libc_malloc
+leak:dblk_alloc
 
 leak:LinphonePrivate
 leak:ConferenceServer

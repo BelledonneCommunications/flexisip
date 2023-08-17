@@ -22,6 +22,7 @@ variables:
   ROCKY_9_IMAGE_VERSION: 20230418_add_rocky9
   DEBIAN_10_IMAGE_VERSION: 20230227_add_mariadb_server
   DEBIAN_11_IMAGE_VERSION: 20230227_add_mariadb_server
+  DEBIAN_12_IMAGE_VERSION: 20230808_fix_packaging
   UBUNTU_18_04_IMAGE_VERSION: 20230608_update_gcc
   UBUNTU_22_04_IMAGE_VERSION: 20230220_remove_GL_deps
 
@@ -45,6 +46,7 @@ before_script:
 
 include:
   - '.gitlab-ci-files/rules.yml'
+  - '.gitlab-ci-files/scripts.yml'
   - '.gitlab-ci-files/job-linux.yml'
   - '.gitlab-ci-files/job-linux-archlinux.yml'
   - '.gitlab-ci-files/job-linux-centos7.yml'
@@ -52,6 +54,7 @@ include:
   - '.gitlab-ci-files/job-linux-rocky9.yml'
   - '.gitlab-ci-files/job-linux-debian10.yml'
   - '.gitlab-ci-files/job-linux-debian11.yml'
+  - '.gitlab-ci-files/job-linux-debian12.yml'
   - '.gitlab-ci-files/job-linux-ubuntu-18-04.yml'
   - '.gitlab-ci-files/job-linux-ubuntu-22-04.yml'
   - '.gitlab-ci-files/job-macosx.yml'

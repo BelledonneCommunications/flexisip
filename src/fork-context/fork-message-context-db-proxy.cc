@@ -210,6 +210,7 @@ void ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
 	LOGD("ForkMessageContextDbProxy[%p] onNewRegister", this);
 	const auto& sharedRouter = mSavedRouter.lock();
 	if (!sharedRouter) {
+		LOGE("ForkMessageContext[%p] onNewRegister: router missing, this should not happened", this);
 		return;
 	}
 
@@ -229,6 +230,7 @@ void ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
 
 	// If the ForkMessage is only in database create a thread to access database and then recursively call this method.
 	if (getState() == State::IN_DATABASE) {
+		LOGD("ForkMessageContext[%p] onNewRegister: message is in DB. Initiating load from DB.", this);
 		AutoThreadPool::getGlobalThreadPool()->run([thiz = shared_from_this(), dest, uid, newContact]() {
 			lock_guard<mutex> lock(thiz->mDbAccessMutex);
 			if (thiz->getState() == State::IN_DATABASE && !thiz->mDbFork) {
@@ -237,15 +239,22 @@ void ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
 				} catch (const exception& e) {
 					SLOGE << thiz->errorLogPrefix() << "Error loading ForkMessageContext from db : " << e.what();
 				}
+			} else {
+				LOGD("ForkMessageContext[%p] onNewRegister (thread): message was previously loaded.", thiz.get());
 			}
 
 			if (auto router = thiz->mSavedRouter.lock()) {
+				LOGD("ForkMessageContext[%p] onNewRegister (thread): loaded or previously loaded, recursively added to "
+				     "main loop",
+				     thiz.get());
 				router->getAgent()->getRoot()->addToMainLoop(
 				    [weak = weak_ptr<ForkMessageContextDbProxy>{thiz->shared_from_this()}, dest, uid, newContact]() {
 					    if (auto shared = weak.lock()) {
 						    shared->onNewRegister(dest, uid, newContact);
 					    }
 				    });
+			} else {
+				SLOGE << thiz->errorLogPrefix() << " onNewRegister: router missing, this should not happened";
 			}
 		});
 

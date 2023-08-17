@@ -18,10 +18,11 @@
 
 #include "eventlogs.hh"
 
-#include "eventlogs/events/sip-event-log.hh"
 #include "flexisip/configmanager.hh"
 
+#include "eventlogs/events/sip-event-log.hh"
 #include "eventlogs/writers/event-log-writer.hh"
+#include "utils/uri-utils.hh"
 
 using namespace std;
 
@@ -122,13 +123,20 @@ AuthLog::AuthLog(const sip_t* sip, bool userExists)
 void AuthLog::setOrigin(const sip_via_t* via) {
 	const char* protocol = strchr(via->v_protocol, '/') + 1;
 	const char* port = via->v_rport ? via->v_rport : via->v_port;
-	const char* ip = via->v_received ? via->v_received : via->v_host;
+	string ip = via->v_received ? via->v_received : via->v_host;
+
+	// In VIA you can have a parameter like received=ip.
+	// When ip is an IPv6 address it doesn't have "[]" around.
+	// url_format (see after) need "[]" around IPv6, so we add them if needed.
+	if (!StringUtils::startsWith(ip, "[") && UriUtils::isIpv6Address(ip)) {
+		ip = "[" + ip + "]";
+	}
 
 	protocol = strchr(protocol, '/') + 1;
 
-	mOrigin = url_format(mHome.home(), "sip:%s", ip);
+	mOrigin = url_format(mHome.home(), "sip:%s", ip.c_str());
 	if (!mOrigin) {
-		LOGE("AuthLog: invalid via with host %s", ip);
+		LOGE("AuthLog: invalid via with host %s", ip.c_str());
 		mOrigin = url_format(mHome.home(), "sip:invalid.host");
 	}
 	if (port) {

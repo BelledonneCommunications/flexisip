@@ -1,0 +1,95 @@
+.debian12-image:
+  image:
+    name: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian12:$DEBIAN_12_IMAGE_VERSION
+
+#################################################
+# Makefile
+#################################################
+
+job-debian12-makefile-gcc:
+  extends:
+    - .job-makefile-gcc
+    - .debian12-image
+    - .rules-manual  # ⚠ See `rules.yml`, override .job-makefile-gcc rules
+
+
+job-debian12-makefile-clang:
+  extends:
+    - .job-makefile-clang
+    - .debian12-image
+    - .rules-manual  # ⚠ See `rules.yml`, override .job-makefile-clang rules
+
+#################################################
+# Ninja
+#################################################
+
+job-debian12-ninja-gcc:
+  extends:
+    - .job-ninja-gcc
+    - .debian12-image
+    # Debian 12 packages GCC 12 (fitting!) for which our cmake has special-caseing,
+    # so let's override the .job-ninja-gcc rules to run it in dev pipelines
+    - .rules-dev  # ⚠ See `rules.yml`
+
+
+job-debian12-ninja-clang:
+  extends:
+    - .job-ninja-clang
+    - .debian12-image
+    - .tester-artifacts
+  variables:
+    CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON
+
+#################################################
+# UNIT TESTS
+#################################################
+
+job-debian12-unit-test:
+  extends:
+    - .unit-test
+    - .debian12-image
+  needs:
+    - job-debian12-ninja-clang
+  artifacts:
+    paths:
+      - OUTPUT/lib/libflexisip.so
+
+#################################################
+# DEB
+#################################################
+
+job-debian12-deb:
+  extends:
+    - .job-linux-deb
+    - .debian12-image
+  needs:
+    - job: job-debian12-unit-test
+      optional: true
+      artifacts: false
+    - job: job-debian12-ninja-clang
+      optional: true
+      artifacts: false
+
+# Test installation of the DEB package and check its feature list
+job-debian12-deb-check-features:
+  stage: check-package 📤
+  tags: [ "docker" ]
+  image: debian:12
+  rules:
+    - !reference [job-debian12-deb, rules]
+  needs:
+    - job: job-debian12-deb
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - apt update
+    - apt install -y ./build/*.deb
+    - !reference [.script-check-features, script]
+
+job-debian12-deb-deploy:
+  extends: .job-debian-deb-deploy
+  variables:
+    RELEASE: bookworm
+    FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
+  dependencies:
+    - job-debian12-deb

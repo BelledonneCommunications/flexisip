@@ -1,0 +1,48 @@
+/** Copyright (C) 2010-2023 Belledonne Communications SARL
+ *  SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+#include "client-call.hh"
+
+#include <memory>
+
+#include "linphone++/enums.hh"
+#include "linphone/api/c-call-stats.h"
+#include "linphone/api/c-call.h"
+#include "ortp/rtp.h"
+
+namespace flexisip {
+namespace tester {
+
+ClientCall::ClientCall(std::shared_ptr<linphone::Call>&& call) : mCall(std::move(call)) {
+}
+
+const ::rtp_stats& ClientCall::getVideoRtpStats() const {
+	return *::linphone_call_stats_get_rtp_stats(::linphone_call_get_video_stats(mCall->cPtr()));
+}
+
+linphone::Status ClientCall::acceptEarlyMedia() const {
+	return mCall->acceptEarlyMedia();
+}
+
+linphone::Call::State ClientCall::getState() const {
+	return mCall->getState();
+}
+
+const bool& ClientCall::videoFrameDecoded() {
+	if (mListener) {
+		mListener->mFrameDecoded = false;
+		mCall->requestNotifyNextVideoFrameDecoded();
+	} else {
+		mListener = std::make_shared<VideoDecodedListener>();
+		mCall->addListener(mListener);
+	}
+	return mListener->mFrameDecoded;
+}
+
+const std::shared_ptr<linphone::Call>& ClientCall::getLinphoneCall(const ClientCall& wrapper) {
+	return wrapper.mCall;
+}
+
+} // namespace tester
+} // namespace flexisip

@@ -90,9 +90,11 @@ public:
 		return mServer;
 	}
 
+	const std::array<const std::shared_ptr<const RelaySession>, sMaxSessions>& getSessions() const;
+
 private:
 	void setupSpecificRelayTransport(RelayTransport* rt, const char* destHost);
-	std::shared_ptr<RelaySession> mSessions[sMaxSessions];
+	std::array<std::shared_ptr<RelaySession>, sMaxSessions> mSessions;
 	const std::shared_ptr<MediaRelayServer>& mServer;
 	int mBandwidthThres;
 	int mDecim;

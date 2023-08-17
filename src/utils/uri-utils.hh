@@ -129,6 +129,10 @@ public:
 		return inet_pton(AF_INET6, str.c_str(), &(sa.sin6_addr)) != 0;
 	}
 
+	static bool isIpAddress(const std::string& str) {
+		return isIpv4Address(str) || isIpv6Address(str);
+	}
+
 private:
 	static std::string unescape(const char* str, size_t n) noexcept;
 

@@ -20,8 +20,6 @@
 
 #include <sofia-sip/sip_status.h>
 
-#include "flexisip/common.hh"
-
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
 #include "fork-context/branch-info.hh"
@@ -68,11 +66,14 @@ void ForkBasicContext::onResponse(const shared_ptr<BranchInfo>& br, const shared
 void ForkBasicContext::finishIncomingTransaction() {
 	mDecisionTimer.reset(nullptr);
 
-	shared_ptr<BranchInfo> best = findBestBranch();
-	if (best == nullptr) {
-		forwardCustomResponse(SIP_408_REQUEST_TIMEOUT);
-	} else {
-		forwardResponse(best);
+	// mIncoming can be already terminated if a previous 200 response was received
+	if (mIncoming) {
+		shared_ptr<BranchInfo> best = findBestBranch();
+		if (best == nullptr) {
+			forwardCustomResponse(SIP_408_REQUEST_TIMEOUT);
+		} else {
+			forwardResponse(best);
+		}
 	}
 }
 

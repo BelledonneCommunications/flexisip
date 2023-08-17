@@ -79,11 +79,14 @@ add_executable(flexisip_tester
 	sofia-tester.cc
 	sofia-driven-signal-handler-tester.cc
 	tester.cc
+	tests/callcontext-mediarelay-tester.cc
+	tests/eventlogs/events/auth-log-tester.cc
 	tests/eventlogs/events/event-log-stats-tester.cc
 	tests/flexiapi/schemas/iso-8601-date-tester.cc
 	tests/presence/presence-pidf-tester.cc
 	tests/presence/presence-publish-tester.cc
 	tests/presence/xsd-utils-tester.cc
+	tests/pushnotification/rfc8599-push-params-tester.cc
 	tests/pushnotification/service-tester.cc
 	tests/sofia-wrapper/home-tester.cc
 	thread-pool-tester.cc
@@ -91,8 +94,10 @@ add_executable(flexisip_tester
 	utils-tester.cc
 	utils/asserts.hh
 	utils/bellesip-utils.cc utils/bellesip-utils.hh
+	utils/call-builder.cc utils/call-builder.hh
 	utils/chat-room-builder.cc utils/chat-room-builder.hh
 	utils/client-builder.cc utils/client-builder.hh
+	utils/client-call.cc utils/client-call.hh
 	utils/client-core.cc utils/client-core.hh
 	utils/eventlogs/event-logs.cc utils/eventlogs/event-logs.hh
 	utils/eventlogs/writers/event-log-writer-visitor-adapter.hh
@@ -134,6 +139,12 @@ if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 		utils/http-mock/http-mock.cc utils/http-mock/http-mock.hh
 		utils/pns-mock.cc utils/pns-mock.hh
 	)
+	if(HAS_GCC_BUG_105562)
+		set_source_files_properties(
+			push-notification-tester.cc
+			utils/pns-mock.cc
+			PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized")
+	endif()
 elseif (ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	message(FATAL_ERROR "The LibNgHttp2Asio module is required by some tests. You may disable them with -DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF")
 endif ()
@@ -142,6 +153,12 @@ if(ENABLE_CONFERENCE AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	target_sources(flexisip_tester PRIVATE
 		tests/eventlogs/writers/flexi-stats-event-log-writer-tester.cc
 	)
+	if(HAS_GCC_BUG_105562)
+		set_source_files_properties(
+			tests/eventlogs/writers/flexi-stats-event-log-writer-tester.cc
+			PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized"
+		)
+	endif ()
 endif()
 
 

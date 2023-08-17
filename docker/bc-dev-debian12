@@ -1,0 +1,99 @@
+###############################################################################
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian12:20230808_fix_packaging
+###############################################################################
+
+FROM debian:12
+
+MAINTAINER Thibault Lemaire <thibault.lemaire@belledonne-communications.com>
+
+  # Update
+RUN apt-get -y update \
+ && apt-get -y install \
+    # Install common tools
+      sudo \
+      vim \
+      wget \
+      file \
+    # Install development tools
+      ccache \
+      clang \
+      cmake \
+      doxygen \
+      g++ \
+      gdb \
+      git \
+      make \
+      ninja-build \
+      python3 \
+      python3-pystache \
+      python3-six \
+    # Install all dependencies needed for Flexisip
+      libssl-dev \
+      libboost-dev \
+      libboost-system-dev \
+      libboost-thread-dev \
+      libhiredis-dev \
+      libjansson-dev \
+      libjsoncpp-dev \
+      libnghttp2-dev \
+      libsqlite3-dev \
+      libpq-dev \
+      libmariadb-dev \
+      libmariadb-dev-compat \
+      libprotobuf-dev \
+      libsnmp-dev \
+      libxerces-c-dev \
+      libsrtp2-dev \
+      libgsm1-dev \
+      libopus-dev \
+      libmbedtls-dev \
+      libspeex-dev \
+      libspeexdsp-dev \
+      libxml2-dev \
+      protobuf-compiler \
+      redis-server \
+    # Dependencies of the B2BUA
+      libvpx-dev \
+    # Dependencies of the tester
+      mariadb-server \
+    # Dependencies of CPack (to build the .deb)
+      dpkg-dev \
+  # Clean up
+ && apt-get -y autoremove \
+ && apt-get -y clean
+
+# Install libnghttp2_asio
+# Downloading the gz source and not bz2 to avoid installing bzip2.
+# nghttp2-asio has been moved out of nghttp2 from v1.52.0 onward.
+RUN wget https://github.com/nghttp2/nghttp2/releases/download/v1.51.0/nghttp2-1.51.0.tar.gz && \
+	tar xf nghttp2-1.51.0.tar.gz && \
+	cd nghttp2-1.51.0 && \
+	./configure --prefix=/usr/local --disable-examples --disable-python-bindings --enable-lib-only --enable-asio-lib && \
+	make -j4 && \
+	sudo make -C src install && \
+	cd - && \
+	rm -rf nghttp2-1.51.0.tar.gz nghttp2-1.51.0
+
+# Configure user 'bc'
+RUN useradd -ms /bin/bash bc && \
+    echo 'bc:cotcot' | chpasswd && \
+    echo 'bc ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+# Switch to user 'bc'
+USER bc
+WORKDIR /home/bc
+
+# CVE-2022-24765, from git 2.35.2 onward
+RUN git config --global --add safe.directory *
+
+
+# Example build commands
+#
+# cd flexisip/
+# export CC=gcc
+# export CXX=g++
+# export BUILD_DIR_NAME="build.debian12"
+# cmake -S . -B ./$BUILD_DIR_NAME -G "Ninja" -DCMAKE_BUILD_TYPE=Sanitizer -DCMAKE_INSTALL_PREFIX="$PWD/$BUILD_DIR_NAME/install" -DCMAKE_PREFIX_PATH=/usr/local -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON -DENABLE_UNIT_TESTS=ON
+# cd $BUILD_DIR_NAME
+# cmake --build . --target install
+# LSAN_OPTIONS="suppressions=../sanitizer_ignore.txt" bin/flexisip_tester --resource-dir "../tester/"

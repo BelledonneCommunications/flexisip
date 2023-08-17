@@ -26,12 +26,6 @@ enum class OnOff : bool {
 	On = 1,
 };
 
-enum class VideoDevice : std::uint8_t {
-	Disabled = 0,
-	// Use Mire as camera for video stream
-	Mire = 1,
-};
-
 class ClientBuilder {
 public:
 	explicit ClientBuilder(const Server&);
@@ -41,7 +35,15 @@ public:
 	ClientBuilder(const ClientBuilder&) = delete;
 
 	void setLimeX3DH(OnOff);
-	void setVideoDevice(VideoDevice);
+	/**
+	 * Whether the client will send video data in video calls
+	 */
+	ClientBuilder& setVideoSend(OnOff);
+	/**
+	 * Whether the client will decode video data in video calls
+	 */
+	ClientBuilder& setVideoReceive(OnOff);
+	ClientBuilder& setRtcpSend(OnOff);
 	ClientBuilder& setConferenceFactoryUri(const std::string&);
 	ClientBuilder& setCustomContact(const std::string& contact);
 	ClientBuilder& setPushParams(const pushnotification::RFC8599PushParams& params);
@@ -59,7 +61,9 @@ private:
 	const std::shared_ptr<linphone::AccountParams> mAccountParams;
 	const Server& mServer;
 	OnOff mLimeX3DH : 1;
-	VideoDevice mVideoDevice{VideoDevice::Disabled};
+	OnOff mSendVideo : 1;
+	OnOff mReceiveVideo : 1;
+	OnOff mSendRtcp : 1;
 	std::string mPassword{""};
 };
 

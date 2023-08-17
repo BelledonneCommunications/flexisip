@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -45,7 +45,7 @@ void PollFd::reset() {
 int PollFd::addFd(int fd, unsigned int events) {
 	if (mCurIndex == mCurSize) {
 		mCurSize *= 2;
-		mPfd = (struct pollfd *)realloc(mPfd, mCurSize * sizeof(struct pollfd));
+		mPfd = (struct pollfd*)realloc(mPfd, mCurSize * sizeof(struct pollfd));
 	}
 	mPfd[mCurIndex].fd = fd;
 	mPfd[mCurIndex].events = events;
@@ -61,9 +61,8 @@ unsigned int PollFd::getREvents(int index) const {
 	return mPfd[index].revents;
 }
 
-RelayChannel::RelayChannel(RelaySession *relaySession, const RelayTransport &rt,
-						   bool preventLoops)
-	: mDir(SendRecv), mRelayTransport(rt), mRemoteIp(std::string("undefined")), mPacketsReceived{}, mPacketsSent{} {
+RelayChannel::RelayChannel(RelaySession* relaySession, const RelayTransport& rt, bool preventLoops)
+    : mRelayTransport(rt), mRemoteIp(std::string("undefined")), mDir(SendRecv), mPacketsReceived{}, mPacketsSent{} {
 	mPfdIndex = -1;
 	initializeRtpSession(relaySession);
 	mSockAddrSize[0] = mSockAddrSize[1] = 0;
@@ -75,12 +74,13 @@ RelayChannel::RelayChannel(RelaySession *relaySession, const RelayTransport &rt,
 	mIsOpen = false;
 }
 
-void RelayChannel::initializeRtpSession(RelaySession *relaySession){
+void RelayChannel::initializeRtpSession(RelaySession* relaySession) {
 	string bindIp;
-	if (mRelayTransport.mDualStackRequired){
+	if (mRelayTransport.mDualStackRequired) {
 		bindIp = mRelayTransport.mIpv6BindAddress;
-	}else{
-		bindIp = mRelayTransport.mPreferredFamily == AF_INET6 ? mRelayTransport.mIpv6BindAddress : mRelayTransport.mIpv4BindAddress;
+	} else {
+		bindIp = mRelayTransport.mPreferredFamily == AF_INET6 ? mRelayTransport.mIpv6BindAddress
+		                                                      : mRelayTransport.mIpv4BindAddress;
 	}
 	mSession = relaySession->getRelayServer()->createRtpSession(bindIp.c_str());
 	mRelayTransport.mRtpPort = rtp_session_get_local_port(mSession);
@@ -97,7 +97,7 @@ RelayChannel::~RelayChannel() {
 	rtp_session_destroy(mSession);
 }
 
-const char *RelayChannel::dirToString(Dir dir) {
+const char* RelayChannel::dirToString(Dir dir) {
 	switch (dir) {
 		case SendOnly:
 			return "SendOnly";
@@ -109,15 +109,16 @@ const char *RelayChannel::dirToString(Dir dir) {
 	return "invalid";
 }
 
-void RelayChannel::setRemoteAddr(const string &ip, int rtp_port, int rtcp_port, Dir dir) {
-	const string & localIp = mRelayTransport.mPreferredFamily == AF_INET6 ? mRelayTransport.mIpv6Address : mRelayTransport.mIpv4Address;
+void RelayChannel::setRemoteAddr(const string& ip, int rtp_port, int rtcp_port, Dir dir) {
+	const string& localIp =
+	    mRelayTransport.mPreferredFamily == AF_INET6 ? mRelayTransport.mIpv6Address : mRelayTransport.mIpv4Address;
 	LOGD("RelayChannel [%p] is now configured local=[%s|%i:%i]  remote=[%s|%i:%i] dir=[%s]", this, localIp.c_str(),
-		 mRelayTransport.mRtpPort, mRelayTransport.mRtcpPort, ip.c_str(), rtp_port, rtcp_port, dirToString(dir));
+	     mRelayTransport.mRtpPort, mRelayTransport.mRtcpPort, ip.c_str(), rtp_port, rtcp_port, dirToString(dir));
 	bool dest_ok = true;
 
 	if (rtp_port > 0 && mPreventLoop) {
-		if (ip == mRelayTransport.mIpv4Address || ip == mRelayTransport.mIpv6Address
-			|| ip == mRelayTransport.mIpv4BindAddress || ip == mRelayTransport.mIpv6BindAddress){
+		if (ip == mRelayTransport.mIpv4Address || ip == mRelayTransport.mIpv6Address ||
+		    ip == mRelayTransport.mIpv4BindAddress || ip == mRelayTransport.mIpv6BindAddress) {
 			LOGW("RelayChannel [%p] wants to loop to local machine with ip [%s], not allowed.", this, ip.c_str());
 			dest_ok = false;
 		}
@@ -129,33 +130,36 @@ void RelayChannel::setRemoteAddr(const string &ip, int rtp_port, int rtcp_port, 
 	mDir = dir;
 
 	if (dest_ok && rtp_port != 0) {
-		struct addrinfo *res = NULL;
+		struct addrinfo* res = NULL;
 		struct addrinfo hints = {0};
 		char portstr[20];
 		int err;
 
 		/* Mark channel as open since it is now given a destination address. */
 		mIsOpen = true;
-		
-		if (mDestAddrChanged){
-			LOGW("RelayChannel [%p] is being set new destination address but was fixed previously in this session, so ignoring this request.", this);
+
+		if (mDestAddrChanged) {
+			LOGW("RelayChannel [%p] is being set new destination address but was fixed previously in this session, so "
+			     "ignoring this request.",
+			     this);
 			return;
 		}
 
-		for (int i = 0; i < 2; ++i){
+		for (int i = 0; i < 2; ++i) {
 			mRecvErrorCount[i] = 0;
 			snprintf(portstr, sizeof(portstr), "%i", mRemotePort[i]);
 			hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
 			err = getaddrinfo(ip.c_str(), portstr, &hints, &res);
 			if (err != 0) {
-				LOGE("RelayChannel::RelayChannel() failed for %s:%i : %s", ip.c_str(), mRemotePort[i], gai_strerror(err));
+				LOGE("RelayChannel::RelayChannel() failed for %s:%i : %s", ip.c_str(), mRemotePort[i],
+				     gai_strerror(err));
 			} else {
 				memcpy(&mSockAddr[i], res->ai_addr, res->ai_addrlen);
 				mSockAddrSize[i] = res->ai_addrlen;
 				freeaddrinfo(res);
 			}
 		}
-		
+
 	} else {
 		/*case where client declined the stream (0 port in SDP) or destination address is invalid*/
 		mDestAddrChanged = false;
@@ -165,64 +169,72 @@ void RelayChannel::setRemoteAddr(const string &ip, int rtp_port, int rtcp_port, 
 	}
 }
 
-void RelayChannel::fillPollFd(PollFd *pfd) {
+void RelayChannel::setDirection(Dir value) {
+	mDir = value;
+}
+RelayChannel::Dir RelayChannel::getDirection() const {
+	return mDir;
+}
+
+void RelayChannel::fillPollFd(PollFd* pfd) {
 	mPfdIndex = -1;
-	if (mSockets[0] == -1)
-		return; // no socket to monitor
+	if (mSockets[0] == -1) return; // no socket to monitor
 	for (int i = 0; i < 2; ++i) {
 		int index = pfd->addFd(mSockets[i], POLLIN);
-		if (mPfdIndex == -1)
-			mPfdIndex = index;
+		if (mPfdIndex == -1) mPfdIndex = index;
 	}
 }
 
-bool RelayChannel::checkPollFd(const PollFd *pfd, int i) {
+bool RelayChannel::checkPollFd(const PollFd* pfd, int i) {
 	if (mPfdIndex != -1) {
 		return pfd->getREvents(mPfdIndex + i);
 	}
 	return false;
 }
 
-int RelayChannel::recv(int i, uint8_t *buf, size_t buflen, time_t curTime) {
+int RelayChannel::recv(int i, uint8_t* buf, size_t buflen, time_t curTime) {
 	struct sockaddr_storage ss;
 	socklen_t addrsize = sizeof(ss);
 
-	int err = recvfrom(mSockets[i], buf, buflen, 0, (struct sockaddr *)&ss, &addrsize);
+	int err = recvfrom(mSockets[i], buf, buflen, 0, (struct sockaddr*)&ss, &addrsize);
 	if (err > 0) {
 		mPacketsReceived[i]++;
 		mRecvErrorCount[i] = 0;
-		if (addrsize != mSockAddrSize[i] || memcmp(&ss, &mSockAddr[i], addrsize) != 0){
-			if (curTime - mSockAddrLastUseTime[i] > sDestinationSwitchTimeout){
+		if (addrsize != mSockAddrSize[i] || memcmp(&ss, &mSockAddr[i], addrsize) != 0) {
+			if (curTime - mSockAddrLastUseTime[i] > sDestinationSwitchTimeout) {
 				char ipPort[128] = {0};
-				string localIp = mRelayTransport.mPreferredFamily == AF_INET6 ? (string("[") + mRelayTransport.mIpv6Address + string("]")) : mRelayTransport.mIpv4Address;
+				string localIp = mRelayTransport.mPreferredFamily == AF_INET6
+				                     ? (string("[") + mRelayTransport.mIpv6Address + string("]"))
+				                     : mRelayTransport.mIpv4Address;
 				bctbx_sockaddr_to_printable_ip_address((struct sockaddr*)&ss, addrsize, ipPort, sizeof(ipPort));
 				LOGD("RelayChannel [%p] destination address updated for [%s]: local=[%s:%i]  remote=[%s]", this,
-					i == 0 ? "RTP" : "RTCP", localIp.c_str(), i == 0 ? mRelayTransport.mRtpPort : mRelayTransport.mRtcpPort, ipPort);
+				     i == 0 ? "RTP" : "RTCP", localIp.c_str(),
+				     i == 0 ? mRelayTransport.mRtpPort : mRelayTransport.mRtcpPort, ipPort);
 				mSockAddrSize[i] = addrsize;
 				memcpy(&mSockAddr[i], &ss, addrsize);
 				mDestAddrChanged = true;
 				mSockAddrLastUseTime[i] = curTime;
-			}else{
-				/* We receive from new remote address. Wait that previous remote address is not used for sDestinationSwitchTimeout seconds 
-				 * before deciding to switch to the new one.
+			} else {
+				/* We receive from new remote address. Wait that previous remote address is not used for
+				 * sDestinationSwitchTimeout seconds before deciding to switch to the new one.
 				 */
 			}
-		}else{
+		} else {
 			/* The remote address from which we are receiving packets hasn't changed, just update last use time. */
 			mSockAddrLastUseTime[i] = curTime;
 		}
 
-		if ( !mIsOpen || mDir == SendOnly || mDir == Inactive ){
+		if (!mIsOpen || mDir == SendOnly || mDir == Inactive) {
 			/*LOGD("ignored packet");*/
 			return 0;
 		}
 		if (mFilter &&
-			mFilter->onIncomingTransfer(buf, buflen, (struct sockaddr *)&mSockAddr[i], mSockAddrSize[i]) == false) {
+		    mFilter->onIncomingTransfer(buf, buflen, (struct sockaddr*)&mSockAddr[i], mSockAddrSize[i]) == false) {
 			return 0;
 		}
 	} else if (err == -1) {
 		LOGW("Error receiving on port %i from %s:%i: %s", mRelayTransport.mRtpPort, mRemoteIp.c_str(), mRemotePort[i],
-			 strerror(errno));
+		     strerror(errno));
 		if (errno == ECONNREFUSED) {
 			mRecvErrorCount[i]++;
 		}
@@ -230,20 +242,21 @@ int RelayChannel::recv(int i, uint8_t *buf, size_t buflen, time_t curTime) {
 	return err;
 }
 
-int RelayChannel::send(int i, uint8_t *buf, size_t buflen) {
+int RelayChannel::send(int i, uint8_t* buf, size_t buflen) {
 	int err = 0;
 	/*if destination address is working mSockAddrSize>0*/
-	if (mRemotePort[i] > 0 && mSockAddrSize[i] > 0 && mDir != Inactive && mRecvErrorCount[i] < sMaxRecvErrors && mIsOpen) {
-		if (!mFilter || mFilter->onOutgoingTransfer(buf, buflen, (struct sockaddr *)&mSockAddr[i], mSockAddrSize[i])) {
+	if (mRemotePort[i] > 0 && mSockAddrSize[i] > 0 && mDir != Inactive && mRecvErrorCount[i] < sMaxRecvErrors &&
+	    mIsOpen) {
+		if (!mFilter || mFilter->onOutgoingTransfer(buf, buflen, (struct sockaddr*)&mSockAddr[i], mSockAddrSize[i])) {
 			int localPort = (i == 0) ? mRelayTransport.mRtpPort : mRelayTransport.mRtcpPort;
-			err = sendto(mSockets[i], buf, buflen, 0, (struct sockaddr *)&mSockAddr[i], mSockAddrSize[i]);
+			err = sendto(mSockets[i], buf, buflen, 0, (struct sockaddr*)&mSockAddr[i], mSockAddrSize[i]);
 			mPacketsSent[i]++;
 			if (err == -1) {
-				LOGW("Error sending %i bytes (localport=%i dest=%s:%i) : %s", (int)buflen, localPort,
-					 mRemoteIp.c_str(), mRemotePort[i], strerror(errno));
+				LOGW("Error sending %i bytes (localport=%i dest=%s:%i) : %s", (int)buflen, localPort, mRemoteIp.c_str(),
+				     mRemotePort[i], strerror(errno));
 			} else if (err != (int)buflen) {
 				LOGW("Only %i bytes sent over %i bytes (localport=%i dest=%s:%i)", err, (int)buflen, localPort,
-					 mRemoteIp.c_str(), mRemotePort[i]);
+				     mRemoteIp.c_str(), mRemotePort[i]);
 			}
 		}
 	} else {
@@ -256,19 +269,16 @@ void RelayChannel::setFilter(shared_ptr<MediaFilter> filter) {
 	mFilter = filter;
 }
 
-RelaySession::RelaySession(MediaRelayServer *server, const string &frontId,
-						   const RelayTransport & rt)
-	: mServer(server), mFrontId(frontId) {
+RelaySession::RelaySession(MediaRelayServer* server, const string& frontId, const RelayTransport& rt)
+    : mServer(server), mFrontId(frontId) {
 	mLastActivityTime = getCurrentTime();
 	mUsed = true;
 	mFront = make_shared<RelayChannel>(this, rt, mServer->loopPreventionEnabled());
 }
 
-shared_ptr<RelayChannel> RelaySession::getChannel(const string &partyId, const string &trId) {
-	if (partyId == mFrontId)
-		return mFront;
-	if (mBack)
-		return mBack;
+shared_ptr<RelayChannel> RelaySession::getChannel(const string& partyId, const string& trId) const {
+	if (partyId == mFrontId) return mFront;
+	if (mBack) return mBack;
 
 	shared_ptr<RelayChannel> ret;
 
@@ -281,9 +291,8 @@ shared_ptr<RelayChannel> RelaySession::getChannel(const string &partyId, const s
 	return ret;
 }
 
-std::shared_ptr<RelayChannel> RelaySession::createBranch(const std::string &trId,
-		 const RelayTransport & rt,
-		 bool hasMultipleTargets) {
+std::shared_ptr<RelayChannel>
+RelaySession::createBranch(const std::string& trId, const RelayTransport& rt, bool hasMultipleTargets) {
 	shared_ptr<RelayChannel> ret;
 	mMutex.lock();
 	ret = make_shared<RelayChannel>(this, rt, mServer->loopPreventionEnabled());
@@ -294,7 +303,7 @@ std::shared_ptr<RelayChannel> RelaySession::createBranch(const std::string &trId
 	return ret;
 }
 
-void RelaySession::removeBranch(const std::string &trId) {
+void RelaySession::removeBranch(const std::string& trId) {
 	bool removed = false;
 	mMutex.lock();
 	auto it = mBacks.find(trId);
@@ -312,17 +321,15 @@ int RelaySession::getActiveBranchesCount() {
 	int count = 0;
 	mMutex.lock();
 	for (auto it = mBacks.begin(); it != mBacks.end(); ++it) {
-		if ((*it).second->getRemoteRtpPort() > 0)
-			count++;
+		if ((*it).second->getRemoteRtpPort() > 0) count++;
 	}
 	mMutex.unlock();
 	LOGD("getActiveBranchesCount(): %i", count);
 	return count;
 }
 
-void RelaySession::setEstablished(const std::string &tr_id) {
-	if (mBack)
-		return;
+void RelaySession::setEstablished(const std::string& tr_id) {
+	if (mBack) return;
 	shared_ptr<RelayChannel> winner = getChannel("", tr_id);
 	if (winner) {
 		LOGD("RelaySession [%p] is established.", this);
@@ -333,13 +340,11 @@ void RelaySession::setEstablished(const std::string &tr_id) {
 	} else LOGE("RelaySession [%p] is with from an unknown branch [%s].", this, tr_id.c_str());
 }
 
-void RelaySession::fillPollFd(PollFd *pfd) {
+void RelaySession::fillPollFd(PollFd* pfd) {
 	mMutex.lock();
 
-	if (mFront)
-		mFront->fillPollFd(pfd);
-	if (mBack)
-		mBack->fillPollFd(pfd);
+	if (mFront) mFront->fillPollFd(pfd);
+	if (mBack) mBack->fillPollFd(pfd);
 	else {
 		for (auto it = mBacks.begin(); it != mBacks.end(); ++it) {
 			(*it).second->fillPollFd(pfd);
@@ -348,17 +353,15 @@ void RelaySession::fillPollFd(PollFd *pfd) {
 	mMutex.unlock();
 }
 
-void RelaySession::checkPollFd(const PollFd *pfd, time_t curtime) {
+void RelaySession::checkPollFd(const PollFd* pfd, time_t curtime) {
 	int i;
 	mMutex.lock();
 	for (i = 0; i < 2; ++i) {
-		if (mFront && mFront->checkPollFd(pfd, i))
-			transfer(curtime, mFront, i);
+		if (mFront && mFront->checkPollFd(pfd, i)) transfer(curtime, mFront, i);
 		if (!mBack) {
 			for (auto it = mBacks.begin(); it != mBacks.end(); ++it) {
 				shared_ptr<RelayChannel> chan = (*it).second;
-				if (chan->checkPollFd(pfd, i))
-					transfer(curtime, chan, i);
+				if (chan->checkPollFd(pfd, i)) transfer(curtime, chan, i);
 			}
 		} else if (mBack->checkPollFd(pfd, i)) {
 			transfer(curtime, mBack, i);
@@ -375,13 +378,12 @@ struct Statistics {
 	int port = 0;
 	uint64_t recv = 0;
 	uint64_t sent = 0;
-	static void log(const Statistics st[2], const std::string & identifier){
+	static void log(const Statistics st[2], const std::string& identifier) {
 		LOGD("%s statistics: \n"
-			 "RTP port  : %i\t Received packets: %lu\tSent packets: %lu\n"
-			 "RTCP port : %i\t Received packets: %lu\tSent packets: %lu\n",
-			identifier.c_str(),
-			st[0].port, (unsigned long)st[0].recv, (unsigned long)st[0].sent,
-			st[1].port, (unsigned long)st[1].recv, (unsigned long)st[1].sent);
+		     "RTP port  : %i\t Received packets: %lu\tSent packets: %lu\n"
+		     "RTCP port : %i\t Received packets: %lu\tSent packets: %lu\n",
+		     identifier.c_str(), st[0].port, (unsigned long)st[0].recv, (unsigned long)st[0].sent, st[1].port,
+		     (unsigned long)st[1].recv, (unsigned long)st[1].sent);
 	}
 };
 
@@ -389,19 +391,21 @@ void RelaySession::unuse() {
 	Statistics front[2], back[2];
 
 	LOGD("RelaySession [%p] terminated.", this);
-	
+
 	/* Do not log while holding a mutex, so copy out statistics first, and then display them. */
 
 	mMutex.lock();
 	mUsed = false;
-	for (int componentID = 0 ; componentID < 2 ; ++ componentID){
+	for (int componentID = 0; componentID < 2; ++componentID) {
 		if (mFront) {
-			front[componentID].port = componentID == 0 ? mFront->getRelayTransport().mRtpPort : mFront->getRelayTransport().mRtcpPort;
+			front[componentID].port =
+			    componentID == 0 ? mFront->getRelayTransport().mRtpPort : mFront->getRelayTransport().mRtcpPort;
 			front[componentID].recv = mFront->getReceivedPackets(componentID);
 			front[componentID].sent = mFront->getSentPackets(componentID);
 		}
 		if (mBack) {
-			back[componentID].port = componentID == 0 ? mBack->getRelayTransport().mRtpPort : mBack->getRelayTransport().mRtcpPort;
+			back[componentID].port =
+			    componentID == 0 ? mBack->getRelayTransport().mRtpPort : mBack->getRelayTransport().mRtcpPort;
 			back[componentID].recv = mBack->getReceivedPackets(componentID);
 			back[componentID].sent = mBack->getSentPackets(componentID);
 		}
@@ -411,7 +415,6 @@ void RelaySession::unuse() {
 	mBack.reset();
 	mMutex.unlock();
 
-	
 	if (front[0].port != 0) {
 		Statistics::log(front, "Caller side");
 	}
@@ -436,7 +439,7 @@ bool RelaySession::checkChannels() {
 	return true;
 }
 
-void RelaySession::transfer(time_t curtime, const shared_ptr<RelayChannel> &chan, int i) {
+void RelaySession::transfer(time_t curtime, const shared_ptr<RelayChannel>& chan, int i) {
 	uint8_t buf[1500];
 	const int maxsize = sizeof(buf);
 	int recv_len;
@@ -459,7 +462,7 @@ void RelaySession::transfer(time_t curtime, const shared_ptr<RelayChannel> &chan
 	}
 }
 
-MediaRelayServer::MediaRelayServer(MediaRelay *module) : mModule(module) {
+MediaRelayServer::MediaRelayServer(MediaRelay* module) : mModule(module) {
 	mRunning = false;
 	mSessionsCount = 0;
 	if (pipe(mCtlPipe) == -1) {
@@ -467,12 +470,12 @@ MediaRelayServer::MediaRelayServer(MediaRelay *module) : mModule(module) {
 	}
 }
 
-Agent *MediaRelayServer::getAgent() {
+Agent* MediaRelayServer::getAgent() {
 	return mModule->getAgent();
 }
 
-RtpSession *MediaRelayServer::createRtpSession(const std::string &bindIp) {
-	RtpSession *session = rtp_session_new(RTP_SESSION_SENDRECV);
+RtpSession* MediaRelayServer::createRtpSession(const std::string& bindIp) {
+	RtpSession* session = rtp_session_new(RTP_SESSION_SENDRECV);
 #if ORTP_HAS_REUSEADDR
 	rtp_session_set_reuseaddr(session, FALSE);
 #endif
@@ -500,8 +503,7 @@ void MediaRelayServer::start() {
 MediaRelayServer::~MediaRelayServer() {
 	if (mRunning) {
 		mRunning = false;
-		if (write(mCtlPipe[1], "e", 1) == -1)
-			LOGE("MediaRelayServer: Fail to write to control pipe.");
+		if (write(mCtlPipe[1], "e", 1) == -1) LOGE("MediaRelayServer: Fail to write to control pipe.");
 		pthread_join(mThread, NULL);
 	}
 	mSessions.clear();
@@ -510,14 +512,14 @@ MediaRelayServer::~MediaRelayServer() {
 	close(mCtlPipe[1]);
 }
 
-shared_ptr<RelaySession> MediaRelayServer::createSession(const std::string &frontId, const RelayTransport &frontRelayTransport) {
+shared_ptr<RelaySession> MediaRelayServer::createSession(const std::string& frontId,
+                                                         const RelayTransport& frontRelayTransport) {
 	shared_ptr<RelaySession> s = make_shared<RelaySession>(this, frontId, frontRelayTransport);
 	mMutex.lock();
 	mSessions.push_back(s);
 	mSessionsCount++;
 	mMutex.unlock();
-	if (!mRunning)
-		start();
+	if (!mRunning) start();
 
 	LOGD("There are now %zu relay sessions running on MediaRelayServer [%p]", mSessionsCount, this);
 	/*write to the control pipe to wakeup the server thread */
@@ -527,8 +529,7 @@ shared_ptr<RelaySession> MediaRelayServer::createSession(const std::string &fron
 
 void MediaRelayServer::update() {
 	/*write to the control pipe to wakeup the server thread */
-	if (write(mCtlPipe[1], "e", 1) == -1)
-		LOGE("MediaRelayServer: fail to write to control pipe.");
+	if (write(mCtlPipe[1], "e", 1) == -1) LOGE("MediaRelayServer: fail to write to control pipe.");
 }
 
 static void set_high_prio() {
@@ -544,21 +545,20 @@ static void set_high_prio() {
 	if ((result = pthread_setschedparam(pthread_self(), policy, &param))) {
 		if (result == EPERM) {
 			/*
-				The linux kernel has
-				sched_get_priority_max(SCHED_OTHER)=sched_get_priority_max(SCHED_OTHER)=0.
-				As long as we can't use SCHED_RR or SCHED_FIFO, the only way to increase priority of a calling thread
-				is to use setpriority().
+			    The linux kernel has
+			    sched_get_priority_max(SCHED_OTHER)=sched_get_priority_max(SCHED_OTHER)=0.
+			    As long as we can't use SCHED_RR or SCHED_FIFO, the only way to increase priority of a calling thread
+			    is to use setpriority().
 			*/
 			if (setpriority(PRIO_PROCESS, 0, -20) == -1) {
 				LOGD("MediaRelayServer setpriority() failed: %s, nevermind.", strerror(errno));
 			} else {
 				LOGD("MediaRelayServer priority increased to maximum.");
 			}
-		} else
-			LOGW("MediaRelayServer: pthread_setschedparam failed: %s", strerror(result));
+		} else LOGW("MediaRelayServer: pthread_setschedparam failed: %s", strerror(result));
 	} else {
 		LOGD("MediaRelayServer: priority set to [%s] and value [%i]", policy == SCHED_FIFO ? "SCHED_FIFO" : "SCHED_RR",
-			 param.sched_priority);
+		     param.sched_priority);
 	}
 }
 
@@ -573,8 +573,7 @@ void MediaRelayServer::run() {
 		// fill the pollfd table
 		mMutex.lock();
 		for (auto it = mSessions.begin(); it != mSessions.end(); ++it) {
-			if ((*it)->isUsed())
-				(*it)->fillPollFd(&pfd);
+			if ((*it)->isUsed()) (*it)->fillPollFd(&pfd);
 		}
 		mMutex.unlock();
 
@@ -606,8 +605,8 @@ void MediaRelayServer::run() {
 	}
 }
 
-void *MediaRelayServer::threadFunc(void *arg) {
-	MediaRelayServer *zis = (MediaRelayServer *)arg;
+void* MediaRelayServer::threadFunc(void* arg) {
+	MediaRelayServer* zis = (MediaRelayServer*)arg;
 	zis->run();
 	return NULL;
 }

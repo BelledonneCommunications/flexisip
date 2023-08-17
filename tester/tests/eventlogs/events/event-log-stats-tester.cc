@@ -29,6 +29,7 @@
 #include "registrar/extended-contact.hh"
 #include "utils/asserts.hh"
 #include "utils/client-builder.hh"
+#include "utils/client-call.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
 #include "utils/eventlogs/event-logs.hh"
@@ -188,7 +189,7 @@ void callInviteStatuses() {
 		auto tonyCall = tony.invite(mike);
 		mikePhone.hasReceivedCallFrom(tony).assert_passed();
 		mikeDesktop.hasReceivedCallFrom(tony).assert_passed();
-		mikePhone.getCurrentCall()->decline(linphone::Reason::Declined);
+		ClientCall::getLinphoneCall(mikePhone.getCurrentCall().value())->decline(linphone::Reason::Declined);
 		asserter
 		    .iterateUpTo(4,
 		                 [&tonyCall, mikeDesktopCall = mikeDesktop.getCurrentCall()] {
@@ -230,7 +231,7 @@ void callInviteStatuses() {
 		auto tonyCall = tony.invite(mike);
 		mikePhone.hasReceivedCallFrom(tony).assert_passed();
 		mikeDesktop.hasReceivedCallFrom(tony).assert_passed();
-		mikePhone.getCurrentCall()->accept();
+		ClientCall::getLinphoneCall(mikePhone.getCurrentCall().value())->accept();
 		asserter
 		    .iterateUpTo(4,
 		                 [&tonyCall, mikeDesktopCall = mikeDesktop.getCurrentCall()] {
@@ -319,7 +320,7 @@ void doubleForkContextStart() {
 
 	auto luxCall = lux.invite(paul);
 	paulClient.hasReceivedCallFrom(lux).assert_passed();
-	paulClient.getCurrentCall()->decline(linphone::Reason::Declined);
+	ClientCall::getLinphoneCall(paulClient.getCurrentCall().value())->decline(linphone::Reason::Declined);
 
 	BC_ASSERT_CPP_EQUAL(callsStarted.size(), 1);
 

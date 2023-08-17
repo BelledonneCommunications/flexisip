@@ -111,6 +111,7 @@ public:
 protected:
 	// Protected methods
 	std::string errorLogPrefix() const;
+	std::string logPrefix() const;
 	virtual const char* getClassName() const = 0;
 };
 

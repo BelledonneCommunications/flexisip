@@ -280,7 +280,8 @@ void PresenceServer::processDialogTerminated(PresenceServer* thiz, const belle_s
 		thiz->removeSubscription(sub);
 	} // else  nothing to be done for now because expire is performed at SubscriptionLevel
 }
-void PresenceServer::processIoError([[maybe_unused]] PresenceServer* thiz, [[maybe_unused]] const belle_sip_io_error_event_t* event) {
+void PresenceServer::processIoError([[maybe_unused]] PresenceServer* thiz,
+                                    [[maybe_unused]] const belle_sip_io_error_event_t* event) {
 	SLOGD << "PresenceServer::processIoError not implemented yet";
 }
 void PresenceServer::processRequestEvent(PresenceServer* thiz, const belle_sip_request_event_t* event) {
@@ -297,16 +298,16 @@ void PresenceServer::processRequestEvent(PresenceServer* thiz, const belle_sip_r
 			throw BELLESIP_SIGNALING_EXCEPTION_1(405, BELLE_SIP_HEADER(belle_sip_header_allow_create("PUBLISH")))
 			    << "Unsupported method [" << belle_sip_request_get_method(request) << "]";
 		}
-	} catch (BelleSipSignalingException& e) {
-		SLOGE << e.what();
+	} catch (const BelleSipSignalingException& e) {
+		SLOGW << e.what();
 		resp = belle_sip_response_create_from_request(request, e.getStatusCode());
 		for (belle_sip_header_t* header : e.getHeaders())
 			belle_sip_message_add_header(BELLE_SIP_MESSAGE(resp), header);
-	} catch (FlexisipException& e2) {
-		SLOGE << e2;
+	} catch (const FlexisipException& e) {
+		SLOGE << e;
 		resp = belle_sip_response_create_from_request(request, 500);
-	} catch (exception& e3) {
-		SLOGE << "Unknown exception [" << e3.what() << " << use FlexisipException instead";
+	} catch (const exception& e) {
+		SLOGE << "Unknown exception [" << e.what() << " << use FlexisipException instead";
 		resp = belle_sip_response_create_from_request(request, 500);
 	}
 	if (resp) {
@@ -319,7 +320,8 @@ void PresenceServer::processRequestEvent(PresenceServer* thiz, const belle_sip_r
 		}
 	}
 }
-void PresenceServer::processResponseEvent([[maybe_unused]] PresenceServer* thiz, const belle_sip_response_event_t* event) {
+void PresenceServer::processResponseEvent([[maybe_unused]] PresenceServer* thiz,
+                                          const belle_sip_response_event_t* event) {
 	belle_sip_response_t* resp = belle_sip_response_event_get_response(event);
 	int code = belle_sip_response_get_status_code(resp);
 	if (code == 407) {
