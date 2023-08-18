@@ -203,6 +203,7 @@
   script:
     - export LD_LIBRARY_PATH=/usr/local/lib
     - export LSAN_OPTIONS="suppressions=./sanitizer_ignore.txt"
+    - "vardir=/var/opt/belledonne-communications/lib/flexisip && sudo mkdir -p $vardir && sudo chown bc: $vardir"
     - ./OUTPUT/bin/flexisip_tester --verbose --resource-dir ./OUTPUT/share/flexisip-tester --xml || exit $?
   artifacts:
     reports:

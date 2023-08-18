@@ -16,6 +16,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <fstream>
+
 #include <belle-sip/utils.h>
 
 #include <flexisip/configmanager.hh>
@@ -79,6 +81,9 @@ void ConferenceServer::_init() {
 	configLinphone->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
 	configLinphone->setString("storage", "uri", config->get<ConfigString>("database-connection-string")->read());
 
+	string uuid = readUuid();
+	if (!uuid.empty()) configLinphone->setString("misc", "uuid", uuid);
+
 	configLinphone->setBool("logging", "disable_stdout", true);
 
 	mCore = Factory::get()->createCoreWithConfig(configLinphone, nullptr);
@@ -123,6 +128,13 @@ void ConferenceServer::_init() {
 	Status err = mCore->start();
 	if (err == -2) LOGF("Linphone Core couldn't start because the connection to the database has failed");
 	if (err < 0) LOGF("Linphone Core starting failed");
+
+	if (uuid.empty()) {
+		// In case no uuid was set in persistent state directory, take the one randomly choosen by Liblinphone.
+		writeUuid(configLinphone->getString("misc", "uuid", ""));
+	} else if (configLinphone->getString("misc", "uuid", "") != uuid) {
+		LOGF("Unconsistent uuid");
+	}
 
 	RegistrarDb::get()->addStateListener(shared_from_this());
 	if (RegistrarDb::get()->isWritable()) bindAddresses();
@@ -175,11 +187,10 @@ void ConferenceServer::onChatRoomStateChanged([[maybe_unused]] const shared_ptr<
 
 void ConferenceServer::onConferenceAddressGeneration(const shared_ptr<ChatRoom>& cr) {
 	shared_ptr<Config> config = mCore->getConfig();
-	string uuid = config->getString("misc", "uuid", "");
 	shared_ptr<Address> confAddr = cr->getConferenceAddress()->clone();
 	LOGI("Conference address is %s", confAddr->asString().c_str());
 	shared_ptr<ConferenceAddressGenerator> generator =
-	    make_shared<ConferenceAddressGenerator>(cr, confAddr, uuid, mPath, this);
+	    make_shared<ConferenceAddressGenerator>(cr, confAddr, getUuid(), mPath, this);
 	generator->run();
 }
 
@@ -339,6 +350,63 @@ ConferenceServer::Init::Init() {
 	                    "Use 'conference-factory-uris' instead, that allows to declare multiple factory uris.");
 	s->get<ConfigBoolean>("enable-one-to-one-chat-room")
 	    ->setDeprecated("2022-09-21", "2.2.0", "This parameter will be forced to 'true' in further versions.");
+}
+
+string ConferenceServer::getStateDir() const {
+	return string(DEFAULT_LIB_DIR) + std::string("/");
+}
+
+string ConferenceServer::getUuidFilePath() const {
+	return getStateDir() + string(sUuidFile);
+}
+
+const string& ConferenceServer::readUuid() {
+	ifstream fi;
+	mUuid = "";
+	string path = getUuidFilePath();
+	fi.open(path);
+	if (!fi.is_open()) {
+		LOGD("Cannot open uuid file %s: %s", path.c_str(), strerror(errno));
+		return mUuid;
+	}
+	fi >> mUuid;
+	fi.close();
+	LOGD("Using uuid '%s'", mUuid.c_str());
+	return mUuid;
+}
+
+void ConferenceServer::writeUuid(const string& uuid) {
+	ofstream fo;
+	struct stat st;
+	string stateDir = getStateDir();
+
+	mUuid = uuid;
+
+	if (stat(stateDir.c_str(), &st) != 0 && errno == ENOENT) {
+		LOGD("Creating flexisip's state directory: %s", stateDir.c_str());
+		string command("mkdir -p");
+		command += " \"" + stateDir + "\"";
+		int status = system(command.c_str());
+		if (status == -1 || WEXITSTATUS(status) != 0) {
+			LOGF("Directory %s doesn't exist and could not be created (insufficient permissions ?). Please create it "
+			     "manually.",
+			     stateDir.c_str());
+		}
+	}
+
+	string path = getUuidFilePath();
+	fo.open(path);
+	if (!fo.is_open()) {
+		LOGE("Cannot open uuid file %s: %s", path.c_str(), strerror(errno));
+		return;
+	}
+	fo << uuid;
+	fo.close();
+}
+
+std::string ConferenceServer::getUuid() {
+	if (mUuid.empty()) mUuid = mCore->getConfig()->getString("misc", "uuid", "");
+	return mUuid;
 }
 
 } // namespace flexisip

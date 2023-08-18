@@ -27,8 +27,11 @@
 #include "registration-subscription.hh"
 #include "service-server.hh"
 
-namespace flexisip {
+#ifndef DEFAULT_LIB_DIR
+#define DEFAULT_LIB_DIR "/var/opt/belledonne-communications/lib/flexisip"
+#endif // DEFAULT_LIB_DIR
 
+namespace flexisip {
 class ConferenceServer : public ServiceServer,
                          public RegistrarDbStateListener,
                          public std::enable_shared_from_this<ConferenceServer>,
@@ -87,6 +90,11 @@ private:
 	    const std::shared_ptr<linphone::ChatRoom>& cr,
 	    const std::shared_ptr<const linphone::Address>& participantAddr) override;
 
+	std::string getUuidFilePath() const;
+	std::string getStateDir() const;
+	const std::string& readUuid();
+	void writeUuid(const std::string& uuid);
+	std::string getUuid();
 	std::shared_ptr<linphone::Core> mCore{};
 	std::shared_ptr<RegistrationEvent::ClientFactory> mRegEventClientFactory{};
 	std::string mPath{};
@@ -95,8 +103,10 @@ private:
 	ParticipantRegistrationSubscriptionHandler mSubscriptionHandler;
 	std::list<std::string> mFactoryUris{};
 	std::list<std::string> mLocalDomains{};
+	std::string mUuid;
 	bool mAddressesBound = false;
 	bool mCheckCapabilities = false;
+	static constexpr const char* sUuidFile = "uuid";
 
 	// Used to declare the service configuration
 	class Init {
