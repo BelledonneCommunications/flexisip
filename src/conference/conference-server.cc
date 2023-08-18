@@ -313,8 +313,7 @@ ConferenceServer::Init::Init() {
 	     " in order to indicate whether they support group chat and secured group chat.",
 	     "true"},
 	    {Boolean, "empty-chat-room-deletion",
-	     "Whether the conference server will delete chat rooms that have no participants registered.\n",
-	     "true"},
+	     "Whether the conference server will delete chat rooms that have no participants registered.\n", "true"},
 
 	    // Deprecated paramters:
 	    {String, "conference-factory-uri",
