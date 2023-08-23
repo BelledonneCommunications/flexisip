@@ -106,12 +106,16 @@ public:
 	                             std::function<std::tuple<std::string, int, int>(int)> getDestAddrFcn,
 	                             std::function<MasqueradeContextPair(int)> getMasqueradeContexts,
 	                             bool forceRelay);
+	// If we are masquerading the offer, clean up any extraneous ICE candidates from the answer
+	void cleanUpIceCandidatesInAnswer(std::function<MasqueradeContextPair(int)> getMasqueradeContexts);
 	void iterateInOffer(std::function<void(int, const std::string&, int, int)>);
 	void iterateInAnswer(std::function<void(int, const std::string&, int, int)>);
 	void masqueradeInOffer(std::function<const RelayTransport*(int)> getAddrFcn);
 	void masqueradeInAnswer(std::function<const RelayTransport*(int)> getAddrFcn);
 	void addAttribute(const char* name, const char* value);
 	bool hasAttribute(const char* name);
+	// Remove all a=<name>: attributes
+	void removeMediaAttributes(sdp_media_t* mline, std::string_view name);
 	void addMediaAttribute(sdp_media_t* mline, const char* name, const char* value);
 	bool hasMediaAttribute(sdp_media_t* mline, const char* name);
 	bool hasIceCandidate(sdp_media_t* mline, const std::string& addr, int port);

@@ -44,6 +44,7 @@ public:
 	 */
 	ClientBuilder& setVideoReceive(OnOff);
 	ClientBuilder& setRtcpSend(OnOff);
+	ClientBuilder& setIce(OnOff);
 	ClientBuilder& setConferenceFactoryUri(const std::string&);
 	ClientBuilder& setCustomContact(const std::string& contact);
 	ClientBuilder& setPushParams(const pushnotification::RFC8599PushParams& params);
@@ -64,6 +65,7 @@ private:
 	OnOff mSendVideo : 1;
 	OnOff mReceiveVideo : 1;
 	OnOff mSendRtcp : 1;
+	OnOff mIce : 1;
 	std::string mPassword{""};
 };
 

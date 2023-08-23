@@ -93,6 +93,7 @@ public:
 		return mInfo;
 	}
 	void setInfo(ModuleInfoBase* moduleInfo);
+	void setAgent(Agent*);
 
 protected:
 	virtual void onDeclare([[maybe_unused]] GenericStruct* root) {

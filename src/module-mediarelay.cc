@@ -343,13 +343,22 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall>& c,
 		return;
 	}
 
-	string to_tag;
-	if (sip->sip_to != NULL && sip->sip_to->a_tag != NULL) to_tag = sip->sip_to->a_tag;
-
 	if (m->hasAttribute(mSdpMangledParam.c_str())) {
 		LOGD("200 OK is already relayed");
 		return;
 	}
+
+	string to_tag;
+	if (sip->sip_to != NULL && sip->sip_to->a_tag != NULL) to_tag = sip->sip_to->a_tag;
+
+	const auto getMasqueradeContexts = [&c = *c, from_tag = sip->sip_from->a_tag, &to_tag,
+	                                    &branchId = transaction->getBranchId()](int lineNo) {
+		return c.getMasqueradeContexts(lineNo, from_tag, to_tag, branchId);
+	};
+
+	// Sanitize before further processing
+	m->cleanUpIceCandidatesInAnswer(getMasqueradeContexts);
+
 	// acquire destination ip/ports from answerer
 	m->iterateInAnswer(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, _4, to_tag,
 	                        transaction->getBranchId(), isEarlyMedia));
@@ -357,8 +366,7 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall>& c,
 	// push ICE relay candidates if necessary, and update the ICE states.
 	m->addIceCandidateInAnswer(
 	    bind(&RelayedCall::getChannelSources, c, _1, sip->sip_from->a_tag, transaction->getBranchId()),
-	    bind(&RelayedCall::getChannelDestinations, c, _1, to_tag, transaction->getBranchId()),
-	    bind(&RelayedCall::getMasqueradeContexts, c, _1, sip->sip_from->a_tag, to_tag, transaction->getBranchId()),
+	    bind(&RelayedCall::getChannelDestinations, c, _1, to_tag, transaction->getBranchId()), getMasqueradeContexts,
 	    mForceRelayForNonIceTargets);
 
 	// masquerade c lines and ports for streams not handled by ICE.
