@@ -21,6 +21,7 @@
 #include <ortp/payloadtype.h>
 #include <sofia-sip/sip_protos.h>
 #include <sstream>
+#include <string_view>
 
 using namespace std;
 using namespace flexisip;
@@ -528,6 +529,14 @@ void SdpModifier::addIceCandidateInAnswer(std::function<const RelayTransport*(in
 	addIceCandidate(getRelayAddrFcn, getDestAddrFcn, getMasqueradeContexts, false, forceRelay);
 }
 
+void SdpModifier::cleanUpIceCandidatesInAnswer(std::function<MasqueradeContextPair(int)> getMasqueradeContexts) {
+	auto mline = mSession->sdp_media;
+	for (auto i = 0; mline != NULL; mline = mline->m_next, ++i) {
+		const bool weAreMasquerading = getMasqueradeContexts(i).valid();
+		if (weAreMasquerading) removeMediaAttributes(mline, "candidate");
+	}
+}
+
 void SdpModifier::iterate(function<void(int, const string&, int, int)> fct) {
 	sdp_media_t* mline = mSession->sdp_media;
 	int i;
@@ -657,6 +666,18 @@ bool SdpModifier::hasAttribute(const char* name) {
 
 bool SdpModifier::hasMediaAttribute(sdp_media_t* mline, const char* name) {
 	return sdp_attribute_find(mline->m_attributes, name);
+}
+void SdpModifier::removeMediaAttributes(sdp_media_t* mline, std::string_view name) {
+	auto chainLink = &mline->m_attributes;
+	for (auto attribute = *chainLink; attribute; attribute = attribute->a_next) {
+		if (attribute->a_name == name) {
+			// Break and re-link
+			*chainLink = attribute->a_next;
+		} else {
+			// Advance the link
+			chainLink = &attribute->a_next;
+		}
+	}
 }
 
 bool SdpModifier::hasIceCandidate(sdp_media_t* mline, const string& addr, int port) {

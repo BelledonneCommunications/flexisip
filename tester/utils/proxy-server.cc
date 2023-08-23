@@ -19,6 +19,7 @@
 #include "proxy-server.hh"
 
 #include <algorithm>
+#include <optional>
 
 #include "bctoolbox/tester.h"
 #include "sofia-sip/nta_tport.h"
@@ -61,7 +62,8 @@ Server::Server(const std::string& configFile) {
 	}
 }
 
-Server::Server(const std::map<std::string, std::string>& config) {
+Server::Server(const std::map<std::string, std::string>& config, Module* module)
+    : mModule(module ? decltype(mModule){*module} : std::nullopt) {
 	auto cfg = GenericManager::get();
 	cfg->load("");
 	for (const auto& kv : config) {

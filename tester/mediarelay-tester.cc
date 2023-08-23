@@ -7,12 +7,17 @@
 #include <string>
 #include <unordered_map>
 
-#include "bctoolbox/tester.h"
+#include "sdp-modifier.hh"
+#include "sofia-sip/sdp.h"
+#include "sofia-sip/sip.h"
 
+#include "bctoolbox/tester.h"
 #include "linphone++/call.hh"
 #include "linphone/api/c-call-stats.h"
 #include "linphone/api/c-call.h"
 #include "ortp/rtp.h"
+
+#include "flexisip/module.hh"
 
 #include "utils/asserts.hh"
 #include "utils/call-builder.hh"
@@ -20,6 +25,7 @@
 #include "utils/client-call.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
+#include "utils/injected-module.hh"
 #include "utils/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -29,15 +35,60 @@ using namespace std;
 namespace flexisip {
 namespace tester {
 
+namespace {
+const std::map<std::string, std::string> CONFIG{
+    {"module::MediaRelay/enabled", "true"},
+    {"module::MediaRelay/prevent-loops", "false"}, // Allow loopback to localnetwork
+    // Requesting bind on port 0 to let the kernel find any available port
+    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+    {"module::Registrar/enabled", "true"},
+    {"module::Registrar/reg-domains", "sip.example.org"},
+};
+}
+
+/**
+ * Freeswitch has been witnessed to provide ICE candidates in its responses (183 & 200) even when the INVITE did *not*
+ * contain any ICE candidate. The media relay was thrown off by this and assumed the call was using ICE, so it did not
+ * properly masquerade the SDP, resulting in one side not getting audio.
+ */
+void ice_candidates_in_response_only() {
+	InjectedHooks hooks{{
+	    .onResponse =
+	        [](const auto& responseEvent) {
+		        auto& message = *responseEvent->getMsgSip();
+		        const auto sip = message.getSip();
+		        if (sip->sip_status->st_status != 200) return;
+		        if (sip->sip_cseq->cs_method != sip_method_invite) return;
+
+		        auto msg = message.getMsg();
+		        const auto sdpModifier = SdpModifier::createFromSipMsg(message.getHome(), sip);
+		        BC_ASSERT_TRUE(sdpModifier != nullptr);
+		        const auto mediaLine = sdpModifier->mSession->sdp_media;
+		        // Break the media port on purpose.
+		        // This media is never going to reach its destination unless the media relay fixes it.
+		        constexpr decltype(mediaLine->m_port) NEVER_GOING_TO_ANSWER = 666;
+		        mediaLine->m_port = NEVER_GOING_TO_ANSWER;
+		        // Inject some fake ICE candidates, as if the UA had answered them in its 200 Ok response.
+		        sdpModifier->addMediaAttribute(
+		            mediaLine, "candidate",
+		            "1859934665 1 udp 2130706431 2604:a880:4:1d0::76b:0 24028 typ host generation 0");
+		        sdpModifier->addMediaAttribute(
+		            mediaLine, "candidate",
+		            "6796095525 2 udp 2130706430 2604:a880:4:1d0::76b:0 27151 typ host generation 0");
+		        BC_ASSERT_TRUE(sdpModifier->update(msg, sip) != -1);
+	        },
+	}};
+	Server server(CONFIG, &hooks);
+	server.start();
+	auto builder = server.clientBuilder();
+	auto nelly = builder.build("sip:Nelly@sip.example.org");
+	auto lola = builder.build("sip:Lola@sip.example.org");
+
+	nelly.call(lola);
+}
+
 void early_media_video_sendrecv_takeover() {
-	Server server({
-	    {"module::MediaRelay/enabled", "true"},
-	    {"module::MediaRelay/prevent-loops", "false"}, // Allow loopback to localnetwork
-	    // Requesting bind on port 0 to let the kernel find any available port
-	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
-	    {"module::Registrar/enabled", "true"},
-	    {"module::Registrar/reg-domains", "sip.example.org"},
-	});
+	Server server(CONFIG);
 	server.start();
 	auto builder = server.clientBuilder();
 	const auto doorBell =
@@ -92,14 +143,7 @@ void early_media_video_sendrecv_takeover() {
 }
 
 void early_media_bidirectional_video() {
-	Server server({
-	    {"module::MediaRelay/enabled", "true"},
-	    {"module::MediaRelay/prevent-loops", "false"}, // Allow loopback to localnetwork
-	    // Requesting bind on port 0 to let the kernel find any available port
-	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
-	    {"module::Registrar/enabled", "true"},
-	    {"module::Registrar/reg-domains", "sip.example.org"},
-	});
+	Server server(CONFIG);
 	server.start();
 	auto builder = server.clientBuilder();
 	builder.setVideoReceive(OnOff::On).setVideoSend(OnOff::On);
@@ -161,6 +205,7 @@ void early_media_bidirectional_video() {
 namespace {
 TestSuite _("MediaRelay",
             {
+                CLASSY_TEST(ice_candidates_in_response_only),
                 CLASSY_TEST(early_media_video_sendrecv_takeover),
                 CLASSY_TEST(early_media_bidirectional_video),
             });
