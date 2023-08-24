@@ -85,9 +85,17 @@ public:
 		BC_HARD_ASSERT(actualRequest != nullptr);
 
 		customAssert(actualRequest);
-		BC_ASSERT_CPP_EQUAL(actualRequest->headers.size(), 1);
-		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.count("x-api-key"), 1);
-		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.find("x-api-key")->second.value, "aRandomApiToken");
+		const auto& headers = actualRequest->headers;
+		BC_ASSERT_CPP_EQUAL(headers.size(), 3);
+		auto header = headers.find("x-api-key");
+		BC_HARD_ASSERT_TRUE(header != headers.end());
+		BC_ASSERT_CPP_EQUAL(header->second.value, "aRandomApiToken");
+		header = headers.find("accept");
+		BC_HARD_ASSERT_TRUE(header != headers.end());
+		BC_ASSERT_CPP_EQUAL(header->second.value, "application/json");
+		header = headers.find("content-type");
+		BC_HARD_ASSERT_TRUE(header != headers.end());
+		BC_ASSERT_CPP_EQUAL(header->second.value, "application/json");
 	}
 
 protected:
