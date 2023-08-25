@@ -41,10 +41,14 @@ find_program(MYSQL_SERVER_EXEC NAMES mysqld
 )
 
 get_filename_component(MYSQL_BIN_DIR "${MYSQL_SERVER_EXEC}" DIRECTORY)
-find_file(MYSQL_SYSTEM_TABLES_SETUP NAMES mysql_system_tables.sql PATHS
-		"${MYSQL_BIN_DIR}/../share/mysql"
-		"${MYSQL_BIN_DIR}/../share/mariadb"
-		REQUIRED)
+find_file(MYSQL_SYSTEM_TABLES_SETUP
+		NAMES "mariadb_system_tables.sql" "mysql_system_tables.sql"
+		HINTS "${MYSQL_BIN_DIR}/.."
+		PATHS ${CMAKE_SYSTEM_PREFIX_PATH}
+		PATH_SUFFIXES "share/mysql" "share/mariadb"
+		REQUIRED
+		NO_DEFAULT_PATH
+)
 
 find_program(CAT_EXEC NAMES cat REQUIRED)
 configure_file(flexisip-tester-config.hh.in flexisip-tester-config.hh)
