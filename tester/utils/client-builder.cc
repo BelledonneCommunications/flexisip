@@ -57,6 +57,7 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 	}
 	auto account = core->createAccount(accountParams);
 	core->addAccount(account);
+	core->setDefaultAccount(account);
 	core->enablePushNotification(accountParams->getPushNotificationAllowed());
 
 	if (!mPassword.empty()) {
