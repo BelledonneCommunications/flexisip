@@ -646,6 +646,12 @@ void ModuleRegistrar::processUpdateRequest(shared_ptr<SipEventT>& ev, const sip_
 	}
 }
 
+bool ModuleRegistrar::isAdjacentRegistration(const sip_t *sip){
+	/* in the context of execution of Flexisip, we should always have a Path header inserted by onRequest().
+	 * More than one path header means that we are facing a non-adjacent registration */
+	return sip->sip_path == nullptr || sip->sip_path->r_next == nullptr;
+}
+
 void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	sip_t* sip = ms->getSip();
@@ -760,7 +766,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			parameter.alias = false;
 			parameter.globalExpire = maindelta;
 			parameter.version = 0;
-			parameter.isAliasFunction = [this](const url_t* ct) -> bool { return isManagedDomain(ct); };
+			parameter.isAliasFunction = [this, ms](const url_t* ct) -> bool { return isAdjacentRegistration(ms->getSip()) && isManagedDomain(ct); };
 			RegistrarDb::get()->bind(*ms, parameter, listener);
 			return;
 		}
@@ -840,7 +846,7 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 			parameter.alias = false;
 			parameter.globalExpire = maindelta;
 			parameter.version = 0;
-			parameter.isAliasFunction = [this](const url_t* ct) -> bool { return isManagedDomain(ct); };
+			parameter.isAliasFunction = [this, request](const url_t* ct) -> bool { return isAdjacentRegistration(request->getSip()) && isManagedDomain(ct); };
 			listener->addStatCounter(mStats.mCountBind->finish);
 
 			/* Before submiting the bind() request to the RegistrarDb, restore the Contact header as it was found in the

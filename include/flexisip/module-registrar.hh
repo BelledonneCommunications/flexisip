@@ -145,6 +145,7 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 
 	void updateLocalRegExpire();
 	bool isManagedDomain(const url_t *url);
+	bool isAdjacentRegistration(const sip_t *sip);
 	std::string routingKey(const url_t *sipUri);
 	void removeInternalParams(sip_contact_t *ct);
 
