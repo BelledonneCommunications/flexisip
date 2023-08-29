@@ -53,7 +53,7 @@ void RFC8599PushParams::setFromLegacyParams(const std::string& pnType,
 		auto topic = (endWithDev || endWithProd) ? pnAppId.substr(0, pnAppId.rfind('.')) : pnAppId;
 		mParam = string{"ABCD1234."} + topic;
 		mPrid = pnTok;
-	} else if (pnType == "android" || pnType == "firebase") {
+	} else if (pnType == "android" || pnType == "firebase" || pnType == "google") {
 		mProvider = "fcm";
 		mParam = pnAppId;
 		mPrid = pnTok;

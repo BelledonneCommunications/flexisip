@@ -57,6 +57,12 @@ static void setFromLegacyParamsTest() {
 	BC_HARD_ASSERT_CPP_EQUAL(android.getParam(), "fr.bc-appId.test");
 	BC_HARD_ASSERT_CPP_EQUAL(android.getPrid(), "pnTok.toktok");
 
+	RFC8599PushParams google{};
+	android.setFromLegacyParams("google", "fr.bc-appId.test", "pnTok.toktok");
+	BC_HARD_ASSERT_CPP_EQUAL(android.getProvider(), "fcm");
+	BC_HARD_ASSERT_CPP_EQUAL(android.getParam(), "fr.bc-appId.test");
+	BC_HARD_ASSERT_CPP_EQUAL(android.getPrid(), "pnTok.toktok");
+
 	RFC8599PushParams others{};
 	others.setFromLegacyParams("anyOtherSource", "fr.bc-appId.test", "pnTok.toktok");
 	BC_HARD_ASSERT_CPP_EQUAL(others.getProvider(), "anyOtherSource");
