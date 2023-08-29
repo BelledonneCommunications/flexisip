@@ -73,7 +73,7 @@ RedisServer::~RedisServer() {
 			SLOGE << "Failed to send term signal to redis process: " << *err;
 		}
 	}
-	move(mDaemon).wait();
+	std::move(mDaemon).wait();
 }
 
 uint16_t RedisServer::port() {
@@ -91,35 +91,39 @@ uint16_t RedisServer::port() {
 		auto& state = mDaemon.state();
 		auto* running = get_if<process::Running>(&state);
 		if (!running) {
-			SLOGW << "Restarting Redis daemon found in unexpected state: " << StreamableVariant(move(state));
+			SLOGW << "Restarting Redis daemon found in unexpected state: " << StreamableVariant(std::move(state));
 			restart();
 			continue;
 		}
 		auto& standardOut = EXPECT_VARIANT(pipe::ReadOnly&).in(running->mStdout);
 		string fullLog{};
+		string previousChunk{};
 		while (true) {
 			auto chunk = [&standardOut, &fullLog] {
 				try {
 					return EXPECT_VARIANT(string).in(standardOut.read(0xFF));
 				} catch (const exception& exc) {
 					ostringstream msg{};
-					msg << "Something went wrong reading Redis stdout: " << exc.what() << ". Read so far: " << fullLog;
+					msg << "Something went wrong reading Redis stdout: " << exc.what()
+					    << ". Read so far ('|' indicates chunk boundaries): " << fullLog;
 					throw runtime_error{msg.str()};
 				}
 			}();
-			if (chunk.find("Failed listening on port") != string::npos) {
+			auto concatenated = previousChunk + chunk;
+			if (concatenated.find("Failed listening on port") != string::npos) {
 				SLOGW << "Redis: " << chunk;
 				// Redis should exit on its own at this point, no need to kill it.
+				restart();
 				break;
 			}
-			if (chunk.find("eady to accept connections") != string::npos) {
+			if (concatenated.find("eady to accept connections") != string::npos) {
 				SLOGI << "Redis: " << chunk;
 				mReadyForConnections = true;
 				return mPort;
 			}
-			fullLog += chunk;
+			fullLog += "|" + chunk;
+			previousChunk = std::move(chunk);
 		}
-		restart();
 	}
 
 	ostringstream err{};
