@@ -4,6 +4,7 @@
 
 #include "utf8-string.hh"
 
+#include <cassert>
 #include <sstream>
 #include <string>
 
@@ -40,13 +41,20 @@ namespace flexisip {
 namespace utils {
 
 Utf8String::Utf8String(const std::string& source) : mData(source) {
-	IConv converter("UTF-8", "UTF-8");
 	size_t inBytesLeft = mData.size();
+	if (inBytesLeft == 0) {
+		// The empty string is already valid, nothing to do.
+		return;
+	}
+
+	IConv converter("UTF-8", "UTF-8");
 	size_t outBytesLeft = inBytesLeft;
 	char* pInBuf = &mData.front();
+	assert(outBytesLeft != 0); // Trying to allocate 0-lengthed dynamically-sized array
 	char outBuf[outBytesLeft];
 	char* pOutBuf = outBuf;
 	if (converter(&pInBuf, &inBytesLeft, &pOutBuf, &outBytesLeft) != -1ul) {
+		// The whole string is valid, we're good to go.
 		return;
 	}
 

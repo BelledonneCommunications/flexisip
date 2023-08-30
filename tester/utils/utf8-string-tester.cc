@@ -20,6 +20,13 @@ void decode_valid_utf8() {
 	BC_ASSERT_STRING_EQUAL(validated.asString().c_str(), u8"🏔️📞");
 }
 
+// The empty string has .size() == 0 which could lead to Some Nasty Things™️ (pointer to zero-lengthed array) if we
+// create a temporary buffer to validate it
+void decode_empty_string() {
+	Utf8String validated(u8"");
+	BC_ASSERT_STRING_EQUAL(validated.asString().c_str(), u8"");
+}
+
 void decode_invalid_utf8() {
 	{
 		std::string invalidAtStart{u8"🏔️📞"};
@@ -56,6 +63,7 @@ namespace {
 TestSuite _("Utf8String",
             {
                 TEST_NO_TAG_AUTO_NAMED(decode_valid_utf8),
+                TEST_NO_TAG_AUTO_NAMED(decode_empty_string),
                 TEST_NO_TAG_AUTO_NAMED(decode_invalid_utf8),
             });
 }
