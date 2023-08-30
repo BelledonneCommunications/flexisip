@@ -27,13 +27,17 @@ void RestClient::httpCall(const string& path,
                           const optional<json>& jsonObject,
                           const OnResponseCb& onResponseCb,
                           const OnErrorCb& onErrorCb) {
+	const auto body = jsonObject ? to_string(jsonObject.value()) : "";
+	const auto bodySize = to_string(body.size());
+
 	HttpHeaders headers;
 	headers.add(":method", method);
 	headers.add(":scheme", "https");
 	headers.add(":path", path);
 	headers.concat(mCustomHeaders);
+	headers.add("content-length", bodySize);
 
-	auto request = make_shared<Http2Client::HttpRequest>(headers, jsonObject ? to_string(jsonObject.value()) : "");
+	auto request = make_shared<Http2Client::HttpRequest>(headers, body);
 
 	mHttp->send(request, onResponseCb, onErrorCb);
 }

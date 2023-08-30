@@ -61,7 +61,7 @@ public:
 		BC_HARD_ASSERT(actualRequest != nullptr);
 
 		customAssert(actualRequest);
-		BC_ASSERT_CPP_EQUAL(actualRequest->headers.size(), 2);
+		BC_ASSERT_CPP_EQUAL(actualRequest->headers.size(), 3);
 		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.count("custom_header"), 1);
 		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.find("custom_header")->second.value, "custom_header_value");
 		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.count("custom_header2"), 1);
