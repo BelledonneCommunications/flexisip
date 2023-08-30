@@ -14,12 +14,32 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
 
-## [2.3.0] - 2023-08-09
+## [2.3.1] - 2023-08-30
 ### [Added]
-- **Flexisip proxy:** add `global/tport-message-queue-size` parameter to set the max number of SIP messages to be queued for writing when a socket is full.
+- **B2BUA server:** add the 'no-rtp-timeout' parameter that allows to set the delay before the call is automatically
+  hung up because no RTP data is received.
+
+### [Fixed]
+- **Proxy/authentication:** fix behavior differences of 'soci-password-request' according to which Soci backend
+  is used. With SQlite backend the :authid placeholder was mandatory, which is not conform with parameter docstring,
+  whereas it was optional with MySQL backend. It is now optional whatever the backend in use.
+- **Proxy/media-relay:** fix bad behavior when the MediaRelay forwards an INVITE without ICE candidate and the
+  callee send back a response with ICE candidates. In this case, the media relay didn't masquerade the connection
+  address of the response.
+- **Proxy/push-notification:** add support of 'google' legacy pn-type.
+- **Conference & B2BUA servers:** remove liblinphone debug messages from standard output when '-d' command-line
+  option isn't used.
+
+
+## [2.3.0] - 2023-08-21
+### [Added]
+- **Flexisip proxy:** add `global/tport-message-queue-size` parameter to set the max number of SIP messages to be
+  queued for writing when a socket is full.
 - **Flexisip proxy:** add support for REGISTER requests with several Contact headers.
-- **Flexisip proxy:** reply to OPTIONS requests with “200 Ok”. Useful to keep a connection alive by using OPTIONS requests.
-- **Flexisip proxy:** add `module::Registrar/redis-auth-user` parameter to allow authentication to Redis servers via user/password.
+- **Flexisip proxy:** reply to OPTIONS requests with “200 Ok”. Useful to keep a connection alive by using OPTIONS
+  requests.
+- **Flexisip proxy:** add `module::Registrar/redis-auth-user` parameter to allow authentication to Redis servers via
+  user/password.
 - **Conference server:** add audio/video conferencing capability.
 - **B2BUA:** forwarding of [RFC2833](https://datatracker.ietf.org/doc/html/rfc2833) and SIP INFO DTMFs.
 - **flexisip_cli.py:** add `REGISTRAR_UPSERT` command that allows to modify or insert any registrar binding for a given
