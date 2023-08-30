@@ -76,7 +76,8 @@ void ListSubscription::addInstanceToResource(Xsd::Rlmi::Resource &resource, list
 		belle_sip_header_create("Content-Type", "application/pidf+xml;charset=\"UTF-8\""));
 	multipartList.push_back(BELLE_SIP_BODY_HANDLER(bodyPart));
 	resource.getInstance().push_back(instance);
-	SLOGI << "Presence info added to list [" << mName.get() << " for entity [" << presentityInformation.getEntity() << "]";
+	SLOGI << "Presence info " << (extended ? "(extended)" : "(non-extended)") << " added to list [" << mName.get()
+	      << " for entity [" << presentityInformation.getEntity() << "]";
 }
 
 void ListSubscription::notify(bool isFullState) {
