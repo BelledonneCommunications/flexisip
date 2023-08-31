@@ -20,7 +20,7 @@ namespace tester {
 ClientBuilder::ClientBuilder(const Server& server)
     : mFactory(linphone::Factory::get()), mCoreTemplate(mFactory->createCore("", "", nullptr)),
       mAccountParams(mCoreTemplate->createAccountParams()), mServer(server), mLimeX3DH(OnOff::On),
-      mSendVideo(OnOff::Off), mReceiveVideo(OnOff::Off), mSendRtcp(OnOff::On) {
+      mSendVideo(OnOff::Off), mReceiveVideo(OnOff::Off), mSendRtcp(OnOff::On), mIce(OnOff::Off) {
 }
 
 CoreClient ClientBuilder::build(const std::string& baseAddress) const {
@@ -119,6 +119,12 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 		core->enableVideoDisplay(false);
 	}
 
+	{
+		const auto& nat = core->getNatPolicy();
+		nat->enableIce(bool(mIce));
+		core->setNatPolicy(nat);
+	}
+
 	core->start();
 	CoreAssert(core, mServer)
 	    .iterateUpTo(0x10,
@@ -150,6 +156,11 @@ ClientBuilder& ClientBuilder::setVideoSend(OnOff value) {
 
 ClientBuilder& ClientBuilder::setRtcpSend(OnOff value) {
 	mSendRtcp = value;
+	return *this;
+}
+
+ClientBuilder& ClientBuilder::setIce(OnOff value) {
+	mIce = value;
 	return *this;
 }
 

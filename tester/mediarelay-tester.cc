@@ -87,6 +87,37 @@ void ice_candidates_in_response_only() {
 	nelly.call(lola);
 }
 
+class CheckForIceCandidatesInResponse : public linphone::CoreListener {
+public:
+	void onCallStateChanged(const std::shared_ptr<linphone::Core>&,
+	                        const std::shared_ptr<linphone::Call>& call,
+	                        linphone::Call::State state,
+	                        const std::string&) override {
+		switch (state) {
+			case linphone::Call::State::Connected:
+				BC_ASSERT_TRUE(
+				    call->getRemoteParams()->hasCustomSdpMediaAttribute(linphone::StreamType::Audio, "candidate"));
+				break;
+			default:
+				break;
+		}
+	}
+};
+
+// Setup an audio call between two cores with ICE enabled on both.
+// Verify that the media relay does not redact the candidates out of the answer
+void ice_candidates_are_not_erased_in_a_valid_context() {
+	Server server(CONFIG);
+	server.start();
+	auto builder = server.clientBuilder();
+	builder.setIce(OnOff::On);
+	auto nelly = builder.build("sip:Nelly@sip.example.org");
+	auto lola = builder.build("sip:Lola@sip.example.org");
+	nelly.addListener(std::make_shared<CheckForIceCandidatesInResponse>());
+
+	nelly.call(lola);
+}
+
 void early_media_video_sendrecv_takeover() {
 	Server server(CONFIG);
 	server.start();
@@ -206,6 +237,7 @@ namespace {
 TestSuite _("MediaRelay",
             {
                 CLASSY_TEST(ice_candidates_in_response_only),
+                CLASSY_TEST(ice_candidates_are_not_erased_in_a_valid_context),
                 CLASSY_TEST(early_media_video_sendrecv_takeover),
                 CLASSY_TEST(early_media_bidirectional_video),
             });

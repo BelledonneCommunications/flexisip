@@ -75,6 +75,9 @@ public:
 	void setCallInviteReceivedDelay(std::chrono::seconds aDelay) noexcept {
 		mCallInviteReceivedDelay = aDelay;
 	}
+	void addListener(const std::shared_ptr<linphone::CoreListener>& listener) const {
+		mCore->addListener(listener);
+	}
 
 	void disconnect() const;
 	void reconnect() const;

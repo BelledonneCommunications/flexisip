@@ -532,8 +532,13 @@ void SdpModifier::addIceCandidateInAnswer(std::function<const RelayTransport*(in
 void SdpModifier::cleanUpIceCandidatesInAnswer(std::function<MasqueradeContextPair(int)> getMasqueradeContexts) {
 	auto mline = mSession->sdp_media;
 	for (auto i = 0; mline != NULL; mline = mline->m_next, ++i) {
-		const bool weAreMasquerading = getMasqueradeContexts(i).valid();
-		if (weAreMasquerading) removeMediaAttributes(mline, "candidate");
+		const auto offerer = getMasqueradeContexts(i).mOfferer;
+		if (!offerer) continue;
+
+		// If there weren't any ICE candidates in the offer, remove any candidates from the answer
+		if (offerer->mIceState == SdpMasqueradeContext::IceNone) {
+			removeMediaAttributes(mline, "candidate");
+		}
 	}
 }
 
