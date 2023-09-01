@@ -29,19 +29,23 @@ function(add_linphonesdk)
 		set(BUILD_MEDIASTREAMER2 ON)
 		set(ENABLE_ZRTP ON)
 	else()
+		set(BUILD_MEDIASTREAMER2 OFF)
 		set(ENABLE_ZRTP OFF)
+	endif()
+
+	set(BUILD_SOCI ${SOCI_REQUIRED})
+	if(BUILD_SOCI)
+		set(BUILD_SOCI_BACKENDS "mysql;sqlite3")
+		if(ENABLE_SOCI_POSTGRESQL_BACKEND)
+			string(APPEND BUILD_SOCI_BACKENDS ";postgresql")
+		endif()
 	endif()
 
 	if(ENABLE_PRESENCE OR ENABLE_MDNS OR ENABLE_CONFERENCE OR ENABLE_UNIT_TESTS)
 		set(BUILD_BELLESIP ON)
 	endif()
 
-	if(ENABLE_LIBLINPHONE)
-		set(BUILD_LIBLINPHONE ON)
-		set(ENABLE_LIME_X3DH ${ENABLE_SOCI})
-	else()
-		set(ENABLE_LIME_X3DH OFF)
-	endif()
+	set(BUILD_LIBLINPHONE ${LIBLINPHONE_REQUIRED})
 
 	# # Global SDK config
 	set(ENABLE_DOC OFF)
@@ -61,7 +65,6 @@ function(add_linphonesdk)
 	set(BUILD_LIBXML2 OFF)
 	set(BUILD_MBEDTLS_WITH_FATAL_WARNINGS OFF)
 	set(BUILD_OPUS OFF)
-	set(BUILD_SOCI ${ENABLE_SOCI})
 	set(BUILD_SPEEX OFF)
 	set(BUILD_SQLITE3 OFF)
 	set(BUILD_XERCESC OFF)
@@ -73,8 +76,8 @@ function(add_linphonesdk)
 	set(ENABLE_BV16 OFF)
 	set(ENABLE_CODEC2 OFF)
 	set(ENABLE_CSHARP_WRAPPER OFF)
-	set(ENABLE_CXX_WRAPPER ON)
-	set(ENABLE_DB_STORAGE ${ENABLE_SOCI})
+	set(ENABLE_CXX_WRAPPER ${BUILD_LIBLINPHONE})
+	set(ENABLE_DB_STORAGE ON)
 	set(ENABLE_DECAF ON)
 	set(ENABLE_FFMPEG OFF)
 	set(ENABLE_FLEXIAPI OFF)
@@ -90,6 +93,7 @@ function(add_linphonesdk)
 	set(ENABLE_LDAP OFF)
 	set(ENABLE_LIBYUV OFF)
 	set(ENABLE_LIME OFF)
+	set(ENABLE_LIME_X3DH ${BUILD_LIBLINPHONE})
 	
 	# ENABLE_MBEDTLS must be a cache variable because this option is declared by
 	# libsrtp2 project as cache variable instead of using option() command. That avoid Flexisip
@@ -114,30 +118,22 @@ function(add_linphonesdk)
 	set(ENABLE_TUNNEL OFF)
 	set(ENABLE_VCARD OFF)
 	set(ENABLE_VIDEO ON)
-
-	# Workaround: Linphone SDK find for libvpx even if it doesn't intent to build Mediastreamer2
 	set(ENABLE_VPX ${BUILD_MEDIASTREAMER2})
-
 	set(ENABLE_AV1 OFF)
 	set(ENABLE_WEBRTC_AEC OFF)
 	set(ENABLE_WEBRTC_VAD OFF)
 
 	set(BUILD_LIBSRTP2 ${INTERNAL_LIBSRTP2})
 	set(BUILD_MBEDTLS ${INTERNAL_MBEDTLS})
-	set(BUILD_SOCI_BACKENDS "mysql;sqlite3")
-	if(ENABLE_SOCI_POSTGRESQL_BACKEND)
-		string(APPEND BUILD_SOCI_BACKENDS ";postgresql")
-	endif()
 
 	# BcToolbox specific config
 	set(ENABLE_DEFAULT_LOG_HANDLER OFF)
 
-	if(ENABLE_ZRTP)
-		# BZRTP specific config
-		set(ENABLE_ZIDCACHE ON)
-		set(ENABLE_EXPORTEDKEY_V1_0_RETROCOMPATIBILITY OFF)
-		set(ENABLE_GOCLEAR ON)
-	endif()
+	# BZRTP specific config
+	set(ENABLE_ZIDCACHE ${ENABLE_ZRTP})
+	set(ENABLE_EXPORTEDKEY_V1_0_RETROCOMPATIBILITY OFF)
+	set(ENABLE_GOCLEAR ON)
+	set(ENABLE_PQCRYPTO OFF)
 
 	if(BUILD_MEDIASTREAMER2)
 		# Mediastreamer specific config
