@@ -1,6 +1,6 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
+ Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
@@ -9,17 +9,16 @@
 
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  GNU Affero General Public License for more details.
 
  You should have received a copy of the GNU Affero General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <algorithm>
 #include <array>
 #include <sstream>
-#include <array>
 
 #include <nghttp2/nghttp2ver.h>
 
@@ -42,8 +41,8 @@ string Http2Client::BadStateError::formatWhatArg(State state) noexcept {
 }
 
 Http2Client::Http2Client(sofiasip::SuRoot& root, decltype(mConn)&& connection, SessionSettings&& sessionSettings)
-    : mConn(move(connection)), mRoot(root), mIdleTimer(root.getCPtr(), mIdleTimeout),
-      mSessionSettings(move(sessionSettings)) {
+    : mConn(std::move(connection)), mRoot(root), mIdleTimer(root.getCPtr(), mIdleTimeout),
+      mSessionSettings(std::move(sessionSettings)) {
 
 	ostringstream os{};
 	os << "Http2Client[" << this << "]";
@@ -56,7 +55,7 @@ Http2Client::Http2Client(sofiasip::SuRoot& root,
                          const string& host,
                          const string& port,
                          SessionSettings&& sessionSettings)
-    : Http2Client(root, make_unique<TlsConnection>(host, port, true), move(sessionSettings)) {
+    : Http2Client(root, make_unique<TlsConnection>(host, port, true), std::move(sessionSettings)) {
 }
 
 Http2Client::Http2Client(sofiasip::SuRoot& root,
@@ -65,7 +64,8 @@ Http2Client::Http2Client(sofiasip::SuRoot& root,
                          const string& trustStorePath,
                          const string& certPath,
                          SessionSettings&& sessionSettings)
-    : Http2Client(root, make_unique<TlsConnection>(host, port, trustStorePath, certPath, true), move(sessionSettings)) {
+    : Http2Client(
+          root, make_unique<TlsConnection>(host, port, trustStorePath, certPath, true), std::move(sessionSettings)) {
 }
 
 void Http2Client::sendAllPendingRequests() {
@@ -94,7 +94,8 @@ void Http2Client::discardAllRequests() {
 	discardAllActiveRequests();
 }
 
-void Http2Client::send(const shared_ptr<HttpRequest>& request, const OnResponseCb& onResponseCb,
+void Http2Client::send(const shared_ptr<HttpRequest>& request,
+                       const OnResponseCb& onResponseCb,
                        const OnErrorCb& onErrorCb) {
 
 	auto logPrefix = mLogPrefix;
@@ -108,7 +109,7 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request, const OnResponseC
 		this->tlsConnect();
 	}
 	if (mState != State::Connected) {
-		mPendingHttpContexts.emplace_back(move(context));
+		mPendingHttpContexts.emplace_back(std::move(context));
 		return;
 	}
 
@@ -126,7 +127,7 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request, const OnResponseC
 	// the emplace MUST be called before nghttp2_session_send for the timeout mechanic to work properly.
 	// In fact if you watch the Http2Client::resetTimeoutTimer the context need to be in map for the timer to be
 	// reset/start properly.
-	mActiveHttpContexts.emplace(streamId, move(context));
+	mActiveHttpContexts.emplace(streamId, std::move(context));
 	auto status = sendAll();
 	if (status < 0) {
 		SLOGE << logPrefix << ": push request sending failed. reason=[" << nghttp2_strerror(status) << "]";
@@ -166,7 +167,8 @@ void Http2Client::http2Setup() {
 		auto thiz = static_cast<Http2Client*>(user_data);
 		return thiz->doSend(*session, data, length);
 	};
-	auto recvCb = [](nghttp2_session* session, uint8_t* buf, size_t length, [[maybe_unused]] int flags, void* user_data) noexcept {
+	auto recvCb = [](nghttp2_session* session, uint8_t* buf, size_t length, [[maybe_unused]] int flags,
+	                 void* user_data) noexcept {
 		auto thiz = static_cast<Http2Client*>(user_data);
 		return thiz->doRecv(*session, buf, length);
 	};
@@ -225,7 +227,7 @@ void Http2Client::http2Setup() {
 		return;
 	}
 
-	mHttpSession = move(httpSession);
+	mHttpSession = std::move(httpSession);
 
 	su_wait_create(&mPollInWait, mConn->getFd(), SU_WAIT_IN);
 	su_root_register(mRoot.getCPtr(), &mPollInWait, onPollInCb, this, su_pri_normal);
@@ -242,8 +244,7 @@ ssize_t Http2Client::doSend([[maybe_unused]] nghttp2_session& session, const uin
 		SLOGE << mLogPrefix << ": error while writting into socket[" << nwritten << "]";
 		return NGHTTP2_ERR_CALLBACK_FAILURE;
 	}
-	if (nwritten == 0 && length > 0)
-		return NGHTTP2_ERR_WOULDBLOCK;
+	if (nwritten == 0 && length > 0) return NGHTTP2_ERR_WOULDBLOCK;
 	return nwritten;
 }
 
@@ -254,8 +255,7 @@ ssize_t Http2Client::doRecv([[maybe_unused]] nghttp2_session& session, uint8_t* 
 		SLOGE << mLogPrefix << ": error while reading socket. " << strerror(errno);
 		return NGHTTP2_ERR_CALLBACK_FAILURE;
 	}
-	if (nread == 0 && length > 0)
-		return NGHTTP2_ERR_WOULDBLOCK;
+	if (nread == 0 && length > 0) return NGHTTP2_ERR_WOULDBLOCK;
 	return nread;
 }
 
@@ -264,14 +264,14 @@ ssize_t Http2Client::doRecv([[maybe_unused]] nghttp2_session& session, uint8_t* 
  */
 void Http2Client::onFrameSent([[maybe_unused]] nghttp2_session& session, const nghttp2_frame& frame) noexcept {
 	SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: " << Http2Tools::frameTypeToString(frame.hd.type)
-		<< " frame sent (" << frame.hd.length << "B)";
+	      << " frame sent (" << frame.hd.length << "B)";
 	resetTimeoutTimer(frame.hd.stream_id);
 	resetIdleTimer();
 }
 
 void Http2Client::onFrameRecv([[maybe_unused]] nghttp2_session& session, const nghttp2_frame& frame) noexcept {
 	SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: " << Http2Tools::frameTypeToString(frame.hd.type)
-		<< " frame received (" << frame.hd.length << "B)";
+	      << " frame received (" << frame.hd.length << "B)";
 	resetTimeoutTimer(frame.hd.stream_id);
 	resetIdleTimer();
 
@@ -299,8 +299,11 @@ void Http2Client::onFrameRecv([[maybe_unused]] nghttp2_session& session, const n
 	}
 }
 
-void Http2Client::onHeaderRecv([[maybe_unused]] nghttp2_session& session, const nghttp2_frame& frame, const string& name,
-                               const string& value, uint8_t flags) noexcept {
+void Http2Client::onHeaderRecv([[maybe_unused]] nghttp2_session& session,
+                               const nghttp2_frame& frame,
+                               const string& name,
+                               const string& value,
+                               uint8_t flags) noexcept {
 	const auto& streamId = frame.hd.stream_id;
 	auto logPrefix = string{mLogPrefix} + "[" + to_string(streamId) + "]";
 	// SLOGD << logPrefix << ": receiving HTTP2 header [" << name << " = " << value << "]";
@@ -313,7 +316,10 @@ void Http2Client::onHeaderRecv([[maybe_unused]] nghttp2_session& session, const 
 	}
 }
 
-void Http2Client::onDataReceived([[maybe_unused]] nghttp2_session& session, [[maybe_unused]] uint8_t flags, int32_t streamId, const uint8_t* data,
+void Http2Client::onDataReceived([[maybe_unused]] nghttp2_session& session,
+                                 [[maybe_unused]] uint8_t flags,
+                                 int32_t streamId,
+                                 const uint8_t* data,
                                  size_t datalen) noexcept {
 	string stringData(reinterpret_cast<const char*>(data), datalen);
 
@@ -361,7 +367,9 @@ int Http2Client::onPollInCb(su_root_magic_t*, su_wait_t* w, su_wakeup_arg_t* arg
 	return 0;
 }
 
-void Http2Client::onStreamClosed([[maybe_unused]] nghttp2_session& session, int32_t stream_id, uint32_t error_code) noexcept {
+void Http2Client::onStreamClosed([[maybe_unused]] nghttp2_session& session,
+                                 int32_t stream_id,
+                                 uint32_t error_code) noexcept {
 	auto logPrefix = mLogPrefix + "[" + to_string(stream_id) + "]";
 
 	shared_ptr<HttpMessageContext> context = nullptr;
@@ -432,8 +440,7 @@ void Http2Client::onConnectionIdle() noexcept {
 }
 
 void Http2Client::setState(State state) noexcept {
-	if (mState == state)
-		return;
+	if (mState == state) return;
 	SLOGD << mLogPrefix << ": switching state from [" << mState << "] to [" << state << "]";
 	mState = state;
 }
@@ -493,19 +500,14 @@ string Http2Tools::printFlags(uint8_t flags) noexcept {
 	array<const char*, 4> flagsAsStr{};
 
 	auto len = 0;
-	if (flags & NGHTTP2_FLAG_END_STREAM)
-		flagsAsStr.at(len++) = "END_STREAM";
-	if (flags & NGHTTP2_FLAG_END_HEADERS)
-		flagsAsStr.at(len++) = "END_HEADERS";
-	if (flags & NGHTTP2_FLAG_ACK)
-		flagsAsStr.at(len++) = "ACK";
-	if (flags & NGHTTP2_FLAG_PADDED)
-		flagsAsStr.at(len++) = "PADDED";
+	if (flags & NGHTTP2_FLAG_END_STREAM) flagsAsStr.at(len++) = "END_STREAM";
+	if (flags & NGHTTP2_FLAG_END_HEADERS) flagsAsStr.at(len++) = "END_HEADERS";
+	if (flags & NGHTTP2_FLAG_ACK) flagsAsStr.at(len++) = "ACK";
+	if (flags & NGHTTP2_FLAG_PADDED) flagsAsStr.at(len++) = "PADDED";
 
 	string res{};
 	for (auto i = 0; i < len; ++i) {
-		if (i != 0)
-			res += " | ";
+		if (i != 0) res += " | ";
 		res += flagsAsStr.at(i);
 	}
 	return res;
