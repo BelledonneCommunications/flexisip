@@ -138,6 +138,7 @@ if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 		push-notification-tester.cc
 		tests/flexiapi/flexi-stats-tester.cc
 		tests/utils/transport/http/rest-client-tester.cc
+		tests/utils/transport/http/http2client-tester.cc
 		utils/http-mock/http-mock.cc utils/http-mock/http-mock.hh
 		utils/pns-mock.cc utils/pns-mock.hh
 	)

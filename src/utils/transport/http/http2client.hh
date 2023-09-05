@@ -156,7 +156,6 @@ private:
 	void sendAllPendingRequests();
 	void discardAllPendingRequests();
 	void discardAllActiveRequests();
-	void discardAllRequests();
 
 	ssize_t doSend(nghttp2_session& session, const uint8_t* data, size_t length) noexcept;
 	ssize_t doRecv(nghttp2_session& session, uint8_t* data, size_t length) noexcept;

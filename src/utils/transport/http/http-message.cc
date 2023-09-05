@@ -18,7 +18,9 @@
 
 #include "http-message.hh"
 
+#include <algorithm>
 #include <sstream>
+#include <string_view>
 
 using namespace std;
 
@@ -30,8 +32,11 @@ string HttpMessage::toString() const noexcept {
 	os << "    HttpMessage header : " << endl;
 	os << this->mHeaders.toString() << endl;
 	os << "    HttpMessage body : " << endl;
-	for (char c : this->mBody) {
-		os << c;
+	const auto sizeToPrint = std::min(mBody.size(), 2048UL);
+	os << std::string_view{mBody.data(), sizeToPrint};
+	const auto diff = mBody.size() - sizeToPrint;
+	if (0 < diff) {
+		os << "... [and " << diff << " more bytes]";
 	}
 
 	return os.str();
