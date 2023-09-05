@@ -1,6 +1,6 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+ Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
@@ -9,11 +9,11 @@
 
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  GNU Affero General Public License for more details.
 
  You should have received a copy of the GNU Affero General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #pragma once
@@ -87,8 +87,8 @@ public:
 	 * @param onResponseCb The callback called when a complete answer is received.
 	 * @param onErrorCb The callback called when an unexpected error occurred.
 	 */
-	void send(const std::shared_ptr<HttpRequest>& request, const OnResponseCb& onResponseCb,
-	          const OnErrorCb& onErrorCb);
+	void
+	send(const std::shared_ptr<HttpRequest>& request, const OnResponseCb& onResponseCb, const OnErrorCb& onErrorCb);
 
 	void onTlsConnectCb();
 
@@ -162,10 +162,13 @@ private:
 	ssize_t doRecv(nghttp2_session& session, uint8_t* data, size_t length) noexcept;
 	void onFrameSent(nghttp2_session& session, const nghttp2_frame& frame) noexcept;
 	void onFrameRecv(nghttp2_session& session, const nghttp2_frame& frame) noexcept;
-	void onHeaderRecv(nghttp2_session& session, const nghttp2_frame& frame, const std::string& name,
-	                  const std::string& value, uint8_t flags) noexcept;
-	void onDataReceived(nghttp2_session& session, uint8_t flags, int32_t streamId, const uint8_t* data,
-	                    size_t datalen) noexcept;
+	void onHeaderRecv(nghttp2_session& session,
+	                  const nghttp2_frame& frame,
+	                  const std::string& name,
+	                  const std::string& value,
+	                  uint8_t flags) noexcept;
+	void onDataReceived(
+	    nghttp2_session& session, uint8_t flags, int32_t streamId, const uint8_t* data, size_t datalen) noexcept;
 	void onStreamClosed(nghttp2_session& session, int32_t stream_id, uint32_t error_code) noexcept;
 
 	static int onPollInCb(su_root_magic_t*, su_wait_t*, su_wakeup_arg_t* arg) noexcept;
