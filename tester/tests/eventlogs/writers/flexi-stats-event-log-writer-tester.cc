@@ -479,9 +479,7 @@ void messageToChatroomClearText() {
 		std::smatch match{};
 		BC_ASSERT_TRUE(std::regex_match(event->path, match, extractEventIdAndDeviceFromPath));
 		BC_HARD_ASSERT_CPP_EQUAL(match.size(), 3);
-#if FALSE // TODO Extract the ID forwarded by the conference server
 		BC_ASSERT_CPP_EQUAL(match[1], logId);
-#endif
 		deliveredEvents.emplace(match[2], std::move(event));
 	}
 	for (const auto& expectedTo : expectedTos) {
