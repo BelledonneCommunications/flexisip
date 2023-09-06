@@ -66,7 +66,7 @@ public:
 	void assertEqual(const std::shared_ptr<ForkMessageContext>& expected);
 #endif
 
-	static constexpr auto kEventIdHeader = "X-fs-EventID";
+	static constexpr auto kEventIdHeader = "X-fs-event-id";
 
 protected:
 	void onNewBranch(const std::shared_ptr<BranchInfo>& br) override;

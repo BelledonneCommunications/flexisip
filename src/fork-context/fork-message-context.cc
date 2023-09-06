@@ -133,7 +133,7 @@ void ForkMessageContext::logResponseFromRecipient(const BranchInfo& branch,
 
 	const sip_t& sipRequest = *branch.mRequest->getMsgSip()->getSip();
 	const sip_t* sip = respEv->getMsgSip()->getSip();
-	const auto forwardedId = ModuleToolbox::getCustomHeaderByName(sip, kEventIdHeader);
+	const auto forwardedId = ModuleToolbox::getCustomHeaderByName(&sipRequest, kEventIdHeader);
 	auto log = make_shared<MessageResponseFromRecipientEventLog>(
 	    sipRequest, *branch.mContact, mKind,
 	    forwardedId ? std::optional<EventId>(forwardedId->un_value) : std::nullopt);
