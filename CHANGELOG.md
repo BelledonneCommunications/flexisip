@@ -13,6 +13,13 @@ Group changes to describe their impact on the project, as follows:
 | Fixed          | Any bug fixes                                         |
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
+## [2.3.2] - 2023-09-07
+### [Fixed]
+- **Proxy/media-relay:** fix `candidates` media attributes being wiped out of all INVITE responses.
+  This buggy behaviour was introduced in 2.3.1 while attempting to handle a response **with** ICE candidates
+  to an INVITE **without** ICE candidates.
+- **Proxy/registrar:** Fix a regression in a domain-registration scenario with "relay-reg-to-domains" enabled,
+  where the backend server fails to route to the intermediate proxy.
 
 ## [2.3.1] - 2023-08-30
 ### [Added]
