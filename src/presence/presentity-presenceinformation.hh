@@ -267,6 +267,7 @@ private:
 	std::string mCapabilities;
 	std::map<std::string, std::string> mAddedCapabilities;
 	std::optional<std::chrono::system_clock::time_point> mLastActivity = std::nullopt;
+	BelleSipSourcePtr mLastActivityTimer = nullptr;
 };
 
 std::ostream& operator<<(std::ostream& __os, const PresentityPresenceInformation&);

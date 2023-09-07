@@ -168,6 +168,26 @@ protected:
 	}
 };
 
+class BasicPublishLastActivityExpiresTest : public BasicPublishTest {
+protected:
+	void onAgentConfiguration(GenericManager& cfg) override {
+		PresenceTest::onAgentConfiguration(cfg);
+
+		auto* presenceConf = cfg.getRoot()->get<GenericStruct>("presence-server");
+		presenceConf->get<ConfigInt>("last-activity-retention-time")->set("0");
+	}
+
+	void assertAfterPublishExpire() override {
+		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("tuple id=\"") != std::string::npos);
+		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("<basic>open</basic>") != std::string::npos);
+		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("<p1:person id=\"") != std::string::npos);
+		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("<p2:away/>") != std::string::npos);
+
+		// last-activity-retention-time == 0, so no timestamp in notify after expiration
+		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("<p1:timestamp>") == std::string::npos);
+	}
+};
+
 class AwayPublishTest : public PublishTest {
 protected:
 	string getPublishHeaders() override {
@@ -416,6 +436,7 @@ namespace {
 TestSuite _("Publish presence unit tests",
             {
                 CLASSY_TEST(BasicPublishTest),
+                CLASSY_TEST(BasicPublishLastActivityExpiresTest),
                 CLASSY_TEST(AwayPublishTest),
                 CLASSY_TEST(DoubleAwayDateAfterPublishTest),
                 CLASSY_TEST(DoubleAwayDateBeforePublishTest),

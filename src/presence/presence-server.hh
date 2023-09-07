@@ -85,6 +85,8 @@ public:
 	void addPresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver>& observer);
 	void removePresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver>& observer);
 
+	static unsigned int sLastActivityRetentionMs;
+
 private:
 	static Init sStaticInit;
 	// PresenceConfigManager mConfigManager;
