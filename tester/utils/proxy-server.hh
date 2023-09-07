@@ -44,7 +44,7 @@ public:
 	 * @param[in] configFile The path to the config file. Search for it in the resource directory
 	 * and TESTER_DATA_DIR. An empty path will cause the Agent to use its default configuration.
 	 */
-	explicit Server(const std::string& configFile = "");
+	explicit Server(const std::string& configFile = "", Module* injectedModule = nullptr);
 	/**
 	 * @brief Same as before but use a map instead of a file to configure the agent.
 	 * @param config Agent configuration as a map. The key is the name of the paramter

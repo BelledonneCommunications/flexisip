@@ -37,7 +37,8 @@ namespace tester {
 /**
  * A class to manage the flexisip proxy server
  */
-Server::Server(const std::string& configFile) {
+Server::Server(const std::string& configFile, Module* module)
+    : mModule(module ? decltype(mModule){*module} : std::nullopt) {
 	if (!configFile.empty()) {
 		GenericManager* cfg = GenericManager::get();
 

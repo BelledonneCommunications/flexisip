@@ -107,9 +107,8 @@ public:
 	AccountManager(linphone::Core& core, std::vector<ProviderDesc>&& provDescs);
 
 	void init(const std::shared_ptr<linphone::Core>& core, const flexisip::GenericStruct& config) override;
-	linphone::Reason onCallCreate(const linphone::Call& incomingCall,
-	                              linphone::Address& callee,
-	                              linphone::CallParams& outgoingCallParams) override;
+	std::variant<linphone::Reason, std::shared_ptr<const linphone::Address>>
+	onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) override;
 	void onCallEnd(const linphone::Call& call) override;
 
 	std::string handleCommand(const std::string& command, const std::vector<std::string>& args) override;
