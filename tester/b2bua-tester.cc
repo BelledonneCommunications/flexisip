@@ -16,22 +16,29 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "b2bua/b2bua-server.hh"
+
 #include <cstring>
 #include <fstream>
+#include <memory>
+#include <string>
 
 #include <json/json.h>
 
+#include "linphone++/enums.hh"
+#include "linphone/core.h"
+#include "linphone/misc.h"
 #include <bctoolbox/logging.h>
-
 #include <linphone++/linphone.hh>
 
 #include "flexisip/configmanager.hh"
+#include "flexisip/event.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
 
 #include "agent.hh"
-#include "b2bua/b2bua-server.hh"
 #include "b2bua/external-provider-bridge.hh"
 #include "conference/conference-server.hh"
+#include "flexisip/utils/sip-uri.hh"
 #include "registration-events/client.hh"
 #include "registration-events/server.hh"
 #include "tester.hh"
@@ -40,8 +47,10 @@
 #include "utils/client-call.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
+#include "utils/injected-module.hh"
 #include "utils/proxy-server.hh"
 #include "utils/temp-file.hh"
+#include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
 using namespace std;
@@ -66,7 +75,10 @@ private:
 	std::shared_ptr<flexisip::B2buaServer> mB2buaServer;
 
 public:
-	explicit B2buaServer(const std::string& configFile = std::string(), bool start = true) : Server(configFile) {
+	explicit B2buaServer(const std::string& configFile = std::string(),
+	                     bool start = true,
+	                     Module* injectedModule = nullptr)
+	    : Server(configFile, injectedModule) {
 		// Configure B2bua Server
 		auto* b2buaServerConf = GenericManager::get()->getRoot()->get<GenericStruct>("b2bua-server");
 		// b2bua server needs an outbound proxy to route all sip messages to the proxy, set it to the first transport
@@ -354,50 +366,68 @@ static void external_provider_bridge__call_release() {
 
 static void external_provider_bridge__load_balancing() {
 	using namespace flexisip::b2bua;
-	std::vector<bridge::AccountDesc> lines = {bridge::AccountDesc{
-	                                              "sip:+39068439733@sip.provider1.com",
-	                                              "",
-	                                              "",
-	                                          },
-	                                          bridge::AccountDesc{
-	                                              "sip:+39063466115@sip.provider1.com",
-	                                              "",
-	                                              "",
-	                                          },
-	                                          bridge::AccountDesc{
-	                                              "sip:+39064726074@sip.provider1.com",
-	                                              "",
-	                                              "",
-	                                          }};
+	Server proxy{{
+	    // Requesting bind on port 0 to let the kernel find any available port
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "sip.provider1.com sip.company1.com"},
+	}};
+	proxy.start();
+	const auto builder = proxy.clientBuilder();
+	const auto intercom = builder.build("sip:caller@sip.company1.com");
+	// Fake a call close enough to what the AccountManager will be taking as input
+	// Only incoming calls have a request address, so we need a stand-in client to receive it
+	const string expectedUsername = "+39067362350";
+	auto callee = builder.build("sip:" + expectedUsername + "@sip.company1.com;user=phone");
+	intercom.invite(callee);
+	BC_HARD_ASSERT_TRUE(callee.hasReceivedCallFrom(intercom));
+	const auto call = ClientCall::getLinphoneCall(*callee.getCurrentCall());
+	auto& b2buaCore = *intercom.getCore();
+	auto params = b2buaCore.createCallParams(call);
+	std::vector<bridge::AccountDesc> lines{
+	    bridge::AccountDesc{
+	        "sip:+39068439733@sip.provider1.com",
+	        "",
+	        "",
+	    },
+	    bridge::AccountDesc{
+	        "sip:+39063466115@sip.provider1.com",
+	        "",
+	        "",
+	    },
+	    bridge::AccountDesc{
+	        "sip:+39064726074@sip.provider1.com",
+	        "",
+	        "",
+	    },
+	};
 	const uint32_t line_count = lines.size();
 	const uint32_t maxCallsPerLine = 5000;
-	const auto server = std::make_shared<B2buaServer>("/config/flexisip_b2bua.conf");
-	server->configureExternalProviderBridge({bridge::ProviderDesc{
-	    "provider1",
-	    "sip:\\+39.*",
-	    outboundProxy,
-	    false,
-	    maxCallsPerLine,
-	    std::move(lines),
-	}});
-	auto& accman = server->getModule();
-	const auto intercom = CoreClient("sip:caller@sip.company1.com", server);
-	const auto callee = "sip:+39067362350@sip.company1.com;user=phone";
-	const auto call = intercom.invite(callee);
-	auto params = intercom.getCore()->createCallParams(call);
-	auto address = intercom.getCore()->createAddress(callee);
+	bridge::AccountManager accman{
+	    b2buaCore,
+	    {bridge::ProviderDesc{
+	        "provider1",
+	        "sip:\\+39.*",
+	        outboundProxy,
+	        false,
+	        maxCallsPerLine,
+	        std::move(lines),
+	    }},
+	};
 	auto tally = std::unordered_map<const linphone::Account*, uint32_t>();
 
 	uint32_t i = 0;
 	for (; i < maxCallsPerLine; i++) {
-		const auto decline = accman.onCallCreate(*call, *address, *params);
-		BC_ASSERT_TRUE(decline == linphone::Reason::None);
+		const auto result = accman.onCallCreate(*call, *params);
+		const auto* callee = std::get_if<std::shared_ptr<const linphone::Address>>(&result);
+		BC_HARD_ASSERT_TRUE(callee != nullptr);
+		BC_ASSERT_CPP_EQUAL((**callee).getUsername(), expectedUsername);
 		tally[params->getAccount().get()]++;
 	}
 
 	// All lines have been used at least once
 	BC_ASSERT_TRUE(tally.size() == line_count);
-	// And used slots ar normally distributed accross the lines
+	// And used slots are normally distributed accross the lines
 	const auto expected = maxCallsPerLine / line_count;
 	// Within a reasonable margin of error
 	const auto margin = expected * 7 / 100;
@@ -407,12 +437,15 @@ static void external_provider_bridge__load_balancing() {
 	}
 
 	// Finish saturating all the lines
-	for (; i < maxCallsPerLine * line_count; i++) {
-		BC_ASSERT_TRUE(accman.onCallCreate(*call, *address, *params) == linphone::Reason::None);
+	for (; i < (maxCallsPerLine * line_count); i++) {
+		const auto result = accman.onCallCreate(*call, *params);
+		const auto* callee = std::get_if<std::shared_ptr<const linphone::Address>>(&result);
+		BC_HARD_ASSERT_TRUE(callee != nullptr);
+		BC_ASSERT_CPP_EQUAL((**callee).getUsername(), expectedUsername);
 	}
 
 	// Only now would the call get rejected
-	BC_ASSERT_FALSE(accman.onCallCreate(*call, *address, *params) == linphone::Reason::None);
+	BC_ASSERT_TRUE(std::holds_alternative<linphone::Reason>(accman.onCallCreate(*call, *params)));
 }
 
 static void external_provider_bridge__parse_register_authenticate() {
@@ -491,18 +524,31 @@ static void external_provider_bridge__override_special_options() {
 	RootConfigStruct config("placeholder", "A stub config root for testing", {});
 	config.addChild(make_unique<GenericStruct>("b2bua-server::sip-bridge", "help", 0))->addChildrenValues(configItems);
 	b2bua::bridge::AccountManager accman{};
+	Server proxy{{
+	    // Requesting bind on port 0 to let the kernel find any available port
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "sip.example.com"},
+	}};
+	proxy.start();
+	const auto builder = proxy.clientBuilder();
+	const auto caller = builder.build("sip:caller@sip.example.com");
+	// Fake a call close enough to what the AccountManager will be taking as input
+	// Only incoming calls have a request address, so we need a stand-in client to receive it
+	auto callee = builder.build("sip:unique-pattern@sip.example.com");
+	caller.invite(callee);
+	BC_HARD_ASSERT_TRUE(callee.hasReceivedCallFrom(caller));
+	const auto call = ClientCall::getLinphoneCall(*callee.getCurrentCall());
+	BC_HARD_ASSERT_TRUE(call->getRequestAddress()->asStringUriOnly() != "");
 	const auto core = minimal_core(*linphone::Factory::get());
 	accman.init(core, config);
-	auto calleeAddr = core->createAddress("sip:unique-pattern@example.org");
-	const auto call = core->inviteAddress(calleeAddr);
-	BC_ASSERT_PTR_NOT_NULL(call);
 	auto params = core->createCallParams(call);
 	params->setMediaEncryption(MediaEncryption::ZRTP);
 	params->enableAvpf(true);
 
-	const auto decline = accman.onCallCreate(*call, *calleeAddr, *params);
+	const auto calleeAddres = accman.onCallCreate(*call, *params);
 
-	BC_ASSERT_TRUE(decline == linphone::Reason::None);
+	BC_ASSERT_TRUE(std::holds_alternative<std::shared_ptr<const linphone::Address>>(calleeAddres));
 	// Special call params overriden
 	BC_ASSERT_TRUE(params->getMediaEncryption() == MediaEncryption::None);
 	BC_ASSERT_TRUE(params->avpfEnabled() == false);
@@ -667,6 +713,37 @@ static void external_provider_bridge__cli() {
 			}
 		}
 	}
+}
+
+// Forge an INVITE with an erroneous request address, but appropriate To: header.
+// The B2BUA should only use the To: header to build the other leg of the call.
+static void trenscrypter__uses_aor_and_not_contact() {
+	const auto unexpectedRecipient = "sip:unexpected@sip.example.org";
+	SipUri injectedRequestUrl{unexpectedRecipient};
+	InjectedHooks hooks{{
+	    .onRequest =
+	        [&injectedRequestUrl](const std::shared_ptr<RequestSipEvent>& responseEvent) {
+		        const auto* sip = responseEvent->getSip();
+		        if (sip->sip_request->rq_method != sip_method_invite ||
+		            ModuleToolbox::getCustomHeaderByName(sip, "flexisip-b2bua")) {
+			        return;
+		        }
+
+		        // Mangle the request address
+		        sip->sip_request->rq_url[0] = *injectedRequestUrl.get();
+	        },
+	}};
+	B2buaServer server{"/config/flexisip_b2bua.conf", true, &hooks};
+	auto builder = server.clientBuilder();
+	auto caller = builder.build("sip:caller@sip.example.org");
+	auto unexpected = builder.build(unexpectedRecipient);
+	const auto intendedRecipient = "sip:intended@sip.example.org";
+	auto intended = builder.build(intendedRecipient);
+
+	auto call = caller.invite(intendedRecipient);
+
+	intended.hasReceivedCallFrom(caller).assert_passed();
+	BC_ASSERT_FALSE(unexpected.hasReceivedCallFrom(caller));
 }
 
 // Basic call not using the B2bua server
@@ -953,14 +1030,15 @@ static void videoRejected() {
 namespace {
 TestSuite _("B2bua",
             {
-                TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__one_provider_one_line),
-                TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__call_release),
-                TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__load_balancing),
-                TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__cli),
-                TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__parse_register_authenticate),
-                TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__b2bua_receives_several_forks),
-                TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__dtmf_forwarding),
-                TEST_NO_TAG_AUTO_NAMED(external_provider_bridge__override_special_options),
+                CLASSY_TEST(external_provider_bridge__one_provider_one_line),
+                CLASSY_TEST(external_provider_bridge__call_release),
+                CLASSY_TEST(external_provider_bridge__load_balancing),
+                CLASSY_TEST(external_provider_bridge__cli),
+                CLASSY_TEST(external_provider_bridge__parse_register_authenticate),
+                CLASSY_TEST(external_provider_bridge__b2bua_receives_several_forks),
+                CLASSY_TEST(external_provider_bridge__dtmf_forwarding),
+                CLASSY_TEST(external_provider_bridge__override_special_options),
+                CLASSY_TEST(trenscrypter__uses_aor_and_not_contact),
                 TEST_NO_TAG("Basic", basic),
                 TEST_NO_TAG("Forward Media Encryption", forward),
                 TEST_NO_TAG("SDES to ZRTP call", sdes2zrtp),

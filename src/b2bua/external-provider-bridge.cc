@@ -110,7 +110,8 @@ void AccountManager::initFromDescs(linphone::Core& core, vector<ProviderDesc>&& 
 			LOGF("Please provide an `outboundProxy` for provider '%s'", provDesc.name.c_str());
 		}
 		if (provDesc.maxCallsPerLine == 0) {
-			SLOGW << "Provider '" << provDesc.name << "' has `maxCallsPerLine` set to 0 and will not be used to bridge calls";
+			SLOGW << "Provider '" << provDesc.name
+			      << "' has `maxCallsPerLine` set to 0 and will not be used to bridge calls";
 		}
 		if (provDesc.accounts.empty()) {
 			SLOGW << "Provider '" << provDesc.name << "' has no `accounts` and will not be used to bridge calls";
@@ -222,12 +223,13 @@ AccountManager::findAccountToCall(const string& destinationUri) {
 	return nullptr;
 }
 
-linphone::Reason AccountManager::onCallCreate(const linphone::Call& incomingCall,
-                                              linphone::Address& callee,
-                                              linphone::CallParams& outgoingCallParams) {
-	const auto pair = findAccountToCall(callee.asStringUriOnly());
+std::variant<linphone::Reason, std::shared_ptr<const linphone::Address>>
+AccountManager::onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) {
+	const auto requestAddress = incomingCall.getRequestAddress();
+	const auto addressAsString = requestAddress->asStringUriOnly();
+	const auto pair = findAccountToCall(addressAsString);
 	if (!pair) {
-		SLOGD << "No external accounts available to bridge the call";
+		SLOGD << "No external accounts available to bridge the call to " << addressAsString;
 		return linphone::Reason::NotAcceptable;
 	}
 
@@ -235,7 +237,8 @@ linphone::Reason AccountManager::onCallCreate(const linphone::Call& incomingCall
 	occupiedSlots[incomingCall.getCallLog()->getCallId()] = &extAccount;
 	extAccount.freeSlots--;
 	const auto& linAccount = extAccount.account;
-	callee.setDomain(linAccount->getParams()->getIdentityAddress()->getDomain());
+	auto callee = requestAddress->clone();
+	callee->setDomain(linAccount->getParams()->getIdentityAddress()->getDomain());
 	outgoingCallParams.setAccount(linAccount);
 	const auto& provider = pair->first.get();
 	if (const auto& mediaEncryption = provider.overrideEncryption) {
@@ -245,7 +248,7 @@ linphone::Reason AccountManager::onCallCreate(const linphone::Call& incomingCall
 		outgoingCallParams.enableAvpf(*enableAvpf);
 	}
 
-	return linphone::Reason::None;
+	return callee;
 }
 
 void AccountManager::onCallEnd(const linphone::Call& call) {

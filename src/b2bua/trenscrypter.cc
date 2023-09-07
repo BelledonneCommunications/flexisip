@@ -136,10 +136,10 @@ constexpr auto configSection = "b2bua-server::trenscrypter";
 
 } // namespace
 
-linphone::Reason Trenscrypter::onCallCreate(const linphone::Call& incomingCall,
-                                            [[maybe_unused]] linphone::Address& _callee,
-                                            linphone::CallParams& outgoingCallParams) {
-	const auto calleeAddressUriOnly = incomingCall.getToAddress()->asStringUriOnly();
+std::variant<linphone::Reason, std::shared_ptr<const linphone::Address>>
+Trenscrypter::onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) {
+	const auto callee = incomingCall.getToAddress();
+	const auto calleeAddressUriOnly = callee->asStringUriOnly();
 	outgoingCallParams.setFromHeader(incomingCall.getRemoteAddress()->asString());
 
 	// select an outgoing encryption
@@ -179,7 +179,7 @@ linphone::Reason Trenscrypter::onCallCreate(const linphone::Call& incomingCall,
 		return linphone::Reason::NotAcceptable;
 	}
 
-	return linphone::Reason::None;
+	return callee;
 }
 
 void Trenscrypter::init(const std::shared_ptr<linphone::Core>& core, const flexisip::GenericStruct& configRoot) {

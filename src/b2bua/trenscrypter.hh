@@ -60,9 +60,8 @@ class Trenscrypter : public BridgedCallApplication {
 
 public:
 	void init(const std::shared_ptr<linphone::Core>& core, const flexisip::GenericStruct& config) override;
-	linphone::Reason onCallCreate(const linphone::Call& incomingCall,
-	                              linphone::Address& callee,
-	                              linphone::CallParams& outgoingCallParams) override;
+	std::variant<linphone::Reason, std::shared_ptr<const linphone::Address>>
+	onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) override;
 };
 
 } // namespace trenscrypter
