@@ -26,6 +26,7 @@
 #include <flexisip/logmanager.hh>
 
 #include "etag-manager.hh"
+#include "presence-server.hh"
 #include "presentity-manager.hh"
 #include "presentity-presenceinformation.hh"
 #include "utils/string-utils.hh"
@@ -230,6 +231,13 @@ void PresentityPresenceInformation::removeTuplesForEtag(const string& eTag) {
 		mInformationElements.erase(it);
 		delete informationElement;
 		mLastActivity = std::chrono::system_clock::now();
+		mLastActivityTimer = belle_sip_main_loop_create_cpp_timeout(
+		    mBelleSipMainloop,
+		    [this](unsigned int) {
+			    mLastActivity = nullopt;
+			    return BELLE_SIP_STOP;
+		    },
+		    PresenceServer::sLastActivityRetentionMs, "Last activity retention timer");
 		notifyAll(); // Removing an event state change global state, so it should be notified
 	} else SLOGD << "No tuples found for etag [" << eTag << "]";
 }
@@ -434,7 +442,7 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 				 * If the field presence/timestamp is not already filled and because all tuple for this
 				 * presentity are already expired we filled it with the last activity timestamp.
 				 */
-				if (!presence.getPerson()->getTimestamp() && mLastActivity && extended) {
+				if (!presence.getPerson()->getTimestamp() && mLastActivity) {
 					if (!presence.getPerson()) {
 						Xsd::DataModel::Person person = Xsd::DataModel::Person(dm_person.getId());
 						presence.setPerson(person);

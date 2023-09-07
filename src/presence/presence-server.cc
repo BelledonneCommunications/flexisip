@@ -48,6 +48,8 @@ using namespace std;
 // The Init object is instanciated to load the config
 PresenceServer::Init PresenceServer::sStaticInit{*GenericManager::get()->getRoot()};
 
+unsigned int PresenceServer::sLastActivityRetentionMs;
+
 PresenceServer::Init::Init(GenericStruct& root) {
 	ConfigItemDescriptor items[] = {
 	    {Boolean, "enabled", "Enable presence server", "true"},
@@ -99,6 +101,8 @@ PresenceServer::Init::Init(GenericStruct& root) {
 	     ""},
 	    {Integer, "max-thread", "Max number of threads.", "50"},
 	    {Integer, "max-thread-queue-size", "Max legnth of threads queue.", "50"},
+	    {Integer, "last-activity-retention-time",
+	     "Duration in milliseconds during which the last activity is kept in memory. Default is 1 day.", "86400000"},
 	    config_item_end};
 
 	auto s = root.addChild(make_unique<GenericStruct>("presence-server", "Flexisip presence server parameters.", 0));
@@ -155,6 +159,8 @@ PresenceServer::PresenceServer(const std::shared_ptr<sofiasip::SuRoot>& root) : 
 	    (void (*)(void*, const belle_sip_transaction_terminated_event_t*))PresenceServer::processTransactionTerminated;
 	mListener = belle_sip_listener_create_from_callbacks(&listener_callbacks, this);
 	belle_sip_provider_add_sip_listener(mProvider, mListener);
+
+	PresenceServer::sLastActivityRetentionMs = config->get<ConfigInt>("last-activity-retention-time")->read();
 
 	mDefaultExpires = config->get<ConfigInt>("expires")->read();
 	mBypass = config->get<ConfigString>("bypass-condition")->read();
