@@ -15,6 +15,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "trenscrypter.hh"
+#include "linphone++/enums.hh"
 
 namespace flexisip {
 namespace b2bua {
@@ -160,10 +161,10 @@ constexpr auto configSection = "b2bua-server::trenscrypter";
 
 } // namespace
 
-linphone::Reason Trenscrypter::onCallCreate(const linphone::Call& incomingCall,
-                                            [[maybe_unused]] linphone::Address& _callee,
-                                            linphone::CallParams& outgoingCallParams) {
-	const auto calleeAddressUriOnly = incomingCall.getToAddress()->asStringUriOnly();
+std::tuple<linphone::Reason, std::shared_ptr<const linphone::Address>>
+Trenscrypter::onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) {
+	const auto callee = incomingCall.getToAddress();
+	const auto calleeAddressUriOnly = callee->asStringUriOnly();
 	outgoingCallParams.setFromHeader(incomingCall.getRemoteAddress()->asString());
 
 	// select an outgoing encryption
@@ -200,10 +201,10 @@ linphone::Reason Trenscrypter::onCallCreate(const linphone::Call& incomingCall,
 		SLOGD << "b2bua server tries to place an output call using "
 		      << MediaEncryption2string(outgoingCallParams.getMediaEncryption())
 		      << " encryption mode but it is not available";
-		return linphone::Reason::NotAcceptable;
+		return {linphone::Reason::NotAcceptable, nullptr};
 	}
 
-	return linphone::Reason::None;
+	return {linphone::Reason::None, callee};
 }
 
 void Trenscrypter::init(const std::shared_ptr<linphone::Core>& core, const flexisip::GenericStruct& configRoot) {

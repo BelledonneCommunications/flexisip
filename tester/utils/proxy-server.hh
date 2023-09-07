@@ -26,6 +26,7 @@
 #include "flexisip/sofia-wrapper/su-root.hh"
 
 #include "agent.hh"
+#include "injected-module-info.hh"
 
 namespace flexisip {
 namespace tester {
@@ -40,14 +41,16 @@ public:
 	 * @param[in] configFile The path to the config file. Search for it in the resource directory
 	 * and TESTER_DATA_DIR. An empty path will cause the Agent to use its default configuration.
 	 */
-	explicit Server(const std::string& configFile = "");
+	explicit Server(const std::string& configFile = "", Module* injectedModule = nullptr);
 	/**
 	 * @brief Same as before but use a map instead of a file to configure the agent.
 	 * @param config Agent configuration as a map. The key is the name of the paramter
 	 * to change (e.g. 'module::Registrar/reg-domains') and the value is the new
 	 * value of the parameter as string.
+	 * @param injectedModule A module to be injected into the Agent's module chain to mangle requests before they reach
+	 * other modules.
 	 */
-	explicit Server(const std::map<std::string, std::string>& config);
+	explicit Server(const std::map<std::string, std::string>& config, Module* injectedModule = nullptr);
 	/**
 	 * @brief Cast an Agent into Server
 	 */
@@ -56,11 +59,11 @@ public:
 	virtual ~Server();
 
 	// Accessors
-	const std::shared_ptr<sofiasip::SuRoot>& getRoot() noexcept {
+	const std::shared_ptr<sofiasip::SuRoot>& getRoot() const noexcept {
 		return mAgent->getRoot();
 	}
 
-	const std::shared_ptr<flexisip::Agent>& getAgent() noexcept {
+	const std::shared_ptr<flexisip::Agent>& getAgent() const noexcept {
 		return mAgent;
 	}
 
@@ -77,6 +80,7 @@ public:
 	void runFor(std::chrono::milliseconds duration);
 
 private:
+	const std::optional<InjectedModuleInfo> mModule{std::nullopt};
 	std::shared_ptr<flexisip::Agent> mAgent{std::make_shared<Agent>(std::make_shared<sofiasip::SuRoot>())};
 }; // Class Server
 

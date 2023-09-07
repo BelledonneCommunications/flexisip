@@ -20,6 +20,7 @@
 
 #include <memory>
 #include <regex>
+#include <tuple>
 
 #include "linphone++/linphone.hh"
 
@@ -50,9 +51,9 @@ public:
 	 * @return		a reason to abort the bridging and decline the incoming call. Reason::None if the call should go
 	 *through.
 	 **/
-	virtual linphone::Reason onCallCreate(const linphone::Call& incomingCall,
-	                                      linphone::Address& callee,
-	                                      linphone::CallParams& outgoingCallParams) = 0;
+	virtual std::tuple<linphone::Reason, std::shared_ptr<const linphone::Address>>
+	onCallCreate(const linphone::Call& incomingCall,
+	             linphone::CallParams& outgoingCallParams) = 0;
 	virtual void onCallEnd([[maybe_unused]] const linphone::Call& call) {
 	}
 	virtual ~BridgedCallApplication() = default;

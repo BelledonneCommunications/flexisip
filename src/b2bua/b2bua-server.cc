@@ -16,12 +16,15 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "b2bua-server.hh"
+
+#include <memory>
+
 #include <mediastreamer2/ms_srtp.h>
 
 #include "flexisip/logmanager.hh"
 #include "flexisip/utils/sip-uri.hh"
 
-#include "b2bua-server.hh"
 #include "external-provider-bridge.hh"
 #include "trenscrypter.hh"
 
@@ -72,18 +75,18 @@ void B2buaServer::onCallStateChanged([[maybe_unused]] const std::shared_ptr<linp
 	      << ((call->getDir() == linphone::Call::Dir::Outgoing) ? "legB" : "legA");
 	switch (state) {
 		case linphone::Call::State::IncomingReceived: {
-			auto callee = call->getRequestAddress()->clone();
-			SLOGD << "b2bua server onCallStateChanged incomingReceived, to " << callee->asString() << " from "
-			      << call->getRemoteAddress()->asString();
+			SLOGD << "b2bua server onCallStateChanged incomingReceived, to " << call->getToAddress()->asString()
+			      << " from " << call->getRemoteAddress()->asString();
 			// Create outgoing call using parameters created from the incoming call in order to avoid duplicating the
 			// callId
 			auto outgoingCallParams = mCore->createCallParams(call);
 			// add this custom header so this call will not be intercepted by the b2bua
 			outgoingCallParams->addCustomHeader("flexisip-b2bua", "ignore");
 
-			const auto decline = mApplication->onCallCreate(*call, *callee, *outgoingCallParams);
-			if (decline != linphone::Reason::None) {
-				call->decline(decline);
+			const auto calleeOrReason = mApplication->onCallCreate(*call, *outgoingCallParams);
+			const auto& callee = std::get<1>(calleeOrReason);
+			if (callee == nullptr) {
+				call->decline(std::get<0>(calleeOrReason));
 				return;
 			}
 

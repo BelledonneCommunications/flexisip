@@ -17,6 +17,7 @@
 */
 
 #include "b2bua/external-provider-bridge.hh"
+#include "linphone++/enums.hh"
 #include "linphone++/linphone.hh"
 #include "linphone/misc.h"
 #include <fstream>
@@ -95,7 +96,8 @@ void AccountManager::initFromDescs(linphone::Core& core, std::vector<ProviderDes
 			LOGF("Please provide an `outboundProxy` for provider '%s'", provDesc.name.c_str());
 		}
 		if (provDesc.maxCallsPerLine == 0) {
-			SLOGW << "Provider '" << provDesc.name << "' has `maxCallsPerLine` set to 0 and will not be used to bridge calls";
+			SLOGW << "Provider '" << provDesc.name
+			      << "' has `maxCallsPerLine` set to 0 and will not be used to bridge calls";
 		}
 		if (provDesc.accounts.empty()) {
 			SLOGW << "Provider '" << provDesc.name << "' has no `accounts` and will not be used to bridge calls";
@@ -193,21 +195,24 @@ Account* AccountManager::findAccountToCall(const std::string& destinationUri) {
 	return nullptr;
 }
 
-linphone::Reason AccountManager::onCallCreate(const linphone::Call& incomingCall,
-                                              linphone::Address& callee,
-                                              linphone::CallParams& outgoingCallParams) {
-	const auto account = findAccountToCall(callee.asStringUriOnly());
-	if (!account) {
-		SLOGD << "No external accounts available to bridge the call";
-		return linphone::Reason::NotAcceptable;
+std::tuple<linphone::Reason, std::shared_ptr<const linphone::Address>>
+AccountManager::onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) {
+	const auto requestAddress = incomingCall.getRequestAddress();
+	const auto addressAsString = requestAddress->asStringUriOnly();
+	const auto extAccount = findAccountToCall(addressAsString);
+	if (!extAccount) {
+		SLOGD << "No external accounts available to bridge the call to " << addressAsString;
+		return {linphone::Reason::NotAcceptable, nullptr};
 	}
 
-	occupiedSlots[incomingCall.getCallLog()->getCallId()] = account;
-	account->freeSlots--;
-	outgoingCallParams.setAccount(account->account);
-	callee.setDomain(account->account->getParams()->getIdentityAddress()->getDomain());
+	occupiedSlots[incomingCall.getCallLog()->getCallId()] = extAccount;
+	extAccount->freeSlots--;
+	const auto& linAccount = extAccount->account;
+	auto callee = requestAddress->clone();
+	callee->setDomain(linAccount->getParams()->getIdentityAddress()->getDomain());
+	outgoingCallParams.setAccount(linAccount);
 
-	return linphone::Reason::None;
+	return {linphone::Reason::None, callee};
 }
 
 void AccountManager::onCallEnd(const linphone::Call& call) {

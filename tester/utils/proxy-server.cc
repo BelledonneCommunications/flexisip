@@ -16,11 +16,14 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "proxy-server.hh"
+
 #include <algorithm>
+#include <optional>
 
 #include "bctoolbox/tester.h"
+#include "sofia-sip/nta_tport.h"
 
-#include "proxy-server.hh"
 #include "registrardb.hh"
 #include "tester.hh"
 
@@ -33,7 +36,8 @@ namespace tester {
 /**
  * A class to manage the flexisip proxy server
  */
-Server::Server(const std::string& configFile) {
+Server::Server(const std::string& configFile, Module* module)
+    : mModule(module ? decltype(mModule){*module} : std::nullopt) {
 	if (!configFile.empty()) {
 		GenericManager* cfg = GenericManager::get();
 
@@ -58,7 +62,8 @@ Server::Server(const std::string& configFile) {
 	}
 }
 
-Server::Server(const std::map<std::string, std::string>& config) {
+Server::Server(const std::map<std::string, std::string>& config, Module* module)
+    : mModule(module ? decltype(mModule){*module} : std::nullopt) {
 	auto cfg = GenericManager::get();
 	cfg->load("");
 	for (const auto& kv : config) {
