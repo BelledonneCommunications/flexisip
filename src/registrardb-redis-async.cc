@@ -923,8 +923,18 @@ void RegistrarDbRedisAsync::doClear(const MsgSip& msg, const shared_ptr<ContactU
 void RegistrarDbRedisAsync::handleFetch(redisReply* reply, RedisRegisterContext* context) {
 	const char* key = context->mRecord->getKey().c_str();
 	const auto insertIfActive = [&record = context->mRecord](auto&& contact) {
-		if (!contact->isExpired()) {
+		if (contact->isExpired()) return;
+
+		try {
 			record->insertOrUpdateBinding(move(contact), nullptr);
+		} catch (const InvalidCSeq&) {
+			// There can be a race condition on contact registration. If we get more REGISTERs (without sip instance)
+			// before Redis responded to the first, then we issue multiple insertion commands resulting in duplicated
+			// contacts, potentially with out-of-order CSeq. This situation will be resolved on the next bind (because
+			// all those duplicated contacts will match the new contact, and all be deleted), so in the meantime, let's
+			// just skip the duplicated contacts
+			SLOGW << "Illegal state detected in the RegistrarDb. Skipping contact: "
+			      << (contact ? contact->urlAsString() : "<moved out>");
 		}
 	};
 
