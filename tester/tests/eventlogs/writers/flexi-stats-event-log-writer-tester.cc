@@ -169,11 +169,13 @@ void messageSentAndReceived() {
 	BC_HARD_ASSERT_TRUE(port > -1);
 	agent->setEventLogWriter(std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "localhost", to_string(port),
 	                                                                    "/api/stats/", "aRandomApiToken"));
-	const auto builder = proxy->clientBuilder();
+	auto builder = proxy->clientBuilder();
 	const string expectedFrom = "tony@sip.example.org";
 	const string expectedTo = "mike@sip.example.org";
 	const auto tony = builder.build(expectedFrom);
-	const auto mike = builder.build(expectedTo);
+	// Send IMDNs as CPIM so as to camouflage the content type.
+	// The stats writer will have to rely on the priority to determine whether to log the message or not
+	const auto mike = builder.setCpimInBasicChatroom(OnOff::On).build(expectedTo);
 	const auto directChat = tony.chatroomBuilder().build({mike.getMe()});
 	const auto& forkMessageContextsStats =
 	    dynamic_cast<ModuleRouter&>(*agent->findModule("Router")).mStats.mCountMessageForks;

@@ -105,7 +105,7 @@ ForkMessageContext::ForkMessageContext(const std::shared_ptr<ModuleRouter>& rout
                       router->mStats.mCountMessageForks,
                       msgPriority,
                       isRestored),
-      mKind(*event->getMsgSip()->getSip()) {
+      mKind(*event->getMsgSip()->getSip(), msgPriority) {
 	LOGD("New ForkMessageContext %p", this);
 	if (!isRestored) {
 		// Start the acceptance timer immediately.

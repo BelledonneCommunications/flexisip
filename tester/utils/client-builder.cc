@@ -161,6 +161,10 @@ ClientBuilder& ClientBuilder::setIce(OnOff value) {
 	mIce = value;
 	return *this;
 }
+ClientBuilder& ClientBuilder::setCpimInBasicChatroom(OnOff value) {
+	mAccountParams->enableCpimInBasicChatRoom(bool(value));
+	return *this;
+}
 
 ClientBuilder& ClientBuilder::setCustomContact(const std::string& contact) {
 	mAccountParams->setCustomContact(mFactory->createAddress(contact));
