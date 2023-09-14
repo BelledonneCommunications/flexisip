@@ -20,6 +20,7 @@
 #include "flexiapi/schemas/call/terminated.hh"
 #include "flexiapi/schemas/message/message.hh"
 #include "flexisip/logmanager.hh"
+#include "flexisip/sofia-wrapper/msg-sip.hh"
 #include "fork-context/fork-status.hh"
 #include "fork-context/message-kind.hh"
 #include "utils/string-utils.hh"
@@ -91,6 +92,7 @@ void FlexiStatsEventLogWriter::write(const CallEndedEventLog& call) {
 
 void FlexiStatsEventLogWriter::write(const MessageSentEventLog& msg) {
 	const auto& kind = msg.getMessageKind();
+	if (kind.getPriority() == sofiasip::MsgSipPriority::NonUrgent) return; // Ignore IMDNs
 	if (kind.getKind() != MessageKind::Kind::Message) return;
 
 	flexiapi::ToParam recipients{};
@@ -116,7 +118,7 @@ void FlexiStatsEventLogWriter::write(const MessageSentEventLog& msg) {
 
 void FlexiStatsEventLogWriter::write(const MessageResponseFromRecipientEventLog& msg) {
 	const auto& kind = msg.getMessageKind();
-	if (kind.getKind() == MessageKind::Kind::IMDN) return;
+	if (kind.getPriority() == sofiasip::MsgSipPriority::NonUrgent) return; // Ignore IMDNs
 	if (kind.getCardinality() == MessageKind::Cardinality::ToConferenceServer) {
 		// Group chat message. We want the delivery statuses of the participant devices,
 		// not that of the conference server itself

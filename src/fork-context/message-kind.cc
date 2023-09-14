@@ -11,9 +11,9 @@ using namespace std::string_view_literals;
 
 namespace flexisip {
 
-MessageKind::MessageKind(const ::sip_t& event) : mKind(Kind::Message), mCardinality(Cardinality::Direct) {
+MessageKind::MessageKind(const ::sip_t& event, sofiasip::MsgSipPriority priority)
+    : mKind(Kind::Message), mCardinality(Cardinality::Direct), mPriority(priority) {
 	if (event.sip_request->rq_method == sip_method_refer) mKind = Kind::Refer;
-	else if (event.sip_content_type->c_type == "message/imdn+xml"sv) mKind = Kind::IMDN;
 
 	constexpr auto tryExtractConferenceIdFrom = [](const auto& recipient) {
 		return StringUtils::removePrefix(recipient.a_url->url_user, conference::CHATROOM_PREFIX);

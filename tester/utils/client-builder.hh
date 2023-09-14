@@ -45,6 +45,7 @@ public:
 	ClientBuilder& setVideoReceive(OnOff);
 	ClientBuilder& setRtcpSend(OnOff);
 	ClientBuilder& setIce(OnOff);
+	ClientBuilder& setCpimInBasicChatroom(OnOff);
 	ClientBuilder& setConferenceFactoryUri(const std::string&);
 	ClientBuilder& setCustomContact(const std::string& contact);
 	ClientBuilder& setPushParams(const pushnotification::RFC8599PushParams& params);
