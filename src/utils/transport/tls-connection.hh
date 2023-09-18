@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <cstring>
@@ -76,9 +77,11 @@ public:
 	void connect() noexcept;
 
 	/**
-	 * Method used to establish the connection between you and the server. This method run asynchronously and add a
+	 * Method used to establish the connection between you and the server. This method runs asynchronously and adds a
 	 * callback to the sofia-sip loop on connection success/error. The connection is established with all furthers I/O
 	 * set as non-blocking.
+	 * If called when the connection is already establishing, this method has no effect and the callback is __not__
+	 * called.
 	 *
 	 * @param root sofia-sip loop root object
 	 * @param onConnectCb callback to call after connection success/error
@@ -197,6 +200,7 @@ private:
 	SSLCtxUniquePtr mCtx{nullptr};
 	std::string mHost{}, mPort{};
 	bool mMustBeHttp2 = false;
+	std::atomic_bool mIsConnecting = false;
 	std::chrono::milliseconds mTimeout{20000};
 	MustFinishThread mThread;
 };

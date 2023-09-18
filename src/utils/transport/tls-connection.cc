@@ -96,6 +96,8 @@ TlsConnection::TlsConnection(
 }
 
 void TlsConnection::connectAsync(su_root_t& root, const function<void()>& onConnectCb) noexcept {
+	if (mIsConnecting) return;
+	mIsConnecting = true;
 	// SAFETY: The thread MUST NOT outlive `this`;
 	mThread = thread{[this, &root, onConnectCb]() { this->doConnectAsync(root, onConnectCb); }};
 }
@@ -114,6 +116,8 @@ void TlsConnection::doConnectAsync(su_root_t& root, const function<void()>& onCo
 	if (-1 == su_msg_send(mamc)) {
 		LOGF("Couldn't send auth async message to main thread.");
 	}
+
+	mIsConnecting = false;
 }
 
 void TlsConnection::doConnectCb([[maybe_unused]] su_root_magic_t* rm, su_msg_r msg, [[maybe_unused]] void* u) {
@@ -178,7 +182,7 @@ void TlsConnection::connect() noexcept {
 		return;
 	}
 
-	mBio = move(newBio);
+	mBio = std::move(newBio);
 }
 
 void TlsConnection::resetConnection() noexcept {
