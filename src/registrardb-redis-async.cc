@@ -820,7 +820,8 @@ void RegistrarDbRedisAsync::handleBind(redisReply* reply, RedisRegisterContext* 
 
 	if (!reply || reply->type == REDIS_REPLY_ERROR) {
 		if ((context->mRetryCount < 2)) {
-			LOGE("Error while updating record fs:%s [%lu] hashmap in redis, trying again", key, context->token);
+			LOGE("Error while updating record fs:%s [%lu] hashmap in redis, trying again - %s", key, context->token,
+			     reply ? reply->str : "<null reply>");
 			context->mRetryCount += 1;
 			context->mRetryTimer = mAgent->createTimer(redisRetryTimeoutMs, sBindRetry, context, false);
 		} else {
@@ -861,7 +862,7 @@ void RegistrarDbRedisAsync::handleClear(redisReply* reply, RedisRegisterContext*
 	const char* key = context->mRecord->getKey().c_str();
 
 	if (!reply || reply->type == REDIS_REPLY_ERROR) {
-		LOGE("Redis error setting fs:%s [%lu] - %s", key, context->token, reply ? reply->str : "null reply");
+		LOGE("Redis error setting fs:%s [%lu] - %s", key, context->token, reply ? reply->str : "<null reply>");
 		if (reply && string(reply->str).find("READONLY") != string::npos) {
 			LOGW("Redis couldn't set the AOR because we're connected to a slave. Replying 480.");
 			if (context->listener) context->listener->onRecordFound(nullptr);
@@ -939,7 +940,7 @@ void RegistrarDbRedisAsync::handleFetch(redisReply* reply, RedisRegisterContext*
 	};
 
 	if (!reply || reply->type == REDIS_REPLY_ERROR) {
-		LOGE("Redis error: %s", reply ? reply->str : "null reply");
+		LOGE("Redis error: %s", reply ? reply->str : "<null reply>");
 		if (context->listener) context->listener->onError();
 		delete context;
 	} else if (reply->type == REDIS_REPLY_ARRAY) {
@@ -1035,7 +1036,7 @@ void RegistrarDbRedisAsync::doFetchInstance(const SipUri& url,
 
 void RegistrarDbRedisAsync::handleRecordMigration(redisReply* reply, RedisRegisterContext* context) {
 	if (!reply || reply->type == REDIS_REPLY_ERROR) {
-		LOGE("Redis error: %s", reply ? reply->str : "null reply");
+		LOGE("Redis error: %s", reply ? reply->str : "<null reply>");
 		if (context->listener) context->listener->onRecordFound(nullptr);
 	} else {
 		if (reply->len > 0) {
@@ -1063,7 +1064,7 @@ void RegistrarDbRedisAsync::handleRecordMigration(redisReply* reply, RedisRegist
 
 void RegistrarDbRedisAsync::handleMigration(redisReply* reply, RedisRegisterContext* context) {
 	if (!reply || reply->type == REDIS_REPLY_ERROR) {
-		LOGE("Redis error: %s", reply ? reply->str : "null reply");
+		LOGE("Redis error: %s", reply ? reply->str : "<null reply>");
 	} else if (reply->type == REDIS_REPLY_ARRAY) {
 		LOGD("Fetching all previous records success: %lu record(s) found", (unsigned long)reply->elements);
 
