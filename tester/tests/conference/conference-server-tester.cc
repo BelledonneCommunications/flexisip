@@ -93,17 +93,16 @@ private:
 void conferenceServerBindsChatroomsFromDBOnInit() {
 	const MysqlServer mysqlServer{};
 	const string confFactoryUri = "sip:conference-factory@sip.example.org";
-	Server proxy{{
-	    // Requesting bind on port 0 to let the kernel find any available port
-	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
-	    {"module::Registrar/enabled", "true"},
-	    {"module::Registrar/reg-domains", "sip.example.org"},
+	Server proxy{{// Requesting bind on port 0 to let the kernel find any available port
+	              {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	              {"module::Registrar/enabled", "true"},
+	              {"module::Registrar/reg-domains", "sip.example.org"},
 
-	    // `sqlite` breaks on CentOS7 with inexplicable disk I/O errors
-	    {"conference-server/database-backend", "mysql"},
-	    {"conference-server/database-connection-string", mysqlServer.connectionString()},
-	    {"conference-server/conference-factory-uris", confFactoryUri},
-	}};
+	              // `sqlite` breaks on CentOS7 with inexplicable disk I/O errors
+	              {"conference-server/database-backend", "mysql"},
+	              {"conference-server/database-connection-string", mysqlServer.connectionString()},
+	              {"conference-server/conference-factory-uris", confFactoryUri},
+	              {"conference-server/empty-chat-room-deletion", "false"}}};
 	proxy.start();
 	GenericManager::get()
 	    ->getRoot()
@@ -133,10 +132,10 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 		BC_HARD_ASSERT_CPP_EQUAL(records.size(), 2 /* users */ + 1 /* factory */);
 		const auto& inMyRoom = you.getMe();
 		listener->setChatrooms({
-		    chatroomBuilder.setSubject("Boom").build({inMyRoom}),
-		    chatroomBuilder.setSubject("Boom").build({inMyRoom}),
-		    chatroomBuilder.setSubject("Boom").build({inMyRoom}),
-		    chatroomBuilder.setSubject("Boom").build({inMyRoom}),
+		    chatroomBuilder.setSubject("Boom0").build({inMyRoom}),
+		    chatroomBuilder.setSubject("Boom1").build({inMyRoom}),
+		    chatroomBuilder.setSubject("Boom2").build({inMyRoom}),
+		    chatroomBuilder.setSubject("Boom3").build({inMyRoom}),
 		});
 
 		asserter
