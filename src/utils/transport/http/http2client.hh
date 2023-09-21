@@ -18,12 +18,14 @@
 
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <list>
 #include <map>
 
 #include <nghttp2/nghttp2.h>
 #include <openssl/ssl.h>
+#include <optional>
 #include <sofia-sip/su_wait.h>
 
 #include <flexisip/sofia-wrapper/timer.hh>
@@ -127,9 +129,13 @@ public:
 	/**
 	 * Number of requests pending to be sent by the nghttp2 session
 	 */
-	size_t getOutboundQueueSize() {
+	size_t getOutboundQueueSize() const {
 		if (!mHttpSession) return 0;
 		return nghttp2_session_get_outbound_queue_size(mHttpSession.get());
+	}
+	std::optional<int32_t> getRemoteWindowSize() const {
+		if (!mHttpSession) return std::nullopt;
+		return nghttp2_session_get_remote_window_size(mHttpSession.get());
 	}
 
 private:
@@ -187,6 +193,8 @@ private:
 	int sendAll() {
 		return nghttp2_session_send(mHttpSession.get());
 	}
+	// Send pending frames for all streams, if any. Log on error
+	void resumeSending(const std::string& logPrefix);
 
 	void setState(State state) noexcept;
 

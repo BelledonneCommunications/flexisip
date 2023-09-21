@@ -264,21 +264,25 @@ void Http2Client::onFrameSent([[maybe_unused]] nghttp2_session& session, const n
 }
 
 void Http2Client::onFrameRecv([[maybe_unused]] nghttp2_session& session, const nghttp2_frame& frame) noexcept {
-	SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: " << Http2Tools::frameTypeToString(frame.hd.type)
-	      << " frame received (" << frame.hd.length << "B)";
+	auto logPrefix = mLogPrefix + "[" + to_string(frame.hd.stream_id) + "]: ";
+	SLOGD << logPrefix << Http2Tools::frameTypeToString(frame.hd.type) << " frame received (" << frame.hd.length
+	      << "B)";
 	resetTimeoutTimer(frame.hd.stream_id);
 	resetIdleTimer();
 
 	switch (frame.hd.type) {
+		case NGHTTP2_WINDOW_UPDATE: { // Remote says we're clear for another window.
+			resumeSending(logPrefix);
+		} break;
 		case NGHTTP2_SETTINGS:
 			if ((frame.hd.flags & NGHTTP2_FLAG_ACK) == 0) {
-				SLOGD << mLogPrefix << ": server settings received";
+				SLOGD << logPrefix << "server settings received";
 			}
 			break;
 		case NGHTTP2_GOAWAY: {
 			ostringstream msg{};
-			msg << mLogPrefix << ": GOAWAY frame received, errorCode=[" << frame.goaway.error_code
-			    << "], lastStreamId=[" << frame.goaway.last_stream_id << "]:";
+			msg << logPrefix << "GOAWAY frame received, errorCode=[" << frame.goaway.error_code << "], lastStreamId=["
+			    << frame.goaway.last_stream_id << "]:";
 			if (frame.goaway.opaque_data_len > 0) {
 				msg << endl;
 				msg.write(reinterpret_cast<const char*>(frame.goaway.opaque_data), frame.goaway.opaque_data_len);
@@ -390,17 +394,13 @@ void Http2Client::onStreamClosed([[maybe_unused]] nghttp2_session& session,
 		if (0 < queueSize) {
 			// When nghttp2 reaches a maximum number of concurrent streams, it starts queueing up messages.
 			// A stream has just closed, we should start sending those queued up messages
-			mRoot.addToMainLoop([weakThis = weak_ptr<Http2Client>{this->shared_from_this()},
-			                     previousSize = queueSize]() {
+			mRoot.addToMainLoop([weakThis = this->weak_from_this(), previousSize = queueSize,
+			                     logPrefix = std::move(logPrefix)]() {
 				auto sharedThis = weakThis.lock();
 				if (!sharedThis || sharedThis->getOutboundQueueSize() < previousSize)
 					return; // Something triggered a resend in the meantime. Nothing to do. (If the queue is still not
 					        // empty, it's probably stuck again, and we should wait anyway for another stream to close)
-				auto status = sharedThis->sendAll();
-				if (status < 0) {
-					SLOGE << sharedThis->mLogPrefix << ": failure while trying to catch up queued messages. reason=["
-					      << nghttp2_strerror(status) << "]";
-				}
+				sharedThis->resumeSending(logPrefix);
 			});
 		}
 	} else {
@@ -410,6 +410,14 @@ void Http2Client::onStreamClosed([[maybe_unused]] nghttp2_session& session,
 			context->getOnErrorCb()(context->getRequest());
 			mActiveHttpContexts.erase(contextMapIterator);
 		}
+	}
+}
+
+void Http2Client::resumeSending(const std::string& logPrefix) {
+	const auto status = sendAll();
+	if (status < 0) {
+		SLOGE << logPrefix << "failure while trying to catch up queued frames. reason=[" << nghttp2_strerror(status)
+		      << "]";
 	}
 }
 
