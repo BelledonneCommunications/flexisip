@@ -84,9 +84,9 @@ void B2buaServer::onCallStateChanged([[maybe_unused]] const std::shared_ptr<linp
 
 			const auto callee =
 			    Match(mApplication->onCallCreate(*call, *outgoingCallParams))
-			        .against([](std::shared_ptr<const linphone::Address>&& callee) { return std::move(callee); },
-			                 [&call = *call](linphone::Reason&& reason) {
-				                 call.decline(reason);
+.against([](std::shared_ptr<const linphone::Address> callee) { return callee; },
+			                 [&call](linphone::Reason&& reason) {
+				                 call->decline(reason);
 				                 return std::shared_ptr<const linphone::Address>{};
 			                 });
 			if (callee == nullptr) return;

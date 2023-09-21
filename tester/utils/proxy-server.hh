@@ -43,6 +43,8 @@ public:
 	 * @brief Create a SofiaSip root, an Agent and load the config file given as parameter.
 	 * @param[in] configFile The path to the config file. Search for it in the resource directory
 	 * and TESTER_DATA_DIR. An empty path will cause the Agent to use its default configuration.
+	 * @param injectedModule A module to be injected into the Agent's module chain to mangle requests before they reach
+	 * other modules.
 	 */
 	explicit Server(const std::string& configFile = "", Module* injectedModule = nullptr);
 	/**
