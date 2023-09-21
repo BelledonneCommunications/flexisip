@@ -19,6 +19,7 @@
 #pragma once
 
 #include <future>
+#include <mutex>
 #include <optional>
 #include <queue>
 #include <string>
@@ -50,6 +51,9 @@ public:
 	int serveAsync(const std::string& port = "0");
 	void forceCloseServer();
 	std::shared_ptr<Request> popRequestReceived();
+
+	// Stops processing until the lock is released (lock_guard destructed)
+	std::lock_guard<std::recursive_mutex> pauseProcessing();
 
 private:
 	void handleRequest(const nghttp2::asio_http2::server::request&, const nghttp2::asio_http2::server::response&);

@@ -45,6 +45,10 @@ HttpMock::HttpMock(const std::initializer_list<std::string> endpoints, std::atom
 	}
 }
 
+std::lock_guard<std::recursive_mutex> HttpMock::pauseProcessing() {
+	return lock_guard<recursive_mutex>(mMutex);
+}
+
 void HttpMock::handleRequest(const request& req, const response& res) {
 	SLOGD << " HttpMock::handleRequest()";
 	lock_guard<recursive_mutex> lock(mMutex);
