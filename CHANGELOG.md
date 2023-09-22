@@ -129,6 +129,11 @@ Group changes to describe their impact on the project, as follows:
 - Package for Debian 9.
 
 
+## [2.1.6] - 2023-09-22
+### [Fixed]
+- Backport of several fixes concerning our HTTP/2 client code.
+
+
 ## [2.1.5] - 2022-06-09
 ### [Fixed]
 
