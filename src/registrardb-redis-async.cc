@@ -48,7 +48,8 @@
 constexpr int redisRetryTimeoutMs = 5000;
 
 using namespace std;
-using namespace flexisip;
+
+namespace flexisip {
 
 namespace {
 
@@ -59,18 +60,14 @@ const auto FETCH_EXPIRING_CONTACTS_SCRIPT = redis::AsyncScript<uint64_t, float>(
 
 } // namespace
 
-namespace flexisip {
-
 ostream& operator<<(ostream& out, const RedisArgsPacker& args) {
-	out << "RedisArgsPacker(\"";
+	out << "RedisArgsPacker(";
 	for (const auto& arg : args.mArgs) {
 		out << arg << " ";
 	}
-	out << "\")";
+	out << ")";
 	return out;
 }
-
-} // namespace flexisip
 
 /******
  * RegistrarDbRedisAsync class
@@ -274,7 +271,7 @@ RedisHost RedisHost::parseSlave(const string& slave, int id) {
 	return RedisHost(); // invalid host
 }
 
-void RegistrarDbRedisAsync::updateSlavesList(const map<string, string> redisReply) {
+void RegistrarDbRedisAsync::updateSlavesList(const map<string, string>& redisReply) {
 	decltype(mSlaves) newSlaves;
 
 	try {
@@ -709,6 +706,14 @@ void RegistrarDbRedisAsync::sHandleRecordMigration(redisAsyncContext*,
 	context->self->handleRecordMigration(reply, context);
 }
 
+void RegistrarDbRedisAsync::sHandleSubcommandReply(redisAsyncContext*, redisReply* reply, std::string* cmd) {
+	auto redisError = reply ? (reply->type == REDIS_REPLY_ERROR ? reply->str : nullptr) : "empty response";
+	if (redisError) {
+		SLOGW << "Redis subcommand failure [" << *cmd << "]: " << redisError;
+	}
+	delete cmd;
+};
+
 void RegistrarDbRedisAsync::sHandleReplicationInfoReply(redisAsyncContext*, void* r, void* privcontext) {
 	redisReply* reply = (redisReply*)r;
 	RegistrarDbRedisAsync* zis = (RegistrarDbRedisAsync*)privcontext;
@@ -757,40 +762,37 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RedisRegisterContext* contex
 			hDelArgs.addFieldName(ec->mKey);
 			delCount++;
 		}
-		check_redis_command(redisAsyncCommandArgv(mContext, (void (*)(redisAsyncContext*, void*, void*)) nullptr,
-		                                          context, hDelArgs.getArgCount(), hDelArgs.getCArgs(),
-		                                          hDelArgs.getArgSizes()),
+		check_redis_command(redisAsyncCommandArgv(mContext, (redisCallbackFn*)sHandleSubcommandReply,
+		                                          new string{hDelArgs.toString()}, hDelArgs.getArgCount(),
+		                                          hDelArgs.getCArgs(), hDelArgs.getArgSizes()),
 		                    context);
-
 		SLOGD << hDelArgs;
 	}
 
 	/* Update or set new ones */
 	if (!context->mChangeSet.mUpsert.empty()) {
 		RedisArgsPacker hSetArgs("HMSET", key);
-
 		for (const auto& ec : context->mChangeSet.mUpsert) {
 			hSetArgs.addPair(ec->mKey, ec->serializeAsUrlEncodedParams());
 			setCount++;
 		}
-		check_redis_command(redisAsyncCommandArgv(mContext, (void (*)(redisAsyncContext*, void*, void*)) nullptr,
-		                                          context, hSetArgs.getArgCount(), hSetArgs.getCArgs(),
-		                                          hSetArgs.getArgSizes()),
+		check_redis_command(redisAsyncCommandArgv(mContext, (redisCallbackFn*)sHandleSubcommandReply,
+		                                          new string{hSetArgs.toString()}, hSetArgs.getArgCount(),
+		                                          hSetArgs.getCArgs(), hSetArgs.getArgSizes()),
 		                    context);
-
 		SLOGD << hSetArgs;
 	}
 
 	LOGD("Binding %s [%i] contact sets, [%i] contacts removed.", key.c_str(), setCount, delCount);
 
 	/* Set global expiration for the Record */
-	time_t expireat = context->mRecord->latestExpire();
-	check_redis_command(
-	    redisAsyncCommand(context->self->mContext, nullptr, nullptr, "EXPIREAT %s %lu", key.c_str(), expireat),
-	    context);
+	RedisArgsPacker expireAtCmd{"EXPIREAT", key, to_string(context->mRecord->latestExpire())};
+	check_redis_command(redisAsyncCommandArgv(context->self->mContext, (redisCallbackFn*)sHandleSubcommandReply,
+	                                          new string{expireAtCmd.toString()}, expireAtCmd.getArgCount(),
+	                                          expireAtCmd.getCArgs(), expireAtCmd.getArgSizes()),
+	                    context);
 	/* Execute the transaction */
-	check_redis_command(redisAsyncCommand(context->self->mContext,
-	                                      (void (*)(redisAsyncContext*, void*, void*))forward_fn, context, "EXEC"),
+	check_redis_command(redisAsyncCommand(context->self->mContext, (redisCallbackFn*)forward_fn, context, "EXEC"),
 	                    context);
 }
 
@@ -1104,3 +1106,5 @@ void RegistrarDbRedisAsync::doMigration() {
 	                                      context, "KEYS aor:*"),
 	                    context);
 }
+
+} // namespace flexisip
