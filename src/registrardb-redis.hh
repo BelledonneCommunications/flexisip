@@ -40,8 +40,7 @@
 
 namespace flexisip {
 
-namespace redis {
-namespace auth {
+namespace redis::auth {
 
 class None {};
 class Legacy {
@@ -54,8 +53,7 @@ public:
 	std::string password;
 };
 
-} // namespace auth
-} // namespace redis
+} // namespace redis::auth
 
 struct RedisParameters {
 	std::string domain{};
@@ -139,9 +137,10 @@ struct RedisRegisterContext {
 /* Utility struct to create argument vectors to pass to redis, for HSET and HDEL requests for example.*/
 class RedisArgsPacker {
 public:
-	RedisArgsPacker(const std::string& command, const std::string& key) {
+	template <typename... Args>
+	RedisArgsPacker(const std::string& command, Args&&... args) {
 		addArg(command);
-		addArg(key);
+		(addArg(std::forward<Args>(args)), ...);
 	}
 	void addPair(const std::string& fieldName, const std::string& value) {
 		addArg(fieldName);
@@ -159,6 +158,11 @@ public:
 	size_t getArgCount() const {
 		return mCArgs.size();
 	}
+	std::string toString() const {
+		std::ostringstream os{};
+		os << *this;
+		return os.str();
+	}
 
 	friend std::ostream& operator<<(std::ostream& out, const RedisArgsPacker& args);
 
@@ -168,10 +172,13 @@ private:
 		mCArgs.emplace_back(mArgs.back().c_str()); // The C string pointer is held within mArgs
 		mArgsSize.push_back(arg.size());
 	}
+
 	std::list<std::string> mArgs;
 	std::vector<const char*> mCArgs;
 	std::vector<size_t> mArgsSize;
 };
+
+std::ostream& operator<<(std::ostream& out, const RedisArgsPacker& args);
 
 class RegistrarDbRedisAsync : public RegistrarDb {
 public:
@@ -218,7 +225,6 @@ private:
 
 	void serializeAndSendToRedis(RedisRegisterContext* data, forwardFn* forward_fn);
 	bool handleRedisStatus(const std::string& desc, int redisStatus, RedisRegisterContext* data);
-	void onErrorData(RedisRegisterContext* data);
 	void subscribeTopic(const std::string& topic);
 	void subscribeAll();
 	void subscribeToKeyExpiration();
@@ -227,7 +233,6 @@ private:
 	/* callbacks */
 	void handleAuthReply(const redisReply* reply);
 	void handleBind(redisReply* reply, RedisRegisterContext* data);
-	void handleBindReplyAorSet(redisReply* reply, RedisRegisterContext* data);
 	void handleClear(redisReply* reply, RedisRegisterContext* data);
 	void handleFetch(redisReply* reply, RedisRegisterContext* data);
 
@@ -247,7 +252,7 @@ private:
 
 	/* replication */
 	void getReplicationInfo();
-	void updateSlavesList(const std::map<std::string, std::string> redisReply);
+	void updateSlavesList(const std::map<std::string, std::string>& redisReply);
 	void tryReconnect();
 
 	/* static handlers */
@@ -258,9 +263,9 @@ private:
 	static void sHandleClear(redisAsyncContext* ac, redisReply* reply, RedisRegisterContext* data);
 	static void sHandleFetch(redisAsyncContext* ac, redisReply* reply, RedisRegisterContext* data);
 	static void sHandleReplicationInfoReply(redisAsyncContext* ac, void* r, void* privdata);
-	static void sHandleSet(redisAsyncContext* ac, void* r, void* privdata);
 	static void sHandleMigration(redisAsyncContext* ac, redisReply* reply, RedisRegisterContext* data);
 	static void sHandleRecordMigration(redisAsyncContext* ac, redisReply* reply, RedisRegisterContext* data);
+	static void sHandleSubcommandReply(redisAsyncContext*, redisReply* reply, std::string* cmd);
 
 	/**
 	 * This callback is called periodically to check if the current REDIS connection is valid
