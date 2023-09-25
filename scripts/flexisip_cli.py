@@ -122,11 +122,11 @@ def sendMessage(remote_socket, message):
 			s.send(message.encode())
 			received = s.recv(65535).decode()
 			print(received)
-			if received.startswith('{'):
-				return os.EX_OK  # https://docs.python.org/3/library/os.html#os.EX_OK
-			else:
-				# Probably not JSON, therefore probably an error
+			if received.startswith('Error'):
+				# The server reports an error, it probably has to do with the arguments passed, so USAGE seems appropriate
 				return os.EX_USAGE
+			else:
+				return os.EX_OK  # https://docs.python.org/3/library/os.html#os.EX_OK
 		except socket.error as err:
 			print('error: could not connect to socket {!r}: {!r}'.format(remote_socket, err), file=sys.stderr)
 			# error: could not connect to socket '/tmp/flexisip-proxy-15150': PermissionError(13, 'Permission denied')

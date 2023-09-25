@@ -379,10 +379,10 @@ public:
 	}
 
 	void onError() override {
-		mSocket.send("ERROR");
+		mSocket.send("Error connecting to the Registrar");
 	}
 	void onInvalid() override {
-		mSocket.send("INVALID");
+		mSocket.send("Error: Invalid Record");
 	}
 	// Mandatory since we inherit from ContactUpdateListener
 	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
