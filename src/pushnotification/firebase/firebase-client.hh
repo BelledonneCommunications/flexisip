@@ -20,12 +20,10 @@
 
 #include <string>
 
-#include "firebase-request.hh"
 #include "pushnotification/client.hh"
 #include "utils/transport/http/http-message.hh"
 #include "utils/transport/http/http-response.hh"
 #include "utils/transport/http/http2client.hh"
-#include "utils/transport/tls-connection.hh"
 
 namespace flexisip {
 namespace pushnotification {

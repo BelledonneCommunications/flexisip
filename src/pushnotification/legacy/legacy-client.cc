@@ -129,7 +129,7 @@ LegacyClient::LegacyClient(std::unique_ptr<Transport>&& transport,
                            const string& name,
                            unsigned maxQueueSize,
                            const Service* service)
-    : Client{service}, mName{name}, mTransport{move(transport)}, mMaxQueueSize{maxQueueSize} {
+    : Client{service}, mName{name}, mTransport{std::move(transport)}, mMaxQueueSize{maxQueueSize} {
 }
 
 LegacyClient::~LegacyClient() {

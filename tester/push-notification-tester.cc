@@ -33,8 +33,10 @@
 #include "flexisip/utils/sip-uri.hh"
 
 #include "pushnotification/apple/apple-client.hh"
+#include "pushnotification/apple/apple-request.hh"
 #include "pushnotification/contact-expiration-notifier.hh"
 #include "pushnotification/firebase/firebase-client.hh"
+#include "pushnotification/firebase/firebase-request.hh"
 #include "tester.hh"
 #include "utils/listening-socket.hh"
 #include "utils/pns-mock.hh"
@@ -116,7 +118,8 @@ static void startApplePushTest(PushType pType,
 
 	auto request = make_shared<AppleRequest>(pType, pushInfo);
 
-	startPushTest(appleClient, move(request), reqBodyPattern, responseCode, responseBody, expectedFinalState, timeout);
+	startPushTest(appleClient, std::move(request), reqBodyPattern, responseCode, responseBody, expectedFinalState,
+	              timeout);
 }
 
 static void startFirebasePushTest(PushType pType,
@@ -133,7 +136,7 @@ static void startFirebasePushTest(PushType pType,
 
 	auto request = make_shared<FirebaseRequest>(pType, pushInfo);
 
-	startPushTest(firebaseClient, move(request), reqBodyPattern, responseCode, responseBody, expectedFinalState,
+	startPushTest(firebaseClient, std::move(request), reqBodyPattern, responseCode, responseBody, expectedFinalState,
 	              timeout);
 }
 
@@ -441,7 +444,7 @@ static void applePushTestConnectErrorAndReconnect(void) {
 
 	// And then using the same AppleClient (so the same Http2Client) we send a second request with mock on this time and
 	// check everything goes fine.
-	startPushTest(appleClient, move(request), reqBodyPattern, 200, "Ok", Request::State::Successful, false);
+	startPushTest(appleClient, std::move(request), reqBodyPattern, 200, "Ok", Request::State::Successful, false);
 }
 
 static void tlsTimeoutTest(void) {

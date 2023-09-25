@@ -36,6 +36,8 @@
 #include "legacy/genericpush.hh"
 #include "legacy/microsoftpush.hh"
 #include "legacy/wp-client.hh"
+#include "pushnotification/apple/apple-request.hh"
+#include "pushnotification/firebase/firebase-request.hh"
 #include "utils/transport/tls-connection.hh"
 
 using namespace std;
@@ -116,7 +118,7 @@ void Service::setupGenericClient(const sofiasip::Url& url, Method method) {
 		conn = make_unique<TlsConnection>(url.getHost(), url.getPort(true), "", "");
 	}
 
-	mClients[sGenericClientName] = make_unique<LegacyClient>(make_unique<TlsTransport>(move(conn), method, url),
+	mClients[sGenericClientName] = make_unique<LegacyClient>(make_unique<TlsTransport>(std::move(conn), method, url),
 	                                                         sGenericClientName, mMaxQueueSize, this);
 }
 
@@ -202,11 +204,11 @@ Client* Service::createWindowsClient(const std::shared_ptr<MicrosoftRequest>& pn
 	auto& client = mClients[wpClient];
 	if (isW10) {
 		auto conn = make_unique<TlsConnection>(pnImpl->getAppIdentifier(), WPPN_PORT);
-		client = make_unique<ClientWp>(make_unique<TlsTransport>(move(conn)), wpClient, mMaxQueueSize,
+		client = make_unique<ClientWp>(make_unique<TlsTransport>(std::move(conn)), wpClient, mMaxQueueSize,
 		                               mWindowsPhonePackageSID, mWindowsPhoneApplicationSecret, this);
 	} else {
 		auto conn = make_unique<TlsConnection>(pnImpl->getAppIdentifier(), "80", "", "");
-		client = make_unique<LegacyClient>(make_unique<TlsTransport>(move(conn)), wpClient, mMaxQueueSize, this);
+		client = make_unique<LegacyClient>(make_unique<TlsTransport>(std::move(conn)), wpClient, mMaxQueueSize, this);
 	}
 	return client.get();
 }

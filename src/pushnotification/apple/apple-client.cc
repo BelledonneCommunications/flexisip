@@ -16,11 +16,11 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "apple-client.hh"
+
 #include <flexisip/logmanager.hh>
 
-#include "utils/string-utils.hh"
-
-#include "apple-client.hh"
+#include "pushnotification/apple/apple-request.hh"
 
 using namespace std;
 

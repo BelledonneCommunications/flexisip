@@ -6,6 +6,8 @@
 
 #include "contact-expiration-notifier.hh"
 
+#include "utils/transport/http/http-message.hh"
+
 using namespace std;
 
 namespace flexisip {
@@ -34,7 +36,7 @@ ContactExpirationNotifier::ContactExpirationNotifier(chrono::seconds interval,
                                                      const shared_ptr<sofiasip::SuRoot>& root,
                                                      weak_ptr<pn::Service>&& pnService,
                                                      const RegistrarDb& registrar)
-    : mLifetimeThreshold(lifetimeThreshold), mTimer(root, interval), mPNService(move(pnService)),
+    : mLifetimeThreshold(lifetimeThreshold), mTimer(root, interval), mPNService(std::move(pnService)),
       mRegistrar(registrar) {
 	// SAFETY: This lambda is safe memory-wise if and only if it doesn't outlive `this`.
 	// Which is the case as long as `this` holds the sofiasip::Timer.
@@ -58,8 +60,14 @@ void ContactExpirationNotifier::onTimerElapsed() {
 		    for (const auto& contact : contacts) {
 			    DeviceInfo devInfo{contact};
 			    try {
+				    const auto request = pnService->makeRequest(pushType, std::make_unique<pn::PushInfo>(contact));
+				    if (auto* httpRequest = dynamic_cast<HttpMessage*>(request.get())) {
+					    // We don't want those service notifications overtaking more important call or message
+					    // notifications, so send with minimum priority
+					    httpRequest->mPriority.weight = NGHTTP2_MIN_WEIGHT;
+				    }
 
-				    pnService->sendPush(pnService->makeRequest(pushType, std::make_unique<pn::PushInfo>(contact)));
+				    pnService->sendPush(request);
 
 				    SLOGI << kLogPrefix << "Background push notification successfully sent to " << devInfo;
 			    } catch (const pushnotification::PushNotificationError& e) {
@@ -82,7 +90,7 @@ unique_ptr<ContactExpirationNotifier> ContactExpirationNotifier::make_unique(con
 	}
 	float threshold = cfg.get<ConfigInt>("register-wakeup-threshold")->read() / 100.0;
 
-	return std::make_unique<ContactExpirationNotifier>(chrono::minutes(interval), threshold, root, move(pnService),
+	return std::make_unique<ContactExpirationNotifier>(chrono::minutes(interval), threshold, root, std::move(pnService),
 	                                                   registrar);
 }
 

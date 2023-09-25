@@ -32,7 +32,6 @@
 
 #include "http-message-context.hh"
 #include "http-message.hh"
-#include "http-response.hh"
 #include "utils/transport/tls-connection.hh"
 
 namespace flexisip {

@@ -21,6 +21,8 @@
 #include <memory>
 #include <string>
 
+#include <nghttp2/nghttp2.h>
+
 #include "http-headers.hh"
 #include "ng-data-provider.hh"
 
@@ -31,6 +33,13 @@ namespace flexisip {
  */
 class HttpMessage {
 public:
+	class PrioritySpecification : public nghttp2_priority_spec {
+	public:
+		PrioritySpecification() {
+			nghttp2_priority_spec_default_init(this);
+		}
+	};
+
 	HttpMessage() = default;
 	HttpMessage(const HttpHeaders& headers, const std::vector<char>& body) : mHeaders(headers), mBody(body){};
 	HttpMessage(const HttpHeaders& headers, const std::string& body) : mHeaders(headers) {
@@ -75,6 +84,8 @@ public:
 	}
 
 	std::string toString() const noexcept;
+
+	PrioritySpecification mPriority{};
 
 protected:
 	HttpHeaders mHeaders{};

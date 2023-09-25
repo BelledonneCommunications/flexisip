@@ -74,7 +74,8 @@ private:
 	// Private methods
 	void setupClients(const std::string& certdir, const std::string& ca, int maxQueueSize);
 	Client* createWindowsClient(const std::shared_ptr<MicrosoftRequest>& pnImpl);
-	std::shared_ptr<GenericRequest> makeGenericRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo) const;
+	std::shared_ptr<GenericRequest> makeGenericRequest(PushType pType,
+	                                                   const std::shared_ptr<const PushInfo>& pInfo) const;
 
 	// Private attributes
 	sofiasip::SuRoot& mRoot;
