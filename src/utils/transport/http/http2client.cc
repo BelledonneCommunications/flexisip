@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
 #include <nghttp2/nghttp2.h>
 #include <sstream>
 
@@ -108,7 +109,7 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request,
 	}
 
 	auto streamId =
-	    nghttp2_submit_request(mHttpSession.get(), nullptr, request->getHeaders().makeCHeaderList().data(),
+	    nghttp2_submit_request(mHttpSession.get(), &request->mPriority, request->getHeaders().makeCHeaderList().data(),
 	                           request->getHeaders().getHeadersList().size(), request->getCDataProvider(), nullptr);
 	if (streamId < 0) {
 		SLOGE << logPrefix << ": push request submit failed. reason=[" << nghttp2_strerror(streamId) << "]";

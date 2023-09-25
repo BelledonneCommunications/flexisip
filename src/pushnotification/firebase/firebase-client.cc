@@ -16,11 +16,12 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "firebase-client.hh"
+
 #include <flexisip/logmanager.hh>
 
-#include "utils/string-utils.hh"
-
-#include "firebase-client.hh"
+#include "pushnotification/firebase/firebase-request.hh"
+#include "utils/transport/http/http2client.hh"
 
 using namespace std;
 
