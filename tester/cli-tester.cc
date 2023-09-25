@@ -197,8 +197,12 @@ void flexisip_cli_dot_py() {
 				BC_HARD_FAIL(("Error "s + std::strerror(errno) + " closing process").c_str());
 			}
 			if (WIFEXITED(exitStatus)) exitStatus = WEXITSTATUS(exitStatus);
-			BC_ASSERT_EQUAL(exitStatus, expected_status, int, "%i");
 			output.resize(nread);
+			if (exitStatus != expected_status) {
+				BC_HARD_FAIL(("Expected command to return " + std::to_string(expected_status) + " but found " +
+				              std::to_string(exitStatus) + ".\nCommand: " + command + "\nOutput: " + output)
+				                 .c_str());
+			}
 			return output;
 		});
 
@@ -299,7 +303,7 @@ void flexisip_cli_dot_py() {
 		command.str("");
 		command << "REGISTRAR_UPSERT " << aor << " " << modifiedContact << " 682 " << differentUid;
 		const auto result = callScript(command.str(), EX_USAGE);
-		BC_ASSERT_STRING_EQUAL(result.c_str(), "INVALID\n"); // CSeq has not been properly incremented
+		BC_ASSERT_STRING_EQUAL(result.c_str(), "Error: Invalid Record\n"); // CSeq has not been properly incremented
 	}
 
 	// TODO: Test parallel requests to the socket
@@ -402,6 +406,16 @@ void flexisip_cli_dot_py() {
 		const auto& contact = **fetchedContacts.latest();
 		BC_ASSERT_STRING_EQUAL(contact.mKey.str().c_str(), uid.c_str());
 		BC_ASSERT_EQUAL(contact.mQ, 0.3, float, "%f");
+	}
+
+	{ // CONFIG_GET success
+		const auto result = callScript("CONFIG_GET global/log-level 2>&1", EX_OK);
+		BC_ASSERT_CPP_EQUAL(result, "log-level : error\n");
+	}
+
+	{ // CONFIG_GET error
+		const auto result = callScript("CONFIG_GET no/such-setting 2>&1", EX_USAGE);
+		BC_ASSERT_CPP_EQUAL(result, "Error: no/such-setting not found\n");
 	}
 }
 
