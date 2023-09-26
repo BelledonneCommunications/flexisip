@@ -209,9 +209,9 @@ protected:
 	                     const std::string& uniqueId,
 	                     const std::shared_ptr<ContactUpdateListener>& listener) override;
 	void doMigration() override;
-	bool subscribe(const std::string& topic, std::weak_ptr<ContactRegisteredListener>&& listener) override;
-	void unsubscribe(const std::string& topic, const std::shared_ptr<ContactRegisteredListener>& listener) override;
-	void publish(const std::string& topic, const std::string& uid) override;
+	bool subscribe(const Record::Key& topic, std::weak_ptr<ContactRegisteredListener>&& listener) override;
+	void unsubscribe(const Record::Key& topic, const std::shared_ptr<ContactRegisteredListener>& listener) override;
+	void publish(const Record::Key& topic, const std::string& uid) override;
 
 private:
 	static void sConnectCallback(const redisAsyncContext* c, int status);

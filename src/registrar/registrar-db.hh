@@ -5,6 +5,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstddef>
 #include <functional>
 #include <list>
 #include <map>
@@ -14,7 +15,9 @@
 #include <vector>
 #include <string>
 
+#include "registrar/record.hh"
 #include "sofia-sip/sip.h"
+#include "utils/cast-to-const.hh"
 
 namespace sofiasip {
 class MsgSip;
@@ -92,13 +95,12 @@ public:
 		return mGruuEnabled;
 	};
 
-	void subscribe(const SipUri& url, std::weak_ptr<ContactRegisteredListener>&& listener);
 	/**
 	 * @return true if a subscribe was necessary (not already subscribed topic)
 	 */
-	virtual bool subscribe(const std::string& topic, std::weak_ptr<ContactRegisteredListener>&& listener);
-	virtual void unsubscribe(const std::string& topic, const std::shared_ptr<ContactRegisteredListener>& listener);
-	virtual void publish(const std::string& topic, const std::string& uid) = 0;
+	virtual bool subscribe(const Record::Key& topic, std::weak_ptr<ContactRegisteredListener>&& listener);
+	virtual void unsubscribe(const Record::Key& topic, const std::shared_ptr<ContactRegisteredListener>& listener);
+	virtual void publish(const Record::Key& topic, const std::string& uid) = 0;
 	bool useGlobalDomain() const {
 		return mUseGlobalDomain;
 	}
@@ -119,6 +121,11 @@ public:
 
 	void getLocalRegisteredAors(std::list<std::string>& aors) const {
 		mLocalRegExpire->getRegisteredAors(aors);
+	}
+
+	const std::multimap<const std::string, const std::weak_ptr<const ContactRegisteredListener>>&
+	getOnContactRegisteredListeners() const {
+		return castToConst(mContactListenersMap);
 	}
 
 protected:
@@ -147,6 +154,9 @@ protected:
 		void unsubscribe(LocalRegExpireListener* listener);
 		void notifyLocalRegExpireListener(unsigned int count);
 	};
+
+	RegistrarDb(Agent* ag);
+
 	virtual void doBind(const sofiasip::MsgSip& sip,
 	                    const BindingParameters& parameters,
 	                    const std::shared_ptr<ContactUpdateListener>& listener) = 0;
@@ -162,10 +172,9 @@ protected:
 	                                 const std::string& key,
 	                                 const std::shared_ptr<RegistrarDbListener>& listener);
 	void fetchWithDomain(const SipUri& url, const std::shared_ptr<ContactUpdateListener>& listener, bool recursive);
-	void notifyContactListener(const std::string& key, const std::string& uid);
+	void notifyContactListener(const Record::Key& key, const std::string& uid);
 	void notifyStateListener() const;
 
-	RegistrarDb(Agent* ag);
 	std::multimap<std::string, std::weak_ptr<ContactRegisteredListener>> mContactListenersMap;
 	std::list<std::shared_ptr<RegistrarDbStateListener>> mStateListeners;
 	LocalRegExpire* mLocalRegExpire;

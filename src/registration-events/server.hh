@@ -19,11 +19,12 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <unordered_map>
 
 #include <linphone++/linphone.hh>
 
-#include "registration-events/registrar/listener.hh"
+#include "flexisip/registrar/registar-listeners.hh"
 #include "service-server.hh"
 
 namespace flexisip {
@@ -32,16 +33,31 @@ namespace RegistrationEvent {
 
 class Server : public ServiceServer {
 public:
-	class Subscriptions : public std::enable_shared_from_this<Subscriptions>, public linphone::CoreListener {
+	class Subscriptions : public linphone::CoreListener,
+	                      public ContactRegisteredListener,
+	                      public ContactUpdateListener {
 	private:
 		void onSubscribeReceived(const std::shared_ptr<linphone::Core>&,
 		                         const std::shared_ptr<linphone::Event>&,
 		                         const std::string&,
 		                         const std::shared_ptr<const linphone::Content>&) override;
+		void onSubscriptionStateChanged(const std::shared_ptr<linphone::Core>& core,
+		                                const std::shared_ptr<linphone::Event>& linphoneEvent,
+		                                linphone::SubscriptionState state) override;
 
-		std::shared_ptr<Registrar::Listener> makeListener(const std::shared_ptr<linphone::Event>&);
+		void onRecordFound(const std::shared_ptr<Record>& r) override;
+		void onError() override {
+		}
+		void onInvalid() override {
+		}
+		void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override {
+		}
 
-		std::unordered_map<const linphone::Event*, Registrar::Listener> mListeners{};
+		void onContactRegistered(const std::shared_ptr<Record>&, const std::string& uidOfFreshlyRegistered) override;
+
+		void processRecord(const std::shared_ptr<Record>&, const std::string& uidOfFreshlyRegistered);
+
+		std::unordered_map<std::string, std::shared_ptr<linphone::Event>> mEvents{};
 	};
 
 	static const std::string CONTENT_TYPE;

@@ -109,8 +109,7 @@ void OnRequestBindListener::onRecordFound(const shared_ptr<Record>& r) {
 		mModule->reply(mEv, 200, "Registration successful", r->getContacts(ms->getHome()));
 		if (mContact) {
 			string uid = Record::extractUniqueId(mContact);
-			string topic = mModule->routingKey(mSipFrom->a_url);
-			RegistrarDb::get()->publish(topic, uid);
+			RegistrarDb::get()->publish(Record::Key(mSipFrom->a_url), uid);
 		}
 		/*
 		 * Tell SofiaSip to reply to CRLF pings only if
@@ -155,8 +154,7 @@ void OnResponseBindListener::onRecordFound(const shared_ptr<Record>& r) {
 	}
 
 	string uid = Record::extractUniqueId(mCtx->mOriginalContacts);
-	string topic = mModule->routingKey(mCtx->mRequestSipEvent->getSip()->sip_from->a_url);
-	RegistrarDb::get()->publish(topic, uid);
+	RegistrarDb::get()->publish(Record::Key(mCtx->mRequestSipEvent->getSip()->sip_from->a_url), uid);
 
 	sip_contact_t* dbContacts = r->getContacts(ms->getHome());
 
@@ -540,10 +538,6 @@ void ModuleRegistrar::removeInternalParams(sip_contact_t* ct) {
 			}
 		}
 	}
-}
-
-string ModuleRegistrar::routingKey(const url_t* sipUri) {
-	return Record::defineKeyFromUrl(sipUri);
 }
 
 void ModuleRegistrar::reply(shared_ptr<RequestSipEvent>& ev,

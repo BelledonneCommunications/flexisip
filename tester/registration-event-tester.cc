@@ -16,6 +16,10 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "bctoolbox/tester.h"
+#include "registrar/record.hh"
+#include "registration-events/server.hh"
+
 #include <bctoolbox/logging.h>
 
 #include <memory>
@@ -30,7 +34,6 @@
 
 #include "agent.hh"
 #include "registrar/registrar-db.hh"
-#include "registration-events/server.hh"
 #include "utils/asserts.hh"
 #include "utils/chat-room-builder.hh"
 #include "utils/client-builder.hh"
@@ -105,10 +108,11 @@ void basicSubscription() {
 	TestConferenceServer conferenceServer(agent);
 	auto& regDb = *RegistrarDb::get();
 	ContactInserter inserter{regDb, std::make_shared<AcceptUpdatesListener>()};
-	const string participantTopic = "participant1@localhost";
-	const auto participantFrom = "sip:" + participantTopic;
-	const string otherParticipantTopic = "participant2@localhost";
-	const auto otherParticipantFrom = "sip:" + otherParticipantTopic;
+	const string participantFrom = "sip:participant1@localhost";
+	const Record::Key participantTopic{SipUri(participantFrom)};
+	const auto participantAddress = linFactory->createAddress(participantFrom);
+	const string otherParticipantFrom = "sip:participant2@localhost";
+	const Record::Key otherParticipantTopic{SipUri(otherParticipantFrom)};
 	// Fill the Regisrar DB with participants
 	inserter.withGruu(true)
 	    .setExpire(1000s)
@@ -119,10 +123,9 @@ void basicSubscription() {
 	    .insert({.uniqueId = "redhat"})
 	    .insert({.uniqueId = "debian"});
 
-	const auto chatRoom =
-	    client.chatroomBuilder()
-	        .setSubject("reg-event-test")
-	        .build({linFactory->createAddress(participantFrom), linFactory->createAddress(otherParticipantFrom)});
+	const auto chatRoom = client.chatroomBuilder()
+	                          .setSubject("reg-event-test")
+	                          .build({participantAddress, linFactory->createAddress(otherParticipantFrom)});
 	const auto totalDevicesCount = [&chatRoom]() {
 		auto count = 0;
 		for (const auto& participant : chatRoom->getParticipants()) {
@@ -182,6 +185,16 @@ void basicSubscription() {
 		BC_ASSERT_CPP_EQUAL(firstParticipant.getDevices().size(), 0);
 	}
 
+	// Remove participant from chatroom, check that corresponding topic is unsubbed on the "remote" Register
+	const auto& onRegisterListeners = regDb.getOnContactRegisteredListeners();
+	BC_ASSERT_TRUE(onRegisterListeners.find(participantTopic) != onRegisterListeners.end());
+	chatRoom->removeParticipant(chatRoom->findParticipant(participantAddress));
+	BC_ASSERT_TRUE(asserter.iterateUpTo(3, [&regDb, &participantTopic, &onRegisterListeners] {
+		// Trigger regDb listeners cleanup
+		regDb.publish(participantTopic, "");
+		return onRegisterListeners.find(participantTopic) == onRegisterListeners.end();
+	}));
+
 	// Reroute everything locally on the Conference Server
 	conferenceServer.clearLocalDomainList();
 
@@ -193,7 +206,7 @@ void basicSubscription() {
 
 	// Check if the participant was still added (locally)
 	const auto participants = chatRoom->getParticipants();
-	BC_ASSERT_CPP_EQUAL(participants.size(), 3);
+	BC_ASSERT_CPP_EQUAL(participants.size(), 2);
 	const auto& newParticipant = *participants.back();
 	BC_ASSERT_CPP_EQUAL(newParticipant.getAddress()->asString(), participantRebindFrom);
 	BC_ASSERT_CPP_EQUAL(newParticipant.getDevices().size(), 1);

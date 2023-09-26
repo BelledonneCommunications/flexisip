@@ -110,9 +110,9 @@ list<string> Record::route_to_stl(const sip_route_s* route) {
 	return res;
 }
 
-string Record::defineKeyFromUrl(const url_t* url) {
+Record::Key::Key(const url_t* url) : mWrapped() {
 	ostringstream ostr;
-	if (url == nullptr) return string{};
+	if (url == nullptr) return;
 	const char* user = url->url_user;
 	if (user && user[0] != '\0') {
 		if (!RegistrarDb::get()->useGlobalDomain()) {
@@ -124,11 +124,11 @@ string Record::defineKeyFromUrl(const url_t* url) {
 	} else {
 		ostr << url->url_host;
 	}
-	return ostr.str();
+	mWrapped = ostr.str();
 }
 
-SipUri Record::makeUrlFromKey(const string& key) {
-	return SipUri("sip:" + key);
+Record::Key::operator SipUri() const {
+	return SipUri("sip:" + mWrapped);
 }
 
 ChangeSet Record::insertOrUpdateBinding(unique_ptr<ExtendedContact>&& ec, ContactUpdateListener* listener) {
@@ -414,10 +414,7 @@ bool Record::sAssumeUniqueDomains = false;
 Record::Record(const SipUri& aor) : Record(SipUri(aor)) {
 }
 
-Record::Record(SipUri&& aor) : mAor(std::move(aor)) {
-	// warning: aor is empty at this point. Use mAor!
-	mKey = defineKeyFromUrl(mAor.get());
-	mIsDomain = mAor.getUser().empty();
+Record::Record(SipUri&& aor) : mAor(std::move(aor)), mKey(mAor), mIsDomain(mAor.getUser().empty()) {
 	if (sMaxContacts == -1) init();
 }
 

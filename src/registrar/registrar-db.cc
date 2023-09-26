@@ -12,6 +12,7 @@
 
 #include "agent.hh"
 #include "extended-contact.hh"
+#include "flexisip/utils/sip-uri.hh"
 #include "record.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrardb-internal.hh"
@@ -52,11 +53,8 @@ void RegistrarDb::notifyStateListener() const {
 		listener->onRegistrarDbWritable(mWritable);
 }
 
-void RegistrarDb::subscribe(const SipUri& url, std::weak_ptr<ContactRegisteredListener>&& listener) {
-	this->subscribe(Record::defineKeyFromUrl(url.get()), std::move(listener));
-}
-
-bool RegistrarDb::subscribe(const string& topic, std::weak_ptr<ContactRegisteredListener>&& listener) {
+bool RegistrarDb::subscribe(const Record::Key& key, std::weak_ptr<ContactRegisteredListener>&& listener) {
+	const string& topic = key;
 	const auto& alreadyRegisteredListener = mContactListenersMap.equal_range(topic);
 
 	const auto strongPtr = listener.lock();
@@ -75,7 +73,8 @@ bool RegistrarDb::subscribe(const string& topic, std::weak_ptr<ContactRegistered
 	return true;
 }
 
-void RegistrarDb::unsubscribe(const string& topic, const shared_ptr<ContactRegisteredListener>& listener) {
+void RegistrarDb::unsubscribe(const Record::Key& key, const shared_ptr<ContactRegisteredListener>& listener) {
+	const string& topic = key;
 	LOGD("Unsubscribe topic = %s with listener %p", topic.c_str(), listener.get());
 	bool found = false;
 	auto range = mContactListenersMap.equal_range(topic);
@@ -114,10 +113,10 @@ private:
 	SipUri mAor;
 };
 
-void RegistrarDb::notifyContactListener(const string& key, const string& uid) {
-	auto sipUri = Record::makeUrlFromKey(key);
+void RegistrarDb::notifyContactListener(const Record::Key& key, const string& uid) {
+	SipUri sipUri{key};
 	auto listener = make_shared<ContactNotificationListener>(uid, this, sipUri);
-	LOGD("Notify topic = %s, uid = %s", key.c_str(), uid.c_str());
+	SLOGD << "Notify topic = " << key << ", uid = " << uid;
 	RegistrarDb::get()->fetch(sipUri, listener, true);
 }
 
@@ -137,7 +136,7 @@ void RegistrarDb::notifyContactListener(const shared_ptr<Record>& r, const strin
 		}
 	}
 	for (const auto& l : listeners) {
-		LOGD("Notify topic = %s to listener %p", r->getKey().c_str(), l.get());
+		SLOGD << "Notify topic = " << r->getKey() << " to listener " << l.get();
 		l->onContactRegistered(r, uid);
 	}
 }
@@ -567,8 +566,8 @@ void RegistrarDb::bind(MsgSip&& sipMsg,
 
 	int countSipContacts = this->countSipContacts(sip->sip_contact);
 	if (countSipContacts > Record::getMaxContacts()) {
-		LOGD("Too many contacts in register %s %i > %i", Record::defineKeyFromUrl(sip->sip_from->a_url).c_str(),
-		     countSipContacts, Record::getMaxContacts());
+		SLOGD << "Too many contacts in register " << Record::Key(sip->sip_from->a_url) << " " << countSipContacts
+		      << " > " << Record::getMaxContacts();
 		listener->onError();
 		return;
 	}

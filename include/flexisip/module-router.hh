@@ -24,6 +24,7 @@
 #include "flexisip/module-router-interface.hh"
 #include "flexisip/module.hh"
 #include "flexisip/registrar/registar-listeners.hh"
+#include "registrar/record.hh"
 
 namespace flexisip {
 
@@ -127,7 +128,7 @@ protected:
 	using ForkMap = std::multimap<std::string, ForkMapElem>;
 	using ForkRefList = std::vector<ForkMapElem>;
 
-	std::string routingKey(const url_t* sipUri);
+	Record::Key routingKey(const url_t* sipUri);
 	std::vector<std::string> split(const char* data, const char* delim);
 	ForkRefList getLateForks(const std::string& key) const noexcept;
 

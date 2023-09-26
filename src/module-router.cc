@@ -252,7 +252,7 @@ void ModuleRouter::restoreForksFromDatabase() {
 		auto restoredForkMessage = ForkMessageContextDbProxy::make(shared_from_this(), dbMessage);
 		for (const auto& key : dbMessage.dbKeys) {
 			mForks.emplace(key, restoredForkMessage);
-			RegistrarDb::get()->subscribe(key, std::weak_ptr(mOnContactRegisteredListener));
+			RegistrarDb::get()->subscribe(Record::Key(key), std::weak_ptr(mOnContactRegisteredListener));
 		}
 	}
 	SLOGI << " ... " << mForks.size() << " fork message restored from DB.";
@@ -288,7 +288,7 @@ void ModuleRouter::sendReply(
 	}
 }
 
-string ModuleRouter::routingKey(const url_t* sipUri) {
+Record::Key ModuleRouter::routingKey(const url_t* sipUri) {
 	ostringstream oss;
 	if (sipUri->url_user) {
 		oss << sipUri->url_user << "@";
@@ -298,7 +298,7 @@ string ModuleRouter::routingKey(const url_t* sipUri) {
 	} else {
 		oss << sipUri->url_host;
 	}
-	return oss.str();
+	return Record::Key(oss.str());
 }
 
 std::shared_ptr<BranchInfo> ModuleRouter::dispatch(const shared_ptr<ForkContext>& context,
@@ -598,7 +598,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 	} else {
 		context = ForkBasicContext::make(shared_from_this(), ev, msgPriority);
 	}
-	const auto key = routingKey(sipUri);
+	auto key = routingKey(sipUri);
 	context->addKey(key);
 	mForks.emplace(key, context);
 	SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
@@ -632,13 +632,14 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 					temp_ctt->m_url->url_host = "merged";
 					temp_ctt->m_url->url_port = NULL;
 				}
-				const string aliasKey(routingKey(temp_ctt->m_url));
+				auto aliasKey = routingKey(temp_ctt->m_url);
 				context->addKey(aliasKey);
 				mForks.emplace(aliasKey, context);
+				SLOGD << "Add fork " << context.get() << " to store with key '" << aliasKey
+				      << "' because it is an alias";
 				if (context->getConfig()->mForkLate) {
-					RegistrarDb::get()->subscribe(aliasKey, std::weak_ptr(mOnContactRegisteredListener));
+					RegistrarDb::get()->subscribe(std::move(aliasKey), std::weak_ptr(mOnContactRegisteredListener));
 				}
-				LOGD("Add fork %p to store with key '%s' because it is an alias", context.get(), aliasKey.c_str());
 			}
 		}
 	}
@@ -1072,6 +1073,6 @@ ModuleInfo<ModuleRouter> ModuleRouter::sInfo(
 sofiasip::MsgSipPriority ModuleRouter::sMaxPriorityHandled = sofiasip::MsgSipPriority::Normal;
 
 void OnContactRegisteredListener::onContactRegistered(const shared_ptr<Record>& r, const string& uid) {
-	LOGD("Listener invoked for topic = %s, uid = %s", r->getKey().c_str(), uid.c_str());
+	SLOGD << "Listener invoked for topic = " << r->getKey() << ", uid = " << uid;
 	if (r) mModule->onContactRegistered(shared_from_this(), uid, r);
 }

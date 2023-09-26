@@ -16,10 +16,12 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <exception>
 #include <iostream>
 #include <sstream>
 
 #include <linphone++/linphone.hh>
+#include <stdexcept>
 
 #include "flexisip/logmanager.hh"
 
@@ -140,8 +142,10 @@ void ClientFactory::onSubscriptionStateChanged([[maybe_unused]] const std::share
 	try {
 		Client& client = linphoneEvent->getData<Client>(Client::eventKey);
 		client.onSubscriptionStateChanged(state);
-	} catch (...) {
-		LOGE("ClientFactory::onSubscriptionStateChanged: disconnected client");
+	} catch (const std::out_of_range&) {
+		LOGW("ClientFactory::onSubscriptionStateChanged: Client disconnected");
+	} catch (const std::exception& exc) {
+		SLOGE << "ClientFactory::onSubscriptionStateChanged: " << exc.what();
 	}
 }
 
@@ -152,8 +156,10 @@ void ClientFactory::onNotifyReceived([[maybe_unused]] const shared_ptr<Core>& lc
 	try {
 		Client& client = lev->getData<Client>(Client::eventKey);
 		client.onNotifyReceived(body);
-	} catch (...) {
-		LOGE("ClientFactory::onNotifyReceived: disconnected client");
+	} catch (const std::out_of_range&) {
+		LOGW("ClientFactory::onSubscriptionStateChanged: Client disconnected");
+	} catch (const std::exception& exc) {
+		SLOGE << "ClientFactory::onSubscriptionStateChanged: " << exc.what();
 	}
 }
 

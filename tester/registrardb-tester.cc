@@ -91,7 +91,7 @@ protected:
 
 		auto stats = make_shared<RegistrarStats>();
 
-		const string topic{"user@sip.example.org"};
+		const Record::Key topic{SipUri("sip:user@sip.example.org")};
 		const string uuid{"dummy-uuid"};
 		SLOGD << "Subscribing to '" << topic << "'";
 		regDb->subscribe(topic, stats);

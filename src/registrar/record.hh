@@ -8,6 +8,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <utility>
 
 #include "flexisip/sofia-wrapper/home.hh"
 #include "flexisip/utils/sip-uri.hh"
@@ -43,6 +44,37 @@ public:
 		auto latest() const {
 			return crbegin();
 		}
+	};
+
+	class Key {
+	public:
+		friend class ModuleRouter;
+		friend class RegistrarDbRedisAsync;
+
+		// A null pointer or an empty AOR leads to an empty key.
+		explicit Key(const url_t* aor);
+		explicit Key(const SipUri& aor) : Key(aor.get()) {
+		}
+
+		operator const std::string&() const {
+			return mWrapped;
+		}
+		operator std::string() && {
+			return std::move(mWrapped);
+		}
+		operator SipUri() const;
+
+		friend std::ostream& operator<<(std::ostream& out, const Key& self) {
+			return out << self.mWrapped;
+		}
+
+	private:
+		explicit Key(std::string&& raw) : mWrapped(std::move(raw)) {
+		}
+		explicit Key(const std::string_view& raw) : mWrapped(raw) {
+		}
+
+		std::string mWrapped;
 	};
 
 	static std::list<std::string> sLineFieldNames;
@@ -99,7 +131,7 @@ public:
 	bool isEmpty() const {
 		return mContacts.empty();
 	}
-	const std::string& getKey() const {
+	const Key& getKey() const {
 		return mKey;
 	}
 	int count() {
@@ -137,9 +169,6 @@ public:
 	}
 	bool isSame(const Record& other) const;
 
-	// A null pointer or an empty AOR leads to an empty key.
-	static std::string defineKeyFromUrl(const url_t* aor);
-	static SipUri makeUrlFromKey(const std::string& key);
 	static std::string extractUniqueId(const sip_contact_t* contact);
 
 private:
@@ -156,8 +185,8 @@ private:
 
 	sofiasip::Home mHome;
 	Contacts mContacts;
-	std::string mKey;
 	SipUri mAor;
+	Key mKey;
 	bool mIsDomain = false; /*is a domain registration*/
 	bool mOnlyStaticContacts = true;
 };

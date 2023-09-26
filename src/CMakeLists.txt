@@ -306,8 +306,6 @@ if (ENABLE_CONFERENCE)
 		registration-events/client.hh
 		registration-events/server.cpp
 		registration-events/server.hh
-		registration-events/registrar/listener.hh
-		registration-events/registrar/listener.cpp
 	)
 	target_link_libraries(flexisip
 		PRIVATE belle-sip

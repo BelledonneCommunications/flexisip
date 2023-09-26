@@ -40,6 +40,7 @@
 #include "registrar/binding-parameters.hh"
 #include "registrar/contact-key.hh"
 #include "registrar/registrar-db.hh"
+#include "sofia-sip/url.h"
 #include "utils/string-utils.hh"
 
 using namespace flexisip;
@@ -143,7 +144,7 @@ void CommandLineInterface::handleConfigGet(SocketHandle&& socket, const std::vec
 		return;
 	}
 
-	GenericStruct* gstruct = dynamic_cast<GenericStruct *>(entry);
+	GenericStruct* gstruct = dynamic_cast<GenericStruct*>(entry);
 	if (gstruct) socket.send(printSection(gstruct, false));
 	else socket.send(printEntry(entry, false));
 }
@@ -160,7 +161,7 @@ void CommandLineInterface::handleConfigList(SocketHandle&& socket, const std::ve
 		return;
 	}
 
-	GenericStruct* gstruct = dynamic_cast<GenericStruct *>(entry);
+	GenericStruct* gstruct = dynamic_cast<GenericStruct*>(entry);
 	if (gstruct) socket.send(printSection(gstruct, true));
 	else socket.send(printEntry(entry, true));
 }
@@ -526,33 +527,41 @@ void ProxyCommandLineInterface::handleRegistrarClear(SocketHandle&& socket, cons
 
 	class ClearListener : public CommandListener {
 	public:
-		ClearListener(SocketHandle&& socket, const std::string& uri) : CommandListener(std::move(socket)), mUri(uri) {
+		ClearListener(SocketHandle&& socket, Record::Key&& uri)
+		    : CommandListener(std::move(socket)), mUri(std::move(uri)) {
 		}
 
-		void onRecordFound([[maybe_unused]] const shared_ptr<Record>& r) override {
-			RegistrarDb::get()->publish(mUri, "");
-			mSocket.send("Done: cleared record " + mUri);
+		void onRecordFound(const shared_ptr<Record>& r) override {
+			RegistrarDb::get()->publish(r->getKey(), "");
+			mSocket.send("Done: cleared record " + static_cast<const string&>(mUri));
 		}
 		void onError() override {
-			mSocket.send("Error: cannot clear record " + mUri);
+			mSocket.send("Error: cannot clear record " + static_cast<const string&>(mUri));
 		}
 		void onInvalid() override {
-			mSocket.send("Error: cannot clear record " + mUri);
+			mSocket.send("Error: cannot clear record " + static_cast<const string&>(mUri));
 		}
 
 	private:
-		std::string mUri;
+		Record::Key mUri;
 	};
 
-	std::string arg = args.front();
+	SipUri url;
+	try {
+		url = SipUri(args.front().c_str());
+	} catch (const sofiasip::InvalidUrlError& e) {
+		socket.send(string{"Error: invalid SIP address ["} + e.what() + "]");
+		return;
+	}
+
 	auto msg = MsgSip(ownership::owned(nta_msg_create(mAgent->getSofiaAgent(), 0)));
 	auto sip = msg.getSip();
-	sip->sip_from = sip_from_create(msg.getHome(), (url_string_t*)arg.c_str());
-	auto listener = std::make_shared<ClearListener>(std::move(socket), arg);
-	RegistrarDb::get()->clear(msg, listener);
+	sip->sip_from = sip_from_create(msg.getHome(), reinterpret_cast<const url_string_t*>(url.get()));
+	RegistrarDb::get()->clear(msg, std::make_shared<ClearListener>(std::move(socket), Record::Key(url)));
 }
 
-void ProxyCommandLineInterface::handleRegistrarDump(SocketHandle&& socket, [[maybe_unused]] const std::vector<std::string>& args) {
+void ProxyCommandLineInterface::handleRegistrarDump(SocketHandle&& socket,
+                                                    [[maybe_unused]] const std::vector<std::string>& args) {
 	list<string> aorList;
 
 	RegistrarDb::get()->getLocalRegisteredAors(aorList);
@@ -574,7 +583,7 @@ void ProxyCommandLineInterface::handleRegistrarDump(SocketHandle&& socket, [[may
 void ProxyCommandLineInterface::parseAndAnswer(SocketHandle&& socket,
                                                const std::string& command,
                                                const std::vector<std::string>& args) {
-	if (command == "REGISTRAR_CLEAR"){
+	if (command == "REGISTRAR_CLEAR") {
 		handleRegistrarClear(std::move(socket), args);
 	} else if (command == "REGISTRAR_GET") {
 		handleRegistrarGet(std::move(socket), args);

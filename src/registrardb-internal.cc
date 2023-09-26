@@ -20,7 +20,6 @@
 #include <ctime>
 #include <vector>
 
-#include "flexisip/common.hh"
 #include "flexisip/registrar/registar-listeners.hh"
 #include "flexisip/sofia-wrapper/msg-sip.hh"
 
@@ -48,7 +47,7 @@ void RegistrarDbInternal::doBind(const MsgSip& msg,
 		throw InvalidAorError(sip->sip_from->a_url);
 	}
 
-	string key = Record::defineKeyFromUrl(fromUri.get());
+	string key = Record::Key(fromUri);
 
 	auto it = mRecords.find(key);
 	shared_ptr<Record> r;
@@ -74,9 +73,7 @@ void RegistrarDbInternal::doBind(const MsgSip& msg,
 }
 
 void RegistrarDbInternal::doFetch(const SipUri& url, const shared_ptr<ContactUpdateListener>& listener) {
-	string key = Record::defineKeyFromUrl(url.get());
-
-	auto it = mRecords.find(key);
+	auto it = mRecords.find(Record::Key(url));
 	shared_ptr<Record> r = NULL;
 	if (it != mRecords.end()) {
 		r = (*it).second;
@@ -93,10 +90,9 @@ void RegistrarDbInternal::doFetch(const SipUri& url, const shared_ptr<ContactUpd
 void RegistrarDbInternal::doFetchInstance(const SipUri& url,
                                           const string& uniqueId,
                                           const shared_ptr<ContactUpdateListener>& listener) {
-	string key(Record::defineKeyFromUrl(url.get()));
 	sofiasip::Home home;
 
-	auto it = mRecords.find(key);
+	auto it = mRecords.find(Record::Key(url));
 	shared_ptr<Record> r = NULL;
 
 	if (it == mRecords.end()) {
@@ -146,7 +142,7 @@ void RegistrarDbInternal::fetchExpiringContacts(time_t current_time,
 
 void RegistrarDbInternal::doClear(const MsgSip& msg, const shared_ptr<ContactUpdateListener>& listener) {
 	auto sip = msg.getSip();
-	string key = Record::defineKeyFromUrl(sip->sip_from->a_url);
+	string key = Record::Key(sip->sip_from->a_url);
 
 	if (errorOnTooMuchContactInBind(sip->sip_contact, key, listener)) {
 		listener->onError();
@@ -176,7 +172,7 @@ void RegistrarDbInternal::clearAll() {
 	mLocalRegExpire->clearAll();
 }
 
-void RegistrarDbInternal::publish(const string& topic, const string& uid) {
-	LOGD("Publish topic = %s, uid = %s", topic.c_str(), uid.c_str());
+void RegistrarDbInternal::publish(const Record::Key& topic, const string& uid) {
+	SLOGD << "Publish topic = " << topic << ", uid =" << uid;
 	RegistrarDb::notifyContactListener(topic, uid);
 }
