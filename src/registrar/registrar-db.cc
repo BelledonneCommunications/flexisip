@@ -8,17 +8,22 @@
 
 #include "flexisip/configmanager.hh"
 #include "flexisip/registrar/registar-listeners.hh"
+#include "flexisip/sofia-wrapper/msg-sip.hh"
 
+#include "agent.hh"
 #include "extended-contact.hh"
 #include "record.hh"
+#include "registrar/binding-parameters.hh"
 #include "registrardb-internal.hh"
-#include "registrardb-redis.hh"
 #include "utils/uri-utils.hh"
+
+#if ENABLE_REDIS
+#include "registrardb-redis.hh"
+#endif
 
 using namespace std;
 
 namespace flexisip {
-using namespace redis::auth;
 
 RegistrarDb::LocalRegExpire::LocalRegExpire(Agent* ag) : mAgent(ag) {
 }
@@ -262,6 +267,8 @@ RegistrarDb* RegistrarDb::initialize(Agent* ag) {
 		params.port = registrar->get<ConfigInt>("redis-server-port")->read();
 		params.timeout = registrar->get<ConfigInt>("redis-server-timeout")->read();
 		params.auth = [&registrar]() -> decltype(params.auth) {
+			using namespace redis::auth;
+
 			const auto& password = registrar->get<ConfigString>("redis-auth-password")->read();
 			if (password.empty()) {
 				return None();

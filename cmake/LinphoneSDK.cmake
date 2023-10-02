@@ -205,7 +205,9 @@ if(ENABLE_LIBLINPHONE)
 		)
 	endif()
 	add_subdirectory("linphone-sdk/liblinphone")
-	unset(ENABLE_UNIT_TESTS) # remove the overriding
+	# remove overridings
+	unset(ENABLE_UNIT_TESTS)
+	unset(ENABLE_FLEXIAPI)
 endif()
 
 unset(ENABLE_STRICT)

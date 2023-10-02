@@ -334,8 +334,8 @@ void ForkMessageContextDbProxy::startTimerAndResetFork(time_t expirationDate, co
 	auto diff = system_clock::from_time_t(expirationDate) - system_clock::now();
 	if (diff < 0s) diff = 0s;
 
-	LOGD("ForkMessageContextDbProxy[%p] startTimerAndResetFork, expiration in : %li s", this,
-	     duration_cast<seconds>(diff).count());
+	SLOGD << "ForkMessageContextDbProxy[" << this
+	      << "] startTimerAndResetFork, expiration in : " << duration_cast<seconds>(diff).count() << "s";
 
 	mProxyLateTimer.set(
 	    [weak = weak_ptr<ForkMessageContextDbProxy>{shared_from_this()}]() {

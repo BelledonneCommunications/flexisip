@@ -42,14 +42,14 @@ Transcoder::Transcoder(Agent *ag) : Module(ag) {
 }
 Transcoder::~Transcoder() {
 }
-void Transcoder::onLoad(const GenericStruct *mc) {
+void Transcoder::onLoad(const GenericStruct *) {
 }
 void Transcoder::onIdle() {
 }
-void Transcoder::onRequest(shared_ptr<RequestSipEvent> &ev) {
+void Transcoder::onRequest(shared_ptr<RequestSipEvent> &) {
 	LOGA("Transcoder support is not compiled");
 }
-void Transcoder::onResponse(shared_ptr<ResponseSipEvent> &ev) {
+void Transcoder::onResponse(shared_ptr<ResponseSipEvent> &) {
 	LOGA("Transcoder support is not compiled");
 }
 #endif

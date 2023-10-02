@@ -1,0 +1,16 @@
+.minimal-image:
+  image:
+    name: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-minimal:$MINIMAL_IMAGE_VERSION
+
+#################################################
+# Ninja
+#################################################
+
+job-minimal-ninja-gcc:
+  extends:
+    - .job-ninja-gcc
+    - .minimal-image
+    - .rules-dev  # ⚠ See `rules.yml`
+  variables:
+    CMAKE_OPTIONS: -DENABLE_PRESENCE=OFF -DENABLE_REDIS=OFF -DENABLE_SNMP=OFF -DENABLE_SOCI=OFF -DENABLE_TRANSCODER=OFF -DENABLE_MDNS=OFF -DENABLE_EXTERNAL_AUTH_PLUGIN=OFF -DENABLE_JWE_AUTH_PLUGIN=OFF -DENABLE_CONFERENCE=OFF -DENABLE_SOCI_POSTGRESQL_BACKEND=OFF -DENABLE_B2BUA=OFF -DENABLE_UNIT_TESTS=OFF -DENABLE_PROTOBUF=OFF -DENABLE_FLEXIAPI=OFF
+

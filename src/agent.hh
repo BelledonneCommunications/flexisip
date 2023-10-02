@@ -46,6 +46,7 @@
 #include "flexisip/utils/sip-uri.hh"
 
 #include "agent-interface.hh"
+#include "eventlogs/writers/event-log-writer.hh"
 #include "transaction.hh"
 #include "transport.hh"
 
@@ -53,7 +54,6 @@ namespace flexisip {
 
 class Module;
 class DomainRegistrationManager;
-class EventLogWriter;
 
 /**
  * The agent class represents a SIP agent.
