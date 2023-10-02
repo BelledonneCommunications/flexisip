@@ -25,7 +25,7 @@
 #######################################################################################################################
 
 add_library(flexisip SHARED
-	agent.cc agent.hh
+	agent.cc agent-startlogwriter.cc agent.hh
 	auth/db/authdb-file.cc
 	auth/db/authdb.cc auth/db/authdb.hh
 	auth/flexisip-auth-module-base.cc
@@ -62,7 +62,6 @@ add_library(flexisip SHARED
 	eventlogs/events/sip-event-log.cc eventlogs/events/sip-event-log.hh
 	eventlogs/writers/event-log-writer.cc eventlogs/writers/event-log-writer.hh
 	eventlogs/writers/filesystem-event-log-writer.cc eventlogs/writers/filesystem-event-log-writer.hh
-	eventlogs/writers/flexi-stats-event-log-writer.cc eventlogs/writers/flexi-stats-event-log-writer.hh
 	fork-context/branch-info.hh
 	fork-context/branch-info-db.hh
 	fork-context/fork-basic-context.cc fork-context/fork-basic-context.hh
@@ -144,7 +143,14 @@ add_library(flexisip SHARED
 	conditional-routes.cc conditional-routes.hh
 )
 
-add_subdirectory(flexiapi)
+if(ENABLE_FLEXIAPI)
+	message(STATUS "Building with support for FlexiAPI")
+	target_sources(flexisip PRIVATE
+		eventlogs/writers/flexi-stats-event-log-writer.cc eventlogs/writers/flexi-stats-event-log-writer.hh
+	)
+	add_subdirectory(flexiapi)
+endif()
+
 add_subdirectory(router)
 add_subdirectory(sofia-wrapper)
 add_subdirectory(utils)

@@ -136,12 +136,17 @@ endif()
 if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	target_sources(flexisip_tester PRIVATE
 		push-notification-tester.cc
-		tests/flexiapi/flexi-stats-tester.cc
 		tests/utils/transport/http/rest-client-tester.cc
 		tests/utils/transport/http/http2client-tester.cc
 		utils/http-mock/http-mock.cc utils/http-mock/http-mock.hh
 		utils/pns-mock.cc utils/pns-mock.hh
 	)
+	if(ENABLE_FLEXIAPI)
+		target_sources(flexisip_tester PRIVATE
+			tests/flexiapi/flexi-stats-tester.cc
+		)
+	endif()
+	
 	if(HAS_GCC_BUG_105562)
 		set_source_files_properties(
 			push-notification-tester.cc
@@ -152,7 +157,7 @@ elseif (ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	message(FATAL_ERROR "The LibNgHttp2Asio module is required by some tests. You may disable them with -DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF")
 endif ()
 
-if(ENABLE_CONFERENCE AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
+if(ENABLE_FLEXIAPI AND ENABLE_CONFERENCE AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	target_sources(flexisip_tester PRIVATE
 		tests/eventlogs/writers/flexi-stats-event-log-writer-tester.cc
 	)

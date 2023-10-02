@@ -38,14 +38,8 @@
 #include "agent.hh"
 #include "domain-registrations.hh"
 #include "etchosts.hh"
-#include "eventlogs/writers/filesystem-event-log-writer.hh"
-#include "eventlogs/writers/flexi-stats-event-log-writer.hh"
 #include "plugin/plugin-loader.hh"
 #include "utils/uri-utils.hh"
-
-#if ENABLE_SOCI
-#include "eventlogs/writers/database-event-log-writer.hh"
-#endif
 
 #define IPADDR_SIZE 64
 
@@ -126,40 +120,6 @@ void Agent::onDeclare(GenericStruct* root) {
 	}
 	mRtpBindIp = rtpBindAddress.front();
 	mRtpBindIp6 = rtpBindAddress.back();
-}
-
-void Agent::startLogWriter() {
-	GenericStruct* cr = GenericManager::get()->getRoot()->get<GenericStruct>("event-logs");
-
-	if (cr->get<ConfigBoolean>("enabled")->read()) {
-		if (cr->get<ConfigString>("logger")->read() == "database") {
-#if ENABLE_SOCI
-
-			DataBaseEventLogWriter* dbw =
-			    new DataBaseEventLogWriter(cr->get<ConfigString>("database-backend")->read(),
-			                               cr->get<ConfigString>("database-connection-string")->read(),
-			                               cr->get<ConfigInt>("database-max-queue-size")->read(),
-			                               cr->get<ConfigInt>("database-nb-threads-max")->read());
-			if (!dbw->isReady()) {
-				LOGF("DataBaseEventLogWriter: unable to use database.");
-			} else {
-				mLogWriter.reset(dbw);
-			}
-#else
-			LOGF("DataBaseEventLogWriter: unable to use database (`ENABLE_SOCI` is not defined).");
-#endif
-		} else if (cr->get<ConfigString>("logger")->read() == "flexiapi") {
-			const auto& host = cr->get<ConfigString>("flexiapi-host")->read();
-			auto port = cr->get<ConfigInt>("flexiapi-port")->read();
-			const auto& prefix = cr->get<ConfigString>("flexiapi-prefix")->read();
-			const auto& token = cr->get<ConfigString>("flexiapi-token")->read();
-			mLogWriter = make_unique<FlexiStatsEventLogWriter>(*mRoot, host, to_string(port), prefix, token);
-		} else {
-			const auto& logdir = cr->get<ConfigString>("filesystem-directory")->read();
-			unique_ptr<FilesystemEventLogWriter> lw(new FilesystemEventLogWriter(logdir));
-			if (lw->isReady()) mLogWriter = std::move(lw);
-		}
-	}
 }
 
 static string absolutePath(const string& currdir, const string& file) {

@@ -1,0 +1,50 @@
+###############################################################################
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-minimal:20231002_init
+###############################################################################
+
+FROM debian:12
+
+MAINTAINER Thibault Lemaire <thibault.lemaire@belledonne-communications.com>
+
+  # Update
+RUN apt-get -y update \
+ && apt-get -y install \
+    # Install build deps
+      ccache \
+      cmake \
+      g++ \
+      git \
+      make \
+      ninja-build \
+      python3 \
+      python3-pystache \
+      python3-six \
+    # Install all dependencies needed for Flexisip
+      libssl-dev \
+      libnghttp2-dev \
+  # Clean up
+ && apt-get -y autoremove \
+ && apt-get -y clean
+
+# Configure user 'bc'
+RUN useradd -ms /bin/bash bc && \
+    echo 'bc:cotcot' | chpasswd && \
+    echo 'bc ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+# Switch to user 'bc'
+USER bc
+WORKDIR /home/bc
+
+# CVE-2022-24765, from git 2.35.2 onward
+RUN git config --global --add safe.directory *
+
+
+# Example build commands
+#
+# cd flexisip/
+# export CC=gcc
+# export CXX=g++
+# export BUILD_DIR_NAME="build.minimal"
+# cmake -S . -B ./$BUILD_DIR_NAME -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX="$PWD/$BUILD_DIR_NAME/install" -DCMAKE_PREFIX_PATH=/usr/local -DENABLE_PRESENCE=OFF -DENABLE_REDIS=OFF -DENABLE_SNMP=OFF -DENABLE_SOCI=OFF -DENABLE_TRANSCODER=OFF -DENABLE_MDNS=OFF -DENABLE_EXTERNAL_AUTH_PLUGIN=OFF -DENABLE_JWE_AUTH_PLUGIN=OFF -DENABLE_CONFERENCE=OFF -DENABLE_SOCI_POSTGRESQL_BACKEND=OFF -DENABLE_B2BUA=OFF -DENABLE_UNIT_TESTS=OFF -DENABLE_PROTOBUF=OFF
+# cd $BUILD_DIR_NAME
+# cmake --build . --target install
