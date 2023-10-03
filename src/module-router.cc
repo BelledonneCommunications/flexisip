@@ -92,6 +92,8 @@ void ModuleRouter::onDeclare(GenericStruct* mc) {
 	     "the Soci documentation of your backend, for instance: "
 	     "http://soci.sourceforge.net/doc/master/backends/#supported-backends-and-features",
 	     "db='mydb' user='myuser' password='mypass' host='myhost.com'"},
+	    {Integer, "message-database-pool-size",
+	     "Size of the pool of connections that Soci will use for accessing the message database.", "100"},
 	    {String, "fallback-route",
 	     "Default route to apply when the recipient is unreachable or when when all attempted destination have failed."
 	     "It is given as a SIP URI, for example: sip:example.org;transport=tcp (without surrounding brakets)",
@@ -221,7 +223,8 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 			mInjector = make_unique<ScheduleInjector>(this);
 			ForkMessageContextSociRepository::prepareConfiguration(
 			    mc->get<ConfigString>("message-database-backend")->read(),
-			    mc->get<ConfigString>("message-database-connection-string")->read(), 10);
+			    mc->get<ConfigString>("message-database-connection-string")->read(),
+			    mc->get<ConfigInt>("message-database-pool-size")->read());
 
 			restoreForksFromDatabase();
 		} else
