@@ -83,7 +83,7 @@ ForkMessageContextDbProxy::~ForkMessageContextDbProxy() {
 	if (!mForkUuidInDb.empty() && mIsFinished) {
 		// Destructor is called because the ForkContext is finished, removing info from database
 		LOGD("ForkMessageContextDbProxy[%p] was present in DB, cleaning UUID[%s]", this, mForkUuidInDb.c_str());
-		AutoThreadPool::getGlobalThreadPool()->run(
+		AutoThreadPool::getDbThreadPool()->run(
 		    [uuid = mForkUuidInDb]() { ForkMessageContextSociRepository::getInstance()->deleteByUuid(uuid); });
 	}
 }
@@ -161,7 +161,7 @@ void ForkMessageContextDbProxy::onUselessRegisterNotification([[maybe_unused]] c
 
 void ForkMessageContextDbProxy::runSavingThread() {
 	const auto dbFork = mForkMessage->getDbObject();
-	AutoThreadPool::getGlobalThreadPool()->run(
+	AutoThreadPool::getDbThreadPool()->run(
 	    [thiz = shared_from_this(), dbFork, dbForkVersion = mCurrentVersion.load()]() {
 		    lock_guard<mutex> lock(thiz->mDbAccessMutex);
 		    if (dbForkVersion == thiz->mCurrentVersion && thiz->mLastSavedVersion < dbForkVersion &&
@@ -231,7 +231,7 @@ void ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
 	// If the ForkMessage is only in database create a thread to access database and then recursively call this method.
 	if (getState() == State::IN_DATABASE) {
 		LOGD("ForkMessageContext[%p] onNewRegister: message is in DB. Initiating load from DB.", this);
-		AutoThreadPool::getGlobalThreadPool()->run([thiz = shared_from_this(), dest, uid, newContact]() {
+		AutoThreadPool::getDbThreadPool()->run([thiz = shared_from_this(), dest, uid, newContact]() {
 			lock_guard<mutex> lock(thiz->mDbAccessMutex);
 			if (thiz->getState() == State::IN_DATABASE && !thiz->mDbFork) {
 				try {

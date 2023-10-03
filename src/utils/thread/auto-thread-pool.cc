@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,34 +9,32 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <algorithm>
-
-#include "flexisip/logmanager.hh"
-#include "thread-pool.hh"
-
 #include "auto-thread-pool.hh"
+
+#include "flexisip/configmanager.hh"
+#include "flexisip/logmanager.hh"
 
 using namespace std;
 
 namespace flexisip {
 
-std::unique_ptr<AutoThreadPool> AutoThreadPool::sGlobalThreadPool{};
+std::unique_ptr<AutoThreadPool> AutoThreadPool::sDbThreadPool{};
 
-std::unique_ptr<AutoThreadPool>& AutoThreadPool::getGlobalThreadPool() {
-	if (!sGlobalThreadPool) {
-		unsigned int cores = std::thread::hardware_concurrency();
-		auto threadCount = (cores ? cores : 8) * 8;
-		sGlobalThreadPool = std::make_unique<AutoThreadPool>(threadCount, 0);
+std::unique_ptr<AutoThreadPool>& AutoThreadPool::getDbThreadPool() {
+	if (!sDbThreadPool) {
+		const auto routerConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::Router");
+		const auto threadCount = routerConf->get<ConfigInt>("message-database-pool-size")->read() * 2;
+		sDbThreadPool = std::make_unique<AutoThreadPool>(threadCount, 0);
 	}
 
-	return sGlobalThreadPool;
+	return sDbThreadPool;
 }
 
 AutoThreadPool::AutoThreadPool(unsigned int maxThreadNumber, unsigned int maxQueueSize)
