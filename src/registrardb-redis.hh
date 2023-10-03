@@ -37,6 +37,7 @@
 #include "registrar/change-set.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/registrar-db.hh"
+#include "timed-redis-command.hh"
 
 namespace flexisip {
 
@@ -182,6 +183,8 @@ std::ostream& operator<<(std::ostream& out, const RedisArgsPacker& args);
 
 class RegistrarDbRedisAsync : public RegistrarDb {
 public:
+	friend class redis::RedisCommandTimer;
+
 	RegistrarDbRedisAsync(Agent* agent, RedisParameters params);
 	RegistrarDbRedisAsync(const std::string& preferredRoute,
 	                      const std::shared_ptr<sofiasip::SuRoot>& root,
@@ -288,6 +291,7 @@ private:
 	std::unique_ptr<sofiasip::Timer> mReplicationTimer{nullptr};
 	std::unique_ptr<sofiasip::Timer> mReconnectTimer{nullptr};
 	std::chrono::system_clock::time_point mLastReconnectRotation;
+	redis::RedisCommandTimer mTimedCommand{};
 };
 
 } // namespace flexisip
