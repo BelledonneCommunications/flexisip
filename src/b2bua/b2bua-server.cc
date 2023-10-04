@@ -16,11 +16,13 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <mediastreamer2/ms_srtp.h>
 #include <memory>
 
+#include "linphone/misc.h"
+#include <mediastreamer2/ms_srtp.h>
+
 #include "flexisip/logmanager.hh"
-#include "flexisip/utils/sip-uri.hh"
+#include "flexisip/sofia-wrapper/home.hh"
 
 #include "b2bua-server.hh"
 #include "external-provider-bridge.hh"
@@ -82,13 +84,12 @@ void B2buaServer::onCallStateChanged([[maybe_unused]] const std::shared_ptr<linp
 			// add this custom header so this call will not be intercepted by the b2bua
 			outgoingCallParams->addCustomHeader("flexisip-b2bua", "ignore");
 
-			const auto callee =
-			    Match(mApplication->onCallCreate(*call, *outgoingCallParams))
-.against([](std::shared_ptr<const linphone::Address> callee) { return callee; },
-			                 [&call](linphone::Reason&& reason) {
-				                 call->decline(reason);
-				                 return std::shared_ptr<const linphone::Address>{};
-			                 });
+			const auto callee = Match(mApplication->onCallCreate(*call, *outgoingCallParams))
+			                        .against([](std::shared_ptr<const linphone::Address> callee) { return callee; },
+			                                 [&call](linphone::Reason&& reason) {
+				                                 call->decline(reason);
+				                                 return std::shared_ptr<const linphone::Address>{};
+			                                 });
 			if (callee == nullptr) return;
 
 			// create a conference and attach it
@@ -366,6 +367,8 @@ void B2buaServer::_init() {
 	}
 	mCore->setNortpTimeout(noRTPTimeout);
 
+	mCore->setInCallTimeout(config->get<ConfigInt>("max-call-duration")->read());
+
 	// Get transport from flexisip configuration
 	shared_ptr<Transports> b2buaTransport = Factory::get()->createTransports();
 	std::string mTransport = config->get<ConfigString>("transport")->read();
@@ -377,7 +380,11 @@ void B2buaServer::_init() {
 			     "If you have \"<>\" in your transport, remove them.",
 			     mTransport.c_str());
 		}
-		b2buaTransport->setTcpPort(stoi(urlTransport->url_port));
+		auto port = stoi(urlTransport->url_port);
+		if (port == 0) {
+			port = LC_SIP_TRANSPORT_RANDOM;
+		}
+		b2buaTransport->setTcpPort(port);
 	}
 
 	mCore->setTransports(b2buaTransport);
@@ -431,6 +438,10 @@ auto defineConfig = [] {
 	     "Duration after which the B2BUA will terminate a call if no RTP packet is received from the other call "
 	     "participant. Unit: seconds.",
 	     "30"},
+	    {Integer, "max-call-duration",
+	     "Any call bridged through the B2BUA that has been running for longer than this amount of seconds will be "
+	     "terminated. 0 to disable and let calls run unbounded.",
+	     "0"},
 	    {String, "video-codec",
 	     "When not null, force outgoing video call to use the specified codec.\n"
 	     "Warning: all outgoing calls will list only this codec, which means incoming calls must use it too.",

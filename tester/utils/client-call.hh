@@ -19,6 +19,7 @@ public:
 	ClientCall(std::shared_ptr<linphone::Call>&&);
 
 	const ::rtp_stats& getVideoRtpStats() const;
+	linphone::Status accept() const;
 	linphone::Status acceptEarlyMedia() const;
 	linphone::Call::State getState() const;
 	const bool& videoFrameDecoded();

@@ -21,9 +21,13 @@ const ::rtp_stats& ClientCall::getVideoRtpStats() const {
 	return *::linphone_call_stats_get_rtp_stats(::linphone_call_get_video_stats(mCall->cPtr()));
 }
 
+linphone::Status ClientCall::accept() const {
+	return mCall->accept();
+}
 linphone::Status ClientCall::acceptEarlyMedia() const {
 	return mCall->acceptEarlyMedia();
 }
+
 
 linphone::Call::State ClientCall::getState() const {
 	return mCall->getState();
