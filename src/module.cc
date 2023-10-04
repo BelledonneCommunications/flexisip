@@ -60,7 +60,7 @@ bool Module::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) 
 		case ConfigState::Reset:
 			dirtyConfig = false;
 			break;
-		case ConfigState::Commited:
+		case ConfigState::Committed:
 			if (dirtyConfig) {
 				LOGI("Reloading config of module %s", mInfo->getModuleName().c_str());
 				reload();
@@ -86,7 +86,7 @@ void Module::declare(GenericStruct* root) {
 	auto uModuleConfig =
 	    make_unique<GenericStruct>("module::" + getModuleConfigName(), mInfo->getModuleHelp(), mInfo->getOidIndex());
 	uModuleConfig->setConfigListener(this);
-	mModuleConfig = root->addChild(move(uModuleConfig));
+	mModuleConfig = root->addChild(std::move(uModuleConfig));
 	mFilter->declareConfig(mModuleConfig);
 	if (getClass() == ModuleClass::Experimental) {
 		// Experimental modules are forced to be disabled by default.

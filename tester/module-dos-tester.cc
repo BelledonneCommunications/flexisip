@@ -69,7 +69,7 @@ private:
 		    ->set(to_string(packetRateLimit));
 		cfg.getRoot()
 		    ->get<GenericStruct>("module::DoSProtection")
-		    ->get<ConfigInt>("time-period")
+		    ->get<ConfigDuration<chrono::milliseconds>>("time-period")
 		    ->set(to_string(timePeriod.count()));
 	}
 

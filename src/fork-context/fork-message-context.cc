@@ -110,7 +110,7 @@ ForkMessageContext::ForkMessageContext(const std::shared_ptr<ModuleRouter>& rout
 	if (!isRestored) {
 		// Start the acceptance timer immediately.
 		if (mCfg->mForkLate && mCfg->mDeliveryTimeout > 30) {
-			mExpirationDate = system_clock::to_time_t(system_clock::now() + seconds(mCfg->mDeliveryTimeout));
+			mExpirationDate = system_clock::to_time_t(system_clock::now() + chrono::seconds(mCfg->mDeliveryTimeout));
 
 			mAcceptanceTimer = make_unique<sofiasip::Timer>(mAgent->getRoot(), mCfg->mUrgentTimeout);
 			mAcceptanceTimer->set([this]() { onAcceptanceTimer(); });

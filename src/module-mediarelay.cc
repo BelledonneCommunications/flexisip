@@ -98,8 +98,8 @@ void MediaRelay::onDeclare(GenericStruct* mc) {
 	     "Maximum number of relayed early media streams per call. This is useful to limit the cpu usage due to "
 	     "early media relaying on embedded systems. A value of 0 stands for unlimited.",
 	     "0"},
-	    {Integer, "inactivity-period",
-	     "Period of time in seconds, after which a relayed call without any activity is considered as no longer "
+	    {DurationS, "inactivity-period",
+	     "Period of time after which a relayed call without any activity is considered as no longer "
 	     "running. Activity counts RTP/RTCP packets exchanged through the relay and SIP messages.",
 	     "3600"},
 	    {Boolean, "force-public-ip-for-sdp-masquerading",
@@ -162,7 +162,8 @@ void MediaRelay::onLoad(const GenericStruct* modconf) {
 	mMaxRelayedEarlyMedia = modconf->get<ConfigInt>("max-early-media-per-call")->read();
 	mForceRelayForNonIceTargets = modconf->get<ConfigBoolean>("force-relay-for-non-ice-targets")->read();
 	mUsePublicIpForSdpMasquerading = modconf->get<ConfigBoolean>("force-public-ip-for-sdp-masquerading")->read();
-	mInactivityPeriod = modconf->get<ConfigInt>("inactivity-period")->read();
+	mInactivityPeriod =
+	    chrono::duration_cast<chrono::seconds>(modconf->get<ConfigDuration<chrono::seconds>>("inactivity-period")->read()).count();
 	createServers();
 }
 

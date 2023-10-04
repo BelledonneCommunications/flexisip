@@ -38,7 +38,7 @@ struct ExtendedContact;
 
 struct ForkContextConfig {
 	int mDeliveryTimeout = 0;               /* in seconds, used for "late" forking*/
-	std::chrono::seconds mUrgentTimeout{5}; /*timeout for sending buffered urgent or retryable reponses (like 415).*/
+	std::chrono::seconds mUrgentTimeout{5}; /*timeout for sending buffered urgent or retryable responses (like 415).*/
 	std::chrono::seconds mPushResponseTimeout{0}; /*timeout for receiving response to push */
 	int mCurrentBranchesTimeout = 0;              /*timeout for receiving response on current branches*/
 	bool mForkLate = false;

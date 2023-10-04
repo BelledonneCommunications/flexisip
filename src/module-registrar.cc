@@ -331,8 +331,8 @@ void ModuleRegistrar::onDeclare(GenericStruct* mc) {
 	     "+sip.instance pn-tok line"},
 	    {Boolean, "enable-gruu",
 	     "When supported by the client, assign a pub-gruu address to the client, returned in the response. ", "true"},
-	    {Integer, "max-expires", "Maximum expire time for a REGISTER, in seconds.", "86400"},
-	    {Integer, "min-expires", "Minimum expire time for a REGISTER, in seconds.", "60"},
+	    {DurationS, "max-expires", "Maximum expire time for a REGISTER.", "86400"},
+	    {DurationS, "min-expires", "Minimum expire time for a REGISTER.", "60"},
 	    {Integer, "force-expires",
 	     "Set a value that will override expire times given by the "
 	     "REGISTER requests. A null or negative value disables "
@@ -345,8 +345,8 @@ void ModuleRegistrar::onDeclare(GenericStruct* mc) {
 	     "Format: one 'sip_uri contact_header' by line. Example:\n"
 	     "<sip:contact@domain> <sip:127.0.0.1:5460>,<sip:192.168.0.1:5160>",
 	     ""},
-	    {Integer, "static-records-timeout",
-	     "Timeout in seconds after which the static records file is re-read and the contacts updated.", "600"},
+	    {DurationS, "static-records-timeout",
+	     "Timeout after which the static records file is re-read and the contacts updated.", "600"},
 
 	    {String, "db-implementation",
 	     "Implementation used for storing the contact URIs of each address of record. Two backends are available:\n"
@@ -368,11 +368,12 @@ void ModuleRegistrar::onDeclare(GenericStruct* mc) {
 	     "Authentication password for Redis. Empty to disable. If set but `redis-auth-user` is left unset or empty, "
 	     "Flexisip will attempt to register in legacy mode.",
 	     ""},
-	    {Integer, "redis-server-timeout", "Timeout in milliseconds of the Redis connection.", "1500"},
-	    {Integer, "redis-slave-check-period",
+	    {DurationMS, "redis-server-timeout", "Timeout of the Redis connection.", "1500"},
+	    {DurationS, "redis-slave-check-period",
 	     "When Redis is configured in master-slave, Flexisip will periodically ask which Redis instances are the "
-	     "slaves and the master. This is the period with which it will query the server. It will then determine "
-	     "whether is is connected to the master, and if not, let go of the connection and migrate to the master.\n"
+	     "slaves and the master. This is the period with which it will query the server. It will then "
+	     "determine whether is is connected to the master, and if not, let go of the connection and migrate to the "
+	     "master.\n"
 	     "Note: This requires that all Redis instances have the same password. Otherwise the authentication "
 	     "will fail.",
 	     "60"},
@@ -429,15 +430,16 @@ void ModuleRegistrar::onLoad(const GenericStruct* mc) {
 
 	int forcedExpires = mc->get<ConfigInt>("force-expires")->read();
 	if (forcedExpires <= 0) {
-		mMaxExpires = mc->get<ConfigInt>("max-expires")->read();
-		mMinExpires = mc->get<ConfigInt>("min-expires")->read();
+		mMaxExpires = chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("max-expires")->read()).count();
+		mMinExpires = chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("min-expires")->read()).count();
 	} else {
 		mMaxExpires = forcedExpires;
 		mMinExpires = forcedExpires;
 	}
 
 	mStaticRecordsFile = mc->get<ConfigString>("static-records-file")->read();
-	mStaticRecordsTimeout = mc->get<ConfigInt>("static-records-timeout")->read();
+	mStaticRecordsTimeout =
+	    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("static-records-timeout")->read()).count();
 
 	mExpireRandomizer = mc->get<ConfigInt>("register-expire-randomizer-max")->read();
 	if (mExpireRandomizer < 0 || mExpireRandomizer > 100) {

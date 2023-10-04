@@ -64,7 +64,7 @@ void Authentication::onDeclare(GenericStruct* mc) {
 	     "this proxy.",
 	     "false"},
 	    {String, "db-implementation", "Database backend implementation for digest authentication [soci,file].", "file"},
-	    {Integer, "cache-expire", "Duration of the validity of the credentials added to the cache in seconds.", "1800"},
+	    {DurationS, "cache-expire", "Duration of the validity of the credentials added to the cache.", "1800"},
 
 	    // deprecated parameters
 	    {StringList, "trusted-client-certificates",
@@ -250,7 +250,7 @@ void Authentication::onIdle() {
 }
 
 bool Authentication::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) {
-	if (conf.getName() == "trusted-hosts" && state == ConfigState::Commited) {
+	if (conf.getName() == "trusted-hosts" && state == ConfigState::Committed) {
 		loadTrustedHosts((const ConfigStringList&)conf);
 		LOGD("Trusted hosts updated");
 		return true;

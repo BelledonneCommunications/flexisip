@@ -209,7 +209,7 @@ void Agent::startMdns() {
 		int mdnsPrioMin = mdns->get<ConfigIntRange>("mdns-priority")->readMin();
 		int mdnsPrioMax = mdns->get<ConfigIntRange>("mdns-priority")->readMax();
 		int mdnsWeight = mdns->get<ConfigInt>("mdns-weight")->read();
-		int mdnsTtl = mdns->get<ConfigInt>("mdns-ttl")->read();
+		int mdnsTtl = mdns->get<ConfigDuration<chrono::milliseconds>>("mdns-ttl")->read().count();
 
 		/* Get hostname of the machine */
 		char hostname[HOST_NAME_MAX];
@@ -257,15 +257,15 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	list<string> transports = global->get<ConfigStringList>("transports")->read();
 	string ciphers = global->get<ConfigString>("tls-ciphers")->read();
 	// sofia needs a value in millseconds.
-	unsigned int tports_idle_timeout = 1000 * (unsigned int)global->get<ConfigInt>("idle-timeout")->read();
+	auto tports_idle_timeout = global->get<ConfigDuration<chrono::seconds>>("idle-timeout")->read().count();
 	bool globalVerifyIn = global->get<ConfigBoolean>("require-peer-certificate")->read();
-	unsigned int t1x64 = (unsigned int)global->get<ConfigInt>("transaction-timeout")->read();
+	auto t1x64 = global->get<ConfigDuration<chrono::milliseconds>>("transaction-timeout")->read().count();
 	int udpmtu = global->get<ConfigInt>("udp-mtu")->read();
-	unsigned int incompleteIncomingMessageTimeout = 600 * 1000; /*milliseconds*/
-	unsigned int keepAliveInterval = global->get<ConfigInt>("keepalive-interval")->read() * 1000;
+	auto incompleteIncomingMessageTimeout = 600L * 1000L; /*milliseconds*/
+	auto keepAliveInterval = global->get<ConfigDuration<chrono::seconds>>("keepalive-interval")->read().count();
 	unsigned int queueSize = (unsigned int)global->get<ConfigInt>("tport-message-queue-size")->read();
 
-	mProxyToProxyKeepAliveInterval = global->get<ConfigInt>("proxy-to-proxy-keepalive-interval")->read() * 1000;
+	mProxyToProxyKeepAliveInterval = global->get<ConfigDuration<chrono::seconds>>("proxy-to-proxy-keepalive-interval")->read().count();
 
 	mTimer = su_timer_create(mRoot->getTask(), 5000);
 	su_timer_set_for_ever(mTimer, reinterpret_cast<su_timer_f>(timerfunc), this);
@@ -605,7 +605,7 @@ string Agent::getPreferredRoute() const {
 bool Agent::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) {
 	LOGD("Configuration of agent changed for key %s to %s", conf.getName().c_str(), conf.get().c_str());
 
-	if (conf.getName() == "aliases" && state == ConfigState::Commited) {
+	if (conf.getName() == "aliases" && state == ConfigState::Committed) {
 		mAliases = ((ConfigStringList*)(&conf))->read();
 		LOGD("Global aliases updated");
 		return true;

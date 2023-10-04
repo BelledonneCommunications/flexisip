@@ -97,19 +97,19 @@ DomainRegistrationManager::DomainRegistrationManager(Agent* agent) : mAgent(agen
 	     "When submitting a domain registration to a server over TLS, verify the certificate presented by the server. "
 	     "Disabling this option is only for test, because it is a security flaw",
 	     "true"},
-	    {Integer, "keepalive-interval",
-	     "Interval in seconds for sending \\r\\n\\r\\n keepalives through the outgoing domain registration connection."
+	    {DurationS, "keepalive-interval",
+	     "Interval for sending \\r\\n\\r\\n keepalives through the outgoing domain registration connection."
 	     "A value of zero disables keepalives.",
 	     "30"},
-	    {Integer, "ping-pong-timeout-delay",
-	     "Delay in milliseconds after which TCP/TLS connections will be considered as broken if no CRLF pong has been"
+	    {DurationS, "ping-pong-timeout-delay",
+	     "Delay after which TCP/TLS connections will be considered as broken if no CRLF pong has been "
 	     "received from the registrar. A delay of 0 means that no pong is expected after ping. "
 	     "The registrar must advertise the 'outbound' option tag in a Supported header for this detection to be "
 	     "active.\n"
 	     "Warning: This parameter must be strictly lower than “keepalive-interval”.",
 	     "0"},
-	    {Integer, "reconnection-delay",
-	     "Delay in seconds before creating a new connection after connection is known as broken. Set '0' in order the "
+	    {DurationS, "reconnection-delay",
+	     "Delay before creating a new connection after connection is known as broken. Set '0' in order the "
 	     "connection be recreated immediately.",
 	     "5"},
 	    {Boolean, "reg-when-needed",
@@ -161,17 +161,17 @@ int DomainRegistrationManager::load(const string& passphrase) {
 
 	mVerifyServerCerts = domainRegistrationCfg->get<ConfigBoolean>("verify-server-certs")->read();
 
-	auto keepAliveIntervalCfg = domainRegistrationCfg->get<ConfigInt>("keepalive-interval");
-	auto pingPongTimeoutDelayCfg = domainRegistrationCfg->get<ConfigInt>("ping-pong-timeout-delay");
-	auto reconnectionDelayCfg = domainRegistrationCfg->get<ConfigInt>("reconnection-delay");
-	mKeepaliveInterval = chrono::seconds{keepAliveIntervalCfg->read()};
-	mPingPongTimeoutDelay = chrono::seconds{pingPongTimeoutDelayCfg->read()};
+	auto keepAliveIntervalCfg = domainRegistrationCfg->get<ConfigDuration<chrono::seconds>>("keepalive-interval");
+	auto pingPongTimeoutDelayCfg = domainRegistrationCfg->get<ConfigDuration<chrono::seconds>>("ping-pong-timeout-delay");
+	auto reconnectionDelayCfg = domainRegistrationCfg->get<ConfigDuration<chrono::seconds>>("reconnection-delay");
+	mKeepaliveInterval = chrono::duration_cast<chrono::seconds>(keepAliveIntervalCfg->read());
+	mPingPongTimeoutDelay = chrono::duration_cast<chrono::seconds>(pingPongTimeoutDelayCfg->read());
 	if (mPingPongTimeoutDelay >= mKeepaliveInterval) {
 		LOGF("'%s' value [%us] must be strictly lower than '%s' [%us]",
 		     pingPongTimeoutDelayCfg->getCompleteName().c_str(), static_cast<unsigned>(mPingPongTimeoutDelay.count()),
 		     keepAliveIntervalCfg->getCompleteName().c_str(), static_cast<unsigned>(mKeepaliveInterval.count()));
 	}
-	mReconnectionDelay = chrono::seconds{reconnectionDelayCfg->read()};
+	mReconnectionDelay = chrono::duration_cast<chrono::seconds>(reconnectionDelayCfg->read());
 
 	mRegisterWhenNeeded = domainRegistrationCfg->get<ConfigBoolean>("reg-when-needed")->read();
 

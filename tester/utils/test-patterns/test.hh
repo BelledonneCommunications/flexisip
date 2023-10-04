@@ -103,6 +103,36 @@ inline void bc_hard_assert(const char* file, int line, int predicate, const char
  */
 #define BC_HARD_ASSERT_CPP_NOT_EQUAL(value, expected) BC_ASSERT_CPP_NOT_EQUAL_BASE(bc_hard_assert, value, expected)
 
+/*
+ * Check that expression has thrown an exception and that exception type is as expected.
+ */
+#define BC_ASSERT_THROWN(expression, expectedType)                                                                     \
+	{                                                                                                                  \
+		bool exceptionWasThrown = false;                                                                               \
+		try {                                                                                                              \
+		expression;                                                                                                    \
+	} catch (const expectedType& exception) {                                                                          \
+		exceptionWasThrown = true;                                                                                     \
+		if (typeid(exception) == typeid(expectedType)) {                                                               \
+			BC_PASS("");                                                                                               \
+		} else {                                                                                                       \
+			bc_assert(__FILE__, __LINE__, 0,                                                                           \
+			          ("thrown exception has wrong type, " + std::string(typeid(exception).name()) +                   \
+			           " != " + std::string(typeid(expectedType).name()))                                              \
+			              .c_str());                                                                                   \
+		}                                                                                                              \
+	} catch (...) {                                                                                                    \
+		exceptionWasThrown = true;                                                                                     \
+		bc_assert(__FILE__, __LINE__, 0,                                                                               \
+		          ("thrown exception has wrong type, " + std::string(typeid(expectedType).name()) + " was expected")   \
+		              .c_str());                                                                                       \
+	}                                                                                                                  \
+	if (!exceptionWasThrown) {                                                                                         \
+		bc_assert(__FILE__, __LINE__, 0,                                                                               \
+		          ("expected " + std::string(typeid(expectedType).name()) + " but no exception was thrown").c_str());    \
+		}                                                                                                              \
+	}
+
 // Interface for all the classes which are to be executed as unit test.
 // The test is executed by calling () operator.
 class Test {
@@ -137,7 +167,7 @@ static void run() noexcept {
 	} catch (const TestAssertFailedException&) {
 	} catch (const std::exception& e) {
 		std::ostringstream msg{};
-		msg << "runtime_error exception: " << e.what();
+		msg << "unexpected exception: " << e.what();
 		bc_assert(__FILE__, __LINE__, 0, msg.str().c_str());
 	}
 };

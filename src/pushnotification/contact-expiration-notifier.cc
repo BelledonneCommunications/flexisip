@@ -84,14 +84,14 @@ unique_ptr<ContactExpirationNotifier> ContactExpirationNotifier::make_unique(con
                                                                              const shared_ptr<sofiasip::SuRoot>& root,
                                                                              weak_ptr<pn::Service>&& pnService,
                                                                              const RegistrarDb& registrar) {
-	auto interval = cfg.get<ConfigInt>("register-wakeup-interval")->read();
-	if (interval <= 0) {
+	auto interval =
+	    chrono::duration_cast<chrono::minutes>(cfg.get<ConfigDuration<chrono::minutes>>("register-wakeup-interval")->read());
+	if (interval <= 0min) {
 		return nullptr;
 	}
 	float threshold = cfg.get<ConfigInt>("register-wakeup-threshold")->read() / 100.0;
 
-	return std::make_unique<ContactExpirationNotifier>(chrono::minutes(interval), threshold, root, std::move(pnService),
-	                                                   registrar);
+	return std::make_unique<ContactExpirationNotifier>(interval, threshold, root, std::move(pnService), registrar);
 }
 
 } // namespace flexisip

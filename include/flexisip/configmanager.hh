@@ -19,12 +19,14 @@
 #pragma once
 
 #include <algorithm>
+#include <chrono>
 #include <cstdlib>
 #include <cxxabi.h>
 #include <iostream>
 #include <list>
 #include <memory>
 #include <queue>
+#include <regex>
 #include <sstream>
 #include <string>
 #include <tuple>
@@ -63,7 +65,7 @@ namespace flexisip {
 
 struct LpConfig;
 
-enum class ConfigState { Check, Changed, Reset, Commited };
+enum class ConfigState { Check, Changed, Reset, Committed };
 class ConfigValue;
 
 class ConfigValueListener {
@@ -92,7 +94,10 @@ enum GenericValueType {
 	Struct,
 	BooleanExpr,
 	Notification,
-	RuntimeError
+	RuntimeError,
+	DurationMS,
+	DurationS,
+	DurationMIN
 };
 
 /* Allows to have a string for each GenericValueType */
@@ -101,7 +106,8 @@ static const std::map<GenericValueType, std::string> GenericValueTypeNameMap = {
 	{ X, #X }
     TypeToName(Boolean),     TypeToName(Integer),      TypeToName(IntegerRange), TypeToName(Counter64),
     TypeToName(String),      TypeToName(ByteSize),     TypeToName(StringList),   TypeToName(Struct),
-    TypeToName(BooleanExpr), TypeToName(Notification), TypeToName(RuntimeError)
+    TypeToName(BooleanExpr), TypeToName(Notification), TypeToName(RuntimeError), TypeToName(DurationMS),
+    TypeToName(DurationS),   TypeToName(DurationMIN)
 #undef TypeToName
 };
 
@@ -183,13 +189,13 @@ public:
 	public:
 		DeprecationInfo() = default;
 		DeprecationInfo(const std::string& date, const std::string& version, const std::string& text = "") {
-			setAsDeprecaded(date, version, text);
+			setAsDeprecated(date, version, text);
 		}
 
 		bool isDeprecated() const {
 			return !mDate.empty();
 		}
-		void setAsDeprecaded(const std::string& date, const std::string& version, const std::string& text = "");
+		void setAsDeprecated(const std::string& date, const std::string& version, const std::string& text = "");
 
 		const std::string& getDate() const {
 			return mDate;
@@ -290,7 +296,7 @@ public:
 		mDeprecationInfo = info;
 	}
 	void setDeprecated(const std::string& aDate, const std::string& aVersion, const std::string& aText = "") {
-		mDeprecationInfo.setAsDeprecaded(aDate, aVersion, aText);
+		mDeprecationInfo.setAsDeprecated(aDate, aVersion, aText);
 	}
 	bool isDeprecated() const {
 		return mDeprecationInfo.isDeprecated();
@@ -478,7 +484,7 @@ public:
 	void set(const std::string& value);
 	virtual const std::string& get() const;
 
-	/* Restor the default value and mark the value as 'default'. */
+	/* Restore the default value and mark the value as 'default'. */
 	void restoreDefault();
 
 	/*
@@ -487,6 +493,8 @@ public:
 	 */
 	void setDefault(const std::string& value);
 	const std::string& getDefault() const;
+
+	virtual std::string_view getDefaultUnit() const;
 
 	void setFallback(const ConfigValue& fallbackValue);
 
@@ -579,6 +587,82 @@ private:
 	void parse(const std::string& value);
 	int mMin;
 	int mMax;
+};
+
+template <typename DurationType>
+struct DurationInfo {};
+
+template <>
+struct DurationInfo<std::chrono::milliseconds> {
+	static constexpr GenericValueType kValueType = DurationMS;
+	static constexpr const char* kUnit = "millisecond";
+};
+
+template <>
+struct DurationInfo<std::chrono::seconds> {
+	static constexpr GenericValueType kValueType = DurationS;
+	static constexpr const char* kUnit = "second";
+};
+
+template <>
+struct DurationInfo<std::chrono::minutes> {
+	static constexpr GenericValueType kValueType = DurationMIN;
+	static constexpr const char* kUnit = "minute";
+};
+
+template <typename DurationType>
+class ConfigDuration : public ConfigValue {
+public:
+	ConfigDuration(const std::string& name, const std::string& help, const std::string& default_value, oid oid_index)
+	    : ConfigValue(name, DurationInfo<DurationType>::kValueType, help, default_value, oid_index) {
+	}
+
+	std::string_view getDefaultUnit() const override {
+		return DurationInfo<DurationType>::kUnit;
+	}
+
+	std::chrono::milliseconds read() const {
+		using namespace std::chrono_literals;
+		static const std::map<std::string, std::chrono::milliseconds> kMapping = {
+		    {"ms", 1ms},
+		    {"s", 1000ms},
+		    {"min", 60000ms},
+		    {"h", 3600 * 1000ms},
+		    {"d", 24 * 3600 * 1000ms},
+		    {"m", static_cast<long>(30.436875 * 24 * 3600) * 1000ms},
+		    {"y", static_cast<long>(365.2425 * 24 * 3600) * 1000ms}};
+
+		const auto [value, unit] = parse();
+		auto unitIterator = kMapping.find(unit);
+
+		// If not found, it may be intentional (use default unit) or for backward compatibility.
+		if (unitIterator == kMapping.end()) {
+			return std::chrono::duration_cast<std::chrono::milliseconds>(DurationType{value});
+		}
+
+		if (unit == "ms" and getDefaultUnit() == "second") {
+			throw std::runtime_error("(" + getCompleteName() + ") duration precision (\"" + unit +
+			                         R"(") is too high, "second" is maximum precision for this parameter)");
+		}
+		if ((unit == "ms" or unit == "s") and getDefaultUnit() == "minute") {
+			throw std::runtime_error("(" + getCompleteName() + ") duration precision (\"" + unit +
+			                         R"(") is too high, "minute" is maximum precision for this parameter)");
+		}
+
+		return unitIterator->second * value;
+	}
+
+private:
+	std::pair<long, std::string> parse() const {
+		std::smatch matchResult{};
+		if (!std::regex_match(get(), matchResult, std::regex("([0-9]+)(|ms|s|min|h|d|m|y)"))) {
+			throw std::runtime_error(
+			    "(" + getCompleteName() + ") duration value is ill-formed (parameter = \"" + get() +
+			    "\"). Please use the following syntax: <value>[ms|s|min|h|d|m|y] (example: 250ms).");
+		}
+
+		return {std::stol(matchResult[1]), matchResult[2]};
+	}
 };
 
 class ConfigRuntimeError : public ConfigValue {

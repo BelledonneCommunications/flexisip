@@ -58,7 +58,7 @@ CallSide::CallSide(TranscodedCall* ctx, const CallContextParams& params) : mCall
 	jbpar.max_packets = 100;
 	rtp_session_enable_jitter_buffer(mSession, params.mJbNomSize == 0 ? FALSE : TRUE);
 	rtp_session_set_jitter_buffer_params(mSession, &jbpar);
-	LOGD("Jitter buffer nominal size: %i", params.mJbNomSize);
+	LOGD("Jitter buffer nominal size: %d", params.mJbNomSize);
 	rtp_session_set_symmetric_rtp(mSession, TRUE);
 	rtp_session_set_data(mSession, this);
 	rtp_session_signal_connect(mSession, "payload_type_changed", &CallSide::payloadTypeChanged,

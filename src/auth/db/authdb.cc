@@ -83,7 +83,7 @@ AuthDbBackend& AuthDbBackend::get() {
 AuthDbBackend::AuthDbBackend(const GenericStruct& root) {
 	GenericStruct* ma = root.get<GenericStruct>("module::Authentication");
 	list<string> domains = ma->get<ConfigStringList>("auth-domains")->read();
-	mCacheExpire = ma->get<ConfigInt>("cache-expire")->read();
+	mCacheExpire = chrono::duration_cast<chrono::seconds>(ma->get<ConfigDuration<chrono::seconds>>("cache-expire")->read()).count();
 }
 
 AuthDbBackend::~AuthDbBackend() {

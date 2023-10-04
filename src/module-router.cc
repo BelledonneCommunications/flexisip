@@ -59,25 +59,25 @@ void ModuleRouter::onDeclare(GenericStruct* mc) {
 	    {Boolean, "treat-decline-as-urgent",
 	     "Treat 603 Declined answers as urgent. Only relevant if fork-no-global-decline is set to true.", "false"},
 	    {Boolean, "treat-all-as-urgent", "During a fork procedure, treat all failure response as urgent.", "false"},
-	    {Integer, "call-fork-timeout", "Maximum time for a call fork to try to reach a callee, in seconds.", "90"},
-	    {Integer, "call-fork-urgent-timeout",
-	     "Maximum time before delivering urgent responses during a call fork, in seconds. "
+	    {DurationS, "call-fork-timeout", "Maximum time for a call fork to try to reach a callee.", "90"},
+	    {DurationS, "call-fork-urgent-timeout",
+	     "Maximum time before delivering urgent responses during a call fork. "
 	     "The typical fork process requires to wait the best response from all branches before transmitting it to "
 	     "the client. "
 	     "However some error responses are retryable immediately (like 415 unsupported media, 401, 407) thus it is "
 	     "painful for the client to need to wait the end of the transaction time (32 seconds) for these error "
 	     "codes.",
 	     "5"},
-	    {Integer, "call-fork-current-branches-timeout",
-	     "Maximum time in seconds before trying the next set of lower priority contacts.", "10"},
-	    {Integer, "call-push-response-timeout", "Optional timer to detect lack of push response, in seconds.", "0"},
+	    {DurationS, "call-fork-current-branches-timeout",
+	     "Maximum time before trying the next set of lower priority contacts.", "10"},
+	    {DurationS, "call-push-response-timeout", "Optional timer to detect lack of push response.", "0"},
 	    {Boolean, "message-fork-late", "Fork MESSAGE requests to client registering lately.", "true"},
-	    {Integer, "message-delivery-timeout",
-	     "Maximum duration for delivering a MESSAGE request. This property applies only if message-fork-late is "
-	     "'true'; otherwise, the duration can't exceed the normal transaction duration.",
+	    {DurationS, "message-delivery-timeout",
+	     "Maximum duration for delivering a MESSAGE request. This property applies only if "
+	     "message-fork-late is 'true'; otherwise, the duration can't exceed the normal transaction duration.",
 	     "604800"},
-	    {Integer, "message-accept-timeout",
-	     "Maximum duration (in seconds) for accepting a MESSAGE request if no response is received from any "
+	    {DurationS, "message-accept-timeout",
+	     "Maximum duration for accepting a MESSAGE request if no response is received from any "
 	     "recipients. This property is meaningful when message-fork-late is set to true.",
 	     "5"},
 	    {Boolean, "message-database-enabled",
@@ -126,8 +126,8 @@ void ModuleRouter::onDeclare(GenericStruct* mc) {
 	     "non-standard behavior.",
 	     "false"},
 	    {BooleanExpr, "fallback-route-filter", "Only use the fallback route if the expression is true.", "true"},
-	    {Integer, "max-request-retention-time",
-	     "Max time, in seconds, the proxy will retain a request in order to maintain order.", "30"},
+	    {DurationS, "max-request-retention-time",
+	     "Max time the proxy will retain a request in order to maintain order.", "30"},
 
 	    // deprecated parameters
 	    {Boolean, "stateful",
@@ -159,7 +159,7 @@ void ModuleRouter::onDeclare(GenericStruct* mc) {
 		mc->get<ConfigString>("preroute")->setDeprecated(removedFeatureDepInfo);
 	}
 
-	mc->get<ConfigInt>("call-push-response-timeout")
+	mc->get<ConfigDuration<chrono::seconds>>("call-push-response-timeout")
 	    ->setDeprecated({"2022-02-03", "2.2.0", "This feature will be removed in a future version."});
 
 	mStats.mCountForks = mc->createStats("count-forks", "Number of forks");
@@ -180,19 +180,26 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 	mCallForkCfg->mForkLate = mc->get<ConfigBoolean>("fork-late")->read();
 	mCallForkCfg->mTreatAllErrorsAsUrgent = mc->get<ConfigBoolean>("treat-all-as-urgent")->read();
 	mCallForkCfg->mForkNoGlobalDecline = mc->get<ConfigBoolean>("fork-no-global-decline")->read();
-	mCallForkCfg->mUrgentTimeout = chrono::seconds{mc->get<ConfigInt>("call-fork-urgent-timeout")->read()};
-	mCallForkCfg->mPushResponseTimeout = chrono::seconds{mc->get<ConfigInt>("call-push-response-timeout")->read()};
-	mCallForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("call-fork-timeout")->read();
+	mCallForkCfg->mUrgentTimeout =
+	    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("call-fork-urgent-timeout")->read());
+	mCallForkCfg->mPushResponseTimeout =
+	    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("call-push-response-timeout")->read());
+	mCallForkCfg->mDeliveryTimeout =
+	    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("call-fork-timeout")->read()).count();
 	mCallForkCfg->mTreatDeclineAsUrgent = mc->get<ConfigBoolean>("treat-decline-as-urgent")->read();
-	mCallForkCfg->mCurrentBranchesTimeout = mc->get<ConfigInt>("call-fork-current-branches-timeout")->read();
+	mCallForkCfg->mCurrentBranchesTimeout =
+	    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("call-fork-current-branches-timeout")->read())
+	        .count();
 	mCallForkCfg->mPermitSelfGeneratedProvisionalResponse =
 	    mc->get<ConfigBoolean>("permit-self-generated-provisional-response")->read();
 
 	// Forking configuration for MESSAGEs
 	mMessageForkCfg = make_shared<ForkContextConfig>();
 	mMessageForkCfg->mForkLate = mc->get<ConfigBoolean>("message-fork-late")->read();
-	mMessageForkCfg->mDeliveryTimeout = mc->get<ConfigInt>("message-delivery-timeout")->read();
-	mMessageForkCfg->mUrgentTimeout = chrono::seconds{mc->get<ConfigInt>("message-accept-timeout")->read()};
+	mMessageForkCfg->mDeliveryTimeout =
+	    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("call-fork-timeout")->read()).count();
+	mMessageForkCfg->mUrgentTimeout =
+	    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("message-accept-timeout")->read());
 
 	// Forking configuration for other kind of requests.
 	mOtherForkCfg = make_shared<ForkContextConfig>();
@@ -219,7 +226,7 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 #if ENABLE_SOCI
 		if ((mMessageForkCfg->mSaveForkMessageEnabled = mc->get<ConfigBoolean>("message-database-enabled")->read())) {
 			InjectContext::setMaxRequestRetentionTime(
-			    seconds{mc->get<ConfigInt>("max-request-retention-time")->read()});
+			    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("max-request-retention-time")->read()));
 			mInjector = make_unique<ScheduleInjector>(this);
 			ForkMessageContextSociRepository::prepareConfiguration(
 			    mc->get<ConfigString>("message-database-backend")->read(),

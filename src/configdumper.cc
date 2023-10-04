@@ -119,6 +119,10 @@ FileConfigDumper::dumpModuleValue(std::ostream& ostr, const ConfigValue* val, [[
 		printHelp(ostr, val->getHelp(), "#");
 		ostr << "# Default: " << val->getDefault() << endl;
 
+		if (!val->getDefaultUnit().empty()) {
+			ostr << "# Default unit: " << val->getDefaultUnit() << endl;
+		}
+
 		if (mDumpMode == Mode::DefaultValue || (mDumpMode == Mode::DefaultIfUnset && val->isDefault())) {
 			ostr << "#" << val->getName() << "=" << val->getDefault() << endl;
 		} else {
@@ -149,7 +153,8 @@ ostream& FileConfigDumper::dumpModuleHead(std::ostream& ostr,
 	return ostr;
 }
 
-/* TexFileComfigDumper */
+/* TexFileConfigDumper */
+
 string TexFileConfigDumper::escape(const string& strc) const {
 	return StringUtils::transform(strc, {{'_', "\\_"}, {'<', "\\textless{}"}, {'>', "\\textgreater{}"}});
 }
@@ -255,6 +260,8 @@ ostream& MediaWikiConfigDumper::dumpModuleEnd(std::ostream& ostr,
 	return ostr;
 }
 
+/* XWiki */
+
 ostream&
 XWikiConfigDumper::dumpModuleHead(std::ostream& ostr, const GenericStruct* cs, [[maybe_unused]] int level) const {
 	// we have a generic struc: we're on top level: get module name and description
@@ -266,6 +273,7 @@ XWikiConfigDumper::dumpModuleHead(std::ostream& ostr, const GenericStruct* cs, [
 	ostr << "|=(% style=\"text-align: center; border: 1px solid #999\" %)Name";
 	ostr << "|=(% style=\"text-align: center; border: 1px solid #999\" %)Description";
 	ostr << "|=(% style=\"text-align: center; border: 1px solid #999\" %)Default Value";
+	ostr << "|=(% style=\"text-align: center; border: 1px solid #999\" %)Default Unit";
 	ostr << "|=(% style=\"text-align: center; border: 1px solid #999\" %)Type" << endl;
 
 	return ostr;
@@ -279,6 +287,8 @@ XWikiConfigDumper::dumpModuleValue(std::ostream& ostr, const ConfigValue* val, [
 		     << escape(val->getHelp()) << ")))"
 		     << "|(% style=\"text-align: center; vertical-align: middle; border: 1px solid #999\" %) ##"
 		     << escape(val->getDefault()) << "##"
+		     << "|(% style=\"text-align: center; vertical-align: middle; border: 1px solid #999\" %) ##"
+		     << escape(string(val->getDefaultUnit())) << "##"
 		     << "|(% style=\"text-align: center; vertical-align: middle; border: 1px solid #999\" %)"
 		     << val->getTypeName() << endl;
 	}

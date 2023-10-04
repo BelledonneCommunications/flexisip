@@ -125,7 +125,8 @@ void ConferenceServer::_init() {
 
 	mCore = linphone::Factory::get()->createCoreWithConfig(configLinphone, nullptr);
 
-	mCore->setInCallTimeout(config->get<ConfigInt>("call-timeout")->read());
+	mCore->setInCallTimeout(
+	    chrono::duration_cast<seconds>(config->get<ConfigDuration<chrono::seconds>>("call-timeout")->read()).count());
 	mCore->enableRtpBundle(true);
 	mCore->enableEchoCancellation(false);
 
@@ -613,8 +614,8 @@ ConferenceServer::Init::Init() {
 	     "conference-factory-uri=sip:conference-factory@sip.linphone.org",
 	     ""},
 	    {Boolean, "enable-one-to-one-chat-room", "Whether one-to-one chat room creation is allowed or not.", "true"},
-	    {Integer, "call-timeout",
-	     "Call timeout in second.\n"
+	    {DurationS, "call-timeout",
+	     "Call timeout.\n"
 	     "This settings allows the conference server to kill all incoming calls that last longer than the call-timeout "
 	     "setting.\n"
 	     "A value of 0 prevents the conference server to kill any call due to this timeout",

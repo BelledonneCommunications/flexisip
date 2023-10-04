@@ -58,9 +58,8 @@ void Transcoder::onDeclare(GenericStruct* mc) {
 	/*we need to be disabled by default*/
 	mc->get<ConfigBoolean>("enabled")->setDefault("false");
 	ConfigItemDescriptor items[] = {
-	    {Integer, "jb-nom-size",
-	     "Nominal size of RTP jitter buffer, in milliseconds. A value of 0 means no jitter buffer (packet processing).",
-	     "0"},
+	    {DurationMS, "jb-nom-size",
+	     "Nominal size of RTP jitter buffer. A value of 0 means no jitter buffer (packet processing).", "0"},
 	    {StringList, "rc-user-agents",
 	     "Whitespace separated list of user-agent strings for which audio rate control is performed.", ""},
 	    {StringList, "audio-codecs",
@@ -180,7 +179,7 @@ list<PayloadType*> Transcoder::orderList(const list<string>& config, const list<
 
 void Transcoder::onLoad(const GenericStruct* mc) {
 	mTimer = mAgent->createTimer(20, &sOnTimer, this);
-	mCallParams.mJbNomSize = mc->get<ConfigInt>("jb-nom-size")->read();
+	mCallParams.mJbNomSize = mc->get<ConfigDuration<chrono::milliseconds>>("jb-nom-size")->read().count();
 	mRcUserAgents = mc->get<ConfigStringList>("rc-user-agents")->read();
 	mRemoveBandwidthsLimits = mc->get<ConfigBoolean>("remove-bw-limits")->read();
 	list<PayloadType*> l = makeSupportedAudioPayloadList();

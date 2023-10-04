@@ -56,7 +56,7 @@ PresenceServer::Init::Init(GenericStruct& root) {
 	    {StringList, "transports",
 	     "List of white space separated SIP URIs where the presence server must listen. Must not be tls.",
 	     "sip:127.0.0.1:5065;transport=tcp"},
-	    {Integer, "expires", "Default expires of PUBLISH request in second.", "600"},
+	    {DurationS, "expires", "Default expires of PUBLISH request.", "600"},
 	    {Integer, "notify-limit", "Max number of presentity sent in a single NOTIFY by default.", "200"},
 	    {Boolean, "long-term-enabled", "Enable long-term presence notifies", "false"},
 	    {String, "rls-database-connection", "Soci connection string for the resource list database.", ""},
@@ -161,8 +161,8 @@ PresenceServer::PresenceServer(const std::shared_ptr<sofiasip::SuRoot>& root) : 
 	belle_sip_provider_add_sip_listener(mProvider, mListener);
 
 	PresenceServer::sLastActivityRetentionMs = config->get<ConfigInt>("last-activity-retention-time")->read();
-
-	mDefaultExpires = config->get<ConfigInt>("expires")->read();
+	
+	mDefaultExpires = chrono::duration_cast<chrono::seconds>(config->get<ConfigDuration<chrono::seconds>>("expires")->read()).count();
 	mBypass = config->get<ConfigString>("bypass-condition")->read();
 	mEnabled = config->get<ConfigBoolean>("enabled")->read();
 	mRequest = config->get<ConfigString>("rls-database-request")->read();

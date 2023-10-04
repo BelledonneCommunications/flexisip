@@ -16,9 +16,10 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <flexisip/configmanager.hh>
+
 #include <algorithm>
 #include <cstring>
-#include <ctime>
 #include <fstream>
 #include <functional>
 #include <iostream>
@@ -27,8 +28,6 @@
 
 #include <sofia-sip/su_md5.h>
 
-#include <flexisip/common.hh>
-#include <flexisip/configmanager.hh>
 #include <flexisip/flexisip-version.h>
 #include <flexisip/logmanager.hh>
 #include <flexisip/sip-boolean-expressions.hh>
@@ -44,7 +43,7 @@ bool ConfigValueListener::sDirty = false;
 
 bool ConfigValueListener::onConfigStateChanged(const ConfigValue& conf, ConfigState state) {
 	switch (state) {
-		case ConfigState::Commited:
+		case ConfigState::Committed:
 			if (sDirty) {
 				// Write to disk
 				GenericStruct* rootStruct = GenericManager::get()->getRoot();
@@ -74,7 +73,7 @@ bool ConfigValueListener::onConfigStateChanged(const ConfigValue& conf, ConfigSt
 /* GenericEntry class                                                                                                */
 /*********************************************************************************************************************/
 
-void GenericEntry::DeprecationInfo::setAsDeprecaded(const std::string& date,
+void GenericEntry::DeprecationInfo::setAsDeprecated(const std::string& date,
                                                     const std::string& version,
                                                     const std::string& text) {
 	if (date.empty() || version.empty()) {
@@ -86,7 +85,7 @@ void GenericEntry::DeprecationInfo::setAsDeprecaded(const std::string& date,
 }
 
 /**
- * Searches a string for a pattern, removes it, and sets the next chatacter to uppercase.
+ * Searches a string for a pattern, removes it, and sets the next character to uppercase.
  * For instance, string a = "toto::titi"; camelFindAndReplace(a, "::"); would set a to "totoTiti"
  * @param haystack the string to convert to CamelCase
  * @param needle the string to remove from the haystack
@@ -117,7 +116,7 @@ std::string GenericEntry::getCompleteName() const {
 		string&& res = mParent->getCompleteName();
 		if (!res.empty()) res += '/';
 		res += mName;
-		return move(res);
+		return std::move(res);
 	}
 }
 
@@ -289,7 +288,7 @@ void NotificationEntry::send(const GenericEntry* source, const string& msg) {
 	 * See:
 	 * http://net-snmp.sourceforge.net/dev/agent/notification_8c-example.html
 	 * In the notification, we have to assign our notification OID to
-	 * the snmpTrapOID.0 object. Here is it's definition.
+	 * the snmpTrapOID.0 object. Here is its definition.
 	 */
 	oid objid_snmptrap[] = {1, 3, 6, 1, 6, 3, 1, 1, 4, 1, 0};
 	size_t objid_snmptrap_len = OID_LENGTH(objid_snmptrap);
@@ -383,6 +382,10 @@ const string& ConfigValue::get() const {
 
 const string& ConfigValue::getDefault() const {
 	return mDefaultValue;
+}
+
+std::string_view ConfigValue::getDefaultUnit() const {
+	return "";
 }
 
 void ConfigValue::setFallback(const ConfigValue& fallbackValue) {
@@ -504,6 +507,18 @@ void GenericStruct::addChildrenValues(ConfigItemDescriptor* items, bool hashed) 
 			case IntegerRange:
 				val = make_unique<ConfigIntRange>(items->name, items->help, items->default_value, cOid);
 				break;
+			case DurationMS:
+				val = make_unique<ConfigDuration<std::chrono::milliseconds>>(items->name, items->help,
+				                                                             items->default_value, cOid);
+				break;
+			case DurationS:
+				val = make_unique<ConfigDuration<std::chrono::seconds>>(items->name, items->help, items->default_value,
+				                                                        cOid);
+				break;
+			case DurationMIN:
+				val = make_unique<ConfigDuration<std::chrono::minutes>>(items->name, items->help, items->default_value,
+				                                                        cOid);
+				break;
 			case String:
 				val = make_unique<ConfigString>(items->name, items->help, items->default_value, cOid);
 				break;
@@ -520,7 +535,7 @@ void GenericStruct::addChildrenValues(ConfigItemDescriptor* items, bool hashed) 
 				LOGA("Bad ConfigValue type %u for %s!", items->type, items->name);
 				break;
 		}
-		addChild(move(val));
+		addChild(std::move(val));
 		if (!hashed) ++cOid;
 	}
 }
@@ -528,7 +543,7 @@ void GenericStruct::addChildrenValues(ConfigItemDescriptor* items, bool hashed) 
 StatCounter64* GenericStruct::createStat(const string& name, const string& help) {
 	oid cOid = Oid::oidFromHashedString(name);
 	auto val = make_unique<StatCounter64>(name, help, cOid);
-	return addChild(move(val));
+	return addChild(std::move(val));
 }
 pair<StatCounter64*, StatCounter64*> GenericStruct::createStatPair(const string& name, const string& help) {
 	return make_pair(createStat(name, help), createStat(name + "-finished", help + " Finished."));
@@ -793,7 +808,7 @@ static void init_flexisip_snmp() {
 	if (syslog) snmp_enable_calllog();
 	else snmp_enable_stderrlog();
 
-	/* make us a agentx client. */
+	/* make us an agentx client. */
 	netsnmp_ds_set_boolean(NETSNMP_DS_APPLICATION_ID, NETSNMP_DS_AGENT_ROLE, 1);
 	// netsnmp_ds_set_string(NETSNMP_DS_APPLICATION_ID,NETSNMP_DS_AGENT_X_SOCKET,"udp:localhost:161");
 	netsnmp_ds_set_boolean(NETSNMP_DS_APPLICATION_ID, NETSNMP_DS_AGENT_VERBOSE, 0);
@@ -835,9 +850,9 @@ GenericManager::GenericManager()
                   "This is the default Flexisip (v" FLEXISIP_GIT_VERSION ") configuration file",
                   {1, 3, 6, 1, 4, 1, SNMP_COMPANY_OID}),
       mReader(&mConfigRoot) {
-	// to make sure global_conf is instanciated first
+	// to make sure global_conf is instantiated first
 	static ConfigItemDescriptor global_conf[] = {
-	    // processus settings
+	    // process settings
 	    {StringList, "default-servers",
 	     "Servers started by default when no --server option is specified on command line. "
 	     "Possible values are 'proxy', 'presence', 'conference', 'regevent' separated by whitespaces.",
@@ -881,7 +896,7 @@ GenericManager::GenericManager()
 	     "editing /etc/logrotate.d/flexisip-logrotate.",
 	     DEFAULT_LOG_DIR},
 	    {String, "log-filename",
-	     "Name of the log file. Any occurences of '{server}' will be replaced by the server type "
+	     "Name of the log file. Any occurrences of '{server}' will be replaced by the server type "
 	     "which has been given by '--server' option or 'default-servers' parameter. If several server types have been "
 	     "given, then '{server}' will be replaced by the concatenation of these separated by '+' character (e.g. "
 	     "'proxy+presence')",
@@ -957,30 +972,29 @@ GenericManager::GenericManager()
 	     "List of white space separated host names pointing to this machine. This is to prevent "
 	     "loops while routing SIP messages.",
 	     "localhost"},
-	    {Integer, "idle-timeout", "Time interval in seconds after which inactive connections are closed.", "3600"},
-	    {Integer, "keepalive-interval",
-	     "Time interval in seconds for sending \"\\r\\n\\r\\n\" keepalives packets on inbound and outbound "
+	    {DurationS, "idle-timeout", "Time interval after which inactive connections are closed.", "3600"},
+	    {DurationS, "keepalive-interval",
+	     "Time interval for sending \"\\r\\n\\r\\n\" keepalives packets on inbound and outbound "
 	     "connections. "
 	     "A value of zero stands for no keepalive. The main purpose of sending keepalives is to keep connection alive "
-	     "accross NATs, but it also"
+	     "across NATs, but it also"
 	     " helps in detecting silently broken connections which can reduce the number socket descriptors used by "
 	     "flexisip.",
 	     "1800"},
-	    {Integer, "proxy-to-proxy-keepalive-interval",
-	     "Time interval in seconds for sending \"\\r\\n\\r\\n\" keepalives packets specifically for proxy "
+	    {DurationS, "proxy-to-proxy-keepalive-interval",
+	     "Time interval for sending \"\\r\\n\\r\\n\" keepalives packets specifically for proxy "
 	     "to proxy connections. Indeed, while it is undesirable to send frequent keepalives to mobile clients because "
 	     "it drains their battery,"
 	     " sending frequent keepalives has proven to be helpful to keep connections up between proxy nodes in a very "
 	     "popular US virtualized datacenter."
 	     " A value of zero stands for no keepalive.",
 	     "0"},
-	    {Integer, "transaction-timeout", "SIP transaction timeout in milliseconds. It is T1*64 (32000 ms) by default.",
-	     "32000"},
+	    {DurationMS, "transaction-timeout", "SIP transaction timeout. It is T1*64 by default.", "32000"},
 	    {Integer, "udp-mtu",
 	     "The UDP MTU. Flexisip will fallback to TCP when sending a message whose size exceeds the UDP MTU."
 	     " Please read http://sofia-sip.sourceforge.net/refdocs/nta/nta__tag_8h.html#a6f51c1ff713ed4b285e95235c4cc999a "
 	     "for more details. If sending large packets over UDP is not a problem, then set a big value such as 65535. "
-	     "Unlike the recommandation of the RFC, the default value of UDP MTU is 1460 in Flexisip (instead of 1300).",
+	     "Unlike the recommendation of the RFC, the default value of UDP MTU is 1460 in Flexisip (instead of 1300).",
 	     "1460"},
 	    {StringList, "rtp-bind-address",
 	     "You can specify the bind address for all RTP streams (MediaRelay and Transcoder). This parameter is only "
@@ -1011,7 +1025,7 @@ GenericManager::GenericManager()
 	     " of OpenSSL. You might visit https://www.openssl.org/docs/manmaster/man1/ciphers.html too. The default value"
 	     " set by Flexisip should provide a high level of security while keeping an acceptable level of "
 	     "interoperability"
-	     " with currenttly deployed clients on the market.",
+	     " with currently deployed clients on the market.",
 	     "HIGH:!SSLv2:!SSLv3:!TLSv1:!EXP:!ADH:!RC4:!3DES:!aNULL:!eNULL"},
 	    {Boolean, "require-peer-certificate", "Ask for client certificate on TLS session establishing.", "false"},
 
@@ -1077,23 +1091,23 @@ GenericManager::GenericManager()
 	     ", then 20% of Flexisip traffic will be redirected to the first Flexisip and 80% to the other one.\n"
 	     "The sum of all the weights of Flexisips on the same local domain must be 100.",
 	     "100"},
-	    {Integer, "mdns-ttl", "Time To Live of any mDNS query that will ask for this Flexisip instance", "3600"},
+	    {DurationMS, "mdns-ttl", "Time To Live of any mDNS query that will ask for this Flexisip instance", "3600"},
 	    config_item_end};
 
 	auto uNotifObjs = make_unique<GenericStruct>("notif", "Templates for notifications.", 1);
 	uNotifObjs->setExportable(false);
-	auto notifObjs = mConfigRoot.addChild(move(uNotifObjs));
+	auto notifObjs = mConfigRoot.addChild(std::move(uNotifObjs));
 	auto uNotifier = make_unique<NotificationEntry>("sender", "Send notifications", 1);
-	mNotifier = notifObjs->addChild(move(uNotifier));
+	mNotifier = notifObjs->addChild(std::move(uNotifier));
 	auto nmsg = make_unique<ConfigString>("msg", "Notification message payload.", "", 10);
 	nmsg->setNotifPayload(true);
-	notifObjs->addChild(move(nmsg));
+	notifObjs->addChild(std::move(nmsg));
 	auto nsoid = make_unique<ConfigString>("source", "Notification source payload.", "", 11);
 	nsoid->setNotifPayload(true);
-	notifObjs->addChild(move(nsoid));
+	notifObjs->addChild(std::move(nsoid));
 
 	auto uGlobal = make_unique<GenericStruct>("global", "Some global settings of the flexisip proxy.", 2);
-	auto global = mConfigRoot.addChild(move(uGlobal));
+	auto global = mConfigRoot.addChild(std::move(uGlobal));
 	global->addChildrenValues(global_conf);
 	global->get<ConfigByteSize>("max-log-size")->setDeprecated({"2019-05-17", "2.0.0"});
 	global->get<ConfigBoolean>("use-maddr")
@@ -1110,25 +1124,25 @@ GenericManager::GenericManager()
 	auto version = make_unique<ConfigString>("version-number", "Flexisip version.", FLEXISIP_GIT_VERSION, 999);
 	version->setReadOnly(true);
 	version->setExportable(false);
-	global->addChild(move(version));
+	global->addChild(std::move(version));
 
 	auto runtimeError = make_unique<ConfigRuntimeError>("runtime-error", "Retrieve current runtime error state.", 998);
 	runtimeError->setExportable(false);
 	runtimeError->setReadOnly(true);
-	global->addChild(move(runtimeError));
+	global->addChild(std::move(runtimeError));
 
 	auto uCluster = make_unique<GenericStruct>(
 	    "cluster",
 	    "This section contains some parameters useful when the current proxy is part of a network of proxies (cluster) "
 	    "which serve the same domain.",
 	    0);
-	auto cluster = mConfigRoot.addChild(move(uCluster));
+	auto cluster = mConfigRoot.addChild(std::move(uCluster));
 	cluster->addChildrenValues(cluster_conf);
 	cluster->setReadOnly(true);
 
 	auto uMdns = make_unique<GenericStruct>(
 	    "mdns-register", "Should the server be registered on a local domain, to be accessible via multicast DNS.", 0);
-	auto mdns = mConfigRoot.addChild(move(uMdns));
+	auto mdns = mConfigRoot.addChild(std::move(uMdns));
 	mdns->addChildrenValues(mdns_conf);
 	mdns->setReadOnly(true);
 }
@@ -1147,7 +1161,7 @@ bool GenericManager::doOnConfigStateChanged(const ConfigValue& conf, ConfigState
 		case ConfigState::Reset:
 			mDirtyConfig = false;
 			break;
-		case ConfigState::Commited:
+		case ConfigState::Committed:
 			if (mDirtyConfig) {
 				LOGI("Scheduling server restart to apply new config.");
 				mDirtyConfig = false;
@@ -1352,7 +1366,7 @@ int ConfigValue::handleSnmpRequest([[maybe_unused]] netsnmp_mib_handler* handler
 			break;
 		case MODE_SET_COMMIT:
 			//		LOGD("str handleSnmpRequest %s <- %s", reginfo->handlerName, get().c_str());
-			invokeConfigStateChanged(ConfigState::Commited);
+			invokeConfigStateChanged(ConfigState::Committed);
 			break;
 		case MODE_SET_FREE:
 			// Nothing to do
@@ -1406,7 +1420,7 @@ int ConfigBoolean::handleSnmpRequest([[maybe_unused]] netsnmp_mib_handler* handl
 			break;
 		case MODE_SET_COMMIT:
 			//		LOGD("bool handleSnmpRequest %s <- %d", reginfo->handlerName, read()?1:0);
-			invokeConfigStateChanged(ConfigState::Commited);
+			invokeConfigStateChanged(ConfigState::Committed);
 			break;
 		case MODE_SET_FREE:
 			// Nothing to do
@@ -1464,7 +1478,7 @@ int ConfigInt::handleSnmpRequest([[maybe_unused]] netsnmp_mib_handler* handler,
 			break;
 		case MODE_SET_COMMIT:
 			//		LOGD("int handleSnmpRequest %s <- %d", reginfo->handlerName, read());
-			invokeConfigStateChanged(ConfigState::Commited);
+			invokeConfigStateChanged(ConfigState::Committed);
 			break;
 		case MODE_SET_FREE:
 			// Nothing to do

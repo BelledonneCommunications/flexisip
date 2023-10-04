@@ -68,7 +68,7 @@ void ModuleAuthenticationBase::onDeclare(GenericStruct* mc) {
 	     "UAC.\n"
 	     "Furthermore, should a user have several hashed passwords and these are present in the list, then a challenge "
 	     "header will be put in the 401 response for each fetched password in the order given by the list.\n"
-	     "Supported algorithems are MD5 and SHA-256.",
+	     "Supported algorithms are MD5 and SHA-256.",
 	     "MD5"},
 	    {Boolean, "disable-qop-auth",
 	     "Disable the QOP authentication method. Default is to use it, use this flag to disable it if needed.",
@@ -77,10 +77,7 @@ void ModuleAuthenticationBase::onDeclare(GenericStruct* mc) {
 	     "Don't reply 403 when authentication fails. Instead, generate a new 401 (or 407) response containing "
 	     "a new challenge.",
 	     "false"},
-	    {Integer, "nonce-expires",
-	     "Expiration time before generating a new nonce.\n"
-	     "Unit: second",
-	     "3600"},
+	    {DurationS, "nonce-expires", "Expiration time before generating a new nonce.", "3600"},
 	    {String, "realm",
 	     "The realm to use for digest authentication. It will used whatever the domain of the From-URI.\n"
 	     "If the value starts with 'regex:', then this parameter will have the same effect than 'realm-regex', "
@@ -124,10 +121,10 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct* mc) {
 	if (mAlgorithms.empty()) mAlgorithms.assign(sValidAlgos.cbegin(), sValidAlgos.cend());
 
 	auto disableQOPAuth = mc->get<ConfigBoolean>("disable-qop-auth")->read();
-	auto nonceExpires = mc->get<ConfigInt>("nonce-expires")->read();
+	auto nonceExpires = chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("nonce-expires")->read());
 
 	for (const string& domain : authDomains) {
-		unique_ptr<FlexisipAuthModuleBase> am(createAuthModule(domain, nonceExpires, !disableQOPAuth));
+		unique_ptr<FlexisipAuthModuleBase> am(createAuthModule(domain, nonceExpires.count(), !disableQOPAuth));
 		mAuthModules[domain] = move(am);
 	}
 

@@ -49,12 +49,12 @@ ModuleDoSProtection::ModuleDoSProtection(Agent* ag) : Module(ag) {
 
 void ModuleDoSProtection::onDeclare(GenericStruct* module_config) {
 	ConfigItemDescriptor configs[] = {
-	    {Integer, "time-period", "Number of milliseconds to consider to compute the packet rate", "3000"},
+	    {DurationMS, "time-period", "Time to consider to compute the packet rate", "3000"},
 	    {Integer, "packet-rate-limit",
 	     "Maximum packet rate in packets/seconds,  averaged over [time-period] "
 	     "millisecond(s) to consider it as a DoS attack.",
 	     "20"},
-	    {Integer, "ban-time", "Number of minutes to ban the ip/port using iptables", "2"},
+	    {DurationMIN, "ban-time", "Time to ban the ip/port using iptables", "2"},
 	    {String, "iptables-chain", "Name of the chain flexisip will create to store the banned IPs", "FLEXISIP"},
 	    {StringList, "white-list",
 	     "List of IP addresses or hostnames for which no DoS protection is made."
@@ -70,9 +70,9 @@ void ModuleDoSProtection::onDeclare(GenericStruct* module_config) {
 }
 
 void ModuleDoSProtection::onLoad(const GenericStruct* mc) {
-	mTimePeriod = mc->get<ConfigInt>("time-period")->read();
+	mTimePeriod = mc->get<ConfigDuration<chrono::milliseconds>>("time-period")->read().count();
 	mPacketRateLimit = mc->get<ConfigInt>("packet-rate-limit")->read();
-	mBanTime = mc->get<ConfigInt>("ban-time")->read();
+	mBanTime = chrono::duration_cast<chrono::minutes>(mc->get<ConfigDuration<chrono::minutes>>("ban-time")->read()).count();
 	mDOSHashtableIterator = mDosContexts.begin();
 
 	GenericStruct* cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");

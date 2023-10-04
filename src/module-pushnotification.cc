@@ -100,13 +100,13 @@ PushNotification::PushNotification(Agent* ag) : Module(ag) {
 void PushNotification::onDeclare(GenericStruct* module_config) {
 	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 	ConfigItemDescriptor items[] = {
-	    {Integer, "timeout",
-	     "Number of seconds to wait before sending a push notification to device. A value lesser or equal to zero will "
+	    {DurationS, "timeout",
+	     "Time to wait before sending a push notification to device. A value lesser or equal to zero will "
 	     "make the push notification to be sent immediately, which is recommended since most of the time devices "
 	     "can't have a permanent connection with the Flexisip server.",
 	     "0"},
-	    {Integer, "message-time-to-live",
-	     "Time to live for the push notifications related to IM messages, in seconds. The default value '0' "
+	    {DurationS, "message-time-to-live",
+	     "Time to live for the push notifications related to IM messages. The default value '0' "
 	     "is interpreted as using the same value as for message-delivery-timeout of Router module.",
 	     "0"},
 	    {Integer, "max-queue-size", "Maximum number of notifications queued for each push notification service", "100"},
@@ -115,11 +115,11 @@ void PushNotification::onDeclare(GenericStruct* module_config) {
 	     "same event (call or message). Retransmissions cease when a response is received from the client. Setting "
 	     "a value of zero disables retransmissions.",
 	     "0"},
-	    {Integer, "retransmission-interval",
-	     "Retransmission interval in seconds for push notification requests, when "
+	    {DurationS, "retransmission-interval",
+	     "Retransmission interval for push notification requests, when "
 	     "a retransmission-count has been specified above.",
 	     "5"},
-	    {Integer, "call-remote-push-interval",
+	    {DurationS, "call-remote-push-interval",
 	     "Default interval between to subsequent PNs when remote push notifications are used to notify a call invite "
 	     "to "
 	     "a clients that haven't published any token for VoIP and background push notifications. In that case, "
@@ -193,8 +193,8 @@ void PushNotification::onDeclare(GenericStruct* module_config) {
 	     "Example: http://292.168.0.2/$type/$event?from-uri=$from-uri&tag=$from-tag&callid=$callid&to=$to-uri",
 	     ""},
 	    {String, "external-push-method", "Method for reaching external-push-uri, typically GET or POST", "GET"},
-	    {Integer, "register-wakeup-interval",
-	     "Send service push notification every n minutes to all devices that are about to expire and should wake up to "
+	    {DurationMIN, "register-wakeup-interval",
+	     "Send service push notification periodically to all devices that are about to expire and should wake up to "
 	     "REGISTER back. 0 to disable. Recommended value: 30",
 	     "0"},
 	    {Integer, "register-wakeup-threshold",
@@ -208,8 +208,8 @@ void PushNotification::onDeclare(GenericStruct* module_config) {
 	     "compatibility "
 	     "only)",
 	     ""},
-	    {Integer, "time-to-live",
-	     "Default time to live for the push notifications, in seconds. This parameter shall be "
+	    {DurationS, "time-to-live",
+	     "Default time to live for the push notifications. This parameter shall be "
 	     "set according to mDeliveryTimeout parameter in ForkContext.cc",
 	     "2592000"},
 	    config_item_end};
@@ -219,7 +219,7 @@ void PushNotification::onDeclare(GenericStruct* module_config) {
 	    {"2020-01-28", "2.0.0", "'google' push notification backend has been removed. Please use 'firebase' instead."});
 	module_config->get<ConfigStringList>("google-projects-api-keys")
 	    ->setDeprecated({"2020-01-28", "2.0.0", "This setting has no effect anymore."});
-	module_config->get<ConfigInt>("time-to-live")
+	module_config->get<ConfigDuration<chrono::seconds>>("time-to-live")
 	    ->setDeprecated({"2020-04-28", "2.0.0",
 	                     "This setting has no effect anymore. Use message-time-to-live to specify ttl for push "
 	                     "notifications related to IM message."});
@@ -238,10 +238,11 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	const GenericStruct* mRouter = root->get<GenericStruct>("module::Router");
 
 	mNoBadgeiOS = mc->get<ConfigBoolean>("no-badge")->read();
-	mTimeout = chrono::seconds{mc->get<ConfigInt>("timeout")->read()};
-	mMessageTtl = chrono::seconds{mc->get<ConfigInt>("message-time-to-live")->read()};
+	mTimeout = chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("timeout")->read());
+	mMessageTtl = chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("message-time-to-live")->read());
 	if (mMessageTtl == 0s) {
-		mMessageTtl = chrono::seconds{mRouter->get<ConfigInt>("message-delivery-timeout")->read()};
+		mMessageTtl =
+		    chrono::duration_cast<chrono::seconds>(mRouter->get<ConfigDuration<chrono::seconds>>("message-delivery-timeout")->read());
 	}
 	auto maxQueueSize = mc->get<ConfigInt>("max-queue-size")->read();
 	mDisplayFromUri = mc->get<ConfigBoolean>("display-from-uri")->read();
@@ -258,23 +259,24 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 
 	// Load the push retransmissions parameters.
 	auto retransmissionCount = mModuleConfig->get<ConfigInt>("retransmission-count")->read();
-	auto retransmissionInterval = mModuleConfig->get<ConfigInt>("retransmission-interval")->read();
+	auto retransmissionInterval =
+	    chrono::duration_cast<chrono::seconds>(mModuleConfig->get<ConfigDuration<chrono::seconds>>("retransmission-interval")->read());
 	if (retransmissionCount < 0) {
 		LOGF("module::PushNotification/retransmission-count must be positive");
 	}
-	if (retransmissionInterval <= 0) {
+	if (retransmissionInterval <= 0s) {
 		LOGF("module::PushNotification/retransmission-interval must be strictly positive");
 	}
 	mRetransmissionCount = retransmissionCount;
-	mRetransmissionInterval = chrono::seconds{retransmissionInterval};
+	mRetransmissionInterval = retransmissionInterval;
 
 	// Load the retransmission interval for remote push notification strategy.
-	const auto* callRemotePushIntervalCfg = mModuleConfig->get<ConfigInt>("call-remote-push-interval");
+	const auto* callRemotePushIntervalCfg = mModuleConfig->get<ConfigDuration<chrono::seconds>>("call-remote-push-interval");
 	auto callRemotePushInterval = callRemotePushIntervalCfg->read();
-	if (callRemotePushInterval < 0 || callRemotePushInterval > 30) {
+	if (callRemotePushInterval < 0s || callRemotePushInterval > 30s) {
 		LOGF("%s must be in [0;30]", callRemotePushIntervalCfg->getCompleteName().c_str());
 	}
-	mCallRemotePushInterval = static_cast<chrono::seconds>(callRemotePushInterval);
+	mCallRemotePushInterval = chrono::duration_cast<chrono::seconds>(callRemotePushInterval);
 
 	mPNS = make_unique<pushnotification::Service>(*getAgent()->getRoot(), maxQueueSize);
 
@@ -313,7 +315,7 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	mExpirationNotifier =
 	    ContactExpirationNotifier::make_unique(*mc, mAgent->getRoot(), getService(), *RegistrarDb::get());
 
-	mCallTtl = chrono::seconds{mRouter->get<ConfigInt>("call-fork-timeout")->read()};
+	mCallTtl = chrono::duration_cast<chrono::seconds>(mRouter->get<ConfigDuration<chrono::seconds>>("call-fork-timeout")->read());
 	SLOGD << "PushNotification module loaded. Push ttl for calls is " << mCallTtl.count() << " seconds, and for IM "
 	      << mMessageTtl.count() << " seconds.";
 }
@@ -420,7 +422,7 @@ std::chrono::seconds PushNotification::getCallRemotePushInterval(const char* pus
 	auto pnCallRemotePushInterval = UriUtils::getParamValue(pushParams, paramName);
 	if (!pnCallRemotePushInterval.empty()) {
 		try {
-			return static_cast<seconds>(stoi(pnCallRemotePushInterval));
+			return chrono::seconds(stoi(pnCallRemotePushInterval));
 		} catch (const std::exception& e) {
 			SLOGD << "cannot interpret value of '" << paramName << "': " << e.what();
 		}
