@@ -81,6 +81,10 @@ public:
 	void onDtmfReceived(const std::shared_ptr<linphone::Core>& core,
 	                    const std::shared_ptr<linphone::Call>& call,
 	                    int dtmf) override;
+	
+	int getTcpPort() const {
+		return mCore->getTransportsUsed()->getTcpPort();
+	}
 
 protected:
 	void _init() override;
