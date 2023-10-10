@@ -18,6 +18,7 @@
 
 #include "utils/asserts.hh"
 #include "utils/proxy-server.hh"
+#include "utils/successful-bind-listener.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -80,24 +81,6 @@ public:
 		}
 		output.resize(nread + 1);
 		return output;
-	}
-};
-
-class ReturnRecord : public ContactUpdateListener {
-public:
-	std::shared_ptr<Record> mRecord;
-
-	virtual void onRecordFound(const std::shared_ptr<Record>& r) override {
-		mRecord = r;
-	}
-	virtual void onError(const SipStatus&) override {
-		BC_FAIL(unexpected call to onError);
-	}
-	virtual void onInvalid(const SipStatus&) override {
-		BC_FAIL(unexpected call to onInvalid);
-	}
-	virtual void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& _ec) override {
-		BC_FAIL(unexpected call to onContactUpdated);
 	}
 };
 
@@ -387,7 +370,7 @@ void flexisip_cli_dot_py() {
 		const auto aor4 = "sip:test4@sip.example.org";
 		const auto contactWithPriority = "<"s + aor4 + ">;q=0.3";
 		auto* regDb = RegistrarDb::get();
-		const auto listener = std::make_shared<ReturnRecord>();
+		const auto listener = std::make_shared<SuccessfulBindListener>();
 
 		command.str("");
 		command << "REGISTRAR_UPSERT " << aor4 << " " << contactWithPriority << " 3001";

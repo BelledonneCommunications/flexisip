@@ -47,7 +47,7 @@ Ready::Ready(RawPipeDesc ends[2]) : readEnd{ends[0]}, writeEnd{ends[1]} {
 ReadOnly::ReadOnly(Ready&& pipe) : Descriptor(std::move(pipe.readEnd)) {
 }
 
-variant<string, TimeOut, SysErr> ReadOnly::read(size_t size, chrono::microseconds timeoutMs) {
+variant<string, TimeOut, SysErr> ReadOnly::read(size_t size, chrono::microseconds timeoutMs) const {
 	fd_set fileDescriptorSet;
 	FD_ZERO(&fileDescriptorSet);
 	FD_SET(mDesc, &fileDescriptorSet);

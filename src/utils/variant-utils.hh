@@ -7,6 +7,7 @@
 #include <ostream>
 #include <sstream>
 #include <stdexcept>
+#include <typeinfo>
 #include <utility>
 #include <variant>
 
@@ -73,11 +74,11 @@ public:
 	template <typename TVariant>
 	TExpected in(TVariant&& v) && {
 		return Match<TVariant>(std::forward<TVariant>(v))
-		    .against([](TExpected&& expected) -> TExpected { return std::forward<TExpected>(expected); },
+		    .against([](TExpected expected) -> TExpected { return std::forward<TExpected>(expected); },
 		             [this](auto&& value) -> TExpected {
 			             std::ostringstream msg{};
 			             msg << mFile << ":" << mLine << ": Unexpected variant found. Expected a `" << mExpectedTypeName
-			                 << "` but found: " << std::move(value);
+			                 << "` but found a `" << typeid(value).name() << "` with value: " << std::move(value);
 			             throw std::runtime_error{msg.str()};
 		             });
 	}

@@ -161,7 +161,7 @@ int main(int argc, char **argv) {
 	agent = make_shared<Agent>(root);
 
 	auto serializer = unique_ptr<RecordSerializer>(RecordSerializer::create(args.serializer));
-	auto registrardb = new RegistrarDbRedisAsync("localhost", root, serializer.get(), args.redis);
+	auto registrardb = new RegistrarDbRedisAsync(root, serializer.get(), args.redis);
 	auto url = url_format(&home, args.url.c_str());
 	auto listener = make_shared<DumpListener>(root);
 

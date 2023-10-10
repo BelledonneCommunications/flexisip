@@ -12,30 +12,13 @@
 #include "registrar/record.hh"
 #include "registrar/registrar-db.hh"
 #include "utils/proxy-server.hh"
+#include "utils/successful-bind-listener.hh"
 #include "utils/temp-file.hh"
 
 using namespace std::chrono_literals;
 namespace flexisip {
 namespace tester {
 namespace module_registrar {
-
-class ReturnRecord : public ContactUpdateListener {
-public:
-	std::shared_ptr<Record> mRecord;
-
-	virtual void onRecordFound(const std::shared_ptr<Record>& r) override {
-		mRecord = r;
-	}
-	virtual void onError(const SipStatus&) override {
-		BC_FAIL(unexpected call to onError);
-	}
-	virtual void onInvalid(const SipStatus&) override {
-		BC_FAIL(unexpected call to onInvalid);
-	}
-	virtual void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& _ec) override {
-		BC_FAIL(unexpected call to onContactUpdated);
-	}
-};
 
 void static_records_file_is_read_on_SIGUSR1() {
 	const auto sendSignal = [pid = getpid()] {
@@ -56,7 +39,7 @@ void static_records_file_is_read_on_SIGUSR1() {
 	auto& root = *proxyServer.getRoot();
 	proxyServer.start();
 	auto& regDb = *RegistrarDb::get();
-	const auto listener = std::make_shared<ReturnRecord>();
+	const auto listener = std::make_shared<SuccessfulBindListener>();
 
 	sendSignal();
 	root.step(1ms);

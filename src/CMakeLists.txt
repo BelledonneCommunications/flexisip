@@ -223,8 +223,10 @@ if (ENABLE_DATEHANDLER)
 endif ()
 if (ENABLE_REDIS)
 	target_sources(flexisip PRIVATE
+		libhiredis-wrapper/redis-async-script.cc libhiredis-wrapper/redis-async-script.hh
+		libhiredis-wrapper/redis-async-session.cc libhiredis-wrapper/redis-async-session.hh
+		libhiredis-wrapper/redis-reply.cc libhiredis-wrapper/redis-reply.hh
 		registrardb-redis-async.cc
-		timed-redis-command.cc timed-redis-command.hh
 	)
 	target_compile_definitions(flexisip PRIVATE "ENABLE_REDIS")
 	target_link_libraries(flexisip PRIVATE hiredis)

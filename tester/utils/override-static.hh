@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <utility>
+
 namespace flexisip {
 namespace tester {
 
@@ -13,7 +15,7 @@ namespace tester {
 template <typename T>
 class StaticOverride {
 public:
-	StaticOverride(T& staticSlot, T&& newValue) : mStaticSlot(&staticSlot), mPrevious(std::move(staticSlot)) {
+	StaticOverride(T& staticSlot, T&& newValue) : mStaticSlot(&staticSlot), mPrevious(staticSlot) {
 		*mStaticSlot = std::forward<T>(newValue);
 	}
 	~StaticOverride() {
@@ -25,22 +27,19 @@ public:
 		return *this;
 	}
 
-	StaticOverride(StaticOverride<T>&& other) : mStaticSlot(other.mStaticSlot), mPrevious(std::move(other.mPrevious)) {
-		other.mStaticSlot = nullptr;
-	}
-	StaticOverride(const StaticOverride<T>& other) = delete;
-	StaticOverride<T>& operator=(StaticOverride<T>&& other) = delete;
-	StaticOverride<T>& operator=(const StaticOverride<T>& other) = delete;
+	StaticOverride(StaticOverride<T>&&) = delete;
+	StaticOverride(const StaticOverride<T>&) = delete;
+	StaticOverride<T>& operator=(StaticOverride<T>&&) = delete;
+	StaticOverride<T>& operator=(const StaticOverride<T>&) = delete;
 
 private:
 	T* mStaticSlot = nullptr;
 	T mPrevious;
 };
 
+// explicit deduction guides (not needed as of C++20)
 template <typename T>
-auto overrideStaticVariable(T& var, T&& value) {
-	return StaticOverride<T>(var, std::forward<T>(value));
-}
+StaticOverride(T&, T&&) -> StaticOverride<T>;
 
 } // namespace tester
 } // namespace flexisip

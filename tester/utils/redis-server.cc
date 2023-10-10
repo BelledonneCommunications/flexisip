@@ -64,16 +64,26 @@ process::Process RedisServer::spawn(uint16_t port) {
 	});
 }
 
-RedisServer::RedisServer() : mPort(genPort()), mDaemon(spawn(mPort)) {
+RedisServer::RedisServer(std::uint16_t port) : mPort(port), mDaemon(spawn(mPort)) {
 }
 
-RedisServer::~RedisServer() {
+void RedisServer::stop() {
 	if (auto* running = get_if<process::Running>(&mDaemon.state())) {
 		if (auto err = running->signal(SIGTERM)) {
 			SLOGE << "Failed to send term signal to redis process: " << *err;
 		}
 	}
 	std::move(mDaemon).wait();
+}
+
+RedisServer::~RedisServer() {
+	stop();
+}
+
+void RedisServer::restart() {
+	stop();
+	mReadyForConnections = false;
+	mDaemon = spawn(mPort);
 }
 
 uint16_t RedisServer::port() {

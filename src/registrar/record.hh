@@ -56,6 +56,10 @@ public:
 		explicit Key(const SipUri& aor) : Key(aor.get()) {
 		}
 
+		std::string toRedisKey() const {
+			return "fs:" + mWrapped;
+		}
+
 		operator const std::string&() const {
 			return mWrapped;
 		}
@@ -63,6 +67,10 @@ public:
 			return std::move(mWrapped);
 		}
 		operator SipUri() const;
+
+		bool operator==(const Key& other) const {
+			return mWrapped == other.mWrapped;
+		}
 
 		friend std::ostream& operator<<(std::ostream& out, const Key& self) {
 			return out << self.mWrapped;

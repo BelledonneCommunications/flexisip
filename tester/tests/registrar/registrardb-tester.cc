@@ -29,6 +29,7 @@
 #include "flexisip/registrar/registar-listeners.hh"
 #include "flexisip/utils/sip-uri.hh"
 
+#include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "registrar/registrar-db.hh"
 #include "tester.hh"
@@ -36,6 +37,7 @@
 #include "utils/override-static.hh"
 #include "utils/proxy-server.hh"
 #include "utils/redis-sync-access.hh"
+#include "utils/successful-bind-listener.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -44,24 +46,6 @@ using namespace std;
 
 namespace flexisip {
 namespace tester {
-
-class SuccessfulBindListener : public ContactUpdateListener {
-public:
-	std::shared_ptr<Record> mRecord{nullptr};
-
-	virtual void onRecordFound(const std::shared_ptr<Record>& r) override {
-		mRecord = r;
-	}
-	void onError(const SipStatus&) override {
-		BC_FAIL("This test doesn't expect an error response");
-	}
-	void onInvalid(const SipStatus&) override {
-		BC_FAIL("This test doesn't expect an invalid response");
-	}
-	void onContactUpdated(const shared_ptr<ExtendedContact>&) override {
-		BC_FAIL("This test doesn't expect a contact to be updated");
-	}
-};
 
 class IgnoreUpdatesListener : public SuccessfulBindListener {
 	void onContactUpdated(const shared_ptr<ExtendedContact>&) override {
@@ -182,7 +166,7 @@ class MaxContactsByAorIsHonored : public RegistrarDbTest<TDatabase> {
 	void testExec() noexcept override {
 		auto& uidFields = Record::sLineFieldNames;
 		if (uidFields.empty()) uidFields = {"+sip.instance"}; // Do not rely on side-effects from other tests...
-		auto maxContacts = overrideStaticVariable(Record::sMaxContacts, 3);
+		StaticOverride maxContacts{Record::sMaxContacts, 3};
 		auto* regDb = RegistrarDb::get();
 		ContactInserter inserter(*regDb);
 		const SipUri aor{"sip:morethan3@example.org"};
@@ -235,7 +219,7 @@ class MaxContactsByAorIsHonored : public RegistrarDbTest<TDatabase> {
 
 class ContactsAreCorrectlyUpdatedWhenMatchedOnUri : public RegistrarDbTest<DbImplementation::Redis> {
 	void testExec() noexcept override {
-		auto _ = overrideStaticVariable(Record::sMaxContacts, 2);
+		StaticOverride _{Record::sMaxContacts, 2};
 		auto* regDb = RegistrarDb::get();
 		sofiasip::Home home{};
 		const auto contactBase = ":update-test@example.org";
@@ -591,6 +575,40 @@ class ExpiredContactsArePurgedFromRedis : public RegistrarDbTest<DbImplementatio
 
 namespace {
 
+class FetchAndClearInstance : public RegistrarDbTest<DbImplementation::Redis> {
+	void testExec() noexcept override {
+		auto* regDb = RegistrarDb::get();
+		sofiasip::Home home{};
+		const auto contactBase = "fetch-and-clear-test@example.org";
+		const auto contactStr = "sip:"s + contactBase;
+		const auto instanceIdFeatureParam = R"(+sip.instance="<fetch-and-clear-id>")";
+		auto contact = sip_contact_create(home.home(), reinterpret_cast<const url_string_t*>(contactStr.c_str()),
+		                                  instanceIdFeatureParam, nullptr);
+		BindingParameters params{};
+		params.globalExpire = 231;
+		params.callId = "fetch-and-clear-test";
+		const auto listener = make_shared<SuccessfulBindListener>();
+		regDb->bind(SipUri(contactStr), contact, params, listener);
+		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
+		listener->mRecord.reset();
+		const SipUri instanceUri{contactStr + ";gr=fetch-and-clear-id"};
+
+		regDb->fetch(instanceUri, listener);
+		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
+
+		const auto& fetched = listener->mRecord->getExtendedContacts();
+		BC_HARD_ASSERT_CPP_EQUAL(fetched.size(), 1);
+		BC_ASSERT_CPP_EQUAL(fetched.latest()->get()->urlAsString(), ExtendedContact::urlToString(contact->m_url));
+
+		listener->mRecord.reset();
+		regDb->clear(instanceUri, "stub-callid", listener);
+		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
+
+		BC_ASSERT_CPP_EQUAL(static_cast<const string&>(listener->mRecord->getKey()), contactBase);
+		BC_ASSERT_CPP_EQUAL(listener->mRecord->getExtendedContacts().size(), 0);
+	}
+};
+
 enum class FailureExpected : bool {
 	No = false,
 	Yes = true,
@@ -599,9 +617,11 @@ enum class FailureExpected : bool {
 class SuccessfulConnectionListener : public RegistrarDbStateListener {
 public:
 	bool successful = false;
+	bool called = false;
 
 private:
 	void onRegistrarDbWritable(bool writable) override {
+		called = true;
 		successful = writable;
 	}
 };
@@ -640,7 +660,7 @@ tuple<map<string, string>, FailureExpected> legacyAuth(RedisSyncContext& redis) 
 	BC_ASSERT_CPP_EQUAL(reply->type, REDIS_REPLY_STATUS);
 	BC_ASSERT_STRING_EQUAL(reply->str, "OK");
 
-	return {{{"module::Registrar/redis-auth-password", password}}, FailureExpected::Yes};
+	return {{{"module::Registrar/redis-auth-password", password}}, FailureExpected::No};
 }
 
 tuple<map<string, string>, FailureExpected> aclAuth(RedisSyncContext& redis) {
@@ -661,13 +681,43 @@ tuple<map<string, string>, FailureExpected> aclAuth(RedisSyncContext& redis) {
 	        failureExpected};
 }
 
+void failedAuthenticatedConnectionWithRedis() {
+	DbImplementation::Redis db{};
+	RedisSyncContext redis = redisConnect("127.0.0.1", db.port());
+	auto auth = legacyAuth(redis);
+	Server proxyServer{[&db, &authCfg = std::get<0>(auth)]() {
+		authCfg["module::Registrar/redis-auth-password"] = "test invalid password";
+		auto config = db.configAsMap();
+		config.emplace("global/transports", "sip:127.0.0.1:0;transport=udp");
+		config.merge(authCfg);
+		return config;
+	}()};
+	proxyServer.start();
+	const auto connectionListener = make_shared<SuccessfulConnectionListener>();
+	RegistrarDb::get()->addStateListener(connectionListener);
+	BcAssert asserter{};
+	asserter.addCustomIterate([&root = *proxyServer.getRoot()]() { root.step(100ms); });
+
+	asserter
+	    .iterateUpTo(7,
+	                 [&connection = *connectionListener]() {
+		                 FAIL_IF(connection.called == false);
+		                 return ASSERTION_PASSED();
+	                 })
+	    .assert_passed();
+
+	BC_ASSERT_FALSE(connectionListener->successful);
+}
+
 TestSuite
     _("RegistrarDB",
       {
           CLASSY_TEST(InstanceIDFeatureParamIsSerializedToRedis),
           CLASSY_TEST(CallIDsPreviouslyUsedAsKeysAreInterpretedAsUniqueIDs),
+          CLASSY_TEST(FetchAndClearInstance),
           CLASSY_TEST(authenticatedConnectionWithRedis<legacyAuth>),
           CLASSY_TEST(authenticatedConnectionWithRedis<aclAuth>),
+          CLASSY_TEST(failedAuthenticatedConnectionWithRedis),
           TEST_NO_TAG("Fetch expiring contacts on Redis", run<TestFetchExpiringContacts<DbImplementation::Redis>>),
           TEST_NO_TAG("Fetch expiring contacts in Internal DB",
                       run<TestFetchExpiringContacts<DbImplementation::Internal>>),

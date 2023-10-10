@@ -29,7 +29,12 @@
 namespace flexisip {
 namespace tester {
 
-class TestAssertFailedException : public std::exception {};
+class TestAssertFailedException : public std::exception {
+public:
+	const char* what() const noexcept override {
+		return "Test assertion failed";
+	}
+};
 
 /**
  * Base function for BC_HARD_ASSERT_* macro.

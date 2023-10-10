@@ -33,7 +33,7 @@ namespace tester {
  */
 class RedisServer {
 public:
-	RedisServer();
+	RedisServer(std::uint16_t port = genPort());
 	~RedisServer();
 
 	/**
@@ -45,9 +45,15 @@ public:
 	 */
 	std::uint16_t port();
 
+	// (Synchronously) stops then starts the server again on the same port
+	void restart();
+
 private:
 	static std::uint16_t genPort() noexcept;
 	static process::Process spawn(std::uint16_t);
+
+	// Send TERM signal and wait for termination
+	void stop();
 
 	std::uint16_t mPort;
 	process::Process mDaemon;

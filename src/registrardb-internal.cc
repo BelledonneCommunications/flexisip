@@ -164,9 +164,6 @@ void RegistrarDbInternal::doClear(const MsgSip& msg, const shared_ptr<ContactUpd
 	listener->onRecordFound(NULL);
 }
 
-void RegistrarDbInternal::doMigration() {
-}
-
 void RegistrarDbInternal::clearAll() {
 	mRecords.clear();
 	mLocalRegExpire->clearAll();

@@ -165,7 +165,6 @@ protected:
 	virtual void doFetchInstance(const SipUri& url,
 	                             const std::string& uniqueId,
 	                             const std::shared_ptr<ContactUpdateListener>& listener) = 0;
-	virtual void doMigration() = 0;
 
 	int countSipContacts(const sip_contact_t* contact);
 	bool errorOnTooMuchContactInBind(const sip_contact_t* sip_contact,
