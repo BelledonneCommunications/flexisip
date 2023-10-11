@@ -60,18 +60,20 @@ public:
 };
 
 class OnResponseBindListener : public ContactUpdateListener {
-	ModuleRegistrar *mModule;
+	ModuleRegistrar* mModule;
 	std::shared_ptr<ResponseSipEvent> mEv;
 	std::shared_ptr<OutgoingTransaction> mTr;
 	std::shared_ptr<ResponseContext> mCtx;
 
-  public:
-	OnResponseBindListener(ModuleRegistrar *module, std::shared_ptr<ResponseSipEvent> ev, std::shared_ptr<OutgoingTransaction> tr,
-						   std::shared_ptr<ResponseContext> ctx);
-	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec)override;
-	void onRecordFound(const std::shared_ptr<Record> &r)override;
-	void onError()override;
-	void onInvalid()override;
+public:
+	OnResponseBindListener(ModuleRegistrar* module,
+	                       std::shared_ptr<ResponseSipEvent> ev,
+	                       std::shared_ptr<OutgoingTransaction> tr,
+	                       std::shared_ptr<ResponseContext> ctx);
+	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override;
+	void onRecordFound(const std::shared_ptr<Record>& r) override;
+	void onError() override;
+	void onInvalid() override;
 };
 
 // Listener class NEED to copy the shared pointer
@@ -81,13 +83,13 @@ class OnStaticBindListener : public ContactUpdateListener {
 	std::string mContact;
 	std::string mFrom;
 
-  public:
-	OnStaticBindListener(const url_t *from, const sip_contact_t *ct);
+public:
+	OnStaticBindListener(const url_t* from, const sip_contact_t* ct);
 
-	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec)override;
-	void onRecordFound(const std::shared_ptr<Record> &r)override;
-	void onError()override;
-	void onInvalid()override;
+	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override;
+	void onRecordFound(const std::shared_ptr<Record>& r) override;
+	void onError() override;
+	void onInvalid() override;
 };
 
 class FakeFetchListener : public ContactUpdateListener {
@@ -95,58 +97,57 @@ class FakeFetchListener : public ContactUpdateListener {
 
 public:
 	FakeFetchListener();
-	void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec)override;
-	void onRecordFound(const std::shared_ptr<Record> &r)override;
-	void onError()override;
-	void onInvalid()override;
+	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override;
+	void onRecordFound(const std::shared_ptr<Record>& r) override;
+	void onError() override;
+	void onInvalid() override;
 };
-
 
 class ResponseContext {
 public:
-	ResponseContext(const std::shared_ptr<RequestSipEvent> &ev, int globalDelta);
+	ResponseContext(const std::shared_ptr<RequestSipEvent>& ev, int globalDelta);
 	const std::shared_ptr<RequestSipEvent> mRequestSipEvent;
-	sip_contact_t *mOriginalContacts{nullptr};
+	sip_contact_t* mOriginalContacts{nullptr};
 };
 
 class ModuleRegistrar : public Module, public ModuleToolbox {
 	friend class OnRequestBindListener;
 	friend class OnResponseBindListener;
 
-  public:
-	ModuleRegistrar(Agent *ag);
+public:
+	ModuleRegistrar(Agent* ag);
 
 	~ModuleRegistrar() {
 	}
 
-	virtual void onDeclare(GenericStruct *mc);
+	virtual void onDeclare(GenericStruct* mc);
 
-	virtual void onLoad(const GenericStruct *mc);
+	virtual void onLoad(const GenericStruct* mc);
 
 	virtual void onUnload();
 
-	virtual void onRequest(std::shared_ptr<RequestSipEvent> &ev);
+	virtual void onRequest(std::shared_ptr<RequestSipEvent>& ev);
 
-	virtual void onResponse(std::shared_ptr<ResponseSipEvent> &ev);
+	virtual void onResponse(std::shared_ptr<ResponseSipEvent>& ev);
 
 	template <typename SipEventT, typename ListenerT>
-	void processUpdateRequest(std::shared_ptr<SipEventT> &ev, const sip_t *sip);
+	void processUpdateRequest(std::shared_ptr<SipEventT>& ev, const sip_t* sip);
 
 	void idle();
 
-	void reply(std::shared_ptr<RequestSipEvent> &ev, int code, const char *reason, const sip_contact_t *contacts = NULL);
+	void
+	reply(std::shared_ptr<RequestSipEvent>& ev, int code, const char* reason, const sip_contact_t* contacts = NULL);
 
 	void readStaticRecords();
 
-  private:
-	std::shared_ptr<ResponseContext> createResponseContext(const std::shared_ptr<RequestSipEvent> &ev, int globalDelta);
-	void deleteResponseContext(const std::shared_ptr<ResponseContext> &ctx);
-	
+private:
+	std::shared_ptr<ResponseContext> createResponseContext(const std::shared_ptr<RequestSipEvent>& ev, int globalDelta);
+	void deleteResponseContext(const std::shared_ptr<ResponseContext>& ctx);
 
 	void updateLocalRegExpire();
-	bool isManagedDomain(const url_t *url);
-	std::string routingKey(const url_t *sipUri);
-	void removeInternalParams(sip_contact_t *ct);
+	bool isManagedDomain(const url_t* url);
+	std::string routingKey(const url_t* sipUri);
+	void removeInternalParams(sip_contact_t* ct);
 
 	RegistrarStats mStats;
 	bool mUpdateOnResponse;
@@ -158,7 +159,7 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 	std::string mRoutingParam;
 	unsigned int mMaxExpires, mMinExpires;
 	std::string mStaticRecordsFile;
-	su_timer_t *mStaticRecordsTimer;
+	su_timer_t* mStaticRecordsTimer;
 	int mStaticRecordsTimeout;
 	int mStaticRecordsVersion;
 	bool mAssumeUniqueDomains;
@@ -170,9 +171,9 @@ class ModuleRegistrar : public Module, public ModuleToolbox {
 };
 
 class RegistrarMgt {
-  public:
+public:
 	virtual unsigned long long int getTotalNumberOfAddedRecords() = 0;
 	virtual unsigned long long int getTotalNumberOfExpiredRecords() = 0;
 };
 
-}
+} // namespace flexisip

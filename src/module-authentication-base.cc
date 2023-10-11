@@ -21,8 +21,8 @@
 #include <sofia-sip/sip_status.h>
 
 #include "agent.hh"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "eventlogs/events/eventlogs.hh"
+#include "eventlogs/writers/event-log-writer.hh"
 
 #include "auth/realm-extractor.hh"
 #include "utils/string-utils.hh"

@@ -1,19 +1,19 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <cctype>
@@ -29,7 +29,7 @@ using namespace std;
 
 namespace flexisip {
 
-ostream &ConfigDumper::dump(ostream &ostr) const {
+ostream& ConfigDumper::dump(ostream& ostr) const {
 	return dump_recursive(ostr, mRoot, 0);
 }
 
@@ -53,7 +53,7 @@ ostream& ConfigDumper::dump_recursive(std::ostream& ostr, const GenericEntry* en
 	return ostr;
 }
 
-bool ConfigDumper::shouldDumpModule(const string &moduleName) const {
+bool ConfigDumper::shouldDumpModule(const string& moduleName) const {
 	smatch match;
 
 	// When the dumpExperimental is activated, we should dump everything
@@ -65,18 +65,15 @@ bool ConfigDumper::shouldDumpModule(const string &moduleName) const {
 	}
 
 	auto registeredModuleInfo = ModuleInfoManager::get()->getRegisteredModuleInfo();
-	auto it = find_if(
-		registeredModuleInfo.cbegin(),
-		registeredModuleInfo.cend(),
-		[&name](const ModuleInfoBase *mi){return mi->getModuleName() == name;}
-	);
+	auto it = find_if(registeredModuleInfo.cbegin(), registeredModuleInfo.cend(),
+	                  [&name](const ModuleInfoBase* mi) { return mi->getModuleName() == name; });
 
 	return (it != registeredModuleInfo.cend()) ? (*it)->getClass() == ModuleClass::Production : true;
 }
 
 /* FILE CONFIG DUMPER */
 
-ostream &FileConfigDumper::printHelp(ostream &os, const string &help, const string &comment_prefix) const {
+ostream& FileConfigDumper::printHelp(ostream& os, const string& help, const string& comment_prefix) const {
 	auto it = help.cbegin();
 	auto begin = it;
 	bool lineStarts = true;
@@ -84,13 +81,13 @@ ostream &FileConfigDumper::printHelp(ostream &os, const string &help, const stri
 	bool isBulletFirstLine = false;
 
 	for (; it != help.cend(); it++) {
-		if (lineStarts){
-			string startOfLine = help.substr(it-help.cbegin(), 3);
-			if (startOfLine == " - " || startOfLine == " * "){
+		if (lineStarts) {
+			string startOfLine = help.substr(it - help.cbegin(), 3);
+			if (startOfLine == " - " || startOfLine == " * ") {
 				// Beginning of a bullet
 				isWithinBullet = true;
 				isBulletFirstLine = true;
-			}else{
+			} else {
 				isWithinBullet = false;
 			}
 			lineStarts = false;
@@ -98,11 +95,10 @@ ostream &FileConfigDumper::printHelp(ostream &os, const string &help, const stri
 
 		if (((it - begin) > 60 && *it == ' ') || *it == '\n') {
 			os << comment_prefix;
-			if (isWithinBullet && !isBulletFirstLine) os << "   "; //To make indentation.
+			if (isWithinBullet && !isBulletFirstLine) os << "   "; // To make indentation.
 			isBulletFirstLine = false;
-			os  << " " << string(begin, it) << endl;
+			os << " " << string(begin, it) << endl;
 			begin = it + 1;
-
 		}
 		if (*it == '\n') {
 			lineStarts = true;
@@ -110,14 +106,14 @@ ostream &FileConfigDumper::printHelp(ostream &os, const string &help, const stri
 		}
 	}
 	os << comment_prefix << " ";
-	if (isWithinBullet && !isBulletFirstLine) os << "   "; //To make indentation.
+	if (isWithinBullet && !isBulletFirstLine) os << "   "; // To make indentation.
 	os << string(begin, it) << endl;
 	return os;
 }
 
-ostream &FileConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue *val, [[maybe_unused]] int level) const {
-	if (!val || !val->isExportable())
-		return ostr;
+ostream&
+FileConfigDumper::dumpModuleValue(std::ostream& ostr, const ConfigValue* val, [[maybe_unused]] int level) const {
+	if (!val || !val->isExportable()) return ostr;
 	if (!val->isDeprecated()) {
 
 		printHelp(ostr, val->getHelp(), "#");
@@ -133,18 +129,19 @@ ostream &FileConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue
 	return ostr;
 }
 
-ostream &FileConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruct *moduleHead, [[maybe_unused]] int level) const {
-	if (!moduleHead || !moduleHead->isExportable())
-		return ostr;
+ostream& FileConfigDumper::dumpModuleHead(std::ostream& ostr,
+                                          const GenericStruct* moduleHead,
+                                          [[maybe_unused]] int level) const {
+	if (!moduleHead || !moduleHead->isExportable()) return ostr;
 
-	if (moduleHead->getParent()) {  // if moduleHead is not the root
+	if (moduleHead->getParent()) { // if moduleHead is not the root
 		ostr << "\n\n\n\n\n" << flush;
 	}
 
 	ostr << "##" << endl;
 	printHelp(ostr, moduleHead->getHelp(), "##");
 	ostr << "##" << endl;
-	if (moduleHead->getParent()) {  // if moduleHead is not the root
+	if (moduleHead->getParent()) { // if moduleHead is not the root
 		ostr << "[" << moduleHead->getName() << "]" << endl;
 		ostr << endl;
 	}
@@ -153,15 +150,12 @@ ostream &FileConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruc
 }
 
 /* TexFileComfigDumper */
-string TexFileConfigDumper::escape(const string &strc) const {
-	return StringUtils::transform(strc, {
-		{ '_' , "\\_"             },
-		{ '<' , "\\textless{}"    },
-		{ '>' , "\\textgreater{}" }
-	});
+string TexFileConfigDumper::escape(const string& strc) const {
+	return StringUtils::transform(strc, {{'_', "\\_"}, {'<', "\\textless{}"}, {'>', "\\textgreater{}"}});
 }
 
-ostream &TexFileConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruct *cs, [[maybe_unused]] int level) const {
+ostream&
+TexFileConfigDumper::dumpModuleHead(std::ostream& ostr, const GenericStruct* cs, [[maybe_unused]] int level) const {
 	if (cs->getParent()) {
 		string pn = escape(cs->getPrettyName());
 		ostr << "\\section{" << pn << "}" << endl << endl;
@@ -173,7 +167,8 @@ ostream &TexFileConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericSt
 	return ostr;
 }
 
-ostream &TexFileConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue *val, [[maybe_unused]] int level) const {
+ostream&
+TexFileConfigDumper::dumpModuleValue(std::ostream& ostr, const ConfigValue* val, [[maybe_unused]] int level) const {
 
 	if (!val->isDeprecated()) {
 		ostr << "\\subsubsection{" << escape(val->getName()) << "}" << endl;
@@ -186,26 +181,25 @@ ostream &TexFileConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigVa
 
 /* Dokuwiki */
 
-ostream &DokuwikiConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue *val, [[maybe_unused]] int level) const {
+ostream&
+DokuwikiConfigDumper::dumpModuleValue(std::ostream& ostr, const ConfigValue* val, [[maybe_unused]] int level) const {
 	if (!val->isDeprecated()) {
 
 		// dokuwiki handles line breaks with double backspaces
-		auto help = StringUtils::transform(val->getHelp(), {
-			{ '\n' , "\\\\ " },
-			{ '`'  , "'' "   }
-		});
+		auto help = StringUtils::transform(val->getHelp(), {{'\n', "\\\\ "}, {'`', "'' "}});
 		StringUtils::searchAndReplace(help, ". ", ".\\\\ ");
 
 		ostr << "|"
-			 << "'''" << val->getName() << "'''"
-			 << " | " << help << " | "
-			 << "<code>" << val->getDefault() << "</code>"
-			 << " | " << val->getTypeName() << " | " << endl;
+		     << "'''" << val->getName() << "'''"
+		     << " | " << help << " | "
+		     << "<code>" << val->getDefault() << "</code>"
+		     << " | " << val->getTypeName() << " | " << endl;
 	}
 	return ostr;
 }
 
-ostream &DokuwikiConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruct *cs, [[maybe_unused]] int level) const {
+ostream&
+DokuwikiConfigDumper::dumpModuleHead(std::ostream& ostr, const GenericStruct* cs, [[maybe_unused]] int level) const {
 	// we have a generic struc: we're on top level: get module name and description
 	ostr << "====" << cs->getPrettyName() << "====" << endl;
 	ostr << endl << cs->getHelp() << endl;
@@ -217,7 +211,8 @@ ostream &DokuwikiConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericS
 
 /* MediaWiki */
 
-ostream &MediaWikiConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruct *cs, [[maybe_unused]] int level) const {
+ostream&
+MediaWikiConfigDumper::dumpModuleHead(std::ostream& ostr, const GenericStruct* cs, [[maybe_unused]] int level) const {
 	// we have a generic struc: we're on top level: get module name and description
 	ostr << "====" << cs->getPrettyName() << "====" << endl;
 	ostr << endl << cs->getHelp() << endl;
@@ -233,35 +228,35 @@ ostream &MediaWikiConfigDumper::dumpModuleHead(std::ostream &ostr, const Generic
 	return ostr;
 }
 
-ostream &MediaWikiConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue *val, [[maybe_unused]] int level) const {
+ostream&
+MediaWikiConfigDumper::dumpModuleValue(std::ostream& ostr, const ConfigValue* val, [[maybe_unused]] int level) const {
 	if (!val->isDeprecated()) {
 
 		// MediaWiki handles line breaks with double backspaces
-		auto help = StringUtils::transform(val->getHelp(), {
-			{ '\n' , "<br/>" },
-			{ '`'  , "'' "   }
-		});
+		auto help = StringUtils::transform(val->getHelp(), {{'\n', "<br/>"}, {'`', "'' "}});
 		StringUtils::searchAndReplace(help, ". ", ".<br/> ");
 
 		ostr << "|-" << endl // entry marker
-			 << "|'''" << val->getName() << "'''" << endl
-			 << "|" << help << endl
-			 << "|"
-			 << "<code>" << val->getDefault() << "</code>" << endl
-			 << "|" << val->getTypeName() << endl;
+		     << "|'''" << val->getName() << "'''" << endl
+		     << "|" << help << endl
+		     << "|"
+		     << "<code>" << val->getDefault() << "</code>" << endl
+		     << "|" << val->getTypeName() << endl;
 	}
 	return ostr;
 }
 
-ostream &MediaWikiConfigDumper::dumpModuleEnd(std::ostream &ostr, [[maybe_unused]] const GenericStruct *cs, [[maybe_unused]] int level) const {
+ostream& MediaWikiConfigDumper::dumpModuleEnd(std::ostream& ostr,
+                                              [[maybe_unused]] const GenericStruct* cs,
+                                              [[maybe_unused]] int level) const {
 
 	ostr << "|}" << endl;
 
 	return ostr;
 }
 
-
-ostream &XWikiConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStruct *cs, [[maybe_unused]] int level) const {
+ostream&
+XWikiConfigDumper::dumpModuleHead(std::ostream& ostr, const GenericStruct* cs, [[maybe_unused]] int level) const {
 	// we have a generic struc: we're on top level: get module name and description
 	ostr << "=" << cs->getPrettyName() << "=" << endl;
 	ostr << endl << cs->getHelp() << endl;
@@ -269,28 +264,32 @@ ostream &XWikiConfigDumper::dumpModuleHead(std::ostream &ostr, const GenericStru
 	ostr << endl << "Configuration options:" << endl;
 
 	ostr << "|=(% style=\"text-align: center; border: 1px solid #999\" %)Name";
-	ostr << "|=(% style=\"text-align: center; border: 1px solid #999\" %)Description" ;
-	ostr << "|=(% style=\"text-align: center; border: 1px solid #999\" %)Default Value" ;
+	ostr << "|=(% style=\"text-align: center; border: 1px solid #999\" %)Description";
+	ostr << "|=(% style=\"text-align: center; border: 1px solid #999\" %)Default Value";
 	ostr << "|=(% style=\"text-align: center; border: 1px solid #999\" %)Type" << endl;
 
 	return ostr;
 }
 
-ostream &XWikiConfigDumper::dumpModuleValue(std::ostream &ostr, const ConfigValue *val, [[maybe_unused]] int level) const {
+ostream&
+XWikiConfigDumper::dumpModuleValue(std::ostream& ostr, const ConfigValue* val, [[maybe_unused]] int level) const {
 	if (!val->isDeprecated()) {
-		ostr << "|=(% style=\"text-align: center;  vertical-align: middle; border: 1px solid #999\" %)" << val->getName()
-			 << "|(% style=\"text-align: left; border: 1px solid #999\" %)(((" << escape(val->getHelp()) << ")))"
-			 << "|(% style=\"text-align: center; vertical-align: middle; border: 1px solid #999\" %) ##" << escape(val->getDefault()) << "##"
-			 << "|(% style=\"text-align: center; vertical-align: middle; border: 1px solid #999\" %)" << val->getTypeName() << endl;
+		ostr << "|=(% style=\"text-align: center;  vertical-align: middle; border: 1px solid #999\" %)"
+		     << val->getName() << "|(% style=\"text-align: left; border: 1px solid #999\" %)((("
+		     << escape(val->getHelp()) << ")))"
+		     << "|(% style=\"text-align: center; vertical-align: middle; border: 1px solid #999\" %) ##"
+		     << escape(val->getDefault()) << "##"
+		     << "|(% style=\"text-align: center; vertical-align: middle; border: 1px solid #999\" %)"
+		     << val->getTypeName() << endl;
 	}
 	return ostr;
 }
 
-std::string XWikiConfigDumper::escape(const std::string &str) {
+std::string XWikiConfigDumper::escape(const std::string& str) {
 	string escaped{};
 	auto start = str.cbegin();
 	decltype(start) end{};
-	while ((end = find_if(start, str.cend(), [](const auto &c){return ispunct(c);})) != str.cend()) {
+	while ((end = find_if(start, str.cend(), [](const auto& c) { return ispunct(c); })) != str.cend()) {
 		escaped.append(start, end);
 		escaped += '~';
 		escaped += *end++;
@@ -300,33 +299,30 @@ std::string XWikiConfigDumper::escape(const std::string &str) {
 	return escaped;
 }
 
-
-
-
 /* MIB */
 
-ostream &MibDumper::dump(ostream &ostr) const {
+ostream& MibDumper::dump(ostream& ostr) const {
 	const time_t t = getCurrentTime();
 	char mbstr[100];
 	strftime(mbstr, sizeof(mbstr), "%Y%m%d0000Z", localtime(&t));
 
 	ostr << "FLEXISIP-MIB DEFINITIONS ::= BEGIN" << endl
-		 << "IMPORTS" << endl
-		 << "	OBJECT-TYPE, Integer32, MODULE-IDENTITY, enterprises," << endl
-		 << "	Counter64,NOTIFICATION-TYPE							  	FROM SNMPv2-SMI" << endl
-		 << "	MODULE-COMPLIANCE, OBJECT-GROUP       					FROM SNMPv2-CONF;" << endl
-		 << endl
+	     << "IMPORTS" << endl
+	     << "	OBJECT-TYPE, Integer32, MODULE-IDENTITY, enterprises," << endl
+	     << "	Counter64,NOTIFICATION-TYPE							  	FROM SNMPv2-SMI" << endl
+	     << "	MODULE-COMPLIANCE, OBJECT-GROUP       					FROM SNMPv2-CONF;" << endl
+	     << endl
 
-		 << "flexisipMIB MODULE-IDENTITY" << endl
-		 << "	LAST-UPDATED \"" << mbstr << "\"" << endl
-		 << "	ORGANIZATION \"belledonne-communications\"" << endl
-		 << "	CONTACT-INFO \"postal:   34 Avenue de L'europe 38 100 Grenoble France" << endl
-		 << "		email:    contact@belledonne-communications.com\"" << endl
-		 << "	DESCRIPTION  \"A Flexisip management tree.\"" << endl
-		 << "	REVISION     \"" << mbstr << "\"" << endl
-		 << "    DESCRIPTION  \"" FLEXISIP_GIT_VERSION << "\"" << endl
-		 << "::={ enterprises " << SNMP_COMPANY_OID << " }" << endl
-		 << endl;
+	     << "flexisipMIB MODULE-IDENTITY" << endl
+	     << "	LAST-UPDATED \"" << mbstr << "\"" << endl
+	     << "	ORGANIZATION \"belledonne-communications\"" << endl
+	     << "	CONTACT-INFO \"postal:   34 Avenue de L'europe 38 100 Grenoble France" << endl
+	     << "		email:    contact@belledonne-communications.com\"" << endl
+	     << "	DESCRIPTION  \"A Flexisip management tree.\"" << endl
+	     << "	REVISION     \"" << mbstr << "\"" << endl
+	     << "    DESCRIPTION  \"" FLEXISIP_GIT_VERSION << "\"" << endl
+	     << "::={ enterprises " << SNMP_COMPANY_OID << " }" << endl
+	     << endl;
 
 	dump2(ostr, mRoot, 0);
 	ostr << "END" << endl;

@@ -31,7 +31,7 @@ namespace pushnotification {
  *
  * This supports the legacy http (http2 compatible) Firebase protocol:
  * https://firebase.google.com/docs/cloud-messaging/http-server-ref
-*/
+ */
 class FirebaseRequest : public Request, public HttpMessage {
 public:
 	FirebaseRequest(PushType pType, const std::shared_ptr<const PushInfo>& pinfo);

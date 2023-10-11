@@ -476,11 +476,13 @@ void ForkContextBase::onCancel([[maybe_unused]] const std::shared_ptr<RequestSip
 	}
 }
 
-void ForkContextBase::onResponse(const std::shared_ptr<BranchInfo>& br, [[maybe_unused]] const std::shared_ptr<ResponseSipEvent>& ev) {
+void ForkContextBase::onResponse(const std::shared_ptr<BranchInfo>& br,
+                                 [[maybe_unused]] const std::shared_ptr<ResponseSipEvent>& ev) {
 	if (br->getStatus() >= 200) br->notifyBranchCompleted();
 }
 
-void ForkContextBase::onPushSent([[maybe_unused]] PushNotificationContext& aPNCtx, [[maybe_unused]] bool aRingingPush) noexcept {
+void ForkContextBase::onPushSent([[maybe_unused]] PushNotificationContext& aPNCtx,
+                                 [[maybe_unused]] bool aRingingPush) noexcept {
 	if (!m110Sent) {
 		sendResponse(110, "Push sent");
 		m110Sent = true;
