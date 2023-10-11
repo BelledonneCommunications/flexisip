@@ -103,7 +103,9 @@ debian11-coverage:
   coverage: '/[0-9][0-9]\.[0-9]+\%/'
   artifacts:
     reports:
-      cobertura: coverage.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
     paths:
       - default.profdata
       - flexisip_coverage_report_by_file.txt
