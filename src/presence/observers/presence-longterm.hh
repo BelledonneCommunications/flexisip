@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -19,24 +19,28 @@
 #pragma once
 
 #include "auth/db/authdb.hh"
-#include "presence-server.hh"
+#include "presence-info-observer.hh"
+#include "presence/belle-sip-using.hh"
 #include "registrar/registrar-db.hh"
 
-typedef struct belle_sip_main_loop belle_sip_main_loop_t;
-
 namespace flexisip {
+
+// Used in main.cc, use forward declaration
+class PresentityPresenceInformation;
+
 class PresenceLongterm : public PresenceInfoObserver {
 public:
 	PresenceLongterm(belle_sip_main_loop_t* mainLoop,
 	                 const std::shared_ptr<AuthDb>& authDb,
 	                 const std::shared_ptr<RegistrarDb>& registrarDb)
 	    : mMainLoop{mainLoop}, mAuthDb{authDb}, mRegistrarDb(registrarDb){};
-	virtual void onListenerEvent(const std::shared_ptr<PresentityPresenceInformation>& info) const override;
-	virtual void onListenerEvents(std::list<std::shared_ptr<PresentityPresenceInformation>>& info) const override;
+	void onListenerEvent(const std::shared_ptr<PresentityPresenceInformation>& info) const override;
+	void onListenerEvents(std::list<std::shared_ptr<PresentityPresenceInformation>>& info) const override;
 
 private:
 	belle_sip_main_loop_t* mMainLoop;
 	const std::shared_ptr<AuthDb> mAuthDb;
 	const std::shared_ptr<RegistrarDb> mRegistrarDb;
 };
+
 } // namespace flexisip

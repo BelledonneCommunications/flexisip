@@ -1,27 +1,30 @@
 /*
-	:, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+
+#include "subscription.hh"
 
 #include <time.h>
 
 #include "belle-sip/belle-sip.h"
 
-#include <flexisip/logmanager.hh>
-#include "subscription.hh"
+#include "flexisip/logmanager.hh"
+
+#include "presence/presentity/presentity-presence-information.hh"
 
 using namespace std;
 
@@ -44,11 +47,11 @@ void Subscription::setAcceptEncodingHeader(belle_sip_header_t *acceptEncodingHea
 
 const char *Subscription::stateToString(State aState) {
 	switch (aState) {
-		case active:
+		case State::active:
 			return BELLE_SIP_SUBSCRIPTION_STATE_ACTIVE;
-		case pending:
+		case State::pending:
 			return BELLE_SIP_SUBSCRIPTION_STATE_PENDING;
-		case terminated:
+		case State::terminated:
 			return BELLE_SIP_SUBSCRIPTION_STATE_TERMINATED;
 	}
 	return "Unknown state";
@@ -110,7 +113,7 @@ void Subscription::notify(belle_sip_header_content_type_t *content_type, const s
 
 	belle_sip_header_subscription_state_set_state(sub_state, stateToString(mState));
 
-	if (mState == active) {
+	if (mState == State::active) {
 		belle_sip_header_subscription_state_set_expires(sub_state, (int)(mExpirationTime - current_time));
 	}
 
@@ -142,7 +145,7 @@ void PresenceSubscription::onInformationChanged(PresentityPresenceInformation &p
 	string body;
 	belle_sip_header_content_type_t *content_type = NULL;
 	try {
-		if (getState() == active) {
+		if (getState() == State::active) {
 			body += presenceInformation.getPidf(extended);
 			content_type = belle_sip_header_content_type_create("application", "pidf+xml");
 		}

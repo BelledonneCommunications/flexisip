@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -19,85 +19,39 @@
 #pragma once
 
 #include <iostream>
-#include <map>
 #include <memory>
-#include <unordered_map>
-#include <vector>
 
-#include <belle-sip/sip-uri.h>
+#include <belle-sip/belle-sip.h>
 #if ENABLE_SOCI
 #include <soci/soci.h>
 #endif
 
-#include "bellesip-signaling-exception.hh"
-#include "etag-manager.hh"
+#include "auth/db/authdb.hh"
 #include "flexisip/configmanager.hh"
-#include "presentity-manager.hh"
 #include "service-server/service-server.hh"
+#include "observers/presence-info-observer.hh"
+#include "registrar/registrar-db.hh"
 #include "utils/thread/thread-pool.hh"
 
-typedef struct belle_sip_main_loop belle_sip_main_loop_t;
-typedef struct belle_sip_stack belle_sip_stack_t;
-typedef struct belle_sip_provider belle_sip_provider_t;
-typedef struct belle_sip_dialog_terminated_event belle_sip_dialog_terminated_event_t;
-typedef struct belle_sip_io_error_event belle_sip_io_error_event_t;
-typedef struct belle_sip_request_event belle_sip_request_event_t;
-typedef struct belle_sip_response_event belle_sip_response_event_t;
-typedef struct belle_sip_timeout_event belle_sip_timeout_event_t;
-typedef struct belle_sip_transaction_terminated_event belle_sip_transaction_terminated_event_t;
-typedef struct structbelle_sip_listener_t belle_sip_listener_t;
-
-namespace pidf {
-class tuple;
-}
 namespace flexisip {
 
+// Used in main.cc, use forward declaration
+class PresentityManager;
 class Subscription;
-class PresentityPresenceInformation;
-class Listener;
 
-// Purpose of this class is to be notify when a presence info is created or when a new listener is added for a presence
-// info. Used by long term presence
-class PresenceInfoObserver {
-public:
-	PresenceInfoObserver(){};
-	virtual ~PresenceInfoObserver(){};
-	// notified when a listener is added or refreshed
-	virtual void onListenerEvent(const std::shared_ptr<PresentityPresenceInformation>& info) const = 0;
-	// notified when a listener is added or refreshed
-	virtual void onListenerEvents(std::list<std::shared_ptr<PresentityPresenceInformation>>& infos) const = 0;
-};
-
-class PresenceServer : public PresentityManager, public ServiceServer {
+class PresenceServer : public ServiceServer {
 public:
 	PresenceServer(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg);
-	~PresenceServer();
+	~PresenceServer() override;
 	void _init() override;
 	void _run() override;
 	std::unique_ptr<AsyncCleanup> _stop() override;
 	belle_sip_main_loop_t* getBelleSipMainLoop();
-	void addPresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver>& observer);
-	void removePresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver>& observer);
+	void enableLongTermPresence(const std::shared_ptr<AuthDb>& authDb, const std::shared_ptr<RegistrarDb>& registrarDb);
 
 	static unsigned int sLastActivityRetentionMs;
 
 private:
-	std::shared_ptr<ConfigManager> mConfigManager;
-	belle_sip_stack_t* mStack;
-	belle_sip_provider_t* mProvider;
-	belle_sip_listener_t* mListener;
-	int mDefaultExpires;
-	std::string mBypass;
-	std::string mRequest;
-#if ENABLE_SOCI
-	soci::connection_pool* mConnPool = nullptr;
-#endif
-	std::unique_ptr<ThreadPool> mThreadPool{};
-	bool mEnabled;
-	size_t mMaxPresenceInfoNotifiedAtATime;
-
-	static constexpr const char* sSubscriptionDataTag = "subscription";
-
 	template <typename T, typename BelleSipObjectT>
 	static void setSubscription(BelleSipObjectT* obj, const std::shared_ptr<T>& sub) {
 		belle_sip_object_data_set(BELLE_SIP_OBJECT(obj), sSubscriptionDataTag, new std::shared_ptr<Subscription>{sub},
@@ -121,37 +75,24 @@ private:
 	void processPublishRequestEvent(const belle_sip_request_event_t* event);
 	void processSubscribeRequestEvent(const belle_sip_request_event_t* event);
 
-	/*
-	 *Publish API
-	 *
-	 */
-	const std::shared_ptr<PresentityPresenceInformation> getPresenceInfo(const std::string& eTag) const;
-	/*
-	 * @throw in case an entry already exist for this entity;
-	 * */
-	std::shared_ptr<PresentityPresenceInformation> getPresenceInfo(const belle_sip_uri_t* identity) const;
-	void addPresenceInfo(const std::shared_ptr<PresentityPresenceInformation>&);
-
-	void invalidateETag(const std::string& eTag) override;
-	void modifyEtag(const std::string& oldEtag, const std::string& newEtag) override;
-	void addEtag(const std::shared_ptr<PresentityPresenceInformation>& info, const std::string& etag) override;
-	std::map<std::string, std::shared_ptr<PresentityPresenceInformation>> mPresenceInformationsByEtag;
-	std::unordered_map<const belle_sip_uri_t*, std::shared_ptr<PresentityPresenceInformation>> mPresenceInformations;
-
-	/*
-	 *Presentity API
-	 *
-	 */
-
-	void addOrUpdateListener(std::shared_ptr<PresentityPresenceInformationListener>& listerner, int expires) override;
-	void addOrUpdateListener(std::shared_ptr<PresentityPresenceInformationListener>& listerner) override;
-	void addOrUpdateListeners(std::list<std::shared_ptr<PresentityPresenceInformationListener>>& listerner,
-	                          int expires);
-	void addOrUpdateListeners(std::list<std::shared_ptr<PresentityPresenceInformationListener>>& listerner);
-	void removeListener(const std::shared_ptr<PresentityPresenceInformationListener>& listerner) override;
-
 	void removeSubscription(std::shared_ptr<Subscription>& identity);
-	std::vector<std::shared_ptr<PresenceInfoObserver>> mPresenceInfoObservers;
+
+	std::shared_ptr<ConfigManager> mConfigManager;
+	belle_sip_stack_t* mStack;
+	belle_sip_provider_t* mProvider;
+	belle_sip_listener_t* mListener;
+	int mDefaultExpires;
+	std::string mBypass;
+	std::string mRequest;
+#if ENABLE_SOCI
+	soci::connection_pool* mConnPool = nullptr;
+#endif
+	std::unique_ptr<ThreadPool> mThreadPool{};
+	bool mEnabled;
+	size_t mMaxPresenceInfoNotifiedAtATime;
+	std::unique_ptr<PresentityManager> mPresentityManager;
+
+	static constexpr const char* sSubscriptionDataTag = "subscription";
 };
 
 } // namespace flexisip

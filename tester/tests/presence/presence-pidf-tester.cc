@@ -61,14 +61,14 @@ public:
 			bellesipUtilsSender.stackSleep(10);
 		}
 
-		assert();
+		testAssert();
 	}
 
 protected:
 	virtual void insertRegistrarContact() = 0;
 	virtual string getSubscribeHeaders() = 0;
 	virtual string getSubscribeBody() = 0;
-	virtual void assert() = 0;
+	virtual void testAssert() = 0;
 
 	string mNotifiesBodyConcat = "";
 };
@@ -108,7 +108,7 @@ protected:
 		       "</resource-lists>\r\n";
 	}
 
-	void assert() override {
+	void testAssert() override {
 		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("conference") != string::npos);
 		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("2.4") != string::npos);
 		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("ephemeral") != string::npos);
@@ -152,7 +152,7 @@ protected:
 		       "</resource-lists>\r\n";
 	}
 
-	void assert() override {
+	void testAssert() override {
 		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("conference") != string::npos);
 		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("1.8") != string::npos);
 		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("ephemeral") != string::npos);

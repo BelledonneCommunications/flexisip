@@ -91,7 +91,7 @@
 #include "b2bua/b2bua-server.hh"
 #endif // ENABLE_B2BUA
 #ifdef ENABLE_PRESENCE
-#include "presence/presence-longterm.hh"
+#include "presence/observers/presence-longterm.hh"
 #include "presence/presence-server.hh"
 #endif
 
@@ -1006,9 +1006,7 @@ int _main(int argc, char* argv[]) {
 		    (cfg->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read());
 		auto presenceServer = make_shared<PresenceServer>(root, cfg);
 		if (enableLongTermPresence) {
-			auto presenceLongTerm =
-			    make_shared<PresenceLongterm>(presenceServer->getBelleSipMainLoop(), authDb, registrarDb);
-			presenceServer->addPresenceInfoObserver(presenceLongTerm);
+			presenceServer->enableLongTermPresence(authDb, registrarDb);
 		}
 		if (daemonMode) {
 			notifyWatchDog();

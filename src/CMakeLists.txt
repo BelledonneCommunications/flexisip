@@ -270,33 +270,8 @@ if(ENABLE_PRESENCE)
 		xml/rpid.cc
 		xml/rpid.hh
 	)
-	target_sources(flexisip PRIVATE
-		presence/bellesip-signaling-exception.cc
-		presence/bellesip-signaling-exception.hh
-		presence/etag-manager.hh
-		presence/file-resource-list-manager.cc
-		presence/file-resource-list-manager.hh
-		presence/list-subscription/body-list-subscription.cc
-		presence/list-subscription/body-list-subscription.hh
-		presence/list-subscription/list-subscription.cc
-		presence/list-subscription/list-subscription.hh
-		presence/presence-longterm.cc
-		presence/presence-longterm.hh
-		presence/presence-server.cc
-		presence/presence-server.hh
-		presence/presentity-manager.hh
-		presence/presentity-presenceinformation.cc
-		presence/presentity-presenceinformation.hh
-		presence/subscription.cc
-		presence/subscription.hh
-	)
 	target_link_libraries(flexisip PUBLIC belr)
-	if(ENABLE_SOCI)
-		target_sources(flexisip PRIVATE
-			presence/list-subscription/external-list-subscription.cc
-			presence/list-subscription/external-list-subscription.hh
-		)
-	endif()
+	add_subdirectory(presence)
 endif()
 if(ENABLE_CONFERENCE)
 	target_sources(flexisip PRIVATE

@@ -1,31 +1,33 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <algorithm>
 #include <chrono>
 
-#include "belle-sip/belle-sip.h"
-#include "belle-sip/bodyhandler.h"
-#include "belle-sip/mainloop.h"
+#include <belle-sip/belle-sip.h>
+#include <belle-sip/bodyhandler.h>
+#include <belle-sip/mainloop.h>
+
+#include <flexisip/logmanager.hh>
 
 #include "bellesip-signaling-exception.hh"
 #include "list-subscription.hh"
-#include <flexisip/logmanager.hh>
+#include "presence/presentity/presentity-presence-information.hh"
 
 using namespace std;
 
@@ -200,7 +202,7 @@ void ListSubscription::notify(bool isFullState) {
 }
 void ListSubscription::onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extended) {
 	// store state, erase previous one if any
-	if (getState() == active) {
+	if (getState() == State::active) {
 		mPendingStates[presenceInformation.getEntity()] = make_pair(presenceInformation.shared_from_this(), extended);
 
 		if (isTimeToNotify()) {
