@@ -327,9 +327,9 @@ void B2buaServer::_init() {
 	mCore->enableAutoSendRinging(
 	    false); // Do not auto answer a 180 on incoming calls, relay the one from the other part.
 	mCore->setZrtpSecretsFile("null");
-	mCore->setInCallTimeout(
-	    30 *
-	    60); // Give enough time to the outgoing call (legB) to establish while we leave the incoming one (legA) ringing
+	// Give enough time to the outgoing call (legB) to establish while we leave the incoming one (legA) ringing
+	// See RFC 3261 §16.6 step 11 for the duration
+	mCore->setIncTimeout(4 * 60);
 
 	// b2bua shall never take the initiative of accepting or starting video calls
 	// stick to incoming call parameters for that
