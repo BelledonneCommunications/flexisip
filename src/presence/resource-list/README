@@ -1,4 +1,0 @@
-To generate resource list file, use the following commands:
-
-xsde cxx-hybrid --generate-parser --generate-aggregate --generate-polymorphic --location-map http://www.w3.org/2001/xml.xsd=xml.xsd resource-lists.xsd 
-

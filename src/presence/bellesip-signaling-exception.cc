@@ -18,12 +18,12 @@
 
 #include "bellesip-signaling-exception.hh"
 
-#include "belle-sip/belle-sip.h"
+#include <belle-sip/belle-sip.h>
 
 namespace flexisip {
 
 BelleSipSignalingException::BelleSipSignalingException(int code, std::list<belle_sip_header_t*> headers)
-    : SignalingException(code), mHeaders(headers) {
+    : SignalingException(code), mHeaders(std::move(headers)) {
 	for (belle_sip_header_t* header : mHeaders) {
 		belle_sip_object_ref(header);
 	}

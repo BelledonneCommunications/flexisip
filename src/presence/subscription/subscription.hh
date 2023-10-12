@@ -1,28 +1,28 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
 
 #include <string>
 
-#include <belle-sip/belle-sip.h>
+#include "belle-sip/belle-sip.h"
 
-#include "presentity-presenceinformation.hh"
+#include "presence/presentity/presentity-presence-information-listener.hh"
 #include "utils/belle-sip-utils.hh"
 
 namespace flexisip {
@@ -30,13 +30,15 @@ namespace flexisip {
 class Subscription : public std::enable_shared_from_this<Subscription>{
 
   public:
-	enum State { active, pending, terminated };
+	enum class State { active, pending, terminated };
 	Subscription(const std::string &eventName, unsigned int expires, const bellesip::weak_ptr<belle_sip_dialog_t> &aDialog, belle_sip_provider_t *prov);
 	Subscription(const Subscription &) = delete;
 	virtual ~Subscription() = default;
 	void setAcceptHeader(belle_sip_header_t *acceptHeader);
 	void setAcceptEncodingHeader(belle_sip_header_t *acceptEncodingHeader);
-	void setId(const std::string &id) {mId = id;}
+	void setId(std::string_view id) {
+		mId = id;
+	}
 	void notify(belle_sip_multipart_body_handler_t *body) {notify(nullptr, nullptr, body, nullptr);}
 	void notify(belle_sip_multipart_body_handler_t *body, const std::string &content_encoding) {notify(nullptr, nullptr, body, &content_encoding);}
 	void notify(belle_sip_header_content_type_t *content_type, const std::string &body) {notify(content_type, &body, nullptr, nullptr);}
@@ -88,13 +90,13 @@ class Subscription : public std::enable_shared_from_this<Subscription>{
 	BelleSipHeaderPtr mAcceptHeader;
 	BelleSipHeaderPtr mAcceptEncodingHeader;
 	std::string mId;
-	State mState{active};
+	State mState{State::active};
 	time_t mCreationTime{0};
 	time_t mExpirationTime{0};
 };
 
 /**
- ** Presence subscription object host a subscription to a opresence entity. This object has the same live cycle has a
+ ** Presence subscription object host a subscription to a presence entity. This object has the same live cycle has a
  *subscription dialog
  */
 class PresenceSubscription : public Subscription, public PresentityPresenceInformationListener {

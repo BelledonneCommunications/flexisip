@@ -24,8 +24,7 @@
 using namespace std;
 using namespace std::chrono;
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 ////////// ABSTRACT CLASS FOR ALL PUBLISH/NOTIFY TESTS ///////////////////////////////
 
@@ -41,13 +40,12 @@ public:
 		auto beforePlus2 = system_clock::now() + 2s;
 		while ((isRequestAccepted != 1 || isNotifyReceived != 1) && beforePlus2 >= system_clock::now()) {
 			mPresence->_run();
-			waitFor(10ms);
 			bellesipSubscriber->stackSleep(10);
 			bellesipPublisher->stackSleep(10);
 		}
 
-		BC_ASSERT_CPP_EQUAL(isRequestAccepted, 1);
-		BC_ASSERT_CPP_EQUAL(isNotifyReceived, 1);
+		BC_HARD_ASSERT_CPP_EQUAL(isRequestAccepted, 1);
+		BC_HARD_ASSERT_CPP_EQUAL(isNotifyReceived, 1);
 
 		assertAfterPublish();
 
@@ -55,7 +53,6 @@ public:
 			beforePlus2 = system_clock::now() + 2s;
 			while ((isRequestAccepted != 1 || isNotifyReceived != 2) && beforePlus2 >= system_clock::now()) {
 				mPresence->_run();
-				waitFor(10ms);
 				bellesipSubscriber->stackSleep(10);
 				bellesipPublisher->stackSleep(10);
 			}
@@ -90,6 +87,7 @@ protected:
 	virtual string getPublishHeaders() = 0;
 	virtual string getPublishBody() = 0;
 	virtual void assertAfterPublish() = 0;
+	virtual string getSubscribeBody(const string& aor, const string& port);
 	virtual void assertAfterPublishExpire(){};
 	virtual bool waitForExpire() {
 		return false;
@@ -104,14 +102,13 @@ protected:
 
 	int isRequestAccepted = 0;
 	int isNotifyReceived = 0;
-	string mNotifiesBodyConcat = "";
+	string mNotifiesBodyConcat{};
 	unique_ptr<BellesipUtils> bellesipSubscriber;
 	unique_ptr<BellesipUtils> bellesipPublisher;
 
 private:
 	void crossSubscribe(const string& aorPublisher, const string& aorSubscriber);
-	virtual string getSubscribeHeaders(const string& aor, const string& port);
-	virtual string getSubscribeBody(const string& aor, const string& port);
+	string getSubscribeHeaders(const string& aor, const string& port);
 	void insertRegistrarContact(const string& aor, const string& port);
 };
 
@@ -153,18 +150,21 @@ protected:
 		               std::string::npos);
 		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("<timestamp>2023-04-07T07:34:48Z</timestamp>") != std::string::npos);
 	}
+};
 
-	bool waitForExpire() override {
-		return true;
+class BasicPublishUserPhoneTest : public BasicPublishTest {
+protected:
+	string getSubscribeBody(const string& aor, const string& port) override {
+		// clang-format off
+		return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n"
+		       "<resource-lists xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\r\n"
+		       "xmlns=\"urn:ietf:params:xml:ns:resource-lists\">\r\n"
+		       " <list version=\"2\" fullState=\"true\">\r\n"
+		       "  <entry uri=\"" + aor + ":" + port + ";user=phone\"/>\r\n"
+		       " </list>\r\n"
+		       "</resource-lists>\r\n";
+		// clang-format on
 	};
-
-	void assertAfterPublishExpire() override {
-		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("tuple id=\"") != std::string::npos);
-		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("<basic>open</basic>") != std::string::npos);
-		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("<p1:person id=\"") != std::string::npos);
-		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("<p2:away/>") != std::string::npos);
-		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("<p1:timestamp>") != std::string::npos);
-	}
 };
 
 class BasicPublishLastActivityExpiresTest : public BasicPublishTest {
@@ -175,6 +175,10 @@ protected:
 		auto* presenceConf = cfg.getRoot()->get<GenericStruct>("presence-server");
 		presenceConf->get<ConfigInt>("last-activity-retention-time")->set("0");
 	}
+
+	bool waitForExpire() override {
+		return true;
+	};
 
 	void assertAfterPublishExpire() override {
 		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("tuple id=\"") != std::string::npos);
@@ -435,6 +439,7 @@ namespace {
 TestSuite _("Publish presence unit tests",
             {
                 CLASSY_TEST(BasicPublishTest),
+                CLASSY_TEST(BasicPublishUserPhoneTest),
                 CLASSY_TEST(BasicPublishLastActivityExpiresTest),
                 CLASSY_TEST(AwayPublishTest),
                 CLASSY_TEST(DoubleAwayDateAfterPublishTest),
@@ -550,5 +555,4 @@ void PublishTest::insertRegistrarContact(const string& aor, const string& port) 
 	    .insert({aor + ":" + port + ";transport=tcp;"});
 };
 
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester
