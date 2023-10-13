@@ -485,21 +485,26 @@ void messageToChatroomClearText() {
 		deliveredEvents.emplace(match[2], std::move(event));
 	}
 	for (const auto& expectedTo : expectedTos) {
-		const auto& deliveredEvent = deliveredEvents[expectedTo];
-		BC_ASSERT_CPP_EQUAL(deliveredEvent->method, "PATCH");
 		try {
-			actualJson = json::parse(deliveredEvent->body);
-		} catch (const exception&) {
-			BC_FAIL("json::parse exception with received body");
+			const auto& deliveredEvent = deliveredEvents.at(expectedTo);
+			BC_ASSERT_CPP_EQUAL(deliveredEvent->method, "PATCH");
+			try {
+				actualJson = json::parse(deliveredEvent->body);
+			} catch (const exception&) {
+				BC_FAIL("json::parse exception with received body");
+			}
+			const auto receivedAt = actualJson["received_at"].get<flexiapi::ISO8601Date>();
+			actualJson.erase("received_at");
+			expectedJson = R"(
+			{
+			  "last_status": 200
+			})"_json;
+			BC_ASSERT_CPP_EQUAL(actualJson, expectedJson);
+			BC_ASSERT_TRUE(sentAt <= receivedAt);
+		} catch(const std::out_of_range&) {
+			SLOGD << "Unable to find key " << expectedTo << " in delivered event map";
+			BC_FAIL("Unable to find key in delivered event map");
 		}
-		const auto receivedAt = actualJson["received_at"].get<flexiapi::ISO8601Date>();
-		actualJson.erase("received_at");
-		expectedJson = R"(
-		{
-		  "last_status": 200
-		})"_json;
-		BC_ASSERT_CPP_EQUAL(actualJson, expectedJson);
-		BC_ASSERT_TRUE(sentAt <= receivedAt);
 	}
 }
 
