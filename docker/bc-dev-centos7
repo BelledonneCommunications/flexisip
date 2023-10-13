@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos7:20230601_update_libnghttp2_asio
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-centos7:20230818_cmake_3.22.6
 ###############################################################################
 
 FROM centos:7
@@ -17,25 +17,26 @@ RUN sudo yum makecache && yum -y update
 
  # Install development tools
 RUN sudo yum -y install devtoolset-8 \
+                   bzip2 \
                    ccache \
                    clang \
                    cmake3 \
+                   c-ares-devel \
+                   devtoolset-8-libasan-devel \
+                   devtoolset-8-libubsan-devel \
                    doxygen \
                    gdb \
                    git \
+                   llvm \
+                   libev-devel \
+                   libuv-devel \
                    make \
                    ninja-build \
                    python3 \
                    python3-pip \
-                   bzip2 \
-                   c-ares-devel \
-                   libev-devel \
-                   zlib-devel \
-                   libuv-devel \
-                   devtoolset-8-libasan-devel \
-                   devtoolset-8-libubsan-devel \
                    rpm-build \
-                   llvm \
+                   yasm \
+                   zlib-devel \
                  # Install all dependencies needed for Flexisip
                    openssl-devel \
                    boost169-devel \
@@ -68,6 +69,16 @@ RUN sudo yum -y install devtoolset-8 \
                && ln -s /usr/bin/cpack3 /usr/bin/cpack \
                && ln -s /usr/bin/ctest3 /usr/bin/ctest
 
+# Install CMake 3.22.6
+COPY cmake_install.sh .
+RUN source /opt/rh/devtoolset-8/enable \
+	&& ./cmake_install.sh 3.22.6 \
+	&& rm cmake_install.sh \
+	&& yum -y remove cmake3 \
+	&& ln -sf /usr/local/bin/ccmake /usr/bin/ccmake \
+	&& ln -sf /usr/local/bin/cmake /usr/bin/cmake \
+	&& ln -sf /usr/local/bin/cpack /usr/bin/cpack \
+	&& ln -sf /usr/local/bin/ctest /usr/bin/ctest
 
 # Install libnghttp2_asio 1.39.2
 COPY libnghttp2_asio_install.sh .

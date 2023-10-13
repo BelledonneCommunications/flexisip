@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-22-04:20230220_remove_GL_deps
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-22-04:20230818_yasm
 ###############################################################################
 
 FROM ubuntu:22.04
@@ -27,6 +27,7 @@ RUN apt-get -y update \
                        ninja-build \
                        python3 \
                        python3-pip \
+                       yasm \
                      # Install all dependencies needed for Flexisip
                        libssl-dev \
                        libboost-dev \
@@ -80,4 +81,4 @@ RUN python3 -m pip install --user pystache six
 ENV PATH=$PATH:/home/bc/.local/bin
 
 # CVE-2022-24765, from git 2.35.2 onward
-RUN git config --global --add safe.directory /builds/BC/public/flexisip
+RUN git config --global --add safe.directory *

@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian12:20230808_fix_packaging
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian12:20230818_yasm
 ###############################################################################
 
 FROM debian:12
@@ -27,6 +27,7 @@ RUN apt-get -y update \
       python3 \
       python3-pystache \
       python3-six \
+      yasm \
     # Install all dependencies needed for Flexisip
       libssl-dev \
       libboost-dev \

@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-18-04-lts:20230608_update_gcc
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-18-04-lts:20230818_cmake_3.22.6
 ###############################################################################
 
 FROM ubuntu:18.04
@@ -41,6 +41,7 @@ RUN apt-mirror-updater --auto-change-mirror \
                        python3 \
                        python3-pip \
                        rpm \
+                       yasm \
                      # Install all dependencies needed for Flexisip
                        libssl-dev \
                        libboost-dev \
@@ -95,9 +96,11 @@ WORKDIR /home/bc
 RUN python3 -m pip install --user pystache six
 ENV PATH=$PATH:/home/bc/.local/bin
 
-# Install CMake 3.20.5
+# Install CMake 3.22.6
 COPY cmake_install.sh .
-RUN ./cmake_install.sh 3.20.5 && rm cmake_install.sh
+RUN ./cmake_install.sh 3.22.6 \
+	&& rm cmake_install.sh \
+	&& sudo apt-get -y remove cmake
 
 # Install libnghttp2_asio 1.39.2
 COPY libnghttp2_asio_install.sh .
