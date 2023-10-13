@@ -39,6 +39,7 @@ RUN sudo dnf -y install \
                    python3 \
                    python3-pip \
                    rpm-build \
+                   yasm \
                    zlib-devel \
                  # Install all dependencies needed for Flexisip
                    openssl-devel \
@@ -67,6 +68,12 @@ RUN sudo dnf -y install \
                  # Dependencies of the tester
                    mariadb-server \
                &&  dnf -y clean all
+
+# Install CMake 3.22.6
+COPY cmake_install.sh .
+RUN ./cmake_install.sh 3.22.6 \
+	&& rm cmake_install.sh \
+	&& dnf -y remove cmake
 
 # Install libnghttp2_asio 1.39.2
 COPY libnghttp2_asio_install.sh .

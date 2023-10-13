@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian11:20230227_add_mariadb_server
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian11:20230818_cmake_3.22.6
 ###############################################################################
 
 FROM debian:bullseye
@@ -25,6 +25,7 @@ RUN apt-get -y update \
                        ninja-build \
                        python3 \
                        python3-pip \
+                       yasm \
                      # Install all dependencies needed for Flexisip
                        libssl-dev \
                        libboost-dev \
@@ -59,6 +60,12 @@ RUN apt-get -y update \
   # Clean
  && apt-get -y autoremove \
  && apt-get -y clean
+
+# Install CMake 3.22.6
+COPY cmake_install.sh .
+RUN ./cmake_install.sh 3.22.6 \
+	&& rm cmake_install.sh \
+	&& apt-get -y remove cmake
 
 # Install libnghttp2_asio
 RUN wget https://github.com/nghttp2/nghttp2/releases/download/v1.43.0/nghttp2-1.43.0.tar.bz2 && \

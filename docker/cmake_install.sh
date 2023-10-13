@@ -11,7 +11,7 @@ fi
 version="$1"
 archive="cmake-${version}.tar.gz"
 url="https://github.com/Kitware/CMake/releases/download/v${version}/${archive}"
-workdir="$PWD/.tmp-$(date '+%Y%m%d-%H%M%S')"
+workdir=$(realpath "$PWD/.tmp-$(date '+%Y%m%d-%H%M%S')")
 srcdir="${workdir}/cmake-${version}"
 bindir="${workdir}/build"
 
@@ -23,9 +23,9 @@ wget $url \
 	|| exit 1
 
 cd $bindir \
-	&& cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local $srcdir \
-	&& make -j8 \
-	&& sudo make -j8 install \
+	&& cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local $srcdir \
+	&& cmake --build . \
+	&& sudo cmake --build . --target install \
 	|| exit 1
 
 popd
