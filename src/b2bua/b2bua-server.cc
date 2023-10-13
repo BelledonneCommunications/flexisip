@@ -94,6 +94,7 @@ void B2buaServer::onCallStateChanged([[maybe_unused]] const std::shared_ptr<linp
 
 			// create a conference and attach it
 			auto conferenceParams = mCore->createConferenceParams(nullptr);
+			conferenceParams->setHidden(true); // Hide conference to prevent the contact address from being updated
 			conferenceParams->enableVideo(true);
 			conferenceParams->enableLocalParticipant(false); // b2bua core is not part of it
 			conferenceParams->enableOneParticipantConference(true);
@@ -217,7 +218,7 @@ void B2buaServer::onCallStateChanged([[maybe_unused]] const std::shared_ptr<linp
 			// Paused by remote: do not pause peer call as it will kick it out of the conference
 			// just switch the media direction to sendOnly (only if it is not already set this way)
 			auto peerCall = getPeerCall(call);
-			auto peerCallParams = peerCall->getCurrentParams()->copy();
+			auto peerCallParams = mCore->createCallParams(peerCall);
 			auto audioDirection = peerCallParams->getAudioDirection();
 			// Nothing to do if peer call is already not sending audio
 			if (audioDirection != linphone::MediaDirection::Inactive &&

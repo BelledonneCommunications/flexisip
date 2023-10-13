@@ -69,7 +69,7 @@ DomainRegistrationManager::DomainRegistrationManager(Agent* agent) : mAgent(agen
 	    "the domain registration.",
 	    ModuleInfoBase::InterDomainConnections);
 
-	mDomainRegistrationArea = mgr->getRoot()->addChild(move(uDomainRegistrationArea));
+	mDomainRegistrationArea = mgr->getRoot()->addChild(std::move(uDomainRegistrationArea));
 
 	ConfigItemDescriptor configs[] = {
 	    {Boolean, "accept-domain-registrations", "Whether Flexisip shall accept registrations for entire domains",

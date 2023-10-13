@@ -116,7 +116,7 @@ public:
 
 protected:
 	template <typename T>
-	TransportConfig(T&& protoName) : mProtoName{forward<T>(protoName)} {
+	TransportConfig(T&& protoName) : mProtoName{std::forward<T>(protoName)} {
 	}
 
 	string mHost{"localhost"}; /**< Listening address of the Agent */
@@ -241,7 +241,7 @@ class TransportTest : public AgentTest {
 protected:
 	unique_ptr<TransportConfig> mConfig;
 
-	TransportTest(unique_ptr<TransportConfig>&& config) : mConfig(move(config)) {
+	TransportTest(unique_ptr<TransportConfig>&& config) : mConfig(std::move(config)) {
 	}
 
 	unique_ptr<TlsConnection> connect() {
@@ -318,7 +318,7 @@ private:
  */
 class RFC5626KeepAliveWithCRLFBase : public TransportTest {
 protected:
-	RFC5626KeepAliveWithCRLFBase(unique_ptr<TransportConfig>&& config) : TransportTest(move(config)) {
+	RFC5626KeepAliveWithCRLFBase(unique_ptr<TransportConfig>&& config) : TransportTest(std::move(config)) {
 	}
 
 private:
@@ -424,7 +424,7 @@ private:
 		const auto toURI = "sip:"s + kDomain;
 		const auto& requestURI = toURI;
 
-		// Creating the SIP message
+		// Creating the SIP message
 		auto optionRequest = make_unique<MsgSip>();
 		optionRequest->makeAndInsert<SipHeaderRequest>(sip_method_options, requestURI);
 		optionRequest->makeAndInsert<SipHeaderFrom>(fromURI, "dummyTag");
@@ -434,7 +434,7 @@ private:
 
 		// Instantiate the client and send the request through an outgoing transaction
 		auto client = NtaAgent{mRoot, "sip:localhost:0"};
-		auto transaction = client.createOutgoingTransaction(move(optionRequest), kProxyURI);
+		auto transaction = client.createOutgoingTransaction(std::move(optionRequest), kProxyURI);
 
 		// Wait for the transaction completion and check that the server has replied 200.
 		BC_ASSERT_TRUE(waitFor([transaction]() { return transaction->isCompleted(); }, 1s));

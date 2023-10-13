@@ -528,7 +528,7 @@ static void dump_config(const std::shared_ptr<sofiasip::SuRoot>& root,
 		auto fileDumper = make_unique<FileConfigDumper>(rootStruct);
 		fileDumper->setMode(dumpDefault ? FileConfigDumper::Mode::DefaultValue
 		                                : FileConfigDumper::Mode::DefaultIfUnset);
-		dumper = move(fileDumper);
+		dumper = std::move(fileDumper);
 	} else if (format == "media") {
 		dumper = make_unique<MediaWikiConfigDumper>(rootStruct);
 	} else if (format == "xwiki") {

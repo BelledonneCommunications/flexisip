@@ -25,7 +25,7 @@ using namespace std;
 
 namespace flexisip {
 
-void HttpHeaders::add(const std::string& name, const std::string& value, std::uint8_t flags) noexcept {
+void HttpHeaders::add(const std::string& name, const std::string& value, uint8_t flags) noexcept {
 	auto it = find_if(mHList.begin(), mHList.end(), [&name](const Header& h) { return h.name == name; });
 	if (it == mHList.end()) {
 		it = mHList.emplace(mHList.end());

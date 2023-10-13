@@ -55,6 +55,8 @@ function(add_linphonesdk)
 	# Global features activation
 	set(BUILD_GSM OFF)
 	set(BUILD_JSONCPP ${INTERNAL_JSONCPP})
+	set(BUILD_AOM OFF)
+	set(BUILD_DAV1D OFF)
 	set(BUILD_LIBVPX OFF)
 	set(BUILD_LIBXML2 OFF)
 	set(BUILD_MBEDTLS_WITH_FATAL_WARNINGS OFF)

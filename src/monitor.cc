@@ -41,7 +41,7 @@ Monitor::Init::Init() {
 		config_item_end};
 
 	auto uS = make_unique<GenericStruct>("monitor", "Flexisip monitor parameters", 0);
-	auto s = GenericManager::get()->getRoot()->addChild(move(uS));
+	auto s = GenericManager::get()->getRoot()->addChild(std::move(uS));
 	s->addChildrenValues(items);
 	s->setExportable(false);
 }

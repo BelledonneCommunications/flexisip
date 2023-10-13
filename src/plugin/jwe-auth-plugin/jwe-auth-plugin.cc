@@ -54,7 +54,7 @@ static constexpr auto makeArray(T &&...values) -> array<
 	return array<
 		typename decay<typename common_type<T...>::type>::type,
 		sizeof...(T)
-	>{ {forward<T>(values)...} };
+	>{ {std::forward<T>(values)...} };
 }
 
 static bool endsWith(const string &str, const string &suffix) {
@@ -112,7 +112,7 @@ static list<string> listFiles(const string &path, const string &suffix) {
 
 		string file(dirent->d_name);
 		if (file != "." && file != ".." && endsWith(file, dotSuffix))
-			files.push_back(move(file));
+			files.push_back(std::move(file));
 	}
 
 	closedir(dirp);
@@ -426,7 +426,7 @@ void JweAuth::onRequest(shared_ptr<RequestSipEvent> &ev) {
 
 				if (!error) {
 					jweContext = make_shared<JweContext>();
-					insertJweContext(move(jweKey), jweContext, timeout);
+					insertJweContext(std::move(jweKey), jweContext, timeout);
 				}
 			}
 		} else {
@@ -465,7 +465,7 @@ void JweAuth::insertJweContext(string &&jweKey, const shared_ptr<JweContext> &jw
 	jweContext->key = jweKey;
 	jweContext->timer = timer;
 
-	mJweContexts.insert({ move(jweKey), jweContext });
+	mJweContexts.insert({ std::move(jweKey), jweContext });
 
 	if (timeout > 0) {
 		timeout *= 1000;

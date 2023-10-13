@@ -125,7 +125,7 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct* mc) {
 
 	for (const string& domain : authDomains) {
 		unique_ptr<FlexisipAuthModuleBase> am(createAuthModule(domain, nonceExpires.count(), !disableQOPAuth));
-		mAuthModules[domain] = move(am);
+		mAuthModules[domain] = std::move(am);
 	}
 
 	const string regexPrefix{"regex:"};
@@ -142,12 +142,12 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct* mc) {
 	}
 	if (!realmRegex.empty()) {
 		try {
-			mRealmExtractor = new RegexRealmExtractor{move(realmRegex)};
+			mRealmExtractor = new RegexRealmExtractor{std::move(realmRegex)};
 		} catch (const regex_error& e) {
 			LOGF("invalid regex in 'realm-regex': %s", e.what());
 		}
 	} else if (!realm.empty()) {
-		mRealmExtractor = new StaticRealmExtractor{move(realm)};
+		mRealmExtractor = new StaticRealmExtractor{std::move(realm)};
 	}
 
 	mNo403Expr = mc->get<ConfigBooleanExpression>("no-403")->read();

@@ -48,9 +48,9 @@ Process::Process(function<void()>&& f)
 			          // parent and the child, so if the parent closes it, the child would not detect it.
 			          // We have to close the (ir)relevent descs in the parent and the child
 
-			          if (0 < pid) return Running(move(in), move(out), move(err), pid);
+			          if (0 < pid) return Running(std::move(in), std::move(out), std::move(err), pid);
 
-			          return Child{move(in), move(out), move(err)};
+			          return Child{std::move(in), std::move(out), std::move(err)};
 		          }
 	          },
 	          pipe::open(), pipe::open(), pipe::open());
@@ -82,10 +82,10 @@ Process::Process(function<void()>&& f)
 			          ::execl(DUMMY_EXEC, DUMMY_EXEC, nullptr);
 			          throw runtime_error{"unreachable"};
 		          } else {
-			          return move(forked);
+			          return std::move(forked);
 		          }
 	          },
-	          move(forked));
+	          std::move(forked));
       }()) {
 }
 
@@ -100,7 +100,7 @@ void Process::_wait(int noHang) {
 		}
 		if (wPid == 0) return; // Still Running
 		if (WIFEXITED(wStatus)) {
-			mState = ExitedNormally(move(process), static_cast<uint8_t>(WEXITSTATUS(wStatus)));
+			mState = ExitedNormally(std::move(process), static_cast<uint8_t>(WEXITSTATUS(wStatus)));
 			return;
 		}
 		mState = Unexpected();
@@ -127,10 +127,10 @@ std::variant<Unexpected, TimeOut, ExitedNormally, SysErr> Process::wait(chrono::
 				    if constexpr (is_same_v<decay_t<decltype(state)>, Running>) {
 					    throw EscapeHatch{};
 				    } else {
-					    return move(state);
+					    return std::move(state);
 				    }
 			    },
-			    move(mState));
+			    std::move(mState));
 		} catch (const EscapeHatch&) {
 			this_thread::sleep_for(step);
 		}
@@ -164,8 +164,8 @@ ostream& operator<<(ostream& stream, const ExitedNormally& state) {
 }
 ostream& operator<<(ostream& stream, ExitedNormally&& state) {
 	return stream << "process::ExitedNormally{mExitCode: " << int(state.mExitCode)
-	              << ", mStdout: " << StreamableVariant(move(state.mStdout))
-	              << ", mStderr: " << StreamableVariant(move(state.mStderr)) << "}";
+	              << ", mStdout: " << StreamableVariant(std::move(state.mStdout))
+	              << ", mStderr: " << StreamableVariant(std::move(state.mStderr)) << "}";
 }
 
 ostream& operator<<(ostream& stream, const Running& state) {
@@ -175,8 +175,8 @@ ostream& operator<<(ostream& stream, const Running& state) {
 }
 ostream& operator<<(ostream& stream, Running&& state) {
 	return stream << "process::Running{mPid: " << state.mPid << ", mStdin: " << StreamableVariant(state.mStdin)
-	              << ", mStdout: " << StreamableVariant(move(state.mStdout))
-	              << ", mStderr: " << StreamableVariant(move(state.mStderr)) << "}";
+	              << ", mStdout: " << StreamableVariant(std::move(state.mStdout))
+	              << ", mStderr: " << StreamableVariant(std::move(state.mStderr)) << "}";
 }
 
 ostream& operator<<(ostream& stream, const Unexpected&) {

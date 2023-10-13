@@ -53,7 +53,7 @@ std::string Request::quoteStringIfNeeded(const std::string& str) const noexcept 
 	} else {
 		string res;
 		res.reserve(str.size() + 2);
-		return move(res) + "\"" + str + "\"";
+		return std::move(res) + "\"" + str + "\"";
 	}
 }
 

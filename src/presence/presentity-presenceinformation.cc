@@ -189,7 +189,7 @@ string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequ
 	auto timer = belle_sip_main_loop_create_cpp_timeout(mBelleSipMainloop, func, expiresMs, "timer for presence Info");
 
 	// set expiration timer
-	informationElement->setExpiresTimer(move(timer));
+	informationElement->setExpiresTimer(std::move(timer));
 
 	// modify global etag list
 	if (eTag && eTag->size() > 0) {
@@ -299,7 +299,7 @@ void PresentityPresenceInformation::addOrUpdateListener(
 		                                                    "timer for presence info listener");
 
 		// set expiration timer
-		listener->setExpiresTimer(mBelleSipMainloop, move(timer));
+		listener->setExpiresTimer(mBelleSipMainloop, std::move(timer));
 	} else {
 		listener->setExpiresTimer(mBelleSipMainloop, nullptr);
 	}

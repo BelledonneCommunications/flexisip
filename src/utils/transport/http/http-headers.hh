@@ -36,7 +36,7 @@ public:
 	struct Header {
 		std::string name{};
 		std::string value{};
-		std::uint8_t flags{NGHTTP2_FLAG_NONE};
+		uint8_t flags{NGHTTP2_FLAG_NONE};
 	};
 
 	using HeadersList = std::vector<Header>;

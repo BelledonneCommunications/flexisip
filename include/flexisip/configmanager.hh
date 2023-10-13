@@ -365,11 +365,11 @@ public:
 		newEntryPointer->setParent(this);
 		for (auto& entry : mEntries) {
 			if (entry->getName() == newEntry->getName()) {
-				entry = move(newEntry);
+				entry = std::move(newEntry);
 				return newEntryPointer;
 			}
 		}
-		mEntries.push_back(move(newEntry));
+		mEntries.push_back(std::move(newEntry));
 		return newEntryPointer;
 	}
 

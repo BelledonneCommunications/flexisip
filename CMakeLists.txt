@@ -37,7 +37,7 @@ set(CMAKE_C_FLAGS_DEBUG_INIT "-g -O0 -U_FORTIFY_SOURCE -fdiagnostics-color=alway
 set(CMAKE_CXX_FLAGS_DEBUG_INIT ${CMAKE_C_FLAGS_DEBUG_INIT})
 
 # Set project version by using the Git describe
-include("./linphone-sdk/bctoolbox/cmake/BcToolboxCMakeUtils.cmake")
+include("./linphone-sdk/bctoolbox/cmake/BCToolboxCMakeUtils.cmake")
 bc_compute_full_version(FLEXISIP_FULL_VERSION)
 bc_parse_full_version("${FLEXISIP_FULL_VERSION}" major minor patch)
 project(flexisip VERSION "${major}.${minor}.${patch}" LANGUAGES C CXX)
@@ -113,7 +113,7 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Sanitizer"
  AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
 )
 	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105616
-	if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 13.1.1)
+	if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 13.2.1)
 		set(HAS_GCC_BUG_105616 ON)
 	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105562
 	elseif(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 12.3.0)
@@ -257,6 +257,7 @@ configure_file(cmake/flexisip-config.h.in flexisip-config.h)
 set_source_files_properties(${PROJECT_BINARY_DIR}/flexisip-config.h PROPERTIES GENERATED ON)
 add_compile_definitions("HAVE_CONFIG_H")
 
+# Compute and set compilation options
 bc_init_compilation_flags(CPP_BUILD_FLAGS C_BUILD_FLAGS CXX_BUILD_FLAGS ENABLE_STRICT)
 
 if (ENABLE_SANITIZERS)
@@ -269,39 +270,32 @@ if (ENABLE_SANITIZERS)
 	add_link_options(${SANITIZERS_FLAG})
 endif()
 
-if (ENABLE_STRICT)
-	add_compile_options(
-		"-Werror=unused-result" # Packaging (on Ubuntu) has this on, so better catch it sooner
-		"-Werror=maybe-uninitialized" # GCC on CentOS 7 treats this as an error
-	)
-endif()
-
-# -Werror=varargs seems to do false positives with GCC 4.9.x
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION MATCHES "^4\\.9\\.[0-9]+$")
-	list(APPEND CXX_BUILD_FLAGS "-Wno-error=varargs")
-endif()
-
-# Old compilers (gcc6 and clang3 on Debian 9 Stretch) are giving us some troubles...
-if(CMAKE_CXX_COMPILER_VERSION MATCHES "^[0-6]\\..*$")
-	list(APPEND CXX_BUILD_FLAGS
-		"-Wno-error=unused-variable"
-	)
-	if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	if(ENABLE_STRICT)
 		list(APPEND CXX_BUILD_FLAGS
-			"-Wno-error=unknown-attributes"
+			"-Werror=unused-result" # Packaging (on Ubuntu) has this on, so better catch it sooner
+			"-Werror=maybe-uninitialized" # GCC on CentOS 7 treats this as an error
 		)
 	endif()
-	if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-		list(APPEND CXX_BUILD_FLAGS
-			"-Wno-error=attributes"
-		)
+	# -Werror=varargs seems to do false positives with GCC 4.9.x
+	if(CMAKE_CXX_COMPILER_VERSION MATCHES "^4\\.9\\.[0-9]+$")
+		list(APPEND CXX_BUILD_FLAGS "-Wno-error=varargs")
 	endif()
-else()
-	list(APPEND CXX_BUILD_FLAGS
-		"-Werror=format-truncation=1" # GCC on CentOS 7 treats this as an error
-	)
+	if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7)
+		# Old compiler (gcc6 on Debian 9 Stretch) are giving us some toubles...
+		list(APPEND CXX_BUILD_FLAGS "-Wno-error=unused-variable" "-Wno-error=attributes")
+	else()
+		# GCC on CentOS 7 treats this as an error
+		list(APPEND CXX_BUILD_FLAGS "-Werror=format-truncation=1")
+	endif()
+		
 endif()
-
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	# Old compiler (clang3 on Debian 9 Stretch) are giving us some toubles...
+	if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4)
+		list(APPEND CXX_BUILD_FLAGS "-Wno-error=unused-variable" "-Wno-error=unknown-attributes")
+	endif()
+endif()
 add_compile_options(${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
 
 add_subdirectory(include)

@@ -178,7 +178,7 @@ void TlsConnection::connect() noexcept {
 		return;
 	}
 
-	mBio = move(newBio);
+	mBio = std::move(newBio);
 }
 
 void TlsConnection::resetConnection() noexcept {

@@ -90,7 +90,7 @@ void FlexisipAuthModule::onChallenge(AuthStatus& as, auth_challenger_t const* ac
 					     "challenge will be generated for all authorized algorithms",
 					     &authStatus);
 				} else {
-					authStatus.usedAlgo() = move(usedAlgo);
+					authStatus.usedAlgo() = std::move(usedAlgo);
 				}
 				makeChallenge(authStatus, *ach); // Calling FlexisipAuthModuleBase::onChallenge() directly here is
 				                                 // forbidden with GCC 4.9 and earlier.

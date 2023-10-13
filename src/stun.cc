@@ -37,7 +37,7 @@ StunServer::Init::Init() {
 	                                {Integer, "port", "STUN server port number.", "3478"},
 	                                config_item_end};
 	auto uS = make_unique<GenericStruct>("stun-server", "STUN server parameters.", 0);
-	auto s = dynamic_cast<GenericStruct*>(GenericManager::get()->getRoot()->addChild(move(uS)));
+	auto s = dynamic_cast<GenericStruct*>(GenericManager::get()->getRoot()->addChild(std::move(uS)));
 	s->addChildrenValues(items);
 }
 

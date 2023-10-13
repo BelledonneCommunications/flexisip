@@ -261,7 +261,7 @@ void SociAuthDB::getPasswordWithPool(const string& id,
 					break;
 				} else {
 					auto hash = StringUtils::toLower(r.get<string>(0));
-					passwd.emplace_back(move(hash), algo);
+					passwd.emplace_back(std::move(hash), algo);
 				}
 			}
 		});

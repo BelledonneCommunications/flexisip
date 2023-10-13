@@ -12,6 +12,7 @@
 #include <mutex>
 #include <string>
 #include <vector>
+#include <string>
 
 #include "sofia-sip/sip.h"
 

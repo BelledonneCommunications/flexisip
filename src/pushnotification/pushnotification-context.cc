@@ -47,7 +47,7 @@ void PNContextCall::init(std::chrono::seconds aCallPushInterval) {
 		auto br = BranchInfo::getBranchInfo(mTransaction);
 		auto remoteStrategy = RemotePushStrategy::make(shared_from_this(), root, mModule->getService(), br);
 		remoteStrategy->setCallPushInterval(aCallPushInterval);
-		mStrategy = move(remoteStrategy);
+		mStrategy = std::move(remoteStrategy);
 	} else {
 		throw runtime_error{"no suitable available destinations for PNContextCall"};
 	}

@@ -343,7 +343,7 @@ int main(int argc, char* argv[]) {
 
 		for (auto& pinfo : pushInfos) {
 			try {
-				pushRequests.emplace_back(service.makeRequest(args.applePushType, move(pinfo)));
+				pushRequests.emplace_back(service.makeRequest(args.applePushType, std::move(pinfo)));
 			} catch (const invalid_argument& msg) {
 				SLOGE << msg.what();
 				exit(-1);

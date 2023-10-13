@@ -44,7 +44,7 @@ std::optional<SysErr> Descriptor::duplicateTo(RawPipeDesc other) {
 
 Ready::Ready(RawPipeDesc ends[2]) : readEnd{ends[0]}, writeEnd{ends[1]} {
 }
-ReadOnly::ReadOnly(Ready&& pipe) : Descriptor(move(pipe.readEnd)) {
+ReadOnly::ReadOnly(Ready&& pipe) : Descriptor(std::move(pipe.readEnd)) {
 }
 
 variant<string, TimeOut, SysErr> ReadOnly::read(size_t size, chrono::microseconds timeoutMs) {
@@ -67,7 +67,7 @@ variant<string, TimeOut, SysErr> ReadOnly::read(size_t size, chrono::microsecond
 	return buffer;
 }
 
-WriteOnly::WriteOnly(Ready&& pipe) : Descriptor(move(pipe.writeEnd)) {
+WriteOnly::WriteOnly(Ready&& pipe) : Descriptor(std::move(pipe.writeEnd)) {
 }
 
 optional<SysErr> WriteOnly::write(const string& data) {

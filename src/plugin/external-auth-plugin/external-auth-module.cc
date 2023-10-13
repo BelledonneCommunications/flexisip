@@ -47,7 +47,7 @@ void ExternalAuthModule::checkAuthHeader(FlexisipAuthStatus& as,
                                          msg_auth_t* credentials,
                                          auth_challenger_t const* ach) {
 	auto ctx = make_unique<HttpRequestCtx>(*this, as, *ach, *credentials);
-	pendingAuthRequests.push(move(ctx));
+	pendingAuthRequests.push(std::move(ctx));
 	as.status(100);
 
 	if (!mWaitingForResponse) {
@@ -56,7 +56,7 @@ void ExternalAuthModule::checkAuthHeader(FlexisipAuthStatus& as,
 }
 
 void ExternalAuthModule::popAndSendRequest() {
-	auto ctx = move(pendingAuthRequests.front());
+	auto ctx = std::move(pendingAuthRequests.front());
 	pendingAuthRequests.pop();
 	try {
 		auto& externalAs = dynamic_cast<ExternalAuthModule::Status&>(ctx->as);
@@ -119,9 +119,9 @@ void ExternalAuthModule::onHttpResponse(HttpRequestCtx& ctx, nth_client_t* reque
 		try {
 			map<string, string> kv = parseHttpBody(httpBody);
 			sipCode = stoi(kv["Status"]);
-			phrase = move(kv["Phrase"]);
-			reasonHeaderValue = move(kv["Reason"]);
-			pAssertedIdentity = move(kv["P-Asserted-Identity"]);
+			phrase = std::move(kv["Phrase"]);
+			reasonHeaderValue = std::move(kv["Reason"]);
+			pAssertedIdentity = std::move(kv["P-Asserted-Identity"]);
 		} catch (const logic_error& e) {
 			os << "error while parsing HTTP body: " << e.what();
 			throw runtime_error(os.str());

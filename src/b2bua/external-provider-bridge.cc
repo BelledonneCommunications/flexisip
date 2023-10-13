@@ -73,7 +73,7 @@ Here is a template of what should be in this file:
 } // namespace
 
 Account::Account(shared_ptr<linphone::Account>&& account, uint16_t&& freeSlots)
-    : account(move(account)), freeSlots(move(freeSlots)) {
+    : account(std::move(account)), freeSlots(std::move(freeSlots)) {
 }
 
 bool Account::isAvailable() const {
@@ -91,7 +91,7 @@ ExternalSipProvider::ExternalSipProvider(string&& pattern,
                                          string&& name,
                                          const optional<bool>& overrideAvpf,
                                          const optional<linphone::MediaEncryption>& overrideEncryption)
-    : pattern(move(pattern)), accounts(move(accounts)), name(move(name)), overrideAvpf(overrideAvpf),
+    : pattern(std::move(pattern)), accounts(std::move(accounts)), name(std::move(name)), overrideAvpf(overrideAvpf),
       overrideEncryption(overrideEncryption) {
 }
 
@@ -138,15 +138,15 @@ void AccountManager::initFromDescs(linphone::Core& core, vector<ProviderDesc>&& 
 				                                         accountDesc.password, "", "", address->getDomain()));
 			}
 
-			accounts.emplace_back(Account(move(account), move(provDesc.maxCallsPerLine)));
+			accounts.emplace_back(Account(std::move(account), std::move(provDesc.maxCallsPerLine)));
 		}
-		providers.emplace_back(ExternalSipProvider(move(provDesc.pattern), move(accounts), move(provDesc.name),
+		providers.emplace_back(ExternalSipProvider(std::move(provDesc.pattern), std::move(accounts), std::move(provDesc.name),
 		                                           provDesc.overrideAvpf, provDesc.overrideEncryption));
 	}
 }
 
 AccountManager::AccountManager(linphone::Core& core, vector<ProviderDesc>&& provDescs) {
-	initFromDescs(core, move(provDescs));
+	initFromDescs(core, std::move(provDescs));
 }
 
 void AccountManager::init(const shared_ptr<linphone::Core>& core, const flexisip::GenericStruct& config) {
@@ -194,10 +194,10 @@ void AccountManager::init(const shared_ptr<linphone::Core>& core, const flexisip
 		providers.emplace_back(
 		    ProviderDesc{provider["name"].asString(), provider["pattern"].asString(),
 		                 provider["outboundProxy"].asString(), provider["registrationRequired"].asBool(),
-		                 provider["maxCallsPerLine"].asUInt(), move(accounts), overrideAvpf, overrideEncryption});
+		                 provider["maxCallsPerLine"].asUInt(), std::move(accounts), overrideAvpf, overrideEncryption});
 	}
 
-	initFromDescs(*core, move(providers));
+	initFromDescs(*core, std::move(providers));
 }
 
 unique_ptr<pair<reference_wrapper<ExternalSipProvider>, reference_wrapper<Account>>>

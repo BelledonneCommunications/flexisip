@@ -45,7 +45,7 @@ void test_echo_stdin_to_stdout() {
 	running->mStdin = pipe::Closed();
 	cerr << test << endl;
 
-	auto finished = move(test).wait();
+	auto finished = std::move(test).wait();
 	auto* exitedNormally = get_if<process::ExitedNormally>(&finished);
 	BC_ASSERT_PTR_NOT_NULL(exitedNormally);
 	auto* out = get_if<pipe::ReadOnly>(&exitedNormally->mStdout);
