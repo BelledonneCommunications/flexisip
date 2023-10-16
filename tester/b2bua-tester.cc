@@ -963,7 +963,7 @@ static void zrtp2dtls() {
 	BC_ASSERT_TRUE(
 	    mixedEncryption(zrtpUri, linphone::MediaEncryption::ZRTP, dtlsUri, linphone::MediaEncryption::DTLS, false));
 	BC_ASSERT_TRUE(
-	    mixedEncryption(zrtpUri, linphone::MediaEncryption::SRTP, dtlsUri, linphone::MediaEncryption::DTLS, true));
+	    mixedEncryption(zrtpUri, linphone::MediaEncryption::ZRTP, dtlsUri, linphone::MediaEncryption::DTLS, true));
 	// dtls to zrtp
 	BC_ASSERT_TRUE(
 	    mixedEncryption(dtlsUri, linphone::MediaEncryption::DTLS, zrtpUri, linphone::MediaEncryption::ZRTP, false));
@@ -989,6 +989,15 @@ static void sdes2sdes256(bool video) {
 	auto sdesCall = sdes.call(sdes256, sdesCallParams);
 	if (!BC_ASSERT_PTR_NOT_NULL(sdesCall)) return; // stop the test if we fail to establish the call
 	auto sdes256Call = ClientCall::getLinphoneCall(sdes256.getCurrentCall().value());
+	BC_ASSERT_TRUE(sdesCall->getCurrentParams()->getMediaEncryption() == linphone::MediaEncryption::SRTP);
+	BC_ASSERT_TRUE(sdesCall->getCurrentParams()->getSrtpSuites().front() == linphone::SrtpSuite::AESCM128HMACSHA180);
+	BC_ASSERT_TRUE(sdes256Call->getCurrentParams()->getMediaEncryption() == linphone::MediaEncryption::SRTP);
+	BC_ASSERT_TRUE(sdes256Call->getCurrentParams()->getSrtpSuites().front() == linphone::SrtpSuite::AES256CMHMACSHA180);
+	// perform a reinvite without any modification in the audio/video settings
+	auto sdes256CallParamsReinvite = sdes256.getCore()->createCallParams(sdes256Call);
+	if (!BC_ASSERT_TRUE(sdes256.callUpdate(sdes, sdes256CallParamsReinvite)))
+		return; // The callUpdate checks that video is enabled
+	sdes256Call = ClientCall::getLinphoneCall(sdes256.getCurrentCall().value());
 	BC_ASSERT_TRUE(sdesCall->getCurrentParams()->getMediaEncryption() == linphone::MediaEncryption::SRTP);
 	BC_ASSERT_TRUE(sdesCall->getCurrentParams()->getSrtpSuites().front() == linphone::SrtpSuite::AESCM128HMACSHA180);
 	BC_ASSERT_TRUE(sdes256Call->getCurrentParams()->getMediaEncryption() == linphone::MediaEncryption::SRTP);

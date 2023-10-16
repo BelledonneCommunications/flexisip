@@ -175,8 +175,10 @@ void B2buaServer::onCallStateChanged([[maybe_unused]] const std::shared_ptr<linp
 				if (peerCallAudioDirection == linphone::MediaDirection::SendOnly ||
 				    peerCallAudioDirection == linphone::MediaDirection::Inactive) {
 					SLOGD << "b2bua server onCallStateChanged: peer call is paused, update it to resume";
-					auto peerCallParams = peerCall->getCurrentParams()->copy();
+					auto peerCallParams = mCore->createCallParams(peerCall);
 					peerCallParams->setAudioDirection(linphone::MediaDirection::SendRecv);
+					// add this custom header so this call will not be intercepted by the b2bua
+					peerCallParams->addCustomHeader("flexisip-b2bua", "ignore");
 					peerCall->update(peerCallParams);
 				}
 			}
@@ -217,12 +219,14 @@ void B2buaServer::onCallStateChanged([[maybe_unused]] const std::shared_ptr<linp
 			// Paused by remote: do not pause peer call as it will kick it out of the conference
 			// just switch the media direction to sendOnly (only if it is not already set this way)
 			auto peerCall = getPeerCall(call);
-			auto peerCallParams = peerCall->getCurrentParams()->copy();
+			auto peerCallParams = mCore->createCallParams(peerCall);
 			auto audioDirection = peerCallParams->getAudioDirection();
 			// Nothing to do if peer call is already not sending audio
 			if (audioDirection != linphone::MediaDirection::Inactive &&
 			    audioDirection != linphone::MediaDirection::SendOnly) {
 				peerCallParams->setAudioDirection(linphone::MediaDirection::SendOnly);
+				// add this custom header so this call will not be intercepted by the b2bua
+				peerCallParams->addCustomHeader("flexisip-b2bua", "ignore");
 				peerCall->update(peerCallParams);
 			}
 		} break;
@@ -249,7 +253,11 @@ void B2buaServer::onCallStateChanged([[maybe_unused]] const std::shared_ptr<linp
 				call->deferUpdate();
 			} else { // no update on video/audio status, just accept it with requested params
 				SLOGD << "accept update without forwarding it to peer call";
-				call->acceptUpdate(call->getRemoteParams());
+				auto updatingCallParams = mCore->createCallParams(call);
+				// add this custom header so this call will not be intercepted by the b2bua
+				updatingCallParams->addCustomHeader("flexisip-b2bua", "ignore");
+
+				call->acceptUpdate(updatingCallParams);
 			}
 		} break;
 		case linphone::Call::State::IncomingEarlyMedia:
