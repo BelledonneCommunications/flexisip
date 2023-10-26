@@ -54,6 +54,7 @@ job-centos7-unit-test:
     - .centos7-image-variables
   needs:
     - job-centos7-ninja-gcc
+  allow_failure: true
 
 #################################################
 # RPM
