@@ -16,7 +16,9 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <chrono>
 #include <cstdlib>
+#include <fstream>
 #include <string>
 
 #include "flexisip/common.hh"
@@ -24,10 +26,10 @@
 #include "flexisip/sofia-wrapper/timer.hh"
 
 #include "pushnotification/apple/apple-request.hh"
-#include "pushnotification/firebase/firebase-request.hh"
 #include "pushnotification/service.hh"
 
 using namespace std;
+using namespace std::chrono_literals;
 using namespace flexisip;
 using namespace flexisip::pushnotification;
 
@@ -112,6 +114,11 @@ Examples:
     ./flexisip_pusher --key '<SecretKey>' --pn-provider 'fcm' --pn-param '<ProjectID>' --pn-prid '<token>'
 
 
+* Send a data push notification to an Android application using FirebaseV1 API:
+
+    ./flexisip_pusher --key '<FirebaseServiceAccountFile>' --pn-provider 'fcm' --pn-param '<ProjectID>' --pn-prid '<token>'
+
+
 * Send a remote message push notification to an iOS production application:
 
     ./flexisip_pusher --prefix /etc/flexisip --pn-provider 'apns' --pn-param '<TeamID>.<BundleID>'
@@ -139,7 +146,7 @@ Examples:
 Environment Variables:
 ----------------------
   FS_LOG_DIR    The directory to write logs into. Defaults to )doc"
-		     << PUSHER_DEFAULT_LOG_DIR;
+		     << PUSHER_DEFAULT_LOG_DIR << '\n';
 	}
 
 	const char* parseUrlParams(const char* params) {
@@ -319,7 +326,7 @@ int main(int argc, char* argv[]) {
 	Stats stats{};
 
 	{
-		sofiasip::SuRoot root{};
+		const auto root = make_shared<sofiasip::SuRoot>();
 		Service service{root, MAX_QUEUE_SIZE};
 		auto pushInfos = createPushInfosFromArgs(args);
 
@@ -332,10 +339,14 @@ int main(int argc, char* argv[]) {
 		} else if (provider == "fcm") {
 			const auto& apiKey = args.apikey;
 			if (apiKey.empty()) {
-				SLOGE << "Missing Firebase API key. Use '--key'";
+				SLOGE << "Missing Firebase API key or service account file. Use '--key'";
 				return 2;
 			}
-			service.addFirebaseClient(pushParams->getParam(), apiKey);
+			if (filesystem::exists(apiKey)) {
+				service.addFirebaseV1Client(pushParams->getParam(), apiKey, 1min, 5min);
+			} else {
+				service.addFirebaseClient(pushParams->getParam(), apiKey);
+			}
 		}
 
 		vector<shared_ptr<Request>> pushRequests{};
@@ -359,7 +370,7 @@ int main(int argc, char* argv[]) {
 		}
 
 		while (!service.isIdle()) {
-			root.step(100ms);
+			root->step(100ms);
 		}
 
 		for (const auto& request : pushRequests) {

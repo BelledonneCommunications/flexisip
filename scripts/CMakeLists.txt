@@ -28,11 +28,11 @@ set(FLEXISIP_LOGROTATE_INSTALL_LOCATION "${logrotate_dir}/flexisip-logrotate" PA
 
 # legacy script
 set(bindir ${CMAKE_INSTALL_FULL_BINDIR})
-message ("-- Startup scripts configured with bindir=${bindir}")
+message("-- Startup scripts configured with bindir=${bindir}")
 configure_file(redhat/flexisip.in redhat/flexisip)
 configure_file(debian/flexisip.in debian/flexisip)
 
-if (ENABLE_PRESENCE)
+if(ENABLE_PRESENCE)
 	configure_file(redhat/flexisip-presence.in redhat/flexisip-presence)
 	configure_file(debian/flexisip-presence.in debian/flexisip-presence)
 endif()
@@ -45,10 +45,10 @@ if(ENABLE_PRESENCE)
 endif()
 if(ENABLE_CONFERENCE)
 	list(APPEND systemd_services
-	        "flexisip-conference.service"
-	        "flexisip-conference@.service"
-	        "flexisip-regevent.service"
-	        "flexisip-regevent@.service"
+		"flexisip-conference.service"
+		"flexisip-conference@.service"
+		"flexisip-regevent.service"
+		"flexisip-regevent@.service"
 	)
 endif()
 if(ENABLE_B2BUA)
@@ -69,3 +69,4 @@ install(FILES ${generated_services} DESTINATION "${FLEXISIP_SYSTEMD_INSTALL_DIR}
 
 # flexisip_cli.py
 install(PROGRAMS flexisip_cli.py DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(PROGRAMS firebase_v1_get_access_token.py DESTINATION ${CMAKE_INSTALL_DATADIR}/flexisip)

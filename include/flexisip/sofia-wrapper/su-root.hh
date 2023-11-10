@@ -79,6 +79,7 @@ public:
 
 private:
 	static void mainLoopFunctionCallback(su_root_magic_t* rm, su_msg_r msg, void* u) noexcept;
+	static void mainLoopFunctionCallbackDeinitializer(su_msg_arg_t* data) noexcept;
 
 	::su_root_t* mCPtr{nullptr};
 	std::list<sofiasip::Timer> mOneShotTimerList{};

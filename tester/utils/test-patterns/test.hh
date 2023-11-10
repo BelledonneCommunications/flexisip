@@ -114,7 +114,7 @@ inline void bc_hard_assert(const char* file, int line, int predicate, const char
 #define BC_ASSERT_THROWN(expression, expectedType)                                                                     \
 	{                                                                                                                  \
 		bool exceptionWasThrown = false;                                                                               \
-		try {                                                                                                              \
+		try {                                                                                                          \
 		expression;                                                                                                    \
 	} catch (const expectedType& exception) {                                                                          \
 		exceptionWasThrown = true;                                                                                     \
@@ -134,7 +134,7 @@ inline void bc_hard_assert(const char* file, int line, int predicate, const char
 	}                                                                                                                  \
 	if (!exceptionWasThrown) {                                                                                         \
 		bc_assert(__FILE__, __LINE__, 0,                                                                               \
-		          ("expected " + std::string(typeid(expectedType).name()) + " but no exception was thrown").c_str());    \
+		          ("expected " + std::string(typeid(expectedType).name()) + " but no exception was thrown").c_str());  \
 		}                                                                                                              \
 	}
 

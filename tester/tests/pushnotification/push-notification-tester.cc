@@ -28,6 +28,7 @@
 #include "bctoolbox/tester.h"
 
 #include "flexisip-config.h"
+#include "flexisip-tester-config.hh"
 #include "flexisip/logmanager.hh"
 #include "flexisip/sofia-wrapper/timer.hh"
 #include "flexisip/utils/sip-uri.hh"
@@ -35,6 +36,8 @@
 #include "pushnotification/apple/apple-client.hh"
 #include "pushnotification/apple/apple-request.hh"
 #include "pushnotification/contact-expiration-notifier.hh"
+#include "pushnotification/firebase-v1/firebase-v1-client.hh"
+#include "pushnotification/firebase-v1/firebase-v1-request.hh"
 #include "pushnotification/firebase/firebase-client.hh"
 #include "pushnotification/firebase/firebase-request.hh"
 #include "pushnotification/generic/generic-http2-client.hh"
@@ -53,7 +56,7 @@ using namespace std::chrono;
 namespace pn = flexisip::pushnotification;
 namespace server = nghttp2::asio_http2::server;
 
-static std::unique_ptr<sofiasip::SuRoot> root = nullptr;
+static shared_ptr<sofiasip::SuRoot> root = nullptr;
 
 /**
  * Common method to run a push test
@@ -96,7 +99,7 @@ static void startPushTest(Client& client,
 	});
 	su_root_run(root->getCPtr());
 
-	// NgHttp2 serveur normally don't stop until all connections are closed
+	// NgHttp2 server normally don't stop until all connections are closed
 	pnsMock.forceCloseServer();
 
 	// Client (Firebase or Apple) onResponse/onError is called and response status is well managed
@@ -151,6 +154,32 @@ static void startFirebasePushTest(PushType pType,
 }
 
 /**
+ * Common method to run a test for the firebase v1 client
+ */
+static void startFirebaseV1PushTest(PushType pType,
+                                    const std::filesystem::path& pythonScriptPath,
+                                    const std::shared_ptr<PushInfo>& pushInfo,
+                                    const string& reqBodyPattern,
+                                    int responseCode,
+                                    const string& responseBody,
+                                    Request::State expectedFinalState,
+                                    bool timeout = false) {
+
+	FirebaseV1Client::FIREBASE_ADDRESS = "localhost";
+	FirebaseV1Client::FIREBASE_PORT = "3000";
+	FirebaseV1Client firebaseClient{
+	    *root, make_shared<FirebaseV1AuthenticationManager>(
+	               root, pythonScriptPath,
+	               FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/config/firebase_sample_service_account.json", 15s, 30s)};
+	firebaseClient.enableInsecureTestMode();
+
+	auto request = make_shared<FirebaseV1Request>(pType, pushInfo, "sample-project");
+
+	startPushTest(firebaseClient, std::move(request), reqBodyPattern, responseCode, responseBody, expectedFinalState,
+	              timeout);
+}
+
+/**
  * Common method to run a test for the generic pusher
  */
 static void startGenericPushTest(PushType pType,
@@ -169,15 +198,14 @@ static void startGenericPushTest(PushType pType,
 
 	auto request = genericClient.makeRequest(pType, pushInfo);
 
-	startPushTest(genericClient, std::move(request), reqBodyPattern, responseCode, responseBody, expectedFinalState,
-	              timeout);
+	startPushTest(genericClient, request, reqBodyPattern, responseCode, responseBody, expectedFinalState, timeout);
 }
 
 /**
  * Send a push with the generic pusher.
  * Assert that the body is as intended and that the request state is correctly updated.
  */
-static void genericPushTestOk(void) {
+static void genericPushTestOk() {
 	auto dest = make_shared<RFC8599PushParams>("fcm", "", "");
 	auto pushInfo = make_shared<PushInfo>();
 	pushInfo->addDestination(dest);
@@ -195,7 +223,7 @@ static void genericPushTestOk(void) {
  * Send a push with the generic pusher but the mock timeout.
  * Assert that the request state is correctly updated.
  */
-static void genericPushTestTimeout(void) {
+static void genericPushTestTimeout() {
 	auto dest = make_shared<RFC8599PushParams>("fcm", "", "");
 	auto pushInfo = make_shared<PushInfo>();
 	pushInfo->addDestination(dest);
@@ -209,7 +237,7 @@ static void genericPushTestTimeout(void) {
 	startGenericPushTest(PushType::Background, pushInfo, pushInfo->mText, 200, "ok", Request::State::Failed, true);
 }
 
-static void firebasePushTestOk(void) {
+static void firebasePushTestOk() {
 	auto dest = make_shared<RFC8599PushParams>("fcm", "", "");
 	auto pushInfo = make_shared<PushInfo>();
 	pushInfo->addDestination(dest);
@@ -238,7 +266,7 @@ static void firebasePushTestOk(void) {
 	startFirebasePushTest(PushType::Background, pushInfo, reqBodyPattern, 200, "ok", Request::State::Successful);
 }
 
-static void firebasePushTestKo(void) {
+static void firebasePushTestKo() {
 	auto dest = make_shared<RFC8599PushParams>("fcm", "", "");
 	auto pushInfo = make_shared<PushInfo>();
 	pushInfo->addDestination(dest);
@@ -268,20 +296,100 @@ static void firebasePushTestKo(void) {
 	                      Request::State::Failed);
 }
 
-static void firebasePushTestTimeout(void) {
+static void firebasePushTestTimeout() {
 	auto dest = make_shared<RFC8599PushParams>("fcm", "", "");
 	auto pushInfo = make_shared<PushInfo>();
 	pushInfo->addDestination(dest);
 	pushInfo->mFromName = "PushTest";
 	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
 
-	// Not checked during timeout test
-	string reqBodyPattern{""};
-
-	startFirebasePushTest(PushType::Background, pushInfo, reqBodyPattern, 200, "Ok", Request::State::Failed, true);
+	// Request body pattern not checked during timeout test.
+	startFirebasePushTest(PushType::Background, pushInfo, "", 200, "Ok", Request::State::Failed, true);
 }
 
-static void applePushTestOkPushkit(void) {
+static void firebaseV1PushTestOk() {
+	auto dest = make_shared<RFC8599PushParams>("fcm", "", "device_id");
+	auto pushInfo = make_shared<PushInfo>();
+	pushInfo->addDestination(dest);
+	pushInfo->mTtl = 42s;
+	pushInfo->mUid = "a-uuid-42";
+	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
+
+	string reqBodyPattern{R"json(\{
+	"message":\{
+		"token": "device_id",
+		"android":\{
+			"priority": "high",
+			"ttl": "42s",
+			"data":\{
+				"uuid":"a-uuid-42",
+				"from-uri":"sip:kijou@sip.linphone.org",
+				"display-name":"",
+				"call-id":"",
+				"sip-from":"sip:kijou@sip.linphone.org",
+				"loc-key":"",
+				"loc-args":"sip:kijou@sip.linphone.org",
+				"send-time":"[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}",
+				"custom-payload":"\{\}"
+			\}
+		\}
+	\}
+\})json"};
+
+	startFirebaseV1PushTest(PushType::Background,
+	                        FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success.py",
+	                        pushInfo, reqBodyPattern, 200, "ok", Request::State::Successful);
+}
+
+static void firebaseV1PushTestKo() {
+	auto dest = make_shared<RFC8599PushParams>("fcm", "", "device_id");
+	auto pushInfo = make_shared<PushInfo>();
+	pushInfo->addDestination(dest);
+	pushInfo->mTtl = (4 * 7 * 24h) + 1s; // intentionally set more than the allowed 4 weeks
+	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
+	pushInfo->mCallId = "CallID";
+	pushInfo->mAlertMsgId = "MsgID";
+
+	string reqBodyPattern{R"json(\{
+	"message":\{
+		"token": "device_id",
+		"android":\{
+			"priority": "high",
+			"ttl": "2419200s",
+			"data":\{
+				"uuid":"",
+				"from-uri":"sip:kijou@sip.linphone.org",
+				"display-name":"",
+				"call-id":"CallID",
+				"sip-from":"sip:kijou@sip.linphone.org",
+				"loc-key":"MsgID",
+				"loc-args":"sip:kijou@sip.linphone.org",
+				"send-time":"[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}",
+				"custom-payload":"\{\}"
+			\}
+		\}
+	\}
+\})json"};
+
+	startFirebaseV1PushTest(PushType::Background,
+	                        FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success.py",
+	                        pushInfo, reqBodyPattern, 500, "Internal error", Request::State::Failed);
+}
+
+static void firebaseV1PushTestTimeout() {
+	auto dest = make_shared<RFC8599PushParams>("fcm", "", "device_id");
+	auto pushInfo = make_shared<PushInfo>();
+	pushInfo->addDestination(dest);
+	pushInfo->mFromName = "PushTest";
+	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
+
+	// Request body pattern not checked during timeout test
+	startFirebaseV1PushTest(PushType::Background,
+	                        FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success.py",
+	                        pushInfo, "", 200, "Ok", Request::State::Failed, true);
+}
+
+static void applePushTestOkPushkit() {
 	auto dest = make_shared<RFC8599PushParams>("apns", "ABCD1234.org.linphone.phone.voip",
 	                                           "6464646464646464646464646464646464646464646464646464646464646464");
 
@@ -311,7 +419,7 @@ static void applePushTestOkPushkit(void) {
 	startApplePushTest(PushType::VoIP, pushInfo, reqBodyPattern, 200, "Ok", Request::State::Successful);
 }
 
-static void applePushTestOkBackground(void) {
+static void applePushTestOkBackground() {
 	auto dest = make_shared<RFC8599PushParams>("apns", "ABCD1234.org.linphone.phone",
 	                                           "6464646464646464646464646464646464646464646464646464646464646464");
 
@@ -344,7 +452,7 @@ static void applePushTestOkBackground(void) {
 	startApplePushTest(PushType::Background, pushInfo, reqBodyPattern, 200, "Ok", Request::State::Successful);
 }
 
-static void applePushTestOkRemoteWithMutableContent(void) {
+static void applePushTestOkRemoteWithMutableContent() {
 	auto dest = make_shared<RFC8599PushParams>("apns", "ABCD1234.org.linphone.phone",
 	                                           "6464646464646464646464646464646464646464646464646464646464646464");
 
@@ -384,7 +492,7 @@ static void applePushTestOkRemoteWithMutableContent(void) {
 	startApplePushTest(PushType::Message, pushInfo, reqBodyPattern, 200, "Ok", Request::State::Successful);
 }
 
-static void applePushTestKo(void) {
+static void applePushTestKo() {
 	auto dest =
 	    make_shared<RFC8599PushParams>("apns", "", "6464646464646464646464646464646464646464646464646464646464646464");
 
@@ -416,7 +524,7 @@ static void applePushTestKo(void) {
 	startApplePushTest(PushType::Message, pushInfo, reqBodyPattern, 404, "Not found", Request::State::Failed);
 }
 
-static void applePushTestKoWrongType(void) {
+static void applePushTestKoWrongType() {
 	auto dest = make_shared<RFC8599PushParams>(
 	    "apns",
 	    "ABCD1234.org.linphone.phone", // PushType and appId don't match ("voip" not present)
@@ -429,12 +537,10 @@ static void applePushTestKoWrongType(void) {
 	pushInfo->mCallId = "CallId2";
 	pushInfo->mTtl = 42s;
 
-	// The request will not be send to the server, we disable request check with timeout=true
-	string reqBodyPattern{""};
+	// The request will not be sent to the server, we disable request check with timeout=true
 
 	try {
-		startApplePushTest(PushType::VoIP, pushInfo, reqBodyPattern, 0, "Doesn't even matter", Request::State::Failed,
-		                   true);
+		startApplePushTest(PushType::VoIP, pushInfo, "", 0, "Doesn't even matter", Request::State::Failed, true);
 	} catch (const invalid_argument& e) {
 		// Instantiating a request of given type whereas no RFC8599 parameters are available for this type is
 		// now a fatal error and the higher-level code must protect against that. Then, we expect a invalid_argument
@@ -444,7 +550,7 @@ static void applePushTestKoWrongType(void) {
 	BC_FAIL("No exception has been raised.");
 }
 
-static void applePushTestTimeout(void) {
+static void applePushTestTimeout() {
 	auto dest =
 	    make_shared<RFC8599PushParams>("apns", "", "6464646464646464646464646464646464646464646464646464646464646464");
 
@@ -453,13 +559,11 @@ static void applePushTestTimeout(void) {
 	pushInfo->mFromName = "PushTest";
 	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
 
-	// Not checked during timeout test
-	string reqBodyPattern{""};
-
-	startApplePushTest(PushType::Message, pushInfo, reqBodyPattern, 200, "Ok", Request::State::Failed, true);
+	// Request body pattern not checked during timeout test.
+	startApplePushTest(PushType::Message, pushInfo, "", 200, "Ok", Request::State::Failed, true);
 }
 
-static void applePushTestConnectErrorAndReconnect(void) {
+static void applePushTestConnectErrorAndReconnect() {
 	auto dest = make_shared<RFC8599PushParams>("apns", "ABCD1234.org.linphone.phone",
 	                                           "6464646464646464646464646464646464646464646464646464646464646464");
 
@@ -516,7 +620,7 @@ static void applePushTestConnectErrorAndReconnect(void) {
 	startPushTest(appleClient, std::move(request), reqBodyPattern, 200, "Ok", Request::State::Successful, false);
 }
 
-static void tlsTimeoutTest(void) {
+static void tlsTimeoutTest() {
 	FirebaseClient::FIREBASE_ADDRESS = "localhost";
 	FirebaseClient::FIREBASE_PORT = "3000";
 	FirebaseClient firebaseClient{*root, ""};
@@ -584,7 +688,7 @@ public:
 		return *this;
 	}
 
-	operator SipUri() const {
+	explicit operator SipUri() const {
 		return SipUri(mStream.str());
 	}
 };
@@ -600,7 +704,7 @@ protected:
 	void testExec() noexcept override {
 		auto passed = true;
 		auto& regDb = *RegistrarDb::get();
-		auto service = std::make_shared<pushnotification::Service>(*mRoot, 0xdead);
+		auto service = std::make_shared<pushnotification::Service>(mRoot, 0xdead);
 		// SIP only counts contact expiration in seconds, and 1s is apparently not enough to receive everything
 		const auto interval = 2s;
 		const auto threshold = [] {
@@ -775,17 +879,20 @@ TestSuite _("Push notification",
                 TEST_NO_TAG("TestNotifyExpiringContact", run<TestNotifyExpiringContact>),
                 TEST_NO_TAG_AUTO_NAMED(test_http2client__requests_that_can_not_be_sent_are_queued_and_sent_later),
                 TEST_NO_TAG("Firebase push notification test OK", firebasePushTestOk),
+                TEST_NO_TAG("FirebaseV1 push notification test OK", firebaseV1PushTestOk),
                 TEST_NO_TAG("Apple push notification test OK PushKit", applePushTestOkPushkit),
                 TEST_NO_TAG("Apple push notification test OK Background", applePushTestOkBackground),
                 TEST_NO_TAG("Apple push notification test OK RemoteWithMutableContent",
                             applePushTestOkRemoteWithMutableContent),
                 TEST_NO_TAG("Firebase push notification test KO", firebasePushTestKo),
+                TEST_NO_TAG("FirebaseV1 push notification test KO", firebaseV1PushTestKo),
                 TEST_NO_TAG("Apple push notification test KO", applePushTestKo),
                 TEST_NO_TAG("Apple push notification test KO wrong type", applePushTestKoWrongType),
                 TEST_NO_TAG("Apple push notification test with a first connection failed and a reconnection (fix)",
                             applePushTestConnectErrorAndReconnect),
                 TEST_NO_TAG("Tls timeout test", tlsTimeoutTest),
                 TEST_NO_TAG("Firebase push notification test timeout", firebasePushTestTimeout),
+                TEST_NO_TAG("FirebaseV1 push notification test timeout", firebaseV1PushTestTimeout),
                 TEST_NO_TAG("Apple push notification test timeout", applePushTestTimeout),
                 TEST_NO_TAG("Generic test ok", genericPushTestOk),
                 TEST_NO_TAG("Generic test ko, timeout", genericPushTestTimeout),

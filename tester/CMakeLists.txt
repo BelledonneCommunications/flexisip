@@ -42,96 +42,98 @@ find_program(MYSQL_SERVER_EXEC NAMES mysqld
 
 get_filename_component(MYSQL_BIN_DIR "${MYSQL_SERVER_EXEC}" DIRECTORY)
 find_file(MYSQL_SYSTEM_TABLES_SETUP
-		NAMES "mariadb_system_tables.sql" "mysql_system_tables.sql"
-		HINTS "${MYSQL_BIN_DIR}/.."
-		PATHS ${CMAKE_SYSTEM_PREFIX_PATH}
-		PATH_SUFFIXES "share/mysql" "share/mariadb"
-		REQUIRED
-		NO_DEFAULT_PATH
+	NAMES "mariadb_system_tables.sql" "mysql_system_tables.sql"
+	HINTS "${MYSQL_BIN_DIR}/.."
+	PATHS ${CMAKE_SYSTEM_PREFIX_PATH}
+	PATH_SUFFIXES "share/mysql" "share/mariadb"
+	REQUIRED
+	NO_DEFAULT_PATH
 )
 
 find_program(CAT_EXEC NAMES cat REQUIRED)
 configure_file(flexisip-tester-config.hh.in flexisip-tester-config.hh)
 
 include_directories(
-		${CMAKE_CURRENT_SOURCE_DIR}
-		${CMAKE_CURRENT_BINARY_DIR}
+	${CMAKE_CURRENT_SOURCE_DIR}
+	${CMAKE_CURRENT_BINARY_DIR}
 )
 
 add_executable(flexisip_tester
-		agent-tester.cc
-		boolean-expressions.cc
-		cli-tester.cc
-		domain-registration-tester.cc
-		extended-contact-tester.cc
-		${CMAKE_CURRENT_BINARY_DIR}/flexisip-tester-config.hh flexisip-tester-config.hh.in
-		fork-call-tester.cc
-		fork-context-tester.cc
-		mediarelay-tester.cc
-		module-dos-tester.cc
-		module-info-tester.cc
-		module-registrar-tester.cc
-		module-router-tester.cc
-		module-toolbox-tester.cc
-		msg-sip-tester.cc
-		register-tester.cc
-		registrardb-tester.cc
-		registrardb-redis-tester.cc
-		sip-uri-tests.cc
-		schedule-injector-tester.cc
-		sofia-tester.cc
-		sofia-driven-signal-handler-tester.cc
-		tester.cc
-		tests/callcontext-mediarelay-tester.cc
-		tests/configmanager-tester.cc
-		tests/transaction-tester.cc
+	agent-tester.cc
+	boolean-expressions.cc
+	cli-tester.cc
+	domain-registration-tester.cc
+	extended-contact-tester.cc
+	${CMAKE_CURRENT_BINARY_DIR}/flexisip-tester-config.hh flexisip-tester-config.hh.in
+	fork-call-tester.cc
+	fork-context-tester.cc
+	mediarelay-tester.cc
+	module-dos-tester.cc
+	module-info-tester.cc
+	module-registrar-tester.cc
+	module-router-tester.cc
+	module-toolbox-tester.cc
+	msg-sip-tester.cc
+	register-tester.cc
+	registrardb-tester.cc
+	registrardb-redis-tester.cc
+	sip-uri-tests.cc
+	schedule-injector-tester.cc
+	sofia-tester.cc
+	sofia-driven-signal-handler-tester.cc
+	tester.cc
+	tests/callcontext-mediarelay-tester.cc
+	tests/configmanager-tester.cc
+	tests/transaction-tester.cc
 	tests/eventlogs/events/auth-log-tester.cc
-		tests/eventlogs/events/event-log-stats-tester.cc
-		tests/flexiapi/schemas/iso-8601-date-tester.cc
-		tests/presence/presence-pidf-tester.cc
-		tests/presence/presence-publish-tester.cc
-		tests/presence/xsd-utils-tester.cc
-		tests/pushnotification/rfc8599-push-params-tester.cc
-		tests/pushnotification/module-pushnotification-tester.cc
-		tests/pushnotification/service-tester.cc
-		tests/sofia-wrapper/home-tester.cc
-		thread-pool-tester.cc
-		tls-connection-tester.cc
-		utils-tester.cc
-		utils/asserts.hh
-		utils/bellesip-utils.cc utils/bellesip-utils.hh
-		utils/call-builder.cc utils/call-builder.hh
-		utils/chat-room-builder.cc utils/chat-room-builder.hh
-		utils/client-builder.cc utils/client-builder.hh
-		utils/client-call.cc utils/client-call.hh
-		utils/client-core.cc utils/client-core.hh
-		utils/contact-inserter.cc utils/contact-inserter.hh
-		utils/eventlogs/event-logs.cc utils/eventlogs/event-logs.hh
-		utils/eventlogs/writers/event-log-writer-visitor-adapter.hh
-		utils/listening-socket.cc utils/listening-socket.hh
-		utils/mysql-server.cc utils/mysql-server.hh
-		utils/posix-process-tester.cc
-		utils/proxy-server.cc utils/proxy-server.hh
-		utils/proxy-server-process.cc utils/proxy-server-process.hh
-		utils/redis-server.cc utils/redis-server.hh
-		utils/tcp-server.cc utils/tcp-server.hh
-		utils/test-patterns/agent-test.hh
-		utils/test-patterns/presence-test.hh
-		utils/test-patterns/test.hh
-		utils/tls-server.cc utils/tls-server.hh
-		utils/tmp-dir.cc utils/tmp-dir.hh
-		utils/utf8-string-tester.cc
+	tests/eventlogs/events/event-log-stats-tester.cc
+	tests/flexiapi/schemas/iso-8601-date-tester.cc
+	tests/presence/presence-pidf-tester.cc
+	tests/presence/presence-publish-tester.cc
+	tests/presence/xsd-utils-tester.cc
+	tests/pushnotification/access-token-provider-tester.cc
+	tests/pushnotification/authentication-manager-tester.cc
+	tests/pushnotification/rfc8599-push-params-tester.cc
+	tests/pushnotification/module-pushnotification-tester.cc
+	tests/pushnotification/service-tester.cc
+	tests/sofia-wrapper/home-tester.cc
+	thread-pool-tester.cc
+	tls-connection-tester.cc
+	utils-tester.cc
+	utils/asserts.hh
+	utils/bellesip-utils.cc utils/bellesip-utils.hh
+	utils/call-builder.cc utils/call-builder.hh
+	utils/chat-room-builder.cc utils/chat-room-builder.hh
+	utils/client-builder.cc utils/client-builder.hh
+	utils/client-call.cc utils/client-call.hh
+	utils/client-core.cc utils/client-core.hh
+	utils/contact-inserter.cc utils/contact-inserter.hh
+	utils/eventlogs/event-logs.cc utils/eventlogs/event-logs.hh
+	utils/eventlogs/writers/event-log-writer-visitor-adapter.hh
+	utils/listening-socket.cc utils/listening-socket.hh
+	utils/mysql-server.cc utils/mysql-server.hh
+	utils/posix-process-tester.cc
+	utils/proxy-server.cc utils/proxy-server.hh
+	utils/proxy-server-process.cc utils/proxy-server-process.hh
+	utils/redis-server.cc utils/redis-server.hh
+	utils/tcp-server.cc utils/tcp-server.hh
+	utils/test-patterns/agent-test.hh
+	utils/test-patterns/presence-test.hh
+	utils/test-patterns/test.hh
+	utils/tls-server.cc utils/tls-server.hh
+	utils/tmp-dir.cc utils/tmp-dir.hh
+	utils/utf8-string-tester.cc
 )
 
-if (ENABLE_CONFERENCE)
+if(ENABLE_CONFERENCE)
 	target_sources(flexisip_tester PRIVATE
 			registration-event-tester.cc
 			tests/conference/conference-server-tester.cc
 			utils/test-conference-server.cc utils/test-conference-server.hh
 	)
-endif ()
+endif()
 
-if (ENABLE_SOCI)
+if(ENABLE_SOCI)
 	target_sources(flexisip_tester PRIVATE
 			fork-context-mysql-tester.cc
 			tests/auth/db/authdb-soci-tester.cc
@@ -139,7 +141,7 @@ if (ENABLE_SOCI)
 	)
 endif ()
 
-if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
+if(LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	target_sources(flexisip_tester PRIVATE
 			tests/pushnotification/global-push-tester.cc
 			tests/pushnotification/push-notification-tester.cc
@@ -152,17 +154,17 @@ if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 		target_sources(flexisip_tester PRIVATE
 				tests/flexiapi/flexi-stats-tester.cc
 		)
-	endif ()
+	endif()
 
-	if (HAS_GCC_BUG_105562)
+	if(HAS_GCC_BUG_105562)
 		set_source_files_properties(
-				tests/pushnotification/push-notification-tester.cc
-				utils/pns-mock.cc
-				PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized")
-	endif ()
-elseif (ENABLE_UNIT_TESTS_NGHTTP2ASIO)
+			tests/pushnotification/push-notification-tester.cc
+			utils/pns-mock.cc
+			PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized")
+	endif()
+elseif(ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	message(FATAL_ERROR "The LibNgHttp2Asio module is required by some tests. You may disable them with -DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF")
-endif ()
+endif()
 
 if (ENABLE_FLEXIAPI AND ENABLE_CONFERENCE AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	target_sources(flexisip_tester PRIVATE
@@ -173,13 +175,13 @@ if (ENABLE_FLEXIAPI AND ENABLE_CONFERENCE AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 				tests/eventlogs/writers/flexi-stats-event-log-writer-tester.cc
 				PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized"
 		)
-	endif ()
-endif ()
+	endif()
+endif()
 
 
-if (ENABLE_B2BUA)
+if(ENABLE_B2BUA)
 	target_sources(flexisip_tester PRIVATE b2bua-tester.cc)
-endif ()
+endif()
 
 target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
 target_link_libraries(flexisip_tester PRIVATE
@@ -199,9 +201,9 @@ target_link_libraries(flexisip_tester PRIVATE
 		XercesC::XercesC
 )
 
-if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
+if(LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	target_link_libraries(flexisip_tester PRIVATE LibNgHttp2Asio)
-endif ()
+endif()
 
 target_include_directories(flexisip_tester PRIVATE "${PROJECT_SOURCE_DIR}/libxsd")
 
@@ -214,6 +216,7 @@ install(TARGETS flexisip_tester
 )
 
 set(FLEXISIP_TESTER_INSTALL_DATADIR "${CMAKE_INSTALL_DATADIR}/flexisip-tester")
-install(DIRECTORY cert config sounds images
-		DESTINATION ${FLEXISIP_TESTER_INSTALL_DATADIR}
+install(DIRECTORY cert config images scripts sounds
+	DESTINATION ${FLEXISIP_TESTER_INSTALL_DATADIR}
+	USE_SOURCE_PERMISSIONS
 )

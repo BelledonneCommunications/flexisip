@@ -79,6 +79,7 @@ PnsMock::handleRequest(int code, const string& body, const string& reqBodyPatter
 
 void PnsMock::onPushRequest(request_cb cb) {
 	mServer.handle("/fcm/send", cb);
+	mServer.handle("/v1/projects/sample-project/messages:send", cb);
 	mServer.handle("/3/device/", cb);
 	mServer.handle("/generic", cb);
 }

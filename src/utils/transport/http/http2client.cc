@@ -16,9 +16,7 @@
  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <algorithm>
 #include <array>
-#include <cstdint>
 #include <nghttp2/nghttp2.h>
 #include <sstream>
 
@@ -40,9 +38,12 @@ string Http2Client::BadStateError::formatWhatArg(State state) noexcept {
 	return string{"bad state ["} + to_string(unsigned(state)) + "]";
 }
 
-Http2Client::Http2Client(sofiasip::SuRoot& root, decltype(mConn)&& connection, SessionSettings&& sessionSettings)
-    : mConn(std::move(connection)), mRoot(root), mIdleTimer(root.getCPtr(), mIdleTimeout),
-      mSessionSettings(std::move(sessionSettings)) {
+Http2Client::Http2Client(sofiasip::SuRoot& root,
+                         decltype(mConn)&& connection,
+                         decltype(mAuthManager)&& authManager,
+                         SessionSettings&& sessionSettings)
+    : mConn(std::move(connection)), mAuthManager(std::move(authManager)), mRoot(root),
+      mIdleTimer(root.getCPtr(), mIdleTimeout), mSessionSettings(std::move(sessionSettings)) {
 
 	ostringstream os{};
 	os << "Http2Client[" << this << "]";
@@ -55,7 +56,14 @@ Http2Client::Http2Client(sofiasip::SuRoot& root,
                          const string& host,
                          const string& port,
                          SessionSettings&& sessionSettings)
-    : Http2Client(root, make_unique<TlsConnection>(host, port, true), std::move(sessionSettings)) {
+    : Http2Client(root, make_unique<TlsConnection>(host, port, true), nullptr, std::move(sessionSettings)) {
+}
+
+Http2Client::Http2Client(sofiasip::SuRoot& root,
+                         const string& host,
+                         const string& port,
+                         std::shared_ptr<AuthenticationManager>&& authManager)
+    : Http2Client(root, make_unique<TlsConnection>(host, port, true), std::move(authManager), SessionSettings()) {
 }
 
 Http2Client::Http2Client(sofiasip::SuRoot& root,
@@ -64,8 +72,10 @@ Http2Client::Http2Client(sofiasip::SuRoot& root,
                          const string& trustStorePath,
                          const string& certPath,
                          SessionSettings&& sessionSettings)
-    : Http2Client(
-          root, make_unique<TlsConnection>(host, port, trustStorePath, certPath, true), std::move(sessionSettings)) {
+    : Http2Client(root,
+                  make_unique<TlsConnection>(host, port, trustStorePath, certPath, true),
+                  nullptr,
+                  std::move(sessionSettings)) {
 }
 
 void Http2Client::sendAllPendingRequests() {
@@ -99,6 +109,13 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request,
 
 	auto context = make_shared<HttpMessageContext>(request, onResponseCb, onErrorCb, *mRoot.getCPtr(), mRequestTimeout);
 
+	if (mAuthManager) {
+		if (!mAuthManager->addAuthentication(request)) {
+			SLOGE << logPrefix << ": failed to add authentication in request header";
+			onErrorCb(request);
+			return;
+		}
+	}
 	if (mState == State::Disconnected) {
 		SLOGD << logPrefix << ": not connected. Trying to connect...";
 		this->tlsConnect();

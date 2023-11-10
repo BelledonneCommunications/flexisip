@@ -35,6 +35,7 @@ target_sources(flexisip PRIVATE
 	thread/basic-thread-pool.cc thread/basic-thread-pool.hh
 	thread/base-thread-pool.cc thread/base-thread-pool.hh
 	thread/thread-pool.hh
+	transport/http/authentication-manager.hh
 	transport/http/http2client.cc transport/http/http2client.hh
 	transport/http/http-headers.cc transport/http/http-headers.hh
 	transport/http/http-message.cc transport/http/http-message.hh

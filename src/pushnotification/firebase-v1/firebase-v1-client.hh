@@ -18,9 +18,12 @@
 
 #pragma once
 
+#include <chrono>
+#include <memory>
 #include <string>
 
 #include "pushnotification/client.hh"
+#include "pushnotification/firebase-v1/firebase-v1-authentication-manager.hh"
 #include "utils/transport/http/http-message.hh"
 #include "utils/transport/http/http-response.hh"
 #include "utils/transport/http/http2client.hh"
@@ -28,29 +31,27 @@
 namespace flexisip::pushnotification {
 
 /**
- * PNR (Push Notification Request) client designed to send push notification to the Firebase push API.
+ * PNR (Push Notification Request) client designed to send push notification to the Firebase V1 push API.
  */
-class FirebaseClient : public Client {
+class FirebaseV1Client : public Client {
 public:
-	FirebaseClient(sofiasip::SuRoot& root, const std::string& apiKey, const Service* service = nullptr);
+	FirebaseV1Client(sofiasip::SuRoot& root,
+	                 std::shared_ptr<FirebaseV1AuthenticationManager>&& authenticationManager,
+	                 const Service* service = nullptr);
 
 	/**
-	 * Send the request to the Firebase PNR server. If the request succeed, if a response is received, the
-	 * FirebaseClient::onResponse method is called. If the request failed, no response/timeout, tls/handshake errors...
-	 * the FirebaseClient::onError method is called.
+	 * Send the request to the Firebase PNR server. If the request succeeds and a response is received, the
+	 * FirebaseV1Client::onResponse method is called. If the request fails (no response/timeout, tls/handshake
+	 * errors, etc), the FirebaseV1Client::onError method is called.
 	 *
-	 * @param req The request to send, this MUST be of FirebaseRequest type.
+	 * @param req The request to send, this MUST be of FirebaseV1Request type.
 	 */
 	void sendPush(const std::shared_ptr<Request>& req) override;
 	std::shared_ptr<Request> makeRequest(PushType,
 	                                     const std::shared_ptr<const PushInfo>&,
 	                                     const std::map<std::string, std::shared_ptr<Client>>& = {}) override;
 
-	const std::string& getApiKey() const noexcept {
-		return mApiKey;
-	}
-
-	bool isIdle() const noexcept override {
+	[[nodiscard]] bool isIdle() const noexcept override {
 		return mHttp2Client->isIdle();
 	}
 
@@ -62,7 +63,7 @@ public:
 		mHttp2Client->setRequestTimeout(requestTimeout);
 	}
 
-	const std::shared_ptr<Http2Client>& getHttp2Client() const {
+	[[nodiscard]] const std::shared_ptr<Http2Client>& getHttp2Client() const {
 		return mHttp2Client;
 	}
 
@@ -75,7 +76,7 @@ private:
 
 	std::shared_ptr<Http2Client> mHttp2Client;
 	std::string mLogPrefix{};
-	std::string mApiKey;
+	std::string mProjectId{};
 };
 
 } // namespace flexisip::pushnotification

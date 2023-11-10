@@ -18,7 +18,9 @@
 
 #pragma once
 
+#include <chrono>
 #include <condition_variable>
+#include <filesystem>
 #include <list>
 #include <mutex>
 #include <string>
@@ -39,7 +41,7 @@ class GenericHttpRequest;
 
 class Service {
 public:
-	Service(sofiasip::SuRoot& root, unsigned maxQueueSize);
+	Service(const std::shared_ptr<sofiasip::SuRoot>& root, unsigned maxQueueSize);
 	~Service();
 
 	StatCounter64* getFailedCounter() const noexcept {
@@ -61,8 +63,12 @@ public:
 	void sendPush(const std::shared_ptr<Request>& pn);
 	void setupGenericClient(const sofiasip::Url& url, Method method, Protocol protocol);
 	void setupiOSClient(const std::string& certdir, const std::string& cafile);
-	void setupFirebaseClients(const std::list<std::string>& firebaseKeys);
-	void addFirebaseClient(const std::string& firebaseAppId, const std::string& apiKey = "");
+	void setupFirebaseClients(const GenericStruct* pushConfig);
+	void addFirebaseClient(const std::string& appId, const std::string& apiKey = "");
+	void addFirebaseV1Client(const std::string& appId,
+	                         const std::filesystem::path& serviceAccountFilePath,
+	                         const std::chrono::milliseconds& defaultRefreshInterval,
+	                         const std::chrono::milliseconds& tokenExpirationAnticipationTime);
 
 	/**
 	 * Add a PN client to use when no other client can handle a PN request
@@ -76,7 +82,7 @@ public:
 
 private:
 	// Private attributes
-	sofiasip::SuRoot& mRoot;
+	std::shared_ptr<sofiasip::SuRoot> mRoot;
 	unsigned mMaxQueueSize{0};
 	std::map<std::string, std::shared_ptr<Client>> mClients{};
 	std::string mWindowsPhonePackageSID{};

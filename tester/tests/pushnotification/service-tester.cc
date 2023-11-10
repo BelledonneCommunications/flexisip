@@ -20,7 +20,7 @@ using namespace sofiasip;
 using namespace std;
 
 void setupiOSClient__bad_certificate_does_not_crash() {
-	SuRoot stubRoot{};
+	const auto stubRoot = make_shared<SuRoot>();
 	Service service{stubRoot, 0xdead};
 	TmpDir certDir{".certificates.d"};
 	ofstream badCertFile{certDir.path() / "bad-cert.pem"};
