@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20230818_cmake_3.22.6
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20231010_remove_okay_repo
 ###############################################################################
 
 FROM rockylinux:8
@@ -12,8 +12,7 @@ RUN dnf install -y sudo vim wget
 # Configure additional repositories
 RUN dnf install -y epel-release && \
         sudo dnf install -y dnf-plugins-core && \
-        sudo dnf config-manager -y --set-enabled powertools && \
-        dnf install -y http://repo.okay.com.mx/centos/8/x86_64/release/okay-release-1-5.el8.noarch.rpm
+        sudo dnf config-manager -y --set-enabled powertools
 
 # Update
 RUN sudo dnf makecache --refresh && dnf -y update
