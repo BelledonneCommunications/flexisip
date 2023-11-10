@@ -18,7 +18,7 @@ variables:
   # Docker image version
   ARCHLINUX_IMAGE_VERSION: 20230704_enable_tests
   CENTOS_7_IMAGE_VERSION: 20230601_update_libnghttp2_asio
-  ROCKY_8_IMAGE_VERSION: 20230227_add_mariadb_server
+  ROCKY_8_IMAGE_VERSION: 20231010_remove_okay_repo
   ROCKY_9_IMAGE_VERSION: 20230418_add_rocky9
   DEBIAN_10_IMAGE_VERSION: 20230227_add_mariadb_server
   DEBIAN_11_IMAGE_VERSION: 20230227_add_mariadb_server
