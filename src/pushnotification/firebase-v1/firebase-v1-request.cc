@@ -16,47 +16,52 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "firebase-v1-request.hh"
+
+#include <chrono>
+#include <map>
+#include <memory>
 #include <string>
 
 #include "flexisip/logmanager.hh"
-
-#include "firebase-client.hh"
+#include "firebase-v1-client.hh"
 #include "utils/string-formater.hh"
 #include "utils/string-utils.hh"
 
-#include "firebase-request.hh"
-
 using namespace std;
 
-namespace flexisip {
-namespace pushnotification {
+namespace flexisip::pushnotification {
 
-// redundant declaration (required for C++14 compatibility)
-const std::chrono::seconds FirebaseRequest::FIREBASE_MAX_TTL{4 * 7 * 24 * 3600}; // 4 weeks
-
-FirebaseRequest::FirebaseRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo) : Request{pType, pInfo} {
+FirebaseV1Request::FirebaseV1Request(PushType pType,
+                                     const std::shared_ptr<const PushInfo>& pInfo,
+                                     std::string_view projectId)
+    : Request{pType, pInfo}, mProjectId(projectId) {
 	const string& from = mPInfo->mFromName.empty() ? mPInfo->mFromUri : mPInfo->mFromName;
 	auto ttl = min(mPInfo->mTtl, FIREBASE_MAX_TTL);
 
 	// clang-format off
 	StringFormater strFormatter(
-		R"json({
-	"to":"@to@",
-	"time_to_live": @ttl@,
-	"priority":"high",
-	"data":{
-		"uuid":"@uuid@",
-		"from-uri":"@from-uri@",
-		"display-name":"@display-name@",
-		"call-id":"@call-id@",
-		"sip-from":"@sip-from@",
-		"loc-key":"@loc-key@",
-		"loc-args":"@loc-args@",
-		"send-time":"@send-time@"
-		"custom-payload":@custom-payload@
+	R"json({
+	"message":{
+		"token": "@to@",
+		"android":{
+			"priority": "high",
+			"ttl": "@ttl@s",
+			"data":{
+				"uuid":"@uuid@",
+				"from-uri":"@from-uri@",
+				"display-name":"@display-name@",
+				"call-id":"@call-id@",
+				"sip-from":"@sip-from@",
+				"loc-key":"@loc-key@",
+				"loc-args":"@loc-args@",
+				"send-time":"@send-time@",
+				"custom-payload":"@custom-payload@"
+			}
+		}
 	}
 })json",
-		'@', '@');
+	'@', '@');
 
 	auto customPayload = mPInfo->mCustomPayload.empty() ? "{}"s : mPInfo->mCustomPayload;
 	std::map<std::string, std::string> values = {
@@ -74,22 +79,21 @@ FirebaseRequest::FirebaseRequest(PushType pType, const std::shared_ptr<const Pus
 	};
 	// clang-format on
 
-	auto formatedBody = strFormatter.format(values);
+	auto formattedBody = strFormatter.format(values);
 
-	mBody.assign(formatedBody.begin(), formatedBody.end());
+	mBody.assign(formattedBody.begin(), formattedBody.end());
 
-	SLOGD << "Firebase request creation " << this << " payload is :\n" << formatedBody;
+	SLOGD << "Firebase request creation " << this << " payload is:\n" << formattedBody;
 
 	HttpHeaders headers{};
 	headers.add(":method", "POST");
 	headers.add(":scheme", "https");
-	headers.add(":path", "/fcm/send");
-	headers.add(":authority", string(FirebaseClient::FIREBASE_ADDRESS) + ":" + string(FirebaseClient::FIREBASE_PORT));
+	headers.add(":path", "/v1/projects/" + mProjectId + "/messages:send");
+	headers.add(":authority", FirebaseV1Client::FIREBASE_ADDRESS + ":" + FirebaseV1Client::FIREBASE_PORT);
 	headers.add("content-type", "application/json");
 	this->setHeaders(headers);
 
-	SLOGD << "Firebase request creation  " << this << " https headers are :\n" << headers.toString();
+	SLOGD << "FirebaseV1 request creation  " << this << " https headers are:\n" << headers.toString();
 }
 
-} // namespace pushnotification
-} // namespace flexisip
+} // namespace flexisip::pushnotification

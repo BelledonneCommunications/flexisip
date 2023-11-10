@@ -161,13 +161,25 @@ void PushNotification::onDeclare(GenericStruct* module_config) {
 	    {Boolean, "no-badge", "Set the badge value to 0 for Apple push", "false"},
 	    {Boolean, "firebase", "Enable push notification for Android devices.", "true"},
 	    {StringList, "firebase-projects-api-keys",
-	     "List of couples [Firebase Project Number]:[Firebase Cloud Messaging API (Legacy) Server Key] (without []) "
-	     "for each Android project that supports push notifications.",
+	     "List of pairs of <Firebase Project Number>:<Firebase Cloud Messaging API (Legacy) Server Key> for each "
+	     "Android project that supports push notifications.",
 	     ""},
+	    {StringList, "firebase-service-accounts",
+	     "List of pairs of <Firebase Project Number>:<Path to service account json file> for each Android project "
+	     "that supports push notifications.",
+	     ""},
+	    {Integer, "firebase-token-expiration-anticipation-time",
+	     "Represents the time in seconds to execute the access token refresh operation just before the current "
+	     "access token expires. This parameter is used to control overlapping access token lifetimes.",
+	     "300"},
+	    {Integer, "firebase-default-refresh-interval",
+	     "Default interval in seconds to execute the access token refresh operation in the event that the access token "
+	     "has not been successfully obtained.",
+	     "60"},
 	    {String, "external-push-uri",
 	     "Instead of having Flexisip sending the push notification directly to the Google/Apple/Microsoft push "
 	     "servers, send an http request to a server with all required information encoded in the URL, to which the "
-	     "actual sending of the push notification is delegated. The following arguments can be substitued in the http "
+	     "actual sending of the push notification is delegated. The following arguments can be substituted in the http "
 	     "request uri, with the following values:\n"
 	     " - $type      : apple, google, wp, firebase\n"
 	     " - $token     : device token\n"
@@ -256,7 +268,6 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	auto maxQueueSize = mc->get<ConfigInt>("max-queue-size")->read();
 	mDisplayFromUri = mc->get<ConfigBoolean>("display-from-uri")->read();
 	auto certdir = mc->get<ConfigString>("apple-certificate-dir")->read();
-	auto firebaseKeys = mc->get<ConfigStringList>("firebase-projects-api-keys")->read();
 	auto* externalUriCfg = mc->get<ConfigString>("external-push-uri");
 	auto externalUri = externalUriCfg->read();
 	auto appleEnabled = mc->get<ConfigBoolean>("apple")->read();
@@ -282,7 +293,7 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	}
 	mCallRemotePushInterval = static_cast<chrono::seconds>(callRemotePushInterval);
 
-	mPNS = make_unique<pushnotification::Service>(*getAgent()->getRoot(), maxQueueSize);
+	mPNS = make_unique<pushnotification::Service>(getAgent()->getRoot(), maxQueueSize);
 
 	// Load the 'add-to-tag-filter' parameter
 	const auto* addToTagFilterCfg = mc->get<ConfigString>("add-to-tag-filter");
@@ -315,7 +326,7 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 
 	mPNS->setStatCounters(mCountFailed, mCountSent);
 	if (appleEnabled) mPNS->setupiOSClient(certdir, "");
-	if (firebaseEnabled) mPNS->setupFirebaseClients(firebaseKeys);
+	if (firebaseEnabled) mPNS->setupFirebaseClients(mc);
 
 	mExpirationNotifier =
 	    ContactExpirationNotifier::make_unique(*mc, mAgent->getRoot(), getService(), *RegistrarDb::get());

@@ -32,3 +32,6 @@
 
 // Location of tester resource directory
 #cmakedefine FLEXISIP_TESTER_DATA_SRCDIR "${FLEXISIP_TESTER_DATA_SRCDIR}"
+
+// Location of tester resource directory when installed
+#define FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "${CMAKE_INSTALL_FULL_DATADIR}/flexisip-tester"

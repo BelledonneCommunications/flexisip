@@ -18,27 +18,19 @@
 
 #pragma once
 
-#include "pushnotification/request.hh"
+#include <memory>
+
 #include "utils/transport/http/http-message.hh"
 
 namespace flexisip {
-namespace pushnotification {
 
-/**
- * This class represent one Firebase push notification request. This class inherits from Request, so it can be treated
- * like another type of PNR by the Flexisip push notification module, and from HttpMessage so it can be sent by the
- * Http2Client.
- *
- * This supports the legacy http (http2 compatible) Firebase protocol:
- * https://firebase.google.com/docs/cloud-messaging/http-server-ref
- */
-class FirebaseRequest : public Request, public HttpMessage {
+class AuthenticationManager {
 public:
-	FirebaseRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo);
+	AuthenticationManager() = default;
+	virtual ~AuthenticationManager() = default;
 
-private:
-	static const std::chrono::seconds FIREBASE_MAX_TTL;
+	// Warning: a call to this function should not execute code that blocks execution of the main loop.
+	virtual bool addAuthentication(const std::shared_ptr<HttpMessage>& req) = 0;
 };
 
-} // namespace pushnotification
 } // namespace flexisip

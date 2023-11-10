@@ -18,27 +18,33 @@
 
 #pragma once
 
+#include <chrono>
+#include <memory>
+#include <string>
+
+#include "pushnotification/push-info.hh"
+#include "pushnotification/push-type.hh"
 #include "pushnotification/request.hh"
 #include "utils/transport/http/http-message.hh"
 
-namespace flexisip {
-namespace pushnotification {
+namespace flexisip::pushnotification {
 
 /**
- * This class represent one Firebase push notification request. This class inherits from Request, so it can be treated
+ * This class represents a FirebaseV1 push notification request. This class inherits from Request, so it can be treated
  * like another type of PNR by the Flexisip push notification module, and from HttpMessage so it can be sent by the
  * Http2Client.
  *
- * This supports the legacy http (http2 compatible) Firebase protocol:
- * https://firebase.google.com/docs/cloud-messaging/http-server-ref
+ * This supports Firebase Cloud Messaging (FCM) V1 API.
+ * https://firebase.google.com/docs/reference/fcm/rest/v1/projects.messages/send?hl=en
  */
-class FirebaseRequest : public Request, public HttpMessage {
+class FirebaseV1Request : public Request, public HttpMessage {
 public:
-	FirebaseRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo);
+	FirebaseV1Request(PushType pType, const std::shared_ptr<const PushInfo>& pInfo, std::string_view projectId);
 
 private:
-	static const std::chrono::seconds FIREBASE_MAX_TTL;
+	static constexpr std::chrono::seconds FIREBASE_MAX_TTL{4 * 7 * 24 * 3600}; // Equals 4 weeks;
+
+	std::string mProjectId;
 };
 
-} // namespace pushnotification
-} // namespace flexisip
+} // namespace flexisip::pushnotification

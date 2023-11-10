@@ -1,20 +1,20 @@
 /*
- Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as
- published by the Free Software Foundation, either version 3 of the
- License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #pragma once
 
@@ -30,6 +30,7 @@
 
 #include <flexisip/sofia-wrapper/timer.hh>
 
+#include "authentication-manager.hh"
 #include "http-message-context.hh"
 #include "http-message.hh"
 #include "utils/transport/tls-connection.hh"
@@ -145,11 +146,18 @@ private:
 	};
 
 	// Constructors must be private because Http2Client extends enable_shared_from_this. Use make instead.
-	Http2Client(sofiasip::SuRoot& root, std::unique_ptr<TlsConnection>&& connection, SessionSettings&& sessionSettings);
+	Http2Client(sofiasip::SuRoot& root,
+	            std::unique_ptr<TlsConnection>&& connection,
+	            std::shared_ptr<AuthenticationManager>&& authManager,
+	            SessionSettings&& sessionSettings);
 	Http2Client(sofiasip::SuRoot& root,
 	            const std::string& host,
 	            const std::string& port,
 	            SessionSettings&& sessionSettings = SessionSettings());
+	Http2Client(sofiasip::SuRoot& root,
+	            const std::string& host,
+	            const std::string& port,
+	            std::shared_ptr<AuthenticationManager>&& authManager);
 	Http2Client(sofiasip::SuRoot& root,
 	            const std::string& host,
 	            const std::string& port,
@@ -200,6 +208,7 @@ private:
 	// Private attributes
 	State mState{State::Disconnected};
 	std::unique_ptr<TlsConnection> mConn{};
+	std::shared_ptr<AuthenticationManager> mAuthManager{};
 	sofiasip::SuRoot& mRoot;
 	su_wait_t mPollInWait{0};
 	sofiasip::Timer mIdleTimer;

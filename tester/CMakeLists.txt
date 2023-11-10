@@ -44,7 +44,7 @@ get_filename_component(MYSQL_BIN_DIR "${MYSQL_SERVER_EXEC}" DIRECTORY)
 find_file(MYSQL_SYSTEM_TABLES_SETUP NAMES mysql_system_tables.sql PATHS
 	"${MYSQL_BIN_DIR}/../share/mysql"
 	"${MYSQL_BIN_DIR}/../share/mariadb"
-REQUIRED)
+	REQUIRED)
 
 find_program(CAT_EXEC NAMES cat REQUIRED)
 configure_file(flexisip-tester-config.hh.in flexisip-tester-config.hh)
@@ -86,6 +86,8 @@ add_executable(flexisip_tester
 	tests/presence/presence-pidf-tester.cc
 	tests/presence/presence-publish-tester.cc
 	tests/presence/xsd-utils-tester.cc
+	tests/pushnotification/access-token-provider-tester.cc
+	tests/pushnotification/authentication-manager-tester.cc
 	tests/pushnotification/rfc8599-push-params-tester.cc
 	tests/pushnotification/module-pushnotification-tester.cc
 	tests/pushnotification/service-tester.cc
@@ -118,15 +120,15 @@ add_executable(flexisip_tester
 	utils/utf8-string-tester.cc
 )
 
-if (ENABLE_CONFERENCE)
+if(ENABLE_CONFERENCE)
 	target_sources(flexisip_tester PRIVATE
 		registration-event-tester.cc
 		tests/conference/conference-server-tester.cc
 		utils/test-conference-server.cc utils/test-conference-server.hh
 	)
-endif ()
+endif()
 
-if (ENABLE_SOCI)
+if(ENABLE_SOCI)
 	target_sources(flexisip_tester PRIVATE
 		fork-context-mysql-tester.cc
 		tests/auth/db/authdb-soci-tester.cc
@@ -134,7 +136,7 @@ if (ENABLE_SOCI)
 	)
 endif()
 
-if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
+if(LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	target_sources(flexisip_tester PRIVATE
 		tests/pushnotification/global-push-tester.cc
 		tests/pushnotification/push-notification-tester.cc
@@ -148,16 +150,16 @@ if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 			tests/flexiapi/flexi-stats-tester.cc
 		)
 	endif()
-	
+
 	if(HAS_GCC_BUG_105562)
 		set_source_files_properties(
 			tests/pushnotification/push-notification-tester.cc
 			utils/pns-mock.cc
 			PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized")
 	endif()
-elseif (ENABLE_UNIT_TESTS_NGHTTP2ASIO)
+elseif(ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	message(FATAL_ERROR "The LibNgHttp2Asio module is required by some tests. You may disable them with -DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF")
-endif ()
+endif()
 
 if(ENABLE_FLEXIAPI AND ENABLE_CONFERENCE AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	target_sources(flexisip_tester PRIVATE
@@ -168,13 +170,13 @@ if(ENABLE_FLEXIAPI AND ENABLE_CONFERENCE AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 			tests/eventlogs/writers/flexi-stats-event-log-writer-tester.cc
 			PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized"
 		)
-	endif ()
+	endif()
 endif()
 
 
-if (ENABLE_B2BUA)
+if(ENABLE_B2BUA)
 	target_sources(flexisip_tester PRIVATE b2bua-tester.cc)
-endif ()
+endif()
 
 target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
 target_link_libraries(flexisip_tester PRIVATE
@@ -194,9 +196,9 @@ target_link_libraries(flexisip_tester PRIVATE
 	XercesC::XercesC
 )
 
-if (LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
+if(LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	target_link_libraries(flexisip_tester PRIVATE LibNgHttp2Asio)
-endif ()
+endif()
 
 target_include_directories(flexisip_tester PRIVATE "${PROJECT_SOURCE_DIR}/libxsd")
 
@@ -209,6 +211,7 @@ install(TARGETS flexisip_tester
 )
 
 set(FLEXISIP_TESTER_INSTALL_DATADIR "${CMAKE_INSTALL_DATADIR}/flexisip-tester")
-install(DIRECTORY cert config sounds images
+install(DIRECTORY cert config images scripts sounds
 	DESTINATION ${FLEXISIP_TESTER_INSTALL_DATADIR}
+	USE_SOURCE_PERMISSIONS
 )

@@ -29,12 +29,11 @@
 #include <flexisip/common.hh>
 
 #include "apple/apple-client.hh"
+#include "firebase-v1/firebase-v1-client.hh"
 #include "firebase/firebase-client.hh"
 #include "generic/generic-http-client.hh"
+#include "generic/generic-http-request.hh"
 #include "generic/generic-http2-client.hh"
-#include "pushnotification/apple/apple-request.hh"
-#include "pushnotification/firebase/firebase-request.hh"
-#include "pushnotification/generic/generic-http-request.hh"
 #include "utils/transport/tls-connection.hh"
 
 using namespace std;
@@ -45,7 +44,8 @@ namespace pushnotification {
 const std::string Service::sGenericClientName{"generic"};
 const std::string Service::sFallbackClientKey{"fallback"};
 
-Service::Service(sofiasip::SuRoot& root, unsigned maxQueueSize) : mRoot{root}, mMaxQueueSize{maxQueueSize} {
+Service::Service(const std::shared_ptr<sofiasip::SuRoot>& root, unsigned maxQueueSize)
+    : mRoot{root}, mMaxQueueSize{maxQueueSize} {
 	SSL_library_init();
 	SSL_load_error_strings();
 }
@@ -102,7 +102,7 @@ void Service::setupGenericClient(const sofiasip::Url& url, Method method, Protoc
 		mClients[sGenericClientName] =
 		    GenericHttpClient::makeUnique(url, method, sGenericClientName, mMaxQueueSize, this);
 	} else {
-		mClients[sGenericClientName] = make_unique<GenericHttp2Client>(url, method, mRoot, this);
+		mClients[sGenericClientName] = make_unique<GenericHttp2Client>(url, method, *mRoot, this);
 	}
 }
 
@@ -136,7 +136,7 @@ void Service::setupiOSClient(const std::string& certdir, const std::string& cafi
 		string certpath = string(certdir) + "/" + cert;
 		string certName = cert.substr(0, cert.size() - 4); // Remove .pem at the end of cert
 		try {
-			mClients[certName] = make_unique<AppleClient>(mRoot, cafile, certpath, certName, this);
+			mClients[certName] = make_unique<AppleClient>(*mRoot, cafile, certpath, certName, this);
 			SLOGD << "Adding ios push notification client [" << certName << "]";
 		} catch (const TlsConnection::CreationError& err) {
 			SLOGW << "Couldn't make iOS PN client from [" << certName << "]: " << err.what();
@@ -145,16 +145,55 @@ void Service::setupiOSClient(const std::string& certdir, const std::string& cafi
 	closedir(dirp);
 }
 
-void Service::setupFirebaseClients(const std::list<std::string>& firebaseKeys) {
-	for (auto it = firebaseKeys.cbegin(); it != firebaseKeys.cend(); ++it) {
-		const string& keyval = *it;
+void Service::setupFirebaseClients(const GenericStruct* pushConfig) {
+
+	const auto firebaseKeys = pushConfig->get<ConfigStringList>("firebase-projects-api-keys")->read();
+	const auto firebaseServiceAccounts = pushConfig->get<ConfigStringList>("firebase-service-accounts")->read();
+
+	// First, add firebase clients indicated in firebase-projects-api-keys.
+	for (const auto& keyval : firebaseKeys) {
 		size_t sep = keyval.find(":");
 		addFirebaseClient(keyval.substr(0, sep), keyval.substr(sep + 1));
+	}
+
+	const auto defaultRefreshInterval = chrono::duration_cast<chrono::milliseconds>(
+	    chrono::seconds(pushConfig->get<ConfigInt>("firebase-default-refresh-interval")->read()));
+	const auto tokenExpirationAnticipationTime = chrono::duration_cast<chrono::milliseconds>(
+	    chrono::seconds(pushConfig->get<ConfigInt>("firebase-token-expiration-anticipation-time")->read()));
+
+	// Then, add firebase v1 clients which are indicated in firebase-service-accounts.
+	for (const auto& keyval : firebaseServiceAccounts) {
+		auto sep = keyval.find(":");
+
+		const auto appId = keyval.substr(0, sep);
+		const auto filePath = filesystem::path(keyval.substr(sep + 1));
+
+		if (mClients.find(appId) != mClients.end()) {
+			throw runtime_error("unable to add firebase v1 client, firebase application with id \"" + appId +
+			                    "\" already exists. Only use firebase-projects-api-keys OR firebase-service-accounts "
+			                    "for the same appId.");
+		}
+
+		addFirebaseV1Client(appId, filePath, defaultRefreshInterval, tokenExpirationAnticipationTime);
 	}
 }
 
 void Service::addFirebaseClient(const std::string& appId, const std::string& apiKey) {
-	mClients[appId] = make_unique<FirebaseClient>(mRoot, apiKey, this);
+	mClients[appId] = make_unique<FirebaseClient>(*mRoot, apiKey, this);
+	SLOGD << "Adding firebase push notification client [" << appId << "]";
+}
+
+void Service::addFirebaseV1Client(const std::string& appId,
+                                  const std::filesystem::path& serviceAccountFilePath,
+                                  const std::chrono::milliseconds& defaultRefreshInterval,
+                                  const std::chrono::milliseconds& tokenExpirationAnticipationTime) {
+
+	mClients[appId] =
+	    make_unique<FirebaseV1Client>(*mRoot,
+	                                  make_shared<FirebaseV1AuthenticationManager>(
+	                                      mRoot, FIREBASE_GET_ACCESS_TOKEN_SCRIPT_PATH, serviceAccountFilePath,
+	                                      defaultRefreshInterval, tokenExpirationAnticipationTime),
+	                                  this);
 	SLOGD << "Adding firebase push notification client [" << appId << "]";
 }
 

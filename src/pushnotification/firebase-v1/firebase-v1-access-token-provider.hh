@@ -18,27 +18,29 @@
 
 #pragma once
 
-#include "pushnotification/request.hh"
-#include "utils/transport/http/http-message.hh"
+#include <filesystem>
+#include <optional>
+#include <string>
 
-namespace flexisip {
-namespace pushnotification {
+#include "pushnotification/access-token-provider.hh"
 
-/**
- * This class represent one Firebase push notification request. This class inherits from Request, so it can be treated
- * like another type of PNR by the Flexisip push notification module, and from HttpMessage so it can be sent by the
- * Http2Client.
- *
- * This supports the legacy http (http2 compatible) Firebase protocol:
- * https://firebase.google.com/docs/cloud-messaging/http-server-ref
+namespace flexisip::pushnotification {
+
+/*
+ * Provides an OAuth2 access token.
  */
-class FirebaseRequest : public Request, public HttpMessage {
+class FirebaseV1AccessTokenProvider : public AccessTokenProvider {
 public:
-	FirebaseRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo);
+	explicit FirebaseV1AccessTokenProvider(const std::filesystem::path& scriptPath,
+	                                       const std::filesystem::path& serviceAccountFilePath);
+
+	// Calls a python script that requests a new OAuth2 access token from the Firebase servers.
+	// This function must therefore be called asynchronously.
+	std::optional<AccessToken> getToken() override;
 
 private:
-	static const std::chrono::seconds FIREBASE_MAX_TTL;
+	std::string mLogPrefix;
+	std::string mCommand;
 };
 
-} // namespace pushnotification
-} // namespace flexisip
+} // namespace flexisip::pushnotification

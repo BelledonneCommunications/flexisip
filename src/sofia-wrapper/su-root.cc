@@ -32,6 +32,10 @@ void SuRoot::addToMainLoop(const function<void()>& functionToAdd) {
 		LOGF("Couldn't create auth async message");
 	}
 
+	if (-1 == su_msg_deinitializer(msg, mainLoopFunctionCallbackDeinitializer)) {
+		LOGF("Couldn't set deinitializer function for message.");
+	}
+
 	auto clientCb = reinterpret_cast<function<void()>**>(su_msg_data(msg));
 	*clientCb = new function<void()>(functionToAdd);
 
@@ -41,9 +45,11 @@ void SuRoot::addToMainLoop(const function<void()>& functionToAdd) {
 }
 
 void SuRoot::mainLoopFunctionCallback([[maybe_unused]] su_root_magic_t* rm, su_msg_t** msg, [[maybe_unused]] void* u) noexcept {
-	auto clientCb = *reinterpret_cast<function<void()>**>(su_msg_data(msg));
-	(*clientCb)();
-	delete clientCb;
+	(**reinterpret_cast<function<void()>**>(su_msg_data(msg)))();
+}
+
+void SuRoot::mainLoopFunctionCallbackDeinitializer(su_msg_arg_t* data) noexcept {
+	delete *reinterpret_cast<function<void()>**>(data);
 }
 
 void SuRoot::addOneShotTimer(const function<void()>& timerFunction, NativeDuration ms) {
