@@ -9,7 +9,7 @@ variables:
   CCACHE_SIZE: 2G
 
   # For build and test on Linux
-  DEFAULT_CMAKE_OPTIONS: '-DCMAKE_BUILD_TYPE=Debug -DENABLE_FLEXIAPI=ON'
+  DEFAULT_CMAKE_OPTIONS: '-DCMAKE_BUILD_TYPE=Debug'
   # For build on MacOS
   DEFAULT_MACOS_CMAKE_OPTIONS: ''
   # For packaging, deb and rpm
