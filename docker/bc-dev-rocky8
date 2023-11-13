@@ -17,7 +17,7 @@ RUN dnf install -y epel-release && \
 # Update
 RUN sudo dnf makecache --refresh && dnf -y update
 
- # Install development tools
+# Install development tools
 RUN sudo dnf -y install \
                    bzip2 \
                    ccache \
