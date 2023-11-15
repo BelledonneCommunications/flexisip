@@ -79,6 +79,7 @@ add_executable(flexisip_tester
 	sofia-driven-signal-handler-tester.cc
 	tester.cc
 	tests/callcontext-mediarelay-tester.cc
+	tests/transaction-tester.cc
 	tests/eventlogs/events/auth-log-tester.cc
 	tests/eventlogs/events/event-log-stats-tester.cc
 	tests/flexiapi/schemas/iso-8601-date-tester.cc

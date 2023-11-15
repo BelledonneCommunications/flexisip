@@ -20,6 +20,7 @@
 
 #include <algorithm>
 
+#include <memory>
 #include <sofia-sip/su_md5.h>
 #include <sofia-sip/su_random.h>
 #include <sofia-sip/su_tagarg.h>
@@ -58,6 +59,29 @@ static string getRandomBranch() {
 	msg_random_token(branch, sizeof(branch) - 1, digest, sizeof(digest));
 
 	return branch;
+}
+std::vector<std::weak_ptr<IncomingTransaction>> IncomingTransaction::sNaughtyList{};
+std::shared_ptr<IncomingTransaction> IncomingTransaction::makeShared(Agent* agent) {
+	std::shared_ptr<IncomingTransaction> instance{new IncomingTransaction(agent)};
+	for (auto& weak : sNaughtyList) {
+		if (weak.expired()) {
+			SLOGD << "IncomingTransaction memory tracker - Free slot found, overwriting (at: " << std::addressof(weak)
+			      << ")";
+			weak = instance;
+			return instance;
+		}
+	}
+
+	sNaughtyList.emplace_back(instance);
+	return instance;
+}
+void IncomingTransaction::vacuum() {
+	for (const auto& weak : sNaughtyList) {
+		if (auto strong = weak.lock()) {
+			strong->mSofiaRef.reset();
+		}
+	}
+	sNaughtyList.clear();
 }
 
 OutgoingTransaction::OutgoingTransaction(Agent* agent) : Transaction{agent}, mBranchId{getRandomBranch()} {
@@ -144,11 +168,12 @@ void OutgoingTransaction::send(
 		}
 	} else {
 		// sofia transaction already created, this happens when attempting to forward a cancel
-		if (ms->getSip()->sip_request->rq_method == sip_method_cancel) {
-			cancel();
+		const auto* sip = ms->getSip();
+		if (sip->sip_request->rq_method == sip_method_cancel) {
+			cancelWithReason(sip->sip_reason);
 		} else {
 			LOGE("Attempting to send request %s through an already created outgoing transaction.",
-			     ms->getSip()->sip_request->rq_method_name);
+			     sip->sip_request->rq_method_name);
 		}
 	}
 }

@@ -37,6 +37,7 @@
 
 #include "client-core.hh"
 #include "linphone/api/c-call.h"
+#include "linphone/misc.h"
 #include "utils/call-builder.hh"
 #include "utils/chat-room-builder.hh"
 #include "utils/client-builder.hh"
@@ -104,12 +105,14 @@ CoreClient::CoreClient(const std::string& me, const std::shared_ptr<Server>& ser
 CoreClient::~CoreClient() {
 	if (mAccount != nullptr) {
 		mCore->clearAccounts();
-		CoreAssert(mCore, mServer)
-		    .wait([&account = mAccount] {
-			    FAIL_IF(account->getState() != linphone::RegistrationState::Cleared);
-			    return ASSERTION_PASSED();
-		    })
-		    .assert_passed();
+		if (mAccount->getState() != linphone::RegistrationState::None) {
+			CoreAssert(mCore, mServer)
+			    .wait([&account = mAccount] {
+				    FAIL_IF(account->getState() != linphone::RegistrationState::Cleared);
+				    return ASSERTION_PASSED();
+			    })
+			    .assert_passed();
+		}
 	}
 	if (mCore) {
 		mCore->stopAsync(); // stopAsync is not really async, we must clear the account first or it will wait for the
@@ -402,6 +405,17 @@ std::shared_ptr<linphone::CallLog> CoreClient::getCallLog() const {
 	const auto& current_call = mCore->getCurrentCall();
 	if (!current_call) return nullptr;
 	return current_call->getCallLog();
+}
+
+int CoreClient::getTcpPort() const {
+	auto port = mCore->getTransportsUsed()->getTcpPort();
+	if (port != LC_SIP_TRANSPORT_DONTBIND) return port;
+
+	// Force-set-up TCP listening port
+	auto transports = mCore->getTransports();
+	transports->setTcpPort(LC_SIP_TRANSPORT_RANDOM);
+	mCore->setTransports(transports);
+	return mCore->getTransportsUsed()->getTcpPort();
 }
 
 std::list<std::shared_ptr<linphone::ChatMessage>> CoreClient::getChatMessages() {

@@ -189,7 +189,7 @@ void callInviteStatuses() {
 		auto tonyCall = tony.invite(mike);
 		mikePhone.hasReceivedCallFrom(tony).assert_passed();
 		mikeDesktop.hasReceivedCallFrom(tony).assert_passed();
-		ClientCall::getLinphoneCall(mikePhone.getCurrentCall().value())->decline(linphone::Reason::Declined);
+		mikePhone.getCurrentCall()->decline(linphone::Reason::Declined);
 		asserter
 		    .iterateUpTo(4,
 		                 [&tonyCall, mikeDesktopCall = mikeDesktop.getCurrentCall()] {
@@ -320,7 +320,7 @@ void doubleForkContextStart() {
 
 	auto luxCall = lux.invite(paul);
 	paulClient.hasReceivedCallFrom(lux).assert_passed();
-	ClientCall::getLinphoneCall(paulClient.getCurrentCall().value())->decline(linphone::Reason::Declined);
+	paulClient.getCurrentCall()->decline(linphone::Reason::Declined);
 
 	BC_ASSERT_CPP_EQUAL(callsStarted.size(), 1);
 
