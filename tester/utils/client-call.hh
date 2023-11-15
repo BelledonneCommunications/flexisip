@@ -21,7 +21,9 @@ public:
 	const ::rtp_stats& getVideoRtpStats() const;
 	linphone::Status accept() const;
 	linphone::Status acceptEarlyMedia() const;
+	linphone::Status decline(linphone::Reason) const;
 	linphone::Call::State getState() const;
+	linphone::Reason getReason() const;
 	const bool& videoFrameDecoded();
 
 	/* CHEATS ~~ Use only for quick prototyping */

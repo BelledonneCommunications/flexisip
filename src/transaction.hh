@@ -19,9 +19,11 @@
 #pragma once
 
 #include <cstring>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <sofia-sip/msg.h>
 #include <sofia-sip/nta.h>
@@ -187,10 +189,12 @@ class IncomingTransaction : public Transaction,
                             public IncomingAgent,
                             public std::enable_shared_from_this<IncomingTransaction> {
 public:
-	// the use of make_shared() requires the constructor to be public, but don't use it. Use
-	// RequestSipEvent::createIncomingTransaction().
-	IncomingTransaction(Agent* agent);
 	~IncomingTransaction() override;
+
+	static std::shared_ptr<IncomingTransaction> makeShared(Agent*);
+	// Force unlock all previously allocated IncomingTransactions. This will likely trigger their destructor.
+	// To be used exclusively in testing.
+	static void vacuum();
 
 	Agent* getAgent() override {
 		return Transaction::getAgent();
@@ -205,6 +209,8 @@ public:
 	std::shared_ptr<MsgSip> getLastResponse();
 
 private:
+	IncomingTransaction(Agent* agent);
+
 	void
 	send(const std::shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) override;
 	void reply(const std::shared_ptr<MsgSip>& msg,
@@ -223,6 +229,8 @@ private:
 	std::shared_ptr<IncomingTransaction> mSofiaRef{};
 
 	friend class RequestSipEvent;
+
+	static std::vector<std::weak_ptr<IncomingTransaction>> sNaughtyList;
 };
 
 } // namespace flexisip

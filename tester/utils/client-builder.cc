@@ -20,7 +20,7 @@ namespace tester {
 ClientBuilder::ClientBuilder(const Server& server)
     : mFactory(linphone::Factory::get()), mCoreTemplate(tester::minimalCore(*mFactory)),
       mAccountParams(mCoreTemplate->createAccountParams()), mServer(server), mLimeX3DH(OnOff::On),
-      mSendVideo(OnOff::Off), mReceiveVideo(OnOff::Off), mSendRtcp(OnOff::On), mIce(OnOff::Off) {
+      mSendVideo(OnOff::Off), mReceiveVideo(OnOff::Off), mSendRtcp(OnOff::On), mIce(OnOff::Off), mRegister(OnOff::On) {
 }
 
 CoreClient ClientBuilder::build(const std::string& baseAddress) const {
@@ -38,7 +38,7 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 
 	auto accountParams = mAccountParams->clone();
 	accountParams->setIdentityAddress(myAddress);
-	accountParams->enableRegister(true);
+	accountParams->enableRegister(bool(mRegister));
 	{
 		// Clients register to the first of the list of transports read in the proxy configuration
 		auto route = mFactory->createAddress(flexisip::GenericManager::get()
@@ -55,6 +55,7 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 		accountParams->setServerAddress(route);
 		accountParams->setRoutesAddresses({route});
 	}
+	BC_ASSERT(accountParams->outboundProxyEnabled());
 	auto account = core->createAccount(accountParams);
 	core->addAccount(account);
 	core->setDefaultAccount(account);
@@ -125,13 +126,15 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 	}
 
 	core->start();
-	CoreAssert(core, mServer)
-	    .iterateUpTo(0x10,
-	                 [&account] {
-		                 FAIL_IF(account->getState() != linphone::RegistrationState::Ok);
-		                 return ASSERTION_PASSED();
-	                 })
-	    .assert_passed();
+	if (bool(mRegister)) {
+		CoreAssert(core, mServer)
+		    .iterateUpTo(0x10,
+		                 [&account] {
+			                 FAIL_IF(account->getState() != linphone::RegistrationState::Ok);
+			                 return ASSERTION_PASSED();
+		                 })
+		    .assert_passed();
+	}
 	return CoreClient(std::move(core), std::move(account), std::move(myAddress), mServer);
 }
 
@@ -160,6 +163,10 @@ ClientBuilder& ClientBuilder::setRtcpSend(OnOff value) {
 
 ClientBuilder& ClientBuilder::setIce(OnOff value) {
 	mIce = value;
+	return *this;
+}
+ClientBuilder& ClientBuilder::setRegistration(OnOff value) {
+	mRegister = value;
 	return *this;
 }
 ClientBuilder& ClientBuilder::setCpimInBasicChatroom(OnOff value) {

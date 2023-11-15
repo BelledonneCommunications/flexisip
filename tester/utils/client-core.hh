@@ -187,6 +187,9 @@ public:
 	std::optional<ClientCall> getCurrentCall() const;
 	std::shared_ptr<linphone::CallLog> getCallLog() const;
 
+	// Get listening TCP port. Sets one up at random if not enabled.
+	int getTcpPort() const;
+
 	/**
 	 * @return The message list for THE FIRST chatroom in the chatroom list
 	 */

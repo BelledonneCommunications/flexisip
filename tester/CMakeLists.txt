@@ -84,7 +84,8 @@ add_executable(flexisip_tester
 		tester.cc
 		tests/callcontext-mediarelay-tester.cc
 		tests/configmanager-tester.cc
-		tests/eventlogs/events/auth-log-tester.cc
+		tests/transaction-tester.cc
+	tests/eventlogs/events/auth-log-tester.cc
 		tests/eventlogs/events/event-log-stats-tester.cc
 		tests/flexiapi/schemas/iso-8601-date-tester.cc
 		tests/presence/presence-pidf-tester.cc

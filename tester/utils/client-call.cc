@@ -27,10 +27,15 @@ linphone::Status ClientCall::accept() const {
 linphone::Status ClientCall::acceptEarlyMedia() const {
 	return mCall->acceptEarlyMedia();
 }
-
+linphone::Status ClientCall::decline(linphone::Reason reason) const {
+	return mCall->decline(reason);
+}
 
 linphone::Call::State ClientCall::getState() const {
 	return mCall->getState();
+}
+linphone::Reason ClientCall::getReason() const {
+	return mCall->getReason();
 }
 
 const bool& ClientCall::videoFrameDecoded() {

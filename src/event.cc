@@ -25,8 +25,8 @@
 #include "flexisip/module.hh"
 
 #include "agent.hh"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "eventlogs/events/eventlogs.hh"
+#include "eventlogs/writers/event-log-writer.hh"
 #include "transaction.hh"
 
 using namespace std;
@@ -206,7 +206,7 @@ void RequestSipEvent::setIncomingAgent([[maybe_unused]] const shared_ptr<Incomin
 std::shared_ptr<IncomingTransaction> RequestSipEvent::createIncomingTransaction() {
 	auto transaction = dynamic_pointer_cast<IncomingTransaction>(mIncomingAgent);
 	if (transaction == nullptr) {
-		transaction = make_shared<IncomingTransaction>(mIncomingAgent->getAgent());
+		transaction = IncomingTransaction::makeShared(mIncomingAgent->getAgent());
 		mIncomingAgent = transaction;
 		transaction->handle(mMsgSip);
 		linkTransactions();
