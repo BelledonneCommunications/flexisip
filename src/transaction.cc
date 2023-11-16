@@ -153,7 +153,7 @@ void OutgoingTransaction::send(
 	}
 }
 
-int OutgoingTransaction::_callback(nta_outgoing_magic_t* magic, [[maybe_unused]] nta_outgoing_t* irq, const sip_t* sip) {
+int OutgoingTransaction::_callback(nta_outgoing_magic_t* magic, nta_outgoing_t*, const sip_t* sip) {
 	OutgoingTransaction* otr = reinterpret_cast<OutgoingTransaction*>(magic);
 	LOGD("OutgoingTransaction callback %p", otr);
 	if (sip != NULL) {
@@ -224,8 +224,7 @@ shared_ptr<MsgSip> IncomingTransaction::createResponse(int status, char const* p
 	return shared_ptr<MsgSip>();
 }
 
-void IncomingTransaction::send(
-    const shared_ptr<MsgSip>& ms, [[maybe_unused]] url_string_t const* u, [[maybe_unused]] tag_type_t tag, [[maybe_unused]] tag_value_t value, ...) {
+void IncomingTransaction::send(const shared_ptr<MsgSip>& ms, url_string_t const*, tag_type_t, tag_value_t, ...) {
 	if (mIncoming) {
 		msg_t* msg =
 		    msg_ref_create(ms->getMsg()); // need to increment refcount of the message because mreply will decrement it.
@@ -240,7 +239,7 @@ void IncomingTransaction::send(
 }
 
 void IncomingTransaction::reply(
-    [[maybe_unused]] const shared_ptr<MsgSip>& msgIgnored, int status, char const* phrase, tag_type_t tag, tag_value_t value, ...) {
+    const shared_ptr<MsgSip>&, int status, char const* phrase, tag_type_t tag, tag_value_t value, ...) {
 	if (mIncoming) {
 		mAgent->incrReplyStat(status);
 		ta_list ta;
@@ -255,7 +254,7 @@ void IncomingTransaction::reply(
 	}
 }
 
-int IncomingTransaction::_callback(nta_incoming_magic_t* magic, [[maybe_unused]] nta_incoming_t* irq, const sip_t* sip) {
+int IncomingTransaction::_callback(nta_incoming_magic_t* magic, nta_incoming_t*, const sip_t* sip) {
 	IncomingTransaction* it = reinterpret_cast<IncomingTransaction*>(magic);
 	LOGD("IncomingTransaction callback %p", it);
 	if (sip != NULL) {
