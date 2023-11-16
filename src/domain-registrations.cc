@@ -162,7 +162,8 @@ int DomainRegistrationManager::load(const string& passphrase) {
 	mVerifyServerCerts = domainRegistrationCfg->get<ConfigBoolean>("verify-server-certs")->read();
 
 	auto keepAliveIntervalCfg = domainRegistrationCfg->get<ConfigDuration<chrono::seconds>>("keepalive-interval");
-	auto pingPongTimeoutDelayCfg = domainRegistrationCfg->get<ConfigDuration<chrono::seconds>>("ping-pong-timeout-delay");
+	auto pingPongTimeoutDelayCfg =
+	    domainRegistrationCfg->get<ConfigDuration<chrono::seconds>>("ping-pong-timeout-delay");
 	auto reconnectionDelayCfg = domainRegistrationCfg->get<ConfigDuration<chrono::seconds>>("reconnection-delay");
 	mKeepaliveInterval = chrono::duration_cast<chrono::seconds>(keepAliveIntervalCfg->read());
 	mPingPongTimeoutDelay = chrono::duration_cast<chrono::seconds>(pingPongTimeoutDelayCfg->read());

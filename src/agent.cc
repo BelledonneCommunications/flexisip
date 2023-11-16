@@ -265,7 +265,8 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	auto keepAliveInterval = global->get<ConfigDuration<chrono::seconds>>("keepalive-interval")->read().count();
 	unsigned int queueSize = (unsigned int)global->get<ConfigInt>("tport-message-queue-size")->read();
 
-	mProxyToProxyKeepAliveInterval = global->get<ConfigDuration<chrono::seconds>>("proxy-to-proxy-keepalive-interval")->read().count();
+	mProxyToProxyKeepAliveInterval =
+	    global->get<ConfigDuration<chrono::seconds>>("proxy-to-proxy-keepalive-interval")->read().count();
 
 	mTimer = su_timer_create(mRoot->getTask(), 5000);
 	su_timer_set_for_ever(mTimer, reinterpret_cast<su_timer_f>(timerfunc), this);

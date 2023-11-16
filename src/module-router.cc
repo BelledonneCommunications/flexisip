@@ -180,15 +180,17 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 	mCallForkCfg->mForkLate = mc->get<ConfigBoolean>("fork-late")->read();
 	mCallForkCfg->mTreatAllErrorsAsUrgent = mc->get<ConfigBoolean>("treat-all-as-urgent")->read();
 	mCallForkCfg->mForkNoGlobalDecline = mc->get<ConfigBoolean>("fork-no-global-decline")->read();
-	mCallForkCfg->mUrgentTimeout =
-	    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("call-fork-urgent-timeout")->read());
-	mCallForkCfg->mPushResponseTimeout =
-	    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("call-push-response-timeout")->read());
+	mCallForkCfg->mUrgentTimeout = chrono::duration_cast<chrono::seconds>(
+	    mc->get<ConfigDuration<chrono::seconds>>("call-fork-urgent-timeout")->read());
+	mCallForkCfg->mPushResponseTimeout = chrono::duration_cast<chrono::seconds>(
+	    mc->get<ConfigDuration<chrono::seconds>>("call-push-response-timeout")->read());
 	mCallForkCfg->mDeliveryTimeout =
-	    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("call-fork-timeout")->read()).count();
+	    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("call-fork-timeout")->read())
+	        .count();
 	mCallForkCfg->mTreatDeclineAsUrgent = mc->get<ConfigBoolean>("treat-decline-as-urgent")->read();
 	mCallForkCfg->mCurrentBranchesTimeout =
-	    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("call-fork-current-branches-timeout")->read())
+	    chrono::duration_cast<chrono::seconds>(
+	        mc->get<ConfigDuration<chrono::seconds>>("call-fork-current-branches-timeout")->read())
 	        .count();
 	mCallForkCfg->mPermitSelfGeneratedProvisionalResponse =
 	    mc->get<ConfigBoolean>("permit-self-generated-provisional-response")->read();
@@ -197,9 +199,10 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 	mMessageForkCfg = make_shared<ForkContextConfig>();
 	mMessageForkCfg->mForkLate = mc->get<ConfigBoolean>("message-fork-late")->read();
 	mMessageForkCfg->mDeliveryTimeout =
-	    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("call-fork-timeout")->read()).count();
-	mMessageForkCfg->mUrgentTimeout =
-	    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("message-accept-timeout")->read());
+	    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("call-fork-timeout")->read())
+	        .count();
+	mMessageForkCfg->mUrgentTimeout = chrono::duration_cast<chrono::seconds>(
+	    mc->get<ConfigDuration<chrono::seconds>>("message-accept-timeout")->read());
 
 	// Forking configuration for other kind of requests.
 	mOtherForkCfg = make_shared<ForkContextConfig>();
@@ -225,8 +228,8 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 		mOnContactRegisteredListener = make_shared<OnContactRegisteredListener>(this);
 #if ENABLE_SOCI
 		if ((mMessageForkCfg->mSaveForkMessageEnabled = mc->get<ConfigBoolean>("message-database-enabled")->read())) {
-			InjectContext::setMaxRequestRetentionTime(
-			    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("max-request-retention-time")->read()));
+			InjectContext::setMaxRequestRetentionTime(chrono::duration_cast<chrono::seconds>(
+			    mc->get<ConfigDuration<chrono::seconds>>("max-request-retention-time")->read()));
 			mInjector = make_unique<ScheduleInjector>(this);
 			ForkMessageContextSociRepository::prepareConfiguration(
 			    mc->get<ConfigString>("message-database-backend")->read(),

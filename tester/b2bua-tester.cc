@@ -22,15 +22,14 @@
 #include <fstream>
 #include <memory>
 #include <optional>
-#include <string>
 #include <sstream>
+#include <string>
 
 #include <json/json.h>
 
 #include "linphone++/enums.hh"
 #include "linphone/core.h"
 #include <bctoolbox/logging.h>
-#include "linphone/core.h"
 #include <linphone++/linphone.hh>
 
 #include "flexisip/configmanager.hh"

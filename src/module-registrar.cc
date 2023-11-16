@@ -428,16 +428,21 @@ void ModuleRegistrar::onLoad(const GenericStruct* mc) {
 
 	int forcedExpires = mc->get<ConfigInt>("force-expires")->read();
 	if (forcedExpires <= 0) {
-		mMaxExpires = chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("max-expires")->read()).count();
-		mMinExpires = chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("min-expires")->read()).count();
+		mMaxExpires =
+		    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("max-expires")->read())
+		        .count();
+		mMinExpires =
+		    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("min-expires")->read())
+		        .count();
 	} else {
 		mMaxExpires = forcedExpires;
 		mMinExpires = forcedExpires;
 	}
 
 	mStaticRecordsFile = mc->get<ConfigString>("static-records-file")->read();
-	mStaticRecordsTimeout =
-	    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("static-records-timeout")->read()).count();
+	mStaticRecordsTimeout = chrono::duration_cast<chrono::seconds>(
+	                            mc->get<ConfigDuration<chrono::seconds>>("static-records-timeout")->read())
+	                            .count();
 
 	mExpireRandomizer = mc->get<ConfigInt>("register-expire-randomizer-max")->read();
 	if (mExpireRandomizer < 0 || mExpireRandomizer > 100) {

@@ -161,8 +161,9 @@ PresenceServer::PresenceServer(const std::shared_ptr<sofiasip::SuRoot>& root) : 
 	belle_sip_provider_add_sip_listener(mProvider, mListener);
 
 	PresenceServer::sLastActivityRetentionMs = config->get<ConfigInt>("last-activity-retention-time")->read();
-	
-	mDefaultExpires = chrono::duration_cast<chrono::seconds>(config->get<ConfigDuration<chrono::seconds>>("expires")->read()).count();
+
+	mDefaultExpires =
+	    chrono::duration_cast<chrono::seconds>(config->get<ConfigDuration<chrono::seconds>>("expires")->read()).count();
 	mBypass = config->get<ConfigString>("bypass-condition")->read();
 	mEnabled = config->get<ConfigBoolean>("enabled")->read();
 	mRequest = config->get<ConfigString>("rls-database-request")->read();

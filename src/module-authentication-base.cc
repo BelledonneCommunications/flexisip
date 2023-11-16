@@ -121,7 +121,8 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct* mc) {
 	if (mAlgorithms.empty()) mAlgorithms.assign(sValidAlgos.cbegin(), sValidAlgos.cend());
 
 	auto disableQOPAuth = mc->get<ConfigBoolean>("disable-qop-auth")->read();
-	auto nonceExpires = chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("nonce-expires")->read());
+	auto nonceExpires =
+	    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("nonce-expires")->read());
 
 	for (const string& domain : authDomains) {
 		unique_ptr<FlexisipAuthModuleBase> am(createAuthModule(domain, nonceExpires.count(), !disableQOPAuth));

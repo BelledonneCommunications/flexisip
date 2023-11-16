@@ -278,8 +278,8 @@ RegistrarDb* RegistrarDb::initialize(Agent* ag) {
 			}
 			return ACL{user, password};
 		}();
-		params.mSlaveCheckTimeout =
-		    chrono::duration_cast<chrono::seconds>(registrar->get<ConfigDuration<chrono::seconds>>("redis-slave-check-period")->read());
+		params.mSlaveCheckTimeout = chrono::duration_cast<chrono::seconds>(
+		    registrar->get<ConfigDuration<chrono::seconds>>("redis-slave-check-period")->read());
 		params.useSlavesAsBackup = registrar->get<ConfigBoolean>("redis-use-slaves-as-backup")->read();
 
 		sUnique = make_unique<RegistrarDbRedisAsync>(ag, params);

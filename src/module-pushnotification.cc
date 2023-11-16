@@ -249,10 +249,11 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 
 	mNoBadgeiOS = mc->get<ConfigBoolean>("no-badge")->read();
 	mTimeout = chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("timeout")->read());
-	mMessageTtl = chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("message-time-to-live")->read());
+	mMessageTtl = chrono::duration_cast<chrono::seconds>(
+	    mc->get<ConfigDuration<chrono::seconds>>("message-time-to-live")->read());
 	if (mMessageTtl == 0s) {
-		mMessageTtl =
-		    chrono::duration_cast<chrono::seconds>(mRouter->get<ConfigDuration<chrono::seconds>>("message-delivery-timeout")->read());
+		mMessageTtl = chrono::duration_cast<chrono::seconds>(
+		    mRouter->get<ConfigDuration<chrono::seconds>>("message-delivery-timeout")->read());
 	}
 	auto maxQueueSize = mc->get<ConfigInt>("max-queue-size")->read();
 	mDisplayFromUri = mc->get<ConfigBoolean>("display-from-uri")->read();
@@ -265,8 +266,8 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 
 	// Load the push retransmissions parameters.
 	auto retransmissionCount = mModuleConfig->get<ConfigInt>("retransmission-count")->read();
-	auto retransmissionInterval =
-	    chrono::duration_cast<chrono::seconds>(mModuleConfig->get<ConfigDuration<chrono::seconds>>("retransmission-interval")->read());
+	auto retransmissionInterval = chrono::duration_cast<chrono::seconds>(
+	    mModuleConfig->get<ConfigDuration<chrono::seconds>>("retransmission-interval")->read());
 	if (retransmissionCount < 0) {
 		LOGF("module::PushNotification/retransmission-count must be positive");
 	}
@@ -277,7 +278,8 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	mRetransmissionInterval = retransmissionInterval;
 
 	// Load the retransmission interval for remote push notification strategy.
-	const auto* callRemotePushIntervalCfg = mModuleConfig->get<ConfigDuration<chrono::seconds>>("call-remote-push-interval");
+	const auto* callRemotePushIntervalCfg =
+	    mModuleConfig->get<ConfigDuration<chrono::seconds>>("call-remote-push-interval");
 	auto callRemotePushInterval = callRemotePushIntervalCfg->read();
 	if (callRemotePushInterval < 0s || callRemotePushInterval > 30s) {
 		LOGF("%s must be in [0;30]", callRemotePushIntervalCfg->getCompleteName().c_str());
@@ -322,7 +324,8 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	mExpirationNotifier =
 	    ContactExpirationNotifier::make_unique(*mc, mAgent->getRoot(), getService(), *RegistrarDb::get());
 
-	mCallTtl = chrono::duration_cast<chrono::seconds>(mRouter->get<ConfigDuration<chrono::seconds>>("call-fork-timeout")->read());
+	mCallTtl = chrono::duration_cast<chrono::seconds>(
+	    mRouter->get<ConfigDuration<chrono::seconds>>("call-fork-timeout")->read());
 	SLOGD << "PushNotification module loaded. Push ttl for calls is " << mCallTtl.count() << " seconds, and for IM "
 	      << mMessageTtl.count() << " seconds.";
 }

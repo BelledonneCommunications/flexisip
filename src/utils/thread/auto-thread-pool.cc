@@ -121,7 +121,7 @@ void AutoThreadPool::_run() {
 	}
 }
 
-void AutoThreadPool::_subThreadRun(Task initialTask){
+void AutoThreadPool::_subThreadRun(Task initialTask) {
 	initialTask();
 	while (true) {
 		Task moreTask;
