@@ -222,10 +222,7 @@ if (ENABLE_DATEHANDLER)
 	target_sources(flexisip PRIVATE module-datehandler.cc)
 endif ()
 if (ENABLE_REDIS)
-	target_sources(flexisip PRIVATE
-		registrardb-redis-async.cc
-		timed-redis-command.cc timed-redis-command.hh
-	)
+	target_sources(flexisip PRIVATE registrardb-redis-async.cc)
 	target_compile_definitions(flexisip PRIVATE "ENABLE_REDIS")
 	target_link_libraries(flexisip PRIVATE hiredis)
 endif ()
