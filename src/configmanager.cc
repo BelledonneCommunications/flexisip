@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -473,7 +473,7 @@ void GenericStruct::setParent(GenericEntry* parent) {
 #endif
 }
 
-void GenericStruct::deprecateChild(const char* name, const DeprecationInfo& info) {
+void GenericStruct::deprecateChild(const string& name, const DeprecationInfo& info) {
 	GenericEntry* e = find(name);
 	if (e) e->setDeprecated(info);
 }
@@ -557,7 +557,7 @@ unique_ptr<StatPair> GenericStruct::createStats(const string& name, const string
 
 struct matchEntryNameApprox {
 	const string mName;
-	matchEntryNameApprox(const char* name) : mName(name) {
+	matchEntryNameApprox(const string& name) : mName(name) {
 	}
 	bool operator()(const unique_ptr<GenericEntry>& e) {
 		unsigned int i;
@@ -577,7 +577,7 @@ struct matchEntryNameApprox {
 	}
 };
 
-GenericEntry* GenericStruct::findApproximate(const char* name) const {
+GenericEntry* GenericStruct::findApproximate(const string& name) const {
 	auto it = find_if(mEntries.begin(), mEntries.end(), matchEntryNameApprox(name));
 	if (it != mEntries.end()) return it->get();
 	return nullptr;
@@ -1209,12 +1209,9 @@ const GenericStruct* ConfigManager::getGlobal() {
 
 int FileConfigReader::read(const std::string& filename) {
 	int err;
-	if (mCfg) {
-		lp_config_destroy(mCfg);
-	}
-	mCfg = lp_config_new(NULL);
 	mFilename = filename;
-	err = lp_config_read_file(mCfg, filename.c_str());
+	mCfg = make_unique<LpConfig>();
+	err = mCfg->readFile(filename);
 	read2(mRoot, 0);
 	return err;
 }
@@ -1224,40 +1221,35 @@ int FileConfigReader::reload() {
 	return 0;
 }
 
-void FileConfigReader::onUnreadItem(void* p, const char* secname, const char* key, int lineno) {
-	FileConfigReader* zis = (FileConfigReader*)p;
-	zis->onUnreadItem(secname, key, lineno);
-}
-
-void FileConfigReader::onUnreadItem(const char* secname, const char* key, int lineno) {
-	ostringstream ss;
-	ss << "Unsupported parameter '" << key << "' in section [" << secname << "] at line " << lineno << ".";
-	mHaveUnreads = true;
-	GenericEntry* sec = mRoot->find(secname);
-	if (sec == NULL) {
-		sec = mRoot->findApproximate(secname);
-		if (sec != NULL) {
-			ss << " Unknown section '[" << secname << "]', did you mean '[" << sec->getName().c_str() << "]' instead?";
+void FileConfigReader::checkUnread() {
+	auto onUnreadItem = [&](const string& secname, const string& key, int lineno) {
+		ostringstream ss;
+		ss << "Unsupported parameter '" << key << "' in section [" << secname << "] at line " << lineno << ".";
+		mHaveUnreads = true;
+		GenericEntry* sec = mRoot->find(secname);
+		if (sec == NULL) {
+			sec = mRoot->findApproximate(secname);
+			if (sec != NULL) {
+				ss << " Unknown section '[" << secname << "]', did you mean '[" << sec->getName().c_str()
+				   << "]' instead?";
+			} else {
+				ss << " Unknown section '[" << secname << "]'.";
+			}
 		} else {
-			ss << " Unknown section '[" << secname << "]'.";
-		}
-	} else {
-		GenericStruct* st = dynamic_cast<GenericStruct*>(sec);
-		if (st) {
-			GenericEntry* val = st->find(key);
-			if (val == NULL) {
-				val = st->findApproximate(key);
-				if (val != NULL) {
-					ss << " Did you mean '" << val->getName().c_str() << "'?";
+			GenericStruct* st = dynamic_cast<GenericStruct*>(sec);
+			if (st) {
+				GenericEntry* val = st->find(key);
+				if (val == NULL) {
+					val = st->findApproximate(key);
+					if (val != NULL) {
+						ss << " Did you mean '" << val->getName().c_str() << "'?";
+					}
 				}
 			}
 		}
-	}
-	LOGEN("%s", ss.str().c_str());
-}
-
-void FileConfigReader::checkUnread() {
-	lp_config_for_each_unread(mCfg, onUnreadItem, this);
+		LOGEN("%s", ss.str().c_str());
+	};
+	mCfg->processUnread(std::function<void(const string& secname, const string& key, int lineo)>(onUnreadItem));
 	if (mHaveUnreads) LOGF("Some items or section are invalid in the configuration file. Please check it.");
 }
 
@@ -1273,8 +1265,7 @@ int FileConfigReader::read2(GenericEntry* entry, int level) {
 		if (level < 2) LOGF("ConfigValues at root is disallowed.");
 		if (level > 2) LOGF("The current file format doesn't support recursive subsections.");
 
-		const char* val =
-		    lp_config_get_string(mCfg, cv->getParent()->getName().c_str(), cv->getName().c_str(), nullptr);
+		const char* val = mCfg->getString(cv->getParent()->getName(), cv->getName(), nullptr);
 		if (val) {
 			if (cv->isDeprecated()) {
 				const auto& info = cv->getDeprecationInfo();
@@ -1295,9 +1286,10 @@ int FileConfigReader::read2(GenericEntry* entry, int level) {
 	return 0;
 }
 
-FileConfigReader::~FileConfigReader() {
-	if (mCfg) lp_config_destroy(mCfg);
+FileConfigReader::FileConfigReader(GenericStruct* root) : mRoot(root), mHaveUnreads(false) {
 }
+
+FileConfigReader::~FileConfigReader() = default;
 
 GenericEntriesGetter* GenericEntriesGetter::sInstance = NULL;
 

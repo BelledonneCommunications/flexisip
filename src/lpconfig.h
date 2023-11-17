@@ -18,6 +18,11 @@
 
 #pragma once
 
+#include <algorithm>
+#include <functional>
+#include <list>
+#include <string>
+
 namespace flexisip {
 /**
  * The LpConfig object is used to manipulate a configuration file.
@@ -37,69 +42,46 @@ namespace flexisip {
  * enabled=1
  * @endcode
  **/
-struct LpConfig;
+struct LpItem {
+	std::string key;
+	std::string value;
+	int is_read{};
+	int lineno{};
+};
 
-LpConfig* lp_config_new(const char* filename);
-int lp_config_read_file(LpConfig* lpconfig, const char* filename);
-/**
- * Retrieves a configuration item as a string, given its section, key, and default value.
- *
- * @ingroup misc
- * The default value string is returned if the config item isn't found.
- **/
-const char* lp_config_get_string(LpConfig* lpconfig, const char* section, const char* key, const char* default_string);
+class LpSection {
+public:
+	LpSection(const std::string& name);
+	void addItem(const std::string& key, const std::string& value, int line);
+	LpItem* findItem(const std::string& item_name);
+	const std::string& getName() const;
+	const std::list<LpItem>& getItems() const;
 
-/**
- * Retrieves a configuration item as an integer, given its section, key, and default value.
- *
- * @ingroup misc
- * The default integer value is returned if the config item isn't found.
- **/
-int lp_config_get_int(LpConfig* lpconfig, const char* section, const char* key, int default_value);
+private:
+	std::string mName;
+	std::list<LpItem> mItems;
+};
+class LpConfig {
+public:
+	int readFile(const std::string& filename);
+	const std::list<LpSection>& getSections() const;
 
-/**
- * Retrieves a configuration item as a float, given its section, key, and default value.
- *
- * @ingroup misc
- * The default float value is returned if the config item isn't found.
- **/
-float lp_config_get_float(LpConfig* lpconfig, const char* section, const char* key, float default_value);
-/**
- * Sets a string config item
- *
- * @ingroup misc
- **/
-void lp_config_set_string(LpConfig* lpconfig, const char* section, const char* key, const char* value);
-/**
- * Sets an integer config item
- *
- * @ingroup misc
- **/
-void lp_config_set_int(LpConfig* lpconfig, const char* section, const char* key, int value);
-/**
- * Writes the config file to disk.
- *
- * @ingroup misc
- **/
-int lp_config_sync(LpConfig* lpconfig);
-/**
- * Returns 1 if a given section is present in the configuration.
- *
- * @ingroup misc
- **/
-int lp_config_has_section(LpConfig* lpconfig, const char* section);
-/**
- * Removes every pair of key,value in a section and remove the section.
- *
- * @ingroup misc
- **/
-void lp_config_clean_section(LpConfig* lpconfig, const char* section);
+	/**
+	 * Retrieves a configuration item as a string, given its section, key, and default value.
+	 *
+	 * @ingroup misc
+	 * The default value string is returned if the config item isn't found.
+	 **/
+	const char* getString(const std::string& section, const std::string& key, const char* default_string);
 
-typedef void (*LpConfigUnreadCallback)(void* data, const char* section, const char* item, int lineno);
-void lp_config_for_each_unread(LpConfig* lpconfig, LpConfigUnreadCallback cb, void* data);
+	void processUnread(
+	    const std::function<void(const std::string& section, const std::string& item, int lineno)>& unreadCallback);
 
-/*tells whether uncommited (with lp_config_sync()) modifications exist*/
-int lp_config_needs_commit(const LpConfig* lpconfig);
-void lp_config_destroy(LpConfig* cfg);
+private:
+	void parseFile(FILE* file);
+	LpSection* findSection(const std::string& sec_name);
+	LpSection* findOrAddSection(const std::string& sec_name);
 
+	std::list<LpSection> mSections;
+};
 }; // namespace flexisip
