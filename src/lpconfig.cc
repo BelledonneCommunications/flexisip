@@ -18,11 +18,13 @@
 
 #include "lpconfig.h"
 
-#include <memory>
-
 #include <sys/stat.h>
 
+#include <memory>
+
 #include <ortp/ortp.h>
+
+#include "configparsing-exception.hh"
 
 using namespace std;
 
@@ -59,15 +61,14 @@ LpSection::LpSection(const string& name) : mName(name) {
 }
 
 void LpSection::addItem(const string& key, const string& value, int line) {
-	auto item = findItem(key);
-	if (item == nullptr) {
-		mItems.emplace_back();
-		item = &mItems.back();
-		item->key = key;
-	}
+	if (findItem(key) != nullptr)
+		throw flexisip::ConfigParsingException("key \"" + std::string(key) + "\" has several entrances.");
 
-	item->value = value;
-	item->lineno = line;
+	LpItem item;
+	item.key = key;
+	item.value = value;
+	item.lineno = line;
+	mItems.push_back(std::move(item));
 }
 
 LpItem* LpSection::findItem(const std::string& item_name) {
@@ -75,7 +76,6 @@ LpItem* LpSection::findItem(const std::string& item_name) {
 	                  [&](const LpItem& item) { return strcasecmp(item.key.c_str(), item_name.c_str()) == 0; });
 
 	if (it == mItems.cend()) return nullptr;
-	it->is_read = true;
 	return &(*it);
 }
 
@@ -198,7 +198,10 @@ const char* LpConfig::getString(const string& section, const string& key, const 
 	auto sec = findSection(section);
 	if (sec != nullptr) {
 		auto item = sec->findItem(key);
-		if (item != nullptr) return skip_initial_blanks(item->value.c_str());
+		if (item != nullptr) {
+			item->is_read = true;
+			return skip_initial_blanks(item->value.c_str());
+		}
 	}
 	return default_string;
 }

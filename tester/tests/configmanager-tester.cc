@@ -1,6 +1,6 @@
 /*
 Flexisip, a flexible SIP proxy server with media capabilities.
-Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
 This program is free software: you can redistribute it and/or modify
                                                                  it under the terms of the GNU Affero General Public
@@ -18,6 +18,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 #include "flexisip/configmanager.hh"
 
+#include "configparsing-exception.hh"
+#include "tester.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
@@ -215,10 +217,21 @@ public:
 	}
 };
 
+static void redundantKey() {
+	auto configFile = "/config/flexisip_redundant_key.conf";
+	auto cfg = ConfigManager::get();
+
+	auto configFilePath = bcTesterRes(configFile);
+	if (bctbx_file_exist(configFilePath.c_str()) == 0) {
+		BC_ASSERT_THROWN(cfg->load(configFilePath), ConfigParsingException);
+	}
+}
+
 namespace {
-TestSuite _("ConfigValue unit tests",
+TestSuite _("ConfigManager unit tests",
             {
                 TEST_NO_TAG("Test reading of duration parameters", run<ConfigDurationTest>),
+                TEST_NO_TAG("Redundant key error", redundantKey),
             });
 }
 } // namespace flexisip::tester

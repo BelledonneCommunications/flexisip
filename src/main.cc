@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -780,15 +780,22 @@ int main(int argc, char* argv[]) {
 		return EXIT_SUCCESS;
 	}
 
-	if (cfg->load(configFile.getValue()) == -1) {
-		fprintf(stderr,
-		        "Flexisip version %s\n"
-		        "No configuration file found at %s.\nPlease specify a valid configuration file.\n"
-		        "A default flexisip.conf.sample configuration file should be installed in " CONFIG_DIR "\n"
-		        "Please edit it and restart flexisip when ready.\n"
-		        "Alternatively a default configuration sample file can be generated at any time using "
-		        "'--dump-default all' option.\n",
-		        versionString.c_str(), configFile.getValue().c_str());
+	try {
+		// Try parsing configuration file
+		if (cfg->load(configFile.getValue()) == -1) {
+			fprintf(stderr,
+			        "Flexisip version %s\n"
+			        "No configuration file found at %s.\nPlease specify a valid configuration file.\n"
+			        "A default flexisip.conf.sample configuration file should be installed in " CONFIG_DIR "\n"
+			        "Please edit it and restart flexisip when ready.\n"
+			        "Alternatively a default configuration sample file can be generated at any time using "
+			        "'--dump-default all' option.\n",
+			        versionString.c_str(), configFile.getValue().c_str());
+			return -1;
+		}
+
+	} catch (std::runtime_error& e) {
+		cerr << e.what() << endl;
 		return -1;
 	}
 
