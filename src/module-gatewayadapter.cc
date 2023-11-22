@@ -203,7 +203,7 @@ GatewayRegister::GatewayRegister(Agent* ag,
 	su_home_init(&home);
 
 	url_t* domain = NULL;
-	GenericStruct* cr = GenericManager::get()->getRoot();
+	GenericStruct* cr = ConfigManager::get()->getRoot();
 	GenericStruct* ma = cr->get<GenericStruct>("module::GatewayAdapter");
 	string domainString = ma->get<ConfigString>("gateway-domain")->read();
 	int forcedExpireValue = ma->get<ConfigInt>("forced-expire")->read();

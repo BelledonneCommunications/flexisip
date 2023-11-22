@@ -44,7 +44,7 @@ namespace flexisip::tester {
 
 class TransportsAndIsUsTest : public AgentTest {
 private:
-	void onAgentConfiguration(GenericManager& cfg) override {
+	void onAgentConfiguration(ConfigManager& cfg) override {
 		AgentTest::onAgentConfiguration(cfg);
 		auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
 		globalCfg->get<ConfigStringList>("transports")->set("sips:localhost:6060;maddr=127.0.0.2 sips:localhost:6062");
@@ -108,7 +108,7 @@ public:
 	/**
 	 * Configure the agent. It is usually used to populate the 'transport=' line.
 	 */
-	virtual void configureAgent(GenericManager& cfg) {
+	virtual void configureAgent(ConfigManager& cfg) {
 		auto registrarCfg = cfg.getRoot()->get<GenericStruct>("module::Registrar");
 		registrarCfg->get<ConfigValue>("enabled")->set("true");
 		registrarCfg->get<ConfigValue>("reg-domains")->set("sip.example.org");
@@ -136,7 +136,7 @@ public:
 	unique_ptr<TlsConnection> makeConnection() override {
 		return make_unique<TlsConnection>(mHost, mPort, "", "");
 	}
-	void configureAgent(GenericManager& cfg) override {
+	void configureAgent(ConfigManager& cfg) override {
 		TransportConfig::configureAgent(cfg);
 		ostringstream transport{};
 		transport << "sip:" << mHost << ":" << mPort << ";transport=tcp";
@@ -153,7 +153,7 @@ public:
 	unique_ptr<TlsConnection> makeConnection() override {
 		return make_unique<TlsConnection>(mHost, mPort);
 	}
-	void configureAgent(GenericManager& cfg) override {
+	void configureAgent(ConfigManager& cfg) override {
 		TransportConfig::configureAgent(cfg);
 		ostringstream transport{};
 		transport << "sips:" << mHost << ":" << mPort;
@@ -174,7 +174,7 @@ class NewTlsConfig : public TlsConfig {
 public:
 	using TlsConfig::TlsConfig;
 
-	void configureAgent(GenericManager& cfg) override {
+	void configureAgent(ConfigManager& cfg) override {
 		TlsConfig::configureAgent(cfg);
 
 		auto certfile = static_cast<string>(bc_tester_get_resource_dir_prefix()) + "/cert/self.signed.cert.test.pem";
@@ -193,7 +193,7 @@ class LegacyTlsConfig : public TlsConfig {
 public:
 	using TlsConfig::TlsConfig;
 
-	void configureAgent(GenericManager& cfg) override {
+	void configureAgent(ConfigManager& cfg) override {
 		TlsConfig::configureAgent(cfg);
 
 		auto certDir = static_cast<string>(bc_tester_get_resource_dir_prefix()) + "/cert/self.signed.legacy";
@@ -213,7 +213,7 @@ public:
 	unique_ptr<TlsConnection> makeConnection() override {
 		return make_unique<TlsConnection>(mHost, mPort, "", "");
 	}
-	void configureAgent(GenericManager& cfg) override {
+	void configureAgent(ConfigManager& cfg) override {
 		TransportConfig::configureAgent(cfg);
 		ostringstream transport{};
 		transport << "sip:" << mHost << ":" << mPort << ";transport=tcp";
@@ -301,7 +301,7 @@ protected:
 
 private:
 	// Private methods
-	void onAgentConfiguration(GenericManager& cfg) override {
+	void onAgentConfiguration(ConfigManager& cfg) override {
 		AgentTest::onAgentConfiguration(cfg);
 		mConfig->configureAgent(cfg);
 	}
@@ -411,7 +411,7 @@ public:
 class ReplyToOptionRequestTest : public AgentTest {
 private:
 	// Private methods
-	void onAgentConfiguration(GenericManager& cfg) override {
+	void onAgentConfiguration(ConfigManager& cfg) override {
 		const auto* globalSection = cfg.getRoot()->get<GenericStruct>("global");
 		globalSection->get<ConfigValue>("transports")->set(kProxyURI);
 		globalSection->get<ConfigValue>("aliases")->set("localhost "s + kDomain);

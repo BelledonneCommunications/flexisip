@@ -63,7 +63,7 @@ Here is a template of what should be in this file:
 	     "example-path.json"},
 	    config_item_end};
 
-	GenericManager::get()
+	ConfigManager::get()
 	    ->getRoot()
 	    ->addChild(make_unique<GenericStruct>(configSection, "External SIP Provider Bridge parameters.", 0))
 	    ->addChildrenValues(items);
@@ -154,7 +154,7 @@ void AccountManager::init(const shared_ptr<linphone::Core>& core, const flexisip
 	auto filePath = config.get<GenericStruct>(configSection)->get<ConfigString>(providersConfigItem)->read();
 	if (filePath[0] != '/') {
 		// Interpret as relative to config file
-		const auto& configFilePath = GenericManager::get()->getConfigFile();
+		const auto& configFilePath = ConfigManager::get()->getConfigFile();
 		const auto configFolderPath = configFilePath.substr(0, configFilePath.find_last_of('/') + 1);
 		filePath = configFolderPath + filePath;
 	}

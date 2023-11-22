@@ -38,7 +38,7 @@ StunServer::Init::Init() {
 	                                {Integer, "port", "STUN server port number.", "3478"},
 	                                config_item_end};
 	auto uS = make_unique<GenericStruct>("stun-server", "STUN server parameters.", 0);
-	auto s = dynamic_cast<GenericStruct*>(GenericManager::get()->getRoot()->addChild(std::move(uS)));
+	auto s = dynamic_cast<GenericStruct*>(ConfigManager::get()->getRoot()->addChild(std::move(uS)));
 	s->addChildrenValues(items);
 }
 
@@ -52,7 +52,7 @@ int StunServer::start() {
 	int err;
 	struct sockaddr_in laddr;
 	std::string bind_address =
-	    GenericManager::get()->getRoot()->get<GenericStruct>("stun-server")->get<ConfigString>("bind-address")->read();
+	    ConfigManager::get()->getRoot()->get<GenericStruct>("stun-server")->get<ConfigString>("bind-address")->read();
 
 	if (bind_address.size() == 0) bind_address = "0.0.0.0";
 

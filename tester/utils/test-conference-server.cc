@@ -40,7 +40,7 @@ void TestConferenceServer::PatchedConferenceServer::bindAddresses() {
 	const auto port = std::to_string((core->getTransportsUsed()->getTcpPort()));
 	const_cast<url_t*>(mTransport.get())->url_port = port.c_str();
 	const auto newTransport = mTransport.str();
-	GenericManager::get()
+	ConfigManager::get()
 	    ->getRoot()
 	    ->get<GenericStruct>("conference-server")
 	    ->get<ConfigString>("transport")

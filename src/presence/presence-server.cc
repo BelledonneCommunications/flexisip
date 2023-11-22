@@ -46,7 +46,7 @@ using namespace pidf;
 using namespace std;
 
 // The Init object is instanciated to load the config
-PresenceServer::Init PresenceServer::sStaticInit{*GenericManager::get()->getRoot()};
+PresenceServer::Init PresenceServer::sStaticInit{*ConfigManager::get()->getRoot()};
 
 unsigned int PresenceServer::sLastActivityRetentionMs;
 
@@ -129,9 +129,9 @@ PresenceServer::Init::Init(GenericStruct& root) {
 }
 
 PresenceServer::PresenceServer(const std::shared_ptr<sofiasip::SuRoot>& root) : ServiceServer{root} {
-	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("presence-server");
+	auto config = ConfigManager::get()->getRoot()->get<GenericStruct>("presence-server");
 	/*Enabling leak detector should be done asap.*/
-	belle_sip_object_enable_leak_detector(GenericManager::get()
+	belle_sip_object_enable_leak_detector(ConfigManager::get()
 	                                          ->getRoot()
 	                                          ->get<GenericStruct>("presence-server")
 	                                          ->get<ConfigBoolean>("leak-detector")
@@ -139,7 +139,7 @@ PresenceServer::PresenceServer(const std::shared_ptr<sofiasip::SuRoot>& root) : 
 	mStack = belle_sip_stack_new(nullptr);
 	mProvider = belle_sip_stack_create_provider(mStack, nullptr);
 	mMaxPresenceInfoNotifiedAtATime =
-	    GenericManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigInt>("notify-limit")->read();
+	    ConfigManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigInt>("notify-limit")->read();
 
 	xercesc::XMLPlatformUtils::Initialize();
 
@@ -225,7 +225,7 @@ PresenceServer::~PresenceServer() {
 
 void PresenceServer::_init() {
 	if (!mEnabled) return;
-	const auto* cr = GenericManager::get()->getRoot();
+	const auto* cr = ConfigManager::get()->getRoot();
 
 	const auto* longTermEnabledConfig =
 	    cr->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled");

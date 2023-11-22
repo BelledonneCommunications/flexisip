@@ -51,7 +51,7 @@ qValueConstructorTest(const SipUri& inputUri, const string& inputRoute, const fl
 }
 
 static void qValueConstructorTests(void) {
-	auto cfg = GenericManager::get();
+	auto cfg = ConfigManager::get();
 	cfg->load(bcTesterRes("config/flexisip_fork_context.conf"));
 	agent->loadConfig(cfg);
 

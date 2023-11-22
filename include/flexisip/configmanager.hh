@@ -797,11 +797,11 @@ public:
 	void setInitialized(bool status);
 };
 
-class GenericManager : protected ConfigValueListener {
+class ConfigManager : protected ConfigValueListener {
 	friend class ConfigArea;
 
 public:
-	static GenericManager* get();
+	static ConfigManager* get();
 
 	int load(const std::string& configFile);
 	GenericStruct* getRoot();
@@ -839,7 +839,7 @@ public:
 	bool mDirtyConfig = false;
 
 protected:
-	GenericManager();
+	ConfigManager();
 
 private:
 	bool doIsValidNextConfig(const ConfigValue& cv);
@@ -852,7 +852,7 @@ private:
 	std::unordered_set<std::string> mStatOids;
 	NotificationEntry* mNotifier = nullptr;
 
-	static std::unique_ptr<GenericManager> sInstance;
+	static std::unique_ptr<ConfigManager> sInstance;
 };
 
 } // namespace flexisip

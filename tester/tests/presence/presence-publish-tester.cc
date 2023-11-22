@@ -169,7 +169,7 @@ protected:
 
 class BasicPublishLastActivityExpiresTest : public BasicPublishTest {
 protected:
-	void onAgentConfiguration(GenericManager& cfg) override {
+	void onAgentConfiguration(ConfigManager& cfg) override {
 		PresenceTest::onAgentConfiguration(cfg);
 
 		auto* presenceConf = cfg.getRoot()->get<GenericStruct>("presence-server");

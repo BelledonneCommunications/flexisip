@@ -57,7 +57,7 @@ public:
 protected:
 	// Protected methods
 	void configureAgent() {
-		auto* cfg = GenericManager::get();
+		auto* cfg = ConfigManager::get();
 		cfg->load("");
 		onAgentConfiguration(*cfg);
 		mAgent->loadConfig(cfg, false);
@@ -94,7 +94,7 @@ protected:
 		return false;
 	}
 
-	virtual void onAgentConfiguration(GenericManager& cfg) {
+	virtual void onAgentConfiguration(ConfigManager& cfg) {
 		auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
 		globalCfg->get<ConfigBoolean>("enable-snmp")->set("false");
 	}

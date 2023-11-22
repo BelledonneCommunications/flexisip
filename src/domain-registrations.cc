@@ -42,7 +42,7 @@ using namespace sofiasip;
 namespace flexisip {
 
 DomainRegistrationManager::DomainRegistrationManager(Agent* agent) : mAgent(agent), mRegisterWhenNeeded(false) {
-	GenericManager* mgr = GenericManager::get();
+	ConfigManager* mgr = ConfigManager::get();
 	auto uDomainRegistrationArea = make_unique<GenericStruct>(
 	    "inter-domain-connections",
 	    "Inter domain connections is a set of feature allowing to dynamically connect several Flexisip servers "
@@ -156,7 +156,7 @@ int DomainRegistrationManager::load(const string& passphrase) {
 	int lineIndex = 0;
 	string relayRegsToDomainsRegex;
 
-	auto* domainRegistrationCfg = GenericManager::get()->getRoot()->get<GenericStruct>("inter-domain-connections");
+	auto* domainRegistrationCfg = ConfigManager::get()->getRoot()->get<GenericStruct>("inter-domain-connections");
 	configFile = domainRegistrationCfg->get<ConfigString>("domain-registrations")->read();
 
 	mVerifyServerCerts = domainRegistrationCfg->get<ConfigBoolean>("verify-server-certs")->read();

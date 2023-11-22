@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -46,7 +46,7 @@ namespace tester {
 
 class FallbackRouteFilterTest : public AgentTest {
 private:
-	void onAgentConfiguration(GenericManager& cfg) override {
+	void onAgentConfiguration(ConfigManager& cfg) override {
 		AgentTest::onAgentConfiguration(cfg);
 		const auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
 		globalCfg->get<ConfigStringList>("transports")->set("sip:localhost:5260");
@@ -185,7 +185,7 @@ public:
 	SelfRouteHeaderRemovingTest() noexcept : RegistrarDbTest(true){};
 
 private:
-	void onAgentConfiguration(GenericManager& cfg) override {
+	void onAgentConfiguration(ConfigManager& cfg) override {
 		SLOGD << "Step 1: Setup";
 		RegistrarDbTest::onAgentConfiguration(cfg);
 		const auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
@@ -273,7 +273,7 @@ public:
 	OtherRouteHeaderNotRemovedTest() noexcept : RegistrarDbTest(true){};
 
 private:
-	void onAgentConfiguration(GenericManager& cfg) override {
+	void onAgentConfiguration(ConfigManager& cfg) override {
 		SLOGD << "Step 1: Setup";
 		RegistrarDbTest::onAgentConfiguration(cfg);
 		const auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");

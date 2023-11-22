@@ -244,7 +244,7 @@ void PushNotification::onDeclare(GenericStruct* module_config) {
 }
 
 void PushNotification::onLoad(const GenericStruct* mc) {
-	GenericStruct* root = GenericManager::get()->getRoot();
+	GenericStruct* root = ConfigManager::get()->getRoot();
 	const GenericStruct* mRouter = root->get<GenericStruct>("module::Router");
 
 	mNoBadgeiOS = mc->get<ConfigBoolean>("no-badge")->read();

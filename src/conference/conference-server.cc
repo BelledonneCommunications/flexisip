@@ -56,7 +56,7 @@ void ConferenceServer::_init() {
 	cTransport->setDtlsPort(0);
 
 	// Flexisip config
-	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
+	auto config = ConfigManager::get()->getRoot()->get<GenericStruct>("conference-server");
 	try {
 		mTransport = SipUri{config->get<ConfigString>("transport")->read()};
 		if (mTransport.empty()) throw sofiasip::InvalidUrlError{"", "empty URI"};
@@ -309,7 +309,7 @@ void ConferenceServer::_stop() {
 }
 
 void ConferenceServer::loadFactoryUris() {
-	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
+	auto config = ConfigManager::get()->getRoot()->get<GenericStruct>("conference-server");
 	auto conferenceFactoryUriSetting = config->get<ConfigString>("conference-factory-uri");
 	auto conferenceFactoryUrisSetting = config->get<ConfigStringList>("conference-factory-uris");
 	auto conferenceFocusUrisSetting = config->get<ConfigStringList>("conference-focus-uris");
@@ -634,7 +634,7 @@ ConferenceServer::Init::Init() {
 	    "of each participant, which creates an explicit dependency on Flexisip proxy server.\n"
 	    "This dependency is not required for audio/video conferences.",
 	    0);
-	auto s = GenericManager::get()->getRoot()->addChild(std::move(uS));
+	auto s = ConfigManager::get()->getRoot()->addChild(std::move(uS));
 	s->addChildrenValues(items);
 	s->get<ConfigString>("conference-factory-uri")
 	    ->setDeprecated("2020-09-30", "2.1.0",

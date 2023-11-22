@@ -452,10 +452,10 @@ url_t* Record::getPubGruu(const std::shared_ptr<ExtendedContact>& ec, su_home_t*
 }
 
 void Record::init() {
-	GenericStruct* registrar = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
+	GenericStruct* registrar = ConfigManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
 	sMaxContacts = registrar->get<ConfigInt>("max-contacts-by-aor")->read();
 	sLineFieldNames = registrar->get<ConfigStringList>("unique-id-parameters")->read();
-	sAssumeUniqueDomains = GenericManager::get()
+	sAssumeUniqueDomains = ConfigManager::get()
 	                           ->getRoot()
 	                           ->get<GenericStruct>("inter-domain-connections")
 	                           ->get<ConfigBoolean>("assume-unique-domains")

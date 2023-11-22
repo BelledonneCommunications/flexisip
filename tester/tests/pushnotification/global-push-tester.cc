@@ -63,7 +63,7 @@ public:
 		customAssert(actualRequest);
 	}
 
-	void onAgentConfiguration(GenericManager& cfg) override {
+	void onAgentConfiguration(ConfigManager& cfg) override {
 		AgentTest::onAgentConfiguration(cfg);
 		cfg.getRoot()
 		    ->get<GenericStruct>("global")
@@ -88,7 +88,7 @@ public:
 protected:
 	virtual void executeScenario() = 0;
 	virtual void customAssert(const shared_ptr<Request>& actualRequest) = 0;
-	virtual void customizeConf(GenericManager& cfg) = 0;
+	virtual void customizeConf(ConfigManager& cfg) = 0;
 
 public:
 	int getMockPort() const {
@@ -132,7 +132,7 @@ protected:
 		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.find("content-length")->second.value, "3");
 	}
 
-	void customizeConf(GenericManager& cfg) override {
+	void customizeConf(ConfigManager& cfg) override {
 		auto pushCfg = cfg.getRoot()->get<GenericStruct>("module::PushNotification");
 		pushCfg->get<ConfigValue>("external-push-uri")
 		    ->set("https://localhost:" + to_string(getMockPort()) + "/genericMessage");
@@ -168,7 +168,7 @@ protected:
 		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.find("content-length")->second.value, "0");
 	}
 
-	void customizeConf(GenericManager& cfg) override {
+	void customizeConf(ConfigManager& cfg) override {
 		auto pushCfg = cfg.getRoot()->get<GenericStruct>("module::PushNotification");
 		pushCfg->get<ConfigValue>("external-push-uri")
 		    ->set("https://localhost:" + to_string(getMockPort()) + "/genericCall");
@@ -192,7 +192,7 @@ protected:
 		BC_HARD_ASSERT_NOT_NULL(dynamic_pointer_cast<GenericHttpClient>(pushClients.begin()->second));
 	}
 
-	void onAgentConfiguration(GenericManager& cfg) override {
+	void onAgentConfiguration(ConfigManager& cfg) override {
 		AgentTest::onAgentConfiguration(cfg);
 		cfg.getRoot()
 		    ->get<GenericStruct>("global")

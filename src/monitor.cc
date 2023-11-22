@@ -41,7 +41,7 @@ Monitor::Init::Init() {
 	    config_item_end};
 
 	auto uS = make_unique<GenericStruct>("monitor", "Flexisip monitor parameters", 0);
-	auto s = GenericManager::get()->getRoot()->addChild(std::move(uS));
+	auto s = ConfigManager::get()->getRoot()->addChild(std::move(uS));
 	s->addChildrenValues(items);
 	s->setExportable(false);
 }
@@ -49,10 +49,10 @@ Monitor::Init::Init() {
 void Monitor::exec(int socket) {
 	// Create a temporary agent to load all modules
 	auto a = make_shared<Agent>(nullptr);
-	GenericManager::get()->loadStrict();
+	ConfigManager::get()->loadStrict();
 
-	GenericStruct* monitorParams = GenericManager::get()->getRoot()->get<GenericStruct>("monitor");
-	GenericStruct* cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
+	GenericStruct* monitorParams = ConfigManager::get()->getRoot()->get<GenericStruct>("monitor");
+	GenericStruct* cluster = ConfigManager::get()->getRoot()->get<GenericStruct>("cluster");
 	string interval = monitorParams->get<ConfigValue>("test-interval")->get();
 	string logfile = monitorParams->get<ConfigString>("logfile")->read();
 	string port = monitorParams->get<ConfigValue>("switch-port")->get();
@@ -115,8 +115,8 @@ string Monitor::findLocalAddress(const list<string>& nodes) {
 
 void Monitor::createAccounts() {
 	AuthDbBackend& authDb = AuthDbBackend::get();
-	GenericStruct* cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
-	GenericStruct* monitorConf = GenericManager::get()->getRoot()->get<GenericStruct>("monitor");
+	GenericStruct* cluster = ConfigManager::get()->getRoot()->get<GenericStruct>("cluster");
+	GenericStruct* monitorConf = ConfigManager::get()->getRoot()->get<GenericStruct>("monitor");
 	string salt = monitorConf->get<ConfigString>("password-salt")->read();
 	list<string> nodes = cluster->get<ConfigStringList>("nodes")->read();
 
@@ -161,7 +161,7 @@ string Monitor::generatePassword(const string& host, const string& salt) {
 }
 
 string Monitor::findDomain() {
-	GenericStruct* registrarConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
+	GenericStruct* registrarConf = ConfigManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
 	list<string> domains = registrarConf->get<ConfigStringList>("reg-domains")->read();
 	if (domains.size() == 0) {
 		throw FlexisipException("No domain declared in the registar module parameters");

@@ -42,7 +42,7 @@ AuthDbListener::~AuthDbListener() {
 
 class FixedAuthDb : public AuthDbBackend {
 public:
-	FixedAuthDb() : AuthDbBackend(*GenericManager::get()->getRoot()) {
+	FixedAuthDb() : AuthDbBackend(*ConfigManager::get()->getRoot()) {
 	}
 
 	void getUserWithPhoneFromBackend([[maybe_unused]] const string& phone,
@@ -63,7 +63,7 @@ public:
 
 AuthDbBackend& AuthDbBackend::get() {
 	if (sUnique == nullptr) {
-		GenericStruct* cr = GenericManager::get()->getRoot();
+		GenericStruct* cr = ConfigManager::get()->getRoot();
 		GenericStruct* ma = cr->get<GenericStruct>("module::Authentication");
 		const string& impl = ma->get<ConfigString>("db-implementation")->read();
 		if (impl == "fixed") {

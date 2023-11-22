@@ -77,11 +77,11 @@ public:
 	                     Module* injectedModule = nullptr)
 	    : Server(configFile, injectedModule) {
 		// Configure B2bua Server
-		auto* b2buaServerConf = GenericManager::get()->getRoot()->get<GenericStruct>("b2bua-server");
+		auto* b2buaServerConf = ConfigManager::get()->getRoot()->get<GenericStruct>("b2bua-server");
 		// b2bua server needs an outbound proxy to route all sip messages to the proxy, set it to the first transport
 		// of the proxy.
 		auto proxyTransports =
-		    GenericManager::get()->getRoot()->get<GenericStruct>("global")->get<ConfigStringList>("transports")->read();
+		    ConfigManager::get()->getRoot()->get<GenericStruct>("global")->get<ConfigStringList>("transports")->read();
 		b2buaServerConf->get<ConfigString>("outbound-proxy")->set(proxyTransports.front());
 		// need a writable dir to store DTLS-SRTP self signed certificate
 		b2buaServerConf->get<ConfigString>("data-directory")->set(bcTesterWriteDir());
@@ -100,7 +100,7 @@ public:
 		mB2buaServer->init();
 
 		// Configure module b2bua
-		const auto configRoot = GenericManager::get()->getRoot();
+		const auto configRoot = ConfigManager::get()->getRoot();
 		const auto& transport = configRoot->get<GenericStruct>("b2bua-server")->get<ConfigString>("transport")->read();
 		configRoot->get<GenericStruct>("module::B2bua")->get<ConfigString>("b2bua-server")->set(transport);
 
@@ -448,7 +448,7 @@ static void external_provider_bridge__load_balancing() {
 static void external_provider_bridge__parse_register_authenticate() {
 	using namespace flexisip::b2bua;
 	auto server = std::make_shared<B2buaServer>("/config/flexisip_b2bua.conf", false);
-	GenericManager::get()
+	ConfigManager::get()
 	    ->getRoot()
 	    ->get<GenericStruct>("b2bua-server")
 	    ->get<ConfigString>("application")
@@ -577,7 +577,7 @@ static void external_provider_bridge__b2bua_receives_several_forks() {
 	using namespace flexisip::b2bua;
 	auto server = std::make_shared<B2buaServer>("/config/flexisip_b2bua.conf", false);
 	{
-		auto root = GenericManager::get()->getRoot();
+		auto root = ConfigManager::get()->getRoot();
 		root->get<GenericStruct>("b2bua-server")->get<ConfigString>("application")->set("sip-bridge");
 		root->get<GenericStruct>("b2bua-server::sip-bridge")
 		    ->get<ConfigString>("providers")
@@ -745,7 +745,7 @@ static void external_provider_bridge__max_call_duration() {
 	])";
 	const auto b2bua = std::make_shared<flexisip::B2buaServer>(proxy.getRoot());
 	b2bua->init();
-	GenericManager::get()
+	ConfigManager::get()
 	    ->getRoot()
 	    ->get<GenericStruct>("module::B2bua")
 	    ->get<ConfigString>("b2bua-server")
@@ -809,7 +809,7 @@ static void basic() {
 	// Create a server and start it
 	auto server = std::make_shared<Server>("/config/flexisip_b2bua.conf");
 	// flexisip_b2bua config file enables the module B2bua in proxy, disable it for this basic test
-	GenericManager::get()->getRoot()->get<GenericStruct>("module::B2bua")->get<ConfigBoolean>("enabled")->set("false");
+	ConfigManager::get()->getRoot()->get<GenericStruct>("module::B2bua")->get<ConfigBoolean>("enabled")->set("false");
 	server->start();
 
 	// create clients and register them on the server

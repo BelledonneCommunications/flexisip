@@ -90,13 +90,13 @@ void basicSubscription() {
 	}
 	regEventCore->addListener(make_shared<flexisip::RegistrationEvent::Server::Subscriptions>());
 	regEventCore->start();
-	GenericManager::get()
+	ConfigManager::get()
 	    ->getRoot()
 	    ->get<GenericStruct>("module::RegEvent")
 	    ->get<ConfigValue>("regevent-server")
 	    ->set("sip:127.0.0.1:"s + std::to_string(regEventCore->getTransportsUsed()->getTcpPort()) + ";transport=tcp");
 	proxy.start();
-	GenericManager::get()
+	ConfigManager::get()
 	    ->getRoot()
 	    ->get<GenericStruct>("conference-server")
 	    ->get<ConfigValue>("outbound-proxy")

@@ -76,7 +76,7 @@ void ModuleDoSProtection::onLoad(const GenericStruct* mc) {
 	    chrono::duration_cast<chrono::minutes>(mc->get<ConfigDuration<chrono::minutes>>("ban-time")->read()).count();
 	mDOSHashtableIterator = mDosContexts.begin();
 
-	GenericStruct* cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
+	GenericStruct* cluster = ConfigManager::get()->getRoot()->get<GenericStruct>("cluster");
 	list<string> whiteList = cluster->get<ConfigStringList>("nodes")->read();
 	whiteList.splice(whiteList.end(), mc->get<ConfigStringList>("white-list")->read());
 

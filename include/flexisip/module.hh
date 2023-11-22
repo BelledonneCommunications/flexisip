@@ -119,7 +119,7 @@ protected:
 	}
 
 	void sendTrap(const std::string& msg) {
-		GenericManager::get()->sendTrap(mModuleConfig, msg);
+		ConfigManager::get()->sendTrap(mModuleConfig, msg);
 	}
 
 protected:

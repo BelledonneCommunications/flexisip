@@ -55,7 +55,7 @@ protected:
 
 class ScheduleInjectorTest : public AgentTest {
 public:
-	void onAgentConfiguration(GenericManager& cfg) override {
+	void onAgentConfiguration(ConfigManager& cfg) override {
 		AgentTest::onAgentConfiguration(cfg);
 
 		cfg.getRoot()

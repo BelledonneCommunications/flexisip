@@ -122,7 +122,7 @@ private:
 public:
 	Agent(const std::shared_ptr<sofiasip::SuRoot>& root);
 	void start(const std::string& transport_override, const std::string& passphrase);
-	void loadConfig(GenericManager* cm, bool strict = true);
+	void loadConfig(ConfigManager* cm, bool strict = true);
 	void unloadConfig();
 	~Agent() override;
 	/// Returns a pair of ip addresses: < public-ip, bind-ip> suitable for destination.
@@ -221,7 +221,7 @@ public:
 	tport_t* getIncomingTport(const msg_t* orig);
 
 	static sofiasip::TlsConfigInfo
-	getTlsConfigInfo(const GenericStruct* global = GenericManager::get()->getRoot()->get<GenericStruct>("global"));
+	getTlsConfigInfo(const GenericStruct* global = ConfigManager::get()->getRoot()->get<GenericStruct>("global"));
 
 	bool shouldUseRfc2543RecordRoute() const;
 

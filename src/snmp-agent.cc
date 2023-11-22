@@ -38,7 +38,7 @@ SnmpAgent::~SnmpAgent() {
 	mThread.join();
 }
 
-SnmpAgent::SnmpAgentTask::SnmpAgentTask(Agent& agent, GenericManager& cm, map<string, string>& oset)
+SnmpAgent::SnmpAgentTask::SnmpAgentTask(Agent& agent, ConfigManager& cm, map<string, string>& oset)
     : mConfigmanager(cm), mAgent(agent) {
 	bool disabled = oset.find("nosnmp") != oset.end();
 	(void)mAgent;
@@ -62,6 +62,6 @@ void SnmpAgent::SnmpAgentTask::operator()() {
 	SOCK_CLEANUP;
 }
 
-SnmpAgent::SnmpAgent(Agent& agent, GenericManager& cm, map<string, string>& oset)
+SnmpAgent::SnmpAgent(Agent& agent, ConfigManager& cm, map<string, string>& oset)
     : mTask(agent, cm, oset), mThread(std::ref(mTask)) {
 }

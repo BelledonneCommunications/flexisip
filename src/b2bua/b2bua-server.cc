@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023  Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -282,7 +282,7 @@ void B2buaServer::_init() {
 	/* Handle the case where the  directory is not created.
 	 * This is for convenience, because our rpm and deb packages create it already. - NO THEY DO NOT DO THAT
 	 * However, in other case (like developper environnement) this is painful to create it all the time manually.*/
-	const auto configRoot = GenericManager::get()->getRoot();
+	const auto configRoot = ConfigManager::get()->getRoot();
 	auto config = configRoot->get<GenericStruct>(b2bua::configSection);
 	auto dataDirPath = config->get<ConfigString>("data-directory")->read();
 	if (!bctbx_directory_exists(dataDirPath.c_str())) {
@@ -449,7 +449,7 @@ auto defineConfig = [] {
 	     ""},
 	    config_item_end};
 
-	GenericManager::get()
+	ConfigManager::get()
 	    ->getRoot()
 	    ->addChild(std::make_unique<GenericStruct>(b2bua::configSection,
 	                                               "Flexisip back-to-back user agent server parameters.", 0))

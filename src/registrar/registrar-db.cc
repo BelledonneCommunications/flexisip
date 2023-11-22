@@ -30,7 +30,7 @@ RegistrarDb::LocalRegExpire::LocalRegExpire(Agent* ag) : mAgent(ag) {
 }
 
 RegistrarDb::RegistrarDb(Agent* ag) : mLocalRegExpire(new LocalRegExpire(ag)), mAgent(ag), mUseGlobalDomain(false) {
-	GenericStruct* cr = GenericManager::get()->getRoot();
+	GenericStruct* cr = ConfigManager::get()->getRoot();
 	GenericStruct* mr = cr->get<GenericStruct>("module::Registrar");
 	mGruuEnabled = mr->get<ConfigBoolean>("enable-gruu")->read();
 }
@@ -242,7 +242,7 @@ RegistrarDb* RegistrarDb::initialize(Agent* ag) {
 	if (sUnique != nullptr) {
 		LOGF("RegistrarDb already initialized");
 	}
-	GenericStruct* cr = GenericManager::get()->getRoot();
+	GenericStruct* cr = ConfigManager::get()->getRoot();
 	GenericStruct* mr = cr->get<GenericStruct>("module::Registrar");
 	GenericStruct* mro = cr->get<GenericStruct>("module::Router");
 
@@ -260,7 +260,7 @@ RegistrarDb* RegistrarDb::initialize(Agent* ag) {
 	 * We check that the dbImplementation _starts_ with "redis" now, so that we stay backward compatible. */
 	else if (dbImplementation.find("redis") == 0) {
 		LOGI("RegistrarDB implementation is REDIS");
-		GenericStruct* registrar = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
+		GenericStruct* registrar = ConfigManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
 		RedisParameters params;
 		params.domain = registrar->get<ConfigString>("redis-server-domain")->read();
 		params.port = registrar->get<ConfigInt>("redis-server-port")->read();

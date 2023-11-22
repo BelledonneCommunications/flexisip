@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -278,7 +278,7 @@ protected:
 	}
 
 	// Protected methods
-	void onAgentConfiguration(GenericManager& cfg) override {
+	void onAgentConfiguration(ConfigManager& cfg) override {
 		AgentTest::onAgentConfiguration(cfg);
 
 		cfg.getRoot()
@@ -600,7 +600,7 @@ private:
 template <typename ClientPlatformT, typename PNHandlerT = DefaultPNHandler>
 class CallInviteOnOfflineDevice : public PushNotificationTest {
 protected:
-	void onAgentConfiguration(GenericManager& cfg) override {
+	void onAgentConfiguration(ConfigManager& cfg) override {
 		PushNotificationTest::onAgentConfiguration(cfg);
 		cfg.getRoot()
 		    ->get<GenericStruct>("module::PushNotification")
@@ -646,7 +646,7 @@ public:
 	CallRemotePNCancelation() : PushNotificationTest{make_shared<_DummyPushClient>()} {
 	}
 
-	void onAgentConfiguration(GenericManager& cfg) override {
+	void onAgentConfiguration(ConfigManager& cfg) override {
 		PushNotificationTest::onAgentConfiguration(cfg);
 		cfg.getRoot()
 		    ->get<GenericStruct>("module::PushNotification")
@@ -741,7 +741,7 @@ private:
  */
 class CallInviteOnOfflineDeviceWithSamePushParams : public PushNotificationTest {
 protected:
-	void onAgentConfiguration(GenericManager& cfg) override {
+	void onAgentConfiguration(ConfigManager& cfg) override {
 		PushNotificationTest::onAgentConfiguration(cfg);
 		cfg.getRoot()
 		    ->get<GenericStruct>("module::PushNotification")

@@ -54,7 +54,7 @@ public:
 	};
 
 protected:
-	virtual void onAgentConfiguration(GenericManager& cfg) override {
+	virtual void onAgentConfiguration(ConfigManager& cfg) override {
 		RegistrarDbTest::onAgentConfiguration(cfg);
 		auto* globalConf = cfg.getRoot()->get<GenericStruct>("global");
 		globalConf->get<ConfigStringList>("transports")->set("sips:localhost:5066;");

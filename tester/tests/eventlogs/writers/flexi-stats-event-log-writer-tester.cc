@@ -411,7 +411,7 @@ void messageToChatroomClearText() {
 	    {"conference-server/database-connection-string", mysqlServer.connectionString()},
 	});
 	const auto& agent = proxy->getAgent();
-	GenericManager::get()
+	ConfigManager::get()
 	    ->getRoot()
 	    ->get<GenericStruct>("conference-server")
 	    ->get<ConfigValue>("outbound-proxy")

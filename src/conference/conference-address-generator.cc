@@ -59,7 +59,7 @@ void ConferenceAddressGenerator::onRecordFound(const std::shared_ptr<Record>& r)
 			run();
 		} else {
 			mState = State::Binding;
-			auto config = GenericManager::get()->getRoot()->get<GenericStruct>("conference-server");
+			auto config = ConfigManager::get()->getRoot()->get<GenericStruct>("conference-server");
 			mConferenceServer->bindChatRoom(mConferenceAddr->asStringUriOnly(),
 			                                config->get<ConfigString>("transport")->read(), mUuid, shared_from_this());
 		}

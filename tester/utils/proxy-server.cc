@@ -40,7 +40,7 @@ namespace tester {
 Server::Server(const std::string& configFile, Module* module)
     : mModule(module ? decltype(mModule){*module} : std::nullopt) {
 	if (!configFile.empty()) {
-		GenericManager* cfg = GenericManager::get();
+		ConfigManager* cfg = ConfigManager::get();
 
 		auto configFilePath = bcTesterRes(configFile);
 		int ret = -1;
@@ -65,7 +65,7 @@ Server::Server(const std::string& configFile, Module* module)
 
 Server::Server(const std::map<std::string, std::string>& config, Module* module)
     : mModule(module ? decltype(mModule){*module} : std::nullopt) {
-	auto cfg = GenericManager::get();
+	auto cfg = ConfigManager::get();
 	cfg->load("");
 	for (const auto& kv : config) {
 		const auto& key = kv.first;

@@ -453,22 +453,22 @@ void ModuleRegistrar::onLoad(const GenericStruct* mc) {
 		readStaticRecords(); // read static records from configuration file
 		mStaticRecordsTimer = mAgent->createTimer(mStaticRecordsTimeout * 1000, &staticRoutesRereadTimerfunc, this);
 	}
-	mAllowDomainRegistrations = GenericManager::get()
+	mAllowDomainRegistrations = ConfigManager::get()
 	                                ->getRoot()
 	                                ->get<GenericStruct>("inter-domain-connections")
 	                                ->get<ConfigBoolean>("accept-domain-registrations")
 	                                ->read();
-	mAssumeUniqueDomains = GenericManager::get()
+	mAssumeUniqueDomains = ConfigManager::get()
 	                           ->getRoot()
 	                           ->get<GenericStruct>("inter-domain-connections")
 	                           ->get<ConfigBoolean>("assume-unique-domains")
 	                           ->read();
-	mUseGlobalDomain = GenericManager::get()
+	mUseGlobalDomain = ConfigManager::get()
 	                       ->getRoot()
 	                       ->get<GenericStruct>("module::Router")
 	                       ->get<ConfigBoolean>("use-global-domain")
 	                       ->read();
-	mParamsToRemove = GenericManager::get()
+	mParamsToRemove = ConfigManager::get()
 	                      ->getRoot()
 	                      ->get<GenericStruct>("module::Forward")
 	                      ->get<ConfigStringList>("params-to-remove")

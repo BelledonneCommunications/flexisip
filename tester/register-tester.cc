@@ -411,11 +411,11 @@ static void startTest() {
 
 static void duplicatePushTokenRegisterInternalDbTest() {
 	// Agent initialization
-	auto cfg = GenericManager::get();
+	auto cfg = ConfigManager::get();
 	cfg->load(bcTesterRes("config/flexisip_register.conf"));
 	agent->loadConfig(cfg);
 
-	auto registrarConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
+	auto registrarConf = ConfigManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
 	registrarConf->get<ConfigStringList>("reg-domains")->set("sip.example.org");
 	startTest();
 }

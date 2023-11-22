@@ -23,7 +23,7 @@ namespace DbImplementation {
 
 class Internal {
 public:
-	void amendConfiguration(GenericManager& cfg) {
+	void amendConfiguration(ConfigManager& cfg) {
 		auto* registrarConf = cfg.getRoot()->get<GenericStruct>("module::Registrar");
 		registrarConf->get<ConfigValue>("db-implementation")->set("internal");
 	}
@@ -37,7 +37,7 @@ public:
 
 class Redis {
 public:
-	void amendConfiguration(GenericManager& cfg) {
+	void amendConfiguration(ConfigManager& cfg) {
 		auto* registrarConf = cfg.getRoot()->get<GenericStruct>("module::Registrar");
 		registrarConf->get<ConfigValue>("db-implementation")->set("redis");
 		registrarConf->get<ConfigValue>("redis-server-domain")->set("localhost");
@@ -69,7 +69,7 @@ public:
 		RegistrarDb::resetDB();
 	}
 
-	void onAgentConfiguration(GenericManager& cfg) override {
+	void onAgentConfiguration(ConfigManager& cfg) override {
 		AgentTest::onAgentConfiguration(cfg);
 		dbImpl.amendConfiguration(cfg);
 	}

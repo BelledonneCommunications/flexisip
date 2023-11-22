@@ -188,7 +188,7 @@ void Server::Subscriptions::processRecord(const shared_ptr<Record>& r, const std
 
 void Server::_init() {
 	mCore = Factory::get()->createCore("", "", nullptr);
-	auto config = GenericManager::get()->getRoot()->get<GenericStruct>("regevent-server");
+	auto config = ConfigManager::get()->getRoot()->get<GenericStruct>("regevent-server");
 
 	mCore->getConfig()->setString("storage", "uri", "null");
 
@@ -231,7 +231,7 @@ Server::Init::Init() {
 	    "To generate the outgoing NOTIFY, it will rely upon the registrar database, as setup in module::Registrar "
 	    "section.",
 	    0);
-	auto s = GenericManager::get()->getRoot()->addChild(std::move(uS));
+	auto s = ConfigManager::get()->getRoot()->addChild(std::move(uS));
 	s->addChildrenValues(items);
 }
 

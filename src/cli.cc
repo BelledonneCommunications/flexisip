@@ -125,7 +125,7 @@ void CommandLineInterface::registerHandler(CliHandler& handler) {
 
 GenericEntry* CommandLineInterface::getGenericEntry(const std::string& arg) const {
 	std::vector<std::string> arg_split = StringUtils::split(arg, "/");
-	GenericManager* manager = GenericManager::get();
+	ConfigManager* manager = ConfigManager::get();
 	GenericStruct* root = manager->getRoot();
 
 	if (arg == "all") return root;

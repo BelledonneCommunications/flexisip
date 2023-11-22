@@ -60,11 +60,11 @@ public:
 
 static void nullMaxFrowardAndForkBasicContext() {
 	// Agent initialization
-	auto cfg = GenericManager::get();
+	auto cfg = ConfigManager::get();
 	cfg->load(bcTesterRes("config/flexisip_fork_context.conf"));
 	agent->loadConfig(cfg);
 
-	auto registrarConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
+	auto registrarConf = ConfigManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
 	registrarConf->get<ConfigStringList>("reg-domains")->set("127.0.0.1");
 
 	// Inserting a contact into the registrarDB.
@@ -123,11 +123,11 @@ static void nullMaxFrowardAndForkBasicContext() {
 
 static void notRtpPortAndForkCallContext() {
 	// Agent initialization
-	auto cfg = GenericManager::get();
+	auto cfg = ConfigManager::get();
 	cfg->load(bcTesterRes("config/flexisip_fork_context_media_relay.conf"));
 	agent->loadConfig(cfg);
 
-	auto registrarConf = GenericManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
+	auto registrarConf = ConfigManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
 	registrarConf->get<ConfigStringList>("reg-domains")->set("127.0.0.1");
 
 	// Inserting a contact into the registrarDB.

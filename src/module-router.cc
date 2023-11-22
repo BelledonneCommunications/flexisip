@@ -170,7 +170,7 @@ void ModuleRouter::onDeclare(GenericStruct* mc) {
 }
 
 void ModuleRouter::onLoad(const GenericStruct* mc) {
-	GenericStruct* cr = GenericManager::get()->getRoot();
+	GenericStruct* cr = ConfigManager::get()->getRoot();
 	const GenericStruct* mReg = cr->get<GenericStruct>("module::Registrar");
 
 	mDomains = mReg->get<ConfigStringList>("reg-domains")->read();

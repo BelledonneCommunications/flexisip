@@ -86,7 +86,7 @@ EventLog::Init::Init() {
 	    "See: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Event%20logs%20and%20queries/ for architecture "
 	    "and queries.",
 	    0);
-	auto ev = GenericManager::get()->getRoot()->addChild(std::move(uEv));
+	auto ev = ConfigManager::get()->getRoot()->addChild(std::move(uEv));
 	ev->addChildrenValues(items);
 	ev->get<ConfigString>("dir")->setDeprecated({"2020-02-19", "2.0.0", "Replaced by 'filesystem-directory'"});
 }

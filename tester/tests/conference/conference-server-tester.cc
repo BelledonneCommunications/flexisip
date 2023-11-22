@@ -104,7 +104,7 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 	              {"conference-server/conference-factory-uris", confFactoryUri},
 	              {"conference-server/empty-chat-room-deletion", "false"}}};
 	proxy.start();
-	GenericManager::get()
+	ConfigManager::get()
 	    ->getRoot()
 	    ->get<GenericStruct>("conference-server")
 	    ->get<ConfigValue>("outbound-proxy")
@@ -123,7 +123,7 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 	chatroomBuilder.setBackend(linphone::ChatRoom::Backend::FlexisipChat).setGroup(OnOff::On);
 	const auto listener = make_shared<AllJoinedWaiter>();
 	const auto conferenceServerUri = [confServerCfg =
-	                                      GenericManager::get()->getRoot()->get<GenericStruct>("conference-server")] {
+	                                      ConfigManager::get()->getRoot()->get<GenericStruct>("conference-server")] {
 		return confServerCfg->get<ConfigString>("transport")->read();
 	};
 	{ // Populate conference server's DB

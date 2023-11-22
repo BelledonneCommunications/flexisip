@@ -170,7 +170,7 @@ void ForwardModule::onLoad(const GenericStruct* mc) {
 	mRouterModule = dynamic_pointer_cast<ModuleRouter>(getAgent()->findModuleByFunction("Router"));
 	if (!mRouterModule.lock()) LOGA("Could not find 'Router' module.");
 
-	const GenericStruct* clusterSection = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
+	const GenericStruct* clusterSection = ConfigManager::get()->getRoot()->get<GenericStruct>("cluster");
 	bool clusterEnabled = clusterSection->get<ConfigBoolean>("enabled")->read();
 	if (clusterEnabled) {
 		mClusterNodes = clusterSection->get<ConfigStringList>("nodes")->read();

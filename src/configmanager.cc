@@ -46,14 +46,14 @@ bool ConfigValueListener::onConfigStateChanged(const ConfigValue& conf, ConfigSt
 		case ConfigState::Committed:
 			if (sDirty) {
 				// Write to disk
-				GenericStruct* rootStruct = GenericManager::get()->getRoot();
+				GenericStruct* rootStruct = ConfigManager::get()->getRoot();
 				ofstream cfgfile;
-				cfgfile.open(GenericManager::get()->getConfigFile());
+				cfgfile.open(ConfigManager::get()->getConfigFile());
 				FileConfigDumper dumper(rootStruct);
 				dumper.setMode(FileConfigDumper::Mode::CurrentValue);
 				cfgfile << dumper;
 				cfgfile.close();
-				LOGI("New configuration wrote to %s .", GenericManager::get()->getConfigFile().c_str());
+				LOGI("New configuration wrote to %s .", ConfigManager::get()->getConfigFile().c_str());
 				sDirty = false;
 			}
 			break;
@@ -280,9 +280,9 @@ void NotificationEntry::send(const GenericEntry* source, const string& msg) {
 		return;
 	}
 
-	static Oid& sMsgTemplateOid = GenericManager::get()->getRoot()->getDeep<GenericEntry>("notif/msg", true)->getOid();
+	static Oid& sMsgTemplateOid = ConfigManager::get()->getRoot()->getDeep<GenericEntry>("notif/msg", true)->getOid();
 	static Oid& sSourceTemplateOid =
-	    GenericManager::get()->getRoot()->getDeep<GenericEntry>("notif/source", true)->getOid();
+	    ConfigManager::get()->getRoot()->getDeep<GenericEntry>("notif/source", true)->getOid();
 
 	/*
 	 * See:
@@ -754,7 +754,7 @@ void ConfigRuntimeError::writeErrors(GenericEntry* entry, ostringstream& oss) co
 
 string ConfigRuntimeError::generateErrors() const {
 	ostringstream oss;
-	writeErrors(GenericManager::get()->getRoot(), oss);
+	writeErrors(ConfigManager::get()->getRoot(), oss);
 	return oss.str();
 }
 
@@ -797,7 +797,7 @@ shared_ptr<SipBooleanExpression> ConfigBooleanExpression::read() const {
 	return SipBooleanExpressionBuilder::get().parse(get());
 }
 
-std::unique_ptr<GenericManager> GenericManager::sInstance{};
+std::unique_ptr<ConfigManager> ConfigManager::sInstance{};
 
 static void init_flexisip_snmp() {
 #ifdef ENABLE_SNMP
@@ -824,12 +824,12 @@ static void init_flexisip_snmp() {
 #endif
 }
 
-GenericManager* GenericManager::get() {
+ConfigManager* ConfigManager::get() {
 	if (sInstance == nullptr) {
 		init_flexisip_snmp();
 		// make_unique<>() cannot be used here because
-		// the constructor of GenericManager is protected.
-		sInstance.reset(new GenericManager{});
+		// the constructor of ConfigManager is protected.
+		sInstance.reset(new ConfigManager{});
 	}
 	return sInstance.get();
 }
@@ -845,7 +845,7 @@ RootConfigStruct::~RootConfigStruct() {
 #define DEFAULT_LOG_DIR "/var/opt/belledonne-communications/log/flexisip"
 #endif
 
-GenericManager::GenericManager()
+ConfigManager::ConfigManager()
     : mConfigRoot("flexisip",
                   "This is the default Flexisip (v" FLEXISIP_GIT_VERSION ") configuration file",
                   {1, 3, 6, 1, 4, 1, SNMP_COMPANY_OID}),
@@ -1147,11 +1147,11 @@ GenericManager::GenericManager()
 	mdns->setReadOnly(true);
 }
 
-bool GenericManager::doIsValidNextConfig([[maybe_unused]] const ConfigValue& cv) {
+bool ConfigManager::doIsValidNextConfig([[maybe_unused]] const ConfigValue& cv) {
 	return true;
 }
 
-bool GenericManager::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) {
+bool ConfigManager::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) {
 	switch (state) {
 		case ConfigState::Check:
 			return doIsValidNextConfig(conf);
@@ -1172,7 +1172,7 @@ bool GenericManager::doOnConfigStateChanged(const ConfigValue& conf, ConfigState
 	return true;
 }
 
-int GenericManager::load(const std::string& configfile) {
+int ConfigManager::load(const std::string& configfile) {
 	SLOGI << "Loading config file " << configfile;
 	mConfigFile = configfile;
 	int res = mReader.read(configfile);
@@ -1180,13 +1180,13 @@ int GenericManager::load(const std::string& configfile) {
 	return res;
 }
 
-void GenericManager::loadStrict() {
+void ConfigManager::loadStrict() {
 	mReader.reload();
 	mReader.checkUnread();
 	applyOverrides(true);
 }
 
-void GenericManager::applyOverrides(bool strict) {
+void ConfigManager::applyOverrides(bool strict) {
 	for (auto& it : mOverrides) {
 		const std::string& key = it.first;
 		const std::string& value = it.second;
@@ -1199,11 +1199,11 @@ void GenericManager::applyOverrides(bool strict) {
 	}
 }
 
-GenericStruct* GenericManager::getRoot() {
+GenericStruct* ConfigManager::getRoot() {
 	return &mConfigRoot;
 }
 
-const GenericStruct* GenericManager::getGlobal() {
+const GenericStruct* ConfigManager::getGlobal() {
 	return mConfigRoot.get<GenericStruct>("global");
 }
 

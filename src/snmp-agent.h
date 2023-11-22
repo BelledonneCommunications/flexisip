@@ -25,12 +25,12 @@
 
 namespace flexisip {
 
-class GenericManager;
+class ConfigManager;
 class Agent;
 
 class SnmpAgent {
 public:
-	SnmpAgent(Agent& agent, GenericManager& cm, std::map<std::string, std::string>& oset);
+	SnmpAgent(Agent& agent, ConfigManager& cm, std::map<std::string, std::string>& oset);
 	virtual ~SnmpAgent();
 
 private:
@@ -38,12 +38,12 @@ private:
 		friend class SnmpAgent;
 
 	public:
-		SnmpAgentTask(Agent& agent, GenericManager& cm, std::map<std::string, std::string>& oset);
+		SnmpAgentTask(Agent& agent, ConfigManager& cm, std::map<std::string, std::string>& oset);
 		void operator()();
 
 	private:
 		bool mKeepRunning;
-		GenericManager& mConfigmanager;
+		ConfigManager& mConfigmanager;
 		Agent& mAgent;
 	};
 

@@ -150,7 +150,7 @@ void Agent::checkAllowedParams(const url_t* uri) {
 
 void Agent::initializePreferredRoute() {
 	// Adding internal transport to transport in "cluster" case
-	auto cluster = GenericManager::get()->getRoot()->get<GenericStruct>("cluster");
+	auto cluster = ConfigManager::get()->getRoot()->get<GenericStruct>("cluster");
 	if (cluster->get<ConfigBoolean>("enabled")->read()) {
 		auto internalTransportParam = cluster->get<ConfigString>("internal-transport");
 		auto internalTransport = internalTransportParam->read();
@@ -196,16 +196,13 @@ static void mDnsRegisterCallback(void* data, int error) {
 void Agent::startMdns() {
 #if ENABLE_MDNS
 	/* Get Informations about mDNS register */
-	GenericStruct* mdns = GenericManager::get()->getRoot()->get<GenericStruct>("mdns-register");
+	GenericStruct* mdns = ConfigManager::get()->getRoot()->get<GenericStruct>("mdns-register");
 	bool mdnsEnabled = mdns->get<ConfigBoolean>("enabled")->read();
 	if (mdnsEnabled) {
 		if (!belle_sip_mdns_register_available()) LOGF("Belle-sip does not have mDNS activated!");
 
-		string mdnsDomain = GenericManager::get()
-		                        ->getRoot()
-		                        ->get<GenericStruct>("cluster")
-		                        ->get<ConfigString>("cluster-domain")
-		                        ->read();
+		string mdnsDomain =
+		    ConfigManager::get()->getRoot()->get<GenericStruct>("cluster")->get<ConfigString>("cluster-domain")->read();
 		int mdnsPrioMin = mdns->get<ConfigIntRange>("mdns-priority")->readMin();
 		int mdnsPrioMax = mdns->get<ConfigIntRange>("mdns-priority")->readMax();
 		int mdnsWeight = mdns->get<ConfigInt>("mdns-weight")->read();
@@ -253,7 +250,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	}
 	string currDir = cCurrDir;
 
-	GenericStruct* global = GenericManager::get()->getRoot()->get<GenericStruct>("global");
+	GenericStruct* global = ConfigManager::get()->getRoot()->get<GenericStruct>("global");
 	list<string> transports = global->get<ConfigStringList>("transports")->read();
 	string ciphers = global->get<ConfigString>("tls-ciphers")->read();
 	// sofia needs a value in millseconds.
@@ -412,7 +409,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 
 		if (mNodeUri == nullptr) {
 			mNodeUri = urlFromTportName(&mHome, name);
-			auto clusterDomain = GenericManager::get()
+			auto clusterDomain = ConfigManager::get()
 			                         ->getRoot()
 			                         ->get<GenericStruct>("cluster")
 			                         ->get<ConfigString>("cluster-domain")
@@ -431,7 +428,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	}
 
 	bool clusterModeEnabled =
-	    GenericManager::get()->getRoot()->get<GenericStruct>("cluster")->get<ConfigBoolean>("enabled")->read();
+	    ConfigManager::get()->getRoot()->get<GenericStruct>("cluster")->get<ConfigBoolean>("enabled")->read();
 	mDefaultUri = (clusterModeEnabled && mClusterUri) ? mClusterUri : mNodeUri;
 
 	mPublicResolvedIpV4 = computeResolvedPublicIp(mPublicIpV4, AF_INET);
@@ -507,7 +504,7 @@ TlsConfigInfo Agent::getTlsConfigInfo(const GenericStruct* global) {
 
 Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root) {
 	mHttpEngine = nth_engine_create(root->getCPtr(), NTHTAG_ERROR_MSG(0), TAG_END());
-	GenericStruct* cr = GenericManager::get()->getRoot();
+	GenericStruct* cr = ConfigManager::get()->getRoot();
 
 	EtcHostsResolver::get();
 
@@ -615,7 +612,7 @@ bool Agent::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) {
 	return mBaseConfigListener->onConfigStateChanged(conf, state);
 }
 
-void Agent::loadConfig(GenericManager* cm, bool strict) {
+void Agent::loadConfig(ConfigManager* cm, bool strict) {
 	if (strict)
 		cm->loadStrict(); // now that each module has declared its settings, we need to reload from the config file
 	if (!mBaseConfigListener) {
@@ -1078,7 +1075,7 @@ void Agent::idle() {
 	for (const auto& module : mModules) {
 		module->idle();
 	}
-	if (GenericManager::get()->mNeedRestart) {
+	if (ConfigManager::get()->mNeedRestart) {
 		exit(RESTART_EXIT_CODE);
 	}
 }

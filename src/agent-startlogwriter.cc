@@ -23,7 +23,7 @@ using namespace std;
 namespace flexisip {
 
 void Agent::startLogWriter() {
-	GenericStruct* cr = GenericManager::get()->getRoot()->get<GenericStruct>("event-logs");
+	GenericStruct* cr = ConfigManager::get()->getRoot()->get<GenericStruct>("event-logs");
 
 	if (cr->get<ConfigBoolean>("enabled")->read()) {
 		if (cr->get<ConfigString>("logger")->read() == "database") {
