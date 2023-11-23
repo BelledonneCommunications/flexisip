@@ -302,6 +302,46 @@ CoreClient::callWithEarlyCancel(const std::shared_ptr<CoreClient>& callee,
 	return callerCall;
 }
 
+std::shared_ptr<linphone::Call>
+CoreClient::callWithEarlyDecline(const std::shared_ptr<CoreClient>& callee,
+                                 const std::shared_ptr<linphone::CallParams>& callerCallParams) {
+	shared_ptr<linphone::CallParams> callParams = callerCallParams;
+	if (callParams == nullptr) {
+		callParams = mCore->createCallParams(nullptr);
+	}
+
+	auto addressWithoutGr = callee->getAccount()->getContactAddress()->clone();
+	addressWithoutGr->removeUriParam("gr");
+	auto callerCall = mCore->inviteAddressWithParams(addressWithoutGr, callParams);
+
+	if (callerCall == nullptr) {
+		BC_FAIL("Invite failed");
+		return nullptr;
+	}
+
+	const auto& agent = mServer.getAgent();
+	CoreAssert asserter{mCore, agent};
+	asserter.registerSteppable(callee);
+
+	// Check call get the incoming call and caller is in OutgoingRinging state
+	if (!BC_ASSERT_TRUE(asserter.waitUntil(seconds(10), [&callerCall, &callee] {
+		    return callerCall->getState() == linphone::Call::State::OutgoingRinging && callee->getCurrentCall() &&
+		           callee->getCurrentCall()->getState() == Call::State::IncomingReceived;
+	    }))) {
+		return nullptr;
+	}
+
+	callee->getCurrentCall()->decline(linphone::Reason::Declined);
+
+	if (!BC_ASSERT_TRUE(asserter.wait([&callerCall, &callee] {
+		    return callerCall->getState() == linphone::Call::State::Released &&
+		           (!callee->getCurrentCall() || callee->getCurrentCall()->getState() == Call::State::Released);
+	    }))) {
+		return nullptr;
+	}
+	return callerCall;
+}
+
 bool CoreClient::callUpdate(const CoreClient& peer, const std::shared_ptr<linphone::CallParams>& callParams) {
 	if (callParams == nullptr) {
 		BC_FAIL("Cannot update call without new call params");

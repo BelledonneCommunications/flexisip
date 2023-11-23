@@ -43,8 +43,8 @@ public:
 	 */
 	std::shared_ptr<BranchInfo> addBranch(const std::shared_ptr<RequestSipEvent>& ev,
 	                                      const std::shared_ptr<ExtendedContact>& contact) override;
-	bool allCurrentBranchesAnswered(bool ignore_errors_and_timeouts = false) const override;
-	bool allBranchesAnswered(bool ignore_errors_and_timeouts = false) const;
+	bool allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const override;
+	bool allBranchesAnswered(FinalStatusMode finalStatusMode) const;
 	/**
 	 * Request if the fork has other branches with lower priorities to try
 	 */
@@ -78,7 +78,7 @@ public:
 	bool isFinished() const override {
 		return mFinished;
 	};
-	void checkFinished() override;
+	std::shared_ptr<BranchInfo> checkFinished() override;
 	sofiasip::MsgSipPriority getMsgPriority() const override {
 		return mMsgPriority;
 	};
@@ -127,7 +127,7 @@ protected:
 	// Get a branch by specifying its request URI destination.
 	std::shared_ptr<BranchInfo> findBranchByDest(const SipUri& dest);
 	// Get the best candidate among all branches for forwarding its responses.
-	std::shared_ptr<BranchInfo> findBestBranch(bool avoid503And408 = false);
+	std::shared_ptr<BranchInfo> findBestBranch(bool ignore503And408 = false);
 	int getLastResponseCode() const;
 	void removeBranch(const std::shared_ptr<BranchInfo>& br);
 	const std::list<std::shared_ptr<BranchInfo>>& getBranches() const;
@@ -175,7 +175,6 @@ protected:
 	std::weak_ptr<ForkContextListener> mListener;
 
 private:
-	std::shared_ptr<BranchInfo> _findBestBranch(bool ignore503And408);
 	// Set the next branches to try and process them
 	void nextBranches();
 	void onNextBranches();

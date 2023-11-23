@@ -171,6 +171,50 @@ static void calleeOfflineWithOneDevice() {
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
 }
 
+static void calleeOfflineWithOneDeviceEarlyDecline() {
+	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
+	server->start();
+
+	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server);
+	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server);
+	auto calleeClientOfflineDevice =
+	    server->clientBuilder().setApplePushConfig().build("sip:calleeClient@sip.test.org");
+	auto calleeOfflineDeviceCore = calleeClientOfflineDevice.getCore();
+
+	calleeClientOfflineDevice.disconnect();
+
+	callerClient->callWithEarlyDecline(calleeClient);
+
+	// Assert that fork is still present because not all devices where online
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
+	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 0, int, "%i");
+
+	// Offline device came back online, sending a new Register
+	calleeClientOfflineDevice.reconnect();
+	CoreAssert asserter{calleeOfflineDeviceCore, server};
+	// Wait for registration OK and check that call log is not empty anymore
+	BC_ASSERT_TRUE(asserter.wait([&calleeClientOfflineDevice] {
+		return calleeClientOfflineDevice.getAccount()->getState() == RegistrationState::Ok &&
+		       !calleeClientOfflineDevice.getCore()->getCallLogs().empty();
+	}));
+
+	// Assert CANCEL is received
+	BC_ASSERT_TRUE(asserter.wait([&calleeOfflineDeviceCore] {
+		return !calleeOfflineDeviceCore->getCurrentCall() ||
+		       calleeOfflineDeviceCore->getCurrentCall()->getState() == Call::State::End ||
+		       calleeOfflineDeviceCore->getCurrentCall()->getState() == Call::State::Released;
+	}));
+
+	// Assert Fork is destroyed
+	BC_ASSERT_TRUE(asserter.wait([agent = server->getAgent()] {
+		const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		return moduleRouter->mStats.mCountCallForks->finish->read() == 1;
+	}));
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
+}
+
 static void calleeMultipleOnlineDevices() {
 	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
 	server->start();
@@ -197,6 +241,7 @@ TestSuite _("Fork call context suite",
             {
                 TEST_NO_TAG("Basic call -> terminate", basicCall),
                 TEST_NO_TAG("Call with early cancel", callWithEarlyCancel),
+                TEST_NO_TAG("Call with early decline", calleeOfflineWithOneDeviceEarlyDecline),
                 TEST_NO_TAG("Call an offline user, early cancel", callWithEarlyCancelCalleeOffline),
                 TEST_NO_TAG("Call an online user, with an other offline device", calleeOfflineWithOneDevice),
                 TEST_NO_TAG("Call an online user, with other idle devices", calleeMultipleOnlineDevices),

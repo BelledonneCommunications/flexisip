@@ -66,6 +66,11 @@ public:
 	}
 };
 
+enum class FinalStatusMode {
+	RFC, /*Every status >= 200 is considered as a final status*/
+	ForkLate /*Every status >= 200 is considered as a final status EXCEPT 408 and 503*/,
+};
+
 class BranchInfo : public std::enable_shared_from_this<BranchInfo> {
 public:
 	virtual ~BranchInfo() = default;
@@ -97,9 +102,16 @@ public:
 		if (tr) tr->setProperty("BranchInfo", br);
 	}
 
-	bool needsDelivery() {
+	bool needsDelivery(FinalStatusMode mode = FinalStatusMode::RFC) {
 		auto currentStatus = getStatus();
-		return currentStatus < 200 || currentStatus == 503 || currentStatus == 408;
+
+		switch (mode) {
+			case FinalStatusMode::ForkLate:
+				return currentStatus < 200 || currentStatus == 503 || currentStatus == 408;
+			case FinalStatusMode::RFC:
+			default:
+				return currentStatus < 200;
+		}
 	}
 
 	BranchInfoDb getDbObject() {

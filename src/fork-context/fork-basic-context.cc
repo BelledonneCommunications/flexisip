@@ -56,7 +56,7 @@ void ForkBasicContext::onResponse(const shared_ptr<BranchInfo>& br, const shared
 			forwardResponse(br);
 			mDecisionTimer.reset(nullptr);
 		} else {
-			if (allBranchesAnswered()) {
+			if (allBranchesAnswered(FinalStatusMode::RFC)) {
 				finishIncomingTransaction();
 			}
 		}

@@ -73,7 +73,7 @@ bool ForkContext::processResponse(const shared_ptr<ResponseSipEvent>& ev) {
 				// LOGD("The response has been retained");
 			}
 
-			if (forkCtx->allCurrentBranchesAnswered() && forkCtx->hasNextBranches()) {
+			if (forkCtx->allCurrentBranchesAnswered(FinalStatusMode::RFC) && forkCtx->hasNextBranches()) {
 				forkCtx->start();
 			}
 

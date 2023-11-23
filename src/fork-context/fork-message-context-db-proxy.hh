@@ -19,6 +19,7 @@
 #pragma once
 
 #include <atomic>
+#include <memory>
 #include <string>
 
 #include "fork-context/fork-context-base.hh"
@@ -78,9 +79,9 @@ public:
 		return newBranch;
 	}
 
-	bool allCurrentBranchesAnswered(bool ignore_errors_and_timeouts = false) const override {
+	bool allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const override {
 		if (getState() != State::IN_MEMORY) return true;
-		return mForkMessage->allCurrentBranchesAnswered(ignore_errors_and_timeouts);
+		return mForkMessage->allCurrentBranchesAnswered(finalStatusMode);
 	}
 
 	bool hasNextBranches() const override {
@@ -115,9 +116,9 @@ public:
 		return mIsFinished;
 	}
 
-	void checkFinished() override {
+	std::shared_ptr<BranchInfo> checkFinished() override {
 		checkState(__FUNCTION__, State::IN_MEMORY);
-		mForkMessage->checkFinished();
+		return mForkMessage->checkFinished();
 	}
 
 	const std::shared_ptr<RequestSipEvent>& getEvent() override {

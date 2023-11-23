@@ -27,6 +27,7 @@
 
 namespace flexisip {
 
+enum class FinalStatusMode;
 class BranchInfo;
 class IncomingTransaction;
 class OutgoingTransaction;
@@ -72,7 +73,7 @@ public:
 	// Called by the Router module to create a new branch.
 	virtual std::shared_ptr<BranchInfo> addBranch(const std::shared_ptr<RequestSipEvent>& ev,
 	                                              const std::shared_ptr<ExtendedContact>& contact) = 0;
-	virtual bool allCurrentBranchesAnswered(bool ignore_errors_and_timeouts = false) const = 0;
+	virtual bool allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const = 0;
 	// Request if the fork has other branches with lower priorities to try
 	virtual bool hasNextBranches() const = 0;
 	/**
@@ -104,7 +105,11 @@ public:
 	virtual const std::shared_ptr<RequestSipEvent>& getEvent() = 0;
 	virtual const std::shared_ptr<ForkContextConfig>& getConfig() const = 0;
 	virtual bool isFinished() const = 0;
-	virtual void checkFinished() = 0;
+	/**
+	 * Check if the fork context should be considered as finished. A final answer is sent if needed.
+	 * If a final answer is sent and correspond to a branch, this branch is returned.
+	 */
+	virtual std::shared_ptr<BranchInfo> checkFinished() = 0;
 	virtual sofiasip::MsgSipPriority getMsgPriority() const = 0;
 	virtual const ForkContext* getPtrForEquality() const = 0;
 

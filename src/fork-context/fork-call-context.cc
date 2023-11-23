@@ -151,9 +151,6 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, const shared_
 				mCancelled = true;
 				cancelOthersWithStatus(br, ForkStatus::DeclineElsewhere);
 			}
-		} else if (allBranchesAnswered(mCfg->mForkLate)) {
-			shared_ptr<BranchInfo> best = findBestBranch(mCfg->mForkLate);
-			if (best) forwardThenLogResponse(best);
 		} else if (isUrgent(code, getUrgentCodes()) && mShortTimer == nullptr) {
 			mShortTimer = make_unique<sofiasip::Timer>(mAgent->getRoot());
 			mShortTimer->set([this]() { onShortTimer(); }, mCfg->mUrgentTimeout);
@@ -170,7 +167,9 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, const shared_
 		forwardThenLogResponse(br);
 	}
 
-	checkFinished();
+	if (auto forwardedBr = checkFinished(); forwardedBr) {
+		logResponse(forwardedBr->mLastResponse, forwardedBr.get());
+	}
 }
 
 void ForkCallContext::onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept {
@@ -271,9 +270,7 @@ void ForkCallContext::onShortTimer() {
 
 void ForkCallContext::onLateTimeout() {
 	if (mIncoming) {
-		auto br = findBestBranch(mCfg->mForkLate);
-
-		if (!br || br->getStatus() == 0 || br->getStatus() == 503) {
+		if (auto br = findBestBranch(mCfg->mForkLate); !br || br->getStatus() == 0) {
 			// Forward then log _custom_ response
 			logResponse(forwardCustomResponse(SIP_408_REQUEST_TIMEOUT), br.get());
 		} else {

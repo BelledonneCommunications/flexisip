@@ -88,7 +88,6 @@ public:
 	 * @param[in] callee 			client to call
 	 * @param[in] calleeAddress 	override address of the client to call
 	 * @param[in] callerCallParams	call params used by the caller to answer the call. nullptr to use default callParams
-	 * @param[in] calleeCallParams	call params used by the callee to accept the call. nullptr to use default callParams
 	 *
 	 * @return the established call from caller side, nullptr on failure
 	 */
@@ -107,6 +106,18 @@ public:
 	                                     const std::vector<std::shared_ptr<CoreClient>>& calleeIdleDevices = {});
 
 	/**
+	 * Establish a call, but decline the call before it starts
+	 *
+	 * @param[in] callee 			client to call
+	 * @param[in] callerCallParams	call params used by the caller to answer the call. nullptr to use default callParams
+	 *
+	 * @return the established call from caller side, nullptr on failure
+	 */
+	std::shared_ptr<linphone::Call>
+	callWithEarlyDecline(const std::shared_ptr<CoreClient>& callee,
+	                     const std::shared_ptr<linphone::CallParams>& callerCallParams = nullptr);
+
+	/**
 	 * Establish a call, but cancel before callee receive it
 	 *
 	 * @param[in] callee 			client to call
@@ -119,7 +130,6 @@ public:
 	callWithEarlyCancel(const std::shared_ptr<CoreClient>& callee,
 	                    const std::shared_ptr<linphone::CallParams>& callerCallParams = nullptr,
 	                    bool isCalleeAway = false);
-
 	/**
 	 * Establish a video call.
 	 * video is enabled caller side, with or without callParams given
