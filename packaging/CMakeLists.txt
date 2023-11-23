@@ -117,6 +117,9 @@ if("RPM" IN_LIST CPACK_GENERATOR)
 		"'${CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX}/src_0' in the binary files."
 	)
 
+	# Ensure we use python3.
+	set(CPACK_RPM_SPEC_MORE_DEFINE "%global __python %{__python3}")
+
 	### RPM Cpack generator limitation: the length of "${CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX}/src_0"
 	### must not be longer than ${PROJECT_SOURCE_DIR}
 	string(LENGTH "${CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX}" cur_length)
