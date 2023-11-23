@@ -461,12 +461,6 @@ public:
 	}
 };
 
-class FindBestBranchNoBranchConsidered408Fallback : public FindBestBranchTest {
-public:
-	FindBestBranchNoBranchConsidered408Fallback() : FindBestBranchTest(true, 408, {180, 100, 408, 42}) {
-	}
-};
-
 ///////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -487,7 +481,6 @@ TestSuite _("Fork context",
                 TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchDontAvoid503Test>),
                 TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchDontAvoid408Test>),
                 TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchNoBranchConsidered>),
-                TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchNoBranchConsidered408Fallback>),
             },
             Hooks()
                 .beforeEach([] {

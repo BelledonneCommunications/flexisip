@@ -266,7 +266,8 @@ void ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
 }
 
 bool ForkMessageContextDbProxy::canBeSaved() const {
-	return getState() == State::IN_MEMORY && mForkMessage->allBranchesAnswered() && !mForkMessage->isFinished();
+	return getState() == State::IN_MEMORY && mForkMessage->allBranchesAnswered(FinalStatusMode::RFC) &&
+	       !mForkMessage->isFinished();
 }
 
 void ForkMessageContextDbProxy::clearMemoryIfPossible() {

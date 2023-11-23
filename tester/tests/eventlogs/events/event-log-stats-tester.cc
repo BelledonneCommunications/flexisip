@@ -213,7 +213,7 @@ void callInviteStatuses() {
 	}
 	{
 		const auto mikePhoneInvite = invitesByDeviceUuid.find(mikePhoneUuid);
-		BC_ASSERT_TRUE(mikePhoneInvite != invitesByDeviceUuid.end());
+		BC_HARD_ASSERT_TRUE(mikePhoneInvite != invitesByDeviceUuid.end());
 		const auto& mikePhoneInviteEvent = mikePhoneInvite->second.get();
 		BC_ASSERT_CPP_EQUAL(mikePhoneInviteEvent.isCancelled(), false);
 		BC_ASSERT_CPP_EQUAL(mikePhoneInviteEvent.getStatusCode(), 603 /* Declined */);
@@ -252,7 +252,7 @@ void callInviteStatuses() {
 		invitesByDeviceUuid.emplace(uuidFromSipInstance(event.getDevice()->mKey.str()), event);
 	}
 	const auto mikePhoneInvite = invitesByDeviceUuid.find(mikePhoneUuid);
-	BC_ASSERT_TRUE(mikePhoneInvite != invitesByDeviceUuid.end());
+	BC_HARD_ASSERT_TRUE(mikePhoneInvite != invitesByDeviceUuid.end());
 	const auto& mikePhoneInviteEvent = mikePhoneInvite->second.get();
 	BC_ASSERT_CPP_EQUAL(mikePhoneInviteEvent.isCancelled(), false);
 	BC_ASSERT_CPP_EQUAL(mikePhoneInviteEvent.getStatusCode(), 200 /* Accepted */);

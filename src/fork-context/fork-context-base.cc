@@ -131,7 +131,7 @@ bool ForkContextBase::isUseful4xx(int statusCode) {
 	return (std::find(useful4xxCodes.begin(), useful4xxCodes.end(), statusCode) != useful4xxCodes.end());
 }
 
-std::shared_ptr<BranchInfo> ForkContextBase::_findBestBranch(bool ignore503And408) {
+std::shared_ptr<BranchInfo> ForkContextBase::findBestBranch(bool ignore503And408) {
 	shared_ptr<BranchInfo> best{nullptr};
 
 	for (const auto& br : mWaitingBranches) {
@@ -173,36 +173,21 @@ std::shared_ptr<BranchInfo> ForkContextBase::_findBestBranch(bool ignore503And40
 	return best;
 }
 
-std::shared_ptr<BranchInfo> ForkContextBase::findBestBranch(bool avoid503And408) {
-	shared_ptr<BranchInfo> ret;
-
-	if (avoid503And408 == false) {
-		ret = _findBestBranch(false);
-	} else {
-		ret = _findBestBranch(true);
-		if (ret == nullptr) ret = _findBestBranch(false);
-	}
-
-	return ret;
-}
-
-bool ForkContextBase::allBranchesAnswered(bool ignore_errors_and_timeouts) const {
+bool ForkContextBase::allBranchesAnswered(FinalStatusMode finalStatusMode) const {
 	for (const auto& br : mWaitingBranches) {
-		int code = br->getStatus();
-
-		if (code < 200) return false;
-		if ((code == 503 || code == 408) && ignore_errors_and_timeouts) return false;
+		if (br->needsDelivery(finalStatusMode)) {
+			return false;
+		}
 	}
 
 	return true;
 }
 
-bool ForkContextBase::allCurrentBranchesAnswered(bool ignore_errors_and_timeouts) const {
+bool ForkContextBase::allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const {
 	for (const auto& br : mCurrentBranches) {
-		int code = br->getStatus();
-
-		if (code < 200) return false;
-		if ((code == 503 || code == 408) && ignore_errors_and_timeouts) return false;
+		if (br->needsDelivery(finalStatusMode)) {
+			return false;
+		}
 	}
 
 	return true;
@@ -572,26 +557,26 @@ void ForkContextBase::processInternalError(int status, const char* phrase) {
 	forwardCustomResponse(status, phrase);
 }
 
-void ForkContextBase::checkFinished() {
+std::shared_ptr<BranchInfo> ForkContextBase::checkFinished() {
 	if (mIncoming == nullptr && !mCfg->mForkLate) {
 		setFinished();
-		return;
+		return nullptr;
 	}
 
-	auto branches = getBranches();
-	bool allBranchesTerminated = true;
+	if (allBranchesAnswered(FinalStatusMode::RFC)) {
+		const auto& br = findBestBranch(mCfg->mForkLate);
 
-	if (!mCfg->mForkLate) {
-		allBranchesTerminated = allBranchesAnswered();
-	} else {
-		allBranchesTerminated = !any_of(branches.cbegin(), branches.cend(),
-		                                [](const shared_ptr<BranchInfo>& branch) { return branch->needsDelivery(); });
-	}
-	if (allBranchesTerminated) {
-		shared_ptr<BranchInfo> br = findBestBranch();
+		if (mCfg->mForkLate && allBranchesAnswered(FinalStatusMode::ForkLate)) {
+			setFinished();
+		} else if (!mCfg->mForkLate) {
+			setFinished();
+		}
+
 		if (br) {
 			forwardResponse(br);
+			return br;
 		}
-		setFinished();
 	}
+
+	return nullptr;
 }

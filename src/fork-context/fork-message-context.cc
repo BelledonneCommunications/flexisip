@@ -30,12 +30,10 @@
 #include "bctoolbox/tester.h"
 #endif
 
-#include "conference/chatroom-prefix.hh"
 #include "eventlogs/events/event-id.hh"
 #include "eventlogs/events/eventlogs.hh"
 #include "eventlogs/events/messages/message-response-from-recipient-event-log.hh"
 #include "eventlogs/events/messages/message-sent-event-log.hh"
-#include "eventlogs/events/messages/with-message-kind.hh"
 #include "flexisip/common.hh"
 #include "flexisip/module.hh"
 #include "flexisip/utils/sip-uri.hh"
@@ -187,7 +185,7 @@ void ForkMessageContext::onResponse(const shared_ptr<BranchInfo>& br, const shar
 		logResponseFromRecipient(*br, event);
 	}
 	checkFinished();
-	if (mAcceptanceTimer && allBranchesAnswered() && !isFinished()) {
+	if (mAcceptanceTimer && allBranchesAnswered(FinalStatusMode::RFC) && !isFinished()) {
 		// If all branches are answered quickly but the ForkContext is not finished and the mAcceptanceTimer is still up
 		// we can trigger it directly.
 		onAcceptanceTimer();
@@ -281,7 +279,7 @@ void ForkMessageContext::onNewRegister(const SipUri& dest,
 			LOGD("ForkMessageContext::onNewRegister(): this is a new client instance.");
 			sharedListener->onDispatchNeeded(shared_from_this(), newContact);
 			return;
-		} else if (br->needsDelivery()) {
+		} else if (br->needsDelivery(FinalStatusMode::ForkLate)) {
 			// this is a client for which the message wasn't delivered yet (or failed to be delivered). The message
 			// needs to be delivered.
 			LOGD("ForkMessageContext::onNewRegister(): this client is reconnecting but was not delivered before.");
