@@ -293,17 +293,17 @@ private:
 		    "0.0.0.0", 8383, "TCP", nullptr, [&isRequestReceived](const belle_sip_request_event_t* event) {
 			    isRequestReceived = true;
 			    auto request = belle_sip_request_event_get_request(event);
-			    if (!BC_ASSERT_PTR_NOT_NULL(request)) {
-				    return;
-			    }
+			    BC_HARD_ASSERT_NOT_NULL(request);
 			    auto message = BELLE_SIP_MESSAGE(request);
-			    auto routes = belle_sip_message_get_headers(message, "Route");
-			    if (routes == nullptr) {
-				    BC_FAIL("Both routes were removed");
-			    } else if (bctbx_list_last_elem(routes) != bctbx_list_first_elem(routes)) {
+			    BC_HARD_ASSERT_NOT_NULL(message);
+			    auto routes = belle_sip_message_get_headers(message, BELLE_SIP_ROUTE);
+			    BC_HARD_ASSERT_NOT_NULL(routes);
+			    if (bctbx_list_last_elem(routes) != bctbx_list_first_elem(routes)) {
 				    BC_FAIL("Both routes were preserved");
-			    } else if (strchr((char*)bctbx_list_get_data(routes), '6') != nullptr) {
-				    BC_FAIL("Wrong route is preserved");
+			    } else {
+				    auto* routeActual = (belle_sip_header_route_t*)bctbx_list_first_elem(routes)->data;
+				    auto* routeExpected = belle_sip_header_route_parse("Route: <sip:127.0.0.1:8383;transport=tcp;lr>");
+				    BC_ASSERT_TRUE(belle_sip_header_route_equals(routeActual, routeExpected) == 0);
 			    }
 		    }};
 
