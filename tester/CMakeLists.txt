@@ -59,7 +59,6 @@ add_executable(flexisip_tester
 	boolean-expressions.cc
 	cli-tester.cc
 	domain-registration-tester.cc
-	extended-contact-tester.cc
 	${CMAKE_CURRENT_BINARY_DIR}/flexisip-tester-config.hh flexisip-tester-config.hh.in
 	fork-call-tester.cc
 	fork-context-tester.cc
@@ -70,9 +69,6 @@ add_executable(flexisip_tester
 	module-router-tester.cc
 	module-toolbox-tester.cc
 	msg-sip-tester.cc
-	register-tester.cc
-	registrardb-tester.cc
-	registrardb-redis-tester.cc
 	sip-uri-tests.cc
 	schedule-injector-tester.cc
 	sofia-tester.cc
@@ -91,6 +87,10 @@ add_executable(flexisip_tester
 	tests/pushnotification/rfc8599-push-params-tester.cc
 	tests/pushnotification/module-pushnotification-tester.cc
 	tests/pushnotification/service-tester.cc
+	tests/registrar/extended-contact-tester.cc
+	tests/registrar/register-tester.cc
+	tests/registrar/registrardb-tester.cc
+	tests/registrar/registrardb-redis-tester.cc
 	tests/sofia-wrapper/home-tester.cc
 	thread-pool-tester.cc
 	tls-connection-tester.cc
