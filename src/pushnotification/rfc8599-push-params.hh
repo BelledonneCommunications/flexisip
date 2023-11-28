@@ -25,6 +25,7 @@
 #include <string>
 
 #include "push-type.hh"
+#include "utils/string-utils.hh"
 
 namespace flexisip {
 namespace pushnotification {
@@ -47,6 +48,20 @@ public:
 	}
 	const std::string& getPrid() const noexcept {
 		return mPrid;
+	}
+
+	std::string getAPNSTopic() const noexcept {
+		if (isApns()) {
+			return getParam().substr(getParam().find('.') + 1);
+		}
+		return "";
+	}
+
+	std::string getAppIdentifier() const noexcept {
+		if (isApns()) {
+			return getAPNSTopic() + (StringUtils::endsWith(getProvider(), ".dev") ? ".dev" : ".prod");
+		}
+		return getParam();
 	}
 
 	/**

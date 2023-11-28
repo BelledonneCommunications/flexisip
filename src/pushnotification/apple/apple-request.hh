@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -21,8 +21,7 @@
 #include "pushnotification/request.hh"
 #include "utils/transport/http/http-message.hh"
 
-namespace flexisip {
-namespace pushnotification {
+namespace flexisip::pushnotification {
 
 /**
  * This class represent one Apple push notification request. This class inherits from Request, so it can be treated
@@ -33,8 +32,6 @@ class AppleRequest : public Request, public HttpMessage {
 public:
 	AppleRequest(PushType pType, const std::shared_ptr<const PushInfo>& info);
 
-	std::string getAppIdentifier() const noexcept override;
-	std::string getAPNSTopic() const noexcept;
 	std::string getTeamId() const noexcept;
 	const std::string& getDeviceToken() const noexcept {
 		return getDestination().getPrid();
@@ -50,5 +47,4 @@ protected:
 	friend class AppleClient;
 };
 
-} // namespace pushnotification
-} // namespace flexisip
+} // namespace flexisip::pushnotification

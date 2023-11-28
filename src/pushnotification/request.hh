@@ -64,7 +64,7 @@ public:
 	}
 	void setState(State state) noexcept;
 	virtual std::string getAppIdentifier() const noexcept {
-		return getDestination().getParam();
+		return getDestination().getAppIdentifier();
 	}
 
 protected:
