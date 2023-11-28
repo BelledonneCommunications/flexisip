@@ -1,2 +1,1 @@
 %systemd_preun @FLEXISIP_SERVICES@
-
