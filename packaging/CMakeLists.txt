@@ -82,14 +82,9 @@ if(ENABLE_B2BUA)
 	string(APPEND FLEXISIP_SERVICES " flexisip-b2bua")
 endif()
 
-
-# List of files to mark as config files. That prevent them to be replaced by package update.
-# Add flexisip-logrotate.conf and SystemD services
+# List of files to mark as config files.
+# Prevents them from being replaced after a package upgrade or downgrade if their content has been modified.
 set(CONFIG_FILES "${FLEXISIP_LOGROTATE_INSTALL_LOCATION}")
-foreach(service ${FLEXISIP_SYSTEMD_SERVICES})
-	list(APPEND CONFIG_FILES "${FLEXISIP_SYSTEMD_INSTALL_DIR}/${service}")
-endforeach()
-
 
 #######################################################################################################################
 # RedHat/CentOS package
@@ -104,14 +99,14 @@ if("RPM" IN_LIST CPACK_GENERATOR)
 	set(CPACK_RPM_PACKAGE_RELEASE "${release}")
 	set(CPACK_RPM_PACKAGE_REQUIRES "${extra_dependencies_str}")
 	set(CPACK_RPM_PACKAGE_OBSOLETES "${obsolete_packets_str}")
-	set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION "/opt/belledonne-communications/include")
 	set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
 	set(CPACK_RPM_PACKAGE_RELEASE_DIST ON)
 	set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
-	       "/etc/logrotate.d"
-	       "/lib"
-	       "/lib/systemd"
-	       "/lib/systemd/system"
+		"/etc/logrotate.d"
+		"/lib"
+		"/lib/systemd"
+		"/lib/systemd/system"
+		"/opt/belledonne-communications/include"
 	)
 
 	## Enable debuginfo package generation
@@ -155,6 +150,7 @@ if("RPM" IN_LIST CPACK_GENERATOR)
 	foreach(conffile ${CONFIG_FILES})
 		list(APPEND CPACK_RPM_USER_FILELIST "%config(noreplace) ${conffile}")
 	endforeach()
+
 endif()
 
 
