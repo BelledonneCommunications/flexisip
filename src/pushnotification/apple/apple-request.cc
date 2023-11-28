@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,7 +16,6 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <algorithm>
 #include <regex>
 #include <string>
 
@@ -24,7 +23,6 @@
 #include "flexisip/sofia-wrapper/msg-sip.hh"
 
 #include "utils/string-utils.hh"
-#include "utils/uri-utils.hh"
 
 #include "apple-request.hh"
 
@@ -153,22 +151,13 @@ AppleRequest::AppleRequest(PushType pType, const std::shared_ptr<const PushInfo>
 	headers.add(":scheme", "https");
 	headers.add(":path", path);
 	headers.add("apns-expiration", to_string(expire));
-	headers.add("apns-topic", getAPNSTopic());
+	headers.add("apns-topic", getDestination().getAPNSTopic());
 	headers.add("apns-push-type", pushTypeToApnsPushType(pType));
 	headers.add("apns-priority", "10");
 	if (!collapseId.empty()) headers.add("apns-collapse-id", collapseId);
 	this->setHeaders(headers);
 
 	SLOGD << "Apple PNR  " << this << " https headers are :\n" << headers.toString();
-}
-
-std::string AppleRequest::getAppIdentifier() const noexcept {
-	return getAPNSTopic() + (StringUtils::endsWith(getDestination().getProvider(), ".dev") ? ".dev" : ".prod");
-}
-
-std::string AppleRequest::getAPNSTopic() const noexcept {
-	const auto& topic = getDestination().getParam();
-	return topic.substr(topic.find('.') + 1);
 }
 
 std::string AppleRequest::getTeamId() const noexcept {

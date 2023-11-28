@@ -62,13 +62,14 @@ std::shared_ptr<Request> Service::makeRequest(PushType pType, const std::shared_
 	}
 
 	// No generic client set, then create a native request for the target platform.
-	auto client = mClients.find(pInfo->getDestination(pType).getParam());
+	auto client = mClients.find(pInfo->getDestination(pType).getAppIdentifier());
 	if (client != mClients.cend() && client->second != nullptr) {
 		return client->second->makeRequest(pType, pInfo);
 	} else if (client = mClients.find(sFallbackClientKey); client != mClients.cend() && client->second != nullptr) {
 		return client->second->makeRequest(pType, pInfo);
 	} else {
-		throw runtime_error{"unsupported PN provider [" + pInfo->getPNProvider() + "]"};
+		throw runtime_error{"No PN client available for AppID[" + pInfo->getDestination(pType).getAppIdentifier() +
+		                    "]"};
 	}
 }
 
