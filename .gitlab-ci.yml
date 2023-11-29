@@ -13,7 +13,7 @@ variables:
   # For build on MacOS
   DEFAULT_MACOS_CMAKE_OPTIONS: ''
   # For packaging, deb and rpm
-  DEFAULT_PACKAGING_CMAKE_OPTIONS: '-DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc -DFLEXISIP_SYSTEMD_INSTALL_DIR=/lib/systemd/system'
+  DEFAULT_PACKAGING_CMAKE_OPTIONS: '-DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc -DFLEXISIP_SYSTEMD_INSTALL_DIR=/usr/lib/systemd/system'
 
   # Docker image version
   ARCHLINUX_IMAGE_VERSION: 20230704_enable_tests
