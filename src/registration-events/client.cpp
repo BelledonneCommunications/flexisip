@@ -79,6 +79,8 @@ void Client::setListener(ClientListener* listener) {
 }
 
 void Client::onNotifyReceived(const std::shared_ptr<const linphone::Content>& body) {
+	if (!body) throw runtime_error("Empty notify Content.");
+
 	istringstream data(body->getUtf8Text());
 
 	unique_ptr<Reginfo> ri(parseReginfo(data, Xsd::XmlSchema::Flags::dont_validate));
