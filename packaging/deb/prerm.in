@@ -1,7 +1,6 @@
 #!/bin/bash
 
-if [ "$1" = 'remove' ] ; then 
-	systemctl --no-reload disable @FLEXISIP_SERVICES@  > /dev/null 2>&1 || : 
-	systemctl stop @FLEXISIP_SERVICES@ > /dev/null 2>&1 || : 
+if [ "$1" = "remove" ]; then
+  systemctl --no-reload disable @FLEXISIP_SERVICES@  > /dev/null 2>&1 || :
+  systemctl stop @FLEXISIP_SERVICES@ > /dev/null 2>&1 || :
 fi
-

@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Create configuration directory
+# Create configuration directory along with default configuration file
 mkdir -p /etc/flexisip
-
-# Make running daemon to be restart after upgrade
+# Try to restart daemon after upgrade
 systemctl try-restart @FLEXISIP_SERVICES@  >/dev/null 2>&1 || :
