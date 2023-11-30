@@ -86,7 +86,10 @@ endif()
 
 # List of files to mark as config files.
 # Prevents them from being replaced after a package upgrade or downgrade if their content has been modified.
-set(CONFIG_FILES "${FLEXISIP_LOGROTATE_INSTALL_LOCATION}")
+set(CONFIG_FILES
+	"${FLEXISIP_LOGROTATE_INSTALL_LOCATION}"
+	"${FLEXISIP_CONFIGURATION_FILE_INSTALL_LOCATION}"
+)
 
 #######################################################################################################################
 # RedHat/CentOS package

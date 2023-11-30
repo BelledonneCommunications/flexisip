@@ -415,3 +415,19 @@ install(TARGETS flexisip_serializer
 	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
 )
+
+#######################################################################################################################
+# Generate default configuration file for flexisip
+#######################################################################################################################
+add_custom_target(flexisip_config
+	ALL
+	COMMAND ${CMAKE_BINARY_DIR}/bin/flexisip --dump-all-default > "${CMAKE_BINARY_DIR}/flexisip.conf"
+	BYPRODUCTS "${CMAKE_BINARY_DIR}/flexisip.conf"
+	COMMENT "Flexisip default configuration file generation"
+)
+add_dependencies(flexisip_config flexisip_server)
+install(FILES "${CMAKE_BINARY_DIR}/flexisip.conf"
+	DESTINATION "${SYSCONF_INSTALL_DIR}/flexisip"
+	PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
+)
+set(FLEXISIP_CONFIGURATION_FILE_INSTALL_LOCATION "${SYSCONF_INSTALL_DIR}/flexisip/flexisip.conf" PARENT_SCOPE)
