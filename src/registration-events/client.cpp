@@ -77,6 +77,8 @@ void Client::setListener(ClientListener* listener) {
 }
 
 void Client::onNotifyReceived(const std::shared_ptr<const linphone::Content>& body) {
+	if (!body) throw runtime_error("Empty notify Content.");
+
 	istringstream data(body->getUtf8Text());
 
 	unique_ptr<Reginfo> ri(parseReginfo(data, Xsd::XmlSchema::Flags::dont_validate));
@@ -152,8 +154,10 @@ void ClientFactory::onNotifyReceived([[maybe_unused]] const shared_ptr<Core>& lc
 	try {
 		Client& client = lev->getData<Client>(Client::eventKey);
 		client.onNotifyReceived(body);
-	} catch (...) {
-		LOGE("ClientFactory::onNotifyReceived: disconnected client");
+	} catch (const std::out_of_range&) {
+		LOGW("ClientFactory::onSubscriptionStateChanged: Client disconnected");
+	} catch (const std::exception& exc) {
+		SLOGE << "ClientFactory::onSubscriptionStateChanged: " << exc.what();
 	}
 }
 
