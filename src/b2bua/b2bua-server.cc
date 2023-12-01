@@ -21,6 +21,7 @@
 #include "linphone/misc.h"
 #include <mediastreamer2/ms_srtp.h>
 
+#include "flexisip/flexisip-version.h"
 #include "flexisip/logmanager.hh"
 #include "flexisip/utils/sip-uri.hh"
 
@@ -37,9 +38,9 @@ namespace flexisip {
 // b2bua namespace to declare internal structures
 namespace b2bua {
 struct callsRefs {
-	std::shared_ptr<linphone::Call> legA; /**< legA is the incoming call intercepted by the b2bua */
-	std::shared_ptr<linphone::Call> legB; /**< legB is the call initiated by the b2bua to the original recipient */
-	std::shared_ptr<linphone::Conference> conf; /**< the conference created to connect legA and legB */
+	shared_ptr<linphone::Call> legA;       /**< legA is the incoming call intercepted by the b2bua */
+	shared_ptr<linphone::Call> legB;       /**< legB is the call initiated by the b2bua to the original recipient */
+	shared_ptr<linphone::Conference> conf; /**< the conference created to connect legA and legB */
 };
 } // namespace b2bua
 
@@ -52,7 +53,7 @@ namespace {
  *
  * @return	the other call in the conference
  */
-std::shared_ptr<linphone::Call> getPeerCall(std::shared_ptr<linphone::Call> call) {
+shared_ptr<linphone::Call> getPeerCall(shared_ptr<linphone::Call> call) {
 	auto& confData = call->getData<flexisip::b2bua::callsRefs>(B2buaServer::confKey);
 	if (call->getDir() == linphone::Call::Dir::Outgoing) {
 		return confData.legA;
@@ -62,16 +63,16 @@ std::shared_ptr<linphone::Call> getPeerCall(std::shared_ptr<linphone::Call> call
 }
 } // namespace
 
-B2buaServer::B2buaServer(const std::shared_ptr<sofiasip::SuRoot>& root) : ServiceServer(root), mCli("b2bua") {
+B2buaServer::B2buaServer(const shared_ptr<sofiasip::SuRoot>& root) : ServiceServer(root), mCli("b2bua") {
 }
 
 B2buaServer::~B2buaServer() {
 }
 
-void B2buaServer::onCallStateChanged([[maybe_unused]] const std::shared_ptr<linphone::Core>& core,
-                                     const std::shared_ptr<linphone::Call>& call,
+void B2buaServer::onCallStateChanged([[maybe_unused]] const shared_ptr<linphone::Core>& core,
+                                     const shared_ptr<linphone::Call>& call,
                                      linphone::Call::State state,
-                                     [[maybe_unused]] const std::string& message) {
+                                     [[maybe_unused]] const string& message) {
 	SLOGD << "b2bua server onCallStateChanged to " << (int)state << " "
 	      << ((call->getDir() == linphone::Call::Dir::Outgoing) ? "legB" : "legA");
 	switch (state) {
@@ -85,10 +86,10 @@ void B2buaServer::onCallStateChanged([[maybe_unused]] const std::shared_ptr<linp
 			outgoingCallParams->addCustomHeader("flexisip-b2bua", "ignore");
 
 			const auto callee = Match(mApplication->onCallCreate(*call, *outgoingCallParams))
-			                        .against([](std::shared_ptr<const linphone::Address> callee) { return callee; },
+			                        .against([](shared_ptr<const linphone::Address> callee) { return callee; },
 			                                 [&call](linphone::Reason&& reason) {
 				                                 call->decline(reason);
-				                                 return std::shared_ptr<const linphone::Address>{};
+				                                 return shared_ptr<const linphone::Address>{};
 			                                 });
 			if (callee == nullptr) return;
 
@@ -275,8 +276,8 @@ void B2buaServer::onCallStateChanged([[maybe_unused]] const std::shared_ptr<linp
 	}
 }
 
-void B2buaServer::onDtmfReceived([[maybe_unused]] const std::shared_ptr<linphone::Core>& _core,
-                                 const std::shared_ptr<linphone::Call>& call,
+void B2buaServer::onDtmfReceived([[maybe_unused]] const shared_ptr<linphone::Core>& _core,
+                                 const shared_ptr<linphone::Call>& call,
                                  int dtmf) {
 	auto otherLeg = getPeerCall(call);
 	SLOGD << "Forwarding DTMF " << dtmf << " from " << call->getCallLog()->getCallId() << " to "
@@ -286,9 +287,9 @@ void B2buaServer::onDtmfReceived([[maybe_unused]] const std::shared_ptr<linphone
 
 void B2buaServer::_init() {
 	// Parse configuration for Data Dir
-	/* Handle the case where the  directory is not created.
+	/* Handle the case where the directory is not created.
 	 * This is for convenience, because our rpm and deb packages create it already. - NO THEY DO NOT DO THAT
-	 * However, in other case (like developper environnement) this is painful to create it all the time manually.*/
+	 * However, in other cases (like development environment) it is painful to create it all the time manually.*/
 	const auto configRoot = GenericManager::get()->getRoot();
 	auto config = configRoot->get<GenericStruct>(b2bua::configSection);
 	auto dataDirPath = config->get<ConfigString>("data-directory")->read();
@@ -330,14 +331,20 @@ void B2buaServer::_init() {
 	mCore->getConfig()->setString("storage", "uri", ":memory:");
 	mCore->setUseFiles(true); // No sound card shall be used in calls
 	mCore->enableEchoCancellation(false);
-	mCore->setPrimaryContact("sip:b2bua@localhost"); // TODO: get the primary contact from config, do we really need
-	                                                 // one?
-	mCore->enableAutoSendRinging(
-	    false); // Do not auto answer a 180 on incoming calls, relay the one from the other part.
+	mCore->setPrimaryContact("sip:b2bua@localhost"); // TODO: get primary contact from config, do we really need one?
+	mCore->enableAutoSendRinging(false); // Do not auto answer 180 on incoming calls, relay the one from the other part.
 	mCore->setZrtpSecretsFile("null");
 	// Give enough time to the outgoing call (legB) to establish while we leave the incoming one (legA) ringing
 	// See RFC 3261 §16.6 step 11 for the duration
 	mCore->setIncTimeout(4 * 60);
+
+	// Read user-agent parameter.
+	smatch matchResult{};
+	const auto userAgent = config->get<ConfigString>("user-agent")->read();
+	if (!regex_match(userAgent, matchResult, regex("(.+)\\/(.+)"))) {
+		throw runtime_error("user-agent parameter is ill-formed. Please use the following syntax: <name>/<version>.");
+	}
+	mCore->setUserAgent(matchResult[1], matchResult[2]);
 
 	// b2bua shall never take the initiative of accepting or starting video calls
 	// stick to incoming call parameters for that
@@ -348,7 +355,7 @@ void B2buaServer::_init() {
 	mCore->setVideoActivationPolicy(policy);
 
 	// if a video codec is set in config enable only that one
-	std::string cVideoCodec = config->get<ConfigString>("video-codec")->read();
+	string cVideoCodec = config->get<ConfigString>("video-codec")->read();
 	if (cVideoCodec.length() > 0) {
 		// disable all video codecs
 		for (const auto& pt : mCore->getVideoPayloadTypes()) {
@@ -379,7 +386,7 @@ void B2buaServer::_init() {
 
 	// Get transport from flexisip configuration
 	shared_ptr<Transports> b2buaTransport = Factory::get()->createTransports();
-	std::string mTransport = config->get<ConfigString>("transport")->read();
+	string mTransport = config->get<ConfigString>("transport")->read();
 	if (mTransport.length() > 0) {
 		try {
 			const auto urlTransport = SipUri{mTransport};
@@ -423,9 +430,9 @@ void B2buaServer::_init() {
 	auto applicationType = config->get<ConfigString>("application")->read();
 	SLOGD << "B2BUA server starting with '" << applicationType << "' application";
 	if (applicationType == "trenscrypter") {
-		mApplication = std::make_unique<b2bua::trenscrypter::Trenscrypter>();
+		mApplication = make_unique<b2bua::trenscrypter::Trenscrypter>();
 	} else if (applicationType == "sip-bridge") {
-		auto bridge = std::make_unique<b2bua::bridge::AccountManager>();
+		auto bridge = make_unique<b2bua::bridge::AccountManager>();
 		mCli.registerHandler(*bridge);
 		mApplication = std::move(bridge);
 	} else {
@@ -457,6 +464,7 @@ auto defineConfig = [] {
 	     "trenscrypter"},
 	    {String, "transport", "SIP uri on which the back-to-back user agent server is listening on.",
 	     "sip:127.0.0.1:6067;transport=tcp"},
+	    {String, "user-agent", "Value of User-Agent header.", "Flexisip-B2BUA/" FLEXISIP_GIT_VERSION},
 	    {String, "data-directory",
 	     "Directory where to store b2bua core local files\n"
 	     "Default",
@@ -480,8 +488,8 @@ auto defineConfig = [] {
 
 	GenericManager::get()
 	    ->getRoot()
-	    ->addChild(std::make_unique<GenericStruct>(b2bua::configSection,
-	                                               "Flexisip back-to-back user agent server parameters.", 0))
+	    ->addChild(
+	        make_unique<GenericStruct>(b2bua::configSection, "Flexisip back-to-back user agent server parameters.", 0))
 	    ->addChildrenValues(items);
 
 	return nullptr;

@@ -8,6 +8,7 @@
 
 #include <linphone/core.h>
 
+#include "flexisip/flexisip-version.h"
 #include "pushnotification/rfc8599-push-params.hh"
 #include "tester.hh"
 #include "utils/client-core.hh"
@@ -35,6 +36,7 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 
 	auto core = minimalCore(*mFactory);
 	core->setPrimaryContact(me);
+	core->setUserAgent("LinphoneSDK for Flexisip regression tests", FLEXISIP_GIT_VERSION);
 
 	auto accountParams = mAccountParams->clone();
 	accountParams->setIdentityAddress(myAddress);

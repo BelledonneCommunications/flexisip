@@ -32,6 +32,7 @@
 
 #include "flexisip/configmanager.hh"
 #include "flexisip/event.hh"
+#include "flexisip/flexisip-version.h"
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "flexisip/utils/sip-uri.hh"
 
@@ -70,9 +71,7 @@ private:
 	std::shared_ptr<flexisip::B2buaServer> mB2buaServer;
 
 public:
-	explicit B2buaServer(const std::string& configFile = std::string(),
-	                     bool start = true,
-	                     Module* injectedModule = nullptr)
+	explicit B2buaServer(const std::string& configFile = string(), bool start = true, Module* injectedModule = nullptr)
 	    : Server(configFile, injectedModule) {
 		// Configure B2bua Server
 		auto* b2buaServerConf = GenericManager::get()->getRoot()->get<GenericStruct>("b2bua-server");
@@ -107,7 +106,7 @@ public:
 	}
 
 	auto& configureExternalProviderBridge(std::initializer_list<flexisip::b2bua::bridge::ProviderDesc>&& provDescs) {
-		mB2buaServer->mApplication = std::make_unique<flexisip::b2bua::bridge::AccountManager>(
+		mB2buaServer->mApplication = make_unique<flexisip::b2bua::bridge::AccountManager>(
 		    *mB2buaServer->mCore, std::vector<flexisip::b2bua::bridge::ProviderDesc>(std::move(provDescs)));
 		return static_cast<flexisip::b2bua::bridge::AccountManager&>(*mB2buaServer->mApplication);
 	}
@@ -203,7 +202,7 @@ struct DtmfListener : public linphone::CallListener {
 
 static void external_provider_bridge__one_provider_one_line() {
 	using namespace flexisip::b2bua;
-	auto server = std::make_shared<B2buaServer>("/config/flexisip_b2bua.conf");
+	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf");
 	const auto line1 = "sip:bridge@sip.provider1.com";
 	auto providers = {bridge::ProviderDesc{"provider1",
 	                                       "sip:\\+39.*",
@@ -250,7 +249,7 @@ static void external_provider_bridge__one_provider_one_line() {
 
 static void external_provider_bridge__dtmf_forwarding() {
 	using namespace flexisip::b2bua;
-	auto server = std::make_shared<B2buaServer>("/config/flexisip_b2bua.conf");
+	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf");
 	auto providers = {bridge::ProviderDesc{"provider1",
 	                                       "sip:\\+39.*",
 	                                       outboundProxy,
@@ -290,7 +289,7 @@ static void external_provider_bridge__dtmf_forwarding() {
 // Assert that when a call ends, the appropriate account is updated
 static void external_provider_bridge__call_release() {
 	using namespace flexisip::b2bua;
-	auto server = std::make_shared<B2buaServer>("/config/flexisip_b2bua.conf");
+	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf");
 	// We start with 4 empty slots total, divided into 2 lines
 	auto providers = {bridge::ProviderDesc{
 	    "2 lines 2 slots",
@@ -312,9 +311,9 @@ static void external_provider_bridge__call_release() {
 	    },
 	}};
 	auto& accman = server->configureExternalProviderBridge(std::move(providers));
-	const auto reader = std::unique_ptr<Json::CharReader>(Json::CharReaderBuilder().newCharReader());
+	const auto reader = unique_ptr<Json::CharReader>(Json::CharReaderBuilder().newCharReader());
 	auto getLinesInfo = [&accman, &reader]() {
-		const auto raw = accman.handleCommand("SIP_BRIDGE", std::vector<std::string>{"INFO"});
+		const auto raw = accman.handleCommand("SIP_BRIDGE", vector<string>{"INFO"});
 		auto info = Json::Value();
 		BC_ASSERT_TRUE(reader->parse(raw.begin().base(), raw.end().base(), &info, nullptr));
 		return std::move(info["providers"][0]["accounts"]);
@@ -379,7 +378,7 @@ static void external_provider_bridge__load_balancing() {
 	const auto call = ClientCall::getLinphoneCall(*callee.getCurrentCall());
 	auto& b2buaCore = *intercom.getCore();
 	auto params = b2buaCore.createCallParams(call);
-	std::vector<bridge::AccountDesc> lines{
+	vector<bridge::AccountDesc> lines{
 	    bridge::AccountDesc{
 	        "sip:+39068439733@sip.provider1.com",
 	        "",
@@ -409,12 +408,12 @@ static void external_provider_bridge__load_balancing() {
 	        std::move(lines),
 	    }},
 	};
-	auto tally = std::unordered_map<const linphone::Account*, uint32_t>();
+	auto tally = unordered_map<const linphone::Account*, uint32_t>();
 
 	uint32_t i = 0;
 	for (; i < maxCallsPerLine; i++) {
 		const auto result = accman.onCallCreate(*call, *params);
-		const auto* callee = std::get_if<std::shared_ptr<const linphone::Address>>(&result);
+		const auto* callee = get_if<shared_ptr<const linphone::Address>>(&result);
 		BC_HARD_ASSERT_TRUE(callee != nullptr);
 		BC_ASSERT_CPP_EQUAL((**callee).getUsername(), expectedUsername);
 		tally[params->getAccount().get()]++;
@@ -434,18 +433,18 @@ static void external_provider_bridge__load_balancing() {
 	// Finish saturating all the lines
 	for (; i < (maxCallsPerLine * line_count); i++) {
 		const auto result = accman.onCallCreate(*call, *params);
-		const auto* callee = std::get_if<std::shared_ptr<const linphone::Address>>(&result);
+		const auto* callee = get_if<shared_ptr<const linphone::Address>>(&result);
 		BC_HARD_ASSERT_TRUE(callee != nullptr);
 		BC_ASSERT_CPP_EQUAL((**callee).getUsername(), expectedUsername);
 	}
 
 	// Only now would the call get rejected
-	BC_ASSERT_TRUE(std::holds_alternative<linphone::Reason>(accman.onCallCreate(*call, *params)));
+	BC_ASSERT_TRUE(holds_alternative<linphone::Reason>(accman.onCallCreate(*call, *params)));
 }
 
 static void external_provider_bridge__parse_register_authenticate() {
 	using namespace flexisip::b2bua;
-	auto server = std::make_shared<B2buaServer>("/config/flexisip_b2bua.conf", false);
+	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf", false);
 	GenericManager::get()
 	    ->getRoot()
 	    ->get<GenericStruct>("b2bua-server")
@@ -470,7 +469,7 @@ static void external_provider_bridge__parse_register_authenticate() {
 	BC_ASSERT_PTR_NOT_NULL(invite);
 	BC_ASSERT_FALSE(other_phone.hasReceivedCallFrom(other_intercom));
 
-	const auto info = accman.handleCommand("SIP_BRIDGE", std::vector<std::string>{"INFO"});
+	const auto info = accman.handleCommand("SIP_BRIDGE", vector<string>{"INFO"});
 	const auto expected = R"({
 	"providers" : 
 	[
@@ -543,7 +542,7 @@ static void external_provider_bridge__override_special_options() {
 
 	const auto calleeAddres = accman.onCallCreate(*call, *params);
 
-	BC_ASSERT_TRUE(std::holds_alternative<std::shared_ptr<const linphone::Address>>(calleeAddres));
+	BC_ASSERT_TRUE(holds_alternative<shared_ptr<const linphone::Address>>(calleeAddres));
 	// Special call params overriden
 	BC_ASSERT_TRUE(params->getMediaEncryption() == MediaEncryption::None);
 	BC_ASSERT_TRUE(params->avpfEnabled() == false);
@@ -573,7 +572,7 @@ static void external_provider_bridge__b2bua_receives_several_forks() {
 	      |       |     |           |            |            |            |
 	*/
 	using namespace flexisip::b2bua;
-	auto server = std::make_shared<B2buaServer>("/config/flexisip_b2bua.conf", false);
+	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf", false);
 	{
 		auto root = GenericManager::get()->getRoot();
 		root->get<GenericStruct>("b2bua-server")->get<ConfigString>("application")->set("sip-bridge");
@@ -663,7 +662,7 @@ static void external_provider_bridge__cli() {
 	                                                                  }}}});
 
 	// Not a command handled by the bridge
-	auto output = accman.handleCommand("REGISTRAR_DUMP", std::vector<std::string>{"INFO"});
+	auto output = accman.handleCommand("REGISTRAR_DUMP", vector<string>{"INFO"});
 	auto expected = "";
 	BC_ASSERT_TRUE(output == expected);
 
@@ -672,11 +671,11 @@ static void external_provider_bridge__cli() {
 	expected = "Valid subcommands for SIP_BRIDGE:\n"
 	           "  INFO  displays information on the current state of the bridge.";
 	BC_ASSERT_TRUE(output == expected);
-	output = accman.handleCommand("SIP_BRIDGE", std::vector<std::string>{"anything"});
+	output = accman.handleCommand("SIP_BRIDGE", vector<string>{"anything"});
 	BC_ASSERT_TRUE(output == expected);
 
 	// INFO command
-	output = accman.handleCommand("SIP_BRIDGE", std::vector<std::string>{"INFO"});
+	output = accman.handleCommand("SIP_BRIDGE", vector<string>{"INFO"});
 	// Fields are sorted alphabetically, and `:` are surrounded by whitespace (` : `) even before linebreaks
 	// (Yes, that's important when writing assertions like the following)
 	// (No, it can't be configured in Jsoncpp, or I didn't find where)
@@ -741,13 +740,13 @@ static void external_provider_bridge__max_call_duration() {
 		 ]
 		}
 	])";
-	const auto b2bua = std::make_shared<flexisip::B2buaServer>(proxy.getRoot());
+	const auto b2bua = make_shared<flexisip::B2buaServer>(proxy.getRoot());
 	b2bua->init();
 	GenericManager::get()
 	    ->getRoot()
 	    ->get<GenericStruct>("module::B2bua")
 	    ->get<ConfigString>("b2bua-server")
-	    ->set("sip:127.0.0.1:" + std::to_string(b2bua->getTcpPort()) + ";transport=tcp");
+	    ->set("sip:127.0.0.1:" + to_string(b2bua->getTcpPort()) + ";transport=tcp");
 	proxy.getAgent()->findModule("B2bua")->reload();
 	auto builder = proxy.clientBuilder();
 	InternalClient caller = builder.build("sip:caller@sip.company1.com");
@@ -761,14 +760,14 @@ static void external_provider_bridge__max_call_duration() {
 	                   .iterateUpTo(3,
 	                                [&callee]() {
 		                                const auto calleeCall = callee.getCurrentCall();
-		                                FAIL_IF(calleeCall == std::nullopt);
+		                                FAIL_IF(calleeCall == nullopt);
 		                                FAIL_IF(calleeCall->getState() != linphone::Call::State::StreamsRunning);
 		                                return ASSERTION_PASSED();
 	                                })
 	                   .assert_passed());
 
 	// None of the clients terminated the call, but the B2BUA dropped it on its own
-	BC_ASSERT_TRUE(asserter.waitUntil(2s, [&callee]() { return callee.getCurrentCall() == std::nullopt; }));
+	BC_ASSERT_TRUE(asserter.waitUntil(2s, [&callee]() { return callee.getCurrentCall() == nullopt; }));
 }
 
 // Forge an INVITE with an erroneous request address, but appropriate To: header.
@@ -789,7 +788,7 @@ static void trenscrypter__uses_aor_and_not_contact() {
 		        sip->sip_request->rq_url[0] = *injectedRequestUrl.get();
 	        },
 	}};
-	B2buaServer server{"/config/flexisip_b2bua.conf", true, &hooks};
+	B2buaServer server{"config/flexisip_b2bua.conf", true, &hooks};
 	auto builder = server.clientBuilder();
 	auto caller = builder.build("sip:caller@sip.example.org");
 	auto unexpected = builder.build(unexpectedRecipient);
@@ -802,10 +801,82 @@ static void trenscrypter__uses_aor_and_not_contact() {
 	BC_ASSERT_FALSE(unexpected.hasReceivedCallFrom(caller));
 }
 
+// Test value of the "User-Agent:" header when a request is routed through the b2bua-server.
+static void request_header__user_agent() {
+	constexpr auto expected{"test-user-agent-value/stub-version"};
+	constexpr auto unexpected{"unexpected-user-agent-value"};
+	std::string userAgentValue{unexpected};
+	
+	InjectedHooks hooks{{
+	    .onRequest =
+	        [&userAgentValue](const std::shared_ptr<RequestSipEvent>& responseEvent) {
+		        const auto* sip = responseEvent->getSip();
+		        if (sip->sip_request->rq_method != sip_method_invite ||
+		            ModuleToolbox::getCustomHeaderByName(sip, "flexisip-b2bua") == nullptr) {
+			        return;
+		        }
+
+		        userAgentValue = sip_user_agent(sip)->g_string;
+	        },
+	}};
+	B2buaServer server{"config/flexisip_b2bua.conf", false, &hooks};
+	GenericManager::get()
+	    ->getRoot()
+	    ->get<GenericStruct>("b2bua-server")
+	    ->get<ConfigString>("user-agent")
+	    ->set(expected);
+	server.start();
+
+	const auto caller = server.clientBuilder().build("sip:caller@sip.example.org");
+	CoreAssert asserter{caller, server};
+
+	caller.invite("sip:recipient@sip.example.org");
+
+	asserter
+	    .iterateUpTo(
+	        4,
+	        [&userAgentValue]() {
+		        FAIL_IF(userAgentValue == unexpected);
+		        return ASSERTION_PASSED();
+	        },
+	        1s)
+	    .assert_passed();
+	BC_ASSERT_CPP_EQUAL(userAgentValue, expected);
+}
+
+// Test value of "user-agent" parameter in b2bua-server.
+static void configuration__user_agent() {
+	const auto cfg = GenericManager::get();
+
+	// Throws "runtime_error exception: bad_weak_pointer" error during test if server is not a shared_ptr.
+	const auto server = make_shared<flexisip::B2buaServer>(make_shared<sofiasip::SuRoot>());
+
+	constexpr auto expected = "test-user-agent-value/stub-version";
+	const auto b2buaServerCfg = cfg->getRoot()->get<GenericStruct>("b2bua-server");
+	b2buaServerCfg->get<ConfigString>("user-agent")->set(expected);
+
+	// Test when value is well-formed.
+	server->init();
+
+	const auto value = cfg->getRoot()->get<GenericStruct>("b2bua-server")->get<ConfigString>("user-agent")->read();
+	BC_ASSERT_CPP_EQUAL(value, expected);
+
+	// Avoid side effects for the following tests.
+	server->stop();
+
+	cfg->getRoot()->get<GenericStruct>("b2bua-server")->get<ConfigString>("user-agent")->set("WRONG_VALUE");
+
+	// Test exception is thrown when parameter is ill-formed.
+	BC_ASSERT_THROWN(server->init(), std::runtime_error);
+
+	// Avoid side effects for the following tests.
+	server->stop();
+}
+
 // Basic call not using the B2bua server
 static void basic() {
 	// Create a server and start it
-	auto server = std::make_shared<Server>("/config/flexisip_b2bua.conf");
+	auto server = make_shared<Server>("config/flexisip_b2bua.conf");
 	// flexisip_b2bua config file enables the module B2bua in proxy, disable it for this basic test
 	GenericManager::get()->getRoot()->get<GenericStruct>("module::B2bua")->get<ConfigBoolean>("enabled")->set("false");
 	server->start();
@@ -859,7 +930,7 @@ static bool mixedEncryption(const std::string& marieName,
                             linphone::MediaEncryption paulineEncryption,
                             bool video) {
 	// initialize and start the proxy and B2bua server
-	auto server = std::make_shared<B2buaServer>("/config/flexisip_b2bua.conf");
+	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf");
 	auto builder = server->clientBuilder();
 	builder.setVideoSend(OnOff::On);
 	// Create and register clients
@@ -973,7 +1044,7 @@ static void zrtp2dtls() {
 
 static void sdes2sdes256(bool video) {
 	// initialize and start the proxy and B2bua server
-	auto server = std::make_shared<B2buaServer>("/config/flexisip_b2bua.conf");
+	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf");
 	auto builder = server->clientBuilder();
 	builder.setVideoSend(OnOff::On);
 	// Create and register clients
@@ -1050,7 +1121,7 @@ static void disableAllVideoCodecs(std::shared_ptr<linphone::Core> core) {
 template <const char codec[]>
 static void trenscrypter__video_call_with_forced_codec() {
 	// initialize and start the proxy and B2bua server
-	B2buaServer server{"/config/flexisip_b2bua.conf"};
+	B2buaServer server{"config/flexisip_b2bua.conf"};
 	// Create and register clients
 	auto builder = server.clientBuilder();
 	builder.setVideoSend(OnOff::On);
@@ -1079,11 +1150,11 @@ static void trenscrypter__video_call_with_forced_codec() {
 
 static void videoRejected() {
 	// initialize and start the proxy and B2bua server
-	auto server = std::make_shared<B2buaServer>("/config/flexisip_b2bua.conf");
+	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf");
 	{
 		// Create and register clients
-		auto marie = std::make_shared<CoreClient>("sip:marie@sip.example.org", server);
-		auto pauline = std::make_shared<CoreClient>("sip:pauline@sip.example.org", server);
+		auto marie = make_shared<CoreClient>("sip:marie@sip.example.org", server);
+		auto pauline = make_shared<CoreClient>("sip:pauline@sip.example.org", server);
 		CoreAssert asserter{marie, pauline, server};
 
 		auto marieCallParams = marie->getCore()->createCallParams(nullptr);
@@ -1144,6 +1215,8 @@ TestSuite _("B2bua",
                 CLASSY_TEST(external_provider_bridge__override_special_options),
                 CLASSY_TEST(external_provider_bridge__max_call_duration),
                 CLASSY_TEST(trenscrypter__uses_aor_and_not_contact),
+                CLASSY_TEST(request_header__user_agent),
+                CLASSY_TEST(configuration__user_agent),
                 TEST_NO_TAG("Basic", basic),
                 TEST_NO_TAG("Forward Media Encryption", forward),
                 TEST_NO_TAG("SDES to ZRTP call", sdes2zrtp),
