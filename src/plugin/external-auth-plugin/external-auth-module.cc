@@ -61,10 +61,10 @@ void ExternalAuthModule::popAndSendRequest() {
 	try {
 		auto& externalAs = dynamic_cast<ExternalAuthModule::Status&>(ctx->as);
 		auto& credentials = ctx->creds;
-		HttpUriFormater::TranslationFunc func = [&externalAs, &credentials](const string& key) {
+		HttpUriFormatter::TranslationFunc func = [&externalAs, &credentials](const string& key) {
 			return extractParameter(externalAs, credentials, key);
 		};
-		string uri = mUriFormater.format(func);
+		string uri = mUriFormatter.format(func);
 
 		nth_client_t* request =
 		    nth_client_tcreate(mEngine, onHttpResponseCb, reinterpret_cast<nth_client_magic_t*>(ctx.get()),

@@ -70,7 +70,7 @@ FlexisipAuthModuleBase*
 ModuleExternalAuthentication::createAuthModule(const std::string& domain, int nonceExpire, bool qopAuth) {
 	try {
 		auto* am = new ExternalAuthModule(getAgent()->getRoot()->getCPtr(), domain, nonceExpire, qopAuth);
-		am->getFormater().setTemplate(mRemoteUri);
+		am->getFormatter().setTemplate(mRemoteUri);
 		return am;
 	} catch (const invalid_argument& e) {
 		LOGF("error while parsing 'module::ExternalAuthentication/remote-auth-uri': %s", e.what());
@@ -99,7 +99,7 @@ FlexisipAuthStatus* ModuleExternalAuthentication::createAuthStatus(const std::sh
 		if (withoutNamespace) {
 			as->uuid(string(*withoutNamespace));
 		} else {
-			SLOGE << "ExernalAuthentication: error while getting UUID: '" << uuid
+			SLOGE << "ExternalAuthentication: error while getting UUID: '" << uuid
 			      << "' does not start with 'urn:uuid:'";
 		}
 	}
@@ -145,7 +145,7 @@ ModuleInfo<ModuleExternalAuthentication> ExternalAuthInfo(
     "\t* P-Asserted-Identity: enable to add a 'P-Asserted-Identity' header (RFC 3325) to the SIP request, once it "
     "pass the authentication.\n"
     "\n"
-    "Exemple of response from the HTTP server:\n"
+    "Example of response from the HTTP server:\n"
     "\n"
     "Status: 403\n"
     "Phrase: Access denied\n"

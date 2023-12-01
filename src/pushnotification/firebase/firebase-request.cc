@@ -21,7 +21,7 @@
 #include "flexisip/logmanager.hh"
 
 #include "firebase-client.hh"
-#include "utils/string-formater.hh"
+#include "utils/string-formatter.hh"
 #include "utils/string-utils.hh"
 
 #include "firebase-request.hh"
@@ -39,7 +39,7 @@ FirebaseRequest::FirebaseRequest(PushType pType, const std::shared_ptr<const Pus
 	auto ttl = min(mPInfo->mTtl, FIREBASE_MAX_TTL);
 
 	// clang-format off
-	StringFormater strFormatter(
+	StringFormatter strFormatter(
 		R"json({
 	"to":"@to@",
 	"time_to_live": @ttl@,
@@ -74,11 +74,11 @@ FirebaseRequest::FirebaseRequest(PushType pType, const std::shared_ptr<const Pus
 	};
 	// clang-format on
 
-	auto formatedBody = strFormatter.format(values);
+	auto formattedBody = strFormatter.format(values);
 
-	mBody.assign(formatedBody.begin(), formatedBody.end());
+	mBody.assign(formattedBody.begin(), formattedBody.end());
 
-	SLOGD << "Firebase request creation " << this << " payload is :\n" << formatedBody;
+	SLOGD << "Firebase request creation " << this << " payload is :\n" << formattedBody;
 
 	HttpHeaders headers{};
 	headers.add(":method", "POST");
