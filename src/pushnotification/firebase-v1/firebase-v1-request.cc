@@ -23,9 +23,9 @@
 #include <memory>
 #include <string>
 
-#include "flexisip/logmanager.hh"
 #include "firebase-v1-client.hh"
-#include "utils/string-formater.hh"
+#include "flexisip/logmanager.hh"
+#include "utils/string-formatter.hh"
 #include "utils/string-utils.hh"
 
 using namespace std;
@@ -40,7 +40,7 @@ FirebaseV1Request::FirebaseV1Request(PushType pType,
 	auto ttl = min(mPInfo->mTtl, FIREBASE_MAX_TTL);
 
 	// clang-format off
-	StringFormater strFormatter(
+	StringFormatter strFormatter(
 	R"json({
 	"message":{
 		"token": "@to@",

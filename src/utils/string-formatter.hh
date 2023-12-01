@@ -1,19 +1,19 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -34,15 +34,15 @@
  * While forging the string, each variable is replaced by a string value basing on
  * a given key-value map or a translation function.
  */
-class StringFormater {
-  public:
+class StringFormatter {
+public:
 	/**
 	 * @brief Prototype for translation functions.
 	 */
 	using TranslationFunc = std::function<std::string(const std::string&)>;
 
-	StringFormater(const std::string& _template = "", char startDelim = '{', char endDelim = '}')
-		: mStartDelim{startDelim}, mEndDelim{endDelim} {
+	StringFormatter(const std::string& _template = "", char startDelim = '{', char endDelim = '}')
+	    : mStartDelim{startDelim}, mEndDelim{endDelim} {
 		setTemplate(_template);
 	}
 
@@ -68,7 +68,7 @@ class StringFormater {
 	 */
 	std::string format(TranslationFunc& func) const;
 
-  private:
+private:
 	static std::pair<bool, std::string> checkTemplateSyntax(const std::string& _template);
 
 	std::string mTemplate;
@@ -77,14 +77,14 @@ class StringFormater {
 };
 
 /**
- * @brief Specialization of StringFormater that escapes the reserved characters
+ * @brief Specialization of StringFormatter that escapes the reserved characters
  * of each value of the map before replacement in order to be valid for an HTTP URI.
  */
-class HttpUriFormater : public StringFormater {
-  public:
+class HttpUriFormatter : public StringFormatter {
+public:
 	std::string format(const std::map<std::string, std::string>& values) const;
 	std::string format(TranslationFunc& func) const;
 
-  private:
+private:
 	static std::map<std::string, std::string> escape(const std::map<std::string, std::string>& values);
 };

@@ -28,7 +28,7 @@ target_sources(flexisip PRIVATE
 	posix-process.cc posix-process.hh
 	rand.cc rand.hh
 	sip-uri.cc
-	string-formater.cc string-formater.hh
+	string-formatter.cc string-formatter.hh
 	string-utils.cc string-utils.hh
 	sys-err.cc sys-err.hh
 	thread/auto-thread-pool.cc thread/auto-thread-pool.hh
