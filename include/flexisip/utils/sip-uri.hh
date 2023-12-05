@@ -291,4 +291,7 @@ private:
 	static void checkUrl(const sofiasip::Url& url);
 };
 
+// Enable to check validity of a sip uri raw url (use SipUri rather than raw url whenever possible)
+bool isValidSipUri(const url_t* url);
+
 } // namespace flexisip

@@ -675,6 +675,10 @@ void RegistrarDbRedisAsync::sHandleBindStart(redisAsyncContext*, redisReply* rep
 		if (context->listener) context->listener->onInvalid();
 		delete context;
 		return;
+	} catch (const sofiasip::InvalidUrlError&) {
+		if (context->listener) context->listener->onInvalid();
+		delete context;
+		return;
 	}
 
 	changeset += context->mRecord->applyMaxAor();
@@ -938,6 +942,8 @@ void RegistrarDbRedisAsync::handleFetch(redisReply* reply, RedisRegisterContext*
 			// just skip the duplicated contacts
 			SLOGW << "Illegal state detected in the RegistrarDb. Skipping contact: "
 			      << (contact ? contact->urlAsString() : "<moved out>");
+		} catch (const sofiasip::InvalidUrlError& e) {
+			SLOGW << "Invalid 'Contact' SIP URI [" << e.getUrl() << "]: " << e.getReason();
 		}
 	};
 

@@ -24,6 +24,7 @@
 #include "flexisip/sofia-wrapper/msg-sip.hh"
 
 using namespace std;
+using namespace string_literals;
 
 namespace sofiasip {
 
@@ -33,10 +34,9 @@ MsgSip::MsgSip(const MsgSip& msgSip) : mMsg(msg_dup(msgSip.mMsg)) {
 	LOGD("New MsgSip %p copied from MsgSip %p", this, &msgSip);
 }
 
-MsgSip::MsgSip(int flags, const std::string& msg)
-    : mMsg(msg_make(sip_default_mclass(), flags, msg.c_str(), msg.size())) {
+MsgSip::MsgSip(int flags, std::string_view msg) : mMsg(msg_make(sip_default_mclass(), flags, msg.data(), msg.size())) {
 	if (!mMsg || msg_has_error(mMsg)) {
-		throw runtime_error("Error during message parsing from string : \n" + msg);
+		throw runtime_error("Error during message parsing from string_view: \n"s + msg.data());
 	}
 }
 

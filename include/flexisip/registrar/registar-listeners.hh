@@ -45,7 +45,7 @@ public:
 	virtual void onRecordFound(const std::shared_ptr<Record>& r) = 0;
 	// Internal error, translated to a 500 response by the registrar module
 	virtual void onError() = 0;
-	// Replayed CSeq, translated to a 400 (Invalid) response by the registrar module
+	// Replayed CSeq or Invalid SIP URI, translated to a 400 (Invalid) response by the registrar module
 	virtual void onInvalid() = 0;
 };
 

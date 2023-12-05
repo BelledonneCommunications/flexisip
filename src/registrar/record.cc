@@ -272,6 +272,18 @@ void Record::eliminateAmbiguousContacts(list<unique_ptr<ExtendedContact>>& exten
 		++it;
 	}
 }
+ChangeSet Record::removeInvalidContacts() {
+	ChangeSet changeSet{};
+	for (auto it = mContacts.begin(); it != mContacts.end();) {
+		auto contact = *it;
+		if (!isValidSipUri(contact->mSipContact->m_url)) {
+			changeSet.mDelete.push_back(contact);
+			SLOGD << "Removing invalid contact: " << contact->urlAsString();
+			it = mContacts.erase(it);
+		} else ++it;
+	}
+	return changeSet;
+}
 
 ChangeSet Record::update(const sip_t* sip,
                          const BindingParameters& parameters,
@@ -312,7 +324,7 @@ ChangeSet Record::update(const sip_t* sip,
 	eliminateAmbiguousContacts(extendedContacts);
 
 	// Update the Record.
-	ChangeSet changeSet{};
+	ChangeSet changeSet = removeInvalidContacts();
 	for (auto& exc : extendedContacts) {
 		changeSet += insertOrUpdateBinding(move(exc), listener.get());
 	}
