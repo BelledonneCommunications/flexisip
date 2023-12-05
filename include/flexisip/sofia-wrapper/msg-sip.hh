@@ -22,6 +22,7 @@
 #include <ostream>
 #include <set>
 #include <string>
+#include <string_view>
 
 #include <sofia-sip/msg_types.h>
 #include <sofia-sip/sip_protos.h>
@@ -54,11 +55,11 @@ public:
 	}
 	MsgSip(const MsgSip& other);
 	/**
-	 * Construct a MsgSip parsing the string parameter.
+	 * Construct a MsgSip parsing the string_view parameter.
 	 *
 	 * @throw Throw std::runtime_error if a parsing error occurred.
 	 */
-	MsgSip(int flags, const std::string& msg);
+	MsgSip(int flags, std::string_view msg);
 
 	~MsgSip() noexcept {
 		msg_destroy(mMsg.take());

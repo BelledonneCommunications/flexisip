@@ -182,6 +182,7 @@ private:
 
 	static ContactMatch matchContacts(const ExtendedContact& existing, const ExtendedContact& neo);
 	static void eliminateAmbiguousContacts(std::list<std::unique_ptr<ExtendedContact>>& extendedContacts);
+	ChangeSet removeInvalidContacts();
 
 	sofiasip::Home mHome;
 	Contacts mContacts;

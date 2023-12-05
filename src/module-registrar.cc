@@ -131,8 +131,8 @@ void OnRequestBindListener::onError() {
 }
 
 void OnRequestBindListener::onInvalid() {
-	LOGE("OnRequestBindListener::onInvalid : 400 - Replayed CSeq");
-	mModule->reply(mEv, 400, "Replayed CSeq");
+	LOGE("OnRequestBindListener::onInvalid: 400 - Replayed CSeq or Invalid SIP URI");
+	mModule->reply(mEv, 400, "Replayed CSeq or Invalid SIP URI");
 }
 
 OnResponseBindListener::OnResponseBindListener(ModuleRegistrar* module,
@@ -681,9 +681,11 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 		reply(ev, 400, "Invalid Request");
 		return;
 	}
-	if (sip->sip_contact->m_url[0].url_scheme == nullptr) {
-		reply(ev, 400, "Invalid contact");
-		return;
+	for (auto contact = sip->sip_contact; contact != nullptr; contact = contact->m_next) {
+		if (!isValidSipUri(contact->m_url)) {
+			reply(ev, 400, "Invalid contact");
+			return;
+		}
 	}
 	if (!checkStarUse(sip->sip_contact, maindelta)) {
 		LOGD("The star rules are not respected.");

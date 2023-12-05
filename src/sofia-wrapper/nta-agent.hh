@@ -20,6 +20,7 @@
 
 #include <map>
 #include <sstream>
+#include <string_view>
 #include <type_traits>
 
 #include <sofia-sip/nta.h>
@@ -72,6 +73,12 @@ public:
 	std::shared_ptr<NtaOutgoingTransaction> createOutgoingTransaction(std::unique_ptr<MsgSip>&& msg) {
 		return createOutgoingTransaction(std::move(msg), nullptr);
 	}
+
+	template <typename UriT>
+	std::shared_ptr<NtaOutgoingTransaction> createOutgoingTransaction(std::string_view rawMsg, const UriT& routeURI) {
+		return createOutgoingTransaction(std::make_unique<MsgSip>(0, rawMsg), routeURI);
+	}
+
 	template <typename UriT>
 	std::shared_ptr<NtaOutgoingTransaction> createOutgoingTransaction(std::unique_ptr<MsgSip> msg,
 	                                                                  const UriT& routeURI) {

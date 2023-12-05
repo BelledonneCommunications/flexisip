@@ -30,10 +30,12 @@
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "registrar/registrar-db.hh"
+#include "sofia-wrapper/nta-agent.hh"
 #include "tester.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/proxy-server.hh"
 #include "utils/redis-server.hh"
+#include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
 using namespace std;
@@ -127,15 +129,11 @@ private:
 /**
  * Insert a contact into the registrarDB.
  */
-static void insertContact(const string& sipUri, const string& paramList) {
-	sofiasip::Home home{};
-	SipUri user{sipUri + ";" + paramList};
+static void insertUserContact(const SipUri& user, const sip_contact_t* contact) {
 	BindingParameters parameter{};
 	parameter.globalExpire = 1000;
 	parameter.callId = "random_id_necessary_to_bind_" + to_string(notSoRandomId++);
 	parameter.withGruu = true;
-
-	auto contact = sip_contact_create(home.home(), (url_string_t*)user.str().c_str(), nullptr);
 
 	RegistrarDb::get()->bind(user, contact, parameter, make_shared<RegisterBindListener>(user.str()));
 	expectedBidingDone++;
@@ -143,6 +141,13 @@ static void insertContact(const string& sipUri, const string& paramList) {
 	while (bidingDone != expectedBidingDone && beforePlus2 >= system_clock::now()) {
 		agent->getRoot()->step(20ms);
 	}
+}
+
+static void insertContact(const string& sipUri, const string& paramList) {
+	sofiasip::Home home{};
+	SipUri user{sipUri + ";" + paramList};
+	auto contact = sip_contact_create(home.home(), (url_string_t*)user.str().c_str(), nullptr);
+	insertUserContact(user, contact);
 }
 
 /**
@@ -435,13 +440,117 @@ static void duplicatePushTokenRegisterRedisTest() {
 
 	startTest();
 }
+
 namespace {
+
+// Check that a REGISTER request with an invalid contact added after a valid contact is detected and leads to a 400 -
+// Bad request reply
+void invalidContactInRequest() {
+	RedisServer redis{};
+	Server proxyServer({
+	    {"global/transports", "sip:*:5160"},
+	    {"global/aliases", "127.0.0.1"},
+	    {"module::Registrar/reg-domains", "sip.example.org"},
+	    {"module::Registrar/db-implementation", "redis"},
+	    {"module::Registrar/redis-server-domain", "localhost"},
+	    {"module::Registrar/redis-server-port", std::to_string(redis.port())},
+	    {"module::DoSProtection/enabled", "false"},
+	});
+	proxyServer.start();
+
+	const std::string sipUri("sip:user@sip.example.org");
+	const std::string uuid("fcm1Reg");
+
+	// clang-format off
+	const std::string badRequest(
+	    "REGISTER "+ sipUri+ " SIP/2.0\r\n"
+	    "From: <" + sipUri + ">;tag=465687829\r\n"
+	    "To: <" + sipUri + ">\r\n"
+		"Call-ID: 1053183492" + "\r\n"
+	    "CSeq: 20 REGISTER\r\n"
+	    "Contact: <" + sipUri + ";>;+sip.instance=" + uuid + "\r\n"
+	    "Contact: badContact\r\n"
+	    "Expires: 3600\r\n"
+	    "Content-Length: 0\r\n\r\n");
+	// clang-format on
+
+	sofiasip::NtaAgent client{proxyServer.getRoot(), "sip:localhost:0"};
+	auto transaction = client.createOutgoingTransaction(badRequest, "sip:127.0.0.1:5160");
+
+	auto beforePlus2 = system_clock::now() + 2s;
+	while (!transaction->isCompleted() && beforePlus2 >= system_clock::now()) {
+		proxyServer.getRoot()->step(20ms);
+	}
+	BC_ASSERT(transaction->isCompleted());
+	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 400);
+}
+
+// Check that the presence of an invalid contact in the database does not invalidate a valid REGISTER request of this
+// user
+void invalidContactInDb() {
+	RedisServer redis{};
+	Server proxyServer({
+	    {"global/transports", "sip:*:5160"},
+	    {"global/aliases", "127.0.0.1"},
+	    {"module::Registrar/reg-domains", "sip.example.org"},
+	    {"module::Registrar/db-implementation", "redis"},
+	    {"module::Registrar/redis-server-domain", "localhost"},
+	    {"module::Registrar/redis-server-port", std::to_string(redis.port())},
+	    {"module::DoSProtection/enabled", "false"},
+	});
+	agent = proxyServer.getAgent();
+	proxyServer.start();
+
+	const std::string sipUri("sip:user@sip.example.org");
+	const std::string uuid("fcm1Reg");
+	const SipUri userUri(sipUri);
+
+	// fill the database with a valid and an invalid contact
+	{
+		sofiasip::Home home{};
+		auto createContact = [&](const char* url) {
+			return sip_contact_create(home.home(), (url_string_t*)(url), nullptr);
+		};
+		auto contact = createContact("sip:validContact@sip.example.org");
+		contact->m_next = createContact("sop:invalidContact@sip.example.com");
+		insertUserContact(userUri, contact);
+	}
+
+	// send a valid REGISTER request
+	// clang-format off
+	const std::string validRequest(
+	    "REGISTER "+ sipUri+ " SIP/2.0\r\n"
+	    "From: <" + sipUri + ">;tag=465687829\r\n"
+	    "To: <" + sipUri + ">\r\n"
+		"Call-ID: 1053183492" + "\r\n"
+	    "CSeq: 20 REGISTER\r\n"
+	    "Contact: <" + sipUri + ";>;+sip.instance=" + uuid + "\r\n"
+	    "Expires: 3600\r\n"
+	    "Content-Length: 0\r\n\r\n");
+	// clang-format on
+
+	sofiasip::NtaAgent client{proxyServer.getRoot(), "sip:localhost:0"};
+	auto transaction = client.createOutgoingTransaction(validRequest, "sip:127.0.0.1:5160");
+
+	auto beforePlus2 = system_clock::now() + 2s;
+	while (!transaction->isCompleted() && beforePlus2 >= system_clock::now()) {
+		proxyServer.getRoot()->step(20ms);
+	}
+	BC_ASSERT(transaction->isCompleted());
+	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 200);
+
+	auto const expectedContact{2};
+	checkResultInDb(userUri, make_shared<RegisterFetchListener>(expectedContact, uuid), true);
+}
+
 TestSuite
     _("Register",
       {
           TEST_NO_TAG("Duplicate push token at register handling, with internal db",
                       duplicatePushTokenRegisterInternalDbTest),
           TEST_NO_TAG("Duplicate push token at register handling, with Redis db", duplicatePushTokenRegisterRedisTest),
+          TEST_NO_TAG_AUTO_NAMED(invalidContactInRequest),
+          TEST_NO_TAG_AUTO_NAMED(invalidContactInDb),
       },
       Hooks()
           .beforeEach([] {
@@ -460,4 +569,4 @@ TestSuite
 	          agent.reset();
 	          root.reset();
           }));
-}
+} // namespace

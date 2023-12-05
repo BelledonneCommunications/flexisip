@@ -65,6 +65,9 @@ void RegistrarDbInternal::doBind(const MsgSip& msg,
 	} catch (const InvalidCSeq&) {
 		if (listener) listener->onInvalid();
 		return;
+	} catch (const sofiasip::InvalidUrlError&) {
+		if (listener) listener->onInvalid();
+		return;
 	}
 
 	mLocalRegExpire->update(r);
