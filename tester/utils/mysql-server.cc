@@ -109,6 +109,7 @@ MysqlServer::MysqlServer()
       }),
       mReady(async(launch::async, [&daemon = mDaemon] {
 	      string fullLog{};
+	      string previousChunk{};
 	      std::uint16_t iterations{0};
 	      while (true) {
 		      auto& state = daemon.state();
@@ -146,11 +147,13 @@ MysqlServer::MysqlServer()
 			                       msg << " read: \n" << fullLog << "\nprocess: " << std::move(daemon);
 			                       throw runtime_error(msg.str());
 		                       });
-		      if (chunk.find("ready for connections") != string::npos) {
+		      auto concatenated = previousChunk + chunk;
+		      if (concatenated.find("ready for connections") != string::npos) {
 			      SLOGD << chunk;
 			      return;
 		      }
-		      fullLog += chunk;
+		      fullLog += "|" + chunk;
+		      previousChunk = std::move(chunk);
 		      ++iterations;
 	      }
       })) {
