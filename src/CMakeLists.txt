@@ -56,7 +56,7 @@ add_library(flexisip SHARED
 	eventlogs/events/event-log-write-dispatcher.hh
 	eventlogs/events/eventlogs.cc eventlogs/events/eventlogs.hh
 	eventlogs/events/message-or-call-started.cc eventlogs/events/message-or-call-started.hh
-    eventlogs/events/messages/with-message-kind.hh
+	eventlogs/events/messages/with-message-kind.hh
 	eventlogs/events/messages/message-response-from-recipient-event-log.cc eventlogs/events/messages/message-response-from-recipient-event-log.hh
 	eventlogs/events/messages/message-sent-event-log.cc eventlogs/events/messages/message-sent-event-log.hh
 	eventlogs/events/sip-event-log.cc eventlogs/events/sip-event-log.hh
@@ -137,50 +137,50 @@ add_subdirectory(router)
 add_subdirectory(sofia-wrapper)
 add_subdirectory(utils)
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-	if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 6.0.0)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 6.0.0)
 		set_source_files_properties(cJSON.c PROPERTIES COMPILE_OPTIONS "-Wno-error=misleading-indentation")
-	endif ()
+	endif()
 
 	set(stun_c_compile_options "-Wno-error=sign-compare")
-	if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0.0)
+	if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0.0)
 		list(APPEND stun_c_compile_options "-Wno-stringop-truncation")
-	endif ()
+	endif()
 	set_source_files_properties(stun/stun.c PROPERTIES COMPILE_OPTIONS "${stun_c_compile_options}")
 	unset(stun_c_compile_options)
 
 	if(HAS_GCC_BUG_105616 OR HAS_GCC_BUG_105562)
 		set_source_files_properties(
-				b2bua/external-provider-bridge.cc
-				b2bua/trenscrypter.cc
-				configdumper.cc
-				domain-registrations.cc
-				eventlogs/writers/flexi-stats-event-log-writer.cc
-				module-authentication-base.cc
-				module-registrar.cc
-				pushnotification/apple/apple-request.cc
-				pushnotification/rfc8599-push-params.cc
-				main.cc
-				PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized")
+			b2bua/external-provider-bridge.cc
+			b2bua/trenscrypter.cc
+			configdumper.cc
+			domain-registrations.cc
+			eventlogs/writers/flexi-stats-event-log-writer.cc
+			module-authentication-base.cc
+			module-registrar.cc
+			pushnotification/apple/apple-request.cc
+			pushnotification/rfc8599-push-params.cc
+			main.cc
+			PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized")
 	endif()
 	if(HAS_GCC_BUG_105562)
 		set_source_files_properties(
-				expressionparser-impl.cc
-				sip-boolean-expressions.cc
-				tools/pusher.cc
-				PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized")
+			expressionparser-impl.cc
+			sip-boolean-expressions.cc
+			tools/pusher.cc
+			PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized")
 	endif()
-endif ()
+endif()
 
 #Generates information for test coverage reports.
 #If flexisip lib needs to be static, add this rule:
 #list(APPEND STATIC_LIBRARY_OPTIONS "-fprofile-instr-generate")
-if (ENABLE_COVERAGE)
-	if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+if(ENABLE_COVERAGE)
+	if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 		target_compile_options(flexisip PRIVATE "-fprofile-instr-generate")
 		target_compile_options(flexisip PRIVATE "-fcoverage-mapping")
 		target_link_options(flexisip PRIVATE "-fprofile-instr-generate")
-	else ()
+	else()
 		message(FATAL "CMAKE_CXX_COMPILER_ID is set to ${CMAKE_CXX_COMPILER_ID}. Coverage works only under Clang. Disable ENABLE_COVERAGE option or use Clang.")
 	endif()
 endif()
@@ -189,44 +189,44 @@ endif()
 target_compile_features(flexisip PRIVATE cxx_auto_type cxx_variadic_macros)
 target_link_libraries(flexisip
 	PRIVATE
-		bctoolbox
-		belr
-		LibNgHttp2
-		ortp
-		OpenSSL::SSL
-		Threads::Threads
+	bctoolbox
+	belr
+	LibNgHttp2
+	ortp
+	OpenSSL::SSL
+	Threads::Threads
 	PUBLIC
-		sofia-sip-ua
+	sofia-sip-ua
 )
-if (ENABLE_UNIT_TESTS)
+if(ENABLE_UNIT_TESTS)
 	target_link_libraries(flexisip PRIVATE bctoolbox-tester)
-endif ()
+endif()
 
 add_dependencies(flexisip flexisip-git-version)
 
-if (ENABLE_MSGPACK)
+if(ENABLE_MSGPACK)
 	message(STATUS "Enabling MSGPACK with includes at ${MSGPACK_INCLUDE_DIRS}")
 	target_sources(flexisip PRIVATE recordserializer-msgpack.cc)
 	target_include_directories(flexisip PRIVATE ${MSGPACK_INCLUDE_DIRS})
-endif ()
-if (ENABLE_SNMP)
+endif()
+if(ENABLE_SNMP)
 	target_sources(flexisip PRIVATE snmp-agent.cc snmp-agent.h)
 	target_include_directories(flexisip PRIVATE "mib" ${NET_SNMP_INCLUDE_DIRS})
 	target_link_libraries(flexisip PRIVATE ${NET_SNMP_LIBRARIES})
-endif ()
-if (ENABLE_TRANSCODER)
+endif()
+if(ENABLE_TRANSCODER)
 	target_sources(flexisip PRIVATE callcontext-transcoder.cc callcontext-transcoder.hh)
 	target_link_libraries(flexisip PRIVATE mediastreamer)
-endif ()
-if (ENABLE_DATEHANDLER)
+endif()
+if(ENABLE_DATEHANDLER)
 	target_sources(flexisip PRIVATE module-datehandler.cc)
-endif ()
-if (ENABLE_REDIS)
+endif()
+if(ENABLE_REDIS)
 	target_sources(flexisip PRIVATE registrardb-redis-async.cc)
 	target_compile_definitions(flexisip PRIVATE "ENABLE_REDIS")
 	target_link_libraries(flexisip PRIVATE hiredis)
-endif ()
-if (ENABLE_PROTOBUF)
+endif()
+if(ENABLE_PROTOBUF)
 	# TODO: generate the protobuf wrapper
 	# protoc --proto_path=$(builddir) --cpp_out=$(builddir) $(pb_files)
 	set(PROTOBUF_GENERATED_FILES ${CMAKE_CURRENT_BINARY_DIR}/recordserializer-protobuf.pb.cc ${CMAKE_CURRENT_BINARY_DIR}/recordserializer-protobuf.pb.h)
@@ -240,11 +240,11 @@ if (ENABLE_PROTOBUF)
 	target_sources(flexisip PRIVATE recordserializer-protobuf.cc ${PROTOBUF_GENERATED_FILES})
 	target_link_libraries(flexisip PRIVATE "protobuf::libprotobuf")
 	target_compile_definitions(flexisip PRIVATE "ENABLE_PROTOBUF")
-endif ()
-if (ENABLE_PRESENCE)
-	if (NOT XercesC_FOUND)
+endif()
+if(ENABLE_PRESENCE)
+	if(NOT XercesC_FOUND)
 		message(FATAL_ERROR "Presence asked but XercesC not enabled! Please enable it first.")
-	endif ()
+	endif()
 	list(APPEND XML_SOURCES
 		xml/data-model.cc
 		xml/data-model.hh
@@ -282,14 +282,14 @@ if (ENABLE_PRESENCE)
 		presence/subscription.hh
 	)
 	target_link_libraries(flexisip PUBLIC belr)
-	if (ENABLE_SOCI)
+	if(ENABLE_SOCI)
 		target_sources(flexisip PRIVATE
 			presence/list-subscription/external-list-subscription.cc
 			presence/list-subscription/external-list-subscription.hh
 		)
-	endif ()
-endif ()
-if (ENABLE_CONFERENCE)
+	endif()
+endif()
+if(ENABLE_CONFERENCE)
 	target_sources(flexisip PRIVATE
 		conference/conference-address-generator.cc
 		conference/conference-address-generator.hh
@@ -314,8 +314,8 @@ if (ENABLE_CONFERENCE)
 		xml/reginfo.cc
 		xml/reginfo.hh
 	)
-endif ()
-if (ENABLE_B2BUA)
+endif()
+if(ENABLE_B2BUA)
 	find_package(jsoncpp "1.1.0" REQUIRED)
 
 	target_sources(flexisip PRIVATE
@@ -333,8 +333,8 @@ if (ENABLE_B2BUA)
 		jsoncpp_lib
 		mediastreamer
 	)
-endif ()
-if (ENABLE_SOCI)
+endif()
+if(ENABLE_SOCI)
 	target_compile_definitions(flexisip PRIVATE "ENABLE_SOCI")
 	target_sources(flexisip PRIVATE
 		auth/db/authdb-soci.cc
@@ -349,37 +349,37 @@ if (ENABLE_SOCI)
 			auth/db/authdb-soci.cc
 			PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized")
 	endif()
-endif ()
-if (XercesC_FOUND)
+endif()
+if(XercesC_FOUND)
 	target_include_directories(flexisip PRIVATE "${PROJECT_SOURCE_DIR}/libxsd")
 	target_link_libraries(flexisip PRIVATE "XercesC::XercesC")
-endif ()
-if (ENABLE_PRESENCE OR ENABLE_MDNS)
+endif()
+if(ENABLE_PRESENCE OR ENABLE_MDNS)
 	target_link_libraries(flexisip PUBLIC bellesip)
 	target_compile_definitions(flexisip PRIVATE "BELLE_SIP_USE_STL")
-endif ()
+endif()
 
 target_sources(flexisip PRIVATE ${XML_SOURCES})
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-	if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0.0)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0.0)
 		# Completely disable 'deprecated-copy' warning because these source files are generated by XSD and the warnings
 		# cannot be fixed thus.
 		set_source_files_properties(${XML_SOURCES} PROPERTIES COMPILE_OPTIONS "-Wno-deprecated-copy")
-	endif ()
-else (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	endif()
+else(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	set_source_files_properties(${XML_SOURCES} PROPERTIES COMPILE_OPTIONS "-Wno-deprecated-copy-with-user-provided-copy")
-endif ()
+endif()
 
 #######################################################################################################################
 # Build plugins.
 #######################################################################################################################
-if (ENABLE_EXTERNAL_AUTH_PLUGIN)
+if(ENABLE_EXTERNAL_AUTH_PLUGIN)
 	add_subdirectory(plugin/external-auth-plugin)
-endif ()
+endif()
 
-if (ENABLE_JWE_AUTH_PLUGIN)
+if(ENABLE_JWE_AUTH_PLUGIN)
 	add_subdirectory(plugin/jwe-auth-plugin)
-endif ()
+endif()
 
 #######################################################################################################################
 # Build the executables
