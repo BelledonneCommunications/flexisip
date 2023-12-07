@@ -54,7 +54,7 @@ include(CheckCXXSourceCompiles)
 include(GNUInstallDirs)
 include("cmake/FlexisipUtils.cmake")
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 	set(IS_DEBUG TRUE)
 else()
 	set(IS_DEBUG FALSE)
@@ -87,7 +87,7 @@ cmake_dependent_option(INTERNAL_LIBHIREDIS "Build libhiredis source code present
 cmake_dependent_option(ENABLE_CONFERENCE "Build conference support" ON "ENABLE_SOCI" OFF)
 cmake_dependent_option(ENABLE_SOCI_POSTGRESQL_BACKEND "Build with SOCI Postgre sql backend support" ON "ENABLE_SOCI" OFF)
 cmake_dependent_option(ENABLE_B2BUA "Enable Back2back user agent support" ON "ENABLE_SOCI" OFF)
-cmake_dependent_option(ENABLE_UNIT_TESTS_NGHTTP2ASIO "Enable unit tests requiring libnghttp2_asio"  ON "ENABLE_UNIT_TESTS" ON)
+cmake_dependent_option(ENABLE_UNIT_TESTS_NGHTTP2ASIO "Enable unit tests requiring libnghttp2_asio" ON "ENABLE_UNIT_TESTS" ON)
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable media relay specific features" OFF "ENABLE_TRANSCODER" OFF)
 
 set(CPACK_GENERATOR "" CACHE STRING "Generator to use for making package. Supported values: 'RPM', 'DEB'")
@@ -115,13 +115,13 @@ else()
 endif()
 
 # It seems -fsanitize=address and -Wuninitialized don't play well together
-if ( CMAKE_BUILD_TYPE STREQUAL "Sanitizer"
- AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
+if(CMAKE_BUILD_TYPE STREQUAL "Sanitizer"
+	AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
 )
 	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105616
 	if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 13.2.1)
 		set(HAS_GCC_BUG_105616 ON)
-	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105562
+		# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105562
 	elseif(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12 AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 12.3.0)
 		set(HAS_GCC_BUG_105562 ON)
 	endif()
@@ -130,7 +130,7 @@ endif()
 # Place the built libraries and executables in top level directories 'lib' and 'bin' in the build tree.
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib" CACHE PATH "Archive output dir.")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib" CACHE PATH "Library output dir.")
-set(CMAKE_PDB_OUTPUT_DIRECTORY     "${CMAKE_BINARY_DIR}/bin" CACHE PATH "PDB (MSVC debug symbol)output dir.")
+set(CMAKE_PDB_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin" CACHE PATH "PDB (MSVC debug symbol)output dir.")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin" CACHE PATH "Executable/dll output dir.")
 
 # Advanced options (i.e. hidden to the user by default)
@@ -266,7 +266,7 @@ add_compile_definitions("HAVE_CONFIG_H")
 # Compute and set compilation options
 bc_init_compilation_flags(CPP_BUILD_FLAGS C_BUILD_FLAGS CXX_BUILD_FLAGS ENABLE_STRICT)
 
-if (ENABLE_SANITIZERS)
+if(ENABLE_SANITIZERS)
 	set(SANITIZERS_FLAG "-fsanitize=address,undefined")
 	add_compile_options(
 		${SANITIZERS_FLAG}
@@ -294,7 +294,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 		# GCC on CentOS 7 treats this as an error
 		list(APPEND CXX_BUILD_FLAGS "-Werror=format-truncation=1")
 	endif()
-		
+
 endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	# Old compiler (clang3 on Debian 9 Stretch) are giving us some toubles...
