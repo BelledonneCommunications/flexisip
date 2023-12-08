@@ -73,15 +73,21 @@ private:
 public:
 	explicit B2buaServer(const std::string& configFile = string(), bool start = true, Module* injectedModule = nullptr)
 	    : Server(configFile, injectedModule) {
-		// Configure B2bua Server
-		auto* b2buaServerConf = GenericManager::get()->getRoot()->get<GenericStruct>("b2bua-server");
-		// b2bua server needs an outbound proxy to route all sip messages to the proxy, set it to the first transport
-		// of the proxy.
-		auto proxyTransports =
-		    GenericManager::get()->getRoot()->get<GenericStruct>("global")->get<ConfigStringList>("transports")->read();
-		b2buaServerConf->get<ConfigString>("outbound-proxy")->set(proxyTransports.front());
-		// need a writable dir to store DTLS-SRTP self signed certificate
-		b2buaServerConf->get<ConfigString>("data-directory")->set(bcTesterWriteDir());
+
+		if (!configFile.empty()) {
+			// Configure B2bua Server
+			auto* b2buaServerConf = GenericManager::get()->getRoot()->get<GenericStruct>("b2bua-server");
+			// b2bua server needs an outbound proxy to route all sip messages to the proxy, set it to the first
+			// transport of the proxy.
+			auto proxyTransports = GenericManager::get()
+			                           ->getRoot()
+			                           ->get<GenericStruct>("global")
+			                           ->get<ConfigStringList>("transports")
+			                           ->read();
+			b2buaServerConf->get<ConfigString>("outbound-proxy")->set(proxyTransports.front());
+			// need a writable dir to store DTLS-SRTP self signed certificate
+			b2buaServerConf->get<ConfigString>("data-directory")->set(bcTesterWriteDir());
+		}
 
 		mB2buaServer = make_shared<flexisip::B2buaServer>(this->getRoot());
 
@@ -89,12 +95,16 @@ public:
 			this->start();
 		}
 	}
-	~B2buaServer() {
+	~B2buaServer() override {
 		mB2buaServer->stop();
 	}
 
-	void start() override {
+	void init() {
 		mB2buaServer->init();
+	}
+
+	void start() override {
+		init();
 
 		// Configure module b2bua
 		const auto configRoot = GenericManager::get()->getRoot();
@@ -113,6 +123,10 @@ public:
 
 	flexisip::b2bua::BridgedCallApplication& getModule() {
 		return *mB2buaServer->mApplication;
+	}
+
+	auto& getCore() const {
+		return mB2buaServer->mCore;
 	}
 };
 
@@ -847,30 +861,64 @@ static void request_header__user_agent() {
 // Test value of "user-agent" parameter in b2bua-server.
 static void configuration__user_agent() {
 	const auto cfg = GenericManager::get();
+	const auto serverConfig = cfg->getRoot()->get<GenericStruct>("b2bua-server");
 
-	// Throws "runtime_error exception: bad_weak_pointer" error during test if server is not a shared_ptr.
-	const auto server = make_shared<flexisip::B2buaServer>(make_shared<sofiasip::SuRoot>());
+	// Test exception is thrown when parameter is ill-formed: string is empty.
+	{
+		B2buaServer server{"", false};
+		serverConfig->get<ConfigString>("user-agent")->set("");
+		BC_ASSERT_THROWN(server.init(), std::runtime_error);
+	}
 
-	constexpr auto expected = "test-user-agent-value/stub-version";
-	const auto b2buaServerCfg = cfg->getRoot()->get<GenericStruct>("b2bua-server");
-	b2buaServerCfg->get<ConfigString>("user-agent")->set(expected);
+	// Test when value is well-formed: <name>.
+	{
+		B2buaServer server{"", false};
+		const auto expected = ".!%*_+`'~-12-Hello-";
+		serverConfig->get<ConfigString>("user-agent")->set(expected);
 
-	// Test when value is well-formed.
-	server->init();
+		server.init();
 
-	const auto value = cfg->getRoot()->get<GenericStruct>("b2bua-server")->get<ConfigString>("user-agent")->read();
-	BC_ASSERT_CPP_EQUAL(value, expected);
+		BC_ASSERT_CPP_EQUAL(server.getCore()->getUserAgent(), expected);
+	}
 
-	// Avoid side effects for the following tests.
-	server->stop();
+	// Test when value is well-formed: <name>/<version>.
+	{
+		B2buaServer server{"", false};
+		const auto expected = "1-.!%*_+`'~-test-name/test_version-.!%*_+`'~";
+		serverConfig->get<ConfigString>("user-agent")->set(expected);
 
-	cfg->getRoot()->get<GenericStruct>("b2bua-server")->get<ConfigString>("user-agent")->set("WRONG_VALUE");
+		server.init();
 
-	// Test exception is thrown when parameter is ill-formed.
-	BC_ASSERT_THROWN(server->init(), std::runtime_error);
+		BC_ASSERT_CPP_EQUAL(server.getCore()->getUserAgent(), expected);
+	}
 
-	// Avoid side effects for the following tests.
-	server->stop();
+	// Test when value is well-formed: <name>/{version}.
+	{
+		B2buaServer server{"", false};
+		const auto expected = "a-test-.!%*_+`'~/";
+		serverConfig->get<ConfigString>("user-agent")->set(expected + string("{version}"));
+
+		server.init();
+
+		BC_ASSERT_CPP_EQUAL(server.getCore()->getUserAgent(), expected + string(FLEXISIP_GIT_VERSION));
+	}
+
+	// Test exception is thrown when parameter is ill-formed: <wrong_name>/<version>|{version}.
+	{
+		B2buaServer server{"", false};
+		serverConfig->get<ConfigString>("user-agent")->set("name-with-illegal-character-{/.!%*_+`'~-0-Test-version");
+		BC_ASSERT_THROWN(server.init(), std::runtime_error);
+
+		serverConfig->get<ConfigString>("user-agent")->set("name-with-illegal-character-{/{version}");
+		BC_ASSERT_THROWN(server.init(), std::runtime_error);
+	}
+
+	// Test exception is thrown when parameter is ill-formed: <name>/<wrong_version>.
+	{
+		B2buaServer server{"", false};
+		serverConfig->get<ConfigString>("user-agent")->set("1-.!%*_+`'~-test-name/version-with-illegal-character-{");
+		BC_ASSERT_THROWN(server.init(), std::runtime_error);
+	}
 }
 
 // Basic call not using the B2bua server

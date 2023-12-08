@@ -339,12 +339,13 @@ void B2buaServer::_init() {
 	mCore->setIncTimeout(4 * 60);
 
 	// Read user-agent parameter.
-	smatch matchResult{};
-	const auto userAgent = config->get<ConfigString>("user-agent")->read();
-	if (!regex_match(userAgent, matchResult, regex("(.+)\\/(.+)"))) {
-		throw runtime_error("user-agent parameter is ill-formed. Please use the following syntax: <name>/<version>.");
+	smatch res{};
+	const auto value = config->get<ConfigString>("user-agent")->read();
+	if (regex_match(value, res, regex(R"(^([a-zA-Z0-9-.!%*_+`'~]+)(?:\/([a-zA-Z0-9-.!%*_+`'~]+|\{version\}))?$)"))) {
+		mCore->setUserAgent(res[1], res[2] == "{version}" ? FLEXISIP_GIT_VERSION : res[2].str());
+	} else {
+		throw runtime_error("user-agent parameter is ill-formed, use the following syntax: <name>[/<version>]");
 	}
-	mCore->setUserAgent(matchResult[1], matchResult[2]);
 
 	// b2bua shall never take the initiative of accepting or starting video calls
 	// stick to incoming call parameters for that
@@ -464,7 +465,10 @@ auto defineConfig = [] {
 	     "trenscrypter"},
 	    {String, "transport", "SIP uri on which the back-to-back user agent server is listening on.",
 	     "sip:127.0.0.1:6067;transport=tcp"},
-	    {String, "user-agent", "Value of User-Agent header.", "Flexisip-B2BUA/" FLEXISIP_GIT_VERSION},
+	    {String, "user-agent",
+	     "Value of User-Agent header. Use the following syntax: <name>[/<version>] where <version> can bet set to "
+	     "'{version}' that is a placeholder for the Flexisip version.",
+	     "Flexisip-B2BUA/{version}"},
 	    {String, "data-directory",
 	     "Directory where to store b2bua core local files\n"
 	     "Default",
