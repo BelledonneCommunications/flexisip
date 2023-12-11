@@ -16,9 +16,9 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "tester.hh"
-
 #include "flexiapi/flexi-stats.hh"
+
+#include "flexisip/utils/sip-uri.hh"
 #include "lib/nlohmann-json-3-11-2/json.hpp"
 #include "utils/asserts.hh"
 #include "utils/http-mock/http-mock.hh"

@@ -6,10 +6,12 @@
 #include "utils/http-mock/http-mock.hh"
 
 #include <atomic>
+#include <chrono>
 #include <limits>
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <sstream>
 #include <string>
 
 #include <sys/types.h>
@@ -64,7 +66,8 @@ struct Arrange {
 		root.run();
 		const auto maybeWindowSize = client->getRemoteWindowSize();
 		BC_HARD_ASSERT_TRUE(maybeWindowSize != std::nullopt);
-		oversized = *maybeWindowSize;
+		// Too big to be sent in one batch, but no bigger than necessary
+		oversized = *maybeWindowSize + 1;
 	}
 };
 
@@ -80,8 +83,14 @@ void partiallySentRequestCanceledByTimeout() {
 
 	setup.client->send(
 	    std::make_shared<Http2Client::HttpRequest>(setup.headers, std::string(setup.oversized, 'A')),
-	    [&root](const std::shared_ptr<Http2Client::HttpRequest>&, const std::shared_ptr<HttpResponse>&) {
-		    BC_FAIL("This request will never be answered");
+	    [&root, before = std::chrono::system_clock::now(), size = setup.oversized](
+	        const std::shared_ptr<Http2Client::HttpRequest>&, const std::shared_ptr<HttpResponse>&) {
+		    std::stringstream msg{};
+		    msg << "Request unexpectedly answered in "
+		        << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - before)
+		               .count()
+		        << "ms with a size of " << std::to_string(size) << "bytes";
+		    bc_assert(__FILE__, __LINE__, false, msg.str().c_str());
 		    root.quit();
 	    },
 	    [&root](const std::shared_ptr<Http2Client::HttpRequest>&) { root.quit(); });

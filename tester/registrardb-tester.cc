@@ -121,8 +121,9 @@ template <typename TDatabase>
 class TestFetchExpiringContacts : public RegistrarDbTest<TDatabase> {
 	void testExec() noexcept override {
 		auto* regDb = RegistrarDb::get();
-		auto threshold = 20.0 / 100.0;
-		auto targetTimestamp = getCurrentTime() + 21;
+		const auto threshold = 20.0 / 100.0;
+		// Add some margin to avoid rounding errors
+		const auto targetTimestamp = getCurrentTime() + 22;
 		ContactInserter inserter(*regDb);
 		inserter.withUniqueId(true);
 		inserter.setExpire(100s).setAor("sip:expected1@te.st;pn-provider=fake").insert();
@@ -155,7 +156,15 @@ class TestFetchExpiringContacts : public RegistrarDbTest<TDatabase> {
 			bc_assert(__FILE__, __LINE__, found == 1, ("unexpected contact returned: "s + contactString).c_str());
 		}
 		// Assert all expected contacts have been returned
-		BC_ASSERT_EQUAL(expectedContactStrings.size(), 0, size_t, "%ld");
+		BC_ASSERT_CPP_EQUAL(expectedContactStrings.size(), 0);
+		if (!expectedContactStrings.empty()) {
+			stringstream msg{};
+			msg << "Some contacts were not found: \n";
+			for (const auto& contact : expectedContactStrings) {
+				msg << "\t- '" << contact << "'\n";
+			}
+			bc_assert(__FILE__, __LINE__, false, msg.str().c_str());
+		}
 
 		// Script should be hot
 		expiringContacts.clear();

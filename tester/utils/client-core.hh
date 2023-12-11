@@ -169,7 +169,7 @@ public:
 	 *
 	 * @return true if there is a current call in IncomingReceived state
 	 */
-	AssertionResult hasReceivedCallFrom(const CoreClient& peer) const;
+	[[nodiscard]] AssertionResult hasReceivedCallFrom(const CoreClient& peer) const;
 
 	/**
 	 * Invites another CoreClient but makes no asserts. Does not iterate any of the Cores.
