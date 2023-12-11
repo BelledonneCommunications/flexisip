@@ -287,10 +287,13 @@ void callError() {
 
 	republic.invite(federation);
 	// "You were right about one thing, Master..."
-	asserter.iterateUpTo(4, [&invitesEnded] {
-		FAIL_IF(invitesEnded.empty());
-		return ASSERTION_PASSED();
-	});
+	asserter
+	    .iterateUpTo(4,
+	                 [&invitesEnded] {
+		                 FAIL_IF(invitesEnded.empty());
+		                 return ASSERTION_PASSED();
+	                 })
+	    .assert_passed();
 
 	BC_ASSERT_CPP_EQUAL(invitesEnded.size(), 1);
 	const auto& errorEvent = invitesEnded[0];

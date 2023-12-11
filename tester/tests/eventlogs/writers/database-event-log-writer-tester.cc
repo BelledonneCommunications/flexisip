@@ -43,12 +43,15 @@ void logMessage() {
 	asserter.addCustomIterate([]() { this_thread::sleep_for(10ms); });
 	string sip_from;
 	soci::session sql{"mysql", db.connectionString()};
-	asserter.iterateUpTo(3, [&sql, &sip_from] {
-		sql << "SELECT sip_from FROM event_log WHERE user_agent = 'msg-event-log-test-user-agent'",
-		    soci::into(sip_from);
-		FAIL_IF(sip_from.empty());
-		return ASSERTION_PASSED();
-	});
+	asserter
+	    .iterateUpTo(3,
+	                 [&sql, &sip_from] {
+		                 sql << "SELECT sip_from FROM event_log WHERE user_agent = 'msg-event-log-test-user-agent'",
+		                     soci::into(sip_from);
+		                 FAIL_IF(sip_from.empty());
+		                 return ASSERTION_PASSED();
+	                 })
+	    .assert_passed();
 	BC_ASSERT_CPP_EQUAL(sip_from, "<msg-event-log-test-from@example.org>");
 }
 

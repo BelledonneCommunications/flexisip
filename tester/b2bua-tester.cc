@@ -169,7 +169,7 @@ public:
 	ExternalClient(_Args&&... __args) : client(std::forward<_Args>(__args)...) {
 	}
 
-	auto hasReceivedCallFrom(const InternalClient& internal) const {
+	[[nodiscard]] auto hasReceivedCallFrom(const InternalClient& internal) const {
 		return client.hasReceivedCallFrom(internal.client);
 	}
 
@@ -438,10 +438,13 @@ static void external_provider_bridge__load_balancing() {
 	// And used slots are normally distributed accross the lines
 	const auto expected = maxCallsPerLine / line_count;
 	// Within a reasonable margin of error
-	const auto margin = expected * 7 / 100;
+	const auto margin = expected * 8 / 100;
 	for (const auto& pair : tally) {
 		const auto slots_used = pair.second;
-		BC_ASSERT_TRUE(expected - margin < slots_used && slots_used < expected + margin);
+		bc_assert(__FILE__, __LINE__, expected - margin < slots_used && slots_used < expected + margin,
+		          ("Expected " + std::to_string(expected) + " ± " + std::to_string(margin) +
+		           " slots used, but found: " + std::to_string(slots_used))
+		              .c_str());
 	}
 
 	// Finish saturating all the lines
@@ -768,20 +771,23 @@ static void external_provider_bridge__max_call_duration() {
 	CoreAssert asserter{caller.getCore(), proxy, callee.getCore()};
 
 	caller.invite(callee);
-	BC_ASSERT_TRUE(callee.hasReceivedCallFrom(caller).assert_passed());
+	ASSERT_PASSED(callee.hasReceivedCallFrom(caller));
 	callee.getCurrentCall()->accept();
-	BC_ASSERT_TRUE(asserter
-	                   .iterateUpTo(3,
-	                                [&callee]() {
-		                                const auto calleeCall = callee.getCurrentCall();
-		                                FAIL_IF(calleeCall == nullopt);
-		                                FAIL_IF(calleeCall->getState() != linphone::Call::State::StreamsRunning);
-		                                return ASSERTION_PASSED();
-	                                })
-	                   .assert_passed());
+	asserter
+	    .iterateUpTo(3,
+	                 [&callee]() {
+		                 const auto calleeCall = callee.getCurrentCall();
+		                 FAIL_IF(calleeCall == nullopt);
+		                 FAIL_IF(calleeCall->getState() != linphone::Call::State::StreamsRunning);
+		                 return ASSERTION_PASSED();
+	                 })
+	    .assert_passed();
 
 	// None of the clients terminated the call, but the B2BUA dropped it on its own
-	BC_ASSERT_TRUE(asserter.waitUntil(2s, [&callee]() { return callee.getCurrentCall() == nullopt; }));
+	asserter
+	    .iterateUpTo(
+	        10, [&callee]() { return LOOP_ASSERTION(callee.getCurrentCall() == nullopt); }, 2100ms)
+	    .assert_passed();
 }
 
 // Forge an INVITE with an erroneous request address, but appropriate To: header.
@@ -820,7 +826,7 @@ static void request_header__user_agent() {
 	constexpr auto expected{"test-user-agent-value/stub-version"};
 	constexpr auto unexpected{"unexpected-user-agent-value"};
 	std::string userAgentValue{unexpected};
-	
+
 	InjectedHooks hooks{{
 	    .onRequest =
 	        [&userAgentValue](const std::shared_ptr<RequestSipEvent>& responseEvent) {

@@ -3,6 +3,7 @@
  */
 
 #include "eventlogs/events/eventlogs.hh"
+#include "flexisip/sofia-wrapper/msg-sip.hh"
 #include "utils/asserts.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"

@@ -20,14 +20,15 @@
 
 #include <chrono>
 #include <functional>
+#include <string>
 #include <thread>
+
+#include <cstdint>
+#include <sys/types.h>
 
 #include "bctoolbox/tester.h"
 
 #include "linphone++/linphone.hh"
-
-#include "agent.hh"
-#include "proxy-server.hh"
 
 namespace flexisip {
 namespace tester {
@@ -35,24 +36,24 @@ namespace tester {
 struct AssertionResult {
 	const char* const file;
 	const int line;
-	const char* const reason;
+	std::string reason;
 
 	// Asserts that the assertion passed. Logs the error otherwise.
 	bool assert_passed() const {
-		return bc_assert(file, line, operator bool(), reason);
+		return bc_assert(file, line, operator bool(), reason.c_str());
 	}
 
-	operator bool() const { // Assertion is true if there is no failure reason
-		return reason == nullptr;
+	operator bool() const { // Assertion is true if and only if there is no failure reason
+		return reason.empty();
 	}
 
 	AssertionResult(const char* const file, const int line, const char* const reason)
-	    : file(file), line(line), reason(reason) {
+	    : file(file), line(line), reason(reason == nullptr ? "" : reason) {
 	}
 
 	AssertionResult(const bool b) // Convert from bool for seemless integration with existing code
 	    : file(__FILE__), line(__LINE__),
-	      reason(b ? nullptr : "Context Missing. Please rewrite your test to use AssertionResult instead of bool.") {
+	      reason(b ? "" : "Context Missing. Please rewrite your test to use AssertionResult instead of bool.") {
 	}
 };
 
@@ -62,6 +63,9 @@ struct AssertionResult {
 
 #define FAIL_IF(assertion)                                                                                             \
 	if (assertion) return AssertionResult(__FILE__, __LINE__, "FAIL_IF(" #assertion ")")
+
+#define LOOP_ASSERTION(assertion)                                                                                      \
+	AssertionResult(__FILE__, __LINE__, (assertion) ? nullptr : "LOOP_ASSERTION(" #assertion ")")
 
 #define ASSERT_PASSED(assertionResult)                                                                                 \
 	bc_assert(__FILE__, __LINE__, assertionResult.assert_passed(), "ASSERT_PASSED(" #assertionResult ")")
@@ -75,7 +79,7 @@ public:
 		mIterateFuncs.push_back(iterate);
 	}
 	template <typename Func>
-	AssertionResult waitUntil(const std::chrono::duration<double> timeout, Func&& condition) {
+	[[nodiscard]] AssertionResult waitUntil(const std::chrono::duration<double> timeout, Func&& condition) {
 		const auto timeLimit = std::chrono::steady_clock::now() + timeout;
 
 		return loopAssert([&timeLimit] { return timeLimit < std::chrono::steady_clock::now(); },
@@ -83,14 +87,14 @@ public:
 	}
 
 	template <typename Func>
-	AssertionResult wait(Func condition) {
+	[[nodiscard]] AssertionResult wait(Func condition) {
 		return waitUntil(std::chrono::seconds(2), condition);
 	}
 
 	template <typename Func>
-	AssertionResult iterateUpTo(const uint32_t iterations,
-	                            Func condition,
-	                            std::chrono::milliseconds minTime = std::chrono::milliseconds{1}) {
+	[[nodiscard]] AssertionResult iterateUpTo(const uint32_t iterations,
+	                                          Func condition,
+	                                          std::chrono::milliseconds minTime = std::chrono::milliseconds{1}) {
 		auto remaining = iterations;
 		auto beforePlusMinTime = std::chrono::system_clock::now() + minTime;
 		return loopAssert(
@@ -102,13 +106,21 @@ public:
 	}
 
 	template <typename AssertFunc, typename StopFunc>
-	AssertionResult loopAssert(StopFunc stopCondition, AssertFunc assertion) {
-		while (true) {
+	[[nodiscard]] AssertionResult loopAssert(StopFunc stopCondition, AssertFunc assertion) {
+		const auto before = std::chrono::system_clock::now();
+		for (uint32_t iterations = 0;; ++iterations) {
 			for (const auto& iterate : mIterateFuncs) {
 				iterate();
 			}
-			const auto result = assertion();
-			if (result || stopCondition()) {
+			AssertionResult result = assertion();
+			if (result) return result;
+
+			if (stopCondition()) {
+				result.reason += "\n -> Still failing after " + std::to_string(iterations) + " iterations and " +
+				                 std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+				                                    std::chrono::system_clock::now() - before)
+				                                    .count()) +
+				                 "ms";
 				return result;
 			}
 

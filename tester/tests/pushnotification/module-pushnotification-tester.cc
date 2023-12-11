@@ -681,10 +681,12 @@ public:
 
 		// Workaround: register core2 again in order to avoid assertion failure on core2 destruction.
 		core2.reconnect();
-		CoreAssert{proxy->getAgent(), core1, core2}.wait([&core2] {
-			return core2.getAccount()->getState() == linphone::RegistrationState::Ok ? ASSERTION_PASSED()
-			                                                                         : ASSERTION_CONTINUE();
-		});
+		CoreAssert{proxy->getAgent(), core1, core2}
+		    .wait([&core2] {
+			    return core2.getAccount()->getState() == linphone::RegistrationState::Ok ? ASSERTION_PASSED()
+			                                                                             : ASSERTION_CONTINUE();
+		    })
+		    .assert_passed();
 	}
 
 private:
