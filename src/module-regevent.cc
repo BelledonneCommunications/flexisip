@@ -33,20 +33,20 @@ private:
 	su_home_t mHome;
 	shared_ptr<SipBooleanExpression> mOnlyListSubscription;
 
-	void onDeclare(GenericStruct *module_config) {
-		ConfigItemDescriptor configs[] = {
-			{String, "regevent-server", "A sip uri where to send all the reg-event related requests.", "sip:127.0.0.1:6065;transport=tcp"},
-			config_item_end};
+	void onDeclare(GenericStruct* module_config) {
+		ConfigItemDescriptor configs[] = {{String, "regevent-server",
+		                                   "A sip uri where to send all the reg-event related requests.",
+		                                   "sip:127.0.0.1:6065;transport=tcp"},
+		                                  config_item_end};
 		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
 		module_config->addChildrenValues(configs);
 	}
 
-	bool isValidNextConfig(const ConfigValue &cv) {
-		GenericStruct *module_config = dynamic_cast<GenericStruct *>(cv.getParent());
-		if (!module_config->get<ConfigBoolean>("enabled")->readNext())
-			return true;
+	bool isValidNextConfig(const ConfigValue& cv) {
+		GenericStruct* module_config = dynamic_cast<GenericStruct*>(cv.getParent());
+		if (!module_config->get<ConfigBoolean>("enabled")->readNext()) return true;
 		if (cv.getName() == "regevent-server") {
-			url_t *uri = url_make(&mHome, cv.getName().c_str());
+			url_t* uri = url_make(&mHome, cv.getName().c_str());
 			if (!uri) {
 				SLOGE << getModuleName() << ": wrong destination uri for presence server [" << cv.getName() << "]";
 				return false;
@@ -57,37 +57,34 @@ private:
 		return true;
 	}
 
-	void onLoad(const GenericStruct *mc) {
+	void onLoad(const GenericStruct* mc) {
 		string destRouteStr = mc->get<ConfigString>("regevent-server")->read();
 		try {
 			mDestRoute.reset(new SipUri(destRouteStr));
-		} catch (const invalid_argument &e) {
-			LOGF("Invalid SIP URI (%s) in 'regevent-server' parameter of 'RegEvent' module: %s", destRouteStr.c_str(), e.what());
+		} catch (const invalid_argument& e) {
+			LOGF("Invalid SIP URI (%s) in 'regevent-server' parameter of 'RegEvent' module: %s", destRouteStr.c_str(),
+			     e.what());
 		}
 
 		SLOGI << getModuleName() << ": presence server is [" << mDestRoute->str() << "]";
 	}
 
-	void onUnload() {}
+	void onUnload() {
+	}
 
-	void onRequest(shared_ptr<RequestSipEvent> &ev) {
-		sip_t *sip = ev->getSip();
-		if (sip->sip_request->rq_method == sip_method_subscribe
-		&&  strcasecmp(sip->sip_event->o_type, "reg") == 0
-		&& sip->sip_to->a_tag == nullptr) {
-			cleanAndPrependRoute(
-				this->getAgent(),
-				ev->getMsgSip()->getMsg(),
-				ev->getSip(),
-				sip_route_create(&mHome, mDestRoute->get(), nullptr)
-			);
+	void onRequest(shared_ptr<RequestSipEvent>& ev) {
+		sip_t* sip = ev->getSip();
+		if (sip->sip_request->rq_method == sip_method_subscribe && strcasecmp(sip->sip_event->o_type, "reg") == 0 &&
+		    sip->sip_to->a_tag == nullptr) {
+			cleanAndPrependRoute(this->getAgent(), ev->getMsgSip()->getMsg(), ev->getSip(),
+			                     sip_route_create(&mHome, mDestRoute->get(), nullptr));
 		}
 	}
 
-	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent> &ev) {};
+	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev){};
 
 public:
-	RegEvent(Agent *ag) : Module(ag) {
+	RegEvent(Agent* ag) : Module(ag) {
 		su_home_init(&mHome);
 	}
 
@@ -97,8 +94,7 @@ public:
 };
 
 ModuleInfo<RegEvent> RegEvent::sInfo(
-	"RegEvent",
-	"This module is in charge of routing 'reg' event SUBSCRIBE requests to the flexisip-regevent server.",
-	{ "Redirect" },
-	ModuleInfoBase::ModuleOid::RegEvent
-);
+    "RegEvent",
+    "This module is in charge of routing 'reg' event SUBSCRIBE requests to the flexisip-regevent server.",
+    {"Redirect"},
+    ModuleInfoBase::ModuleOid::RegEvent);
