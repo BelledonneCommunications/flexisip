@@ -55,9 +55,9 @@ class StubListener : public ContactUpdateListener {
 public:
 	void onRecordFound(const shared_ptr<Record>&) override {
 	}
-	void onError() override {
+	void onError(const SipStatus&) override {
 	}
-	void onInvalid() override {
+	void onInvalid(const SipStatus&) override {
 	}
 	void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override {
 	}

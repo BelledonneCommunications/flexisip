@@ -30,6 +30,7 @@
 #include <sofia-sip/sip.h>
 #include <sofia-sip/url.h>
 
+#include "flexisip/flexisip-exception.hh"
 #include "flexisip/sofia-wrapper/home.hh"
 
 namespace sofiasip {
@@ -38,11 +39,11 @@ namespace sofiasip {
  * Exception thrown while trying to create a new URL from
  * an invalid string or url_t.
  */
-class InvalidUrlError : public std::invalid_argument {
+class InvalidUrlError : public flexisip::InvalidRequestError {
 public:
 	template <typename T, typename U>
 	InvalidUrlError(T&& url, U&& reason) noexcept
-	    : invalid_argument(url), _url(std::forward<T>(url)), _reason(std::forward<U>(reason)) {
+	    : InvalidRequestError("Invalid SIP URI", url), _url(std::forward<T>(url)), _reason(std::forward<U>(reason)) {
 	}
 
 	/**

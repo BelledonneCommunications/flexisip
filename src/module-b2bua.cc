@@ -89,7 +89,7 @@ void B2bua::onLoad(const GenericStruct* moduleConfig) {
 	string destRouteStr = moduleConfig->get<ConfigString>("b2bua-server")->read();
 	try {
 		mDestRoute.reset(new SipUri(destRouteStr));
-	} catch (const invalid_argument& e) {
+	} catch (const sofiasip::InvalidUrlError& e) {
 		LOGF("Invalid SIP URI (%s) in 'b2bua-server' parameter of 'B2bua' module: %s", destRouteStr.c_str(), e.what());
 	}
 	SLOGI << getModuleName() << ": b2bua server is [" << mDestRoute->str() << "]";

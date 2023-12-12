@@ -398,9 +398,9 @@ void ConferenceServer::bindFactoryUris() {
 	class FakeListener : public ContactUpdateListener {
 		void onRecordFound([[maybe_unused]] const shared_ptr<Record>& r) override {
 		}
-		void onError() override {
+		void onError(const SipStatus&) override {
 		}
-		void onInvalid() override {
+		void onInvalid(const SipStatus&) override {
 		}
 		void onContactUpdated(const shared_ptr<ExtendedContact>& ec) override {
 			SLOGD << "ConferenceServer: ExtendedContact contactId=" << ec->contactId() << " callId=" << ec->callId();
@@ -463,9 +463,9 @@ void ConferenceServer::bindFocusUris() {
 			LOGI("Focus address [%s] is bound.", gruuAddr->asStringUriOnly().c_str());
 			mAccount->setContactAddress(gruuAddr);
 		}
-		void onError() override {
+		void onError(const SipStatus&) override {
 		}
-		void onInvalid() override {
+		void onInvalid(const SipStatus&) override {
 		}
 		void onContactUpdated(const shared_ptr<ExtendedContact>& ec) override {
 			SLOGD << "ConferenceServer: ExtendedContact contactId=" << ec->contactId() << " callId=" << ec->callId();

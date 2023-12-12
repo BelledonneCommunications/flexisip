@@ -94,9 +94,9 @@ private:
 						if (!specs.empty()) mInfo->addCapability(specs);
 					}
 				}
-				void onError() {
+				void onError(const SipStatus&) {
 				}
-				void onInvalid() {
+				void onInvalid(const SipStatus&) {
 				}
 				void onContactUpdated(const std::shared_ptr<ExtendedContact>&) {
 				}

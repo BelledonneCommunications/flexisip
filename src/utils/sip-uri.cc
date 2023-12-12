@@ -35,7 +35,7 @@ namespace sofiasip {
 Url::Url(std::string_view str) {
 	if (str.empty()) return;
 	_url = url_make(_home.home(), str.data());
-	if (_url == nullptr) throw InvalidUrlError(std::string(str), "not an URI");
+	if (_url == nullptr) THROW_LINE(InvalidUrlError, std::string(str), "not an URI");
 }
 
 Url::Url(const url_t* src) noexcept {

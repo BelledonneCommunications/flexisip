@@ -695,13 +695,13 @@ public:
 		}
 		checkFinished();
 	}
-	void onError() override {
+	void onError(const SipStatus&) override {
 		--pending;
 		error = true;
 		checkFinished();
 	}
 
-	void onInvalid() override {
+	void onInvalid(const SipStatus&) override {
 		--pending;
 		error = true;
 		checkFinished();
@@ -712,7 +712,7 @@ public:
 
 	void checkFinished() {
 		if (pending != 0) return;
-		if (error) mListener->onError();
+		if (error) mListener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 		else mListener->onRecordFound(m_record);
 	}
 };
@@ -774,13 +774,13 @@ public:
 		}
 		checkFinished();
 	}
-	void onError() override {
+	void onError(const SipStatus&) override {
 		--mPending;
 		mError = true;
 		checkFinished();
 	}
 
-	void onInvalid() override {
+	void onInvalid(const SipStatus&) override {
 		--mPending;
 		mError = true;
 		checkFinished();
@@ -792,7 +792,7 @@ public:
 	void checkFinished() {
 		if (mPending != 0) return;
 		if (mError) {
-			mListener->onError();
+			mListener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 		} else {
 			if (mRecord->count() > 0) {
 				auto& contacts = mRecord->getExtendedContacts();
@@ -873,13 +873,13 @@ public:
 			mModule->routeRequest(mEv, r, mSipUri.get());
 		}
 	}
-	void onError() override {
-		mModule->sendReply(mEv, SIP_500_INTERNAL_SERVER_ERROR);
+	void onError(const SipStatus& response) override {
+		mModule->sendReply(mEv, response.getCode(), response.getReason());
 	}
 
-	void onInvalid() override {
-		LOGD("OnFetchForRoutingListener::onInvalid : 400 - Replayed CSeq");
-		mModule->sendReply(mEv, 400, "Replayed CSeq");
+	void onInvalid(const SipStatus& response) override {
+		LOGD("OnFetchForRoutingListener::onInvalid: %s", response.getReason());
+		mModule->sendReply(mEv, response.getCode(), response.getReason());
 	}
 
 	void onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) override {

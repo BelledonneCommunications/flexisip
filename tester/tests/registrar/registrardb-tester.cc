@@ -52,10 +52,10 @@ public:
 	virtual void onRecordFound(const std::shared_ptr<Record>& r) override {
 		mRecord = r;
 	}
-	void onError() override {
+	void onError(const SipStatus&) override {
 		BC_FAIL("This test doesn't expect an error response");
 	}
-	void onInvalid() override {
+	void onInvalid(const SipStatus&) override {
 		BC_FAIL("This test doesn't expect an invalid response");
 	}
 	void onContactUpdated(const shared_ptr<ExtendedContact>&) override {

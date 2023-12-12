@@ -101,9 +101,9 @@ private:
 		auto record = r ?: make_shared<Record>(mAor);
 		mDb->notifyContactListener(record, mUid);
 	}
-	void onError() override {
+	void onError(const SipStatus&) override {
 	}
-	void onInvalid() override {
+	void onInvalid(const SipStatus&) override {
 	}
 	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
 	}
@@ -401,17 +401,17 @@ public:
 		}
 	}
 
-	void onError() override {
+	void onError(const SipStatus& response) override {
 		SLOGW << "Step: " << mStep << "\tError during recursive fetch of " << mUrl;
 		if (waitPullUpOrFail()) {
-			mOriginalListener->onError();
+			mOriginalListener->onError(response);
 		}
 	}
 
-	void onInvalid() override {
+	void onInvalid(const SipStatus& response) override {
 		SLOGW << "Step: " << mStep << "\tInvalid during recursive fetch of " << mUrl;
 		if (waitPullUpOrFail()) {
-			mOriginalListener->onInvalid();
+			mOriginalListener->onInvalid(response);
 		}
 	}
 
@@ -488,11 +488,11 @@ void RegistrarDb::fetchList(const vector<SipUri> urls, const shared_ptr<ListCont
 		}
 
 	private:
-		void onError() override {
+		void onError(const SipStatus&) override {
 			SLOGE << "Error while fetching contact";
 			updateCount();
 		}
-		void onInvalid() override {
+		void onInvalid(const SipStatus&) override {
 			SLOGE << "Invalid fetch of contact";
 			updateCount();
 		}
@@ -568,7 +568,7 @@ void RegistrarDb::bind(MsgSip&& sipMsg,
 	if (countSipContacts > Record::getMaxContacts()) {
 		SLOGD << "Too many contacts in register " << Record::Key(sip->sip_from->a_url) << " " << countSipContacts
 		      << " > " << Record::getMaxContacts();
-		listener->onError();
+		listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 		return;
 	}
 
@@ -629,7 +629,7 @@ private:
 		mNumResponseObtained++;
 		if (mNumResponseObtained == mNumRespExpected) {
 			if (mError && mRecord == nullptr) {
-				mOriginalListener->onError();
+				mOriginalListener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 			} else {
 				mOriginalListener->onRecordFound(mRecord);
 			}
@@ -649,11 +649,11 @@ public:
 		}
 		checkFinished();
 	}
-	virtual void onError() override {
+	virtual void onError(const SipStatus&) override {
 		mError = true;
 		checkFinished();
 	}
-	virtual void onInvalid() override {
+	virtual void onInvalid(const SipStatus&) override {
 		// onInvalid() will normally never be called for a fetch request
 		checkFinished();
 	}

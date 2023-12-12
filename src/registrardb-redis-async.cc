@@ -33,6 +33,7 @@
 #include <sofia-sip/sip_protos.h>
 
 #include "flexisip/configmanager.hh"
+#include "flexisip/flexisip-exception.hh"
 #include "flexisip/registrar/registar-listeners.hh"
 
 #include "compat/hiredis/hiredis.h"
@@ -179,7 +180,7 @@ bool RegistrarDbRedisAsync::handleRedisStatus(const string& desc, int redisStatu
 	if (redisStatus != REDIS_OK) {
 		LOGE("Redis error for %s: %d", desc.c_str(), redisStatus);
 		if (context != nullptr) {
-			context->listener->onError();
+			context->listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 			delete context;
 		}
 		return FALSE;
@@ -656,7 +657,7 @@ void RegistrarDbRedisAsync::sKeyExpirationPublishCallback(redisAsyncContext* c, 
 
 void RegistrarDbRedisAsync::sHandleBindStart(redisAsyncContext*, redisReply* reply, RedisRegisterContext* context) {
 	if (reply == nullptr) {
-		if (context->listener) context->listener->onError();
+		if (context->listener) context->listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 		delete context;
 		return;
 	}
@@ -679,12 +680,13 @@ void RegistrarDbRedisAsync::sHandleBindStart(redisAsyncContext*, redisReply* rep
 	LOGD("Updating Record content for key [fs:%s] with new contact(s).", key.c_str());
 	try {
 		changeset += context->mRecord->update(context->mMsg.getSip(), context->mBindingParameters, context->listener);
-	} catch (const InvalidCSeq&) {
-		if (context->listener) context->listener->onInvalid();
+	} catch (const InvalidRequestError& e) {
+		if (context->listener) context->listener->onInvalid(e.getSipStatus());
 		delete context;
 		return;
-	} catch (const sofiasip::InvalidUrlError&) {
-		if (context->listener) context->listener->onInvalid();
+	} catch (const std::exception& e) {
+		SLOGE << "Unexpected exception when updating record: " << e.what();
+		if (context->listener) context->listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 		delete context;
 		return;
 	}
@@ -755,7 +757,7 @@ void RegistrarDbRedisAsync::sHandleAuthReply([[maybe_unused]] redisAsyncContext*
 void RegistrarDbRedisAsync::serializeAndSendToRedis(RedisRegisterContext* context, forwardFn* forward_fn) {
 	if (!mContext) {
 		SLOGE << "Redis context null, we're probably disconnecting. Aborting " << __FUNCTION__;
-		if (context->listener) context->listener->onError();
+		if (context->listener) context->listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 		delete context;
 		return;
 	}
@@ -822,7 +824,7 @@ void RegistrarDbRedisAsync::sBindRetry([[maybe_unused]] void* unused, [[maybe_un
 
 fail:
 	SLOGE << "Unrecoverable error while updating record fs:" << context->mRecord->getKey() << " : no connection";
-	if (context->listener) context->listener->onError();
+	if (context->listener) context->listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 	delete context;
 }
 
@@ -837,7 +839,7 @@ void RegistrarDbRedisAsync::handleBind(redisReply* reply, RedisRegisterContext* 
 			context->mRetryTimer = mAgent->createTimer(redisRetryTimeoutMs, sBindRetry, context, false);
 		} else {
 			SLOGE << "Unrecoverable error while updating record fs:" << key;
-			if (context->listener) context->listener->onError();
+			if (context->listener) context->listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 			delete context;
 		}
 	} else {
@@ -857,7 +859,7 @@ void RegistrarDbRedisAsync::doBind(const MsgSip& msg,
 
 	if (!isConnected() && !connect()) {
 		LOGE("Not connected to redis server");
-		if (listener) listener->onError();
+		if (listener) listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 		return;
 	}
 
@@ -880,7 +882,7 @@ void RegistrarDbRedisAsync::handleClear(redisReply* reply, RedisRegisterContext*
 			LOGW("Redis couldn't set the AOR because we're connected to a slave. Replying 480.");
 			if (context->listener) context->listener->onRecordFound(nullptr);
 		} else {
-			if (context->listener) context->listener->onError();
+			if (context->listener) context->listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 		}
 	} else {
 		SLOGE << "Clearing fs:" << key << " [" << context->token << "] success";
@@ -917,7 +919,7 @@ void RegistrarDbRedisAsync::doClear(const MsgSip& msg, const shared_ptr<ContactU
 
 		if (!isConnected() && !connect()) {
 			LOGE("Not connected to redis server");
-			if (context->listener) context->listener->onError();
+			if (context->listener) context->listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 			delete context;
 			return;
 		}
@@ -930,7 +932,10 @@ void RegistrarDbRedisAsync::doClear(const MsgSip& msg, const shared_ptr<ContactU
 		                    context);
 	} catch (const sofiasip::InvalidUrlError& e) {
 		SLOGE << "Invalid 'From' SIP URI [" << e.getUrl() << "]: " << e.getReason();
-		listener->onInvalid();
+		listener->onInvalid(e.getSipStatus());
+	} catch (const InvalidRequestError& e) {
+		SLOGE << "Unexpected exception: " << e.what();
+		listener->onInvalid(e.getSipStatus());
 	}
 }
 
@@ -951,12 +956,14 @@ void RegistrarDbRedisAsync::handleFetch(redisReply* reply, RedisRegisterContext*
 			      << (contact ? contact->urlAsString() : "<moved out>");
 		} catch (const sofiasip::InvalidUrlError& e) {
 			SLOGW << "Invalid 'Contact' SIP URI [" << e.getUrl() << "]: " << e.getReason();
+		} catch (const std::exception& e) {
+			SLOGE << "Unexpected exception: " << e.what();
 		}
 	};
 
 	if (!reply || reply->type == REDIS_REPLY_ERROR) {
 		LOGE("Redis error: %s", reply ? reply->str : "<null reply>");
-		if (context->listener) context->listener->onError();
+		if (context->listener) context->listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 		delete context;
 	} else if (reply->type == REDIS_REPLY_ARRAY) {
 		// This is the most common scenario: we want all contacts inside the record
@@ -996,7 +1003,7 @@ void RegistrarDbRedisAsync::doFetch(const SipUri& url, const shared_ptr<ContactU
 
 	if (!isConnected() && !connect()) {
 		LOGE("Not connected to redis server");
-		if (context->listener) context->listener->onError();
+		if (context->listener) context->listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 		delete context;
 		return;
 	}
@@ -1032,7 +1039,7 @@ void RegistrarDbRedisAsync::doFetchInstance(const SipUri& url,
 
 	if (!isConnected() && !connect()) {
 		LOGE("Not connected to redis server");
-		if (context->listener) context->listener->onError();
+		if (context->listener) context->listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 		delete context;
 		return;
 	}
@@ -1095,6 +1102,8 @@ void RegistrarDbRedisAsync::handleMigration(redisReply* reply, RedisRegisterCont
 				    new_context);
 			} catch (const sofiasip::InvalidUrlError& e) {
 				LOGD("Skipping invalid previous record [%s]: %s", element->str, e.getReason().c_str());
+			} catch (const std::exception& e) {
+				SLOGE << "Unexpected exception: " << e.what();
 			}
 		}
 	} else {

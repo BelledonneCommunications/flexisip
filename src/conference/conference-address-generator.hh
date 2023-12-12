@@ -44,8 +44,8 @@ public:
 
 private:
 	void onRecordFound(const std::shared_ptr<Record>& r) override;
-	void onError() override;
-	void onInvalid() override {
+	void onError(const SipStatus& response) override;
+	void onInvalid(const SipStatus&) override {
 	}
 	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
 	}

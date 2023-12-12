@@ -179,9 +179,9 @@ public:
 
 	void onRecordFound([[maybe_unused]] const std::shared_ptr<Record>& r) override {
 	}
-	void onError() override {
+	void onError(const SipStatus&) override {
 	}
-	void onInvalid() override {
+	void onInvalid(const SipStatus&) override {
 	}
 	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
 	}

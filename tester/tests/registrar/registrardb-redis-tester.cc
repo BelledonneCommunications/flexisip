@@ -28,10 +28,10 @@ public:
 	void onRecordFound([[maybe_unused]] const std::shared_ptr<Record>& r) override {
 		BC_FAIL(unexpected call to onRecordFound);
 	}
-	void onError() override {
+	void onError(const SipStatus&) override {
 		finished = true;
 	}
-	void onInvalid() override {
+	void onInvalid(const SipStatus&) override {
 		BC_FAIL(unexpected call to onInvalid);
 	}
 	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {

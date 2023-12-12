@@ -379,10 +379,10 @@ public:
 	CommandListener(SocketHandle&& socket) : mSocket(std::move(socket)) {
 	}
 
-	void onError() override {
+	void onError(const SipStatus&) override {
 		mSocket.send("Error connecting to the Registrar");
 	}
-	void onInvalid() override {
+	void onInvalid(const SipStatus&) override {
 		mSocket.send("Error: Invalid Record");
 	}
 	// Mandatory since we inherit from ContactUpdateListener
@@ -535,10 +535,10 @@ void ProxyCommandLineInterface::handleRegistrarClear(SocketHandle&& socket, cons
 			RegistrarDb::get()->publish(r->getKey(), "");
 			mSocket.send("Done: cleared record " + static_cast<const string&>(mUri));
 		}
-		void onError() override {
+		void onError(const SipStatus&) override {
 			mSocket.send("Error: cannot clear record " + static_cast<const string&>(mUri));
 		}
-		void onInvalid() override {
+		void onInvalid(const SipStatus&) override {
 			mSocket.send("Error: cannot clear record " + static_cast<const string&>(mUri));
 		}
 

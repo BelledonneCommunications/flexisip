@@ -43,8 +43,8 @@ void RegistrarDbInternal::doBind(const MsgSip& msg,
 	SipUri fromUri;
 	try {
 		fromUri = SipUri(sip->sip_from->a_url);
-	} catch (const invalid_argument& e) {
-		throw InvalidAorError(sip->sip_from->a_url);
+	} catch (const sofiasip::InvalidUrlError& e) {
+		THROW_LINE(InvalidAorError, sip->sip_from->a_url);
 	}
 
 	string key = Record::Key(fromUri);
@@ -62,11 +62,8 @@ void RegistrarDbInternal::doBind(const MsgSip& msg,
 
 	try {
 		r->update(sip, parameters, listener);
-	} catch (const InvalidCSeq&) {
-		if (listener) listener->onInvalid();
-		return;
-	} catch (const sofiasip::InvalidUrlError&) {
-		if (listener) listener->onInvalid();
+	} catch (const InvalidRequestError& e) {
+		if (listener) listener->onInvalid(e.getSipStatus());
 		return;
 	}
 
@@ -148,7 +145,7 @@ void RegistrarDbInternal::doClear(const MsgSip& msg, const shared_ptr<ContactUpd
 	string key = Record::Key(sip->sip_from->a_url);
 
 	if (errorOnTooMuchContactInBind(sip->sip_contact, key, listener)) {
-		listener->onError();
+		listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 		return;
 	}
 

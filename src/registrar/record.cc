@@ -227,7 +227,7 @@ Record::ContactMatch Record::matchContacts(const ExtendedContact& existing, cons
 
 		// "If not, the update MUST be aborted and the request fails." (RFC 3261 §10.3)
 		SLOGD << "Existing contact [" << existing << "] has a higher CSeq value than request [" << neo << "]";
-		throw InvalidCSeq();
+		THROW_LINE(InvalidCSeq);
 	}
 
 	if (existing.isExpired()) {
@@ -362,8 +362,8 @@ void Record::update(const ExtendedContactCommon& ecc,
 	exct->mUsedAsRoute = usedAsRoute;
 	try {
 		insertOrUpdateBinding(std::move(exct), listener.get());
-	} catch (const InvalidCSeq&) {
-		SLOGE << "Unexpected invalid CSeq encountered when deserializing " << sipuri;
+	} catch (const InvalidRequestError& e) {
+		SLOGE << "Unexpected exception encountered when deserializing " << sipuri << ": " << e.what();
 	}
 	applyMaxAor();
 

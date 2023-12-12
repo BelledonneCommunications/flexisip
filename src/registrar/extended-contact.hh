@@ -9,7 +9,6 @@
 #include <list>
 #include <memory>
 #include <sstream>
-#include <stdexcept>
 #include <string>
 
 #include "submodules/externals/sofia-sip/libsofia-sip-ua/sip/sofia-sip/sip_protos.h"

@@ -61,7 +61,7 @@ private:
 		string destRouteStr = mc->get<ConfigString>("regevent-server")->read();
 		try {
 			mDestRoute.reset(new SipUri(destRouteStr));
-		} catch (const invalid_argument& e) {
+		} catch (const sofiasip::InvalidUrlError& e) {
 			LOGF("Invalid SIP URI (%s) in 'regevent-server' parameter of 'RegEvent' module: %s", destRouteStr.c_str(),
 			     e.what());
 		}

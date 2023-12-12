@@ -75,7 +75,7 @@ private:
 		if (destRouteStr.empty()) LOGF("[%s] parameter must be set", presenceServerSetting->getCompleteName().c_str());
 		try {
 			mDestRoute = SipUri(destRouteStr);
-		} catch (const invalid_argument& e) {
+		} catch (const sofiasip::InvalidUrlError& e) {
 			LOGF("Invalid SIP URI (%s) in 'presence-server' parameter of 'Presence' module: %s", destRouteStr.c_str(),
 			     e.what());
 		}

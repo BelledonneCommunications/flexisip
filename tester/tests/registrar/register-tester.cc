@@ -61,10 +61,10 @@ public:
 	void onRecordFound([[maybe_unused]] const shared_ptr<Record>& r) override {
 		bidingDone++;
 	}
-	void onError() override {
+	void onError(const SipStatus&) override {
 		BC_FAIL("Only onRecordFound must be called.");
 	}
-	void onInvalid() override {
+	void onInvalid(const SipStatus&) override {
 		std::ostringstream debugStream{};
 		debugStream << "Unexpected call to onInvalid while trying to bind user : " << mExpectedUser;
 		bc_assert(__FILE__, __LINE__, false, debugStream.str().c_str());
@@ -111,10 +111,10 @@ public:
 			}
 		}
 	}
-	void onError() override {
+	void onError(const SipStatus&) override {
 		BC_FAIL("Only onRecordFound must be called.");
 	}
-	void onInvalid() override {
+	void onInvalid(const SipStatus&) override {
 		BC_FAIL("Only onRecordFound must be called.");
 	}
 	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {

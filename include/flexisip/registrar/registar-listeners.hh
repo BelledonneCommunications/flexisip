@@ -21,6 +21,7 @@
 #include <memory>
 
 #include "flexisip/configmanager.hh"
+#include "flexisip/flexisip-exception.hh"
 
 namespace flexisip {
 
@@ -43,10 +44,10 @@ public:
 	 * destroyed immediately after onRecordFound() has returned.
 	 */
 	virtual void onRecordFound(const std::shared_ptr<Record>& r) = 0;
-	// Internal error, translated to a 500 response by the registrar module
-	virtual void onError() = 0;
-	// Replayed CSeq or Invalid SIP URI, translated to a 400 (Invalid) response by the registrar module
-	virtual void onInvalid() = 0;
+	// Internal error, translated to a 5xx response by the registrar module
+	virtual void onError(const SipStatus& response) = 0;
+	// Client error, translated to a 4xx (Invalid) response by the registrar module
+	virtual void onInvalid(const SipStatus& response) = 0;
 };
 
 class ContactUpdateListener : public RegistrarDbListener {

@@ -55,8 +55,8 @@ public:
 
 	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override;
 	void onRecordFound(const std::shared_ptr<Record>& r) override;
-	void onError() override;
-	void onInvalid() override;
+	void onError(const SipStatus& response) override;
+	void onInvalid(const SipStatus& response) override;
 };
 
 class OnResponseBindListener : public ContactUpdateListener {
@@ -72,8 +72,8 @@ public:
 	                       std::shared_ptr<ResponseContext> ctx);
 	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override;
 	void onRecordFound(const std::shared_ptr<Record>& r) override;
-	void onError() override;
-	void onInvalid() override;
+	void onError(const SipStatus& response) override;
+	void onInvalid(const SipStatus& response) override;
 };
 
 // Listener class NEED to copy the shared pointer
@@ -88,8 +88,8 @@ public:
 
 	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override;
 	void onRecordFound(const std::shared_ptr<Record>& r) override;
-	void onError() override;
-	void onInvalid() override;
+	void onError(const SipStatus& response) override;
+	void onInvalid(const SipStatus& response) override;
 };
 
 class FakeFetchListener : public ContactUpdateListener {
@@ -99,8 +99,8 @@ public:
 	FakeFetchListener();
 	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override;
 	void onRecordFound(const std::shared_ptr<Record>& r) override;
-	void onError() override;
-	void onInvalid() override;
+	void onError(const SipStatus& response) override;
+	void onInvalid(const SipStatus& response) override;
 };
 
 class ResponseContext {

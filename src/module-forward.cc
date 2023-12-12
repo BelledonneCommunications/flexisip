@@ -275,12 +275,14 @@ public:
 		// url_strip_param_string(su_strdup(ms->getHome(),mEv->getSip()->sip_request->rq_url->url_params) , "gr");
 		mModule->sendRequest(mEv, mEv->getSip()->sip_request->rq_url);
 	}
-	virtual void onError() override {
-		SLOGE << "RegistrarListener error";
-		mEv->reply(500, "Internal Server Error", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
+	virtual void onError(const SipStatus& response) override {
+		SLOGE << "RegistrarListener error, reply: " << response.getReason();
+		mEv->reply(response.getCode(), response.getReason(), SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()),
+		           TAG_END());
 	};
-	virtual void onInvalid() override {
+	virtual void onInvalid(const SipStatus&) override {
 		SLOGE << "RegistrarListener invalid";
+		// do not use SipStatus, treat as an error
 		mEv->reply(500, "Internal Server Error", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
 	}
 	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override{};

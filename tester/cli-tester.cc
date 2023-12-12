@@ -90,10 +90,10 @@ public:
 	virtual void onRecordFound(const std::shared_ptr<Record>& r) override {
 		mRecord = r;
 	}
-	virtual void onError() override {
+	virtual void onError(const SipStatus&) override {
 		BC_FAIL(unexpected call to onError);
 	}
-	virtual void onInvalid() override {
+	virtual void onInvalid(const SipStatus&) override {
 		BC_FAIL(unexpected call to onInvalid);
 	}
 	virtual void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& _ec) override {

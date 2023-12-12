@@ -98,8 +98,8 @@ private:
 	void processRecord(const std::shared_ptr<Record>& r);
 	/*ContactUpdateListener virtual functions to override*/
 	virtual void onRecordFound(const std::shared_ptr<Record>& r) override;
-	virtual void onError() override{};
-	virtual void onInvalid() override{};
+	virtual void onError(const SipStatus&) override{};
+	virtual void onInvalid(const SipStatus&) override{};
 	virtual void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
 	}
 	/*ContactRegisteredListener overrides*/

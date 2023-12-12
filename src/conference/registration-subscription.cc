@@ -87,7 +87,7 @@ OwnRegistrationSubscription::OwnRegistrationSubscription(const ConferenceServer&
     : RegistrationSubscription(server, cr, participant) {
 	try {
 		mParticipantAor = SipUri(participant->asStringUriOnly());
-	} catch (const invalid_argument& e) {
+	} catch (const sofiasip::InvalidUrlError& e) {
 		LOGE("RegistrationSubscription(): invalid participant aor %s: %s", participant->asStringUriOnly().c_str(),
 		     e.what());
 	}

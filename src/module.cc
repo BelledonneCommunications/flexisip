@@ -17,6 +17,8 @@
 */
 
 #include <algorithm>
+#include <sstream>
+#include <string_view>
 
 #include <sofia-sip/auth_digest.h>
 #include <sofia-sip/nta.h>
@@ -120,8 +122,13 @@ void Module::reload() {
 }
 
 void Module::processRequest(shared_ptr<RequestSipEvent>& ev) {
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
+	auto errorReply = [&](int code, string_view reason, string_view error_msg) {
+		SLOGD << "Exception while onRequest() on module " << getModuleName() << " because " << error_msg;
+		SLOGD << "Replying with message " << code << " and reason " << reason.data();
+		ev->reply(code, reason.data(), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+	};
 
+	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	try {
 		if (mFilter->canEnter(ms)) {
 			SLOGD << "Invoking onRequest() on module " << getModuleName();
@@ -130,15 +137,18 @@ void Module::processRequest(shared_ptr<RequestSipEvent>& ev) {
 			SLOGD << "Skipping onRequest() on module " << getModuleName();
 		}
 	} catch (SignalingException& se) {
-		SLOGD << "Signaling exception while onRequest() on module " << getModuleName() << ": " << se;
-		SLOGD << "Replying with message " << se.getStatusCode() << " and reason " << se.getReason();
-		ev->reply(se.getStatusCode(), se.getReason().c_str(), SIPTAG_SERVER_STR(getAgent()->getServerString()),
-		          TAG_END());
-
+		ostringstream msg;
+		msg << se;
+		errorReply(se.getStatusCode(), se.getReason(), msg.str());
 	} catch (FlexisipException& fe) {
-		SLOGD << "Exception while onRequest() on module " << getModuleName() << " because " << fe;
-		SLOGD << "Replying with error 500";
-		ev->reply(500, "Internal Error", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		ostringstream msg;
+		msg << fe;
+		errorReply(SIP_500_INTERNAL_SERVER_ERROR, msg.str());
+	} catch (const GenericSipException& ge) {
+		const auto& response = ge.getSipStatus();
+		errorReply(response.getCode(), response.getReason(), ge.what());
+	} catch (const std::exception& e) {
+		errorReply(SIP_500_INTERNAL_SERVER_ERROR, e.what());
 	}
 }
 

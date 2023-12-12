@@ -158,7 +158,7 @@ private:
 		~OnFetchListener() {
 		}
 
-		void onInvalid() override {
+		void onInvalid(const SipStatus&) override {
 			LOGD("GATEWAY: invalid");
 		}
 
@@ -172,7 +172,7 @@ private:
 			}
 		}
 
-		void onError() override {
+		void onError(const SipStatus&) override {
 			gw->onError("Fetch error.");
 		}
 

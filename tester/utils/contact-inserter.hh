@@ -27,10 +27,10 @@ public:
 	std::unordered_set<std::string> contactsToBeInserted;
 
 	void onRecordFound(const std::shared_ptr<Record>& r) override;
-	void onError() override {
+	void onError(const SipStatus&) override {
 		BC_FAIL("This test doesn't expect an error response on insertion");
 	}
-	void onInvalid() override {
+	void onInvalid(const SipStatus&) override {
 		BC_FAIL("This test doesn't expect an invalid response on insertion");
 	}
 	void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override {

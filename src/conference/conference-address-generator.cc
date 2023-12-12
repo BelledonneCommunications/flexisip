@@ -82,6 +82,6 @@ void ConferenceAddressGenerator::onRecordFound(const std::shared_ptr<Record>& r)
 	}
 }
 
-void ConferenceAddressGenerator::onError() {
+void ConferenceAddressGenerator::onError(const SipStatus&) {
 	mChatRoom->setConferenceAddress(nullptr);
 }

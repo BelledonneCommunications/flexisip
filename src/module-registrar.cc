@@ -126,13 +126,14 @@ void OnRequestBindListener::onRecordFound(const shared_ptr<Record>& r) {
 		mModule->reply(mEv, SIP_500_INTERNAL_SERVER_ERROR);
 	}
 }
-void OnRequestBindListener::onError() {
-	mModule->reply(mEv, SIP_500_INTERNAL_SERVER_ERROR);
+void OnRequestBindListener::onError(const SipStatus& response) {
+	LOGE("OnRequestBindListener::onError: reply %s", response.getReason());
+	mModule->reply(mEv, response.getCode(), response.getReason());
 }
 
-void OnRequestBindListener::onInvalid() {
-	LOGE("OnRequestBindListener::onInvalid: 400 - Replayed CSeq or Invalid SIP URI");
-	mModule->reply(mEv, 400, "Replayed CSeq or Invalid SIP URI");
+void OnRequestBindListener::onInvalid(const SipStatus& response) {
+	LOGE("OnRequestBindListener::onInvalid: reply %s", response.getReason());
+	mModule->reply(mEv, response.getCode(), response.getReason());
 }
 
 OnResponseBindListener::OnResponseBindListener(ModuleRegistrar* module,
@@ -168,15 +169,15 @@ void OnResponseBindListener::onRecordFound(const shared_ptr<Record>& r) {
 	addEventLogRecordFound(mEv, dbContacts);
 	mModule->getAgent()->injectResponseEvent(mEv);
 }
-void OnResponseBindListener::onError() {
-	LOGE("OnResponseBindListener::onError(): 500");
-	mCtx->mRequestSipEvent->reply(SIP_500_INTERNAL_SERVER_ERROR, TAG_END());
+void OnResponseBindListener::onError(const SipStatus& response) {
+	LOGE("OnResponseBindListener::onError: reply %s", response.getReason());
+	mCtx->mRequestSipEvent->reply(response.getCode(), response.getReason(), TAG_END());
 	mEv->terminateProcessing();
 }
 
-void OnResponseBindListener::onInvalid() {
-	LOGE("OnResponseBindListener::onInvalid: 400 - Replayed CSeq");
-	mCtx->mRequestSipEvent->reply(400, "Replayed CSeq", TAG_END());
+void OnResponseBindListener::onInvalid(const SipStatus& response) {
+	LOGE("OnResponseBindListener::onInvalid: reply %s", response.getReason());
+	mCtx->mRequestSipEvent->reply(response.getCode(), response.getReason(), TAG_END());
 	mEv->terminateProcessing();
 }
 
@@ -191,10 +192,10 @@ OnStaticBindListener::OnStaticBindListener(const url_t* from, const sip_contact_
 void OnStaticBindListener::onRecordFound([[maybe_unused]] const shared_ptr<Record>& r) {
 	LOGD("Static route added for %s: %s", mFrom.c_str(), mContact.c_str());
 }
-void OnStaticBindListener::onError() {
+void OnStaticBindListener::onError(const SipStatus&) {
 	LOGE("Can't add static route for %s", mFrom.c_str());
 }
-void OnStaticBindListener::onInvalid() {
+void OnStaticBindListener::onInvalid(const SipStatus&) {
 	LOGE("OnStaticBindListener onInvalid");
 }
 void OnStaticBindListener::onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) {
@@ -210,10 +211,10 @@ void FakeFetchListener::onRecordFound(const shared_ptr<Record>& r) {
 		LOGD("No record found");
 	}
 }
-void FakeFetchListener::onError() {
+void FakeFetchListener::onError(const SipStatus&) {
 }
 
-void FakeFetchListener::onInvalid() {
+void FakeFetchListener::onInvalid(const SipStatus&) {
 	LOGD("FakeFetchListener: onInvalid");
 }
 
@@ -929,10 +930,10 @@ void ModuleRegistrar::readStaticRecords() {
 					void onRecordFound([[maybe_unused]] const shared_ptr<Record>& r) override {
 						SLOGD << "Cleared record " << mUri;
 					}
-					void onError() override {
+					void onError(const SipStatus&) override {
 						SLOGE << "Error: cannot clear record " << mUri;
 					}
-					void onInvalid() override {
+					void onInvalid(const SipStatus&) override {
 						SLOGE << "Invalid: cannot clear record " << mUri;
 					}
 					void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
