@@ -14,10 +14,47 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
 
+## [2.3.3] - 2023-12-14
+### [Added]
+- **Presence:** Last activity date is sent with long term presence.
+- **B2BUA server:** You can now force the usage of a specific video codec. See the `video-codec` config for more information.
+- **B2BUA server:** Add a configurable time limit on calls and fix a bug where calls where limited to 30 minutes.
+  See the `max-call-duration` config for more information.
+- **B2BUA server:** Allow to use other transport protocol than TCP.
+- **B2BUA server:** You can now choose the User-Agent header for outgoing B2BUA request with the `user-agent` config.
+- **Proxy/push-notification:** You can now choose between a HTTP/1 or a HTTP/2 client for the generic push-notification service.
+  See the `external-push-protocol` config for more information.
+- **[Experimental]** **Proxy/push-notification:** You can choose to use the new Firebase v1 API to send Android push notifications. See
+  `firebase-service-accounts` config for more information. Use with caution, this feature is experimental.
+
+### [Changed]
+ - **Proxy/logs:** Improve Redis request logging in case of errors.
+ - **Proxy/router:** Add a configuration parameter to choose database connection pool size for message persistence.
+  See the `message-database-pool-size` config for more information.
+ - **Packaging:** Flexisip will create default configurations files on first install.
+
+### [Fixed]
+ - **B2BUA server:** fix a bug where Trenscrypter mode placed outgoing calls using the request address instead of the `To` header from the incoming call.
+ - **Packaging:** fix Systemctl warning and service restart on Rocky Linux 9 after package update.
+ - **Proxy:** fix a server hangup that occurred on TLS connection timeout.
+ - **Proxy/push-notification:** fix crashes around HTTP/2 client that occurred on iOS push notification sending.
+ - **Proxy/http/2 client:** fix a problem where frames where not sent directly after an HTTP/2 window size update.
+ - **Proxy/registrar:** fix a race condition on rapid consecutive REGISTERs that may lead to a crash.
+ - **Proxy/router:** fix bug where a 5xx response was preferred over a 6xx response for some INVITEs.
+ - **Proxy/foward:** Fix a bug where stateless CANCEL could be forwarded without the Reason header.
+
+## [2.3.2] - 2023-09-07
+### [Fixed]
+- **Proxy/media-relay:** fix `candidates` media attributes being wiped out of all INVITE responses.
+  This buggy behaviour was introduced in 2.3.1 while attempting to handle a response **with** ICE candidates
+  to an INVITE **without** ICE candidates.
+- **Proxy/registrar:** Fix a regression in a domain-registration scenario with "relay-reg-to-domains" enabled,
+  where the backend server fails to route to the intermediate proxy.
+
 ## [2.3.1] - 2023-08-30
 ### [Added]
 - **B2BUA server:** add the 'no-rtp-timeout' parameter that allows to set the delay before the call is automatically
-  hung up because no RTP data is received.
+  hung up because no RTP data is received.
 
 ### [Fixed]
 - **Proxy/authentication:** fix behavior differences of 'soci-password-request' according to which Soci backend
@@ -51,7 +88,7 @@ Group changes to describe their impact on the project, as follows:
 ### [Changed]
 - **Flexisip proxy:** enforce compliance with [RFC3261](https://datatracker.ietf.org/doc/html/rfc3261) when
   processing REGISTER requests. The Call-ID is no longer used as unique-id when no `+sip-instance` parameter has
-  been set in the Contact-URI; the Contact-URI is used instead by using URI comparison logic as described in
+  been set in the Contact-URI; the Contact-URI is used instead by using URI comparison logic as described in
   [RFC3261 – Section 10.2.4](https://datatracker.ietf.org/doc/html/rfc3261#section-10.2.4). The CSeq value is now used to
   avoid replay attacks or SIP race conditions.
 
@@ -74,8 +111,8 @@ Group changes to describe their impact on the project, as follows:
 
 ## [2.2.4] - 2023-04-20
 ### [Fixed]
-- Bug in SofiaSip that causes the proxy to choose a not fully established TCP connection when it needs
-  to send a SIP message to a user agent. That causes some SIP message losses.
+- Bug in SofiaSip that causes the proxy to choose a not fully established TCP connection when it needs
+  to send a SIP message to a user agent. That causes some SIP message losses.
 - Make the proxy to answer “200 Ok” to OPTIONS requests that are directly addressed to itself.
 - Crash when the “Generic Push Notifications” feature is enabled (`module::PushNotification/external-push-uri`)
   but no Firebase API key has been put in `firebase-projects-api-keys` parameter.
@@ -85,7 +122,7 @@ Group changes to describe their impact on the project, as follows:
 
 ## [2.2.3] - 2023-04-11
 ### [Fixed]
-- CLI: print a more explicite message when the CLI cannot connect to the server socket due to permissions.
+- CLI: print a more explicite message when the CLI cannot connect to the server socket due to permissions.
 - Pusher: allow to set a custom payload for Firebase push notifications requests, as it is for Apple.
 - Presence server: ensure that capabilities of each devices of a user are concatenated by union while sending
   a NOTIFY request to the subscriber.
