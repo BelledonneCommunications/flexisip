@@ -75,7 +75,7 @@ FirebaseV1Request::FirebaseV1Request(PushType pType,
 		{"loc-key", mPInfo->mAlertMsgId},
 		{"loc-args", from},
 		{"send-time", getPushTimeStamp()},
-		{"custom-payload", customPayload},
+		{"custom-payload", StringUtils::searchAndReplace(customPayload, R"(")", R"(\")")},
 	};
 	// clang-format on
 

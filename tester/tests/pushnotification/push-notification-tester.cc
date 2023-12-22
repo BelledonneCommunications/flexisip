@@ -314,6 +314,7 @@ static void firebaseV1PushTestOk() {
 	pushInfo->mTtl = 42s;
 	pushInfo->mUid = "a-uuid-42";
 	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
+	pushInfo->mCustomPayload = R"({"key": "value", "key": {"key": "value"}})";
 
 	string reqBodyPattern{R"json(\{
 	"message":\{
@@ -330,7 +331,7 @@ static void firebaseV1PushTestOk() {
 				"loc-key":"",
 				"loc-args":"sip:kijou@sip.linphone.org",
 				"send-time":"[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}",
-				"custom-payload":"\{\}"
+				"custom-payload":"\{\\"key\\": \\"value\\", \\"key\\": \{\\"key\\": \\"value\\"\}\}"
 			\}
 		\}
 	\}
