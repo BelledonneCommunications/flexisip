@@ -26,8 +26,7 @@
 
 using namespace std;
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 class UriUtilsIsIpvXTest : public Test {
 public:
@@ -111,13 +110,34 @@ public:
 	}
 };
 
+class StringUtilsSearchAndReplaceTest : public Test {
+public:
+	void operator()() override {
+		// Test the string remains unchanged.
+		string test1 = "this is a test string.";
+		StringUtils::searchAndReplace(test1, "y", "a");
+		BC_ASSERT_TRUE(test1 == test1);
+
+		// Simple test.
+		string test2 = "this is a test string.";
+		StringUtils::searchAndReplace(test2, "s ", "_");
+		BC_ASSERT_TRUE(test2 == "thi_i_a test string.");
+
+		// Test that all " characters are replaced with \".
+		// This test makes sure the function still works even when the value contains the key.
+		string test3 = R"({"data": {"key" : "value", "key": {"key": "value"}}})";
+		StringUtils::searchAndReplace(test3, R"(")", R"(\")");
+		BC_ASSERT_TRUE(test3 == R"({\"data\": {\"key\" : \"value\", \"key\": {\"key\": \"value\"}}})");
+	}
+};
+
 namespace {
 TestSuite _("Utils unit tests",
             {
                 TEST_NO_TAG("UriUtils isIpv4Address and isIpv6Address method test", run<UriUtilsIsIpvXTest>),
                 CLASSY_TEST(RandomStringGeneratorTest),
-                TEST_NO_TAG("StringUtil::join method test", run<StringUtilsJoinTest>),
+                TEST_NO_TAG("StringUtils::join method test", run<StringUtilsJoinTest>),
+                TEST_NO_TAG("StringUtils::searchAndReplace method test", run<StringUtilsSearchAndReplaceTest>),
             });
 }
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester
