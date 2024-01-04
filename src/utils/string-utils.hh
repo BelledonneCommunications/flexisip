@@ -89,7 +89,7 @@ public:
 	static std::optional<std::string_view> removePrefix(const std::string_view& str, const std::string_view& prefix);
 
 	/**
-	 * Replace any occurence of 'key' in 'str' by 'value'.
+	 * @brief Replaces all occurrences of 'key' in 'str' by 'value'.
 	 */
 	static std::string& searchAndReplace(std::string& str, const std::string& key, const std::string& value) noexcept;
 

@@ -85,9 +85,10 @@ optional<string_view> StringUtils::removePrefix(const string_view& str, const st
 
 std::string&
 StringUtils::searchAndReplace(std::string& str, const std::string& key, const std::string& value) noexcept {
-	for (auto i = str.find(key); i != string::npos;) {
-		str.replace(i, key.size(), value);
-		i += value.size();
+	auto index = str.find(key);
+	while (index != string::npos) {
+		str.replace(index, key.size(), value);
+		index = str.find(key, index + value.size());
 	}
 	return str;
 }
