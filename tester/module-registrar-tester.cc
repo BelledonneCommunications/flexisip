@@ -32,7 +32,7 @@ void static_records_file_is_read_on_SIGUSR1() {
 	staticRecordsFile.writeStream() << "<" << aor << "> " << contact1 << "," << contact2 << "," << contact3;
 
 	Server proxyServer({
-	    {"module::Registrar/static-records-file", staticRecordsFile.name},
+	    {"module::Registrar/static-records-file", staticRecordsFile.getFilename()},
 	    // Requesting bind on port 0 to let the kernel find any available port
 	    {"global/transports", "sip:127.0.0.1:0"},
 	});

@@ -537,7 +537,6 @@ static void external_provider_bridge__override_special_options() {
 		 ]
 		}
 	])");
-
 	b2bua::bridge::AccountManager accman{};
 	Server proxy{{
 	    // Requesting bind on port 0 to let the kernel find any available port
@@ -547,7 +546,8 @@ static void external_provider_bridge__override_special_options() {
 	}};
 
 	{
-		ConfigItemDescriptor configItems[] = {{String, "providers", "help", providersJson.name}, config_item_end};
+		ConfigItemDescriptor configItems[] = {{String, "providers", "help", providersJson.getFilename().c_str()},
+		                                      config_item_end};
 		proxy.getConfigManager()
 		    ->getRoot()
 		    ->addChild(make_unique<GenericStruct>("b2bua-server::sip-bridge", "help", 0))
@@ -748,7 +748,7 @@ static void external_provider_bridge__max_call_duration() {
 	    {"b2bua-server/application", "sip-bridge"},
 	    // Call will be interrupted after 1s
 	    {"b2bua-server/max-call-duration", "1"},
-	    {"b2bua-server::sip-bridge/providers", providersJson.name},
+	    {"b2bua-server::sip-bridge/providers", providersJson.getFilename()},
 	    // Forward everything to the b2bua
 	    {"module::B2bua/enabled", "true"},
 	    {"module::Registrar/enabled", "true"},

@@ -78,6 +78,8 @@ add_executable(flexisip_tester
 	sofia-tester.cc
 	sofia-driven-signal-handler-tester.cc
 	tester.cc
+	tests/auth/auth-digest-tester.cc
+	tests/auth/auth-domains-tester.cc
 	tests/callcontext-mediarelay-tester.cc
 	tests/configmanager-tester.cc
 	tests/transaction-tester.cc

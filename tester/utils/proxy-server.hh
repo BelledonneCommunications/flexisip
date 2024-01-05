@@ -50,13 +50,29 @@ public:
 	explicit Server(const std::string& configFile = "", InjectedHooks* injectedHooks = nullptr);
 	/**
 	 * @brief Same as before but use a map instead of a file to configure the agent.
-	 * @param config Agent configuration as a map. The key is the name of the paramter
+	 * Default transport is set to localhost and port 0.
+	 * Default reg-domain is set to *.example.org.
+	 * @param customConfig Agent configuration as a map. The key is the name of the paramter
 	 * to change (e.g. 'module::Registrar/reg-domains') and the value is the new
 	 * value of the parameter as string.
 	 * @param injectedModule A module to be injected into the Agent's module chain to mangle requests before they reach
 	 * other modules.
 	 */
 	explicit Server(const std::map<std::string, std::string>& customConfig, InjectedHooks* injectedHooks = nullptr);
+	/**
+	 * @brief Same as before but use a map instead of a file to configure the agent.
+	 * Default transport is set to localhost and port 0.
+	 * Default reg-domain is set to *.example.org.
+	 * @param customConfig Agent configuration as a map. The key is the name of the paramter
+	 * to change (e.g. 'module::Registrar/reg-domains') and the value is the new
+	 * value of the parameter as string.
+	 * @param root An external root to share.
+	 * @param injectedModule A module to be injected into the Agent's module chain to mangle requests before they reach
+	 * other modules.
+	 */
+	explicit Server(const std::map<std::string, std::string>& customConfig,
+	                const std::shared_ptr<sofiasip::SuRoot>& root,
+	                InjectedHooks* injectedHooks = nullptr);
 
 	virtual ~Server();
 

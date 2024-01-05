@@ -86,6 +86,12 @@ Server::Server(const std::string& configFile, InjectedHooks* injectedHooks)
 }
 
 Server::Server(const std::map<std::string, std::string>& customConfig, InjectedHooks* injectedHooks)
+    : Server(customConfig, std::make_shared<sofiasip::SuRoot>(), injectedHooks) {
+}
+
+Server::Server(const std::map<std::string, std::string>& customConfig,
+               const std::shared_ptr<sofiasip::SuRoot>& root,
+               InjectedHooks* injectedHooks)
     : mInjectedModule(injectedHooks ? decltype(mInjectedModule){*injectedHooks} : std::nullopt) {
 	mConfigManager->load("");
 
@@ -93,7 +99,7 @@ Server::Server(const std::map<std::string, std::string>& customConfig, InjectedH
 	auto config = customConfig;
 	config.merge(map<string, string>{// Requesting bind on port 0 to let the kernel find any available port
 	                                 {"global/transports", "sip:127.0.0.1:0"},
-	                                 {"module::Registrar/reg-domains", "sip.example.org"}});
+	                                 {"module::Registrar/reg-domains", "*.example.org"}});
 	for (const auto& kv : config) {
 		const auto& key = kv.first;
 		const auto& value = kv.second;
@@ -110,7 +116,6 @@ Server::Server(const std::map<std::string, std::string>& customConfig, InjectedH
 	}
 
 	mAuthDbOwner = std::make_shared<AuthDbBackendOwner>(mConfigManager);
-	auto root = std::make_shared<sofiasip::SuRoot>();
 	mRegistrarDb = std::make_shared<RegistrarDb>(root, mConfigManager);
 	mAgent = std::make_shared<Agent>(root, mConfigManager, mAuthDbOwner, mRegistrarDb);
 }
