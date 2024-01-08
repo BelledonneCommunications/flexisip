@@ -1,1 +1,1 @@
-Extensible SIP proxy with media capabilities. Designed for robustness and easy of use.
+Extensible SIP proxy with media capabilities. Designed for robustness and ease of use.
