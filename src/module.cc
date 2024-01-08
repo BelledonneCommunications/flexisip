@@ -43,7 +43,7 @@ using namespace flexisip;
 
 Module::Module(Agent* ag, const ModuleInfoBase* moduleInfo)
     : mAgent(ag), mInfo(moduleInfo),
-      mModuleConfig(ConfigManager::get()->getRoot()->get<GenericStruct>("module::" + getModuleConfigName())),
+      mModuleConfig(ag->getConfigManager().getRoot()->get<GenericStruct>("module::" + getModuleConfigName())),
       mFilter(new ConfigEntryFilter(*mModuleConfig)) {
 	mModuleConfig->setConfigListener(this);
 }
@@ -175,6 +175,10 @@ ModuleClass Module::getClass() const {
 
 void Module::injectRequestEvent(const shared_ptr<RequestSipEvent>& ev) {
 	mAgent->injectRequestEvent(ev);
+}
+
+void Module::sendTrap(const std::string& msg) {
+	mAgent->sendTrap(mModuleConfig, msg);
 }
 
 // -----------------------------------------------------------------------------

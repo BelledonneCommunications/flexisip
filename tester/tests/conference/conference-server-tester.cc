@@ -104,9 +104,8 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 	              {"conference-server/conference-factory-uris", confFactoryUri},
 	              {"conference-server/empty-chat-room-deletion", "false"}}};
 	proxy.start();
-	ConfigManager::get()
-	    ->getRoot()
-	    ->get<GenericStruct>("conference-server")
+	auto* configRoot = proxy.getAgent()->getConfigManager().getRoot();
+	configRoot->get<GenericStruct>("conference-server")
 	    ->get<ConfigValue>("outbound-proxy")
 	    ->set("sip:127.0.0.1:"s + proxy.getFirstPort() + ";transport=tcp");
 	auto* registrar = dynamic_cast<RegistrarDbInternal*>(RegistrarDb::get());
@@ -122,13 +121,12 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 	auto chatroomBuilder = me.chatroomBuilder();
 	chatroomBuilder.setBackend(linphone::ChatRoom::Backend::FlexisipChat).setGroup(OnOff::On);
 	const auto listener = make_shared<AllJoinedWaiter>();
-	const auto conferenceServerUri = [confServerCfg =
-	                                      ConfigManager::get()->getRoot()->get<GenericStruct>("conference-server")] {
+	const auto conferenceServerUri = [confServerCfg = configRoot->get<GenericStruct>("conference-server")] {
 		return confServerCfg->get<ConfigString>("transport")->read();
 	};
 	{ // Populate conference server's DB
 		mysqlServer.waitReady();
-		const TestConferenceServer conferenceServer{*proxy.getAgent()};
+		const TestConferenceServer conferenceServer(*proxy.getAgent(), proxy.getConfigManager());
 		BC_HARD_ASSERT_CPP_EQUAL(records.size(), 2 /* users */ + 1 /* factory */);
 		const auto& inMyRoom = you.getMe();
 		listener->setChatrooms({
@@ -160,7 +158,7 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 	registrar->clearAll();
 
 	// Spin it up again
-	const TestConferenceServer conferenceServer{*proxy.getAgent()};
+	const TestConferenceServer conferenceServer(*proxy.getAgent(), proxy.getConfigManager());
 
 	// The conference server restored its chatrooms from DB and bound them back on the Registrar
 	BC_ASSERT_CPP_EQUAL(records.size(), 1 /* factory */ + 4 /* chatrooms */);
@@ -208,7 +206,7 @@ void conferenceServerClearsOldBindingsOnInit() {
 		BC_ASSERT_CPP_EQUAL(contacts.latest()->get()->urlAsString(), unexpectedContact);
 	}
 
-	const TestConferenceServer conferenceServer{*proxy.getAgent()};
+	const TestConferenceServer conferenceServer(*proxy.getAgent(), proxy.getConfigManager());
 
 	BC_ASSERT_CPP_EQUAL(records.size(), 1);
 	const auto& contacts = records.begin()->second->getExtendedContacts();

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -37,7 +37,7 @@
 
 namespace flexisip {
 
-void init_tests() {
+void init_tests(const ConfigManager& cfg) {
 	LogManager::Parameters logParams;
 
 	logParams.level = BCTBX_LOG_DEBUG;
@@ -45,8 +45,9 @@ void init_tests() {
 	logParams.enableStdout = true;
 	LogManager::get().initialize(logParams);
 
-	Record::sLineFieldNames = {"+sip.instance", "pn-tok", "line"};
-	Record::sMaxContacts = 10;
+	GenericStruct* registrar = cfg.getRoot()->get<GenericStruct>("module::Registrar");
+	registrar->get<ConfigStringList>("unique-id-parameters")->set("+sip.instance pn-tok line");
+	registrar->get<ConfigInt>("max-contacts-by-aor")->set("10");
 }
 
 ExtendedContact& firstContact(const Record& r) {

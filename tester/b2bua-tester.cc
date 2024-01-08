@@ -80,11 +80,12 @@ public:
 
 		if (!configFile.empty()) {
 			// Configure B2bua Server
-			auto* b2buaServerConf = ConfigManager::get()->getRoot()->get<GenericStruct>("b2bua-server");
+			auto* b2buaServerConf = getConfigManager()->getRoot()->get<GenericStruct>("b2bua-server");
 			// b2bua server needs an outbound proxy to route all sip messages to the proxy, set it to the first
 			// transport of the proxy.
-			auto proxyTransports = ConfigManager::get()
-			                           ->getRoot()
+			auto proxyTransports = getAgent()
+			                           ->getConfigManager()
+			                           .getRoot()
 			                           ->get<GenericStruct>("global")
 			                           ->get<ConfigStringList>("transports")
 			                           ->read();
@@ -93,7 +94,7 @@ public:
 			b2buaServerConf->get<ConfigString>("data-directory")->set(bcTesterWriteDir());
 		}
 
-		mB2buaServer = make_shared<flexisip::B2buaServer>(this->getRoot());
+		mB2buaServer = make_shared<flexisip::B2buaServer>(this->getRoot(), this->getConfigManager());
 
 		if (start) {
 			this->start();
@@ -111,7 +112,7 @@ public:
 		init();
 
 		// Configure module b2bua
-		const auto configRoot = ConfigManager::get()->getRoot();
+		const auto* configRoot = getAgent()->getConfigManager().getRoot();
 		const auto& transport = configRoot->get<GenericStruct>("b2bua-server")->get<ConfigString>("transport")->read();
 		configRoot->get<GenericStruct>("module::B2bua")->get<ConfigString>("b2bua-server")->set(transport);
 
@@ -466,7 +467,7 @@ static void external_provider_bridge__load_balancing() {
 static void external_provider_bridge__parse_register_authenticate() {
 	using namespace flexisip::b2bua;
 	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf", false);
-	ConfigManager::get()
+	server->getConfigManager()
 	    ->getRoot()
 	    ->get<GenericStruct>("b2bua-server")
 	    ->get<ConfigString>("application")
@@ -535,10 +536,7 @@ static void external_provider_bridge__override_special_options() {
 		 ]
 		}
 	])");
-	ConfigItemDescriptor configItems[] = {{String, "providers", "help", providersJson.name}, config_item_end};
-	std::string empty;
-	RootConfigStruct config("placeholder", "A stub config root for testing", {}, empty);
-	config.addChild(make_unique<GenericStruct>("b2bua-server::sip-bridge", "help", 0))->addChildrenValues(configItems);
+
 	b2bua::bridge::AccountManager accman{};
 	Server proxy{{
 	    // Requesting bind on port 0 to let the kernel find any available port
@@ -546,6 +544,14 @@ static void external_provider_bridge__override_special_options() {
 	    {"module::Registrar/enabled", "true"},
 	    {"module::Registrar/reg-domains", "sip.example.com"},
 	}};
+
+	{
+		ConfigItemDescriptor configItems[] = {{String, "providers", "help", providersJson.name}, config_item_end};
+		proxy.getConfigManager()
+		    ->getRoot()
+		    ->addChild(make_unique<GenericStruct>("b2bua-server::sip-bridge", "help", 0))
+		    ->addChildrenValues(configItems);
+	}
 	proxy.start();
 
 	const ClientBuilder builder{*proxy.getAgent()};
@@ -558,7 +564,7 @@ static void external_provider_bridge__override_special_options() {
 	const auto call = ClientCall::getLinphoneCall(*callee.getCurrentCall());
 	BC_HARD_ASSERT_TRUE(call->getRequestAddress()->asStringUriOnly() != "");
 	const auto core = minimalCore(*linphone::Factory::get());
-	accman.init(core, config);
+	accman.init(core, proxy.getAgent()->getConfigManager());
 	auto params = core->createCallParams(call);
 	params->setMediaEncryption(MediaEncryption::ZRTP);
 	params->enableAvpf(true);
@@ -597,7 +603,7 @@ static void external_provider_bridge__b2bua_receives_several_forks() {
 	using namespace flexisip::b2bua;
 	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf", false);
 	{
-		auto root = ConfigManager::get()->getRoot();
+		auto* root = server->getConfigManager()->getRoot();
 		root->get<GenericStruct>("b2bua-server")->get<ConfigString>("application")->set("sip-bridge");
 		root->get<GenericStruct>("b2bua-server::sip-bridge")
 		    ->get<ConfigString>("providers")
@@ -763,9 +769,9 @@ static void external_provider_bridge__max_call_duration() {
 		 ]
 		}
 	])";
-	const auto b2bua = make_shared<flexisip::B2buaServer>(proxy.getRoot());
+	const auto b2bua = make_shared<flexisip::B2buaServer>(proxy.getRoot(), proxy.getConfigManager());
 	b2bua->init();
-	ConfigManager::get()
+	proxy.getConfigManager()
 	    ->getRoot()
 	    ->get<GenericStruct>("module::B2bua")
 	    ->get<ConfigString>("b2bua-server")
@@ -846,7 +852,11 @@ static void request_header__user_agent() {
 	        },
 	};
 	B2buaServer server{"config/flexisip_b2bua.conf", false, &hooks};
-	ConfigManager::get()->getRoot()->get<GenericStruct>("b2bua-server")->get<ConfigString>("user-agent")->set(expected);
+	server.getConfigManager()
+	    ->getRoot()
+	    ->get<GenericStruct>("b2bua-server")
+	    ->get<ConfigString>("user-agent")
+	    ->set(expected);
 	server.start();
 
 	const auto caller = ClientBuilder(*server.getAgent()).build("sip:caller@sip.example.org");
@@ -868,13 +878,14 @@ static void request_header__user_agent() {
 
 // Test value of "user-agent" parameter in b2bua-server.
 static void configuration__user_agent() {
-	const auto cfg = ConfigManager::get();
-	const auto serverConfig = cfg->getRoot()->get<GenericStruct>("b2bua-server");
+	const auto getServerConfig = [](const B2buaServer& server) {
+		return server.getAgent()->getConfigManager().getRoot()->get<GenericStruct>("b2bua-server");
+	};
 
 	// Test exception is thrown when parameter is ill-formed: string is empty.
 	{
 		B2buaServer server{"", false};
-		serverConfig->get<ConfigString>("user-agent")->set("");
+		getServerConfig(server)->get<ConfigString>("user-agent")->set("");
 		BC_ASSERT_THROWN(server.init(), std::runtime_error);
 	}
 
@@ -882,7 +893,7 @@ static void configuration__user_agent() {
 	{
 		B2buaServer server{"", false};
 		const auto expected = ".!%*_+`'~-12-Hello-";
-		serverConfig->get<ConfigString>("user-agent")->set(expected);
+		getServerConfig(server)->get<ConfigString>("user-agent")->set(expected);
 
 		server.init();
 
@@ -893,7 +904,7 @@ static void configuration__user_agent() {
 	{
 		B2buaServer server{"", false};
 		const auto expected = "1-.!%*_+`'~-test-name/test_version-.!%*_+`'~";
-		serverConfig->get<ConfigString>("user-agent")->set(expected);
+		getServerConfig(server)->get<ConfigString>("user-agent")->set(expected);
 
 		server.init();
 
@@ -904,7 +915,7 @@ static void configuration__user_agent() {
 	{
 		B2buaServer server{"", false};
 		const auto expected = "a-test-.!%*_+`'~/";
-		serverConfig->get<ConfigString>("user-agent")->set(expected + string("{version}"));
+		getServerConfig(server)->get<ConfigString>("user-agent")->set(expected + string("{version}"));
 
 		server.init();
 
@@ -914,6 +925,7 @@ static void configuration__user_agent() {
 	// Test exception is thrown when parameter is ill-formed: <wrong_name>/<version>|{version}.
 	{
 		B2buaServer server{"", false};
+		const auto serverConfig = getServerConfig(server);
 		serverConfig->get<ConfigString>("user-agent")->set("name-with-illegal-character-{/.!%*_+`'~-0-Test-version");
 		BC_ASSERT_THROWN(server.init(), std::runtime_error);
 
@@ -924,7 +936,9 @@ static void configuration__user_agent() {
 	// Test exception is thrown when parameter is ill-formed: <name>/<wrong_version>.
 	{
 		B2buaServer server{"", false};
-		serverConfig->get<ConfigString>("user-agent")->set("1-.!%*_+`'~-test-name/version-with-illegal-character-{");
+		getServerConfig(server)
+		    ->get<ConfigString>("user-agent")
+		    ->set("1-.!%*_+`'~-test-name/version-with-illegal-character-{");
 		BC_ASSERT_THROWN(server.init(), std::runtime_error);
 	}
 }
@@ -934,7 +948,11 @@ static void basic() {
 	// Create a server and start it
 	auto server = make_shared<Server>("config/flexisip_b2bua.conf");
 	// flexisip_b2bua config file enables the module B2bua in proxy, disable it for this basic test
-	ConfigManager::get()->getRoot()->get<GenericStruct>("module::B2bua")->get<ConfigBoolean>("enabled")->set("false");
+	server->getConfigManager()
+	    ->getRoot()
+	    ->get<GenericStruct>("module::B2bua")
+	    ->get<ConfigBoolean>("enabled")
+	    ->set("false");
 	server->start();
 
 	// create clients and register them on the server

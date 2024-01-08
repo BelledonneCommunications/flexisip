@@ -41,12 +41,17 @@ using namespace std;
 namespace flexisip {
 
 namespace {
-RootConfigStruct* retrieveRoot(GenericEntry* firstEntry) {
-	auto* entry = firstEntry;
+const RootConfigStruct* retrieveRoot(const GenericEntry* firstEntry) {
+	const auto* entry = firstEntry;
 	while (entry->getParent()) {
 		entry = entry->getParent();
 	}
-	return dynamic_cast<RootConfigStruct*>(entry);
+	return dynamic_cast<const RootConfigStruct*>(entry);
+}
+
+RootConfigStruct* retrieveRoot(GenericEntry* firstEntry) {
+	const auto* entry = firstEntry;
+	return const_cast<RootConfigStruct*>(retrieveRoot(entry));
 }
 } // namespace
 
@@ -301,9 +306,9 @@ void NotificationEntry::send(const GenericEntry* source, const string& msg) {
 		return;
 	}
 
-	static Oid& sMsgTemplateOid = ConfigManager::get()->getRoot()->getDeep<GenericEntry>("notif/msg", true)->getOid();
-	static Oid& sSourceTemplateOid =
-	    ConfigManager::get()->getRoot()->getDeep<GenericEntry>("notif/source", true)->getOid();
+	static const auto* configRoot = retrieveRoot(this);
+	static Oid& sMsgTemplateOid = configRoot->getDeep<GenericEntry>("notif/msg", true)->getOid();
+	static Oid& sSourceTemplateOid = configRoot->getDeep<GenericEntry>("notif/source", true)->getOid();
 
 	/*
 	 * See:
@@ -761,8 +766,8 @@ uint64_t ConfigByteSize::read() const {
 	return stoll(str);
 }
 
-void ConfigRuntimeError::writeErrors(GenericEntry* entry, ostringstream& oss) const {
-	auto cs = dynamic_cast<GenericStruct*>(entry);
+void ConfigRuntimeError::writeErrors(const GenericEntry* entry, ostringstream& oss) const {
+	const auto* cs = dynamic_cast<const GenericStruct*>(entry);
 	if (cs) {
 		const auto& children = cs->getChildren();
 		for (auto it = children.begin(); it != children.end(); ++it) {
@@ -778,7 +783,8 @@ void ConfigRuntimeError::writeErrors(GenericEntry* entry, ostringstream& oss) co
 
 string ConfigRuntimeError::generateErrors() const {
 	ostringstream oss;
-	writeErrors(ConfigManager::get()->getRoot(), oss);
+	auto* root = retrieveRoot(this);
+	writeErrors(root, oss);
 	return oss.str();
 }
 
@@ -821,10 +827,11 @@ shared_ptr<SipBooleanExpression> ConfigBooleanExpression::read() const {
 	return SipBooleanExpressionBuilder::get().parse(get());
 }
 
-std::unique_ptr<ConfigManager> ConfigManager::sInstance{};
-
 static void init_flexisip_snmp() {
 #ifdef ENABLE_SNMP
+	static bool snmpInitDone = false;
+	if (snmpInitDone) return;
+
 	int syslog = 0; /* change this if you want to use syslog */
 
 	// snmp_set_do_debugging(1);
@@ -845,17 +852,13 @@ static void init_flexisip_snmp() {
 	if (err != 0) {
 		LOGA("error init snmp agent %d", errno);
 	}
+	snmpInitDone = true;
 #endif
 }
 
-ConfigManager* ConfigManager::get() {
-	if (sInstance == nullptr) {
-		init_flexisip_snmp();
-		// make_unique<>() cannot be used here because
-		// the constructor of ConfigManager is protected.
-		sInstance.reset(new ConfigManager{});
-	}
-	return sInstance.get();
+std::vector<std::function<void(GenericStruct&)>>& ConfigManager::defaultInit() {
+	static std::vector<std::function<void(GenericStruct&)>> defaultConf;
+	return defaultConf;
 }
 
 RootConfigStruct::RootConfigStruct(const string& name,
@@ -878,6 +881,8 @@ ConfigManager::ConfigManager()
                   {1, 3, 6, 1, 4, 1, SNMP_COMPANY_OID},
                   mConfigFile),
       mReader(&mConfigRoot) {
+	init_flexisip_snmp();
+
 	// to make sure global_conf is instantiated first
 	static ConfigItemDescriptor global_conf[] = {
 	    // process settings
@@ -1170,9 +1175,17 @@ ConfigManager::ConfigManager()
 
 	auto uMdns = make_unique<GenericStruct>(
 	    "mdns-register", "Should the server be registered on a local domain, to be accessible via multicast DNS.", 0);
-	auto mdns = mConfigRoot.addChild(std::move(uMdns));
+	auto* mdns = mConfigRoot.addChild(std::move(uMdns));
 	mdns->addChildrenValues(mdns_conf);
 	mdns->setReadOnly(true);
+
+	// initialize default conf for statically registered sections
+	for (const auto& vec : defaultInit()) {
+		vec(mConfigRoot);
+	}
+
+	// add agent and modules sections
+	Agent::addConfigSections(*this);
 }
 
 bool ConfigManager::doIsValidNextConfig([[maybe_unused]] const ConfigValue& cv) {
@@ -1204,15 +1217,17 @@ int ConfigManager::load(const std::string& configfile) {
 	SLOGI << "Loading config file " << configfile;
 	mConfigFile = configfile;
 	int res = mReader.read(configfile);
-	applyOverrides(false);
-	Agent::addConfigSections(*this);
-	return res;
-}
 
-void ConfigManager::loadStrict() {
-	mReader.reload();
+	// Plugins are specified in configuration file
+	// Load them, add their configuration sections and reload config
+	if (!getGlobal()->get<ConfigStringList>("plugins")->read().empty()) {
+		Agent::addPluginsConfigSections(*this);
+		mReader.reload();
+	}
+
 	mReader.checkUnread();
 	applyOverrides(true);
+	return res;
 }
 
 void ConfigManager::applyOverrides(bool strict) {
@@ -1228,11 +1243,15 @@ void ConfigManager::applyOverrides(bool strict) {
 	}
 }
 
+const GenericStruct* ConfigManager::getRoot() const {
+	return &mConfigRoot;
+}
+
 GenericStruct* ConfigManager::getRoot() {
 	return &mConfigRoot;
 }
 
-const GenericStruct* ConfigManager::getGlobal() {
+const GenericStruct* ConfigManager::getGlobal() const {
 	return mConfigRoot.get<GenericStruct>("global");
 }
 

@@ -121,13 +121,17 @@ private:
 	void doSendEvent(std::shared_ptr<SipEventT> ev, const ModuleIter& begin, const ModuleIter& end);
 
 public:
-	Agent(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<AuthDbBackendOwner>& authDbOwner);
+	Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
+	      const std::shared_ptr<ConfigManager>& cm,
+	      const std::shared_ptr<AuthDbBackendOwner>& authDbOwner);
+
 	void start(const std::string& transport_override, const std::string& passphrase);
-	void loadConfig(ConfigManager* cm, bool strict = true);
 	void unloadConfig();
 	~Agent() override;
 	// Add agent and modules sections
 	static void addConfigSections(ConfigManager& cfg);
+	// Load plugins and add their sections
+	static void addPluginsConfigSections(ConfigManager& cfg);
 	/// Returns a pair of ip addresses: < public-ip, bind-ip> suitable for destination.
 	std::pair<std::string, std::string> getPreferredIp(const std::string& destination) const;
 	/// Returns the _default_ bind address for RTP sockets.
@@ -226,10 +230,17 @@ public:
 	void applyProxyToProxyTransportSettings(tport_t* tp);
 	tport_t* getIncomingTport(const msg_t* orig);
 
-	static sofiasip::TlsConfigInfo
-	getTlsConfigInfo(const GenericStruct* global = ConfigManager::get()->getRoot()->get<GenericStruct>("global"));
+	static sofiasip::TlsConfigInfo getTlsConfigInfo(const GenericStruct* global);
 
 	bool shouldUseRfc2543RecordRoute() const;
+
+	const ConfigManager& getConfigManager() const {
+		return *mConfigManager;
+	}
+
+	void sendTrap(const GenericEntry* source, const std::string& msg) {
+		mConfigManager->sendTrap(source, msg);
+	}
 
 private:
 	// Private types
@@ -272,6 +283,7 @@ private:
 	// Placing the SuRoot before the modules ensures it will outlive them, so it is always safe to get (and keep)
 	// references to it from within them
 	std::shared_ptr<sofiasip::SuRoot> mRoot = nullptr;
+	const std::shared_ptr<ConfigManager> mConfigManager;
 	const std::shared_ptr<AuthDbBackendOwner> mAuthDbOwner;
 	std::list<std::shared_ptr<Module>> mModules;
 	std::list<std::string> mAliases;

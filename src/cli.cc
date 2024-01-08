@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -52,8 +52,8 @@ constexpr const auto socket_send = send;
 constexpr const auto socket_recv = recv;
 } // namespace
 
-CommandLineInterface::CommandLineInterface(const std::string& name)
-    : mName(name), handlers(std::make_shared<CliHandler::HandlerTable>()) {
+CommandLineInterface::CommandLineInterface(const std::string& name, const std::shared_ptr<ConfigManager>& cfg)
+    : mName(name), handlers(std::make_shared<CliHandler::HandlerTable>()), mConfigManager(cfg) {
 	if (pipe(mControlFds) == -1) LOGF("Cannot create control pipe of CommandLineInterface thread: %s", strerror(errno));
 }
 
@@ -125,8 +125,7 @@ void CommandLineInterface::registerHandler(CliHandler& handler) {
 
 GenericEntry* CommandLineInterface::getGenericEntry(const std::string& arg) const {
 	std::vector<std::string> arg_split = StringUtils::split(arg, "/");
-	ConfigManager* manager = ConfigManager::get();
-	GenericStruct* root = manager->getRoot();
+	GenericStruct* root = mConfigManager->getRoot();
 
 	if (arg == "all") return root;
 	return find(root, arg_split);
@@ -370,8 +369,9 @@ void* CommandLineInterface::threadfunc(void* arg) {
 	return nullptr;
 }
 
-ProxyCommandLineInterface::ProxyCommandLineInterface(const std::shared_ptr<Agent>& agent)
-    : CommandLineInterface("proxy"), mAgent(agent) {
+ProxyCommandLineInterface::ProxyCommandLineInterface(const std::shared_ptr<ConfigManager>& cfg,
+                                                     const std::shared_ptr<Agent>& agent)
+    : CommandLineInterface("proxy", cfg), mAgent(agent) {
 }
 
 class CommandListener : public ContactUpdateListener {

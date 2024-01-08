@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -629,7 +629,7 @@ void RegistrarDbRedisAsync::doBind(const MsgSip& msg,
 		return;
 	}
 
-	auto context = std::make_unique<RedisRegisterContext>(this, msg, parameters, listener);
+	auto context = std::make_unique<RedisRegisterContext>(this, msg, parameters, listener, mRecordConfig);
 	mLocalRegExpire->update(context->mRecord);
 
 	const auto& key = context->mRecord->getKey();
@@ -737,7 +737,8 @@ void RegistrarDbRedisAsync::doClear(const MsgSip& msg, const shared_ptr<ContactU
 	try {
 		// Delete the AOR Hashmap using DEL
 		// Once it is done, fetch all the contacts in the AOR and call the onRecordFound of the listener ?
-		auto context = std::make_unique<RedisRegisterContext>(this, SipUri(sip->sip_from->a_url), listener);
+		auto context =
+		    std::make_unique<RedisRegisterContext>(this, SipUri(sip->sip_from->a_url), listener, mRecordConfig);
 
 		const string& key = context->mRecord->getKey();
 		SLOGD << "Clearing fs:" << key << " [" << context->token << "]";
@@ -822,7 +823,7 @@ void RegistrarDbRedisAsync::doFetch(const SipUri& url, const shared_ptr<ContactU
 		return;
 	}
 
-	auto context = std::make_unique<RedisRegisterContext>(this, url, listener);
+	auto context = std::make_unique<RedisRegisterContext>(this, url, listener, mRecordConfig);
 
 	const auto& key = context->mRecord->getKey();
 	SLOGD << "Fetching fs:" << key << " [" << context->token << "]";
@@ -841,7 +842,7 @@ void RegistrarDbRedisAsync::doFetchInstance(const SipUri& url,
 		return;
 	}
 
-	auto context = std::make_unique<RedisRegisterContext>(this, url, listener);
+	auto context = std::make_unique<RedisRegisterContext>(this, url, listener, mRecordConfig);
 	context->mUniqueIdToFetch = uniqueId;
 
 	const auto& recordKey = context->mRecord->getKey();

@@ -61,15 +61,16 @@ public:
 };
 
 void AuthDbBackendOwner::createAuthDbBackend() {
-	GenericStruct* ma = mConfigRoot.get<GenericStruct>("module::Authentication");
+	const auto& rootConfig = *mConfigManager->getRoot();
+	GenericStruct* ma = rootConfig.get<GenericStruct>("module::Authentication");
 	const string& impl = ma->get<ConfigString>("db-implementation")->read();
 	if (impl == "fixed") {
-		mBackend = make_unique<FixedAuthDb>(mConfigRoot);
+		mBackend = make_unique<FixedAuthDb>(rootConfig);
 	} else if (impl == "file") {
-		mBackend = make_unique<FileAuthDb>(mConfigRoot);
+		mBackend = make_unique<FileAuthDb>(rootConfig);
 #if ENABLE_SOCI
 	} else if (impl == "soci") {
-		mBackend = make_unique<SociAuthDB>(mConfigRoot);
+		mBackend = make_unique<SociAuthDB>(rootConfig);
 #endif
 	} else throw std::runtime_error("Cannot build Authentication Backend, unknown db-implementation: "s + impl);
 }

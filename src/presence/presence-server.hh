@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -70,13 +70,7 @@ public:
 
 class PresenceServer : public PresentityManager, public ServiceServer {
 public:
-	// Used to declare the service configuration
-	class Init {
-	public:
-		Init(GenericStruct& configRoot);
-	};
-
-	PresenceServer(const std::shared_ptr<sofiasip::SuRoot>& root);
+	PresenceServer(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg);
 	~PresenceServer();
 	void _init() override;
 	void _run() override;
@@ -88,8 +82,7 @@ public:
 	static unsigned int sLastActivityRetentionMs;
 
 private:
-	static Init sStaticInit;
-	// PresenceConfigManager mConfigManager;
+	std::shared_ptr<ConfigManager> mConfigManager;
 	belle_sip_stack_t* mStack;
 	belle_sip_provider_t* mProvider;
 	belle_sip_listener_t* mListener;

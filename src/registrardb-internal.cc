@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -52,7 +52,7 @@ void RegistrarDbInternal::doBind(const MsgSip& msg,
 	auto it = mRecords.find(key);
 	shared_ptr<Record> r;
 	if (it == mRecords.end()) {
-		r = make_shared<Record>(std::move(fromUri));
+		r = make_shared<Record>(std::move(fromUri), mRecordConfig);
 		it = mRecords.insert(make_pair(key, r)).first;
 		LOGD("Creating AOR %s association", key.c_str());
 	} else {
@@ -110,7 +110,7 @@ void RegistrarDbInternal::doFetchInstance(const SipUri& url,
 	}
 
 	const auto& contacts = r->getExtendedContacts();
-	shared_ptr<Record> retRecord = make_shared<Record>(url);
+	shared_ptr<Record> retRecord = make_shared<Record>(url, mRecordConfig);
 	auto& retContacts = retRecord->getExtendedContacts();
 	for (const auto& contact : contacts) {
 		if (contact->mKey == uniqueId) {

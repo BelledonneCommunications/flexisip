@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -73,7 +73,7 @@ protected:
 
 class CommandLineInterface {
 public:
-	CommandLineInterface(const std::string& name);
+	CommandLineInterface(const std::string& name, const std::shared_ptr<ConfigManager>& cfg);
 	virtual ~CommandLineInterface();
 
 	std::future<void> start();
@@ -82,10 +82,11 @@ public:
 	void registerHandler(CliHandler& handler);
 
 protected:
-	virtual void parseAndAnswer(SocketHandle&& socket, const std::string& command, const std::vector<std::string>& args);
+	virtual void
+	parseAndAnswer(SocketHandle&& socket, const std::string& command, const std::vector<std::string>& args);
 
 private:
-	GenericEntry* getGenericEntry(const std::string &arg) const;
+	GenericEntry* getGenericEntry(const std::string& arg) const;
 	void handleConfigGet(SocketHandle&& socket, const std::vector<std::string>& args);
 	void handleConfigList(SocketHandle&& socket, const std::vector<std::string>& args);
 	void handleConfigSet(SocketHandle&& socket, const std::vector<std::string>& args);
@@ -103,12 +104,13 @@ private:
 	int mControlFds[2] = {0, 0};
 	bool mRunning = false;
 	std::shared_ptr<CliHandler::HandlerTable> handlers;
+	std::shared_ptr<ConfigManager> mConfigManager;
 	std::promise<void> mReady;
 };
 
 class ProxyCommandLineInterface : public CommandLineInterface {
 public:
-	ProxyCommandLineInterface(const std::shared_ptr<Agent>& agent);
+	ProxyCommandLineInterface(const std::shared_ptr<ConfigManager>& cfg, const std::shared_ptr<Agent>& agent);
 
 private:
 	void handleRegistrarClear(SocketHandle&& socket, const std::vector<std::string>& args);
@@ -116,7 +118,8 @@ private:
 	void handleRegistrarUpsert(SocketHandle&& socket, const std::vector<std::string>& args);
 	void handleRegistrarGet(SocketHandle&& socket, const std::vector<std::string>& args);
 	void handleRegistrarDump(SocketHandle&& socket, const std::vector<std::string>& args);
-	void parseAndAnswer(SocketHandle&& socket, const std::string& command, const std::vector<std::string>& args) override;
+	void
+	parseAndAnswer(SocketHandle&& socket, const std::string& command, const std::vector<std::string>& args) override;
 
 	std::shared_ptr<Agent> mAgent;
 };

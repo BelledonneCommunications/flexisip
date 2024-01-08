@@ -19,6 +19,7 @@
 #pragma once
 
 #include <pthread.h>
+#include <string_view>
 
 namespace flexisip {
 
@@ -26,7 +27,7 @@ class StunServer {
 public:
 	StunServer(int port = 3478);
 	~StunServer();
-	int start();
+	int start(std::string_view bindAddress);
 	void stop();
 
 private:
@@ -36,11 +37,6 @@ private:
 	pthread_t mThread;
 	int mPort;
 	int mSock;
-	class Init {
-	public:
-		Init();
-	};
-	static Init sStaticInit;
 };
 
 } // namespace flexisip

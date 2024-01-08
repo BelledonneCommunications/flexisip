@@ -150,7 +150,7 @@ private:
  **/
 class AuthDbBackendOwner {
 public:
-	AuthDbBackendOwner(const GenericStruct& root) : mConfigRoot(root) {
+	AuthDbBackendOwner(const std::shared_ptr<ConfigManager>& cfg) : mConfigManager{cfg} {
 	}
 	// Accessor to the database backend
 	AuthDbBackend& get() {
@@ -161,7 +161,7 @@ public:
 private:
 	void createAuthDbBackend();
 	std::unique_ptr<AuthDbBackend> mBackend;
-	const GenericStruct& mConfigRoot;
+	std::shared_ptr<ConfigManager> mConfigManager;
 };
 
 // Base root type needed by belr

@@ -357,8 +357,12 @@ void ModuleAuthenticationBase::loadTrustedHosts(const ConfigStringList& trustedH
 	auto hosts = trustedHosts.read();
 	for (const auto& host : hosts) {
 		if (regex_match(host, m, parameterRef)) {
-			auto paramRefValues =
-			    ConfigManager::get()->getRoot()->get<GenericStruct>(m.str(1))->get<ConfigStringList>(m.str(2))->read();
+			auto paramRefValues = getAgent()
+			                          ->getConfigManager()
+			                          .getRoot()
+			                          ->get<GenericStruct>(m.str(1))
+			                          ->get<ConfigStringList>(m.str(2))
+			                          ->read();
 			for (const auto& value : paramRefValues) {
 				BinaryIp::emplace(mTrustedHosts, value);
 			}
@@ -367,7 +371,7 @@ void ModuleAuthenticationBase::loadTrustedHosts(const ConfigStringList& trustedH
 		}
 	}
 
-	const auto* clusterSection = ConfigManager::get()->getRoot()->get<GenericStruct>("cluster");
+	const auto* clusterSection = getAgent()->getConfigManager().getRoot()->get<GenericStruct>("cluster");
 	auto clusterEnabled = clusterSection->get<ConfigBoolean>("enabled")->read();
 	if (clusterEnabled) {
 		auto clusterNodes = clusterSection->get<ConfigStringList>("nodes")->read();
@@ -376,7 +380,7 @@ void ModuleAuthenticationBase::loadTrustedHosts(const ConfigStringList& trustedH
 		}
 	}
 
-	const auto* presenceSection = ConfigManager::get()->getRoot()->get<GenericStruct>("module::Presence");
+	const auto* presenceSection = getAgent()->getConfigManager().getRoot()->get<GenericStruct>("module::Presence");
 	auto presenceServer = presenceSection->get<ConfigBoolean>("enabled")->read();
 	if (presenceServer) {
 		sofiasip::Home home{};

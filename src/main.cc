@@ -297,7 +297,8 @@ static void set_process_name([[maybe_unused]] const string& process_name) {
 #endif
 }
 
-static void forkAndDetach(const string& pidfile, bool auto_respawn, bool startMonitor, const string& functionName) {
+static void forkAndDetach(
+    ConfigManager& cfg, const string& pidfile, bool auto_respawn, bool startMonitor, const string& functionName) {
 	int pipe_launcher_wdog[2];
 	int err = pipe(pipe_launcher_wdog);
 	bool launcherExited = false;
@@ -379,7 +380,7 @@ static void forkAndDetach(const string& pidfile, bool auto_respawn, bool startMo
 				set_process_name("flexisip_mon");
 				close(pipe_launcher_wdog[1]);
 				close(pipe_wd_mo[0]);
-				Monitor::exec(pipe_wd_mo[1]);
+				Monitor::exec(cfg, pipe_wd_mo[1]);
 				LOGE("Fail to launch the Flexisip monitor");
 				exit(EXIT_FAILURE);
 			}
@@ -487,20 +488,18 @@ static void depthFirstSearch(string& path, GenericEntry* config, list<string>& a
 	}
 }
 
-static void
-dump_config(const std::string& dump_cfg_part, bool with_experimental, bool dumpDefault, const string& format) {
-	ConfigManager::get()->applyOverrides(true);
-	auto* pluginsDirEntry = ConfigManager::get()->getGlobal()->get<ConfigString>("plugins-dir");
+static void dump_config(ConfigManager& cfg,
+                        const std::string& dump_cfg_part,
+                        bool with_experimental,
+                        bool dumpDefault,
+                        const string& format) {
+	cfg.applyOverrides(true);
+	auto* pluginsDirEntry = cfg.getGlobal()->get<ConfigString>("plugins-dir");
 	if (pluginsDirEntry->get().empty()) {
 		pluginsDirEntry->set(DEFAULT_PLUGINS_DIR);
 	}
 
-	auto cfg = ConfigManager::get();
-	Agent::addConfigSections(*cfg);
-
-	if (!dumpDefault) cfg->loadStrict();
-
-	auto* rootStruct = ConfigManager::get()->getRoot();
+	auto* rootStruct = cfg.getRoot();
 	if (dump_cfg_part != "all") {
 		smatch m;
 		rootStruct = dynamic_cast<GenericStruct*>(rootStruct->find(dump_cfg_part));
@@ -546,10 +545,9 @@ dump_config(const std::string& dump_cfg_part, bool with_experimental, bool dumpD
 	exit(EXIT_SUCCESS);
 }
 
-static void list_sections(bool moduleOnly = false) {
+static void list_sections(ConfigManager& cfg, bool moduleOnly = false) {
 	const string modulePrefix{"module::"};
-	Agent::addConfigSections(*ConfigManager::get());
-	for (const auto& child : ConfigManager::get()->getRoot()->getChildren()) {
+	for (const auto& child : cfg.getRoot()->getChildren()) {
 		if (!moduleOnly || child->getName().compare(0, modulePrefix.size(), modulePrefix) == 0) {
 			cout << child->getName() << endl;
 		}
@@ -731,7 +729,7 @@ int main(int argc, char* argv[]) {
 	signal(SIGHUP, flexisip_reopen_log_files);
 
 	// Instanciate the Generic manager
-	ConfigManager* cfg = ConfigManager::get();
+	auto cfg = make_shared<ConfigManager>();
 	cfg->setOverrideMap(oset);
 
 	// list default config and exit
@@ -741,38 +739,36 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (module.length() != 0) {
-		dump_config(module, displayExperimental, true, dumpFormat.getValue());
+		dump_config(*cfg, module, displayExperimental, true, dumpFormat.getValue());
 	}
 
 	// list all mibs and exit
 	if (dumpMibs) {
-		Agent::addConfigSections(*ConfigManager::get());
-		cout << MibDumper(ConfigManager::get()->getRoot());
+		cout << MibDumper(cfg->getRoot());
 		return EXIT_SUCCESS;
 	}
 
 	// list modules and exit
 	if (listModules) {
-		list_sections(true);
+		list_sections(*cfg, true);
 		return EXIT_SUCCESS;
 	}
 
 	// list sections and exit
 	if (listSections) {
-		list_sections();
+		list_sections(*cfg);
 		return EXIT_SUCCESS;
 	}
 
 	// list the overridable values and exit
 	if (listOverrides.getValue().length() != 0) {
-		Agent::addConfigSections(*ConfigManager::get());
 		list<string> allCompletions;
 		allCompletions.push_back("nosnmp");
 
 		string empty;
 		string& filter = listOverrides.getValue();
 
-		depthFirstSearch(empty, ConfigManager::get()->getRoot(), allCompletions);
+		depthFirstSearch(empty, cfg->getRoot(), allCompletions);
 
 		for (auto it = allCompletions.cbegin(); it != allCompletions.cend(); ++it) {
 			if (filter == "all") {
@@ -804,7 +800,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (rewriteConf) {
-		dump_config("all", displayExperimental, false, "file");
+		dump_config(*cfg, "all", displayExperimental, false, "file");
 	}
 
 	// if --debug is given, enable user-errors logs as well.
@@ -919,7 +915,7 @@ int main(int argc, char* argv[]) {
 		So we can detach.*/
 		bool autoRespawn = cfg->getGlobal()->get<ConfigBoolean>("auto-respawn")->read();
 		if (!startProxy) monitorEnabled = false;
-		forkAndDetach(pidFile.getValue(), autoRespawn, monitorEnabled, fName);
+		forkAndDetach(*cfg, pidFile.getValue(), autoRespawn, monitorEnabled, fName);
 	} else if (pidFile.getValue().length() != 0) {
 		// not daemon but we want a pidfile anyway
 		makePidFile(pidFile.getValue());
@@ -969,7 +965,7 @@ int main(int argc, char* argv[]) {
 	 * server.
 	 */
 	LOGN("Starting flexisip %s-server version %s", fName.c_str(), FLEXISIP_GIT_VERSION);
-	ConfigManager::get()->sendTrap("Flexisip " + fName + "-server starting");
+	cfg->sendTrap("Flexisip " + fName + "-server starting");
 
 	increaseFDLimit();
 
@@ -977,11 +973,9 @@ int main(int argc, char* argv[]) {
 	 * We create an Agent in all cases, because it will declare config items that are necessary for presence server to
 	 * run.
 	 */
-	Agent::addConfigSections(*cfg);
-	auto authDbOwner = std::make_shared<AuthDbBackendOwner>(*cfg->getRoot());
-	a = make_shared<Agent>(root, authDbOwner);
+	auto authDbOwner = std::make_shared<AuthDbBackendOwner>(cfg);
+	a = make_shared<Agent>(root, cfg, authDbOwner);
 	setOpenSSLThreadSafe();
-	a->loadConfig(cfg);
 
 	if (startProxy) {
 		a->start(transportsArg.getValue(), passphrase);
@@ -997,7 +991,7 @@ int main(int argc, char* argv[]) {
 		// Create cached test accounts for the Flexisip monitor if necessary
 		if (monitorEnabled) {
 			try {
-				Monitor::createAccounts(authDbOwner);
+				Monitor::createAccounts(authDbOwner, *cfg->getRoot());
 			} catch (const FlexisipException& e) {
 				LOGE("Could not create test accounts for the monitor. %s", e.str().c_str());
 			}
@@ -1009,10 +1003,10 @@ int main(int argc, char* argv[]) {
 
 		if (cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigBoolean>("enabled")->read()) {
 			stun = new StunServer(cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigInt>("port")->read());
-			stun->start();
+			stun->start(cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigString>("bind-address")->read());
 		}
 
-		proxy_cli = unique_ptr<CommandLineInterface>(new ProxyCommandLineInterface(a));
+		proxy_cli = unique_ptr<CommandLineInterface>(new ProxyCommandLineInterface(cfg, a));
 		proxy_cli->start();
 
 		if (trackAllocs) msg_set_callbacks(flexisip_msg_create, flexisip_msg_destroy);
@@ -1022,7 +1016,7 @@ int main(int argc, char* argv[]) {
 #ifdef ENABLE_PRESENCE
 		bool enableLongTermPresence =
 		    (cfg->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read());
-		presenceServer = make_shared<flexisip::PresenceServer>(root);
+		presenceServer = make_shared<flexisip::PresenceServer>(root, cfg);
 		if (enableLongTermPresence) {
 			auto presenceLongTerm =
 			    make_shared<flexisip::PresenceLongterm>(presenceServer->getBelleSipMainLoop(), authDbOwner);
@@ -1040,14 +1034,14 @@ int main(int argc, char* argv[]) {
 			LOGF("Fail to start flexisip presence server");
 		}
 
-		presence_cli = unique_ptr<CommandLineInterface>(new CommandLineInterface("presence"));
+		presence_cli = unique_ptr<CommandLineInterface>(new CommandLineInterface("presence", cfg));
 		presence_cli->start();
 #endif
 	}
 
 	if (startConference) {
 #ifdef ENABLE_CONFERENCE
-		conferenceServer = make_shared<flexisip::ConferenceServer>(a->getPreferredRoute(), root);
+		conferenceServer = make_shared<flexisip::ConferenceServer>(a->getPreferredRoute(), root, cfg);
 		if (daemonMode) {
 			notifyWatchDog();
 		}
@@ -1064,7 +1058,7 @@ int main(int argc, char* argv[]) {
 
 	if (startRegEvent) {
 #ifdef ENABLE_CONFERENCE
-		regEventServer = make_unique<flexisip::RegistrationEvent::Server>(root);
+		regEventServer = make_unique<flexisip::RegistrationEvent::Server>(root, cfg);
 		if (daemonMode) {
 			notifyWatchDog();
 		}
@@ -1078,7 +1072,7 @@ int main(int argc, char* argv[]) {
 
 	if (startB2bua) {
 #if ENABLE_B2BUA
-		b2buaServer = make_shared<flexisip::B2buaServer>(root);
+		b2buaServer = make_shared<flexisip::B2buaServer>(root, cfg);
 		if (daemonMode) {
 			notifyWatchDog();
 		}
@@ -1118,7 +1112,7 @@ int main(int argc, char* argv[]) {
 
 	LOGN("Flexisip %s-server exiting normally.", fName.c_str());
 	if (trackAllocs) dump_remaining_msgs();
-	ConfigManager::get()->sendTrap("Flexisip " + fName + "-server exiting normally");
+	cfg->sendTrap("Flexisip " + fName + "-server exiting normally");
 
 	bctbx_uninit_logger();
 	return 0;

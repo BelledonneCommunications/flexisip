@@ -27,24 +27,18 @@ namespace flexisip {
 
 class Monitor {
 public:
-	static void exec(int socket);
-	static void createAccounts(std::shared_ptr<AuthDbBackendOwner> authDbOwner);
+	static void exec(ConfigManager& cfg, int socket);
+	static void createAccounts(std::shared_ptr<AuthDbBackendOwner> authDbOwner, GenericStruct& rootConfig);
 
 private:
-	class Init {
-	public:
-		Init();
-	};
-
 	static std::string findLocalAddress(const std::list<std::string>& nodes);
 	static bool isLocalhost(const std::string& host);
 	static bool notLocalhost(const std::string& host);
 	static std::string md5sum(const std::string& s);
 	static std::string generateUsername(const std::string& prefix, const std::string& host);
 	static std::string generatePassword(const std::string& host, const std::string& salt);
-	static std::string findDomain();
+	static std::string findDomain(GenericStruct& rootConfig);
 
-	static Init sInit;
 	static const std::string SCRIPT_PATH;
 	static const std::string CALLER_PREFIX;
 	static const std::string CALLEE_PREFIX;

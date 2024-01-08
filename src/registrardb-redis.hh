@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -108,14 +108,19 @@ struct RedisRegisterContext {
 	std::string mUniqueIdToFetch;
 
 	template <typename T>
-	RedisRegisterContext(RegistrarDbRedisAsync* s, T&& url, const std::shared_ptr<ContactUpdateListener>& listener)
-	    : self(s), listener(listener), mRecord(std::make_shared<Record>(std::forward<T>(url))) {
+	RedisRegisterContext(RegistrarDbRedisAsync* s,
+	                     T&& url,
+	                     const std::shared_ptr<ContactUpdateListener>& listener,
+	                     const Record::Config& recordConfig)
+	    : self(s), listener(listener), mRecord(std::make_shared<Record>(std::forward<T>(url), recordConfig)) {
 	}
 	RedisRegisterContext(RegistrarDbRedisAsync* s,
 	                     const MsgSip& msg,
 	                     const BindingParameters& params,
-	                     const std::shared_ptr<ContactUpdateListener>& listener)
-	    : self(s), listener(listener), mRecord(std::make_shared<Record>(SipUri(msg.getSip()->sip_from->a_url))),
+	                     const std::shared_ptr<ContactUpdateListener>& listener,
+	                     const Record::Config& recordConfig)
+	    : self(s), listener(listener),
+	      mRecord(std::make_shared<Record>(SipUri(msg.getSip()->sip_from->a_url), recordConfig)),
 	      mMsg(const_cast<MsgSip&>(msg).getMsg()), // Forcefully take a ref, instead of cloning
 	      mBindingParameters(params) {
 		// Note that MsgSip copy constructor is not invoked in order to avoid a deep copy.
@@ -138,7 +143,8 @@ public:
 	                           float threshold,
 	                           std::function<void(std::vector<ExtendedContact>&&)>&& callback) const override;
 
-	std::optional<std::tuple<const redis::async::Session::Ready&, const redis::async::SubscriptionSession::Ready&>> connect();
+	std::optional<std::tuple<const redis::async::Session::Ready&, const redis::async::SubscriptionSession::Ready&>>
+	connect();
 	void asyncDisconnect();
 	void forceDisconnect();
 	bool isConnected() const;

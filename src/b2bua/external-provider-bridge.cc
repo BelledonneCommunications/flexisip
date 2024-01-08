@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024  Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -44,7 +44,7 @@ constexpr auto configSection = "b2bua-server::sip-bridge";
 constexpr auto providersConfigItem = "providers";
 
 // Statically define default configuration items
-auto defineConfig = [] {
+auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
 	ConfigItemDescriptor items[] = {
 	    {String, providersConfigItem,
 	     R"(Path to a file containing the accounts to use for external SIP bridging, organised by provider, in JSON format.
@@ -63,13 +63,9 @@ Here is a template of what should be in this file:
 	     "example-path.json"},
 	    config_item_end};
 
-	ConfigManager::get()
-	    ->getRoot()
-	    ->addChild(make_unique<GenericStruct>(configSection, "External SIP Provider Bridge parameters.", 0))
+	root.addChild(make_unique<GenericStruct>(configSection, "External SIP Provider Bridge parameters.", 0))
 	    ->addChildrenValues(items);
-
-	return nullptr;
-}();
+});
 } // namespace
 
 Account::Account(shared_ptr<linphone::Account>&& account, uint16_t&& freeSlots)
@@ -150,11 +146,11 @@ AccountManager::AccountManager(linphone::Core& core, vector<ProviderDesc>&& prov
 	initFromDescs(core, std::move(provDescs));
 }
 
-void AccountManager::init(const shared_ptr<linphone::Core>& core, const flexisip::GenericStruct& config) {
-	auto filePath = config.get<GenericStruct>(configSection)->get<ConfigString>(providersConfigItem)->read();
+void AccountManager::init(const shared_ptr<linphone::Core>& core, const flexisip::ConfigManager& cfg) {
+	auto filePath = cfg.getRoot()->get<GenericStruct>(configSection)->get<ConfigString>(providersConfigItem)->read();
 	if (filePath[0] != '/') {
 		// Interpret as relative to config file
-		const auto& configFilePath = ConfigManager::get()->getConfigFile();
+		const auto& configFilePath = cfg.getConfigFile();
 		const auto configFolderPath = configFilePath.substr(0, configFilePath.find_last_of('/') + 1);
 		filePath = configFolderPath + filePath;
 	}

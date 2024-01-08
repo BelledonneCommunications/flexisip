@@ -440,12 +440,11 @@ static void startTest(const std::shared_ptr<Agent>& agent) {
 static void duplicatePushTokenRegisterInternalDbTest() {
 	auto root = std::make_shared<sofiasip::SuRoot>();
 	// Agent initialization
-	auto cfg = ConfigManager::get();
+	auto cfg = make_shared<ConfigManager>();
 	cfg->load(bcTesterRes("config/flexisip_register.conf"));
-	auto agent = make_shared<Agent>(root, make_shared<AuthDbBackendOwner>(*cfg->getRoot()));
-	agent->loadConfig(cfg);
+	auto agent = make_shared<Agent>(root, cfg, make_shared<AuthDbBackendOwner>(cfg));
 
-	auto registrarConf = ConfigManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
+	auto registrarConf = cfg->getRoot()->get<GenericStruct>("module::Registrar");
 	registrarConf->get<ConfigStringList>("reg-domains")->set("sip.example.org");
 	startTest(agent);
 }

@@ -44,9 +44,9 @@ using namespace std;
 using namespace flexisip;
 
 template <typename SipEventT>
-static void addEventLogRecordFound(shared_ptr<SipEventT> ev, const sip_contact_t* contacts) {
+static void addEventLogRecordFound(shared_ptr<SipEventT> ev, shared_ptr<Record> r, const sip_contact_t* contacts) {
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
-	string id(contacts ? Record::extractUniqueId(contacts) : "");
+	string id(contacts ? r->extractUniqueId(contacts) : "");
 	auto evLog = make_shared<RegistrationLog>(ms->getSip(), contacts);
 
 	evLog->setStatusCode(200, "Ok");
@@ -106,10 +106,10 @@ void OnRequestBindListener::onContactUpdated(const std::shared_ptr<ExtendedConta
 void OnRequestBindListener::onRecordFound(const shared_ptr<Record>& r) {
 	const shared_ptr<MsgSip>& ms = mEv->getMsgSip();
 	if (r) {
-		addEventLogRecordFound(mEv, mContact);
+		addEventLogRecordFound(mEv, r, mContact);
 		mModule->reply(mEv, 200, "Registration successful", r->getContacts(ms->getHome()));
 		if (mContact) {
-			string uid = Record::extractUniqueId(mContact);
+			string uid = r->extractUniqueId(mContact);
 			RegistrarDb::get()->publish(Record::Key(mSipFrom->a_url), uid);
 		}
 		/*
@@ -155,7 +155,7 @@ void OnResponseBindListener::onRecordFound(const shared_ptr<Record>& r) {
 		return;
 	}
 
-	string uid = Record::extractUniqueId(mCtx->mOriginalContacts);
+	string uid = r->extractUniqueId(mCtx->mOriginalContacts);
 	RegistrarDb::get()->publish(Record::Key(mCtx->mRequestSipEvent->getSip()->sip_from->a_url), uid);
 
 	sip_contact_t* dbContacts = r->getContacts(ms->getHome());
@@ -167,7 +167,7 @@ void OnResponseBindListener::onRecordFound(const shared_ptr<Record>& r) {
 
 	mModule->removeInternalParams(reMs->getSip()->sip_contact);
 
-	addEventLogRecordFound(mEv, dbContacts);
+	addEventLogRecordFound(mEv, r, dbContacts);
 	mModule->getAgent()->injectResponseEvent(mEv);
 }
 void OnResponseBindListener::onError(const SipStatus& response) {
@@ -461,23 +461,27 @@ void ModuleRegistrar::onLoad(const GenericStruct* mc) {
 		readStaticRecords(); // read static records from configuration file
 		mStaticRecordsTimer = mAgent->createTimer(mStaticRecordsTimeout * 1000, &staticRoutesRereadTimerfunc, this);
 	}
-	mAllowDomainRegistrations = ConfigManager::get()
-	                                ->getRoot()
+	mAllowDomainRegistrations = getAgent()
+	                                ->getConfigManager()
+	                                .getRoot()
 	                                ->get<GenericStruct>("inter-domain-connections")
 	                                ->get<ConfigBoolean>("accept-domain-registrations")
 	                                ->read();
-	mAssumeUniqueDomains = ConfigManager::get()
-	                           ->getRoot()
+	mAssumeUniqueDomains = getAgent()
+	                           ->getConfigManager()
+	                           .getRoot()
 	                           ->get<GenericStruct>("inter-domain-connections")
 	                           ->get<ConfigBoolean>("assume-unique-domains")
 	                           ->read();
-	mUseGlobalDomain = ConfigManager::get()
-	                       ->getRoot()
+	mUseGlobalDomain = getAgent()
+	                       ->getConfigManager()
+	                       .getRoot()
 	                       ->get<GenericStruct>("module::Router")
 	                       ->get<ConfigBoolean>("use-global-domain")
 	                       ->read();
-	mParamsToRemove = ConfigManager::get()
-	                      ->getRoot()
+	mParamsToRemove = getAgent()
+	                      ->getConfigManager()
+	                      .getRoot()
 	                      ->get<GenericStruct>("module::Forward")
 	                      ->get<ConfigStringList>("params-to-remove")
 	                      ->read();

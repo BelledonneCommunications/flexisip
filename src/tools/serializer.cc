@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -35,8 +35,10 @@ int test_bind_with_ecc(ExtendedContactCommon& ecc,
                        long cseq,
                        time_t now,
                        bool alias,
-                       sip_accept_t* accept) {
-	Record initial(SipUri{});
+                       sip_accept_t* accept,
+                       ConfigManager& cfg) {
+	const Record::Config recordConfig{cfg};
+	Record initial(SipUri{}, recordConfig);
 
 	list<string> acceptHeaders;
 	while (accept != NULL) {
@@ -56,7 +58,7 @@ int test_bind_with_ecc(ExtendedContactCommon& ecc,
 		return -1;
 	}
 
-	Record final(SipUri{});
+	Record final(SipUri{}, recordConfig);
 	if (!serializer->parse(serialized, &final)) {
 		cerr << "Failed parsing" << endl;
 		return -1;
@@ -83,8 +85,10 @@ int test_bind_without_ecc(ExtendedContactCommon& ecc,
                           long cseq,
                           time_t now,
                           bool alias,
-                          sip_accept_t* accept) {
-	Record initial(SipUri{});
+                          sip_accept_t* accept,
+                          ConfigManager& cfg) {
+	const Record::Config recordConfig{cfg};
+	Record initial(SipUri{}, recordConfig);
 
 	msg_t* msg = msg_create(sip_default_mclass(), 0);
 	su_home_t* homeSip = msg_home(msg);
@@ -119,7 +123,7 @@ int test_bind_without_ecc(ExtendedContactCommon& ecc,
 		cout << "Serialized size: " << serialized.length() << endl;
 	}
 
-	Record final(SipUri{});
+	Record final(SipUri{}, recordConfig);
 	if (!serializer->parse(serialized, &final)) {
 		cerr << "Failed parsing" << endl;
 		return -1;
@@ -141,7 +145,8 @@ int main(int argc, char** argv) {
 		cerr << "bad usage" << endl;
 		exit(-1);
 	}
-	init_tests();
+	ConfigManager cfg{};
+	init_tests(cfg);
 	auto serializer = unique_ptr<RecordSerializer>(RecordSerializer::create(argv[1]));
 	if (!serializer) {
 		cerr << "bad serializer" << argv[1] << endl;
@@ -168,12 +173,12 @@ int main(int argc, char** argv) {
 	sip_path_t* sip_path = path_fromstl(home.h, paths);
 	sip_accept_t* accept = NULL;
 
-	if (test_bind_with_ecc(ecc, serializer, contact, expireat, quality, cseq, now, alias, accept)) {
+	if (test_bind_with_ecc(ecc, serializer, contact, expireat, quality, cseq, now, alias, accept, cfg)) {
 		BAD("failure in bind with ecc");
 	}
 
 	if (test_bind_without_ecc(ecc, serializer, sip_contact, sip_path, 55555, callid.c_str(), contactWithChev.c_str(),
-	                          expireat, quality, cseq, now, alias, accept)) {
+	                          expireat, quality, cseq, now, alias, accept, cfg)) {
 		BAD("failure in bind without ecc");
 	}
 

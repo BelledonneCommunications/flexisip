@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -27,11 +27,9 @@ namespace flexisip {
 
 std::unique_ptr<AutoThreadPool> AutoThreadPool::sDbThreadPool{};
 
-std::unique_ptr<AutoThreadPool>& AutoThreadPool::getDbThreadPool() {
+std::unique_ptr<AutoThreadPool>& AutoThreadPool::getDbThreadPool(unsigned int maxThreadNumber) {
 	if (!sDbThreadPool) {
-		const auto routerConf = ConfigManager::get()->getRoot()->get<GenericStruct>("module::Router");
-		const auto threadCount = routerConf->get<ConfigInt>("message-database-pool-size")->read() * 2;
-		sDbThreadPool = std::make_unique<AutoThreadPool>(threadCount, 0);
+		sDbThreadPool = std::make_unique<AutoThreadPool>(maxThreadNumber, 0);
 	}
 
 	return sDbThreadPool;

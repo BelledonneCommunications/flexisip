@@ -425,8 +425,9 @@ void messageToChatroomClearText() {
 	    {"conference-server/database-connection-string", mysqlServer.connectionString()},
 	});
 	const auto& agent = proxy->getAgent();
-	ConfigManager::get()
-	    ->getRoot()
+	proxy->getAgent()
+	    ->getConfigManager()
+	    .getRoot()
 	    ->get<GenericStruct>("conference-server")
 	    ->get<ConfigValue>("outbound-proxy")
 	    ->set("sip:127.0.0.1:"s + proxy->getFirstPort() + ";transport=tcp");
@@ -452,7 +453,7 @@ void messageToChatroomClearText() {
 	agent->setEventLogWriter(
 	    std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "localhost", to_string(port), "/", "toktok"));
 	mysqlServer.waitReady();
-	const TestConferenceServer confServer{*agent};
+	const TestConferenceServer confServer(*agent, proxy->getConfigManager());
 	const auto before = chrono::system_clock::now();
 
 	clemChat->createMessageFromUtf8("💃🏼")->send();

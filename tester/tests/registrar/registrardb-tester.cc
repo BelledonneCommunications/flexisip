@@ -165,14 +165,14 @@ namespace {
 template <typename TDatabase>
 void MaxContactsByAorIsHonored(TDatabase& dbImpl, const SipUri& aor) {
 
-	Server proxyServer(dbImpl.configAsMap());
+	auto config = dbImpl.configAsMap();
+	config.merge(map<string, string>{{"module::Registrar/unique-id-parameters", "+sip.instance"},
+	                                 {"module::Registrar/max-contacts-by-aor", "3"}});
+
+	Server proxyServer(config);
 	proxyServer.start();
 	auto root = proxyServer.getRoot();
 	auto regDb = RegistrarDb::get();
-
-	auto& uidFields = Record::sLineFieldNames;
-	if (uidFields.empty()) uidFields = {"+sip.instance"}; // Do not rely on side-effects from other tests...
-	StaticOverride maxContacts{Record::sMaxContacts, 3};
 
 	ContactInserter inserter(*regDb);
 	inserter.setAor(aor).setExpire(87s);
@@ -216,15 +216,16 @@ void RedisMaxContactsByAorIsHonored() {
 		BC_ASSERT_TRUE(rootStepFor(
 		    root, [&inserter] { return inserter.finished(); }, 1s));
 	};
+
 	{
-		Server proxyServer(dbImpl.configAsMap());
+		auto config = dbImpl.configAsMap();
+		config.merge(map<string, string>{{"module::Registrar/unique-id-parameters", "+sip.instance"},
+		                                 {"module::Registrar/max-contacts-by-aor", "5"}});
+
+		Server proxyServer(config);
 		proxyServer.start();
 		auto root = proxyServer.getRoot();
 		auto regDb = RegistrarDb::get();
-
-		auto& uidFields = Record::sLineFieldNames;
-		if (uidFields.empty()) uidFields = {"+sip.instance"}; // Do not rely on side-effects from other tests...
-		StaticOverride maxContacts{Record::sMaxContacts, 5};
 
 		ContactInserter inserter(*regDb);
 		inserter.setAor(aor).setExpire(87s);
@@ -242,14 +243,14 @@ void RedisMaxContactsByAorIsHonored() {
 	}
 
 	{
-		Server proxyServer(dbImpl.configAsMap());
+		auto config = dbImpl.configAsMap();
+		config.merge(map<string, string>{{"module::Registrar/unique-id-parameters", "+sip.instance"},
+		                                 {"module::Registrar/max-contacts-by-aor", "2"}});
+
+		Server proxyServer(config);
 		proxyServer.start();
 		auto root = proxyServer.getRoot();
 		auto regDb = RegistrarDb::get();
-
-		auto& uidFields = Record::sLineFieldNames;
-		if (uidFields.empty()) uidFields = {"+sip.instance"}; // Do not rely on side-effects from other tests...
-		StaticOverride maxContacts{Record::sMaxContacts, 2};
 
 		ContactInserter inserter(*regDb);
 		inserter.setAor(aor).setExpire(87s);
@@ -269,7 +270,9 @@ void RedisMaxContactsByAorIsHonored() {
 
 class ContactsAreCorrectlyUpdatedWhenMatchedOnUri : public RegistrarDbTest<DbImplementation::Redis> {
 	void testExec() noexcept override {
-		StaticOverride _{Record::sMaxContacts, 2};
+		auto* root = mAgent->getConfigManager().getRoot();
+		root->get<GenericStruct>("module::Registrar")->get<ConfigInt>("max-contacts-by-aor")->set("2");
+
 		auto* regDb = RegistrarDb::get();
 		sofiasip::Home home{};
 		const auto contactBase = ":update-test@example.org";

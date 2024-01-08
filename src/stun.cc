@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL.
+    Copyright (C) 2010-2024 Belledonne Communications SARL.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -30,17 +30,18 @@
 using namespace flexisip;
 using namespace std;
 
-StunServer::Init StunServer::sStaticInit; // The Init object is instanciated to load the config
-
-StunServer::Init::Init() {
+namespace {
+// Statically define default configuration items
+auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
 	ConfigItemDescriptor items[] = {{Boolean, "enabled", "Enable or disable stun server.", "true"},
 	                                {String, "bind-address", "Local ip address where to bind the socket.", "0.0.0.0"},
 	                                {Integer, "port", "STUN server port number.", "3478"},
 	                                config_item_end};
 	auto uS = make_unique<GenericStruct>("stun-server", "STUN server parameters.", 0);
-	auto s = dynamic_cast<GenericStruct*>(ConfigManager::get()->getRoot()->addChild(std::move(uS)));
+	auto* s = root.addChild(std::move(uS));
 	s->addChildrenValues(items);
-}
+});
+} // namespace
 
 StunServer::StunServer(int port) {
 	mRunning = false;
@@ -48,11 +49,10 @@ StunServer::StunServer(int port) {
 	mSock = -1;
 }
 
-int StunServer::start() {
+int StunServer::start(std::string_view bindAddress) {
 	int err;
 	struct sockaddr_in laddr;
-	std::string bind_address =
-	    ConfigManager::get()->getRoot()->get<GenericStruct>("stun-server")->get<ConfigString>("bind-address")->read();
+	std::string bind_address(bindAddress);
 
 	if (bind_address.size() == 0) bind_address = "0.0.0.0";
 

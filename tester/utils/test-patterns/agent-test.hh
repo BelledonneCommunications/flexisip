@@ -60,32 +60,30 @@ rootStepFor(std::shared_ptr<sofiasip::SuRoot> root, const std::function<bool()>&
 class AgentTest : public Test {
 public:
 	AgentTest(bool runAgent = true) noexcept : mRunAgent{runAgent} {
-		auto* cfg = ConfigManager::get();
-		cfg->load("");
-		mAuthDbOwner = std::make_shared<AuthDbBackendOwner>(*cfg->getRoot());
-		mAgent = std::make_shared<Agent>(mRoot, mAuthDbOwner);
+		mConfigManager->load("");
+		mAuthDbOwner = std::make_shared<AuthDbBackendOwner>(mConfigManager);
 	}
 
 	~AgentTest() {
 		RegistrarDb::resetDB();
 	}
 
-	void operator()() override {
+	void operator()() final {
 		configureAgent();
+		mAgent = std::make_shared<Agent>(mRoot, mConfigManager, mAuthDbOwner);
 		onAgentConfigured();
 		if (mRunAgent) {
 			mAgent->start("", "");
 			onAgentStarted();
 		}
+		onTestInit();
 		testExec();
 	};
 
 protected:
 	// Protected methods
 	void configureAgent() {
-		auto* cfg = ConfigManager::get();
-		onAgentConfiguration(*cfg);
-		mAgent->loadConfig(cfg, false);
+		onAgentConfiguration(*mConfigManager);
 	};
 
 	/**
@@ -107,6 +105,10 @@ protected:
 		return rootStepFor(mRoot, breakCondition, timeout);
 	}
 
+	/**
+	 * This method is called before agent creation.
+	 * It enables to change the configuration.
+	 */
 	virtual void onAgentConfiguration(ConfigManager& cfg) {
 		auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
 		globalCfg->get<ConfigBoolean>("enable-snmp")->set("false");
@@ -115,13 +117,23 @@ protected:
 	virtual void onAgentStarted() {
 	}
 
+	/**
+	 * This method is called after agent creation, but before it starts.
+	 */
 	virtual void onAgentConfigured() {
+	}
+
+	/**
+	 * This method is the last called before testExec.
+	 */
+	virtual void onTestInit() {
 	}
 
 	virtual void testExec() = 0;
 
 	// Protected attributes
 	std::shared_ptr<sofiasip::SuRoot> mRoot{std::make_shared<sofiasip::SuRoot>()};
+	std::shared_ptr<ConfigManager> mConfigManager{std::make_shared<ConfigManager>()};
 	std::shared_ptr<AuthDbBackendOwner> mAuthDbOwner;
 	std::shared_ptr<Agent> mAgent;
 	bool mRunAgent;

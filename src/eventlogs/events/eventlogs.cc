@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -27,10 +27,9 @@
 using namespace std;
 
 namespace flexisip {
-
-EventLog::Init EventLog::evStaticInit;
-
-EventLog::Init::Init() {
+namespace {
+// Statically define default configuration items
+auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
 	ConfigItemDescriptor items[] = {
 	    {Boolean, "enabled", "Enable event logs.", "false"},
 	    {String, "logger", "Define logger for storing logs. It supports \"filesystem\", \"database\" and \"flexiapi\".",
@@ -86,10 +85,11 @@ EventLog::Init::Init() {
 	    "See: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Event%20logs%20and%20queries/ for architecture "
 	    "and queries.",
 	    0);
-	auto ev = ConfigManager::get()->getRoot()->addChild(std::move(uEv));
+	auto* ev = root.addChild(std::move(uEv));
 	ev->addChildrenValues(items);
 	ev->get<ConfigString>("dir")->setDeprecated({"2020-02-19", "2.0.0", "Replaced by 'filesystem-directory'"});
-}
+});
+} // namespace
 
 EventLog::EventLog(const sip_t* sip)
     : SipEventLog(*sip), mUA{sip->sip_user_agent ? sip_user_agent_dup(mHome.home(), sip->sip_user_agent) : nullptr},

@@ -24,6 +24,7 @@
 #include <string>
 #include <utility>
 
+#include "flexisip/configmanager.hh"
 #include "flexisip/sofia-wrapper/home.hh"
 #include "flexisip/utils/sip-uri.hh"
 
@@ -99,12 +100,29 @@ public:
 		std::string mWrapped;
 	};
 
-	static std::list<std::string> sLineFieldNames;
-	static int sMaxContacts;
-	static bool sAssumeUniqueDomains;
+	// Retain the configuration parameters used by the record class.
+	class Config {
+	public:
+		explicit Config(const ConfigManager& cfg);
 
-	explicit Record(const SipUri& aor);
-	explicit Record(SipUri&& aor);
+		int getMaxContacts() const {
+			return mMaxContacts;
+		}
+		const std::list<std::string>& getLineFieldNames() const {
+			return mLineFieldNames;
+		}
+		bool assumeUniqueDomains() const {
+			return mAssumeUniqueDomains;
+		}
+
+	private:
+		int mMaxContacts;
+		std::list<std::string> mLineFieldNames;
+		bool mAssumeUniqueDomains;
+	};
+
+	explicit Record(const SipUri& aor, const Config& recordConfig);
+	explicit Record(SipUri&& aor, const Config& recordConfig);
 	Record(const Record& other) = delete; // disable copy constructor, this is unsafe due to su_home_t here.
 	Record(Record&& other) = delete;      // disable move constructor
 	~Record() = default;
@@ -178,10 +196,6 @@ public:
 	 * needed
 	 */
 	ChangeSet applyMaxAor();
-	static int getMaxContacts() {
-		if (sMaxContacts == -1) init();
-		return sMaxContacts;
-	}
 	time_t latestExpire() const;
 	time_t latestExpire(Agent* ag) const;
 	static std::list<std::string> route_to_stl(const sip_route_s* route);
@@ -191,7 +205,7 @@ public:
 	}
 	bool isSame(const Record& other) const;
 
-	static std::string extractUniqueId(const sip_contact_t* contact);
+	std::string extractUniqueId(const sip_contact_t* contact);
 
 private:
 	enum class ContactMatch {
@@ -199,8 +213,6 @@ private:
 		EraseAndNotify, // Update or Remove
 		ForceErase,     // Service clean up
 	};
-
-	static void init();
 
 	static ContactMatch matchContacts(const ExtendedContact& existing, const ExtendedContact& neo);
 	static void eliminateAmbiguousContacts(std::list<std::unique_ptr<ExtendedContact>>& extendedContacts);
@@ -210,7 +222,9 @@ private:
 	Contacts mContacts;
 	SipUri mAor;
 	Key mKey;
+
 	bool mIsDomain = false; /*is a domain registration*/
+	Config mConfig;
 	bool mOnlyStaticContacts = true;
 };
 

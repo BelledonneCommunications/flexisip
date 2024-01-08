@@ -1,6 +1,20 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include "registrar-db.hh"
 
@@ -29,9 +43,11 @@ namespace flexisip {
 RegistrarDb::LocalRegExpire::LocalRegExpire(Agent* ag) : mAgent(ag) {
 }
 
-RegistrarDb::RegistrarDb(Agent* ag) : mLocalRegExpire(new LocalRegExpire(ag)), mAgent(ag), mUseGlobalDomain(false) {
-	GenericStruct* cr = ConfigManager::get()->getRoot();
-	GenericStruct* mr = cr->get<GenericStruct>("module::Registrar");
+RegistrarDb::RegistrarDb(Agent* ag)
+    : mLocalRegExpire(new LocalRegExpire(ag)), mAgent(ag), mUseGlobalDomain(false),
+      mRecordConfig{mAgent->getConfigManager()} {
+	const GenericStruct* cr = mAgent->getConfigManager().getRoot();
+	const GenericStruct* mr = cr->get<GenericStruct>("module::Registrar");
 	mGruuEnabled = mr->get<ConfigBoolean>("enable-gruu")->read();
 }
 
@@ -98,7 +114,7 @@ public:
 private:
 	// ContactUpdateListener implementation
 	void onRecordFound(const shared_ptr<Record>& r) override {
-		auto record = r ?: make_shared<Record>(mAor);
+		auto record = r ?: make_shared<Record>(mAor, mDb->getRecordConfig());
 		mDb->notifyContactListener(record, mUid);
 	}
 	void onError(const SipStatus&) override {
@@ -222,9 +238,9 @@ bool RegistrarDb::errorOnTooMuchContactInBind(const sip_contact_t* sip_contact,
                                               const string& key,
                                               [[maybe_unused]] const shared_ptr<RegistrarDbListener>& listener) {
 	int nb_contact = this->countSipContacts(sip_contact);
-	int max_contact = Record::getMaxContacts();
-	if (nb_contact > max_contact) {
-		LOGD("Too many contacts in register %s %i > %i", key.c_str(), nb_contact, max_contact);
+	const auto maxContacts = mRecordConfig.getMaxContacts();
+	if (nb_contact > maxContacts) {
+		LOGD("Too many contacts in register %s %i > %i", key.c_str(), nb_contact, maxContacts);
 		return true;
 	}
 
@@ -242,9 +258,9 @@ RegistrarDb* RegistrarDb::initialize(Agent* ag) {
 	if (sUnique != nullptr) {
 		LOGF("RegistrarDb already initialized");
 	}
-	GenericStruct* cr = ConfigManager::get()->getRoot();
-	GenericStruct* mr = cr->get<GenericStruct>("module::Registrar");
-	GenericStruct* mro = cr->get<GenericStruct>("module::Router");
+	const GenericStruct* cr = ag->getConfigManager().getRoot();
+	const GenericStruct* mr = cr->get<GenericStruct>("module::Registrar");
+	const GenericStruct* mro = cr->get<GenericStruct>("module::Router");
 
 	bool useGlobalDomain = mro->get<ConfigBoolean>("use-global-domain")->read();
 	string dbImplementation = mr->get<ConfigString>("db-implementation")->read();
@@ -260,7 +276,7 @@ RegistrarDb* RegistrarDb::initialize(Agent* ag) {
 	 * We check that the dbImplementation _starts_ with "redis" now, so that we stay backward compatible. */
 	else if (dbImplementation.find("redis") == 0) {
 		LOGI("RegistrarDB implementation is REDIS");
-		GenericStruct* registrar = ConfigManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
+		const GenericStruct* registrar = cr->get<GenericStruct>("module::Registrar");
 		RedisParameters params;
 		params.domain = registrar->get<ConfigString>("redis-server-domain")->read();
 		params.port = registrar->get<ConfigInt>("redis-server-port")->read();
@@ -344,9 +360,9 @@ private:
 	RegistrarDb* mDatabase = nullptr;
 	shared_ptr<ContactUpdateListener> mOriginalListener;
 	shared_ptr<Record> mRecord;
+	SipUri mUrl;
 	int mPendingRequests = 1;
 	int mStep = 0;
-	SipUri mUrl;
 	float mOriginalQ = 1.0; // the q parameter. When recursing, we choose to inherit it from the original target.
 	bool mRecursionDone = false;
 	static int sMaxStep;
@@ -356,8 +372,8 @@ public:
 	                             const shared_ptr<ContactUpdateListener>& original_listerner,
 	                             const SipUri& url,
 	                             int step = sMaxStep)
-	    : mDatabase(database), mOriginalListener(original_listerner), mRecord(make_shared<Record>(url)), mStep(step),
-	      mUrl(url) {
+	    : mDatabase(database), mOriginalListener(original_listerner),
+	      mRecord(make_shared<Record>(url, mDatabase->getRecordConfig())), mUrl(url), mStep(step) {
 	}
 
 	void onRecordFound(const shared_ptr<Record>& r) override {
@@ -565,9 +581,10 @@ void RegistrarDb::bind(MsgSip&& sipMsg,
 	}
 
 	int countSipContacts = this->countSipContacts(sip->sip_contact);
-	if (countSipContacts > Record::getMaxContacts()) {
+	const auto maxContacts = mRecordConfig.getMaxContacts();
+	if (countSipContacts > maxContacts) {
 		SLOGD << "Too many contacts in register " << Record::Key(sip->sip_from->a_url) << " " << countSipContacts
-		      << " > " << Record::getMaxContacts();
+		      << " > " << maxContacts;
 		listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 		return;
 	}
@@ -619,10 +636,11 @@ private:
 	shared_ptr<ContactUpdateListener> mOriginalListener;
 	int mNumRespExpected;
 	int mNumResponseObtained;
+	const Record::Config& mRecordConfig;
 	shared_ptr<Record> mRecord;
 	bool mError;
 	shared_ptr<Record> getRecord() {
-		if (mRecord == nullptr) mRecord = make_shared<Record>(SipUri{});
+		if (mRecord == nullptr) mRecord = make_shared<Record>(SipUri{}, mRecordConfig);
 		return mRecord;
 	}
 	void checkFinished() {
@@ -637,8 +655,11 @@ private:
 	}
 
 public:
-	AgregatorRegistrarDbListener(const shared_ptr<ContactUpdateListener>& origListener, int numResponseExpected)
-	    : mOriginalListener(origListener), mNumRespExpected(numResponseExpected), mNumResponseObtained(0), mRecord(0) {
+	AgregatorRegistrarDbListener(const shared_ptr<ContactUpdateListener>& origListener,
+	                             int numResponseExpected,
+	                             const Record::Config& recordConfig)
+	    : mOriginalListener(origListener), mNumRespExpected(numResponseExpected), mNumResponseObtained(0),
+	      mRecordConfig(recordConfig), mRecord(0) {
 		mError = false;
 	}
 	virtual ~AgregatorRegistrarDbListener() {
@@ -668,7 +689,7 @@ void RegistrarDb::fetchWithDomain(const SipUri& url,
 	if (!url.getUser().empty()) {
 		/* If username is present in URI, search with and without the username */
 		auto domainOnlyUrl = url.replaceUser("");
-		auto agregator = make_shared<AgregatorRegistrarDbListener>(listener, 2);
+		auto agregator = make_shared<AgregatorRegistrarDbListener>(listener, 2, mRecordConfig);
 		fetch(url, agregator, recursive);
 		fetch(domainOnlyUrl, agregator, false);
 	} else {

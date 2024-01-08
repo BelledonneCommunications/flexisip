@@ -64,6 +64,10 @@ public:
 		return mAgent->getRoot();
 	}
 
+	const std::shared_ptr<ConfigManager>& getConfigManager() const noexcept {
+		return mConfigManager;
+	}
+
 	const std::shared_ptr<flexisip::Agent>& getAgent() const noexcept {
 		return mAgent;
 	}
@@ -83,6 +87,7 @@ public:
 
 private:
 	const std::optional<InjectedModuleInfo> mInjectedModule{std::nullopt};
+	std::shared_ptr<ConfigManager> mConfigManager{std::make_shared<ConfigManager>()};
 	std::shared_ptr<AuthDbBackendOwner> mAuthDbOwner;
 	std::shared_ptr<flexisip::Agent> mAgent;
 }; // Class Server

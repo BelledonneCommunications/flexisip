@@ -25,6 +25,7 @@
 #include "agent.hh"
 #include <linphone++/linphone.hh>
 
+#include "utils/proxy-server.hh"
 namespace flexisip {
 namespace pushnotification {
 
@@ -33,7 +34,6 @@ class RFC8599PushParams;
 }
 namespace tester {
 
-class Server;
 class CoreClient;
 
 enum class OnOff : bool {

@@ -90,15 +90,12 @@ void basicSubscription() {
 	}
 	regEventCore->addListener(make_shared<flexisip::RegistrationEvent::Server::Subscriptions>());
 	regEventCore->start();
-	ConfigManager::get()
-	    ->getRoot()
-	    ->get<GenericStruct>("module::RegEvent")
+	auto* configRoot = proxy.getConfigManager()->getRoot();
+	configRoot->get<GenericStruct>("module::RegEvent")
 	    ->get<ConfigValue>("regevent-server")
 	    ->set("sip:127.0.0.1:"s + std::to_string(regEventCore->getTransportsUsed()->getTcpPort()) + ";transport=tcp");
 	proxy.start();
-	ConfigManager::get()
-	    ->getRoot()
-	    ->get<GenericStruct>("conference-server")
+	configRoot->get<GenericStruct>("conference-server")
 	    ->get<ConfigValue>("outbound-proxy")
 	    ->set("sip:127.0.0.1:"s + proxy.getFirstPort() + ";transport=tcp");
 	// Client initialisation
@@ -106,7 +103,7 @@ void basicSubscription() {
 	    ClientBuilder(*proxy.getAgent()).setConferenceFactoryUri(confFactoryUri).build("sip:test@sip.example.org");
 	const auto& agent = *proxy.getAgent();
 	// Conference Server
-	TestConferenceServer conferenceServer(agent);
+	TestConferenceServer conferenceServer(agent, proxy.getConfigManager());
 	auto& regDb = *RegistrarDb::get();
 	ContactInserter inserter{regDb, std::make_shared<AcceptUpdatesListener>()};
 	const string participantFrom = "sip:participant1@localhost";

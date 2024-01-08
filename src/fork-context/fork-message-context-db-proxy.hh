@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -219,6 +219,7 @@ private:
 	std::shared_ptr<ForkContextConfig> mSavedConfig;
 	std::vector<std::string> mSavedKeys{};
 	sofiasip::MsgSipPriority mSavedMsgPriority;
+	const unsigned int mMaxThreadNumber;
 };
 
 std::ostream& operator<<(std::ostream& os, flexisip::ForkMessageContextDbProxy::State state) noexcept;

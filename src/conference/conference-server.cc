@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -43,7 +43,6 @@ using namespace linphone;
 namespace flexisip {
 
 sofiasip::Home ConferenceServer::mHome;
-ConferenceServer::Init ConferenceServer::sStaticInit;
 
 void ConferenceServer::_init() {
 	string bindAddress{};
@@ -56,7 +55,7 @@ void ConferenceServer::_init() {
 	cTransport->setDtlsPort(0);
 
 	// Flexisip config
-	auto config = ConfigManager::get()->getRoot()->get<GenericStruct>("conference-server");
+	const auto* config = mConfigManager->getRoot()->get<GenericStruct>("conference-server");
 	try {
 		mTransport = SipUri{config->get<ConfigString>("transport")->read()};
 		if (mTransport.empty()) throw sofiasip::InvalidUrlError{"", "empty URI"};
@@ -309,10 +308,10 @@ void ConferenceServer::_stop() {
 }
 
 void ConferenceServer::loadFactoryUris() {
-	auto config = ConfigManager::get()->getRoot()->get<GenericStruct>("conference-server");
-	auto conferenceFactoryUriSetting = config->get<ConfigString>("conference-factory-uri");
-	auto conferenceFactoryUrisSetting = config->get<ConfigStringList>("conference-factory-uris");
-	auto conferenceFocusUrisSetting = config->get<ConfigStringList>("conference-focus-uris");
+	const auto* config = mConfigManager->getRoot()->get<GenericStruct>("conference-server");
+	const auto* conferenceFactoryUriSetting = config->get<ConfigString>("conference-factory-uri");
+	const auto* conferenceFactoryUrisSetting = config->get<ConfigStringList>("conference-factory-uris");
+	const auto* conferenceFocusUrisSetting = config->get<ConfigStringList>("conference-focus-uris");
 	auto conferenceFactoryUri = conferenceFactoryUriSetting->read();
 	auto conferenceFactoryUris = conferenceFactoryUrisSetting->read();
 	auto conferenceFocusUris = conferenceFocusUrisSetting->read();
@@ -527,7 +526,9 @@ void ConferenceServer::bindChatRoom(const string& bindingUrl,
 	RegistrarDb::get()->bind(uri, sipContact, parameter, listener);
 }
 
-ConferenceServer::Init::Init() {
+namespace {
+// Statically define default configuration items
+auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
 	ConfigItemDescriptor items[] = {
 	    {Boolean, "enabled",
 	     "Enable conference server", /* Do we need this ? The systemd enablement should be sufficient. */
@@ -634,14 +635,15 @@ ConferenceServer::Init::Init() {
 	    "of each participant, which creates an explicit dependency on Flexisip proxy server.\n"
 	    "This dependency is not required for audio/video conferences.",
 	    0);
-	auto s = ConfigManager::get()->getRoot()->addChild(std::move(uS));
+	auto* s = root.addChild(std::move(uS));
 	s->addChildrenValues(items);
 	s->get<ConfigString>("conference-factory-uri")
 	    ->setDeprecated("2020-09-30", "2.1.0",
 	                    "Use 'conference-factory-uris' instead, that allows to declare multiple factory uris.");
 	s->get<ConfigBoolean>("enable-one-to-one-chat-room")
 	    ->setDeprecated("2022-09-21", "2.2.0", "This parameter will be forced to 'true' in further versions.");
-}
+});
+} // namespace
 
 string ConferenceServer::getStateDir(const std::string& subdir) const {
 	return string(DEFAULT_LIB_DIR) + std::string("/") + subdir + (subdir.empty() ? "" : "/");

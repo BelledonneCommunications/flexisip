@@ -228,8 +228,9 @@ void subscribe_to_key_expiration() {
 void periodic_replication_check() {
 	auto& registrar = *RegistrarDb::get();
 	const auto connectionListener = std::make_shared<SuccessfulConnectionListener>();
-	auto reCheckDelay = ConfigManager::get()
-	                        ->getRoot()
+	auto reCheckDelay = SUITE_SCOPE->proxyServer.getAgent()
+	                        ->getConfigManager()
+	                        .getRoot()
 	                        ->get<GenericStruct>("module::Registrar")
 	                        ->get<ConfigDuration<std::chrono::seconds>>("redis-slave-check-period")
 	                        ->read();
@@ -311,14 +312,15 @@ void connection_failure() {
 
 // Can a RegistrarDbRedisAsync be destructed after the Agent used to create it?
 void standalone_freeing() {
-	auto cfg = ConfigManager::get();
-	auto agent = std::make_optional<Agent>(std::make_shared<sofiasip::SuRoot>(),
-	                                       std::make_shared<AuthDbBackendOwner>(*cfg->getRoot()));
+	auto cfg = std::make_shared<ConfigManager>();
+	auto agent =
+	    std::make_optional<Agent>(std::make_shared<sofiasip::SuRoot>(), cfg, std::make_shared<AuthDbBackendOwner>(cfg));
 	RegistrarDbRedisAsync registrar{&*agent, RedisParameters{.domain = "localhost", .port = 0}};
 	BC_ASSERT(registrar.connect() != std::nullopt);
 	agent.reset();
 
 	// Does not crash
+	RegistrarDb::resetDB();
 }
 
 TestSuite edgeCases("RegistrarDbRedis-EdgeCases",

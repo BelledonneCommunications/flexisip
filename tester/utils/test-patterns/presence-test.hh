@@ -40,16 +40,9 @@ public:
 	~PresenceTest() {
 	}
 
-	void operator()() override {
-		configureAgent();
-		onAgentConfigured();
-		if (mRunAgent) {
-			mAgent->start("", "");
-			onAgentStarted();
-		}
+	void onTestInit() override {
 		mPresence->_init();
 		mPresence->_run();
-		testExec();
 	};
 
 protected:
@@ -70,7 +63,7 @@ protected:
 
 	void onAgentConfigured() override {
 		RegistrarDbTest::onAgentConfigured();
-		mPresence = std::make_shared<PresenceServer>(mRoot);
+		mPresence = std::make_shared<PresenceServer>(mRoot, mConfigManager);
 		auto presenceLongTerm =
 		    std::make_shared<flexisip::PresenceLongterm>(mPresence->getBelleSipMainLoop(), mAuthDbOwner);
 		mPresence->addPresenceInfoObserver(presenceLongTerm);

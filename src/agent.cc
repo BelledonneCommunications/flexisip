@@ -208,9 +208,9 @@ void Agent::checkAllowedParams(const url_t* uri) {
 
 void Agent::initializePreferredRoute() {
 	// Adding internal transport to transport in "cluster" case
-	auto cluster = ConfigManager::get()->getRoot()->get<GenericStruct>("cluster");
+	const auto* cluster = mConfigManager->getRoot()->get<GenericStruct>("cluster");
 	if (cluster->get<ConfigBoolean>("enabled")->read()) {
-		auto internalTransportParam = cluster->get<ConfigString>("internal-transport");
+		const auto* internalTransportParam = cluster->get<ConfigString>("internal-transport");
 		auto internalTransport = internalTransportParam->read();
 
 		auto pos = internalTransport.find("\%auto");
@@ -254,13 +254,13 @@ static void mDnsRegisterCallback(void* data, int error) {
 void Agent::startMdns() {
 #if ENABLE_MDNS
 	/* Get Informations about mDNS register */
-	GenericStruct* mdns = ConfigManager::get()->getRoot()->get<GenericStruct>("mdns-register");
+	GenericStruct* mdns = mConfigManager->getRoot()->get<GenericStruct>("mdns-register");
 	bool mdnsEnabled = mdns->get<ConfigBoolean>("enabled")->read();
 	if (mdnsEnabled) {
 		if (!belle_sip_mdns_register_available()) LOGF("Belle-sip does not have mDNS activated!");
 
 		string mdnsDomain =
-		    ConfigManager::get()->getRoot()->get<GenericStruct>("cluster")->get<ConfigString>("cluster-domain")->read();
+		    mConfigManager->getRoot()->get<GenericStruct>("cluster")->get<ConfigString>("cluster-domain")->read();
 		int mdnsPrioMin = mdns->get<ConfigIntRange>("mdns-priority")->readMin();
 		int mdnsPrioMax = mdns->get<ConfigIntRange>("mdns-priority")->readMax();
 		int mdnsWeight = mdns->get<ConfigInt>("mdns-weight")->read();
@@ -308,7 +308,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	}
 	string currDir = cCurrDir;
 
-	GenericStruct* global = ConfigManager::get()->getRoot()->get<GenericStruct>("global");
+	GenericStruct* global = mConfigManager->getRoot()->get<GenericStruct>("global");
 	list<string> transports = global->get<ConfigStringList>("transports")->read();
 	string ciphers = global->get<ConfigString>("tls-ciphers")->read();
 	// sofia needs a value in millseconds.
@@ -467,11 +467,8 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 
 		if (mNodeUri == nullptr) {
 			mNodeUri = urlFromTportName(&mHome, name);
-			auto clusterDomain = ConfigManager::get()
-			                         ->getRoot()
-			                         ->get<GenericStruct>("cluster")
-			                         ->get<ConfigString>("cluster-domain")
-			                         ->read();
+			auto clusterDomain =
+			    mConfigManager->getRoot()->get<GenericStruct>("cluster")->get<ConfigString>("cluster-domain")->read();
 			if (!clusterDomain.empty()) {
 				auto tmp_name = *name;
 				tmp_name.tpn_canon = clusterDomain.c_str();
@@ -486,7 +483,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	}
 
 	bool clusterModeEnabled =
-	    ConfigManager::get()->getRoot()->get<GenericStruct>("cluster")->get<ConfigBoolean>("enabled")->read();
+	    mConfigManager->getRoot()->get<GenericStruct>("cluster")->get<ConfigBoolean>("enabled")->read();
 	mDefaultUri = (clusterModeEnabled && mClusterUri) ? mClusterUri : mNodeUri;
 
 	mPublicResolvedIpV4 = computeResolvedPublicIp(mPublicIpV4, AF_INET);
@@ -559,26 +556,12 @@ TlsConfigInfo Agent::getTlsConfigInfo(const GenericStruct* global) {
 }
 
 void Agent::addConfigSections(ConfigManager& cfg) {
-	GenericStruct* cr = cfg.getRoot();
-	// Load plugins .so files. They will automatically register into the ModuleInfoManager singleton.
-	{
-		GenericStruct* global = cr->get<GenericStruct>("global");
-		const string& pluginDir = global->get<ConfigString>("plugins-dir")->read();
-		for (const string& pluginName : global->get<ConfigStringList>("plugins")->read()) {
-			SLOGI << "Loading [" << pluginName << "] plugin...";
-			PluginLoader pluginLoader(pluginDir + "/lib" + pluginName + ".so");
-			const ModuleInfoBase* moduleInfo = pluginLoader.getModuleInfo();
-			if (!moduleInfo) {
-				LOGF("Unable to load plugin [%s]: %s", pluginName.c_str(), pluginLoader.getError().c_str());
-				return;
-			}
-		}
-	}
-
+	// Modules are statically register into the ModuleInfoManager singleton.
 	// Ask the ModuleInfoManager to build a valid module info chain, according to module's placement hints.
 	list<ModuleInfoBase*> moduleInfoChain = ModuleInfoManager::get()->buildModuleChain();
 
 	// Add modules config section.
+	GenericStruct* cr = cfg.getRoot();
 	for (ModuleInfoBase* moduleInfo : moduleInfoChain) {
 		moduleInfo->declareConfig(*cr);
 	}
@@ -586,13 +569,31 @@ void Agent::addConfigSections(ConfigManager& cfg) {
 	DomainRegistrationManager::declareConfig(*cr);
 }
 
+void Agent::addPluginsConfigSections(ConfigManager& cfg) {
+	// Load plugins .so files. They will automatically register into the ModuleInfoManager singleton.
+	GenericStruct* cr = cfg.getRoot();
+	GenericStruct* global = cr->get<GenericStruct>("global");
+	const string& pluginDir = global->get<ConfigString>("plugins-dir")->read();
+	for (const string& pluginName : global->get<ConfigStringList>("plugins")->read()) {
+		SLOGI << "Loading [" << pluginName << "] plugin...";
+		PluginLoader pluginLoader(pluginDir + "/lib" + pluginName + ".so");
+		const ModuleInfoBase* moduleInfo = pluginLoader.getModuleInfo();
+		if (!moduleInfo) {
+			LOGF("Unable to load plugin [%s]: %s", pluginName.c_str(), pluginLoader.getError().c_str());
+			return;
+		}
+		moduleInfo->declareConfig(*cr);
+	}
+}
 // -----------------------------------------------------------------------------
 
-Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<AuthDbBackendOwner>& authDbOwner)
-    : mRoot{root}, mAuthDbOwner{authDbOwner} {
+Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
+             const std::shared_ptr<ConfigManager>& cm,
+             const std::shared_ptr<AuthDbBackendOwner>& authDbOwner)
+    : mRoot{root}, mConfigManager{cm}, mAuthDbOwner{authDbOwner} {
 	LOGT("New Agent[%p]", this);
 	mHttpEngine = nth_engine_create(root->getCPtr(), NTHTAG_ERROR_MSG(0), TAG_END());
-	GenericStruct* cr = ConfigManager::get()->getRoot();
+	GenericStruct* cr = cm->getRoot();
 
 	EtcHostsResolver::get();
 
@@ -638,6 +639,19 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_pt
 	mPreferredRouteV6 = nullptr;
 	mDrm = new DomainRegistrationManager(this);
 	mProxyToProxyKeepAliveInterval = 0;
+
+	mConfigManager->getGlobal()->get<ConfigStringList>("aliases")->setConfigListener(this);
+	mAliases = mConfigManager->getGlobal()->get<ConfigStringList>("aliases")->read();
+	LOGD("List of host aliases:");
+	for (const auto& alias : mAliases) {
+		LOGD("%s", alias.c_str());
+	}
+
+	mUseRfc2543RecordRoute = mConfigManager->getGlobal()->get<ConfigBoolean>("use-rfc2543-record-route")->read();
+
+	RegistrarDb::initialize(this);
+
+	initializePreferredRoute();
 }
 
 Agent::~Agent() {
@@ -680,24 +694,6 @@ bool Agent::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) {
 		LOGD("Global aliases updated");
 	}
 	return true;
-}
-
-void Agent::loadConfig(ConfigManager* cm, bool strict) {
-	if (strict)
-		cm->loadStrict(); // now that each module has declared its settings, we need to reload from the config file
-
-	cm->getGlobal()->get<ConfigStringList>("aliases")->setConfigListener(this);
-	mAliases = cm->getGlobal()->get<ConfigStringList>("aliases")->read();
-	LOGD("List of host aliases:");
-	for (const auto& alias : mAliases) {
-		LOGD("%s", alias.c_str());
-	}
-
-	mUseRfc2543RecordRoute = cm->getGlobal()->get<ConfigBoolean>("use-rfc2543-record-route")->read();
-
-	RegistrarDb::initialize(this);
-
-	initializePreferredRoute();
 }
 
 void Agent::unloadConfig() {
@@ -1143,7 +1139,7 @@ void Agent::idle() {
 	for (const auto& module : mModules) {
 		module->idle();
 	}
-	if (ConfigManager::get()->mNeedRestart) {
+	if (mConfigManager->mNeedRestart) {
 		exit(RESTART_EXIT_CODE);
 	}
 }

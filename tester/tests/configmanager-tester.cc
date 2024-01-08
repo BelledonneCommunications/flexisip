@@ -219,11 +219,11 @@ public:
 
 static void redundantKey() {
 	auto configFile = "/config/flexisip_redundant_key.conf";
-	auto cfg = ConfigManager::get();
+	ConfigManager cfg{};
 
 	auto configFilePath = bcTesterRes(configFile);
 	if (bctbx_file_exist(configFilePath.c_str()) == 0) {
-		BC_ASSERT_THROWN(cfg->load(configFilePath), ConfigParsingException);
+		BC_ASSERT_THROWN(cfg.load(configFilePath), ConfigParsingException);
 	}
 }
 
@@ -237,8 +237,8 @@ static void confValueListener() {
 		bool mCalled{false};
 	};
 
-	auto* cfg = ConfigManager::get();
-	auto* mdnsStruct = cfg->getRoot()->get<GenericStruct>("mdns-register");
+	ConfigManager cfg{};
+	auto* mdnsStruct = cfg.getRoot()->get<GenericStruct>("mdns-register");
 	auto* confValue = mdnsStruct->get<ConfigValue>("enabled");
 
 	// Nothing happen if no listener is registered
@@ -283,7 +283,7 @@ static void confValueListener() {
 	// reset ConfigManager changes
 	confValue->setConfigListener(nullptr);
 	mdnsStruct->setConfigListener(nullptr);
-	dynamic_cast<RootConfigStruct*>(cfg->getRoot())->setCommittedChange(true);
+	dynamic_cast<RootConfigStruct*>(cfg.getRoot())->setCommittedChange(true);
 }
 
 namespace {

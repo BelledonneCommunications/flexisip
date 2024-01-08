@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -39,8 +39,6 @@ namespace flexisip {
 namespace RegistrationEvent {
 
 static constexpr const char* CONTENT_TYPE = "application/reginfo+xml";
-
-Server::Init Server::sStaticInit; // The Init object is instanciated to load the config
 
 void Server::Subscriptions::onSubscribeReceived(const shared_ptr<Core>& core,
                                                 const shared_ptr<linphone::Event>& lev,
@@ -188,7 +186,7 @@ void Server::Subscriptions::processRecord(const shared_ptr<Record>& r, const std
 
 void Server::_init() {
 	mCore = Factory::get()->createCore("", "", nullptr);
-	auto config = ConfigManager::get()->getRoot()->get<GenericStruct>("regevent-server");
+	const auto* config = mConfigManager->getRoot()->get<GenericStruct>("regevent-server");
 
 	mCore->getConfig()->setString("storage", "uri", "null");
 
@@ -218,7 +216,9 @@ void Server::_stop() {
 	mCore = nullptr;
 }
 
-Server::Init::Init() {
+namespace {
+// Statically define default configuration items
+auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
 	ConfigItemDescriptor items[] = {{String, "transport", "SIP uri on which the RegEvent server is listening on.",
 	                                 "sip:127.0.0.1:6065;transport=tcp"},
 	                                config_item_end};
@@ -231,10 +231,10 @@ Server::Init::Init() {
 	    "To generate the outgoing NOTIFY, it will rely upon the registrar database, as setup in module::Registrar "
 	    "section.",
 	    0);
-	auto s = ConfigManager::get()->getRoot()->addChild(std::move(uS));
+	auto* s = root.addChild(std::move(uS));
 	s->addChildrenValues(items);
-}
-
+});
+} // namespace
 } // namespace RegistrationEvent
 
 } // namespace flexisip

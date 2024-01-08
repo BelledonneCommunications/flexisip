@@ -57,8 +57,8 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 	accountParams->enableRegister(bool(mRegister));
 	{
 		// Clients register to the first of the list of transports read in the proxy configuration
-		auto route = mFactory->createAddress(flexisip::ConfigManager::get()
-		                                         ->getRoot()
+		auto route = mFactory->createAddress(mAgent.getConfigManager()
+		                                         .getRoot()
 		                                         ->get<flexisip::GenericStruct>("global")
 		                                         ->get<flexisip::ConfigStringList>("transports")
 		                                         ->read()

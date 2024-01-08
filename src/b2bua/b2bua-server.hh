@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024  Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -40,7 +40,7 @@ class B2buaServer;
 namespace b2bua {
 class BridgedCallApplication {
 public:
-	virtual void init(const std::shared_ptr<linphone::Core>& core, const flexisip::GenericStruct& configRoot) = 0;
+	virtual void init(const std::shared_ptr<linphone::Core>& core, const ConfigManager& cfg) = 0;
 	/**
 	 * lets the application run some business logic before the outgoing call is placed.
 	 *
@@ -52,8 +52,7 @@ public:
 	 *through.
 	 **/
 	virtual std::variant<linphone::Reason, std::shared_ptr<const linphone::Address>>
-	onCallCreate(const linphone::Call& incomingCall,
-	             linphone::CallParams& outgoingCallParams) = 0;
+	onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) = 0;
 	virtual void onCallEnd([[maybe_unused]] const linphone::Call& call) {
 	}
 	virtual ~BridgedCallApplication() = default;
@@ -70,7 +69,7 @@ class B2buaServer : public ServiceServer,
 	friend class tester::b2buatester::B2buaServer;
 
 public:
-	B2buaServer(const std::shared_ptr<sofiasip::SuRoot>& root);
+	B2buaServer(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg);
 	~B2buaServer();
 	static constexpr const char* confKey = "b2bua::confData";
 
@@ -81,7 +80,7 @@ public:
 	void onDtmfReceived(const std::shared_ptr<linphone::Core>& core,
 	                    const std::shared_ptr<linphone::Call>& call,
 	                    int dtmf) override;
-	
+
 	int getTcpPort() const {
 		return mCore->getTransportsUsed()->getTcpPort();
 	}
@@ -92,9 +91,10 @@ protected:
 	void _stop() override;
 
 private:
+	std::shared_ptr<ConfigManager> mConfigManager;
+	CommandLineInterface mCli;
 	std::shared_ptr<linphone::Core> mCore;
 	std::unique_ptr<b2bua::BridgedCallApplication> mApplication;
-	CommandLineInterface mCli;
 };
 
 } // namespace flexisip

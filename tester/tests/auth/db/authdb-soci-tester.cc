@@ -114,7 +114,10 @@ void customPasswordRequestParamInjection() {
 	const auto injectedPassword = tester::randomString(0x10);
 	std::string empty{};
 	RootConfigStruct configRoot{"flexisip-tester", "Fake configuration for testing purposes", {}, empty};
-	PresenceServer::Init{configRoot};
+	for (const auto& init : ConfigManager::defaultInit()) {
+		init(configRoot);
+	}
+
 	const auto& moduleInfos = ModuleInfoManager::get()->getRegisteredModuleInfo();
 	for (const auto& moduleInfo : moduleInfos) {
 		const auto& name = moduleInfo->getModuleName();

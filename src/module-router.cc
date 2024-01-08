@@ -188,7 +188,7 @@ void OnContactRegisteredListener::onContactRegistered(const shared_ptr<Record>& 
 	if (r) mModule->onContactRegistered(shared_from_this(), uid, r);
 }
 void ModuleRouter::onLoad(const GenericStruct* mc) {
-	GenericStruct* cr = ConfigManager::get()->getRoot();
+	const GenericStruct* cr = getAgent()->getConfigManager().getRoot();
 	const GenericStruct* mReg = cr->get<GenericStruct>("module::Registrar");
 
 	mDomains = mReg->get<ConfigStringList>("reg-domains")->read();
@@ -697,7 +697,7 @@ public:
 	    : mEv(ev), mListener(listener), mPreroutes(preroutes) {
 		pending = 0;
 		error = false;
-		m_record = make_shared<Record>(SipUri{});
+		m_record = make_shared<Record>(SipUri{}, RegistrarDb::get()->getRecordConfig());
 	}
 
 	~PreroutingFetcher() {
@@ -755,7 +755,7 @@ public:
 	                     const shared_ptr<ContactUpdateListener>& listener,
 	                     const sip_unknown_t* target_uris)
 	    : mListener(listener) {
-		mRecord = make_shared<Record>(SipUri());
+		mRecord = make_shared<Record>(SipUri(), RegistrarDb::get()->getRecordConfig());
 		if (target_uris && target_uris->un_value) {
 			// The X-target-uris header is parsed like a route, as it is a list of URIs
 			const auto routes = sip_route_make(ev->getHome(), target_uris->un_value);
@@ -859,7 +859,7 @@ public:
 		const string& fallbackRoute = mModule->getFallbackRoute();
 
 		if (r == nullptr) {
-			r = make_shared<Record>(mSipUri);
+			r = make_shared<Record>(mSipUri, RegistrarDb::get()->getRecordConfig());
 		}
 
 		auto& contacts = r->getExtendedContacts();

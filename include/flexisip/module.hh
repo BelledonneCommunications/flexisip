@@ -109,9 +109,7 @@ protected:
 		return true;
 	}
 
-	void sendTrap(const std::string& msg) {
-		ConfigManager::get()->sendTrap(mModuleConfig, msg);
-	}
+	void sendTrap(const std::string& msg);
 
 protected:
 	sofiasip::Home mHome;

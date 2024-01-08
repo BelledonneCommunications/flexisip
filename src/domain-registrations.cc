@@ -139,9 +139,9 @@ void DomainRegistrationManager::declareConfig(GenericStruct& rootConfig) {
 	domainRegistrationArea->addChildrenValues(configs);
 }
 
-DomainRegistrationManager::DomainRegistrationManager(Agent* agent) : mAgent(agent), mRegisterWhenNeeded(false) {
-	ConfigManager* mgr = ConfigManager::get();
-	mDomainRegistrationArea = mgr->getRoot()->get<GenericStruct>(configSectionName);
+DomainRegistrationManager::DomainRegistrationManager(Agent* agent)
+    : mAgent(agent),
+      mDomainRegistrationArea(agent->getConfigManager().getRoot()->get<GenericStruct>(configSectionName)) {
 }
 
 DomainRegistrationManager::~DomainRegistrationManager() {
@@ -164,7 +164,7 @@ int DomainRegistrationManager::load(const string& passphrase) {
 	int lineIndex = 0;
 	string relayRegsToDomainsRegex;
 
-	auto* domainRegistrationCfg = ConfigManager::get()->getRoot()->get<GenericStruct>("inter-domain-connections");
+	auto* domainRegistrationCfg = mAgent->getConfigManager().getRoot()->get<GenericStruct>("inter-domain-connections");
 	configFile = domainRegistrationCfg->get<ConfigString>("domain-registrations")->read();
 
 	mVerifyServerCerts = domainRegistrationCfg->get<ConfigBoolean>("verify-server-certs")->read();
@@ -327,7 +327,8 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager& mgr,
 	const auto usingTls = parentProxy.get()->url_type == url_sips || strcasecmp(transport.c_str(), "tls") == 0;
 
 	if (usingTls && clientCertConf.mode != TlsMode::NONE) {
-		const auto mainTlsConfigInfo = Agent::getTlsConfigInfo();
+		const auto mainTlsConfigInfo =
+		    Agent::getTlsConfigInfo(mManager.mAgent->getConfigManager().getRoot()->get<GenericStruct>("global"));
 		if (mainTlsConfigInfo == clientCertConf) {
 			// Certs dir is the same as for the existing tport
 			LOGD("Domain registration certificates are the same as the one for existing tports, let's use them");

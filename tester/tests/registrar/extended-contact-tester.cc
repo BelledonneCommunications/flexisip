@@ -51,10 +51,9 @@ static void qValueConstructorTests(void) {
 	auto root = make_shared<sofiasip::SuRoot>();
 	// Agent initialization (needed only because ExtendedContact::init relies on
 	// RegistrarDb::getMessageExpires)
-	auto cfg = ConfigManager::get();
+	auto cfg = make_shared<ConfigManager>();
 	cfg->load(bcTesterRes("config/flexisip_fork_context.conf"));
-	auto agent = make_shared<Agent>(root, make_shared<AuthDbBackendOwner>(*cfg->getRoot()));
-	agent->loadConfig(cfg);
+	auto agent = make_shared<Agent>(root, cfg, make_shared<AuthDbBackendOwner>(cfg));
 
 	qValueConstructorTest(SipUri{"sip:kijou@sip.linphone.org:4242"}, string{"sip:185.11.220.105;transport=udp"}, 0.555,
 	                      0.555);

@@ -59,7 +59,7 @@ private:
 
 class FakeModuleInfo : public ModuleInfoBase {
 public:
-	FakeModuleInfo()
+	FakeModuleInfo(ConfigManager& cfg)
 	    : ModuleInfoBase(
 	          "FakeModule",
 	          "",
@@ -68,7 +68,7 @@ public:
 	          [](GenericStruct&) {},
 	          ModuleClass::Experimental,
 	          "") {
-		declareConfig(*ConfigManager::get()->getRoot());
+		declareConfig(*cfg.getRoot());
 	}
 
 	std::shared_ptr<Module> create(Agent*) override {
@@ -91,6 +91,11 @@ public:
 		BC_HARD_ASSERT(std::equal(
 		    expectedOrder.begin(), expectedOrder.end(), mStubModule->mOrderedInjectedRequests.begin(),
 		    [](shared_ptr<ForkMessageContext>& a, shared_ptr<RequestSipEvent>& b) { return a->getEvent() == b; }));
+	}
+	void onAgentConfigured() override {
+		mRouterModule = dynamic_pointer_cast<ModuleRouter>(mAgent->findModule("Router"));
+		mStubModule = make_shared<FakeModule>(mAgent.get(), make_unique<FakeModuleInfo>(*mConfigManager));
+		mInjector = make_unique<ScheduleInjector>(mStubModule.get());
 	}
 
 protected:
@@ -116,14 +121,14 @@ Proxy-Authorization:  Digest realm="sip.linphone.org", nonce="1tMH5QAAAABVHBjkAA
 		fakeDbObject.dbKeys = vector<string>{"key1", "key2", "key3"};
 		auto fork = ForkMessageContext::make(mRouterModule, shared_ptr<ForkContextListener>{}, fakeDbObject);
 
-		mInjector.addContext(fork, mUuid);
+		mInjector->addContext(fork, mUuid);
 
 		return fork;
 	}
 
-	shared_ptr<ModuleRouter> mRouterModule = dynamic_pointer_cast<ModuleRouter>(mAgent->findModule("Router"));
-	shared_ptr<FakeModule> mStubModule = make_shared<FakeModule>(nullptr, make_unique<FakeModuleInfo>());
-	ScheduleInjector mInjector{mStubModule.get()};
+	shared_ptr<ModuleRouter> mRouterModule;
+	shared_ptr<FakeModule> mStubModule;
+	std::unique_ptr<ScheduleInjector> mInjector;
 	const string mUuid = "aRandomUUID";
 };
 
@@ -142,31 +147,31 @@ public:
 		const auto fork5 = this->addFork(priority);
 		vector<shared_ptr<ForkMessageContext>> expectedOrder{};
 
-		mInjector.injectRequestEvent(fork5->getEvent(), fork5, mUuid);
+		mInjector->injectRequestEvent(fork5->getEvent(), fork5, mUuid);
 		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
 
-		mInjector.injectRequestEvent(fork1->getEvent(), fork1, mUuid);
+		mInjector->injectRequestEvent(fork1->getEvent(), fork1, mUuid);
 		expectedOrder.push_back(fork1);
 		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
 
-		mInjector.injectRequestEvent(fork3->getEvent(), fork3, mUuid);
+		mInjector->injectRequestEvent(fork3->getEvent(), fork3, mUuid);
 		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
 
-		mInjector.removeContext(fork2, mUuid);
+		mInjector->removeContext(fork2, mUuid);
 		expectedOrder.push_back(fork3);
 		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
 
-		mInjector.injectRequestEvent(fork4->getEvent(), fork4, mUuid);
+		mInjector->injectRequestEvent(fork4->getEvent(), fork4, mUuid);
 		expectedOrder.push_back(fork4);
 		expectedOrder.push_back(fork5);
 		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
 
 		const auto fork6 = this->addFork(priority);
-		mInjector.removeContext(fork6, mUuid);
+		mInjector->removeContext(fork6, mUuid);
 		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
 
 		const auto fork7 = this->addFork(priority);
-		mInjector.injectRequestEvent(fork7->getEvent(), fork7, mUuid);
+		mInjector->injectRequestEvent(fork7->getEvent(), fork7, mUuid);
 		expectedOrder.push_back(fork7);
 		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
 	}
@@ -182,27 +187,26 @@ public:
 		auto lFork2 = this->addFork(lowPriority);
 		vector<shared_ptr<ForkMessageContext>> expectedOrder{};
 
-		mInjector.injectRequestEvent(lFork2->getEvent(), lFork2, mUuid);
+		mInjector->injectRequestEvent(lFork2->getEvent(), lFork2, mUuid);
 		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
-
-		mInjector.injectRequestEvent(hFork1->getEvent(), hFork1, mUuid);
+		mInjector->injectRequestEvent(hFork1->getEvent(), hFork1, mUuid);
 		expectedOrder.push_back(hFork1);
 		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
 
-		mInjector.removeContext(lFork1, mUuid);
+		mInjector->removeContext(lFork1, mUuid);
 		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
 
-		mInjector.injectRequestEvent(hFork2->getEvent(), hFork2, mUuid);
+		mInjector->injectRequestEvent(hFork2->getEvent(), hFork2, mUuid);
 		expectedOrder.push_back(hFork2);
 		expectedOrder.push_back(lFork2);
 		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
 
 		auto lFork3 = this->addFork(lowPriority);
 		auto hFork3 = this->addFork(highPriority);
-		mInjector.removeContext(lFork3, mUuid);
+		mInjector->removeContext(lFork3, mUuid);
 		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
 
-		mInjector.injectRequestEvent(hFork3->getEvent(), hFork3, mUuid);
+		mInjector->injectRequestEvent(hFork3->getEvent(), hFork3, mUuid);
 		expectedOrder.push_back(hFork3);
 		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
 	}
@@ -224,10 +228,10 @@ public:
 		}
 
 		for (int i = 4; i >= 0; i--) {
-			mInjector.injectRequestEvent(nonUrgentList[i]->getEvent(), nonUrgentList[i], mUuid);
-			mInjector.injectRequestEvent(urgentList[i]->getEvent(), urgentList[i], mUuid);
-			mInjector.injectRequestEvent(normalList[i]->getEvent(), normalList[i], mUuid);
-			mInjector.injectRequestEvent(emergencyList[i]->getEvent(), emergencyList[i], mUuid);
+			mInjector->injectRequestEvent(nonUrgentList[i]->getEvent(), nonUrgentList[i], mUuid);
+			mInjector->injectRequestEvent(urgentList[i]->getEvent(), urgentList[i], mUuid);
+			mInjector->injectRequestEvent(normalList[i]->getEvent(), normalList[i], mUuid);
+			mInjector->injectRequestEvent(emergencyList[i]->getEvent(), emergencyList[i], mUuid);
 		}
 
 		vector<shared_ptr<ForkMessageContext>> expectedOrder{emergencyList};
@@ -248,16 +252,16 @@ public:
 		auto emergencyFork1 = this->addFork(sofiasip::MsgSipPriority::Emergency);
 		auto emergencyFork2 = this->addFork(sofiasip::MsgSipPriority::Emergency);
 
-		mInjector.injectRequestEvent(emergencyFork2->getEvent(), emergencyFork2, mUuid);
+		mInjector->injectRequestEvent(emergencyFork2->getEvent(), emergencyFork2, mUuid);
 		ASSERT_CURRENT_INJECT_ORDER({});
-		mInjector.injectRequestEvent(urgentFork->getEvent(), urgentFork, mUuid);
+		mInjector->injectRequestEvent(urgentFork->getEvent(), urgentFork, mUuid);
 		ASSERT_CURRENT_INJECT_ORDER({});
-		mInjector.injectRequestEvent(normalFork->getEvent(), normalFork, mUuid);
+		mInjector->injectRequestEvent(normalFork->getEvent(), normalFork, mUuid);
 		ASSERT_CURRENT_INJECT_ORDER({});
-		mInjector.injectRequestEvent(nonUrgentFork->getEvent(), nonUrgentFork, mUuid);
+		mInjector->injectRequestEvent(nonUrgentFork->getEvent(), nonUrgentFork, mUuid);
 		ASSERT_CURRENT_INJECT_ORDER({});
 
-		mInjector.removeContext(emergencyFork1, mUuid);
+		mInjector->removeContext(emergencyFork1, mUuid);
 		vector<shared_ptr<ForkMessageContext>> expectedOrder{emergencyFork2, urgentFork, normalFork, nonUrgentFork};
 		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
 	}
@@ -270,27 +274,27 @@ public:
 		auto nonUrgentFork2 = this->addFork(sofiasip::MsgSipPriority::NonUrgent);
 		vector<shared_ptr<ForkMessageContext>> expectedOrder{};
 
-		mInjector.injectRequestEvent(nonUrgentFork->getEvent(), nonUrgentFork, "BAD_UUID");
+		mInjector->injectRequestEvent(nonUrgentFork->getEvent(), nonUrgentFork, "BAD_UUID");
 		// This should not happen, but we prefer to send in wrong order than not at all.
 		expectedOrder.push_back(nonUrgentFork);
 		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
 
-		mInjector.injectRequestEvent(nonUrgentFork->getEvent(), nonUrgentFork, mUuid);
+		mInjector->injectRequestEvent(nonUrgentFork->getEvent(), nonUrgentFork, mUuid);
 		expectedOrder.push_back(nonUrgentFork);
 		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
 		// Injected while not in the list anymore, this should not happen, but we prefer to send in wrong order than not
 		// at all.
-		mInjector.injectRequestEvent(nonUrgentFork->getEvent(), nonUrgentFork, mUuid);
+		mInjector->injectRequestEvent(nonUrgentFork->getEvent(), nonUrgentFork, mUuid);
 		expectedOrder.push_back(nonUrgentFork);
 		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
 
 		// No crash double remove
-		mInjector.removeContext(nonUrgentFork2, mUuid);
-		mInjector.removeContext(nonUrgentFork2, mUuid);
+		mInjector->removeContext(nonUrgentFork2, mUuid);
+		mInjector->removeContext(nonUrgentFork2, mUuid);
 
 		// List is still usable
 		auto nonUrgentFork3 = this->addFork(sofiasip::MsgSipPriority::NonUrgent);
-		mInjector.injectRequestEvent(nonUrgentFork3->getEvent(), nonUrgentFork3, mUuid);
+		mInjector->injectRequestEvent(nonUrgentFork3->getEvent(), nonUrgentFork3, mUuid);
 		expectedOrder.push_back(nonUrgentFork3);
 		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
 	}
@@ -306,13 +310,13 @@ public:
 		auto emergencyFork1 = this->addFork(sofiasip::MsgSipPriority::Emergency);
 		auto emergencyFork2 = this->addFork(sofiasip::MsgSipPriority::Emergency);
 
-		mInjector.injectRequestEvent(emergencyFork2->getEvent(), emergencyFork2, mUuid);
-		mInjector.injectRequestEvent(normalFork->getEvent(), normalFork, mUuid);
+		mInjector->injectRequestEvent(emergencyFork2->getEvent(), emergencyFork2, mUuid);
+		mInjector->injectRequestEvent(normalFork->getEvent(), normalFork, mUuid);
 		ASSERT_CURRENT_INJECT_ORDER({});
 
 		this_thread::sleep_for(50ms);
 
-		mInjector.injectRequestEvent(nonUrgentFork->getEvent(), nonUrgentFork, mUuid);
+		mInjector->injectRequestEvent(nonUrgentFork->getEvent(), nonUrgentFork, mUuid);
 		vector<shared_ptr<ForkMessageContext>> expectedOrder{emergencyFork2, normalFork, nonUrgentFork};
 		ASSERT_CURRENT_INJECT_ORDER(expectedOrder);
 	}

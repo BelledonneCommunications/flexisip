@@ -59,12 +59,11 @@ public:
 static void nullMaxFrowardAndForkBasicContext() {
 	auto root = make_shared<sofiasip::SuRoot>();
 	// Agent initialization
-	auto cfg = ConfigManager::get();
+	auto cfg = std::make_shared<ConfigManager>();
 	cfg->load(bcTesterRes("config/flexisip_fork_context.conf"));
-	auto agent = make_shared<Agent>(root, make_shared<AuthDbBackendOwner>(*cfg->getRoot()));
-	agent->loadConfig(cfg);
+	auto agent = make_shared<Agent>(root, cfg, make_shared<AuthDbBackendOwner>(cfg));
 
-	auto registrarConf = ConfigManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
+	auto* registrarConf = cfg->getRoot()->get<GenericStruct>("module::Registrar");
 	registrarConf->get<ConfigStringList>("reg-domains")->set("127.0.0.1");
 
 	// Inserting a contact into the registrarDB.
@@ -124,12 +123,11 @@ static void nullMaxFrowardAndForkBasicContext() {
 static void notRtpPortAndForkCallContext() {
 	auto root = make_shared<sofiasip::SuRoot>();
 	// Agent initialization
-	auto cfg = ConfigManager::get();
+	auto cfg = std::make_shared<ConfigManager>();
 	cfg->load(bcTesterRes("config/flexisip_fork_context_media_relay.conf"));
-	auto agent = make_shared<Agent>(root, make_shared<AuthDbBackendOwner>(*cfg->getRoot()));
-	agent->loadConfig(cfg);
+	auto agent = make_shared<Agent>(root, cfg, make_shared<AuthDbBackendOwner>(cfg));
 
-	auto registrarConf = ConfigManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
+	auto* registrarConf = cfg->getRoot()->get<GenericStruct>("module::Registrar");
 	registrarConf->get<ConfigStringList>("reg-domains")->set("127.0.0.1");
 
 	// Inserting a contact into the registrarDB.

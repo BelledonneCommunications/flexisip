@@ -38,8 +38,9 @@ class ConferenceServer : public ServiceServer,
                          public linphone::ChatRoomListener {
 public:
 	template <typename StrT, typename SuRootPtr>
-	ConferenceServer(StrT&& path, SuRootPtr&& root)
-	    : ServiceServer{std::forward<SuRootPtr>(root)}, mPath{std::forward<StrT>(path)}, mSubscriptionHandler{*this} {
+	ConferenceServer(StrT&& path, SuRootPtr&& root, const std::shared_ptr<ConfigManager>& cfg)
+	    : ServiceServer{std::forward<SuRootPtr>(root)}, mPath{std::forward<StrT>(path)}, mConfigManager{cfg},
+	      mSubscriptionHandler{*this} {
 	}
 
 	virtual void bindAddresses();
@@ -74,6 +75,10 @@ public:
 	};
 	const MediaConfig& getMediaConfig() const {
 		return mMediaConfig;
+	}
+
+	const GenericStruct& getServerConf() const {
+		return *mConfigManager->getRoot()->get<GenericStruct>("conference-server");
 	}
 
 protected:
@@ -114,6 +119,7 @@ private:
 	std::shared_ptr<linphone::Core> mCore{};
 	std::shared_ptr<RegistrationEvent::ClientFactory> mRegEventClientFactory{};
 	std::string mPath{};
+	std::shared_ptr<ConfigManager> mConfigManager;
 	std::list<std::shared_ptr<linphone::ChatRoom>> mChatRooms{};
 	ParticipantRegistrationSubscriptionHandler mSubscriptionHandler;
 	MediaConfig mMediaConfig;
@@ -124,13 +130,6 @@ private:
 	bool mCheckCapabilities = false;
 	static constexpr const char* sUuidFile = "uuid";
 
-	// Used to declare the service configuration
-	class Init {
-	public:
-		Init();
-	};
-
-	static Init sStaticInit;
 	static sofiasip::Home mHome;
 };
 } // namespace flexisip
