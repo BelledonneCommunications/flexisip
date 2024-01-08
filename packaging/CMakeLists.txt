@@ -23,7 +23,7 @@
 set(CPACK_PACKAGE_NAME "bc-flexisip")
 set(CPACK_PACKAGE_VERSION "${FLEXISIP_FULL_VERSION}")
 set(CPACK_PACKAGE_VENDOR "Belledonne Communications SARL")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "SIP server suite comprising proxy, presence, and IM conference server.")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "SIP server suite including proxy server, presence server and IM conference server.")
 set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/description.txt")
 set(CPACK_PACKAGE_HOMEPAGE_URL "http://flexisip.org")
 set(CPACK_PACKAGING_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
@@ -31,6 +31,8 @@ set(CPACK_PACKAGING_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 bc_compute_linux_package_version("${FLEXISIP_FULL_VERSION}" version release)
 set(extra_dependencies
 	"logrotate"
+	"python3-google-auth"
+	"python3-requests"
 )
 list(JOIN extra_dependencies ", " extra_dependencies_str)
 
@@ -113,7 +115,7 @@ if("RPM" IN_LIST CPACK_GENERATOR)
 	set(rpm_debug_install_dir "/usr/src/debug")
 	set(CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX "${rpm_debug_install_dir}/${CPACK_PACKAGE_NAME}")
 	set(CPACK_RPM_DEBUGINFO_PACKAGE ON)
-	message(STATUS "RPM debuginfo: every occurence to '${PROJECT_SOURCE_DIR}' will be replaced by "
+	message(STATUS "RPM debuginfo: all occurrences of '${PROJECT_SOURCE_DIR}' will be replaced by "
 		"'${CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX}/src_0' in the binary files."
 	)
 
@@ -132,7 +134,7 @@ if("RPM" IN_LIST CPACK_GENERATOR)
 	math(EXPR max_length "${max_length} - ${suffix_length}")
 
 	if(cur_length GREATER max_length)
-		message(WARNING "RPM debuginfo: PROJECT_SOURCE_DIR ('${PROJECT_SOURCE_DIR}') must be longer than '${CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX}/src_0'. Trying to shrink")
+		message(WARNING "RPM debuginfo: PROJECT_SOURCE_DIR ('${PROJECT_SOURCE_DIR}') must be longer than '${CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX}/src_0', trying to shrink")
 		if(max_length LESS min_length)
 			message(FATAL_ERROR "RPM debuginfo: PROJECT_SOURCE_DIR is not long enough to include '${rpm_debug_install_dir}'")
 		endif()
