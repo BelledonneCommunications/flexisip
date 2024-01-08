@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -30,9 +30,6 @@ using namespace flexisip;
 using namespace flexisip::tester;
 using namespace std;
 
-static shared_ptr<sofiasip::SuRoot> root{};
-static shared_ptr<Agent> agent{};
-
 static void
 qValueConstructorTest(const SipUri& inputUri, const string& inputRoute, const float inputQ, const float expectedQ) {
 	ExtendedContact extendedContact{inputUri, inputRoute, inputQ};
@@ -51,8 +48,12 @@ qValueConstructorTest(const SipUri& inputUri, const string& inputRoute, const fl
 }
 
 static void qValueConstructorTests(void) {
+	auto root = make_shared<sofiasip::SuRoot>();
+	// Agent initialization (needed only because ExtendedContact::init relies on
+	// RegistrarDb::getMessageExpires)
 	auto cfg = ConfigManager::get();
 	cfg->load(bcTesterRes("config/flexisip_fork_context.conf"));
+	auto agent = make_shared<Agent>(root);
 	agent->loadConfig(cfg);
 
 	qValueConstructorTest(SipUri{"sip:kijou@sip.linphone.org:4242"}, string{"sip:185.11.220.105;transport=udp"}, 0.555,
@@ -73,17 +74,5 @@ TestSuite _("Extended contact",
             {
                 TEST_NO_TAG("ExtendedContact constructor with qValue tests", qValueConstructorTests),
             },
-            Hooks()
-                .beforeEach([] {
-	                // Agent initialization (needed only because ExtendedContact::init relies on
-	                // RegistrarDb::getMessageExpires)
-	                root = make_shared<sofiasip::SuRoot>();
-	                agent = make_shared<Agent>(root);
-                })
-                .afterEach([] {
-	                agent->unloadConfig();
-	                RegistrarDb::resetDB();
-	                agent.reset();
-	                root.reset();
-                }));
+            Hooks().afterEach([] { RegistrarDb::resetDB(); }));
 }

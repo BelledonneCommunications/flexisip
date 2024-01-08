@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -39,8 +39,6 @@ using namespace std::chrono;
 using namespace flexisip;
 using namespace flexisip::tester;
 
-static shared_ptr<sofiasip::SuRoot> root{};
-static shared_ptr<Agent> agent{};
 static bool responseReceived = false;
 
 /**
@@ -59,9 +57,11 @@ public:
 };
 
 static void nullMaxFrowardAndForkBasicContext() {
+	auto root = make_shared<sofiasip::SuRoot>();
 	// Agent initialization
 	auto cfg = ConfigManager::get();
 	cfg->load(bcTesterRes("config/flexisip_fork_context.conf"));
+	auto agent = make_shared<Agent>(root);
 	agent->loadConfig(cfg);
 
 	auto registrarConf = ConfigManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
@@ -122,9 +122,11 @@ static void nullMaxFrowardAndForkBasicContext() {
 }
 
 static void notRtpPortAndForkCallContext() {
+	auto root = make_shared<sofiasip::SuRoot>();
 	// Agent initialization
 	auto cfg = ConfigManager::get();
 	cfg->load(bcTesterRes("config/flexisip_fork_context_media_relay.conf"));
+	auto agent = make_shared<Agent>(root);
 	agent->loadConfig(cfg);
 
 	auto registrarConf = ConfigManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
@@ -373,9 +375,6 @@ public:
 	shared_ptr<BranchInfo> pubFindBestBranch(bool avoid503And408) {
 		return this->findBestBranch(avoid503And408);
 	}
-
-private:
-	unique_ptr<AgentMock> agentMock{};
 };
 
 class FindBestBranchTest : public Test {
@@ -482,16 +481,5 @@ TestSuite _("Fork context",
                 TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchDontAvoid408Test>),
                 TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchNoBranchConsidered>),
             },
-            Hooks()
-                .beforeEach([] {
-	                responseReceived = false;
-	                root = make_shared<sofiasip::SuRoot>();
-	                agent = make_shared<Agent>(root);
-                })
-                .afterEach([] {
-	                agent->unloadConfig();
-	                RegistrarDb::resetDB();
-	                agent.reset();
-	                root.reset();
-                }));
+            Hooks().beforeEach([] { responseReceived = false; }).afterEach([] { RegistrarDb::resetDB(); }));
 }
