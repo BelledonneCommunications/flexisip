@@ -153,11 +153,11 @@ void Server::Subscriptions::processRecord(const shared_ptr<Record>& r, const std
 			size_t i;
 
 			for (i = 0; ec->mSipContact->m_params[i]; i++) {
-				vector<string> param = StringUtils::split(ec->mSipContact->m_params[i], "=");
+				auto param = StringUtils::split(std::string_view{ec->mSipContact->m_params[i]}, "=");
 
-				auto unknownParam = UnknownParam(param.front());
+				auto unknownParam = UnknownParam(std::string(param.front()));
 				if (param.size() == 2) {
-					unknownParam.append(StringUtils::unquote(param.back()));
+					unknownParam.append(StringUtils::unquote(std::string(param.back())));
 				}
 
 				contact.getUnknownParam().push_back(unknownParam);

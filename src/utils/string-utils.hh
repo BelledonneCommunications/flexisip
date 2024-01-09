@@ -42,6 +42,13 @@ public:
 	 * results to a vector containing the entire string (one element).
 	 */
 	static std::vector<std::string> split(const std::string& str, const std::string& delimiter) noexcept;
+	static std::vector<std::string_view> split(std::string_view str, std::string_view delimiter) noexcept;
+	/**
+	 * Splits the string on the first occurrence of the specified delimiter and returns prefix before delimiter and
+	 * suffix after delimiter
+	 */
+	static std::optional<std::pair<std::string_view, std::string_view>> splitOnce(std::string_view str,
+	                                                                              std::string_view delimiter) noexcept;
 
 	/* Remove surrounding double-quotes, if present */
 	static std::string unquote(const std::string& str) noexcept {

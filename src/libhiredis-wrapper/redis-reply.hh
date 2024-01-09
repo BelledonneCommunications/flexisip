@@ -27,7 +27,7 @@ public:
 	friend std::ostream& operator<<(std::ostream&, const Status&);
 };
 using Integer = decltype(redisReply::integer);
-// The session disconnected before being able to to get the result of this command
+// The session disconnected before being able to get the result of this command
 class Disconnected {
 public:
 	friend std::ostream& operator<<(std::ostream&, const Disconnected&);

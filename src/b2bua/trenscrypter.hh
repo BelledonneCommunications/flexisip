@@ -54,7 +54,7 @@ public:
 /**
  * Media encryption transcoder
  */
-class Trenscrypter : public BridgedCallApplication {
+class Trenscrypter : public b2bua::Application {
 	std::shared_ptr<linphone::Core> mCore;
 	std::list<encryptionConfiguration> mOutgoingEncryption;
 	std::list<srtpConfiguration> mSrtpConf;

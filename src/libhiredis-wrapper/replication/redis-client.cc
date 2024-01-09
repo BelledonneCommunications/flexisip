@@ -21,14 +21,13 @@ RedisClient::RedisClient(const sofiasip::SuRoot& root,
 }
 
 std::optional<std::tuple<const Session::Ready&, const SubscriptionSession::Ready&>> RedisClient::connect() {
-	SLOGD << "RedisReplicated[" << this << "] Connecting to Redis server tcp://" << mParams.domain << ":"
-	      << mParams.port;
-	SLOGD << "Creating main Redis connection";
+	SLOGI << logPrefix() << "Connecting to Redis server tcp://" << mParams.domain << ":" << mParams.port;
+	SLOGD << logPrefix() << "Creating command session";
 	const Session::Ready* cmdSession = nullptr;
 	auto& cmdState = mCmdSession.connect(mRoot.getCPtr(), mParams.domain, mParams.port);
 	if ((cmdSession = std::get_if<Session::Ready>(&cmdState)) == nullptr) return nullopt;
 
-	SLOGD << "Creating subscription Redis connection";
+	SLOGD << logPrefix() << "Creating subscription session";
 	const SubscriptionSession::Ready* subsSession = nullptr;
 	auto& subState = mSubSession.connect(mRoot.getCPtr(), mParams.domain, mParams.port);
 	if ((subsSession = std::get_if<SubscriptionSession::Ready>(&subState)) == nullptr) return nullopt;
@@ -52,7 +51,7 @@ const Session::Ready* RedisClient::tryGetCmdSession() {
 	}
 
 	if (auto connected = tryReconnect()) {
-		auto const& [cmdSession, _] = *connected;
+		const auto& [cmdSession, _] = *connected;
 		return &cmdSession;
 	}
 
@@ -65,7 +64,7 @@ const SubscriptionSession::Ready* RedisClient::tryGetSubSession() {
 	}
 
 	if (auto connected = tryReconnect()) {
-		auto const& [_, subSession] = *connected;
+		const auto& [_, subSession] = *connected;
 		return &subSession;
 	}
 
@@ -73,7 +72,7 @@ const SubscriptionSession::Ready* RedisClient::tryGetSubSession() {
 }
 
 void RedisClient::forceDisconnect() {
-	SLOGD << "Redis server force-disconnected";
+	SLOGD << logPrefix() << "Redis server force-disconnected";
 	mCmdSession.forceDisconnect();
 	mSubSession.forceDisconnect();
 }
@@ -102,8 +101,8 @@ std::optional<std::tuple<const Session::Ready&, const SubscriptionSession::Ready
 		         std::get<SubscriptionSession::Ready>(mSubSession.getState())}};
 	}
 	if (chrono::system_clock::now() - mLastReconnectRotation < 1s) {
-		if (!mReconnectTimer) {
-			mReconnectTimer = make_unique<sofiasip::Timer>(mRoot.getCPtr(), 1s);
+		if (!mReconnectTimer.has_value()) {
+			mReconnectTimer.emplace(mRoot.getCPtr(), 1s);
 			mReconnectTimer->set([this]() { onTryReconnectTimer(); });
 		}
 		return nullopt;
@@ -118,15 +117,16 @@ std::optional<std::tuple<const Session::Ready&, const SubscriptionSession::Ready
 			// If there is no slaves, this is already a full rotation.
 			mLastReconnectRotation = std::chrono::system_clock::now();
 		}
-		LOGW("Trying to reconnect to last active connection at %s:%d", mParams.domain.c_str(), mParams.port);
+		LOGW("%sTrying to reconnect to last active connection at %s:%d", logPrefix().c_str(), mParams.domain.c_str(),
+		     mParams.port);
 		return connect();
 	}
 
 	// If last active connection still fail
 	// we can try one of the previously determined slaves
 	if (mCurSlave != mSlaves.cend()) {
-		LOGW("Connection failed or lost to %s:%d, trying a known slave %d at %s:%d", mParams.domain.c_str(),
-		     mParams.port, mCurSlave->id, mCurSlave->address.c_str(), mCurSlave->port);
+		LOGW("%sConnection failed or lost to %s:%d, trying a known slave %d at %s:%d", logPrefix().c_str(),
+		     mParams.domain.c_str(), mParams.port, mCurSlave->id, mCurSlave->address.c_str(), mCurSlave->port);
 
 		mParams.domain = mCurSlave->address;
 		mParams.port = mCurSlave->port;
@@ -136,7 +136,7 @@ std::optional<std::tuple<const Session::Ready&, const SubscriptionSession::Ready
 		return connect();
 	}
 
-	LOGW("No slave to try, giving up.");
+	SLOGW << logPrefix().c_str() << "No slave to try, giving up.";
 	return nullopt;
 }
 
@@ -146,40 +146,42 @@ bool RedisClient::isReady() const {
 }
 
 void RedisClient::getReplicationInfo(const redis::async::Session::Ready& readySession) {
-	SLOGD << "Collecting replication information";
+	SLOGD << logPrefix() << "Collecting replication information";
 	readySession.timedCommand({"INFO", "replication"}, [this](const Session&, Reply reply) {
-		Match(reply).against(
-		    [this](const reply::String& stringReply) { handleReplicationInfoReply(stringReply); },
-		    [](const auto& unexpected) { SLOGE << "Unexpected reply to INFO command: " << unexpected; });
+		Match(reply).against([this](const reply::String& stringReply) { handleReplicationInfoReply(stringReply); },
+		                     [this](const auto& unexpected) {
+			                     SLOGE << logPrefix() << "Unexpected reply to INFO command: " << unexpected;
+		                     });
 	});
 }
 
 void RedisClient::handleAuthReply(redis::async::Reply reply) {
 	if (auto* err = std::get_if<reply::Error>(&reply)) {
-		SLOGE << "Couldn't authenticate with Redis server: " << *err;
+		SLOGE << logPrefix() << "Couldn't authenticate with Redis server: " << *err;
 		forceDisconnect();
 		return;
 	}
 
-	SLOGD << "Redis authentication succeeded. Reply: " << StreamableVariant(reply);
+	SLOGI << logPrefix() << "Authentication succeeded. Reply: " << StreamableVariant(reply);
 
 	Match(mCmdSession.getState())
 	    .against([this](const Session::Ready& session) { getReplicationInfo(session); },
-	             [](const auto& unexpected) {
+	             [this](const auto& unexpected) {
 		             // Somehow happened in production before the hiredis wrapper was written
-		             SLOGE << "Receiving success response to Redis AUTH request but we are no longer connected. This "
+		             SLOGE << logPrefix()
+		                   << "Receiving success response to Redis AUTH request but we are no longer connected. This "
 		                      "should never happen! Aborting replication info fetch! Unexpected session state: "
 		                   << unexpected;
 	             });
 }
 
 void RedisClient::handleReplicationInfoReply(const redis::reply::String& reply) {
-	SLOGD << "Redis replication information received";
+	SLOGD << logPrefix() << "Replication information received";
 	auto replyMap = StringUtils::parseKeyValue(std::string(reply));
 	if (replyMap.find("role") != replyMap.end()) {
 		if (string role = replyMap["role"]; role == "master") {
 			// We are speaking to the master, set the DB as writable and update the list of slaves
-			SLOGD << "Redis server is a master";
+			SLOGI << logPrefix() << "Redis server is a master";
 			if (auto listener = mSessionListener.lock()) {
 				listener->onConnect(REDIS_OK); // TODO should this be called only on first connection ?
 			}
@@ -192,10 +194,10 @@ void RedisClient::handleReplicationInfoReply(const redis::reply::String& reply) 
 			int masterPort = atoi(replyMap["master_port"].c_str());
 			string masterStatus = replyMap["master_link_status"];
 
-			LOGW("Our redis instance is a slave of %s:%d", masterAddress.c_str(), masterPort);
+			LOGW("%sOur redis instance is a slave of %s:%d", logPrefix().c_str(), masterAddress.c_str(), masterPort);
 			if (masterStatus == "up") {
-				SLOGW << "Master is up, will attempt to connect to the master at " << masterAddress << ":"
-				      << masterPort;
+				SLOGW << logPrefix() << "Master is up, will attempt to connect to the master at " << masterAddress
+				      << ":" << masterPort;
 
 				mParams.domain = masterAddress;
 				mParams.port = masterPort;
@@ -204,19 +206,20 @@ void RedisClient::handleReplicationInfoReply(const redis::reply::String& reply) 
 				forceDisconnect();
 				connect();
 			} else {
-				SLOGW << "Master is " << masterStatus
+				SLOGW << logPrefix() << "Master is " << masterStatus
 				      << " but not up, wait for next periodic check to decide to connect.";
 			}
 		} else {
-			SLOGW << "Unknown role '" << role << "'";
+			SLOGE << logPrefix() << "Unknown role '" << role << "'";
 		}
-		if (!mReplicationTimer) {
-			SLOGD << "Creating replication timer with delay of " << mParams.mSlaveCheckTimeout.count() << "s";
-			mReplicationTimer = make_unique<sofiasip::Timer>(mRoot.getCPtr(), mParams.mSlaveCheckTimeout);
+		if (!mReplicationTimer.has_value()) {
+			SLOGD << logPrefix() << "Creating replication timer with delay of " << mParams.mSlaveCheckTimeout.count()
+			      << "s";
+			mReplicationTimer.emplace(mRoot.getCPtr(), mParams.mSlaveCheckTimeout);
 			mReplicationTimer->run([this]() { onHandleInfoTimer(); });
 		}
 	} else {
-		SLOGW << "Invalid INFO reply: no role specified";
+		SLOGE << logPrefix() << "Invalid INFO reply: no role specified";
 	}
 }
 
@@ -236,8 +239,8 @@ void RedisClient::updateSlavesList(const map<std::string, std::string>& redisRep
 				if (host.id != -1) {
 					// only tell if a new host was found
 					if (std::find(mSlaves.begin(), mSlaves.end(), host) == mSlaves.end()) {
-						LOGD("Replication: Adding host %d %s:%d state:%s", host.id, host.address.c_str(), host.port,
-						     host.state.c_str());
+						LOGD("%sReplication: Adding host %d %s:%d state:%s", logPrefix().c_str(), host.id,
+						     host.address.c_str(), host.port, host.state.c_str());
 					}
 					newSlaves.push_back(host);
 				}
@@ -248,8 +251,8 @@ void RedisClient::updateSlavesList(const map<std::string, std::string>& redisRep
 
 	for (const auto& oldSlave : mSlaves) {
 		if (find(newSlaves.begin(), newSlaves.end(), oldSlave) == newSlaves.end()) {
-			LOGD("Replication: Removing host %d %s:%d previous state:%s", oldSlave.id, oldSlave.address.c_str(),
-			     oldSlave.port, oldSlave.state.c_str());
+			LOGD("%sReplication: Removing host %d %s:%d previous state:%s", logPrefix().c_str(), oldSlave.id,
+			     oldSlave.address.c_str(), oldSlave.port, oldSlave.state.c_str());
 		}
 	}
 
@@ -260,19 +263,26 @@ void RedisClient::updateSlavesList(const map<std::string, std::string>& redisRep
 
 void RedisClient::onHandleInfoTimer() {
 	if (auto* session = std::get_if<Session::Ready>(&mCmdSession.getState())) {
-		SLOGI << "Launching periodic INFO query on REDIS";
+		SLOGD << logPrefix() << "Launching periodic INFO query on REDIS";
 		getReplicationInfo(*session);
 	}
 }
 
 void RedisClient::onTryReconnectTimer() {
 	tryReconnect();
-	mReconnectTimer.reset(nullptr);
+	// reset order doesn't matter. Because we cannot trigger the timer creation in tryReconnect.
+	mReconnectTimer.reset();
 }
 
 void RedisClient::forceDisconnectForTest(RedisClient& thiz) {
 	thiz.mCmdSession.forceDisconnect();
 	thiz.mSubSession.forceDisconnect();
+}
+
+std::string RedisClient::logPrefix() const {
+	std::stringstream prefix;
+	prefix << "RedisClient[" << this << "] - ";
+	return prefix.str();
 }
 
 } // namespace flexisip::redis::async

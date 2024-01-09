@@ -35,7 +35,6 @@
 #include "libhiredis-wrapper/redis-async-session.hh"
 #include "libhiredis-wrapper/redis-reply.hh"
 #include "libhiredis-wrapper/replication/redis-client.hh"
-#include "recordserializer.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/change-set.hh"
 #include "registrar/extended-contact.hh"
@@ -96,8 +95,7 @@ public:
 	                      LocalRegExpire& localRegExpire,
 	                      const redis::async::RedisParameters& params,
 	                      std::function<void(const Record::Key&, const std::string&)> notifyContact,
-	                      std::function<void(bool)> notifyState,
-	                      RecordSerializer* serializer = RecordSerializer::get());
+	                      std::function<void(bool)> notifyState);
 
 	void fetchExpiringContacts(time_t startTimestamp,
 	                           float threshold,
@@ -152,7 +150,6 @@ private:
 	const sofiasip::SuRoot& mRoot;
 	const Record::Config& mRecordConfig;
 	LocalRegExpire& mLocalRegExpire;
-	RecordSerializer* mSerializer;
 	std::function<void(const Record::Key&, const std::string&)> mNotifyContactListener;
 	std::function<void(bool)> mNotifyStateListener;
 	bool mWritable{};

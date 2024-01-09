@@ -33,6 +33,7 @@ target_sources(flexisip PRIVATE
 	rand.cc rand.hh
 	sip-uri.cc
 	string-formatter.cc string-formatter.hh
+	string-interpolation/interpolated-string.cc string-interpolation/interpolated-string.hh
 	string-utils.cc string-utils.hh
 	sys-err.cc sys-err.hh
 	thread/auto-thread-pool.cc thread/auto-thread-pool.hh

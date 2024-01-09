@@ -305,7 +305,7 @@ void CommandLineInterface::run() {
 				finished = true;
 			} else if (n > 0) {
 				SLOGD << "CommandLineInterface " << mName << " received: " << buffer;
-				auto split_query = StringUtils::split(buffer, " ");
+				auto split_query = StringUtils::split(std::string(buffer), " ");
 				std::string command = split_query.front();
 				split_query.erase(split_query.begin());
 				parseAndAnswer(std::move(child_socket), command, split_query);

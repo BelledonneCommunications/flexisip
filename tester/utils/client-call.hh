@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 
 #include <linphone++/call.hh>
@@ -22,9 +23,14 @@ public:
 	linphone::Status accept() const;
 	linphone::Status acceptEarlyMedia() const;
 	linphone::Status decline(linphone::Reason) const;
+	linphone::Status terminate() const;
 	linphone::Call::State getState() const;
 	linphone::Reason getReason() const;
+	std::shared_ptr<const linphone::Address> getRemoteAddress() const;
 	const bool& videoFrameDecoded();
+
+	linphone::Status
+	    update(std::function<std::shared_ptr<linphone::CallParams>(std::shared_ptr<linphone::CallParams>&&)>) const;
 
 	/* CHEATS ~~ Use only for quick prototyping */
 	static const std::shared_ptr<linphone::Call>& getLinphoneCall(const ClientCall&);

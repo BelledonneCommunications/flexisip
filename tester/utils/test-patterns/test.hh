@@ -26,8 +26,7 @@
 
 #include <bctoolbox/tester.h>
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 class TestAssertFailedException : public std::exception {
 public:
@@ -131,12 +130,12 @@ inline void bc_hard_assert(const char* file, int line, int predicate, const char
 				           " != " + std::string(typeid(expectedType).name()))                                          \
 				              .c_str());                                                                               \
 			}                                                                                                          \
-		} catch (...) {                                                                                                \
+		} catch (const std::exception& e) {                                                                                 \
 			exceptionWasThrown = true;                                                                                 \
-			bc_assert(                                                                                                 \
-			    __FILE__, __LINE__, 0,                                                                                 \
-			    ("thrown exception has wrong type, " + std::string(typeid(expectedType).name()) + " was expected")     \
-			        .c_str());                                                                                         \
+			bc_assert(__FILE__, __LINE__, 0,                                                                           \
+			          ("thrown exception has wrong type, " + std::string(typeid(expectedType).name()) +                \
+			           " was expected but " + std::string(typeid(e).name()) + " was sent.")                            \
+			              .c_str());                                                                                   \
 		}                                                                                                              \
 		if (!exceptionWasThrown) {                                                                                     \
 			bc_assert(                                                                                                 \
@@ -203,5 +202,4 @@ static void run() noexcept {
 
 #define CLASSY_TEST(test_class) TEST_NO_TAG(#test_class, run<test_class>)
 
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester

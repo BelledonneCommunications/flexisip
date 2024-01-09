@@ -295,8 +295,10 @@ private:
 	std::shared_ptr<sofiasip::SuRoot> mRoot = nullptr;
 	const std::shared_ptr<ConfigManager> mConfigManager;
 	const std::shared_ptr<AuthDb> mAuthDb;
-	const std::shared_ptr<RegistrarDb> mRegistrarDb;
 	std::list<std::shared_ptr<Module>> mModules;
+	// Disconnecting the Redis registar DB may trigger callbacks on mModules,
+	// so they must still be alive when dtor()ing it.
+	const std::shared_ptr<RegistrarDb> mRegistrarDb;
 	std::shared_ptr<NatTraversalStrategy> mNatTraversalStrategy;
 	std::list<std::string> mAliases;
 	url_t* mPreferredRouteV4 = nullptr;

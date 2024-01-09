@@ -49,6 +49,7 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 	}
 
 	auto core = minimalCore(*mFactory);
+	core->setLabel(me);
 	core->setPrimaryContact(me);
 	core->setUserAgent("LinphoneSDK for Flexisip regression tests", FLEXISIP_GIT_VERSION);
 

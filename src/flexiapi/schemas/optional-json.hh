@@ -17,7 +17,7 @@
 */
 #pragma once
 
-#include <optional>
+#include <optional> // IWYU pragma: export
 
 #include "lib/nlohmann-json-3-11-2/json.hpp"
 

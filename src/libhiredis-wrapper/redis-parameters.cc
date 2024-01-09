@@ -7,16 +7,16 @@
 namespace flexisip::redis::async {
 
 RedisParameters RedisParameters::fromRegistrarConf(GenericStruct const* const registarConf) {
-	return {
+	return RedisParameters{
 	    .domain = registarConf->get<ConfigString>("redis-server-domain")->read(),
 	    .auth = [&registarConf]() -> decltype(auth) {
 		    using namespace redis::auth;
 
-		    auto const& password = registarConf->get<ConfigString>("redis-auth-password")->read();
+		    const auto& password = registarConf->get<ConfigString>("redis-auth-password")->read();
 		    if (password.empty()) {
 			    return None();
 		    }
-		    auto const& user = registarConf->get<ConfigString>("redis-auth-user")->read();
+		    const auto& user = registarConf->get<ConfigString>("redis-auth-user")->read();
 		    if (user.empty()) {
 			    return Legacy{password};
 		    }

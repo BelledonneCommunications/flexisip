@@ -45,7 +45,6 @@
 #include "libhiredis-wrapper/redis-async-script.hh"
 #include "libhiredis-wrapper/redis-async-session.hh"
 #include "libhiredis-wrapper/redis-reply.hh"
-#include "recordserializer.hh"
 #include "registrar/exceptions.hh"
 #include "registrar/extended-contact.hh"
 #include "utils/soft-ptr.hh"
@@ -77,11 +76,10 @@ RegistrarDbRedisAsync::RegistrarDbRedisAsync(const sofiasip::SuRoot& root,
                                              LocalRegExpire& localRegExpire,
                                              const RedisParameters& params,
                                              std::function<void(const Record::Key&, const std::string&)> notifyContact,
-                                             std::function<void(bool)> notifyState,
-                                             RecordSerializer* serializer)
+                                             std::function<void(bool)> notifyState)
     : mRedisClient{root, params, SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)}, mRoot{root},
-      mRecordConfig{recordConfig}, mLocalRegExpire{localRegExpire}, mSerializer(serializer),
-      mNotifyContactListener{std::move(notifyContact)}, mNotifyStateListener{std::move(notifyState)} {
+      mRecordConfig{recordConfig}, mLocalRegExpire{localRegExpire}, mNotifyContactListener{std::move(notifyContact)},
+      mNotifyStateListener{std::move(notifyState)} {
 }
 
 bool RegistrarDbRedisAsync::isConnected() const {
@@ -110,7 +108,6 @@ void RegistrarDbRedisAsync::onConnect(int status) {
 	if (status == REDIS_OK) {
 		setWritable(true);
 		subscribeToKeyExpiration();
-		subscribe("FLEXISIP");
 	}
 }
 
@@ -167,12 +164,9 @@ void RegistrarDbRedisAsync::subscribeToKeyExpiration() {
 }
 
 void RegistrarDbRedisAsync::subscribe(const Record::Key& key) {
-	subscribe(std::string_view(key.asString()));
-}
-
-void RegistrarDbRedisAsync::subscribe(std::string_view const topic) {
+	const auto topic = key.asString();
 	SLOGD << "Sending SUBSCRIBE command to Redis for topic '" << topic << "'";
-	auto const* const subs = mRedisClient.tryGetSubSession();
+	const auto* const subs = mRedisClient.tryGetSubSession();
 	if (!subs) {
 		SLOGE << "RegistrarDbRedisAsync::subscribeTopic(): Subscription session not ready!";
 		return;

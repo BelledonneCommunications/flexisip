@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,11 +9,11 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -38,8 +38,12 @@ class B2buaServer;
 } // namespace tester
 
 namespace b2bua {
-class BridgedCallApplication {
+class Application {
 public:
+	using DeclineCall = linphone::Reason;
+	using InviteAddress = std::shared_ptr<const linphone::Address>;
+	using ActionToTake = std::variant<DeclineCall, InviteAddress>;
+
 	virtual void init(const std::shared_ptr<linphone::Core>& core, const ConfigManager& cfg) = 0;
 	/**
 	 * lets the application run some business logic before the outgoing call is placed.
@@ -51,11 +55,10 @@ public:
 	 * @return		a reason to abort the bridging and decline the incoming call. Reason::None if the call should go
 	 *through.
 	 **/
-	virtual std::variant<linphone::Reason, std::shared_ptr<const linphone::Address>>
-	onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) = 0;
+	virtual ActionToTake onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) = 0;
 	virtual void onCallEnd([[maybe_unused]] const linphone::Call& call) {
 	}
-	virtual ~BridgedCallApplication() = default;
+	virtual ~Application() = default;
 };
 
 // Name of the corresponding section in the configuration file
@@ -88,6 +91,10 @@ public:
 		return mCore->getTransportsUsed()->getTcpPort();
 	}
 
+	const b2bua::Application& getApplication() const {
+		return *mApplication;
+	}
+
 protected:
 	void _init() override;
 	void _run() override;
@@ -97,7 +104,7 @@ private:
 	std::shared_ptr<ConfigManager> mConfigManager;
 	CommandLineInterface mCli;
 	std::shared_ptr<linphone::Core> mCore;
-	std::unique_ptr<b2bua::BridgedCallApplication> mApplication;
+	std::unique_ptr<b2bua::Application> mApplication;
 };
 
 } // namespace flexisip

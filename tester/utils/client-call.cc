@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "linphone++/core.hh"
 #include "linphone++/enums.hh"
 #include "linphone/api/c-call-stats.h"
 #include "linphone/api/c-call.h"
@@ -30,12 +31,18 @@ linphone::Status ClientCall::acceptEarlyMedia() const {
 linphone::Status ClientCall::decline(linphone::Reason reason) const {
 	return mCall->decline(reason);
 }
+linphone::Status ClientCall::terminate() const {
+	return mCall->terminate();
+}
 
 linphone::Call::State ClientCall::getState() const {
 	return mCall->getState();
 }
 linphone::Reason ClientCall::getReason() const {
 	return mCall->getReason();
+}
+std::shared_ptr<const linphone::Address> ClientCall::getRemoteAddress() const {
+	return mCall->getRemoteAddress();
 }
 
 const bool& ClientCall::videoFrameDecoded() {
@@ -47,6 +54,11 @@ const bool& ClientCall::videoFrameDecoded() {
 		mCall->addListener(mListener);
 	}
 	return mListener->mFrameDecoded;
+}
+
+linphone::Status ClientCall::update(
+    std::function<std::shared_ptr<linphone::CallParams>(std::shared_ptr<linphone::CallParams>&&)> tweak) const {
+	return mCall->update(tweak(mCall->getCore()->createCallParams(mCall)));
 }
 
 const std::shared_ptr<linphone::Call>& ClientCall::getLinphoneCall(const ClientCall& wrapper) {
