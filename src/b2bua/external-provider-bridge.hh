@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,11 +9,11 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 /*
     Tools to bridge calls to other SIP providers via the Back-to-Back User Agent
@@ -26,13 +26,13 @@
 
 #include <regex>
 #include <unordered_map>
+#include <optional>
 
 #include "linphone++/enums.hh"
 #include "linphone++/linphone.hh"
 
 #include "b2bua-server.hh"
 #include "cli.hh"
-#include "utils/stl-backports.hh"
 
 namespace flexisip {
 namespace b2bua {
@@ -68,14 +68,14 @@ private:
 	std::regex pattern;
 	std::vector<Account> accounts;
 	std::string name;
-	stl_backports::optional<bool> overrideAvpf;
-	stl_backports::optional<linphone::MediaEncryption> overrideEncryption;
+	std::optional<bool> overrideAvpf;
+	std::optional<linphone::MediaEncryption> overrideEncryption;
 
 	ExternalSipProvider(std::string&& pattern,
 	                    std::vector<Account>&& accounts,
 	                    std::string&& name,
-	                    const stl_backports::optional<bool>& overrideAvpf,
-	                    const stl_backports::optional<linphone::MediaEncryption>& overrideEncryption);
+	                    const std::optional<bool>& overrideAvpf,
+	                    const std::optional<linphone::MediaEncryption>& overrideEncryption);
 
 	// Disable copy semantics
 	ExternalSipProvider(const ExternalSipProvider&) = delete;
@@ -95,8 +95,8 @@ struct ProviderDesc {
 	bool registrationRequired;
 	uint32_t maxCallsPerLine;
 	std::vector<AccountDesc> accounts;
-	stl_backports::optional<bool> overrideAvpf;
-	stl_backports::optional<linphone::MediaEncryption> overrideEncryption;
+	std::optional<bool> overrideAvpf;
+	std::optional<linphone::MediaEncryption> overrideEncryption;
 };
 
 class AccountManager : public BridgedCallApplication, public CliHandler {

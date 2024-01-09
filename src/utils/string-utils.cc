@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL.
+    Copyright (C) 2010-2024 Belledonne Communications SARL.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -107,7 +107,7 @@ std::string StringUtils::transform(const std::string& str, const std::map<char, 
 }
 
 #ifdef HAVE_LIBLINPHONECXX
-flexisip::stl_backports::optional<linphone::MediaEncryption>
+std::optional<linphone::MediaEncryption>
 StringUtils::string2MediaEncryption(const std::string& str) {
 	using enc = linphone::MediaEncryption;
 	if (str == "zrtp") {
