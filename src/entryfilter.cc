@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -40,7 +40,7 @@ static ConfigItemDescriptor config[] = {
     {String, "to-domains", "Deprecated: List of domain names in sip to allowed to enter the module.", "*"},
     config_item_end};
 
-void ConfigEntryFilter::declareConfig(GenericStruct *module_config) {
+void ConfigEntryFilter::declareConfig(GenericStruct* module_config) {
 
 	module_config->addChildrenValues(config, false);
 	module_config->deprecateChild("from-domains", {"2012-09-04", "0.5.0", "Use 'filter' setting instead."});
@@ -49,7 +49,7 @@ void ConfigEntryFilter::declareConfig(GenericStruct *module_config) {
 	mCountEvalFalse = module_config->createStat("count-eval-false", "Number of filter evaluations to false.");
 }
 
-void ConfigEntryFilter::loadConfig(const GenericStruct *mc) {
+void ConfigEntryFilter::loadConfig(const GenericStruct* mc) {
 	string filter = mc->get<ConfigValue>("filter")->get();
 
 	if (filter.empty()) {
@@ -60,29 +60,25 @@ void ConfigEntryFilter::loadConfig(const GenericStruct *mc) {
 
 		string toDomains = mc->get<ConfigString>("to-domains")->read();
 		if (!toDomains.empty() && toDomains != "*") {
-			if (!filter.empty())
-				filter += " && ";
+			if (!filter.empty()) filter += " && ";
 			filter += "(to.uri.domain in '" + toDomains + "')";
 		}
 	}
 	mEnabled = mc->get<ConfigBoolean>("enabled")->read();
 	try {
 		mBooleanExprFilter = SipBooleanExpressionBuilder::get().parse(filter);
-	} catch (exception &e) {
+	} catch (exception& e) {
 		LOGF("Could not parse entry filter for module '%s': %s", mc->getName().c_str(), e.what());
 	}
 	mEntryName = mc->getName();
 }
 
-bool ConfigEntryFilter::canEnter(const shared_ptr<MsgSip> &ms) {
-	if (!mEnabled)
-		return false;
+bool ConfigEntryFilter::canEnter(const shared_ptr<MsgSip>& ms) {
+	if (!mEnabled) return false;
 
 	bool e = mBooleanExprFilter->eval(*ms->getSip());
-	if (e)
-		++*mCountEvalTrue;
-	else
-		++*mCountEvalFalse;
+	if (e) ++(*mCountEvalTrue);
+	else ++(*mCountEvalFalse);
 	return e;
 }
 

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -51,9 +51,9 @@ shared_ptr<ForkMessageContextDbProxy> ForkMessageContextDbProxy::make(const shar
 
 ForkMessageContextDbProxy::ForkMessageContextDbProxy(const std::shared_ptr<ModuleRouter> router,
                                                      sofiasip::MsgSipPriority priority)
-    : mForkMessage{}, mState{State::IN_MEMORY},
-      mProxyLateTimer{router->getAgent()->getRoot()}, mCounter{router->mStats.mCountMessageProxyForks},
-      mSavedRouter{router}, mSavedConfig{router->getMessageForkCfg()}, mSavedMsgPriority{priority} {
+    : mForkMessage{}, mState{State::IN_MEMORY}, mProxyLateTimer{router->getAgent()->getRoot()},
+      mCounter{router->mStats.mCountMessageProxyForks}, mSavedRouter{router}, mSavedConfig{router->getMessageForkCfg()},
+      mSavedMsgPriority{priority} {
 
 	LOGD("New ForkMessageContextDbProxy %p", this);
 	if (auto sharedCounter = mCounter.lock()) {
@@ -126,8 +126,9 @@ void ForkMessageContextDbProxy::onForkContextFinished([[maybe_unused]] const sha
 	}
 }
 
-std::shared_ptr<BranchInfo> ForkMessageContextDbProxy::onDispatchNeeded([[maybe_unused]] const shared_ptr<ForkContext>& ctx,
-                                                                        const shared_ptr<ExtendedContact>& newContact) {
+std::shared_ptr<BranchInfo>
+ForkMessageContextDbProxy::onDispatchNeeded([[maybe_unused]] const shared_ptr<ForkContext>& ctx,
+                                            const shared_ptr<ExtendedContact>& newContact) {
 	if (auto savedRouter = mSavedRouter.lock()) {
 		mCurrentVersion++;
 		return savedRouter->onDispatchNeeded(shared_from_this(), newContact);

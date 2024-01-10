@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -35,12 +35,12 @@ private:
 		Init();
 	};
 
-	static std::string findLocalAddress(const std::list<std::string> &nodes);
-	static bool isLocalhost(const std::string &host);
-	static bool notLocalhost(const std::string &host);
-	static std::string md5sum(const std::string &s);
-	static std::string generateUsername(const std::string &prefix, const std::string &host);
-	static std::string generatePassword(const std::string &host, const std::string &salt);
+	static std::string findLocalAddress(const std::list<std::string>& nodes);
+	static bool isLocalhost(const std::string& host);
+	static bool notLocalhost(const std::string& host);
+	static std::string md5sum(const std::string& s);
+	static std::string generateUsername(const std::string& prefix, const std::string& host);
+	static std::string generatePassword(const std::string& host, const std::string& salt);
 	static std::string findDomain();
 
 	static Init sInit;
@@ -50,4 +50,4 @@ private:
 	static const int PASSWORD_CACHE_EXPIRE;
 };
 
-}
+} // namespace flexisip

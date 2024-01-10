@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -160,8 +160,9 @@ void MediaRelay::onLoad(const GenericStruct* modconf) {
 	mMaxRelayedEarlyMedia = modconf->get<ConfigInt>("max-early-media-per-call")->read();
 	mForceRelayForNonIceTargets = modconf->get<ConfigBoolean>("force-relay-for-non-ice-targets")->read();
 	mUsePublicIpForSdpMasquerading = modconf->get<ConfigBoolean>("force-public-ip-for-sdp-masquerading")->read();
-	mInactivityPeriod =
-	    chrono::duration_cast<chrono::seconds>(modconf->get<ConfigDuration<chrono::seconds>>("inactivity-period")->read()).count();
+	mInactivityPeriod = chrono::duration_cast<chrono::seconds>(
+	                        modconf->get<ConfigDuration<chrono::seconds>>("inactivity-period")->read())
+	                        .count();
 	createServers();
 }
 

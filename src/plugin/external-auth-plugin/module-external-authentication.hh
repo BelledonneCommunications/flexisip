@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -31,21 +31,22 @@ namespace flexisip {
 
 class ModuleExternalAuthentication : public ModuleAuthenticationBase {
 public:
-	ModuleExternalAuthentication(Agent *agent) : ModuleAuthenticationBase(agent) {}
+	ModuleExternalAuthentication(Agent* agent) : ModuleAuthenticationBase(agent) {
+	}
 	~ModuleExternalAuthentication() override = default;
 
 private:
-	void onDeclare(GenericStruct *mc) override;
-	void onLoad(const GenericStruct *root) override;
+	void onDeclare(GenericStruct* mc) override;
+	void onLoad(const GenericStruct* root) override;
 
-	FlexisipAuthModuleBase *createAuthModule(const std::string &domain, int nonceExpire, bool qopAuth) override;
-	FlexisipAuthStatus *createAuthStatus(const std::shared_ptr<RequestSipEvent> &ev) override;
+	FlexisipAuthModuleBase* createAuthModule(const std::string& domain, int nonceExpire, bool qopAuth) override;
+	FlexisipAuthStatus* createAuthStatus(const std::shared_ptr<RequestSipEvent>& ev) override;
 
-	void onSuccess(const FlexisipAuthStatus &as) override;
-	void errorReply(const FlexisipAuthStatus &as) override;
+	void onSuccess(const FlexisipAuthStatus& as) override;
+	void errorReply(const FlexisipAuthStatus& as) override;
 
-	std::map<nth_client_t *, std::shared_ptr<RequestSipEvent>> mPendingEvent;
+	std::map<nth_client_t*, std::shared_ptr<RequestSipEvent>> mPendingEvent;
 	std::string mRemoteUri;
 };
 
-}
+} // namespace flexisip
