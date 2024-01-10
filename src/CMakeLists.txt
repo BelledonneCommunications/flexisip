@@ -99,6 +99,9 @@ add_library(flexisip SHARED
 	module-b2bua.cc
 	module.cc
 	monitor.cc monitor.hh
+	nat/contact-correction-strategy.cc nat/contact-correction-strategy.hh
+	nat/flow-token-strategy.cc nat/flow-token-strategy.hh
+	nat/nat-traversal-strategy.hh nat/nat-traversal-strategy.cc
 	plugin/plugin-loader.cc plugin/plugin-loader.hh
 	recordserializer-c.cc
 	recordserializer-json.cc

@@ -39,6 +39,20 @@ const char* getFirstPort(const Agent& agent) {
 	return ::tport_name(firstTransport)->tpn_port;
 }
 
+tport_t* getFirstTransport(const Agent& agent, sa_family_t ipAddressFamily) {
+	auto* transport = ::tport_primaries(::nta_agent_tports(agent.getSofiaAgent()));
+
+	while (transport != nullptr) {
+		if (tport_get_address(transport)->ai_addr->sa_family == ipAddressFamily) {
+			return transport;
+		}
+
+		transport = tport_next(transport);
+	}
+
+	throw runtime_error("could not find any transport with ipAddressFamily " + to_string(ipAddressFamily));
+}
+
 /**
  * A class to manage the flexisip proxy server
  */
@@ -111,8 +125,13 @@ void Server::runFor(std::chrono::milliseconds duration) {
 		mAgent->getRoot()->step(100ms);
 	}
 }
+
 const char* Server::getFirstPort() const {
 	return tester::getFirstPort(*mAgent);
+}
+
+tport_t* Server::getFirstTransport(sa_family_t ipAddressFamily) const {
+	return tester::getFirstTransport(*mAgent, ipAddressFamily);
 }
 
 } // namespace tester

@@ -39,6 +39,8 @@
 #include "auth/db/authdb.hh"
 #include "domain-registrations.hh"
 #include "etchosts.hh"
+#include "nat/contact-correction-strategy.hh"
+#include "nat/flow-token-strategy.hh"
 #include "plugin/plugin-loader.hh"
 #include "utils/uri-utils.hh"
 
@@ -322,6 +324,18 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 
 	mProxyToProxyKeepAliveInterval =
 	    global->get<ConfigDuration<chrono::seconds>>("proxy-to-proxy-keepalive-interval")->read().count();
+
+	const auto* natHelperConfig = mConfigManager->getRoot()->get<GenericStruct>("module::NatHelper");
+	const auto& strategy = natHelperConfig->get<ConfigString>("nat-traversal-strategy")->read();
+	if (strategy == "contact-correction") {
+		const auto& contactCorrectionParameter = natHelperConfig->get<ConfigString>("contact-correction-param")->read();
+		mNatTraversalStrategy = make_shared<ContactCorrectionStrategy>(this, contactCorrectionParameter);
+	} else if (strategy == "flow-token") {
+		const auto forceFlowTokenExpr = natHelperConfig->get<ConfigBooleanExpression>("force-flow-token")->read();
+		mNatTraversalStrategy = make_shared<FlowTokenStrategy>(this, forceFlowTokenExpr, FLOW_TOKEN_HASH_KEY_FILE_PATH);
+	} else {
+		throw runtime_error("unknown value for \"nat-traversal-strategy\" (" + strategy + ")");
+	}
 
 	mTimer = su_timer_create(mRoot->getTask(), 5000);
 	su_timer_set_for_ever(mTimer, reinterpret_cast<su_timer_f>(timerfunc), this);

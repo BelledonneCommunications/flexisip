@@ -18,6 +18,13 @@
 
 #include "module-nat-helper.hh"
 
+#include <exception>
+
+#include "agent.hh"
+#include "nat/contact-correction-strategy.hh"
+#include "nat/flow-token-strategy.hh"
+#include "registrar/registrar-db.hh"
+#include "tester.hh"
 #include "utils/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -27,6 +34,11 @@ using namespace sofiasip;
 
 namespace flexisip::tester {
 
+namespace {
+
+/*
+ * Test wrong contact url in "Contact" header is corrected in response.
+ */
 void wrongContactInResponse() {
 	Server proxy{{
 	    {"global/transports", "sip:127.0.0.1:0"},
@@ -80,11 +92,48 @@ void wrongContactInResponse() {
 	BC_ASSERT_CPP_EQUAL(url_as_string(event->getHome(), contact->m_url), expectedContactUrl);
 }
 
-namespace {
+void configurationValueNatTraversalStrategyContactCorrection() {
+	Server proxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"global/aliases", "localhost"},
+	    {"module::NatHelper/nat-traversal-strategy", "contact-correction"},
+	}};
+
+	proxy.start();
+
+	BC_ASSERT(dynamic_cast<ContactCorrectionStrategy*>(proxy.getAgent()->getNatTraversalStrategy().get()) != nullptr);
+}
+
+void configurationValueNatTraversalStrategyFlowToken() {
+	Server proxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"global/aliases", "localhost"},
+	    {"module::NatHelper/nat-traversal-strategy", "flow-token"},
+	}};
+
+	proxy.start();
+
+	BC_ASSERT(dynamic_cast<FlowTokenStrategy*>(proxy.getAgent()->getNatTraversalStrategy().get()) != nullptr);
+}
+
+void configurationValueNatTraversalStrategyWrongValue() {
+	Server server{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"global/aliases", "localhost"},
+	    {"module::NatHelper/nat-traversal-strategy", "unexpected"},
+	}};
+
+	BC_ASSERT_THROWN(server.start(), runtime_error);
+}
+
 TestSuite _("NatHelperModule",
             {
                 TEST_NO_TAG_AUTO_NAMED(wrongContactInResponse),
+                TEST_NO_TAG_AUTO_NAMED(configurationValueNatTraversalStrategyContactCorrection),
+                TEST_NO_TAG_AUTO_NAMED(configurationValueNatTraversalStrategyFlowToken),
+                TEST_NO_TAG_AUTO_NAMED(configurationValueNatTraversalStrategyWrongValue),
             });
-}
+
+} // namespace
 
 } // namespace flexisip::tester

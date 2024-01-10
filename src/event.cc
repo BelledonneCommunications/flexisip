@@ -18,10 +18,10 @@
 
 #include "flexisip/event.hh"
 
+#include <sofia-sip/msg_addr.h>
 #include <sofia-sip/sip_protos.h>
 #include <sofia-sip/su_tagarg.h>
 
-#include "flexisip/common.hh"
 #include "flexisip/module.hh"
 
 #include "agent.hh"
@@ -29,6 +29,7 @@
 #include "eventlogs/writers/event-log-writer.hh"
 #include "transaction/incoming-transaction.hh"
 #include "transaction/outgoing-transaction.hh"
+#include "utils/socket-address.hh"
 
 using namespace std;
 
@@ -141,6 +142,7 @@ std::shared_ptr<IncomingTransaction> SipEvent::getIncomingTransaction() {
 std::shared_ptr<OutgoingTransaction> SipEvent::getOutgoingTransaction() {
 	return dynamic_pointer_cast<OutgoingTransaction>(getOutgoingAgent());
 }
+
 const std::shared_ptr<tport_t>& SipEvent::getIncomingTport() const {
 	return mIncomingTport;
 }
@@ -163,6 +165,17 @@ std::shared_ptr<IncomingAgent> SipEvent::getIncomingAgent() const {
 		return sharedAgent;
 	}
 	return nullptr;
+}
+
+/*
+ * Get a copy of the socket address associated with the message.
+ * Return nullptr if it failed to make the SocketAddress.
+ */
+std::shared_ptr<SocketAddress> SipEvent::getMsgAddress() const {
+	su_sockaddr_t suSocketAddress;
+	socklen_t socklen = sizeof(su_sockaddr_t);
+	msg_get_address(mMsgSip->getMsg(), &suSocketAddress, &socklen);
+	return SocketAddress::make(&suSocketAddress);
 }
 
 void RequestSipEvent::checkContentLength(const url_t* url) {
@@ -188,6 +201,7 @@ std::shared_ptr<RequestSipEvent> RequestSipEvent::makeRestored(std::shared_ptr<I
 
 	return shared;
 }
+
 RequestSipEvent::RequestSipEvent(shared_ptr<IncomingAgent> incomingAgent,
                                  const shared_ptr<MsgSip>& msgSip,
                                  tport_t* tport)

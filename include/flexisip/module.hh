@@ -26,6 +26,8 @@
 #include "flexisip/event.hh"
 #include "flexisip/sofia-wrapper/home.hh"
 
+#include "utils/flow.hh"
+
 namespace flexisip {
 
 // =============================================================================
@@ -264,8 +266,12 @@ public:
 	static msg_auth_t* findAuthorizationForRealm(su_home_t* home, msg_auth_t* au, const char* realm);
 	static const tport_t* getIncomingTport(const std::shared_ptr<RequestSipEvent>& ev, Agent* agent);
 
-	static void addRecordRouteIncoming(Agent* agent, const std::shared_ptr<RequestSipEvent>& ev);
-	static void addRecordRoute(Agent* agent, const std::shared_ptr<RequestSipEvent>& ev, const tport_t* tport);
+	static void
+	addRecordRouteIncoming(Agent* agent, const std::shared_ptr<RequestSipEvent>& ev, const Flow::Token& token = "");
+	static void addRecordRoute(Agent* agent,
+	                           const std::shared_ptr<RequestSipEvent>& ev,
+	                           const tport_t* tport,
+	                           const Flow::Token& token = "");
 
 	static void cleanAndPrependRoute(Agent* agent, msg_t* msg, sip_t* sip, sip_route_t* route);
 
@@ -282,8 +288,11 @@ public:
 	static void
 	addRoutingParam(su_home_t* home, sip_contact_t* contacts, const std::string& routingParam, const char* domain);
 	static struct sip_route_s* prependNewRoutable(msg_t* msg, sip_t* sip, sip_route_t*& sipr, sip_route_t* value);
-	static void
-	addPathHeader(Agent* agent, const std::shared_ptr<RequestSipEvent>& ev, tport_t* tport, const char* uniq = nullptr);
+	static void addPathHeader(Agent* agent,
+	                          const std::shared_ptr<RequestSipEvent>& ev,
+	                          tport_t* tport,
+	                          const char* uniq = nullptr,
+	                          const Flow::Token& token = "");
 
 	// These methods do host comparison taking into account that each one of argument can be an ipv6 address enclosed in
 	// brakets.

@@ -57,6 +57,7 @@
 namespace flexisip {
 
 class Module;
+class NatTraversalStrategy;
 class DomainRegistrationManager;
 
 /**
@@ -195,6 +196,10 @@ public:
 	 */
 	const std::string& getUniqueId() const;
 
+	const std::shared_ptr<NatTraversalStrategy>& getNatTraversalStrategy() const {
+		return mNatTraversalStrategy;
+	}
+
 	EventLogWriter* getEventLogWriter() const {
 		return mLogWriter.get();
 	}
@@ -292,6 +297,7 @@ private:
 	const std::shared_ptr<AuthDbBackendOwner> mAuthDbOwner;
 	const std::shared_ptr<RegistrarDb> mRegistrarDb;
 	std::list<std::shared_ptr<Module>> mModules;
+	std::shared_ptr<NatTraversalStrategy> mNatTraversalStrategy;
 	std::list<std::string> mAliases;
 	url_t* mPreferredRouteV4 = nullptr;
 	url_t* mPreferredRouteV6 = nullptr;

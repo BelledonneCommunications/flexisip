@@ -87,6 +87,11 @@ add_executable(flexisip_tester
 	tests/libhiredis-wrapper/redis-async-session-tester.cc
 	tests/libhiredis-wrapper/redis-reply-tester.cc
 	tests/module-nat-helper-tester.cc
+	tests/nat/contact-correction-strategy-helper-tester.cc
+	tests/nat/contact-correction-strategy-tester.cc
+	tests/nat/flow-token-strategy-tester.cc
+	tests/nat/nat-traversal-feature-tester.cc
+	tests/nat/nat-traversal-strategy-helper-tester.cc
 	tests/presence/presence-pidf-tester.cc
 	tests/presence/presence-publish-tester.cc
 	tests/presence/xsd-utils-tester.cc
@@ -100,6 +105,11 @@ add_executable(flexisip_tester
 	tests/registrar/registrardb-tester.cc
 	tests/registrar/registrardb-redis-tester.cc
 	tests/sofia-wrapper/home-tester.cc
+	tests/utils/flow-data-tester.cc
+	tests/utils/flow-factory-tester.cc
+	tests/utils/flow-tester.cc
+	tests/utils/flow-factory-helper-tester.cc
+	tests/utils/socket-address-tester.cc
 	tests/utils/soft-ptr-tester.cc
 	thread-pool-tester.cc
 	tls-connection-tester.cc
@@ -114,8 +124,10 @@ add_executable(flexisip_tester
 	utils/contact-inserter.cc utils/contact-inserter.hh
 	utils/eventlogs/event-logs.cc utils/eventlogs/event-logs.hh
 	utils/eventlogs/writers/event-log-writer-visitor-adapter.hh
+	utils/flow-test-helper.cc utils/flow-test-helper.hh
 	utils/listening-socket.cc utils/listening-socket.hh
 	utils/mysql-server.cc utils/mysql-server.hh
+	utils/nat-test-helper.cc utils/nat-test-helper.hh
 	utils/posix-process-tester.cc
 	utils/proxy-server.cc utils/proxy-server.hh
 	utils/proxy-server-process.cc utils/proxy-server-process.hh

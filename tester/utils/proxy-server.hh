@@ -76,7 +76,9 @@ public:
 	const std::shared_ptr<flexisip::Agent>& getAgent() const noexcept {
 		return mAgent;
 	}
+
 	const char* getFirstPort() const;
+	tport_t* getFirstTransport(sa_family_t ipAddressFamily) const;
 
 	/**
 	 * @brief Start the Agent.

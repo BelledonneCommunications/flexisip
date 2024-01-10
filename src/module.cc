@@ -31,7 +31,7 @@
 #include "agent.hh"
 #include "domain-registrations.hh"
 #include "entryfilter.hh"
-#include "eventlogs/writers/event-log-writer.hh"
+#include "utils/flow.hh"
 #include "utils/signaling-exception.hh"
 
 using namespace std;
@@ -371,7 +371,10 @@ void ModuleToolbox::cleanAndPrependRoute(Agent* ag, msg_t* msg, sip_t* sip, sip_
 	if (r) prependNewRoutable(msg, sip, sip->sip_route, r);
 }
 
-void ModuleToolbox::addRecordRoute(Agent* ag, const shared_ptr<RequestSipEvent>& ev, const tport_t* tport) {
+void ModuleToolbox::addRecordRoute(Agent* ag,
+                                   const shared_ptr<RequestSipEvent>& ev,
+                                   const tport_t* tport,
+                                   const Flow::Token& token) {
 	msg_t* msg = ev->getMsgSip()->getMsg();
 	sip_t* sip = ev->getMsgSip()->getSip();
 	su_home_t* home = ev->getMsgSip()->getHome();
@@ -409,6 +412,15 @@ void ModuleToolbox::addRecordRoute(Agent* ag, const shared_ptr<RequestSipEvent>&
 			url_param_add(home, url, "transport=tls");
 		}
 	}
+
+	if (!token.empty()) {
+		if (url->url_user == nullptr) {
+			url->url_user = su_strdup(home, token.data());
+		} else {
+			SLOGD << "ModuleToolbox::addRecordRoute(): failed to add flow-token in sip uri, url_user is not empty";
+		}
+	}
+
 	sip_record_route_t* rr = sip_record_route_create(home, url, NULL);
 	if (!rr) {
 		LOGE("ModuleToolbox::addRecordRoute(): sip_record_route_create() returned NULL");
@@ -424,20 +436,21 @@ void ModuleToolbox::addRecordRoute(Agent* ag, const shared_ptr<RequestSipEvent>&
 	ev->mRecordRouteAdded = true;
 }
 
-void ModuleToolbox::addRecordRouteIncoming(Agent* ag, const shared_ptr<RequestSipEvent>& ev) {
+void ModuleToolbox::addRecordRouteIncoming(Agent* ag, const shared_ptr<RequestSipEvent>& ev, const Flow::Token& token) {
 	if (ev->mRecordRouteAdded) return;
 
-	auto tport = ev->getIncomingTport();
+	const auto tport = ev->getIncomingTport();
 	if (!tport) {
 		LOGE("Cannot find incoming tport, cannot add a Record-Route.");
 		return;
 	} else {
-		/*we have a tport, check if we are in a case of proxy to proxy communication*/
-		if (ev->getMsgSip()->getSip()->sip_record_route != NULL) { // there is already a record route
+		// We have a tport, check if we are in a case of proxy to proxy communication.
+		if (ev->getMsgSip()->getSip()->sip_record_route != NULL) { // There is already a record route.
 			ag->applyProxyToProxyTransportSettings(tport.get());
 		}
 	}
-	addRecordRoute(ag, ev, tport.get());
+
+	addRecordRoute(ag, ev, tport.get(), token);
 }
 
 bool ModuleToolbox::fromMatch(const sip_from_t* from1, const sip_from_t* from2) {
@@ -695,7 +708,8 @@ sip_route_t* ModuleToolbox::prependNewRoutable(msg_t* msg, sip_t* sip, sip_route
 	return value;
 }
 
-void ModuleToolbox::addPathHeader(Agent* ag, const shared_ptr<RequestSipEvent>& ev, tport_t* tport, const char* uniq) {
+void ModuleToolbox::addPathHeader(
+    Agent* ag, const shared_ptr<RequestSipEvent>& ev, tport_t* tport, const char* uniq, const Flow::Token& token) {
 	su_home_t* home = ev->getMsgSip()->getHome();
 	msg_t* msg = ev->getMsgSip()->getMsg();
 	sip_t* sip = ev->getMsgSip()->getSip();
@@ -726,6 +740,15 @@ void ModuleToolbox::addPathHeader(Agent* ag, const shared_ptr<RequestSipEvent>& 
 	url_param_add(home, url, "lr");
 	sip_path_t* path = (sip_path_t*)su_alloc(home, sizeof(sip_path_t));
 	sip_path_init(path);
+
+	if (!token.empty()) {
+		if (url->url_user == nullptr) {
+			url->url_user = su_strdup(home, token.data());
+			url_param_add(home, url, "ob");
+		} else {
+			SLOGD << "ModuleToolbox::addPathHeader(): failed to add flow-token in sip uri, url_user is not empty";
+		}
+	}
 
 	path->r_url[0] = *url;
 

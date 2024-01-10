@@ -18,41 +18,55 @@
 
 #pragma once
 
+#include <array>
+#include <cmath>
+#include <map>
 #include <memory>
+#include <sstream>
 #include <string>
+#include <vector>
 
-#include "flexisip/module-registrar.hh"
-#include "flexisip/module.hh"
+#include <sofia-sip/tport.h>
+
+#include "flow-data.hh"
+#include "socket-address.hh"
 
 namespace flexisip {
 
+class FlowFactory;
+
 /*
- * Execute small tasks to make SIP work smoothly despite firewalls and NATs.
+ * Represent a flow as defined in RFC5626:
+ * "A Flow is a transport-layer association between two hosts that
+ * is represented by the network address and port number of both ends
+ * and by the transport protocol."
  */
-class NatHelper : public Module, protected ModuleToolbox {
-	friend std::shared_ptr<Module> ModuleInfo<NatHelper>::create(Agent*);
-
+class Flow {
 public:
-	~NatHelper() override = default;
+	using HMAC = std::string;
+	using Token = std::string;
+	using RawToken = std::vector<uint8_t>;
 
-	void onRequest(std::shared_ptr<RequestSipEvent>& ev) override;
-	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override;
+	friend class FlowFactory;
 
-protected:
-	enum RecordRouteFixingPolicy { Safe, Always };
+	Flow() = delete;
+	~Flow() = default;
 
-	void onLoad(const GenericStruct* sec) override;
+	bool isFalsified() const;
+	const Token& getToken() const;
+	const FlowData& getData() const;
+
+	std::string str() const;
+
+	bool operator==(const Flow& other) const;
+	bool operator!=(const Flow& other) const;
 
 private:
-	NatHelper(Agent* ag, const ModuleInfoBase* moduleInfo);
+	Flow(FlowData&& data, const Token& token, bool isFalsified);
 
-	static bool isPrivateAddress(const char* host);
-	void fixRecordRouteInRequest(const std::shared_ptr<MsgSip>& ms);
-
-	static ModuleInfo<NatHelper> sInfo;
-	bool mFixRecordRoutes{false};
-	std::string mContactVerifiedParam{};
-	RecordRouteFixingPolicy mRRPolicy{Safe};
+	FlowData mData;
+	Token mToken;
+	bool mIsFalsified;
 };
 
 } // namespace flexisip

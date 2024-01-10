@@ -32,6 +32,7 @@
 #include <sofia-sip/tport.h>
 
 #include "flexisip/sofia-wrapper/msg-sip.hh"
+#include "utils/socket-address.hh"
 
 namespace flexisip {
 
@@ -124,6 +125,7 @@ public:
 	std::shared_ptr<OutgoingTransaction> getOutgoingTransaction();
 
 	const std::shared_ptr<tport_t>& getIncomingTport() const;
+	std::shared_ptr<SocketAddress> getMsgAddress() const;
 
 protected:
 	enum class State {

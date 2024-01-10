@@ -32,6 +32,7 @@
 #include "agent.hh"
 #include "domain-registrations.hh"
 #include "eventlogs/events/eventlogs.hh"
+#include "nat/nat-traversal-strategy.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
@@ -718,7 +719,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			SLOGD << "Identical path already existing: " << getAgent()->getPreferredRoute();
 		}
 	} else {
-		addPathHeader(getAgent(), ev, ev->getIncomingTport().get());
+		mAgent->getNatTraversalStrategy()->addPathOnRegister(ev, ev->getIncomingTport().get(), nullptr);
 	}
 
 	/* Initialize a connection ID, so that registration can be matched with the tport,
