@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -161,61 +161,111 @@ class TestFetchExpiringContacts : public RegistrarDbTest<TDatabase> {
 	}
 };
 
+namespace {
 template <typename TDatabase>
-class MaxContactsByAorIsHonored : public RegistrarDbTest<TDatabase> {
-	void testExec() noexcept override {
+void MaxContactsByAorIsHonored(TDatabase& dbImpl, const SipUri& aor) {
+
+	Server proxyServer(dbImpl.configAsMap());
+	proxyServer.start();
+	auto root = proxyServer.getRoot();
+	auto regDb = RegistrarDb::get();
+
+	auto& uidFields = Record::sLineFieldNames;
+	if (uidFields.empty()) uidFields = {"+sip.instance"}; // Do not rely on side-effects from other tests...
+	StaticOverride maxContacts{Record::sMaxContacts, 3};
+
+	ContactInserter inserter(*regDb);
+	inserter.setAor(aor).setExpire(87s);
+
+	auto insert = [&](string_view uri) {
+		inserter.insert({uri.data()});
+		BC_ASSERT_TRUE(rootStepFor(
+		    root, [&inserter] { return inserter.finished(); }, 1s));
+	};
+	insert("sip:existing1@example.org");
+	insert("sip:existing2@example.org");
+	insert("sip:existing3@example.org");
+	insert("sip:onetoomany@example.org");
+
+	auto listener = make_shared<SuccessfulBindListener>();
+	regDb->fetch(aor, listener);
+	BC_ASSERT_TRUE(rootStepFor(
+	    proxyServer.getRoot(), [&record = listener->mRecord]() { return record != nullptr; }, 1s));
+	{
+		auto& contacts = listener->mRecord->getExtendedContacts();
+		BC_ASSERT_EQUAL(contacts.size(), 3, int, "%d");
+	}
+}
+
+void InternalMaxContactsByAorIsHonored() {
+	DbImplementation::Internal dbImpl{};
+	const SipUri aor{"sip:morethan3@example.org"};
+	MaxContactsByAorIsHonored(dbImpl, aor);
+}
+
+void RedisMaxContactsByAorIsHonored() {
+	DbImplementation::Redis dbImpl{};
+	const SipUri aor{"sip:morethan3@example.org"};
+	MaxContactsByAorIsHonored(dbImpl, aor);
+
+	// Redis db is persitent when server is restarted
+	// Check that a change of max contacts is taken into account
+
+	auto insert = [](const std::shared_ptr<sofiasip::SuRoot>& root, ContactInserter& inserter, string_view uri) {
+		inserter.insert({uri.data()});
+		BC_ASSERT_TRUE(rootStepFor(
+		    root, [&inserter] { return inserter.finished(); }, 1s));
+	};
+	{
+		Server proxyServer(dbImpl.configAsMap());
+		proxyServer.start();
+		auto root = proxyServer.getRoot();
+		auto regDb = RegistrarDb::get();
+
 		auto& uidFields = Record::sLineFieldNames;
 		if (uidFields.empty()) uidFields = {"+sip.instance"}; // Do not rely on side-effects from other tests...
-		StaticOverride maxContacts{Record::sMaxContacts, 3};
-		auto* regDb = RegistrarDb::get();
-		ContactInserter inserter(*regDb);
-		const SipUri aor{"sip:morethan3@example.org"};
-		inserter.setAor(aor).setExpire(87s);
-		inserter.insert({"sip:existing1@example.org"});
-		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
-		inserter.insert({"sip:existing2@example.org"});
-		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
-		inserter.insert({"sip:existing3@example.org"});
-		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
+		StaticOverride maxContacts{Record::sMaxContacts, 5};
 
-		inserter.insert({"sip:onetoomany@example.org"});
-		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
+		ContactInserter inserter(*regDb);
+		inserter.setAor(aor).setExpire(87s);
+		insert(root, inserter, "sip:added4@example.org");
+		insert(root, inserter, "sip:added5@example.org");
 
 		auto listener = make_shared<SuccessfulBindListener>();
 		regDb->fetch(aor, listener);
-		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
-		{
-			auto& contacts = listener->mRecord->getExtendedContacts();
-			BC_ASSERT_EQUAL(contacts.size(), 3, int, "%d");
-		}
-
-		maxContacts = 5;
-		inserter.insert({"sip:added4@example.org"});
-		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
-		inserter.insert({"sip:added5@example.org"});
-		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
-
-		listener->mRecord.reset();
-		regDb->fetch(aor, listener);
-		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
+		BC_ASSERT_TRUE(rootStepFor(
+		    proxyServer.getRoot(), [&record = listener->mRecord]() { return record != nullptr; }, 1s));
 		{
 			auto& contacts = listener->mRecord->getExtendedContacts();
 			BC_ASSERT_EQUAL(contacts.size(), 5, int, "%d");
 		}
+	}
 
-		maxContacts = 2;
-		inserter.insert({"sip:triggerupdate@example.org"});
-		BC_ASSERT_TRUE(this->waitFor([&inserter] { return inserter.finished(); }, 1s));
+	{
+		Server proxyServer(dbImpl.configAsMap());
+		proxyServer.start();
+		auto root = proxyServer.getRoot();
+		auto regDb = RegistrarDb::get();
 
-		listener->mRecord.reset();
+		auto& uidFields = Record::sLineFieldNames;
+		if (uidFields.empty()) uidFields = {"+sip.instance"}; // Do not rely on side-effects from other tests...
+		StaticOverride maxContacts{Record::sMaxContacts, 2};
+
+		ContactInserter inserter(*regDb);
+		inserter.setAor(aor).setExpire(87s);
+		insert(root, inserter, "sip:triggerupdate@example.org");
+
+		auto listener = make_shared<SuccessfulBindListener>();
 		regDb->fetch(aor, listener);
-		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
+		BC_ASSERT_TRUE(rootStepFor(
+		    proxyServer.getRoot(), [&record = listener->mRecord]() { return record != nullptr; }, 1s));
 		{
 			auto& contacts = listener->mRecord->getExtendedContacts();
 			BC_ASSERT_EQUAL(contacts.size(), 2, int, "%d");
 		}
 	}
-};
+}
+} // namespace
 
 class ContactsAreCorrectlyUpdatedWhenMatchedOnUri : public RegistrarDbTest<DbImplementation::Redis> {
 	void testExec() noexcept override {
@@ -709,35 +759,34 @@ void failedAuthenticatedConnectionWithRedis() {
 	BC_ASSERT_FALSE(connectionListener->successful);
 }
 
-TestSuite
-    _("RegistrarDB",
-      {
-          CLASSY_TEST(InstanceIDFeatureParamIsSerializedToRedis),
-          CLASSY_TEST(CallIDsPreviouslyUsedAsKeysAreInterpretedAsUniqueIDs),
-          CLASSY_TEST(FetchAndClearInstance),
-          CLASSY_TEST(authenticatedConnectionWithRedis<legacyAuth>),
-          CLASSY_TEST(authenticatedConnectionWithRedis<aclAuth>),
-          CLASSY_TEST(failedAuthenticatedConnectionWithRedis),
-          TEST_NO_TAG("Fetch expiring contacts on Redis", run<TestFetchExpiringContacts<DbImplementation::Redis>>),
-          TEST_NO_TAG("Fetch expiring contacts in Internal DB",
-                      run<TestFetchExpiringContacts<DbImplementation::Internal>>),
-          TEST_NO_TAG("An AOR cannot contain more than max-contacts-by-aor [Internal]",
-                      run<MaxContactsByAorIsHonored<DbImplementation::Internal>>),
-          TEST_NO_TAG("An AOR cannot contain more than max-contacts-by-aor [Redis]",
-                      run<MaxContactsByAorIsHonored<DbImplementation::Redis>>),
-          TEST_NO_TAG("Contacts are correctly updated when matched on URI [Redis]",
-                      run<ContactsAreCorrectlyUpdatedWhenMatchedOnUri>),
-          TEST_NO_TAG("Expired contacts are purged from Redis", run<ExpiredContactsArePurgedFromRedis>),
-          TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with internal backend",
-                      run<SubsequentUnsubscribeSubscribeTest<DbImplementation::Internal>>),
-          TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with Redis backend",
-                      run<SubsequentUnsubscribeSubscribeTest<DbImplementation::Redis>>),
-          TEST_NO_TAG("Registrations with Redis backend", run<RegistrarTester>),
-      },
-      Hooks().beforeSuite([]() noexcept {
-	      flexisip::ContactKey::sRsg.mEngine.seed(tester::seed());
-	      return 0;
-      }));
+TestSuite _(
+    "RegistrarDB",
+    {
+        CLASSY_TEST(InstanceIDFeatureParamIsSerializedToRedis),
+        CLASSY_TEST(CallIDsPreviouslyUsedAsKeysAreInterpretedAsUniqueIDs),
+        CLASSY_TEST(FetchAndClearInstance),
+        CLASSY_TEST(authenticatedConnectionWithRedis<legacyAuth>),
+        CLASSY_TEST(authenticatedConnectionWithRedis<aclAuth>),
+        CLASSY_TEST(failedAuthenticatedConnectionWithRedis),
+        TEST_NO_TAG("Fetch expiring contacts on Redis", run<TestFetchExpiringContacts<DbImplementation::Redis>>),
+        TEST_NO_TAG("Fetch expiring contacts in Internal DB",
+                    run<TestFetchExpiringContacts<DbImplementation::Internal>>),
+        TEST_NO_TAG("An AOR cannot contain more than max-contacts-by-aor [Internal]",
+                    run<InternalMaxContactsByAorIsHonored>),
+        TEST_NO_TAG("An AOR cannot contain more than max-contacts-by-aor [Redis]", run<RedisMaxContactsByAorIsHonored>),
+        TEST_NO_TAG("Contacts are correctly updated when matched on URI [Redis]",
+                    run<ContactsAreCorrectlyUpdatedWhenMatchedOnUri>),
+        TEST_NO_TAG("Expired contacts are purged from Redis", run<ExpiredContactsArePurgedFromRedis>),
+        TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with internal backend",
+                    run<SubsequentUnsubscribeSubscribeTest<DbImplementation::Internal>>),
+        TEST_NO_TAG("Subsequent UNSUBSCRIBE/SUBSCRIBE with Redis backend",
+                    run<SubsequentUnsubscribeSubscribeTest<DbImplementation::Redis>>),
+        TEST_NO_TAG("Registrations with Redis backend", run<RegistrarTester>),
+    },
+    Hooks().beforeSuite([]() noexcept {
+	    flexisip::ContactKey::sRsg.mEngine.seed(tester::seed());
+	    return 0;
+    }));
 } // namespace
 } // namespace tester
 } // namespace flexisip

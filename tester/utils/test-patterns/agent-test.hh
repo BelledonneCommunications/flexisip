@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -28,6 +28,28 @@
 
 namespace flexisip {
 namespace tester {
+
+/**
+ * Run the SofiaSip main loop until a given condition is fulfil or the timeout is reached.
+ * @return true, if the break condition has been fulfil before the timeout.
+ */
+template <typename Duration>
+inline bool
+rootStepFor(std::shared_ptr<sofiasip::SuRoot> root, const std::function<bool()>& breakCondition, Duration timeout) {
+	using namespace std::chrono;
+	using clock_type = steady_clock;
+
+	auto now = clock_type::now();
+	auto end = now + duration_cast<clock_type::duration>(timeout);
+	for (; now < end; now = clock_type::now()) {
+		if (breakCondition()) return true;
+
+		// The main loop step must not exceed 50ms in order the break condition be evaluated several times.
+		auto stepTimeout = std::min(duration_cast<milliseconds>(end - now), 50ms);
+		root->step(stepTimeout);
+	}
+	return false;
+}
 
 // Base class for all the tests which needs a running Agent.
 // It automatically instantiates an Agent which can be configured
@@ -79,19 +101,7 @@ protected:
 	 */
 	template <typename Duration>
 	bool waitFor(const std::function<bool()>& breakCondition, Duration timeout) {
-		using namespace std::chrono;
-		using clock_type = steady_clock;
-
-		auto now = clock_type::now();
-		auto end = now + duration_cast<clock_type::duration>(timeout);
-		for (; now < end; now = clock_type::now()) {
-			if (breakCondition()) return true;
-
-			// The main loop step must not exceed 50ms in order the break condition be evaluated several times.
-			auto stepTimeout = std::min(duration_cast<milliseconds>(end - now), 50ms);
-			mRoot->step(stepTimeout);
-		}
-		return false;
+		return rootStepFor(mRoot, breakCondition, timeout);
 	}
 
 	virtual void onAgentConfiguration(ConfigManager& cfg) {

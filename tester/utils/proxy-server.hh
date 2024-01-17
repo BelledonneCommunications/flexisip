@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -55,7 +55,7 @@ public:
 	 * @param injectedModule A module to be injected into the Agent's module chain to mangle requests before they reach
 	 * other modules.
 	 */
-	explicit Server(const std::map<std::string, std::string>& config, Module* injectedModule = nullptr);
+	explicit Server(const std::map<std::string, std::string>& customConfig, Module* injectedModule = nullptr);
 	/**
 	 * @brief Cast an Agent into Server
 	 */

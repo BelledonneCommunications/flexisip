@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -63,10 +63,17 @@ Server::Server(const std::string& configFile, Module* module)
 	}
 }
 
-Server::Server(const std::map<std::string, std::string>& config, Module* module)
+Server::Server(const std::map<std::string, std::string>& customConfig, Module* module)
     : mModule(module ? decltype(mModule){*module} : std::nullopt) {
 	auto cfg = ConfigManager::get();
 	cfg->load("");
+
+	// add minimal config if not present
+	auto config = customConfig;
+	config.merge(map<string, string>{// Requesting bind on port 0 to let the kernel find any available port
+	                                 {"global/transports", "sip:127.0.0.1:0"},
+	                                 {"module::Registrar/reg-domains", "sip.example.org"}});
+
 	for (const auto& kv : config) {
 		const auto& key = kv.first;
 		const auto& value = kv.second;
