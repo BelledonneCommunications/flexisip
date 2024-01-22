@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -39,7 +39,8 @@ namespace schedule_injector_suite {
 
 class FakeModule : public Module {
 public:
-	explicit FakeModule(Agent* agent) : Module(agent) {
+	explicit FakeModule(Agent* agent, std::unique_ptr<ModuleInfoBase>&& moduleInfo)
+	    : Module(agent, moduleInfo.get()), mInfoKeeper(std::move(moduleInfo)) {
 	}
 
 	void injectRequestEvent(const shared_ptr<RequestSipEvent>& ev) override {
@@ -51,8 +52,29 @@ public:
 protected:
 	void onRequest([[maybe_unused]] std::shared_ptr<RequestSipEvent>& ev) override{};
 	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev) override{};
+
+private:
+	std::unique_ptr<ModuleInfoBase> mInfoKeeper;
 };
 
+class FakeModuleInfo : public ModuleInfoBase {
+public:
+	FakeModuleInfo()
+	    : ModuleInfoBase(
+	          "FakeModule",
+	          "",
+	          {}, // empty module will not register
+	          static_cast<ModuleInfoBase::ModuleOid>(0xdead),
+	          [](GenericStruct&) {},
+	          ModuleClass::Experimental,
+	          "") {
+		declareConfig(*ConfigManager::get()->getRoot());
+	}
+
+	std::shared_ptr<Module> create(Agent*) override {
+		return std::make_shared<FakeModule>(nullptr, nullptr);
+	}
+};
 class ScheduleInjectorTest : public AgentTest {
 public:
 	void onAgentConfiguration(ConfigManager& cfg) override {
@@ -100,7 +122,7 @@ Proxy-Authorization:  Digest realm="sip.linphone.org", nonce="1tMH5QAAAABVHBjkAA
 	}
 
 	shared_ptr<ModuleRouter> mRouterModule = dynamic_pointer_cast<ModuleRouter>(mAgent->findModule("Router"));
-	shared_ptr<FakeModule> mStubModule = make_shared<FakeModule>(nullptr);
+	shared_ptr<FakeModule> mStubModule = make_shared<FakeModule>(nullptr, make_unique<FakeModuleInfo>());
 	ScheduleInjector mInjector{mStubModule.get()};
 	const string mUuid = "aRandomUUID";
 };

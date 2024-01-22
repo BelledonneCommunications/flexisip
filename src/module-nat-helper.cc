@@ -25,7 +25,7 @@
 using namespace std;
 using namespace flexisip;
 
-NatHelper::NatHelper(Agent* ag) : Module(ag), mFixRecordRoutes(), mRRPolicy() {
+NatHelper::NatHelper(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 }
 
 void NatHelper::onRequest(shared_ptr<RequestSipEvent>& ev) {
@@ -97,18 +97,6 @@ bool NatHelper::needToBeFixed(const shared_ptr<SipEvent>& ev) {
 	tport_t* primary = tport_parent(ev->getIncomingTport().get());
 	return ct && !url_has_param(ct->m_url, mContactVerifiedParam.c_str()) && !url_has_param(ct->m_url, "gr") &&
 	       !msg_params_find(ct->m_params, "isfocus") && getAgent()->getInternalTport() != primary;
-}
-
-void NatHelper::onDeclare(GenericStruct* module_config) {
-	ConfigItemDescriptor items[] = {
-	    {String, "contact-verified-param",
-	     "Internal URI parameter added to response contact by first proxy and cleaned by last one.", "verified"},
-	    {Boolean, "fix-record-routes", "Fix record-routes, to workaround proxies behind firewalls but not aware of it.",
-	     "false"},
-	    {String, "fix-record-routes-policy",
-	     "Policy to recognize nat'd record-route and fix them. There are two modes: 'safe' and 'always'", "safe"},
-	    config_item_end};
-	module_config->addChildrenValues(items);
 }
 
 void NatHelper::onLoad(const GenericStruct* sec) {
@@ -279,4 +267,16 @@ ModuleInfo<NatHelper> NatHelper::sInfo(
     "headers that contain obviously inconsistent addresses, and adds a Record-Route to ensure subsequent requests are "
     "routed also by the proxy, through the same UDP or TCP channel used for the initial request.",
     {"Capabilities"},
-    ModuleInfoBase::ModuleOid::NatHelper);
+    ModuleInfoBase::ModuleOid::NatHelper,
+
+    [](GenericStruct& moduleConfig) {
+	    ConfigItemDescriptor items[] = {
+	        {String, "contact-verified-param",
+	         "Internal URI parameter added to response contact by first proxy and cleaned by last one.", "verified"},
+	        {Boolean, "fix-record-routes",
+	         "Fix record-routes, to workaround proxies behind firewalls but not aware of it.", "false"},
+	        {String, "fix-record-routes-policy",
+	         "Policy to recognize nat'd record-route and fix them. There are two modes: 'safe' and 'always'", "safe"},
+	        config_item_end};
+	    moduleConfig.addChildrenValues(items);
+    });

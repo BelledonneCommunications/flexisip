@@ -259,14 +259,14 @@ struct JweContext {
 };
 
 class JweAuth : public Module {
-public:
-	JweAuth(Agent* agent) : Module(agent) {
-	}
+	friend std::shared_ptr<Module> ModuleInfo<JweAuth>::create(Agent*);
 
 private:
+	JweAuth(Agent* agent, const ModuleInfoBase* moduleInfo) : Module(agent, moduleInfo) {
+	}
+
 	json_t* decryptJwe(const char* text) const;
 
-	void onDeclare(GenericStruct* moduleConfig) override;
 	void onLoad(const GenericStruct* moduleConfig) override;
 	void onUnload() override;
 
@@ -290,10 +290,25 @@ private:
 };
 
 namespace {
-ModuleInfo<JweAuth> JweAuthInfo("JweAuth",
-                                "This module offers the possibility to use JSON Web Encryption tokens.",
-                                {"Authentication"},
-                                ModuleInfoBase::ModuleOid::Plugin);
+ModuleInfo<JweAuth> JweAuthInfo(
+    "JweAuth",
+    "This module offers the possibility to use JSON Web Encryption tokens.",
+    {"Authentication"},
+    ModuleInfoBase::ModuleOid::Plugin,
+
+    [](GenericStruct& moduleConfig) {
+	    ConfigItemDescriptor configs[] = {
+	        {String, "jwks-dir",
+	         "Path to the directory where JSON Web Key (JWK) can be found."
+	         " Any JWK must be put into a file with the `.jwk` suffix.",
+	         "/etc/flexisip/jwk/"},
+	        {String, "jwe-custom-header", "The name of the JWE token custom header.", "X-token-jwe"},
+	        {String, "oid-custom-header", "The name of the oid custom header.", "X-token-oid"},
+	        {String, "aud-custom-header", "The name of the aud custom header.", "X-token-aud"},
+	        {String, "req-act-custom-header", "The name of the request action custom header.", "X-token-req_act"},
+	        config_item_end};
+	    moduleConfig.addChildrenValues(configs);
+    });
 }
 
 FLEXISIP_DECLARE_PLUGIN(JweAuthInfo, JweAuthPluginName, JweAuthPluginVersion);
@@ -307,20 +322,6 @@ json_t* JweAuth::decryptJwe(const char* text) const {
 	}
 	return nullptr;
 };
-
-void JweAuth::onDeclare(GenericStruct* moduleConfig) {
-	ConfigItemDescriptor configs[] = {
-	    {String, "jwks-dir",
-	     "Path to the directory where JSON Web Key (JWK) can be found."
-	     " Any JWK must be put into a file with the `.jwk` suffix.",
-	     "/etc/flexisip/jwk/"},
-	    {String, "jwe-custom-header", "The name of the JWE token custom header.", "X-token-jwe"},
-	    {String, "oid-custom-header", "The name of the oid custom header.", "X-token-oid"},
-	    {String, "aud-custom-header", "The name of the aud custom header.", "X-token-aud"},
-	    {String, "req-act-custom-header", "The name of the request action custom header.", "X-token-req_act"},
-	    config_item_end};
-	moduleConfig->addChildrenValues(configs);
-}
 
 void JweAuth::onLoad(const GenericStruct* moduleConfig) {
 	const string jwksDirectory = moduleConfig->get<ConfigString>("jwks-dir")->read();

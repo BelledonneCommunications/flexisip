@@ -1,19 +1,19 @@
 /*
- Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as
- published by the Free Software Foundation, either version 3 of the
- License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program. If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <sofia-sip/msg_addr.h>
@@ -33,23 +33,7 @@ using namespace std;
 
 namespace flexisip {
 
-ModuleAuthenticationBase::ModuleAuthenticationBase(Agent* agent) : Module(agent) {
-	mProxyChallenger.ach_status = 407; /*SIP_407_PROXY_AUTH_REQUIRED*/
-	mProxyChallenger.ach_phrase = sip_407_Proxy_auth_required;
-	mProxyChallenger.ach_header = sip_proxy_authenticate_class;
-	mProxyChallenger.ach_info = sip_proxy_authentication_info_class;
-
-	mRegistrarChallenger.ach_status = 401; /*SIP_401_UNAUTHORIZED*/
-	mRegistrarChallenger.ach_phrase = sip_401_Unauthorized;
-	mRegistrarChallenger.ach_header = sip_www_authenticate_class;
-	mRegistrarChallenger.ach_info = sip_authentication_info_class;
-}
-
-ModuleAuthenticationBase::~ModuleAuthenticationBase() {
-	if (mRealmExtractor) delete mRealmExtractor;
-}
-
-void ModuleAuthenticationBase::onDeclare(GenericStruct* mc) {
+void ModuleAuthenticationBase::declareConfig(GenericStruct& moduleConfig) {
 	ConfigItemDescriptor items[] = {
 	    {StringList, "trusted-hosts",
 	     "List of whitespace-separated IP addresses which will be judged as trustful. Messages coming from these "
@@ -100,8 +84,25 @@ void ModuleAuthenticationBase::onDeclare(GenericStruct* mc) {
 	     "WARNING: this parameter is exclusive with 'realm'",
 	     ""},
 	    config_item_end};
-	mc->addChildrenValues(items);
-	mc->get<ConfigBoolean>("enabled")->setDefault("false");
+	moduleConfig.addChildrenValues(items);
+	moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
+};
+
+ModuleAuthenticationBase::ModuleAuthenticationBase(Agent* agent, const ModuleInfoBase* moduleInfo)
+    : Module(agent, moduleInfo) {
+	mProxyChallenger.ach_status = 407; /*SIP_407_PROXY_AUTH_REQUIRED*/
+	mProxyChallenger.ach_phrase = sip_407_Proxy_auth_required;
+	mProxyChallenger.ach_header = sip_proxy_authenticate_class;
+	mProxyChallenger.ach_info = sip_proxy_authentication_info_class;
+
+	mRegistrarChallenger.ach_status = 401; /*SIP_401_UNAUTHORIZED*/
+	mRegistrarChallenger.ach_phrase = sip_401_Unauthorized;
+	mRegistrarChallenger.ach_header = sip_www_authenticate_class;
+	mRegistrarChallenger.ach_info = sip_authentication_info_class;
+}
+
+ModuleAuthenticationBase::~ModuleAuthenticationBase() {
+	if (mRealmExtractor) delete mRealmExtractor;
 }
 
 void ModuleAuthenticationBase::onLoad(const GenericStruct* mc) {

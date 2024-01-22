@@ -42,8 +42,8 @@ const char* getFirstPort(const Agent& agent) {
 /**
  * A class to manage the flexisip proxy server
  */
-Server::Server(const std::string& configFile, Module* module)
-    : mModule(module ? decltype(mModule){*module} : std::nullopt) {
+Server::Server(const std::string& configFile, InjectedHooks* injectedHooks)
+    : mInjectedModule(injectedHooks ? decltype(mInjectedModule){*injectedHooks} : std::nullopt) {
 	if (!configFile.empty()) {
 		ConfigManager* cfg = ConfigManager::get();
 
@@ -57,6 +57,7 @@ Server::Server(const std::string& configFile, Module* module)
 		if (ret != 0) {
 			BC_FAIL("Unable to load configuration file");
 		}
+		mAgent = std::make_shared<Agent>(std::make_shared<sofiasip::SuRoot>());
 		mAgent->loadConfig(cfg); // Don't modify cfg before this line as it gets reloaded here
 
 		// For testing purposes, override the auth file path to be relative to the config file.
@@ -65,13 +66,17 @@ Server::Server(const std::string& configFile, Module* module)
 		                        ->get<flexisip::GenericStruct>("module::Authentication")
 		                        ->get<flexisip::ConfigString>("file-path");
 		authFilePath->set(configFolderPath + authFilePath->read());
+	} else {
+		Agent::addConfigSections(*ConfigManager::get());
+		mAgent = std::make_shared<Agent>(std::make_shared<sofiasip::SuRoot>());
 	}
 }
 
-Server::Server(const std::map<std::string, std::string>& customConfig, Module* module)
-    : mModule(module ? decltype(mModule){*module} : std::nullopt) {
+Server::Server(const std::map<std::string, std::string>& customConfig, InjectedHooks* injectedHooks)
+    : mInjectedModule(injectedHooks ? decltype(mInjectedModule){*injectedHooks} : std::nullopt) {
 	auto cfg = ConfigManager::get();
 	cfg->load("");
+	mAgent = std::make_shared<Agent>(std::make_shared<sofiasip::SuRoot>());
 
 	// add minimal config if not present
 	auto config = customConfig;

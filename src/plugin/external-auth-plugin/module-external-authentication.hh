@@ -30,13 +30,16 @@
 namespace flexisip {
 
 class ModuleExternalAuthentication : public ModuleAuthenticationBase {
+	friend std::shared_ptr<Module> ModuleInfo<ModuleExternalAuthentication>::create(Agent*);
+
 public:
-	ModuleExternalAuthentication(Agent* agent) : ModuleAuthenticationBase(agent) {
-	}
 	~ModuleExternalAuthentication() override = default;
 
 private:
-	void onDeclare(GenericStruct* mc) override;
+	ModuleExternalAuthentication(Agent* agent, const ModuleInfoBase* moduleInfo)
+	    : ModuleAuthenticationBase(agent, moduleInfo) {
+	}
+
 	void onLoad(const GenericStruct* root) override;
 
 	FlexisipAuthModuleBase* createAuthModule(const std::string& domain, int nonceExpire, bool qopAuth) override;

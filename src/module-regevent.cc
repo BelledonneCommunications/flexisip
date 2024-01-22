@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -27,20 +27,13 @@ using namespace std;
 using namespace flexisip;
 
 class RegEvent : public Module, ModuleToolbox {
+	friend std::shared_ptr<Module> ModuleInfo<RegEvent>::create(Agent*);
+
 private:
 	static ModuleInfo<RegEvent> sInfo;
 	unique_ptr<SipUri> mDestRoute;
 	su_home_t mHome;
 	shared_ptr<SipBooleanExpression> mOnlyListSubscription;
-
-	void onDeclare(GenericStruct* module_config) {
-		ConfigItemDescriptor configs[] = {{String, "regevent-server",
-		                                   "A sip uri where to send all the reg-event related requests.",
-		                                   "sip:127.0.0.1:6065;transport=tcp"},
-		                                  config_item_end};
-		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
-		module_config->addChildrenValues(configs);
-	}
 
 	bool isValidNextConfig(const ConfigValue& cv) {
 		GenericStruct* module_config = dynamic_cast<GenericStruct*>(cv.getParent());
@@ -83,11 +76,11 @@ private:
 
 	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev){};
 
-public:
-	RegEvent(Agent* ag) : Module(ag) {
+	RegEvent(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 		su_home_init(&mHome);
 	}
 
+public:
 	~RegEvent() {
 		su_home_deinit(&mHome);
 	}
@@ -97,4 +90,13 @@ ModuleInfo<RegEvent> RegEvent::sInfo(
     "RegEvent",
     "This module is in charge of routing 'reg' event SUBSCRIBE requests to the flexisip-regevent server.",
     {"Redirect"},
-    ModuleInfoBase::ModuleOid::RegEvent);
+    ModuleInfoBase::ModuleOid::RegEvent,
+
+    [](GenericStruct& moduleConfig) {
+	    ConfigItemDescriptor configs[] = {{String, "regevent-server",
+	                                       "A sip uri where to send all the reg-event related requests.",
+	                                       "sip:127.0.0.1:6065;transport=tcp"},
+	                                      config_item_end};
+	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
+	    moduleConfig.addChildrenValues(configs);
+    });

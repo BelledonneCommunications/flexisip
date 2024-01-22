@@ -66,16 +66,18 @@ private:
 #endif
 
 class Transcoder : public Module, protected ModuleToolbox {
+	friend std::shared_ptr<Module> ModuleInfo<Transcoder>::create(Agent*);
+
 public:
-	Transcoder(Agent* ag);
 	~Transcoder();
 	virtual void onLoad(const GenericStruct* module_config);
 	virtual void onRequest(std::shared_ptr<RequestSipEvent>& ev);
 	virtual void onResponse(std::shared_ptr<ResponseSipEvent>& ev);
 	virtual void onIdle();
-	virtual void onDeclare(GenericStruct* mc);
-#ifdef ENABLE_TRANSCODER
+
 private:
+	Transcoder(Agent* ag, const ModuleInfoBase* moduleInfo);
+#ifdef ENABLE_TRANSCODER
 	TickerManager mTickerManager;
 	int handleOffer(TranscodedCall* c, std::shared_ptr<SipEvent> ev);
 	int handleAnswer(TranscodedCall* c, std::shared_ptr<SipEvent> ev);

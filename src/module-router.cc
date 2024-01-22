@@ -46,14 +46,19 @@ using namespace chrono;
 using namespace flexisip;
 using namespace sofiasip;
 
-ModuleRouter::ModuleRouter(Agent* ag) : Module(ag) {
+ModuleRouter::ModuleRouter(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 	LOGT("New ModuleRouter[%p]", this);
+	mStats.mCountForks = mModuleConfig->getStatPairPtr("count-forks");
+	mStats.mCountBasicForks = mModuleConfig->getStatPairPtr("count-basic-forks");
+	mStats.mCountCallForks = mModuleConfig->getStatPairPtr("count-call-forks");
+	mStats.mCountMessageForks = mModuleConfig->getStatPairPtr("count-message-forks");
+	mStats.mCountMessageProxyForks = mModuleConfig->getStatPairPtr("count-message-proxy-forks");
 }
 ModuleRouter::~ModuleRouter() {
 	LOGT("Destroy ModuleRouter[%p]", this);
 };
 
-void ModuleRouter::onDeclare(GenericStruct* mc) {
+void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	ConfigItemDescriptor configs[] = {
 	    {Boolean, "use-global-domain", "Store and retrieve contacts without using the domain.", "false"},
 	    {Boolean, "fork-late", "Fork invites to late registers.", "false"},
@@ -68,7 +73,8 @@ void ModuleRouter::onDeclare(GenericStruct* mc) {
 	     "The typical fork process requires to wait the best response from all branches before transmitting it to "
 	     "the client. "
 	     "However some error responses are retryable immediately (like 415 unsupported media, 401, 407) thus it is "
-	     "painful for the client to need to wait the end of the transaction time (32 seconds) for these error codes.",
+	     "painful for the client to need to wait the end of the transaction time (32 seconds) for these error "
+	     "codes.",
 	     "5"},
 	    {DurationS, "call-fork-current-branches-timeout",
 	     "Maximum time before trying the next set of lower priority contacts.", "10"},
@@ -97,7 +103,8 @@ void ModuleRouter::onDeclare(GenericStruct* mc) {
 	    {Integer, "message-database-pool-size",
 	     "Size of the pool of connections that Soci will use for accessing the message database.", "100"},
 	    {String, "fallback-route",
-	     "Default route to apply when the recipient is unreachable or when when all attempted destination have failed."
+	     "Default route to apply when the recipient is unreachable or when when all attempted destination have "
+	     "failed."
 	     "It is given as a SIP URI, for example: sip:example.org;transport=tcp (without surrounding brackets)",
 	     ""},
 	    {Boolean, "allow-target-factorization",
@@ -107,9 +114,12 @@ void ModuleRouter::onDeclare(GenericStruct* mc) {
 	     "false"},
 	    {Boolean, "permit-self-generated-provisional-response",
 	     "Whether the proxy is allowed to generate and send provisional responses during a call forking process. "
-	     "A typical example for this is the '110 Push sent' emitted by the proxy when at least one push notification "
-	     "has been sent to a target UA while routing an INVITE. Some old versions of Linphone (below linphone-sdk 4.2) "
-	     "suffer from an issue when receiving such kind of provisional responses that don't come from a remote client. "
+	     "A typical example for this is the '110 Push sent' emitted by the proxy when at least one push "
+	     "notification "
+	     "has been sent to a target UA while routing an INVITE. Some old versions of Linphone (below linphone-sdk "
+	     "4.2) "
+	     "suffer from an issue when receiving such kind of provisional responses that don't come from a remote "
+	     "client. "
 	     "This setting is mainly intended to temporarily workaround this situation.",
 	     "true"},
 	    {Boolean, "resolve-routes",
@@ -142,35 +152,41 @@ void ModuleRouter::onDeclare(GenericStruct* mc) {
 	    {Boolean, "generate-contact-even-on-filled-aor", "Generate a contact route even on filled AOR.", "false"},
 	    {String, "preroute", "Rewrite username with given value.", ""},
 	    config_item_end};
-	mc->addChildrenValues(configs);
+	moduleConfig.addChildrenValues(configs);
 
 	// deprecated since 2020-01-28 (2.0.0)
 	{
 		const char* depDate = "2020-01-28";
 		const char* depVersion = "2.0.0";
 
-		mc->get<ConfigBoolean>("stateful")
+		moduleConfig.get<ConfigBoolean>("stateful")
 		    ->setDeprecated({depDate, depVersion, "Stateless mode isn't supported anymore."});
-		mc->get<ConfigBoolean>("fork")->setDeprecated(
+		moduleConfig.get<ConfigBoolean>("fork")->setDeprecated(
 		    {depDate, depVersion, "This feature is always enabled since stateless mode is removed."});
 
 		GenericEntry::DeprecationInfo removedFeatureDepInfo(depDate, depVersion, "This feature has been removed.");
-		mc->get<ConfigString>("generated-contact-route")->setDeprecated(removedFeatureDepInfo);
-		mc->get<ConfigString>("generated-contact-expected-realm")->setDeprecated(removedFeatureDepInfo);
-		mc->get<ConfigBoolean>("generate-contact-even-on-filled-aor")->setDeprecated(removedFeatureDepInfo);
-		mc->get<ConfigString>("preroute")->setDeprecated(removedFeatureDepInfo);
+		moduleConfig.get<ConfigString>("generated-contact-route")->setDeprecated(removedFeatureDepInfo);
+		moduleConfig.get<ConfigString>("generated-contact-expected-realm")->setDeprecated(removedFeatureDepInfo);
+		moduleConfig.get<ConfigBoolean>("generate-contact-even-on-filled-aor")->setDeprecated(removedFeatureDepInfo);
+		moduleConfig.get<ConfigString>("preroute")->setDeprecated(removedFeatureDepInfo);
 	}
 
-	mc->get<ConfigDuration<chrono::seconds>>("call-push-response-timeout")
+	moduleConfig.get<ConfigDuration<chrono::seconds>>("call-push-response-timeout")
 	    ->setDeprecated({"2022-02-03", "2.2.0", "This feature will be removed in a future version."});
 
-	mStats.mCountForks = mc->createStats("count-forks", "Number of forks");
-	mStats.mCountBasicForks = mc->createStats("count-basic-forks", "Number of basic forks");
-	mStats.mCountCallForks = mc->createStats("count-call-forks", "Number of call forks");
-	mStats.mCountMessageForks = mc->createStats("count-message-forks", "Number of message forks");
-	mStats.mCountMessageProxyForks = mc->createStats("count-message-proxy-forks", "Number of proxy message forks");
+	moduleConfig.createStatPair("count-forks", "Number of forks");
+	moduleConfig.createStatPair("count-basic-forks", "Number of basic forks");
+	moduleConfig.createStatPair("count-call-forks", "Number of call forks");
+	moduleConfig.createStatPair("count-message-forks", "Number of message forks");
+	moduleConfig.createStatPair("count-message-proxy-forks", "Number of proxy message forks");
 }
 
+MsgSipPriority ModuleRouter::sMaxPriorityHandled = MsgSipPriority::Normal;
+
+void OnContactRegisteredListener::onContactRegistered(const shared_ptr<Record>& r, const string& uid) {
+	SLOGD << "Listener invoked for topic = " << r->getKey() << ", uid = " << uid;
+	if (r) mModule->onContactRegistered(shared_from_this(), uid, r);
+}
 void ModuleRouter::onLoad(const GenericStruct* mc) {
 	GenericStruct* cr = ConfigManager::get()->getRoot();
 	const GenericStruct* mReg = cr->get<GenericStruct>("module::Registrar");
@@ -1103,11 +1119,5 @@ ModuleInfo<ModuleRouter> ModuleRouter::sInfo(
     "later delivery, in which "
     "case the incoming transaction will be terminated with a 202 Accepted response.",
     {"ContactRouteInserter"},
-    ModuleInfoBase::ModuleOid::Router);
-
-MsgSipPriority ModuleRouter::sMaxPriorityHandled = MsgSipPriority::Normal;
-
-void OnContactRegisteredListener::onContactRegistered(const shared_ptr<Record>& r, const string& uid) {
-	SLOGD << "Listener invoked for topic = " << r->getKey() << ", uid = " << uid;
-	if (r) mModule->onContactRegistered(shared_from_this(), uid, r);
-}
+    ModuleInfoBase::ModuleOid::Router,
+    declareConfig);

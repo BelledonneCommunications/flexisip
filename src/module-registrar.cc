@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -307,11 +307,15 @@ staticRoutesRereadTimerfunc([[maybe_unused]] su_root_magic_t* magic, [[maybe_unu
 	r->readStaticRecords();
 }
 
-ModuleRegistrar::ModuleRegistrar(Agent* ag) : Module(ag), mStaticRecordsTimer(nullptr) {
+ModuleRegistrar::ModuleRegistrar(Agent* ag, const ModuleInfoBase* moduleInfo)
+    : Module(ag, moduleInfo), mStaticRecordsTimer(nullptr) {
 	mStaticRecordsVersion = 0;
+	mStats.mCountClear = mModuleConfig->getStatPairPtr("count-clear");
+	mStats.mCountBind = mModuleConfig->getStatPairPtr("count-bind");
+	mStats.mCountLocalActives = mModuleConfig->getStat("count-local-registered-users");
 }
 
-void ModuleRegistrar::onDeclare(GenericStruct* mc) {
+void ModuleRegistrar::declareConfig(GenericStruct& moduleConfig) {
 	ConfigItemDescriptor configs[] = {
 	    {StringList, "reg-domains",
 	     "List of whitespace separated domain names which the registar is in charge of. It can eventually be "
@@ -361,11 +365,13 @@ void ModuleRegistrar::onDeclare(GenericStruct* mc) {
 	    {String, "redis-server-domain", "Hostname or address of the Redis server. ", "localhost"},
 	    {Integer, "redis-server-port", "Port of the Redis server.", "6379"},
 	    {String, "redis-auth-user",
-	     "ACL username used to authenticate on Redis. Empty to disable. Setting this but not `redis-auth-password` is "
+	     "ACL username used to authenticate on Redis. Empty to disable. Setting this but not `redis-auth-password` "
+	     "is "
 	     "a misconfiguration, and will be ignored.",
 	     ""},
 	    {String, "redis-auth-password",
-	     "Authentication password for Redis. Empty to disable. If set but `redis-auth-user` is left unset or empty, "
+	     "Authentication password for Redis. Empty to disable. If set but `redis-auth-user` is left unset or "
+	     "empty, "
 	     "Flexisip will attempt to register in legacy mode.",
 	     ""},
 	    {DurationMS, "redis-server-timeout", "Timeout of the Redis connection.", "1500"},
@@ -401,20 +407,20 @@ void ModuleRegistrar::onDeclare(GenericStruct* mc) {
 	     "time for chat message delivery.",
 	     "message-expires"},
 	    config_item_end};
-	mc->addChildrenValues(configs);
+	moduleConfig.addChildrenValues(configs);
 
-	mc->get<ConfigString>("redis-record-serializer")
+	moduleConfig.get<ConfigString>("redis-record-serializer")
 	    ->setDeprecated({"2020-01-28", "2.0.0", "This setting hasn't any effect anymore."});
 
-	auto* oldMessageExpiresParamName = mc->get<ConfigString>("name-message-expires");
+	auto* oldMessageExpiresParamName = moduleConfig.get<ConfigString>("name-message-expires");
 	oldMessageExpiresParamName->setDeprecated(
 	    {"2020-03-25", "2.0.0", "This parameter has been renamed into 'message-expires-param-name'"});
-	mc->get<ConfigString>("message-expires-param-name")->setFallback(*oldMessageExpiresParamName);
+	moduleConfig.get<ConfigString>("message-expires-param-name")->setFallback(*oldMessageExpiresParamName);
 
-	mStats.mCountClear = mc->createStats("count-clear", "Number of cleared registrations.");
-	mStats.mCountBind = mc->createStats("count-bind", "Number of registers.");
-	mStats.mCountLocalActives =
-	    mc->createStat("count-local-registered-users", "Number of users currently registered through this server.");
+	moduleConfig.createStatPair("count-clear", "Number of cleared registrations.");
+	moduleConfig.createStatPair("count-bind", "Number of registers.");
+	moduleConfig.createStat("count-local-registered-users",
+	                        "Number of users currently registered through this server.");
 }
 
 void ModuleRegistrar::onLoad(const GenericStruct* mc) {
@@ -982,4 +988,5 @@ ModuleInfo<ModuleRegistrar> ModuleRegistrar::sInfo(
     "in order to allow routing requests destinated to the client who registered. REGISTERs for other domains are "
     "simply ignored and given to the next module.",
     {"Presence"},
-    ModuleInfoBase::ModuleOid::Registrar);
+    ModuleInfoBase::ModuleOid::Registrar,
+    declareConfig);

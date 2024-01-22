@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -28,18 +28,12 @@ using namespace std;
 using namespace flexisip;
 
 class ModuleRedirect : public Module, ModuleToolbox {
+	friend std::shared_ptr<Module> ModuleInfo<ModuleRedirect>::create(Agent*);
+
 private:
 	static ModuleInfo<ModuleRedirect> sInfo;
 	sip_contact_t* mContact;
 	su_home_t mHome;
-
-	void onDeclare(GenericStruct* module_config) {
-		ConfigItemDescriptor configs[] = {
-		    {String, "contact", "A contact where to redirect requests. ex: <sip:127.0.0.1:5065>;expires=100", ""},
-		    config_item_end};
-		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
-		module_config->addChildrenValues(configs);
-	}
 
 	bool isValidNextConfig(const ConfigValue& cv) {
 		GenericStruct* module_config = dynamic_cast<GenericStruct*>(cv.getParent());
@@ -70,17 +64,26 @@ private:
 	}
 	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev){};
 
-public:
-	ModuleRedirect(Agent* ag) : Module(ag) {
+	ModuleRedirect(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 		su_home_init(&mHome);
 	}
 
+public:
 	~ModuleRedirect() {
 		su_home_deinit(&mHome);
 	}
 };
 
-ModuleInfo<ModuleRedirect> ModuleRedirect::sInfo("Redirect",
-                                                 "This module redirect sip requests with a 302 move temporarily.",
-                                                 {"DateHandler", "Authentication", "ExternalAuthentication"},
-                                                 ModuleInfoBase::ModuleOid::Redirect);
+ModuleInfo<ModuleRedirect> ModuleRedirect::sInfo(
+    "Redirect",
+    "This module redirect sip requests with a 302 move temporarily.",
+    {"DateHandler", "Authentication", "ExternalAuthentication"},
+    ModuleInfoBase::ModuleOid::Redirect,
+
+    [](GenericStruct& moduleConfig) {
+	    ConfigItemDescriptor configs[] = {
+	        {String, "contact", "A contact where to redirect requests. ex: <sip:127.0.0.1:5065>;expires=100", ""},
+	        config_item_end};
+	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
+	    moduleConfig.addChildrenValues(configs);
+    });

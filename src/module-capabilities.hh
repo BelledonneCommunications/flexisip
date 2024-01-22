@@ -25,11 +25,12 @@
 namespace flexisip {
 
 class ModuleCapabilities : public Module, private ModuleToolbox {
-public:
-	using Module::Module;
+	friend std::shared_ptr<Module> ModuleInfo<ModuleCapabilities>::create(Agent*);
 
 private:
 	// Private methods
+	using Module::Module;
+
 	void onRequest(std::shared_ptr<RequestSipEvent>& ev) override;
 	void onResponse(std::shared_ptr<ResponseSipEvent>&) override {
 	}

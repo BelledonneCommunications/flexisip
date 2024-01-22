@@ -25,9 +25,9 @@ using namespace std;
 using namespace flexisip;
 
 class ModuleGarbageIn : public Module, protected ModuleToolbox {
+	friend std::shared_ptr<Module> ModuleInfo<ModuleGarbageIn>::create(Agent*);
+
 public:
-	ModuleGarbageIn(Agent* ag) : Module(ag) {
-	}
 	~ModuleGarbageIn() {
 	}
 
@@ -47,12 +47,10 @@ public:
 		ev->terminateProcessing();
 	}
 
-	void onDeclare(GenericStruct* mc) {
-		mc->get<ConfigBoolean>("enabled")->setDefault("false");
-		mc->get<ConfigValue>("filter")->setDefault("false");
+private:
+	ModuleGarbageIn(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 	}
 
-private:
 	static ModuleInfo<ModuleGarbageIn> sInfo;
 };
 
@@ -60,4 +58,9 @@ ModuleInfo<ModuleGarbageIn>
     ModuleGarbageIn::sInfo("GarbageIn",
                            "The GarbageIn module collects incoming garbage and prevent any further processing.",
                            {"SanityChecker"},
-                           ModuleInfoBase::ModuleOid::GarbageIn);
+                           ModuleInfoBase::ModuleOid::GarbageIn,
+
+                           [](GenericStruct& moduleConfig) {
+	                           moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
+	                           moduleConfig.get<ConfigValue>("filter")->setDefault("false");
+                           });

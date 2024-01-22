@@ -32,15 +32,16 @@ using namespace std;
 using namespace flexisip;
 
 class StatisticsCollector : public Module, ModuleToolbox {
+	friend std::shared_ptr<Module> ModuleInfo<StatisticsCollector>::create(Agent*);
+
 public:
-	StatisticsCollector(Agent* ag);
 	~StatisticsCollector();
-	virtual void onDeclare(GenericStruct* module_config);
 	virtual void onLoad(const GenericStruct* root);
 	virtual void onRequest(shared_ptr<RequestSipEvent>& ev);
 	virtual void onResponse(shared_ptr<ResponseSipEvent>& ev);
 
 private:
+	StatisticsCollector(Agent* ag, const ModuleInfoBase* moduleInfo);
 	int managePublishContent(const shared_ptr<RequestSipEvent> ev);
 	bool containsMandatoryFields(char* data, usize_t len);
 
@@ -49,27 +50,13 @@ private:
 	su_home_t mHome;
 };
 
-StatisticsCollector::StatisticsCollector(Agent* ag) : Module(ag), mCollectorAddress(NULL) {
+StatisticsCollector::StatisticsCollector(Agent* ag, const ModuleInfoBase* moduleInfo)
+    : Module(ag, moduleInfo), mCollectorAddress(NULL) {
 	su_home_init(&mHome);
 }
 
 StatisticsCollector::~StatisticsCollector() {
 	su_home_deinit(&mHome);
-}
-
-void StatisticsCollector::onDeclare(GenericStruct* module_config) {
-	ConfigItemDescriptor items[] = {{String, "collector-address",
-	                                 "SIP URI of the statistics collector. "
-	                                 "Note that application/vq-rtcpxr messages for this address will be deleted by "
-	                                 "this module and thus not be delivered.",
-	                                 ""},
-
-	                                config_item_end};
-	module_config->addChildrenValues(items);
-
-	/* modify the default value for "enabled" */
-	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
-	module_config->get<ConfigBooleanExpression>("filter")->setDefault("is_request && request.method-name == 'PUBLISH'");
 }
 
 void StatisticsCollector::onLoad(const GenericStruct* mc) {
@@ -173,9 +160,25 @@ int StatisticsCollector::managePublishContent(const shared_ptr<RequestSipEvent> 
 	return err;
 }
 
-ModuleInfo<StatisticsCollector>
-    StatisticsCollector::sInfo("StatisticsCollector",
-                               "The purpose of the StatisticsCollector module is to "
-                               "collect call statistics (RFC 6035) and store them on the server.",
-                               {"Registrar"},
-                               ModuleInfoBase::ModuleOid::StatisticsCollector);
+ModuleInfo<StatisticsCollector> StatisticsCollector::sInfo(
+    "StatisticsCollector",
+    "The purpose of the StatisticsCollector module is to "
+    "collect call statistics (RFC 6035) and store them on the server.",
+    {"Registrar"},
+    ModuleInfoBase::ModuleOid::StatisticsCollector,
+
+    [](GenericStruct& moduleConfig) {
+	    ConfigItemDescriptor items[] = {{String, "collector-address",
+	                                     "SIP URI of the statistics collector. "
+	                                     "Note that application/vq-rtcpxr messages for this address will be deleted by "
+	                                     "this module and thus not be delivered.",
+	                                     ""},
+
+	                                    config_item_end};
+	    moduleConfig.addChildrenValues(items);
+
+	    /* modify the default value for "enabled" */
+	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
+	    moduleConfig.get<ConfigBooleanExpression>("filter")->setDefault(
+	        "is_request && request.method-name == 'PUBLISH'");
+    });

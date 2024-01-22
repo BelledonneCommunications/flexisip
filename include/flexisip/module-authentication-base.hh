@@ -38,10 +38,11 @@ namespace flexisip {
  */
 class ModuleAuthenticationBase : public Module {
 public:
-	ModuleAuthenticationBase(Agent* agent);
+	ModuleAuthenticationBase(Agent* agent, const ModuleInfoBase* moduleInfo);
 	~ModuleAuthenticationBase();
 
 	bool isTrustedPeer(const std::shared_ptr<RequestSipEvent>& ev);
+	static void declareConfig(GenericStruct& root);
 
 protected:
 	// ================
@@ -59,7 +60,6 @@ protected:
 	// ==================
 	//  Proteted methods
 	// ==================
-	void onDeclare(GenericStruct* root) override;
 	void onLoad(const GenericStruct* root) override;
 	void onRequest(std::shared_ptr<RequestSipEvent>& ev) override;
 	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev) override {

@@ -31,7 +31,11 @@ using namespace flexisip;
 //  Authentication class
 // ====================================================================================================================
 
-Authentication::Authentication(Agent* ag) : ModuleAuthenticationBase(ag) {
+Authentication::Authentication(Agent* ag, const ModuleInfoBase* moduleInfo) : ModuleAuthenticationBase(ag, moduleInfo) {
+	mCountAsyncRetrieve = mModuleConfig->getStat("count-async-retrieve");
+	mCountSyncRetrieve = mModuleConfig->getStat("count-sync-retrieve");
+	mCountPassFound = mModuleConfig->getStat("count-password-found");
+	mCountPassNotFound = mModuleConfig->getStat("count-password-not-found");
 }
 
 Authentication::~Authentication() {
@@ -40,12 +44,13 @@ Authentication::~Authentication() {
 	}
 }
 
-void Authentication::onDeclare(GenericStruct* mc) {
-	ModuleAuthenticationBase::onDeclare(mc);
+void Authentication::declareConfig(GenericStruct& moduleConfig) {
+	ModuleAuthenticationBase::declareConfig(moduleConfig);
 	ConfigItemDescriptor items[] = {
 	    {Boolean, "reject-wrong-client-certificates",
 	     "If set to true, the module will simply reject with \"403 forbidden\" any request coming from clients "
-	     "which have presented a bad TLS certificate (regardless of reason: improper signature, unmatched subjects). "
+	     "which have presented a bad TLS certificate (regardless of reason: improper signature, unmatched "
+	     "subjects). "
 	     "Otherwise, the module will fallback to a digest authentication.\n"
 	     "This policy applies only for transports configured which have 'required-peer-certificate=1' parameter; "
 	     "indeed "
@@ -79,28 +84,28 @@ void Authentication::onDeclare(GenericStruct* mc) {
 	     "false"},
 	    config_item_end};
 
-	mc->addChildrenValues(items);
+	moduleConfig.addChildrenValues(items);
 
-	mc->get<ConfigStringList>("trusted-client-certificates")
+	moduleConfig.get<ConfigStringList>("trusted-client-certificates")
 	    ->setDeprecated({"2018-04-16", "1.0.13", "Use 'tls-client-certificate-required-subject' instead."});
-	mc->get<ConfigBoolean>("hashed-passwords")
+	moduleConfig.get<ConfigBoolean>("hashed-passwords")
 	    ->setDeprecated({"2020-01-28", "2.0.0",
 	                     "This setting has been out of use since the algorithm used to hash the password is "
 	                     "stored in the user database and the CLRTXT algorithm can be used to indicate that "
 	                     "the password isn't hashed.\n"
 	                     "Warning: setting 'true' hasn't any effect anymore."});
-	mc->get<ConfigBoolean>("enable-test-accounts-creation")
+	moduleConfig.get<ConfigBoolean>("enable-test-accounts-creation")
 	    ->setDeprecated({"2020-01-28", "2.0.0",
 	                     "This feature was useful for liblinphone's integrity tests and isn't used today anymore. "
 	                     "Please remove this setting from your configuration file."});
 
 	// Call declareConfig for backends
-	AuthDbBackend::declareConfig(mc);
+	AuthDbBackend::declareConfig(&moduleConfig);
 
-	mCountAsyncRetrieve = mc->createStat("count-async-retrieve", "Number of asynchronous retrieves.");
-	mCountSyncRetrieve = mc->createStat("count-sync-retrieve", "Number of synchronous retrieves.");
-	mCountPassFound = mc->createStat("count-password-found", "Number of passwords found.");
-	mCountPassNotFound = mc->createStat("count-password-not-found", "Number of passwords not found.");
+	moduleConfig.createStat("count-async-retrieve", "Number of asynchronous retrieves.");
+	moduleConfig.createStat("count-sync-retrieve", "Number of synchronous retrieves.");
+	moduleConfig.createStat("count-password-found", "Number of passwords found.");
+	moduleConfig.createStat("count-password-not-found", "Number of passwords not found.");
 }
 
 void Authentication::onLoad(const GenericStruct* mc) {
@@ -304,6 +309,7 @@ ModuleInfo<Authentication> Authentication::sInfo(
     " * if no TLS client based authentication can be performed, or has failed, then a SIP digest authentication is "
     "performed. The password verification is made by querying a database or a password file on disk.",
     {"NatHelper"},
-    ModuleInfoBase::ModuleOid::Authentication);
+    ModuleInfoBase::ModuleOid::Authentication,
+    declareConfig);
 
 // ====================================================================================================================

@@ -26,27 +26,31 @@
 using namespace std;
 using namespace flexisip;
 
-static ConfigItemDescriptor config[] = {
-    {Boolean, "enabled", "Indicate whether the module is activated.", "true"},
-    {BooleanExpr, "filter",
-     "A request/response enters module if the boolean filter evaluates to true. Ex: from.uri.domain contains "
-     "'sip.linphone.org', from.uri.domain in 'a.org b.org c.org', (to.uri.domain in 'a.org b.org c.org') && "
-     "(user-agent == 'Linphone v2'). You can consult the full filter documentation here : "
-     "https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/",
-     ""},
+void ConfigEntryFilter::declareConfig(GenericStruct& moduleConfig) {
+	ConfigItemDescriptor config[] = {
+	    {Boolean, "enabled", "Indicate whether the module is activated.", "true"},
+	    {BooleanExpr, "filter",
+	     "A request/response enters module if the boolean filter evaluates to true. Ex: from.uri.domain contains "
+	     "'sip.linphone.org', from.uri.domain in 'a.org b.org c.org', (to.uri.domain in 'a.org b.org c.org') && "
+	     "(user-agent == 'Linphone v2'). You can consult the full filter documentation here : "
+	     "https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/",
+	     ""},
 
-    // Deprecated parameters
-    {String, "from-domains", "Deprecated: List of domain names in sip from allowed to enter the module.", "*"},
-    {String, "to-domains", "Deprecated: List of domain names in sip to allowed to enter the module.", "*"},
-    config_item_end};
+	    // Deprecated parameters
+	    {String, "from-domains", "Deprecated: List of domain names in sip from allowed to enter the module.", "*"},
+	    {String, "to-domains", "Deprecated: List of domain names in sip to allowed to enter the module.", "*"},
+	    config_item_end};
 
-void ConfigEntryFilter::declareConfig(GenericStruct* module_config) {
+	moduleConfig.addChildrenValues(config, false);
+	moduleConfig.deprecateChild("from-domains", {"2012-09-04", "0.5.0", "Use 'filter' setting instead."});
+	moduleConfig.deprecateChild("to-domains", {"2012-09-04", "0.5.0", "Use 'filter' setting instead."});
+	moduleConfig.createStat("count-eval-true", "Number of filter evaluations to true.");
+	moduleConfig.createStat("count-eval-false", "Number of filter evaluations to false.");
+}
 
-	module_config->addChildrenValues(config, false);
-	module_config->deprecateChild("from-domains", {"2012-09-04", "0.5.0", "Use 'filter' setting instead."});
-	module_config->deprecateChild("to-domains", {"2012-09-04", "0.5.0", "Use 'filter' setting instead."});
-	mCountEvalTrue = module_config->createStat("count-eval-true", "Number of filter evaluations to true.");
-	mCountEvalFalse = module_config->createStat("count-eval-false", "Number of filter evaluations to false.");
+ConfigEntryFilter::ConfigEntryFilter(GenericStruct& moduleConfig) {
+	mCountEvalTrue = moduleConfig.getStat("count-eval-true");
+	mCountEvalFalse = moduleConfig.getStat("count-eval-false");
 }
 
 void ConfigEntryFilter::loadConfig(const GenericStruct* mc) {

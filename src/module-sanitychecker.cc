@@ -25,10 +25,9 @@ using namespace std;
 using namespace flexisip;
 
 class ModuleSanityChecker : public Module, protected ModuleToolbox {
-public:
-	ModuleSanityChecker(Agent* ag) : Module(ag) {
-	}
+	friend std::shared_ptr<Module> ModuleInfo<ModuleSanityChecker>::create(Agent*);
 
+public:
 	~ModuleSanityChecker() {
 	}
 
@@ -49,10 +48,10 @@ public:
 		// don't check our responses ;)
 	}
 
-	void onDeclare([[maybe_unused]] GenericStruct* mc) {
+private:
+	ModuleSanityChecker(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 	}
 
-private:
 	const char* checkHeaders(sip_t* sip) {
 		if (sip->sip_via == NULL) return "No via";
 		if (sip->sip_from == NULL || sip->sip_from->a_url->url_host == NULL || sip->sip_from->a_tag == NULL)
@@ -75,4 +74,5 @@ ModuleInfo<ModuleSanityChecker> ModuleSanityChecker::sInfo(
     "processing message further.\n"
     "If the message doesn't meet these sanity check criterias, then it is stopped and bad request response is sent.",
     {"DoSProtection"},
-    ModuleInfoBase::ModuleOid::SanityChecker);
+    ModuleInfoBase::ModuleOid::SanityChecker,
+    [](GenericStruct&) {});

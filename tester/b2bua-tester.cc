@@ -45,7 +45,7 @@
 #include "utils/client-call.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
-#include "utils/injected-module.hh"
+#include "utils/injected-module-info.hh"
 #include "utils/proxy-server.hh"
 #include "utils/temp-file.hh"
 #include "utils/test-patterns/test.hh"
@@ -73,7 +73,9 @@ private:
 	std::shared_ptr<flexisip::B2buaServer> mB2buaServer;
 
 public:
-	explicit B2buaServer(const std::string& configFile = string(), bool start = true, Module* injectedModule = nullptr)
+	explicit B2buaServer(const std::string& configFile = string(),
+	                     bool start = true,
+	                     InjectedHooks* injectedModule = nullptr)
 	    : Server(configFile, injectedModule) {
 
 		if (!configFile.empty()) {
@@ -798,7 +800,7 @@ static void external_provider_bridge__max_call_duration() {
 static void trenscrypter__uses_aor_and_not_contact() {
 	const auto unexpectedRecipient = "sip:unexpected@sip.example.org";
 	SipUri injectedRequestUrl{unexpectedRecipient};
-	InjectedHooks hooks{{
+	InjectedHooks hooks{
 	    .onRequest =
 	        [&injectedRequestUrl](const std::shared_ptr<RequestSipEvent>& responseEvent) {
 		        const auto* sip = responseEvent->getSip();
@@ -810,7 +812,7 @@ static void trenscrypter__uses_aor_and_not_contact() {
 		        // Mangle the request address
 		        sip->sip_request->rq_url[0] = *injectedRequestUrl.get();
 	        },
-	}};
+	};
 	B2buaServer server{"config/flexisip_b2bua.conf", true, &hooks};
 	ClientBuilder builder{*server.getAgent()};
 	auto caller = builder.build("sip:caller@sip.example.org");
@@ -830,7 +832,7 @@ static void request_header__user_agent() {
 	constexpr auto unexpected{"unexpected-user-agent-value"};
 	std::string userAgentValue{unexpected};
 
-	InjectedHooks hooks{{
+	InjectedHooks hooks{
 	    .onRequest =
 	        [&userAgentValue](const std::shared_ptr<RequestSipEvent>& responseEvent) {
 		        const auto* sip = responseEvent->getSip();
@@ -841,7 +843,7 @@ static void request_header__user_agent() {
 
 		        userAgentValue = sip_user_agent(sip)->g_string;
 	        },
-	}};
+	};
 	B2buaServer server{"config/flexisip_b2bua.conf", false, &hooks};
 	ConfigManager::get()->getRoot()->get<GenericStruct>("b2bua-server")->get<ConfigString>("user-agent")->set(expected);
 	server.start();

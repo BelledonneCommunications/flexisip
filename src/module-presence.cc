@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -27,32 +27,13 @@ using namespace std;
 using namespace flexisip;
 
 class ModulePresence : public Module, ModuleToolbox {
+	friend std::shared_ptr<Module> ModuleInfo<ModulePresence>::create(Agent*);
+
 private:
 	static ModuleInfo<ModulePresence> sInfo;
 	SipUri mDestRoute;
 	su_home_t mHome;
 	shared_ptr<SipBooleanExpression> mOnlyListSubscription;
-
-	void onDeclare(GenericStruct* module_config) {
-		ConfigItemDescriptor configs[] = {
-		    {
-		        String,
-		        "presence-server",
-		        "A SIP URI where to send all presence related requests.",
-		        "sip:127.0.0.1:5065;transport=tcp",
-		    },
-		    {BooleanExpr, "only-list-subscription", "If true, only manage list subscription.", "false"},
-		    {Boolean, "check-domain-in-presence-results",
-		     "When getting the list of users with phones, if this setting is enabled, it will limit the results to "
-		     "the ones that have the same domain.",
-		     "false"},
-		    config_item_end};
-		module_config->get<ConfigBoolean>("enabled")->setDefault("false");
-		module_config->get<ConfigBooleanExpression>("filter")->setDefault(
-		    "is_request && (request.method-name == 'PUBLISH' || request.method-name == 'NOTIFY' || "
-		    "request.method-name == 'SUBSCRIBE')");
-		module_config->addChildrenValues(configs);
-	}
 
 	bool isValidNextConfig(const ConfigValue& cv) {
 		GenericStruct* module_config = dynamic_cast<GenericStruct*>(cv.getParent());
@@ -118,11 +99,11 @@ private:
 	}
 	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev){};
 
-public:
-	ModulePresence(Agent* ag) : Module(ag) {
+	ModulePresence(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 		su_home_init(&mHome);
 	}
 
+public:
 	~ModulePresence() {
 		su_home_deinit(&mHome);
 	}
@@ -132,4 +113,25 @@ ModuleInfo<ModulePresence> ModulePresence::sInfo(
     "Presence",
     "This module transfers SIP presence messages, like subscribe/notify/publish to a presence server.",
     {"GatewayAdapter"},
-    ModuleInfoBase::ModuleOid::Presence);
+    ModuleInfoBase::ModuleOid::Presence,
+
+    [](GenericStruct& moduleConfig) {
+	    ConfigItemDescriptor configs[] = {
+	        {
+	            String,
+	            "presence-server",
+	            "A SIP URI where to send all presence related requests.",
+	            "sip:127.0.0.1:5065;transport=tcp",
+	        },
+	        {BooleanExpr, "only-list-subscription", "If true, only manage list subscription.", "false"},
+	        {Boolean, "check-domain-in-presence-results",
+	         "When getting the list of users with phones, if this setting is enabled, it will limit the results to "
+	         "the ones that have the same domain.",
+	         "false"},
+	        config_item_end};
+	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
+	    moduleConfig.get<ConfigBooleanExpression>("filter")->setDefault(
+	        "is_request && (request.method-name == 'PUBLISH' || request.method-name == 'NOTIFY' || "
+	        "request.method-name == 'SUBSCRIBE')");
+	    moduleConfig.addChildrenValues(configs);
+    });

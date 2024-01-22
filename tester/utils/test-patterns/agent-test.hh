@@ -60,6 +60,9 @@ rootStepFor(std::shared_ptr<sofiasip::SuRoot> root, const std::function<bool()>&
 class AgentTest : public Test {
 public:
 	AgentTest(bool runAgent = true) noexcept : mRunAgent{runAgent} {
+		auto* cfg = ConfigManager::get();
+		cfg->load("");
+		mAgent = std::make_shared<Agent>(mRoot);
 	}
 
 	~AgentTest() {
@@ -80,7 +83,6 @@ protected:
 	// Protected methods
 	void configureAgent() {
 		auto* cfg = ConfigManager::get();
-		cfg->load("");
 		onAgentConfiguration(*cfg);
 		mAgent->loadConfig(cfg, false);
 	};
@@ -119,7 +121,7 @@ protected:
 
 	// Protected attributes
 	std::shared_ptr<sofiasip::SuRoot> mRoot{std::make_shared<sofiasip::SuRoot>()};
-	std::shared_ptr<Agent> mAgent{std::make_shared<Agent>(mRoot)};
+	std::shared_ptr<Agent> mAgent;
 	bool mRunAgent;
 };
 

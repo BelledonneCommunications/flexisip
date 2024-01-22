@@ -27,8 +27,9 @@
 namespace flexisip {
 
 class NatHelper : public Module, protected ModuleToolbox {
+	friend std::shared_ptr<Module> ModuleInfo<NatHelper>::create(Agent*);
+
 public:
-	explicit NatHelper(Agent* ag);
 	~NatHelper() override = default;
 
 	void onRequest(std::shared_ptr<RequestSipEvent>& ev) override;
@@ -39,10 +40,11 @@ public:
 protected:
 	enum RecordRouteFixingPolicy { Safe, Always };
 
-	void onDeclare(GenericStruct* module_config) override;
 	void onLoad(const GenericStruct* sec) override;
 
 private:
+	explicit NatHelper(Agent* ag, const ModuleInfoBase* moduleInfo);
+
 	static bool empty(const char* value);
 	static bool isPrivateAddress(const char* host);
 	static void fixPath(std::shared_ptr<MsgSip>& ms);
@@ -52,9 +54,9 @@ private:
 	void fixRecordRouteInRequest(std::shared_ptr<MsgSip>& ms);
 
 	static ModuleInfo<NatHelper> sInfo;
-	bool mFixRecordRoutes;
+	bool mFixRecordRoutes{};
 	std::string mContactVerifiedParam;
-	RecordRouteFixingPolicy mRRPolicy;
+	RecordRouteFixingPolicy mRRPolicy{};
 };
 
 } // namespace flexisip

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -125,13 +125,13 @@ protected:
 };
 
 class PushNotification : public Module, public ModuleToolbox {
+	friend std::shared_ptr<Module> ModuleInfo<PushNotification>::create(Agent*);
+
 public:
-	PushNotification(Agent* ag);
 	~PushNotification() override = default;
 
 	static bool needsPush(const std::shared_ptr<MsgSip>& msgSip);
 
-	void onDeclare(GenericStruct* module_config) override;
 	void onRequest(std::shared_ptr<RequestSipEvent>& ev) override;
 	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override;
 	void onLoad(const GenericStruct* mc) override;
@@ -148,6 +148,8 @@ private:
 	};
 
 	// Private methods
+	PushNotification(Agent* ag, const ModuleInfoBase* moduleInfo);
+
 	/**
 	 * Gathers all the information required to create a PushNotificationContext
 	 * and create an instance of it by using the right implementation. Then,

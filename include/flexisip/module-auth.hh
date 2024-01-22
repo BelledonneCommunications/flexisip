@@ -19,27 +19,35 @@
 #pragma once
 
 #include "flexisip/module-authentication-base.hh"
+#include "flexisip/module.hh"
 #include "flexisip/sofia-wrapper/auth-module.hh"
 
 namespace flexisip {
 
+class Agent;
+
 class Authentication : public ModuleAuthenticationBase {
+	friend std::shared_ptr<Module> ModuleInfo<Authentication>::create(Agent*);
+
 public:
 	StatCounter64* mCountAsyncRetrieve = nullptr;
 	StatCounter64* mCountSyncRetrieve = nullptr;
 	StatCounter64* mCountPassFound = nullptr;
 	StatCounter64* mCountPassNotFound = nullptr;
 
-	Authentication(Agent* ag);
 	~Authentication() override;
 
-	void onDeclare(GenericStruct* mc) override;
 	void onLoad(const GenericStruct* mc) override;
 	bool tlsClientCertificatePostCheck(const std::shared_ptr<RequestSipEvent>& ev);
 	virtual bool handleTlsClientAuthentication(const std::shared_ptr<RequestSipEvent>& ev);
 	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override;
 	void onIdle() override;
 	bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) override;
+
+	static void declareConfig(GenericStruct& moduleConfig);
+
+protected:
+	Authentication(Agent* ag, const ModuleInfoBase* moduleInfo);
 
 private:
 	FlexisipAuthModuleBase* createAuthModule(const std::string& domain, int nonceExpire, bool qopAuth) override;

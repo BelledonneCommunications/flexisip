@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -73,7 +73,7 @@ class Agent : public AgentInterface,
 	friend class OutgoingTransaction;
 	friend class Module;
 
-	void onDeclare(GenericStruct* root);
+	void onDeclare(const GenericStruct& root);
 
 	StatCounter64* mCountIncomingRegister = nullptr;
 	StatCounter64* mCountIncomingInvite = nullptr;
@@ -127,6 +127,8 @@ public:
 	void loadConfig(ConfigManager* cm, bool strict = true);
 	void unloadConfig();
 	~Agent() override;
+	// Add agent and modules sections
+	static void addConfigSections(ConfigManager& cfg);
 	/// Returns a pair of ip addresses: < public-ip, bind-ip> suitable for destination.
 	std::pair<std::string, std::string> getPreferredIp(const std::string& destination) const;
 	/// Returns the _default_ bind address for RTP sockets.

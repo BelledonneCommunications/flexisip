@@ -46,7 +46,7 @@ public:
 	 * @param injectedModule A module to be injected into the Agent's module chain to mangle requests before they reach
 	 * other modules.
 	 */
-	explicit Server(const std::string& configFile = "", Module* injectedModule = nullptr);
+	explicit Server(const std::string& configFile = "", InjectedHooks* injectedHooks = nullptr);
 	/**
 	 * @brief Same as before but use a map instead of a file to configure the agent.
 	 * @param config Agent configuration as a map. The key is the name of the paramter
@@ -55,7 +55,7 @@ public:
 	 * @param injectedModule A module to be injected into the Agent's module chain to mangle requests before they reach
 	 * other modules.
 	 */
-	explicit Server(const std::map<std::string, std::string>& customConfig, Module* injectedModule = nullptr);
+	explicit Server(const std::map<std::string, std::string>& customConfig, InjectedHooks* injectedHooks = nullptr);
 
 	virtual ~Server();
 
@@ -82,8 +82,8 @@ public:
 	void runFor(std::chrono::milliseconds duration);
 
 private:
-	const std::optional<InjectedModuleInfo> mModule{std::nullopt};
-	std::shared_ptr<flexisip::Agent> mAgent{std::make_shared<Agent>(std::make_shared<sofiasip::SuRoot>())};
+	const std::optional<InjectedModuleInfo> mInjectedModule{std::nullopt};
+	std::shared_ptr<flexisip::Agent> mAgent;
 }; // Class Server
 
 } // namespace tester

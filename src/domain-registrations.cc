@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -41,10 +41,13 @@ using namespace sofiasip;
 
 namespace flexisip {
 
-DomainRegistrationManager::DomainRegistrationManager(Agent* agent) : mAgent(agent), mRegisterWhenNeeded(false) {
-	ConfigManager* mgr = ConfigManager::get();
+namespace {
+const auto configSectionName = "inter-domain-connections";
+}
+
+void DomainRegistrationManager::declareConfig(GenericStruct& rootConfig) {
 	auto uDomainRegistrationArea = make_unique<GenericStruct>(
-	    "inter-domain-connections",
+	    configSectionName,
 	    "Inter domain connections is a set of feature allowing to dynamically connect several Flexisip servers "
 	    "together in order to manage SIP routing at local and global scope. Let's suppose you have two SIP network "
 	    "a.example.net and b.example.net run privately and independently (no one from a.example.net needs to call "
@@ -69,7 +72,7 @@ DomainRegistrationManager::DomainRegistrationManager(Agent* agent) : mAgent(agen
 	    "the domain registration.",
 	    ModuleInfoBase::InterDomainConnections);
 
-	mDomainRegistrationArea = mgr->getRoot()->addChild(std::move(uDomainRegistrationArea));
+	auto* domainRegistrationArea = rootConfig.addChild(std::move(uDomainRegistrationArea));
 
 	ConfigItemDescriptor configs[] = {
 	    {Boolean, "accept-domain-registrations", "Whether Flexisip shall accept registrations for entire domains",
@@ -133,7 +136,12 @@ DomainRegistrationManager::DomainRegistrationManager(Agent* agent) : mAgent(agen
 	     ""},
 	    config_item_end};
 
-	mDomainRegistrationArea->addChildrenValues(configs);
+	domainRegistrationArea->addChildrenValues(configs);
+}
+
+DomainRegistrationManager::DomainRegistrationManager(Agent* agent) : mAgent(agent), mRegisterWhenNeeded(false) {
+	ConfigManager* mgr = ConfigManager::get();
+	mDomainRegistrationArea = mgr->getRoot()->get<GenericStruct>(configSectionName);
 }
 
 DomainRegistrationManager::~DomainRegistrationManager() {

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,6 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <algorithm>
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
@@ -486,19 +487,18 @@ static void depthFirstSearch(string& path, GenericEntry* config, list<string>& a
 	}
 }
 
-static void dump_config(const std::shared_ptr<sofiasip::SuRoot>& root,
-                        const std::string& dump_cfg_part,
-                        bool with_experimental,
-                        bool dumpDefault,
-                        const string& format) {
+static void
+dump_config(const std::string& dump_cfg_part, bool with_experimental, bool dumpDefault, const string& format) {
 	ConfigManager::get()->applyOverrides(true);
 	auto* pluginsDirEntry = ConfigManager::get()->getGlobal()->get<ConfigString>("plugins-dir");
 	if (pluginsDirEntry->get().empty()) {
 		pluginsDirEntry->set(DEFAULT_PLUGINS_DIR);
 	}
 
-	auto a = make_shared<Agent>(root);
-	if (!dumpDefault) a->loadConfig(ConfigManager::get());
+	auto cfg = ConfigManager::get();
+	Agent::addConfigSections(*cfg);
+
+	if (!dumpDefault) cfg->loadStrict();
 
 	auto* rootStruct = ConfigManager::get()->getRoot();
 	if (dump_cfg_part != "all") {
@@ -510,8 +510,12 @@ static void dump_config(const std::shared_ptr<sofiasip::SuRoot>& root,
 		}
 		if (regex_match(dump_cfg_part, m, regex("^module::(.*)$"))) {
 			const auto& moduleName = m[1];
-			const auto& module = a->findModule(moduleName);
-			if (module && module->getClass() == ModuleClass::Experimental && !with_experimental) {
+			auto moduleInfoChain = ModuleInfoManager::get()->buildModuleChain();
+			auto moduleIt =
+			    find_if(moduleInfoChain.cbegin(), moduleInfoChain.cend(),
+			            [&moduleName](const auto& module) { return module->getModuleName() == moduleName; });
+			if (moduleIt != moduleInfoChain.cend() && (*moduleIt)->getClass() == ModuleClass::Experimental &&
+			    !with_experimental) {
 				cerr << "Module " << moduleName
 				     << " is experimental, not returning anything. To override, specify '--show-experimental'" << endl;
 				exit(EXIT_FAILURE);
@@ -544,7 +548,7 @@ static void dump_config(const std::shared_ptr<sofiasip::SuRoot>& root,
 
 static void list_sections(bool moduleOnly = false) {
 	const string modulePrefix{"module::"};
-	auto a = make_shared<Agent>(root);
+	Agent::addConfigSections(*ConfigManager::get());
 	for (const auto& child : ConfigManager::get()->getRoot()->getChildren()) {
 		if (!moduleOnly || child->getName().compare(0, modulePrefix.size(), modulePrefix) == 0) {
 			cout << child->getName() << endl;
@@ -737,12 +741,12 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (module.length() != 0) {
-		dump_config(root, module, displayExperimental, true, dumpFormat.getValue());
+		dump_config(module, displayExperimental, true, dumpFormat.getValue());
 	}
 
 	// list all mibs and exit
 	if (dumpMibs) {
-		a = make_shared<Agent>(root);
+		Agent::addConfigSections(*ConfigManager::get());
 		cout << MibDumper(ConfigManager::get()->getRoot());
 		return EXIT_SUCCESS;
 	}
@@ -761,7 +765,7 @@ int main(int argc, char* argv[]) {
 
 	// list the overridable values and exit
 	if (listOverrides.getValue().length() != 0) {
-		a = make_shared<Agent>(root);
+		Agent::addConfigSections(*ConfigManager::get());
 		list<string> allCompletions;
 		allCompletions.push_back("nosnmp");
 
@@ -800,7 +804,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (rewriteConf) {
-		dump_config(root, "all", displayExperimental, false, "file");
+		dump_config("all", displayExperimental, false, "file");
 	}
 
 	// if --debug is given, enable user-errors logs as well.
@@ -973,6 +977,7 @@ int main(int argc, char* argv[]) {
 	 * We create an Agent in all cases, because it will declare config items that are necessary for presence server to
 	 * run.
 	 */
+	Agent::addConfigSections(*cfg);
 	a = make_shared<Agent>(root);
 	setOpenSSLThreadSafe();
 	a->loadConfig(cfg);

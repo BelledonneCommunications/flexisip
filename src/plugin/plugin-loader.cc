@@ -97,21 +97,10 @@ static SharedLibrary* getOrCreateSharedLibrary(const string& filename, string& e
 // -----------------------------------------------------------------------------
 // PluginLoader.
 // -----------------------------------------------------------------------------
-
-Plugin::Plugin(SharedLibrary& sharedLibrary) : mSharedLibrary(&sharedLibrary) {
+PluginLoader::PluginLoader() : mPrivate(new PluginLoaderPrivate) {
 }
 
-Plugin::~Plugin() {
-	mSharedLibrary->module = nullptr;
-}
-
-// -----------------------------------------------------------------------------
-
-PluginLoader::PluginLoader(Agent* agent) : mPrivate(new PluginLoaderPrivate) {
-	mPrivate->agent = agent;
-}
-
-PluginLoader::PluginLoader(Agent* agent, const string& filename) : PluginLoader(agent) {
+PluginLoader::PluginLoader(const string& filename) : PluginLoader() {
 	mPrivate->filename = filename;
 }
 
@@ -159,20 +148,6 @@ bool PluginLoader::unload() {
 	if (!mPrivate->libraryRefCounter) mPrivate->sharedLibrary = nullptr;
 
 	return unloaded;
-}
-
-Module* PluginLoader::get() {
-	if (!mPrivate->sharedLibrary && !load()) return nullptr;
-
-	SharedLibrary* sharedLibrary = mPrivate->sharedLibrary;
-	if (sharedLibrary->module) return sharedLibrary->module;
-
-	Module* (*createPlugin)(Agent* agent, SharedLibrary* sharedLibrary);
-	*reinterpret_cast<void**>(&createPlugin) = dlsym(mPrivate->sharedLibrary->get(), "__flexisipCreatePlugin");
-	if (!createPlugin) mPrivate->error = "Unable to get plugin. CreatePlugin symbol not found.";
-	else sharedLibrary->module = createPlugin(mPrivate->agent, sharedLibrary);
-
-	return sharedLibrary->module;
 }
 
 const ModuleInfoBase* PluginLoader::getModuleInfo() {

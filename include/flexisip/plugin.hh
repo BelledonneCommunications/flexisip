@@ -35,17 +35,6 @@
 
 namespace flexisip {
 
-class Plugin {
-public:
-	Plugin(SharedLibrary& sharedLibrary);
-	virtual ~Plugin();
-
-private:
-	SharedLibrary* mSharedLibrary;
-
-	FLEXISIP_DISABLE_COPY(Plugin);
-};
-
 struct PluginInfo {
 	const char* className;
 	const char* name;
@@ -67,17 +56,6 @@ inline std::ostream& operator<<(std::ostream& os, const PluginInfo& info) {
 	              "Flexisip plugin must be derived from ModuleInfoBase class.");                                       \
 	FLEXISIP_PLUGIN_EXPORT const ModuleInfoBase* __flexisipGetPluginModuleInfo() {                                     \
 		return &MODULE_INFO;                                                                                           \
-	}                                                                                                                  \
-	FLEXISIP_PLUGIN_EXPORT Module* __flexisipCreatePlugin(Agent* agent, SharedLibrary* sharedLibrary) {                \
-		using ModuleType = typename decltype(MODULE_INFO)::ModuleType;                                                 \
-		class UserPlugin : public ModuleType, public Plugin {                                                          \
-		public:                                                                                                        \
-			UserPlugin(Agent* agent, SharedLibrary& sharedLibrary) : ModuleType(agent), Plugin(sharedLibrary) {        \
-			}                                                                                                          \
-		};                                                                                                             \
-		Module* module = new UserPlugin(agent, *sharedLibrary);                                                        \
-		module->setInfo(&MODULE_INFO);                                                                                 \
-		return module;                                                                                                 \
 	}                                                                                                                  \
 	FLEXISIP_PLUGIN_EXPORT const PluginInfo __flexisipPluginInfo = {#MODULE_INFO, NAME, VERSION,                       \
 	                                                                FLEXISIP_PLUGIN_API_VERSION};

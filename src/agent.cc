@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -48,56 +48,113 @@ using namespace sofiasip;
 
 namespace flexisip {
 
-static StatCounter64* createCounter(GenericStruct* global, string keyprefix, string helpprefix, string value) {
-	return global->createStat(keyprefix + value, helpprefix + value + ".");
+namespace {
+void createAgentCounters(GenericStruct& root) {
+	auto* globalConfig = root.get<GenericStruct>("global");
+	auto createCounter = [&globalConfig](string keyprefix, string helpprefix, string value) {
+		return globalConfig->createStat(keyprefix + value, helpprefix + value + ".");
+	};
+
+	{
+		string key = "count-incoming-request-";
+		string help = "Number of incoming requests with method name ";
+		createCounter(key, help, "register");
+		createCounter(key, help, "invite");
+		createCounter(key, help, "ack");
+		createCounter(key, help, "info");
+		createCounter(key, help, "bye");
+		createCounter(key, help, "cancel");
+		createCounter(key, help, "message");
+		createCounter(key, help, "decline");
+		createCounter(key, help, "options");
+		createCounter(key, help, "unknown");
+	}
+	{
+		string key = "count-incoming-response-";
+		string help = "Number of incoming response with status ";
+		createCounter(key, help, "100");
+		createCounter(key, help, "101");
+		createCounter(key, help, "180");
+		createCounter(key, help, "200");
+		createCounter(key, help, "202");
+		createCounter(key, help, "401");
+		createCounter(key, help, "404");
+		createCounter(key, help, "407");
+		createCounter(key, help, "408");
+		createCounter(key, help, "486");
+		createCounter(key, help, "487");
+		createCounter(key, help, "488");
+		createCounter(key, help, "603");
+		createCounter(key, help, "unknown");
+	}
+	{
+		string key = "count-reply-";
+		string help = "Number of replied ";
+		createCounter(key, help, "100");
+		createCounter(key, help, "101");
+		createCounter(key, help, "180");
+		createCounter(key, help, "200");
+		createCounter(key, help, "202");
+		createCounter(key, help, "401");
+		createCounter(key, help, "404");
+		createCounter(key, help, "407");
+		createCounter(key, help, "408"); // request timeout
+		createCounter(key, help, "486");
+		createCounter(key, help, "487"); // Request canceled
+		createCounter(key, help, "488");
+		createCounter(key, help, "unknown");
+	}
 }
-void Agent::onDeclare(GenericStruct* root) {
-	GenericStruct* global = root->get<GenericStruct>("global");
-	string key = "count-incoming-request-";
-	string help = "Number of incoming requests with method name ";
-	mCountIncomingRegister = createCounter(global, key, help, "register");
-	mCountIncomingInvite = createCounter(global, key, help, "invite");
-	mCountIncomingAck = createCounter(global, key, help, "ack");
-	mCountIncomingInfo = createCounter(global, key, help, "info");
-	mCountIncomingBye = createCounter(global, key, help, "bye");
-	mCountIncomingCancel = createCounter(global, key, help, "cancel");
-	mCountIncomingMessage = createCounter(global, key, help, "message");
-	mCountIncomingDecline = createCounter(global, key, help, "decline");
-	mCountIncomingOptions = createCounter(global, key, help, "options");
-	mCountIncomingReqUnknown = createCounter(global, key, help, "unknown");
+} // namespace
 
-	key = "count-incoming-response-";
-	help = "Number of incoming response with status ";
-	mCountIncoming100 = createCounter(global, key, help, "100");
-	mCountIncoming101 = createCounter(global, key, help, "101");
-	mCountIncoming180 = createCounter(global, key, help, "180");
-	mCountIncoming200 = createCounter(global, key, help, "200");
-	mCountIncoming202 = createCounter(global, key, help, "202");
-	mCountIncoming401 = createCounter(global, key, help, "401");
-	mCountIncoming404 = createCounter(global, key, help, "404");
-	mCountIncoming407 = createCounter(global, key, help, "407");
-	mCountIncoming408 = createCounter(global, key, help, "408");
-	mCountIncoming486 = createCounter(global, key, help, "486");
-	mCountIncoming487 = createCounter(global, key, help, "487");
-	mCountIncoming488 = createCounter(global, key, help, "488");
-	mCountIncoming603 = createCounter(global, key, help, "603");
-	mCountIncomingResUnknown = createCounter(global, key, help, "unknown");
-
-	key = "count-reply-";
-	help = "Number of replied ";
-	mCountReply100 = createCounter(global, key, help, "100");
-	mCountReply101 = createCounter(global, key, help, "101");
-	mCountReply180 = createCounter(global, key, help, "180");
-	mCountReply200 = createCounter(global, key, help, "200");
-	mCountReply202 = createCounter(global, key, help, "202");
-	mCountReply401 = createCounter(global, key, help, "401");
-	mCountReply404 = createCounter(global, key, help, "404");
-	mCountReply407 = createCounter(global, key, help, "407");
-	mCountReply408 = createCounter(global, key, help, "408"); // request timeout
-	mCountReply486 = createCounter(global, key, help, "486");
-	mCountReply487 = createCounter(global, key, help, "487"); // Request canceled
-	mCountReply488 = createCounter(global, key, help, "488");
-	mCountReplyResUnknown = createCounter(global, key, help, "unknown");
+void Agent::onDeclare(const GenericStruct& root) {
+	auto* global = root.get<GenericStruct>("global");
+	{
+		string key = "count-incoming-request-";
+		mCountIncomingRegister = global->getStat(key + "register");
+		mCountIncomingInvite = global->getStat(key + "invite");
+		mCountIncomingAck = global->getStat(key + "ack");
+		mCountIncomingInfo = global->getStat(key + "info");
+		mCountIncomingBye = global->getStat(key + "bye");
+		mCountIncomingCancel = global->getStat(key + "cancel");
+		mCountIncomingMessage = global->getStat(key + "message");
+		mCountIncomingDecline = global->getStat(key + "decline");
+		mCountIncomingOptions = global->getStat(key + "options");
+		mCountIncomingReqUnknown = global->getStat(key + "unknown");
+	}
+	{
+		string key = "count-incoming-response-";
+		mCountIncoming100 = global->getStat(key + "100");
+		mCountIncoming101 = global->getStat(key + "101");
+		mCountIncoming180 = global->getStat(key + "180");
+		mCountIncoming200 = global->getStat(key + "200");
+		mCountIncoming202 = global->getStat(key + "202");
+		mCountIncoming401 = global->getStat(key + "401");
+		mCountIncoming404 = global->getStat(key + "404");
+		mCountIncoming407 = global->getStat(key + "407");
+		mCountIncoming408 = global->getStat(key + "408");
+		mCountIncoming486 = global->getStat(key + "486");
+		mCountIncoming487 = global->getStat(key + "487");
+		mCountIncoming488 = global->getStat(key + "488");
+		mCountIncoming603 = global->getStat(key + "603");
+		mCountIncomingResUnknown = global->getStat(key + "unknown");
+	}
+	{
+		string key = "count-reply-";
+		mCountReply100 = global->getStat(key + "100");
+		mCountReply101 = global->getStat(key + "101");
+		mCountReply180 = global->getStat(key + "180");
+		mCountReply200 = global->getStat(key + "200");
+		mCountReply202 = global->getStat(key + "202");
+		mCountReply401 = global->getStat(key + "401");
+		mCountReply404 = global->getStat(key + "404");
+		mCountReply407 = global->getStat(key + "407");
+		mCountReply408 = global->getStat(key + "408"); // request timeout
+		mCountReply486 = global->getStat(key + "486");
+		mCountReply487 = global->getStat(key + "487"); // Request canceled
+		mCountReply488 = global->getStat(key + "488");
+		mCountReplyResUnknown = global->getStat(key + "unknown");
+	}
 
 	string uniqueId = global->get<ConfigString>("unique-id")->read();
 	if (!uniqueId.empty()) {
@@ -500,6 +557,34 @@ TlsConfigInfo Agent::getTlsConfigInfo(const GenericStruct* global) {
 	return tlsConfigInfoFromConf;
 }
 
+void Agent::addConfigSections(ConfigManager& cfg) {
+	GenericStruct* cr = cfg.getRoot();
+	// Load plugins .so files. They will automatically register into the ModuleInfoManager singleton.
+	{
+		GenericStruct* global = cr->get<GenericStruct>("global");
+		const string& pluginDir = global->get<ConfigString>("plugins-dir")->read();
+		for (const string& pluginName : global->get<ConfigStringList>("plugins")->read()) {
+			SLOGI << "Loading [" << pluginName << "] plugin...";
+			PluginLoader pluginLoader(pluginDir + "/lib" + pluginName + ".so");
+			const ModuleInfoBase* moduleInfo = pluginLoader.getModuleInfo();
+			if (!moduleInfo) {
+				LOGF("Unable to load plugin [%s]: %s", pluginName.c_str(), pluginLoader.getError().c_str());
+				return;
+			}
+		}
+	}
+
+	// Ask the ModuleInfoManager to build a valid module info chain, according to module's placement hints.
+	list<ModuleInfoBase*> moduleInfoChain = ModuleInfoManager::get()->buildModuleChain();
+
+	// Add modules config section.
+	for (ModuleInfoBase* moduleInfo : moduleInfoChain) {
+		moduleInfo->declareConfig(*cr);
+	}
+	createAgentCounters(*cr);
+	DomainRegistrationManager::declareConfig(*cr);
+}
+
 // -----------------------------------------------------------------------------
 
 Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root) {
@@ -508,21 +593,6 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root) {
 	GenericStruct* cr = ConfigManager::get()->getRoot();
 
 	EtcHostsResolver::get();
-
-	// Load plugins .so files. They will automatically register into the ModuleInfoManager singleton.
-	{
-		GenericStruct* global = cr->get<GenericStruct>("global");
-		const string& pluginDir = global->get<ConfigString>("plugins-dir")->read();
-		for (const string& pluginName : global->get<ConfigStringList>("plugins")->read()) {
-			SLOGI << "Loading [" << pluginName << "] plugin...";
-			PluginLoader pluginLoader(this, pluginDir + "/lib" + pluginName + ".so");
-			const ModuleInfoBase* moduleInfo = pluginLoader.getModuleInfo();
-			if (!moduleInfo) {
-				LOGF("Unable to load plugin [%s]: %s", pluginName.c_str(), pluginLoader.getError().c_str());
-				return;
-			}
-		}
-	}
 
 	// Ask the ModuleInfoManager to build a valid module info chain, according to module's placement hints.
 	list<ModuleInfoBase*> moduleInfoChain = ModuleInfoManager::get()->buildModuleChain();
@@ -536,11 +606,7 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root) {
 
 	mServerString = "Flexisip/" FLEXISIP_GIT_VERSION " (sofia-sip-nta/" NTA_VERSION ")";
 
-	for (const auto& module : mModules) {
-		module->declare(cr);
-	}
-
-	onDeclare(cr);
+	onDeclare(*cr);
 
 	struct ifaddrs* net_addrs;
 	int err = getifaddrs(&net_addrs);

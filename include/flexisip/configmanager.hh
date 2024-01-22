@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -374,8 +374,10 @@ public:
 	}
 
 	StatCounter64* createStat(const std::string& name, const std::string& help);
-	std::pair<StatCounter64*, StatCounter64*> createStatPair(const std::string& name, const std::string& help);
-	std::unique_ptr<StatPair> createStats(const std::string& name, const std::string& help);
+	void createStatPair(const std::string& name, const std::string& help);
+	StatCounter64* getStat(const std::string& name);
+	std::pair<StatCounter64*, StatCounter64*> getStatPair(const std::string& name);
+	std::unique_ptr<StatPair> getStatPairPtr(const std::string& name);
 
 	void addChildrenValues(ConfigItemDescriptor* items);
 	void addChildrenValues(ConfigItemDescriptor* items, bool hashed);

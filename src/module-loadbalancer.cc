@@ -27,36 +27,27 @@ using namespace std;
 using namespace flexisip;
 
 class LoadBalancer : public Module, public ModuleToolbox {
+	friend std::shared_ptr<Module> ModuleInfo<LoadBalancer>::create(Agent*);
+
 public:
-	LoadBalancer(Agent* ag);
 	virtual ~LoadBalancer();
-	virtual void onDeclare(GenericStruct* module_config);
 	virtual void onLoad(const GenericStruct* modconf);
 	virtual void onRequest(shared_ptr<RequestSipEvent>& ev);
 	virtual void onResponse(shared_ptr<ResponseSipEvent>& ev);
 
 private:
+	LoadBalancer(Agent* ag, const ModuleInfoBase* moduleInfo);
+
 	vector<string> mRoutes;
 	int mRoutesCount;
 
 	static ModuleInfo<LoadBalancer> sInfo;
 };
 
-LoadBalancer::LoadBalancer(Agent* ag) : Module(ag) {
+LoadBalancer::LoadBalancer(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 }
 
 LoadBalancer::~LoadBalancer() {
-}
-
-void LoadBalancer::onDeclare(GenericStruct* module_config) {
-	/*we need to be disabled by default*/
-	module_config->get<ConfigBoolean>("enabled")->setDefault("false");
-	ConfigItemDescriptor items[] = {{StringList, "routes",
-	                                 "Whitespace separated list of sip routes to balance the requests. Example: "
-	                                 "<sip:192.168.0.22> <sip:192.168.0.23>",
-	                                 ""},
-	                                config_item_end};
-	module_config->addChildrenValues(items);
 }
 
 void LoadBalancer::onLoad(const GenericStruct* modconf) {
@@ -95,9 +86,20 @@ void LoadBalancer::onResponse([[maybe_unused]] shared_ptr<ResponseSipEvent>& ev)
 	/*nothing to do*/
 }
 
-ModuleInfo<LoadBalancer>
-    LoadBalancer::sInfo("LoadBalancer",
-                        "This module performs load balancing between a set of configured destination proxies.",
-                        {"PushNotification"},
-                        ModuleInfoBase::ModuleOid::LoadBalancer,
-                        ModuleClass::Experimental);
+ModuleInfo<LoadBalancer> LoadBalancer::sInfo(
+    "LoadBalancer",
+    "This module performs load balancing between a set of configured destination proxies.",
+    {"PushNotification"},
+    ModuleInfoBase::ModuleOid::LoadBalancer,
+
+    [](GenericStruct& moduleConfig) {
+	    /*we need to be disabled by default*/
+	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
+	    ConfigItemDescriptor items[] = {{StringList, "routes",
+	                                     "Whitespace separated list of sip routes to balance the "
+	                                     "requests. Example: <sip:192.168.0.22> <sip:192.168.0.23>",
+	                                     ""},
+	                                    config_item_end};
+	    moduleConfig.addChildrenValues(items);
+    },
+    ModuleClass::Experimental);

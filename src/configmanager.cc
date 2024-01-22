@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -32,6 +32,7 @@
 #include <flexisip/logmanager.hh>
 #include <flexisip/sip-boolean-expressions.hh>
 
+#include "agent.hh"
 #include "configdumper.hh"
 #include "lpconfig.h"
 
@@ -540,19 +541,30 @@ void GenericStruct::addChildrenValues(ConfigItemDescriptor* items, bool hashed) 
 	}
 }
 
+namespace {
+constexpr auto finished = "-finished";
+}
+
 StatCounter64* GenericStruct::createStat(const string& name, const string& help) {
 	oid cOid = Oid::oidFromHashedString(name);
 	auto val = make_unique<StatCounter64>(name, help, cOid);
 	return addChild(std::move(val));
 }
-pair<StatCounter64*, StatCounter64*> GenericStruct::createStatPair(const string& name, const string& help) {
-	return make_pair(createStat(name, help), createStat(name + "-finished", help + " Finished."));
+void GenericStruct::createStatPair(const string& name, const string& help) {
+	createStat(name, help);
+	createStat(name + finished, help + " Finished.");
 }
 
-unique_ptr<StatPair> GenericStruct::createStats(const string& name, const string& help) {
-	auto start = createStat(name, help);
-	auto finish = createStat(name + "-finished", help + " Finished.");
-	return make_unique<StatPair>(start, finish);
+StatCounter64* GenericStruct::getStat(const string& name) {
+	return get<StatCounter64>(name);
+}
+
+pair<StatCounter64*, StatCounter64*> GenericStruct::getStatPair(const string& name) {
+	return make_pair(getStat(name), getStat(name + finished));
+}
+
+unique_ptr<StatPair> GenericStruct::getStatPairPtr(const string& name) {
+	return make_unique<StatPair>(getStat(name), getStat(name + finished));
 }
 
 struct matchEntryNameApprox {
@@ -1177,6 +1189,7 @@ int ConfigManager::load(const std::string& configfile) {
 	mConfigFile = configfile;
 	int res = mReader.read(configfile);
 	applyOverrides(false);
+	Agent::addConfigSections(*this);
 	return res;
 }
 

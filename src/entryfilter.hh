@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -32,8 +32,6 @@ namespace flexisip {
  **/
 class EntryFilter {
 public:
-	virtual void declareConfig([[maybe_unused]] GenericStruct* module_config) {
-	}
 	virtual void loadConfig([[maybe_unused]] const GenericStruct* module_config) {
 	}
 	virtual bool canEnter(const std::shared_ptr<MsgSip>& ms) = 0;
@@ -46,8 +44,8 @@ class ConfigEntryFilter : public EntryFilter {
 	StatCounter64* mCountEvalFalse = nullptr;
 
 public:
-	ConfigEntryFilter() = default;
-	void declareConfig(GenericStruct* module_config) override;
+	ConfigEntryFilter(GenericStruct& module_config);
+	static void declareConfig(GenericStruct& moduleConfig);
 	void loadConfig(const GenericStruct* module_config) override;
 	bool canEnter(const std::shared_ptr<MsgSip>& ms) override;
 	bool isEnabled() override;
