@@ -86,7 +86,7 @@ add_library(flexisip SHARED
 	module-gatewayadapter.cc
 	module-loadbalancer.cc
 	module-mediarelay.cc
-	module-nat-helper.cc
+	module-nat-helper.cc module-nat-helper.hh
 	module-redirect.cc
 	module-presence.cc
 	module-pushnotification.cc module-pushnotification.hh
