@@ -34,6 +34,7 @@ using namespace flexisip;
 class GatewayAdapter;
 
 class GatewayRegister {
+	AuthDbBackend& mAuthDb;
 	typedef enum { INITIAL, REGISTRING, REGISTRED } State;
 	State state;
 	su_home_t home;
@@ -157,9 +158,10 @@ private:
 	class OnFetchListener : public ContactUpdateListener {
 	private:
 		GatewayRegister* gw;
+		AuthDbBackend& mAuthDb;
 
 	public:
-		OnFetchListener(GatewayRegister* igw) : gw(igw) {
+		OnFetchListener(GatewayRegister* igw, AuthDbBackend& authDb) : gw(igw), mAuthDb(authDb) {
 		}
 
 		~OnFetchListener() {
@@ -173,7 +175,7 @@ private:
 			if (r == NULL) {
 				LOGD("Record doesn't exist. Fork");
 				url_t* url = gw->getFrom()->a_url;
-				AuthDbBackend::get().getPassword(url->url_user, url->url_host, url->url_user, new OnAuthListener(gw));
+				mAuthDb.getPassword(url->url_user, url->url_host, url->url_user, new OnAuthListener(gw));
 			} else {
 				LOGD("Record already exists. Not forked");
 			}
@@ -206,7 +208,8 @@ GatewayRegister::GatewayRegister(Agent* ag,
                                  sip_from_t* sip_from,
                                  sip_to_t* sip_to,
                                  sip_contact_t* sip_contact,
-                                 const sip_expires_t* global_expire) {
+                                 const sip_expires_t* global_expire)
+    : mAuthDb(ag->getAuthDbOwner().get()) {
 	su_home_init(&home);
 
 	url_t* domain = NULL;
@@ -343,7 +346,7 @@ void GatewayRegister::start() {
 	SipUri fromUri(from->a_url);
 	LOGD("Fetching binding");
 	++*mCountStart;
-	RegistrarDb::get()->fetch(fromUri, make_shared<OnFetchListener>(this));
+	RegistrarDb::get()->fetch(fromUri, make_shared<OnFetchListener>(this, mAuthDb));
 }
 
 void GatewayRegister::end() {

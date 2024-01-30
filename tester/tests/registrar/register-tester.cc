@@ -442,7 +442,7 @@ static void duplicatePushTokenRegisterInternalDbTest() {
 	// Agent initialization
 	auto cfg = ConfigManager::get();
 	cfg->load(bcTesterRes("config/flexisip_register.conf"));
-	auto agent = make_shared<Agent>(root);
+	auto agent = make_shared<Agent>(root, make_shared<AuthDbBackendOwner>(*cfg->getRoot()));
 	agent->loadConfig(cfg);
 
 	auto registrarConf = ConfigManager::get()->getRoot()->get<GenericStruct>("module::Registrar");

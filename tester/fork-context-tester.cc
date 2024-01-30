@@ -61,7 +61,7 @@ static void nullMaxFrowardAndForkBasicContext() {
 	// Agent initialization
 	auto cfg = ConfigManager::get();
 	cfg->load(bcTesterRes("config/flexisip_fork_context.conf"));
-	auto agent = make_shared<Agent>(root);
+	auto agent = make_shared<Agent>(root, make_shared<AuthDbBackendOwner>(*cfg->getRoot()));
 	agent->loadConfig(cfg);
 
 	auto registrarConf = ConfigManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
@@ -126,7 +126,7 @@ static void notRtpPortAndForkCallContext() {
 	// Agent initialization
 	auto cfg = ConfigManager::get();
 	cfg->load(bcTesterRes("config/flexisip_fork_context_media_relay.conf"));
-	auto agent = make_shared<Agent>(root);
+	auto agent = make_shared<Agent>(root, make_shared<AuthDbBackendOwner>(*cfg->getRoot()));
 	agent->loadConfig(cfg);
 
 	auto registrarConf = ConfigManager::get()->getRoot()->get<GenericStruct>("module::Registrar");

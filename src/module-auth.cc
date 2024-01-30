@@ -21,6 +21,8 @@
 
 #include <flexisip/module-auth.hh>
 
+#include "agent.hh"
+#include "auth/db/authdb.hh"
 #include "auth/flexisip-auth-module.hh"
 #include "transaction/outgoing-transaction.hh"
 
@@ -31,7 +33,8 @@ using namespace flexisip;
 //  Authentication class
 // ====================================================================================================================
 
-Authentication::Authentication(Agent* ag, const ModuleInfoBase* moduleInfo) : ModuleAuthenticationBase(ag, moduleInfo) {
+Authentication::Authentication(Agent* ag, const ModuleInfoBase* moduleInfo)
+    : ModuleAuthenticationBase(ag, moduleInfo), mAuthDbOwner(ag->getAuthDbOwner()) {
 	mCountAsyncRetrieve = mModuleConfig->getStat("count-async-retrieve");
 	mCountSyncRetrieve = mModuleConfig->getStat("count-sync-retrieve");
 	mCountPassFound = mModuleConfig->getStat("count-password-found");
@@ -126,7 +129,6 @@ void Authentication::onLoad(const GenericStruct* mc) {
 		} else mRequiredSubjectCheckSet = true;
 	}
 	mRejectWrongClientCertificates = mc->get<ConfigBoolean>("reject-wrong-client-certificates")->read();
-	AuthDbBackend::get(); // force instanciation of the AuthDbBackend NOW, to force errors to arrive now if any.
 }
 
 bool Authentication::tlsClientCertificatePostCheck(const shared_ptr<RequestSipEvent>& ev) {
@@ -270,7 +272,7 @@ bool Authentication::doOnConfigStateChanged(const ConfigValue& conf, ConfigState
 
 FlexisipAuthModuleBase* Authentication::createAuthModule(const std::string& domain, int nonceExpire, bool qopAuth) {
 	FlexisipAuthModule* authModule =
-	    new FlexisipAuthModule(getAgent()->getRoot()->getCPtr(), domain, nonceExpire, qopAuth);
+	    new FlexisipAuthModule(mAuthDbOwner.get(), getAgent()->getRoot()->getCPtr(), domain, nonceExpire, qopAuth);
 	authModule->setOnPasswordFetchResultCb(
 	    [this](bool passFound) { passFound ? mCountPassFound++ : mCountPassNotFound++; });
 	SLOGI << "Found auth domain: " << domain;

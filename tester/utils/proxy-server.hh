@@ -83,6 +83,7 @@ public:
 
 private:
 	const std::optional<InjectedModuleInfo> mInjectedModule{std::nullopt};
+	std::shared_ptr<AuthDbBackendOwner> mAuthDbOwner;
 	std::shared_ptr<flexisip::Agent> mAgent;
 }; // Class Server
 

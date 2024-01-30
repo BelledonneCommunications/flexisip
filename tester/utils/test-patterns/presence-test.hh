@@ -38,7 +38,6 @@ public:
 	}
 
 	~PresenceTest() {
-		AuthDbBackend::resetAuthDB();
 	}
 
 	void operator()() override {
@@ -72,7 +71,8 @@ protected:
 	void onAgentConfigured() override {
 		RegistrarDbTest::onAgentConfigured();
 		mPresence = std::make_shared<PresenceServer>(mRoot);
-		auto presenceLongTerm = std::make_shared<flexisip::PresenceLongterm>(mPresence->getBelleSipMainLoop());
+		auto presenceLongTerm =
+		    std::make_shared<flexisip::PresenceLongterm>(mPresence->getBelleSipMainLoop(), mAuthDbOwner);
 		mPresence->addPresenceInfoObserver(presenceLongTerm);
 	}
 

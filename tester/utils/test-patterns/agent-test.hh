@@ -62,7 +62,8 @@ public:
 	AgentTest(bool runAgent = true) noexcept : mRunAgent{runAgent} {
 		auto* cfg = ConfigManager::get();
 		cfg->load("");
-		mAgent = std::make_shared<Agent>(mRoot);
+		mAuthDbOwner = std::make_shared<AuthDbBackendOwner>(*cfg->getRoot());
+		mAgent = std::make_shared<Agent>(mRoot, mAuthDbOwner);
 	}
 
 	~AgentTest() {
@@ -121,6 +122,7 @@ protected:
 
 	// Protected attributes
 	std::shared_ptr<sofiasip::SuRoot> mRoot{std::make_shared<sofiasip::SuRoot>()};
+	std::shared_ptr<AuthDbBackendOwner> mAuthDbOwner;
 	std::shared_ptr<Agent> mAgent;
 	bool mRunAgent;
 };

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -33,14 +33,10 @@ class PresenceAuthListener : public AuthDbListener {
 public:
 	PresenceAuthListener(belle_sip_main_loop_t* mainLoop, const std::shared_ptr<PresentityPresenceInformation>& info)
 	    : mMainLoop(mainLoop), mInfo(info) {
-		AuthDbBackend::get(); /*this will initialize the database backend, which is good to know that it works at
-		                         startup*/
 	}
 	PresenceAuthListener(belle_sip_main_loop_t* mainLoop,
 	                     std::map<std::string, std::shared_ptr<PresentityPresenceInformation>>& dInfo)
 	    : mMainLoop(mainLoop), mDInfo(dInfo) {
-		AuthDbBackend::get(); /*this will initialize the database backend, which is good to know that it works at
-		                         startup*/
 	}
 
 	void onResult(AuthDbResult result, const std::string& passwd) override {
@@ -132,9 +128,8 @@ void PresenceLongterm::onListenerEvent(const shared_ptr<PresentityPresenceInform
 		const belle_sip_uri_t* uri = info->getEntity();
 		SLOGD << "No presence info element known yet for " << belle_sip_uri_get_user(uri)
 		      << ", checking if this user is already registered";
-		AuthDbBackend::get().getUserWithPhone(belle_sip_uri_get_user(info->getEntity()),
-		                                      belle_sip_uri_get_host(info->getEntity()),
-		                                      new PresenceAuthListener(mMainLoop, info));
+		mAuthDb.getUserWithPhone(belle_sip_uri_get_user(info->getEntity()), belle_sip_uri_get_host(info->getEntity()),
+		                         new PresenceAuthListener(mMainLoop, info));
 	}
 }
 void PresenceLongterm::onListenerEvents(list<shared_ptr<PresentityPresenceInformation>>& infos) const {
@@ -149,5 +144,5 @@ void PresenceLongterm::onListenerEvents(list<shared_ptr<PresentityPresenceInform
 		dInfo.insert(
 		    pair<string, shared_ptr<PresentityPresenceInformation>>(belle_sip_uri_get_user(info->getEntity()), info));
 	}
-	AuthDbBackend::get().getUsersWithPhone(creds);
+	mAuthDb.getUsersWithPhone(creds);
 }

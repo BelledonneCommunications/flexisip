@@ -17,7 +17,6 @@
 */
 
 #include "monitor.hh"
-#include "auth/db/authdb.hh"
 #include <flexisip/configmanager.hh>
 #include <ortp/rtpsession.h>
 #include <sofia-sip/su_md5.h>
@@ -112,8 +111,8 @@ string Monitor::findLocalAddress(const list<string>& nodes) {
 	return "";
 }
 
-void Monitor::createAccounts() {
-	AuthDbBackend& authDb = AuthDbBackend::get();
+void Monitor::createAccounts(std::shared_ptr<AuthDbBackendOwner> authDbOwner) {
+	auto& authDb = authDbOwner->get();
 	GenericStruct* cluster = ConfigManager::get()->getRoot()->get<GenericStruct>("cluster");
 	GenericStruct* monitorConf = ConfigManager::get()->getRoot()->get<GenericStruct>("monitor");
 	string salt = monitorConf->get<ConfigString>("password-salt")->read();

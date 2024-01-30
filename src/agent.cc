@@ -36,6 +36,7 @@
 #include "flexisip/module.hh"
 
 #include "agent.hh"
+#include "auth/db/authdb.hh"
 #include "domain-registrations.hh"
 #include "etchosts.hh"
 #include "plugin/plugin-loader.hh"
@@ -587,7 +588,8 @@ void Agent::addConfigSections(ConfigManager& cfg) {
 
 // -----------------------------------------------------------------------------
 
-Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root) {
+Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<AuthDbBackendOwner>& authDbOwner)
+    : mRoot{root}, mAuthDbOwner{authDbOwner} {
 	LOGT("New Agent[%p]", this);
 	mHttpEngine = nth_engine_create(root->getCPtr(), NTHTAG_ERROR_MSG(0), TAG_END());
 	GenericStruct* cr = ConfigManager::get()->getRoot();
@@ -623,7 +625,6 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root) {
 	} else {
 		LOGE("Can't find interface addresses: %s", strerror(err));
 	}
-	mRoot = root;
 
 	/**
 	 * We use NTATAG_CANCEL_487(0) so sofia-sip don't return a 487 responses to incoming CANCEL request automatically.

@@ -23,6 +23,7 @@
 
 #include <sofia-sip/auth_digest.h>
 #include <sofia-sip/auth_module.h>
+#include <sofia-sip/auth_plugin.h>
 #include <sofia-sip/msg_types.h>
 #include <sofia-sip/su_wait.h>
 
@@ -43,8 +44,8 @@ class FlexisipAuthModule : public FlexisipAuthModuleBase {
 public:
 	using PasswordFetchResultCb = std::function<void(bool)>;
 
-	FlexisipAuthModule(su_root_t* root, const std::string& domain, int nonceExpire, bool qopAuth)
-	    : FlexisipAuthModuleBase(root, domain, nonceExpire, qopAuth) {
+	FlexisipAuthModule(AuthDbBackend& authDb, su_root_t* root, const std::string& domain, int nonceExpire, bool qopAuth)
+	    : FlexisipAuthModuleBase(root, domain, nonceExpire, qopAuth), mAuthDb(authDb) {
 	}
 	~FlexisipAuthModule() override = default;
 
@@ -99,6 +100,7 @@ private:
 	                                         const std::string& ha1);
 
 	PasswordFetchResultCb mPassworFetchResultCb;
+	AuthDbBackend& mAuthDb;
 };
 
 } // namespace flexisip

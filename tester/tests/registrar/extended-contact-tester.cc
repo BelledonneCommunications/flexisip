@@ -53,7 +53,7 @@ static void qValueConstructorTests(void) {
 	// RegistrarDb::getMessageExpires)
 	auto cfg = ConfigManager::get();
 	cfg->load(bcTesterRes("config/flexisip_fork_context.conf"));
-	auto agent = make_shared<Agent>(root);
+	auto agent = make_shared<Agent>(root, make_shared<AuthDbBackendOwner>(*cfg->getRoot()));
 	agent->loadConfig(cfg);
 
 	qValueConstructorTest(SipUri{"sip:kijou@sip.linphone.org:4242"}, string{"sip:185.11.220.105;transport=udp"}, 0.555,

@@ -44,9 +44,8 @@ const char* getFirstPort(const Agent& agent) {
  */
 Server::Server(const std::string& configFile, InjectedHooks* injectedHooks)
     : mInjectedModule(injectedHooks ? decltype(mInjectedModule){*injectedHooks} : std::nullopt) {
+	ConfigManager* cfg = ConfigManager::get();
 	if (!configFile.empty()) {
-		ConfigManager* cfg = ConfigManager::get();
-
 		auto configFilePath = bcTesterRes(configFile);
 		int ret = -1;
 		if (bctbx_file_exist(configFilePath.c_str()) == 0) {
@@ -57,7 +56,8 @@ Server::Server(const std::string& configFile, InjectedHooks* injectedHooks)
 		if (ret != 0) {
 			BC_FAIL("Unable to load configuration file");
 		}
-		mAgent = std::make_shared<Agent>(std::make_shared<sofiasip::SuRoot>());
+		mAuthDbOwner = std::make_shared<AuthDbBackendOwner>(*cfg->getRoot());
+		mAgent = std::make_shared<Agent>(std::make_shared<sofiasip::SuRoot>(), mAuthDbOwner);
 		mAgent->loadConfig(cfg); // Don't modify cfg before this line as it gets reloaded here
 
 		// For testing purposes, override the auth file path to be relative to the config file.
@@ -68,7 +68,8 @@ Server::Server(const std::string& configFile, InjectedHooks* injectedHooks)
 		authFilePath->set(configFolderPath + authFilePath->read());
 	} else {
 		Agent::addConfigSections(*ConfigManager::get());
-		mAgent = std::make_shared<Agent>(std::make_shared<sofiasip::SuRoot>());
+		mAuthDbOwner = std::make_shared<AuthDbBackendOwner>(*cfg->getRoot());
+		mAgent = std::make_shared<Agent>(std::make_shared<sofiasip::SuRoot>(), mAuthDbOwner);
 	}
 }
 
@@ -76,7 +77,8 @@ Server::Server(const std::map<std::string, std::string>& customConfig, InjectedH
     : mInjectedModule(injectedHooks ? decltype(mInjectedModule){*injectedHooks} : std::nullopt) {
 	auto cfg = ConfigManager::get();
 	cfg->load("");
-	mAgent = std::make_shared<Agent>(std::make_shared<sofiasip::SuRoot>());
+	mAuthDbOwner = std::make_shared<AuthDbBackendOwner>(*cfg->getRoot());
+	mAgent = std::make_shared<Agent>(std::make_shared<sofiasip::SuRoot>(), mAuthDbOwner);
 
 	// add minimal config if not present
 	auto config = customConfig;

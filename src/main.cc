@@ -978,7 +978,8 @@ int main(int argc, char* argv[]) {
 	 * run.
 	 */
 	Agent::addConfigSections(*cfg);
-	a = make_shared<Agent>(root);
+	auto authDbOwner = std::make_shared<AuthDbBackendOwner>(*cfg->getRoot());
+	a = make_shared<Agent>(root, authDbOwner);
 	setOpenSSLThreadSafe();
 	a->loadConfig(cfg);
 
@@ -996,7 +997,7 @@ int main(int argc, char* argv[]) {
 		// Create cached test accounts for the Flexisip monitor if necessary
 		if (monitorEnabled) {
 			try {
-				Monitor::createAccounts();
+				Monitor::createAccounts(authDbOwner);
 			} catch (const FlexisipException& e) {
 				LOGE("Could not create test accounts for the monitor. %s", e.str().c_str());
 			}
@@ -1023,7 +1024,8 @@ int main(int argc, char* argv[]) {
 		    (cfg->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read());
 		presenceServer = make_shared<flexisip::PresenceServer>(root);
 		if (enableLongTermPresence) {
-			auto presenceLongTerm = make_shared<flexisip::PresenceLongterm>(presenceServer->getBelleSipMainLoop());
+			auto presenceLongTerm =
+			    make_shared<flexisip::PresenceLongterm>(presenceServer->getBelleSipMainLoop(), authDbOwner);
 			presenceServer->addPresenceInfoObserver(presenceLongTerm);
 		}
 		if (daemonMode) {

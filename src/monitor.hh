@@ -21,13 +21,14 @@
 #include <string>
 
 #include "agent.hh"
+#include "auth/db/authdb.hh"
 
 namespace flexisip {
 
 class Monitor {
 public:
 	static void exec(int socket);
-	static void createAccounts();
+	static void createAccounts(std::shared_ptr<AuthDbBackendOwner> authDbOwner);
 
 private:
 	class Init {

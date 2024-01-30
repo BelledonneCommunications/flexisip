@@ -39,6 +39,7 @@
 #include "sofia-sip/sip.h"
 #include "sofia-sip/sip_util.h"
 
+#include "auth/db/authdb.hh"
 #include "flexisip/common.hh"
 #include "flexisip/configmanager.hh"
 #include "flexisip/event.hh"
@@ -122,7 +123,7 @@ private:
 	void doSendEvent(std::shared_ptr<SipEventT> ev, const ModuleIter& begin, const ModuleIter& end);
 
 public:
-	Agent(const std::shared_ptr<sofiasip::SuRoot>& root);
+	Agent(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<AuthDbBackendOwner>& authDbOwner);
 	void start(const std::string& transport_override, const std::string& passphrase);
 	void loadConfig(ConfigManager* cm, bool strict = true);
 	void unloadConfig();
@@ -149,6 +150,9 @@ public:
 	}
 	std::shared_ptr<IncomingAgent> getIncomingAgent() override {
 		return shared_from_this();
+	}
+	AuthDbBackendOwner& getAuthDbOwner() {
+		return *mAuthDbOwner;
 	}
 
 	// Preferred route for inter-proxy communication
@@ -270,6 +274,7 @@ private:
 	// Placing the SuRoot before the modules ensures it will outlive them, so it is always safe to get (and keep)
 	// references to it from within them
 	std::shared_ptr<sofiasip::SuRoot> mRoot = nullptr;
+	const std::shared_ptr<AuthDbBackendOwner> mAuthDbOwner;
 	std::list<std::shared_ptr<Module>> mModules;
 	std::list<std::string> mAliases;
 	url_t* mPreferredRouteV4 = nullptr;
