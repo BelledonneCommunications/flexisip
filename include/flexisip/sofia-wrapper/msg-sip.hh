@@ -24,6 +24,7 @@
 #include <string>
 #include <string_view>
 
+#include <sofia-sip/msg_addr.h>
 #include <sofia-sip/msg_types.h>
 #include <sofia-sip/sip_protos.h>
 #include <sofia-sip/su_alloc.h>
@@ -78,6 +79,9 @@ public:
 	}
 	su_home_t* getHome() {
 		return msg_home(static_cast<msg_t*>(mMsg.borrow()));
+	}
+	sockaddr* getSockAddr() {
+		return msg_addrinfo(mMsg.borrow())->ai_addr;
 	}
 
 	msg_header_t* findHeader(const std::string& name, bool searchUnknowns = false);
