@@ -57,36 +57,35 @@ void NatHelper::onRequest(shared_ptr<RequestSipEvent>& ev) {
  * This feature should be removed from Flexisip.
  */
 void NatHelper::onResponse(shared_ptr<ResponseSipEvent>& ev) {
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
-	sip_status_t* st = ms->getSip()->sip_status;
-	sip_cseq_t* cseq = ms->getSip()->sip_cseq;
-	/*in responses that establish a dialog, masquerade Contact so that further requests (including the ACK) are
-	 * routed in the same way*/
+	const auto& ms = ev->getMsgSip();
+	const auto sip = ms->getSip();
+	const auto home = ev->getHome();
+	const auto* st = ms->getSip()->sip_status;
+	const auto* cseq = ms->getSip()->sip_cseq;
+
+	/* In responses that establish a dialog, masquerade Contact so that further requests (including the ACK) are
+	 * routed in the same way */
 	if (cseq && (cseq->cs_method == sip_method_invite || cseq->cs_method == sip_method_subscribe)) {
 		if (st->st_status >= 200 && st->st_status <= 299) {
-			sip_contact_t* ct = ms->getSip()->sip_contact;
+			const auto ct = sip->sip_contact;
 			if (ct) {
-				bool isVerified = url_has_param(ct->m_url, mContactVerifiedParam.c_str());
-				bool isLastHop =
-				    ms->getSip()->sip_via && ms->getSip()->sip_via->v_next && !ms->getSip()->sip_via->v_next->v_next;
-				if (isLastHop) {
-					if (isVerified) {
+				if (needToBeFixed(ev)) {
+					fixContactInResponse(home, ms->getMsg(), sip);
+				}
+
+				if (sip->sip_via && sip->sip_via->v_next && !sip->sip_via->v_next->v_next /* is last hop */) {
+					if (url_has_param(ct->m_url, mContactVerifiedParam.c_str()) /* is verified */) {
 						// Via contains client and first proxy
-						LOGD("Removing verified param from response contact");
-						ct->m_url->url_params = url_strip_param_string(su_strdup(ms->getHome(), ct->m_url->url_params),
+						LOGD("Removing \"verified\" parameter from response contact");
+						ct->m_url->url_params = url_strip_param_string(su_strdup(home, ct->m_url->url_params),
 						                                               mContactVerifiedParam.c_str());
 					}
-				} else {
-					if (needToBeFixed(ev)) {
-						fixContactInResponse(ms->getHome(), ms->getMsg(), ms->getSip());
-					}
-					/* The "verified" param must be added whenever we fix or not the Contact, in order
-					 * to signal other nodes processing this response that the contact has been
-					 * processed already. */
-					if (!isVerified) {
-						url_param_add(ms->getHome(), ct->m_url, mContactVerifiedParam.c_str());
-					}
+					return;
 				}
+
+				/* The "verified" parameter must be added whenever we fix or not the Contact, in order to signal
+				 * other nodes processing this response that the contact has been processed already. */
+				url_param_add(home, ct->m_url, mContactVerifiedParam.c_str());
 			}
 		}
 	}
