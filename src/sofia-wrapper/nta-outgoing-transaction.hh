@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,16 +9,20 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
 
+#include <optional>
+
 #include <sofia-sip/nta.h>
+
+#include "flexisip/sofia-wrapper/msg-sip.hh"
 
 namespace sofiasip {
 
@@ -40,6 +44,21 @@ public:
 	bool isCompleted() const noexcept {
 		return getStatus() >= 200;
 	}
+	/**
+	 * Return a pointer to the message of the last received response.
+	 * The pointer may be null if no response has been received.
+	 */
+	std::shared_ptr<const MsgSip> getResponse() const noexcept {
+		auto* msg = nta_outgoing_getresponse(mNativePtr);
+		const auto response = (msg == nullptr) ? nullptr : std::make_shared<const MsgSip>(ownership::Owned(msg));
+		if (mResponse == nullptr or response == nullptr or mResponse->getMsg() != response->getMsg()) {
+			mResponse = response;
+			return mResponse;
+		}
+
+		msg_unref(msg);
+		return mResponse;
+	}
 
 private:
 	friend class NtaAgent;
@@ -48,6 +67,7 @@ private:
 	}
 
 	nta_outgoing_t* mNativePtr{nullptr};
+	mutable std::shared_ptr<const MsgSip> mResponse{nullptr};
 };
 
 } // namespace sofiasip
