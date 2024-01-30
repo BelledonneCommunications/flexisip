@@ -71,6 +71,9 @@ public:
 		return *this;
 	}
 
+	Borrowed<msg_t> getMsg() const {
+		return {mMsg};
+	}
 	BorrowedMut<msg_t> getMsg() {
 		return mMsg.borrow();
 	}

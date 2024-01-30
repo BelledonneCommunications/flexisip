@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -452,22 +452,22 @@ bool ForkContextBase::shouldFinish() {
 	return true;
 }
 
-void ForkContextBase::onNewBranch([[maybe_unused]] const std::shared_ptr<BranchInfo>& br) {
+void ForkContextBase::onNewBranch(const std::shared_ptr<BranchInfo>&) {
 }
 
-void ForkContextBase::onCancel([[maybe_unused]] const std::shared_ptr<RequestSipEvent>& ev) {
+void ForkContextBase::onCancel(const std::shared_ptr<RequestSipEvent>&) {
 	if (shouldFinish()) {
 		setFinished();
 	}
 }
 
-void ForkContextBase::onResponse(const std::shared_ptr<BranchInfo>& br, [[maybe_unused]] const std::shared_ptr<ResponseSipEvent>& ev) {
+void ForkContextBase::onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>&) {
 	if (br->getStatus() >= 200) br->notifyBranchCompleted();
 }
 
-void ForkContextBase::onPushSent([[maybe_unused]] PushNotificationContext& aPNCtx, [[maybe_unused]] bool aRingingPush) noexcept {
+void ForkContextBase::onPushSent(PushNotificationContext& aPNCtx, bool) noexcept {
 	if (!m110Sent) {
-		sendResponse(110, "Push sent");
+		sendResponse(110, "Push sent", aPNCtx.toTagEnabled());
 		m110Sent = true;
 	}
 }

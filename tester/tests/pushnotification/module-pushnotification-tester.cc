@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -22,13 +22,16 @@
 #include "module-pushnotification.hh"
 #include "pushnotification/client.hh"
 #include "pushnotification/rfc8599-push-params.hh"
+#include "sofia-wrapper/nta-agent.hh"
 #include "utils/client-builder.hh"
 #include "utils/client-core.hh"
+#include "utils/contact-inserter.hh"
 #include "utils/core-assert.hh"
 #include "utils/test-patterns/agent-test.hh"
 #include "utils/test-suite.hh"
 
 using namespace std;
+using namespace sofiasip;
 using namespace std::chrono;
 
 namespace flexisip {
@@ -400,7 +403,7 @@ public:
 	}
 
 	/**
-	 * List of push params to use to registrate the callee to the dummy push server.
+	 * List of push params to use to register the callee to the dummy push server.
 	 */
 	virtual std::vector<RFC8599PushParams> getRegistrationPushParams() const noexcept = 0;
 
@@ -786,6 +789,126 @@ protected:
 
 /*********** CoreClient based tests **********************************************************************************/
 
+/*
+ * Base class to test the 110 Push Sent response.
+ */
+class PushSentTest : public AgentTest {
+public:
+	void testExec() override = 0;
+
+protected:
+	void onAgentConfiguration(GenericManager& cfg) override {
+		AgentTest::onAgentConfiguration(cfg);
+		cfg.getGlobal()->get<ConfigValue>("aliases")->set("localhost");
+		cfg.getGlobal()->get<ConfigValue>("transports")->set("sip:127.0.0.1:0");
+
+		const auto root = cfg.getRoot();
+		root->get<GenericStruct>("module::DoSProtection")->get<ConfigValue>("enabled")->set("false");
+		root->get<GenericStruct>("module::MediaRelay")->get<ConfigValue>("enabled")->set("false");
+		root->get<GenericStruct>("module::NatHelper")->get<ConfigValue>("enabled")->set("false");
+		root->get<GenericStruct>("module::PushNotification")->get<ConfigValue>("enabled")->set("true");
+		root->get<GenericStruct>("module::Registrar")->get<ConfigValue>("enabled")->set("true");
+		root->get<GenericStruct>("module::Registrar")->get<ConfigValue>("reg-domains")->set("localhost");
+		root->get<GenericStruct>("module::Router")->get<ConfigValue>("fork-late")->set("true");
+		root->get<GenericStruct>("module::Router")->get<ConfigValue>("call-fork-timeout")->set("1");
+	}
+
+	void onAgentStarted() override {
+		AgentTest::onAgentStarted();
+
+		const auto pnModule = dynamic_pointer_cast<PushNotification>(mAgent->findModule("PushNotification"));
+		pnModule->getService()->setFallbackClient(make_shared<DummyPushClient>(mAgent->getRoot()));
+
+		mClient = make_shared<NtaAgent>(mAgent->getRoot(), "sip:localhost:0");
+		mProxyPort = ::tport_name(::tport_primaries(::nta_agent_tports(mAgent->getSofiaAgent())))->tpn_port;
+
+		ContactInserter inserter(*RegistrarDb::get());
+		inserter.setAor("sip:callee@localhost")
+		    .setExpire(60s)
+		    .insert({"sip:callee@localhost:0;transport=tcp;pn-prid=id;pn-provider=fcm;pn-param=key;pn-silent=1;pn-"
+		             "timeout=0"});
+
+		BC_ASSERT_TRUE(waitFor([&inserter]() { return inserter.finished(); }, 2s));
+	}
+
+	shared_ptr<NtaOutgoingTransaction> inviteCallee() {
+		string request{
+		    "INVITE sip:callee@localhost SIP/2.0\r\n"
+		    "From: \"Caller\" <sip:caller@localhost>;tag=08HMIWXqx\r\n"
+		    "To: \"Callee\" <sip:callee@localhost>\r\n"
+		    "Call-ID: 6g7z4~lD8M\r\n"
+		    "CSeq: 20 INVITE\r\n"
+		    "Contact: <sip:caller@localhost;transport=tcp>\r\n"
+		    "User-Agent: LinphoneiOS/4.5.1 (caller-machine) LinphoneSDK/5.0.40-pre.2+ea19d3d\r\n"
+		    "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK, UPDATE\r\n"
+		    "Supported: replaces, outbound, gruu\r\n"
+		    "Content-Type: application/sdp\r\n"
+		    "Content-Length: 0\r\n"};
+
+		return mClient->createOutgoingTransaction(request, "sip:localhost:" + mProxyPort + ";transport=tcp");
+	}
+
+	string mProxyPort;
+	shared_ptr<NtaAgent> mClient;
+};
+
+/*
+ * Test that the "tag" parameter value in the "To" header is added when "module::PushNotification/add-to-tag-filter" is
+ * set and evaluates to true.
+ */
+class OnPushSentToTagParameterAdded : public PushSentTest {
+public:
+	void testExec() override {
+		const auto transaction = inviteCallee();
+		BC_ASSERT_TRUE(waitFor([&transaction]() { return transaction->getStatus() == 110; }, 2s));
+
+		const auto response = transaction->getResponse();
+		SLOGD << transaction->getResponse();
+		BC_HARD_ASSERT(response != nullptr);
+		BC_ASSERT(msg_params_find(response->getSip()->sip_to->a_params, "tag") != nullptr);
+
+		BC_ASSERT_TRUE(waitFor([&transaction]() { return transaction->isCompleted(); }, 2s));
+	}
+
+protected:
+	void onAgentConfiguration(GenericManager& cfg) override {
+		PushSentTest::onAgentConfiguration(cfg);
+
+		cfg.getRoot()
+		    ->get<GenericStruct>("module::PushNotification")
+		    ->get<ConfigValue>("add-to-tag-filter")
+		    ->set("true");
+	}
+};
+
+/*
+ * Test that the "tag" parameter value in the "To" header is not added when "module::PushNotification/add-to-tag-filter"
+ * is set and evaluates to false.
+ */
+class OnPushSentToTagParameterNotAdded : public PushSentTest {
+public:
+	void testExec() override {
+		const auto transaction = inviteCallee();
+		BC_ASSERT_TRUE(waitFor([&transaction]() { return transaction->getStatus() == 110; }, 2s));
+
+		const auto response = transaction->getResponse();
+		BC_HARD_ASSERT(response != nullptr);
+		BC_ASSERT(msg_params_find(response->getSip()->sip_to->a_params, "tag") == nullptr);
+
+		BC_ASSERT_TRUE(waitFor([&transaction]() { return transaction->isCompleted(); }, 2s));
+	}
+
+protected:
+	void onAgentConfiguration(GenericManager& cfg) override {
+		PushSentTest::onAgentConfiguration(cfg);
+
+		cfg.getRoot()
+		    ->get<GenericStruct>("module::PushNotification")
+		    ->get<ConfigValue>("add-to-tag-filter")
+		    ->set("false");
+	}
+};
+
 /**
  * These function has been created because BC_TEST_NO_TAG doesn't
  * work when the test class takes several pattern parameters.
@@ -811,6 +934,8 @@ TestSuite
               "Call invite on offline device (iOS, Remote only)"),
           makeTest<CallRemotePNCancelation>("Cancel a call notified by ringing remote push notifications"),
           makeTest<CallInviteOnOfflineDeviceWithSamePushParams>("Push module use provider to compare push params"),
+          makeTest<OnPushSentToTagParameterAdded>("To tag parameter added when OnPushSent is triggered"),
+          makeTest<OnPushSentToTagParameterNotAdded>("To tag parameter not added when OnPushSent is triggered"),
       });
 }
 } // namespace tester
