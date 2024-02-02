@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -19,11 +19,13 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
 #include "flexisip/fork-context/fork-context.hh"
 #include "flexisip/module-router-interface.hh"
 #include "flexisip/module.hh"
 #include "flexisip/registrar/registar-listeners.hh"
+#include "flexisip/utils/sip-uri.hh"
 #include "registrar/record.hh"
 
 namespace flexisip {
@@ -159,6 +161,7 @@ private:
 	std::shared_ptr<SipBooleanExpression> mFallbackRouteFilter;
 	std::shared_ptr<OnContactRegisteredListener> mOnContactRegisteredListener{nullptr};
 	std::unique_ptr<Injector> mInjector;
+	std::vector<SipUri> mStaticTargets;
 };
 
 class OnContactRegisteredListener : public ContactRegisteredListener,

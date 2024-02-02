@@ -1,8 +1,11 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
+/** Copyright (C) 2010-2024 Belledonne Communications SARL
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #pragma once
+
+#include <string>
+#include <vector>
 
 #include "flexisip/module.hh"
 
@@ -13,8 +16,15 @@ class InjectedModule : public Module {
 public:
 	// For injection purposes, such modules must be constructed prior to the Agent.
 	// The mAgent pointer will be set as part of the Agent's initialisation process
-	InjectedModule() : Module(nullptr) {
+	explicit InjectedModule(const std::vector<std::string>& after) : Module(nullptr), mAfter(after) {
 	}
+
+	const std::vector<std::string>& getAfter() const {
+		return mAfter;
+	}
+
+private:
+	std::vector<std::string> mAfter;
 };
 
 // Inject custom behaviour into the Agent's requests and responses handling.
@@ -26,14 +36,15 @@ public:
 		std::function<void(std::shared_ptr<ResponseSipEvent>&)> onResponse = [](auto&) {};
 	};
 
-	InjectedHooks(Hooks&& hooks) : mHooks(std::move(hooks)) {
+	explicit InjectedHooks(Hooks&& hooks, const std::vector<std::string>& after = {""})
+	    : InjectedModule(after), mHooks(std::move(hooks)) {
 	}
 
 private:
-	void onRequest(std::shared_ptr<RequestSipEvent>& ev) {
+	void onRequest(std::shared_ptr<RequestSipEvent>& ev) override {
 		mHooks.onRequest(ev);
 	}
-	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) {
+	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override {
 		mHooks.onResponse(ev);
 	}
 

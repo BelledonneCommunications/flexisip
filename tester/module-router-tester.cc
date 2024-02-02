@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -25,12 +25,13 @@
 
 #include "flexisip/logmanager.hh"
 #include "flexisip/module-router.hh"
-#include "flexisip/sofia-wrapper/su-root.hh"
 
 #include "registrar/registrar-db.hh"
 #include "utils/asserts.hh"
 #include "utils/bellesip-utils.hh"
+#include "utils/injected-module.hh"
 #include "utils/proxy-server.hh"
+#include "utils/string-utils.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -407,6 +408,129 @@ void message_expires() {
 	BC_ASSERT_CPP_EQUAL(forks->read(), 1);
 }
 
+class RoutingWithStaticTargetsTest : public Test {
+public:
+	RoutingWithStaticTargetsTest(const map<string, string>& contacts, const vector<string>& staticTargetsParameter)
+	    : mInjectedModule(
+	          {
+	              .onRequest =
+	                  [this](const shared_ptr<RequestSipEvent>& ev) {
+		                  if (ev->getMsgSip()->getSipMethod() != sip_method_invite) return;
+		                  mActualTargets.emplace_back(url_as_string(ev->getHome(), ev->getSip()->sip_request->rq_url));
+	                  },
+	          },
+	          {"Router"}),
+	      mProxy(
+	          {
+	              {"global/aliases", "localhost"},
+	              {"global/transports", "sip:127.0.0.1:0;transport=udp"},
+	              {"module::NatHelper/enabled", "false"},
+	              {"module::DoSProtection/enabled", "false"},
+	              {"module::Registrar/reg-domains", "localhost"},
+	              {"module::Router/call-fork-timeout", "1"},
+	              {"module::Router/static-targets", StringUtils::join(staticTargetsParameter)},
+	          },
+	          &mInjectedModule),
+	      mBSipUtils("127.0.0.1", 0, "UDP", nullptr, nullptr) {
+
+		mProxy.start();
+
+		mAsserter.addCustomIterate([&root = *mProxy.getRoot()] { root.step(1ms); });
+
+		ContactInserter inserter(*RegistrarDb::get());
+		for (const auto& contact : contacts) {
+			inserter.setAor(contact.first).setExpire(1min).insert({contact.second});
+		}
+		BC_HARD_ASSERT_TRUE(mAsserter.iterateUpTo(5, [&inserter] { return inserter.finished(); }, 2s));
+	}
+
+protected:
+	InjectedHooks mInjectedModule;
+	Server mProxy;
+	BellesipUtils mBSipUtils;
+	BcAssert mAsserter{};
+	vector<string> mActualTargets{};
+	vector<string> mExpectedTargets{};
+};
+
+class RequestIsAlsoRoutedToStaticTargetsTest : public RoutingWithStaticTargetsTest {
+public:
+	RequestIsAlsoRoutedToStaticTargetsTest()
+	    : RoutingWithStaticTargetsTest(
+	          {
+	              {"sip:callee@localhost", "sip:callee@localhost:0"},
+	          },
+	          {
+	              "sip:static-target@localhost:0",
+	              "sip:static-target-bis@localhost:0",
+	          }) {
+		mExpectedTargets = {
+		    "sip:static-target@localhost:0",
+		    "sip:static-target-bis@localhost:0",
+		    "sip:callee@localhost:0",
+		};
+	}
+
+	void operator()() override {
+		mBSipUtils.sendRawRequest(
+		    "INVITE sip:callee@localhost:"s + mProxy.getFirstPort() + " SIP/2.0\r\n" +
+		    "Via: SIP/2.0/TCP 127.0.0.1\r\n"
+		    "From: \"Caller\" <sip:caller@localhost>;tag=08HMIWXqx\r\n"
+		    "To: \"Callee\" <sip:callee@localhost>\r\n"
+		    "Call-ID: 6g7z4~lD8M\r\n"
+		    "CSeq: 20 INVITE\r\n"
+		    "Contact: <sip:caller@localhost;transport=tcp>\r\n"
+		    "User-Agent: LinphoneiOS/4.5.1 (caller-machine) LinphoneSDK/5.0.40-pre.2+ea19d3d\r\n"
+		    "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK, UPDATE\r\n"
+		    "Supported: replaces, outbound, gruu\r\n"
+		    "Content-Type: application/sdp\r\n"
+		    "Content-Length: 0\r\n");
+
+		BC_ASSERT_TRUE(mAsserter.iterateUpTo(5, [this] { return mActualTargets == mExpectedTargets; }, 2s));
+	}
+};
+
+class RequestIsRoutedToXTargetUrisAndStaticTargetsTest : public RoutingWithStaticTargetsTest {
+public:
+	RequestIsRoutedToXTargetUrisAndStaticTargetsTest()
+	    : RoutingWithStaticTargetsTest(
+	          {
+	              {"sip:x-target@localhost", "sip:x-target@localhost:0"},
+	              {"sip:x-target-bis@localhost", "sip:x-target-bis@localhost:0"},
+	          },
+	          {
+	              "sip:static-target@localhost:0",
+	              "sip:static-target-bis@localhost:0",
+	          }) {
+
+		mExpectedTargets = {
+		    "sip:static-target@localhost:0",
+		    "sip:static-target-bis@localhost:0",
+		    "sip:x-target@localhost:0",
+		    "sip:x-target-bis@localhost:0",
+		};
+	}
+
+	void operator()() override {
+		mBSipUtils.sendRawRequest(
+		    "INVITE sip:callee@localhost:"s + mProxy.getFirstPort() + " SIP/2.0\r\n" +
+		    "Via: SIP/2.0/TCP 127.0.0.1\r\n"
+		    "From: \"Caller\" <sip:caller@localhost>;tag=08HMIWXqx\r\n"
+		    "To: \"Callee\" <sip:callee@localhost>\r\n"
+		    "X-Target-Uris: <sip:x-target@localhost:0>,<sip:x-target-bis@localhost:0>\r\n"
+		    "Call-ID: 6g7z4~lD8M\r\n"
+		    "CSeq: 20 INVITE\r\n"
+		    "Contact: <sip:caller@localhost;transport=tcp>\r\n"
+		    "User-Agent: LinphoneiOS/4.5.1 (caller-machine) LinphoneSDK/5.0.40-pre.2+ea19d3d\r\n"
+		    "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK, UPDATE\r\n"
+		    "Supported: replaces, outbound, gruu\r\n"
+		    "Content-Type: application/sdp\r\n"
+		    "Content-Length: 0\r\n");
+
+		BC_ASSERT_TRUE(mAsserter.iterateUpTo(5, [this] { return mActualTargets == mExpectedTargets; }, 2s));
+	}
+};
+
 namespace {
 TestSuite
     _("Module router",
@@ -417,6 +541,8 @@ TestSuite
                       run<FallbackRouteFilterTest>),
           TEST_NO_TAG("Check that module router remove route to itself", run<SelfRouteHeaderRemovingTest>),
           TEST_NO_TAG("Check that module router don't remove route to others", run<OtherRouteHeaderNotRemovedTest>),
+          CLASSY_TEST(RequestIsAlsoRoutedToStaticTargetsTest),
+          CLASSY_TEST(RequestIsRoutedToXTargetUrisAndStaticTargetsTest),
       });
 } // namespace
 } // namespace tester
