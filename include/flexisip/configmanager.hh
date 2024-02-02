@@ -69,14 +69,9 @@ enum class ConfigState { Check, Changed, Reset, Committed };
 class ConfigValue;
 
 class ConfigValueListener {
-	static bool sDirty;
-
 public:
 	ConfigValueListener() = default;
 	virtual ~ConfigValueListener() = default;
-	bool onConfigStateChanged(const ConfigValue& conf, ConfigState state);
-
-protected:
 	virtual bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) = 0;
 
 private:
@@ -291,6 +286,7 @@ public:
 	ConfigValueListener* getConfigListener() const {
 		return mConfigListener;
 	}
+	bool onConfigStateChanged(const ConfigValue& conf, ConfigState state);
 
 	void setDeprecated(const DeprecationInfo& info) {
 		mDeprecationInfo = info;
@@ -404,8 +400,25 @@ private:
 
 class RootConfigStruct : public GenericStruct {
 public:
-	RootConfigStruct(const std::string& name, const std::string& help, std::vector<oid> oid_root_prefix);
+	RootConfigStruct(const std::string& name,
+	                 const std::string& help,
+	                 std::vector<oid> oid_root_prefix,
+	                 const std::string& configFile);
 	~RootConfigStruct() override;
+
+	const std::string& getConfigFile() const {
+		return mConfigFile;
+	}
+	void setCommittedChange(bool committedChange) {
+		mCommittedChange = committedChange;
+	}
+	bool hasCommittedChange() const {
+		return mCommittedChange;
+	}
+
+private:
+	const std::string& mConfigFile; // keep a const ref to ConfigManager file
+	bool mCommittedChange{true};
 };
 
 class StatCounter64 : public GenericEntry {
@@ -843,9 +856,9 @@ protected:
 private:
 	bool doIsValidNextConfig(const ConfigValue& cv);
 	bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) override;
+	std::string mConfigFile;
 	RootConfigStruct mConfigRoot;
 	FileConfigReader mReader;
-	std::string mConfigFile;
 	std::map<std::string, std::string> mOverrides;
 	std::map<std::string, StatCounter64*> mStatMap;
 	std::unordered_set<std::string> mStatOids;

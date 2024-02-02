@@ -112,7 +112,8 @@ template <typename Backend, const char request[]>
 void customPasswordRequestParamInjection() {
 	Backend backend{};
 	const auto injectedPassword = tester::randomString(0x10);
-	RootConfigStruct configRoot{"flexisip-tester", "Fake configuration for testing purposes", {}};
+	std::string empty{};
+	RootConfigStruct configRoot{"flexisip-tester", "Fake configuration for testing purposes", {}, empty};
 	PresenceServer::Init{configRoot};
 	const auto& moduleInfos = ModuleInfoManager::get()->getRegisteredModuleInfo();
 	for (const auto& moduleInfo : moduleInfos) {

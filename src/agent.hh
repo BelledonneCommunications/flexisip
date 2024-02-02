@@ -116,8 +116,6 @@ class Agent : public AgentInterface,
 	StatCounter64* mCountReply408 = nullptr; // request timeout
 	StatCounter64* mCountReplyResUnknown = nullptr;
 
-	ConfigValueListener* mBaseConfigListener = nullptr;
-
 private:
 	template <typename SipEventT, typename ModuleIter>
 	void doSendEvent(std::shared_ptr<SipEventT> ev, const ModuleIter& begin, const ModuleIter& end);

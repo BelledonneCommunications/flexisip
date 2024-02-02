@@ -678,19 +678,15 @@ bool Agent::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) {
 	if (conf.getName() == "aliases" && state == ConfigState::Committed) {
 		mAliases = ((ConfigStringList*)(&conf))->read();
 		LOGD("Global aliases updated");
-		return true;
 	}
-
-	return mBaseConfigListener->onConfigStateChanged(conf, state);
+	return true;
 }
 
 void Agent::loadConfig(ConfigManager* cm, bool strict) {
 	if (strict)
 		cm->loadStrict(); // now that each module has declared its settings, we need to reload from the config file
-	if (!mBaseConfigListener) {
-		mBaseConfigListener = cm->getGlobal()->getConfigListener();
-	}
-	cm->getRoot()->get<GenericStruct>("global")->setConfigListener(this);
+
+	cm->getGlobal()->get<ConfigStringList>("aliases")->setConfigListener(this);
 	mAliases = cm->getGlobal()->get<ConfigStringList>("aliases")->read();
 	LOGD("List of host aliases:");
 	for (const auto& alias : mAliases) {

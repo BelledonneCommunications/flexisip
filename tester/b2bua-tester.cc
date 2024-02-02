@@ -536,7 +536,8 @@ static void external_provider_bridge__override_special_options() {
 		}
 	])");
 	ConfigItemDescriptor configItems[] = {{String, "providers", "help", providersJson.name}, config_item_end};
-	RootConfigStruct config("placeholder", "A stub config root for testing", {});
+	std::string empty;
+	RootConfigStruct config("placeholder", "A stub config root for testing", {}, empty);
 	config.addChild(make_unique<GenericStruct>("b2bua-server::sip-bridge", "help", 0))->addChildrenValues(configItems);
 	b2bua::bridge::AccountManager accman{};
 	Server proxy{{

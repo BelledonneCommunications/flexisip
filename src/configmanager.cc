@@ -40,39 +40,59 @@ using namespace std;
 
 namespace flexisip {
 
-bool ConfigValueListener::sDirty = false;
+namespace {
+RootConfigStruct* retrieveRoot(GenericEntry* firstEntry) {
+	auto* entry = firstEntry;
+	while (entry->getParent()) {
+		entry = entry->getParent();
+	}
+	return dynamic_cast<RootConfigStruct*>(entry);
+}
+} // namespace
 
-bool ConfigValueListener::onConfigStateChanged(const ConfigValue& conf, ConfigState state) {
+/*********************************************************************************************************************/
+/* GenericEntry class */
+/*********************************************************************************************************************/
+
+bool GenericEntry::onConfigStateChanged(const ConfigValue& conf, ConfigState state) {
+	// Get first available listener
+	if (mConfigListener == nullptr) {
+		if (getParent() == nullptr) {
+			LOGE("%s doesn't implement a config change listener.", conf.getName().c_str());
+			return false;
+		}
+		return getParent()->onConfigStateChanged(conf, state);
+	}
+
+	auto* rootStruct = retrieveRoot(this);
+	if (rootStruct == nullptr) return false; // should not happen
+
 	switch (state) {
 		case ConfigState::Committed:
-			if (sDirty) {
+			if (!rootStruct->hasCommittedChange()) {
 				// Write to disk
-				GenericStruct* rootStruct = ConfigManager::get()->getRoot();
+				const auto& configFile = rootStruct->getConfigFile();
 				ofstream cfgfile;
-				cfgfile.open(ConfigManager::get()->getConfigFile());
+				cfgfile.open(configFile);
 				FileConfigDumper dumper(rootStruct);
 				dumper.setMode(FileConfigDumper::Mode::CurrentValue);
 				cfgfile << dumper;
 				cfgfile.close();
-				LOGI("New configuration wrote to %s .", ConfigManager::get()->getConfigFile().c_str());
-				sDirty = false;
+				LOGI("New configuration wrote to %s .", configFile.c_str());
+				rootStruct->setCommittedChange(true);
 			}
 			break;
 		case ConfigState::Changed:
-			sDirty = true;
+			rootStruct->setCommittedChange(false);
 			break;
 		case ConfigState::Reset:
-			sDirty = false;
+			rootStruct->setCommittedChange(true);
 			break;
 		case ConfigState::Check:
 			break;
 	}
-	return doOnConfigStateChanged(conf, state);
+	return mConfigListener->doOnConfigStateChanged(conf, state);
 }
-
-/*********************************************************************************************************************/
-/* GenericEntry class                                                                                                */
-/*********************************************************************************************************************/
 
 void GenericEntry::DeprecationInfo::setAsDeprecated(const std::string& date,
                                                     const std::string& version,
@@ -323,15 +343,7 @@ ConfigValue::ConfigValue(
 }
 
 bool ConfigValue::invokeConfigStateChanged(ConfigState state) {
-	if (getParent() && getParent()->getType() == Struct) {
-		ConfigValueListener* listener = getParent()->getConfigListener();
-		if (listener) {
-			return listener->onConfigStateChanged(*this, state);
-		} else {
-			LOGE("%s doesn't implement a config change listener.", getParent()->getName().c_str());
-		}
-	}
-	return true;
+	return onConfigStateChanged(*this, state);
 }
 
 void ConfigValue::checkType(const string& value, bool isDefault) {
@@ -846,8 +858,11 @@ ConfigManager* ConfigManager::get() {
 	return sInstance.get();
 }
 
-RootConfigStruct::RootConfigStruct(const string& name, const string& help, vector<oid> oid_root_path)
-    : GenericStruct(name, help, 1) {
+RootConfigStruct::RootConfigStruct(const string& name,
+                                   const string& help,
+                                   vector<oid> oid_root_path,
+                                   const std::string& configFile)
+    : GenericStruct(name, help, 1), mConfigFile(configFile) {
 	mOid = new Oid(oid_root_path, 1);
 }
 RootConfigStruct::~RootConfigStruct() {
@@ -860,7 +875,8 @@ RootConfigStruct::~RootConfigStruct() {
 ConfigManager::ConfigManager()
     : mConfigRoot("flexisip",
                   "This is the default Flexisip (v" FLEXISIP_GIT_VERSION ") configuration file",
-                  {1, 3, 6, 1, 4, 1, SNMP_COMPANY_OID}),
+                  {1, 3, 6, 1, 4, 1, SNMP_COMPANY_OID},
+                  mConfigFile),
       mReader(&mConfigRoot) {
 	// to make sure global_conf is instantiated first
 	static ConfigItemDescriptor global_conf[] = {
