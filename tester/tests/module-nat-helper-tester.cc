@@ -18,10 +18,8 @@
 
 #include "module-nat-helper.hh"
 
-#include <bctoolbox/tester.h>
-#include <sofia-sip/msg_addr.h>
-
-#include "utils/test-patterns/agent-test.hh"
+#include "utils/proxy-server.hh"
+#include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
 using namespace std;
@@ -29,54 +27,64 @@ using namespace sofiasip;
 
 namespace flexisip::tester {
 
-class WrongContactInResponseTest : public AgentTest {
+void wrongContactInResponse() {
+	Server proxy{{
+	    {"global/transports", "sip:127.0.0.1:0"},
+	    {"global/aliases", "localhost"},
+	}};
+	proxy.start();
 
-	void testExec() override {
-		// Create a sip response event with transport corresponding to received "ip:port" in the first "VIA" header.
-		const string request =
-		    "SIP/2.0 200 OK\r\n"
-		    "Via: SIP/2.0/TCP sip.example.org;rport;branch=z9hG4bK.0vB2p8BDSm6ajjQQFgQ0t6a20F;received=1.2.3.4\r\n"
-		    "Via: SIP/2.0/TLS 10.0.0.8:12345;branch=z9hG4bK.u8Dh~xcjx;rport=6789;received=5.6.7.8\r\n"
-		    "Record-Route: <sip:sip.example.org:5060;transport=tcp;lr>\r\n"
-		    "Record-Route: <sips:sip.example.org:5061;lr>\r\n"
-		    "From: <sip:callee@sip.example.org>;tag=Qx935r3\r\n"
-		    "To: \"Caller\" <sip:caller@10.0.1.5>;tag=fd983a4f\r\n"
-		    "Contact: <sip:caller@10.0.1.5;transport=tcp>\r\n"
-		    "Call-ID: cb30345a285a7608c0a269db7528176e\r\n"
-		    "CSeq: 113 INVITE\r\n"
-		    "Session-Expires: 1800;refresher=uas\r\n"
-		    "Allow: INVITE, ACK, BYE, CANCEL, OPTIONS, UPDATE, REFER, SUBSCRIBE, NOTIFY, MESSAGE, INFO, PRACK\r\n"
-		    "Allow-Events: presence, refer, dialog\r\n"
-		    "Accept: application/sdp\r\n"
-		    "Accept-Encoding: identity\r\n"
-		    "Accept-Language: en\r\n"
-		    "Supported: 100rel, replaces, timer\r\n"
-		    "User-Agent: VeriCall Edge\r\n"
-		    "Content-Type: application/sdp\r\n"
-		    "Content-Length: 261";
-		// Create sip message with "ip:port" corresponding to "received" in the first "VIA" header.
-		const auto msg = make_shared<MsgSip>(0, request);
-		const auto sockAddr = reinterpret_cast<sockaddr_in*>(msg->getSockAddr());
-		sockAddr->sin_family = AF_INET;
-		sockAddr->sin_addr.s_addr = htonl(0x05060708);
-		sockAddr->sin_port = htons(6789);
-		// Create dummy incoming transport to make NatHelper::needToBeFixed return true.
-		tp_name_t name{"tcp", nullptr, "127.0.0.1", "5060", nullptr, nullptr};
-		const auto incomingTport = tport_by_name(nta_agent_tports(mAgent->getSofiaAgent()), &name);
-		auto event = make_shared<ResponseSipEvent>(mAgent, msg, incomingTport);
+	const pair<string, uint16_t> port{"1234", 1234};
+	const pair<string, uint32_t> host{"1.2.3.4", 0x01020304};
+	const auto expectedContactUrl = "sip:caller@" + host.first + ":" + port.first + ";transport=tcp";
 
-		const auto module = dynamic_pointer_cast<NatHelper>(mAgent->findModule("NatHelper"));
-		module->onResponse(event);
+	// Create a sip response event with transport corresponding to received "ip:port" in the first "VIA" header.
+	const auto request =
+	    "SIP/2.0 200 OK\r\n"
+	    "Via: SIP/2.0/TCP sip.example.org;rport;branch=a;received=5.6.7.8\r\n"
+	    "Via: SIP/2.0/TLS 10.0.0.8:56324;branch=b;rport=" +
+	    port.first + ";received=" + host.first + "\r\n" +
+	    "From: \"Callee\" <sip:callee@sip.example.org>;tag=Qx935r3\r\n"
+	    "To: \"Caller\" <sip:caller@sip.example.org>;tag=fd983a4f\r\n"
+	    "Contact: <sip:caller@sip.example.org;transport=tcp>\r\n"
+	    "Call-ID: stub-call-id\r\n"
+	    "CSeq: 113 INVITE\r\n"
+	    "Session-Expires: 1800;refresher=uas\r\n"
+	    "Allow: INVITE, ACK, BYE, CANCEL, OPTIONS, UPDATE, REFER, SUBSCRIBE, NOTIFY, MESSAGE, INFO, PRACK\r\n"
+	    "Allow-Events: presence, refer, dialog\r\n"
+	    "Accept: application/sdp\r\n"
+	    "Accept-Encoding: identity\r\n"
+	    "Accept-Language: en\r\n"
+	    "Supported: 100rel, replaces, timer\r\n"
+	    "User-Agent: stub-user-agent\r\n"
+	    "Content-Type: application/sdp\r\n"
+	    "Content-Length: 261";
 
-		const auto contact = event->getSip()->sip_contact;
-		BC_HARD_ASSERT(contact != nullptr);
-		const auto url = url_as_string(event->getHome(), contact->m_url);
-		BC_ASSERT_STRING_EQUAL(url, "sip:caller@5.6.7.8:6789;transport=tcp");
-	}
-};
+	// Create sip message with "ip:port" corresponding to "received" in the first "VIA" header.
+	const auto msg = make_shared<MsgSip>(0, request);
+	auto* sockAddr = reinterpret_cast<sockaddr_in*>(msg->getSockAddr());
+	sockAddr->sin_addr.s_addr = htonl(host.second);
+	sockAddr->sin_port = htons(port.second);
+	sockAddr->sin_family = AF_INET;
+
+	// Create dummy incoming transport to make NatHelper::needToBeFixed return true.
+	tp_name_t name{"tcp", nullptr, "localhost", "0", nullptr, nullptr};
+	auto* incomingTport = tport_by_name(nta_agent_tports(proxy.getAgent()->getSofiaAgent()), &name);
+	auto event = make_shared<ResponseSipEvent>(proxy.getAgent(), msg, incomingTport);
+
+	const auto module = dynamic_pointer_cast<NatHelper>(proxy.getAgent()->findModule("NatHelper"));
+	module->onResponse(event);
+
+	const auto* contact = event->getSip()->sip_contact;
+	BC_HARD_ASSERT(contact != nullptr);
+	BC_ASSERT_CPP_EQUAL(url_as_string(event->getHome(), contact->m_url), expectedContactUrl);
+}
 
 namespace {
-TestSuite _("NatHelperModule", {TEST_NO_TAG_AUTO_NAMED(run<WrongContactInResponseTest>)});
+TestSuite _("NatHelperModule",
+            {
+                TEST_NO_TAG_AUTO_NAMED(wrongContactInResponse),
+            });
 }
 
 } // namespace flexisip::tester
