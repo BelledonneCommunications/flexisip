@@ -501,6 +501,9 @@ shared_ptr<BooleanExpression<_valuesT>> BooleanExpressionBuilder<_valuesT>::pars
 		if (immediateNeighbour && cur_exp) break;
 	}
 	*newpos += i;
+	if (!cur_exp){
+		throw invalid_argument("Meaning-less expression, possibly without operator.");
+	}
 	return cur_exp;
 };
 
