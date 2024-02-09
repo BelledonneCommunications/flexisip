@@ -32,12 +32,6 @@ public:
 	}
 
 	virtual void onRequest(shared_ptr<RequestSipEvent>& ev) {
-		const sip_t* sip = ev->getMsgSip()->getSip();
-		if (sip->sip_request->rq_method == sip_method_options) {
-			ev->reply(200, NULL, TAG_END());
-			return;
-		}
-
 		SLOGD << "Garbage: processing terminated";
 		ev->terminateProcessing();
 	}
