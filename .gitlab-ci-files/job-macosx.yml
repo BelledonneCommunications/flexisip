@@ -1,10 +1,10 @@
 .job-macosx:
   stage: build 🏗
-  tags: [ "macosx-xcode12" ]
+  tags: [ "macosx-min-xcode12.2" ]
 
   # Temporarily allows macosx jobs to fail because the machine that
-  # was executing the macOS jobs is broken. Remove when it is
-  # fixed.
+  # was executing the macOS jobs is broken. Remove when it is
+  # fixed.
   allow_failure: true
 
   script:
