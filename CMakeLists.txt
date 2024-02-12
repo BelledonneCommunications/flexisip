@@ -67,7 +67,7 @@ endif()
 
 option(ENABLE_SANITIZERS "Turn on sanitizers, like the LSAN memory leak detector" ${IS_DEBUG})
 option(ENABLE_STRICT "Pass strict flags to the compiler" ON)
-option(ENABLE_STRICT_LINPHONESDK "Pass strict flags to the compiler for all Linphone SDK submodules" ON)
+option(ENABLE_STRICT_LINPHONESDK "Pass strict flags to the compiler for all Linphone SDK submodules" OFF)
 option(ENABLE_DATEHANDLER "Build DateHandler module" OFF)
 option(ENABLE_PDFDOC "Build PDF documentation" OFF)
 option(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS "Enable monotonic clock for registrations" OFF)
