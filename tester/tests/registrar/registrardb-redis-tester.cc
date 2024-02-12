@@ -111,7 +111,11 @@ private:
 };
 
 void mContext_should_be_checked_on_serializeAndSendToRedis() {
-	auto& registrar = *dynamic_cast<RegistrarDbRedisAsync*>(RegistrarDb::get());
+	auto& registrar = SUITE_SCOPE->proxyServer.getAgent()->getRegistrarDb();
+	const auto* backend = dynamic_cast<const RegistrarDbRedisAsync*>(&registrar.getRegistrarBackend());
+	BC_HARD_ASSERT(backend != nullptr);
+	auto& registrarBackend = const_cast<RegistrarDbRedisAsync&>(*backend); // we want to force a behavior
+
 	const auto placeholder = "sip:placeholder@example.org";
 	BindingParameters bindParams;
 	bindParams.globalExpire = 3001;
@@ -120,15 +124,19 @@ void mContext_should_be_checked_on_serializeAndSendToRedis() {
 	auto listener = std::make_shared<OperationFailedListener>();
 
 	registrar.bind(SipUri(placeholder), sip_contact_make(home.home(), placeholder), bindParams, listener);
-	registrar.asyncDisconnect(); // disconnecting before the previous bind operation finishes
+	registrarBackend.asyncDisconnect(); // disconnecting before the previous bind operation finishes
 
 	// The bind() ends in error, but there should be no segfault
 	BC_ASSERT_TRUE(SUITE_SCOPE->asserter.iterateUpTo(30, [&finished = listener->finished] { return finished; }));
 }
 
 void auto_connect_on_command() {
-	auto& registrar = *dynamic_cast<RegistrarDbRedisAsync*>(RegistrarDb::get());
-	registrar.forceDisconnect();
+	auto& registrar = SUITE_SCOPE->proxyServer.getAgent()->getRegistrarDb();
+	const auto* backend = dynamic_cast<const RegistrarDbRedisAsync*>(&registrar.getRegistrarBackend());
+	BC_HARD_ASSERT(backend != nullptr);
+	auto& registrarBackend = const_cast<RegistrarDbRedisAsync&>(*backend); // we want to force a behavior
+
+	registrarBackend.forceDisconnect();
 	BC_HARD_ASSERT(!registrar.isWritable());
 
 	registrar.fetch(SipUri("sip:redis-auto-connect@example.org"), nullptr);
@@ -139,7 +147,10 @@ void auto_connect_on_command() {
 
 void bind_retry_on_broken_connection() {
 	StaticOverride _{RegistrarDbRedisAsync::bindRetryTimeout, 20ms};
-	auto& registrar = *dynamic_cast<RegistrarDbRedisAsync*>(RegistrarDb::get());
+	auto& registrar = SUITE_SCOPE->proxyServer.getAgent()->getRegistrarDb();
+	auto registrarBackend = dynamic_cast<const RegistrarDbRedisAsync*>(&registrar.getRegistrarBackend());
+	BC_HARD_ASSERT(registrarBackend != nullptr);
+
 	const auto aor = "sip:bind-retry@example.org";
 	BindingParameters bindParams;
 	bindParams.globalExpire = 3125;
@@ -189,15 +200,16 @@ void bind_retry_on_broken_connection() {
 	SUITE_SCOPE->redis.restart();
 
 	// Let the Registrar notice
-	BC_ASSERT_TRUE(SUITE_SCOPE->asserter.iterateUpTo(10, [&registrar] { return !registrar.isConnected(); }));
+	BC_ASSERT_TRUE(
+	    SUITE_SCOPE->asserter.iterateUpTo(10, [&registrarBackend] { return !registrarBackend->isConnected(); }));
 	// Wait for the server to be up again
 	SUITE_SCOPE->redis.port();
 	BC_ASSERT_TRUE(SUITE_SCOPE->asserter.iterateUpTo(10, [&record = listener->mRecord] { return record != nullptr; }));
 }
 
 void subscribe_to_key_expiration() {
-	auto& registrar = *RegistrarDb::get();
-	const Record::Key topic{SipUri("sip:expiring-key@example.org")};
+	auto& registrar = SUITE_SCOPE->proxyServer.getAgent()->getRegistrarDb();
+	const Record::Key topic{SipUri("sip:expiring-key@example.org"), registrar.useGlobalDomain()};
 	std::optional<Record::Key> actualTopic{};
 	const auto listener = std::make_shared<ContactRegisteredCallback>(
 	    [&actualTopic](const std::shared_ptr<Record>& record, const auto& userId) {
@@ -226,7 +238,7 @@ void subscribe_to_key_expiration() {
 }
 
 void periodic_replication_check() {
-	auto& registrar = *RegistrarDb::get();
+	auto& registrar = SUITE_SCOPE->proxyServer.getAgent()->getRegistrarDb();
 	const auto connectionListener = std::make_shared<SuccessfulConnectionListener>();
 	auto reCheckDelay = SUITE_SCOPE->proxyServer.getAgent()
 	                        ->getConfigManager()
@@ -292,41 +304,30 @@ void connection_failure() {
 	     {"module::Registrar/redis-server-port", "0"}},
 	};
 	CoreAssert asserter{proxyServer};
-	auto& registrar = *dynamic_cast<RegistrarDbRedisAsync*>(RegistrarDb::get());
+	auto& registrar = proxyServer.getAgent()->getRegistrarDb();
+	auto backend = dynamic_cast<const RegistrarDbRedisAsync*>(&registrar.getRegistrarBackend());
+	BC_HARD_ASSERT(backend != nullptr);
+	auto& registrarBackend = const_cast<RegistrarDbRedisAsync&>(*backend); // we want to force a behavior
 	auto listener = std::make_shared<OperationFailedListener>();
-	BC_ASSERT(registrar.connect() != std::nullopt);
+	BC_ASSERT(registrarBackend.connect() != std::nullopt);
 
 	registrar.fetch(SipUri("sip:connection-failure@example.org"), listener);
 	BC_ASSERT_TRUE(asserter.iterateUpTo(1, [&finished = listener->finished] { return finished; }));
 
 	// Test error on context initialisation
-	registrar.forceDisconnect();
+	registrarBackend.forceDisconnect();
 	listener->finished = false;
 	// Sabotage network sockets
 	PreventOpeningNewFileDescriptors _{};
 
-	BC_ASSERT(registrar.connect() == std::nullopt);
+	BC_ASSERT(registrarBackend.connect() == std::nullopt);
 	registrar.fetch(SipUri("sip:connection-failure@example.org"), listener);
 	BC_ASSERT_TRUE(asserter.iterateUpTo(1, [&finished = listener->finished] { return finished; }));
-}
-
-// Can a RegistrarDbRedisAsync be destructed after the Agent used to create it?
-void standalone_freeing() {
-	auto cfg = std::make_shared<ConfigManager>();
-	auto agent =
-	    std::make_optional<Agent>(std::make_shared<sofiasip::SuRoot>(), cfg, std::make_shared<AuthDbBackendOwner>(cfg));
-	RegistrarDbRedisAsync registrar{&*agent, RedisParameters{.domain = "localhost", .port = 0}};
-	BC_ASSERT(registrar.connect() != std::nullopt);
-	agent.reset();
-
-	// Does not crash
-	RegistrarDb::resetDB();
 }
 
 TestSuite edgeCases("RegistrarDbRedis-EdgeCases",
                     {
                         CLASSY_TEST(connection_failure),
-                        CLASSY_TEST(standalone_freeing),
                     });
 } // namespace
 } // namespace flexisip::tester::registrardb_redis

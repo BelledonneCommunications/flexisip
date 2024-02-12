@@ -61,7 +61,6 @@ static void nullMaxFrowardAndForkBasicContext() {
 	// Agent initialization
 	auto cfg = std::make_shared<ConfigManager>();
 	cfg->load(bcTesterRes("config/flexisip_fork_context.conf"));
-	auto agent = make_shared<Agent>(root, cfg, make_shared<AuthDbBackendOwner>(cfg));
 
 	auto* registrarConf = cfg->getRoot()->get<GenericStruct>("module::Registrar");
 	registrarConf->get<ConfigStringList>("reg-domains")->set("127.0.0.1");
@@ -75,7 +74,9 @@ static void nullMaxFrowardAndForkBasicContext() {
 	parameter.userAgent = "Linphone1 (Ubuntu) LinphoneCore";
 	parameter.withGruu = true;
 	auto participantContact = sip_contact_create(home.home(), (url_string_t*)user.str().c_str(), nullptr);
-	RegistrarDb::get()->bind(user, participantContact, parameter, make_shared<BindListener>());
+	auto registrarDb = make_shared<RegistrarDb>(root, cfg);
+	registrarDb->bind(user, participantContact, parameter, make_shared<BindListener>());
+	auto agent = make_shared<Agent>(root, cfg, make_shared<AuthDbBackendOwner>(cfg), registrarDb);
 
 	// Starting Flexisip
 	agent->start("", "");
@@ -125,7 +126,6 @@ static void notRtpPortAndForkCallContext() {
 	// Agent initialization
 	auto cfg = std::make_shared<ConfigManager>();
 	cfg->load(bcTesterRes("config/flexisip_fork_context_media_relay.conf"));
-	auto agent = make_shared<Agent>(root, cfg, make_shared<AuthDbBackendOwner>(cfg));
 
 	auto* registrarConf = cfg->getRoot()->get<GenericStruct>("module::Registrar");
 	registrarConf->get<ConfigStringList>("reg-domains")->set("127.0.0.1");
@@ -139,7 +139,9 @@ static void notRtpPortAndForkCallContext() {
 	parameter.userAgent = "Linphone1 (Ubuntu) LinphoneCore";
 	parameter.withGruu = true;
 	auto participantContact = sip_contact_create(home.home(), (url_string_t*)user.str().c_str(), nullptr);
-	RegistrarDb::get()->bind(user, participantContact, parameter, make_shared<BindListener>());
+	auto registrarDb = make_shared<RegistrarDb>(root, cfg);
+	registrarDb->bind(user, participantContact, parameter, make_shared<BindListener>());
+	auto agent = make_shared<Agent>(root, cfg, make_shared<AuthDbBackendOwner>(cfg), registrarDb);
 
 	// Starting Flexisip
 	agent->start("", "");
@@ -479,5 +481,5 @@ TestSuite _("Fork context",
                 TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchDontAvoid408Test>),
                 TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchNoBranchConsidered>),
             },
-            Hooks().beforeEach([] { responseReceived = false; }).afterEach([] { RegistrarDb::resetDB(); }));
+            Hooks().beforeEach([] { responseReceived = false; }));
 }

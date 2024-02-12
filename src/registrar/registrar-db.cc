@@ -23,10 +23,9 @@
 #include "flexisip/configmanager.hh"
 #include "flexisip/registrar/registar-listeners.hh"
 #include "flexisip/sofia-wrapper/msg-sip.hh"
-
-#include "agent.hh"
-#include "extended-contact.hh"
 #include "flexisip/utils/sip-uri.hh"
+
+#include "extended-contact.hh"
 #include "record.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrardb-internal.hh"
@@ -40,19 +39,61 @@ using namespace std;
 
 namespace flexisip {
 
-RegistrarDb::LocalRegExpire::LocalRegExpire(Agent* ag) : mAgent(ag) {
-}
-
-RegistrarDb::RegistrarDb(Agent* ag)
-    : mLocalRegExpire(new LocalRegExpire(ag)), mAgent(ag), mUseGlobalDomain(false),
-      mRecordConfig{mAgent->getConfigManager()} {
-	const GenericStruct* cr = mAgent->getConfigManager().getRoot();
+RegistrarDb::RegistrarDb(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg)
+    : mRoot{root}, mConfigManager{cfg}, mRecordConfig{*cfg} {
+	const GenericStruct* cr = mConfigManager->getRoot();
 	const GenericStruct* mr = cr->get<GenericStruct>("module::Registrar");
 	mGruuEnabled = mr->get<ConfigBoolean>("enable-gruu")->read();
-}
+	string dbImplementation = mr->get<ConfigString>("db-implementation")->read();
 
-RegistrarDb::~RegistrarDb() {
-	delete mLocalRegExpire;
+	auto notifyContact = [this](const Record::Key& key, const std::string& uid) {
+		this->notifyContactListener(key, uid);
+	};
+	if ("internal" == dbImplementation) {
+		LOGI("RegistrarDB implementation is internal");
+		mBackend = make_unique<RegistrarDbInternal>(mRecordConfig, mLocalRegExpire, notifyContact);
+	}
+#ifdef ENABLE_REDIS
+	/* Previous implementations allowed "redis-sync" and "redis-async", whereas we now expect "redis".
+	 * We check that the dbImplementation _starts_ with "redis" now, so that we stay backward compatible. */
+	else if (dbImplementation.find("redis") == 0) {
+		LOGI("RegistrarDB implementation is REDIS");
+		const GenericStruct* registrar = cr->get<GenericStruct>("module::Registrar");
+		RedisParameters params;
+		params.domain = registrar->get<ConfigString>("redis-server-domain")->read();
+		params.port = registrar->get<ConfigInt>("redis-server-port")->read();
+		params.timeout = registrar->get<ConfigDuration<chrono::milliseconds>>("redis-server-timeout")->read().count();
+		params.auth = [&registrar]() -> decltype(params.auth) {
+			using namespace redis::auth;
+
+			const auto& password = registrar->get<ConfigString>("redis-auth-password")->read();
+			if (password.empty()) {
+				return None();
+			}
+			const auto& user = registrar->get<ConfigString>("redis-auth-user")->read();
+			if (user.empty()) {
+				return Legacy{password};
+			}
+			return ACL{user, password};
+		}();
+		params.mSlaveCheckTimeout = chrono::duration_cast<chrono::seconds>(
+		    registrar->get<ConfigDuration<chrono::seconds>>("redis-slave-check-period")->read());
+		params.useSlavesAsBackup = registrar->get<ConfigBoolean>("redis-use-slaves-as-backup")->read();
+
+		auto notifyState = [this](bool bWritable) { this->notifyStateListener(bWritable); };
+		mBackend = make_unique<RegistrarDbRedisAsync>(*mRoot, mRecordConfig, mLocalRegExpire, params, notifyContact,
+		                                              notifyState);
+		static_cast<RegistrarDbRedisAsync*>(mBackend.get())->connect();
+	}
+#endif
+	else {
+		LOGF("Unsupported implementation '%s'. %s",
+#ifdef ENABLE_REDIS
+		     "Supported implementations are 'internal' or 'redis'.", dbImplementation.c_str());
+#else
+		     "Supported implementation is 'internal'.", dbImplementation.c_str());
+#endif
+	}
 }
 
 void RegistrarDb::addStateListener(const std::shared_ptr<RegistrarDbStateListener>& listener) {
@@ -64,9 +105,9 @@ void RegistrarDb::removeStateListener(const std::shared_ptr<RegistrarDbStateList
 	mStateListeners.remove(listener);
 }
 
-void RegistrarDb::notifyStateListener() const {
+void RegistrarDb::notifyStateListener(bool bWritable) const {
 	for (auto& listener : mStateListeners)
-		listener->onRegistrarDbWritable(mWritable);
+		listener->onRegistrarDbWritable(bWritable);
 }
 
 bool RegistrarDb::subscribe(const Record::Key& key, std::weak_ptr<ContactRegisteredListener>&& listener) {
@@ -85,7 +126,7 @@ bool RegistrarDb::subscribe(const Record::Key& key, std::weak_ptr<ContactRegiste
 
 	LOGD("Subscribe topic = %s with listener %p", topic.c_str(), strongPtr.get());
 	mContactListenersMap.emplace(topic, std::move(listener));
-
+	mBackend->subscribe(key);
 	return true;
 }
 
@@ -103,6 +144,13 @@ void RegistrarDb::unsubscribe(const Record::Key& key, const shared_ptr<ContactRe
 	if (!found) {
 		LOGE("RegistrarDb::unsubscribe() for topic %s and listener = %p is invalid.", topic.c_str(), listener.get());
 	}
+	if (0 < mContactListenersMap.count(topic)) return;
+	mBackend->unsubscribe(key);
+}
+
+void RegistrarDb::publish(const Record::Key& key, const string& uid) {
+	SLOGD << "Publish topic = " << key << ", uid = " << uid;
+	mBackend->publish(key, uid);
 }
 
 class ContactNotificationListener : public ContactUpdateListener,
@@ -133,7 +181,7 @@ void RegistrarDb::notifyContactListener(const Record::Key& key, const string& ui
 	SipUri sipUri{key};
 	auto listener = make_shared<ContactNotificationListener>(uid, this, sipUri);
 	SLOGD << "Notify topic = " << key << ", uid = " << uid;
-	RegistrarDb::get()->fetch(sipUri, listener, true);
+	fetch(sipUri, listener, true);
 }
 
 void RegistrarDb::notifyContactListener(const shared_ptr<Record>& r, const string& uid) {
@@ -157,9 +205,9 @@ void RegistrarDb::notifyContactListener(const shared_ptr<Record>& r, const strin
 	}
 }
 
-void RegistrarDb::LocalRegExpire::update(const shared_ptr<Record>& record) {
+void LocalRegExpire::update(const shared_ptr<Record>& record) {
 	unique_lock<mutex> lock(mMutex);
-	time_t latest = record->latestExpire(mAgent);
+	time_t latest = record->latestExpire(mLatestExpirePredicate);
 	if (latest > 0) {
 		auto it = mRegMap.find(record->getKey());
 		if (it != mRegMap.end()) {
@@ -176,10 +224,10 @@ void RegistrarDb::LocalRegExpire::update(const shared_ptr<Record>& record) {
 	}
 }
 
-size_t RegistrarDb::LocalRegExpire::countActives() {
+size_t LocalRegExpire::countActives() {
 	return mRegMap.size();
 }
-void RegistrarDb::LocalRegExpire::removeExpiredBefore(time_t before) {
+void LocalRegExpire::removeExpiredBefore(time_t before) {
 	unique_lock<mutex> lock(mMutex);
 
 	for (auto it = mRegMap.begin(); it != mRegMap.end();) {
@@ -195,19 +243,19 @@ void RegistrarDb::LocalRegExpire::removeExpiredBefore(time_t before) {
 	}
 }
 
-void RegistrarDb::LocalRegExpire::getRegisteredAors(std::list<std::string>& aors) const {
+void LocalRegExpire::getRegisteredAors(std::list<std::string>& aors) const {
 	unique_lock<mutex> lock(mMutex);
 	for (auto& pair : mRegMap) {
 		aors.push_back(pair.first);
 	}
 }
 
-void RegistrarDb::LocalRegExpire::subscribe(LocalRegExpireListener* listener) {
+void LocalRegExpire::subscribe(LocalRegExpireListener* listener) {
 	LOGD("Subscribe LocalRegExpire");
 	mLocalRegListenerList.push_back(listener);
 }
 
-void RegistrarDb::LocalRegExpire::unsubscribe(LocalRegExpireListener* listener) {
+void LocalRegExpire::unsubscribe(LocalRegExpireListener* listener) {
 	LOGD("Unsubscribe LocalRegExpire");
 	auto result = find(mLocalRegListenerList.begin(), mLocalRegListenerList.end(), listener);
 	if (result != mLocalRegListenerList.end()) {
@@ -215,9 +263,9 @@ void RegistrarDb::LocalRegExpire::unsubscribe(LocalRegExpireListener* listener) 
 	}
 }
 
-void RegistrarDb::LocalRegExpire::notifyLocalRegExpireListener(unsigned int count) {
+void LocalRegExpire::notifyLocalRegExpireListener(unsigned int count) {
 	LOGD("Notify LocalRegExpire count = %d", count);
-	for (auto listener : mLocalRegListenerList) {
+	for (auto& listener : mLocalRegListenerList) {
 		listener->onLocalRegExpireUpdated(count);
 	}
 }
@@ -234,123 +282,21 @@ int RegistrarDb::countSipContacts(const sip_contact_t* contact) {
 	return count;
 }
 
-bool RegistrarDb::errorOnTooMuchContactInBind(const sip_contact_t* sip_contact,
-                                              const string& key,
-                                              [[maybe_unused]] const shared_ptr<RegistrarDbListener>& listener) {
-	int nb_contact = this->countSipContacts(sip_contact);
-	const auto maxContacts = mRecordConfig.getMaxContacts();
-	if (nb_contact > maxContacts) {
-		LOGD("Too many contacts in register %s %i > %i", key.c_str(), nb_contact, maxContacts);
-		return true;
-	}
-
-	return false;
-}
-
-unique_ptr<RegistrarDb> RegistrarDb::sUnique = nullptr;
-
-void RegistrarDb::resetDB() {
-	SLOGW << "Reseting RegistrarDb static pointer, you MUST be in a test.";
-	sUnique = nullptr;
-}
-
-RegistrarDb* RegistrarDb::initialize(Agent* ag) {
-	if (sUnique != nullptr) {
-		LOGF("RegistrarDb already initialized");
-	}
-	const GenericStruct* cr = ag->getConfigManager().getRoot();
-	const GenericStruct* mr = cr->get<GenericStruct>("module::Registrar");
-	const GenericStruct* mro = cr->get<GenericStruct>("module::Router");
-
-	bool useGlobalDomain = mro->get<ConfigBoolean>("use-global-domain")->read();
-	string dbImplementation = mr->get<ConfigString>("db-implementation")->read();
-	string mMessageExpiresName = mr->get<ConfigString>("message-expires-param-name")->read();
-
-	if ("internal" == dbImplementation) {
-		LOGI("RegistrarDB implementation is internal");
-		sUnique = make_unique<RegistrarDbInternal>(ag);
-		sUnique->mUseGlobalDomain = useGlobalDomain;
-	}
-#ifdef ENABLE_REDIS
-	/* Previous implementations allowed "redis-sync" and "redis-async", whereas we now expect "redis".
-	 * We check that the dbImplementation _starts_ with "redis" now, so that we stay backward compatible. */
-	else if (dbImplementation.find("redis") == 0) {
-		LOGI("RegistrarDB implementation is REDIS");
-		const GenericStruct* registrar = cr->get<GenericStruct>("module::Registrar");
-		RedisParameters params;
-		params.domain = registrar->get<ConfigString>("redis-server-domain")->read();
-		params.port = registrar->get<ConfigInt>("redis-server-port")->read();
-		params.timeout = registrar->get<ConfigDuration<chrono::milliseconds>>("redis-server-timeout")->read().count();
-		params.auth = [&registrar]() -> decltype(params.auth) {
-			using namespace redis::auth;
-
-			const auto& password = registrar->get<ConfigString>("redis-auth-password")->read();
-			if (password.empty()) {
-				return None();
-			}
-			const auto& user = registrar->get<ConfigString>("redis-auth-user")->read();
-			if (user.empty()) {
-				return Legacy{password};
-			}
-			return ACL{user, password};
-		}();
-		params.mSlaveCheckTimeout = chrono::duration_cast<chrono::seconds>(
-		    registrar->get<ConfigDuration<chrono::seconds>>("redis-slave-check-period")->read());
-		params.useSlavesAsBackup = registrar->get<ConfigBoolean>("redis-use-slaves-as-backup")->read();
-
-		sUnique = make_unique<RegistrarDbRedisAsync>(ag, params);
-		sUnique->mUseGlobalDomain = useGlobalDomain;
-		static_cast<RegistrarDbRedisAsync*>(sUnique.get())->connect();
-	}
-#endif
-	else {
-		LOGF("Unsupported implementation '%s'. %s",
-#ifdef ENABLE_REDIS
-		     "Supported implementations are 'internal' or 'redis'.", dbImplementation.c_str());
-#else
-		     "Supported implementation is 'internal'.", dbImplementation.c_str());
-#endif
-	}
-	sUnique->mMessageExpiresName = mMessageExpiresName;
-	return sUnique.get();
-}
-
-RegistrarDb* RegistrarDb::get() {
-	if (sUnique == nullptr) {
-		LOGF("RegistrarDb not initialized.");
-	}
-	return sUnique.get();
-}
-
 void RegistrarDb::clear(const MsgSip& sip, const shared_ptr<ContactUpdateListener>& listener) {
-	doClear(sip, listener);
+	mBackend->doClear(sip, listener);
 }
 
 void RegistrarDb::clear(const SipUri& url,
                         const std::string& callId,
                         const std::shared_ptr<ContactUpdateListener>& listener) {
 	// Forged message
-	MsgSip msg(ownership::owned(nta_msg_create(mAgent->getSofiaAgent(), 0)));
-	auto home = msg.getHome();
-	auto sip = msg.getSip();
+	MsgSip msg{};
+	auto* home = msg.getHome();
+	auto* sip = msg.getSip();
 	sip->sip_from = sip_from_create(home, reinterpret_cast<const url_string_t*>(url.get()));
 	sip->sip_call_id = sip_call_id_make(home, callId.c_str());
 	sip->sip_cseq = sip_cseq_create(home, 0xDEADC0DE, SIP_METHOD_REGISTER); // Placeholder
 	clear(msg, listener);
-}
-
-const string RegistrarDb::getMessageExpires(const msg_param_t* m_params) {
-	if (m_params) {
-		// Find message expires time in the contact parameters
-		string mss_expires(*m_params);
-		string name_expires_mss = RegistrarDb::get()->messageExpiresName();
-		if (mss_expires.find(name_expires_mss + "=") != string::npos) {
-			mss_expires =
-			    mss_expires.substr(mss_expires.find(name_expires_mss + "=") + (strlen(name_expires_mss.c_str()) + 1));
-			return mss_expires;
-		}
-	}
-	return "";
 }
 
 class RecursiveRegistrarDbListener : public ContactUpdateListener,
@@ -489,10 +435,11 @@ void RegistrarDb::fetch(const SipUri& url,
 	}
 	auto gr = UriUtils::getParamValue(url.get()->url_params, "gr");
 	if (!gr.empty()) {
-		doFetchInstance(url, UriUtils::grToUniqueId(gr),
-		                recursive ? make_shared<RecursiveRegistrarDbListener>(this, listener, url) : listener);
+		mBackend->doFetchInstance(url, UriUtils::grToUniqueId(gr),
+		                          recursive ? make_shared<RecursiveRegistrarDbListener>(this, listener, url)
+		                                    : listener);
 	} else {
-		doFetch(url, recursive ? make_shared<RecursiveRegistrarDbListener>(this, listener, url) : listener);
+		mBackend->doFetch(url, recursive ? make_shared<RecursiveRegistrarDbListener>(this, listener, url) : listener);
 	}
 }
 
@@ -580,17 +527,17 @@ void RegistrarDb::bind(MsgSip&& sipMsg,
 		                         su_sprintf(sipMsg.getHome(), "pub-gruu"));
 	}
 
-	int countSipContacts = this->countSipContacts(sip->sip_contact);
+	int countSipContacts = RegistrarDb::countSipContacts(sip->sip_contact);
 	const auto maxContacts = mRecordConfig.getMaxContacts();
 	if (countSipContacts > maxContacts) {
-		SLOGD << "Too many contacts in register " << Record::Key(sip->sip_from->a_url) << " " << countSipContacts
-		      << " > " << maxContacts;
+		SLOGD << "Too many contacts in register " << Record::Key(sip->sip_from->a_url, mRecordConfig.useGlobalDomain())
+		      << " " << countSipContacts << " > " << maxContacts;
 		listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 		return;
 	}
 
 	LOGI("RegistrarDb: binding %s", SipUri(sipMsg.getSip()->sip_from->a_url).str().c_str());
-	doBind(sipMsg, parameter, listener);
+	mBackend->doBind(sipMsg, parameter, listener);
 }
 
 void RegistrarDb::bind(const SipUri& aor,

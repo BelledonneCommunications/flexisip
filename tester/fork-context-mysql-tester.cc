@@ -847,10 +847,7 @@ TestSuite
 	          ForkMessageContextSociRepository::prepareConfiguration("mysql", mysqlServer->connectionString(), 10);
 	          return 0;
           })
-          .afterEach([] {
-	          ForkMessageContextSociRepository::getInstance()->deleteAll();
-	          RegistrarDb::resetDB();
-          })
+          .afterEach([] { ForkMessageContextSociRepository::getInstance()->deleteAll(); })
           .afterSuite([] {
 	          mysqlServer.reset();
 	          return 0;

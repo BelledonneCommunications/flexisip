@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #include "domain-registrations.hh"
 
@@ -33,7 +33,6 @@
 #include "flexisip/module.hh"
 
 #include "agent.hh"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "registrar/registrar-db.hh"
 
 using namespace std;
@@ -145,7 +144,7 @@ DomainRegistrationManager::DomainRegistrationManager(Agent* agent)
 }
 
 DomainRegistrationManager::~DomainRegistrationManager() {
-	if (mRegisterWhenNeeded) RegistrarDb::get()->unsubscribeLocalRegExpire(this);
+	if (mRegisterWhenNeeded) mAgent->getRegistrarDb().unsubscribeLocalRegExpire(this);
 
 	if (mNbRegistration > 0) {
 		LOGD("Starting domain un-registration");
@@ -245,7 +244,7 @@ int DomainRegistrationManager::load(const string& passphrase) {
 
 	if (mRegisterWhenNeeded) {
 		mDomainRegistrationsStarted = false;
-		RegistrarDb::get()->subscribeLocalRegExpire(this);
+		mAgent->getRegistrarDb().subscribeLocalRegExpire(this);
 	} else {
 		for (const auto& reg : mRegistrations) {
 			reg->start();

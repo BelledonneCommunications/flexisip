@@ -350,7 +350,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			// gruu case, ask registrar db for AOR
 			ev->suspendProcessing();
 			auto listener = make_shared<RegistrarListener>(this, ev);
-			RegistrarDb::get()->fetch(destUri, listener, false, false /*no recursivity for gruu*/);
+			mAgent->getRegistrarDb().fetch(destUri, listener, false, false /*no recursivity for gruu*/);
 			return;
 		}
 		dest = overrideDest(ev, dest);

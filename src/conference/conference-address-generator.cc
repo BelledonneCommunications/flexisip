@@ -32,14 +32,15 @@ ConferenceAddressGenerator::ConferenceAddressGenerator(const shared_ptr<linphone
                                                        shared_ptr<linphone::Address> conferenceFactoryAddr,
                                                        const string& uuid,
                                                        const string& path,
-                                                       ConferenceServer* conferenceServer)
+                                                       ConferenceServer* conferenceServer,
+                                                       RegistrarDb& registrarDb)
     : mChatRoom(chatRoom), mConferenceAddr(conferenceFactoryAddr), mUuid(uuid), mPath(path),
-      mConferenceServer(conferenceServer) {
+      mConferenceServer(conferenceServer), mRegistrarDb(registrarDb) {
 }
 
 void ConferenceAddressGenerator::run() {
 	SipUri url(mConferenceAddr->asStringUriOnly());
-	RegistrarDb::get()->fetch(url, shared_from_this(), false, false);
+	mRegistrarDb.fetch(url, shared_from_this(), false, false);
 }
 
 void ConferenceAddressGenerator::changeAddress() {

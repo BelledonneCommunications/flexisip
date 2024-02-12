@@ -71,28 +71,28 @@ protected:
 
 	// Protected methods
 	void testExec() noexcept override {
-		auto* regDb = RegistrarDb::get();
+		auto& regDb = this->getRegistrarDb();
 
 		auto stats = make_shared<RegistrarStats>();
 
-		const Record::Key topic{SipUri("sip:user@sip.example.org")};
+		const Record::Key topic{SipUri("sip:user@sip.example.org"), regDb.useGlobalDomain()};
 		const string uuid{"dummy-uuid"};
 		SLOGD << "Subscribing to '" << topic << "'";
-		regDb->subscribe(topic, stats);
+		regDb.subscribe(topic, stats);
 		this->waitFor(1s);
 
 		SLOGD << "Notifying topic[" << topic << "] with uuid[" << uuid << "]";
-		regDb->publish(topic, uuid);
+		regDb.publish(topic, uuid);
 		BC_ASSERT_TRUE(this->waitFor([&stats]() { return stats->onContactRegisteredCount >= 1; }, 1s));
 		BC_ASSERT_EQUAL(stats->onContactRegisteredCount, 1, int, "%d");
 
 		SLOGD << "Subsequent Redis UNSUBSCRIBE/SUBSCRIBE";
-		regDb->unsubscribe(topic, stats);
-		regDb->subscribe(topic, stats);
+		regDb.unsubscribe(topic, stats);
+		regDb.subscribe(topic, stats);
 		this->waitFor(1s);
 
 		SLOGD << "Secondly Notifying topic[" << topic << "] with uuid[" << uuid << "]";
-		regDb->publish(topic, uuid);
+		regDb.publish(topic, uuid);
 		BC_ASSERT_TRUE(this->waitFor([&stats]() { return stats->onContactRegisteredCount >= 2; }, 1s));
 		BC_ASSERT_EQUAL(stats->onContactRegisteredCount, 2, int, "%d");
 	}
@@ -104,11 +104,11 @@ protected:
 template <typename TDatabase>
 class TestFetchExpiringContacts : public RegistrarDbTest<TDatabase> {
 	void testExec() noexcept override {
-		auto* regDb = RegistrarDb::get();
+		auto& regDb = this->getRegistrarDb();
 		const auto threshold = 20.0 / 100.0;
 		// Add some margin to avoid rounding errors
 		const auto targetTimestamp = getCurrentTime() + 22;
-		ContactInserter inserter(*regDb);
+		ContactInserter inserter(regDb);
 		inserter.withUniqueId(true);
 		inserter.setExpire(100s).setAor("sip:expected1@te.st;pn-provider=fake").insert();
 		inserter.setExpire(10s).setAor("sip:expired@te.st;pn-provider=fake").insert();
@@ -127,7 +127,7 @@ class TestFetchExpiringContacts : public RegistrarDbTest<TDatabase> {
 
 		// Cold loading script
 		auto expiringContacts = std::vector<ExtendedContact>();
-		regDb->fetchExpiringContacts(targetTimestamp, threshold, [&expiringContacts](auto&& returnedContacts) {
+		regDb.fetchExpiringContacts(targetTimestamp, threshold, [&expiringContacts](auto&& returnedContacts) {
 			expiringContacts = std::move(returnedContacts);
 		});
 
@@ -152,7 +152,7 @@ class TestFetchExpiringContacts : public RegistrarDbTest<TDatabase> {
 
 		// Script should be hot
 		expiringContacts.clear();
-		regDb->fetchExpiringContacts(targetTimestamp, threshold, [&expiringContacts](auto&& returnedContacts) {
+		regDb.fetchExpiringContacts(targetTimestamp, threshold, [&expiringContacts](auto&& returnedContacts) {
 			expiringContacts = std::move(returnedContacts);
 		});
 
@@ -172,9 +172,9 @@ void MaxContactsByAorIsHonored(TDatabase& dbImpl, const SipUri& aor) {
 	Server proxyServer(config);
 	proxyServer.start();
 	auto root = proxyServer.getRoot();
-	auto regDb = RegistrarDb::get();
+	auto& regDb = proxyServer.getAgent()->getRegistrarDb();
 
-	ContactInserter inserter(*regDb);
+	ContactInserter inserter(regDb);
 	inserter.setAor(aor).setExpire(87s);
 
 	auto insert = [&](string_view uri) {
@@ -188,7 +188,7 @@ void MaxContactsByAorIsHonored(TDatabase& dbImpl, const SipUri& aor) {
 	insert("sip:onetoomany@example.org");
 
 	auto listener = make_shared<SuccessfulBindListener>();
-	regDb->fetch(aor, listener);
+	regDb.fetch(aor, listener);
 	BC_ASSERT_TRUE(rootStepFor(
 	    proxyServer.getRoot(), [&record = listener->mRecord]() { return record != nullptr; }, 1s));
 	{
@@ -225,15 +225,15 @@ void RedisMaxContactsByAorIsHonored() {
 		Server proxyServer(config);
 		proxyServer.start();
 		auto root = proxyServer.getRoot();
-		auto regDb = RegistrarDb::get();
+		auto& regDb = proxyServer.getAgent()->getRegistrarDb();
 
-		ContactInserter inserter(*regDb);
+		ContactInserter inserter(regDb);
 		inserter.setAor(aor).setExpire(87s);
 		insert(root, inserter, "sip:added4@example.org");
 		insert(root, inserter, "sip:added5@example.org");
 
 		auto listener = make_shared<SuccessfulBindListener>();
-		regDb->fetch(aor, listener);
+		regDb.fetch(aor, listener);
 		BC_ASSERT_TRUE(rootStepFor(
 		    proxyServer.getRoot(), [&record = listener->mRecord]() { return record != nullptr; }, 1s));
 		{
@@ -250,14 +250,14 @@ void RedisMaxContactsByAorIsHonored() {
 		Server proxyServer(config);
 		proxyServer.start();
 		auto root = proxyServer.getRoot();
-		auto regDb = RegistrarDb::get();
+		auto& regDb = proxyServer.getAgent()->getRegistrarDb();
 
-		ContactInserter inserter(*regDb);
+		ContactInserter inserter(regDb);
 		inserter.setAor(aor).setExpire(87s);
 		insert(root, inserter, "sip:triggerupdate@example.org");
 
 		auto listener = make_shared<SuccessfulBindListener>();
-		regDb->fetch(aor, listener);
+		regDb.fetch(aor, listener);
 		BC_ASSERT_TRUE(rootStepFor(
 		    proxyServer.getRoot(), [&record = listener->mRecord]() { return record != nullptr; }, 1s));
 		{
@@ -273,7 +273,7 @@ class ContactsAreCorrectlyUpdatedWhenMatchedOnUri : public RegistrarDbTest<DbImp
 		auto* root = mAgent->getConfigManager().getRoot();
 		root->get<GenericStruct>("module::Registrar")->get<ConfigInt>("max-contacts-by-aor")->set("2");
 
-		auto* regDb = RegistrarDb::get();
+		auto& regDb = this->getRegistrarDb();
 		sofiasip::Home home{};
 		const auto contactBase = ":update-test@example.org";
 		const auto contactStr = "sip"s + contactBase;
@@ -284,14 +284,14 @@ class ContactsAreCorrectlyUpdatedWhenMatchedOnUri : public RegistrarDbTest<DbImp
 		params.globalExpire = 96;
 		params.callId = "insert";
 		const auto listener = make_shared<IgnoreUpdatesListener>();
-		regDb->bind(aor, contact, params, listener);
+		regDb.bind(aor, contact, params, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 
 		listener->mRecord = nullptr;
 		params.callId = "update";
 		const auto newContact = sip_contact_create(
 		    home.home(), reinterpret_cast<const url_string_t*>((contactStr + ";new=param").c_str()), nullptr);
-		regDb->bind(aor, newContact, params, listener);
+		regDb.bind(aor, newContact, params, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 
 		RedisSyncContext ctx = redisConnect("127.0.0.1", this->dbImpl.port());
@@ -323,7 +323,7 @@ class ContactsAreCorrectlyUpdatedWhenMatchedOnUri : public RegistrarDbTest<DbImp
 		BC_ASSERT_STRING_EQUAL(insert->str, "OK");
 
 		listener->mRecord.reset();
-		regDb->fetch(aor, listener);
+		regDb.fetch(aor, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 		{
 			auto& contacts = listener->mRecord->getExtendedContacts();
@@ -334,7 +334,7 @@ class ContactsAreCorrectlyUpdatedWhenMatchedOnUri : public RegistrarDbTest<DbImp
 		// They are all the same contact, there can be only one
 		listener->mRecord.reset();
 		params.callId = "trigger-max-aor";
-		regDb->bind(aor, contact, params, listener);
+		regDb.bind(aor, contact, params, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 		{
 			auto& contacts = listener->mRecord->getExtendedContacts();
@@ -355,7 +355,7 @@ protected:
 	// Protected methods
 	void testExec() noexcept override {
 		sofiasip::Home home;
-		auto* regDb = RegistrarDb::get();
+		auto& regDb = getRegistrarDb();
 		auto listener = make_shared<IgnoreUpdatesListener>();
 
 		SipUri from("sip:bob@example.org");
@@ -366,19 +366,19 @@ protected:
 
 		sip_contact_t* ct;
 
-		auto bind = [regDb, &from, &ct, &params, &listener, this, home = home.home()](auto contact, auto... args) {
+		auto bind = [&regDb, &from, &ct, &params, &listener, this, home = home.home()](auto contact, auto... args) {
 			listener->mRecord.reset();
 			ct = sip_contact_create(home, (url_string_t*)contact, args..., nullptr);
-			regDb->bind(from, ct, params, listener);
+			regDb.bind(from, ct, params, listener);
 			params.cSeq++;
 			return waitFor([listener]() { return listener->mRecord != nullptr; }, 1s);
 		};
 
 		// Make sure the record inserted in the DB is what was intended
-		auto checkFetch = [regDb, &listener, this]() {
+		auto checkFetch = [&regDb, &listener, this]() {
 			const auto recordAfterBind = listener->mRecord;
 			listener->mRecord.reset();
-			regDb->fetch(recordAfterBind->getAor(), listener);
+			regDb.fetch(recordAfterBind->getAor(), listener);
 			FAIL_IF(!waitFor([listener]() { return listener->mRecord != nullptr; }, 1s));
 			const auto fetched = listener->mRecord;
 			if (fetched && !fetched->isSame(*recordAfterBind)) {
@@ -474,7 +474,7 @@ protected:
 
 class InstanceIDFeatureParamIsSerializedToRedis : public RegistrarDbTest<DbImplementation::Redis> {
 	void testExec() noexcept override {
-		auto* regDb = RegistrarDb::get();
+		auto& regDb = getRegistrarDb();
 		sofiasip::Home home{};
 		const auto contactBase = ":instance-id-test@example.org";
 		const auto contactStr = "sip"s + contactBase;
@@ -486,7 +486,7 @@ class InstanceIDFeatureParamIsSerializedToRedis : public RegistrarDbTest<DbImple
 		params.globalExpire = 231;
 		params.callId = "instance-id-test";
 		const auto listener = make_shared<SuccessfulBindListener>();
-		regDb->bind(aor, contact, params, listener);
+		regDb.bind(aor, contact, params, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 
 		RedisSyncContext redis = redisConnect("127.0.0.1", this->dbImpl.port());
@@ -512,7 +512,7 @@ class InstanceIDFeatureParamIsSerializedToRedis : public RegistrarDbTest<DbImple
  */
 class CallIDsPreviouslyUsedAsKeysAreInterpretedAsUniqueIDs : public RegistrarDbTest<DbImplementation::Redis> {
 	void testExec() noexcept override {
-		auto* regDb = RegistrarDb::get();
+		auto& regDb = getRegistrarDb();
 		sofiasip::Home home{};
 		const auto callId = "ZwPAMpQSC9"; // Can be anything as long as it does not start with `fs-gen-`
 		const auto contactBase = ":migration-test@example.org";
@@ -524,7 +524,7 @@ class CallIDsPreviouslyUsedAsKeysAreInterpretedAsUniqueIDs : public RegistrarDbT
 		params.globalExpire = 231;
 		params.callId = callId;
 		const auto listener = make_shared<SuccessfulBindListener>();
-		regDb->bind(aor, contact, params, listener);
+		regDb.bind(aor, contact, params, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 		const auto& contactKey = (*listener->mRecord->getExtendedContacts().latest())->mKey.str();
 		RedisSyncContext redis = redisConnect("127.0.0.1", this->dbImpl.port());
@@ -544,7 +544,7 @@ class CallIDsPreviouslyUsedAsKeysAreInterpretedAsUniqueIDs : public RegistrarDbT
 
 		listener->mRecord.reset();
 		params.callId = "attempted-update";
-		regDb->bind(aor, contact, params, listener);
+		regDb.bind(aor, contact, params, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 
 		{
@@ -561,7 +561,7 @@ class CallIDsPreviouslyUsedAsKeysAreInterpretedAsUniqueIDs : public RegistrarDbT
 
 class ExpiredContactsArePurgedFromRedis : public RegistrarDbTest<DbImplementation::Redis> {
 	void testExec() override {
-		auto* regDb = RegistrarDb::get();
+		auto& regDb = getRegistrarDb();
 		sofiasip::Home home{};
 		const auto contactBase = ":expiration-test@example.org";
 		const auto contactStr = "sip"s + contactBase;
@@ -572,7 +572,7 @@ class ExpiredContactsArePurgedFromRedis : public RegistrarDbTest<DbImplementatio
 		params.globalExpire = 239;
 		params.callId = "expiration-test";
 		const auto listener = make_shared<SuccessfulBindListener>();
-		regDb->bind(aor, contact, params, listener);
+		regDb.bind(aor, contact, params, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 
 		RedisSyncContext redis = redisConnect("127.0.0.1", this->dbImpl.port());
@@ -598,7 +598,7 @@ class ExpiredContactsArePurgedFromRedis : public RegistrarDbTest<DbImplementatio
 		BC_ASSERT_STRING_EQUAL(insert->str, "OK");
 
 		listener->mRecord.reset();
-		regDb->fetch(aor, listener);
+		regDb.fetch(aor, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 		{
 			auto& contacts = listener->mRecord->getExtendedContacts();
@@ -609,7 +609,7 @@ class ExpiredContactsArePurgedFromRedis : public RegistrarDbTest<DbImplementatio
 		params.callId = "trigger-cleanup";
 		contact = sip_contact_create(home.home(),
 		                             reinterpret_cast<const url_string_t*>("sip:trigger-cleanup@example.org"), nullptr);
-		regDb->bind(aor, contact, params, listener);
+		regDb.bind(aor, contact, params, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 		{
 			auto& contacts = listener->mRecord->getExtendedContacts();
@@ -630,7 +630,7 @@ namespace {
 
 class FetchAndClearInstance : public RegistrarDbTest<DbImplementation::Redis> {
 	void testExec() noexcept override {
-		auto* regDb = RegistrarDb::get();
+		auto& regDb = getRegistrarDb();
 		sofiasip::Home home{};
 		const auto contactBase = "fetch-and-clear-test@example.org";
 		const auto contactStr = "sip:"s + contactBase;
@@ -641,12 +641,12 @@ class FetchAndClearInstance : public RegistrarDbTest<DbImplementation::Redis> {
 		params.globalExpire = 231;
 		params.callId = "fetch-and-clear-test";
 		const auto listener = make_shared<SuccessfulBindListener>();
-		regDb->bind(SipUri(contactStr), contact, params, listener);
+		regDb.bind(SipUri(contactStr), contact, params, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 		listener->mRecord.reset();
 		const SipUri instanceUri{contactStr + ";gr=fetch-and-clear-id"};
 
-		regDb->fetch(instanceUri, listener);
+		regDb.fetch(instanceUri, listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 
 		const auto& fetched = listener->mRecord->getExtendedContacts();
@@ -654,7 +654,7 @@ class FetchAndClearInstance : public RegistrarDbTest<DbImplementation::Redis> {
 		BC_ASSERT_CPP_EQUAL(fetched.latest()->get()->urlAsString(), ExtendedContact::urlToString(contact->m_url));
 
 		listener->mRecord.reset();
-		regDb->clear(instanceUri, "stub-callid", listener);
+		regDb.clear(instanceUri, "stub-callid", listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 
 		BC_ASSERT_CPP_EQUAL(static_cast<const string&>(listener->mRecord->getKey()), contactBase);
@@ -692,7 +692,7 @@ void authenticatedConnectionWithRedis() {
 	}()};
 	proxyServer.start();
 	const auto connectionListener = make_shared<SuccessfulConnectionListener>();
-	RegistrarDb::get()->addStateListener(connectionListener);
+	proxyServer.getAgent()->getRegistrarDb().addStateListener(connectionListener);
 	BcAssert asserter{};
 	asserter.addCustomIterate([&root = *proxyServer.getRoot()]() { root.step(100ms); });
 
@@ -747,7 +747,7 @@ void failedAuthenticatedConnectionWithRedis() {
 	}()};
 	proxyServer.start();
 	const auto connectionListener = make_shared<SuccessfulConnectionListener>();
-	RegistrarDb::get()->addStateListener(connectionListener);
+	proxyServer.getAgent()->getRegistrarDb().addStateListener(connectionListener);
 	BcAssert asserter{};
 	asserter.addCustomIterate([&root = *proxyServer.getRoot()]() { root.step(100ms); });
 

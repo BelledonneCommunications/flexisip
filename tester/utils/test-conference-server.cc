@@ -33,8 +33,10 @@ using namespace std;
 namespace flexisip {
 namespace tester {
 
-TestConferenceServer::TestConferenceServer(const Agent& agent, const std::shared_ptr<ConfigManager>& cfg)
-    : mConfServer(make_shared<PatchedConferenceServer>(agent.getPreferredRoute(), agent.getRoot(), cfg)) {
+TestConferenceServer::TestConferenceServer(const Agent& agent,
+                                           const std::shared_ptr<ConfigManager>& cfg,
+                                           const std::shared_ptr<RegistrarDb>& registrarDb)
+    : mConfServer(make_shared<PatchedConferenceServer>(agent.getPreferredRoute(), agent.getRoot(), cfg, registrarDb)) {
 	mConfServer->init();
 }
 

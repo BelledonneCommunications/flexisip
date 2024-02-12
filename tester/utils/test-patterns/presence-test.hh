@@ -65,7 +65,7 @@ protected:
 		RegistrarDbTest::onAgentConfigured();
 		mPresence = std::make_shared<PresenceServer>(mRoot, mConfigManager);
 		auto presenceLongTerm =
-		    std::make_shared<flexisip::PresenceLongterm>(mPresence->getBelleSipMainLoop(), mAuthDbOwner);
+		    std::make_shared<flexisip::PresenceLongterm>(mPresence->getBelleSipMainLoop(), mAuthDbOwner, mRegistrarDb);
 		mPresence->addPresenceInfoObserver(presenceLongTerm);
 	}
 

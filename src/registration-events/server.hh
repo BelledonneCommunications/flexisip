@@ -25,6 +25,7 @@
 #include <linphone++/linphone.hh>
 
 #include "flexisip/registrar/registar-listeners.hh"
+#include "registrar/registrar-db.hh"
 #include "service-server.hh"
 
 namespace flexisip {
@@ -36,6 +37,10 @@ public:
 	class Subscriptions : public linphone::CoreListener,
 	                      public ContactRegisteredListener,
 	                      public ContactUpdateListener {
+	public:
+		Subscriptions(const std::shared_ptr<RegistrarDb>& registrarDb) : mRegistrarDb{registrarDb} {
+		}
+
 	private:
 		void onSubscribeReceived(const std::shared_ptr<linphone::Core>&,
 		                         const std::shared_ptr<linphone::Event>&,
@@ -58,13 +63,14 @@ public:
 		void processRecord(const std::shared_ptr<Record>&, const std::string& uidOfFreshlyRegistered);
 
 		std::unordered_map<std::string, std::shared_ptr<linphone::Event>> mEvents{};
+		std::shared_ptr<RegistrarDb> mRegistrarDb;
 	};
 
 	static const std::string CONTENT_TYPE;
 
 	template <typename SuRootPtr>
-	Server(SuRootPtr&& root, const std::shared_ptr<ConfigManager>& cfg)
-	    : ServiceServer(std::forward<SuRootPtr>(root)), mConfigManager(cfg) {
+	Server(SuRootPtr&& root, const std::shared_ptr<ConfigManager>& cfg, const std::shared_ptr<RegistrarDb>& registrarDb)
+	    : ServiceServer(std::forward<SuRootPtr>(root)), mConfigManager(cfg), mRegistrarDb(registrarDb) {
 	}
 
 protected:
@@ -74,6 +80,7 @@ protected:
 
 private:
 	std::shared_ptr<ConfigManager> mConfigManager;
+	std::shared_ptr<RegistrarDb> mRegistrarDb;
 	std::shared_ptr<linphone::Core> mCore;
 };
 

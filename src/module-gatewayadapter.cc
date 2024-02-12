@@ -35,6 +35,7 @@ class GatewayAdapter;
 
 class GatewayRegister {
 	AuthDbBackend& mAuthDb;
+	RegistrarDb& mRegistrarDb;
 	typedef enum { INITIAL, REGISTRING, REGISTRED } State;
 	State state;
 	su_home_t home;
@@ -209,7 +210,7 @@ GatewayRegister::GatewayRegister(Agent* ag,
                                  sip_to_t* sip_to,
                                  sip_contact_t* sip_contact,
                                  const sip_expires_t* global_expire)
-    : mAuthDb(ag->getAuthDbOwner().get()) {
+    : mAuthDb(ag->getAuthDbOwner().get()), mRegistrarDb(ag->getRegistrarDb()) {
 	su_home_init(&home);
 
 	url_t* domain = NULL;
@@ -346,7 +347,7 @@ void GatewayRegister::start() {
 	SipUri fromUri(from->a_url);
 	LOGD("Fetching binding");
 	++*mCountStart;
-	RegistrarDb::get()->fetch(fromUri, make_shared<OnFetchListener>(this, mAuthDb));
+	mRegistrarDb.fetch(fromUri, make_shared<OnFetchListener>(this, mAuthDb));
 }
 
 void GatewayRegister::end() {

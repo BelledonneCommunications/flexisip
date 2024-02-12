@@ -66,7 +66,9 @@ Server::Server(const std::string& configFile, InjectedHooks* injectedHooks)
 	}
 
 	mAuthDbOwner = std::make_shared<AuthDbBackendOwner>(mConfigManager);
-	mAgent = std::make_shared<Agent>(std::make_shared<sofiasip::SuRoot>(), mConfigManager, mAuthDbOwner);
+	auto root = std::make_shared<sofiasip::SuRoot>();
+	mRegistrarDb = std::make_shared<RegistrarDb>(root, mConfigManager);
+	mAgent = std::make_shared<Agent>(root, mConfigManager, mAuthDbOwner, mRegistrarDb);
 }
 
 Server::Server(const std::map<std::string, std::string>& customConfig, InjectedHooks* injectedHooks)
@@ -94,12 +96,13 @@ Server::Server(const std::map<std::string, std::string>& customConfig, InjectedH
 	}
 
 	mAuthDbOwner = std::make_shared<AuthDbBackendOwner>(mConfigManager);
-	mAgent = std::make_shared<Agent>(std::make_shared<sofiasip::SuRoot>(), mConfigManager, mAuthDbOwner);
+	auto root = std::make_shared<sofiasip::SuRoot>();
+	mRegistrarDb = std::make_shared<RegistrarDb>(root, mConfigManager);
+	mAgent = std::make_shared<Agent>(root, mConfigManager, mAuthDbOwner, mRegistrarDb);
 }
 
 Server::~Server() {
 	mAgent->unloadConfig();
-	RegistrarDb::resetDB();
 }
 
 void Server::runFor(std::chrono::milliseconds duration) {

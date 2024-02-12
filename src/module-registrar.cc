@@ -110,7 +110,8 @@ void OnRequestBindListener::onRecordFound(const shared_ptr<Record>& r) {
 		mModule->reply(mEv, 200, "Registration successful", r->getContacts(ms->getHome()));
 		if (mContact) {
 			string uid = r->extractUniqueId(mContact);
-			RegistrarDb::get()->publish(Record::Key(mSipFrom->a_url), uid);
+			mModule->getAgent()->getRegistrarDb().publish(
+			    Record::Key(mSipFrom->a_url, mModule->getAgent()->getRegistrarDb().useGlobalDomain()), uid);
 		}
 		/*
 		 * Tell SofiaSip to reply to CRLF pings only if
@@ -156,7 +157,9 @@ void OnResponseBindListener::onRecordFound(const shared_ptr<Record>& r) {
 	}
 
 	string uid = r->extractUniqueId(mCtx->mOriginalContacts);
-	RegistrarDb::get()->publish(Record::Key(mCtx->mRequestSipEvent->getSip()->sip_from->a_url), uid);
+	mModule->getAgent()->getRegistrarDb().publish(Record::Key(mCtx->mRequestSipEvent->getSip()->sip_from->a_url,
+	                                                          mModule->getAgent()->getRegistrarDb().useGlobalDomain()),
+	                                              uid);
 
 	sip_contact_t* dbContacts = r->getContacts(ms->getHome());
 
@@ -496,7 +499,7 @@ void ModuleRegistrar::onLoad(const GenericStruct* mc) {
 		    } else if (signum == SIGUSR2) {
 			    LOGI("Received signal triggering fake fetch");
 			    auto listener = make_shared<FakeFetchListener>();
-			    RegistrarDb::get()->fetch(SipUri("sip:contact@domain"), listener, false);
+			    mAgent->getRegistrarDb().fetch(SipUri("sip:contact@domain"), listener, false);
 		    }
 	    });
 }
@@ -533,8 +536,8 @@ void ModuleRegistrar::deleteResponseContext(const std::shared_ptr<ResponseContex
 }
 
 void ModuleRegistrar::updateLocalRegExpire() {
-	RegistrarDb::get()->mLocalRegExpire->removeExpiredBefore(getCurrentTime());
-	mStats.mCountLocalActives->set(RegistrarDb::get()->mLocalRegExpire->countActives());
+	mAgent->getRegistrarDb().mLocalRegExpire.removeExpiredBefore(getCurrentTime());
+	mStats.mCountLocalActives->set(mAgent->getRegistrarDb().mLocalRegExpire.countActives());
 }
 
 bool ModuleRegistrar::isManagedDomain(const url_t* url) {
@@ -647,14 +650,14 @@ void ModuleRegistrar::processUpdateRequest(shared_ptr<SipEventT>& ev, const sip_
 		mStats.mCountClear->incrStart();
 		LOGD("Clearing bindings");
 		listener->addStatCounter(mStats.mCountClear->finish);
-		RegistrarDb::get()->clear(sip, listener);
+		mAgent->getRegistrarDb().clear(sip, listener);
 		return;
 	} else {
 		auto listener = make_shared<ListenerT>(this, ev, sip->sip_from, sip->sip_contact);
 		mStats.mCountBind->incrStart();
 		LOGD("Updating binding");
 		listener->addStatCounter(mStats.mCountBind->finish);
-		RegistrarDb::get()->bind(sip, maindelta, false, 0, listener);
+		mAgent->getRegistrarDb().bind(sip, maindelta, false, 0, listener);
 		return;
 	}
 }
@@ -681,7 +684,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	if (sip->sip_contact == nullptr) {
 		LOGD("No sip contact, it is a fetch only request for %s.", sipurl.str().c_str());
 		auto listener = make_shared<OnRequestBindListener>(this, ev);
-		RegistrarDb::get()->fetch(sipurl, listener);
+		mAgent->getRegistrarDb().fetch(sipurl, listener);
 		return;
 	}
 
@@ -759,12 +762,12 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			mStats.mCountClear->incrStart();
 			LOGD("Clearing bindings");
 			listener->addStatCounter(mStats.mCountClear->finish);
-			RegistrarDb::get()->clear(*ms, listener);
+			mAgent->getRegistrarDb().clear(*ms, listener);
 			return;
 		} else {
 			if (sipurl.getUser().empty() && mAssumeUniqueDomains) {
 				/*first clear to make sure that there is only one record*/
-				RegistrarDb::get()->clear(*ms, make_shared<FakeFetchListener>());
+				mAgent->getRegistrarDb().clear(*ms, make_shared<FakeFetchListener>());
 			}
 			BindingParameters parameter;
 			auto listener =
@@ -776,7 +779,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			parameter.globalExpire = maindelta;
 			parameter.version = 0;
 			parameter.isAliasFunction = [this](const url_t* ct) -> bool { return isManagedDomain(ct); };
-			RegistrarDb::get()->bind(*ms, parameter, listener);
+			mAgent->getRegistrarDb().bind(*ms, parameter, listener);
 			return;
 		}
 	} else {
@@ -790,8 +793,8 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 
 		su_home_t* home = ev->getMsgSip()->getHome();
 		url_t* gruuAddress;
-		if (RegistrarDb::get()->gruuEnabled() &&
-		    (gruuAddress = RegistrarDb::get()->synthesizePubGruu(home, *ev->getMsgSip()))) {
+		if (mAgent->getRegistrarDb().gruuEnabled() &&
+		    (gruuAddress = mAgent->getRegistrarDb().synthesizePubGruu(home, *ev->getMsgSip()))) {
 			/* A gruu address can be assigned to this contact. Replace the contact with the GRUU address we are going to
 			 * create for the contact.*/
 			msg_header_remove_all(ev->getMsgSip()->getMsg(), (msg_pub_t*)ev->getSip(),
@@ -847,7 +850,7 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 			mStats.mCountClear->incrStart();
 			LOGD("Clearing bindings");
 			listener->addStatCounter(mStats.mCountClear->finish);
-			RegistrarDb::get()->clear(*request, listener);
+			mAgent->getRegistrarDb().clear(*request, listener);
 		} else {
 			BindingParameters parameter;
 			mStats.mCountBind->incrStart();
@@ -865,7 +868,7 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 			msg_header_insert(request->getMsg(), (msg_pub_t*)request->getSip(),
 			                  (msg_header_t*)context->mOriginalContacts);
 
-			RegistrarDb::get()->bind(*request, parameter, listener);
+			mAgent->getRegistrarDb().bind(*request, parameter, listener);
 		}
 	}
 	if (reSip->sip_status->st_status >= 200) {
@@ -955,8 +958,8 @@ void ModuleRegistrar::readStaticRecords() {
 					std::string mUri;
 				};
 
-				RegistrarDb::get()->clear(fromUri, "static-record-v"s + to_string(su_random()),
-				                          std::make_shared<ClearListener>(fromUri.str()));
+				mAgent->getRegistrarDb().clear(fromUri, "static-record-v"s + to_string(su_random()),
+				                               std::make_shared<ClearListener>(fromUri.str()));
 			}
 
 			while (contact) {
@@ -975,7 +978,7 @@ void ModuleRegistrar::readStaticRecords() {
 				parameter.alias = alias;
 				parameter.version = mStaticRecordsVersion;
 
-				RegistrarDb::get()->bind(fromUri, sipContact, parameter, listener);
+				mAgent->getRegistrarDb().bind(fromUri, sipContact, parameter, listener);
 				contact = contact->m_next;
 			}
 

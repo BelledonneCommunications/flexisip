@@ -88,7 +88,7 @@ void basicSubscription() {
 		transports->setTcpPort(LC_SIP_TRANSPORT_RANDOM);
 		regEventCore->setTransports(transports);
 	}
-	regEventCore->addListener(make_shared<flexisip::RegistrationEvent::Server::Subscriptions>());
+	regEventCore->addListener(make_shared<flexisip::RegistrationEvent::Server::Subscriptions>(proxy.getRegistrarDb()));
 	regEventCore->start();
 	auto* configRoot = proxy.getConfigManager()->getRoot();
 	configRoot->get<GenericStruct>("module::RegEvent")
@@ -103,14 +103,14 @@ void basicSubscription() {
 	    ClientBuilder(*proxy.getAgent()).setConferenceFactoryUri(confFactoryUri).build("sip:test@sip.example.org");
 	const auto& agent = *proxy.getAgent();
 	// Conference Server
-	TestConferenceServer conferenceServer(agent, proxy.getConfigManager());
-	auto& regDb = *RegistrarDb::get();
+	TestConferenceServer conferenceServer(agent, proxy.getConfigManager(), proxy.getRegistrarDb());
+	auto& regDb = proxy.getAgent()->getRegistrarDb();
 	ContactInserter inserter{regDb, std::make_shared<AcceptUpdatesListener>()};
 	const string participantFrom = "sip:participant1@localhost";
-	const Record::Key participantTopic{SipUri(participantFrom)};
+	const Record::Key participantTopic{SipUri(participantFrom), regDb.useGlobalDomain()};
 	const auto participantAddress = linFactory->createAddress(participantFrom);
 	const string otherParticipantFrom = "sip:participant2@localhost";
-	const Record::Key otherParticipantTopic{SipUri(otherParticipantFrom)};
+	const Record::Key otherParticipantTopic{SipUri(otherParticipantFrom), regDb.useGlobalDomain()};
 	// Fill the Regisrar DB with participants
 	inserter.withGruu(true)
 	    .setExpire(1000s)

@@ -351,7 +351,7 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	if (firebaseEnabled) mPNS->setupFirebaseClients(mc);
 
 	mExpirationNotifier =
-	    ContactExpirationNotifier::make_unique(*mc, mAgent->getRoot(), getService(), *RegistrarDb::get());
+	    ContactExpirationNotifier::make_unique(*mc, mAgent->getRoot(), getService(), mAgent->getRegistrarDb());
 
 	mCallTtl = chrono::duration_cast<chrono::seconds>(
 	    mRouter->get<ConfigDuration<chrono::seconds>>("call-fork-timeout")->read());

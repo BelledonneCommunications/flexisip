@@ -219,8 +219,8 @@ void ConferenceServer::_init() {
 		LOGF("Unconsistent uuid");
 	}
 
-	RegistrarDb::get()->addStateListener(shared_from_this());
-	if (RegistrarDb::get()->isWritable()) {
+	mRegistrarDb->addStateListener(shared_from_this());
+	if (mRegistrarDb->isWritable()) {
 		bindAddresses();
 	}
 }
@@ -300,7 +300,7 @@ void ConferenceServer::_run() {
 void ConferenceServer::_stop() {
 	const auto sharedThis = shared_from_this();
 	mCore->removeListener(sharedThis);
-	RegistrarDb::get()->removeStateListener(sharedThis);
+	mRegistrarDb->removeStateListener(sharedThis);
 	for (const auto& chatroom : mChatRooms) {
 		chatroom->removeListener(sharedThis);
 	}
@@ -355,7 +355,7 @@ void ConferenceServer::onConferenceAddressGeneration(const shared_ptr<ChatRoom>&
 	shared_ptr<Address> confAddr = cr->getConferenceAddress()->clone();
 	LOGI("Conference address is %s", confAddr->asString().c_str());
 	shared_ptr<ConferenceAddressGenerator> generator =
-	    make_shared<ConferenceAddressGenerator>(cr, confAddr, getUuid(), mPath, this);
+	    make_shared<ConferenceAddressGenerator>(cr, confAddr, getUuid(), mPath, this, *mRegistrarDb);
 	generator->run();
 }
 
@@ -408,7 +408,6 @@ void ConferenceServer::bindFactoryUris() {
 	shared_ptr<FakeListener> listener = make_shared<FakeListener>();
 
 	string uuid = getUuid();
-	auto* registrar = RegistrarDb::get();
 	for (auto conferenceFactoryUri : mConfServerUris) {
 		try {
 			BindingParameters parameter;
@@ -427,9 +426,9 @@ void ConferenceServer::bindFactoryUris() {
 			parameter.withGruu = true;
 
 			// Clear any bindings registered by a conference server in version 2.2. See anchor CNFFACREGKEYMIG
-			registrar->clear(factory, parameter.callId, listener);
+			mRegistrarDb->clear(factory, parameter.callId, listener);
 
-			registrar->bind(factory, sipContact, parameter, listener);
+			mRegistrarDb->bind(factory, sipContact, parameter, listener);
 
 		} catch (const sofiasip::InvalidUrlError& e) {
 			LOGF("'conference-server' value isn't a SIP URI [%s]", e.getUrl().c_str());
@@ -498,7 +497,7 @@ void ConferenceServer::bindFocusUris() {
 
 		SipUri focus(account->getParams()->getIdentityAddress()->asStringUriOnly());
 		shared_ptr<FocusListener> listener = make_shared<FocusListener>(account, uuid);
-		RegistrarDb::get()->bind(focus, sipContact, parameter, listener);
+		mRegistrarDb->bind(focus, sipContact, parameter, listener);
 	}
 }
 
@@ -523,7 +522,7 @@ void ConferenceServer::bindChatRoom(const string& bindingUrl,
 
 	if (uri.getUser().empty()) LOGA("Trying to bind with no username !");
 
-	RegistrarDb::get()->bind(uri, sipContact, parameter, listener);
+	mRegistrarDb->bind(uri, sipContact, parameter, listener);
 }
 
 namespace {

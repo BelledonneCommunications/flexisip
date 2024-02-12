@@ -1,6 +1,20 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #pragma once
 
@@ -139,7 +153,8 @@ struct ExtendedContact {
 	void init(bool initExpire = true);
 	void extractInfoFromUrl(const char* full_url);
 
-	ExtendedContact(const char* key, const char* fullUrl) : mKey(key) {
+	ExtendedContact(const char* key, const char* fullUrl, const std::string& messageExpiresName)
+	    : mKey(key), mMessageExpiresName{messageExpiresName} {
 		extractInfoFromUrl(fullUrl);
 		init();
 	}
@@ -151,9 +166,11 @@ struct ExtendedContact {
 	                time_t updateTime,
 	                bool alias,
 	                const std::list<std::string>& acceptHeaders,
-	                const std::string& userAgent)
+	                const std::string& userAgent,
+	                const std::string& messageExpiresName)
 	    : mCallId(common.mCallId), mKey(common.mKey), mPath(common.mPath), mUserAgent(userAgent), mCSeq(cseq),
-	      mAcceptHeader(acceptHeaders), mAlias(alias), mRegisterTime(updateTime), mExpires(global_expire) {
+	      mAcceptHeader(acceptHeaders), mAlias(alias), mRegisterTime(updateTime),
+	      mMessageExpiresName{messageExpiresName}, mExpires(global_expire) {
 
 		mSipContact = sip_contact_dup(mHome.home(), sip_contact);
 		mSipContact->m_next = nullptr;
@@ -165,8 +182,8 @@ struct ExtendedContact {
 	 * the 'q' parameter of the Contact may be set.
 	 * The new ExtendedConact has the maximum expiration date.
 	 */
-	ExtendedContact(const SipUri& url, const std::string& route, float q = 1.0)
-	    : mPath({route}), mExpires(std::chrono::seconds::max()) {
+	ExtendedContact(const SipUri& url, const std::string& route, const std::string& messageExpiresName, float q = 1.0)
+	    : mPath({route}), mMessageExpiresName{messageExpiresName}, mExpires(std::chrono::seconds::max()) {
 		mSipContact = sip_contact_create(mHome.home(), reinterpret_cast<const url_string_t*>(url.get()), nullptr);
 		q = std::min(1.0f, std::max(0.0f, q)); // force RFC compliance
 		mSipContact->m_q = mHome.sprintf("%.3f", q);
@@ -178,7 +195,7 @@ struct ExtendedContact {
 	    : mCallId(ec.mCallId), mKey(ec.mKey), mPath(ec.mPath), mUserAgent(ec.mUserAgent), mSipContact(nullptr),
 	      mQ(ec.mQ), mCSeq(ec.mCSeq), mAcceptHeader(ec.mAcceptHeader), mConnId(ec.mConnId), mHome(), mAlias(ec.mAlias),
 	      mUsedAsRoute(ec.mUsedAsRoute), mIsFallback(ec.mIsFallback), mRegisterTime(ec.mRegisterTime),
-	      mExpires(ec.mExpires), mMessageExpires(ec.mMessageExpires) {
+	      mMessageExpiresName(ec.mMessageExpiresName), mExpires(ec.mExpires), mMessageExpires(ec.mMessageExpires) {
 		mSipContact = sip_contact_dup(mHome.home(), ec.mSipContact);
 		mSipContact->m_next = nullptr;
 	}
@@ -193,6 +210,7 @@ struct ExtendedContact {
 
 private:
 	time_t mRegisterTime{0};
+	std::string mMessageExpiresName;
 	std::chrono::seconds mExpires{0};        // Standard SIP expires= field
 	std::chrono::seconds mMessageExpires{0}; // Custom message-expires= override
 };

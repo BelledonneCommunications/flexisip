@@ -453,7 +453,7 @@ void messageToChatroomClearText() {
 	agent->setEventLogWriter(
 	    std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "localhost", to_string(port), "/", "toktok"));
 	mysqlServer.waitReady();
-	const TestConferenceServer confServer(*agent, proxy->getConfigManager());
+	const TestConferenceServer confServer(*agent, proxy->getConfigManager(), proxy->getRegistrarDb());
 	const auto before = chrono::system_clock::now();
 
 	clemChat->createMessageFromUtf8("💃🏼")->send();

@@ -45,6 +45,7 @@
 #include "flexisip/event.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "flexisip/utils/sip-uri.hh"
+#include "registrar/registrar-db.hh"
 
 #include "agent-interface.hh"
 #include "eventlogs/writers/event-log-writer.hh"
@@ -123,7 +124,8 @@ private:
 public:
 	Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 	      const std::shared_ptr<ConfigManager>& cm,
-	      const std::shared_ptr<AuthDbBackendOwner>& authDbOwner);
+	      const std::shared_ptr<AuthDbBackendOwner>& authDbOwner,
+	      const std::shared_ptr<RegistrarDb>& registrarDb);
 
 	void start(const std::string& transport_override, const std::string& passphrase);
 	void unloadConfig();
@@ -155,6 +157,9 @@ public:
 	}
 	AuthDbBackendOwner& getAuthDbOwner() {
 		return *mAuthDbOwner;
+	}
+	RegistrarDb& getRegistrarDb() {
+		return *mRegistrarDb;
 	}
 
 	// Preferred route for inter-proxy communication
@@ -285,6 +290,7 @@ private:
 	std::shared_ptr<sofiasip::SuRoot> mRoot = nullptr;
 	const std::shared_ptr<ConfigManager> mConfigManager;
 	const std::shared_ptr<AuthDbBackendOwner> mAuthDbOwner;
+	const std::shared_ptr<RegistrarDb> mRegistrarDb;
 	std::list<std::shared_ptr<Module>> mModules;
 	std::list<std::string> mAliases;
 	url_t* mPreferredRouteV4 = nullptr;

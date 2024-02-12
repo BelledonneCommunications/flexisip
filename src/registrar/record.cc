@@ -20,13 +20,10 @@
 
 #include "flexisip/registrar/registar-listeners.hh"
 
-#include "agent.hh"
 #include "binding-parameters.hh"
 #include "change-set.hh"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "exceptions.hh"
 #include "extended-contact.hh"
-#include "registrar-db.hh"
 
 using namespace std;
 
@@ -95,7 +92,7 @@ time_t Record::latestExpire() const {
 	return latest;
 }
 
-time_t Record::latestExpire(Agent* ag) const {
+time_t Record::latestExpire(std::function<bool(const url_t*)>& predicate) const {
 	time_t latest = 0;
 	sofiasip::Home home;
 
@@ -109,7 +106,7 @@ time_t Record::latestExpire(Agent* ag) const {
 		if (n != string::npos) s = s.substr(0, n);
 		url_t* url = url_make(home.home(), s.c_str());
 
-		if (ag->isUs(url)) latest = expireTime;
+		if (predicate(url)) latest = expireTime;
 	}
 	return latest;
 }
@@ -124,12 +121,12 @@ list<string> Record::route_to_stl(const sip_route_s* route) {
 	return res;
 }
 
-Record::Key::Key(const url_t* url) : mWrapped() {
+Record::Key::Key(const url_t* url, bool useGlobalDomain) : mWrapped() {
 	ostringstream ostr;
 	if (url == nullptr) return;
 	const char* user = url->url_user;
 	if (user && user[0] != '\0') {
-		if (!RegistrarDb::get()->useGlobalDomain()) {
+		if (!useGlobalDomain) {
 			ostr << user << "@" << url->url_host;
 		} else {
 			ostr << user << "@"
@@ -150,8 +147,11 @@ Record::Config::Config(const ConfigManager& cfg) {
 	const GenericStruct* mr = cr->get<GenericStruct>("module::Registrar");
 	mMaxContacts = mr->get<ConfigInt>("max-contacts-by-aor")->read();
 	mLineFieldNames = mr->get<ConfigStringList>("unique-id-parameters")->read();
+	mMessageExpiresName = mr->get<ConfigString>("message-expires-param-name")->read();
 	mAssumeUniqueDomains =
 	    cr->get<GenericStruct>("inter-domain-connections")->get<ConfigBoolean>("assume-unique-domains")->read();
+	const GenericStruct* mro = cr->get<GenericStruct>("module::Router");
+	mUseGlobalDomain = mro->get<ConfigBoolean>("use-global-domain")->read();
 }
 
 ChangeSet Record::insertOrUpdateBinding(unique_ptr<ExtendedContact>&& ec, ContactUpdateListener* listener) {
@@ -338,7 +338,7 @@ ChangeSet Record::update(const sip_t* sip,
 		bool alias = parameters.isAliasFunction ? parameters.isAliasFunction(contacts->m_url) : parameters.alias;
 		auto exc = make_unique<ExtendedContact>(ecc, contacts, parameters.globalExpire,
 		                                        (sip->sip_cseq) ? sip->sip_cseq->cs_seq : 0, getCurrentTime(), alias,
-		                                        acceptHeaders, userAgent);
+		                                        acceptHeaders, userAgent, mConfig.messageExpiresName());
 		exc->mUsedAsRoute = sip->sip_from->a_url->url_user == nullptr;
 		extendedContacts.push_back(std::move(exc));
 		contacts = contacts->m_next;
@@ -381,7 +381,8 @@ void Record::update(const ExtendedContactCommon& ecc,
 		return;
 	}
 
-	auto exct = make_unique<ExtendedContact>(ecc, contact, expireAt, cseq, updated_time, alias, accept, "");
+	auto exct = make_unique<ExtendedContact>(ecc, contact, expireAt, cseq, updated_time, alias, accept, "",
+	                                         mConfig.messageExpiresName());
 	exct->mUsedAsRoute = usedAsRoute;
 	try {
 		insertOrUpdateBinding(std::move(exct), listener.get());
@@ -446,7 +447,8 @@ Record::Record(const SipUri& aor, const Config& recordConfig) : Record(SipUri(ao
 }
 
 Record::Record(SipUri&& aor, const Config& recordConfig)
-    : mAor(std::move(aor)), mKey(mAor), mIsDomain(mAor.getUser().empty()), mConfig{recordConfig} {
+    : mAor(std::move(aor)), mKey(mAor, recordConfig.useGlobalDomain()), mIsDomain(mAor.getUser().empty()),
+      mConfig{recordConfig} {
 }
 
 url_t* Record::getPubGruu(const std::shared_ptr<ExtendedContact>& ec, su_home_t* home) {

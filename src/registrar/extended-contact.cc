@@ -1,6 +1,20 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include "extended-contact.hh"
 
@@ -8,7 +22,6 @@
 
 #include <sofia-sip/sip_tag.h>
 
-#include "registrar-db.hh"
 #include "utils/uri-utils.hh"
 #include "utils/utf8-string.hh"
 
@@ -67,7 +80,17 @@ string ExtendedContact::getOrgLinphoneSpecs() const {
 }
 
 const string ExtendedContact::getMessageExpires(const msg_param_t* m_params) {
-	return RegistrarDb::get()->getMessageExpires(m_params);
+	if (m_params) {
+		// Find message expires time in the contact parameters
+		string mss_expires(*m_params);
+		string name_expires_mss = mMessageExpiresName;
+		if (mss_expires.find(name_expires_mss + "=") != string::npos) {
+			mss_expires =
+			    mss_expires.substr(mss_expires.find(name_expires_mss + "=") + (strlen(name_expires_mss.c_str()) + 1));
+			return mss_expires;
+		}
+	}
+	return "";
 }
 
 sip_contact_t* ExtendedContact::toSofiaContact(su_home_t* home) const {

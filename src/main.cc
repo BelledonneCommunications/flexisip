@@ -74,10 +74,12 @@
 #endif
 
 #include "agent.hh"
+#include "auth/db/authdb.hh"
 #include "cli.hh"
 #include "configdumper.hh"
 #include "etchosts.hh"
 #include "monitor.hh"
+#include "registrar/registrar-db.hh"
 #include "stun.hh"
 
 #ifdef ENABLE_CONFERENCE
@@ -974,7 +976,8 @@ int main(int argc, char* argv[]) {
 	 * run.
 	 */
 	auto authDbOwner = std::make_shared<AuthDbBackendOwner>(cfg);
-	a = make_shared<Agent>(root, cfg, authDbOwner);
+	auto registrarDb = std::make_shared<RegistrarDb>(root, cfg);
+	a = make_shared<Agent>(root, cfg, authDbOwner, registrarDb);
 	setOpenSSLThreadSafe();
 
 	if (startProxy) {
@@ -1018,8 +1021,8 @@ int main(int argc, char* argv[]) {
 		    (cfg->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read());
 		presenceServer = make_shared<flexisip::PresenceServer>(root, cfg);
 		if (enableLongTermPresence) {
-			auto presenceLongTerm =
-			    make_shared<flexisip::PresenceLongterm>(presenceServer->getBelleSipMainLoop(), authDbOwner);
+			auto presenceLongTerm = make_shared<flexisip::PresenceLongterm>(presenceServer->getBelleSipMainLoop(),
+			                                                                authDbOwner, registrarDb);
 			presenceServer->addPresenceInfoObserver(presenceLongTerm);
 		}
 		if (daemonMode) {
@@ -1041,7 +1044,7 @@ int main(int argc, char* argv[]) {
 
 	if (startConference) {
 #ifdef ENABLE_CONFERENCE
-		conferenceServer = make_shared<flexisip::ConferenceServer>(a->getPreferredRoute(), root, cfg);
+		conferenceServer = make_shared<flexisip::ConferenceServer>(a->getPreferredRoute(), root, cfg, registrarDb);
 		if (daemonMode) {
 			notifyWatchDog();
 		}
@@ -1058,7 +1061,7 @@ int main(int argc, char* argv[]) {
 
 	if (startRegEvent) {
 #ifdef ENABLE_CONFERENCE
-		regEventServer = make_unique<flexisip::RegistrationEvent::Server>(root, cfg);
+		regEventServer = make_unique<flexisip::RegistrationEvent::Server>(root, cfg, registrarDb);
 		if (daemonMode) {
 			notifyWatchDog();
 		}

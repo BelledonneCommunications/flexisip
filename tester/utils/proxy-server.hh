@@ -28,6 +28,7 @@
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
 #include "injected-module-info.hh"
+#include "registrar/registrar-db.hh"
 
 namespace flexisip {
 namespace tester {
@@ -68,6 +69,10 @@ public:
 		return mConfigManager;
 	}
 
+	const std::shared_ptr<RegistrarDb>& getRegistrarDb() const noexcept {
+		return mRegistrarDb;
+	}
+
 	const std::shared_ptr<flexisip::Agent>& getAgent() const noexcept {
 		return mAgent;
 	}
@@ -89,6 +94,7 @@ private:
 	const std::optional<InjectedModuleInfo> mInjectedModule{std::nullopt};
 	std::shared_ptr<ConfigManager> mConfigManager{std::make_shared<ConfigManager>()};
 	std::shared_ptr<AuthDbBackendOwner> mAuthDbOwner;
+	std::shared_ptr<RegistrarDb> mRegistrarDb;
 	std::shared_ptr<flexisip::Agent> mAgent;
 }; // Class Server
 

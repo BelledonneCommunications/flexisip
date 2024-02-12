@@ -384,7 +384,7 @@ void flexisip_cli_dot_py() {
 	{ // REGISTRAR_UPSERT with a contact parameter (priority)
 		const auto aor4 = "sip:test4@sip.example.org";
 		const auto contactWithPriority = "<"s + aor4 + ">;q=0.3";
-		auto* regDb = RegistrarDb::get();
+		auto& regDb = proxyServer.getAgent()->getRegistrarDb();
 		const auto listener = std::make_shared<SuccessfulBindListener>();
 
 		command.str("");
@@ -396,7 +396,7 @@ void flexisip_cli_dot_py() {
 		const auto uid = returned_contact["unique-id"].asString();
 		BC_ASSERT_TRUE(StringUtils::startsWith(uid, "fs-cli-gen"));
 
-		regDb->fetch(SipUri(aor4), listener);
+		regDb.fetch(SipUri(aor4), listener);
 		BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(7, [&record = listener->mRecord] { return !!record; }));
 
 		const auto& fetchedContacts = listener->mRecord->getExtendedContacts();

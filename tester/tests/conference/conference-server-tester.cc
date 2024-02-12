@@ -108,9 +108,10 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 	configRoot->get<GenericStruct>("conference-server")
 	    ->get<ConfigValue>("outbound-proxy")
 	    ->set("sip:127.0.0.1:"s + proxy.getFirstPort() + ";transport=tcp");
-	auto* registrar = dynamic_cast<RegistrarDbInternal*>(RegistrarDb::get());
-	BC_HARD_ASSERT_TRUE(registrar != nullptr);
-	const auto& records = registrar->getAllRecords();
+	const auto* registrarBackend =
+	    dynamic_cast<const RegistrarDbInternal*>(&proxy.getAgent()->getRegistrarDb().getRegistrarBackend());
+	BC_HARD_ASSERT_TRUE(registrarBackend != nullptr);
+	const auto& records = registrarBackend->getAllRecords();
 	BC_HARD_ASSERT_CPP_EQUAL(records.size(), 0);
 	ClientBuilder clientBuilder{*proxy.getAgent()};
 	clientBuilder.setConferenceFactoryUri(confFactoryUri).setLimeX3DH(OnOff::Off);
@@ -126,7 +127,8 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 	};
 	{ // Populate conference server's DB
 		mysqlServer.waitReady();
-		const TestConferenceServer conferenceServer(*proxy.getAgent(), proxy.getConfigManager());
+		const TestConferenceServer conferenceServer(*proxy.getAgent(), proxy.getConfigManager(),
+		                                            proxy.getRegistrarDb());
 		BC_HARD_ASSERT_CPP_EQUAL(records.size(), 2 /* users */ + 1 /* factory */);
 		const auto& inMyRoom = you.getMe();
 		listener->setChatrooms({
@@ -155,10 +157,10 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 		}
 
 	} // Shutdown conference server
-	registrar->clearAll();
+	(const_cast<RegistrarDbInternal*>(registrarBackend))->clearAll();
 
 	// Spin it up again
-	const TestConferenceServer conferenceServer(*proxy.getAgent(), proxy.getConfigManager());
+	const TestConferenceServer conferenceServer(*proxy.getAgent(), proxy.getConfigManager(), proxy.getRegistrarDb());
 
 	// The conference server restored its chatrooms from DB and bound them back on the Registrar
 	BC_ASSERT_CPP_EQUAL(records.size(), 1 /* factory */ + 4 /* chatrooms */);
@@ -185,9 +187,10 @@ void conferenceServerClearsOldBindingsOnInit() {
 	    {"conference-server/conference-factory-uris", confFactoryUri},
 	}};
 	proxy.start();
-	auto* registrar = dynamic_cast<RegistrarDbInternal*>(RegistrarDb::get());
-	BC_HARD_ASSERT_TRUE(registrar != nullptr);
-	const auto& records = registrar->getAllRecords();
+	auto& registrar = proxy.getAgent()->getRegistrarDb();
+	const auto* registrarBackend = dynamic_cast<const RegistrarDbInternal*>(&registrar.getRegistrarBackend());
+	BC_HARD_ASSERT_TRUE(registrarBackend != nullptr);
+	const auto& records = registrarBackend->getAllRecords();
 	BC_HARD_ASSERT_CPP_EQUAL(records.size(), 0);
 	sofiasip::Home home{};
 	const SipUri aor(confFactoryUri);
@@ -198,7 +201,7 @@ void conferenceServerClearsOldBindingsOnInit() {
 	const auto contact =
 	    sip_contact_create(home.home(), reinterpret_cast<const url_string_t*>(unexpectedContact), nullptr);
 	// Fake an existing contact as if left over from a previous version
-	registrar->bind(aor, contact, params, nullptr);
+	registrar.bind(aor, contact, params, nullptr);
 	BC_HARD_ASSERT_CPP_EQUAL(records.size(), 1);
 	{
 		const auto& contacts = records.begin()->second->getExtendedContacts();
@@ -206,7 +209,7 @@ void conferenceServerClearsOldBindingsOnInit() {
 		BC_ASSERT_CPP_EQUAL(contacts.latest()->get()->urlAsString(), unexpectedContact);
 	}
 
-	const TestConferenceServer conferenceServer(*proxy.getAgent(), proxy.getConfigManager());
+	const TestConferenceServer conferenceServer(*proxy.getAgent(), proxy.getConfigManager(), proxy.getRegistrarDb());
 
 	BC_ASSERT_CPP_EQUAL(records.size(), 1);
 	const auto& contacts = records.begin()->second->getExtendedContacts();
@@ -221,14 +224,5 @@ TestSuite _("Conference",
             {
                 CLASSY_TEST(conferenceServerBindsChatroomsFromDBOnInit),
                 CLASSY_TEST(conferenceServerClearsOldBindingsOnInit),
-            },
-            Hooks()
-                .beforeSuite([] {
-	                RegistrarDb::resetDB();
-	                return 0;
-                })
-                .afterSuite([] {
-	                RegistrarDb::resetDB();
-	                return 0;
-                }));
+            });
 } // namespace

@@ -819,7 +819,7 @@ protected:
 		mClient = make_shared<NtaAgent>(mAgent->getRoot(), "sip:localhost:0");
 		mProxyPort = ::tport_name(::tport_primaries(::nta_agent_tports(mAgent->getSofiaAgent())))->tpn_port;
 
-		ContactInserter inserter(*RegistrarDb::get());
+		ContactInserter inserter(mAgent->getRegistrarDb());
 		inserter.setAor("sip:callee@localhost")
 		    .setExpire(60s)
 		    .insert({"sip:callee@localhost:0;transport=tcp;pn-prid=id;pn-provider=fcm;pn-param=key;pn-silent=1;pn-"

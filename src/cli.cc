@@ -425,7 +425,7 @@ void ProxyCommandLineInterface::handleRegistrarGet(SocketHandle&& socket, const 
 	}
 
 	auto listener = make_shared<SerializeRecordWhenFound>(std::move(socket));
-	RegistrarDb::get()->fetch(url, listener, false);
+	mAgent->getRegistrarDb().fetch(url, listener, false);
 }
 
 void ProxyCommandLineInterface::handleRegistrarUpsert(SocketHandle&& socket, const std::vector<std::string>& args) {
@@ -487,7 +487,7 @@ void ProxyCommandLineInterface::handleRegistrarUpsert(SocketHandle&& socket, con
 	BindingParameters params{};
 	params.globalExpire = expire;
 	params.callId = "fs-cli-upsert";
-	RegistrarDb::get()->bind(aor, contact, params, std::make_shared<SerializeRecordWhenFound>(std::move(socket)));
+	mAgent->getRegistrarDb().bind(aor, contact, params, std::make_shared<SerializeRecordWhenFound>(std::move(socket)));
 }
 
 void ProxyCommandLineInterface::handleRegistrarDelete(SocketHandle&& socket, const std::vector<std::string>& args) {
@@ -516,7 +516,7 @@ void ProxyCommandLineInterface::handleRegistrarDelete(SocketHandle&& socket, con
 
 	auto listener = std::make_shared<SerializeRecordWhenFound>(std::move(socket));
 
-	RegistrarDb::get()->bind(msg, parameter, listener);
+	mAgent->getRegistrarDb().bind(msg, parameter, listener);
 }
 
 void ProxyCommandLineInterface::handleRegistrarClear(SocketHandle&& socket, const std::vector<std::string>& args) {
@@ -527,12 +527,12 @@ void ProxyCommandLineInterface::handleRegistrarClear(SocketHandle&& socket, cons
 
 	class ClearListener : public CommandListener {
 	public:
-		ClearListener(SocketHandle&& socket, Record::Key&& uri)
-		    : CommandListener(std::move(socket)), mUri(std::move(uri)) {
+		ClearListener(SocketHandle&& socket, Record::Key&& uri, RegistrarDb& registrarDb)
+		    : CommandListener(std::move(socket)), mUri(std::move(uri)), mRegistrarDb(registrarDb) {
 		}
 
 		void onRecordFound(const shared_ptr<Record>& r) override {
-			RegistrarDb::get()->publish(r->getKey(), "");
+			mRegistrarDb.publish(r->getKey(), "");
 			mSocket.send("Done: cleared record " + static_cast<const string&>(mUri));
 		}
 		void onError(const SipStatus&) override {
@@ -544,6 +544,7 @@ void ProxyCommandLineInterface::handleRegistrarClear(SocketHandle&& socket, cons
 
 	private:
 		Record::Key mUri;
+		RegistrarDb& mRegistrarDb;
 	};
 
 	SipUri url;
@@ -555,16 +556,19 @@ void ProxyCommandLineInterface::handleRegistrarClear(SocketHandle&& socket, cons
 	}
 
 	auto msg = MsgSip(ownership::owned(nta_msg_create(mAgent->getSofiaAgent(), 0)));
-	auto sip = msg.getSip();
+	auto* sip = msg.getSip();
 	sip->sip_from = sip_from_create(msg.getHome(), reinterpret_cast<const url_string_t*>(url.get()));
-	RegistrarDb::get()->clear(msg, std::make_shared<ClearListener>(std::move(socket), Record::Key(url)));
+	mAgent->getRegistrarDb().clear(
+	    msg,
+	    std::make_shared<ClearListener>(std::move(socket), Record::Key(url, mAgent->getRegistrarDb().useGlobalDomain()),
+	                                    mAgent->getRegistrarDb()));
 }
 
 void ProxyCommandLineInterface::handleRegistrarDump(SocketHandle&& socket,
                                                     [[maybe_unused]] const std::vector<std::string>& args) {
 	list<string> aorList;
 
-	RegistrarDb::get()->getLocalRegisteredAors(aorList);
+	mAgent->getRegistrarDb().getLocalRegisteredAors(aorList);
 
 	cJSON* root = cJSON_CreateObject();
 	cJSON* contacts = cJSON_CreateArray();

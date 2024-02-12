@@ -379,7 +379,7 @@ void message_expires() {
 	                            nullptr};
 	const string proxyPort = proxyServer.getFirstPort();
 	const string clientPort = to_string(bellesipUtils.getListeningPort());
-	ContactInserter inserter(*RegistrarDb::get());
+	ContactInserter inserter(proxyServer.getAgent()->getRegistrarDb());
 	inserter.setAor("sip:message_expires@127.0.0.1")
 	    .setExpire(0s)
 	    .setContactParams({"message-expires=1609"})
@@ -445,7 +445,7 @@ struct RoutingWithStaticTargets {
 		mProxy.start();
 		mAsserter.addCustomIterate([&root = *mProxy.getRoot()] { root.step(1ms); });
 
-		ContactInserter inserter(*RegistrarDb::get());
+		ContactInserter inserter(mProxy.getAgent()->getRegistrarDb());
 		for (const auto& contact : contacts) {
 			inserter.setAor(contact.aor).setExpire(1min).insert({contact.uri});
 		}

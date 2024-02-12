@@ -31,8 +31,6 @@
 #include "flexisip/registrar/registar-listeners.hh"
 #include "flexisip/utils/sip-uri.hh"
 
-#include "registrar/registrar-db.hh"
-
 namespace flexisip {
 
 class Agent;

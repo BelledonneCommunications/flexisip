@@ -65,9 +65,7 @@ class RegistrarDbTest : public AgentTest {
 public:
 	RegistrarDbTest(bool startAgent = false) noexcept : AgentTest(startAgent) {
 	}
-	~RegistrarDbTest() {
-		RegistrarDb::resetDB();
-	}
+	virtual ~RegistrarDbTest() = default;
 
 	void onAgentConfiguration(ConfigManager& cfg) override {
 		AgentTest::onAgentConfiguration(cfg);
@@ -75,7 +73,11 @@ public:
 	}
 
 	void onAgentConfigured() override {
-		mInserter.emplace(*RegistrarDb::get());
+		mInserter.emplace(mAgent->getRegistrarDb());
+	}
+
+	RegistrarDb& getRegistrarDb() {
+		return mAgent->getRegistrarDb();
 	}
 
 	std::optional<ContactInserter> mInserter{std::nullopt};

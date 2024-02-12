@@ -23,6 +23,7 @@
 #include <linphone++/linphone.hh>
 
 #include "participant-registration-subscription-handler.hh"
+#include "registrar/registrar-db.hh"
 #include "registration-subscription.hh"
 #include "service-server.hh"
 
@@ -38,9 +39,12 @@ class ConferenceServer : public ServiceServer,
                          public linphone::ChatRoomListener {
 public:
 	template <typename StrT, typename SuRootPtr>
-	ConferenceServer(StrT&& path, SuRootPtr&& root, const std::shared_ptr<ConfigManager>& cfg)
+	ConferenceServer(StrT&& path,
+	                 SuRootPtr&& root,
+	                 const std::shared_ptr<ConfigManager>& cfg,
+	                 const std::shared_ptr<RegistrarDb>& registrarDb)
 	    : ServiceServer{std::forward<SuRootPtr>(root)}, mPath{std::forward<StrT>(path)}, mConfigManager{cfg},
-	      mSubscriptionHandler{*this} {
+	      mRegistrarDb{registrarDb}, mSubscriptionHandler{*this, *mRegistrarDb} {
 	}
 
 	virtual void bindAddresses();
@@ -120,6 +124,7 @@ private:
 	std::shared_ptr<RegistrationEvent::ClientFactory> mRegEventClientFactory{};
 	std::string mPath{};
 	std::shared_ptr<ConfigManager> mConfigManager;
+	std::shared_ptr<RegistrarDb> mRegistrarDb;
 	std::list<std::shared_ptr<linphone::ChatRoom>> mChatRooms{};
 	ParticipantRegistrationSubscriptionHandler mSubscriptionHandler;
 	MediaConfig mMediaConfig;

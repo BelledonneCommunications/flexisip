@@ -64,13 +64,12 @@ public:
 		mAuthDbOwner = std::make_shared<AuthDbBackendOwner>(mConfigManager);
 	}
 
-	~AgentTest() {
-		RegistrarDb::resetDB();
-	}
+	virtual ~AgentTest() = default;
 
 	void operator()() final {
 		configureAgent();
-		mAgent = std::make_shared<Agent>(mRoot, mConfigManager, mAuthDbOwner);
+		mRegistrarDb = std::make_shared<RegistrarDb>(mRoot, mConfigManager);
+		mAgent = std::make_shared<Agent>(mRoot, mConfigManager, mAuthDbOwner, mRegistrarDb);
 		onAgentConfigured();
 		if (mRunAgent) {
 			mAgent->start("", "");
@@ -135,6 +134,7 @@ protected:
 	std::shared_ptr<sofiasip::SuRoot> mRoot{std::make_shared<sofiasip::SuRoot>()};
 	std::shared_ptr<ConfigManager> mConfigManager{std::make_shared<ConfigManager>()};
 	std::shared_ptr<AuthDbBackendOwner> mAuthDbOwner;
+	std::shared_ptr<RegistrarDb> mRegistrarDb;
 	std::shared_ptr<Agent> mAgent;
 	bool mRunAgent;
 };

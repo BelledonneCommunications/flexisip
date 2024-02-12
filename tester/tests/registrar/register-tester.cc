@@ -127,27 +127,26 @@ private:
 /**
  * Insert a contact into the registrarDB.
  */
-static void
-insertUserContact(const std::shared_ptr<sofiasip::SuRoot>& root, const SipUri& user, const sip_contact_t* contact) {
+static void insertUserContact(Agent& agent, const SipUri& user, const sip_contact_t* contact) {
 	BindingParameters parameter{};
 	parameter.globalExpire = 1000;
 	parameter.callId = "random_id_necessary_to_bind_" + to_string(notSoRandomId++);
 	parameter.withGruu = true;
 
-	RegistrarDb::get()->bind(user, contact, parameter, make_shared<RegisterBindListener>(user.str()));
+	agent.getRegistrarDb().bind(user, contact, parameter, make_shared<RegisterBindListener>(user.str()));
 	expectedBidingDone++;
+	auto root = agent.getRoot();
 	auto beforePlus2 = system_clock::now() + 2s;
 	while (bidingDone != expectedBidingDone && beforePlus2 >= system_clock::now()) {
 		root->step(20ms);
 	}
 }
 
-static void
-insertContact(const std::shared_ptr<sofiasip::SuRoot>& root, const string& sipUri, const string& paramList) {
+static void insertContact(Agent& agent, const string& sipUri, const string& paramList) {
 	sofiasip::Home home{};
 	SipUri user{sipUri + ";" + paramList};
 	auto contact = sip_contact_create(home.home(), (url_string_t*)user.str().c_str(), nullptr);
-	insertUserContact(root, user, contact);
+	insertUserContact(agent, user, contact);
 }
 
 /**
@@ -192,97 +191,95 @@ static void sendRegisterRequest(const std::shared_ptr<sofiasip::SuRoot>& root,
 	}
 }
 
-static void checkResultInDb(const std::shared_ptr<sofiasip::SuRoot>& root,
-                            SipUri uri,
-                            shared_ptr<RegisterFetchListener> fetchListener,
-                            bool recursive) {
-	RegistrarDb::get()->fetch(uri, fetchListener, recursive);
+static void checkResultInDb(Agent& agent, SipUri uri, shared_ptr<RegisterFetchListener> fetchListener, bool recursive) {
+	agent.getRegistrarDb().fetch(uri, fetchListener, recursive);
 	expectedFetchingDone++;
+	auto root = agent.getRoot();
 	auto beforePlus1 = system_clock::now() + 1s;
 	while (fetchingDone != expectedFetchingDone && beforePlus1 >= system_clock::now()) {
 		root->step(20ms);
 	}
 }
 
-static void startTest(const std::shared_ptr<Agent>& agent) {
+static void startTest(Agent& agent) {
 	// Starting Flexisip
-	agent->start("", "");
-	auto root = agent->getRoot();
+	agent.start("", "");
 
 	// FCM
-	insertContact(root, "sip:fcm1@sip.example.org", "pn-provider=fcm;pn-prid=aFcmToken;pn-param=aProjectId");
-	insertContact(root, "sip:fcm2@sip.example.org",
+	insertContact(agent, "sip:fcm1@sip.example.org", "pn-provider=fcm;pn-prid=aFcmToken;pn-param=aProjectId");
+	insertContact(agent, "sip:fcm2@sip.example.org",
 	              "pn-provider=fcm;pn-prid=aUniqueFcmToken;pn-param=aUniqueProjectId");
-	insertContact(root, "sip:fcm3@sip.example.org", "pn-provider=fcm;pn-prid=aUniqueFcmToken;pn-param=aProjectId");
-	insertContact(root, "sip:fcm4@sip.example.org", "pn-provider=fcm;pn-prid=aFcmToken;pn-param=aUniqueProjectId");
+	insertContact(agent, "sip:fcm3@sip.example.org", "pn-provider=fcm;pn-prid=aUniqueFcmToken;pn-param=aProjectId");
+	insertContact(agent, "sip:fcm4@sip.example.org", "pn-provider=fcm;pn-prid=aFcmToken;pn-param=aUniqueProjectId");
 
 	// APNS (simple ones)
-	insertContact(root, "sip:apns1@sip.example.org",
+	insertContact(agent, "sip:apns1@sip.example.org",
 	              "pn-provider=apns;pn-prid=aRemoteToken;pn-param=aProjectId.aBundleId");
-	insertContact(root, "sip:apns2@sip.example.org",
+	insertContact(agent, "sip:apns2@sip.example.org",
 	              "pn-provider=apns.dev;pn-prid=aUniqueRemoteToken;pn-param=aProjectId.aBundleId");
-	insertContact(root, "sip:apns3@sip.example.org",
+	insertContact(agent, "sip:apns3@sip.example.org",
 	              "pn-provider=apns;pn-prid=aPushKitToken;pn-param=aUniqueProjectId.aBundleId.voip");
 
 	// APNS (with 2 tokens)
-	insertContact(root, "sip:apns4@sip.example.org",
+	insertContact(agent, "sip:apns4@sip.example.org",
 	              "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
 	              "param=aProjectID.aBundleID.remote&voip");
-	insertContact(root, "sip:apns5@sip.example.org",
+	insertContact(agent, "sip:apns5@sip.example.org",
 	              "pn-provider=apns;pn-prid=aUniqueRemoteToken:remote&aPushKitToken:voip;pn-"
 	              "param=aProjectID.aBundleID.remote&voip");
-	insertContact(root, "sip:apns6@sip.example.org",
+	insertContact(agent, "sip:apns6@sip.example.org",
 	              "pn-provider=apns;pn-prid=aRemoteToken:remote&aUniquePushKitToken:voip;pn-"
 	              "param=aProjectID.aBundleID.remote&voip");
-	insertContact(root, "sip:apns7@sip.example.org",
+	insertContact(agent, "sip:apns7@sip.example.org",
 	              "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
 	              "param=aUniqueProjectID.aBundleID.remote&voip");
-	insertContact(root, "sip:apns8@sip.example.org",
+	insertContact(agent, "sip:apns8@sip.example.org",
 	              "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
 	              "param=aProjectID.aBundleID.remote&voip");
-	insertContact(root, "sip:apns9@sip.example.org",
+	insertContact(agent, "sip:apns9@sip.example.org",
 	              "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
 	              "param=aProjectID.aBundleID.remote&voip");
-	insertContact(root, "sip:apns10@sip.example.org",
+	insertContact(agent, "sip:apns10@sip.example.org",
 	              "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
 	              "param=aProjectID.aBundleID.remote&voip");
-	insertContact(root, "sip:apns11@sip.example.org",
+	insertContact(agent, "sip:apns11@sip.example.org",
 	              "pn-provider=apns;pn-prid=:remote&:voip;pn-param=aProjectID.aBundleID.remote&voip");
-	insertContact(root, "sip:apns12@sip.example.org",
+	insertContact(agent, "sip:apns12@sip.example.org",
 	              "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
 	              "param=aProjectID.aBundleID.remote&voip");
-	insertContact(root, "sip:apns13@sip.example.org",
+	insertContact(agent, "sip:apns13@sip.example.org",
 	              "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
 	              "param=aProjectID.aBundleID.remote&voip");
 
 	// Multiple entries with same tokens are possible with Redis because no cleaning is done on biding, except
 	// if unique key are the same.
-	insertContact(root, "sip:elisa@sip.example.org",
+	insertContact(agent, "sip:elisa@sip.example.org",
 	              "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
 	              "param=aProjectID.aBundleID.remote&voip");
-	insertContact(root, "sip:elisa@sip.example.org",
+	insertContact(agent, "sip:elisa@sip.example.org",
 	              "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
 	              "param=aProjectID.aBundleID.remote&voip");
-	insertContact(root, "sip:elisa@sip.example.org",
+	insertContact(agent, "sip:elisa@sip.example.org",
 	              "pn-provider=apns;pn-prid=aRemoteToken:remote&aPushKitToken:voip;pn-"
 	              "param=aProjectID.aBundleID.remote&voip");
 
 	// Legacy contact parameters (apple)
-	insertContact(root, "sip:apns14@sip.example.org",
+	insertContact(agent, "sip:apns14@sip.example.org",
 	              "pn-provider=apns;pn-prid=aRemoteToken;pn-param=ABCD1234.aBundleId");
-	insertContact(root, "sip:apns15@sip.example.org",
+	insertContact(agent, "sip:apns15@sip.example.org",
 	              "pn-provider=apns.dev;pn-prid=aRemoteToken;pn-param=ABCD1234.aBundleId");
-	insertContact(root, "sip:apns16@sip.example.org",
+	insertContact(agent, "sip:apns16@sip.example.org",
 	              "pn-provider=apns;pn-prid=aUniqueRemoteToken;pn-param=ABCD1234.aBundleId");
 
 	// Legacy contact parameters (firebase)
-	insertContact(root, "sip:fcm5@sip.example.org", "pn-provider=fcm;pn-prid=aToken;pn-param=aProjectId");
-	insertContact(root, "sip:fcm6@sip.example.org", "pn-provider=fcm;pn-prid=aUniqueToken;pn-param=aProjectId");
+	insertContact(agent, "sip:fcm5@sip.example.org", "pn-provider=fcm;pn-prid=aToken;pn-param=aProjectId");
+	insertContact(agent, "sip:fcm6@sip.example.org", "pn-provider=fcm;pn-prid=aUniqueToken;pn-param=aProjectId");
 
 	// All "sleep" calls are here to make "updatedTime" different for all entries.
 	sleep(1);
 
 	// FCM
+	auto root = agent.getRoot();
 	sendRegisterRequest(root, "sip:fcm1@sip.example.org", "pn-provider=fcm;pn-prid=aFcmToken;pn-param=aProjectId",
 	                    "fcm1Reg");
 	sendRegisterRequest(root, "sip:fcm2@sip.example.org",
@@ -378,63 +375,67 @@ static void startTest(const std::shared_ptr<Agent>& agent) {
 
 	// FCM
 	// Same prid and param --> replaced
-	checkResultInDb(root, SipUri{"sip:fcm1@sip.example.org"}, make_shared<RegisterFetchListener>(1, "fcm1Reg"), true);
+	checkResultInDb(agent, SipUri{"sip:fcm1@sip.example.org"}, make_shared<RegisterFetchListener>(1, "fcm1Reg"), true);
 	// Different prid and param --> both kept
-	checkResultInDb(root, SipUri{"sip:fcm2@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:fcm2@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
 	// Different prid but same param --> both kept
-	checkResultInDb(root, SipUri{"sip:fcm3@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:fcm3@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
 	// Same prid but different param --> both kept
-	checkResultInDb(root, SipUri{"sip:fcm4@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:fcm4@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
 
 	// APNS (simple ones)
 	// Same prid and param --> replaced
-	checkResultInDb(root, SipUri{"sip:apns1@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns1Reg"), true);
+	checkResultInDb(agent, SipUri{"sip:apns1@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns1Reg"),
+	                true);
 	// Different prid but same param --> both kept
-	checkResultInDb(root, SipUri{"sip:apns2@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:apns2@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
 	// Same prid but different param --> both kept
-	checkResultInDb(root, SipUri{"sip:apns3@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:apns3@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
 
 	// APNS (with 2 tokens)
 	// All same (only param suffix is reversed) --> replaced
-	checkResultInDb(root, SipUri{"sip:apns4@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns4Reg"), true);
+	checkResultInDb(agent, SipUri{"sip:apns4@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns4Reg"),
+	                true);
 	// Same PushKitToken, different RemoteToken, same param --> replaced
-	checkResultInDb(root, SipUri{"sip:apns5@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns5Reg"), true);
+	checkResultInDb(agent, SipUri{"sip:apns5@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns5Reg"),
+	                true);
 	// Different PushKitToken, same RemoteToken, same param --> replaced
-	checkResultInDb(root, SipUri{"sip:apns6@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns6Reg"), true);
+	checkResultInDb(agent, SipUri{"sip:apns6@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns6Reg"),
+	                true);
 	// Same PushKitToken, same RemoteToken, Different param --> both kept
-	checkResultInDb(root, SipUri{"sip:apns7@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:apns7@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
 	// Badly formated register, can't really compare --> both kept
-	checkResultInDb(root, SipUri{"sip:apns8@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:apns8@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
 	// Invalid prid ('&' not present), can't really compare --> both kept
-	checkResultInDb(root, SipUri{"sip:apns9@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:apns9@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
 	// Invalid prid (only remote present), can't really compare --> both kept
-	checkResultInDb(root, SipUri{"sip:apns10@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:apns10@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
 	// Invalid prid (only suffix for remote and voip), can't really compare --> both kept
-	checkResultInDb(root, SipUri{"sip:apns11@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:apns11@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
 	// Invalid pn-param ('_' before instead of '.'), can't really compare --> both kept
-	checkResultInDb(root, SipUri{"sip:apns12@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:apns12@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
 	// Invalid pn-param (no '.'), can't really compare --> both kept
-	checkResultInDb(root, SipUri{"sip:apns13@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:apns13@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
 
 	// Multiples ones, all with the same tokens, only the last inserted must remain (cleaning done at biding
 	// with internalDB, at fetching with Redis)
-	checkResultInDb(root, SipUri{"sip:elisa@sip.example.org"}, make_shared<RegisterFetchListener>(1, "elisa15"), true);
+	checkResultInDb(agent, SipUri{"sip:elisa@sip.example.org"}, make_shared<RegisterFetchListener>(1, "elisa15"), true);
 
 	// Legacy contact parameters (apple)
 	// Same prid and param --> replaced
-	checkResultInDb(root, SipUri{"sip:apns14@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns14Reg"),
+	checkResultInDb(agent, SipUri{"sip:apns14@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns14Reg"),
 	                true);
 	// Same prid and param --> replaced
-	checkResultInDb(root, SipUri{"sip:apns15@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns15Reg"),
+	checkResultInDb(agent, SipUri{"sip:apns15@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns15Reg"),
 	                true);
 	// Different prid but same param --> both kept
-	checkResultInDb(root, SipUri{"sip:apns16@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:apns16@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
 
 	// Legacy contact parameters (firebase)
 	// Same prid and param --> replaced
-	checkResultInDb(root, SipUri{"sip:fcm5@sip.example.org"}, make_shared<RegisterFetchListener>(1, "fcm5Reg"), true);
+	checkResultInDb(agent, SipUri{"sip:fcm5@sip.example.org"}, make_shared<RegisterFetchListener>(1, "fcm5Reg"), true);
 	// Different prid but same param --> both kept
-	checkResultInDb(root, SipUri{"sip:fcm6@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:fcm6@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
 }
 
 static void duplicatePushTokenRegisterInternalDbTest() {
@@ -442,11 +443,12 @@ static void duplicatePushTokenRegisterInternalDbTest() {
 	// Agent initialization
 	auto cfg = make_shared<ConfigManager>();
 	cfg->load(bcTesterRes("config/flexisip_register.conf"));
-	auto agent = make_shared<Agent>(root, cfg, make_shared<AuthDbBackendOwner>(cfg));
 
-	auto registrarConf = cfg->getRoot()->get<GenericStruct>("module::Registrar");
+	auto* registrarConf = cfg->getRoot()->get<GenericStruct>("module::Registrar");
 	registrarConf->get<ConfigStringList>("reg-domains")->set("sip.example.org");
-	startTest(agent);
+	auto agent =
+	    make_shared<Agent>(root, cfg, make_shared<AuthDbBackendOwner>(cfg), make_shared<RegistrarDb>(root, cfg));
+	startTest(*agent);
 }
 
 static void duplicatePushTokenRegisterRedisTest() {
@@ -460,7 +462,7 @@ static void duplicatePushTokenRegisterRedisTest() {
 	    {"module::Registrar/redis-server-port", std::to_string(redis.port())},
 	    {"module::DoSProtection/enabled", "false"},
 	});
-	startTest(proxyServer.getAgent());
+	startTest(*proxyServer.getAgent());
 }
 
 namespace {
@@ -534,7 +536,7 @@ void invalidContactInDb() {
 		};
 		auto contact = createContact("sip:validContact@sip.example.org");
 		contact->m_next = createContact("sop:invalidContact@sip.example.com");
-		insertUserContact(proxyServer.getRoot(), userUri, contact);
+		insertUserContact(*proxyServer.getAgent(), userUri, contact);
 	}
 
 	// send a valid REGISTER request
@@ -561,7 +563,7 @@ void invalidContactInDb() {
 	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 200);
 
 	auto const expectedContact{2};
-	checkResultInDb(proxyServer.getRoot(), userUri, make_shared<RegisterFetchListener>(expectedContact, uuid), true);
+	checkResultInDb(*proxyServer.getAgent(), userUri, make_shared<RegisterFetchListener>(expectedContact, uuid), true);
 }
 
 TestSuite
@@ -573,14 +575,12 @@ TestSuite
           TEST_NO_TAG_AUTO_NAMED(invalidContactInRequest),
           TEST_NO_TAG_AUTO_NAMED(invalidContactInDb),
       },
-      Hooks()
-          .beforeEach([] {
-	          responseReceived = 0;
-	          expectedResponseReceived = 0;
-	          bidingDone = 0;
-	          expectedBidingDone = 0;
-	          fetchingDone = 0;
-	          expectedFetchingDone = 0;
-          })
-          .afterEach([] { RegistrarDb::resetDB(); }));
+      Hooks().beforeEach([] {
+	      responseReceived = 0;
+	      expectedResponseReceived = 0;
+	      bidingDone = 0;
+	      expectedBidingDone = 0;
+	      fetchingDone = 0;
+	      expectedFetchingDone = 0;
+      }));
 } // namespace

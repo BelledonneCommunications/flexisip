@@ -31,7 +31,7 @@ class ConferenceServer; // ConferenceServer is composed by a ParticipantRegistra
 class ParticipantRegistrationSubscriptionHandler
     : public std::enable_shared_from_this<ParticipantRegistrationSubscriptionHandler> {
 public:
-	ParticipantRegistrationSubscriptionHandler(const ConferenceServer& server);
+	ParticipantRegistrationSubscriptionHandler(const ConferenceServer& server, RegistrarDb& registrarDb);
 
 	void subscribe(const std::shared_ptr<linphone::ChatRoom>& chatRoom,
 	               const std::shared_ptr<const linphone::Address>& address);
@@ -41,6 +41,7 @@ public:
 
 private:
 	const ConferenceServer& mServer;
+	RegistrarDb& mRegistrarDb; // keep only a ref as registrarDb is owned by ConferenceServer
 	std::string getKey(const std::shared_ptr<const linphone::Address>& address);
 	std::multimap<std::string, std::shared_ptr<RegistrationSubscription>> mSubscriptions;
 };

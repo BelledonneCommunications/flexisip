@@ -31,8 +31,10 @@ using namespace std;
 
 class PresenceAuthListener : public AuthDbListener {
 public:
-	PresenceAuthListener(belle_sip_main_loop_t* mainLoop, const std::shared_ptr<PresentityPresenceInformation>& info)
-	    : mMainLoop(mainLoop), mInfo(info) {
+	PresenceAuthListener(belle_sip_main_loop_t* mainLoop,
+	                     const std::shared_ptr<PresentityPresenceInformation>& info,
+	                     const std::shared_ptr<RegistrarDb>& registrarDb)
+	    : mMainLoop(mainLoop), mInfo(info), mRegistrarDb(registrarDb) {
 	}
 	PresenceAuthListener(belle_sip_main_loop_t* mainLoop,
 	                     std::map<std::string, std::shared_ptr<PresentityPresenceInformation>>& dInfo)
@@ -108,7 +110,7 @@ private:
 
 			// Fetch Redis info.
 			shared_ptr<InternalListListener> listener = make_shared<InternalListListener>(info);
-			RegistrarDb::get()->fetch(SipUri{contact_as_string}, listener);
+			mRegistrarDb->fetch(SipUri{contact_as_string}, listener);
 			belle_sip_free(contact_as_string);
 		} else {
 			SLOGD << __FILE__ << ": "
@@ -120,6 +122,7 @@ private:
 	belle_sip_main_loop_t* mMainLoop;
 	const shared_ptr<PresentityPresenceInformation> mInfo;
 	map<string, shared_ptr<PresentityPresenceInformation>> mDInfo;
+	std::shared_ptr<RegistrarDb> mRegistrarDb;
 };
 
 void PresenceLongterm::onListenerEvent(const shared_ptr<PresentityPresenceInformation>& info) const {
@@ -129,7 +132,7 @@ void PresenceLongterm::onListenerEvent(const shared_ptr<PresentityPresenceInform
 		SLOGD << "No presence info element known yet for " << belle_sip_uri_get_user(uri)
 		      << ", checking if this user is already registered";
 		mAuthDb.getUserWithPhone(belle_sip_uri_get_user(info->getEntity()), belle_sip_uri_get_host(info->getEntity()),
-		                         new PresenceAuthListener(mMainLoop, info));
+		                         new PresenceAuthListener(mMainLoop, info, mRegistrarDb));
 	}
 }
 void PresenceLongterm::onListenerEvents(list<shared_ptr<PresentityPresenceInformation>>& infos) const {
@@ -139,7 +142,7 @@ void PresenceLongterm::onListenerEvents(list<shared_ptr<PresentityPresenceInform
 		if (!info->hasDefaultElement()) {
 			creds.push_back(make_tuple(belle_sip_uri_get_user(info->getEntity()),
 			                           belle_sip_uri_get_host(info->getEntity()),
-			                           new PresenceAuthListener(mMainLoop, info)));
+			                           new PresenceAuthListener(mMainLoop, info, mRegistrarDb)));
 		}
 		dInfo.insert(
 		    pair<string, shared_ptr<PresentityPresenceInformation>>(belle_sip_uri_get_user(info->getEntity()), info));

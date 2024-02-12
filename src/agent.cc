@@ -589,8 +589,9 @@ void Agent::addPluginsConfigSections(ConfigManager& cfg) {
 
 Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
              const std::shared_ptr<ConfigManager>& cm,
-             const std::shared_ptr<AuthDbBackendOwner>& authDbOwner)
-    : mRoot{root}, mConfigManager{cm}, mAuthDbOwner{authDbOwner} {
+             const std::shared_ptr<AuthDbBackendOwner>& authDbOwner,
+             const std::shared_ptr<RegistrarDb>& registrarDb)
+    : mRoot{root}, mConfigManager{cm}, mAuthDbOwner{authDbOwner}, mRegistrarDb{registrarDb} {
 	LOGT("New Agent[%p]", this);
 	mHttpEngine = nth_engine_create(root->getCPtr(), NTHTAG_ERROR_MSG(0), TAG_END());
 	GenericStruct* cr = cm->getRoot();
@@ -649,7 +650,11 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 
 	mUseRfc2543RecordRoute = mConfigManager->getGlobal()->get<ConfigBoolean>("use-rfc2543-record-route")->read();
 
-	RegistrarDb::initialize(this);
+	mRegistrarDb->setLatestExpirePredicate([weakAg = weak_from_this()](const url_t* url) {
+		auto agent = weakAg.lock();
+		if (agent == nullptr) return false;
+		return agent->isUs(url);
+	});
 
 	initializePreferredRoute();
 }

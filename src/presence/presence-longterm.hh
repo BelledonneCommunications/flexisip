@@ -20,14 +20,17 @@
 
 #include "auth/db/authdb.hh"
 #include "presence-server.hh"
+#include "registrar/registrar-db.hh"
 
 typedef struct belle_sip_main_loop belle_sip_main_loop_t;
 
 namespace flexisip {
 class PresenceLongterm : public PresenceInfoObserver {
 public:
-	PresenceLongterm(belle_sip_main_loop_t* mainLoop, const std::shared_ptr<AuthDbBackendOwner>& authDbOwner)
-	    : mMainLoop{mainLoop}, mAuthDbOwner{authDbOwner}, mAuthDb{mAuthDbOwner->get()} {};
+	PresenceLongterm(belle_sip_main_loop_t* mainLoop,
+	                 const std::shared_ptr<AuthDbBackendOwner>& authDbOwner,
+	                 const std::shared_ptr<RegistrarDb>& registrarDb)
+	    : mMainLoop{mainLoop}, mAuthDbOwner{authDbOwner}, mAuthDb{mAuthDbOwner->get()}, mRegistrarDb(registrarDb){};
 	virtual void onListenerEvent(const std::shared_ptr<PresentityPresenceInformation>& info) const override;
 	virtual void onListenerEvents(std::list<std::shared_ptr<PresentityPresenceInformation>>& info) const override;
 
@@ -35,5 +38,6 @@ private:
 	belle_sip_main_loop_t* mMainLoop;
 	const std::shared_ptr<AuthDbBackendOwner> mAuthDbOwner; // ensure the life of the backend
 	AuthDbBackend& mAuthDb;                                 // direct access to the backend
+	const std::shared_ptr<RegistrarDb> mRegistrarDb;
 };
 } // namespace flexisip

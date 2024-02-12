@@ -32,7 +32,6 @@
 
 namespace flexisip {
 
-class Agent;
 class ChangeSet;
 class ContactUpdateListener;
 struct BindingParameters;
@@ -67,8 +66,8 @@ public:
 		friend class RegistrarDbRedisAsync;
 
 		// A null pointer or an empty AOR leads to an empty key.
-		explicit Key(const url_t* aor);
-		explicit Key(const SipUri& aor) : Key(aor.get()) {
+		explicit Key(const url_t* aor, bool useGlobalDomain);
+		explicit Key(const SipUri& aor, bool useGlobalDomain) : Key(aor.get(), useGlobalDomain) {
 		}
 
 		std::string toRedisKey() const {
@@ -111,14 +110,22 @@ public:
 		const std::list<std::string>& getLineFieldNames() const {
 			return mLineFieldNames;
 		}
+		const std::string& messageExpiresName() const {
+			return mMessageExpiresName;
+		}
 		bool assumeUniqueDomains() const {
 			return mAssumeUniqueDomains;
+		}
+		bool useGlobalDomain() const {
+			return mUseGlobalDomain;
 		}
 
 	private:
 		int mMaxContacts;
 		std::list<std::string> mLineFieldNames;
+		std::string mMessageExpiresName;
 		bool mAssumeUniqueDomains;
+		bool mUseGlobalDomain;
 	};
 
 	explicit Record(const SipUri& aor, const Config& recordConfig);
@@ -183,6 +190,9 @@ public:
 	Contacts& getExtendedContacts() {
 		return mContacts;
 	}
+	const Config& getConfig() const {
+		return mConfig;
+	}
 
 	/*
 	 * Synthetise the pub-gruu address from an extended contact belonging to this Record.
@@ -197,7 +207,7 @@ public:
 	 */
 	ChangeSet applyMaxAor();
 	time_t latestExpire() const;
-	time_t latestExpire(Agent* ag) const;
+	time_t latestExpire(std::function<bool(const url_t*)>& predicate) const;
 	static std::list<std::string> route_to_stl(const sip_route_s* route);
 	void appendContactsFrom(const std::shared_ptr<Record>& src);
 	bool haveOnlyStaticContacts() const {

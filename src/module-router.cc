@@ -280,7 +280,7 @@ void ModuleRouter::restoreForksFromDatabase() {
 		auto restoredForkMessage = ForkMessageContextDbProxy::make(shared_from_this(), dbMessage);
 		for (const auto& key : dbMessage.dbKeys) {
 			mForks.emplace(key, restoredForkMessage);
-			RegistrarDb::get()->subscribe(Record::Key(key), std::weak_ptr(mOnContactRegisteredListener));
+			mAgent->getRegistrarDb().subscribe(Record::Key(key), std::weak_ptr(mOnContactRegisteredListener));
 		}
 	}
 	SLOGI << " ... " << mForks.size() << " fork message restored from DB.";
@@ -452,7 +452,7 @@ void ModuleRouter::onContactRegistered(const std::shared_ptr<OnContactRegistered
 		 */
 		SLOGD << "Router module no longer interested in contact registered notification for topic = "
 		      << record->getKey();
-		RegistrarDb::get()->unsubscribe(record->getKey(), listener);
+		mAgent->getRegistrarDb().unsubscribe(record->getKey(), listener);
 	}
 }
 
@@ -632,7 +632,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 	mForks.emplace(key, context);
 	SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
 	if (context->getConfig()->mForkLate) {
-		RegistrarDb::get()->subscribe(key, std::weak_ptr(mOnContactRegisteredListener));
+		mAgent->getRegistrarDb().subscribe(key, std::weak_ptr(mOnContactRegisteredListener));
 	}
 
 	// now sort usable_contacts to form groups, if grouping is allowed
@@ -667,7 +667,8 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 				SLOGD << "Add fork " << context.get() << " to store with key '" << aliasKey
 				      << "' because it is an alias";
 				if (context->getConfig()->mForkLate) {
-					RegistrarDb::get()->subscribe(std::move(aliasKey), std::weak_ptr(mOnContactRegisteredListener));
+					mAgent->getRegistrarDb().subscribe(std::move(aliasKey),
+					                                   std::weak_ptr(mOnContactRegisteredListener));
 				}
 			}
 		}
@@ -683,6 +684,7 @@ class PreroutingFetcher : public ContactUpdateListener,
 	shared_ptr<RequestSipEvent> mEv;
 	shared_ptr<ContactUpdateListener> mListener;
 	vector<string> mPreroutes;
+	RegistrarDb& mRegistrarDb;
 	int pending;
 	bool error;
 	shared_ptr<Record> m_record;
@@ -690,14 +692,14 @@ class PreroutingFetcher : public ContactUpdateListener,
 public:
 	// Adding maybe_unused after the argument because of C++ compiler bug:
 	// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81429
-	PreroutingFetcher(ModuleRouter* module [[maybe_unused]],
+	PreroutingFetcher(ModuleRouter* module,
 	                  shared_ptr<RequestSipEvent> ev,
 	                  const shared_ptr<ContactUpdateListener>& listener,
 	                  const vector<string>& preroutes)
-	    : mEv(ev), mListener(listener), mPreroutes(preroutes) {
+	    : mEv(ev), mListener(listener), mPreroutes(preroutes), mRegistrarDb(module->getAgent()->getRegistrarDb()) {
 		pending = 0;
 		error = false;
-		m_record = make_shared<Record>(SipUri{}, RegistrarDb::get()->getRecordConfig());
+		m_record = make_shared<Record>(SipUri{}, mRegistrarDb.getRecordConfig());
 	}
 
 	~PreroutingFetcher() {
@@ -710,7 +712,7 @@ public:
 		pending += mPreroutes.size();
 		for (auto it = mPreroutes.cbegin(); it != mPreroutes.cend(); ++it) {
 			SipUri target{string("sip:") + it->c_str() + "@" + domain};
-			RegistrarDb::get()->fetch(target, this->shared_from_this(), true);
+			mRegistrarDb.fetch(target, this->shared_from_this(), true);
 		}
 	}
 
@@ -750,12 +752,12 @@ class TargetUriListFetcher : public ContactUpdateListener,
 public:
 	// Adding maybe_unused after the argument because of C++ compiler bug:
 	// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81429
-	TargetUriListFetcher(ModuleRouter* module [[maybe_unused]],
+	TargetUriListFetcher(ModuleRouter* module,
 	                     const shared_ptr<RequestSipEvent>& ev,
 	                     const shared_ptr<ContactUpdateListener>& listener,
 	                     const sip_unknown_t* target_uris)
-	    : mListener(listener) {
-		mRecord = make_shared<Record>(SipUri(), RegistrarDb::get()->getRecordConfig());
+	    : mListener(listener), mRegistrarDb(module->getAgent()->getRegistrarDb()) {
+		mRecord = make_shared<Record>(SipUri(), mRegistrarDb.getRecordConfig());
 		if (target_uris && target_uris->un_value) {
 			// The X-target-uris header is parsed like a route, as it is a list of URIs
 			const auto routes = sip_route_make(ev->getHome(), target_uris->un_value);
@@ -783,7 +785,7 @@ public:
 
 		// Start the queries for all uris of the target uri list.
 		for (const auto& uri : mUriList) {
-			RegistrarDb::get()->fetch(uri, this->shared_from_this(), allowDomainRegistrations, recursive);
+			mRegistrarDb.fetch(uri, this->shared_from_this(), allowDomainRegistrations, recursive);
 		}
 	}
 
@@ -820,7 +822,8 @@ public:
 				// Also add aliases in the ExtendedContact list for the searched AORs, so that they are added to the
 				// ForkMap.
 				for (const auto& uri : mUriList) {
-					shared_ptr<ExtendedContact> alias = make_shared<ExtendedContact>(uri, "");
+					shared_ptr<ExtendedContact> alias =
+					    make_shared<ExtendedContact>(uri, "", mRegistrarDb.getRecordConfig().messageExpiresName());
 					alias->mAlias = true;
 					contacts.emplace(std::move(alias));
 				}
@@ -837,6 +840,7 @@ private:
 	vector<SipUri> mUriList;
 	shared_ptr<Record> mRecord;
 	shared_ptr<ContactUpdateListener> mListener;
+	RegistrarDb& mRegistrarDb;
 };
 
 class OnFetchForRoutingListener : public ContactUpdateListener {
@@ -857,18 +861,21 @@ public:
 	void onRecordFound(const shared_ptr<Record>& arg) override {
 		shared_ptr<Record> r = arg;
 		const string& fallbackRoute = mModule->getFallbackRoute();
+		const auto& recordConfig = mModule->getAgent()->getRegistrarDb().getRecordConfig();
+		const auto& msgExpiresName = recordConfig.messageExpiresName();
 
 		if (r == nullptr) {
-			r = make_shared<Record>(mSipUri, RegistrarDb::get()->getRecordConfig());
+			r = make_shared<Record>(mSipUri, recordConfig);
 		}
 
 		auto& contacts = r->getExtendedContacts();
 		for (const auto& uri : mStaticTargets) {
-			contacts.emplace(make_shared<ExtendedContact>(uri, ""));
+			contacts.emplace(make_shared<ExtendedContact>(uri, "", msgExpiresName));
 		}
 
 		if (!mModule->isManagedDomain(mSipUri.get())) {
-			const auto contact = r->getExtendedContacts().emplace(make_shared<ExtendedContact>(mSipUri, ""));
+			const auto contact =
+			    r->getExtendedContacts().emplace(make_shared<ExtendedContact>(mSipUri, "", msgExpiresName));
 
 			SLOGD << "Record [" << r << "] Original request URI added because domain is not managed: " << **contact;
 		}
@@ -876,7 +883,8 @@ public:
 		if (!fallbackRoute.empty() && mModule->getFallbackRouteFilter()->eval(*mEv->getMsgSip()->getSip())) {
 			if (!ModuleToolbox::viaContainsUrlHost(mEv->getMsgSip()->getSip()->sip_via,
 			                                       mModule->getFallbackRouteParsed())) {
-				shared_ptr<ExtendedContact> fallback = make_shared<ExtendedContact>(mSipUri, fallbackRoute, 0.0);
+				shared_ptr<ExtendedContact> fallback =
+				    make_shared<ExtendedContact>(mSipUri, fallbackRoute, msgExpiresName, 0.0);
 				fallback->mIsFallback = true;
 				r->getExtendedContacts().emplace(fallback);
 				SLOGD << "Record [" << r << "] Fallback route '" << fallbackRoute << "' added: " << *fallback;
@@ -903,7 +911,8 @@ public:
 			SLOGD << "Record [" << r << "] empty, trying to route to parent domain: '" << urlStr << "'";
 
 			auto onRoutingListener = make_shared<OnFetchForRoutingListener>(mModule, mEv, mSipUri);
-			RegistrarDb::get()->fetch(url, onRoutingListener, mModule->isDomainRegistrationAllowed(), true);
+			mModule->getAgent()->getRegistrarDb().fetch(url, onRoutingListener, mModule->isDomainRegistrationAllowed(),
+			                                            true);
 		} else {
 			mModule->routeRequest(mEv, r, mSipUri.get());
 		}
@@ -996,7 +1005,7 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent>& ev) {
 					      << " but not us, forwarding";
 					SipUri sipurl(sip->sip_request->rq_url);
 					auto onRoutingListener = make_shared<OnFetchForRoutingListener>(this, ev, sipurl);
-					RegistrarDb::get()->fetch(sipurl, onRoutingListener, mAllowDomainRegistrations, true);
+					mAgent->getRegistrarDb().fetch(sipurl, onRoutingListener, mAllowDomainRegistrations, true);
 					return;
 				} catch (const InvalidUrlError& e) {
 					LOGD("%s", e.what());
@@ -1036,7 +1045,7 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent>& ev) {
 				const auto listener = make_shared<OnFetchForRoutingListener>(this, ev, requestUri, mStaticTargets);
 
 				if (!targetUrisHeader) {
-					RegistrarDb::get()->fetch(requestUri, listener, mAllowDomainRegistrations, true);
+					mAgent->getRegistrarDb().fetch(requestUri, listener, mAllowDomainRegistrations, true);
 				} else {
 					const auto fetcher = make_shared<TargetUriListFetcher>(this, ev, listener, targetUrisHeader);
 					fetcher->fetch(mAllowDomainRegistrations, true);

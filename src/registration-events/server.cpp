@@ -65,7 +65,7 @@ void Server::Subscriptions::onSubscribeReceived(const shared_ptr<Core>& core,
 		return;
 	}
 
-	const auto result = mEvents.emplace(Record::Key(url), lev);
+	const auto result = mEvents.emplace(Record::Key(url, mRegistrarDb->useGlobalDomain()), lev);
 	if (!result.second) {
 		SLOGE << "Regevent server: There is already a subscription for: " << result.first->first;
 		lev->denySubscription(Reason::Busy);
@@ -76,9 +76,10 @@ void Server::Subscriptions::onSubscribeReceived(const shared_ptr<Core>& core,
 	lev->acceptSubscription();
 	// We need the core to send the NOTIFY (and it holds `this`). So we pass it as the callback to make sure it lives
 	// long enough
-	RegistrarDb::get()->fetch(url, {core, this}, true);
+	mRegistrarDb->fetch(url, {core, this}, true);
 	// Subscribe takes a weak_ptr. Passing it the event itself lets us unsubscribe automatically by deleting the event.
-	RegistrarDb::get()->subscribe(Record::Key(url), std::shared_ptr<ContactRegisteredListener>{lev, this});
+	mRegistrarDb->subscribe(Record::Key(url, mRegistrarDb->useGlobalDomain()),
+	                        std::shared_ptr<ContactRegisteredListener>{lev, this});
 }
 
 void Server::Subscriptions::onSubscriptionStateChanged(const std::shared_ptr<linphone::Core>&,
@@ -94,7 +95,7 @@ void Server::Subscriptions::onSubscriptionStateChanged(const std::shared_ptr<lin
 				return;
 			}
 
-			mEvents.erase(Record::Key(url));
+			mEvents.erase(Record::Key(url, mRegistrarDb->useGlobalDomain()));
 		} break;
 		default:
 			break;
@@ -204,7 +205,7 @@ void Server::_init() {
 	}
 
 	mCore->setTransports(regEventTransport);
-	mCore->addListener(make_shared<Subscriptions>());
+	mCore->addListener(make_shared<Subscriptions>(mRegistrarDb));
 	mCore->start();
 }
 

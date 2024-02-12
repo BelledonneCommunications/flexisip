@@ -38,7 +38,7 @@ void static_records_file_is_read_on_SIGUSR1() {
 	});
 	auto& root = *proxyServer.getRoot();
 	proxyServer.start();
-	auto& regDb = *RegistrarDb::get();
+	auto& regDb = proxyServer.getAgent()->getRegistrarDb();
 	const auto listener = std::make_shared<SuccessfulBindListener>();
 
 	sendSignal();

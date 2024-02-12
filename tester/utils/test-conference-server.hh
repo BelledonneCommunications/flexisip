@@ -23,13 +23,16 @@
 #include "agent.hh"
 #include "conference/conference-server.hh"
 #include "flexisip/configmanager.hh"
+#include "registrar/registrar-db.hh"
 
 namespace flexisip {
 namespace tester {
 
 class TestConferenceServer {
 public:
-	TestConferenceServer(const Agent&, const std::shared_ptr<ConfigManager>& cfg);
+	TestConferenceServer(const Agent&,
+	                     const std::shared_ptr<ConfigManager>& cfg,
+	                     const std::shared_ptr<RegistrarDb>& registrarDb);
 	~TestConferenceServer();
 
 	void clearLocalDomainList();
@@ -41,8 +44,12 @@ private:
 	class PatchedConferenceServer : public ConferenceServer {
 	public:
 		template <typename StrT, typename SuRootPtr>
-		PatchedConferenceServer(StrT&& path, SuRootPtr&& root, const std::shared_ptr<ConfigManager>& cfg)
-		    : ConferenceServer(std::forward<StrT>(path), std::forward<SuRootPtr>(root), cfg), mConfigManager(cfg) {
+		PatchedConferenceServer(StrT&& path,
+		                        SuRootPtr&& root,
+		                        const std::shared_ptr<ConfigManager>& cfg,
+		                        const std::shared_ptr<RegistrarDb>& registrarDb)
+		    : ConferenceServer(std::forward<StrT>(path), std::forward<SuRootPtr>(root), cfg, registrarDb),
+		      mConfigManager(cfg) {
 		}
 
 		// We need to change the port before the conference server binds its addresses to the Registrar. But not too
