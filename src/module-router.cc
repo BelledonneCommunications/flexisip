@@ -240,11 +240,12 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 			    mc->get<ConfigInt>("message-database-pool-size")->read());
 
 			restoreForksFromDatabase();
-		} else
-#endif
-		{
-			mInjector = make_unique<AgentInjector>(this);
 		}
+#endif
+	}
+
+	if (!mInjector) {
+		mInjector = make_unique<AgentInjector>(this);
 	}
 }
 
