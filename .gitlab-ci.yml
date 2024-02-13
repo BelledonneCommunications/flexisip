@@ -17,14 +17,12 @@ variables:
 
   # Docker image version
   ARCHLINUX_IMAGE_VERSION: 20230704_enable_tests
-  CENTOS_7_IMAGE_VERSION: 20230818_cmake_3.22.6
   ROCKY_8_IMAGE_VERSION: 20231010_remove_okay_repo
   ROCKY_9_IMAGE_VERSION: 20230818_cmake_3.22.6
   DEBIAN_10_IMAGE_VERSION: 20230818_cmake_3.22.6
   DEBIAN_11_IMAGE_VERSION: 20230818_cmake_3.22.6
   DEBIAN_12_IMAGE_VERSION: 20230818_yasm
   MINIMAL_IMAGE_VERSION: 20231018_yasm
-  UBUNTU_18_04_IMAGE_VERSION: 20230818_cmake_3.22.6
   UBUNTU_22_04_IMAGE_VERSION: 20230818_yasm
 
 #https://docs.gitlab.com/ee/ci/yaml/index.html#workflow
@@ -50,14 +48,12 @@ include:
   - '.gitlab-ci-files/scripts.yml'
   - '.gitlab-ci-files/job-linux.yml'
   - '.gitlab-ci-files/job-linux-archlinux.yml'
-  - '.gitlab-ci-files/job-linux-centos7.yml'
   - '.gitlab-ci-files/job-linux-rocky8.yml'
   - '.gitlab-ci-files/job-linux-rocky9.yml'
   - '.gitlab-ci-files/job-linux-debian10.yml'
   - '.gitlab-ci-files/job-linux-debian11.yml'
   - '.gitlab-ci-files/job-linux-debian12.yml'
   - '.gitlab-ci-files/job-linux-minimal.yml'
-  - '.gitlab-ci-files/job-linux-ubuntu-18-04.yml'
   - '.gitlab-ci-files/job-linux-ubuntu-22-04.yml'
   - '.gitlab-ci-files/job-macosx.yml'
 

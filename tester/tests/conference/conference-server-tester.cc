@@ -23,20 +23,16 @@
 #include <unordered_set>
 #include <vector>
 
-#include "linphone++/enums.hh"
-
 #include "flexisip/registrar/registar-listeners.hh"
 
 #include "agent.hh"
 #include "conference/chatroom-prefix.hh"
 #include "conference/conference-server.hh"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "registrar/registrar-db.hh"
 #include "registrardb-internal.hh"
-#include "tester.hh"
 #include "utils/asserts.hh"
 #include "utils/chat-room-builder.hh"
 #include "utils/client-builder.hh"
@@ -98,7 +94,7 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 	              {"module::Registrar/enabled", "true"},
 	              {"module::Registrar/reg-domains", "sip.example.org"},
 
-	              // `sqlite` breaks on CentOS7 with inexplicable disk I/O errors
+	              // `mysql` to be as close to real-world deployments as possible
 	              {"conference-server/database-backend", "mysql"},
 	              {"conference-server/database-connection-string", mysqlServer.connectionString()},
 	              {"conference-server/conference-factory-uris", confFactoryUri},
