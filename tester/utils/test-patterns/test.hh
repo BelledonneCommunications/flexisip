@@ -120,26 +120,28 @@ inline void bc_hard_assert(const char* file, int line, int predicate, const char
 	{                                                                                                                  \
 		bool exceptionWasThrown = false;                                                                               \
 		try {                                                                                                          \
-		expression;                                                                                                    \
-	} catch (const expectedType& exception) {                                                                          \
-		exceptionWasThrown = true;                                                                                     \
-		if (typeid(exception) == typeid(expectedType)) {                                                               \
-			BC_PASS("");                                                                                               \
-		} else {                                                                                                       \
-			bc_assert(__FILE__, __LINE__, 0,                                                                           \
-			          ("thrown exception has wrong type, " + std::string(typeid(exception).name()) +                   \
-			           " != " + std::string(typeid(expectedType).name()))                                              \
-			              .c_str());                                                                                   \
+			expression;                                                                                                \
+		} catch (const expectedType& exception) {                                                                      \
+			exceptionWasThrown = true;                                                                                 \
+			if (typeid(exception) == typeid(expectedType)) {                                                           \
+				BC_PASS("");                                                                                           \
+			} else {                                                                                                   \
+				bc_assert(__FILE__, __LINE__, 0,                                                                       \
+				          ("thrown exception has wrong type, " + std::string(typeid(exception).name()) +               \
+				           " != " + std::string(typeid(expectedType).name()))                                          \
+				              .c_str());                                                                               \
+			}                                                                                                          \
+		} catch (...) {                                                                                                \
+			exceptionWasThrown = true;                                                                                 \
+			bc_assert(                                                                                                 \
+			    __FILE__, __LINE__, 0,                                                                                 \
+			    ("thrown exception has wrong type, " + std::string(typeid(expectedType).name()) + " was expected")     \
+			        .c_str());                                                                                         \
 		}                                                                                                              \
-	} catch (...) {                                                                                                    \
-		exceptionWasThrown = true;                                                                                     \
-		bc_assert(__FILE__, __LINE__, 0,                                                                               \
-		          ("thrown exception has wrong type, " + std::string(typeid(expectedType).name()) + " was expected")   \
-		              .c_str());                                                                                       \
-	}                                                                                                                  \
-	if (!exceptionWasThrown) {                                                                                         \
-		bc_assert(__FILE__, __LINE__, 0,                                                                               \
-		          ("expected " + std::string(typeid(expectedType).name()) + " but no exception was thrown").c_str());  \
+		if (!exceptionWasThrown) {                                                                                     \
+			bc_assert(                                                                                                 \
+			    __FILE__, __LINE__, 0,                                                                                 \
+			    ("expected " + std::string(typeid(expectedType).name()) + " but no exception was thrown").c_str());    \
 		}                                                                                                              \
 	}
 
