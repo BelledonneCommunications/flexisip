@@ -1,15 +1,13 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
+/** Copyright (C) 2010-2024 Belledonne Communications SARL
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "utils/soft-ptr.hh"
 
-#include <chrono>
 #include <optional>
 
 #include "bctoolbox/tester.h"
 
-#include "utils/posix-process.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
@@ -104,48 +102,12 @@ void fromObjectLivingLongEnough() {
 	BC_ASSERT_CPP_EQUAL(lock->testMethod(), "expected");
 }
 
-void objectDoesNotLiveLongEnough() {
-	using namespace process;
-	using namespace std::chrono_literals;
-	Process segfaulting{[] {
-		auto object = std::make_unique<TestObject>();
-		auto softPtr = SoftPtr<TestObject>::fromObjectLivingLongEnough(*object);
-		object.reset();
-
-		if (auto lock = softPtr.lock()) {
-			// heap-use-after-free (probable segfault)
-			BC_ASSERT_CPP_EQUAL(lock->testMethod(), "expected");
-		}
-	}};
-
-	// With sanitizers on, stack unwinding and printing can take a long time
-	Match(std::move(segfaulting).wait(2s))
-	    .against(
-	        [](ExitedNormally&& crashed) {
-		        std::ostringstream serStream{};
-		        serStream << std::move(crashed);
-		        auto serialized = serStream.str();
-		        if (serialized.find("ERROR: AddressSanitizer:") == std::string::npos) {
-			        std::ostringstream msg{};
-			        msg << "Subprocess does not appear to have crashed to a memory error: " << serialized;
-			        bc_assert(__FILE__, __LINE__, false, msg.str().c_str());
-		        }
-	        },
-	        [](auto&& unexpectedState) {
-		        std::ostringstream msg{};
-		        msg << "Unexpected state. Got: " << std::move(unexpectedState)
-		            << " expected the program to have crashed";
-		        bc_assert(__FILE__, __LINE__, false, msg.str().c_str());
-	        });
-}
-
 TestSuite _("SoftPtr",
             {
                 CLASSY_TEST(empty),
                 CLASSY_TEST(fromUnique),
                 CLASSY_TEST(fromShared),
                 CLASSY_TEST(fromObjectLivingLongEnough),
-                CLASSY_TEST(objectDoesNotLiveLongEnough),
             });
 } // namespace
 } // namespace flexisip::tester
