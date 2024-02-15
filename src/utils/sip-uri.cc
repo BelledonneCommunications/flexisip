@@ -167,7 +167,7 @@ bool operator==(const TlsConfigInfo& lhs, const TlsConfigInfo& rhs) {
 namespace flexisip {
 
 namespace {
-std::pair<bool, const char*> isValidSipUriWithMessage(const sofiasip::Url& url) noexcept {
+std::pair<bool, std::string> isValidSipUriWithMessage(const sofiasip::Url& url) noexcept {
 	const auto* pUrl = url.get();
 	if (pUrl == nullptr) return std::pair(true, "");
 	if (pUrl->url_scheme == nullptr) return std::pair(false, "no scheme found");
@@ -176,7 +176,7 @@ std::pair<bool, const char*> isValidSipUriWithMessage(const sofiasip::Url& url) 
 	if (scheme != "sip" && scheme != "sips") {
 		ostringstream os;
 		os << "invalid scheme (" << pUrl->url_scheme << ")";
-		return std::pair(false, os.str().c_str());
+		return std::pair(false, os.str());
 	}
 	if (pUrl->url_host == nullptr || pUrl->url_host[0] == '\0') {
 		return std::pair(false, "no host found");
