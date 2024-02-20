@@ -298,6 +298,7 @@ void ModuleRouter::sendReply(
 	}
 }
 
+template <>
 Record::Key ModuleRouter::routingKey(const url_t* sipUri) {
 	ostringstream oss;
 	if (sipUri->url_user) {
@@ -608,7 +609,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 	} else {
 		context = ForkBasicContext::make(shared_from_this(), ev, msgPriority);
 	}
-	auto key = routingKey(sipUri);
+	auto key = routingKey<Record::Key>(sipUri);
 	context->addKey(key);
 	mForks.emplace(key, context);
 	SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
@@ -642,7 +643,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 					temp_ctt->m_url->url_host = "merged";
 					temp_ctt->m_url->url_port = NULL;
 				}
-				auto aliasKey = routingKey(temp_ctt->m_url);
+				auto aliasKey = routingKey<Record::Key>(temp_ctt->m_url);
 				context->addKey(aliasKey);
 				mForks.emplace(aliasKey, context);
 				SLOGD << "Add fork " << context.get() << " to store with key '" << aliasKey

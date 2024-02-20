@@ -26,7 +26,6 @@
 #include "flexisip/module.hh"
 #include "flexisip/registrar/registar-listeners.hh"
 #include "flexisip/utils/sip-uri.hh"
-#include "registrar/record.hh"
 
 namespace flexisip {
 
@@ -130,7 +129,16 @@ protected:
 	using ForkMap = std::multimap<std::string, ForkMapElem>;
 	using ForkRefList = std::vector<ForkMapElem>;
 
-	Record::Key routingKey(const url_t* sipUri);
+	// This template method has a single specialization that returns the key
+	// as a Record::Key object. It is declared in the module-router.cc file.
+	// Originally a standard method, it was transformed into a template method
+	// to prevent the need for including "record.hh", which would otherwise
+	// require placing this header in the public API.
+	//
+	// @todo Remove this method and replace its usage with direct Record::Key construction.
+	template <typename KeyT>
+	KeyT routingKey(const url_t* sipUri);
+
 	std::vector<std::string> split(const char* data, const char* delim);
 	ForkRefList getLateForks(const std::string& key) const noexcept;
 
