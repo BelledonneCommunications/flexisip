@@ -25,6 +25,7 @@
 
 #include "flexisip/logmanager.hh"
 #include "flexisip/module-router.hh"
+#include "sofia-wrapper/nta-agent.hh"
 
 #include "registrar/registrar-db.hh"
 #include "utils/asserts.hh"
@@ -41,6 +42,7 @@ using namespace std::chrono_literals;
 using namespace std::chrono;
 using namespace flexisip;
 using namespace flexisip::tester;
+using namespace sofiasip;
 
 namespace flexisip {
 namespace tester {
@@ -408,9 +410,18 @@ void message_expires() {
 	BC_ASSERT_CPP_EQUAL(forks->read(), 1);
 }
 
-class RoutingWithStaticTargetsTest : public Test {
-public:
-	RoutingWithStaticTargetsTest(const map<string, string>& contacts, const vector<string>& staticTargetsParameter)
+namespace {
+
+struct Contact {
+	string aor;
+	string uri;
+};
+
+/*
+ * Test helper for unit tests about routing requests with non-empty "module::Router/static-targets" parameter.
+ */
+struct RoutingWithStaticTargets {
+	RoutingWithStaticTargets(const vector<Contact>& contacts, const vector<string>& staticTargets)
 	    : mInjectedModule(
 	          {
 	              .onRequest =
@@ -427,113 +438,99 @@ public:
 	              {"module::NatHelper/enabled", "false"},
 	              {"module::DoSProtection/enabled", "false"},
 	              {"module::Registrar/reg-domains", "localhost"},
-	              {"module::Router/call-fork-timeout", "1"},
-	              {"module::Router/static-targets", StringUtils::join(staticTargetsParameter)},
+	              {"module::Router/static-targets", StringUtils::join(staticTargets)},
 	          },
 	          &mInjectedModule),
-	      mBSipUtils("127.0.0.1", 0, "UDP", nullptr, nullptr) {
+	      mClient(mProxy.getRoot(), mCaller.aor) {
 
 		mProxy.start();
-
 		mAsserter.addCustomIterate([&root = *mProxy.getRoot()] { root.step(1ms); });
 
 		ContactInserter inserter(*RegistrarDb::get());
 		for (const auto& contact : contacts) {
-			inserter.setAor(contact.first).setExpire(1min).insert({contact.second});
+			inserter.setAor(contact.aor).setExpire(1min).insert({contact.uri});
 		}
 		BC_HARD_ASSERT_TRUE(mAsserter.iterateUpTo(5, [&inserter] { return inserter.finished(); }, 2s));
 	}
 
-protected:
+	vector<string> mActualTargets{};
+	Contact mCaller{"sip:callee@localhost", "sip:callee@voluntarily-unreachable:0"};
 	InjectedHooks mInjectedModule;
 	Server mProxy;
-	BellesipUtils mBSipUtils;
+	sofiasip::NtaAgent mClient;
 	BcAssert mAsserter{};
-	vector<string> mActualTargets{};
-	vector<string> mExpectedTargets{};
 };
 
-class RequestIsAlsoRoutedToStaticTargetsTest : public RoutingWithStaticTargetsTest {
-public:
-	RequestIsAlsoRoutedToStaticTargetsTest()
-	    : RoutingWithStaticTargetsTest(
-	          {
-	              {"sip:callee@localhost", "sip:callee@localhost:0"},
-	          },
-	          {
-	              "sip:static-target@localhost:0",
-	              "sip:static-target-bis@localhost:0",
-	          }) {
-		mExpectedTargets = {
-		    "sip:static-target@localhost:0",
-		    "sip:static-target-bis@localhost:0",
-		    "sip:callee@localhost:0",
-		};
-	}
+/*
+ * Test that INVITE request is both routed to the callee and to provided static targets.
+ */
+void requestIsAlsoRoutedToStaticTargets() {
+	const auto callee = Contact{"sip:callee@localhost", "sip:callee@voluntarily-unreachable:0"};
+	const auto sTarget = Contact{"sip:sTarget@localhost", "sip:sTarget@voluntarily-unreachable:0"};
+	const auto sTargetBis = Contact{"sip:sTargetBis@localhost", "sip:sTargetBis@voluntarily-unreachable:0"};
 
-	void operator()() override {
-		mBSipUtils.sendRawRequest(
-		    "INVITE sip:callee@localhost:"s + mProxy.getFirstPort() + " SIP/2.0\r\n" +
-		    "Via: SIP/2.0/TCP 127.0.0.1\r\n"
-		    "From: \"Caller\" <sip:caller@localhost>;tag=08HMIWXqx\r\n"
-		    "To: \"Callee\" <sip:callee@localhost>\r\n"
-		    "Call-ID: 6g7z4~lD8M\r\n"
-		    "CSeq: 20 INVITE\r\n"
-		    "Contact: <sip:caller@localhost;transport=tcp>\r\n"
-		    "User-Agent: LinphoneiOS/4.5.1 (caller-machine) LinphoneSDK/5.0.40-pre.2+ea19d3d\r\n"
-		    "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK, UPDATE\r\n"
-		    "Supported: replaces, outbound, gruu\r\n"
-		    "Content-Type: application/sdp\r\n"
-		    "Content-Length: 0\r\n");
+	RoutingWithStaticTargets helper{{callee}, {sTarget.uri, sTargetBis.uri}};
+	vector<string> expectedTargets = {sTarget.uri, sTargetBis.uri, callee.uri};
+	const auto routeUri = callee.aor + ":" + helper.mProxy.getFirstPort();
 
-		BC_ASSERT_TRUE(mAsserter.iterateUpTo(5, [this] { return mActualTargets == mExpectedTargets; }, 2s));
-	}
-};
+	ostringstream request;
+	request << "INVITE " << routeUri << " SIP/2.0\r\n"
+	        << "Via: SIP/2.0/TCP 127.0.0.1\r\n"
+	        << "From: \"Caller\" <" << helper.mCaller.aor << ">;tag=stub-tag\r\n"
+	        << "To: \"Callee\" <" << callee.aor << ">\r\n"
+	        << "Call-ID: stub-id\r\n"
+	        << "CSeq: 20 INVITE\r\n"
+	        << "Contact: <" << helper.mCaller.aor << ";transport=tcp>\r\n"
+	        << "User-Agent: stub-user-agent\r\n"
+	        << "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK, UPDATE\r\n"
+	        << "Supported: replaces, outbound, gruu\r\n"
+	        << "Content-Type: application/sdp\r\n";
 
-class RequestIsRoutedToXTargetUrisAndStaticTargetsTest : public RoutingWithStaticTargetsTest {
-public:
-	RequestIsRoutedToXTargetUrisAndStaticTargetsTest()
-	    : RoutingWithStaticTargetsTest(
-	          {
-	              {"sip:x-target@localhost", "sip:x-target@localhost:0"},
-	              {"sip:x-target-bis@localhost", "sip:x-target-bis@localhost:0"},
-	          },
-	          {
-	              "sip:static-target@localhost:0",
-	              "sip:static-target-bis@localhost:0",
-	          }) {
+	const auto transaction = helper.mClient.createOutgoingTransaction(request.str(), routeUri);
+	BC_ASSERT(helper.mAsserter.iterateUpTo(5, [&transaction]() { return transaction->isCompleted(); }, 2s) == true);
+	BC_ASSERT(helper.mActualTargets == expectedTargets);
+}
 
-		mExpectedTargets = {
-		    "sip:static-target@localhost:0",
-		    "sip:static-target-bis@localhost:0",
-		    "sip:x-target@localhost:0",
-		    "sip:x-target-bis@localhost:0",
-		};
-	}
+/*
+ * Test that INVITE request is both routed to the list of targets defined in the "X-Target-Uris" header and to provided
+ * static targets.
+ * In this case, it should not be routed to the callee.
+ */
+void requestIsRoutedToXTargetUrisAndStaticTargets() {
+	const auto callee = Contact{"sip:callee@localhost", "sip:callee@voluntarily-unreachable:0"};
+	const auto sTarget = Contact{"sip:sTarget@localhost", "sip:sTarget@voluntarily-unreachable:0"};
+	const auto sTargetBis = Contact{"sip:sTargetBis@localhost", "sip:sTargetBis@voluntarily-unreachable:0"};
+	const auto xTarget = Contact{"sip:xTarget@localhost", "sip:xTarget@voluntarily-unreachable:0"};
+	const auto xTargetBis = Contact{"sip:xTargetBis@localhost", "sip:xTargetBis@voluntarily-unreachable:0"};
 
-	void operator()() override {
-		mBSipUtils.sendRawRequest(
-		    "INVITE sip:callee@localhost:"s + mProxy.getFirstPort() + " SIP/2.0\r\n" +
-		    "Via: SIP/2.0/TCP 127.0.0.1\r\n"
-		    "From: \"Caller\" <sip:caller@localhost>;tag=08HMIWXqx\r\n"
-		    "To: \"Callee\" <sip:callee@localhost>\r\n"
-		    "X-Target-Uris: <sip:x-target@localhost:0>,<sip:x-target-bis@localhost:0>\r\n"
-		    "Call-ID: 6g7z4~lD8M\r\n"
-		    "CSeq: 20 INVITE\r\n"
-		    "Contact: <sip:caller@localhost;transport=tcp>\r\n"
-		    "User-Agent: LinphoneiOS/4.5.1 (caller-machine) LinphoneSDK/5.0.40-pre.2+ea19d3d\r\n"
-		    "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK, UPDATE\r\n"
-		    "Supported: replaces, outbound, gruu\r\n"
-		    "Content-Type: application/sdp\r\n"
-		    "Content-Length: 0\r\n");
+	RoutingWithStaticTargets helper{{xTarget, xTargetBis}, {sTarget.uri, sTargetBis.uri}};
+	vector<string> expectedTargets = {sTarget.uri, sTargetBis.uri, xTarget.uri, xTargetBis.uri};
+	const auto routeUri = callee.aor + ":" + helper.mProxy.getFirstPort();
 
-		BC_ASSERT_TRUE(mAsserter.iterateUpTo(5, [this] { return mActualTargets == mExpectedTargets; }, 2s));
-	}
-};
+	ostringstream request;
+	request << "INVITE " << routeUri << " SIP/2.0\r\n"
+	        << "Via: SIP/2.0/TCP 127.0.0.1\r\n"
+	        << "From: \"Caller\" <" << helper.mCaller.aor << ">;tag=stub-tag\r\n"
+	        << "To: \"Callee\" <" << callee.aor << ">\r\n"
+	        << "X-Target-Uris: <" << xTarget.aor << ">,<" << xTargetBis.aor << ">\r\n"
+	        << "Call-ID: stub-id\r\n"
+	        << "CSeq: 20 INVITE\r\n"
+	        << "Contact: <" << helper.mCaller.aor << ";transport=tcp>\r\n"
+	        << "User-Agent: stub-user-agent\r\n"
+	        << "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK, UPDATE\r\n"
+	        << "Supported: replaces, outbound, gruu\r\n"
+	        << "Content-Type: application/sdp\r\n";
+
+	const auto transaction = helper.mClient.createOutgoingTransaction(request.str(), routeUri);
+	BC_ASSERT(helper.mAsserter.iterateUpTo(5, [&transaction]() { return transaction->isCompleted(); }, 2s) == true);
+	BC_ASSERT(helper.mActualTargets == expectedTargets);
+}
+
+} // namespace
 
 namespace {
 TestSuite
-    _("Module router",
+    _("RouterModule",
       {
           CLASSY_TEST(message_expires<DbImplementation::Internal>),
           CLASSY_TEST(message_expires<DbImplementation::Redis>),
@@ -541,8 +538,8 @@ TestSuite
                       run<FallbackRouteFilterTest>),
           TEST_NO_TAG("Check that module router remove route to itself", run<SelfRouteHeaderRemovingTest>),
           TEST_NO_TAG("Check that module router don't remove route to others", run<OtherRouteHeaderNotRemovedTest>),
-          CLASSY_TEST(RequestIsAlsoRoutedToStaticTargetsTest),
-          CLASSY_TEST(RequestIsRoutedToXTargetUrisAndStaticTargetsTest),
+          CLASSY_TEST(requestIsAlsoRoutedToStaticTargets),
+          CLASSY_TEST(requestIsRoutedToXTargetUrisAndStaticTargets),
       });
 } // namespace
 } // namespace tester
