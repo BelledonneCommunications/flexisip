@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include <optional>
+#include <memory>
 
 #include <sofia-sip/nta.h>
 
@@ -50,13 +50,11 @@ public:
 	 */
 	std::shared_ptr<const MsgSip> getResponse() const noexcept {
 		auto* msg = nta_outgoing_getresponse(mNativePtr);
-		const auto response = (msg == nullptr) ? nullptr : std::make_shared<const MsgSip>(ownership::Owned(msg));
+		const auto response = msg ? std::make_shared<const MsgSip>(ownership::Owned(msg)) : nullptr;
 		if (mResponse == nullptr or response == nullptr or mResponse->getMsg() != response->getMsg()) {
 			mResponse = response;
-			return mResponse;
 		}
 
-		msg_unref(msg);
 		return mResponse;
 	}
 
