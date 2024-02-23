@@ -419,7 +419,7 @@ install(TARGETS flexisip_serializer
 if(NOT CMAKE_CROSSCOMPILING)
 	add_custom_target(flexisip_config
 		ALL
-		COMMAND ${CMAKE_BINARY_DIR}/bin/flexisip --dump-all-default > "${CMAKE_BINARY_DIR}/flexisip.conf"
+		COMMAND $<TARGET_FILE:flexisip_server> --dump-all-default > "${CMAKE_BINARY_DIR}/flexisip.conf"
 		BYPRODUCTS "${CMAKE_BINARY_DIR}/flexisip.conf"
 		COMMENT "Flexisip default configuration file generation"
 	)
