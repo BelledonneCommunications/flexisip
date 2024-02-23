@@ -768,7 +768,7 @@ public:
 					vector<char> buffer(1024);
 					sip_unknown_e(buffer.data(), buffer.size(), (msg_header_t*)target_uris, 0);
 					SLOGE << "Invalid URI in X-Target-Uris header [" << e.getUrl() << "], ignoring it. Context:" << endl
-					      << ev->getMsgSip()->printContext() << endl
+					      << ev->getMsgSip()->contextAsString() << endl
 					      << buffer.data() << endl;
 				}
 			}

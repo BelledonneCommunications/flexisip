@@ -483,7 +483,7 @@ void RegistrarDb::fetchList(const vector<SipUri> urls, const shared_ptr<ListCont
 }
 
 url_t* RegistrarDb::synthesizePubGruu(su_home_t* home, const MsgSip& sipMsg) {
-	sip_t* sip = sipMsg.getSip();
+	auto* sip = sipMsg.getSip();
 	if (!sip->sip_contact || !sip->sip_contact->m_params) return nullptr;
 	if (!sip->sip_supported || msg_params_find(sip->sip_supported->k_items, "gruu") == nullptr) return nullptr;
 	const char* instance_param = msg_params_find(sip->sip_contact->m_params, "+sip.instance");

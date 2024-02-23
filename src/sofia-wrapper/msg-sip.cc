@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL.
+    Copyright (C) 2010-2024 Belledonne Communications SARL.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -63,23 +63,26 @@ msg_header_t* MsgSip::findHeader(const std::string& name, bool searchUnknowns) {
 	return nullptr;
 }
 
-std::pair<char*, size_t> MsgSip::asString() {
-	size_t msg_size;
-	return make_pair(msg_as_string(getHome(), mMsg.borrow(), nullptr, 0, &msg_size), msg_size);
+std::string MsgSip::msgAsString() const {
+	struct rawMsg_deleter {
+		void operator()(char* raw) {
+			su_free(nullptr, raw);
+		}
+	};
+
+	// Here we hack out the constness.
+	// msg_as_string is non const as it will modify the internal buffers of msg_t
+	// during serialization.
+	auto& msg = const_cast<msg_t&>(*mMsg);
+
+	size_t msg_size{};
+	unique_ptr<char, rawMsg_deleter> raw{msg_as_string(nullptr, &msg, nullptr, 0, &msg_size)};
+	return string{raw.get(), msg_size};
 }
 
-const char* MsgSip::print() {
-	return asString().first;
-}
-
-std::string MsgSip::printString() {
-	auto raw = asString();
-	return string{raw.first, raw.second};
-}
-
-std::string MsgSip::printContext() const {
+std::string MsgSip::contextAsString() const {
 	ostringstream os;
-	sip_t* sip = getSip();
+	auto* sip = getSip();
 	vector<char> buffer(4096);
 
 	sip_from_e(buffer.data(), buffer.size(), (msg_header_t*)sip->sip_from, 0);
@@ -172,13 +175,7 @@ MsgSipPriority MsgSip::getPreviousPriority(MsgSipPriority current) {
 }
 
 std::ostream& operator<<(std::ostream& strm, const sofiasip::MsgSip& obj) noexcept {
-	// Here we hack out the constness.
-	// The print method is non const as it will modify the underlying msg_t
-	// during serialization. Moreover, the underlying sofia calls also take
-	// a non const sip_t...
-	auto& hack = const_cast<sofiasip::MsgSip&>(obj);
-
-	auto messageString = hack.printString();
+	auto messageString = obj.msgAsString();
 
 	if (!MsgSip::getShowBodyForFilter()->eval(*obj.getSip())) {
 		// If message method is not in the "show body" whitelist, remove body.

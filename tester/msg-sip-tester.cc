@@ -132,7 +132,7 @@ public:
 		stringstream out;
 		out << invite;
 		auto invitePrinted = out.str();
-		BC_ASSERT_TRUE(invitePrinted != invite.printString());
+		BC_ASSERT_TRUE(invitePrinted != invite.msgAsString());
 		BC_ASSERT_TRUE(invitePrinted.find(" bytes of body hidden]") != string::npos);
 		BC_ASSERT_TRUE(invitePrinted.find("v=0\r\n") == string::npos);
 		/*-------------------------------*/
@@ -144,7 +144,7 @@ public:
 		out.str("");
 		out << invite;
 		invitePrinted = out.str();
-		BC_ASSERT_TRUE(invitePrinted == invite.printString());
+		BC_ASSERT_TRUE(invitePrinted == invite.msgAsString());
 		/*-------------------------------*/
 
 		/*
@@ -154,7 +154,7 @@ public:
 		out.str("");
 		out << invite;
 		invitePrinted = out.str();
-		BC_ASSERT_TRUE(invitePrinted != invite.printString());
+		BC_ASSERT_TRUE(invitePrinted != invite.msgAsString());
 		BC_ASSERT_TRUE(invitePrinted.find(" bytes of body hidden]") != string::npos);
 		BC_ASSERT_TRUE(invitePrinted.find("v=0\r\n") == string::npos);
 		/*-------------------------------*/
@@ -172,22 +172,22 @@ public:
 		out.str("");
 		out << invite;
 		invitePrinted = out.str();
-		BC_ASSERT_TRUE(invitePrinted == invite.printString());
+		BC_ASSERT_TRUE(invitePrinted == invite.msgAsString());
 
 		out.str("");
 		out << message;
 		auto messagePrinted = out.str();
-		BC_ASSERT_TRUE(messagePrinted == message.printString());
+		BC_ASSERT_TRUE(messagePrinted == message.msgAsString());
 
 		out.str("");
 		out << registerSip;
 		auto registerPrinted = out.str();
-		BC_ASSERT_TRUE(registerPrinted == registerSip.printString());
+		BC_ASSERT_TRUE(registerPrinted == registerSip.msgAsString());
 
 		out.str("");
 		out << subscribe;
 		auto subscribePrinted = out.str();
-		BC_ASSERT_TRUE(subscribePrinted != subscribe.printString());
+		BC_ASSERT_TRUE(subscribePrinted != subscribe.msgAsString());
 		BC_ASSERT_TRUE(subscribePrinted.find(" bytes of body hidden]") != string::npos);
 		BC_ASSERT_TRUE(subscribePrinted.find("123456789") == string::npos);
 
@@ -195,7 +195,7 @@ public:
 		out << emptySubscribe;
 		auto emptySubscribePrinted = out.str();
 		// Not in the list, but empty body, nothing to remove
-		BC_ASSERT_TRUE(emptySubscribePrinted == emptySubscribe.printString());
+		BC_ASSERT_TRUE(emptySubscribePrinted == emptySubscribe.msgAsString());
 
 		/*
 		 * CASE : FILTER ON CONTENT-TYPE
@@ -206,13 +206,13 @@ public:
 		out.str("");
 		out << invite;
 		invitePrinted = out.str();
-		BC_ASSERT_TRUE(invitePrinted == invite.printString());
+		BC_ASSERT_TRUE(invitePrinted == invite.msgAsString());
 
 		// Message content-type is not application/sdp
 		out.str("");
 		out << message;
 		messagePrinted = out.str();
-		BC_ASSERT_TRUE(messagePrinted != message.printString());
+		BC_ASSERT_TRUE(messagePrinted != message.msgAsString());
 		BC_ASSERT_TRUE(messagePrinted.find(" bytes of body hidden]") != string::npos);
 		BC_ASSERT_TRUE(messagePrinted.find("1234") == string::npos);
 
@@ -225,7 +225,7 @@ public:
 		out.str("");
 		out << invite;
 		invitePrinted = out.str();
-		BC_ASSERT_TRUE(invitePrinted != invite.printString());
+		BC_ASSERT_TRUE(invitePrinted != invite.msgAsString());
 		BC_ASSERT_TRUE(invitePrinted.find(" bytes of body hidden]") != string::npos);
 		BC_ASSERT_TRUE(invitePrinted.find("v=0\r\n") == string::npos);
 
@@ -233,7 +233,7 @@ public:
 		out.str("");
 		out << message;
 		messagePrinted = out.str();
-		BC_ASSERT_TRUE(messagePrinted != message.printString());
+		BC_ASSERT_TRUE(messagePrinted != message.msgAsString());
 		BC_ASSERT_TRUE(messagePrinted.find(" bytes of body hidden]") != string::npos);
 		BC_ASSERT_TRUE(messagePrinted.find("1234") == string::npos);
 	}

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL.
+    Copyright (C) 2010-2024 Belledonne Communications SARL.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -77,7 +77,10 @@ public:
 	BorrowedMut<msg_t> getMsg() {
 		return mMsg.borrow();
 	}
-	sip_t* getSip() const {
+	const sip_t* getSip() const {
+		return (sip_t*)msg_object(mMsg);
+	}
+	sip_t* getSip() {
 		return (sip_t*)msg_object(mMsg);
 	}
 	su_home_t* getHome() {
@@ -104,9 +107,8 @@ public:
 	void serialize() {
 		msg_serialize(mMsg.borrow(), (msg_pub_t*)getSip());
 	}
-	const char* print();
-	std::string printString();
-	std::string printContext() const;
+	std::string msgAsString() const;
+	std::string contextAsString() const;
 
 	bool isGroupChatInvite() const noexcept;
 	bool isChatService() noexcept;
@@ -157,9 +159,6 @@ public:
 	}
 
 private:
-	// Private methods
-	std::pair<char*, size_t> asString();
-
 	// Private attributes
 	Owned<msg_t> mMsg{nullptr};
 

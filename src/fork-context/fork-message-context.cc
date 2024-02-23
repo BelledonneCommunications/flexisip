@@ -309,7 +309,7 @@ ForkMessageContextDb ForkMessageContext::getDbObject() {
 	dbObject.deliveredCount = mDeliveredCount;
 	dbObject.currentPriority = mCurrentPriority;
 	dbObject.expirationDate = *gmtime(&mExpirationDate);
-	dbObject.request = mEvent->getMsgSip()->printString();
+	dbObject.request = mEvent->getMsgSip()->msgAsString();
 	dbObject.dbKeys.insert(dbObject.dbKeys.end(), mKeys.begin(), mKeys.end());
 	for (const auto& waitingBranch : mWaitingBranches) {
 		dbObject.dbBranches.push_back(waitingBranch->getDbObject());
@@ -343,7 +343,7 @@ void ForkMessageContext::assertEqual(const shared_ptr<ForkMessageContext>& expec
 	BC_ASSERT_EQUAL(mDeliveredCount, expected->mDeliveredCount, int, "%d");
 	BC_ASSERT_EQUAL(mCurrentPriority, expected->mCurrentPriority, float, "%f");
 	BC_ASSERT_EQUAL(mExpirationDate, expected->mExpirationDate, time_t, "%ld");
-	BC_ASSERT_TRUE(mEvent->getMsgSip()->printString() == expected->mEvent->getMsgSip()->printString());
+	BC_ASSERT_TRUE(mEvent->getMsgSip()->msgAsString() == expected->mEvent->getMsgSip()->msgAsString());
 
 	if (mKeys.size() == expected->mKeys.size()) {
 		sort(mKeys.begin(), mKeys.end());

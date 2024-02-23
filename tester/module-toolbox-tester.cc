@@ -75,16 +75,16 @@ private:
 		const auto requestSipEvent = RequestSipEvent::makeRestored(mAgent, msgSip, mAgent->findModule("Router"));
 
 		SLOGD << "############# REQUEST WITHOUT RECORD-ROUTE #############";
-		SLOGD << requestSipEvent->getMsgSip()->printString();
+		SLOGD << requestSipEvent->getMsgSip()->msgAsString();
 		SLOGD << "########################################################";
 
 		ModuleToolbox::addRecordRoute(mAgent.get(), requestSipEvent, nullptr);
 
 		SLOGD << "############# REQUEST WITH RECORD-ROUTE #############";
-		SLOGD << requestSipEvent->getMsgSip()->printString();
+		SLOGD << requestSipEvent->getMsgSip()->msgAsString();
 		SLOGD << "########################################################";
 
-		BC_ASSERT_TRUE(requestSipEvent->getMsgSip()->printString().find(mRecordRouteExpected) != std::string::npos);
+		BC_ASSERT_TRUE(requestSipEvent->getMsgSip()->msgAsString().find(mRecordRouteExpected) != std::string::npos);
 	}
 };
 

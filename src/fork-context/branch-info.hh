@@ -57,7 +57,8 @@ public:
 	 * @param[in] br The branch which has been canceled.
 	 * @param[in] cancelReason Give information about the scenario which caused the cancellation.
 	 */
-	virtual void onBranchCanceled([[maybe_unused]] const std::shared_ptr<BranchInfo>& br, [[maybe_unused]] ForkStatus cancelReason) noexcept {
+	virtual void onBranchCanceled([[maybe_unused]] const std::shared_ptr<BranchInfo>& br,
+	                              [[maybe_unused]] ForkStatus cancelReason) noexcept {
 	}
 	/**
 	 * Called when a branch receives a final response (statusCode >= 200).
@@ -115,8 +116,8 @@ public:
 	}
 
 	BranchInfoDb getDbObject() {
-		std::string request{mRequest->getMsgSip()->printString()};
-		std::string lastResponse{mLastResponse->getMsgSip()->printString()};
+		std::string request{mRequest->getMsgSip()->msgAsString()};
+		std::string lastResponse{mLastResponse->getMsgSip()->msgAsString()};
 		BranchInfoDb branchInfoDb{mUid, mPriority, request, lastResponse, mClearedCount};
 		return branchInfoDb;
 	}
@@ -126,9 +127,9 @@ public:
 		BC_ASSERT_STRING_EQUAL(mUid.c_str(), expected->mUid.c_str());
 		BC_ASSERT_EQUAL(mPriority, expected->mPriority, float, "%f");
 
-		BC_ASSERT_TRUE(mRequest->getMsgSip()->printString() == expected->mRequest->getMsgSip()->printString());
-		BC_ASSERT_TRUE(mLastResponse->getMsgSip()->printString() ==
-		               expected->mLastResponse->getMsgSip()->printString());
+		BC_ASSERT_TRUE(mRequest->getMsgSip()->msgAsString() == expected->mRequest->getMsgSip()->msgAsString());
+		BC_ASSERT_TRUE(mLastResponse->getMsgSip()->msgAsString() ==
+		               expected->mLastResponse->getMsgSip()->msgAsString());
 	}
 #endif
 
