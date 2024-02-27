@@ -223,7 +223,7 @@ static void globalOrderTestNoSql() {
 	auto server = make_shared<Server>("/config/flexisip_fork_context.conf");
 	server->start();
 
-	auto receiverClient = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server);
+	auto receiverClient = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server->getAgent());
 	receiverClient->disconnect();
 
 	uint isRequestAccepted = 0;

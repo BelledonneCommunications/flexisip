@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -113,9 +113,8 @@ private:
 class GenericHttp2PushMessage : public GlobalPushTest {
 protected:
 	void executeScenario() override {
-		Server server{mAgent};
-		auto sender = ClientBuilder(server).build("creme@sip.example.org");
-		auto receiver = ClientBuilder(server).setApplePushConfig().build("popo@sip.example.org");
+		auto sender = ClientBuilder(*mAgent).build("creme@sip.example.org");
+		auto receiver = ClientBuilder(*mAgent).setApplePushConfig().build("popo@sip.example.org");
 
 		auto chatroom = sender.chatroomBuilder().setSubject("TestPush").build({receiver.getMe()});
 		chatroom->createMessageFromUtf8("...")->send();
@@ -149,9 +148,8 @@ protected:
 class GenericHttp2PushCall : public GlobalPushTest {
 protected:
 	void executeScenario() override {
-		Server server{mAgent};
-		auto sender = ClientBuilder(server).build("creme@sip.example.org");
-		auto receiver = ClientBuilder(server).setApplePushConfig().build("popo@sip.example.org");
+		auto sender = ClientBuilder(*mAgent).build("creme@sip.example.org");
+		auto receiver = ClientBuilder(*mAgent).setApplePushConfig().build("popo@sip.example.org");
 
 		auto call = sender.call(receiver);
 		call->terminate();

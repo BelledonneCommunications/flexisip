@@ -32,7 +32,7 @@
 namespace flexisip {
 namespace tester {
 
-class ClientBuilder;
+const char* getFirstPort(const Agent& agent);
 
 /**
  * A class to manage the flexisip proxy server
@@ -56,11 +56,7 @@ public:
 	 * other modules.
 	 */
 	explicit Server(const std::map<std::string, std::string>& customConfig, Module* injectedModule = nullptr);
-	/**
-	 * @brief Cast an Agent into Server
-	 */
-	explicit Server(const std::shared_ptr<Agent>& agent) : mAgent{agent} {
-	}
+
 	virtual ~Server();
 
 	// Accessors
@@ -84,8 +80,6 @@ public:
 	 * @brief Run the main loop for a given time.
 	 */
 	void runFor(std::chrono::milliseconds duration);
-
-	ClientBuilder clientBuilder() const;
 
 private:
 	const std::optional<InjectedModuleInfo> mModule{std::nullopt};

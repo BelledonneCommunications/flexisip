@@ -80,7 +80,7 @@ void ice_candidates_in_response_only() {
 	}};
 	Server server(CONFIG, &hooks);
 	server.start();
-	auto builder = server.clientBuilder();
+	ClientBuilder builder{*server.getAgent()};
 	auto nelly = builder.build("sip:Nelly@sip.example.org");
 	auto lola = builder.build("sip:Lola@sip.example.org");
 
@@ -109,7 +109,7 @@ public:
 void ice_candidates_are_not_erased_in_a_valid_context() {
 	Server server(CONFIG);
 	server.start();
-	auto builder = server.clientBuilder();
+	ClientBuilder builder{*server.getAgent()};
 	builder.setIce(OnOff::On);
 	auto nelly = builder.build("sip:Nelly@sip.example.org");
 	auto lola = builder.build("sip:Lola@sip.example.org");
@@ -121,7 +121,7 @@ void ice_candidates_are_not_erased_in_a_valid_context() {
 void early_media_video_sendrecv_takeover() {
 	Server server(CONFIG);
 	server.start();
-	auto builder = server.clientBuilder();
+	ClientBuilder builder{*server.getAgent()};
 	const auto doorBell =
 	    builder.setVideoReceive(OnOff::Off).setVideoSend(OnOff::On).build("sip:door-bell@sip.example.org");
 	const auto appUri = "sip:app@sip.example.org";
@@ -176,7 +176,7 @@ void early_media_video_sendrecv_takeover() {
 void early_media_bidirectional_video() {
 	Server server(CONFIG);
 	server.start();
-	auto builder = server.clientBuilder();
+	ClientBuilder builder{*server.getAgent()};
 	builder.setVideoReceive(OnOff::On).setVideoSend(OnOff::On);
 	const auto paul = builder.build("sip:paul@sip.example.org");
 	const auto clem = "sip:clem@sip.example.org";

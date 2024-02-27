@@ -34,6 +34,11 @@ using namespace std::chrono;
 namespace flexisip {
 namespace tester {
 
+const char* getFirstPort(const Agent& agent) {
+	const auto firstTransport = ::tport_primaries(::nta_agent_tports(agent.getSofiaAgent()));
+	return ::tport_name(firstTransport)->tpn_port;
+}
+
 /**
  * A class to manage the flexisip proxy server
  */
@@ -103,12 +108,7 @@ void Server::runFor(std::chrono::milliseconds duration) {
 	}
 }
 const char* Server::getFirstPort() const {
-	const auto firstTransport = ::tport_primaries(::nta_agent_tports(mAgent->getSofiaAgent()));
-	return ::tport_name(firstTransport)->tpn_port;
-}
-
-ClientBuilder Server::clientBuilder() const {
-	return ClientBuilder(*this);
+	return tester::getFirstPort(*mAgent);
 }
 
 } // namespace tester

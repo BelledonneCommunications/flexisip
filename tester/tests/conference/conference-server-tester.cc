@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -113,7 +113,7 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 	BC_HARD_ASSERT_TRUE(registrar != nullptr);
 	const auto& records = registrar->getAllRecords();
 	BC_HARD_ASSERT_CPP_EQUAL(records.size(), 0);
-	auto clientBuilder = proxy.clientBuilder();
+	ClientBuilder clientBuilder{*proxy.getAgent()};
 	clientBuilder.setConferenceFactoryUri(confFactoryUri).setLimeX3DH(OnOff::Off);
 	const auto me = clientBuilder.build("I@sip.example.org");
 	const auto you = clientBuilder.build("you@sip.example.org");

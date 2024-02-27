@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -24,8 +24,8 @@
 #include <linphone++/linphone.hh>
 #include <optional>
 
+#include "agent.hh"
 #include "asserts.hh"
-#include "proxy-server.hh"
 
 namespace flexisip {
 namespace tester {
@@ -46,7 +46,7 @@ public:
 	/**
 	 * @deprecated Use a ClientBuilder
 	 */
-	CoreClient(const std::string& me, const std::shared_ptr<Server>& server);
+	CoreClient(const std::string& me, const std::shared_ptr<Agent>& agent);
 
 	CoreClient(const CoreClient& other) = delete;
 	CoreClient(CoreClient&& other) = default;
@@ -216,14 +216,14 @@ private:
 	CoreClient(std::shared_ptr<linphone::Core>&& core,
 	           std::shared_ptr<linphone::Account>&& account,
 	           std::shared_ptr<const linphone::Address>&& me,
-	           const Server& server)
-	    : mCore(std::move(core)), mAccount(std::move(account)), mMe(std::move(me)), mServer(server) {
+	           const Agent& agent)
+	    : mCore(std::move(core)), mAccount(std::move(account)), mMe(std::move(me)), mAgent(agent) {
 	}
 
 	std::shared_ptr<linphone::Core> mCore;
 	std::shared_ptr<linphone::Account> mAccount;
 	std::shared_ptr<const linphone::Address> mMe;
-	const Server& mServer; /**< Server we're registered to */
+	const Agent& mAgent; /**< Agent we're registered to */
 	std::chrono::seconds mCallInviteReceivedDelay{5};
 }; // class CoreClient
 
