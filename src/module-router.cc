@@ -230,22 +230,24 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 		mStaticTargets.emplace_back(uri);
 	}
 
-	if (mMessageForkCfg->mForkLate) {
+	if (mMessageForkCfg->mForkLate || mCallForkCfg->mForkLate) {
 		mOnContactRegisteredListener = make_shared<OnContactRegisteredListener>(this);
-#if ENABLE_SOCI
-		if ((mMessageForkCfg->mSaveForkMessageEnabled = mc->get<ConfigBoolean>("message-database-enabled")->read())) {
-			InjectContext::setMaxRequestRetentionTime(chrono::duration_cast<chrono::seconds>(
-			    mc->get<ConfigDuration<chrono::seconds>>("max-request-retention-time")->read()));
-			mInjector = make_unique<ScheduleInjector>(this);
-			ForkMessageContextSociRepository::prepareConfiguration(
-			    mc->get<ConfigString>("message-database-backend")->read(),
-			    mc->get<ConfigString>("message-database-connection-string")->read(),
-			    mc->get<ConfigInt>("message-database-pool-size")->read());
-
-			restoreForksFromDatabase();
-		}
-#endif
 	}
+
+#if ENABLE_SOCI
+	if (mMessageForkCfg->mForkLate && mc->get<ConfigBoolean>("message-database-enabled")->read()) {
+		mMessageForkCfg->mSaveForkMessageEnabled = true;
+		InjectContext::setMaxRequestRetentionTime(
+		    mc->get<ConfigDuration<chrono::seconds>>("max-request-retention-time")->read());
+		mInjector = make_unique<ScheduleInjector>(this);
+		ForkMessageContextSociRepository::prepareConfiguration(
+		    mc->get<ConfigString>("message-database-backend")->read(),
+		    mc->get<ConfigString>("message-database-connection-string")->read(),
+		    mc->get<ConfigInt>("message-database-pool-size")->read());
+
+		restoreForksFromDatabase();
+	}
+#endif
 
 	if (!mInjector) {
 		mInjector = make_unique<AgentInjector>(this);
