@@ -214,22 +214,23 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 		if (!mFallbackRouteParsed) LOGF("Bad value [%s] for fallback-route in module::Router.", mFallbackRoute.c_str());
 	}
 
-	if (mMessageForkCfg->mForkLate) {
+	if (mMessageForkCfg->mForkLate || mCallForkCfg->mForkLate) {
 		mOnContactRegisteredListener = make_shared<OnContactRegisteredListener>(this);
+	}
+
 #if ENABLE_SOCI
-		if ((mMessageForkCfg->mSaveForkMessageEnabled = mc->get<ConfigBoolean>("message-database-enabled")->read())) {
-			InjectContext::setMaxRequestRetentionTime(
-			    seconds{mc->get<ConfigInt>("max-request-retention-time")->read()});
-			mInjector = make_unique<ScheduleInjector>(this);
-			ForkMessageContextSociRepository::prepareConfiguration(
-			    mc->get<ConfigString>("message-database-backend")->read(),
+	if (mMessageForkCfg->mForkLate && mc->get<ConfigBoolean>("message-database-enabled")->read()) {
+		mMessageForkCfg->mSaveForkMessageEnabled = true;
+		InjectContext::setMaxRequestRetentionTime(seconds{mc->get<ConfigInt>("max-request-retention-time")->read()});
+		mInjector = make_unique<ScheduleInjector>(this);
+		ForkMessageContextSociRepository::prepareConfiguration(
+		    mc->get<ConfigString>("message-database-backend")->read(),
 			    mc->get<ConfigString>("message-database-connection-string")->read(),
 			    mc->get<ConfigInt>("message-database-pool-size")->read());
 
 			restoreForksFromDatabase();
-		}
-#endif
 	}
+#endif
 
 	if (!mInjector) {
 		mInjector = make_unique<AgentInjector>(this);
