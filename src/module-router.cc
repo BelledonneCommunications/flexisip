@@ -283,7 +283,7 @@ void ModuleRouter::restoreForksFromDatabase() {
 		auto restoredForkMessage = ForkMessageContextDbProxy::make(shared_from_this(), dbMessage);
 		for (const auto& key : dbMessage.dbKeys) {
 			mForks.emplace(key, restoredForkMessage);
-			mAgent->getRegistrarDb().subscribe(Record::Key(key), std::weak_ptr(mOnContactRegisteredListener));
+			mAgent->getRegistrarDb().subscribe(Record::Key(key), std::weak_ptr<OnContactRegisteredListener>(mOnContactRegisteredListener));
 		}
 	}
 	SLOGI << " ... " << mForks.size() << " fork message restored from DB.";
@@ -635,7 +635,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 	mForks.emplace(key.asString(), context);
 	SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
 	if (context->getConfig()->mForkLate) {
-		mAgent->getRegistrarDb().subscribe(key, std::weak_ptr(mOnContactRegisteredListener));
+		mAgent->getRegistrarDb().subscribe(key, std::weak_ptr<OnContactRegisteredListener>(mOnContactRegisteredListener));
 	}
 
 	// now sort usable_contacts to form groups, if grouping is allowed
@@ -670,8 +670,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 				SLOGD << "Add fork " << context.get() << " to store with key '" << aliasKey
 				      << "' because it is an alias";
 				if (context->getConfig()->mForkLate) {
-					mAgent->getRegistrarDb().subscribe(std::move(aliasKey),
-					                                   std::weak_ptr(mOnContactRegisteredListener));
+					mAgent->getRegistrarDb().subscribe(std::move(aliasKey), std::weak_ptr<OnContactRegisteredListener>(mOnContactRegisteredListener));
 				}
 			}
 		}

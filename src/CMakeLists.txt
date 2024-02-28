@@ -187,13 +187,16 @@ endif()
 #If flexisip lib needs to be static, add this rule:
 #list(APPEND STATIC_LIBRARY_OPTIONS "-fprofile-instr-generate")
 if(ENABLE_COVERAGE)
-	if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
 		target_compile_options(flexisip PRIVATE "-fprofile-instr-generate")
 		target_compile_options(flexisip PRIVATE "-fcoverage-mapping")
 		target_link_options(flexisip PRIVATE "-fprofile-instr-generate")
 	else()
 		message(FATAL "CMAKE_CXX_COMPILER_ID is set to ${CMAKE_CXX_COMPILER_ID}. Coverage works only under Clang. Disable ENABLE_COVERAGE option or use Clang.")
 	endif()
+endif()
+if(APPLE)
+	target_link_libraries(flexisip PRIVATE Iconv::Iconv)
 endif()
 
 
@@ -370,7 +373,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 		# cannot be fixed thus.
 		set_source_files_properties(${XML_SOURCES} PROPERTIES COMPILE_OPTIONS "-Wno-deprecated-copy")
 	endif()
-else(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+else(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
 	set_source_files_properties(${XML_SOURCES} PROPERTIES COMPILE_OPTIONS "-Wno-deprecated-copy-with-user-provided-copy")
 endif()
 

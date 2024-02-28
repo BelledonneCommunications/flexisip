@@ -13,7 +13,7 @@
     - export MYSQL_DIR=/usr/local/opt/mysql-client
     - export CMAKE_BUILD_PARALLEL_LEVEL=$NJOBS
     - mkdir work
-    - cmake -S . -B work -G "$CMAKE_GENERATOR" $DEFAULT_MACOS_CMAKE_OPTIONS $CMAKE_OPTIONS -DCMAKE_PREFIX_PATH=/usr/local/opt/mbedtls@2 -DENABLE_SOCI_POSTGRESQL_BACKEND=OFF -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF
+    - cmake -S . -B work -G "$CMAKE_GENERATOR" $DEFAULT_MACOS_CMAKE_OPTIONS $CMAKE_OPTIONS -DENABLE_SOCI_POSTGRESQL_BACKEND=OFF -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF -DENABLE_PROTOBUF=OFF
     - cmake --build work -- $ADDITIONAL_BUILD_OPTIONS
     - ccache -s
 
@@ -25,7 +25,7 @@
 job-macosx-makefile:
   extends:
     - .job-macosx
-    - .rules-nightly  # ⚠ See `rules.yml`
+    - .rules-dev  # ⚠ See `rules.yml`
   variables:
     CMAKE_GENERATOR: Unix Makefiles
     NJOBS: $MAKEFILE_JOBS
@@ -49,7 +49,7 @@ job-macosx-ninja:
 job-macosx-xcode:
   extends:
     - .job-macosx
-    - .rules-nightly  # ⚠ See `rules.yml`
+    - .rules-dev  # ⚠ See `rules.yml`
   variables:
     CMAKE_GENERATOR: Xcode
     NJOBS: $MAX_NUMBER_TASK_XCODE

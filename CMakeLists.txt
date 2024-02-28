@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2024 Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2024  Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -157,6 +157,9 @@ set(BUILD_SHARED_LIBS ON)
 
 if(NOT CMAKE_INSTALL_RPATH AND CMAKE_INSTALL_PREFIX)
 	set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_FULL_LIBDIR})
+	if(APPLE)
+		list(APPEND CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/Frameworks")
+	endif()
 	message(STATUS "Setting install rpath to ${CMAKE_INSTALL_RPATH}")
 endif()
 
@@ -184,6 +187,9 @@ include("cmake/LinphoneSDK.cmake")
 find_package(LibNgHttp2 REQUIRED)
 find_package(Threads)
 find_package(XercesC)
+if(APPLE)
+	find_package(Iconv REQUIRED)
+endif()
 
 # Dummy executable used by the type-safe abstractions over POSIX processes
 find_program(DUMMY_EXEC NAMES true REQUIRED)
@@ -192,9 +198,6 @@ check_function_exists(arc4random HAVE_ARC4RANDOM)
 find_file(HAVE_SYS_PRCTL_H NAMES sys/prctl.h)
 
 set(CMAKE_REQUIRED_LIBRARIES)
-
-# Enable std::filesystem on old implementations (GNU <9.1, LLVM <9.0)
-link_libraries("stdc++fs")
 
 # Options
 if(ENABLE_SNMP)
@@ -303,14 +306,26 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 		# GCC on CentOS 7 treats this as an error
 		list(APPEND CXX_BUILD_FLAGS "-Werror=format-truncation=1")
 	endif()
-
+	if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9.1")
+		# Enable std::filesystem on old implementations (GNU <9.1)
+		link_libraries("stdc++fs")
+	endif()
 endif()
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
 	# Old compiler (clang3 on Debian 9 Stretch) are giving us some toubles...
 	if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4)
 		list(APPEND CXX_BUILD_FLAGS "-Wno-error=unused-variable" "-Wno-error=unknown-attributes")
 	endif()
+	if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9.0")
+		# Enable std::filesystem on old implementations (LLVM <9.0)
+		link_libraries("stdc++fs")
+	endif()
+	if(APPLE AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "10.0")
+		# Explicitly set GNUC version to 8.0.0 (full support for c++17).
+		list(APPEND CXX_BUILD_FLAGS "-fgnuc-version=8.0.0")
+	endif()
 endif()
+
 add_compile_options(${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
 
 add_subdirectory(include)

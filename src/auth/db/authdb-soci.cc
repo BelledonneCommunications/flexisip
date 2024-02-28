@@ -51,31 +51,31 @@ namespace {
 std::function<soci::rowset<soci::row>(soci::session&, const std::string&, const std::string&, const std::string&)>
 buildSociParamInjecter(std::string_view request) {
 	std::regex paramsRegex("(:domain|:authid)");
-	constexpr std::uint8_t DOMAIN = 0b01;
-	constexpr std::uint8_t AUTHID = 0b10;
+	constexpr std::uint8_t kDomain = 0b01;
+	constexpr std::uint8_t kAuthId = 0b10;
 	std::uint8_t paramsFound = 0b00;
 	const std::cregex_iterator paramsEnd{};
 	for (std::cregex_iterator match(request.begin(), request.end(), paramsRegex); match != paramsEnd; ++match) {
 		const auto& match_str = match->str();
 		if (match_str == ":domain") {
-			paramsFound |= DOMAIN;
+			paramsFound |= kDomain;
 		} else if (match_str == ":authid") {
-			paramsFound |= AUTHID;
+			paramsFound |= kAuthId;
 		}
-		if (paramsFound == (DOMAIN | AUTHID)) break;
+		if (paramsFound == (kDomain | kAuthId)) break;
 	}
 	switch (paramsFound) {
-		case (DOMAIN | AUTHID): {
+		case (kDomain | kAuthId): {
 			return [request](auto& sql, const auto& id, const auto& domain, const auto& authid) {
 				return sql.prepare << request, use(id, "id"), use(domain, "domain"), use(authid, "authid");
 			};
 		} break;
-		case DOMAIN: {
+		case kDomain: {
 			return [request](auto& sql, const auto& id, const auto& domain, const auto&) {
 				return sql.prepare << request, use(id, "id"), use(domain, "domain");
 			};
 		} break;
-		case AUTHID: {
+		case kAuthId: {
 			return [request](auto& sql, const auto& id, const auto&, const auto& authid) {
 				return sql.prepare << request, use(id, "id"), use(authid, "authid");
 			};

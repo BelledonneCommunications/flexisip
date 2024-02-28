@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -61,14 +61,14 @@ public:
 			bellesipUtilsSender.stackSleep(10);
 		}
 
-		assert();
+		doAssert();
 	}
 
 protected:
 	virtual void insertRegistrarContact() = 0;
 	virtual string getSubscribeHeaders() = 0;
 	virtual string getSubscribeBody() = 0;
-	virtual void assert() = 0;
+	virtual void doAssert() = 0;
 
 	string mNotifiesBodyConcat = "";
 };
@@ -108,7 +108,7 @@ protected:
 		       "</resource-lists>\r\n";
 	}
 
-	void assert() override {
+	void doAssert() override {
 		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("conference") != string::npos);
 		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("2.4") != string::npos);
 		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("ephemeral") != string::npos);
@@ -152,7 +152,7 @@ protected:
 		       "</resource-lists>\r\n";
 	}
 
-	void assert() override {
+	void doAssert() override {
 		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("conference") != string::npos);
 		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("1.8") != string::npos);
 		BC_ASSERT_TRUE(mNotifiesBodyConcat.find("ephemeral") != string::npos);

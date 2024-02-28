@@ -20,7 +20,7 @@ template <typename, typename = void>
 constexpr bool is_streamable = false;
 
 template <typename T>
-constexpr bool is_streamable<T, std::void_t<decltype(std::declval<std::ostream>() << std::declval<T>())>> = true;
+constexpr bool is_streamable<T, std::void_t<decltype(std::declval<std::ostream&>() << std::declval<T>())>> = true;
 
 template <typename, typename = void>
 constexpr bool is_dereferencable = false;

@@ -18,6 +18,8 @@
 
 #include "module-transcode.hh"
 
+#include <functional>
+
 #include "module-toolbox.hh"
 #include "transaction/outgoing-transaction.hh"
 

@@ -19,6 +19,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <ostream>
 #include <set>
 #include <string>
