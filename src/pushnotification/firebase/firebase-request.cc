@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -78,7 +78,7 @@ FirebaseRequest::FirebaseRequest(PushType pType, const std::shared_ptr<const Pus
 
 	mBody.assign(formattedBody.begin(), formattedBody.end());
 
-	SLOGD << "Firebase request creation " << this << " payload is :\n" << formattedBody;
+	SLOGD << "Firebase request[" << this << "] creation, payload:\n" << formattedBody;
 
 	HttpHeaders headers{};
 	headers.add(":method", "POST");
@@ -88,7 +88,7 @@ FirebaseRequest::FirebaseRequest(PushType pType, const std::shared_ptr<const Pus
 	headers.add("content-type", "application/json");
 	this->setHeaders(headers);
 
-	SLOGD << "Firebase request creation  " << this << " https headers are :\n" << headers.toString();
+	SLOGD << "Firebase request[" << this << "] creation, headers:\n" << headers.toString();
 }
 
 } // namespace pushnotification

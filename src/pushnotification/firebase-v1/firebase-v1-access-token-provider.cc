@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -47,37 +47,71 @@ FirebaseV1AccessTokenProvider::FirebaseV1AccessTokenProvider(const std::filesyst
 	mCommand = scriptPath.string() + " --filename " + serviceAccountFilePath.string() + " 2>&1";
 }
 
-std::optional<AccessTokenProvider::AccessToken> FirebaseV1AccessTokenProvider::getToken() {
+/*
+ * Run the python script and return its output.
+ */
+nlohmann::json FirebaseV1AccessTokenProvider::runScript() const {
 	auto pipe = popen(mCommand.c_str(), "r");
 	if (!pipe) {
-		SLOGW << mLogPrefix << ": failed to execute the shell or shell failed to execute the command";
-		return nullopt;
+		return {
+		    {"state", "ERROR"},
+		    {"data", {{"message", "failed to execute the shell or shell failed to execute the command"}}},
+		};
 	}
 
-	const auto output = json::parse(pipe, nullptr, false);
+	auto output = json::parse(pipe, nullptr, false);
 	const auto status = pclose(pipe);
 
 	if (output.is_discarded()) {
-		SLOGW << mLogPrefix << ": failed to parse script output [process_return_code=" << status % 255 << "]";
-		return nullopt;
+		const auto exitCode = "[exit_code = " + to_string(status % 255) + "]";
+		return {
+		    {"state", "ERROR"},
+		    {"data", {{"message", "failed to parse script output " + exitCode}}},
+		};
 	}
 
 	if (status != 0) {
-		SLOGW << mLogPrefix
-		      << ": an error has occurred while trying to execute the script [process_return_code=" << status % 255
-		      << "]";
-		return nullopt;
+		const auto exitCode = "[exit_code = " + to_string(status % 255) + "]";
+		return {
+		    {"state", "ERROR"},
+		    {"data", {{"message", "an error has occurred while executing the script " + exitCode}}},
+		};
 	}
 
-	if (output["state"] != "SUCCESS") {
-		SLOGW << mLogPrefix
-		      << ": an error has occurred while executing the script, message = " << output["data"]["message"];
+	return output;
+}
+
+/*
+ * Calls a python script that requests a new OAuth2 access token from the Firebase servers.
+ * Warning: this function must therefore be called asynchronously.
+ */
+std::optional<AccessTokenProvider::AccessToken> FirebaseV1AccessTokenProvider::getToken() {
+	const auto output = runScript();
+	optional<AccessTokenProvider::AccessToken> token{};
+
+	try {
+		if (output.at("state") == "ERROR") {
+			SLOGE << mLogPrefix
+			      << ": an error has occurred during script execution, error = " << output.at("data").at("message");
+			return nullopt;
+		}
+
+		token = AccessToken{
+		    .content = output.at("data").at("token"),
+		    .lifetime = chrono::seconds(stoll(to_string(output.at("data").at("lifetime")))),
+		};
+
+		// If there were warnings during the execution of the python script, print them here.
+		for (const auto& warning : output.at("warnings")) {
+			SLOGW << mLogPrefix << ": from python script, " << warning;
+		}
+	} catch (const exception& e) {
+		SLOGE << mLogPrefix << ": caught an unexpected exception while reading script output, message = " << e.what();
+		return nullopt;
+	} catch (...) {
+		SLOGE << mLogPrefix << ": caught an unknown exception while reading script output";
 		return nullopt;
 	}
-
-	AccessToken token;
-	token.content = output["data"]["token"];
-	token.lifetime = chrono::seconds(stoll(to_string(output["data"]["lifetime"])));
 
 	return token;
 }

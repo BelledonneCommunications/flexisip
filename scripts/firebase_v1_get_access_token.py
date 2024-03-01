@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #  Flexisip, a flexible SIP proxy server with media capabilities.
-#  Copyright (C) 2010-2023 Belledonne Communications SARL.
+#  Copyright (C) 2010-2024 Belledonne Communications SARL.
 #
 #  This program is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU Affero General Public License as
@@ -20,9 +20,9 @@
 Retrieve a valid access token that can be used to authorize requests.
 
 All outputs of this script are printed in the standard output and formatted in JSON.
-The structure is as follows: {"state": str ['ERROR', 'SUCCESS'], "data": obj}
+The structure is as follows: {"state": str ['ERROR', 'SUCCESS'], "data": obj, "warnings": list[str]}
     On success: data = {"token": str, "lifetime": int}
-    On error:   data = {"message": str, "type": str ['IMPORT', 'FIREBASE', 'SCRIPT']}
+    On error:   data = {"message": str}
 """
 
 try:
@@ -31,15 +31,16 @@ try:
     import datetime
     import argparse
     from pathlib import Path
-    
+    import warnings as warnlib
+
     # https://github.com/googleapis/google-auth-library-python
     import google.auth.transport.requests
     from google.oauth2 import service_account
 
 except BaseException as exception:
 
-    print(f'{{"state": "ERROR", "data": {{"message": "{exception}", "type": "IMPORT"}}}}')
-    exit(0)
+    print(f'{{"state": "ERROR", "data": {{"message": "{exception}"}}, "warnings": {[]}}}')
+    sys.exit(0)
 
 
 class ScriptState:
@@ -47,57 +48,55 @@ class ScriptState:
     SUCCESS = "SUCCESS"
 
 
-class ErrorType:
-    SCRIPT = "SCRIPT"
-    FIREBASE = "FIREBASE"
-
-
-def error(message: str, type: str) -> None:
-
+def error(message: str) -> None:
     data = {
         "state": ScriptState.ERROR,
         "data": {
             "message": message,
-            "type": type
-        }
+        },
+        "warnings": [],
     }
     print(json.dumps(data))
 
 
 SCOPES = ['https://www.googleapis.com/auth/firebase.messaging']
 
-
 if __name__ == "__main__":
-    
-    parser = argparse.ArgumentParser(
-        prog="FirebaseV1 access token provider",
-        description="Try to get Firebase OAuth2 access token for the given service account",
-        epilog=""
-    )
 
-    parser.add_argument("-f", "--filename", type=Path, dest="filename", help="path to the service account json file", required=True)
-    arguments = parser.parse_args()
+    with warnlib.catch_warnings(record=True) as warnings:
+        warnlib.simplefilter("always")
 
-    if not arguments.filename.exists() or not arguments.filename.is_file():
-        error(f"path to service account json file is not valid ({arguments.filename})", ErrorType.SCRIPT)
-        sys.exit(0)
+        parser = argparse.ArgumentParser(
+            prog="FirebaseV1 access token provider",
+            description="Try to get Firebase OAuth2 access token for the given service account",
+            epilog=""
+        )
 
-    try:
-        
-        credentials = service_account.Credentials.from_service_account_file(arguments.filename, scopes=SCOPES)
-        request = google.auth.transport.requests.Request()
-        credentials.refresh(request)
+        parser.add_argument("-f", "--filename", type=Path, dest="filename",
+                            help="path to the service account json file", required=True)
+        arguments = parser.parse_args()
 
-        data = {
-            "state": ScriptState.SUCCESS,
-            "data": {
-                "token": credentials.token,
-                "lifetime": int(credentials.expiry.timestamp()) - int(datetime.datetime.utcnow().timestamp())
+        if not arguments.filename.exists() or not arguments.filename.is_file():
+            error(f"path to service account json file is not valid ({arguments.filename})")
+            sys.exit(0)
+
+        try:
+
+            credentials = service_account.Credentials.from_service_account_file(arguments.filename, scopes=SCOPES)
+            request = google.auth.transport.requests.Request()
+            credentials.refresh(request)
+
+            data = {
+                "state": ScriptState.SUCCESS,
+                "data": {
+                    "token": credentials.token,
+                    "lifetime": int(credentials.expiry.timestamp()) - int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
+                },
+                "warnings": [f"{warning.message}" for warning in warnings],
             }
-        }
-        print(json.dumps(data))
+            print(json.dumps(data))
 
-    except BaseException as exception:
+        except BaseException as exception:
 
-        error(f"{exception}", ErrorType.FIREBASE)
-        sys.exit(0)
+            error(f"{exception}")
+            sys.exit(0)
