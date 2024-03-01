@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2021  Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2024  Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -29,11 +29,21 @@ set(CPACK_PACKAGE_HOMEPAGE_URL "http://flexisip.org")
 set(CPACK_PACKAGING_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
 bc_compute_linux_package_version("${FLEXISIP_FULL_VERSION}" version release)
-set(extra_dependencies
-	"logrotate"
-	"python3-google-auth"
-	"python3-requests"
-)
+
+# Add package dependencies.
+set(extra_dependencies "logrotate")
+cmake_host_system_information(RESULT DISTRIBUTION QUERY DISTRIB_INFO)
+if(DISTRIBUTION_ID STREQUAL "centos")
+	list(APPEND extra_dependencies
+		"python-google-auth"
+		"python-requests"
+	)
+else()
+	list(APPEND extra_dependencies
+		"python3-google-auth"
+		"python3-requests"
+	)
+endif()
 list(JOIN extra_dependencies ", " extra_dependencies_str)
 
 set(obsolete_packets
