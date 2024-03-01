@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -28,6 +28,7 @@
 #include <optional>
 #include <sofia-sip/su_wait.h>
 
+#include <flexisip/sofia-wrapper/su-root.hh>
 #include <flexisip/sofia-wrapper/timer.hh>
 
 #include "authentication-manager.hh"
@@ -74,7 +75,10 @@ public:
 		// new because make_shared need a public constructor.
 		return std::shared_ptr<Http2Client>{new Http2Client{std::forward<Args>(args)...}};
 	};
-	virtual ~Http2Client() = default;
+
+	virtual ~Http2Client() {
+		su_root_unregister(mRoot.getCPtr(), &mPollInWait, onPollInCb, this);
+	};
 
 	using HttpRequest = HttpMessage;
 	using OnErrorCb = HttpMessageContext::OnErrorCb;

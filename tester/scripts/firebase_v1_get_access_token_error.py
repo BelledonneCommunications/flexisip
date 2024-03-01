@@ -8,20 +8,22 @@ try:
 
     import sys
     import json
+    import warnings as warnlib
 
 except BaseException as exception:
 
-    print(f'{{"state": "ERROR", "data": {{"message": "{exception}", "type": "IMPORT"}}}}')
-    exit(0)
-
+    print(f'{{"state": "ERROR", "data": {{"message": "{exception}"}}, "warnings": {[]}}}')
+    sys.exit(0)
 
 if __name__ == "__main__":
-    data = {
-        "state": "ERROR",
-        "data": {
-            "message": "this is a sample error message for testing purposes",
-            "type": "TEST"
-        }
-    }
+    with warnlib.catch_warnings(record=True) as warnings:
+        warnlib.simplefilter("always")
 
-    print(json.dumps(data))
+        data = {
+            "state": "ERROR",
+            "data": {
+                "message": "stub-message",
+            },
+            "warnings": [f"{warning.message}" for warning in warnings],
+        }
+        print(json.dumps(data))

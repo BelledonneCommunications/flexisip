@@ -1,6 +1,6 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+ Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
@@ -104,9 +104,6 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request,
                        const OnErrorCb& onErrorCb) {
 
 	auto logPrefix = mLogPrefix;
-
-	SLOGD << logPrefix << ": sending request[" << request << "]:\n" << request->toString();
-
 	auto context = make_shared<HttpMessageContext>(request, onResponseCb, onErrorCb, *mRoot.getCPtr(), mRequestTimeout);
 
 	if (mAuthManager) {
@@ -121,9 +118,12 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request,
 		this->tlsConnect();
 	}
 	if (mState != State::Connected) {
+		SLOGD << logPrefix << ": request[" << request << "] is waiting to be sent";
 		mPendingHttpContexts.emplace_back(std::move(context));
 		return;
 	}
+
+	SLOGD << logPrefix << ": sending request[" << request << "]:\n" << request->toString();
 
 	auto streamId =
 	    nghttp2_submit_request(mHttpSession.get(), &request->mPriority, request->getHeaders().makeCHeaderList().data(),

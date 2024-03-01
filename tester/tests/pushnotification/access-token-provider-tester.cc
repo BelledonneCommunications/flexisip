@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -25,46 +25,79 @@
 
 #define PY_SCRIPT_ERROR FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_error.py"
 #define PY_SCRIPT_SUCCESS_F FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success_fixed.py"
+#define PY_SCRIPT_UNEXPECTED_OUTPUT                                                                                    \
+	FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_unexpected_output.py"
 #define FIREBASE_SAMPLE_FILE FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/config/firebase_sample_service_account.json"
 
 using namespace std;
 using HttpRequest = flexisip::HttpMessage;
+using namespace flexisip::pushnotification;
 
 namespace flexisip::tester {
-using namespace pushnotification;
+
+namespace {
 
 namespace firebaseV1 {
 
-void testInstantiateWrongPathToPythonScript() {
-	BC_ASSERT_THROWN(make_unique<FirebaseV1AccessTokenProvider>("wrong/path/to/script.py", FIREBASE_SAMPLE_FILE),
-	                 std::runtime_error);
+void makeAccessTokenProviderWithWrongPathToPythonScript() {
+	BC_ASSERT_THROWN(FirebaseV1AccessTokenProvider("wrong/path/to/script.py", FIREBASE_SAMPLE_FILE), runtime_error);
 }
 
-void testGetTokenSuccess() {
-	const auto provider = make_unique<FirebaseV1AccessTokenProvider>(PY_SCRIPT_SUCCESS_F, FIREBASE_SAMPLE_FILE);
+void runScriptFailedToParseScriptOutput() {
+	const FirebaseV1AccessTokenProvider provider{PY_SCRIPT_SUCCESS_F, "&& pollute-script-output"};
 
-	const auto token = provider->getToken();
+	const auto output = provider.runScript();
 
-	BC_ASSERT_TRUE(token != nullopt);
-	BC_ASSERT_TRUE(token->lifetime == 42s);
-	BC_ASSERT_CPP_EQUAL(token->content, "THIS_IS_AN_ACCESS_TOKEN");
+	BC_HARD_ASSERT_CPP_EQUAL(output.at("state"), "ERROR");
+	BC_ASSERT_CPP_EQUAL(output.at("data").at("message"), "failed to parse script output [exit_code = 127]");
 }
 
-void testGetTokenError() {
-	const auto provider = make_unique<FirebaseV1AccessTokenProvider>(PY_SCRIPT_ERROR, FIREBASE_SAMPLE_FILE);
+void runScriptCaughtWarnings() {
+	const FirebaseV1AccessTokenProvider provider{PY_SCRIPT_SUCCESS_F, FIREBASE_SAMPLE_FILE};
 
-	const auto token = provider->getToken();
+	const auto output = provider.runScript();
 
-	BC_ASSERT_TRUE(token == nullopt);
+	BC_ASSERT(output.at("warnings").front() == "stub-warning-message");
+}
+
+void getTokenSuccess() {
+	FirebaseV1AccessTokenProvider provider{PY_SCRIPT_SUCCESS_F, FIREBASE_SAMPLE_FILE};
+
+	const auto token = provider.getToken();
+
+	BC_HARD_ASSERT(token != nullopt);
+	BC_ASSERT(token->lifetime == 42s);
+	BC_ASSERT_CPP_EQUAL(token->content, "stub-token");
+}
+
+void getTokenUnexpectedJsonData() {
+	FirebaseV1AccessTokenProvider provider{PY_SCRIPT_UNEXPECTED_OUTPUT, FIREBASE_SAMPLE_FILE};
+
+	const auto token = provider.getToken();
+
+	BC_ASSERT(token == nullopt);
+}
+
+void getTokenError() {
+	FirebaseV1AccessTokenProvider provider{PY_SCRIPT_ERROR, FIREBASE_SAMPLE_FILE};
+
+	const auto token = provider.getToken();
+
+	BC_ASSERT(token == nullopt);
 }
 
 } // namespace firebaseV1
 
-namespace {
-TestSuite _("Push notification access token provider",
-            {TEST_NO_TAG("FirebaseV1AccessTokenProvider-instantiation-01",
-                         firebaseV1::testInstantiateWrongPathToPythonScript),
-     TEST_NO_TAG_AUTO_NAMED(firebaseV1::testGetTokenSuccess), TEST_NO_TAG_AUTO_NAMED(firebaseV1::testGetTokenError)});
+TestSuite _("pushnotification::AccessTokenProvider",
+            {
+                CLASSY_TEST(firebaseV1::makeAccessTokenProviderWithWrongPathToPythonScript),
+                CLASSY_TEST(firebaseV1::runScriptFailedToParseScriptOutput),
+                CLASSY_TEST(firebaseV1::runScriptCaughtWarnings),
+                CLASSY_TEST(firebaseV1::getTokenSuccess),
+                CLASSY_TEST(firebaseV1::getTokenUnexpectedJsonData),
+                CLASSY_TEST(firebaseV1::getTokenError),
+            });
+
 } // namespace
 
 } // namespace flexisip::tester

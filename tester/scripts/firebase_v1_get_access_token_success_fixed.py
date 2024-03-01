@@ -8,20 +8,26 @@ try:
 
     import sys
     import json
-    import time
-    import datetime
+    import warnings as warnlib
 
 except BaseException as exception:
 
-    print(f'{{"state": "ERROR", "data": {{"message": "{exception}", "type": "IMPORT"}}}}')
-    exit(0)
+    print(f'{{"state": "ERROR", "data": {{"message": "{exception}"}}, "warnings: {[]}}}')
+    sys.exit(0)
 
 if __name__ == "__main__":
-    data = {
-        "state": "SUCCESS",
-        "data": {
-            "token": "THIS_IS_AN_ACCESS_TOKEN",
-            "lifetime": int(42)
+    with warnlib.catch_warnings(record=True) as warnings:
+        warnlib.simplefilter("always")
+
+        # Voluntarily throw a warning.
+        warnlib.warn("stub-warning-message", DeprecationWarning)
+
+        data = {
+            "state": "SUCCESS",
+            "data": {
+                "token": "stub-token",
+                "lifetime": int(42),
+            },
+            "warnings": [f"{warning.message}" for warning in warnings],
         }
-    }
-    print(json.dumps(data))
+        print(json.dumps(data))
