@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -25,9 +25,9 @@ using namespace std;
 using namespace flexisip;
 
 class ModuleGarbageIn : public Module, protected ModuleToolbox {
+	friend std::shared_ptr<Module> ModuleInfo<ModuleGarbageIn>::create(Agent*);
+
 public:
-	ModuleGarbageIn(Agent* ag) : Module(ag) {
-	}
 	~ModuleGarbageIn() {
 	}
 
@@ -42,23 +42,25 @@ public:
 		ev->terminateProcessing();
 	}
 
-	virtual void onResponse(shared_ptr<ResponseSipEvent> &ev) {
+	virtual void onResponse(shared_ptr<ResponseSipEvent>& ev) {
 		SLOGD << "Garbage: processing terminated";
 		ev->terminateProcessing();
 	}
 
-	void onDeclare(GenericStruct *mc) {
-		mc->get<ConfigBoolean>("enabled")->setDefault("false");
-		mc->get<ConfigValue>("filter")->setDefault("false");
+private:
+	ModuleGarbageIn(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 	}
 
-private:
 	static ModuleInfo<ModuleGarbageIn> sInfo;
 };
 
-ModuleInfo<ModuleGarbageIn> ModuleGarbageIn::sInfo(
-	"GarbageIn",
-	"The GarbageIn module collects incoming garbage and prevent any further processing.",
-	{ "SanityChecker" },
-	ModuleInfoBase::ModuleOid::GarbageIn
-);
+ModuleInfo<ModuleGarbageIn>
+    ModuleGarbageIn::sInfo("GarbageIn",
+                           "The GarbageIn module collects incoming garbage and prevent any further processing.",
+                           {"SanityChecker"},
+                           ModuleInfoBase::ModuleOid::GarbageIn,
+
+                           [](GenericStruct& moduleConfig) {
+	                           moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
+	                           moduleConfig.get<ConfigValue>("filter")->setDefault("false");
+                           });

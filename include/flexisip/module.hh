@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -44,8 +44,6 @@ class EntryFilter;
 
 enum class ModuleClass { Experimental, Production };
 
-extern "C" Module* __flexisipCreatePlugin(Agent* agent, SharedLibrary* sharedLibrary);
-
 /**
  * Abstract base class for all Flexisip module.
  * A module is an object that is able to process sip requests and sip responses.
@@ -57,10 +55,8 @@ class Module : protected ConfigValueListener {
 	template <typename T>
 	friend class ModuleInfo;
 
-	friend Module* __flexisipCreatePlugin(Agent* agent, SharedLibrary* sharedLibrary);
-
 public:
-	Module(Agent* agent);
+	Module(Agent* agent, const ModuleInfoBase* moduleInfo);
 	virtual ~Module();
 
 	Agent* getAgent() const {
@@ -69,7 +65,6 @@ public:
 	nta_agent_t* getSofiaAgent() const;
 	const std::string& getModuleName() const;
 	const std::string& getModuleConfigName() const;
-	void declare(GenericStruct* root);
 	void checkConfig();
 	void load();
 	void unload();
@@ -89,15 +84,11 @@ public:
 	}
 	virtual void injectRequestEvent(const std::shared_ptr<RequestSipEvent>& ev);
 
-	ModuleInfoBase* getInfo() const {
+	const ModuleInfoBase* getInfo() const {
 		return mInfo;
 	}
-	void setInfo(ModuleInfoBase* moduleInfo);
-	void setAgent(Agent*);
 
 protected:
-	virtual void onDeclare([[maybe_unused]] GenericStruct* root) {
-	}
 	virtual void onLoad([[maybe_unused]] const GenericStruct* root) {
 	}
 	virtual void onUnload() {
@@ -118,14 +109,12 @@ protected:
 		return true;
 	}
 
-	void sendTrap(const std::string& msg) {
-		ConfigManager::get()->sendTrap(mModuleConfig, msg);
-	}
+	void sendTrap(const std::string& msg);
 
 protected:
 	sofiasip::Home mHome;
 	Agent* mAgent = nullptr;
-	ModuleInfoBase* mInfo = nullptr;
+	const ModuleInfoBase* mInfo;
 	GenericStruct* mModuleConfig = nullptr;
 	std::unique_ptr<EntryFilter> mFilter;
 };
@@ -193,9 +182,11 @@ public:
 	               const std::string& help,
 	               const std::vector<std::string>& after,
 	               ModuleOid oid,
+	               std::function<void(GenericStruct&)> declareConfig,
 	               ModuleClass moduleClass,
 	               const std::string& replace)
-	    : mName(moduleName), mHelp(help), mAfter(after), mOidIndex(oid), mClass(moduleClass), mReplace(replace) {
+	    : mName(moduleName), mHelp(help), mAfter(after), mOidIndex(oid), mDeclareConfig(declareConfig),
+	      mClass(moduleClass), mReplace(replace) {
 		ModuleInfoManager::get()->registerModuleInfo(this);
 	}
 	virtual ~ModuleInfoBase() {
@@ -225,6 +216,8 @@ public:
 		return mReplace.empty() ? mName : mReplace;
 	}
 
+	void declareConfig(GenericStruct& rootConfig) const;
+
 	virtual std::shared_ptr<Module> create(Agent* agent) = 0;
 
 private:
@@ -232,6 +225,7 @@ private:
 	std::string mHelp;
 	std::vector<std::string> mAfter;
 	oid mOidIndex;
+	std::function<void(GenericStruct&)> mDeclareConfig;
 	ModuleClass mClass;
 	std::string mReplace;
 };
@@ -245,14 +239,15 @@ public:
 	           const std::string& help,
 	           const std::vector<std::string>& after,
 	           ModuleOid oid,
+	           std::function<void(GenericStruct&)> declareConfig,
 	           ModuleClass moduleClass = ModuleClass::Production,
 	           const std::string& replace = "")
-	    : ModuleInfoBase(moduleName, help, after, oid, moduleClass, replace) {
+	    : ModuleInfoBase(moduleName, help, after, oid, declareConfig, moduleClass, replace) {
 	}
 
 	std::shared_ptr<Module> create(Agent* agent) override {
-		std::shared_ptr<Module> module = std::make_shared<T>(agent);
-		module->setInfo(this);
+		std::shared_ptr<Module> module;
+		module.reset(new T(agent, this));
 		return module;
 	}
 };

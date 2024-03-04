@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,6 +20,7 @@
 
 #include "flexisip/configmanager.hh"
 #include "utils/digest.hh"
+#include <stdexcept>
 
 using namespace std;
 
@@ -35,14 +36,12 @@ void AuthDbBackend::ListenerToFunctionWrapper::onResult(AuthDbResult result, con
 	delete this;
 }
 
-unique_ptr<AuthDbBackend> AuthDbBackend::sUnique;
-
 AuthDbListener::~AuthDbListener() {
 }
 
 class FixedAuthDb : public AuthDbBackend {
 public:
-	FixedAuthDb() : AuthDbBackend(*ConfigManager::get()->getRoot()) {
+	FixedAuthDb(const GenericStruct& root) : AuthDbBackend(root) {
 	}
 
 	void getUserWithPhoneFromBackend([[maybe_unused]] const string& phone,
@@ -61,23 +60,19 @@ public:
 	static void declareConfig([[maybe_unused]] GenericStruct* mc){};
 };
 
-AuthDbBackend& AuthDbBackend::get() {
-	if (sUnique == nullptr) {
-		GenericStruct* cr = ConfigManager::get()->getRoot();
-		GenericStruct* ma = cr->get<GenericStruct>("module::Authentication");
-		const string& impl = ma->get<ConfigString>("db-implementation")->read();
-		if (impl == "fixed") {
-			sUnique.reset(new FixedAuthDb());
-		} else if (impl == "file") {
-			sUnique.reset(new FileAuthDb());
+void AuthDbBackendOwner::createAuthDbBackend() {
+	const auto& rootConfig = *mConfigManager->getRoot();
+	GenericStruct* ma = rootConfig.get<GenericStruct>("module::Authentication");
+	const string& impl = ma->get<ConfigString>("db-implementation")->read();
+	if (impl == "fixed") {
+		mBackend = make_unique<FixedAuthDb>(rootConfig);
+	} else if (impl == "file") {
+		mBackend = make_unique<FileAuthDb>(rootConfig);
 #if ENABLE_SOCI
-		} else if (impl == "soci") {
-			sUnique.reset(new SociAuthDB(*cr));
+	} else if (impl == "soci") {
+		mBackend = make_unique<SociAuthDB>(rootConfig);
 #endif
-		}
-	}
-
-	return *sUnique;
+	} else throw std::runtime_error("Cannot build Authentication Backend, unknown db-implementation: "s + impl);
 }
 
 AuthDbBackend::AuthDbBackend(const GenericStruct& root) {
@@ -305,10 +300,4 @@ void AuthDbBackend::getUsersWithPhonesFromBackend(list<tuple<string, string, Aut
 		getUserWithPhoneFromBackend(phone, domain, l);
 	}
 }
-
-void AuthDbBackend::resetAuthDB() {
-	SLOGW << "Reseting AuthDbBackend static pointer, you MUST be in a test.";
-	sUnique = nullptr;
-}
-
 } // namespace flexisip

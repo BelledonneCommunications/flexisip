@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -34,32 +34,6 @@
 using namespace std;
 
 namespace flexisip {
-
-void ModuleExternalAuthentication::onDeclare(GenericStruct* mc) {
-	ModuleAuthenticationBase::onDeclare(mc);
-	ConfigItemDescriptor items[] = {
-	    {String, "remote-auth-uri",
-	     "URI to use to connect on the external HTTP server on each request. Each token preceded enclosed "
-	     "by '{' and '}' bracket will be replaced before sending the HTTP request. The available tokens are:\n"
-	     "\t* {method}: the method of the SIP request that is being challenged. Ex: REGISTER, INVITE, ...\n"
-	     "\t* {sip-instance}: the value of +sip.instance parameter.\n"
-	     "\t* {from}: the value of the request's 'From:' header\n"
-	     "\t* {domain}: the domain name extracted from the From header's URI\n"
-	     "\t* all the parameters available in the Authorization header. Ex: {realm}, {nonce}, {username}, ...\n"
-	     "\t* {uuid}: the UUID of the user agent whose request is being challenged. The UUID is gotten from "
-	     "the 'gr' parameter of the contact URI or, if not present, from the '+sip.instance' parameter. "
-	     "If neither 'gr' nor '+sip.instance' parameters are present, then $uuid is be replaced by an empty string."
-	     "\t* {header:<name>}: the value of <name> header of the request to authenticate. Replaced by 'null' if the "
-	     "header is missing. Note: name matching isn't case-sensitive."
-	     "\n"
-	     "Ex: https://{realm}.example.com/auth?from={from}&cnonce={cnonce}&username={username}&cseq={header:cseq}",
-	     ""},
-	    config_item_end};
-	mc->addChildrenValues(items);
-
-	// Change the default value of 'trusted-hosts'
-	mc->get<ConfigStringList>("trusted-hosts")->setDefault("${module::Authentication/trusted-hosts}");
-}
 
 void ModuleExternalAuthentication::onLoad(const GenericStruct* mc) {
 	mRemoteUri = mc->get<ConfigString>("remote-auth-uri")->read();
@@ -152,7 +126,34 @@ ModuleInfo<ModuleExternalAuthentication> ExternalAuthInfo(
     "Reason: Linphone; cause=1; text=\"Calls are forbidden\""
     "authentication ",
     {"Authentication"},
-    ModuleInfoBase::ModuleOid::Plugin);
+    ModuleInfoBase::ModuleOid::Plugin,
+
+    [](GenericStruct& moduleConfig) {
+	    ModuleAuthenticationBase::declareConfig(moduleConfig);
+	    ConfigItemDescriptor items[] = {
+	        {String, "remote-auth-uri",
+	         "URI to use to connect on the external HTTP server on each request. Each token preceded enclosed "
+	         "by '{' and '}' bracket will be replaced before sending the HTTP request. The available tokens are:\n"
+	         "\t* {method}: the method of the SIP request that is being challenged. Ex: REGISTER, INVITE, ...\n"
+	         "\t* {sip-instance}: the value of +sip.instance parameter.\n"
+	         "\t* {from}: the value of the request's 'From:' header\n"
+	         "\t* {domain}: the domain name extracted from the From header's URI\n"
+	         "\t* all the parameters available in the Authorization header. Ex: {realm}, {nonce}, {username}, ...\n"
+	         "\t* {uuid}: the UUID of the user agent whose request is being challenged. The UUID is gotten from "
+	         "the 'gr' parameter of the contact URI or, if not present, from the '+sip.instance' parameter. "
+	         "If neither 'gr' nor '+sip.instance' parameters are present, then $uuid is be replaced by an empty string."
+	         "\t* {header:<name>}: the value of <name> header of the request to authenticate. Replaced by 'null' if "
+	         "the "
+	         "header is missing. Note: name matching isn't case-sensitive."
+	         "\n"
+	         "Ex: https://{realm}.example.com/auth?from={from}&cnonce={cnonce}&username={username}&cseq={header:cseq}",
+	         ""},
+	        config_item_end};
+	    moduleConfig.addChildrenValues(items);
+
+	    // Change the default value of 'trusted-hosts'
+	    moduleConfig.get<ConfigStringList>("trusted-hosts")->setDefault("${module::Authentication/trusted-hosts}");
+    });
 
 FLEXISIP_DECLARE_PLUGIN(ExternalAuthInfo, "External authentication plugin", 1);
 

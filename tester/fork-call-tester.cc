@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -24,6 +24,7 @@
 #include "utils/client-builder.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
+#include "utils/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
@@ -38,8 +39,8 @@ static void basicCall() {
 	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
 	server->start();
 
-	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server);
-	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server);
+	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server->getAgent());
+	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server->getAgent());
 
 	callerClient->call(calleeClient);
 	callerClient->endCurrentCall(calleeClient);
@@ -56,15 +57,15 @@ static void callWithEarlyCancel() {
 	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
 	server->start();
 
-	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server);
-	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server);
+	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server->getAgent());
+	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server->getAgent());
 
 	callerClient->callWithEarlyCancel(calleeClient);
 
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	// Assert Fork is destroyed
-	CoreAssert(calleeClient, callerClient, server)
+	CoreAssert(calleeClient, callerClient, server->getAgent())
 	    .wait([&moduleRouter = *moduleRouter] {
 		    FAIL_IF(moduleRouter.mStats.mCountCallForks->start->read() != 1);
 		    FAIL_IF(moduleRouter.mStats.mCountCallForks->finish->read() != 1);
@@ -77,9 +78,10 @@ static void callWithEarlyCancelCalleeOffline() {
 	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
 	server->start();
 
-	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server);
-	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server);
-	const auto calleeIdleClient = server->clientBuilder().setApplePushConfig().build("sip:calleeClient@sip.test.org");
+	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server->getAgent());
+	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server->getAgent());
+	const auto calleeIdleClient =
+	    ClientBuilder(*server->getAgent()).setApplePushConfig().build("sip:calleeClient@sip.test.org");
 	const auto calleeIdleClientCore = calleeIdleClient.getCore();
 	CoreAssert asserter{calleeIdleClientCore, server};
 
@@ -135,12 +137,12 @@ static void callWithEarlyCancelCalleeOfflineNoVOIPPush() {
 	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
 	server->start();
 
-	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server);
-	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server);
+	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server->getAgent());
+	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server->getAgent());
 	const auto calleeIdleClientVoip =
-	    server->clientBuilder().setApplePushConfig().build("sip:calleeClient@sip.test.org");
+	    ClientBuilder(*server->getAgent()).setApplePushConfig().build("sip:calleeClient@sip.test.org");
 	const auto calleeIdleClientRemote =
-	    server->clientBuilder().setApplePushConfigRemoteOnly().build("sip:calleeClient@sip.test.org");
+	    ClientBuilder(*server->getAgent()).setApplePushConfigRemoteOnly().build("sip:calleeClient@sip.test.org");
 
 	// Prepare asserter
 	const auto calleeIdleClientVoipCore = calleeIdleClientVoip.getCore();
@@ -197,10 +199,10 @@ static void calleeOfflineWithOneDevice() {
 	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
 	server->start();
 
-	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server);
-	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server);
+	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server->getAgent());
+	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server->getAgent());
 	auto calleeClientOfflineDevice =
-	    server->clientBuilder().setApplePushConfig().build("sip:calleeClient@sip.test.org");
+	    ClientBuilder(*server->getAgent()).setApplePushConfig().build("sip:calleeClient@sip.test.org");
 	auto calleeOfflineDeviceCore = calleeClientOfflineDevice.getCore();
 
 	calleeClientOfflineDevice.disconnect();
@@ -242,10 +244,10 @@ static void calleeOfflineWithOneDeviceEarlyDecline() {
 	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
 	server->start();
 
-	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server);
-	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server);
+	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server->getAgent());
+	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server->getAgent());
 	auto calleeClientOfflineDevice =
-	    server->clientBuilder().setApplePushConfig().build("sip:calleeClient@sip.test.org");
+	    ClientBuilder(*server->getAgent()).setApplePushConfig().build("sip:calleeClient@sip.test.org");
 	auto calleeOfflineDeviceCore = calleeClientOfflineDevice.getCore();
 
 	calleeClientOfflineDevice.disconnect();
@@ -286,12 +288,12 @@ static void calleeMultipleOnlineDevices() {
 	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
 	server->start();
 
-	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server);
-	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server);
+	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server->getAgent());
+	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server->getAgent());
 
 	vector<shared_ptr<CoreClient>> calleeIdleDevices{};
 	for (int i = 0; i < 10; ++i) {
-		calleeIdleDevices.emplace_back(make_shared<CoreClient>("sip:calleeClient@sip.test.org", server));
+		calleeIdleDevices.emplace_back(make_shared<CoreClient>("sip:calleeClient@sip.test.org", server->getAgent()));
 	}
 
 	callerClient->call(calleeClient, nullptr, nullptr, calleeIdleDevices);

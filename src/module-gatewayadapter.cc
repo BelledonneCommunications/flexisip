@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -34,6 +34,8 @@ using namespace flexisip;
 class GatewayAdapter;
 
 class GatewayRegister {
+	AuthDbBackend& mAuthDb;
+	RegistrarDb& mRegistrarDb;
 	typedef enum { INITIAL, REGISTRING, REGISTRED } State;
 	State state;
 	su_home_t home;
@@ -88,23 +90,30 @@ public:
 	const string& getPassword() {
 		return password;
 	}
-	static void onDeclare(GenericStruct* mc) {
-		mCountInitialMsg = mc->createStat("count-gr-initial-msg", "Number of msg received while in initial state");
-		mCountRegisteringMsg200 =
-		    mc->createStat("count-gr-registering-200", "Number of 200 received while in registering state");
-		mCountRegisteringMsg408 =
-		    mc->createStat("count-gr-registering-408", "Number of 408 received while in registering state");
-		mCountRegisteringMsg401 =
-		    mc->createStat("count-gr-registering-401", "Number of 401 received while in registering state");
-		mCountRegisteringMsg407 =
-		    mc->createStat("count-gr-registering-407", "Number of 407 received while in registering state");
-		mCountRegisteringMsgUnknown =
-		    mc->createStat("count-gr-registering-unknown", "Number of unknown received while in registering state");
-		mCountRegisteredUnknown =
-		    mc->createStat("count-gr-registered-unknown", "Number of msg received while in registered state");
-		mCountStart = mc->createStat("count-gr-start", "Number of calls to start()");
-		mCountError = mc->createStat("count-gr-error", "Number of calls to error()");
-		mCountEnd = mc->createStat("count-gr-end", "Number of calls to end()");
+	static void addStatCounters(GenericStruct& mc) {
+		mc.createStat("count-gr-initial-msg", "Number of msg received while in initial state");
+		mc.createStat("count-gr-registering-200", "Number of 200 received while in registering state");
+		mc.createStat("count-gr-registering-408", "Number of 408 received while in registering state");
+		mc.createStat("count-gr-registering-401", "Number of 401 received while in registering state");
+		mc.createStat("count-gr-registering-407", "Number of 407 received while in registering state");
+		mc.createStat("count-gr-registering-unknown", "Number of unknown received while in registering state");
+		mc.createStat("count-gr-registered-unknown", "Number of msg received while in registered state");
+		mc.createStat("count-gr-start", "Number of calls to start()");
+		mc.createStat("count-gr-error", "Number of calls to error()");
+		mc.createStat("count-gr-end", "Number of calls to end()");
+	}
+
+	static void setStatVariables(GenericStruct& mc) {
+		mCountInitialMsg = mc.getStat("count-gr-initial-msg");
+		mCountRegisteringMsg200 = mc.getStat("count-gr-registering-200");
+		mCountRegisteringMsg408 = mc.getStat("count-gr-registering-408");
+		mCountRegisteringMsg401 = mc.getStat("count-gr-registering-401");
+		mCountRegisteringMsg407 = mc.getStat("count-gr-registering-407");
+		mCountRegisteringMsgUnknown = mc.getStat("count-gr-registering-unknown");
+		mCountRegisteredUnknown = mc.getStat("count-gr-registered-unknown");
+		mCountStart = mc.getStat("count-gr-start");
+		mCountError = mc.getStat("count-gr-error");
+		mCountEnd = mc.getStat("count-gr-end");
 	}
 
 private:
@@ -150,9 +159,10 @@ private:
 	class OnFetchListener : public ContactUpdateListener {
 	private:
 		GatewayRegister* gw;
+		AuthDbBackend& mAuthDb;
 
 	public:
-		OnFetchListener(GatewayRegister* igw) : gw(igw) {
+		OnFetchListener(GatewayRegister* igw, AuthDbBackend& authDb) : gw(igw), mAuthDb(authDb) {
 		}
 
 		~OnFetchListener() {
@@ -166,7 +176,7 @@ private:
 			if (r == NULL) {
 				LOGD("Record doesn't exist. Fork");
 				url_t* url = gw->getFrom()->a_url;
-				AuthDbBackend::get().getPassword(url->url_user, url->url_host, url->url_user, new OnAuthListener(gw));
+				mAuthDb.getPassword(url->url_user, url->url_host, url->url_user, new OnAuthListener(gw));
 			} else {
 				LOGD("Record already exists. Not forked");
 			}
@@ -199,12 +209,13 @@ GatewayRegister::GatewayRegister(Agent* ag,
                                  sip_from_t* sip_from,
                                  sip_to_t* sip_to,
                                  sip_contact_t* sip_contact,
-                                 const sip_expires_t* global_expire) {
+                                 const sip_expires_t* global_expire)
+    : mAuthDb(ag->getAuthDbOwner().get()), mRegistrarDb(ag->getRegistrarDb()) {
 	su_home_init(&home);
 
 	url_t* domain = NULL;
-	GenericStruct* cr = ConfigManager::get()->getRoot();
-	GenericStruct* ma = cr->get<GenericStruct>("module::GatewayAdapter");
+	const GenericStruct* cr = ag->getConfigManager().getRoot();
+	const GenericStruct* ma = cr->get<GenericStruct>("module::GatewayAdapter");
 	string domainString = ma->get<ConfigString>("gateway-domain")->read();
 	int forcedExpireValue = ma->get<ConfigInt>("forced-expire")->read();
 	routingParam = ma->get<ConfigString>("routing-param")->read();
@@ -336,7 +347,7 @@ void GatewayRegister::start() {
 	SipUri fromUri(from->a_url);
 	LOGD("Fetching binding");
 	++*mCountStart;
-	RegistrarDb::get()->fetch(fromUri, make_shared<OnFetchListener>(this));
+	mRegistrarDb.fetch(fromUri, make_shared<OnFetchListener>(this, mAuthDb));
 }
 
 void GatewayRegister::end() {
@@ -345,15 +356,13 @@ void GatewayRegister::end() {
 }
 
 class GatewayAdapter : public Module {
+	friend std::shared_ptr<Module> ModuleInfo<GatewayAdapter>::create(Agent*);
+
 	StatCounter64* mCountForkToGateway;
 	StatCounter64* mCountDomainRewrite;
 
 public:
-	GatewayAdapter(Agent* ag);
-
 	~GatewayAdapter();
-
-	virtual void onDeclare(GenericStruct* mc);
 
 	virtual void onLoad(const GenericStruct* module_config);
 
@@ -364,6 +373,8 @@ public:
 	virtual bool isValidNextConfig(const ConfigValue& cv);
 
 private:
+	GatewayAdapter(Agent* ag, const ModuleInfoBase* moduleInfo);
+
 	static void nua_callback(nua_event_t event,
 	                         int status,
 	                         char const* phrase,
@@ -382,8 +393,11 @@ private:
 	su_home_t home;
 };
 
-GatewayAdapter::GatewayAdapter(Agent* ag) : Module(ag), nua(NULL) {
+GatewayAdapter::GatewayAdapter(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo), nua(NULL) {
 	su_home_init(&home);
+	GatewayRegister::setStatVariables(*mModuleConfig);
+	mCountForkToGateway = mModuleConfig->getStat("count-fork-to-gateway");
+	mCountDomainRewrite = mModuleConfig->getStat("count-domain-rewrite");
 }
 
 GatewayAdapter::~GatewayAdapter() {
@@ -392,29 +406,6 @@ GatewayAdapter::~GatewayAdapter() {
 		mAgent->getRoot()->run(); // Correctly wait for nua_destroy
 	}
 	su_home_deinit(&home);
-}
-
-void GatewayAdapter::onDeclare(GenericStruct* mc) {
-	mc->get<ConfigBoolean>("enabled")->setDefault("false");
-	ConfigItemDescriptor items[] = {
-	    {Integer, "forced-expire",
-	     "Force expire of gw register to a value. -1 to use expire provided in received register.", "-1"},
-	    {String, "gateway", "A gateway uri where to send all requests, as a SIP url (eg 'sip:gateway.example.net')",
-	     ""},
-	    {String, "gateway-domain", "Modify the from and to domains of incoming register", ""},
-	    {Boolean, "fork-to-gateway", "The gateway will be added to the incoming register contacts.", "true"},
-	    {Boolean, "register-on-gateway",
-	     "Send a REGISTER to the gateway using "
-	     "this server as a contact in order to be notified on incoming calls by the gateway.",
-	     "true"},
-	    {String, "routing-param",
-	     "Parameter name hosting the incoming domain that will be sent in the register to the gateway.",
-	     "routing-domain"},
-	    config_item_end};
-	mc->addChildrenValues(items);
-	GatewayRegister::onDeclare(mc);
-	mCountForkToGateway = mc->createStat("count-fork-to-gateway", "Number of forks to gateway.");
-	mCountDomainRewrite = mc->createStat("count-domain-rewrite", "Number of domain rewrite.");
 }
 
 bool GatewayAdapter::isValidNextConfig(const ConfigValue& cv) {
@@ -522,8 +513,33 @@ void GatewayAdapter::nua_callback(nua_event_t event,
 	}
 }
 
-ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo("GatewayAdapter",
-                                                 "No documentation at the moment.",
-                                                 {"RegEvent"},
-                                                 ModuleInfoBase::ModuleOid::GatewayAdapter,
-                                                 ModuleClass::Experimental);
+ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo(
+    "GatewayAdapter",
+    "No documentation at the moment.",
+    {"RegEvent"},
+    ModuleInfoBase::ModuleOid::GatewayAdapter,
+
+    [](GenericStruct& moduleConfig) {
+	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
+	    ConfigItemDescriptor items[] = {
+	        {Integer, "forced-expire",
+	         "Force expire of gw register to a value. -1 to use expire provided in received register.", "-1"},
+	        {String, "gateway", "A gateway uri where to send all requests, as a SIP url (eg 'sip:gateway.example.net')",
+	         ""},
+	        {String, "gateway-domain", "Modify the from and to domains of incoming register", ""},
+	        {Boolean, "fork-to-gateway", "The gateway will be added to the incoming register contacts.", "true"},
+	        {Boolean, "register-on-gateway",
+	         "Send a REGISTER to the gateway using "
+	         "this server as a contact in order to be notified on incoming calls by the gateway.",
+	         "true"},
+	        {String, "routing-param",
+	         "Parameter name hosting the incoming domain that will be sent in the register to the gateway.",
+	         "routing-domain"},
+	        config_item_end};
+	    moduleConfig.addChildrenValues(items);
+
+	    GatewayRegister::addStatCounters(moduleConfig);
+	    moduleConfig.createStat("count-fork-to-gateway", "Number of forks to gateway.");
+	    moduleConfig.createStat("count-domain-rewrite", "Number of domain rewrite.");
+    },
+    ModuleClass::Experimental);

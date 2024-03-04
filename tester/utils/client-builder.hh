@@ -1,6 +1,20 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #pragma once
 
@@ -8,8 +22,10 @@
 #include <memory>
 #include <string>
 
+#include "agent.hh"
 #include <linphone++/linphone.hh>
 
+#include "utils/proxy-server.hh"
 namespace flexisip {
 namespace pushnotification {
 
@@ -18,7 +34,6 @@ class RFC8599PushParams;
 }
 namespace tester {
 
-class Server;
 class CoreClient;
 
 enum class OnOff : bool {
@@ -28,7 +43,7 @@ enum class OnOff : bool {
 
 class ClientBuilder {
 public:
-	explicit ClientBuilder(const Server&);
+	explicit ClientBuilder(const Agent&);
 
 	ClientBuilder(ClientBuilder&&) = default;
 	// We don't want to share e.g. AccountParams between builders
@@ -63,7 +78,7 @@ private:
 	const std::shared_ptr<linphone::Factory> mFactory;
 	const std::shared_ptr<linphone::Core> mCoreTemplate;
 	const std::shared_ptr<linphone::AccountParams> mAccountParams;
-	const Server& mServer;
+	const Agent& mAgent;
 	OnOff mLimeX3DH : 1;
 	OnOff mSendVideo : 1;
 	OnOff mReceiveVideo : 1;

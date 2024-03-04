@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #include "domain-registrations.hh"
 
@@ -33,7 +33,6 @@
 #include "flexisip/module.hh"
 
 #include "agent.hh"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "registrar/registrar-db.hh"
 
 using namespace std;
@@ -41,10 +40,13 @@ using namespace sofiasip;
 
 namespace flexisip {
 
-DomainRegistrationManager::DomainRegistrationManager(Agent* agent) : mAgent(agent), mRegisterWhenNeeded(false) {
-	ConfigManager* mgr = ConfigManager::get();
+namespace {
+const auto configSectionName = "inter-domain-connections";
+}
+
+void DomainRegistrationManager::declareConfig(GenericStruct& rootConfig) {
 	auto uDomainRegistrationArea = make_unique<GenericStruct>(
-	    "inter-domain-connections",
+	    configSectionName,
 	    "Inter domain connections is a set of feature allowing to dynamically connect several Flexisip servers "
 	    "together in order to manage SIP routing at local and global scope. Let's suppose you have two SIP network "
 	    "a.example.net and b.example.net run privately and independently (no one from a.example.net needs to call "
@@ -69,7 +71,7 @@ DomainRegistrationManager::DomainRegistrationManager(Agent* agent) : mAgent(agen
 	    "the domain registration.",
 	    ModuleInfoBase::InterDomainConnections);
 
-	mDomainRegistrationArea = mgr->getRoot()->addChild(std::move(uDomainRegistrationArea));
+	auto* domainRegistrationArea = rootConfig.addChild(std::move(uDomainRegistrationArea));
 
 	ConfigItemDescriptor configs[] = {
 	    {Boolean, "accept-domain-registrations", "Whether Flexisip shall accept registrations for entire domains",
@@ -133,11 +135,16 @@ DomainRegistrationManager::DomainRegistrationManager(Agent* agent) : mAgent(agen
 	     ""},
 	    config_item_end};
 
-	mDomainRegistrationArea->addChildrenValues(configs);
+	domainRegistrationArea->addChildrenValues(configs);
+}
+
+DomainRegistrationManager::DomainRegistrationManager(Agent* agent)
+    : mAgent(agent),
+      mDomainRegistrationArea(agent->getConfigManager().getRoot()->get<GenericStruct>(configSectionName)) {
 }
 
 DomainRegistrationManager::~DomainRegistrationManager() {
-	if (mRegisterWhenNeeded) RegistrarDb::get()->unsubscribeLocalRegExpire(this);
+	if (mRegisterWhenNeeded) mAgent->getRegistrarDb().unsubscribeLocalRegExpire(this);
 
 	if (mNbRegistration > 0) {
 		LOGD("Starting domain un-registration");
@@ -156,7 +163,7 @@ int DomainRegistrationManager::load(const string& passphrase) {
 	int lineIndex = 0;
 	string relayRegsToDomainsRegex;
 
-	auto* domainRegistrationCfg = ConfigManager::get()->getRoot()->get<GenericStruct>("inter-domain-connections");
+	auto* domainRegistrationCfg = mAgent->getConfigManager().getRoot()->get<GenericStruct>("inter-domain-connections");
 	configFile = domainRegistrationCfg->get<ConfigString>("domain-registrations")->read();
 
 	mVerifyServerCerts = domainRegistrationCfg->get<ConfigBoolean>("verify-server-certs")->read();
@@ -237,7 +244,7 @@ int DomainRegistrationManager::load(const string& passphrase) {
 
 	if (mRegisterWhenNeeded) {
 		mDomainRegistrationsStarted = false;
-		RegistrarDb::get()->subscribeLocalRegExpire(this);
+		mAgent->getRegistrarDb().subscribeLocalRegExpire(this);
 	} else {
 		for (const auto& reg : mRegistrations) {
 			reg->start();
@@ -319,7 +326,8 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager& mgr,
 	const auto usingTls = parentProxy.get()->url_type == url_sips || strcasecmp(transport.c_str(), "tls") == 0;
 
 	if (usingTls && clientCertConf.mode != TlsMode::NONE) {
-		const auto mainTlsConfigInfo = Agent::getTlsConfigInfo();
+		const auto mainTlsConfigInfo =
+		    Agent::getTlsConfigInfo(mManager.mAgent->getConfigManager().getRoot()->get<GenericStruct>("global"));
 		if (mainTlsConfigInfo == clientCertConf) {
 			// Certs dir is the same as for the existing tport
 			LOGD("Domain registration certificates are the same as the one for existing tports, let's use them");

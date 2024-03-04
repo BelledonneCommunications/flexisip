@@ -1,18 +1,29 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include "record.hh"
 
 #include "flexisip/registrar/registar-listeners.hh"
 
-#include "agent.hh"
 #include "binding-parameters.hh"
 #include "change-set.hh"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "exceptions.hh"
 #include "extended-contact.hh"
-#include "registrar-db.hh"
 
 using namespace std;
 
@@ -34,7 +45,7 @@ string Record::extractUniqueId(const sip_contact_t* contact) {
 	char lineValue[256] = {0};
 
 	/*search for device unique parameter among the ones configured */
-	for (auto it = sLineFieldNames.begin(); it != sLineFieldNames.end(); ++it) {
+	for (auto it = mConfig.getLineFieldNames().begin(); it != mConfig.getLineFieldNames().end(); ++it) {
 		const char* ct_param = msg_params_find(contact->m_params, it->c_str());
 		if (ct_param) return ct_param;
 		if (url_param(contact->m_url->url_params, it->c_str(), lineValue, sizeof(lineValue) - 1) > 0) {
@@ -81,7 +92,7 @@ time_t Record::latestExpire() const {
 	return latest;
 }
 
-time_t Record::latestExpire(Agent* ag) const {
+time_t Record::latestExpire(std::function<bool(const url_t*)>& predicate) const {
 	time_t latest = 0;
 	sofiasip::Home home;
 
@@ -95,7 +106,7 @@ time_t Record::latestExpire(Agent* ag) const {
 		if (n != string::npos) s = s.substr(0, n);
 		url_t* url = url_make(home.home(), s.c_str());
 
-		if (ag->isUs(url)) latest = expireTime;
+		if (predicate(url)) latest = expireTime;
 	}
 	return latest;
 }
@@ -110,12 +121,12 @@ list<string> Record::route_to_stl(const sip_route_s* route) {
 	return res;
 }
 
-Record::Key::Key(const url_t* url) : mWrapped() {
+Record::Key::Key(const url_t* url, bool useGlobalDomain) : mWrapped() {
 	ostringstream ostr;
 	if (url == nullptr) return;
 	const char* user = url->url_user;
 	if (user && user[0] != '\0') {
-		if (!RegistrarDb::get()->useGlobalDomain()) {
+		if (!useGlobalDomain) {
 			ostr << user << "@" << url->url_host;
 		} else {
 			ostr << user << "@"
@@ -131,11 +142,23 @@ Record::Key::operator SipUri() const {
 	return SipUri("sip:" + mWrapped);
 }
 
+Record::Config::Config(const ConfigManager& cfg) {
+	const GenericStruct* cr = cfg.getRoot();
+	const GenericStruct* mr = cr->get<GenericStruct>("module::Registrar");
+	mMaxContacts = mr->get<ConfigInt>("max-contacts-by-aor")->read();
+	mLineFieldNames = mr->get<ConfigStringList>("unique-id-parameters")->read();
+	mMessageExpiresName = mr->get<ConfigString>("message-expires-param-name")->read();
+	mAssumeUniqueDomains =
+	    cr->get<GenericStruct>("inter-domain-connections")->get<ConfigBoolean>("assume-unique-domains")->read();
+	const GenericStruct* mro = cr->get<GenericStruct>("module::Router");
+	mUseGlobalDomain = mro->get<ConfigBoolean>("use-global-domain")->read();
+}
+
 ChangeSet Record::insertOrUpdateBinding(unique_ptr<ExtendedContact>&& ec, ContactUpdateListener* listener) {
 	SLOGD << "Updating record with contact " << *ec;
 	ChangeSet changeSet{};
 
-	if (sAssumeUniqueDomains && mIsDomain) {
+	if (mConfig.assumeUniqueDomains() && mIsDomain) {
 		for (auto& ct : mContacts)
 			changeSet.mDelete.push_back(ct);
 		mContacts.clear();
@@ -240,7 +263,7 @@ Record::ContactMatch Record::matchContacts(const ExtendedContact& existing, cons
 
 ChangeSet Record::applyMaxAor() {
 	ChangeSet changeSet{};
-	while (mContacts.size() > static_cast<size_t>(sMaxContacts)) {
+	while (mContacts.size() > static_cast<size_t>(mConfig.getMaxContacts())) {
 		const auto oldest = mContacts.oldest();
 		changeSet.mDelete.push_back(*oldest);
 		mContacts.erase(oldest);
@@ -315,7 +338,7 @@ ChangeSet Record::update(const sip_t* sip,
 		bool alias = parameters.isAliasFunction ? parameters.isAliasFunction(contacts->m_url) : parameters.alias;
 		auto exc = make_unique<ExtendedContact>(ecc, contacts, parameters.globalExpire,
 		                                        (sip->sip_cseq) ? sip->sip_cseq->cs_seq : 0, getCurrentTime(), alias,
-		                                        acceptHeaders, userAgent);
+		                                        acceptHeaders, userAgent, mConfig.messageExpiresName());
 		exc->mUsedAsRoute = sip->sip_from->a_url->url_user == nullptr;
 		extendedContacts.push_back(std::move(exc));
 		contacts = contacts->m_next;
@@ -358,7 +381,8 @@ void Record::update(const ExtendedContactCommon& ecc,
 		return;
 	}
 
-	auto exct = make_unique<ExtendedContact>(ecc, contact, expireAt, cseq, updated_time, alias, accept, "");
+	auto exct = make_unique<ExtendedContact>(ecc, contact, expireAt, cseq, updated_time, alias, accept, "",
+	                                         mConfig.messageExpiresName());
 	exct->mUsedAsRoute = usedAsRoute;
 	try {
 		insertOrUpdateBinding(std::move(exct), listener.get());
@@ -419,15 +443,12 @@ void Record::print(ostream& stream) const {
 	clang-format on */
 }
 
-int Record::sMaxContacts = -1;
-list<string> Record::sLineFieldNames;
-bool Record::sAssumeUniqueDomains = false;
-
-Record::Record(const SipUri& aor) : Record(SipUri(aor)) {
+Record::Record(const SipUri& aor, const Config& recordConfig) : Record(SipUri(aor), recordConfig) {
 }
 
-Record::Record(SipUri&& aor) : mAor(std::move(aor)), mKey(mAor), mIsDomain(mAor.getUser().empty()) {
-	if (sMaxContacts == -1) init();
+Record::Record(SipUri&& aor, const Config& recordConfig)
+    : mAor(std::move(aor)), mKey(mAor, recordConfig.useGlobalDomain()), mIsDomain(mAor.getUser().empty()),
+      mConfig{recordConfig} {
 }
 
 url_t* Record::getPubGruu(const std::shared_ptr<ExtendedContact>& ec, su_home_t* home) {
@@ -461,17 +482,6 @@ url_t* Record::getPubGruu(const std::shared_ptr<ExtendedContact>& ec, su_home_t*
 		url_param_add(home, gruu_addr, su_sprintf(home, "gr=%s", gr_value));
 	}
 	return gruu_addr;
-}
-
-void Record::init() {
-	GenericStruct* registrar = ConfigManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
-	sMaxContacts = registrar->get<ConfigInt>("max-contacts-by-aor")->read();
-	sLineFieldNames = registrar->get<ConfigStringList>("unique-id-parameters")->read();
-	sAssumeUniqueDomains = ConfigManager::get()
-	                           ->getRoot()
-	                           ->get<GenericStruct>("inter-domain-connections")
-	                           ->get<ConfigBoolean>("assume-unique-domains")
-	                           ->read();
 }
 
 void Record::appendContactsFrom(const shared_ptr<Record>& src) {

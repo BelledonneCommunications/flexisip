@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -27,13 +27,16 @@ namespace flexisip {
 namespace tester {
 
 class DummyModule : public Module {
-public:
-	using Module::Module;
+	friend std::shared_ptr<Module> ModuleInfo<DummyModule>::create(Agent*);
 
+public:
 	void onRequest([[maybe_unused]] std::shared_ptr<RequestSipEvent>& ev) override {
 	}
 	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev) override {
 	}
+
+private:
+	using Module::Module;
 };
 
 class DummyRegistrarModule : public DummyModule {
@@ -91,12 +94,18 @@ static void moduleReplacement() noexcept {
 	// By instantiating these ModuleInfo in the stack we ensure that they are unregistered
 	// from the ModuleInfoManager when the test is completed.
 	ModuleInfo<DummyRegistrarModule> dummyRegistrarInfo{
-	    "DummyRegistrar", "", {""}, ModuleInfoBase::ModuleOid::Registrar, ModuleClass::Production, "Registrar"};
-	ModuleInfo<DummyAuthModule> dummyAuthInfo{
-	    "DummyAuthentication", "", {""}, ModuleInfoBase::ModuleOid::Registrar, ModuleClass::Production,
-	    "Authentication"};
+	    "DummyRegistrar",        "",         {""}, ModuleInfoBase::ModuleOid::Registrar, [](GenericStruct&) {},
+	    ModuleClass::Production, "Registrar"};
+	ModuleInfo<DummyAuthModule> dummyAuthInfo{"DummyAuthentication",
+	                                          "",
+	                                          {""},
+	                                          ModuleInfoBase::ModuleOid::Registrar,
+	                                          [](GenericStruct&) {},
+	                                          ModuleClass::Production,
+	                                          "Authentication"};
 	ModuleInfo<DummyRouterModule> dummyRouterInfo{
-	    "DummyRouter", "", {""}, ModuleInfoBase::ModuleOid::Registrar, ModuleClass::Production, "Router"};
+	    "DummyRouter",           "",      {""}, ModuleInfoBase::ModuleOid::Registrar, [](GenericStruct&) {},
+	    ModuleClass::Production, "Router"};
 
 	auto sortedModuleInfos = moduleManager->buildModuleChain();
 

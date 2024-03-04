@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -25,6 +25,12 @@ using namespace std;
 using namespace std::chrono;
 
 namespace flexisip {
+namespace {
+unsigned int getMaxThreadNumber(const ConfigManager& cfg) {
+	const auto* routerConf = cfg.getRoot()->get<GenericStruct>("module::Router");
+	return routerConf->get<ConfigInt>("message-database-pool-size")->read() * 2;
+}
+} // namespace
 
 std::shared_ptr<ForkMessageContextDbProxy> ForkMessageContextDbProxy::make(const shared_ptr<ModuleRouter>& router,
                                                                            const shared_ptr<RequestSipEvent>& event,
@@ -51,9 +57,9 @@ shared_ptr<ForkMessageContextDbProxy> ForkMessageContextDbProxy::make(const shar
 
 ForkMessageContextDbProxy::ForkMessageContextDbProxy(const std::shared_ptr<ModuleRouter> router,
                                                      sofiasip::MsgSipPriority priority)
-    : mForkMessage{}, mState{State::IN_MEMORY},
-      mProxyLateTimer{router->getAgent()->getRoot()}, mCounter{router->mStats.mCountMessageProxyForks},
-      mSavedRouter{router}, mSavedConfig{router->getMessageForkCfg()}, mSavedMsgPriority{priority} {
+    : mForkMessage{}, mState{State::IN_MEMORY}, mProxyLateTimer{router->getAgent()->getRoot()},
+      mCounter{router->mStats.mCountMessageProxyForks}, mSavedRouter{router}, mSavedConfig{router->getMessageForkCfg()},
+      mSavedMsgPriority{priority}, mMaxThreadNumber{getMaxThreadNumber(router->getAgent()->getConfigManager())} {
 
 	LOGD("New ForkMessageContextDbProxy %p", this);
 	if (auto sharedCounter = mCounter.lock()) {
@@ -83,8 +89,9 @@ ForkMessageContextDbProxy::~ForkMessageContextDbProxy() {
 	if (!mForkUuidInDb.empty() && mIsFinished) {
 		// Destructor is called because the ForkContext is finished, removing info from database
 		LOGD("ForkMessageContextDbProxy[%p] was present in DB, cleaning UUID[%s]", this, mForkUuidInDb.c_str());
-		AutoThreadPool::getDbThreadPool()->run(
-		    [uuid = mForkUuidInDb]() { ForkMessageContextSociRepository::getInstance()->deleteByUuid(uuid); });
+		AutoThreadPool::getDbThreadPool(mMaxThreadNumber)->run([uuid = mForkUuidInDb]() {
+			ForkMessageContextSociRepository::getInstance()->deleteByUuid(uuid);
+		});
 	}
 }
 
@@ -126,8 +133,9 @@ void ForkMessageContextDbProxy::onForkContextFinished([[maybe_unused]] const sha
 	}
 }
 
-std::shared_ptr<BranchInfo> ForkMessageContextDbProxy::onDispatchNeeded([[maybe_unused]] const shared_ptr<ForkContext>& ctx,
-                                                                        const shared_ptr<ExtendedContact>& newContact) {
+std::shared_ptr<BranchInfo>
+ForkMessageContextDbProxy::onDispatchNeeded([[maybe_unused]] const shared_ptr<ForkContext>& ctx,
+                                            const shared_ptr<ExtendedContact>& newContact) {
 	if (auto savedRouter = mSavedRouter.lock()) {
 		mCurrentVersion++;
 		return savedRouter->onDispatchNeeded(shared_from_this(), newContact);
@@ -161,8 +169,8 @@ void ForkMessageContextDbProxy::onUselessRegisterNotification([[maybe_unused]] c
 
 void ForkMessageContextDbProxy::runSavingThread() {
 	const auto dbFork = mForkMessage->getDbObject();
-	AutoThreadPool::getDbThreadPool()->run(
-	    [thiz = shared_from_this(), dbFork, dbForkVersion = mCurrentVersion.load()]() {
+	AutoThreadPool::getDbThreadPool(mMaxThreadNumber)
+	    ->run([thiz = shared_from_this(), dbFork, dbForkVersion = mCurrentVersion.load()]() {
 		    lock_guard<mutex> lock(thiz->mDbAccessMutex);
 		    if (dbForkVersion == thiz->mCurrentVersion && thiz->mLastSavedVersion < dbForkVersion &&
 		        thiz->saveToDb(dbFork)) {
@@ -231,7 +239,7 @@ void ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
 	// If the ForkMessage is only in database create a thread to access database and then recursively call this method.
 	if (getState() == State::IN_DATABASE) {
 		LOGD("ForkMessageContext[%p] onNewRegister: message is in DB. Initiating load from DB.", this);
-		AutoThreadPool::getDbThreadPool()->run([thiz = shared_from_this(), dest, uid, newContact]() {
+		AutoThreadPool::getDbThreadPool(mMaxThreadNumber)->run([thiz = shared_from_this(), dest, uid, newContact]() {
 			lock_guard<mutex> lock(thiz->mDbAccessMutex);
 			if (thiz->getState() == State::IN_DATABASE && !thiz->mDbFork) {
 				try {

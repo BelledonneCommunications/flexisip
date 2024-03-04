@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -41,8 +41,13 @@ using namespace flexisip;
 // Module.
 // -----------------------------------------------------------------------------
 
-Module::Module(Agent* ag) : mAgent(ag), mFilter(new ConfigEntryFilter()) {
+Module::Module(Agent* ag, const ModuleInfoBase* moduleInfo)
+    : mAgent(ag), mInfo(moduleInfo),
+      mModuleConfig(ag->getConfigManager().getRoot()->get<GenericStruct>("module::" + getModuleConfigName())),
+      mFilter(new ConfigEntryFilter(*mModuleConfig)) {
+	mModuleConfig->setConfigListener(this);
 }
+
 Module::~Module() = default;
 
 bool Module::isEnabled() const {
@@ -73,28 +78,8 @@ bool Module::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) 
 	return true;
 }
 
-void Module::setInfo(ModuleInfoBase* i) {
-	mInfo = i;
-}
-void Module::setAgent(Agent* agent) {
-	mAgent = agent;
-}
-
 nta_agent_t* Module::getSofiaAgent() const {
 	return mAgent->mAgent;
-}
-
-void Module::declare(GenericStruct* root) {
-	auto uModuleConfig =
-	    make_unique<GenericStruct>("module::" + getModuleConfigName(), mInfo->getModuleHelp(), mInfo->getOidIndex());
-	uModuleConfig->setConfigListener(this);
-	mModuleConfig = root->addChild(std::move(uModuleConfig));
-	mFilter->declareConfig(mModuleConfig);
-	if (getClass() == ModuleClass::Experimental) {
-		// Experimental modules are forced to be disabled by default.
-		mModuleConfig->get<ConfigBoolean>("enabled")->setDefault("false");
-	}
-	onDeclare(mModuleConfig);
 }
 
 void Module::checkConfig() {
@@ -192,9 +177,22 @@ void Module::injectRequestEvent(const shared_ptr<RequestSipEvent>& ev) {
 	mAgent->injectRequestEvent(ev);
 }
 
+void Module::sendTrap(const std::string& msg) {
+	mAgent->sendTrap(mModuleConfig, msg);
+}
+
 // -----------------------------------------------------------------------------
 // ModuleInfo.
 // -----------------------------------------------------------------------------
+void ModuleInfoBase::declareConfig(GenericStruct& rootConfig) const {
+	auto* moduleConfig = rootConfig.addChild(std::make_unique<GenericStruct>("module::" + mName, mHelp, mOidIndex));
+	ConfigEntryFilter::declareConfig(*moduleConfig);
+	if (mClass == ModuleClass::Experimental) {
+		// Experimental modules are forced to be disabled by default.
+		moduleConfig->get<ConfigBoolean>("enabled")->setDefault("false");
+	}
+	mDeclareConfig(*moduleConfig);
+}
 
 ModuleInfoManager* ModuleInfoManager::sInstance = nullptr;
 

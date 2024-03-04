@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,6 +16,8 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "registrardb-internal.hh"
+
 #include <cstdio>
 #include <ctime>
 #include <vector>
@@ -27,13 +29,14 @@
 #include "registrar/exceptions.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
-#include "registrardb-internal.hh"
 
 using namespace std;
 using namespace flexisip;
 
-RegistrarDbInternal::RegistrarDbInternal(Agent* ag) : RegistrarDb(ag) {
-	mWritable = true;
+RegistrarDbInternal::RegistrarDbInternal(const Record::Config& recordConfig,
+                                         LocalRegExpire& localRegExpire,
+                                         std::function<void(const Record::Key&, const std::string&)> notify)
+    : mRecordConfig{recordConfig}, mLocalRegExpire{localRegExpire}, mNotifyContactListener{std::move(notify)} {
 }
 
 void RegistrarDbInternal::doBind(const MsgSip& msg,
@@ -47,14 +50,14 @@ void RegistrarDbInternal::doBind(const MsgSip& msg,
 		THROW_LINE(InvalidAorError, sip->sip_from->a_url);
 	}
 
-	string key = Record::Key(fromUri);
+	string key = Record::Key(fromUri, mRecordConfig.useGlobalDomain());
 
 	auto it = mRecords.find(key);
-	shared_ptr<Record> r;
+	shared_ptr<Record> r{};
 	if (it == mRecords.end()) {
-		r = make_shared<Record>(std::move(fromUri));
+		r = make_shared<Record>(std::move(fromUri), mRecordConfig);
 		it = mRecords.insert(make_pair(key, r)).first;
-		LOGD("Creating AOR %s association", key.c_str());
+		LOGD("Creating Asip_contact_tOR %s association", key.c_str());
 	} else {
 		LOGD("AOR %s found", key.c_str());
 		r = it->second;
@@ -67,14 +70,14 @@ void RegistrarDbInternal::doBind(const MsgSip& msg,
 		return;
 	}
 
-	mLocalRegExpire->update(r);
+	mLocalRegExpire.update(r);
 	if (r->isEmpty()) mRecords.erase(it);
 	if (listener) listener->onRecordFound(r);
 }
 
 void RegistrarDbInternal::doFetch(const SipUri& url, const shared_ptr<ContactUpdateListener>& listener) {
-	auto it = mRecords.find(Record::Key(url));
-	shared_ptr<Record> r = NULL;
+	auto it = mRecords.find(Record::Key(url, mRecordConfig.useGlobalDomain()));
+	shared_ptr<Record> r{};
 	if (it != mRecords.end()) {
 		r = (*it).second;
 		r->clean(listener);
@@ -92,8 +95,8 @@ void RegistrarDbInternal::doFetchInstance(const SipUri& url,
                                           const shared_ptr<ContactUpdateListener>& listener) {
 	sofiasip::Home home;
 
-	auto it = mRecords.find(Record::Key(url));
-	shared_ptr<Record> r = NULL;
+	auto it = mRecords.find(Record::Key(url, mRecordConfig.useGlobalDomain()));
+	shared_ptr<Record> r{};
 
 	if (it == mRecords.end()) {
 		listener->onRecordFound(r);
@@ -110,7 +113,7 @@ void RegistrarDbInternal::doFetchInstance(const SipUri& url,
 	}
 
 	const auto& contacts = r->getExtendedContacts();
-	shared_ptr<Record> retRecord = make_shared<Record>(url);
+	shared_ptr<Record> retRecord = make_shared<Record>(url, mRecordConfig);
 	auto& retContacts = retRecord->getExtendedContacts();
 	for (const auto& contact : contacts) {
 		if (contact->mKey == uniqueId) {
@@ -141,10 +144,10 @@ void RegistrarDbInternal::fetchExpiringContacts(time_t current_time,
 }
 
 void RegistrarDbInternal::doClear(const MsgSip& msg, const shared_ptr<ContactUpdateListener>& listener) {
-	auto sip = msg.getSip();
-	string key = Record::Key(sip->sip_from->a_url);
+	auto* sip = msg.getSip();
+	string key = Record::Key(sip->sip_from->a_url, mRecordConfig.useGlobalDomain());
 
-	if (errorOnTooMuchContactInBind(sip->sip_contact, key, listener)) {
+	if (errorOnTooMuchContactInBind(sip->sip_contact, key)) {
 		listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 		return;
 	}
@@ -152,7 +155,7 @@ void RegistrarDbInternal::doClear(const MsgSip& msg, const shared_ptr<ContactUpd
 	auto it = mRecords.find(key);
 
 	if (it == mRecords.end()) {
-		listener->onRecordFound(NULL);
+		listener->onRecordFound(nullptr);
 		return;
 	}
 
@@ -160,16 +163,26 @@ void RegistrarDbInternal::doClear(const MsgSip& msg, const shared_ptr<ContactUpd
 	shared_ptr<Record> r = (*it).second;
 
 	mRecords.erase(it);
-	mLocalRegExpire->remove(key);
-	listener->onRecordFound(NULL);
+	mLocalRegExpire.remove(key);
+	listener->onRecordFound(nullptr);
 }
 
 void RegistrarDbInternal::clearAll() {
 	mRecords.clear();
-	mLocalRegExpire->clearAll();
+	mLocalRegExpire.clearAll();
 }
 
 void RegistrarDbInternal::publish(const Record::Key& topic, const string& uid) {
-	SLOGD << "Publish topic = " << topic << ", uid =" << uid;
-	RegistrarDb::notifyContactListener(topic, uid);
+	mNotifyContactListener(topic, uid);
+}
+
+bool RegistrarDbInternal::errorOnTooMuchContactInBind(const sip_contact_t* sip_contact, const string& key) {
+	int nb_contact = RegistrarDb::countSipContacts(sip_contact);
+	int max_contact = mRecordConfig.getMaxContacts();
+	if (nb_contact > max_contact) {
+		LOGD("Too many contacts in register %s %i > %i", key.c_str(), nb_contact, max_contact);
+		return true;
+	}
+
+	return false;
 }

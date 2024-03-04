@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -32,6 +32,7 @@
 #include <flexisip/logmanager.hh>
 #include <flexisip/sip-boolean-expressions.hh>
 
+#include "agent.hh"
 #include "configdumper.hh"
 #include "lpconfig.h"
 
@@ -39,39 +40,64 @@ using namespace std;
 
 namespace flexisip {
 
-bool ConfigValueListener::sDirty = false;
+namespace {
+const RootConfigStruct* retrieveRoot(const GenericEntry* firstEntry) {
+	const auto* entry = firstEntry;
+	while (entry->getParent()) {
+		entry = entry->getParent();
+	}
+	return dynamic_cast<const RootConfigStruct*>(entry);
+}
 
-bool ConfigValueListener::onConfigStateChanged(const ConfigValue& conf, ConfigState state) {
+RootConfigStruct* retrieveRoot(GenericEntry* firstEntry) {
+	const auto* entry = firstEntry;
+	return const_cast<RootConfigStruct*>(retrieveRoot(entry));
+}
+} // namespace
+
+/*********************************************************************************************************************/
+/* GenericEntry class */
+/*********************************************************************************************************************/
+
+bool GenericEntry::onConfigStateChanged(const ConfigValue& conf, ConfigState state) {
+	// Get first available listener
+	if (mConfigListener == nullptr) {
+		if (getParent() == nullptr) {
+			LOGE("%s doesn't implement a config change listener.", conf.getName().c_str());
+			return false;
+		}
+		return getParent()->onConfigStateChanged(conf, state);
+	}
+
+	auto* rootStruct = retrieveRoot(this);
+	if (rootStruct == nullptr) return false; // should not happen
+
 	switch (state) {
 		case ConfigState::Committed:
-			if (sDirty) {
+			if (!rootStruct->hasCommittedChange()) {
 				// Write to disk
-				GenericStruct* rootStruct = ConfigManager::get()->getRoot();
+				const auto& configFile = rootStruct->getConfigFile();
 				ofstream cfgfile;
-				cfgfile.open(ConfigManager::get()->getConfigFile());
+				cfgfile.open(configFile);
 				FileConfigDumper dumper(rootStruct);
 				dumper.setMode(FileConfigDumper::Mode::CurrentValue);
 				cfgfile << dumper;
 				cfgfile.close();
-				LOGI("New configuration wrote to %s .", ConfigManager::get()->getConfigFile().c_str());
-				sDirty = false;
+				LOGI("New configuration wrote to %s .", configFile.c_str());
+				rootStruct->setCommittedChange(true);
 			}
 			break;
 		case ConfigState::Changed:
-			sDirty = true;
+			rootStruct->setCommittedChange(false);
 			break;
 		case ConfigState::Reset:
-			sDirty = false;
+			rootStruct->setCommittedChange(true);
 			break;
 		case ConfigState::Check:
 			break;
 	}
-	return doOnConfigStateChanged(conf, state);
+	return mConfigListener->doOnConfigStateChanged(conf, state);
 }
-
-/*********************************************************************************************************************/
-/* GenericEntry class                                                                                                */
-/*********************************************************************************************************************/
 
 void GenericEntry::DeprecationInfo::setAsDeprecated(const std::string& date,
                                                     const std::string& version,
@@ -280,9 +306,9 @@ void NotificationEntry::send(const GenericEntry* source, const string& msg) {
 		return;
 	}
 
-	static Oid& sMsgTemplateOid = ConfigManager::get()->getRoot()->getDeep<GenericEntry>("notif/msg", true)->getOid();
-	static Oid& sSourceTemplateOid =
-	    ConfigManager::get()->getRoot()->getDeep<GenericEntry>("notif/source", true)->getOid();
+	static const auto* configRoot = retrieveRoot(this);
+	static Oid& sMsgTemplateOid = configRoot->getDeep<GenericEntry>("notif/msg", true)->getOid();
+	static Oid& sSourceTemplateOid = configRoot->getDeep<GenericEntry>("notif/source", true)->getOid();
 
 	/*
 	 * See:
@@ -322,15 +348,7 @@ ConfigValue::ConfigValue(
 }
 
 bool ConfigValue::invokeConfigStateChanged(ConfigState state) {
-	if (getParent() && getParent()->getType() == Struct) {
-		ConfigValueListener* listener = getParent()->getConfigListener();
-		if (listener) {
-			return listener->onConfigStateChanged(*this, state);
-		} else {
-			LOGE("%s doesn't implement a config change listener.", getParent()->getName().c_str());
-		}
-	}
-	return true;
+	return onConfigStateChanged(*this, state);
 }
 
 void ConfigValue::checkType(const string& value, bool isDefault) {
@@ -540,19 +558,30 @@ void GenericStruct::addChildrenValues(ConfigItemDescriptor* items, bool hashed) 
 	}
 }
 
+namespace {
+constexpr auto finished = "-finished";
+}
+
 StatCounter64* GenericStruct::createStat(const string& name, const string& help) {
 	oid cOid = Oid::oidFromHashedString(name);
 	auto val = make_unique<StatCounter64>(name, help, cOid);
 	return addChild(std::move(val));
 }
-pair<StatCounter64*, StatCounter64*> GenericStruct::createStatPair(const string& name, const string& help) {
-	return make_pair(createStat(name, help), createStat(name + "-finished", help + " Finished."));
+void GenericStruct::createStatPair(const string& name, const string& help) {
+	createStat(name, help);
+	createStat(name + finished, help + " Finished.");
 }
 
-unique_ptr<StatPair> GenericStruct::createStats(const string& name, const string& help) {
-	auto start = createStat(name, help);
-	auto finish = createStat(name + "-finished", help + " Finished.");
-	return make_unique<StatPair>(start, finish);
+StatCounter64* GenericStruct::getStat(const string& name) {
+	return get<StatCounter64>(name);
+}
+
+pair<StatCounter64*, StatCounter64*> GenericStruct::getStatPair(const string& name) {
+	return make_pair(getStat(name), getStat(name + finished));
+}
+
+unique_ptr<StatPair> GenericStruct::getStatPairPtr(const string& name) {
+	return make_unique<StatPair>(getStat(name), getStat(name + finished));
 }
 
 struct matchEntryNameApprox {
@@ -737,8 +766,8 @@ uint64_t ConfigByteSize::read() const {
 	return stoll(str);
 }
 
-void ConfigRuntimeError::writeErrors(GenericEntry* entry, ostringstream& oss) const {
-	auto cs = dynamic_cast<GenericStruct*>(entry);
+void ConfigRuntimeError::writeErrors(const GenericEntry* entry, ostringstream& oss) const {
+	const auto* cs = dynamic_cast<const GenericStruct*>(entry);
 	if (cs) {
 		const auto& children = cs->getChildren();
 		for (auto it = children.begin(); it != children.end(); ++it) {
@@ -754,7 +783,8 @@ void ConfigRuntimeError::writeErrors(GenericEntry* entry, ostringstream& oss) co
 
 string ConfigRuntimeError::generateErrors() const {
 	ostringstream oss;
-	writeErrors(ConfigManager::get()->getRoot(), oss);
+	auto* root = retrieveRoot(this);
+	writeErrors(root, oss);
 	return oss.str();
 }
 
@@ -797,10 +827,11 @@ shared_ptr<SipBooleanExpression> ConfigBooleanExpression::read() const {
 	return SipBooleanExpressionBuilder::get().parse(get());
 }
 
-std::unique_ptr<ConfigManager> ConfigManager::sInstance{};
-
 static void init_flexisip_snmp() {
 #ifdef ENABLE_SNMP
+	static bool snmpInitDone = false;
+	if (snmpInitDone) return;
+
 	int syslog = 0; /* change this if you want to use syslog */
 
 	// snmp_set_do_debugging(1);
@@ -821,21 +852,20 @@ static void init_flexisip_snmp() {
 	if (err != 0) {
 		LOGA("error init snmp agent %d", errno);
 	}
+	snmpInitDone = true;
 #endif
 }
 
-ConfigManager* ConfigManager::get() {
-	if (sInstance == nullptr) {
-		init_flexisip_snmp();
-		// make_unique<>() cannot be used here because
-		// the constructor of ConfigManager is protected.
-		sInstance.reset(new ConfigManager{});
-	}
-	return sInstance.get();
+std::vector<std::function<void(GenericStruct&)>>& ConfigManager::defaultInit() {
+	static std::vector<std::function<void(GenericStruct&)>> defaultConf;
+	return defaultConf;
 }
 
-RootConfigStruct::RootConfigStruct(const string& name, const string& help, vector<oid> oid_root_path)
-    : GenericStruct(name, help, 1) {
+RootConfigStruct::RootConfigStruct(const string& name,
+                                   const string& help,
+                                   vector<oid> oid_root_path,
+                                   const std::string& configFile)
+    : GenericStruct(name, help, 1), mConfigFile(configFile) {
 	mOid = new Oid(oid_root_path, 1);
 }
 RootConfigStruct::~RootConfigStruct() {
@@ -848,8 +878,11 @@ RootConfigStruct::~RootConfigStruct() {
 ConfigManager::ConfigManager()
     : mConfigRoot("flexisip",
                   "This is the default Flexisip (v" FLEXISIP_GIT_VERSION ") configuration file",
-                  {1, 3, 6, 1, 4, 1, SNMP_COMPANY_OID}),
+                  {1, 3, 6, 1, 4, 1, SNMP_COMPANY_OID},
+                  mConfigFile),
       mReader(&mConfigRoot) {
+	init_flexisip_snmp();
+
 	// to make sure global_conf is instantiated first
 	static ConfigItemDescriptor global_conf[] = {
 	    // process settings
@@ -1142,9 +1175,17 @@ ConfigManager::ConfigManager()
 
 	auto uMdns = make_unique<GenericStruct>(
 	    "mdns-register", "Should the server be registered on a local domain, to be accessible via multicast DNS.", 0);
-	auto mdns = mConfigRoot.addChild(std::move(uMdns));
+	auto* mdns = mConfigRoot.addChild(std::move(uMdns));
 	mdns->addChildrenValues(mdns_conf);
 	mdns->setReadOnly(true);
+
+	// initialize default conf for statically registered sections
+	for (const auto& vec : defaultInit()) {
+		vec(mConfigRoot);
+	}
+
+	// add agent and modules sections
+	Agent::addConfigSections(*this);
 }
 
 bool ConfigManager::doIsValidNextConfig([[maybe_unused]] const ConfigValue& cv) {
@@ -1176,14 +1217,17 @@ int ConfigManager::load(const std::string& configfile) {
 	SLOGI << "Loading config file " << configfile;
 	mConfigFile = configfile;
 	int res = mReader.read(configfile);
-	applyOverrides(false);
-	return res;
-}
 
-void ConfigManager::loadStrict() {
-	mReader.reload();
+	// Plugins are specified in configuration file
+	// Load them, add their configuration sections and reload config
+	if (!getGlobal()->get<ConfigStringList>("plugins")->read().empty()) {
+		Agent::addPluginsConfigSections(*this);
+		mReader.reload();
+	}
+
 	mReader.checkUnread();
 	applyOverrides(true);
+	return res;
 }
 
 void ConfigManager::applyOverrides(bool strict) {
@@ -1199,11 +1243,15 @@ void ConfigManager::applyOverrides(bool strict) {
 	}
 }
 
+const GenericStruct* ConfigManager::getRoot() const {
+	return &mConfigRoot;
+}
+
 GenericStruct* ConfigManager::getRoot() {
 	return &mConfigRoot;
 }
 
-const GenericStruct* ConfigManager::getGlobal() {
+const GenericStruct* ConfigManager::getGlobal() const {
 	return mConfigRoot.get<GenericStruct>("global");
 }
 

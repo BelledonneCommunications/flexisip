@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -45,84 +45,87 @@ ModuleInfo<MediaRelay> MediaRelay::sInfo(
     "The RTP and RTCP streams are then routed so that each client receives the stream of the other. "
     "MediaRelay makes sure that RTP is ALWAYS established, even with uncooperative firewalls.",
     {"LoadBalancer"},
-    ModuleInfoBase::ModuleOid::MediaRelay);
+    ModuleInfoBase::ModuleOid::MediaRelay,
 
-MediaRelay::MediaRelay(Agent* ag) : Module(ag), mCalls(NULL) {
+    [](GenericStruct& moduleConfig) {
+	    ConfigItemDescriptor items[] = {
+	        {String, "nortpproxy",
+	         "The name of the SDP attribute to set by the first proxy to forbid subsequent proxies to provide relay. "
+	         "Use 'disable' to disable.",
+	         "nortpproxy"},
+	        {Integer, "sdp-port-range-min", "The minimal value of SDP port range", "1024"},
+	        {Integer, "sdp-port-range-max", "The maximal value of SDP port range", "65535"},
+	        {Boolean, "bye-orphan-dialogs",
+	         "Sends a ACK and BYE to 200Ok for INVITEs not belonging to any established call. This is to solve the "
+	         "race "
+	         "condition that happens when two callees answer the same call at the same time. According to RFC3261, the "
+	         "caller is expected to send an ACK followed by a BYE to the loser callee. This is not the case in "
+	         "RFC2543, "
+	         "where the proxy was supposed to do this. When set to true, the MediaRelay module will implement the "
+	         "RFC2543 behavior. Note that it may sound inappropriate to bundle this property with the media relay "
+	         "feature. However the MediaRelay module is the only one in Flexisip that has the visibility of SIP "
+	         "dialogs, "
+	         "which is necessary to implement this feature.",
+	         "false"},
+	        {Integer, "max-calls",
+	         "Maximum concurrent calls processed by the media-relay. Calls arriving when the limit is exceed will be "
+	         "rejected. A value of 0 means no limit.",
+	         "0"},
+	        {Boolean, "force-relay-for-non-ice-targets",
+	         "When true, the 'c=' line and port number are set to the relay ip/port even if ICE candidates are present "
+	         "in the request, while the standard behavior is to leave the c= line and port number as they are in the "
+	         "original offer sent by the client. This variation allows callees that do not support ICE at all to "
+	         "benefit from the media relay service.",
+	         "true"},
+	        {Boolean, "prevent-loops",
+	         "Prevent media-relay ports to loop between them, which can cause 100% cpu on the media relay thread. You "
+	         "need to set this property to false if you are running test calls from clients running on the same IP "
+	         "address as the flexisip server",
+	         "true"},
+	        {Boolean, "early-media-relay-single",
+	         "In case multiples '183 Early media' responses are received for a call, only the first one will have RTP "
+	         "streams forwarded back to caller. This feature prevents the caller to receive 'mixed' streams, but it "
+	         "breaks scenarios where multiple servers play early media announcement in sequence.",
+	         "true"},
+	        {Integer, "max-early-media-per-call",
+	         "Maximum number of relayed early media streams per call. This is useful to limit the cpu usage due to "
+	         "early media relaying on embedded systems. A value of 0 stands for unlimited.",
+	         "0"},
+	        {DurationS, "inactivity-period",
+	         "Period of time after which a relayed call without any activity is considered as no longer "
+	         "running. Activity counts RTP/RTCP packets exchanged through the relay and SIP messages.",
+	         "3600"},
+	        {Boolean, "force-public-ip-for-sdp-masquerading",
+	         "Force the media relay to use the public address of Flexisip to relay calls. It not enabled, Flexisip "
+	         "will deduce a suitable IP address by basing on data from SIP messages, which could fail in tricky "
+	         "situations e.g. when Flexisip is behind a TCP proxy.",
+	         "false"},
+#ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
+	        /*very specific features, useless for most people*/
+	        {Integer, "h264-filtering-bandwidth",
+	         "Enable I-frame only filtering for video H264 for clients annoucing a total bandwith below this value "
+	         "expressed in kbit/s. Use 0 to disable the feature",
+	         "0"},
+	        {Integer, "h264-iframe-decim", "When above option is activated, keep one I-frame over this number.", "1"},
+	        {Boolean, "h264-decim-only-last-proxy", "Decimate only if this server is the last proxy in the routes.",
+	         "true"},
+	        {Boolean, "drop-telephone-event",
+	         "Drop out telephone-events packet from incoming RTP stream for sips calls.", "false"},
+#endif
+	        config_item_end};
+	    moduleConfig.addChildrenValues(items);
+	    moduleConfig.createStatPair("count-calls", "Number of relayed calls.");
+    });
+
+MediaRelay::MediaRelay(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo), mCalls(NULL) {
+	auto p = mModuleConfig->getStatPair("count-calls");
+	mCountCalls = p.first;
+	mCountCallsFinished = p.second;
 }
 
 MediaRelay::~MediaRelay() {
 	if (mCalls) delete mCalls;
 	mServers.clear();
-}
-
-void MediaRelay::onDeclare(GenericStruct* mc) {
-	ConfigItemDescriptor items[] = {
-	    {String, "nortpproxy",
-	     "The name of the SDP attribute to set by the first proxy to forbid subsequent proxies to provide relay. "
-	     "Use 'disable' to disable.",
-	     "nortpproxy"},
-	    {Integer, "sdp-port-range-min", "The minimal value of SDP port range", "1024"},
-	    {Integer, "sdp-port-range-max", "The maximal value of SDP port range", "65535"},
-	    {Boolean, "bye-orphan-dialogs",
-	     "Sends a ACK and BYE to 200Ok for INVITEs not belonging to any established call. This is to solve the race "
-	     "condition that happens when two callees answer the same call at the same time. According to RFC3261, the "
-	     "caller is expected to send an ACK followed by a BYE to the loser callee. This is not the case in RFC2543, "
-	     "where the proxy was supposed to do this. When set to true, the MediaRelay module will implement the "
-	     "RFC2543 behavior. Note that it may sound inappropriate to bundle this property with the media relay "
-	     "feature. However the MediaRelay module is the only one in Flexisip that has the visibility of SIP dialogs, "
-	     "which is necessary to implement this feature.",
-	     "false"},
-	    {Integer, "max-calls",
-	     "Maximum concurrent calls processed by the media-relay. Calls arriving when the limit is exceed will be "
-	     "rejected. A value of 0 means no limit.",
-	     "0"},
-	    {Boolean, "force-relay-for-non-ice-targets",
-	     "When true, the 'c=' line and port number are set to the relay ip/port even if ICE candidates are present "
-	     "in the request, while the standard behavior is to leave the c= line and port number as they are in the "
-	     "original offer sent by the client. This variation allows callees that do not support ICE at all to "
-	     "benefit from the media relay service.",
-	     "true"},
-	    {Boolean, "prevent-loops",
-	     "Prevent media-relay ports to loop between them, which can cause 100% cpu on the media relay thread. You "
-	     "need to set this property to false if you are running test calls from clients running on the same IP "
-	     "address as the flexisip server",
-	     "true"},
-	    {Boolean, "early-media-relay-single",
-	     "In case multiples '183 Early media' responses are received for a call, only the first one will have RTP "
-	     "streams forwarded back to caller. This feature prevents the caller to receive 'mixed' streams, but it "
-	     "breaks scenarios where multiple servers play early media announcement in sequence.",
-	     "true"},
-	    {Integer, "max-early-media-per-call",
-	     "Maximum number of relayed early media streams per call. This is useful to limit the cpu usage due to "
-	     "early media relaying on embedded systems. A value of 0 stands for unlimited.",
-	     "0"},
-	    {DurationS, "inactivity-period",
-	     "Period of time after which a relayed call without any activity is considered as no longer "
-	     "running. Activity counts RTP/RTCP packets exchanged through the relay and SIP messages.",
-	     "3600"},
-	    {Boolean, "force-public-ip-for-sdp-masquerading",
-	     "Force the media relay to use the public address of Flexisip to relay calls. It not enabled, Flexisip "
-	     "will deduce a suitable IP address by basing on data from SIP messages, which could fail in tricky "
-	     "situations e.g. when Flexisip is behind a TCP proxy.",
-	     "false"},
-#ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
-	    /*very specific features, useless for most people*/
-	    {Integer, "h264-filtering-bandwidth",
-	     "Enable I-frame only filtering for video H264 for clients annoucing a total bandwith below this value "
-	     "expressed in kbit/s. Use 0 to disable the feature",
-	     "0"},
-	    {Integer, "h264-iframe-decim", "When above option is activated, keep one I-frame over this number.", "1"},
-	    {Boolean, "h264-decim-only-last-proxy", "Decimate only if this server is the last proxy in the routes.",
-	     "true"},
-	    {Boolean, "drop-telephone-event", "Drop out telephone-events packet from incoming RTP stream for sips calls.",
-	     "false"},
-#endif
-	    config_item_end};
-	mc->addChildrenValues(items);
-
-	auto p = mc->createStatPair("count-calls", "Number of relayed calls.");
-	mCountCalls = p.first;
-	mCountCallsFinished = p.second;
 }
 
 void MediaRelay::createServers() {
@@ -160,8 +163,9 @@ void MediaRelay::onLoad(const GenericStruct* modconf) {
 	mMaxRelayedEarlyMedia = modconf->get<ConfigInt>("max-early-media-per-call")->read();
 	mForceRelayForNonIceTargets = modconf->get<ConfigBoolean>("force-relay-for-non-ice-targets")->read();
 	mUsePublicIpForSdpMasquerading = modconf->get<ConfigBoolean>("force-public-ip-for-sdp-masquerading")->read();
-	mInactivityPeriod =
-	    chrono::duration_cast<chrono::seconds>(modconf->get<ConfigDuration<chrono::seconds>>("inactivity-period")->read()).count();
+	mInactivityPeriod = chrono::duration_cast<chrono::seconds>(
+	                        modconf->get<ConfigDuration<chrono::seconds>>("inactivity-period")->read())
+	                        .count();
 	createServers();
 }
 

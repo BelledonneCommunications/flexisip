@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -35,38 +35,38 @@
 using namespace std;
 using namespace flexisip;
 
-ModuleInfo<ModuleDoSProtection>
-    ModuleDoSProtection::sInfo("DoSProtection",
-                               "This module bans user when they are sending too much packets within a given timeframe. "
-                               "To see the list of currently banned IPs/ports, use iptables -L. ",
-                               {""},
-                               ModuleInfoBase::ModuleOid::DoSProtection);
+ModuleInfo<ModuleDoSProtection> ModuleDoSProtection::sInfo(
+    "DoSProtection",
+    "This module bans user when they are sending too much packets within a given timeframe. "
+    "To see the list of currently banned IPs/ports, use iptables -L. ",
+    {""},
+    ModuleInfoBase::ModuleOid::DoSProtection,
 
-ModuleDoSProtection::ModuleDoSProtection(Agent* ag) : Module(ag) {
+    [](GenericStruct& moduleConfig) {
+	    ConfigItemDescriptor configs[] = {
+	        {DurationMS, "time-period", "Time to consider to compute the packet rate", "3000"},
+	        {Integer, "packet-rate-limit",
+	         "Maximum packet rate in packets/seconds,  averaged over [time-period] "
+	         "millisecond(s) to consider it as a DoS attack.",
+	         "20"},
+	        {DurationMIN, "ban-time", "Time to ban the ip/port using iptables", "2"},
+	        {String, "iptables-chain", "Name of the chain flexisip will create to store the banned IPs", "FLEXISIP"},
+	        {StringList, "white-list",
+	         "List of IP addresses or hostnames for which no DoS protection is made."
+	         " This is typically for trusted servers from which we can receive high traffic. "
+	         "Please note that nodes from the local flexisip cluster (see [cluster] section) are automatically "
+	         "added to the white list, as well as 127.0.0.1 and ::1.\n"
+	         "Example:\n"
+	         "white-list=sip.example.org sip.linphone.org 15.128.128.93",
+	         ""},
+	        config_item_end};
+	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("true");
+	    moduleConfig.addChildrenValues(configs);
+    });
+
+ModuleDoSProtection::ModuleDoSProtection(Agent* ag, ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 	mThreadPool = std::make_unique<BasicThreadPool>(1, 1000);
 	mBanExecutor = std::make_shared<IptablesExecutor>();
-}
-
-void ModuleDoSProtection::onDeclare(GenericStruct* module_config) {
-	ConfigItemDescriptor configs[] = {
-	    {DurationMS, "time-period", "Time to consider to compute the packet rate", "3000"},
-	    {Integer, "packet-rate-limit",
-	     "Maximum packet rate in packets/seconds,  averaged over [time-period] "
-	     "millisecond(s) to consider it as a DoS attack.",
-	     "20"},
-	    {DurationMIN, "ban-time", "Time to ban the ip/port using iptables", "2"},
-	    {String, "iptables-chain", "Name of the chain flexisip will create to store the banned IPs", "FLEXISIP"},
-	    {StringList, "white-list",
-	     "List of IP addresses or hostnames for which no DoS protection is made."
-	     " This is typically for trusted servers from which we can receive high traffic. "
-	     "Please note that nodes from the local flexisip cluster (see [cluster] section) are automatically "
-	     "added to the white list, as well as 127.0.0.1 and ::1.\n"
-	     "Example:\n"
-	     "white-list=sip.example.org sip.linphone.org 15.128.128.93",
-	     ""},
-	    config_item_end};
-	module_config->get<ConfigBoolean>("enabled")->setDefault("true");
-	module_config->addChildrenValues(configs);
 }
 
 void ModuleDoSProtection::onLoad(const GenericStruct* mc) {
@@ -76,7 +76,7 @@ void ModuleDoSProtection::onLoad(const GenericStruct* mc) {
 	    chrono::duration_cast<chrono::minutes>(mc->get<ConfigDuration<chrono::minutes>>("ban-time")->read()).count();
 	mDOSHashtableIterator = mDosContexts.begin();
 
-	GenericStruct* cluster = ConfigManager::get()->getRoot()->get<GenericStruct>("cluster");
+	GenericStruct* cluster = getAgent()->getConfigManager().getRoot()->get<GenericStruct>("cluster");
 	list<string> whiteList = cluster->get<ConfigStringList>("nodes")->read();
 	whiteList.splice(whiteList.end(), mc->get<ConfigStringList>("white-list")->read());
 

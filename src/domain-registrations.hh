@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -30,8 +30,6 @@
 #include "flexisip/configmanager.hh"
 #include "flexisip/registrar/registar-listeners.hh"
 #include "flexisip/utils/sip-uri.hh"
-
-#include "registrar/registrar-db.hh"
 
 namespace flexisip {
 
@@ -157,6 +155,8 @@ public:
 	 * If url_host is an empty string, then the global relay registration to domain cfg status is returned.
 	 */
 	bool haveToRelayRegToDomain(const std::string& url_host);
+
+	static void declareConfig(GenericStruct& rootConfig);
 
 private:
 	Agent* mAgent{nullptr};

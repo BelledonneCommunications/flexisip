@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -226,7 +226,7 @@ static void globalTest() {
 	forceSociRepositoryInstanciation();
 	server->start();
 
-	auto receiverClient = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server);
+	auto receiverClient = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server->getAgent());
 	receiverClient->disconnect();
 
 	bool isRequestAccepted = false;
@@ -309,20 +309,20 @@ static void globalTestMultipleDevices() {
 
 	vector<shared_ptr<CoreClient>> clientOnDevices{};
 	for (int i = 0; i < 3; ++i) {
-		asserter.registerSteppable(
-		    clientOnDevices.emplace_back(make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server)));
+		asserter.registerSteppable(clientOnDevices.emplace_back(
+		    make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server->getAgent())));
 	}
 
 	vector<shared_ptr<CoreClient>> clientOffDevices1{};
 	for (int i = 0; i < 3; ++i) {
-		auto client = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server);
+		auto client = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server->getAgent());
 		client->disconnect();
 		asserter.registerSteppable(clientOffDevices1.emplace_back(client));
 	}
 
 	vector<shared_ptr<CoreClient>> clientOffDevices2{};
 	for (int i = 0; i < 3; ++i) {
-		auto client = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server);
+		auto client = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server->getAgent());
 		client->disconnect();
 		asserter.registerSteppable(clientOffDevices2.emplace_back(client));
 	}
@@ -444,9 +444,11 @@ static void testDBAccessOptimization() {
 	forceSociRepositoryInstanciation();
 	server->start();
 
-	shared_ptr<CoreClient> clientOnDevice = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server);
+	shared_ptr<CoreClient> clientOnDevice =
+	    make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server->getAgent());
 
-	shared_ptr<CoreClient> clientOffDevice = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server);
+	shared_ptr<CoreClient> clientOffDevice =
+	    make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server->getAgent());
 	clientOffDevice->disconnect();
 
 	bool isRequestAccepted = false;
@@ -558,7 +560,7 @@ static void globalTestMultipleMessages() {
 	auto server = make_shared<Server>("/config/flexisip_fork_context_db.conf");
 	server->start();
 
-	auto receiverClient = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server);
+	auto receiverClient = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server->getAgent());
 	receiverClient->getCore()->setNetworkReachable(false);
 
 	unsigned nbAcceptedMessages = 0;
@@ -652,7 +654,7 @@ static void globalTestDatabaseDeleted() {
 	forceSociRepositoryInstanciation();
 	server->start();
 
-	auto receiverClient = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server);
+	auto receiverClient = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server->getAgent());
 	receiverClient->disconnect();
 
 	bool isRequestAccepted = false;
@@ -748,7 +750,7 @@ static void globalOrderTest() {
 	server->start();
 	ModuleRouter::setMaxPriorityHandled(sofiasip::MsgSipPriority::Emergency);
 
-	auto receiverClient = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server);
+	auto receiverClient = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server->getAgent());
 	receiverClient->disconnect();
 
 	uint isRequestAccepted = 0;
@@ -845,10 +847,7 @@ TestSuite
 	          ForkMessageContextSociRepository::prepareConfiguration("mysql", mysqlServer->connectionString(), 10);
 	          return 0;
           })
-          .afterEach([] {
-	          ForkMessageContextSociRepository::getInstance()->deleteAll();
-	          RegistrarDb::resetDB();
-          })
+          .afterEach([] { ForkMessageContextSociRepository::getInstance()->deleteAll(); })
           .afterSuite([] {
 	          mysqlServer.reset();
 	          return 0;

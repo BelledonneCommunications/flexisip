@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -44,9 +44,9 @@ using namespace std;
 using namespace flexisip;
 
 template <typename SipEventT>
-static void addEventLogRecordFound(shared_ptr<SipEventT> ev, const sip_contact_t* contacts) {
+static void addEventLogRecordFound(shared_ptr<SipEventT> ev, shared_ptr<Record> r, const sip_contact_t* contacts) {
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
-	string id(contacts ? Record::extractUniqueId(contacts) : "");
+	string id(contacts ? r->extractUniqueId(contacts) : "");
 	auto evLog = make_shared<RegistrationLog>(ms->getSip(), contacts);
 
 	evLog->setStatusCode(200, "Ok");
@@ -106,11 +106,12 @@ void OnRequestBindListener::onContactUpdated(const std::shared_ptr<ExtendedConta
 void OnRequestBindListener::onRecordFound(const shared_ptr<Record>& r) {
 	const shared_ptr<MsgSip>& ms = mEv->getMsgSip();
 	if (r) {
-		addEventLogRecordFound(mEv, mContact);
+		addEventLogRecordFound(mEv, r, mContact);
 		mModule->reply(mEv, 200, "Registration successful", r->getContacts(ms->getHome()));
 		if (mContact) {
-			string uid = Record::extractUniqueId(mContact);
-			RegistrarDb::get()->publish(Record::Key(mSipFrom->a_url), uid);
+			string uid = r->extractUniqueId(mContact);
+			mModule->getAgent()->getRegistrarDb().publish(
+			    Record::Key(mSipFrom->a_url, mModule->getAgent()->getRegistrarDb().useGlobalDomain()), uid);
 		}
 		/*
 		 * Tell SofiaSip to reply to CRLF pings only if
@@ -155,8 +156,10 @@ void OnResponseBindListener::onRecordFound(const shared_ptr<Record>& r) {
 		return;
 	}
 
-	string uid = Record::extractUniqueId(mCtx->mOriginalContacts);
-	RegistrarDb::get()->publish(Record::Key(mCtx->mRequestSipEvent->getSip()->sip_from->a_url), uid);
+	string uid = r->extractUniqueId(mCtx->mOriginalContacts);
+	mModule->getAgent()->getRegistrarDb().publish(Record::Key(mCtx->mRequestSipEvent->getSip()->sip_from->a_url,
+	                                                          mModule->getAgent()->getRegistrarDb().useGlobalDomain()),
+	                                              uid);
 
 	sip_contact_t* dbContacts = r->getContacts(ms->getHome());
 
@@ -167,7 +170,7 @@ void OnResponseBindListener::onRecordFound(const shared_ptr<Record>& r) {
 
 	mModule->removeInternalParams(reMs->getSip()->sip_contact);
 
-	addEventLogRecordFound(mEv, dbContacts);
+	addEventLogRecordFound(mEv, r, dbContacts);
 	mModule->getAgent()->injectResponseEvent(mEv);
 }
 void OnResponseBindListener::onError(const SipStatus& response) {
@@ -307,11 +310,15 @@ staticRoutesRereadTimerfunc([[maybe_unused]] su_root_magic_t* magic, [[maybe_unu
 	r->readStaticRecords();
 }
 
-ModuleRegistrar::ModuleRegistrar(Agent* ag) : Module(ag), mStaticRecordsTimer(nullptr) {
+ModuleRegistrar::ModuleRegistrar(Agent* ag, const ModuleInfoBase* moduleInfo)
+    : Module(ag, moduleInfo), mStaticRecordsTimer(nullptr) {
 	mStaticRecordsVersion = 0;
+	mStats.mCountClear = mModuleConfig->getStatPairPtr("count-clear");
+	mStats.mCountBind = mModuleConfig->getStatPairPtr("count-bind");
+	mStats.mCountLocalActives = mModuleConfig->getStat("count-local-registered-users");
 }
 
-void ModuleRegistrar::onDeclare(GenericStruct* mc) {
+void ModuleRegistrar::declareConfig(GenericStruct& moduleConfig) {
 	ConfigItemDescriptor configs[] = {
 	    {StringList, "reg-domains",
 	     "List of whitespace separated domain names which the registar is in charge of. It can eventually be "
@@ -361,11 +368,13 @@ void ModuleRegistrar::onDeclare(GenericStruct* mc) {
 	    {String, "redis-server-domain", "Hostname or address of the Redis server. ", "localhost"},
 	    {Integer, "redis-server-port", "Port of the Redis server.", "6379"},
 	    {String, "redis-auth-user",
-	     "ACL username used to authenticate on Redis. Empty to disable. Setting this but not `redis-auth-password` is "
+	     "ACL username used to authenticate on Redis. Empty to disable. Setting this but not `redis-auth-password` "
+	     "is "
 	     "a misconfiguration, and will be ignored.",
 	     ""},
 	    {String, "redis-auth-password",
-	     "Authentication password for Redis. Empty to disable. If set but `redis-auth-user` is left unset or empty, "
+	     "Authentication password for Redis. Empty to disable. If set but `redis-auth-user` is left unset or "
+	     "empty, "
 	     "Flexisip will attempt to register in legacy mode.",
 	     ""},
 	    {DurationMS, "redis-server-timeout", "Timeout of the Redis connection.", "1500"},
@@ -401,20 +410,20 @@ void ModuleRegistrar::onDeclare(GenericStruct* mc) {
 	     "time for chat message delivery.",
 	     "message-expires"},
 	    config_item_end};
-	mc->addChildrenValues(configs);
+	moduleConfig.addChildrenValues(configs);
 
-	mc->get<ConfigString>("redis-record-serializer")
+	moduleConfig.get<ConfigString>("redis-record-serializer")
 	    ->setDeprecated({"2020-01-28", "2.0.0", "This setting hasn't any effect anymore."});
 
-	auto* oldMessageExpiresParamName = mc->get<ConfigString>("name-message-expires");
+	auto* oldMessageExpiresParamName = moduleConfig.get<ConfigString>("name-message-expires");
 	oldMessageExpiresParamName->setDeprecated(
 	    {"2020-03-25", "2.0.0", "This parameter has been renamed into 'message-expires-param-name'"});
-	mc->get<ConfigString>("message-expires-param-name")->setFallback(*oldMessageExpiresParamName);
+	moduleConfig.get<ConfigString>("message-expires-param-name")->setFallback(*oldMessageExpiresParamName);
 
-	mStats.mCountClear = mc->createStats("count-clear", "Number of cleared registrations.");
-	mStats.mCountBind = mc->createStats("count-bind", "Number of registers.");
-	mStats.mCountLocalActives =
-	    mc->createStat("count-local-registered-users", "Number of users currently registered through this server.");
+	moduleConfig.createStatPair("count-clear", "Number of cleared registrations.");
+	moduleConfig.createStatPair("count-bind", "Number of registers.");
+	moduleConfig.createStat("count-local-registered-users",
+	                        "Number of users currently registered through this server.");
 }
 
 void ModuleRegistrar::onLoad(const GenericStruct* mc) {
@@ -455,23 +464,27 @@ void ModuleRegistrar::onLoad(const GenericStruct* mc) {
 		readStaticRecords(); // read static records from configuration file
 		mStaticRecordsTimer = mAgent->createTimer(mStaticRecordsTimeout * 1000, &staticRoutesRereadTimerfunc, this);
 	}
-	mAllowDomainRegistrations = ConfigManager::get()
-	                                ->getRoot()
+	mAllowDomainRegistrations = getAgent()
+	                                ->getConfigManager()
+	                                .getRoot()
 	                                ->get<GenericStruct>("inter-domain-connections")
 	                                ->get<ConfigBoolean>("accept-domain-registrations")
 	                                ->read();
-	mAssumeUniqueDomains = ConfigManager::get()
-	                           ->getRoot()
+	mAssumeUniqueDomains = getAgent()
+	                           ->getConfigManager()
+	                           .getRoot()
 	                           ->get<GenericStruct>("inter-domain-connections")
 	                           ->get<ConfigBoolean>("assume-unique-domains")
 	                           ->read();
-	mUseGlobalDomain = ConfigManager::get()
-	                       ->getRoot()
+	mUseGlobalDomain = getAgent()
+	                       ->getConfigManager()
+	                       .getRoot()
 	                       ->get<GenericStruct>("module::Router")
 	                       ->get<ConfigBoolean>("use-global-domain")
 	                       ->read();
-	mParamsToRemove = ConfigManager::get()
-	                      ->getRoot()
+	mParamsToRemove = getAgent()
+	                      ->getConfigManager()
+	                      .getRoot()
 	                      ->get<GenericStruct>("module::Forward")
 	                      ->get<ConfigStringList>("params-to-remove")
 	                      ->read();
@@ -486,7 +499,7 @@ void ModuleRegistrar::onLoad(const GenericStruct* mc) {
 		    } else if (signum == SIGUSR2) {
 			    LOGI("Received signal triggering fake fetch");
 			    auto listener = make_shared<FakeFetchListener>();
-			    RegistrarDb::get()->fetch(SipUri("sip:contact@domain"), listener, false);
+			    mAgent->getRegistrarDb().fetch(SipUri("sip:contact@domain"), listener, false);
 		    }
 	    });
 }
@@ -523,8 +536,8 @@ void ModuleRegistrar::deleteResponseContext(const std::shared_ptr<ResponseContex
 }
 
 void ModuleRegistrar::updateLocalRegExpire() {
-	RegistrarDb::get()->mLocalRegExpire->removeExpiredBefore(getCurrentTime());
-	mStats.mCountLocalActives->set(RegistrarDb::get()->mLocalRegExpire->countActives());
+	mAgent->getRegistrarDb().mLocalRegExpire.removeExpiredBefore(getCurrentTime());
+	mStats.mCountLocalActives->set(mAgent->getRegistrarDb().mLocalRegExpire.countActives());
 }
 
 bool ModuleRegistrar::isManagedDomain(const url_t* url) {
@@ -637,14 +650,14 @@ void ModuleRegistrar::processUpdateRequest(shared_ptr<SipEventT>& ev, const sip_
 		mStats.mCountClear->incrStart();
 		LOGD("Clearing bindings");
 		listener->addStatCounter(mStats.mCountClear->finish);
-		RegistrarDb::get()->clear(sip, listener);
+		mAgent->getRegistrarDb().clear(sip, listener);
 		return;
 	} else {
 		auto listener = make_shared<ListenerT>(this, ev, sip->sip_from, sip->sip_contact);
 		mStats.mCountBind->incrStart();
 		LOGD("Updating binding");
 		listener->addStatCounter(mStats.mCountBind->finish);
-		RegistrarDb::get()->bind(sip, maindelta, false, 0, listener);
+		mAgent->getRegistrarDb().bind(sip, maindelta, false, 0, listener);
 		return;
 	}
 }
@@ -671,7 +684,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	if (sip->sip_contact == nullptr) {
 		LOGD("No sip contact, it is a fetch only request for %s.", sipurl.str().c_str());
 		auto listener = make_shared<OnRequestBindListener>(this, ev);
-		RegistrarDb::get()->fetch(sipurl, listener);
+		mAgent->getRegistrarDb().fetch(sipurl, listener);
 		return;
 	}
 
@@ -749,12 +762,12 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			mStats.mCountClear->incrStart();
 			LOGD("Clearing bindings");
 			listener->addStatCounter(mStats.mCountClear->finish);
-			RegistrarDb::get()->clear(*ms, listener);
+			mAgent->getRegistrarDb().clear(*ms, listener);
 			return;
 		} else {
 			if (sipurl.getUser().empty() && mAssumeUniqueDomains) {
 				/*first clear to make sure that there is only one record*/
-				RegistrarDb::get()->clear(*ms, make_shared<FakeFetchListener>());
+				mAgent->getRegistrarDb().clear(*ms, make_shared<FakeFetchListener>());
 			}
 			BindingParameters parameter;
 			auto listener =
@@ -766,7 +779,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			parameter.globalExpire = maindelta;
 			parameter.version = 0;
 			parameter.isAliasFunction = [this](const url_t* ct) -> bool { return isManagedDomain(ct); };
-			RegistrarDb::get()->bind(*ms, parameter, listener);
+			mAgent->getRegistrarDb().bind(*ms, parameter, listener);
 			return;
 		}
 	} else {
@@ -780,8 +793,8 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 
 		su_home_t* home = ev->getMsgSip()->getHome();
 		url_t* gruuAddress;
-		if (RegistrarDb::get()->gruuEnabled() &&
-		    (gruuAddress = RegistrarDb::get()->synthesizePubGruu(home, *ev->getMsgSip()))) {
+		if (mAgent->getRegistrarDb().gruuEnabled() &&
+		    (gruuAddress = mAgent->getRegistrarDb().synthesizePubGruu(home, *ev->getMsgSip()))) {
 			/* A gruu address can be assigned to this contact. Replace the contact with the GRUU address we are going to
 			 * create for the contact.*/
 			msg_header_remove_all(ev->getMsgSip()->getMsg(), (msg_pub_t*)ev->getSip(),
@@ -837,7 +850,7 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 			mStats.mCountClear->incrStart();
 			LOGD("Clearing bindings");
 			listener->addStatCounter(mStats.mCountClear->finish);
-			RegistrarDb::get()->clear(*request, listener);
+			mAgent->getRegistrarDb().clear(*request, listener);
 		} else {
 			BindingParameters parameter;
 			mStats.mCountBind->incrStart();
@@ -855,7 +868,7 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 			msg_header_insert(request->getMsg(), (msg_pub_t*)request->getSip(),
 			                  (msg_header_t*)context->mOriginalContacts);
 
-			RegistrarDb::get()->bind(*request, parameter, listener);
+			mAgent->getRegistrarDb().bind(*request, parameter, listener);
 		}
 	}
 	if (reSip->sip_status->st_status >= 200) {
@@ -945,8 +958,8 @@ void ModuleRegistrar::readStaticRecords() {
 					std::string mUri;
 				};
 
-				RegistrarDb::get()->clear(fromUri, "static-record-v"s + to_string(su_random()),
-				                          std::make_shared<ClearListener>(fromUri.str()));
+				mAgent->getRegistrarDb().clear(fromUri, "static-record-v"s + to_string(su_random()),
+				                               std::make_shared<ClearListener>(fromUri.str()));
 			}
 
 			while (contact) {
@@ -965,7 +978,7 @@ void ModuleRegistrar::readStaticRecords() {
 				parameter.alias = alias;
 				parameter.version = mStaticRecordsVersion;
 
-				RegistrarDb::get()->bind(fromUri, sipContact, parameter, listener);
+				mAgent->getRegistrarDb().bind(fromUri, sipContact, parameter, listener);
 				contact = contact->m_next;
 			}
 
@@ -982,4 +995,5 @@ ModuleInfo<ModuleRegistrar> ModuleRegistrar::sInfo(
     "in order to allow routing requests destinated to the client who registered. REGISTERs for other domains are "
     "simply ignored and given to the next module.",
     {"Presence"},
-    ModuleInfoBase::ModuleOid::Registrar);
+    ModuleInfoBase::ModuleOid::Registrar,
+    declareConfig);

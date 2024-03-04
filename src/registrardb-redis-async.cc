@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -48,7 +48,6 @@
 #include "recordserializer.hh"
 #include "registrar/exceptions.hh"
 #include "registrar/extended-contact.hh"
-#include "registrar/registrar-db.hh"
 #include "utils/soft-ptr.hh"
 #include "utils/string-utils.hh"
 #include "utils/variant-utils.hh"
@@ -74,17 +73,32 @@ const Script FETCH_EXPIRING_CONTACTS_SCRIPT{
  * RegistrarDbRedisAsync class
  */
 
-RegistrarDbRedisAsync::RegistrarDbRedisAsync(Agent* ag, RedisParameters params)
-    : RegistrarDbRedisAsync(ag->getRoot(), RecordSerializer::get(), params, ag) {
+RegistrarDbRedisAsync::RegistrarDbRedisAsync(const sofiasip::SuRoot& root,
+                                             const Record::Config& recordConfig,
+                                             LocalRegExpire& localRegExpire,
+                                             RedisParameters params,
+                                             std::function<void(const Record::Key&, const std::string&)> notifyContact,
+                                             std::function<void(bool)> notifyState)
+    : RegistrarDbRedisAsync(root,
+                            recordConfig,
+                            localRegExpire,
+                            RecordSerializer::get(),
+                            params,
+                            std::move(notifyContact),
+                            std::move(notifyState)) {
 }
 
-RegistrarDbRedisAsync::RegistrarDbRedisAsync(const std::shared_ptr<sofiasip::SuRoot>& root,
+RegistrarDbRedisAsync::RegistrarDbRedisAsync(const sofiasip::SuRoot& root,
+                                             const Record::Config& recordConfig,
+                                             LocalRegExpire& localRegExpire,
                                              RecordSerializer* serializer,
                                              RedisParameters params,
-                                             Agent* ag)
-    : RegistrarDb{ag}, mRoot{root}, mCommandSession(SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)),
+                                             std::function<void(const Record::Key&, const std::string&)> notifyContact,
+                                             std::function<void(bool)> notifyState)
+    : mRoot{root}, mRecordConfig{recordConfig}, mLocalRegExpire{localRegExpire},
+      mCommandSession(SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)),
       mSubscriptionSession(SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)), mSerializer{serializer},
-      mParams{params} {
+      mParams{params}, mNotifyContactListener{std::move(notifyContact)}, mNotifyStateListener{std::move(notifyState)} {
 }
 
 bool RegistrarDbRedisAsync::isConnected() const {
@@ -94,7 +108,7 @@ bool RegistrarDbRedisAsync::isConnected() const {
 void RegistrarDbRedisAsync::setWritable(bool value) {
 	SLOGD << "Switch Redis RegistrarDB backend 'writable' flag [ " << mWritable << " -> " << value << " ]";
 	mWritable = value;
-	notifyStateListener();
+	mNotifyStateListener(mWritable);
 }
 
 namespace {
@@ -249,7 +263,7 @@ void RegistrarDbRedisAsync::tryReconnect() {
 
 	if (chrono::system_clock::now() - mLastReconnectRotation < 1s) {
 		if (!mReconnectTimer.get()) {
-			mReconnectTimer = make_unique<sofiasip::Timer>(mRoot, 1s);
+			mReconnectTimer = make_unique<sofiasip::Timer>(mRoot.getCPtr(), 1s);
 			mReconnectTimer->set([this]() { onTryReconnectTimer(); });
 		}
 		return;
@@ -325,7 +339,7 @@ void RegistrarDbRedisAsync::handleReplicationInfoReply(const reply::String& repl
 		}
 		if (!mReplicationTimer.get()) {
 			SLOGD << "Creating replication timer with delay of " << mParams.mSlaveCheckTimeout.count() << "s";
-			mReplicationTimer = make_unique<sofiasip::Timer>(mRoot, mParams.mSlaveCheckTimeout);
+			mReplicationTimer = make_unique<sofiasip::Timer>(mRoot.getCPtr(), mParams.mSlaveCheckTimeout);
 			mReplicationTimer->run([this]() { onHandleInfoTimer(); });
 		}
 	} else {
@@ -378,7 +392,7 @@ void RegistrarDbRedisAsync::handlePublish(Reply reply) {
 		if (messageType == "message") {
 			const auto& message = std::get<reply::String>(messageOrSubsCount);
 			SLOGD << "Publish array received: [" << messageType << ", " << channel << ", " << message << "]";
-			notifyContactListener(Record::Key(channel), string(message));
+			mNotifyContactListener(Record::Key(channel), string(message));
 		} else {
 			const auto subscriptionCount = std::get<reply::Integer>(messageOrSubsCount);
 			SLOGD << "'" << messageType << "' request on '" << channel << "' channel succeeded. " << subscriptionCount
@@ -393,14 +407,14 @@ optional<tuple<const Session::Ready&, const SubscriptionSession::Ready&>> Regist
 	SLOGD << "Creating main Redis connection";
 	const Session::Ready* cmdSession = nullptr;
 	{
-		auto& state = mCommandSession.connect(mRoot->getCPtr(), mParams.domain.c_str(), mParams.port);
+		auto& state = mCommandSession.connect(mRoot.getCPtr(), mParams.domain.c_str(), mParams.port);
 		if ((cmdSession = std::get_if<Session::Ready>(&state)) == nullptr) return {};
 	}
 
 	SLOGD << "Creating subscription Redis connection";
 	const SubscriptionSession::Ready* subsSession = nullptr;
 	{
-		auto& state = mSubscriptionSession.connect(mRoot->getCPtr(), mParams.domain.c_str(), mParams.port);
+		auto& state = mSubscriptionSession.connect(mRoot.getCPtr(), mParams.domain.c_str(), mParams.port);
 		if ((subsSession = std::get_if<SubscriptionSession::Ready>(&state)) == nullptr) return {};
 	}
 
@@ -450,13 +464,18 @@ void RegistrarDbRedisAsync::subscribeToKeyExpiration() {
 			if (auto suffix = StringUtils::removePrefix(key, "fs:")) {
 				key = *suffix;
 			}
-			notifyContactListener(Record::Key(key), "");
+			mNotifyContactListener(Record::Key(key), "");
 		} catch (const std::bad_variant_access&) {
 		}
 	});
 }
 
-void RegistrarDbRedisAsync::subscribeTopic(const string& topic) {
+/*TODO: the listener should be also used to report when the subscription is active.
+ * Indeed if we send a push notification to a device while REDIS has not yet confirmed the subscription, we will not do
+ * anything when receiving the REGISTER from the device. The router module should wait confirmation that subscription is
+ * active before injecting the forked request to the module chain.*/
+void RegistrarDbRedisAsync::subscribe(const Record::Key& key) {
+	const string& topic = key;
 	SLOGD << "Sending SUBSCRIBE command to Redis for topic '" << topic << "'";
 	auto* subs = mSubscriptionSession.tryGetState<SubscriptionSession::Ready>();
 	if (!subs) {
@@ -468,24 +487,8 @@ void RegistrarDbRedisAsync::subscribeTopic(const string& topic) {
 	subs->subscriptions()[topic].subscribe([this](Reply reply) { handlePublish(std::move(reply)); });
 }
 
-/*TODO: the listener should be also used to report when the subscription is active.
- * Indeed if we send a push notification to a device while REDIS has not yet confirmed the subscription, we will not do
- * anything when receiving the REGISTER from the device. The router module should wait confirmation that subscription is
- * active before injecting the forked request to the module chain.*/
-bool RegistrarDbRedisAsync::subscribe(const Record::Key& key, std::weak_ptr<ContactRegisteredListener>&& listener) {
-	auto shouldSubscribe = RegistrarDb::subscribe(key, std::move(listener));
-	if (shouldSubscribe) {
-		subscribeTopic(key);
-		return true;
-	}
-	return false;
-}
-
-void RegistrarDbRedisAsync::unsubscribe(const Record::Key& key, const shared_ptr<ContactRegisteredListener>& listener) {
-	RegistrarDb::unsubscribe(key, listener);
+void RegistrarDbRedisAsync::unsubscribe(const Record::Key& key) {
 	const string& topic = key;
-	if (0 < mContactListenersMap.count(topic)) return;
-
 	// No listeners left, unsubscribing
 	auto* ready = mSubscriptionSession.tryGetState<SubscriptionSession::Ready>();
 	if (!ready) return;
@@ -499,7 +502,6 @@ void RegistrarDbRedisAsync::unsubscribe(const Record::Key& key, const shared_ptr
 
 void RegistrarDbRedisAsync::publish(const Record::Key& key, const string& uid) {
 	const string& topic = key;
-	SLOGD << "Publish topic = " << topic << ", uid = " << uid;
 	Match(mCommandSession.getState())
 	    .against(
 	        [&topic, &uid](const Session::Ready& ready) {
@@ -566,10 +568,8 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RedisRegisterContext& contex
 
 /* Methods called by the callbacks */
 
-void RegistrarDbRedisAsync::sBindRetry(void*, su_timer_t*, void* ud) {
+void RegistrarDbRedisAsync::sBindRetry(void* ud) {
 	std::unique_ptr<RedisRegisterContext> context{static_cast<RedisRegisterContext*>(ud)};
-	su_timer_destroy(context->mRetryTimer);
-	context->mRetryTimer = nullptr;
 	RegistrarDbRedisAsync* self = context->self;
 	auto& contextRef = *context;
 
@@ -587,7 +587,7 @@ void RegistrarDbRedisAsync::handleBind(Reply reply, std::unique_ptr<RedisRegiste
 		    context->mRetryCount = 0;
 		    if (context->listener) context->listener->onRecordFound(context->mRecord);
 	    },
-	    [&context, &agent = mAgent](const auto& reply) {
+	    [&context, root = mRoot.getCPtr()](const auto& reply) {
 		    std::ostringstream log{};
 		    log << "Error updating record fs:" << context->mRecord->getKey() << " [" << context->token
 		        << "] hashmap in Redis. Reply: " << reply << "\n";
@@ -595,7 +595,8 @@ void RegistrarDbRedisAsync::handleBind(Reply reply, std::unique_ptr<RedisRegiste
 			    log << "Retrying in " << bindRetryTimeout.count() << "ms.";
 			    auto leaked = context.release();
 			    leaked->mRetryCount += 1;
-			    leaked->mRetryTimer = agent->createTimer(bindRetryTimeout.count(), sBindRetry, leaked, false);
+			    leaked->mRetryTimer = make_unique<sofiasip::Timer>(root, bindRetryTimeout.count());
+			    leaked->mRetryTimer->set([leaked]() { sBindRetry(leaked); });
 		    } else {
 			    log << "Unrecoverable. No further attempt will be made.";
 			    if (context->listener) context->listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
@@ -629,8 +630,8 @@ void RegistrarDbRedisAsync::doBind(const MsgSip& msg,
 		return;
 	}
 
-	auto context = std::make_unique<RedisRegisterContext>(this, msg, parameters, listener);
-	mLocalRegExpire->update(context->mRecord);
+	auto context = std::make_unique<RedisRegisterContext>(this, msg, parameters, listener, mRecordConfig);
+	mLocalRegExpire.update(context->mRecord);
 
 	const auto& key = context->mRecord->getKey();
 	cmdSession->timedCommand({"HGETALL", key.toRedisKey()}, [context = std::move(context), this](Session&,
@@ -646,7 +647,8 @@ void RegistrarDbRedisAsync::doBind(const MsgSip& msg,
 		auto& contacts = context->mRecord->getExtendedContacts();
 		auto& changeset = context->mChangeSet;
 		// Parse the fetched reply into the Record object (context->mRecord)
-		for (auto&& maybeExpired : parseContacts(array->pairwise())) {
+		for (auto&& maybeExpired :
+		     parseContacts(array->pairwise(), context->mRecord->getConfig().messageExpiresName())) {
 			if (maybeExpired->isExpired()) {
 				changeset.mDelete.emplace_back(std::move(maybeExpired));
 			} else {
@@ -702,8 +704,9 @@ void RegistrarDbRedisAsync::handleClear(Reply reply, const RedisRegisterContext&
 	if (context.listener) context.listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 }
 
-vector<unique_ptr<ExtendedContact>> RegistrarDbRedisAsync::parseContacts(const reply::ArrayOfPairs& entries) {
-	decltype(parseContacts(entries)) contacts{};
+vector<unique_ptr<ExtendedContact>> RegistrarDbRedisAsync::parseContacts(const reply::ArrayOfPairs& entries,
+                                                                         const string& messageExpiresName) {
+	decltype(parseContacts(entries, messageExpiresName)) contacts{};
 	contacts.reserve(entries.size());
 
 	for (const auto [maybeKey, maybeContactStr] : entries) {
@@ -715,7 +718,7 @@ vector<unique_ptr<ExtendedContact>> RegistrarDbRedisAsync::parseContacts(const r
 			continue;
 		}
 
-		auto maybeContact = make_unique<ExtendedContact>(key->data(), contactStr->data());
+		auto maybeContact = make_unique<ExtendedContact>(key->data(), contactStr->data(), messageExpiresName);
 		if (maybeContact->mSipContact) {
 			contacts.push_back(std::move(maybeContact));
 		} else {
@@ -737,11 +740,12 @@ void RegistrarDbRedisAsync::doClear(const MsgSip& msg, const shared_ptr<ContactU
 	try {
 		// Delete the AOR Hashmap using DEL
 		// Once it is done, fetch all the contacts in the AOR and call the onRecordFound of the listener ?
-		auto context = std::make_unique<RedisRegisterContext>(this, SipUri(sip->sip_from->a_url), listener);
+		auto context =
+		    std::make_unique<RedisRegisterContext>(this, SipUri(sip->sip_from->a_url), listener, mRecordConfig);
 
 		const string& key = context->mRecord->getKey();
 		SLOGD << "Clearing fs:" << key << " [" << context->token << "]";
-		mLocalRegExpire->remove(key);
+		mLocalRegExpire.remove(key);
 		cmdSession->timedCommand({"DEL", "fs:" + key}, [context = std::move(context), this](Session&, Reply reply) {
 			handleClear(reply, *context);
 		});
@@ -784,7 +788,7 @@ void RegistrarDbRedisAsync::handleFetch(redis::async::Reply reply, const RedisRe
 		    const auto contacts = array.pairwise();
 		    SLOGD << "GOT " << recordName << " --> " << contacts.size() << " contacts";
 		    if (0 < contacts.size()) {
-			    for (auto&& maybeExpired : parseContacts(contacts)) {
+			    for (auto&& maybeExpired : parseContacts(contacts, context.mRecord->getConfig().messageExpiresName())) {
 				    insertIfActive(maybeExpired);
 			    }
 			    if (listener) listener->onRecordFound(record);
@@ -801,7 +805,8 @@ void RegistrarDbRedisAsync::handleFetch(redis::async::Reply reply, const RedisRe
 		    const char* gruu = context.mUniqueIdToFetch.c_str();
 		    if (!contact.empty()) {
 			    SLOGD << "GOT " << recordName << " for gruu " << gruu << " --> " << contact;
-			    insertIfActive(make_unique<ExtendedContact>(gruu, contact.data()));
+			    insertIfActive(
+			        make_unique<ExtendedContact>(gruu, contact.data(), record->getConfig().messageExpiresName()));
 			    if (listener) listener->onRecordFound(record);
 		    } else {
 			    SLOGD << "Contact matching gruu " << gruu << " in record " << recordName << " not found";
@@ -822,7 +827,7 @@ void RegistrarDbRedisAsync::doFetch(const SipUri& url, const shared_ptr<ContactU
 		return;
 	}
 
-	auto context = std::make_unique<RedisRegisterContext>(this, url, listener);
+	auto context = std::make_unique<RedisRegisterContext>(this, url, listener, mRecordConfig);
 
 	const auto& key = context->mRecord->getKey();
 	SLOGD << "Fetching fs:" << key << " [" << context->token << "]";
@@ -841,7 +846,7 @@ void RegistrarDbRedisAsync::doFetchInstance(const SipUri& url,
 		return;
 	}
 
-	auto context = std::make_unique<RedisRegisterContext>(this, url, listener);
+	auto context = std::make_unique<RedisRegisterContext>(this, url, listener, mRecordConfig);
 	context->mUniqueIdToFetch = uniqueId;
 
 	const auto& recordKey = context->mRecord->getKey();
@@ -865,12 +870,12 @@ void RegistrarDbRedisAsync::fetchExpiringContacts(
 	        std::to_string(startTimestamp),
 	        std::to_string(threshold),
 	    },
-	    [callback = std::move(callback)](Session&, Reply reply) {
+	    [callback = std::move(callback), msgExpiresName = mRecordConfig.messageExpiresName()](Session&, Reply reply) {
 		    if (const auto* array = std::get_if<reply::Array>(&reply)) {
 			    std::vector<ExtendedContact> expiringContacts{};
 			    expiringContacts.reserve(array->size());
 			    for (const auto contact : *array) {
-				    expiringContacts.emplace_back("", std::get<reply::String>(contact).data());
+				    expiringContacts.emplace_back("", std::get<reply::String>(contact).data(), msgExpiresName);
 			    }
 			    callback(std::move(expiringContacts));
 		    }

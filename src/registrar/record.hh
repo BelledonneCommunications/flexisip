@@ -1,6 +1,20 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #pragma once
 
@@ -10,6 +24,7 @@
 #include <string>
 #include <utility>
 
+#include "flexisip/configmanager.hh"
 #include "flexisip/sofia-wrapper/home.hh"
 #include "flexisip/utils/sip-uri.hh"
 
@@ -17,7 +32,6 @@
 
 namespace flexisip {
 
-class Agent;
 class ChangeSet;
 class ContactUpdateListener;
 struct BindingParameters;
@@ -52,8 +66,8 @@ public:
 		friend class RegistrarDbRedisAsync;
 
 		// A null pointer or an empty AOR leads to an empty key.
-		explicit Key(const url_t* aor);
-		explicit Key(const SipUri& aor) : Key(aor.get()) {
+		explicit Key(const url_t* aor, bool useGlobalDomain);
+		explicit Key(const SipUri& aor, bool useGlobalDomain) : Key(aor.get(), useGlobalDomain) {
 		}
 
 		std::string toRedisKey() const {
@@ -85,12 +99,37 @@ public:
 		std::string mWrapped;
 	};
 
-	static std::list<std::string> sLineFieldNames;
-	static int sMaxContacts;
-	static bool sAssumeUniqueDomains;
+	// Retain the configuration parameters used by the record class.
+	class Config {
+	public:
+		explicit Config(const ConfigManager& cfg);
 
-	Record(const SipUri& aor);
-	Record(SipUri&& aor);
+		int getMaxContacts() const {
+			return mMaxContacts;
+		}
+		const std::list<std::string>& getLineFieldNames() const {
+			return mLineFieldNames;
+		}
+		const std::string& messageExpiresName() const {
+			return mMessageExpiresName;
+		}
+		bool assumeUniqueDomains() const {
+			return mAssumeUniqueDomains;
+		}
+		bool useGlobalDomain() const {
+			return mUseGlobalDomain;
+		}
+
+	private:
+		int mMaxContacts;
+		std::list<std::string> mLineFieldNames;
+		std::string mMessageExpiresName;
+		bool mAssumeUniqueDomains;
+		bool mUseGlobalDomain;
+	};
+
+	explicit Record(const SipUri& aor, const Config& recordConfig);
+	explicit Record(SipUri&& aor, const Config& recordConfig);
 	Record(const Record& other) = delete; // disable copy constructor, this is unsafe due to su_home_t here.
 	Record(Record&& other) = delete;      // disable move constructor
 	~Record() = default;
@@ -151,6 +190,9 @@ public:
 	Contacts& getExtendedContacts() {
 		return mContacts;
 	}
+	const Config& getConfig() const {
+		return mConfig;
+	}
 
 	/*
 	 * Synthetise the pub-gruu address from an extended contact belonging to this Record.
@@ -164,12 +206,8 @@ public:
 	 * needed
 	 */
 	ChangeSet applyMaxAor();
-	static int getMaxContacts() {
-		if (sMaxContacts == -1) init();
-		return sMaxContacts;
-	}
 	time_t latestExpire() const;
-	time_t latestExpire(Agent* ag) const;
+	time_t latestExpire(std::function<bool(const url_t*)>& predicate) const;
 	static std::list<std::string> route_to_stl(const sip_route_s* route);
 	void appendContactsFrom(const std::shared_ptr<Record>& src);
 	bool haveOnlyStaticContacts() const {
@@ -177,7 +215,7 @@ public:
 	}
 	bool isSame(const Record& other) const;
 
-	static std::string extractUniqueId(const sip_contact_t* contact);
+	std::string extractUniqueId(const sip_contact_t* contact);
 
 private:
 	enum class ContactMatch {
@@ -185,8 +223,6 @@ private:
 		EraseAndNotify, // Update or Remove
 		ForceErase,     // Service clean up
 	};
-
-	static void init();
 
 	static ContactMatch matchContacts(const ExtendedContact& existing, const ExtendedContact& neo);
 	static void eliminateAmbiguousContacts(std::list<std::unique_ptr<ExtendedContact>>& extendedContacts);
@@ -196,12 +232,13 @@ private:
 	Contacts mContacts;
 	SipUri mAor;
 	Key mKey;
+
 	bool mIsDomain = false; /*is a domain registration*/
+	Config mConfig;
 	bool mOnlyStaticContacts = true;
 };
 
-template <typename TraitsT>
-inline std::basic_ostream<char, TraitsT>& operator<<(std::basic_ostream<char, TraitsT>& strm, const Record& record) {
+inline std::ostream& operator<<(std::ostream& strm, const Record& record) {
 	record.print(strm);
 	return strm;
 }

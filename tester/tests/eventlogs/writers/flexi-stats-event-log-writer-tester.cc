@@ -1,6 +1,20 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include "eventlogs/writers/flexi-stats-event-log-writer.hh"
 
@@ -48,7 +62,7 @@ void callStartedAndEnded() {
 	                                      {"event-logs/flexiapi-port", to_string(port)},
 	                                      {"event-logs/flexiapi-prefix", "api/stats"},
 	                                      {"event-logs/flexiapi-token", "aRandomApiToken"}});
-	const auto builder = proxy->clientBuilder();
+	const ClientBuilder builder{*proxy->getAgent()};
 	const string expectedFrom = "tony@sip.example.org";
 	const string expectedTo = "mike@sip.example.org";
 	auto tony = builder.build(expectedFrom);
@@ -138,7 +152,7 @@ void callToConference() {
 	BC_HARD_ASSERT_TRUE(port > -1);
 	agent->setEventLogWriter(std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "localhost", to_string(port),
 	                                                                    "", "aRandomApiToken"));
-	const auto builder = proxy->clientBuilder();
+	const ClientBuilder builder{*proxy->getAgent()};
 	const auto johan = builder.build("sip:johan@sip.example.org");
 	const string expectedConferenceId = "expected-conf-id";
 	const auto chatroom = "sip:chatroom-" + expectedConferenceId + "@sip.example.org";
@@ -168,7 +182,7 @@ void messageSentAndReceived() {
 	BC_HARD_ASSERT_TRUE(port > -1);
 	agent->setEventLogWriter(std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "localhost", to_string(port),
 	                                                                    "/api/stats/", "aRandomApiToken"));
-	auto builder = proxy->clientBuilder();
+	ClientBuilder builder{*proxy->getAgent()};
 	const string expectedFrom = "tony@sip.example.org";
 	const string expectedTo = "mike@sip.example.org";
 	const auto tony = builder.build(expectedFrom);
@@ -256,7 +270,7 @@ void messageDeviceUnavailable() {
 	BC_HARD_ASSERT_TRUE(port > -1);
 	agent->setEventLogWriter(
 	    std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "localhost", to_string(port), "/", "toktok"));
-	const auto builder = proxy->clientBuilder();
+	const ClientBuilder builder{*proxy->getAgent()};
 	const string expectedFrom = "tony@sip.example.org";
 	const string expectedTo = "mike@sip.example.org";
 	const auto tony = builder.build(expectedFrom);
@@ -411,12 +425,13 @@ void messageToChatroomClearText() {
 	    {"conference-server/database-connection-string", mysqlServer.connectionString()},
 	});
 	const auto& agent = proxy->getAgent();
-	ConfigManager::get()
-	    ->getRoot()
+	proxy->getAgent()
+	    ->getConfigManager()
+	    .getRoot()
 	    ->get<GenericStruct>("conference-server")
 	    ->get<ConfigValue>("outbound-proxy")
 	    ->set("sip:127.0.0.1:"s + proxy->getFirstPort() + ";transport=tcp");
-	auto builder = proxy->clientBuilder();
+	ClientBuilder builder{*proxy->getAgent()};
 	builder.setConferenceFactoryUri(confFactoryUri);
 	builder.setLimeX3DH(OnOff::Off);
 	const string expectedFrom = "clemence@sip.example.org";
@@ -438,7 +453,7 @@ void messageToChatroomClearText() {
 	agent->setEventLogWriter(
 	    std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "localhost", to_string(port), "/", "toktok"));
 	mysqlServer.waitReady();
-	const TestConferenceServer confServer{*agent};
+	const TestConferenceServer confServer(*agent, proxy->getConfigManager(), proxy->getRegistrarDb());
 	const auto before = chrono::system_clock::now();
 
 	clemChat->createMessageFromUtf8("💃🏼")->send();

@@ -1,6 +1,20 @@
-/** Copyright (C) 2010-2022 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <cerrno>
 #include <chrono>
@@ -43,7 +57,7 @@ using CapturedCalls = std::vector<std::string>;
 
 struct TestCli : public flexisip::CommandLineInterface {
 
-	TestCli() : flexisip::CommandLineInterface("cli-tests") {
+	TestCli(const std::shared_ptr<ConfigManager>& cfg) : flexisip::CommandLineInterface("cli-tests", cfg) {
 	}
 
 	void send(const std::string& command) {
@@ -85,7 +99,8 @@ public:
 };
 
 void handler_registration_and_dispatch() {
-	TestCli socket_listener{};
+	auto cfg = std::make_shared<ConfigManager>();
+	TestCli socket_listener(cfg);
 	auto passthrough_handler = TestHandler("");
 	socket_listener.registerHandler(passthrough_handler);
 
@@ -140,7 +155,7 @@ void handler_registration_and_dispatch() {
 
 	// Cli with a shorter lifetime than the handler
 	{
-		TestCli temp_listener{};
+		TestCli temp_listener(cfg);
 		temp_listener.registerHandler(passthrough_handler);
 	}
 	passthrough_handler.unregister(); // No asserts, this would simply crash the program
@@ -160,7 +175,7 @@ template <typename Database>
 void flexisip_cli_dot_py() {
 	Database db{};
 	Server proxyServer(db.configAsMap());
-	ProxyCommandLineInterface cli(proxyServer.getAgent());
+	ProxyCommandLineInterface cli(proxyServer.getConfigManager(), proxyServer.getAgent());
 	const auto cliReady = cli.start();
 	BcAssert asserter{[&root = *proxyServer.getRoot()] { root.step(1ms); }};
 	const auto pid = std::to_string(getpid());
@@ -369,7 +384,7 @@ void flexisip_cli_dot_py() {
 	{ // REGISTRAR_UPSERT with a contact parameter (priority)
 		const auto aor4 = "sip:test4@sip.example.org";
 		const auto contactWithPriority = "<"s + aor4 + ">;q=0.3";
-		auto* regDb = RegistrarDb::get();
+		auto& regDb = proxyServer.getAgent()->getRegistrarDb();
 		const auto listener = std::make_shared<SuccessfulBindListener>();
 
 		command.str("");
@@ -381,7 +396,7 @@ void flexisip_cli_dot_py() {
 		const auto uid = returned_contact["unique-id"].asString();
 		BC_ASSERT_TRUE(StringUtils::startsWith(uid, "fs-cli-gen"));
 
-		regDb->fetch(SipUri(aor4), listener);
+		regDb.fetch(SipUri(aor4), listener);
 		BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(7, [&record = listener->mRecord] { return !!record; }));
 
 		const auto& fetchedContacts = listener->mRecord->getExtendedContacts();

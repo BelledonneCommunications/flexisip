@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -32,11 +32,11 @@ class RelayedCall;
 class MediaRelayServer;
 
 class MediaRelay : public Module, protected ModuleToolbox {
+	friend std::shared_ptr<Module> ModuleInfo<MediaRelay>::create(Agent*);
 	friend class MediaRelayServer;
 	friend class RelayedCall;
 
 public:
-	MediaRelay(Agent* ag);
 	~MediaRelay();
 	virtual void onLoad(const GenericStruct* modconf);
 	virtual void onUnload();
@@ -44,10 +44,9 @@ public:
 	virtual void onResponse(std::shared_ptr<ResponseSipEvent>& ev);
 	virtual void onIdle();
 
-protected:
-	virtual void onDeclare(GenericStruct* mc);
-
 private:
+	MediaRelay(Agent* ag, const ModuleInfoBase* moduleInfo);
+
 	bool isInviteOrUpdate(sip_method_t method) const;
 	void createServers();
 	bool processNewInvite(const std::shared_ptr<RelayedCall>& c,

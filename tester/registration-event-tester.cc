@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -88,31 +88,29 @@ void basicSubscription() {
 		transports->setTcpPort(LC_SIP_TRANSPORT_RANDOM);
 		regEventCore->setTransports(transports);
 	}
-	regEventCore->addListener(make_shared<flexisip::RegistrationEvent::Server::Subscriptions>());
+	regEventCore->addListener(make_shared<flexisip::RegistrationEvent::Server::Subscriptions>(proxy.getRegistrarDb()));
 	regEventCore->start();
-	ConfigManager::get()
-	    ->getRoot()
-	    ->get<GenericStruct>("module::RegEvent")
+	auto* configRoot = proxy.getConfigManager()->getRoot();
+	configRoot->get<GenericStruct>("module::RegEvent")
 	    ->get<ConfigValue>("regevent-server")
 	    ->set("sip:127.0.0.1:"s + std::to_string(regEventCore->getTransportsUsed()->getTcpPort()) + ";transport=tcp");
 	proxy.start();
-	ConfigManager::get()
-	    ->getRoot()
-	    ->get<GenericStruct>("conference-server")
+	configRoot->get<GenericStruct>("conference-server")
 	    ->get<ConfigValue>("outbound-proxy")
 	    ->set("sip:127.0.0.1:"s + proxy.getFirstPort() + ";transport=tcp");
 	// Client initialisation
-	const auto client = proxy.clientBuilder().setConferenceFactoryUri(confFactoryUri).build("sip:test@sip.example.org");
+	const auto client =
+	    ClientBuilder(*proxy.getAgent()).setConferenceFactoryUri(confFactoryUri).build("sip:test@sip.example.org");
 	const auto& agent = *proxy.getAgent();
 	// Conference Server
-	TestConferenceServer conferenceServer(agent);
-	auto& regDb = *RegistrarDb::get();
+	TestConferenceServer conferenceServer(agent, proxy.getConfigManager(), proxy.getRegistrarDb());
+	auto& regDb = proxy.getAgent()->getRegistrarDb();
 	ContactInserter inserter{regDb, std::make_shared<AcceptUpdatesListener>()};
 	const string participantFrom = "sip:participant1@localhost";
-	const Record::Key participantTopic{SipUri(participantFrom)};
+	const Record::Key participantTopic{SipUri(participantFrom), regDb.useGlobalDomain()};
 	const auto participantAddress = linFactory->createAddress(participantFrom);
 	const string otherParticipantFrom = "sip:participant2@localhost";
-	const Record::Key otherParticipantTopic{SipUri(otherParticipantFrom)};
+	const Record::Key otherParticipantTopic{SipUri(otherParticipantFrom), regDb.useGlobalDomain()};
 	// Fill the Regisrar DB with participants
 	inserter.withGruu(true)
 	    .setExpire(1000s)

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -40,8 +40,6 @@ namespace RegistrationEvent {
 
 static constexpr const char* CONTENT_TYPE = "application/reginfo+xml";
 
-Server::Init Server::sStaticInit; // The Init object is instanciated to load the config
-
 void Server::Subscriptions::onSubscribeReceived(const shared_ptr<Core>& core,
                                                 const shared_ptr<linphone::Event>& lev,
                                                 const string&,
@@ -67,7 +65,7 @@ void Server::Subscriptions::onSubscribeReceived(const shared_ptr<Core>& core,
 		return;
 	}
 
-	const auto result = mEvents.emplace(Record::Key(url), lev);
+	const auto result = mEvents.emplace(Record::Key(url, mRegistrarDb->useGlobalDomain()), lev);
 	if (!result.second) {
 		SLOGE << "Regevent server: There is already a subscription for: " << result.first->first;
 		lev->denySubscription(Reason::Busy);
@@ -78,9 +76,10 @@ void Server::Subscriptions::onSubscribeReceived(const shared_ptr<Core>& core,
 	lev->acceptSubscription();
 	// We need the core to send the NOTIFY (and it holds `this`). So we pass it as the callback to make sure it lives
 	// long enough
-	RegistrarDb::get()->fetch(url, {core, this}, true);
+	mRegistrarDb->fetch(url, {core, this}, true);
 	// Subscribe takes a weak_ptr. Passing it the event itself lets us unsubscribe automatically by deleting the event.
-	RegistrarDb::get()->subscribe(Record::Key(url), std::shared_ptr<ContactRegisteredListener>{lev, this});
+	mRegistrarDb->subscribe(Record::Key(url, mRegistrarDb->useGlobalDomain()),
+	                        std::shared_ptr<ContactRegisteredListener>{lev, this});
 }
 
 void Server::Subscriptions::onSubscriptionStateChanged(const std::shared_ptr<linphone::Core>&,
@@ -96,7 +95,7 @@ void Server::Subscriptions::onSubscriptionStateChanged(const std::shared_ptr<lin
 				return;
 			}
 
-			mEvents.erase(Record::Key(url));
+			mEvents.erase(Record::Key(url, mRegistrarDb->useGlobalDomain()));
 		} break;
 		default:
 			break;
@@ -188,7 +187,7 @@ void Server::Subscriptions::processRecord(const shared_ptr<Record>& r, const std
 
 void Server::_init() {
 	mCore = Factory::get()->createCore("", "", nullptr);
-	auto config = ConfigManager::get()->getRoot()->get<GenericStruct>("regevent-server");
+	const auto* config = mConfigManager->getRoot()->get<GenericStruct>("regevent-server");
 
 	mCore->getConfig()->setString("storage", "uri", "null");
 
@@ -206,7 +205,7 @@ void Server::_init() {
 	}
 
 	mCore->setTransports(regEventTransport);
-	mCore->addListener(make_shared<Subscriptions>());
+	mCore->addListener(make_shared<Subscriptions>(mRegistrarDb));
 	mCore->start();
 }
 
@@ -218,7 +217,9 @@ void Server::_stop() {
 	mCore = nullptr;
 }
 
-Server::Init::Init() {
+namespace {
+// Statically define default configuration items
+auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
 	ConfigItemDescriptor items[] = {{String, "transport", "SIP uri on which the RegEvent server is listening on.",
 	                                 "sip:127.0.0.1:6065;transport=tcp"},
 	                                config_item_end};
@@ -231,10 +232,10 @@ Server::Init::Init() {
 	    "To generate the outgoing NOTIFY, it will rely upon the registrar database, as setup in module::Registrar "
 	    "section.",
 	    0);
-	auto s = ConfigManager::get()->getRoot()->addChild(std::move(uS));
+	auto* s = root.addChild(std::move(uS));
 	s->addChildrenValues(items);
-}
-
+});
+} // namespace
 } // namespace RegistrationEvent
 
 } // namespace flexisip

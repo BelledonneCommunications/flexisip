@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -45,7 +45,7 @@
 #include "utils/client-call.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
-#include "utils/injected-module.hh"
+#include "utils/injected-module-info.hh"
 #include "utils/proxy-server.hh"
 #include "utils/temp-file.hh"
 #include "utils/test-patterns/test.hh"
@@ -73,16 +73,19 @@ private:
 	std::shared_ptr<flexisip::B2buaServer> mB2buaServer;
 
 public:
-	explicit B2buaServer(const std::string& configFile = string(), bool start = true, Module* injectedModule = nullptr)
+	explicit B2buaServer(const std::string& configFile = string(),
+	                     bool start = true,
+	                     InjectedHooks* injectedModule = nullptr)
 	    : Server(configFile, injectedModule) {
 
 		if (!configFile.empty()) {
 			// Configure B2bua Server
-			auto* b2buaServerConf = ConfigManager::get()->getRoot()->get<GenericStruct>("b2bua-server");
+			auto* b2buaServerConf = getConfigManager()->getRoot()->get<GenericStruct>("b2bua-server");
 			// b2bua server needs an outbound proxy to route all sip messages to the proxy, set it to the first
 			// transport of the proxy.
-			auto proxyTransports = ConfigManager::get()
-			                           ->getRoot()
+			auto proxyTransports = getAgent()
+			                           ->getConfigManager()
+			                           .getRoot()
 			                           ->get<GenericStruct>("global")
 			                           ->get<ConfigStringList>("transports")
 			                           ->read();
@@ -91,7 +94,7 @@ public:
 			b2buaServerConf->get<ConfigString>("data-directory")->set(bcTesterWriteDir());
 		}
 
-		mB2buaServer = make_shared<flexisip::B2buaServer>(this->getRoot());
+		mB2buaServer = make_shared<flexisip::B2buaServer>(this->getRoot(), this->getConfigManager());
 
 		if (start) {
 			this->start();
@@ -109,7 +112,7 @@ public:
 		init();
 
 		// Configure module b2bua
-		const auto configRoot = ConfigManager::get()->getRoot();
+		const auto* configRoot = getAgent()->getConfigManager().getRoot();
 		const auto& transport = configRoot->get<GenericStruct>("b2bua-server")->get<ConfigString>("transport")->read();
 		configRoot->get<GenericStruct>("module::B2bua")->get<ConfigString>("b2bua-server")->set(transport);
 
@@ -233,14 +236,14 @@ static void external_provider_bridge__one_provider_one_line() {
 	server->configureExternalProviderBridge(std::move(providers));
 
 	// Doesn't match any external provider
-	auto intercom = InternalClient("sip:intercom@sip.company1.com", server);
-	auto unmatched_phone = ExternalClient("sip:+33937999152@sip.provider1.com", server);
+	auto intercom = InternalClient("sip:intercom@sip.company1.com", server->getAgent());
+	auto unmatched_phone = ExternalClient("sip:+33937999152@sip.provider1.com", server->getAgent());
 	auto invite = intercom.invite(unmatched_phone);
 	if (!BC_ASSERT_PTR_NOT_NULL(invite)) return;
 	BC_ASSERT_FALSE(unmatched_phone.hasReceivedCallFrom(intercom));
 
 	// Happy path
-	auto phone = ExternalClient("sip:+39067362350@sip.provider1.com;user=phone", server);
+	auto phone = ExternalClient("sip:+39067362350@sip.provider1.com;user=phone", server->getAgent());
 	auto com_to_bridge = intercom.call(phone);
 	if (!BC_ASSERT_PTR_NOT_NULL(com_to_bridge)) return;
 	auto outgoing_log = phone.getCallLog();
@@ -248,8 +251,8 @@ static void external_provider_bridge__one_provider_one_line() {
 	BC_ASSERT_TRUE(outgoing_log->getRemoteAddress()->asString() == line1);
 
 	// No external lines available to bridge the call
-	auto other_intercom = InternalClient("sip:otherintercom@sip.company1.com", server);
-	auto other_phone = ExternalClient("sip:+39064181877@sip.provider1.com", server);
+	auto other_intercom = InternalClient("sip:otherintercom@sip.company1.com", server->getAgent());
+	auto other_phone = ExternalClient("sip:+39064181877@sip.provider1.com", server->getAgent());
 	invite = other_intercom.invite(other_phone);
 	BC_ASSERT_PTR_NOT_NULL(invite);
 	BC_ASSERT_FALSE(other_phone.hasReceivedCallFrom(other_intercom));
@@ -277,8 +280,8 @@ static void external_provider_bridge__dtmf_forwarding() {
 	                                           "",
 	                                       }}}};
 	server->configureExternalProviderBridge(std::move(providers));
-	auto intercom = InternalClient("sip:intercom@sip.company1.com", server);
-	auto phone = ExternalClient("sip:+39064728917@sip.provider1.com;user=phone", server);
+	auto intercom = InternalClient("sip:intercom@sip.company1.com", server->getAgent());
+	auto phone = ExternalClient("sip:+39064728917@sip.provider1.com;user=phone", server->getAgent());
 	CoreAssert asserter{intercom.getCore(), phone.getCore(), server};
 	auto legAListener = make_shared<DtmfListener>();
 	auto legBListener = make_shared<DtmfListener>();
@@ -334,12 +337,12 @@ static void external_provider_bridge__call_release() {
 		BC_ASSERT_TRUE(reader->parse(raw.begin().base(), raw.end().base(), &info, nullptr));
 		return std::move(info["providers"][0]["accounts"]);
 	};
-	InternalClient callers[] = {InternalClient("sip:caller1@sip.company1.com", server),
-	                            InternalClient("sip:caller2@sip.company1.com", server),
-	                            InternalClient("sip:caller3@sip.company1.com", server)};
-	ExternalClient callees[] = {ExternalClient("sip:callee1@sip.provider1.com", server),
-	                            ExternalClient("sip:callee2@sip.provider1.com", server),
-	                            ExternalClient("sip:callee3@sip.provider1.com", server)};
+	InternalClient callers[] = {InternalClient("sip:caller1@sip.company1.com", server->getAgent()),
+	                            InternalClient("sip:caller2@sip.company1.com", server->getAgent()),
+	                            InternalClient("sip:caller3@sip.company1.com", server->getAgent())};
+	ExternalClient callees[] = {ExternalClient("sip:callee1@sip.provider1.com", server->getAgent()),
+	                            ExternalClient("sip:callee2@sip.provider1.com", server->getAgent()),
+	                            ExternalClient("sip:callee3@sip.provider1.com", server->getAgent())};
 	// Let's setup a long-running background call that will take the first slot
 	// X | _
 	// _ | _
@@ -383,7 +386,7 @@ static void external_provider_bridge__load_balancing() {
 	    {"module::Registrar/reg-domains", "sip.provider1.com sip.company1.com"},
 	}};
 	proxy.start();
-	const auto builder = proxy.clientBuilder();
+	const ClientBuilder builder{*proxy.getAgent()};
 	const auto intercom = builder.build("sip:caller@sip.company1.com");
 	// Fake a call close enough to what the AccountManager will be taking as input
 	// Only incoming calls have a request address, so we need a stand-in client to receive it
@@ -464,14 +467,14 @@ static void external_provider_bridge__load_balancing() {
 static void external_provider_bridge__parse_register_authenticate() {
 	using namespace flexisip::b2bua;
 	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf", false);
-	ConfigManager::get()
+	server->getConfigManager()
 	    ->getRoot()
 	    ->get<GenericStruct>("b2bua-server")
 	    ->get<ConfigString>("application")
 	    ->set("sip-bridge");
 	server->start();
 	auto& accman = dynamic_cast<flexisip::b2bua::bridge::AccountManager&>(server->getModule());
-	auto builder = server->clientBuilder();
+	ClientBuilder builder{*server->getAgent()};
 
 	// Only one account is registered and available
 	InternalClient intercom = builder.build("sip:intercom@sip.company1.com");
@@ -481,7 +484,7 @@ static void external_provider_bridge__parse_register_authenticate() {
 	BC_ASSERT_TRUE(phone.getCallLog()->getRemoteAddress()->asString() == "sip:registered@auth.provider1.com");
 
 	// Other accounts couldn't register, and can't be used to bridge calls
-	const auto other_intercom = InternalClient("sip:otherintercom@sip.company1.com", server);
+	const auto other_intercom = InternalClient("sip:otherintercom@sip.company1.com", server->getAgent());
 	const ExternalClient other_phone =
 	    builder.setPassword("RPtTmGH75GWku6bF").build("sip:+39067864963@auth.provider1.com");
 	const auto invite = other_intercom.invite(other_phone);
@@ -533,9 +536,7 @@ static void external_provider_bridge__override_special_options() {
 		 ]
 		}
 	])");
-	ConfigItemDescriptor configItems[] = {{String, "providers", "help", providersJson.name}, config_item_end};
-	RootConfigStruct config("placeholder", "A stub config root for testing", {});
-	config.addChild(make_unique<GenericStruct>("b2bua-server::sip-bridge", "help", 0))->addChildrenValues(configItems);
+
 	b2bua::bridge::AccountManager accman{};
 	Server proxy{{
 	    // Requesting bind on port 0 to let the kernel find any available port
@@ -543,8 +544,17 @@ static void external_provider_bridge__override_special_options() {
 	    {"module::Registrar/enabled", "true"},
 	    {"module::Registrar/reg-domains", "sip.example.com"},
 	}};
+
+	{
+		ConfigItemDescriptor configItems[] = {{String, "providers", "help", providersJson.name}, config_item_end};
+		proxy.getConfigManager()
+		    ->getRoot()
+		    ->addChild(make_unique<GenericStruct>("b2bua-server::sip-bridge", "help", 0))
+		    ->addChildrenValues(configItems);
+	}
 	proxy.start();
-	const auto builder = proxy.clientBuilder();
+
+	const ClientBuilder builder{*proxy.getAgent()};
 	const auto caller = builder.build("sip:caller@sip.example.com");
 	// Fake a call close enough to what the AccountManager will be taking as input
 	// Only incoming calls have a request address, so we need a stand-in client to receive it
@@ -554,7 +564,7 @@ static void external_provider_bridge__override_special_options() {
 	const auto call = ClientCall::getLinphoneCall(*callee.getCurrentCall());
 	BC_HARD_ASSERT_TRUE(call->getRequestAddress()->asStringUriOnly() != "");
 	const auto core = minimalCore(*linphone::Factory::get());
-	accman.init(core, config);
+	accman.init(core, proxy.getAgent()->getConfigManager());
 	auto params = core->createCallParams(call);
 	params->setMediaEncryption(MediaEncryption::ZRTP);
 	params->enableAvpf(true);
@@ -593,7 +603,7 @@ static void external_provider_bridge__b2bua_receives_several_forks() {
 	using namespace flexisip::b2bua;
 	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf", false);
 	{
-		auto root = ConfigManager::get()->getRoot();
+		auto* root = server->getConfigManager()->getRoot();
 		root->get<GenericStruct>("b2bua-server")->get<ConfigString>("application")->set("sip-bridge");
 		root->get<GenericStruct>("b2bua-server::sip-bridge")
 		    ->get<ConfigString>("providers")
@@ -608,21 +618,21 @@ static void external_provider_bridge__b2bua_receives_several_forks() {
 	server->start();
 
 	// 1 Caller
-	auto intercom = CoreClient("sip:intercom@sip.company1.com", server);
+	auto intercom = CoreClient("sip:intercom@sip.company1.com", server->getAgent());
 	// 1 Intended destination
 	auto address = "sip:app@sip.company1.com";
 	// 2 Bystanders used to register the same fallback contact twice.
-	auto app1 = server
-	                ->clientBuilder()
+	auto app1 = ClientBuilder(*server->getAgent())
 	                // Whatever follows the @ in a `user=phone` contact has no importance. Only the username (which
 	                // should be a phone number) is used for bridging. It would be tempting, then, to set this to the
 	                // domain of the proxy, however that's a mistake. Doing so will flag the contact as an alias and the
 	                // Router module will discard it before it reaches the Forward module.
 	                .setCustomContact("sip:phone@42.42.42.42:12345;user=phone")
 	                .build(address);
-	auto app2 = server->clientBuilder().setCustomContact("sip:phone@24.24.24.24:54321;user=phone").build(address);
+	auto app2 =
+	    ClientBuilder(*server->getAgent()).setCustomContact("sip:phone@24.24.24.24:54321;user=phone").build(address);
 	// 1 Client on an external domain that will answer one of the calls
-	auto phone = CoreClient("sip:phone@sip.provider1.com", server);
+	auto phone = CoreClient("sip:phone@sip.provider1.com", server->getAgent());
 	auto phoneCore = phone.getCore();
 	phoneCore->getConfig()->setBool("sip", "reject_duplicated_calls", false);
 
@@ -759,15 +769,15 @@ static void external_provider_bridge__max_call_duration() {
 		 ]
 		}
 	])";
-	const auto b2bua = make_shared<flexisip::B2buaServer>(proxy.getRoot());
+	const auto b2bua = make_shared<flexisip::B2buaServer>(proxy.getRoot(), proxy.getConfigManager());
 	b2bua->init();
-	ConfigManager::get()
+	proxy.getConfigManager()
 	    ->getRoot()
 	    ->get<GenericStruct>("module::B2bua")
 	    ->get<ConfigString>("b2bua-server")
 	    ->set("sip:127.0.0.1:" + to_string(b2bua->getTcpPort()) + ";transport=tcp");
 	proxy.getAgent()->findModule("B2bua")->reload();
-	auto builder = proxy.clientBuilder();
+	ClientBuilder builder{*proxy.getAgent()};
 	InternalClient caller = builder.build("sip:caller@sip.company1.com");
 	ExternalClient callee = builder.build("sip:callee@sip.provider1.com");
 	CoreAssert asserter{caller.getCore(), proxy, callee.getCore()};
@@ -797,7 +807,7 @@ static void external_provider_bridge__max_call_duration() {
 static void trenscrypter__uses_aor_and_not_contact() {
 	const auto unexpectedRecipient = "sip:unexpected@sip.example.org";
 	SipUri injectedRequestUrl{unexpectedRecipient};
-	InjectedHooks hooks{{
+	InjectedHooks hooks{
 	    .onRequest =
 	        [&injectedRequestUrl](const std::shared_ptr<RequestSipEvent>& responseEvent) {
 		        const auto* sip = responseEvent->getSip();
@@ -809,9 +819,9 @@ static void trenscrypter__uses_aor_and_not_contact() {
 		        // Mangle the request address
 		        sip->sip_request->rq_url[0] = *injectedRequestUrl.get();
 	        },
-	}};
+	};
 	B2buaServer server{"config/flexisip_b2bua.conf", true, &hooks};
-	auto builder = server.clientBuilder();
+	ClientBuilder builder{*server.getAgent()};
 	auto caller = builder.build("sip:caller@sip.example.org");
 	auto unexpected = builder.build(unexpectedRecipient);
 	const auto intendedRecipient = "sip:intended@sip.example.org";
@@ -829,7 +839,7 @@ static void request_header__user_agent() {
 	constexpr auto unexpected{"unexpected-user-agent-value"};
 	std::string userAgentValue{unexpected};
 
-	InjectedHooks hooks{{
+	InjectedHooks hooks{
 	    .onRequest =
 	        [&userAgentValue](const std::shared_ptr<RequestSipEvent>& responseEvent) {
 		        const auto* sip = responseEvent->getSip();
@@ -840,12 +850,16 @@ static void request_header__user_agent() {
 
 		        userAgentValue = sip_user_agent(sip)->g_string;
 	        },
-	}};
+	};
 	B2buaServer server{"config/flexisip_b2bua.conf", false, &hooks};
-	ConfigManager::get()->getRoot()->get<GenericStruct>("b2bua-server")->get<ConfigString>("user-agent")->set(expected);
+	server.getConfigManager()
+	    ->getRoot()
+	    ->get<GenericStruct>("b2bua-server")
+	    ->get<ConfigString>("user-agent")
+	    ->set(expected);
 	server.start();
 
-	const auto caller = server.clientBuilder().build("sip:caller@sip.example.org");
+	const auto caller = ClientBuilder(*server.getAgent()).build("sip:caller@sip.example.org");
 	CoreAssert asserter{caller, server};
 
 	caller.invite("sip:recipient@sip.example.org");
@@ -864,13 +878,14 @@ static void request_header__user_agent() {
 
 // Test value of "user-agent" parameter in b2bua-server.
 static void configuration__user_agent() {
-	const auto cfg = ConfigManager::get();
-	const auto serverConfig = cfg->getRoot()->get<GenericStruct>("b2bua-server");
+	const auto getServerConfig = [](const B2buaServer& server) {
+		return server.getAgent()->getConfigManager().getRoot()->get<GenericStruct>("b2bua-server");
+	};
 
 	// Test exception is thrown when parameter is ill-formed: string is empty.
 	{
 		B2buaServer server{"", false};
-		serverConfig->get<ConfigString>("user-agent")->set("");
+		getServerConfig(server)->get<ConfigString>("user-agent")->set("");
 		BC_ASSERT_THROWN(server.init(), std::runtime_error);
 	}
 
@@ -878,7 +893,7 @@ static void configuration__user_agent() {
 	{
 		B2buaServer server{"", false};
 		const auto expected = ".!%*_+`'~-12-Hello-";
-		serverConfig->get<ConfigString>("user-agent")->set(expected);
+		getServerConfig(server)->get<ConfigString>("user-agent")->set(expected);
 
 		server.init();
 
@@ -889,7 +904,7 @@ static void configuration__user_agent() {
 	{
 		B2buaServer server{"", false};
 		const auto expected = "1-.!%*_+`'~-test-name/test_version-.!%*_+`'~";
-		serverConfig->get<ConfigString>("user-agent")->set(expected);
+		getServerConfig(server)->get<ConfigString>("user-agent")->set(expected);
 
 		server.init();
 
@@ -900,7 +915,7 @@ static void configuration__user_agent() {
 	{
 		B2buaServer server{"", false};
 		const auto expected = "a-test-.!%*_+`'~/";
-		serverConfig->get<ConfigString>("user-agent")->set(expected + string("{version}"));
+		getServerConfig(server)->get<ConfigString>("user-agent")->set(expected + string("{version}"));
 
 		server.init();
 
@@ -910,6 +925,7 @@ static void configuration__user_agent() {
 	// Test exception is thrown when parameter is ill-formed: <wrong_name>/<version>|{version}.
 	{
 		B2buaServer server{"", false};
+		const auto serverConfig = getServerConfig(server);
 		serverConfig->get<ConfigString>("user-agent")->set("name-with-illegal-character-{/.!%*_+`'~-0-Test-version");
 		BC_ASSERT_THROWN(server.init(), std::runtime_error);
 
@@ -920,7 +936,9 @@ static void configuration__user_agent() {
 	// Test exception is thrown when parameter is ill-formed: <name>/<wrong_version>.
 	{
 		B2buaServer server{"", false};
-		serverConfig->get<ConfigString>("user-agent")->set("1-.!%*_+`'~-test-name/version-with-illegal-character-{");
+		getServerConfig(server)
+		    ->get<ConfigString>("user-agent")
+		    ->set("1-.!%*_+`'~-test-name/version-with-illegal-character-{");
 		BC_ASSERT_THROWN(server.init(), std::runtime_error);
 	}
 }
@@ -930,11 +948,15 @@ static void basic() {
 	// Create a server and start it
 	auto server = make_shared<Server>("config/flexisip_b2bua.conf");
 	// flexisip_b2bua config file enables the module B2bua in proxy, disable it for this basic test
-	ConfigManager::get()->getRoot()->get<GenericStruct>("module::B2bua")->get<ConfigBoolean>("enabled")->set("false");
+	server->getConfigManager()
+	    ->getRoot()
+	    ->get<GenericStruct>("module::B2bua")
+	    ->get<ConfigBoolean>("enabled")
+	    ->set("false");
 	server->start();
 
 	// create clients and register them on the server
-	auto builder = server->clientBuilder();
+	ClientBuilder builder{*server->getAgent()};
 	builder.setVideoSend(OnOff::On);
 	auto pauline = builder.build("sip:pauline@sip.example.org");
 	auto marie = builder.build("sip:marie@sip.example.org");
@@ -983,7 +1005,7 @@ static bool mixedEncryption(const std::string& marieName,
                             bool video) {
 	// initialize and start the proxy and B2bua server
 	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf");
-	auto builder = server->clientBuilder();
+	ClientBuilder builder{*server->getAgent()};
 	builder.setVideoSend(OnOff::On);
 	// Create and register clients
 	auto marie = builder.build(marieName);
@@ -1097,7 +1119,7 @@ static void zrtp2dtls() {
 static void sdes2sdes256(bool video) {
 	// initialize and start the proxy and B2bua server
 	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf");
-	auto builder = server->clientBuilder();
+	ClientBuilder builder{*server->getAgent()};
 	builder.setVideoSend(OnOff::On);
 	// Create and register clients
 	auto sdes = builder.build("sip:b2bua_srtp@sip.example.org");
@@ -1166,7 +1188,7 @@ static void trenscrypter__video_call_with_forced_codec() {
 	// initialize and start the proxy and B2bua server
 	B2buaServer server{"config/flexisip_b2bua.conf"};
 	// Create and register clients
-	auto builder = server.clientBuilder();
+	ClientBuilder builder{*server.getAgent()};
 	builder.setVideoSend(OnOff::On);
 	auto pauline = builder.build("sip:pauline@sip.example.org");
 	auto marie = builder.build("sip:marie@sip.example.org");
@@ -1196,8 +1218,8 @@ static void videoRejected() {
 	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf");
 	{
 		// Create and register clients
-		auto marie = make_shared<CoreClient>("sip:marie@sip.example.org", server);
-		auto pauline = make_shared<CoreClient>("sip:pauline@sip.example.org", server);
+		auto marie = make_shared<CoreClient>("sip:marie@sip.example.org", server->getAgent());
+		auto pauline = make_shared<CoreClient>("sip:pauline@sip.example.org", server->getAgent());
 		CoreAssert asserter{marie, pauline, server};
 
 		auto marieCallParams = marie->getCore()->createCallParams(nullptr);

@@ -1,6 +1,20 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <map>
 #include <memory>
@@ -25,7 +39,7 @@
 #include "utils/client-call.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
-#include "utils/injected-module.hh"
+#include "utils/injected-module-info.hh"
 #include "utils/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -52,7 +66,7 @@ const std::map<std::string, std::string> CONFIG{
  * properly masquerade the SDP, resulting in one side not getting audio.
  */
 void ice_candidates_in_response_only() {
-	InjectedHooks hooks{{
+	InjectedHooks hooks{
 	    .onResponse =
 	        [](const auto& responseEvent) {
 		        auto& message = *responseEvent->getMsgSip();
@@ -77,10 +91,10 @@ void ice_candidates_in_response_only() {
 		            "6796095525 2 udp 2130706430 2604:a880:4:1d0::76b:0 27151 typ host generation 0");
 		        BC_ASSERT_TRUE(sdpModifier->update(msg, sip) != -1);
 	        },
-	}};
+	};
 	Server server(CONFIG, &hooks);
 	server.start();
-	auto builder = server.clientBuilder();
+	ClientBuilder builder{*server.getAgent()};
 	auto nelly = builder.build("sip:Nelly@sip.example.org");
 	auto lola = builder.build("sip:Lola@sip.example.org");
 
@@ -109,7 +123,7 @@ public:
 void ice_candidates_are_not_erased_in_a_valid_context() {
 	Server server(CONFIG);
 	server.start();
-	auto builder = server.clientBuilder();
+	ClientBuilder builder{*server.getAgent()};
 	builder.setIce(OnOff::On);
 	auto nelly = builder.build("sip:Nelly@sip.example.org");
 	auto lola = builder.build("sip:Lola@sip.example.org");
@@ -121,7 +135,7 @@ void ice_candidates_are_not_erased_in_a_valid_context() {
 void early_media_video_sendrecv_takeover() {
 	Server server(CONFIG);
 	server.start();
-	auto builder = server.clientBuilder();
+	ClientBuilder builder{*server.getAgent()};
 	const auto doorBell =
 	    builder.setVideoReceive(OnOff::Off).setVideoSend(OnOff::On).build("sip:door-bell@sip.example.org");
 	const auto appUri = "sip:app@sip.example.org";
@@ -176,7 +190,7 @@ void early_media_video_sendrecv_takeover() {
 void early_media_bidirectional_video() {
 	Server server(CONFIG);
 	server.start();
-	auto builder = server.clientBuilder();
+	ClientBuilder builder{*server.getAgent()};
 	builder.setVideoReceive(OnOff::On).setVideoSend(OnOff::On);
 	const auto paul = builder.build("sip:paul@sip.example.org");
 	const auto clem = "sip:clem@sip.example.org";

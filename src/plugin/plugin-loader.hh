@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -35,8 +35,8 @@ class PluginLoaderPrivate;
 
 class PluginLoader {
 public:
-	PluginLoader(Agent* agent);
-	PluginLoader(Agent* agent, const std::string& filename);
+	PluginLoader();
+	PluginLoader(const std::string& filename);
 	~PluginLoader();
 
 	const std::string& getFilename() const;
@@ -45,8 +45,6 @@ public:
 	bool isLoaded() const;
 	bool load();
 	bool unload();
-
-	Module* get();
 
 	const ModuleInfoBase* getModuleInfo();
 
@@ -64,14 +62,11 @@ public:
 	}
 
 	SharedLibrary(SharedLibrary&& other)
-	    : module(other.module), mFilename(std::move(other.mFilename)), mLibrary(other.mLibrary),
-	      mRefCounter(other.mRefCounter) {
-		other.module = nullptr;
+	    : mFilename(std::move(other.mFilename)), mLibrary(other.mLibrary), mRefCounter(other.mRefCounter) {
 		other.mLibrary = nullptr;
 	}
 
 	~SharedLibrary() {
-		if (module) delete module;
 		if (mLibrary) dlclose(mLibrary);
 	}
 
@@ -89,8 +84,6 @@ public:
 		return mLibrary;
 	}
 
-	Module* module = nullptr;
-
 private:
 	std::string mFilename;
 	void* mLibrary;
@@ -100,7 +93,6 @@ private:
 
 class PluginLoaderPrivate {
 public:
-	Agent* agent = nullptr;
 	std::string filename;
 
 	SharedLibrary* sharedLibrary = nullptr;

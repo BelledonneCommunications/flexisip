@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -29,10 +29,9 @@
 #include <sofia-sip/nta.h>
 #include <sofia-sip/sip.h>
 
+#include "flexisip/sofia-wrapper/msg-sip.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
 
-#include "agent.hh"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "libhiredis-wrapper/redis-async-session.hh"
 #include "libhiredis-wrapper/redis-auth.hh"
 #include "libhiredis-wrapper/redis-reply.hh"
@@ -40,6 +39,7 @@
 #include "registrar/binding-parameters.hh"
 #include "registrar/change-set.hh"
 #include "registrar/extended-contact.hh"
+#include "registrar/record.hh"
 #include "registrar/registrar-db.hh"
 
 namespace flexisip {
@@ -100,7 +100,7 @@ struct RedisRegisterContext {
 	std::shared_ptr<Record> mRecord;
 	ChangeSet mChangeSet{};
 	unsigned long token = 0;
-	su_timer_t* mRetryTimer = nullptr;
+	std::unique_ptr<sofiasip::Timer> mRetryTimer;
 	int mRetryCount = 0;
 	bool mUpdateExpire = false;
 	MsgSip mMsg;
@@ -108,14 +108,19 @@ struct RedisRegisterContext {
 	std::string mUniqueIdToFetch;
 
 	template <typename T>
-	RedisRegisterContext(RegistrarDbRedisAsync* s, T&& url, const std::shared_ptr<ContactUpdateListener>& listener)
-	    : self(s), listener(listener), mRecord(std::make_shared<Record>(std::forward<T>(url))) {
+	RedisRegisterContext(RegistrarDbRedisAsync* s,
+	                     T&& url,
+	                     const std::shared_ptr<ContactUpdateListener>& listener,
+	                     const Record::Config& recordConfig)
+	    : self(s), listener(listener), mRecord(std::make_shared<Record>(std::forward<T>(url), recordConfig)) {
 	}
 	RedisRegisterContext(RegistrarDbRedisAsync* s,
 	                     const MsgSip& msg,
 	                     const BindingParameters& params,
-	                     const std::shared_ptr<ContactUpdateListener>& listener)
-	    : self(s), listener(listener), mRecord(std::make_shared<Record>(SipUri(msg.getSip()->sip_from->a_url))),
+	                     const std::shared_ptr<ContactUpdateListener>& listener,
+	                     const Record::Config& recordConfig)
+	    : self(s), listener(listener),
+	      mRecord(std::make_shared<Record>(SipUri(msg.getSip()->sip_from->a_url), recordConfig)),
 	      mMsg(const_cast<MsgSip&>(msg).getMsg()), // Forcefully take a ref, instead of cloning
 	      mBindingParameters(params) {
 		// Note that MsgSip copy constructor is not invoked in order to avoid a deep copy.
@@ -124,30 +129,41 @@ struct RedisRegisterContext {
 };
 
 /**
- * An implementation of the RegistrarDb interface backed by a Redis server
+ * An implementation of the RegistrarDb interface backend by a Redis server
  */
-class RegistrarDbRedisAsync : public RegistrarDb, redis::async::SessionListener {
+class RegistrarDbRedisAsync : public RegistrarDbBackend, redis::async::SessionListener {
 public:
-	RegistrarDbRedisAsync(Agent* agent, RedisParameters params);
-	RegistrarDbRedisAsync(const std::shared_ptr<sofiasip::SuRoot>& root,
+	RegistrarDbRedisAsync(const sofiasip::SuRoot& root,
+	                      const Record::Config& recordConfig,
+	                      LocalRegExpire& localRegExpire,
+	                      RedisParameters params,
+	                      std::function<void(const Record::Key&, const std::string&)> notifyContact,
+	                      std::function<void(bool)> notifyState);
+	RegistrarDbRedisAsync(const sofiasip::SuRoot& root,
+	                      const Record::Config& recordConfig,
+	                      LocalRegExpire& localRegExpire,
 	                      RecordSerializer* serializer,
 	                      RedisParameters params,
-	                      Agent* = nullptr);
+	                      std::function<void(const Record::Key&, const std::string&)> notifyContact,
+	                      std::function<void(bool)> notifyState);
 
 	void fetchExpiringContacts(time_t startTimestamp,
 	                           float threshold,
 	                           std::function<void(std::vector<ExtendedContact>&&)>&& callback) const override;
 
-	std::optional<std::tuple<const redis::async::Session::Ready&, const redis::async::SubscriptionSession::Ready&>> connect();
+	std::optional<std::tuple<const redis::async::Session::Ready&, const redis::async::SubscriptionSession::Ready&>>
+	connect();
 	void asyncDisconnect();
 	void forceDisconnect();
 	bool isConnected() const;
+	bool isWritable() const override {
+		return mWritable;
+	}
 
 	/* The timeout to retry a bind request after encountering a failure. It gives us a chance to reconnect to a new
 	 * master.*/
 	static std::chrono::milliseconds bindRetryTimeout;
 
-protected:
 	void doBind(const MsgSip& msg,
 	            const BindingParameters& parameters,
 	            const std::shared_ptr<ContactUpdateListener>& listener) override;
@@ -156,21 +172,20 @@ protected:
 	void doFetchInstance(const SipUri& url,
 	                     const std::string& uniqueId,
 	                     const std::shared_ptr<ContactUpdateListener>& listener) override;
-	bool subscribe(const Record::Key& topic, std::weak_ptr<ContactRegisteredListener>&& listener) override;
-	void unsubscribe(const Record::Key& topic, const std::shared_ptr<ContactRegisteredListener>& listener) override;
+	void subscribe(const Record::Key& topic) override;
+	void unsubscribe(const Record::Key& topic) override;
 	void publish(const Record::Key& topic, const std::string& uid) override;
 
 private:
-	friend class RegistrarDb;
-
-	static void sBindRetry(void* unused, su_timer_t* t, void* ud);
+	static void sBindRetry(void* ud);
 	void setWritable(bool value);
 	const redis::async::Session::Ready* tryGetCommandSession();
 
 	void serializeAndSendToRedis(RedisRegisterContext&, redis::async::Session::CommandCallback&&);
 	void subscribeTopic(const std::string& topic);
 	void subscribeToKeyExpiration();
-	static std::vector<std::unique_ptr<ExtendedContact>> parseContacts(const redis::reply::ArrayOfPairs&);
+	static std::vector<std::unique_ptr<ExtendedContact>> parseContacts(const redis::reply::ArrayOfPairs&,
+	                                                                   const std::string& messageExpiresName);
 
 	/* callbacks */
 	void handleAuthReply(redis::async::Reply reply);
@@ -207,7 +222,9 @@ private:
 	void onTryReconnectTimer();
 
 	// First member so it is destructed last and still valid when destructing the redis sessions
-	std::shared_ptr<sofiasip::SuRoot> mRoot{};
+	const sofiasip::SuRoot& mRoot;
+	const Record::Config& mRecordConfig;
+	LocalRegExpire& mLocalRegExpire;
 	redis::async::Session mCommandSession{};
 	redis::async::SubscriptionSession mSubscriptionSession{};
 	RecordSerializer* mSerializer;
@@ -218,6 +235,9 @@ private:
 	std::unique_ptr<sofiasip::Timer> mReplicationTimer{nullptr};
 	std::unique_ptr<sofiasip::Timer> mReconnectTimer{nullptr};
 	std::chrono::system_clock::time_point mLastReconnectRotation;
+	std::function<void(const Record::Key&, const std::string&)> mNotifyContactListener;
+	std::function<void(bool)> mNotifyStateListener;
+	bool mWritable{};
 };
 
 } // namespace flexisip

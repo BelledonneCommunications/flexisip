@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -23,6 +23,7 @@
 #include "flexisip/registrar/registar-listeners.hh"
 #include "flexisip/utils/sip-uri.hh"
 
+#include "registrar/registrar-db.hh"
 #include "registration-events/client.hh"
 
 namespace flexisip {
@@ -88,7 +89,8 @@ class OwnRegistrationSubscription : public RegistrationSubscription,
 public:
 	OwnRegistrationSubscription(const ConferenceServer& server,
 	                            const std::shared_ptr<linphone::ChatRoom>& cr,
-	                            const std::shared_ptr<const linphone::Address>& participant);
+	                            const std::shared_ptr<const linphone::Address>& participant,
+	                            RegistrarDb& registrarDb);
 	virtual void start() override;
 	virtual void stop() override;
 
@@ -107,6 +109,8 @@ private:
 
 	SipUri mParticipantAor;
 	bool mActive = false;
+
+	RegistrarDb& mRegistrarDb; // keep only a ref as registrarDb is owned by ConferenceServer
 };
 
 /**

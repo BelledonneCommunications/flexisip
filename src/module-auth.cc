@@ -1,26 +1,28 @@
 /*
- Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as
- published by the Free Software Foundation, either version 3 of the
- License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <sofia-sip/msg_addr.h>
 #include <sofia-sip/sip_extra.h>
 
 #include <flexisip/module-auth.hh>
 
+#include "agent.hh"
+#include "auth/db/authdb.hh"
 #include "auth/flexisip-auth-module.hh"
 #include "transaction/outgoing-transaction.hh"
 
@@ -31,7 +33,12 @@ using namespace flexisip;
 //  Authentication class
 // ====================================================================================================================
 
-Authentication::Authentication(Agent* ag) : ModuleAuthenticationBase(ag) {
+Authentication::Authentication(Agent* ag, const ModuleInfoBase* moduleInfo)
+    : ModuleAuthenticationBase(ag, moduleInfo), mAuthDbOwner(ag->getAuthDbOwner()) {
+	mCountAsyncRetrieve = mModuleConfig->getStat("count-async-retrieve");
+	mCountSyncRetrieve = mModuleConfig->getStat("count-sync-retrieve");
+	mCountPassFound = mModuleConfig->getStat("count-password-found");
+	mCountPassNotFound = mModuleConfig->getStat("count-password-not-found");
 }
 
 Authentication::~Authentication() {
@@ -40,12 +47,13 @@ Authentication::~Authentication() {
 	}
 }
 
-void Authentication::onDeclare(GenericStruct* mc) {
-	ModuleAuthenticationBase::onDeclare(mc);
+void Authentication::declareConfig(GenericStruct& moduleConfig) {
+	ModuleAuthenticationBase::declareConfig(moduleConfig);
 	ConfigItemDescriptor items[] = {
 	    {Boolean, "reject-wrong-client-certificates",
 	     "If set to true, the module will simply reject with \"403 forbidden\" any request coming from clients "
-	     "which have presented a bad TLS certificate (regardless of reason: improper signature, unmatched subjects). "
+	     "which have presented a bad TLS certificate (regardless of reason: improper signature, unmatched "
+	     "subjects). "
 	     "Otherwise, the module will fallback to a digest authentication.\n"
 	     "This policy applies only for transports configured which have 'required-peer-certificate=1' parameter; "
 	     "indeed "
@@ -79,28 +87,28 @@ void Authentication::onDeclare(GenericStruct* mc) {
 	     "false"},
 	    config_item_end};
 
-	mc->addChildrenValues(items);
+	moduleConfig.addChildrenValues(items);
 
-	mc->get<ConfigStringList>("trusted-client-certificates")
+	moduleConfig.get<ConfigStringList>("trusted-client-certificates")
 	    ->setDeprecated({"2018-04-16", "1.0.13", "Use 'tls-client-certificate-required-subject' instead."});
-	mc->get<ConfigBoolean>("hashed-passwords")
+	moduleConfig.get<ConfigBoolean>("hashed-passwords")
 	    ->setDeprecated({"2020-01-28", "2.0.0",
 	                     "This setting has been out of use since the algorithm used to hash the password is "
 	                     "stored in the user database and the CLRTXT algorithm can be used to indicate that "
 	                     "the password isn't hashed.\n"
 	                     "Warning: setting 'true' hasn't any effect anymore."});
-	mc->get<ConfigBoolean>("enable-test-accounts-creation")
+	moduleConfig.get<ConfigBoolean>("enable-test-accounts-creation")
 	    ->setDeprecated({"2020-01-28", "2.0.0",
 	                     "This feature was useful for liblinphone's integrity tests and isn't used today anymore. "
 	                     "Please remove this setting from your configuration file."});
 
 	// Call declareConfig for backends
-	AuthDbBackend::declareConfig(mc);
+	AuthDbBackend::declareConfig(&moduleConfig);
 
-	mCountAsyncRetrieve = mc->createStat("count-async-retrieve", "Number of asynchronous retrieves.");
-	mCountSyncRetrieve = mc->createStat("count-sync-retrieve", "Number of synchronous retrieves.");
-	mCountPassFound = mc->createStat("count-password-found", "Number of passwords found.");
-	mCountPassNotFound = mc->createStat("count-password-not-found", "Number of passwords not found.");
+	moduleConfig.createStat("count-async-retrieve", "Number of asynchronous retrieves.");
+	moduleConfig.createStat("count-sync-retrieve", "Number of synchronous retrieves.");
+	moduleConfig.createStat("count-password-found", "Number of passwords found.");
+	moduleConfig.createStat("count-password-not-found", "Number of passwords not found.");
 }
 
 void Authentication::onLoad(const GenericStruct* mc) {
@@ -121,7 +129,6 @@ void Authentication::onLoad(const GenericStruct* mc) {
 		} else mRequiredSubjectCheckSet = true;
 	}
 	mRejectWrongClientCertificates = mc->get<ConfigBoolean>("reject-wrong-client-certificates")->read();
-	AuthDbBackend::get(); // force instanciation of the AuthDbBackend NOW, to force errors to arrive now if any.
 }
 
 bool Authentication::tlsClientCertificatePostCheck(const shared_ptr<RequestSipEvent>& ev) {
@@ -265,7 +272,7 @@ bool Authentication::doOnConfigStateChanged(const ConfigValue& conf, ConfigState
 
 FlexisipAuthModuleBase* Authentication::createAuthModule(const std::string& domain, int nonceExpire, bool qopAuth) {
 	FlexisipAuthModule* authModule =
-	    new FlexisipAuthModule(getAgent()->getRoot()->getCPtr(), domain, nonceExpire, qopAuth);
+	    new FlexisipAuthModule(mAuthDbOwner.get(), getAgent()->getRoot()->getCPtr(), domain, nonceExpire, qopAuth);
 	authModule->setOnPasswordFetchResultCb(
 	    [this](bool passFound) { passFound ? mCountPassFound++ : mCountPassNotFound++; });
 	SLOGI << "Found auth domain: " << domain;
@@ -304,6 +311,7 @@ ModuleInfo<Authentication> Authentication::sInfo(
     " * if no TLS client based authentication can be performed, or has failed, then a SIP digest authentication is "
     "performed. The password verification is made by querying a database or a password file on disk.",
     {"NatHelper"},
-    ModuleInfoBase::ModuleOid::Authentication);
+    ModuleInfoBase::ModuleOid::Authentication,
+    declareConfig);
 
 // ====================================================================================================================

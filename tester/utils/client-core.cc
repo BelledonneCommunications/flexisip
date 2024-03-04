@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -92,15 +92,15 @@ std::shared_ptr<linphone::Core> minimalCore(linphone::Factory& factory) {
 	return core;
 }
 
-CoreClient::CoreClient(const std::string& me, const std::shared_ptr<Server>& server)
-    : CoreClient(server->clientBuilder().build(me)) {
+CoreClient::CoreClient(const std::string& me, const std::shared_ptr<Agent>& agent)
+    : CoreClient(ClientBuilder(*agent).build(me)) {
 }
 
 CoreClient::~CoreClient() {
 	if (mAccount != nullptr) {
 		mCore->clearAccounts();
 		if (mAccount->getState() != linphone::RegistrationState::None) {
-			CoreAssert(mCore, mServer)
+			CoreAssert(mCore, mAgent)
 			    .wait([&account = mAccount] {
 				    FAIL_IF(account->getState() != linphone::RegistrationState::Cleared);
 				    return ASSERTION_PASSED();
@@ -111,7 +111,7 @@ CoreClient::~CoreClient() {
 	if (mCore) {
 		mCore->stopAsync(); // stopAsync is not really async, we must clear the account first or it will wait for the
 		                    // unregistration on server
-		CoreAssert(mCore, mServer)
+		CoreAssert(mCore, mAgent)
 		    .wait([&core = mCore] {
 			    FAIL_IF(core->getGlobalState() != linphone::GlobalState::Off);
 			    return ASSERTION_PASSED();
@@ -157,8 +157,8 @@ std::shared_ptr<linphone::Call> CoreClient::call(const CoreClient& callee,
 	}
 
 	const auto calleeCore = callee.getCore();
-	CoreAssert asserter{mCore, mServer, calleeCore};
-	CoreAssert idleAsserter{mCore, mServer};
+	CoreAssert asserter{mCore, mAgent, calleeCore};
+	CoreAssert idleAsserter{mCore, mAgent};
 	for (const auto& calleeDevice : calleeIdleDevices) {
 		idleAsserter.registerSteppable(calleeDevice);
 	}
@@ -261,8 +261,7 @@ CoreClient::callWithEarlyCancel(const std::shared_ptr<CoreClient>& callee,
 		return nullptr;
 	}
 
-	const auto& agent = mServer.getAgent();
-	CoreAssert asserter{mCore, agent};
+	CoreAssert asserter{mCore, mAgent};
 	if (isCalleeAway) {
 		callee->disconnect();
 	} else {
@@ -271,7 +270,7 @@ CoreClient::callWithEarlyCancel(const std::shared_ptr<CoreClient>& callee,
 
 	// Check call get the incoming call and caller is in OutgoingRinging state
 	if (isCalleeAway) {
-		if (!BC_ASSERT_TRUE(asserter.waitUntil(seconds(10), [&callerCall, &agent] {
+		if (!BC_ASSERT_TRUE(asserter.waitUntil(seconds(10), [&callerCall, agent = &mAgent] {
 			    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
 			    return callerCall->getState() == linphone::Call::State::OutgoingProgress &&
 			           moduleRouter->mStats.mCountCallForks->start->read() == 1;
@@ -316,8 +315,7 @@ CoreClient::callWithEarlyDecline(const std::shared_ptr<CoreClient>& callee,
 		return nullptr;
 	}
 
-	const auto& agent = mServer.getAgent();
-	CoreAssert asserter{mCore, agent};
+	CoreAssert asserter{mCore, mAgent};
 	asserter.registerSteppable(callee);
 
 	// Check call get the incoming call and caller is in OutgoingRinging state
@@ -359,7 +357,7 @@ bool CoreClient::callUpdate(const CoreClient& peer, const std::shared_ptr<linpho
 	BC_ASSERT_TRUE(peerCall->getState() == State::StreamsRunning);
 
 	// Wait for the update to be concluded
-	if (!BC_ASSERT_TRUE(CoreAssert(mCore, peerCore, mServer)
+	if (!BC_ASSERT_TRUE(CoreAssert(mCore, peerCore, mAgent)
 	                        .iterateUpTo(5,
 	                                     [&selfCall = *selfCall] {
 		                                     FAIL_IF(selfCall.getState() != State::StreamsRunning);
@@ -369,7 +367,7 @@ bool CoreClient::callUpdate(const CoreClient& peer, const std::shared_ptr<linpho
 		return false;
 	BC_ASSERT_TRUE(peerCall->getState() == State::StreamsRunning);
 
-	if (!CoreAssert(mCore, peerCore, mServer)
+	if (!CoreAssert(mCore, peerCore, mAgent)
 	         .waitUntil(std::chrono::seconds(12),
 	                    assert_data_transmitted(*peerCall, *selfCall, callParams->videoEnabled()))
 	         .assert_passed())
@@ -387,7 +385,7 @@ bool CoreClient::endCurrentCall(const CoreClient& peer) {
 		return false;
 	}
 	mCore->getCurrentCall()->terminate();
-	if (!BC_ASSERT_TRUE(CoreAssert(mCore, peerCore, mServer).waitUntil(std::chrono::seconds(5), [selfCall, peerCall] {
+	if (!BC_ASSERT_TRUE(CoreAssert(mCore, peerCore, mAgent).waitUntil(std::chrono::seconds(5), [selfCall, peerCall] {
 		    return (selfCall->getState() == linphone::Call::State::Released &&
 		            peerCall->getState() == linphone::Call::State::Released);
 	    }))) {
@@ -410,7 +408,7 @@ void CoreClient::runFor(std::chrono::milliseconds duration) {
 }
 
 AssertionResult CoreClient::hasReceivedCallFrom(const CoreClient& peer) const {
-	return CoreAssert(mCore, peer.getCore(), mServer).waitUntil(mCallInviteReceivedDelay, [this] {
+	return CoreAssert(mCore, peer.getCore(), mAgent).waitUntil(mCallInviteReceivedDelay, [this] {
 		const auto& current_call = mCore->getCurrentCall();
 		FAIL_IF(current_call == nullptr);
 		FAIL_IF(current_call->getState() != linphone::Call::State::IncomingReceived);

@@ -704,7 +704,7 @@ public:
 protected:
 	void testExec() noexcept override {
 		auto passed = true;
-		auto& regDb = *RegistrarDb::get();
+		auto& regDb = mAgent->getRegistrarDb();
 		auto service = std::make_shared<pushnotification::Service>(mRoot, 0xdead);
 		// SIP only counts contact expiration in seconds, and 1s is apparently not enough to receive everything
 		const auto interval = 2s;

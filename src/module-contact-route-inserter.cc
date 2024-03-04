@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -25,20 +25,9 @@ using namespace std;
 using namespace flexisip;
 
 class ContactRouteInserter : public Module {
+	friend std::shared_ptr<Module> ModuleInfo<ContactRouteInserter>::create(Agent*);
+
 public:
-	ContactRouteInserter(Agent* ag) : Module(ag), mContactMasquerader() {
-	}
-
-	void onDeclare(GenericStruct* module_config) {
-		ConfigItemDescriptor items[] = {
-		    {Boolean, "masquerade-contacts-on-registers", "Masquerade register contacts with proxy address.", "true"},
-		    {Boolean, "masquerade-contacts-for-invites", "Masquerade invite-related messages with proxy address.",
-		     "false"},
-		    {Boolean, "insert-domain", "Masquerade register with from domain.", "false"},
-		    config_item_end};
-		module_config->addChildrenValues(items);
-	}
-
 	void onLoad(const GenericStruct* mc) {
 		mCtRtParamName = string("CtRt") + getAgent()->getUniqueId();
 		mMasqueradeInvites = mc->get<ConfigBoolean>("masquerade-contacts-for-invites")->read();
@@ -89,16 +78,31 @@ public:
 	string mCtRtParamName;
 	bool mMasqueradeRegisters, mMasqueradeInvites;
 	bool mInsertDomain;
+
+private:
+	ContactRouteInserter(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo), mContactMasquerader() {
+	}
+
 	static ModuleInfo<ContactRouteInserter> sInfo;
 };
 
-ModuleInfo<ContactRouteInserter>
-    ContactRouteInserter::sInfo("ContactRouteInserter",
-                                "The purpose of the ContactRouteInserter module is to masquerade the contact header of "
-                                "incoming registers that are not handled locally "
-                                "(think about flexisip used as a SBC gateway) in such a way that it is then possible "
-                                "to route back outgoing invites to the original address. "
-                                "It is a kind of similar mechanism as Record-Route, but for REGISTER.",
-                                {"StatisticsCollector"},
-                                ModuleInfoBase::ModuleOid::ContactRouteInserter,
-                                ModuleClass::Experimental);
+ModuleInfo<ContactRouteInserter> ContactRouteInserter::sInfo(
+    "ContactRouteInserter",
+    "The purpose of the ContactRouteInserter module is to masquerade the contact header of "
+    "incoming registers that are not handled locally "
+    "(think about flexisip used as a SBC gateway) in such a way that it is then possible "
+    "to route back outgoing invites to the original address. "
+    "It is a kind of similar mechanism as Record-Route, but for REGISTER.",
+    {"StatisticsCollector"},
+    ModuleInfoBase::ModuleOid::ContactRouteInserter,
+
+    [](GenericStruct& moduleConfig) {
+	    ConfigItemDescriptor items[] = {
+	        {Boolean, "masquerade-contacts-on-registers", "Masquerade register contacts with proxy address.", "true"},
+	        {Boolean, "masquerade-contacts-for-invites", "Masquerade invite-related messages with proxy address.",
+	         "false"},
+	        {Boolean, "insert-domain", "Masquerade register with from domain.", "false"},
+	        config_item_end};
+	    moduleConfig.addChildrenValues(items);
+    },
+    ModuleClass::Experimental);

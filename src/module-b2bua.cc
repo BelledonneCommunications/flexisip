@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -32,10 +32,9 @@ using namespace std;
 namespace flexisip {
 
 class B2bua : public Module, ModuleToolbox {
+	friend std::shared_ptr<Module> ModuleInfo<B2bua>::create(Agent*);
+
 public:
-	B2bua(Agent* agent) : Module(agent) {
-		su_home_init(&mHome);
-	}
 	~B2bua() {
 		su_home_deinit(&mHome);
 	}
@@ -44,8 +43,12 @@ private:
 	static ModuleInfo<B2bua> sInfo;
 	unique_ptr<SipUri> mDestRoute;
 	su_home_t mHome;
+
+	B2bua(Agent* agent, const ModuleInfoBase* moduleInfo) : Module(agent, moduleInfo) {
+		su_home_init(&mHome);
+	}
+
 	bool isValidNextConfig(const ConfigValue& cv) override;
-	void onDeclare(GenericStruct* moduleConfig) override;
 	void onLoad(const GenericStruct* moduleConfig) override;
 	void onUnload() override;
 
@@ -53,22 +56,21 @@ private:
 	void onResponse(shared_ptr<ResponseSipEvent>& ev) override;
 };
 
-ModuleInfo<B2bua>
-    B2bua::sInfo("B2bua",
-                 "This module is in charge of intercepting calls and route them to the back-to-back user agent server",
-                 {"Authentication", "ExternalAuthentication"},
-                 ModuleInfoBase::ModuleOid::B2bua);
+ModuleInfo<B2bua> B2bua::sInfo(
+    "B2bua",
+    "This module is in charge of intercepting calls and route them to the back-to-back user agent server",
+    {"Authentication", "ExternalAuthentication"},
+    ModuleInfoBase::ModuleOid::B2bua,
+
+    [](GenericStruct& moduleConfig) {
+	    ConfigItemDescriptor configs[] = {{String, "b2bua-server", "A sip uri where to send all the relevent requests.",
+	                                       "sip:127.0.0.1:6067;transport=tcp"},
+	                                      config_item_end};
+	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
+	    moduleConfig.addChildrenValues(configs);
+    });
 
 // -----------------------------------------------------------------------------
-
-void B2bua::onDeclare(GenericStruct* moduleConfig) {
-	ConfigItemDescriptor configs[] = {{String, "b2bua-server", "A sip uri where to send all the relevent requests.",
-	                                   "sip:127.0.0.1:6067;transport=tcp"},
-	                                  config_item_end};
-	moduleConfig->get<ConfigBoolean>("enabled")->setDefault("false");
-	moduleConfig->addChildrenValues(configs);
-}
-
 bool B2bua::isValidNextConfig(const ConfigValue& cv) {
 	GenericStruct* module_config = dynamic_cast<GenericStruct*>(cv.getParent());
 	if (!module_config->get<ConfigBoolean>("enabled")->readNext()) return true;

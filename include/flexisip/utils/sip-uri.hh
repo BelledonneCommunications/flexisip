@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -209,11 +209,11 @@ protected:
 };
 
 bool operator==(const TlsConfigInfo& lhs, const TlsConfigInfo& rhs);
-} // namespace sofiasip
 
 inline std::ostream& operator<<(std::ostream& os, const sofiasip::Url& url) {
 	return os << url.str();
 }
+} // namespace sofiasip
 
 namespace flexisip {
 
@@ -294,5 +294,9 @@ private:
 
 // Enable to check validity of a sip uri raw url (use SipUri rather than raw url whenever possible)
 bool isValidSipUri(const url_t* url);
+
+/*
+ * Nice << operator to serialize sofia-sip 's url_t */
+std::ostream& operator<<(std::ostream& strm, const url_t& obj);
 
 } // namespace flexisip

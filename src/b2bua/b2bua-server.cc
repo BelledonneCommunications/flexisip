@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024  Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -63,7 +63,8 @@ shared_ptr<linphone::Call> getPeerCall(shared_ptr<linphone::Call> call) {
 }
 } // namespace
 
-B2buaServer::B2buaServer(const shared_ptr<sofiasip::SuRoot>& root) : ServiceServer(root), mCli("b2bua") {
+B2buaServer::B2buaServer(const shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg)
+    : ServiceServer(root), mConfigManager(cfg), mCli("b2bua", cfg) {
 }
 
 B2buaServer::~B2buaServer() {
@@ -283,8 +284,7 @@ void B2buaServer::_init() {
 	/* Handle the case where the directory is not created.
 	 * This is for convenience, because our rpm and deb packages create it already. - NO THEY DO NOT DO THAT
 	 * However, in other cases (like development environment) it is painful to create it all the time manually.*/
-	const auto configRoot = ConfigManager::get()->getRoot();
-	auto config = configRoot->get<GenericStruct>(b2bua::configSection);
+	const auto* config = mConfigManager->getRoot()->get<GenericStruct>(b2bua::configSection);
 	auto dataDirPath = config->get<ConfigString>("data-directory")->read();
 	if (!bctbx_directory_exists(dataDirPath.c_str())) {
 		BCTBX_SLOGI << "Creating b2bua data directory " << dataDirPath;
@@ -432,7 +432,7 @@ void B2buaServer::_init() {
 	} else {
 		LOGF("Unknown B2BUA application type: %s", applicationType.c_str());
 	}
-	mApplication->init(mCore, *configRoot);
+	mApplication->init(mCore, *mConfigManager);
 
 	mCore->start();
 	mCli.start();
@@ -449,7 +449,7 @@ void B2buaServer::_stop() {
 
 namespace {
 // Statically define default configuration items
-auto defineConfig = [] {
+auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
 	ConfigItemDescriptor items[] = {
 	    {String, "application",
 	     "The type of application that will handle calls bridged through the B2BUA. Possible values:\n"
@@ -483,14 +483,10 @@ auto defineConfig = [] {
 	     ""},
 	    config_item_end};
 
-	ConfigManager::get()
-	    ->getRoot()
-	    ->addChild(
+	root.addChild(
 	        make_unique<GenericStruct>(b2bua::configSection, "Flexisip back-to-back user agent server parameters.", 0))
 	    ->addChildrenValues(items);
-
-	return nullptr;
-}();
+});
 } // namespace
 
 } // namespace flexisip

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -39,11 +39,13 @@
 #include "sofia-sip/sip.h"
 #include "sofia-sip/sip_util.h"
 
+#include "auth/db/authdb.hh"
 #include "flexisip/common.hh"
 #include "flexisip/configmanager.hh"
 #include "flexisip/event.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "flexisip/utils/sip-uri.hh"
+#include "registrar/registrar-db.hh"
 
 #include "agent-interface.hh"
 #include "eventlogs/writers/event-log-writer.hh"
@@ -73,7 +75,7 @@ class Agent : public AgentInterface,
 	friend class OutgoingTransaction;
 	friend class Module;
 
-	void onDeclare(GenericStruct* root);
+	void onDeclare(const GenericStruct& root);
 
 	StatCounter64* mCountIncomingRegister = nullptr;
 	StatCounter64* mCountIncomingInvite = nullptr;
@@ -115,18 +117,23 @@ class Agent : public AgentInterface,
 	StatCounter64* mCountReply408 = nullptr; // request timeout
 	StatCounter64* mCountReplyResUnknown = nullptr;
 
-	ConfigValueListener* mBaseConfigListener = nullptr;
-
 private:
 	template <typename SipEventT, typename ModuleIter>
 	void doSendEvent(std::shared_ptr<SipEventT> ev, const ModuleIter& begin, const ModuleIter& end);
 
 public:
-	Agent(const std::shared_ptr<sofiasip::SuRoot>& root);
+	Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
+	      const std::shared_ptr<ConfigManager>& cm,
+	      const std::shared_ptr<AuthDbBackendOwner>& authDbOwner,
+	      const std::shared_ptr<RegistrarDb>& registrarDb);
+
 	void start(const std::string& transport_override, const std::string& passphrase);
-	void loadConfig(ConfigManager* cm, bool strict = true);
 	void unloadConfig();
 	~Agent() override;
+	// Add agent and modules sections
+	static void addConfigSections(ConfigManager& cfg);
+	// Load plugins and add their sections
+	static void addPluginsConfigSections(ConfigManager& cfg);
 	/// Returns a pair of ip addresses: < public-ip, bind-ip> suitable for destination.
 	std::pair<std::string, std::string> getPreferredIp(const std::string& destination) const;
 	/// Returns the _default_ bind address for RTP sockets.
@@ -147,6 +154,12 @@ public:
 	}
 	std::shared_ptr<IncomingAgent> getIncomingAgent() override {
 		return shared_from_this();
+	}
+	AuthDbBackendOwner& getAuthDbOwner() {
+		return *mAuthDbOwner;
+	}
+	RegistrarDb& getRegistrarDb() {
+		return *mRegistrarDb;
 	}
 
 	// Preferred route for inter-proxy communication
@@ -222,10 +235,17 @@ public:
 	void applyProxyToProxyTransportSettings(tport_t* tp);
 	tport_t* getIncomingTport(const msg_t* orig);
 
-	static sofiasip::TlsConfigInfo
-	getTlsConfigInfo(const GenericStruct* global = ConfigManager::get()->getRoot()->get<GenericStruct>("global"));
+	static sofiasip::TlsConfigInfo getTlsConfigInfo(const GenericStruct* global);
 
 	bool shouldUseRfc2543RecordRoute() const;
+
+	const ConfigManager& getConfigManager() const {
+		return *mConfigManager;
+	}
+
+	void sendTrap(const GenericEntry* source, const std::string& msg) {
+		mConfigManager->sendTrap(source, msg);
+	}
 
 private:
 	// Private types
@@ -268,6 +288,9 @@ private:
 	// Placing the SuRoot before the modules ensures it will outlive them, so it is always safe to get (and keep)
 	// references to it from within them
 	std::shared_ptr<sofiasip::SuRoot> mRoot = nullptr;
+	const std::shared_ptr<ConfigManager> mConfigManager;
+	const std::shared_ptr<AuthDbBackendOwner> mAuthDbOwner;
+	const std::shared_ptr<RegistrarDb> mRegistrarDb;
 	std::list<std::shared_ptr<Module>> mModules;
 	std::list<std::string> mAliases;
 	url_t* mPreferredRouteV4 = nullptr;

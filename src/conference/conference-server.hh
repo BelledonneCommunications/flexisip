@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -23,6 +23,7 @@
 #include <linphone++/linphone.hh>
 
 #include "participant-registration-subscription-handler.hh"
+#include "registrar/registrar-db.hh"
 #include "registration-subscription.hh"
 #include "service-server.hh"
 
@@ -38,8 +39,12 @@ class ConferenceServer : public ServiceServer,
                          public linphone::ChatRoomListener {
 public:
 	template <typename StrT, typename SuRootPtr>
-	ConferenceServer(StrT&& path, SuRootPtr&& root)
-	    : ServiceServer{std::forward<SuRootPtr>(root)}, mPath{std::forward<StrT>(path)}, mSubscriptionHandler{*this} {
+	ConferenceServer(StrT&& path,
+	                 SuRootPtr&& root,
+	                 const std::shared_ptr<ConfigManager>& cfg,
+	                 const std::shared_ptr<RegistrarDb>& registrarDb)
+	    : ServiceServer{std::forward<SuRootPtr>(root)}, mPath{std::forward<StrT>(path)}, mConfigManager{cfg},
+	      mRegistrarDb{registrarDb}, mSubscriptionHandler{*this, *mRegistrarDb} {
 	}
 
 	virtual void bindAddresses();
@@ -50,91 +55,86 @@ public:
 	                  const std::shared_ptr<ContactUpdateListener>& listener);
 
 	/**
-		 * Bind conference factory uris and focus uris on the registrardb
-		**/
-		void bindFactoryUris ();
-		void bindFocusUris();
+	 * Bind conference factory uris and focus uris on the registrardb
+	 **/
+	void bindFactoryUris();
+	void bindFocusUris();
 
-		bool capabilityCheckEnabled()const{
-			return mCheckCapabilities;
-		}
-		const std::list<std::string> & getLocalDomains()const{
-			return mLocalDomains;
-		}
-		std::shared_ptr<RegistrationEvent::ClientFactory> getRegEventClientFactory()const{
-			return mRegEventClientFactory;
-		}
-		std::shared_ptr<linphone::Core> getCore()const{
-			return mCore;
-		}
-		struct MediaConfig{
-			bool audioEnabled = false;
-			bool videoEnabled = false;
-			bool textEnabled = false;
-		};
-		const MediaConfig &getMediaConfig()const{
-			return mMediaConfig;
-		}
-	protected:
-		void _init () override;
-		void _run () override;
-		void _stop () override;
-
-		SipUri mTransport{};
-
-	private:
-		
-		void loadFactoryUris();
-		// RegistrarDbStateListener implementation
-		void onRegistrarDbWritable (bool writable) override;
-
-		// CoreListener implementation
-		void onChatRoomStateChanged (
-			const std::shared_ptr<linphone::Core> &lc,
-			const std::shared_ptr<linphone::ChatRoom> &cr,
-			linphone::ChatRoom::State state
-		) override;
-
-		// ChatRoomListener implementation
-		void onConferenceAddressGeneration (const std::shared_ptr<linphone::ChatRoom> &cr) override;
-
-		void onParticipantRegistrationSubscriptionRequested (
-			const std::shared_ptr<linphone::ChatRoom> &cr,
-			const std::shared_ptr<const linphone::Address> & participantAddr
-		) override;
-		void onParticipantRegistrationUnsubscriptionRequested (
-			const std::shared_ptr<linphone::ChatRoom> &cr,
-			const std::shared_ptr<const linphone::Address> & participantAddr
-		) override;
-		void enableSelectedCodecs(const std::list<std::shared_ptr<linphone::PayloadType>>& codecs, const std::list<std::string> &mimeTypes);
-		void configureNatAddresses(std::shared_ptr<linphone::NatPolicy> policy, const std::list<std::string> &addresses);
-		std::string getUuidFilePath() const;
-		std::string getStateDir(const std::string &subdir = "")const;
-		void ensureDirectoryCreated(const std::string & directory);
-		const std::string & readUuid();
-		void writeUuid(const std::string & uuid);
-		std::string getUuid();
-		std::shared_ptr<linphone::Core> mCore{};
-		std::shared_ptr<RegistrationEvent::ClientFactory> mRegEventClientFactory{};
-		std::string mPath{};
-		std::list<std::shared_ptr<linphone::ChatRoom>> mChatRooms{};
-		ParticipantRegistrationSubscriptionHandler mSubscriptionHandler;
-		MediaConfig mMediaConfig;
-		std::list<std::pair<std::string,std::string>> mConfServerUris{};
-		std::list<std::string> mLocalDomains{};
-		std::string mUuid;
-		bool mAddressesBound = false;
-		bool mCheckCapabilities = false;
-		static constexpr const char * sUuidFile = "uuid";
-		
-		// Used to declare the service configuration
-		class Init {
-		public:
-			Init();
-		};
-
-		static Init sStaticInit;
-		static sofiasip::Home mHome;
+	bool capabilityCheckEnabled() const {
+		return mCheckCapabilities;
+	}
+	const std::list<std::string>& getLocalDomains() const {
+		return mLocalDomains;
+	}
+	std::shared_ptr<RegistrationEvent::ClientFactory> getRegEventClientFactory() const {
+		return mRegEventClientFactory;
+	}
+	std::shared_ptr<linphone::Core> getCore() const {
+		return mCore;
+	}
+	struct MediaConfig {
+		bool audioEnabled = false;
+		bool videoEnabled = false;
+		bool textEnabled = false;
 	};
-} // namespace flexisip
+	const MediaConfig& getMediaConfig() const {
+		return mMediaConfig;
+	}
 
+	const GenericStruct& getServerConf() const {
+		return *mConfigManager->getRoot()->get<GenericStruct>("conference-server");
+	}
+
+protected:
+	void _init() override;
+	void _run() override;
+	void _stop() override;
+
+	SipUri mTransport{};
+
+private:
+	void loadFactoryUris();
+	// RegistrarDbStateListener implementation
+	void onRegistrarDbWritable(bool writable) override;
+
+	// CoreListener implementation
+	void onChatRoomStateChanged(const std::shared_ptr<linphone::Core>& lc,
+	                            const std::shared_ptr<linphone::ChatRoom>& cr,
+	                            linphone::ChatRoom::State state) override;
+
+	// ChatRoomListener implementation
+	void onConferenceAddressGeneration(const std::shared_ptr<linphone::ChatRoom>& cr) override;
+
+	void onParticipantRegistrationSubscriptionRequested(
+	    const std::shared_ptr<linphone::ChatRoom>& cr,
+	    const std::shared_ptr<const linphone::Address>& participantAddr) override;
+	void onParticipantRegistrationUnsubscriptionRequested(
+	    const std::shared_ptr<linphone::ChatRoom>& cr,
+	    const std::shared_ptr<const linphone::Address>& participantAddr) override;
+	void enableSelectedCodecs(const std::list<std::shared_ptr<linphone::PayloadType>>& codecs,
+	                          const std::list<std::string>& mimeTypes);
+	void configureNatAddresses(std::shared_ptr<linphone::NatPolicy> policy, const std::list<std::string>& addresses);
+	std::string getUuidFilePath() const;
+	std::string getStateDir(const std::string& subdir = "") const;
+	void ensureDirectoryCreated(const std::string& directory);
+	const std::string& readUuid();
+	void writeUuid(const std::string& uuid);
+	std::string getUuid();
+	std::shared_ptr<linphone::Core> mCore{};
+	std::shared_ptr<RegistrationEvent::ClientFactory> mRegEventClientFactory{};
+	std::string mPath{};
+	std::shared_ptr<ConfigManager> mConfigManager;
+	std::shared_ptr<RegistrarDb> mRegistrarDb;
+	std::list<std::shared_ptr<linphone::ChatRoom>> mChatRooms{};
+	ParticipantRegistrationSubscriptionHandler mSubscriptionHandler;
+	MediaConfig mMediaConfig;
+	std::list<std::pair<std::string, std::string>> mConfServerUris{};
+	std::list<std::string> mLocalDomains{};
+	std::string mUuid;
+	bool mAddressesBound = false;
+	bool mCheckCapabilities = false;
+	static constexpr const char* sUuidFile = "uuid";
+
+	static sofiasip::Home mHome;
+};
+} // namespace flexisip

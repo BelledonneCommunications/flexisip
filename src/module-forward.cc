@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -47,16 +47,18 @@ static char const* compute_branch(nta_agent_t* sa,
                                   const shared_ptr<OutgoingTransaction>& outTr);
 
 class ForwardModule : public Module, ModuleToolbox {
+	friend std::shared_ptr<Module> ModuleInfo<ForwardModule>::create(Agent*);
+
 public:
-	ForwardModule(Agent* ag);
 	virtual ~ForwardModule();
-	virtual void onDeclare(GenericStruct* module_config);
 	virtual void onLoad(const GenericStruct* root);
 	virtual void onRequest(shared_ptr<RequestSipEvent>& ev);
 	virtual void onResponse(shared_ptr<ResponseSipEvent>& ev);
 	void sendRequest(shared_ptr<RequestSipEvent>& ev, url_t* dest);
 
 private:
+	ForwardModule(Agent* ag, const ModuleInfoBase* moduleInfo);
+
 	std::weak_ptr<ModuleRouter> mRouterModule;
 	url_t* overrideDest(shared_ptr<RequestSipEvent>& ev, url_t* dest);
 	url_t* getDestinationFromRoute(su_home_t* home, sip_t* sip);
@@ -79,72 +81,76 @@ ModuleInfo<ForwardModule> ForwardModule::sInfo(
     "This module executes the basic routing task of SIP requests and pass them to the transport layer. "
     "It must always be enabled.",
     {"Transcoder", "MediaRelay"},
-    ModuleInfoBase::ModuleOid::Forward);
+    ModuleInfoBase::ModuleOid::Forward,
 
-ForwardModule::ForwardModule(Agent* ag) : Module(ag), mOutRoute(nullptr), mRewriteReqUri(false), mAddPath(false) {
+    [](GenericStruct& moduleConfig) {
+	    ConfigItemDescriptor items[] = {
+	        {String, "routes-config-path",
+	         "A path to a configuration file describing routes to be prepended before "
+	         "forwarding a request, when specific conditions for the SIP request being forwarded are met. The "
+	         "condition "
+	         "is described using flexisip's filter syntax, as described on \n"
+	         "https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/\n"
+	         "The configuration file comprises lines using the following syntax:\n"
+	         "<sip route>   <condition expressed as a filter expression> \n"
+	         "Comments are allowed with '#'.\n"
+	         "Conditions can spread over multiples lines provided that the continuation line starts with either "
+	         "spaces or tabs.\n"
+	         "The special condition '*' matches every request.\n"
+	         "The conditions are matched in the order they appear in the configuration file. The first fulfilled "
+	         "condition determines the route that is prepended."
+	         "If the request does not match any condition, no route is prepended.\n"
+	         "The file may be empty, or no path may be specified, in which case no route is preprended either. "
+	         "Here is a an example of a valid routes configuration file:\n"
+	         "<sip:example.org;transport=tls>     request.uri.domain == 'example.org'\n"
+	         "<sip:10.0.0.2:5070;transport=tcp>   request.uri.params contains 'user=phone'\n"
+	         "\n"
+	         "Beware: that is not just a SIP URI, but a route. As a result, when the URI has parameters, "
+	         "brackets must enclose the URI, otherwise the parameters will be parsed as route parameters.",
+	         ""},
+	        {String, "route",
+	         "A route header value where to send all requests not already resolved by the Router module "
+	         "(ie for which contact information has been found from the registrar database). This is "
+	         "the typical way to setup a Flexisip proxy server acting as a front-end for backend SIP server."
+	         "Beware: that is not just a SIP URI, but a route. As a result, when the URI has parameters, "
+	         "brackets must enclose the URI, otherwise the parameters will be parsed as route parameters.\n"
+	         "For example:\n"
+	         "route=<sip:192.168.0.10;transport=tcp>",
+	         ""},
+	        {Boolean, "rewrite-req-uri", "Rewrite request-uri's host and port according to prepended route.", "false"},
+	        {Boolean, "add-path", "Add a path header of this proxy", "true"},
+	        {String, "default-transport",
+	         "For SIP URIs, in asbsence of transport parameter, assume the given transport "
+	         "is to be used. Possible values are udp, tcp or tls.",
+	         "udp"},
+	        {StringList, "params-to-remove", "List of URL and contact params to remove",
+	         "pn-tok pn-type app-id pn-msg-str pn-call-str pn-call-snd pn-msg-snd pn-timeout pn-silent pn-provider "
+	         "pn-prid "
+	         "pn-param"},
+	        config_item_end};
+	    moduleConfig.addChildrenValues(items);
+
+	    // deprecated since 2022-04-19 (2.2.0)
+	    {
+		    const char* depDate = "2022-04-19";
+		    const char* depVersion = "2.2.0";
+
+		    moduleConfig.get<ConfigString>("route")->setDeprecated(
+		        {depDate, depVersion, "route parameter isn't supported anymore. Use 'routes-config-path' instead."});
+		    moduleConfig.get<ConfigBoolean>("rewrite-req-uri")
+		        ->setDeprecated(
+		            {depDate, depVersion,
+		             "rewrite-req-uri parameter isn't supported anymore. Use 'routes-config-path' instead."});
+	    }
+    });
+
+ForwardModule::ForwardModule(Agent* ag, const ModuleInfoBase* moduleInfo)
+    : Module(ag, moduleInfo), mOutRoute(nullptr), mRewriteReqUri(false), mAddPath(false) {
 	su_home_init(&mHome);
 }
 
 ForwardModule::~ForwardModule() {
 	su_home_deinit(&mHome);
-}
-
-void ForwardModule::onDeclare(GenericStruct* module_config) {
-	ConfigItemDescriptor items[] = {
-	    {String, "routes-config-path",
-	     "A path to a configuration file describing routes to be prepended before "
-	     "forwarding a request, when specific conditions for the SIP request being forwarded are met. The condition "
-	     "is described using flexisip's filter syntax, as described on \n"
-	     "https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/\n"
-	     "The configuration file comprises lines using the following syntax:\n"
-	     "<sip route>   <condition expressed as a filter expression> \n"
-	     "Comments are allowed with '#'.\n"
-	     "Conditions can spread over multiples lines provided that the continuation line starts with either "
-	     "spaces or tabs.\n"
-	     "The special condition '*' matches every request.\n"
-	     "The conditions are matched in the order they appear in the configuration file. The first fulfilled "
-	     "condition determines the route that is prepended."
-	     "If the request does not match any condition, no route is prepended.\n"
-	     "The file may be empty, or no path may be specified, in which case no route is preprended either. "
-	     "Here is a an example of a valid routes configuration file:\n"
-	     "<sip:example.org;transport=tls>     request.uri.domain == 'example.org'\n"
-	     "<sip:10.0.0.2:5070;transport=tcp>   request.uri.params contains 'user=phone'\n"
-	     "\n"
-	     "Beware: that is not just a SIP URI, but a route. As a result, when the URI has parameters, "
-	     "brackets must enclose the URI, otherwise the parameters will be parsed as route parameters.",
-	     ""},
-	    {String, "route",
-	     "A route header value where to send all requests not already resolved by the Router module "
-	     "(ie for which contact information has been found from the registrar database). This is "
-	     "the typical way to setup a Flexisip proxy server acting as a front-end for backend SIP server."
-	     "Beware: that is not just a SIP URI, but a route. As a result, when the URI has parameters, "
-	     "brackets must enclose the URI, otherwise the parameters will be parsed as route parameters.\n"
-	     "For example:\n"
-	     "route=<sip:192.168.0.10;transport=tcp>",
-	     ""},
-	    {Boolean, "rewrite-req-uri", "Rewrite request-uri's host and port according to prepended route.", "false"},
-	    {Boolean, "add-path", "Add a path header of this proxy", "true"},
-	    {String, "default-transport",
-	     "For SIP URIs, in asbsence of transport parameter, assume the given transport "
-	     "is to be used. Possible values are udp, tcp or tls.",
-	     "udp"},
-	    {StringList, "params-to-remove", "List of URL and contact params to remove",
-	     "pn-tok pn-type app-id pn-msg-str pn-call-str pn-call-snd pn-msg-snd pn-timeout pn-silent pn-provider pn-prid "
-	     "pn-param"},
-	    config_item_end};
-	module_config->addChildrenValues(items);
-
-	// deprecated since 2022-04-19 (2.2.0)
-	{
-		const char* depDate = "2022-04-19";
-		const char* depVersion = "2.2.0";
-
-		module_config->get<ConfigString>("route")->setDeprecated(
-		    {depDate, depVersion, "route parameter isn't supported anymore. Use 'routes-config-path' instead."});
-		module_config->get<ConfigBoolean>("rewrite-req-uri")
-		    ->setDeprecated({depDate, depVersion,
-		                     "rewrite-req-uri parameter isn't supported anymore. Use 'routes-config-path' instead."});
-	}
 }
 
 void ForwardModule::onLoad(const GenericStruct* mc) {
@@ -172,7 +178,7 @@ void ForwardModule::onLoad(const GenericStruct* mc) {
 	mRouterModule = dynamic_pointer_cast<ModuleRouter>(getAgent()->findModuleByFunction("Router"));
 	if (!mRouterModule.lock()) LOGA("Could not find 'Router' module.");
 
-	const GenericStruct* clusterSection = ConfigManager::get()->getRoot()->get<GenericStruct>("cluster");
+	const GenericStruct* clusterSection = getAgent()->getConfigManager().getRoot()->get<GenericStruct>("cluster");
 	bool clusterEnabled = clusterSection->get<ConfigBoolean>("enabled")->read();
 	if (clusterEnabled) {
 		mClusterNodes = clusterSection->get<ConfigStringList>("nodes")->read();
@@ -344,7 +350,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			// gruu case, ask registrar db for AOR
 			ev->suspendProcessing();
 			auto listener = make_shared<RegistrarListener>(this, ev);
-			RegistrarDb::get()->fetch(destUri, listener, false, false /*no recursivity for gruu*/);
+			mAgent->getRegistrarDb().fetch(destUri, listener, false, false /*no recursivity for gruu*/);
 			return;
 		}
 		dest = overrideDest(ev, dest);

@@ -1,19 +1,19 @@
 /*
-Flexisip, a flexible SIP proxy server with media capabilities.
-Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
-This program is free software: you can redistribute it and/or modify
-                                                                 it under the terms of the GNU Affero General Public
-License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
-version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
     This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
-You should have received a copy of the GNU Affero General Public License
-along with this program. If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "flexisip/configmanager.hh"
@@ -219,12 +219,71 @@ public:
 
 static void redundantKey() {
 	auto configFile = "/config/flexisip_redundant_key.conf";
-	auto cfg = ConfigManager::get();
+	ConfigManager cfg{};
 
 	auto configFilePath = bcTesterRes(configFile);
 	if (bctbx_file_exist(configFilePath.c_str()) == 0) {
-		BC_ASSERT_THROWN(cfg->load(configFilePath), ConfigParsingException);
+		BC_ASSERT_THROWN(cfg.load(configFilePath), ConfigParsingException);
 	}
+}
+
+static void confValueListener() {
+	class TestConfigListener : public ConfigValueListener {
+	public:
+		bool doOnConfigStateChanged(const ConfigValue&, ConfigState) override {
+			mCalled = true;
+			return true;
+		}
+		bool mCalled{false};
+	};
+
+	ConfigManager cfg{};
+	auto* mdnsStruct = cfg.getRoot()->get<GenericStruct>("mdns-register");
+	auto* confValue = mdnsStruct->get<ConfigValue>("enabled");
+
+	// Nothing happen if no listener is registered
+	{
+		auto success = confValue->onConfigStateChanged(*confValue, ConfigState::Changed);
+		BC_ASSERT_CPP_EQUAL(success, false);
+	}
+
+	// Add a listener to the struct, check that this listener is called
+	TestConfigListener mdnsListener{};
+	{
+		mdnsStruct->setConfigListener(&mdnsListener);
+		auto success = confValue->onConfigStateChanged(*confValue, ConfigState::Changed);
+		BC_ASSERT_CPP_EQUAL(success, true);
+		BC_ASSERT_CPP_EQUAL(mdnsListener.mCalled, true);
+	}
+	// reset listener value
+	mdnsListener.mCalled = false;
+
+	// Add a second listener to the value, check that this second listener is the one called
+	TestConfigListener valueListener{};
+	{
+		confValue->setConfigListener(&valueListener);
+		auto success = confValue->onConfigStateChanged(*confValue, ConfigState::Changed);
+		BC_ASSERT_CPP_EQUAL(success, true);
+		BC_ASSERT_CPP_EQUAL(valueListener.mCalled, true);
+		BC_ASSERT_CPP_EQUAL(mdnsListener.mCalled, false);
+	}
+	// reset listener values
+	mdnsListener.mCalled = false;
+	valueListener.mCalled = false;
+
+	// Change another value, check that the struct listener is the one called
+	{
+		auto anotherConfValue = mdnsStruct->get<ConfigValue>("mdns-priority");
+		auto success = anotherConfValue->onConfigStateChanged(*confValue, ConfigState::Changed);
+		BC_ASSERT_CPP_EQUAL(success, true);
+		BC_ASSERT_CPP_EQUAL(valueListener.mCalled, false);
+		BC_ASSERT_CPP_EQUAL(mdnsListener.mCalled, true);
+	}
+
+	// reset ConfigManager changes
+	confValue->setConfigListener(nullptr);
+	mdnsStruct->setConfigListener(nullptr);
+	dynamic_cast<RootConfigStruct*>(cfg.getRoot())->setCommittedChange(true);
 }
 
 namespace {
@@ -232,6 +291,7 @@ TestSuite _("ConfigManager unit tests",
             {
                 TEST_NO_TAG("Test reading of duration parameters", run<ConfigDurationTest>),
                 TEST_NO_TAG("Redundant key error", redundantKey),
+                CLASSY_TEST(confValueListener),
             });
 }
 } // namespace flexisip::tester

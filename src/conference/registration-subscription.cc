@@ -1,20 +1,20 @@
 /*
- Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2023 Belledonne Communications SARL.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as
- published by the Free Software Foundation, either version 3 of the
- License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include "registration-subscription.hh"
 
@@ -83,8 +83,9 @@ bool RegistrationSubscription::isContactCompatible(const string& specs) {
 
 OwnRegistrationSubscription::OwnRegistrationSubscription(const ConferenceServer& server,
                                                          const std::shared_ptr<linphone::ChatRoom>& cr,
-                                                         const std::shared_ptr<const linphone::Address>& participant)
-    : RegistrationSubscription(server, cr, participant) {
+                                                         const std::shared_ptr<const linphone::Address>& participant,
+                                                         RegistrarDb& registrarDb)
+    : RegistrationSubscription(server, cr, participant), mRegistrarDb{registrarDb} {
 	try {
 		mParticipantAor = SipUri(participant->asStringUriOnly());
 	} catch (const sofiasip::InvalidUrlError& e) {
@@ -98,16 +99,18 @@ void OwnRegistrationSubscription::start() {
 
 	mActive = true;
 	/*First organise the fetch of the contacts belonging to this AOR, so that we can notify immediately*/
-	RegistrarDb::get()->fetch(mParticipantAor, RegistrationSubscriptionFetchListener::shared_from_this(), true);
+	mRegistrarDb.fetch(mParticipantAor, RegistrationSubscriptionFetchListener::shared_from_this(), true);
 
 	/*Secondly subscribe for changes in the registration info of this participant*/
-	RegistrarDb::get()->subscribe(Record::Key(mParticipantAor), RegistrationSubscriptionListener::shared_from_this());
+	mRegistrarDb.subscribe(Record::Key(mParticipantAor, mRegistrarDb.useGlobalDomain()),
+	                       RegistrationSubscriptionListener::shared_from_this());
 }
 
 void OwnRegistrationSubscription::stop() {
 	if (!mActive) return;
 	mActive = false;
-	RegistrarDb::get()->unsubscribe(Record::Key(mParticipantAor), RegistrationSubscriptionListener::shared_from_this());
+	mRegistrarDb.unsubscribe(Record::Key(mParticipantAor, mRegistrarDb.useGlobalDomain()),
+	                         RegistrationSubscriptionListener::shared_from_this());
 }
 
 shared_ptr<Address> OwnRegistrationSubscription::getPubGruu(const shared_ptr<Record>& r,

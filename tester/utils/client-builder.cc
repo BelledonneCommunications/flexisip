@@ -1,6 +1,20 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include "client-builder.hh"
 
@@ -18,10 +32,10 @@
 namespace flexisip {
 namespace tester {
 
-ClientBuilder::ClientBuilder(const Server& server)
+ClientBuilder::ClientBuilder(const Agent& agent)
     : mFactory(linphone::Factory::get()), mCoreTemplate(tester::minimalCore(*mFactory)),
-      mAccountParams(mCoreTemplate->createAccountParams()), mServer(server), mLimeX3DH(OnOff::On),
-      mSendVideo(OnOff::Off), mReceiveVideo(OnOff::Off), mSendRtcp(OnOff::On), mIce(OnOff::Off), mRegister(OnOff::On) {
+      mAccountParams(mCoreTemplate->createAccountParams()), mAgent(agent), mLimeX3DH(OnOff::On), mSendVideo(OnOff::Off),
+      mReceiveVideo(OnOff::Off), mSendRtcp(OnOff::On), mIce(OnOff::Off), mRegister(OnOff::On) {
 }
 
 CoreClient ClientBuilder::build(const std::string& baseAddress) const {
@@ -43,15 +57,15 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 	accountParams->enableRegister(bool(mRegister));
 	{
 		// Clients register to the first of the list of transports read in the proxy configuration
-		auto route = mFactory->createAddress(flexisip::ConfigManager::get()
-		                                         ->getRoot()
+		auto route = mFactory->createAddress(mAgent.getConfigManager()
+		                                         .getRoot()
 		                                         ->get<flexisip::GenericStruct>("global")
 		                                         ->get<flexisip::ConfigStringList>("transports")
 		                                         ->read()
 		                                         .front());
 		// Fix port if auto-bound
 		if (route->getPort() == 0) {
-			route->setPort(std::atoi(mServer.getFirstPort()));
+			route->setPort(std::atoi(getFirstPort(mAgent)));
 		}
 
 		accountParams->setServerAddress(route);
@@ -129,7 +143,7 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 
 	core->start();
 	if (bool(mRegister)) {
-		CoreAssert(core, mServer)
+		CoreAssert(core, mAgent)
 		    .iterateUpTo(0x10,
 		                 [&account] {
 			                 FAIL_IF(account->getState() != linphone::RegistrationState::Ok);
@@ -137,7 +151,7 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 		                 })
 		    .assert_passed();
 	}
-	return CoreClient(std::move(core), std::move(account), std::move(myAddress), mServer);
+	return CoreClient(std::move(core), std::move(account), std::move(myAddress), mAgent);
 }
 
 ClientBuilder& ClientBuilder::setConferenceFactoryUri(const std::string& uri) {

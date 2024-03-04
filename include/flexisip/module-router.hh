@@ -47,12 +47,11 @@ class ModuleRouter : public Module,
                      public ModuleToolbox,
                      public ForkContextListener,
                      public std::enable_shared_from_this<ModuleRouter> {
+
+	friend std::shared_ptr<Module> ModuleInfo<ModuleRouter>::create(Agent*);
+
 public:
-	ModuleRouter(Agent* ag);
-
 	~ModuleRouter();
-
-	void onDeclare(GenericStruct* mc) override;
 
 	void onLoad(const GenericStruct* mc) override;
 
@@ -122,9 +121,13 @@ public:
 		sMaxPriorityHandled = maxPriorityHandled;
 	}
 
+	static void declareConfig(GenericStruct& moduleConfig);
+
 	RouterStats mStats;
 
 protected:
+	ModuleRouter(Agent* ag, const ModuleInfoBase* moduleInfo);
+
 	using ForkMapElem = std::shared_ptr<ForkContext>;
 	using ForkMap = std::multimap<std::string, ForkMapElem>;
 	using ForkRefList = std::vector<ForkMapElem>;

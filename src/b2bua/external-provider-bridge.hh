@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024  Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -106,7 +106,7 @@ public:
 
 	AccountManager(linphone::Core& core, std::vector<ProviderDesc>&& provDescs);
 
-	void init(const std::shared_ptr<linphone::Core>& core, const flexisip::GenericStruct& config) override;
+	void init(const std::shared_ptr<linphone::Core>& core, const flexisip::ConfigManager& cfg) override;
 	std::variant<linphone::Reason, std::shared_ptr<const linphone::Address>>
 	onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) override;
 	void onCallEnd(const linphone::Call& call) override;

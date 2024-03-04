@@ -1,19 +1,20 @@
-/* Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2023  Belledonne Communications SARL, All rights reserved.
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as
- published by the Free Software Foundation, either version 3 of the
- License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include "utils/string-utils.hh"
 
@@ -182,13 +183,14 @@ Trenscrypter::onCallCreate(const linphone::Call& incomingCall, linphone::CallPar
 	return callee;
 }
 
-void Trenscrypter::init(const std::shared_ptr<linphone::Core>& core, const flexisip::GenericStruct& configRoot) {
+void Trenscrypter::init(const std::shared_ptr<linphone::Core>& core, const flexisip::ConfigManager& cfg) {
 	mCore = core;
-	const auto config = configRoot.get<GenericStruct>(configSection);
+	const auto* configRoot = cfg.getRoot();
+	const auto* config = configRoot->get<GenericStruct>(configSection);
 
 	// create a non registered account to force route outgoing call through the proxy
 	auto route = mCore->createAddress(
-	    configRoot.get<GenericStruct>(b2bua::configSection)->get<ConfigString>("outbound-proxy")->read());
+	    configRoot->get<GenericStruct>(b2bua::configSection)->get<ConfigString>("outbound-proxy")->read());
 	auto accountParams = mCore->createAccountParams();
 	accountParams->setIdentityAddress(mCore->createAddress(mCore->getPrimaryContact()));
 	accountParams->enableRegister(false);
@@ -253,9 +255,8 @@ void Trenscrypter::init(const std::shared_ptr<linphone::Core>& core, const flexi
 }
 
 namespace {
-
 // Statically define default configuration items
-auto defineConfig = [] {
+auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
 	ConfigItemDescriptor items[] = {
 	    {StringList, "outgoing-enc-regex",
 	     "Select the call outgoing encryption mode, this is a list of regular expressions and encryption mode.\n"
@@ -322,13 +323,9 @@ auto defineConfig = [] {
 	     ""},
 	    config_item_end};
 
-	ConfigManager::get()
-	    ->getRoot()
-	    ->addChild(std::make_unique<GenericStruct>(configSection, "Encryption transcoder bridge parameters.", 0))
+	root.addChild(std::make_unique<GenericStruct>(configSection, "Encryption transcoder bridge parameters.", 0))
 	    ->addChildrenValues(items);
-
-	return nullptr;
-}();
+});
 } // namespace
 
 } // namespace trenscrypter

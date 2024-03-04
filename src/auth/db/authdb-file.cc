@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,8 +20,9 @@
 #include <iostream>
 #include <sstream>
 
-#include <belr/abnf.h>
-#include <belr/grammarbuilder.h>
+#include "belr/abnf.h"
+#include "belr/grammarbuilder.h"
+#include "belr/parser.h"
 
 #ifdef HAVE_CONFIG_H
 #include "flexisip-config.h"
@@ -93,9 +94,8 @@ void FileAuthDb::parsePasswd(const vector<passwd_algo_t>& srcPasswords,
 	}
 }
 
-FileAuthDb::FileAuthDb() : AuthDbBackend(*ConfigManager::get()->getRoot()) {
-	GenericStruct* cr = ConfigManager::get()->getRoot();
-	GenericStruct* ma = cr->get<GenericStruct>("module::Authentication");
+FileAuthDb::FileAuthDb(const GenericStruct& root) : AuthDbBackend(root), mConfigRoot(root) {
+	GenericStruct* ma = root.get<GenericStruct>("module::Authentication");
 
 	mLastSync = 0;
 	mFileString = ma->get<ConfigString>("file-path")->read();
@@ -170,8 +170,7 @@ shared_ptr<belr::Parser<shared_ptr<FileAuthDbParserElem>>> FileAuthDb::setupPars
 */
 void FileAuthDb::sync() {
 	LOGD("Syncing password file");
-	GenericStruct* cr = ConfigManager::get()->getRoot();
-	GenericStruct* ma = cr->get<GenericStruct>("module::Authentication");
+	GenericStruct* ma = mConfigRoot.get<GenericStruct>("module::Authentication");
 	list<string> domains = ma->get<ConfigStringList>("auth-domains")->read();
 
 	mLastSync = getCurrentTime();

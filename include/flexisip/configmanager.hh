@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -22,6 +22,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <cxxabi.h>
+#include <functional>
 #include <iostream>
 #include <list>
 #include <memory>
@@ -69,14 +70,9 @@ enum class ConfigState { Check, Changed, Reset, Committed };
 class ConfigValue;
 
 class ConfigValueListener {
-	static bool sDirty;
-
 public:
 	ConfigValueListener() = default;
 	virtual ~ConfigValueListener() = default;
-	bool onConfigStateChanged(const ConfigValue& conf, ConfigState state);
-
-protected:
 	virtual bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) = 0;
 
 private:
@@ -256,7 +252,7 @@ public:
 	void setErrorMessage(const std::string& msg) {
 		mErrorMessage = msg;
 	}
-	std::string& getErrorMessage() {
+	const std::string& getErrorMessage() const {
 		return mErrorMessage;
 	}
 
@@ -291,6 +287,7 @@ public:
 	ConfigValueListener* getConfigListener() const {
 		return mConfigListener;
 	}
+	bool onConfigStateChanged(const ConfigValue& conf, ConfigState state);
 
 	void setDeprecated(const DeprecationInfo& info) {
 		mDeprecationInfo = info;
@@ -374,8 +371,10 @@ public:
 	}
 
 	StatCounter64* createStat(const std::string& name, const std::string& help);
-	std::pair<StatCounter64*, StatCounter64*> createStatPair(const std::string& name, const std::string& help);
-	std::unique_ptr<StatPair> createStats(const std::string& name, const std::string& help);
+	void createStatPair(const std::string& name, const std::string& help);
+	StatCounter64* getStat(const std::string& name);
+	std::pair<StatCounter64*, StatCounter64*> getStatPair(const std::string& name);
+	std::unique_ptr<StatPair> getStatPairPtr(const std::string& name);
 
 	void addChildrenValues(ConfigItemDescriptor* items);
 	void addChildrenValues(ConfigItemDescriptor* items, bool hashed);
@@ -402,8 +401,25 @@ private:
 
 class RootConfigStruct : public GenericStruct {
 public:
-	RootConfigStruct(const std::string& name, const std::string& help, std::vector<oid> oid_root_prefix);
+	RootConfigStruct(const std::string& name,
+	                 const std::string& help,
+	                 std::vector<oid> oid_root_prefix,
+	                 const std::string& configFile);
 	~RootConfigStruct() override;
+
+	const std::string& getConfigFile() const {
+		return mConfigFile;
+	}
+	void setCommittedChange(bool committedChange) {
+		mCommittedChange = committedChange;
+	}
+	bool hasCommittedChange() const {
+		return mCommittedChange;
+	}
+
+private:
+	const std::string& mConfigFile; // keep a const ref to ConfigManager file
+	bool mCommittedChange{true};
 };
 
 class StatCounter64 : public GenericEntry {
@@ -677,7 +693,7 @@ public:
 	                      netsnmp_agent_request_info*,
 	                      netsnmp_request_info*) override;
 #endif
-	void writeErrors(GenericEntry* entry, std::ostringstream& oss) const;
+	void writeErrors(const GenericEntry* entry, std::ostringstream& oss) const;
 };
 
 class ConfigString : public ConfigValue {
@@ -798,11 +814,14 @@ class ConfigManager : protected ConfigValueListener {
 	friend class ConfigArea;
 
 public:
-	static ConfigManager* get();
+	// Statically register add section functions
+	static std::vector<std::function<void(GenericStruct&)>>& defaultInit();
+	ConfigManager();
 
 	int load(const std::string& configFile);
+	const GenericStruct* getRoot() const;
 	GenericStruct* getRoot();
-	std::string& getConfigFile() {
+	const std::string& getConfigFile() const {
 		return mConfigFile;
 	}
 
@@ -817,8 +836,7 @@ public:
 		return mOverrides;
 	}
 
-	const GenericStruct* getGlobal();
-	void loadStrict();
+	const GenericStruct* getGlobal() const;
 	StatCounter64& findStat(const std::string& key);
 	void addStat(const std::string& key, StatCounter64& stat);
 	NotificationEntry* getSnmpNotifier() {
@@ -835,21 +853,16 @@ public:
 	bool mNeedRestart = false;
 	bool mDirtyConfig = false;
 
-protected:
-	ConfigManager();
-
 private:
 	bool doIsValidNextConfig(const ConfigValue& cv);
 	bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) override;
+	std::string mConfigFile;
 	RootConfigStruct mConfigRoot;
 	FileConfigReader mReader;
-	std::string mConfigFile;
 	std::map<std::string, std::string> mOverrides;
 	std::map<std::string, StatCounter64*> mStatMap;
 	std::unordered_set<std::string> mStatOids;
 	NotificationEntry* mNotifier = nullptr;
-
-	static std::unique_ptr<ConfigManager> sInstance;
 };
 
 } // namespace flexisip

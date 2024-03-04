@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024  Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -17,7 +17,6 @@
 */
 
 #include "monitor.hh"
-#include "auth/db/authdb.hh"
 #include <flexisip/configmanager.hh>
 #include <ortp/rtpsession.h>
 #include <sofia-sip/su_md5.h>
@@ -25,13 +24,14 @@
 using namespace std;
 using namespace flexisip;
 
-Monitor::Init Monitor::sInit;
 const string Monitor::SCRIPT_PATH = "./flexisip_monitor.py";
 const string Monitor::CALLER_PREFIX = "monitor-caller";
 const string Monitor::CALLEE_PREFIX = "monitor-callee";
 const int Monitor::PASSWORD_CACHE_EXPIRE = INT_MAX / 2;
 
-Monitor::Init::Init() {
+namespace {
+// Statically define default configuration items
+auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
 	ConfigItemDescriptor items[] = {
 	    {Boolean, "enabled", "Enable or disable the Flexisip monitor daemon", "false"},
 	    {DurationS, "test-interval", "Time between two consecutive tests", "30"},
@@ -41,18 +41,15 @@ Monitor::Init::Init() {
 	    config_item_end};
 
 	auto uS = make_unique<GenericStruct>("monitor", "Flexisip monitor parameters", 0);
-	auto s = ConfigManager::get()->getRoot()->addChild(std::move(uS));
+	auto* s = root.addChild(std::move(uS));
 	s->addChildrenValues(items);
 	s->setExportable(false);
-}
+});
+} // namespace
 
-void Monitor::exec(int socket) {
-	// Create a temporary agent to load all modules
-	auto a = make_shared<Agent>(nullptr);
-	ConfigManager::get()->loadStrict();
-
-	GenericStruct* monitorParams = ConfigManager::get()->getRoot()->get<GenericStruct>("monitor");
-	GenericStruct* cluster = ConfigManager::get()->getRoot()->get<GenericStruct>("cluster");
+void Monitor::exec(ConfigManager& cfg, int socket) {
+	GenericStruct* monitorParams = cfg.getRoot()->get<GenericStruct>("monitor");
+	GenericStruct* cluster = cfg.getRoot()->get<GenericStruct>("cluster");
 	string interval = monitorParams->get<ConfigValue>("test-interval")->get();
 	string logfile = monitorParams->get<ConfigString>("logfile")->read();
 	string port = monitorParams->get<ConfigValue>("switch-port")->get();
@@ -61,7 +58,7 @@ void Monitor::exec(int socket) {
 
 	string domain;
 	try {
-		domain = findDomain();
+		domain = findDomain(*cfg.getRoot());
 	} catch (const FlexisipException& e) {
 		LOGF("Monitor: cannot find domain. %s", e.str().c_str());
 		exit(EXIT_FAILURE);
@@ -113,14 +110,14 @@ string Monitor::findLocalAddress(const list<string>& nodes) {
 	return "";
 }
 
-void Monitor::createAccounts() {
-	AuthDbBackend& authDb = AuthDbBackend::get();
-	GenericStruct* cluster = ConfigManager::get()->getRoot()->get<GenericStruct>("cluster");
-	GenericStruct* monitorConf = ConfigManager::get()->getRoot()->get<GenericStruct>("monitor");
+void Monitor::createAccounts(std::shared_ptr<AuthDbBackendOwner> authDbOwner, GenericStruct& rootConfig) {
+	auto& authDb = authDbOwner->get();
+	GenericStruct* cluster = rootConfig.get<GenericStruct>("cluster");
+	GenericStruct* monitorConf = rootConfig.get<GenericStruct>("monitor");
 	string salt = monitorConf->get<ConfigString>("password-salt")->read();
 	list<string> nodes = cluster->get<ConfigStringList>("nodes")->read();
 
-	string domain = findDomain();
+	string domain = findDomain(rootConfig);
 	string localIP = findLocalAddress(nodes);
 	if (localIP == "") {
 		LOGA("Monitor::createAccounts(): Could not find local IP address");
@@ -160,8 +157,8 @@ string Monitor::generatePassword(const string& host, const string& salt) {
 	return md5sum(host + salt);
 }
 
-string Monitor::findDomain() {
-	GenericStruct* registrarConf = ConfigManager::get()->getRoot()->get<GenericStruct>("module::Registrar");
+string Monitor::findDomain(GenericStruct& rootConfig) {
+	GenericStruct* registrarConf = rootConfig.get<GenericStruct>("module::Registrar");
 	list<string> domains = registrarConf->get<ConfigStringList>("reg-domains")->read();
 	if (domains.size() == 0) {
 		throw FlexisipException("No domain declared in the registar module parameters");

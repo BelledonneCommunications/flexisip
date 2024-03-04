@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -25,17 +25,16 @@ using namespace std;
 using namespace flexisip;
 
 class ModuleSanityChecker : public Module, protected ModuleToolbox {
-public:
-	ModuleSanityChecker(Agent* ag) : Module(ag) {
-	}
+	friend std::shared_ptr<Module> ModuleInfo<ModuleSanityChecker>::create(Agent*);
 
+public:
 	~ModuleSanityChecker() {
 	}
 
-	virtual void onRequest(shared_ptr<RequestSipEvent> &ev) {
-		sip_t *sip = ev->getMsgSip()->getSip();
+	virtual void onRequest(shared_ptr<RequestSipEvent>& ev) {
+		sip_t* sip = ev->getMsgSip()->getSip();
 
-		const char *error = checkHeaders(sip);
+		const char* error = checkHeaders(sip);
 		if (error) {
 			LOGW("Rejecting request because of %s", error);
 			ev->reply(400, error, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
@@ -45,24 +44,21 @@ public:
 		}
 	}
 
-	virtual void onResponse([[maybe_unused]] shared_ptr<ResponseSipEvent> &ev) {
+	virtual void onResponse([[maybe_unused]] shared_ptr<ResponseSipEvent>& ev) {
 		// don't check our responses ;)
 	}
 
-	void onDeclare([[maybe_unused]] GenericStruct *mc) {
+private:
+	ModuleSanityChecker(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 	}
 
-private:
-	const char *checkHeaders(sip_t *sip) {
-		if (sip->sip_via == NULL)
-			return "No via";
+	const char* checkHeaders(sip_t* sip) {
+		if (sip->sip_via == NULL) return "No via";
 		if (sip->sip_from == NULL || sip->sip_from->a_url->url_host == NULL || sip->sip_from->a_tag == NULL)
 			return "Invalid from header";
-		if (sip->sip_to == NULL || sip->sip_to->a_url->url_host == NULL)
-			return "Invalid to header";
+		if (sip->sip_to == NULL || sip->sip_to->a_url->url_host == NULL) return "Invalid to header";
 		if (sip->sip_contact) {
-			if (sip->sip_contact->m_url->url_scheme == NULL)
-				return "Invalid scheme in contact header";
+			if (sip->sip_contact->m_url->url_scheme == NULL) return "Invalid scheme in contact header";
 			if (sip->sip_contact->m_url->url_scheme[0] != '*' && sip->sip_contact->m_url->url_host == NULL)
 				return "Invalid contact header";
 		}
@@ -72,10 +68,11 @@ private:
 };
 
 ModuleInfo<ModuleSanityChecker> ModuleSanityChecker::sInfo(
-	"SanityChecker",
-	"The SanitChecker module checks that required fields of a SIP message are present to avoid unecessary checking while "
-	"processing message further.\n"
-	"If the message doesn't meet these sanity check criterias, then it is stopped and bad request response is sent.",
-	{ "DoSProtection" },
-	ModuleInfoBase::ModuleOid::SanityChecker
-);
+    "SanityChecker",
+    "The SanitChecker module checks that required fields of a SIP message are present to avoid unecessary checking "
+    "while "
+    "processing message further.\n"
+    "If the message doesn't meet these sanity check criterias, then it is stopped and bad request response is sent.",
+    {"DoSProtection"},
+    ModuleInfoBase::ModuleOid::SanityChecker,
+    [](GenericStruct&) {});

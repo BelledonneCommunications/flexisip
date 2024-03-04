@@ -1,6 +1,20 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include "test-conference-server.hh"
 
@@ -19,8 +33,10 @@ using namespace std;
 namespace flexisip {
 namespace tester {
 
-TestConferenceServer::TestConferenceServer(const Agent& agent)
-    : mConfServer(make_shared<PatchedConferenceServer>(agent.getPreferredRoute(), agent.getRoot())) {
+TestConferenceServer::TestConferenceServer(const Agent& agent,
+                                           const std::shared_ptr<ConfigManager>& cfg,
+                                           const std::shared_ptr<RegistrarDb>& registrarDb)
+    : mConfServer(make_shared<PatchedConferenceServer>(agent.getPreferredRoute(), agent.getRoot(), cfg, registrarDb)) {
 	mConfServer->init();
 }
 
@@ -40,8 +56,7 @@ void TestConferenceServer::PatchedConferenceServer::bindAddresses() {
 	const auto port = std::to_string((core->getTransportsUsed()->getTcpPort()));
 	const_cast<url_t*>(mTransport.get())->url_port = port.c_str();
 	const auto newTransport = mTransport.str();
-	ConfigManager::get()
-	    ->getRoot()
+	mConfigManager->getRoot()
 	    ->get<GenericStruct>("conference-server")
 	    ->get<ConfigString>("transport")
 	    ->set(newTransport);

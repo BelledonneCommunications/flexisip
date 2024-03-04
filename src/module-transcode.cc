@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -37,10 +37,34 @@ ModuleInfo<Transcoder> Transcoder::sInfo(
     "WARNING: this module can conflict with the MediaRelay module as they are both changing the SDP. Make sure to "
     "configure them with different to-domains or from-domains filter if you want to enable both of them.",
     {"MediaRelay"},
-    ModuleInfoBase::ModuleOid::Transcoder);
+    ModuleInfoBase::ModuleOid::Transcoder,
+
+    [](GenericStruct& moduleConfig) {
+	    /*we need to be disabled by default*/
+	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
+	    ConfigItemDescriptor items[] = {
+	        {DurationMS, "jb-nom-size",
+	         "Nominal size of RTP jitter buffer. A value of 0 means no jitter buffer (packet processing).", "0"},
+	        {StringList, "rc-user-agents",
+	         "Whitespace separated list of user-agent strings for which audio rate control is performed.", ""},
+	        {StringList, "audio-codecs",
+	         "Whitespace seprated list of audio codecs, in order of preference. The 'telephone-event' codec is "
+	         "necessary "
+	         "for inband DTMF processing.",
+	         "speex/8000 amr/8000 iLBC/8000 gsm/8000 pcmu/8000 pcma/8000 telephone-event/8000"},
+	        {Boolean, "remove-bw-limits", "Remove the bandwidth limitations from SDP offers and answers", "false"},
+	        {Boolean, "block-retransmissions",
+	         "If true, retransmissions of INVITEs will be blocked. The purpose of this option is to limit bandwidth "
+	         "usage "
+	         "and server load on reliable networks.",
+	         "false"},
+	        config_item_end};
+	    moduleConfig.addChildrenValues(items);
+	    moduleConfig.createStatPair("count-calls", "Number of transcoded calls.");
+    });
 
 #ifndef ENABLE_TRANSCODER
-Transcoder::Transcoder(Agent* ag) : Module(ag) {
+Transcoder::Transcoder(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 }
 Transcoder::~Transcoder() {
 }
@@ -55,33 +79,6 @@ void Transcoder::onResponse(shared_ptr<ResponseSipEvent>&) {
 	LOGA("Transcoder support is not compiled");
 }
 #endif
-
-void Transcoder::onDeclare(GenericStruct* mc) {
-	/*we need to be disabled by default*/
-	mc->get<ConfigBoolean>("enabled")->setDefault("false");
-	ConfigItemDescriptor items[] = {
-	    {DurationMS, "jb-nom-size",
-	     "Nominal size of RTP jitter buffer. A value of 0 means no jitter buffer (packet processing).", "0"},
-	    {StringList, "rc-user-agents",
-	     "Whitespace separated list of user-agent strings for which audio rate control is performed.", ""},
-	    {StringList, "audio-codecs",
-	     "Whitespace seprated list of audio codecs, in order of preference. The 'telephone-event' codec is necessary "
-	     "for inband DTMF processing.",
-	     "speex/8000 amr/8000 iLBC/8000 gsm/8000 pcmu/8000 pcma/8000 telephone-event/8000"},
-	    {Boolean, "remove-bw-limits", "Remove the bandwidth limitations from SDP offers and answers", "false"},
-	    {Boolean, "block-retransmissions",
-	     "If true, retransmissions of INVITEs will be blocked. The purpose of this option is to limit bandwidth usage "
-	     "and server load on reliable networks.",
-	     "false"},
-	    config_item_end};
-	mc->addChildrenValues(items);
-
-	auto p = mc->createStatPair("count-calls", "Number of transcoded calls.");
-#ifdef ENABLE_TRANSCODER
-	mCalls.setCallStatCounters(p.first, p.second);
-#endif
-	(void)p;
-}
 
 #ifdef ENABLE_TRANSCODER
 static list<PayloadType*> makeSupportedAudioPayloadList() {
@@ -134,8 +131,11 @@ bool Transcoder::hasSupportedCodec(const std::list<PayloadType*>& ioffer) {
 	return false;
 }
 
-Transcoder::Transcoder(Agent* ag) : Module(ag), mSupportedAudioPayloads(), mTimer(0) {
+Transcoder::Transcoder(Agent* ag, const ModuleInfoBase* moduleInfo)
+    : Module(ag, moduleInfo), mSupportedAudioPayloads(), mTimer(0) {
 	mFactory = ms_factory_new_with_voip();
+	auto p = mModuleConfig->getStatPair("count-calls");
+	mCalls.setCallStatCounters(p.first, p.second);
 }
 
 Transcoder::~Transcoder() {

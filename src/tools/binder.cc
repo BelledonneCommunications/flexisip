@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -28,13 +28,13 @@ struct MyListener : public ContactUpdateListener {
 		const auto& ec = *r->getExtendedContacts().oldest();
 		check("expire", atol(params.sip.contact->m_expires), ec->getSipExpires());
 	}
-	virtual void onError() override {
+	virtual void onError(const SipStatus&) override {
 		BAD("RegistrarDbListener:error");
 	}
-	virtual void onInvalid() override {
+	virtual void onInvalid(const SipStatus&) override {
 		BAD("RegistrarDbListener:invalid");
 	}
-	virtual void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
+	virtual void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override {
 	}
 };
 
@@ -50,22 +50,24 @@ void checkExpireHandling() {
 static sip_contact_t* uid_ct(const char* urlparams, const char* ctparams) {
 	return sip_contact_format(home.h, "<%s%s>%s", "sip:localhost:12345", urlparams, ctparams);
 }
-void checkUniqueIdExtraction() {
+void checkUniqueIdExtraction(const ConfigManager& cfg) {
 #define UID_PARAM theparam
 	string theparam = "UID_PARAM";
-	check("+sip.instance in ct param", Record::extractUniqueId(uid_ct("", ";+sip.instance=UID_PARAM")), theparam);
+	Record r(SipUri{}, Record::Config{cfg});
+	check("+sip.instance in ct param", r.extractUniqueId(uid_ct("", ";+sip.instance=UID_PARAM")), theparam);
 
-	check("+sip.instance in url param", Record::extractUniqueId(uid_ct(";+sip.instance=UID_PARAM", "")), theparam);
+	check("+sip.instance in url param", r.extractUniqueId(uid_ct(";+sip.instance=UID_PARAM", "")), theparam);
 
-	check("line in ct param", Record::extractUniqueId(uid_ct("", ";line=UID_PARAM")), theparam);
+	check("line in ct param", r.extractUniqueId(uid_ct("", ";line=UID_PARAM")), theparam);
 
-	check("line url param", Record::extractUniqueId(uid_ct(";line=UID_PARAM", "")), theparam);
+	check("line url param", r.extractUniqueId(uid_ct(";line=UID_PARAM", "")), theparam);
 }
 int main(int argc, char** argv) {
-	init_tests();
+	ConfigManager cfg{};
+	init_tests(cfg);
 
 	checkExpireHandling();
-	checkUniqueIdExtraction();
+	checkUniqueIdExtraction(cfg);
 
 	int expire_delta = 1000;
 	list<string> paths{"path1", "path2", "path3"};

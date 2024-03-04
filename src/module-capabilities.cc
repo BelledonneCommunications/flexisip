@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -45,6 +45,7 @@ const ModuleInfo<ModuleCapabilities> ModuleCapabilities::sInfo{
     "supported header is added in the response, so this mechanism cannot be used for capabilities introspection.\n"
     "If the module is disabled, the request will be silently discarded.",
     {"GarbageIn"},
-    ModuleInfoBase::Capabilities};
+    ModuleInfoBase::ModuleOid::Capabilities,
+    [](GenericStruct&) {}};
 
 } // namespace flexisip

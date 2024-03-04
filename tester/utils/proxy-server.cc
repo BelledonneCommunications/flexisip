@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -34,39 +34,52 @@ using namespace std::chrono;
 namespace flexisip {
 namespace tester {
 
+const char* getFirstPort(const Agent& agent) {
+	const auto firstTransport = ::tport_primaries(::nta_agent_tports(agent.getSofiaAgent()));
+	return ::tport_name(firstTransport)->tpn_port;
+}
+
 /**
  * A class to manage the flexisip proxy server
  */
-Server::Server(const std::string& configFile, Module* module)
-    : mModule(module ? decltype(mModule){*module} : std::nullopt) {
-	if (!configFile.empty()) {
-		ConfigManager* cfg = ConfigManager::get();
+Server::Server(const std::string& configFile, InjectedHooks* injectedHooks)
+    : mInjectedModule(injectedHooks ? decltype(mInjectedModule){*injectedHooks} : std::nullopt) {
 
+	if (!configFile.empty()) {
 		auto configFilePath = bcTesterRes(configFile);
 		int ret = -1;
 		if (bctbx_file_exist(configFilePath.c_str()) == 0) {
-			ret = cfg->load(configFilePath);
+			ret = mConfigManager->load(configFilePath);
 		} else {
-			ret = cfg->load(bcTesterRes(configFile));
+			ret = mConfigManager->load(bcTesterRes(configFile));
 		}
 		if (ret != 0) {
 			BC_FAIL("Unable to load configuration file");
 		}
-		mAgent->loadConfig(cfg); // Don't modify cfg before this line as it gets reloaded here
 
 		// For testing purposes, override the auth file path to be relative to the config file.
 		const auto& configFolderPath = configFilePath.substr(0, configFilePath.find_last_of('/') + 1);
-		auto authFilePath = cfg->getRoot()
+		auto authFilePath = mConfigManager->getRoot()
 		                        ->get<flexisip::GenericStruct>("module::Authentication")
 		                        ->get<flexisip::ConfigString>("file-path");
 		authFilePath->set(configFolderPath + authFilePath->read());
 	}
+
+	mAuthDbOwner = std::make_shared<AuthDbBackendOwner>(mConfigManager);
+	auto root = std::make_shared<sofiasip::SuRoot>();
+	mRegistrarDb = std::make_shared<RegistrarDb>(root, mConfigManager);
+	mAgent = std::make_shared<Agent>(root, mConfigManager, mAuthDbOwner, mRegistrarDb);
 }
 
-Server::Server(const std::map<std::string, std::string>& config, Module* module)
-    : mModule(module ? decltype(mModule){*module} : std::nullopt) {
-	auto cfg = ConfigManager::get();
-	cfg->load("");
+Server::Server(const std::map<std::string, std::string>& customConfig, InjectedHooks* injectedHooks)
+    : mInjectedModule(injectedHooks ? decltype(mInjectedModule){*injectedHooks} : std::nullopt) {
+	mConfigManager->load("");
+
+	// add minimal config if not present
+	auto config = customConfig;
+	config.merge(map<string, string>{// Requesting bind on port 0 to let the kernel find any available port
+	                                 {"global/transports", "sip:127.0.0.1:0"},
+	                                 {"module::Registrar/reg-domains", "sip.example.org"}});
 	for (const auto& kv : config) {
 		const auto& key = kv.first;
 		const auto& value = kv.second;
@@ -79,14 +92,17 @@ Server::Server(const std::map<std::string, std::string>& config, Module* module)
 		}
 		auto sectionName = key.substr(0, slashPos);
 		auto parameterName = key.substr(slashPos + 1);
-		cfg->getRoot()->get<GenericStruct>(sectionName)->get<ConfigValue>(parameterName)->set(value);
+		mConfigManager->getRoot()->get<GenericStruct>(sectionName)->get<ConfigValue>(parameterName)->set(value);
 	}
-	mAgent->loadConfig(cfg, false);
+
+	mAuthDbOwner = std::make_shared<AuthDbBackendOwner>(mConfigManager);
+	auto root = std::make_shared<sofiasip::SuRoot>();
+	mRegistrarDb = std::make_shared<RegistrarDb>(root, mConfigManager);
+	mAgent = std::make_shared<Agent>(root, mConfigManager, mAuthDbOwner, mRegistrarDb);
 }
 
 Server::~Server() {
 	mAgent->unloadConfig();
-	RegistrarDb::resetDB();
 }
 
 void Server::runFor(std::chrono::milliseconds duration) {
@@ -96,12 +112,7 @@ void Server::runFor(std::chrono::milliseconds duration) {
 	}
 }
 const char* Server::getFirstPort() const {
-	const auto firstTransport = ::tport_primaries(::nta_agent_tports(mAgent->getSofiaAgent()));
-	return ::tport_name(firstTransport)->tpn_port;
-}
-
-ClientBuilder Server::clientBuilder() const {
-	return ClientBuilder(*this);
+	return tester::getFirstPort(*mAgent);
 }
 
 } // namespace tester

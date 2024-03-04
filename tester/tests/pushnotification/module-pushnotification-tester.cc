@@ -612,8 +612,7 @@ protected:
 	}
 
 	void testExec() override {
-		auto proxy = make_shared<Server>(mAgent);
-		auto builder = proxy->clientBuilder();
+		ClientBuilder builder{*mAgent};
 		auto core1 = builder.build("sip:user1@sip.example.org");
 		auto core2 = make_shared<CoreClient>(
 		    builder.setPushParams(mPlatform->getContactPushParams()).build("sip:user2@sip.example.org"));
@@ -658,8 +657,7 @@ public:
 	}
 
 	void testExec() override {
-		auto proxy = make_shared<Server>(mAgent);
-		auto builder = proxy->clientBuilder();
+		ClientBuilder builder{*mAgent};
 		auto core1 = builder.build("sip:user1@sip.example.org");
 		auto core2 = builder.setPushParams(mPlatform->getContactPushParams()).build("sip:user2@sip.example.org");
 		core2.disconnect();
@@ -668,7 +666,7 @@ public:
 
 		SLOGI << "Send INVITE to the callee and wait for the first ringing PN sending";
 		auto call = core1.invite(core2);
-		auto ringingPushSent = CoreAssert{proxy->getAgent(), core1, core2}.wait([&pushClient]() {
+		auto ringingPushSent = CoreAssert{mAgent, core1, core2}.wait([&pushClient]() {
 			BC_HARD_ASSERT(pushClient->getRingingPNCount() <= 1);
 			return pushClient->getRingingPNCount() == 1 ? ASSERTION_PASSED() : ASSERTION_CONTINUE();
 		});
@@ -676,7 +674,7 @@ public:
 
 		SLOGI << "Canceling the current call";
 		call->terminate();
-		auto callReleased = CoreAssert{proxy->getAgent(), core1, core2}.wait([&call]() {
+		auto callReleased = CoreAssert{mAgent, core1, core2}.wait([&call]() {
 			return call->getState() == linphone::Call::State::Released ? ASSERTION_PASSED() : ASSERTION_CONTINUE();
 		});
 		BC_HARD_ASSERT(callReleased);
@@ -684,7 +682,7 @@ public:
 
 		// Workaround: register core2 again in order to avoid assertion failure on core2 destruction.
 		core2.reconnect();
-		CoreAssert{proxy->getAgent(), core1, core2}
+		CoreAssert{mAgent, core1, core2}
 		    .wait([&core2] {
 			    return core2.getAccount()->getState() == linphone::RegistrationState::Ok ? ASSERTION_PASSED()
 			                                                                             : ASSERTION_CONTINUE();
@@ -755,16 +753,15 @@ protected:
 	}
 
 	void testExec() override {
-		auto proxy = make_shared<Server>(mAgent);
-		auto caller = make_shared<CoreClient>("sip:user1@sip.example.org", proxy);
+		auto caller = make_shared<CoreClient>("sip:user1@sip.example.org", mAgent);
 
 		auto calleePushParams = mPlatform->getContactPushParams();
 
 		RFC8599PushParams devCalleePushParams{"apns.dev", calleePushParams.getParam(), calleePushParams.getPrid()};
 		auto calleeDevDevice =
-		    proxy->clientBuilder().setPushParams(devCalleePushParams).build("sip:user2@sip.example.org");
+		    ClientBuilder(*mAgent).setPushParams(devCalleePushParams).build("sip:user2@sip.example.org");
 		auto callee = make_shared<CoreClient>(
-		    proxy->clientBuilder().setPushParams(calleePushParams).build("sip:user2@sip.example.org"));
+		    ClientBuilder(*mAgent).setPushParams(calleePushParams).build("sip:user2@sip.example.org"));
 		callee->disconnect();
 		callee->setCallInviteReceivedDelay(callee->getCallInviteReceivedDelay() +
 		                                   mPNHandler->getCallInviteReceivedExtraDelay());
@@ -822,7 +819,7 @@ protected:
 		mClient = make_shared<NtaAgent>(mAgent->getRoot(), "sip:localhost:0");
 		mProxyPort = ::tport_name(::tport_primaries(::nta_agent_tports(mAgent->getSofiaAgent())))->tpn_port;
 
-		ContactInserter inserter(*RegistrarDb::get());
+		ContactInserter inserter(mAgent->getRegistrarDb());
 		inserter.setAor("sip:callee@localhost")
 		    .setExpire(60s)
 		    .insert({"sip:callee@localhost:0;transport=tcp;pn-prid=id;pn-provider=fcm;pn-param=key;pn-silent=1;pn-"

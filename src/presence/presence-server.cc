@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -45,12 +45,11 @@ using namespace flexisip;
 using namespace pidf;
 using namespace std;
 
-// The Init object is instanciated to load the config
-PresenceServer::Init PresenceServer::sStaticInit{*ConfigManager::get()->getRoot()};
-
 unsigned int PresenceServer::sLastActivityRetentionMs;
 
-PresenceServer::Init::Init(GenericStruct& root) {
+namespace {
+// Statically define default configuration items
+auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
 	ConfigItemDescriptor items[] = {
 	    {Boolean, "enabled", "Enable presence server", "true"},
 	    {StringList, "transports",
@@ -126,20 +125,17 @@ PresenceServer::Init::Init(GenericStruct& root) {
 	auto maxThreadQueueSize = s->get<ConfigInt>("max-thread-queue-size");
 	maxThreadQueueSize->setDeprecated({"2020-06-02", "2.0.0", "Renamed into 'rls-database-max-thread-queue-size'"});
 	s->get<ConfigInt>("rls-database-max-thread-queue-size")->setFallback(*maxThreadQueueSize);
-}
+});
+} // namespace
 
-PresenceServer::PresenceServer(const std::shared_ptr<sofiasip::SuRoot>& root) : ServiceServer{root} {
-	auto config = ConfigManager::get()->getRoot()->get<GenericStruct>("presence-server");
+PresenceServer::PresenceServer(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg)
+    : ServiceServer{root}, mConfigManager(cfg) {
+	const auto* config = mConfigManager->getRoot()->get<GenericStruct>("presence-server");
 	/*Enabling leak detector should be done asap.*/
-	belle_sip_object_enable_leak_detector(ConfigManager::get()
-	                                          ->getRoot()
-	                                          ->get<GenericStruct>("presence-server")
-	                                          ->get<ConfigBoolean>("leak-detector")
-	                                          ->read());
+	belle_sip_object_enable_leak_detector(config->get<ConfigBoolean>("leak-detector")->read());
 	mStack = belle_sip_stack_new(nullptr);
 	mProvider = belle_sip_stack_create_provider(mStack, nullptr);
-	mMaxPresenceInfoNotifiedAtATime =
-	    ConfigManager::get()->getRoot()->get<GenericStruct>("presence-server")->get<ConfigInt>("notify-limit")->read();
+	mMaxPresenceInfoNotifiedAtATime = config->get<ConfigInt>("notify-limit")->read();
 
 	xercesc::XMLPlatformUtils::Initialize();
 
@@ -225,7 +221,7 @@ PresenceServer::~PresenceServer() {
 
 void PresenceServer::_init() {
 	if (!mEnabled) return;
-	const auto* cr = ConfigManager::get()->getRoot();
+	const auto* cr = mConfigManager->getRoot();
 
 	const auto* longTermEnabledConfig =
 	    cr->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled");

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -29,17 +29,11 @@
 #include <vector>
 
 #include "flexisip/configmanager.hh"
-#include "sofia-sip/auth_module.h"
-#include "sofia-sip/auth_plugin.h"
 
-#include "belr/grammarbuilder.h"
-#include "belr/parser.h"
-
-#include "flexisip/common.hh"
-
-#include "agent.hh"
-#include "eventlogs/writers/event-log-writer.hh"
-
+namespace belr {
+template <typename _parserElementT>
+class Parser;
+}
 namespace flexisip {
 
 enum AuthDbResult { PENDING, PASSWORD_FOUND, PASSWORD_NOT_FOUND, AUTH_ERROR };
@@ -88,11 +82,8 @@ public:
 	                           int expires,
 	                           const std::string& phone_alias = "");
 
-	static AuthDbBackend& get();
 	/* called by module_auth so that backends can declare their configuration to the ConfigurationManager */
 	static void declareConfig(GenericStruct* mc);
-
-	static void resetAuthDB();
 
 protected:
 	enum CacheResult { VALID_PASS_FOUND, EXPIRED_PASS_FOUND, NO_PASS_FOUND };
@@ -147,12 +138,30 @@ private:
 		ResultCb mCb;
 	};
 
-	static std::unique_ptr<AuthDbBackend> sUnique;
-
 	std::map<std::string, std::map<std::string, CachedPassword>> mCachedPasswords;
 	std::mutex mCachedPasswordMutex;
 	std::mutex mCachedUserWithPhoneMutex;
 	std::map<std::string, std::string> mPhone2User;
+};
+
+/**
+ * Class that owns the authentication database backend.
+ * The backend is created during the first "get" call.
+ **/
+class AuthDbBackendOwner {
+public:
+	AuthDbBackendOwner(const std::shared_ptr<ConfigManager>& cfg) : mConfigManager{cfg} {
+	}
+	// Accessor to the database backend
+	AuthDbBackend& get() {
+		if (!mBackend) createAuthDbBackend();
+		return *mBackend;
+	}
+
+private:
+	void createAuthDbBackend();
+	std::unique_ptr<AuthDbBackend> mBackend;
+	std::shared_ptr<ConfigManager> mConfigManager;
 };
 
 // Base root type needed by belr
@@ -249,6 +258,7 @@ private:
 
 class FileAuthDb : public AuthDbBackend {
 private:
+	const GenericStruct& mConfigRoot;
 	std::string mFileString;
 	time_t mLastSync;
 	void parsePasswd(const std::vector<passwd_algo_t>& srcPasswords,
@@ -261,7 +271,7 @@ protected:
 	void sync();
 
 public:
-	FileAuthDb();
+	FileAuthDb(const GenericStruct& root);
 	void
 	getUserWithPhoneFromBackend(const std::string& phone, const std::string& domain, AuthDbListener* listener) override;
 	void getPasswordFromBackend(const std::string& id,

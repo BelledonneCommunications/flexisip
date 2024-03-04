@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -28,11 +28,12 @@
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
 #include "injected-module-info.hh"
+#include "registrar/registrar-db.hh"
 
 namespace flexisip {
 namespace tester {
 
-class ClientBuilder;
+const char* getFirstPort(const Agent& agent);
 
 /**
  * A class to manage the flexisip proxy server
@@ -46,7 +47,7 @@ public:
 	 * @param injectedModule A module to be injected into the Agent's module chain to mangle requests before they reach
 	 * other modules.
 	 */
-	explicit Server(const std::string& configFile = "", Module* injectedModule = nullptr);
+	explicit Server(const std::string& configFile = "", InjectedHooks* injectedHooks = nullptr);
 	/**
 	 * @brief Same as before but use a map instead of a file to configure the agent.
 	 * @param config Agent configuration as a map. The key is the name of the paramter
@@ -55,17 +56,21 @@ public:
 	 * @param injectedModule A module to be injected into the Agent's module chain to mangle requests before they reach
 	 * other modules.
 	 */
-	explicit Server(const std::map<std::string, std::string>& config, Module* injectedModule = nullptr);
-	/**
-	 * @brief Cast an Agent into Server
-	 */
-	explicit Server(const std::shared_ptr<Agent>& agent) : mAgent{agent} {
-	}
+	explicit Server(const std::map<std::string, std::string>& customConfig, InjectedHooks* injectedHooks = nullptr);
+
 	virtual ~Server();
 
 	// Accessors
 	const std::shared_ptr<sofiasip::SuRoot>& getRoot() const noexcept {
 		return mAgent->getRoot();
+	}
+
+	const std::shared_ptr<ConfigManager>& getConfigManager() const noexcept {
+		return mConfigManager;
+	}
+
+	const std::shared_ptr<RegistrarDb>& getRegistrarDb() const noexcept {
+		return mRegistrarDb;
 	}
 
 	const std::shared_ptr<flexisip::Agent>& getAgent() const noexcept {
@@ -85,11 +90,12 @@ public:
 	 */
 	void runFor(std::chrono::milliseconds duration);
 
-	ClientBuilder clientBuilder() const;
-
 private:
-	const std::optional<InjectedModuleInfo> mModule{std::nullopt};
-	std::shared_ptr<flexisip::Agent> mAgent{std::make_shared<Agent>(std::make_shared<sofiasip::SuRoot>())};
+	const std::optional<InjectedModuleInfo> mInjectedModule{std::nullopt};
+	std::shared_ptr<ConfigManager> mConfigManager{std::make_shared<ConfigManager>()};
+	std::shared_ptr<AuthDbBackendOwner> mAuthDbOwner;
+	std::shared_ptr<RegistrarDb> mRegistrarDb;
+	std::shared_ptr<flexisip::Agent> mAgent;
 }; // Class Server
 
 } // namespace tester

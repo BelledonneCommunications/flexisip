@@ -30,7 +30,7 @@
 #include "registrar/registrar-db.hh"
 #include "utils/asserts.hh"
 #include "utils/bellesip-utils.hh"
-#include "utils/injected-module.hh"
+#include "utils/injected-module-info.hh"
 #include "utils/proxy-server.hh"
 #include "utils/string-utils.hh"
 #include "utils/test-patterns/registrardb-test.hh"
@@ -379,7 +379,7 @@ void message_expires() {
 	                            nullptr};
 	const string proxyPort = proxyServer.getFirstPort();
 	const string clientPort = to_string(bellesipUtils.getListeningPort());
-	ContactInserter inserter(*RegistrarDb::get());
+	ContactInserter inserter(proxyServer.getAgent()->getRegistrarDb());
 	inserter.setAor("sip:message_expires@127.0.0.1")
 	    .setExpire(0s)
 	    .setContactParams({"message-expires=1609"})
@@ -422,15 +422,14 @@ struct Contact {
  */
 struct RoutingWithStaticTargets {
 	RoutingWithStaticTargets(const vector<Contact>& contacts, const vector<string>& staticTargets)
-	    : mInjectedModule(
-	          {
-	              .onRequest =
-	                  [this](const shared_ptr<RequestSipEvent>& ev) {
-		                  if (ev->getMsgSip()->getSipMethod() != sip_method_invite) return;
-		                  mActualTargets.emplace_back(url_as_string(ev->getHome(), ev->getSip()->sip_request->rq_url));
-	                  },
-	          },
-	          {"Router"}),
+	    : mInjectedModule({
+	          .injectAfterModule = {"Router"},
+	          .onRequest =
+	              [this](const shared_ptr<RequestSipEvent>& ev) {
+		              if (ev->getMsgSip()->getSipMethod() != sip_method_invite) return;
+		              mActualTargets.emplace_back(url_as_string(ev->getHome(), ev->getSip()->sip_request->rq_url));
+	              },
+	      }),
 	      mProxy(
 	          {
 	              {"global/aliases", "localhost"},
@@ -441,20 +440,21 @@ struct RoutingWithStaticTargets {
 	              {"module::Router/static-targets", StringUtils::join(staticTargets)},
 	          },
 	          &mInjectedModule),
-	      mClient(mProxy.getRoot(), mCaller.aor) {
+	      mClient(mProxy.getRoot(), "sip:127.0.0.1:0") {
 
 		mProxy.start();
 		mAsserter.addCustomIterate([&root = *mProxy.getRoot()] { root.step(1ms); });
 
-		ContactInserter inserter(*RegistrarDb::get());
+		ContactInserter inserter(mProxy.getAgent()->getRegistrarDb());
 		for (const auto& contact : contacts) {
 			inserter.setAor(contact.aor).setExpire(1min).insert({contact.uri});
 		}
-		BC_HARD_ASSERT_TRUE(mAsserter.iterateUpTo(5, [&inserter] { return inserter.finished(); }, 2s));
+		BC_HARD_ASSERT_TRUE(mAsserter.iterateUpTo(
+		    5, [&inserter] { return inserter.finished(); }, 2s));
 	}
 
 	vector<string> mActualTargets{};
-	Contact mCaller{"sip:callee@localhost", "sip:callee@voluntarily-unreachable:0"};
+	Contact mCaller{"sip:caller@localhost", "sip:caller@voluntarily-unreachable:0"};
 	InjectedHooks mInjectedModule;
 	Server mProxy;
 	sofiasip::NtaAgent mClient;
@@ -487,7 +487,8 @@ void requestIsAlsoRoutedToStaticTargets() {
 	        << "Content-Type: application/sdp\r\n";
 
 	const auto transaction = helper.mClient.createOutgoingTransaction(request.str(), routeUri);
-	BC_ASSERT(helper.mAsserter.iterateUpTo(5, [&transaction]() { return transaction->isCompleted(); }, 2s) == true);
+	BC_ASSERT(helper.mAsserter.iterateUpTo(
+	              5, [&transaction]() { return transaction->isCompleted(); }, 2s) == true);
 	BC_ASSERT(helper.mActualTargets == expectedTargets);
 }
 
@@ -522,7 +523,8 @@ void requestIsRoutedToXTargetUrisAndStaticTargets() {
 	        << "Content-Type: application/sdp\r\n";
 
 	const auto transaction = helper.mClient.createOutgoingTransaction(request.str(), routeUri);
-	BC_ASSERT(helper.mAsserter.iterateUpTo(5, [&transaction]() { return transaction->isCompleted(); }, 2s) == true);
+	BC_ASSERT(helper.mAsserter.iterateUpTo(
+	              5, [&transaction]() { return transaction->isCompleted(); }, 2s) == true);
 	BC_ASSERT(helper.mActualTargets == expectedTargets);
 }
 
