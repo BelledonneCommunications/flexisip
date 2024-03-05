@@ -223,8 +223,14 @@ Record::ContactMatch Record::matchContacts(const ExtendedContact& existing, cons
 		}
 	}
 
-	// Existing contact has an instance-id that is not a placeholder. RFC 5626
-	if (!existing.mKey.isPlaceholder()) {
+	// "If the Contact header field does not contain a "+sip.instance" Contact header field parameter, the registrar
+	// processes the request using the Contact binding rules in [RFC3261]." (RFC 5626 §6)
+	bool followRfc3261 = neo.mKey.isPlaceholder();
+	// But only if the existing contact is *also* missing an instance-id.
+	// We don't want contacts with an instance-id updated based on their URI
+	followRfc3261 &= existing.mKey.isPlaceholder();
+
+	if (!followRfc3261) { // RFC 5626
 		if (existing.mKey == neo.mKey) {
 			SLOGD << "Contact [" << existing << "] matches [" << neo << "] based on unique id";
 			return ContactMatch::EraseAndNotify;
@@ -232,9 +238,6 @@ Record::ContactMatch Record::matchContacts(const ExtendedContact& existing, cons
 
 		return ContactMatch::Skip; // no need to match further
 	}
-
-	// Otherwise, "If the Contact header field does not contain a "+sip.instance" Contact header field parameter, the
-	// registrar processes the request using the Contact binding rules in [RFC3261]." (RFC 5626 §6)
 
 	// "For each address, the registrar […] searches the list of current bindings using the URI comparison rules."
 	// (RFC 3261 §10.3)

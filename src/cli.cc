@@ -50,6 +50,13 @@ namespace {
 
 constexpr const auto socket_send = send;
 constexpr const auto socket_recv = recv;
+
+void serializeRecord(SocketHandle& socket, Record* record) {
+	std::string serialized;
+	RecordSerializerJson().serialize(record, serialized, false);
+	socket.send(serialized);
+}
+
 } // namespace
 
 CommandLineInterface::CommandLineInterface(const std::string& name, const std::shared_ptr<ConfigManager>& cfg)
@@ -227,10 +234,10 @@ SocketHandle::~SocketHandle() {
 	shutdown(mHandle, SHUT_RDWR);
 	close(mHandle);
 }
-int SocketHandle::send(const std::string& message) {
-	return socket_send(mHandle, message.c_str(), message.length(), 0);
+int SocketHandle::send(string_view message) {
+	return socket_send(mHandle, message.data(), message.length(), 0);
 }
-int SocketHandle::recv(void* buffer, size_t length, int flags) {
+int SocketHandle::recv(char* buffer, size_t length, int flags) {
 	return socket_recv(mHandle, buffer, length, flags);
 }
 
@@ -395,18 +402,16 @@ protected:
 
 class SerializeRecordWhenFound : public CommandListener {
 public:
-	SerializeRecordWhenFound(SocketHandle&& socket) : CommandListener(std::move(socket)) {
-	}
+	using CommandListener::CommandListener;
+
 	void onRecordFound(const shared_ptr<Record>& r) override {
 		if (!r || r->isEmpty()) {
 			// The Redis implementation returns an empty record instead of nullptr, see anchor WKADREGMIGDELREC
 			mSocket.send("Error 404: Not Found. The Registrar does not contain the requested AOR.");
 			return;
 		}
-		std::string serialized;
-		RecordSerializerJson serializer;
-		serializer.serialize(r.get(), serialized, false);
-		mSocket.send(serialized);
+
+		serializeRecord(mSocket, r.get());
 	}
 };
 
@@ -490,33 +495,42 @@ void ProxyCommandLineInterface::handleRegistrarUpsert(SocketHandle&& socket, con
 	mAgent->getRegistrarDb().bind(aor, contact, params, std::make_shared<SerializeRecordWhenFound>(std::move(socket)));
 }
 
+class SerializeRecordEvenIfEmpty : public CommandListener {
+public:
+	using CommandListener::CommandListener;
+
+	void onRecordFound(const shared_ptr<Record>& r) override {
+		if (r == nullptr) { // Unreachable (2024-03-05)
+			mSocket.send("Error 404: Not Found. The Registrar does not contain the requested AOR.");
+			return;
+		}
+
+		serializeRecord(mSocket, r.get());
+	}
+};
+
 void ProxyCommandLineInterface::handleRegistrarDelete(SocketHandle&& socket, const std::vector<std::string>& args) {
 	if (args.size() < 2) {
 		socket.send("Error: an URI arguments is expected for the REGISTRAR_DELETE command");
 		return;
 	}
 
-	std::string from = args.at(0);
-	std::string uuid = args.at(1);
+	const auto& recordKey = SipUri(args.at(0));
+	const auto& contactKey = args.at(1);
 
-	auto msg = MsgSip(ownership::owned(nta_msg_create(mAgent->getSofiaAgent(), 0)));
-	auto msgHome = msg.getHome();
-	msg_header_add_dup(msg.getMsg(), nullptr,
-	                   reinterpret_cast<msg_header_t*>(sip_request_make(msgHome, "MESSAGE sip:abcd SIP/2.0\r\n")));
-
+	auto home = sofiasip::Home();
 	BindingParameters parameter;
-	parameter.globalExpire = 0;
+	parameter.globalExpire = 0; // un-REGISTER <=> delete
+	parameter.callId = "fs-cli-delete";
 
-	// We forge a fake SIP message
-	auto sip = msg.getSip();
-	sip->sip_from = sip_from_create(msgHome, (url_string_t*)from.c_str());
-	sip->sip_contact = sip_contact_create(msgHome, (url_string_t*)from.c_str(),
-	                                      string("+sip.instance=").append(uuid).c_str(), nullptr);
-	sip->sip_call_id = sip_call_id_make(msgHome, "foobar");
+	// Force binding logic to match the target contact based on this key (even if it is an auto-generated placeholder).
+	// I.e. prevent matching on RFC 3261's URI matching rules
+	const auto& sipInstance = "+sip.instance=" + contactKey + ContactKey::kNotAPlaceholderFlag;
+	const auto* const stubContact = sip_contact_create(
+	    home.home(), reinterpret_cast<const url_string_t*>(recordKey.get()), sipInstance.c_str(), nullptr);
 
-	auto listener = std::make_shared<SerializeRecordWhenFound>(std::move(socket));
-
-	mAgent->getRegistrarDb().bind(msg, parameter, listener);
+	mAgent->getRegistrarDb().bind(recordKey, stubContact, parameter,
+	                              std::make_shared<SerializeRecordEvenIfEmpty>(std::move(socket)));
 }
 
 void ProxyCommandLineInterface::handleRegistrarClear(SocketHandle&& socket, const std::vector<std::string>& args) {

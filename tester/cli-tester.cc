@@ -93,7 +93,7 @@ public:
 		if (nread < 0) {
 			BC_HARD_FAIL(("Recv error "s + std::to_string(errno) + ": " + std::strerror(errno)).c_str());
 		}
-		output.resize(nread + 1);
+		output.resize(nread);
 		return output;
 	}
 };
@@ -237,7 +237,7 @@ void flexisip_cli_dot_py() {
 	                          }())](const std::string& json_str) {
 		JSONCPP_STRING err;
 		Json::Value deserialized;
-		if (!reader->parse(&json_str.front(), &json_str.back(), &deserialized, &err)) {
+		if (!reader->parse(&*json_str.begin(), &*json_str.end(), &deserialized, &err)) {
 			bc_assert(__FILE__, __LINE__, false, json_str.c_str());
 			BC_HARD_FAIL(err.c_str());
 		}
@@ -285,23 +285,35 @@ void flexisip_cli_dot_py() {
 
 	{ // Force-matching on RFC3261 rules can insert but not update
 		const auto aor = "sip:test2@sip.example.org";
+		const auto initialContact = "sip:test2@contact.example.org";
 		const auto bogusUid = "fs-gen-something"; // Interpreted as placeholder because of the prefix
 		command.str("");
-		command << "REGISTRAR_UPSERT " << aor << " " << aor << " 173 " << bogusUid;
+		command << "REGISTRAR_UPSERT " << aor << " " << initialContact << " 173 " << bogusUid;
 		auto returned_contacts = deserialize(callScript(command.str(), EX_OK))["contacts"];
 		BC_ASSERT_EQUAL(returned_contacts.size(), 1, int, "%i");
 		auto returned_contact = returned_contacts[0];
-		BC_ASSERT_STRING_EQUAL(returned_contact["contact"].asCString(), aor);
+		BC_ASSERT_STRING_EQUAL(returned_contact["contact"].asCString(), initialContact);
 		BC_ASSERT_STRING_EQUAL(returned_contact["unique-id"].asCString(), bogusUid);
 
 		// Try to update contact despite uids not matching
-		const auto modifiedContact = "sip:test2@sip.EXAMPLE.org";
-		BC_ASSERT_STRING_NOT_EQUAL(aor, modifiedContact); // but matching according to RFC3261
+		const auto modifiedContact = "sip:test2@contact.EXAMPLE.org";
+		BC_ASSERT_STRING_NOT_EQUAL(initialContact, modifiedContact); // but matching according to RFC3261
 		const auto differentUid = "fs-gen-something_else";
 		command.str("");
 		command << "REGISTRAR_UPSERT " << aor << " " << modifiedContact << " 682 " << differentUid;
 		const auto result = callScript(command.str(), EX_USAGE);
 		BC_ASSERT_STRING_EQUAL(result.c_str(), "Error: Invalid Record\n"); // CSeq has not been properly incremented
+
+		// Delete contact based on key, even if it is "auto-generated" (has the placeholder prefix)
+		command.str("");
+		command << "REGISTRAR_DELETE " << aor << " " << bogusUid;
+		returned_contacts = deserialize(callSocket(command.str()))["contacts"];
+		// That was the last contact of the record, the command returns an empty record, but no error.
+		BC_ASSERT_CPP_EQUAL(returned_contacts.size(), 0);
+		command.str("");
+		command << "REGISTRAR_GET " << aor;
+		BC_ASSERT_CPP_EQUAL(callSocket(command.str()),
+		                    "Error 404: Not Found. The Registrar does not contain the requested AOR.");
 	}
 
 	// TODO: Test parallel requests to the socket
@@ -326,6 +338,13 @@ void flexisip_cli_dot_py() {
 		const auto result = callSocket("REGISTRAR_GET sip:unknown@sip.example.org");
 		BC_ASSERT_STRING_EQUAL(result.c_str(),
 		                       "Error 404: Not Found. The Registrar does not contain the requested AOR.");
+	}
+
+	{ // Delete Unknown Record (Socket)
+		const auto returned_contacts = deserialize(
+		    callSocket("REGISTRAR_DELETE sip:unknown@sip.example.org sip:stub@contact.example.org"))["contacts"];
+		// The command never returns an error on record not found, just an empty record
+		BC_ASSERT_CPP_EQUAL(returned_contacts.size(), 0);
 	}
 
 	{ // Unsupported command (The script will allow it)

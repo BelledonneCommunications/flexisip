@@ -509,9 +509,12 @@ class InstanceIDFeatureParamIsSerializedToRedis : public RegistrarDbTest<DbImple
  * by some kind of unique id (since Call-IDs do not start with the "fs-gen-" placeholder flag prefix) and skip any check
  * based on the URI matching rules. Even if the exact contact is registered again, it will NOT match the existing entry
  * which will simply be kept until it either expires or is pushed out by the maxAOR limit.
+ *
+ * As a side-effect, this test also verifies that a contact using a sip.instance as key cannot be updated through URI
+ * matching
  */
 class CallIDsPreviouslyUsedAsKeysAreInterpretedAsUniqueIDs : public RegistrarDbTest<DbImplementation::Redis> {
-	void testExec() noexcept override {
+	void testExec() override {
 		auto& regDb = getRegistrarDb();
 		sofiasip::Home home{};
 		const auto callId = "ZwPAMpQSC9"; // Can be anything as long as it does not start with `fs-gen-`
@@ -550,7 +553,7 @@ class CallIDsPreviouslyUsedAsKeysAreInterpretedAsUniqueIDs : public RegistrarDbT
 		{
 			auto reply = redis.command("HGETALL fs%s", contactBase);
 			BC_ASSERT_EQUAL(reply->type, REDIS_REPLY_ARRAY, int, "%i");
-			BC_ASSERT_EQUAL(reply->elements, 4, int, "%i");
+			BC_HARD_ASSERT_CPP_EQUAL(reply->elements, 4);
 			BC_ASSERT_EQUAL(reply->element[0]->type, REDIS_REPLY_STRING, int, "%i");
 			BC_ASSERT_EQUAL(reply->element[2]->type, REDIS_REPLY_STRING, int, "%i");
 			std::unordered_set<std::string> keys{reply->element[0]->str, reply->element[2]->str};

@@ -14,4 +14,8 @@ std::string ContactKey::generateUniqueId() {
 	return sRsg(size);
 }
 
+bool ContactKey::isPlaceholder() const {
+	return mIsPlaceholder;
+}
+
 } // namespace flexisip
