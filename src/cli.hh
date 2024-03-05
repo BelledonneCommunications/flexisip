@@ -58,8 +58,8 @@ public:
 	explicit SocketHandle(int handle);
 	~SocketHandle();
 
-	int send(const std::string& message);
-	int recv(void* buffer, size_t length, int flags);
+	int send(std::string_view message);
+	int recv(char*, size_t length, int flags);
 
 	SocketHandle(SocketHandle&& other);
 

@@ -16,16 +16,24 @@ namespace flexisip {
 class ContactKey {
 public:
 	static constexpr const char kAutoGenTag[] = "fs-gen-";
+	// Append this flag to the end of a contact key string to signal that it should not be interpreted as placeholder,
+	// even if it starts with `kAutoGenTag`
+	static constexpr const char kNotAPlaceholderFlag[] = "NOT_A_PLACEHOLDER";
 	static RandomStringGenerator sRsg;
 
 	template <class... Args>
 	ContactKey(Args&&... args) : mValue(std::forward<Args>(args)...) {
+		if (const auto startOfTag = mValue.rfind(kNotAPlaceholderFlag); startOfTag != std::string::npos) {
+			mIsPlaceholder = false;
+			mValue.resize(startOfTag);
+			return;
+		}
+
 		if (mValue.empty()) mValue = placeholder();
+		mIsPlaceholder = StringUtils::startsWith(mValue, kAutoGenTag);
 	}
 
-	bool isPlaceholder() const {
-		return StringUtils::startsWith(mValue, kAutoGenTag);
-	}
+	bool isPlaceholder() const;
 
 	std::string& str() {
 		return mValue;
@@ -48,8 +56,6 @@ public:
 	static std::string generateUniqueId();
 
 private:
-	std::string mValue;
-
 	// The probability of collisions for v4 UUIDs is considered negligible for most use cases.
 	// That's a collision space of 2¹²² possibilities; Which gives us an upper bound since we don't need to be
 	// "universally" unique.
@@ -66,6 +72,9 @@ private:
 	static std::string placeholder() {
 		return std::string{kAutoGenTag} + generateUniqueId();
 	}
+
+	std::string mValue;
+	bool mIsPlaceholder = false;
 };
 
 } // namespace flexisip
