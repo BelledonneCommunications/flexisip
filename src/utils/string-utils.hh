@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -167,15 +167,16 @@ public:
 
 	/*
 	 * Concat all strings from the args parameter into one whitespace separated string.
+	 * Note: StringList Any container type with iterator available.
 	 *
-	 * @tparam StringList Any container type with iterator available.
-	 * @param args A container of strings to concat.
-	 * @param fromIndex If you want not to start at the beginning of args. If fromIndex => args.size(), return an empty
-	 * string.
-	 * @return A string, can be empty, no trailing whitespace added.
+	 * @param args			A container of strings to concat.
+	 * @param fromIndex 	If you do not want to start at the beginning of args. If fromIndex => args.size(), return an
+	 * 						empty string.
+	 * @param separator		Custom separator when joining args.
+	 * @return 				A string, can be empty, no trailing whitespace added.
 	 */
 	template <class StringList>
-	static std::string join(const StringList& args, size_t fromIndex = 0) {
+	static std::string join(const StringList& args, size_t fromIndex = 0, std::string_view separator = " ") {
 		std::string ret{""};
 		if (args.size() <= fromIndex) {
 			return ret;
@@ -184,7 +185,7 @@ public:
 		auto iter = args.begin();
 		std::advance(iter, fromIndex);
 		for (; iter != args.end(); iter++) {
-			ret.append(*iter).append(" ");
+			ret.append(*iter).append(separator);
 		}
 
 		if (!ret.empty()) {

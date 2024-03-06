@@ -80,6 +80,7 @@ add_executable(flexisip_tester
 	tests/eventlogs/events/event-id-tester.cc
 	tests/eventlogs/events/event-log-stats-tester.cc
 	tests/flexiapi/schemas/iso-8601-date-tester.cc
+	tests/module-forward-tester.cc
 	tests/module-nat-helper-tester.cc
 	tests/presence/presence-pidf-tester.cc
 	tests/presence/presence-publish-tester.cc

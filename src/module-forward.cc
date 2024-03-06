@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,8 +16,12 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <sstream>
+#include "module-forward.hh"
 
+#include <sstream>
+#include <utility>
+
+#include <sofia-sip/msg_types.h>
 #include <sofia-sip/sip_status.h>
 #include <sofia-sip/su_md5.h>
 #include <sofia-sip/tport.h>
@@ -26,7 +30,6 @@
 #include "flexisip/module.hh"
 
 #include "agent.hh"
-#include "conditional-routes.hh"
 #include "domain-registrations.hh"
 #include "etchosts.hh"
 #include "eventlogs/writers/event-log-writer.hh"
@@ -36,41 +39,14 @@
 #include "utils/uri-utils.hh"
 
 using namespace std;
-using namespace flexisip;
+
+namespace flexisip {
 
 static char const* compute_branch(nta_agent_t* sa,
                                   msg_t* msg,
                                   sip_t const* sip,
                                   char const* string_server,
                                   const shared_ptr<OutgoingTransaction>& outTr);
-
-class ForwardModule : public Module, ModuleToolbox {
-public:
-	ForwardModule(Agent* ag);
-	virtual ~ForwardModule();
-	virtual void onDeclare(GenericStruct* module_config);
-	virtual void onLoad(const GenericStruct* root);
-	virtual void onRequest(shared_ptr<RequestSipEvent>& ev);
-	virtual void onResponse(shared_ptr<ResponseSipEvent>& ev);
-	void sendRequest(shared_ptr<RequestSipEvent>& ev, url_t* dest);
-
-private:
-	std::weak_ptr<ModuleRouter> mRouterModule;
-	url_t* overrideDest(shared_ptr<RequestSipEvent>& ev, url_t* dest);
-	url_t* getDestinationFromRoute(su_home_t* home, sip_t* sip);
-	bool isLooping(shared_ptr<RequestSipEvent>& ev, const char* branch);
-	unsigned int countVia(shared_ptr<RequestSipEvent>& ev);
-	bool isAClusterNode(const url_t* url);
-	su_home_t mHome;
-	ConditionalRouteMap mRoutesMap;
-	sip_route_t* mOutRoute;
-	string mDefaultTransport;
-	std::list<std::string> mParamsToRemove;
-	list<string> mClusterNodes;
-	bool mRewriteReqUri;
-	bool mAddPath;
-	static ModuleInfo<ForwardModule> sInfo;
-};
 
 ModuleInfo<ForwardModule> ForwardModule::sInfo(
     "Forward",
@@ -250,11 +226,12 @@ static bool isUs(Agent* ag, sip_route_t* r) {
 class RegistrarListener : public ContactUpdateListener {
 public:
 	RegistrarListener(ForwardModule* module, shared_ptr<RequestSipEvent> ev)
-	    : ContactUpdateListener(), mModule(module), mEv(ev) {
+	    : ContactUpdateListener(), mModule(module), mEv(std::move(ev)) {
 	}
-	~RegistrarListener(){};
+	~RegistrarListener() override = default;
+
 	void onRecordFound(const shared_ptr<Record>& r) override {
-		const shared_ptr<MsgSip>& ms = mEv->getMsgSip();
+		const auto& ms = mEv->getMsgSip();
 
 		if (!r || r->count() == 0) {
 			mEv->reply(404, "Not found", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
@@ -265,25 +242,64 @@ public:
 			return;
 		}
 
-		shared_ptr<ExtendedContact> contact = *r->getExtendedContacts().oldest();
-		sip_contact_t* ct = contact->toSofiaContact(ms->getHome());
-		url_t* dest = ct->m_url;
-		mEv->getSip()->sip_request->rq_url[0] = *url_hdup(msg_home(ms->getHome()), dest);
+		msg_t* msg = ms->getMsg();
+		auto* sip = ms->getSip();
+		auto* home = ms->getHome();
+		auto* request = sip->sip_request;
+		const auto& extendedContact = *r->getExtendedContacts().oldest();
+		auto* routesFromPath = extendedContact->toSofiaRoute(home);
+
+		// Update request uri with contact url.
+		request->rq_url[0] = *url_hdup(home, extendedContact->toSofiaContact(home)->m_url);
+
+		// If there are no routes, which means there are no paths set, send the request to contact url.
+		if (routesFromPath == nullptr) {
+			mModule->sendRequest(mEv, request->rq_url);
+			return;
+		}
+
+		// Remove all "Route" headers from the sip message.
+		msg_header_remove_all(msg, nullptr, reinterpret_cast<msg_header_t*>(sip->sip_route));
+
+		// Process routes (filters "is us" sip uris).
+		url_t* dest{};
+		auto* agent = mModule->getAgent();
+		auto* iterator = routesFromPath;
+		while (iterator != nullptr) {
+			const auto* urlStr = url_as_string(home, iterator->r_url);
+
+			if (agent->isUs(iterator->r_url)) {
+				SLOGD << "Route header \"" << urlStr << "\" is us: remove and continue";
+				iterator = iterator->r_next;
+				continue;
+			}
+
+			SLOGD << "Route header \"" << urlStr << "\" is not us: forward";
+			dest = url_hdup(home, iterator->r_url);
+			break;
+		}
+
+		// Duplicate filtered "Route" headers (converted from "Path" headers) into to the sip message.
+		msg_header_add_dup(msg, nullptr, reinterpret_cast<const msg_header_t*>(iterator));
+
 		// No reason to remove "gr" parameter: the RegistrarDb provides a resolved uri (that may be an uri with "gr"
 		// parameter from another domain).
-		// mEv->getSip()->sip_request->rq_url->url_params =
-		// url_strip_param_string(su_strdup(ms->getHome(),mEv->getSip()->sip_request->rq_url->url_params) , "gr");
-		mModule->sendRequest(mEv, mEv->getSip()->sip_request->rq_url);
+		// request->rq_url->url_params = url_strip_param_string(su_strdup(home, request->rq_url->url_params), "gr");
+
+		mModule->sendRequest(mEv, dest ? dest : request->rq_url);
 	}
-	virtual void onError() override {
+
+	void onError() override {
 		SLOGE << "RegistrarListener error";
 		mEv->reply(500, "Internal Server Error", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
 	};
-	virtual void onInvalid() override {
+
+	void onInvalid() override {
 		SLOGE << "RegistrarListener invalid";
 		mEv->reply(500, "Internal Server Error", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
 	}
-	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override{};
+
+	void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override {};
 
 private:
 	ForwardModule* mModule;
@@ -540,3 +556,5 @@ static char const* compute_branch([[maybe_unused]] nta_agent_t* sa,
 
 	return su_sprintf(msg_home(msg), "branch=z9hG4bK.%s", branch);
 }
+
+} // namespace flexisip

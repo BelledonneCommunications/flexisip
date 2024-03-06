@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2023 Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2024 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -81,7 +81,7 @@ add_library(flexisip SHARED
 	module-authentication-base.cc
 	module-capabilities.cc module-capabilities.hh
 	module-contact-route-inserter.cc
-	module-forward.cc
+	module-forward.cc module-forward.hh
 	module-garbage-in.cc
 	module-gatewayadapter.cc
 	module-loadbalancer.cc
