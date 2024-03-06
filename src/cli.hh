@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -82,10 +82,11 @@ public:
 	void registerHandler(CliHandler& handler);
 
 protected:
-	virtual void parseAndAnswer(SocketHandle&& socket, const std::string& command, const std::vector<std::string>& args);
+	virtual void
+	parseAndAnswer(SocketHandle&& socket, const std::string& command, const std::vector<std::string>& args);
 
 private:
-	GenericEntry* getGenericEntry(const std::string &arg) const;
+	GenericEntry* getGenericEntry(const std::string& arg) const;
 	void handleConfigGet(SocketHandle&& socket, const std::vector<std::string>& args);
 	void handleConfigList(SocketHandle&& socket, const std::vector<std::string>& args);
 	void handleConfigSet(SocketHandle&& socket, const std::vector<std::string>& args);
@@ -116,7 +117,8 @@ private:
 	void handleRegistrarUpsert(SocketHandle&& socket, const std::vector<std::string>& args);
 	void handleRegistrarGet(SocketHandle&& socket, const std::vector<std::string>& args);
 	void handleRegistrarDump(SocketHandle&& socket, const std::vector<std::string>& args);
-	void parseAndAnswer(SocketHandle&& socket, const std::string& command, const std::vector<std::string>& args) override;
+	void
+	parseAndAnswer(SocketHandle&& socket, const std::string& command, const std::vector<std::string>& args) override;
 
 	std::shared_ptr<Agent> mAgent;
 };

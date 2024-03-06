@@ -1,4 +1,4 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
+/** Copyright (C) 2010-2024 Belledonne Communications SARL
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
@@ -9,7 +9,6 @@
 #include "agent.hh"
 #include "binding-parameters.hh"
 #include "change-set.hh"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "exceptions.hh"
 #include "extended-contact.hh"
 #include "registrar-db.hh"
@@ -179,7 +178,7 @@ ChangeSet Record::insertOrUpdateBinding(unique_ptr<ExtendedContact>&& ec, Contac
 
 	/* Add the new contact, if not expired (ie with expires=0) */
 	if (!ec->isExpired()) {
-		shared_ptr<ExtendedContact> shared = move(ec);
+		shared_ptr<ExtendedContact> shared = std::move(ec);
 		mContacts.emplace(shared);
 		changeSet.mUpsert.push_back(shared);
 	}
@@ -317,7 +316,7 @@ ChangeSet Record::update(const sip_t* sip,
 		                                        (sip->sip_cseq) ? sip->sip_cseq->cs_seq : 0, getCurrentTime(), alias,
 		                                        acceptHeaders, userAgent);
 		exc->mUsedAsRoute = sip->sip_from->a_url->url_user == nullptr;
-		extendedContacts.push_back(move(exc));
+		extendedContacts.push_back(std::move(exc));
 		contacts = contacts->m_next;
 	}
 
@@ -326,7 +325,7 @@ ChangeSet Record::update(const sip_t* sip,
 	// Update the Record.
 	ChangeSet changeSet = removeInvalidContacts();
 	for (auto& exc : extendedContacts) {
-		changeSet += insertOrUpdateBinding(move(exc), listener.get());
+		changeSet += insertOrUpdateBinding(std::move(exc), listener.get());
 	}
 
 	changeSet += applyMaxAor();
@@ -361,7 +360,7 @@ void Record::update(const ExtendedContactCommon& ecc,
 	auto exct = make_unique<ExtendedContact>(ecc, contact, expireAt, cseq, updated_time, alias, accept, "");
 	exct->mUsedAsRoute = usedAsRoute;
 	try {
-		insertOrUpdateBinding(move(exct), listener.get());
+		insertOrUpdateBinding(std::move(exct), listener.get());
 	} catch (const InvalidCSeq&) {
 		SLOGE << "Unexpected invalid CSeq encountered when deserializing " << sipuri;
 	}
@@ -426,7 +425,7 @@ bool Record::sAssumeUniqueDomains = false;
 Record::Record(const SipUri& aor) : Record(SipUri(aor)) {
 }
 
-Record::Record(SipUri&& aor) : mAor(move(aor)) {
+Record::Record(SipUri&& aor) : mAor(std::move(aor)) {
 	// warning: aor is empty at this point. Use mAor!
 	mKey = defineKeyFromUrl(mAor.get());
 	mIsDomain = mAor.getUser().empty();

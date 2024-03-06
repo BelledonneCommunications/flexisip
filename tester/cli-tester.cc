@@ -1,4 +1,4 @@
-/** Copyright (C) 2010-2022 Belledonne Communications SARL
+/** Copyright (C) 2010-2024 Belledonne Communications SARL
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
