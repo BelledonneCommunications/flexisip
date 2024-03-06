@@ -44,7 +44,6 @@ class Record;
 
 class ModuleRouter : public Module,
                      public ModuleRouterInterface,
-                     public ModuleToolbox,
                      public ForkContextListener,
                      public std::enable_shared_from_this<ModuleRouter> {
 
@@ -95,9 +94,7 @@ public:
 		return mAllowDomainRegistrations;
 	}
 
-	bool isManagedDomain(const url_t* url) const {
-		return ModuleToolbox::isManagedDomain(getAgent(), mDomains, url);
-	}
+	bool isManagedDomain(const url_t* url) const;
 
 	const std::shared_ptr<SipBooleanExpression>& getFallbackRouteFilter() const {
 		return mFallbackRouteFilter;

@@ -32,6 +32,7 @@
 #include "agent.hh"
 #include "domain-registrations.hh"
 #include "eventlogs/events/eventlogs.hh"
+#include "module-toolbox.hh"
 #include "nat/nat-traversal-strategy.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/extended-contact.hh"
@@ -715,7 +716,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 		sip_path_t* path =
 		    sip_path_format(ms->getHome(), "<%s>", getAgent()->getPreferredRoute().c_str()); // format a Path
 		msg_t* msg = ev->getMsgSip()->getMsg();
-		if (!prependNewRoutable(msg, sip, sip->sip_path, path)) {
+		if (!ModuleToolbox::prependNewRoutable(msg, sip, sip->sip_path, path)) {
 			SLOGD << "Identical path already existing: " << getAgent()->getPreferredRoute();
 		}
 	} else {
@@ -804,8 +805,8 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			                  (msg_header_t*)sip_contact_create(home, (url_string_t*)gruuAddress, NULL));
 		} else {
 			// Legacy code: just cleaner contacts
-			removeParamsFromContacts(home, sip->sip_contact, mUniqueIdParams);
-			removeParamsFromContacts(home, sip->sip_contact, mParamsToRemove);
+			ModuleToolbox::removeParamsFromContacts(home, sip->sip_contact, mUniqueIdParams);
+			ModuleToolbox::removeParamsFromContacts(home, sip->sip_contact, mParamsToRemove);
 			SLOGD << "Removed instance and push params: \n" << sip->sip_contact;
 		}
 		// Let the modified initial event flow (will not be forked).

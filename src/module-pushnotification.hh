@@ -124,7 +124,7 @@ protected:
 	friend class pushnotification::Strategy; /**< Allow Strategy to invoke notifyPushSent(). */
 };
 
-class PushNotification : public Module, public ModuleToolbox {
+class PushNotification : public Module {
 	friend std::shared_ptr<Module> ModuleInfo<PushNotification>::create(Agent*);
 
 public:

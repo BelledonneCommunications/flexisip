@@ -30,6 +30,7 @@ extern "C" {
 
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
+#include "module-toolbox.hh"
 #include "transaction/incoming-transaction.hh"
 
 // =============================================================================

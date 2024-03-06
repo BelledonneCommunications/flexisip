@@ -16,18 +16,19 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "flexisip/module-authentication-base.hh"
+
 #include <sofia-sip/msg_addr.h>
 #include <sofia-sip/sip_extra.h>
 #include <sofia-sip/sip_status.h>
 
 #include "agent.hh"
+#include "auth/realm-extractor.hh"
 #include "eventlogs/events/eventlogs.hh"
 #include "eventlogs/writers/event-log-writer.hh"
-
-#include "auth/realm-extractor.hh"
+#include "module-toolbox.hh"
 #include "utils/string-utils.hh"
 
-#include "flexisip/module-authentication-base.hh"
 
 using namespace std;
 
@@ -381,8 +382,8 @@ void ModuleAuthenticationBase::loadTrustedHosts(const ConfigStringList& trustedH
 	}
 
 	const auto* presenceSection = getAgent()->getConfigManager().getRoot()->get<GenericStruct>("module::Presence");
-	auto presenceServer = presenceSection->get<ConfigBoolean>("enabled")->read();
-	if (presenceServer) {
+	auto presenceServerEnabled = presenceSection->get<ConfigBoolean>("enabled")->read();
+	if (presenceServerEnabled) {
 		sofiasip::Home home{};
 		auto presenceServer = presenceSection->get<ConfigString>("presence-server")->read();
 		const auto* contact = sip_contact_make(home.home(), presenceServer.c_str());
@@ -395,8 +396,8 @@ void ModuleAuthenticationBase::loadTrustedHosts(const ConfigStringList& trustedH
 			      << "', cannot be added to trusted hosts!";
 		}
 	}
-	for (const auto& trustedHosts : mTrustedHosts) {
-		SLOGI << "IP " << trustedHosts << " added to trusted hosts";
+	for (const auto& trustedHost : mTrustedHosts) {
+		SLOGI << "IP " << trustedHost << " added to trusted hosts";
 	}
 }
 

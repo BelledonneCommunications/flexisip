@@ -29,7 +29,7 @@ namespace flexisip {
 /*
  * Execute small tasks to make SIP work smoothly despite firewalls and NATs.
  */
-class NatHelper : public Module, protected ModuleToolbox {
+class NatHelper : public Module {
 	friend std::shared_ptr<Module> ModuleInfo<NatHelper>::create(Agent*);
 
 public:

@@ -24,7 +24,7 @@
 using namespace std;
 using namespace flexisip;
 
-class ModuleGarbageIn : public Module, protected ModuleToolbox {
+class ModuleGarbageIn : public Module {
 	friend std::shared_ptr<Module> ModuleInfo<ModuleGarbageIn>::create(Agent*);
 
 public:

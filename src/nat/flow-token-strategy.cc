@@ -27,6 +27,7 @@
 
 #include "agent.hh"
 #include "flexisip-config.h"
+#include "module-toolbox.hh"
 #include "utils/flow.hh"
 #include "utils/socket-address.hh"
 

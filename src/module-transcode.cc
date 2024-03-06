@@ -18,6 +18,7 @@
 
 #include "module-transcode.hh"
 
+#include "module-toolbox.hh"
 #include "transaction/outgoing-transaction.hh"
 
 using namespace std;
@@ -321,7 +322,7 @@ int Transcoder::processInvite(TranscodedCall* c, shared_ptr<RequestSipEvent>& ev
 	}
 	if (ret == 0) {
 		// be in the record-route
-		addRecordRouteIncoming(getAgent(), ev);
+		ModuleToolbox::addRecordRouteIncoming(getAgent(), ev);
 		c->storeNewInvite(ms->getMsg());
 	} else {
 		ev->reply(415, "Unsupported codecs", TAG_END());
@@ -462,7 +463,7 @@ void Transcoder::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 			return;
 		}
 
-		fixAuthChallengeForSDP(ms->getHome(), msg, sip);
+		ModuleToolbox::fixAuthChallengeForSDP(ms->getHome(), msg, sip);
 
 		auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 		if (transaction == NULL) {

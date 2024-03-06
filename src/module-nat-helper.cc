@@ -20,6 +20,7 @@
 
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
+#include "module-toolbox.hh"
 #include "nat/nat-traversal-strategy.hh"
 
 using namespace std;
@@ -81,7 +82,7 @@ void NatHelper::fixRecordRouteInRequest(const shared_ptr<MsgSip>& ms) {
 	sip_t* sip = ms->getSip();
 	if (sip->sip_record_route) {
 		if (mRRPolicy == Safe) {
-			if (urlViaMatch(sip->sip_record_route->r_url, sip->sip_via, false)) {
+			if (ModuleToolbox::urlViaMatch(sip->sip_record_route->r_url, sip->sip_via, false)) {
 				const char* transport = sip_via_transport(sip->sip_via);
 				LOGD("Record-route and via are matching.");
 				if (sip->sip_via->v_received) {
@@ -107,7 +108,7 @@ void NatHelper::fixRecordRouteInRequest(const shared_ptr<MsgSip>& ms) {
 					url_param_add(ms->getHome(), sip->sip_record_route->r_url,
 					              su_sprintf(ms->getHome(), "fs-received=%s", received));
 				}
-				if (!sipPortEquals(rport, sip->sip_record_route->r_url->url_port, transport)) {
+				if (!ModuleToolbox::sipPortEquals(rport, sip->sip_record_route->r_url->url_port, transport)) {
 					LOGD("This record-route needs to be fixed for port");
 					url_param_add(ms->getHome(), sip->sip_record_route->r_url,
 					              su_sprintf(ms->getHome(), "fs-rport=%s", rport));

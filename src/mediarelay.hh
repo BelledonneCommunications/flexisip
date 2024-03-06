@@ -31,7 +31,7 @@ namespace flexisip {
 class RelayedCall;
 class MediaRelayServer;
 
-class MediaRelay : public Module, protected ModuleToolbox {
+class MediaRelay : public Module {
 	friend std::shared_ptr<Module> ModuleInfo<MediaRelay>::create(Agent*);
 	friend class MediaRelayServer;
 	friend class RelayedCall;

@@ -31,7 +31,7 @@
 using namespace std;
 using namespace flexisip;
 
-class StatisticsCollector : public Module, ModuleToolbox {
+class StatisticsCollector : public Module {
 	friend std::shared_ptr<Module> ModuleInfo<StatisticsCollector>::create(Agent*);
 
 public:

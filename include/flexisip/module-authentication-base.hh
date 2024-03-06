@@ -28,10 +28,10 @@
 #include "flexisip/auth/flexisip-auth-module-base.hh"
 #include "flexisip/module.hh"
 
-// Foraward declaration to avoid to have to publish the RealmExtractor class header.
-class RealmExtractor;
-
 namespace flexisip {
+
+// Forward declaration to avoid to have to publish the RealmExtractor class header.
+class RealmExtractor;
 
 /**
  * Base class for Flexisip authentication modules.
@@ -46,7 +46,7 @@ public:
 
 protected:
 	// ================
-	//  Proteted types
+	//  Protected types
 	// ================
 
 	/**
@@ -58,7 +58,7 @@ protected:
 	class StopRequestProcessing : public std::exception {};
 
 	// ==================
-	//  Proteted methods
+	//  Protected methods
 	// ==================
 	void onLoad(const GenericStruct* root) override;
 	void onRequest(std::shared_ptr<RequestSipEvent>& ev) override;
@@ -108,14 +108,14 @@ protected:
 	static bool validAlgo(const std::string& algo);
 
 	// =====================
-	//  Proteted attributes
+	//  Protected attributes
 	// =====================
 	std::set<BinaryIp> mTrustedHosts;
 	std::map<std::string, std::unique_ptr<FlexisipAuthModuleBase>> mAuthModules;
 	std::list<std::string> mAlgorithms;
 	auth_challenger_t mRegistrarChallenger;
 	auth_challenger_t mProxyChallenger;
-	RealmExtractor* mRealmExtractor{nullptr}; /* initialy, this attribute was declared as
+	RealmExtractor* mRealmExtractor{nullptr}; /* initially, this attribute was declared as
 	    std::unique_ptr<RealmExtractor> but that broke the compilation on Debian/Ubuntu platforms although the default
 	    destructor of ModuleAuthenticationBase was declared in the .cc file */
 	std::shared_ptr<SipBooleanExpression> mNo403Expr;

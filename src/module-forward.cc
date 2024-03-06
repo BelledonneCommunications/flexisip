@@ -30,6 +30,7 @@
 #include "domain-registrations.hh"
 #include "etchosts.hh"
 #include "eventlogs/writers/event-log-writer.hh"
+#include "module-toolbox.hh"
 #include "nat/nat-traversal-strategy.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
@@ -47,7 +48,7 @@ static char const* compute_branch(nta_agent_t* sa,
                                   char const* string_server,
                                   const shared_ptr<OutgoingTransaction>& outTr);
 
-class ForwardModule : public Module, ModuleToolbox {
+class ForwardModule : public Module {
 	friend std::shared_ptr<Module> ModuleInfo<ForwardModule>::create(Agent*);
 
 public:
@@ -323,7 +324,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	const sip_route_t* route = mRoutesMap.resolveRoute(ms);
 	if (route) {
 		LOGD("Prepending route '%s'", url_as_string(ms->getHome(), route->r_url));
-		cleanAndPrependRoute(getAgent(), msg, sip, sip_route_dup(ms->getHome(), route));
+		ModuleToolbox::cleanAndPrependRoute(getAgent(), msg, sip, sip_route_dup(ms->getHome(), route));
 	}
 
 	// Remove top route headers if they match us.
@@ -410,10 +411,10 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent>& ev, url_t* dest, ur
 
 	// Clean push notifs params from contacts
 	if (sip->sip_contact && sip->sip_request->rq_method != sip_method_register) {
-		removeParamsFromContacts(ms->getHome(), sip->sip_contact, mParamsToRemove);
+		ModuleToolbox::removeParamsFromContacts(ms->getHome(), sip->sip_contact, mParamsToRemove);
 		SLOGD << "Removed push params from contact";
 	}
-	removeParamsFromUrl(ms->getHome(), sip->sip_request->rq_url, mParamsToRemove);
+	ModuleToolbox::removeParamsFromUrl(ms->getHome(), sip->sip_request->rq_url, mParamsToRemove);
 
 	shared_ptr<OutgoingTransaction> outTr;
 	if (ev->getOutgoingAgent() != nullptr) { //== if message is to be forwarded
@@ -458,7 +459,7 @@ url_t* ForwardModule::getDestinationFromRoute(su_home_t* home, sip_t* sip) {
 		url_param(route->r_url->url_params, "fs-received", received, sizeof(received));
 		url_param(route->r_url->url_params, "fs-rport", rport, sizeof(rport));
 		if (received[0] != 0) {
-			urlSetHost(home, ret, received);
+			ModuleToolbox::urlSetHost(home, ret, received);
 			ret->url_params = url_strip_param_string(su_strdup(home, route->r_url->url_params), "fs-received");
 		}
 		if (rport[0] != 0) {
@@ -496,17 +497,17 @@ bool ForwardModule::isAClusterNode(const url_t* url) {
 url_t* ForwardModule::overrideDest(shared_ptr<RequestSipEvent>& ev, url_t* dest) {
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 
-	if (!urlIsResolved(dest)) {
+	if (!ModuleToolbox::urlIsResolved(dest)) {
 		if (mOutRoute) {
 			sip_t* sip = ms->getSip();
 			url_t* req_url = sip->sip_request->rq_url;
 			for (sip_via_t* via = sip->sip_via; via != nullptr; via = via->v_next) {
-				if (urlViaMatch(mOutRoute->r_url, sip->sip_via, false)) {
+				if (ModuleToolbox::urlViaMatch(mOutRoute->r_url, sip->sip_via, false)) {
 					SLOGD << "Found forced outgoing route in via, skipping";
 					return dest;
 				}
 			}
-			if (!urlIsResolved(req_url)) {
+			if (!ModuleToolbox::urlIsResolved(req_url)) {
 				dest = mOutRoute->r_url;
 				if (mRewriteReqUri) {
 					*req_url = *dest;

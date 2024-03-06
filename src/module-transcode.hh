@@ -25,6 +25,7 @@
 #include <flexisip/module.hh>
 
 #include "agent.hh"
+#include "module-toolbox.hh"
 
 #ifdef HAVE_CONFIG_H
 #include "flexisip-config.h"
@@ -65,7 +66,7 @@ private:
 };
 #endif
 
-class Transcoder : public Module, protected ModuleToolbox {
+class Transcoder : public Module {
 	friend std::shared_ptr<Module> ModuleInfo<Transcoder>::create(Agent*);
 
 public:

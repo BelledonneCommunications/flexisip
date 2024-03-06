@@ -39,6 +39,7 @@
 #include "auth/db/authdb.hh"
 #include "domain-registrations.hh"
 #include "etchosts.hh"
+#include "module-toolbox.hh"
 #include "nat/contact-correction-strategy.hh"
 #include "nat/flow-token-strategy.hh"
 #include "plugin/plugin-loader.hh"

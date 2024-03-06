@@ -39,6 +39,7 @@
 #include "flexisip/utils/sip-uri.hh"
 
 #include "b2bua/external-provider-bridge.hh"
+#include "module-toolbox.hh"
 #include "tester.hh"
 #include "utils/asserts.hh"
 #include "utils/client-builder.hh"

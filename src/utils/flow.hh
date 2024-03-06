@@ -33,8 +33,6 @@
 
 namespace flexisip {
 
-class FlowFactory;
-
 /*
  * Represent a flow as defined in RFC5626:
  * "A Flow is a transport-layer association between two hosts that

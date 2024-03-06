@@ -95,6 +95,7 @@ add_library(flexisip SHARED
 	module-router.cc
 	module-sanitychecker.cc
 	module-statistics-collector.cc
+	module-toolbox.cc module-toolbox.hh
 	module-transcode.cc module-transcode.hh
 	module-b2bua.cc
 	module.cc

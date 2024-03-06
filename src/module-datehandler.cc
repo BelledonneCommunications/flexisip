@@ -25,7 +25,7 @@
 using namespace std;
 using namespace flexisip;
 
-class DateHandler : public Module, protected ModuleToolbox {
+class DateHandler : public Module {
 	friend std::shared_ptr<Module> ModuleInfo<DateHandler>::create(Agent*);
 
 public:

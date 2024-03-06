@@ -24,7 +24,7 @@
 using namespace std;
 using namespace flexisip;
 
-class ModuleSanityChecker : public Module, protected ModuleToolbox {
+class ModuleSanityChecker : public Module {
 	friend std::shared_ptr<Module> ModuleInfo<ModuleSanityChecker>::create(Agent*);
 
 public:

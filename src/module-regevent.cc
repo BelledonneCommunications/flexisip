@@ -22,11 +22,12 @@
 
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
+#include "module-toolbox.hh"
 
 using namespace std;
 using namespace flexisip;
 
-class RegEvent : public Module, ModuleToolbox {
+class RegEvent : public Module {
 	friend std::shared_ptr<Module> ModuleInfo<RegEvent>::create(Agent*);
 
 private:
@@ -69,8 +70,8 @@ private:
 		sip_t* sip = ev->getSip();
 		if (sip->sip_request->rq_method == sip_method_subscribe && strcasecmp(sip->sip_event->o_type, "reg") == 0 &&
 		    sip->sip_to->a_tag == nullptr) {
-			cleanAndPrependRoute(this->getAgent(), ev->getMsgSip()->getMsg(), ev->getSip(),
-			                     sip_route_create(&mHome, mDestRoute->get(), nullptr));
+			ModuleToolbox::cleanAndPrependRoute(this->getAgent(), ev->getMsgSip()->getMsg(), ev->getSip(),
+			                                    sip_route_create(&mHome, mDestRoute->get(), nullptr));
 		}
 	}
 

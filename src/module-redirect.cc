@@ -27,7 +27,7 @@
 using namespace std;
 using namespace flexisip;
 
-class ModuleRedirect : public Module, ModuleToolbox {
+class ModuleRedirect : public Module {
 	friend std::shared_ptr<Module> ModuleInfo<ModuleRedirect>::create(Agent*);
 
 private:

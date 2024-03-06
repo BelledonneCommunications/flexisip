@@ -27,6 +27,7 @@
 #include "agent.hh"
 #include "eventlogs/events/eventlogs.hh"
 #include "eventlogs/writers/event-log-writer.hh"
+#include "module-toolbox.hh"
 #include "transaction/incoming-transaction.hh"
 #include "transaction/outgoing-transaction.hh"
 #include "utils/socket-address.hh"

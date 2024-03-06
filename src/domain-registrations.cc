@@ -33,6 +33,7 @@
 #include "flexisip/module.hh"
 
 #include "agent.hh"
+#include "module-toolbox.hh"
 #include "registrar/registrar-db.hh"
 
 using namespace std;

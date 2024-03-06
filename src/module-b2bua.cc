@@ -23,6 +23,7 @@
 
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
+#include "module-toolbox.hh"
 
 using namespace std;
 
@@ -31,7 +32,7 @@ using namespace std;
 // =============================================================================
 namespace flexisip {
 
-class B2bua : public Module, ModuleToolbox {
+class B2bua : public Module {
 	friend std::shared_ptr<Module> ModuleInfo<B2bua>::create(Agent*);
 
 public:
@@ -107,8 +108,8 @@ void B2bua::onRequest(shared_ptr<RequestSipEvent>& ev) {
 		sip_unknown_t* header = ModuleToolbox::getCustomHeaderByName(sip, "flexisip-b2bua");
 
 		if (header == NULL) {
-			cleanAndPrependRoute(this->getAgent(), ev->getMsgSip()->getMsg(), ev->getSip(),
-			                     sip_route_create(&mHome, mDestRoute->get(), nullptr));
+			ModuleToolbox::cleanAndPrependRoute(this->getAgent(), ev->getMsgSip()->getMsg(), ev->getSip(),
+			                                    sip_route_create(&mHome, mDestRoute->get(), nullptr));
 			SLOGD << "B2bua onRequest, clean and prepend done to route " << mDestRoute->str();
 		} else { // Do not intercept the call
 			// TODO: Remove the custom header flexisip-b2bua

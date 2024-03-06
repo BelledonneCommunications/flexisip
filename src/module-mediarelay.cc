@@ -22,6 +22,7 @@
 #include "callcontext-mediarelay.hh"
 #include "fork-context/fork-context-base.hh"
 #include "mediarelay.hh"
+#include "module-toolbox.hh"
 #include "sdp-modifier.hh"
 
 using namespace std;
@@ -200,9 +201,10 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall>& c,
 
 	string from_tag = sip->sip_from->a_tag;
 	string from_host;
-	sip_via_t* last_via = getLastVia(sip); /*the last via of the message is the originator of the message.*/
-	if (last_via->v_received) from_host = getHost(last_via->v_received);
-	else from_host = getHost(last_via->v_host);
+	sip_via_t* last_via =
+	    ModuleToolbox::getLastVia(sip); /*the last via of the message is the originator of the message.*/
+	if (last_via->v_received) from_host = ModuleToolbox::getHost(last_via->v_received);
+	else from_host = ModuleToolbox::getHost(last_via->v_host);
 
 	string to_tag;
 	if (sip->sip_to->a_tag != NULL) to_tag = sip->sip_to->a_tag;
@@ -214,9 +216,9 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall>& c,
 		route = route->r_next;
 	}
 	if (route) {
-		dest_host = urlGetHost(route->r_url);
+		dest_host = ModuleToolbox::urlGetHost(route->r_url);
 	} else if (sip->sip_request != NULL && sip->sip_request->rq_url->url_host != NULL) {
-		dest_host = urlGetHost(sip->sip_request->rq_url);
+		dest_host = ModuleToolbox::urlGetHost(sip->sip_request->rq_url);
 	}
 
 	if (m->hasAttribute(mSdpMangledParam.c_str())) {
@@ -302,7 +304,7 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent>& ev) {
 		}
 		if (processNewInvite(c, ot, ev)) {
 			// be in the record-route
-			addRecordRouteIncoming(getAgent(), ev);
+			ModuleToolbox::addRecordRouteIncoming(getAgent(), ev);
 			if (newContext) mCalls->store(c);
 			ot->setProperty(getModuleName(), weak_ptr<RelayedCall>{c});
 		}
@@ -392,7 +394,7 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 		c = ot->getProperty<RelayedCall>(getModuleName());
 		if (c) {
 			if (sip->sip_cseq && isInviteOrUpdate(sip->sip_cseq->cs_method)) {
-				fixAuthChallengeForSDP(ms->getHome(), msg, sip);
+				ModuleToolbox::fixAuthChallengeForSDP(ms->getHome(), msg, sip);
 				if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
 					processResponseWithSDP(c, ot, ev->getMsgSip());
 				} else if (sip->sip_status->st_status >= 300) {

@@ -111,7 +111,7 @@ public:
 	sip_contact_t* mOriginalContacts{nullptr};
 };
 
-class ModuleRegistrar : public Module, public ModuleToolbox {
+class ModuleRegistrar : public Module {
 
 	friend std::shared_ptr<Module> ModuleInfo<ModuleRegistrar>::create(Agent*);
 	friend class OnRequestBindListener;

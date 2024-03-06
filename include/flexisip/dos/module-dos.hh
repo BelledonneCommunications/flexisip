@@ -34,7 +34,7 @@ struct DosContext {
 	double packet_count_rate = 0;
 };
 
-class ModuleDoSProtection : public Module, ModuleToolbox {
+class ModuleDoSProtection : public Module {
 	friend std::shared_ptr<Module> ModuleInfo<ModuleDoSProtection>::create(Agent*);
 
 public:

@@ -30,6 +30,7 @@
 #include "fork-context/fork-basic-context.hh"
 #include "fork-context/fork-call-context.hh"
 #include "fork-context/fork-message-context.hh"
+#include "module-toolbox.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "router/agent-injector.hh"
@@ -54,6 +55,7 @@ ModuleRouter::ModuleRouter(Agent* ag, const ModuleInfoBase* moduleInfo) : Module
 	mStats.mCountMessageForks = mModuleConfig->getStatPairPtr("count-message-forks");
 	mStats.mCountMessageProxyForks = mModuleConfig->getStatPairPtr("count-message-proxy-forks");
 }
+
 ModuleRouter::~ModuleRouter() {
 	LOGT("Destroy ModuleRouter[%p]", this);
 };
@@ -238,7 +240,7 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 	mFallbackRouteFilter = mc->get<ConfigBooleanExpression>("fallback-route-filter")->read();
 
 	if (!mFallbackRoute.empty()) {
-		mFallbackRouteParsed = sipUrlMake(mHome.home(), mFallbackRoute.c_str());
+		mFallbackRouteParsed = ModuleToolbox::sipUrlMake(mHome.home(), mFallbackRoute.c_str());
 		if (!mFallbackRouteParsed) LOGF("Bad value [%s] for fallback-route in module::Router.", mFallbackRoute.c_str());
 	}
 
@@ -388,7 +390,7 @@ std::shared_ptr<BranchInfo> ModuleRouter::dispatch(const shared_ptr<ForkContext>
 		    new_msg, new_sip,
 		    (sip_header_t*)sip_unknown_format(msg_home(new_msg), "X-Target-Uris: %s", targetUris.c_str()));
 	}
-	cleanAndPrependRoute(getAgent(), new_msg, new_sip, routes);
+	ModuleToolbox::cleanAndPrependRoute(getAgent(), new_msg, new_sip, routes);
 
 	SLOGD << "Fork to " << contact_url_string;
 
@@ -677,9 +679,7 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 	context->start();
 }
 
-class PreroutingFetcher : public ContactUpdateListener,
-                          public enable_shared_from_this<PreroutingFetcher>,
-                          private ModuleToolbox {
+class PreroutingFetcher : public ContactUpdateListener, public enable_shared_from_this<PreroutingFetcher> {
 	friend class ModuleRouter;
 	shared_ptr<RequestSipEvent> mEv;
 	shared_ptr<ContactUpdateListener> mListener;
@@ -707,7 +707,7 @@ public:
 
 	void fetch() {
 		const char* domain = mEv->getSip()->sip_to->a_url->url_host;
-		if (isNumeric(domain)) SLOGE << "Not handled: to is ip at " << __LINE__;
+		if (ModuleToolbox::isNumeric(domain)) SLOGE << "Not handled: to is ip at " << __LINE__;
 
 		pending += mPreroutes.size();
 		for (auto it = mPreroutes.cbegin(); it != mPreroutes.cend(); ++it) {
@@ -746,9 +746,7 @@ public:
 	}
 };
 
-class TargetUriListFetcher : public ContactUpdateListener,
-                             public enable_shared_from_this<TargetUriListFetcher>,
-                             private ModuleToolbox {
+class TargetUriListFetcher : public ContactUpdateListener, public enable_shared_from_this<TargetUriListFetcher> {
 public:
 	// Adding maybe_unused after the argument because of C++ compiler bug:
 	// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81429
@@ -1095,6 +1093,10 @@ void ModuleRouter::onUselessRegisterNotification(const std::shared_ptr<ForkConte
                                                  [[maybe_unused]] const std::string& uid,
                                                  [[maybe_unused]] const DispatchStatus reason) {
 	mInjector->removeContext(ctx, newContact->contactId());
+}
+
+bool ModuleRouter::isManagedDomain(const url_t* url) const {
+	return ModuleToolbox::isManagedDomain(getAgent(), mDomains, url);
 }
 
 void ModuleRouter::sendToInjector(const shared_ptr<RequestSipEvent>& ev,
