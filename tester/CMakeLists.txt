@@ -91,6 +91,7 @@ add_executable(flexisip_tester
 	tests/flexiapi/schemas/iso-8601-date-tester.cc
 	tests/libhiredis-wrapper/redis-async-session-tester.cc
 	tests/libhiredis-wrapper/redis-reply-tester.cc
+	tests/module-forward-tester.cc
 	tests/module-nat-helper-tester.cc
 	tests/nat/contact-correction-strategy-helper-tester.cc
 	tests/nat/contact-correction-strategy-tester.cc
