@@ -16,8 +16,12 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <sstream>
+#include "module-forward.hh"
 
+#include <sstream>
+#include <utility>
+
+#include <sofia-sip/msg_types.h>
 #include <sofia-sip/sip_status.h>
 #include <sofia-sip/su_md5.h>
 #include <sofia-sip/tport.h>
@@ -26,7 +30,6 @@
 #include "flexisip/module.hh"
 
 #include "agent.hh"
-#include "conditional-routes.hh"
 #include "domain-registrations.hh"
 #include "etchosts.hh"
 #include "eventlogs/writers/event-log-writer.hh"
@@ -40,7 +43,8 @@
 #include "utils/uri-utils.hh"
 
 using namespace std;
-using namespace flexisip;
+
+namespace flexisip {
 
 static char const* compute_branch(nta_agent_t* sa,
                                   msg_t* msg,
@@ -48,88 +52,6 @@ static char const* compute_branch(nta_agent_t* sa,
                                   char const* string_server,
                                   const shared_ptr<OutgoingTransaction>& outTr);
 
-class ForwardModule : public Module {
-	friend std::shared_ptr<Module> ModuleInfo<ForwardModule>::create(Agent*);
-
-public:
-	ForwardModule(Agent* ag, const ModuleInfoBase* moduleInfo);
-	~ForwardModule() override;
-
-	void onLoad(const GenericStruct* mc) override;
-	void onRequest(shared_ptr<RequestSipEvent>& ev) override;
-	void onResponse(shared_ptr<ResponseSipEvent>& ev) override;
-	void sendRequest(shared_ptr<RequestSipEvent>& ev, url_t* dest, url_t* tportDest);
-
-private:
-	static unsigned int countVia(shared_ptr<RequestSipEvent>& ev);
-	static url_t* getDestinationFromRoute(su_home_t* home, sip_t* sip);
-	static bool isLooping(shared_ptr<RequestSipEvent>& ev, const char* branch);
-
-	bool isAClusterNode(const url_t* url);
-	url_t* overrideDest(shared_ptr<RequestSipEvent>& ev, url_t* dest);
-	tport_t* findTransportToDestination(const shared_ptr<RequestSipEvent>& ev, url_t* dest, url_t* tportDest);
-
-	static ModuleInfo<ForwardModule> sInfo;
-	std::weak_ptr<ModuleRouter> mRouterModule;
-	su_home_t mHome;
-	ConditionalRouteMap mRoutesMap;
-	sip_route_t* mOutRoute;
-	string mDefaultTransport;
-	std::list<std::string> mParamsToRemove;
-	list<string> mClusterNodes;
-	bool mRewriteReqUri;
-	bool mAddPath;
-};
-
-static char const* compute_branch([[maybe_unused]] nta_agent_t* sa,
-                                  msg_t* msg,
-                                  sip_t const* sip,
-                                  char const* string_server,
-                                  const shared_ptr<OutgoingTransaction>& outTr) {
-	su_md5_t md5[1];
-	uint8_t digest[SU_MD5_DIGEST_SIZE];
-	char branch[(SU_MD5_DIGEST_SIZE * 8 + 4) / 5 + 1] = {0};
-	sip_route_t const* r;
-
-	if (!outTr) {
-		su_md5_init(md5);
-
-		su_md5_str0update(md5, string_server);
-		// su_md5_str0update(md5, port);
-
-		url_update(md5, sip->sip_request->rq_url);
-		if (sip->sip_request->rq_url->url_params) {
-			// put url params in the hash too, because sofia does not do it in url_update().
-			su_md5_str0update(md5, sip->sip_request->rq_url->url_params);
-		}
-		if (sip->sip_call_id) {
-			su_md5_str0update(md5, sip->sip_call_id->i_id);
-		}
-		if (sip->sip_from) {
-			url_update(md5, sip->sip_from->a_url);
-			su_md5_stri0update(md5, sip->sip_from->a_tag);
-		}
-		if (sip->sip_to) {
-			url_update(md5, sip->sip_to->a_url);
-			/* XXX - some broken implementations include To tag in CANCEL */
-			/* su_md5_str0update(md5, sip->sip_to->a_tag); */
-		}
-		if (sip->sip_cseq) {
-			uint32_t cseq = htonl(sip->sip_cseq->cs_seq);
-			su_md5_update(md5, &cseq, sizeof(cseq));
-		}
-
-		for (r = sip->sip_route; r; r = r->r_next)
-			url_update(md5, r->r_url);
-
-		su_md5_digest(md5, digest);
-		msg_random_token(branch, sizeof(branch) - 1, digest, sizeof(digest));
-	} else {
-		strncpy(branch, outTr->getBranchId().c_str(), sizeof(branch) - 1);
-	}
-
-	return su_sprintf(msg_home(msg), "branch=z9hG4bK.%s", branch);
-}
 
 ModuleInfo<ForwardModule> ForwardModule::sInfo(
     "Forward",
@@ -257,11 +179,12 @@ static bool isUs(Agent* ag, sip_route_t* r) {
 class RegistrarListener : public ContactUpdateListener {
 public:
 	RegistrarListener(ForwardModule* module, shared_ptr<RequestSipEvent> ev)
-	    : ContactUpdateListener(), mModule(module), mEv(ev) {
+	    : ContactUpdateListener(), mModule(module), mEv(std::move(ev)) {
 	}
-	~RegistrarListener() override{};
+	~RegistrarListener() override = default;
+
 	void onRecordFound(const shared_ptr<Record>& r) override {
-		const shared_ptr<MsgSip>& ms = mEv->getMsgSip();
+		const auto& ms = mEv->getMsgSip();
 
 		if (!r || r->count() == 0) {
 			mEv->reply(404, "Not found", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
@@ -272,27 +195,66 @@ public:
 			return;
 		}
 
-		shared_ptr<ExtendedContact> contact = *r->getExtendedContacts().oldest();
-		sip_contact_t* ct = contact->toSofiaContact(ms->getHome());
-		url_t* dest = ct->m_url;
-		mEv->getSip()->sip_request->rq_url[0] = *url_hdup(msg_home(ms->getHome()), dest);
+		msg_t* msg = ms->getMsg();
+		auto* sip = ms->getSip();
+		auto* home = ms->getHome();
+		auto* request = sip->sip_request;
+		const auto& extendedContact = *r->getExtendedContacts().oldest();
+		auto* routesFromPath = extendedContact->toSofiaRoute(home);
+
+		// Update request uri with contact url.
+		request->rq_url[0] = *url_hdup(home, extendedContact->toSofiaContact(home)->m_url);
+
+		// If there are no routes, which means there are no paths set, send the request to contact url.
+		if (routesFromPath == nullptr) {
+			mModule->sendRequest(mEv, request->rq_url, nullptr);
+			return;
+		}
+
+		// Remove all "Route" headers from the sip message.
+		msg_header_remove_all(msg, nullptr, reinterpret_cast<msg_header_t*>(sip->sip_route));
+
+		// Process routes (filters "is us" sip uris).
+		url_t* dest{};
+		auto* agent = mModule->getAgent();
+		auto* iterator = routesFromPath;
+		while (iterator != nullptr) {
+			const auto* urlStr = url_as_string(home, iterator->r_url);
+
+			if (agent->isUs(iterator->r_url)) {
+				SLOGD << "Route header \"" << urlStr << "\" is us: remove and continue";
+				iterator = iterator->r_next;
+				continue;
+			}
+
+			SLOGD << "Route header \"" << urlStr << "\" is not us: forward";
+			dest = url_hdup(home, iterator->r_url);
+			break;
+		}
+
+		// Duplicate filtered "Route" headers (converted from "Path" headers) into to the sip message.
+		msg_header_add_dup(msg, nullptr, reinterpret_cast<const msg_header_t*>(iterator));
+
 		// No reason to remove "gr" parameter: the RegistrarDb provides a resolved uri (that may be an uri with "gr"
 		// parameter from another domain).
-		// mEv->getSip()->sip_request->rq_url->url_params =
-		// url_strip_param_string(su_strdup(ms->getHome(),mEv->getSip()->sip_request->rq_url->url_params) , "gr");
-		mModule->sendRequest(mEv, mEv->getSip()->sip_request->rq_url, nullptr);
+		// request->rq_url->url_params = url_strip_param_string(su_strdup(home, request->rq_url->url_params), "gr");
+
+		mModule->sendRequest(mEv, dest ? dest : request->rq_url, nullptr);
 	}
+
 	void onError(const SipStatus& response) override {
 		SLOGE << "RegistrarListener error, reply: " << response.getReason();
 		mEv->reply(response.getCode(), response.getReason(), SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()),
 		           TAG_END());
 	};
+
 	void onInvalid(const SipStatus&) override {
 		SLOGE << "RegistrarListener invalid";
 		// do not use SipStatus, treat as an error
 		mEv->reply(500, "Internal Server Error", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
 	}
-	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override{};
+
+	void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override {};
 
 private:
 	ForwardModule* mModule;
@@ -585,3 +547,55 @@ ForwardModule::findTransportToDestination(const shared_ptr<RequestSipEvent>& ev,
 
 	return tport;
 }
+
+static char const* compute_branch([[maybe_unused]] nta_agent_t* sa,
+                                  msg_t* msg,
+                                  sip_t const* sip,
+                                  char const* string_server,
+                                  const shared_ptr<OutgoingTransaction>& outTr) {
+	su_md5_t md5[1];
+	uint8_t digest[SU_MD5_DIGEST_SIZE];
+	char branch[(SU_MD5_DIGEST_SIZE * 8 + 4) / 5 + 1] = {0};
+	sip_route_t const* r;
+
+	if (!outTr) {
+		su_md5_init(md5);
+
+		su_md5_str0update(md5, string_server);
+		// su_md5_str0update(md5, port);
+
+		url_update(md5, sip->sip_request->rq_url);
+		if (sip->sip_request->rq_url->url_params) {
+			// put url params in the hash too, because sofia does not do it in url_update().
+			su_md5_str0update(md5, sip->sip_request->rq_url->url_params);
+		}
+		if (sip->sip_call_id) {
+			su_md5_str0update(md5, sip->sip_call_id->i_id);
+		}
+		if (sip->sip_from) {
+			url_update(md5, sip->sip_from->a_url);
+			su_md5_stri0update(md5, sip->sip_from->a_tag);
+		}
+		if (sip->sip_to) {
+			url_update(md5, sip->sip_to->a_url);
+			/* XXX - some broken implementations include To tag in CANCEL */
+			/* su_md5_str0update(md5, sip->sip_to->a_tag); */
+		}
+		if (sip->sip_cseq) {
+			uint32_t cseq = htonl(sip->sip_cseq->cs_seq);
+			su_md5_update(md5, &cseq, sizeof(cseq));
+		}
+
+		for (r = sip->sip_route; r; r = r->r_next)
+			url_update(md5, r->r_url);
+
+		su_md5_digest(md5, digest);
+		msg_random_token(branch, sizeof(branch) - 1, digest, sizeof(digest));
+	} else {
+		strncpy(branch, outTr->getBranchId().c_str(), sizeof(branch) - 1);
+	}
+
+	return su_sprintf(msg_home(msg), "branch=z9hG4bK.%s", branch);
+}
+
+} // namespace flexisip

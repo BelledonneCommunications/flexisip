@@ -84,7 +84,7 @@ add_library(flexisip SHARED
 	module-authorization.cc module-authorization.hh
 	module-capabilities.cc module-capabilities.hh
 	module-contact-route-inserter.cc
-	module-forward.cc
+	module-forward.cc module-forward.hh
 	module-garbage-in.cc
 	module-gatewayadapter.cc
 	module-loadbalancer.cc

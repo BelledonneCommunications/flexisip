@@ -57,7 +57,7 @@ struct ExtendedContact {
 	std::string mCallId{};
 	ContactKey mKey{}; // If the contact contains an identifier listed in Record::sLineFieldNames, then it is used as
 	                   // key, otherwise a random string
-	std::list<std::string> mPath{}; // list of urls as string (not enclosed with brakets)
+	std::list<std::string> mPath{}; // list of urls as string (not enclosed with brackets)
 	std::string mUserAgent{};
 	sip_contact_t* mSipContact{nullptr}; // Full contact
 	float mQ{1.0f};

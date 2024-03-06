@@ -98,6 +98,9 @@ sip_contact_t* ExtendedContact::toSofiaContact(su_home_t* home) const {
 	return sip_contact_dup(home, mSipContact);
 }
 
+/*
+ * Convert list of paths into sofia route.
+ */
 sip_route_t* ExtendedContact::toSofiaRoute(su_home_t* home) const {
 	sip_route_t* rbegin = nullptr;
 	sip_route_t* r = nullptr;
