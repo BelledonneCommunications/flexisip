@@ -66,12 +66,15 @@ constexpr auto configSection = "b2bua-server";
 class B2buaServer : public ServiceServer,
                     public std::enable_shared_from_this<B2buaServer>,
                     public linphone::CoreListener {
+public:
 	friend class tester::b2buatester::B2buaServer;
 
-public:
+	static constexpr auto& kConfKey = "b2bua::confData";
+	// Used to flag invites emitted by the B2BUA so they are not re-routed back to it by the B2bua module
+	static constexpr auto& kCustomHeader = "X-Flexisip-B2BUA";
+
 	B2buaServer(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg);
 	~B2buaServer();
-	static constexpr const char* confKey = "b2bua::confData";
 
 	void onCallStateChanged(const std::shared_ptr<linphone::Core>& core,
 	                        const std::shared_ptr<linphone::Call>& call,

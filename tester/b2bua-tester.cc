@@ -806,7 +806,7 @@ static void trenscrypter__uses_aor_and_not_contact() {
 	        [&injectedRequestUrl](const std::shared_ptr<RequestSipEvent>& responseEvent) {
 		        const auto* sip = responseEvent->getSip();
 		        if (sip->sip_request->rq_method != sip_method_invite ||
-		            ModuleToolbox::getCustomHeaderByName(sip, "flexisip-b2bua")) {
+		            ModuleToolbox::getCustomHeaderByName(sip, flexisip::B2buaServer::kCustomHeader)) {
 			        return;
 		        }
 
@@ -838,7 +838,7 @@ static void request_header__user_agent() {
 	        [&userAgentValue](const std::shared_ptr<RequestSipEvent>& responseEvent) {
 		        const auto* sip = responseEvent->getSip();
 		        if (sip->sip_request->rq_method != sip_method_invite ||
-		            ModuleToolbox::getCustomHeaderByName(sip, "flexisip-b2bua") == nullptr) {
+		            ModuleToolbox::getCustomHeaderByName(sip, flexisip::B2buaServer::kCustomHeader) == nullptr) {
 			        return;
 		        }
 

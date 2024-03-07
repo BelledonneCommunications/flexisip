@@ -18,11 +18,10 @@
 
 #include "flexisip/logmanager.hh"
 #include "flexisip/module.hh"
-#include "flexisip/plugin.hh"
 #include "flexisip/utils/sip-uri.hh"
 
 #include "agent.hh"
-#include "eventlogs/writers/event-log-writer.hh"
+#include "b2bua/b2bua-server.hh"
 #include "module-toolbox.hh"
 
 using namespace std;
@@ -104,8 +103,8 @@ void B2bua::onUnload() {
 void B2bua::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	sip_t* sip = ev->getSip();
 	if (sip->sip_request->rq_method == sip_method_invite || sip->sip_request->rq_method == sip_method_cancel) {
-		// Do we have the "flexisip-b2bua" custom header? If no, we must intercept the call.
-		sip_unknown_t* header = ModuleToolbox::getCustomHeaderByName(sip, "flexisip-b2bua");
+		// Do we have the "X-Flexisip-B2BUA" custom header? If no, we must intercept the call.
+		sip_unknown_t* header = ModuleToolbox::getCustomHeaderByName(sip, B2buaServer::kCustomHeader);
 
 		if (header == NULL) {
 			ModuleToolbox::cleanAndPrependRoute(this->getAgent(), ev->getMsgSip()->getMsg(), ev->getSip(),

@@ -97,7 +97,6 @@ add_library(flexisip SHARED
 	module-statistics-collector.cc
 	module-toolbox.cc module-toolbox.hh
 	module-transcode.cc module-transcode.hh
-	module-b2bua.cc
 	module.cc
 	monitor.cc monitor.hh
 	nat/contact-correction-strategy.cc nat/contact-correction-strategy.hh
@@ -327,6 +326,10 @@ if(ENABLE_CONFERENCE)
 	)
 endif()
 if(ENABLE_B2BUA)
+	target_sources(flexisip PRIVATE
+		module-b2bua.cc
+	)
+
 	find_package(jsoncpp "1.1.0" REQUIRED)
 
 	target_sources(flexisip PRIVATE
