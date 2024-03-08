@@ -158,7 +158,7 @@ private:
 	bool mReopenRequired{false};
 
 	// Private class attributes
-	static LogManager* sInstance;
+	static std::unique_ptr<LogManager> sInstance;
 
 	// Friendship
 	friend class SipLogContext;

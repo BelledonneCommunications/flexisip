@@ -56,10 +56,10 @@ static void syslogHandler([[maybe_unused]] void* info, [[maybe_unused]] const ch
 	}
 }
 
-LogManager* LogManager::sInstance = nullptr;
+std::unique_ptr<LogManager> LogManager::sInstance{};
 
 LogManager& LogManager::get() {
-	if (!sInstance) sInstance = new LogManager();
+	if (!sInstance) sInstance = std::unique_ptr<LogManager>(new LogManager());
 	return *sInstance;
 }
 
@@ -229,9 +229,11 @@ void LogManager::checkForReopening() {
 }
 
 LogManager::~LogManager() {
-	if (mLogHandler) bctbx_remove_log_handler(mLogHandler);
-	if (mSysLogHandler) bctbx_remove_log_handler(mSysLogHandler);
-	sInstance = nullptr;
+	if (mInitialized) {
+		if (mLogHandler) bctbx_remove_log_handler(mLogHandler);
+		if (mSysLogHandler) bctbx_remove_log_handler(mSysLogHandler);
+		bctbx_uninit_logger();
+	}
 }
 
 SipLogContext::SipLogContext(const MsgSip& msg) : mMsgSip(msg) {
