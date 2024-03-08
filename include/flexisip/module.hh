@@ -129,6 +129,7 @@ class ModuleInfoManager {
 	friend class ModuleInfoBase;
 
 public:
+	~ModuleInfoManager();
 	const std::list<ModuleInfoBase*>& getRegisteredModuleInfo() const {
 		return mRegisteredModuleInfo;
 	}
@@ -146,7 +147,7 @@ private:
 
 	std::list<ModuleInfoBase*> mRegisteredModuleInfo;
 
-	static ModuleInfoManager* sInstance;
+	static std::unique_ptr<ModuleInfoManager> sInstance;
 };
 
 class ModuleInfoBase {
@@ -190,7 +191,9 @@ public:
 		ModuleInfoManager::get()->registerModuleInfo(this);
 	}
 	virtual ~ModuleInfoBase() {
-		ModuleInfoManager::get()->unregisterModuleInfo(this);
+		if (mRegistered) {
+			ModuleInfoManager::get()->unregisterModuleInfo(this);
+		}
 	}
 
 	const std::string& getModuleName() const {
@@ -211,9 +214,11 @@ public:
 	const std::string& getReplace() const {
 		return mReplace;
 	}
-
 	const std::string& getFunction() const {
 		return mReplace.empty() ? mName : mReplace;
+	}
+	void setRegistered(bool newState) {
+		mRegistered = newState;
 	}
 
 	void declareConfig(GenericStruct& rootConfig) const;
@@ -228,6 +233,7 @@ private:
 	std::function<void(GenericStruct&)> mDeclareConfig;
 	ModuleClass mClass;
 	std::string mReplace;
+	bool mRegistered{false};
 };
 
 template <typename T>

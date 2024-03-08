@@ -192,11 +192,11 @@ void ModuleInfoBase::declareConfig(GenericStruct& rootConfig) const {
 	mDeclareConfig(*moduleConfig);
 }
 
-ModuleInfoManager* ModuleInfoManager::sInstance = nullptr;
+std::unique_ptr<ModuleInfoManager> ModuleInfoManager::sInstance{};
 
 ModuleInfoManager* ModuleInfoManager::get() {
-	if (!sInstance) sInstance = new ModuleInfoManager();
-	return sInstance;
+	if (!sInstance) sInstance = std::make_unique<ModuleInfoManager>();
+	return sInstance.get();
 }
 
 void ModuleInfoManager::registerModuleInfo(ModuleInfoBase* moduleInfo) {
@@ -212,12 +212,14 @@ void ModuleInfoManager::registerModuleInfo(ModuleInfoBase* moduleInfo) {
 		SLOGE << "Unable to register already registered module [" << moduleInfo->getModuleName() << "].";
 	} else {
 		mRegisteredModuleInfo.push_back(moduleInfo);
+		moduleInfo->setRegistered(true);
 	}
 }
 
 void ModuleInfoManager::unregisterModuleInfo(ModuleInfoBase* moduleInfo) {
 	SLOGI << "Unregistering module info [" << moduleInfo->getModuleName() << "]...";
 	mRegisteredModuleInfo.remove(moduleInfo);
+	moduleInfo->setRegistered(false);
 }
 
 bool ModuleInfoManager::moduleDependenciesPresent(const list<ModuleInfoBase*>& sortedList,
@@ -279,6 +281,15 @@ void ModuleInfoManager::replaceModules(std::list<ModuleInfoBase*>& sortedList,
 		SLOGW << "Module "
 		      << "[" << moduleName << "] will replace module [" << replace << "].";
 		*replacedModule = module;
+	}
+}
+
+ModuleInfoManager::~ModuleInfoManager() {
+	// Iterate through a copy of the list because unregisterModuleInfo() removes moduleInfo from mRegisteredModuleInfo.
+	// Therefore, we cannot iterate through the list while modifying its content.
+	const auto registeredModuleInfo = mRegisteredModuleInfo;
+	for (auto* moduleInfo : registeredModuleInfo) {
+		unregisterModuleInfo(moduleInfo);
 	}
 }
 
