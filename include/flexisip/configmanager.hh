@@ -158,7 +158,6 @@ public:
 	static oid oidFromHashedString(const std::string& str);
 };
 
-class GenericEntry;
 class GenericEntry {
 public:
 	class DeprecationInfo {
