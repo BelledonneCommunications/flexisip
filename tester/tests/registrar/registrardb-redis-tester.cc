@@ -232,7 +232,7 @@ void subscribe_to_key_expiration() {
 	BC_ASSERT_CPP_EQUAL(reply->type, REDIS_REPLY_STATUS);
 	BC_ASSERT_STRING_EQUAL(reply->str, "OK");
 
-	BC_ASSERT_TRUE(SUITE_SCOPE->asserter.iterateUpTo(
+	BC_HARD_ASSERT(SUITE_SCOPE->asserter.iterateUpTo(
 	    8, [&actualTopic] { return actualTopic.has_value(); }, 200ms));
 	BC_ASSERT_CPP_EQUAL(*actualTopic, topic);
 }
