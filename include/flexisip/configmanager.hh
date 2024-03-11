@@ -133,7 +133,6 @@ private:
 };
 
 class ConfigManagerVisitor;
-class GenericEntry;
 class GenericEntry {
 public:
 	class DeprecationInfo {

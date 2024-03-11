@@ -78,6 +78,7 @@
 #include "cli.hh"
 #include "configdumper.hh"
 #include "etchosts.hh"
+#include "exceptions/exit.hh"
 #include "monitor.hh"
 #include "registrar/registrar-db.hh"
 #include "stun.hh"
@@ -98,23 +99,25 @@
 #include "snmp/snmp-agent.hh"
 #endif
 
-#define ENABLE_SERVICE_SERVERS ENABLE_PRESENCE || ENABLE_CONFERENCE || ENABLE_B2BUA
-
-static int run = 1;
-static int pipe_wdog_flexisip[2] = {
-    -1}; // This is the pipe that flexisip will write to to signify it has started to the Watchdog
-static pid_t flexisip_pid = -1;
-static pid_t monitor_pid = -1;
-static std::shared_ptr<sofiasip::SuRoot> root{};
-
 using namespace std;
 using namespace flexisip;
 
+#define ENABLE_SERVICE_SERVERS ENABLE_PRESENCE || ENABLE_CONFERENCE || ENABLE_B2BUA
+
+static int run = 1;
+static pid_t monitor_pid = -1;
+static pid_t flexisip_pid = -1;
+static int pipe_wdog_flexisip[2] = {-1}; // Pipe in which flexisip will write to notify the watchdog that it has started
+static shared_ptr<sofiasip::SuRoot> root{};
+
+/*
+ * Get the identifier of the current thread.
+ */
 unsigned long threadid_cb() {
 	return (unsigned long)pthread_self();
 }
 
-void locking_function(int mode, int n, [[maybe_unused]] const char* file, [[maybe_unused]] int line) {
+void locking_function(int mode, int n, const char*, int) {
 	static mutex* mutextab = NULL;
 	if (mutextab == NULL) mutextab = new mutex[CRYPTO_num_locks()];
 	if (mode & CRYPTO_LOCK) mutextab[n].lock();
@@ -140,7 +143,7 @@ static void flexisip_stop(int signum) {
 	} // else nop
 }
 
-static void flexisip_reopen_log_files([[maybe_unused]] int signum) {
+static void flexisip_reopen_log_files(int) {
 	LogManager::get().reopenFiles();
 }
 
@@ -154,7 +157,7 @@ static void sofiaLogHandler(void*, const char* fmt, va_list ap) {
 	}
 }
 
-static std::map<msg_t*, string> msg_map;
+static map<msg_t*, string> msg_map;
 
 static void flexisip_msg_create(msg_t* msg) {
 	msg_map[msg] = "";
@@ -255,14 +258,15 @@ static void increaseFDLimit() noexcept {
 	}
 }
 
-/* Allows to detach the watchdog from the PTY so that we don't get traces clobbering the terminal */
+/*
+ * Allows to detach the watchdog from the PTY so that we don't get traces clobbering the terminal.
+ */
 static void detach() {
 	int fd;
 	setsid();
 	fd = open("/dev/null", O_RDWR);
 	if (fd == -1) {
-		fprintf(stderr, "Could not open /dev/null\n");
-		exit(-1);
+		throw Exit{-1, "could not open /dev/null"};
 	}
 	dup2(fd, 0);
 	dup2(fd, 1);
@@ -296,15 +300,13 @@ static void forkAndDetach(
 	int err = pipe(pipe_launcher_wdog);
 	bool launcherExited = false;
 	if (err == -1) {
-		LOGE("Could not create pipes: %s", strerror(errno));
-		exit(EXIT_FAILURE);
+		throw Exit{EXIT_FAILURE, "could not create pipes: "s + strerror(errno)};
 	}
 
 	/* Creation of the watch-dog process */
 	pid_t pid = fork();
 	if (pid < 0) {
-		fprintf(stderr, "Could not fork: %s\n", strerror(errno));
-		exit(EXIT_FAILURE);
+		throw Exit{EXIT_FAILURE, "could not fork: "s + strerror(errno)};
 	}
 	if (pid == 0) {
 		/* We are in the watch-dog process */
@@ -316,13 +318,11 @@ static void forkAndDetach(
 	fork_flexisip:
 		err = pipe(pipe_wdog_flexisip);
 		if (err == -1) {
-			LOGE("Could not create pipes: %s", strerror(errno));
-			exit(EXIT_FAILURE);
+			throw Exit{EXIT_FAILURE, "could not create pipes: "s + strerror(errno)};
 		}
 		flexisip_pid = fork();
 		if (flexisip_pid < 0) {
-			fprintf(stderr, "Could not fork: %s\n", strerror(errno));
-			exit(EXIT_FAILURE);
+			throw Exit{EXIT_FAILURE, "could not fork: "s + strerror(errno)};
 		}
 		if (flexisip_pid == 0) {
 
@@ -344,9 +344,10 @@ static void forkAndDetach(
 		close(pipe_wdog_flexisip[1]);
 		err = read(pipe_wdog_flexisip[0], buf, sizeof(buf));
 		if (err == -1 || err == 0) {
-			if (err == -1) LOGE("[WDOG] Read error from flexisip : %s", strerror(errno));
+			string message{};
+			if (err == -1) message = "[WDOG] read error from flexisip, "s + strerror(errno);
 			close(pipe_launcher_wdog[1]); // close launcher pipe to signify the error
-			exit(EXIT_FAILURE);
+			throw Exit{EXIT_FAILURE, message};
 		}
 		close(pipe_wdog_flexisip[0]);
 
@@ -359,14 +360,12 @@ static void forkAndDetach(
 			int pipe_wd_mo[2];
 			err = pipe(pipe_wd_mo);
 			if (err == -1) {
-				LOGE("Cannot create pipe. %s", strerror(errno));
 				kill(flexisip_pid, SIGTERM);
-				exit(EXIT_FAILURE);
+				throw Exit{EXIT_FAILURE, "could not create pipes: "s + strerror(errno)};
 			}
 			monitor_pid = fork();
 			if (monitor_pid < 0) {
-				fprintf(stderr, "Could not fork: %s\n", strerror(errno));
-				exit(EXIT_FAILURE);
+				throw Exit{EXIT_FAILURE, "could not fork: "s + strerror(errno)};
 			}
 			if (monitor_pid == 0) {
 				/* We are in the monitor process */
@@ -374,16 +373,14 @@ static void forkAndDetach(
 				close(pipe_launcher_wdog[1]);
 				close(pipe_wd_mo[0]);
 				Monitor::exec(cfg, pipe_wd_mo[1]);
-				LOGE("Fail to launch the Flexisip monitor");
-				exit(EXIT_FAILURE);
+				throw Exit{EXIT_FAILURE, "failed to launch Flexisip monitor"};
 			}
 			/* We are in the watchdog process */
 			close(pipe_wd_mo[1]);
 			err = read(pipe_wd_mo[0], buf, sizeof(buf));
 			if (err == -1 || err == 0) {
-				LOGE("[WDOG] Read error from Monitor process, killing flexisip");
 				kill(flexisip_pid, SIGTERM);
-				exit(EXIT_FAILURE);
+				throw Exit{EXIT_FAILURE, "[WDOG] read error from Monitor process, killed flexisip"};
 			}
 			close(pipe_wd_mo[0]);
 		}
@@ -393,8 +390,7 @@ static void forkAndDetach(
 		 */
 
 		if (!launcherExited && write(pipe_launcher_wdog[1], "ok", 3) == -1) {
-			LOGE("[WDOG] Write to pipe failed, exiting");
-			exit(EXIT_FAILURE);
+			throw Exit{EXIT_FAILURE, "[WDOG] write to pipe failed, exiting"};
 		} else {
 			close(pipe_launcher_wdog[1]);
 			launcherExited = true;
@@ -419,8 +415,7 @@ static void forkAndDetach(
 							sleep(1);
 							goto fork_flexisip;
 						} else {
-							LOGD("Flexisip exited normally");
-							exit(EXIT_SUCCESS);
+							throw Exit{EXIT_SUCCESS, "Flexisip exited normally"};
 						}
 					} else if (auto_respawn) {
 						LOGE("Flexisip apparently crashed, respawning now...");
@@ -433,8 +428,7 @@ static void forkAndDetach(
 					goto fork_monitor;
 				}
 			} else if (errno != EINTR) {
-				LOGE("waitpid() error: %s", strerror(errno));
-				exit(EXIT_FAILURE);
+				throw Exit{EXIT_FAILURE, "waitpid() error, "s + strerror(errno)};
 			}
 		}
 	} else {
@@ -450,12 +444,10 @@ static void forkAndDetach(
 		err = read(pipe_launcher_wdog[0], buf, sizeof(buf));
 		if (err == -1 || err == 0) {
 			// pipe was closed, flexisip failed to start -> exit with failure
-			LOGE("[LAUNCHER] Flexisip failed to start.");
-			exit(EXIT_FAILURE);
+			throw Exit{EXIT_FAILURE, "[LAUNCHER] Flexisip failed to start"};
 		} else {
 			// pipe written to, flexisip was OK
-			LOGD("[LAUNCHER] Flexisip started correctly: exit");
-			exit(EXIT_SUCCESS);
+			throw Exit{EXIT_SUCCESS, "[LAUNCHER] Flexisip started correctly: exit"};
 		}
 	}
 }
@@ -481,11 +473,8 @@ static void depthFirstSearch(string& path, GenericEntry* config, list<string>& a
 	}
 }
 
-static void dump_config(ConfigManager& cfg,
-                        const std::string& dump_cfg_part,
-                        bool with_experimental,
-                        bool dumpDefault,
-                        const string& format) {
+static void dump_config(
+    ConfigManager& cfg, const string& dump_cfg_part, bool with_experimental, bool dumpDefault, const string& format) {
 	cfg.applyOverrides(true);
 	auto* pluginsDirEntry = cfg.getGlobal()->get<ConfigString>("plugins-dir");
 	if (pluginsDirEntry->get().empty()) {
@@ -497,8 +486,7 @@ static void dump_config(ConfigManager& cfg,
 		smatch m;
 		rootStruct = dynamic_cast<GenericStruct*>(rootStruct->find(dump_cfg_part));
 		if (rootStruct == nullptr) {
-			cerr << "Couldn't find node " << dump_cfg_part << endl;
-			exit(EXIT_FAILURE);
+			throw Exit{EXIT_FAILURE, "couldn't find node " + dump_cfg_part};
 		}
 		if (regex_match(dump_cfg_part, m, regex("^module::(.*)$"))) {
 			const auto& moduleName = m[1];
@@ -508,9 +496,11 @@ static void dump_config(ConfigManager& cfg,
 			            [&moduleName](const auto& module) { return module->getModuleName() == moduleName; });
 			if (moduleIt != moduleInfoChain.cend() && (*moduleIt)->getClass() == ModuleClass::Experimental &&
 			    !with_experimental) {
-				cerr << "Module " << moduleName
-				     << " is experimental, not returning anything. To override, specify '--show-experimental'" << endl;
-				exit(EXIT_FAILURE);
+				throw Exit{
+				    EXIT_FAILURE,
+				    "module "s + moduleName.str() +
+				        " is experimental, not returning anything. To override, specify '--show-experimental'.",
+				};
 			}
 		}
 	}
@@ -530,12 +520,11 @@ static void dump_config(ConfigManager& cfg,
 	} else if (format == "xwiki") {
 		dumper = make_unique<XWikiConfigDumper>(rootStruct);
 	} else {
-		cerr << "Invalid output format '" << format << "'" << endl;
-		exit(EXIT_FAILURE);
+		throw Exit{EXIT_FAILURE, "invalid output format '" + format + "'"};
 	}
 	dumper->setDumpExperimentalEnabled(with_experimental);
 	dumper->dump(cout);
-	exit(EXIT_SUCCESS);
+	throw Exit{EXIT_SUCCESS};
 }
 
 static void list_sections(ConfigManager& cfg, bool moduleOnly = false) {
@@ -620,7 +609,7 @@ static string getPkcsPassphrase(TCLAP::ValueArg<string>& pkcsFile) {
 	return passphrase;
 }
 
-int main(int argc, char* argv[]) {
+int _main(int argc, char* argv[]) {
 	shared_ptr<Agent> a;
 	StunServer* stun = NULL;
 	unique_ptr<CommandLineInterface> proxy_cli;
@@ -630,13 +619,14 @@ int main(int argc, char* argv[]) {
 #ifdef ENABLE_SNMP
 	shared_ptr<SnmpAgent> snmpAgent;
 #endif
-	bool debug;
+	bool debug = false;
 	bool user_errors = false;
 	int errcode = EXIT_SUCCESS;
 
 	string versionString = version();
 	// clang-format off
 	TCLAP::CmdLine cmd("", ' ', versionString);
+	cmd.setExceptionHandling(false); // TCLAP executes exit() when processing ExitException, so deactivate exceptions management.
 	TCLAP::ValueArg<string>     functionName("", "server", 		"Specify the server function to operate: 'proxy',"
 #if ENABLE_PRESENCE
 	" 'presence',"
@@ -700,11 +690,8 @@ int main(int argc, char* argv[]) {
 		// Try parsing input
 		cmd.parse(argc, argv);
 		debug = useDebug.getValue();
-
-	} catch (TCLAP::ArgException& e) {
-
-		cerr << "Error parsing arguments: " << e.error() << " for arg " << e.argId() << endl;
-		exit(EXIT_FAILURE);
+	} catch (TCLAP::ArgException& exception) {
+		cmd.getOutput()->failure(cmd, exception);
 	}
 
 	map<string, string> oset;
@@ -715,19 +702,19 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	// Instanciate the main loop and set signal callbacks
+	// Instantiate the main loop and set signal callbacks
 	root = make_shared<sofiasip::SuRoot>();
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGTERM, flexisip_stop);
 	signal(SIGINT, flexisip_stop);
 	signal(SIGHUP, flexisip_reopen_log_files);
 
-	// Instanciate the Generic manager
+	// Instantiate the Generic manager
 	auto cfg = make_shared<ConfigManager>();
 	cfg->setOverrideMap(oset);
 
 	// list default config and exit
-	std::string module = dumpDefault.getValue();
+	string module = dumpDefault.getValue();
 	if (dumpAll) {
 		module = "all";
 	}
@@ -861,8 +848,8 @@ int main(int argc, char* argv[]) {
 	}
 	string fName = getFunctionName(startProxy, startPresence, startConference, startRegEvent, startB2bua);
 	// Initialize
-	std::string log_level = cfg->getGlobal()->get<ConfigString>("log-level")->read();
-	std::string syslog_level = cfg->getGlobal()->get<ConfigString>("syslog-level")->read();
+	string log_level = cfg->getGlobal()->get<ConfigString>("log-level")->read();
+	string syslog_level = cfg->getGlobal()->get<ConfigString>("syslog-level")->read();
 	if (!user_errors) user_errors = cfg->getGlobal()->get<ConfigBoolean>("user-errors-logs")->read();
 
 	ortp_init();
@@ -947,8 +934,10 @@ int main(int argc, char* argv[]) {
 		try {
 			MsgSip::setShowBodyFor(cfg->getGlobal()->get<ConfigString>("show-body-for")->read());
 		} catch (const invalid_argument& e) {
-			LOGF("Setting 'global/show-body-for' must only contains sip method names, whitespace separated. %s",
-			     e.what());
+			throw Exit{
+			    -1,
+			    "setting 'global/show-body-for' must only contain sip method names, whitespace separated. "s + e.what(),
+			};
 		}
 	} else {
 		LogManager::get().disable();
@@ -1016,10 +1005,10 @@ int main(int argc, char* argv[]) {
 #ifdef ENABLE_PRESENCE
 		bool enableLongTermPresence =
 		    (cfg->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read());
-		auto presenceServer = make_shared<flexisip::PresenceServer>(root, cfg);
+		auto presenceServer = make_shared<PresenceServer>(root, cfg);
 		if (enableLongTermPresence) {
 			auto presenceLongTerm =
-			    make_shared<flexisip::PresenceLongterm>(presenceServer->getBelleSipMainLoop(), authDb, registrarDb);
+			    make_shared<PresenceLongterm>(presenceServer->getBelleSipMainLoop(), authDb, registrarDb);
 			presenceServer->addPresenceInfoObserver(presenceLongTerm);
 		}
 		if (daemonMode) {
@@ -1027,14 +1016,14 @@ int main(int argc, char* argv[]) {
 		}
 		try {
 			presenceServer->init();
-		} catch (FlexisipException& e) {
+		} catch (const FlexisipException& e) {
 			/* Catch the presence server exception, which is generally caused by a failure while binding the SIP
 			 * listening points.
-			 * Since it prevents from starting and it is not a crash, it shall be notified to the user with LOGF*/
-			LOGF("Fail to start flexisip presence server");
+			 * Since it prevents from starting, and it is not a crash, it shall be notified to the user */
+			throw Exit{-1, "failed to start flexisip presence server"};
 		}
 
-		presence_cli = unique_ptr<CommandLineInterface>(new CommandLineInterface("presence", cfg));
+		presence_cli = make_unique<CommandLineInterface>("presence", cfg);
 		presence_cli->start();
 
 		serviceServers.emplace_back(std::move(presenceServer));
@@ -1043,17 +1032,17 @@ int main(int argc, char* argv[]) {
 
 	if (startConference) {
 #ifdef ENABLE_CONFERENCE
-		auto conferenceServer = make_shared<flexisip::ConferenceServer>(a->getPreferredRoute(), root, cfg, registrarDb);
+		auto conferenceServer = make_shared<ConferenceServer>(a->getPreferredRoute(), root, cfg, registrarDb);
 		if (daemonMode) {
 			notifyWatchDog();
 		}
 		try {
 			conferenceServer->init();
-		} catch (FlexisipException& e) {
+		} catch (const FlexisipException& e) {
 			/* Catch the conference server exception, which is generally caused by a failure while binding the SIP
 			 * listening points.
-			 * Since it prevents from starting and it is not a crash, it shall be notified to the user with LOGF*/
-			LOGF("Fail to start flexisip conference server");
+			 * Since it prevents from starting, and it is not a crash, it shall be notified to the user */
+			throw Exit{-1, "failed to start flexisip conference server"};
 		}
 
 		serviceServers.emplace_back(std::move(conferenceServer));
@@ -1062,14 +1051,14 @@ int main(int argc, char* argv[]) {
 
 	if (startRegEvent) {
 #ifdef ENABLE_CONFERENCE
-		auto regEventServer = make_unique<flexisip::RegistrationEvent::Server>(root, cfg, registrarDb);
+		auto regEventServer = make_unique<RegistrationEvent::Server>(root, cfg, registrarDb);
 		if (daemonMode) {
 			notifyWatchDog();
 		}
 		try {
 			regEventServer->init();
-		} catch (FlexisipException& e) {
-			LOGF("Fail to start flexisip registration event server");
+		} catch (const FlexisipException& e) {
+			throw Exit{-1, "failed to start flexisip registration event server"};
 		}
 
 		serviceServers.emplace_back(std::move(regEventServer));
@@ -1078,14 +1067,14 @@ int main(int argc, char* argv[]) {
 
 	if (startB2bua) {
 #if ENABLE_B2BUA
-		auto b2buaServer = make_shared<flexisip::B2buaServer>(root, cfg);
+		auto b2buaServer = make_shared<B2buaServer>(root, cfg);
 		if (daemonMode) {
 			notifyWatchDog();
 		}
 		try {
 			b2buaServer->init();
-		} catch (FlexisipException& e) {
-			LOGF("Fail to start flexisip back to back user agent server");
+		} catch (const FlexisipException& e) {
+			throw Exit{-1, "failed to start flexisip back to back user agent server"};
 		}
 
 		serviceServers.emplace_back(std::move(b2buaServer));
@@ -1144,4 +1133,31 @@ int main(int argc, char* argv[]) {
 	bctbx_uninit_logger();
 
 	return errcode;
+}
+
+int main(int argc, char* argv[]) {
+	try {
+		return _main(argc, argv);
+	} catch (const TCLAP::ExitException& exception) {
+		// Exception raised when the program failed to correctly parse command line options.
+		return exception.getExitStatus();
+	} catch (const Exit& exception) {
+		// If there are no explanatory string to print, exit now.
+		if (exception.what() == nullptr or exception.what()[0] == '\0') {
+			return exception.code();
+		}
+		if (exception.code() != EXIT_SUCCESS) {
+			cerr << "Error, caught exit exception: " << exception.what() << endl;
+			return exception.code();
+		}
+
+		SLOGD << "Exit success: " << exception.what();
+		return exception.code();
+	} catch (const exception& exception) {
+		cerr << "Error, caught an unexpected exception: " << exception.what() << endl;
+		return EXIT_FAILURE;
+	} catch (...) {
+		cerr << "Error, caught an unknown exception" << endl;
+		return EXIT_FAILURE;
+	}
 }
