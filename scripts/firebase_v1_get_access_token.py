@@ -18,6 +18,7 @@
 
 """
 Retrieve a valid access token that can be used to authorize requests.
+Lifetime is expressed in seconds.
 
 All outputs of this script are printed in the standard output and formatted in JSON.
 The structure is as follows: {"state": str ['ERROR', 'SUCCESS'], "data": obj, "warnings": list[str]}
@@ -86,17 +87,27 @@ if __name__ == "__main__":
             request = google.auth.transport.requests.Request()
             credentials.refresh(request)
 
+            # Make expiry an offset-aware datetime.
+            expiry = credentials.expiry.replace(tzinfo=datetime.timezone.utc)
+            now = datetime.datetime.now(datetime.timezone.utc)
+            lifetime = int((expiry - now).total_seconds())
+
+            if lifetime <= 0:
+                error(f"computed token lifetime is negative or null ({lifetime}s) [now = {now}, expiry = {expiry}]")
+                sys.exit(0)
+
             data = {
                 "state": ScriptState.SUCCESS,
                 "data": {
                     "token": credentials.token,
-                    "lifetime": int(credentials.expiry.timestamp()) - int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
+                    "lifetime": lifetime,
                 },
                 "warnings": [f"{warning.message}" for warning in warnings],
             }
             print(json.dumps(data))
 
-        except BaseException as exception:
+        except SystemExit:
+            pass
 
+        except BaseException as exception:
             error(f"{exception}")
-            sys.exit(0)
