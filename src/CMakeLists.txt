@@ -250,10 +250,16 @@ if(ENABLE_PROTOBUF)
 	target_link_libraries(flexisip PRIVATE "protobuf::libprotobuf")
 	target_compile_definitions(flexisip PRIVATE "ENABLE_PROTOBUF")
 endif()
-if(ENABLE_PRESENCE)
+if(ENABLE_PRESENCE OR ENABLE_CONFERENCE)
 	if(NOT XercesC_FOUND)
 		message(FATAL_ERROR "Presence asked but XercesC not enabled! Please enable it first.")
 	endif()
+	list(APPEND XML_SOURCES
+		xml/xml.cc
+		xml/xml.hh
+	)
+endif()
+if(ENABLE_PRESENCE)
 	list(APPEND XML_SOURCES
 		xml/data-model.cc
 		xml/data-model.hh
@@ -267,8 +273,6 @@ if(ENABLE_PRESENCE)
 		xml/rlmi+xml.hh
 		xml/rpid.cc
 		xml/rpid.hh
-		xml/xml.cc
-		xml/xml.hh
 	)
 	target_sources(flexisip PRIVATE
 		presence/bellesip-signaling-exception.cc

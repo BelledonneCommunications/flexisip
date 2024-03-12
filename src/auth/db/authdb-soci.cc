@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -180,14 +180,15 @@ void SociAuthDB::declareConfig(GenericStruct* mc) {
 	    {"2020-06-18", "2.1.0",
 	     "This configuration is moved to [presence-server] section. Please move your configuration."});
 
+#if ENABLE_PRESENCE
 	auto* ps = dynamic_cast<GenericStruct*>(mc->getParent())->get<GenericStruct>("presence-server");
 	ps->get<ConfigString>("soci-user-with-phone-request")->setFallback(*userWithPhoneReqConf);
 	ps->get<ConfigString>("soci-users-with-phones-request")->setFallback(*usersWithPhonesReqConf);
+#endif
 }
 
 SociAuthDB::SociAuthDB(const GenericStruct& cr) : AuthDbBackend(cr) {
 	auto* ma = cr.get<GenericStruct>("module::Authentication");
-	auto* mp = cr.get<GenericStruct>("module::Presence");
 	auto* ps = cr.get<GenericStruct>("presence-server");
 
 	poolSize = ma->get<ConfigInt>("soci-poolsize")->read();
@@ -200,7 +201,11 @@ SociAuthDB::SociAuthDB(const GenericStruct& cr) : AuthDbBackend(cr) {
 
 	get_user_with_phone_request = ps->get<ConfigString>("soci-user-with-phone-request")->read();
 	get_users_with_phones_request = ps->get<ConfigString>("soci-users-with-phones-request")->read();
+
+#if ENABLE_PRESENCE
+	auto* mp = cr.get<GenericStruct>("module::Presence");
 	check_domain_in_presence_results = mp->get<ConfigBoolean>("check-domain-in-presence-results")->read();
+#endif
 
 	conn_pool.reset(new connection_pool(poolSize));
 	thread_pool = make_unique<AutoThreadPool>(poolSize, max_queue_size);
