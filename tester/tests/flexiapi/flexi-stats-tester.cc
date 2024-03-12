@@ -75,7 +75,9 @@ public:
 		sendRequest(flexiStats);
 
 		BcAssert asserter{[this] { mRoot.step(1ms); }};
-		BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(10, [this] { return mRequestReceivedCount == 1; }));
+		ASSERT_PASSED(asserter.iterateUpTo(
+		    10, [this] { return LOOP_ASSERTION(mRequestReceivedCount == 1); }, 70ms));
+		BC_HARD_ASSERT_CPP_EQUAL(mRequestReceivedCount, 1);
 
 		httpMock.forceCloseServer();
 		mRoot.step(10ms); // needed to acknowledge mock server closing
