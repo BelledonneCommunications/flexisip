@@ -32,7 +32,6 @@
 #include <sofia-sip/tport.h>
 
 #include "flexisip/sofia-wrapper/msg-sip.hh"
-#include "utils/socket-address.hh"
 
 namespace flexisip {
 
@@ -44,6 +43,7 @@ class IncomingTransaction;
 class OutgoingTransaction;
 class EventLog;
 class EventLogWriteDispatcher;
+class SocketAddress;
 
 using MsgSip = sofiasip::MsgSip;
 
