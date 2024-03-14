@@ -28,7 +28,6 @@
 #include "flexisip-tester-config.hh"
 #include "nat/contact-correction-strategy.hh"
 #include "utils/nat-test-helper.hh"
-#include "utils/proxy-server.hh"
 #include "utils/string-formatter.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -135,6 +134,23 @@ void addRecordRouteNatHelperNoVia() {
 	const auto event = make_shared<RqSipEv>(helper.mAgent, Helper::getRegister(true), helper.mTport);
 	// Remove "VIA" header from request.
 	su_free(event->getHome(), event->getSip()->sip_via);
+
+	helper.mStrategy.addRecordRouteNatHelper(event);
+
+	const auto* recordRoute = event->getSip()->sip_record_route;
+	BC_HARD_ASSERT(&recordRoute[0] != nullptr);
+
+	const auto* recordRouteUrlStr = url_as_string(event->getHome(), recordRoute[0].r_url);
+	BC_ASSERT_CPP_EQUAL(recordRouteUrlStr, "sip:127.0.0.1:" + helper.mProxyPort + ";transport=tcp;lr");
+}
+
+/*
+ * Test successful "record-route" addition and url matches the address of the server.
+ * Test it does not contain a flow-token since the "Contact" header does not contain the "ob" parameter.
+ */
+void addRecordRouteNatHelperNoObParameter() {
+	const Helper helper{"false"};
+	const auto event = make_shared<RqSipEv>(helper.mAgent, Helper::getRegister(false), helper.mTport);
 
 	helper.mStrategy.addRecordRouteNatHelper(event);
 
@@ -281,15 +297,16 @@ void addPathOnRegisterNotFirstHopWithUniq() {
 
 TestSuite _("NatTraversalStrategy::FlowToken",
             {
-                TEST_NO_TAG_AUTO_NAMED(addRecordRouteNatHelper),
-                TEST_NO_TAG_AUTO_NAMED(addRecordRouteNatHelperNoVia),
-                TEST_NO_TAG_AUTO_NAMED(getTportDestFromLastRoute),
-                TEST_NO_TAG_AUTO_NAMED(getTportDestFromLastRouteWithFalsifiedFlowToken),
-                TEST_NO_TAG_AUTO_NAMED(addRecordRouteForwardModule),
-                TEST_NO_TAG_AUTO_NAMED(addRecordRouteForwardModuleNoRouteUrl),
-                TEST_NO_TAG_AUTO_NAMED(addPathOnRegister),
-                TEST_NO_TAG_AUTO_NAMED(addPathOnRegisterNotFirstHop),
-                TEST_NO_TAG_AUTO_NAMED(addPathOnRegisterNotFirstHopWithUniq),
+                CLASSY_TEST(addRecordRouteNatHelper),
+                CLASSY_TEST(addRecordRouteNatHelperNoVia),
+                CLASSY_TEST(addRecordRouteNatHelperNoObParameter),
+                CLASSY_TEST(getTportDestFromLastRoute),
+                CLASSY_TEST(getTportDestFromLastRouteWithFalsifiedFlowToken),
+                CLASSY_TEST(addRecordRouteForwardModule),
+                CLASSY_TEST(addRecordRouteForwardModuleNoRouteUrl),
+                CLASSY_TEST(addPathOnRegister),
+                CLASSY_TEST(addPathOnRegisterNotFirstHop),
+                CLASSY_TEST(addPathOnRegisterNotFirstHopWithUniq),
             });
 
 } // namespace

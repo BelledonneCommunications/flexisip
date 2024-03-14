@@ -242,20 +242,41 @@ void registerUser() {
 
 /*
  * Test call establishment when flow-token feature is enabled in module::NatHelper.
+ * Hint: we force the use of a flow-token to simulate the need of processing from the NatHelper module.
  */
 void makeCall() {
 	// Initialization --------------------------------------------------------------------------------------------------
+	url_t recordRoute{};
+	string callerTcpPort{"unexpected"};
+
+	bool firstInvite{true};
 	const string proxyHost = "127.0.0.1";
+	// Inject custom module to get information from processed requests.
+	// Here, we want to make sure the NatHelper module correctly added the record-route.
+	InjectedHooks injectedModuleHooks{
+	    .injectAfterModule = "NatHelper",
+	    .onRequest =
+	        [&firstInvite, &recordRoute, &callerTcpPort](std::shared_ptr<RequestSipEvent>& ev) {
+		        if (firstInvite and ev->getMsgSip()->getSipMethod() == sip_method_invite) {
+			        auto const* rr = ev->getMsgSip()->getSip()->sip_record_route;
+			        auto const* rrUrl = rr->r_url;
+			        recordRoute.url_user = rrUrl ? rrUrl->url_user : "expected";
+			        callerTcpPort = ev->getMsgAddress()->getPortStr();
+			        firstInvite = false;
+		        }
+	        },
+	};
 	Server proxy{{
-	    {"global/aliases", "localhost"},
-	    {"global/transports", "sip:" + proxyHost + ":0;transport=tcp"},
-	    {"module::MediaRelay/enabled", "false"},
-	    {"module::Registrar/enabled", "true"},
-	    {"module::Registrar/reg-domains", "localhost"},
-	    {"module::NatHelper/enabled", "true"},
-	    {"module::NatHelper/nat-traversal-strategy", "flow-token"},
-	    {"module::NatHelper/force-flow-token", "true"},
-	}};
+	                 {"global/aliases", "localhost"},
+	                 {"global/transports", "sip:" + proxyHost + ":0;transport=tcp"},
+	                 {"module::MediaRelay/enabled", "false"},
+	                 {"module::Registrar/enabled", "true"},
+	                 {"module::Registrar/reg-domains", "localhost"},
+	                 {"module::NatHelper/enabled", "true"},
+	                 {"module::NatHelper/nat-traversal-strategy", "flow-token"},
+	                 {"module::NatHelper/force-flow-token", "true"},
+	             },
+	             &injectedModuleHooks};
 	proxy.start();
 
 	auto builder = ClientBuilder(*proxy.getAgent());
@@ -267,6 +288,61 @@ void makeCall() {
 	const auto call = caller.call(callee);
 	BC_HARD_ASSERT(call != nullptr);
 	call->terminate();
+
+	FlowTestHelper helper;
+	auto flowToken = helper.mFactory.create(recordRoute.url_user);
+	BC_ASSERT_CPP_EQUAL(flowToken.getData().getLocalAddress()->str(), "127.0.0.1:"s + proxy.getFirstPort());
+	BC_ASSERT_CPP_EQUAL(flowToken.getData().getRemoteAddress()->str(), "127.0.0.1:" + callerTcpPort);
+}
+
+/*
+ * Test call establishment when no processing from the NatHelper is requested (user not behind a NAT).
+ * Hint: here we do not force to use flow-tokens and the Contact header do not contain the "ob" parameter, so it will
+ * fall back on the case where we do not need the NatHelper module to do something special.
+ */
+void makeCallNoNeedForNatHelper() {
+	// Initialization --------------------------------------------------------------------------------------------------
+	string recordRouteUrl{};
+
+	bool firstInvite{true};
+	const string proxyHost = "127.0.0.1";
+	// Inject custom module to get information from processed requests.
+	// Here, we want to make sure the NatHelper module correctly added the record-route.
+	InjectedHooks injectedModuleHooks{
+	    .injectAfterModule = "NatHelper",
+	    .onRequest =
+	        [&firstInvite, &recordRouteUrl](std::shared_ptr<RequestSipEvent>& ev) {
+		        if (firstInvite and ev->getMsgSip()->getSipMethod() == sip_method_invite) {
+			        auto const* rr = ev->getMsgSip()->getSip()->sip_record_route;
+			        recordRouteUrl = rr ? url_as_string(ev->getHome(), rr->r_url) : "expected";
+			        firstInvite = false;
+		        }
+	        },
+	};
+	Server proxy{{
+	                 {"global/aliases", "localhost"},
+	                 {"global/transports", "sip:" + proxyHost + ":0;transport=tcp"},
+	                 {"module::MediaRelay/enabled", "false"},
+	                 {"module::Registrar/enabled", "true"},
+	                 {"module::Registrar/reg-domains", "localhost"},
+	                 {"module::NatHelper/enabled", "true"},
+	                 {"module::NatHelper/nat-traversal-strategy", "flow-token"},
+	                 {"module::NatHelper/force-flow-token", "false"},
+	             },
+	             &injectedModuleHooks};
+	proxy.start();
+
+	auto builder = ClientBuilder(*proxy.getAgent());
+	builder.setIce(OnOff::Off);
+	auto caller = builder.build("sip:caller@localhost");
+	auto callee = builder.build("sip:callee@localhost");
+	CoreAssert asserter{caller.getCore(), proxy, callee.getCore()};
+	// -----------------------------------------------------------------------------------------------------------------
+	const auto call = caller.call(callee);
+	BC_HARD_ASSERT(call != nullptr);
+	call->terminate();
+
+	BC_ASSERT_CPP_EQUAL(recordRouteUrl, "sip:127.0.0.1:"s + proxy.getFirstPort() + ";transport=tcp;lr");
 }
 
 } // namespace FlowToken
@@ -277,6 +353,7 @@ TestSuite _("NatTraversal",
                 CLASSY_TEST(ContactCorrection::makeCall),
                 CLASSY_TEST(FlowToken::registerUser),
                 CLASSY_TEST(FlowToken::makeCall),
+                CLASSY_TEST(FlowToken::makeCallNoNeedForNatHelper),
             });
 
 } // namespace

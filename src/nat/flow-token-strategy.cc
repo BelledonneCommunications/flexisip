@@ -83,7 +83,11 @@ void FlowTokenStrategy::preProcessOnRequestNatHelper(const std::shared_ptr<Reque
 }
 
 void FlowTokenStrategy::addRecordRouteNatHelper(const std::shared_ptr<RequestSipEvent>& ev) const {
-	if (!mHelper.requestMeetsRequirements(ev)) return;
+	// If request does not meet requirements to add a flow-token, add a simple record-route.
+	if (!mHelper.requestMeetsRequirements(ev)) {
+		ModuleToolbox::addRecordRouteIncoming(mAgent, ev);
+		return;
+	};
 
 	const auto* sip = ev->getSip();
 
