@@ -59,7 +59,7 @@ RegistrarDb::RegistrarDb(const std::shared_ptr<sofiasip::SuRoot>& root, const st
 	else if (dbImplementation.find("redis") == 0) {
 		LOGI("RegistrarDB implementation is REDIS");
 		const GenericStruct* registrar = cr->get<GenericStruct>("module::Registrar");
-		RedisParameters params;
+		redis::async::RedisParameters params;
 		params.domain = registrar->get<ConfigString>("redis-server-domain")->read();
 		params.port = registrar->get<ConfigInt>("redis-server-port")->read();
 		params.timeout = registrar->get<ConfigDuration<chrono::milliseconds>>("redis-server-timeout")->read().count();

@@ -379,7 +379,6 @@ void ModuleRegistrar::declareConfig(GenericStruct& moduleConfig) {
 	     "empty, "
 	     "Flexisip will attempt to register in legacy mode.",
 	     ""},
-	    {DurationMS, "redis-server-timeout", "Timeout of the Redis connection.", "1500"},
 	    {DurationS, "redis-slave-check-period",
 	     "When Redis is configured in master-slave, Flexisip will periodically ask which Redis instances are the "
 	     "slaves and the master. This is the period with which it will query the server. It will then "
@@ -407,6 +406,7 @@ void ModuleRegistrar::declareConfig(GenericStruct& moduleConfig) {
 
 	    // Deprecated parameters
 	    {String, "redis-record-serializer", "Serialize contacts with: [C, protobuf, json, msgpack]", "protobuf"},
+	    {DurationMS, "redis-server-timeout", "Timeout of the Redis connection.", "1500"},
 	    {String, "name-message-expires",
 	     "Name of the custom Contact header parameter which is to indicate the expire "
 	     "time for chat message delivery.",
@@ -415,12 +415,23 @@ void ModuleRegistrar::declareConfig(GenericStruct& moduleConfig) {
 	moduleConfig.addChildrenValues(configs);
 
 	moduleConfig.get<ConfigString>("redis-record-serializer")
-	    ->setDeprecated({"2020-01-28", "2.0.0", "This setting hasn't any effect anymore."});
+	    ->setDeprecated({
+	        "2020-01-28",
+	        "2.0.0",
+	        "This setting no longer has any effect. It should be removed from the config file.",
+	    });
 
 	auto* oldMessageExpiresParamName = moduleConfig.get<ConfigString>("name-message-expires");
 	oldMessageExpiresParamName->setDeprecated(
 	    {"2020-03-25", "2.0.0", "This parameter has been renamed into 'message-expires-param-name'"});
 	moduleConfig.get<ConfigString>("message-expires-param-name")->setFallback(*oldMessageExpiresParamName);
+
+	moduleConfig.get<ConfigDuration<chrono::milliseconds>>("redis-server-timeout")
+	    ->setDeprecated({
+	        "2024-03-01",
+	        "2.4.0",
+	        "This setting no longer has any effect. It should be removed from the config file.",
+	    });
 
 	moduleConfig.createStatPair("count-clear", "Number of cleared registrations.");
 	moduleConfig.createStatPair("count-bind", "Number of registers.");

@@ -223,13 +223,11 @@ if(ENABLE_TRANSCODER)
 endif()
 if(ENABLE_DATEHANDLER)
 	target_sources(flexisip PRIVATE module-datehandler.cc)
-endif()
-if(ENABLE_REDIS)
+endif ()
+if (ENABLE_REDIS)
+	add_subdirectory(libhiredis-wrapper)
 	target_sources(flexisip PRIVATE
-		libhiredis-wrapper/redis-async-script.cc libhiredis-wrapper/redis-async-script.hh
-		libhiredis-wrapper/redis-async-session.cc libhiredis-wrapper/redis-async-session.hh
-		libhiredis-wrapper/redis-reply.cc libhiredis-wrapper/redis-reply.hh
-		registrardb-redis-async.cc
+			registrardb-redis-async.cc
 	)
 	target_compile_definitions(flexisip PRIVATE "ENABLE_REDIS")
 	target_link_libraries(flexisip PRIVATE hiredis)

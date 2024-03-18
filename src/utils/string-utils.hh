@@ -192,6 +192,32 @@ public:
 		return ret;
 	}
 
+	/**
+	 * @brief parseKeyValue this functions parses a string contraining a list of key/value
+	 * separated by a delimiter, and for each key-value, another delimiter.
+	 * It converts the string to a map<string,string>.
+	 *
+	 * For instance:
+	 * <code> parseKeyValue("toto:tata\nfoo:bar", '\n', ':', '#')</code>
+	 * will give you:
+	 * <code>{ make_pair("toto","tata"), make_pair("foo", "bar") }</code>
+	 *
+	 * @param toParse the string to parse
+	 * @param lineDelimiter the delimiter between lines
+	 * @param delimiter the delimiter between key and value (default is ':')
+	 * @param comment a character which is a comment. Lines starting with this character
+	 * will be ignored.
+	 * @return a map<string,string> which contains the keys and values extracted (can be empty)
+	 */
+	static std::map<std::string, std::string> parseKeyValue(const std::string& toParse,
+	                                                        const char lineDelimiter = '\n',
+	                                                        const char delimiter = ':',
+	                                                        const char comment = '#');
+
+	static bool isEndOfLineCharacter(char c) {
+		return c == '\r' || c == '\n';
+	}
+
 #ifdef HAVE_LIBLINPHONECXX
 	/**
 	 * Parse a string into a linphone::MediaEncryption

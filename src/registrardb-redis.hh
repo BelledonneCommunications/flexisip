@@ -33,8 +33,8 @@
 #include "flexisip/sofia-wrapper/su-root.hh"
 
 #include "libhiredis-wrapper/redis-async-session.hh"
-#include "libhiredis-wrapper/redis-auth.hh"
 #include "libhiredis-wrapper/redis-reply.hh"
+#include "libhiredis-wrapper/replication/redis-client.hh"
 #include "recordserializer.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/change-set.hh"
@@ -43,48 +43,6 @@
 #include "registrar/registrar-db.hh"
 
 namespace flexisip {
-
-struct RedisParameters {
-	std::string domain{};
-	std::variant<redis::auth::None, redis::auth::Legacy, redis::auth::ACL> auth{};
-	int port = 0;
-	int timeout = 0;
-	std::chrono::seconds mSlaveCheckTimeout{0};
-	bool useSlavesAsBackup = true;
-};
-
-/**
- * @brief The RedisHost struct, which is used to store redis slave description.
- */
-struct RedisHost {
-	RedisHost(int id, const std::string& address, unsigned short port, const std::string& state)
-	    : id(id), address(address), port(port), state(state) {
-	}
-
-	RedisHost() {
-		// invalid host
-		id = -1;
-	}
-
-	inline bool operator==(const RedisHost& r) {
-		return id == r.id && address == r.address && port == r.port && state == r.state;
-	}
-
-	/**
-	 * @brief parseSlave this class method will parse a line from Redis where a slave information is expected.
-	 *
-	 * If the parsing goes well, the returned RedisHost will have the id field set to the one passed as argument,
-	 * otherwise -1.
-	 * @param slaveLine the Redis answer line where a slave is defined. Format is "host,port,state"
-	 * @param id an ID to give to this slave, usually its number.
-	 * @return A RedisHost with a valid ID or -1 if the parsing failed.
-	 */
-	static RedisHost parseSlave(const std::string& slaveLine, int id);
-	int id;
-	std::string address;
-	unsigned short port;
-	std::string state;
-};
 
 class RegistrarDbRedisAsync;
 struct RedisRegisterContext;
@@ -131,21 +89,15 @@ struct RedisRegisterContext {
 /**
  * An implementation of the RegistrarDb interface backend by a Redis server
  */
-class RegistrarDbRedisAsync : public RegistrarDbBackend, redis::async::SessionListener {
+class RegistrarDbRedisAsync : public RegistrarDbBackend, public redis::async::SessionListener {
 public:
 	RegistrarDbRedisAsync(const sofiasip::SuRoot& root,
 	                      const Record::Config& recordConfig,
 	                      LocalRegExpire& localRegExpire,
-	                      RedisParameters params,
+	                      const redis::async::RedisParameters& params,
 	                      std::function<void(const Record::Key&, const std::string&)> notifyContact,
-	                      std::function<void(bool)> notifyState);
-	RegistrarDbRedisAsync(const sofiasip::SuRoot& root,
-	                      const Record::Config& recordConfig,
-	                      LocalRegExpire& localRegExpire,
-	                      RecordSerializer* serializer,
-	                      RedisParameters params,
-	                      std::function<void(const Record::Key&, const std::string&)> notifyContact,
-	                      std::function<void(bool)> notifyState);
+	                      std::function<void(bool)> notifyState,
+	                      RecordSerializer* serializer = RecordSerializer::get());
 
 	void fetchExpiringContacts(time_t startTimestamp,
 	                           float threshold,
@@ -153,12 +105,12 @@ public:
 
 	std::optional<std::tuple<const redis::async::Session::Ready&, const redis::async::SubscriptionSession::Ready&>>
 	connect();
-	void asyncDisconnect();
-	void forceDisconnect();
 	bool isConnected() const;
 	bool isWritable() const override {
 		return mWritable;
 	}
+
+	static void forceDisconnectForTest(RegistrarDbRedisAsync& thiz);
 
 	/* The timeout to retry a bind request after encountering a failure. It gives us a chance to reconnect to a new
 	 * master.*/
@@ -179,62 +131,28 @@ public:
 private:
 	static void sBindRetry(void* ud);
 	void setWritable(bool value);
-	const redis::async::Session::Ready* tryGetCommandSession();
 
 	void serializeAndSendToRedis(RedisRegisterContext&, redis::async::Session::CommandCallback&&);
-	void subscribeTopic(const std::string& topic);
+	void subscribe(std::string_view topic);
 	void subscribeToKeyExpiration();
 	static std::vector<std::unique_ptr<ExtendedContact>> parseContacts(const redis::reply::ArrayOfPairs&,
 	                                                                   const std::string& messageExpiresName);
 
 	/* callbacks */
-	void handleAuthReply(redis::async::Reply reply);
 	void handleBind(redis::async::Reply, std::unique_ptr<RedisRegisterContext>&&);
 	void handleClear(redis::async::Reply, const RedisRegisterContext&);
 	void handleFetch(redis::async::Reply, const RedisRegisterContext&);
 	void handlePublish(redis::async::Reply);
 
-	/**
-	 * This callback is called when the Redis instance answered our "INFO replication" message.
-	 * We parse the response to determine if we are connected to the master Redis instance or
-	 * a slave, and we react accordingly.
-	 * @param str Redis answer
-	 */
-	void handleReplicationInfoReply(const redis::reply::String& str);
-
 	/* redis::async::SessionListener */
 	void onConnect(int status) override;
 	void onDisconnect(int status) override;
 
-	/* replication */
-	void getReplicationInfo(const redis::async::Session::Ready&);
-	void updateSlavesList(const std::map<std::string, std::string>& redisReply);
-	void tryReconnect();
-
-	/**
-	 * This callback is called periodically to check if the current REDIS connection is valid
-	 */
-	void onHandleInfoTimer();
-
-	/**
-	 * Callback use to add space between RegistrarDbRedisAsync::tryReconnect calls
-	 */
-	void onTryReconnectTimer();
-
-	// First member so it is destructed last and still valid when destructing the redis sessions
+	mutable redis::async::RedisClient mRedisClient;
 	const sofiasip::SuRoot& mRoot;
 	const Record::Config& mRecordConfig;
 	LocalRegExpire& mLocalRegExpire;
-	redis::async::Session mCommandSession{};
-	redis::async::SubscriptionSession mSubscriptionSession{};
 	RecordSerializer* mSerializer;
-	RedisParameters mParams{};
-	RedisParameters mLastActiveParams{};
-	std::vector<RedisHost> mSlaves{};
-	decltype(mSlaves)::const_iterator mCurSlave = mSlaves.cend();
-	std::unique_ptr<sofiasip::Timer> mReplicationTimer{nullptr};
-	std::unique_ptr<sofiasip::Timer> mReconnectTimer{nullptr};
-	std::chrono::system_clock::time_point mLastReconnectRotation;
 	std::function<void(const Record::Key&, const std::string&)> mNotifyContactListener;
 	std::function<void(bool)> mNotifyStateListener;
 	bool mWritable{};

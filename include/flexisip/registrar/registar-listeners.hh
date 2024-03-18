@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -64,6 +64,10 @@ public:
 	std::vector<std::shared_ptr<Record>> records;
 };
 
+/*TODO: the listener should be also used to report when the subscription is active.
+ * Indeed if we send a push notification to a device while REDIS has not yet confirmed the subscription, we will not do
+ * anything when receiving the REGISTER from the device. The router module should wait confirmation that subscription is
+ * active before injecting the forked request to the module chain.*/
 class ContactRegisteredListener {
 public:
 	virtual ~ContactRegisteredListener();

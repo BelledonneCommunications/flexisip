@@ -200,9 +200,10 @@ private:
 	LocalRegExpire mLocalRegExpire{};
 	bool mGruuEnabled{};
 	Record::Config mRecordConfig;
-	std::unique_ptr<RegistrarDbBackend> mBackend;
 	std::multimap<std::string, std::weak_ptr<ContactRegisteredListener>> mContactListenersMap;
 	std::list<std::shared_ptr<RegistrarDbStateListener>> mStateListeners;
+	// Must be last
+	std::unique_ptr<RegistrarDbBackend> mBackend;
 };
 
 } // namespace flexisip

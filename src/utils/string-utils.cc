@@ -106,6 +106,34 @@ std::string StringUtils::transform(const std::string& str, const std::map<char, 
 	return res;
 }
 
+std::map<std::string, std::string> StringUtils::parseKeyValue(const std::string& toParse,
+                                                              const char lineDelimiter,
+                                                              const char delimiter,
+                                                              const char comment) {
+	map<string, string> kvMap;
+	istringstream values(toParse);
+
+	for (string line; getline(values, line, lineDelimiter);) {
+		if (line.find(comment) == 0) continue; // section title
+
+		// clear all non-UNIX end of line chars
+		line.erase(remove_if(line.begin(), line.end(), isEndOfLineCharacter), line.end());
+
+		size_t delim_pos = line.find(delimiter);
+		if (delim_pos == line.npos || delim_pos == line.length()) {
+			LOGW("Invalid line '%s' in key-value", line.c_str());
+			continue;
+		}
+
+		const string key = line.substr(0, delim_pos);
+		string value = line.substr(delim_pos + 1);
+
+		kvMap[key] = value;
+	}
+
+	return kvMap;
+}
+
 #ifdef HAVE_LIBLINPHONECXX
 std::optional<linphone::MediaEncryption>
 StringUtils::string2MediaEncryption(const std::string& str) {

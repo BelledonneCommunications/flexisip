@@ -314,6 +314,10 @@ const Session::State& Session::getState() const {
 	return mState;
 }
 
+const SubscriptionSession::State& SubscriptionSession::getState() const {
+	return reinterpret_cast<const State&>(mWrapped.getState());
+}
+
 void SubscriptionSession::onConnect(int status) {
 	if (status == REDIS_OK) {
 		auto* ready = tryGetState<Ready>();
@@ -362,6 +366,10 @@ void Session::ContextDeleter::operator()(redisAsyncContext* ctx) noexcept {
 bool Session::isConnected() const {
 	return Match(mState).against([](const Ready& ready) { return ready.connected(); },
 	                             [](const auto&) { return false; });
+}
+
+bool SubscriptionSession::isConnected() const {
+	return mWrapped.isConnected();
 }
 
 } // namespace flexisip::redis::async

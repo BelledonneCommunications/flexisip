@@ -58,7 +58,6 @@ namespace flexisip {
 using namespace redis;
 using namespace redis::async;
 using namespace redis::reply;
-using Reply = reply::Reply;
 
 namespace {
 
@@ -76,33 +75,17 @@ const Script FETCH_EXPIRING_CONTACTS_SCRIPT{
 RegistrarDbRedisAsync::RegistrarDbRedisAsync(const sofiasip::SuRoot& root,
                                              const Record::Config& recordConfig,
                                              LocalRegExpire& localRegExpire,
-                                             RedisParameters params,
+                                             const RedisParameters& params,
                                              std::function<void(const Record::Key&, const std::string&)> notifyContact,
-                                             std::function<void(bool)> notifyState)
-    : RegistrarDbRedisAsync(root,
-                            recordConfig,
-                            localRegExpire,
-                            RecordSerializer::get(),
-                            params,
-                            std::move(notifyContact),
-                            std::move(notifyState)) {
-}
-
-RegistrarDbRedisAsync::RegistrarDbRedisAsync(const sofiasip::SuRoot& root,
-                                             const Record::Config& recordConfig,
-                                             LocalRegExpire& localRegExpire,
-                                             RecordSerializer* serializer,
-                                             RedisParameters params,
-                                             std::function<void(const Record::Key&, const std::string&)> notifyContact,
-                                             std::function<void(bool)> notifyState)
-    : mRoot{root}, mRecordConfig{recordConfig}, mLocalRegExpire{localRegExpire},
-      mCommandSession(SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)),
-      mSubscriptionSession(SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)), mSerializer{serializer},
-      mParams{params}, mNotifyContactListener{std::move(notifyContact)}, mNotifyStateListener{std::move(notifyState)} {
+                                             std::function<void(bool)> notifyState,
+                                             RecordSerializer* serializer)
+    : mRedisClient{root, params, SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)}, mRoot{root},
+      mRecordConfig{recordConfig}, mLocalRegExpire{localRegExpire}, mSerializer(serializer),
+      mNotifyContactListener{std::move(notifyContact)}, mNotifyStateListener{std::move(notifyState)} {
 }
 
 bool RegistrarDbRedisAsync::isConnected() const {
-	return mCommandSession.isConnected();
+	return mRedisClient.isConnected();
 }
 
 void RegistrarDbRedisAsync::setWritable(bool value) {
@@ -111,55 +94,7 @@ void RegistrarDbRedisAsync::setWritable(bool value) {
 	mNotifyStateListener(mWritable);
 }
 
-namespace {
-
-bool is_end_line_character(char c) {
-	return c == '\r' || c == '\n';
-}
-
-/**
- * @brief parseKeyValue this functions parses a string contraining a list of key/value
- * separated by a delimiter, and for each key-value, another delimiter.
- * It converts the string to a map<string,string>.
- *
- * For instance:
- * <code>parseKeyValue("toto:tata\nfoo:bar", '\n', ':', '#')</code>
- * will give you:
- * <code>{ make_pair("toto","tata"), make_pair("foo", "bar") }</code>
- *
- * @param toParse the string to parse
- * @param delimiter the delimiter between key and value (default is ':')
- * @param comment a character which is a comment. Lines starting with this character
- * will be ignored.
- * @return a map<string,string> which contains the keys and values extracted (can be empty)
- */
-map<string, string> parseKeyValue(const string& toParse,
-                                  const char line_delim = '\n',
-                                  const char delimiter = ':',
-                                  const char comment = '#') {
-	map<string, string> kvMap;
-	istringstream values(toParse);
-
-	for (string line; getline(values, line, line_delim);) {
-		if (line.find(comment) == 0) continue; // section title
-
-		// clear all non-UNIX end of line chars
-		line.erase(remove_if(line.begin(), line.end(), is_end_line_character), line.end());
-
-		size_t delim_pos = line.find(delimiter);
-		if (delim_pos == line.npos || delim_pos == line.length()) {
-			LOGW("Invalid line '%s' in key-value", line.c_str());
-			continue;
-		}
-
-		const string key = line.substr(0, delim_pos);
-		string value = line.substr(delim_pos + 1);
-
-		kvMap[key] = value;
-	}
-
-	return kvMap;
-}
+namespace { // todo static method ?
 
 auto logErrorReply(const ArgsPacker& cmd) {
 	return [cmd = cmd.toString()](Session&, Reply reply) {
@@ -171,216 +106,18 @@ auto logErrorReply(const ArgsPacker& cmd) {
 
 } // namespace
 
-RedisHost RedisHost::parseSlave(const string& slave, int id) {
-	istringstream input(slave);
-	vector<string> context;
-	// a slave line has this format for redis < 2.8: "<host>,<port>,<state>"
-	// for redis > 2.8 it is this format: "ip=<ip>,port=<port>,state=<state>,...(key)=(value)"
-
-	// split the string with ',' into an array
-	for (string token; getline(input, token, ',');)
-		context.push_back(token);
-
-	if (context.size() > 0 && (context.at(0).find('=') != string::npos)) {
-		// we have found an "=" in one of the values: the format is post-Redis 2.8.
-		// We have to parse is accordingly.
-		auto m = parseKeyValue(slave, ',', '=');
-
-		if (m.find("ip") != m.end() && m.find("port") != m.end() && m.find("state") != m.end()) {
-			return RedisHost(id, m.at("ip"), atoi(m.at("port").c_str()), m.at("state"));
-		} else {
-			SLOGW << "Missing fields in the slaveline " << slave;
-		}
-	} else if (context.size() >= 3) {
-		// Old-style slave format, use the context from the array directly
-		return RedisHost(id, context[0],                           // host
-		                 (unsigned short)atoi(context[1].c_str()), // port
-		                 context[2]);                              // state
-	} else {
-		SLOGW << "Invalid host line: " << slave;
-	}
-	return RedisHost(); // invalid host
-}
-
-void RegistrarDbRedisAsync::updateSlavesList(const map<string, string>& redisReply) {
-	decltype(mSlaves) newSlaves;
-
-	try {
-		int slaveCount = atoi(redisReply.at("connected_slaves").c_str());
-		for (int i = 0; i < slaveCount; i++) {
-			std::stringstream sstm;
-			sstm << "slave" << i;
-			string slaveName = sstm.str();
-
-			if (redisReply.find(slaveName) != redisReply.end()) {
-
-				RedisHost host = RedisHost::parseSlave(redisReply.at(slaveName), i);
-				if (host.id != -1) {
-					// only tell if a new host was found
-					if (std::find(mSlaves.begin(), mSlaves.end(), host) == mSlaves.end()) {
-						LOGD("Replication: Adding host %d %s:%d state:%s", host.id, host.address.c_str(), host.port,
-						     host.state.c_str());
-					}
-					newSlaves.push_back(host);
-				}
-			}
-		}
-	} catch (const out_of_range&) {
-	}
-
-	for (const auto& oldSlave : mSlaves) {
-		if (find(newSlaves.begin(), newSlaves.end(), oldSlave) == newSlaves.end()) {
-			LOGD("Replication: Removing host %d %s:%d previous state:%s", oldSlave.id, oldSlave.address.c_str(),
-			     oldSlave.port, oldSlave.state.c_str());
-		}
-	}
-
-	// replace the slaves array
-	mSlaves = std::move(newSlaves);
-	mCurSlave = mSlaves.cend();
-}
-
-void RegistrarDbRedisAsync::onTryReconnectTimer() {
-	tryReconnect();
-	mReconnectTimer.reset(nullptr);
-}
-
 void RegistrarDbRedisAsync::onConnect(int status) {
 	if (status == REDIS_OK) {
+		setWritable(true);
 		subscribeToKeyExpiration();
-	} else {
-		tryReconnect();
+		subscribe("FLEXISIP");
 	}
 }
+
 void RegistrarDbRedisAsync::onDisconnect(int status) {
-	if (status != REDIS_OK) tryReconnect();
-}
-
-void RegistrarDbRedisAsync::tryReconnect() {
-	if (isConnected()) {
-		return;
+	if (status == REDIS_OK) {
+		setWritable(false);
 	}
-
-	if (chrono::system_clock::now() - mLastReconnectRotation < 1s) {
-		if (!mReconnectTimer.get()) {
-			mReconnectTimer = make_unique<sofiasip::Timer>(mRoot.getCPtr(), 1s);
-			mReconnectTimer->set([this]() { onTryReconnectTimer(); });
-		}
-		return;
-	}
-
-	// First we try to reconnect using the last active connection
-	if (mCurSlave == mSlaves.cend()) {
-		// We need to restore mLastActiveParams if we already tried all slaves without success to try the last master
-		// again.
-		mParams = mLastActiveParams;
-		if ((mCurSlave = mSlaves.cbegin()) == mSlaves.cend()) {
-			// If there is no slaves, this is already a full rotation.
-			mLastReconnectRotation = std::chrono::system_clock::now();
-		}
-		LOGW("Trying to reconnect to last active connection at %s:%d", mParams.domain.c_str(), mParams.port);
-		connect();
-		return;
-	}
-
-	// If last active connection still fail
-	// we can try one of the previously determined slaves
-	if (mCurSlave != mSlaves.cend()) {
-		LOGW("Connection failed or lost to %s:%d, trying a known slave %d at %s:%d", mParams.domain.c_str(),
-		     mParams.port, mCurSlave->id, mCurSlave->address.c_str(), mCurSlave->port);
-
-		mParams.domain = mCurSlave->address;
-		mParams.port = mCurSlave->port;
-		if (++mCurSlave == mSlaves.cend()) {
-			mLastReconnectRotation = std::chrono::system_clock::now();
-		}
-		connect();
-
-	} else {
-		LOGW("No slave to try, giving up.");
-	}
-}
-
-void RegistrarDbRedisAsync::handleReplicationInfoReply(const reply::String& reply) {
-	SLOGD << "Redis replication information received";
-	auto replyMap = parseKeyValue(std::string(reply));
-	if (replyMap.find("role") != replyMap.end()) {
-		string role = replyMap["role"];
-		if (role == "master") {
-			// We are speaking to the master, set the DB as writable and update the list of slaves
-			SLOGD << "Redis server is a master";
-			setWritable(true);
-			if (mParams.useSlavesAsBackup) {
-				updateSlavesList(replyMap);
-			}
-		} else if (role == "slave") {
-			// woops, we are connected to a slave. We should go to the master
-			string masterAddress = replyMap["master_host"];
-			int masterPort = atoi(replyMap["master_port"].c_str());
-			string masterStatus = replyMap["master_link_status"];
-
-			LOGW("Our redis instance is a slave of %s:%d", masterAddress.c_str(), masterPort);
-			if (masterStatus == "up") {
-				SLOGW << "Master is up, will attempt to connect to the master at " << masterAddress << ":"
-				      << masterPort;
-
-				mParams.domain = masterAddress;
-				mParams.port = masterPort;
-
-				// disconnect and reconnect immediately, dropping the previous context
-				forceDisconnect();
-				connect();
-			} else {
-				SLOGW << "Master is " << masterStatus
-				      << " but not up, wait for next periodic check to decide to connect.";
-			}
-		} else {
-			SLOGW << "Unknown role '" << role << "'";
-		}
-		if (!mReplicationTimer.get()) {
-			SLOGD << "Creating replication timer with delay of " << mParams.mSlaveCheckTimeout.count() << "s";
-			mReplicationTimer = make_unique<sofiasip::Timer>(mRoot.getCPtr(), mParams.mSlaveCheckTimeout);
-			mReplicationTimer->run([this]() { onHandleInfoTimer(); });
-		}
-	} else {
-		SLOGW << "Invalid INFO reply: no role specified";
-	}
-}
-
-void RegistrarDbRedisAsync::handleAuthReply(Reply reply) {
-	if (auto* err = std::get_if<reply::Error>(&reply)) {
-		SLOGE << "Couldn't authenticate with Redis server: " << *err;
-		forceDisconnect();
-		return;
-	}
-
-	SLOGD << "Redis authentication succeeded. Reply: " << StreamableVariant(reply);
-
-	Match(mCommandSession.getState())
-	    .against([this](const Session::Ready& session) { getReplicationInfo(session); },
-	             [](const auto& unexpected) {
-		             // Somehow happened in production before the hiredis wrapper was written
-		             SLOGE << "Receiving success response to Redis AUTH request but we are no longer connected. This "
-		                      "should never happen! Aborting replication info fetch! Unexpected session state: "
-		                   << unexpected;
-	             });
-}
-
-void RegistrarDbRedisAsync::getReplicationInfo(const Session::Ready& cmdSession) {
-	SLOGD << "Collecting replication information";
-	cmdSession.timedCommand({"INFO", "replication"}, [this](const Session&, Reply reply) {
-		Match(reply).against(
-		    [this](const reply::String& reply) { handleReplicationInfoReply(reply); },
-		    [](const auto& unexpected) { SLOGE << "Unexpected reply to INFO command: " << unexpected; });
-	});
-
-	auto* subs = mSubscriptionSession.tryGetState<SubscriptionSession::Ready>();
-	if (!subs) return;
-
-	auto subscription = subs->subscriptions()["FLEXISIP"];
-	if (subscription.subscribed()) return;
-
-	subscription.subscribe([this](Reply reply) { handlePublish(std::move(reply)); });
 }
 
 void RegistrarDbRedisAsync::handlePublish(Reply reply) {
@@ -403,52 +140,11 @@ void RegistrarDbRedisAsync::handlePublish(Reply reply) {
 }
 
 optional<tuple<const Session::Ready&, const SubscriptionSession::Ready&>> RegistrarDbRedisAsync::connect() {
-	SLOGD << "Connecting to Redis server tcp://" << mParams.domain << ":" << mParams.port;
-	SLOGD << "Creating main Redis connection";
-	const Session::Ready* cmdSession = nullptr;
-	{
-		auto& state = mCommandSession.connect(mRoot.getCPtr(), mParams.domain.c_str(), mParams.port);
-		if ((cmdSession = std::get_if<Session::Ready>(&state)) == nullptr) return {};
-	}
-
-	SLOGD << "Creating subscription Redis connection";
-	const SubscriptionSession::Ready* subsSession = nullptr;
-	{
-		auto& state = mSubscriptionSession.connect(mRoot.getCPtr(), mParams.domain.c_str(), mParams.port);
-		if ((subsSession = std::get_if<SubscriptionSession::Ready>(&state)) == nullptr) return {};
-	}
-
-	Match(mParams.auth)
-	    .against([this, cmdSession](redis::auth::None) { getReplicationInfo(*cmdSession); },
-	             [this, cmdSession, subsSession](auto credentials) {
-		             cmdSession->auth(credentials, [this](auto&, Reply reply) { handleAuthReply(reply); });
-		             subsSession->auth(credentials, [this](auto&, Reply reply) { handleAuthReply(reply); });
-	             });
-
-	mLastActiveParams = mParams;
-	return {{*cmdSession, *subsSession}};
-}
-
-void RegistrarDbRedisAsync::asyncDisconnect() {
-	SLOGD << "Redis server disconnecting...";
-	setWritable(false);
-	mCommandSession.disconnect();
-	if (auto* ready = mSubscriptionSession.tryGetState<SubscriptionSession::Ready>()) {
-		// Workaround for issue https://github.com/redis/hiredis/issues/396
-		// Fixed in hiredis 0.14.0
-		ready->subscriptions()["FLEXISIP"].unsubscribe();
-	}
-	mSubscriptionSession.disconnect();
-}
-void RegistrarDbRedisAsync::forceDisconnect() {
-	SLOGD << "Redis server force-disconnected";
-	setWritable(false);
-	mCommandSession.forceDisconnect();
-	mSubscriptionSession.forceDisconnect();
+	return mRedisClient.connect();
 }
 
 void RegistrarDbRedisAsync::subscribeToKeyExpiration() {
-	auto* ready = mSubscriptionSession.tryGetState<SubscriptionSession::Ready>();
+	auto* ready = mRedisClient.tryGetSubSession();
 	if (!ready) {
 		return;
 	}
@@ -470,14 +166,13 @@ void RegistrarDbRedisAsync::subscribeToKeyExpiration() {
 	});
 }
 
-/*TODO: the listener should be also used to report when the subscription is active.
- * Indeed if we send a push notification to a device while REDIS has not yet confirmed the subscription, we will not do
- * anything when receiving the REGISTER from the device. The router module should wait confirmation that subscription is
- * active before injecting the forked request to the module chain.*/
 void RegistrarDbRedisAsync::subscribe(const Record::Key& key) {
-	const string& topic = key;
+	subscribe(std::string_view(key));
+}
+
+void RegistrarDbRedisAsync::subscribe(std::string_view const topic) {
 	SLOGD << "Sending SUBSCRIBE command to Redis for topic '" << topic << "'";
-	auto* subs = mSubscriptionSession.tryGetState<SubscriptionSession::Ready>();
+	auto const* const subs = mRedisClient.tryGetSubSession();
 	if (!subs) {
 		SLOGE << "RegistrarDbRedisAsync::subscribeTopic(): Subscription session not ready!";
 		return;
@@ -490,7 +185,7 @@ void RegistrarDbRedisAsync::subscribe(const Record::Key& key) {
 void RegistrarDbRedisAsync::unsubscribe(const Record::Key& key) {
 	const string& topic = key;
 	// No listeners left, unsubscribing
-	auto* ready = mSubscriptionSession.tryGetState<SubscriptionSession::Ready>();
+	auto* ready = mRedisClient.tryGetSubSession();
 	if (!ready) return;
 
 	auto subscription = ready->subscriptions()[topic];
@@ -502,27 +197,21 @@ void RegistrarDbRedisAsync::unsubscribe(const Record::Key& key) {
 
 void RegistrarDbRedisAsync::publish(const Record::Key& key, const string& uid) {
 	const string& topic = key;
-	Match(mCommandSession.getState())
-	    .against(
-	        [&topic, &uid](const Session::Ready& ready) {
-		        ready.command({"PUBLISH", topic, uid}, [](auto&&, auto&&) {});
-	        },
-	        [](auto&) { SLOGE << "RegistrarDbRedisAsync::publish(): no context !"; });
-}
+	SLOGD << "Publish topic = " << topic << ", uid = " << uid;
 
-/* Static functions that are used as callbacks to redisAsync API */
-
-void RegistrarDbRedisAsync::onHandleInfoTimer() {
-	if (auto* session = std::get_if<Session::Ready>(&mCommandSession.getState())) {
-		SLOGI << "Launching periodic INFO query on REDIS";
-		getReplicationInfo(*session);
+	auto* ready = mRedisClient.tryGetCmdSession();
+	if (ready) {
+		ready->command({"PUBLISH", topic, uid}, [](auto&&, auto&&) {});
+	} else {
+		SLOGE << "RegistrarDbRedisAsync::publish(): redis client not ready !";
 	}
 }
 
+/* Static functions that are used as callbacks to redisAsync API */
 void RegistrarDbRedisAsync::serializeAndSendToRedis(RedisRegisterContext& context,
                                                     redis::async::Session::CommandCallback&& forwardedCb) {
 	const Session::Ready* cmdSession;
-	if (!(cmdSession = tryGetCommandSession())) {
+	if (!(cmdSession = mRedisClient.tryGetCmdSession())) {
 		if (context.listener) context.listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 		return;
 	}
@@ -605,17 +294,6 @@ void RegistrarDbRedisAsync::handleBind(Reply reply, std::unique_ptr<RedisRegiste
 	    });
 }
 
-const Session::Ready* RegistrarDbRedisAsync::tryGetCommandSession() {
-	auto& state = mCommandSession.getState();
-	if (auto* ready = std::get_if<Session::Ready>(&state)) return ready;
-	if (auto connected = connect()) {
-		auto& [cmdSession, _] = *connected;
-		return &cmdSession;
-	}
-	SLOGE << "Failed to connect to Redis server";
-	return nullptr;
-}
-
 void RegistrarDbRedisAsync::doBind(const MsgSip& msg,
                                    const BindingParameters& parameters,
                                    const std::shared_ptr<ContactUpdateListener>& listener) {
@@ -625,7 +303,7 @@ void RegistrarDbRedisAsync::doBind(const MsgSip& msg,
 	// - notify the onRecordFound().
 
 	const Session::Ready* cmdSession;
-	if (!(cmdSession = tryGetCommandSession())) {
+	if (!(cmdSession = mRedisClient.tryGetCmdSession())) {
 		if (listener) listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 		return;
 	}
@@ -731,7 +409,7 @@ vector<unique_ptr<ExtendedContact>> RegistrarDbRedisAsync::parseContacts(const r
 
 void RegistrarDbRedisAsync::doClear(const MsgSip& msg, const shared_ptr<ContactUpdateListener>& listener) {
 	const Session::Ready* cmdSession;
-	if (!(cmdSession = tryGetCommandSession())) {
+	if (!(cmdSession = mRedisClient.tryGetCmdSession())) {
 		if (listener) listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 		return;
 	}
@@ -822,7 +500,7 @@ void RegistrarDbRedisAsync::handleFetch(redis::async::Reply reply, const RedisRe
 void RegistrarDbRedisAsync::doFetch(const SipUri& url, const shared_ptr<ContactUpdateListener>& listener) {
 	// fetch all the contacts in the AOR (HGETALL) and call the onRecordFound of the listener
 	const Session::Ready* cmdSession;
-	if (!(cmdSession = tryGetCommandSession())) {
+	if (!(cmdSession = mRedisClient.tryGetCmdSession())) {
 		if (listener) listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 		return;
 	}
@@ -841,7 +519,7 @@ void RegistrarDbRedisAsync::doFetchInstance(const SipUri& url,
                                             const shared_ptr<ContactUpdateListener>& listener) {
 	// fetch only the contact in the AOR (HGET) and call the onRecordFound of the listener
 	const Session::Ready* cmdSession;
-	if (!(cmdSession = tryGetCommandSession())) {
+	if (!(cmdSession = mRedisClient.tryGetCmdSession())) {
 		if (listener) listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 		return;
 	}
@@ -859,7 +537,7 @@ void RegistrarDbRedisAsync::doFetchInstance(const SipUri& url,
 void RegistrarDbRedisAsync::fetchExpiringContacts(
     time_t startTimestamp, float threshold, std::function<void(std::vector<ExtendedContact>&&)>&& callback) const {
 	const Session::Ready* cmdSession;
-	if (!(cmdSession = std::get_if<Session::Ready>(&mCommandSession.getState()))) {
+	if (!(cmdSession = mRedisClient.tryGetCmdSession())) {
 		SLOGW << "Redis session not ready to send commands. Cancelling fetchExpiringContacts operation";
 		return;
 	}
@@ -878,10 +556,16 @@ void RegistrarDbRedisAsync::fetchExpiringContacts(
 				    expiringContacts.emplace_back("", std::get<reply::String>(contact).data(), msgExpiresName);
 			    }
 			    callback(std::move(expiringContacts));
+			    return;
 		    }
 
 		    SLOGE << "Fetch expiring contacts script returned unexpected reply: " << StreamableVariant(reply);
 	    });
+}
+
+void RegistrarDbRedisAsync::forceDisconnectForTest(RegistrarDbRedisAsync& thiz) {
+	thiz.setWritable(false);
+	RedisClient::forceDisconnectForTest(thiz.mRedisClient);
 }
 
 } // namespace flexisip

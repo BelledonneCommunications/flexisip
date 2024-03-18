@@ -302,6 +302,9 @@ public:
 		return mWrapped.forceDisconnect();
 	}
 
+	bool isConnected() const;
+	const State& getState() const;
+
 	SoftPtr<SessionListener> mListener{};
 
 private:

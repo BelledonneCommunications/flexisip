@@ -74,6 +74,9 @@ public:
 			return "fs:" + mWrapped;
 		}
 
+		operator std::string_view() const {
+			return mWrapped;
+		}
 		operator const std::string&() const {
 			return mWrapped;
 		}
