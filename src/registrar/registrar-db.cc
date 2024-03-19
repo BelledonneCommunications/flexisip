@@ -552,8 +552,10 @@ void RegistrarDb::bind(const SipUri& aor,
 
 	sip->sip_from = sip_from_create(homeSip, reinterpret_cast<const url_string_t*>(aor.get()));
 
-	if (!parameter.path.empty()) {
-		sip->sip_path = sip_path_format(homeSip, "<%s>", parameter.path.c_str());
+	for (const auto& path : parameter.path) {
+		if (parameter.path.empty()) continue;
+
+		msg_header_add_make(msg.getMsg(), nullptr, sip_path_class, path.c_str());
 	}
 
 	if (!parameter.userAgent.empty()) {

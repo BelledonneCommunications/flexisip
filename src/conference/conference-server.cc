@@ -420,7 +420,7 @@ void ConferenceServer::bindFactoryUris() {
 			SipUri factory(conferenceFactoryUri.first);
 
 			parameter.callId = "CONFERENCE";
-			parameter.path = mPath;
+			parameter.path = {mPath};
 			parameter.globalExpire = numeric_limits<int>::max();
 			parameter.alias = false;
 			parameter.version = 0;
@@ -490,7 +490,7 @@ void ConferenceServer::bindFocusUris() {
 		    nullptr);
 
 		parameter.callId = "CONFERENCE";
-		parameter.path = mPath;
+		parameter.path = {mPath};
 		parameter.globalExpire = numeric_limits<int>::max();
 		parameter.alias = false;
 		parameter.version = 0;
@@ -513,7 +513,7 @@ void ConferenceServer::bindChatRoom(const string& bindingUrl,
 	                       su_strdup(mHome.home(), ("+sip.instance=" + UriUtils::grToUniqueId(gruu)).c_str()), nullptr);
 
 	parameter.callId = !gruu.empty() ? gruu : "dummy-callid";
-	parameter.path = mPath;
+	parameter.path = {mPath};
 	parameter.globalExpire = numeric_limits<int>::max();
 	parameter.alias = false;
 	parameter.version = 0;
