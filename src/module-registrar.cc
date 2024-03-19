@@ -986,7 +986,7 @@ void ModuleRegistrar::readStaticRecords() {
 				listener = make_shared<OnStaticBindListener>(url->m_url, contact);
 
 				parameter.callId = fakeCallId;
-				parameter.path = path;
+				parameter.path = {path};
 				parameter.globalExpire = expire;
 				parameter.alias = alias;
 				parameter.version = mStaticRecordsVersion;
