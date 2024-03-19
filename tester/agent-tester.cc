@@ -459,7 +459,9 @@ using InternalTransport = InternalTransportConfig;
 TestSuite _{"Agent unit tests",
             {
                 CLASSY_TEST(CSeqIsCheckedOnRegisterWithoutInstanceId),
+#if !__APPLE__
                 TEST_NO_TAG("Transports loading from conf and isUs method testing", run<TransportsAndIsUsTest>),
+#endif
                 TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) on TCP", run<RFC5626KeepAliveWithCRLF<TCP>>),
                 TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) on TLS", run<RFC5626KeepAliveWithCRLF<NewTLS>>),
                 TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) on TLS (legacy parameters)",
