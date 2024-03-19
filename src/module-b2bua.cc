@@ -59,7 +59,7 @@ private:
 ModuleInfo<B2bua> B2bua::sInfo(
     "B2bua",
     "This module is in charge of intercepting calls and route them to the back-to-back user agent server",
-    {"Authentication", "ExternalAuthentication"},
+    {"Authentication", "ExternalAuthentication", "Authorization"},
     ModuleInfoBase::ModuleOid::B2bua,
 
     [](GenericStruct& moduleConfig) {

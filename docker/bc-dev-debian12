@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian12:20230818_yasm
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian12:20240411_cpp-jwt
 ###############################################################################
 
 FROM debian:12
@@ -33,6 +33,7 @@ RUN apt-get -y update \
       libboost-dev \
       libboost-system-dev \
       libboost-thread-dev \
+      libcpp-jwt-dev \
       libhiredis-dev \
       libjansson-dev \
       libjsoncpp-dev \

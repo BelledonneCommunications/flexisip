@@ -30,6 +30,8 @@ job-debian12-ninja-gcc:
     # Debian 12 packages GCC 12 (fitting!) for which our cmake has special-caseing,
     # so let's override the .job-ninja-gcc rules to run it in dev pipelines
     - .rules-dev  # ⚠ See `rules.yml`
+  variables:
+    CMAKE_OPTIONS: -DENABLE_OPENID_CONNECT=ON
 
 
 job-debian12-ninja-clang:
@@ -38,7 +40,7 @@ job-debian12-ninja-clang:
     - .debian12-image
     - .tester-artifacts
   variables:
-    CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON
+    CMAKE_OPTIONS: -DENABLE_OPENID_CONNECT=ON -DENABLE_UNIT_TESTS=ON
 
 #################################################
 # UNIT TESTS

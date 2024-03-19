@@ -32,6 +32,7 @@
 #include <sofia-sip/tport.h>
 
 #include "flexisip/sofia-wrapper/msg-sip.hh"
+#include "flexisip/utils/sip-uri.hh"
 
 namespace flexisip {
 
@@ -193,9 +194,52 @@ public:
 	void unlinkTransactions();
 	bool mRecordRouteAdded;
 
+	struct AuthResult {
+		enum class Type { Bearer, Digest, TLS };
+		enum class Result { Invalid, Valid };
+		class ChallengeResult {
+		public:
+			ChallengeResult(Type type) : mType(type) {
+			}
+			void setIdentity(const SipUri& sipUri) {
+				mIdentity = sipUri;
+			}
+			void accept() {
+				mResult = Result::Valid;
+			}
+			Type getType() const {
+				return mType;
+			}
+			const SipUri& getIdentity() const {
+				return mIdentity;
+			}
+			Result getResult() const {
+				return mResult;
+			}
+
+		private:
+			Type mType{};
+			SipUri mIdentity{};
+			Result mResult{Result::Invalid};
+		};
+		bool trustedHost{};
+		std::list<ChallengeResult> challenges;
+	};
+
+	void setTrustedHost() {
+		mAuthResult.trustedHost = true;
+	}
+	void addChallengeResult(AuthResult::ChallengeResult&& challenge) {
+		mAuthResult.challenges.push_back(std::move(challenge));
+	}
+	const AuthResult& getAuthResult() {
+		return mAuthResult;
+	}
+
 private:
 	void checkContentLength(const url_t* url);
 	void linkTransactions();
+	AuthResult mAuthResult{};
 };
 
 class ResponseSipEvent : public SipEvent {

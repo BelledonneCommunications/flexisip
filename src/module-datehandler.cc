@@ -70,7 +70,7 @@ ModuleInfo<DateHandler> DateHandler::sInfo(
     "is for deploying a Flexisip proxy in an embedded system "
     "that doesn't have time information when booting up. The "
     "command can be used to assign the date to the system.",
-    {"Authentication"},
+    {"Authentication, Authorization"},
     ModuleInfoBase::ModuleOid::DateHandler,
 
     [](GenericStruct& moduleConfig) {

@@ -78,6 +78,7 @@ option(ENABLE_SNMP "Build with SNMP support" ON)
 option(ENABLE_SOCI "Build with SOCI support" ON)
 option(ENABLE_TRANSCODER "Build transcoder support" ON)
 option(ENABLE_MDNS "Build multicast DNS support" OFF)
+option(ENABLE_OPENID_CONNECT "Build OpenID Connect support" OFF)
 option(ENABLE_EXTERNAL_AUTH_PLUGIN "Enable ExternalAuth plugin support" ON)
 option(ENABLE_JWE_AUTH_PLUGIN "Enable JweAuth plugin support" ON)
 option(ENABLE_UNIT_TESTS "Enable Flexisip unit tests (low level tests)" OFF)
@@ -247,8 +248,11 @@ endif()
 # Allow to use SLOGD and LOGD macros.
 add_definitions("-DBCTBX_DEBUG_MODE")
 
-
 find_package(OpenSSL 0.9.8 REQUIRED)
+
+if(ENABLE_OPENID_CONNECT)
+	find_package(cpp-jwt REQUIRED)
+endif()
 
 feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)
 

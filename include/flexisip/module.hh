@@ -159,6 +159,8 @@ public:
 		NatHelper = 30,
 		Authentication = 60,
 		CustomAuthentication = 61,
+		OpenIDConnectAuthentication = 62,
+		Authorization = 63,
 		DateHandler = 75,
 		GatewayAdapter = 90,
 		Registrar = 120,

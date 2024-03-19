@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky9:20230818_cmake_3.22.6
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky9:20240411_cpp-jwt
 ###############################################################################
 
 FROM rockylinux:9
@@ -46,6 +46,9 @@ RUN dnf makecache --refresh \
       # Install all dependencies needed for Flexisip
         openssl-devel \
         boost-devel \
+        cpp-jwt-devel \
+      # json-devel is a depency of cpp-jwt but not declared in its package dependencies
+        json-devel \
         hiredis-devel \
         jansson-devel \
         libsqlite3x-devel \

@@ -27,6 +27,7 @@ target_sources(flexisip PRIVATE
 	flow.cc flow.hh
 	flow-data.cc flow-data.hh
 	flow-factory.cc flow-factory.hh
+	load-file.hh
 	socket-address.cc socket-address.hh
 	pipe.cc pipe.hh
 	posix-process.cc posix-process.hh

@@ -16,7 +16,6 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <fstream>
 #include <iostream>
 #include <sstream>
 
@@ -29,6 +28,7 @@
 #endif
 
 #include "utils/digest.hh"
+#include "utils/load-file.hh"
 #include "utils/string-utils.hh"
 
 #include "authdb.hh"
@@ -185,21 +185,9 @@ void FileAuthDb::sync() {
 		LOGF("Failed to create authdb file parser.");
 		return;
 	}
+
 	LOGD("Opening file %s", mFileString.c_str());
-
-	std::ifstream ifs(mFileString);
-	if (!ifs.is_open()) {
-		LOGF("Failed to open authdb file %s", mFileString.c_str());
-		return;
-	}
-	stringstream sstr;
-	sstr << ifs.rdbuf();
-	string fileContent = sstr.str();
-
-	if (sstr.bad() || sstr.fail()) {
-		LOGF("Failed to read from authdb file '%s'", mFileString.c_str());
-		return;
-	}
+	string fileContent = loadFromFile(mFileString);
 
 	size_t parsedSize = 0;
 	shared_ptr<FileAuthDbParserElem> ret = parser->parseInput("password-file", fileContent, &parsedSize);

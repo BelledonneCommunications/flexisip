@@ -26,6 +26,7 @@
 
 add_library(flexisip SHARED
 	agent.cc agent-startlogwriter.cc agent.hh
+	auth/auth-scheme.hh
 	auth/db/authdb-file.cc
 	auth/db/authdb.cc auth/db/authdb.hh
 	auth/flexisip-auth-module-base.cc
@@ -79,6 +80,7 @@ add_library(flexisip SHARED
 	mediarelay.cc mediarelay.hh
 	module-auth.cc
 	module-authentication-base.cc
+	module-authorization.cc module-authorization.hh
 	module-capabilities.cc module-capabilities.hh
 	module-contact-route-inserter.cc
 	module-forward.cc
@@ -132,6 +134,13 @@ if(ENABLE_FLEXIAPI)
 		eventlogs/writers/flexi-stats-event-log-writer.cc eventlogs/writers/flexi-stats-event-log-writer.hh
 	)
 	add_subdirectory(flexiapi)
+endif()
+
+if(ENABLE_OPENID_CONNECT)
+	target_sources(flexisip PRIVATE
+		auth/bearer-auth.cc auth/bearer-auth.hh
+		module-auth-openid-connect.cc module-auth-openid-connect.hh
+	)
 endif()
 
 add_subdirectory(pushnotification)

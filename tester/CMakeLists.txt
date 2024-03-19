@@ -80,6 +80,7 @@ add_executable(flexisip_tester
 	tester.cc
 	tests/auth/auth-digest-tester.cc
 	tests/auth/auth-domains-tester.cc
+	tests/auth/rsa-keys.hh
 	tests/callcontext-mediarelay-tester.cc
 	tests/configmanager-tester.cc
 	tests/transaction-tester.cc
@@ -211,7 +212,14 @@ if(ENABLE_B2BUA)
 		tests/b2bua/sip-bridge/invite-tweaker-tester.cc
 		tests/b2bua/sip-bridge/sip-bridge-tester.cc
 		tests/b2bua/sip-bridge/variable-substitution-tester.cc
-	)
+)
+endif()
+
+if(ENABLE_OPENID_CONNECT)
+	target_sources(flexisip_tester PRIVATE
+	tests/auth/auth-openid-connect-tester.cc
+	tests/auth/bearer-scheme-tester.cc
+)
 endif()
 
 target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})

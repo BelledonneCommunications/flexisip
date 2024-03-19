@@ -37,13 +37,13 @@ job-rocky9-ninja-clang:
     - .tester-artifacts
   variables:
     # -DCMAKE_PREFIX_PATH=/usr/local: Unit tests require libnghttp2_asio, which has been build and intalled into /usr/local
-    CMAKE_OPTIONS: ${ROCKY9_CMAKE_OPTIONS_UNIT_TESTS}
+    CMAKE_OPTIONS: ${ROCKY9_CMAKE_OPTIONS_UNIT_TESTS} -DENABLE_OPENID_CONNECT=ON
 
 job-rocky9-ninja-clang-nosoci:
   extends:
     - job-rocky9-ninja-clang
   variables:
-    CMAKE_OPTIONS: ${ROCKY9_CMAKE_OPTIONS_UNIT_TESTS} -DENABLE_SOCI=OFF -DENABLE_B2BUA=ON -DENABLE_CONFERENCE=ON
+    CMAKE_OPTIONS: ${ROCKY9_CMAKE_OPTIONS_UNIT_TESTS} -DENABLE_SOCI=OFF -DENABLE_B2BUA=ON -DENABLE_CONFERENCE=ON -DENABLE_OPENID_CONNECT=ON
 
 #################################################
 # UNIT TESTS
