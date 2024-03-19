@@ -347,8 +347,12 @@ std::ostream& operator<<(std::ostream& stream, const Session::Disconnected&) {
 }
 std::ostream& operator<<(std::ostream& stream, const Session::Ready& ready) {
 	auto* context = ready.mCtx.get();
-	return stream << std::boolalpha << "Ready(ctx: " << context << ", flags: 0b"
-	              << std::bitset<8>{static_cast<unsigned long>(context->c.flags)} << ")";
+	stream << std::boolalpha << "Ready(ctx: " << context;
+	if (context) {
+		stream << ", flags: 0b" << std::bitset<8>{static_cast<unsigned long>(context->c.flags)};
+	}
+	stream << ")";
+	return stream;
 }
 std::ostream& operator<<(std::ostream& stream, const Session::Disconnecting& disconnecting) {
 	return stream << "Disconnecting(ctx: " << disconnecting.mCtx.get() << ")";
