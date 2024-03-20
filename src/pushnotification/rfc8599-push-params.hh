@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -115,7 +115,7 @@ public:
 	 * depends of the kind of push notification. Use PushType::Message or PushType::Background
 	 * to generate 'remote' PN parameters and PushType::VoIP for 'voip' PN parameters.
 	 * PushType::Unknown is denied.
-	 * @throw std::invalid_argument if the given provider is unsupported, or pType is
+	 * @throw InvalidPushParameters if the given provider is unsupported, or pType is
 	 * PushType::Unknown whereas the provider matches 'apns{,.dev}'.
 	 */
 	static RFC8599PushParams generatePushParams(const std::string& provider, PushType pType = PushType::Unknown);
@@ -130,7 +130,7 @@ public:
 	 *   * pn-param: '<ProjectID>.<AppID>.remote&voip';
 	 *   * pn-prid: '<remoteToken>:remote&<voipToken>:voip'
 	 *
-	 * @throw std::invalid_argument if the two given triplets cannot be mixed i.e.:
+	 * @throw InvalidPushParameters if the two given triplets cannot be mixed i.e.:
 	 *   * the provider of one doesn't match 'apns{,.dev}';
 	 *   * the two triplets haven't the same provider;
 	 *   * the 'pn-param' parameter of the two triplet haven't the same '<ProjectID>.<AppID>' string;
@@ -147,7 +147,7 @@ public:
 	/**
 	 * Parse the RFC8599-extended parameters and returns a map which associates
 	 * a PushType to the according RFC8599 parameter set.
-	 * @throw std::runtime_error if one given parameter has an invalid syntax or the provider isn't supported.
+	 * @throw InvalidPushParameters if one given parameter has an invalid syntax or the provider isn't supported.
 	 */
 	static ParsingResult
 	parsePushParams(const std::string& pnProvider, const std::string& pnParam, const std::string& pnPrid);
@@ -157,11 +157,13 @@ public:
 	 * contains the push parameters extracted by SofiaSip. The string
 	 * may contains extra parameter but 'pn-provider', 'pn-param' and 'pn-prid'
 	 * must be present or std::runtime_error exception will be raised.
+	 * @throw InvalidPushParameters if one given parameter has an invalid syntax.
 	 */
 	static ParsingResult parsePushParams(const char* params);
 	/**
 	 * Same as parsePushParams() but expect the legacy parameters instead of RFC8599.
-	 * @throw std::runtime_error if the legacy parameters couldn't be translated in the RFC8599 format.
+	 * @throw InvalidPushParameters if the legacy parameters couldn't be translated in the RFC8599 format or if the
+	 * provider isn't supported.
 	 */
 	static ParsingResult parseLegacyPushParams(const char* params);
 

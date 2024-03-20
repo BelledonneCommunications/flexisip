@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,6 +20,7 @@
 
 #include "generic-http-request.hh"
 #include "generic-utils.hh"
+#include "pushnotification/push-notification-exceptions.hh"
 
 using namespace std;
 
@@ -35,9 +36,7 @@ GenericHttpClient::GenericHttpClient(std::unique_ptr<Transport>&& transport,
 std::unique_ptr<GenericHttpClient> GenericHttpClient::makeUnique(
     const sofiasip::Url& url, Method method, const string& name, unsigned int maxQueueSize, const Service* service) {
 	if (method != Method::HttpGet && method != Method::HttpPost) {
-		ostringstream msg{};
-		msg << "invalid method value [" << static_cast<int>(method) << "]. Only HttpGet and HttpPost are authorized";
-		throw invalid_argument{msg.str()};
+		throw UnauthorizedHttpMethod{method};
 	}
 
 	unique_ptr<TlsConnection> conn{};

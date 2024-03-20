@@ -1,10 +1,25 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <ostream>
 
 #include "contact-expiration-notifier.hh"
+#include "push-notification-exceptions.hh"
 
 #include "utils/transport/http/http-message.hh"
 
@@ -16,7 +31,7 @@ namespace pn = pushnotification;
 
 namespace {
 
-constexpr auto kLogPrefix = "ContactExpirationNotifier: ";
+constexpr auto kLogPrefix = "[ContactExpirationNotifier] ";
 
 // Abstraction to print the relevant device information of a contact
 class DeviceInfo {
@@ -69,12 +84,11 @@ void ContactExpirationNotifier::onTimerElapsed() {
 
 				    pnService->sendPush(request);
 
-				    SLOGI << kLogPrefix << "Background push notification successfully sent to " << devInfo;
-			    } catch (const pushnotification::PushNotificationError& e) {
-				    SLOGD << kLogPrefix << "Register wake-up PN for " << devInfo << " skipped: " << e.what();
+				    SLOGI << kLogPrefix << "background push notification successfully sent to " << devInfo;
+			    } catch (const pn::UnavailablePushNotificationClient& e) {
+				    SLOGD << kLogPrefix << "failed to send push notification to " << devInfo << ": " << e.what();
 			    } catch (const exception& e) {
-				    SLOGE << kLogPrefix << "Could not send register wake-up notification to " << devInfo << ": "
-				          << e.what();
+				    SLOGE << kLogPrefix << "failed to send push notification to " << devInfo << ": " << e.what();
 			    }
 		    }
 	    });

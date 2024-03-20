@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -68,8 +68,7 @@ std::shared_ptr<Request> Service::makeRequest(PushType pType, const std::shared_
 	} else if (client = mClients.find(sFallbackClientKey); client != mClients.cend() && client->second != nullptr) {
 		return client->second->makeRequest(pType, pInfo);
 	} else {
-		throw runtime_error{"No PN client available for AppID[" + pInfo->getDestination(pType).getAppIdentifier() +
-		                    "]"};
+		throw UnavailablePushNotificationClient{pInfo->getDestination(pType)};
 	}
 }
 
@@ -81,9 +80,7 @@ void Service::sendPush(const std::shared_ptr<Request>& pn) {
 		client = it != mClients.cend() ? it->second.get() : nullptr;
 	}
 	if (client == nullptr) {
-		ostringstream os{};
-		os << "No push notification client available for push notification request : " << pn;
-		throw runtime_error{os.str()};
+		throw UnavailablePushNotificationClient{pn.get()};
 	}
 	client->sendPush(pn);
 }
@@ -94,9 +91,7 @@ bool Service::isIdle() const noexcept {
 
 void Service::setupGenericClient(const sofiasip::Url& url, Method method, Protocol protocol) {
 	if (method != Method::HttpGet && method != Method::HttpPost) {
-		ostringstream msg{};
-		msg << "invalid method value [" << static_cast<int>(method) << "]. Only HttpGet and HttpPost are authorized";
-		throw invalid_argument{msg.str()};
+		throw UnauthorizedHttpMethod{method};
 	}
 	if (protocol == Protocol::Http) {
 		mClients[sGenericClientName] =

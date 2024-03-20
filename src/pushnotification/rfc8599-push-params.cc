@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -23,6 +23,7 @@
 
 #include "flexisip/logmanager.hh"
 
+#include "push-notification-exceptions.hh"
 #include "utils/rand.hh"
 #include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
@@ -91,7 +92,7 @@ RFC8599PushParams RFC8599PushParams::generatePushParams(const std::string& aProv
 	string pnPrid{};
 	if (isApns(aProvider)) {
 		if (aPType == PushType::Unknown) {
-			throw invalid_argument{"PushType must be set for APNS push params"};
+			throw InvalidPushParameters{"push type cannot be unknown for APNS push params"};
 		}
 		const auto hexdigitClass = CharClass{{{'0', '9'}, {'A', 'F'}}};
 		pnParam = "ABCD1234.org.example.phone"s + (aPType == PushType::VoIP ? ".voip" : "");
@@ -103,7 +104,7 @@ RFC8599PushParams RFC8599PushParams::generatePushParams(const std::string& aProv
 		pnParam = Rand::generate(12, numClass);
 		pnPrid = Rand::generate(11, alnumClass) + ':' + Rand::generate(140, wordClass);
 	} else {
-		throw invalid_argument{"not supported provider [" + aProvider + "]"};
+		throw InvalidPushParameters{"provider [" + aProvider + "] not supported"};
 	}
 	return {aProvider, pnParam, pnPrid};
 }
@@ -111,15 +112,14 @@ RFC8599PushParams RFC8599PushParams::generatePushParams(const std::string& aProv
 RFC8599PushParams RFC8599PushParams::concatPushParams(const RFC8599PushParams& aRemotePushParams,
                                                       const RFC8599PushParams& aVoipPushParams) {
 	if (!aRemotePushParams.isApns() || aRemotePushParams.getProvider() != aVoipPushParams.getProvider()) {
-		throw invalid_argument{
-		    "one of the argument is not APNS paramters or the two arguments have not the same provider"};
+		throw InvalidPushParameters{"arguments are either invalid APNS parameters or have different providers"};
 	}
 	const auto& voipTopic = aVoipPushParams.getParam();
 	if (!StringUtils::endsWith(voipTopic, ".voip")) {
-		throw invalid_argument{"second argument isn't a VoIP push parameter set"};
+		throw InvalidPushParameters{"second argument isn't a VoIP push parameters set"};
 	}
 	if (voipTopic.substr(0, voipTopic.size() - 5) != aRemotePushParams.getParam()) {
-		throw invalid_argument{"Apple app ID mismatch"};
+		throw InvalidPushParameters{"Apple app ID mismatch"};
 	}
 	return RFC8599PushParams{aRemotePushParams.getProvider(), aRemotePushParams.getParam() + ".remote&voip",
 	                         aRemotePushParams.getPrid() + ":remote&" + aVoipPushParams.getPrid() + ":voip"};
@@ -129,7 +129,7 @@ RFC8599PushParams::ParsingResult RFC8599PushParams::parsePushParams(const std::s
                                                                     const std::string& pnParam,
                                                                     const std::string& pnPrid) {
 	RFC8599PushParams::ParsingResult res{};
-	constexpr auto errPrefix = "Invalid RFC8599 push parameters: ";
+	constexpr auto errPrefix = "invalid RFC8599 push parameters, ";
 
 	smatch match{};
 	map<string, std::shared_ptr<RFC8599PushParams>> servicesAvailable{};
@@ -150,25 +150,25 @@ RFC8599PushParams::ParsingResult RFC8599PushParams::parsePushParams(const std::s
 			param << teamId << "." << bundleId;
 			servicesAvailable["remote"] = make_shared<RFC8599PushParams>(pnProvider, param.str(), "");
 		} else {
-			throw runtime_error{string{errPrefix} + "pn-param invalid syntax"};
+			throw InvalidPushParameters{errPrefix + "syntax of 'pn-param' is invalid"s};
 		}
 
 		if (pnPrid.empty()) {
-			throw runtime_error{string{errPrefix} + "pn-prid is empty"};
+			throw InvalidPushParameters{errPrefix + "'pn-prid' is empty"s};
 		}
 
 		const auto tokenList = StringUtils::split(pnPrid, "&");
 		if (tokenList.size() != servicesAvailable.size()) {
 			ostringstream msg{};
-			msg << errPrefix << "pn-param declares " << servicesAvailable.size() << " service(s), whereas there is/are "
-			    << tokenList.size() << " token(s) in pn-prid";
-			throw runtime_error{msg.str()};
+			msg << errPrefix << "'pn-param' declares " << servicesAvailable.size()
+			    << " service(s), whereas there is/are " << tokenList.size() << " token(s) in pn-prid";
+			throw InvalidPushParameters{msg.str()};
 		}
 
 		for (const auto& tokenAndService : tokenList) {
 			const auto& re = tokenList.size() == 1 ? sPnPridOneTokenRegex : sPnPridMultipleTokensRegex;
 			if (!regex_match(tokenAndService, match, re)) {
-				throw runtime_error{string{errPrefix} + "pn-prid invalid syntax"};
+				throw InvalidPushParameters{errPrefix + "syntax of 'pn-prid' is invalid"s};
 			}
 
 			auto service = match[2].str();
@@ -177,7 +177,7 @@ RFC8599PushParams::ParsingResult RFC8599PushParams::parsePushParams(const std::s
 			auto pushParams =
 			    tokenList.size() == 1 && service.empty() ? servicesAvailable.begin() : servicesAvailable.find(service);
 			if (pushParams == servicesAvailable.end()) {
-				throw runtime_error{string{errPrefix} + "service mismatch between pn-param and pn-prid"};
+				throw InvalidPushParameters{errPrefix + "service mismatch between 'pn-param' and 'pn-prid'"s};
 			}
 
 			pushParams->second->mPrid = match[1].str();
@@ -199,27 +199,25 @@ RFC8599PushParams::ParsingResult RFC8599PushParams::parsePushParams(const std::s
 
 	// At this point, an empty map means that the provider isn't known by getSupportedPNTypes()
 	if (res.empty()) {
-		ostringstream os{};
-		os << "'" << pnProvider << "' provider not supported";
-		throw runtime_error{os.str()};
+		throw InvalidPushParameters{"provider [" + pnProvider + "] not supported"};
 	}
 
 	return res;
 }
 
 RFC8599PushParams::ParsingResult RFC8599PushParams::parsePushParams(const char* params) {
-	const string errPrefix{"Invalid RFC8599 push parameters in Request-URI: "};
+	constexpr auto errPrefix = "invalid RFC8599 push parameters in request uri, ";
 	auto pnProvider = UriUtils::getParamValue(params, "pn-provider");
 	if (pnProvider.empty()) {
-		throw runtime_error{errPrefix + "no pn-provider"};
+		throw InvalidPushParameters{errPrefix + "no 'pn-provider' found"s};
 	}
 	auto pnPrid = UriUtils::getParamValue(params, "pn-prid");
 	if (pnPrid.empty()) {
-		throw runtime_error{errPrefix + "no pn-prid"};
+		throw InvalidPushParameters{errPrefix + "no 'pn-prid' found"s};
 	}
 	auto pnParam = UriUtils::getParamValue(params, "pn-param");
 	if (pnParam.empty()) {
-		throw runtime_error{errPrefix + "no pn-param"};
+		throw InvalidPushParameters{errPrefix + "no 'pn-param' found"s};
 	}
 	return RFC8599PushParams::parsePushParams(pnProvider, pnParam, pnPrid);
 }
@@ -227,34 +225,32 @@ RFC8599PushParams::ParsingResult RFC8599PushParams::parsePushParams(const char* 
 RFC8599PushParams::ParsingResult RFC8599PushParams::parseLegacyPushParams(const char* params) {
 	using namespace pushnotification;
 
-	const string errPrefix{"Invalid legacy push parameters in Request-URI: "};
+	constexpr auto errPrefix = "invalid legacy push parameters in request uri: ";
 
 	auto pnType = UriUtils::getParamValue(params, "pn-type");
 	if (pnType.empty()) {
-		throw runtime_error{errPrefix + "no pn-type"};
+		throw InvalidPushParameters{errPrefix + "no 'pn-type' found"s};
 	}
 	auto appId = UriUtils::getParamValue(params, "app-id");
 	if (appId.empty()) {
-		throw runtime_error{errPrefix + "no app-id"};
+		throw InvalidPushParameters{errPrefix + "no 'app-id' found"s};
 	}
 	auto pnTok = UriUtils::getParamValue(params, "pn-tok");
 	if (pnTok.empty()) {
-		throw runtime_error{errPrefix + "no pn-tok"};
+		throw InvalidPushParameters{errPrefix + "no 'pn-tok' found"s};
 	}
 
 	auto dest = make_shared<RFC8599PushParams>();
 	dest->setFromLegacyParams(pnType, appId, pnTok);
 
 	RFC8599PushParams::ParsingResult res{};
-	for (auto pnType : dest->getSupportedPNTypes()) {
-		res.emplace(pnType, dest);
+	for (auto supportedPnType : dest->getSupportedPNTypes()) {
+		res.emplace(supportedPnType, dest);
 	}
 
 	// At this point, an empty map means that the provider isn't known by getSupportedPNTypes()
 	if (res.empty()) {
-		ostringstream os{};
-		os << "'" << pnType << "' legacy provider type not supported";
-		throw runtime_error{os.str()};
+		throw InvalidPushParameters{"legacy provider type [" + pnType + "] not supported"};
 	}
 
 	return res;
@@ -267,7 +263,7 @@ const std::regex RFC8599PushParams::sApplePnProviderRegex("apns|apns\\.dev");
    pn-param:
    * all the characters before the first point are taken as the team ID;
    * all the characters between the first and the last point are taken as the bundle ID
-     and may contains points;
+     and may contain points;
    * all the characters after the last point are taken as the service type. It may be
      'voip' or 'remote' or 'voip&remote' if the application needs the two kinds of
      push notification.
@@ -287,7 +283,7 @@ const std::regex RFC8599PushParams::sPnPridOneTokenRegex("([^:]+)(?::(voip|remot
 /*
    Regex to use for extracting information from 'pn-prid' parameter when several tokens have been
    given by the user agent. 'pn-prid' value must be formatted as '<token>:<service>' where
-   <token> may be contains any characters except ':' and <service> is equal to 'remote' or 'voip'.
+   <token> may contain any characters except ':' and <service> is equal to 'remote' or 'voip'.
 */
 const std::regex RFC8599PushParams::sPnPridMultipleTokensRegex("([^:]+):(voip|remote)");
 

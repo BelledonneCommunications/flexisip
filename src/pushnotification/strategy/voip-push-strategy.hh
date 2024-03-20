@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -31,9 +31,7 @@ public:
 	}
 
 	void sendMessageNotification([[maybe_unused]] const std::shared_ptr<const PushInfo>& pInfo) override {
-		std::ostringstream err{};
-		err << __PRETTY_FUNCTION__ << "() not implemented by VoIPPushStrategy";
-		throw std::logic_error{err.str()};
+		throw std::logic_error{__PRETTY_FUNCTION__ + std::string{"() not implemented"}};
 	}
 	void sendCallNotification(const std::shared_ptr<const PushInfo>& pInfo) override {
 		auto req = mService->makeRequest(PushType::VoIP, pInfo);

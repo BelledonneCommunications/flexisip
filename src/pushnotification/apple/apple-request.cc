@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -49,9 +49,9 @@ AppleRequest::AppleRequest(PushType pType, const std::shared_ptr<const PushInfo>
 
 	switch (pType) {
 		case PushType::Unknown:
-			throw invalid_argument{"Apple push type not set"};
+			throw InvalidPushParameters{"Apple push type not set"};
 		case PushType::VoIP: {
-			// We also need msg_id and callid in case the push is received but the device cannot register
+			// We also need msg_id and call_id in case the push is received but the device cannot register
 			constexpr auto rawPayload = R"json({
 	"aps": {
 		"sound": "",
@@ -169,14 +169,14 @@ void AppleRequest::checkDeviceToken() const {
 	static const regex tokenMatch{R"regex([0-9A-Za-z]+)regex"};
 	const auto& deviceToken = getDeviceToken();
 	if (!regex_match(deviceToken, tokenMatch) || deviceToken.size() != DEVICE_BINARY_SIZE * 2) {
-		throw runtime_error("ApplePushNotification: Invalid deviceToken");
+		throw InvalidPushParameters{"invalid device token for ApplePushNotification"};
 	}
 }
 
 string AppleRequest::pushTypeToApnsPushType(PushType type) {
 	switch (type) {
 		case PushType::Unknown:
-			throw invalid_argument{"no 'apns-push-type' value for 'PushType::Unknown'"};
+			throw InvalidPushParameters{"no 'apns-push-type' value for 'PushType::Unknown'"};
 		case PushType::Message:
 			return "alert";
 		case PushType::Background:
@@ -184,7 +184,7 @@ string AppleRequest::pushTypeToApnsPushType(PushType type) {
 		case PushType::VoIP:
 			return "voip";
 	}
-	throw invalid_argument{to_string(static_cast<int>(type)) + " isn't a valid PushType value"};
+	throw InvalidPushParameters{to_string(static_cast<int>(type)) + " isn't a valid PushType value"};
 }
 
 // redundant declaration (required for C++14 compatibility)
