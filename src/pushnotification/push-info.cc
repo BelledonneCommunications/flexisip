@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -77,7 +77,7 @@ void PushInfo::setDestinations(const url_t* url) {
 	} else if (url_has_param(url, "pn-tok")) { // Flexisip and Linphone legacy parameters
 		mDestinations = RFC8599PushParams::parseLegacyPushParams(url->url_params);
 	} else {
-		throw NoPushParametersError{};
+		throw MissingPushParameters{};
 	}
 }
 
@@ -89,7 +89,7 @@ void PushInfo::addDestination(const std::shared_ptr<const RFC8599PushParams>& de
 
 const std::string& PushInfo::getPNProvider() const {
 	auto it = this->mDestinations.cbegin();
-	if (it == this->mDestinations.cend()) throw logic_error("no destination set");
+	if (it == this->mDestinations.cend()) throw InvalidPushParameters{"no destination set"};
 	return it->second->getProvider();
 }
 
@@ -146,7 +146,7 @@ void PushInfo::parseAppleSpecifics(const sofiasip::MsgSip& msg) {
 
 const RFC8599PushParams& PushInfo::getDestination(PushType pType) const {
 	if (mDestinations.find(pType) == mDestinations.cend()) {
-		throw Request::UnsupportedPushType(pType);
+		throw UnsupportedPushType{pType};
 	}
 	return *mDestinations.at(pType);
 }

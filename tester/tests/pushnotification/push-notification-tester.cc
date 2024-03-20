@@ -542,7 +542,7 @@ static void applePushTestKoWrongType() {
 
 	try {
 		startApplePushTest(PushType::VoIP, pushInfo, "", 0, "Doesn't even matter", Request::State::Failed, true);
-	} catch (const invalid_argument& e) {
+	} catch (const pushnotification::PushNotificationException& exception) {
 		// Instantiating a request of given type whereas no RFC8599 parameters are available for this type is
 		// now a fatal error and the higher-level code must protect against that. Then, we expect a invalid_argument
 		// exception.

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -32,14 +32,11 @@ void MessagePushStrategy::sendMessageNotification(const std::shared_ptr<const Pu
 void MessagePushStrategy::sendCallNotification(const std::shared_ptr<const PushInfo>& pInfo) {
 	using namespace std::chrono;
 
-	ostringstream err{};
-	err << this << ": error while sending call push notification, ";
-
 	auto br = mBranchInfo.lock();
 	if (br == nullptr) {
-		err << "no associated branch or it isn't exist anymore";
-		throw runtime_error{err.str()};
+		throw InvalidSendParameters{"no associated branch found (it may not exist anymore)"};
 	}
+
 	br->mListener = shared_from_this();
 
 	mCallPushInfo = std::make_shared<PushInfo>(*pInfo);

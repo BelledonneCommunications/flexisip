@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -22,15 +22,18 @@
 
 #include "utils/string-utils.hh"
 
+#include "push-notification-exceptions.hh"
 #include "push-param.hh"
 
 using namespace std;
 
 namespace flexisip {
 
+using namespace pushnotification;
+
 PushParam::PushParam(const string& prId, const string& param) : mPrId{prId}, mParam{param} {
 	if (isInvalid()) {
-		throw invalid_argument("Invalid PushParam - PrId[" + prId + "] and Param[" + param + "] can't be empty.");
+		throw InvalidPushParameters{"prid[" + prId + "] and param[" + param + "] cannot be empty."};
 	}
 }
 
@@ -104,8 +107,8 @@ void PushParamList::constructFromContactParameters(const string& provider,
 				mPushParams.emplace_back(StringUtils::split(splitPrId.at(1), ":").at(0), remoteParam);
 				mPushParams.emplace_back(StringUtils::split(splitPrId.at(0), ":").at(0), pushKitParam);
 			}
-		} catch (const invalid_argument& invalidArgument) {
-			SLOGD << invalidArgument.what() << " pn-prid[" << customPrId << "] pn-param[" << customParam << "]";
+		} catch (const PushNotificationException& exception) {
+			SLOGD << exception.what() << " pn-prid[" << customPrId << "] pn-param[" << customParam << "]";
 			mPushParams.clear();
 		}
 	} else {

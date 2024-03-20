@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -22,8 +22,8 @@
 #include <memory>
 #include <string>
 
+#include "push-notification-exceptions.hh"
 #include "push-type.hh"
-#include "pushnotification/push-notification-error.hh"
 #include "registrar/extended-contact.hh"
 #include "rfc8599-push-params.hh"
 
@@ -34,19 +34,7 @@ class MsgSip;
 namespace flexisip {
 namespace pushnotification {
 
-class Request;
-
 struct PushInfo {
-	/**
-	 * Exception thrown by the constructor of PushInfo that takes a SIP message as argument when no push notification
-	 * parameters are present in the Request-URI. The structure cannot be completely filled then.
-	 */
-	class NoPushParametersError : public PushNotificationError {
-	public:
-		NoPushParametersError() noexcept : PushNotificationError{"No push parameters found in the request URI"} {
-		}
-	};
-
 	// Generic attributes
 
 	/**
@@ -105,9 +93,9 @@ public:
 	PushInfo() = default;
 	/**
 	 * Fill the PushInfo structure by parsing the information from a SIP message.
-	 * @throw NoPushParametersError when neither RFC8599, nor legacy push parameters are present in
-	 * the Request-URI of the SIP message. mDestinations attribute would be empty then.
-	 * @throw std::runtime_error for other parsing errors.
+	 * @throw MissingPushParameters when neither RFC8599, nor legacy push parameters are present in
+	 * the Request-URI of the SIP message. Attribute 'mDestinations' would be empty then.
+	 * @throw InvalidPushParameters for other parsing errors.
 	 */
 	PushInfo(const sofiasip::MsgSip& msg);
 	PushInfo(const ExtendedContact& contact);

@@ -24,6 +24,7 @@
 #include "eventlogs/writers/event-log-writer.hh"
 #include "fork-context/branch-info.hh"
 #include "pushnotification/apple/apple-request.hh"
+#include "pushnotification/push-notification-exceptions.hh"
 #include "pushnotification/pushnotification-context.hh"
 #include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
@@ -528,17 +529,16 @@ bool PushNotification::needsPush(const shared_ptr<MsgSip>& msgSip) {
 void PushNotification::onRequest(std::shared_ptr<RequestSipEvent>& ev) {
 	const auto& ms = ev->getMsgSip();
 	if (needsPush(ms)) {
-		shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+		auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 		if (transaction != NULL) {
 			auto* sip = ms->getSip();
 			if (sip->sip_request->rq_url->url_params != NULL) {
 				try {
 					makePushNotification(ms, transaction);
-				} catch (const PushInfo::NoPushParametersError& e) {
-					SLOGD << e.what() << ". Skip";
-					return;
-				} catch (const runtime_error& e) {
-					SLOGE << "Could not create push notification: %s" << e.what();
+				} catch (const MissingPushParameters& exception) {
+					SLOGD << "failed to create push notification (skip): " << exception.what();
+				} catch (const exception& exception) {
+					SLOGE << "failed to create push notification: " << exception.what();
 				}
 			}
 		}
