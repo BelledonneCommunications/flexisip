@@ -219,7 +219,8 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 	mMessageForkCfg = make_shared<ForkContextConfig>();
 	mMessageForkCfg->mForkLate = mc->get<ConfigBoolean>("message-fork-late")->read();
 	mMessageForkCfg->mDeliveryTimeout =
-	    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("call-fork-timeout")->read())
+	    chrono::duration_cast<chrono::seconds>(
+	        mc->get<ConfigDuration<chrono::seconds>>("message-delivery-timeout")->read())
 	        .count();
 	mMessageForkCfg->mUrgentTimeout = chrono::duration_cast<chrono::seconds>(
 	    mc->get<ConfigDuration<chrono::seconds>>("message-accept-timeout")->read());

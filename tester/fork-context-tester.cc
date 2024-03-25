@@ -27,6 +27,7 @@
 #include "registrar/registrar-db.hh"
 #include "tester.hh"
 #include "utils/bellesip-utils.hh"
+#include "utils/chat-room-builder.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
 #include "utils/proxy-server.hh"
@@ -303,6 +304,116 @@ static void globalOrderTestNoSql() {
 	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), nbOfMessages, int, "%i");
 }
 
+/**
+ * The main objective of this test is to ensure correct enforcement of the "message-delivery-timeout" configuration.
+ * This means that after the specified duration of "message-delivery-timeout" seconds, the ForkMessageContext must be
+ * destroyed, and the message should be forgotten, even if it was not delivered to all devices.
+ *
+ * To execute this test, the following steps are performed:
+ *   1 - The test is initiated by sending a message from the caller to the callee, who has two clients: one online and
+ * one offline.
+ *   2  - Simultaneously, a call is initiated between the caller and the callee
+ *   3 - Upon completion of the test and after the designated "message-delivery-timeout" period has elapsed, we verify
+ * that the ForkMessageContext is destroyed while the ForkCallContext remains active.
+ */
+static void messageDeliveryTimeoutTest() {
+	auto server = make_shared<Server>("/config/flexisip_fork_context.conf");
+	server->getConfigManager()
+	    ->getRoot()
+	    ->get<GenericStruct>("module::Router")
+	    ->get<ConfigValue>("message-delivery-timeout")
+	    ->set("1");
+	server->start();
+
+	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server->getAgent());
+
+	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server->getAgent());
+	const auto calleeIdleClientVoip = make_shared<CoreClient>(
+	    ClientBuilder(*server->getAgent()).setApplePushConfig().build("sip:calleeClient@sip.test.org"));
+
+	CoreAssert asserter{callerClient, calleeClient, calleeIdleClientVoip, server};
+
+	calleeIdleClientVoip->disconnect();
+
+	callerClient->callWithEarlyCancel(calleeClient, nullptr);
+
+	const auto chatroom = callerClient->chatroomBuilder().build({calleeClient->getMe()});
+	chatroom->createMessageFromUtf8("test")->send();
+
+	asserter
+	    .wait([agent = server->getAgent()] {
+		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		    // The client may send an IMDN, so we cannot explicitly check that start value equals 1.
+		    FAIL_IF(moduleRouter->mStats.mCountMessageForks->start->read() < 1);
+		    // All ForkMessageContexts must be destroyed, since they should only live for one second.
+		    FAIL_IF(moduleRouter->mStats.mCountMessageForks->finish->read() !=
+		            moduleRouter->mStats.mCountMessageForks->start->read());
+
+		    // ForkCallContext must still be present, waiting for delivery (one created, zero finished).
+		    FAIL_IF(moduleRouter->mStats.mCountCallForks->start->read() != 1);
+		    FAIL_IF(moduleRouter->mStats.mCountCallForks->finish->read() != 0);
+		    return ASSERTION_PASSED();
+	    })
+	    .assert_passed();
+}
+
+/**
+ * The main objective of this test is to ensure correct enforcement of the "call-fork-timeout" configuration.
+ * This means that after the specified duration of "call-fork-timeout" seconds, the ForkCallContext must be
+ * destroyed, and the call should be forgotten, even if it was not delivered to all devices.
+ *
+ * To execute this test, the following steps are performed:
+ *   1 - The test is initiated by sending a message from the caller to the callee, who has two clients: one online and
+ * one offline.
+ *   2  - Simultaneously, a call is initiated between the caller and the callee
+ *   3 - Upon completion of the test and after the designated "call-fork-timeout" period has elapsed, we verify
+ * that the ForkCallContext is destroyed while the ForkMessageContext remains active.
+ */
+static void callForkTimeoutTest() {
+	auto server = make_shared<Server>("/config/flexisip_fork_context.conf");
+	server->getConfigManager()
+	    ->getRoot()
+	    ->get<GenericStruct>("module::Router")
+	    ->get<ConfigValue>("call-fork-timeout")
+	    ->set("1");
+	server->start();
+
+	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server->getAgent());
+
+	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server->getAgent());
+	const auto calleeIdleClientVoip = make_shared<CoreClient>(
+	    ClientBuilder(*server->getAgent()).setApplePushConfig().build("sip:calleeClient@sip.test.org"));
+
+	CoreAssert asserter{callerClient, calleeClient, calleeIdleClientVoip, server};
+
+	calleeIdleClientVoip->disconnect();
+
+	// Quick call without asserts, just to create a ForkCall.
+	auto callParams = callerClient->getCore()->createCallParams(nullptr);
+	auto addressWithoutGr = calleeClient->getAccount()->getContactAddress()->clone();
+	addressWithoutGr->removeUriParam("gr");
+	auto callerCall = callerClient->getCore()->inviteAddressWithParams(addressWithoutGr, callParams);
+	callerCall->terminate();
+
+	const auto chatroom = callerClient->chatroomBuilder().build({calleeClient->getMe()});
+	chatroom->createMessageFromUtf8("test")->send();
+
+	asserter
+	    .wait([agent = server->getAgent()] {
+		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		    // The client may send an IMDN, so we cannot explicitly check that start value equals 1.
+		    FAIL_IF(moduleRouter->mStats.mCountMessageForks->start->read() < 1);
+		    // At least 1 message must be still present.
+		    FAIL_IF(moduleRouter->mStats.mCountMessageForks->finish->read() ==
+		            moduleRouter->mStats.mCountMessageForks->start->read());
+
+		    // ForkCallContext must be destroyed, since they should only live for one second.
+		    FAIL_IF(moduleRouter->mStats.mCountCallForks->start->read() != 1);
+		    FAIL_IF(moduleRouter->mStats.mCountCallForks->finish->read() != 1);
+		    return ASSERTION_PASSED();
+	    })
+	    .assert_passed();
+}
 ///////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////// UNIT TESTS findBestBranch//////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -480,6 +591,8 @@ TestSuite _("Fork context",
                 TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchDontAvoid503Test>),
                 TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchDontAvoid408Test>),
                 TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchNoBranchConsidered>),
+                CLASSY_TEST(messageDeliveryTimeoutTest),
+                CLASSY_TEST(callForkTimeoutTest),
             },
             Hooks().beforeEach([] { responseReceived = false; }));
 }
