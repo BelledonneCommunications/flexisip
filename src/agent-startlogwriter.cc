@@ -1,6 +1,20 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 /**
  *  This file is a helper to keep all conditional compilation related to event log writers in a single place
@@ -47,8 +61,8 @@ void Agent::startLogWriter() {
 			const auto& host = cr->get<ConfigString>("flexiapi-host")->read();
 			auto port = cr->get<ConfigInt>("flexiapi-port")->read();
 			const auto& prefix = cr->get<ConfigString>("flexiapi-prefix")->read();
-			const auto& token = cr->get<ConfigString>("flexiapi-token")->read();
-			mLogWriter = make_unique<FlexiStatsEventLogWriter>(*mRoot, host, to_string(port), prefix, token);
+			const auto& apiKey = cr->get<ConfigString>("flexiapi-api-key")->read();
+			mLogWriter = make_unique<FlexiStatsEventLogWriter>(*mRoot, host, to_string(port), prefix, apiKey);
 #else
 			LOGF("This version of Flexisip was built without ENABLE_FLEXIAPI. Value 'flexiapi' for 'event-logs/logger' "
 			     "is unsupported.");

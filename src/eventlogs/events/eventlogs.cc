@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -37,17 +37,16 @@ EventLog::Init::Init() {
 	     "filesystem"},
 	    ////////////////// Filesystem //////////////////
 	    {String, "filesystem-directory",
-	     "Directory where event logs are written as a filesystem (case when filesystem "
-	     "output is choosed).",
+	     "Directory where event logs are written as a filesystem (case when filesystem output is chosen).",
 	     "/var/log/flexisip"},
 	    ////////////////// Database //////////////////
 	    {String, "database-backend",
-	     "Choose the type of backend that Soci will use for the connection.\n"
+	     "Type of backend that Soci will use for the connection.\n"
 	     "Depending on your Soci package and the modules you installed, the supported databases are:"
 	     "`mysql`, `sqlite3` and `postgresql`",
 	     "mysql"},
 	    {String, "database-connection-string",
-	     "The configuration parameters of the backend.\n"
+	     "Configuration parameters of the backend.\n"
 	     "The basic format is \"key=value key2=value2\". For a mysql backend, this "
 	     "is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
 	     "Please refer to the Soci documentation of your backend, for instance: "
@@ -55,8 +54,8 @@ EventLog::Init::Init() {
 	     "db='mydb' user='myuser' password='mypass' host='myhost.com'"},
 	    {Integer, "database-max-queue-size",
 	     "Amount of queries that will be allowed to be queued before bailing password requests.\n"
-	     "This value should be chosen accordingly with 'database-nb-threads-max', so that you have a "
-	     "coherent behavior.\n"
+	     "This value should be chosen accordingly with 'database-nb-threads-max', so that you have a coherent "
+	     "behavior.\n"
 	     "This limit is here mainly as a safeguard against out-of-control growth of the queue in the event of a flood "
 	     "or big delays in the database backend.",
 	     "100"},
@@ -72,13 +71,15 @@ EventLog::Init::Init() {
 	    {Integer, "flexiapi-port", "Port on the FlexiAPI host. See `flexiapi-host` for details.", "443"},
 	    {String, "flexiapi-prefix", "Path prefix for FlexiAPI requests. See `flexiapi-host` for details.",
 	     "/api/stats/"},
-	    {String, "flexiapi-token", "Authentication token for the FlexiAPI", ""},
+	    {String, "flexiapi-api-key", "API authentication key for the FlexiAPI", ""},
 
 	    // Deprecated parameters
 	    {String, "dir",
-	     "Directory where event logs are written as a filesystem (case when filesystem output is choosed).",
+	     "Directory where event logs are written as a filesystem (case when filesystem output is chosen).",
 	     "/var/log/flexisip"},
-	    config_item_end};
+	    {String, "flexiapi-token", "Authentication token for the FlexiAPI", ""},
+	    config_item_end,
+	};
 
 	auto uEv = make_unique<GenericStruct>(
 	    "event-logs",
@@ -86,9 +87,13 @@ EventLog::Init::Init() {
 	    "See: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Event%20logs%20and%20queries/ for architecture "
 	    "and queries.",
 	    0);
-	auto ev = GenericManager::get()->getRoot()->addChild(move(uEv));
+	auto ev = GenericManager::get()->getRoot()->addChild(std::move(uEv));
 	ev->addChildrenValues(items);
 	ev->get<ConfigString>("dir")->setDeprecated({"2020-02-19", "2.0.0", "Replaced by 'filesystem-directory'"});
+
+	auto* flexiapiToken = ev->get<ConfigString>("flexiapi-token");
+	flexiapiToken->setDeprecated({"2024-03-22", "2.3.3", "Replaced by 'flexiapi-api-key'"});
+	ev->get<ConfigString>("flexiapi-api-key")->setFallback(*flexiapiToken);
 }
 
 EventLog::EventLog(const sip_t* sip)
