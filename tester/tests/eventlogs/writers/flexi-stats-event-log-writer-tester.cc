@@ -61,7 +61,7 @@ void callStartedAndEnded() {
 	                                      {"event-logs/flexiapi-host", "localhost"},
 	                                      {"event-logs/flexiapi-port", to_string(port)},
 	                                      {"event-logs/flexiapi-prefix", "api/stats"},
-	                                      {"event-logs/flexiapi-token", "aRandomApiToken"}});
+	                                      {"event-logs/flexiapi-api-key", "aRandomApiToken"}});
 	const ClientBuilder builder{*proxy->getAgent()};
 	const string expectedFrom = "tony@sip.example.org";
 	const string expectedTo = "mike@sip.example.org";

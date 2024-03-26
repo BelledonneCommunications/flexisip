@@ -61,8 +61,8 @@ void Agent::startLogWriter() {
 			const auto& host = cr->get<ConfigString>("flexiapi-host")->read();
 			auto port = cr->get<ConfigInt>("flexiapi-port")->read();
 			const auto& prefix = cr->get<ConfigString>("flexiapi-prefix")->read();
-			const auto& token = cr->get<ConfigString>("flexiapi-token")->read();
-			mLogWriter = make_unique<FlexiStatsEventLogWriter>(*mRoot, host, to_string(port), prefix, token);
+			const auto& apiKey = cr->get<ConfigString>("flexiapi-api-key")->read();
+			mLogWriter = make_unique<FlexiStatsEventLogWriter>(*mRoot, host, to_string(port), prefix, apiKey);
 #else
 			LOGF("This version of Flexisip was built without ENABLE_FLEXIAPI. Value 'flexiapi' for 'event-logs/logger' "
 			     "is unsupported.");
