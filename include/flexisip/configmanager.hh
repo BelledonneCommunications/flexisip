@@ -29,6 +29,7 @@
 #include <queue>
 #include <regex>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <tuple>
 #include <typeinfo>
@@ -158,27 +159,6 @@ public:
 };
 
 class GenericEntry;
-class GenericEntriesGetter {
-	static GenericEntriesGetter* sInstance;
-	std::map<std::string, GenericEntry*> mEntries;
-	std::unordered_set<std::string> mKeys;
-
-public:
-	static GenericEntriesGetter& get() {
-		if (!sInstance) sInstance = new GenericEntriesGetter();
-		return *sInstance;
-	}
-	void registerWithKey(const std::string& key, GenericEntry* stat) {
-		if (mKeys.find(key) != mKeys.end()) {
-			LOGA("Duplicate entry key %s", key.c_str());
-		}
-		//		LOGD("Register with key %s", key.c_str());
-		mEntries.insert(make_pair(key, stat));
-	}
-	template <typename _retType>
-	_retType& find(const std::string& key) const;
-};
-
 class GenericEntry {
 public:
 	class DeprecationInfo {
@@ -278,9 +258,6 @@ public:
 	};
 #endif
 	virtual void mibFragment(std::ostream& ostr, std::string spacing) const = 0;
-	void registerWithKey(const std::string& key) {
-		GenericEntriesGetter::get().registerWithKey(key, this);
-	}
 	void setConfigListener(ConfigValueListener* listener) {
 		mConfigListener = listener;
 	}
@@ -333,22 +310,6 @@ inline std::ostream& operator<<(std::ostream& ostr, const GenericEntry& entry) {
 	return ostr << entry.getName();
 }
 
-template <typename _retType>
-_retType& GenericEntriesGetter::find(const std::string& key) const {
-	auto it = mEntries.find(key);
-	if (it == mEntries.end()) {
-		LOGA("Entry not found %s", key.c_str());
-	}
-
-	GenericEntry* ge = (*it).second;
-	_retType* ret = dynamic_cast<_retType*>(ge);
-	if (!ret) {
-		LOGA("%s - bad entry type %s", key.c_str(), typeid(*ge).name());
-	}
-
-	return *ret;
-}
-
 class ConfigValue;
 class StatCounter64;
 struct StatPair;
@@ -362,8 +323,7 @@ public:
 		newEntryPointer->setParent(this);
 		for (auto& entry : mEntries) {
 			if (entry->getName() == newEntry->getName()) {
-				entry = std::move(newEntry);
-				return newEntryPointer;
+				throw std::runtime_error(std::string("Duplicate entry key: ") + entry->getName());
 			}
 		}
 		mEntries.push_back(std::move(newEntry));

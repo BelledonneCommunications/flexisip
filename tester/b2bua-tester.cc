@@ -543,16 +543,9 @@ static void external_provider_bridge__override_special_options() {
 	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
 	    {"module::Registrar/enabled", "true"},
 	    {"module::Registrar/reg-domains", "sip.example.com"},
+	    {"b2bua-server::sip-bridge/providers", providersJson.getFilename().c_str()},
 	}};
 
-	{
-		ConfigItemDescriptor configItems[] = {{String, "providers", "help", providersJson.getFilename().c_str()},
-		                                      config_item_end};
-		proxy.getConfigManager()
-		    ->getRoot()
-		    ->addChild(make_unique<GenericStruct>("b2bua-server::sip-bridge", "help", 0))
-		    ->addChildrenValues(configItems);
-	}
 	proxy.start();
 
 	const ClientBuilder builder{*proxy.getAgent()};

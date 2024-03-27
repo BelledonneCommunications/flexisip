@@ -223,9 +223,6 @@ void GenericEntry::setParent(GenericEntry* parent) {
 	mParent = parent;
 	if (mOid) delete mOid;
 	mOid = new Oid(parent->getOid(), mOidLeaf);
-
-	string key = parent->getName() + "::" + mName;
-	registerWithKey(key);
 }
 
 /*********************************************************************************************************************/
@@ -1338,8 +1335,6 @@ FileConfigReader::FileConfigReader(GenericStruct* root) : mRoot(root), mHaveUnre
 }
 
 FileConfigReader::~FileConfigReader() = default;
-
-GenericEntriesGetter* GenericEntriesGetter::sInstance = NULL;
 
 #ifdef ENABLE_SNMP
 int GenericEntry::sHandleSnmpRequest(netsnmp_mib_handler* handler,
