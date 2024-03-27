@@ -173,9 +173,8 @@ void B2buaServer::onCallStateChanged(const shared_ptr<linphone::Core>&,
 				peerCallParams->enableVideo(call->getCurrentParams()->videoEnabled());
 				peerCallParams->enableAudio(call->getCurrentParams()->audioEnabled());
 				peerCall->acceptUpdate(peerCallParams);
-			} else {
-				// if we are in StreamsRunning but peer is sendonly or inactive we likely arrived here after resuming
-				// from pausedByRemote update peer back to recvsend
+			} else if (peerCall->getState() != linphone::Call::State::PausedByRemote) {
+				// Resuming from PausedByRemote. Update peer back to sendrecv.
 				auto peerCallAudioDirection = peerCall->getCurrentParams()->getAudioDirection();
 				if (peerCallAudioDirection == linphone::MediaDirection::SendOnly ||
 				    peerCallAudioDirection == linphone::MediaDirection::Inactive) {

@@ -26,6 +26,7 @@ public:
 	linphone::Status terminate() const;
 	linphone::Call::State getState() const;
 	linphone::Reason getReason() const;
+	linphone::MediaDirection getAudioDirection() const;
 	std::shared_ptr<const linphone::Address> getRemoteAddress() const;
 	const bool& videoFrameDecoded();
 
