@@ -24,6 +24,7 @@ public:
 	linphone::Status decline(linphone::Reason) const;
 	linphone::Call::State getState() const;
 	linphone::Reason getReason() const;
+	linphone::MediaDirection getAudioDirection() const;
 	const bool& videoFrameDecoded();
 
 	/* CHEATS ~~ Use only for quick prototyping */

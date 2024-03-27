@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "linphone++/call_params.hh"
 #include "linphone++/enums.hh"
 #include "linphone/api/c-call-stats.h"
 #include "linphone/api/c-call.h"
@@ -36,6 +37,9 @@ linphone::Call::State ClientCall::getState() const {
 }
 linphone::Reason ClientCall::getReason() const {
 	return mCall->getReason();
+}
+linphone::MediaDirection ClientCall::getAudioDirection() const {
+	return mCall->getCurrentParams()->getAudioDirection();
 }
 
 const bool& ClientCall::videoFrameDecoded() {
