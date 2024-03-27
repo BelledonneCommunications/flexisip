@@ -115,6 +115,21 @@ void ConferenceServer::_init() {
 	configLinphone->setBool("net", "enable_nat_helper",
 	                        false); // to make sure contact address is not fixed by belle-sip
 
+	auto mediaEngine = config->get<ConfigString>("media-engine-type")->read();
+	if (mediaEngine != "mixer" && mediaEngine != "sfu") {
+		LOGF("ConferenceServer: media-engine-type is not correctly set. Check configuration file.");
+	}
+
+	if (mediaEngine == "mixer") {
+		// In mixer mode we set the audio conference to Mixer mode (0) and video conference to RouterPayload mode (1)
+		configLinphone->setInt("sound", "conference_mode", 0);
+		configLinphone->setInt("video", "conference_mode", 1);
+	} else {
+		// In SFU mode we set the audio and video conferences to RouterFullPacket mode (2)
+		configLinphone->setInt("sound", "conference_mode", 2);
+		configLinphone->setInt("video", "conference_mode", 2);
+	}
+
 	string uuid = readUuid();
 	if (!uuid.empty()) configLinphone->setString("misc", "uuid", uuid);
 
@@ -595,6 +610,14 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	     "Valid values are: audio, video and text. For example:\n"
 	     "supported-media-types=audio video text",
 	     "text"},
+	    {String, "media-engine-type",
+	     "Choose the media engine that will be used by the conference server.\n"
+	     "In mixer mode, the conference server will mix the audio streams and handle any necessary modification to the "
+	     "streams before sending data.\n"
+	     "In SFU mode, all streams are simply forwarded to destination without any modification. This is the required "
+	     "mode if you want end to end encryption.\n"
+	     "Valid values are: mixer and sfu.",
+	     "mixer"},
 	    {String, "encryption",
 	     "The media encryption the conference server will offer when calling participants to an audio or video "
 	     "conference .\n"
