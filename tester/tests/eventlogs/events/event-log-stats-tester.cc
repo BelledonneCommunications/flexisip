@@ -1,6 +1,20 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <chrono>
 #include <functional>
@@ -79,7 +93,7 @@ string_view uuidFromSipInstance(const string_view& deviceKey) {
 	return deviceKey.substr(sizeof("\"<urn:uuid:") - 1, sizeof("00000000-0000-0000-0000-000000000000") - 1);
 }
 
-void callStartedAndEnded() {
+void callStartedAndEndedByCaller() {
 	const auto proxy = makeAndStartProxy();
 	const auto& agent = proxy->getAgent();
 	vector<CallStartedEventLog> callsStarted{};
@@ -132,6 +146,66 @@ void callStartedAndEnded() {
 	BC_ASSERT_CPP_EQUAL(acceptedEvent.getStatusCode(), 200 /* Accepted */);
 
 	tony.endCurrentCall(mike);
+
+	BC_ASSERT_CPP_EQUAL(callsEnded.size(), 1);
+	const auto& endedEvent = callsEnded[0];
+	BC_ASSERT_CPP_EQUAL(string(endedEvent.getId()), eventId);
+	BC_ASSERT_TRUE(acceptedAt <= chrono::system_clock::to_time_t(endedEvent.getTimestamp()));
+}
+
+void callStartedAndEndedByCallee() {
+	const auto proxy = makeAndStartProxy();
+	const auto& agent = proxy->getAgent();
+	vector<CallStartedEventLog> callsStarted{};
+	vector<CallRingingEventLog> callsRung{};
+	vector<CallLog> invitesEnded{};
+	vector<CallEndedEventLog> callsEnded{};
+	plugEventCallbacks(*agent, overloaded{
+	                               moveEventsInto(callsStarted),
+	                               moveEventsInto(invitesEnded),
+	                               moveEventsInto(callsRung),
+	                               moveEventsInto(callsEnded),
+	                               Ignore<RegistrationLog>(),
+	                           });
+	const string expectedFrom = "tony@sip.example.org";
+	const string expectedTo = "mike@sip.example.org";
+	const auto builder = proxy->clientBuilder();
+	auto tony = builder.build(expectedFrom);
+	auto mike = builder.build(expectedTo);
+	const auto before = chrono::system_clock::now();
+
+	tony.call(mike);
+
+	BC_ASSERT_CPP_EQUAL(callsStarted.size(), 1);
+	BC_ASSERT_CPP_EQUAL(callsRung.size(), 1);
+	BC_ASSERT_CPP_EQUAL(invitesEnded.size(), 1);
+	BC_ASSERT_CPP_EQUAL(callsEnded.size(), 0);
+	const auto& startedEvent = callsStarted[0];
+	BC_ASSERT_TRUE(before < startedEvent.getTimestamp());
+	BC_ASSERT_CPP_EQUAL(toString(startedEvent.getFrom()), expectedFrom);
+	BC_ASSERT_CPP_EQUAL(toString(startedEvent.getTo()), expectedTo);
+	BC_ASSERT_CPP_EQUAL(startedEvent.getDevices().size(), 1);
+	const string_view deviceKey = startedEvent.getDevices()[0].mKey.str();
+	BC_ASSERT_CPP_EQUAL(uuidFromSipInstance(deviceKey), mike.getUuid());
+	const string eventId = startedEvent.getId();
+	const auto& ringingEvent = callsRung[0];
+	BC_ASSERT_CPP_EQUAL(string(ringingEvent.getId()), eventId);
+	BC_ASSERT_CPP_EQUAL(ringingEvent.getDevice().mKey.str(), deviceKey);
+	BC_ASSERT_TRUE(startedEvent.getTimestamp() < ringingEvent.getTimestamp());
+	const auto& acceptedEvent = invitesEnded[0];
+	BC_ASSERT_CPP_EQUAL(toString(acceptedEvent.getFrom()), expectedFrom);
+	BC_ASSERT_CPP_EQUAL(toString(acceptedEvent.getTo()), expectedTo);
+	BC_ASSERT_CPP_EQUAL(string(acceptedEvent.getId()), eventId);
+	BC_ASSERT_TRUE(acceptedEvent.getDevice() != nullopt);
+	BC_ASSERT_CPP_EQUAL(acceptedEvent.getDevice()->mKey.str(), deviceKey);
+	const auto& acceptedAt = acceptedEvent.getDate();
+	BC_ASSERT_TRUE(chrono::system_clock::to_time_t(ringingEvent.getTimestamp()) <=
+	               acceptedAt
+	                   // Precision? Different clocks? I don't know why, but without this +1 it sometimes fails
+	                   + 1);
+	BC_ASSERT_CPP_EQUAL(acceptedEvent.getStatusCode(), 200 /* Accepted */);
+
+	mike.endCurrentCall(tony);
 
 	BC_ASSERT_CPP_EQUAL(callsEnded.size(), 1);
 	const auto& endedEvent = callsEnded[0];
@@ -343,7 +417,8 @@ void missingContentTypeHeader() {
 
 TestSuite _("EventLog Stats",
             {
-                CLASSY_TEST(callStartedAndEnded),
+                CLASSY_TEST(callStartedAndEndedByCaller),
+                CLASSY_TEST(callStartedAndEndedByCallee),
                 CLASSY_TEST(callInviteStatuses),
                 CLASSY_TEST(callError),
                 CLASSY_TEST(doubleForkContextStart),

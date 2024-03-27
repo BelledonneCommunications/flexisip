@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2023 Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2024 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -77,6 +77,7 @@ add_executable(flexisip_tester
 	tests/callcontext-mediarelay-tester.cc
 	tests/transaction-tester.cc
 	tests/eventlogs/events/auth-log-tester.cc
+	tests/eventlogs/events/event-id-tester.cc
 	tests/eventlogs/events/event-log-stats-tester.cc
 	tests/flexiapi/schemas/iso-8601-date-tester.cc
 	tests/module-nat-helper-tester.cc
