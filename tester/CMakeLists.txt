@@ -84,6 +84,7 @@ add_executable(flexisip_tester
 	tests/configmanager-tester.cc
 	tests/transaction-tester.cc
 	tests/eventlogs/events/auth-log-tester.cc
+	tests/eventlogs/events/event-id-tester.cc
 	tests/eventlogs/events/event-log-stats-tester.cc
 	tests/flexiapi/schemas/iso-8601-date-tester.cc
 	tests/libhiredis-wrapper/redis-async-session-tester.cc

@@ -93,7 +93,7 @@ string_view uuidFromSipInstance(const string_view& deviceKey) {
 	return deviceKey.substr(sizeof("\"<urn:uuid:") - 1, sizeof("00000000-0000-0000-0000-000000000000") - 1);
 }
 
-void callStartedAndEnded() {
+void callStartedAndEndedByCaller() {
 	const auto proxy = makeAndStartProxy();
 	const auto& agent = proxy->getAgent();
 	vector<CallStartedEventLog> callsStarted{};
@@ -146,6 +146,66 @@ void callStartedAndEnded() {
 	BC_ASSERT_CPP_EQUAL(acceptedEvent.getStatusCode(), 200 /* Accepted */);
 
 	tony.endCurrentCall(mike);
+
+	BC_ASSERT_CPP_EQUAL(callsEnded.size(), 1);
+	const auto& endedEvent = callsEnded[0];
+	BC_ASSERT_CPP_EQUAL(string(endedEvent.getId()), eventId);
+	BC_ASSERT_TRUE(acceptedAt <= chrono::system_clock::to_time_t(endedEvent.getTimestamp()));
+}
+
+void callStartedAndEndedByCallee() {
+	const auto proxy = makeAndStartProxy();
+	const auto& agent = proxy->getAgent();
+	vector<CallStartedEventLog> callsStarted{};
+	vector<CallRingingEventLog> callsRung{};
+	vector<CallLog> invitesEnded{};
+	vector<CallEndedEventLog> callsEnded{};
+	plugEventCallbacks(*agent, overloaded{
+	                               moveEventsInto(callsStarted),
+	                               moveEventsInto(invitesEnded),
+	                               moveEventsInto(callsRung),
+	                               moveEventsInto(callsEnded),
+	                               Ignore<RegistrationLog>(),
+	                           });
+	const string expectedFrom = "tony@sip.example.org";
+	const string expectedTo = "mike@sip.example.org";
+	const ClientBuilder builder{*proxy->getAgent()};
+	auto tony = builder.build(expectedFrom);
+	auto mike = builder.build(expectedTo);
+	const auto before = chrono::system_clock::now();
+
+	tony.call(mike);
+
+	BC_ASSERT_CPP_EQUAL(callsStarted.size(), 1);
+	BC_ASSERT_CPP_EQUAL(callsRung.size(), 1);
+	BC_ASSERT_CPP_EQUAL(invitesEnded.size(), 1);
+	BC_ASSERT_CPP_EQUAL(callsEnded.size(), 0);
+	const auto& startedEvent = callsStarted[0];
+	BC_ASSERT_TRUE(before < startedEvent.getTimestamp());
+	BC_ASSERT_CPP_EQUAL(toString(startedEvent.getFrom()), expectedFrom);
+	BC_ASSERT_CPP_EQUAL(toString(startedEvent.getTo()), expectedTo);
+	BC_ASSERT_CPP_EQUAL(startedEvent.getDevices().size(), 1);
+	const string_view deviceKey = startedEvent.getDevices()[0].mKey.str();
+	BC_ASSERT_CPP_EQUAL(uuidFromSipInstance(deviceKey), mike.getUuid());
+	const string eventId = startedEvent.getId();
+	const auto& ringingEvent = callsRung[0];
+	BC_ASSERT_CPP_EQUAL(string(ringingEvent.getId()), eventId);
+	BC_ASSERT_CPP_EQUAL(ringingEvent.getDevice().mKey.str(), deviceKey);
+	BC_ASSERT_TRUE(startedEvent.getTimestamp() < ringingEvent.getTimestamp());
+	const auto& acceptedEvent = invitesEnded[0];
+	BC_ASSERT_CPP_EQUAL(toString(acceptedEvent.getFrom()), expectedFrom);
+	BC_ASSERT_CPP_EQUAL(toString(acceptedEvent.getTo()), expectedTo);
+	BC_ASSERT_CPP_EQUAL(string(acceptedEvent.getId()), eventId);
+	BC_ASSERT_TRUE(acceptedEvent.getDevice() != nullopt);
+	BC_ASSERT_CPP_EQUAL(acceptedEvent.getDevice()->mKey.str(), deviceKey);
+	const auto& acceptedAt = acceptedEvent.getDate();
+	BC_ASSERT_TRUE(chrono::system_clock::to_time_t(ringingEvent.getTimestamp()) <=
+	               acceptedAt
+	                   // Precision? Different clocks? I don't know why, but without this +1 it sometimes fails
+	                   + 1);
+	BC_ASSERT_CPP_EQUAL(acceptedEvent.getStatusCode(), 200 /* Accepted */);
+
+	mike.endCurrentCall(tony);
 
 	BC_ASSERT_CPP_EQUAL(callsEnded.size(), 1);
 	const auto& endedEvent = callsEnded[0];
@@ -357,7 +417,8 @@ void missingContentTypeHeader() {
 
 TestSuite _("EventLog Stats",
             {
-                CLASSY_TEST(callStartedAndEnded),
+                CLASSY_TEST(callStartedAndEndedByCaller),
+                CLASSY_TEST(callStartedAndEndedByCallee),
                 CLASSY_TEST(callInviteStatuses),
                 CLASSY_TEST(callError),
                 CLASSY_TEST(doubleForkContextStart),
