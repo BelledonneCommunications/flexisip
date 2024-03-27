@@ -272,7 +272,8 @@ void PresenceServer::_run() {
 	belle_sip_main_loop_sleep(belle_sip_stack_get_main_loop(mStack), 0);
 }
 
-void PresenceServer::_stop() {
+std::unique_ptr<AsyncCleanup> PresenceServer::_stop() {
+	return nullptr;
 }
 
 void PresenceServer::processDialogTerminated(PresenceServer* thiz, const belle_sip_dialog_terminated_event_t* event) {

@@ -105,7 +105,7 @@ public:
 		}
 	}
 	~B2buaServer() override {
-		mB2buaServer->stop();
+		std::ignore = mB2buaServer->stop();
 	}
 
 	void init() {

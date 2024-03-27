@@ -213,8 +213,9 @@ void Server::_run() {
 	mCore->iterate();
 }
 
-void Server::_stop() {
+std::unique_ptr<AsyncCleanup> Server::_stop() {
 	mCore = nullptr;
+	return nullptr;
 }
 
 namespace {

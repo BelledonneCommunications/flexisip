@@ -33,7 +33,7 @@
 #include "etag-manager.hh"
 #include "flexisip/configmanager.hh"
 #include "presentity-manager.hh"
-#include "service-server.hh"
+#include "service-server/service-server.hh"
 #include "utils/thread/thread-pool.hh"
 
 typedef struct belle_sip_main_loop belle_sip_main_loop_t;
@@ -74,7 +74,7 @@ public:
 	~PresenceServer();
 	void _init() override;
 	void _run() override;
-	void _stop() override;
+	std::unique_ptr<AsyncCleanup> _stop() override;
 	belle_sip_main_loop_t* getBelleSipMainLoop();
 	void addPresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver>& observer);
 	void removePresenceInfoObserver(const std::shared_ptr<PresenceInfoObserver>& observer);

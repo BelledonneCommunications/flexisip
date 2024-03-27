@@ -297,7 +297,7 @@ void ConferenceServer::_run() {
 	}
 }
 
-void ConferenceServer::_stop() {
+std::unique_ptr<AsyncCleanup> ConferenceServer::_stop() {
 	const auto sharedThis = shared_from_this();
 	mCore->removeListener(sharedThis);
 	mRegistrarDb->removeStateListener(sharedThis);
@@ -305,6 +305,7 @@ void ConferenceServer::_stop() {
 		chatroom->removeListener(sharedThis);
 	}
 	mSubscriptionHandler.unsubscribeAll();
+	return nullptr;
 }
 
 void ConferenceServer::loadFactoryUris() {

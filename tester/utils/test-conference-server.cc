@@ -41,7 +41,7 @@ TestConferenceServer::TestConferenceServer(const Agent& agent,
 }
 
 TestConferenceServer::~TestConferenceServer() {
-	mConfServer->stop();
+	std::ignore = mConfServer->stop();
 }
 
 void TestConferenceServer::clearLocalDomainList() {

@@ -26,7 +26,7 @@
 
 #include "flexisip/registrar/registar-listeners.hh"
 #include "registrar/registrar-db.hh"
-#include "service-server.hh"
+#include "service-server/service-server.hh"
 
 namespace flexisip {
 
@@ -76,7 +76,7 @@ public:
 protected:
 	void _init() override;
 	void _run() override;
-	void _stop() override;
+	std::unique_ptr<AsyncCleanup> _stop() override;
 
 private:
 	std::shared_ptr<ConfigManager> mConfigManager;

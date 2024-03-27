@@ -26,6 +26,7 @@
 #include "flexisip/utils/sip-uri.hh"
 
 #include "b2bua-server.hh"
+#include "b2bua/async-stop-core.hh"
 #include "sip-bridge/sip-bridge.hh"
 #include "trenscrypter.hh"
 #include "utils/variant-utils.hh"
@@ -447,9 +448,10 @@ void B2buaServer::_run() {
 	mCore->iterate();
 }
 
-void B2buaServer::_stop() {
+std::unique_ptr<AsyncCleanup> B2buaServer::_stop() {
 	mCore->removeListener(shared_from_this());
 	mCli.stop();
+	return std::make_unique<b2bua::AsyncStopCore>(mCore);
 }
 
 namespace {

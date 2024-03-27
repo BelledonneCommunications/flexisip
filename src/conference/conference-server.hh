@@ -25,7 +25,7 @@
 #include "participant-registration-subscription-handler.hh"
 #include "registrar/registrar-db.hh"
 #include "registration-subscription.hh"
-#include "service-server.hh"
+#include "service-server/service-server.hh"
 
 #ifndef DEFAULT_LIB_DIR
 #define DEFAULT_LIB_DIR "/var/opt/belledonne-communications/lib/flexisip"
@@ -88,7 +88,7 @@ public:
 protected:
 	void _init() override;
 	void _run() override;
-	void _stop() override;
+	std::unique_ptr<AsyncCleanup> _stop() override;
 
 	SipUri mTransport{};
 

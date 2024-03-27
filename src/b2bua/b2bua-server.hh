@@ -27,7 +27,7 @@
 #include "flexisip/configmanager.hh"
 
 #include "cli.hh"
-#include "service-server.hh"
+#include "service-server/service-server.hh"
 
 namespace flexisip {
 
@@ -38,11 +38,16 @@ class B2buaServer;
 } // namespace tester
 
 namespace b2bua {
+// Name of the corresponding section in the configuration file
+constexpr auto configSection = "b2bua-server";
+
 class Application {
 public:
 	using DeclineCall = linphone::Reason;
 	using InviteAddress = std::shared_ptr<const linphone::Address>;
 	using ActionToTake = std::variant<DeclineCall, InviteAddress>;
+
+	virtual ~Application() = default;
 
 	virtual void init(const std::shared_ptr<linphone::Core>& core, const ConfigManager& cfg) = 0;
 	/**
@@ -58,11 +63,7 @@ public:
 	virtual ActionToTake onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) = 0;
 	virtual void onCallEnd([[maybe_unused]] const linphone::Call& call) {
 	}
-	virtual ~Application() = default;
 };
-
-// Name of the corresponding section in the configuration file
-constexpr auto configSection = "b2bua-server";
 
 } // namespace b2bua
 
@@ -98,13 +99,13 @@ public:
 protected:
 	void _init() override;
 	void _run() override;
-	void _stop() override;
+	std::unique_ptr<AsyncCleanup> _stop() override;
 
 private:
 	std::shared_ptr<ConfigManager> mConfigManager;
 	CommandLineInterface mCli;
 	std::shared_ptr<linphone::Core> mCore;
-	std::unique_ptr<b2bua::Application> mApplication;
+	std::unique_ptr<b2bua::Application> mApplication = nullptr;
 };
 
 } // namespace flexisip

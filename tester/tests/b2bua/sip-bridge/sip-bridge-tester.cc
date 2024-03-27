@@ -12,6 +12,7 @@
 #include "belle-sip/auth-helper.h"
 
 #include "b2bua/b2bua-server.hh"
+#include "registrardb-internal.hh"
 #include "utils/client-builder.hh"
 #include "utils/client-call.hh"
 #include "utils/client-core.hh"
@@ -214,7 +215,7 @@ void bidirectionalBridging() {
 	        },
 	        400ms)
 	    .assert_passed();
-	b2buaServer->stop();
+	std::ignore = b2buaServer->stop();
 }
 
 void loadAccountsFromSQL() {
@@ -324,7 +325,7 @@ void loadAccountsFromSQL() {
 	BC_HARD_ASSERT(accountPool.getAccountByUri("sip:account3@some.provider.example.com") != nullptr);
 
 	// shutdown / cleanup
-	b2buaServer->stop();
+	std::ignore = b2buaServer->stop();
 }
 
 /** Everything is setup correctly except the "From" header template contains a mistake that resolves to an invalid uri.
@@ -394,9 +395,20 @@ void invalidUriTriggersDecline() {
 	                  400ms)
 	              .assert_passed());
 
-	b2buaServer->stop();
+	std::ignore = b2buaServer->stop();
 }
 
+/** Test (un)registration of accounts against a proxy that requires authentication.
+ *
+ * A Flexisip proxy will play the role of an external proxy requiring authentication on REGISTERs.
+ * The B2BUA is configured with 2 statically defined accounts, one with the full clear-text password, the other with
+ * only the HA1.
+ * Test that both auth methods are succesful, and that accounts are un-registered properly when the B2BUA server shuts
+ * down gracefully.
+ *
+ * The proxy is configured to challenge every request without exception, meaning the client cannot simply send the
+ * unREGISTER and delete everything, but has to respond to the proxy's challenge response.
+ */
 void authenticatedAccounts() {
 	const auto domain = "example.org";
 	const auto password = "a-clear-text-password";
@@ -454,6 +466,8 @@ ha1-md5@example.org clrtxt:a-clear-text-password ;
 	    {"module::Authentication/auth-domains", domain},
 	    {"module::Authentication/db-implementation", "file"},
 	    {"module::Authentication/file-path", authDb.getFilename()},
+	    // Force all requests to be challenged, even un-REGISTERs
+	    {"module::Authentication/nonce-expires", "0"},
 	}};
 	proxy.start();
 	providersJson.writeStream() << jsonConfig.format({
@@ -465,9 +479,8 @@ ha1-md5@example.org clrtxt:a-clear-text-password ;
 	const auto b2buaLoop = std::make_shared<sofiasip::SuRoot>();
 	const auto b2buaServer = std::make_shared<B2buaServer>(b2buaLoop, proxy.getConfigManager());
 	b2buaServer->init();
-	CoreAssert asserter{proxy, *b2buaLoop};
 
-	asserter
+	CoreAssert(proxy, *b2buaLoop)
 	    .iterateUpTo(
 	        5,
 	        [&sipProviders =
@@ -482,6 +495,31 @@ ha1-md5@example.org clrtxt:a-clear-text-password ;
 	        },
 	        70ms)
 	    .assert_passed();
+
+	// Graceful async shutdown (unREGISTER accounts)
+	const auto& asyncCleanup = b2buaServer->stop();
+	const auto& registeredUsers =
+	    dynamic_cast<const RegistrarDbInternal&>(proxy.getRegistrarDb()->getRegistrarBackend()).getAllRecords();
+	BC_ASSERT_CPP_EQUAL(registeredUsers.size(), 2);
+	constexpr static auto timeout = 500ms;
+	// As of 2024-03-27 and SDK 5.3.33, the SDK goes on a busy loop to wait for accounts to unregister, instead of
+	// waiting for iterate to be called again. That blocks the iteration of the proxy, so we spawn a separate cleanup
+	// thread to be able to keep iterating the proxy on the main thread (sofia aborts if we attempt to step the main
+	// loop on a non-main thread). See SDK-136.
+	const auto& cleanupThread = std::async(std::launch::async, [&asyncCleanup = *asyncCleanup]() {
+		BcAssert()
+		    .iterateUpTo(
+		        1, [&asyncCleanup]() { return LOOP_ASSERTION(asyncCleanup.finished()); }, timeout)
+		    .assert_passed();
+	});
+	CoreAssert(proxy)
+	    .iterateUpTo(
+	        10, [&registeredUsers] { return LOOP_ASSERTION(registeredUsers.size() == 0); }, timeout)
+	    .assert_passed();
+	proxy.getRoot()->step(1ms);
+	// Join proxy iterate thread. Leave ample time to let the asserter time-out first.
+	cleanupThread.wait_for(10s);
+	BC_ASSERT_CPP_EQUAL(registeredUsers.size(), 0);
 }
 
 TestSuite _{

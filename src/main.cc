@@ -98,23 +98,14 @@
 #include "snmp-agent.h"
 #endif
 
+#define ENABLE_SERVICE_SERVERS ENABLE_PRESENCE || ENABLE_CONFERENCE || ENABLE_B2BUA
+
 static int run = 1;
 static int pipe_wdog_flexisip[2] = {
     -1}; // This is the pipe that flexisip will write to to signify it has started to the Watchdog
 static pid_t flexisip_pid = -1;
 static pid_t monitor_pid = -1;
 static std::shared_ptr<sofiasip::SuRoot> root{};
-
-#if ENABLE_PRESENCE
-static std::shared_ptr<flexisip::PresenceServer> presenceServer;
-#endif // ENABLE_PRESENCE
-#if ENABLE_CONFERENCE
-static std::shared_ptr<flexisip::ConferenceServer> conferenceServer;
-static std::unique_ptr<flexisip::RegistrationEvent::Server> regEventServer;
-#endif // ENABLE_CONFERENCE
-#if ENABLE_B2BUA
-static std::shared_ptr<flexisip::B2buaServer> b2buaServer;
-#endif // ENABLE_B2BUA
 
 using namespace std;
 using namespace flexisip;
@@ -641,6 +632,7 @@ int main(int argc, char* argv[]) {
 #endif
 	bool debug;
 	bool user_errors = false;
+	int errcode = EXIT_SUCCESS;
 
 	string versionString = version();
 	// clang-format off
@@ -1015,11 +1007,15 @@ int main(int argc, char* argv[]) {
 		if (trackAllocs) msg_set_callbacks(flexisip_msg_create, flexisip_msg_destroy);
 	}
 
+#if ENABLE_SERVICE_SERVERS
+	auto serviceServers = vector<shared_ptr<ServiceServer>>();
+#endif
+
 	if (startPresence) {
 #ifdef ENABLE_PRESENCE
 		bool enableLongTermPresence =
 		    (cfg->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read());
-		presenceServer = make_shared<flexisip::PresenceServer>(root, cfg);
+		auto presenceServer = make_shared<flexisip::PresenceServer>(root, cfg);
 		if (enableLongTermPresence) {
 			auto presenceLongTerm =
 			    make_shared<flexisip::PresenceLongterm>(presenceServer->getBelleSipMainLoop(), authDb, registrarDb);
@@ -1039,12 +1035,14 @@ int main(int argc, char* argv[]) {
 
 		presence_cli = unique_ptr<CommandLineInterface>(new CommandLineInterface("presence", cfg));
 		presence_cli->start();
+
+		serviceServers.emplace_back(std::move(presenceServer));
 #endif
 	}
 
 	if (startConference) {
 #ifdef ENABLE_CONFERENCE
-		conferenceServer = make_shared<flexisip::ConferenceServer>(a->getPreferredRoute(), root, cfg, registrarDb);
+		auto conferenceServer = make_shared<flexisip::ConferenceServer>(a->getPreferredRoute(), root, cfg, registrarDb);
 		if (daemonMode) {
 			notifyWatchDog();
 		}
@@ -1056,12 +1054,14 @@ int main(int argc, char* argv[]) {
 			 * Since it prevents from starting and it is not a crash, it shall be notified to the user with LOGF*/
 			LOGF("Fail to start flexisip conference server");
 		}
+
+		serviceServers.emplace_back(std::move(conferenceServer));
 #endif // ENABLE_CONFERENCE
 	}
 
 	if (startRegEvent) {
 #ifdef ENABLE_CONFERENCE
-		regEventServer = make_unique<flexisip::RegistrationEvent::Server>(root, cfg, registrarDb);
+		auto regEventServer = make_unique<flexisip::RegistrationEvent::Server>(root, cfg, registrarDb);
 		if (daemonMode) {
 			notifyWatchDog();
 		}
@@ -1070,12 +1070,14 @@ int main(int argc, char* argv[]) {
 		} catch (FlexisipException& e) {
 			LOGF("Fail to start flexisip registration event server");
 		}
+
+		serviceServers.emplace_back(std::move(regEventServer));
 #endif // ENABLE_CONFERENCE
 	}
 
 	if (startB2bua) {
 #if ENABLE_B2BUA
-		b2buaServer = make_shared<flexisip::B2buaServer>(root, cfg);
+		auto b2buaServer = make_shared<flexisip::B2buaServer>(root, cfg);
 		if (daemonMode) {
 			notifyWatchDog();
 		}
@@ -1084,6 +1086,8 @@ int main(int argc, char* argv[]) {
 		} catch (FlexisipException& e) {
 			LOGF("Fail to start flexisip back to back user agent server");
 		}
+
+		serviceServers.emplace_back(std::move(b2buaServer));
 #endif // ENABLE_B2BUA
 	}
 
@@ -1093,19 +1097,33 @@ int main(int argc, char* argv[]) {
 	a.reset();
 #ifdef ENABLE_PRESENCE
 	presence_cli = nullptr;
-	if (presenceServer) presenceServer->stop();
-	presenceServer.reset();
 #endif // ENABLE_PRESENCE
 
-#ifdef ENABLE_CONFERENCE
-	if (conferenceServer) conferenceServer->stop();
-	conferenceServer.reset();
-
-	if (regEventServer) regEventServer->stop();
-#endif // ENABLE_CONFERENCE
-#if ENABLE_B2BUA
-	if (b2buaServer) b2buaServer->stop();
-#endif // ENABLE_B2BUA
+#if ENABLE_SERVICE_SERVERS
+	auto cleanupTasks = std::vector<std::unique_ptr<AsyncCleanup>>();
+	cleanupTasks.reserve(serviceServers.size());
+	for (const auto& server : serviceServers) {
+		if (!server) continue;
+		auto cleanup = server->stop();
+		if (!cleanup) continue;
+		cleanupTasks.emplace_back(std::move(cleanup));
+	}
+	serviceServers.clear();
+	constexpr auto timeout = 5s;
+	const auto deadline = std::chrono::system_clock::now() + timeout;
+	while (true) {
+		auto allDone = true;
+		for (auto& task : cleanupTasks) {
+			allDone &= task->finished();
+		}
+		if (allDone) break;
+		if (deadline < std::chrono::system_clock::now()) {
+			SLOGE << "Async cleanup timed out after " << timeout.count() << "s. Force quitting the server.";
+			errcode = EXIT_FAILURE;
+			break;
+		}
+	}
+#endif
 
 	if (stun) {
 		stun->stop();
@@ -1118,5 +1136,6 @@ int main(int argc, char* argv[]) {
 	cfg->sendTrap("Flexisip " + fName + "-server exiting normally");
 
 	bctbx_uninit_logger();
-	return 0;
+
+	return errcode;
 }

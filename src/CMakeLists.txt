@@ -115,7 +115,7 @@ add_library(flexisip SHARED
 	registrar/registrar-db.cc
 	registrardb-internal.cc registrardb-internal.hh
 	sdp-modifier.cc sdp-modifier.hh
-	service-server.cc service-server.hh
+	service-server/service-server.cc service-server/service-server.hh
 	signal-handling/signal-handling.cc
 	stun.cc stun.hh
 	stun/stun_udp.c
