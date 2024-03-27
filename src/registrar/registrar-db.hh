@@ -177,7 +177,7 @@ public:
 		mLocalRegExpire.getRegisteredAors(aors);
 	}
 
-	const std::multimap<const std::string, const std::weak_ptr<const ContactRegisteredListener>>&
+	const std::multimap<std::string, std::weak_ptr<const ContactRegisteredListener>>&
 	getOnContactRegisteredListeners() const {
 		return castToConst(mContactListenersMap);
 	}

@@ -90,7 +90,7 @@ public:
 		return mServer;
 	}
 
-	const std::array<const std::shared_ptr<const RelaySession>, sMaxSessions>& getSessions() const;
+	const std::array<std::shared_ptr<const RelaySession>, sMaxSessions>& getSessions() const;
 
 private:
 	void setupSpecificRelayTransport(RelayTransport* rt, const char* destHost);

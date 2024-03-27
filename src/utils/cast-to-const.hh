@@ -1,4 +1,4 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
+/** Copyright (C) 2010-2024 Belledonne Communications SARL
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
@@ -16,52 +16,60 @@
 
 #pragma once
 
+#include <array>
 #include <map>
 #include <memory>
 #include <type_traits>
+#include <unordered_map>
 
 namespace flexisip {
 
 template <typename, typename = void>
-constexpr bool is_dereferencable{};
+constexpr bool is_interior_const = true;
 
 template <typename T>
-constexpr bool is_dereferencable<T, std::void_t<decltype(*std::declval<T>())>> = true;
-
-template <typename, typename = void>
-constexpr bool is_iterable{};
-
-template <typename T>
-constexpr bool is_iterable<T, std::void_t<decltype(std::declval<T>().begin()), decltype(std::declval<T>().end())>> =
-    true;
-
-template <typename T, typename = std::enable_if<!is_dereferencable<T> && !is_iterable<T>>>
-const T& castToConst(const T& t) {
-	return t;
-}
+constexpr bool
+    is_interior_const<T, std::void_t<decltype(*std::declval<T>() = std::declval<decltype(*std::declval<T>())>())>> =
+        false;
 
 template <typename T>
-using DeepConstType = std::remove_reference_t<decltype(castToConst(std::declval<T>()))>;
+struct add_interior_const {
+	static_assert(is_interior_const<T>);
+	using type = T;
+};
 
 template <typename T>
-const std::shared_ptr<DeepConstType<T>>& castToConst(const std::shared_ptr<T>& ptr) {
-	return reinterpret_cast<decltype(castToConst(ptr))>(ptr);
-}
+using add_interior_const_t = typename add_interior_const<T>::type;
+
+template <template <typename...> class Tmpl, typename... Args>
+struct add_interior_const<Tmpl<Args...>> {
+	static_assert(is_interior_const<Tmpl<Args...>>);
+	using type = Tmpl<add_interior_const_t<Args>...>;
+};
 
 template <typename T>
-const std::weak_ptr<DeepConstType<T>>& castToConst(const std::weak_ptr<T>& ptr) {
-	return reinterpret_cast<decltype(castToConst(ptr))>(ptr);
-}
+struct add_interior_const<std::unique_ptr<T>> {
+	using type = std::unique_ptr<std::add_const_t<add_interior_const_t<T>>>;
+};
 
+template <typename T>
+struct add_interior_const<std::weak_ptr<T>> {
+	using type = std::weak_ptr<std::add_const_t<add_interior_const_t<T>>>;
+};
 
-template <typename T, std::size_t Size>
-const std::array<DeepConstType<T>, Size>& castToConst(const std::array<T, Size>& array) {
-	return reinterpret_cast<decltype(castToConst(array))>(array);
-}
+template <typename T>
+struct add_interior_const<std::shared_ptr<T>> {
+	using type = std::shared_ptr<std::add_const_t<add_interior_const_t<T>>>;
+};
 
-template <typename TKey, typename TValue>
-const std::multimap<DeepConstType<TKey>, DeepConstType<TValue>>& castToConst(const std::multimap<TKey, TValue>& array) {
-	return reinterpret_cast<decltype(castToConst(array))>(array);
+template <typename T, std::size_t S>
+struct add_interior_const<std::array<T, S>> {
+	using type = std::array<add_interior_const_t<T>, S>;
+};
+
+template <typename T>
+const add_interior_const_t<T>& castToConst(const T& t) {
+	return reinterpret_cast<const add_interior_const_t<T>&>(t);
 }
 
 } // namespace flexisip

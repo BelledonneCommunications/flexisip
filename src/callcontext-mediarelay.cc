@@ -373,7 +373,7 @@ void RelayedCall::configureRelayChannel(shared_ptr<RelayChannel> ms, sip_t* sip,
 #endif
 }
 
-const std::array<const std::shared_ptr<const RelaySession>, RelayedCall::sMaxSessions>&
+const std::array<std::shared_ptr<const RelaySession>, RelayedCall::sMaxSessions>&
 RelayedCall::getSessions() const {
 	return castToConst(mSessions);
 }
