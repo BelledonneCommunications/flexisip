@@ -138,7 +138,7 @@ Record::Key::Key(const url_t* url, bool useGlobalDomain) : mWrapped() {
 	mWrapped = ostr.str();
 }
 
-Record::Key::operator SipUri() const {
+SipUri Record::Key::toSipUri() const {
 	return SipUri("sip:" + mWrapped);
 }
 

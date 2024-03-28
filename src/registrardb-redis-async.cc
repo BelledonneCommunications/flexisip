@@ -167,7 +167,7 @@ void RegistrarDbRedisAsync::subscribeToKeyExpiration() {
 }
 
 void RegistrarDbRedisAsync::subscribe(const Record::Key& key) {
-	subscribe(std::string_view(key));
+	subscribe(std::string_view(key.asString()));
 }
 
 void RegistrarDbRedisAsync::subscribe(std::string_view const topic) {
@@ -183,7 +183,7 @@ void RegistrarDbRedisAsync::subscribe(std::string_view const topic) {
 }
 
 void RegistrarDbRedisAsync::unsubscribe(const Record::Key& key) {
-	const string& topic = key;
+	const auto& topic = key.asString();
 	// No listeners left, unsubscribing
 	auto* ready = mRedisClient.tryGetSubSession();
 	if (!ready) return;
@@ -196,7 +196,7 @@ void RegistrarDbRedisAsync::unsubscribe(const Record::Key& key) {
 }
 
 void RegistrarDbRedisAsync::publish(const Record::Key& key, const string& uid) {
-	const string& topic = key;
+	const auto& topic = key.asString();
 	SLOGD << "Publish topic = " << topic << ", uid = " << uid;
 
 	auto* ready = mRedisClient.tryGetCmdSession();
@@ -218,7 +218,7 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RedisRegisterContext& contex
 
 	int setCount = 0;
 	int delCount = 0;
-	string key = "fs:" + string(context.mRecord->getKey());
+	string key = "fs:" + context.mRecord->getKey().asString();
 
 	/* Start a REDIS transaction */
 	cmdSession->command({"MULTI"}, {});
@@ -421,7 +421,7 @@ void RegistrarDbRedisAsync::doClear(const MsgSip& msg, const shared_ptr<ContactU
 		auto context =
 		    std::make_unique<RedisRegisterContext>(this, SipUri(sip->sip_from->a_url), listener, mRecordConfig);
 
-		const string& key = context->mRecord->getKey();
+		const auto& key = context->mRecord->getKey().asString();
 		SLOGD << "Clearing fs:" << key << " [" << context->token << "]";
 		mLocalRegExpire.remove(key);
 		cmdSession->timedCommand({"DEL", "fs:" + key}, [context = std::move(context), this](Session&, Reply reply) {

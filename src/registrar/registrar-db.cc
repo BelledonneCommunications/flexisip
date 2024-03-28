@@ -111,7 +111,7 @@ void RegistrarDb::notifyStateListener(bool bWritable) const {
 }
 
 bool RegistrarDb::subscribe(const Record::Key& key, std::weak_ptr<ContactRegisteredListener>&& listener) {
-	const string& topic = key;
+	const auto& topic = key.asString();
 	const auto& alreadyRegisteredListener = mContactListenersMap.equal_range(topic);
 
 	const auto strongPtr = listener.lock();
@@ -131,7 +131,7 @@ bool RegistrarDb::subscribe(const Record::Key& key, std::weak_ptr<ContactRegiste
 }
 
 void RegistrarDb::unsubscribe(const Record::Key& key, const shared_ptr<ContactRegisteredListener>& listener) {
-	const string& topic = key;
+	const auto& topic = key.asString();
 	LOGD("Unsubscribe topic = %s with listener %p", topic.c_str(), listener.get());
 	bool found = false;
 	auto range = mContactListenersMap.equal_range(topic);
@@ -178,14 +178,14 @@ private:
 };
 
 void RegistrarDb::notifyContactListener(const Record::Key& key, const string& uid) {
-	SipUri sipUri{key};
+	const auto& sipUri = key.toSipUri();
 	auto listener = make_shared<ContactNotificationListener>(uid, this, sipUri);
 	SLOGD << "Notify topic = " << key << ", uid = " << uid;
 	fetch(sipUri, listener, true);
 }
 
 void RegistrarDb::notifyContactListener(const shared_ptr<Record>& r, const string& uid) {
-	auto range = mContactListenersMap.equal_range(r->getKey());
+	auto range = mContactListenersMap.equal_range(r->getKey().asString());
 
 	/* Because invoking the listener might indirectly unregister listeners from the RegistrarDb, it is required
 	 * to first create a local copy of the list of listeners we are going to invoke. */
@@ -209,17 +209,17 @@ void LocalRegExpire::update(const shared_ptr<Record>& record) {
 	unique_lock<mutex> lock(mMutex);
 	time_t latest = record->latestExpire(mLatestExpirePredicate);
 	if (latest > 0) {
-		auto it = mRegMap.find(record->getKey());
+		auto it = mRegMap.find(record->getKey().asString());
 		if (it != mRegMap.end()) {
 			(*it).second = latest;
 		} else {
 			if (!record->isEmpty() && !record->haveOnlyStaticContacts()) {
-				mRegMap.insert(make_pair(record->getKey(), latest));
+				mRegMap.insert(make_pair(record->getKey().asString(), latest));
 				notifyLocalRegExpireListener(mRegMap.size());
 			}
 		}
 	} else {
-		mRegMap.erase(record->getKey());
+		mRegMap.erase(record->getKey().asString());
 		notifyLocalRegExpireListener(mRegMap.size());
 	}
 }

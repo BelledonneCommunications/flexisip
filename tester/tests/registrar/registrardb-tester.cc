@@ -660,7 +660,7 @@ class FetchAndClearInstance : public RegistrarDbTest<DbImplementation::Redis> {
 		regDb.clear(instanceUri, "stub-callid", listener);
 		BC_ASSERT_TRUE(this->waitFor([&record = listener->mRecord]() { return record != nullptr; }, 1s));
 
-		BC_ASSERT_CPP_EQUAL(static_cast<const string&>(listener->mRecord->getKey()), contactBase);
+		BC_ASSERT_CPP_EQUAL(listener->mRecord->getKey().asString(), contactBase);
 		BC_ASSERT_CPP_EQUAL(listener->mRecord->getExtendedContacts().size(), 0);
 	}
 };

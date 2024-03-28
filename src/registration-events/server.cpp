@@ -65,7 +65,7 @@ void Server::Subscriptions::onSubscribeReceived(const shared_ptr<Core>& core,
 		return;
 	}
 
-	const auto result = mEvents.emplace(Record::Key(url, mRegistrarDb->useGlobalDomain()), lev);
+	const auto result = mEvents.emplace(Record::Key(url, mRegistrarDb->useGlobalDomain()).toString(), lev);
 	if (!result.second) {
 		SLOGE << "Regevent server: There is already a subscription for: " << result.first->first;
 		lev->denySubscription(Reason::Busy);
@@ -95,7 +95,7 @@ void Server::Subscriptions::onSubscriptionStateChanged(const std::shared_ptr<lin
 				return;
 			}
 
-			mEvents.erase(Record::Key(url, mRegistrarDb->useGlobalDomain()));
+			mEvents.erase(Record::Key(url, mRegistrarDb->useGlobalDomain()).toString());
 		} break;
 		default:
 			break;
@@ -116,7 +116,7 @@ void Server::Subscriptions::processRecord(const shared_ptr<Record>& r, const std
 		return;
 	}
 
-	const string& aor = r->getKey();
+	const auto& aor = r->getKey().asString();
 	const auto maybeEvent = mEvents.find(aor);
 	if (maybeEvent == mEvents.end()) {
 		SLOGW << "RegistrationEvent::Server - Ignoring registration of a contact no one is subscribed to. "

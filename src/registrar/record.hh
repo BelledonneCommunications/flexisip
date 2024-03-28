@@ -73,17 +73,13 @@ public:
 		std::string toRedisKey() const {
 			return "fs:" + mWrapped;
 		}
-
-		operator std::string_view() const {
-			return mWrapped;
-		}
-		operator const std::string&() const {
-			return mWrapped;
-		}
-		operator std::string() && {
+		SipUri toSipUri() const;
+		std::string toString() && {
 			return std::move(mWrapped);
 		}
-		operator SipUri() const;
+		const std::string& asString() const {
+			return mWrapped;
+		}
 
 		bool operator==(const Key& other) const {
 			return mWrapped == other.mWrapped;

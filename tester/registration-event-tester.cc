@@ -187,12 +187,12 @@ void basicSubscription() {
 
 	// Remove participant from chatroom, check that corresponding topic is unsubbed on the "remote" Register
 	const auto& onRegisterListeners = regDb.getOnContactRegisteredListeners();
-	BC_ASSERT_TRUE(onRegisterListeners.find(participantTopic) != onRegisterListeners.end());
+	BC_ASSERT_TRUE(onRegisterListeners.find(participantTopic.asString()) != onRegisterListeners.end());
 	chatRoom->removeParticipant(chatRoom->findParticipant(participantAddress));
 	BC_ASSERT_TRUE(asserter.iterateUpTo(3, [&regDb, &participantTopic, &onRegisterListeners] {
 		// Trigger regDb listeners cleanup
 		regDb.publish(participantTopic, "");
-		return onRegisterListeners.find(participantTopic) == onRegisterListeners.end();
+		return onRegisterListeners.find(participantTopic.asString()) == onRegisterListeners.end();
 	}));
 
 	// Reroute everything locally on the Conference Server

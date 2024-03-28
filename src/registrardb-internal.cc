@@ -50,7 +50,7 @@ void RegistrarDbInternal::doBind(const MsgSip& msg,
 		THROW_LINE(InvalidAorError, sip->sip_from->a_url);
 	}
 
-	string key = Record::Key(fromUri, mRecordConfig.useGlobalDomain());
+	const auto& key = Record::Key(fromUri, mRecordConfig.useGlobalDomain()).toString();
 
 	auto it = mRecords.find(key);
 	shared_ptr<Record> r{};
@@ -76,7 +76,7 @@ void RegistrarDbInternal::doBind(const MsgSip& msg,
 }
 
 void RegistrarDbInternal::doFetch(const SipUri& url, const shared_ptr<ContactUpdateListener>& listener) {
-	auto it = mRecords.find(Record::Key(url, mRecordConfig.useGlobalDomain()));
+	auto it = mRecords.find(Record::Key(url, mRecordConfig.useGlobalDomain()).toString());
 	shared_ptr<Record> r{};
 	if (it != mRecords.end()) {
 		r = (*it).second;
@@ -95,7 +95,7 @@ void RegistrarDbInternal::doFetchInstance(const SipUri& url,
                                           const shared_ptr<ContactUpdateListener>& listener) {
 	sofiasip::Home home;
 
-	auto it = mRecords.find(Record::Key(url, mRecordConfig.useGlobalDomain()));
+	auto it = mRecords.find(Record::Key(url, mRecordConfig.useGlobalDomain()).toString());
 	shared_ptr<Record> r{};
 
 	if (it == mRecords.end()) {
@@ -145,7 +145,7 @@ void RegistrarDbInternal::fetchExpiringContacts(time_t current_time,
 
 void RegistrarDbInternal::doClear(const MsgSip& msg, const shared_ptr<ContactUpdateListener>& listener) {
 	auto* sip = msg.getSip();
-	string key = Record::Key(sip->sip_from->a_url, mRecordConfig.useGlobalDomain());
+	const auto& key = Record::Key(sip->sip_from->a_url, mRecordConfig.useGlobalDomain()).toString();
 
 	if (errorOnTooMuchContactInBind(sip->sip_contact, key)) {
 		listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));

@@ -413,7 +413,7 @@ void ModuleRouter::onContactRegistered(const std::shared_ptr<OnContactRegistered
 	if (!mCallForkCfg->mForkLate && !mMessageForkCfg->mForkLate) return;
 
 	// Find all contexts
-	auto range = getLateForks(record->getKey());
+	auto range = getLateForks(record->getKey().asString());
 	SLOGD << "Searching for fork context with key " << record->getKey();
 
 	if (range.size() > 0) {
@@ -631,8 +631,8 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 		context = ForkBasicContext::make(shared_from_this(), ev, msgPriority);
 	}
 	auto key = routingKey<Record::Key>(sipUri);
-	context->addKey(key);
-	mForks.emplace(key, context);
+	context->addKey(key.asString());
+	mForks.emplace(key.asString(), context);
 	SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
 	if (context->getConfig()->mForkLate) {
 		mAgent->getRegistrarDb().subscribe(key, std::weak_ptr(mOnContactRegisteredListener));
@@ -665,8 +665,8 @@ void ModuleRouter::routeRequest(shared_ptr<RequestSipEvent>& ev, const shared_pt
 					temp_ctt->m_url->url_port = NULL;
 				}
 				auto aliasKey = routingKey<Record::Key>(temp_ctt->m_url);
-				context->addKey(aliasKey);
-				mForks.emplace(aliasKey, context);
+				context->addKey(aliasKey.asString());
+				mForks.emplace(aliasKey.asString(), context);
 				SLOGD << "Add fork " << context.get() << " to store with key '" << aliasKey
 				      << "' because it is an alias";
 				if (context->getConfig()->mForkLate) {
