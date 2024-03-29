@@ -77,7 +77,7 @@ static void nullMaxFrowardAndForkBasicContext() {
 	auto participantContact = sip_contact_create(home.home(), (url_string_t*)user.str().c_str(), nullptr);
 	auto registrarDb = make_shared<RegistrarDb>(root, cfg);
 	registrarDb->bind(user, participantContact, parameter, make_shared<BindListener>());
-	auto agent = make_shared<Agent>(root, cfg, make_shared<AuthDbBackendOwner>(cfg), registrarDb);
+	auto agent = make_shared<Agent>(root, cfg, make_shared<AuthDb>(cfg), registrarDb);
 
 	// Starting Flexisip
 	agent->start("", "");
@@ -142,7 +142,7 @@ static void notRtpPortAndForkCallContext() {
 	auto participantContact = sip_contact_create(home.home(), (url_string_t*)user.str().c_str(), nullptr);
 	auto registrarDb = make_shared<RegistrarDb>(root, cfg);
 	registrarDb->bind(user, participantContact, parameter, make_shared<BindListener>());
-	auto agent = make_shared<Agent>(root, cfg, make_shared<AuthDbBackendOwner>(cfg), registrarDb);
+	auto agent = make_shared<Agent>(root, cfg, make_shared<AuthDb>(cfg), registrarDb);
 
 	// Starting Flexisip
 	agent->start("", "");

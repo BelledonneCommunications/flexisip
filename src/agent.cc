@@ -604,9 +604,9 @@ void Agent::addPluginsConfigSections(ConfigManager& cfg) {
 
 Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
              const std::shared_ptr<ConfigManager>& cm,
-             const std::shared_ptr<AuthDbBackendOwner>& authDbOwner,
+             const std::shared_ptr<AuthDb>& authDb,
              const std::shared_ptr<RegistrarDb>& registrarDb)
-    : mRoot{root}, mConfigManager{cm}, mAuthDbOwner{authDbOwner}, mRegistrarDb{registrarDb} {
+    : mRoot{root}, mConfigManager{cm}, mAuthDb{authDb}, mRegistrarDb{registrarDb} {
 	LOGT("New Agent[%p]", this);
 	mHttpEngine = nth_engine_create(root->getCPtr(), NTHTAG_ERROR_MSG(0), TAG_END());
 	GenericStruct* cr = cm->getRoot();

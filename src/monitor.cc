@@ -110,8 +110,8 @@ string Monitor::findLocalAddress(const list<string>& nodes) {
 	return "";
 }
 
-void Monitor::createAccounts(std::shared_ptr<AuthDbBackendOwner> authDbOwner, GenericStruct& rootConfig) {
-	auto& authDb = authDbOwner->get();
+void Monitor::createAccounts(std::shared_ptr<AuthDb> authDb, GenericStruct& rootConfig) {
+	auto& authDbBackend = authDb->db();
 	GenericStruct* cluster = rootConfig.get<GenericStruct>("cluster");
 	GenericStruct* monitorConf = rootConfig.get<GenericStruct>("monitor");
 	string salt = monitorConf->get<ConfigString>("password-salt")->read();
@@ -126,10 +126,10 @@ void Monitor::createAccounts(std::shared_ptr<AuthDbBackendOwner> authDbOwner, Ge
 
 	string password = generatePassword(localIP, salt);
 	string username = generateUsername(CALLER_PREFIX, localIP);
-	authDb.createAccount(username, domain, username, password, PASSWORD_CACHE_EXPIRE);
+	authDbBackend.createAccount(username, domain, username, password, PASSWORD_CACHE_EXPIRE);
 
 	username = generateUsername(CALLEE_PREFIX, localIP);
-	authDb.createAccount(username, domain, username, password, PASSWORD_CACHE_EXPIRE);
+	authDbBackend.createAccount(username, domain, username, password, PASSWORD_CACHE_EXPIRE);
 }
 
 bool Monitor::isLocalhost(const string& host) {

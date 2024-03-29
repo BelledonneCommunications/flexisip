@@ -111,7 +111,7 @@ public:
 private:
 	const std::optional<InjectedModuleInfo> mInjectedModule{std::nullopt};
 	std::shared_ptr<ConfigManager> mConfigManager{std::make_shared<ConfigManager>()};
-	std::shared_ptr<AuthDbBackendOwner> mAuthDbOwner;
+	std::shared_ptr<AuthDb> mAuthDb;
 	std::shared_ptr<RegistrarDb> mRegistrarDb;
 	std::shared_ptr<flexisip::Agent> mAgent;
 }; // Class Server

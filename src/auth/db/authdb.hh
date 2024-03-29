@@ -148,12 +148,12 @@ private:
  * Class that owns the authentication database backend.
  * The backend is created during the first "get" call.
  **/
-class AuthDbBackendOwner {
+class AuthDb {
 public:
-	AuthDbBackendOwner(const std::shared_ptr<ConfigManager>& cfg) : mConfigManager{cfg} {
+	AuthDb(const std::shared_ptr<ConfigManager>& cfg) : mConfigManager{cfg} {
 	}
 	// Accessor to the database backend
-	AuthDbBackend& get() {
+	AuthDbBackend& db() {
 		if (!mBackend) createAuthDbBackend();
 		return *mBackend;
 	}

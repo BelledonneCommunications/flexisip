@@ -210,7 +210,7 @@ GatewayRegister::GatewayRegister(Agent* ag,
                                  sip_to_t* sip_to,
                                  sip_contact_t* sip_contact,
                                  const sip_expires_t* global_expire)
-    : mAuthDb(ag->getAuthDbOwner().get()), mRegistrarDb(ag->getRegistrarDb()) {
+    : mAuthDb(ag->getAuthDb().db()), mRegistrarDb(ag->getRegistrarDb()) {
 	su_home_init(&home);
 
 	url_t* domain = NULL;

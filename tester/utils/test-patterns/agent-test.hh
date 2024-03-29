@@ -61,7 +61,7 @@ class AgentTest : public Test {
 public:
 	AgentTest(bool runAgent = true) noexcept : mRunAgent{runAgent} {
 		mConfigManager->load("");
-		mAuthDbOwner = std::make_shared<AuthDbBackendOwner>(mConfigManager);
+		mAuthDb = std::make_shared<AuthDb>(mConfigManager);
 	}
 
 	virtual ~AgentTest() = default;
@@ -69,7 +69,7 @@ public:
 	void operator()() final {
 		configureAgent();
 		mRegistrarDb = std::make_shared<RegistrarDb>(mRoot, mConfigManager);
-		mAgent = std::make_shared<Agent>(mRoot, mConfigManager, mAuthDbOwner, mRegistrarDb);
+		mAgent = std::make_shared<Agent>(mRoot, mConfigManager, mAuthDb, mRegistrarDb);
 		onAgentConfigured();
 		if (mRunAgent) {
 			mAgent->start("", "");
@@ -133,7 +133,7 @@ protected:
 	// Protected attributes
 	std::shared_ptr<sofiasip::SuRoot> mRoot{std::make_shared<sofiasip::SuRoot>()};
 	std::shared_ptr<ConfigManager> mConfigManager{std::make_shared<ConfigManager>()};
-	std::shared_ptr<AuthDbBackendOwner> mAuthDbOwner;
+	std::shared_ptr<AuthDb> mAuthDb;
 	std::shared_ptr<RegistrarDb> mRegistrarDb;
 	std::shared_ptr<Agent> mAgent;
 	bool mRunAgent;

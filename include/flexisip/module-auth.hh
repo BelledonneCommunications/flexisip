@@ -25,7 +25,7 @@
 namespace flexisip {
 
 class Agent;
-class AuthDbBackendOwner;
+class AuthDb;
 
 class Authentication : public ModuleAuthenticationBase {
 	friend std::shared_ptr<Module> ModuleInfo<Authentication>::create(Agent*);
@@ -64,7 +64,7 @@ private:
 	bool mRequiredSubjectCheckSet = false;
 	bool mRejectWrongClientCertificates = false;
 	bool mTrustDomainCertificates = false;
-	AuthDbBackendOwner& mAuthDbOwner;
+	AuthDb& mAuthDb;
 };
 
 } // namespace flexisip

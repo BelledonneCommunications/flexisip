@@ -60,7 +60,7 @@ public:
 	static void declareConfig([[maybe_unused]] GenericStruct* mc){};
 };
 
-void AuthDbBackendOwner::createAuthDbBackend() {
+void AuthDb::createAuthDbBackend() {
 	const auto& rootConfig = *mConfigManager->getRoot();
 	GenericStruct* ma = rootConfig.get<GenericStruct>("module::Authentication");
 	const string& impl = ma->get<ConfigString>("db-implementation")->read();

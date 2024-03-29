@@ -28,7 +28,7 @@ namespace flexisip {
 class Monitor {
 public:
 	static void exec(ConfigManager& cfg, int socket);
-	static void createAccounts(std::shared_ptr<AuthDbBackendOwner> authDbOwner, GenericStruct& rootConfig);
+	static void createAccounts(std::shared_ptr<AuthDb> authDb, GenericStruct& rootConfig);
 
 private:
 	static std::string findLocalAddress(const std::list<std::string>& nodes);

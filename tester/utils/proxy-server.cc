@@ -79,10 +79,10 @@ Server::Server(const std::string& configFile, InjectedHooks* injectedHooks)
 		authFilePath->set(configFolderPath + authFilePath->read());
 	}
 
-	mAuthDbOwner = std::make_shared<AuthDbBackendOwner>(mConfigManager);
+	mAuthDb = std::make_shared<AuthDb>(mConfigManager);
 	auto root = std::make_shared<sofiasip::SuRoot>();
 	mRegistrarDb = std::make_shared<RegistrarDb>(root, mConfigManager);
-	mAgent = std::make_shared<Agent>(root, mConfigManager, mAuthDbOwner, mRegistrarDb);
+	mAgent = std::make_shared<Agent>(root, mConfigManager, mAuthDb, mRegistrarDb);
 }
 
 Server::Server(const std::map<std::string, std::string>& customConfig, InjectedHooks* injectedHooks)
@@ -115,9 +115,9 @@ Server::Server(const std::map<std::string, std::string>& customConfig,
 		mConfigManager->getRoot()->get<GenericStruct>(sectionName)->get<ConfigValue>(parameterName)->set(value);
 	}
 
-	mAuthDbOwner = std::make_shared<AuthDbBackendOwner>(mConfigManager);
+	mAuthDb = std::make_shared<AuthDb>(mConfigManager);
 	mRegistrarDb = std::make_shared<RegistrarDb>(root, mConfigManager);
-	mAgent = std::make_shared<Agent>(root, mConfigManager, mAuthDbOwner, mRegistrarDb);
+	mAgent = std::make_shared<Agent>(root, mConfigManager, mAuthDb, mRegistrarDb);
 }
 
 Server::~Server() {

@@ -34,7 +34,7 @@ using namespace flexisip;
 // ====================================================================================================================
 
 Authentication::Authentication(Agent* ag, const ModuleInfoBase* moduleInfo)
-    : ModuleAuthenticationBase(ag, moduleInfo), mAuthDbOwner(ag->getAuthDbOwner()) {
+    : ModuleAuthenticationBase(ag, moduleInfo), mAuthDb(ag->getAuthDb()) {
 	mCountAsyncRetrieve = mModuleConfig->getStat("count-async-retrieve");
 	mCountSyncRetrieve = mModuleConfig->getStat("count-sync-retrieve");
 	mCountPassFound = mModuleConfig->getStat("count-password-found");
@@ -272,7 +272,7 @@ bool Authentication::doOnConfigStateChanged(const ConfigValue& conf, ConfigState
 
 FlexisipAuthModuleBase* Authentication::createAuthModule(const std::string& domain, int nonceExpire, bool qopAuth) {
 	FlexisipAuthModule* authModule =
-	    new FlexisipAuthModule(mAuthDbOwner.get(), getAgent()->getRoot()->getCPtr(), domain, nonceExpire, qopAuth);
+	    new FlexisipAuthModule(mAuthDb.db(), getAgent()->getRoot()->getCPtr(), domain, nonceExpire, qopAuth);
 	authModule->setOnPasswordFetchResultCb(
 	    [this](bool passFound) { passFound ? mCountPassFound++ : mCountPassNotFound++; });
 	SLOGI << "Found auth domain: " << domain;

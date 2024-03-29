@@ -125,7 +125,7 @@ private:
 public:
 	Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 	      const std::shared_ptr<ConfigManager>& cm,
-	      const std::shared_ptr<AuthDbBackendOwner>& authDbOwner,
+	      const std::shared_ptr<AuthDb>& authDb,
 	      const std::shared_ptr<RegistrarDb>& registrarDb);
 
 	void start(const std::string& transport_override, const std::string& passphrase);
@@ -156,8 +156,8 @@ public:
 	std::shared_ptr<IncomingAgent> getIncomingAgent() override {
 		return shared_from_this();
 	}
-	AuthDbBackendOwner& getAuthDbOwner() {
-		return *mAuthDbOwner;
+	AuthDb& getAuthDb() {
+		return *mAuthDb;
 	}
 	RegistrarDb& getRegistrarDb() {
 		return *mRegistrarDb;
@@ -294,7 +294,7 @@ private:
 	// references to it from within them
 	std::shared_ptr<sofiasip::SuRoot> mRoot = nullptr;
 	const std::shared_ptr<ConfigManager> mConfigManager;
-	const std::shared_ptr<AuthDbBackendOwner> mAuthDbOwner;
+	const std::shared_ptr<AuthDb> mAuthDb;
 	const std::shared_ptr<RegistrarDb> mRegistrarDb;
 	std::list<std::shared_ptr<Module>> mModules;
 	std::shared_ptr<NatTraversalStrategy> mNatTraversalStrategy;

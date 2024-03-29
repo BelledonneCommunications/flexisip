@@ -131,8 +131,9 @@ void PresenceLongterm::onListenerEvent(const shared_ptr<PresentityPresenceInform
 		const belle_sip_uri_t* uri = info->getEntity();
 		SLOGD << "No presence info element known yet for " << belle_sip_uri_get_user(uri)
 		      << ", checking if this user is already registered";
-		mAuthDb.getUserWithPhone(belle_sip_uri_get_user(info->getEntity()), belle_sip_uri_get_host(info->getEntity()),
-		                         new PresenceAuthListener(mMainLoop, info, mRegistrarDb));
+		mAuthDb->db().getUserWithPhone(belle_sip_uri_get_user(info->getEntity()),
+		                               belle_sip_uri_get_host(info->getEntity()),
+		                               new PresenceAuthListener(mMainLoop, info, mRegistrarDb));
 	}
 }
 void PresenceLongterm::onListenerEvents(list<shared_ptr<PresentityPresenceInformation>>& infos) const {
@@ -147,5 +148,5 @@ void PresenceLongterm::onListenerEvents(list<shared_ptr<PresentityPresenceInform
 		dInfo.insert(
 		    pair<string, shared_ptr<PresentityPresenceInformation>>(belle_sip_uri_get_user(info->getEntity()), info));
 	}
-	mAuthDb.getUsersWithPhone(creds);
+	mAuthDb->db().getUsersWithPhone(creds);
 }
