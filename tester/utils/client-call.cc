@@ -48,6 +48,9 @@ linphone::MediaDirection ClientCall::getAudioDirection() const {
 std::shared_ptr<const linphone::Address> ClientCall::getRemoteAddress() const {
 	return mCall->getRemoteAddress();
 }
+std::shared_ptr<linphone::CallStats> ClientCall::getStats(linphone::StreamType type) const {
+	return mCall->getStats(type);
+}
 
 const bool& ClientCall::videoFrameDecoded() {
 	if (mListener) {
