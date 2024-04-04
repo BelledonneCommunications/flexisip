@@ -11,6 +11,7 @@
 #include <linphone++/call_listener.hh>
 #include <linphone++/call_stats.hh>
 #include <linphone++/enums.hh>
+#include <linphone++/payload_type.hh>
 #include <ortp/rtp.h>
 #include <ortp/rtpsession.h>
 
@@ -31,6 +32,7 @@ public:
 	linphone::Call::State getState() const;
 	linphone::Reason getReason() const;
 	linphone::MediaDirection getAudioDirection() const;
+	std::shared_ptr<const linphone::PayloadType> getAudioPayloadType() const;
 	std::shared_ptr<const linphone::Address> getRemoteAddress() const;
 	std::shared_ptr<linphone::CallStats> getStats(linphone::StreamType type) const;
 	const bool& videoFrameDecoded();

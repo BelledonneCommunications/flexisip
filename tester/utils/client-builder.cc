@@ -32,10 +32,19 @@
 namespace flexisip {
 namespace tester {
 
+struct CodecDescription {
+	std::string type;
+	int rate;
+	int channels;
+};
+
 ClientBuilder::ClientBuilder(const Agent& agent)
     : mFactory(linphone::Factory::get()), mCoreTemplate(tester::minimalCore(*mFactory)),
       mAccountParams(mCoreTemplate->createAccountParams()), mAgent(agent), mLimeX3DH(OnOff::On), mSendVideo(OnOff::Off),
-      mReceiveVideo(OnOff::Off), mSendRtcp(OnOff::On), mIce(OnOff::Off), mRegister(OnOff::On) {
+      mReceiveVideo(OnOff::Off), mSendRtcp(OnOff::On), mIce(OnOff::Off), mRegister(OnOff::On),
+      // final check on call successfully established is based on bandwidth used,
+      // so use file as input to make sure there is some traffic
+      mPlayFilePath(bcTesterRes("sounds/hello8000.wav")) {
 }
 
 CoreClient ClientBuilder::build(const std::string& baseAddress) const {
@@ -95,14 +104,45 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 	core->setAudioPort(-1);
 	core->setVideoPort(-1);
 	core->setUseFiles(true);
-	// final check on call successfully established is based on bandwidth used,
-	// so use file as input to make sure there is some traffic
+
+	core->setPlayFile(mPlayFilePath);
+	if (!mRecordFilePath.empty()) core->setRecordFile(mRecordFilePath);
+
 	{
-		auto helloPath = bcTesterRes("sounds/hello8000.wav");
-		if (bctbx_file_exist(helloPath.c_str()) != 0) {
-			BC_FAIL("Unable to find resource sound, did you forget to use --resource-dir option?");
-		} else {
-			core->setPlayFile(helloPath);
+		const CodecDescription* targetCodec = nullptr;
+		switch (mAudioCodec) {
+			case AudioCodec::Speex8000HzMono: {
+				static auto desc = CodecDescription{
+				    .type = "speex",
+				    .rate = 8000,
+				    .channels = 1,
+				};
+				targetCodec = &desc;
+			} break;
+			case AudioCodec::PCMU8000HzMono: {
+				static auto desc = CodecDescription{
+				    .type = "PCMU",
+				    .rate = 8000,
+				    .channels = 1,
+				};
+				targetCodec = &desc;
+			} break;
+
+			case AudioCodec::AllSupported:
+				break;
+		}
+		if (targetCodec) {
+			for (const auto& payloadType : core->getAudioPayloadTypes()) {
+				if (payloadType->getMimeType() == targetCodec->type &&
+				    payloadType->getClockRate() == targetCodec->rate &&
+				    payloadType->getChannels() == targetCodec->channels) {
+					payloadType->enable(true);
+				} else {
+					payloadType->enable(false);
+					SLOGD << "Disabling " << payloadType->getDescription() << " to force " << targetCodec->type << "/"
+					      << targetCodec->rate << "/" << targetCodec->channels;
+				}
+			}
 		}
 	}
 
@@ -229,6 +269,27 @@ ClientBuilder& ClientBuilder::setPassword(const std::string_view& password) {
 
 ClientBuilder& ClientBuilder::setMwiServerAddress(const std::shared_ptr<linphone::Address>& address) {
 	mAccountParams->setMwiServerAddress(address);
+	return *this;
+}
+
+ClientBuilder& ClientBuilder::setAudioInputFilePath(const std::filesystem::path& path) {
+	if (bctbx_file_exist(path.c_str()) != 0) {
+		auto msg = std::stringstream();
+		msg << "Unable to find audio input file " << path << ". Did you forget to use --resource-dir option?";
+		BC_HARD_FAIL(msg.str().c_str());
+	}
+
+	mPlayFilePath = path;
+	return *this;
+}
+
+ClientBuilder& ClientBuilder::setAudioOutputFilePath(const std::filesystem::path& path) {
+	mRecordFilePath = path;
+	return *this;
+}
+
+ClientBuilder& ClientBuilder::setAudioCodec(AudioCodec codec) {
+	mAudioCodec = codec;
 	return *this;
 }
 

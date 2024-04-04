@@ -27,6 +27,7 @@
 
 #include "b2bua-server.hh"
 #include "b2bua/async-stop-core.hh"
+#include "mediastreamer2/msconference.h"
 #include "sip-bridge/sip-bridge.hh"
 #include "trenscrypter.hh"
 #include "utils/variant-utils.hh"
@@ -439,22 +440,38 @@ void B2buaServer::_init() {
 	policy->setAutomaticallyInitiate(false);
 	mCore->setVideoActivationPolicy(policy);
 
+	const auto& forceCodec = [&config, &core = *mCore, &configLinphone](const auto& flexisipConfigName,
+	                                                                    const auto& linphoneConfigName,
+	                                                                    const auto& codecList) {
+		const auto* configField = config->get<ConfigString>(flexisipConfigName);
+		const auto& payloadDesc = configField->read();
+		if (payloadDesc.empty()) return;
+		const auto& parts = StringUtils::split(string_view(payloadDesc), "/");
+		if (parts.size() < 2) {
+			throw runtime_error(configField->getCompleteName() +
+			                    " misconfigured. Expected something like <codec>/<sample rate>, e.g. 'speex/8000'");
+		}
+		const auto codec = parts[0];
+		const auto rate = parts[1];
+
+		for (const auto& payloadType : (core.*codecList)()) {
+			if (payloadType->getMimeType() == codec && to_string(payloadType->getClockRate()) == rate) {
+				payloadType->enable(true);
+			} else { // disable all other codecs
+				payloadType->enable(false);
+				SLOGD << "Disabling " << payloadType->getDescription() << " to force " << codec << "/" << rate;
+			}
+		}
+
+		// We know for certain that the codec used in both legs will be the same (the one we just forced), so we can
+		// enable media bridging (payload forwarding without decoding)
+		configLinphone->setInt(linphoneConfigName, "conference_mode", MSConferenceModeRouterPayload);
+	};
+
+	// if an audio codec is set in config enable only that one
+	forceCodec("audio-codec", "sound", &linphone::Core::getAudioPayloadTypes);
 	// if a video codec is set in config enable only that one
-	string cVideoCodec = config->get<ConfigString>("video-codec")->read();
-	if (cVideoCodec.length() > 0) {
-		// disable all video codecs
-		for (const auto& pt : mCore->getVideoPayloadTypes()) {
-			BCTBX_SLOGI << "Disable " << pt->getMimeType() << " codec as only " << cVideoCodec << " should be used";
-			pt->enable(false);
-		}
-		// enable the given one
-		auto enabledCodec = mCore->getPayloadType(cVideoCodec, -1, -1);
-		if (enabledCodec) {
-			enabledCodec->enable(true);
-		} else {
-			BCTBX_SLOGW << "B2bua core failed to enable " << cVideoCodec << " video codec";
-		}
-	}
+	forceCodec("video-codec", "video", &linphone::Core::getVideoPayloadTypes);
 
 	const int audioPortMin = config->get<ConfigIntRange>("audio-port")->readMin();
 	const int audioPortMax = config->get<ConfigIntRange>("audio-port")->readMax();
@@ -549,44 +566,83 @@ namespace {
 // Statically define default configuration items
 auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
 	ConfigItemDescriptor items[] = {
-	    {String, "application",
-	     "The type of application that will handle calls bridged through the B2BUA. Possible values:\n"
-	     "- `trenscrypter` Bridge different encryption types on both ends transparently.\n"
-	     "- `sip-bridge` Bridge calls through an external SIP provider. (e.g. for PSTN gateways)",
-	     "trenscrypter"},
-	    {String, "transport", "SIP uri on which the back-to-back user agent server is listening on.",
-	     "sip:127.0.0.1:6067;transport=tcp"},
-	    {IntegerRange, "audio-port",
-	     "Audio port to use for RTP and RTCP traffic. You can set a specific port or a range of ports.\n"
-	     "Examples: 'audio-port=12345' or 'audio-port=1024-65535'",
-	     "1024-65535"},
-	    {IntegerRange, "video-port",
-	     "Video port to use for RTP and RTCP traffic. You can set a specific port or a range of ports.\n"
-	     "Examples: 'video-port=12345' or 'video-port=1024-65535'",
-	     "1024-65535"},
-	    {String, "user-agent",
-	     "Value of User-Agent header. Use the following syntax: <name>[/<version>] where <version> can bet set to "
-	     "'{version}' that is a placeholder for the Flexisip version.",
-	     "Flexisip-B2BUA/{version}"},
-	    {String, "data-directory",
-	     "Directory where to store b2bua core local files\n"
-	     "Default",
-	     DEFAULT_B2BUA_DATA_DIR},
-	    {String, "outbound-proxy",
-	     "The Flexisip proxy URI to which the B2bua server should send all its outgoing SIP requests.",
-	     "sip:127.0.0.1:5060;transport=tcp"},
-	    {Integer, "no-rtp-timeout",
-	     "Duration after which the B2BUA will terminate a call if no RTP packet is received from the other call "
-	     "participant. Unit: seconds.",
-	     "30"},
-	    {Integer, "max-call-duration",
-	     "Any call bridged through the B2BUA that has been running for longer than this amount of seconds will be "
-	     "terminated. 0 to disable and let calls run unbounded.",
-	     "0"},
-	    {String, "video-codec",
-	     "When not null, force outgoing video call to use the specified codec.\n"
-	     "Warning: all outgoing calls will list only this codec, which means incoming calls must use it too.",
-	     ""},
+	    {
+	        String,
+	        "application",
+	        "The type of application that will handle calls bridged through the B2BUA. Possible values:\n"
+	        "- `trenscrypter` Bridge different encryption types on both ends transparently.\n"
+	        "- `sip-bridge` Bridge calls through an external SIP provider. (e.g. for PSTN gateways)",
+	        "trenscrypter",
+	    },
+	    {
+	        String,
+	        "transport",
+	        "SIP uri on which the back-to-back user agent server is listening on.",
+	        "sip:127.0.0.1:6067;transport=tcp",
+	    },
+	    {
+	        IntegerRange,
+	        "audio-port",
+	        "Audio port to use for RTP and RTCP traffic. You can set a specific port or a range of ports.\n"
+	        "Examples: 'audio-port=12345' or 'audio-port=1024-65535'",
+	        "1024-65535",
+	    },
+	    {
+	        IntegerRange,
+	        "video-port",
+	        "Video port to use for RTP and RTCP traffic. You can set a specific port or a range of ports.\n"
+	        "Examples: 'video-port=12345' or 'video-port=1024-65535'",
+	        "1024-65535",
+	    },
+	    {
+	        String,
+	        "user-agent",
+	        "Value of User-Agent header. Use the following syntax: <name>[/<version>] where <version> can bet set to "
+	        "'{version}' that is a placeholder for the Flexisip version.",
+	        "Flexisip-B2BUA/{version}",
+	    },
+	    {
+	        String,
+	        "data-directory",
+	        "Directory where to store b2bua core local files\n"
+	        "Default",
+	        DEFAULT_B2BUA_DATA_DIR,
+	    },
+	    {
+	        String,
+	        "outbound-proxy",
+	        "The Flexisip proxy URI to which the B2bua server should send all its outgoing SIP requests.",
+	        "sip:127.0.0.1:5060;transport=tcp",
+	    },
+	    {
+	        Integer,
+	        "no-rtp-timeout",
+	        "Duration after which the B2BUA will terminate a call if no RTP packet is received from the other call "
+	        "participant. Unit: seconds.",
+	        "30",
+	    },
+	    {
+	        Integer,
+	        "max-call-duration",
+	        "Any call bridged through the B2BUA that has been running for longer than this amount of seconds will be "
+	        "terminated. 0 to disable and let calls run unbounded.",
+	        "0",
+	    },
+	    {
+	        String,
+	        "audio-codec",
+	        "Turn off all audio codecs except this one. This will effectively force this codec on both ends of all "
+	        "bridged calls. (If either end does not support the codec set here, the call will fail to establish.) "
+	        "Setting this option will also turn on the media payload forwarding optimisation which improves the "
+	        "performance of the B2BUA.",
+	        "",
+	    },
+	    {
+	        String,
+	        "video-codec",
+	        "Same as 'audio-codec' but for video.",
+	        "",
+	    },
 	    config_item_end};
 
 	root.addChild(
