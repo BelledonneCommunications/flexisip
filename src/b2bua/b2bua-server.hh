@@ -25,6 +25,7 @@
 #include "linphone++/linphone.hh"
 
 #include "flexisip/configmanager.hh"
+#include "flexisip/utils/sip-uri.hh"
 
 #include "cli.hh"
 #include "service-server/service-server.hh"
@@ -44,6 +45,7 @@ public:
 	using DeclineCall = linphone::Reason;
 	using InviteAddress = std::shared_ptr<const linphone::Address>;
 	using ActionToTake = std::variant<DeclineCall, InviteAddress>;
+	using NotifyDestination = std::pair<const flexisip::SipUri, std::shared_ptr<linphone::Account>>;
 
 	virtual ~Application() = default;
 
@@ -60,12 +62,14 @@ public:
 	 *through.
 	 **/
 	virtual ActionToTake onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) = 0;
-	virtual void onCallEnd([[maybe_unused]] const linphone::Call& call) {
+	virtual void onCallEnd(const linphone::Call&) {
 	}
 
-	virtual ActionToTake onSubscribe([[maybe_unused]] const linphone::Event& event,
-	                                 [[maybe_unused]] const std::string& subscribeEvent) {
+	virtual ActionToTake onSubscribe(const linphone::Event&, const std::string&) {
 		return linphone::Reason::NotAcceptable;
+	}
+	virtual std::optional<NotifyDestination> onNotifyToBeSent(const linphone::Event&) {
+		return std::nullopt;
 	}
 };
 
@@ -104,6 +108,10 @@ public:
 	                         const std::shared_ptr<linphone::Event>& linphoneEvent,
 	                         const std::string& subscribeEvent,
 	                         const std::shared_ptr<const linphone::Content>& body) override;
+	void
+	onMessageWaitingIndicationChanged(const std::shared_ptr<linphone::Core>& core,
+	                                  const std::shared_ptr<linphone::Event>& event,
+	                                  const std::shared_ptr<const linphone::MessageWaitingIndication>& mwi) override;
 
 	// EventListener
 	void onNotifyReceived(const std::shared_ptr<linphone::Event>& event,

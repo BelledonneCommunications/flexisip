@@ -26,9 +26,11 @@ SipProvider::SipProvider(decltype(SipProvider::mTriggerStrat)&& triggerStrat,
                          decltype(SipProvider::mAccountStrat)&& accountStrat,
                          decltype(mOnAccountNotFound) onAccountNotFound,
                          InviteTweaker&& inviteTweaker,
+                         NotifyTweaker&& notifyTweaker,
                          string&& name)
     : mTriggerStrat(std::move(triggerStrat)), mAccountStrat(std::move(accountStrat)),
-      mOnAccountNotFound(onAccountNotFound), mInviteTweaker(std::move(inviteTweaker)), name(std::move(name)) {
+      mOnAccountNotFound(onAccountNotFound), mInviteTweaker(std::move(inviteTweaker)),
+      mNotifyTweaker(std::move(notifyTweaker)), name(std::move(name)) {
 }
 
 std::optional<b2bua::Application::ActionToTake>
@@ -103,6 +105,41 @@ std::optional<b2bua::Application::ActionToTake> SipProvider::onSubscribeCreate(c
 		      << incomingEvent.getToAddress()->asString() << ". Declining legA. Exception:\n"
 		      << err.what();
 		return linphone::Reason::NotAcceptable;
+	}
+}
+
+std::optional<b2bua::Application::NotifyDestination>
+SipProvider::onNotifyToBeSent(const linphone::Event& incomingEvent) {
+	try {
+		if (!mTriggerStrat->shouldHandleThisEvent(incomingEvent)) {
+			return nullopt;
+		}
+
+		const auto account = mAccountStrat->chooseAccountForThisEvent(incomingEvent);
+		if (!account) {
+			switch (mOnAccountNotFound) {
+				case config::v2::OnAccountNotFound::NextProvider:
+					return nullopt;
+				case config::v2::OnAccountNotFound::Decline: {
+					SLOGW << "No external accounts available to bridge the NOTIFY to "
+					      << incomingEvent.getResource()->asStringUriOnly() << ".";
+					return nullopt;
+				}
+			}
+		}
+
+		auto uri = account->getAlias();
+		auto accountToSendNotify = mNotifyTweaker.getAccountForNotifySending(uri);
+		if (accountToSendNotify) {
+			return std::make_pair(uri, accountToSendNotify);
+		} else {
+			return nullopt;
+		}
+	} catch (const std::exception& err) {
+		SLOGE << "Exception occured while trying to bridge a NOTIFY to " << incomingEvent.getToAddress()->asString()
+		      << ". Exception:\n"
+		      << err.what();
+		return nullopt;
 	}
 }
 

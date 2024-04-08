@@ -41,6 +41,12 @@ private:
 	void onSubscriptionStateChanged(const std::shared_ptr<linphone::Core>& core,
 	                                const std::shared_ptr<linphone::Event>& linphoneEvent,
 	                                linphone::SubscriptionState state) override;
+	void onMessageWaitingIndicationChanged(const std::shared_ptr<linphone::Core>&,
+	                                       const std::shared_ptr<linphone::Event>&,
+	                                       const std::shared_ptr<const linphone::MessageWaitingIndication>&) override {
+		// Dummy override to prevent compilation errors (mismatch with onMessageWaitingIndicationChanged from
+		// AccountListener)
+	}
 
 	// AccountListener
 	void

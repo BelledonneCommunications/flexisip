@@ -48,6 +48,7 @@ Root fromV1(v1::Root&& v1) {
 		    .registrationRequired = provider.registrationRequired,
 		    .maxCallsPerLine = provider.maxCallsPerLine,
 		    .loader = std::move(staticLoader),
+		    .mwiServerUri = "",
 		};
 		accountPools.try_emplace(std::move(poolName), std::move(accountPool));
 	}

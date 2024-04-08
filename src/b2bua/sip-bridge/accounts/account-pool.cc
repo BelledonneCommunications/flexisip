@@ -40,6 +40,14 @@ AccountPool::AccountPool(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
 
 	handleOutboundProxy(mAccountParams, pool.outboundProxy);
 	mAccountParams->enableRegister(pool.registrationRequired);
+	if (!pool.mwiServerUri.empty()) {
+		auto mwiServerAddress = linphone::Factory::get()->createAddress(pool.mwiServerUri);
+		if (mwiServerAddress) {
+			mAccountParams->setMwiServerAddress(mwiServerAddress);
+		} else {
+			SLOGE << "Invalid MWI server uri [" << pool.mwiServerUri << "]";
+		}
+	}
 
 	if (redisConf) {
 		mRedisClient = make_unique<redis::async::RedisClient>(

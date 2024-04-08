@@ -192,7 +192,8 @@ void SipBridge::initFromRootConfig(config::v2::Root rootConfig) {
 		    std::move(triggerStrat),
 		    std::move(accountStrat),
 		    provDesc.onAccountNotFound,
-		    InviteTweaker(std::move(provDesc.outgoingInvite), *mCore),
+		    InviteTweaker(provDesc.outgoingInvite, *mCore),
+		    NotifyTweaker(provDesc.outgoingNotify, *mCore),
 		    std::move(provDesc.name),
 		});
 	}
@@ -268,6 +269,17 @@ b2bua::Application::ActionToTake SipBridge::onSubscribe(const linphone::Event& e
 	SLOGD << "No provider could handle the " << subscribeEvent << " SUBSCRIBE to "
 	      << event.getToAddress()->asStringUriOnly();
 	return linphone::Reason::NotAcceptable;
+}
+
+std::optional<b2bua::Application::NotifyDestination> SipBridge::onNotifyToBeSent(const linphone::Event& event) {
+	for (auto& provider : providers) {
+		if (auto destination = provider.onNotifyToBeSent(event)) {
+			return destination;
+		}
+	}
+
+	SLOGD << "No provider could handle the NOTIFY to " << event.getToAddress()->asStringUriOnly();
+	return nullopt;
 }
 
 string SipBridge::handleCommand(const string& command, const vector<string>& args) {

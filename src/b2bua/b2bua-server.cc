@@ -359,6 +359,9 @@ void B2buaServer::onSubscribeStateChanged(const std::shared_ptr<linphone::Event>
 	}
 }
 
+// NOTIFY listener on a subscribe event.
+// This is called when a SUBSCRIBE is forwarded by the B2BUA and then a NOTIFY is received for this
+// subscription.
 void B2buaServer::onNotifyReceived(const std::shared_ptr<linphone::Event>& event,
                                    const std::shared_ptr<const linphone::Content>& content) {
 	try {
@@ -368,6 +371,29 @@ void B2buaServer::onNotifyReceived(const std::shared_ptr<linphone::Event>& event
 	} catch (std::out_of_range&) {
 		SLOGE << "No data associated to the event, can't forward the NOTIFY";
 	}
+}
+
+// MWI listener on the core.
+// This is called when a MWI NOTIFY is received out-of-dialog.
+void B2buaServer::onMessageWaitingIndicationChanged(
+    const std::shared_ptr<linphone::Core>& core,
+    const std::shared_ptr<linphone::Event>& legBEvent,
+    const std::shared_ptr<const linphone::MessageWaitingIndication>& mwi) {
+
+	// Try to create a temporary account configured with the correct outbound proxy to be able to bridge the received
+	// NOTIFY.
+	const auto destination = mApplication->onNotifyToBeSent(*legBEvent);
+	if (!destination) return;
+	const auto& [subscriber, accountUsedToSendNotify] = *destination;
+
+	// Modify the MWI content so that its Message-Account is mapped according to the account mapping of the sip
+	// provider.
+	auto newMwi = mwi->clone();
+	newMwi->setAccountAddress(core->createAddress(subscriber.str()));
+	auto content = newMwi->toContent();
+	auto resource = core->createAddress(subscriber.str());
+	auto legAEvent = core->createNotify(resource, "message-summary");
+	legAEvent->notify(content);
 }
 
 void B2buaServer::_init() {

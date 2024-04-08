@@ -134,6 +134,13 @@ inline void from_json(const nlohmann ::json& nlohmann_json_j, OutgoingInvite& nl
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(mediaEncryption)
 };
 
+struct OutgoingNotify {
+	std::string outboundProxy = ""; // required
+};
+inline void from_json(const nlohmann ::json& nlohmann_json_j, OutgoingNotify& nlohmann_json_t) {
+	NLOHMANN_JSON_FROM(outboundProxy)
+}
+
 struct Provider {
 	std::string name = "";                                                 // required
 	AccountPoolName accountPool = "";                                      // required
@@ -141,14 +148,17 @@ struct Provider {
 	AccountToUse accountToUse = account_selection::Random();               // required
 	OnAccountNotFound onAccountNotFound = OnAccountNotFound::NextProvider; // required
 	OutgoingInvite outgoingInvite = {};                                    // required
+	OutgoingNotify outgoingNotify = {};                                    // optional
 };
 inline void from_json(const nlohmann ::json& nlohmann_json_j, Provider& nlohmann_json_t) {
+	Provider nlohmann_json_default_obj;
 	NLOHMANN_JSON_FROM(name)
 	NLOHMANN_JSON_FROM(accountPool)
 	NLOHMANN_JSON_FROM(triggerCondition)
 	NLOHMANN_JSON_FROM(accountToUse)
 	NLOHMANN_JSON_FROM(onAccountNotFound)
 	NLOHMANN_JSON_FROM(outgoingInvite)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(outgoingNotify)
 }
 
 struct SQLLoader {
@@ -176,6 +186,7 @@ struct AccountPool {
 	uint32_t maxCallsPerLine = 0;      // required
 	AccountPoolLoader loader = {};     // required
 	uint32_t registrationThrottlingRateMs = 0; // optional
+	std::string mwiServerUri = "";     // optional
 };
 inline void from_json(const nlohmann ::json& nlohmann_json_j, AccountPool& nlohmann_json_t) {
 	AccountPool nlohmann_json_default_obj;
@@ -184,6 +195,7 @@ inline void from_json(const nlohmann ::json& nlohmann_json_j, AccountPool& nlohm
 	NLOHMANN_JSON_FROM(maxCallsPerLine)
 	NLOHMANN_JSON_FROM(loader)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(registrationThrottlingRateMs)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(mwiServerUri)
 }
 
 using AccountPoolConfigMap = std::unordered_map<AccountPoolName, AccountPool>;

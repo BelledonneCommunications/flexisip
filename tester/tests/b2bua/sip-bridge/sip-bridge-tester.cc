@@ -1410,10 +1410,201 @@ void maxCallDuration() {
 	    .assert_passed();
 
 	// None of the clients terminated the call, but the B2BUA dropped it on its own
+	asserter.iterateUpTo(
+	            10, [&callee]() { return LOOP_ASSERTION(callee.getCurrentCall() == nullopt); }, 2100ms)
+	    .assert_passed();
+}
+
+/**
+ * In this scenario, it is the B2BUA that is subscribing for MWI.
+ * Therefore the accounts from the account provider register on jabiru.example.org
+ * and then subscribe for MWI to the MWI server, handled here by a Linphone client
+ * (subscribee). Upon subscription, the MWI server sends back a NOTIFY containing
+ * the message waiting indication. The B2BUA then forwards this NOTIFY out-of-dialog
+ * to the alias of the account that has subscribed, via flexisip.example.org that
+ * then delivers it to the client (subscriber).
+ *
+ * Here is the message flow:
+ *
+ * subscriber  flexisip.example.org  B2BUA  jabiru.example.org  MWI-server(subscribee)
+ *     |               |              |            |                    |
+ *     |               |              |--REGISTER->|                    |
+ *     |               |              |<---200 OK--|                    |
+ *     |               |              |-SUBSCRIBE->|                    |
+ *     |               |              |            |-----SUBSCRIBE----->|
+ *     |               |              |            |<------200 OK-------|
+ *     |               |              |<---200 OK--|                    |
+ *     |               |              |            |<------NOTIFY-------|
+ *     |               |              |<---NOTIFY--|                    |
+ *     |               |<----NOTIFY---|            |                    |
+ *     |<----NOTIFY----|              |            |                    |
+ *     |               |              |            |                    |
+ */
+void mwiB2buaSubscription() {
+	StringFormatter providersJsonConfig{R"json({
+		"schemaVersion": 2,
+		"providers": [
+			{
+				"name": "Flexisip -> Jabiru (Outbound)",
+				"triggerCondition": {
+					"strategy": "Always"
+				},
+				"accountToUse": {
+					"strategy": "FindInPool",
+					"source": "{from}",
+					"by": "alias"
+				},
+				"onAccountNotFound": "nextProvider",
+				"outgoingInvite": {
+					"to": "sip:{incoming.to.user}@{account.uri.hostport}{incoming.to.uriParameters}",
+					"from": "{account.uri}"
+				},
+				"accountPool": "FlockOfJabirus"
+			},
+			{
+				"name": "Jabiru -> Flexisip (Inbound)",
+				"triggerCondition": {
+					"strategy": "Always"
+				},
+				"accountToUse": {
+					"strategy": "FindInPool",
+					"source": "{to}",
+					"by": "uri"
+				},
+				"onAccountNotFound": "nextProvider",
+				"outgoingInvite": {
+					"to": "{account.alias}",
+					"from": "sip:{incoming.from.user}@{account.alias.hostport}{incoming.from.uriParameters}",
+					"outboundProxy": "<sip:127.0.0.1:flexisipport;transport=tcp>"
+				},
+				"outgoingNotify": {
+					"outboundProxy": "<sip:127.0.0.1:flexisipport;transport=tcp>"
+				},
+				"accountPool": "FlockOfJabirus"
+			}
+		],
+		"accountPools": {
+			"FlockOfJabirus": {
+				"outboundProxy": "<sip:127.0.0.1:jabiruport;transport=tcp>",
+				"registrationRequired": true,
+				"maxCallsPerLine": 3125,
+				"loader": [
+					{
+						"uri": "sip:subscriber@jabiru.example.org",
+						"alias": "sip:subscriber@flexisip.example.org"
+					}
+				],
+				"mwiServerUri": "sip:subscribee@jabiru.example.org"
+			}
+		}
+	})json",
+	                                    '', ''};
+	StringFormatter flexisipRoutesConfig{
+	    R"str(<sip:127.0.0.1:%port%;transport=tcp>	request.uri.domain == 'jabiru.example.org')str", '%', '%'};
+
+	Server jabiruProxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "jabiru.example.org"},
+	}};
+	jabiruProxy.start();
+	// Get the port that the jabiru proxy has been bound to, to use as outgoing-proxy for b2bua-server
+	StringFormatter jabiruProxyUri{R"str(sip:127.0.0.1:%port%;transport=tcp)str", '%', '%'};
+
+	// Register subscribee account on jabiru proxy without MWI server address
+	auto jabiruBuilder = ClientBuilder(*jabiruProxy.getAgent());
+	const auto subscribee = jabiruBuilder.build("subscribee@jabiru.example.org");
+	auto subscribeeMwiListener = std::make_shared<MwiListener>();
+	subscribee.addListener(std::static_pointer_cast<linphone::CoreListener>(subscribeeMwiListener));
+
+	CoreAssert asserter{jabiruProxy, subscribee};
+
+	// Wait for subscribee to be registered on the jabiru proxy.
+	const auto& jabiruRegisteredUsers =
+	    dynamic_cast<const RegistrarDbInternal&>(jabiruProxy.getRegistrarDb()->getRegistrarBackend()).getAllRecords();
 	asserter
 	    .iterateUpTo(
-	        10, [&callee]() { return LOOP_ASSERTION(callee.getCurrentCall() == nullopt); }, 2100ms)
+	        10, [&jabiruRegisteredUsers] { return LOOP_ASSERTION(jabiruRegisteredUsers.size() == 1); }, 200ms)
 	    .assert_passed();
+
+	TempFile providersJson{};
+	TempFile flexisipRoutes{};
+	Server flexisipProxy{{
+	    // Requesting bind on port 0 to let the kernel find any available port
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "flexisip.example.org"},
+	    {"module::Forward/routes-config-path", flexisipRoutes.getFilename()},
+	    {"b2bua-server/application", "sip-bridge"},
+	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
+	    {"b2bua-server/outbound-proxy", jabiruProxyUri.format({{"port", jabiruProxy.getFirstPort()}})},
+	    {"b2bua-server::sip-bridge/providers", providersJson.getFilename()},
+	}};
+	flexisipProxy.start();
+
+	const auto b2buaLoop = std::make_shared<sofiasip::SuRoot>();
+	const auto& flexisipConfig = flexisipProxy.getConfigManager();
+	providersJson.writeStream() << providersJsonConfig.format(
+	    {{"flexisipport", flexisipProxy.getFirstPort()}, {"jabiruport", jabiruProxy.getFirstPort()}});
+	const auto b2buaServer = std::make_shared<B2buaServer>(b2buaLoop, flexisipConfig);
+	b2buaServer->init();
+	flexisipConfig->getRoot()
+	    ->get<GenericStruct>("module::Router")
+	    ->get<ConfigStringList>("static-targets")
+	    ->set("sip:127.0.0.1:" + std::to_string(b2buaServer->getTcpPort()) + ";transport=tcp");
+	flexisipProxy.getAgent()->findModule("Router")->reload();
+	flexisipRoutes.writeStream() << flexisipRoutesConfig.format({{"port", std::to_string(b2buaServer->getTcpPort())}});
+	flexisipProxy.getAgent()->findModule("Forward")->reload();
+
+	asserter.registerSteppable(flexisipProxy);
+	asserter.registerSteppable(*b2buaLoop);
+
+	asserter
+	    .iterateUpTo(
+	        2,
+	        [&sipProviders =
+	             dynamic_cast<const b2bua::bridge::SipBridge&>(b2buaServer->getApplication()).getProviders()] {
+		        for (const auto& provider : sipProviders) {
+			        for (const auto& [_, account] : provider.getAccountSelectionStrategy().getAccountPool()) {
+				        FAIL_IF(!account->isAvailable());
+			        }
+		        }
+		        // b2bua accounts registered
+		        return ASSERTION_PASSED();
+	        },
+	        40ms)
+	    .assert_passed();
+
+	// Register subscriber account on flexisip proxy also without MWI server address, the subscription will be done by
+	// the B2BUA.
+	auto flexisipBuilder = ClientBuilder(*flexisipProxy.getAgent());
+	const auto subscriber = flexisipBuilder.build("subscriber@flexisip.example.org");
+	auto subscriberMwiListener = std::make_shared<MwiListener>();
+	subscriber.addAccountListener(std::static_pointer_cast<linphone::AccountListener>(subscriberMwiListener));
+	asserter.registerSteppable(subscriber);
+
+	asserter
+	    .waitUntil(std::chrono::milliseconds{200},
+	               [&subscribeeMwiListener] {
+		               FAIL_IF(subscribeeMwiListener->getStats().nbSubscribeReceived != 1);
+		               FAIL_IF(subscribeeMwiListener->getStats().nbSubscribeActive != 1);
+		               return ASSERTION_PASSED();
+	               })
+	    .assert_passed();
+	asserter
+	    .waitUntil(std::chrono::milliseconds{200},
+	               [&subscriberMwiListener] {
+		               const MwiCoreStats& stats = subscriberMwiListener->getStats();
+		               FAIL_IF(stats.nbMwiReceived != 1);
+		               FAIL_IF(stats.nbNewMWIVoice != 4);
+		               FAIL_IF(stats.nbOldMWIVoice != 8);
+		               FAIL_IF(stats.nbNewUrgentMWIVoice != 1);
+		               FAIL_IF(stats.nbOldUrgentMWIVoice != 2);
+		               return ASSERTION_PASSED();
+	               })
+	    .assert_passed();
+
+	std::ignore = b2buaServer->stop();
 }
 
 TestSuite _{
@@ -1433,6 +1624,7 @@ TestSuite _{
         CLASSY_TEST(dtmfForwarding),
         CLASSY_TEST(overrideSpecialOptions),
         CLASSY_TEST(maxCallDuration),
+        CLASSY_TEST(mwiB2buaSubscription),
     },
 };
 } // namespace
