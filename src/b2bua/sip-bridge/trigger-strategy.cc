@@ -18,4 +18,8 @@ bool MatchRegex::shouldHandleThisCall(const linphone::Call& call) {
 	return std::regex_match(call.getRequestAddress()->asStringUriOnly(), mPattern);
 }
 
+bool MatchRegex::shouldHandleThisEvent(const linphone::Event& event) {
+	return std::regex_match(event.getResource()->asStringUriOnly(), mPattern);
+}
+
 } // namespace flexisip::b2bua::bridge::trigger_strat

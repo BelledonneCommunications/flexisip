@@ -43,6 +43,11 @@ struct callsRefs {
 	shared_ptr<linphone::Call> legB;       /**< legB is the call initiated by the b2bua to the original recipient */
 	shared_ptr<linphone::Conference> conf; /**< the conference created to connect legA and legB */
 };
+
+struct EventsRefs {
+	shared_ptr<linphone::Event> legA; /**< legA is the incoming subscribe intercepted by the b2bua */
+	shared_ptr<linphone::Event> legB; /**< legB is the subscribe initiated by the b2bua to the original recipient */
+};
 } // namespace b2bua
 
 // unamed namespace for local functions
@@ -281,7 +286,88 @@ void B2buaServer::onDtmfReceived([[maybe_unused]] const shared_ptr<linphone::Cor
 	SLOGD << "Forwarding DTMF " << dtmf << " from " << call->getCallLog()->getCallId() << " to "
 	      << otherLeg->getCallLog()->getCallId();
 	otherLeg->sendDtmf(dtmf);
-};
+}
+
+void B2buaServer::onSubscribeReceived(const std::shared_ptr<linphone::Core>& core,
+                                      const std::shared_ptr<linphone::Event>& legAEvent,
+                                      const std::string& subscribeEvent,
+                                      const std::shared_ptr<const linphone::Content>& body) {
+	int expires = 0;
+	try {
+		expires = stoi(legAEvent->getCustomHeader("Expires"));
+	} catch (std::exception const& ex) {
+		SLOGE << "Invalid expires in received SUBSCRIBE, denying subscription";
+		legAEvent->denySubscription(linphone::Reason::NotAcceptable);
+		return;
+	}
+
+	const auto subscriber = Match(mApplication->onSubscribe(*legAEvent, subscribeEvent))
+	                            .against([](shared_ptr<const linphone::Address> subscriber) { return subscriber; },
+	                                     [&legAEvent](linphone::Reason&& reason) {
+		                                     legAEvent->denySubscription(reason);
+		                                     return shared_ptr<const linphone::Address>{};
+	                                     });
+	if (subscriber == nullptr) return;
+
+	// Create the outgoing SUBSCRIBE and copy the request address and Accept header
+	// from the incoming one.
+	auto resource = subscriber->clone();
+	auto legBEvent = core->createSubscribe(resource, subscribeEvent, expires);
+	legBEvent->setRequestAddress(legAEvent->getRequestAddress()->clone());
+	auto acceptHeader = legAEvent->getCustomHeader("Accept");
+	if (!acceptHeader.empty()) legBEvent->addCustomHeader("Accept", acceptHeader);
+	legBEvent->addListener(shared_from_this());
+
+	if (legBEvent->sendSubscribe(body) < 0) {
+		legAEvent->denySubscription(linphone::Reason::NotAcceptable);
+		return;
+	}
+
+	// Store a shared pointer to each event
+	auto eventsData = new b2bua::EventsRefs();
+	eventsData->legA = legAEvent;
+	eventsData->legB = legBEvent;
+	legAEvent->setData<b2bua::EventsRefs>(B2buaServer::kEventKey, *eventsData);
+	legBEvent->setData<b2bua::EventsRefs>(B2buaServer::kEventKey, *eventsData);
+	legAEvent->addListener(shared_from_this());
+}
+
+void B2buaServer::onSubscribeStateChanged(const std::shared_ptr<linphone::Event>& event,
+                                          linphone::SubscriptionState state) {
+	try {
+		b2bua::EventsRefs& eventsData = event->getData<b2bua::EventsRefs>(B2buaServer::kEventKey);
+		if (event == eventsData.legB) {
+			if (state == linphone::SubscriptionState::Active) {
+				// Forward the subscription acceptation
+				eventsData.legA->acceptSubscription();
+			} else if (state == linphone::SubscriptionState::Error) {
+				// Forward the subcription error
+				eventsData.legA->denySubscription(event->getReason());
+			}
+		} else if (event == eventsData.legA) {
+			if (state == linphone::SubscriptionState::Terminated) {
+				// Un-SUBSCRIBE from the subscriber
+				eventsData.legB->terminate();
+				eventsData.legA->unsetData(B2buaServer::kEventKey);
+				eventsData.legB->unsetData(B2buaServer::kEventKey);
+				delete &eventsData;
+			}
+		}
+	} catch (std::out_of_range&) {
+		// The event does not contain eventsData
+	}
+}
+
+void B2buaServer::onNotifyReceived(const std::shared_ptr<linphone::Event>& event,
+                                   const std::shared_ptr<const linphone::Content>& content) {
+	try {
+		b2bua::EventsRefs& eventsData = event->getData<b2bua::EventsRefs>(B2buaServer::kEventKey);
+		// Forward NOTIFY
+		eventsData.legA->notify(content);
+	} catch (std::out_of_range&) {
+		SLOGE << "No data associated to the event, can't forward the NOTIFY";
+	}
+}
 
 void B2buaServer::_init() {
 	// Parse configuration for Data Dir

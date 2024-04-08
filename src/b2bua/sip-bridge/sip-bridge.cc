@@ -211,6 +211,19 @@ void SipBridge::onCallEnd(const linphone::Call& call) {
 	occupiedSlots.erase(it);
 }
 
+b2bua::Application::ActionToTake SipBridge::onSubscribe(const linphone::Event& event,
+                                                        const std::string& subscribeEvent) {
+	for (auto& provider : providers) {
+		if (const auto actionToTake = provider.onSubscribeCreate(event, subscribeEvent)) {
+			return actionToTake.value_or(linphone::Reason::NotAcceptable);
+		}
+	}
+
+	SLOGD << "No provider could handle the " << subscribeEvent << " SUBSCRIBE to "
+	      << event.getToAddress()->asStringUriOnly();
+	return linphone::Reason::NotAcceptable;
+}
+
 string SipBridge::handleCommand(const string& command, const vector<string>& args) {
 	if (command != "SIP_BRIDGE") {
 		return "";

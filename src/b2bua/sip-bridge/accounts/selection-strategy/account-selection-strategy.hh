@@ -17,6 +17,7 @@ public:
 	virtual ~AccountSelectionStrategy() = default;
 
 	virtual std::shared_ptr<Account> chooseAccountForThisCall(const linphone::Call&) const = 0;
+	virtual std::shared_ptr<Account> chooseAccountForThisEvent(const linphone::Event&) const = 0;
 
 	const AccountPool& getAccountPool() const {
 		return *mAccountPool;

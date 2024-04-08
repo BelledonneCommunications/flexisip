@@ -78,6 +78,9 @@ public:
 	void addListener(const std::shared_ptr<linphone::CoreListener>& listener) const {
 		mCore->addListener(listener);
 	}
+	void addAccountListener(const std::shared_ptr<linphone::AccountListener>& listener) const {
+		mAccount->addListener(listener);
+	}
 
 	void disconnect() const;
 	void reconnect() const;

@@ -227,5 +227,10 @@ ClientBuilder& ClientBuilder::setPassword(const std::string_view& password) {
 	return *this;
 }
 
+ClientBuilder& ClientBuilder::setMwiServerAddress(const std::shared_ptr<linphone::Address>& address) {
+	mAccountParams->setMwiServerAddress(address);
+	return *this;
+}
+
 } // namespace tester
 } // namespace flexisip

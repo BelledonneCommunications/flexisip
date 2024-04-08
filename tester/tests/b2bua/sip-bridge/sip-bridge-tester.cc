@@ -25,6 +25,8 @@
 
 #include "belle-sip/auth-helper.h"
 
+#include <linphone++/linphone.hh>
+
 #include "b2bua/b2bua-server.hh"
 #include "registrardb-internal.hh"
 #include "tester.hh"
@@ -39,6 +41,8 @@
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 #include "utils/tmp-dir.hh"
+
+#include "listeners/mwi-listener.hh"
 
 namespace flexisip::tester {
 namespace {
@@ -553,6 +557,172 @@ ha1-md5@example.org clrtxt:a-clear-text-password ;
 	BC_ASSERT_CPP_EQUAL(registeredUsers.size(), 0);
 }
 
+void mwiBridging() {
+	StringFormatter jsonConfig{R"json({
+		"schemaVersion": 2,
+		"providers": [
+			{
+				"name": "Flexisip -> Jabiru (Outbound)",
+				"triggerCondition": {
+					"strategy": "Always"
+				},
+				"accountToUse": {
+					"strategy": "FindInPool",
+					"source": "{from}",
+					"by": "alias"
+				},
+				"onAccountNotFound": "nextProvider",
+				"outgoingInvite": {
+					"to": "sip:{incoming.to.user}@{account.uri.hostport}{incoming.to.uriParameters}",
+					"from": "{account.uri}"
+				},
+				"accountPool": "FlockOfJabirus"
+			},
+			{
+				"name": "Jabiru -> Flexisip (Inbound)",
+				"triggerCondition": {
+					"strategy": "Always"
+				},
+				"accountToUse": {
+					"strategy": "FindInPool",
+					"source": "{to}",
+					"by": "uri"
+				},
+				"onAccountNotFound": "nextProvider",
+				"outgoingInvite": {
+					"to": "{account.alias}",
+					"from": "sip:{incoming.from.user}@{account.alias.hostport}{incoming.from.uriParameters}",
+					"outboundProxy": "<sip:127.0.0.1:port;transport=tcp>"
+				},
+				"accountPool": "FlockOfJabirus"
+			}
+		],
+		"accountPools": {
+			"FlockOfJabirus": {
+				"outboundProxy": "<sip:127.0.0.1:port;transport=tcp>",
+				"registrationRequired": true,
+				"maxCallsPerLine": 3125,
+				"loader": [
+					{
+						"uri": "sip:subscriber@jabiru.example.org",
+						"alias": "sip:subscriber@flexisip.example.org"
+					}
+				]
+			}
+		}
+	})json",
+	                           '', ''};
+	StringFormatter flexisipRoutesConfig{
+	    R"str(<sip:127.0.0.1:%port%;transport=tcp>	request.uri.domain == 'jabiru.example.org')str", '%', '%'};
+
+	Server jabiruProxy{{
+	    // Requesting bind on port 0 to let the kernel find any available port
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "jabiru.example.org"},
+	}};
+	jabiruProxy.start();
+	// Get the port that the jabiru proxy has been bound to, to use as outgoing-proxy for b2bua-server
+	StringFormatter jabiruProxyUri{R"str(sip:127.0.0.1:%port%;transport=tcp)str", '%', '%'};
+
+	TempFile providersJson{};
+	providersJson.writeStream() << jsonConfig.format({{"port", jabiruProxy.getFirstPort()}});
+	TempFile flexisipRoutes{};
+	Server flexisipProxy{{
+	    // Requesting bind on port 0 to let the kernel find any available port
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "flexisip.example.org"},
+	    {"module::Forward/routes-config-path", flexisipRoutes.getFilename()},
+	    {"b2bua-server/application", "sip-bridge"},
+	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
+	    {"b2bua-server/outbound-proxy", jabiruProxyUri.format({{"port", jabiruProxy.getFirstPort()}})},
+	    {"b2bua-server::sip-bridge/providers", providersJson.getFilename()},
+	}};
+	flexisipProxy.start();
+	const auto b2buaLoop = std::make_shared<sofiasip::SuRoot>();
+	const auto& flexisipConfig = flexisipProxy.getConfigManager();
+	const auto b2buaServer = std::make_shared<B2buaServer>(b2buaLoop, flexisipConfig);
+	b2buaServer->init();
+	flexisipConfig->getRoot()
+	    ->get<GenericStruct>("module::Router")
+	    ->get<ConfigStringList>("static-targets")
+	    ->set("sip:127.0.0.1:" + std::to_string(b2buaServer->getTcpPort()) + ";transport=tcp");
+	flexisipProxy.getAgent()->findModule("Router")->reload();
+	flexisipRoutes.writeStream() << flexisipRoutesConfig.format({{"port", std::to_string(b2buaServer->getTcpPort())}});
+	flexisipProxy.getAgent()->findModule("Forward")->reload();
+
+	CoreAssert asserter{jabiruProxy, flexisipProxy, *b2buaLoop};
+
+	asserter
+	    .iterateUpTo(
+	        2,
+	        [&sipProviders =
+	             dynamic_cast<const b2bua::bridge::SipBridge&>(b2buaServer->getApplication()).getProviders()] {
+		        for (const auto& provider : sipProviders) {
+			        for (const auto& [_, account] : provider.getAccountSelectionStrategy().getAccountPool()) {
+				        FAIL_IF(!account->isAvailable());
+			        }
+		        }
+		        // b2bua accounts registered
+		        return ASSERTION_PASSED();
+	        },
+	        40ms)
+	    .assert_passed();
+
+	auto jabiruBuilder = ClientBuilder(*jabiruProxy.getAgent());
+	auto flexisipBuilder = ClientBuilder(*flexisipProxy.getAgent());
+
+	// Register subscribee account on jabiru proxy without MWI server address
+	const auto subscribee = jabiruBuilder.build("subscribee@jabiru.example.org");
+	auto subscribeeMwiListener = std::make_shared<MwiListener>();
+	subscribee.addListener(std::static_pointer_cast<linphone::CoreListener>(subscribeeMwiListener));
+
+	// Register subscriber account on flexisip proxy with MWI server address
+	flexisipBuilder.setMwiServerAddress(linphone::Factory::get()->createAddress("sip:subscribee@jabiru.example.org"));
+	const auto subscriber = flexisipBuilder.build("subscriber@flexisip.example.org");
+	auto subscriberMwiListener = std::make_shared<MwiListener>();
+	subscriber.addAccountListener(std::static_pointer_cast<linphone::AccountListener>(subscriberMwiListener));
+
+	asserter.registerSteppable(subscribee);
+	asserter.registerSteppable(subscriber);
+
+	asserter
+	    .waitUntil(std::chrono::milliseconds{200},
+	               [&subscribeeMwiListener] {
+		               FAIL_IF(subscribeeMwiListener->getStats().nbSubscribeReceived != 1 &&
+		                       subscribeeMwiListener->getStats().nbSubscribeActive != 1);
+		               return ASSERTION_PASSED();
+	               })
+	    .assert_passed();
+	asserter
+	    .waitUntil(std::chrono::milliseconds{200},
+	               [&subscriberMwiListener] {
+		               const MwiCoreStats& stats = subscriberMwiListener->getStats();
+		               FAIL_IF(stats.nbMwiReceived != 1 && stats.nbNewMWIVoice != 4 && stats.nbOldMWIVoice != 8 &&
+		                       stats.nbNewUrgentMWIVoice != 1 && stats.nbOldUrgentMWIVoice != 2);
+		               return ASSERTION_PASSED();
+	               })
+	    .assert_passed();
+
+	// Un-register the subscriber to check that the subscription is correctly ended on
+	// the subscribee side.
+	auto subscriberAccount = subscriber.getAccount();
+	auto newAccountParams = subscriberAccount->getParams()->clone();
+	newAccountParams->enableRegister(false);
+	subscriberAccount->setParams(newAccountParams);
+
+	asserter
+	    .waitUntil(std::chrono::milliseconds{200},
+	               [&subscribeeMwiListener] {
+		               FAIL_IF(subscribeeMwiListener->getStats().nbSubscribeTerminated != 1);
+		               return ASSERTION_PASSED();
+	               })
+	    .assert_passed();
+
+	std::ignore = b2buaServer->stop();
+}
+
 TestSuite _{
     "b2bua::bridge",
     {
@@ -560,6 +730,7 @@ TestSuite _{
         CLASSY_TEST(loadAccountsFromSQL),
         CLASSY_TEST(invalidUriTriggersDecline),
         CLASSY_TEST(authenticatedAccounts),
+        CLASSY_TEST(mwiBridging),
     },
 };
 } // namespace

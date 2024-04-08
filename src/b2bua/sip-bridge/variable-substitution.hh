@@ -103,6 +103,11 @@ const auto kLinphoneCallFields = FieldsOf<linphone::Call>{
     {"requestUri", resolve(kLinphoneAddressFields, [](const auto& call) { return call.getRequestAddress(); })},
 };
 
+const auto kLinphoneEventFields = FieldsOf<linphone::Event>{
+    {"to", resolve(kLinphoneAddressFields, [](const auto& event) { return event.getToAddress(); })},
+    {"from", resolve(kLinphoneAddressFields, [](const auto& event) { return event.getFromAddress(); })},
+};
+
 const auto kSofiaUriFields = FieldsOf<SipUri>{
     {"", leaf([](const auto& uri) { return uri.str(); })},
     {"user", leaf([](const auto& uri) { return uri.getUser(); })},

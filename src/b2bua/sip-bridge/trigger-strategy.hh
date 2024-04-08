@@ -7,6 +7,7 @@
 #include <regex>
 
 #include <linphone++/call.hh>
+#include <linphone++/event.hh>
 
 #include "b2bua/sip-bridge/configuration/v2/v2.hh"
 
@@ -19,11 +20,15 @@ public:
 	virtual ~TriggerStrategy() = default;
 
 	virtual bool shouldHandleThisCall(const linphone::Call&) = 0;
+	virtual bool shouldHandleThisEvent(const linphone::Event&) = 0;
 };
 
 class Always : public TriggerStrategy {
 public:
 	bool shouldHandleThisCall(const linphone::Call&) override {
+		return true;
+	}
+	bool shouldHandleThisEvent(const linphone::Event&) override {
 		return true;
 	}
 };
@@ -33,6 +38,7 @@ public:
 	MatchRegex(const conf::MatchRegex&);
 
 	bool shouldHandleThisCall(const linphone::Call&) override;
+	bool shouldHandleThisEvent(const linphone::Event&) override;
 
 private:
 	std::regex mPattern;

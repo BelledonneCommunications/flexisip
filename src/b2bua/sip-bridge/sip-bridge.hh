@@ -48,8 +48,11 @@ public:
 	          const GenericStruct* globalConfigRoot);
 
 	void init(const std::shared_ptr<linphone::Core>& core, const flexisip::ConfigManager& config) override;
+
 	ActionToTake onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) override;
 	void onCallEnd(const linphone::Call& call) override;
+
+	ActionToTake onSubscribe(const linphone::Event& event, const std::string& subscribeEvent) override;
 
 	std::string handleCommand(const std::string& command, const std::vector<std::string>& args) override;
 

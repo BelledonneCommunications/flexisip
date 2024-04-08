@@ -72,6 +72,8 @@ public:
 	ClientBuilder& setApplePushConfigRemoteOnly();
 	ClientBuilder& setPassword(const std::string_view& password);
 
+	ClientBuilder& setMwiServerAddress(const std::shared_ptr<linphone::Address>& address);
+
 	CoreClient build(const std::string&) const;
 
 private:

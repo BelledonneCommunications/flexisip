@@ -16,6 +16,9 @@ public:
 	std::shared_ptr<Account> chooseAccountForThisCall(const linphone::Call&) const override {
 		return getAccountPool().getAccountRandomly();
 	}
+	std::shared_ptr<Account> chooseAccountForThisEvent(const linphone::Event&) const override {
+		return getAccountPool().getAccountRandomly();
+	}
 };
 
 } // namespace flexisip::b2bua::bridge::account_strat

@@ -42,6 +42,8 @@ public:
 	onCallCreate(const linphone::Call& incomingCall,
 	             linphone::CallParams& outgoingCallParams,
 	             std::unordered_map<std::string, std::weak_ptr<Account>>& occupiedSlots);
+	std::optional<b2bua::Application::ActionToTake> onSubscribeCreate(const linphone::Event& incomingEvent,
+	                                                                  const std::string& subscribeEvent);
 
 	const account_strat::AccountSelectionStrategy& getAccountSelectionStrategy() const;
 

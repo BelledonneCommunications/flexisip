@@ -71,6 +71,41 @@ SipProvider::onCallCreate(const linphone::Call& incomingCall,
 	}
 }
 
+std::optional<b2bua::Application::ActionToTake> SipProvider::onSubscribeCreate(const linphone::Event& incomingEvent,
+                                                                               const std::string& subscribeEvent) {
+	try {
+		if (!mTriggerStrat->shouldHandleThisEvent(incomingEvent)) {
+			return std::nullopt;
+		}
+
+		const auto account = mAccountStrat->chooseAccountForThisEvent(incomingEvent);
+		if (!account) {
+			switch (mOnAccountNotFound) {
+				case config::v2::OnAccountNotFound::NextProvider:
+					return std::nullopt;
+				case config::v2::OnAccountNotFound::Decline: {
+					SLOGW << "No external accounts available to bridge the " << subscribeEvent << " SUBSCRIBE to "
+					      << incomingEvent.getResource()->asStringUriOnly();
+					return linphone::Reason::NotAcceptable;
+				}
+			}
+		}
+		if (!account->isAvailable()) {
+			SLOGW << "Account " << account->getLinphoneAccount()->getParams()->getIdentityAddress()->asString()
+			      << " is not available to bridge the " << subscribeEvent << " SUBSCRIBE to "
+			      << incomingEvent.getResource()->asStringUriOnly() << ". Declining legA.";
+			return linphone::Reason::NotAcceptable;
+		}
+
+		return account->getLinphoneAccount()->getParams()->getIdentityAddress();
+	} catch (const std::exception& err) {
+		SLOGE << "Exception occured while trying to bridge a " << subscribeEvent << " SUBSCRIBE to "
+		      << incomingEvent.getToAddress()->asString() << ". Declining legA. Exception:\n"
+		      << err.what();
+		return linphone::Reason::NotAcceptable;
+	}
+}
+
 const account_strat::AccountSelectionStrategy& SipProvider::getAccountSelectionStrategy() const {
 	return *mAccountStrat;
 }

@@ -50,6 +50,7 @@ public:
 	virtual ~Application() = default;
 
 	virtual void init(const std::shared_ptr<linphone::Core>& core, const ConfigManager& cfg) = 0;
+
 	/**
 	 * lets the application run some business logic before the outgoing call is placed.
 	 *
@@ -63,23 +64,31 @@ public:
 	virtual ActionToTake onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) = 0;
 	virtual void onCallEnd([[maybe_unused]] const linphone::Call& call) {
 	}
+
+	virtual ActionToTake onSubscribe([[maybe_unused]] const linphone::Event& event,
+	                                 [[maybe_unused]] const std::string& subscribeEvent) {
+		return linphone::Reason::NotAcceptable;
+	}
 };
 
 } // namespace b2bua
 
 class B2buaServer : public ServiceServer,
                     public std::enable_shared_from_this<B2buaServer>,
-                    public linphone::CoreListener {
+                    public linphone::CoreListener,
+                    public linphone::EventListener {
 public:
 	friend class tester::b2buatester::B2buaServer;
 
 	static constexpr auto& kConfKey = "b2bua::confData";
+	static constexpr auto& kEventKey = "b2bua:eventData";
 	// Used to flag invites emitted by the B2BUA so they are not re-routed back to it by the B2bua module
 	static constexpr auto& kCustomHeader = "X-Flexisip-B2BUA";
 
 	B2buaServer(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg);
 	~B2buaServer();
 
+	// CoreListener
 	void onCallStateChanged(const std::shared_ptr<linphone::Core>& core,
 	                        const std::shared_ptr<linphone::Call>& call,
 	                        linphone::Call::State state,
@@ -87,6 +96,25 @@ public:
 	void onDtmfReceived(const std::shared_ptr<linphone::Core>& core,
 	                    const std::shared_ptr<linphone::Call>& call,
 	                    int dtmf) override;
+	void onNotifyReceived(const std::shared_ptr<linphone::Core>&,
+	                      const std::shared_ptr<linphone::Event>&,
+	                      const std::string&,
+	                      const std::shared_ptr<const linphone::Content>&) override {
+		// Dummy override to prevent compilation errors (mismatch with onNotifyReceived from EventListener)
+	}
+	void onSubscribeReceived(const std::shared_ptr<linphone::Core>& core,
+	                         const std::shared_ptr<linphone::Event>& linphoneEvent,
+	                         const std::string& subscribeEvent,
+	                         const std::shared_ptr<const linphone::Content>& body) override;
+
+	// EventListener
+	void onNotifyReceived(const std::shared_ptr<linphone::Event>& event,
+	                      const std::shared_ptr<const linphone::Content>& content) override;
+	void onSubscribeReceived(const std::shared_ptr<linphone::Event>&) override {
+		// Dummy override to prevent compilation errors (mismatch with onSubscribeReceived from CoreListener)
+	}
+	void onSubscribeStateChanged(const std::shared_ptr<linphone::Event>& event,
+	                             linphone::SubscriptionState state) override;
 
 	int getTcpPort() const {
 		return mCore->getTransportsUsed()->getTcpPort();
