@@ -585,27 +585,25 @@ static void external_provider_bridge__override_special_options() {
 }
 
 static void external_provider_bridge__b2bua_receives_several_forks() {
-	/* Intercom  App1  App2  sip.company1.com  B2BUA  sip.provider1.com  Phone
-	      |       |     |           |            |            |            |
-	      |-A-----|-----|--INVITE-->|            |            |            |
-	      |       |     |<-INVITE-A-|            |            |            |
-	      |       |     |           |-A1-INVITE->|            |            |
-	      |       |<----|--INVITE-A-|            |            |            |
-	      |       |     |           |-A2-INVITE->|            |            |
-	      |       |     |           |            |-B-INVITE-->|            |
-	      |       |     |           |            |            |-B-INVITE-->|
-	      |       |     |           |            |-C-INVITE-->|            |
-	      |       |     |           |            |            |-C-INVITE-->|
-	      |       |     |           |            |            |<--ACCEPT-B-|
-	      |       |     |           |            |<--ACCEPT-B-|            |
-	      |       |     |           |<-ACCEPT-A1-|            |            |
-	      |<------|-----|--ACCEPT-A-|            |            |            |
-	      |       |     |           |-A2-CANCEL->|            |            |
-	      |       |     |<-CANCEL-A-|            |            |            |
-	      |       |<----|--CANCEL-A-|            |            |            |
-	      |       |     |           |            |-C-CANCEL-->|            |
-	      |       |     |           |            |            |-C-CANCEL-->|
-	      |       |     |           |            |            |            |
+	/* Intercom  App1  App2  sip.company1.com       B2BUA  sip.provider1.com  Phone
+	      |       |     |           |                |            |            |
+	      |-A-----|-----|--INVITE-->|                |            |            |
+	      |       |     |<-INVITE-A-|                |            |            |
+	      |       |     |           |-A1-INVITE----->|            |            |
+	      |       |<----|--INVITE-A-|                |            |            |
+	      |       |     |           |-A2-INVITE----->|            |            |
+	      |       |     |           |         (eaten by sdk)      |            |
+	      |       |     |           |                |-B-INVITE-->|            |
+	      |       |     |           |                |            |-B-INVITE-->|
+	      |       |     |           |                |            |<--ACCEPT-B-|
+	      |       |     |           |                |<--ACCEPT-B-|            |
+	      |       |     |           |<-ACCEPT-A1-----|            |            |
+	      |<------|-----|--ACCEPT-A-|                |            |            |
+	      |       |     |           |-A2-CANCEL----->|            |            |
+	      |       |     |           |         (eaten by sdk)      |            |
+	      |       |     |<-CANCEL-A-|                |            |            |
+	      |       |<----|--CANCEL-A-|                |            |            |
+	      |       |     |           |                |            |            |
 	*/
 	using namespace flexisip::b2bua;
 	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf", false);
@@ -650,7 +648,9 @@ static void external_provider_bridge__b2bua_receives_several_forks() {
 	app2.hasReceivedCallFrom(intercom).assert_passed();
 	phone.hasReceivedCallFrom(intercom).assert_passed();
 	auto phoneCalls = [&phoneCore = *phoneCore] { return phoneCore.getCalls(); };
-	BC_ASSERT_TRUE(phoneCalls().size() == 2);
+
+	// A2-INVITE is indeed eaten by sdk
+	BC_ASSERT_CPP_EQUAL(phoneCalls().size(), 1);
 	CoreAssert asserter{intercom, phoneCore, app1, app2, server};
 	asserter
 	    .wait([&callerCall = *call] {
@@ -659,26 +659,30 @@ static void external_provider_bridge__b2bua_receives_several_forks() {
 	    })
 	    .assert_passed();
 
-	{ // One bridged call successfully established
-		auto bridgedCall = phoneCore->getCurrentCall();
-		bridgedCall->accept();
-		asserter
-		    .wait([&callerCall = *call, &bridgedCall = *bridgedCall] {
-			    FAIL_IF(callerCall.getState() != linphone::Call::State::StreamsRunning);
-			    FAIL_IF(bridgedCall.getState() != linphone::Call::State::StreamsRunning);
-			    return ASSERTION_PASSED();
+	// One bridged call successfully established
+	auto bridgedCall = phoneCore->getCurrentCall();
+	bridgedCall->accept();
+	asserter
+	    .wait([&callerCall = *call, &bridgedCall = *bridgedCall] {
+		    FAIL_IF(callerCall.getState() != linphone::Call::State::StreamsRunning);
+		    FAIL_IF(bridgedCall.getState() != linphone::Call::State::StreamsRunning);
+		    return ASSERTION_PASSED();
 		    })
 		    .assert_passed();
-	}
 
 	// All others have been cancelled
 	BC_ASSERT_FALSE(app1.getCurrentCall().has_value());
 	BC_ASSERT_FALSE(app2.getCurrentCall().has_value());
+	BC_ASSERT_CPP_EQUAL(phoneCalls().size(), 1);
+
+	// A2-CANCEL is indeed eaten by sdk, and do not cancel the call.
 	asserter
-	    .wait([&phoneCalls] {
-		    FAIL_IF(phoneCalls().size() != 1);
-		    return ASSERTION_PASSED();
-	    })
+	    .forceIterateThenAssert(20, 100ms,
+	                            [&callerCall = *call, &bridgedCall = *bridgedCall] {
+		                            FAIL_IF(callerCall.getState() != linphone::Call::State::StreamsRunning);
+		                            FAIL_IF(bridgedCall.getState() != linphone::Call::State::StreamsRunning);
+		                            return ASSERTION_PASSED();
+	                            })
 	    .assert_passed();
 }
 
@@ -686,7 +690,7 @@ static void external_provider_bridge__b2bua_receives_several_forks() {
 static void external_provider_bridge__cli() {
 	using namespace flexisip::b2bua;
 	const auto core = linphone::Factory::get()->createCore("", "", nullptr);
-	bridge::SipBridge sipBridge{0, core,
+	bridge::SipBridge sipBridge{nullptr, core,
 	                            bridge::config::v2::fromV1({
 	                                {
 	                                    .name = "provider1",

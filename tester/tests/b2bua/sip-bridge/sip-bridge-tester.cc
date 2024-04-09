@@ -54,8 +54,12 @@ using namespace std::string_literals;
     and Felix should receive a call form Jasper that should look like it's coming from within the same domain as him:
     <sip:jasper@flexisip.example.org>
 */
-// TODO: There should really be 2 different proxies, to test that the Inbound provider can correctly send invites to the
-// Flexisip proxy and not the `outboundProxy` configured on the B2BUA account.
+
+/**
+ * TODO: There should really be 2 different proxies, to test that the Inbound provider can correctly send invites to the
+ * Flexisip proxy and not the `outboundProxy` configured on the B2BUA account. If done, use
+ * Module::Router/static-targets instead of module::B2Bua/b2bua-server.
+ */
 void bidirectionalBridging() {
 	StringFormatter jsonConfig{R"json({
 		"schemaVersion": 2,
@@ -120,6 +124,7 @@ void bidirectionalBridging() {
 	    {"b2bua-server/application", "sip-bridge"},
 	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
 	    {"b2bua-server::sip-bridge/providers", providersJson.getFilename()},
+	    {"module::B2bua/enabled", "true"},
 	}};
 	proxy.start();
 	providersJson.writeStream() << jsonConfig.format({{"port", proxy.getFirstPort()}});
@@ -128,10 +133,10 @@ void bidirectionalBridging() {
 	const auto b2buaServer = std::make_shared<B2buaServer>(b2buaLoop, config);
 	b2buaServer->init();
 	config->getRoot()
-	    ->get<GenericStruct>("module::Router")
-	    ->get<ConfigStringList>("static-targets")
+	    ->get<GenericStruct>("module::B2bua")
+	    ->get<ConfigString>("b2bua-server")
 	    ->set("sip:127.0.0.1:" + std::to_string(b2buaServer->getTcpPort()) + ";transport=tcp");
-	proxy.getAgent()->findModule("Router")->reload();
+	proxy.getAgent()->findModule("B2bua")->reload();
 	auto builder = ClientBuilder(*proxy.getAgent());
 	const auto felix = builder.build("felix@flexisip.example.org");
 	const auto jasper = builder.build("jasper@jabiru.example.org");
