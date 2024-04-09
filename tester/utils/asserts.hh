@@ -114,9 +114,8 @@ public:
 	[[nodiscard]] AssertionResult loopAssert(StopFunc stopCondition, AssertFunc assertion) {
 		const auto before = std::chrono::system_clock::now();
 		for (uint32_t iterations = 0;; ++iterations) {
-			for (const auto& iterate : mIterateFuncs) {
-				iterate();
-			}
+			iterateAllOnce();
+
 			AssertionResult result = assertion();
 			if (result) return result;
 
@@ -133,7 +132,40 @@ public:
 		}
 	}
 
+	/**
+	 * Iterate for at least "iterations" number of iterations and at least "minTime" milliseconds.
+	 * Then test the provided condition and return the result.
+	 */
+	template <typename Func>
+	[[nodiscard]] AssertionResult
+	forceIterateThenAssert(const uint32_t minIterations, std::chrono::milliseconds minTime, Func condition) {
+		const auto before = std::chrono::system_clock::now();
+		uint32_t iterations = 0;
+		for (; iterations < minIterations; ++iterations) {
+			iterateAllOnce();
+		}
+		while (before + minTime > std::chrono::system_clock::now()) {
+			iterateAllOnce();
+		}
+
+		AssertionResult result = condition();
+		if (!result) {
+			result.reason += "\n -> Failed after " + std::to_string(iterations) + " iterations and " +
+			                 std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+			                                    std::chrono::system_clock::now() - before)
+			                                    .count()) +
+			                 "ms";
+		}
+		return result;
+	}
+
 private:
+	void iterateAllOnce() {
+		for (const auto& iterate : mIterateFuncs) {
+			iterate();
+		}
+	}
+
 	std::list<std::function<void()>> mIterateFuncs;
 };
 
