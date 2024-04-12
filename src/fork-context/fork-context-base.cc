@@ -572,9 +572,8 @@ std::shared_ptr<BranchInfo> ForkContextBase::checkFinished() {
 			setFinished();
 		}
 
-		if (br) {
-			forwardResponse(br);
-			return br;
+		if (br && forwardResponse(br)) {
+				return br;
 		}
 	}
 

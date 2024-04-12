@@ -4,13 +4,15 @@
 
 #pragma once
 
+#include <memory>
+
+#include "flexisip/sofia-wrapper/su-root.hh"
+
 #include "agent.hh"
 #include "asserts.hh"
 #include "client-core.hh"
-#include "flexisip/sofia-wrapper/su-root.hh"
+#include "utils/bellesip-utils.hh"
 #include "utils/proxy-server.hh"
-#include <memory>
-#include <vector>
 
 namespace flexisip {
 namespace tester {
@@ -27,6 +29,9 @@ public:
 	static std::function<void()> stepperFrom(sofiasip::SuRoot& root) {
 		using namespace std::chrono_literals;
 		return [&root] { root.step(1ms); };
+	}
+	static std::function<void()> stepperFrom(BellesipUtils& bellesip) {
+		return [&bellesip] { bellesip.stackSleep(); };
 	}
 	static std::function<void()> stepperFrom(const std::shared_ptr<linphone::Core>& core) {
 		return stepperFrom(*core);
