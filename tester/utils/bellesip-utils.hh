@@ -39,7 +39,7 @@ public:
 
 	~BellesipUtils();
 	void sendRawRequest(const std::string& rawMessage, const std::string& rawBody = "");
-	void stackSleep(unsigned int milliseconds);
+	void stackSleep(unsigned int milliseconds = 1);
 	int getListeningPort();
 
 private:
