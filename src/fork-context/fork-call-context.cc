@@ -23,8 +23,6 @@
 
 #include <sofia-sip/sip_status.h>
 
-#include "flexisip/common.hh"
-
 #include "agent.hh"
 #include "eventlogs/events/calls/call-ringing-event-log.hh"
 #include "eventlogs/events/calls/call-started-event-log.hh"
@@ -71,6 +69,8 @@ void ForkCallContext::onCancel(const shared_ptr<RequestSipEvent>& ev) {
 
 	if (shouldFinish()) {
 		setFinished();
+	} else {
+		checkFinished();
 	}
 }
 
@@ -298,6 +298,23 @@ void ForkCallContext::start() {
 	}
 
 	ForkContextBase::start();
+}
+
+std::shared_ptr<BranchInfo> ForkCallContext::checkFinished() {
+	if (auto br = ForkContextBase::checkFinished(); (mIncoming == nullptr && !mCfg->mForkLate) || br) {
+		return br;
+	}
+
+	if (mCancelled) {
+		// If a call is cancelled by caller/callee, even if some branches only answered 503 or 408, even in fork-late mode, we
+		// want to directly send a response.
+		auto br = findBestBranch(false);
+		if (br && forwardResponse(br)) {
+				return br;
+		}
+	}
+
+	return nullptr;
 }
 
 } // namespace flexisip

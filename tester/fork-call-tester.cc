@@ -21,9 +21,11 @@
 #include "flexisip/module-router.hh"
 
 #include "utils/asserts.hh"
+#include "utils/bellesip-utils.hh"
 #include "utils/client-builder.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
+#include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
 using namespace std;
@@ -120,6 +122,119 @@ static void callWithEarlyCancelCalleeOffline() {
 	    .wait([&moduleRouter = *moduleRouter] {
 		    FAIL_IF(moduleRouter.mStats.mCountCallForks->finish->read() < 1);
 		    FAIL_IF(1 < moduleRouter.mStats.mCountCallForks->finish->read());
+		    return ASSERTION_PASSED();
+	    })
+	    .assert_passed();
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
+}
+
+/**
+ * The goal of this test is to ensure that with fork-late mode "on" for calls, when a call is cancelled early, even
+ * without any "good" response (!= 408/503), we immediately return a terminal response.
+ *
+ * To do that, we start a call between a caller and a callee that has only one offline client (iOS client).
+ * The caller quickly terminates the call, and we assert that a terminal (503) response is received.
+ * We then reconnect the iOS client to check that ForkCall was well preserved to send INVITE/CANCEL to the iOS client.
+ */
+static void callWithEarlyCancelCalleeOnlyOffline() {
+	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
+	server->start();
+
+	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server);
+	const auto calleeIdleClient =
+	    make_shared<CoreClient>(server->clientBuilder().setApplePushConfig().build("sip:calleeClient@sip.test.org"));
+	const auto calleeIdleClientCore = calleeIdleClient->getCore();
+	CoreAssert asserter{calleeIdleClientCore, server};
+
+	// Check that call log is empty before test
+	asserter.wait([&calleeIdleClientCore] { return calleeIdleClientCore->getCallLogs().empty(); }).assert_passed();
+	calleeIdleClient->disconnect();
+
+	bool isRequestAccepted = false;
+	bool is503Received = false;
+	bool isCancelRequestAccepted = false;
+	BellesipUtils inviteTransaction{"127.0.0.1", 56492, "TCP",
+	                                [&isRequestAccepted, &is503Received, &isCancelRequestAccepted](int status) {
+		                                if (status == 100) isRequestAccepted = true;
+	                                	if(!isRequestAccepted) return;
+
+	                                	if (status == 503) is503Received = true;
+		                                if (status == 200) isCancelRequestAccepted = true;
+	                                },
+	                                nullptr};
+	asserter.registerSteppable(inviteTransaction);
+
+	// Call with callee offline with all device
+	inviteTransaction.sendRawRequest(
+	    "INVITE sip:calleeClient@sip.test.org SIP/2.0\r\n"
+	    "Via: SIP/2.0/TCP 127.0.0.1:56492;branch=z9hG4bK.L~E42YLQ0;rport\r\n"
+	    "From: sip:callerClient@sip.test.org;tag=6er0DzzuB\r\n"
+	    "To: sip:calleeClient@sip.test.org\r\n"
+	    "CSeq: 20 INVITE\r\n"
+	    "Call-ID: AMVyfHFNUI\r\n"
+	    "Max-Forwards: 70\r\n"
+	    "Route: <sip:127.0.0.1:5760;transport=tcp;lr>\r\n"
+	    "Supported: replaces, outbound, gruu, path\r\n"
+	    "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK, UPDATE\r\n"
+	    "Content-Type: application/sdp\r\n"
+	    "Contact: "
+	    "<sip:callerClient@sip.test.org;gr=urn:uuid:6e87dc22-b1bc-00ff-b0ab-cc59670f7cdd;>+sip.instance=\"urn:uuid:"
+	    "6e87dc22-b1bc-00ff-b0ab-cc59670f7cdd\";+org.linphone.specs=\"lime\"\r\n"
+	    "User-Agent: BelleSipUtils for Flexisip tests\r\n");
+
+	BC_HARD_ASSERT(asserter.wait([&isRequestAccepted]() {
+		FAIL_IF(isRequestAccepted != true);
+		return ASSERTION_PASSED();
+	}));
+
+	// Server can need one more loop to receive 503 after sending 100 trying
+	server->getRoot()->step(1ms);
+
+	inviteTransaction.sendRawRequest("CANCEL sip:calleeClient@sip.test.org SIP/2.0\r\n"
+	                                 "Via: SIP/2.0/TCP 127.0.0.1:56492;branch=z9hG4bK.L~E42YLQ0;rport\r\n"
+	                                 "Call-ID: AMVyfHFNUI\r\n"
+	                                 "From: <sip:callerClient@sip.test.org>;tag=6er0DzzuB\r\n"
+	                                 "To: <sip:calleeClient@sip.test.org>\r\n"
+	                                 "Route: <sip:127.0.0.1:5760;transport=tcp;lr>\r\n"
+	                                 "Max-Forwards: 70\r\n"
+	                                 "CSeq: 20 CANCEL\r\n"
+	                                 "User-Agent: BelleSipUtils for Flexisip tests\r\n"
+	                                 "Content-Length: 0");
+
+	BC_HARD_ASSERT(asserter.wait([&isCancelRequestAccepted, &is503Received]() {
+		FAIL_IF(isCancelRequestAccepted != true);
+		FAIL_IF(is503Received != true);
+		return ASSERTION_PASSED();
+	}));
+
+	// Assert that fork is still present because callee has only offline devices
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
+	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 0, int, "%i");
+
+	// Callee idle device came back online, sending a new Register
+	calleeIdleClient->reconnect();
+	// Wait for registration OK and check that call log is not empty anymore
+	asserter
+	    .wait([&calleeIdleClient] {
+		    FAIL_IF(calleeIdleClient->getAccount()->getState() != RegistrationState::Ok);
+		    FAIL_IF(calleeIdleClient->getCore()->getCallLogs().empty());
+		    return ASSERTION_PASSED();
+	    })
+	    .assert_passed();
+
+	// Assert CANCEL is received
+	BC_ASSERT_TRUE(asserter.wait([&calleeIdleClientCore] {
+		return !calleeIdleClientCore->getCurrentCall() ||
+		       calleeIdleClientCore->getCurrentCall()->getState() == Call::State::End ||
+		       calleeIdleClientCore->getCurrentCall()->getState() == Call::State::Released;
+	}));
+
+	// Assert Fork is destroyed
+	asserter
+	    .wait([&moduleRouter = *moduleRouter] {
+		    LOOP_ASSERTION(moduleRouter.mStats.mCountCallForks->finish->read() == 1);
 		    return ASSERTION_PASSED();
 	    })
 	    .assert_passed();
@@ -243,6 +358,7 @@ TestSuite _("Fork call context suite",
                 TEST_NO_TAG("Call with early cancel", callWithEarlyCancel),
                 TEST_NO_TAG("Call with early decline", calleeOfflineWithOneDeviceEarlyDecline),
                 TEST_NO_TAG("Call an offline user, early cancel", callWithEarlyCancelCalleeOffline),
+                TEST_NO_TAG("Call an only offline user, early cancel", callWithEarlyCancelCalleeOnlyOffline),
                 TEST_NO_TAG("Call an online user, with an other offline device", calleeOfflineWithOneDevice),
                 TEST_NO_TAG("Call an online user, with other idle devices", calleeMultipleOnlineDevices),
             });

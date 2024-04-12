@@ -50,6 +50,8 @@ public:
 
 	void processInternalError(int status, const char* phrase) override;
 
+	std::shared_ptr<BranchInfo> checkFinished() override;
+
 protected:
 	// Protected methods
 	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& event) override;
