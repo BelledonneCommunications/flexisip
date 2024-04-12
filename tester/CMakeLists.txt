@@ -80,6 +80,7 @@ add_executable(flexisip_tester
 	tester.cc
 	tests/auth/auth-digest-tester.cc
 	tests/auth/auth-domains-tester.cc
+	tests/auth/auth-trusted-hosts-tester.cc
 	tests/auth/rsa-keys.hh
 	tests/callcontext-mediarelay-tester.cc
 	tests/configmanager-tester.cc

@@ -80,6 +80,7 @@ add_library(flexisip SHARED
 	mediarelay.cc mediarelay.hh
 	module-auth.cc
 	module-authentication-base.cc
+	module-auth-trusted-hosts.cc module-auth-trusted-hosts.hh
 	module-authorization.cc module-authorization.hh
 	module-capabilities.cc module-capabilities.hh
 	module-contact-route-inserter.cc

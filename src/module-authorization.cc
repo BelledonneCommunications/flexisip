@@ -24,11 +24,8 @@
 #include "agent.hh"
 
 using namespace std;
-using namespace flexisip;
 
-// ====================================================================================================================
-//  ModuleAuthorization class
-// ====================================================================================================================
+namespace flexisip {
 
 namespace {
 
@@ -37,10 +34,10 @@ constexpr auth_challenger_t kRegistrarChallenger{401, sip_401_Unauthorized, sip_
 constexpr auth_challenger_t kProxyChallenger{407, sip_407_Proxy_auth_required, sip_proxy_authenticate_class,
                                              sip_proxy_authentication_info_class};
 
-const auto sInfo = ModuleInfo<ModuleAuthorization>(
+const auto sAuthorizationInfo = ModuleInfo<ModuleAuthorization>(
     "Authorization",
     "The authorization module checks the right of access of SIP requests.\n",
-    {"Authentication", "AuthOpenIDConnect", "ExternalAuthentication"},
+    {"Authentication", "AuthTrustedHosts", "AuthOpenIDConnect", "ExternalAuthentication"},
     ModuleInfoBase::ModuleOid::Authorization,
     [](GenericStruct& moduleConfig) { moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false"); });
 
@@ -113,4 +110,4 @@ void ModuleAuthorization::onRequest(shared_ptr<RequestSipEvent>& ev) {
 void ModuleAuthorization::onResponse(shared_ptr<ResponseSipEvent>&) {
 }
 
-// ====================================================================================================================
+} // namespace flexisip

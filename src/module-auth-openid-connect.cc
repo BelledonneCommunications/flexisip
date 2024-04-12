@@ -33,7 +33,7 @@ using namespace flexisip;
 // ====================================================================================================================
 
 namespace {
-const auto sInfo = ModuleInfo<ModuleAuthOpenIDConnect>(
+const auto sOpenIDConnectInfo = ModuleInfo<ModuleAuthOpenIDConnect>(
     "AuthOpenIDConnect",
     "The AuthOpenIDConnect module challenges SIP requests using OpenIDConnect method.\n",
     {"Authentication"},
@@ -137,8 +137,7 @@ void ModuleAuthOpenIDConnect::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	}
 }
 
-void ModuleAuthOpenIDConnect::onResponse(shared_ptr<ResponseSipEvent>& ev) {
-	(void)ev;
+void ModuleAuthOpenIDConnect::onResponse(shared_ptr<ResponseSipEvent>&) {
 }
 
 // ====================================================================================================================
