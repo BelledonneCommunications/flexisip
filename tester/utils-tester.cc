@@ -18,6 +18,7 @@
 
 #include <bctoolbox/tester.h>
 
+#include "registrar/contact-key.hh"
 #include "utils/rand.hh"
 #include "utils/string-utils.hh"
 #include "utils/test-patterns/test.hh"
@@ -63,7 +64,7 @@ public:
 class RandomStringGeneratorTest : public Test {
 public:
 	void operator()() override {
-		RandomStringGenerator rsg(0x5EED);
+		RandomStringGenerator rsg(flexisip::ContactKey::kPlaceholderAlphabet, 0x5EED);
 
 		const auto result = rsg(10);
 

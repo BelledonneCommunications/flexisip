@@ -1,6 +1,6 @@
 /*
  * Flexisip, a flexible SIP proxy server with media capabilities.
- * Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+ * Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -126,26 +126,26 @@ private:
  * construction, seeds itself from the system's random source. */
 class RandomStringGenerator {
 public:
-	// base64url alphabet as defined in RFC 4648 §5
-	static constexpr const char kAlphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-	static constexpr const auto kCharCount = sizeof(kAlphabet) - 1; // Null-terminated string
-
-	std::default_random_engine mEngine;
-	std::uniform_int_distribution<size_t> mDist;
-
-	explicit RandomStringGenerator(uint_fast32_t seed = std::random_device()())
-	    : mEngine(seed), mDist(0, kCharCount - 1 /* Array indexing starts at 0 and dist() is inclusive */) {
+	explicit RandomStringGenerator(std::string_view alphabet, uint_fast32_t seed = std::random_device()())
+	    : mEngine(seed), mDist(0, alphabet.size() - 1 /* Array indexing starts at 0 and dist() is inclusive */),
+	      mAlphabet(alphabet) {
 	}
 
 	std::string operator()(std::size_t length) {
 		std::string result(length, '\0');
 
 		for (char& c : result) {
-			c = kAlphabet[mDist(mEngine)];
+			c = mAlphabet[mDist(mEngine)];
 		}
 
 		return result;
 	}
+
+	std::default_random_engine mEngine;
+
+private:
+	std::uniform_int_distribution<size_t> mDist;
+	const std::string_view mAlphabet;
 };
 
 } // namespace flexisip

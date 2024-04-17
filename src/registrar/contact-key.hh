@@ -19,6 +19,10 @@ public:
 	// Append this flag to the end of a contact key string to signal that it should not be interpreted as placeholder,
 	// even if it starts with `kAutoGenTag`
 	static constexpr const char kNotAPlaceholderFlag[] = "NOT_A_PLACEHOLDER";
+	// base64url alphabet as defined in RFC 4648 §5
+	static constexpr auto kPlaceholderAlphabet =
+	    std::string_view("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_");
+
 	static RandomStringGenerator sRsg;
 
 	template <class... Args>
@@ -60,7 +64,7 @@ private:
 	// That's a collision space of 2¹²² possibilities; Which gives us an upper bound since we don't need to be
 	// "universally" unique.
 	static constexpr auto requiredCharCountForUniqueness() {
-		auto charCount = sRsg.kCharCount;
+		auto charCount = kPlaceholderAlphabet.size();
 		auto approximatePowerOf2 = 0;
 		while (charCount >>= 1) {
 			approximatePowerOf2 += 1;

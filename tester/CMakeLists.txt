@@ -207,6 +207,7 @@ if(ENABLE_B2BUA)
 	target_sources(flexisip_tester PRIVATE
 		b2bua-tester.cc
 		tests/b2bua/sip-bridge/accounts/account-pool-tester.cc
+		tests/b2bua/sip-bridge/accounts/account-pool-performance-tester.cc
 		tests/b2bua/sip-bridge/accounts/loaders/static-loader-tester.cc
 		tests/b2bua/sip-bridge/accounts/loaders/sql-loader-tester.cc
 		tests/b2bua/sip-bridge/accounts/selection-strategy/find-in-pool-tester.cc
