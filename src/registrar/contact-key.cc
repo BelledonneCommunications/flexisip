@@ -6,7 +6,7 @@
 
 namespace flexisip {
 
-RandomStringGenerator ContactKey::sRsg{}; // String generator is automatically seeded here
+RandomStringGenerator ContactKey::sRsg{kPlaceholderAlphabet}; // String generator is automatically seeded here
 constexpr const char ContactKey::kAutoGenTag[];
 
 std::string ContactKey::generateUniqueId() {

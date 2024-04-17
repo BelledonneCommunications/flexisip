@@ -585,25 +585,27 @@ static void external_provider_bridge__override_special_options() {
 }
 
 static void external_provider_bridge__b2bua_receives_several_forks() {
-	/* Intercom  App1  App2  sip.company1.com       B2BUA  sip.provider1.com  Phone
-	      |       |     |           |                |            |            |
-	      |-A-----|-----|--INVITE-->|                |            |            |
-	      |       |     |<-INVITE-A-|                |            |            |
-	      |       |     |           |-A1-INVITE----->|            |            |
-	      |       |<----|--INVITE-A-|                |            |            |
-	      |       |     |           |-A2-INVITE----->|            |            |
-	      |       |     |           |         (eaten by sdk)      |            |
-	      |       |     |           |                |-B-INVITE-->|            |
-	      |       |     |           |                |            |-B-INVITE-->|
-	      |       |     |           |                |            |<--ACCEPT-B-|
-	      |       |     |           |                |<--ACCEPT-B-|            |
-	      |       |     |           |<-ACCEPT-A1-----|            |            |
-	      |<------|-----|--ACCEPT-A-|                |            |            |
-	      |       |     |           |-A2-CANCEL----->|            |            |
-	      |       |     |           |         (eaten by sdk)      |            |
-	      |       |     |<-CANCEL-A-|                |            |            |
-	      |       |<----|--CANCEL-A-|                |            |            |
-	      |       |     |           |                |            |            |
+	/* Intercom  App1  App2  sip.company1.com  B2BUA  sip.provider1.com  Phone
+	      |       |     |           |            |            |            |
+	      |-A-----|-----|--INVITE-->|            |            |            |
+	      |       |     |<-INVITE-A-|            |            |            |
+	      |       |     |           |-A1-INVITE->|            |            |
+	      |       |<----|--INVITE-A-|            |            |            |
+	      |       |     |           |-A2-INVITE->|            |            |
+	      |       |     |           |            |-B-INVITE-->|            |
+	      |       |     |           |            |            |-B-INVITE-->|
+	      |       |     |           |            |-C-INVITE-->|            |
+	      |       |     |           |            |            |-C-INVITE-->|
+	      |       |     |           |            |            |<--ACCEPT-B-|
+	      |       |     |           |            |<--ACCEPT-B-|            |
+	      |       |     |           |<-ACCEPT-A1-|            |            |
+	      |<------|-----|--ACCEPT-A-|            |            |            |
+	      |       |     |           |-A2-CANCEL->|            |            |
+	      |       |     |<-CANCEL-A-|            |            |            |
+	      |       |<----|--CANCEL-A-|            |            |            |
+	      |       |     |           |            |-C-CANCEL-->|            |
+	      |       |     |           |            |            |-C-CANCEL-->|
+	      |       |     |           |            |            |            |
 	*/
 	using namespace flexisip::b2bua;
 	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf", false);
@@ -639,18 +641,19 @@ static void external_provider_bridge__b2bua_receives_several_forks() {
 	// 1 Client on an external domain that will answer one of the calls
 	auto phone = CoreClient("sip:phone@sip.provider1.com", server->getAgent());
 	auto phoneCore = phone.getCore();
+	// Allow tracking multiple INVITEs received with the same Call-ID
 	phoneCore->getConfig()->setBool("sip", "reject_duplicated_calls", false);
 
 	auto call = intercom.invite(address);
 
-	// All have received the invite
+	// All have received the invite...
 	app1.hasReceivedCallFrom(intercom).assert_passed();
 	app2.hasReceivedCallFrom(intercom).assert_passed();
 	phone.hasReceivedCallFrom(intercom).assert_passed();
 	auto phoneCalls = [&phoneCore = *phoneCore] { return phoneCore.getCalls(); };
+	// ...Even twice for the phone
+	BC_ASSERT_CPP_EQUAL(phoneCalls().size(), 2);
 
-	// A2-INVITE is indeed eaten by sdk
-	BC_ASSERT_CPP_EQUAL(phoneCalls().size(), 1);
 	CoreAssert asserter{intercom, phoneCore, app1, app2, server};
 	asserter
 	    .wait([&callerCall = *call] {
@@ -673,14 +676,13 @@ static void external_provider_bridge__b2bua_receives_several_forks() {
 	// All others have been cancelled
 	BC_ASSERT_FALSE(app1.getCurrentCall().has_value());
 	BC_ASSERT_FALSE(app2.getCurrentCall().has_value());
-	BC_ASSERT_CPP_EQUAL(phoneCalls().size(), 1);
 
-	// A2-CANCEL is indeed eaten by sdk, and do not cancel the call.
 	asserter
 	    .forceIterateThenAssert(20, 100ms,
-	                            [&callerCall = *call, &bridgedCall = *bridgedCall] {
+	                            [&callerCall = *call, &bridgedCall = *bridgedCall, &phoneCalls] {
 		                            FAIL_IF(callerCall.getState() != linphone::Call::State::StreamsRunning);
 		                            FAIL_IF(bridgedCall.getState() != linphone::Call::State::StreamsRunning);
+		                            FAIL_IF(phoneCalls().size() != 1);
 		                            return ASSERTION_PASSED();
 	                            })
 	    .assert_passed();

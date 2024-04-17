@@ -53,7 +53,7 @@ std::default_random_engine randomEngine() {
 }
 
 std::string randomString(std::size_t length) {
-	static RandomStringGenerator generator{seed()};
+	static RandomStringGenerator generator{"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789", seed()};
 	return generator(length);
 }
 

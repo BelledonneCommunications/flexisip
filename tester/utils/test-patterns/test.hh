@@ -130,7 +130,7 @@ inline void bc_hard_assert(const char* file, int line, int predicate, const char
 				           " != " + std::string(typeid(expectedType).name()))                                          \
 				              .c_str());                                                                               \
 			}                                                                                                          \
-		} catch (const std::exception& e) {                                                                                 \
+		} catch (const std::exception& e) {                                                                            \
 			exceptionWasThrown = true;                                                                                 \
 			bc_assert(__FILE__, __LINE__, 0,                                                                           \
 			          ("thrown exception has wrong type, " + std::string(typeid(expectedType).name()) +                \
@@ -200,6 +200,23 @@ static void run() noexcept {
 	run<instanciateAndCall<TestT>>();
 };
 
-#define CLASSY_TEST(test_class) TEST_NO_TAG(#test_class, run<test_class>)
+struct TestDecl : test_t {
+	TestDecl& tag(const char* tag) {
+		for (auto& slot : this->tags) {
+			if (slot == nullptr) {
+				slot = tag;
+				break;
+			}
+		}
+		return *this;
+	}
+};
+
+#define CLASSY_TEST(test_class)                                                                                        \
+	TestDecl {                                                                                                         \
+		{                                                                                                              \
+			.name = #test_class, .func = run<test_class>, .tags = { nullptr, nullptr }                                 \
+		}                                                                                                              \
+	}
 
 } // namespace flexisip::tester
