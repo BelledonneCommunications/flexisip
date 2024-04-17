@@ -29,8 +29,8 @@ EventId::EventId(const sip_t& sip)
     : mHash([&sip] {
 	      const auto toUrl = sip.sip_to->a_url;
 	      const auto fromUrl = sip.sip_from->a_url;
-	      const auto toIdentity{toUrl->url_user + "@"s + toUrl->url_host};
-	      const auto fromIdentity{fromUrl->url_user + "@"s + fromUrl->url_host};
+	      const auto toIdentity{toUrl->url_user ? toUrl->url_user : "" + "@"s + toUrl->url_host};
+	      const auto fromIdentity{fromUrl->url_user ? fromUrl->url_user : "" + "@"s + fromUrl->url_host};
 
 	      const auto sortedIdentities = minmax(toIdentity, fromIdentity);
 
