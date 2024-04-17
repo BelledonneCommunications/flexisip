@@ -62,9 +62,32 @@ void eventIdCreatedFromByeComingFromCallerOrCallee() {
 	BC_ASSERT_CPP_EQUAL(string{EventId{*msgFromCaller.getSip()}}, string{EventId{*msgFromCallee.getSip()}});
 }
 
+/*
+ * Test: event ID can be computed using sip uris with empty user parts.
+ */
+void eventIdCreatedUsingUrisWithEmptyUserParts() {
+	string callId{"stub-call-id"};
+	string caller{"sip:@sip.example.org"};
+	string callee{"sip:@sip.example.org"};
+
+	ostringstream request;
+	request << "BYE " << callee << ";gr=stub-uid SIP/2.0\r\n"
+	        << "Via: SIP/2.0/UDP 1.2.3.4:1234;branch=stub-branch;rport\r\n"
+	        << "From: <" << caller << ">;tag=stub-from-tag\r\n"
+	        << "To: <" << callee << ">;tag=stub-to-tag\r\n"
+	        << "CSeq: 22 BYE\r\n"
+	        << "Call-ID: " << callId << "\r\n"
+	        << "User-Agent: stub-user-agent\r\n";
+
+	const MsgSip msg{0, request.str()};
+
+	BC_ASSERT(!string{EventId{*msg.getSip()}}.empty());
+}
+
 TestSuite _("EventId",
             {
                 CLASSY_TEST(eventIdCreatedFromByeComingFromCallerOrCallee),
+                CLASSY_TEST(eventIdCreatedUsingUrisWithEmptyUserParts),
             });
 
 } // namespace
