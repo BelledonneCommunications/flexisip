@@ -81,10 +81,10 @@ public:
 	                     bool start = true,
 	                     InjectedHooks* injectedModule = nullptr)
 	    : Server(configFile, injectedModule) {
+		// Configure B2bua Server
+		auto* b2buaServerConf = getConfigManager()->getRoot()->get<GenericStruct>("b2bua-server");
 
 		if (!configFile.empty()) {
-			// Configure B2bua Server
-			auto* b2buaServerConf = getConfigManager()->getRoot()->get<GenericStruct>("b2bua-server");
 			// b2bua server needs an outbound proxy to route all sip messages to the proxy, set it to the first
 			// transport of the proxy.
 			auto proxyTransports = getAgent()
@@ -94,9 +94,11 @@ public:
 			                           ->get<ConfigStringList>("transports")
 			                           ->read();
 			b2buaServerConf->get<ConfigString>("outbound-proxy")->set(proxyTransports.front());
-			// need a writable dir to store DTLS-SRTP self signed certificate
-			b2buaServerConf->get<ConfigString>("data-directory")->set(bcTesterWriteDir());
 		}
+
+		// need a writable dir to store DTLS-SRTP self signed certificate (even if the config file is empty)
+		// Force to use writable-dir instead of var directory
+		b2buaServerConf->get<ConfigString>("data-directory")->set(bcTesterWriteDir());
 
 		mB2buaServer = make_shared<flexisip::B2buaServer>(this->getRoot(), this->getConfigManager());
 
@@ -667,8 +669,8 @@ static void external_provider_bridge__b2bua_receives_several_forks() {
 		    FAIL_IF(callerCall.getState() != linphone::Call::State::StreamsRunning);
 		    FAIL_IF(bridgedCall.getState() != linphone::Call::State::StreamsRunning);
 		    return ASSERTION_PASSED();
-		    })
-		    .assert_passed();
+	    })
+	    .assert_passed();
 
 	// All others have been cancelled
 	BC_ASSERT_FALSE(app1.getCurrentCall().has_value());
@@ -774,6 +776,8 @@ static void external_provider_bridge__max_call_duration() {
 	    {"module::Registrar/reg-domains", "sip.provider1.com sip.company1.com"},
 	    // Media Relay has problem when everyone is running on localhost
 	    {"module::MediaRelay/enabled", "false"},
+	    // B2bua use writable-dir instead of var folder
+	    {"b2bua-server/data-directory", bcTesterWriteDir()},
 	}};
 	proxy.start();
 	providersJson.writeStream() << R"([
@@ -816,9 +820,8 @@ static void external_provider_bridge__max_call_duration() {
 	    .assert_passed();
 
 	// None of the clients terminated the call, but the B2BUA dropped it on its own
-	asserter
-	    .iterateUpTo(
-	        10, [&callee]() { return LOOP_ASSERTION(callee.getCurrentCall() == nullopt); }, 2100ms)
+	asserter.iterateUpTo(
+	            10, [&callee]() { return LOOP_ASSERTION(callee.getCurrentCall() == nullopt); }, 2100ms)
 	    .assert_passed();
 }
 
@@ -1333,6 +1336,8 @@ void pauseWithAudioInactive() {
 	    {"module::Registrar/reg-domains", "example.org"},
 	    // Media Relay has problem when everyone is running on localhost
 	    {"module::MediaRelay/enabled", "false"},
+	    // B2bua use writable-dir instead of var folder
+	    {"b2bua-server/data-directory", bcTesterWriteDir()},
 	}};
 	proxy.start();
 	const auto& confMan = proxy.getConfigManager();
@@ -1430,6 +1435,8 @@ static void unknownMediaAttrAreFilteredOutOnReinvites() {
 	        {"module::Registrar/reg-domains", "example.org"},
 	        // Media Relay has problem when everyone is running on localhost
 	        {"module::MediaRelay/enabled", "false"},
+	        // B2bua use writable-dir instead of var folder
+	        {"b2bua-server/data-directory", bcTesterWriteDir()},
 	    },
 	    &hooks,
 	};

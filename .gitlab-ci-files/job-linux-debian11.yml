@@ -73,7 +73,7 @@ job-debian11-unit-test:
   artifacts:
     paths:
       - default.profdata
-      - OUTPUT/lib/libflexisip.so
+      - work/lib/libflexisip.so
 
 
 debian11-coverage:
@@ -87,15 +87,15 @@ debian11-coverage:
   script:
     - export TERM=xterm-color
     - echo "Full coverage of Flexisip library"
-    - llvm-cov show $PWD/OUTPUT/lib/libflexisip.so -instr-profile=default.profdata include/flexisip src --ignore-filename-regex=src\/lib\/.* -use-color > flexisip_coverage_lines_full.txt
+    - llvm-cov show $PWD/work/lib/libflexisip.so -instr-profile=default.profdata include/flexisip src --ignore-filename-regex=src\/lib\/.* -use-color > flexisip_coverage_lines_full.txt
     - echo "Display coverage by file of Flexisip library"
-    - llvm-cov report $PWD/OUTPUT/lib/libflexisip.so -instr-profile=default.profdata include/flexisip src --ignore-filename-regex=src\/lib\/.* -use-color | tee flexisip_coverage_report_by_file.txt
-    - echo "filtering output of report to get global coverage %"
+    - llvm-cov report $PWD/work/lib/libflexisip.so -instr-profile=default.profdata include/flexisip src --ignore-filename-regex=src\/lib\/.* -use-color | tee flexisip_coverage_report_by_file.txt
+    - echo "filtering work of report to get global coverage %"
     - cat flexisip_coverage_report_by_file.txt| grep -E "TOTAL" | grep -Po "\d+\.\d+\%" | sed -n '3p'
     - echo "Export results in JSON format"
-    - llvm-cov export $PWD/OUTPUT/lib/libflexisip.so -instr-profile=default.profdata -format=text include/flexisip src --ignore-filename-regex=src\/lib\/.* -use-color > flexisip_coverage_export.txt
+    - llvm-cov export $PWD/work/lib/libflexisip.so -instr-profile=default.profdata -format=text include/flexisip src --ignore-filename-regex=src\/lib\/.* -use-color > flexisip_coverage_export.txt
     - echo "Export results in Lcov format"
-    - llvm-cov export $PWD/OUTPUT/lib/libflexisip.so -instr-profile=default.profdata -format=lcov include/flexisip src --ignore-filename-regex=src\/lib\/.* -use-color > flexisip_coverage_export.lcov
+    - llvm-cov export $PWD/work/lib/libflexisip.so -instr-profile=default.profdata -format=lcov include/flexisip src --ignore-filename-regex=src\/lib\/.* -use-color > flexisip_coverage_export.lcov
     - lcov_cobertura flexisip_coverage_export.lcov
   coverage: '/[0-9][0-9]\.[0-9]+\%/'
   artifacts:

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -27,6 +27,8 @@
 
 #include <bctoolbox/logging.h>
 #include <bctoolbox/tester.h>
+#include <belr/grammarbuilder.h>
+#include <linphone++/linphone.hh>
 
 #include <sofia-sip/su_log.h>
 
@@ -102,6 +104,14 @@ static void log_handler(int lev, const char* fmt, va_list args) {
 #endif
 }
 
+void flexisip_tester_add_grammar_loader_path(const std::string& path) {
+	belr::GrammarLoader::get().addPath(path);
+}
+
+void flexisip_tester_set_factory_resources_path(const std::string& path) {
+	linphone::Factory::get()->setTopResourcesDir(path);
+}
+
 void flexisip_tester_init() {
 	// Initialize logs
 	LogManager::Parameters logParams{};
@@ -124,8 +134,7 @@ void flexisip_tester_init() {
 	bc_tester_init(log_handler, BCTBX_LOG_MESSAGE, BCTBX_LOG_ERROR, ".");
 
 	try {
-		if (auto envVar = std::getenv("FLEXISEED"))
-			sSeed = std::stoul(envVar, nullptr, 0 /* Autodect base */);
+		if (auto envVar = std::getenv("FLEXISEED")) sSeed = std::stoul(envVar, nullptr, 0 /* Autodect base */);
 	} catch (const std::invalid_argument&) {
 		// leave sSeed untouched
 	} catch (const std::out_of_range&) {
@@ -135,6 +144,19 @@ void flexisip_tester_init() {
 
 	// Make the default resource dir point to the 'tester' directory in the source code
 	bc_tester_set_resource_dir_prefix(FLEXISIP_TESTER_DATA_SRCDIR);
+
+	// Location of the grammar files
+	constexpr auto kAuthDbLocalGrammarLocation = FLEXISIP_ROOT_DIR "/share";
+	constexpr auto kVCardLocalGrammarLocation = FLEXISIP_ROOT_DIR "/linphone-sdk/belcard/src";
+	constexpr auto kSdpLocalGrammarLocation = FLEXISIP_ROOT_DIR "/linphone-sdk/belle-sip/src/sdp";
+	constexpr auto kLibLinphoneLocalGrammarLocation = FLEXISIP_ROOT_DIR "/linphone-sdk/liblinphone/share";
+	
+	flexisip_tester_add_grammar_loader_path(kAuthDbLocalGrammarLocation);
+	flexisip_tester_add_grammar_loader_path(kVCardLocalGrammarLocation);
+	flexisip_tester_add_grammar_loader_path(kSdpLocalGrammarLocation);
+	flexisip_tester_add_grammar_loader_path(kLibLinphoneLocalGrammarLocation);
+
+	flexisip_tester_set_factory_resources_path(FLEXISIP_ROOT_DIR);
 }
 
 void flexisip_tester_uninit(void) {

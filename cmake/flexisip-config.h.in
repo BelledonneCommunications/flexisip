@@ -73,5 +73,3 @@
 #define BELR_GRAMMARS_DIR "${BELR_GRAMMARS_DIR}"
 
 #define FIREBASE_GET_ACCESS_TOKEN_SCRIPT_PATH "${CMAKE_INSTALL_FULL_DATADIR}/flexisip/firebase_v1_get_access_token.py"
-
-#define FLOW_TOKEN_HASH_KEY_FILE_PATH DEFAULT_LIB_DIR "/flow-token-hash-key"

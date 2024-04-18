@@ -27,9 +27,9 @@
 #include "utils/flow.hh"
 #include "utils/socket-address.hh"
 
-#define HASH_KEY_FILE_PATH FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/config/flow-token-hash-key"
-
 namespace flexisip::tester {
+
+constexpr auto kHashKeyFilePath = FLEXISIP_TESTER_DATA_SRCDIR "/config/flow-token-hash-key";
 
 class FlowTestHelper {
 public:
@@ -45,8 +45,8 @@ public:
 	FlowData getSampleFlowData(sa_family_t ipAddressFamily) const;
 	Flow getSampleFlowTamperedWith(sa_family_t ipAddressFamily, WrongDataInFlow error) const;
 
-	FlowFactory::Helper mFactoryHelper{HASH_KEY_FILE_PATH};
+	FlowFactory::Helper mFactoryHelper{kHashKeyFilePath};
 	FlowFactory mFactory{mFactoryHelper};
 };
 
-} // namespace flexisip::tester::helper
+} // namespace flexisip::tester

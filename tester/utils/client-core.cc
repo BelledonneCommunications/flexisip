@@ -77,11 +77,13 @@ auto assert_data_transmitted(linphone::Call& calleeCall, linphone::Call& callerC
 } // namespace
 
 std::shared_ptr<linphone::Core> minimalCore(linphone::Factory& factory) {
+	auto dataDir = std::string(bc_tester_get_writable_dir_prefix());
 	auto linphoneConfig = factory.createConfig("");
+
 	linphoneConfig->setBool("logging", "disable_stdout", true);
-	linphoneConfig->setString("storage", "call_logs_db_uri", "null");
-	linphoneConfig->setString("storage", "zrtp_secrets_db_uri", "null");
-	linphoneConfig->setString("storage", "uri", "null");
+	linphoneConfig->setString("storage", "call_logs_db_uri", dataDir + "/null");
+	linphoneConfig->setString("storage", "zrtp_secrets_db_uri", dataDir + "/null");
+	linphoneConfig->setString("storage", "uri", dataDir + "/null");
 	linphoneConfig->setString("lime", "x3dh_db_path", ":memory:");
 	auto core = factory.createCoreWithConfig(linphoneConfig, nullptr);
 	auto clientTransport = factory.createTransports();

@@ -24,6 +24,7 @@
 #include "sofia-wrapper/nta-agent.hh"
 
 #include "registrar/registrar-db.hh"
+#include "tester.hh"
 #include "utils/asserts.hh"
 #include "utils/client-builder.hh"
 #include "utils/client-call.hh"
@@ -184,6 +185,7 @@ void registerUser() {
 	        {"module::NatHelper/enabled", "true"},
 	        {"module::NatHelper/nat-traversal-strategy", "flow-token"},
 	        {"module::NatHelper/force-flow-token", "true"},
+	        {"module::NatHelper/flow-token-path", bcTesterWriteDir().append("var/lib/flexisip/flow-token-hash-key")},
 	    },
 	    &injectedModuleHooks,
 	};
@@ -208,7 +210,7 @@ void registerUser() {
 		string mPath;
 	};
 
-	const FlowFactory flowFactory{FLOW_TOKEN_HASH_KEY_FILE_PATH};
+	const FlowFactory flowFactory{bcTesterWriteDir().append("var/lib/flexisip/flow-token-hash-key")};
 	const auto contactInfoGetter = make_shared<ContactInfoGetter>();
 	NtaAgent client{proxy.getRoot(), "sip:" + proxyHost + ":0;transport=tcp"};
 	BcAssert asserter{[&proxy] { proxy.getRoot()->step(1ms); }};
@@ -266,17 +268,19 @@ void makeCall() {
 		        }
 	        },
 	};
-	Server proxy{{
-	                 {"global/aliases", "localhost"},
-	                 {"global/transports", "sip:" + proxyHost + ":0;transport=tcp"},
-	                 {"module::MediaRelay/enabled", "false"},
-	                 {"module::Registrar/enabled", "true"},
-	                 {"module::Registrar/reg-domains", "localhost"},
-	                 {"module::NatHelper/enabled", "true"},
-	                 {"module::NatHelper/nat-traversal-strategy", "flow-token"},
-	                 {"module::NatHelper/force-flow-token", "true"},
-	             },
-	             &injectedModuleHooks};
+	Server proxy{
+	    {
+	        {"global/aliases", "localhost"},
+	        {"global/transports", "sip:" + proxyHost + ":0;transport=tcp"},
+	        {"module::MediaRelay/enabled", "false"},
+	        {"module::Registrar/enabled", "true"},
+	        {"module::Registrar/reg-domains", "localhost"},
+	        {"module::NatHelper/enabled", "true"},
+	        {"module::NatHelper/nat-traversal-strategy", "flow-token"},
+	        {"module::NatHelper/force-flow-token", "true"},
+	        {"module::NatHelper/flow-token-path", bcTesterWriteDir().append("var/lib/flexisip/flow-token-hash-key")},
+	    },
+	    &injectedModuleHooks};
 	proxy.start();
 
 	auto builder = ClientBuilder(*proxy.getAgent());
@@ -319,17 +323,19 @@ void makeCallNoNeedForNatHelper() {
 		        }
 	        },
 	};
-	Server proxy{{
-	                 {"global/aliases", "localhost"},
-	                 {"global/transports", "sip:" + proxyHost + ":0;transport=tcp"},
-	                 {"module::MediaRelay/enabled", "false"},
-	                 {"module::Registrar/enabled", "true"},
-	                 {"module::Registrar/reg-domains", "localhost"},
-	                 {"module::NatHelper/enabled", "true"},
-	                 {"module::NatHelper/nat-traversal-strategy", "flow-token"},
-	                 {"module::NatHelper/force-flow-token", "false"},
-	             },
-	             &injectedModuleHooks};
+	Server proxy{
+	    {
+	        {"global/aliases", "localhost"},
+	        {"global/transports", "sip:" + proxyHost + ":0;transport=tcp"},
+	        {"module::MediaRelay/enabled", "false"},
+	        {"module::Registrar/enabled", "true"},
+	        {"module::Registrar/reg-domains", "localhost"},
+	        {"module::NatHelper/enabled", "true"},
+	        {"module::NatHelper/nat-traversal-strategy", "flow-token"},
+	        {"module::NatHelper/force-flow-token", "false"},
+	        {"module::NatHelper/flow-token-path", bcTesterWriteDir().append("var/lib/flexisip/flow-token-hash-key")},
+	    },
+	    &injectedModuleHooks};
 	proxy.start();
 
 	auto builder = ClientBuilder(*proxy.getAgent());

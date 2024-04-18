@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -169,8 +169,8 @@ static void startFirebaseV1PushTest(PushType pType,
 	FirebaseV1Client::FIREBASE_PORT = "3000";
 	FirebaseV1Client firebaseClient{
 	    *root, make_shared<FirebaseV1AuthenticationManager>(
-	               root, pythonScriptPath,
-	               FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/config/firebase_sample_service_account.json", 15s, 30s)};
+	               root, pythonScriptPath, FLEXISIP_TESTER_DATA_SRCDIR "/config/firebase_sample_service_account.json",
+	               15s, 30s)};
 	firebaseClient.enableInsecureTestMode();
 
 	auto request = make_shared<FirebaseV1Request>(pType, pushInfo, "sample-project");
@@ -338,8 +338,8 @@ static void firebaseV1PushTestOk() {
 \})json"};
 
 	startFirebaseV1PushTest(PushType::Background,
-	                        FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success.py",
-	                        pushInfo, reqBodyPattern, 200, "ok", Request::State::Successful);
+	                        FLEXISIP_TESTER_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success.py", pushInfo,
+	                        reqBodyPattern, 200, "ok", Request::State::Successful);
 }
 
 static void firebaseV1PushTestKo() {
@@ -373,8 +373,8 @@ static void firebaseV1PushTestKo() {
 \})json"};
 
 	startFirebaseV1PushTest(PushType::Background,
-	                        FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success.py",
-	                        pushInfo, reqBodyPattern, 500, "Internal error", Request::State::Failed);
+	                        FLEXISIP_TESTER_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success.py", pushInfo,
+	                        reqBodyPattern, 500, "Internal error", Request::State::Failed);
 }
 
 static void firebaseV1PushTestTimeout() {
@@ -386,8 +386,8 @@ static void firebaseV1PushTestTimeout() {
 
 	// Request body pattern not checked during timeout test
 	startFirebaseV1PushTest(PushType::Background,
-	                        FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success.py",
-	                        pushInfo, "", 200, "Ok", Request::State::Failed, true);
+	                        FLEXISIP_TESTER_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success.py", pushInfo,
+	                        "", 200, "Ok", Request::State::Failed, true);
 }
 
 static void applePushTestOkPushkit() {

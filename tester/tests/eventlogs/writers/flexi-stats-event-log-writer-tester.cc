@@ -29,6 +29,7 @@
 #include "linphone++/enums.hh"
 
 #include "flexiapi/schemas/iso-8601-date.hh"
+#include "tester.hh"
 #include "utils/asserts.hh"
 #include "utils/chat-room-builder.hh"
 #include "utils/client-builder.hh"
@@ -159,8 +160,7 @@ void callToConference() {
 	CoreAssert asserter{johan, fakeConfServer, agent};
 
 	johan.invite(chatroom);
-	BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(
-	    4, [&requestsReceivedCount] { return 0 < requestsReceivedCount; }, 1s));
+	BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(4, [&requestsReceivedCount] { return 0 < requestsReceivedCount; }, 1s));
 
 	const auto startedEvent = httpMock.popRequestReceived();
 	json actualJson;
@@ -422,6 +422,7 @@ void messageToChatroomClearText() {
 	    // `mysql` to be as close to real-world deployments as possible
 	    {"conference-server/database-backend", "mysql"},
 	    {"conference-server/database-connection-string", mysqlServer.connectionString()},
+	    {"conference-server/state-directory", bcTesterWriteDir().append("var/lib/flexisip")},
 	});
 	const auto& agent = proxy->getAgent();
 	proxy->getAgent()

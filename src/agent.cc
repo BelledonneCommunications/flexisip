@@ -333,7 +333,8 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 		mNatTraversalStrategy = make_shared<ContactCorrectionStrategy>(this, contactCorrectionParameter);
 	} else if (strategy == "flow-token") {
 		const auto forceFlowTokenExpr = natHelperConfig->get<ConfigBooleanExpression>("force-flow-token")->read();
-		mNatTraversalStrategy = make_shared<FlowTokenStrategy>(this, forceFlowTokenExpr, FLOW_TOKEN_HASH_KEY_FILE_PATH);
+		std::filesystem::path hashKeyPath = natHelperConfig->get<ConfigString>("flow-token-path")->read();
+		mNatTraversalStrategy = make_shared<FlowTokenStrategy>(this, forceFlowTokenExpr, hashKeyPath);
 	} else {
 		throw runtime_error("unknown value for \"nat-traversal-strategy\" (" + strategy + ")");
 	}

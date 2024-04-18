@@ -31,6 +31,8 @@ std::string bcTesterRes(const std::string& name);
 // Canonical path to the configured writable directory for flexisip_tester
 std::filesystem::path bcTesterWriteDir();
 
+void flexisip_tester_add_grammar_loader_path(const std::string& path);
+void flexisip_tester_set_factory_resources_path(const std::string& path);
 void flexisip_tester_init();
 void flexisip_tester_uninit();
 

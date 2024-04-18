@@ -33,6 +33,7 @@
 #include "registrar/record.hh"
 #include "registrar/registrar-db.hh"
 #include "registrardb-internal.hh"
+#include "tester.hh"
 #include "utils/asserts.hh"
 #include "utils/chat-room-builder.hh"
 #include "utils/client-builder.hh"
@@ -98,7 +99,8 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 	              {"conference-server/database-backend", "mysql"},
 	              {"conference-server/database-connection-string", mysqlServer.connectionString()},
 	              {"conference-server/conference-factory-uris", confFactoryUri},
-	              {"conference-server/empty-chat-room-deletion", "false"}}};
+	              {"conference-server/empty-chat-room-deletion", "false"},
+	              {"conference-server/state-directory", bcTesterWriteDir().append("var/lib/flexisip")}}};
 	proxy.start();
 	auto* configRoot = proxy.getAgent()->getConfigManager().getRoot();
 	configRoot->get<GenericStruct>("conference-server")
@@ -181,6 +183,7 @@ void conferenceServerClearsOldBindingsOnInit() {
 	    {"conference-server/database-backend", "sqlite"},
 	    {"conference-server/database-connection-string", "/dev/null"},
 	    {"conference-server/conference-factory-uris", confFactoryUri},
+	    {"conference-server/state-directory", bcTesterWriteDir().append("var/lib/flexisip")},
 	}};
 	proxy.start();
 	auto& registrar = proxy.getAgent()->getRegistrarDb();

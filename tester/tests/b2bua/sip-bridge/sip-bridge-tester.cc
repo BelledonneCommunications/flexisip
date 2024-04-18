@@ -1,6 +1,20 @@
-/** Copyright (C) 2010-2024 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include "b2bua/sip-bridge/sip-bridge.hh"
 
@@ -13,6 +27,7 @@
 
 #include "b2bua/b2bua-server.hh"
 #include "registrardb-internal.hh"
+#include "tester.hh"
 #include "utils/client-builder.hh"
 #include "utils/client-call.hh"
 #include "utils/client-core.hh"
@@ -125,6 +140,8 @@ void bidirectionalBridging() {
 	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
 	    {"b2bua-server::sip-bridge/providers", providersJson.getFilename()},
 	    {"module::B2bua/enabled", "true"},
+	    // B2bua use writable-dir instead of var folder
+	    {"b2bua-server/data-directory", bcTesterWriteDir()},
 	}};
 	proxy.start();
 	providersJson.writeStream() << jsonConfig.format({{"port", proxy.getFirstPort()}});
@@ -283,6 +300,8 @@ void loadAccountsFromSQL() {
 	    {"b2bua-server/application", "sip-bridge"},
 	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
 	    {"b2bua-server::sip-bridge/providers", providersConfigPath},
+	    // B2bua use writable-dir instead of var folder
+	    {"b2bua-server/data-directory", bcTesterWriteDir()},
 	}};
 	proxy.start();
 	std::ofstream{providersConfigPath} << jsonConfig.format({
@@ -374,6 +393,8 @@ void invalidUriTriggersDecline() {
 	    {"b2bua-server/application", "sip-bridge"},
 	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
 	    {"b2bua-server::sip-bridge/providers", providersJson.getFilename()},
+	    // B2bua use writable-dir instead of var folder
+	    {"b2bua-server/data-directory", bcTesterWriteDir()},
 	}};
 	proxy.start();
 	const auto b2buaLoop = std::make_shared<sofiasip::SuRoot>();
@@ -473,6 +494,8 @@ ha1-md5@example.org clrtxt:a-clear-text-password ;
 	    {"module::Authentication/file-path", authDb.getFilename()},
 	    // Force all requests to be challenged, even un-REGISTERs
 	    {"module::Authentication/nonce-expires", "0"},
+	    // B2bua use writable-dir instead of var folder
+	    {"b2bua-server/data-directory", bcTesterWriteDir()},
 	}};
 	proxy.start();
 	providersJson.writeStream() << jsonConfig.format({
