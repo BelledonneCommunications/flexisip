@@ -138,11 +138,9 @@ void FileAuthDb::getPasswordFromBackend(const std::string& id,
 }
 
 shared_ptr<belr::Parser<shared_ptr<FileAuthDbParserElem>>> FileAuthDb::setupParser() {
-	string grammarFile = string(BELR_GRAMMARS_DIR) + "/authdb-file-grammar";
-	shared_ptr<Grammar> grammar = make_shared<Grammar>(grammarFile);
-
-	if (grammar->load(grammarFile) == -1) {
-		LOGF("Could not load grammar for authdb-file from '%s'", grammarFile.c_str());
+	shared_ptr<Grammar> grammar = GrammarLoader::get().load("authdb-file-grammar");
+	if (!grammar) {
+		LOGF("Could not load grammar for authdb-file from authdb-file-grammar");
 		return nullptr;
 	}
 

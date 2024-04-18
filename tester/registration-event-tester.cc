@@ -34,6 +34,7 @@
 
 #include "agent.hh"
 #include "registrar/registrar-db.hh"
+#include "tester.hh"
 #include "utils/asserts.hh"
 #include "utils/chat-room-builder.hh"
 #include "utils/client-builder.hh"
@@ -79,6 +80,7 @@ void basicSubscription() {
 	    {"conference-server/conference-factory-uris", confFactoryUri},
 	    // Registrars / Local confs
 	    {"conference-server/local-domains", "sip.example.org 127.0.0.1"},
+	    {"conference-server/state-directory", bcTesterWriteDir().append("var/lib/flexisip")},
 	}};
 	// RegEvent Server
 	const auto linFactory = Factory::get();
@@ -149,8 +151,7 @@ void basicSubscription() {
 	// Let's add a new device
 	inserter.insert({.uniqueId = "new-device"});
 	regDb.publish(otherParticipantTopic, "");
-	BC_ASSERT_TRUE(asserter.iterateUpTo(
-	    7, [&totalDevicesCount] { return 4 <= totalDevicesCount(); }, 1s));
+	BC_ASSERT_TRUE(asserter.iterateUpTo(7, [&totalDevicesCount] { return 4 <= totalDevicesCount(); }, 1s));
 
 	{
 		const auto participants = chatRoom->getParticipants();
@@ -162,8 +163,7 @@ void basicSubscription() {
 	// Remove a device
 	inserter.setExpire(0s).insert({.uniqueId = "new-device"});
 	regDb.publish(otherParticipantTopic, "");
-	BC_ASSERT_TRUE(asserter.iterateUpTo(
-	    10, [&totalDevicesCount] { return totalDevicesCount() == 3; }, 1s));
+	BC_ASSERT_TRUE(asserter.iterateUpTo(10, [&totalDevicesCount] { return totalDevicesCount() == 3; }, 1s));
 
 	{
 		const auto participants = chatRoom->getParticipants();

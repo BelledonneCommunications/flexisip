@@ -59,7 +59,7 @@ job-debian12-unit-test:
     - job-debian12-ninja-clang
   artifacts:
     paths:
-      - OUTPUT/lib/libflexisip.so
+      - work/lib/libflexisip.so
 
 #################################################
 # DEB

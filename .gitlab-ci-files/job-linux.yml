@@ -41,16 +41,20 @@
     - *set-max-jobs
     - mkdir work && cd work
     - cmake -G "$CMAKE_GENERATOR" $DEFAULT_CMAKE_OPTIONS -DCMAKE_INSTALL_PREFIX="$PWD/../OUTPUT" $CMAKE_OPTIONS ..
-    - cmake --build . --target install
+    - cmake --build .
 
 # Files required by the flexisip_tester bin
 .tester-artifacts:
   artifacts:
     paths:
-      - OUTPUT/bin/flexisip_tester
-      - OUTPUT/lib{,64}/
-      - OUTPUT/share/flexisip-tester/
-      - OUTPUT/share/belr/grammars/
+      - work/bin/flexisip_tester
+      - work/lib{,64}/
+      - "**grammar"
+      - tester/cert
+      - tester/config
+      - tester/images
+      - tester/scripts
+      - tester/sounds
 
 #################################################
 # RPM
@@ -210,7 +214,7 @@
   script:
     - export LD_LIBRARY_PATH=/usr/local/lib
     - export LSAN_OPTIONS="suppressions=./sanitizer_ignore.txt"
-    - ./OUTPUT/bin/flexisip_tester --verbose --resource-dir ./OUTPUT/share/flexisip-tester --xml || exit $?
+    - ./work/bin/flexisip_tester --verbose --xml || exit $?
   artifacts:
     reports:
       junit:

@@ -71,6 +71,7 @@ void ConferenceServer::_init() {
 		     e.getUrl().c_str());
 	}
 	mCheckCapabilities = config->get<ConfigBoolean>("check-capabilities")->read();
+	mStateDir = config->get<ConfigString>("state-directory")->read();
 
 	/* Read enabled media types (audio, video, text) */
 	auto mediaTypes = config->get<ConfigStringList>("supported-media-types")->read();
@@ -155,7 +156,7 @@ void ConferenceServer::_init() {
 		mCore->setMediaEncryption(*encryptionMode);
 	}
 	/* Create a directory for automatically generated DTLS-SRTP certificates */
-	string dtlsDir = getStateDir("dtls-srtp");
+	filesystem::path dtlsDir = getStateDir("dtls-srtp");
 	ensureDirectoryCreated(dtlsDir);
 	mCore->setUserCertificatesPath(dtlsDir);
 
@@ -607,6 +608,7 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	     ""},
 	    {Boolean, "empty-chat-room-deletion",
 	     "Whether the conference server will delete chat rooms that have no participants registered.\n", "true"},
+	    {String, "state-directory", "Directory where the conference server state files are stored.\n", DEFAULT_LIB_DIR},
 
 	    // Deprecated paramters:
 	    {String, "conference-factory-uri",
@@ -645,16 +647,16 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 });
 } // namespace
 
-string ConferenceServer::getStateDir(const std::string& subdir) const {
-	return string(DEFAULT_LIB_DIR) + std::string("/") + subdir + (subdir.empty() ? "" : "/");
+filesystem::path ConferenceServer::getStateDir(const std::string& subdir) const {
+	return filesystem::path{mStateDir}.append(subdir);
 }
 
-void ConferenceServer::ensureDirectoryCreated(const std::string& directory) {
+void ConferenceServer::ensureDirectoryCreated(const filesystem::path& directory) {
 	struct stat st;
 	if (stat(directory.c_str(), &st) != 0 && errno == ENOENT) {
 		LOGD("Creating flexisip's state directory: %s", directory.c_str());
 		string command("mkdir -p");
-		command += " \"" + directory + "\"";
+		command += " \"" + directory.string() + "\"";
 		int status = system(command.c_str());
 		if (status == -1 || WEXITSTATUS(status) != 0) {
 			LOGF("Directory %s doesn't exist and could not be created (insufficient permissions ?). Please create it "
@@ -664,14 +666,14 @@ void ConferenceServer::ensureDirectoryCreated(const std::string& directory) {
 	}
 }
 
-string ConferenceServer::getUuidFilePath() const {
-	return getStateDir() + string(sUuidFile);
+filesystem::path ConferenceServer::getUuidFilePath() const {
+	return getStateDir().append(sUuidFile);
 }
 
 const string& ConferenceServer::readUuid() {
 	ifstream fi;
 	mUuid = "";
-	string path = getUuidFilePath();
+	filesystem::path path = getUuidFilePath();
 	fi.open(path);
 	if (!fi.is_open()) {
 		LOGD("Cannot open uuid file %s: %s", path.c_str(), strerror(errno));
@@ -685,12 +687,12 @@ const string& ConferenceServer::readUuid() {
 
 void ConferenceServer::writeUuid(const string& uuid) {
 	ofstream fo;
-	string stateDir = getStateDir();
+	filesystem::path stateDir = getStateDir();
 
 	ensureDirectoryCreated(stateDir);
 
 	mUuid = uuid;
-	string path = getUuidFilePath();
+	filesystem::path path = getUuidFilePath();
 	fo.open(path);
 	if (!fo.is_open()) {
 		LOGE("Cannot open uuid file %s: %s", path.c_str(), strerror(errno));

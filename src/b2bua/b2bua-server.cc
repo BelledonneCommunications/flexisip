@@ -331,7 +331,7 @@ void B2buaServer::_init() {
 	mCore->enableEchoCancellation(false);
 	mCore->setPrimaryContact("sip:b2bua@localhost"); // TODO: get primary contact from config, do we really need one?
 	mCore->enableAutoSendRinging(false); // Do not auto answer 180 on incoming calls, relay the one from the other part.
-	mCore->setZrtpSecretsFile("null");
+	mCore->setZrtpSecretsFile(dataDirPath + "/null");
 	// Give enough time to the outgoing call (legB) to establish while we leave the incoming one (legA) ringing
 	// See RFC 3261 §16.6 step 11 for the duration
 	mCore->setIncTimeout(4 * 60);

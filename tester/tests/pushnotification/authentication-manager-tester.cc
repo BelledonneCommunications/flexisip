@@ -27,11 +27,6 @@
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
-#define PY_SCRIPT_ERROR FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_error.py"
-#define PY_SCRIPT_SUCCESS FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success.py"
-#define PY_SCRIPT_SUCCESS_F FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success_fixed.py"
-#define FIREBASE_SAMPLE_FILE FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/config/firebase_sample_service_account.json"
-
 using namespace std;
 using HttpRequest = flexisip::HttpMessage;
 using namespace flexisip::pushnotification;
@@ -42,11 +37,16 @@ namespace {
 
 namespace firebaseV1 {
 
+constexpr auto kPyScriptError = FLEXISIP_TESTER_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_error.py";
+constexpr auto kPyScriptSuccess = FLEXISIP_TESTER_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success.py";
+constexpr auto kPyScriptSuccessF = FLEXISIP_TESTER_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success_fixed.py";
+constexpr auto kFirebaseSampleFile = FLEXISIP_TESTER_DATA_SRCDIR "/config/firebase_sample_service_account.json";
+
 struct Helper {
 
 	static shared_ptr<FirebaseV1AuthenticationManager>
 	makeAuthenticationManager(const shared_ptr<sofiasip::SuRoot>& root, const filesystem::path& script) {
-		return make_shared<FirebaseV1AuthenticationManager>(root, script, FIREBASE_SAMPLE_FILE, 10min, 10s);
+		return make_shared<FirebaseV1AuthenticationManager>(root, script, kFirebaseSampleFile, 10min, 10s);
 	}
 
 	static shared_ptr<HttpRequest> makeRequest(string_view projectId) {
@@ -69,27 +69,27 @@ struct Helper {
 void testInstantiateWrongPathFirebaseServiceAccountFile() {
 	const auto root = make_shared<sofiasip::SuRoot>();
 	BC_ASSERT_THROWN(
-	    make_shared<FirebaseV1AuthenticationManager>(root, PY_SCRIPT_SUCCESS, "wrong/path/to/file.json", 10min, 10s),
+	    make_shared<FirebaseV1AuthenticationManager>(root, kPyScriptSuccess, "wrong/path/to/file.json", 10min, 10s),
 	    runtime_error);
 }
 
 void testInstantiateFailedToParseServiceAccountFile() {
 	const auto root = make_shared<sofiasip::SuRoot>();
-	const auto fp = FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/config/firebase_sample_service_account_error.json";
-	BC_ASSERT_THROWN(make_shared<FirebaseV1AuthenticationManager>(root, PY_SCRIPT_SUCCESS, fp, 10min, 10s),
+	const auto fp = FLEXISIP_TESTER_DATA_SRCDIR "/config/firebase_sample_service_account_error.json";
+	BC_ASSERT_THROWN(make_shared<FirebaseV1AuthenticationManager>(root, kPyScriptSuccess, fp, 10min, 10s),
 	                 runtime_error);
 }
 
 void testInstantiateMissingProjectIdServiceAccountFile() {
 	const auto root = make_shared<sofiasip::SuRoot>();
-	const auto path = FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/config/firebase_sample_service_account_missing_field.json";
-	BC_ASSERT_THROWN(make_shared<FirebaseV1AuthenticationManager>(root, PY_SCRIPT_SUCCESS, path, 10min, 10s),
+	const auto path = FLEXISIP_TESTER_DATA_SRCDIR "/config/firebase_sample_service_account_missing_field.json";
+	BC_ASSERT_THROWN(make_shared<FirebaseV1AuthenticationManager>(root, kPyScriptSuccess, path, 10min, 10s),
 	                 runtime_error);
 }
 
 void testProjectId() {
 	const auto root = make_shared<sofiasip::SuRoot>();
-	const auto manager = Helper::makeAuthenticationManager(root, PY_SCRIPT_SUCCESS);
+	const auto manager = Helper::makeAuthenticationManager(root, kPyScriptSuccess);
 
 	const string projectId{manager->getProjectId()};
 	BC_ASSERT_CPP_EQUAL(projectId, "sample-project");
@@ -97,7 +97,7 @@ void testProjectId() {
 
 void testAddAuthenticationSuccess() {
 	const auto root = make_shared<sofiasip::SuRoot>();
-	const auto manager = Helper::makeAuthenticationManager(root, PY_SCRIPT_SUCCESS_F);
+	const auto manager = Helper::makeAuthenticationManager(root, kPyScriptSuccessF);
 	const auto request = Helper::makeRequest(manager->getProjectId());
 
 	BC_HARD_ASSERT(manager->addAuthentication(request) == true);
@@ -111,7 +111,7 @@ void testAddAuthenticationSuccess() {
 
 void testAddAuthenticationError() {
 	auto root = make_shared<sofiasip::SuRoot>();
-	const auto manager = Helper::makeAuthenticationManager(root, PY_SCRIPT_ERROR);
+	const auto manager = Helper::makeAuthenticationManager(root, kPyScriptError);
 	const auto request = Helper::makeRequest(manager->getProjectId());
 
 	BC_HARD_ASSERT(manager->addAuthentication(request) == false);
@@ -127,7 +127,7 @@ void testRefreshTokenSuccess() {
 	// The python script returns a lifetime of 42s, so we set the token expiration anticipation value to 41s.
 	// Thus, the token refresh operation should run the next second.
 	const auto manager =
-	    make_shared<FirebaseV1AuthenticationManager>(root, PY_SCRIPT_SUCCESS, FIREBASE_SAMPLE_FILE, 10min, 41000ms);
+	    make_shared<FirebaseV1AuthenticationManager>(root, kPyScriptSuccess, kFirebaseSampleFile, 10min, 41000ms);
 
 	string token1{};
 	string token2{};
@@ -169,7 +169,7 @@ void testRefreshTokenSuccess() {
 void testRefreshTokenError() {
 	const auto root = make_shared<sofiasip::SuRoot>();
 	const auto manager =
-	    make_shared<FirebaseV1AuthenticationManager>(root, PY_SCRIPT_ERROR, FIREBASE_SAMPLE_FILE, 50ms, 100s);
+	    make_shared<FirebaseV1AuthenticationManager>(root, kPyScriptError, kFirebaseSampleFile, 50ms, 100s);
 	const auto request = Helper::makeRequest(manager->getProjectId());
 	BC_HARD_ASSERT(manager->addAuthentication(request) == false);
 

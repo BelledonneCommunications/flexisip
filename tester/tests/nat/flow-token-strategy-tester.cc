@@ -27,12 +27,11 @@
 
 #include "flexisip-tester-config.hh"
 #include "nat/contact-correction-strategy.hh"
+#include "utils/flow-test-helper.hh"
 #include "utils/nat-test-helper.hh"
 #include "utils/string-formatter.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
-
-#define HASH_KEY_FILE_PATH FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/config/flow-token-hash-key"
 
 using namespace std;
 using namespace sofiasip;
@@ -47,7 +46,7 @@ namespace {
 struct Helper : public NatTestHelper {
 	explicit Helper(const string& boolExpr)
 	    : NatTestHelper(),
-	      mStrategy(mAgent.get(), SipBooleanExpressionBuilder::get().parse(boolExpr), HASH_KEY_FILE_PATH) {
+	      mStrategy(mAgent.get(), SipBooleanExpressionBuilder::get().parse(boolExpr), kHashKeyFilePath) {
 	}
 
 	static shared_ptr<MsgSip> getRegister(bool ob) {
@@ -105,7 +104,7 @@ struct Helper : public NatTestHelper {
  */
 void addRecordRouteNatHelper() {
 	const Helper helper{"false"};
-	const FlowFactory flowFactory{HASH_KEY_FILE_PATH};
+	const FlowFactory flowFactory{kHashKeyFilePath};
 	const auto event = make_shared<RqSipEv>(helper.mAgent, Helper::getRegister(true), helper.mTport);
 
 	helper.mStrategy.addRecordRouteNatHelper(event);
@@ -240,7 +239,7 @@ void addRecordRouteForwardModuleNoRouteUrl() {
  */
 void addPathOnRegister() {
 	const Helper helper{"false"};
-	const FlowFactory flowFactory{HASH_KEY_FILE_PATH};
+	const FlowFactory flowFactory{kHashKeyFilePath};
 	const auto event = make_shared<RqSipEv>(helper.mAgent, Helper::getRegister(true), helper.mTport);
 
 	helper.mStrategy.addPathOnRegister(event, helper.mTport, nullptr);

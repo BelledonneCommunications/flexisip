@@ -23,12 +23,6 @@
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
-#define PY_SCRIPT_ERROR FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_error.py"
-#define PY_SCRIPT_SUCCESS_F FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success_fixed.py"
-#define PY_SCRIPT_UNEXPECTED_OUTPUT                                                                                    \
-	FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_unexpected_output.py"
-#define FIREBASE_SAMPLE_FILE FLEXISIP_TESTER_INSTALL_DATA_SRCDIR "/config/firebase_sample_service_account.json"
-
 using namespace std;
 using HttpRequest = flexisip::HttpMessage;
 using namespace flexisip::pushnotification;
@@ -39,12 +33,18 @@ namespace {
 
 namespace firebaseV1 {
 
+constexpr auto kPyScriptError = FLEXISIP_TESTER_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_error.py";
+constexpr auto kPyScriptSuccessF = FLEXISIP_TESTER_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success_fixed.py";
+constexpr auto kPyScriptUnexpectedOutput =
+    FLEXISIP_TESTER_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_unexpected_output.py";
+constexpr auto kFirebaseSampleFile = FLEXISIP_TESTER_DATA_SRCDIR "/config/firebase_sample_service_account.json";
+
 void makeAccessTokenProviderWithWrongPathToPythonScript() {
-	BC_ASSERT_THROWN(FirebaseV1AccessTokenProvider("wrong/path/to/script.py", FIREBASE_SAMPLE_FILE), runtime_error);
+	BC_ASSERT_THROWN(FirebaseV1AccessTokenProvider("wrong/path/to/script.py", kFirebaseSampleFile), runtime_error);
 }
 
 void runScriptFailedToParseScriptOutput() {
-	const FirebaseV1AccessTokenProvider provider{PY_SCRIPT_SUCCESS_F, "&& pollute-script-output"};
+	const FirebaseV1AccessTokenProvider provider{kPyScriptSuccessF, "&& pollute-script-output"};
 
 	const auto output = provider.runScript();
 
@@ -53,7 +53,7 @@ void runScriptFailedToParseScriptOutput() {
 }
 
 void runScriptCaughtWarnings() {
-	const FirebaseV1AccessTokenProvider provider{PY_SCRIPT_SUCCESS_F, FIREBASE_SAMPLE_FILE};
+	const FirebaseV1AccessTokenProvider provider{kPyScriptSuccessF, kFirebaseSampleFile};
 
 	const auto output = provider.runScript();
 
@@ -61,7 +61,7 @@ void runScriptCaughtWarnings() {
 }
 
 void getTokenSuccess() {
-	FirebaseV1AccessTokenProvider provider{PY_SCRIPT_SUCCESS_F, FIREBASE_SAMPLE_FILE};
+	FirebaseV1AccessTokenProvider provider{kPyScriptSuccessF, kFirebaseSampleFile};
 
 	const auto token = provider.getToken();
 
@@ -71,7 +71,7 @@ void getTokenSuccess() {
 }
 
 void getTokenUnexpectedJsonData() {
-	FirebaseV1AccessTokenProvider provider{PY_SCRIPT_UNEXPECTED_OUTPUT, FIREBASE_SAMPLE_FILE};
+	FirebaseV1AccessTokenProvider provider{kPyScriptUnexpectedOutput, kFirebaseSampleFile};
 
 	const auto token = provider.getToken();
 
@@ -79,7 +79,7 @@ void getTokenUnexpectedJsonData() {
 }
 
 void getTokenError() {
-	FirebaseV1AccessTokenProvider provider{PY_SCRIPT_ERROR, FIREBASE_SAMPLE_FILE};
+	FirebaseV1AccessTokenProvider provider{kPyScriptError, kFirebaseSampleFile};
 
 	const auto token = provider.getToken();
 

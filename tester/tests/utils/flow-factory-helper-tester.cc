@@ -24,6 +24,7 @@
 #include <flexisip/logmanager.hh>
 
 #include "flexisip-config.h"
+#include "tester.hh"
 #include "utils/flow-test-helper.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -38,7 +39,7 @@ using Helper = FlowTestHelper;
 namespace {
 
 void makeFlowFactoryHelper() {
-	const auto filePath = filesystem::path(FLEXISIP_TESTER_INSTALL_DATA_SRCDIR) / "flow-token-hash-key-test";
+	const auto filePath = bcTesterWriteDir().append("flow-token-hash-key-test");
 	filesystem::remove(filePath);
 
 	BC_HARD_ASSERT(filesystem::exists(filePath) == false);
@@ -61,12 +62,12 @@ void makeFlowFactoryHelper() {
 }
 
 void makeFlowFactoryHelperFromExistingHashKeyFile() {
-	const auto flowFactoryHelper = FlowFactory::Helper(HASH_KEY_FILE_PATH);
+	const auto flowFactoryHelper = FlowFactory::Helper(kHashKeyFilePath);
 	const auto& hashKey = flowFactoryHelper.getHashKey();
 	const auto hashKeySize = hashKey.size();
 
 	fstream file;
-	file.open(HASH_KEY_FILE_PATH, ios_base::in);
+	file.open(kHashKeyFilePath, ios_base::in);
 	char buffer[hashKeySize];
 	file.read(buffer, hashKeySize);
 	file.close();
@@ -81,7 +82,7 @@ void makeFlowFactoryHelperPermissionDeniedToCreateFolder() {
 }
 
 void makeFlowFactoryHelperFailToReadHashKeyFile() {
-	const auto filePath = filesystem::path(HASH_KEY_FILE_PATH).parent_path() / "flow-token-hash-key-corrupted";
+	const auto filePath = filesystem::path(kHashKeyFilePath).parent_path() / "flow-token-hash-key-corrupted";
 
 	BC_ASSERT_THROWN(FlowFactory::Helper{filePath}, runtime_error);
 }
