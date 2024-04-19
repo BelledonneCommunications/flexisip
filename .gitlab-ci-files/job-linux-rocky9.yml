@@ -1,9 +1,12 @@
 variables:
-  ROCKY9_CMAKE_OPTIONS_UNIT_TESTS: -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON -DCMAKE_PREFIX_PATH=/usr/local -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON
+  ROCKY9_CMAKE_OPTIONS: -DENABLE_OPENID_CONNECT=ON
+  ROCKY9_CMAKE_OPTIONS_UNIT_TESTS: ${ROCKY9_CMAKE_OPTIONS} -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON -DCMAKE_PREFIX_PATH=/usr/local -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON
 
 .rocky9-image-variables:
   image:
     name: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky9:$ROCKY_9_IMAGE_VERSION
+  variables:
+    CMAKE_OPTIONS: ${ROCKY9_CMAKE_OPTIONS}
 
 #################################################
 # Makefile
@@ -37,13 +40,13 @@ job-rocky9-ninja-clang:
     - .tester-artifacts
   variables:
     # -DCMAKE_PREFIX_PATH=/usr/local: Unit tests require libnghttp2_asio, which has been build and intalled into /usr/local
-    CMAKE_OPTIONS: ${ROCKY9_CMAKE_OPTIONS_UNIT_TESTS} -DENABLE_OPENID_CONNECT=ON
+    CMAKE_OPTIONS: ${ROCKY9_CMAKE_OPTIONS_UNIT_TESTS}
 
 job-rocky9-ninja-clang-nosoci:
   extends:
     - job-rocky9-ninja-clang
   variables:
-    CMAKE_OPTIONS: ${ROCKY9_CMAKE_OPTIONS_UNIT_TESTS} -DENABLE_SOCI=OFF -DENABLE_B2BUA=ON -DENABLE_CONFERENCE=ON -DENABLE_OPENID_CONNECT=ON
+    CMAKE_OPTIONS: ${ROCKY9_CMAKE_OPTIONS_UNIT_TESTS} -DENABLE_SOCI=OFF -DENABLE_B2BUA=ON -DENABLE_CONFERENCE=ON
 
 #################################################
 # UNIT TESTS
