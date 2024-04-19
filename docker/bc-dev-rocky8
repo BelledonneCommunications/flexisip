@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20231010_remove_okay_repo
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20240419_cpp-jwt
 ###############################################################################
 
 FROM rockylinux:8
@@ -44,6 +44,9 @@ RUN sudo dnf -y install \
                  # Install all dependencies needed for Flexisip
                    openssl-devel \
                    boost-devel \
+                   cpp-jwt-devel \
+                 # json-devel is a depency of cpp-jwt but not declared in its package dependencies
+                   json-devel \
                    hiredis-devel \
                    jansson-devel \
                    libsqlite3x-devel \

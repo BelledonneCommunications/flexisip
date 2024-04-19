@@ -40,7 +40,7 @@ job-rocky8-ninja-clang:
     - .tester-artifacts
   variables:
     # -DCMAKE_PREFIX_PATH=/usr/local: Unit tests require libnghttp2_asio, which has been build and intalled into /usr/local
-    CMAKE_OPTIONS: ${ROCKY8_CMAKE_OPTIONS_UNIT_TESTS}
+    CMAKE_OPTIONS: ${ROCKY8_CMAKE_OPTIONS_UNIT_TESTS} -DENABLE_OPENID_CONNECT=ON
 
 #################################################
 # UNIT TESTS
