@@ -173,16 +173,13 @@ void GenericEntry::doMibFragment(
     ostream& ostr, const string& def, const string& access, const string& syntax, const string& spacing) const {
 	if (!getParent()) LOGA("no parent found for %s", getName().c_str());
 	ostr << spacing << sanitize(getName()) << " OBJECT-TYPE" << endl
-	     << spacing << "	SYNTAX"
-	     << "	" << syntax << endl
+	     << spacing << "	SYNTAX" << "	" << syntax << endl
 	     << spacing << "	MAX-ACCESS	" << access << endl
 	     << spacing << "	STATUS	current" << endl
 	     << spacing << "	DESCRIPTION" << endl
 	     << spacing << "	\"" << escapeDoubleQuotes(getHelp()) << endl
-	     << spacing << "	"
-	     << " Default:" << def << endl
-	     << spacing << "	"
-	     << " PN:" << getPrettyName() << "\"" << endl
+	     << spacing << "	" << " Default:" << def << endl
+	     << spacing << "	" << " PN:" << getPrettyName() << "\"" << endl
 	     << spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
 }
 
@@ -254,8 +251,8 @@ void StatCounter64::mibFragment(ostream& ost, string spacing) const {
 }
 void GenericStruct::mibFragment(ostream& ost, string spacing) const {
 	string parent = getParent() ? getParent()->getName() : "flexisipMIB";
-	ost << spacing << sanitize(getName()) << "	"
-	    << "OBJECT IDENTIFIER ::= { " << sanitize(parent) << " " << mOid->getLeaf() << " }" << endl;
+	ost << spacing << sanitize(getName()) << "	" << "OBJECT IDENTIFIER ::= { " << sanitize(parent) << " "
+	    << mOid->getLeaf() << " }" << endl;
 }
 
 void NotificationEntry::mibFragment(ostream& ost, string spacing) const {
@@ -265,8 +262,7 @@ void NotificationEntry::mibFragment(ostream& ost, string spacing) const {
 	    << spacing << "	STATUS	current" << endl
 	    << spacing << "	DESCRIPTION" << endl
 	    << spacing << "	\"" << escapeDoubleQuotes(getHelp()) << endl
-	    << spacing << "	"
-	    << " PN:" << getPrettyName() << "\"" << endl
+	    << spacing << "	" << " PN:" << getPrettyName() << "\"" << endl
 	    << spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
 }
 
@@ -669,50 +665,37 @@ ConfigIntRange::ConfigIntRange(const std::string& name,
 }
 
 void ConfigIntRange::parse(const string& value) {
-	std::string::size_type n = value.find('-');
-	if (n == std::string::npos) {
-		mMin = mMax = atoi(value.c_str());
-	} else {
-		mMin = atoi(value.substr(0, n).c_str());
-		mMax = atoi(value.substr(n + 1).c_str());
+	try {
+		if (const auto range = StringUtils::splitOnce(value, "-"); range != nullopt) {
+			mMin = stoi(string{range->first});
+			mMax = stoi(string{range->second});
+		} else {
+			mMin = mMax = stoi(value);
+		}
+	} catch (const invalid_argument&) {
+		throw invalid_argument{"ConfigIntRange::parse(), no conversion could be performed (\"" + getCompleteName() +
+		                       "\" = " + value + ")"};
+	} catch (const out_of_range&) {
+		throw out_of_range{"ConfigIntRange::parse(), converted value is out of range (target: int, \"" +
+		                   getCompleteName() + "\" = " + value + ")"};
 	}
 }
 
 int ConfigIntRange::readMin() {
-	try {
-		parse(get());
-		return mMin;
-	} catch (const std::out_of_range& e) {
-		LOGA("%s", e.what());
-	}
-	return -1;
+	parse(get());
+	return mMin;
 }
 int ConfigIntRange::readMax() {
-	try {
-		parse(get());
-		return mMax;
-	} catch (const std::out_of_range& e) {
-		LOGA("%s", e.what());
-	}
-	return -1;
+	parse(get());
+	return mMax;
 }
 int ConfigIntRange::readNextMin() {
-	try {
-		parse(getNextValue());
-		return mMin;
-	} catch (const std::out_of_range& e) {
-		LOGA("%s", e.what());
-	}
-	return -1;
+	parse(getNextValue());
+	return mMin;
 }
 int ConfigIntRange::readNextMax() {
-	try {
-		parse(getNextValue());
-		return mMax;
-	} catch (const std::out_of_range& e) {
-		LOGA("%s", e.what());
-	}
-	return -1;
+	parse(getNextValue());
+	return mMax;
 }
 
 void ConfigIntRange::write(int min, int max) {

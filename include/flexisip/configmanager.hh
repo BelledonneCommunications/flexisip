@@ -560,8 +560,8 @@ public:
 
 private:
 	void parse(const std::string& value);
-	int mMin;
-	int mMax;
+	int mMin{};
+	int mMax{};
 };
 
 template <typename DurationType>

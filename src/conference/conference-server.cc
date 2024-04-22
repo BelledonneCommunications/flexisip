@@ -19,7 +19,6 @@
 #include "conference-server.hh"
 
 #include <fstream>
-#include <sstream>
 
 #include <belle-sip/utils.h>
 #include <sofia-sip/sip_header.h>
@@ -31,7 +30,6 @@
 #include "registrar/binding-parameters.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
-#include "registrar/registrar-db.hh"
 #include "registration-events/client.hh"
 #include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
@@ -140,8 +138,16 @@ void ConferenceServer::_init() {
 	// of having the encrypted version for each recipient.
 	mCore->enableLimeX3Dh(true);
 
-	mCore->setAudioPort(-1);  // use random ports.
-	mCore->setVideoPort(-1);  // use random ports.
+	const int audioPortMin = config->get<ConfigIntRange>("audio-port")->readMin();
+	const int audioPortMax = config->get<ConfigIntRange>("audio-port")->readMax();
+	mCore->setAudioPort(audioPortMin == audioPortMax ? audioPortMin : -1);
+	mCore->setAudioPortRange(audioPortMin, audioPortMax);
+
+	const int videoPortMin = config->get<ConfigIntRange>("video-port")->readMin();
+	const int videoPortMax = config->get<ConfigIntRange>("video-port")->readMax();
+	mCore->setVideoPort(videoPortMin == videoPortMax ? videoPortMin : -1);
+	mCore->setVideoPortRange(videoPortMin, videoPortMax);
+
 	mCore->setUseFiles(true); // No sound card shall be used in calls.
 	/*
 	 * Let the conference server work with all liblinphone's default audio codec s(opus, speex, pcmu, pcma).
@@ -563,6 +569,14 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	     "They are assumed to be local domains already.\n"
 	     "Ex: local-domains=sip.linphone.org conf.linphone.org linhome.org",
 	     ""},
+	    {IntegerRange, "audio-port",
+	     "Audio port to use for RTP and RTCP traffic. You can set a specific port or a range of ports.\n"
+	     "Examples: 'audio-port=12345' or 'audio-port=1024-65535'",
+	     "1024-65535"},
+	    {IntegerRange, "video-port",
+	     "Video port to use for RTP and RTCP traffic. You can set a specific port or a range of ports.\n"
+	     "Examples: 'video-port=12345' or 'video-port=1024-65535'",
+	     "1024-65535"},
 	    {String, "database-backend",
 	     "Choose the type of database backend that the conference server will use persistency of chatrooms and "
 	     "conferences data.\n"
