@@ -370,9 +370,15 @@ void B2buaServer::_init() {
 		}
 	}
 
-	// random port for UDP audio and video stream
-	mCore->setAudioPort(-1);
-	mCore->setVideoPort(-1);
+	const int audioPortMin = config->get<ConfigIntRange>("audio-port")->readMin();
+	const int audioPortMax = config->get<ConfigIntRange>("audio-port")->readMax();
+	mCore->setAudioPort(audioPortMin == audioPortMax ? audioPortMin : -1);
+	mCore->setAudioPortRange(audioPortMin, audioPortMax);
+
+	const int videoPortMin = config->get<ConfigIntRange>("video-port")->readMin();
+	const int videoPortMax = config->get<ConfigIntRange>("video-port")->readMax();
+	mCore->setVideoPort(videoPortMin == videoPortMax ? videoPortMin : -1);
+	mCore->setVideoPortRange(videoPortMin, videoPortMax);
 
 	// set no-RTP timeout
 	const auto noRTPTimeout = config->get<ConfigInt>("no-rtp-timeout")->read();
@@ -464,6 +470,14 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	     "trenscrypter"},
 	    {String, "transport", "SIP uri on which the back-to-back user agent server is listening on.",
 	     "sip:127.0.0.1:6067;transport=tcp"},
+	    {IntegerRange, "audio-port",
+	     "Audio port to use for RTP and RTCP traffic. You can set a specific port or a range of ports.\n"
+	     "Examples: 'audio-port=12345' or 'audio-port=1024-65535'",
+	     "1024-65535"},
+	    {IntegerRange, "video-port",
+	     "Video port to use for RTP and RTCP traffic. You can set a specific port or a range of ports.\n"
+	     "Examples: 'video-port=12345' or 'video-port=1024-65535'",
+	     "1024-65535"},
 	    {String, "user-agent",
 	     "Value of User-Agent header. Use the following syntax: <name>[/<version>] where <version> can bet set to "
 	     "'{version}' that is a placeholder for the Flexisip version.",

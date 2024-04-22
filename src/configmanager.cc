@@ -554,34 +554,29 @@ ConfigIntRange::ConfigIntRange(const std::string& name,
 }
 
 ConfigIntRange::RangeBounds ConfigIntRange::parse(const string& value) {
-	std::string::size_type n = value.find('-');
-	int min, max;
-	if (n == std::string::npos) {
-		min = max = stoi(value);
-	} else {
-		min = stoi(value.substr(0, n));
-		max = stoi(value.substr(n + 1));
+	auto bounds = RangeBounds();
+	try {
+		if (const auto range = StringUtils::splitOnce(value, "-"); range != nullopt) {
+			bounds.min = stoi(string{range->first});
+			bounds.max = stoi(string{range->second});
+		} else {
+			bounds.min = bounds.max = stoi(value);
+		}
+	} catch (const invalid_argument&) {
+		throw invalid_argument{"ConfigIntRange::parse(), no conversion could be performed (\"" + getCompleteName() +
+		                       "\" = " + value + ")"};
+	} catch (const out_of_range&) {
+		throw out_of_range{"ConfigIntRange::parse(), converted value is out of range (target: int, \"" +
+		                   getCompleteName() + "\" = " + value + ")"};
 	}
-	return RangeBounds{.min = min, .max = max};
+	return bounds;
 }
 
 int ConfigIntRange::readMin() {
-	try {
-		auto bounds = parse(get());
-		return bounds.min;
-	} catch (const std::out_of_range& e) {
-		LOGA("%s", e.what());
-	}
-	return -1;
+	return parse(get()).min;
 }
 int ConfigIntRange::readMax() {
-	try {
-		auto bounds = parse(get());
-		return bounds.max;
-	} catch (const std::out_of_range& e) {
-		LOGA("%s", e.what());
-	}
-	return -1;
+	return parse(get()).max;
 }
 
 void ConfigIntRange::write(int min, int max) {

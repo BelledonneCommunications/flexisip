@@ -512,7 +512,7 @@ private:
 		int max;
 	};
 
-	static RangeBounds parse(const std::string& value);
+	RangeBounds parse(const std::string& value);
 };
 
 template <typename DurationType>
