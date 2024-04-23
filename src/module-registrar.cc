@@ -430,7 +430,8 @@ void ModuleRegistrar::declareConfig(GenericStruct& moduleConfig) {
 	    ->setDeprecated({
 	        "2024-03-01",
 	        "2.4.0",
-	        "This setting no longer has any effect. It should be removed from the config file.",
+	        "While this parameter currently has no effect, it is not considered officially deprecated. It remains "
+	        "unused for now, but may be utilized in future updates.",
 	    });
 
 	moduleConfig.createStatPair("count-clear", "Number of cleared registrations.");

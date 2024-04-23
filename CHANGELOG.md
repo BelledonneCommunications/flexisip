@@ -13,6 +13,55 @@ Group changes to describe their impact on the project, as follows:
 | Fixed          | Any bug fixes                                         |
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
+## [2.4.0]
+### [Added]
+- **Conference server:** new parameter `conference-server/call-timeout` to kill all incoming calls that last longer than
+  the defined value.
+- **Configuration:** you can now indicate a unit (ms, s, min, h, d, m, y) along with the value for a duration
+  parameter in the configuration file.
+  See [File Syntax](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/#HFilesyntax) for more
+  information.
+- **Proxy/Router:** new parameter `module::Router/static-targets` that lists sip addresses which will always be added to
+  the list of contacts fetched from the registrar database when routing INVITE and MESSAGE requests.
+- **Proxy/NatHelper:** new strategy to route requests through NATs called
+  "flow-token" ([RFC5626](https://datatracker.ietf.org/doc/html/rfc5626))
+    - new parameter `module::NatHelper/nat-traversal-strategy` to indicate the strategy to use for routing requests
+      through NATs (`contact-correction` or `flow-token`).
+    - new parameter `module::NatHelper/force-flow-token` to force the use of flow-token under specific conditions (
+      boolean expression).
+- **B2BUA server:** improvement of the 'sip-bridge' mode. It now enables the bridging of calls from a Flexisip-managed
+  domain to a third-party domain but also from that third-party domain to the Flexisip domain, on a per-user level. See
+  [SIP Bridge](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Back-to-back%20User%20Agent%20(b2bua)/SIP%20Bridge)
+  for more information.
+- **Conference and B2BUA servers:** new
+  parameters `b2bua-server/audio-port`, `b2bua-server/video-port`, `conference-server/audio-port`
+  and `conference-server/video-port` to specify which port (or range of ports) to use for RTP and RTCP traffic.
+
+### [Changed]
+- **Build:** refactor of the build system to meet new CMake standards.
+- **Configuration:** now throw an exception with an explicit explanatory string when a key is found several times in the
+  configuration file.
+- **Proxy/PushNotification:** Invite/Cancel feature is now only used for Apple voip push notifications.
+- **Internal:** refactored software architecture (removed singletons) so you can now run several flexisip instances on
+  the same machine.
+- **Proxy/NatHelper:** parameter `module::NatHelper/contact-verified-param` is
+  renamed `module::NatHelper/contact-correction-param`.
+- **B2BUA:** custom header `flexisip-bu2bua` is renamed `X-Flexisip-B2BUA`.
+- **Internal:** Flexisip tester can now be used without the need for installation.
+
+### [Deprecated]
+- **Windows push notifications:** these push notifications are not handled anymore.
+    - parameter `module::PushNotification/windowsphone` no longer has an effect.
+    - parameter `module::PushNotification/windowsphone-package-sid` no longer has an effect.
+    - parameter `module::PushNotification/windowsphone-application-secret` no longer has an effect.
+- **Proxy/registrar:** parameter `module::Registrar/redis-server-timeout` no longer has an effect. This parameter is not
+  really deprecated. It is not used for the moment but may be used in the future.
+
+### [Removed]
+- **Ubuntu 18.04:** support discontinued as distribution end-of-life has exceeded (2023-05-31).
+- **CentOS 7:** support discontinued as distribution end-of-life is scheduled for 2024-06-30.
+- **Debian 10:** support discontinued as distribution end-of-life is scheduled for 2024-06-30.
+
 ## [2.3.4]
 ### [Added]
 - **Dependencies:** added `python3-google-auth` and `python3-requests` to package dependencies.
@@ -48,23 +97,22 @@ Group changes to describe their impact on the project, as follows:
 
 ## [2.3.3] - 2023-12-14
 ### [Added]
-- **Presence:** Last activity date is sent with long term presence.
-- **B2BUA server:** You can now force the usage of a specific video codec. See the `video-codec` config for more
+- **Presence:** last activity date is sent with long term presence.
+- **B2BUA server:** you can now force the usage of a specific video codec. See the `video-codec` config for more
   information.
-- **B2BUA server:** Add a configurable time limit on calls and fix a bug where calls where limited to 30 minutes.
+- **B2BUA server:** add a configurable time limit on calls and fix a bug where calls where limited to 30 minutes.
   See the `max-call-duration` config for more information.
-- **B2BUA server:** Allow to use other transport protocol than TCP.
-- **B2BUA server:** You can now choose the User-Agent header for outgoing B2BUA request with the `user-agent` config.
-- **Proxy/push-notification:** You can now choose between a HTTP/1 or a HTTP/2 client for the generic push-notification
-  service.
-  See the `external-push-protocol` config for more information.
-- **[Experimental]** **Proxy/push-notification:** You can choose to use the new Firebase v1 API to send Android push
-  notifications. See
-  `firebase-service-accounts` config for more information. Use with caution, this feature is experimental.
+- **B2BUA server:** allow to use other transport protocol than TCP.
+- **B2BUA server:** you can now choose the User-Agent header for outgoing B2BUA request with the `user-agent` config.
+- **Proxy/push-notification:** you can now choose between a HTTP/1 or a HTTP/2 client for the generic push-notification
+  service. See the `external-push-protocol` config for more information.
+- **[Experimental]** **Proxy/push-notification:** you can choose to use the new Firebase v1 API to send Android push
+  notifications. See `firebase-service-accounts` config for more information. Use with caution, this feature is
+  experimental.
 
 ### [Changed]
-- **Proxy/logs:** Improve Redis request logging in case of errors.
-- **Proxy/router:** Add a configuration parameter to choose database connection pool size for message persistence.
+- **Proxy/logs:** improve Redis request logging in case of errors.
+- **Proxy/router:** add a configuration parameter to choose database connection pool size for message persistence.
   See the `message-database-pool-size` config for more information.
 - **Packaging:** Flexisip will create default configurations files on first install.
 
@@ -77,15 +125,15 @@ Group changes to describe their impact on the project, as follows:
 - **Proxy/http/2 client:** fix a problem where frames where not sent directly after an HTTP/2 window size update.
 - **Proxy/registrar:** fix a race condition on rapid consecutive REGISTERs that may lead to a crash.
 - **Proxy/router:** fix bug where a 5xx response was preferred over a 6xx response for some INVITEs.
-- **Proxy/foward:** Fix a bug where stateless CANCEL could be forwarded without the Reason header.
+- **Proxy/forward:** fix a bug where stateless CANCEL could be forwarded without the Reason header.
 
 ## [2.3.2] - 2023-09-07
 ### [Fixed]
-- **Proxy/media-relay:** fix `candidates` media attributes being wiped out of all INVITE responses.
-  This buggy behaviour was introduced in 2.3.1 while attempting to handle a response **with** ICE candidates
-  to an INVITE **without** ICE candidates.
-- **Proxy/registrar:** Fix a regression in a domain-registration scenario with "relay-reg-to-domains" enabled,
-  where the backend server fails to route to the intermediate proxy.
+- **Proxy/media-relay:** fix `candidates` media attributes being wiped out of all INVITE responses. This buggy behaviour
+  was introduced in 2.3.1 while attempting to handle a response **with** ICE candidates to an INVITE **without** ICE
+  candidates.
+- **Proxy/registrar:** fix a regression in a domain-registration scenario with "relay-reg-to-domains" enabled, where the
+  backend server fails to route to the intermediate proxy.
 
 ## [2.3.1] - 2023-08-30
 ### [Added]
@@ -118,72 +166,70 @@ Group changes to describe their impact on the project, as follows:
   Address of Record.
 - **External authentication plugin:** add the SNI header in order to establish TLS connections with HTTPS virtual hosts.
 - Packaging for Rocky Linux 9 and Debian 12.
-- New EventLog backend based on an HTTP REST API (experimental).
+- **[Experimental]** New EventLog backend based on an HTTP REST API.
 
 ### [Changed]
-- **Flexisip proxy:** enforce compliance with [RFC3261](https://datatracker.ietf.org/doc/html/rfc3261) when
-  processing REGISTER requests. The Call-ID is no longer used as unique-id when no `+sip-instance` parameter has
-  been set in the Contact-URI; the Contact-URI is used instead by using URI comparison logic as described in
-  [RFC3261 – Section 10.2.4](https://datatracker.ietf.org/doc/html/rfc3261#section-10.2.4). The CSeq value is now used
-  to
-  avoid replay attacks or SIP race conditions.
+- **Flexisip proxy:** enforce compliance with [RFC3261](https://datatracker.ietf.org/doc/html/rfc3261) when processing
+  REGISTER requests. The Call-ID is no longer used as unique-id when no `+sip-instance` parameter has been set in the
+  Contact-URI; the Contact-URI is used instead by using URI comparison logic as described
+  in [RFC3261 – Section 10.2.4](https://datatracker.ietf.org/doc/html/rfc3261#section-10.2.4). The CSeq value is now
+  used to avoid replay attacks or SIP race conditions.
 
 ## [2.2.5] - 2023-08-02
 ### [Added]
-- **Presence server:** add timestamp of last activity to the presence notification when the status of
-  the user is 'away' or their client is no longer active.
+- **Presence server:** add timestamp of last activity to the presence notification when the status of the user is 'away'
+  or their client is no longer active.
 
 ### [Fixed]
-- **Proxy:** fix system file descriptor limit detection bug that was eventually causing Flexisip to run out of
-  file descriptors to handle all of its connections on some OS.
-- **Proxy – ContactRouteInserter:** increase the max size of the 'CtRtxxxxx' parameter to 512 bytes to
-  ensure that a full domain name can be stored.
+- **Proxy:** fix system file descriptor limit detection bug that was eventually causing Flexisip to run out of file
+  descriptors to handle all of its connections on some OS.
+- **Proxy – ContactRouteInserter:** increase the max size of the 'CtRtxxxxx' parameter to 512 bytes to ensure that a
+  full domain name can be stored.
 - **Proxy – ExternalPushNotification:** fix bad behavior when an iOS client uses legacy push parameters while
-  registering and the 'app-id' parameter doesn't end with '.prod' or '.dev'. It caused the '$app-id'
-  placeholder to be replaced by a truncated 'app-id'. The fix makes Flexisip assume the 'app-id' ends
-  with '.prod' if the user agent hasn't specified the last component.
+  registering and the 'app-id' parameter doesn't end with '.prod' or '.dev'. It caused the '$app-id' placeholder to be
+  replaced by a truncated 'app-id'. The fix makes Flexisip assume the 'app-id' ends with '.prod' if the user agent
+  hasn't specified the last component.
 
 ## [2.2.4] - 2023-04-20
 ### [Fixed]
-- Bug in SofiaSip that causes the proxy to choose a not fully established TCP connection when it needs
-  to send a SIP message to a user agent. That causes some SIP message losses.
+- Bug in SofiaSip that causes the proxy to choose a not fully established TCP connection when it needs to send a SIP
+  message to a user agent. That causes some SIP message losses.
 - Make the proxy to answer “200 Ok” to OPTIONS requests that are directly addressed to itself.
-- Crash when the “Generic Push Notifications” feature is enabled (`module::PushNotification/external-push-uri`)
-  but no Firebase API key has been put in `firebase-projects-api-keys` parameter.
+- Crash when the “Generic Push Notifications” feature is enabled (`module::PushNotification/external-push-uri`) but no
+  Firebase API key has been put in `firebase-projects-api-keys` parameter.
 - Fix a bug that causes some PUBLISH requests that was not related to presence information to be forwarded to the
   presence server.
 
 ## [2.2.3] - 2023-04-11
 ### [Fixed]
-- CLI: print a more explicite message when the CLI cannot connect to the server socket due to permissions.
+- CLI: print a more explicit message when the CLI cannot connect to the server socket due to permissions.
 - Pusher: allow to set a custom payload for Firebase push notifications requests, as it is for Apple.
-- Presence server: ensure that capabilities of each devices of a user are concatenated by union while sending
-  a NOTIFY request to the subscriber.
-- Proxy server: make the generic pusher to replace the $app-id paramter by the right value.
+- Presence server: ensure that capabilities of each device of a user are concatenated by union while sending a NOTIFY
+  request to the subscriber.
+- Proxy server: make the generic pusher to replace the $app-id parameter by the right value.
 
 ## [2.2.2] - 2023-02-24
 ### [Fixed]
-- Issue in packaging and deployement scripts.
+- Issue in packaging and deployment scripts.
 
 ## [2.2.1] - 2023-02-24
 ### [Added]
 
-- 'global/tport-message-queue-size' parameter in flexisip.conf. That allows to set the size of the message
-  queue which is used when a SIP message cannot be sent because the socket is full.
+- 'global/tport-message-queue-size' parameter in flexisip.conf. Allows to set the size of the message queue which is
+  used when a SIP message cannot be sent because the socket is full.
 
 ### [Changed]
 
-- Format of `--key` option of `./flexisip_pusher` tool. The option only takes the Firebase authentication
-  token now.
+- Format of `--key` option of `./flexisip_pusher` tool. The option only takes the Firebase authentication token now.
 
 ### [Fixed]
 
 - Bug that caused the number of contacts for a given AoR to grow indefinitely when there was no '+sip.instance'
   parameter in the Contact-URI.
-- Push notification was not sent to the second device when two devices had the same 'pn-prid' but
-  distinct 'pn-provider'.
-- Messages were not forwarded with the same order as when they were received,
-  should 'save-fork-late-message-in-db' feature have been enabled.
+- Push notification was not sent to the second device when two devices had the same 'pn-prid' but distinct '
+  pn-provider'.
+- Messages were not forwarded with the same order as when they were received, should 'save-fork-late-message-in-db'
+  feature have been enabled.
 - 6xx responses were not prioritized on 4xx responses when the proxy had to forward a final response to the caller.
 - Compilation with `ENABLE_SOCI=OFF` was broken.
 - Crash when the “Periodic Binding Refresh” mechanism (rfc8599) was
@@ -201,8 +247,8 @@ Group changes to describe their impact on the project, as follows:
   Associated parameters: `message-database-backend`, `message-database-connection-string`.
 - [Filter syntax](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/) getter
   additions:
-  - `contact.uri.{user,domain,params}`: get parts of the Contact-URI of the current SIP message;
-  - `content-type`: get the full Content-type of the body as string.
+    - `contact.uri.{user,domain,params}`: get parts of the Contact-URI of the current SIP message;
+    - `content-type`: get the full Content-type of the body as string.
 - `module::ExternalAuth/trusted-hosts` parameter: allow to let requests coming from given IP addresses pass the
   ExternalAuth module. This module is provided by 'libexternal-auth' plugin.
 - Make the proxy to answer to double-CRLF ping sequence (RFC5626 §4.4.1).
@@ -223,8 +269,8 @@ Group changes to describe their impact on the project, as follows:
 ### [Fixed]
 
 - Make the MediaRelay module to handle UPDATE requests.
-- Issue where a 200 Ok for REGISTER coming from an upstream server is discarded instead of being routed back
-  the originator of the REGISTER. Only concerns user of `module::Registrar/reg-on-response` feature.
+- Issue where a 200 Ok for REGISTER coming from an upstream server is discarded instead of being routed back the
+  originator of the REGISTER. Only concerns user of `module::Registrar/reg-on-response` feature.
 - Avoid push notification sending while forwarding INVITE requests with `Replace` header.
 - Issue with domain registration digest authentication which failed because of the selection of a different SRV node
   between first and authenticated request.
@@ -244,7 +290,7 @@ Group changes to describe their impact on the project, as follows:
 ## [2.1.5] - 2022-06-09
 ### [Fixed]
 
-- 'reg-on-response' parameter no longer worked since Flexisip 2.1.0
+- `reg-on-response` parameter no longer worked since Flexisip 2.1.0
 
 ## [2.1.4] - 2022-05-19
 ### [Fixed]
@@ -256,31 +302,28 @@ Group changes to describe their impact on the project, as follows:
 ## [2.1.3] - 2022-03-18
 ### [Fixed]
 
-- ExternalPusher: the response to each HTTP request systematically has a delay of
-  a few seconds when using a TCP connection instead of TLS.
-- Race condition around Redis SUBSCRIBEs/UNSUBSCRIBEs that causes Flexisip to
-  wrongly thinks that it is subscribed to some fork contexts. Finally, that
-  causes to have end-users' device receiving push notifications for a message
-  but no message is delivered by Flexisip once the application registers again.
+- ExternalPusher: the response to each HTTP request systematically has a delay of a few seconds when using a TCP
+  connection instead of TLS.
+- Race condition around Redis SUBSCRIBEs/UNSUBSCRIBEs that causes Flexisip to wrongly thinks that it is subscribed to
+  some fork contexts. Finally, that causes to have end-users' device receiving push notifications for a message but no
+  message is delivered by Flexisip once the application registers again.
 - Weakness in the module replacement algorithm that causes some modules coming
   from plugins to be inserted in bad position in the modules list.
 
 ## [2.1.2] - 2021-12-22
 ### [Added]
-- `rtp_bind_address` configuration parameter, which allow to choose the listening
-  address of the media relay.
+- `rtp_bind_address` configuration parameter, which allow to choose the listening address of the media relay.
 - Allow boolean expression filter to access the Contact header of the request.
 
 ### [Fixed]
-- Have the CMake script to install flexisip-version.h header and embed it
-  in the RPM/DEB package.
+- Have the CMake script to install flexisip-version.h header and embed it in the RPM/DEB package.
 - Crash of the proxy when using `REGISTERAR_DELETE` command in flexisip_cli.
 - Fix problems in migration of old protobuf-encoded Registrar entries.
 
 ## [2.1.1] - 2021-10-25
 ### [Fixed]
-- Fix an issue in the CPack script that caused the name of CentOS packages to not conform
-  with CentOS format, because the distribution tag (el7, el8, etc.) was missing.
+- Fix an issue in the CPack script that caused the name of CentOS packages to not conform with CentOS format, because
+  the distribution tag (el7, el8, etc.) was missing.
 
 ## [2.1.0] - 2021-10-20
 ### [Added]
@@ -288,16 +331,16 @@ Group changes to describe their impact on the project, as follows:
   The RegEvent server is in charge of responding to SIP SUBSCRIBEs for the 'reg' event as defined by
   [RFC3680 - A Session Initiation Protocol (SIP) Event Package for Registrations](https://tools.ietf.org/html/rfc3680).
   To generate the outgoing NOTIFY, it relies upon the registrar database, as setup in module::Registrar section.
-- **Proxy** New transport URI parameter: `tls-allow-missing-client-certificate=<true/false>`.
-  This allows to accept TLS connections from clients which haven't any X.509 certificate
-  even if `tls-verify-incoming` has been enabled. Valid for SIPS transport only.
-- **Proxy** Add `module::DoSProtection/white-list` parameter in flexisip.conf to allow packets from
-  given IP addresses to bypass the DoS protection system.
-- **Proxy** Add `module::Authentication/realm` parameter that allows to force the realm
-  offered by the proxy to user agents during authentication (401/407 responses).
+- **Proxy** New transport URI parameter: `tls-allow-missing-client-certificate=<true/false>`. This allows to accept TLS
+  connections from clients which haven't any X.509 certificate even if `tls-verify-incoming` has been enabled. Valid for
+  SIPS transport only.
+- **Proxy** Add `module::DoSProtection/white-list` parameter in flexisip.conf to allow packets from given IP addresses
+  to bypass the DoS protection system.
+- **Proxy** Add `module::Authentication/realm` parameter that allows to force the realm offered by the proxy to user
+  agents during authentication (401/407 responses).
 - **Conference server** Several factory URIs can be handled by the server.
-- **Push notifications** New option `--custom-payload` for flexisip_pusher utility that allows to
-  manually set the payload sent to push notificaiton server (Apple push only).
+- **Push notifications** New option `--custom-payload` for flexisip_pusher utility that allows to manually set the
+  payload sent to push notificaiton server (Apple push only).
 - **Flexisip CLI** Add `REGISTRAR_DUMP` CLI command to dump all addresses of record registered locally.
 - **Packaging** Support of CentOS 8 and Debian 10 GNU/Linux distributions.
 
@@ -308,9 +351,8 @@ Group changes to describe their impact on the project, as follows:
 - **Presence server** Moving `soci-user-with-phone-request` and `soci-users-with-phones-request` parameters
   from _[module::Authenticaiton]_ section to _[presence-server]_.
 - **Conference server** Conformance to 1.1 specification.
-- **Packaging** Packaging process has entirely been reworked in order to embed Flexisip and Linphone SDK
-  inside a single package. Thus, a given version of Flexisip is strongly bound to a specific version
-  of Linphone SDK.
+- **Packaging** Packaging process has entirely been reworked in order to embed Flexisip and Linphone SDK inside a single
+  package. Thus, a given version of Flexisip is strongly bound to a specific version of Linphone SDK.
 
 ### [Deprecated]
 - **Presence server** Setting `module::Authentication/soci-user-with-phone-request` and
@@ -322,37 +364,33 @@ Group changes to describe their impact on the project, as follows:
 
 ## [2.0.9] - 2021-08-10
 ### [Fixed]
-- **Proxy** Reverts the previous fix which prevents that two contacts with the same push parameters
-  be registered for the same user. Side effects which caused some users to not receive
-  messages or calls have been observed in production.
+- **Proxy** Reverts the previous fix which prevents that two contacts with the same push parameters be registered for
+  the same user. Side effects which caused some users to not receive messages or calls have been observed in production.
 
 ## [2.0.8] - 2021-08-09
 ### [Added]
-- **Proxy** Adding 'fallback-route-filter' parameter in 'module::Router' section.
-  This parameter allows to prevent some SIP requests to be forwarded to the
-  fallback route when all the forked transactions have failed. The parameter expects
-  a boolean expression as the filter parameter at the beggining of each module::\*
-  sections. The fallback route is used when the boolean expression is evaluated to _true_.
+- **Proxy** Adding 'fallback-route-filter' parameter in 'module::Router' section. This parameter allows to prevent some
+  SIP requests to be forwarded to the fallback route when all the forked transactions have failed. The parameter expects
+  a boolean expression as the filter parameter at the beggining of each module::\* sections. The fallback route is used
+  when the boolean expression is evaluated to _true_.
 
 ### [Fixed]
-- **Proxy** Prevent SIP client to registers two distinct contacts (distinct UID) which would have
-  the same push notification parameters. That often happens when Linphone is uninstalled and
-  installed again on an iOS device, causing the instance UID to be generated again but keeping
-  the same push notification tokens. That causes the device to receives several push notifications
-  for each SIP request because Flexisip assumes that each contact URI matches a distinct device.
-  To avoid this scenario, Flexisip automatically removes the old contact URI to ensure the unicity
+- **Proxy** Prevent SIP client to registers two distinct contacts (distinct UID) which would have the same push
+  notification parameters. That often happens when Linphone is uninstalled and installed again on an iOS device, causing
+  the instance UID to be generated again but keeping the same push notification tokens. That causes the device to
+  receives several push notifications for each SIP request because Flexisip assumes that each contact URI matches a
+  distinct device. To avoid this scenario, Flexisip automatically removes the old contact URI to ensure the unicity
   of the push notification parameters.
 
 ## [2.0.7] - 2021-07-09
 ### [Fixed]
-- **Proxy** Fix a bug that caused the fallback route to be used even if the forked request
-  had succeeded.
+- **Proxy** Fix a bug that caused the fallback route to be used even if the forked request had succeeded.
 
 ## [2.0.6] - 2021-07-07
 ### [Fixed]
-- **Proxy** INIVITE requests was systematically forked to the fallback route (if set)
-  independently of the status of each received response. Furthermore, the fallback
-  destination was called alongside the real contact addresses of the called identity.
+- **Proxy** INVITE requests was systematically forked to the fallback route (if set) independently of the status of each
+  received response. Furthermore, the fallback destination was called alongside the real contact addresses of the called
+  identity.
 
 ## [2.0.5] - 2021-06-09
 ### [Added]
@@ -360,80 +398,72 @@ Group changes to describe their impact on the project, as follows:
 
 ### [Fixed]
 - **Apple push notifications** Set the 'apns-push-type' header.
-- **Apple push notifications** Correctly set the 'apns-expiration' header, basing on some parameters of module::Router (
-  call-fork-timeout and message-delivery-timeout).
+- **Apple push notifications** Correctly set the 'apns-expiration' header, basing on some parameters of module::Router
+  (call-fork-timeout and message-delivery-timeout).
 - **Apple push notifications** Prevent the TLS connection from blocking the main thread for more than one second while
   connecting.
 - **Android push notifications** Fix typo in the name of one key in the PNR payload. ('form-uri' -> 'from-uri'). The old
-  key will be
-  supported until Flexisip 2.1.
+  key will be supported until Flexisip 2.1.
 - **External Authentication plugin** Correctly print the HTTP response from the authentication server in the log.
 - **External Authentication plugin** Fix bug that caused the HTTP response to be matched with the bad request when
   several request was sent simultaneously.
-- **Filter parameter** Fix crash on evaluation when 'contains' operator has no left-hand operand.
-  Makes Flexisip to abort on starting otherwise.
-- **Flexisip CLI** Fix crash with Python3 < 3.7
+- **Filter parameter** Fix crash on evaluation when 'contains' operator has no left-hand operand. Makes Flexisip to
+  abort on starting otherwise.
+- **Flexisip CLI** Fix crash with Python3 < 3.7.
 - **Memory usage** Fix several memory leaks.
 - **XWiki doc generator** Fix bad output syntax when bullet points are used in parameter descriptions.
 - **XWiki doc generator** Generate documentation for the experimental modules.
 
 ## [2.0.4] - 2021-03-01
 ### [Fixed]
-- **Authentication** Prevent password mismatch error when hashed passwords are in upper case
-  in the user database.
-- **Push Notifications** Prevent the PushNotification module from sending an out-of-dialog
-  "180 Ringing" reply when an in-dialog 180 reply has already
-  been forwarded back by the Router module.
-- **Apple push notifications** The new HTTP/2 client now automatically close the connection
-  with the APNS after one minute of inactivity to prevent the connection to be silently
-  destroyed by aggressive routers. That improve PNR sending reliability.
-- **Android push notifications** Use timeouts that has been set in the Router module settings to fill the TTL
-  of the push notification request. See
-  [Flexisip's specification around push notifications](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/D.%20Specifications/Push%20notifications/#HContentofthepushnotificationssentbyFlexisip)
+- **Authentication** Prevent password mismatch error when hashed passwords are in upper case in the user database.
+- **Push Notifications** Prevent the PushNotification module from sending an out-of-dialog "180 Ringing" reply when an
+  in-dialog 180 reply has already been forwarded back by the Router module.
+- **Apple push notifications** The new HTTP/2 client now automatically close the connection with the APNS after one
+  minute of inactivity to prevent the connection to be silently destroyed by aggressive routers. That improve PNR
+  sending reliability.
+- **Android push notifications** Use timeouts that has been set in the Router module settings to fill the TTL with the
+  push notification request.
+  See [Flexisip's specification around push notifications](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/D.%20Specifications/Push%20notifications/#HContentofthepushnotificationssentbyFlexisip)
   for more information about the involved parameters.
 - **Media relay** Fix an issue while processing a SDP without ICE containing an IPv6 connection address, and Flexisip
   has no IPv6 address available.
   Previously, an empty connection address was set by the MediaRelay module, causing a blank call. Now, the IPv4 address
   will be used as fallback, which will work if the network provides NAT64 service.
 - **Proxy server** Fix several huge memory leaks. No more memory leaks issues are known on the proxy component today.
-- **Conference server** The transport address now allows to restrict the listening interface.
-  Before, the conference was listening on all interfaces independently of the transport host.
+- **Conference server** The transport address now allows to restrict the listening interface. Before, the conference was
+  listening on all interfaces independently of the transport host.
 
 ### [Removed]
 - 'pn-silent' custom Contact parameter for push notifications.
 
 ## [2.0.3] - 2020-11-13
 ### [Fixed]
-- Apple push notification client: the body of HTTP/2 GOAWAY frames wasn't printed in log, which
-  doesn't allow to know the disconnection reason.
-- Fix a regression that causes to have an empty pub-gruu parameter in the Contact header of
-  forwarded REGISTERs.
+- Apple push notification client: the body of HTTP/2 GOAWAY frames wasn't printed in log, which doesn't allow to know
+  the disconnection reason.
+- Fix a regression that causes to have an empty pub-gruu parameter in the Contact header of forwarded REGISTERs.
 - Fix potential crash or at least memory corruption when both "route" and "default-transport" are set in the
-  ForwardModule.
-  The default-transport will not be applied when route is used.
+  ForwardModule. The default-transport will not be applied when route is used.
 - MediaRelay: fix ICE restart not being detected or notified on the offered side. This causes relay candidates to be not
-  added
-  in the 200 Ok, which can break RTP communication.
+  added in the 200 Ok, which can break RTP communication.
 
 ## [2.0.2] - 2020-10-14
 ### [Fixed]
-- Fix a crash that occures when module::Registrar/reg-on-response feature is enabled. It happens
-  when the “200 Registration successful” response is received from the backend server.
+- Fix a crash that occures when module::Registrar/reg-on-response feature is enabled. It happens when the “200
+  Registration successful” response is received from the backend server.
 
 ## [2.0.1] - 2020-10-13
 ### [Changed]
-- Usage of HTTP2 protocol to send Apple push notification requests. No
-  change in PushNotification module configuration required.
+- Usage of HTTP2 protocol to send Apple push notification requests. No change in PushNotification module configuration
+  required.
 
 ### [Fixed]
 - Crash when trying to fetch domain records from registrar DB.
-- Avoid MediaRelay's channel to continously swap between IPv6 and IPv4 during ICE connectivity checks. Indeed, this
-  causes some connectivity
-  checks to fail because some stun requests sent over IPv6 are answered over IPv4 and vice versa. The workaround
-  implemented consists in locking
-  the destination choosen by the MediaRelay's channels (when receiving a packet) for a minimum of 5 seconds. The switch
-  to a new destination
-  is allowed only if the previous destination has been unused over the last 5 seconds.
+- Avoid MediaRelay's channel to continuously swap between IPv6 and IPv4 during ICE connectivity checks. Indeed, this
+  causes some connectivity checks to fail because some stun requests sent over IPv6 are answered over IPv4 and vice
+  versa. The workaround implemented consists in locking the destination chosen by the MediaRelay's channels (when
+  receiving a packet) for a minimum of 5 seconds. The switch to a new destination is allowed only if the previous
+  destination has been unused over the last 5 seconds.
 
 ## [2.0.0] – 2020-07-31
 ### [Added]
@@ -441,14 +471,13 @@ Group changes to describe their impact on the project, as follows:
 - `global/contextual-log-filter` ([Contextual log feature](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/C.%20Features/Contextual%20logs/))
 - `global/contextual-log-level` ([Contextual log feature](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/C.%20Features/Contextual%20logs/))
 - `global/log-filename`: allows to choose the name of the log file.
-- `module::Authentication/realm-regex`: allows to choose how the authentication module deduces the realm from the From
+- `module::Authentication/realm-regex`: allows to choose how the authentication module deduces the realm from the "From"
   header.
 - `module::PushNotification/retransmission-count` (PNR retransmission feature)
 - `module::PushNotification/retransmission-interval` (PNR retransmission feature)
-- `module::PushNotification/display-from-uri`: controls whether the From URI is print in PN payloads.
+- `module::PushNotification/display-from-uri`: controls whether the "From" URI is print in PN payloads.
 - `module::MediaRelay/force-public-ip-for-sdp-masquerading`: force the MediaRelay module to put the public IP address of
-  the proxy while
-  modifying the SDP body of INVITE requests. Only useful when the server is behind a NAT router.
+  the proxy while modifying the SDP body of INVITE requests. Only useful when the server is behind a NAT router.
 - `conference-server/check-capabalities` (
   see [Reference Documentation](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/A.%20Configuration%20Reference%20Guide/2.0.0/conference-server))
 
@@ -469,28 +498,27 @@ Group changes to describe their impact on the project, as follows:
 
 **Miscellaneous**
 - Add an option (`--rewrite-config`) to Flexisip command-line interface to dump a new configuration file with up-to-date
-  doc strings but keeping the setting that
-  have been set explicitly by the user.
+  doc strings but keeping the setting that have been set explicitly by the user.
 
 ### [Changed]
 **Settings**
 - Default value changes:
-  - `global/enable-snmp`: `true` -> `false`
-  - `gloabl/dump-cores`: `true` -> `false`
-  - `module::Router/message-delivery-timeout`: 1w
-  - `module::Router/message-accept-timeout`: 5s
-  - `module::Forward/params-to-remove`: adding `pn-provider`, `pn-prid`, `pn-param`
-  - `presence-server/max-thread`: `200` -> `50`
-  - `presence-server/max-thread-queue-size`: `200` -> `50`
+    - `global/enable-snmp`: `true` -> `false`
+    - `gloabl/dump-cores`: `true` -> `false`
+    - `module::Router/message-delivery-timeout`: 1w
+    - `module::Router/message-accept-timeout`: 5s
+    - `module::Forward/params-to-remove`: adding `pn-provider`, `pn-prid`, `pn-param`
+    - `presence-server/max-thread`: `200` -> `50`
+    - `presence-server/max-thread-queue-size`: `200` -> `50`
 
 - Parameter renaming:
-  - `event-logs/dir` -> `event-logs/filesystem-directory`
-  - `module::Registrar/datasource` -> `module::Registrar/file-path`
-  - `module::Registrar/name-message-expires` -> `module::Registrar/message-expires-param-name`
-  - `presence-server/soci-connection-string` -> `presence-server/rls-database-connection`
-  - `presence-server/external-list-subscription-request` -> `presence-server/rls-database-request`
-  - `presence-server/max-thread` -> `presence-server/rls-database-max-thread`
-  - `presence-server/max-thread-queue-size` -> `presence-server/rls-database-max-thread-queue-size`
+    - `event-logs/dir` -> `event-logs/filesystem-directory`
+    - `module::Registrar/datasource` -> `module::Registrar/file-path`
+    - `module::Registrar/name-message-expires` -> `module::Registrar/message-expires-param-name`
+    - `presence-server/soci-connection-string` -> `presence-server/rls-database-connection`
+    - `presence-server/external-list-subscription-request` -> `presence-server/rls-database-request`
+    - `presence-server/max-thread` -> `presence-server/rls-database-max-thread`
+    - `presence-server/max-thread-queue-size` -> `presence-server/rls-database-max-thread-queue-size`
 
 - `[monitor]` section marked as experimental.
 - `[module::Presence]` section is no more marked as experimental.
@@ -499,8 +527,8 @@ Group changes to describe their impact on the project, as follows:
 - `REGISTRAR_CLEAR` sub-command of `flexisip_cli` can now clear registration of a given SIP identity.
 - Improvement of the performance of the boolean expression engine used by module filters.
 - Breaking of the event log database schema.
-- [Push Notfifications] The From URI is no more printed in the PN payload as first element of loc-args list.
-  Use `module::PushNotification/display-from-uri` setting to retore this behaviour.
+- [Push Notifications] The "From" URI is no more printed in the PN payload as first element of loc-args list.
+  Use `module::PushNotification/display-from-uri` setting to restore this behaviour.
 
 **Miscellaneous**
 - Log files are now named flexisip-proxy.log, flexisip-conference.log flexisip-presence.log by default.
@@ -509,8 +537,7 @@ Group changes to describe their impact on the project, as follows:
 - `--dump-all-default` option dumps a configuration file with all the parameters commented out.
 - `--dump-default` allow to dump default settings for non-module sections.
 - Generation of plugins default settings and documentation by '--dump-all-default' option when they have been loaded
-  using
-  `--set global/plugins=<plugin-list>`.
+  using `--set global/plugins=<plugin-list>`.
 
 ### [Deprecated]
 **New deprecated settings**
@@ -544,17 +571,15 @@ Group changes to describe their impact on the project, as follows:
 - Prevent server abort on registration with an invalid Address-of-Record.
 - Crash when processing a REGISTER with an invalid Contact URI.
 - Bad behaviour when receiving a REGISTER request which contains a '@' in its CallID.
-- Failing authentication when the user part of the From URI has escaped sequences.
+- Failing authentication when the user part of the "From" URI has escaped sequences.
 - Improve Firebase's push notification resilience against broken sockets.
 - Remove empty 'pub-gruu' params from contact headers of OK response when `module::Registrar/reg-on-response` is on.
 - SystemD service not restarted on package update.
-- Fix MediaRelay ICE processing when the server has both IPv6 and IPv6 addresses.
-  Previously, only ICE relay candidates with the "prefered" connectivity was offered. However the way the "prefered"
-  connectivity is guessed is not reliable,
-  especially when sending the INVITE to the callee, and it can change during a call, for example when one of the parties
-  moves from an IPv6-only LTE network to an IPv4-only network.
-  For these reasons, it is preferable that ICE relay candidates are added for both IPv4 and IPv6.
+- Fix MediaRelay ICE processing when the server has both IPv6 and IPv6 addresses. Previously, only ICE relay candidates
+  with the "preferred" connectivity was offered. However, the way the "preferred" connectivity is guessed is not
+  reliable, especially when sending the INVITE to the callee, and it can change during a call, for example when one of
+  the parties moves from an IPv6-only LTE network to an IPv4-only network. For these reasons, it is preferable that ICE
+  relay candidates are added for both IPv4 and IPv6.
 
 **Conference**
 - Fix becoming admin again after leaving and reentering a chat room.
-
