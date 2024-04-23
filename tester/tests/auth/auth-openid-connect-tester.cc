@@ -38,10 +38,12 @@ using namespace flexisip::tester::authentication;
 
 namespace {
 constexpr auto domainA = "a.example.org";
+constexpr auto audienceA = "testDomainA";
 const string userName = "alphonse";
 const auto contact = userName + "@" + domainA;
 const auto sipUri = "sip:"s + contact;
 constexpr auto domainB = "b.example.org";
+constexpr auto audienceB = "testDomainB";
 string clientB = "sip:TeddyBear"s + "@" + domainB;
 
 string readParamValue(const msg_param_t* msgParams, const char* field) {
@@ -56,11 +58,12 @@ string readParamValue(const msg_param_t* msgParams, const char* field) {
 	return value.substr(1, value.size() - quoteSize);
 }
 
-string generateToken(string_view issuer, string_view sipUri) {
+string generateToken(string_view issuer, string_view sipUri, string_view kid, string_view aud) {
 	jwt::jwt_object obj{jwt::params::algorithm("RS256"), jwt::params::secret(kRsaPrivKey)};
-	obj.add_claim("iss", issuer.data());
+	obj.header().add_header("kid", kid);
+	obj.add_claim("iss", issuer);
 	obj.add_claim("sub", "testSubject");
-	obj.add_claim("aud", "test");
+	obj.add_claim("aud", aud);
 	obj.add_claim("sip_identity", sipUri);
 	obj.add_claim("iat", chrono::system_clock::now());
 	obj.add_claim("exp", chrono::system_clock::now() + 60s);
@@ -68,11 +71,15 @@ string generateToken(string_view issuer, string_view sipUri) {
 }
 
 void rejectUnauthReq() {
+	TempFile keyFile(kRsaPubKey);
 	Server proxy({{"module::Registrar/reg-domains", "*"},
 	              {"module::AuthOpenIDConnect/enabled", "true"},
 	              {"module::AuthOpenIDConnect/authorization-server", "HtTPS://toto.example.org"},
 	              {"module::AuthOpenIDConnect/realm", "example.org"},
+	              {"module::AuthOpenIDConnect/audience", "test"},
 	              {"module::AuthOpenIDConnect/sip-id-claim", "sip_identity"},
+	              {"module::AuthOpenIDConnect/public-key-type", "file"},
+	              {"module::AuthOpenIDConnect/public-key-location", keyFile.getFilename()},
 	              {"module::Authorization/enabled", "true"}});
 
 	const auto& root = proxy.getRoot();
@@ -113,6 +120,7 @@ void bearerAuth() {
 	              {"module::AuthOpenIDConnect/enabled", "true"},
 	              {"module::AuthOpenIDConnect/authorization-server", issuer},
 	              {"module::AuthOpenIDConnect/realm", realm},
+	              {"module::AuthOpenIDConnect/audience", audienceA},
 	              {"module::AuthOpenIDConnect/sip-id-claim", "sip_identity"},
 	              {"module::AuthOpenIDConnect/public-key-type", "file"},
 	              {"module::AuthOpenIDConnect/public-key-location", keyFile.getFilename()},
@@ -139,7 +147,7 @@ void bearerAuth() {
 	}
 
 	// generate a valid authorization
-	const auto token = generateToken(issuer, sipUri);
+	const auto token = generateToken(issuer, sipUri, "default", audienceA);
 	const auto authorization = string("Authorization: Bearer "s + token + "\r\n");
 
 	// REGISTER with a valid token but a different from sip uri
@@ -193,6 +201,7 @@ void bearerMsgOfAToB() {
 	               {"module::AuthOpenIDConnect/enabled", "true"},
 	               {"module::AuthOpenIDConnect/authorization-server", issuerB},
 	               {"module::AuthOpenIDConnect/realm", realm},
+	               {"module::AuthOpenIDConnect/audience", audienceB},
 	               {"module::AuthOpenIDConnect/sip-id-claim", "sip_identity"},
 	               {"module::AuthOpenIDConnect/public-key-type", "file"},
 	               {"module::AuthOpenIDConnect/public-key-location", keyFile.getFilename()},
@@ -209,6 +218,7 @@ void bearerMsgOfAToB() {
 	               {"module::AuthOpenIDConnect/enabled", "true"},
 	               {"module::AuthOpenIDConnect/authorization-server", issuerA},
 	               {"module::AuthOpenIDConnect/realm", realm},
+	               {"module::AuthOpenIDConnect/audience", audienceA},
 	               {"module::AuthOpenIDConnect/sip-id-claim", "sip_identity"},
 	               {"module::AuthOpenIDConnect/public-key-type", "file"},
 	               {"module::AuthOpenIDConnect/public-key-location", keyFile.getFilename()},
@@ -222,8 +232,10 @@ void bearerMsgOfAToB() {
 	const auto routeDomainB = "Route: <sip:127.0.0.1:"s + proxyB.getFirstPort() + ";transport=tcp;lr>\r\n";
 	const auto routeDomainA = "Route: <sip:127.0.0.1:"s + proxyA.getFirstPort() + ";transport=tcp;lr>\r\n";
 	// generate a valid authorization for each Proxy
-	const auto authorizationA = "Proxy-Authorization: Bearer "s + generateToken(issuerA, sipUri) + "\r\n";
-	const auto authorizationB = "Proxy-Authorization: Bearer "s + generateToken(issuerB, sipUri) + "\r\n";
+	const auto authorizationA =
+	    "Proxy-Authorization: Bearer "s + generateToken(issuerA, sipUri, "default", audienceA) + "\r\n";
+	const auto authorizationB =
+	    "Proxy-Authorization: Bearer "s + generateToken(issuerB, sipUri, "default", audienceB) + "\r\n";
 
 	// clang-format off
 		string request(
@@ -234,10 +246,10 @@ void bearerMsgOfAToB() {
 			"Call-ID: 1053183492\r\n"
 			"CSeq: 1 MESSAGE\r\n"
 			"Contact: <" + sipUri + ";>;+sip.instance=fcm1Reg\r\n"
-			+ routeDomainA.c_str() +
-			+ routeDomainB.c_str() +
-			+ authorizationB.c_str() +
-			+ authorizationA.c_str() +
+			+ routeDomainA
+			+ routeDomainB
+			+ authorizationB
+			+ authorizationA +
 			"Content-Type: text/plain\r\n"
 			"Ce message n'arrivera pas !\r\n");
 	// clang-format on

@@ -137,6 +137,7 @@ add_executable(flexisip_tester
 	utils/eventlogs/event-logs.cc utils/eventlogs/event-logs.hh
 	utils/eventlogs/writers/event-log-writer-visitor-adapter.hh
 	utils/flow-test-helper.cc utils/flow-test-helper.hh
+	utils/http-mock/http1-mock.cc utils/http-mock/http1-mock.hh
 	utils/listening-socket.cc utils/listening-socket.hh
 	utils/nat-test-helper.cc utils/nat-test-helper.hh
 	utils/posix-process-tester.cc

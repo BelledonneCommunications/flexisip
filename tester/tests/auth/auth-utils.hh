@@ -26,7 +26,6 @@
 #include "sofia-wrapper/nta-agent.hh"
 #include "sofia-wrapper/nta-outgoing-transaction.hh"
 #include "utils/test-patterns/test.hh"
-#include "utils/test-suite.hh"
 
 namespace flexisip::tester::authentication {
 

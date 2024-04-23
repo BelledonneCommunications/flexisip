@@ -18,14 +18,20 @@
 
 #pragma once
 
+#include <chrono>
+#include <functional>
 #include <list>
 #include <optional>
 #include <string>
 #include <unordered_map>
 
+#include <openssl/asn1.h>
+
 #include "auth/auth-scheme.hh"
 #include "flexisip/sofia-wrapper/auth-status.hh"
+#include "flexisip/sofia-wrapper/su-root.hh"
 #include "flexisip/utils/sip-uri.hh"
+#include "utils/transport/http/http1-client.hh"
 
 namespace flexisip {
 
@@ -36,26 +42,84 @@ class Bearer : public AuthScheme {
 public:
 	enum class PubKeyType {
 		file,
-		url,
-		wellknown,
+		wellKnown,
 	};
+
 	struct BearerParams {
 		sofiasip::Url issuer;
 		std::string realm;
+		std::string audience;
 		std::list<std::string> scope;
 		std::string idClaimer;
+	};
+	struct KeyStoreParams {
 		PubKeyType keyType;
 		std::string keyPath;
+		std::chrono::milliseconds wellKnownRefreshDelay;
+		std::chrono::milliseconds jwksRefreshDelay;
 	};
 
-	Bearer(const BearerParams& params);
+	struct KeyInfo {
+		std::string key;
+		std::string algo;
+		ASN1_TIME notAfter{};
+	};
+
+	Bearer(const std::shared_ptr<sofiasip::SuRoot>& root,
+	       const BearerParams& params,
+	       const KeyStoreParams& keyStoreParams);
 	std::string schemeType() const override;
 	void challenge(AuthStatus& as, const auth_challenger_t* ach) override;
-	std::optional<RequestSipEvent::AuthResult::ChallengeResult> check(const msg_auth_t* credentials) override;
+	State check(const msg_auth_t* credentials, std::function<void(ChallengeResult&&)>&& onResult) override;
+	void notifyPubKeyRequest();
 
 private:
-	bool acceptIssuer(const sofiasip::Url& iss);
+	void processPendingTokens();
+
+	/**
+	 * Class that downloads keys and cache them.
+	 **/
+	class KeyStore {
+	public:
+		enum class KeyCache { Required, Pending, Done };
+		KeyStore(const std::shared_ptr<sofiasip::SuRoot>& root,
+		         const sofiasip::Url& issuer,
+		         const KeyStoreParams& params,
+		         std::function<void()>&& refreshCallback);
+		void askForJWKS();
+		bool keyCachePending() {
+			return mKeyCacheUpdate == KeyCache::Pending;
+		}
+		KeyInfo getPubKey(const std::string& kid) const;
+
+	private:
+		void onWellKnownResponse(std::string_view response);
+		void askForWellKnown();
+		void onJWKSResponse(std::string_view response);
+		void updateKeys(const std::unordered_map<std::string, KeyInfo>& pubKeys);
+		void checkKeysValidity();
+
+		KeyCache mKeyCacheUpdate{KeyCache::Required};
+		PubKeyType mKeyType;
+		std::unordered_map<std::string, KeyInfo> mPubKeys;
+		sofiasip::Url mIssuer;
+		std::string mWellKnownUrl;
+		std::string mKeyPath;
+		Http1Client mHttpClient;
+		sofiasip::Timer mWellKnownTimer;
+		sofiasip::Timer mJWKSTimer;
+		std::function<void()> mOnPubKeyRefresh;
+	};
+	struct PendingToken {
+		std::string token;
+		std::string kid;
+		bool retry;
+		ChallengeResult result;
+		std::function<void(ChallengeResult&&)> callback;
+	};
+
 	BearerParams mParams;
-	std::unordered_map<std::string, std::string> mPubKeys;
+	std::list<PendingToken> mPendingTokens;
+	KeyStore mKeyStore;
 };
 } // namespace flexisip

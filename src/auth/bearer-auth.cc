@@ -18,35 +18,116 @@
 
 #include "bearer-auth.hh"
 
+#include <algorithm>
+#include <cstdio>
+
 #include <jwt/jwt.hpp>
+#include <nlohmann/json.hpp>
 #include <openssl/bio.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 #include <openssl/x509.h>
 
-#include <cstdio>
-
-#include "sofia-sip/hostdomain.h"
+#include <sofia-sip/hostdomain.h>
 
 #include "flexisip/logmanager.hh"
 
 using namespace std;
 using namespace std::string_literals;
+using namespace std::string_view_literals;
 
 namespace flexisip {
 
 namespace {
 
+constexpr auto kOpenIDConnect = "OpenID Connect";
 constexpr auto kSchemeType = "Bearer";
-constexpr auto kDefaultKid = "default";
 
 namespace claim {
-constexpr auto kIssuer = "iss";
-constexpr auto kSubject = "sub";
-constexpr auto kAudience = "aud";
-constexpr auto kExpirationTime = "exp";
-constexpr auto kScope = "scope";
+constexpr auto kIssuer = "iss"sv;
+constexpr auto kSubject = "sub"sv;
+constexpr auto kAudience = "aud"sv;
+constexpr auto kExpirationTime = "exp"sv;
+constexpr auto kScope = "scope"sv;
 } // namespace claim
+
+// nlohmann lib only supports 'std::string's as keys in version before 3.11.0
+// this wrapper forces the use of a string as a key id
+class JsonWrapper {
+public:
+	explicit JsonWrapper(const nlohmann::json& jsonData) : mJsonData(jsonData) {
+	}
+	auto has(const string& keyId) const {
+		return mJsonData.contains(keyId);
+	}
+	auto hasString(const string& keyId) const {
+		return has(keyId) && mJsonData[keyId].is_string();
+	};
+	auto hasString(string_view keyId) const {
+		return hasString(string(keyId));
+	};
+	auto hasArray(const string& keyId) const {
+		return has(keyId) && mJsonData[keyId].is_array();
+	};
+	auto hasArray(string_view keyId) const {
+		return hasArray(string(keyId));
+	};
+
+	// the following functions may throw
+	auto getArray(const string& keyId) const {
+		vector<JsonWrapper> jsonVector;
+		for (const auto& value : mJsonData[keyId])
+			jsonVector.emplace_back(value);
+		return jsonVector;
+	}
+	auto getArray(string_view keyId) const {
+		return getArray(string(keyId));
+	}
+
+	auto operator[](const string& keyId) const {
+		return mJsonData[keyId];
+	};
+	auto operator[](string_view keyId) const {
+		return mJsonData[string(keyId)];
+	};
+
+private:
+	nlohmann::json mJsonData;
+};
+
+string readToken(const msg_param_t* param) {
+	if (param == nullptr) return string{};
+	// token is the 1st param (RFC 6750-2.1)
+	return string{*param};
+}
+
+string readKeyId(jwt::jwt_header& header) {
+	constexpr auto keyId = "kid"sv;
+	if (!header.has_header(keyId)) return {};
+
+	const auto headerData = JsonWrapper(header.create_json_obj());
+	return headerData[keyId];
+}
+
+bool acceptIssuer(const sofiasip::Url& issuer, const sofiasip::Url& authzServer) {
+	if (issuer.getType() != authzServer.getType()) return false;
+
+	// fragments are fobidden
+	if (!issuer.getFragment().empty()) return false;
+
+	// case-sensitive url comparison
+	const auto* authz = authzServer.get();
+	const auto* iss = issuer.get();
+	constexpr auto equal = [](const char* a, const char* b) {
+		if (a && (!b || string_view(a) != b)) return false;
+		if (!a && b) return false;
+		return true;
+	};
+	if (!equal(iss->url_host, authz->url_host)) return false;
+	if (!equal(iss->url_port, authz->url_port)) return false;
+	if (!equal(iss->url_path, authz->url_path)) return false;
+	return true;
+}
 
 bool acceptSubjet(string_view subject) {
 	constexpr size_t maxSubjectSize = 255;
@@ -54,9 +135,37 @@ bool acceptSubjet(string_view subject) {
 	return true;
 }
 
-string pemKey(const string& pub_key) {
-	return "-----BEGIN PUBLIC KEY-----\n"s + pub_key + "\n-----END PUBLIC KEY-----\n";
+bool acceptAudience(const vector<nlohmann::json>& audience, string_view expected) {
+	return std::any_of(audience.cbegin(), audience.cend(), [&expected](const nlohmann::json& aud) {
+		return aud.is_string() && aud.get<string>() == expected;
+	});
 }
+
+void verifySignature(string_view token,
+                     const Bearer::KeyInfo& pubKey,
+                     RequestSipEvent::AuthResult::ChallengeResult& result) {
+	// check validity (token expiration, signature)
+	// validate_iat verifies the presence of claim, not its value
+	try {
+		std::ignore = jwt::decode(token, jwt::params::algorithms({pubKey.algo}), jwt::params::verify(true),
+		                          jwt::params::secret(pubKey.key), jwt::params::validate_iat(true));
+
+		// result is valid if decoding did not throw
+		result.accept();
+	} catch (const std::exception& e) {
+		LOGW("Bearer authentication is rejected: %s.", e.what());
+	}
+}
+
+// KeyStore
+constexpr auto kDefaultKid = "default";
+constexpr auto kRS256 = "RS256";
+struct bio_deleter {
+	void operator()(BIO* b) {
+		BIO_free(b);
+	}
+};
+using uniqueBioPtr = unique_ptr<BIO, bio_deleter>;
 
 string loadPemKey(string_view pubKeyFile) {
 	struct file_deleter {
@@ -66,75 +175,98 @@ string loadPemKey(string_view pubKeyFile) {
 	};
 	unique_ptr<FILE, file_deleter> fp{fopen(pubKeyFile.data(), "r")};
 	if (!fp) {
-		LOGF("Failed to open file: %s", pubKeyFile.data());
+		LOGF("%s: failed to open file: %s.", kOpenIDConnect, pubKeyFile.data());
 	}
 
 	unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)> pubKey{PEM_read_PUBKEY(fp.get(), nullptr, nullptr, nullptr),
 	                                                      EVP_PKEY_free};
-	jwt::BIO_uptr outbio{BIO_new(BIO_s_mem()), jwt::bio_deletor};
+	uniqueBioPtr outbio{BIO_new(BIO_s_mem())};
+
 	if (!PEM_write_bio_PUBKEY(outbio.get(), pubKey.get())) {
-		LOGF("Error loading public key in PEM format");
+		LOGF("%s: error loading public key in PEM format.", kOpenIDConnect);
 	}
 
 	char* buf{};
-	long size = BIO_get_mem_data(outbio.get(), &buf);
-	return string(buf, size);
+	const auto size = BIO_get_mem_data(outbio.get(), &buf);
+	return {buf, static_cast<size_t>(size)};
 }
 
-[[maybe_unused]] string extractKey(const string& certificate) {
-	jwt::BIO_uptr certbio{BIO_new_mem_buf(certificate.data(), certificate.size()), jwt::bio_deletor};
+std::pair<string, ASN1_TIME> extractKey(string_view certificate) {
+	uniqueBioPtr certbio{BIO_new_mem_buf(certificate.data(), static_cast<int>(certificate.size()))};
 
-	std::unique_ptr<X509, decltype(&X509_free)> x509Cert{PEM_read_bio_X509(certbio.get(), nullptr, 0, nullptr),
+	std::unique_ptr<X509, decltype(&X509_free)> x509Cert{PEM_read_bio_X509(certbio.get(), nullptr, nullptr, nullptr),
 	                                                     X509_free};
 	if (!x509Cert) {
-		LOGE("Error loading cert into memory");
+		LOGW("%s: error loading cert into memory.", kOpenIDConnect);
 		return {};
 	}
 
+	const auto* notAfter = X509_get0_notAfter(x509Cert.get());
+	if (!notAfter) {
+		LOGW("%s: no certificate validity found,", kOpenIDConnect);
+		return {};
+	}
 	auto* pkey = X509_get0_pubkey(x509Cert.get()); // get pointer, no allocation
 	if (!pkey) {
-		LOGE("Error getting public key from certificate");
+		LOGW("%s: failed to get public key from certificate.", kOpenIDConnect);
 		return {};
 	}
 
-	jwt::BIO_uptr outbio{BIO_new(BIO_s_mem()), jwt::bio_deletor};
+	uniqueBioPtr outbio{BIO_new(BIO_s_mem())};
 	if (!PEM_write_bio_PUBKEY(outbio.get(), pkey)) {
-		LOGE("Error writing public key data in PEM format");
+		LOGE("%s: error writing public key data in PEM format.", kOpenIDConnect);
 	}
 
 	char* buf{};
-	long size = BIO_get_mem_data(outbio.get(), &buf);
-	return string(buf, size);
+	const auto size = BIO_get_mem_data(outbio.get(), &buf);
+	return {{buf, static_cast<size_t>(size)}, *notAfter};
 }
 
-string readToken(const msg_param_t* param) {
-	if (param == nullptr) return string{};
-	// token is the 1st param (RFC 6750-2.1)
-	return string{*param};
+bool isKeyValid(const ASN1_TIME& notAfter) {
+	return X509_cmp_current_time(&notAfter) <= 0;
 }
 
-string readKeyId(jwt::jwt_header& hdr) {
-	const auto keyId = "kid"s;
-	if (!hdr.has_header(keyId)) return {};
-
-	const auto& hdrData = hdr.create_json_obj();
-	return hdrData[keyId];
-}
-} // namespace
-
-Bearer::Bearer(const BearerParams& params) : mParams(params) {
-	if (params.keyType == Bearer::PubKeyType::file) {
-		mPubKeys[kDefaultKid] = loadPemKey(params.keyPath);
+unordered_map<string, Bearer::KeyInfo> parseJWKSResponse(string_view response) {
+	// RFC 7517
+	const auto payload = JsonWrapper(nlohmann::json::parse(response));
+	constexpr auto keys = "keys"sv;
+	if (!payload.hasArray(keys)) {
+		LOGW("%s: failed to parse the JWKS authority server response.", kOpenIDConnect);
+		return {};
 	}
 
-	// hack for well-known or url keyType not yet implemented
-	const std::string pub_key =
-	    "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoFGTEOL9avZwQM8gszLfCcYnJ8uEdbNNP4mRPlQwydNDqFQ"
-	    "tFCzn0Ncee99KsJAyAa2Ieowy5DXq2etKdO6J8rA74z4NrWEo//"
-	    "trfKCcEcS2f6jExYxw6RfJ67M+0AvqSZo6aGLaNHeFCHiue9695j7zLaj6BOHUGkB/N3h/PQkFxGUHQj0/"
-	    "aiXTTdscNfhADtreXEOubNrnjPy5HJu87BaBpXgRByqInsjDQMdq7UUnznAZ1EN8j1y456qiLtJac9VaftUivkJg0eM"
-	    "E93Ob12pkJbAU/qtswWoapRp232tk25QRbNf9aJCUdq8rp/dusX0DBAvtCnUuslzjRehJxwIDAQAB";
-	mPubKeys["PMEcV2m3B0EM5FJq9GD6FZuMEx9FVDkd0oSf80gKOMI"] = pemKey(pub_key);
+	LOGD("%s: a JWKS response has been received from the authority server.", kOpenIDConnect);
+
+	unordered_map<string, Bearer::KeyInfo> pubKeys{};
+
+	constexpr auto use = "use"sv;
+	constexpr auto alg = "alg"sv;
+	constexpr auto kid = "kid"sv;
+	constexpr auto x5c = "x5c"sv;
+
+	for (const auto& k : payload.getArray(keys)) {
+		if (k.hasString(use) && (k[use] == "sig") && k.hasString(alg) && k.hasString(kid)) {
+			string keyId = k[kid];
+			string cert = k.hasArray(x5c) ? k[x5c][0] : "";
+			const auto pemCert = "-----BEGIN CERTIFICATE-----\n"s + cert + "\n-----END CERTIFICATE-----";
+			auto [publicKey, notAfter] = extractKey(pemCert);
+			if (publicKey.empty()) LOGW("%s: rejected certificate, kid \"%s\".", kOpenIDConnect, keyId.c_str());
+			else if (!isKeyValid(notAfter)) LOGD("%s: expired certificate, kid \"%s\".", kOpenIDConnect, keyId.c_str());
+			else {
+				pubKeys[keyId] = {.key = publicKey, .algo = k[alg], .notAfter = notAfter};
+				LOGD("%s: valid certificate, kid \"%s\".", kOpenIDConnect, keyId.c_str());
+			}
+		}
+	}
+	return pubKeys;
+}
+
+} // namespace
+
+Bearer::Bearer(const shared_ptr<sofiasip::SuRoot>& root,
+               const BearerParams& params,
+               const KeyStoreParams& keyStoreParams)
+    : mParams(params), mKeyStore(root, params.issuer, keyStoreParams, [this] { processPendingTokens(); }) {
 }
 
 string Bearer::schemeType() const {
@@ -164,82 +296,199 @@ void Bearer::challenge(AuthStatus& as, const auth_challenger_t* ach) {
 	as.response(response_msg);
 }
 
-bool Bearer::acceptIssuer(const sofiasip::Url& iss) {
-	if (iss.getType() != mParams.issuer.getType()) return false;
-
-	// fragments are fobidden
-	if (!iss.getFragment().empty()) return false;
-
-	// compare urls
-	const auto* a = mParams.issuer.get();
-	const auto* b = iss.get();
-	if (host_cmp(a->url_host, b->url_host)) return false;
-	if (a->url_port && b->url_port && a->url_port != b->url_port) return false;
-	return true;
-}
-
-optional<RequestSipEvent::AuthResult::ChallengeResult> Bearer::check(const msg_auth_t* credentials) {
+AuthScheme::State Bearer::check(const msg_auth_t* credentials, std::function<void(ChallengeResult&&)>&& onResult) {
 	const auto* authParam = credentials->au_params;
-	if (authParam == nullptr) return nullopt;
-
+	auto resState = State::Inapplicable;
 	const auto token = readToken(authParam);
-	std::optional<RequestSipEvent::AuthResult::ChallengeResult> challengeResult{};
+
+	ChallengeResult result{RequestSipEvent::AuthResult::Type::Bearer};
 	try {
-		const auto algo = jwt::params::algorithms({"RS256"});
-
 		// decode a first time to read parameters
-		auto dec = jwt::decode(token, algo, jwt::params::verify(false));
+		auto dec = jwt::decode(token, jwt::params::algorithms({""}), jwt::params::verify(false));
 		const auto& payload = dec.payload();
-		const auto& payloadValues = payload.create_json_obj();
+		const auto payloadValues = JsonWrapper(payload.create_json_obj());
 
-		auto checkMandatoryClaim = [&payload, &payloadValues](const string& claim) {
-			if (!payload.has_claim(claim)) throw runtime_error(claim + " claim is missing");
+		auto checkMandatoryClaim = [&payload, &payloadValues](string_view claim) {
+			if (!payload.has_claim(claim)) throw runtime_error(string(claim) + " claim is missing");
 			return payloadValues[claim];
 		};
 
 		const auto issuer = sofiasip::Url(checkMandatoryClaim(claim::kIssuer).get<string>());
-		if (!acceptIssuer(issuer)) {
-			LOGD("Bearer authentication stops: unknown issuer");
-			return nullopt;
+		if (!acceptIssuer(issuer, mParams.issuer)) {
+			LOGD("Bearer authentication stops: unknown issuer: %s.", issuer.str().c_str());
+			return resState;
 		}
 		// issuer is the one expected, the authorization message is for us
-		// a challenge result is generated
-		challengeResult = RequestSipEvent::AuthResult::ChallengeResult{RequestSipEvent::AuthResult::Type::Bearer};
+		resState = AuthScheme::State::Done;
 
 		const auto subject = checkMandatoryClaim(claim::kSubject).get<string>();
 		if (!acceptSubjet(subject)) throw runtime_error("invalid subject");
 
-		checkMandatoryClaim(claim::kAudience);
-		// todo: check that flexisip id is in audience values
+		auto audience = checkMandatoryClaim(claim::kAudience);
+		if (!acceptAudience(audience.is_array() ? audience.get<vector<nlohmann::json>>()
+		                                        : vector<nlohmann::json>{audience},
+		                    mParams.audience))
+			throw runtime_error("invalid audience");
 
 		checkMandatoryClaim(claim::kExpirationTime); // ensure claim is present, value is checked later
 
 		const auto identity = checkMandatoryClaim(mParams.idClaimer).get<string>();
-		challengeResult->setIdentity(SipUri(identity));
+		result.setIdentity(SipUri(identity));
 
 		if (payload.has_claim(claim::kScope)) {
 			// todo: check scope value
 		}
 
-		auto kid = mParams.keyType == Bearer::PubKeyType::file ? kDefaultKid : readKeyId(dec.header());
+		auto kid = readKeyId(dec.header());
 		if (kid.empty()) throw runtime_error("kid is missing");
 
-		if (mPubKeys.find(kid) == mPubKeys.end()) {
-			// get new key or error
-			throw runtime_error("unknown kid");
+		const auto PubKey = mKeyStore.getPubKey(kid);
+		if (PubKey.key.empty()) {
+			mPendingTokens.push_back({.token = token,
+			                          .kid = kid,
+			                          .retry = mKeyStore.keyCachePending(),
+			                          .result = result,
+			                          .callback = std::move(onResult)});
+			mKeyStore.askForJWKS();
+			return AuthScheme::State::Pending;
 		}
+		verifySignature(token, PubKey, result);
+		onResult(std::move(result));
 
-		// check validity (token expiration, signature)
-		// validate_iat verifies the presence of claim, not its value
-		std::ignore = jwt::decode(token, algo, jwt::params::verify(true), jwt::params::secret(mPubKeys[kid]),
-		                          jwt::params::validate_iat(true));
-
-		// result is valid if decoding hasn't throw
-		challengeResult->accept();
 	} catch (const std::exception& e) {
-		LOGW("Bearer authentication error: %s", e.what());
+		LOGW("Bearer authentication is rejected: %s.", e.what());
 	}
-	return challengeResult;
+	return resState;
+}
+
+void Bearer::processPendingTokens() {
+	for (auto pendingToken = mPendingTokens.begin(); pendingToken != mPendingTokens.end();) {
+		const auto pubKey = mKeyStore.getPubKey(pendingToken->kid);
+		if (pubKey.key.empty()) {
+			if (pendingToken->retry) {
+				pendingToken->retry = false;
+				++pendingToken;
+				continue;
+			}
+			LOGW("Bearer authentication is rejected: unknown kid.");
+		} else {
+			verifySignature(pendingToken->token, pubKey, pendingToken->result);
+		}
+		pendingToken->callback(std::move(pendingToken->result));
+		pendingToken = mPendingTokens.erase(pendingToken);
+	}
+	if (!mPendingTokens.empty()) mKeyStore.askForJWKS();
+}
+
+// KeyStore
+Bearer::KeyStore::KeyStore(const shared_ptr<sofiasip::SuRoot>& root,
+                           const sofiasip::Url& issuer,
+                           const KeyStoreParams& params,
+                           function<void()>&& refreshCallback)
+    : mKeyType{params.keyType}, mIssuer{issuer}, mHttpClient{root}, mWellKnownTimer{root, params.wellKnownRefreshDelay},
+      mJWKSTimer{root, params.jwksRefreshDelay}, mOnPubKeyRefresh{std::move(refreshCallback)} {
+	switch (mKeyType) {
+		case Bearer::PubKeyType::file: {
+			updateKeys({{kDefaultKid, {.key = loadPemKey(params.keyPath), .algo = kRS256}}});
+			break;
+		}
+		case Bearer::PubKeyType::wellKnown: {
+			constexpr auto wellKnownPath = ".well-known/openid-configuration";
+			auto issPath = mIssuer.str();
+			if (issPath.back() != '/') issPath += "/";
+			mWellKnownUrl = issPath + wellKnownPath;
+			askForWellKnown();
+			break;
+		}
+	}
+}
+
+void Bearer::KeyStore::askForWellKnown() {
+	mHttpClient.requestGET(mWellKnownUrl, [this](string_view response) { onWellKnownResponse(response); });
+}
+
+void Bearer::KeyStore::onWellKnownResponse(string_view response) {
+	if (response.empty()) {
+		LOGW("%s: failed to get the .well-known content from the authority server. Retry in 5 minutes.",
+		     kOpenIDConnect);
+		const auto timeout = 5min;
+		mWellKnownTimer.set([this] { askForWellKnown(); }, timeout);
+		return;
+	}
+
+	LOGD("%s: a .well-known response has been received from the authority server.", kOpenIDConnect);
+	mWellKnownTimer.set([this] { askForWellKnown(); });
+	auto payload = JsonWrapper(nlohmann::json::parse(response));
+
+	constexpr auto issuer = "issuer"sv;
+	if (!payload.hasString(issuer)) {
+		LOGW("%s: failed to find %s in .well-known server response.", kOpenIDConnect, issuer.data());
+	} else {
+		try {
+			auto iss = payload[issuer].get<string>();
+			auto issUrl = sofiasip::Url(iss);
+			if (!acceptIssuer(issUrl, mIssuer))
+				LOGW("%s: a different issuer has been received from .well-known: %s while expecting %s.",
+				     kOpenIDConnect, issUrl.str().c_str(), mIssuer.str().c_str());
+		} catch (const exception& e) {
+			LOGW("%s: an invalid issuer has been received from .well-known: %s.", kOpenIDConnect, e.what());
+		}
+	}
+
+	constexpr auto jwksUri = "jwks_uri"sv;
+	if (!payload.hasString(jwksUri)) {
+		LOGW("%s: failed to find %s in .well-known server response.", kOpenIDConnect, jwksUri.data());
+	}
+	mKeyPath = payload[jwksUri].get<string>();
+	askForJWKS();
+}
+
+void Bearer::KeyStore::askForJWKS() {
+	// wait next response
+	if (mKeyCacheUpdate == KeyCache::Pending) return;
+
+	mHttpClient.requestGET(mKeyPath, [this](string_view response) { onJWKSResponse(response); });
+	mKeyCacheUpdate = KeyCache::Pending;
+}
+
+void Bearer::KeyStore::onJWKSResponse(string_view response) {
+	mJWKSTimer.set([this] { askForJWKS(); });
+
+	if (response.empty()) {
+		LOGW("%s: failed to get the JWKS from the authority server.", kOpenIDConnect);
+		checkKeysValidity();
+		// check if url has changed
+		askForWellKnown();
+		mKeyCacheUpdate = KeyCache::Required;
+		return;
+	}
+
+	auto keys = parseJWKSResponse(response);
+	updateKeys(keys);
+}
+
+void Bearer::KeyStore::updateKeys(const unordered_map<std::string, KeyInfo>& pubKeys) {
+	mPubKeys = pubKeys;
+	mKeyCacheUpdate = KeyCache::Done;
+	mOnPubKeyRefresh();
+}
+
+void Bearer::KeyStore::checkKeysValidity() {
+	for (auto pubKey = mPubKeys.begin(); pubKey != mPubKeys.end();) {
+		if (isKeyValid(pubKey->second.notAfter)) {
+			++pubKey;
+			continue;
+		}
+		LOGI("%s: remove expired key with kid \"%s\".", kOpenIDConnect, pubKey->first.c_str());
+		pubKey = mPubKeys.erase(pubKey);
+	}
+}
+
+Bearer::KeyInfo Bearer::KeyStore::getPubKey(const string& kid) const {
+	const auto& keyId = mKeyType == PubKeyType::file ? kDefaultKid : kid;
+	auto pubKey = mPubKeys.find(keyId);
+	if (pubKey == mPubKeys.end()) return {};
+	return pubKey->second;
 }
 
 } // namespace flexisip

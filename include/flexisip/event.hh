@@ -232,7 +232,7 @@ public:
 	void addChallengeResult(AuthResult::ChallengeResult&& challenge) {
 		mAuthResult.challenges.push_back(std::move(challenge));
 	}
-	const AuthResult& getAuthResult() {
+	const AuthResult& getAuthResult() const {
 		return mAuthResult;
 	}
 

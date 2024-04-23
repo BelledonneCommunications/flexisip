@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include <optional>
+#include <functional>
 
 #include "sofia-sip/auth_module.h"
 
@@ -29,11 +29,15 @@ namespace flexisip {
 /**
  * Interface to be implemented by the authentication schemes.
  **/
+
 class AuthScheme {
 public:
+	enum class State { Inapplicable, Pending, Done };
+	using ChallengeResult = RequestSipEvent::AuthResult::ChallengeResult;
+
 	virtual ~AuthScheme() = default;
 	virtual std::string schemeType() const = 0;
 	virtual void challenge(AuthStatus& as, const auth_challenger_t* ach) = 0;
-	virtual std::optional<RequestSipEvent::AuthResult::ChallengeResult> check(const msg_auth_t* credentials) = 0;
+	virtual State check(const msg_auth_t* credentials, std::function<void(ChallengeResult&&)>&& onResult) = 0;
 };
 } // namespace flexisip

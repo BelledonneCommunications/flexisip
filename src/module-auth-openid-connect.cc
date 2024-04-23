@@ -31,27 +31,32 @@ using namespace std;
 namespace flexisip {
 
 namespace {
+
 const auto sOpenIDConnectInfo = ModuleInfo<ModuleAuthOpenIDConnect>(
     "AuthOpenIDConnect",
-    "The AuthOpenIDConnect module challenges SIP requests using OpenIDConnect method.\n",
+    "The AuthOpenIDConnect module challenges SIP requests using OpenID Connect method.\n"
+    "Activating this module requires enabling the Authorization module and disabling the Authentication module.\n",
     {"AuthTrustedHosts"},
     ModuleInfoBase::ModuleOid::OpenIDConnectAuthentication,
     [](GenericStruct& moduleConfig) {
 	    ConfigItemDescriptor items[] = {
 	        {String, "authorization-server",
-	         "The HTTPS URL of the authorization server.\n"
+	         "The HTTPS URL of the OpenID Provider.\n"
 	         "This parameter MUST be set.",
 	         ""},
 	        {String, "public-key-type",
-	         "The method of obtaining the public key. The key must be in PEM format. Possible values are:\n"
-	         "'file': the key is readable from a server file,\n"
-	         "'URL': the key is downloadable from a URL or\n"
-	         "'well-known': the key is downlable from the .well-known of authorization server\n"
-	         "If the value is 'file' or 'URL', 'public-key-location' MUST be set.",
+	         "The method of obtaining the public key. Possible values are:\n"
+	         "'well-known': the jwks_uri will be downloaded from the .well-known of the authorization server\n"
+	         "'file': the PEM key will be loaded from a server file.\n"
+	         "If the value is 'file', 'public-key-location' MUST be set.",
 	         "well-known"},
-	        {String, "public-key-location", "File path or URL according to 'public-key-type' parameter value.", ""},
+	        {String, "public-key-location", "File path to the public-key in PEM format.", ""},
 	        {String, "realm",
-	         "The realm to use for the OpenIDConnect authentication.\n"
+	         "The realm to use for the OpenID Connect authentication.\n"
+	         "This parameter MUST be set.",
+	         ""},
+	        {String, "audience",
+	         "The name of the service to expect in the audience claim.\n"
 	         "This parameter MUST be set.",
 	         ""},
 	        {String, "sip-id-claim",
@@ -60,9 +65,14 @@ const auto sOpenIDConnectInfo = ModuleInfo<ModuleAuthOpenIDConnect>(
 	         ""},
 	        {StringList, "scope",
 	         "An optional list of whitespace separated scopes to be inserted as scope parameter for challenge "
-	         "requests.\n"
-	         "Example: scope=email profile",
+	         "requests.",
 	         ""},
+	        {DurationMIN, "jwks-refresh-delay",
+	         "The maximum duration in minutes between two refreshes of the jwks cache.", "15"},
+	        {DurationMIN, "well-known-refresh-delay",
+	         "The maximum duration in minutes betweeen two refreshes of the .well-known content, default is once a "
+	         "day.",
+	         "1440"},
 	        config_item_end};
 	    moduleConfig.addChildrenValues(items);
 	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
@@ -70,10 +80,9 @@ const auto sOpenIDConnectInfo = ModuleInfo<ModuleAuthOpenIDConnect>(
 
 Bearer::PubKeyType getPubKeyType(string_view pubKeyType) {
 	if (pubKeyType == "file") return Bearer::PubKeyType::file;
-	if (pubKeyType == "URL") return Bearer::PubKeyType::url;
 	if (pubKeyType != "well-known")
 		LOGF("Invalid public-key-type: %s in ModuleAuthOpenIDConnect configuration.", pubKeyType);
-	return Bearer::PubKeyType::wellknown;
+	return Bearer::PubKeyType::wellKnown;
 }
 
 } // namespace
@@ -97,6 +106,10 @@ void ModuleAuthOpenIDConnect::onLoad(const GenericStruct* mc) {
 		return value;
 	};
 
+	auto readDuration = [&mc](string_view paramName) {
+		return chrono::duration_cast<chrono::milliseconds>(mc->get<ConfigDuration<chrono::minutes>>(paramName)->read());
+	};
+
 	Bearer::BearerParams params{};
 	{
 		const auto issuer = readMandatoryString("authorization-server");
@@ -105,13 +118,19 @@ void ModuleAuthOpenIDConnect::onLoad(const GenericStruct* mc) {
 		params.issuer = issUrl;
 	}
 	params.realm = readMandatoryString("realm");
+	params.audience = readMandatoryString("audience");
 	params.idClaimer = readMandatoryString("sip-id-claim");
 	params.scope = mc->get<ConfigStringList>("scope")->read();
-	params.keyType = getPubKeyType(mc->get<ConfigString>("public-key-type")->read());
-	if (params.keyType != Bearer::PubKeyType::wellknown)
-		params.keyPath = mc->get<ConfigString>("public-key-location")->read();
 
-	mBearerAuth = std::make_shared<Bearer>(params);
+	Bearer::KeyStoreParams keyStore{};
+	keyStore.keyType = getPubKeyType(mc->get<ConfigString>("public-key-type")->read());
+	if (keyStore.keyType != Bearer::PubKeyType::wellKnown)
+		keyStore.keyPath = readMandatoryString("public-key-location");
+
+	keyStore.jwksRefreshDelay = readDuration("jwks-refresh-delay");
+	keyStore.wellKnownRefreshDelay = readDuration("well-known-refresh-delay");
+
+	mBearerAuth = std::make_shared<Bearer>(getAgent()->getRoot(), params, keyStore);
 
 	auto authModule = getAgent()->findModule("Authorization");
 	auto auth = dynamic_cast<ModuleAuthorization*>(authModule.get());
@@ -125,10 +144,14 @@ void ModuleAuthOpenIDConnect::onRequest(shared_ptr<RequestSipEvent>& ev) {
 
 	while (credentials != nullptr) {
 		if (strcmp(credentials->au_scheme, "Bearer") == 0) {
-			auto challengeResult = mBearerAuth->check(credentials);
-
-			if (challengeResult.has_value()) {
-				ev->addChallengeResult(std::move(challengeResult.value()));
+			const auto result =
+			    mBearerAuth->check(credentials, [ev, ag = getAgent()](AuthScheme::ChallengeResult&& challenge) {
+				    ev->addChallengeResult(std::move(challenge));
+				    // The event is re-injected
+				    if (ev->isSuspended()) ag->injectRequestEvent(ev);
+			    });
+			if (result != AuthScheme::State::Inapplicable) {
+				if (result == AuthScheme::State::Pending) ev->suspendProcessing();
 
 				if (!registerMethod) {
 					msg_header_remove(ev->getMsgSip()->getMsg(), nullptr, (msg_header_t*)credentials);

@@ -27,7 +27,8 @@ namespace flexisip {
 namespace {
 const auto sTrustedHostsInfo = ModuleInfo<ModuleAuthTrustedHosts>(
     "AuthTrustedHosts",
-    "The AuthTrustedHosts module identifies SIP requests from trusted hosts.\n",
+    "The AuthTrustedHosts module identifies SIP requests from trusted hosts.\n"
+    "Activating this module requires enabling the Authorization module and disabling the Authentication module.\n",
     {"Authentication"},
     ModuleInfoBase::ModuleOid::TrustedHostsAuthentication,
     [](GenericStruct& moduleConfig) {
@@ -42,7 +43,7 @@ const auto sTrustedHostsInfo = ModuleInfo<ModuleAuthTrustedHosts>(
     });
 
 bool isEmpty(const char* value) {
-	return value == NULL || value[0] == '\0';
+	return value == nullptr || value[0] == '\0';
 }
 } // namespace
 
