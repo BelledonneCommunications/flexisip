@@ -95,7 +95,7 @@
 #endif
 
 #ifdef ENABLE_SNMP
-#include "snmp-agent.h"
+#include "snmp/snmp-agent.hh"
 #endif
 
 #define ENABLE_SERVICE_SERVERS ENABLE_PRESENCE || ENABLE_CONFERENCE || ENABLE_B2BUA
@@ -628,7 +628,7 @@ int main(int argc, char* argv[]) {
 	unique_ptr<CommandLineInterface> presence_cli;
 #endif
 #ifdef ENABLE_SNMP
-	unique_ptr<SnmpAgent> snmpAgent;
+	shared_ptr<SnmpAgent> snmpAgent;
 #endif
 	bool debug;
 	bool user_errors = false;
@@ -959,7 +959,6 @@ int main(int argc, char* argv[]) {
 	 * server.
 	 */
 	LOGN("Starting flexisip %s-server version %s", fName.c_str(), FLEXISIP_GIT_VERSION);
-	cfg->sendTrap("Flexisip " + fName + "-server starting");
 
 	increaseFDLimit();
 
@@ -977,7 +976,9 @@ int main(int argc, char* argv[]) {
 #ifdef ENABLE_SNMP
 		bool snmpEnabled = cfg->getGlobal()->get<ConfigBoolean>("enable-snmp")->read();
 		if (snmpEnabled) {
-			snmpAgent.reset(new SnmpAgent(*a, *cfg, oset));
+			snmpAgent = make_shared<SnmpAgent>(*cfg, oset);
+			snmpAgent->sendNotification("Flexisip " + fName + "-server starting");
+			a->setNotifier(snmpAgent);
 		}
 #endif
 
@@ -1133,7 +1134,12 @@ int main(int argc, char* argv[]) {
 
 	LOGN("Flexisip %s-server exiting normally.", fName.c_str());
 	if (trackAllocs) dump_remaining_msgs();
-	cfg->sendTrap("Flexisip " + fName + "-server exiting normally");
+#ifdef ENABLE_SNMP
+	bool snmpEnabled = cfg->getGlobal()->get<ConfigBoolean>("enable-snmp")->read();
+	if (snmpEnabled) {
+		snmpAgent->sendNotification("Flexisip " + fName + "-server exiting normally");
+	}
+#endif
 
 	bctbx_uninit_logger();
 

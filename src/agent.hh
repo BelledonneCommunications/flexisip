@@ -49,6 +49,7 @@
 
 #include "agent-interface.hh"
 #include "eventlogs/writers/event-log-writer.hh"
+#include "i-supervisor-notifier.hh"
 #include "transaction/incoming-agent.hh"
 #include "transaction/outgoing-agent.hh"
 #include "transaction/transaction.hh"
@@ -248,9 +249,10 @@ public:
 		return *mConfigManager;
 	}
 
-	void sendTrap(const GenericEntry* source, const std::string& msg) {
-		mConfigManager->sendTrap(source, msg);
-	}
+	void setNotifier(const std::weak_ptr<ISupervisorNotifier>& notifier) {
+		mNotifier = notifier;
+	};
+	void sendTrap(const GenericEntry* source, const std::string& msg) const;
 
 private:
 	// Private types
@@ -326,6 +328,7 @@ private:
 	std::vector<belle_sip_mdns_register_t*> mMdnsRegisterList;
 #endif
 	bool mUseRfc2543RecordRoute = false;
+	std::weak_ptr<ISupervisorNotifier> mNotifier;
 
 	static constexpr const char* sInternalTransportIdent = "internal-transport";
 	static const std::string sEventSeparator;

@@ -31,6 +31,7 @@
 #include <flexisip/flexisip-version.h>
 #include <flexisip/logmanager.hh>
 #include <flexisip/sip-boolean-expressions.hh>
+#include <utility>
 
 #include "agent.hh"
 #include "configdumper.hh"
@@ -164,7 +165,7 @@ string GenericEntry::getPrettyName() const {
 	return pn;
 }
 
-void GenericEntry::mibFragment(ostream& ost, string spacing) const {
+void GenericEntry::mibFragment(ostream& ost, const string& spacing) const {
 	string s("OCTET STRING");
 	doMibFragment(ost, "", "read-write", s, spacing);
 }
@@ -173,22 +174,19 @@ void GenericEntry::doMibFragment(
     ostream& ostr, const string& def, const string& access, const string& syntax, const string& spacing) const {
 	if (!getParent()) LOGA("no parent found for %s", getName().c_str());
 	ostr << spacing << sanitize(getName()) << " OBJECT-TYPE" << endl
-	     << spacing << "	SYNTAX"
-	     << "	" << syntax << endl
+	     << spacing << "	SYNTAX" << "	" << syntax << endl
 	     << spacing << "	MAX-ACCESS	" << access << endl
 	     << spacing << "	STATUS	current" << endl
 	     << spacing << "	DESCRIPTION" << endl
 	     << spacing << "	\"" << escapeDoubleQuotes(getHelp()) << endl
-	     << spacing << "	"
-	     << " Default:" << def << endl
-	     << spacing << "	"
-	     << " PN:" << getPrettyName() << "\"" << endl
+	     << spacing << "	" << " Default:" << def << endl
+	     << spacing << "	" << " PN:" << getPrettyName() << "\"" << endl
 	     << spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
 }
 
-GenericEntry::GenericEntry(const string& name, GenericValueType type, const string& help, oid oid_index)
+GenericEntry::GenericEntry(const string& name, GenericValueType type, const string& help, uint64_t oid_index)
     : mName(name), mHelp(help), mType(type), mOidLeaf(oid_index) {
-	mConfigListener = NULL;
+	mConfigListener = nullptr;
 	size_t idx;
 	for (idx = 0; idx < name.size(); idx++) {
 		if (name[idx] == '_')
@@ -208,12 +206,12 @@ GenericEntry::GenericEntry(const string& name, GenericValueType type, const stri
 }
 
 std::string GenericEntry::escapeDoubleQuotes(const std::string& str) {
-	string escapedStr = "";
-	for (auto it = str.cbegin(); it != str.cend(); it++) {
-		if (*it == '"') {
+	string escapedStr;
+	for (auto& s : str) {
+		if (s == '"') {
 			escapedStr += "''";
 		} else {
-			escapedStr += *it;
+			escapedStr += s;
 		}
 	}
 	return escapedStr;
@@ -221,13 +219,12 @@ std::string GenericEntry::escapeDoubleQuotes(const std::string& str) {
 
 void GenericEntry::setParent(GenericEntry* parent) {
 	mParent = parent;
-	if (mOid) delete mOid;
-	mOid = new Oid(parent->getOid(), mOidLeaf);
+	mOid.emplace(parent->getOid(), mOidLeaf);
 }
 
 /*********************************************************************************************************************/
 
-void ConfigValue::mibFragment(ostream& ost, string spacing) const {
+void ConfigValue::mibFragment(ostream& ost, const string& spacing) const {
 	string s("OCTET STRING");
 	doConfigMibFragment(ost, s, spacing);
 }
@@ -240,112 +237,45 @@ void ConfigValue::doMibFragment(
 	GenericEntry::doMibFragment(ostr, getDefault(), config_access, syntax, spacing);
 }
 
-void ConfigBoolean::mibFragment(ostream& ost, string spacing) const {
+void ConfigBoolean::mibFragment(ostream& ost, const string& spacing) const {
 	string s("INTEGER { true(1),false(0) }");
 	doConfigMibFragment(ost, s, spacing);
 }
-void ConfigInt::mibFragment(ostream& ost, string spacing) const {
+void ConfigInt::mibFragment(ostream& ost, const string& spacing) const {
 	string s("Integer32");
 	doConfigMibFragment(ost, s, spacing);
 }
-void StatCounter64::mibFragment(ostream& ost, string spacing) const {
+void StatCounter64::mibFragment(ostream& ost, const string& spacing) const {
 	string s("Counter64");
 	doMibFragment(ost, "", "read-only", s, spacing);
 }
-void GenericStruct::mibFragment(ostream& ost, string spacing) const {
+void GenericStruct::mibFragment(ostream& ost, const string& spacing) const {
 	string parent = getParent() ? getParent()->getName() : "flexisipMIB";
-	ost << spacing << sanitize(getName()) << "	"
-	    << "OBJECT IDENTIFIER ::= { " << sanitize(parent) << " " << mOid->getLeaf() << " }" << endl;
+	ost << spacing << sanitize(getName()) << "	" << "OBJECT IDENTIFIER ::= { " << sanitize(parent) << " "
+	    << mOid->getLeaf() << " }" << endl;
 }
 
-void NotificationEntry::mibFragment(ostream& ost, string spacing) const {
+void NotificationEntry::mibFragment(ostream& ost, const string& spacing) const {
 	if (!getParent()) LOGA("no parent found for %s", getName().c_str());
 	ost << spacing << sanitize(getName()) << " NOTIFICATION-TYPE" << endl
 	    << spacing << "	OBJECTS	{	flNotifString	} " << endl
 	    << spacing << "	STATUS	current" << endl
 	    << spacing << "	DESCRIPTION" << endl
 	    << spacing << "	\"" << escapeDoubleQuotes(getHelp()) << endl
-	    << spacing << "	"
-	    << " PN:" << getPrettyName() << "\"" << endl
+	    << spacing << "	" << " PN:" << getPrettyName() << "\"" << endl
 	    << spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
 }
 
-NotificationEntry::NotificationEntry(const std::string& name, const std::string& help, oid oid_index)
-    : GenericEntry(name, Notification, help, oid_index), mInitialized(false) {
-}
-
-void NotificationEntry::setInitialized(bool status) {
-	mInitialized = status;
-	if (status) {
-		const GenericEntry* source;
-		string msg;
-		if (!mPendingTraps.empty()) {
-			LOGD("Sending %zd pending notifications", mPendingTraps.size());
-		}
-		while (!mPendingTraps.empty()) {
-			tie(source, msg) = mPendingTraps.front();
-			mPendingTraps.pop();
-			send(source, msg);
-		}
-	}
-}
-
-void NotificationEntry::send(const string& msg) {
-	send(NULL, msg);
-}
-void NotificationEntry::send(const GenericEntry* source, const string& msg) {
-	LOGD("Sending trap %s: %s", source ? source->getName().c_str() : "", msg.c_str());
-
-#ifdef ENABLE_SNMP
-	if (!mInitialized) {
-		mPendingTraps.push(make_tuple(source, msg));
-		LOGD("Pending trap: SNMP not initialized");
-		return;
-	}
-
-	static const auto* configRoot = retrieveRoot(this);
-	static Oid& sMsgTemplateOid = configRoot->getDeep<GenericEntry>("notif/msg", true)->getOid();
-	static Oid& sSourceTemplateOid = configRoot->getDeep<GenericEntry>("notif/source", true)->getOid();
-
-	/*
-	 * See:
-	 * http://net-snmp.sourceforge.net/dev/agent/notification_8c-example.html
-	 * In the notification, we have to assign our notification OID to
-	 * the snmpTrapOID.0 object. Here is its definition.
-	 */
-	oid objid_snmptrap[] = {1, 3, 6, 1, 6, 3, 1, 1, 4, 1, 0};
-	size_t objid_snmptrap_len = OID_LENGTH(objid_snmptrap);
-
-	netsnmp_variable_list* notification_vars = NULL;
-
-	snmp_varlist_add_variable(&notification_vars, objid_snmptrap, objid_snmptrap_len, ASN_OBJECT_ID,
-	                          (u_char*)mOid->mOidPath.data(), mOid->mOidPath.size() * sizeof(oid));
-
-	snmp_varlist_add_variable(&notification_vars, (const oid*)sMsgTemplateOid.getValue().data(),
-	                          sMsgTemplateOid.getValue().size(), ASN_OCTET_STR, (u_char*)msg.data(), msg.length());
-
-	if (source) {
-		string oidstr(source->getOidAsString());
-		snmp_varlist_add_variable(&notification_vars, (const oid*)sSourceTemplateOid.getValue().data(),
-		                          sSourceTemplateOid.getValue().size(), ASN_OCTET_STR, (u_char*)oidstr.data(),
-		                          oidstr.length());
-	}
-
-	send_v2trap(notification_vars);
-	snmp_free_varbind(notification_vars);
-#endif
+NotificationEntry::NotificationEntry(const std::string& name, const std::string& help, uint64_t oid_index)
+    : GenericEntry(name, Notification, help, oid_index) {
 }
 
 /* ConfigValue */
 
 ConfigValue::ConfigValue(
-    const string& name, GenericValueType vt, const string& help, const string& default_value, oid oid_index)
+    const string& name, GenericValueType vt, const string& help, const string& default_value, uint64_t oid_index)
     : GenericEntry(name, vt, help, oid_index), mValue(default_value), mDefaultValue(default_value) {
 	mExportToConfigFile = true;
-}
-
-bool ConfigValue::invokeConfigStateChanged(ConfigState state) {
-	return onConfigStateChanged(*this, state);
 }
 
 void ConfigValue::checkType(const string& value, bool isDefault) {
@@ -409,27 +339,27 @@ void ConfigValue::setFallback(const ConfigValue& fallbackValue) {
 
 /* Oid */
 
-Oid::Oid(Oid& parent, oid leaf) {
+Oid::Oid(Oid& parent, uint64_t leaf) {
 	mOidPath = parent.getValue();
 	mOidPath.push_back(leaf);
 }
 
-Oid::Oid(vector<oid> path, oid leaf) {
+Oid::Oid(vector<uint64_t>&& path, uint64_t leaf) {
 	mOidPath = path;
 	mOidPath.push_back(leaf);
 }
 
-Oid::Oid(vector<oid> path) {
+Oid::Oid(vector<uint64_t>&& path) {
 	mOidPath = path;
 }
 
-oid Oid::oidFromHashedString(const string& str) {
+uint64_t Oid::oidFromHashedString(const string& str) {
 	su_md5_t md5[1];
 	su_md5_init(md5);
 	su_md5_update(md5, str.c_str(), str.size());
 	uint8_t digest[SU_MD5_DIGEST_SIZE];
 	su_md5_digest(md5, digest);
-	oid oidValue = 0;
+	uint64_t oidValue = 0;
 	for (int i = 0; i < 4; ++i) { // limit to half 32 bits [1]
 		oidValue <<= 8;
 		oidValue += digest[i];
@@ -440,55 +370,13 @@ oid Oid::oidFromHashedString(const string& str) {
 
 void ConfigValue::setParent(GenericEntry* parent) {
 	GenericEntry::setParent(parent);
-#ifdef ENABLE_SNMP
-	//	LOGD("SNMP registering %s %s (as %s)",mOid->getValueAsString().c_str(), mName.c_str(), sanitize(mName).c_str());
-	netsnmp_handler_registration* reginfo =
-	    netsnmp_create_handler_registration(sanitize(mName).c_str(), &GenericEntry::sHandleSnmpRequest,
-	                                        (oid*)mOid->getValue().data(), mOid->getValue().size(), HANDLER_CAN_RWRITE);
-	reginfo->my_reg_void = this;
-	int res = netsnmp_register_scalar(reginfo);
-	if (res != MIB_REGISTERED_OK) {
-		if (res == MIB_DUPLICATE_REGISTRATION) {
-			LOGE("Duplicate registration of SNMP %s", mName.c_str());
-		} else {
-			LOGE("Couldn't register SNMP %s", mName.c_str());
-		}
-	}
-#endif
 }
 
-void StatCounter64::setParent(GenericEntry* parent) {
-	GenericEntry::setParent(parent);
-
-#ifdef ENABLE_SNMP
-	//	LOGD("SNMP registering %s %s (as %s)",mOid->getValueAsString().c_str(), mName.c_str(), sanitize(mName).c_str());
-	netsnmp_handler_registration* reginfo =
-	    netsnmp_create_handler_registration(sanitize(mName).c_str(), &GenericEntry::sHandleSnmpRequest,
-	                                        (oid*)mOid->getValue().data(), mOid->getValue().size(), HANDLER_CAN_RONLY);
-	reginfo->my_reg_void = this;
-	int res = netsnmp_register_read_only_scalar(reginfo);
-	if (res != MIB_REGISTERED_OK) {
-		if (res == MIB_DUPLICATE_REGISTRATION) {
-			LOGE("Duplicate registration of SNMP %s", mName.c_str());
-		} else {
-			LOGE("Couldn't register SNMP %s", mName.c_str());
-		}
-	}
-#endif
-}
-
-GenericStruct::GenericStruct(const string& name, const string& help, oid oid_index)
+GenericStruct::GenericStruct(const string& name, const string& help, uint64_t oid_index)
     : GenericEntry(name, Struct, help, oid_index) {
 }
 
-void GenericStruct::setParent(GenericEntry* parent) {
-	GenericEntry::setParent(parent);
-#ifdef ENABLE_SNMP
-//	LOGD("SNMP node %s %s",mOid->getValueAsString().c_str(), mName.c_str());
-#endif
-}
-
-void GenericStruct::deprecateChild(const string& name, const DeprecationInfo& info) {
+void GenericStruct::deprecateChild(const string& name, const DeprecationInfo& info) const {
 	GenericEntry* e = find(name);
 	if (e) e->setDeprecated(info);
 }
@@ -498,7 +386,7 @@ void GenericStruct::addChildrenValues(ConfigItemDescriptor* items) {
 }
 
 void GenericStruct::addChildrenValues(ConfigItemDescriptor* items, bool hashed) {
-	oid cOid = 1;
+	uint64_t cOid = 1;
 
 	for (; items->name != nullptr; items++) {
 		unique_ptr<GenericEntry> val = nullptr;
@@ -560,7 +448,7 @@ constexpr auto finished = "-finished";
 }
 
 StatCounter64* GenericStruct::createStat(const string& name, const string& help) {
-	oid cOid = Oid::oidFromHashedString(name);
+	uint64_t cOid = Oid::oidFromHashedString(name);
 	auto val = make_unique<StatCounter64>(name, help, cOid);
 	return addChild(std::move(val));
 }
@@ -569,30 +457,29 @@ void GenericStruct::createStatPair(const string& name, const string& help) {
 	createStat(name + finished, help + " Finished.");
 }
 
-StatCounter64* GenericStruct::getStat(const string& name) {
+StatCounter64* GenericStruct::getStat(const string& name) const {
 	return get<StatCounter64>(name);
 }
 
-pair<StatCounter64*, StatCounter64*> GenericStruct::getStatPair(const string& name) {
+pair<StatCounter64*, StatCounter64*> GenericStruct::getStatPair(const string& name) const {
 	return make_pair(getStat(name), getStat(name + finished));
 }
 
-unique_ptr<StatPair> GenericStruct::getStatPairPtr(const string& name) {
+unique_ptr<StatPair> GenericStruct::getStatPairPtr(const string& name) const {
 	return make_unique<StatPair>(getStat(name), getStat(name + finished));
 }
 
 struct matchEntryNameApprox {
 	const string mName;
-	matchEntryNameApprox(const string& name) : mName(name) {
+	explicit matchEntryNameApprox(const string& name) : mName(name) {
 	}
 	bool operator()(const unique_ptr<GenericEntry>& e) {
-		unsigned int i;
-		int count = 0;
-		int min_required = mName.size() - 2;
+		auto min_required = mName.size() - 2;
+		decltype(min_required) count = 0;
 		if (min_required < 1) return false;
 
-		for (i = 0; i < mName.size(); ++i) {
-			if (e->getName().find(mName[i]) != string::npos) {
+		for (const auto& c : mName) {
+			if (e->getName().find(c) != string::npos) {
 				count++;
 			}
 		}
@@ -613,7 +500,7 @@ const list<unique_ptr<GenericEntry>>& GenericStruct::getChildren() const {
 	return mEntries;
 }
 
-ConfigBoolean::ConfigBoolean(const string& name, const string& help, const string& default_value, oid oid_index)
+ConfigBoolean::ConfigBoolean(const string& name, const string& help, const string& default_value, uint64_t oid_index)
     : ConfigValue(name, Boolean, help, default_value, oid_index) {
 }
 
@@ -645,16 +532,14 @@ void ConfigBoolean::write(bool value) {
 	set(value ? "1" : "0");
 }
 
-ConfigInt::ConfigInt(const string& name, const string& help, const string& default_value, oid oid_index)
+ConfigInt::ConfigInt(const string& name, const string& help, const string& default_value, uint64_t oid_index)
     : ConfigValue(name, Integer, help, default_value, oid_index) {
 }
 
 int ConfigInt::read() const {
-	return atoi(get().c_str());
+	return stoi(get());
 }
-int ConfigInt::readNext() const {
-	return atoi(getNextValue().c_str());
-}
+
 void ConfigInt::write(int value) {
 	std::ostringstream oss;
 	oss << value;
@@ -664,24 +549,26 @@ void ConfigInt::write(int value) {
 ConfigIntRange::ConfigIntRange(const std::string& name,
                                const std::string& help,
                                const std::string& default_value,
-                               oid oid_index)
+                               uint64_t oid_index)
     : ConfigValue(name, IntegerRange, help, default_value, oid_index) {
 }
 
-void ConfigIntRange::parse(const string& value) {
+ConfigIntRange::RangeBounds ConfigIntRange::parse(const string& value) {
 	std::string::size_type n = value.find('-');
+	int min, max;
 	if (n == std::string::npos) {
-		mMin = mMax = atoi(value.c_str());
+		min = max = stoi(value);
 	} else {
-		mMin = atoi(value.substr(0, n).c_str());
-		mMax = atoi(value.substr(n + 1).c_str());
+		min = stoi(value.substr(0, n));
+		max = stoi(value.substr(n + 1));
 	}
+	return RangeBounds{.min = min, .max = max};
 }
 
 int ConfigIntRange::readMin() {
 	try {
-		parse(get());
-		return mMin;
+		auto bounds = parse(get());
+		return bounds.min;
 	} catch (const std::out_of_range& e) {
 		LOGA("%s", e.what());
 	}
@@ -689,26 +576,8 @@ int ConfigIntRange::readMin() {
 }
 int ConfigIntRange::readMax() {
 	try {
-		parse(get());
-		return mMax;
-	} catch (const std::out_of_range& e) {
-		LOGA("%s", e.what());
-	}
-	return -1;
-}
-int ConfigIntRange::readNextMin() {
-	try {
-		parse(getNextValue());
-		return mMin;
-	} catch (const std::out_of_range& e) {
-		LOGA("%s", e.what());
-	}
-	return -1;
-}
-int ConfigIntRange::readNextMax() {
-	try {
-		parse(getNextValue());
-		return mMax;
+		auto bounds = parse(get());
+		return bounds.max;
 	} catch (const std::out_of_range& e) {
 		LOGA("%s", e.what());
 	}
@@ -725,18 +594,17 @@ void ConfigIntRange::write(int min, int max) {
 	}
 }
 
-StatCounter64::StatCounter64(const string& name, const string& help, oid oid_index)
+StatCounter64::StatCounter64(const string& name, const string& help, uint64_t oid_index)
     : GenericEntry(name, Counter64, help, oid_index) {
 	mValue = 0;
 }
 
-ConfigString::ConfigString(const string& name, const string& help, const string& default_value, oid oid_index)
+ConfigString::ConfigString(const string& name, const string& help, const string& default_value, uint64_t oid_index)
     : ConfigValue(name, String, help, default_value, oid_index) {
 }
-ConfigString::~ConfigString() {
-}
+ConfigString::~ConfigString() = default;
 
-ConfigRuntimeError::ConfigRuntimeError(const string& name, const string& help, oid oid_index)
+ConfigRuntimeError::ConfigRuntimeError(const string& name, const string& help, uint64_t oid_index)
     : ConfigValue(name, RuntimeError, help, "", oid_index) {
 	this->setReadOnly(true);
 	this->mExportToConfigFile = false;
@@ -746,7 +614,7 @@ const string& ConfigString::read() const {
 	return get();
 }
 
-ConfigByteSize::ConfigByteSize(const string& name, const string& help, const string& default_value, oid oid_index)
+ConfigByteSize::ConfigByteSize(const string& name, const string& help, const string& default_value, uint64_t oid_index)
     : ConfigValue(name, String, help, default_value, oid_index) {
 }
 uint64_t ConfigByteSize::read() const {
@@ -767,8 +635,8 @@ void ConfigRuntimeError::writeErrors(const GenericEntry* entry, ostringstream& o
 	const auto* cs = dynamic_cast<const GenericStruct*>(entry);
 	if (cs) {
 		const auto& children = cs->getChildren();
-		for (auto it = children.begin(); it != children.end(); ++it) {
-			writeErrors(it->get(), oss);
+		for (auto& child : children) {
+			writeErrors(child.get(), oss);
 		}
 	}
 
@@ -785,7 +653,10 @@ string ConfigRuntimeError::generateErrors() const {
 	return oss.str();
 }
 
-ConfigStringList::ConfigStringList(const string& name, const string& help, const string& default_value, oid oid_index)
+ConfigStringList::ConfigStringList(const string& name,
+                                   const string& help,
+                                   const string& default_value,
+                                   uint64_t oid_index)
     : ConfigValue(name, StringList, help, default_value, oid_index) {
 }
 
@@ -794,11 +665,11 @@ ConfigStringList::ConfigStringList(const string& name, const string& help, const
 list<string> ConfigStringList::parse(const std::string& in) {
 	list<string> retlist;
 	char* res = strdup(in.c_str());
-	char* saveptr = NULL;
+	char* saveptr = nullptr;
 	char* ret = strtok_r(res, DELIMITERS, &saveptr);
-	while (ret != NULL) {
-		retlist.push_back(string(ret));
-		ret = strtok_r(NULL, DELIMITERS, &saveptr);
+	while (ret != nullptr) {
+		retlist.emplace_back(ret);
+		ret = strtok_r(nullptr, DELIMITERS, &saveptr);
 	}
 	free(res);
 	return retlist;
@@ -816,41 +687,12 @@ bool ConfigStringList::contains(const string& ref) const {
 ConfigBooleanExpression::ConfigBooleanExpression(const string& name,
                                                  const string& help,
                                                  const string& default_value,
-                                                 oid oid_index)
+                                                 uint64_t oid_index)
     : ConfigValue(name, BooleanExpr, help, default_value, oid_index) {
 }
 
 shared_ptr<SipBooleanExpression> ConfigBooleanExpression::read() const {
 	return SipBooleanExpressionBuilder::get().parse(get());
-}
-
-static void init_flexisip_snmp() {
-#ifdef ENABLE_SNMP
-	static bool snmpInitDone = false;
-	if (snmpInitDone) return;
-
-	int syslog = 0; /* change this if you want to use syslog */
-
-	// snmp_set_do_debugging(1);
-	/* print log errors to syslog or stderr */
-	if (syslog) snmp_enable_calllog();
-	else snmp_enable_stderrlog();
-
-	/* make us an agentx client. */
-	netsnmp_ds_set_boolean(NETSNMP_DS_APPLICATION_ID, NETSNMP_DS_AGENT_ROLE, 1);
-	// netsnmp_ds_set_string(NETSNMP_DS_APPLICATION_ID,NETSNMP_DS_AGENT_X_SOCKET,"udp:localhost:161");
-	netsnmp_ds_set_boolean(NETSNMP_DS_APPLICATION_ID, NETSNMP_DS_AGENT_VERBOSE, 0);
-
-	/* initialize tcpip, if necessary */
-	SOCK_STARTUP;
-
-	/* initialize the agent library */
-	int err = init_agent("flexisip");
-	if (err != 0) {
-		LOGA("error init snmp agent %d", errno);
-	}
-	snmpInitDone = true;
-#endif
 }
 
 std::vector<std::function<void(GenericStruct&)>>& ConfigManager::defaultInit() {
@@ -860,11 +702,12 @@ std::vector<std::function<void(GenericStruct&)>>& ConfigManager::defaultInit() {
 
 RootConfigStruct::RootConfigStruct(const string& name,
                                    const string& help,
-                                   vector<oid> oid_root_path,
+                                   vector<uint64_t> oid_root_path,
                                    const std::string& configFile)
     : GenericStruct(name, help, 1), mConfigFile(configFile) {
-	mOid = new Oid(oid_root_path, 1);
+	mOid.emplace(std::move(oid_root_path), 1);
 }
+
 RootConfigStruct::~RootConfigStruct() {
 }
 
@@ -878,8 +721,6 @@ ConfigManager::ConfigManager()
                   {1, 3, 6, 1, 4, 1, SNMP_COMPANY_OID},
                   mConfigFile),
       mReader(&mConfigRoot) {
-	init_flexisip_snmp();
-
 	// to make sure global_conf is instantiated first
 	static ConfigItemDescriptor global_conf[] = {
 	    // process settings
@@ -1128,7 +969,7 @@ ConfigManager::ConfigManager()
 	uNotifObjs->setExportable(false);
 	auto notifObjs = mConfigRoot.addChild(std::move(uNotifObjs));
 	auto uNotifier = make_unique<NotificationEntry>("sender", "Send notifications", 1);
-	mNotifier = notifObjs->addChild(std::move(uNotifier));
+	notifObjs->addChild(std::move(uNotifier));
 	auto nmsg = make_unique<ConfigString>("msg", "Notification message payload.", "", 10);
 	nmsg->setNotifPayload(true);
 	notifObjs->addChild(std::move(nmsg));
@@ -1232,7 +1073,7 @@ void ConfigManager::applyOverrides(bool strict) {
 		const std::string& key = it.first;
 		const std::string& value = it.second;
 		if (value.empty()) continue;
-		ConfigValue* val = mConfigRoot.getDeep<ConfigValue>(key.c_str(), strict);
+		auto val = mConfigRoot.getDeep<ConfigValue>(key, strict);
 		if (val) val->set(value);
 		else {
 			SLOGUE << "Skipping config override " << key << ":" << value;
@@ -1272,21 +1113,21 @@ void FileConfigReader::checkUnread() {
 		ss << "Unsupported parameter '" << key << "' in section [" << secname << "] at line " << lineno << ".";
 		mHaveUnreads = true;
 		GenericEntry* sec = mRoot->find(secname);
-		if (sec == NULL) {
+		if (sec == nullptr) {
 			sec = mRoot->findApproximate(secname);
-			if (sec != NULL) {
+			if (sec != nullptr) {
 				ss << " Unknown section '[" << secname << "]', did you mean '[" << sec->getName().c_str()
 				   << "]' instead?";
 			} else {
 				ss << " Unknown section '[" << secname << "]'.";
 			}
 		} else {
-			GenericStruct* st = dynamic_cast<GenericStruct*>(sec);
+			auto st = dynamic_cast<GenericStruct*>(sec);
 			if (st) {
 				GenericEntry* val = st->find(key);
-				if (val == NULL) {
+				if (val == nullptr) {
 					val = st->findApproximate(key);
-					if (val != NULL) {
+					if (val != nullptr) {
 						ss << " Did you mean '" << val->getName().c_str() << "'?";
 					}
 				}
@@ -1336,223 +1177,51 @@ FileConfigReader::FileConfigReader(GenericStruct* root) : mRoot(root), mHaveUnre
 
 FileConfigReader::~FileConfigReader() = default;
 
-#ifdef ENABLE_SNMP
-int GenericEntry::sHandleSnmpRequest(netsnmp_mib_handler* handler,
-                                     netsnmp_handler_registration* reginfo,
-                                     netsnmp_agent_request_info* reqinfo,
-                                     netsnmp_request_info* requests) {
-	if (!reginfo->my_reg_void) {
-		LOGE("no reg");
-		return SNMP_ERR_GENERR;
-	} else {
-		GenericEntry* cv = static_cast<GenericEntry*>(reginfo->my_reg_void);
-		return cv->handleSnmpRequest(handler, reginfo, reqinfo, requests);
-	}
+void GenericEntry::acceptVisit(ConfigManagerVisitor& visitor) {
+	visitor.visitGenericEntry(*this);
 }
-
-int ConfigRuntimeError::handleSnmpRequest([[maybe_unused]] netsnmp_mib_handler* handler,
-                                          [[maybe_unused]] netsnmp_handler_registration* reginfo,
-                                          netsnmp_agent_request_info* reqinfo,
-                                          netsnmp_request_info* requests) {
-	if (reqinfo->mode != MODE_GET) return SNMP_ERR_GENERR;
-
-	const string errors = generateErrors();
-	//	LOGD("runtime error handleSnmpRequest %s -> %s", reginfo->handlerName, errors.c_str());
-	return snmp_set_var_typed_value(requests->requestvb, ASN_OCTET_STR, (const u_char*)errors.c_str(), errors.size());
+void GenericStruct::acceptVisit(ConfigManagerVisitor& visitor) {
+	visitor.visitGenericStruct(*this);
 }
-
-int ConfigValue::handleSnmpRequest([[maybe_unused]] netsnmp_mib_handler* handler,
-                                   [[maybe_unused]] netsnmp_handler_registration* reginfo,
-                                   netsnmp_agent_request_info* reqinfo,
-                                   netsnmp_request_info* requests) {
-	char* old_value;
-	int ret;
-	string newValue;
-
-	switch (reqinfo->mode) {
-		case MODE_GET:
-			//		LOGD("str handleSnmpRequest %s -> %s", reginfo->handlerName, get().c_str());
-			return snmp_set_var_typed_value(requests->requestvb, ASN_OCTET_STR, (const u_char*)get().c_str(),
-			                                get().size());
-			break;
-		case MODE_SET_RESERVE1:
-			ret = netsnmp_check_vb_type(requests->requestvb, ASN_OCTET_STR);
-			if (ret != SNMP_ERR_NOERROR) {
-				netsnmp_set_request_error(reqinfo, requests, ret);
-			}
-
-			mNextValue.assign((char*)requests->requestvb->val.string, requests->requestvb->val_len);
-			if (!invokeConfigStateChanged(ConfigState::Check)) {
-				netsnmp_set_request_error(reqinfo, requests, SNMP_ERR_WRONGVALUE);
-			}
-			break;
-		case MODE_SET_RESERVE2:
-			old_value = netsnmp_strdup_and_null((const u_char*)get().c_str(), get().size());
-			if (!old_value) {
-				netsnmp_set_request_error(reqinfo, requests, SNMP_ERR_RESOURCEUNAVAILABLE);
-				return SNMP_ERR_NOERROR;
-			}
-			netsnmp_request_add_list_data(requests, netsnmp_create_data_list("old_value", old_value, free));
-			break;
-		case MODE_SET_ACTION:
-			newValue.assign((char*)requests->requestvb->val.string, requests->requestvb->val_len);
-			set(newValue);
-			invokeConfigStateChanged(ConfigState::Changed);
-			break;
-		case MODE_SET_COMMIT:
-			//		LOGD("str handleSnmpRequest %s <- %s", reginfo->handlerName, get().c_str());
-			invokeConfigStateChanged(ConfigState::Committed);
-			break;
-		case MODE_SET_FREE:
-			// Nothing to do
-			break;
-		case MODE_SET_UNDO:
-			old_value = (char*)netsnmp_request_get_list_data(requests, "old_value");
-			set(old_value);
-			invokeConfigStateChanged(ConfigState::Reset);
-			break;
-		default:
-			/* we should never get here, so this is a really bad error */
-			snmp_log(LOG_ERR, "unknown mode (%d) in handleSnmpRequest\n", reqinfo->mode);
-			return SNMP_ERR_GENERR;
-	}
-	return SNMP_ERR_NOERROR;
+void RootConfigStruct::acceptVisit(ConfigManagerVisitor& visitor) {
+	visitor.visitRootConfigStruct(*this);
 }
-
-int ConfigBoolean::handleSnmpRequest([[maybe_unused]] netsnmp_mib_handler* handler,
-                                     [[maybe_unused]] netsnmp_handler_registration* reginfo,
-                                     netsnmp_agent_request_info* reqinfo,
-                                     netsnmp_request_info* requests) {
-	int ret;
-	u_short* old_value;
-	switch (reqinfo->mode) {
-		case MODE_GET:
-			//		LOGD("bool handleSnmpRequest %s -> %d", reginfo->handlerName, read()?1:0);
-			snmp_set_var_typed_integer(requests->requestvb, ASN_INTEGER, read() ? 1 : 0);
-			break;
-		case MODE_SET_RESERVE1:
-			ret = netsnmp_check_vb_int_range(requests->requestvb, 0, 1);
-			if (ret != SNMP_ERR_NOERROR) {
-				netsnmp_set_request_error(reqinfo, requests, ret);
-			}
-			mNextValue = requests->requestvb->val.integer == 0 ? "0" : "1";
-			if (!invokeConfigStateChanged(ConfigState::Check)) {
-				netsnmp_set_request_error(reqinfo, requests, SNMP_ERR_WRONGVALUE);
-			}
-			break;
-		case MODE_SET_RESERVE2:
-			old_value = (u_short*)malloc(sizeof(u_short));
-			if (!old_value) {
-				netsnmp_set_request_error(reqinfo, requests, SNMP_ERR_RESOURCEUNAVAILABLE);
-				return SNMP_ERR_NOERROR;
-			}
-			*old_value = read() ? 1 : 0;
-			netsnmp_request_add_list_data(requests, netsnmp_create_data_list("old_value", old_value, free));
-			break;
-		case MODE_SET_ACTION:
-			write(*requests->requestvb->val.integer == 1);
-			invokeConfigStateChanged(ConfigState::Changed);
-			break;
-		case MODE_SET_COMMIT:
-			//		LOGD("bool handleSnmpRequest %s <- %d", reginfo->handlerName, read()?1:0);
-			invokeConfigStateChanged(ConfigState::Committed);
-			break;
-		case MODE_SET_FREE:
-			// Nothing to do
-			break;
-		case MODE_SET_UNDO:
-			old_value = (u_short*)netsnmp_request_get_list_data(requests, "old_value");
-			write(*old_value);
-			invokeConfigStateChanged(ConfigState::Reset);
-			break;
-		default:
-			/* we should never get here, so this is a really bad error */
-			snmp_log(LOG_ERR, "unknown mode (%d)\n", reqinfo->mode);
-			return SNMP_ERR_GENERR;
-	}
-
-	return SNMP_ERR_NOERROR;
+void StatCounter64::acceptVisit(ConfigManagerVisitor& visitor) {
+	visitor.visitStatCounter64(*this);
 }
-
-int ConfigInt::handleSnmpRequest([[maybe_unused]] netsnmp_mib_handler* handler,
-                                 [[maybe_unused]] netsnmp_handler_registration* reginfo,
-                                 netsnmp_agent_request_info* reqinfo,
-                                 netsnmp_request_info* requests) {
-	int* old_value;
-	int ret;
-	std::ostringstream oss;
-
-	switch (reqinfo->mode) {
-		case MODE_GET:
-			//		LOGD("int handleSnmpRequest %s -> %d", reginfo->handlerName, read());
-			snmp_set_var_typed_integer(requests->requestvb, ASN_INTEGER, read());
-			break;
-		case MODE_SET_RESERVE1:
-			ret = netsnmp_check_vb_type(requests->requestvb, ASN_INTEGER);
-			if (ret != SNMP_ERR_NOERROR) {
-				netsnmp_set_request_error(reqinfo, requests, ret);
-			}
-			oss << *requests->requestvb->val.integer;
-			mNextValue = oss.str();
-			if (!invokeConfigStateChanged(ConfigState::Check)) {
-				netsnmp_set_request_error(reqinfo, requests, SNMP_ERR_WRONGVALUE);
-			}
-			break;
-		case MODE_SET_RESERVE2:
-			old_value = (int*)malloc(sizeof(int));
-			if (!old_value) {
-				netsnmp_set_request_error(reqinfo, requests, SNMP_ERR_RESOURCEUNAVAILABLE);
-				return SNMP_ERR_NOERROR;
-			}
-			*old_value = read();
-			netsnmp_request_add_list_data(requests, netsnmp_create_data_list("old_value", old_value, free));
-			break;
-		case MODE_SET_ACTION:
-			write(*requests->requestvb->val.integer);
-			invokeConfigStateChanged(ConfigState::Changed);
-			break;
-		case MODE_SET_COMMIT:
-			//		LOGD("int handleSnmpRequest %s <- %d", reginfo->handlerName, read());
-			invokeConfigStateChanged(ConfigState::Committed);
-			break;
-		case MODE_SET_FREE:
-			// Nothing to do
-			break;
-		case MODE_SET_UNDO:
-			old_value = (int*)netsnmp_request_get_list_data(requests, "old_value");
-			write(*old_value);
-			invokeConfigStateChanged(ConfigState::Reset);
-			break;
-		default:
-			/* we should never get here, so this is a really bad error */
-			snmp_log(LOG_ERR, "unknown mode (%d)\n", reqinfo->mode);
-			return SNMP_ERR_GENERR;
-	}
-
-	return SNMP_ERR_NOERROR;
+void ConfigValue::acceptVisit(ConfigManagerVisitor& visitor) {
+	visitor.visitConfigValue(*this);
 }
-
-int StatCounter64::handleSnmpRequest([[maybe_unused]] netsnmp_mib_handler* handler,
-                                     [[maybe_unused]] netsnmp_handler_registration* reginfo,
-                                     netsnmp_agent_request_info* reqinfo,
-                                     netsnmp_request_info* requests) {
-	//	LOGD("counter64 handleSnmpRequest %s -> %lu", reginfo->handlerName, read());
-
-	switch (reqinfo->mode) {
-		case MODE_GET:
-			struct counter64 counter;
-			counter.high = read() >> 32;
-			counter.low = read() & 0x00000000FFFFFFFF;
-			snmp_set_var_typed_value(requests->requestvb, ASN_COUNTER64, (const u_char*)&counter, sizeof(counter));
-			break;
-		default:
-			/* we should never get here, so this is a really bad error */
-			snmp_log(LOG_ERR, "unknown mode (%d)\n", reqinfo->mode);
-			return SNMP_ERR_GENERR;
-	}
-
-	return SNMP_ERR_NOERROR;
+void ConfigBoolean::acceptVisit(ConfigManagerVisitor& visitor) {
+	visitor.visitConfigBoolean(*this);
 }
-#endif /* enable_snmp */
+void ConfigInt::acceptVisit(ConfigManagerVisitor& visitor) {
+	visitor.visitConfigInt(*this);
+}
+void ConfigIntRange::acceptVisit(ConfigManagerVisitor& visitor) {
+	visitor.visitConfigIntRange(*this);
+}
+template <typename DurationType>
+void ConfigDuration<DurationType>::acceptVisit(ConfigManagerVisitor& visitor) {
+	visitor.visitConfigDuration(*this);
+}
+void ConfigRuntimeError::acceptVisit(ConfigManagerVisitor& visitor) {
+	visitor.visitConfigRuntimeError(*this);
+}
+void ConfigString::acceptVisit(ConfigManagerVisitor& visitor) {
+	visitor.visitConfigString(*this);
+}
+void ConfigByteSize::acceptVisit(ConfigManagerVisitor& visitor) {
+	visitor.visitConfigByteSize(*this);
+}
+void ConfigStringList::acceptVisit(ConfigManagerVisitor& visitor) {
+	visitor.visitConfigStringList(*this);
+}
+void ConfigBooleanExpression::acceptVisit(ConfigManagerVisitor& visitor) {
+	visitor.visitConfigBooleanExpression(*this);
+}
+void NotificationEntry::acceptVisit(ConfigManagerVisitor& visitor) {
+	visitor.visitNotificationEntry(*this);
+}
 
 } // namespace flexisip

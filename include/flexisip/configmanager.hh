@@ -26,6 +26,7 @@
 #include <iostream>
 #include <list>
 #include <memory>
+#include <optional>
 #include <queue>
 #include <regex>
 #include <sstream>
@@ -38,23 +39,10 @@
 
 // WARNING: keep flexisip-config.h included before any other
 // Flexisip includes.
-// WARNING2: keep flexisip-config.h included before 'net-snmp'
-// header section because ENABLE_SNMP is defined in this header.
 #if defined(HAVE_CONFIG_H) && !defined(FLEXISIP_INCLUDED)
 #include "flexisip-config.h"
 #define FLEXISIP_INCLUDED
 #endif
-
-#ifdef ENABLE_SNMP
-// SNMP headers are sensitive to the inclusion order.
-// clang-format off
-#include <net-snmp/net-snmp-config.h>
-#include <net-snmp/net-snmp-includes.h>
-#include <net-snmp/agent/net-snmp-agent-includes.h>
-// clang-format on
-#else
-typedef unsigned long oid;
-#endif /* ENABLE_SNMP */
 
 #include "flexisip/common.hh"
 #include "flexisip/flexisip-exception.hh"
@@ -114,50 +102,37 @@ struct ConfigItemDescriptor {
 	const char* help;
 	const char* default_value;
 };
-static const ConfigItemDescriptor config_item_end = {Boolean, NULL, NULL, NULL};
-
-struct StatItemDescriptor {
-	GenericValueType type;
-	const char* name;
-	const char* help;
-};
-static const StatItemDescriptor stat_item_end = {Boolean, NULL, NULL};
+static const ConfigItemDescriptor config_item_end = {Boolean, nullptr, nullptr, nullptr};
 
 class Oid {
-	friend class GenericEntry;
-	friend class StatCounter64;
-	friend class ConfigValue;
-	friend class GenericStruct;
-	friend class RootConfigStruct;
-	friend class NotificationEntry;
+public:
+	Oid(Oid& parent, std::uint64_t leaf);
+	explicit Oid(std::vector<std::uint64_t>&& path);
+	Oid(std::vector<std::uint64_t>&& path, std::uint64_t leaf);
 
-protected:
-	Oid(Oid& parent, oid leaf);
-	Oid(std::vector<oid> path);
-	Oid(std::vector<oid> path, oid leaf);
-	std::vector<oid>& getValue() {
+	std::vector<std::uint64_t>& getValue() {
 		return mOidPath;
 	}
-	virtual ~Oid() = default;
 
-private:
-	std::vector<oid> mOidPath;
-
-public:
 	std::string getValueAsString() const {
 		std::ostringstream oss(std::ostringstream::out);
-		for (oid i = 0; i < mOidPath.size(); ++i) {
+		for (std::uint64_t i = 0; i < mOidPath.size(); ++i) {
 			if (i != 0) oss << ".";
 			oss << mOidPath[i];
 		}
 		return oss.str();
 	}
-	oid getLeaf() {
+	std::uint64_t getLeaf() const {
 		return mOidPath[mOidPath.size() - 1];
 	}
-	static oid oidFromHashedString(const std::string& str);
+
+	static std::uint64_t oidFromHashedString(const std::string& str);
+
+private:
+	std::vector<std::uint64_t> mOidPath;
 };
 
+class ConfigManagerVisitor;
 class GenericEntry;
 class GenericEntry {
 public:
@@ -216,21 +191,17 @@ public:
 	GenericEntry* getParent() const {
 		return mParent;
 	}
-	virtual ~GenericEntry() {
-		if (mOid) delete mOid;
-	}
+	virtual ~GenericEntry() = default;
+
 	virtual void setParent(GenericEntry* parent);
 	/*
 	 * @returns entry oid built from parent & object oid index
 	 */
 	Oid& getOid() {
-		return *mOid;
+		return mOid.value();
 	}
 	std::string getOidAsString() const {
 		return mOid->getValueAsString();
-	}
-	void setErrorMessage(const std::string& msg) {
-		mErrorMessage = msg;
 	}
 	const std::string& getErrorMessage() const {
 		return mErrorMessage;
@@ -245,24 +216,11 @@ public:
 	void setExportable(bool val) {
 		mExportToConfigFile = val;
 	}
-#ifdef ENABLE_SNMP
-	static int sHandleSnmpRequest(netsnmp_mib_handler* handler,
-	                              netsnmp_handler_registration* reginfo,
-	                              netsnmp_agent_request_info* reqinfo,
-	                              netsnmp_request_info* requests);
-	virtual int handleSnmpRequest(netsnmp_mib_handler*,
-	                              netsnmp_handler_registration*,
-	                              netsnmp_agent_request_info*,
-	                              netsnmp_request_info*) {
-		return -1;
-	};
-#endif
-	virtual void mibFragment(std::ostream& ostr, std::string spacing) const = 0;
+	virtual void acceptVisit(ConfigManagerVisitor& visitor);
+
+	virtual void mibFragment(std::ostream& ostr, const std::string& spacing) const = 0;
 	void setConfigListener(ConfigValueListener* listener) {
 		mConfigListener = listener;
-	}
-	ConfigValueListener* getConfigListener() const {
-		return mConfigListener;
 	}
 	bool onConfigStateChanged(const ConfigValue& conf, ConfigState state);
 
@@ -275,9 +233,6 @@ public:
 	bool isDeprecated() const {
 		return mDeprecationInfo.isDeprecated();
 	}
-	const DeprecationInfo& getDeprecationInfo() const {
-		return mDeprecationInfo;
-	}
 	DeprecationInfo& getDeprecationInfo() {
 		return mDeprecationInfo;
 	}
@@ -288,10 +243,10 @@ protected:
 	                           const std::string& access,
 	                           const std::string& syntax,
 	                           const std::string& spacing) const;
-	GenericEntry(const std::string& name, GenericValueType type, const std::string& help, oid oid_index = 0);
+	GenericEntry(const std::string& name, GenericValueType type, const std::string& help, std::uint64_t oid_index = 0);
 	static std::string escapeDoubleQuotes(const std::string& str);
 
-	Oid* mOid = nullptr;
+	std::optional<Oid> mOid;
 	const std::string mName;
 	bool mReadOnly = false;
 	bool mExportToConfigFile = true;
@@ -303,7 +258,7 @@ private:
 	GenericValueType mType;
 	GenericEntry* mParent = nullptr;
 	ConfigValueListener* mConfigListener = nullptr;
-	oid mOidLeaf = 0;
+	std::uint64_t mOidLeaf = 0;
 };
 
 inline std::ostream& operator<<(std::ostream& ostr, const GenericEntry& entry) {
@@ -315,7 +270,7 @@ class StatCounter64;
 struct StatPair;
 class GenericStruct : public GenericEntry {
 public:
-	GenericStruct(const std::string& name, const std::string& help, oid oid_index);
+	GenericStruct(const std::string& name, const std::string& help, std::uint64_t oid_index);
 
 	template <typename T>
 	T* addChild(std::unique_ptr<T>&& newEntry) {
@@ -332,13 +287,13 @@ public:
 
 	StatCounter64* createStat(const std::string& name, const std::string& help);
 	void createStatPair(const std::string& name, const std::string& help);
-	StatCounter64* getStat(const std::string& name);
-	std::pair<StatCounter64*, StatCounter64*> getStatPair(const std::string& name);
-	std::unique_ptr<StatPair> getStatPairPtr(const std::string& name);
+	StatCounter64* getStat(const std::string& name) const;
+	std::pair<StatCounter64*, StatCounter64*> getStatPair(const std::string& name) const;
+	std::unique_ptr<StatPair> getStatPairPtr(const std::string& name) const;
 
 	void addChildrenValues(ConfigItemDescriptor* items);
 	void addChildrenValues(ConfigItemDescriptor* items, bool hashed);
-	void deprecateChild(const std::string& name, const DeprecationInfo& info);
+	void deprecateChild(const std::string& name, const DeprecationInfo& info) const;
 	const std::list<std::unique_ptr<GenericEntry>>& getChildren() const;
 	template <typename _retType, typename StrT>
 	_retType* get(StrT&& name) const;
@@ -352,8 +307,9 @@ public:
 	}
 
 	GenericEntry* findApproximate(const std::string& name) const;
-	void mibFragment(std::ostream& ost, std::string spacing) const override;
-	void setParent(GenericEntry* parent) override;
+	void mibFragment(std::ostream& ost, const std::string& spacing) const override;
+
+	void acceptVisit(ConfigManagerVisitor& visitor) override;
 
 private:
 	std::list<std::unique_ptr<GenericEntry>> mEntries;
@@ -363,7 +319,7 @@ class RootConfigStruct : public GenericStruct {
 public:
 	RootConfigStruct(const std::string& name,
 	                 const std::string& help,
-	                 std::vector<oid> oid_root_prefix,
+	                 std::vector<std::uint64_t> oid_root_prefix,
 	                 const std::string& configFile);
 	~RootConfigStruct() override;
 
@@ -377,6 +333,8 @@ public:
 		return mCommittedChange;
 	}
 
+	void acceptVisit(ConfigManagerVisitor& visitor) override;
+
 private:
 	const std::string& mConfigFile; // keep a const ref to ConfigManager file
 	bool mCommittedChange{true};
@@ -384,16 +342,12 @@ private:
 
 class StatCounter64 : public GenericEntry {
 public:
-	StatCounter64(const std::string& name, const std::string& help, oid oid_index);
-#ifdef ENABLE_SNMP
-	int handleSnmpRequest(netsnmp_mib_handler*,
-	                      netsnmp_handler_registration*,
-	                      netsnmp_agent_request_info*,
-	                      netsnmp_request_info*) override;
-#endif
-	void mibFragment(std::ostream& ost, std::string spacing) const override;
-	void setParent(GenericEntry* parent) override;
-	uint64_t read() {
+	StatCounter64(const std::string& name, const std::string& help, std::uint64_t oid_index);
+
+	void acceptVisit(ConfigManagerVisitor& visitor) override;
+
+	void mibFragment(std::ostream& ost, const std::string& spacing) const override;
+	uint64_t read() const {
 		return mValue;
 	}
 	void set(uint64_t val) {
@@ -425,10 +379,10 @@ struct StatPair {
 	StatPair(StatCounter64* istart, StatCounter64* ifinish) : start(istart), finish(ifinish) {
 	}
 
-	inline void incrStart() {
+	inline void incrStart() const {
 		start->incr();
 	}
-	inline void incrFinish() {
+	inline void incrFinish() const {
 		finish->incr();
 	}
 };
@@ -441,9 +395,8 @@ public:
 		mStatList.insert(stat);
 	}
 	~StatFinishListener() {
-		for (auto it = mStatList.begin(); it != mStatList.end(); ++it) {
-			StatCounter64& s = **it;
-			++s;
+		for (auto& stat : mStatList) {
+			++(*stat);
 		}
 	}
 };
@@ -454,7 +407,7 @@ public:
 	            GenericValueType vt,
 	            const std::string& help,
 	            const std::string& default_value,
-	            oid oid_index);
+	            std::uint64_t oid_index);
 
 	/* Set the value and mark it as 'not default' */
 	void set(const std::string& value);
@@ -488,27 +441,21 @@ public:
 		mNotifPayload = b;
 	}
 
-#ifdef ENABLE_SNMP
-	int handleSnmpRequest(netsnmp_mib_handler*,
-	                      netsnmp_handler_registration*,
-	                      netsnmp_agent_request_info*,
-	                      netsnmp_request_info*) override;
-#endif
-
 	void doConfigMibFragment(std::ostream& ostr, const std::string& syntax, const std::string& spacing) const {
 		doMibFragment(ostr, "", "", syntax, spacing);
 	}
 
 	void setParent(GenericEntry* parent) override;
-	void mibFragment(std::ostream& ost, std::string spacing) const override;
+	void mibFragment(std::ostream& ost, const std::string& spacing) const override;
 	void doMibFragment(std::ostream& ostr,
 	                   const std::string& def,
 	                   const std::string& access,
 	                   const std::string& syntax,
 	                   const std::string& spacing) const override;
 
+	void acceptVisit(ConfigManagerVisitor& visitor) override;
+
 protected:
-	bool invokeConfigStateChanged(ConfigState state);
 	void checkType(const std::string& value, bool isDefault);
 
 	std::string mValue;
@@ -522,47 +469,51 @@ protected:
 class ConfigBoolean : public ConfigValue {
 public:
 	static bool parse(const std::string& value);
-	ConfigBoolean(const std::string& name, const std::string& help, const std::string& default_value, oid oid_index);
+	ConfigBoolean(const std::string& name,
+	              const std::string& help,
+	              const std::string& default_value,
+	              std::uint64_t oid_index);
 	bool read() const;
 	bool readNext() const;
 	void write(bool value);
-#ifdef ENABLE_SNMP
-	int handleSnmpRequest(netsnmp_mib_handler*,
-	                      netsnmp_handler_registration*,
-	                      netsnmp_agent_request_info*,
-	                      netsnmp_request_info*) override;
-#endif
-	void mibFragment(std::ostream& ost, std::string spacing) const override;
+
+	void mibFragment(std::ostream& ost, const std::string& spacing) const override;
+
+	void acceptVisit(ConfigManagerVisitor& visitor) override;
 };
 
 class ConfigInt : public ConfigValue {
 public:
-#ifdef ENABLE_SNMP
-	int handleSnmpRequest(netsnmp_mib_handler*,
-	                      netsnmp_handler_registration*,
-	                      netsnmp_agent_request_info*,
-	                      netsnmp_request_info*) override;
-#endif
-	ConfigInt(const std::string& name, const std::string& help, const std::string& default_value, oid oid_index);
-	void mibFragment(std::ostream& ost, std::string spacing) const override;
+	ConfigInt(const std::string& name,
+	          const std::string& help,
+	          const std::string& default_value,
+	          std::uint64_t oid_index);
+	void mibFragment(std::ostream& ost, const std::string& spacing) const override;
 	int read() const;
-	int readNext() const;
 	void write(int value);
+
+	void acceptVisit(ConfigManagerVisitor& visitor) override;
 };
 
 class ConfigIntRange : public ConfigValue {
 public:
-	ConfigIntRange(const std::string& name, const std::string& help, const std::string& default_value, oid oid_index);
+	ConfigIntRange(const std::string& name,
+	               const std::string& help,
+	               const std::string& default_value,
+	               std::uint64_t oid_index);
 	int readMin();
 	int readMax();
-	int readNextMin();
-	int readNextMax();
 	void write(int min, int max);
 
+	void acceptVisit(ConfigManagerVisitor& visitor) override;
+
 private:
-	void parse(const std::string& value);
-	int mMin;
-	int mMax;
+	struct RangeBounds {
+		int min;
+		int max;
+	};
+
+	static RangeBounds parse(const std::string& value);
 };
 
 template <typename DurationType>
@@ -589,7 +540,10 @@ struct DurationInfo<std::chrono::minutes> {
 template <typename DurationType>
 class ConfigDuration : public ConfigValue {
 public:
-	ConfigDuration(const std::string& name, const std::string& help, const std::string& default_value, oid oid_index)
+	ConfigDuration(const std::string& name,
+	               const std::string& help,
+	               const std::string& default_value,
+	               std::uint64_t oid_index)
 	    : ConfigValue(name, DurationInfo<DurationType>::kValueType, help, default_value, oid_index) {
 	}
 
@@ -628,6 +582,8 @@ public:
 		return unitIterator->second * value;
 	}
 
+	void acceptVisit(ConfigManagerVisitor& visitor) override;
+
 private:
 	std::pair<long, std::string> parse() const {
 		std::smatch matchResult{};
@@ -645,38 +601,49 @@ class ConfigRuntimeError : public ConfigValue {
 	mutable std::string mErrorStr;
 
 public:
-	ConfigRuntimeError(const std::string& name, const std::string& help, oid oid_index);
+	ConfigRuntimeError(const std::string& name, const std::string& help, std::uint64_t oid_index);
 	std::string generateErrors() const;
-#ifdef ENABLE_SNMP
-	int handleSnmpRequest(netsnmp_mib_handler*,
-	                      netsnmp_handler_registration*,
-	                      netsnmp_agent_request_info*,
-	                      netsnmp_request_info*) override;
-#endif
 	void writeErrors(const GenericEntry* entry, std::ostringstream& oss) const;
+
+	void acceptVisit(ConfigManagerVisitor& visitor) override;
 };
 
 class ConfigString : public ConfigValue {
 public:
-	ConfigString(const std::string& name, const std::string& help, const std::string& default_value, oid oid_index);
-	~ConfigString();
+	ConfigString(const std::string& name,
+	             const std::string& help,
+	             const std::string& default_value,
+	             std::uint64_t oid_index);
+	~ConfigString() override;
 	const std::string& read() const;
+
+	void acceptVisit(ConfigManagerVisitor& visitor) override;
 };
 
 class ConfigByteSize : public ConfigValue {
 public:
 	using ValueType = std::uint64_t;
 
-	ConfigByteSize(const std::string& name, const std::string& help, const std::string& default_value, oid oid_index);
+	ConfigByteSize(const std::string& name,
+	               const std::string& help,
+	               const std::string& default_value,
+	               std::uint64_t oid_index);
 	ValueType read() const;
+
+	void acceptVisit(ConfigManagerVisitor& visitor) override;
 };
 
 class ConfigStringList : public ConfigValue {
 public:
-	ConfigStringList(const std::string& name, const std::string& help, const std::string& default_value, oid oid_index);
+	ConfigStringList(const std::string& name,
+	                 const std::string& help,
+	                 const std::string& default_value,
+	                 std::uint64_t oid_index);
 	std::list<std::string> read() const;
 	bool contains(const std::string& ref) const;
 	static std::list<std::string> parse(const std::string& in);
+
+	void acceptVisit(ConfigManagerVisitor& visitor) override;
 
 private:
 };
@@ -686,29 +653,31 @@ public:
 	ConfigBooleanExpression(const std::string& name,
 	                        const std::string& help,
 	                        const std::string& default_value,
-	                        oid oid_index);
+	                        std::uint64_t oid_index);
 	std::shared_ptr<SipBooleanExpression> read() const;
+
+	void acceptVisit(ConfigManagerVisitor& visitor) override;
 };
 
 template <typename _retType, typename StrT>
 _retType* GenericStruct::get(StrT&& name) const {
 	GenericEntry* e = find(name);
-	if (e == NULL) {
+	if (e == nullptr) {
 		std::ostringstream err{};
 		err << "No ConfigEntry with name [" << name << "] in struct [" << getName() << "]";
 		LOGA("%s", err.str().c_str());
 	}
-	_retType* ret = dynamic_cast<_retType*>(e);
-	if (ret == NULL) {
+	auto ret = dynamic_cast<_retType*>(e);
+	if (ret == nullptr) {
 		int status;
-		std::string type_name = abi::__cxa_demangle(typeid(_retType).name(), 0, 0, &status);
+		std::string type_name = abi::__cxa_demangle(typeid(_retType).name(), nullptr, nullptr, &status);
 		std::ostringstream err{};
 		err << "Config entry [" << name << "] in struct [" << e->getParent()->getName()
 		    << "] does not have the expected type '" << type_name << "'.";
 		LOGA("%s", err.str().c_str());
 	}
 	return ret;
-};
+}
 
 template <typename _retType>
 _retType* GenericStruct::getDeep(const std::string& name, bool strict) const {
@@ -719,19 +688,19 @@ _retType* GenericStruct::getDeep(const std::string& name, bool strict) const {
 		std::string next_node_name = name.substr(prev, next - prev);
 		GenericEntry* e = find(next_node_name.c_str());
 		if (!e) {
-			if (!strict) return NULL;
+			if (!strict) return nullptr;
 			LOGE("No ConfigEntry with name [%s] in struct [%s]", name.c_str(), prev_node->getName().c_str());
-			for (auto it = prev_node->mEntries.begin(); it != prev_node->mEntries.end(); ++it) {
-				LOGE("-> %s", (*it)->getName().c_str());
+			for (auto& entry : prev_node->mEntries) {
+				LOGE("-> %s", entry->getName().c_str());
 			}
 			LOGF("end");
-			return NULL;
+			return nullptr;
 		}
 		next_node = dynamic_cast<GenericStruct*>(e);
 		if (!next_node) {
 			LOGA("Config entry [%s] in struct [%s] does not have the expected type", e->getName().c_str(),
 			     e->getParent()->getName().c_str());
-			return NULL;
+			return nullptr;
 		}
 		prev_node = next_node;
 		prev = next + 1;
@@ -739,11 +708,11 @@ _retType* GenericStruct::getDeep(const std::string& name, bool strict) const {
 
 	std::string leaf(name.substr(prev, len - prev));
 	return prev_node->get<_retType>(leaf.c_str());
-};
+}
 
 class FileConfigReader {
 public:
-	FileConfigReader(GenericStruct* root);
+	explicit FileConfigReader(GenericStruct* root);
 	int read(const std::string& filename);
 	int reload();
 	void checkUnread();
@@ -758,21 +727,14 @@ private:
 };
 
 class NotificationEntry : public GenericEntry {
-	Oid& getStringOid();
-	bool mInitialized;
-	std::queue<std::tuple<const GenericEntry*, std::string>> mPendingTraps;
-
 public:
-	NotificationEntry(const std::string& name, const std::string& help, oid oid_index);
-	virtual void mibFragment(std::ostream& ost, std::string spacing) const;
-	void send(const std::string& msg);
-	void send(const GenericEntry* source, const std::string& msg);
-	void setInitialized(bool status);
+	NotificationEntry(const std::string& name, const std::string& help, std::uint64_t oid_index);
+	void mibFragment(std::ostream& ost, const std::string& spacing) const override;
+
+	void acceptVisit(ConfigManagerVisitor& visitor) override;
 };
 
 class ConfigManager : protected ConfigValueListener {
-	friend class ConfigArea;
-
 public:
 	// Statically register add section functions
 	static std::vector<std::function<void(GenericStruct&)>>& defaultInit();
@@ -788,33 +750,16 @@ public:
 	void setOverrideMap(const std::map<std::string, std::string>& overrides) {
 		mOverrides = overrides;
 	}
-	void setOverrideMap(std::map<std::string, std::string>&& overrides) {
-		mOverrides = std::move(overrides);
-	}
-
-	std::map<std::string, std::string>& getOverrideMap() {
-		return mOverrides;
-	}
 
 	const GenericStruct* getGlobal() const;
-	StatCounter64& findStat(const std::string& key);
-	void addStat(const std::string& key, StatCounter64& stat);
-	NotificationEntry* getSnmpNotifier() {
-		return mNotifier;
-	}
-	void sendTrap(const GenericEntry* source, const std::string& msg) {
-		mNotifier->send(source, msg);
-	}
-	void sendTrap(const std::string& msg) {
-		mNotifier->send(&mConfigRoot, msg);
-	}
+
 	void applyOverrides(bool strict);
 
 	bool mNeedRestart = false;
 	bool mDirtyConfig = false;
 
 private:
-	bool doIsValidNextConfig(const ConfigValue& cv);
+	static bool doIsValidNextConfig(const ConfigValue& cv);
 	bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) override;
 	std::string mConfigFile;
 	RootConfigStruct mConfigRoot;
@@ -822,7 +767,61 @@ private:
 	std::map<std::string, std::string> mOverrides;
 	std::map<std::string, StatCounter64*> mStatMap;
 	std::unordered_set<std::string> mStatOids;
-	NotificationEntry* mNotifier = nullptr;
+};
+
+class ConfigManagerVisitor {
+public:
+	virtual ~ConfigManagerVisitor() = default;
+
+	virtual void visitGenericEntry(GenericEntry& entry) = 0;
+	virtual void visitGenericStruct(GenericStruct& entry) {
+		visitGenericEntry(entry);
+	};
+	virtual void visitRootConfigStruct(RootConfigStruct& entry) {
+		visitGenericEntry(entry);
+	};
+	virtual void visitStatCounter64(StatCounter64& entry) {
+		visitGenericEntry(entry);
+	};
+	virtual void visitConfigValue(ConfigValue& entry) {
+		visitGenericEntry(entry);
+	};
+	virtual void visitConfigBoolean(ConfigBoolean& entry) {
+		visitConfigValue(entry);
+	};
+	virtual void visitConfigInt(ConfigInt& entry) {
+		visitConfigValue(entry);
+	};
+	virtual void visitConfigIntRange(ConfigIntRange& entry) {
+		visitConfigValue(entry);
+	};
+	virtual void visitConfigDuration(ConfigDuration<std::chrono::milliseconds>& entry) {
+		visitConfigValue(entry);
+	};
+	virtual void visitConfigDuration(ConfigDuration<std::chrono::seconds>& entry) {
+		visitConfigValue(entry);
+	};
+	virtual void visitConfigDuration(ConfigDuration<std::chrono::minutes>& entry) {
+		visitConfigValue(entry);
+	};
+	virtual void visitConfigRuntimeError(ConfigRuntimeError& entry) {
+		visitConfigValue(entry);
+	};
+	virtual void visitConfigString(ConfigString& entry) {
+		visitConfigValue(entry);
+	};
+	virtual void visitConfigByteSize(ConfigByteSize& entry) {
+		visitConfigValue(entry);
+	};
+	virtual void visitConfigStringList(ConfigStringList& entry) {
+		visitConfigValue(entry);
+	};
+	virtual void visitConfigBooleanExpression(ConfigBooleanExpression& entry) {
+		visitConfigValue(entry);
+	};
+	virtual void visitNotificationEntry(NotificationEntry& entry) {
+		visitGenericEntry(entry);
+	};
 };
 
 } // namespace flexisip

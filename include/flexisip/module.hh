@@ -227,7 +227,7 @@ private:
 	std::string mName;
 	std::string mHelp;
 	std::vector<std::string> mAfter;
-	oid mOidIndex;
+	ModuleOid mOidIndex;
 	std::function<void(GenericStruct&)> mDeclareConfig;
 	ModuleClass mClass;
 	std::string mReplace;

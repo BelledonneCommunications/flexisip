@@ -127,6 +127,7 @@ add_library(flexisip SHARED
 	transport.cc transport.hh
 	uac-register.cc uac-register.hh
 	conditional-routes.cc conditional-routes.hh
+	i-supervisor-notifier.hh
 )
 
 if(ENABLE_FLEXIAPI)
@@ -224,7 +225,7 @@ if(ENABLE_MSGPACK)
 	target_include_directories(flexisip PRIVATE ${MSGPACK_INCLUDE_DIRS})
 endif()
 if(ENABLE_SNMP)
-	target_sources(flexisip PRIVATE snmp-agent.cc snmp-agent.h)
+	add_subdirectory(snmp)
 	target_include_directories(flexisip PRIVATE "mib" ${NET_SNMP_INCLUDE_DIRS})
 	target_link_libraries(flexisip PRIVATE ${NET_SNMP_LIBRARIES})
 endif()
