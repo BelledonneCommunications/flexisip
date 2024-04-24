@@ -23,6 +23,14 @@ const ::rtp_stats& ClientCall::getVideoRtpStats() const {
 	return *::linphone_call_stats_get_rtp_stats(::linphone_call_get_video_stats(mCall->cPtr()));
 }
 
+const ::RtpTransport& ClientCall::getMetaRtpTransport() const {
+	return *::linphone_call_get_meta_rtp_transport(mCall->cPtr(), 0);
+}
+
+const ::RtpSession* ClientCall::getRtpSession() const {
+	return getMetaRtpTransport().session;
+}
+
 linphone::Status ClientCall::accept() const {
 	return mCall->accept();
 }
@@ -50,13 +58,14 @@ std::shared_ptr<const linphone::Address> ClientCall::getRemoteAddress() const {
 }
 
 const bool& ClientCall::videoFrameDecoded() {
-	if (mListener) {
-		mListener->mFrameDecoded = false;
-		mCall->requestNotifyNextVideoFrameDecoded();
-	} else {
+	if (!mListener) {
 		mListener = std::make_shared<VideoDecodedListener>();
 		mCall->addListener(mListener);
 	}
+
+	mListener->mFrameDecoded = false;
+	mCall->requestNotifyNextVideoFrameDecoded();
+
 	return mListener->mFrameDecoded;
 }
 

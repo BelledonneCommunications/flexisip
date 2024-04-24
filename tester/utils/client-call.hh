@@ -11,6 +11,7 @@
 #include <linphone++/call_listener.hh>
 #include <linphone++/enums.hh>
 #include <ortp/rtp.h>
+#include <ortp/rtpsession.h>
 
 namespace flexisip {
 namespace tester {
@@ -20,6 +21,8 @@ public:
 	ClientCall(std::shared_ptr<linphone::Call>&&);
 
 	const ::rtp_stats& getVideoRtpStats() const;
+	const ::RtpTransport& getMetaRtpTransport() const;
+	const ::RtpSession* getRtpSession() const;
 	linphone::Status accept() const;
 	linphone::Status acceptEarlyMedia() const;
 	linphone::Status decline(linphone::Reason) const;
