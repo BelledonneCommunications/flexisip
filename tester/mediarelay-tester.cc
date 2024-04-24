@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -118,7 +118,7 @@ public:
 	}
 };
 
-// Setup an audio call between two cores with ICE enabled on both.
+// Set up an audio call between two cores with ICE enabled on both.
 // Verify that the media relay does not redact the candidates out of the answer
 void ice_candidates_are_not_erased_in_a_valid_context() {
 	Server server(CONFIG);
@@ -174,7 +174,7 @@ void early_media_video_sendrecv_takeover() {
 	const auto appCall = app.getCurrentCall().value();
 	appCall.acceptEarlyMedia();
 
-	// The door bell should receive the RTCP stream from the app
+	// The doorbell should receive the RTCP stream from the app
 	asserter
 	    .iterateUpTo(0x10,
 	                 [&appReceivedVideo = appExtCall.videoFrameDecoded(), &appCall, &doorCall] {
@@ -187,65 +187,85 @@ void early_media_video_sendrecv_takeover() {
 	BC_ASSERT_CPP_EQUAL(appExtCall.getVideoRtpStats().sent_rtcp_packets, 0);
 }
 
+/*
+ * A call is established between a caller and a callee. The caller has one device, the callee has two devices.
+ * Test that when called devices accept the call with early media one after the other, the video received from the
+ * caller comes from the last device that accepted the call.
+ *
+ * This feature is developed for a very specific use case: https://bugs.linphone.org/view.php?id=11339#c53679
+ */
 void early_media_bidirectional_video() {
-	// TODO: fix unstable test
-	return;
 	Server server(CONFIG);
 	server.start();
 	ClientBuilder builder{*server.getAgent()};
 	builder.setVideoReceive(OnOff::On).setVideoSend(OnOff::On);
-	const auto paul = builder.build("sip:paul@sip.example.org");
-	const auto clem = "sip:clem@sip.example.org";
-	const auto clemPhone = builder.build(clem);
-	const auto clemLaptop = builder.build(clem);
-	CoreAssert asserter(paul, clemPhone, clemLaptop, server);
-	const auto callBuilder = paul.callBuilder();
+	const auto caller = builder.build("sip:caller@sip.example.org");
+	const auto callee = "sip:callee@sip.example.org";
+	const auto calleePhone = builder.build(callee + ";device=phone"s);
+	const auto calleeLaptop = builder.build(callee + ";device=laptop"s);
+	CoreAssert asserter(caller, calleePhone, calleeLaptop, server);
+	const auto callBuilder = caller.callBuilder();
 	callBuilder.setVideo(OnOff::On).setEarlyMediaSending(OnOff::On);
 
-	auto paulCall = callBuilder.call(clem);
-	BC_HARD_ASSERT_TRUE(clemLaptop.hasReceivedCallFrom(paul));
-	BC_HARD_ASSERT_TRUE(clemPhone.hasReceivedCallFrom(paul));
-	auto clemPhoneCall = clemPhone.getCurrentCall().value();
-	auto clemLaptopCall = clemLaptop.getCurrentCall().value();
-	clemPhoneCall.acceptEarlyMedia();
+	auto callerCall = callBuilder.call(callee);
+	BC_HARD_ASSERT_TRUE(calleePhone.hasReceivedCallFrom(caller));
+	BC_HARD_ASSERT_TRUE(calleeLaptop.hasReceivedCallFrom(caller));
+	auto calleePhoneCall = calleePhone.getCurrentCall().value();
+	auto calleeLaptopCall = calleeLaptop.getCurrentCall().value();
+	calleePhoneCall.acceptEarlyMedia();
 
-	// As long as only one device accepted the early media, the caller is able to decode video
+	// Check that only the laptop is unable to decode the video, as it has not yet accepted the call with early media.
 	asserter
 	    .iterateUpTo(
 	        0x20,
-	        [&paulReceivedVideo = paulCall.videoFrameDecoded(),
-	         &phoneReceivedVideo = clemPhoneCall.videoFrameDecoded()] {
-		        FAIL_IF(!phoneReceivedVideo);
-		        FAIL_IF(!paulReceivedVideo);
+	        [&callerReceivedVideo = callerCall.videoFrameDecoded(),
+	         &calleePhoneReceivedVideo = calleePhoneCall.videoFrameDecoded(),
+	         &calleeLaptopReceivedVideo = calleeLaptopCall.videoFrameDecoded(), &callerCall, &calleePhoneCall,
+	         &calleeLaptopCall] {
+		        FAIL_IF(!callerReceivedVideo);
+		        FAIL_IF(!calleePhoneReceivedVideo);
+		        FAIL_IF(calleeLaptopReceivedVideo);
+		        FAIL_IF(callerCall.getRtpSession()->rcv.ssrc != calleePhoneCall.getRtpSession()->snd.ssrc);
+		        FAIL_IF(callerCall.getRtpSession()->rcv.ssrc == calleeLaptopCall.getRtpSession()->snd.ssrc);
 		        return ASSERTION_PASSED();
 	        },
 	        3s)
 	    .assert_passed();
 
-	// But as soon as another device sends a 183, it takes over receive capability from the media relay and starts
-	// sending packets with a different SSRC than that of the first device. The caller does not recognize this new SSRC
-	// and fails to decode video.
-	clemLaptopCall.acceptEarlyMedia();
-	// Wait for the laptop to successfully decode video
+	// But as soon as another device sends a 183 (here: the laptop), it takes over receive capability from the media
+	// relay and starts sending packets with a different SSRC than that of the first device.
+	calleeLaptopCall.acceptEarlyMedia();
+
+	// Check the source of the traffic received by the caller now comes from the second device (laptop). This is done by
+	// verifying that the SSRC received by the caller now matches the SSRC from the laptop.
 	asserter
 	    .iterateUpTo(
-	        0x10,
-	        [&laptopReceivedVideo = clemLaptopCall.videoFrameDecoded()] {
-		        FAIL_IF(!laptopReceivedVideo);
+	        0x20,
+	        [&callerCall, &calleePhoneCall, &calleeLaptopCall] {
+		        FAIL_IF(callerCall.getRtpSession()->rcv.ssrc == calleePhoneCall.getRtpSession()->snd.ssrc);
+		        FAIL_IF(callerCall.getRtpSession()->rcv.ssrc != calleeLaptopCall.getRtpSession()->snd.ssrc);
 		        return ASSERTION_PASSED();
 	        },
-	        2s)
+	        3s)
 	    .assert_passed();
-	// This should have given enough time for everything to settle, and the caller should only be receiving traffic from
-	// the laptop now
+
+	return;
+
+	// TODO: fix instability, probably caused by https://linphone.atlassian.net/browse/FLEXISIP-238
+
+	// Make sure all participants are now receiving video.
 	asserter
-	    .iterateUpTo(8,
-	                 [&phoneReceivedVideo = clemPhoneCall.videoFrameDecoded(),
-	                  &paulReceivedVideo = paulCall.videoFrameDecoded()] {
-		                 FAIL_IF(!phoneReceivedVideo);
-		                 FAIL_IF(paulReceivedVideo);
-		                 return ASSERTION_PASSED();
-	                 })
+	    .iterateUpTo(
+	        0x20,
+	        [&callerReceivedVideo = callerCall.videoFrameDecoded(),
+	         &calleePhoneReceivedVideo = calleePhoneCall.videoFrameDecoded(),
+	         &calleeLaptopReceivedVideo = calleeLaptopCall.videoFrameDecoded()] {
+		        FAIL_IF(!callerReceivedVideo);
+		        FAIL_IF(!calleePhoneReceivedVideo);
+		        FAIL_IF(!calleeLaptopReceivedVideo);
+		        return ASSERTION_PASSED();
+	        },
+	        10s)
 	    .assert_passed();
 }
 
