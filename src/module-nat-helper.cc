@@ -62,6 +62,18 @@ void NatHelper::onRequest(shared_ptr<RequestSipEvent>& ev) {
 
 void NatHelper::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 	mAgent->getNatTraversalStrategy()->onResponseNatHelper(ev);
+
+	const auto* sip = ev->getSip();
+	auto* contact = sip->sip_contact;
+
+	// If proxy is last hop, remove custom parameter from "Contact" header.
+	if (contact and sip->sip_via and sip->sip_via->v_next and !sip->sip_via->v_next->v_next /* is last hop */) {
+		if (url_has_param(contact->m_url, mContactCorrectionParameter.c_str()) /* is verified */) {
+			contact->m_url->url_params = url_strip_param_string(su_strdup(ev->getHome(), contact->m_url->url_params),
+			                                                    mContactCorrectionParameter.c_str());
+			SLOGD << "Proxy is last hop, removed \"" << mContactCorrectionParameter << R"(" from "Contact" header)";
+		}
+	}
 }
 
 void NatHelper::onLoad(const GenericStruct* sec) {
@@ -74,6 +86,8 @@ void NatHelper::onLoad(const GenericStruct* sec) {
 	} else {
 		LOGF("NatHelper: unsupported value '%s' for fix-record-routes-policy parameter", rr_policy.c_str());
 	}
+
+	mContactCorrectionParameter = sec->get<ConfigString>("contact-correction-param")->read();
 }
 
 bool NatHelper::isPrivateAddress(const char* host) {
@@ -142,9 +156,7 @@ ModuleInfo<NatHelper> NatHelper::sInfo(
 	         "Boolean expression in order to force the use of flow-token under specific conditions. This expression is "
 	         "only evaluated if the \"flow-token\" strategy is used.\n",
 	         "user-agent contains 'Linphone'"},
-	        {String, "flow-token-path",
-	         "Path to the hash key of the flow token. This expression is only evaluated if the \"flow-token\" "
-	         "strategy is used.",
+	        {String, "flow-token-path", "Path to the file containing the hash key used to hash flow tokens.",
 	         kFlowTokenHashKeyFilePath},
 	        {String, "contact-correction-param",
 	         "Internal URI parameter added to response contact by first proxy and cleaned by last one. It indicates if "

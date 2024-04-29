@@ -25,6 +25,7 @@
 
 #include "flexisip/logmanager.hh"
 
+#include "module-nat-helper.hh"
 #include "utils/nat-test-helper.hh"
 #include "utils/string-formatter.hh"
 #include "utils/test-patterns/test.hh"
@@ -127,23 +128,6 @@ void addRecordRouteNatHelper() {
 	BC_HARD_ASSERT(event->getMsgSip()->getSip()->sip_record_route != nullptr);
 	const auto* routeUrlStr = url_as_string(event->getHome(), event->getMsgSip()->getSip()->sip_record_route->r_url);
 	BC_ASSERT_CPP_EQUAL(routeUrlStr, "sip:127.0.0.1:" + helper.mProxyPort + ";transport=tcp;lr");
-}
-
-/*
- * Test successful removal of "verified" contact url parameter when request goes through NatHelper::onResponse.
- */
-void onResponseNatHelperRemoveVerified() {
-	const Helper helper{};
-	const auto event = make_shared<RsSipEv>(helper.mAgent, Helper::getInvite(true), helper.mTport);
-	// Add one more "VIA" header and add response status 200.
-	event->getSip()->sip_via->v_next = sip_via_dup(event->getHome(), event->getSip()->sip_via);
-	event->getSip()->sip_status = static_cast<sip_status_t*>(su_alloc(event->getHome(), sizeof(sip_status_t)));
-	event->getSip()->sip_status->st_status = 200;
-
-	helper.mStrategy.onResponseNatHelper(event);
-
-	BC_HARD_ASSERT(event->getSip()->sip_contact != nullptr);
-	BC_ASSERT(url_has_param(event->getSip()->sip_contact->m_url, "verified") == false);
 }
 
 /*
@@ -269,7 +253,6 @@ TestSuite _("NatTraversalStrategy::ContactCorrection",
                 TEST_NO_TAG_AUTO_NAMED(preProcessOnRequestNatHelperFixContactFromVia),
                 TEST_NO_TAG_AUTO_NAMED(preProcessOnRequestNatHelperNoFixContactFromVia),
                 TEST_NO_TAG_AUTO_NAMED(addRecordRouteNatHelper),
-                TEST_NO_TAG_AUTO_NAMED(onResponseNatHelperRemoveVerified),
                 TEST_NO_TAG_AUTO_NAMED(onResponseNatHelperAddVerified),
                 TEST_NO_TAG_AUTO_NAMED(onResponseNatHelperCorrectContactAndAddVerified),
                 TEST_NO_TAG_AUTO_NAMED(onResponseNatHelperContactIsCorrectAndAddVerified),

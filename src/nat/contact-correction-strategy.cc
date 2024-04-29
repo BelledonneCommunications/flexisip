@@ -161,29 +161,26 @@ void ContactCorrectionStrategy::onResponseNatHelper(const std::shared_ptr<Respon
 	const auto* cseq = sip->sip_cseq;
 
 	// In responses that establish a dialog, masquerade Contact so that further requests (including the ACK) are routed
-	// in the same way
+	// in the same way.
 	if (cseq && (cseq->cs_method == sip_method_invite || cseq->cs_method == sip_method_subscribe)) {
-		if (st->st_status >= 200 && st->st_status <= 299) {
-			const auto ct = sip->sip_contact;
-			if (ct) {
+		if (st && st->st_status >= 200 && st->st_status <= 299) {
+			const auto contact = sip->sip_contact;
+			if (contact) {
 				if (mHelper.contactNeedsToBeFixed(mAgent->getInternalTport(), ev)) {
 					Helper::fixContactInResponse(home, ms->getMsg(), sip);
 				}
 
+				// No need to add the custom parameter when proxy is last hop.
 				if (sip->sip_via && sip->sip_via->v_next && !sip->sip_via->v_next->v_next /* is last hop */) {
-					if (url_has_param(ct->m_url, mHelper.getContactCorrectionParameter().c_str()) /* is verified */) {
-						// Via contains client and first proxy
-						LOGD("Removing \"verified\" parameter from response contact");
-						ct->m_url->url_params = url_strip_param_string(su_strdup(home, ct->m_url->url_params),
-						                                               mHelper.getContactCorrectionParameter().c_str());
-					}
 					return;
 				}
 
-				// The "verified" parameter must be added whenever we fix or not the Contact, in order to signal other
+				// The custom parameter must be added whenever we fix or not the Contact, in order to signal other
 				// nodes processing this response that the contact has been processed already.
-				if (!url_has_param(ct->m_url, mHelper.getContactCorrectionParameter().c_str())) {
-					url_param_add(home, ct->m_url, mHelper.getContactCorrectionParameter().c_str());
+				const auto contactCorrectionParam = mHelper.getContactCorrectionParameter();
+				if (!url_has_param(contact->m_url, contactCorrectionParam.c_str())) {
+					url_param_add(home, contact->m_url, contactCorrectionParam.c_str());
+					SLOGD << "Added \"" << contactCorrectionParam << R"(" in "Contact" header)";
 				}
 			}
 		}
