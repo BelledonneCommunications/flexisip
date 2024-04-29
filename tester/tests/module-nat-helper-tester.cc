@@ -20,11 +20,8 @@
 
 #include <exception>
 
-#include "agent.hh"
 #include "nat/contact-correction-strategy.hh"
 #include "nat/flow-token-strategy.hh"
-#include "registrar/registrar-db.hh"
-#include "tester.hh"
 #include "utils/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -126,12 +123,53 @@ void configurationValueNatTraversalStrategyWrongValue() {
 	BC_ASSERT_THROWN(server.start(), runtime_error);
 }
 
+/*
+ * Test successful removal of custom contact url parameter when request goes through NatHelper::onResponse with
+ * different `nat-traversal-strategy`s
+ */
+template <const char natTraversalStrategy[]>
+void onResponseNatHelperRemoveContactCorrectionParameter() {
+	const string contactCorrectionParameter = "parameter";
+	Server proxy{{
+	    {"module::NatHelper/nat-traversal-strategy", natTraversalStrategy},
+	    {"module::NatHelper/contact-correction-param", contactCorrectionParameter},
+	}};
+	proxy.start();
+
+	// Build response request where proxy is considered last hop.
+	ostringstream request;
+	request << "SIP/2.0 200 Ok\r\n"
+	        << "Via: SIP/2.0/UDP 1.2.3.4;rport=5678;branch=stub-branch\r\n"
+	        << "Via: SIP/2.0/UDP 5.6.7.8;rport=9123;branch=stub-branch\r\n"
+	        << "From: <sip:caller@sip.example.org>;tag=stub-from-tag\r\n"
+	        << "To: <sip:callee@sip.example.org>;tag=stub-to-tag\r\n"
+	        << "Contact: <sip:caller@sip.example.org;transport=tcp;" << contactCorrectionParameter << ">\r\n"
+	        << "Call-ID: stub-id\r\n"
+	        << "CSeq: 20 INVITE\r\n"
+	        << "User-Agent: stub-agent\r\n"
+	        << "Content-Length: 0\r\n";
+
+	const auto msg = make_shared<MsgSip>(0, request.str());
+	auto event = make_shared<ResponseSipEvent>(proxy.getAgent(), msg, nullptr);
+	BC_HARD_ASSERT(event->getSip()->sip_contact != nullptr);
+	BC_ASSERT(url_has_param(event->getSip()->sip_contact->m_url, contactCorrectionParameter.c_str()) == true);
+
+	dynamic_cast<NatHelper&>(*proxy.getAgent()->findModule("NatHelper")).onResponse(event);
+
+	BC_ASSERT(url_has_param(event->getSip()->sip_contact->m_url, contactCorrectionParameter.c_str()) == false);
+}
+
+const char contactCorrection[] = "contact-correction";
+const char flowToken[] = "flow-token";
+
 TestSuite _("NatHelperModule",
             {
-                TEST_NO_TAG_AUTO_NAMED(wrongContactInResponse),
-                TEST_NO_TAG_AUTO_NAMED(configurationValueNatTraversalStrategyContactCorrection),
-                TEST_NO_TAG_AUTO_NAMED(configurationValueNatTraversalStrategyFlowToken),
-                TEST_NO_TAG_AUTO_NAMED(configurationValueNatTraversalStrategyWrongValue),
+                CLASSY_TEST(wrongContactInResponse),
+                CLASSY_TEST(configurationValueNatTraversalStrategyContactCorrection),
+                CLASSY_TEST(configurationValueNatTraversalStrategyFlowToken),
+                CLASSY_TEST(configurationValueNatTraversalStrategyWrongValue),
+                CLASSY_TEST(onResponseNatHelperRemoveContactCorrectionParameter<contactCorrection>),
+                CLASSY_TEST(onResponseNatHelperRemoveContactCorrectionParameter<flowToken>),
             });
 
 } // namespace

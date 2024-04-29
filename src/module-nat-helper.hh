@@ -51,8 +51,12 @@ private:
 
 	static ModuleInfo<NatHelper> sInfo;
 	bool mFixRecordRoutes{false};
-	std::string mContactVerifiedParam{};
 	RecordRouteFixingPolicy mRRPolicy{Safe};
+
+	// Information duplication: also available in ContactCorrectionStrategy::Helper.
+	// However, we need it regardless of the nat traversal strategy selected. As ContactCorrectionStrategy is not
+	// instantiated when nat-traversal-strategy=flow-token, we store this information here.
+	std::string mContactCorrectionParameter{};
 };
 
 } // namespace flexisip
