@@ -31,9 +31,12 @@ AccountPool::AccountPool(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
                          const config::v2::AccountPoolName& poolName,
                          const config::v2::AccountPool& pool,
                          std::unique_ptr<Loader>&& loader,
-                         redis::async::RedisParameters const* redisConf)
+                         RedisParameters const* redisConf)
     : mSuRoot{suRoot}, mCore{core}, mLoader{std::move(loader)}, mAccountParams{mCore->createAccountParams()},
-      mMaxCallsPerLine(pool.maxCallsPerLine), mPoolName{poolName} {
+      mMaxCallsPerLine(pool.maxCallsPerLine), mPoolName{poolName},
+      mRegistrationQueue(*mSuRoot,
+                         chrono::milliseconds{pool.registrationThrottlingRateMs},
+                         [this](const auto& account) { addNewAccount(account); }) {
 
 	handleOutboundProxy(mAccountParams, pool.outboundProxy);
 	mAccountParams->enableRegister(pool.registrationRequired);
@@ -52,12 +55,12 @@ void AccountPool::initialLoad() {
 	const auto accountsDesc = mLoader->initialLoad();
 	reserve(accountsDesc.size());
 	for (const auto& accountDesc : accountsDesc) {
-		setupAndAddNewAccount(accountDesc);
+		setupNewAccount(accountDesc);
 	}
-	mIsLoaded = true;
+	mAccountsQueuedForRegistration = true;
 }
 
-void AccountPool::setupAndAddNewAccount(const config::v2::Account& accountDesc) {
+void AccountPool::setupNewAccount(const config::v2::Account& accountDesc) {
 	if (accountDesc.uri.empty()) {
 		LOGF("An account of account pool '%s' is missing a `uri` field", mPoolName.c_str());
 	}
@@ -67,18 +70,24 @@ void AccountPool::setupAndAddNewAccount(const config::v2::Account& accountDesc) 
 
 	handleOutboundProxy(accountParams, accountDesc.outboundProxy);
 
-	auto account = mCore->createAccount(accountParams);
+	handlePassword(accountDesc, address);
 
-	if (mCore->addAccount(account) != 0) {
-		SLOGE << "Adding new Account to core failed for uri [" << accountDesc.uri << "]";
+	auto account = make_shared<Account>(mCore->createAccount(accountParams), mMaxCallsPerLine, accountDesc.alias);
+	mRegistrationQueue.enqueue(std::move(account));
+}
+
+void AccountPool::addNewAccount(const shared_ptr<Account>& account) {
+	const auto& linphoneAccount = account->getLinphoneAccount();
+	const auto& uri = linphoneAccount->getParams()->getIdentityAddress();
+
+	if (mCore->addAccount(linphoneAccount) != 0) {
+		SLOGE << "Adding new Account to core failed for uri [" << uri << "]";
 		return;
 	}
 
-	handlePassword(accountDesc, address);
-
-	if (!try_emplace(accountDesc.uri, accountDesc.alias,
-	                 make_shared<Account>(account, mMaxCallsPerLine, accountDesc.alias))) {
-		mCore->removeAccount(account);
+	const auto& alias = account->getAlias();
+	if (!try_emplace(uri->asStringUriOnly(), alias.str(), account)) {
+		mCore->removeAccount(linphoneAccount);
 	}
 }
 
@@ -223,7 +232,7 @@ void AccountPool::onAccountUpdate(const std::string& uri, const std::optional<co
 	auto accountByUriIt = mAccountsByUri.find(accountToUpdate->uri);
 	if (accountByUriIt == mAccountsByUri.end()) {
 		// Account added
-		setupAndAddNewAccount(*accountToUpdate);
+		setupNewAccount(*accountToUpdate);
 		return;
 	}
 	const auto& updatedAccount = accountByUriIt->second;

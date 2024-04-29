@@ -175,12 +175,15 @@ struct AccountPool {
 	bool registrationRequired = false; // required
 	uint32_t maxCallsPerLine = 0;      // required
 	AccountPoolLoader loader = {};     // required
+	uint32_t registrationThrottlingRateMs = 0; // optional
 };
 inline void from_json(const nlohmann ::json& nlohmann_json_j, AccountPool& nlohmann_json_t) {
+	AccountPool nlohmann_json_default_obj;
 	NLOHMANN_JSON_FROM(outboundProxy)
 	NLOHMANN_JSON_FROM(registrationRequired)
 	NLOHMANN_JSON_FROM(maxCallsPerLine)
 	NLOHMANN_JSON_FROM(loader)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(registrationThrottlingRateMs)
 }
 
 using AccountPoolConfigMap = std::unordered_map<AccountPoolName, AccountPool>;

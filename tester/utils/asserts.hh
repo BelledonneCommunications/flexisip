@@ -141,10 +141,7 @@ public:
 	forceIterateThenAssert(const uint32_t minIterations, std::chrono::milliseconds minTime, Func condition) {
 		const auto before = std::chrono::system_clock::now();
 		uint32_t iterations = 0;
-		for (; iterations < minIterations; ++iterations) {
-			iterateAllOnce();
-		}
-		while (before + minTime > std::chrono::system_clock::now()) {
+		for (; (iterations < minIterations) || (before + minTime > std::chrono::system_clock::now()); ++iterations) {
 			iterateAllOnce();
 		}
 

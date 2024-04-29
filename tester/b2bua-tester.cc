@@ -430,7 +430,7 @@ static void external_provider_bridge__load_balancing() {
 	};
 	const uint32_t line_count = lines.size();
 	const uint32_t maxCallsPerLine = 5000;
-	bridge::SipBridge sipBridge{nullptr, b2buaCore,
+	bridge::SipBridge sipBridge{proxy.getRoot(), b2buaCore,
 	                            bridge::config::v2::fromV1({
 	                                V1ProviderDesc{
 	                                    "provider1",
@@ -699,7 +699,7 @@ static void external_provider_bridge__b2bua_receives_several_forks() {
 static void external_provider_bridge__cli() {
 	using namespace flexisip::b2bua;
 	const auto core = linphone::Factory::get()->createCore("", "", nullptr);
-	bridge::SipBridge sipBridge{nullptr, core,
+	bridge::SipBridge sipBridge{make_shared<sofiasip::SuRoot>(), core,
 	                            bridge::config::v2::fromV1({
 	                                {
 	                                    .name = "provider1",

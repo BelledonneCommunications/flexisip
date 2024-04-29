@@ -48,6 +48,7 @@ public:
 	explicit Timer(su_root_t* root, su_duration_t intervalMs = 0);
 
 	Timer(su_root_t* root, NativeDuration interval) : Timer{root, interval.count()} {};
+	Timer(const sofiasip::SuRoot& root, NativeDuration interval);
 
 	explicit Timer(const std::shared_ptr<sofiasip::SuRoot>& root, su_duration_t intervalMs = 0);
 

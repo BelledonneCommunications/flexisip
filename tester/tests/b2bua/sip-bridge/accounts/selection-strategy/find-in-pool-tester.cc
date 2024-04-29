@@ -68,7 +68,7 @@ void test() {
 	})"_json.get<config::v2::AccountPool>();
 	const auto templateParams = b2buaCore->createAccountParams();
 	auto& staticLoader = get<config::v2::StaticLoader>(poolConfig.loader);
-	const auto pool = make_shared<AccountPool>(nullptr, b2buaCore, "test account pool", poolConfig,
+	const auto pool = make_shared<AccountPool>(proxy.getRoot(), b2buaCore, "test account pool", poolConfig,
 	                                           make_unique<StaticAccountLoader>(std::move(staticLoader)));
 
 	{

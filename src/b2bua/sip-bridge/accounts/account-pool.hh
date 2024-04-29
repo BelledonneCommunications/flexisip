@@ -29,6 +29,7 @@
 #include "b2bua/sip-bridge/accounts/redis-account-pub.hh"
 #include "b2bua/sip-bridge/configuration/v2/v2.hh"
 #include "libhiredis-wrapper/replication/redis-client.hh"
+#include "utils/constant-rate-task-queue.hh"
 
 namespace flexisip::b2bua::bridge {
 
@@ -59,8 +60,8 @@ public:
 		return mAccountsByUri.end();
 	}
 
-	bool isLoaded() const {
-		return mIsLoaded;
+	bool allAccountsLoaded() const {
+		return mAccountsQueuedForRegistration && mRegistrationQueue.empty();
 	}
 
 	/* redis::async::SessionListener interface implementations*/
@@ -74,7 +75,8 @@ private:
 	bool try_emplace(const std::string& uri, const std::string& alias, const std::shared_ptr<Account>& account);
 	bool try_emplaceAlias(const std::string& alias, const std::shared_ptr<Account>& account);
 
-	void setupAndAddNewAccount(const config::v2::Account& accountDesc);
+	void setupNewAccount(const config::v2::Account& accountDesc);
+	void addNewAccount(const std::shared_ptr<Account>&);
 	void handleOutboundProxy(const std::shared_ptr<linphone::AccountParams>& accountParams,
 	                         const std::string& outboundProxy) const;
 	void handlePassword(const config::v2::Account& account,
@@ -91,11 +93,12 @@ private:
 	std::unique_ptr<Loader> mLoader;
 	std::shared_ptr<linphone::AccountParams> mAccountParams;
 	uint32_t mMaxCallsPerLine = 0;
+	bool mAccountsQueuedForRegistration = false;
 	config::v2::AccountPoolName mPoolName;
-	bool mIsLoaded = false;
 
 	std::unordered_map<std::string, std::shared_ptr<Account>> mAccountsByUri;
 	std::unordered_map<std::string, std::shared_ptr<Account>> mAccountsByAlias;
+	ConstantRateTaskQueue<std::shared_ptr<Account>> mRegistrationQueue;
 
 	std::unique_ptr<redis::async::RedisClient> mRedisClient{nullptr};
 };

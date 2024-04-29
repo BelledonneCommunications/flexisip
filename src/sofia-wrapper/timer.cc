@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -33,6 +33,9 @@ Timer::Timer(su_root_t* root, su_duration_t intervalMs) {
 	if (_timer == nullptr) throw logic_error("fail to instantiate the timer");
 }
 
+Timer::Timer(const sofiasip::SuRoot& root, NativeDuration intervalMs) : Timer{root.getCPtr(), intervalMs} {
+}
+
 Timer::Timer(const shared_ptr<sofiasip::SuRoot>& root, su_duration_t intervalMs) : Timer{root->getCPtr(), intervalMs} {
 }
 
@@ -58,14 +61,14 @@ void Timer::set(const Func& func, su_duration_t intervalMs) {
 	_func = func;
 }
 
-void Timer::run(const Func &func) {
+void Timer::run(const Func& func) {
 	if (su_timer_run(_timer, _regularTimerCb, this) != 0) {
 		throw logic_error("fail to run timer");
 	}
 	_func = func;
 }
 
-void Timer::setForEver(const Func &func) {
+void Timer::setForEver(const Func& func) {
 	if (su_timer_set_for_ever(_timer, _regularTimerCb, this) != 0) {
 		throw logic_error("fail to set timer");
 	}
@@ -83,8 +86,10 @@ bool Timer::isRunning() const {
 	return su_timer_is_running(_timer) != 0;
 }
 
-void Timer::_oneShotTimerCb([[maybe_unused]] su_root_magic_t *magic, [[maybe_unused]] su_timer_t *t, su_timer_arg_t *arg) noexcept {
-	auto *timer = static_cast<Timer *>(arg);
+void Timer::_oneShotTimerCb([[maybe_unused]] su_root_magic_t* magic,
+                            [[maybe_unused]] su_timer_t* t,
+                            su_timer_arg_t* arg) noexcept {
+	auto* timer = static_cast<Timer*>(arg);
 
 	// timer->_func must be emptied before calling the function to avoid
 	// invalid Timer state should the function call Timer::set() again.
@@ -94,9 +99,11 @@ void Timer::_oneShotTimerCb([[maybe_unused]] su_root_magic_t *magic, [[maybe_unu
 	func();
 }
 
-void Timer::_regularTimerCb([[maybe_unused]] su_root_magic_t* magic, [[maybe_unused]] su_timer_t* t, su_timer_arg_t* arg) noexcept {
+void Timer::_regularTimerCb([[maybe_unused]] su_root_magic_t* magic,
+                            [[maybe_unused]] su_timer_t* t,
+                            su_timer_arg_t* arg) noexcept {
 	auto* timer = static_cast<Timer*>(arg);
 	timer->_func();
 }
 
-}
+} // namespace sofiasip
