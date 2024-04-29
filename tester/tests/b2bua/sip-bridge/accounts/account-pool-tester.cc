@@ -7,6 +7,8 @@
 
 #include "b2bua/sip-bridge/accounts/account-pool.hh"
 #include "b2bua/sip-bridge/accounts/loaders/sql-account-loader.hh"
+#include "b2bua/sip-bridge/accounts/loaders/static-account-loader.hh"
+#include "tester.hh"
 #include "utils/core-assert.hh"
 #include "utils/redis-server.hh"
 #include "utils/string-formatter.hh"
@@ -81,7 +83,7 @@ void globalSqlTest() {
 
 	asserter
 	    .wait([&pool] {
-		    FAIL_IF(!pool.isLoaded());
+		    FAIL_IF(!pool.allAccountsLoaded());
 		    FAIL_IF(pool.size() != 2);
 		    return ASSERTION_PASSED();
 	    })
@@ -225,7 +227,7 @@ void emptyNoRedisSqlTest() {
 
 	asserter
 	    .wait([&pool] {
-		    FAIL_IF(!pool.isLoaded());
+		    FAIL_IF(!pool.allAccountsLoaded());
 		    return ASSERTION_PASSED();
 	    })
 	    .hard_assert_passed();
@@ -257,7 +259,7 @@ void emptyThenPublishSqlTest() {
 
 	asserter
 	    .wait([&pool] {
-		    FAIL_IF(!pool.isLoaded());
+		    FAIL_IF(!pool.allAccountsLoaded());
 		    return ASSERTION_PASSED();
 	    })
 	    .hard_assert_passed();
@@ -307,8 +309,97 @@ void emptyThenPublishSqlTest() {
 	BC_HARD_ASSERT_CPP_EQUAL(account2AuthInfo->getPassword(), "NEWp@$sword");
 }
 
+/**
+ * Tests the AccountPool throttling mechanism.
+ *
+ * This test counts the number of registrations received by a flexisip-proxy for different AccountPool registration rate
+ * configurations. It attempts to register 10 accounts within a maximum of 500ms, with registration throttling rates of
+ * 0ms, and 100ms.
+ *
+ * It ensures that with 0ms throttling, all accounts are registered synchronously
+ *
+ * With 100ms throttling, it ensures that not all accounts are registered (5 or 6 due to sofia loop precision and for
+ * test stability).
+ */
+void accountRegistrationThrottling() {
+	/////////
+	/// Setup
+	/////////
+	constexpr auto accountCount = 10;
+	int numberOfRegister = 0;
+	InjectedHooks hooks{
+	    .onRequest =
+	        [&numberOfRegister](const std::shared_ptr<RequestSipEvent>& requestEvent) mutable {
+		        const auto* sip = requestEvent->getSip();
+		        if (sip->sip_request->rq_method != sip_method_register) {
+			        return;
+		        }
+		        numberOfRegister++;
+	        },
+	};
+	auto proxy = Server(
+	    {
+	        // Requesting bind on port 0 to let the kernel find any available port
+	        {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	        {"module::Registrar/enabled", "true"},
+	        {"module::Registrar/reg-domains", "example.org"},
+	    },
+	    &hooks);
+	proxy.start();
+	const auto& suRoot = make_shared<sofiasip::SuRoot>();
+	const auto& b2buaCore = minimalCore(*linphone::Factory::get());
+	b2buaCore->start();
+	auto accounts = vector{accountCount, config::v2::Account{}};
+	for (auto& account : accounts) {
+		account.uri = "sip:uri-" + randomString(10) + "@example.org";
+	}
+	auto asserter = CoreAssert(proxy, *suRoot, b2buaCore);
+
+	/////////
+	/// Rate to 0ms (synchronous)
+	/////////
+	auto poolConfig = config::v2::AccountPool{
+	    .outboundProxy = "<sip:127.0.0.1:" + std::string(proxy.getFirstPort()) + ";transport=tcp>",
+	    .registrationRequired = true,
+	    .maxCallsPerLine = 682,
+	    .loader = {},
+	    .registrationThrottlingRateMs = 0,
+	};
+	auto pool = make_optional<AccountPool>(suRoot, b2buaCore, "perfTestAccountPool", poolConfig,
+	                                       make_unique<StaticAccountLoader>(vector{accounts}));
+	BC_HARD_ASSERT(pool->allAccountsLoaded());
+	// Let the Proxy receive the REGISTER requests
+	asserter
+	    .iterateUpTo(3,
+	               [&numberOfRegister]() {
+		               return LOOP_ASSERTION(numberOfRegister == accountCount);
+	               }, 200ms)
+	    .assert_passed();
+	BC_HARD_ASSERT_CPP_EQUAL(numberOfRegister, accountCount);
+	numberOfRegister = 0;
+
+	/////////
+	/// Rate to 100ms
+	/////////
+	poolConfig.registrationThrottlingRateMs = 100;
+	pool.emplace(suRoot, b2buaCore, "perfTestAccountPool", poolConfig,
+	             make_unique<StaticAccountLoader>(vector{accounts}));
+	BC_HARD_ASSERT(!pool->allAccountsLoaded());
+	asserter.forceIterateThenAssert(0, 500ms, []() { return ASSERTION_PASSED(); }).assert_passed();
+
+	BC_ASSERT_TRUE(numberOfRegister > 4);
+	BC_ASSERT_TRUE(numberOfRegister < 7);
+}
+
 const TestSuite _{
     "b2bua::bridge::account::AccountPool",
+    {
+        CLASSY_TEST(accountRegistrationThrottling),
+    },
+};
+
+const TestSuite _SQL{
+    "b2bua::bridge::account::AccountPool-SQL",
     {
         CLASSY_TEST(globalSqlTest),
         CLASSY_TEST(emptyNoRedisSqlTest),
@@ -344,7 +435,8 @@ const TestSuite _{
         .afterSuite([] {
 	        SUITE_SCOPE.reset();
 	        return 0;
-        })};
+        }),
+};
 
 } // namespace
 } // namespace flexisip::tester

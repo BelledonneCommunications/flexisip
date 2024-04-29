@@ -22,6 +22,7 @@
 
 target_sources(flexisip PRIVATE
 	cast-to-const.hh
+	constant-rate-task-queue.hh
 	digest.cc digest.hh
 	observable.hh
 	flow.cc flow.hh
