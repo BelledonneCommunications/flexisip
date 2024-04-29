@@ -12,7 +12,7 @@
 #include "asserts.hh"
 #include "client-core.hh"
 #include "utils/bellesip-utils.hh"
-#include "utils/proxy-server.hh"
+#include "utils/server/proxy-server.hh"
 
 namespace flexisip {
 namespace tester {

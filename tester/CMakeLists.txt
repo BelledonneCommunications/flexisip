@@ -138,17 +138,17 @@ add_executable(flexisip_tester
 	utils/eventlogs/writers/event-log-writer-visitor-adapter.hh
 	utils/flow-test-helper.cc utils/flow-test-helper.hh
 	utils/listening-socket.cc utils/listening-socket.hh
-	utils/mysql-server.cc utils/mysql-server.hh
 	utils/nat-test-helper.cc utils/nat-test-helper.hh
 	utils/posix-process-tester.cc
-	utils/proxy-server.cc utils/proxy-server.hh
 	utils/proxy-server-process.cc utils/proxy-server-process.hh
-	utils/redis-server.cc utils/redis-server.hh
-	utils/tcp-server.cc utils/tcp-server.hh
+	utils/server/mysql-server.cc utils/server/mysql-server.hh
+	utils/server/proxy-server.cc utils/server/proxy-server.hh
+	utils/server/redis-server.cc utils/server/redis-server.hh
+	utils/server/tcp-server.cc utils/server/tcp-server.hh
+	utils/server/tls-server.cc utils/server/tls-server.hh
 	utils/test-patterns/agent-test.hh
 	utils/test-patterns/presence-test.hh
 	utils/test-patterns/test.hh
-	utils/tls-server.cc utils/tls-server.hh
 	utils/tmp-dir.cc utils/tmp-dir.hh
 	utils/utf8-string-tester.cc
 )
@@ -157,7 +157,7 @@ if(ENABLE_CONFERENCE)
 	target_sources(flexisip_tester PRIVATE
 		registration-event-tester.cc
 		tests/conference/conference-server-tester.cc
-		utils/test-conference-server.cc utils/test-conference-server.hh
+		utils/server/test-conference-server.cc utils/server/test-conference-server.hh
 	)
 endif()
 
@@ -210,7 +210,8 @@ endif()
 
 if(ENABLE_B2BUA)
 	target_sources(flexisip_tester PRIVATE
-		b2bua-tester.cc
+		utils/server/b2bua-and-proxy-server.hh
+		tests/b2bua/b2bua-tester.cc
 		tests/b2bua/sip-bridge/accounts/account-pool-tester.cc
 		tests/b2bua/sip-bridge/accounts/account-pool-performance-tester.cc
 		tests/b2bua/sip-bridge/accounts/loaders/static-loader-tester.cc

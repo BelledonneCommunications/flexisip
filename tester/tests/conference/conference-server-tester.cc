@@ -39,10 +39,10 @@
 #include "utils/client-builder.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
-#include "utils/mysql-server.hh"
-#include "utils/proxy-server.hh"
+#include "utils/server/mysql-server.hh"
+#include "utils/server/proxy-server.hh"
 #include "utils/string-utils.hh"
-#include "utils/test-conference-server.hh"
+#include "utils/server/test-conference-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 

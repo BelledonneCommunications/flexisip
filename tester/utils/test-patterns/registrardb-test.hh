@@ -14,7 +14,7 @@
 
 #include "agent-test.hh"
 #include "utils/contact-inserter.hh"
-#include "utils/redis-server.hh"
+#include "utils/server/redis-server.hh"
 
 namespace flexisip {
 namespace tester {

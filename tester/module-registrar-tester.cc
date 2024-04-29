@@ -11,7 +11,7 @@
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "registrar/registrar-db.hh"
-#include "utils/proxy-server.hh"
+#include "utils/server/proxy-server.hh"
 #include "utils/successful-bind-listener.hh"
 #include "utils/temp-file.hh"
 

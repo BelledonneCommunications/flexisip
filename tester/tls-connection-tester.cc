@@ -21,8 +21,8 @@
 #include <thread>
 #include <type_traits>
 
-#include "utils/tcp-server.hh"
-#include "utils/tls-server.hh"
+#include "utils/server/tcp-server.hh"
+#include "utils/server/tls-server.hh"
 #include "utils/transport/tls-connection.hh"
 
 #include "flexisip-tester-config.hh"

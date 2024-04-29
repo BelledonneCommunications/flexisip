@@ -26,7 +26,7 @@
 #include "bctoolbox/tester.h"
 #include "flexisip/logmanager.hh"
 
-#include "utils/proxy-server.hh"
+#include "utils/server/proxy-server.hh"
 
 #include "proxy-server-process.hh"
 

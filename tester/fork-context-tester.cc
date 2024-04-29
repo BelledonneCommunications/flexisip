@@ -30,7 +30,7 @@
 #include "utils/chat-room-builder.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
-#include "utils/proxy-server.hh"
+#include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 

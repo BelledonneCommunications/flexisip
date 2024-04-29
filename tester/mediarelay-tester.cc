@@ -22,16 +22,12 @@
 #include <unordered_map>
 
 #include "sdp-modifier.hh"
-#include "sofia-sip/sdp.h"
 #include "sofia-sip/sip.h"
 
 #include "bctoolbox/tester.h"
 #include "linphone++/call.hh"
-#include "linphone/api/c-call-stats.h"
-#include "linphone/api/c-call.h"
 #include "ortp/rtp.h"
 
-#include "flexisip/module.hh"
 
 #include "utils/asserts.hh"
 #include "utils/call-builder.hh"
@@ -39,8 +35,7 @@
 #include "utils/client-call.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
-#include "utils/injected-module-info.hh"
-#include "utils/proxy-server.hh"
+#include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 

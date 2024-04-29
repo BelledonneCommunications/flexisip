@@ -6,7 +6,7 @@
 
 #include <linphone++/core.hh>
 
-#include "utils/proxy-server.hh"
+#include "utils/server/proxy-server.hh"
 
 namespace flexisip {
 namespace tester {

@@ -22,10 +22,8 @@
 
 #include <signal.h>
 
-#include "flexisip/module-router.hh"
-
 #include "agent.hh"
-#include "flexisip-tester-config.hh"
+#include "flexisip/registrar/registar-listeners.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
@@ -33,8 +31,8 @@
 #include "sofia-wrapper/nta-agent.hh"
 #include "tester.hh"
 #include "utils/bellesip-utils.hh"
-#include "utils/proxy-server.hh"
-#include "utils/redis-server.hh"
+#include "utils/server/proxy-server.hh"
+#include "utils/server/redis-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 

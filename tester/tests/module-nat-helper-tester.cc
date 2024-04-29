@@ -22,7 +22,7 @@
 
 #include "nat/contact-correction-strategy.hh"
 #include "nat/flow-token-strategy.hh"
-#include "utils/proxy-server.hh"
+#include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 

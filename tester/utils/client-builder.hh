@@ -25,7 +25,6 @@
 #include "agent.hh"
 #include <linphone++/linphone.hh>
 
-#include "utils/proxy-server.hh"
 namespace flexisip {
 namespace pushnotification {
 

@@ -28,9 +28,8 @@
 #include <flexisip/configmanager.hh>
 #include <flexisip/module.hh>
 
-#include "presence-server.hh"
 #include "tester.hh"
-#include "utils/mysql-server.hh"
+#include "utils/server/mysql-server.hh"
 #include "utils/string-utils.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"

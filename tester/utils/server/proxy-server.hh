@@ -26,7 +26,6 @@
 #include "flexisip/sofia-wrapper/su-root.hh"
 
 #include "agent.hh"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "injected-module-info.hh"
 #include "registrar/registrar-db.hh"
 

@@ -29,7 +29,6 @@
 #include "flexisip/module-router.hh"
 
 #include "agent.hh"
-#include "flexisip-tester-config.hh"
 #include "fork-context/fork-message-context-db-proxy.hh"
 #include "fork-context/fork-message-context-soci-repository.hh"
 #include "tester.hh"
@@ -37,7 +36,7 @@
 #include "utils/bellesip-utils.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
-#include "utils/mysql-server.hh"
+#include "utils/server/mysql-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 

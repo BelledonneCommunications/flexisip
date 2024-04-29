@@ -31,7 +31,7 @@
 #include <flexisip/logmanager.hh>
 
 #include "utils/asserts.hh"
-#include "utils/proxy-server.hh"
+#include "utils/server/proxy-server.hh"
 #include "utils/successful-bind-listener.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-patterns/test.hh"

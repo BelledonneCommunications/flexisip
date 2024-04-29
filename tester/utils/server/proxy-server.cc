@@ -26,7 +26,6 @@
 
 #include "registrar/registrar-db.hh"
 #include "tester.hh"
-#include "utils/client-builder.hh"
 
 using namespace std;
 using namespace std::chrono;

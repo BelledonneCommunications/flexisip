@@ -10,7 +10,7 @@
 #include "b2bua/sip-bridge/accounts/loaders/static-account-loader.hh"
 #include "tester.hh"
 #include "utils/core-assert.hh"
-#include "utils/redis-server.hh"
+#include "utils/server/redis-server.hh"
 #include "utils/string-formatter.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"

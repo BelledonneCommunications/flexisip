@@ -28,7 +28,7 @@
 #include "transaction/outgoing-transaction.hh"
 #include "utils/asserts.hh"
 #include "utils/contact-inserter.hh"
-#include "utils/proxy-server.hh"
+#include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
@@ -177,7 +177,8 @@ void forwardMidDialogRequestPathIsNextHop() {
 	    .withGruu(true)
 	    .setPath(callee.path)
 	    .insert({.contact = callee.uri, .uniqueId = callee.uid});
-	BC_HARD_ASSERT(asserter.iterateUpTo(5, [&inserter]() { return inserter.finished(); }, 2s));
+	BC_HARD_ASSERT(asserter.iterateUpTo(
+	    5, [&inserter]() { return inserter.finished(); }, 2s));
 
 	stringstream request;
 	request << "BYE " << callee.aor << ";gr=" << callee.uid << " SIP/2.0\r\n"
@@ -236,7 +237,8 @@ void forwardMidDialogRequestPathIsUsSoUseContactUrl() {
 	    .withGruu(true)
 	    .setPath(callee.path)
 	    .insert({.contact = callee.uri, .uniqueId = callee.uid});
-	BC_HARD_ASSERT(asserter.iterateUpTo(5, [&inserter]() { return inserter.finished(); }, 2s));
+	BC_HARD_ASSERT(asserter.iterateUpTo(
+	    5, [&inserter]() { return inserter.finished(); }, 2s));
 
 	stringstream request;
 	request << "BYE " << callee.aor << ";gr=" << callee.uid << " SIP/2.0\r\n"

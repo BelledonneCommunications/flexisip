@@ -32,9 +32,7 @@
 namespace flexisip {
 
 namespace tester {
-namespace b2buatester {
-class B2buaServer;
-}
+class B2buaAndProxyServer;
 } // namespace tester
 
 namespace b2bua {
@@ -78,7 +76,7 @@ class B2buaServer : public ServiceServer,
                     public linphone::CoreListener,
                     public linphone::EventListener {
 public:
-	friend class tester::b2buatester::B2buaServer;
+	friend class tester::B2buaAndProxyServer;
 
 	static constexpr auto& kConfKey = "b2bua::confData";
 	static constexpr auto& kEventKey = "b2bua:eventData";
