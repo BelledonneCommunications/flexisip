@@ -23,20 +23,18 @@
 #include <sofia-sip/sip_status.h>
 
 #include "agent.hh"
+#include "flexisip/utils/sip-uri.hh"
 #include "module-authorization.hh"
 
 using namespace std;
-using namespace flexisip;
 
-// ====================================================================================================================
-//  ModuleAuthOpenIDConnect class
-// ====================================================================================================================
+namespace flexisip {
 
 namespace {
 const auto sOpenIDConnectInfo = ModuleInfo<ModuleAuthOpenIDConnect>(
     "AuthOpenIDConnect",
     "The AuthOpenIDConnect module challenges SIP requests using OpenIDConnect method.\n",
-    {"Authentication"},
+    {"AuthTrustedHosts"},
     ModuleInfoBase::ModuleOid::OpenIDConnectAuthentication,
     [](GenericStruct& moduleConfig) {
 	    ConfigItemDescriptor items[] = {
@@ -100,7 +98,12 @@ void ModuleAuthOpenIDConnect::onLoad(const GenericStruct* mc) {
 	};
 
 	Bearer::BearerParams params{};
-	params.issuer = readMandatoryString("authorization-server");
+	{
+		const auto issuer = readMandatoryString("authorization-server");
+		auto issUrl = sofiasip::Url(issuer);
+		if (issUrl.getType() != url_https) LOGF("Invalid authorization-server https url: %s", issuer.c_str());
+		params.issuer = issUrl;
+	}
 	params.realm = readMandatoryString("realm");
 	params.idClaimer = readMandatoryString("sip-id-claim");
 	params.scope = mc->get<ConfigStringList>("scope")->read();
@@ -140,4 +143,4 @@ void ModuleAuthOpenIDConnect::onRequest(shared_ptr<RequestSipEvent>& ev) {
 void ModuleAuthOpenIDConnect::onResponse(shared_ptr<ResponseSipEvent>&) {
 }
 
-// ====================================================================================================================
+} // namespace flexisip

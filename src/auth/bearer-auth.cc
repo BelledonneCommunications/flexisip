@@ -24,25 +24,68 @@
 #include <openssl/rsa.h>
 #include <openssl/x509.h>
 
-#include "flexisip/logmanager.hh"
-#include "utils/load-file.hh"
+#include <cstdio>
 
-using namespace flexisip;
+#include "sofia-sip/hostdomain.h"
+
+#include "flexisip/logmanager.hh"
+
 using namespace std;
 using namespace std::string_literals;
+
+namespace flexisip {
 
 namespace {
 
 constexpr auto kSchemeType = "Bearer";
+constexpr auto kDefaultKid = "default";
+
+namespace claim {
+constexpr auto kIssuer = "iss";
+constexpr auto kSubject = "sub";
+constexpr auto kAudience = "aud";
+constexpr auto kExpirationTime = "exp";
+constexpr auto kScope = "scope";
+} // namespace claim
+
+bool acceptSubjet(string_view subject) {
+	constexpr size_t maxSubjectSize = 255;
+	if (subject.size() > maxSubjectSize) return false;
+	return true;
+}
 
 string pemKey(const string& pub_key) {
 	return "-----BEGIN PUBLIC KEY-----\n"s + pub_key + "\n-----END PUBLIC KEY-----\n";
 }
 
+string loadPemKey(string_view pubKeyFile) {
+	struct file_deleter {
+		void operator()(FILE* f) {
+			fclose(f);
+		}
+	};
+	unique_ptr<FILE, file_deleter> fp{fopen(pubKeyFile.data(), "r")};
+	if (!fp) {
+		LOGF("Failed to open file: %s", pubKeyFile.data());
+	}
+
+	unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)> pubKey{PEM_read_PUBKEY(fp.get(), nullptr, nullptr, nullptr),
+	                                                      EVP_PKEY_free};
+	jwt::BIO_uptr outbio{BIO_new(BIO_s_mem()), jwt::bio_deletor};
+	if (!PEM_write_bio_PUBKEY(outbio.get(), pubKey.get())) {
+		LOGF("Error loading public key in PEM format");
+	}
+
+	char* buf{};
+	long size = BIO_get_mem_data(outbio.get(), &buf);
+	return string(buf, size);
+}
+
 [[maybe_unused]] string extractKey(const string& certificate) {
 	jwt::BIO_uptr certbio{BIO_new_mem_buf(certificate.data(), certificate.size()), jwt::bio_deletor};
 
-	std::unique_ptr<X509, decltype(&X509_free)> x509Cert{PEM_read_bio_X509(certbio.get(), NULL, 0, NULL), X509_free};
+	std::unique_ptr<X509, decltype(&X509_free)> x509Cert{PEM_read_bio_X509(certbio.get(), nullptr, 0, nullptr),
+	                                                     X509_free};
 	if (!x509Cert) {
 		LOGE("Error loading cert into memory");
 		return {};
@@ -65,11 +108,9 @@ string pemKey(const string& pub_key) {
 }
 
 string readToken(const msg_param_t* param) {
-	stringstream ss;
-	ss << msg_params_find(param, "token=");
-	string token;
-	ss >> std::quoted(token);
-	return token;
+	if (param == nullptr) return string{};
+	// token is the 1st param (RFC 6750-2.1)
+	return string{*param};
 }
 
 string readKeyId(jwt::jwt_header& hdr) {
@@ -79,14 +120,11 @@ string readKeyId(jwt::jwt_header& hdr) {
 	const auto& hdrData = hdr.create_json_obj();
 	return hdrData[keyId];
 }
-
-constexpr auto defaultKid = "default";
-
 } // namespace
 
 Bearer::Bearer(const BearerParams& params) : mParams(params) {
 	if (params.keyType == Bearer::PubKeyType::file) {
-		mPubKeys[defaultKid] = loadFromFile(params.keyPath);
+		mPubKeys[kDefaultKid] = loadPemKey(params.keyPath);
 	}
 
 	// hack for well-known or url keyType not yet implemented
@@ -117,45 +155,73 @@ void Bearer::challenge(AuthStatus& as, const auth_challenger_t* ach) {
 		}
 		scope += "\"";
 	}
-	auto* response_msg = msg_header_format(s_as->as_home, ach->ach_header,
-	                                       "%s"
-	                                       " authz-server=\"%s\","
-	                                       " realm=\"%s\"%s",
-	                                       kSchemeType, mParams.issuer.c_str(), mParams.realm.c_str(), scope.c_str());
+	auto* response_msg =
+	    msg_header_format(s_as->as_home, ach->ach_header,
+	                      "%s"
+	                      " authz_server=\"%s\","
+	                      " realm=\"%s\"%s",
+	                      kSchemeType, mParams.issuer.str().c_str(), mParams.realm.c_str(), scope.c_str());
 	as.response(response_msg);
+}
+
+bool Bearer::acceptIssuer(const sofiasip::Url& iss) {
+	if (iss.getType() != mParams.issuer.getType()) return false;
+
+	// fragments are fobidden
+	if (!iss.getFragment().empty()) return false;
+
+	// compare urls
+	const auto* a = mParams.issuer.get();
+	const auto* b = iss.get();
+	if (host_cmp(a->url_host, b->url_host)) return false;
+	if (a->url_port && b->url_port && a->url_port != b->url_port) return false;
+	return true;
 }
 
 optional<RequestSipEvent::AuthResult::ChallengeResult> Bearer::check(const msg_auth_t* credentials) {
 	const auto* authParam = credentials->au_params;
 	if (authParam == nullptr) return nullopt;
 
-	auto token = readToken(authParam);
+	const auto token = readToken(authParam);
 	std::optional<RequestSipEvent::AuthResult::ChallengeResult> challengeResult{};
 	try {
 		const auto algo = jwt::params::algorithms({"RS256"});
 
 		// decode a first time to read parameters
 		auto dec = jwt::decode(token, algo, jwt::params::verify(false));
-		if (!dec.payload().has_claim_with_value("iss", mParams.issuer)) {
+		const auto& payload = dec.payload();
+		const auto& payloadValues = payload.create_json_obj();
+
+		auto checkMandatoryClaim = [&payload, &payloadValues](const string& claim) {
+			if (!payload.has_claim(claim)) throw runtime_error(claim + " claim is missing");
+			return payloadValues[claim];
+		};
+
+		const auto issuer = sofiasip::Url(checkMandatoryClaim(claim::kIssuer).get<string>());
+		if (!acceptIssuer(issuer)) {
 			LOGD("Bearer authentication stops: unknown issuer");
 			return nullopt;
 		}
-
 		// issuer is the one expected, the authorization message is for us
 		// a challenge result is generated
 		challengeResult = RequestSipEvent::AuthResult::ChallengeResult{RequestSipEvent::AuthResult::Type::Bearer};
 
-		if (!dec.payload().has_claim("exp")) throw runtime_error("expiration time is missing");
+		const auto subject = checkMandatoryClaim(claim::kSubject).get<string>();
+		if (!acceptSubjet(subject)) throw runtime_error("invalid subject");
 
-		if (!dec.payload().has_claim(mParams.idClaimer)) throw runtime_error(mParams.idClaimer + " is missing");
-		string identity = dec.payload().create_json_obj()[mParams.idClaimer];
+		checkMandatoryClaim(claim::kAudience);
+		// todo: check that flexisip id is in audience values
+
+		checkMandatoryClaim(claim::kExpirationTime); // ensure claim is present, value is checked later
+
+		const auto identity = checkMandatoryClaim(mParams.idClaimer).get<string>();
 		challengeResult->setIdentity(SipUri(identity));
 
-		if (dec.payload().has_claim("scope")) {
+		if (payload.has_claim(claim::kScope)) {
 			// todo: check scope value
 		}
 
-		auto kid = mParams.keyType == Bearer::PubKeyType::file ? defaultKid : readKeyId(dec.header());
+		auto kid = mParams.keyType == Bearer::PubKeyType::file ? kDefaultKid : readKeyId(dec.header());
 		if (kid.empty()) throw runtime_error("kid is missing");
 
 		if (mPubKeys.find(kid) == mPubKeys.end()) {
@@ -163,8 +229,10 @@ optional<RequestSipEvent::AuthResult::ChallengeResult> Bearer::check(const msg_a
 			throw runtime_error("unknown kid");
 		}
 
-		// check validity (key expiration, signature)
-		std::ignore = jwt::decode(token, algo, jwt::params::verify(true), jwt::params::secret(mPubKeys[kid]));
+		// check validity (token expiration, signature)
+		// validate_iat verifies the presence of claim, not its value
+		std::ignore = jwt::decode(token, algo, jwt::params::verify(true), jwt::params::secret(mPubKeys[kid]),
+		                          jwt::params::validate_iat(true));
 
 		// result is valid if decoding hasn't throw
 		challengeResult->accept();
@@ -173,3 +241,5 @@ optional<RequestSipEvent::AuthResult::ChallengeResult> Bearer::check(const msg_a
 	}
 	return challengeResult;
 }
+
+} // namespace flexisip

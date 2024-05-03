@@ -93,12 +93,14 @@ public:
 	/**
 	 * Create an URL by parsing a string.
 	 * @exception InvalidUrlError Error while parsing the string.
+	 * Scheme is set to its canonical form (lower cases)
 	 */
 	explicit Url(std::string_view);
 	/**
 	 * Create an URL from a SofiaSip's url_t structure.
 	 * The url_t structure isn't modified and all the allocated
 	 * string are duplicated.
+	 * Scheme is set to its canonical form (lower cases)
 	 */
 	explicit Url(const url_t* src) noexcept;
 	Url(const Url& src) noexcept;
@@ -206,6 +208,10 @@ protected:
 	mutable Home _home;
 	url_t* _url = nullptr;
 	mutable std::string _urlAsStr;
+
+private:
+	// force the scheme in its canonical form: lower cases
+	void canonizeScheme();
 };
 
 bool operator==(const TlsConfigInfo& lhs, const TlsConfigInfo& rhs);

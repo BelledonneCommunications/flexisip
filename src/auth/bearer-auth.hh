@@ -25,6 +25,7 @@
 
 #include "auth/auth-scheme.hh"
 #include "flexisip/sofia-wrapper/auth-status.hh"
+#include "flexisip/utils/sip-uri.hh"
 
 namespace flexisip {
 
@@ -39,7 +40,7 @@ public:
 		wellknown,
 	};
 	struct BearerParams {
-		std::string issuer;
+		sofiasip::Url issuer;
 		std::string realm;
 		std::list<std::string> scope;
 		std::string idClaimer;
@@ -53,6 +54,7 @@ public:
 	std::optional<RequestSipEvent::AuthResult::ChallengeResult> check(const msg_auth_t* credentials) override;
 
 private:
+	bool acceptIssuer(const sofiasip::Url& iss);
 	BearerParams mParams;
 	std::unordered_map<std::string, std::string> mPubKeys;
 };

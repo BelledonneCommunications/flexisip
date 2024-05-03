@@ -36,10 +36,12 @@ Url::Url(std::string_view str) {
 	if (str.empty()) return;
 	_url = url_make(_home.home(), str.data());
 	if (_url == nullptr) THROW_LINE(InvalidUrlError, std::string(str), "not an URI");
+	canonizeScheme();
 }
 
 Url::Url(const url_t* src) noexcept {
 	_url = url_hdup(_home.home(), src);
+	canonizeScheme();
 }
 
 Url::Url(const Url& src) noexcept {
@@ -49,6 +51,19 @@ Url::Url(const Url& src) noexcept {
 
 Url::Url(Url&& src) noexcept : _home(std::move(src._home)), _url(src._url), _urlAsStr(std::move(src._urlAsStr)) {
 	src._url = nullptr;
+}
+
+void Url::canonizeScheme() {
+	const auto type = getType();
+	switch (type) {
+		case _url_none:
+		case url_invalid:
+		case url_unknown:
+			// nothing to do
+			break;
+		default:
+			_url->url_scheme = url_scheme(type);
+	}
 }
 
 Url& Url::operator=(const Url& src) noexcept {
@@ -171,9 +186,8 @@ std::pair<bool, std::string> isValidSipUriWithMessage(const sofiasip::Url& url) 
 	const auto* pUrl = url.get();
 	if (pUrl == nullptr) return std::pair(true, "");
 	if (pUrl->url_scheme == nullptr) return std::pair(false, "no scheme found");
-	std::string scheme = pUrl->url_scheme;
-	std::transform(scheme.begin(), scheme.end(), scheme.begin(), ::tolower);
-	if (scheme != "sip" && scheme != "sips") {
+	const auto schemeType = url.getType();
+	if (schemeType != url_sip && schemeType != url_sips) {
 		ostringstream os;
 		os << "invalid scheme (" << pUrl->url_scheme << ")";
 		return std::pair(false, os.str());

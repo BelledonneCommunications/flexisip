@@ -30,7 +30,7 @@ using namespace std::chrono_literals;
 
 namespace {
 const tester::TempFile kFile(kRsaPubKey);
-const Bearer::BearerParams kParams{.issuer = "example.org",
+const Bearer::BearerParams kParams{.issuer = sofiasip::Url("https://example.org"),
                                    .realm = "totoRealm",
                                    .idClaimer = "sip-id",
                                    .keyType = Bearer::PubKeyType::file,
@@ -38,8 +38,11 @@ const Bearer::BearerParams kParams{.issuer = "example.org",
 
 jwt::jwt_object generateValidJwtObject() {
 	jwt::jwt_object obj{jwt::params::algorithm("RS256"), jwt::params::secret(kRsaPrivKey)};
-	obj.add_claim("iss", kParams.issuer);
+	obj.add_claim("iss", kParams.issuer.str());
+	obj.add_claim("sub", "25863444a27");
+	obj.add_claim("aud", "test_profile");
 	obj.add_claim(kParams.idClaimer, "sip:toto@example.org");
+	obj.add_claim("iat", std::chrono::system_clock::now());
 	obj.add_claim("exp", std::chrono::system_clock::now() + 60s);
 	return obj;
 }
@@ -55,20 +58,38 @@ auto check(const msg_param_t data) {
 
 auto generateAndCheckToken(const jwt::jwt_object& jwtObj) {
 	const auto token = jwtObj.signature();
-	std::string data{"token=\"" + token + "\""};
-	return check(data.c_str());
+	return check(token.c_str());
 }
 
 // check that malformed messages do not cause crashes
 void invalidMsgFormat() {
-	BC_ASSERT_FALSE(check(nullptr).has_value());
-	BC_ASSERT_FALSE(check("invalid message data").has_value());
-	BC_ASSERT_FALSE(check("token=\"notAtoken").has_value());
+	{
+		msg_auth_t msg{};
+		msg.au_scheme = "Bearer";
+		msg.au_params = nullptr;
+		Bearer bearerScheme(kParams);
+		BC_ASSERT_FALSE(bearerScheme.check(&msg).has_value());
+	}
+	BC_ASSERT_FALSE(check("").has_value());
+	BC_ASSERT_FALSE(check("notAtoken").has_value());
 }
 
 // check that a "valid" result is generated on a valid token
 void validToken() {
 	auto obj = generateValidJwtObject();
+	auto result = generateAndCheckToken(obj);
+	BC_HARD_ASSERT(result.has_value());
+	BC_ASSERT(result->getType() == RequestSipEvent::AuthResult::Type::Bearer);
+	BC_ASSERT(result->getResult() == RequestSipEvent::AuthResult::Result::Valid);
+	BC_ASSERT(isValidSipUri(result->getIdentity().get()));
+}
+
+// check that issuer claim is valid if optional port is present
+void validTokenWithIssuerPort() {
+	// generate a valid authorization
+	auto obj = generateValidJwtObject();
+	// add port to issuer url
+	obj.payload().add_claim("iss", kParams.issuer.str() + ":9000", true);
 	auto result = generateAndCheckToken(obj);
 	BC_HARD_ASSERT(result.has_value());
 	BC_ASSERT(result->getType() == RequestSipEvent::AuthResult::Type::Bearer);
@@ -95,6 +116,54 @@ void badAlgo() {
 	BC_HARD_ASSERT(result.has_value());
 	BC_ASSERT(result->getType() == RequestSipEvent::AuthResult::Type::Bearer);
 	BC_ASSERT(result->getResult() == RequestSipEvent::AuthResult::Result::Invalid);
+}
+
+// check that a token is not valid when the subject claim is not present or too large
+void tokenSubject() {
+	auto obj = generateValidJwtObject();
+	// generate a token with no subject
+	obj.remove_claim("sub");
+	{
+		auto result = generateAndCheckToken(obj);
+		BC_HARD_ASSERT(result.has_value());
+		BC_ASSERT(result->getType() == RequestSipEvent::AuthResult::Type::Bearer);
+		BC_ASSERT(result->getResult() == RequestSipEvent::AuthResult::Result::Invalid);
+	}
+	// generate a token with a subject exceeding max length
+	const std::string largeSubject(256, 't');
+	obj.add_claim("sub", largeSubject);
+	{
+		auto result = generateAndCheckToken(obj);
+		BC_HARD_ASSERT(result.has_value());
+		BC_ASSERT(result->getType() == RequestSipEvent::AuthResult::Type::Bearer);
+		BC_ASSERT(result->getResult() == RequestSipEvent::AuthResult::Result::Invalid);
+	}
+}
+
+// check that a token is not valid when the audience claim is not present
+void tokenMissingAudience() {
+	auto obj = generateValidJwtObject();
+	// generate a token with no audience
+	obj.remove_claim("aud");
+	{
+		auto result = generateAndCheckToken(obj);
+		BC_HARD_ASSERT(result.has_value());
+		BC_ASSERT(result->getType() == RequestSipEvent::AuthResult::Type::Bearer);
+		BC_ASSERT(result->getResult() == RequestSipEvent::AuthResult::Result::Invalid);
+	}
+}
+
+// check that a token is not valid when the iat claim is not present
+void tokenMissingIssuedTime() {
+	auto obj = generateValidJwtObject();
+	// generate a token without an issued time
+	obj.remove_claim("iat");
+	{
+		auto result = generateAndCheckToken(obj);
+		BC_HARD_ASSERT(result.has_value());
+		BC_ASSERT(result->getType() == RequestSipEvent::AuthResult::Type::Bearer);
+		BC_ASSERT(result->getResult() == RequestSipEvent::AuthResult::Result::Invalid);
+	}
 }
 
 // check that identity is verified
@@ -155,8 +224,12 @@ TestSuite _("AuthBearerScheme",
             {
                 CLASSY_TEST(invalidMsgFormat),
                 CLASSY_TEST(validToken),
+                CLASSY_TEST(validTokenWithIssuerPort),
                 CLASSY_TEST(validTokenOfAnotherIssuer),
                 CLASSY_TEST(badAlgo),
+                CLASSY_TEST(tokenSubject),
+                CLASSY_TEST(tokenMissingAudience),
+                CLASSY_TEST(tokenMissingIssuedTime),
                 CLASSY_TEST(invalidIdentity),
                 CLASSY_TEST(tokenExpiration),
                 CLASSY_TEST(verifySignature),
