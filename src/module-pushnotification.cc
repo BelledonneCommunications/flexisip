@@ -450,6 +450,8 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip>& ms,
 			if (br) {
 				br->pushContext = context;
 			}
+		} else if (sip->sip_request->rq_method == sip_method_notify) {
+			context = PNContextNotify::make(transaction, this, pinfo, pnKey);
 		} else {
 			context = PNContextMessage::make(transaction, this, pinfo, pnKey);
 		}
@@ -523,6 +525,14 @@ bool PushNotification::needsPush(const shared_ptr<MsgSip>& msgSip) {
 
 		return true;
 	}
+
+	if (sip->sip_request->rq_method == sip_method_notify) {
+		auto* eventHeader = msgSip->findHeader("Event");
+		const auto* eventHeaderCString =
+		    sip_header_as_string(msgSip->getHome(), reinterpret_cast<const sip_header_t*>(eventHeader));
+		if (eventHeaderCString && strstr(eventHeaderCString, "message-summary")) return true;
+	}
+
 	return false;
 }
 

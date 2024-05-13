@@ -86,6 +86,7 @@ class Agent : public AgentInterface,
 	StatCounter64* mCountIncomingBye = nullptr;
 	StatCounter64* mCountIncomingCancel = nullptr;
 	StatCounter64* mCountIncomingMessage = nullptr;
+	StatCounter64* mCountIncomingNotify = nullptr;
 	StatCounter64* mCountIncomingOptions = nullptr;
 	StatCounter64* mCountIncomingDecline = nullptr;
 	StatCounter64* mCountIncomingReqUnknown = nullptr;

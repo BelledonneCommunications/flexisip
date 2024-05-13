@@ -70,4 +70,19 @@ void PNContextMessage::sendPush() {
 	mStrategy->sendMessageNotification(mPInfo);
 }
 
+void PNContextNotify::init() {
+	const auto& root = mModule->getAgent()->getRoot();
+	if (mPInfo->mDestinations.find(PushType::Message) != mPInfo->mDestinations.cend()) {
+		mStrategy = MessagePushStrategy::make(shared_from_this(), root, mModule->getService(), weak_ptr<BranchInfo>{});
+	} else if (mPInfo->mDestinations.find(PushType::Background) != mPInfo->mDestinations.cend()) {
+		mStrategy = BackgroundPushStrategy::make(shared_from_this(), root, mModule->getService());
+	} else {
+		throw InvalidPushParameters{"invalid push type for PNContextNotify"};
+	}
+}
+
+void PNContextNotify::sendPush() {
+	mStrategy->sendMessageNotification(mPInfo);
+}
+
 }; // namespace flexisip

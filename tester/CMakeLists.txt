@@ -107,6 +107,7 @@ add_executable(flexisip_tester
 	tests/pushnotification/authentication-manager-tester.cc
 	tests/pushnotification/rfc8599-push-params-tester.cc
 	tests/pushnotification/module-pushnotification-tester.cc
+	tests/pushnotification/notify-pushnotification-tester.cc
 	tests/pushnotification/service-tester.cc
 	tests/registrar/extended-contact-tester.cc
 	tests/registrar/register-tester.cc

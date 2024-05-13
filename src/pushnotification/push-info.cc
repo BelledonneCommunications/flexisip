@@ -126,8 +126,15 @@ void PushInfo::parseAppleSpecifics(const sofiasip::MsgSip& msg) {
 		msg_snd = "empty";
 	}
 
+	auto mwi_str = UriUtils::getParamValue(params, "pn-mwi-str");
+	if (mwi_str.empty()) {
+		SLOGD << "no optional pn-mwi-str, using MWI_NOTIFY_STR";
+		mwi_str = "MWI_NOTIFY_STR";
+	}
+
 	if (sip->sip_request->rq_method == sip_method_invite && !msg.isGroupChatInvite()) this->mAlertMsgId = call_str;
 	else if (sip->sip_request->rq_method == sip_method_message) this->mAlertMsgId = msg_str;
+	else if (sip->sip_request->rq_method == sip_method_notify) this->mAlertMsgId = mwi_str;
 	else if (msg.isGroupChatInvite()) this->mAlertMsgId = group_chat_str;
 	else this->mAlertMsgId = "IC_SIL";
 

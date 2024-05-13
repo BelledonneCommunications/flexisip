@@ -69,6 +69,7 @@ void createAgentCounters(GenericStruct& root) {
 		createCounter(key, help, "bye");
 		createCounter(key, help, "cancel");
 		createCounter(key, help, "message");
+		createCounter(key, help, "notify");
 		createCounter(key, help, "decline");
 		createCounter(key, help, "options");
 		createCounter(key, help, "unknown");
@@ -122,6 +123,7 @@ void Agent::onDeclare(const GenericStruct& root) {
 		mCountIncomingBye = global->getStat(key + "bye");
 		mCountIncomingCancel = global->getStat(key + "cancel");
 		mCountIncomingMessage = global->getStat(key + "message");
+		mCountIncomingNotify = global->getStat(key + "notify");
 		mCountIncomingDecline = global->getStat(key + "decline");
 		mCountIncomingOptions = global->getStat(key + "options");
 		mCountIncomingReqUnknown = global->getStat(key + "unknown");
@@ -995,6 +997,9 @@ void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 			break;
 		case sip_method_message:
 			++*mCountIncomingMessage;
+			break;
+		case sip_method_notify:
+			++*mCountIncomingNotify;
 			break;
 		case sip_method_options:
 			++*mCountIncomingOptions;

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -61,6 +61,28 @@ public:
 	                                              const std::shared_ptr<const pushnotification::PushInfo>& pInfo,
 	                                              const std::string& pnKey) {
 		auto obj = std::shared_ptr<PNContextMessage>{new PNContextMessage{transaction, _module, pInfo, pnKey}};
+		obj->init();
+		return obj;
+	}
+
+	void sendPush() override;
+
+private:
+	using PushNotificationContext::PushNotificationContext;
+
+	/**
+	 * Post construction initializations.
+	 */
+	void init();
+};
+
+class PNContextNotify : public PushNotificationContext {
+public:
+	static std::shared_ptr<PNContextNotify> make(const std::shared_ptr<OutgoingTransaction>& transaction,
+	                                             PushNotification* _module,
+	                                             const std::shared_ptr<const pushnotification::PushInfo>& pInfo,
+	                                             const std::string& pnKey) {
+		auto obj = std::shared_ptr<PNContextNotify>{new PNContextNotify{transaction, _module, pInfo, pnKey}};
 		obj->init();
 		return obj;
 	}
