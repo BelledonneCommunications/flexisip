@@ -18,22 +18,20 @@
 
 #pragma once
 
-#include "compat/optional.hh"
-#include <chrono>
 #include <list>
-#include <map>
 
 #include <belle-sip/belle-sip.h>
 #include <memory>
 
+#include "flexisip/configmanager.hh"
 #include "flexisip/flexisip-exception.hh"
 
-#include "presence/belle-sip-using.hh"
+#include "presence/presence-server.hh"
 #include "presence/presentity/presence-information-element-map.hh"
 
 namespace flexisip {
 
-class PresentityManager;
+class PresentityManagerInterface;
 
 /**
  * Presence Information is the key class representing a presentity. This class can be either created by a Publish for a
@@ -43,8 +41,10 @@ class PresentityPresenceInformation : public std::enable_shared_from_this<Presen
                                       public ElementMapListener {
 
 public:
-	static std::shared_ptr<PresentityPresenceInformation>
-	make(const belle_sip_uri_t* entity, PresentityManager& presentityManager, belle_sip_main_loop_t* ml);
+	static std::shared_ptr<PresentityPresenceInformation> make(const belle_sip_uri_t* entity,
+	                                                           PresentityManagerInterface& presentityManager,
+	                                                           belle_sip_main_loop_t* ml,
+	                                                           const PresenceStats& presenceStats);
 	~PresentityPresenceInformation() override;
 
 	/*
@@ -157,9 +157,9 @@ public:
 
 private:
 	PresentityPresenceInformation(const belle_sip_uri_t* entity,
-	                              PresentityManager& presentityManager,
-	                              belle_sip_main_loop_t* ml);
-	PresentityPresenceInformation(const PresentityPresenceInformation& other);
+	                              PresentityManagerInterface& presentityManager,
+	                              belle_sip_main_loop_t* ml,
+	                              const PresenceStats& presenceStats);
 	/*
 	 * tuples may be null
 	 */
@@ -179,8 +179,10 @@ private:
 	    const std::function<void(const std::shared_ptr<PresentityPresenceInformationListener>&)>& doFunc) const;
 
 	const belle_sip_uri_t* mEntity;
-	PresentityManager& mPresentityManager;
+	PresentityManagerInterface& mPresentityManager;
 	belle_sip_main_loop_t* mBelleSipMainloop;
+	const std::weak_ptr<StatPair> mCountPresencePresentity;
+	const std::weak_ptr<StatPair> mCountPresenceElement;
 
 	// Tuples ordered by Etag.
 	std::shared_ptr<PresenceInformationElementMap> mInformationElements{};

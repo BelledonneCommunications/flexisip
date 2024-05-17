@@ -18,7 +18,6 @@
 
 #include "presence-information-element.hh"
 
-#include <functional>
 #include <memory>
 
 #include <ostream>
@@ -37,9 +36,12 @@ using namespace std::chrono;
 namespace flexisip {
 
 PresenceInformationElement::PresenceInformationElement(Xsd::Pidf::Presence::TupleSequence* tuples,
-                                                       Xsd::DataModel::Person* person) {
+                                                       Xsd::DataModel::Person* person,
+                                                       const std::weak_ptr<StatPair>& countPresenceElement)
+    : mCountPresenceElement(countPresenceElement) {
+	SLOGD << "Presence information element [" << this << "] created.";
 	for (auto tupleIt = tuples->begin(); tupleIt != tuples->end();) {
-		SLOGD << "Adding tuple id [" << tupleIt->getId() << "] to presence info element [" << this << "]";
+		SLOGT << "Adding tuple id [" << tupleIt->getId() << "] to presence info element [" << this << "]";
 		unique_ptr<Xsd::Pidf::Tuple> r;
 		tupleIt = tuples->detach(tupleIt, r);
 		mTuples.push_back(unique_ptr<Xsd::Pidf::Tuple>(r.release()));
@@ -50,9 +52,18 @@ PresenceInformationElement::PresenceInformationElement(Xsd::Pidf::Presence::Tupl
 		}
 		mPerson.setTimestamp(person->getTimestamp());
 	}
+
+	if (auto sharedCounter = mCountPresenceElement.lock()) {
+		sharedCounter->incrStart();
+	} else {
+		SLOGE << "PresenceInformationElement [" << this << "] - weak_ptr mCountPresenceElement should be present here.";
+	}
 }
 
-PresenceInformationElement::PresenceInformationElement(const belle_sip_uri_t* contact) {
+PresenceInformationElement::PresenceInformationElement(const belle_sip_uri_t* contact,
+                                                       const std::weak_ptr<StatPair>& countPresenceElement)
+    : mCountPresenceElement(countPresenceElement) {
+	SLOGD << "Presence information element [" << this << "] created as default element.";
 	char* contact_as_string = belle_sip_uri_to_string(contact);
 	time_t t;
 	time(&t);
@@ -70,9 +81,20 @@ PresenceInformationElement::PresenceInformationElement(const belle_sip_uri_t* co
 	mPerson.setId(generatePresenceId());
 	mPerson.getActivities().push_back(act);
 	belle_sip_free(contact_as_string);
+
+	if (auto sharedCounter = mCountPresenceElement.lock()) {
+		sharedCounter->incrStart();
+	} else {
+		SLOGE << "PresenceInformationElement [" << this << "] - weak_ptr mCountPresenceElement should be present here.";
+	}
 }
 
 PresenceInformationElement::~PresenceInformationElement() {
+	if (auto sharedCounter = mCountPresenceElement.lock()) {
+		sharedCounter->incrFinish();
+	} else {
+		SLOGE << "PresenceInformationElement [" << this << "] - weak_ptr mCountPresenceElement should be present here.";
+	}
 	SLOGD << "Presence information element [" << this << "] deleted";
 }
 
@@ -82,7 +104,7 @@ void PresenceInformationElement::clearTuples() {
 
 const unique_ptr<Xsd::Pidf::Tuple>& PresenceInformationElement::getTuple(const string& id) const {
 	for (const unique_ptr<Xsd::Pidf::Tuple>& tup : mTuples) {
-		if (tup->getId().compare(id) == 0) return tup;
+		if (tup->getId() == id) return tup;
 	}
 	throw FLEXISIP_EXCEPTION << "No tuple found for id [" << id << "]";
 }

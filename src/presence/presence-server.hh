@@ -29,15 +29,24 @@
 #include "auth/db/authdb.hh"
 #include "flexisip/configmanager.hh"
 #include "service-server/service-server.hh"
-#include "observers/presence-info-observer.hh"
 #include "registrar/registrar-db.hh"
 #include "utils/thread/thread-pool.hh"
 
 namespace flexisip {
 
 // Used in main.cc, use forward declaration
-class PresentityManager;
+class PresentityManagerInterface;
 class Subscription;
+
+struct PresenceStats {
+	std::shared_ptr<StatPair> countPresencePresentity;
+	std::shared_ptr<StatPair> countPresenceElement;
+	std::shared_ptr<StatPair> countPresenceElementMap;
+
+	std::shared_ptr<StatPair> countPresenceSub;
+	std::shared_ptr<StatPair> countBodyListSub;
+	std::shared_ptr<StatPair> countExternalListSub;
+};
 
 class PresenceServer : public ServiceServer {
 public:
@@ -48,6 +57,9 @@ public:
 	std::unique_ptr<AsyncCleanup> _stop() override;
 	belle_sip_main_loop_t* getBelleSipMainLoop();
 	void enableLongTermPresence(const std::shared_ptr<AuthDb>& authDb, const std::shared_ptr<RegistrarDb>& registrarDb);
+	const PresenceStats& getPresenceStats() {
+		return mPresenceStats;
+	}
 
 	static unsigned int sLastActivityRetentionMs;
 
@@ -90,7 +102,8 @@ private:
 	std::unique_ptr<ThreadPool> mThreadPool{};
 	bool mEnabled;
 	size_t mMaxPresenceInfoNotifiedAtATime;
-	std::unique_ptr<PresentityManager> mPresentityManager;
+	std::unique_ptr<PresentityManagerInterface> mPresentityManager;
+	PresenceStats mPresenceStats;
 
 	static constexpr const char* sSubscriptionDataTag = "subscription";
 };

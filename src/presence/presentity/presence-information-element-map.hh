@@ -38,9 +38,11 @@ public:
 	using ElementMapType = std::unordered_map<std::string /*Etag*/, std::unique_ptr<PresenceInformationElement>>;
 
 	static std::shared_ptr<PresenceInformationElementMap>
-	make(belle_sip_main_loop_t* belleSipMainloop, const std::weak_ptr<PresentityPresenceInformation>& initialParent);
+	make(belle_sip_main_loop_t* belleSipMainloop,
+	     const std::weak_ptr<PresentityPresenceInformation>& initialParent,
+	     const std::weak_ptr<StatPair>& countPresenceElementMap);
 
-	virtual ~PresenceInformationElementMap() = default;
+	virtual ~PresenceInformationElementMap();
 
 	void emplace(const std::string& eTag, std::unique_ptr<PresenceInformationElement>&& element);
 	bool isEtagPresent(const std::string& eTag);
@@ -90,7 +92,8 @@ public:
 
 private:
 	explicit PresenceInformationElementMap(belle_sip_main_loop_t* belleSipMainloop,
-	                                       const std::weak_ptr<PresentityPresenceInformation>& initialParent);
+	                                       const std::weak_ptr<PresentityPresenceInformation>& initialParent,
+	                                       const std::weak_ptr<StatPair>& countPresenceElementMap);
 
 	void setupLastActivity();
 
@@ -101,6 +104,7 @@ private:
 	BelleSipSourcePtr mLastActivityTimer = nullptr;
 
 	mutable std::list<std::weak_ptr<PresentityPresenceInformation>> mParents;
+	const std::weak_ptr<StatPair> mCountPresenceElementMap;
 };
 
 } /* namespace flexisip */

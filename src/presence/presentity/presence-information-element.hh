@@ -18,11 +18,11 @@
 
 #pragma once
 
-#include "compat/optional.hh"
-#include <chrono>
 #include <list>
 
 #include <belle-sip/belle-sip.h>
+
+#include "flexisip/configmanager.hh"
 
 #include "presence/belle-sip-using.hh"
 #include "xml/pidf+xml.hh"
@@ -34,18 +34,22 @@ public:
 	/* Re-definition of BelleSipSourcePtr in order to use BelleSipSourceCancelingDeleter as deleter */
 	using BelleSipSourcePtr = std::unique_ptr<belle_sip_source_t, BelleSipSourceCancelingDeleter>;
 
-	PresenceInformationElement(Xsd::Pidf::Presence::TupleSequence* tuples, Xsd::DataModel::Person* person);
+	PresenceInformationElement(Xsd::Pidf::Presence::TupleSequence* tuples,
+	                           Xsd::DataModel::Person* person,
+	                           const std::weak_ptr<StatPair>& countPresenceElement);
 	template <typename T>
 	PresenceInformationElement(Xsd::Pidf::Presence::TupleSequence* tuples,
 	                           Xsd::DataModel::Person* person,
 	                           const std::string& eTag,
-	                           T&& timer)
-	    : PresenceInformationElement(tuples, person) {
+	                           T&& timer,
+	                           const std::weak_ptr<StatPair>& countPresenceElement)
+	    : PresenceInformationElement(tuples, person, countPresenceElement) {
 		setEtag(eTag);
 		setExpiresTimer(std::move(timer));
 	};
 	// create an information element with a default tuple set to open.
-	explicit PresenceInformationElement(const belle_sip_uri_t* contact);
+	explicit PresenceInformationElement(const belle_sip_uri_t* contact,
+	                                    const std::weak_ptr<StatPair>& countPresenceElement);
 	~PresenceInformationElement();
 
 	template <typename T>
@@ -63,6 +67,7 @@ public:
 private:
 	static std::string generatePresenceId();
 
+	const std::weak_ptr<StatPair> mCountPresenceElement;
 	std::list<std::unique_ptr<Xsd::Pidf::Tuple>> mTuples;
 	Xsd::DataModel::Person mPerson{""};
 	BelleSipSourcePtr mTimer;

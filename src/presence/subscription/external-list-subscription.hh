@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,8 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef flexisip_rls_external_subscription_hh
-#define flexisip_rls_external_subscription_hh
+#pragma once
 
 #include "soci/soci.h"
 
@@ -35,6 +34,7 @@ public:
 	                         belle_sip_server_transaction_t* ist,
 	                         belle_sip_provider_t* aProv,
 	                         size_t maxPresenceInfoNotifiedAtATime,
+	                         const std::weak_ptr<StatPair>& countExternalListSubscription,
 	                         std::function<void(std::shared_ptr<ListSubscription>)> listAvailable,
 	                         const std::string& sqlRequest,
 	                         soci::connection_pool* connPool,
@@ -47,5 +47,3 @@ private:
 };
 
 } // namespace flexisip
-
-#endif // flexisip_rls_external_subscription_hh

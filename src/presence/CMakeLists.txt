@@ -27,10 +27,10 @@ target_sources(flexisip PRIVATE
         observers/presence-info-observer.hh
         observers/presence-longterm.cc observers/presence-longterm.hh
         presence-server.cc presence-server.hh
-        presentity/map-presentity-manager.cc presentity/map-presentity-manager.hh
+        presentity/presentity-manager.cc presentity/presentity-manager.hh
         presentity/presence-information-element.cc presentity/presence-information-element.hh
         presentity/presence-information-element-map.cc presentity/presence-information-element-map.hh
-        presentity/presentity-manager.hh
+        presentity/presentity-manager-interface.hh
         presentity/presentity-presence-information.cc presentity/presentity-presence-information.hh
         presentity/presentity-presence-information-listener.cc presentity/presentity-presence-information-listener.hh
         subscription/body-list-subscription.cc subscription/body-list-subscription.hh

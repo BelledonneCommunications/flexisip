@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -30,22 +30,39 @@ using namespace std;
 
 namespace flexisip {
 
-Subscription::Subscription(const string &eventName, unsigned int expires, const bellesip::weak_ptr<belle_sip_dialog_t> &aDialog,
-						   belle_sip_provider_t *prov)
-	: mDialog{aDialog}, mProv{prov}, mEventName{eventName} {
+Subscription::Subscription(const string& eventName,
+                           unsigned int expires,
+                           const bellesip::weak_ptr<belle_sip_dialog_t>& aDialog,
+                           belle_sip_provider_t* prov,
+                           const std::weak_ptr<StatPair>& countSubscription)
+    : mDialog{aDialog}, mProv{prov}, mEventName{eventName}, mCountSubscription{countSubscription} {
 	time(&mCreationTime);
 	mExpirationTime = mCreationTime + expires;
+	if (auto sharedCounter = mCountSubscription.lock()) {
+		sharedCounter->incrStart();
+	} else {
+		SLOGE << "Subscription [" << this << "] - weak_ptr mCountSubscription should be present here.";
+	}
 }
-void Subscription::setAcceptHeader(belle_sip_header_t *acceptHeader) {
+
+Subscription::~Subscription() {
+	if (auto sharedCounter = mCountSubscription.lock()) {
+		sharedCounter->incrFinish();
+	} else {
+		SLOGE << "Subscription [" << this << "] - weak_ptr mCountSubscription should be present here.";
+	}
+}
+
+void Subscription::setAcceptHeader(belle_sip_header_t* acceptHeader) {
 	if (acceptHeader) belle_sip_object_ref(acceptHeader);
 	mAcceptHeader.reset(acceptHeader);
 }
-void Subscription::setAcceptEncodingHeader(belle_sip_header_t *acceptEncodingHeader) {
+void Subscription::setAcceptEncodingHeader(belle_sip_header_t* acceptEncodingHeader) {
 	if (acceptEncodingHeader) belle_sip_object_ref(acceptEncodingHeader);
 	mAcceptEncodingHeader.reset(acceptEncodingHeader);
 }
 
-const char *Subscription::stateToString(State aState) {
+const char* Subscription::stateToString(State aState) {
 	switch (aState) {
 		case State::active:
 			return BELLE_SIP_SUBSCRIPTION_STATE_ACTIVE;
@@ -57,33 +74,37 @@ const char *Subscription::stateToString(State aState) {
 	return "Unknown state";
 }
 
-void Subscription::notify(belle_sip_header_content_type_t *content_type, const string *body,
-						  belle_sip_multipart_body_handler_t *multiPartBody, const string *content_encoding) {
+void Subscription::notify(belle_sip_header_content_type_t* content_type,
+                          const string* body,
+                          belle_sip_multipart_body_handler_t* multiPartBody,
+                          const string* content_encoding) {
 	auto dialog = mDialog.lock();
 	if (!dialog) {
 		SLOGI << "Cannot notify information change for [" << this << "] because dialog no more exists";
 		return;
 	}
 	if (belle_sip_dialog_get_state(dialog.get()) != BELLE_SIP_DIALOG_CONFIRMED) {
-		SLOGI << "Cannot notify information change for [" << this << "] because dialog [" << dialog.get() << "] is in state ["
-			  << belle_sip_dialog_state_to_string(belle_sip_dialog_get_state(dialog.get())) << "]";
+		SLOGI << "Cannot notify information change for [" << this << "] because dialog [" << dialog.get()
+		      << "] is in state [" << belle_sip_dialog_state_to_string(belle_sip_dialog_get_state(dialog.get())) << "]";
 		return;
 	}
-	belle_sip_request_t *notify = belle_sip_dialog_create_queued_request(dialog.get(), "NOTIFY");
-	belle_sip_message_add_header((belle_sip_message_t *)notify, belle_sip_header_create("Event", mEventName.c_str()));
+	belle_sip_request_t* notify = belle_sip_dialog_create_queued_request(dialog.get(), "NOTIFY");
+	belle_sip_message_add_header((belle_sip_message_t*)notify, belle_sip_header_create("Event", mEventName.c_str()));
 
 	if (content_type && body) {
 		belle_sip_message_add_header(BELLE_SIP_MESSAGE(notify), BELLE_SIP_HEADER(content_type));
 		belle_sip_message_set_body(BELLE_SIP_MESSAGE(notify), body->c_str(), (int)body->length());
-		belle_sip_message_add_header(BELLE_SIP_MESSAGE(notify), BELLE_SIP_HEADER(belle_sip_header_content_length_create((int)body->length())));
+		belle_sip_message_add_header(BELLE_SIP_MESSAGE(notify),
+		                             BELLE_SIP_HEADER(belle_sip_header_content_length_create((int)body->length())));
 	} else if (multiPartBody) {
 		belle_sip_message_add_header(BELLE_SIP_MESSAGE(notify), belle_sip_header_create("Require", "eventlist"));
 		belle_sip_multipart_body_handler_set_related(multiPartBody, TRUE);
 		belle_sip_message_set_body_handler(BELLE_SIP_MESSAGE(notify), BELLE_SIP_BODY_HANDLER(multiPartBody));
 		if (content_encoding && mAcceptEncodingHeader) {
-			const char *accept_encoding = belle_sip_header_get_unparsed_value(mAcceptEncodingHeader.get());
+			const char* accept_encoding = belle_sip_header_get_unparsed_value(mAcceptEncodingHeader.get());
 			if (accept_encoding && (strcmp(accept_encoding, content_encoding->c_str()) == 0)) {
-				belle_sip_message_add_header(BELLE_SIP_MESSAGE(notify), belle_sip_header_create("Content-Encoding", content_encoding->c_str()));
+				belle_sip_message_add_header(BELLE_SIP_MESSAGE(notify),
+				                             belle_sip_header_create("Content-Encoding", content_encoding->c_str()));
 			}
 		}
 	}
@@ -103,11 +124,11 @@ void Subscription::notify(belle_sip_header_content_type_t *content_type, const s
 	time_t current_time;
 	time(&current_time);
 
-	belle_sip_header_subscription_state_t *sub_state = belle_sip_header_subscription_state_new();
+	belle_sip_header_subscription_state_t* sub_state = belle_sip_header_subscription_state_new();
 	belle_sip_message_add_header(BELLE_SIP_MESSAGE(notify), BELLE_SIP_HEADER(sub_state));
 
 	// fixme use git version
-	belle_sip_header_user_agent_t *userAgent = belle_sip_header_user_agent_new();
+	belle_sip_header_user_agent_t* userAgent = belle_sip_header_user_agent_new();
 	belle_sip_header_user_agent_add_product(userAgent, "flexisip-presence");
 	belle_sip_message_add_header(BELLE_SIP_MESSAGE(notify), BELLE_SIP_HEADER(userAgent));
 
@@ -132,24 +153,28 @@ const belle_sip_uri_t* Subscription::getTo() {
 }
 // Presence Subscription
 
-PresenceSubscription::PresenceSubscription(unsigned int expires, const belle_sip_uri_t *presentity,
-										   const bellesip::weak_ptr<belle_sip_dialog_t> &aDialog, belle_sip_provider_t *aProv)
-	: Subscription{"Presence", expires, aDialog, aProv},
-	  mPresentity{(belle_sip_uri_t *)belle_sip_object_ref(belle_sip_object_clone(BELLE_SIP_OBJECT(presentity)))} {}
+PresenceSubscription::PresenceSubscription(unsigned int expires,
+                                           const belle_sip_uri_t* presentity,
+                                           const bellesip::weak_ptr<belle_sip_dialog_t>& aDialog,
+                                           belle_sip_provider_t* aProv,
+                                           const std::weak_ptr<StatPair>& countPresenceSubscription)
+    : Subscription{"Presence", expires, aDialog, aProv, countPresenceSubscription},
+      mPresentity{(belle_sip_uri_t*)belle_sip_object_ref(belle_sip_object_clone(BELLE_SIP_OBJECT(presentity)))} {
+}
 
 PresenceSubscription::~PresenceSubscription() {
 	SLOGD << "PresenceSubscription [" << this << "] deleted";
 }
 
-void PresenceSubscription::onInformationChanged(PresentityPresenceInformation &presenceInformation, bool extended) {
+void PresenceSubscription::onInformationChanged(PresentityPresenceInformation& presenceInformation, bool extended) {
 	string body;
-	belle_sip_header_content_type_t *content_type = NULL;
+	belle_sip_header_content_type_t* content_type = NULL;
 	try {
 		if (getState() == State::active) {
 			body += presenceInformation.getPidf(extended);
 			content_type = belle_sip_header_content_type_create("application", "pidf+xml");
 		}
-	} catch (FlexisipException &e) {
+	} catch (FlexisipException& e) {
 		SLOGD << "Cannot notify [" << this->getPresentityUri() << "] caused by [" << e << "]";
 		return;
 	}
@@ -157,9 +182,9 @@ void PresenceSubscription::onInformationChanged(PresentityPresenceInformation &p
 	notify(content_type, body);
 }
 
-void PresenceSubscription::onExpired([[maybe_unused]] PresentityPresenceInformation &presenceInformation) {
+void PresenceSubscription::onExpired([[maybe_unused]] PresentityPresenceInformation& presenceInformation) {
 	// just transition state to expired
 	setState(Subscription::State::terminated);
 }
 
-}
+} // namespace flexisip
