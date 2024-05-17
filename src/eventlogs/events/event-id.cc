@@ -21,6 +21,8 @@
 #include <functional>
 #include <string>
 
+#include "utils/digest.hh"
+
 namespace flexisip {
 
 using namespace std;
@@ -34,11 +36,11 @@ EventId::EventId(const sip_t& sip)
 
 	      const auto sortedIdentities = minmax(toIdentity, fromIdentity);
 
-	      return hash<string>{}(sip.sip_call_id->i_id + sortedIdentities.first + sortedIdentities.second);
+	      return Sha256{}.compute<string>(sip.sip_call_id->i_id + sortedIdentities.first + sortedIdentities.second);
       }()) {
 }
 
-EventId::EventId(const std::string& id) : mHash(std::stoull(id)) {
+EventId::EventId(std::string_view id) : mHash(id) {
 }
 
 } // namespace flexisip

@@ -29,15 +29,15 @@ namespace flexisip {
 class EventId {
 public:
 	explicit EventId(const sip_t&);
-	// Parse an ID serialized to a string. May throw the same exceptions as std::stoull.
-	explicit EventId(const std::string&);
+	explicit EventId(std::string_view);
 
+	// Voluntarily non-explicit so it allows implicit conversions.
 	operator std::string() const {
-		return std::to_string(mHash);
+		return mHash;
 	}
 
 private:
-	const std::size_t mHash;
+	const std::string mHash;
 };
 
 } // namespace flexisip
