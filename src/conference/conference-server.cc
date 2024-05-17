@@ -191,6 +191,8 @@ void ConferenceServer::_init() {
 		accountParams->enableOutboundProxy(true);
 		accountParams->setConferenceFactoryUri(factoryUri->asString());
 		auto account = mCore->createAccount(accountParams);
+		// The default contact address is the identity address. It will be used if the connection to the REDIS server is broken or the answer is very slow and a client calls a conference before onRecordFound() is called
+		account->setContactAddress(accountParams->getIdentityAddress());
 		mCore->addAccount(account);
 		if (!defaultAccountSet) {
 			defaultAccountSet = true;
