@@ -26,17 +26,36 @@ namespace flexisip {
 
 std::shared_ptr<PresenceInformationElementMap>
 PresenceInformationElementMap::make(belle_sip_main_loop_t* belleSipMainloop,
-                                    const std::weak_ptr<PresentityPresenceInformation>& initialParent) {
+                                    const std::weak_ptr<PresentityPresenceInformation>& initialParent,
+                                    const std::weak_ptr<StatPair>& countPresenceElementMap) {
 	return std::shared_ptr<PresenceInformationElementMap>(
-	    new PresenceInformationElementMap(belleSipMainloop, initialParent));
+	    new PresenceInformationElementMap(belleSipMainloop, initialParent, countPresenceElementMap));
 }
 
 PresenceInformationElementMap::PresenceInformationElementMap(
-    belle_sip_main_loop_t* belleSipMainloop, const weak_ptr<PresentityPresenceInformation>& initialParent)
-    : mBelleSipMainloop(belleSipMainloop) {
+    belle_sip_main_loop_t* belleSipMainloop,
+    const weak_ptr<PresentityPresenceInformation>& initialParent,
+    const std::weak_ptr<StatPair>& countPresenceElementMap)
+    : mBelleSipMainloop(belleSipMainloop), mCountPresenceElementMap(countPresenceElementMap) {
 	mParents.push_back(initialParent);
 	mListeners.push_back(initialParent);
+
+	if (auto sharedCounter = mCountPresenceElementMap.lock()) {
+		sharedCounter->incrStart();
+	} else {
+		SLOGE << "PresenceInformationElementMap [" << this
+		      << "] - weak_ptr mCountPresenceElementMap should be present here.";
+	}
 };
+
+PresenceInformationElementMap::~PresenceInformationElementMap() {
+	if (auto sharedCounter = mCountPresenceElementMap.lock()) {
+		sharedCounter->incrFinish();
+	} else {
+		SLOGE << "PresenceInformationElementMap [" << this
+		      << "] - weak_ptr mCountPresenceElementMap should be present here.";
+	}
+}
 
 void PresenceInformationElementMap::removeByEtag(const std::string& eTag, bool notifyOther) {
 	auto it = mInformationElements.find(eTag);
@@ -66,6 +85,10 @@ void PresenceInformationElementMap::emplace(const std::string& eTag,
                                             std::unique_ptr<PresenceInformationElement>&& element) {
 	if (mInformationElements.try_emplace(eTag, std::move(element)).second) {
 		notifyListeners();
+		if (mInformationElements.size() > 10) {
+			SLOGI << "PresenceInformationElementMap[" << this << "] - large map of " << mInformationElements.size()
+			      << " elements.";
+		}
 	}
 }
 
@@ -122,7 +145,7 @@ size_t PresenceInformationElementMap::getNumberOfListeners() {
 			continue;
 		}
 		numberOfListeners += parent->getNumberOfListeners();
-		it++;
+		++it;
 	}
 
 	return numberOfListeners;

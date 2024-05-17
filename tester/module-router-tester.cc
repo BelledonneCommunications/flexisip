@@ -74,7 +74,7 @@ private:
 		bool responseReceived = false;
 		bool requestReceived = false;
 		BellesipUtils bellesipUtilsFallback{
-		    "0.0.0.0", 8282, "UDP", nullptr,
+		    "0.0.0.0", 8282, "UDP", (BellesipUtils::ProcessResponseStatusCb) nullptr,
 		    [&requestReceived](const belle_sip_request_event_t*) { requestReceived = true; }};
 		BellesipUtils bellesipUtils{"0.0.0.0", -1, "UDP",
 		                            [&responseReceived](int status) {
@@ -204,7 +204,8 @@ private:
 		bool isRequestAccepted = false;
 		bool isRequestReceived = false;
 		BellesipUtils bellesipUtilsReceiver{
-		    "0.0.0.0", 8383, "TCP", nullptr, [&isRequestReceived](const belle_sip_request_event_t* event) {
+		    "0.0.0.0", 8383, "TCP", (BellesipUtils::ProcessResponseStatusCb) nullptr,
+		    [&isRequestReceived](const belle_sip_request_event_t* event) {
 			    isRequestReceived = true;
 			    if (!BC_ASSERT_PTR_NOT_NULL(belle_sip_request_event_get_request(event))) {
 				    return;
@@ -292,7 +293,8 @@ private:
 		bool isRequestAccepted = false;
 		bool isRequestReceived = false;
 		BellesipUtils bellesipUtilsReceiver{
-		    "0.0.0.0", 8383, "TCP", nullptr, [&isRequestReceived](const belle_sip_request_event_t* event) {
+		    "0.0.0.0", 8383, "TCP", (BellesipUtils::ProcessResponseStatusCb) nullptr,
+		    [&isRequestReceived](const belle_sip_request_event_t* event) {
 			    isRequestReceived = true;
 			    auto request = belle_sip_request_event_get_request(event);
 			    BC_HARD_ASSERT_NOT_NULL(request);

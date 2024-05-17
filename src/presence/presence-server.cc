@@ -30,7 +30,7 @@
 
 #include "bellesip-signaling-exception.hh"
 #include "observers/presence-longterm.hh"
-#include "presence/presentity/map-presentity-manager.hh"
+#include "presence/presentity/presentity-manager.hh"
 #include "presence/presentity/presentity-presence-information.hh"
 #include "presence/subscription/subscription.hh"
 #include "subscription/body-list-subscription.hh"
@@ -126,16 +126,33 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	auto maxThreadQueueSize = s->get<ConfigInt>("max-thread-queue-size");
 	maxThreadQueueSize->setDeprecated({"2020-06-02", "2.0.0", "Renamed into 'rls-database-max-thread-queue-size'"});
 	s->get<ConfigInt>("rls-database-max-thread-queue-size")->setFallback(*maxThreadQueueSize);
+
+	s->createStatPair("count-presence-presentity", "Number of PresentityPresenceInformation");
+	s->createStatPair("count-presence-element-map", "Number of PresenceInformationElementMap");
+	s->createStatPair("count-presence-element", "Number of PresenceInformationElement");
+
+	s->createStatPair("count-presence-subscription", "Number of PresenceSubscription");
+	s->createStatPair("count-presence-body-list-subscription", "Number of BodyListSubscription");
+	s->createStatPair("count-presence-external-list-subscription", "Number of ExternalListSubscription");
 });
 } // namespace
 
 PresenceServer::PresenceServer(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg)
     : ServiceServer{root}, mConfigManager(cfg) {
-	const auto* config = mConfigManager->getRoot()->get<GenericStruct>("presence-server");
+	auto* config = mConfigManager->getRoot()->get<GenericStruct>("presence-server");
 	/*Enabling leak detector should be done asap.*/
 	belle_sip_object_enable_leak_detector(config->get<ConfigBoolean>("leak-detector")->read());
 	mStack = belle_sip_stack_new(nullptr);
-	mPresentityManager = std::make_unique<MapPresentityManager>(mStack);
+
+	mPresenceStats.countPresenceSub = config->getStatPairPtr("count-presence-subscription");
+	mPresenceStats.countBodyListSub = config->getStatPairPtr("count-presence-body-list-subscription");
+	mPresenceStats.countExternalListSub = config->getStatPairPtr("count-presence-external-list-subscription");
+
+	mPresenceStats.countPresencePresentity = config->getStatPairPtr("count-presence-presentity");
+	mPresenceStats.countPresenceElement = config->getStatPairPtr("count-presence-element");
+	mPresenceStats.countPresenceElementMap = config->getStatPairPtr("count-presence-element-map");
+	mPresentityManager = std::make_unique<PresentityManager>(mStack, mPresenceStats);
+
 	mProvider = belle_sip_stack_create_provider(mStack, nullptr);
 	mMaxPresenceInfoNotifiedAtATime = config->get<ConfigInt>("notify-limit")->read();
 
@@ -725,8 +742,9 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 					}
 
 					listSubscription = make_shared<ExternalListSubscription>(
-					    expires, server_transaction, mProvider, mMaxPresenceInfoNotifiedAtATime, listAvailableLambda,
-					    mRequest, mConnPool, mThreadPool.get());
+					    expires, server_transaction, mProvider, mMaxPresenceInfoNotifiedAtATime,
+					    mPresenceStats.countExternalListSub, listAvailableLambda, mRequest, mConnPool,
+					    mThreadPool.get());
 #else
 					goto error;
 #endif
@@ -737,7 +755,8 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				    strcasecmp(belle_sip_header_content_type_get_type(contentType), "application") == 0 &&
 				    strcasecmp(belle_sip_header_content_type_get_subtype(contentType), "resource-lists+xml") == 0) {
 					listSubscription = make_shared<BodyListSubscription>(
-					    expires, server_transaction, mProvider, mMaxPresenceInfoNotifiedAtATime, listAvailableLambda);
+					    expires, server_transaction, mProvider, mMaxPresenceInfoNotifiedAtATime,
+					    mPresenceStats.countBodyListSub, listAvailableLambda);
 				} else { // Unsuported
 				error:
 					throw BELLESIP_SIGNALING_EXCEPTION_1(
@@ -748,8 +767,8 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				}
 				setSubscription(dialog.get(), listSubscription);
 			} else { // Simple subscription
-				auto sub =
-				    make_shared<PresenceSubscription>(expires, belle_sip_request_get_uri(request), dialog, mProvider);
+				auto sub = make_shared<PresenceSubscription>(expires, belle_sip_request_get_uri(request), dialog,
+				                                             mProvider, mPresenceStats.countPresenceSub);
 				shared_ptr<PresentityPresenceInformationListener> subscription{sub};
 				setSubscription(dialog.get(), sub);
 				SLOGD << " setting sub pointer [" << belle_sip_dialog_get_application_data(dialog.get())

@@ -27,9 +27,8 @@
 #include "flexisip/flexisip-exception.hh"
 #include "flexisip/logmanager.hh"
 
-#include "presence/presence-server.hh"
 #include "presence/presentity/presence-information-element.hh"
-#include "presence/presentity/presentity-manager.hh"
+#include "presence/presentity/presentity-manager-interface.hh"
 #include "presence/presentity/presentity-presence-information-listener.hh"
 #include "utils/string-utils.hh"
 #include "utils/xsd-utils.hh"
@@ -51,27 +50,49 @@ FlexisipException& operator<<(FlexisipException& e, const Xsd::XmlSchema::Except
 }
 
 std::shared_ptr<PresentityPresenceInformation> PresentityPresenceInformation::make(const belle_sip_uri_t* entity,
-                                                                                   PresentityManager& presentityManager,
-                                                                                   belle_sip_main_loop_t* mainloop) {
+                                    PresentityManagerInterface& presentityManager,
+                                    belle_sip_main_loop_t* mainloop,
+                                    const PresenceStats& presenceStats) {
 	const auto sharedThis = std::shared_ptr<PresentityPresenceInformation>(
-	    new PresentityPresenceInformation(entity, presentityManager, mainloop));
-	sharedThis->mInformationElements = PresenceInformationElementMap::make(mainloop, sharedThis);
+	    new PresentityPresenceInformation(entity, presentityManager, mainloop, presenceStats));
+	sharedThis->mInformationElements =
+	    PresenceInformationElementMap::make(mainloop, sharedThis, presenceStats.countPresenceElementMap);
 	return sharedThis;
 }
 
 PresentityPresenceInformation::PresentityPresenceInformation(const belle_sip_uri_t* entity,
-                                                             PresentityManager& presentityManager,
-                                                             belle_sip_main_loop_t* mainloop)
+                                                             PresentityManagerInterface& presentityManager,
+                                                             belle_sip_main_loop_t* mainloop,
+                                                             const PresenceStats& presenceStats)
     : mEntity((belle_sip_uri_t*)belle_sip_object_clone(BELLE_SIP_OBJECT(entity))),
-      mPresentityManager(presentityManager), mBelleSipMainloop(mainloop) {
+      mPresentityManager(presentityManager), mBelleSipMainloop(mainloop),
+      mCountPresencePresentity(presenceStats.countPresencePresentity),
+      mCountPresenceElement(presenceStats.countPresenceElement) {
 	belle_sip_object_ref(mainloop);
 	belle_sip_object_ref((void*)mEntity);
+
+	if (auto sharedCounter = mCountPresencePresentity.lock()) {
+		sharedCounter->incrStart();
+	} else {
+		SLOGE << "PresentityPresenceInformation [" << this
+		      << "] - weak_ptr mCountPresencePresentity should be present here.";
+	}
+
+	SLOGD << "Presence information [" << this << "] created for uri [" << mEntity << "]";
 }
 
 PresentityPresenceInformation::~PresentityPresenceInformation() {
 	mInformationElements.reset();
 	belle_sip_object_unref((void*)mEntity);
-	belle_sip_object_unref((void*)mBelleSipMainloop);
+	belle_sip_object_unref(mBelleSipMainloop);
+
+	if (auto sharedCounter = mCountPresencePresentity.lock()) {
+		sharedCounter->incrFinish();
+	} else {
+		SLOGE << "PresentityPresenceInformation [" << this
+		      << "] - weak_ptr mCountPresencePresentity should be present here.";
+	}
+
 	SLOGD << "Presence information [" << this << "] deleted";
 }
 
@@ -165,8 +186,9 @@ string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequ
 		mInformationElements->refreshElement(*eTag, generatedETag, std::move(timer));
 	} else {
 		mPresentityManager.addEtag(shared_from_this(), generatedETag);
-		auto informationElement = make_unique<PresenceInformationElement>(tuples, person, generatedETag, timer);
-		SLOGD << "Creating presence information element [" << informationElement.get() << "]  for presentity [" << *this
+		auto informationElement =
+		    make_unique<PresenceInformationElement>(tuples, person, generatedETag, timer, mCountPresenceElement);
+		SLOGD << "Presence information element [" << informationElement.get() << "] created for presentity [" << *this
 		      << "]";
 		// modify etag list for this presenceInfo and trigger notify on all listeners
 		mInformationElements->emplace(generatedETag, std::move(informationElement));
@@ -181,12 +203,12 @@ string PresentityPresenceInformation::refreshTuplesForEtag(const string& eTag, i
 }
 
 void PresentityPresenceInformation::setDefaultElement() {
-	mDefaultInformationElement = make_shared<PresenceInformationElement>(getEntity());
+	mDefaultInformationElement = make_shared<PresenceInformationElement>(getEntity(), mCountPresenceElement);
 	notifyAll();
 }
 
 void PresentityPresenceInformation::setDefaultElement(const belle_sip_uri_t* newEntity) {
-	mDefaultInformationElement = make_shared<PresenceInformationElement>(getEntity());
+	mDefaultInformationElement = make_shared<PresenceInformationElement>(getEntity(), mCountPresenceElement);
 
 	if (char* newEntityAsString = belle_sip_uri_to_string(newEntity)) {
 		for (auto& tup : mDefaultInformationElement->getTuples()) {
@@ -237,7 +259,7 @@ void PresentityPresenceInformation::addListenerIfNecessary(
 void PresentityPresenceInformation::addOrUpdateListener(
     const shared_ptr<PresentityPresenceInformationListener>& listener, int expires) {
 
-	PresentityPresenceInformation::addListenerIfNecessary(listener);
+	addListenerIfNecessary(listener);
 
 	if (expires > 0) {
 		constexpr unsigned int valMax = numeric_limits<unsigned int>::max() / 1000U;

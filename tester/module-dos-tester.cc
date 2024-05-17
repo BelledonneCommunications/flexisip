@@ -80,7 +80,7 @@ private:
 		moduleDos->clearWhiteList();
 		moduleDos->setBanExecutor(testExecutor);
 
-		BellesipUtils bellesipUtils{"0.0.0.0", -1, protocolConfig->getProtocol(), nullptr, nullptr};
+		BellesipUtils bellesipUtils{"0.0.0.0", -1, protocolConfig->getProtocol(), nullptr};
 
 		int i = 0;
 		const auto before = system_clock::now();

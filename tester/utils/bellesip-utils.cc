@@ -27,10 +27,9 @@ namespace flexisip {
 BellesipUtils::BellesipUtils(const string& ipaddress,
                              int port,
                              const string& transport,
-                             const ProcessResponseEventCb& processResponseEventCb,
-                             const ProcessRequestEventCb& processRequestEventCb) {
-	mProcessResponseEventCb = processResponseEventCb;
-	mProcessRequestEventCb = processRequestEventCb;
+                             const ProcessResponseStatusCb& processResponseStatusCb,
+                             const ProcessRequestEventCb& processRequestEventCb)
+    : mProcessResponseStatusCb(processResponseStatusCb), mProcessRequestEventCb(processRequestEventCb) {
 	mStack = belle_sip_stack_new(nullptr);
 	mListeningPoint = belle_sip_stack_create_listening_point(mStack, ipaddress.c_str(), port, transport.c_str());
 	mProvider = belle_sip_stack_create_provider(mStack, mListeningPoint);
@@ -47,8 +46,11 @@ BellesipUtils::BellesipUtils(const string& ipaddress,
 		                  status = belle_sip_response_get_status_code(belle_sip_response_event_get_response(event)),
 		                  belle_sip_response_get_reason_phrase(belle_sip_response_event_get_response(event)));
 
+		if (thiz->mProcessResponseStatusCb != nullptr) {
+			thiz->mProcessResponseStatusCb.operator()(status);
+		}
 		if (thiz->mProcessResponseEventCb != nullptr) {
-			thiz->mProcessResponseEventCb.operator()(status);
+			thiz->mProcessResponseEventCb.operator()(status, event);
 		}
 	};
 
@@ -70,6 +72,22 @@ BellesipUtils::BellesipUtils(const string& ipaddress,
 
 	mListener = belle_sip_listener_create_from_callbacks(&listener_callbacks, this);
 	belle_sip_provider_add_sip_listener(mProvider, BELLE_SIP_LISTENER(mListener));
+}
+
+BellesipUtils::BellesipUtils(const std::string& ipaddress,
+                             int port,
+                             const std::string& transport,
+                             const ProcessResponseEventCb& processResponseEventCb,
+                             const ProcessRequestEventCb& processRequestEventCb)
+    : BellesipUtils(ipaddress, port, transport, (ProcessResponseStatusCb) nullptr, processRequestEventCb) {
+	mProcessResponseEventCb = processResponseEventCb;
+}
+
+BellesipUtils::BellesipUtils(const std::string& ipaddress,
+                             int port,
+                             const std::string& transport,
+                             const ProcessResponseStatusCb& processResponseStatusCb)
+    : BellesipUtils(ipaddress, port, transport, processResponseStatusCb, nullptr) {
 }
 
 BellesipUtils::~BellesipUtils() {

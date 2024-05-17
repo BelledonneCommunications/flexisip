@@ -28,14 +28,26 @@ namespace flexisip {
 
 class BellesipUtils {
 public:
-	using ProcessResponseEventCb = std::function<void(int status)>;
+	using ProcessResponseStatusCb = std::function<void(int status)>;
+	using ProcessResponseEventCb = std::function<void(int status, const belle_sip_response_event*)>;
 	using ProcessRequestEventCb = std::function<void(const belle_sip_request_event_t*)>;
+
+	BellesipUtils(const std::string& ipaddress,
+	              int port,
+	              const std::string& transport,
+	              const ProcessResponseStatusCb& processResponseStatusCb,
+	              const ProcessRequestEventCb& processRequestEventCb);
 
 	BellesipUtils(const std::string& ipaddress,
 	              int port,
 	              const std::string& transport,
 	              const ProcessResponseEventCb& processResponseEventCb,
 	              const ProcessRequestEventCb& processRequestEventCb);
+
+	BellesipUtils(const std::string& ipaddress,
+	              int port,
+	              const std::string& transport,
+	              const ProcessResponseStatusCb& processResponseStatusCb);
 
 	~BellesipUtils();
 	void sendRawRequest(const std::string& rawMessage, const std::string& rawBody = "");
@@ -47,8 +59,10 @@ private:
 	belle_sip_provider_t* mProvider = nullptr;
 	belle_sip_listener_t* mListener = nullptr;
 	belle_sip_listening_point_t* mListeningPoint = nullptr;
-	ProcessResponseEventCb mProcessResponseEventCb = nullptr;
+
+	ProcessResponseStatusCb mProcessResponseStatusCb = nullptr;
 	ProcessRequestEventCb mProcessRequestEventCb = nullptr;
+	ProcessResponseEventCb mProcessResponseEventCb = nullptr;
 };
 
 } // namespace flexisip

@@ -26,14 +26,14 @@ using namespace std;
 
 namespace flexisip {
 
-BodyListSubscription::BodyListSubscription (
-		unsigned int expires,
-		belle_sip_server_transaction_t *ist,
-		belle_sip_provider_t *aProv,
-		size_t maxPresenceInfoNotifiedAtATime,
-		function<void(shared_ptr<ListSubscription>)> listAvailable
-) : ListSubscription(expires, ist, aProv, maxPresenceInfoNotifiedAtATime, listAvailable) {
-	belle_sip_request_t *request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
+BodyListSubscription::BodyListSubscription(unsigned int expires,
+                                           belle_sip_server_transaction_t* ist,
+                                           belle_sip_provider_t* aProv,
+                                           size_t maxPresenceInfoNotifiedAtATime,
+                                           const std::weak_ptr<StatPair>& countBodyListSubscription,
+                                           function<void(shared_ptr<ListSubscription>)> listAvailable)
+    : ListSubscription(expires, ist, aProv, maxPresenceInfoNotifiedAtATime, countBodyListSubscription, listAvailable) {
+	belle_sip_request_t* request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
 	if (!belle_sip_message_get_body(BELLE_SIP_MESSAGE(request))) {
 		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", "Empty body")) << "Empty body";
 	}
@@ -42,22 +42,22 @@ BodyListSubscription::BodyListSubscription (
 	try {
 		istringstream data(belle_sip_message_get_body(BELLE_SIP_MESSAGE(request)));
 		resource_list_body = Xsd::ResourceLists::parseResourceLists(data, Xsd::XmlSchema::Flags::dont_validate);
-	} catch (const Xsd::XmlSchema::Exception &e) {
+	} catch (const Xsd::XmlSchema::Exception& e) {
 		ostringstream os;
 		os << "Cannot parse body caused by [" << e << "]";
 		// todo check error code
 		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
 	}
 
-	for (const auto &list : resource_list_body->getList()) {
-		for (const auto &entry : list.getEntry()) {
-			belle_sip_uri_t *uri = belle_sip_fast_uri_parse(entry.getUri().c_str());
+	for (const auto& list : resource_list_body->getList()) {
+		for (const auto& entry : list.getEntry()) {
+			belle_sip_uri_t* uri = belle_sip_fast_uri_parse(entry.getUri().c_str());
 			if (!uri || !belle_sip_uri_get_host(uri) || !belle_sip_uri_get_user(uri)) {
 				SLOGE << "Cannot parse list entry [" << entry.getUri() << "]";
 				continue;
 			}
 			if (entry.getUri().find(";user=phone") != string::npos) {
-				belle_sip_uri_set_user_param(uri,"phone");
+				belle_sip_uri_set_user_param(uri, "phone");
 			}
 			mListeners.push_back(make_shared<PresentityResourceListener>(*this, uri));
 			belle_sip_object_unref(uri);
