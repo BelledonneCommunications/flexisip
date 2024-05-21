@@ -76,7 +76,7 @@ void test() {
 		        .tweakInvite(*forgedCall, forgedAccount, *outgoingCallParams);
 		BC_ASSERT_CPP_EQUAL(toAddress->asStringUriOnly(),
 		                    "sip:expected-request-uri@stub.example.org;custom-param=RequestUri;transport=tcp");
-		BC_ASSERT_CPP_EQUAL(outgoingCallParams->getFromHeader(), "");
+		BC_ASSERT_CPP_EQUAL(outgoingCallParams->getFromHeader(), "sip:expected-account@account.example.org");
 	}
 
 	{

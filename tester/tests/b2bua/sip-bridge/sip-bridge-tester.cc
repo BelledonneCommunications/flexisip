@@ -70,11 +70,6 @@ using namespace std::string_literals;
     <sip:jasper@flexisip.example.org>
 */
 
-/**
- * TODO: There should really be 2 different proxies, to test that the Inbound provider can correctly send invites to the
- * Flexisip proxy and not the `outboundProxy` configured on the B2BUA account. If done, use
- * Module::Router/static-targets instead of module::B2Bua/b2bua-server.
- */
 void bidirectionalBridging() {
 	StringFormatter jsonConfig{R"json({
 		"schemaVersion": 2,
@@ -110,14 +105,14 @@ void bidirectionalBridging() {
 				"outgoingInvite": {
 					"to": "{account.alias}",
 					"from": "sip:{incoming.from.user}@{account.alias.hostport}{incoming.from.uriParameters}",
-					"outboundProxy": "<sip:127.0.0.1:port;transport=tcp>"
+					"outboundProxy": "<sip:127.0.0.1:flexisipPort;transport=tcp>"
 				},
 				"accountPool": "FlockOfJabirus"
 			}
 		],
 		"accountPools": {
 			"FlockOfJabirus": {
-				"outboundProxy": "<sip:127.0.0.1:port;transport=tcp>",
+				"outboundProxy": "<sip:127.0.0.1:jabiruPort;transport=tcp>",
 				"registrationRequired": true,
 				"maxCallsPerLine": 3125,
 				"loader": [
@@ -131,33 +126,41 @@ void bidirectionalBridging() {
 	})json",
 	                           '', ''};
 	TempFile providersJson{};
-	Server proxy{{
+	Server flexisipProxy{{
 	    // Requesting bind on port 0 to let the kernel find any available port
 	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
 	    {"module::Registrar/enabled", "true"},
-	    {"module::Registrar/reg-domains", "flexisip.example.org jabiru.example.org"},
+	    {"module::Registrar/reg-domains", "flexisip.example.org"},
 	    {"b2bua-server/application", "sip-bridge"},
 	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
 	    {"b2bua-server::sip-bridge/providers", providersJson.getFilename()},
-	    {"module::B2bua/enabled", "true"},
 	    // B2bua use writable-dir instead of var folder
 	    {"b2bua-server/data-directory", bcTesterWriteDir()},
 	}};
-	proxy.start();
-	providersJson.writeStream() << jsonConfig.format({{"port", proxy.getFirstPort()}});
+	flexisipProxy.start();
+	Server jabiruProxy{{
+	    // Requesting bind on port 0 to let the kernel find any available port
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "jabiru.example.org"},
+	}};
+	jabiruProxy.start();
+	providersJson.writeStream() << jsonConfig.format({
+	    {"flexisipPort", flexisipProxy.getFirstPort()},
+	    {"jabiruPort", jabiruProxy.getFirstPort()},
+	});
 	const auto b2buaLoop = std::make_shared<sofiasip::SuRoot>();
-	const auto& config = proxy.getConfigManager();
+	const auto& config = flexisipProxy.getConfigManager();
 	const auto b2buaServer = std::make_shared<B2buaServer>(b2buaLoop, config);
 	b2buaServer->init();
 	config->getRoot()
-	    ->get<GenericStruct>("module::B2bua")
-	    ->get<ConfigString>("b2bua-server")
-	    ->set("sip:127.0.0.1:" + std::to_string(b2buaServer->getTcpPort()) + ";transport=tcp");
-	proxy.getAgent()->findModule("B2bua")->reload();
-	auto builder = ClientBuilder(*proxy.getAgent());
-	const auto felix = builder.build("felix@flexisip.example.org");
-	const auto jasper = builder.build("jasper@jabiru.example.org");
-	CoreAssert asserter{proxy, *b2buaLoop};
+	    ->get<GenericStruct>("module::Router")
+	    ->get<ConfigStringList>("static-targets")
+	    ->set({"sip:127.0.0.1:" + std::to_string(b2buaServer->getTcpPort()) + ";transport=tcp"});
+	flexisipProxy.getAgent()->findModule("Router")->reload();
+	const auto felix = ClientBuilder(*flexisipProxy.getAgent()).build("felix@flexisip.example.org");
+	const auto jasper = ClientBuilder(*jabiruProxy.getAgent()).build("jasper@jabiru.example.org");
+	CoreAssert asserter{flexisipProxy, *b2buaLoop, jabiruProxy};
 	asserter
 	    .iterateUpTo(
 	        3,
@@ -198,13 +201,13 @@ void bidirectionalBridging() {
 	jasper.getCurrentCall()->terminate();
 	asserter
 	    .iterateUpTo(
-	        2,
+	        4,
 	        [&felix] {
 		        const auto& current_call = felix.getCurrentCall();
 		        FAIL_IF(current_call != std::nullopt);
 		        return ASSERTION_PASSED();
 	        },
-	        90ms)
+	        130ms)
 	    .assert_passed();
 
 	// Jabiru -> Flexisip

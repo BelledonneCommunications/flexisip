@@ -10,6 +10,7 @@
 #include <linphone++/core.hh>
 
 #include "b2bua/sip-bridge/variable-substitution.hh"
+#include "flexisip/logmanager.hh"
 
 namespace flexisip::b2bua::bridge {
 using namespace utils::string_interpolation;
@@ -28,24 +29,31 @@ constexpr auto resolver = resolve(kInviteTweakerFields);
 
 InviteTweaker::InviteTweaker(const config::v2::OutgoingInvite& config, linphone::Core& core)
     : mToHeader(InterpolatedString(config.to, "{", "}"), resolver),
-      mFromHeader(config.from.empty()
-                      ? std::nullopt
-                      : decltype(mFromHeader)(StringTemplate(InterpolatedString(config.from, "{", "}"), resolver))),
-      mOutboundProxyOverride(config.outboundProxy ? core.createAddress(*config.outboundProxy) : nullptr),
+      mFromHeader(InterpolatedString(config.from.empty() ? "{account.uri}" : config.from, "{", "}"), resolver),
+      mOutboundProxyOverride([&]() -> decltype(mOutboundProxyOverride) {
+	      if (!config.outboundProxy) return nullptr;
+
+	      const auto& accountParams = core.createAccountParams();
+	      accountParams->enableRegister(false);
+	      const auto& route = core.createAddress(*config.outboundProxy);
+	      if (!route) {
+		      SLOGE << "InviteTweaker::InviteTweaker : bad outbound proxy format [" << *config.outboundProxy << "]";
+	      } else {
+		      accountParams->setServerAddress(route);
+		      accountParams->setRoutesAddresses({route});
+	      }
+	      accountParams->setIdentityAddress(core.createAddress("sip:flexisip-b2bua-sip-bridge-placeholder@localhost"));
+	      const auto account = core.createAccount(accountParams);
+	      core.addAccount(account);
+	      return account;
+      }()),
       mAvpfOverride(config.enableAvpf), mEncryptionOverride(config.mediaEncryption) {
 }
 
 std::shared_ptr<linphone::Address> InviteTweaker::tweakInvite(const linphone::Call& incomingCall,
                                                               const Account& account,
                                                               linphone::CallParams& outgoingCallParams) const {
-	auto linphoneAccount = account.getLinphoneAccount();
-	if (mOutboundProxyOverride) {
-		const auto& accountParams = linphoneAccount->getParams()->clone();
-		accountParams->setServerAddress(mOutboundProxyOverride);
-		accountParams->setRoutesAddresses({mOutboundProxyOverride});
-		linphoneAccount = linphoneAccount->getCore()->createAccount(accountParams);
-	}
-	outgoingCallParams.setAccount(linphoneAccount);
+	outgoingCallParams.setAccount(mOutboundProxyOverride ? mOutboundProxyOverride : account.getLinphoneAccount());
 
 	if (const auto& mediaEncryption = mEncryptionOverride) {
 		outgoingCallParams.setMediaEncryption(*mediaEncryption);
@@ -54,13 +62,12 @@ std::shared_ptr<linphone::Address> InviteTweaker::tweakInvite(const linphone::Ca
 		outgoingCallParams.enableAvpf(*enableAvpf);
 	}
 
+	const auto fromAddress = mFromHeader.format(incomingCall, account);
 	auto& core = *incomingCall.getCore();
-	if (mFromHeader) {
-		const auto fromAddress = mFromHeader->format(incomingCall, account);
-		if (!core.createAddress(fromAddress)) throw InvalidAddress("From", fromAddress);
+	if (!core.createAddress(fromAddress)) throw InvalidAddress("From", fromAddress);
 
-		outgoingCallParams.setFromHeader(fromAddress);
-	}
+	outgoingCallParams.setFromHeader(fromAddress);
+
 	const auto toAddressStr = mToHeader.format(incomingCall, account);
 	const auto toAddress = core.createAddress(toAddressStr);
 	if (!toAddress) throw InvalidAddress("To", toAddressStr);
