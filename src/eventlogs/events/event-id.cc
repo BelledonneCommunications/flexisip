@@ -18,6 +18,7 @@
 
 #include "eventlogs/events/event-id.hh"
 
+#include <algorithm>
 #include <functional>
 #include <string>
 

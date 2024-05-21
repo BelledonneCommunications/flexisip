@@ -356,11 +356,11 @@ void ForkMessageContext::assertEqual(const shared_ptr<ForkMessageContext>& expec
 	if (mWaitingBranches.size() == expected->mWaitingBranches.size()) {
 		mWaitingBranches.sort([](const auto& a, const auto& b) { return a->mUid < b->mUid; });
 		expected->mWaitingBranches.sort([](const auto& a, const auto& b) { return a->mUid < b->mUid; });
-		equal(mWaitingBranches.begin(), mWaitingBranches.end(), expected->mWaitingBranches.begin(),
-		      [](const auto& a, const auto& b) {
-			      a->assertEqual(b);
-			      return true;
-		      });
+		std::ignore = equal(mWaitingBranches.begin(), mWaitingBranches.end(), expected->mWaitingBranches.begin(),
+		                    [](const auto& a, const auto& b) {
+			                    a->assertEqual(b);
+			                    return true;
+		                    });
 	} else {
 		BC_FAIL("Waiting branch list is not the same size");
 	}
