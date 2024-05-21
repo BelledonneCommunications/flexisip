@@ -38,8 +38,10 @@ public:
 private:
 	/// The address to send the INVITE to
 	StringTemplate mToHeader;
-	std::optional<StringTemplate> mFromHeader;
-	std::shared_ptr<linphone::Address> mOutboundProxyOverride;
+	StringTemplate mFromHeader;
+	/// Workaround: As of 2024-05-21 and SDK 5.3.44, linphone::CalParams do not allow to override the route(s) used in
+	/// an invite, so we use a surrogate account instead
+	std::shared_ptr<linphone::Account> mOutboundProxyOverride;
 	std::optional<bool> mAvpfOverride;
 	std::optional<linphone::MediaEncryption> mEncryptionOverride;
 };
