@@ -18,6 +18,7 @@
 
 #include "flow-factory.hh"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <random>

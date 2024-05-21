@@ -206,6 +206,12 @@ class ValueArg : public Arg
                   Constraint<T>* constraint,
                   Visitor* v = NULL );
 
+	    /**
+	     * Prevent accidental copying
+	     */
+	    ValueArg(const ValueArg& rhs) = delete;
+	    ValueArg& operator=(const ValueArg& rhs) = delete;
+
         /**
          * Handles the processing of the argument.
          * This re-implements the Arg version of this method to set the
@@ -235,13 +241,6 @@ class ValueArg : public Arg
         virtual std::string longID(const std::string& val = "val") const;
         
         virtual void reset() ;
-
-private:
-       /**
-        * Prevent accidental copying
-        */
-       ValueArg<T>(const ValueArg<T>& rhs);
-       ValueArg<T>& operator=(const ValueArg<T>& rhs);
 };
 
 

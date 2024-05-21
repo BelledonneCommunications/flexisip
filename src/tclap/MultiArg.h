@@ -170,7 +170,13 @@ public:
                   Constraint<T>* constraint,
                   CmdLineInterface& parser,
                   Visitor* v = NULL );
-		  
+
+	/**
+	 * Prevent accidental copying
+	 */
+	MultiArg(const MultiArg& rhs) = delete;
+	MultiArg& operator=(const MultiArg& rhs) = delete;
+
 	/**
 	 * Handles the processing of the argument.
 	 * This re-implements the Arg version of this method to set the
@@ -220,14 +226,6 @@ public:
 	virtual bool allowMore();
 	
 	virtual void reset();
-
-private:
-	/**
-	 * Prevent accidental copying
-	 */
-	MultiArg<T>(const MultiArg<T>& rhs);
-	MultiArg<T>& operator=(const MultiArg<T>& rhs);
-
 };
 
 template<class T>
