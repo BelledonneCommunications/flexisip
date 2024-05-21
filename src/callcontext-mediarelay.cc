@@ -27,7 +27,6 @@
 #include "h264iframefilter.hh"
 #include "mediarelay.hh"
 #include "module-toolbox.hh"
-#include "telephone-event-filter.hh"
 #include "utils/cast-to-const.hh"
 
 using namespace std;
@@ -41,7 +40,7 @@ RelayedCall::RelayedCall(const shared_ptr<MediaRelayServer>& server, sip_t* sip)
 	mEarlyMediaRelayCount = 0;
 }
 
-/*Enable filtering of H264 Iframes for low bandwidth.*/
+/* Enable filtering of H264 Iframes for low bandwidth. */
 void RelayedCall::enableH264IFrameFiltering(int bandwidth_threshold, int decim, bool onlyIfLastProxy) {
 	mBandwidthThres = bandwidth_threshold;
 	mDecim = decim;
@@ -67,26 +66,26 @@ void RelayedCall::setupSpecificRelayTransport(RelayTransport* rt, const char* de
 	}
 }
 
-void RelayedCall::initChannels(const std::shared_ptr<SdpModifier>& m,
+void RelayedCall::initChannels(const std::shared_ptr<SdpModifier>& sdpModifier,
                                const std::string& tag,
                                const std::string& trid,
                                const string& fromHost,
                                const string& destHost) {
-	sdp_media_t* mline = m->mSession->sdp_media;
-	sdp_connection_t* global_c = m->mSession->sdp_connection;
+	sdp_media_t* mediaLine = sdpModifier->mSession->sdp_media;
+	sdp_connection_t* global_c = sdpModifier->mSession->sdp_connection;
 	int i = 0;
 	bool hasMultipleTargets = false;
 	Agent* agent = mServer->getAgent();
 
 	int maxEarlyRelays = mServer->mModule->mMaxRelayedEarlyMedia;
 	if (maxEarlyRelays != 0) {
-		if (ModuleToolbox::getCustomHeaderByName(m->mSip, "X-Target-Uris")) {
+		if (ModuleToolbox::getCustomHeaderByName(sdpModifier->mSip, "X-Target-Uris")) {
 			hasMultipleTargets = true;
 		}
 	}
 
-	for (i = 0; mline != NULL && i < sMaxSessions; mline = mline->m_next, ++i) {
-		if (mline->m_port == 0) {
+	for (i = 0; mediaLine != NULL && i < sMaxSessions; mediaLine = mediaLine->m_next, ++i) {
+		if (mediaLine->m_port == 0) {
 			// case of declined mline.
 			continue;
 		}
@@ -96,9 +95,9 @@ void RelayedCall::initChannels(const std::shared_ptr<SdpModifier>& m,
 		}
 		shared_ptr<RelaySession> s = mSessions[i];
 
-		sdp_connection_t* mline_c = mline->m_connections ? mline->m_connections : global_c;
-		bool isIpv6 = mline_c && mline_c->c_addrtype == sdp_addr_ip6;
-		bool hasIce = sdp_attribute_find(mline->m_attributes, "candidate") != nullptr;
+		sdp_connection_t* connectionLine = mediaLine->m_connections ? mediaLine->m_connections : global_c;
+		bool isIpv6 = connectionLine && connectionLine->c_addrtype == sdp_addr_ip6;
+		bool hasIce = sdp_attribute_find(mediaLine->m_attributes, "candidate") != nullptr;
 
 		RelayTransport rt;
 
@@ -113,12 +112,13 @@ void RelayedCall::initChannels(const std::shared_ptr<SdpModifier>& m,
 			/* We initialize here the RelaySession for the current mline, passing the IP addresses we have to use
 			 * to exchange with the caller. */
 
-			if ((mline_c && mline_c->c_address && strcmp(mline_c->c_address, fromHost.c_str()) == 0) && !hasIce &&
-			    !mForcePublicAddressEnabled) {
+			if ((connectionLine && connectionLine->c_address &&
+			     strcmp(connectionLine->c_address, fromHost.c_str()) == 0) &&
+			    !hasIce && !mForcePublicAddressEnabled) {
 				/* The client is not natted or knows its public IP address. In this case we trust him
 				 * and propose a relay address that exactly matches its network.
 				 * This is needed for a flexisip that runs on a multi-homed machine. */
-				setupSpecificRelayTransport(&rt, mline_c->c_address);
+				setupSpecificRelayTransport(&rt, connectionLine->c_address);
 			} else {
 				/* The client is very likely behind a nat and doesn't know its public ip address.
 				 * In that case, we provide him with a relay address that is the public address of the proxy,
@@ -145,13 +145,13 @@ void RelayedCall::initChannels(const std::shared_ptr<SdpModifier>& m,
 	}
 }
 
-MasqueradeContextPair RelayedCall::getMasqueradeContexts(int mline,
+MasqueradeContextPair RelayedCall::getMasqueradeContexts(int sessionId,
                                                          const std::string& offererTag,
                                                          const std::string& offeredTag,
                                                          const std::string& trid) {
-	if (mline >= sMaxSessions)
+	if (sessionId >= sMaxSessions)
 		return MasqueradeContextPair(shared_ptr<SdpMasqueradeContext>(), shared_ptr<SdpMasqueradeContext>());
-	shared_ptr<RelaySession> s = mSessions[mline];
+	shared_ptr<RelaySession> s = mSessions[sessionId];
 	if (s == NULL) {
 		return MasqueradeContextPair(shared_ptr<SdpMasqueradeContext>(), shared_ptr<SdpMasqueradeContext>());
 	}
@@ -162,19 +162,20 @@ MasqueradeContextPair RelayedCall::getMasqueradeContexts(int mline,
 }
 
 bool RelayedCall::checkMediaValid() {
-	for (int i = 0; i < sMaxSessions; ++i) {
-		shared_ptr<RelaySession> s = mSessions[i];
+	for (int sessionId = 0; sessionId < sMaxSessions; ++sessionId) {
+		shared_ptr<RelaySession> s = mSessions[sessionId];
 		if (s && !s->checkChannels()) return false;
 	}
 	return true;
 }
 
 /* Obtain the local address and port used for relaying */
-const RelayTransport* RelayedCall::getChannelSources(int mline, const std::string& partyTag, const std::string& trId) {
-	if (mline >= sMaxSessions) {
+const RelayTransport*
+RelayedCall::getChannelSources(int sessionId, const std::string& partyTag, const std::string& trId) {
+	if (sessionId >= sMaxSessions) {
 		return nullptr;
 	}
-	shared_ptr<RelaySession> s = mSessions[mline];
+	shared_ptr<RelaySession> s = mSessions[sessionId];
 	if (s != NULL) {
 		shared_ptr<RelayChannel> chan = s->getChannel(partyTag, trId);
 		if (chan == NULL) {
@@ -188,11 +189,11 @@ const RelayTransport* RelayedCall::getChannelSources(int mline, const std::strin
 
 /* Obtain destination (previously set by setChannelDestinations()*/
 std::tuple<string, int, int>
-RelayedCall::getChannelDestinations(int mline, const std::string& partyTag, const std::string& trId) {
-	if (mline >= sMaxSessions) {
+RelayedCall::getChannelDestinations(int sessionId, const std::string& partyTag, const std::string& trId) {
+	if (sessionId >= sMaxSessions) {
 		return make_tuple("", 0, 0);
 	}
-	shared_ptr<RelaySession> s = mSessions[mline];
+	shared_ptr<RelaySession> s = mSessions[sessionId];
 	if (s != NULL) {
 		shared_ptr<RelayChannel> chan = s->getChannel(partyTag, trId);
 		if (chan) return make_tuple(chan->getRemoteIp(), chan->getRemoteRtpPort(), chan->getRemoteRtcpPort());
@@ -200,37 +201,48 @@ RelayedCall::getChannelDestinations(int mline, const std::string& partyTag, cons
 	return make_tuple("", 0, 0);
 }
 
-void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier>& m,
-                                         int mline,
+void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier>& sdpModifier,
+                                         int sessionId,
                                          const string& ip,
                                          int rtp_port,
                                          int rtcp_port,
                                          const string& partyTag,
                                          const string& trId,
                                          bool isEarlyMedia) {
-	if (mline >= sMaxSessions) {
-		return;
-	}
-	const shared_ptr<RelaySession> s = mSessions[mline];
+	if (sessionId >= sMaxSessions) return;
+
+	const auto s = mSessions[sessionId];
 	if (s == nullptr) return;
 
-	/* Make sure that only one device can send media to the caller, until the call is established.*/
-	RelayChannel::Dir dir = RelayChannel::SendRecv;
-	if (isEarlyMedia && !mIsEstablished && trId != mSendRecvBranch && mServer->mModule->mEarlyMediaRelaySingle) {
-		// Each new device takes over receive capability
-		if (!mSendRecvBranch.empty())
-			if (const auto previousKingOfTheHill = s->getChannel("", mSendRecvBranch))
-				previousKingOfTheHill->setDirection(RelayChannel::SendOnly);
+	// Default direction is SendRecv.
+	auto dir = RelayChannel::SendRecv;
+	const bool isEarlyMediaState = isEarlyMedia && !mIsEstablished && mServer->mModule->mEarlyMediaRelaySingle;
 
-		mSendRecvBranch = trId;
+	// Make sure that only one device can send media to the caller (caller POV: receive media from only one callee),
+	// until the call is established.
+	if (isEarlyMediaState && sessionId == 0 /* and is first media session */) {
+
+		// The device associated to the current transaction receives "SendRecv" capabilities. However, only one
+		// transaction must have such capabilities. Thus, we set the direction to "SendOnly" for all media sessions
+		// associated to the transaction that currently has the lead : mSendRecvTrId.
+		for (const auto& session : mSessions) {
+			if (session == nullptr) break; // sentinel reached
+			
+			if (const auto& channel = session->getChannel("", mSendRecvTrId))
+				channel->setDirection(RelayChannel::SendOnly);
+		}
+
+		mSendRecvTrId = trId;
 	}
 
-	shared_ptr<RelayChannel> chan = s->getChannel(partyTag, trId);
+	auto chan = s->getChannel(partyTag, trId);
 	if (chan == NULL) {
 		LOGW("RelayedCall::setChannelDestinations(): no channel");
 		return;
 	}
+
 	if (chan->getRelayTransport().mRtpPort > 0) {
+
 		if (isEarlyMedia) {
 			int maxEarlyRelays = mServer->mModule->mMaxRelayedEarlyMedia;
 			if (maxEarlyRelays != 0) {
@@ -246,7 +258,7 @@ void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier>& m,
 				}
 			}
 		}
-		configureRelayChannel(chan, m->mSip, m->mSession, mline);
+		configureRelayChannel(chan, sdpModifier->mSip, sdpModifier->mSession, sessionId);
 		/* We don't want to update the destination address of this Channel when ICE has completed, because in this
 		 * case the destination address set by the client in the c= line and port in m= lines is the relay address
 		 * itself, because it is set like this for the other party. Flexisip is no longer in the loop and just has
@@ -332,14 +344,17 @@ static bool isLastProxy(Agent* ag, sip_t* sip) {
 	return false;
 }
 
-void RelayedCall::configureRelayChannel(shared_ptr<RelayChannel> ms, sip_t* sip, sdp_session_t* session, int mline_nr) {
-	sdp_media_t* mline;
+void RelayedCall::configureRelayChannel(shared_ptr<RelayChannel> ms,
+                                        sip_t* sip,
+                                        sdp_session_t* session,
+                                        int sessionId) {
+	sdp_media_t* mediaLine;
 	int i;
-	for (i = 0, mline = session->sdp_media; i < mline_nr; mline = mline->m_next, ++i) {
+	for (i = 0, mediaLine = session->sdp_media; i < sessionId; mediaLine = mediaLine->m_next, ++i) {
 	}
 	if (mBandwidthThres > 0) {
-		if (mline->m_type == sdp_media_video) {
-			if (mline->m_rtpmaps && strcmp(mline->m_rtpmaps->rm_encoding, "H264") == 0) {
+		if (mediaLine->m_type == sdp_media_video) {
+			if (mediaLine->m_rtpmaps && strcmp(mediaLine->m_rtpmaps->rm_encoding, "H264") == 0) {
 				sdp_bandwidth_t* b = session->sdp_bandwidths;
 				if (b && ((int)b->b_value) <= (int)mBandwidthThres) {
 					bool enabled = false;
@@ -373,7 +388,6 @@ void RelayedCall::configureRelayChannel(shared_ptr<RelayChannel> ms, sip_t* sip,
 #endif
 }
 
-const std::array<std::shared_ptr<const RelaySession>, RelayedCall::sMaxSessions>&
-RelayedCall::getSessions() const {
+const std::array<std::shared_ptr<const RelaySession>, RelayedCall::sMaxSessions>& RelayedCall::getSessions() const {
 	return castToConst(mSessions);
 }
