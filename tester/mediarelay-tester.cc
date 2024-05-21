@@ -229,7 +229,7 @@ void early_media_bidirectional_video() {
 		        FAIL_IF(callerCall.getRtpSession()->rcv.ssrc == calleeLaptopCall.getRtpSession()->snd.ssrc);
 		        return ASSERTION_PASSED();
 	        },
-	        3s)
+	        2s)
 	    .assert_passed();
 
 	// But as soon as another device sends a 183 (here: the laptop), it takes over receive capability from the media
@@ -246,14 +246,10 @@ void early_media_bidirectional_video() {
 		        FAIL_IF(callerCall.getRtpSession()->rcv.ssrc != calleeLaptopCall.getRtpSession()->snd.ssrc);
 		        return ASSERTION_PASSED();
 	        },
-	        3s)
+	        2s)
 	    .assert_passed();
 
-	return;
-
-	// TODO: fix instability, probably caused by https://linphone.atlassian.net/browse/FLEXISIP-238
-
-	// Make sure all participants are now receiving video.
+	// Make sure all participants are now receiving video (need to wait a few seconds).
 	asserter
 	    .iterateUpTo(
 	        0x20,
@@ -265,7 +261,7 @@ void early_media_bidirectional_video() {
 		        FAIL_IF(!calleeLaptopReceivedVideo);
 		        return ASSERTION_PASSED();
 	        },
-	        10s)
+	        6s)
 	    .assert_passed();
 }
 
@@ -278,5 +274,6 @@ TestSuite _("MediaRelay",
                 CLASSY_TEST(early_media_bidirectional_video),
             });
 }
+
 } // namespace tester
 } // namespace flexisip

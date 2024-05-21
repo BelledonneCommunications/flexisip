@@ -42,28 +42,28 @@ public:
 	/* Create a channel for each sdp media using defined relay ip for front and back. The transaction
 	 * allow use to identify the callee (we don't have a tag yet).
 	 */
-	void initChannels(const std::shared_ptr<SdpModifier>& m,
+	void initChannels(const std::shared_ptr<SdpModifier>& sdpModifier,
 	                  const std::string& tag,
 	                  const std::string& trid,
 	                  const std::string& from_host,
 	                  const std::string& destHost);
 
-	/* Obtain the masquerade contexts for given mline. The trid is used when offeredTag is not yet defined.*/
-	MasqueradeContextPair getMasqueradeContexts(int mline,
+	/* Obtain the masquerade contexts for given sessionId. The trid is used when offeredTag is not yet defined.*/
+	MasqueradeContextPair getMasqueradeContexts(int sessionId,
 	                                            const std::string& offererTag,
 	                                            const std::string& offeredTag,
 	                                            const std::string& trid);
 
 	/* Obtain the local addresses and ports used for relaying. May return nullptr in case of invalid usage (such as
 	 * invalid trId or partyTag)*/
-	const RelayTransport* getChannelSources(int mline, const std::string& partyTag, const std::string& trId);
+	const RelayTransport* getChannelSources(int sessionId, const std::string& partyTag, const std::string& trId);
 
 	/* Obtain destination (previously set by setChannelDestinations()*/
 	std::tuple<std::string, int, int>
-	getChannelDestinations(int mline, const std::string& partyTag, const std::string& trId);
+	getChannelDestinations(int sessionId, const std::string& partyTag, const std::string& trId);
 
-	void setChannelDestinations(const std::shared_ptr<SdpModifier>& m,
-	                            int mline,
+	void setChannelDestinations(const std::shared_ptr<SdpModifier>& sdpModifier,
+	                            int sessionId,
 	                            const std::string& ip,
 	                            int rtp_port,
 	                            int rtcp_port,
@@ -80,7 +80,7 @@ public:
 
 	virtual ~RelayedCall();
 
-	void configureRelayChannel(std::shared_ptr<RelayChannel> chan, sip_t* sip, sdp_session_t* session, int mline_nr);
+	void configureRelayChannel(std::shared_ptr<RelayChannel> chan, sip_t* sip, sdp_session_t* session, int sessionId);
 
 	/*Enable filtering of H264 Iframes for low bandwidth.*/
 	void enableH264IFrameFiltering(int bandwidth_threshold, int decim, bool onlyIfLastProxy);
@@ -103,7 +103,7 @@ private:
 	bool mDropTelephoneEvents;
 	bool mIsEstablished;
 	bool mForcePublicAddressEnabled = false;
-	std::string mSendRecvBranch = "";
+	std::string mSendRecvTrId{};
 };
 
 } // namespace flexisip
