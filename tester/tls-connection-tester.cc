@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -25,13 +25,14 @@
 #include "utils/tls-server.hh"
 #include "utils/transport/tls-connection.hh"
 
+#include "flexisip-tester-config.hh"
+#include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
 using namespace std;
 using namespace std::chrono;
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 template <typename ServerT, typename HostStr, typename PortStr>
 static std::unique_ptr<TlsConnection> makeClientFor(HostStr&& host, PortStr&& port) {
@@ -44,7 +45,8 @@ static std::unique_ptr<TlsConnection> makeClientFor(HostStr&& host, PortStr&& po
 	}
 }
 
-template <typename ServerT> static void readTest() {
+template <typename ServerT>
+static void readTest() {
 	string expectedRead{"To read !"};
 	constexpr auto host = "127.0.0.1";
 	constexpr auto port = 1234;
@@ -78,7 +80,8 @@ struct ReadAllWithTimeoutParams {
 	bool noResponseExpected{false};
 };
 
-template <typename ServerT> static void readAllWithTimeoutBase(const ReadAllWithTimeoutParams& params) {
+template <typename ServerT>
+static void readAllWithTimeoutBase(const ReadAllWithTimeoutParams& params) {
 	string request{"Hello World!\n"};
 	string expectedResponse{"aaa"};
 	constexpr auto host = "127.0.0.1";
@@ -113,12 +116,14 @@ template <typename ServerT> static void readAllWithTimeoutBase(const ReadAllWith
 	BC_ASSERT_TRUE(requestMatch.get());
 };
 
-template <typename ServerT> static void readAllWithTimeout() {
+template <typename ServerT>
+static void readAllWithTimeout() {
 	ReadAllWithTimeoutParams params{};
 	readAllWithTimeoutBase<ServerT>(params);
 }
 
-template <typename ServerT> static void readAllWithTimeoutDelayedResponse() {
+template <typename ServerT>
+static void readAllWithTimeoutDelayedResponse() {
 	ReadAllWithTimeoutParams params{};
 	params.responseDelay = 500ms;
 	params.readAllTimeoutDelay = 5s;
@@ -127,7 +132,8 @@ template <typename ServerT> static void readAllWithTimeoutDelayedResponse() {
 	readAllWithTimeoutBase<ServerT>(params);
 }
 
-template <typename ServerT> static void readAllWithTimeoutLateResponse() {
+template <typename ServerT>
+static void readAllWithTimeoutLateResponse() {
 	ReadAllWithTimeoutParams params{};
 	params.responseDelay = 1s;
 	params.readAllTimeoutDelay = 500ms;
@@ -140,22 +146,29 @@ template <typename ServerT> static void readAllWithTimeoutLateResponse() {
 	readAllWithTimeoutBase<ServerT>(params);
 }
 
+static void createTlsConnectionWrongCertPath() {
+	BC_ASSERT_THROWN((TlsConnection{"host", "port", "", "wrong/path/to/file", true}), TlsConnection::CreationError);
+}
+
+static void createTlsConnectionUnreadableCertFile() {
+	const auto certPath = FLEXISIP_TESTER_DATA_SRCDIR "/config/unreadable_file.pem";
+	BC_ASSERT_THROWN((TlsConnection{"host", "port", "", certPath, true}), TlsConnection::CreationError);
+}
+
 namespace {
-TestSuite _("TlsConnection unit tests",
+TestSuite _("TlsConnection",
             {
-                TEST_NO_TAG("TCP read", readTest<TcpServer>),
-                TEST_NO_TAG("TCP readAll with timeout", readAllWithTimeout<TcpServer>),
-                TEST_NO_TAG("TCP readAll with timeout, response from server is delayed.",
-                            readAllWithTimeoutDelayedResponse<TcpServer>),
-                TEST_NO_TAG("TCP readAll with timeout, response from server is late.",
-                            readAllWithTimeoutLateResponse<TcpServer>),
-                TEST_NO_TAG("TLS read", readTest<TlsServer>),
-                TEST_NO_TAG("TLS readAll with timeout", readAllWithTimeout<TlsServer>),
-                TEST_NO_TAG("TLS readAll with timeout, response from server is delayed.",
-                            readAllWithTimeoutDelayedResponse<TlsServer>),
-                TEST_NO_TAG("TLS readAll with timeout, response from server is late.",
-                            readAllWithTimeoutLateResponse<TlsServer>),
+                CLASSY_TEST(readTest<TcpServer>),
+                CLASSY_TEST(readAllWithTimeout<TcpServer>),
+                CLASSY_TEST(readAllWithTimeoutDelayedResponse<TcpServer>),
+                CLASSY_TEST(readAllWithTimeoutLateResponse<TcpServer>),
+                CLASSY_TEST(readTest<TlsServer>),
+                CLASSY_TEST(readAllWithTimeout<TlsServer>),
+                CLASSY_TEST(readAllWithTimeoutDelayedResponse<TlsServer>),
+                CLASSY_TEST(readAllWithTimeoutLateResponse<TlsServer>),
+                CLASSY_TEST(createTlsConnectionWrongCertPath),
+                CLASSY_TEST(createTlsConnectionUnreadableCertFile),
             });
 }
-} // namespace tester
-} // namespace flexisip
+
+} // namespace flexisip::tester
