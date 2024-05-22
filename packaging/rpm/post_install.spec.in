@@ -1,6 +1,4 @@
 semanage fcontext -a -t var_log_t '@FLEXISIP_LOGDIR@(/.*)?' 2>/dev/null || : \
 restorecon -R @FLEXISIP_LOGDIR@ || :
-semanage fcontext -a -t var_log_t '@FLEXISIP_B2BUA_DATADIR@(/.*)?' 2>/dev/null || : \
-restorecon -R @FLEXISIP_B2BUA_DATADIR@ || :
 
 %systemd_post @FLEXISIP_SERVICES@

@@ -156,8 +156,7 @@ if("RPM" IN_LIST CPACK_GENERATOR)
 	endif()
 
 	## Configure %post, %postun, %preun rpmbuild section
-	set(FLEXISIP_LOGDIR "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log")
-	set(FLEXISIP_B2BUA_DATADIR "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/flexisip/b2b")
+	set(FLEXISIP_LOGDIR "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log/flexisip")
 	foreach(secname "post_install" "pre_uninstall" "post_uninstall")
 		configure_file("rpm/${secname}.spec.in" "rpm/${secname}.spec" @ONLY)
 		string(TOUPPER "${secname}" SECNAME)
