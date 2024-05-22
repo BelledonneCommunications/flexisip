@@ -1,6 +1,6 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+ Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
@@ -16,24 +16,20 @@
  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <future>
-#include <limits>
+#include <filesystem>
+#include <fstream>
 #include <ostream>
 #include <sstream>
 #include <thread>
 
 #include <arpa/inet.h>
-#include <math.h>
+#include <cmath>
 #include <poll.h>
-
-#include <nghttp2/nghttp2.h>
-#include <nghttp2/nghttp2ver.h>
 
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
-#include "flexisip/common.hh"
 #include "flexisip/logmanager.hh"
 
 #include "tls-connection.hh"
@@ -70,28 +66,33 @@ TlsConnection::TlsConnection(
 
 	if (!SSL_CTX_load_verify_locations(ctx, trustStorePath.empty() ? nullptr : trustStorePath.c_str(),
 	                                   "/etc/ssl/certs")) {
-		SLOGE << "Error loading trust store";
 		ERR_print_errors_fp(stderr);
-		throw CreationError();
+		throw CreationError("error while loading trust store");
 	}
 
-	if (!certPath.empty()) {
-		int error = SSL_CTX_use_certificate_file(ctx, certPath.c_str(), SSL_FILETYPE_PEM);
-		if (error != 1) {
-			LOGE("SSL_CTX_use_certificate_file for %s failed: %d", certPath.c_str(), error);
-			throw CreationError();
-		} else if (isCertExpired(certPath)) {
-			LOGEN("Certificate %s is expired! You won't be able to use it for push notifications. Please update your "
-			      "certificate or remove it entirely.",
-			      certPath.c_str());
-		}
+	// Check certificate (file exists and is readable).
+	if (!filesystem::exists(certPath)) {
+		throw CreationError("certificate \"" + certPath + "\" does not exist");
 	}
-	if (!certPath.empty()) {
-		int error = SSL_CTX_use_PrivateKey_file(ctx, certPath.c_str(), SSL_FILETYPE_PEM);
-		if (error != 1 || SSL_CTX_check_private_key(ctx) != 1) {
-			SLOGE << "Private key does not match the certificate public key for " << certPath << ": " << error;
-			throw CreationError();
-		}
+	if (fstream certificate{certPath, ios_base::in}; !certificate.is_open()) {
+		throw CreationError("cannot open certificate \"" + certPath + "\"");
+	} else {
+		certificate.close();
+	}
+
+	int error = SSL_CTX_use_certificate_file(ctx, certPath.c_str(), SSL_FILETYPE_PEM);
+	if (error != 1) {
+		throw CreationError("SSL_CTX_use_certificate_file for " + certPath + " failed with error " + to_string(error));
+	} else if (isCertExpired(certPath)) {
+		LOGEN("Certificate %s is expired! You won't be able to use it for push notifications. Please update your "
+		      "certificate or remove it entirely.",
+		      certPath.c_str());
+	}
+
+	error = SSL_CTX_use_PrivateKey_file(ctx, certPath.c_str(), SSL_FILETYPE_PEM);
+	if (error != 1 || SSL_CTX_check_private_key(ctx) != 1) {
+		throw CreationError("private key does not match the certificate public key for " + certPath + ", error " +
+		                    to_string(error));
 	}
 }
 
@@ -125,7 +126,7 @@ void TlsConnection::doConnectCb([[maybe_unused]] su_root_magic_t* rm, su_msg_r m
 void TlsConnection::connect() noexcept {
 	if (isConnected()) return;
 
-	/* Create and setup the connection */
+	/* Create and set up the connection */
 	auto hostname = mHost + ":" + mPort;
 	SSL* ssl = nullptr;
 
@@ -274,8 +275,7 @@ bool TlsConnection::waitForData(chrono::milliseconds timeout) const {
 
 void TlsConnection::enableInsecureTestMode() {
 	SLOGW << "BE CAREFUL, YOU BETTER BE IN TEST ENV, YOU ARE USING A INSECURE CONNECTION";
-	SSL_CTX_set_cert_verify_callback(
-	    mCtx.get(), [](auto, auto) { return 1; }, nullptr);
+	SSL_CTX_set_cert_verify_callback(mCtx.get(), [](auto, auto) { return 1; }, nullptr);
 }
 
 TlsConnection::SSLCtxUniquePtr TlsConnection::makeDefaultCtx() {
