@@ -1,7 +1,6 @@
 if [ "$1" -eq "0" ]; then
   # Final removal.
   semanage fcontext -d -t var_log_t '@FLEXISIP_LOGDIR@(/.*)?' 2>/dev/null || :
-  semanage fcontext -d -t var_log_t '@FLEXISIP_B2BUA_DATADIR@(/.*)?' 2>/dev/null || :
 fi
 
 %systemd_postun_with_restart @FLEXISIP_SERVICES@
