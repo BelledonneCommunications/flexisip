@@ -1,6 +1,6 @@
 ############################################################################
 # Findjsoncpp.cmake
-# Copyright (C) 2010-2022 Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2024 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -75,3 +75,11 @@ else()
 	endif()
 endif()
 
+# TODO Remove the following bloc when (if) the SDK decides to use lowercase `jsoncpp` in its `find_package`
+# https://linphone.atlassian.net/browse/SDK-184
+if(TARGET jsoncpp_lib)
+	set(JsonCPP_TARGET jsoncpp_lib)
+else()
+	set(JsonCPP_TARGET jsoncpp_static)
+endif()
+set(JsonCPP_FOUND ${jsoncpp_FOUND})

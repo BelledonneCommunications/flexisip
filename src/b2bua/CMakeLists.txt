@@ -20,7 +20,9 @@
 #
 ############################################################################
 
-find_package(jsoncpp "1.1.0" REQUIRED)
+# TODO Change back to lowercase `jsoncpp` when (if) the SDK decides to use it as well
+# https://linphone.atlassian.net/browse/SDK-184
+find_package(JsonCPP "1.1.0" REQUIRED)
 
 target_sources(flexisip PRIVATE
         async-stop-core.cc async-stop-core.hh
