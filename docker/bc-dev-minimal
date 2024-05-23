@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-minimal:20231018_yasm
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-minimal:20240523_global_update
 ###############################################################################
 
 FROM debian:12
