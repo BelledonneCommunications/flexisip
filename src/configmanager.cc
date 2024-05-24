@@ -1200,6 +1200,10 @@ template <typename DurationType>
 void ConfigDuration<DurationType>::acceptVisit(ConfigManagerVisitor& visitor) {
 	visitor.visitConfigDuration(*this);
 }
+template void ConfigDuration<std::chrono::milliseconds>::acceptVisit(ConfigManagerVisitor&);
+template void ConfigDuration<std::chrono::seconds>::acceptVisit(ConfigManagerVisitor&);
+template void ConfigDuration<std::chrono::minutes>::acceptVisit(ConfigManagerVisitor&);
+
 void ConfigRuntimeError::acceptVisit(ConfigManagerVisitor& visitor) {
 	visitor.visitConfigRuntimeError(*this);
 }

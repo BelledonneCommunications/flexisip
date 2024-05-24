@@ -103,22 +103,19 @@ void SnmpAgent::registerSnmpOid(GenericEntry& entry) {
 		string entryName = entry.getName();
 		//	LOGD("SNMP registering %s %s (as %s)",mOid->getValueAsString().c_str(), mName.c_str(),
 
-		netsnmp_handler_registration* mRegInfo;
-
-		// In the (rare) case where the oid is an uint32, convert the OID (32bits OS, windows...).
-		// The conversion is possible without data loss since only the first 31 bits are used.
-		if constexpr (numeric_limits<oid>::max() == numeric_limits<uint32_t>::max()) {
+		auto [oidData, oidSize] = [&entry]() -> pair<const oid*, size_t> {
 			const vector<uint64_t>& oidValue64 = entry.getOid().getValue();
-			const vector<oid> oidValue(oidValue64.begin(), oidValue64.end());
-			mRegInfo = netsnmp_create_handler_registration(flexisip::GenericEntry::sanitize(entryName).c_str(),
-			                                               &sHandleSnmpRequest, (oid*)oidValue.data(), oidValue.size(),
-			                                               entryMode);
-		} else {
-			const vector<oid>& oidValue = entry.getOid().getValue();
-			mRegInfo = netsnmp_create_handler_registration(flexisip::GenericEntry::sanitize(entryName).c_str(),
-			                                               &sHandleSnmpRequest, (oid*)oidValue.data(), oidValue.size(),
-			                                               entryMode);
-		}
+			// In the (rare) case where the oid is an uint32, convert the OID (32bits OS, windows...).
+			// The conversion is possible without data loss since only the first 31 bits are used.
+			if constexpr (numeric_limits<oid>::max() == numeric_limits<uint32_t>::max()) {
+				const vector<oid> oidValue(oidValue64.begin(), oidValue64.end());
+				return {static_cast<const oid*>(oidValue.data()), oidValue.size()};
+			}
+			// reinterpret_cast is necessary for macOS builds where uint64 is a long long
+			return {reinterpret_cast<const oid*>(oidValue64.data()), oidValue64.size()};
+		}();
+		auto* mRegInfo = netsnmp_create_handler_registration(flexisip::GenericEntry::sanitize(entryName).c_str(),
+		                                                     &sHandleSnmpRequest, oidData, oidSize, entryMode);
 
 		mRegInfo->my_reg_void = &entry;
 

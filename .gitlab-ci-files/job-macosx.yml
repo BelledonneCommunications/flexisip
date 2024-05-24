@@ -2,11 +2,6 @@
   stage: build 🏗
   tags: [ "macosx-min-xcode12.2" ]
 
-  # Temporarily allows macosx jobs to fail because the machine that
-  # was executing the macOS jobs is broken. Remove when it is
-  # fixed.
-  allow_failure: true
-
   script:
     - ccache -s
     - export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
