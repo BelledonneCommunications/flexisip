@@ -33,7 +33,7 @@ class RegistrarDbInternal : public RegistrarDbBackend {
 public:
 	RegistrarDbInternal(const Record::Config& recordConfig,
 	                    LocalRegExpire& localRegExpire,
-	                    std::function<void(const Record::Key&, const std::string&)> notify);
+	                    std::function<void(const Record::Key&, std::optional<std::string_view>)> notify);
 	void clearAll();
 
 	void fetchExpiringContacts(time_t startTimestamp,
@@ -69,7 +69,7 @@ private:
 	const Record::Config& mRecordConfig;
 	LocalRegExpire& mLocalRegExpire;
 	std::unordered_map<std::string, std::shared_ptr<Record>> mRecords{};
-	std::function<void(const Record::Key&, const std::string&)> mNotifyContactListener;
+	std::function<void(const Record::Key&, std::optional<std::string_view>)> mNotifyContactListener;
 };
 
 } // namespace flexisip

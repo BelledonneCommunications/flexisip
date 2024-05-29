@@ -19,6 +19,7 @@
 #include "registrardb-redis.hh"
 
 #include <algorithm>
+#include <cassert>
 #include <chrono>
 #include <cstdio>
 #include <ctime>
@@ -71,12 +72,13 @@ const Script FETCH_EXPIRING_CONTACTS_SCRIPT{
  * RegistrarDbRedisAsync class
  */
 
-RegistrarDbRedisAsync::RegistrarDbRedisAsync(const sofiasip::SuRoot& root,
-                                             const Record::Config& recordConfig,
-                                             LocalRegExpire& localRegExpire,
-                                             const RedisParameters& params,
-                                             std::function<void(const Record::Key&, const std::string&)> notifyContact,
-                                             std::function<void(bool)> notifyState)
+RegistrarDbRedisAsync::RegistrarDbRedisAsync(
+    const sofiasip::SuRoot& root,
+    const Record::Config& recordConfig,
+    LocalRegExpire& localRegExpire,
+    const RedisParameters& params,
+    std::function<void(const Record::Key&, std::optional<std::string_view>)> notifyContact,
+    std::function<void(bool)> notifyState)
     : mRedisClient{root, params, SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)}, mRoot{root},
       mRecordConfig{recordConfig}, mLocalRegExpire{localRegExpire}, mNotifyContactListener{std::move(notifyContact)},
       mNotifyStateListener{std::move(notifyState)} {
@@ -117,23 +119,40 @@ void RegistrarDbRedisAsync::onDisconnect(int status) {
 	}
 }
 
-void RegistrarDbRedisAsync::handlePublish(Reply reply) {
+void RegistrarDbRedisAsync::handlePublish(std::string_view topic, Reply reply) {
+	if (std::holds_alternative<reply::Disconnected>(reply)) {
+		SLOGD << "RegistrarDbRedisAsync::handlePublish - Subscription to '" << topic << "' disconnected.";
+		return;
+	}
 	try {
 		const auto& array = std::get<reply::Array>(reply);
 		const auto messageType = std::get<reply::String>(array[0]);
 		const auto channel = std::get<reply::String>(array[1]);
+		assert(channel == topic);
 		const auto messageOrSubsCount = array[2];
 		if (messageType == "message") {
 			const auto& message = std::get<reply::String>(messageOrSubsCount);
 			SLOGD << "Publish array received: [" << messageType << ", " << channel << ", " << message << "]";
-			mNotifyContactListener(Record::Key(channel), string(message));
-		} else {
-			const auto subscriptionCount = std::get<reply::Integer>(messageOrSubsCount);
-			SLOGD << "'" << messageType << "' request on '" << channel << "' channel succeeded. " << subscriptionCount
-			      << " current subscriptions";
+			mNotifyContactListener(Record::Key(channel), message);
+			return;
 		}
+
+		if (messageType == "subscribe" || messageType == "unsubscribe") {
+			const auto subscriptionCount = std::get<reply::Integer>(messageOrSubsCount);
+			SLOGD << "'" << messageType << "' request on '" << channel
+			      << "' channel succeeded. This session currently has " << subscriptionCount << " subscriptions";
+			return;
+		}
+
+		// Anchor REDISPUBSUBFORMAT, Thibault, 2024-06-03. To the extent of my testing, knowledge, and understanding of
+		// Redis' documentation: Anything after this line is unreachable, and therefore untestable.
 	} catch (const std::bad_variant_access&) {
 	}
+	SLOGE << "Redis subscription '" << topic
+	      << "' received a reply in a format that it cannot handle. The contact listener will be notified so it can "
+	         "attempt to recover in a degraded mode. Unexpected reply: "
+	      << StreamableVariant(reply);
+	mNotifyContactListener(Record::Key(topic), std::nullopt);
 }
 
 optional<tuple<const Session::Ready&, const SubscriptionSession::Ready&>> RegistrarDbRedisAsync::connect() {
@@ -150,7 +169,7 @@ void RegistrarDbRedisAsync::subscribeToKeyExpiration() {
 	if (subscription.subscribed()) return;
 
 	LOGD("Subscribing to key expiration");
-	subscription.subscribe([this](Reply reply) {
+	subscription.subscribe([this](auto, Reply reply) {
 		try {
 			const auto& array = std::get<reply::Array>(reply);
 			string_view key = std::get<reply::String>(array[2]);
@@ -173,7 +192,7 @@ void RegistrarDbRedisAsync::subscribe(const Record::Key& key) {
 	}
 
 	// Override any previous subscription
-	subs->subscriptions()[topic].subscribe([this](Reply reply) { handlePublish(std::move(reply)); });
+	subs->subscriptions()[topic].subscribe([this](auto topic, Reply reply) { handlePublish(topic, std::move(reply)); });
 }
 
 void RegistrarDbRedisAsync::unsubscribe(const Record::Key& key) {

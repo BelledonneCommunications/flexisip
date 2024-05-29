@@ -192,7 +192,7 @@ public:
 
 private:
 	void fetchWithDomain(const SipUri& url, const std::shared_ptr<ContactUpdateListener>& listener, bool recursive);
-	void notifyContactListener(const Record::Key& key, const std::string& uid);
+	void notifyContactListener(const Record::Key& key, std::string_view uid);
 	void notifyStateListener(bool bWritable) const;
 
 	std::shared_ptr<sofiasip::SuRoot> mRoot;

@@ -181,7 +181,7 @@ void bind_retry_on_broken_connection() {
 			BC_ASSERT_STRING_EQUAL(reply->str, "OK");
 		}
 
-		keymissReady->subscriptions()["__keyevent@0__:keymiss"].subscribe([&keyFetched, &subscribed](auto reply) {
+		keymissReady->subscriptions()["__keyevent@0__:keymiss"].subscribe([&keyFetched, &subscribed](auto, auto reply) {
 			const auto array = EXPECT_VARIANT(redis::reply::Array).in(std::move(reply));
 			const auto type = EXPECT_VARIANT(redis::reply::String).in(array[0]);
 			if (type == "subscribe") {
@@ -258,6 +258,76 @@ void periodic_replication_check() {
 	BC_ASSERT(connectionListener->successful);
 }
 
+/**
+ * What happens when the Redis backend gets denied access to subscribe to some pattern?
+ * For convenience, this test disables all SUBSCRIBE commands, but the behaviour is identical when using pub/sub channel
+ * pattern restrictions.
+ *
+ * The Registrar simply logs errors (untested) as it keeps attempting to re-subscribe. When permissions are restored, it
+ * successfully re-subscribes, and PUBLISHes get through.
+ */
+void no_perm_to_subscribe() {
+	auto& registrar = SUITE_SCOPE->proxyServer.getAgent()->getRegistrarDb();
+	const auto& topic = Record::Key(SipUri("sip:subscription-failed@example.org"), registrar.useGlobalDomain());
+	auto actualTopic = std::optional<Record::Key>();
+	const auto& listener = std::make_shared<ContactRegisteredCallback>(
+	    [&actualTopic](const std::shared_ptr<Record>& record, const auto& userId) {
+		    BC_ASSERT_CPP_EQUAL(userId, "'stub-payload'");
+		    actualTopic = record->getKey();
+	    });
+	auto ctx = RedisSyncContext(redisConnect("localhost", SUITE_SCOPE->redis.port()));
+	{ // Sabotage SUBSCRIBE commands
+		const auto reply = ctx.command("ACL SETUSER default -subscribe");
+		if (reply->type == REDIS_REPLY_ERROR) {
+			SLOGW << "tester: This Redis server does not support Access Control Lists. "
+			         "We therefore have no way to test the target code path, but also, consequently, no way for it to "
+			         "be reached by such a version of Redis, so we can arguably consider the test passed, and just "
+			         "abort now.";
+			return;
+
+		} else {
+			BC_ASSERT_CPP_EQUAL(reply->type, REDIS_REPLY_STATUS);
+			BC_ASSERT_STRING_EQUAL(reply->str, "OK");
+		}
+	}
+	const auto isNewSubscription = registrar.subscribe(topic, listener);
+	BC_HARD_ASSERT(isNewSubscription);
+	const auto& publish = [&ctx, &channel = topic.asString()]() {
+		const auto reply = ctx.command("PUBLISH %s 'stub-payload'", channel.c_str());
+		BC_HARD_ASSERT_CPP_EQUAL(reply->type, REDIS_REPLY_INTEGER);
+		return reply->integer;
+	};
+	constexpr auto maxIterations = 4;
+	constexpr auto maxDuration = 100ms;
+
+	// The registrar could not subscribe, so there is no one to receive PUBLISHes
+	const auto& someSubscriberReceivedIt = SUITE_SCOPE->asserter.iterateUpTo(
+	    maxIterations, [&publish] { return LOOP_ASSERTION(0 < publish()); }, maxDuration);
+	BC_ASSERT_FALSE(someSubscriberReceivedIt);
+
+	{ // Restore SUBSCRIBE commands
+		const auto reply = ctx.command("ACL SETUSER default +subscribe");
+		BC_ASSERT_CPP_EQUAL(reply->type, REDIS_REPLY_STATUS);
+		BC_ASSERT_STRING_EQUAL(reply->str, "OK");
+	}
+
+	SUITE_SCOPE->asserter
+	    .iterateUpTo(
+	        maxIterations,
+	        [&publish] {
+		        // Publish until someone has received it
+		        return LOOP_ASSERTION(0 < publish());
+	        },
+	        maxDuration)
+	    .assert_passed();
+	SUITE_SCOPE->asserter
+	    .iterateUpTo(
+	        1, [&actualTopic] { return LOOP_ASSERTION(actualTopic.has_value()); }, 100ms)
+	    .assert_passed();
+	BC_HARD_ASSERT(actualTopic.has_value());
+	BC_ASSERT_CPP_EQUAL(*actualTopic, topic);
+}
+
 TestSuite main("RegistrarDbRedis",
                {
                    CLASSY_TEST(mContext_should_be_checked_on_serializeAndSendToRedis),
@@ -265,6 +335,7 @@ TestSuite main("RegistrarDbRedis",
                    CLASSY_TEST(bind_retry_on_broken_connection),
                    CLASSY_TEST(subscribe_to_key_expiration),
                    CLASSY_TEST(periodic_replication_check),
+                   CLASSY_TEST(no_perm_to_subscribe),
                },
                Hooks()
                    .beforeSuite([]() {

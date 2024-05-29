@@ -46,8 +46,15 @@ RegistrarDb::RegistrarDb(const std::shared_ptr<sofiasip::SuRoot>& root, const st
 	mGruuEnabled = mr->get<ConfigBoolean>("enable-gruu")->read();
 	string dbImplementation = mr->get<ConfigString>("db-implementation")->read();
 
-	auto notifyContact = [this](const Record::Key& key, const std::string& uid) {
-		this->notifyContactListener(key, uid);
+	const auto& notifyContact = [this](const auto& key, const auto& uid) {
+		if (!uid.has_value()) {
+			// Unreachable, see REDISPUBSUBFORMAT
+			SLOGE << "RegistrarDb::notifyContactListenerCallback: Subscription failed, erasing all listeners for " << key;
+			this->mContactListenersMap.erase(key.asString());
+			return;
+		}
+
+		this->notifyContactListener(key, *uid);
 	};
 	if ("internal" == dbImplementation) {
 		LOGI("RegistrarDB implementation is internal");
@@ -156,7 +163,8 @@ void RegistrarDb::publish(const Record::Key& key, const string& uid) {
 class ContactNotificationListener : public ContactUpdateListener,
                                     public std::enable_shared_from_this<ContactNotificationListener> {
 public:
-	ContactNotificationListener(const string& uid, RegistrarDb* db, const SipUri& aor) : mUid(uid), mDb(db), mAor(aor) {
+	ContactNotificationListener(std::string_view uid, RegistrarDb* db, const SipUri& aor)
+	    : mUid(uid), mDb(db), mAor(aor) {
 	}
 
 private:
@@ -177,7 +185,7 @@ private:
 	SipUri mAor;
 };
 
-void RegistrarDb::notifyContactListener(const Record::Key& key, const string& uid) {
+void RegistrarDb::notifyContactListener(const Record::Key& key, std::string_view uid) {
 	const auto& sipUri = key.toSipUri();
 	auto listener = make_shared<ContactNotificationListener>(uid, this, sipUri);
 	SLOGD << "Notify topic = " << key << ", uid = " << uid;

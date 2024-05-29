@@ -35,7 +35,7 @@ using namespace flexisip;
 
 RegistrarDbInternal::RegistrarDbInternal(const Record::Config& recordConfig,
                                          LocalRegExpire& localRegExpire,
-                                         std::function<void(const Record::Key&, const std::string&)> notify)
+                                         function<void(const Record::Key&, optional<string_view>)> notify)
     : mRecordConfig{recordConfig}, mLocalRegExpire{localRegExpire}, mNotifyContactListener{std::move(notify)} {
 }
 

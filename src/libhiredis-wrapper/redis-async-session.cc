@@ -230,7 +230,7 @@ bool SubscriptionSession::SubscriptionEntry::subscribed() const {
 
 void SubscriptionSession::SubscriptionEntry::subscribe(SubscriptionCallback&& callback) {
 	{
-		Subscription newSub{.callback = std::move(callback), .state = Subscription::State::Pending};
+		Subscription newSub{.callback = std::move(callback), .fresh = true, .unsubbed = false};
 		if (isInMap()) {
 			mSlot->second = std::move(newSub);
 		} else {
@@ -244,30 +244,37 @@ void SubscriptionSession::SubscriptionEntry::subscribe(SubscriptionCallback&& ca
 	int status = mSession.command(
 	    {"SUBSCRIBE", mChannel}, nodePtr, [](redisAsyncContext* asyncCtx, void* rawReply, void* rawHandle) noexcept {
 		    auto reply = reply::tryFrom(static_cast<const redisReply*>(rawReply));
-		    const auto handle = static_cast<decltype(nodePtr)>(rawHandle);
+		    auto* const handle = static_cast<decltype(nodePtr)>(rawHandle);
 		    auto& subscription = handle->second;
-		    bool deleteIt = Match(reply).against(
-		        [&subscription](const reply::Array& message) {
-			        try {
-				        const auto type = std::get<reply::String>(message[0]);
-				        if (type == "unsubscribe") return true;
-				        if (type == "subscribe") subscription.state = Subscription::State::Active;
-				        return false;
-			        } catch (const std::bad_variant_access&) {
-				        return false;
-			        }
-		        },
-		        [](const auto&) { return false; });
+		    // Tag subscription as having been answered
+		    subscription.fresh = false;
+		    // We'd like to determine if we should free the subscription from the map after the callback finishes
+		    // (i.e. when the Redis server no longer has knowledge of this subscription on its side, and won't send us
+		    // replies to that topic.)
+		    auto serverHasIt = true;
+		    // So let's just fetch the info we need in the reply before forwarding it. (It will be the job of the
+		    // callback to deal with any undocumented reply)
+		    Match(reply).against([&serverHasIt](const reply::Disconnected&) { serverHasIt = false; },
+		                         [&serverHasIt](const reply::Array& message) {
+			                         try {
+				                         const auto type = std::get<reply::String>(message[0]);
+				                         if (type == "unsubscribe") {
+					                         serverHasIt = false;
+				                         }
+			                         } catch (const std::bad_variant_access&) {
+			                         }
+		                         },
+		                         [](const auto&) {});
 		    if (const auto& callback = subscription.callback) {
 			    try {
-				    callback(std::move(reply));
+				    callback(handle->first, std::move(reply));
 			    } catch (const std::exception& exc) {
 				    SLOGE << "Unhandled exception in Redis subscription callback: " << exc.what();
 			    } catch (...) {
 				    SLOGE << "Unidentified Thrown Object in Redis subscription callback";
 			    }
 		    }
-		    if (deleteIt && subscription.state == Subscription::State::Unsubbed) {
+		    if (subscription.unsubbed && !serverHasIt) {
 			    getSubscriptionsFrom(asyncCtx).erase(handle->first);
 		    }
 	    });
@@ -280,7 +287,7 @@ void SubscriptionSession::SubscriptionEntry::subscribe(SubscriptionCallback&& ca
 void SubscriptionSession::SubscriptionEntry::unsubscribe() {
 	if (!isInMap()) return;
 
-	mSlot->second.state = Subscription::State::Unsubbed;
+	mSlot->second.unsubbed = true;
 	if (REDIS_OK != mSession.command({"UNSUBSCRIBE", mChannel}, nullptr, nullptr)) {
 		throw std::bad_alloc{};
 	}
@@ -324,12 +331,28 @@ void SubscriptionSession::onConnect(int status) {
 		if (!ready) return; // unexpected
 
 		auto newSubs = ready->subscriptions();
-		for (auto&& entry : mSubscriptions) {
-			auto&& subscription = entry.second;
-			if (subscription.state != Subscription::State::Active) continue;
+		auto reSubbedChannelsLog = std::ostringstream();
+		reSubbedChannelsLog
+		    << "redis::async::SubscriptionSession::onConnect - Channels automatically re-subscribed: (none)";
+		reSubbedChannelsLog.seekp(-sizeof("(none)"));
+		for (auto& [channel, subscription] : mSubscriptions) {
+			// This `onConnect()` callback is called before responses are processed, so skip over any subscription
+			// created early, we shall receive the answer shortly
+			if (subscription.fresh) continue;
 
-			newSubs[entry.first].subscribe(std::move(subscription.callback));
+			if (subscription.unsubbed) {
+				SLOGW << "Memory leak detected: Redis subscription to '" << channel
+				      << "' was unsubbed before the session was disconnected and never got cleaned up properly. "
+				         "This should never happen, if you see this in your log, please open a ticket.";
+				continue;
+			};
+
+			// Subscription created on a previous connection.
+			// We have just reconnected successfully, let's re-subscribe it
+			newSubs[channel].subscribe(std::move(subscription.callback));
+			reSubbedChannelsLog << " '" << channel << "',";
 		}
+		SLOGI << reSubbedChannelsLog.str();
 	}
 
 	if (auto listener = mListener.lock()) {

@@ -282,12 +282,12 @@ void AccountPool::subscribeToAccountUpdate() {
 	if (subscription.subscribed()) return;
 
 	LOGD("Subscribing to account update ");
-	subscription.subscribe([this](Reply reply) { this->handleAccountUpdatePublish(reply); });
+	subscription.subscribe([this](auto topic, Reply reply) { this->handleAccountUpdatePublish(topic, reply); });
 }
 
-void AccountPool::handleAccountUpdatePublish(redis::async::Reply reply) {
+void AccountPool::handleAccountUpdatePublish(std::string_view topic, redis::async::Reply reply) {
 	if (std::holds_alternative<reply::Disconnected>(reply)) {
-		// reply::Disconnected sent on subscription deletion
+		SLOGD << "AccountPool::handleAccountUpdatePublish - Subscription to '" << topic << "' disconnected.";
 		return;
 	}
 	string replyAsString{};
@@ -300,10 +300,19 @@ void AccountPool::handleAccountUpdatePublish(redis::async::Reply reply) {
 			accountUpdateNeeded(redisPub);
 		} else {
 			const auto channel = std::get<reply::String>(array[1]);
-			const auto subscriptionCount = std::get<reply::Integer>(array[2]);
-			SLOGD << "'" << messageType << "' request on '" << channel << "' channel succeeded. " << subscriptionCount
-			      << " current subscriptions";
-			initialLoad();
+			assert(channel == topic);
+			if (messageType == "subscribe") {
+				const auto subscriptionCount = std::get<reply::Integer>(array[2]);
+				SLOGD << "AccountPool::handleAccountUpdatePublish - 'subscribe' request on '" << channel
+				      << "' channel succeeded. This session currently has " << subscriptionCount << " subscriptions";
+
+				initialLoad();
+
+			} else if (messageType == "unsubscribe") {
+				SLOGW << "AccountPool::handleAccountUpdatePublish - Channel '" << channel
+				      << "' unexpectedly unsubscribed. This should never happen, if you see this in your log, please "
+				         "open a ticket.";
+			}
 		}
 	} catch (const std::bad_variant_access&) {
 		SLOGE << "AccountPool::subscribeToAccountUpdate::callback : publish from redis not well formatted";

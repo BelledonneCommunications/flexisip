@@ -195,7 +195,7 @@ void subscriptionsSession_exceptionInCallback() {
 	BC_HARD_ASSERT(subsReady != nullptr);
 	bool called = false;
 
-	subsReady->subscriptions()["stub topic"].subscribe([&called](auto reply) {
+	subsReady->subscriptions()["stub topic"].subscribe([&called](auto, auto reply) {
 		// Prevent use after free when called in the subscription session's destructor
 		if (std::holds_alternative<redis::reply::Disconnected>(reply)) return;
 
@@ -219,7 +219,7 @@ void subscriptionsSession_autoReSub() {
 	std::string payload = "";
 	bool subscribed = false;
 
-	subscriptions->subscriptions()[topic].subscribe([&payload, &subscribed](redis::async::Reply reply) {
+	subscriptions->subscriptions()[topic].subscribe([&payload, &subscribed](auto, redis::async::Reply reply) {
 		const auto array = EXPECT_VARIANT(redis::reply::Array).in(std::move(reply));
 		const auto type = EXPECT_VARIANT(redis::reply::String).in(array[0]);
 		if (type == "subscribe") {
@@ -264,7 +264,7 @@ void subscriptionsSession_subscriptionFreedOnUnsubscribe() {
 	bool subscribed = false;
 	const auto capturedData = std::make_shared<std::nullptr_t>();
 	BC_ASSERT_CPP_EQUAL(capturedData.use_count(), 1);
-	subscriptions[topic].subscribe([&subscribed, capturedData](auto) { subscribed = true; });
+	subscriptions[topic].subscribe([&subscribed, capturedData](auto, auto) { subscribed = true; });
 	BC_ASSERT_TRUE(SUITE_SCOPE->asserter.iterateUpTo(1, [&subscribed]() { return subscribed; }));
 	BC_ASSERT_CPP_EQUAL(subscriptions.size(), 1);
 	BC_ASSERT_CPP_EQUAL(capturedData.use_count(), 2);
