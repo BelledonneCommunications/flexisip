@@ -90,11 +90,16 @@ struct RedisRegisterContext {
  */
 class RegistrarDbRedisAsync : public RegistrarDbBackend, public redis::async::SessionListener {
 public:
+	/**
+	 * @param notifyContact The second parameter is the unique ID of the contact within the AoR. A `std::nullopt` value
+	 * indicates that the Redis subscription received an unprocessable message. This should never happen under any
+	 * circumstances, see REDISPUBSUBFORMAT.
+	 */
 	RegistrarDbRedisAsync(const sofiasip::SuRoot& root,
 	                      const Record::Config& recordConfig,
 	                      LocalRegExpire& localRegExpire,
 	                      const redis::async::RedisParameters& params,
-	                      std::function<void(const Record::Key&, const std::string&)> notifyContact,
+	                      std::function<void(const Record::Key&, std::optional<std::string_view>)> notifyContact,
 	                      std::function<void(bool)> notifyState);
 
 	void fetchExpiringContacts(time_t startTimestamp,
@@ -140,7 +145,7 @@ private:
 	void handleBind(redis::async::Reply, std::unique_ptr<RedisRegisterContext>&&);
 	void handleClear(redis::async::Reply, const RedisRegisterContext&);
 	void handleFetch(redis::async::Reply, const RedisRegisterContext&);
-	void handlePublish(redis::async::Reply);
+	void handlePublish(std::string_view, redis::async::Reply);
 
 	/* redis::async::SessionListener */
 	void onConnect(int status) override;
@@ -150,7 +155,7 @@ private:
 	const sofiasip::SuRoot& mRoot;
 	const Record::Config& mRecordConfig;
 	LocalRegExpire& mLocalRegExpire;
-	std::function<void(const Record::Key&, const std::string&)> mNotifyContactListener;
+	std::function<void(const Record::Key&, std::optional<std::string_view>)> mNotifyContactListener;
 	std::function<void(bool)> mNotifyStateListener;
 	bool mWritable{};
 };

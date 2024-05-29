@@ -203,7 +203,7 @@ private:
 	using SubsMap = std::map<std::string, Subscription>;
 
 public:
-	using SubscriptionCallback = std::function<void(Reply)>;
+	using SubscriptionCallback = std::function<void(std::string_view, Reply)>;
 
 	class Subscriptions;
 
@@ -217,12 +217,30 @@ public:
 		SubscriptionEntry(const SubscriptionEntry&) = delete;
 		SubscriptionEntry(SubscriptionEntry&&) = delete;
 
-		// Send the SUBSCRIBE command to Redis, and register a callback function. Contrary to "regular" command
-		// callbacks, subscription callbacks will be called every time a matching PUBLISH is issued on the server, plus
-		// at least 2 more times: To confirm subscription, and unsubscription. https://redis.io/docs/interact/pubsub/
-		// If there is no subscription yet, this will create it. If there is an existing subscription, the existing
-		// callback is immediately freed without being called and replaced with the new callback. The SUBSCRIBE command
-		// will be issued in *both* cases.
+		/**
+		 * Send the SUBSCRIBE command to Redis, and register a callback function.
+		 * Contrary to "regular" command callbacks, subscription callbacks will be called every time a matching PUBLISH
+		 * is issued on the server. Additionally, these callbacks will also be called in the following cases:
+		 * - To confirm subscription,
+		 * - to confirm unsubscription,
+		 * - and whenever the session disconnects.
+		 * See https://redis.io/docs/interact/pubsub/
+		 *
+		 * If there is no subscription yet, this will create it. If there is an existing subscription, the existing
+		 * callback is immediately freed without being called and replaced with the new callback. The SUBSCRIBE command
+		 * will be issued in *both* cases.
+		 *
+		 * @param callback May receive
+		 * - An `Array` with 3 elements in the following order:
+		 *   1. The kind of message (`String`: "subscribe", "unsubscribe", or "message")
+		 *   2. The subscription channel name (`String`)
+		 *   3. Either
+		 *       - The message payload (`String`), or
+		 *       - this session's current count of subscriptions (`Integer`),
+		 *      depending on the message kind (as per Redis' documentation).
+		 * - A `Disconnected` reply when the session disconnects.
+		 * Anything outside of that specification is unexpected, but remains **the responsibility of this callback** to deal with.
+		 */
 		void subscribe(SubscriptionCallback&& callback);
 		// Send the UNSUBSCRIBE command to Redis.
 		// This function does not take a callback as it is the callback already registered at subscription that will be
@@ -310,9 +328,12 @@ public:
 private:
 	struct Subscription {
 		SubscriptionCallback callback;
-		// This state is a way to safely handle the asynchronicity of an unsbuscribe process.
+		// This flag prevents sending duplicated SUBSCRIBEs when commands have been issued prior to `onConnect()` being
+		// triggered
+		bool fresh;
+		// This flag is a way to safely handle the asynchronicity of an unsbuscribe process.
 		// (We must handle the acknowledgement response from Redis before we can free the subscription)
-		enum State { Pending, Active, Unsubbed } state;
+		bool unsubbed;
 	};
 
 	void onConnect(int status) override;

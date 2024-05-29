@@ -83,7 +83,7 @@ private:
 	                    const std::shared_ptr<const linphone::Address>& address) const;
 
 	void subscribeToAccountUpdate();
-	void handleAccountUpdatePublish(redis::async::Reply reply);
+	void handleAccountUpdatePublish(std::string_view topic, redis::async::Reply reply);
 	void accountUpdateNeeded(const RedisAccountPub& redisAccountPub);
 	void onAccountUpdate(const std::string& uri, const std::optional<config::v2::Account>& accountToUpdate);
 
