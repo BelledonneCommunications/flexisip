@@ -14,11 +14,12 @@ in
 , additionalInputs ? (_: [ ])
 , enableUnitTests ? false
 , enableB2bua ? false
+, enableOpenId ? false
 , ...
 }:
 
 let
-  dependencies = import ./dependencies.nix { inherit pkgs enableUnitTests enableB2bua; };
+  dependencies = import ./dependencies.nix { inherit pkgs enableUnitTests enableB2bua enableOpenId; };
 in
 
 pkgs.mkShell.override { stdenv = pkgs.gcc13Stdenv; } {

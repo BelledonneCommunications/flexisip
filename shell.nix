@@ -4,6 +4,7 @@ import ./nix/base.nix ({
   inherit pkgs;
   enableUnitTests = true;
   enableB2bua = true;
+  enableOpenId = true;
   additionalInputs = ps: with ps; [
     nixpkgs-fmt
     ccache

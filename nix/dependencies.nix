@@ -1,6 +1,7 @@
 { pkgs
 , enableUnitTests
 , enableB2bua
+, enableOpenId
 }:
 
 let
@@ -46,4 +47,8 @@ with pkgs;
 ]
 ++ optionals (enableB2bua && enableUnitTests) [
   libvpx # We need a video codec for video calls to establish successfully
+]
+++ optionals enableOpenId [
+  cpp-jwt
+  nlohmann_json
 ]
