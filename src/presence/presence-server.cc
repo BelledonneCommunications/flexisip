@@ -85,6 +85,7 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	     "flexisip to work.\n"
 	     "Example: select login, domain, phone from accounts where phone in (:phones)",
 	     ""},
+	    {Integer, "max-presence-elements", "Maximum number of presence element by identity saved in memory.", "10"},
 
 	    // Hidden parameters
 	    {String, "bypass-condition", "If user agent contains it, can bypass extended notifiy verification.", "false"},
@@ -151,7 +152,8 @@ PresenceServer::PresenceServer(const std::shared_ptr<sofiasip::SuRoot>& root, co
 	mPresenceStats.countPresencePresentity = config->getStatPairPtr("count-presence-presentity");
 	mPresenceStats.countPresenceElement = config->getStatPairPtr("count-presence-element");
 	mPresenceStats.countPresenceElementMap = config->getStatPairPtr("count-presence-element-map");
-	mPresentityManager = std::make_unique<PresentityManager>(mStack, mPresenceStats);
+	mPresentityManager = std::make_unique<PresentityManager>(mStack, mPresenceStats,
+	                                                         config->get<ConfigInt>("max-presence-elements")->read());
 
 	mProvider = belle_sip_stack_create_provider(mStack, nullptr);
 	mMaxPresenceInfoNotifiedAtATime = config->get<ConfigInt>("notify-limit")->read();

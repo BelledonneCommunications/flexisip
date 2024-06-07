@@ -37,8 +37,8 @@ class PresentityManager : public PresentityManagerInterface {
 public:
 	using PresentityManagerInterface::PresentityManagerInterface;
 
-	explicit PresentityManager(belle_sip_stack_t* stack, const PresenceStats& presenceStats)
-	    : PresentityManagerInterface(stack), mPresenceStats(presenceStats) {
+	PresentityManager(belle_sip_stack_t* stack, const PresenceStats& presenceStats, size_t maxElementsByEntity)
+	    : PresentityManagerInterface(stack), mPresenceStats(presenceStats), mMaxElementsByEntity(maxElementsByEntity) {
 	}
 
 	std::string handlePublishFor(const belle_sip_uri_t* entityUri,
@@ -76,6 +76,7 @@ private:
 	std::unordered_map<std::string, std::shared_ptr<PresentityPresenceInformation>> mPresenceInformationsByEtag;
 
 	const PresenceStats& mPresenceStats;
+	const size_t mMaxElementsByEntity;
 
 	std::vector<std::shared_ptr<PresenceInfoObserver>> mPresenceInfoObservers;
 };

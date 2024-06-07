@@ -122,6 +122,7 @@ add_executable(flexisip_tester
 	tests/utils/flow-factory-tester.cc
 	tests/utils/flow-tester.cc
 	tests/utils/flow-factory-helper-tester.cc
+	tests/utils/limited-unordered-map-tester.cc
 	tests/utils/socket-address-tester.cc
 	tests/utils/soft-ptr-tester.cc
 	thread-pool-tester.cc

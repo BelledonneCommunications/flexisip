@@ -78,9 +78,6 @@ public:
 	~ListSubscription() override;
 
 	std::list<std::shared_ptr<PresentityPresenceInformationListener>>& getListeners();
-	su_home_t* getHome() {
-		return home.home();
-	}
 	/* Notify taking state from all pending Presentity listener*/
 	void notify(bool isFullState);
 
@@ -128,7 +125,6 @@ private:
 	BelleSipSourcePtr mTimer;
 	size_t mMaxPresenceInfoNotifiedAtATime{0}; // maximum number of presentity available in a sigle notify
 	std::function<void(std::shared_ptr<ListSubscription>)> mListAvailable;
-	sofiasip::Home home;
 };
 
 } // namespace flexisip
