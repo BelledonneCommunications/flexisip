@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024  Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -24,6 +24,7 @@
 #include <sofia-sip/sip_header.h>
 
 #include "flexisip/sofia-wrapper/sip-header.hh"
+#include "flexisip/utils/sip-uri.hh"
 
 #include "sofia-sip/sip_protos.h"
 #include "sofia-wrapper/utilities.hh"
@@ -113,6 +114,80 @@ public:
 	}
 	SipHeaderTo(SipHeaderTo&& src) : SipHeader(std::move(src)) {
 	}
+};
+
+/**
+ * Class that represents a Path header.
+ */
+class SipHeaderPath : public SipHeader {
+public:
+	/**
+	 * Create a Path header.
+	 * @param pathURI The Path-URI.
+	 */
+	using SofiaType = sip_path_t;
+
+	template <typename UriT>
+	SipHeaderPath(const UriT& pathURI) {
+		const auto str = toSofiaSipUrlUnion(pathURI)->us_str;
+		if (std::string(str).find('<') == std::string::npos)
+			throw std::runtime_error{std::string("Invalid path header format: ") + str};
+		setNativePtr(msg_header_make(mHome.home(), sip_path_class, str));
+	}
+	SipHeaderPath(const flexisip::SipUri& pathURI) {
+		setNativePtr(sip_path_format(mHome.home(), "<%s>", pathURI.str().c_str()));
+	}
+
+	SipHeaderPath(const SipHeaderPath& src) : SipHeader(src) {
+	}
+	SipHeaderPath(SipHeaderPath&& src) : SipHeader(std::move(src)) {
+	}
+
+	const SofiaType* getNativePtr() const noexcept {
+		return reinterpret_cast<SofiaType*>(mNativePtr);
+	}
+	const msg_header_t* getNativeHdr() const noexcept {
+		return mNativePtr;
+	}
+};
+
+/**
+ * Class that represents a vector of header of the same type.
+ */
+template <class Header>
+class SipHeaderCollection {
+public:
+	SipHeaderCollection() = default;
+
+	template <typename UriT>
+	void add(const UriT& uri) {
+		mCollection.emplace_back(uri);
+	}
+
+	void add(const Header& value) {
+		mCollection.push_back(value);
+	}
+	void add(Header&& value) {
+		mCollection.push_back(std::move(value));
+	}
+
+	const std::vector<Header>& getCollection() const {
+		return mCollection;
+	}
+
+	auto* toSofiaType(su_home_t* home) const {
+		using Type = typename Header::SofiaType;
+		Type* sofiaPtr{};
+		Type** ptr = &sofiaPtr;
+		for (const auto& c : mCollection) {
+			*ptr = reinterpret_cast<Type*>(msg_header_dup(home, c.getNativeHdr()));
+			ptr = &(*ptr)->r_next;
+		}
+		return sofiaPtr;
+	}
+
+private:
+	std::vector<Header> mCollection;
 };
 
 /**
