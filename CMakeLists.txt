@@ -77,6 +77,7 @@ option(ENABLE_REDIS "Build with Redis support" ON)
 option(ENABLE_SNMP "Build with SNMP support" ON)
 option(ENABLE_SOCI "Build with SOCI support" ON)
 option(ENABLE_TRANSCODER "Build transcoder support" ON)
+option(ENABLE_G729 "Build with G729 audio codec support" OFF) # Disabled by default for license conformity
 option(ENABLE_MDNS "Build multicast DNS support" OFF)
 option(ENABLE_OPENID_CONNECT "Build OpenID Connect support" OFF)
 option(ENABLE_EXTERNAL_AUTH_PLUGIN "Enable ExternalAuth plugin support" ON)

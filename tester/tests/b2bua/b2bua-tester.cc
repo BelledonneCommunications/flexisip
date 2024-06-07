@@ -726,7 +726,7 @@ void forcedAudioCodec() {
 	    {"module::B2bua/enabled", "true"},
 	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
 	    {"b2bua-server/application", "trenscrypter"},
-	    {"b2bua-server/audio-codec", "speex/8000"},
+	    {"b2bua-server/audio-codec", "G729/8000"},
 	}};
 	proxy.start();
 	const auto& confMan = proxy.getConfigManager();
@@ -750,10 +750,10 @@ void forcedAudioCodec() {
 	BC_HARD_ASSERT(callerCall != nullptr);
 
 	const auto& legACodec = callerCall->getCurrentParams()->getUsedAudioPayloadType();
-	BC_ASSERT_CPP_EQUAL(legACodec->getMimeType(), "speex");
+	BC_ASSERT_CPP_EQUAL(legACodec->getMimeType(), "G729");
 	BC_ASSERT_CPP_EQUAL(legACodec->getClockRate(), 8000);
 	const auto& legBCodec = callee.getCurrentCall()->getAudioPayloadType();
-	BC_ASSERT_CPP_EQUAL(legBCodec->getMimeType(), "speex");
+	BC_ASSERT_CPP_EQUAL(legBCodec->getMimeType(), "G729");
 	BC_ASSERT_CPP_EQUAL(legBCodec->getClockRate(), 8000);
 }
 

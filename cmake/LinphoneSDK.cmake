@@ -82,8 +82,8 @@ function(add_linphonesdk)
 	set(ENABLE_FFMPEG OFF)
 	set(ENABLE_FLEXIAPI OFF)
 	set(ENABLE_G726 OFF)
-	set(ENABLE_G729 OFF) # Disable for license conformity
-	set(ENABLE_G729B_CNG OFF) # Disable for license conformity
+	set(ENABLE_G729 ${ENABLE_G729})
+	set(ENABLE_G729B_CNG OFF) # Disabled for license conformity
 	set(ENABLE_GSM ON)
 	set(ENABLE_ILBC OFF)
 	set(ENABLE_ISAC OFF)
@@ -94,13 +94,13 @@ function(add_linphonesdk)
 	set(ENABLE_LIBYUV OFF)
 	set(ENABLE_LIME OFF)
 	set(ENABLE_LIME_X3DH ${BUILD_LIBLINPHONE})
-	
+
 	# ENABLE_MBEDTLS must be a cache variable because this option is declared by
 	# libsrtp2 project as cache variable instead of using option() command. That avoid Flexisip
 	# to masquerade this variable by using CMP0077 new behavior.
 	set(ENABLE_MBEDTLS ON CACHE BOOL "Enable MbedTLS support." FORCE)
 	mark_as_advanced(ENABLE_MBEDTLS)
-	
+
 	set(ENABLE_MKV OFF)
 	set(ENABLE_NON_FREE_FEATURES OFF)
 	set(ENABLE_OPENH264 OFF)
@@ -178,8 +178,13 @@ function(add_linphonesdk)
 		endif()
 	endif()
 
+	if(ENABLE_G729)
+		set(ENABLE_GPL_THIRD_PARTIES ON)
+	endif()
+
 	set(LINPHONESDK_BUILD_TYPE "Flexisip")
 
 	add_subdirectory("linphone-sdk")
 endfunction()
+
 add_linphonesdk()
