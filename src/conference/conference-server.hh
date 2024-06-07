@@ -38,8 +38,9 @@ class ConferenceServer : public ServiceServer,
                          public linphone::ChatRoomListener {
 public:
 	template <typename StrT, typename SuRootPtr>
-	ConferenceServer(StrT&& path, SuRootPtr&& root)
-	    : ServiceServer{std::forward<SuRootPtr>(root)}, mPath{std::forward<StrT>(path)}, mSubscriptionHandler{*this} {
+	ConferenceServer(StrT&& pathUri, SuRootPtr&& root)
+	    : ServiceServer{std::forward<SuRootPtr>(root)}, mPath{std::forward<StrT>(pathUri)},
+	      mSubscriptionHandler{*this} {
 	}
 
 	virtual void bindAddresses();
@@ -113,7 +114,7 @@ private:
 	std::string getUuid();
 	std::shared_ptr<linphone::Core> mCore{};
 	std::shared_ptr<RegistrationEvent::ClientFactory> mRegEventClientFactory{};
-	std::string mPath{};
+	SipUri mPath{};
 	std::list<std::shared_ptr<linphone::ChatRoom>> mChatRooms{};
 	ParticipantRegistrationSubscriptionHandler mSubscriptionHandler;
 	MediaConfig mMediaConfig;

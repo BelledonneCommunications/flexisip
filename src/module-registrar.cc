@@ -888,7 +888,7 @@ void ModuleRegistrar::readStaticRecords() {
 		return;
 	}
 
-	string path = getAgent()->getPreferredRoute();
+	SipUri path{getAgent()->getPreferredRoute()};
 	mStaticRecordsVersion++;
 
 	const regex isCommentOrEmptyRe(R"regex(^\s*(#.*)?$)regex");
@@ -967,7 +967,7 @@ void ModuleRegistrar::readStaticRecords() {
 				listener = make_shared<OnStaticBindListener>(url->m_url, contact);
 
 				parameter.callId = fakeCallId;
-				parameter.path = {path};
+				parameter.path.add(path);
 				parameter.globalExpire = expire;
 				parameter.alias = alias;
 				parameter.version = mStaticRecordsVersion;

@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "sofia-sip/url.h"
+#include "sofia-wrapper/sip-header-private.hh"
 
 namespace flexisip {
 
@@ -35,7 +36,7 @@ struct BindingParameters {
 	int version = 0;
 	int32_t cSeq = -1; // Negative means no CSeq
 	std::string callId = "";
-	std::vector<std::string> path{};
+	sofiasip::SipHeaderCollection<sofiasip::SipHeaderPath> path{};
 	std::string userAgent = "";
 	/* when supplied, the isAliasFunction() overrides the "alias" setting on a per-contact basis.*/
 	std::function<bool(const url_t*)> isAliasFunction;

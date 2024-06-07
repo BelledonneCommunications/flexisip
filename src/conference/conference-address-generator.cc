@@ -1,6 +1,6 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2023 Belledonne Communications SARL.
+ Copyright (C) 2010-2024 Belledonne Communications SARL.
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
@@ -28,13 +28,11 @@
 using namespace flexisip;
 using namespace std;
 
-ConferenceAddressGenerator::ConferenceAddressGenerator(const shared_ptr<linphone::ChatRoom> chatRoom,
-                                                       shared_ptr<linphone::Address> conferenceFactoryAddr,
+ConferenceAddressGenerator::ConferenceAddressGenerator(const shared_ptr<linphone::ChatRoom>& chatRoom,
+                                                       const shared_ptr<linphone::Address>& conferenceFactoryAddr,
                                                        const string& uuid,
-                                                       const string& path,
                                                        ConferenceServer* conferenceServer)
-    : mChatRoom(chatRoom), mConferenceAddr(conferenceFactoryAddr), mUuid(uuid), mPath(path),
-      mConferenceServer(conferenceServer) {
+    : mChatRoom(chatRoom), mConferenceAddr(conferenceFactoryAddr), mUuid(uuid), mConferenceServer(conferenceServer) {
 }
 
 void ConferenceAddressGenerator::run() {
