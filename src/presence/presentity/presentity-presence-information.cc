@@ -52,11 +52,12 @@ FlexisipException& operator<<(FlexisipException& e, const Xsd::XmlSchema::Except
 std::shared_ptr<PresentityPresenceInformation> PresentityPresenceInformation::make(const belle_sip_uri_t* entity,
                                     PresentityManagerInterface& presentityManager,
                                     belle_sip_main_loop_t* mainloop,
-                                    const PresenceStats& presenceStats) {
+                                    const PresenceStats& presenceStats,
+                                    size_t maximumElementsNumber) {
 	const auto sharedThis = std::shared_ptr<PresentityPresenceInformation>(
 	    new PresentityPresenceInformation(entity, presentityManager, mainloop, presenceStats));
-	sharedThis->mInformationElements =
-	    PresenceInformationElementMap::make(mainloop, sharedThis, presenceStats.countPresenceElementMap);
+	sharedThis->mInformationElements = PresenceInformationElementMap::make(
+	    mainloop, sharedThis, presenceStats.countPresenceElementMap, maximumElementsNumber);
 	return sharedThis;
 }
 

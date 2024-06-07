@@ -24,19 +24,13 @@
 using namespace std;
 namespace flexisip {
 
-std::shared_ptr<PresenceInformationElementMap>
-PresenceInformationElementMap::make(belle_sip_main_loop_t* belleSipMainloop,
-                                    const std::weak_ptr<PresentityPresenceInformation>& initialParent,
-                                    const std::weak_ptr<StatPair>& countPresenceElementMap) {
-	return std::shared_ptr<PresenceInformationElementMap>(
-	    new PresenceInformationElementMap(belleSipMainloop, initialParent, countPresenceElementMap));
-}
-
 PresenceInformationElementMap::PresenceInformationElementMap(
     belle_sip_main_loop_t* belleSipMainloop,
     const weak_ptr<PresentityPresenceInformation>& initialParent,
-    const std::weak_ptr<StatPair>& countPresenceElementMap)
-    : mBelleSipMainloop(belleSipMainloop), mCountPresenceElementMap(countPresenceElementMap) {
+    const std::weak_ptr<StatPair>& countPresenceElementMap,
+    size_t maximumElementsNumber)
+    : mBelleSipMainloop(belleSipMainloop), mInformationElements{maximumElementsNumber},
+      mCountPresenceElementMap(countPresenceElementMap) {
 	mParents.push_back(initialParent);
 	mListeners.push_back(initialParent);
 

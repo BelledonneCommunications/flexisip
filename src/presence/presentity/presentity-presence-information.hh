@@ -44,7 +44,8 @@ public:
 	static std::shared_ptr<PresentityPresenceInformation> make(const belle_sip_uri_t* entity,
 	                                                           PresentityManagerInterface& presentityManager,
 	                                                           belle_sip_main_loop_t* ml,
-	                                                           const PresenceStats& presenceStats);
+	                                                           const PresenceStats& presenceStats,
+	                                                           size_t maximumElementsNumber);
 	~PresentityPresenceInformation() override;
 
 	/*

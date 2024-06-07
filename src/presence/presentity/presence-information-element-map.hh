@@ -20,10 +20,10 @@
 
 #include <memory>
 #include <string>
-#include <unordered_map>
 
 #include "presence/presentity/presence-information-element.hh"
 #include "presence/presentity/presentity-presence-information-listener.hh"
+#include "utils/limited-unordered-map.hh"
 
 namespace flexisip {
 class ElementMapListener {
@@ -35,12 +35,13 @@ public:
 
 class PresenceInformationElementMap : public std::enable_shared_from_this<PresenceInformationElementMap> {
 public:
-	using ElementMapType = std::unordered_map<std::string /*Etag*/, std::unique_ptr<PresenceInformationElement>>;
+	using ElementMapType = LimitedUnorderedMap<std::string /*Etag*/, std::unique_ptr<PresenceInformationElement>>;
 
-	static std::shared_ptr<PresenceInformationElementMap>
-	make(belle_sip_main_loop_t* belleSipMainloop,
-	     const std::weak_ptr<PresentityPresenceInformation>& initialParent,
-	     const std::weak_ptr<StatPair>& countPresenceElementMap);
+	template <typename... Args>
+	static std::shared_ptr<PresenceInformationElementMap> make(Args&&... args) {
+		return std::shared_ptr<PresenceInformationElementMap>(
+		    new PresenceInformationElementMap(std::forward<Args>(args)...));
+	}
 
 	virtual ~PresenceInformationElementMap();
 
@@ -93,7 +94,8 @@ public:
 private:
 	explicit PresenceInformationElementMap(belle_sip_main_loop_t* belleSipMainloop,
 	                                       const std::weak_ptr<PresentityPresenceInformation>& initialParent,
-	                                       const std::weak_ptr<StatPair>& countPresenceElementMap);
+	                                       const std::weak_ptr<StatPair>& countPresenceElementMap,
+	                                       size_t maximumElementsNumber);
 
 	void setupLastActivity();
 

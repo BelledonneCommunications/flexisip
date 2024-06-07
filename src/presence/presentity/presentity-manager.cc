@@ -85,7 +85,8 @@ void PresentityManager::addOrUpdateListener(shared_ptr<PresentityPresenceInforma
 	if (!presenceInfo) {
 		/*no information available yet, but creating entry to be able to register subscribers*/
 		presenceInfo = PresentityPresenceInformation::make(listener->getPresentityUri(), *this,
-		                                                   belle_sip_stack_get_main_loop(getStack()), mPresenceStats);
+		                                                   belle_sip_stack_get_main_loop(getStack()), mPresenceStats,
+		                                                   mMaxElementsByEntity);
 		SLOGD << "New Presentity [" << *presenceInfo << "] created from SUBSCRIBE";
 		addPresenceInfo(presenceInfo);
 	}
@@ -128,8 +129,9 @@ void PresentityManager::addOrUpdateListeners(list<shared_ptr<PresentityPresenceI
 		auto presenceInfo = getPresenceInfo(listener->getPresentityUri());
 		if (!presenceInfo) {
 			/*no information available yet, but creating entry to be able to register subscribers*/
-			presenceInfo = PresentityPresenceInformation::make(
-			    listener->getPresentityUri(), *this, belle_sip_stack_get_main_loop(getStack()), mPresenceStats);
+			presenceInfo = PresentityPresenceInformation::make(listener->getPresentityUri(), *this,
+			                                                   belle_sip_stack_get_main_loop(getStack()),
+			                                                   mPresenceStats, mMaxElementsByEntity);
 			SLOGD << "New Presentity [" << *presenceInfo << "] created from SUBSCRIBE";
 			addPresenceInfo(presenceInfo);
 		}
@@ -193,7 +195,7 @@ string PresentityManager::handlePublishFor(const belle_sip_uri_t* entityUri,
 	shared_ptr<PresentityPresenceInformation> presenceInfo;
 	if (!(presenceInfo = getPresenceInfo(entityUri))) {
 		presenceInfo = PresentityPresenceInformation::make(entityUri, *this, belle_sip_stack_get_main_loop(getStack()),
-		                                                   mPresenceStats);
+		                                                   mPresenceStats, mMaxElementsByEntity);
 		SLOGD << "New Presentity [" << *presenceInfo << "] created from PUBLISH";
 		addPresenceInfo(presenceInfo);
 	} else {
@@ -225,7 +227,7 @@ void PresentityManager::handleLongtermPresence(const belle_sip_uri_t* entityUri,
 	shared_ptr<PresentityPresenceInformation> presenceInfo;
 	if (!(presenceInfo = getPresenceInfo(entityUri))) {
 		presenceInfo = PresentityPresenceInformation::make(entityUri, *this, belle_sip_stack_get_main_loop(getStack()),
-		                                                   mPresenceStats);
+		                                                   mPresenceStats, mMaxElementsByEntity);
 		SLOGD << "New Presentity [" << *presenceInfo << "] created from LongTerm Presence, linking with "
 		      << *originalEntity;
 		addPresenceInfo(presenceInfo);
