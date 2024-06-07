@@ -83,7 +83,9 @@ public:
 		return *this;
 	}
 	ContactInserter& setPath(const std::vector<std::string>& path) {
-		mParameters.path = path;
+		for (const auto& p : path) {
+			mParameters.path.add(p);
+		}
 		return *this;
 	}
 	template <typename T>

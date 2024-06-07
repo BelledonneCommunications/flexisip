@@ -557,14 +557,8 @@ void RegistrarDb::bind(const SipUri& aor,
 	auto* sip = msg.getSip();
 
 	sip->sip_contact = sip_contact_dup(homeSip, contact);
-
 	sip->sip_from = sip_from_create(homeSip, reinterpret_cast<const url_string_t*>(aor.get()));
-
-	for (const auto& path : parameter.path) {
-		if (parameter.path.empty()) continue;
-
-		msg_header_add_make(msg.getMsg(), nullptr, sip_path_class, path.c_str());
-	}
+	sip->sip_path = parameter.path.toSofiaType(homeSip);
 
 	if (!parameter.userAgent.empty()) {
 		sip->sip_user_agent = sip_user_agent_make(homeSip, parameter.userAgent.c_str());

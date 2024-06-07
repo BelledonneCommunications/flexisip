@@ -197,7 +197,8 @@ void ConferenceServer::_init() {
 		accountParams->enableOutboundProxy(true);
 		accountParams->setConferenceFactoryUri(factoryUri->asString());
 		auto account = mCore->createAccount(accountParams);
-		// The default contact address is the identity address. It will be used if the connection to the REDIS server is broken or the answer is very slow and a client calls a conference before onRecordFound() is called
+		// The default contact address is the identity address. It will be used if the connection to the REDIS server is
+		// broken or the answer is very slow and a client calls a conference before onRecordFound() is called
 		account->setContactAddress(accountParams->getIdentityAddress());
 		mCore->addAccount(account);
 		if (!defaultAccountSet) {
@@ -365,7 +366,7 @@ void ConferenceServer::onConferenceAddressGeneration(const shared_ptr<ChatRoom>&
 	shared_ptr<Address> confAddr = cr->getConferenceAddress()->clone();
 	LOGI("Conference address is %s", confAddr->asString().c_str());
 	shared_ptr<ConferenceAddressGenerator> generator =
-	    make_shared<ConferenceAddressGenerator>(cr, confAddr, getUuid(), mPath, this, *mRegistrarDb);
+	    make_shared<ConferenceAddressGenerator>(cr, confAddr, getUuid(), this, *mRegistrarDb);
 	generator->run();
 }
 
@@ -429,7 +430,7 @@ void ConferenceServer::bindFactoryUris() {
 			SipUri factory(conferenceFactoryUri.first);
 
 			parameter.callId = "CONFERENCE";
-			parameter.path = {mPath};
+			parameter.path.add(mPath);
 			parameter.globalExpire = numeric_limits<int>::max();
 			parameter.alias = false;
 			parameter.version = 0;
@@ -499,7 +500,7 @@ void ConferenceServer::bindFocusUris() {
 		    nullptr);
 
 		parameter.callId = "CONFERENCE";
-		parameter.path = {mPath};
+		parameter.path.add(mPath);
 		parameter.globalExpire = numeric_limits<int>::max();
 		parameter.alias = false;
 		parameter.version = 0;
@@ -522,7 +523,7 @@ void ConferenceServer::bindChatRoom(const string& bindingUrl,
 	                       su_strdup(mHome.home(), ("+sip.instance=" + UriUtils::grToUniqueId(gruu)).c_str()), nullptr);
 
 	parameter.callId = !gruu.empty() ? gruu : "dummy-callid";
-	parameter.path = {mPath};
+	parameter.path.add(mPath);
 	parameter.globalExpire = numeric_limits<int>::max();
 	parameter.alias = false;
 	parameter.version = 0;
