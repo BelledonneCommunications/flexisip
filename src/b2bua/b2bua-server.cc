@@ -75,8 +75,8 @@ void B2buaServer::onCallStateChanged(const shared_ptr<linphone::Core>&,
                                      const shared_ptr<linphone::Call>& call,
                                      linphone::Call::State state,
                                      const string&) {
-	SLOGD << "b2bua server onCallStateChanged to " << (int)state << " "
-	      << ((call->getDir() == linphone::Call::Dir::Outgoing) ? "legB" : "legA");
+	const string_view legName = call->getDir() == linphone::Call::Dir::Outgoing ? "legB" : "legA";
+	SLOGD << "b2bua server onCallStateChanged to " << (int)state << legName;
 	switch (state) {
 		case linphone::Call::State::IncomingReceived: {
 			SLOGD << "b2bua server onCallStateChanged incomingReceived, to " << call->getToAddress()->asString()
@@ -220,12 +220,21 @@ void B2buaServer::onCallStateChanged(const shared_ptr<linphone::Core>&,
 		case linphone::Call::State::PausedByRemote: {
 			// Paused by remote: do not pause peer call as it will kick it out of the conference
 			// just switch the media direction to sendOnly (only if it is not already set this way)
-			auto peerCall = getPeerCall(call);
-			auto peerCallParams = mCore->createCallParams(peerCall);
-			auto audioDirection = peerCallParams->getAudioDirection();
+			const auto peerCall = getPeerCall(call);
+			if (peerCall->getState() == linphone::Call::State::PausedByRemote) {
+				const string_view peerLegName = legName == "legA" ? "legB" : "legA";
+				SLOGE << "Both calls are in state LinphoneCallPausedByRemote, lost track of who initiated the pause"
+				      << " [" << legName << ": " << call << ", " << peerLegName << ": " << peerCall << "]";
+				call->terminate();
+				peerCall->terminate();
+				return;
+			}
+
+			const auto peerCallAudioDirection = mCore->createCallParams(peerCall)->getAudioDirection();
 			// Nothing to do if peer call is already not sending audio
-			if (audioDirection != linphone::MediaDirection::Inactive &&
-			    audioDirection != linphone::MediaDirection::SendOnly) {
+			if (peerCallAudioDirection != linphone::MediaDirection::Inactive &&
+			    peerCallAudioDirection != linphone::MediaDirection::SendOnly) {
+				const auto peerCallParams = mCore->createCallParams(peerCall);
 				peerCallParams->setAudioDirection(linphone::MediaDirection::SendOnly);
 				peerCall->update(peerCallParams);
 			}

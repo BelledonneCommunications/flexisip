@@ -65,6 +65,7 @@ public:
 	ClientBuilder& setConferenceFactoryUri(const std::string&);
 	ClientBuilder& setCustomContact(const std::string& contact);
 	ClientBuilder& setPushParams(const pushnotification::RFC8599PushParams& params);
+	ClientBuilder& setInactiveAudioOnPause(OnOff);
 	/**
 	 * Add some Apple-specific push info to REGISTERs
 	 */
@@ -85,6 +86,7 @@ private:
 	OnOff mSendRtcp : 1;
 	OnOff mIce : 1;
 	OnOff mRegister : 1;
+	OnOff mSetAudioInactiveOnPause = OnOff::Off;
 	std::string mPassword{""};
 };
 
