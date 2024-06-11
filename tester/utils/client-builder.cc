@@ -99,6 +99,7 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 		config->setString("storage", "backend", "sqlite3");
 		config->setString("storage", "uri", ":memory:");
 		config->setBool("rtp", "rtcp_enabled", bool(mSendRtcp));
+		config->setBool("sip", "inactive_audio_on_pause", static_cast<bool>(mSetAudioInactiveOnPause));
 	}
 
 	core->setAudioPort(-1);
@@ -238,6 +239,11 @@ ClientBuilder& ClientBuilder::setCustomContact(const std::string& contact) {
 
 ClientBuilder& ClientBuilder::setPushParams(const pushnotification::RFC8599PushParams& params) {
 	mAccountParams->setContactUriParameters(params.toUriParams());
+	return *this;
+}
+
+ClientBuilder& ClientBuilder::setInactiveAudioOnPause(OnOff value) {
+	mSetAudioInactiveOnPause = value;
 	return *this;
 }
 

@@ -528,10 +528,10 @@ private:
 	}
 };
 
-/** In an established call, the B2BUA was not behaving properly when a participant attempted to pause the call with
-   audio direction "inactive":
+/** In an established call, the B2BUA was not behaving properly when the pauser attempted to pause the call with audio
+   direction "inactive":
 
-   Pauser         B2BUA      Correspondant
+   Pauser         B2BUA          Pausee
      | --INVITE---> |              |
      | a=inactive   |              |
      |              |              |
@@ -539,7 +539,7 @@ private:
      |              | a=sendonly   |
      |              |              |
      |              | <--200 OK--- |
-     |              | a=sendonly   |
+     |              | a=recvonly   |
      |              |              |
      | <--200 OK--- |              |
      | a=inactive   |              |
@@ -552,10 +552,11 @@ private:
    We get everything up to the point where Pauser's INVITE is accepted (so, right before the erroneous re-INVITE on the
    part of the B2BUA), then set up a trigger on Pauser's call to fail on re-INVITEs, and let the calls terminate on
    their own.
+
+   TODO: refactor pause tests to remove code duplication.
  */
 void pauseWithAudioInactive() {
 	Server proxy{{
-	    // Requesting bind on port 0 to let the kernel find any available port
 	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
 	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
 	    {"b2bua-server/application", "trenscrypter"},
@@ -569,27 +570,32 @@ void pauseWithAudioInactive() {
 	    {"b2bua-server/data-directory", bcTesterWriteDir()},
 	}};
 	proxy.start();
+
+	// Instantiate and start B2BUA server.
 	const auto& confMan = proxy.getConfigManager();
 	const auto& configRoot = *confMan->getRoot();
 	configRoot.get<GenericStruct>("b2bua-server")
 	    ->get<ConfigString>("outbound-proxy")
-	    ->set("sip:127.0.0.1:" + std::string(proxy.getFirstPort()) + ";transport=tcp");
+	    ->set("sip:127.0.0.1:" + string(proxy.getFirstPort()) + ";transport=tcp");
 	const auto& b2bua = make_shared<flexisip::B2buaServer>(proxy.getRoot(), confMan);
 	b2bua->init();
 	configRoot.get<GenericStruct>("module::B2bua")
 	    ->get<ConfigString>("b2bua-server")
 	    ->set("sip:127.0.0.1:" + to_string(b2bua->getTcpPort()) + ";transport=tcp");
 	proxy.getAgent()->findModule("B2bua")->reload();
+
+	// Instantiate clients and create call.
 	auto builder = ClientBuilder(*proxy.getAgent());
-	auto pauser = builder.build("pauser@example.org");
-	auto correspondant = builder.build("correspondant@example.org");
-	CoreAssert asserter{pauser, proxy, correspondant};
-	const auto& pauserCall = pauser.invite(correspondant);
-	BC_HARD_ASSERT(pauserCall != nullptr);
-	ASSERT_PASSED(correspondant.hasReceivedCallFrom(pauser));
-	const auto& correspondantCall = correspondant.getCurrentCall();
-	BC_HARD_ASSERT(correspondantCall.has_value());
-	correspondantCall->accept();
+	auto pauser = builder.setInactiveAudioOnPause(OnOff::On).build("pauser@example.org");
+	auto pausee = builder.setInactiveAudioOnPause(OnOff::Off).build("pausee@example.org");
+	CoreAssert asserter{pauser, proxy, pausee};
+	const auto& callFromPauser = pauser.invite(pausee);
+	BC_HARD_ASSERT(callFromPauser != nullptr);
+	ASSERT_PASSED(pausee.hasReceivedCallFrom(pauser));
+	const auto& pauserCall = pauser.getCurrentCall();
+	const auto& pauseeCall = pausee.getCurrentCall();
+	BC_HARD_ASSERT(pauseeCall.has_value());
+	pauseeCall->accept();
 	asserter
 	    .iterateUpTo(
 	        8,
@@ -597,27 +603,126 @@ void pauseWithAudioInactive() {
 	        500ms)
 	    .assert_passed();
 
-	const auto& withAudioInactive = pauser.getCore()->createCallParams(pauserCall);
-	withAudioInactive->setAudioDirection(linphone::MediaDirection::Inactive);
-	pauserCall->update(withAudioInactive);
+	// Pause call with a=inactive in SDP (initiated from Pauser).
+	callFromPauser->pause();
 	asserter
 	    .iterateUpTo(
 	        8,
-	        [&correspondantCall, &pauserCall]() {
-		        FAIL_IF(correspondantCall->getState() != linphone::Call::State::PausedByRemote);
-		        FAIL_IF(pauserCall->getState() != linphone::Call::State::StreamsRunning);
+	        [&pauseeCall, &pauserCall]() {
+		        FAIL_IF(pauserCall->getState() != linphone::Call::State::Paused);
+		        FAIL_IF(pauseeCall->getState() != linphone::Call::State::PausedByRemote);
 		        return ASSERTION_PASSED();
 	        },
 	        500ms)
 	    .assert_passed();
-	BC_ASSERT_ENUM_EQUAL(correspondantCall->getState(), linphone::Call::State::PausedByRemote);
-	BC_ASSERT_ENUM_EQUAL(correspondantCall->getAudioDirection(), linphone::MediaDirection::RecvOnly);
-	BC_ASSERT_ENUM_EQUAL(pauserCall->getState(), linphone::Call::State::StreamsRunning);
-	BC_ASSERT_ENUM_EQUAL(pauserCall->getCurrentParams()->getAudioDirection(), linphone::MediaDirection::Inactive);
 
-	const auto& reinviteCheck = std::make_shared<FailIfUpdatedByRemote>();
-	pauserCall->addListener(reinviteCheck);
-	correspondant.endCurrentCall(pauser);
+	// Check both clients are in the right call state.
+	BC_ASSERT_ENUM_EQUAL(pauserCall->getState(), linphone::Call::State::Paused);
+	BC_ASSERT_ENUM_EQUAL(pauseeCall->getState(), linphone::Call::State::PausedByRemote);
+	// Check both clients have the right media direction.
+	BC_ASSERT_ENUM_EQUAL(pauserCall->getAudioDirection(), linphone::MediaDirection::Inactive);
+	BC_ASSERT_ENUM_EQUAL(pauseeCall->getAudioDirection(), linphone::MediaDirection::RecvOnly);
+
+	const auto& reinviteCheck = make_shared<FailIfUpdatedByRemote>();
+	callFromPauser->addListener(reinviteCheck);
+	pauseeCall->terminate();
+	BC_ASSERT(reinviteCheck->passed);
+}
+
+/** In an established call, the B2BUA was not behaving properly when the pausee attempted to answer to the pause with
+   audio direction "inactive":
+
+   Pauser         B2BUA          Pausee
+     | --INVITE---> |              |
+     | a=sendonly   |              |
+     |              |              |
+     |              | --INVITE---> |
+     |              | a=sendonly   |
+     |              |              |
+     |              | <--200 OK--- |
+     |              | a=inactive   |
+     |              |              |
+     | <--200 OK--- |              |
+     | a=recvonly   |              |
+     |              |              |
+     | <x-INVITE-x- |              |
+     | a=sendonly   |              |
+
+    This test checks that this last erroneous re-INVITE does not happen.
+
+    TODO: refactor pause tests to remove code duplication.
+ */
+void answerToPauseWithAudioInactive() {
+	Server proxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
+	    {"b2bua-server/application", "trenscrypter"},
+	    // Forward everything to the b2bua
+	    {"module::B2bua/enabled", "true"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "example.org"},
+	    // Media Relay has problem when everyone is running on localhost
+	    {"module::MediaRelay/enabled", "false"},
+	    // B2bua use writable-dir instead of var folder
+	    {"b2bua-server/data-directory", bcTesterWriteDir()},
+	}};
+	proxy.start();
+
+	// Instantiate and start B2BUA server.
+	const auto& confMan = proxy.getConfigManager();
+	const auto& configRoot = *confMan->getRoot();
+	configRoot.get<GenericStruct>("b2bua-server")
+	    ->get<ConfigString>("outbound-proxy")
+	    ->set("sip:127.0.0.1:" + string(proxy.getFirstPort()) + ";transport=tcp");
+	const auto& b2bua = make_shared<flexisip::B2buaServer>(proxy.getRoot(), confMan);
+	b2bua->init();
+	configRoot.get<GenericStruct>("module::B2bua")
+	    ->get<ConfigString>("b2bua-server")
+	    ->set("sip:127.0.0.1:" + to_string(b2bua->getTcpPort()) + ";transport=tcp");
+	proxy.getAgent()->findModule("B2bua")->reload();
+
+	// Instantiate clients and create call.
+	auto builder = ClientBuilder(*proxy.getAgent());
+	auto pauser = builder.setInactiveAudioOnPause(OnOff::Off).build("pauser@example.org");
+	auto pausee = builder.setInactiveAudioOnPause(OnOff::On).build("pausee@example.org");
+	CoreAssert asserter{pauser, proxy, pausee};
+	const auto& callFromPauser = pauser.invite(pausee);
+	BC_HARD_ASSERT(callFromPauser != nullptr);
+	ASSERT_PASSED(pausee.hasReceivedCallFrom(pauser));
+	const auto& pauserCall = pauser.getCurrentCall();
+	const auto& pauseeCall = pausee.getCurrentCall();
+	BC_HARD_ASSERT(pauseeCall.has_value());
+	pauseeCall->accept();
+	asserter
+	    .iterateUpTo(
+	        8,
+	        [&pauserCall]() { return LOOP_ASSERTION(pauserCall->getState() == linphone::Call::State::StreamsRunning); },
+	        500ms)
+	    .assert_passed();
+
+	// Pause call with a=sendonly in SDP. Pausee will answer to pause with a=inactive.
+	callFromPauser->pause();
+	asserter
+	    .iterateUpTo(
+	        8,
+	        [&pauseeCall, &pauserCall]() {
+		        FAIL_IF(pauseeCall->getState() != linphone::Call::State::PausedByRemote);
+		        FAIL_IF(pauserCall->getState() != linphone::Call::State::Paused);
+		        return ASSERTION_PASSED();
+	        },
+	        500ms)
+	    .assert_passed();
+
+	// Check both clients are in the right call state.
+	BC_ASSERT_ENUM_EQUAL(pauserCall->getState(), linphone::Call::State::Paused);
+	BC_ASSERT_ENUM_EQUAL(pauseeCall->getState(), linphone::Call::State::PausedByRemote);
+	// Check both clients have the right media direction.
+	BC_ASSERT_ENUM_EQUAL(pauserCall->getAudioDirection(), linphone::MediaDirection::SendOnly);
+	BC_ASSERT_ENUM_EQUAL(pauseeCall->getAudioDirection(), linphone::MediaDirection::Inactive);
+
+	const auto& reinviteCheck = make_shared<FailIfUpdatedByRemote>();
+	callFromPauser->addListener(reinviteCheck);
+	pauseeCall->terminate();
 	BC_ASSERT(reinviteCheck->passed);
 }
 
@@ -779,6 +884,7 @@ TestSuite _{
         // CLASSY_TEST(trenscrypter__video_call_with_forced_codec<H264>),
         TEST_NO_TAG("Video rejected by callee", videoRejected),
         CLASSY_TEST(pauseWithAudioInactive),
+		CLASSY_TEST(answerToPauseWithAudioInactive),
         CLASSY_TEST(unknownMediaAttrAreFilteredOutOnReinvites),
         CLASSY_TEST(forcedAudioCodec),
     },
