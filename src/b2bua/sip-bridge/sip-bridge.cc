@@ -47,17 +47,63 @@ const auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericS
 	    {String, providersConfigItem,
 	     R"(Path to a file containing the accounts to use for external SIP bridging, organised by provider, in JSON format.
 Here is a template of what should be in this file:
-[{"name": "<user-friendly provider name for CLI output>",
-  "pattern": "<regexp to match callee address>",
-  "outboundProxy": "<sip:some.provider.example.com;transport=tls>",
-  "registrationRequired": true,
-  "maxCallsPerLine": 42,
-  "accounts": [{
-    "uri": "sip:account1@some.provider.example.com",
-    "userid": "<optional (e.g. an API key)>",
-    "password": "<password or API token>"
-  }]
-}])",
+{
+	"schemaVersion": 2,
+	"providers": [
+		{
+			"name": "<user-friendly provider name for CLI output>",
+			"accountPool": "<name of an account pool described below>",
+			"triggerCondition": {
+				"strategy": "<MatchRegex|Always>"
+				"pattern": "<MatchRegaxParam: regex>"
+			},
+			"accountToUse": {
+				"strategy": "FindInPool|Random",
+				"by": "<FindInPoolParam: alias|uri>",
+				"source": "<FindInPoolParam: {from}|{to}|{sip:{incoming.to.user}@{account.sipIdentity.hostport}{incoming.to.uriParameters}}>"
+			},
+			"onAccountNotFound": "nextProvider|decline",
+			"outgoingInvite": {
+				"to": "<{account.alias}|sip:{incoming.to.user}@{account.sipIdentity.hostport}{incoming.to.uriParameters}>",
+				"from": "<optional: {account.sipIdentity}|{sip:{incoming.from.user}@{account.sipIdentity.hostport}{incoming.from.uriParameters}>",
+				"outboundProxy": "<optional: sip:flexisip.example.org;transport=tcp>",
+				"enableAvpf": <optional: true|false>,
+				"mediaEncryption": "<optional: zrtp|sdes|dtls-srtp|none>"
+			}
+		}
+	],
+	"accountPools": {
+		"<name of account pool>": {
+			"outboundProxy": "<sip:some.provider.example.com;transport=tls>",
+			"registrationRequired": <true,false>,
+			"maxCallsPerLine": <number>,
+			"loader": {
+				"dbBackend": "<mysql|sqlite3>",
+				"initQuery": "<SQL query>"
+				"updateQuery": "<SQL query>",
+				"connection": "<db=sip_accounts user='flexisip-b2bua' password='secret' host=db.example.org>"
+			}
+		},
+		"<name of another account pool>": {
+			"outboundProxy": "<sip:some.provider.example.com;transport=tls>",
+			"registrationRequired": <true,false>,
+			"maxCallsPerLine": <number>,
+			"loader": [
+				{
+					"uri": "<sip:account1@some.provider.example.com>",
+					"userid": "<optional: (e.g. an API key)>"
+					"secretType": "<registrationRequiredParam: ha1|clrtxt>",
+					"secret": "<registrationRequiredParam: password or API token>"
+					"alias": "<optional: sip:anotherAccount1@some.provider.example.com>
+					"outboundProxy": "<optional: sip:another.providerOverridingPreviousOne.example.com;transport=tls>",
+				}
+			]
+		}
+	}
+})"
+	     "\nFull documentation is available here: "
+	     "https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/"
+	     "Back-to-back%20User%20Agent%20%28b2bua%29/SIP%20Bridge/#sip-bridge\n",
 	     "example-path.json"},
 	    config_item_end};
 
