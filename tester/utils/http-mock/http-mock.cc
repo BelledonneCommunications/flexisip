@@ -82,7 +82,7 @@ int HttpMock::serveAsync(const std::string& port) {
 
 	configure_tls_context_easy(ec, mCtx);
 
-	if (mServer.listen_and_serve(ec, mCtx, "localhost", port, true)) {
+	if (mServer.listen_and_serve(ec, mCtx, "127.0.0.1", port, true)) {
 		SLOGE << "error: " << ec.message() << std::endl;
 		return -1;
 	}

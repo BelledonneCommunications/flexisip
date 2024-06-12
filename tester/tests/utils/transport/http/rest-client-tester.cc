@@ -46,7 +46,7 @@ public:
 		httpHeaders.add(":authority", "localhost");
 		httpHeaders.add("custom_header", "custom_header_value");
 		httpHeaders.add("custom_header2", "custom_header_value2");
-		RestClient restClient{Http2Client::make(mRoot, "localhost", to_string(port)), httpHeaders};
+		RestClient restClient{Http2Client::make(mRoot, "127.0.0.1", to_string(port)), httpHeaders};
 
 		sendRequest(restClient);
 

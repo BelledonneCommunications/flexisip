@@ -121,7 +121,7 @@ static void startApplePushTest(PushType pType,
                                const string& responseBody,
                                Request::State expectedFinalState,
                                bool timeout = false) {
-	AppleClient::APN_DEV_ADDRESS = "localhost";
+	AppleClient::APN_DEV_ADDRESS = "127.0.0.1";
 	AppleClient::APN_PORT = "3000";
 	AppleClient appleClient{*root, "", bcTesterRes("cert/apple.test.dev.pem"), "apple.test.dev.pem"};
 	appleClient.enableInsecureTestMode();
@@ -142,7 +142,7 @@ static void startFirebasePushTest(PushType pType,
                                   const string& responseBody,
                                   Request::State expectedFinalState,
                                   bool timeout = false) {
-	FirebaseClient::FIREBASE_ADDRESS = "localhost";
+	FirebaseClient::FIREBASE_ADDRESS = "127.0.0.1";
 	FirebaseClient::FIREBASE_PORT = "3000";
 	FirebaseClient firebaseClient{*root, ""};
 	firebaseClient.enableInsecureTestMode();
@@ -165,7 +165,7 @@ static void startFirebaseV1PushTest(PushType pType,
                                     Request::State expectedFinalState,
                                     bool timeout = false) {
 
-	FirebaseV1Client::FIREBASE_ADDRESS = "localhost";
+	FirebaseV1Client::FIREBASE_ADDRESS = "127.0.0.1";
 	FirebaseV1Client::FIREBASE_PORT = "3000";
 	FirebaseV1Client firebaseClient{
 	    *root, make_shared<FirebaseV1AuthenticationManager>(
@@ -192,7 +192,7 @@ static void startGenericPushTest(PushType pType,
 
 	GenericHttp2Client genericClient{
 	    sofiasip::Url(
-	        "https://localhost:3000/generic?type=$type&from-name=$from-name&from-uri=$from-uri&call-id=$call-id"),
+	        "https://127.0.0.1:3000/generic?type=$type&from-name=$from-name&from-uri=$from-uri&call-id=$call-id"),
 	    Method::HttpPost, *root};
 	genericClient.enableInsecureTestMode();
 
@@ -600,7 +600,7 @@ static void applePushTestConnectErrorAndReconnect() {
 \})json"};
 
 	// We first send a request with mock off, leading to TLS connection error.
-	AppleClient::APN_DEV_ADDRESS = "localhost";
+	AppleClient::APN_DEV_ADDRESS = "127.0.0.1";
 	AppleClient::APN_PORT = "3000";
 	AppleClient appleClient{*root, "", bcTesterRes("cert/apple.test.dev.pem"), "apple.test.dev.pem"};
 	appleClient.enableInsecureTestMode();
@@ -622,7 +622,7 @@ static void applePushTestConnectErrorAndReconnect() {
 }
 
 static void tlsTimeoutTest() {
-	FirebaseClient::FIREBASE_ADDRESS = "localhost";
+	FirebaseClient::FIREBASE_ADDRESS = "127.0.0.1";
 	FirebaseClient::FIREBASE_PORT = "3000";
 	FirebaseClient firebaseClient{*root, ""};
 	firebaseClient.enableInsecureTestMode();
@@ -697,7 +697,7 @@ public:
 class TestNotifyExpiringContact : public RegistrarDbTest<DbImplementation::Internal> {
 public:
 	TestNotifyExpiringContact() {
-		FirebaseClient::FIREBASE_ADDRESS = "localhost";
+		FirebaseClient::FIREBASE_ADDRESS = "127.0.0.1";
 		FirebaseClient::FIREBASE_PORT = suitePort;
 	}
 
@@ -835,13 +835,13 @@ void test_http2client__requests_that_can_not_be_sent_are_queued_and_sent_later()
 	pnServer.serveAsync(suitePort);
 
 	// Send a first request to establish the connection
-	auto client = Http2Client::make(root, "localhost", suitePort);
+	auto client = Http2Client::make(root, "127.0.0.1", suitePort);
 	auto request = [] {
 		HttpHeaders headers{};
 		headers.add(":method", "POST");
 		headers.add(":scheme", "https");
 		headers.add(":path", "/fcm/send");
-		headers.add(":authority", string("localhost:") + suitePort);
+		headers.add(":authority", string("127.0.0.1:") + suitePort);
 		return make_shared<Http2Client::HttpRequest>(headers, std::vector<char>(0x100, '!'));
 	}();
 	client->send(

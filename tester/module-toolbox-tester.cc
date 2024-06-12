@@ -90,28 +90,28 @@ private:
 
 class SipAddRecordRouteTest : public AddRecordRouteTest {
 public:
-	SipAddRecordRouteTest() : AddRecordRouteTest(false, "sip:localhost:6060", "Record-Route: <sip:localhost:6060;lr>") {
+	SipAddRecordRouteTest() : AddRecordRouteTest(false, "sip:127.0.0.1:6060", "Record-Route: <sip:127.0.0.1:6060;lr>") {
 	}
 };
 
 class SipRfc2543AddRecordRouteTest : public AddRecordRouteTest {
 public:
 	SipRfc2543AddRecordRouteTest()
-	    : AddRecordRouteTest(true, "sip:localhost:6060", "Record-Route: <sip:localhost:6060;lr>") {
+	    : AddRecordRouteTest(true, "sip:127.0.0.1:6060", "Record-Route: <sip:127.0.0.1:6060;lr>") {
 	}
 };
 
 class SipsAddRecordRouteTest : public AddRecordRouteTest {
 public:
 	SipsAddRecordRouteTest()
-	    : AddRecordRouteTest(false, "sips:localhost:6061", "Record-Route: <sips:localhost:6061;lr>") {
+	    : AddRecordRouteTest(false, "sips:127.0.0.1:6061", "Record-Route: <sips:127.0.0.1:6061;lr>") {
 	}
 };
 
 class SipsRfc2543AddRecordRouteTest : public AddRecordRouteTest {
 public:
 	SipsRfc2543AddRecordRouteTest()
-	    : AddRecordRouteTest(true, "sips:localhost:6061", "Record-Route: <sip:localhost:6061;lr;transport=tls>") {
+	    : AddRecordRouteTest(true, "sips:127.0.0.1:6061", "Record-Route: <sip:127.0.0.1:6061;lr;transport=tls>") {
 	}
 };
 
