@@ -134,7 +134,7 @@ protected:
 	void customizeConf(ConfigManager& cfg) override {
 		auto pushCfg = cfg.getRoot()->get<GenericStruct>("module::PushNotification");
 		pushCfg->get<ConfigValue>("external-push-uri")
-		    ->set("https://localhost:" + to_string(getMockPort()) + "/genericMessage");
+		    ->set("https://127.0.0.1:" + to_string(getMockPort()) + "/genericMessage");
 		pushCfg->get<ConfigValue>("external-push-method")->set("POST");
 		pushCfg->get<ConfigValue>("external-push-protocol")->set("http2");
 	}
@@ -169,7 +169,7 @@ protected:
 	void customizeConf(ConfigManager& cfg) override {
 		auto pushCfg = cfg.getRoot()->get<GenericStruct>("module::PushNotification");
 		pushCfg->get<ConfigValue>("external-push-uri")
-		    ->set("https://localhost:" + to_string(getMockPort()) + "/genericCall");
+		    ->set("https://127.0.0.1:" + to_string(getMockPort()) + "/genericCall");
 		pushCfg->get<ConfigValue>("external-push-method")->set("GET");
 		pushCfg->get<ConfigValue>("external-push-protocol")->set("http2");
 	}
@@ -211,7 +211,7 @@ protected:
 
 		// Test specific
 		cfg.getRoot()->get<GenericStruct>("module::PushNotification");
-		pushCfg->get<ConfigValue>("external-push-uri")->set("https://localhost:3000/genericMessage");
+		pushCfg->get<ConfigValue>("external-push-uri")->set("https://127.0.0.1:3000/genericMessage");
 		pushCfg->get<ConfigValue>("external-push-method")->set("POST");
 		pushCfg->get<ConfigValue>("external-push-protocol")->set("http");
 	}

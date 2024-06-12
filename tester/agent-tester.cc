@@ -119,7 +119,7 @@ protected:
 	TransportConfig(T&& protoName) : mProtoName{std::forward<T>(protoName)} {
 	}
 
-	string mHost{"localhost"}; /**< Listening address of the Agent */
+	string mHost{"127.0.0.1"}; /**< Listening address of the Agent */
 	string mPort{"6060"};      /**< Listening port of the Agent */
 	string mProtoName;         /**< String that describe the protocol used for the test ('TCP' or 'TLS'). */
 	bool mUseOutbound{true};   /**< Place 'Supported: outbound' header in the REGISTER request. */
@@ -260,15 +260,15 @@ protected:
 		const auto supportedHeader = mConfig->useOutbound() ? "Supported: outbound\r\n" : "";
 
 		ostringstream reqStream{};
-		reqStream << "REGISTER sip:localhost:" << mConfig->getPort() << ";transport=" << transport << " SIP/2.0\r\n"
-		          << "Via: SIP/2.0/" << protoName << " localhost:" << localPort
+		reqStream << "REGISTER sip:127.0.0.1:" << mConfig->getPort() << ";transport=" << transport << " SIP/2.0\r\n"
+		          << "Via: SIP/2.0/" << protoName << " 127.0.0.1:" << localPort
 		          << ";rport;branch=z9hG4bKg75aK9eUg15NS\r\n"
 		          << "Max-Forwards: 70\r\n"
 		          << "From: sip:user@sip.example.org;tag=5Nm3000eSje9a\r\n"
 		          << "To: sip:user@sip.example.org\r\n"
 		          << "Call-ID: 50573f6b-7d6d-123b-5b92-04d4c4159ac6\r\n"
 		          << "CSeq: " << cseq << " REGISTER\r\n"
-		          << "Contact: <sip:user@localhost:" << localPort << ">;transport=" << transport << instanceId << "\r\n"
+		          << "Contact: <sip:user@127.0.0.1:" << localPort << ">;transport=" << transport << instanceId << "\r\n"
 		          << "Expires: 600\r\n"
 		          << supportedHeader << "Content-Length: 0\r\n"
 		          << "\r\n";
@@ -433,7 +433,7 @@ private:
 		optionRequest->makeAndInsert<SipHeaderCSeq>(20u, sip_method_options);
 
 		// Instantiate the client and send the request through an outgoing transaction
-		auto client = NtaAgent{mRoot, "sip:localhost:0"};
+		auto client = NtaAgent{mRoot, "sip:127.0.0.1:0"};
 		auto transaction = client.createOutgoingTransaction(std::move(optionRequest), kProxyURI);
 
 		// Wait for the transaction completion and check that the server has replied 200.

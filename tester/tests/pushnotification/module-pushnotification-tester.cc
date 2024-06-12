@@ -816,13 +816,13 @@ protected:
 		const auto pnModule = dynamic_pointer_cast<PushNotification>(mAgent->findModule("PushNotification"));
 		pnModule->getService()->setFallbackClient(make_shared<DummyPushClient>(mAgent->getRoot()));
 
-		mClient = make_shared<NtaAgent>(mAgent->getRoot(), "sip:localhost:0");
+		mClient = make_shared<NtaAgent>(mAgent->getRoot(), "sip:127.0.0.1:0");
 		mProxyPort = ::tport_name(::tport_primaries(::nta_agent_tports(mAgent->getSofiaAgent())))->tpn_port;
 
 		ContactInserter inserter(mAgent->getRegistrarDb());
 		inserter.setAor("sip:callee@localhost")
 		    .setExpire(60s)
-		    .insert({"sip:callee@localhost:0;transport=tcp;pn-prid=id;pn-provider=fcm;pn-param=key;pn-silent=1;pn-"
+		    .insert({"sip:callee@127.0.0.1:0;transport=tcp;pn-prid=id;pn-provider=fcm;pn-param=key;pn-silent=1;pn-"
 		             "timeout=0"});
 
 		BC_ASSERT_TRUE(waitFor([&inserter]() { return inserter.finished(); }, 2s));
@@ -835,14 +835,14 @@ protected:
 		    "To: \"Callee\" <sip:callee@localhost>\r\n"
 		    "Call-ID: 6g7z4~lD8M\r\n"
 		    "CSeq: 20 INVITE\r\n"
-		    "Contact: <sip:caller@localhost;transport=tcp>\r\n"
+		    "Contact: <sip:caller@127.0.0.1;transport=tcp>\r\n"
 		    "User-Agent: LinphoneiOS/4.5.1 (caller-machine) LinphoneSDK/5.0.40-pre.2+ea19d3d\r\n"
 		    "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK, UPDATE\r\n"
 		    "Supported: replaces, outbound, gruu\r\n"
 		    "Content-Type: application/sdp\r\n"
 		    "Content-Length: 0\r\n"};
 
-		return mClient->createOutgoingTransaction(request, "sip:localhost:" + mProxyPort + ";transport=tcp");
+		return mClient->createOutgoingTransaction(request, "sip:127.0.0.1:" + mProxyPort + ";transport=tcp");
 	}
 
 	string mProxyPort;

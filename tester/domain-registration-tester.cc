@@ -40,8 +40,8 @@ class RFC5626ReconnectOnPongTimeoutBase : public AgentTest {
 public:
 	RFC5626ReconnectOnPongTimeoutBase(bool useTls) : AgentTest{true}, mUseTls{useTls} {
 		mRemoteProxyPort = Rand::generate(1025, numeric_limits<uint16_t>::max());
-		mRemoteProxyTransport = mUseTls ? "sips:localhost:" + to_string(mRemoteProxyPort)
-		                                : "sip:localhost:" + to_string(mRemoteProxyPort) + ";transport=tcp";
+		mRemoteProxyTransport = mUseTls ? "sips:127.0.0.1:" + to_string(mRemoteProxyPort)
+		                                : "sip:127.0.0.1:" + to_string(mRemoteProxyPort) + ";transport=tcp";
 
 		map<string, string> remoteProxyConfig{{"global/transports", mRemoteProxyTransport},
 		                                      {"module::Registrar/enabled", "true"},
@@ -64,8 +64,8 @@ private:
 	void onAgentConfiguration(ConfigManager& cfg) override {
 		AgentTest::onAgentConfiguration(cfg);
 		auto localProxyPort = Rand::generate(1025, numeric_limits<uint16_t>::max());
-		auto localProxyTransport = mUseTls ? "sips:localhost:" + to_string(localProxyPort) + ";tls-verify-outgoing=0"
-		                                   : "sip:localhost:" + to_string(localProxyPort) + ";transport=tcp";
+		auto localProxyTransport = mUseTls ? "sips:127.0.0.1:" + to_string(localProxyPort) + ";tls-verify-outgoing=0"
+		                                   : "sip:127.0.0.1:" + to_string(localProxyPort) + ";transport=tcp";
 		cfg.getRoot()->get<GenericStruct>("global")->get<ConfigValue>("transports")->set(localProxyTransport);
 
 		auto interDomainCfg = cfg.getRoot()->get<GenericStruct>("inter-domain-connections");
