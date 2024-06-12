@@ -52,7 +52,6 @@ public:
 
 	void bindChatRoom(const std::string& bindingUrl,
 	                  const std::string& contact,
-	                  const std::string& gruu,
 	                  const std::shared_ptr<ContactUpdateListener>& listener);
 
 	/**

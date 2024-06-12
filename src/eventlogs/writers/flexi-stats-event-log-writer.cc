@@ -8,7 +8,6 @@
 #include <string>
 #include <string_view>
 
-#include "conference/chatroom-prefix.hh"
 #include "eventlogs/events/calls/call-ended-event-log.hh"
 #include "eventlogs/events/calls/call-ringing-event-log.hh"
 #include "eventlogs/events/calls/call-started-event-log.hh"
@@ -23,7 +22,7 @@
 #include "flexisip/sofia-wrapper/msg-sip.hh"
 #include "fork-context/fork-status.hh"
 #include "fork-context/message-kind.hh"
-#include "utils/string-utils.hh"
+#include "utils/uri-utils.hh"
 
 namespace flexisip {
 
@@ -43,7 +42,7 @@ void FlexiStatsEventLogWriter::write(const CallStartedEventLog& call) {
 		devices.emplace(device.mKey, std::nullopt);
 	}
 	const auto& to = *call.getTo()->a_url;
-	std::optional<std::string> conferenceId{StringUtils::removePrefix(to.url_user, conference::CHATROOM_PREFIX)};
+	auto conferenceId = UriUtils::getConferenceId(to);
 	mRestClient.postCall({call.getId(), *call.getFrom()->a_url, to, devices, call.getTimestamp(), conferenceId});
 }
 

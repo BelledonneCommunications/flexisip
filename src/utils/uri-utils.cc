@@ -20,8 +20,8 @@
 #include <stdexcept>
 #include <vector>
 
-#include <sofia-sip/url.h>
-
+#include "conference/chatroom-prefix.hh"
+#include "string-utils.hh"
 #include "uri-utils.hh"
 
 using namespace std;
@@ -69,4 +69,20 @@ std::string UriUtils::grToUniqueId(const std::string &gr) noexcept {
 	ostringstream uid;
 	uid << "\"<" << gr << ">\"";
 	return uid.str();
+}
+
+std::optional<std::string> UriUtils::getConferenceId(const url_t& url) noexcept {
+	// Before Flexisip 2.5, chatroom uris all started with the conference::CHATROOM_PREFIX prefix followed by a random sequence of characters.
+	// From Flexisip 2.5 onward, chatrooms can be identified from each other by the conference::CONFERENCE_ID uri parameter that must be unique.
+	std::optional<std::string> conferenceId;
+	auto chatRoomId{StringUtils::removePrefix(url.url_user, flexisip::conference::CHATROOM_PREFIX)};
+	if (chatRoomId) {
+		conferenceId = chatRoomId;
+	} else if (url.url_params) {
+		auto value = UriUtils::getParamValue(url.url_params, flexisip::conference::CONFERENCE_ID, "");
+		if (!value.empty()) {
+			conferenceId = value;
+		}
+	}
+	return conferenceId;
 }

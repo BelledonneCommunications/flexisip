@@ -203,24 +203,10 @@ void B2buaServer::onCallStateChanged(const shared_ptr<linphone::Core>&,
 			// when call in error we shall kill the conf, just do as in End
 		case linphone::Call::State::End: {
 			mApplication->onCallEnd(*call);
-			// If there are some data in that call, it is the first one to end
 			if (call->dataExists(B2buaServer::kConfKey)) {
 				auto peerCall = getPeerCall(call);
-
-				SLOGD << "B2bua end call: Terminate conference";
-				auto& confData = call->getData<b2bua::callsRefs>(B2buaServer::kConfKey);
-				// unset data everywhere it was stored
-				confData.legA->unsetData(B2buaServer::kConfKey);
-				confData.legB->unsetData(B2buaServer::kConfKey);
-				confData.conf->unsetData(B2buaServer::kConfKey);
 				// terminate peer Call, copy error info from this call
 				peerCall->terminateWithErrorInfo(call->getErrorInfo());
-				// terminate the conf
-				confData.conf->terminate();
-				// memory cleaning
-				delete (&confData);
-			} else {
-				SLOGD << "B2bua end call: conference already terminated";
 			}
 		} break;
 		case linphone::Call::State::PausedByRemote: {
@@ -270,6 +256,21 @@ void B2buaServer::onCallStateChanged(const shared_ptr<linphone::Core>&,
 		case linphone::Call::State::Updating:
 			break;
 		case linphone::Call::State::Released:
+			// If there are some data in that call, it is the first one to end
+			if (call->dataExists(B2buaServer::kConfKey)) {
+				auto& confData = call->getData<b2bua::callsRefs>(B2buaServer::kConfKey);
+				SLOGD << "B2bua release call: Terminate conference " << confData.conf;
+				// unset data everywhere it was stored
+				confData.legA->unsetData(B2buaServer::kConfKey);
+				confData.legB->unsetData(B2buaServer::kConfKey);
+				confData.conf->unsetData(B2buaServer::kConfKey);
+				// terminate the conf
+				confData.conf->terminate();
+				// memory cleaning
+				delete (&confData);
+			} else {
+				SLOGD << "B2bua end call: conference already terminated";
+			}
 			break;
 		case linphone::Call::State::EarlyUpdating:
 			break;

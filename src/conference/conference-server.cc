@@ -337,11 +337,9 @@ void ConferenceServer::loadFactoryUris() {
 		if (focus_it != conferenceFocusUris.end()) {
 			SLOGI << "Matched conference factory URI " << factoryUri << " with a conference focus URI " << (*focus_it);
 			mConfServerUris.push_back({factoryUri, *focus_it++});
-		} else if (mMediaConfig.audioEnabled || mMediaConfig.videoEnabled) {
+		} else {
 			LOGF("Number of factory uri [%lu] must match number of focus uri [%lu]", conferenceFactoryUris.size(),
 			     conferenceFocusUris.size());
-		} else {
-			mConfServerUris.push_back({factoryUri, ""});
 		}
 	}
 }
@@ -362,12 +360,9 @@ void ConferenceServer::onChatRoomStateChanged([[maybe_unused]] const shared_ptr<
 	}
 }
 
-void ConferenceServer::onConferenceAddressGeneration(const shared_ptr<ChatRoom>& cr) {
-	shared_ptr<Address> confAddr = cr->getConferenceAddress()->clone();
-	LOGI("Conference address is %s", confAddr->asString().c_str());
-	shared_ptr<ConferenceAddressGenerator> generator =
-	    make_shared<ConferenceAddressGenerator>(cr, confAddr, getUuid(), this, *mRegistrarDb);
-	generator->run();
+void ConferenceServer::onConferenceAddressGeneration([[maybe_unused]] const shared_ptr<ChatRoom>& cr) {
+	// Not required anymore by the SDK 5.4
+	// A faster way of verifying that the id is not taken is to look into the database
 }
 
 void ConferenceServer::onParticipantRegistrationSubscriptionRequested(
@@ -386,20 +381,20 @@ void ConferenceServer::bindAddresses() {
 	// Bind the conference factory address in the registrar DB
 	bindFactoryUris();
 
+	/* Bind focus URIs */
+	bindFocusUris();
+
 	if (mMediaConfig.textEnabled) {
 		// Binding loaded chat room
 		for (const auto& chatRoom : mCore->getChatRooms()) {
-			if (chatRoom->getPeerAddress()->getUriParam("gr").empty()) {
-				LOGE("Skipping chatroom %s with no gruu parameter.", chatRoom->getPeerAddress()->asString().c_str());
-				continue;
+			const auto &peerAddress = chatRoom->getPeerAddress();
+			// If the peer address is not one of the focus uris
+			if (std::find_if(mConfServerUris.cbegin(), mConfServerUris.cend(), [&peerAddress] (const auto &p) {
+				return peerAddress->weakEqual(linphone::Factory::get()->createAddress(p.second));
+			}) == mConfServerUris.cend()) {
+				bindChatRoom(peerAddress->asStringUriOnly(), mTransport.str(), nullptr);
 			}
-			bindChatRoom(chatRoom->getPeerAddress()->asStringUriOnly(), mTransport.str(),
-			             chatRoom->getPeerAddress()->getUriParam("gr"), nullptr);
 		}
-	}
-	if (mMediaConfig.audioEnabled || mMediaConfig.videoEnabled) {
-		/* Bind focus URIs */
-		bindFocusUris();
 	}
 	mAddressesBound = true;
 }
@@ -514,9 +509,9 @@ void ConferenceServer::bindFocusUris() {
 
 void ConferenceServer::bindChatRoom(const string& bindingUrl,
                                     const string& contact,
-                                    const string& gruu,
                                     const shared_ptr<ContactUpdateListener>& listener) {
 	BindingParameters parameter;
+	const auto gruu = getUuid();
 
 	sip_contact_t* sipContact =
 	    sip_contact_create(mHome.home(), reinterpret_cast<const url_string_t*>(url_make(mHome.home(), contact.c_str())),

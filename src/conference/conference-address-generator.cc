@@ -29,12 +29,12 @@ using namespace flexisip;
 using namespace std;
 
 ConferenceAddressGenerator::ConferenceAddressGenerator(const shared_ptr<linphone::ChatRoom>& chatRoom,
-                                                       const shared_ptr<linphone::Address>& conferenceFactoryAddr,
-                                                       const string& uuid,
+                                                       shared_ptr<linphone::Address>& conferenceFactoryAddr,
+                                                       const string& path,
                                                        ConferenceServer* conferenceServer,
                                                        RegistrarDb& registrarDb)
-    : mChatRoom(chatRoom), mConferenceAddr(conferenceFactoryAddr), mUuid(uuid), mConferenceServer(conferenceServer),
-      mRegistrarDb(registrarDb) {
+    : mChatRoom(chatRoom), mConferenceAddr(conferenceFactoryAddr), mPath(path),
+      mConferenceServer(conferenceServer), mRegistrarDb(registrarDb) {
 }
 
 void ConferenceAddressGenerator::run() {
@@ -61,7 +61,7 @@ void ConferenceAddressGenerator::onRecordFound(const std::shared_ptr<Record>& r)
 			mState = State::Binding;
 			auto& config = mConferenceServer->getServerConf();
 			mConferenceServer->bindChatRoom(mConferenceAddr->asStringUriOnly(),
-			                                config.get<ConfigString>("transport")->read(), mUuid, shared_from_this());
+			                                config.get<ConfigString>("transport")->read(), shared_from_this());
 		}
 	} else {
 		if (r->getExtendedContacts().empty()) {

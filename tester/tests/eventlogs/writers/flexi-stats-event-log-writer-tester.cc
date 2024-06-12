@@ -417,8 +417,10 @@ void messageDeviceUnavailable() {
 void messageToChatroomClearText() {
 	const MysqlServer mysqlServer{};
 	const string confFactoryUri = "sip:conference-factory@sip.example.org";
+	const string confFocusUri = "sip:conference-focus@sip.example.org";
 	const auto proxy = makeAndStartProxy({
 	    {"conference-server/conference-factory-uris", confFactoryUri},
+	    {"conference-server/conference-focus-uris", confFocusUri},
 	    // `mysql` to be as close to real-world deployments as possible
 	    {"conference-server/database-backend", "mysql"},
 	    {"conference-server/database-connection-string", mysqlServer.connectionString()},
@@ -482,7 +484,7 @@ void messageToChatroomClearText() {
 	json expectedJson{
 	    {"from", expectedFrom},
 	    {"to", unordered_map<string, nullptr_t>{}},
-	    {"conference_id", clemChat->getConferenceAddress()->getUsername().substr(sizeof("chatroom-") - 1)},
+	    {"conference_id", clemChat->getConferenceAddress()->getUriParam("conf-id")},
 	    {"encrypted", false},
 	};
 	BC_ASSERT_CPP_EQUAL(actualJson, expectedJson);

@@ -21,7 +21,10 @@
 #include <arpa/inet.h>
 
 #include <cstring>
+#include <optional>
 #include <string>
+
+#include <sofia-sip/url.h>
 
 /**
  * @brief Defines some utility static methods around URI strings.
@@ -103,6 +106,7 @@ public:
 		return getParamValue(paramList.c_str(), paramName.c_str(), defaultValue.c_str());
 	}
 
+std::optional<std::string_view> getParamValueOpt(const char *paramList, const char *paramName) noexcept;
 	/**
 	 * @brief Translate a UUID given by +sip.instance parameter into an
 	 * UUID ready for GRUU generation.
@@ -132,6 +136,8 @@ public:
 	static bool isIpAddress(const std::string& str) {
 		return isIpv4Address(str) || isIpv6Address(str);
 	}
+
+	static std::optional<std::string> getConferenceId(const url_t& url) noexcept;
 
 private:
 	static std::string unescape(const char* str, size_t n) noexcept;

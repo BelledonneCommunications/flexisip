@@ -67,6 +67,7 @@ public:
 void basicSubscription() {
 	// Agent initialisation
 	const string confFactoryUri = "sip:conference-factory@sip.example.org";
+	const string confFocusUri = "sip:conference-focus@sip.example.org";
 	Server proxy{{
 	    // Requesting bind on port 0 to let the kernel find any available port
 	    {"global/transports", "sip:127.0.0.1:0"},
@@ -78,6 +79,7 @@ void basicSubscription() {
 	    {"conference-server/database-backend", "sqlite"},
 	    {"conference-server/database-connection-string", ":memory:"},
 	    {"conference-server/conference-factory-uris", confFactoryUri},
+	    {"conference-server/conference-focus-uris", confFocusUri},
 	    // Registrars / Local confs
 	    {"conference-server/local-domains", "sip.example.org 127.0.0.1"},
 	    {"conference-server/state-directory", bcTesterWriteDir().append("var/lib/flexisip")},
@@ -135,7 +137,7 @@ void basicSubscription() {
 	};
 	CoreAssert asserter{client, regEventCore, agent};
 
-	BC_ASSERT_TRUE(asserter.iterateUpTo(13, [&totalDevicesCount] { return 3 <= totalDevicesCount(); }));
+	BC_ASSERT_TRUE(asserter.iterateUpTo(20, [&totalDevicesCount] { return 3 <= totalDevicesCount(); }));
 
 	{
 		const auto participants = chatRoom->getParticipants();

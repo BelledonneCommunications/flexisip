@@ -39,7 +39,7 @@ public:
 	sofiasip::MsgSipPriority getPriority() const {
 		return mPriority;
 	}
-	const std::optional<std::string_view>& getConferenceId() const {
+	const std::optional<std::string>& getConferenceId() const {
 		return mConferenceId;
 	}
 
@@ -47,7 +47,7 @@ private:
 	Kind mKind;
 	Cardinality mCardinality;
 	sofiasip::MsgSipPriority mPriority;
-	std::optional<std::string_view> mConferenceId;
+	std::optional<std::string> mConferenceId;
 };
 
 } // namespace flexisip

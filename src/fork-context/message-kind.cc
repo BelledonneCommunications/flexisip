@@ -4,8 +4,8 @@
 
 #include "message-kind.hh"
 
-#include "conference/chatroom-prefix.hh"
-#include "utils/string-utils.hh"
+#include "flexisip/logmanager.hh"
+#include "utils/uri-utils.hh"
 
 using namespace std::string_view_literals;
 
@@ -16,7 +16,7 @@ MessageKind::MessageKind(const ::sip_t& event, sofiasip::MsgSipPriority priority
 	if (event.sip_request->rq_method == sip_method_refer) mKind = Kind::Refer;
 
 	constexpr auto tryExtractConferenceIdFrom = [](const auto& recipient) {
-		return StringUtils::removePrefix(recipient.a_url->url_user, conference::CHATROOM_PREFIX);
+		return UriUtils::getConferenceId(*recipient.a_url);
 	};
 
 	mConferenceId = tryExtractConferenceIdFrom(*event.sip_from);

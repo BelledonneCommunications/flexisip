@@ -8,6 +8,7 @@ namespace flexisip {
 namespace conference {
 
 constexpr auto CHATROOM_PREFIX = "chatroom-";
+constexpr auto CONFERENCE_ID = "conf-id";
 
 }
 } // namespace flexisip

@@ -35,8 +35,8 @@ public:
 	enum class State { Fetching, Binding };
 
 	ConferenceAddressGenerator(const std::shared_ptr<linphone::ChatRoom>& chatRoom,
-	                           const std::shared_ptr<linphone::Address>& conferenceFactoryAddr,
-	                           const std::string& uuid,
+	                           std::shared_ptr<linphone::Address>& conferenceFactoryAddr,
+	                           const std::string& path,
 	                           ConferenceServer* conferenceServer,
 	                           RegistrarDb& registarDb);
 
@@ -53,7 +53,7 @@ private:
 	sofiasip::Home mHome;
 	const std::shared_ptr<linphone::ChatRoom> mChatRoom;
 	std::shared_ptr<linphone::Address> mConferenceAddr;
-	std::string mUuid;
+	std::string mPath;
 	ConferenceServer* const mConferenceServer;
 	RegistrarDb& mRegistrarDb; // keep only a ref as registrarDb is owned by ConferenceServer
 	State mState = State::Fetching;
