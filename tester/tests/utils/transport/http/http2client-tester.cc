@@ -46,12 +46,12 @@ struct Arrange {
 		const auto portInt = httpMock.serveAsync();
 		BC_HARD_ASSERT_TRUE(portInt > -1);
 		const auto port = std::to_string(portInt);
-		client = Http2Client::make(root, "localhost", port);
+		client = Http2Client::make(root, "127.0.0.1", port);
 		client->setRequestTimeout(1s);
 		headers = {
 		    {":method"s, "POST"s},
 		    {":scheme", "https"},
-		    {":authority", "localhost:" + port},
+		    {":authority", "127.0.0.1:" + port},
 		    {":path", "/"},
 		};
 		client->send(

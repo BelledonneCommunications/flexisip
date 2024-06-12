@@ -56,7 +56,7 @@ private:
 	void onAgentConfiguration(GenericManager& cfg) override {
 		AgentTest::onAgentConfiguration(cfg);
 		const auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
-		globalCfg->get<ConfigStringList>("transports")->set("sip:localhost:6060");
+		globalCfg->get<ConfigStringList>("transports")->set("sip:127.0.0.1:6060");
 
 		cfg.getRoot()->get<GenericStruct>("module::DoSProtection")->get<ConfigBoolean>("enabled")->set("true");
 		cfg.getRoot()

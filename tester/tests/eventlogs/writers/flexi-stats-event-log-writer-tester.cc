@@ -58,7 +58,7 @@ void callStartedAndEnded() {
 	// See makeAndStartProxy for event-log configuration
 	const auto proxy = makeAndStartProxy({{"event-logs/enabled", "true"},
 	                                      {"event-logs/logger", "flexiapi"},
-	                                      {"event-logs/flexiapi-host", "localhost"},
+	                                      {"event-logs/flexiapi-host", "127.0.0.1"},
 	                                      {"event-logs/flexiapi-port", to_string(port)},
 	                                      {"event-logs/flexiapi-prefix", "api/stats"},
 	                                      {"event-logs/flexiapi-api-key", "aRandomApiToken"}});
@@ -150,7 +150,7 @@ void callToConference() {
 	HttpMock httpMock{{"/"}, &requestsReceivedCount};
 	int port = httpMock.serveAsync();
 	BC_HARD_ASSERT_TRUE(port > -1);
-	agent->setEventLogWriter(std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "localhost", to_string(port),
+	agent->setEventLogWriter(std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "127.0.0.1", to_string(port),
 	                                                                    "", "aRandomApiToken"));
 	const auto builder = proxy->clientBuilder();
 	const auto johan = builder.build("sip:johan@sip.example.org");
@@ -180,7 +180,7 @@ void messageSentAndReceived() {
 	HttpMock httpMock{{"/"}, &requestsReceivedCount};
 	int port = httpMock.serveAsync();
 	BC_HARD_ASSERT_TRUE(port > -1);
-	agent->setEventLogWriter(std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "localhost", to_string(port),
+	agent->setEventLogWriter(std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "127.0.0.1", to_string(port),
 	                                                                    "/api/stats/", "aRandomApiToken"));
 	auto builder = proxy->clientBuilder();
 	const string expectedFrom = "tony@sip.example.org";
@@ -269,7 +269,7 @@ void messageDeviceUnavailable() {
 	int port = httpMock.serveAsync();
 	BC_HARD_ASSERT_TRUE(port > -1);
 	agent->setEventLogWriter(
-	    std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "localhost", to_string(port), "/", "toktok"));
+	    std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "127.0.0.1", to_string(port), "/", "toktok"));
 	const auto builder = proxy->clientBuilder();
 	const string expectedFrom = "tony@sip.example.org";
 	const string expectedTo = "mike@sip.example.org";
@@ -450,7 +450,7 @@ void messageToChatroomClearText() {
 	HttpMock httpMock{{"/"}, &requestsReceivedCount};
 	int port = httpMock.serveAsync();
 	agent->setEventLogWriter(
-	    std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "localhost", to_string(port), "/", "toktok"));
+	    std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "127.0.0.1", to_string(port), "/", "toktok"));
 	mysqlServer.waitReady();
 	const TestConferenceServer confServer{*agent};
 	const auto before = chrono::system_clock::now();

@@ -57,7 +57,7 @@ protected:
 	virtual void onAgentConfiguration(GenericManager& cfg) override {
 		RegistrarDbTest::onAgentConfiguration(cfg);
 		auto* globalConf = cfg.getRoot()->get<GenericStruct>("global");
-		globalConf->get<ConfigStringList>("transports")->set("sips:localhost:5066;");
+		globalConf->get<ConfigStringList>("transports")->set("sips:127.0.0.1:5066;");
 
 		auto* authConf = cfg.getRoot()->get<GenericStruct>("module::Authentication");
 		authConf->get<ConfigBoolean>("enabled")->set("true");

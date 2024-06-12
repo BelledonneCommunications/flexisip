@@ -68,7 +68,7 @@ void wrongContactInResponse() {
 	sockAddr->sin_family = AF_INET;
 
 	// Create dummy incoming transport to make NatHelper::needToBeFixed return true.
-	tp_name_t name{"tcp", nullptr, "localhost", "0", nullptr, nullptr};
+	tp_name_t name{"tcp", nullptr, "127.0.0.1", "0", nullptr, nullptr};
 	auto* incomingTport = tport_by_name(nta_agent_tports(proxy.getAgent()->getSofiaAgent()), &name);
 	auto event = make_shared<ResponseSipEvent>(proxy.getAgent(), msg, incomingTport);
 

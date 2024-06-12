@@ -474,7 +474,7 @@ void invalidContactInRequest() {
 	    "Content-Length: 0\r\n\r\n");
 	// clang-format on
 
-	sofiasip::NtaAgent client{proxyServer.getRoot(), "sip:localhost:0"};
+	sofiasip::NtaAgent client{proxyServer.getRoot(), "sip:127.0.0.1:0"};
 	auto transaction = client.createOutgoingTransaction(badRequest, "sip:127.0.0.1:5160");
 
 	auto beforePlus2 = system_clock::now() + 2s;
@@ -529,7 +529,7 @@ void invalidContactInDb() {
 	    "Content-Length: 0\r\n\r\n");
 	// clang-format on
 
-	sofiasip::NtaAgent client{proxyServer.getRoot(), "sip:localhost:0"};
+	sofiasip::NtaAgent client{proxyServer.getRoot(), "sip:127.0.0.1:0"};
 	auto transaction = client.createOutgoingTransaction(validRequest, "sip:127.0.0.1:5160");
 
 	auto beforePlus2 = system_clock::now() + 2s;
