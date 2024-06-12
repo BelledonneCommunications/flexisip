@@ -376,7 +376,7 @@ private:
 		optionRequest->makeAndInsert<SipHeaderCSeq>(20u, sip_method_options);
 
 		// Instantiate the client and send the request through an outgoing transaction
-		auto client = NtaAgent{mRoot, "sip:localhost:0"};
+		auto client = NtaAgent{mRoot, "sip:127.0.0.1:0"};
 		auto transaction = client.createOutgoingTransaction(move(optionRequest), kProxyURI);
 
 		// Wait for the transaction completion and check that the server has replied 200.
