@@ -1,26 +1,27 @@
 /*
- Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as
- published by the Free Software Foundation, either version 3 of the
- License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #pragma once
 
 #include <chrono>
 #include <condition_variable>
 #include <cstring>
+#include <filesystem>
 #include <stdexcept>
 #include <thread>
 #include <vector>
@@ -190,6 +191,7 @@ private:
 	static int ASN1_TIME_toString(const ASN1_TIME* time, char* buffer, uint32_t buff_length);
 	static SSLCtxUniquePtr makeDefaultCtx();
 	static int getFd(BIO& bio);
+	std::string loadCertificate();
 
 	static void doConnectCb(su_root_magic_t* rm, su_msg_r msg, void* u);
 	void doConnectAsync(su_root_t& root, const std::function<void()>& onConnectCb);
@@ -197,6 +199,7 @@ private:
 	BIOUniquePtr mBio{nullptr};
 	SSLCtxUniquePtr mCtx{nullptr};
 	std::string mHost{}, mPort{};
+	std::filesystem::path mCertPath{};
 	bool mMustBeHttp2 = false;
 	std::chrono::milliseconds mTimeout{20000};
 	MustFinishThread mThread;

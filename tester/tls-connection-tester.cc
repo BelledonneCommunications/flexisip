@@ -9,11 +9,11 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <chrono>
@@ -26,8 +26,10 @@
 #include "utils/transport/tls-connection.hh"
 
 #include "flexisip-tester-config.hh"
+#include "tester.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
+#include "utils/tmp-dir.hh"
 
 using namespace std;
 using namespace std::chrono;
@@ -49,16 +51,15 @@ template <typename ServerT>
 static void readTest() {
 	string expectedRead{"To read !"};
 	constexpr auto host = "127.0.0.1";
-	constexpr auto port = 1234;
 
-	ServerT server{port};
+	ServerT server{};
 	auto serverStatus = async(launch::async, [&server, &expectedRead]() {
 		server.accept();
 		server.send(expectedRead);
 		return true;
 	});
 
-	auto tlsConnection = makeClientFor<ServerT>(host, to_string(port));
+	auto tlsConnection = makeClientFor<ServerT>(host, to_string(server.getPort()));
 	tlsConnection->connect();
 
 	char readBuffer[1024];
@@ -151,8 +152,50 @@ static void createTlsConnectionWrongCertPath() {
 }
 
 static void createTlsConnectionUnreadableCertFile() {
-	const auto certPath = FLEXISIP_TESTER_DATA_SRCDIR "/config/unreadable_file.pem";
+	const auto certPath = bcTesterResourceDir() / "config/unreadable_file.pem";
 	BC_ASSERT_THROWN((TlsConnection{"host", "port", "", certPath, true}), TlsConnection::CreationError);
+}
+
+void checkConnectAndDisconnect(TlsConnection& tlsConnection) {
+	tlsConnection.connect();
+	BC_ASSERT_TRUE(tlsConnection.isConnected());
+	tlsConnection.disconnect();
+	BC_ASSERT_FALSE(tlsConnection.isConnected());
+}
+
+static void checkCertificateValidationOnReconnection() {
+	// Create tmp dir to store the certificate
+	TmpDir certDir{".certificates.d"};
+	const auto validCertPath = bcTesterResourceDir() / "cert/apple.test.dev.pem";
+
+	const auto certPath = certDir.path() / "temp.test.dev.pem";
+	filesystem::copy_file(validCertPath, certPath);
+
+	TlsServer server{};
+	TlsConnection tlsConnection{"127.0.0.1", to_string(server.getPort()), "", certPath};
+
+	const auto acceptThenReset = [&server]() {
+		server.accept();
+		server.resetSocket();
+	};
+	auto asyncServeRequest = async(launch::async, acceptThenReset);
+
+	// Check that the connection can be made
+	checkConnectAndDisconnect(tlsConnection);
+	asyncServeRequest.get();
+
+	// Check that the certificate is reloaded and checked on reconnection
+	// Certificate becomes invalid
+	asyncServeRequest = async(launch::async, acceptThenReset);
+	const auto tmpPath = certDir.path() / "tmpFile";
+	filesystem::rename(certPath, tmpPath);
+	tlsConnection.connect();
+	BC_ASSERT_FALSE(tlsConnection.isConnected());
+
+	// Certificate becomes valid again
+	filesystem::rename(tmpPath, certPath);
+	checkConnectAndDisconnect(tlsConnection);
+	asyncServeRequest.get();
 }
 
 namespace {
@@ -168,6 +211,7 @@ TestSuite _("TlsConnection",
                 CLASSY_TEST(readAllWithTimeoutLateResponse<TlsServer>),
                 CLASSY_TEST(createTlsConnectionWrongCertPath),
                 CLASSY_TEST(createTlsConnectionUnreadableCertFile),
+                CLASSY_TEST(checkCertificateValidationOnReconnection),
             });
 }
 

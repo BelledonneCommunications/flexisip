@@ -1,20 +1,20 @@
 /*
- Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as
- published by the Free Software Foundation, either version 3 of the
- License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <filesystem>
 #include <fstream>
@@ -47,7 +47,7 @@ TlsConnection::TlsConnection(const string& host, const string& port, bool mustBe
 
 TlsConnection::TlsConnection(
     const string& host, const string& port, const string& trustStorePath, const string& certPath, bool mustBeHttp2)
-    : mHost{host}, mPort{port}, mMustBeHttp2{mustBeHttp2} {
+    : mHost{host}, mPort{port}, mCertPath{certPath}, mMustBeHttp2{mustBeHttp2} {
 
 	if (certPath.empty()) {
 		mCtx = nullptr;
@@ -70,30 +70,38 @@ TlsConnection::TlsConnection(
 		throw CreationError("error while loading trust store");
 	}
 
-	// Check certificate (file exists and is readable).
-	if (!filesystem::exists(certPath)) {
-		throw CreationError("certificate \"" + certPath + "\" does not exist");
+	const auto errMsg = loadCertificate();
+	if (!errMsg.empty()) throw CreationError(errMsg);
+}
+
+string TlsConnection::loadCertificate() {
+	// Check certificate (file exists, is readable and still valid).
+	if (!filesystem::exists(mCertPath)) {
+		return "certificate \"" + mCertPath.string() + "\" does not exist";
 	}
-	if (fstream certificate{certPath, ios_base::in}; !certificate.is_open()) {
-		throw CreationError("cannot open certificate \"" + certPath + "\"");
+	if (fstream certificate{mCertPath, ios_base::in}; !certificate.is_open()) {
+		return "cannot open certificate \"" + mCertPath.string() + "\"";
 	} else {
 		certificate.close();
 	}
 
-	int error = SSL_CTX_use_certificate_file(ctx, certPath.c_str(), SSL_FILETYPE_PEM);
+	auto* ctx = mCtx.get();
+	int error = SSL_CTX_use_certificate_file(ctx, mCertPath.c_str(), SSL_FILETYPE_PEM);
 	if (error != 1) {
-		throw CreationError("SSL_CTX_use_certificate_file for " + certPath + " failed with error " + to_string(error));
-	} else if (isCertExpired(certPath)) {
+		return "SSL_CTX_use_certificate_file for " + mCertPath.string() + " failed with error " + to_string(error);
+	} else if (isCertExpired(mCertPath)) {
 		LOGEN("Certificate %s is expired! You won't be able to use it for push notifications. Please update your "
 		      "certificate or remove it entirely.",
-		      certPath.c_str());
+		      mCertPath.c_str());
 	}
 
-	error = SSL_CTX_use_PrivateKey_file(ctx, certPath.c_str(), SSL_FILETYPE_PEM);
+	error = SSL_CTX_use_PrivateKey_file(ctx, mCertPath.c_str(), SSL_FILETYPE_PEM);
 	if (error != 1 || SSL_CTX_check_private_key(ctx) != 1) {
-		throw CreationError("private key does not match the certificate public key for " + certPath + ", error " +
-		                    to_string(error));
+		return "private key does not match the certificate public key for " + mCertPath.string() + ", error " +
+		       to_string(error);
 	}
+
+	return "";
 }
 
 void TlsConnection::connectAsync(su_root_t& root, const function<void()>& onConnectCb) noexcept {
@@ -125,6 +133,14 @@ void TlsConnection::doConnectCb([[maybe_unused]] su_root_magic_t* rm, su_msg_r m
 
 void TlsConnection::connect() noexcept {
 	if (isConnected()) return;
+
+	if (!mCertPath.empty()) {
+		const auto errMsg = loadCertificate();
+		if (!errMsg.empty()) {
+			SLOGE << "Certificate reload error: " << errMsg;
+			return;
+		}
+	}
 
 	/* Create and set up the connection */
 	auto hostname = mHost + ":" + mPort;
@@ -171,7 +187,7 @@ void TlsConnection::connect() noexcept {
 		constexpr chrono::milliseconds sleepDuration{10};
 		this_thread::sleep_for(sleepDuration);
 		time += sleepDuration;
-	};
+	}
 
 	/* Check the certificate */
 	if (ssl && (SSL_get_verify_mode(ssl) == SSL_VERIFY_PEER && SSL_get_verify_result(ssl) != X509_V_OK)) {

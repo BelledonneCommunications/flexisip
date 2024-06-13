@@ -37,9 +37,9 @@
 #include "utils/transport/tls-connection.hh"
 
 using namespace std;
+using namespace filesystem;
 
-namespace flexisip {
-namespace pushnotification {
+namespace flexisip::pushnotification {
 
 const std::string Service::sGenericClientName{"generic"};
 const std::string Service::sFallbackClientKey{"fallback"};
@@ -54,7 +54,31 @@ Service::~Service() {
 	ERR_free_strings();
 }
 
-std::shared_ptr<Request> Service::makeRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo) const {
+shared_ptr<Client> Service::createAppleClient(const path& caFile, const path& certDir, const path& certFile) {
+	auto certName = certFile.stem();
+	auto certPath = certDir / certFile;
+	try {
+		mClients[certName] = make_unique<AppleClient>(*mRoot, caFile, certPath, certName, this);
+		SLOGD << "Created iOS push notification client [" << certName << "]";
+		return mClients[certName];
+	} catch (const TlsConnection::CreationError& err) {
+		SLOGW << "Couldn't create iOS push notification client from [" << certName << "]: " << err.what();
+		return nullptr;
+	}
+}
+
+shared_ptr<Client> Service::createAppleClientFromPotentialNewCertificate(const string& certName) {
+	const auto& certFile = certName + ".pem";
+	for (const auto& certDir : mAppleCertDirs) {
+		auto certPath = certDir.first / certFile;
+		if (filesystem::exists(certPath)) {
+			return createAppleClient(certDir.second, certDir.first, certFile);
+		}
+	}
+	return nullptr;
+}
+
+std::shared_ptr<Request> Service::makeRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo) {
 	// Create a generic request if the generic client has been set.
 	auto genericClient = mClients.find(sGenericClientName);
 	if (genericClient != mClients.cend() && genericClient->second != nullptr) {
@@ -62,22 +86,35 @@ std::shared_ptr<Request> Service::makeRequest(PushType pType, const std::shared_
 	}
 
 	// No generic client set, then create a native request for the target platform.
-	auto client = mClients.find(pInfo->getDestination(pType).getAppIdentifier());
+	auto appId = pInfo->getDestination(pType).getAppIdentifier();
+	auto client = mClients.find(appId);
 	if (client != mClients.cend() && client->second != nullptr) {
 		return client->second->makeRequest(pType, pInfo);
-	} else if (client = mClients.find(sFallbackClientKey); client != mClients.cend() && client->second != nullptr) {
-		return client->second->makeRequest(pType, pInfo);
-	} else {
-		throw UnavailablePushNotificationClient{pInfo->getDestination(pType)};
 	}
+	// Check if a certificate is available to create the corresponding client
+	if (pInfo->isApple()) {
+		auto newClient = createAppleClientFromPotentialNewCertificate(appId);
+		if (newClient != nullptr) {
+			return newClient->makeRequest(pType, pInfo);
+		}
+	}
+	if (client = mClients.find(sFallbackClientKey); client != mClients.cend() && client->second != nullptr) {
+		return client->second->makeRequest(pType, pInfo);
+	}
+	throw UnavailablePushNotificationClient{pInfo->getDestination(pType)};
 }
 
 void Service::sendPush(const std::shared_ptr<Request>& pn) {
-	auto it = mClients.find(pn->getAppIdentifier());
-	auto client = it != mClients.cend() ? it->second.get() : nullptr;
+	const auto appId = pn->getAppIdentifier();
+	auto it = mClients.find(appId);
+	auto client = it != mClients.cend() ? it->second : nullptr;
+	// Create a client if a corresponding certificate is available
+	if (client == nullptr && pn->getPInfo().isApple()) {
+		client = createAppleClientFromPotentialNewCertificate(appId);
+	}
 	if (client == nullptr) {
 		it = mClients.find(sFallbackClientKey);
-		client = it != mClients.cend() ? it->second.get() : nullptr;
+		client = it != mClients.cend() ? it->second : nullptr;
 	}
 	if (client == nullptr) {
 		throw UnavailablePushNotificationClient{pn.get()};
@@ -101,43 +138,24 @@ void Service::setupGenericClient(const sofiasip::Url& url, Method method, Protoc
 	}
 }
 
-void Service::setupiOSClient(const std::string& certdir, const std::string& cafile) {
-	struct dirent* dirent;
-	DIR* dirp;
-
-	dirp = opendir(certdir.c_str());
-	if (dirp == NULL) {
-		LOGE("Could not open push notification certificates directory (%s): %s", certdir.c_str(), strerror(errno));
+void Service::setupiOSClient(const std::string& certDir, const std::string& caFile) {
+	filesystem::directory_iterator dirIt;
+	try {
+		dirIt = filesystem::directory_iterator{certDir};
+	} catch (filesystem::filesystem_error& err) {
+		SLOGE << "Could not open push notification certificates directory (" << certDir.c_str() << "): " << err.what();
 		return;
 	}
-	SLOGD << "Searching push notification client on dir [" << certdir << "]";
+	mAppleCertDirs[certDir] = caFile;
 
-	while (true) {
-		errno = 0;
-		if ((dirent = readdir(dirp)) == NULL) {
-			if (errno) {
-				SLOGE << "Cannot read dir [" << certdir << "] because [" << strerror(errno) << "]";
-			}
-			break;
-		}
+	SLOGD << "Searching for push notification certificates in directory [" << certDir << "]";
 
-		string cert = string(dirent->d_name);
-		// only consider files which end with .pem
-		string suffix = ".pem";
-		if (cert.compare(".") == 0 || cert.compare("..") == 0 || cert.length() <= suffix.length() ||
-		    (cert.compare(cert.length() - suffix.length(), suffix.length(), suffix) != 0)) {
-			continue;
-		}
-		string certpath = string(certdir) + "/" + cert;
-		string certName = cert.substr(0, cert.size() - 4); // Remove .pem at the end of cert
-		try {
-			mClients[certName] = make_unique<AppleClient>(*mRoot, cafile, certpath, certName, this);
-			SLOGD << "Adding ios push notification client [" << certName << "]";
-		} catch (const TlsConnection::CreationError& err) {
-			SLOGW << "Couldn't make iOS PN client from [" << certName << "]: " << err.what();
-		}
+	// Only consider files which end with .pem
+	const auto& allowedExtension = ".pem";
+	for (const auto& dirEntry : dirIt) {
+		const auto& cert = dirEntry.path();
+		if (cert.extension() == allowedExtension) createAppleClient(caFile, certDir, cert);
 	}
-	closedir(dirp);
 }
 
 void Service::setupFirebaseClients(const GenericStruct* pushConfig) {
@@ -197,5 +215,4 @@ void Service::setFallbackClient(const std::shared_ptr<Client>& fallbackClient) {
 	mClients[sFallbackClientKey] = fallbackClient;
 }
 
-} // namespace pushnotification
-} // namespace flexisip
+} // namespace flexisip::pushnotification

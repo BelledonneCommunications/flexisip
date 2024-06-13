@@ -77,6 +77,10 @@ std::filesystem::path bcTesterWriteDir() {
 	return std::filesystem::canonical(bc_tester_get_writable_dir_prefix());
 }
 
+std::filesystem::path bcTesterResourceDir() {
+	return std::filesystem::canonical(bc_tester_get_resource_dir_prefix());
+}
+
 static int verbose_arg_func(const char*) {
 	LogManager::get().setLogLevel(BCTBX_LOG_DEBUG);
 	su_log_set_level(nullptr, 9);
@@ -150,7 +154,7 @@ void flexisip_tester_init() {
 	constexpr auto kVCardLocalGrammarLocation = FLEXISIP_ROOT_DIR "/linphone-sdk/belcard/src";
 	constexpr auto kSdpLocalGrammarLocation = FLEXISIP_ROOT_DIR "/linphone-sdk/belle-sip/src/sdp";
 	constexpr auto kLibLinphoneLocalGrammarLocation = FLEXISIP_ROOT_DIR "/linphone-sdk/liblinphone/share";
-	
+
 	flexisip_tester_add_grammar_loader_path(kAuthDbLocalGrammarLocation);
 	flexisip_tester_add_grammar_loader_path(kVCardLocalGrammarLocation);
 	flexisip_tester_add_grammar_loader_path(kSdpLocalGrammarLocation);
