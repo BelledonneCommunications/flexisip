@@ -25,7 +25,7 @@ using namespace std;
 namespace sofiasip {
 
 // This function is not signal-safe. (allocates dynamic memory)
-void SuRoot::addToMainLoop(const function<void()>& functionToAdd) {
+void SuRoot::addToMainLoop(function<void()>&& functionToAdd) {
 	su_msg_r msg = SU_MSG_R_INIT;
 	if (-1 == su_msg_create(msg, su_root_task(mCPtr), su_root_task(mCPtr), mainLoopFunctionCallback,
 	                        sizeof(function<void()>*))) {
@@ -37,11 +37,15 @@ void SuRoot::addToMainLoop(const function<void()>& functionToAdd) {
 	}
 
 	auto clientCb = reinterpret_cast<function<void()>**>(su_msg_data(msg));
-	*clientCb = new function<void()>(functionToAdd);
+	*clientCb = new function<void()>(std::move(functionToAdd));
 
 	if (-1 == su_msg_send(msg)) {
 		LOGF("Couldn't send auth async message to main thread.");
 	}
+}
+
+void SuRoot::addToMainLoop(const function<void()>& functionToAdd) {
+	addToMainLoop(function<void()>{functionToAdd});
 }
 
 void SuRoot::mainLoopFunctionCallback([[maybe_unused]] su_root_magic_t* rm, su_msg_t** msg, [[maybe_unused]] void* u) noexcept {

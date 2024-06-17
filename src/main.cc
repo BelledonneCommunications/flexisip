@@ -1021,7 +1021,7 @@ int _main(int argc, char* argv[]) {
 			throw Exit{-1, "failed to start flexisip presence server"};
 		}
 
-		presence_cli = make_unique<CommandLineInterface>("presence", cfg);
+		presence_cli = make_unique<CommandLineInterface>("presence", cfg, root);
 		presence_cli->start();
 
 		serviceServers.emplace_back(std::move(presenceServer));
