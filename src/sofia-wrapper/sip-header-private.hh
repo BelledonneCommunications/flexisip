@@ -226,6 +226,35 @@ public:
 	}
 };
 
+/*
+ * Represent a Contact header.
+ */
+class SipHeaderContact : public SipHeader {
+public:
+	/**
+	 * Create a Contact header.
+	 * @param contactURI The contact uri.
+	 */
+	template <typename UriT>
+	explicit SipHeaderContact(const UriT& contactURI) {
+		setNativePtr(sip_contact_make(mHome.home(), toSofiaSipUrlUnion(contactURI)->us_str));
+	}
+};
+
+/*
+ * Represent an Expires header.
+ */
+class SipHeaderExpires : public SipHeader {
+public:
+	/**
+	 * Create an Expires header.
+	 * @param value Expire value.
+	 */
+	explicit SipHeaderExpires(const unsigned int value) {
+		setNativePtr(sip_expires_create(mHome.home(), value));
+	}
+};
+
 /**
  * Class that represents a User-Agent header.
  */

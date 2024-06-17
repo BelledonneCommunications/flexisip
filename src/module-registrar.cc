@@ -313,92 +313,184 @@ ModuleRegistrar::ModuleRegistrar(Agent* ag) : Module(ag), mStaticRecordsTimer(nu
 
 void ModuleRegistrar::onDeclare(GenericStruct* mc) {
 	ConfigItemDescriptor configs[] = {
-	    {StringList, "reg-domains",
-	     "List of whitespace separated domain names which the registar is in charge of. It can eventually be "
-	     "the '*' (wildcard) in order to match any domain name.",
-	     "localhost"},
-	    {Boolean, "reg-on-response",
-	     "Register users based on response obtained from a back-end server. "
-	     "This mode is for using flexisip as a front-end server to hold client connections but register"
-	     "acceptance is deferred to backend server to which the REGISTER is routed.",
-	     "false"},
-	    {Integer, "max-contacts-by-aor", "Maximum number of registered contacts per address of record.",
-	     "12"}, /*used by registrardb*/
-	    {StringList, "unique-id-parameters",
-	     "List of contact URI parameters that can be used to identify a user's device. "
-	     "The contact parameters are searched in the order of the list, the first matching parameter is used and "
-	     "the others ignored.",
-	     "+sip.instance pn-tok line"},
-	    {Boolean, "enable-gruu",
-	     "When supported by the client, assign a pub-gruu address to the client, returned in the response. ", "true"},
-	    {Integer, "max-expires", "Maximum expire time for a REGISTER, in seconds.", "86400"},
-	    {Integer, "min-expires", "Minimum expire time for a REGISTER, in seconds.", "60"},
-	    {Integer, "force-expires",
-	     "Set a value that will override expire times given by the "
-	     "REGISTER requests. A null or negative value disables "
-	     "that feature. If it is enabled, max-expires and min-expires "
-	     "will not have any effect.",
-	     "-1"},
-
-	    {String, "static-records-file",
-	     "File containing the static records to add to database on startup. "
-	     "Format: one 'sip_uri contact_header' by line. Example:\n"
-	     "<sip:contact@domain> <sip:127.0.0.1:5460>,<sip:192.168.0.1:5160>",
-	     ""},
-	    {Integer, "static-records-timeout",
-	     "Timeout in seconds after which the static records file is re-read and the contacts updated.", "600"},
-
-	    {String, "db-implementation",
-	     "Implementation used for storing the contact URIs of each address of record. Two backends are available:\n"
-	     " - redis : contacts are stored in a Redis database, which allows persistent and shared storage accross "
-	     "multiple Flexisip instances.\n"
-	     " - internal : contacts are stored in RAM. Of course, if flexisip is restarted, all the contact URIs are "
-	     "lost until clients update their registration.\n"
-	     "The redis backend is recommended, the internal being more adapted to very small deployments.",
-	     "internal"},
+	    {
+	        StringList,
+	        "reg-domains",
+	        "List of whitespace separated domain names which the registar is in charge of. It can eventually be "
+	        "the '*' (wildcard) in order to match any domain name.",
+	        "localhost",
+	    },
+	    {
+	        Boolean,
+	        "reg-on-response",
+	        "Register users based on response obtained from a back-end server. "
+	        "This mode is for using flexisip as a front-end server to hold client connections but register"
+	        "acceptance is deferred to backend server to which the REGISTER is routed.",
+	        "false",
+	    },
+	    {
+	        // Used by registrardb
+	        Integer,
+	        "max-contacts-by-aor",
+	        "Maximum number of registered contacts per address of record.",
+	        "12",
+	    },
+	    {
+	        Integer,
+	        "max-contacts-per-registration",
+	        "Limits the number of authorized \"Contact:\" headers in a REGISTER request. If the number of \"Contact:\" "
+	        "headers exceeds this limit, the request is rejected.",
+	        "1",
+	    },
+	    {
+	        StringList,
+	        "unique-id-parameters",
+	        "List of contact URI parameters that can be used to identify a user's device. "
+	        "The contact parameters are searched in the order of the list, the first matching parameter is used and "
+	        "the others ignored.",
+	        "+sip.instance pn-tok line",
+	    },
+	    {
+	        Boolean,
+	        "enable-gruu",
+	        "When supported by the client, assign a pub-gruu address to the client, returned in the response. ",
+	        "true",
+	    },
+	    {
+	        Integer,
+	        "max-expires",
+	        "Maximum expire time for a REGISTER, in seconds.",
+	        "86400",
+	    },
+	    {
+	        Integer,
+	        "min-expires",
+	        "Minimum expire time for a REGISTER, in seconds.",
+	        "60",
+	    },
+	    {
+	        Integer,
+	        "force-expires",
+	        "Set a value that will override expire times given by the "
+	        "REGISTER requests. A null or negative value disables "
+	        "that feature. If it is enabled, max-expires and min-expires "
+	        "will not have any effect.",
+	        "-1",
+	    },
+	    {
+	        String,
+	        "static-records-file",
+	        "File containing the static records to add to database on startup. "
+	        "Format: one 'sip_uri contact_header' by line. Example:\n"
+	        "<sip:contact@domain> <sip:127.0.0.1:5460>,<sip:192.168.0.1:5160>",
+	        "",
+	    },
+	    {
+	        Integer,
+	        "static-records-timeout",
+	        "Timeout in seconds after which the static records file is re-read and the contacts updated.",
+	        "600",
+	    },
+	    {
+	        String,
+	        "db-implementation",
+	        "Implementation used for storing the contact URIs of each address of record. Two backends are available:\n"
+	        " - redis : contacts are stored in a Redis database, which allows persistent and shared storage accross "
+	        "multiple Flexisip instances.\n"
+	        " - internal : contacts are stored in RAM. Of course, if flexisip is restarted, all the contact URIs are "
+	        "lost until clients update their registration.\n"
+	        "The redis backend is recommended, the internal being more adapted to very small deployments.",
+	        "internal",
+	    },
 
 	    // Redis config support
-	    {String, "redis-server-domain", "Hostname or address of the Redis server. ", "localhost"},
-	    {Integer, "redis-server-port", "Port of the Redis server.", "6379"},
-	    {String, "redis-auth-user",
-	     "ACL username used to authenticate on Redis. Empty to disable. Setting this but not `redis-auth-password` is "
-	     "a misconfiguration, and will be ignored.",
-	     ""},
-	    {String, "redis-auth-password",
-	     "Authentication password for Redis. Empty to disable. If set but `redis-auth-user` is left unset or empty, "
-	     "Flexisip will attempt to register in legacy mode.",
-	     ""},
-	    {Integer, "redis-server-timeout", "Timeout in milliseconds of the Redis connection.", "1500"},
-	    {Integer, "redis-slave-check-period",
-	     "When Redis is configured in master-slave, Flexisip will periodically ask which Redis instances are the "
-	     "slaves and the master. This is the period with which it will query the server. It will then determine "
-	     "whether is is connected to the master, and if not, let go of the connection and migrate to the master.\n"
-	     "Note: This requires that all Redis instances have the same password. Otherwise the authentication "
-	     "will fail.",
-	     "60"},
-	    {Boolean, "redis-use-slaves-as-backup",
-	     "Tell if Flexisip should try to connect to Redis slaves if master went down. Can be disabled if slaves "
-	     "hostname info are on private network for example.",
-	     "true"},
-	    {String, "service-route",
-	     "Sequence of proxies (space-separated) where requests will be redirected through (RFC3608)", ""},
-	    {String, "message-expires-param-name",
-	     "Name of the custom Contact header parameter which is to indicate the expire "
-	     "time for chat message delivery.",
-	     "message-expires"},
-	    {Integer, "register-expire-randomizer-max",
-	     "If not zero, the expire time put in the 200 OK response won't be the one required by the user agent, but "
-	     "will be slightly modified by substracting a random value. The value given by this parameter is the "
-	     "maximum percentage of the initial expire that can be substracted.\n"
-	     "If zero, no randomization is applied.",
-	     "0"},
+	    {
+	        String,
+	        "redis-server-domain",
+	        "Hostname or address of the Redis server. ",
+	        "localhost",
+	    },
+	    {
+	        Integer,
+	        "redis-server-port",
+	        "Port of the Redis server.",
+	        "6379",
+	    },
+	    {
+	        String,
+	        "redis-auth-user",
+	        "ACL username used to authenticate on Redis. Empty to disable. Setting this but not `redis-auth-password` "
+	        "is "
+	        "a misconfiguration, and will be ignored.",
+	        "",
+	    },
+	    {
+	        String,
+	        "redis-auth-password",
+	        "Authentication password for Redis. Empty to disable. If set but `redis-auth-user` is left unset or empty, "
+	        "Flexisip will attempt to register in legacy mode.",
+	        "",
+	    },
+	    {
+	        Integer,
+	        "redis-server-timeout",
+	        "Timeout in milliseconds of the Redis connection.",
+	        "1500",
+	    },
+	    {
+	        Integer,
+	        "redis-slave-check-period",
+	        "When Redis is configured in master-slave, Flexisip will periodically ask which Redis instances are the "
+	        "slaves and the master. This is the period with which it will query the server. It will then determine "
+	        "whether is is connected to the master, and if not, let go of the connection and migrate to the master.\n"
+	        "Note: This requires that all Redis instances have the same password. Otherwise the authentication "
+	        "will fail.",
+	        "60",
+	    },
+	    {
+	        Boolean,
+	        "redis-use-slaves-as-backup",
+	        "Tell if Flexisip should try to connect to Redis slaves if master went down. Can be disabled if slaves "
+	        "hostname info are on private network for example.",
+	        "true",
+	    },
+	    {
+	        String,
+	        "service-route",
+	        "Sequence of proxies (space-separated) where requests will be redirected through (RFC3608)",
+	        "",
+	    },
+	    {
+	        String,
+	        "message-expires-param-name",
+	        "Name of the custom Contact header parameter which is to indicate the expire "
+	        "time for chat message delivery.",
+	        "message-expires",
+	    },
+	    {
+	        Integer,
+	        "register-expire-randomizer-max",
+	        "If not zero, the expire time put in the 200 OK response won't be the one required by the user agent, but "
+	        "will be slightly modified by subtracting a random value. The value given by this parameter is the "
+	        "maximum percentage of the initial expire that can be subtracted.\n"
+	        "If zero, no randomization is applied. Value must be in [0, 100].",
+	        "0",
+	    },
 
 	    // Deprecated parameters
-	    {String, "redis-record-serializer", "Serialize contacts with: [C, protobuf, json, msgpack]", "protobuf"},
-	    {String, "name-message-expires",
-	     "Name of the custom Contact header parameter which is to indicate the expire "
-	     "time for chat message delivery.",
-	     "message-expires"},
+	    {
+	        String,
+	        "redis-record-serializer",
+	        "Serialize contacts with: [C, protobuf, json, msgpack]",
+	        "protobuf",
+	    },
+	    {
+	        String,
+	        "name-message-expires",
+	        "Name of the custom Contact header parameter which is to indicate the expire "
+	        "time for chat message delivery.",
+	        "message-expires",
+	    },
 	    config_item_end};
 	mc->addChildrenValues(configs);
 
@@ -444,6 +536,10 @@ void ModuleRegistrar::onLoad(const GenericStruct* mc) {
 	if (mExpireRandomizer < 0 || mExpireRandomizer > 100) {
 		LOGF("'register-expire-randomizer-max' value (%i) must be in [0,100]", mExpireRandomizer);
 	}
+	const auto* maxContactsPerRegistration = mc->get<ConfigInt>("max-contacts-per-registration");
+	mMaxContactsPerRegistration = maxContactsPerRegistration->read();
+	if (mMaxContactsPerRegistration <= 0)
+		throw runtime_error{maxContactsPerRegistration->getCompleteName() + " must be strictly positive"};
 
 	if (!mStaticRecordsFile.empty()) {
 		readStaticRecords(); // read static records from configuration file
@@ -539,6 +635,14 @@ void ModuleRegistrar::removeInternalParams(sip_contact_t* ct) {
 			}
 		}
 	}
+}
+
+int ModuleRegistrar::numberOfContactHeaders(const sip_contact_t* rootHeader) {
+	int count = 0;
+	for (const auto* header = rootHeader; header != nullptr; header = header->m_next) {
+		++count;
+	}
+	return count;
 }
 
 string ModuleRegistrar::routingKey(const url_t* sipUri) {
@@ -653,12 +757,12 @@ bool ModuleRegistrar::isAdjacentRegistration(const sip_t* sip) {
 }
 
 void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
-	sip_t* sip = ms->getSip();
+	const auto& ms = ev->getMsgSip();
+	auto* sip = ms->getSip();
 	if (sip->sip_request->rq_method != sip_method_register) return;
 
 	// Check that From-URI is a SIP URI
-	SipUri sipurl;
+	SipUri sipurl{};
 	try {
 		sipurl = SipUri(sip->sip_from->a_url);
 	} catch (const sofiasip::InvalidUrlError& e) {
@@ -667,7 +771,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 		return;
 	}
 
-	// from managed domains
+	// From managed domains
 	if (!isManagedDomain(sipurl.get())) return;
 
 	// Handle fetching
@@ -679,11 +783,11 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	}
 
 	// Reject malformed registrations
-	const sip_expires_t* expires = sip->sip_expires;
-	const int maindelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
+	const auto* expires = sip->sip_expires;
+	const auto maindelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
 	if (!checkHaveExpire(sip->sip_contact, maindelta)) {
 		SLOGD << "No global or local expire found in at least one contact";
-		reply(ev, 400, "Invalid Request");
+		reply(ev, 400, "Invalid request");
 		return;
 	}
 	for (auto contact = sip->sip_contact; contact != nullptr; contact = contact->m_next) {
@@ -694,7 +798,11 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	}
 	if (!checkStarUse(sip->sip_contact, maindelta)) {
 		LOGD("The star rules are not respected.");
-		reply(ev, 400, "Invalid Request");
+		reply(ev, 400, "Invalid request");
+		return;
+	}
+	if (numberOfContactHeaders(sip->sip_contact) > mMaxContactsPerRegistration) {
+		reply(ev, 403, "Too many contacts in REGISTER");
 		return;
 	}
 
@@ -723,7 +831,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 		tport_set_user_data(ev->getIncomingTport().get(), reinterpret_cast<void*>(connId));
 	}
 
-	// domain registration case, does nothing for the moment
+	// Domain registration case, does nothing for the moment
 	if (sipurl.getUser().empty() && !mAllowDomainRegistrations) {
 		LOGE("Not accepting domain registration");
 		SLOGUE << "Not accepting domain registration:  " << sipurl;
@@ -985,8 +1093,8 @@ void ModuleRegistrar::readStaticRecords() {
 
 ModuleInfo<ModuleRegistrar> ModuleRegistrar::sInfo(
     "Registrar",
-    "The ModuleRegistrar module handles REGISTERs for domains it is in charge of, and store the address of record "
-    "in order to allow routing requests destinated to the client who registered. REGISTERs for other domains are "
-    "simply ignored and given to the next module.",
+    "The Registrar module handles REGISTER requests for domains it is in charge of. It stores the address of record "
+    "(AOR) in order to allow routing requests intended to the client who registered. REGISTER requests for other "
+    "domains are simply ignored and transferred to the next module.",
     {"Presence"},
     ModuleInfoBase::ModuleOid::Registrar);

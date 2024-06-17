@@ -65,7 +65,6 @@ add_executable(flexisip_tester
 	mediarelay-tester.cc
 	module-dos-tester.cc
 	module-info-tester.cc
-	module-registrar-tester.cc
 	module-router-tester.cc
 	module-toolbox-tester.cc
 	msg-sip-tester.cc
@@ -82,6 +81,7 @@ add_executable(flexisip_tester
 	tests/flexiapi/schemas/iso-8601-date-tester.cc
 	tests/module-forward-tester.cc
 	tests/module-nat-helper-tester.cc
+	tests/module-registrar-tester.cc
 	tests/presence/presence-pidf-tester.cc
 	tests/presence/presence-publish-tester.cc
 	tests/presence/xsd-utils-tester.cc
