@@ -18,6 +18,7 @@ shared_ptr<Server> makeAndStartProxy(std::map<std::string, std::string> customCo
 	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
 	    {"module::Registrar/enabled", "true"},
 	    {"module::Registrar/reg-domains", "sip.example.org"},
+	    {"module::Registrar/max-contacts-per-registration", "2"},
 	    {"module::MediaRelay/enabled", "true"},
 	    {"module::MediaRelay/prevent-loops", "false"}, // Allow loopback to localnetwork
 	});

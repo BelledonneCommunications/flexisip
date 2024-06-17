@@ -145,6 +145,8 @@ protected:
 	ModuleRegistrar(Agent* ag, const ModuleInfoBase* moduleInfo);
 
 private:
+	static int numberOfContactHeaders(const sip_contact_t* rootHeader);
+	
 	std::shared_ptr<ResponseContext> createResponseContext(const std::shared_ptr<RequestSipEvent>& ev, int globalDelta);
 	void deleteResponseContext(const std::shared_ptr<ResponseContext>& ctx);
 
@@ -170,6 +172,7 @@ private:
 	static ModuleInfo<ModuleRegistrar> sInfo;
 	bool mUseGlobalDomain;
 	int mExpireRandomizer;
+	int mMaxContactsPerRegistration;
 	std::list<std::string> mParamsToRemove;
 	std::unique_ptr<signal_handling::SofiaDrivenSignalHandler> mSignalHandler = nullptr;
 };

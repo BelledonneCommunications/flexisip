@@ -17,18 +17,20 @@
 */
 
 #include <chrono>
+#include <csignal>
 #include <sstream>
 #include <string>
 
-#include <signal.h>
-
 #include "agent.hh"
 #include "flexisip/registrar/registar-listeners.hh"
+#include "flexisip/module-router.hh"
+
 #include "registrar/binding-parameters.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "registrar/registrar-db.hh"
 #include "sofia-wrapper/nta-agent.hh"
+#include "sofia-wrapper/sip-header-private.hh"
 #include "tester.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/core-assert.hh"
@@ -38,10 +40,11 @@
 #include "utils/test-suite.hh"
 
 using namespace std;
-using namespace std::chrono_literals;
 using namespace std::chrono;
-using namespace flexisip;
-using namespace flexisip::tester;
+using namespace std::chrono_literals;
+using namespace sofiasip;
+
+namespace flexisip::tester {
 
 static int responseReceived = 0;
 static int expectedResponseReceived = 0;
@@ -470,9 +473,10 @@ namespace {
 void invalidContactInRequest() {
 	RedisServer redis{};
 	Server proxyServer({
-	    {"global/transports", "sip:*:5160"},
+	    {"global/transports", "sip:127.0.0.1:0"},
 	    {"global/aliases", "127.0.0.1"},
 	    {"module::Registrar/reg-domains", "sip.example.org"},
+	    {"module::Registrar/max-contacts-per-registration", "2"},
 	    {"module::Registrar/db-implementation", "redis"},
 	    {"module::Registrar/redis-server-domain", "localhost"},
 	    {"module::Registrar/redis-server-port", std::to_string(redis.port())},
@@ -497,7 +501,7 @@ void invalidContactInRequest() {
 	// clang-format on
 
 	sofiasip::NtaAgent client{proxyServer.getRoot(), "sip:127.0.0.1:0"};
-	auto transaction = client.createOutgoingTransaction(badRequest, "sip:127.0.0.1:5160");
+	auto transaction = client.createOutgoingTransaction(badRequest, "sip:127.0.0.1:"s + proxyServer.getFirstPort());
 
 	auto beforePlus2 = system_clock::now() + 2s;
 	while (!transaction->isCompleted() && beforePlus2 >= system_clock::now()) {
@@ -512,7 +516,7 @@ void invalidContactInRequest() {
 void invalidContactInDb() {
 	RedisServer redis{};
 	Server proxyServer({
-	    {"global/transports", "sip:*:5160"},
+	    {"global/transports", "sip:127.0.0.1:0"},
 	    {"global/aliases", "127.0.0.1"},
 	    {"module::Registrar/reg-domains", "sip.example.org"},
 	    {"module::Registrar/db-implementation", "redis"},
@@ -551,7 +555,7 @@ void invalidContactInDb() {
 	// clang-format on
 
 	sofiasip::NtaAgent client{proxyServer.getRoot(), "sip:127.0.0.1:0"};
-	auto transaction = client.createOutgoingTransaction(validRequest, "sip:127.0.0.1:5160");
+	auto transaction = client.createOutgoingTransaction(validRequest, "sip:127.0.0.1:"s + proxyServer.getFirstPort());
 
 	auto beforePlus2 = system_clock::now() + 2s;
 	while (!transaction->isCompleted() && beforePlus2 >= system_clock::now()) {
@@ -608,22 +612,59 @@ void minExpires() {
 	BC_ASSERT_CPP_EQUAL(expire->ex_delta, minExpires);
 }
 
-TestSuite
-    _("Register",
-      {
-          TEST_NO_TAG("Duplicate push token at register handling, with internal db",
-                      duplicatePushTokenRegisterInternalDbTest),
-          TEST_NO_TAG("Duplicate push token at register handling, with Redis db", duplicatePushTokenRegisterRedisTest),
-          TEST_NO_TAG_AUTO_NAMED(invalidContactInRequest),
-          TEST_NO_TAG_AUTO_NAMED(invalidContactInDb),
-          CLASSY_TEST(minExpires),
-      },
-      Hooks().beforeEach([] {
-	      responseReceived = 0;
-	      expectedResponseReceived = 0;
-	      bidingDone = 0;
-	      expectedBidingDone = 0;
-	      fetchingDone = 0;
-	      expectedFetchingDone = 0;
-      }));
+/*
+ * When a REGISTER request goes through the RegistrarModule with more than "max-contacts-per-registration" contact
+ * headers, test that it is rejected with a 403 response from the proxy.
+ */
+void registerUserWithTooManyContactHeaders() {
+	Server proxy{{
+	    {"global/transports", "sip:127.0.0.1:0"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/max-contacts-per-registration", "1"},
+	    {"module::Registrar/reg-domains", "localhost"},
+	}};
+	proxy.start();
+	CoreAssert asserter{proxy};
+	static const string clientSipIdentity = "sip:user@localhost";
+	static const string proxyUri = "sip:127.0.0.1:"s + proxy.getFirstPort();
+
+	// Create a REGISTER request with 2 "Contact:" headers
+	auto request = make_unique<MsgSip>();
+	request->makeAndInsert<SipHeaderRequest>(sip_method_register, "sip:localhost");
+	request->makeAndInsert<SipHeaderFrom>(clientSipIdentity, "stub-from-tag");
+	request->makeAndInsert<SipHeaderTo>(clientSipIdentity);
+	request->makeAndInsert<SipHeaderCallID>("stub-call-id");
+	request->makeAndInsert<SipHeaderCSeq>(20u, sip_method_register);
+	request->makeAndInsert<SipHeaderContact>("<" + clientSipIdentity + ":1324;transport=tcp>");
+	request->makeAndInsert<SipHeaderContact>("<" + clientSipIdentity + ":1324;transport=tcp>");
+	request->makeAndInsert<SipHeaderExpires>(10u);
+
+	// Instantiate the client and send the request through an outgoing transaction
+	auto client = NtaAgent{proxy.getRoot(), "sip:127.0.0.1:0"};
+	auto transaction = client.createOutgoingTransaction(std::move(request), proxyUri);
+
+	BC_ASSERT(asserter.iterateUpTo(
+	    32, [&transaction]() { return transaction->isCompleted(); }, 2s));
+	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 403);
+}
+
+TestSuite _("Register",
+            {
+                CLASSY_TEST(duplicatePushTokenRegisterInternalDbTest),
+                CLASSY_TEST(duplicatePushTokenRegisterRedisTest),
+                CLASSY_TEST(invalidContactInRequest),
+                CLASSY_TEST(invalidContactInDb),
+                CLASSY_TEST(minExpires),
+                CLASSY_TEST(registerUserWithTooManyContactHeaders),
+            },
+            Hooks().beforeEach([] {
+	            responseReceived = 0;
+	            expectedResponseReceived = 0;
+	            bidingDone = 0;
+	            expectedBidingDone = 0;
+	            fetchingDone = 0;
+	            expectedFetchingDone = 0;
+            }));
 } // namespace
+
+} // namespace flexisip::tester

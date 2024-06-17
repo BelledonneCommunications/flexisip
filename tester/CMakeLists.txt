@@ -73,7 +73,6 @@ add_executable(flexisip_tester
 	mediarelay-tester.cc
 	module-dos-tester.cc
 	module-info-tester.cc
-	module-registrar-tester.cc
 	module-router-tester.cc
 	module-toolbox-tester.cc
 	msg-sip-tester.cc
@@ -97,6 +96,7 @@ add_executable(flexisip_tester
 	tests/libhiredis-wrapper/redis-reply-tester.cc
 	tests/module-forward-tester.cc
 	tests/module-nat-helper-tester.cc
+	tests/module-registrar-tester.cc
 	tests/nat/contact-correction-strategy-helper-tester.cc
 	tests/nat/contact-correction-strategy-tester.cc
 	tests/nat/flow-token-strategy-tester.cc
