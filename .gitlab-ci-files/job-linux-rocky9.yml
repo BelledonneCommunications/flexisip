@@ -1,6 +1,6 @@
 variables:
-  ROCKY9_CMAKE_OPTIONS: -DENABLE_OPENID_CONNECT=ON
-  ROCKY9_CMAKE_OPTIONS_UNIT_TESTS: ${ROCKY9_CMAKE_OPTIONS} -DENABLE_G729=ON -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_MYSQL=ON -DCMAKE_PREFIX_PATH=/usr/local -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON
+  ROCKY9_CMAKE_OPTIONS: -DENABLE_OPENID_CONNECT=ON -DENABLE_G729=ON
+  ROCKY9_CMAKE_OPTIONS_UNIT_TESTS: ${ROCKY9_CMAKE_OPTIONS} -DENABLE_UNIT_TESTS=ON -DCMAKE_PREFIX_PATH=/usr/local -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON
 
 .rocky9-image-variables:
   image:
@@ -39,7 +39,7 @@ job-rocky9-ninja-clang:
     - .rocky9-image-variables
     - .tester-artifacts
   variables:
-    # -DCMAKE_PREFIX_PATH=/usr/local: Unit tests require libnghttp2_asio, which has been build and intalled into /usr/local
+    # -DCMAKE_PREFIX_PATH=/usr/local: Unit tests require libnghttp2_asio, which has been build and installed into /usr/local
     CMAKE_OPTIONS: ${ROCKY9_CMAKE_OPTIONS_UNIT_TESTS}
 
 job-rocky9-ninja-clang-nosoci:

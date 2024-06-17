@@ -223,7 +223,12 @@ if(ENABLE_B2BUA)
 		tests/b2bua/sip-bridge/invite-tweaker-tester.cc
 		tests/b2bua/sip-bridge/sip-bridge-tester.cc
 		tests/b2bua/sip-bridge/variable-substitution-tester.cc
-)
+	)
+	if(ENABLE_G729)
+		target_sources(flexisip_tester PRIVATE
+			tests/b2bua/b2bua-tester-with-g729.cc
+		)
+	endif()
 endif()
 
 if(ENABLE_OPENID_CONNECT)
