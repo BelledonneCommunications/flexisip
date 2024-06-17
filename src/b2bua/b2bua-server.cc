@@ -65,7 +65,7 @@ shared_ptr<linphone::Call> getPeerCall(shared_ptr<linphone::Call> call) {
 } // namespace
 
 B2buaServer::B2buaServer(const shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg)
-    : ServiceServer(root), mConfigManager(cfg), mCli("b2bua", cfg) {
+    : ServiceServer(root), mConfigManager(cfg), mCli("b2bua", cfg, root) {
 }
 
 B2buaServer::~B2buaServer() {

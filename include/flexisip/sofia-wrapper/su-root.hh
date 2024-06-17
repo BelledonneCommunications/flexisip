@@ -70,6 +70,7 @@ public:
 		return su_root_task(mCPtr);
 	}
 
+	void addToMainLoop(std::function<void()>&& functionToAdd);
 	void addToMainLoop(const std::function<void()>& functionToAdd);
 	void addOneShotTimer(const std::function<void()>& timerFunction, NativeDuration ms);
 	template <typename Duration>
