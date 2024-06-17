@@ -73,7 +73,7 @@ protected:
 
 class CommandLineInterface {
 public:
-	CommandLineInterface(const std::string& name);
+	CommandLineInterface(const std::string& name, const std::shared_ptr<sofiasip::SuRoot>& root);
 	virtual ~CommandLineInterface();
 
 	std::future<void> start();
@@ -82,15 +82,17 @@ public:
 	void registerHandler(CliHandler& handler);
 
 protected:
-	virtual void
-	parseAndAnswer(SocketHandle&& socket, const std::string& command, const std::vector<std::string>& args);
+	virtual void parseAndAnswer(std::shared_ptr<SocketHandle> socket,
+	                            const std::string& command,
+	                            const std::vector<std::string>& args);
 
 private:
 	GenericEntry* getGenericEntry(const std::string& arg) const;
-	void handleConfigGet(SocketHandle&& socket, const std::vector<std::string>& args);
-	void handleConfigList(SocketHandle&& socket, const std::vector<std::string>& args);
-	void handleConfigSet(SocketHandle&& socket, const std::vector<std::string>& args);
-	void dispatch(SocketHandle&& socket, const std::string& command, const std::vector<std::string>& args);
+	void handleConfigGet(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args);
+	void handleConfigList(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args);
+	void handleConfigSet(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args);
+	void
+	dispatch(std::shared_ptr<SocketHandle> socket, const std::string& command, const std::vector<std::string>& args);
 	void run();
 
 	static GenericEntry* find(GenericStruct* root, std::vector<std::string>& path);
@@ -105,20 +107,23 @@ private:
 	bool mRunning = false;
 	std::shared_ptr<CliHandler::HandlerTable> handlers;
 	std::promise<void> mReady;
+	std::shared_ptr<sofiasip::SuRoot> mRoot;
+	std::shared_ptr<int> validThisGuard = std::make_shared<int>(1);
 };
 
 class ProxyCommandLineInterface : public CommandLineInterface {
 public:
-	ProxyCommandLineInterface(const std::shared_ptr<Agent>& agent);
+	explicit ProxyCommandLineInterface(const std::shared_ptr<Agent>& agent);
 
 private:
-	void handleRegistrarClear(SocketHandle&& socket, const std::vector<std::string>& args);
-	void handleRegistrarDelete(SocketHandle&& socket, const std::vector<std::string>& args);
-	void handleRegistrarUpsert(SocketHandle&& socket, const std::vector<std::string>& args);
-	void handleRegistrarGet(SocketHandle&& socket, const std::vector<std::string>& args);
-	void handleRegistrarDump(SocketHandle&& socket, const std::vector<std::string>& args);
-	void
-	parseAndAnswer(SocketHandle&& socket, const std::string& command, const std::vector<std::string>& args) override;
+	void handleRegistrarClear(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args);
+	void handleRegistrarDelete(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args);
+	void handleRegistrarUpsert(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args);
+	void handleRegistrarGet(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args);
+	void handleRegistrarDump(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args);
+	void parseAndAnswer(std::shared_ptr<SocketHandle> socket,
+	                    const std::string& command,
+	                    const std::vector<std::string>& args) override;
 
 	std::shared_ptr<Agent> mAgent;
 };

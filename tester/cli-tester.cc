@@ -5,6 +5,7 @@
 #include <cerrno>
 #include <chrono>
 #include <future>
+#include <memory>
 #include <string>
 
 #include <sysexits.h>
@@ -42,11 +43,11 @@ using CapturedCalls = std::vector<std::string>;
 
 struct TestCli : public flexisip::CommandLineInterface {
 
-	TestCli() : flexisip::CommandLineInterface("cli-tests") {
+	TestCli(std::shared_ptr<sofiasip::SuRoot> root) : flexisip::CommandLineInterface("cli-tests", root) {
 	}
 
 	void send(const std::string& command) {
-		parseAndAnswer(flexisip::SocketHandle(0), command, {});
+		parseAndAnswer(std::make_shared<SocketHandle>(0), command, {});
 	}
 };
 
@@ -102,7 +103,8 @@ public:
 };
 
 void handler_registration_and_dispatch() {
-	TestCli socket_listener{};
+	auto root = std::make_shared<sofiasip::SuRoot>();
+	TestCli socket_listener{root};
 	auto passthrough_handler = TestHandler("");
 	socket_listener.registerHandler(passthrough_handler);
 
@@ -157,7 +159,7 @@ void handler_registration_and_dispatch() {
 
 	// Cli with a shorter lifetime than the handler
 	{
-		TestCli temp_listener{};
+		TestCli temp_listener{root};
 		temp_listener.registerHandler(passthrough_handler);
 	}
 	passthrough_handler.unregister(); // No asserts, this would simply crash the program

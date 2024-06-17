@@ -1026,7 +1026,7 @@ int main(int argc, char* argv[]) {
 			LOGF("Fail to start flexisip presence server");
 		}
 
-		presence_cli = unique_ptr<CommandLineInterface>(new CommandLineInterface("presence"));
+		presence_cli = make_unique<CommandLineInterface>("presence", root);
 		presence_cli->start();
 #endif
 	}
