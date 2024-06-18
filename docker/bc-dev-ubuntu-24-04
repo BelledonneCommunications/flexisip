@@ -1,0 +1,79 @@
+###############################################################################
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-24-04:20241806_init
+###############################################################################
+
+FROM ubuntu:24.04
+RUN userdel -r ubuntu
+
+MAINTAINER Anthony Gauchy <anthony.gauchy@belledonne-communications.com>
+
+  # Update
+RUN apt-get -y update \
+  # Install common tools
+ && apt-get -y install sudo \
+                       vim \
+                       wget \
+                       file \
+                     # Install development tools
+                       ccache \
+                       clang \
+                       cmake \
+                       doxygen \
+                       elfutils \
+                       g++ \
+                       gdb \
+                       git \
+                       llvm \
+                       make \
+                       ninja-build \
+                       python3 \
+                       python3-pystache \
+                       python3-six \
+                       yasm \
+                     # Install all dependencies needed for Flexisip
+                       libssl-dev \
+                       libboost-dev \
+                       libboost-system-dev \
+                       libboost-thread-dev \
+                       libhiredis-dev \
+                       libjansson-dev \
+                       libjsoncpp-dev \
+                       libsqlite3-dev \
+                       libpq-dev \
+                       libmariadb-dev \
+                       libmariadb-dev-compat \
+                       mariadb-server \
+                       libnghttp2-dev \
+                       libprotobuf-dev \
+                       libsnmp-dev \
+                       libxerces-c-dev \
+                       libsrtp2-dev \
+                       libgsm1-dev \
+                       libopus-dev \
+                       libmbedtls-dev \
+                       libspeex-dev \
+                       libspeexdsp-dev \
+                       libxml2-dev \
+                       protobuf-compiler \
+                       redis-server \
+                     # Dependencies of the B2BUA
+                       libvpx-dev \
+  # Clean
+ && apt-get -y autoremove \
+ && apt-get -y clean
+
+# Install libnghttp2_asio 1.51.0
+COPY libnghttp2_asio_install.sh .
+RUN ./libnghttp2_asio_install.sh 1.51.0 && rm libnghttp2_asio_install.sh
+
+# Configure user bc
+RUN useradd -ms /bin/bash bc && \
+    echo 'bc:cotcot' | chpasswd && \
+    echo 'bc ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+# Switch for 'bc' user
+USER bc
+WORKDIR /home/bc
+
+# CVE-2022-24765, from git 2.35.2 onward
+RUN git config --global --add safe.directory *
