@@ -56,7 +56,7 @@ public:
 		return mTickers[mLastTickerIndex++];
 	}
 	~TickerManager() {
-		for_each(mTickers.begin(), mTickers.end(), std::function(ms_ticker_destroy));
+		for_each(mTickers.begin(), mTickers.end(), std::function{ms_ticker_destroy});
 	}
 
 private:

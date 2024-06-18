@@ -53,12 +53,13 @@ void makeFlowFactoryHelper() {
 
 	fstream file;
 	file.open(filePath.c_str(), ios_base::in);
-	char buffer[hashKeySize];
-	file.read(buffer, hashKeySize);
+	vector<char> buffer(hashKeySize);
+	file.read(buffer.data(), hashKeySize);
 	file.close();
 
 	const auto hashKey = flowFactoryHelper.getHashKey();
-	BC_ASSERT_CPP_EQUAL(string(buffer, buffer + hashKeySize), string(hashKey.data(), hashKey.data() + hashKeySize));
+	BC_ASSERT_CPP_EQUAL(string(buffer.data(), buffer.data() + hashKeySize),
+	                    string(hashKey.data(), hashKey.data() + hashKeySize));
 }
 
 void makeFlowFactoryHelperFromExistingHashKeyFile() {
@@ -68,11 +69,12 @@ void makeFlowFactoryHelperFromExistingHashKeyFile() {
 
 	fstream file;
 	file.open(kHashKeyFilePath, ios_base::in);
-	char buffer[hashKeySize];
-	file.read(buffer, hashKeySize);
+	vector<char> buffer(hashKeySize);
+	file.read(buffer.data(), hashKeySize);
 	file.close();
 
-	BC_ASSERT_CPP_EQUAL(string(buffer, buffer + hashKeySize), string(hashKey.data(), hashKey.data() + hashKeySize));
+	BC_ASSERT_CPP_EQUAL(string(buffer.data(), buffer.data() + hashKeySize),
+	                    string(hashKey.data(), hashKey.data() + hashKeySize));
 }
 
 void makeFlowFactoryHelperPermissionDeniedToCreateFolder() {

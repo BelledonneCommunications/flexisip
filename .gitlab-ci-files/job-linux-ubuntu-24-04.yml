@@ -1,0 +1,77 @@
+.ubuntu-24-04-image:
+  image:
+    name: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-24-04:$UBUNTU_24_04_IMAGE_VERSION
+
+#################################################
+# Makefile
+#################################################
+
+job-ubuntu-24-04-makefile-gcc:
+  extends:
+    - .job-makefile-gcc
+    - .ubuntu-24-04-image
+    - .rules-never-run  # ⚠ See `rules.yml`, override .job-makefile-gcc rules
+
+
+job-ubuntu-24-04-makefile-clang:
+  extends:
+    - .job-makefile-clang
+    - .ubuntu-24-04-image
+    - .rules-never-run  # ⚠ See `rules.yml`, override .job-makefile-clang rules
+
+#################################################
+# Ninja
+#################################################
+
+job-ubuntu-24-04-ninja-gcc:
+  extends:
+    - .job-ninja-gcc
+    - .ubuntu-24-04-image
+
+
+job-ubuntu-24-04-ninja-clang:
+  extends:
+    - .job-ninja-clang
+    - .ubuntu-24-04-image
+    - .tester-artifacts
+  variables:
+    CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON
+
+#################################################
+# UNIT TESTS
+#################################################
+
+job-ubuntu-24-04-unit-test:
+  extends:
+    - .unit-test
+    - .ubuntu-24-04-image
+  needs:
+    - job-ubuntu-24-04-ninja-clang
+
+#################################################
+# DEB
+#################################################
+
+job-ubuntu-24-04-deb:
+  extends:
+    - .job-linux-deb
+    - .ubuntu-24-04-image
+    - .rules-manual-deploy # ⚠ See `rules.yml`, override .job-linux-deb rules
+  needs:
+    - job: job-ubuntu-24-04-unit-test
+      optional: true
+      artifacts: false
+    - job: job-ubuntu-24-04-ninja-clang
+      optional: true
+      artifacts: false
+
+
+job-ubuntu-24-04-deb-deploy:
+  extends:
+    - .job-debian-deb-deploy
+    - .ubuntu-24-04-image
+  variables:
+    RELEASE: jammy
+    FREIGHT_PATH: $UBUNTU_FREIGHT_CONF_PATH
+  dependencies:
+    - job-ubuntu-24-04-deb

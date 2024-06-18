@@ -9,6 +9,7 @@
 #include <string>
 
 #include <iconv.h>
+#include <vector>
 
 namespace {
 
@@ -51,9 +52,9 @@ Utf8String::Utf8String(const std::string& source) : mData(source) {
 	size_t outBytesLeft = inBytesLeft;
 	char* pInBuf = &mData.front();
 	assert(outBytesLeft != 0); // Trying to allocate 0-lengthed dynamically-sized array
-	char outBuf[outBytesLeft];
-	char* pOutBuf = outBuf;
-	if (converter(&pInBuf, &inBytesLeft, &pOutBuf, &outBytesLeft) != -1ul) {
+	std::vector<char> outBuf(outBytesLeft);
+	char* pOutBuf = outBuf.data();
+	if (converter(&pInBuf, &inBytesLeft, &pOutBuf, &outBytesLeft) != -1UL) {
 		// The whole string is valid, we're good to go.
 		return;
 	}
@@ -61,14 +62,14 @@ Utf8String::Utf8String(const std::string& source) : mData(source) {
 	std::ostringstream sanitized{};
 	while (0 < inBytesLeft) {
 		pOutBuf[0] = '\0';
-		sanitized << outBuf << "�";
-		pOutBuf = outBuf;
+		sanitized << outBuf.data() << "�";
+		pOutBuf = outBuf.data();
 		++pInBuf;
 		--inBytesLeft;
 		converter(&pInBuf, &inBytesLeft, &pOutBuf, &outBytesLeft);
-	};
+	}
 	pOutBuf[0] = '\0';
-	sanitized << outBuf;
+	sanitized << outBuf.data();
 
 	mData = sanitized.str();
 }

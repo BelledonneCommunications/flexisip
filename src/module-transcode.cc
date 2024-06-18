@@ -18,6 +18,7 @@
 
 #include "module-transcode.hh"
 
+#include <charconv>
 #include <functional>
 
 #include "module-toolbox.hh"
@@ -149,32 +150,30 @@ Transcoder::~Transcoder() {
 }
 
 list<PayloadType*> Transcoder::orderList(const list<string>& config, const list<PayloadType*>& l) {
-	int err;
-	int rate;
 	list<PayloadType*> ret;
 	list<string>::const_iterator cfg_it;
 
-	for (cfg_it = config.begin(); cfg_it != config.end(); ++cfg_it) {
-		char name[(*cfg_it).size() + 1];
-		char* p;
-
-		strcpy(name, (*cfg_it).c_str());
-		p = strchr(name, '/');
-		if (p) {
-			*p = '\0';
-			p++;
-		} else LOGF("Error parsing audio codec list");
-
-		err = sscanf(p, "%i", &rate);
-		if (err != 1) LOGF("Error parsing audio codec list, missing rate information");
-		for (auto it = l.cbegin(); it != l.cend(); ++it) {
-			PayloadType* pt = *it;
-			if (strcasecmp(pt->mime_type, name) == 0 && rate == pt->clock_rate) {
+	for (const auto& configName : config) {
+		auto splitedConfigName = StringUtils::splitOnce(configName, "/");
+		if (!splitedConfigName.has_value()) {
+			LOGF("Error parsing audio codec list, no '/' found in config name");
+		}
+		const auto& [name, rateString] = *splitedConfigName;
+		if (name.empty()) LOGF("Error parsing audio codec list, missing name information");
+		if (rateString.empty()) LOGF("Error parsing audio codec list, missing rate information");
+		int rate{};
+		auto [ptr, ec] = std::from_chars(rateString.data(), rateString.data() + rateString.size(), rate);
+		if (ec == std::errc::invalid_argument)
+			LOGF("Error parsing audio codec list, rate information is not an integer");
+		if (ec == std::errc::result_out_of_range)
+			LOGF("Error parsing audio codec list, rate information is larger than int integer");
+		for (auto* pt : l) {
+			if (pt->mime_type == name && rate == pt->clock_rate) {
 				if (ms_factory_codec_supported(mFactory, pt->mime_type) ||
 				    strcmp("telephone-event", pt->mime_type) == 0) {
 					ret.push_back(pt);
 				} else {
-					LOGE("Codec %s/%i is configured but is not supported (missing plugin ?)", name, rate);
+					SLOGE << "Codec" << name << "/" << rate << " is configured but is not supported (missing plugin ?)";
 				}
 			}
 		}
