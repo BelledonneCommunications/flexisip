@@ -46,7 +46,7 @@ job-rocky9-ninja-clang-nosoci:
   extends:
     - job-rocky9-ninja-clang
   variables:
-    CMAKE_OPTIONS: ${ROCKY9_CMAKE_OPTIONS_UNIT_TESTS} -DENABLE_SOCI=OFF -DENABLE_B2BUA=ON -DENABLE_CONFERENCE=ON
+    CMAKE_OPTIONS: ${ROCKY9_CMAKE_OPTIONS_UNIT_TESTS} -DENABLE_SOCI=OFF
 
 #################################################
 # UNIT TESTS
