@@ -55,7 +55,7 @@ Here is a template of what should be in this file:
 			"accountPool": "<name of an account pool described below>",
 			"triggerCondition": {
 				"strategy": "<MatchRegex|Always>"
-				"pattern": "<MatchRegaxParam: regex>"
+				"pattern": "<MatchRegexParam: regex>"
 			},
 			"accountToUse": {
 				"strategy": "FindInPool|Random",
@@ -76,6 +76,8 @@ Here is a template of what should be in this file:
 		"<name of account pool>": {
 			"outboundProxy": "<sip:some.provider.example.com;transport=tls>",
 			"registrationRequired": <true,false>,
+			"registrationThrottlingRateMs": <optional: number>,
+			"unregisterOnServerShutdown": <optional: true|false>,
 			"maxCallsPerLine": <number>,
 			"loader": {
 				"dbBackend": "<mysql|sqlite3>",
@@ -87,6 +89,8 @@ Here is a template of what should be in this file:
 		"<name of another account pool>": {
 			"outboundProxy": "<sip:some.provider.example.com;transport=tls>",
 			"registrationRequired": <true,false>,
+			"registrationThrottlingRateMs": <optional: number>,
+			"unregisterOnServerShutdown": <optional: true|false>,
 			"maxCallsPerLine": <number>,
 			"loader": [
 				{
