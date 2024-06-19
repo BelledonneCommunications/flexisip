@@ -31,6 +31,7 @@
 #include "sofia-wrapper/nta-agent.hh"
 #include "tester.hh"
 #include "utils/bellesip-utils.hh"
+#include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
 #include "utils/server/redis-server.hh"
 #include "utils/test-patterns/test.hh"
@@ -563,6 +564,50 @@ void invalidContactInDb() {
 	checkResultInDb(*proxyServer.getAgent(), userUri, make_shared<RegisterFetchListener>(expectedContact, uuid), true);
 }
 
+// Check that the registrar min-expires parameter is taken into account in the server response
+void minExpires() {
+	const auto minExpires = 900;
+	Server proxyServer({
+	    {"module::Registrar/reg-domains", "sip.example.org"},
+	    {"module::Registrar/min-expires", to_string(minExpires)},
+	    {"module::DoSProtection/enabled", "false"},
+	});
+	proxyServer.start();
+
+	const std::string sipUri("sip:user@sip.example.org");
+
+	// send a valid REGISTER request with an expire smaller than min-expires
+	// clang-format off
+	const std::string validRequest(
+	    "REGISTER "+ sipUri+ " SIP/2.0\r\n"
+	    "From: <" + sipUri + ">;tag=465687829\r\n"
+	    "To: <" + sipUri + ">\r\n"
+	    "Call-ID: 1053183492" + "\r\n"
+	    "CSeq: 20 REGISTER\r\n"
+	    "Contact: <" + sipUri + ";>;+sip.instance=fcm1Reg \r\n"
+	    "Expires: 600\r\n"
+	    "Content-Length: 0\r\n\r\n");
+	// clang-format on
+
+	sofiasip::NtaAgent client{proxyServer.getRoot(), "sip:127.0.0.1:0"};
+	auto transaction = client.createOutgoingTransaction(validRequest, "sip:127.0.0.1:"s + proxyServer.getFirstPort());
+
+	BC_ASSERT_TRUE(CoreAssert{*proxyServer.getRoot()}.iterateUpTo(
+	    5, [&transaction] { return transaction->isCompleted(); }, 2s));
+
+	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 200);
+	auto response = transaction->getResponse();
+	BC_HARD_ASSERT(response != nullptr);
+
+	const auto rawResponse = response->msgAsString();
+	SLOGD << "Server response:\n" << rawResponse;
+	const auto* sipMsg = response->getSip();
+	BC_HARD_ASSERT(sipMsg != nullptr);
+	const auto* expire = sipMsg->sip_expires;
+	BC_HARD_ASSERT(expire != nullptr);
+	BC_ASSERT_CPP_EQUAL(expire->ex_delta, minExpires);
+}
+
 TestSuite
     _("Register",
       {
@@ -571,6 +616,7 @@ TestSuite
           TEST_NO_TAG("Duplicate push token at register handling, with Redis db", duplicatePushTokenRegisterRedisTest),
           TEST_NO_TAG_AUTO_NAMED(invalidContactInRequest),
           TEST_NO_TAG_AUTO_NAMED(invalidContactInDb),
+          CLASSY_TEST(minExpires),
       },
       Hooks().beforeEach([] {
 	      responseReceived = 0;

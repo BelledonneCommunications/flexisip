@@ -453,12 +453,13 @@ void ModuleRegistrar::onLoad(const GenericStruct* mc) {
 
 	int forcedExpires = mc->get<ConfigInt>("force-expires")->read();
 	if (forcedExpires <= 0) {
-		mMaxExpires =
-		    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("max-expires")->read())
-		        .count();
-		mMinExpires =
-		    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("min-expires")->read())
-		        .count();
+		const auto maxExpires = mc->get<ConfigDuration<chrono::seconds>>("max-expires");
+		const auto minExpires = mc->get<ConfigDuration<chrono::seconds>>("min-expires");
+		mMaxExpires = chrono::duration_cast<chrono::seconds>(maxExpires->read()).count();
+		mMinExpires = chrono::duration_cast<chrono::seconds>(minExpires->read()).count();
+		if (mMaxExpires < mMinExpires)
+			throw runtime_error{maxExpires->getCompleteName() + " must be equal to or greater than " +
+			                    minExpires->getCompleteName()};
 	} else {
 		mMaxExpires = forcedExpires;
 		mMinExpires = forcedExpires;
@@ -581,8 +582,7 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent>& ev,
 	sip_contact_t* modified_contacts = nullptr;
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	sip_t* sip = ms->getSip();
-	int expire = sip->sip_expires ? sip->sip_expires->ex_delta : 0;
-	string expire_str = std::to_string(expire);
+	int expire = sip->sip_expires ? normalizeMainDelta(sip->sip_expires, mMinExpires, mMaxExpires) : 0;
 	const char* supported = "path, outbound"; // indicate that the registrar supports these extensions
 
 	replyPopulateEventLog(ev, sip, code, reason);
@@ -597,12 +597,12 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent>& ev,
 	// This ensures not all REGISTERs arrive at the same time on the flexisip
 	if (sip->sip_request->rq_method == sip_method_register && code == 200 && mExpireRandomizer > 0 && expire > 0) {
 		expire -= (int)(expire * su_randint(0, mExpireRandomizer) / 100.0);
-		expire_str = std::to_string(expire);
 		if (contacts) {
 			su_home_t* home = ev->getHome();
 			msg_header_replace_param(home, (msg_common_t*)modified_contacts, su_sprintf(home, "expires=%i", expire));
 		}
 	}
+	string expire_str = std::to_string(expire);
 
 	removeInternalParams(modified_contacts);
 	if (modified_contacts && !mServiceRoute.empty()) {
