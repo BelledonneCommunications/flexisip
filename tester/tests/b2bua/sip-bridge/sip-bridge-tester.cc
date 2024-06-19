@@ -553,6 +553,90 @@ ha1-md5@example.org clrtxt:a-clear-text-password ;
 	BC_ASSERT_CPP_EQUAL(registeredUsers.size(), 0);
 }
 
+/** Test non-(un)registration of accounts on b2bua server shutdown.
+ *
+ * A Flexisip proxy will play the role of an external proxy.
+ * The B2BUA is configured with 2 statically defined accounts.
+ * Test that when the B2BUA server shuts down, accounts are still present in the registrarDB, which mean they did not
+ * (un)register.
+ *
+ */
+void disableAccountsUnregistrationOnServerShutdown() {
+	const auto domain = "example.org";
+	StringFormatter jsonConfig{R"json({
+		"schemaVersion": 2,
+		"providers": [
+			{
+				"name": "Accounts",
+				"triggerCondition": { "strategy": "Always" },
+				"accountToUse": { "strategy": "Random" },
+				"onAccountNotFound": "decline",
+				"outgoingInvite": { "to": "{incoming.to}" },
+				"accountPool": "RegisteredAccounts"
+			}
+		],
+		"accountPools": {
+			"RegisteredAccounts": {
+				"outboundProxy": "<sip:127.0.0.1:port;transport=tcp>",
+				"registrationRequired": true,
+				"unregisterOnServerShutdown": false,
+				"maxCallsPerLine": 1,
+				"loader": [
+					{"uri": "sip:user-1@domain"},
+					{"uri": "sip:user-2@domain"}
+				]
+			}
+		}
+	})json",
+	                           '', ''};
+	TempFile providersJson{};
+	Server proxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", domain},
+	    {"b2bua-server/application", "sip-bridge"},
+	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
+	    {"b2bua-server::sip-bridge/providers", providersJson.getFilename()},
+	    // B2bua use writable-dir instead of var folder
+	    {"b2bua-server/data-directory", bcTesterWriteDir()},
+	}};
+	proxy.start();
+	providersJson.writeStream() << jsonConfig.format({{"port", proxy.getFirstPort()}, {"domain", domain}});
+	const auto b2buaLoop = std::make_shared<sofiasip::SuRoot>();
+	const auto b2buaServer = std::make_shared<B2buaServer>(b2buaLoop, proxy.getConfigManager());
+	b2buaServer->init();
+
+	CoreAssert(proxy, *b2buaLoop)
+	    .iterateUpTo(
+	        5,
+	        [&sipProviders =
+	             dynamic_cast<const b2bua::bridge::SipBridge&>(b2buaServer->getApplication()).getProviders()] {
+		        for (const auto& provider : sipProviders) {
+			        for (const auto& [_, account] : provider.getAccountSelectionStrategy().getAccountPool()) {
+				        FAIL_IF(!account->isAvailable());
+			        }
+		        }
+		        // b2bua accounts registered
+		        return ASSERTION_PASSED();
+	        },
+	        70ms)
+	    .assert_passed();
+
+	// Graceful async shutdown.
+	const auto& asyncCleanup = b2buaServer->stop();
+	const auto& registeredUsers =
+	    dynamic_cast<const RegistrarDbInternal&>(proxy.getRegistrarDb()->getRegistrarBackend()).getAllRecords();
+	BC_ASSERT_CPP_EQUAL(registeredUsers.size(), 2);
+
+	constexpr static auto timeout = 500ms;
+	BcAssert()
+	    .iterateUpTo(
+	        1, [&asyncCleanup]() { return LOOP_ASSERTION(asyncCleanup->finished()); }, timeout)
+	    .assert_passed();
+	proxy.getRoot()->step(1ms);
+	BC_ASSERT_CPP_EQUAL(registeredUsers.size(), 2);
+}
+
 TestSuite _{
     "b2bua::bridge",
     {
@@ -560,6 +644,7 @@ TestSuite _{
         CLASSY_TEST(loadAccountsFromSQL),
         CLASSY_TEST(invalidUriTriggersDecline),
         CLASSY_TEST(authenticatedAccounts),
+        CLASSY_TEST(disableAccountsUnregistrationOnServerShutdown),
     },
 };
 } // namespace

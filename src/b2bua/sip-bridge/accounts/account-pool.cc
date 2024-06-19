@@ -40,6 +40,8 @@ AccountPool::AccountPool(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
 
 	handleOutboundProxy(mAccountParams, pool.outboundProxy);
 	mAccountParams->enableRegister(pool.registrationRequired);
+	// The only way to disable account unregistration on linphone::Core shutdown is by allowing push notifications.
+	mAccountParams->setPushNotificationAllowed(!pool.unregisterOnServerShutdown);
 
 	if (redisConf) {
 		mRedisClient = make_unique<redis::async::RedisClient>(
