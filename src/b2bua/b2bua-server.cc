@@ -446,6 +446,8 @@ void B2buaServer::_init() {
 	configLinphone->setBool("video", "dont_check_codecs", true);
 	// make sure the videostream can be started when using unsupported codec
 	configLinphone->setBool("video", "fallback_to_dummy_codec", true);
+	configLinphone->setBool("sip", "accounts_channel_isolation",
+	                        config->get<ConfigBoolean>("one-connection-per-account")->read());
 	mCore = Factory::get()->createCoreWithConfig(configLinphone, nullptr);
 	mCore->setLabel("Flexisip B2BUA");
 	mCore->getConfig()->setString("storage", "backend", "sqlite3");
@@ -529,7 +531,11 @@ void B2buaServer::_init() {
 	mCore->setInCallTimeout(config->get<ConfigInt>("max-call-duration")->read());
 
 	// Get transport from flexisip configuration
-	shared_ptr<Transports> b2buaTransport = Factory::get()->createTransports();
+	const auto& b2buaTransport = Factory::get()->createTransports();
+	b2buaTransport->setUdpPort(LC_SIP_TRANSPORT_DONTBIND);
+	b2buaTransport->setTcpPort(LC_SIP_TRANSPORT_DONTBIND);
+	b2buaTransport->setTlsPort(LC_SIP_TRANSPORT_DONTBIND);
+	b2buaTransport->setDtlsPort(LC_SIP_TRANSPORT_DONTBIND);
 	string mTransport = config->get<ConfigString>("transport")->read();
 	if (mTransport.length() > 0) {
 		try {
@@ -678,6 +684,13 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "video-codec",
 	        "Same as 'audio-codec' but for video.",
 	        "",
+	    },
+	    {
+	        Boolean,
+	        "one-connection-per-account",
+	        "Make the B2BUA use a separate connection (port) for each (external) account it manages. This can be used "
+	        "to work around DoS protection and rate-limiting systems on external proxies.",
+	        "false",
 	    },
 	    config_item_end};
 

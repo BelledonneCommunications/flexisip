@@ -1691,6 +1691,73 @@ void mwiB2buaSubscription() {
 	std::ignore = b2buaServer->stop();
 }
 
+/** Test the `one-connection-per-account` setting.
+ * Spin up a B2BUA to manage 2 external accounts, then check the ports in the addresses they registered.
+ * When disabled, both accounts should have the same port in their contact address.
+ * When enabled, the ports should be different.
+ *
+ * Note: This test uses UDP
+ */
+template <bool separateConnections>
+void oneConnectionPerAccount() {
+	StringFormatter jsonConfig{R"json({
+		"schemaVersion": 2,
+		"providers": [ ],
+		"accountPools": {
+			"twoAccountsTwoConnections": {
+				"outboundProxy": "<sip:127.0.0.1:proxyPort;transport=udp>",
+				"registrationRequired": true,
+				"maxCallsPerLine": 55,
+				"loader": [
+					{ "uri": "sip:account-1@sip.example.org" },
+					{ "uri": "sip:account-2@sip.example.org" }
+				]
+			}
+		}
+	})json",
+	                           '', ''};
+	const auto& configDir = TmpDir(__FUNCTION__);
+	const auto& sipBridgeConfig = configDir.path() / "providers.json";
+	auto proxy = Server{
+	    {
+	        // Force use UDP
+	        {"global/transports", "sip:127.0.0.1:0;transport=udp"},
+	        {"module::Registrar/enabled", "true"},
+	        // The transport here does not matter, what matters is that the B2BUA binds to a random port
+	        {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
+	        {"b2bua-server/application", "sip-bridge"},
+	        // B2bua use writable-dir instead of var folder
+	        {"b2bua-server/data-directory", bcTesterWriteDir()},
+	        {"b2bua-server/one-connection-per-account", std::to_string(separateConnections)},
+	        {"b2bua-server::sip-bridge/providers", sipBridgeConfig.string()},
+	    },
+	};
+	proxy.start();
+	std::ofstream(sipBridgeConfig) << jsonConfig.format({{"proxyPort", proxy.getFirstPort()}});
+	const auto& b2buaServer = std::make_shared<flexisip::B2buaServer>(proxy.getRoot(), proxy.getConfigManager());
+	b2buaServer->init();
+	const auto& registeredUsers =
+	    dynamic_cast<const RegistrarDbInternal&>(proxy.getRegistrarDb()->getRegistrarBackend()).getAllRecords();
+
+	CoreAssert(proxy)
+	    .iterateUpTo(
+	        3, [&registeredUsers] { return LOOP_ASSERTION(registeredUsers.size() == 2); }, 40ms)
+	    .assert_passed();
+
+	BC_HARD_ASSERT_CPP_EQUAL(registeredUsers.size(), 2);
+	auto portsUsed = std::unordered_set<std::string_view>();
+	for (const auto& record : registeredUsers) {
+		const auto& contacts = record.second->getExtendedContacts();
+		BC_HARD_ASSERT_CPP_EQUAL(contacts.size(), 1);
+		portsUsed.emplace(contacts.begin()->get()->mSipContact->m_url->url_port);
+	}
+	if constexpr (separateConnections) {
+		BC_ASSERT_CPP_EQUAL(portsUsed.size(), 2);
+	} else {
+		BC_ASSERT_CPP_EQUAL(portsUsed.size(), 1);
+	}
+}
+
 TestSuite _{
     "b2bua::bridge",
     {
@@ -1710,6 +1777,8 @@ TestSuite _{
         CLASSY_TEST(overrideSpecialOptions),
         CLASSY_TEST(maxCallDuration),
         CLASSY_TEST(mwiB2buaSubscription),
+        CLASSY_TEST(oneConnectionPerAccount<false>),
+        CLASSY_TEST(oneConnectionPerAccount<true>),
     },
 };
 
