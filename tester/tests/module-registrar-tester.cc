@@ -95,11 +95,11 @@ void maxContactsPerRegistrationParameter() {
 	}
 	{
 		Server proxy{{{configName.first + "/" + configName.second, "0"}}};
-		BC_ASSERT_THROWN(proxy.start(), runtime_error);
+		BC_ASSERT_THROWN(proxy.start(), FlexisipException);
 	}
 	{
 		Server proxy{{{configName.first + "/" + configName.second, "-1"}}};
-		BC_ASSERT_THROWN(proxy.start(), runtime_error);
+		BC_ASSERT_THROWN(proxy.start(), FlexisipException);
 	}
 }
 
