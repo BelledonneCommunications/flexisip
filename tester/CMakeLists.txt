@@ -95,6 +95,7 @@ add_executable(flexisip_tester
 	tests/registrar/registrardb-tester.cc
 	tests/registrar/registrardb-redis-tester.cc
 	tests/sofia-wrapper/home-tester.cc
+	tests/sofia-wrapper/sip-header-tester.cc
 	thread-pool-tester.cc
 	tls-connection-tester.cc
 	utils-tester.cc

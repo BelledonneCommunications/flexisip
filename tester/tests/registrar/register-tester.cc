@@ -615,7 +615,7 @@ void registerUserWithTooManyContactHeaders() {
 	request->makeAndInsert<SipHeaderCSeq>(20u, sip_method_register);
 	request->makeAndInsert<SipHeaderContact>("<" + clientSipIdentity + ":1324;transport=tcp>");
 	request->makeAndInsert<SipHeaderContact>("<" + clientSipIdentity + ":1324;transport=tcp>");
-	request->makeAndInsert<SipHeaderExpires>(10u);
+	request->makeAndInsert<SipHeaderExpires>(10);
 
 	// Instantiate the client and send the request through an outgoing transaction
 	auto client = NtaAgent{proxy.getRoot(), "sip:127.0.0.1:0"};
