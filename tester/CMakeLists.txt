@@ -111,6 +111,7 @@ add_executable(flexisip_tester
 	tests/registrar/registrardb-tester.cc
 	tests/registrar/registrardb-redis-tester.cc
 	tests/sofia-wrapper/home-tester.cc
+	tests/sofia-wrapper/sip-header-tester.cc
 	tests/utils/cast-to-const-tester.cc
 	tests/utils/flow-data-tester.cc
 	tests/utils/flow-factory-tester.cc
