@@ -57,7 +57,7 @@ public:
 	}
 };
 
-static void nullMaxFrowardAndForkBasicContext() {
+static void nullMaxForwardAndForkBasicContext() {
 	auto root = make_shared<sofiasip::SuRoot>();
 	// Agent initialization
 	auto cfg = std::make_shared<ConfigManager>();
@@ -578,7 +578,7 @@ public:
 namespace {
 TestSuite _("Fork context",
             {
-                TEST_NO_TAG("Max forward 0 and ForkBasicContext leak", nullMaxFrowardAndForkBasicContext),
+                TEST_NO_TAG("Max forward 0 and ForkBasicContext leak", nullMaxForwardAndForkBasicContext),
                 TEST_NO_TAG("No RTP port available and ForkCallContext leak", notRtpPortAndForkCallContext),
                 TEST_NO_TAG("Fork message context with fork late and no database : retention and order check",
                             globalOrderTestNoSql),
@@ -595,4 +595,4 @@ TestSuite _("Fork context",
                 CLASSY_TEST(callForkTimeoutTest),
             },
             Hooks().beforeEach([] { responseReceived = false; }));
-}
+} // namespace
