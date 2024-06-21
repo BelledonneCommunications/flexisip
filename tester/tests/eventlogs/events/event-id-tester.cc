@@ -84,10 +84,14 @@ void eventIdCreatedUsingUrisWithEmptyUserParts() {
 	BC_ASSERT(!string{EventId{*msg.getSip()}}.empty());
 }
 
+// Test: Event id throws when constructed from an invalid id.
+void invalidIdForCreation(){BC_ASSERT_THROWN(EventId("invalidId"), EventId::EventIdError)}
+
 TestSuite _("EventId",
             {
                 CLASSY_TEST(eventIdCreatedFromByeComingFromCallerOrCallee),
                 CLASSY_TEST(eventIdCreatedUsingUrisWithEmptyUserParts),
+                CLASSY_TEST(invalidIdForCreation),
             });
 
 } // namespace

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -132,16 +132,21 @@ void ForkMessageContext::logResponseFromRecipient(const BranchInfo& branch,
 	const sip_t& sipRequest = *branch.mRequest->getMsgSip()->getSip();
 	const sip_t* sip = respEv->getMsgSip()->getSip();
 	const auto forwardedId = ModuleToolbox::getCustomHeaderByName(&sipRequest, kEventIdHeader);
-	auto log = make_shared<MessageResponseFromRecipientEventLog>(
-	    sipRequest, *branch.mContact, mKind,
-	    forwardedId ? std::optional<EventId>(forwardedId->un_value) : std::nullopt);
-	log->setDestination(sipRequest.sip_request->rq_url);
-	log->setStatusCode(sip->sip_status->st_status, sip->sip_status->st_phrase);
-	if (sipRequest.sip_priority && sipRequest.sip_priority->g_string) {
-		log->setPriority(sipRequest.sip_priority->g_string);
+
+	try {
+		auto log = make_shared<MessageResponseFromRecipientEventLog>(
+		    sipRequest, *branch.mContact, mKind,
+		    forwardedId ? std::optional<EventId>(forwardedId->un_value) : std::nullopt);
+		log->setDestination(sipRequest.sip_request->rq_url);
+		log->setStatusCode(sip->sip_status->st_status, sip->sip_status->st_phrase);
+		if (sipRequest.sip_priority && sipRequest.sip_priority->g_string) {
+			log->setPriority(sipRequest.sip_priority->g_string);
+		}
+		log->setCompleted();
+		respEv->writeLog(log);
+	} catch (const exception& e) {
+		SLOGE << "Could not log response from recipient: " << e.what();
 	}
-	log->setCompleted();
-	respEv->writeLog(log);
 }
 
 void ForkMessageContext::logResponseToSender(const shared_ptr<RequestSipEvent>& reqEv,

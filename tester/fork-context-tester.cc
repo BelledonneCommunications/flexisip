@@ -58,7 +58,7 @@ public:
 	}
 };
 
-static void nullMaxFrowardAndForkBasicContext() {
+static void nullMaxForwardAndForkBasicContext() {
 	// Agent initialization
 	auto cfg = GenericManager::get();
 	cfg->load(bcTesterRes("config/flexisip_fork_context.conf"));
@@ -468,7 +468,7 @@ public:
 namespace {
 TestSuite _("Fork context",
             {
-                TEST_NO_TAG("Max forward 0 and ForkBasicContext leak", nullMaxFrowardAndForkBasicContext),
+                TEST_NO_TAG("Max forward 0 and ForkBasicContext leak", nullMaxForwardAndForkBasicContext),
                 TEST_NO_TAG("No RTP port available and ForkCallContext leak", notRtpPortAndForkCallContext),
                 TEST_NO_TAG("Fork message context with fork late and no database : retention and order check",
                             globalOrderTestNoSql),
@@ -494,4 +494,4 @@ TestSuite _("Fork context",
 	                agent.reset();
 	                root.reset();
                 }));
-}
+} // namespace

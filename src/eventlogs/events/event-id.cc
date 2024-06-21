@@ -38,7 +38,12 @@ EventId::EventId(const sip_t& sip)
       }()) {
 }
 
-EventId::EventId(const std::string& id) : mHash(std::stoull(id)) {
+EventId::EventId(const std::string& id) {
+	try {
+		mHash = std::stoull(id);
+	} catch (exception& e) {
+		throw EventIdError(id, e.what());
+	}
 }
 
 } // namespace flexisip

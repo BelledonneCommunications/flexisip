@@ -22,6 +22,7 @@
 #include <optional>
 #include <string>
 
+#include "flexisip/flexisip-exception.hh"
 #include "sofia-sip/sip.h"
 
 namespace flexisip {
@@ -32,12 +33,19 @@ public:
 	// Parse an ID serialized to a string. May throw the same exceptions as std::stoull.
 	explicit EventId(const std::string&);
 
+	class EventIdError : public FlexisipException {
+	public:
+		EventIdError(const std::string& id, const std::string& message)
+		    : FlexisipException("EventId error - id = " + id + ", reason = " + message) {
+		}
+	};
+
 	operator std::string() const {
 		return std::to_string(mHash);
 	}
 
 private:
-	const std::size_t mHash;
+	std::size_t mHash;
 };
 
 } // namespace flexisip
