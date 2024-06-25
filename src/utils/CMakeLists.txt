@@ -35,7 +35,7 @@ target_sources(flexisip PRIVATE
 	sip-uri.cc
 	socket-address.cc socket-address.hh
 	string-formatter.cc string-formatter.hh
-	string-interpolation/interpolated-string.cc string-interpolation/interpolated-string.hh
+	string-interpolation/template-string.cc string-interpolation/template-string.hh
 	string-utils.cc string-utils.hh
 	sys-err.cc sys-err.hh
 	thread/auto-thread-pool.cc thread/auto-thread-pool.hh

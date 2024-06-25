@@ -2,11 +2,11 @@
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include "interpolated-string.hh"
+#include "template-string.hh"
 
 namespace flexisip::utils::string_interpolation {
 
-InterpolatedString::InterpolatedString(std::string templateString,
+TemplateString::TemplateString(std::string templateString,
                                        std::string_view startDelim,
                                        std::string_view endDelim) {
 	std::size_t currentIndex(0);

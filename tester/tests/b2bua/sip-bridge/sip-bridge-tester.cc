@@ -325,6 +325,7 @@ void loadAccountsFromSQL() {
 	    dynamic_cast<const b2bua::bridge::SipBridge&>(b2buaServer->getApplication()).getProviders();
 	BC_HARD_ASSERT_CPP_EQUAL(sipProviders.size(), 1);
 	const auto& accountPool = sipProviders[0].getAccountSelectionStrategy().getAccountPool();
+	const auto& accountsByUri = accountPool.getDefaultView().view;
 	// Leave it time to connect to Redis, then load accounts
 	asserter
 	    .iterateUpTo(
@@ -341,12 +342,12 @@ void loadAccountsFromSQL() {
 	    .assert_passed();
 	BC_HARD_ASSERT_CPP_EQUAL(accountPool.size(), 3);
 	{
-		const auto& account = accountPool.getAccountByUri("sip:account1@some.provider.example.com");
+		const auto& account = accountsByUri.at("sip:account1@some.provider.example.com");
 		BC_HARD_ASSERT(account != nullptr);
 		BC_ASSERT_CPP_EQUAL(account->getAlias().str(), "sip:alias@sip.example.org");
 	}
 	{
-		const auto& account = accountPool.getAccountByUri("sip:account2@some.provider.example.com");
+		const auto& account = accountsByUri.at("sip:account2@some.provider.example.com");
 		BC_HARD_ASSERT(account != nullptr);
 		const auto& authInfo =
 		    account->getLinphoneAccount()->getCore()->findAuthInfo("", "account2", "some.provider.example.com");
@@ -354,7 +355,7 @@ void loadAccountsFromSQL() {
 		BC_ASSERT_CPP_EQUAL(authInfo->getUserid(), "test-userID");
 		BC_ASSERT_CPP_EQUAL(authInfo->getPassword(), "clear text passphrase");
 	}
-	BC_HARD_ASSERT(accountPool.getAccountByUri("sip:account3@some.provider.example.com") != nullptr);
+	BC_HARD_ASSERT(accountsByUri.at("sip:account3@some.provider.example.com") != nullptr);
 
 	// shutdown / cleanup
 	std::ignore = b2buaServer->stop();

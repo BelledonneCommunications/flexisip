@@ -31,11 +31,23 @@
 #include "b2bua/sip-bridge/configuration/v2/v2.hh"
 #include "libhiredis-wrapper/replication/redis-client.hh"
 #include "utils/constant-rate-task-queue.hh"
+#include "utils/string-interpolation/template-formatter.hh"
 
 namespace flexisip::b2bua::bridge {
 
 class AccountPool : public redis::async::SessionListener {
 public:
+	using Formatter = utils::string_interpolation::TemplateFormatter<const Account&>;
+	using AccountMap = std::unordered_map<std::string, std::shared_ptr<Account>>;
+	struct IndexedView {
+		Formatter formatter;
+		AccountMap view{};
+	};
+	// Map of template string -> indexed view of accounts
+	// Must be a std::map (and not an unordered_map) to guarantee that references returned by `getOrCreateView` will
+	// remain as long as the corresponding key exists in the map
+	using MapOfViews = std::map<std::string, IndexedView>;
+
 	AccountPool(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
 	            const std::shared_ptr<B2buaCore>& core,
 	            const config::v2::AccountPoolName& poolName,
@@ -47,18 +59,19 @@ public:
 	AccountPool(const AccountPool&) = delete;
 	AccountPool& operator=(const AccountPool&) = delete;
 
-	std::shared_ptr<Account> getAccountByUri(const std::string& uri) const;
-	std::shared_ptr<Account> getAccountByAlias(const std::string& alias) const;
 	std::shared_ptr<Account> getAccountRandomly() const;
 
+	const IndexedView& getOrCreateView(std::string);
+	const IndexedView& getDefaultView() const;
+
 	auto size() const {
-		return mAccountsByUri.size();
+		return mDefaultView.view.size();
 	}
 	auto begin() const {
-		return mAccountsByUri.begin();
+		return mDefaultView.view.begin();
 	}
 	auto end() const {
-		return mAccountsByUri.end();
+		return mDefaultView.view.end();
 	}
 
 	bool allAccountsLoaded() const {
@@ -73,8 +86,8 @@ private:
 	void initialLoad();
 
 	void reserve(size_t sizeToReserve);
-	bool try_emplace(const std::string& uri, const std::string& alias, const std::shared_ptr<Account>& account);
-	bool try_emplaceAlias(const std::string& alias, const std::shared_ptr<Account>& account);
+	bool tryEmplace(const std::shared_ptr<Account>& account);
+	void tryEmplaceInViews(const std::shared_ptr<Account>& account);
 
 	void setupNewAccount(const config::v2::Account& accountDesc);
 	void addNewAccount(const std::shared_ptr<Account>&);
@@ -97,8 +110,8 @@ private:
 	bool mAccountsQueuedForRegistration = false;
 	config::v2::AccountPoolName mPoolName;
 
-	std::unordered_map<std::string, std::shared_ptr<Account>> mAccountsByUri;
-	std::unordered_map<std::string, std::shared_ptr<Account>> mAccountsByAlias;
+	MapOfViews mViews{};
+	IndexedView& mDefaultView;
 	ConstantRateTaskQueue<std::shared_ptr<Account>> mRegistrationQueue;
 
 	std::unique_ptr<redis::async::RedisClient> mRedisClient{nullptr};

@@ -6,18 +6,22 @@
 
 #include <functional>
 #include <sstream>
+#include <unordered_set>
 
-#include "interpolated-string.hh"
+#include "utils/string-interpolation/template-string.hh"
+#include "utils/string-interpolation/variable-substitution.hh"
 
 namespace flexisip::utils::string_interpolation {
 
-template <typename... Args>
-class PreprocessedInterpolatedString {
+/** Produce a string representation of a given context (one or more objects)
+ *
+ * The template string and substitution functions are passed at construction time, then the method `.format` can be
+ * repeatedly called with different contexts to fill the template and produce new strings.
+ */
+template <typename... Context>
+class TemplateFormatter {
 public:
-	using Substituter = std::function<std::string(const Args&...)>;
-	using Resolver = std::function<Substituter(std::string_view)>;
-
-	PreprocessedInterpolatedString(InterpolatedString&& parsed, Resolver resolver) {
+	explicit TemplateFormatter(TemplateString&& parsed, Resolver<const Context&...> resolver) {
 		auto [templateString, pieces, symbols] = std::move(parsed).extractMembers();
 		mTemplateString = std::move(templateString);
 		mPieces = std::move(pieces);
@@ -31,17 +35,26 @@ public:
 		}
 	}
 
-	std::string format(const Args&... args) const {
+	// Convenience ctor
+	explicit TemplateFormatter(std::string templateStr, const FieldsOf<Context...>& fields)
+	    : TemplateFormatter(TemplateString(std::move(templateStr), "{", "}"), resolve(fields)) {
+	}
+
+	std::string format(const Context&... context) const {
 		assert(mPieces.size() == mSubstitutions.size() + 1);
 		std::ostringstream stream{};
 		auto pieceIter = mPieces.begin();
 		stream << toStringView(*pieceIter++);
 		auto substitutionsIter = mSubstitutions.begin();
 		for (; pieceIter != mPieces.end(); ++pieceIter, ++substitutionsIter) {
-			stream << (*substitutionsIter)(args...);
+			stream << (*substitutionsIter)(context...);
 			stream << toStringView(*pieceIter);
 		}
 		return stream.str();
+	}
+
+	const std::string& getTemplate() const {
+		return mTemplateString;
 	}
 
 private:
@@ -51,7 +64,7 @@ private:
 
 	std::string mTemplateString{};
 	std::vector<StringViewMold> mPieces{};
-	std::vector<Substituter> mSubstitutions{};
+	std::vector<Substituter<const Context&...>> mSubstitutions{};
 };
 
 } // namespace flexisip::utils::string_interpolation
