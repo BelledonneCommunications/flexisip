@@ -112,17 +112,17 @@ void AccountPool::handlePassword(const config::v2::Account& account,
 			case config::v2::SecretType::MD5: {
 				authInfo->setAlgorithm("MD5");
 				authInfo->setHa1(account.secret);
-				authInfo->setRealm(domain);
 			} break;
 			case config::v2::SecretType::SHA256: {
 				authInfo->setAlgorithm("SHA-256");
 				authInfo->setHa1(account.secret);
-				authInfo->setRealm(domain);
 			} break;
 			case config::v2::SecretType::Cleartext: {
 				authInfo->setPassword(account.secret);
 			} break;
 		}
+		const auto& realm = account.realm.empty() ? domain : account.realm;
+		authInfo->setRealm(realm);
 
 		mCore->addAuthInfo(authInfo);
 	}

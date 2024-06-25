@@ -49,7 +49,7 @@ void nominalInitialSqlLoadTest() {
 	auto sqlLoaderConf = nlohmann::json::parse(StringFormatter{
 		R"({
 			"dbBackend": "sqlite3",
-			"initQuery": "SELECT usernameInDb as username, domain as hostport, userid as user_id, \"clrtxt\" as secret_type, passwordInDb as secret, alias_username, alias_domain as alias_hostport, outboundProxyInDb as outbound_proxy from users",
+			"initQuery": "SELECT usernameInDb as username, domain as hostport, \"\" as realm, userid as user_id, \"clrtxt\" as secret_type, passwordInDb as secret, alias_username, alias_domain as alias_hostport, outboundProxyInDb as outbound_proxy from users",
 			"updateQuery": "not tested here",
 			"connection": "@database_filename@"
 		}
@@ -84,7 +84,7 @@ void initialSqlLoadTestWithEmptyFields() {
 	auto sqlLoaderConf = nlohmann::json::parse(StringFormatter{
 	    R"({
 			"dbBackend": "sqlite3",
-			"initQuery": "SELECT usernameInDb as username, domain as hostport,\"\" as user_id, \"unknown\" as secret_type, \"\" as secret, alias_username, alias_domain as alias_hostport, NULL as outbound_proxy from users",
+			"initQuery": "SELECT usernameInDb as username, domain as hostport,\"\" as user_id, \"\" as realm, \"unknown\" as secret_type, \"\" as secret, alias_username, alias_domain as alias_hostport, NULL as outbound_proxy from users",
 			"updateQuery": "not tested here",
 			"connection": "@database_filename@"
 		}
@@ -125,7 +125,7 @@ void nominalUpdateSqlTest() {
 	    R"({
 			"dbBackend": "sqlite3",
 			"initQuery": "not tested here",
-			"updateQuery": "SELECT usernameInDb as username, domain as hostport, userid as user_id, \"clrtxt\" as secret_type, passwordInDb as secret, alias_username, alias_domain as alias_hostport, outboundProxyInDb as outbound_proxy from users where user_id = :identifier",
+			"updateQuery": "SELECT usernameInDb as username, domain as hostport, userid as user_id, \"clrtxt\" as secret_type, \"\" as realm, passwordInDb as secret, alias_username, alias_domain as alias_hostport, outboundProxyInDb as outbound_proxy from users where user_id = :identifier",
 			"connection": "@database_filename@"
 		}
 	)",'@', '@'}

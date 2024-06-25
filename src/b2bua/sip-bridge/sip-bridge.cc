@@ -98,6 +98,7 @@ Here is a template of what should be in this file:
 					"userid": "<optional: (e.g. an API key)>"
 					"secretType": "<registrationRequiredParam: ha1|clrtxt>",
 					"secret": "<registrationRequiredParam: password or API token>"
+					"realm": "<optional: realm.some.provider.example.com>"
 					"alias": "<optional: sip:anotherAccount1@some.provider.example.com>
 					"outboundProxy": "<optional: sip:another.providerOverridingPreviousOne.example.com;transport=tls>",
 				}

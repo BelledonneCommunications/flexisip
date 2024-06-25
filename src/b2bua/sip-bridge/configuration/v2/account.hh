@@ -28,6 +28,7 @@ public:
 	std::string userid = "";                 // optional
 	SecretType secretType = SecretType::MD5; // optional
 	std::string secret = "";                 // optional
+	std::string realm = "";                  // optional
 	std::string alias = "";                  // optional
 	std::string outboundProxy = "";          // optional
 
@@ -46,6 +47,7 @@ inline void from_json(const nlohmann::json& nlohmann_json_j, Account& nlohmann_j
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(userid)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(secretType)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(secret)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(realm)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(alias)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(outboundProxy)
 };
@@ -55,6 +57,7 @@ inline void to_json(nlohmann::json& nlohmann_json_j, const Account& nlohmann_jso
 	NLOHMANN_JSON_TO(userid);
 	NLOHMANN_JSON_TO(secretType);
 	NLOHMANN_JSON_TO(secret);
+	NLOHMANN_JSON_TO(realm);
 	NLOHMANN_JSON_TO(alias);
 	NLOHMANN_JSON_TO(outboundProxy)
 };
@@ -99,6 +102,7 @@ public:
 		account.secretType = nlohmann::json(v.get<std::string>("secret_type", "md5"))
 		                         .get<flexisip::b2bua::bridge::config::v2::SecretType>();
 		account.secret = v.get<std::string>("secret", "");
+		account.realm = v.get<std::string>("realm", "");
 		const auto aliasUsername = v.get<std::string>("alias_username", "");
 		const auto aliasHostport = v.get<std::string>("alias_hostport", "");
 		if (aliasUsername.empty() || aliasHostport.empty()) {
