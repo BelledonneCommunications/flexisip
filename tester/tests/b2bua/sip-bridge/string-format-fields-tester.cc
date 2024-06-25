@@ -2,18 +2,18 @@
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-#include "b2bua/sip-bridge/variable-substitution.hh"
+#include "b2bua/sip-bridge/string-format-fields.hh"
 
 #include "flexisip/logmanager.hh"
 
-#include "utils/string-interpolation/preprocessed-interpolated-string.hh"
+#include "utils/string-interpolation/template-formatter.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
 namespace flexisip::tester {
 namespace {
 using namespace utils::string_interpolation;
-using namespace b2bua::bridge::variable_substitution;
+using namespace b2bua::bridge;
 
 bool operator==(const StringViewMold& left, const StringViewMold& right) {
 	return left.start == right.start && left.size == right.size;
@@ -24,8 +24,7 @@ std::ostream& operator<<(std::ostream& ostr, const StringViewMold& mold) {
 }
 
 void tryParse(std::string template_) {
-	PreprocessedInterpolatedString<const linphone::Call&>(InterpolatedString(template_, "{", "}"),
-	                                                      resolve(kLinphoneCallFields));
+	TemplateFormatter<const linphone::Call&>(template_, kLinphoneCallFields);
 }
 
 std::size_t charCount(std::string_view view) {
@@ -59,7 +58,7 @@ void missingClosingDelim() {
 	try {
 		tryParse("sip:{from.hostport");
 		BC_FAIL("expected exception");
-	} catch (const InterpolatedString::MissingClosingDelimiter& err) {
+	} catch (const TemplateString::MissingClosingDelimiter& err) {
 		BC_ASSERT_CPP_EQUAL(err.startDelimPos, charCount("sip:"));
 		BC_ASSERT_CPP_EQUAL(err.expectedDelim, "}");
 		SLOGD << "Preview of caught exception .what():" << err.what();

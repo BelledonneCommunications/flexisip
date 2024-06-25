@@ -2,11 +2,12 @@
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+#include "b2bua/sip-bridge/accounts/account-pool.hh"
+
 #include <soci/session.h>
 #include <soci/sqlite3/soci-sqlite3.h>
 
 #include "b2bua/b2bua-server.hh"
-#include "b2bua/sip-bridge/accounts/account-pool.hh"
 #include "b2bua/sip-bridge/accounts/loaders/sql-account-loader.hh"
 #include "b2bua/sip-bridge/accounts/loaders/static-account-loader.hh"
 #include "tester.hh"
@@ -81,6 +82,8 @@ void globalSqlTest() {
 	                 make_unique<SQLAccountLoader>(SUITE_SCOPE->suRoot,
 	                                               std::get<config::v2::SQLLoader>(SUITE_SCOPE->poolConfig.loader)),
 	                 &registrarConf};
+	const auto& accountsByUri = pool.getOrCreateView("{uri}").view;
+	const auto& accountsByAlias = pool.getOrCreateView("{alias}").view;
 
 	asserter
 	    .wait([&pool] {
@@ -91,33 +94,35 @@ void globalSqlTest() {
 	    .hard_assert_passed();
 
 	///////// ASSERT AFTER LOAD
-	auto actualAccount1 = pool.getAccountByAlias("sip:expected-from@sip.example.org");
-	auto actualAccount2 = pool.getAccountByUri("sip:account2@some.provider.example.com");
+	auto actualAccount1 = accountsByAlias.find("sip:expected-from@sip.example.org");
+	auto actualAccount2 = accountsByUri.find("sip:account2@some.provider.example.com");
 
 	///// Account 1 checks
-	BC_HARD_ASSERT_NOT_NULL(actualAccount1);
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount1->getLinphoneAccount()->getParams()->getIdentityAddress()->asString(),
-	                         "sip:account1@some.provider.example.com");
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount1->getAlias().str(), "sip:expected-from@sip.example.org");
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount1->getLinphoneAccount()->getParams()->getServerAddress()->asString(),
-	                         "<sip:default-outbound-proxy.example.org;transport=tls>");
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount1->getLinphoneAccount()->getParams()->getRoutesAddresses().size(), 1);
+	BC_HARD_ASSERT(actualAccount1 != accountsByAlias.end());
 	BC_HARD_ASSERT_CPP_EQUAL(
-	    actualAccount1->getLinphoneAccount()->getParams()->getRoutesAddresses().begin()->get()->asString(),
+	    actualAccount1->second->getLinphoneAccount()->getParams()->getIdentityAddress()->asString(),
+	    "sip:account1@some.provider.example.com");
+	BC_HARD_ASSERT_CPP_EQUAL(actualAccount1->second->getAlias().str(), "sip:expected-from@sip.example.org");
+	BC_HARD_ASSERT_CPP_EQUAL(actualAccount1->second->getLinphoneAccount()->getParams()->getServerAddress()->asString(),
+	                         "<sip:default-outbound-proxy.example.org;transport=tls>");
+	BC_HARD_ASSERT_CPP_EQUAL(actualAccount1->second->getLinphoneAccount()->getParams()->getRoutesAddresses().size(), 1);
+	BC_HARD_ASSERT_CPP_EQUAL(
+	    actualAccount1->second->getLinphoneAccount()->getParams()->getRoutesAddresses().begin()->get()->asString(),
 	    "<sip:default-outbound-proxy.example.org;transport=tls>");
 	auto account1AuthInfo = SUITE_SCOPE->b2buaCore->findAuthInfo("", "account1", "some.provider.example.com");
 	BC_HARD_ASSERT_FALSE(account1AuthInfo);
 	///// Account 2 checks
-	BC_HARD_ASSERT_NOT_NULL(actualAccount2);
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2->getLinphoneAccount()->getParams()->getIdentityAddress()->asString(),
-	                         "sip:account2@some.provider.example.com");
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2->getAlias().str(), "");
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2->getLinphoneAccount()->getParams()->getServerAddress()->asString(),
+	BC_HARD_ASSERT(actualAccount2 != accountsByUri.end());
+	BC_HARD_ASSERT_CPP_EQUAL(
+	    actualAccount2->second->getLinphoneAccount()->getParams()->getIdentityAddress()->asString(),
+	    "sip:account2@some.provider.example.com");
+	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2->second->getAlias().str(), "");
+	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2->second->getLinphoneAccount()->getParams()->getServerAddress()->asString(),
 	                         "<sip:127.0.0.1:5060;transport=tcp>");
 
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2->getLinphoneAccount()->getParams()->getRoutesAddresses().size(), 1);
+	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2->second->getLinphoneAccount()->getParams()->getRoutesAddresses().size(), 1);
 	BC_HARD_ASSERT_CPP_EQUAL(
-	    actualAccount2->getLinphoneAccount()->getParams()->getRoutesAddresses().begin()->get()->asString(),
+	    actualAccount2->second->getLinphoneAccount()->getParams()->getRoutesAddresses().begin()->get()->asString(),
 	    "<sip:127.0.0.1:5060;transport=tcp>");
 	auto account2AuthInfo = SUITE_SCOPE->b2buaCore->findAuthInfo("", "account2", "some.provider.example.com");
 	BC_HARD_ASSERT_TRUE(account2AuthInfo != nullptr);
@@ -136,42 +141,45 @@ void globalSqlTest() {
 	              {});
 
 	asserter
-	    .wait([&pool, &actualAccount2] {
-		    actualAccount2 = pool.getAccountByUri("sip:account2@some.provider.example.com");
-		    FAIL_IF(actualAccount2->getAlias().str() != "sip:addedAlias@new.domain.org");
+	    .wait([&accountsByUri] {
+		    const auto actualAccount = accountsByUri.find("sip:account2@some.provider.example.com");
+		    FAIL_IF(actualAccount == accountsByUri.end());
+		    FAIL_IF(actualAccount->second->getAlias().str() != "sip:addedAlias@new.domain.org");
 		    return ASSERTION_PASSED();
 	    })
 	    .assert_passed();
 
 	///////// ASSERT AFTER UPDATE
-	actualAccount1 = pool.getAccountByAlias("sip:expected-from@sip.example.org");
-	actualAccount2 = pool.getAccountByUri("sip:account2@some.provider.example.com");
-	auto actualAccount2Alias = pool.getAccountByAlias("sip:addedAlias@new.domain.org");
+	actualAccount1 = accountsByAlias.find("sip:expected-from@sip.example.org");
+	actualAccount2 = accountsByUri.find("sip:account2@some.provider.example.com");
+	auto actualAccount2Alias = accountsByAlias.find("sip:addedAlias@new.domain.org");
 	///// Account 1 checks
-	BC_HARD_ASSERT_NOT_NULL(actualAccount1);
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount1->getLinphoneAccount()->getParams()->getIdentityAddress()->asString(),
-	                         "sip:account1@some.provider.example.com");
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount1->getAlias().str(), "sip:expected-from@sip.example.org");
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount1->getLinphoneAccount()->getParams()->getServerAddress()->asString(),
-	                         "<sip:default-outbound-proxy.example.org;transport=tls>");
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount1->getLinphoneAccount()->getParams()->getRoutesAddresses().size(), 1);
+	BC_HARD_ASSERT(actualAccount1 != accountsByAlias.end());
 	BC_HARD_ASSERT_CPP_EQUAL(
-	    actualAccount1->getLinphoneAccount()->getParams()->getRoutesAddresses().begin()->get()->asString(),
+	    actualAccount1->second->getLinphoneAccount()->getParams()->getIdentityAddress()->asString(),
+	    "sip:account1@some.provider.example.com");
+	BC_HARD_ASSERT_CPP_EQUAL(actualAccount1->second->getAlias().str(), "sip:expected-from@sip.example.org");
+	BC_HARD_ASSERT_CPP_EQUAL(actualAccount1->second->getLinphoneAccount()->getParams()->getServerAddress()->asString(),
+	                         "<sip:default-outbound-proxy.example.org;transport=tls>");
+	BC_HARD_ASSERT_CPP_EQUAL(actualAccount1->second->getLinphoneAccount()->getParams()->getRoutesAddresses().size(), 1);
+	BC_HARD_ASSERT_CPP_EQUAL(
+	    actualAccount1->second->getLinphoneAccount()->getParams()->getRoutesAddresses().begin()->get()->asString(),
 	    "<sip:default-outbound-proxy.example.org;transport=tls>");
 	account1AuthInfo = SUITE_SCOPE->b2buaCore->findAuthInfo("", "account1", "some.provider.example.com");
 	BC_HARD_ASSERT_FALSE(account1AuthInfo);
 	///// Account 2 checks
-	BC_HARD_ASSERT_NOT_NULL(actualAccount2);
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2, actualAccount2Alias);
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2->getLinphoneAccount()->getParams()->getIdentityAddress()->asString(),
-	                         "sip:account2@some.provider.example.com");
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2->getAlias().str(), "sip:addedAlias@new.domain.org");
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2->getLinphoneAccount()->getParams()->getServerAddress()->asString(),
+	BC_HARD_ASSERT(actualAccount2 != accountsByUri.end());
+	BC_HARD_ASSERT(actualAccount2->second == actualAccount2Alias->second);
+	BC_HARD_ASSERT_CPP_EQUAL(
+	    actualAccount2->second->getLinphoneAccount()->getParams()->getIdentityAddress()->asString(),
+	    "sip:account2@some.provider.example.com");
+	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2->second->getAlias().str(), "sip:addedAlias@new.domain.org");
+	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2->second->getLinphoneAccount()->getParams()->getServerAddress()->asString(),
 	                         "<sip:new.outbound.org:5060;transport=tcp>");
 
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2->getLinphoneAccount()->getParams()->getRoutesAddresses().size(), 1);
+	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2->second->getLinphoneAccount()->getParams()->getRoutesAddresses().size(), 1);
 	BC_HARD_ASSERT_CPP_EQUAL(
-	    actualAccount2->getLinphoneAccount()->getParams()->getRoutesAddresses().begin()->get()->asString(),
+	    actualAccount2->second->getLinphoneAccount()->getParams()->getRoutesAddresses().begin()->get()->asString(),
 	    "<sip:new.outbound.org:5060;transport=tcp>");
 	account2AuthInfo = SUITE_SCOPE->b2buaCore->findAuthInfo("", "account2", "some.provider.example.com");
 	BC_HARD_ASSERT_TRUE(account2AuthInfo != nullptr);
@@ -188,24 +196,25 @@ void globalSqlTest() {
 	              {});
 
 	asserter
-	    .wait([&pool] {
-		    FAIL_IF(pool.getAccountByUri("sip:account2@some.provider.example.com") != nullptr);
-		    FAIL_IF(pool.getAccountByAlias("sip:addedAlias@new.domain.org") != nullptr);
+	    .wait([&accountsByUri, &accountsByAlias] {
+		    FAIL_IF(accountsByUri.find("sip:account2@some.provider.example.com") != accountsByUri.end());
+		    FAIL_IF(accountsByAlias.find("sip:addedAlias@new.domain.org") != accountsByAlias.end());
 		    return ASSERTION_PASSED();
 	    })
 	    .assert_passed();
 	///////// ASSERT AFTER UPDATE
-	actualAccount1 = pool.getAccountByAlias("sip:expected-from@sip.example.org");
+	actualAccount1 = accountsByAlias.find("sip:expected-from@sip.example.org");
 	///// Account 1 checks
-	BC_HARD_ASSERT_NOT_NULL(actualAccount1);
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount1->getLinphoneAccount()->getParams()->getIdentityAddress()->asString(),
-	                         "sip:account1@some.provider.example.com");
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount1->getAlias().str(), "sip:expected-from@sip.example.org");
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount1->getLinphoneAccount()->getParams()->getServerAddress()->asString(),
-	                         "<sip:default-outbound-proxy.example.org;transport=tls>");
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount1->getLinphoneAccount()->getParams()->getRoutesAddresses().size(), 1);
+	BC_HARD_ASSERT(actualAccount1 != accountsByAlias.end());
 	BC_HARD_ASSERT_CPP_EQUAL(
-	    actualAccount1->getLinphoneAccount()->getParams()->getRoutesAddresses().begin()->get()->asString(),
+	    actualAccount1->second->getLinphoneAccount()->getParams()->getIdentityAddress()->asString(),
+	    "sip:account1@some.provider.example.com");
+	BC_HARD_ASSERT_CPP_EQUAL(actualAccount1->second->getAlias().str(), "sip:expected-from@sip.example.org");
+	BC_HARD_ASSERT_CPP_EQUAL(actualAccount1->second->getLinphoneAccount()->getParams()->getServerAddress()->asString(),
+	                         "<sip:default-outbound-proxy.example.org;transport=tls>");
+	BC_HARD_ASSERT_CPP_EQUAL(actualAccount1->second->getLinphoneAccount()->getParams()->getRoutesAddresses().size(), 1);
+	BC_HARD_ASSERT_CPP_EQUAL(
+	    actualAccount1->second->getLinphoneAccount()->getParams()->getRoutesAddresses().begin()->get()->asString(),
 	    "<sip:default-outbound-proxy.example.org;transport=tls>");
 	account1AuthInfo = SUITE_SCOPE->b2buaCore->findAuthInfo("", "account1", "some.provider.example.com");
 	BC_HARD_ASSERT_FALSE(account1AuthInfo);
@@ -257,6 +266,8 @@ void emptyThenPublishSqlTest() {
 	                 make_unique<SQLAccountLoader>(SUITE_SCOPE->suRoot,
 	                                               std::get<config::v2::SQLLoader>(SUITE_SCOPE->poolConfig.loader)),
 	                 &registrarConf};
+	const auto& accountsByUri = pool.getOrCreateView("{uri}").view;
+	const auto& accountsByAlias = pool.getOrCreateView("{alias}").view;
 
 	asserter
 	    .wait([&pool] {
@@ -276,31 +287,32 @@ void emptyThenPublishSqlTest() {
 	               R"({"username": "account2","domain": "some.provider.example.com","identifier":"userID"})"},
 	              {});
 
-	shared_ptr<Account> actualAccount2{};
 	asserter
-	    .wait([&pool, &actualAccount2] {
-		    actualAccount2 = pool.getAccountByUri("sip:account2@some.provider.example.com");
-		    FAIL_IF(!actualAccount2 || actualAccount2->getAlias().str() != "sip:addedAlias@new.domain.org");
+	    .wait([&accountsByUri] {
+		    const auto actualAccount = accountsByUri.find("sip:account2@some.provider.example.com");
+		    FAIL_IF(actualAccount == accountsByUri.end());
+		    FAIL_IF(actualAccount->second->getAlias().str() != "sip:addedAlias@new.domain.org");
 		    return ASSERTION_PASSED();
 	    })
 	    .assert_passed();
 
 	///////// ASSERT AFTER UPDATE
 	BC_HARD_ASSERT_TRUE(pool.size() == 1);
-	actualAccount2 = pool.getAccountByUri("sip:account2@some.provider.example.com");
-	auto actualAccount2Alias = pool.getAccountByAlias("sip:addedAlias@new.domain.org");
+	const auto actualAccount2 = accountsByUri.find("sip:account2@some.provider.example.com");
+	const auto actualAccount2Alias = accountsByAlias.find("sip:addedAlias@new.domain.org");
 	///// Account 2 checks
-	BC_HARD_ASSERT_NOT_NULL(actualAccount2);
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2, actualAccount2Alias);
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2->getLinphoneAccount()->getParams()->getIdentityAddress()->asString(),
-	                         "sip:account2@some.provider.example.com");
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2->getAlias().str(), "sip:addedAlias@new.domain.org");
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2->getLinphoneAccount()->getParams()->getServerAddress()->asString(),
+	BC_HARD_ASSERT(actualAccount2 != accountsByAlias.end());
+	BC_HARD_ASSERT(actualAccount2->second == actualAccount2Alias->second);
+	BC_HARD_ASSERT_CPP_EQUAL(
+	    actualAccount2->second->getLinphoneAccount()->getParams()->getIdentityAddress()->asString(),
+	    "sip:account2@some.provider.example.com");
+	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2->second->getAlias().str(), "sip:addedAlias@new.domain.org");
+	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2->second->getLinphoneAccount()->getParams()->getServerAddress()->asString(),
 	                         "<sip:new.outbound.org:5060;transport=tcp>");
 
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2->getLinphoneAccount()->getParams()->getRoutesAddresses().size(), 1);
+	BC_HARD_ASSERT_CPP_EQUAL(actualAccount2->second->getLinphoneAccount()->getParams()->getRoutesAddresses().size(), 1);
 	BC_HARD_ASSERT_CPP_EQUAL(
-	    actualAccount2->getLinphoneAccount()->getParams()->getRoutesAddresses().begin()->get()->asString(),
+	    actualAccount2->second->getLinphoneAccount()->getParams()->getRoutesAddresses().begin()->get()->asString(),
 	    "<sip:new.outbound.org:5060;transport=tcp>");
 	auto account2AuthInfo = SUITE_SCOPE->b2buaCore->findAuthInfo("", "account2", "some.provider.example.com");
 	BC_HARD_ASSERT_TRUE(account2AuthInfo != nullptr);

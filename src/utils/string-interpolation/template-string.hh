@@ -13,7 +13,12 @@
 
 namespace flexisip::utils::string_interpolation {
 
-class InterpolatedString {
+/** A string that contains replaceable parts (symbols)
+ *
+ * E.g.: "sip:{user}@{domain}" where '{' and '}' are the start and end delimiters respectively
+ *    or "sip:<user>@<domain>"  with '<' and '>' as delimiters. Etc.
+ */
+class TemplateString {
 public:
 	struct Members {
 		std::string templateString{};
@@ -30,15 +35,15 @@ public:
 		      startDelimPos(startDelimPos) {
 		}
 
-	const char* what() const noexcept override {
-		std::ostringstream what{};
-		what << "Missing closing delimiter. Expected '" << expectedDelim << "' but reached end of string:\n";
-		what << invalidTemplate << "\n";
-		what << std::string(startDelimPos, ' ') << "^substitution template started here";
+		const char* what() const noexcept override {
+			std::ostringstream what{};
+			what << "Missing closing delimiter. Expected '" << expectedDelim << "' but reached end of string:\n";
+			what << invalidTemplate << "\n";
+			what << std::string(startDelimPos, ' ') << "^substitution template started here";
 
-		mWhat = what.str();
-		return mWhat.c_str();
-	}
+			mWhat = what.str();
+			return mWhat.c_str();
+		}
 
 		std::string invalidTemplate;
 		std::string expectedDelim;
@@ -51,7 +56,7 @@ public:
 	/**
 	 * @throws MissingClosingDelimiter
 	 */
-	explicit InterpolatedString(std::string templateString, std::string_view startDelim, std::string_view endDelim);
+	explicit TemplateString(std::string templateString, std::string_view startDelim, std::string_view endDelim);
 
 	Members&& extractMembers() && {
 		return std::move(m);

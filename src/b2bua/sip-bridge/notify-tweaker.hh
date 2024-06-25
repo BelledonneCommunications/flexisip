@@ -8,7 +8,6 @@
 
 #include "accounts/account.hh"
 #include "b2bua/sip-bridge/configuration/v2/v2.hh"
-#include "utils/string-interpolation/preprocessed-interpolated-string.hh"
 
 namespace flexisip::b2bua::bridge {
 

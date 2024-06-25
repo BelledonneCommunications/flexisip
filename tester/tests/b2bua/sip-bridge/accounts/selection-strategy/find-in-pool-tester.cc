@@ -104,6 +104,12 @@ void chooseAccountForThisCall() {
 	}
 }
 
+auto stubPool() {
+	return make_shared<AccountPool>(
+	    make_shared<sofiasip::SuRoot>(), reinterpret_pointer_cast<B2buaCore>(minimalCore(*linphone::Factory::get())),
+	    "stub pool", config::v2::AccountPool(), make_unique<StaticAccountLoader>(config::v2::StaticLoader()));
+}
+
 void allValidTokensInSourceTemplate() {
 	auto allSupportedSubstitutions = ""
 	                                 "{from}"
@@ -120,13 +126,13 @@ void allValidTokensInSourceTemplate() {
 	                                 "{requestUri.uriParameters}"
 	                                 ""s;
 
-	FindInPool(nullptr, {.source = std::move(allSupportedSubstitutions)});
+	FindInPool(stubPool(), {.source = std::move(allSupportedSubstitutions)});
 }
 
 void invalidTokenInSource() {
 	try {
 		std::ignore = FindInPool{
-		    nullptr,
+		    stubPool(),
 
 		    {.source = "{from.uriParameters} is valid, but {from.invalid} is not"},
 

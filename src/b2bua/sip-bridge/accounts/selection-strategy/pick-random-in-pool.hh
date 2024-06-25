@@ -10,7 +10,7 @@ namespace flexisip::b2bua::bridge::account_strat {
 
 class PickRandomInPool : public AccountSelectionStrategy {
 public:
-	PickRandomInPool(std::shared_ptr<AccountPool> accountPool) : AccountSelectionStrategy(accountPool) {
+	PickRandomInPool(const std::shared_ptr<AccountPool>& accountPool) : AccountSelectionStrategy(accountPool) {
 	}
 
 	std::shared_ptr<Account> chooseAccountForThisCall(const linphone::Call&) const override {

@@ -9,27 +9,30 @@
 #include <linphone++/call_params.hh>
 #include <linphone++/core.hh>
 
-#include "b2bua/sip-bridge/variable-substitution.hh"
+#include "b2bua/sip-bridge/string-format-fields.hh"
 #include "flexisip/logmanager.hh"
 
 namespace flexisip::b2bua::bridge {
 using namespace utils::string_interpolation;
 
 namespace {
-using namespace variable_substitution;
 
 const auto kInviteTweakerFields = FieldsOf<linphone::Call const&, Account const&>{
-    {"incoming", resolve(kLinphoneCallFields, [](const auto& call, const auto&) -> const auto& { return call; })},
-    {"account", resolve(kAccountFields, [](const auto&, const auto& account) -> const auto& { return account; })},
+    {
+        "incoming",
+        resolve(kLinphoneCallFields, [](const auto& call, const auto&) -> const auto& { return call; }),
+    },
+    {
+        "account",
+        resolve(kAccountFields, [](const auto&, const auto& account) -> const auto& { return account; }),
+    },
 };
-
-constexpr auto resolver = resolve(kInviteTweakerFields);
 
 } // namespace
 
 InviteTweaker::InviteTweaker(const config::v2::OutgoingInvite& config, linphone::Core& core)
-    : mToHeader(InterpolatedString(config.to, "{", "}"), resolver),
-      mFromHeader(InterpolatedString(config.from.empty() ? "{account.uri}" : config.from, "{", "}"), resolver),
+    : mToHeader(config.to, kInviteTweakerFields),
+      mFromHeader(config.from.empty() ? "{account.uri}" : config.from, kInviteTweakerFields),
       mOutboundProxyOverride([&]() -> decltype(mOutboundProxyOverride) {
 	      if (!config.outboundProxy) return nullptr;
 

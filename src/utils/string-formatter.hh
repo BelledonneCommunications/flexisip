@@ -34,7 +34,7 @@
  * While forging the string, each variable is replaced by a string value basing on
  * a given key-value map or a translation function.
  */
-// TODO: Replace with PreprocessedInterpolatedString
+// TODO: Replace with TemplateFormatter
 class StringFormatter {
 public:
 	/**

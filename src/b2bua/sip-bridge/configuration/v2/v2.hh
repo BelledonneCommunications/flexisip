@@ -24,19 +24,9 @@ namespace account_selection {
 
 struct Random {};
 
-enum struct AccountLookUp : std::uint8_t {
-	ByUri,
-	ByAlias,
-};
-NLOHMANN_JSON_SERIALIZE_ENUM(AccountLookUp,
-                             {
-                                 {AccountLookUp::ByUri, "uri"},
-                                 {AccountLookUp::ByAlias, "alias"},
-                             })
-
 struct FindInPool {
-	AccountLookUp by = AccountLookUp::ByUri; // required
-	std::string source = "";                 // required
+	std::string by = "{uri}"; // required
+	std::string source = "";  // required
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(FindInPool, by, source);
 
