@@ -283,7 +283,7 @@ void loadAccountsFromSQL() {
 				"maxCallsPerLine": 3125,
 				"loader": {
 					"dbBackend": "sqlite3",
-					"initQuery": "SELECT username, hostport, userid as user_id, \"clrtxt\" as secret_type, passwordInDb as secret, alias_username, alias_hostport, outboundProxyInDb as outbound_proxy from users",
+					"initQuery": "SELECT username, hostport, userid as user_id, \"clrtxt\" as secret_type, \"\" as realm, passwordInDb as secret, alias_username, alias_hostport, outboundProxyInDb as outbound_proxy from users",
 					"updateQuery": "not yet implemented",
 					"connection": "db-file-path"
 				}
@@ -430,19 +430,25 @@ void invalidUriTriggersDecline() {
 /** Test (un)registration of accounts against a proxy that requires authentication.
  *
  * A Flexisip proxy will play the role of an external proxy requiring authentication on REGISTERs.
- * The B2BUA is configured with 2 statically defined accounts, one with the full clear-text password, the other with
- * only the HA1.
- * Test that both auth methods are succesful, and that accounts are un-registered properly when the B2BUA server shuts
+ * The B2BUA is configured with 4 statically defined accounts:
+ * 2 with the domain equal to realm and 2 others with a different domain.
+ * For each domain, one account has the full clear-text password, and the other only the HA1.
+ * Test that each auth method is succesful, and that accounts are un-registered properly when the B2BUA server shuts
  * down gracefully.
  *
  * The proxy is configured to challenge every request without exception, meaning the client cannot simply send the
  * unREGISTER and delete everything, but has to respond to the proxy's challenge response.
  */
 void authenticatedAccounts() {
-	const auto domain = "example.org";
+	const auto domain1 = "domain.example.org";
+	const auto domain2 = "another.example.org";
+	const auto realm = domain1;
 	const auto password = "a-clear-text-password";
 	char ha1[33];
-	belle_sip_auth_helper_compute_ha1("ha1-md5", "example.org", password, ha1);
+	belle_sip_auth_helper_compute_ha1("ha1-md5", realm, password, ha1);
+	char anotherHa1[33];
+	belle_sip_auth_helper_compute_ha1("another-ha1-md5", realm, password, anotherHa1);
+
 	StringFormatter jsonConfig{R"json({
 		"schemaVersion": 2,
 		"providers": [
@@ -462,14 +468,26 @@ void authenticatedAccounts() {
 				"maxCallsPerLine": 1,
 				"loader": [
 					{
-						"uri": "sip:cleartext@domain",
+						"uri": "sip:cleartext@domain1",
 						"secretType": "clrtxt",
 						"secret": "password"
 					},
 					{
-						"uri": "sip:ha1-md5@domain",
+						"uri": "sip:ha1-md5@domain1",
 						"secretType": "md5",
 						"secret": "md5"
+					},
+					{
+						"uri": "sip:another-cleartext@domain2",
+						"secretType": "clrtxt",
+						"secret": "password",
+						"realm": "realm"
+					},
+					{
+						"uri": "sip:another-ha1-md5@domain2",
+						"secretType": "md5",
+						"secret": "anotherMd5",
+						"realm": "realm"
 					}
 				]
 			}
@@ -477,22 +495,32 @@ void authenticatedAccounts() {
 	})json",
 	                           '', ''};
 	TempFile providersJson{};
-	TempFile authDb{R"(version:1
 
-cleartext@example.org clrtxt:a-clear-text-password ;
-ha1-md5@example.org clrtxt:a-clear-text-password ;
+	// Db file backend doesn't support clrtxt if realm is not equal to domain
+	char anotherClrTxtHa1[33];
+	belle_sip_auth_helper_compute_ha1("another-cleartext", realm, password, anotherClrTxtHa1);
 
-)"};
+	// clang-format off
+	TempFile authDb{"version:1\n\n"s +
+		"cleartext@" + domain1 + " clrtxt:" + password + " ;\n"
+		"ha1-md5@" + domain1 + " clrtxt:" + password + " ;\n"
+		"another-cleartext@" + domain2 + " md5:" + anotherClrTxtHa1 + " ;\n"
+		"another-ha1-md5@" + domain2 + " md5:" + anotherHa1 + " ;\n"
+	};
+	// clang-format on
+
+	const auto serverDomains = std::string(domain1) + " " + domain2;
 	Server proxy{{
 	    // Requesting bind on port 0 to let the kernel find any available port
 	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
 	    {"module::Registrar/enabled", "true"},
-	    {"module::Registrar/reg-domains", domain},
+	    {"module::Registrar/reg-domains", serverDomains},
 	    {"b2bua-server/application", "sip-bridge"},
 	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
 	    {"b2bua-server::sip-bridge/providers", providersJson.getFilename()},
 	    {"module::Authentication/enabled", "true"},
-	    {"module::Authentication/auth-domains", domain},
+	    {"module::Authentication/auth-domains", serverDomains},
+	    {"module::Authentication/realm", realm},
 	    {"module::Authentication/db-implementation", "file"},
 	    {"module::Authentication/file-path", authDb.getFilename()},
 	    // Force all requests to be challenged, even un-REGISTERs
@@ -503,9 +531,12 @@ ha1-md5@example.org clrtxt:a-clear-text-password ;
 	proxy.start();
 	providersJson.writeStream() << jsonConfig.format({
 	    {"port", proxy.getFirstPort()},
-	    {"domain", domain},
+	    {"domain1", domain1},
+	    {"domain2", domain2},
 	    {"password", password},
 	    {"md5", ha1},
+	    {"anotherMd5", anotherHa1},
+	    {"realm", realm},
 	});
 	const auto b2buaLoop = std::make_shared<sofiasip::SuRoot>();
 	const auto b2buaServer = std::make_shared<B2buaServer>(b2buaLoop, proxy.getConfigManager());
@@ -531,7 +562,7 @@ ha1-md5@example.org clrtxt:a-clear-text-password ;
 	const auto& asyncCleanup = b2buaServer->stop();
 	const auto& registeredUsers =
 	    dynamic_cast<const RegistrarDbInternal&>(proxy.getRegistrarDb()->getRegistrarBackend()).getAllRecords();
-	BC_ASSERT_CPP_EQUAL(registeredUsers.size(), 2);
+	BC_ASSERT_CPP_EQUAL(registeredUsers.size(), 4);
 	constexpr static auto timeout = 500ms;
 	// As of 2024-03-27 and SDK 5.3.33, the SDK goes on a busy loop to wait for accounts to unregister, instead of
 	// waiting for iterate to be called again. That blocks the iteration of the proxy, so we spawn a separate cleanup

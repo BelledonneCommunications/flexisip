@@ -48,8 +48,8 @@ struct SuiteScope {
 		"maxCallsPerLine": 55,
 		"loader": {
 			"dbBackend": "sqlite3",
-			"initQuery": "SELECT usernameInDb as username, domain as hostport, userid as user_id, passwordInDb as secret, \"clrtxt\" as secret_type, alias_username, alias_domain as alias_hostport, outboundProxyInDb as outbound_proxy from users",
-			"updateQuery": "SELECT usernameInDb as username, domain as hostport, userid as user_id, \"clrtxt\" as secret_type, passwordInDb as secret, alias_username, alias_domain as alias_hostport, outboundProxyInDb as outbound_proxy from users where user_id = :identifier",
+			"initQuery": "SELECT usernameInDb as username, domain as hostport, userid as user_id, passwordInDb as secret, \"clrtxt\" as secret_type, \"myNiceRealm\" as realm, alias_username, alias_domain as alias_hostport, outboundProxyInDb as outbound_proxy from users",
+			"updateQuery": "SELECT usernameInDb as username, domain as hostport, userid as user_id, \"clrtxt\" as secret_type, passwordInDb as secret, \"myNiceRealm\" as realm, alias_username, alias_domain as alias_hostport, outboundProxyInDb as outbound_proxy from users where user_id = :identifier",
 			"connection": "@database_filename@"
 		}
 	})",'@', '@'}
@@ -120,7 +120,7 @@ void globalSqlTest() {
 	    "<sip:127.0.0.1:5060;transport=tcp>");
 	auto account2AuthInfo = SUITE_SCOPE->b2buaCore->findAuthInfo("", "account2", "some.provider.example.com");
 	BC_HARD_ASSERT_TRUE(account2AuthInfo != nullptr);
-	BC_HARD_ASSERT_CPP_EQUAL(account2AuthInfo->getRealm(), "");
+	BC_HARD_ASSERT_CPP_EQUAL(account2AuthInfo->getRealm(), "myNiceRealm");
 	BC_HARD_ASSERT_CPP_EQUAL(account2AuthInfo->getUsername(), "account2");
 	BC_HARD_ASSERT_CPP_EQUAL(account2AuthInfo->getDomain(), "some.provider.example.com");
 	BC_HARD_ASSERT_CPP_EQUAL(account2AuthInfo->getPassword(), "p@$sword");
@@ -174,7 +174,7 @@ void globalSqlTest() {
 	    "<sip:new.outbound.org:5060;transport=tcp>");
 	account2AuthInfo = SUITE_SCOPE->b2buaCore->findAuthInfo("", "account2", "some.provider.example.com");
 	BC_HARD_ASSERT_TRUE(account2AuthInfo != nullptr);
-	BC_HARD_ASSERT_CPP_EQUAL(account2AuthInfo->getRealm(), "");
+	BC_HARD_ASSERT_CPP_EQUAL(account2AuthInfo->getRealm(), "myNiceRealm");
 	BC_HARD_ASSERT_CPP_EQUAL(account2AuthInfo->getUsername(), "account2");
 	BC_HARD_ASSERT_CPP_EQUAL(account2AuthInfo->getDomain(), "some.provider.example.com");
 	BC_HARD_ASSERT_CPP_EQUAL(account2AuthInfo->getPassword(), "NEWp@$sword");
@@ -303,7 +303,7 @@ void emptyThenPublishSqlTest() {
 	    "<sip:new.outbound.org:5060;transport=tcp>");
 	auto account2AuthInfo = SUITE_SCOPE->b2buaCore->findAuthInfo("", "account2", "some.provider.example.com");
 	BC_HARD_ASSERT_TRUE(account2AuthInfo != nullptr);
-	BC_HARD_ASSERT_CPP_EQUAL(account2AuthInfo->getRealm(), "");
+	BC_HARD_ASSERT_CPP_EQUAL(account2AuthInfo->getRealm(), "myNiceRealm");
 	BC_HARD_ASSERT_CPP_EQUAL(account2AuthInfo->getUsername(), "account2");
 	BC_HARD_ASSERT_CPP_EQUAL(account2AuthInfo->getDomain(), "some.provider.example.com");
 	BC_HARD_ASSERT_CPP_EQUAL(account2AuthInfo->getPassword(), "NEWp@$sword");
@@ -370,10 +370,8 @@ void accountRegistrationThrottling() {
 	BC_HARD_ASSERT(pool->allAccountsLoaded());
 	// Let the Proxy receive the REGISTER requests
 	asserter
-	    .iterateUpTo(3,
-	               [&numberOfRegister]() {
-		               return LOOP_ASSERTION(numberOfRegister == accountCount);
-	               }, 200ms)
+	    .iterateUpTo(
+	        3, [&numberOfRegister]() { return LOOP_ASSERTION(numberOfRegister == accountCount); }, 200ms)
 	    .assert_passed();
 	BC_HARD_ASSERT_CPP_EQUAL(numberOfRegister, accountCount);
 	numberOfRegister = 0;
