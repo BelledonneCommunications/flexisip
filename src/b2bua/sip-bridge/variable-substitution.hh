@@ -33,7 +33,7 @@ using FieldsOf = std::unordered_map<std::string_view, Resolver<Args...>>;
 template <typename TSubstituter>
 constexpr auto leaf(TSubstituter substituter) {
 	return [substituter](std::string_view furtherPath) {
-		if (furtherPath != "") {
+		if (!furtherPath.empty()) {
 			throw utils::string_interpolation::ContextlessResolutionError(furtherPath);
 		}
 
@@ -106,6 +106,7 @@ const auto kLinphoneCallFields = FieldsOf<linphone::Call>{
 const auto kLinphoneEventFields = FieldsOf<linphone::Event>{
     {"to", resolve(kLinphoneAddressFields, [](const auto& event) { return event.getToAddress(); })},
     {"from", resolve(kLinphoneAddressFields, [](const auto& event) { return event.getFromAddress(); })},
+    {"requestUri", resolve(kLinphoneAddressFields, [](const auto& event) { return event.getRequestAddress(); })},
 };
 
 const auto kSofiaUriFields = FieldsOf<SipUri>{

@@ -2,6 +2,8 @@
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+#include <utility>
+
 #include "find-in-pool.hh"
 
 #include "b2bua/sip-bridge/variable-substitution.hh"
@@ -12,7 +14,7 @@ using namespace variable_substitution;
 
 FindInPool::FindInPool(std::shared_ptr<AccountPool> accountPool,
                        const config::v2::account_selection::FindInPool& config)
-    : AccountSelectionStrategy(accountPool), mLookUpField(config.by),
+    : AccountSelectionStrategy(std::move(accountPool)), mLookUpField(config.by),
       mSourceTemplate(InterpolatedString(config.source, "{", "}"), resolve(kLinphoneCallFields)),
       mEventSourceTemplate(InterpolatedString(config.source, "{", "}"), resolve(kLinphoneEventFields)) {
 }

@@ -20,7 +20,10 @@ using namespace std;
 using namespace flexisip::b2bua::bridge;
 using namespace flexisip::b2bua::bridge::account_strat;
 
-void test() {
+/** Spin up a proxy and some clients to forge a linphone::Call, then set up a pool of a few static accounts.
+ *  Test how a few basic FindInPool strategies choose accounts with different configs
+ */
+void chooseAccountForThisCall() {
 	const std::string incomingFrom{"sip:expected-from@sip.example.org"};
 	const SipUri incomingTo{"sip:expected-to@sip.example.org"};
 	InjectedHooks hooks{
@@ -99,10 +102,46 @@ void test() {
 	}
 }
 
+void allValidTokensInSourceTemplate() {
+	auto allSupportedSubstitutions = ""
+	                                 "{from}"
+	                                 "{from.user}"
+	                                 "{from.hostport}"
+	                                 "{from.uriParameters}"
+	                                 "{to}"
+	                                 "{to.user}"
+	                                 "{to.hostport}"
+	                                 "{to.uriParameters}"
+	                                 "{requestUri}"
+	                                 "{requestUri.user}"
+	                                 "{requestUri.hostport}"
+	                                 "{requestUri.uriParameters}"
+	                                 ""s;
+
+	FindInPool(nullptr, {.source = std::move(allSupportedSubstitutions)});
+}
+
+void invalidTokenInSource() {
+	try {
+		std::ignore = FindInPool{
+		    nullptr,
+
+		    {.source = "{from.uriParameters} is valid, but {from.invalid} is not"},
+
+		};
+		BC_FAIL("expected exception");
+	} catch (const utils::string_interpolation::ResolutionError& err) {
+		BC_ASSERT_CPP_EQUAL(err.offendingToken.cast(err.invalidTemplate), "invalid");
+		SLOGD << "Preview of caught exception .what(): " << err.what();
+	}
+}
+
 TestSuite _{
     "b2bua::bridge::account_strat::FindInPool",
     {
-        CLASSY_TEST(test),
+        CLASSY_TEST(chooseAccountForThisCall),
+        CLASSY_TEST(allValidTokensInSourceTemplate),
+        CLASSY_TEST(invalidTokenInSource),
     },
 };
 } // namespace
