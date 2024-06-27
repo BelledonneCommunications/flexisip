@@ -54,6 +54,8 @@ public:
 	void stackSleep(unsigned int milliseconds = 1);
 	int getListeningPort();
 
+	belle_sip_provider_t* getProvider();
+
 private:
 	belle_sip_stack_t* mStack = nullptr;
 	belle_sip_provider_t* mProvider = nullptr;

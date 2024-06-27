@@ -115,4 +115,8 @@ int BellesipUtils::getListeningPort() {
 	return ::belle_sip_listening_point_get_port(mListeningPoint);
 }
 
+belle_sip_provider_t* BellesipUtils::getProvider() {
+	return mProvider;
+}
+
 } // namespace flexisip
