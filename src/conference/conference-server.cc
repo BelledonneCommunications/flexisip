@@ -517,7 +517,7 @@ void ConferenceServer::bindChatRoom(const string& bindingUrl,
 	    sip_contact_create(mHome.home(), reinterpret_cast<const url_string_t*>(url_make(mHome.home(), contact.c_str())),
 	                       su_strdup(mHome.home(), ("+sip.instance=" + UriUtils::grToUniqueId(gruu)).c_str()), nullptr);
 
-	parameter.callId = !gruu.empty() ? gruu : "dummy-callid";
+	parameter.callId = "dummy-call-id"; // Mandatory parameter but useless in our case.
 	parameter.path.add(mPath);
 	parameter.globalExpire = numeric_limits<int>::max();
 	parameter.alias = false;
