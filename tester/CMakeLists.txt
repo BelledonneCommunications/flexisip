@@ -137,6 +137,7 @@ if(ENABLE_SOCI)
 		fork-context-mysql-tester.cc
 		tests/auth/db/authdb-soci-tester.cc
 		tests/eventlogs/writers/database-event-log-writer-tester.cc
+		tests/presence/list-subscription/external-list-subscription-tester.cc
 	)
 endif()
 

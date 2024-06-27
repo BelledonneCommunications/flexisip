@@ -45,10 +45,11 @@ ExternalListSubscription::ExternalListSubscription(unsigned int expires,
 
 	bool success = threadPool->run(func);
 	if (!success) // Enqueue() can fail when the queue is full, so we have to act on that
-		SLOGE << "[SOCI] Auth queue is full, cannot fullfil user request for list subscription";
+		SLOGE << "[SOCI] Auth queue is full, cannot fulfill user request for list subscription";
 }
 
 void ExternalListSubscription::getUsersList(const string& sqlRequest, belle_sip_server_transaction_t* ist) {
+	auto newListeners = decltype(mListeners)();
 	try {
 		SociHelper sociHelper(*mConnPool);
 
@@ -75,22 +76,30 @@ void ExternalListSubscription::getUsersList(const string& sqlRequest, belle_sip_
 				unique_ptr<belle_sip_header_address_t, void (*)(void*)> addr(
 				    belle_sip_header_address_parse(addrStr.c_str()), belle_sip_object_unref);
 				if (addr == nullptr) {
-					ostringstream os;
-					os << "Cannot parse list entry [" << addrStr << "]";
+					SLOGD << "Cannot parse list entry [" << addrStr << "]";
 					continue;
 				}
 				const belle_sip_uri_t* uri = belle_sip_header_address_get_uri(addr.get());
 				if (!uri || !belle_sip_uri_get_host(uri) || !belle_sip_uri_get_user(uri)) {
-					ostringstream os;
-					os << "Cannot parse list entry [" << addrStr << "]";
+					SLOGD << "Cannot parse list entry [" << addrStr << "]";
 					continue;
 				}
 				const char* name = belle_sip_header_address_get_displayname(addr.get());
-				mListeners.push_back(make_shared<PresentityResourceListener>(*this, uri, name ? name : ""));
+				newListeners.emplace_back(make_shared<PresentityResourceListener>(*this, uri, name ? name : ""));
 			}
 		});
 	} catch (SociHelper::DatabaseException& e) {
 	}
+
+	if (!newListeners.empty()) {
+		belle_sip_main_loop_cpp_do_later(
+		    belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv)),
+		    [newListeners = std::move(newListeners), &currentListeners = mListeners]() mutable {
+			    currentListeners.splice(currentListeners.end(), std::move(newListeners));
+		    },
+		    "ExternalListSubscription: avoid multithreaded access to mListeners");
+	}
+
 	finishCreation(ist);
 }
 
