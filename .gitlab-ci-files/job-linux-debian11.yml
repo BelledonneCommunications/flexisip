@@ -38,26 +38,6 @@ job-debian11-ninja-clang:
     CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON -DENABLE_COVERAGE=ON
 
 #################################################
-# XWiki reference documentation
-#################################################
-
-job-debian11-xwiki-doc-deploy:
-  stage: deploy 🚀
-  tags: [ "docker" ]
-  extends:
-    - .rules-deploy  # ⚠ See `rules.yml`
-    - .debian11-image
-  script:
-    - prefix=/opt/belledonne-communications
-    - builddir=wikiBuild
-    - sudo mkdir -p $prefix
-    - sudo chown bc:bc $prefix
-    - mkdir $builddir
-    - cmake -S . -B $builddir -G Ninja -DCMAKE_INSTALL_PREFIX=$prefix -DCMAKE_PREFIX_PATH=$prefix $DEFAULT_CMAKE_OPTIONS
-    - cmake --build $builddir
-    - /usr/bin/python3 ./doc/xw.py --flexisip-binary $builddir/bin/flexisip -H $XWIKI_HOSTNAME -u $XWIKI_USERNAME -p $XWIKI_PASSWORD
-
-#################################################
 # UNIT TESTS
 #################################################
 

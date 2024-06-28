@@ -63,6 +63,26 @@ job-rocky9-unit-test-nosoci:
     - job-rocky9-ninja-clang-nosoci
 
 #################################################
+# XWiki reference documentation
+#################################################
+
+job-rocky9-xwiki-doc-deploy:
+  stage: deploy 🚀
+  tags: [ "docker" ]
+  extends:
+    - .rules-deploy  # ⚠ See `rules.yml`
+    - .rocky9-image-variables
+  script:
+    - prefix=/opt/belledonne-communications
+    - builddir=wikiBuild
+    - sudo mkdir -p $prefix
+    - sudo chown bc:bc $prefix
+    - mkdir $builddir
+    - cmake -S . -B $builddir -G Ninja -DCMAKE_INSTALL_PREFIX=$prefix -DCMAKE_PREFIX_PATH=$prefix $DEFAULT_CMAKE_OPTIONS
+    - cmake --build $builddir
+    - /usr/bin/python3 ./doc/xw.py --flexisip-binary $builddir/bin/flexisip -H $XWIKI_HOSTNAME -u $XWIKI_USERNAME -p $XWIKI_PASSWORD
+
+#################################################
 # RPM
 #################################################
 
