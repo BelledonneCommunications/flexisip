@@ -110,16 +110,15 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 	{
 		auto policy = mFactory->createVideoActivationPolicy();
 		policy->setAutomaticallyAccept(true);
-		policy->setAutomaticallyInitiate(
-		    false); // requires explicit settings in the parameters to initiate a video call
+		policy->setAutomaticallyInitiate(false); // requires explicit setting in the parameters to initiate a video call
 		core->setVideoActivationPolicy(policy);
 	}
 
 	if (bool(mSendVideo)) {
-		auto msFactory = linphone_core_get_ms_factory(core->cPtr());
-		auto webCamMan = ms_factory_get_web_cam_manager(msFactory);
-		auto mire_desc = ms_mire_webcam_desc_get();
-		auto mire = ms_web_cam_new(mire_desc);
+		auto* msFactory = linphone_core_get_ms_factory(core->cPtr());
+		auto* webCamMan = ms_factory_get_web_cam_manager(msFactory);
+		auto* mire_desc = ms_mire_webcam_desc_get();
+		auto* mire = ms_web_cam_new(mire_desc);
 		ms_web_cam_manager_add_cam(webCamMan, mire);
 		core->setVideoDevice("Mire: Mire (synthetic moving picture)");
 		core->enableVideoCapture(true);
