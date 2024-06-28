@@ -208,6 +208,7 @@ void early_media_bidirectional_video() {
 	auto calleePhoneCall = calleePhone.getCurrentCall().value();
 	auto calleeLaptopCall = calleeLaptop.getCurrentCall().value();
 	calleePhoneCall.acceptEarlyMedia();
+	calleePhoneCall.setStaticPictureFps(15.0f);
 
 	// Check that only the laptop is unable to decode the video, as it has not yet accepted the call with early media.
 	asserter
@@ -224,12 +225,13 @@ void early_media_bidirectional_video() {
 		        FAIL_IF(callerCall.getRtpSession()->rcv.ssrc == calleeLaptopCall.getRtpSession()->snd.ssrc);
 		        return ASSERTION_PASSED();
 	        },
-	        2s)
+	        3s)
 	    .assert_passed();
 
 	// But as soon as another device sends a 183 (here: the laptop), it takes over receive capability from the media
 	// relay and starts sending packets with a different SSRC than that of the first device.
 	calleeLaptopCall.acceptEarlyMedia();
+	calleeLaptopCall.setStaticPictureFps(15.0f);
 
 	// Check the source of the traffic received by the caller now comes from the second device (laptop). This is done by
 	// verifying that the SSRC received by the caller now matches the SSRC from the laptop.
@@ -256,7 +258,7 @@ void early_media_bidirectional_video() {
 		        FAIL_IF(!calleeLaptopReceivedVideo);
 		        return ASSERTION_PASSED();
 	        },
-	        6s)
+	        3s)
 	    .assert_passed();
 }
 

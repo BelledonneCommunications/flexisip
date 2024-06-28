@@ -80,6 +80,10 @@ linphone::Status ClientCall::update(
 	return mCall->update(tweak(mCall->getCore()->createCallParams(mCall)));
 }
 
+void ClientCall::setStaticPictureFps(float fps) {
+	mCall->getCore()->setStaticPictureFps(fps);
+}
+
 const std::shared_ptr<linphone::Call>& ClientCall::getLinphoneCall(const ClientCall& wrapper) {
 	return wrapper.mCall;
 }
