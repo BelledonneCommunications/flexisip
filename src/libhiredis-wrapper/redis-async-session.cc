@@ -242,6 +242,10 @@ bool SubscriptionSession::SubscriptionEntry::subscribed() const {
 	return isInMap();
 }
 
+bool SubscriptionSession::SubscriptionEntry::isFresh() const {
+	return mSlot->second.fresh;
+}
+
 void SubscriptionSession::SubscriptionEntry::subscribe(SubscriptionCallback&& callback) {
 	{
 		Subscription newSub{.callback = std::move(callback), .fresh = true, .unsubbed = false};
@@ -309,13 +313,8 @@ void SubscriptionSession::SubscriptionEntry::unsubscribe() {
 
 void Session::Ready::auth(std::variant<auth::ACL, auth::Legacy> credentials, CommandCallback&& callback) const {
 	command(Match(credentials)
-	            .against(
-	                [](redis::auth::Legacy legacy) -> ArgsPacker {
-		                return {"AUTH", legacy.password};
-	                },
-	                [](redis::auth::ACL acl) -> ArgsPacker {
-		                return {"AUTH", acl.user, acl.password};
-	                }),
+	            .against([](redis::auth::Legacy legacy) -> ArgsPacker { return {"AUTH", legacy.password}; },
+	                     [](redis::auth::ACL acl) -> ArgsPacker { return {"AUTH", acl.user, acl.password}; }),
 	        std::move(callback));
 }
 void SubscriptionSession::Ready::auth(std::variant<auth::ACL, auth::Legacy> credentials,

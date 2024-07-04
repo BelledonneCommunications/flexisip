@@ -240,7 +240,8 @@ public:
 		 *       - this session's current count of subscriptions (`Integer`),
 		 *      depending on the message kind (as per Redis' documentation).
 		 * - A `Disconnected` reply when the session disconnects.
-		 * Anything outside of that specification is unexpected, but remains **the responsibility of this callback** to deal with.
+		 * Anything outside of that specification is unexpected, but remains **the responsibility of this callback** to
+		 * deal with.
 		 */
 		void subscribe(SubscriptionCallback&& callback);
 		// Send the UNSUBSCRIBE command to Redis.
@@ -251,6 +252,7 @@ public:
 
 		// Whether this session is subscribed to this topic.
 		bool subscribed() const;
+		bool isFresh() const;
 
 	private:
 		SubscriptionEntry(const Session::Ready&, SubsMap&, const std::string_view&);
