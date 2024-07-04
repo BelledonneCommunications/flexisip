@@ -17,12 +17,8 @@ namespace flexisip::redis::async {
 
 class RedisClient : public SessionListener {
 public:
-	RedisClient(const sofiasip::SuRoot& root,
-	            const RedisParameters& redisParams,
-	            SoftPtr<SessionListener>&& listener);
-	RedisClient(const sofiasip::SuRoot& root,
-	            const GenericStruct* registarConf,
-	            SoftPtr<SessionListener>&& listener)
+	RedisClient(const sofiasip::SuRoot& root, const RedisParameters& redisParams, SoftPtr<SessionListener>&& listener);
+	RedisClient(const sofiasip::SuRoot& root, const GenericStruct* registarConf, SoftPtr<SessionListener>&& listener)
 	    : RedisClient(root, RedisParameters::fromRegistrarConf(registarConf), std::move(listener)){};
 
 	// TODO we expose tryReconnect (--> tryConnect) only, and change logs for the first connection ?
@@ -32,6 +28,7 @@ public:
 
 	const Session::Ready* tryGetCmdSession();
 	const SubscriptionSession::Ready* tryGetSubSession();
+	const SubscriptionSession::Ready* getSubSessionIfReady() const;
 
 	static void forceDisconnectForTest(RedisClient& thiz);
 

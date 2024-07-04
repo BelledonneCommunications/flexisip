@@ -36,9 +36,9 @@
 #include "utils/asserts.hh"
 #include "utils/core-assert.hh"
 #include "utils/override-static.hh"
+#include "utils/redis-sync-access.hh"
 #include "utils/server/proxy-server.hh"
 #include "utils/server/redis-server.hh"
-#include "utils/redis-sync-access.hh"
 #include "utils/successful-bind-listener.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -219,7 +219,6 @@ void subscribe_to_key_expiration() {
 		    BC_HARD_ASSERT(record != nullptr);
 		    actualTopic = record->getKey();
 	    });
-	registrar.subscribe(topic, listener);
 	RedisSyncContext ctx = redisConnect("localhost", SUITE_SCOPE->redis.port());
 	{
 		// https://redis.io/docs/manual/keyspace-notifications/
@@ -228,14 +227,27 @@ void subscribe_to_key_expiration() {
 		BC_ASSERT_CPP_EQUAL(reply->type, REDIS_REPLY_STATUS);
 		BC_ASSERT_STRING_EQUAL(reply->str, "OK");
 	}
+	registrar.subscribe(topic, listener);
+	BC_ASSERT_TRUE(SUITE_SCOPE->asserter.iterateUpTo(
+	    10,
+	    [&registrar, &topic] {
+		    const auto& registrarBackend = dynamic_cast<const RegistrarDbRedisAsync&>(registrar.getRegistrarBackend());
+		    const auto* subSession = registrarBackend.getRedisClient().getSubSessionIfReady();
+		    if (!subSession) return false;
+		    auto subscriptions = subSession->subscriptions();
+		    if (subscriptions.size() == 0) return false;
+
+		    const auto entry = subscriptions[topic.asString()];
+		    return entry.subscribed() && !entry.isFresh();
+	    },
+	    50ms));
 
 	// SET a key expiring in 1ms
-	const auto reply = ctx.command("SET %s 'stub-payload' PX 1", topic.toRedisKey().c_str());
+	const auto reply = ctx.command("SET %s 'stub-payload' PX 20", topic.toRedisKey().c_str());
 	BC_ASSERT_CPP_EQUAL(reply->type, REDIS_REPLY_STATUS);
 	BC_ASSERT_STRING_EQUAL(reply->str, "OK");
-
 	ASSERT_PASSED(SUITE_SCOPE->asserter.iterateUpTo(
-	    8, [&actualTopic] { return LOOP_ASSERTION(actualTopic.has_value()); }, 200ms));
+	    15, [&actualTopic] { return LOOP_ASSERTION(actualTopic.has_value()); }, 200ms));
 	BC_HARD_ASSERT(actualTopic.has_value());
 	BC_ASSERT_CPP_EQUAL(*actualTopic, topic);
 }
@@ -320,9 +332,8 @@ void no_perm_to_subscribe() {
 	        },
 	        maxDuration)
 	    .assert_passed();
-	SUITE_SCOPE->asserter
-	    .iterateUpTo(
-	        1, [&actualTopic] { return LOOP_ASSERTION(actualTopic.has_value()); }, 100ms)
+	SUITE_SCOPE->asserter.iterateUpTo(
+	                         1, [&actualTopic] { return LOOP_ASSERTION(actualTopic.has_value()); }, 100ms)
 	    .assert_passed();
 	BC_HARD_ASSERT(actualTopic.has_value());
 	BC_ASSERT_CPP_EQUAL(*actualTopic, topic);

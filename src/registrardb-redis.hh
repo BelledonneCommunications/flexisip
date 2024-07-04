@@ -112,6 +112,9 @@ public:
 	bool isWritable() const override {
 		return mWritable;
 	}
+	const redis::async::RedisClient& getRedisClient() const {
+		return mRedisClient;
+	}
 
 	static void forceDisconnectForTest(RegistrarDbRedisAsync& thiz);
 

@@ -57,6 +57,9 @@ const Session::Ready* RedisClient::tryGetCmdSession() {
 
 	return nullptr;
 }
+const SubscriptionSession::Ready* RedisClient::getSubSessionIfReady() const {
+	return isReady() ? &std::get<SubscriptionSession::Ready>(mSubSession.getState()) : nullptr;
+}
 
 const SubscriptionSession::Ready* RedisClient::tryGetSubSession() {
 	if (isReady()) {
