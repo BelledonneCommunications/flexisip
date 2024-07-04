@@ -2,6 +2,7 @@
  *  SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+#include <cassert>
 #include <chrono>
 
 #include "redis-client.hh"
@@ -22,21 +23,23 @@ RedisClient::RedisClient(const sofiasip::SuRoot& root,
 
 std::optional<std::tuple<const Session::Ready&, const SubscriptionSession::Ready&>> RedisClient::connect() {
 	SLOGI << logPrefix() << "Connecting to Redis server tcp://" << mParams.domain << ":" << mParams.port;
-	SLOGD << logPrefix() << "Creating command session";
 	const Session::Ready* cmdSession = nullptr;
 	auto& cmdState = mCmdSession.connect(mRoot.getCPtr(), mParams.domain, mParams.port);
 	if ((cmdSession = std::get_if<Session::Ready>(&cmdState)) == nullptr) return nullopt;
+	SLOGD << logPrefix() << mCmdSession.getLogPrefix() << "Command session created";
 
-	SLOGD << logPrefix() << "Creating subscription session";
 	const SubscriptionSession::Ready* subsSession = nullptr;
 	auto& subState = mSubSession.connect(mRoot.getCPtr(), mParams.domain, mParams.port);
 	if ((subsSession = std::get_if<SubscriptionSession::Ready>(&subState)) == nullptr) return nullopt;
+	SLOGD << logPrefix() << mSubSession.getLogPrefix() << "Subscription session created";
 
 	Match(mParams.auth)
 	    .against([this, cmdSession](redis::auth::None) { getReplicationInfo(*cmdSession); },
 	             [this, cmdSession, subsSession](auto credentials) {
-		             cmdSession->auth(credentials, [this](auto&, Reply reply) { handleAuthReply(reply); });
-		             subsSession->auth(credentials, [this](auto&, Reply reply) { handleAuthReply(reply); });
+		             cmdSession->auth(credentials,
+		                              [this](const auto& session, Reply reply) { handleAuthReply(session, reply); });
+		             subsSession->auth(credentials,
+		                               [this](const auto& session, Reply reply) { handleAuthReply(session, reply); });
 	             });
 
 	mLastActiveParams = mParams;
@@ -158,23 +161,30 @@ void RedisClient::getReplicationInfo(const redis::async::Session::Ready& readySe
 	});
 }
 
-void RedisClient::handleAuthReply(redis::async::Reply reply) {
+void RedisClient::handleAuthReply(const Session& session, redis::async::Reply reply) {
+	const auto& prefix = logPrefix() + session.getLogPrefix();
 	if (auto* err = std::get_if<reply::Error>(&reply)) {
-		SLOGE << logPrefix() << "Couldn't authenticate with Redis server: " << *err;
+		SLOGE << prefix << "Couldn't authenticate with Redis server: " << *err;
 		forceDisconnect();
 		return;
 	}
 
-	SLOGI << logPrefix() << "Authentication succeeded. Reply: " << StreamableVariant(reply);
+	if (std::holds_alternative<reply::Disconnected>(reply)) {
+		SLOGD << prefix << "Connection aborted.";
+		return;
+	}
+
+	SLOGI << prefix << "Authentication succeeded. Reply: " << StreamableVariant(reply);
 
 	Match(mCmdSession.getState())
 	    .against([this](const Session::Ready& session) { getReplicationInfo(session); },
-	             [this](const auto& unexpected) {
-		             // Somehow happened in production before the hiredis wrapper was written
-		             SLOGE << logPrefix()
+	             [&prefix](const auto& unexpected) {
+		             // Used to happen when force-disconnecting from a replica to reconnect to a master node
+		             SLOGE << prefix
 		                   << "Receiving success response to Redis AUTH request but we are no longer connected. This "
 		                      "should never happen! Aborting replication info fetch! Unexpected session state: "
 		                   << unexpected;
+		             assert(!"unreachable");
 	             });
 }
 

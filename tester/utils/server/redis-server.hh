@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -21,7 +21,6 @@
 #include <cstdint>
 #include <string>
 
-#include "flexisip-tester-config.hh"
 #include "utils/posix-process.hh"
 
 namespace flexisip {
@@ -33,7 +32,17 @@ namespace tester {
  */
 class RedisServer {
 public:
-	RedisServer(std::uint16_t port = genPort());
+	struct Params {
+		std::optional<std::uint16_t> port;
+		std::string requirepass;
+		struct {
+			std::string host;
+			std::string port;
+		} replicaof;
+		std::string masterauth;
+	};
+
+	RedisServer(Params&& = {});
 	~RedisServer();
 
 	/**
@@ -48,16 +57,18 @@ public:
 	// (Synchronously) stops then starts the server again on the same port
 	void restart();
 
+	RedisServer createReplica();
+
 private:
 	static std::uint16_t genPort() noexcept;
-	static process::Process spawn(std::uint16_t);
+	static process::Process spawn(const Params&);
 
 	// Send TERM signal and wait for termination
 	void stop();
 
-	std::uint16_t mPort;
-	process::Process mDaemon;
 	bool mReadyForConnections = false;
+	Params mParams;
+	process::Process mDaemon;
 };
 
 } // namespace tester

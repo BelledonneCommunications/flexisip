@@ -102,7 +102,7 @@ public:
 				const auto wallClockTime = std::chrono::system_clock::now() - started;
 				if (!std::holds_alternative<reply::Disconnected>(reply)) {
 					(wallClockTime < 1s ? SLOGD : SLOGW)
-					    << "Redis command completed in "
+					    << session.mLogPrefix << "Redis command completed in "
 					    << std::chrono::duration_cast<std::chrono::milliseconds>(wallClockTime).count()
 					    << "ms (wall-clock time):\n\t" << cmdString;
 				}
@@ -151,6 +151,7 @@ public:
 	const T* tryGetState() const {
 		return std::get_if<T>(&mState);
 	}
+	const std::string& getLogPrefix() const;
 	// Initiate the connection to Redis. If successful, the returned state will be `Ready`, otherwise the session is
 	// left in its current state. The `onConnect` method will be called on the listener when that process finishes and
 	// the `.isConnected()` method will start returning `true`. You can immediately start sending commands, but if the
@@ -324,6 +325,9 @@ public:
 
 	bool isConnected() const;
 	const State& getState() const;
+	const std::string& getLogPrefix() const {
+		return mWrapped.getLogPrefix();
+	}
 
 	SoftPtr<SessionListener> mListener{};
 

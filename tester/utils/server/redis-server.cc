@@ -33,6 +33,7 @@
 
 #include "flexisip/logmanager.hh"
 
+#include "flexisip-tester-config.hh"
 #include "redis-server.hh"
 #include "tester.hh"
 #include "utils/pipe.hh"
@@ -52,19 +53,52 @@ uint16_t RedisServer::genPort() noexcept {
 	return dist(engine);
 }
 
-process::Process RedisServer::spawn(uint16_t port) {
-	return process::Process([port] {
-		::execl(REDIS_SERVER_EXEC, REDIS_SERVER_EXEC,
-		        // specify listen port
-		        "--port", to_string(port).c_str(),
-		        // disable snapshoting
-		        "--save", "",
-		        //
-		        nullptr);
+process::Process RedisServer::spawn(const RedisServer::Params& params) {
+	const auto& port = to_string(*params.port);
+	auto argv = vector<const char*>{
+	    REDIS_SERVER_EXEC,
+	    // specify listen port
+	    "--port", port.c_str(),
+	    // disable snapshotting (persistence) to avoid polluting the test env with useless files, and avoid disk writes.
+	    "--save", "",
+	    // save 5s on replica sync (affects the master node)
+	    "--repl-diskless-sync-delay", "0",
+	    // avoid creating files on the replica
+	    // TODO: uncomment when we drop support for redis <6.0 (rocky8)
+	    //"--repl-diskless-load", "on-empty-db",
+	    //
+	};
+	const auto& addSingleValueArg = [&argv](const auto& name, const auto& value) {
+		if (!value.empty()) {
+			argv.emplace_back(name);
+			argv.emplace_back(value.data());
+		}
+	};
+	addSingleValueArg("--requirepass", params.requirepass);
+	addSingleValueArg("--masterauth", params.masterauth);
+	if (!params.replicaof.host.empty()) {
+		argv.emplace_back("--replicaof");
+		argv.emplace_back(params.replicaof.host.data());
+		argv.emplace_back(params.replicaof.port.data());
+	}
+	argv.emplace_back(nullptr);
+
+	return process::Process([&argv] {
+		::execv(REDIS_SERVER_EXEC,
+		        // "argv[] [...] [is] completely constant"
+		        // https://pubs.opengroup.org/onlinepubs/9699919799/functions/exec.html#tag_16_111_08
+		        const_cast<char* const*>(argv.data()));
 	});
 }
 
-RedisServer::RedisServer(std::uint16_t port) : mPort(port), mDaemon(spawn(mPort)) {
+RedisServer::RedisServer(RedisServer::Params&& params)
+    : mParams{
+          .port = params.port ? *params.port : genPort(),
+          .requirepass = std::move(params.requirepass),
+          .replicaof = std::move(params.replicaof),
+          .masterauth = std::move(params.masterauth),
+      },
+      mDaemon(spawn(mParams)) {
 }
 
 void RedisServer::stop() {
@@ -83,33 +117,30 @@ RedisServer::~RedisServer() {
 void RedisServer::restart() {
 	stop();
 	mReadyForConnections = false;
-	mDaemon = spawn(mPort);
+	mDaemon = spawn(mParams);
 }
 
 uint16_t RedisServer::port() {
 	if (mReadyForConnections) {
 		EXPECT_VARIANT(process::Running&).in(mDaemon.state());
-		return mPort;
+		return *mParams.port;
 	}
 
 	constexpr auto ntries = 3;
-	const auto restart = [this]() {
-		mPort = genPort();
-		mDaemon = spawn(mPort);
-	};
 	for (auto i = 0; i < ntries; ++i) {
-		auto& state = mDaemon.state();
-		auto* running = get_if<process::Running>(&state);
-		if (!running) {
-			SLOGW << "Restarting Redis daemon found in unexpected state: " << StreamableVariant(std::move(state));
-			restart();
-			continue;
-		}
-		auto& standardOut = EXPECT_VARIANT(pipe::ReadOnly&).in(running->mStdout);
 		string fullLog{};
 		string previousChunk{};
-		while (true) {
-			auto chunk = [&standardOut, &fullLog] {
+		constexpr auto timeout = 1min;
+		const auto deadline = chrono::system_clock::now() + timeout;
+		do {
+			auto& state = mDaemon.state();
+			auto* running = get_if<process::Running>(&state);
+			if (!running) {
+				SLOGW << "Restarting Redis daemon found in unexpected state: " << StreamableVariant(std::move(state));
+				break;
+			}
+			auto& standardOut = EXPECT_VARIANT(pipe::ReadOnly&).in(running->mStdout);
+			const auto& chunk = [&standardOut, &fullLog] {
 				try {
 					return EXPECT_VARIANT(string).in(standardOut.read(0xFF));
 				} catch (const exception& exc) {
@@ -119,26 +150,36 @@ uint16_t RedisServer::port() {
 					throw runtime_error{msg.str()};
 				}
 			}();
-			auto concatenated = previousChunk + chunk;
+			const auto& concatenated = previousChunk + chunk;
 			if (concatenated.find("Failed listening on port") != string::npos) {
 				SLOGW << "Redis: " << chunk;
 				// Redis should exit on its own at this point, no need to kill it.
-				restart();
 				break;
 			}
-			if (concatenated.find("eady to accept connections") != string::npos) {
+			// This log message has been unchanged since Redis 4.0.0 and at least up to 7.2.5
+			if (concatenated.find("Ready to accept connections") != string::npos) {
 				SLOGI << "Redis: " << chunk;
 				mReadyForConnections = true;
-				return mPort;
+				return *mParams.port;
 			}
 			fullLog += "|" + chunk;
 			previousChunk = std::move(chunk);
-		}
+		} while (chrono::system_clock::now() < deadline);
+		mParams.port = genPort();
+		mDaemon = spawn(mParams);
 	}
 
 	ostringstream err{};
 	err << "'redis-server' failed to start " << ntries << " times. Aborting";
 	throw runtime_error{err.str()};
+}
+
+RedisServer RedisServer::createReplica() {
+	return RedisServer({
+	    .requirepass = mParams.requirepass,
+	    .replicaof = {.host = "127.0.0.1", .port = to_string(port())},
+	    .masterauth = mParams.requirepass,
+	});
 }
 
 } // namespace tester
