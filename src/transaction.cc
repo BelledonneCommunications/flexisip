@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -108,7 +108,6 @@ void OutgoingTransaction::_cancel(Tags... tags) {
 	if (mOutgoing) {
 		// NTATAG_CANCEL_2543(1) --> the stack generates a 487 response to the request internally
 		nta_outgoing_tcancel(mOutgoing.borrow(), nullptr, nullptr, tags..., NTATAG_CANCEL_2543(1), TAG_END());
-		mSelfRef.reset();
 	} else {
 		LOGE("OutgoingTransaction::cancel(): transaction already destroyed.");
 	}
