@@ -80,6 +80,8 @@ const Session::State& Session::connect(su_root_t* sofiaRoot, const std::string_v
 		}
 
 		mState = Ready(std::move(ctx));
+		SLOGD << mLogPrefix << "Connection initiated to " << address << ":" << port
+		      << ". New state: " << StreamableVariant(mState);
 	}();
 	return mState;
 }
@@ -134,6 +136,18 @@ void Session::onConnect(const redisAsyncContext*, int status) {
 }
 
 void Session::onDisconnect(const redisAsyncContext* ctx, int status) {
+	const auto* ourCtx =
+	    Match(mState).against([](const Disconnected&) -> ContextPtr::pointer { return nullptr; },
+	                          [](const auto& state) -> ContextPtr::pointer { return state.mCtx.get(); });
+	if (ourCtx != ctx) {
+		SLOGD << mLogPrefix << "Zombie context " << ctx
+		      << " is trying to call us from beyond the grave. Ignore it. (Ours is " << ourCtx << ")";
+		// This happens when `forceDisconnect` is called from within a command callback. `redisAsyncFree` bails out and
+		// schedules the actual destruction to the next loop iteration. By the time we're being called back we have
+		// already updated our state so it would be harmful to do anything here.
+		return;
+	}
+
 	if (status != REDIS_OK) {
 		SLOGW << mLogPrefix << "Forcefully disconnecting. Reason: " << ctx->errstr;
 	}
@@ -171,9 +185,9 @@ void Session::Ready::command(const ArgsPacker& args, CommandCallback&& callback)
 			    try {
 				    (*callback)(sessionContext, reply::tryFrom(static_cast<const redisReply*>(reply)));
 			    } catch (const std::exception& exc) {
-				    SLOGE << "Unhandled exception in Redis callback: " << exc.what();
+				    SLOGE << sessionContext.mLogPrefix << "unhandled exception in Redis callback: " << exc.what();
 			    } catch (...) {
-				    SLOGE << "Unidentified Thrown Object in Redis callback";
+				    SLOGE << sessionContext.mLogPrefix << "unidentified Thrown Object in Redis callback";
 			    }
 		    }
 	    });
@@ -319,6 +333,10 @@ int Session::Ready::command(const ArgsPacker& args, void* privdata, redisCallbac
 
 const Session::State& Session::getState() const {
 	return mState;
+}
+
+const std::string& Session::getLogPrefix() const {
+	return mLogPrefix;
 }
 
 const SubscriptionSession::State& SubscriptionSession::getState() const {

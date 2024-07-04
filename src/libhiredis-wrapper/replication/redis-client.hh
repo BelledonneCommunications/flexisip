@@ -43,7 +43,7 @@ private:
 	void onConnect(int status) override;
 	void onDisconnect(int status) override;
 
-	void handleAuthReply(redis::async::Reply reply);
+	void handleAuthReply(const Session& session, redis::async::Reply reply);
 
 	/* replication */
 	std::optional<std::tuple<const Session::Ready&, const SubscriptionSession::Ready&>> tryReconnect();

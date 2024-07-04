@@ -31,6 +31,7 @@
 #include "utils/string-utils.hh"
 #include <flexisip/logmanager.hh>
 
+#include "flexisip-tester-config.hh"
 #include "utils/asserts.hh"
 #include "utils/proxy-server.hh"
 #include "utils/successful-bind-listener.hh"
