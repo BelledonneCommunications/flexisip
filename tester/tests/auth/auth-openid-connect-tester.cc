@@ -84,7 +84,7 @@ void rejectUnauthReq() {
 
 	const auto& root = proxy.getRoot();
 	proxy.start();
-	NtaAgent UAClient(root, "sip:localhost:0");
+	NtaAgent UAClient(root, "sip:127.0.0.1:0");
 
 	{
 		// first REGISTER request is rejected, server reply with authentication parameters
@@ -128,7 +128,7 @@ void bearerAuth() {
 
 	const auto& root = proxy.getRoot();
 	proxy.start();
-	NtaAgent UAClient(root, "sip:localhost:0");
+	NtaAgent UAClient(root, "sip:127.0.0.1:0");
 
 	{
 		// first REGISTER request is rejected, server reply with authentication parameters
@@ -262,7 +262,7 @@ void bearerMsgOfAToB() {
 	BC_ASSERT_CPP_EQUAL(readMsgCounter(proxyA), 0);
 	BC_ASSERT_CPP_EQUAL(readMsgCounter(proxyB), 0);
 
-	NtaAgent UAClient(root, "sip:localhost:0");
+	NtaAgent UAClient(root, "sip:127.0.0.1:0");
 	const auto transaction = sendRequest(UAClient, root, request, proxyA.getFirstPort());
 	// ensure each proxy received a message
 	BC_ASSERT_CPP_EQUAL(readMsgCounter(proxyA), 1);

@@ -235,7 +235,7 @@ class PushOnNotify : public PushNotificationTest {
 public:
 	void onAgentStarted() override {
 		PushNotificationTest::onAgentStarted();
-		mClient = make_shared<sofiasip::NtaAgent>(mAgent->getRoot(), "sip:localhost:0");
+		mClient = make_shared<sofiasip::NtaAgent>(mAgent->getRoot(), "sip:127.0.0.1:0");
 		mProxyPort = ::tport_name(::tport_primaries(::nta_agent_tports(mAgent->getSofiaAgent())))->tpn_port;
 
 		string contactParameters = mPlatform->getContactPushParams();

@@ -42,7 +42,7 @@ void rejectUnauthRequest() {
 
 	const auto& root = proxy.getRoot();
 	proxy.start();
-	NtaAgent UAClient(root, "sip:localhost:0");
+	NtaAgent UAClient(root, "sip:127.0.0.1:0");
 
 	const auto request = registerRequest(sipUri, "1");
 	const auto transaction = sendRequest(UAClient, root, request, proxy.getFirstPort());
@@ -60,7 +60,7 @@ void acceptTrustedHost() {
 
 	const auto& root = proxy.getRoot();
 	proxy.start();
-	NtaAgent UAClient(root, "sip:localhost:0");
+	NtaAgent UAClient(root, "sip:127.0.0.1:0");
 
 	const auto request = registerRequest(sipUri, "1");
 	const auto transaction = sendRequest(UAClient, root, request, proxy.getFirstPort());

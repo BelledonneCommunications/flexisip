@@ -60,7 +60,7 @@ void rejectRequest(string_view serverDomain, string_view request, const Response
 	const auto& root = proxy.getRoot();
 	proxy.start();
 
-	NtaAgent UAClient(root, "sip:localhost:0");
+	NtaAgent UAClient(root, "sip:127.0.0.1:0");
 	const auto transaction = sendRequest(UAClient, root, request, proxy.getFirstPort());
 	checkResponse(transaction, response);
 }
@@ -90,7 +90,7 @@ void rejectUnauthRegisterOfAToProxyAViaProxyB() {
 	auto domainBServer = createServer(domainB, authFile.getFilename(), root);
 	domainBServer.start();
 
-	NtaAgent UAClient(root, "sip:localhost:0");
+	NtaAgent UAClient(root, "sip:127.0.0.1:0");
 	const auto routeViaDomainB = "Route: <sip:127.0.0.1:"s + domainBServer.getFirstPort() + ";transport=tcp;lr>\r\n";
 	const auto request = registerRequest(clientA, "1", routeViaDomainB);
 	const auto transaction = sendRequest(UAClient, root, request, domainBServer.getFirstPort());

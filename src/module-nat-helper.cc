@@ -26,7 +26,7 @@
 using namespace std;
 using namespace flexisip;
 
-constexpr auto kFlowTokenHashKeyFilePath = DEFAULT_LIB_DIR "/flow-token-hash-key";
+constexpr auto* kFlowTokenHashKeyFilePath = DEFAULT_LIB_DIR "/flow-token-hash-key";
 
 NatHelper::NatHelper(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 }
