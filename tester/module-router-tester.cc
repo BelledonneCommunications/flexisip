@@ -27,7 +27,6 @@
 #include "flexisip/module-router.hh"
 #include "sofia-wrapper/nta-agent.hh"
 
-#include "registrar/registrar-db.hh"
 #include "utils/asserts.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/injected-module-info.hh"
@@ -435,7 +434,7 @@ struct RoutingWithStaticTargets {
 	      mProxy(
 	          {
 	              {"global/aliases", "localhost"},
-	              {"global/transports", "sip:127.0.0.1:0;transport=udp"},
+	              {"global/transports", "sip:127.0.0.1:0"},
 	              {"module::NatHelper/enabled", "false"},
 	              {"module::DoSProtection/enabled", "false"},
 	              {"module::Registrar/reg-domains", "localhost"},
@@ -467,16 +466,17 @@ struct RoutingWithStaticTargets {
  * Test that INVITE request is both routed to the callee and to provided static targets.
  */
 void requestIsAlsoRoutedToStaticTargets() {
-	const auto callee = Contact{"sip:callee@localhost", "sip:callee@voluntarily-unreachable:0"};
-	const auto sTarget = Contact{"sip:sTarget@localhost", "sip:sTarget@voluntarily-unreachable:0"};
-	const auto sTargetBis = Contact{"sip:sTargetBis@localhost", "sip:sTargetBis@voluntarily-unreachable:0"};
+	// Set up expected targets without transport and port 0 so the server does not try to send forked INVITE requests.
+	const auto callee = Contact{"sip:callee@localhost", "sip:callee@127.0.0.1:0"};
+	const auto sTarget = Contact{"sip:sTarget@localhost", "sip:sTarget@127.0.0.1:0"};
+	const auto sTargetBis = Contact{"sip:sTargetBis@localhost", "sip:sTargetBis@127.0.0.1:0"};
 
 	RoutingWithStaticTargets helper{{callee}, {sTarget.uri, sTargetBis.uri}};
 	vector<string> expectedTargets = {sTarget.uri, sTargetBis.uri, callee.uri};
-	const auto routeUri = callee.aor + ":" + helper.mProxy.getFirstPort();
+	const auto routeUri = "sip:127.0.0.1:"s + helper.mProxy.getFirstPort();
 
 	ostringstream request;
-	request << "INVITE " << routeUri << " SIP/2.0\r\n"
+	request << "INVITE " << callee.aor << " SIP/2.0\r\n"
 	        << "Via: SIP/2.0/TCP 127.0.0.1\r\n"
 	        << "From: \"Caller\" <" << helper.mCaller.aor << ">;tag=stub-tag\r\n"
 	        << "To: \"Callee\" <" << callee.aor << ">\r\n"
@@ -491,7 +491,11 @@ void requestIsAlsoRoutedToStaticTargets() {
 	const auto transaction = helper.mClient.createOutgoingTransaction(request.str(), routeUri);
 	BC_ASSERT(helper.mAsserter.iterateUpTo(
 	              5, [&transaction]() { return transaction->isCompleted(); }, 2s) == true);
-	BC_ASSERT(helper.mActualTargets == expectedTargets);
+
+	BC_HARD_ASSERT_CPP_EQUAL(helper.mActualTargets.size(), expectedTargets.size());
+	for (auto targetId = 0U; targetId < expectedTargets.size(); ++targetId) {
+		BC_ASSERT_CPP_EQUAL(helper.mActualTargets[targetId], expectedTargets[targetId]);
+	}
 }
 
 /*
@@ -500,18 +504,19 @@ void requestIsAlsoRoutedToStaticTargets() {
  * In this case, it should not be routed to the callee.
  */
 void requestIsRoutedToXTargetUrisAndStaticTargets() {
-	const auto callee = Contact{"sip:callee@localhost", "sip:callee@voluntarily-unreachable:0"};
-	const auto sTarget = Contact{"sip:sTarget@localhost", "sip:sTarget@voluntarily-unreachable:0"};
-	const auto sTargetBis = Contact{"sip:sTargetBis@localhost", "sip:sTargetBis@voluntarily-unreachable:0"};
-	const auto xTarget = Contact{"sip:xTarget@localhost", "sip:xTarget@voluntarily-unreachable:0"};
-	const auto xTargetBis = Contact{"sip:xTargetBis@localhost", "sip:xTargetBis@voluntarily-unreachable:0"};
+	// Set up expected targets without transport and port 0 so the server does not try to send forked INVITE requests.
+	const auto callee = Contact{"sip:callee@localhost", "sip:callee@127.0.0.1:0"};
+	const auto sTarget = Contact{"sip:sTarget@localhost", "sip:sTarget@127.0.0.1:0"};
+	const auto sTargetBis = Contact{"sip:sTargetBis@localhost", "sip:sTargetBis@127.0.0.1:0"};
+	const auto xTarget = Contact{"sip:xTarget@localhost", "sip:xTarget@127.0.0.1:0"};
+	const auto xTargetBis = Contact{"sip:xTargetBis@localhost", "sip:xTargetBis@127.0.0.1:0"};
 
 	RoutingWithStaticTargets helper{{xTarget, xTargetBis}, {sTarget.uri, sTargetBis.uri}};
 	vector<string> expectedTargets = {sTarget.uri, sTargetBis.uri, xTarget.uri, xTargetBis.uri};
-	const auto routeUri = callee.aor + ":" + helper.mProxy.getFirstPort();
+	const auto routeUri = "sip:127.0.0.1:"s + helper.mProxy.getFirstPort();
 
 	ostringstream request;
-	request << "INVITE " << routeUri << " SIP/2.0\r\n"
+	request << "INVITE " << callee.aor << " SIP/2.0\r\n"
 	        << "Via: SIP/2.0/TCP 127.0.0.1\r\n"
 	        << "From: \"Caller\" <" << helper.mCaller.aor << ">;tag=stub-tag\r\n"
 	        << "To: \"Callee\" <" << callee.aor << ">\r\n"
@@ -527,7 +532,11 @@ void requestIsRoutedToXTargetUrisAndStaticTargets() {
 	const auto transaction = helper.mClient.createOutgoingTransaction(request.str(), routeUri);
 	BC_ASSERT(helper.mAsserter.iterateUpTo(
 	              5, [&transaction]() { return transaction->isCompleted(); }, 2s) == true);
-	BC_ASSERT(helper.mActualTargets == expectedTargets);
+
+	BC_HARD_ASSERT_CPP_EQUAL(helper.mActualTargets.size(), expectedTargets.size());
+	for (auto targetId = 0U; targetId < expectedTargets.size(); ++targetId) {
+		BC_ASSERT_CPP_EQUAL(helper.mActualTargets[targetId], expectedTargets[targetId]);
+	}
 }
 
 } // namespace

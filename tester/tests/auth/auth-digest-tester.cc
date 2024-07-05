@@ -73,7 +73,7 @@ void digestQopAuth() {
 
 	const auto& root = proxy.getRoot();
 	proxy.start();
-	NtaAgent UAClient(root, "sip:localhost:0");
+	NtaAgent UAClient(root, "sip:127.0.0.1:0");
 
 	string realm{}, qop{}, nonce{}, opaque{};
 
@@ -177,7 +177,7 @@ void digestQopDisable() {
 
 	const auto& root = proxy.getRoot();
 	proxy.start();
-	NtaAgent UAClient(root, "sip:localhost:0");
+	NtaAgent UAClient(root, "sip:127.0.0.1:0");
 
 	string realm{}, nonce{}, opaque{};
 	{
@@ -253,7 +253,7 @@ void digestQopProxyAuth() {
 
 	const auto& root = proxy.getRoot();
 	proxy.start();
-	NtaAgent UAClient(root, "sip:localhost:0");
+	NtaAgent UAClient(root, "sip:127.0.0.1:0");
 
 	auto messageRequest = [&clientA2](const std::string& CSeq, const string& addField = "") {
 		// clang-format off
@@ -337,7 +337,7 @@ void digestAlgorithmSelection() {
 
 		const auto& root = proxy.getRoot();
 		proxy.start();
-		NtaAgent UAClient(root, "sip:localhost:0");
+		NtaAgent UAClient(root, "sip:127.0.0.1:0");
 
 		const auto firstTransaction = sendRequest(UAClient, root, firstRequest, proxy.getFirstPort());
 		checkResponse(firstTransaction, response_401_unauthorized);

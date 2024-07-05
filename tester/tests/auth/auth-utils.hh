@@ -76,7 +76,7 @@ static std::shared_ptr<sofiasip::NtaOutgoingTransaction> sendRequest(sofiasip::N
                                                                      std::string_view request,
                                                                      std::string_view dstPort) {
 	using namespace std::chrono_literals;
-	auto transaction = UAC.createOutgoingTransaction(request, std::string("sip:localhost:") + dstPort.data());
+	auto transaction = UAC.createOutgoingTransaction(request, std::string("sip:127.0.0.1:") + dstPort.data());
 
 	auto beforePlus2 = std::chrono::system_clock::now() + 2s;
 	while (!transaction->isCompleted() && beforePlus2 >= std::chrono::system_clock::now()) {

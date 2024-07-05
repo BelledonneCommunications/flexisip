@@ -50,7 +50,7 @@ public:
 	explicit Server(const std::string& configFile = "", InjectedHooks* injectedHooks = nullptr);
 	/**
 	 * @brief Same as before but use a map instead of a file to configure the agent.
-	 * Default transport is set to localhost and port 0.
+	 * Default transport is set to 127.0.0.1 and port 0.
 	 * Default reg-domain is set to *.example.org.
 	 * @param customConfig Agent configuration as a map. The key is the name of the paramter
 	 * to change (e.g. 'module::Registrar/reg-domains') and the value is the new
@@ -61,7 +61,7 @@ public:
 	explicit Server(const std::map<std::string, std::string>& customConfig, InjectedHooks* injectedHooks = nullptr);
 	/**
 	 * @brief Same as before but use a map instead of a file to configure the agent.
-	 * Default transport is set to localhost and port 0.
+	 * Default transport is set to 127.0.0.1 and port 0.
 	 * Default reg-domain is set to *.example.org.
 	 * @param customConfig Agent configuration as a map. The key is the name of the paramter
 	 * to change (e.g. 'module::Registrar/reg-domains') and the value is the new
