@@ -92,6 +92,10 @@ public:
 		return mCore->getTransportsUsed()->getTcpPort();
 	}
 
+	int getUdpPort() const {
+		return mCore->getTransportsUsed()->getUdpPort();
+	}
+
 	const b2bua::Application& getApplication() const {
 		return *mApplication;
 	}

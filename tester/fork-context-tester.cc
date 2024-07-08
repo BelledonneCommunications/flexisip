@@ -62,6 +62,8 @@ static void nullMaxForwardAndForkBasicContext() {
 	// Agent initialization
 	auto cfg = std::make_shared<ConfigManager>();
 	cfg->load(bcTesterRes("config/flexisip_fork_context.conf"));
+	auto* globalConf = cfg->getRoot()->get<GenericStruct>("global");
+	globalConf->get<ConfigStringList>("transports")->set("sip:127.0.0.1:5360");
 
 	auto* registrarConf = cfg->getRoot()->get<GenericStruct>("module::Registrar");
 	registrarConf->get<ConfigStringList>("reg-domains")->set("127.0.0.1");

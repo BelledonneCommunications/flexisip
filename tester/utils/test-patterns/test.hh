@@ -219,4 +219,11 @@ struct TestDecl : test_t {
 		}                                                                                                              \
 	}
 
+#define NAMED_CLASSY_TEST(test_name, test_class)                                                                       \
+	TestDecl {                                                                                                         \
+		{                                                                                                              \
+			.name = test_name, .func = run<test_class>, .tags = { nullptr, nullptr }                                   \
+		}                                                                                                              \
+	}
+
 } // namespace flexisip::tester

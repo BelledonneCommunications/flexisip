@@ -70,7 +70,7 @@ using namespace std::string_literals;
     and Felix should receive a call form Jasper that should look like it's coming from within the same domain as him:
     <sip:jasper@flexisip.example.org>
 */
-
+template <const std::string& flexisipTransport, const std::string& jabiruTransport>
 void bidirectionalBridging() {
 	StringFormatter jsonConfig{R"json({
 		"schemaVersion": 2,
@@ -106,14 +106,14 @@ void bidirectionalBridging() {
 				"outgoingInvite": {
 					"to": "{account.alias}",
 					"from": "sip:{incoming.from.user}@{account.alias.hostport}{incoming.from.uriParameters}",
-					"outboundProxy": "<sip:127.0.0.1:flexisipPort;transport=tcp>"
+					"outboundProxy": "<sip:127.0.0.1:flexisipPort;transport=flexisipTransport>"
 				},
 				"accountPool": "FlockOfJabirus"
 			}
 		],
 		"accountPools": {
 			"FlockOfJabirus": {
-				"outboundProxy": "<sip:127.0.0.1:jabiruPort;transport=tcp>",
+				"outboundProxy": "<sip:127.0.0.1:jabiruPort;transport=jabiruTransport>",
 				"registrationRequired": true,
 				"maxCallsPerLine": 3125,
 				"loader": [
@@ -129,11 +129,11 @@ void bidirectionalBridging() {
 	TempFile providersJson{};
 	Server flexisipProxy{{
 	    // Requesting bind on port 0 to let the kernel find any available port
-	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"global/transports", "sip:127.0.0.1:0;transport="s + flexisipTransport},
 	    {"module::Registrar/enabled", "true"},
 	    {"module::Registrar/reg-domains", "flexisip.example.org"},
 	    {"b2bua-server/application", "sip-bridge"},
-	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
+	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport="s + flexisipTransport},
 	    {"b2bua-server::sip-bridge/providers", providersJson.getFilename()},
 	    // B2bua use writable-dir instead of var folder
 	    {"b2bua-server/data-directory", bcTesterWriteDir()},
@@ -141,14 +141,16 @@ void bidirectionalBridging() {
 	flexisipProxy.start();
 	Server jabiruProxy{{
 	    // Requesting bind on port 0 to let the kernel find any available port
-	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"global/transports", "sip:127.0.0.1:0;transport="s + jabiruTransport},
 	    {"module::Registrar/enabled", "true"},
 	    {"module::Registrar/reg-domains", "jabiru.example.org"},
 	}};
 	jabiruProxy.start();
 	providersJson.writeStream() << jsonConfig.format({
 	    {"flexisipPort", flexisipProxy.getFirstPort()},
+	    {"flexisipTransport", flexisipTransport},
 	    {"jabiruPort", jabiruProxy.getFirstPort()},
+	    {"jabiruTransport", jabiruTransport},
 	});
 	const auto b2buaLoop = std::make_shared<sofiasip::SuRoot>();
 	const auto& config = flexisipProxy.getConfigManager();
@@ -157,7 +159,9 @@ void bidirectionalBridging() {
 	config->getRoot()
 	    ->get<GenericStruct>("module::Router")
 	    ->get<ConfigStringList>("static-targets")
-	    ->set({"sip:127.0.0.1:" + std::to_string(b2buaServer->getTcpPort()) + ";transport=tcp"});
+	    ->set({"sip:127.0.0.1:" + ("tcp"s == flexisipTransport
+	                                   ? std::to_string(b2buaServer->getTcpPort()) + ";transport=tcp"
+	                                   : std::to_string(b2buaServer->getUdpPort()) + ";transport=udp")});
 	flexisipProxy.getAgent()->findModule("Router")->reload();
 	const auto felix = ClientBuilder(*flexisipProxy.getAgent()).build("felix@flexisip.example.org");
 	const auto jasper = ClientBuilder(*jabiruProxy.getAgent()).build("jasper@jabiru.example.org");
@@ -202,13 +206,13 @@ void bidirectionalBridging() {
 	jasper.getCurrentCall()->terminate();
 	asserter
 	    .iterateUpTo(
-	        4,
+	        10,
 	        [&felix] {
 		        const auto& current_call = felix.getCurrentCall();
 		        FAIL_IF(current_call != std::nullopt);
 		        return ASSERTION_PASSED();
 	        },
-	        130ms)
+	        200ms)
 	    .assert_passed();
 
 	// Jabiru -> Flexisip
@@ -776,10 +780,15 @@ void oneConnectionPerAccount() {
 	}
 }
 
+const auto UDP = "udp"s;
+const auto TCP = "tcp"s;
 TestSuite _{
     "b2bua::bridge",
     {
-        CLASSY_TEST(bidirectionalBridging),
+        CLASSY_TEST((bidirectionalBridging<TCP, TCP>)),
+        CLASSY_TEST((bidirectionalBridging<UDP, UDP>)),
+        CLASSY_TEST((bidirectionalBridging<TCP, UDP>)),
+        CLASSY_TEST((bidirectionalBridging<UDP, TCP>)),
         CLASSY_TEST(loadAccountsFromSQL),
         CLASSY_TEST(invalidSQLLoaderThreadPoolSize),
         CLASSY_TEST(invalidUriTriggersDecline),
