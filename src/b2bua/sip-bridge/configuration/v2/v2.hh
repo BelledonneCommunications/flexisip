@@ -156,17 +156,25 @@ struct SQLLoader {
 	std::string initQuery = "";   // required
 	std::string updateQuery = ""; // required
 	std::string connection = "";  // required
+	int32_t threadPoolSize = 50;  // optional
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SQLLoader, dbBackend, initQuery, updateQuery, connection);
+inline void from_json(const nlohmann ::json& nlohmann_json_j, SQLLoader& nlohmann_json_t) {
+	SQLLoader nlohmann_json_default_obj;
+	NLOHMANN_JSON_FROM(dbBackend);
+	NLOHMANN_JSON_FROM(initQuery);
+	NLOHMANN_JSON_FROM(updateQuery);
+	NLOHMANN_JSON_FROM(connection);
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(threadPoolSize);
+};
 
 using StaticLoader = std::vector<Account>;
 
 using AccountPoolLoader = std::variant<StaticLoader, SQLLoader>;
-inline void from_json(const nlohmann ::json& j, AccountPoolLoader& pool) {
-	if (j.is_array()) {
-		pool = j.get<StaticLoader>();
+inline void from_json(const nlohmann ::json& nlohmann_json_j, AccountPoolLoader& pool) {
+	if (nlohmann_json_j.is_array()) {
+		pool = nlohmann_json_j.get<StaticLoader>();
 	} else {
-		pool = j.get<SQLLoader>();
+		pool = nlohmann_json_j.get<SQLLoader>();
 	}
 }
 

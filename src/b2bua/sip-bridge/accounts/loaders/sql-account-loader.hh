@@ -39,9 +39,8 @@ public:
 	void accountUpdateNeeded(const RedisAccountPub& redisAccountPub, const OnAccountUpdateCB& cb) override;
 
 private:
-	// TODO(jabiru) hardcoded size, setup env variable.
 	std::shared_ptr<sofiasip::SuRoot> mSuRoot;
-	AutoThreadPool mThreadPool{50, 0};
+	AutoThreadPool mThreadPool;
 	soci::connection_pool mSociConnectionPool{50};
 	std::string mInitQuery;
 	std::string mUpdateQuery;

@@ -26,10 +26,22 @@ namespace flexisip::b2bua::bridge {
 using namespace std;
 using namespace soci;
 
+namespace {
+
+unsigned int readThreadPoolSizeFromConfig(const config::v2::SQLLoader& loaderConf) {
+	if (loaderConf.threadPoolSize <= 0) {
+		throw FlexisipException{"invalid thread pool size (" + to_string(loaderConf.threadPoolSize) + ")"};
+	}
+	return static_cast<unsigned int>(loaderConf.threadPoolSize);
+}
+
+} // namespace
+
 SQLAccountLoader::SQLAccountLoader(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
                                    const config::v2::SQLLoader& loaderConf)
-    : mSuRoot{suRoot}, mInitQuery{loaderConf.initQuery}, mUpdateQuery{loaderConf.updateQuery} {
-	for (auto i = 0; i < 50; ++i) {
+    : mSuRoot{suRoot}, mThreadPool{readThreadPoolSizeFromConfig(loaderConf), 0}, mInitQuery{loaderConf.initQuery},
+      mUpdateQuery{loaderConf.updateQuery} {
+	for (auto i = 0; i < loaderConf.threadPoolSize; ++i) {
 		session& sql = mSociConnectionPool.at(i);
 		sql.open(loaderConf.dbBackend, loaderConf.connection);
 	}
