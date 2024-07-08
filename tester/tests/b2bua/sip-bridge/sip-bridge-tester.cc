@@ -452,6 +452,46 @@ void loadAccountsFromSQL() {
 	std::ignore = b2buaServer->stop();
 }
 
+/*
+ * Test parameter cannot be set to a negative value.
+ */
+void invalidSQLLoaderThreadPoolSize() {
+	const auto& configDir = TmpDir{__FUNCTION__};
+	const auto& sipBridgeConfig = configDir.path() / "providers.json";
+	const auto& providers = R"json({
+		"schemaVersion": 2,
+		"providers": [ ],
+		"accountPools": {
+			"Pool": {
+				"outboundProxy": "<sip:127.0.0.1:0;transport=udp>",
+				"registrationRequired": true,
+				"maxCallsPerLine": 55,
+				"loader": {
+					"dbBackend": "sqlite3",
+					"initQuery": "stub-request",
+					"updateQuery": "stub-request",
+					"connection": "",
+					"threadPoolSize": -1
+				}
+			}
+		}
+	})json"s;
+	ofstream{sipBridgeConfig} << providers;
+
+	const auto& configManager = make_shared<ConfigManager>();
+	configManager->setOverrideMap({
+	    {"b2bua-server/application", "sip-bridge"},
+	    {"b2bua-server/data-directory", bcTesterWriteDir()},
+	    {"b2bua-server::sip-bridge/providers", sipBridgeConfig.string()},
+	});
+	configManager->applyOverrides(true);
+	const auto& b2buaServer = make_shared<flexisip::B2buaServer>(make_shared<sofiasip::SuRoot>(), configManager);
+
+	BC_ASSERT_THROWN(b2buaServer->init(), FlexisipException);
+
+	std::ignore = b2buaServer->stop();
+}
+
 /** Everything is setup correctly except the "From" header template contains a mistake that resolves to an invalid uri.
     Test that the B2BUA does not crash, and simply declines the call.
 */
@@ -1794,6 +1834,7 @@ TestSuite _{
     {
         CLASSY_TEST(bidirectionalBridging),
         CLASSY_TEST(loadAccountsFromSQL),
+        CLASSY_TEST(invalidSQLLoaderThreadPoolSize),
         CLASSY_TEST(invalidUriTriggersDecline),
         CLASSY_TEST(authenticatedAccounts),
         CLASSY_TEST(disableAccountsUnregistrationOnServerShutdown),
