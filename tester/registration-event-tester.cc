@@ -70,7 +70,7 @@ void basicSubscription() {
 	const string confFocusUri = "sip:conference-focus@sip.example.org";
 	Server proxy{{
 	    // Requesting bind on port 0 to let the kernel find any available port
-	    {"global/transports", "sip:127.0.0.1:0"},
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
 	    {"module::RegEvent/enabled", "true"},
 	    {"module::DoSProtection/enabled", "false"},
 	    {"module::Registrar/reg-domains", "sip.example.org"},

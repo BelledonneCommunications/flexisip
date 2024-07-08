@@ -421,13 +421,13 @@ static void calleeMultipleOnlineDevices() {
 namespace {
 TestSuite _("Fork call context suite",
             {
-                TEST_NO_TAG("Basic call -> terminate", basicCall),
-                TEST_NO_TAG("Call with early cancel", callWithEarlyCancel),
-                TEST_NO_TAG("Call with early decline", calleeOfflineWithOneDeviceEarlyDecline),
-                TEST_NO_TAG("Call an offline user, early cancel", callWithEarlyCancelCalleeOffline),
-                TEST_NO_TAG("Call an only offline user, early cancel", callWithEarlyCancelCalleeOnlyOffline),
-                TEST_NO_TAG("Call an online user, with an other offline device", calleeOfflineWithOneDevice),
-                TEST_NO_TAG("Call an online user, with other idle devices", calleeMultipleOnlineDevices),
+                NAMED_CLASSY_TEST("Basic call -> terminate", basicCall),
+                NAMED_CLASSY_TEST("Call with early cancel", callWithEarlyCancel),
+                NAMED_CLASSY_TEST("Call with early decline", calleeOfflineWithOneDeviceEarlyDecline),
+                NAMED_CLASSY_TEST("Call an offline user, early cancel", callWithEarlyCancelCalleeOffline),
+                NAMED_CLASSY_TEST("Call an only offline user, early cancel", callWithEarlyCancelCalleeOnlyOffline),
+                NAMED_CLASSY_TEST("Call an online user, with an other offline device", calleeOfflineWithOneDevice),
+                NAMED_CLASSY_TEST("Call an online user, with other idle devices", calleeMultipleOnlineDevices),
                 CLASSY_TEST(callWithEarlyCancelCalleeOfflineNoVOIPPush),
             });
 }

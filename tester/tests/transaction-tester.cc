@@ -53,9 +53,9 @@ void cancelReasonIsForwarded() {
 	builder.setRegistration(OnOff::Off);
 
 	auto canceller = builder.build("sip:cancel-caller@sip.example.org");
-	canceller.setRoute("sip:127.0.0.1", proxy.getFirstPort());
+	canceller.setRoute("sip:127.0.0.1;transport=tcp", proxy.getFirstPort());
 	auto cancellee = builder.build("sip:cancel-callee@sip.example.org");
-	cancellee.setRoute("sip:127.0.0.1", proxy.getFirstPort());
+	cancellee.setRoute("sip:127.0.0.1;transport=tcp", proxy.getFirstPort());
 
 	// Reconstruct callee's local address
 	calleeAddress = SipUri("sip:" + cancellee.getMe()->getUsername() +
