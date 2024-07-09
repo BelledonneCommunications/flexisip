@@ -135,7 +135,7 @@ public:
 	void publish(const Record::Key& topic, const std::string& uid) override;
 
 private:
-	static void sBindRetry(void* ud);
+	static void sBindRetry(void* ud) noexcept;
 	void setWritable(bool value);
 
 	void serializeAndSendToRedis(RedisRegisterContext&, redis::async::Session::CommandCallback&&);

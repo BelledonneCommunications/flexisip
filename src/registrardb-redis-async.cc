@@ -270,15 +270,18 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RedisRegisterContext& contex
 
 /* Methods called by the callbacks */
 
-void RegistrarDbRedisAsync::sBindRetry(void* ud) {
-	std::unique_ptr<RedisRegisterContext> context{static_cast<RedisRegisterContext*>(ud)};
-	RegistrarDbRedisAsync* self = context->self;
-	auto& contextRef = *context;
+void RegistrarDbRedisAsync::sBindRetry(void* ud) noexcept {
+	try {
+		std::unique_ptr<RedisRegisterContext> context{static_cast<RedisRegisterContext*>(ud)};
+		RegistrarDbRedisAsync* self = context->self;
+		auto& contextRef = *context;
 
-	self->serializeAndSendToRedis(contextRef, [self, context = std::move(context)](Session&, Reply reply) mutable {
-		self->handleBind(reply, std::move(context));
-	});
-	return;
+		self->serializeAndSendToRedis(contextRef, [self, context = std::move(context)](Session&, Reply reply) mutable {
+			self->handleBind(reply, std::move(context));
+		});
+	} catch (const exception& e) {
+		SLOGE << "Unexpected exception occurred in callback RegistrarDbRedisAsync::sBindRetry :\n" << e.what();
+	}
 }
 
 std::chrono::milliseconds RegistrarDbRedisAsync::bindRetryTimeout = 5s;
