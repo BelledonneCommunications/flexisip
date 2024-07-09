@@ -579,71 +579,106 @@ void RegistrarDbRedisAsync::publish(const string& topic, const string& uid) {
 /* Static functions that are used as callbacks to redisAsync API */
 
 #ifndef WITHOUT_HIREDIS_CONNECT_CALLBACK
-void RegistrarDbRedisAsync::sConnectCallback(const redisAsyncContext* c, int status) {
-	RegistrarDbRedisAsync* zis = (RegistrarDbRedisAsync*)c->data;
-	if (zis) {
-		zis->onConnect(c, status);
+void RegistrarDbRedisAsync::sConnectCallback(const redisAsyncContext* c, int status) noexcept {
+	try {
+		RegistrarDbRedisAsync* zis = (RegistrarDbRedisAsync*)c->data;
+		if (zis) {
+			zis->onConnect(c, status);
+		}
+	} catch (const exception& e) {
+		SLOGE << "Unexpected exception occurred in callback RegistrarDbRedisAsync::sConnectCallback :\n" << e.what();
 	}
 }
 
-void RegistrarDbRedisAsync::sSubscribeConnectCallback(const redisAsyncContext* c, int status) {
-	RegistrarDbRedisAsync* zis = (RegistrarDbRedisAsync*)c->data;
-	if (zis) {
-		zis->onSubscribeConnect(c, status);
+void RegistrarDbRedisAsync::sSubscribeConnectCallback(const redisAsyncContext* c, int status) noexcept {
+	try {
+		RegistrarDbRedisAsync* zis = (RegistrarDbRedisAsync*)c->data;
+		if (zis) {
+			zis->onSubscribeConnect(c, status);
+		}
+	} catch (const exception& e) {
+		SLOGE << "Unexpected exception occurred in callback RegistrarDbRedisAsync::sSubscribeConnectCallback :\n"
+		      << e.what();
 	}
 }
 #endif
 
-void RegistrarDbRedisAsync::sDisconnectCallback(const redisAsyncContext* c, int status) {
-	RegistrarDbRedisAsync* zis = (RegistrarDbRedisAsync*)c->data;
-	if (zis) {
-		zis->onDisconnect(c, status);
-	}
-}
-
-void RegistrarDbRedisAsync::sSubscribeDisconnectCallback(const redisAsyncContext* c, int status) {
-	RegistrarDbRedisAsync* zis = (RegistrarDbRedisAsync*)c->data;
-	if (zis) {
-		zis->onSubscribeDisconnect(c, status);
-	}
-}
-
-void RegistrarDbRedisAsync::sPublishCallback(redisAsyncContext* c, void* r, [[maybe_unused]] void* privcontext) {
-	const auto* reply = static_cast<redisReply*>(r);
-	if (reply == nullptr) return;
-
-	if (reply->type == REDIS_REPLY_ARRAY) {
-		const auto& messageType = reply->element[0]->str;
-		const auto& channel = reply->element[1]->str;
-		if (strcasecmp(messageType, "message") == 0) {
-			const auto& message = reply->element[2]->str;
-			SLOGD << "Publish array received: [" << messageType << ", " << channel << ", " << message << "]";
-			auto* zis = static_cast<RegistrarDbRedisAsync*>(c->data);
-			if (zis) {
-				zis->notifyContactListener(reply->element[1]->str, reply->element[2]->str);
-			}
-		} else {
-			const auto& nSubscriptions = reply->element[2]->integer;
-			SLOGD << "'" << messageType << "' request on '" << channel << "' channel succeeded. " << nSubscriptions
-			      << " actual subscriptions";
+void RegistrarDbRedisAsync::sDisconnectCallback(const redisAsyncContext* c, int status) noexcept {
+	try {
+		RegistrarDbRedisAsync* zis = (RegistrarDbRedisAsync*)c->data;
+		if (zis) {
+			zis->onDisconnect(c, status);
 		}
+	} catch (const exception& e) {
+		SLOGE << "Unexpected exception occurred in callback RegistrarDbRedisAsync::sDisconnectCallback :\n" << e.what();
 	}
 }
 
-void RegistrarDbRedisAsync::sKeyExpirationPublishCallback(redisAsyncContext* c, void* r, void*) {
-	redisReply* reply = reinterpret_cast<redisReply*>(r);
-	if (!reply) return;
+void RegistrarDbRedisAsync::sSubscribeDisconnectCallback(const redisAsyncContext* c, int status) noexcept {
+	try {
+		RegistrarDbRedisAsync* zis = (RegistrarDbRedisAsync*)c->data;
+		if (zis) {
+			zis->onSubscribeDisconnect(c, status);
+		}
+	} catch (const exception& e) {
+		SLOGE << "Unexpected exception occurred in callback RegistrarDbRedisAsync::sSubscribeDisconnectCallback :\n"
+		      << e.what();
+	}
+}
 
-	if (reply->type == REDIS_REPLY_ARRAY) {
-		if (reply->element[2]->str != nullptr) {
+void RegistrarDbRedisAsync::sPublishCallback(redisAsyncContext* c, void* r, void*) noexcept {
+	try {
+		const auto* reply = static_cast<redisReply*>(r);
+		if (reply == nullptr) return;
+
+		if (reply->type == REDIS_REPLY_ARRAY) {
+			const auto& messageType = reply->element[0]->str;
+			const auto& channel = reply->element[1]->str;
+			if (strcasecmp(messageType, "message") == 0) {
+				const auto& message = reply->element[2]->str;
+				SLOGD << "Publish array received: [" << messageType << ", " << channel << ", " << message << "]";
+				auto* zis = static_cast<RegistrarDbRedisAsync*>(c->data);
+				if (zis) {
+					zis->notifyContactListener(reply->element[1]->str, reply->element[2]->str);
+				}
+			} else {
+				const auto& nSubscriptions = reply->element[2]->integer;
+				SLOGD << "'" << messageType << "' request on '" << channel << "' channel succeeded. " << nSubscriptions
+				      << " actual subscriptions";
+			}
+		}
+	} catch (const exception& e) {
+		SLOGE << "Unexpected exception occurred in callback RegistrarDbRedisAsync::sPublishCallback :\n" << e.what();
+	}
+}
+
+void RegistrarDbRedisAsync::sKeyExpirationPublishCallback(redisAsyncContext* c, void* r, void*) noexcept {
+	try {
+		redisReply* reply = reinterpret_cast<redisReply*>(r);
+		if (!reply) return;
+
+		if (reply->type == REDIS_REPLY_ARRAY && reply->element[2]->str != nullptr) {
 			RegistrarDbRedisAsync* zis = reinterpret_cast<RegistrarDbRedisAsync*>(c->data);
 			if (zis) {
 				string prefix = "fs:";
 				string key = reply->element[2]->str;
-				if (key.substr(0, prefix.size()) == prefix) key = key.substr(prefix.size());
-				zis->notifyContactListener(key, "");
+				if (key.substr(0, prefix.size()) == prefix) {
+					key = key.substr(prefix.size());
+				} else {
+					SLOGD << "Expired key does not start with fs: [" << key << "]";
+					return;
+				}
+
+				try {
+					zis->notifyContactListener(key, "");
+				} catch (const sofiasip::InvalidUrlError& e) {
+					SLOGE << "Expired key was not a SipUri: " << e.what();
+				}
 			}
 		}
+	} catch (const exception& e) {
+		SLOGE << "Unexpected exception occurred in callback RegistrarDbRedisAsync::sKeyExpirationPublishCallback :\n"
+		      << e.what();
 	}
 }
 
@@ -802,23 +837,24 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RedisRegisterContext* contex
 
 /* Methods called by the callbacks */
 
-void RegistrarDbRedisAsync::sBindRetry([[maybe_unused]] void* unused, [[maybe_unused]] su_timer_t* t, void* ud) {
-	RedisRegisterContext* context = (RedisRegisterContext*)ud;
-	su_timer_destroy(context->mRetryTimer);
-	context->mRetryTimer = nullptr;
-	RegistrarDbRedisAsync* self = context->self;
+void RegistrarDbRedisAsync::sBindRetry(void*, su_timer_t*, void* ud) noexcept {
+	try {
+		RedisRegisterContext* context = (RedisRegisterContext*)ud;
+		su_timer_destroy(context->mRetryTimer);
+		context->mRetryTimer = nullptr;
+		RegistrarDbRedisAsync* self = context->self;
 
-	if (!self->isConnected()) {
-		goto fail;
+		if (!self->isConnected()) {
+			LOGE("Unrecoverable error while updating record fs:%s : no connection", context->mRecord->getKey().c_str());
+			if (context->listener) context->listener->onError();
+			delete context;
+			return;
+		}
+
+		self->serializeAndSendToRedis(context, sHandleBindFinish);
+	} catch (const exception& e) {
+		SLOGE << "Unexpected exception occurred in callback RegistrarDbRedisAsync::sBindRetry :\n" << e.what();
 	}
-
-	self->serializeAndSendToRedis(context, sHandleBindFinish);
-	return;
-
-fail:
-	LOGE("Unrecoverable error while updating record fs:%s : no connection", context->mRecord->getKey().c_str());
-	if (context->listener) context->listener->onError();
-	delete context;
 }
 
 void RegistrarDbRedisAsync::handleBind(redisReply* reply, RedisRegisterContext* context) {

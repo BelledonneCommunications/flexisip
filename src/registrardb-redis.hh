@@ -211,13 +211,13 @@ protected:
 	void publish(const std::string& topic, const std::string& uid) override;
 
 private:
-	static void sConnectCallback(const redisAsyncContext* c, int status);
-	static void sDisconnectCallback(const redisAsyncContext* c, int status);
-	static void sSubscribeConnectCallback(const redisAsyncContext* c, int status);
-	static void sSubscribeDisconnectCallback(const redisAsyncContext* c, int status);
-	static void sPublishCallback(redisAsyncContext* c, void* r, void* privdata);
-	static void sKeyExpirationPublishCallback(redisAsyncContext* c, void* r, void* data);
-	static void sBindRetry(void* unused, su_timer_t* t, void* ud);
+	static void sConnectCallback(const redisAsyncContext* c, int status) noexcept;
+	static void sDisconnectCallback(const redisAsyncContext* c, int status) noexcept;
+	static void sSubscribeConnectCallback(const redisAsyncContext* c, int status) noexcept;
+	static void sSubscribeDisconnectCallback(const redisAsyncContext* c, int status) noexcept;
+	static void sPublishCallback(redisAsyncContext* c, void* r, void* privdata) noexcept;
+	static void sKeyExpirationPublishCallback(redisAsyncContext* c, void* r, void* data) noexcept;
+	static void sBindRetry(void* unused, su_timer_t* t, void* ud) noexcept;
 	bool isConnected();
 	void setWritable(bool value);
 
