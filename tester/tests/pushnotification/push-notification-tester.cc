@@ -707,14 +707,19 @@ protected:
 		auto& regDb = mAgent->getRegistrarDb();
 		auto service = std::make_shared<pushnotification::Service>(mRoot, 0xdead);
 		// SIP only counts contact expiration in seconds, and 1s is apparently not enough to receive everything
-		const auto interval = 2s;
+		// as the notifier initialization and the registration of the contacts can be made over 2 different seconds
+		// (creation of the notifier at .999 can create a lot of different scenarios).
+		// Change threshold boundary with care, increasing the maximum will probably need an interval increase.
+		const auto interval = 6s;
 		const auto threshold = [] {
 			auto engine = tester::randomEngine();
 			return std::uniform_real_distribution<float>(1. / 100, 50. / 100)(engine);
 		}();
-		auto minExpiration = interval + 1s;
-		// Any contact expiring later than that should not be returned
-		auto maxExpiration = chrono::seconds(long(ceilf(interval.count() / threshold)) - 1);
+		auto minExpiration = interval + 2s;
+		// Any contact expiring later than that cannot be sure to be returned because of seconds rounding
+		auto maxExpiration = chrono::seconds(long((interval.count() - 1) / threshold) - 1);
+
+		auto thresholdPostInterval = chrono::seconds(long(ceilf((interval.count() + 2) / threshold)));
 		ContactExpirationNotifier notifier(interval, threshold, mRoot, service, regDb);
 
 		auto appId = "fakeAppId";
@@ -726,13 +731,13 @@ protected:
 		inserter.setExpire(minExpiration + (maxExpiration - minExpiration) / 2)
 		    .setAor(Contact("sip:expected1@example.org").withFirebasePushParams(appId))
 		    .insert();
-		inserter.setExpire(maxExpiration + 1s)
+		inserter.setExpire(thresholdPostInterval)
 		    .setAor(Contact("sip:unexpected@example.org").withFirebasePushParams(appId))
 		    .insert();
 		inserter.setExpire(minExpiration)
 		    .setAor(Contact("sip:expected3@example.org").withFirebasePushParams(appId))
 		    .insert();
-		inserter.setExpire(minExpiration - 1s)
+		inserter.setExpire(interval - 1s)
 		    .setAor(Contact("sip:expired@example.org").withFirebasePushParams(appId))
 		    .insert();
 		inserter
