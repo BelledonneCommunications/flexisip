@@ -36,39 +36,19 @@ using namespace std;
 using namespace linphone;
 
 namespace flexisip {
-
-// b2bua namespace to declare internal structures
-namespace b2bua {
-struct callsRefs {
-	shared_ptr<linphone::Call> legA;       /**< legA is the incoming call intercepted by the b2bua */
-	shared_ptr<linphone::Call> legB;       /**< legB is the call initiated by the b2bua to the original recipient */
-	shared_ptr<linphone::Conference> conf; /**< the conference created to connect legA and legB */
-};
-
-struct EventsRefs {
-	shared_ptr<linphone::Event> legA; /**< legA is the incoming subscribe intercepted by the b2bua */
-	shared_ptr<linphone::Event> legB; /**< legB is the subscribe initiated by the b2bua to the original recipient */
-};
-} // namespace b2bua
-
-// unamed namespace for local functions
 namespace {
-/**
- * Given one leg of the tranfered call, it returns the other leg
- *
- * @param[in]	call one of the call in the two call conference created by the b2bua
- *
- * @return	the other call in the conference
- */
-shared_ptr<linphone::Call> getPeerCall(shared_ptr<linphone::Call> call) {
-	auto& confData = call->getData<flexisip::b2bua::callsRefs>(B2buaServer::kConfKey);
-	if (call->getDir() == linphone::Call::Dir::Outgoing) {
-		return confData.legA;
-	} else {
-		return confData.legB;
-	}
-}
+shared_ptr<linphone::Call> kEmptyCall{};
 } // namespace
+
+const shared_ptr<linphone::Call>& B2buaServer::getPeerCall(const shared_ptr<linphone::Call>& call) const {
+	const auto callId = call->getCallLog()->getCallId();
+	const auto peerCallEntry = mPeerCalls.find(callId);
+	if (peerCallEntry == mPeerCalls.cend()) {
+		SLOGW << "b2bua server hasn't found the peer call of callId " << callId;
+		return kEmptyCall;
+	}
+	return peerCallEntry->second;
+}
 
 B2buaServer::B2buaServer(const shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg)
     : ServiceServer(root), mConfigManager(cfg), mCli("b2bua", cfg, root) {
@@ -125,15 +105,9 @@ void B2buaServer::onCallStateChanged(const shared_ptr<linphone::Core>&,
 			// add legA to the conference, but do not answer now
 			conference->addParticipant(call);
 
-			// store shared pointer to the conference and each call
-			auto confData = new b2bua::callsRefs();
-			confData->conf = conference;
-			confData->legA = call;
-			confData->legB = legB;
-
-			// store ref on each other call
-			call->setData<b2bua::callsRefs>(B2buaServer::kConfKey, *confData);
-			legB->setData<b2bua::callsRefs>(B2buaServer::kConfKey, *confData);
+			// store each peer call
+			mPeerCalls[call->getCallLog()->getCallId()] = legB;
+			mPeerCalls[legB->getCallLog()->getCallId()] = call;
 		} break;
 		case linphone::Call::State::PushIncomingReceived:
 			break;
@@ -143,18 +117,19 @@ void B2buaServer::onCallStateChanged(const shared_ptr<linphone::Core>&,
 			break;
 		case linphone::Call::State::OutgoingRinging: {
 			// This is legB getting its ring from callee, relay it to the legA call
-			auto& confData = call->getData<b2bua::callsRefs>(B2buaServer::kConfKey);
-			confData.legA->notifyRinging();
+			const auto& legA = getPeerCall(call);
+			if (legA) legA->notifyRinging();
 		} break;
 		case linphone::Call::State::OutgoingEarlyMedia: {
 			// LegB call sends early media: relay a 180
-			auto& confData = call->getData<b2bua::callsRefs>(B2buaServer::kConfKey);
-			confData.legA->notifyRinging();
+			const auto& legA = getPeerCall(call);
+			if (legA) legA->notifyRinging();
 		} break;
 		case linphone::Call::State::Connected: {
 		} break;
 		case linphone::Call::State::StreamsRunning: {
 			auto peerCall = getPeerCall(call);
+			if (!peerCall) return;
 
 			// If this is legB and legA is in incoming state, answer it
 			// This cannot be done in connected state as currentCallParams are not updated yet
@@ -203,16 +178,15 @@ void B2buaServer::onCallStateChanged(const shared_ptr<linphone::Core>&,
 			// when call in error we shall kill the conf, just do as in End
 		case linphone::Call::State::End: {
 			mApplication->onCallEnd(*call);
-			if (call->dataExists(B2buaServer::kConfKey)) {
-				auto peerCall = getPeerCall(call);
-				// terminate peer Call, copy error info from this call
-				peerCall->terminateWithErrorInfo(call->getErrorInfo());
-			}
+			// terminate peer Call, copy error info from this call
+			const auto& peerCall = getPeerCall(call);
+			if (peerCall) peerCall->terminateWithErrorInfo(call->getErrorInfo());
 		} break;
 		case linphone::Call::State::PausedByRemote: {
 			// Paused by remote: do not pause peer call as it will kick it out of the conference
 			// just switch the media direction to sendOnly (only if it is not already set this way)
-			const auto peerCall = getPeerCall(call);
+			const auto& peerCall = getPeerCall(call);
+			if (!peerCall) return;
 			if (peerCall->getState() == linphone::Call::State::PausedByRemote) {
 				const string_view peerLegName = legName == "legA" ? "legB" : "legA";
 				SLOGE << "Both calls are in state LinphoneCallPausedByRemote, lost track of who initiated the pause"
@@ -233,7 +207,8 @@ void B2buaServer::onCallStateChanged(const shared_ptr<linphone::Core>&,
 		} break;
 		case linphone::Call::State::UpdatedByRemote: {
 			// Manage add/remove video - ignore for other changes
-			auto peerCall = getPeerCall(call);
+			const auto& peerCall = getPeerCall(call);
+			if (!peerCall) return;
 			auto peerCallParams = mCore->createCallParams(peerCall);
 			const auto selfCallParams = call->getCurrentParams();
 			const auto selfRemoteCallParams = call->getRemoteParams();
@@ -264,23 +239,17 @@ void B2buaServer::onCallStateChanged(const shared_ptr<linphone::Core>&,
 			break;
 		case linphone::Call::State::Updating:
 			break;
-		case linphone::Call::State::Released:
+		case linphone::Call::State::Released: {
 			// If there are some data in that call, it is the first one to end
-			if (call->dataExists(B2buaServer::kConfKey)) {
-				auto& confData = call->getData<b2bua::callsRefs>(B2buaServer::kConfKey);
-				SLOGD << "B2bua release call: Terminate conference " << confData.conf;
-				// unset data everywhere it was stored
-				confData.legA->unsetData(B2buaServer::kConfKey);
-				confData.legB->unsetData(B2buaServer::kConfKey);
-				confData.conf->unsetData(B2buaServer::kConfKey);
-				// terminate the conf
-				confData.conf->terminate();
-				// memory cleaning
-				delete (&confData);
+			const auto callId = call->getCallLog()->getCallId();
+			const auto peerCallEntry = mPeerCalls.find(callId);
+			if (peerCallEntry != mPeerCalls.cend()) {
+				mPeerCalls.erase(peerCallEntry);
+				SLOGD << "B2bua release call: " << callId;
 			} else {
-				SLOGD << "B2bua end call: conference already terminated";
+				SLOGD << "B2bua end call: call already terminated " << callId;
 			}
-			break;
+		} break;
 		case linphone::Call::State::EarlyUpdating:
 			break;
 		case linphone::Call::State::EarlyUpdatedByRemote:
@@ -293,7 +262,8 @@ void B2buaServer::onCallStateChanged(const shared_ptr<linphone::Core>&,
 void B2buaServer::onDtmfReceived([[maybe_unused]] const shared_ptr<linphone::Core>& _core,
                                  const shared_ptr<linphone::Call>& call,
                                  int dtmf) {
-	auto otherLeg = getPeerCall(call);
+	const auto& otherLeg = getPeerCall(call);
+	if (!otherLeg) return;
 	SLOGD << "Forwarding DTMF " << dtmf << " from " << call->getCallLog()->getCallId() << " to "
 	      << otherLeg->getCallLog()->getCallId();
 	otherLeg->sendDtmf(dtmf);
@@ -335,37 +305,32 @@ void B2buaServer::onSubscribeReceived(const std::shared_ptr<linphone::Core>& cor
 	}
 
 	// Store a shared pointer to each event
-	auto eventsData = new b2bua::EventsRefs();
-	eventsData->legA = legAEvent;
-	eventsData->legB = legBEvent;
-	legAEvent->setData<b2bua::EventsRefs>(B2buaServer::kEventKey, *eventsData);
-	legBEvent->setData<b2bua::EventsRefs>(B2buaServer::kEventKey, *eventsData);
+	mPeerEvents[legAEvent->getCallId()] = {.peerEvent = legBEvent, .isLegA = true};
+	mPeerEvents[legBEvent->getCallId()] = {.peerEvent = legAEvent, .isLegA = false};
 	legAEvent->addListener(shared_from_this());
 }
 
 void B2buaServer::onSubscribeStateChanged(const std::shared_ptr<linphone::Event>& event,
                                           linphone::SubscriptionState state) {
-	try {
-		b2bua::EventsRefs& eventsData = event->getData<b2bua::EventsRefs>(B2buaServer::kEventKey);
-		if (event == eventsData.legB) {
-			if (state == linphone::SubscriptionState::Active) {
-				// Forward the subscription acceptation
-				eventsData.legA->acceptSubscription();
-			} else if (state == linphone::SubscriptionState::Error) {
-				// Forward the subcription error
-				eventsData.legA->denySubscription(event->getReason());
-			}
-		} else if (event == eventsData.legA) {
-			if (state == linphone::SubscriptionState::Terminated) {
-				// Un-SUBSCRIBE from the subscriber
-				eventsData.legB->terminate();
-				eventsData.legA->unsetData(B2buaServer::kEventKey);
-				eventsData.legB->unsetData(B2buaServer::kEventKey);
-				delete &eventsData;
-			}
+	const auto eventEntry = mPeerEvents.find(event->getCallId());
+	if (eventEntry == mPeerEvents.cend()) return;
+	const auto& eventInfo = eventEntry->second;
+	if (eventInfo.isLegA) {
+		if (state == linphone::SubscriptionState::Terminated) {
+			// Un-SUBSCRIBE from the subscriber
+			eventInfo.peerEvent->terminate();
+			const auto peerEventEntry = mPeerEvents.find(eventInfo.peerEvent->getCallId());
+			if (peerEventEntry != mPeerEvents.cend()) mPeerEvents.erase(peerEventEntry);
+			mPeerEvents.erase(eventEntry);
 		}
-	} catch (std::out_of_range&) {
-		// The event does not contain eventsData
+	} else {
+		if (state == linphone::SubscriptionState::Active) {
+			// Forward the subscription acceptation
+			eventInfo.peerEvent->acceptSubscription();
+		} else if (state == linphone::SubscriptionState::Error) {
+			// Forward the subcription error
+			eventInfo.peerEvent->denySubscription(event->getReason());
+		}
 	}
 }
 
@@ -374,13 +339,13 @@ void B2buaServer::onSubscribeStateChanged(const std::shared_ptr<linphone::Event>
 // subscription.
 void B2buaServer::onNotifyReceived(const std::shared_ptr<linphone::Event>& event,
                                    const std::shared_ptr<const linphone::Content>& content) {
-	try {
-		b2bua::EventsRefs& eventsData = event->getData<b2bua::EventsRefs>(B2buaServer::kEventKey);
-		// Forward NOTIFY
-		eventsData.legA->notify(content);
-	} catch (std::out_of_range&) {
+	auto eventEntry = mPeerEvents.find(event->getCallId());
+	if (eventEntry == mPeerEvents.cend()) {
 		SLOGE << "No data associated to the event, can't forward the NOTIFY";
+		return;
 	}
+	// Forward NOTIFY
+	eventEntry->second.peerEvent->notify(content);
 }
 
 // MWI listener on the core.
