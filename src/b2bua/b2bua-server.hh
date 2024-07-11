@@ -19,6 +19,8 @@
 #pragma once
 
 #include <memory>
+#include <regex>
+#include <unordered_map>
 #include <variant>
 
 #include "b2bua/b2bua-core.hh"
@@ -73,7 +75,6 @@ class B2buaServer : public ServiceServer,
 public:
 	friend class tester::b2buatester::B2buaServer;
 
-	static constexpr auto& kConfKey = "b2bua::confData";
 	// Used to flag invites emitted by the B2BUA so they are not re-routed back to it by the B2bua module
 	static constexpr auto& kCustomHeader = "X-Flexisip-B2BUA";
 
@@ -106,9 +107,17 @@ protected:
 	std::unique_ptr<AsyncCleanup> _stop() override;
 
 private:
+	const std::shared_ptr<linphone::Call>& getPeerCall(const std::shared_ptr<linphone::Call>& call) const;
+
 	std::shared_ptr<ConfigManager> mConfigManager;
 	CommandLineInterface mCli;
 	std::shared_ptr<b2bua::B2buaCore> mCore;
+	std::unordered_map<std::string, std::shared_ptr<linphone::Call>> mPeerCalls;
+	struct EventInfo {
+		std::shared_ptr<linphone::Event> peerEvent;
+		bool isLegA;
+	};
+	std::unordered_map<std::string, EventInfo> mPeerEvents;
 	std::unique_ptr<b2bua::Application> mApplication = nullptr;
 };
 
