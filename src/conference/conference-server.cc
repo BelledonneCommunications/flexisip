@@ -298,13 +298,7 @@ void ConferenceServer::enableSelectedCodecs(const std::list<std::shared_ptr<linp
 }
 
 void ConferenceServer::_run() {
-	const auto start = high_resolution_clock::now();
 	mCore->iterate();
-	const auto stop = high_resolution_clock::now();
-	const auto duration = duration_cast<milliseconds>(stop - start);
-	if (duration > 100ms) {
-		SLOGW << "Be careful mCore->iterate() took more than 100ms [" << duration.count() << " ms] and delay main loop";
-	}
 }
 
 std::unique_ptr<AsyncCleanup> ConferenceServer::_stop() {

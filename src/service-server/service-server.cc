@@ -15,19 +15,31 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-
 #include "service-server.hh"
 
-using namespace std;
+#include <chrono>
+
+#include "flexisip/logmanager.hh"
 
 namespace flexisip {
+
+using namespace std;
+using namespace chrono;
 
 void ServiceServer::init() {
 	if (mRoot) {
 		mTimer = make_unique<sofiasip::Timer>(mRoot->getCPtr(), 10ms);
 		mTimer->setForEver([this]() {
 			if (mStarted) {
+				const auto start = high_resolution_clock::now();
 				_run();
+				const auto stop = high_resolution_clock::now();
+				const auto duration = duration_cast<milliseconds>(stop - start);
+				if (duration > 50ms) {
+					SLOGD << "ServiceServer::_run() - took more than 50ms [" << duration.count() << " ms].";
+				} else if (duration > 100ms) {
+					SLOGW << "ServiceServer::_run() - took more than 100ms [" << duration.count() << " ms].";
+				}
 			}
 		});
 	}
