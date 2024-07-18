@@ -35,10 +35,10 @@ void ServiceServer::init() {
 				_run();
 				const auto stop = high_resolution_clock::now();
 				const auto duration = duration_cast<milliseconds>(stop - start);
-				if (duration > 50ms) {
-					SLOGD << "ServiceServer::_run() - took more than 50ms [" << duration.count() << " ms].";
-				} else if (duration > 100ms) {
+				if (duration > 100ms) {
 					SLOGW << "ServiceServer::_run() - took more than 100ms [" << duration.count() << " ms].";
+				} else if (duration > 50ms) {
+					SLOGD << "ServiceServer::_run() - took more than 50ms [" << duration.count() << " ms].";
 				}
 			}
 		});
