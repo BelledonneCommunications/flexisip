@@ -183,7 +183,7 @@ Trenscrypter::onCallCreate(const linphone::Call& incomingCall, linphone::CallPar
 	return callee;
 }
 
-void Trenscrypter::init(const std::shared_ptr<linphone::Core>& core, const flexisip::ConfigManager& cfg) {
+void Trenscrypter::init(const std::shared_ptr<B2buaCore>& core, const flexisip::ConfigManager& cfg) {
 	mCore = core;
 	const auto* configRoot = cfg.getRoot();
 	const auto* config = configRoot->get<GenericStruct>(configSection);

@@ -165,7 +165,7 @@ void bidirectionalBridging() {
 	flexisipProxy.getAgent()->findModule("Router")->reload();
 	const auto felix = ClientBuilder(*flexisipProxy.getAgent()).build("felix@flexisip.example.org");
 	const auto jasper = ClientBuilder(*jabiruProxy.getAgent()).build("jasper@jabiru.example.org");
-	CoreAssert asserter{flexisipProxy, *b2buaLoop, jabiruProxy};
+	CoreAssert asserter{flexisipProxy, b2buaLoop, jabiruProxy};
 	asserter
 	    .iterateUpTo(
 	        3,
@@ -319,7 +319,7 @@ void loadAccountsFromSQL() {
 	const auto b2buaLoop = std::make_shared<sofiasip::SuRoot>();
 	const auto b2buaServer = std::make_shared<B2buaServer>(b2buaLoop, proxy.getConfigManager());
 	b2buaServer->init();
-	CoreAssert asserter{proxy, *b2buaLoop};
+	CoreAssert asserter{proxy, b2buaLoop};
 
 	const auto& sipProviders =
 	    dynamic_cast<const b2bua::bridge::SipBridge&>(b2buaServer->getApplication()).getProviders();
@@ -455,7 +455,7 @@ void invalidUriTriggersDecline() {
 	    ->set("sip:127.0.0.1:" + std::to_string(b2buaServer->getTcpPort()) + ";transport=tcp");
 	proxy.getAgent()->findModule("Router")->reload();
 	const auto caller = ClientBuilder(*proxy.getAgent()).build("caller@example.org");
-	CoreAssert asserter{proxy, *b2buaLoop, caller};
+	CoreAssert asserter{proxy, b2buaLoop, caller};
 
 	caller.invite("b2bua-account@example.org");
 	BC_ASSERT(asserter
@@ -587,7 +587,7 @@ void authenticatedAccounts() {
 	const auto b2buaServer = std::make_shared<B2buaServer>(b2buaLoop, proxy.getConfigManager());
 	b2buaServer->init();
 
-	CoreAssert(proxy, *b2buaLoop)
+	CoreAssert(proxy, b2buaLoop)
 	    .iterateUpTo(
 	        5,
 	        [&sipProviders =
@@ -682,7 +682,7 @@ void disableAccountsUnregistrationOnServerShutdown() {
 	const auto b2buaServer = std::make_shared<B2buaServer>(b2buaLoop, proxy.getConfigManager());
 	b2buaServer->init();
 
-	CoreAssert(proxy, *b2buaLoop)
+	CoreAssert(proxy, b2buaLoop)
 	    .iterateUpTo(
 	        5,
 	        [&sipProviders =

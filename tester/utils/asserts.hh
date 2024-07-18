@@ -75,6 +75,10 @@ struct AssertionResult {
 #define ASSERT_PASSED(assertionResult)                                                                                 \
 	bc_assert(__FILE__, __LINE__, assertionResult.assert_passed(), "ASSERT_PASSED(" #assertionResult ")")
 
+constexpr auto kDefaultSleepInterval = std::chrono::nanoseconds(std::chrono::milliseconds(10));
+constexpr auto kNoSleep = std::chrono::nanoseconds(0);
+
+template <const std::chrono::nanoseconds& sleepBetweenIterations = kDefaultSleepInterval>
 class BcAssert {
 public:
 	BcAssert() = default;
@@ -100,7 +104,7 @@ public:
 	[[nodiscard]] AssertionResult iterateUpTo(const uint32_t iterations,
 	                                          Func condition,
 	                                          std::chrono::milliseconds minTime = std::chrono::milliseconds{1}) {
-		auto remaining = iterations;
+		auto remaining = iterations + 1;
 		auto beforePlusMinTime = std::chrono::system_clock::now() + minTime;
 		return loopAssert(
 		    [&remaining, beforePlusMinTime] {
@@ -128,7 +132,9 @@ public:
 				return result;
 			}
 
-			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+			if constexpr (0 < sleepBetweenIterations.count()) {
+				std::this_thread::sleep_for(sleepBetweenIterations);
+			}
 		}
 	}
 
@@ -163,7 +169,7 @@ private:
 		}
 	}
 
-	std::list<std::function<void()>> mIterateFuncs;
+	std::vector<std::function<void()>> mIterateFuncs;
 };
 
 } // namespace flexisip::tester

@@ -17,6 +17,7 @@
 namespace flexisip::tester {
 namespace {
 using namespace std;
+using namespace flexisip::b2bua;
 using namespace flexisip::b2bua::bridge;
 using namespace flexisip::b2bua::bridge::account_strat;
 
@@ -43,11 +44,12 @@ void test() {
 	proxy.start();
 	const auto& builder = ClientBuilder(*proxy.getAgent());
 	const auto& caller = builder.build(incomingFrom);
-	const auto& b2bua = builder.build("stub@sip.example.org");
-	caller.invite(b2bua);
-	BC_HARD_ASSERT_TRUE(b2bua.hasReceivedCallFrom(caller));
-	const auto forgedCall = ClientCall::getLinphoneCall(*b2bua.getCurrentCall());
-	auto& b2buaCore = b2bua.getCore();
+	const auto& b2buaStub = builder.build("stub@sip.example.org");
+	caller.invite(b2buaStub);
+	BC_HARD_ASSERT_TRUE(b2buaStub.hasReceivedCallFrom(caller));
+	const auto forgedCall = ClientCall::getLinphoneCall(*b2buaStub.getCurrentCall());
+	// For this test, it's okay that this client core isn't configured exactly as that of a B2buaServer
+	const auto& b2buaStubCore = reinterpret_pointer_cast<B2buaCore>(b2buaStub.getCore());
 	auto poolConfig = R"({
 		"outboundProxy": "<sip:some.provider.example.com;transport=tls>",
 		"registrationRequired": false,
@@ -66,9 +68,9 @@ void test() {
 			}
 		]
 	})"_json.get<config::v2::AccountPool>();
-	const auto templateParams = b2buaCore->createAccountParams();
+	const auto templateParams = b2buaStubCore->createAccountParams();
 	auto& staticLoader = get<config::v2::StaticLoader>(poolConfig.loader);
-	const auto pool = make_shared<AccountPool>(proxy.getRoot(), b2buaCore, "test account pool", poolConfig,
+	const auto pool = make_shared<AccountPool>(proxy.getRoot(), b2buaStubCore, "test account pool", poolConfig,
 	                                           make_unique<StaticAccountLoader>(std::move(staticLoader)));
 
 	{

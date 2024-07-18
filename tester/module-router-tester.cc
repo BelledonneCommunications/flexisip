@@ -459,7 +459,7 @@ struct RoutingWithStaticTargets {
 	InjectedHooks mInjectedModule;
 	Server mProxy;
 	sofiasip::NtaAgent mClient;
-	BcAssert mAsserter{};
+	BcAssert<> mAsserter{};
 };
 
 /*

@@ -97,7 +97,6 @@ protected:
 	                                    const std::string& authid,
 	                                    AuthDbListener* listener) = 0;
 
-	std::string createPasswordKey(const std::string& user, const std::string& auth);
 	bool cachePassword(const std::string& key,
 	                   const std::string& domain,
 	                   const std::vector<passwd_algo_t>& pass,
@@ -113,7 +112,8 @@ protected:
 	                         const std::string& phone_alias = "");
 	void clearCache();
 
-	static std::string urlUnescape(const std::string& str);
+	static std::string urlUnescape(std::string_view str);
+	static std::string createPasswordKey(std::string_view user, std::string_view auth);
 
 	int mCacheExpire;
 

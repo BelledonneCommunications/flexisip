@@ -607,7 +607,7 @@ static void globalTestMultipleMessages() {
 	 */
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
-	if (!CoreAssert({receiverClient->getCore()}, server->getAgent()).wait([&moduleRouter, i] {
+	if (!CoreAssert({receiverClient}, server->getAgent()).wait([&moduleRouter, i] {
 		    return moduleRouter->mStats.mCountMessageForks->finish->read() == i;
 	    })) {
 		BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), i, int, "%i");
@@ -618,7 +618,7 @@ static void globalTestMultipleMessages() {
 
 	// Client REGISTER and receive message
 	receiverClient->getCore()->setNetworkReachable(true);
-	if (!CoreAssert({receiverClient->getCore()}, server->getAgent()).waitUntil(20s, [receiverClient, i] {
+	if (!CoreAssert({receiverClient}, server->getAgent()).waitUntil(20s, [receiverClient, i] {
 		    return receiverClient->getAccount()->getState() == RegistrationState::Ok &&
 		           (unsigned int)receiverClient->getCore()->getUnreadChatMessageCount() == i;
 	    })) {
@@ -626,7 +626,7 @@ static void globalTestMultipleMessages() {
 	}
 
 	// Assert Fork is destroyed after being delivered
-	if (!CoreAssert({receiverClient->getCore()}, server->getAgent()).waitUntil(10s, [&moduleRouter, i] {
+	if (!CoreAssert({receiverClient}, server->getAgent()).waitUntil(10s, [&moduleRouter, i] {
 		    return moduleRouter->mStats.mCountMessageProxyForks->finish->read() == i;
 	    })) {
 		BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), i, int, "%i");

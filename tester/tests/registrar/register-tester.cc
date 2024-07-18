@@ -595,7 +595,7 @@ void minExpires() {
 	sofiasip::NtaAgent client{proxyServer.getRoot(), "sip:127.0.0.1:0"};
 	auto transaction = client.createOutgoingTransaction(validRequest, "sip:127.0.0.1:"s + proxyServer.getFirstPort());
 
-	BC_ASSERT_TRUE(CoreAssert{*proxyServer.getRoot()}.iterateUpTo(
+	BC_ASSERT_TRUE(CoreAssert{proxyServer}.iterateUpTo(
 	    5, [&transaction] { return transaction->isCompleted(); }, 2s));
 
 	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 200);

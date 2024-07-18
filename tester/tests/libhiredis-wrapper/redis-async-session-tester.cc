@@ -21,8 +21,8 @@
 
 #include "libhiredis-wrapper/redis-reply.hh"
 #include "utils/core-assert.hh"
-#include "utils/soft-ptr.hh"
 #include "utils/redis-server.hh"
+#include "utils/soft-ptr.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 #include "utils/variant-utils.hh"
@@ -39,7 +39,7 @@ namespace {
 struct SuiteScope {
 	RedisServer redis{};
 	sofiasip::SuRoot root{};
-	CoreAssert asserter{root};
+	CoreAssert<> asserter{root};
 
 	template <typename TSession>
 	auto& connect(TSession& session) {

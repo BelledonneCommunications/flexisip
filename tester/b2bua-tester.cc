@@ -52,13 +52,16 @@
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
-using namespace std;
-using namespace linphone;
-using namespace flexisip;
-
 namespace flexisip {
 namespace tester {
 namespace b2buatester {
+
+using namespace std;
+using namespace linphone;
+using namespace flexisip;
+using namespace b2bua;
+using namespace bridge;
+
 // B2bua is configured to set media encryption according to a regex on the callee URI
 // define uri to match each of the possible media encryption
 static constexpr auto srtpUri = "sip:b2bua_srtp@sip.example.org";
@@ -69,8 +72,8 @@ static constexpr auto dtlsUri = "sip:b2bua_dtlsp@sip.example.org";
 // MUST match config/flexisip_b2bua.conf:[b2bua-server]:outbound-proxy
 static constexpr auto outboundProxy = "sip:127.0.0.1:5860;transport=tcp";
 
-using V1ProviderDesc = flexisip::b2bua::bridge::config::v1::ProviderDesc;
-using V1AccountDesc = flexisip::b2bua::bridge::config::v1::AccountDesc;
+using V1ProviderDesc = config::v1::ProviderDesc;
+using V1AccountDesc = config::v1::AccountDesc;
 
 class B2buaServer : public Server {
 private:
@@ -127,7 +130,6 @@ public:
 	}
 
 	auto& configureExternalProviderBridge(std::initializer_list<V1ProviderDesc>&& provDescs) {
-		using namespace b2bua::bridge;
 		mB2buaServer->mApplication =
 		    make_unique<SipBridge>(make_shared<sofiasip::SuRoot>(), mB2buaServer->mCore,
 		                           config::v2::fromV1(std::vector<V1ProviderDesc>(std::move(provDescs))),
@@ -135,7 +137,7 @@ public:
 		return static_cast<SipBridge&>(*mB2buaServer->mApplication);
 	}
 
-	flexisip::b2bua::Application& getModule() {
+	Application& getModule() {
 		return *mB2buaServer->mApplication;
 	}
 
@@ -229,7 +231,6 @@ struct DtmfListener : public linphone::CallListener {
 };
 
 static void external_provider_bridge__one_provider_one_line() {
-	using namespace flexisip::b2bua;
 	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf");
 	const auto line1 = "sip:bridge@sip.provider1.com";
 	auto providers = {V1ProviderDesc{"provider1",
@@ -276,7 +277,6 @@ static void external_provider_bridge__one_provider_one_line() {
 }
 
 static void external_provider_bridge__dtmf_forwarding() {
-	using namespace flexisip::b2bua;
 	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf");
 	auto providers = {V1ProviderDesc{"provider1",
 	                                 "sip:\\+39.*",
@@ -387,7 +387,6 @@ static void external_provider_bridge__call_release() {
 }
 
 static void external_provider_bridge__load_balancing() {
-	using namespace flexisip::b2bua;
 	Server proxy{{
 	    // Requesting bind on port 0 to let the kernel find any available port
 	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
@@ -404,7 +403,8 @@ static void external_provider_bridge__load_balancing() {
 	intercom.invite(callee);
 	BC_HARD_ASSERT_TRUE(callee.hasReceivedCallFrom(intercom));
 	const auto call = ClientCall::getLinphoneCall(*callee.getCurrentCall());
-	auto& b2buaCore = intercom.getCore();
+	// For this test, it's okay that this client core isn't configured exactly as that of a B2buaServer
+	const auto& b2buaCore = reinterpret_pointer_cast<B2buaCore>(intercom.getCore());
 	auto params = b2buaCore->createCallParams(call);
 	vector<V1AccountDesc> lines{
 	    V1AccountDesc{
@@ -425,18 +425,18 @@ static void external_provider_bridge__load_balancing() {
 	};
 	const uint32_t line_count = lines.size();
 	const uint32_t maxCallsPerLine = 5000;
-	bridge::SipBridge sipBridge{proxy.getRoot(), b2buaCore,
-	                            bridge::config::v2::fromV1({
-	                                V1ProviderDesc{
-	                                    "provider1",
-	                                    "sip:\\+39.*",
-	                                    outboundProxy,
-	                                    false,
-	                                    maxCallsPerLine,
-	                                    std::move(lines),
-	                                },
-	                            }),
-	                            nullptr};
+	SipBridge sipBridge{proxy.getRoot(), b2buaCore,
+	                    config::v2::fromV1({
+	                        V1ProviderDesc{
+	                            "provider1",
+	                            "sip:\\+39.*",
+	                            outboundProxy,
+	                            false,
+	                            maxCallsPerLine,
+	                            std::move(lines),
+	                        },
+	                    }),
+	                    nullptr};
 	auto tally = unordered_map<const linphone::Account*, uint32_t>();
 
 	uint32_t i = 0;
@@ -475,7 +475,6 @@ static void external_provider_bridge__load_balancing() {
 }
 
 static void external_provider_bridge__parse_register_authenticate() {
-	using namespace flexisip::b2bua;
 	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf", false);
 	server->getConfigManager()
 	    ->getRoot()
@@ -552,7 +551,7 @@ static void external_provider_bridge__override_special_options() {
 		 ]
 		}
 	])");
-	b2bua::bridge::SipBridge sipBridge{make_shared<sofiasip::SuRoot>()};
+	SipBridge sipBridge{make_shared<sofiasip::SuRoot>()};
 	Server proxy{{
 	    // Requesting bind on port 0 to let the kernel find any available port
 	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
@@ -572,7 +571,8 @@ static void external_provider_bridge__override_special_options() {
 	BC_HARD_ASSERT_TRUE(callee.hasReceivedCallFrom(caller));
 	const auto call = ClientCall::getLinphoneCall(*callee.getCurrentCall());
 	BC_HARD_ASSERT_TRUE(call->getRequestAddress()->asStringUriOnly() != "");
-	const auto core = minimalCore(*linphone::Factory::get());
+	const auto core = B2buaCore::create(*linphone::Factory::get(),
+	                                    *proxy.getConfigManager()->getRoot()->get<GenericStruct>(b2bua::configSection));
 	sipBridge.init(core, proxy.getAgent()->getConfigManager());
 	auto params = core->createCallParams(call);
 	params->setMediaEncryption(MediaEncryption::ZRTP);
@@ -609,7 +609,6 @@ static void external_provider_bridge__b2bua_receives_several_forks() {
 	      |       |     |           |            |            |-C-CANCEL-->|
 	      |       |     |           |            |            |            |
 	*/
-	using namespace flexisip::b2bua;
 	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf", false);
 	{
 		auto* root = server->getConfigManager()->getRoot();
@@ -692,20 +691,20 @@ static void external_provider_bridge__b2bua_receives_several_forks() {
 
 // Should display no memory leak when run in sanitizier mode
 static void external_provider_bridge__cli() {
-	using namespace flexisip::b2bua;
-	const auto core = linphone::Factory::get()->createCore("", "", nullptr);
-	bridge::SipBridge sipBridge{make_shared<sofiasip::SuRoot>(), core,
-	                            bridge::config::v2::fromV1({
+	const auto& stubCore =
+	    reinterpret_pointer_cast<b2bua::B2buaCore>(linphone::Factory::get()->createCore("", "", nullptr));
+	SipBridge sipBridge{make_shared<sofiasip::SuRoot>(), stubCore,
+	                    config::v2::fromV1({
+	                        {
+	                            .name = "provider1",
+	                            .pattern = "regex1",
+	                            .outboundProxy = "sip:107.20.139.176:682;transport=scp",
+	                            .registrationRequired = false,
+	                            .maxCallsPerLine = 682,
+	                            .accounts =
 	                                {
-	                                    .name = "provider1",
-	                                    .pattern = "regex1",
-	                                    .outboundProxy = "sip:107.20.139.176:682;transport=scp",
-	                                    .registrationRequired = false,
-	                                    .maxCallsPerLine = 682,
-	                                    .accounts =
-	                                        {
-	                                            {
-	                                                .uri = "sip:account1@sip.example.org",
+	                                    {
+	                                        .uri = "sip:account1@sip.example.org",
 	                                                .userid = "",
 	                                                .password = "",
 	                                            },

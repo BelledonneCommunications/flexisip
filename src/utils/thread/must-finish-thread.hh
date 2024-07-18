@@ -19,6 +19,8 @@ class MustFinishThread {
 public:
 	MustFinishThread() {
 	}
+	explicit MustFinishThread(std::thread&& t) : mThread(std::move(t)) {
+	}
 	~MustFinishThread() {
 		finish();
 	}

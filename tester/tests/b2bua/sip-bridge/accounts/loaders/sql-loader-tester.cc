@@ -155,7 +155,7 @@ void nominalUpdateSqlTest() {
 				}
 		)"_json.get<Account>();
 
-	CoreAssert asserter{*suRoot};
+	CoreAssert asserter{suRoot};
 	asserter
 	    .wait([&actualAccount, &expectedAccount] {
 		    FAIL_IF(actualAccount != expectedAccount);
@@ -196,7 +196,7 @@ void updateSqlTestDeletion() {
 		    actualUri = uri;
 	    });
 
-	CoreAssert asserter{*suRoot};
+	CoreAssert asserter{suRoot};
 	asserter
 	    .wait([&actualUri] {
 		    FAIL_IF(actualUri != "sip:martinus@test.linphone.org");

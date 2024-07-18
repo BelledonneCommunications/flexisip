@@ -95,19 +95,14 @@ void AuthDbBackend::declareConfig(GenericStruct* mc) {
 
 // c++ style wrapper around sofia-sip 'url_unescape'
 // Avoids creating a temporary buffer for the unescaped string
-string AuthDbBackend::urlUnescape(const std::string& str) {
-	vector<char> unescaped(str.size() + 1);
-	url_unescape(unescaped.data(), str.c_str());
-	return unescaped.data();
+string AuthDbBackend::urlUnescape(string_view str) {
+	auto unescaped = string(str.size(), '\0');
+	url_unescape(unescaped.data(), str.data());
+	return unescaped;
 }
 
-string AuthDbBackend::createPasswordKey(const string& user, const string& auth_username) {
-	ostringstream key;
-	string unescapedUser = urlUnescape(user);
-	string unescapedUsername = urlUnescape(auth_username);
-
-	key << unescapedUser << "#" << unescapedUsername;
-	return key.str();
+string AuthDbBackend::createPasswordKey(string_view user, string_view auth_username) {
+	return urlUnescape(user) + "#" + urlUnescape(auth_username);
 }
 
 AuthDbBackend::CacheResult
