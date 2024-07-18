@@ -58,7 +58,7 @@ struct SuiteScope {
 	        {"module::Registrar/redis-slave-check-period", "1" /* second */},
 	    },
 	};
-	CoreAssert asserter{proxyServer};
+	CoreAssert<> asserter{proxyServer};
 };
 
 std::optional<SuiteScope> SUITE_SCOPE;

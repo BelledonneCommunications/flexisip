@@ -19,10 +19,10 @@
 #pragma once
 
 #include <memory>
-#include <regex>
 #include <unordered_map>
 #include <variant>
 
+#include "b2bua/b2bua-core.hh"
 #include "linphone++/linphone.hh"
 
 #include "flexisip/configmanager.hh"
@@ -50,7 +50,7 @@ public:
 
 	virtual ~Application() = default;
 
-	virtual void init(const std::shared_ptr<linphone::Core>& core, const ConfigManager& cfg) = 0;
+	virtual void init(const std::shared_ptr<B2buaCore>& core, const ConfigManager& cfg) = 0;
 
 	/**
 	 * lets the application run some business logic before the outgoing call is placed.
@@ -143,7 +143,7 @@ private:
 
 	std::shared_ptr<ConfigManager> mConfigManager;
 	CommandLineInterface mCli;
-	std::shared_ptr<linphone::Core> mCore;
+	std::shared_ptr<b2bua::B2buaCore> mCore;
 	std::unordered_map<std::string, std::shared_ptr<linphone::Call>> mPeerCalls;
 	struct EventInfo {
 		std::shared_ptr<linphone::Event> peerEvent;

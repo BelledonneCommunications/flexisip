@@ -261,7 +261,7 @@ void bidirectionalBridging() {
 	flexisipProxy.getAgent()->findModule("Router")->reload();
 	const auto felix = ClientBuilder(*flexisipProxy.getAgent()).build("felix@flexisip.example.org");
 	const auto jasper = ClientBuilder(*jabiruProxy.getAgent()).build("jasper@jabiru.example.org");
-	CoreAssert asserter{flexisipProxy, *b2buaLoop, jabiruProxy};
+	CoreAssert asserter{flexisipProxy, b2buaLoop, jabiruProxy};
 	asserter
 	    .iterateUpTo(
 	        3,
@@ -415,7 +415,7 @@ void loadAccountsFromSQL() {
 	const auto b2buaLoop = std::make_shared<sofiasip::SuRoot>();
 	const auto b2buaServer = std::make_shared<B2buaServer>(b2buaLoop, proxy.getConfigManager());
 	b2buaServer->init();
-	CoreAssert asserter{proxy, *b2buaLoop};
+	CoreAssert asserter{proxy, b2buaLoop};
 
 	const auto& sipProviders =
 	    dynamic_cast<const b2bua::bridge::SipBridge&>(b2buaServer->getApplication()).getProviders();
@@ -551,7 +551,7 @@ void invalidUriTriggersDecline() {
 	    ->set("sip:127.0.0.1:" + std::to_string(b2buaServer->getTcpPort()) + ";transport=tcp");
 	proxy.getAgent()->findModule("Router")->reload();
 	const auto caller = ClientBuilder(*proxy.getAgent()).build("caller@example.org");
-	CoreAssert asserter{proxy, *b2buaLoop, caller};
+	CoreAssert asserter{proxy, b2buaLoop, caller};
 
 	caller.invite("b2bua-account@example.org");
 	BC_ASSERT(asserter
@@ -683,7 +683,7 @@ void authenticatedAccounts() {
 	const auto b2buaServer = std::make_shared<B2buaServer>(b2buaLoop, proxy.getConfigManager());
 	b2buaServer->init();
 
-	CoreAssert(proxy, *b2buaLoop)
+	CoreAssert(proxy, b2buaLoop)
 	    .iterateUpTo(
 	        5,
 	        [&sipProviders =
@@ -778,7 +778,7 @@ void disableAccountsUnregistrationOnServerShutdown() {
 	const auto b2buaServer = std::make_shared<B2buaServer>(b2buaLoop, proxy.getConfigManager());
 	b2buaServer->init();
 
-	CoreAssert(proxy, *b2buaLoop)
+	CoreAssert(proxy, b2buaLoop)
 	    .iterateUpTo(
 	        5,
 	        [&sipProviders =
@@ -1112,7 +1112,8 @@ void loadBalancing() {
 	intercom.invite(callee);
 	BC_HARD_ASSERT_TRUE(callee.hasReceivedCallFrom(intercom));
 	const auto call = ClientCall::getLinphoneCall(*callee.getCurrentCall());
-	auto& b2buaCore = intercom.getCore();
+	// For this test, it's okay that this client core isn't configured exactly as that of a B2buaServer
+	const auto& b2buaCore = reinterpret_pointer_cast<B2buaCore>(intercom.getCore());
 	auto params = b2buaCore->createCallParams(call);
 	vector<V1AccountDesc> lines{
 	    V1AccountDesc{
@@ -1185,8 +1186,9 @@ void loadBalancing() {
 // Should display no memory leak when run in sanitizier mode
 void cli() {
 	using namespace flexisip::b2bua;
-	const auto core = linphone::Factory::get()->createCore("", "", nullptr);
-	bridge::SipBridge sipBridge{make_shared<sofiasip::SuRoot>(), core,
+	const auto& stubCore =
+	    reinterpret_pointer_cast<b2bua::B2buaCore>(linphone::Factory::get()->createCore("", "", nullptr));
+	bridge::SipBridge sipBridge{make_shared<sofiasip::SuRoot>(), stubCore,
 	                            bridge::config::v2::fromV1({
 	                                {
 	                                    .name = "provider1",
@@ -1495,7 +1497,8 @@ void overrideSpecialOptions() {
 	BC_HARD_ASSERT_TRUE(callee.hasReceivedCallFrom(caller));
 	const auto call = ClientCall::getLinphoneCall(*callee.getCurrentCall());
 	BC_HARD_ASSERT_TRUE(call->getRequestAddress()->asStringUriOnly() != "");
-	const auto core = minimalCore(*linphone::Factory::get());
+	const auto& core = b2bua::B2buaCore::create(
+	    *linphone::Factory::get(), *proxy.getConfigManager()->getRoot()->get<GenericStruct>(b2bua::configSection));
 	sipBridge.init(core, proxy.getAgent()->getConfigManager());
 	auto params = core->createCallParams(call);
 	params->setMediaEncryption(linphone::MediaEncryption::ZRTP);
@@ -1569,8 +1572,9 @@ void maxCallDuration() {
 	    .assert_passed();
 
 	// None of the clients terminated the call, but the B2BUA dropped it on its own
-	asserter.iterateUpTo(
-	            10, [&callee]() { return LOOP_ASSERTION(callee.getCurrentCall() == nullopt); }, 2100ms)
+	asserter
+	    .iterateUpTo(
+	        10, [&callee]() { return LOOP_ASSERTION(callee.getCurrentCall() == nullopt); }, 2100ms)
 	    .assert_passed();
 }
 

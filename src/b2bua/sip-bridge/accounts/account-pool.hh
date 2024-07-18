@@ -24,6 +24,7 @@
 
 #include "flexisip/sofia-wrapper/su-root.hh"
 
+#include "b2bua/b2bua-core.hh"
 #include "b2bua/sip-bridge/accounts/account.hh"
 #include "b2bua/sip-bridge/accounts/loaders/loader.hh"
 #include "b2bua/sip-bridge/accounts/redis-account-pub.hh"
@@ -36,7 +37,7 @@ namespace flexisip::b2bua::bridge {
 class AccountPool : public redis::async::SessionListener {
 public:
 	AccountPool(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
-	            const std::shared_ptr<linphone::Core>& core,
+	            const std::shared_ptr<B2buaCore>& core,
 	            const config::v2::AccountPoolName& poolName,
 	            const config::v2::AccountPool& pool,
 	            std::unique_ptr<Loader>&& loader,
@@ -88,7 +89,7 @@ private:
 	void onAccountUpdate(const std::string& uri, const std::optional<config::v2::Account>& accountToUpdate);
 
 	std::shared_ptr<sofiasip::SuRoot> mSuRoot;
-	std::shared_ptr<linphone::Core> mCore;
+	std::shared_ptr<B2buaCore> mCore;
 
 	std::unique_ptr<Loader> mLoader;
 	std::shared_ptr<linphone::AccountParams> mAccountParams;

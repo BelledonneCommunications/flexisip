@@ -5,6 +5,7 @@
 #include <soci/session.h>
 #include <soci/sqlite3/soci-sqlite3.h>
 
+#include "b2bua/b2bua-server.hh"
 #include "b2bua/sip-bridge/accounts/account-pool.hh"
 #include "b2bua/sip-bridge/accounts/loaders/sql-account-loader.hh"
 #include "b2bua/sip-bridge/accounts/loaders/static-account-loader.hh"
@@ -20,7 +21,7 @@ namespace flexisip::tester {
 using namespace std;
 using namespace soci;
 using namespace nlohmann;
-using namespace flexisip::b2bua::bridge;
+using namespace flexisip::b2bua;
 using namespace flexisip::b2bua::bridge;
 using namespace redis::async;
 
@@ -37,7 +38,7 @@ struct SuiteScope {
 	    {"module::Registrar/redis-server-port", to_string(redis.port())},
 	}};
 	soci::session sql{sqlite3, tmpDbFileName};
-	shared_ptr<linphone::Core> b2buaCore;
+	shared_ptr<B2buaCore> b2buaCore;
 	std::shared_ptr<sofiasip::SuRoot> suRoot;
 
 	// clang-format off
@@ -67,7 +68,7 @@ void globalSqlTest() {
 	auto& ready = std::get<Session::Ready>(
 	    commandsSession.connect(SUITE_SCOPE->suRoot->getCPtr(), "localhost", SUITE_SCOPE->redis.port()));
 
-	CoreAssert asserter{*SUITE_SCOPE->suRoot};
+	CoreAssert asserter{SUITE_SCOPE->suRoot};
 
 	const auto registrarConf = RedisParameters::fromRegistrarConf(
 	    SUITE_SCOPE->proxy.getConfigManager()->getRoot()->get<GenericStruct>("module::Registrar"));
@@ -212,7 +213,7 @@ void globalSqlTest() {
 
 void emptyNoRedisSqlTest() {
 	///////// ARRANGE
-	CoreAssert asserter{*SUITE_SCOPE->suRoot};
+	CoreAssert asserter{SUITE_SCOPE->suRoot};
 
 	SUITE_SCOPE->sql << R"sql(DELETE FROM users)sql";
 
@@ -241,7 +242,7 @@ void emptyThenPublishSqlTest() {
 	auto& ready = std::get<Session::Ready>(
 	    commandsSession.connect(SUITE_SCOPE->suRoot->getCPtr(), "localhost", SUITE_SCOPE->redis.port()));
 
-	CoreAssert asserter{*SUITE_SCOPE->suRoot};
+	CoreAssert asserter{SUITE_SCOPE->suRoot};
 
 	const auto registrarConf = RedisParameters::fromRegistrarConf(
 	    SUITE_SCOPE->proxy.getConfigManager()->getRoot()->get<GenericStruct>("module::Registrar"));
@@ -347,13 +348,14 @@ void accountRegistrationThrottling() {
 	    &hooks);
 	proxy.start();
 	const auto& suRoot = make_shared<sofiasip::SuRoot>();
-	const auto& b2buaCore = minimalCore(*linphone::Factory::get());
+	const auto& b2buaCore = B2buaCore::create(
+	    *linphone::Factory::get(), *proxy.getConfigManager()->getRoot()->get<GenericStruct>(b2bua::configSection));
 	b2buaCore->start();
 	auto accounts = vector{accountCount, config::v2::Account{}};
 	for (auto& account : accounts) {
 		account.uri = "sip:uri-" + randomString(10) + "@example.org";
 	}
-	auto asserter = CoreAssert(proxy, *suRoot, b2buaCore);
+	auto asserter = CoreAssert(proxy, suRoot, b2buaCore);
 
 	/////////
 	/// Rate to 0ms (synchronous)
@@ -422,7 +424,9 @@ const TestSuite _SQL{
 	        return 0;
         })
         .beforeEach([] {
-	        SUITE_SCOPE->b2buaCore = minimalCore(*linphone::Factory::get());
+	        SUITE_SCOPE->b2buaCore = B2buaCore::create(
+	            *linphone::Factory::get(),
+	            *SUITE_SCOPE->proxy.getConfigManager()->getRoot()->get<GenericStruct>(b2bua::configSection));
 	        SUITE_SCOPE->suRoot = make_shared<sofiasip::SuRoot>();
 	        SUITE_SCOPE->sql
 	            << R"sql(INSERT INTO users VALUES ("account1", "some.provider.example.com", "", "", "expected-from", "sip.example.org", ""))sql";

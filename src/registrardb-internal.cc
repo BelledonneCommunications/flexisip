@@ -57,7 +57,7 @@ void RegistrarDbInternal::doBind(const MsgSip& msg,
 	if (it == mRecords.end()) {
 		r = make_shared<Record>(std::move(fromUri), mRecordConfig);
 		it = mRecords.insert(make_pair(key, r)).first;
-		LOGD("Creating Asip_contact_tOR %s association", key.c_str());
+		LOGD("Creating AoR %s association", key.c_str());
 	} else {
 		LOGD("AOR %s found", key.c_str());
 		r = it->second;

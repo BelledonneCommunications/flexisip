@@ -205,14 +205,14 @@ void SipBridge::initFromRootConfig(config::v2::Root rootConfig) {
 }
 
 SipBridge::SipBridge(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
-                     const std::shared_ptr<linphone::Core>& core,
+                     const std::shared_ptr<B2buaCore>& core,
                      config::v2::Root&& rootConf,
                      const GenericStruct* globalConfigRoot)
     : mSuRoot{suRoot}, mCore{core}, mGlobalConfigRoot(globalConfigRoot) {
 	initFromRootConfig(std::move(rootConf));
 }
 
-void SipBridge::init(const shared_ptr<linphone::Core>& core, const flexisip::ConfigManager& cfg) {
+void SipBridge::init(const shared_ptr<B2buaCore>& core, const flexisip::ConfigManager& cfg) {
 	auto filePath = cfg.getRoot()->get<GenericStruct>(configSection)->get<ConfigString>(providersConfigItem)->read();
 	if (filePath[0] != '/') {
 		// Interpret as relative to config file

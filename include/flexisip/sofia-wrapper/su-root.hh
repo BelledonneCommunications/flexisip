@@ -50,14 +50,12 @@ public:
 
 	template <typename Duration>
 	auto step(Duration timeout) {
-		return static_cast<NativeDuration>(
-		    su_root_step(mCPtr, std::chrono::duration_cast<NativeDuration>(timeout).count()));
+		return NativeDuration(su_root_step(mCPtr, std::chrono::duration_cast<NativeDuration>(timeout).count()));
 	}
 
 	template <typename Duration>
 	auto sleep(Duration duration) {
-		return static_cast<NativeDuration>(
-		    su_root_sleep(mCPtr, std::chrono::duration_cast<NativeDuration>(duration).count()));
+		return NativeDuration(su_root_sleep(mCPtr, std::chrono::duration_cast<NativeDuration>(duration).count()));
 	}
 
 	void run() {

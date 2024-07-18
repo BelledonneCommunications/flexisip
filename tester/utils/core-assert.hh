@@ -17,10 +17,11 @@
 namespace flexisip {
 namespace tester {
 
-class CoreAssert : public BcAssert {
+template <const std::chrono::nanoseconds& sleepBetweenIterations = kDefaultSleepInterval>
+class CoreAssert : public BcAssert<sleepBetweenIterations> {
 public:
 	template <class... Steppables>
-	CoreAssert(Steppables&&... steppables) : BcAssert({stepperFrom(steppables)...}) {
+	CoreAssert(Steppables&&... steppables) : BcAssert<sleepBetweenIterations>({stepperFrom(steppables)...}) {
 	}
 
 	static std::function<void()> stepperFrom(linphone::Core& core) {
@@ -33,14 +34,8 @@ public:
 	static std::function<void()> stepperFrom(BellesipUtils& bellesip) {
 		return [&bellesip] { bellesip.stackSleep(); };
 	}
-	static std::function<void()> stepperFrom(const std::shared_ptr<linphone::Core>& core) {
-		return stepperFrom(*core);
-	}
 	static std::function<void()> stepperFrom(const CoreClient& client) {
 		return stepperFrom(*client.getCore());
-	}
-	static std::function<void()> stepperFrom(const std::shared_ptr<CoreClient>& client) {
-		return stepperFrom(*client->getCore());
 	}
 	static std::function<void()> stepperFrom(const Server& server) {
 		return stepperFrom(*server.getRoot());
@@ -51,17 +46,15 @@ public:
 	static std::function<void()> stepperFrom(const Agent& server) {
 		return stepperFrom(*server.getRoot());
 	}
-	/**
-	 * @param server shared_ptr to either a tester::Server or a flexisip::Agent.
-	 */
-	template <typename ServerT>
-	static std::function<void()> stepperFrom(const std::shared_ptr<ServerT>& server) {
-		return stepperFrom(*server->getRoot());
+
+	template <typename T>
+	static std::function<void()> stepperFrom(const std::shared_ptr<T>& sharedPtr) {
+		return stepperFrom(*sharedPtr);
 	}
 
 	template <class Steppable>
 	void registerSteppable(Steppable&& steppable) {
-		addCustomIterate(stepperFrom(steppable));
+		this->addCustomIterate(stepperFrom(steppable));
 	}
 };
 

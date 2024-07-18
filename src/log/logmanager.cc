@@ -89,7 +89,7 @@ void LogManager::initialize(const Parameters& params) {
 	if (params.enableSyslog) {
 		openlog("flexisip", 0, LOG_USER);
 		setlogmask(~0);
-		mSysLogHandler = bctbx_create_log_handler(syslogHandler, bctbx_logv_out_destroy, NULL);
+		mSysLogHandler = bctbx_create_log_handler(syslogHandler, nullptr, nullptr);
 		if (mSysLogHandler) bctbx_add_log_handler(mSysLogHandler);
 		else ::syslog(LOG_ERR, "Could not create syslog handler");
 		flexisip_sysLevelMin = params.syslogLevel;

@@ -27,7 +27,7 @@ using namespace flexisip::redis;
 using namespace flexisip::redis::async;
 
 AccountPool::AccountPool(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
-                         const std::shared_ptr<linphone::Core>& core,
+                         const std::shared_ptr<B2buaCore>& core,
                          const config::v2::AccountPoolName& poolName,
                          const config::v2::AccountPool& pool,
                          std::unique_ptr<Loader>&& loader,

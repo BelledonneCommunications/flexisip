@@ -60,7 +60,7 @@ class Trenscrypter : public b2bua::Application {
 	std::list<srtpConfiguration> mSrtpConf;
 
 public:
-	void init(const std::shared_ptr<linphone::Core>& core, const flexisip::ConfigManager& cfg) override;
+	void init(const std::shared_ptr<B2buaCore>& core, const flexisip::ConfigManager& cfg) override;
 	std::variant<linphone::Reason, std::shared_ptr<const linphone::Address>>
 	onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) override;
 };

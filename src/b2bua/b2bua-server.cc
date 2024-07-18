@@ -16,18 +16,15 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "b2bua-server.hh"
+
 #include <memory>
 
-#include "linphone/misc.h"
 #include <mediastreamer2/ms_srtp.h>
 
-#include "flexisip/flexisip-version.h"
 #include "flexisip/logmanager.hh"
-#include "flexisip/utils/sip-uri.hh"
 
-#include "b2bua-server.hh"
 #include "b2bua/async-stop-core.hh"
-#include "mediastreamer2/msconference.h"
 #include "sip-bridge/sip-bridge.hh"
 #include "trenscrypter.hh"
 #include "utils/variant-utils.hh"
@@ -392,154 +389,11 @@ void B2buaServer::_init() {
 		}
 	}
 	BCTBX_SLOGI << "B2bua data directory set to " << dataDirPath;
-	Factory::get()->setDataDir(dataDirPath + "/");
+	const auto& factory = Factory::get();
+	factory->setDataDir(dataDirPath + "/");
 
-	auto configLinphone = Factory::get()->createConfig("");
-	configLinphone->setBool("misc", "conference_server_enabled", 1);
-	configLinphone->setInt("misc", "max_calls", 1000);
-	configLinphone->setInt("misc", "media_resources_mode", 1); // share media resources
-	configLinphone->setBool("sip", "reject_duplicated_calls", false);
-	configLinphone->setBool("sip", "use_rfc2833", true); // Forward DTMF via out-of-band RTP...
-	configLinphone->setBool("sip", "use_info", true);    // ...or via SIP INFO if unsupported by media
-	configLinphone->setBool("sip", "defer_update_default",
-	                        true); // do not automatically accept update: we might want to update peer call before
-	configLinphone->setBool("misc", "conference_event_log_enabled", 0);
-	configLinphone->setInt("misc", "conference_layout", static_cast<int>(linphone::Conference::Layout::ActiveSpeaker));
-	// Prevent the default log handler from being reset while LinphoneCore construction.
-	configLinphone->setBool("logging", "disable_stdout", true);
-	// we may want to use unsupported codecs (h264) in the conference
-	configLinphone->setBool("video", "dont_check_codecs", true);
-	// make sure the videostream can be started when using unsupported codec
-	configLinphone->setBool("video", "fallback_to_dummy_codec", true);
-	configLinphone->setBool("sip", "accounts_channel_isolation",
-	                        config->get<ConfigBoolean>("one-connection-per-account")->read());
-	mCore = Factory::get()->createCoreWithConfig(configLinphone, nullptr);
-	mCore->setLabel("Flexisip B2BUA");
-	mCore->getConfig()->setString("storage", "backend", "sqlite3");
-	mCore->getConfig()->setString("storage", "uri", ":memory:");
-	mCore->setUseFiles(true); // No sound card shall be used in calls
-	mCore->enableEchoCancellation(false);
-	mCore->setPrimaryContact("sip:b2bua@localhost"); // TODO: get primary contact from config, do we really need one?
-	mCore->enableAutoSendRinging(false); // Do not auto answer 180 on incoming calls, relay the one from the other part.
-	mCore->setZrtpSecretsFile(dataDirPath + "/null");
-	// Give enough time to the outgoing call (legB) to establish while we leave the incoming one (legA) ringing
-	// See RFC 3261 §16.6 step 11 for the duration
-	mCore->setIncTimeout(4 * 60);
+	mCore = b2bua::B2buaCore::create(*factory, *config);
 
-	// Read user-agent parameter.
-	smatch res{};
-	const auto value = config->get<ConfigString>("user-agent")->read();
-	if (regex_match(value, res, regex(R"(^([a-zA-Z0-9-.!%*_+`'~]+)(?:\/([a-zA-Z0-9-.!%*_+`'~]+|\{version\}))?$)"))) {
-		mCore->setUserAgent(res[1], res[2] == "{version}" ? FLEXISIP_GIT_VERSION : res[2].str());
-	} else {
-		throw runtime_error("user-agent parameter is ill-formed, use the following syntax: <name>[/<version>]");
-	}
-
-	// b2bua shall never take the initiative of accepting or starting video calls
-	// stick to incoming call parameters for that
-	auto policy = linphone::Factory::get()->createVideoActivationPolicy();
-	policy->setAutomaticallyAccept(true); // accept incoming video call so the request is forwarded to legB, acceptance
-	                                      // from legB is checked before accepting legA
-	policy->setAutomaticallyInitiate(false);
-	mCore->setVideoActivationPolicy(policy);
-
-	const auto& forceCodec = [&config, &core = *mCore, &configLinphone](const auto& flexisipConfigName,
-	                                                                    const auto& linphoneConfigName,
-	                                                                    const auto& codecList) {
-		const auto* configField = config->get<ConfigString>(flexisipConfigName);
-		const auto& payloadDesc = configField->read();
-		if (payloadDesc.empty()) return;
-		const auto& parts = StringUtils::split(string_view(payloadDesc), "/");
-		if (parts.size() < 2) {
-			throw runtime_error(configField->getCompleteName() +
-			                    " misconfigured. Expected something like <codec>/<sample rate>, e.g. 'speex/8000'");
-		}
-		const auto codec = parts[0];
-		const auto rate = parts[1];
-
-		for (const auto& payloadType : (core.*codecList)()) {
-			if (payloadType->getMimeType() == codec && to_string(payloadType->getClockRate()) == rate) {
-				payloadType->enable(true);
-			} else { // disable all other codecs
-				payloadType->enable(false);
-				SLOGD << "Disabling " << payloadType->getDescription() << " to force " << codec << "/" << rate;
-			}
-		}
-
-		// We know for certain that the codec used in both legs will be the same (the one we just forced), so we can
-		// enable media bridging (payload forwarding without decoding)
-		configLinphone->setInt(linphoneConfigName, "conference_mode", MSConferenceModeRouterPayload);
-	};
-
-	// if an audio codec is set in config enable only that one
-	forceCodec("audio-codec", "sound", &linphone::Core::getAudioPayloadTypes);
-	// if a video codec is set in config enable only that one
-	forceCodec("video-codec", "video", &linphone::Core::getVideoPayloadTypes);
-
-	const int audioPortMin = config->get<ConfigIntRange>("audio-port")->readMin();
-	const int audioPortMax = config->get<ConfigIntRange>("audio-port")->readMax();
-	mCore->setAudioPort(audioPortMin == audioPortMax ? audioPortMin : -1);
-	mCore->setAudioPortRange(audioPortMin, audioPortMax);
-
-	const int videoPortMin = config->get<ConfigIntRange>("video-port")->readMin();
-	const int videoPortMax = config->get<ConfigIntRange>("video-port")->readMax();
-	mCore->setVideoPort(videoPortMin == videoPortMax ? videoPortMin : -1);
-	mCore->setVideoPortRange(videoPortMin, videoPortMax);
-
-	// set no-RTP timeout
-	const auto noRTPTimeout = config->get<ConfigInt>("no-rtp-timeout")->read();
-	if (noRTPTimeout <= 0) {
-		LOGF("'%s' must be higher than 0", config->getCompleteName().c_str());
-	}
-	mCore->setNortpTimeout(noRTPTimeout);
-
-	mCore->setInCallTimeout(config->get<ConfigInt>("max-call-duration")->read());
-
-	// Get transport from flexisip configuration
-	const auto& b2buaTransport = Factory::get()->createTransports();
-	b2buaTransport->setUdpPort(LC_SIP_TRANSPORT_DONTBIND);
-	b2buaTransport->setTcpPort(LC_SIP_TRANSPORT_DONTBIND);
-	b2buaTransport->setTlsPort(LC_SIP_TRANSPORT_DONTBIND);
-	b2buaTransport->setDtlsPort(LC_SIP_TRANSPORT_DONTBIND);
-	string mTransport = config->get<ConfigString>("transport")->read();
-	if (mTransport.length() > 0) {
-		try {
-			const auto urlTransport = SipUri{mTransport};
-			const auto scheme = urlTransport.getScheme();
-			const auto transportParam = urlTransport.getParam("transport");
-			auto listeningPort = stoi(urlTransport.getPort(true));
-			if (listeningPort == 0) {
-				listeningPort = LC_SIP_TRANSPORT_RANDOM;
-			}
-			if (scheme == "sip") {
-				if (transportParam.empty() || transportParam == "udp") {
-					b2buaTransport->setUdpPort(listeningPort);
-				} else if (transportParam == "tcp") {
-					b2buaTransport->setTcpPort(listeningPort);
-				} else if (transportParam == "tls") {
-					b2buaTransport->setTlsPort(listeningPort);
-				} else {
-					throw sofiasip::InvalidUrlError{
-					    mTransport, "invalid transport parameter value for 'sip' scheme: "s + transportParam};
-				}
-			} else if (scheme == "sips") {
-				if (transportParam == "udp") {
-					b2buaTransport->setDtlsPort(listeningPort);
-				} else if (transportParam.empty() || transportParam == "tcp") {
-					b2buaTransport->setTlsPort(listeningPort);
-				} else {
-					throw sofiasip::InvalidUrlError{
-					    mTransport, "invalid transport parameter value for 'sips' scheme: "s + transportParam};
-				}
-			}
-		} catch (const sofiasip::InvalidUrlError& e) {
-			LOGF("B2bua server: Your configured b2bua transport(\"%s\") is not an URI.\n"
-			     "%s",
-			     mTransport.c_str(), e.what());
-		};
-	}
-
-	mCore->setTransports(b2buaTransport);
 	mCore->addListener(shared_from_this());
 
 	auto applicationType = config->get<ConfigString>("application")->read();
@@ -564,6 +418,8 @@ void B2buaServer::_run() {
 }
 
 std::unique_ptr<AsyncCleanup> B2buaServer::_stop() {
+	if (mCore == nullptr) return nullptr;
+
 	mCore->removeListener(shared_from_this());
 	mCli.stop();
 	return std::make_unique<b2bua::AsyncStopCore>(mCore);
