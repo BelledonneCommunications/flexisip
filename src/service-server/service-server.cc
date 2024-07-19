@@ -28,7 +28,7 @@ using namespace chrono;
 
 void ServiceServer::init() {
 	if (mRoot) {
-		mTimer = make_unique<sofiasip::Timer>(mRoot->getCPtr(), 10ms);
+		mTimer = make_unique<sofiasip::Timer>(mRoot, 10ms);
 		mTimer->setForEver([this]() {
 			if (mStarted) {
 				const auto start = high_resolution_clock::now();

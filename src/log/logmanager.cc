@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -30,7 +30,11 @@ using namespace std;
 
 namespace flexisip {
 
-static void syslogHandler([[maybe_unused]] void* info, [[maybe_unused]] const char* domain, BctbxLogLevel log_level, const char* str, va_list l) {
+static void syslogHandler([[maybe_unused]] void* info,
+                          [[maybe_unused]] const char* domain,
+                          BctbxLogLevel log_level,
+                          const char* str,
+                          va_list l) {
 	if (log_level >= flexisip_sysLevelMin) {
 		int syslev = LOG_ALERT;
 		switch (log_level) {
@@ -89,7 +93,8 @@ void LogManager::initialize(const Parameters& params) {
 	if (params.enableSyslog) {
 		openlog("flexisip", 0, LOG_USER);
 		setlogmask(~0);
-		mSysLogHandler = bctbx_create_log_handler(syslogHandler, nullptr, nullptr);
+		mSysLogHandler =
+		    bctbx_create_log_handler(syslogHandler, [](bctbx_log_handler_t* handler) { bctbx_free(handler); }, nullptr);
 		if (mSysLogHandler) bctbx_add_log_handler(mSysLogHandler);
 		else ::syslog(LOG_ERR, "Could not create syslog handler");
 		flexisip_sysLevelMin = params.syslogLevel;
@@ -145,12 +150,15 @@ void LogManager::initialize(const Parameters& params) {
 		bctbx_set_log_handler(logStub);
 	}
 	if (params.root) {
-		mTimer.reset(new sofiasip::Timer(params.root, 1000ms));
-		mTimer->run(bind(&LogManager::checkForReopening, this));
+		mTimer = make_unique<sofiasip::Timer>(params.root, 1000ms);
+		mTimer->run([this] { checkForReopening(); });
 	}
 }
 
-void LogManager::logStub([[maybe_unused]] const char* domain, [[maybe_unused]] BctbxLogLevel level, [[maybe_unused]] const char* msg, [[maybe_unused]] va_list args) {
+void LogManager::logStub([[maybe_unused]] const char* domain,
+                         [[maybe_unused]] BctbxLogLevel level,
+                         [[maybe_unused]] const char* msg,
+                         [[maybe_unused]] va_list args) {
 	/*
 	 * The default log handler of bctoolbox (bctbx_logv_out) outputs to stdout/stderr.
 	 * In order to prevent logs to be output, we need to setup a stub function.
@@ -232,7 +240,6 @@ LogManager::~LogManager() {
 	if (mInitialized) {
 		if (mLogHandler) bctbx_remove_log_handler(mLogHandler);
 		if (mSysLogHandler) bctbx_remove_log_handler(mSysLogHandler);
-		bctbx_uninit_logger();
 	}
 }
 

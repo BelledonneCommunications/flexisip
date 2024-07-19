@@ -141,7 +141,7 @@ void testRefreshTokenSuccess() {
 	BC_HARD_ASSERT(!token1.empty());
 
 	this_thread::sleep_for(750ms);
-	sofiasip::Timer timer{root->getCPtr(), 50ms};
+	sofiasip::Timer timer{root, 50ms};
 	const auto timeout = chrono::system_clock::now() + 2s;
 	timer.run([&root, &manager, &request, &token1, &token2, &timeout]() {
 		if (manager->addAuthentication(request)) {
@@ -173,7 +173,7 @@ void testRefreshTokenError() {
 	const auto request = Helper::makeRequest(manager->getProjectId());
 	BC_HARD_ASSERT(manager->addAuthentication(request) == false);
 
-	sofiasip::Timer timer{root->getCPtr(), 50ms};
+	sofiasip::Timer timer{root, 50ms};
 	auto timeout = chrono::system_clock::now() + 200ms;
 	timer.run([&root, &manager, &request, &timeout]() {
 		if (manager->addAuthentication(request)) {
