@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -45,14 +45,14 @@ public:
 	 * @param[in] intervalMs Default timer expiration interval in milliseconds.
 	 * @throw std::logic_error if the timer couldn't been created.
 	 */
-	explicit Timer(su_root_t* root, su_duration_t intervalMs = 0);
+	[[deprecated]] explicit Timer(su_root_t* root, su_duration_t intervalMs = 0);
 
-	Timer(su_root_t* root, NativeDuration interval) : Timer{root, interval.count()} {};
-	Timer(const sofiasip::SuRoot& root, NativeDuration interval);
+	[[deprecated]] Timer(su_root_t* root, NativeDuration interval) : Timer{root, interval.count()} {};
+	[[deprecated]] Timer(const sofiasip::SuRoot& root, NativeDuration interval);
 
-	explicit Timer(const std::shared_ptr<sofiasip::SuRoot>& root, su_duration_t intervalMs = 0);
+	[[deprecated]] explicit Timer(const std::shared_ptr<sofiasip::SuRoot>& root, su_duration_t intervalMs = 0);
 
-	Timer(const std::shared_ptr<sofiasip::SuRoot>& root, NativeDuration interval);
+	explicit Timer(const std::shared_ptr<sofiasip::SuRoot>& root, NativeDuration interval);
 
 	~Timer();
 
@@ -116,7 +116,8 @@ private:
 	static void _oneShotTimerCb(su_root_magic_t* magic, su_timer_t* t, su_timer_arg_t* arg) noexcept;
 	static void _regularTimerCb(su_root_magic_t* magic, su_timer_t* t, su_timer_arg_t* arg) noexcept;
 
-	::su_timer_t* _timer = nullptr;
+	std::shared_ptr<sofiasip::SuRoot> mRoot{};
+	su_timer_t* _timer = nullptr;
 	Func _func;
 };
 

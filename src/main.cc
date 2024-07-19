@@ -923,7 +923,7 @@ int _main(int argc, char* argv[]) {
 		const auto& logFilename = cfg->getGlobal()->get<ConfigString>("log-filename")->read();
 
 		LogManager::Parameters logParams{};
-		logParams.root = root->getCPtr();
+		logParams.root = root;
 		logParams.logDirectory = cfg->getGlobal()->get<ConfigString>("log-directory")->read();
 		logParams.logFilename = regex_replace(logFilename, regex{"\\{server\\}"}, fName);
 		logParams.level = debug ? BCTBX_LOG_DEBUG : LogManager::get().logLevelFromName(log_level);

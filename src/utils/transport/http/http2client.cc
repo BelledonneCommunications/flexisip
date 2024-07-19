@@ -1,20 +1,20 @@
 /*
- Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as
- published by the Free Software Foundation, either version 3 of the
- License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <array>
 #include <nghttp2/nghttp2.h>
@@ -42,8 +42,8 @@ Http2Client::Http2Client(sofiasip::SuRoot& root,
                          decltype(mConn)&& connection,
                          decltype(mAuthManager)&& authManager,
                          SessionSettings&& sessionSettings)
-    : mConn(std::move(connection)), mAuthManager(std::move(authManager)), mRoot(root),
-      mIdleTimer(root.getCPtr(), mIdleTimeout), mSessionSettings(std::move(sessionSettings)) {
+    : mConn(std::move(connection)), mAuthManager(std::move(authManager)), mRoot(root), mIdleTimer(root, mIdleTimeout),
+      mSessionSettings(std::move(sessionSettings)) {
 
 	ostringstream os{};
 	os << "Http2Client[" << this << "]";
@@ -104,7 +104,7 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request,
                        const OnErrorCb& onErrorCb) {
 
 	auto logPrefix = mLogPrefix;
-	auto context = make_shared<HttpMessageContext>(request, onResponseCb, onErrorCb, *mRoot.getCPtr(), mRequestTimeout);
+	auto context = make_shared<HttpMessageContext>(request, onResponseCb, onErrorCb, mRoot, mRequestTimeout);
 
 	if (mAuthManager) {
 		if (!mAuthManager->addAuthentication(request)) {

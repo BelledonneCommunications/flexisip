@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -37,10 +37,19 @@ Timer::Timer(const sofiasip::SuRoot& root, NativeDuration intervalMs) : Timer{ro
 }
 
 Timer::Timer(const shared_ptr<sofiasip::SuRoot>& root, su_duration_t intervalMs) : Timer{root->getCPtr(), intervalMs} {
+	mRoot = root;
 }
 
-Timer::Timer(const shared_ptr<sofiasip::SuRoot>& root, NativeDuration interval)
-    : Timer{root->getCPtr(), interval.count()} {
+Timer::Timer(const shared_ptr<sofiasip::SuRoot>& root, NativeDuration intervalMs) {
+	_timer = su_timer_create(root->getTask(), intervalMs.count());
+	if (_timer == nullptr) {
+		if (errno == ENOMEM) {
+			throw runtime_error("fail to instantiate the timer");
+		} else {
+			throw invalid_argument("fail to instantiate the timer");
+		}
+	}
+	mRoot = root;
 }
 
 Timer::~Timer() {
