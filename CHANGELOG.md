@@ -15,6 +15,8 @@ Group changes to describe their impact on the project, as follows:
 
 ## [2.3.4]
 ### [Added]
+- **Proxy/Registrar:** add 'max-contacts-per-registration' to reject REGISTER requests containing more Contact headers
+  than the specified limit.
 - **Dependencies:** added `python3-google-auth` and `python3-requests` to package dependencies.
 - **Build:** added CMake variable `FLEXISIP_VERSION` to enable build without GIT repository.
 
