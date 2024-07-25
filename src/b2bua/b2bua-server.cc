@@ -400,17 +400,24 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "sip:127.0.0.1:5060;transport=tcp",
 	    },
 	    {
-	        Integer,
+	        DurationS,
 	        "no-rtp-timeout",
-	        "Duration after which the B2BUA will terminate a call if no RTP packet is received from the other call "
-	        "participant. Unit: seconds.",
+	        "Duration after which the B2BUA will terminate a call if no RTP packets are received from the other call "
+	        "participant.",
 	        "30",
 	    },
 	    {
-	        Integer,
+	        DurationS,
+	        "no-rtp-on-hold-timeout",
+	        "Duration after which the B2BUA will terminate a call that is on hold if no RTP packets are received from "
+	        "the other call participant.",
+	        "3600",
+	    },
+	    {
+	        DurationS,
 	        "max-call-duration",
 	        "Any call bridged through the B2BUA that has been running for longer than this amount of seconds will be "
-	        "terminated. 0 to disable and let calls run unbounded.",
+	        "terminated. Set to 0 to disable and let calls run unbounded.",
 	        "0",
 	    },
 	    {

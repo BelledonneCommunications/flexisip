@@ -108,14 +108,31 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 	core->setVideoPort(videoPortMin == videoPortMax ? videoPortMin : -1);
 	core->setVideoPortRange(videoPortMin, videoPortMax);
 
-	// set no-RTP timeout
-	const auto noRTPTimeout = config.get<ConfigInt>("no-rtp-timeout")->read();
-	if (noRTPTimeout <= 0) {
-		LOGF("'%s' must be higher than 0", config.getCompleteName().c_str());
+	// Set no-RTP timeout
+	const auto* noRTPTimeoutParameter = config.get<ConfigDuration<chrono::seconds>>("no-rtp-timeout");
+	const auto noRTPTimeout = noRTPTimeoutParameter->read();
+	if (noRTPTimeout <= 0ms) {
+		const auto parameterName = noRTPTimeoutParameter->getCompleteName();
+		throw FlexisipException{"invalid value for '" + parameterName + "', duration must be strictly positive"};
 	}
-	core->setNortpTimeout(noRTPTimeout);
+	core->setNortpTimeout(static_cast<int>(chrono::duration_cast<chrono::seconds>(noRTPTimeout).count()));
 
-	core->setInCallTimeout(config.get<ConfigInt>("max-call-duration")->read());
+	// Set no-RTP on hold timeout
+	const auto* noRTPOnHoldTimeoutParameter = config.get<ConfigDuration<chrono::seconds>>("no-rtp-on-hold-timeout");
+	const auto noRTPOnHoldTimeout = noRTPOnHoldTimeoutParameter->read();
+	if (noRTPOnHoldTimeout <= 0ms) {
+		const auto parameterName = noRTPOnHoldTimeoutParameter->getCompleteName();
+		throw FlexisipException{"invalid value for '" + parameterName + "', duration must be strictly positive"};
+	}
+	core->setNortpOnholdTimeout(static_cast<int>(chrono::duration_cast<chrono::seconds>(noRTPOnHoldTimeout).count()));
+
+	const auto* maxCallDurationParameter = config.get<ConfigDuration<chrono::seconds>>("max-call-duration");
+	const auto maxCallDuration = maxCallDurationParameter->read();
+	if (maxCallDuration < 0ms) {
+		const auto parameterName = maxCallDurationParameter->getCompleteName();
+		throw FlexisipException{"invalid value for '" + parameterName + "', duration must be positive"};
+	}
+	core->setInCallTimeout(static_cast<int>(chrono::duration_cast<chrono::seconds>(maxCallDuration).count()));
 
 	// Get transport from flexisip configuration
 	const auto& b2buaTransport = factory.createTransports();

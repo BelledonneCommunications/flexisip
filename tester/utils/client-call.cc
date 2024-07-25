@@ -74,8 +74,16 @@ linphone::Status ClientCall::update(
 	return mCall->update(tweak(mCall->getCore()->createCallParams(mCall)));
 }
 
-void ClientCall::setStaticPictureFps(float fps) {
+void ClientCall::setStaticPictureFps(float fps) const {
 	mCall->getCore()->setStaticPictureFps(fps);
+}
+
+void ClientCall::setRTCPEnabled(bool enabled) const {
+	getMetaRtpTransport().session->rtcp.enabled = enabled;
+}
+
+void ClientCall::setRTPRemotePort(in_port_t port) const {
+	reinterpret_cast<sockaddr_in&>(getMetaRtpTransport().session->rtp.gs.rem_addr).sin_port = port;
 }
 
 const std::shared_ptr<linphone::Call>& ClientCall::getLinphoneCall(const ClientCall& wrapper) {

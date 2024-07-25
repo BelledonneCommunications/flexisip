@@ -36,7 +36,9 @@ public:
 	linphone::Status
 	    update(std::function<std::shared_ptr<linphone::CallParams>(std::shared_ptr<linphone::CallParams>&&)>) const;
 
-	void setStaticPictureFps(float fps);
+	void setStaticPictureFps(float fps) const;
+	void setRTCPEnabled(bool enabled) const;
+	void setRTPRemotePort(in_port_t port) const;
 
 	/* CHEATS ~~ Use only for quick prototyping */
 	static const std::shared_ptr<linphone::Call>& getLinphoneCall(const ClientCall&);
