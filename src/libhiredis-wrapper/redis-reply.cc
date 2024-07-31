@@ -53,6 +53,9 @@ Reply tryFrom(const redisReply* reply) {
 		case REDIS_REPLY_ARRAY: {
 			return Array{reply->element, reply->elements};
 		} break;
+		case REDIS_REPLY_NIL: {
+			return Nil{};
+		} break;
 
 		default:
 			throw std::runtime_error{"Unimplemented Redis reply type: " + std::to_string(reply->type)};
@@ -91,6 +94,9 @@ std::ostream& operator<<(std::ostream& stream, const Array& array) {
 }
 std::ostream& operator<<(std::ostream& stream, const Disconnected&) {
 	return stream << "redis::Disconnected()";
+}
+std::ostream& operator<<(std::ostream& stream, const Nil&) {
+	return stream << "redis::Nil()";
 }
 
 ArrayOfPairs Array::pairwise() const {

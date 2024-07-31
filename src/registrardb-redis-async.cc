@@ -477,6 +477,7 @@ void RegistrarDbRedisAsync::handleFetch(redis::async::Reply reply, const RedisRe
 
 	auto* listener = context.listener.get();
 	Match(reply).against(
+	    // doFetch
 	    [&recordName, &insertIfActive, listener, &record, &context](const reply::Array& array) {
 		    // This is the most common scenario: we want all contacts inside the record
 		    const auto contacts = array.pairwise();
@@ -494,19 +495,21 @@ void RegistrarDbRedisAsync::handleFetch(redis::async::Reply reply, const RedisRe
 			    if (listener) listener->onRecordFound(context.mBindingParameters.globalExpire == 0 ? record : nullptr);
 		    }
 	    },
+
+	    // doFetchInstance (contact matching a given gruu)
 	    [&context, &recordName, &insertIfActive, listener, &record](const reply::String& contact) {
-		    // This is only when we want a contact matching a given gruu
-		    const char* gruu = context.mUniqueIdToFetch.c_str();
-		    if (!contact.empty()) {
-			    SLOGD << "GOT " << recordName << " for gruu " << gruu << " --> " << contact;
-			    insertIfActive(
-			        make_unique<ExtendedContact>(gruu, contact.data(), record->getConfig().messageExpiresName()));
-			    if (listener) listener->onRecordFound(record);
-		    } else {
-			    SLOGD << "Contact matching gruu " << gruu << " in record " << recordName << " not found";
-			    if (listener) listener->onRecordFound(nullptr);
-		    }
+		    const auto& gruu = context.mUniqueIdToFetch;
+		    SLOGD << "GOT " << recordName << " for gruu " << gruu << " --> " << contact;
+		    insertIfActive(
+		        make_unique<ExtendedContact>(gruu.c_str(), contact.data(), record->getConfig().messageExpiresName()));
+		    if (listener) listener->onRecordFound(record);
 	    },
+	    [&context, &recordName, listener](const reply::Nil&) {
+		    SLOGD << "Contact matching gruu " << context.mUniqueIdToFetch << " in record " << recordName
+		          << " not found";
+		    if (listener) listener->onRecordFound(nullptr);
+	    },
+
 	    [&recordName, listener](const auto& unexpected) {
 		    SLOGE << "Unexpected Redis reply fetching " << recordName << ": " << unexpected;
 		    if (listener) listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
