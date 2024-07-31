@@ -1017,6 +1017,7 @@ void oneProviderOneLine() {
 	// Line available again
 	phone.endCurrentCall(intercom);
 	com_to_bridge = other_intercom.call(other_phone);
+	BC_HARD_ASSERT(com_to_bridge != nullptr);
 	outgoing_log = other_phone.getCallLog();
 	BC_ASSERT_TRUE(com_to_bridge->getCallLog()->getCallId() != outgoing_log->getCallId());
 	BC_ASSERT_TRUE(outgoing_log->getRemoteAddress()->asString() == line1);
