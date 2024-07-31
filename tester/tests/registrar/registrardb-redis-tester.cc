@@ -84,6 +84,25 @@ public:
 	}
 };
 
+class NullRecordListener : public ContactUpdateListener {
+public:
+	std::uint8_t callCount = 0;
+
+	virtual void onRecordFound(const std::shared_ptr<Record>& r) override {
+		BC_ASSERT_PTR_NULL(r);
+		++callCount;
+	}
+	void onError(const SipStatus&) override {
+		BC_FAIL("This test doesn't expect an error response");
+	}
+	void onInvalid(const SipStatus&) override {
+		BC_FAIL("This test doesn't expect an invalid response");
+	}
+	void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override {
+		BC_FAIL("This test doesn't expect a contact to be updated");
+	}
+};
+
 class ContactRegisteredCallback : public ContactRegisteredListener {
 public:
 	template <typename TCallback>
@@ -333,11 +352,26 @@ void no_perm_to_subscribe() {
 	        },
 	        maxDuration)
 	    .assert_passed();
-	SUITE_SCOPE->asserter.iterateUpTo(
-	                         1, [&actualTopic] { return LOOP_ASSERTION(actualTopic.has_value()); }, 100ms)
+	SUITE_SCOPE->asserter
+	    .iterateUpTo(
+	        1, [&actualTopic] { return LOOP_ASSERTION(actualTopic.has_value()); }, 100ms)
 	    .assert_passed();
 	BC_HARD_ASSERT(actualTopic.has_value());
 	BC_ASSERT_CPP_EQUAL(*actualTopic, topic);
+}
+
+// Trigger the single-instance specialisation of `.fetch()` that attempts to HGET a single device/contact in the AoR,
+// but with a non-existant gruu. Assert that the listener is called back with a null record.
+// This use-case was broken when the hiredis wrapper was introduced
+void doFetchInstance_not_found() {
+	auto& registrar = SUITE_SCOPE->proxyServer.getAgent()->getRegistrarDb();
+	const auto& listener = std::make_shared<NullRecordListener>();
+
+	registrar.fetch(SipUri("sip:stub@127.0.0.1;gr=non-existant-gruu"), listener);
+
+	const auto& callCount = listener->callCount;
+	SUITE_SCOPE->asserter.iterateUpTo(10, [&] { return LOOP_ASSERTION(0 < callCount); }).assert_passed();
+	BC_ASSERT_CPP_EQUAL(callCount, 1);
 }
 
 TestSuite main("RegistrarDbRedis",
@@ -348,6 +382,7 @@ TestSuite main("RegistrarDbRedis",
                    CLASSY_TEST(subscribe_to_key_expiration),
                    CLASSY_TEST(periodic_replication_check),
                    CLASSY_TEST(no_perm_to_subscribe),
+                   CLASSY_TEST(doFetchInstance_not_found),
                },
                Hooks()
                    .beforeSuite([]() {
