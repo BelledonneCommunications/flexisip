@@ -18,45 +18,18 @@
 
 #pragma once
 
+#include "exceptions/exit.hh"
+
 namespace flexisip {
 
 /*
- * Report an event that requires the program to be stopped.
- * The cause may be an error or normal program execution.
+ * Exception to indicate a bad configuration.
+ * The program should be stopped when this exception is thrown.
  */
-class Exit : public std::runtime_error {
-public:
-	explicit Exit(int code) : std::runtime_error{""}, mCode(code) {
-	}
-	template <typename... Args>
-	explicit Exit(int code, Args&&... args) : std::runtime_error{std::forward<Args>(args)...}, mCode(code) {
-	}
-
-	int code() const {
-		return mCode;
-	}
-
-private:
-	int mCode;
-};
-
-class ExitFailure : public Exit {
+class BadConfiguration : public ExitFailure {
 public:
 	template <typename... Args>
-	explicit ExitFailure(int code, Args&&... args) : Exit{code, std::forward<Args>(args)...} {
-	}
-	template <typename... Args>
-	explicit ExitFailure(Args&&... args) : ExitFailure{EXIT_FAILURE, std::forward<Args>(args)...} {
+	explicit BadConfiguration(Args&&... args) : ExitFailure{-1, std::forward<Args>(args)...} {
 	}
 };
-
-class ExitSuccess : public Exit {
-public:
-	explicit ExitSuccess() : Exit{EXIT_SUCCESS} {
-	}
-	template <typename... Args>
-	explicit ExitSuccess(Args&&... args) : Exit{EXIT_SUCCESS, std::forward<Args>(args)...} {
-	}
-};
-
 } // namespace flexisip
