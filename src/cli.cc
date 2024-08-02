@@ -28,6 +28,8 @@
 
 #include <bctoolbox/ownership.hh>
 
+#include <sofia-sip/su_log.h>
+
 #include "flexisip/logmanager.hh"
 #include "flexisip/registrar/registar-listeners.hh"
 #include "flexisip/sofia-wrapper/msg-sip.hh"
@@ -193,35 +195,50 @@ void CommandLineInterface::handleConfigSet(std::shared_ptr<SocketHandle> socket,
 	if (config_value && (arg == "global/debug")) {
 		config_value->set(value);
 		LogManager::get().setLogLevel(BCTBX_LOG_DEBUG);
-		socket->send("debug : " + value);
+		socket->send("debug: " + value);
 	} else if (config_value && (arg == "global/log-level")) {
 		config_value->set(value);
 		LogManager::get().setLogLevel(LogManager::get().logLevelFromName(value));
-		socket->send("log-level : " + value);
+		socket->send("log-level: " + value);
 	} else if (config_value && (arg == "global/syslog-level")) {
 		config_value->set(value);
 		LogManager::get().setSyslogLevel(LogManager::get().logLevelFromName(value));
-		socket->send("syslog-level : " + value);
+		socket->send("syslog-level: " + value);
+	} else if (config_value && (arg == "global/sofia-level")) {
+		try {
+			auto valueInt = std::stoi(value);
+			if (valueInt < 1 || valueInt > 9) {
+				socket->send(
+				    "Error: sofia-level not modified, errors in args. 'global/sofia-level' levels range from 1 to 9");
+				return;
+			}
+			config_value->set(value);
+			su_log_set_level(nullptr, valueInt);
+			socket->send("sofia-level: " + value);
+		} catch (const exception& e) {
+			socket->send("Error: sofia-level not modified, errors in args. "s + e.what());
+		}
 	} else if (config_value && (arg == "global/contextual-log-level")) {
 		config_value->set(value);
 		LogManager::get().setContextualLevel(LogManager::get().logLevelFromName(value));
-		socket->send("contextual-log-level : " + value);
+		socket->send("contextual-log-level: " + value);
 	} else if (config_value && (arg == "global/contextual-log-filter")) {
 		value = StringUtils::join(args, 1);
 		config_value->set(value);
 		LogManager::get().setContextualFilter(value);
-		socket->send("contextual-log-filter : " + value);
+		socket->send("contextual-log-filter: " + value);
 	} else if (config_value && (arg == "global/show-body-for")) {
 		try {
 			value = StringUtils::join(args, 1);
 			MsgSip::setShowBodyFor(value);
 			config_value->set(value);
-			socket->send("show-body-for : " + value);
+			socket->send("show-body-for: " + value);
 		} catch (const exception& e) {
-			socket->send("show-body-for : not modified, errors in args. "s + e.what());
+			socket->send("Error: show-body-for not modified, errors in args. "s + e.what());
 		}
 	} else {
-		socket->send("Only debug, log-level and syslog-level from global can be updated while flexisip is running");
+		socket->send(
+		    "Error: only debug, log-level and syslog-level from global can be updated while flexisip is running");
 	}
 }
 
@@ -356,17 +373,17 @@ std::string CommandLineInterface::printEntry(GenericEntry* entry, bool printHelp
 		if (isNode) answer += "[";
 		answer += entry->getName();
 		if (isNode) answer += "]";
-		answer += " : " + entry->getHelp();
+		answer += ": " + entry->getHelp();
 	} else {
 		if (isNode) {
 			answer += "[" + gstruct->getName() + "]";
 		} else {
 			auto counter = dynamic_cast<StatCounter64*>(entry);
 			if (counter) {
-				answer += counter->getName() + " : " + std::to_string(counter->read());
+				answer += counter->getName() + ": " + std::to_string(counter->read());
 			} else {
 				auto value = dynamic_cast<ConfigValue*>(entry);
-				if (value) answer += value->getName() + " : " + value->get();
+				if (value) answer += value->getName() + ": " + value->get();
 			}
 		}
 	}

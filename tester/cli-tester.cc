@@ -26,6 +26,8 @@
 
 #include <json/json.h>
 
+#include <sofia-sip/su_log.h>
+
 #include "bctoolbox/tester.h"
 #include "registrar/record.hh"
 #include "utils/string-utils.hh"
@@ -44,17 +46,9 @@
 using namespace std::string_literals;
 using namespace std::chrono_literals;
 
+namespace flexisip::tester::cli_tests {
 namespace {
-
 constexpr const auto socket_connect = connect;
-
-}
-
-namespace flexisip {
-namespace tester {
-
-namespace cli_tests {
-
 using CapturedCalls = std::vector<std::string>;
 
 struct TestCli : public flexisip::CommandLineInterface {
@@ -165,6 +159,37 @@ void handler_registration_and_dispatch() {
 	passthrough_handler.unregister(); // No asserts, this would simply crash the program
 }
 
+auto callScript(const std::string& command, int expected_status, BcAssert<>& asserter) {
+	const auto pid = std::to_string(getpid());
+	auto pyScript =
+	    std::string(FLEXISIP_TESTER_DATA_SRCDIR) + "/../scripts/flexisip_cli.py --pid " + pid + " --server proxy ";
+	auto fut = std::async(std::launch::async, [command = pyScript + command, expected_status] {
+		auto* handle = popen(command.c_str(), "r");
+		BC_HARD_ASSERT_TRUE(handle != nullptr);
+		std::string output(0xFFFF, '\0');
+		auto nread = fread(&output.front(), sizeof(decltype(output)::value_type), output.size(), handle);
+		if (ferror(handle)) {
+			BC_HARD_FAIL(("Error "s + std::strerror(errno) + " reading from subprocess' stdout").c_str());
+		}
+		int exitStatus = pclose(handle);
+		if (exitStatus < 0) {
+			BC_HARD_FAIL(("Error "s + std::strerror(errno) + " closing process").c_str());
+		}
+		if (WIFEXITED(exitStatus)) exitStatus = WEXITSTATUS(exitStatus);
+		output.resize(nread);
+		if (exitStatus != expected_status) {
+			BC_HARD_FAIL(("Expected command to return " + std::to_string(expected_status) + " but found " +
+			              std::to_string(exitStatus) + ".\nCommand: " + command + "\nOutput: " + output)
+			                 .c_str());
+		}
+		return output;
+	});
+
+	BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(33, [&fut] { return fut.wait_for(0s) == std::future_status::ready; }));
+
+	return fut.get();
+}
+
 /**
  * A note on deadlocks:
  *
@@ -183,35 +208,6 @@ void flexisip_cli_dot_py() {
 	const auto cliReady = cli.start();
 	BcAssert asserter{[&root = *proxyServer.getRoot()] { root.step(1ms); }};
 	const auto pid = std::to_string(getpid());
-	const auto callScript = [pyScript = std::string(FLEXISIP_TESTER_DATA_SRCDIR) +
-	                                    "/../scripts/flexisip_cli.py --pid " + pid + " --server proxy ",
-	                         &asserter](const std::string& command, int expected_status) {
-		auto fut = std::async(std::launch::async, [command = pyScript + command, expected_status] {
-			auto* handle = popen(command.c_str(), "r");
-			BC_HARD_ASSERT_TRUE(handle != nullptr);
-			std::string output(0xFFFF, '\0');
-			auto nread = fread(&output.front(), sizeof(decltype(output)::value_type), output.size(), handle);
-			if (ferror(handle)) {
-				BC_HARD_FAIL(("Error "s + std::strerror(errno) + " reading from subprocess' stdout").c_str());
-			}
-			int exitStatus = pclose(handle);
-			if (exitStatus < 0) {
-				BC_HARD_FAIL(("Error "s + std::strerror(errno) + " closing process").c_str());
-			}
-			if (WIFEXITED(exitStatus)) exitStatus = WEXITSTATUS(exitStatus);
-			output.resize(nread);
-			if (exitStatus != expected_status) {
-				BC_HARD_FAIL(("Expected command to return " + std::to_string(expected_status) + " but found " +
-				              std::to_string(exitStatus) + ".\nCommand: " + command + "\nOutput: " + output)
-				                 .c_str());
-			}
-			return output;
-		});
-
-		BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(33, [&fut] { return fut.wait_for(0s) == std::future_status::ready; }));
-
-		return fut.get();
-	};
 	auto callSocket = [address =
 	                       [&pid] {
 		                       sockaddr_un address;
@@ -267,7 +263,7 @@ void flexisip_cli_dot_py() {
 	{ // Get record
 		command.str("");
 		command << "REGISTRAR_GET " << aor;
-		const auto returned_contacts = deserialize(callScript(command.str(), EX_OK))["contacts"];
+		const auto returned_contacts = deserialize(callScript(command.str(), EX_OK, asserter))["contacts"];
 		BC_ASSERT_EQUAL(returned_contacts.size(), 1, int, "%i");
 		const auto returned_contact = returned_contacts[0];
 		BC_ASSERT_STRING_EQUAL(returned_contact["unique-id"].asCString(), uid.c_str());
@@ -279,7 +275,7 @@ void flexisip_cli_dot_py() {
 		command.str("");
 		const auto modifiedContact = "sip:test2@[9f60:278:e0a:2a01:3a:d48c:6b2d:29d7]:91347";
 		command << "REGISTRAR_UPSERT " << aor << " '" << modifiedContact << "' 096 " << uid;
-		const auto returned_contacts = deserialize(callScript(command.str(), EX_OK))["contacts"];
+		const auto returned_contacts = deserialize(callScript(command.str(), EX_OK, asserter))["contacts"];
 		BC_ASSERT_EQUAL(returned_contacts.size(), 1, int, "%i");
 		const auto returned_contact = returned_contacts[0];
 		BC_ASSERT_STRING_EQUAL(returned_contact["unique-id"].asCString(), uid.c_str());
@@ -293,7 +289,7 @@ void flexisip_cli_dot_py() {
 		const auto bogusUid = "fs-gen-something"; // Interpreted as placeholder because of the prefix
 		command.str("");
 		command << "REGISTRAR_UPSERT " << aor << " " << initialContact << " 173 " << bogusUid;
-		auto returned_contacts = deserialize(callScript(command.str(), EX_OK))["contacts"];
+		auto returned_contacts = deserialize(callScript(command.str(), EX_OK, asserter))["contacts"];
 		BC_ASSERT_EQUAL(returned_contacts.size(), 1, int, "%i");
 		auto returned_contact = returned_contacts[0];
 		BC_ASSERT_STRING_EQUAL(returned_contact["contact"].asCString(), initialContact);
@@ -305,7 +301,7 @@ void flexisip_cli_dot_py() {
 		const auto differentUid = "fs-gen-something_else";
 		command.str("");
 		command << "REGISTRAR_UPSERT " << aor << " " << modifiedContact << " 682 " << differentUid;
-		const auto result = callScript(command.str(), EX_USAGE);
+		const auto result = callScript(command.str(), EX_USAGE, asserter);
 		BC_ASSERT_STRING_EQUAL(result.c_str(), "Error: Invalid Record\n"); // CSeq has not been properly incremented
 
 		// Delete contact based on key, even if it is "auto-generated" (has the placeholder prefix)
@@ -326,14 +322,14 @@ void flexisip_cli_dot_py() {
 		const auto returned_contacts =
 		    deserialize(callScript("REGISTRAR_UPSERT sip:test3@sip.example.org "
 		                           "'sip:test3@sip.example.org;+sip.instance=embedded' 3000 passed-as-argument",
-		                           EX_OK))["contacts"];
+		                           EX_OK, asserter))["contacts"];
 		BC_ASSERT_EQUAL(returned_contacts.size(), 1, int, "%i");
 		const auto returned_contact = returned_contacts[0];
 		BC_ASSERT_STRING_EQUAL(returned_contact["unique-id"].asCString(), "embedded");
 	}
 
 	{ // Get Unknown Record (CLI)
-		const auto result = callScript("REGISTRAR_GET sip:unknown@sip.example.org", EX_USAGE);
+		const auto result = callScript("REGISTRAR_GET sip:unknown@sip.example.org", EX_USAGE, asserter);
 		BC_ASSERT_STRING_EQUAL(result.c_str(),
 		                       "Error 404: Not Found. The Registrar does not contain the requested AOR.\n");
 	}
@@ -352,12 +348,12 @@ void flexisip_cli_dot_py() {
 	}
 
 	{ // Unsupported command (The script will allow it)
-		const auto result = callScript("SIP_BRIDGE INFO", EX_USAGE);
+		const auto result = callScript("SIP_BRIDGE INFO", EX_USAGE, asserter);
 		BC_ASSERT_STRING_EQUAL(result.c_str(), "Error: unknown command SIP_BRIDGE\n");
 	}
 
 	{ // Unknown command (The script will reject it)
-		const auto result = callScript("unknown 2>&1", 2);
+		const auto result = callScript("unknown 2>&1", 2, asserter);
 		BC_ASSERT_TRUE(StringUtils::startsWith(result, "usage: flexisip_cli.py"));
 	}
 
@@ -430,25 +426,56 @@ void flexisip_cli_dot_py() {
 	}
 
 	{ // CONFIG_GET success
-		const auto result = callScript("CONFIG_GET global/log-level 2>&1", EX_OK);
-		BC_ASSERT_CPP_EQUAL(result, "log-level : error\n");
+		const auto result = callScript("CONFIG_GET global/log-level 2>&1", EX_OK, asserter);
+		BC_ASSERT_CPP_EQUAL(result, "log-level: error\n");
 	}
 
 	{ // CONFIG_GET error
-		const auto result = callScript("CONFIG_GET no/such-setting 2>&1", EX_USAGE);
+		const auto result = callScript("CONFIG_GET no/such-setting 2>&1", EX_USAGE, asserter);
 		BC_ASSERT_CPP_EQUAL(result, "Error: no/such-setting not found\n");
 	}
 }
 
-namespace {
+void flexisip_cli_set_sofia_log_level() {
+	Server proxyServer{{
+	    {"global/aliases", "localhost sip.example.org"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "sip.example.org"},
+	}};
+	ProxyCommandLineInterface cli(proxyServer.getConfigManager(), proxyServer.getAgent());
+	const auto cliReady = cli.start();
+	BcAssert asserter{[&root = *proxyServer.getRoot()] { root.step(1ms); }};
+
+	// set a first value (which may be equal to default value)
+	{
+		const auto setResult = callScript("CONFIG_SET \'global/sofia-level\' 4", EX_OK, asserter);
+		BC_ASSERT_CPP_EQUAL(setResult, "sofia-level: 4\n");
+		const auto getResult = callScript("CONFIG_GET \'global/sofia-level\'", EX_OK, asserter);
+		BC_ASSERT_CPP_EQUAL(getResult, "sofia-level: 4\n");
+		BC_ASSERT_CPP_EQUAL(su_log_default->log_level, 4);
+	}
+	// change value
+	{
+		const auto setResult = callScript("CONFIG_SET \'global/sofia-level\' 8", EX_OK, asserter);
+		BC_ASSERT_CPP_EQUAL(setResult, "sofia-level: 8\n");
+		const auto getResult = callScript("CONFIG_GET \'global/sofia-level\'", EX_OK, asserter);
+		BC_ASSERT_CPP_EQUAL(getResult, "sofia-level: 8\n");
+		BC_ASSERT_CPP_EQUAL(su_log_default->log_level, 8);
+	}
+	// check range
+	{
+		std::ignore = callScript("CONFIG_SET \'global/sofia-level\' 10", EX_USAGE, asserter);
+		BC_ASSERT_CPP_EQUAL(su_log_default->log_level, 8);
+	}
+}
+
 using namespace DbImplementation;
 TestSuite _("CLI",
             {
                 CLASSY_TEST(handler_registration_and_dispatch),
                 CLASSY_TEST(flexisip_cli_dot_py<Internal>),
                 CLASSY_TEST(flexisip_cli_dot_py<Redis>),
+                CLASSY_TEST(flexisip_cli_set_sofia_log_level),
             });
 } // namespace
-} // namespace cli_tests
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester::cli_tests
