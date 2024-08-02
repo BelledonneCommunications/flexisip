@@ -881,7 +881,11 @@ int _main(int argc, char* argv[]) {
 
 	su_log_redirect(NULL, sofiaLogHandler, NULL);
 	if (debug || log_level == "debug") {
-		su_log_set_level(NULL, 9);
+		auto sofiaLevel = cfg->getGlobal()->get<ConfigInt>("sofia-level")->read();
+		if (sofiaLevel < 1 || sofiaLevel > 9) {
+			throw Exit{-1, "setting 'global/sofia-level' levels range from 1 to 9"};
+		}
+		su_log_set_level(nullptr, sofiaLevel);
 	}
 	/*read the pkcs passphrase if any from the fifo, and keep it in memory*/
 	auto passphrase = getPkcsPassphrase(pkcsFile);

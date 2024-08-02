@@ -769,6 +769,17 @@ ConfigManager::ConfigManager()
 	     "flexisip-{server}.log"},
 	    {String, "log-level", "Log file verbosity. Possible values are debug, message, warning and error", "error"},
 	    {String, "syslog-level", "Syslog verbosity. Possible values are debug, message, warning and error", "error"},
+	    {Integer, "sofia-level",
+	     "Sofia-SIP log verbosity. These logs are only displayed if the log level is set to "
+	     "'debug' or if the program is started with the '-d' option. The verbosity levels range from 1 to 9, with the "
+	     "following meanings:\n"
+	     "1 -> Critical errors\n"
+	     "2 -> Non-critical errors\n"
+	     "3 -> Warnings and progress messages\n"
+	     "5 -> Signaling protocol actions\n"
+	     "7 -> Media protocol actions\n"
+	     "9 -> Entering/exiting functions",
+	     "5"},
 	    {Boolean, "user-errors-logs",
 	     "Log (on a different log domain) user errors like authentication, registration, routing, etc...", "false"},
 	    {String, "contextual-log-filter",
