@@ -78,6 +78,7 @@
 #include "cli.hh"
 #include "configdumper.hh"
 #include "etchosts.hh"
+#include "exceptions/bad-configuration.hh"
 #include "exceptions/exit.hh"
 #include "monitor.hh"
 #include "registrar/registrar-db.hh"
@@ -300,13 +301,13 @@ static void forkAndDetach(
 	int err = pipe(pipe_launcher_wdog);
 	bool launcherExited = false;
 	if (err == -1) {
-		throw Exit{EXIT_FAILURE, "could not create pipes: "s + strerror(errno)};
+		throw ExitFailure{"could not create pipes: "s + strerror(errno)};
 	}
 
 	/* Creation of the watch-dog process */
 	pid_t pid = fork();
 	if (pid < 0) {
-		throw Exit{EXIT_FAILURE, "could not fork: "s + strerror(errno)};
+		throw ExitFailure{"could not fork: "s + strerror(errno)};
 	}
 	if (pid == 0) {
 		/* We are in the watch-dog process */
@@ -318,11 +319,11 @@ static void forkAndDetach(
 	fork_flexisip:
 		err = pipe(pipe_wdog_flexisip);
 		if (err == -1) {
-			throw Exit{EXIT_FAILURE, "could not create pipes: "s + strerror(errno)};
+			throw ExitFailure{"could not create pipes: "s + strerror(errno)};
 		}
 		flexisip_pid = fork();
 		if (flexisip_pid < 0) {
-			throw Exit{EXIT_FAILURE, "could not fork: "s + strerror(errno)};
+			throw ExitFailure{"could not fork: "s + strerror(errno)};
 		}
 		if (flexisip_pid == 0) {
 
@@ -347,7 +348,7 @@ static void forkAndDetach(
 			string message{};
 			if (err == -1) message = "[WDOG] read error from flexisip, "s + strerror(errno);
 			close(pipe_launcher_wdog[1]); // close launcher pipe to signify the error
-			throw Exit{EXIT_FAILURE, message};
+			throw ExitFailure{message};
 		}
 		close(pipe_wdog_flexisip[0]);
 
@@ -361,11 +362,11 @@ static void forkAndDetach(
 			err = pipe(pipe_wd_mo);
 			if (err == -1) {
 				kill(flexisip_pid, SIGTERM);
-				throw Exit{EXIT_FAILURE, "could not create pipes: "s + strerror(errno)};
+				throw ExitFailure{"could not create pipes: "s + strerror(errno)};
 			}
 			monitor_pid = fork();
 			if (monitor_pid < 0) {
-				throw Exit{EXIT_FAILURE, "could not fork: "s + strerror(errno)};
+				throw ExitFailure{"could not fork: "s + strerror(errno)};
 			}
 			if (monitor_pid == 0) {
 				/* We are in the monitor process */
@@ -373,14 +374,14 @@ static void forkAndDetach(
 				close(pipe_launcher_wdog[1]);
 				close(pipe_wd_mo[0]);
 				Monitor::exec(cfg, pipe_wd_mo[1]);
-				throw Exit{EXIT_FAILURE, "failed to launch Flexisip monitor"};
+				throw ExitFailure{"failed to launch Flexisip monitor"};
 			}
 			/* We are in the watchdog process */
 			close(pipe_wd_mo[1]);
 			err = read(pipe_wd_mo[0], buf, sizeof(buf));
 			if (err == -1 || err == 0) {
 				kill(flexisip_pid, SIGTERM);
-				throw Exit{EXIT_FAILURE, "[WDOG] read error from Monitor process, killed flexisip"};
+				throw ExitFailure{"[WDOG] read error from Monitor process, killed flexisip"};
 			}
 			close(pipe_wd_mo[0]);
 		}
@@ -390,7 +391,7 @@ static void forkAndDetach(
 		 */
 
 		if (!launcherExited && write(pipe_launcher_wdog[1], "ok", 3) == -1) {
-			throw Exit{EXIT_FAILURE, "[WDOG] write to pipe failed, exiting"};
+			throw ExitFailure{"[WDOG] write to pipe failed, exiting"};
 		} else {
 			close(pipe_launcher_wdog[1]);
 			launcherExited = true;
@@ -428,7 +429,7 @@ static void forkAndDetach(
 					goto fork_monitor;
 				}
 			} else if (errno != EINTR) {
-				throw Exit{EXIT_FAILURE, "waitpid() error, "s + strerror(errno)};
+				throw ExitFailure{"waitpid() error, "s + strerror(errno)};
 			}
 		}
 	} else {
@@ -444,10 +445,10 @@ static void forkAndDetach(
 		err = read(pipe_launcher_wdog[0], buf, sizeof(buf));
 		if (err == -1 || err == 0) {
 			// pipe was closed, flexisip failed to start -> exit with failure
-			throw Exit{EXIT_FAILURE, "[LAUNCHER] Flexisip failed to start"};
+			throw ExitFailure{"[LAUNCHER] Flexisip failed to start"};
 		} else {
 			// pipe written to, flexisip was OK
-			throw Exit{EXIT_SUCCESS, "[LAUNCHER] Flexisip started correctly: exit"};
+			throw ExitSuccess{"[LAUNCHER] Flexisip started correctly: exit"};
 		}
 	}
 }
@@ -486,7 +487,7 @@ static void dump_config(
 		smatch m;
 		rootStruct = dynamic_cast<GenericStruct*>(rootStruct->find(dump_cfg_part));
 		if (rootStruct == nullptr) {
-			throw Exit{EXIT_FAILURE, "couldn't find node " + dump_cfg_part};
+			throw ExitFailure{"couldn't find node " + dump_cfg_part};
 		}
 		if (regex_match(dump_cfg_part, m, regex("^module::(.*)$"))) {
 			const auto& moduleName = m[1];
@@ -496,8 +497,7 @@ static void dump_config(
 			            [&moduleName](const auto& module) { return module->getModuleName() == moduleName; });
 			if (moduleIt != moduleInfoChain.cend() && (*moduleIt)->getClass() == ModuleClass::Experimental &&
 			    !with_experimental) {
-				throw Exit{
-				    EXIT_FAILURE,
+				throw ExitFailure{
 				    "module "s + moduleName.str() +
 				        " is experimental, not returning anything. To override, specify '--show-experimental'.",
 				};
@@ -520,7 +520,7 @@ static void dump_config(
 	} else if (format == "xwiki") {
 		dumper = make_unique<XWikiConfigDumper>(rootStruct);
 	} else {
-		throw Exit{EXIT_FAILURE, "invalid output format '" + format + "'"};
+		throw ExitFailure{"invalid output format '" + format + "'"};
 	}
 	dumper->setDumpExperimentalEnabled(with_experimental);
 	dumper->dump(cout);
@@ -883,7 +883,7 @@ int _main(int argc, char* argv[]) {
 	if (debug || log_level == "debug") {
 		auto sofiaLevel = cfg->getGlobal()->get<ConfigInt>("sofia-level")->read();
 		if (sofiaLevel < 1 || sofiaLevel > 9) {
-			throw Exit{-1, "setting 'global/sofia-level' levels range from 1 to 9"};
+			throw BadConfiguration{"setting 'global/sofia-level' levels range from 1 to 9"};
 		}
 		su_log_set_level(nullptr, sofiaLevel);
 	}
@@ -938,8 +938,7 @@ int _main(int argc, char* argv[]) {
 		try {
 			MsgSip::setShowBodyFor(cfg->getGlobal()->get<ConfigString>("show-body-for")->read());
 		} catch (const invalid_argument& e) {
-			throw Exit{
-			    -1,
+			throw BadConfiguration{
 			    "setting 'global/show-body-for' must only contain sip method names, whitespace separated. "s + e.what(),
 			};
 		}
@@ -1022,7 +1021,7 @@ int _main(int argc, char* argv[]) {
 			/* Catch the presence server exception, which is generally caused by a failure while binding the SIP
 			 * listening points.
 			 * Since it prevents from starting, and it is not a crash, it shall be notified to the user */
-			throw Exit{-1, "failed to start flexisip presence server"};
+			throw ExitFailure{-1, "failed to start flexisip presence server"};
 		}
 
 		presence_cli = make_unique<CommandLineInterface>("presence", cfg, root);
@@ -1044,7 +1043,7 @@ int _main(int argc, char* argv[]) {
 			/* Catch the conference server exception, which is generally caused by a failure while binding the SIP
 			 * listening points.
 			 * Since it prevents from starting, and it is not a crash, it shall be notified to the user */
-			throw Exit{-1, "failed to start flexisip conference server"};
+			throw ExitFailure{-1, "failed to start flexisip conference server"};
 		}
 
 		serviceServers.emplace_back(std::move(conferenceServer));
@@ -1060,7 +1059,7 @@ int _main(int argc, char* argv[]) {
 		try {
 			regEventServer->init();
 		} catch (const FlexisipException& e) {
-			throw Exit{-1, "failed to start flexisip registration event server"};
+			throw ExitFailure{-1, "failed to start flexisip registration event server"};
 		}
 
 		serviceServers.emplace_back(std::move(regEventServer));
@@ -1076,7 +1075,7 @@ int _main(int argc, char* argv[]) {
 		try {
 			b2buaServer->init();
 		} catch (const FlexisipException& e) {
-			throw Exit{-1, "failed to start flexisip back to back user agent server"};
+			throw ExitFailure{-1, "failed to start flexisip back to back user agent server"};
 		}
 
 		serviceServers.emplace_back(std::move(b2buaServer));
@@ -1143,17 +1142,13 @@ int main(int argc, char* argv[]) {
 	} catch (const TCLAP::ExitException& exception) {
 		// Exception raised when the program failed to correctly parse command line options.
 		return exception.getExitStatus();
+	} catch (const ExitSuccess& exception) {
+		if (exception.what() != nullptr && exception.what()[0] != '\0') {
+			SLOGD << "Exit success: " << exception.what();
+		}
+		return EXIT_SUCCESS;
 	} catch (const Exit& exception) {
-		// If there are no explanatory string to print, exit now.
-		if (exception.what() == nullptr or exception.what()[0] == '\0') {
-			return exception.code();
-		}
-		if (exception.code() != EXIT_SUCCESS) {
-			cerr << "Error, caught exit exception: " << exception.what() << endl;
-			return exception.code();
-		}
-
-		SLOGD << "Exit success: " << exception.what();
+		cerr << "Error: " << exception.what() << endl;
 		return exception.code();
 	} catch (const exception& exception) {
 		cerr << "Error, caught an unexpected exception: " << exception.what() << endl;
