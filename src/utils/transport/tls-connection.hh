@@ -1,6 +1,6 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+ Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
@@ -31,7 +31,7 @@
 
 #include <flexisip/logmanager.hh>
 
-#include "../thread/must-finish-thread.hh"
+#include "utils/thread/must-finish-thread.hh"
 
 namespace flexisip {
 
@@ -90,6 +90,7 @@ public:
 
 	void disconnect() noexcept {
 		mBio.reset();
+		SLOGD << mLogPrefix << "Disconnected";
 	}
 	void resetConnection() noexcept;
 
@@ -167,8 +168,8 @@ public:
 	}
 	int write(const void* data, int dlen) noexcept;
 
-	bool waitForData(std::chrono::milliseconds timeout) const;
-	bool hasData() const {
+	bool waitForData(std::chrono::milliseconds timeout);
+	bool hasData() {
 		return waitForData(std::chrono::milliseconds{0});
 	}
 
@@ -203,6 +204,7 @@ private:
 	std::atomic_bool mIsConnecting = false;
 	std::chrono::milliseconds mTimeout{20000};
 	MustFinishThread mThread;
+	std::string mLogPrefix{};
 };
 
 } // namespace flexisip

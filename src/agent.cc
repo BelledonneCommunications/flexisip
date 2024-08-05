@@ -256,7 +256,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	GenericStruct* global = GenericManager::get()->getRoot()->get<GenericStruct>("global");
 	list<string> transports = global->get<ConfigStringList>("transports")->read();
 	string ciphers = global->get<ConfigString>("tls-ciphers")->read();
-	// sofia needs a value in millseconds.
+	// sofia needs a value in milliseconds.
 	unsigned int tports_idle_timeout = 1000 * (unsigned int)global->get<ConfigInt>("idle-timeout")->read();
 	bool globalVerifyIn = global->get<ConfigBoolean>("require-peer-certificate")->read();
 	unsigned int t1x64 = (unsigned int)global->get<ConfigInt>("transaction-timeout")->read();
@@ -375,7 +375,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	startMdns();
 
 	/*
-	 * Iterate on all the transports enabled or implicitely configured (case of 'sip:*') in order to guess useful
+	 * Iterate on all the transports enabled or implicitly configured (case of 'sip:*') in order to guess useful
 	 *information from an empiric manner:
 	 * mPublicIpV4/mPublicIpV6 is the public IP of the proxy, assuming there's only one.
 	 * mPreferredRouteV4/mPreferredRouteV6 is a private interface of the proxy that can be used for inter flexisip nodes

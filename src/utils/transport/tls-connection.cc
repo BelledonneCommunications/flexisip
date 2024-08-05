@@ -1,6 +1,6 @@
 /*
  Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+ Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
@@ -16,24 +16,18 @@
  along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <future>
-#include <limits>
 #include <ostream>
 #include <sstream>
 #include <thread>
 
 #include <arpa/inet.h>
-#include <math.h>
+#include <cmath>
 #include <poll.h>
-
-#include <nghttp2/nghttp2.h>
-#include <nghttp2/nghttp2ver.h>
 
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
-#include "flexisip/common.hh"
 #include "flexisip/logmanager.hh"
 
 #include "tls-connection.hh"
@@ -42,8 +36,14 @@ using namespace std;
 
 namespace flexisip {
 
+static string logPrefix(const TlsConnection* ptr) {
+	stringstream stream;
+	stream << "TlsConnection[" << ptr << "] - ";
+	return stream.str();
+}
+
 TlsConnection::TlsConnection(const string& host, const string& port, bool mustBeHttp2)
-    : mHost{host}, mPort{port}, mMustBeHttp2{mustBeHttp2} {
+    : mHost{host}, mPort{port}, mMustBeHttp2{mustBeHttp2}, mLogPrefix{logPrefix(this)} {
 
 	mCtx = makeDefaultCtx();
 	SSL_CTX_set_verify(mCtx.get(), SSL_VERIFY_NONE, nullptr);
@@ -51,7 +51,7 @@ TlsConnection::TlsConnection(const string& host, const string& port, bool mustBe
 
 TlsConnection::TlsConnection(
     const string& host, const string& port, const string& trustStorePath, const string& certPath, bool mustBeHttp2)
-    : mHost{host}, mPort{port}, mMustBeHttp2{mustBeHttp2} {
+    : mHost{host}, mPort{port}, mMustBeHttp2{mustBeHttp2}, mLogPrefix{logPrefix(this)} {
 
 	if (certPath.empty()) {
 		mCtx = nullptr;
@@ -70,7 +70,7 @@ TlsConnection::TlsConnection(
 
 	if (!SSL_CTX_load_verify_locations(ctx, trustStorePath.empty() ? nullptr : trustStorePath.c_str(),
 	                                   "/etc/ssl/certs")) {
-		SLOGE << "Error loading trust store";
+		SLOGE << mLogPrefix << "Error loading trust store";
 		ERR_print_errors_fp(stderr);
 		throw CreationError();
 	}
@@ -78,18 +78,20 @@ TlsConnection::TlsConnection(
 	if (!certPath.empty()) {
 		int error = SSL_CTX_use_certificate_file(ctx, certPath.c_str(), SSL_FILETYPE_PEM);
 		if (error != 1) {
-			LOGE("SSL_CTX_use_certificate_file for %s failed: %d", certPath.c_str(), error);
+			SLOGE << mLogPrefix << "SSL_CTX_use_certificate_file for " << certPath << " failed: " << error;
 			throw CreationError();
 		} else if (isCertExpired(certPath)) {
-			LOGEN("Certificate %s is expired! You won't be able to use it for push notifications. Please update your "
-			      "certificate or remove it entirely.",
-			      certPath.c_str());
+			const auto message = mLogPrefix + "Certificate " + certPath +
+			                     "is expired! You won't be able to use it for push notifications. Please update your "
+			                     "certificate or remove it entirely.";
+			LOGEN(message.c_str());
 		}
 	}
 	if (!certPath.empty()) {
 		int error = SSL_CTX_use_PrivateKey_file(ctx, certPath.c_str(), SSL_FILETYPE_PEM);
 		if (error != 1 || SSL_CTX_check_private_key(ctx) != 1) {
-			SLOGE << "Private key does not match the certificate public key for " << certPath << ": " << error;
+			SLOGE << mLogPrefix << "Private key does not match the certificate public key for " << certPath << ":"
+			      << error;
 			throw CreationError();
 		}
 	}
@@ -107,14 +109,16 @@ void TlsConnection::doConnectAsync(su_root_t& root, const function<void()>& onCo
 
 	su_msg_r mamc = SU_MSG_R_INIT;
 	if (-1 == su_msg_create(mamc, su_root_task(&root), su_root_task(&root), doConnectCb, sizeof(function<void()>*))) {
-		LOGF("Couldn't create auth async message");
+		const auto message = mLogPrefix + "Couldn't create auth async message";
+		LOGF(message.c_str());
 	}
 
 	auto clientOnConnectCb = reinterpret_cast<function<void()>**>(su_msg_data(mamc));
 	*clientOnConnectCb = new function<void()>(onConnectCb);
 
 	if (-1 == su_msg_send(mamc)) {
-		LOGF("Couldn't send auth async message to main thread.");
+		const auto message = mLogPrefix + "Couldn't send auth async message to main thread.";
+		LOGF(message.c_str());
 	}
 
 	mIsConnecting = false;
@@ -129,7 +133,9 @@ void TlsConnection::doConnectCb([[maybe_unused]] su_root_magic_t* rm, su_msg_r m
 void TlsConnection::connect() noexcept {
 	if (isConnected()) return;
 
-	/* Create and setup the connection */
+	SLOGD << mLogPrefix << "Connecting...";
+
+	/* Create and set up the connection */
 	auto hostname = mHost + ":" + mPort;
 	SSL* ssl = nullptr;
 
@@ -159,7 +165,7 @@ void TlsConnection::connect() noexcept {
 	chrono::milliseconds time{0};
 	while (status <= 0) {
 		const auto proto = isSecured() ? "tls://" : "tcp://";
-		const auto errmsg = string{"Error while connecting to "} + proto + hostname;
+		const auto errmsg = "Error while connecting to "s + proto + hostname;
 
 		status = isSecured() ? BIO_do_handshake(newBio.get()) : BIO_do_connect(newBio.get());
 		if (status <= 0 && !BIO_should_retry(newBio.get())) {
@@ -167,7 +173,7 @@ void TlsConnection::connect() noexcept {
 			return;
 		}
 		if (time >= mTimeout) {
-			SLOGE << errmsg << ": timeout";
+			SLOGE << mLogPrefix << errmsg << ", timeout";
 			return;
 		}
 
@@ -178,11 +184,13 @@ void TlsConnection::connect() noexcept {
 
 	/* Check the certificate */
 	if (ssl && (SSL_get_verify_mode(ssl) == SSL_VERIFY_PEER && SSL_get_verify_result(ssl) != X509_V_OK)) {
-		SLOGE << "Certificate verification error: " << X509_verify_cert_error_string(SSL_get_verify_result(ssl));
+		SLOGE << mLogPrefix
+		      << "Certificate verification error: " << X509_verify_cert_error_string(SSL_get_verify_result(ssl));
 		return;
 	}
 
 	mBio = std::move(newBio);
+	SLOGD << mLogPrefix << "Connected";
 }
 
 void TlsConnection::resetConnection() noexcept {
@@ -237,9 +245,10 @@ int TlsConnection::read(void* data, int dlen) noexcept {
 			return 0;
 		}
 		ostringstream err{};
-		err << "TlsConnection[" << this << "]: error while reading data. ";
+		err << mLogPrefix << "Error while reading data";
 		handleBioError(err.str(), nread);
 	}
+
 	return nread;
 }
 
@@ -254,30 +263,46 @@ int TlsConnection::write(const void* data, int dlen) noexcept {
 			return 0;
 		}
 		ostringstream err{};
-		err << "TlsConnection[" << this << "]: error while writting data. ";
+		err << mLogPrefix << "Error while writing data";
 		handleBioError(err.str(), nwritten);
+
+		if (errno == EPIPE) {
+			SLOGD << mLogPrefix << "Disconnect: the other end has terminated the connection";
+			disconnect();
+		}
 	}
 	return nwritten;
 }
 
-bool TlsConnection::waitForData(chrono::milliseconds timeout) const {
+bool TlsConnection::waitForData(chrono::milliseconds timeout) {
 	pollfd polls = {0};
 	polls.fd = this->getFd();
-	polls.events = POLLIN;
+	polls.events = POLLIN | POLLRDHUP;
 
 	int ret;
 	if ((ret = poll(&polls, 1, timeout.count())) < 0) {
 		ostringstream err{};
-		err << "TlsConnection[" << this << "]: error during poll : ";
+		err << mLogPrefix << "error during poll : ";
 		handleBioError(err.str(), ret);
 		throw runtime_error(err.str());
+	}
+
+	if ((polls.revents & POLLHUP) != 0) {
+		SLOGD << mLogPrefix << "Disconnect: hang up event received, connection is closed";
+		disconnect();
+		return false;
+	}
+	if ((polls.revents & POLLRDHUP) != 0) {
+		SLOGD << mLogPrefix << "Disconnect: the other end has terminated the connection";
+		disconnect();
+		return false;
 	}
 
 	return ret != 0;
 }
 
 void TlsConnection::enableInsecureTestMode() {
-	SLOGW << "BE CAREFUL, YOU BETTER BE IN TEST ENV, YOU ARE USING A INSECURE CONNECTION";
+	SLOGW << mLogPrefix << "BE CAREFUL, YOU BETTER BE IN A TESTING ENVIRONMENT, YOU ARE USING AN INSECURE CONNECTION";
 	SSL_CTX_set_cert_verify_callback(
 	    mCtx.get(), [](auto, auto) { return 1; }, nullptr);
 }
@@ -309,7 +334,7 @@ void TlsConnection::handleBioError(const string& msg, int status) {
 	SLOGE << os.str();
 }
 
-int TlsConnection::handleVerifyCallback(X509_STORE_CTX* ctx, [[maybe_unused]] void* ud) {
+int TlsConnection::handleVerifyCallback(X509_STORE_CTX* ctx, void*) {
 	char subject_name[256];
 
 	X509* cert = X509_STORE_CTX_get_current_cert(ctx);
@@ -348,7 +373,7 @@ bool TlsConnection::isCertExpired(const string& certPath) noexcept {
 	BIO* certbio = BIO_new(BIO_s_file());
 	int err = BIO_read_filename(certbio, certPath.c_str());
 	if (err == 0) {
-		LOGE("BIO_read_filename failed for %s", certPath.c_str());
+		SLOGE << "BIO_read_filename failed for " << certPath;
 		BIO_free_all(certbio);
 		return expired;
 	}
@@ -358,7 +383,7 @@ bool TlsConnection::isCertExpired(const string& certPath) noexcept {
 		char buf[128] = {};
 		unsigned long error = ERR_get_error();
 		ERR_error_string(error, buf);
-		LOGE("Couldn't parse certificate at %s : %s", certPath.c_str(), buf);
+		SLOGE << "Couldn't parse certificate at " << certPath << ": " << buf;
 		BIO_free_all(certbio);
 		return expired;
 	} else {
@@ -368,15 +393,15 @@ bool TlsConnection::isCertExpired(const string& certPath) noexcept {
 		char afterStr[128] = {};
 		int validDates = (ASN1_TIME_toString(notBefore, beforeStr, 128) && ASN1_TIME_toString(notAfter, afterStr, 128));
 		if (X509_cmp_current_time(notBefore) <= 0 && X509_cmp_current_time(notAfter) >= 0) {
-			LOGD("Certificate %s has a valid expiration: %s.", certPath.c_str(), afterStr);
+			SLOGD << "Certificate " << certPath << " has a valid expiration: " << afterStr;
 			expired = false;
 		} else {
-			// the certificate has an expire or not before value that makes it not valid regarding the server's date.
+			// The certificate has an expiry or "not before" value that makes it not valid regarding the server's date.
 			if (validDates) {
-				LOGD("Certificate %s is expired or not yet valid! Not Before: %s, Not After: %s", certPath.c_str(),
-				     beforeStr, afterStr);
+				SLOGD << "Certificate " << certPath << " is expired or not yet valid! Not Before: " << beforeStr
+				      << ", Not After: " << afterStr;
 			} else {
-				LOGD("Certificate %s is expired or not yet valid!", certPath.c_str());
+				SLOGD << "Certificate " << certPath << " is expired or not yet valid!";
 			}
 		}
 	}

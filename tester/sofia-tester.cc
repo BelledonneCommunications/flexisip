@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -24,73 +24,87 @@
 
 #include "flexisip/sofia-wrapper/su-root.hh"
 
+#include "utils/transport/tls-connection.hh"
+
+#include "utils/core-assert.hh"
+#include "utils/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 #include "utils/tls-server.hh"
 
 using namespace std;
+using namespace sofiasip;
 
-namespace flexisip {
-namespace tester {
-namespace sofia_tester_suite {
+namespace flexisip::tester::sofia_tester_suite {
 
-class NthEngineTest : public Test {
-public:
-	void operator()() override {
-		sofiasip::SuRoot root{};
-		TlsServer server{};
-		bool requestReceived = false;
-		auto requestMatch = async(launch::async, [&server, &requestReceived, sni = mShouldSniBePresent]() {
-			server.accept(sni ? "127.0.0.1" : ""); // SNI checks are done in TlsServer::accept.
-			server.read();
-			server.send("Status: 200");
-			return requestReceived = true;
-		});
+/*
+ * Test sofia-SIP nth_engine, with TLS SNI enabled/disabled.
+ */
+template <bool tlsSniEnabled>
+void nthEngineWithSni() {
+	SuRoot root{};
+	TlsServer server{};
+	auto requestReceived = false;
+	auto requestMatch = async(launch::async, [&server, &requestReceived]() {
+		server.accept(tlsSniEnabled ? "127.0.0.1" : ""); // SNI checks are done in TlsServer::accept.
+		server.read();
+		server.send("Status: 200");
+		return requestReceived = true;
+	});
 
-		auto url = "https://127.0.0.1:" + to_string(server.getPort());
-		const auto engine = nth_engine_create(root.getCPtr(), TPTAG_TLS_SNI(mShouldSniBePresent), TAG_END());
+	const auto url = "https://127.0.0.1:" + to_string(server.getPort());
+	auto* engine = nth_engine_create(root.getCPtr(), TPTAG_TLS_SNI(tlsSniEnabled), TAG_END());
 
-		nth_client_t* request = nth_client_tcreate(
-		    engine, []([[maybe_unused]] nth_client_magic_t* magic, [[maybe_unused]] nth_client_t* request, [[maybe_unused]] const http_t* http) { return 0; }, nullptr,
-		    http_method_get, "GET", URL_STRING_MAKE(url.c_str()), TAG_END());
+	auto* request =
+	    nth_client_tcreate(engine, nullptr, nullptr, http_method_get, "GET", URL_STRING_MAKE(url.c_str()), TAG_END());
 
-		if (request == nullptr) {
-			BC_FAIL("No request sent.");
-		}
-
-		while (!requestReceived) {
-			root.step(10ms);
-		}
-
-		BC_ASSERT_TRUE(requestMatch.get());
-		nth_client_destroy(request);
-		nth_engine_destroy(engine);
+	if (request == nullptr) {
+		BC_FAIL("No request sent.");
 	}
 
-protected:
-	NthEngineTest(bool shouldSniBePresent) : mShouldSniBePresent(shouldSniBePresent){};
+	while (!requestReceived) {
+		root.step(10ms);
+	}
 
-private:
-	bool mShouldSniBePresent;
-};
+	BC_ASSERT_TRUE(requestMatch.get());
+	nth_client_destroy(request);
+	nth_engine_destroy(engine);
+}
 
-class NthEngineWithSniTest : public NthEngineTest {
-public:
-	NthEngineWithSniTest() : NthEngineTest(true){};
-};
+/*
+ * Test that Sofia-SIP closes connections that were inactive for more than 'idle-timeout' seconds.
+ * This should be the case even if no data has ever passed through this connection.
+ */
+void connectionToServerIsRemovedAfterIdleTimeoutTriggers() {
+	Server proxy{{
+	    {"global/transports", "sip:127.0.0.1:0"},
+	    {"global/idle-timeout", "1"},
+	}};
+	proxy.start();
 
-class NthEngineWithoutSniTest : public NthEngineTest {
-public:
-	NthEngineWithoutSniTest() : NthEngineTest(false){};
-};
+	// Create TCP connection to server.
+	auto connection = TlsConnection{"127.0.0.1", proxy.getFirstPort(), "", ""};
+	connection.connect();
+	BC_ASSERT(connection.isConnected());
+
+	// Verify it is now disconnected, closed from the server because of inactivity.
+	BC_ASSERT(CoreAssert{proxy}.iterateUpTo(
+	    0x20,
+	    [&connection]() {
+		    std::ignore = connection.waitForData(10ms);
+		    FAIL_IF(connection.isConnected());
+		    return ASSERTION_PASSED();
+	    },
+	    2s));
+}
 
 namespace {
-TestSuite _("Sofia suite",
+TestSuite _("Sofia-SIP",
             {
-                TEST_NO_TAG("Test sofia nth_engine, with TLS SNI enabled.", run<NthEngineWithSniTest>),
-                TEST_NO_TAG("Test sofia nth_engine, with TLS SNI support disabled.", run<NthEngineWithoutSniTest>),
+                CLASSY_TEST(nthEngineWithSni<true>),
+                CLASSY_TEST(nthEngineWithSni<false>),
+                CLASSY_TEST(connectionToServerIsRemovedAfterIdleTimeoutTriggers),
             });
 }
-} // namespace sofia_tester_suite
-} // namespace tester
-} // namespace flexisip
+
+} // namespace flexisip::tester::sofia_tester_suite
