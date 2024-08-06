@@ -22,8 +22,6 @@
 #include <memory>
 #include <string>
 
-#include "sofia-sip/su_types.h"
-
 #include "h264iframefilter.hh"
 #include "mediarelay.hh"
 #include "module-toolbox.hh"
@@ -33,11 +31,8 @@ using namespace std;
 using namespace flexisip;
 
 RelayedCall::RelayedCall(const shared_ptr<MediaRelayServer>& server, sip_t* sip)
-    : CallContextBase(sip), mServer(server), mBandwidthThres(0) {
+    : CallContextBase(sip), mServer(server), mBandwidthThres(0), mDropTelephoneEvents(false), mIsEstablished(false) {
 	LOGD("New RelayedCall %p", this);
-	mDropTelephoneEvents = false;
-	mIsEstablished = false;
-	mEarlyMediaRelayCount = 0;
 }
 
 /* Enable filtering of H264 Iframes for low bandwidth. */
@@ -149,12 +144,15 @@ MasqueradeContextPair RelayedCall::getMasqueradeContexts(int sessionId,
                                                          const std::string& offererTag,
                                                          const std::string& offeredTag,
                                                          const std::string& trid) {
-	if (sessionId >= sMaxSessions)
+	if (sessionId >= sMaxSessions) {
 		return MasqueradeContextPair(shared_ptr<SdpMasqueradeContext>(), shared_ptr<SdpMasqueradeContext>());
+	}
+
 	shared_ptr<RelaySession> s = mSessions[sessionId];
 	if (s == NULL) {
 		return MasqueradeContextPair(shared_ptr<SdpMasqueradeContext>(), shared_ptr<SdpMasqueradeContext>());
 	}
+
 	auto offerer = s->getChannel(offererTag, "");
 	auto offered = s->getChannel(offeredTag, trid);
 	return MasqueradeContextPair(static_pointer_cast<SdpMasqueradeContext>(offerer),
@@ -227,7 +225,7 @@ void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier>& sdpModif
 		// associated to the transaction that currently has the lead : mSendRecvTrId.
 		for (const auto& session : mSessions) {
 			if (session == nullptr) break; // sentinel reached
-			
+
 			if (const auto& channel = session->getChannel("", mSendRecvTrId))
 				channel->setDirection(RelayChannel::SendOnly);
 		}

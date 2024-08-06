@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -58,24 +58,24 @@ bool SdpMasqueradeContext::hasRemoteCandidates(sdp_media_t* mline) {
 	return sdp_attribute_find(mline->m_attributes, "remote-candidates") != NULL;
 }
 
-bool SdpMasqueradeContext::updateIceFromOffer(sdp_session_t* session, sdp_media_t* mline, bool isOfferer) {
+bool SdpMasqueradeContext::updateIceFromOffer(sdp_session_t* session, sdp_media_t* media, bool isOfferer) {
 	string ufrag, passwd;
 	IceState oldState = mIceState;
 	bool needsCandidates = false;
 
-	ufrag = getAttribute(session, mline, "ice-ufrag");
-	passwd = getAttribute(session, mline, "ice-pwd");
+	ufrag = getAttribute(session, media, "ice-ufrag");
+	passwd = getAttribute(session, media, "ice-pwd");
 
 	if (isOfferer) {
 		switch (mIceState) {
 			case IceNone:
 				if (!ufrag.empty() && !passwd.empty()) {
-					if (hasRemoteCandidates(mline)) {
+					if (hasRemoteCandidates(media)) {
 						/*This should not happen. We are discovering an already established ice session.*/
 						mIceState = IceCompleted;
 						needsCandidates = false;
 						LOGE("Unexpected remote-candidates in SDP offer.");
-					} else if (hasCandidates(mline)) {
+					} else if (hasCandidates(media)) {
 						mIceState = IceOffered;
 						needsCandidates = true;
 					}
@@ -85,14 +85,13 @@ bool SdpMasqueradeContext::updateIceFromOffer(sdp_session_t* session, sdp_media_
 				needsCandidates = true;
 				break;
 			case IceCompleted:
-				needsCandidates = false;
-				if ((ufrag != mIceUfrag || passwd != mIcePasswd) && hasCandidates(mline)) {
+				if ((ufrag != mIceUfrag || passwd != mIcePasswd) && hasCandidates(media)) {
 					/*ICE restart*/
 					mIceState = IceOffered;
 					needsCandidates = true;
 					LOGD("Ice restart detected ufrag %s->%s pwd %s->%s", mIceUfrag.c_str(), ufrag.c_str(),
 					     mIcePasswd.c_str(), passwd.c_str());
-				} else if (!hasCandidates(mline)) {
+				} else if (!hasCandidates(media)) {
 					/*case of a stream that is put inactive*/
 					mIceState = IceNone;
 				}
@@ -104,14 +103,14 @@ bool SdpMasqueradeContext::updateIceFromOffer(sdp_session_t* session, sdp_media_
 	} else {
 		switch (mIceState) {
 			case IceNone:
-				if (!ufrag.empty() && !passwd.empty() && hasCandidates(mline)) {
+				if (!ufrag.empty() && !passwd.empty() && hasCandidates(media)) {
 					mIceState = IceOffered;
 					needsCandidates = true;
 				}
 				break;
 			case IceOffered:
 			case IceCompleted:
-				if (!hasCandidates(mline)) {
+				if (!hasCandidates(media)) {
 					/*case of a stream that is put inactive*/
 					mIceState = IceNone;
 				}
@@ -441,7 +440,8 @@ void SdpModifier::addIceCandidate(std::function<const RelayTransport*(int)> getR
                                   bool isOffer,
                                   bool forceRelay) {
 	char foundation[32];
-	sdp_media_t* mline = mSession->sdp_media;
+	// e.g. `audio` or `video`
+	sdp_media_t* media = mSession->sdp_media;
 	uint64_t r;
 	int i;
 	string global_c_address;
@@ -451,22 +451,22 @@ void SdpModifier::addIceCandidate(std::function<const RelayTransport*(int)> getR
 
 	r = (((uint64_t)random()) << 32) | (((uint64_t)random()) & 0xffffffff);
 	snprintf(foundation, sizeof(foundation), "%llx", (long long unsigned int)r);
-	for (i = 0; mline != NULL; mline = mline->m_next, ++i) {
+	for (i = 0; media != NULL; media = media->m_next, ++i) {
 		MasqueradeContextPair mctxs = getMasqueradeContexts(i);
 		bool needsCandidates = false;
 
 		if (mctxs.valid()) {
 			if (isOffer) {
-				needsCandidates = mctxs.mOfferer->updateIceFromOffer(mSession, mline, true);
-				mctxs.mOffered->updateIceFromOffer(mSession, mline, false);
+				needsCandidates = mctxs.mOfferer->updateIceFromOffer(mSession, media, true);
+				mctxs.mOffered->updateIceFromOffer(mSession, media, false);
 			} else {
-				mctxs.mOfferer->updateIceFromAnswer(mSession, mline, true);
-				needsCandidates = mctxs.mOffered->updateIceFromAnswer(mSession, mline, false);
+				mctxs.mOfferer->updateIceFromAnswer(mSession, media, true);
+				needsCandidates = mctxs.mOffered->updateIceFromAnswer(mSession, media, false);
 			}
 		}
 
-		if (hasMediaAttribute(mline, mNortproxy.c_str())) continue;
-		if (mline->m_port == 0) continue; // case of a declined or removed stream
+		if (hasMediaAttribute(media, mNortproxy.c_str())) continue;
+		if (media->m_port == 0) continue; // case of a declined or removed stream
 
 		if (needsCandidates) {
 			uint32_t priority;
@@ -480,9 +480,9 @@ void SdpModifier::addIceCandidate(std::function<const RelayTransport*(int)> getR
 			if (forceRelay) {
 				/* Masquerade c line and port for non-ICE clients.
 				 Ice-enabled targets don't need this.*/
-				changeMediaConnection(mline, relayAddr.c_str(), isIP6);
-				mline->m_port = (unsigned long)rt->mRtpPort;
-				changeRtcpAttr(mline, relayAddr, rt->mRtcpPort, isIP6);
+				changeMediaConnection(media, relayAddr.c_str(), isIP6);
+				media->m_port = (unsigned long)rt->mRtpPort;
+				changeRtcpAttr(media, relayAddr, rt->mRtcpPort, isIP6);
 			}
 			LOGD("rt= %s %s", rt->mIpv6Address.c_str(), rt->mIpv4Address.c_str());
 
@@ -491,26 +491,26 @@ void SdpModifier::addIceCandidate(std::function<const RelayTransport*(int)> getR
 
 				// Add IPv6 relay candidate.
 				relayAddr = rt->mIpv6Address;
-				if (!relayAddr.empty() && !hasIceCandidate(mline, relayAddr.c_str(), port)) {
+				if (!relayAddr.empty() && !hasIceCandidate(media, relayAddr.c_str(), port)) {
 					priority = (65535 << 8) | (256 - componentID);
 					ostringstream candidate_line;
 					candidate_line << foundation << ' ' << componentID << " UDP " << priority << ' '
 					               << relayAddr.c_str() << ' ' << port << " typ relay raddr " << std::get<0>(destAddr)
 					               << " rport " << (componentID == 1 ? std::get<1>(destAddr) : std::get<2>(destAddr));
-					addMediaAttribute(mline, "candidate", candidate_line.str().c_str());
+					addMediaAttribute(media, "candidate", candidate_line.str().c_str());
 				}
 				// Add IPv4 relay candidate
 				relayAddr = rt->mIpv4Address;
-				if (!relayAddr.empty() && !hasIceCandidate(mline, relayAddr.c_str(), port)) {
+				if (!relayAddr.empty() && !hasIceCandidate(media, relayAddr.c_str(), port)) {
 					priority = (65535 << 8) | (256 - componentID);
 					ostringstream candidate_line;
 					candidate_line << foundation << ' ' << componentID << " UDP " << priority << ' '
 					               << relayAddr.c_str() << ' ' << port << " typ relay raddr " << std::get<0>(destAddr)
 					               << " rport " << (componentID == 1 ? std::get<1>(destAddr) : std::get<2>(destAddr));
-					addMediaAttribute(mline, "candidate", candidate_line.str().c_str());
+					addMediaAttribute(media, "candidate", candidate_line.str().c_str());
 				}
 			}
-			if (!mNortproxy.empty()) addMediaAttribute(mline, mNortproxy.c_str(), "yes");
+			if (!mNortproxy.empty()) addMediaAttribute(media, mNortproxy.c_str(), "yes");
 		}
 	}
 }

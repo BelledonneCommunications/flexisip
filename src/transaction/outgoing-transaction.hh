@@ -70,7 +70,6 @@ private:
 
 	static std::string getRandomBranch();
 
-	sofiasip::Home mHome{};
 	Owned<nta_outgoing_t> mOutgoing{nullptr};
 	std::shared_ptr<OutgoingTransaction> mSofiaRef{};
 	std::string mBranchId{};

@@ -25,6 +25,7 @@ target_sources(flexisip PRIVATE
 	msg-sip.cc
 	nta-agent.hh
 	nta-outgoing-transaction.hh
+	sdp-parser.cc
 	sip-header-private.hh
 	su-root.cc
 	timer.cc
