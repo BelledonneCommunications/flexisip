@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -92,13 +92,17 @@ public:
 
 	const std::array<std::shared_ptr<const RelaySession>, sMaxSessions>& getSessions() const;
 
+	// This is just a hook to tie the lifetime of an outgoing transaction to that of a relayed call.
+	// Without this, the `MediaRelay` cannot find its state when handling answers in an established dialog (i.e. to
+	// re-INVITES, because there is no `ForkContext` to hold the OutgoingTransaction)
+	std::shared_ptr<const OutgoingTransaction> mCurrentOutgoingTransaction = nullptr;
+
 private:
 	void setupSpecificRelayTransport(RelayTransport* rt, const char* destHost);
 	std::array<std::shared_ptr<RelaySession>, sMaxSessions> mSessions;
 	const std::shared_ptr<MediaRelayServer>& mServer;
 	int mBandwidthThres;
 	int mDecim;
-	int mEarlyMediaRelayCount;
 	bool mH264DecimOnlyIfLastProxy;
 	bool mDropTelephoneEvents;
 	bool mIsEstablished;

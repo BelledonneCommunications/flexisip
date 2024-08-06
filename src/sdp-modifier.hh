@@ -135,6 +135,7 @@ private:
 	void iterate(std::function<void(int, const std::string&, int, int)>);
 	void masquerade(std::function<const RelayTransport*(int)> getAddrFcn);
 	void changeRtcpAttr(sdp_media_t* mline, const std::string& relayAddr, int port, bool ipv6);
+	// TODO replace with the `sofiasip::SdpParser` wrapper
 	sdp_parser_t* mParser;
 	su_home_t* mHome;
 	std::string mNortproxy;

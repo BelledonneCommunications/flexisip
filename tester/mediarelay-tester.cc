@@ -21,14 +21,13 @@
 #include <string>
 #include <unordered_map>
 
-#include "sdp-modifier.hh"
-#include "sofia-sip/sip.h"
-
 #include "bctoolbox/tester.h"
 #include "linphone++/call.hh"
 #include "ortp/rtp.h"
 
+#include "flexisip/sofia-wrapper/sdp-parser.hh"
 
+#include "sdp-modifier.hh"
 #include "utils/asserts.hh"
 #include "utils/call-builder.hh"
 #include "utils/client-builder.hh"
@@ -38,18 +37,16 @@
 #include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
+#include "utils/variant-utils.hh"
 
 using namespace std;
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 namespace {
 const std::map<std::string, std::string> CONFIG{
     {"module::MediaRelay/enabled", "true"},
     {"module::MediaRelay/prevent-loops", "false"}, // Allow loopback to localnetwork
-    // Requesting bind on port 0 to let the kernel find any available port
-    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
     {"module::Registrar/enabled", "true"},
     {"module::Registrar/reg-domains", "sip.example.org"},
 };
@@ -125,6 +122,88 @@ void ice_candidates_are_not_erased_in_a_valid_context() {
 	nelly.addListener(std::make_shared<CheckForIceCandidatesInResponse>());
 
 	nelly.call(lola);
+}
+
+void relay_candidates_should_not_be_added_to_ice_reinvites() {
+	const auto& noCandidateFound = "<No ICE relay candidate found>"s;
+	auto anyRelayCandidate = noCandidateFound;
+	auto hooks = InjectedHooks{
+	    .injectAfterModule = "MediaRelay",
+	    .onRequest =
+	        [&](const auto& request) {
+		        using namespace sofiasip;
+
+		        const auto* sip = request->getSip();
+		        if (sip->sip_request->rq_method != sip_method_invite) return;
+
+		        const auto* sipPayload = sip->sip_payload;
+		        auto sdpParser = SdpParser::parse({sipPayload->pl_data, sipPayload->pl_len});
+		        auto& sdpSession = EXPECT_VARIANT(reference_wrapper<SdpSession>).in(sdpParser->session()).get();
+		        for (auto& media : sdpSession.medias()) {
+			        for (const auto& attribute : media.attributes().find("candidate")) {
+				        const auto& value = attribute.value();
+				        if (value.find("typ relay") == string_view::npos) continue;
+
+				        // Found an ICE candidate added by the media relay. Let's stop here
+				        anyRelayCandidate = value;
+				        return;
+			        }
+		        }
+
+		        return;
+	        },
+	};
+	auto server = Server(CONFIG, &hooks);
+	server.start();
+	auto builder = ClientBuilder(*server.getAgent());
+	builder.setIce(OnOff::On).setVideoReceive(OnOff::On).setVideoSend(OnOff::On);
+	auto inviter = builder.build("sip:inviter@sip.example.org");
+	auto recipient = builder.build("sip:recipient@sip.example.org");
+	auto asserter = CoreAssert(inviter, server, recipient);
+
+	const auto& call = inviter.invite(recipient);
+	BC_HARD_ASSERT(call != nullptr);
+	ASSERT_PASSED(recipient.hasReceivedCallFrom(inviter));
+	recipient.getCurrentCall()->accept();
+	// Initial INVITE contains relay candidates
+	BC_ASSERT(!anyRelayCandidate.empty());
+	anyRelayCandidate = noCandidateFound;
+
+	asserter
+	    .iterateUpTo(
+	        119, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 1800ms)
+	    .assert_passed();
+	// ICE re-INVITE does not contain relay candidates
+	BC_ASSERT_CPP_EQUAL(anyRelayCandidate, noCandidateFound);
+	anyRelayCandidate = noCandidateFound;
+
+	// Video re-INVITE
+	asserter
+	    .iterateUpTo(
+	        2,
+	        [&] {
+		        // Wait for ICE reinvite to complete
+		        return LOOP_ASSERTION(call->getState() == linphone::Call::State::StreamsRunning);
+	        },
+	        300ms)
+	    .assert_passed();
+	const auto& enableVideo = call->getCore()->createCallParams(call);
+	enableVideo->enableVideo(true);
+	call->update(enableVideo);
+	asserter
+	    .iterateUpTo(
+	        4, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::StreamsRunning); }, 400ms)
+	    .assert_passed();
+	// Video re-INVITE contains relay candidates
+	BC_ASSERT(!anyRelayCandidate.empty());
+	anyRelayCandidate = noCandidateFound;
+
+	asserter
+	    .iterateUpTo(
+	        118, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 1600ms)
+	    .assert_passed();
+	// Video ICE re-INVITE does not contain relay candidates
+	BC_ASSERT_CPP_EQUAL(anyRelayCandidate, noCandidateFound);
 }
 
 void early_media_video_sendrecv_takeover() {
@@ -267,10 +346,10 @@ TestSuite _("MediaRelay",
             {
                 CLASSY_TEST(ice_candidates_in_response_only),
                 CLASSY_TEST(ice_candidates_are_not_erased_in_a_valid_context),
+                CLASSY_TEST(relay_candidates_should_not_be_added_to_ice_reinvites),
                 CLASSY_TEST(early_media_video_sendrecv_takeover),
                 CLASSY_TEST(early_media_bidirectional_video),
             });
 }
 
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester

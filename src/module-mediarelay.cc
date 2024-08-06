@@ -16,14 +16,18 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "mediarelay.hh"
+
 #include <algorithm>
 #include <vector>
 
+#include "flexisip/fork-context/fork-context.hh"
+
 #include "callcontext-mediarelay.hh"
-#include "fork-context/fork-context-base.hh"
-#include "mediarelay.hh"
 #include "module-toolbox.hh"
 #include "sdp-modifier.hh"
+#include "transaction/incoming-transaction.hh"
+#include "transaction/outgoing-transaction.hh"
 
 using namespace std;
 using namespace ::std::placeholders;
@@ -241,18 +245,27 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall>& c,
 	}
 
 	// assign destination address of offerer
-	m->iterateInOffer(
-	    bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, _4, from_tag, transaction->getBranchId(), false));
+	const auto& transactionId = transaction->getBranchId();
+	m->iterateInOffer([c, m, &from_tag, &transactionId](int sessionId, const string& ip, int rtpPort, int rtcpPort) {
+		c->setChannelDestinations(m, sessionId, ip, rtpPort, rtcpPort, from_tag, transactionId, false);
+	});
 
 	// Masquerade using ICE
+	const auto& getChannelSources = [c, &to_tag, &transactionId](int sessionId) {
+		return c->getChannelSources(sessionId, to_tag, transactionId);
+	};
 	m->addIceCandidateInOffer(
-	    bind(&RelayedCall::getChannelSources, c, _1, to_tag, transaction->getBranchId()),
-	    bind(&RelayedCall::getChannelDestinations, c, _1, from_tag, transaction->getBranchId()),
-	    bind(&RelayedCall::getMasqueradeContexts, c, _1, from_tag, to_tag, transaction->getBranchId()),
+	    getChannelSources,
+	    [c, &from_tag, &transactionId](int sessionId) {
+		    return c->getChannelDestinations(sessionId, from_tag, transactionId);
+	    },
+	    [c, &from_tag, &to_tag, &transactionId](int sessionId) {
+		    return c->getMasqueradeContexts(sessionId, from_tag, to_tag, transactionId);
+	    },
 	    mForceRelayForNonIceTargets);
 
 	// Modify sdp message to set relay address and ports for streams not handled by ICE
-	m->masqueradeInOffer(bind(&RelayedCall::getChannelSources, c, _1, to_tag, transaction->getBranchId()));
+	m->masqueradeInOffer(getChannelSources);
 
 	if (!mSdpMangledParam.empty()) m->addAttribute(mSdpMangledParam.c_str(), "yes");
 	if (m->update(msg, sip) == -1) {
@@ -299,7 +312,7 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			c->forcePublicAddress(mUsePublicIpForSdpMasquerading);
 			mCurServer = (mCurServer + 1) % mServers.size();
 			newContext = true;
-			it->setProperty<RelayedCall>(getModuleName(), weak_ptr<RelayedCall>{c});
+			it->setProperty(getModuleName(), weak_ptr<RelayedCall>{c});
 			configureContext(c);
 		}
 		if (processNewInvite(c, ot, ev)) {
@@ -307,6 +320,10 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			ModuleToolbox::addRecordRouteIncoming(getAgent(), ev);
 			if (newContext) mCalls->store(c);
 			ot->setProperty(getModuleName(), weak_ptr<RelayedCall>{c});
+			// Let this transaction survive till it reaches the Forward module.
+			// Otherwise a new `OutgoingTransaction` will be created to send the request, but it won't have the
+			// `RelayedCall` back-pointer
+			c->mCurrentOutgoingTransaction = std::move(ot);
 		}
 	} else if (sip->sip_request->rq_method == sip_method_bye) {
 		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->findEstablishedDialog(getAgent(), sip))) != NULL) {
@@ -356,7 +373,8 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall>& c,
 	string to_tag;
 	if (sip->sip_to != NULL && sip->sip_to->a_tag != NULL) to_tag = sip->sip_to->a_tag;
 
-	const auto getMasqueradeContexts = [&c = *c, from_tag = sip->sip_from->a_tag, &to_tag,
+	const auto& from_tag = string(sip->sip_from->a_tag);
+	const auto getMasqueradeContexts = [&c = *c, &from_tag, &to_tag,
 	                                    &branchId = transaction->getBranchId()](int lineNo) {
 		return c.getMasqueradeContexts(lineNo, from_tag, to_tag, branchId);
 	};
@@ -365,18 +383,25 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall>& c,
 	m->cleanUpIceCandidatesInAnswer(getMasqueradeContexts);
 
 	// acquire destination ip/ports from answerer
-	m->iterateInAnswer(bind(&RelayedCall::setChannelDestinations, c, m, _1, _2, _3, _4, to_tag,
-	                        transaction->getBranchId(), isEarlyMedia));
+	const auto& transactionId = transaction->getBranchId();
+	m->iterateInAnswer(
+	    [c, m, &to_tag, &transactionId, isEarlyMedia](int sessionId, const string& ip, int rtpPort, int rtcpPort) {
+		    c->setChannelDestinations(m, sessionId, ip, rtpPort, rtcpPort, to_tag, transactionId, isEarlyMedia);
+	    });
 
 	// push ICE relay candidates if necessary, and update the ICE states.
+	const auto& getChannelSources = [c, &from_tag, &transactionId](int sessionId) {
+		return c->getChannelSources(sessionId, from_tag, transactionId);
+	};
 	m->addIceCandidateInAnswer(
-	    bind(&RelayedCall::getChannelSources, c, _1, sip->sip_from->a_tag, transaction->getBranchId()),
-	    bind(&RelayedCall::getChannelDestinations, c, _1, to_tag, transaction->getBranchId()), getMasqueradeContexts,
-	    mForceRelayForNonIceTargets);
+	    getChannelSources,
+	    [c, &to_tag, &transactionId](int sessionId) {
+		    return c->getChannelDestinations(sessionId, to_tag, transactionId);
+	    },
+	    getMasqueradeContexts, mForceRelayForNonIceTargets);
 
 	// masquerade c lines and ports for streams not handled by ICE.
-	m->masqueradeInAnswer(
-	    bind(&RelayedCall::getChannelSources, c, _1, sip->sip_from->a_tag, transaction->getBranchId()));
+	m->masqueradeInAnswer(getChannelSources);
 	m->update(msg, sip);
 }
 
