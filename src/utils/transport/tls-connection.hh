@@ -30,7 +30,7 @@
 
 #include <flexisip/logmanager.hh>
 
-#include "../thread/must-finish-thread.hh"
+#include "utils/thread/must-finish-thread.hh"
 
 namespace flexisip {
 
@@ -88,6 +88,7 @@ public:
 
 	void disconnect() noexcept {
 		mBio.reset();
+		SLOGD << mLogPrefix << "Disconnected";
 	}
 	void resetConnection() noexcept;
 
@@ -165,8 +166,8 @@ public:
 	}
 	int write(const void* data, int dlen) noexcept;
 
-	bool waitForData(std::chrono::milliseconds timeout) const;
-	bool hasData() const {
+	bool waitForData(std::chrono::milliseconds timeout);
+	bool hasData() {
 		return waitForData(std::chrono::milliseconds{0});
 	}
 
@@ -200,6 +201,7 @@ private:
 	bool mMustBeHttp2 = false;
 	std::chrono::milliseconds mTimeout{20000};
 	MustFinishThread mThread;
+	std::string mLogPrefix{};
 };
 
 } // namespace flexisip
