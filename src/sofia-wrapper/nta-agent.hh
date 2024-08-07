@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -24,7 +24,10 @@
 #include <type_traits>
 
 #include <sofia-sip/nta.h>
+#include <sofia-sip/nta_tport.h>
+#include <sofia-sip/tport.h>
 
+#include "flexisip/flexisip-exception.hh"
 #include "flexisip/logmanager.hh"
 #include "flexisip/sofia-wrapper/msg-sip.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
@@ -36,7 +39,7 @@ namespace sofiasip {
 
 /**
  * NtaAgent instances are in charge of listening the network and notify the upper code layer when an incoming
- * SIP message is received. It is also the entry point when the upper code layer need to send SIP messages on
+ * SIP message is received. It is also the entry point when the upper code layer need to send SIP messages on
  * the network or reply to SIP requests.
  *
  * Use createOutgoingTransaction() to send a request to another SIP agent.
@@ -45,18 +48,34 @@ class NtaAgent {
 public:
 	/**
 	 * Instantiate an NtaAgent.
-	 * @param root The event loop that will be use to treat incoming network events.
-	 * @param contactURI The default contact URI to use when sending SIP requests. This parameter
+	 *
+	 * @param root          The event loop that will be used to process incoming network events.
+	 * @param contactURI    The default contact URI to use when sending SIP requests. This parameter
 	 * is used to define which local address and port the agent will listen on.
+	 * @param callback      Function called when a new SIP message is received
+	 * @param magic         User data which are then reachable from the callback function
+	 * @param tags          NTA tagged arguments (no need to add TAG_END())
 	 */
-	template <typename UriT>
-	NtaAgent(const std::shared_ptr<SuRoot>& root, const UriT& contactURI) : mRoot{root} {
-		auto* nativeContactURI = toSofiaSipUrlUnion(contactURI);
-		mNativePtr = nta_agent_create(mRoot->getCPtr(), nativeContactURI, nullptr, nullptr, TAG_END());
+	template <typename UriT, typename... Tags>
+	NtaAgent(const std::shared_ptr<SuRoot>& root,
+	         const UriT& contactURI,
+	         nta_message_f* callback = nullptr,
+	         nta_agent_magic_t* magic = nullptr,
+	         Tags&&... tags)
+	    : mRoot{root} {
+		const url_string_t* contactUrl = nullptr;
+		if constexpr (std::is_same_v<UriT, const url_string_t*>) {
+			contactUrl = contactURI;
+		} else {
+			contactUrl = toSofiaSipUrlUnion(contactURI);
+		}
+		mNativePtr =
+		    nta_agent_create(mRoot->getCPtr(), contactUrl, callback, magic, std::forward<Tags>(tags)..., TAG_END());
 		if (mNativePtr == nullptr) {
 			throw std::runtime_error{"creating nta_agent_t failed"};
 		}
 	}
+
 	NtaAgent(const NtaAgent&) = delete;
 	NtaAgent(NtaAgent&&) = delete;
 	~NtaAgent() {
@@ -67,8 +86,10 @@ public:
 	 * Send a SIP request and create an outgoing transaction to handle the response.
 	 * The NtaAgent will keep a shared pointer on the transaction until it received a final response
 	 * for this transaction.
-	 * @param msg The SIP request to send.
-	 * @return A pointer to the freshly created outgoing transaction.
+	 *
+	 * @param msg   The SIP request to send.
+	 *
+	 * @return      A pointer to the freshly created outgoing transaction.
 	 */
 	std::shared_ptr<NtaOutgoingTransaction> createOutgoingTransaction(std::unique_ptr<MsgSip>&& msg) {
 		return createOutgoingTransaction(std::move(msg), nullptr);
@@ -106,8 +127,30 @@ public:
 		return transaction;
 	}
 
+	/**
+	 * Add a transport to the agent.
+	 * Creates a new transport and binds it to the port specified by the uri.
+	 *
+	 * @param uri     tport uri
+	 * @param tags    NTA tagged arguments (no need to add TAG_END())
+	 *
+	 * @return        On success, zero is returned. On error, -1 is returned, and errno is set appropriately.
+	 */
+	template <typename UriT, typename... Tags>
+	int addTransport(const UriT& uri, Tags&&... tags) {
+		return nta_agent_add_tport(mNativePtr, toSofiaSipUrlUnion(uri), std::forward<Tags>(tags)..., TAG_END());
+	}
+
+	/**
+	 * Return the first port on which the agent is listening.
+	 * May return empty string if master transport does not exist.
+	 */
+	const char* getFirstPort() {
+		const auto firstTransport = ::tport_primaries(::nta_agent_tports(mNativePtr));
+		return firstTransport ? ::tport_name(firstTransport)->tpn_port : "";
+	}
+
 private:
-	// Private methods
 	void onOutgoingTransactionResponse(nta_outgoing_t* transaction, const sip_t* response) noexcept {
 		auto it = mTransactions.find(transaction);
 		if (it == mTransactions.end()) {
@@ -120,9 +163,9 @@ private:
 		}
 	}
 
-	// Private attributes
 	nta_agent_t* mNativePtr{nullptr};
 	std::shared_ptr<SuRoot> mRoot{nullptr};
 	std::map<nta_outgoing_t*, std::shared_ptr<NtaOutgoingTransaction>> mTransactions{};
 };
+
 }; // namespace sofiasip

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -25,7 +25,7 @@
 namespace sofiasip {
 
 /**
- * Utility function that cast several type that may represents a SIP URI
+ * Utility function that cast several types that may represent a SIP URI
  * into a pointer on the SofiaSip url_string_t union.
  * The template parameter may be one of these types: SipUri, std::string, const char*, std::nullptr_t.
  * @note This function should be used by SofiaSip wrapper classes only.
