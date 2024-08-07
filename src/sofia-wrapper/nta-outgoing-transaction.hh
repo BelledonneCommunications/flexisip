@@ -33,13 +33,13 @@ namespace sofiasip {
 class NtaOutgoingTransaction {
 public:
 	/**
-	 * Returns the status of the last received response, or zero if no response has been received.
+	 * Return the status of the last received response, or zero if no response has been received.
 	 */
 	int getStatus() const noexcept {
 		return nta_outgoing_status(mNativePtr);
 	}
 	/**
-	 * Check whether the transaction is completed i.e. a final response (status >= 200) has been receives.
+	 * Check whether the transaction is completed i.e. a final response (status >= 200) has been received.
 	 */
 	bool isCompleted() const noexcept {
 		return getStatus() >= 200;
@@ -57,11 +57,17 @@ public:
 
 		return mResponse;
 	}
+	/*
+	 * Cancel the request.
+	 */
+	void cancel() {
+		nta_outgoing_cancel(mNativePtr);
+	}
 
 private:
 	friend class NtaAgent;
 
-	NtaOutgoingTransaction(nta_outgoing_t* obj) : mNativePtr{obj} {
+	explicit NtaOutgoingTransaction(nta_outgoing_t* obj) : mNativePtr{obj} {
 	}
 
 	nta_outgoing_t* mNativePtr{nullptr};
