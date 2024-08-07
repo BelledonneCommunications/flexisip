@@ -31,19 +31,21 @@
 #include "flexisip/sofia-wrapper/su-root.hh"
 
 #include "tester.hh"
-#include "utils/server/tls-server.hh"
 #include "utils/core-assert.hh"
+#include "utils/server/proxy-server.hh"
+#include "utils/server/tls-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
+#include "utils/transport/tls-connection.hh"
 
 using namespace std;
 using namespace sofiasip;
 
-namespace flexisip::tester {
+namespace flexisip::tester::sofia_tester_suite {
 namespace {
 
 /*
- * Test sofia-SIP nth_engine, with TLS SNI enabled/disabled.
+ * Test Sofia-SIP nth_engine, with TLS SNI enabled/disabled.
  */
 template <bool tlsSniEnabled>
 void nthEngineWithSni() {
@@ -81,7 +83,7 @@ const auto TCP = "transport=tcp"s;
 const auto TLS = "transport=tls"s;
 
 /*
- * Test behavior of sofia-SIP when the size of the data read from the socket is less than, equal to, or greater than the
+ * Test behavior of Sofia-SIP when the size of the data read from the socket is less than, equal to, or greater than the
  * agent's message maxsize.
  * 1. Send several requests to the UAS.
  * 2. Iterate on the main loop, so the UAS will collect pending requests from the socket.
@@ -186,8 +188,8 @@ void collectAndTryToParseSIPMessageThatExceedsMsgMaxsize() {
 	int maxsize = msg_min_size * 2;
 	int expectedStatus = 400; // Bad request
 	auto suRoot = make_shared<SuRoot>();
-	NtaAgent server{suRoot, "sip:127.0.0.1:0;transport=tcp", nullptr, nullptr, NTATAG_MAXSIZE(maxsize), TAG_END()};
-	NtaAgent client{suRoot, "sip:127.0.0.1:0;transport=tcp", nullptr, nullptr, NTATAG_UA(false), TAG_END()};
+	NtaAgent server{suRoot, "sip:127.0.0.1:0;transport=tcp", nullptr, nullptr, NTATAG_MAXSIZE(maxsize)};
+	NtaAgent client{suRoot, "sip:127.0.0.1:0;transport=tcp", nullptr, nullptr, NTATAG_UA(false)};
 
 	// Send requests to UAS.
 	const auto routeUri = "sip:127.0.0.1:"s + server.getFirstPort() + ";transport=tcp";
@@ -216,6 +218,33 @@ void collectAndTryToParseSIPMessageThatExceedsMsgMaxsize() {
 	    .assert_passed();
 }
 
+/*
+ * Test that Sofia-SIP closes connections that were inactive for more than 'idle-timeout' seconds.
+ * This should be the case even if no data has ever passed through this connection.
+ */
+void connectionToServerIsRemovedAfterIdleTimeoutTriggers() {
+	Server proxy{{
+	    {"global/transports", "sip:127.0.0.1:0"},
+	    {"global/idle-timeout", "1"},
+	}};
+	proxy.start();
+
+	// Create TCP connection to server.
+	auto connection = TlsConnection{"127.0.0.1", proxy.getFirstPort(), "", ""};
+	connection.connect();
+	BC_ASSERT(connection.isConnected());
+
+	// Verify it is now disconnected, closed from the server because of inactivity.
+	BC_ASSERT(CoreAssert{proxy}.iterateUpTo(
+	    0x20,
+	    [&connection]() {
+		    std::ignore = connection.waitForData(10ms);
+		    FAIL_IF(connection.isConnected());
+		    return ASSERTION_PASSED();
+	    },
+	    2s));
+}
+
 TestSuite _("Sofia-SIP",
             {
                 CLASSY_TEST(nthEngineWithSni<true>),
@@ -233,7 +262,8 @@ TestSuite _("Sofia-SIP",
                 CLASSY_TEST((collectAndParseDataFromSocket<4096, 40, TCP>)),
                 CLASSY_TEST((collectAndParseDataFromSocket<4096, 40, TLS>)),
                 CLASSY_TEST(collectAndTryToParseSIPMessageThatExceedsMsgMaxsize),
+                CLASSY_TEST(connectionToServerIsRemovedAfterIdleTimeoutTriggers),
             });
 
 } // namespace
-} // namespace flexisip::tester
+} // namespace flexisip::tester::sofia_tester_suite
