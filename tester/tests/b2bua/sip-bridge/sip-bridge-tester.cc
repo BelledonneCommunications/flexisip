@@ -1428,40 +1428,40 @@ void b2buaReceivesSeveralForks() {
 
 void dtmfForwarding() {
 	using namespace flexisip::b2bua;
-	auto server = make_shared<B2buaAndProxyServer>("config/flexisip_b2bua.conf");
-	auto providers = {V1ProviderDesc{"provider1",
-	                                 "sip:\\+39.*",
-	                                 outboundProxy,
-	                                 false,
-	                                 1,
-	                                 {V1AccountDesc{
-	                                     "sip:bridge@sip.provider1.com",
-	                                     "",
-	                                     "",
-	                                 }}}};
+	const auto server = make_shared<B2buaAndProxyServer>("config/flexisip_b2bua.conf");
+	auto providers = {
+	    V1ProviderDesc{
+	        "provider1",
+	        "sip:\\+39.*",
+	        outboundProxy,
+	        false,
+	        1,
+	        {V1AccountDesc{"sip:bridge@sip.provider1.com", "", ""}},
+	    },
+	};
 	server->configureExternalProviderBridge(std::move(providers));
 	auto intercom = InternalClient("sip:intercom@sip.company1.com", server->getAgent());
 	auto phone = ExternalClient("sip:+39064728917@sip.provider1.com;user=phone", server->getAgent());
 	CoreAssert asserter{intercom.getCore(), phone.getCore(), server};
-	auto legAListener = make_shared<DtmfListener>();
-	auto legBListener = make_shared<DtmfListener>();
+	const auto legAListener = make_shared<DtmfListener>();
+	const auto legBListener = make_shared<DtmfListener>();
 
-	auto legA = intercom.call(phone);
+	const auto legA = intercom.call(phone);
 	if (!BC_ASSERT_PTR_NOT_NULL(legA)) return;
 	legA->addListener(legAListener);
-	auto legB = ClientCall::getLinphoneCall(*phone.getCurrentCall());
+	const auto legB = ClientCall::getLinphoneCall(*phone.getCurrentCall());
 	legB->addListener(legBListener);
 
 	legB->sendDtmf('9');
 	const auto& legAReceived = legAListener->received;
 	asserter.wait([&legAReceived]() { return !legAReceived.empty(); }).assert_passed();
-	BC_ASSERT_EQUAL(legAReceived.size(), 1, size_t, "%zx");
+	BC_HARD_ASSERT_CPP_EQUAL(legAReceived.size(), 1);
 	BC_ASSERT_EQUAL(legAReceived.front(), '9', char, "%c");
 
 	legA->sendDtmf('6');
 	const auto& legBReceived = legBListener->received;
 	asserter.wait([&legBReceived]() { return !legBReceived.empty(); }).assert_passed();
-	BC_ASSERT_EQUAL(legBReceived.size(), 1, size_t, "%zx");
+	BC_HARD_ASSERT_CPP_EQUAL(legBReceived.size(), 1);
 	BC_ASSERT_EQUAL(legBReceived.front(), '6', char, "%c");
 }
 
