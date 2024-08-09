@@ -44,6 +44,13 @@ else()
 		"python3-requests"
 	)
 endif()
+if(CPACK_GENERATOR STREQUAL "RPM")
+	list(APPEND extra_dependencies
+		"policycoreutils" # `restorecon`
+		"policycoreutils-python-utils" # `semanage`
+		"selinux-policy-targeted" # /etc/selinux/targeted/contexts/files/file_contexts (required by `semanage`)
+	)
+endif()
 list(JOIN extra_dependencies ", " extra_dependencies_str)
 
 set(obsolete_packets
@@ -157,16 +164,16 @@ if("RPM" IN_LIST CPACK_GENERATOR)
 
 	## Configure %post, %postun, %preun rpmbuild section
 	set(FLEXISIP_LOGDIR "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/log/flexisip")
-	foreach(secname "post_install" "pre_uninstall" "post_uninstall")
+	foreach (secname "post_install" "pre_uninstall" "post_uninstall")
 		configure_file("rpm/${secname}.spec.in" "rpm/${secname}.spec" @ONLY)
 		string(TOUPPER "${secname}" SECNAME)
 		set(CPACK_RPM_${SECNAME}_SCRIPT_FILE "${CMAKE_CURRENT_BINARY_DIR}/rpm/${secname}.spec")
-	endforeach()
+	endforeach ()
 
 	## Declare config files
-	foreach(conffile ${CONFIG_FILES})
+	foreach (conffile ${CONFIG_FILES})
 		list(APPEND CPACK_RPM_USER_FILELIST "%config(noreplace) ${conffile}")
-	endforeach()
+	endforeach ()
 
 endif()
 
@@ -201,17 +208,17 @@ if("DEB" IN_LIST CPACK_GENERATOR)
 	# Generate conffiles control file
 	set(conffiles_path "${CMAKE_CURRENT_BINARY_DIR}/deb/conffiles")
 	file(WRITE "${conffiles_path}" "")
-	foreach(conffile ${CONFIG_FILES})
+	foreach (conffile ${CONFIG_FILES})
 		file(APPEND "${conffiles_path}" "${conffile}\n")
-	endforeach()
+	endforeach ()
 	list(APPEND CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${conffiles_path}")
 
 	# Add control scripts
 	set(control_files "postinst" "prerm" "postrm")
-	foreach(control ${control_files})
+	foreach (control ${control_files})
 		configure_file("deb/${control}.in" "deb/${control}" @ONLY)
 		list(APPEND CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_BINARY_DIR}/deb/${control}")
-	endforeach()
+	endforeach ()
 
 endif()
 
