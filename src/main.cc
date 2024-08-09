@@ -267,7 +267,7 @@ static void detach() {
 	setsid();
 	fd = open("/dev/null", O_RDWR);
 	if (fd == -1) {
-		throw Exit{-1, "could not open /dev/null"};
+		throw ExitFailure{-1, "could not open /dev/null"};
 	}
 	dup2(fd, 0);
 	dup2(fd, 1);
@@ -416,7 +416,7 @@ static void forkAndDetach(
 							sleep(1);
 							goto fork_flexisip;
 						} else {
-							throw Exit{EXIT_SUCCESS, "Flexisip exited normally"};
+							throw ExitSuccess{"Flexisip exited normally"};
 						}
 					} else if (auto_respawn) {
 						LOGE("Flexisip apparently crashed, respawning now...");
@@ -524,7 +524,7 @@ static void dump_config(
 	}
 	dumper->setDumpExperimentalEnabled(with_experimental);
 	dumper->dump(cout);
-	throw Exit{EXIT_SUCCESS};
+	throw ExitSuccess{};
 }
 
 static void list_sections(ConfigManager& cfg, bool moduleOnly = false) {
