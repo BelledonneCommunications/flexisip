@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -25,16 +25,17 @@
 #include "utils/tls-server.hh"
 #include "utils/transport/tls-connection.hh"
 
+#include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
 using namespace std;
 using namespace std::chrono;
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
+namespace {
 
 template <typename ServerT, typename HostStr, typename PortStr>
-static std::unique_ptr<TlsConnection> makeClientFor(HostStr&& host, PortStr&& port) {
+std::unique_ptr<TlsConnection> makeClientFor(HostStr&& host, PortStr&& port) {
 	constexpr auto needTls = is_same<typename decay<ServerT>::type, TlsServer>::value;
 	if (needTls) {
 		return make_unique<TlsConnection>(std::forward<HostStr>(host), std::forward<PortStr>(port), false);
@@ -44,7 +45,8 @@ static std::unique_ptr<TlsConnection> makeClientFor(HostStr&& host, PortStr&& po
 	}
 }
 
-template <typename ServerT> static void readTest() {
+template <typename ServerT>
+void readTest() {
 	string expectedRead{"To read !"};
 	constexpr auto host = "127.0.0.1";
 	constexpr auto port = 1234;
@@ -78,7 +80,8 @@ struct ReadAllWithTimeoutParams {
 	bool noResponseExpected{false};
 };
 
-template <typename ServerT> static void readAllWithTimeoutBase(const ReadAllWithTimeoutParams& params) {
+template <typename ServerT>
+void readAllWithTimeoutBase(const ReadAllWithTimeoutParams& params) {
 	string request{"Hello World!\n"};
 	string expectedResponse{"aaa"};
 	constexpr auto host = "127.0.0.1";
@@ -113,12 +116,14 @@ template <typename ServerT> static void readAllWithTimeoutBase(const ReadAllWith
 	BC_ASSERT_TRUE(requestMatch.get());
 };
 
-template <typename ServerT> static void readAllWithTimeout() {
+template <typename ServerT>
+void readAllWithTimeout() {
 	ReadAllWithTimeoutParams params{};
 	readAllWithTimeoutBase<ServerT>(params);
 }
 
-template <typename ServerT> static void readAllWithTimeoutDelayedResponse() {
+template <typename ServerT>
+void readAllWithTimeoutDelayedResponse() {
 	ReadAllWithTimeoutParams params{};
 	params.responseDelay = 500ms;
 	params.readAllTimeoutDelay = 5s;
@@ -127,7 +132,8 @@ template <typename ServerT> static void readAllWithTimeoutDelayedResponse() {
 	readAllWithTimeoutBase<ServerT>(params);
 }
 
-template <typename ServerT> static void readAllWithTimeoutLateResponse() {
+template <typename ServerT>
+void readAllWithTimeoutLateResponse() {
 	ReadAllWithTimeoutParams params{};
 	params.responseDelay = 1s;
 	params.readAllTimeoutDelay = 500ms;
@@ -140,22 +146,17 @@ template <typename ServerT> static void readAllWithTimeoutLateResponse() {
 	readAllWithTimeoutBase<ServerT>(params);
 }
 
-namespace {
-TestSuite _("TlsConnection unit tests",
+TestSuite _("TlsConnection",
             {
-                TEST_NO_TAG("TCP read", readTest<TcpServer>),
-                TEST_NO_TAG("TCP readAll with timeout", readAllWithTimeout<TcpServer>),
-                TEST_NO_TAG("TCP readAll with timeout, response from server is delayed.",
-                            readAllWithTimeoutDelayedResponse<TcpServer>),
-                TEST_NO_TAG("TCP readAll with timeout, response from server is late.",
-                            readAllWithTimeoutLateResponse<TcpServer>),
-                TEST_NO_TAG("TLS read", readTest<TlsServer>),
-                TEST_NO_TAG("TLS readAll with timeout", readAllWithTimeout<TlsServer>),
-                TEST_NO_TAG("TLS readAll with timeout, response from server is delayed.",
-                            readAllWithTimeoutDelayedResponse<TlsServer>),
-                TEST_NO_TAG("TLS readAll with timeout, response from server is late.",
-                            readAllWithTimeoutLateResponse<TlsServer>),
+                CLASSY_TEST(readTest<TcpServer>),
+                CLASSY_TEST(readAllWithTimeout<TcpServer>),
+                CLASSY_TEST(readAllWithTimeoutDelayedResponse<TcpServer>),
+                CLASSY_TEST(readAllWithTimeoutLateResponse<TcpServer>),
+                CLASSY_TEST(readTest<TlsServer>),
+                CLASSY_TEST(readAllWithTimeout<TlsServer>),
+                CLASSY_TEST(readAllWithTimeoutDelayedResponse<TlsServer>),
+                CLASSY_TEST(readAllWithTimeoutLateResponse<TlsServer>),
             });
-}
-} // namespace tester
-} // namespace flexisip
+} // namespace
+
+} // namespace flexisip::tester

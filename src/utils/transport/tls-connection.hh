@@ -37,7 +37,6 @@ namespace flexisip {
 
 /**
  * A complete c++ implementation of a TLS connection over the OpenSSL library.
- * Can be used to create, configure, read and write with a TLS connection.
  */
 class TlsConnection {
 public:
@@ -54,12 +53,30 @@ public:
 		}
 	};
 
+	/**
+	 * @brief Instantiate a new TLS connection.
+	 *
+	 * @param host other end IP address
+	 * @param port other end port
+	 * @param mustBeHttp2 whether or not to force use of HTTP/2
+	 */
 	TlsConnection(const std::string& host, const std::string& port, bool mustBeHttp2 = false);
+	/** Instantiate a new TLS or TCP connection.
+	 *
+	 * @note You can leave trustStorePath and certPath empty in order to create a simple TCP connection.
+	 *
+	 * @param host other end IP address
+	 * @param port other end port
+	 * @param trustStorePath path to the truststore (cacert file)
+	 * @param certPath path to the certificate
+	 * @param mustBeHttp2 whether or not to force use of HTTP/2
+	 */
 	TlsConnection(const std::string& host,
 	              const std::string& port,
 	              const std::string& trustStorePath,
 	              const std::string& certPath,
 	              bool mustBeHttp2 = false);
+
 	TlsConnection(const TlsConnection&) = delete;
 	TlsConnection(TlsConnection&&) = delete;
 
@@ -71,15 +88,20 @@ public:
 	}
 
 	/**
-	 * Method used to establish the connection between you and the server. This is a bocking connection. The connection
-	 * is established with all furthers I/O set as non-blocking.
+	 * @brief Establish connection with the other end.
+	 *
+	 * @note You can customize the connection timeout using setTimeout().
+	 * @details The connection is established with all furthers I/O set as non-blocking.
+	 * @warning This is a blocking operation.
 	 */
 	void connect() noexcept;
 
 	/**
-	 * Method used to establish the connection between you and the server. This method runs asynchronously and adds a
-	 * callback to the sofia-sip loop on connection success/error. The connection is established with all furthers I/O
-	 * set as non-blocking.
+	 * @brief Establish connection with the other end.
+	 *
+	 * @note You can customize the connection timeout using setTimeout().
+	 * @details This method runs asynchronously and adds a callback to the sofia-sip loop on connection success/error.
+	 * The connection is established with all furthers I/O set as non-blocking.
 	 * If called when the connection is already establishing, this method has no effect and the callback is __not__
 	 * called.
 	 *
@@ -88,10 +110,13 @@ public:
 	 */
 	void connectAsync(su_root_t& root, const std::function<void()>& onConnectCb) noexcept;
 
-	void disconnect() noexcept {
-		mBio.reset();
-		SLOGD << mLogPrefix << "Disconnected";
-	}
+	void disconnect() noexcept;
+
+	/**
+	 * Consecutively executes disconnect/connect.
+	 *
+	 * @warning This is a blocking operation.
+	 */
 	void resetConnection() noexcept;
 
 	bool isConnected() const noexcept {
@@ -105,21 +130,51 @@ public:
 		return mBio.get();
 	}
 	int getFd() const noexcept;
+
 	/**
-	 * @brief Return the local port which has been attributed while connection.
+	 * @brief Get the local port that has been assigned when connecting to the other end.
+	 *
 	 * @return The local port or 0 if isConnected() == false.
-	 * @throw std::system_error if the socket name couldn't be fetched.
+	 * @throw std::system_error if the socket name could not be fetched.
+	 * @throw std::logic_error if address family is invalid.
 	 */
 	std::uint16_t getLocalPort() const;
 
-	int read(std::vector<char>& data, int readSize) noexcept {
-		data.resize(readSize);
-		auto nRead = read(data.data(), readSize);
-		data.resize(std::max(0, nRead));
-		return nRead;
-	}
+	/**
+	 * @brief Attempt to read data from file descriptor.
+	 *
+	 * @param data output buffer
+	 * @param dlen number of bytes to read
+	 *
+	 * @warning disconnect if EOF is read or connection is closed.
+	 *
+	 * @return number of bytes read from file descriptor. A value of zero means "retry later": the socket may be empty
+	 * or there were not enough data to form a complete TLS message.
+	 */
 	int read(void* data, int dlen) noexcept;
-
+	/**
+	 * @brief Attempt to read data from file descriptor.
+	 *
+	 * @param data output buffer
+	 * @param readSize number of bytes to read
+	 *
+	 * @warning disconnect if EOF is read or connection is closed.
+	 *
+	 * @return number of bytes read from file descriptor. A value of zero means "retry later": the socket may be empty
+	 * or there were not enough data to form a complete TLS message.
+	 */
+	int read(std::vector<char>& data, int readSize) noexcept;
+	/**
+	 * @brief Attempt to fetch and read data from file descriptor for a given amount of time.
+	 *
+	 * @param result output buffer
+	 * @param timeout amount of time for an event to occur @see waitForData()
+	 *
+	 * @warning 1. disconnect if EOF is read or connection is closed
+	 *          2. this is a blocking operation
+	 *
+	 * @return number of bytes read from file descriptor. A value of zero means "retry later".
+	 */
 	template <typename ContainerT>
 	int readAll(ContainerT& result, std::chrono::milliseconds timeout = std::chrono::milliseconds{2000}) noexcept {
 		auto now = std::chrono::steady_clock::now();
@@ -137,7 +192,7 @@ public:
 				return -1;
 			}
 
-			// Read can return 0 if only TLS data were present.
+			// Read can only return 0 if TLS data were present.
 			nbRead = this->read(readBuffer, sizeof(readBuffer));
 
 			if (nbRead < 0) {
@@ -148,7 +203,7 @@ public:
 		}
 		result.insert(result.end(), readBuffer, readBuffer + nbRead);
 
-		// read until the socket is empty or an error occurs.
+		// Read until the socket is empty or an error occurs.
 		while ((nbRead = this->read(readBuffer, sizeof(readBuffer))) > 0) {
 			result.insert(result.end(), readBuffer, readBuffer + nbRead);
 		}
@@ -159,24 +214,67 @@ public:
 		return result.size();
 	}
 
+	/**
+	 * @brief Attempt to write data to file descriptor.
+	 *
+	 * @param data data buffer
+	 * @param dlen number of bytes to write
+	 *
+	 * @return number of bytes written to file descriptor. If -1, an error occurred. If 0, BIO is null or dlen <= 0.
+	 */
+	int write(const void* data, int dlen) noexcept;
+	/**
+	 * @brief Attempt to write a string to file descriptor.
+	 *
+	 * @param cStr string to write
+	 *
+	 * @return number of bytes written to file descriptor. If -1, an error occurred. If 0, BIO is null or dlen <= 0.
+	 */
+	int write(const char* cStr) noexcept;
+	/**
+	 * @brief Attempt to write data to file descriptor.
+	 *
+	 * @param data STL continuous data container
+	 *
+	 * @return number of bytes written to file descriptor. If -1, an error occurred. If 0, BIO is null or dlen <= 0.
+	 */
 	template <typename ContinuousContainer>
 	int write(const ContinuousContainer& data) noexcept {
 		return write(data.data(), data.size());
 	}
-	int write(const char* cStr) noexcept {
-		return write(cStr, std::strlen(cStr));
-	}
-	int write(const void* data, int dlen) noexcept;
 
+	/**
+	 * Execute poll() on file descriptor for given amount of time to check if there are data to read.
+	 *
+	 * @param timeout amount of time for an event to occur. If strictly positive, allow given time for an event to
+	 * occur. If 0, executes without blocking. If -1, blocks until an event occurs.
+	 *
+	 * @warning this can be a blocking operation.
+	 *
+	 * @return true if there are data to read from the socket.
+	 */
 	bool waitForData(std::chrono::milliseconds timeout);
-	bool hasData() {
-		return waitForData(std::chrono::milliseconds{0});
-	}
+	/**
+	 * Execute poll() on file descriptor in the non-blocking mode @see waitForData().
+	 *
+	 * @return true if there are data to read from the socket.
+	 */
+	bool hasData();
 
+	/**
+	 * Set connection timeout used when connecting to the other end.
+	 *
+	 * @param timeout new value
+	 */
 	void setTimeout(const std::chrono::milliseconds& timeout) {
-		TlsConnection::mTimeout = timeout;
+		mTimeout = timeout;
 	}
 
+	/**
+	 * Enable specific mode for testing purposes.
+	 *
+	 * @warning do not use this mode in production applications.
+	 */
 	void enableInsecureTestMode();
 
 private:
@@ -190,6 +288,9 @@ private:
 	static void handleBioError(const std::string& msg, int status);
 	static int handleVerifyCallback(X509_STORE_CTX* ctx, void* ud);
 	static bool isCertExpired(const std::string& certPath) noexcept;
+	/**
+	 * Utility function to convert ASN1_TIME to a printable string in a buffer.
+	 */
 	static int ASN1_TIME_toString(const ASN1_TIME* time, char* buffer, uint32_t buff_length);
 	static SSLCtxUniquePtr makeDefaultCtx();
 	static int getFd(BIO& bio);
