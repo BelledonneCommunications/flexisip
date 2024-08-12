@@ -126,6 +126,8 @@ add_library(flexisip SHARED
 	transport.cc transport.hh
 	uac-register.cc uac-register.hh
 	conditional-routes.cc conditional-routes.hh
+	main/flexisip.cc
+	main/flexisip.hh
 )
 
 if(ENABLE_FLEXIAPI)
@@ -223,11 +225,11 @@ if(ENABLE_TRANSCODER)
 endif()
 if(ENABLE_DATEHANDLER)
 	target_sources(flexisip PRIVATE module-datehandler.cc)
-endif ()
-if (ENABLE_REDIS)
+endif()
+if(ENABLE_REDIS)
 	add_subdirectory(libhiredis-wrapper)
 	target_sources(flexisip PRIVATE
-			registrardb-redis-async.cc
+		registrardb-redis-async.cc
 	)
 	target_compile_definitions(flexisip PRIVATE "ENABLE_REDIS")
 	target_link_libraries(flexisip PRIVATE hiredis)
