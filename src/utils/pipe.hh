@@ -95,7 +95,11 @@ public:
 	// Attempts to read the given amount of bytes from the pipe, blocking the current thread until either data is read,
 	// the pipe is closed, or the timeout is reached.
 	[[nodiscard]] std::variant<std::string, TimeOut, SysErr>
-	read(size_t, std::chrono::microseconds timeout = std::chrono::seconds(5)) const;
+	readUntilDataReceptionOrTimeout(size_t, std::chrono::microseconds timeoutMs = std::chrono::seconds(5)) const;
+	// ⚠️ BLOCKING
+	// Attempts to read the given amount of bytes from the pipe, blocking the current thread until either data is read,
+	// the pipe is closed.
+	[[nodiscard]] std::variant<std::string, SysErr> readUntilDataReception(size_t) const;
 };
 
 /**

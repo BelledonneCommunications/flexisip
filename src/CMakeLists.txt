@@ -79,6 +79,8 @@ add_library(flexisip SHARED
 	lib/nlohmann-json-3-11-2/json.hpp
 	log/logmanager.cc
 	lpconfig.cc
+	main/flexisip.cc
+	main/flexisip.hh
 	mediarelay.cc mediarelay.hh
 	module-auth.cc
 	module-authentication-base.cc
@@ -130,8 +132,6 @@ add_library(flexisip SHARED
 	uac-register.cc uac-register.hh
 	conditional-routes.cc conditional-routes.hh
 	i-supervisor-notifier.hh
-	main/flexisip.cc
-	main/flexisip.hh
 )
 
 if(ENABLE_FLEXIAPI)

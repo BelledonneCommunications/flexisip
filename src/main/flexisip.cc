@@ -63,9 +63,6 @@
 #include <flexisip/module.hh>
 #include <flexisip/sofia-wrapper/su-root.hh>
 
-#ifdef HAVE_CONFIG_H
-#include "flexisip-config.h"
-#endif
 #ifndef CONFIG_DIR
 #define CONFIG_DIR
 #endif
@@ -100,6 +97,9 @@
 #include "snmp/snmp-agent.hh"
 #endif
 
+#include "flexisip.hh"
+#include "utils/pipe.hh"
+
 using namespace std;
 using namespace flexisip;
 
@@ -108,8 +108,8 @@ using namespace flexisip;
 static int run = 1;
 static pid_t monitor_pid = -1;
 static pid_t flexisip_pid = -1;
-static int pipe_wdog_flexisip[2] = {-1}; // Pipe in which flexisip will write to notify the watchdog that it has started
 static shared_ptr<sofiasip::SuRoot> root{};
+static constexpr auto startupMessage = "ok";
 
 /*
  * Get the identifier of the current thread.
@@ -295,10 +295,14 @@ static void set_process_name([[maybe_unused]] const string& process_name) {
 #endif
 }
 
-static void forkAndDetach(
-    ConfigManager& cfg, const string& pidfile, bool auto_respawn, bool startMonitor, const string& functionName) {
+static void forkAndDetach(ConfigManager& cfg,
+                          const string& pidfile,
+                          bool auto_respawn,
+                          bool startMonitor,
+                          const string& functionName,
+                          optional<pipe::WriteOnly>& flexisipStartupPipe) {
 	int pipe_launcher_wdog[2];
-	int err = pipe(pipe_launcher_wdog);
+	int err = ::pipe(pipe_launcher_wdog);
 	bool launcherExited = false;
 	if (err == -1) {
 		throw ExitFailure{"could not create pipes: "s + strerror(errno)};
@@ -317,20 +321,21 @@ static void forkAndDetach(
 
 	/* Creation of the flexisip process */
 	fork_flexisip:
-		err = pipe(pipe_wdog_flexisip);
-		if (err == -1) {
-			throw ExitFailure{"could not create pipes: "s + strerror(errno)};
+		auto newPipe = pipe::open();
+		if (holds_alternative<SysErr>(newPipe)) {
+			throw ExitFailure{"unable to create start pipe "s + strerror(get<SysErr>(newPipe).number())};
 		}
+		auto rPipe = ::move(get<pipe::Ready>(newPipe));
+
 		flexisip_pid = fork();
 		if (flexisip_pid < 0) {
 			throw ExitFailure{"could not fork: "s + strerror(errno)};
 		}
 		if (flexisip_pid == 0) {
-
 			/* This is the real flexisip process now.
 			 * We can proceed with real start
 			 */
-			close(pipe_wdog_flexisip[0]);
+			flexisipStartupPipe = pipe::WriteOnly(::move(rPipe));
 			set_process_name("flexisip-" + functionName);
 			makePidFile(pidfile);
 			return;
@@ -342,24 +347,22 @@ static void forkAndDetach(
 		 * We are in the watch-dog process again
 		 * Waiting for successful initialisation of the flexisip process
 		 */
-		close(pipe_wdog_flexisip[1]);
-		err = read(pipe_wdog_flexisip[0], buf, sizeof(buf));
-		if (err == -1 || err == 0) {
-			string message{};
-			if (err == -1) message = "[WDOG] read error from flexisip, "s + strerror(errno);
-			close(pipe_launcher_wdog[1]); // close launcher pipe to signify the error
-			throw ExitFailure{message};
+		auto res = pipe::ReadOnly(::move(rPipe)).readUntilDataReception(strlen(startupMessage));
+		if (holds_alternative<SysErr>(res)) {
+			throw ExitFailure{"[WDOG] read error from flexisip, "s + strerror(get<SysErr>(res).number())};
 		}
-		close(pipe_wdog_flexisip[0]);
+		if (get<string>(res).empty()) {
+			throw ExitFailure{"[WDOG] read error from flexisip, empty message"};
+		}
 
 	/*
 	 * Flexisip has successfully started.
-	 * We can now start the Flexisip monitor if it is requierd
+	 * We can now start the Flexisip monitor if it is required
 	 */
 	fork_monitor:
 		if (startMonitor) {
 			int pipe_wd_mo[2];
-			err = pipe(pipe_wd_mo);
+			err = ::pipe(pipe_wd_mo);
 			if (err == -1) {
 				kill(flexisip_pid, SIGTERM);
 				throw ExitFailure{"could not create pipes: "s + strerror(errno)};
@@ -390,7 +393,7 @@ static void forkAndDetach(
 		 * We are in the watchdog process once again, and all went well, tell the launcher that it can exit
 		 */
 
-		if (!launcherExited && write(pipe_launcher_wdog[1], "ok", 3) == -1) {
+		if (!launcherExited && write(pipe_launcher_wdog[1], startupMessage, strlen(startupMessage)) == -1) {
 			throw ExitFailure{"[WDOG] write to pipe failed, exiting"};
 		} else {
 			close(pipe_launcher_wdog[1]);
@@ -548,14 +551,14 @@ getFunctionName(bool startProxy, bool startPresence, bool startConference, bool 
 	return (functions.empty()) ? "none" : functions;
 }
 
-static void notifyWatchDog() {
-	static bool notified = false;
-	if (!notified) {
-		if (write(pipe_wdog_flexisip[1], "ok", 3) == -1) {
-			LOGF("Failed to write starter pipe: %s", strerror(errno));
-		}
-		close(pipe_wdog_flexisip[1]);
-		notified = true;
+static void sendStartedNotification(optional<pipe::WriteOnly>& flexisipStartupPipe) {
+	if (!flexisipStartupPipe.has_value()) {
+		throw ExitFailure{"Failed to write starter pipe: No pipe available"};
+	}
+
+	auto res = flexisipStartupPipe->write(startupMessage);
+	if (res.has_value()) {
+		throw ExitFailure{"Failed to write starter pipe: "s + strerror(res->number())};
 	}
 }
 
@@ -609,7 +612,11 @@ static string getPkcsPassphrase(TCLAP::ValueArg<string>& pkcsFile) {
 	return passphrase;
 }
 
-int _main(int argc, char* argv[]) {
+int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startupPipe) {
+	// Used by flexisip to notify the watchdog that it has started
+	optional<pipe::WriteOnly> flexisipStartupPipe{};
+	if (startupPipe.has_value()) flexisipStartupPipe = ::move(startupPipe);
+
 	shared_ptr<Agent> a;
 	StunServer* stun = NULL;
 	unique_ptr<CommandLineInterface> proxy_cli;
@@ -900,7 +907,7 @@ int _main(int argc, char* argv[]) {
 		So we can detach.*/
 		bool autoRespawn = cfg->getGlobal()->get<ConfigBoolean>("auto-respawn")->read();
 		if (!startProxy) monitorEnabled = false;
-		forkAndDetach(*cfg, pidFile.getValue(), autoRespawn, monitorEnabled, fName);
+		forkAndDetach(*cfg, pidFile.getValue(), autoRespawn, monitorEnabled, fName, flexisipStartupPipe);
 	} else if (pidFile.getValue().length() != 0) {
 		// not daemon but we want a pidfile anyway
 		makePidFile(pidFile.getValue());
@@ -909,15 +916,15 @@ int _main(int argc, char* argv[]) {
 	/*
 	 * Log initialisation.
 	 * This must be done after forking in order the log file be reopen after respawn should Flexisip crash.
-	 * The condition intent to avoid log initialisation should the user have passed command line options that doesn't
-	 * require to start the server e.g. dumping default configuration file.
+	 * The condition intent to avoid log initialisation should the user have passed command line options that
+	 * doesn't require to start the server e.g. dumping default configuration file.
 	 */
 	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !listSections &&
 	    !dumpMibs && !dumpAll) {
 		if (cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read() !=
 		    static_cast<ConfigByteSize::ValueType>(-1)) {
-			LOGF("Setting 'global/max-log-size' parameter has been forbidden since log size control was delegated to "
-			     "logrotate. Please edit /etc/logrotate.d/flexisip-logrotate for log rotation customization.");
+			LOGF("Setting 'global/max-log-size' parameter has been forbidden since log size control was delegated "
+			     "to logrotate. Please edit /etc/logrotate.d/flexisip-logrotate for log rotation customization.");
 		}
 
 		const auto& logFilename = cfg->getGlobal()->get<ConfigString>("log-filename")->read();
@@ -947,16 +954,16 @@ int _main(int argc, char* argv[]) {
 	}
 
 	/*
-	 * From now on, we are a flexisip daemon, that is a process that will run proxy, presence, regevent or conference
-	 * server.
+	 * From now on, we are a flexisip daemon, that is a process that will run proxy, presence, regevent or
+	 * conference server.
 	 */
 	LOGN("Starting flexisip %s-server version %s", fName.c_str(), FLEXISIP_GIT_VERSION);
 
 	increaseFDLimit();
 
 	/*
-	 * We create an Agent in all cases, because it will declare config items that are necessary for presence server to
-	 * run.
+	 * We create an Agent in all cases, because it will declare config items that are necessary for presence server
+	 * to run.
 	 */
 	auto authDb = std::make_shared<AuthDb>(cfg);
 	auto registrarDb = std::make_shared<RegistrarDb>(root, cfg);
@@ -985,10 +992,6 @@ int _main(int argc, char* argv[]) {
 			}
 		}
 
-		if (daemonMode) {
-			notifyWatchDog();
-		}
-
 		if (cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigBoolean>("enabled")->read()) {
 			stun = new StunServer(cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigInt>("port")->read());
 			stun->start(cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigString>("bind-address")->read());
@@ -1012,9 +1015,7 @@ int _main(int argc, char* argv[]) {
 		if (enableLongTermPresence) {
 			presenceServer->enableLongTermPresence(authDb, registrarDb);
 		}
-		if (daemonMode) {
-			notifyWatchDog();
-		}
+
 		try {
 			presenceServer->init();
 		} catch (const FlexisipException& e) {
@@ -1034,9 +1035,7 @@ int _main(int argc, char* argv[]) {
 	if (startConference) {
 #ifdef ENABLE_CONFERENCE
 		auto conferenceServer = make_shared<ConferenceServer>(a->getPreferredRoute(), root, cfg, registrarDb);
-		if (daemonMode) {
-			notifyWatchDog();
-		}
+
 		try {
 			conferenceServer->init();
 		} catch (const FlexisipException& e) {
@@ -1053,9 +1052,7 @@ int _main(int argc, char* argv[]) {
 	if (startRegEvent) {
 #ifdef ENABLE_CONFERENCE
 		auto regEventServer = make_unique<RegistrationEvent::Server>(root, cfg, registrarDb);
-		if (daemonMode) {
-			notifyWatchDog();
-		}
+
 		try {
 			regEventServer->init();
 		} catch (const FlexisipException& e) {
@@ -1069,9 +1066,7 @@ int _main(int argc, char* argv[]) {
 	if (startB2bua) {
 #if ENABLE_B2BUA
 		auto b2buaServer = make_shared<B2buaServer>(root, cfg);
-		if (daemonMode) {
-			notifyWatchDog();
-		}
+
 		try {
 			b2buaServer->init();
 		} catch (const FlexisipException& e) {
@@ -1082,6 +1077,7 @@ int _main(int argc, char* argv[]) {
 #endif // ENABLE_B2BUA
 	}
 
+	if (flexisipStartupPipe.has_value()) sendStartedNotification(flexisipStartupPipe);
 	if (run) root->run();
 
 	a->unloadConfig();

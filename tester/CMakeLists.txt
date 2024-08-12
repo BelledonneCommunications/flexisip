@@ -96,6 +96,7 @@ add_executable(flexisip_tester
 	tests/libhiredis-wrapper/redis-reply-tester.cc
 	tests/libhiredis-wrapper/replication/redis-client-tester.cc
 	tests/module-forward-tester.cc
+	tests/main-tester.cc
 	tests/module-nat-helper-tester.cc
 	tests/module-registrar-tester.cc
 	tests/nat/contact-correction-strategy-helper-tester.cc
@@ -237,9 +238,9 @@ endif()
 
 if(ENABLE_OPENID_CONNECT)
 	target_sources(flexisip_tester PRIVATE
-	tests/auth/auth-openid-connect-tester.cc
-	tests/auth/bearer-scheme-tester.cc
-)
+		tests/auth/auth-openid-connect-tester.cc
+		tests/auth/bearer-scheme-tester.cc
+	)
 endif()
 
 target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})

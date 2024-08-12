@@ -17,6 +17,16 @@
 */
 
 #pragma once
-#include "exceptions/exit.hh"
 
-int _main(int argc, char* argv[]);
+#include <optional>
+
+#include "exceptions/exit.hh"
+#include "utils/pipe.hh"
+
+#ifdef HAVE_CONFIG_H
+#include "flexisip-config.h"
+#endif
+
+using namespace flexisip;
+
+int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startupPipe = std::nullopt);

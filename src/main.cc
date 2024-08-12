@@ -24,7 +24,7 @@
 using namespace std;
 using namespace flexisip;
 
-int main(int argc, char* argv[]) {
+int main(int argc, const char* argv[]) {
 	try {
 		return _main(argc, argv);
 	} catch (const TCLAP::ExitException& exception) {
