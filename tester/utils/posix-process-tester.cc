@@ -1,6 +1,20 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <cstdlib>
 #include <iostream>
@@ -50,14 +64,14 @@ void test_echo_stdin_to_stdout() {
 	BC_ASSERT_PTR_NOT_NULL(exitedNormally);
 	auto* out = get_if<pipe::ReadOnly>(&exitedNormally->mStdout);
 	BC_ASSERT_PTR_NOT_NULL(out);
-	auto maybeRead = out->read(0xFF);
+	auto maybeRead = out->readUntilDataReceptionOrTimeout(0xFF);
 	auto* read = get_if<string>(&maybeRead);
 	BC_ASSERT_PTR_NOT_NULL(read);
 	BC_ASSERT_STRING_EQUAL(read->c_str(), expected);
 	if (read->empty()) {
 		if (auto* pipe = get_if<pipe::ReadOnly>(&exitedNormally->mStderr)) {
 			ostringstream err{};
-			err << "stderr: " << StreamableVariant(pipe->read(0xFFF));
+			err << "stderr: " << StreamableVariant(pipe->readUntilDataReceptionOrTimeout(0xFFF));
 			bc_assert(__FILE__, __LINE__, false, err.str().c_str());
 		}
 	}

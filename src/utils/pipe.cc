@@ -47,7 +47,8 @@ Ready::Ready(RawPipeDesc ends[2]) : readEnd{ends[0]}, writeEnd{ends[1]} {
 ReadOnly::ReadOnly(Ready&& pipe) : Descriptor(std::move(pipe.readEnd)) {
 }
 
-variant<string, TimeOut, SysErr> ReadOnly::read(size_t size, chrono::microseconds timeoutMs) const {
+variant<string, TimeOut, SysErr> ReadOnly::readUntilDataReceptionOrTimeout(size_t size,
+                                                                           chrono::microseconds timeoutMs) const {
 	fd_set fileDescriptorSet;
 	FD_ZERO(&fileDescriptorSet);
 	FD_SET(mDesc, &fileDescriptorSet);
@@ -63,6 +64,14 @@ variant<string, TimeOut, SysErr> ReadOnly::read(size_t size, chrono::microsecond
 
 	string buffer(size, '\0');
 	auto byteCount = ::read(mDesc, buffer.data(), buffer.size());
+	buffer.resize(byteCount);
+	return buffer;
+}
+
+variant<string, SysErr> ReadOnly::readUntilDataReception(size_t size) const {
+	string buffer(size, '\0');
+	auto byteCount = ::read(mDesc, buffer.data(), buffer.size());
+	if (byteCount < 0) return SysErr();
 	buffer.resize(byteCount);
 	return buffer;
 }
@@ -100,7 +109,7 @@ ostream& operator<<(ostream& stream, const ReadOnly& pipe) {
 }
 ostream& operator<<(ostream& stream, ReadOnly&& pipe) {
 	stream << "pipe::ReadOnly(" << pipe.mDesc << ", data:\n";
-	stream << StreamableVariant(pipe.read(0xFFFF)) << "\n";
+	stream << StreamableVariant(pipe.readUntilDataReceptionOrTimeout(0xFFFF)) << "\n";
 	return stream << ")";
 }
 

@@ -139,9 +139,9 @@ std::variant<Unexpected, TimeOut, ExitedNormally, SysErr> Process::wait(chrono::
 	auto& state = std::get<Running>(mState);
 	cerr << "Timed out waiting for " << *this << "\n";
 	if (auto* out = get_if<pipe::ReadOnly>(&state.mStdout))
-		cerr << "stdout: " << StreamableVariant(out->read(0xFFFF)) << "\n";
+		cerr << "stdout: " << StreamableVariant(out->readUntilDataReceptionOrTimeout(0xFFFF)) << "\n";
 	if (auto* err = get_if<pipe::ReadOnly>(&state.mStderr))
-		cerr << "stderr: " << StreamableVariant(err->read(0xFFFF)) << "\n";
+		cerr << "stderr: " << StreamableVariant(err->readUntilDataReceptionOrTimeout(0xFFFF)) << "\n";
 	return TimeOut{timeout};
 }
 

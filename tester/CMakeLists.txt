@@ -92,6 +92,7 @@ add_executable(flexisip_tester
 	tests/libhiredis-wrapper/redis-reply-tester.cc
 	tests/libhiredis-wrapper/replication/redis-client-tester.cc
 	tests/module-forward-tester.cc
+	tests/main-tester.cc
 	tests/module-nat-helper-tester.cc
 	tests/module-registrar-tester.cc
 	tests/nat/contact-correction-strategy-helper-tester.cc

@@ -1,6 +1,20 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <cstdint>
 #include <cstdlib>
@@ -86,9 +100,9 @@ MysqlServer::MysqlServer()
 			          if (state.mExitCode != 0) {
 				          cerr << "Mysql datadir install failed";
 				          if (auto* out = get_if<pipe::ReadOnly>(&state.mStdout))
-					          cerr << StreamableVariant(out->read(0xFFFF));
+					          cerr << StreamableVariant(out->readUntilDataReceptionOrTimeout(0xFFFF));
 				          if (auto* err = get_if<pipe::ReadOnly>(&state.mStderr))
-					          cerr << StreamableVariant(err->read(0xFFFF));
+					          cerr << StreamableVariant(err->readUntilDataReceptionOrTimeout(0xFFFF));
 				          ::exit(state.mExitCode);
 			          }
 		          } else {
@@ -117,7 +131,7 @@ MysqlServer::MysqlServer()
 		      if (!running) {
 			      if (auto* exited = get_if<process::ExitedNormally>(&state)) {
 				      if (auto* standardError = get_if<pipe::ReadOnly>(&exited->mStderr)) {
-					      auto maybeChunk = standardError->read(0xFFFF);
+					      auto maybeChunk = standardError->readUntilDataReceptionOrTimeout(0xFFFF);
 					      if (auto* chunk = get_if<string>(&maybeChunk)) fullLog += *chunk;
 				      }
 			      }
@@ -130,7 +144,7 @@ MysqlServer::MysqlServer()
 		      }
 
 		      auto chunk =
-		          Match(standardError->read(0xFF, 2s))
+		          Match(standardError->readUntilDataReceptionOrTimeout(0xFF, 2s))
 		              .against([](string&& chunk) { return std::move(chunk); },
 		                       [&fullLog](const SysErr& err) -> string {
 			                       throw system_error{err.number(), generic_category(),
