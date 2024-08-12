@@ -40,10 +40,6 @@ public:
 	}
 
 private:
-	static ModuleInfo<B2bua> sInfo;
-	unique_ptr<SipUri> mDestRoute;
-	su_home_t mHome;
-
 	B2bua(Agent* agent, const ModuleInfoBase* moduleInfo) : Module(agent, moduleInfo) {
 		su_home_init(&mHome);
 	}
@@ -54,21 +50,32 @@ private:
 
 	void onRequest(shared_ptr<RequestSipEvent>& ev) override;
 	void onResponse(shared_ptr<ResponseSipEvent>& ev) override;
+
+	static ModuleInfo<B2bua> sInfo;
+	unique_ptr<SipUri> mDestRoute;
+	su_home_t mHome;
+	string mB2buaUserAgent;
 };
 
-ModuleInfo<B2bua> B2bua::sInfo(
+ModuleInfo<B2bua> B2bua::sInfo{
     "B2bua",
     "This module is in charge of intercepting calls and route them to the back-to-back user agent server",
     {"Authentication", "ExternalAuthentication", "Authorization"},
     ModuleInfoBase::ModuleOid::B2bua,
-
     [](GenericStruct& moduleConfig) {
-	    ConfigItemDescriptor configs[] = {{String, "b2bua-server", "A sip uri where to send all the relevent requests.",
-	                                       "sip:127.0.0.1:6067;transport=tcp"},
-	                                      config_item_end};
+	    ConfigItemDescriptor configs[] = {
+	        {
+	            String,
+	            "b2bua-server",
+	            "A sip uri where to send all the relevant requests.",
+	            "sip:127.0.0.1:6067;transport=tcp",
+	        },
+	        config_item_end,
+	    };
 	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
 	    moduleConfig.addChildrenValues(configs);
-    });
+    },
+};
 
 // -----------------------------------------------------------------------------
 bool B2bua::isValidNextConfig(const ConfigValue& cv) {
@@ -88,13 +95,21 @@ bool B2bua::isValidNextConfig(const ConfigValue& cv) {
 }
 
 void B2bua::onLoad(const GenericStruct* moduleConfig) {
-	string destRouteStr = moduleConfig->get<ConfigString>("b2bua-server")->read();
+	const auto* b2buaDestinationRouteParameter = moduleConfig->get<ConfigString>("b2bua-server");
+	const auto destRouteStr = b2buaDestinationRouteParameter->read();
 	try {
-		mDestRoute.reset(new SipUri(destRouteStr));
+		mDestRoute = make_unique<SipUri>(destRouteStr);
 	} catch (const sofiasip::InvalidUrlError& e) {
-		LOGF("Invalid SIP URI (%s) in 'b2bua-server' parameter of 'B2bua' module: %s", destRouteStr.c_str(), e.what());
+		throw FlexisipException{"Invalid SIP URI " + destRouteStr + " in parameter " +
+		                        b2buaDestinationRouteParameter->getCompleteName() + ": " + e.what()};
 	}
-	SLOGI << getModuleName() << ": b2bua server is [" << mDestRoute->str() << "]";
+	SLOGI << "module::" << getModuleName() << ": b2bua server is [" << mDestRoute->str() << "]";
+
+	const auto* b2buaServerConfig = getAgent()->getConfigManager().getRoot()->get<GenericStruct>("b2bua-server");
+	const auto userAgent = b2bua::parseUserAgentFromConfig(b2buaServerConfig->get<ConfigString>("user-agent")->read());
+	mB2buaUserAgent = userAgent.first + (userAgent.second.empty() ? "" : ("/" + userAgent.second));
+	SLOGI << "module::" << getModuleName() << ": ignore INVITE and CANCEL requests with \"User-Agent\" header set to "
+	      << mB2buaUserAgent;
 }
 
 void B2bua::onUnload() {
@@ -103,16 +118,15 @@ void B2bua::onUnload() {
 void B2bua::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	sip_t* sip = ev->getSip();
 	if (sip->sip_request->rq_method == sip_method_invite || sip->sip_request->rq_method == sip_method_cancel) {
-		// Do we have the "X-Flexisip-B2BUA" custom header? If no, we must intercept the call.
-		sip_unknown_t* header = ModuleToolbox::getCustomHeaderByName(sip, B2buaServer::kCustomHeader);
+		// Is the request coming from the B2BUA? If no, we must intercept it.
+		const auto requestIsFromB2BUA = sip->sip_user_agent and sip->sip_user_agent->g_string == mB2buaUserAgent;
 
-		if (header == NULL) {
+		if (!requestIsFromB2BUA) {
 			ModuleToolbox::cleanAndPrependRoute(this->getAgent(), ev->getMsgSip()->getMsg(), ev->getSip(),
 			                                    sip_route_create(&mHome, mDestRoute->get(), nullptr));
-			SLOGD << "B2bua onRequest, clean and prepend done to route " << mDestRoute->str();
+			SLOGD << "Clean and prepend done to route " << mDestRoute->str();
 		} else { // Do not intercept the call
-			// TODO: Remove the custom header flexisip-b2bua
-			SLOGD << "B2bua onRequest, ignore INVITE with custom header set to " << std::string(header->un_value);
+			SLOGD << "Ignore INVITE with \"User-Agent\" header set to " << mB2buaUserAgent;
 		}
 	}
 }

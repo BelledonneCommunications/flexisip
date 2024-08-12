@@ -382,7 +382,7 @@ bool CoreClient::callUpdate(const CoreClient& peer, const std::shared_ptr<linpho
 }
 
 bool CoreClient::endCurrentCall(const CoreClient& peer) {
-	const auto peerCore = peer.getCore();
+	const auto& peerCore = peer.getCore();
 	auto selfCall = mCore->getCurrentCall();
 	auto peerCall = peerCore->getCurrentCall();
 	if (selfCall == nullptr || peerCall == nullptr) {

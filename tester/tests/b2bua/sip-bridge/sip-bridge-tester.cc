@@ -1847,10 +1847,425 @@ void oneConnectionPerAccount() {
 	}
 }
 
+/*
+ * Test blind call transfer.
+ *
+ * As of 2024-08-23, this test mostly verifies the B2BUA-server does not crash when a REFER request is received.
+ *
+ * Scenario:
+ * 1. A call is established through the B2BUA between "transferor" and "transferee".
+ * 2. Transferor transfers its call with transferee to the transfer target "transfer-t".
+ * 3. The call between transferor et transferee should be paused until transfer-t answers (pick up or decline) to the
+ *    INVITE it received from transferee.
+ * 4. Finally, when transfer-t answers, the call should run between transferee and transfer-t. The call between
+ *    transferor and transferee is released as soon as NOTIFY/200 OK was received by transferor.
+ * ...
+ * TODO: correct this test and description once the feature is developed.
+ */
+void blindCallTransfer() {
+	StringFormatter jsonConfig{R"json({
+		"schemaVersion": 2,
+		"providers": [
+			{
+				"name": "Flexisip -> Jabiru (Outbound)",
+				"triggerCondition": {
+					"strategy": "Always"
+				},
+				"accountToUse": {
+					"strategy": "FindInPool",
+					"source": "{from}",
+					"by": "alias"
+				},
+				"onAccountNotFound": "nextProvider",
+				"outgoingInvite": {
+					"to": "sip:{incoming.to.user}@{account.uri.hostport}{incoming.to.uriParameters}",
+					"from": "{account.uri}"
+				},
+				"accountPool": "FlockOfJabirus"
+			},
+			{
+				"name": "Jabiru -> Flexisip (Inbound)",
+				"triggerCondition": {
+					"strategy": "Always"
+				},
+				"accountToUse": {
+					"strategy": "FindInPool",
+					"source": "{to}",
+					"by": "uri"
+				},
+				"onAccountNotFound": "nextProvider",
+				"outgoingInvite": {
+					"to": "{account.alias}",
+					"from": "sip:{incoming.from.user}@{account.alias.hostport}{incoming.from.uriParameters}",
+					"outboundProxy": "<sip:127.0.0.1:#flexisipPort#;transport=tcp>"
+				},
+				"accountPool": "FlockOfJabirus"
+			}
+		],
+		"accountPools": {
+			"FlockOfJabirus": {
+				"outboundProxy": "<sip:127.0.0.1:#jabiruPort#;transport=tcp>",
+				"registrationRequired": true,
+				"maxCallsPerLine": 10,
+				"loader": [
+					{
+						"uri": "sip:not-transferor@jabiru.example.org",
+						"alias": "sip:transferor@flexisip.example.org"
+					},
+					{
+						"uri": "sip:not-transfer-t@jabiru.example.org",
+						"alias": "sip:transfer-t@flexisip.example.org"
+					}
+				]
+			}
+		}
+	})json",
+	                           '#', '#'};
+	TempFile providersJson{};
+	Server flexisipProxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "flexisip.example.org"},
+	    {"b2bua-server/application", "sip-bridge"},
+	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
+	    {"b2bua-server/one-connection-per-account", "true"},
+	    {"b2bua-server::sip-bridge/providers", providersJson.getFilename()},
+	    {"module::B2bua/enabled", "true"},
+	    // Media Relay has problem when everyone is running on localhost
+	    {"module::MediaRelay/enabled", "false"},
+	    // B2bua use writable-dir instead of var folder
+	    {"b2bua-server/data-directory", bcTesterWriteDir()},
+	}};
+	flexisipProxy.start();
+	const auto& flexisipClientBuilder = ClientBuilder{*flexisipProxy.getAgent()};
+	Server jabiruProxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "jabiru.example.org"},
+	    {"module::MediaRelay/enabled", "false"},
+	}};
+	jabiruProxy.start();
+	const auto& jabiruClientBuilder = ClientBuilder{*jabiruProxy.getAgent()};
+	providersJson.writeStream() << jsonConfig.format({
+	    {"jabiruPort", jabiruProxy.getFirstPort()},
+	    {"flexisipPort", flexisipProxy.getFirstPort()},
+	});
+
+	// Instantiate and start B2BUA server.
+	const auto b2buaLoop = std::make_shared<sofiasip::SuRoot>();
+	const auto& config = flexisipProxy.getConfigManager();
+	const auto b2buaServer = std::make_shared<flexisip::B2buaServer>(b2buaLoop, config);
+	b2buaServer->init();
+	const auto b2buaUri = "sip:127.0.0.1:" + std::to_string(b2buaServer->getTcpPort()) + ";transport=tcp";
+	config->getRoot()->get<GenericStruct>("module::B2bua")->get<ConfigString>("b2bua-server")->set(b2buaUri);
+	flexisipProxy.getAgent()->findModule("B2bua")->reload();
+
+	// Instantiate clients and create call.
+	auto transferor = flexisipClientBuilder.build("transferor@flexisip.example.org");
+	auto transferee = jabiruClientBuilder.build("transferee@jabiru.example.org");
+	auto transferTarget = flexisipClientBuilder.build("transfer-t@flexisip.example.org");
+	CoreAssert asserter{flexisipProxy, jabiruProxy, b2buaLoop, transferor, transferee, transferTarget};
+
+	// Register B2BUA accounts on Jabiru.
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&sipProviders =
+	             dynamic_cast<const b2bua::bridge::SipBridge&>(b2buaServer->getApplication()).getProviders()] {
+		        for (const auto& provider : sipProviders) {
+			        for (const auto& [_, account] : provider.getAccountSelectionStrategy().getAccountPool()) {
+				        FAIL_IF(!account->isAvailable());
+			        }
+		        }
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Create call and make sure it is created.
+	const auto& callFromTransferor = transferor.invite("transferee@jabiru.example.org");
+	BC_HARD_ASSERT(callFromTransferor != nullptr);
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&] {
+		        const auto& call = transferee.getCurrentCall();
+		        FAIL_IF(call == std::nullopt);
+		        FAIL_IF(call->getState() != linphone::Call::State::IncomingReceived);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+	BC_HARD_ASSERT_CPP_EQUAL(transferee.getCurrentCall()->getRemoteAddress()->asStringUriOnly(),
+	                         "sip:not-transferor@jabiru.example.org");
+
+	// Accept call from transferor.
+	const auto& transferorCall = transferor.getCurrentCall();
+	const auto& transfereeCall = transferee.getCurrentCall();
+	BC_HARD_ASSERT(transfereeCall.has_value());
+	transfereeCall->accept();
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&]() {
+		        FAIL_IF(transferorCall->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transfereeCall->getState() != linphone::Call::State::StreamsRunning);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Transfer call to transfer target.
+	callFromTransferor->transferTo(transferTarget.getAccount()->getContactAddress());
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&]() {
+		        FAIL_IF(transferorCall->getState() != linphone::Call::State::PausedByRemote);
+		        // As of 2024-08-23, transferee does not receive the REFER request, so it does not send an INVITE
+		        // request to transfer-t.
+		        // FAIL_IF(transfereeCall->getState() != linphone::Call::State::OutgoingRinging);
+		        FAIL_IF(transfereeCall->getState() != linphone::Call::State::StreamsRunning);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Verify transfer-t received a call and answer to it.
+	// As of 2024-08-23, B2BUA fails to send an INVITE request to transfer-t.
+	BC_ASSERT(asserter.iterateUpTo(
+	              0x20,
+	              [&] {
+		              const auto& call = transferTarget.getCurrentCall();
+		              FAIL_IF(call == std::nullopt);
+		              FAIL_IF(call->getState() != linphone::Call::State::IncomingReceived);
+		              return ASSERTION_PASSED();
+	              },
+	              2s) != true);
+
+	std::ignore = b2buaServer->stop();
+}
+
+/*
+ * Test attended call transfer.
+ *
+ * As of 2024-08-23, this test mostly verifies the B2BUA-server does not crash when a REFER request is received.
+ *
+ * Scenario:
+ * 1. A call is established through the B2BUA between "transferor" and "transferee".
+ * 2. Another call is established through the B2BUA between "transferor" and "transfer-t".
+ * 3. Transferor transfers its call with transferee to the transfer target "transfer-t".
+ * ...
+ * TODO: finish test once the feature is developed.
+ */
+void attendedCallTransfer() {
+	StringFormatter jsonConfig{R"json({
+		"schemaVersion": 2,
+		"providers": [
+			{
+				"name": "Flexisip -> Jabiru (Outbound)",
+				"triggerCondition": {
+					"strategy": "Always"
+				},
+				"accountToUse": {
+					"strategy": "FindInPool",
+					"source": "{from}",
+					"by": "alias"
+				},
+				"onAccountNotFound": "nextProvider",
+				"outgoingInvite": {
+					"to": "sip:{incoming.to.user}@{account.uri.hostport}{incoming.to.uriParameters}",
+					"from": "{account.uri}"
+				},
+				"accountPool": "FlockOfJabirus"
+			},
+			{
+				"name": "Jabiru -> Flexisip (Inbound)",
+				"triggerCondition": {
+					"strategy": "Always"
+				},
+				"accountToUse": {
+					"strategy": "FindInPool",
+					"source": "{to}",
+					"by": "uri"
+				},
+				"onAccountNotFound": "nextProvider",
+				"outgoingInvite": {
+					"to": "{account.alias}",
+					"from": "sip:{incoming.from.user}@{account.alias.hostport}{incoming.from.uriParameters}",
+					"outboundProxy": "<sip:127.0.0.1:#flexisipPort#;transport=tcp>"
+				},
+				"accountPool": "FlockOfJabirus"
+			}
+		],
+		"accountPools": {
+			"FlockOfJabirus": {
+				"outboundProxy": "<sip:127.0.0.1:#jabiruPort#;transport=tcp>",
+				"registrationRequired": true,
+				"maxCallsPerLine": 10,
+				"loader": [
+					{
+						"uri": "sip:not-transferor@jabiru.example.org",
+						"alias": "sip:transferor@flexisip.example.org"
+					}
+				]
+			}
+		}
+	})json",
+	                           '#', '#'};
+	TempFile providersJson{};
+	Server flexisipProxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "flexisip.example.org"},
+	    {"b2bua-server/application", "sip-bridge"},
+	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
+	    {"b2bua-server/one-connection-per-account", "true"},
+	    {"b2bua-server::sip-bridge/providers", providersJson.getFilename()},
+	    {"module::B2bua/enabled", "true"},
+	    // Media Relay has problem when everyone is running on localhost
+	    {"module::MediaRelay/enabled", "false"},
+	    // B2bua use writable-dir instead of var folder
+	    {"b2bua-server/data-directory", bcTesterWriteDir()},
+	}};
+	flexisipProxy.start();
+	const auto& flexisipClientBuilder = ClientBuilder{*flexisipProxy.getAgent()};
+	Server jabiruProxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "jabiru.example.org"},
+	    {"module::MediaRelay/enabled", "false"},
+	}};
+	jabiruProxy.start();
+	const auto& jabiruClientBuilder = ClientBuilder{*jabiruProxy.getAgent()};
+	providersJson.writeStream() << jsonConfig.format({
+	    {"jabiruPort", jabiruProxy.getFirstPort()},
+	    {"flexisipPort", flexisipProxy.getFirstPort()},
+	});
+
+	// Instantiate and start B2BUA server.
+	const auto b2buaLoop = std::make_shared<sofiasip::SuRoot>();
+	const auto& config = flexisipProxy.getConfigManager();
+	const auto b2buaServer = std::make_shared<flexisip::B2buaServer>(b2buaLoop, config);
+	b2buaServer->init();
+	const auto b2buaUri = "sip:127.0.0.1:" + std::to_string(b2buaServer->getTcpPort()) + ";transport=tcp";
+	config->getRoot()->get<GenericStruct>("module::B2bua")->get<ConfigString>("b2bua-server")->set(b2buaUri);
+	flexisipProxy.getAgent()->findModule("B2bua")->reload();
+
+	// Instantiate clients and create call.
+	auto transferor = flexisipClientBuilder.build("transferor@flexisip.example.org");
+	auto transferee = jabiruClientBuilder.build("transferee@jabiru.example.org");
+	auto transferTarget = jabiruClientBuilder.build("transfer-t@jabiru.example.org");
+	CoreAssert asserter{flexisipProxy, jabiruProxy, b2buaLoop, transferor, transferee, transferTarget};
+
+	// Register B2BUA accounts on Jabiru.
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&sipProviders =
+	             dynamic_cast<const b2bua::bridge::SipBridge&>(b2buaServer->getApplication()).getProviders()] {
+		        for (const auto& provider : sipProviders) {
+			        for (const auto& [_, account] : provider.getAccountSelectionStrategy().getAccountPool()) {
+				        FAIL_IF(!account->isAvailable());
+			        }
+		        }
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Create call from transferor to transferee and make sure it is created.
+	const auto& callFromTransferorToTransferee = transferor.invite("transferee@jabiru.example.org");
+	BC_HARD_ASSERT(callFromTransferorToTransferee != nullptr);
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&] {
+		        const auto& call = transferee.getCurrentCall();
+		        FAIL_IF(call == std::nullopt);
+		        FAIL_IF(call->getState() != linphone::Call::State::IncomingReceived);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+	BC_HARD_ASSERT_CPP_EQUAL(transferee.getCurrentCall()->getRemoteAddress()->asStringUriOnly(),
+	                         "sip:not-transferor@jabiru.example.org");
+
+	// Accept call from transferor to transferee.
+	const auto& transferorCallWithTransferee = transferor.getCurrentCall();
+	const auto& transfereeCallWithTransferor = transferee.getCurrentCall();
+	BC_HARD_ASSERT(transfereeCallWithTransferor.has_value());
+	transfereeCallWithTransferor->accept();
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&]() {
+		        FAIL_IF(transferorCallWithTransferee->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transfereeCallWithTransferor->getState() != linphone::Call::State::StreamsRunning);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Create call from transferor to transfer-t and make sure it is created.
+	const auto& callFromTransferorToTransferTarget = transferor.invite("transfer-t@jabiru.example.org");
+	BC_HARD_ASSERT(callFromTransferorToTransferTarget != nullptr);
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&] {
+		        const auto& call = transferTarget.getCurrentCall();
+		        FAIL_IF(call == std::nullopt);
+		        FAIL_IF(call->getState() != linphone::Call::State::IncomingReceived);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+	BC_HARD_ASSERT_CPP_EQUAL(transferTarget.getCurrentCall()->getRemoteAddress()->asStringUriOnly(),
+	                         "sip:not-transferor@jabiru.example.org");
+
+	// Accept call from transferor to transfer-t.
+	const auto& transferorCallWithTransferTarget = transferor.getCurrentCall();
+	const auto& transferTargetCallWithTransferor = transferTarget.getCurrentCall();
+	BC_HARD_ASSERT(transferTargetCallWithTransferor.has_value());
+	transferTargetCallWithTransferor->accept();
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&]() {
+		        FAIL_IF(transferorCallWithTransferTarget->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transferTargetCallWithTransferor->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transferorCallWithTransferee->getState() != linphone::Call::State::Paused);
+		        FAIL_IF(transfereeCallWithTransferor->getState() != linphone::Call::State::PausedByRemote);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Transfer call to transfer target and make sure it receives the transferred call.
+	// As of 2024-08-23, the B2BUA reacts badly (?)
+	callFromTransferorToTransferTarget->transferToAnother(callFromTransferorToTransferee);
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&]() {
+		        FAIL_IF(transferorCallWithTransferTarget->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transferTargetCallWithTransferor->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transferorCallWithTransferee->getState() != linphone::Call::State::Paused);
+		        FAIL_IF(transfereeCallWithTransferor->getState() != linphone::Call::State::PausedByRemote);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	std::ignore = b2buaServer->stop();
+}
+
 const auto UDP = "udp"s;
 const auto TCP = "tcp"s;
+
 TestSuite _{
-    "b2bua::bridge",
+    "B2bua::sip-bridge",
     {
         CLASSY_TEST((bidirectionalBridging<TCP, TCP>)),
         CLASSY_TEST((bidirectionalBridging<UDP, UDP>)),
@@ -1874,6 +2289,8 @@ TestSuite _{
         CLASSY_TEST(mwiB2buaSubscription),
         CLASSY_TEST(oneConnectionPerAccount<false>),
         CLASSY_TEST(oneConnectionPerAccount<true>),
+        CLASSY_TEST(blindCallTransfer),
+        CLASSY_TEST(attendedCallTransfer),
     },
 };
 
