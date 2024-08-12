@@ -490,7 +490,7 @@ static void dump_config(
 		smatch m;
 		rootStruct = dynamic_cast<GenericStruct*>(rootStruct->find(dump_cfg_part));
 		if (rootStruct == nullptr) {
-			throw Exit{EXIT_FAILURE, "couldn't find node " + dump_cfg_part};
+			throw ExitFailure{"couldn't find node " + dump_cfg_part};
 		}
 		if (regex_match(dump_cfg_part, m, regex("^module::(.*)$"))) {
 			const auto& moduleName = m[1];
