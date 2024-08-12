@@ -380,7 +380,7 @@ bool CoreClient::callUpdate(const CoreClient& peer, const std::shared_ptr<linpho
 }
 
 bool CoreClient::endCurrentCall(const CoreClient& peer) {
-	const auto peerCore = peer.getCore();
+	const auto& peerCore = peer.getCore();
 	auto selfCall = mCore->getCurrentCall();
 	auto peerCall = peerCore->getCurrentCall();
 	if (selfCall == nullptr || peerCall == nullptr) {
@@ -411,7 +411,7 @@ void CoreClient::runFor(std::chrono::milliseconds duration) {
 }
 
 AssertionResult CoreClient::hasReceivedCallFrom(const CoreClient& peer) const {
-	return CoreAssert(mCore, peer.getCore(), mAgent).waitUntil(mCallInviteReceivedDelay, [this] {
+	return CoreAssert(mCore, peer.getCore(), mAgent).waitUntil(30s, [this] {
 		const auto& current_call = mCore->getCurrentCall();
 		FAIL_IF(current_call == nullptr);
 		FAIL_IF(current_call->getState() != linphone::Call::State::IncomingReceived);

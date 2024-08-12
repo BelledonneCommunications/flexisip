@@ -66,13 +66,8 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 	core->setIncTimeout(4 * 60);
 
 	// Read user-agent parameter.
-	smatch res{};
-	const auto value = config.get<ConfigString>("user-agent")->read();
-	if (regex_match(value, res, regex(R"(^([a-zA-Z0-9-.!%*_+`'~]+)(?:\/([a-zA-Z0-9-.!%*_+`'~]+|\{version\}))?$)"))) {
-		core->setUserAgent(res[1], res[2] == "{version}" ? FLEXISIP_GIT_VERSION : res[2].str());
-	} else {
-		throw runtime_error("user-agent parameter is ill-formed, use the following syntax: <name>[/<version>]");
-	}
+	const auto userAgent = parseUserAgentFromConfig(config.get<ConfigString>("user-agent")->read());
+	core->setUserAgent(userAgent.first, userAgent.second);
 
 	// b2bua shall never take the initiative of accepting or starting video calls
 	// stick to incoming call parameters for that
@@ -172,6 +167,15 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 	static_assert(sizeof(B2buaCore) == sizeof(decltype(*core)));
 	static_assert(alignof(B2buaCore) == alignof(decltype(*core)));
 	return reinterpret_pointer_cast<B2buaCore>(core);
+}
+
+pair<string, string> parseUserAgentFromConfig(const string& value) {
+	smatch res{};
+	if (regex_match(value, res, regex(R"(^([a-zA-Z0-9-.!%*_+`'~]+)(?:\/([a-zA-Z0-9-.!%*_+`'~]+|\{version\}))?$)"))) {
+		return {res[1], res[2] == "{version}" ? FLEXISIP_GIT_VERSION : res[2].str()};
+	}
+
+	throw FlexisipException{"user-agent parameter is ill-formed, use the following syntax: <name>[/<version>]"};
 }
 
 } // namespace flexisip::b2bua
