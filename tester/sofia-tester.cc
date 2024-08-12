@@ -235,10 +235,11 @@ void connectionToServerIsRemovedAfterIdleTimeoutTriggers() {
 	BC_ASSERT(connection.isConnected());
 
 	// Verify it is now disconnected, closed from the server because of inactivity.
+	vector<char> data{};
 	BC_ASSERT(CoreAssert{proxy}.iterateUpTo(
 	    0x20,
-	    [&connection]() {
-		    std::ignore = connection.waitForData(10ms);
+	    [&]() {
+		    std::ignore = connection.read(data, 32);
 		    FAIL_IF(connection.isConnected());
 		    return ASSERTION_PASSED();
 	    },

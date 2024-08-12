@@ -35,9 +35,10 @@ using namespace std;
 using namespace std::chrono;
 
 namespace flexisip::tester {
+namespace {
 
 template <typename ServerT, typename HostStr, typename PortStr>
-static std::unique_ptr<TlsConnection> makeClientFor(HostStr&& host, PortStr&& port) {
+std::unique_ptr<TlsConnection> makeClientFor(HostStr&& host, PortStr&& port) {
 	constexpr auto needTls = is_same<typename decay<ServerT>::type, TlsServer>::value;
 	if (needTls) {
 		return make_unique<TlsConnection>(std::forward<HostStr>(host), std::forward<PortStr>(port), false);
@@ -48,7 +49,7 @@ static std::unique_ptr<TlsConnection> makeClientFor(HostStr&& host, PortStr&& po
 }
 
 template <typename ServerT>
-static void readTest() {
+void readTest() {
 	string expectedRead{"To read !"};
 	constexpr auto host = "127.0.0.1";
 
@@ -82,7 +83,7 @@ struct ReadAllWithTimeoutParams {
 };
 
 template <typename ServerT>
-static void readAllWithTimeoutBase(const ReadAllWithTimeoutParams& params) {
+void readAllWithTimeoutBase(const ReadAllWithTimeoutParams& params) {
 	string request{"Hello World!\n"};
 	string expectedResponse{"aaa"};
 	constexpr auto host = "127.0.0.1";
@@ -118,13 +119,13 @@ static void readAllWithTimeoutBase(const ReadAllWithTimeoutParams& params) {
 };
 
 template <typename ServerT>
-static void readAllWithTimeout() {
+void readAllWithTimeout() {
 	ReadAllWithTimeoutParams params{};
 	readAllWithTimeoutBase<ServerT>(params);
 }
 
 template <typename ServerT>
-static void readAllWithTimeoutDelayedResponse() {
+void readAllWithTimeoutDelayedResponse() {
 	ReadAllWithTimeoutParams params{};
 	params.responseDelay = 500ms;
 	params.readAllTimeoutDelay = 5s;
@@ -134,7 +135,7 @@ static void readAllWithTimeoutDelayedResponse() {
 }
 
 template <typename ServerT>
-static void readAllWithTimeoutLateResponse() {
+void readAllWithTimeoutLateResponse() {
 	ReadAllWithTimeoutParams params{};
 	params.responseDelay = 1s;
 	params.readAllTimeoutDelay = 500ms;
@@ -147,11 +148,11 @@ static void readAllWithTimeoutLateResponse() {
 	readAllWithTimeoutBase<ServerT>(params);
 }
 
-static void createTlsConnectionWrongCertPath() {
+void createTlsConnectionWrongCertPath() {
 	BC_ASSERT_THROWN((TlsConnection{"host", "port", "", "wrong/path/to/file", true}), TlsConnection::CreationError);
 }
 
-static void createTlsConnectionUnreadableCertFile() {
+void createTlsConnectionUnreadableCertFile() {
 	const auto certPath = bcTesterResourceDir() / "config/unreadable_file.pem";
 	BC_ASSERT_THROWN((TlsConnection{"host", "port", "", certPath, true}), TlsConnection::CreationError);
 }
@@ -163,7 +164,7 @@ void checkConnectAndDisconnect(TlsConnection& tlsConnection) {
 	BC_ASSERT_FALSE(tlsConnection.isConnected());
 }
 
-static void checkCertificateValidationOnReconnection() {
+void checkCertificateValidationOnReconnection() {
 	// Create tmp dir to store the certificate
 	TmpDir certDir{".certificates.d"};
 	const auto validCertPath = bcTesterResourceDir() / "cert/apple.test.dev.pem";
@@ -198,7 +199,6 @@ static void checkCertificateValidationOnReconnection() {
 	asyncServeRequest.get();
 }
 
-namespace {
 TestSuite _("TlsConnection",
             {
                 CLASSY_TEST(readTest<TcpServer>),
@@ -213,6 +213,6 @@ TestSuite _("TlsConnection",
                 CLASSY_TEST(createTlsConnectionUnreadableCertFile),
                 CLASSY_TEST(checkCertificateValidationOnReconnection),
             });
-}
 
+} // namespace
 } // namespace flexisip::tester

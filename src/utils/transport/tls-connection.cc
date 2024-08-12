@@ -215,6 +215,11 @@ void TlsConnection::connect() noexcept {
 	SLOGD << mLogPrefix << "Connected";
 }
 
+void TlsConnection::disconnect() noexcept {
+	mBio.reset();
+	SLOGD << mLogPrefix << "Disconnected";
+}
+
 void TlsConnection::resetConnection() noexcept {
 	disconnect();
 	connect();
@@ -258,69 +263,77 @@ int TlsConnection::getFd(BIO& bio) {
 }
 
 int TlsConnection::read(void* data, int dlen) noexcept {
-	auto nread = BIO_read(mBio.get(), data, dlen);
-	if (nread < 0) {
-		if (errno == EWOULDBLOCK || BIO_should_retry(mBio.get())) {
+	auto nbBytes = BIO_read(mBio.get(), data, dlen);
+	if (nbBytes < 0) {
+		if (errno == EWOULDBLOCK || (mBio && BIO_should_retry(mBio.get()))) {
 			// Either the socket was emtpy or there wasn't enough data to
-			// form a complete TLS message. Return '0' to requires the
-			// upper code to try later.
+			// form a complete TLS message. Return '0' to require the upper
+			// code to retry later.
 			return 0;
 		}
-		ostringstream err{};
-		err << mLogPrefix << "Error while reading data";
-		handleBioError(err.str(), nread);
+		handleBioError(mLogPrefix + "Error while reading data", nbBytes);
 	}
 
-	return nread;
+	if (nbBytes == 0 && mBio) {
+		if (BIO_eof(mBio.get())) {
+			SLOGD << mLogPrefix << "Disconnect: read EOF, the other end has terminated the connection";
+			disconnect();
+			return nbBytes;
+		}
+		if (!BIO_should_retry(mBio.get())) {
+			SLOGD << mLogPrefix << "Disconnect: (read) should retry returned false, the connection is closed";
+			disconnect();
+			return nbBytes;
+		}
+	}
+
+	return nbBytes;
+}
+
+int TlsConnection::read(std::vector<char>& data, int readSize) noexcept {
+	data.resize(readSize);
+	auto nRead = read(data.data(), readSize);
+	data.resize(std::max(0, nRead));
+	return nRead;
 }
 
 int TlsConnection::write(const void* data, int dlen) noexcept {
 	ERR_clear_error();
-	auto nwritten = BIO_write(mBio.get(), data, dlen);
-	if (nwritten < 0) {
-		if (errno == EWOULDBLOCK || BIO_should_retry(mBio.get())) {
+	auto nbBytes = BIO_write(mBio.get(), data, dlen);
+	if (nbBytes < 0) {
+		if (errno == EWOULDBLOCK || (mBio && BIO_should_retry(mBio.get()))) {
 			// Either the socket was full or there wasn't enough space
-			// to serialize a complete TLS message. Return '0' to
-			// requires the upper code to try later.
+			// to serialize a complete TLS message. Return '0' to require the
+			// upper code to try later.
 			return 0;
 		}
-		ostringstream err{};
-		err << mLogPrefix << "Error while writing data";
-		handleBioError(err.str(), nwritten);
-
-		if (errno == EPIPE) {
-			SLOGD << mLogPrefix << "Disconnect: the other end has terminated the connection";
-			disconnect();
-		}
+		handleBioError(mLogPrefix + "Error while writing data", nbBytes);
 	}
-	return nwritten;
+
+	return nbBytes;
+}
+
+int TlsConnection::write(const char* cStr) noexcept {
+	return write(cStr, static_cast<int>(strlen(cStr)));
 }
 
 bool TlsConnection::waitForData(chrono::milliseconds timeout) {
 	pollfd polls = {0};
 	polls.fd = this->getFd();
-	polls.events = POLLIN | POLLRDHUP;
+	polls.events = POLLIN;
 
 	int ret;
 	if ((ret = poll(&polls, 1, timeout.count())) < 0) {
-		ostringstream err{};
-		err << mLogPrefix << "error during poll : ";
-		handleBioError(err.str(), ret);
-		throw runtime_error(err.str());
-	}
-
-	if ((polls.revents & POLLHUP) != 0) {
-		SLOGD << mLogPrefix << "Disconnect: hang up event received, connection is closed";
-		disconnect();
-		return false;
-	}
-	if ((polls.revents & POLLRDHUP) != 0) {
-		SLOGD << mLogPrefix << "Disconnect: the other end has terminated the connection";
-		disconnect();
-		return false;
+		const auto message = mLogPrefix + "Error during poll";
+		handleBioError(message, ret);
+		throw runtime_error(message);
 	}
 
 	return ret != 0;
+}
+
+bool TlsConnection::hasData() {
+	return waitForData(0ms);
 }
 
 void TlsConnection::enableInsecureTestMode() {
@@ -433,7 +446,6 @@ bool TlsConnection::isCertExpired(const string& certPath) noexcept {
 	return expired;
 }
 
-/* Utility function to convert ASN1_TIME to a printable string in a buffer */
 int TlsConnection::ASN1_TIME_toString(const ASN1_TIME* time, char* buffer, uint32_t buff_length) {
 	int write = 0;
 	BIO* bio = BIO_new(BIO_s_mem());
