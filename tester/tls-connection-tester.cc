@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -33,9 +33,10 @@ using namespace std;
 using namespace std::chrono;
 
 namespace flexisip::tester {
+namespace {
 
 template <typename ServerT, typename HostStr, typename PortStr>
-static std::unique_ptr<TlsConnection> makeClientFor(HostStr&& host, PortStr&& port) {
+std::unique_ptr<TlsConnection> makeClientFor(HostStr&& host, PortStr&& port) {
 	constexpr auto needTls = is_same<typename decay<ServerT>::type, TlsServer>::value;
 	if (needTls) {
 		return make_unique<TlsConnection>(std::forward<HostStr>(host), std::forward<PortStr>(port), false);
@@ -46,7 +47,7 @@ static std::unique_ptr<TlsConnection> makeClientFor(HostStr&& host, PortStr&& po
 }
 
 template <typename ServerT>
-static void readTest() {
+void readTest() {
 	string expectedRead{"To read !"};
 	constexpr auto host = "127.0.0.1";
 	constexpr auto port = 1234;
@@ -81,7 +82,7 @@ struct ReadAllWithTimeoutParams {
 };
 
 template <typename ServerT>
-static void readAllWithTimeoutBase(const ReadAllWithTimeoutParams& params) {
+void readAllWithTimeoutBase(const ReadAllWithTimeoutParams& params) {
 	string request{"Hello World!\n"};
 	string expectedResponse{"aaa"};
 	constexpr auto host = "127.0.0.1";
@@ -117,13 +118,13 @@ static void readAllWithTimeoutBase(const ReadAllWithTimeoutParams& params) {
 };
 
 template <typename ServerT>
-static void readAllWithTimeout() {
+void readAllWithTimeout() {
 	ReadAllWithTimeoutParams params{};
 	readAllWithTimeoutBase<ServerT>(params);
 }
 
 template <typename ServerT>
-static void readAllWithTimeoutDelayedResponse() {
+void readAllWithTimeoutDelayedResponse() {
 	ReadAllWithTimeoutParams params{};
 	params.responseDelay = 500ms;
 	params.readAllTimeoutDelay = 5s;
@@ -133,7 +134,7 @@ static void readAllWithTimeoutDelayedResponse() {
 }
 
 template <typename ServerT>
-static void readAllWithTimeoutLateResponse() {
+void readAllWithTimeoutLateResponse() {
 	ReadAllWithTimeoutParams params{};
 	params.responseDelay = 1s;
 	params.readAllTimeoutDelay = 500ms;
@@ -146,16 +147,15 @@ static void readAllWithTimeoutLateResponse() {
 	readAllWithTimeoutBase<ServerT>(params);
 }
 
-static void createTlsConnectionWrongCertPath() {
+void createTlsConnectionWrongCertPath() {
 	BC_ASSERT_THROWN((TlsConnection{"host", "port", "", "wrong/path/to/file", true}), TlsConnection::CreationError);
 }
 
-static void createTlsConnectionUnreadableCertFile() {
+void createTlsConnectionUnreadableCertFile() {
 	const auto certPath = FLEXISIP_TESTER_DATA_SRCDIR "/config/unreadable_file.pem";
 	BC_ASSERT_THROWN((TlsConnection{"host", "port", "", certPath, true}), TlsConnection::CreationError);
 }
 
-namespace {
 TestSuite _("TlsConnection",
             {
                 CLASSY_TEST(readTest<TcpServer>),
@@ -169,6 +169,6 @@ TestSuite _("TlsConnection",
                 CLASSY_TEST(createTlsConnectionWrongCertPath),
                 CLASSY_TEST(createTlsConnectionUnreadableCertFile),
             });
-}
 
+} // namespace
 } // namespace flexisip::tester
