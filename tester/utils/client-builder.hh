@@ -73,6 +73,7 @@ public:
 	ClientBuilder& setCustomContact(const std::string& contact);
 	ClientBuilder& setPushParams(const pushnotification::RFC8599PushParams& params);
 	ClientBuilder& setInactiveAudioOnPause(OnOff);
+	ClientBuilder& setAudioPortRange(int min, int max);
 	/**
 	 * Add some Apple-specific push info to REGISTERs
 	 */
@@ -103,6 +104,7 @@ private:
 	OnOff mRegister : 1;
 	OnOff mSetAudioInactiveOnPause = OnOff::Off;
 	AudioCodec mAudioCodec = AudioCodec::AllSupported;
+	std::pair<int, int> mAudioPortRange{1024, 65535};
 	std::string mPassword{""};
 	std::string mRecordFilePath{""};
 	std::string mPlayFilePath;
