@@ -95,6 +95,7 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 
 	core->setAudioPort(-1);
 	core->setVideoPort(-1);
+	core->setAudioPortRange(mAudioPortRange.first, mAudioPortRange.second);
 	core->setUseFiles(true);
 	// final check on call successfully established is based on bandwidth used,
 	// so use file as input to make sure there is some traffic
@@ -203,6 +204,11 @@ ClientBuilder& ClientBuilder::setPushParams(const pushnotification::RFC8599PushP
 
 ClientBuilder& ClientBuilder::setInactiveAudioOnPause(OnOff value) {
 	mSetAudioInactiveOnPause = value;
+	return *this;
+}
+
+ClientBuilder& ClientBuilder::setAudioPortRange(int min, int max) {
+	mAudioPortRange = {min, max};
 	return *this;
 }
 
