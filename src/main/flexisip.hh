@@ -29,4 +29,4 @@
 
 using namespace flexisip;
 
-int _main(int argc, char* argv[], std::optional<pipe::WriteOnly>&& startupPipe = std::nullopt);
+int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startupPipe = std::nullopt);

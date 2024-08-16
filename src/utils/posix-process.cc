@@ -71,6 +71,9 @@ Process::Process(function<void()>&& f)
 				          ::exit(EXIT_FAILURE);
 			          }
 
+			          // TODO: Either change the 'f' function prototype to 'noexcept' or use a try catch around the
+			          //  function call to avoid calling the destructors by mistake, see below.
+			          //  An example is available in function 'callAndStopMain' of the mainTester.
 			          f();
 
 			          /* From fork()'s manual:
@@ -79,6 +82,9 @@ Process::Process(function<void()>&& f)
 			           * Meaning destructors waiting on shared state are very likely to deadlock, so we cannot just
 			           * ::exit() as usual.
 			           */
+			          // TODO: Replace 'excel' and 'exit' calls with '_exit' to be able to pass the exit value to the
+			          //  parent process without calling the destructors. See function 'callAndStopMain'  of the
+			          //  mainTester for an example.
 			          ::execl(DUMMY_EXEC, DUMMY_EXEC, nullptr);
 			          throw runtime_error{"unreachable"};
 		          } else {

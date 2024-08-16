@@ -612,7 +612,7 @@ static string getPkcsPassphrase(TCLAP::ValueArg<string>& pkcsFile) {
 	return passphrase;
 }
 
-int _main(int argc, char* argv[], std::optional<pipe::WriteOnly>&& startupPipe) {
+int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startupPipe) {
 	// Used by flexisip to notify the watchdog that it has started
 	optional<pipe::WriteOnly> flexisipStartupPipe{};
 	if (startupPipe.has_value()) flexisipStartupPipe = ::move(startupPipe);

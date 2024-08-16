@@ -16,14 +16,15 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "utils/asserts.hh"
-#include "utils/test-patterns/test.hh"
-#include "utils/test-suite.hh"
-
+#include <signal.h> // For macOs
 #include <sys/wait.h>
+
+#include <flexisip/logmanager.hh>
 
 #include "main/flexisip.hh"
 #include "tester.hh"
+#include "utils/test-patterns/test.hh"
+#include "utils/test-suite.hh"
 #include "utils/variant-utils.hh"
 
 using namespace std;
@@ -51,10 +52,20 @@ void callAndStopMain() {
 
 	auto pipeReady = EXPECT_VARIANT(pipe::Ready).in(pipe::open());
 	// Child process: Execute main and exit
-	auto childPid = fork();
+	auto childPid = ::fork();
 	if (childPid == 0) {
 		// Child process: Execute main and exit
-		::exit(_main(args.size(), const_cast<char**>(&args[0]), ::move(pipeReady)));
+
+		// Protect with try/catch to ensure the process is ended with "_exit"
+		// if not, it could destruct objects of the parent process.
+		int returnValue = EXIT_FAILURE;
+		try {
+			returnValue = _main(args.size(), args.data(), ::move(pipeReady));
+		} catch (const exception& e) {
+			SLOGE << "Unexpected exception while running main: " << e.what();
+		}
+
+		::_exit(returnValue);
 	}
 
 	// Main process:
@@ -73,15 +84,22 @@ void callAndStopMain() {
 
 	constexpr auto step = 100ms;
 
+	int status;
 	// Ensure clean exit from flexisip
 	for (auto _ = 0ms; _ < 2s; _ += step) {
-		int status = 0;
 		auto pid = ::waitpid(childPid, &status, WNOHANG);
-		if (pid > 0 && WIFEXITED(status) && (WEXITSTATUS(status) == 0)) {
+		if (pid > 0 && WIFEXITED(status)) {
 			break;
 		}
 		this_thread::sleep_for(step);
 	}
+
+	BC_ASSERT_TRUE(WIFEXITED(status));
+	if (!WIFEXITED(status)) {
+		// Force the child to exit to avoid any leftover process
+		::kill(childPid, SIGKILL);
+	}
+	BC_ASSERT_CPP_EQUAL(WEXITSTATUS(status), 0);
 }
 
 namespace {
