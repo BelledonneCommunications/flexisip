@@ -71,7 +71,7 @@ void FlexiStatsEventLogWriter::write(const CallLog& call) {
 					                                      return State::CANCELED;
 				                                      case ForkStatus::AcceptedElsewhere:
 					                                      return State::ACCEPTED_ELSEWHERE;
-				                                      case ForkStatus::DeclineElsewhere:
+				                                      case ForkStatus::DeclinedElsewhere:
 					                                      return State::DECLINED_ELSEWHERE;
 			                                      }
 		                                      }

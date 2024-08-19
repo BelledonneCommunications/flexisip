@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <string_view>
 
 #include <sofia-sip/sip_status.h>
 
@@ -33,6 +34,7 @@
 #include "registrar/extended-contact.hh"
 
 using namespace std;
+using namespace string_view_literals;
 
 namespace flexisip {
 using namespace pushnotification;
@@ -40,6 +42,24 @@ using namespace pushnotification;
 template <typename T>
 static bool contains(const list<T>& l, T value) {
 	return find(l.cbegin(), l.cend(), value) != l.cend();
+}
+
+ForkCallContext::CancelInfo::CancelInfo(sofiasip::Home& home, const ForkStatus& status) : mStatus{status} {
+	if (status == ForkStatus::AcceptedElsewhere) {
+		mReason = sip_reason_make(home.home(), "SIP;cause=200;text=\"Call completed elsewhere\"");
+	} else if (status == ForkStatus::DeclinedElsewhere) {
+		mReason = sip_reason_make(home.home(), "SIP;cause=600;text=\"Busy Everywhere\"");
+	}
+	// else mReason remains empty
+}
+
+ForkCallContext::CancelInfo::CancelInfo(sip_reason_t* reason) : mReason(reason) {
+	string_view code = reason && reason->re_cause ? reason->re_cause : "";
+	if (code == "200"sv) {
+		mStatus = ForkStatus::AcceptedElsewhere;
+	} else if (code == "600"sv) {
+		mStatus = ForkStatus::DeclinedElsewhere;
+	} else mStatus = ForkStatus::Standard;
 }
 
 ForkCallContext::ForkCallContext(const shared_ptr<ModuleRouter>& router,
@@ -67,9 +87,7 @@ void ForkCallContext::onCancel(const shared_ptr<RequestSipEvent>& ev) {
 	mLog->setCancelled();
 	mLog->setCompleted();
 	mCancelled = true;
-	cancelOthers(nullptr, ev->getSip());
-	// The event log must be placed in a sip event in order to be written into DB.
-	ev->setEventLog(mLog);
+	cancelAll(ev->getSip());
 
 	if (shouldFinish()) {
 		setFinished();
@@ -78,51 +96,45 @@ void ForkCallContext::onCancel(const shared_ptr<RequestSipEvent>& ev) {
 	}
 }
 
-void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo>& br, sip_t* received_cancel) {
-	if (!mCancelReason) {
-		if (received_cancel && received_cancel->sip_reason) {
-			mCancelReason = sip_reason_dup(mHome.home(), received_cancel->sip_reason);
-		}
-	}
-	const auto branches = getBranches(); // work on a copy of the list of branches
-	for (const auto& brit : branches) {
-		if (brit != br) {
-			cancelBranch(brit);
-			brit->notifyBranchCanceled(ForkStatus::Standard);
-		}
-	}
-	mNextBranchesTimer.reset();
-}
-
-void ForkCallContext::cancelOthersWithStatus(const shared_ptr<BranchInfo>& br, ForkStatus status) {
-	if (!mCancelReason) {
-		if (status == ForkStatus::AcceptedElsewhere) {
-			mCancelReason = sip_reason_make(mHome.home(), "SIP;cause=200;text=\"Call completed elsewhere\"");
-		} else if (status == ForkStatus::DeclineElsewhere) {
-			mCancelReason = sip_reason_make(mHome.home(), "SIP;cause=600;text=\"Busy Everywhere\"");
-		}
+void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo>& br) {
+	if (!mCancel.has_value()) {
+		mCancel = make_optional<CancelInfo>(mHome, ForkStatus::Standard);
 	}
 
 	const auto branches = getBranches(); // work on a copy of the list of branches
 	for (const auto& brit : branches) {
 		if (brit != br) {
 			cancelBranch(brit);
-			brit->notifyBranchCanceled(status);
+			brit->notifyBranchCanceled(mCancel->mStatus);
 
 			auto eventLog = make_shared<CallLog>(mEvent->getMsgSip()->getSip());
 			eventLog->setDevice(*brit->mContact);
 			eventLog->setCancelled();
-			eventLog->setForkStatus(status);
+			eventLog->setForkStatus(mCancel->mStatus);
 			mEvent->writeLog(eventLog);
 		}
 	}
 	mNextBranchesTimer.reset();
 }
 
+void ForkCallContext::cancelAll(sip_t* received_cancel) {
+	if (!mCancel.has_value() && received_cancel && received_cancel->sip_reason) {
+		mCancel = make_optional<CancelInfo>(sip_reason_dup(mHome.home(), received_cancel->sip_reason));
+	}
+	cancelOthers(nullptr);
+}
+
+void ForkCallContext::cancelOthersWithStatus(const shared_ptr<BranchInfo>& br, ForkStatus status) {
+	if (!mCancel.has_value()) {
+		mCancel = make_optional<CancelInfo>(mHome, status);
+	}
+	cancelOthers(br);
+}
+
 void ForkCallContext::cancelBranch(const std::shared_ptr<BranchInfo>& brit) {
 	auto& tr = brit->mTransaction;
 	if (tr && brit->getStatus() < 200) {
-		if (mCancelReason) tr->cancelWithReason(mCancelReason);
+		if (mCancel && mCancel->mReason) tr->cancelWithReason(mCancel->mReason);
 		else tr->cancel();
 	}
 }
@@ -153,7 +165,7 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, const shared_
 			/*6xx response are normally treated as global failures */
 			if (!mCfg->mForkNoGlobalDecline) {
 				mCancelled = true;
-				cancelOthersWithStatus(br, ForkStatus::DeclineElsewhere);
+				cancelOthersWithStatus(br, ForkStatus::DeclinedElsewhere);
 			}
 		} else if (isUrgent(code, getUrgentCodes()) && mShortTimer == nullptr) {
 			mShortTimer = make_unique<sofiasip::Timer>(mAgent->getRoot());
@@ -281,13 +293,13 @@ void ForkCallContext::onLateTimeout() {
 		}
 
 		/*cancel all possibly pending outgoing transactions*/
-		cancelOthers(shared_ptr<BranchInfo>(), nullptr);
+		cancelOthers(shared_ptr<BranchInfo>());
 	}
 }
 
 void ForkCallContext::processInternalError(int status, const char* phrase) {
 	ForkContextBase::processInternalError(status, phrase);
-	cancelOthers(shared_ptr<BranchInfo>(), nullptr);
+	cancelOthers(shared_ptr<BranchInfo>());
 }
 
 void ForkCallContext::start() {
@@ -309,11 +321,11 @@ std::shared_ptr<BranchInfo> ForkCallContext::checkFinished() {
 	}
 
 	if (mCancelled) {
-		// If a call is cancelled by caller/callee, even if some branches only answered 503 or 408, even in fork-late mode, we
-		// want to directly send a response.
+		// If a call is cancelled by caller/callee, even if some branches only answered 503 or 408, even in fork-late
+		// mode, we want to directly send a response.
 		auto br = findBestBranch(false);
 		if (br && forwardResponse(br)) {
-				return br;
+			return br;
 		}
 	}
 
