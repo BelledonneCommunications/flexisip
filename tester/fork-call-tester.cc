@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -19,12 +19,15 @@
 #include <chrono>
 
 #include "flexisip/module-router.hh"
+#include "fork-context/fork-call-context.hh"
+#include "registrar/extended-contact.hh"
 
 #include "utils/asserts.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/client-builder.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
+#include "utils/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
@@ -32,8 +35,7 @@ using namespace std;
 using namespace std::chrono;
 using namespace linphone;
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 static void basicCall() {
 	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
@@ -156,9 +158,9 @@ static void callWithEarlyCancelCalleeOnlyOffline() {
 	BellesipUtils inviteTransaction{"127.0.0.1", 56492, "TCP",
 	                                [&isRequestAccepted, &is503Received, &isCancelRequestAccepted](int status) {
 		                                if (status == 100) isRequestAccepted = true;
-	                                	if(!isRequestAccepted) return;
+		                                if (!isRequestAccepted) return;
 
-	                                	if (status == 503) is503Received = true;
+		                                if (status == 503) is503Received = true;
 		                                if (status == 200) isCancelRequestAccepted = true;
 	                                },
 	                                nullptr};
@@ -352,6 +354,112 @@ static void calleeMultipleOnlineDevices() {
 }
 
 namespace {
+struct BrCancelListener : public BranchInfoListener {
+	void onBranchCanceled(const std::shared_ptr<BranchInfo>&, ForkStatus cancelStatus) noexcept {
+		mCancelStatus = cancelStatus;
+	}
+	optional<ForkStatus> mCancelStatus{};
+};
+
+// check that the cancellation status is linked to the cancellation reason
+void cancelStatusOnCancel() {
+	Server proxy{{
+	    {"global/transports", "sip:127.0.0.1:0"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "localhost"},
+	    {"module::Router/enabled", "true"},
+	}};
+	proxy.start();
+	auto moduleRouter = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModule("Router"));
+
+	auto cancel = [&proxy, &moduleRouter](string reason) {
+		string rawSipCancel = "CANCEL sip:callee1@127.0.0.1:5360 SIP/2.0 \r\n"
+		                      "To: <sip:callee1@127.0.0.1>\r\n"
+		                      "From: <sip:caller@127.0.0.1>;tag=465687829\r\n"
+		                      "Via: SIP/2.0/TLS 127.0.0.1;rport=5360\r\n"
+		                      "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
+		                      "CSeq: 1 CANCEL\r\n"s +
+		                      reason + "Content-Length: 0\r\n"s;
+
+		auto ev = make_shared<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, rawSipCancel));
+		ev->setEventLog(make_shared<CallLog>(ev->getMsgSip()->getSip()));
+		auto forkCallCtx = ForkCallContext::make(moduleRouter, ev, sofiasip::MsgSipPriority::Urgent);
+		auto branch = forkCallCtx->addBranch(
+		    ev, make_shared<ExtendedContact>(SipUri{"sip:callee1@127.0.0.1:5360"}, "sip:127.0.0.1;transport=udp"));
+		auto branchListener = make_shared<BrCancelListener>();
+		branch->mListener = branchListener;
+		forkCallCtx->onCancel(ev);
+		return branchListener->mCancelStatus;
+	};
+
+	{
+		auto cancelStatus = cancel("Reason: SIP;cause=200;text=\"Call completed elsewhere\"\r\n");
+		BC_HARD_ASSERT(cancelStatus.has_value());
+		BC_ASSERT(cancelStatus.value() == ForkStatus::AcceptedElsewhere);
+	}
+	{
+		auto cancelStatus = cancel("Reason: SIP;cause=600;text=\"Busy Everywhere\"\r\n");
+		BC_HARD_ASSERT(cancelStatus.has_value());
+		BC_ASSERT(cancelStatus.value() == ForkStatus::DeclinedElsewhere);
+	}
+	// check the default behavior if reason is not given
+	{
+		auto cancelStatus = cancel("");
+		BC_HARD_ASSERT(cancelStatus.has_value());
+		BC_ASSERT(cancelStatus.value() == ForkStatus::Standard);
+	}
+}
+
+// check that an accepted call on a branch leads to a cancel with AcceptedElseWhere status on another branch
+void cancelStatusOnResponse() {
+	Server proxy{{
+	    {"global/transports", "sip:127.0.0.1:0"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "localhost"},
+	    {"module::Router/enabled", "true"},
+	}};
+	proxy.start();
+	auto moduleRouter = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModule("Router"));
+
+	string rawSipInvite =
+	    "INVITE sip:callee@127.0.0.1:5360;pn-prid=EA88:remote;pn-provider=apns.dev;pn-param=XX.example.org; "
+	    "SIP/2.0 \r\n"
+	    "To: <sip:callee@127.0.0.1>\r\n"
+	    "From: <sip:caller@127.0.0.1>;tag=465687829\r\n"
+	    "Via: SIP/2.0/TLS 127.0.0.1;rport=5360\r\n"
+	    "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
+	    "CSeq: 1 INVITE\r\n"
+	    "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK, UPDATE\r\n"
+	    "Content-Type: application/sdp\r\n";
+
+	auto ev = make_shared<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, rawSipInvite));
+	ev->setEventLog(make_shared<CallLog>(ev->getMsgSip()->getSip()));
+	auto forkCallCtx = ForkCallContext::make(moduleRouter, ev, sofiasip::MsgSipPriority::Urgent);
+	// add a branch to ForkCallCtx
+	auto branch = forkCallCtx->addBranch(
+	    ev, make_shared<ExtendedContact>(SipUri{"sip:callee@127.0.0.1:5360"}, "sip:127.0.0.1;transport=udp"));
+
+	auto branchListener = make_shared<BrCancelListener>();
+	branch->mListener = branchListener;
+
+	// create a response on another branch
+	string rawSipResponse = "SIP/2.0 200 Ok\r\n"
+	                        "To: <sip:callee2@127.0.0.1>\r\n"
+	                        "From: <sip:caller@127.0.0.1>;tag=465687829\r\n"
+	                        "Via: SIP/2.0/TLS 127.0.0.1;rport=5360\r\n"
+	                        "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
+	                        "CSeq: 1 INVITE\r\n"
+	                        "Allow: INVITE, ACK, CANCEL\r\n"
+	                        "Contact: <sip:callee2@127.0.0.1>\r\n"
+	                        "Content-Type: application/sdp\r\n";
+	auto response = make_shared<ResponseSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, rawSipResponse));
+	auto answeredBranch = BranchInfo::make(forkCallCtx);
+	((ForkContext*)(forkCallCtx.get()))->onResponse(answeredBranch, response);
+
+	BC_HARD_ASSERT(branchListener->mCancelStatus.has_value());
+	BC_ASSERT(branchListener->mCancelStatus.value() == ForkStatus::AcceptedElsewhere);
+}
+
 TestSuite _("Fork call context suite",
             {
                 TEST_NO_TAG("Basic call -> terminate", basicCall),
@@ -361,7 +469,8 @@ TestSuite _("Fork call context suite",
                 TEST_NO_TAG("Call an only offline user, early cancel", callWithEarlyCancelCalleeOnlyOffline),
                 TEST_NO_TAG("Call an online user, with an other offline device", calleeOfflineWithOneDevice),
                 TEST_NO_TAG("Call an online user, with other idle devices", calleeMultipleOnlineDevices),
+                CLASSY_TEST(cancelStatusOnCancel),
+                CLASSY_TEST(cancelStatusOnResponse),
             });
-}
-} // namespace tester
-} // namespace flexisip
+} // namespace
+} // namespace flexisip::tester

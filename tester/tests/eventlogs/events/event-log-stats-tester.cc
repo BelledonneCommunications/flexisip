@@ -230,27 +230,32 @@ void callInviteStatuses() {
 	auto tony = builder.build("sip:tony@sip.example.org");
 	auto mikePhone = builder.build(mike);
 	auto mikeDesktop = builder.build(mike);
-	CoreAssert asserter{tony, mikePhone, mikeDesktop, agent};
+	auto mikeTablet = builder.build(mike);
+	CoreAssert asserter{tony, mikePhone, mikeDesktop, mikeTablet, agent};
 	auto expectedId = [&callsStarted]() -> string { return callsStarted[0].getId(); };
 
 	{
 		auto tonyCall = tony.invite(mike);
 		mikePhone.hasReceivedCallFrom(tony).assert_passed();
 		mikeDesktop.hasReceivedCallFrom(tony).assert_passed();
+		mikeTablet.hasReceivedCallFrom(tony).assert_passed();
 		tonyCall->terminate();
 		asserter
 		    .iterateUpTo(4,
-		                 [mikePhoneCall = mikePhone.getCurrentCall(), mikeDesktopCall = mikeDesktop.getCurrentCall()] {
+		                 [mikePhoneCall = mikePhone.getCurrentCall(), mikeDesktopCall = mikeDesktop.getCurrentCall(),
+		                  mikeTabletCall = mikeTablet.getCurrentCall()] {
 			                 FAIL_IF(mikePhoneCall->getState() != linphone::Call::State::End);
 			                 FAIL_IF(mikeDesktopCall->getState() != linphone::Call::State::End);
+			                 FAIL_IF(mikeTabletCall->getState() != linphone::Call::State::End);
 			                 return ASSERTION_PASSED();
 		                 })
 		    .assert_passed();
 	}
 
-	BC_ASSERT_CPP_EQUAL(invitesEnded.size(), 2);
+	BC_ASSERT_CPP_EQUAL(invitesEnded.size(), 3 + 1); // one per device + one on first 487 received
 	BC_ASSERT_CPP_EQUAL(callsStarted.size(), 1);
 	for (const auto& event : invitesEnded) {
+		BC_ASSERT(event.getDevice() != nullopt);
 		BC_ASSERT_CPP_EQUAL(event.isCancelled(), true);
 		BC_ASSERT_ENUM_EQUAL(event.getForkStatus(), ForkStatus::Standard);
 		BC_ASSERT_CPP_EQUAL(string(event.getId()), expectedId());
@@ -263,18 +268,21 @@ void callInviteStatuses() {
 		auto tonyCall = tony.invite(mike);
 		mikePhone.hasReceivedCallFrom(tony).assert_passed();
 		mikeDesktop.hasReceivedCallFrom(tony).assert_passed();
+		mikeTablet.hasReceivedCallFrom(tony).assert_passed();
 		mikePhone.getCurrentCall()->decline(linphone::Reason::Declined);
 		asserter
 		    .iterateUpTo(4,
-		                 [&tonyCall, mikeDesktopCall = mikeDesktop.getCurrentCall()] {
+		                 [&tonyCall, mikeDesktopCall = mikeDesktop.getCurrentCall(),
+		                  mikeTabletCall = mikeTablet.getCurrentCall()] {
 			                 FAIL_IF(tonyCall->getState() != linphone::Call::State::End);
 			                 FAIL_IF(mikeDesktopCall->getState() != linphone::Call::State::End);
+			                 FAIL_IF(mikeTabletCall->getState() != linphone::Call::State::End);
 			                 return ASSERTION_PASSED();
 		                 })
 		    .assert_passed();
 	}
 
-	BC_ASSERT_CPP_EQUAL(invitesEnded.size(), 2);
+	BC_ASSERT_CPP_EQUAL(invitesEnded.size(), 3); // one per device
 	BC_ASSERT_CPP_EQUAL(callsStarted.size(), 1);
 	const auto mikePhoneUuid = mikePhone.getUuid();
 	const auto mikeDesktopUuid = mikeDesktop.getUuid();
@@ -295,7 +303,7 @@ void callInviteStatuses() {
 		BC_ASSERT_TRUE(mikeDesktopInvite != invitesByDeviceUuid.end());
 		const auto& mikeDesktopInviteEvent = mikeDesktopInvite->second.get();
 		BC_ASSERT_CPP_EQUAL(mikeDesktopInviteEvent.isCancelled(), true);
-		BC_ASSERT_ENUM_EQUAL(mikeDesktopInviteEvent.getForkStatus(), ForkStatus::DeclineElsewhere);
+		BC_ASSERT_ENUM_EQUAL(mikeDesktopInviteEvent.getForkStatus(), ForkStatus::DeclinedElsewhere);
 	}
 	previousId = expectedId();
 	invitesEnded.clear();
@@ -305,18 +313,21 @@ void callInviteStatuses() {
 		auto tonyCall = tony.invite(mike);
 		mikePhone.hasReceivedCallFrom(tony).assert_passed();
 		mikeDesktop.hasReceivedCallFrom(tony).assert_passed();
+		mikeTablet.hasReceivedCallFrom(tony).assert_passed();
 		ClientCall::getLinphoneCall(mikePhone.getCurrentCall().value())->accept();
 		asserter
 		    .iterateUpTo(4,
-		                 [&tonyCall, mikeDesktopCall = mikeDesktop.getCurrentCall()] {
+		                 [&tonyCall, mikeDesktopCall = mikeDesktop.getCurrentCall(),
+		                  mikeTabletCall = mikeTablet.getCurrentCall()] {
 			                 FAIL_IF(tonyCall->getState() != linphone::Call::State::StreamsRunning);
 			                 FAIL_IF(mikeDesktopCall->getState() != linphone::Call::State::End);
+			                 FAIL_IF(mikeTabletCall->getState() != linphone::Call::State::End);
 			                 return ASSERTION_PASSED();
 		                 })
 		    .assert_passed();
 	}
 
-	BC_ASSERT_CPP_EQUAL(invitesEnded.size(), 2);
+	BC_ASSERT_CPP_EQUAL(invitesEnded.size(), 3);
 	BC_ASSERT_CPP_EQUAL(callsStarted.size(), 1);
 	BC_ASSERT_CPP_NOT_EQUAL(expectedId(), previousId);
 	invitesByDeviceUuid.clear();
@@ -389,8 +400,8 @@ void doubleForkContextStart() {
 	const string paul = "sip:paulvasquez@sip.example.org";
 	auto builder = proxy->clientBuilder();
 	auto lux = builder.build("sip:luxannacrownguard@sip.example.org");
-	// Registering a secondary contact with higher priority than the real one (>1) means a first round of fork(s) will
-	// fire (and fail) for this (unroutable) contact, before a _second_ round of fork(s) manages to reach the
+	// Registering a secondary contact with higher priority than the real one (>1) means a first round of fork(s)
+	// will fire (and fail) for this (unroutable) contact, before a _second_ round of fork(s) manages to reach the
 	// destination. This should trigger two calls to ForkCallContext::start
 	auto paulClient = builder.setCustomContact("<sip:bear@127.0.0.1:666>;q=2.0").build(paul);
 	CoreAssert asserter{lux, paulClient, agent};

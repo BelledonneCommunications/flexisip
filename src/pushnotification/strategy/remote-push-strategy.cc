@@ -86,7 +86,7 @@ void RemotePushStrategy::onBranchCanceled([[maybe_unused]] const std::shared_ptr
 			case ForkStatus::AcceptedElsewhere:
 				mCallPushInfo->mAlertMsgId = mCallPushInfo->mAcceptedElsewhereMsg;
 				break;
-			case ForkStatus::DeclineElsewhere:
+			case ForkStatus::DeclinedElsewhere:
 				mCallPushInfo->mAlertMsgId = mCallPushInfo->mDeclinedElsewhereMsg;
 				break;
 			case ForkStatus::Standard:

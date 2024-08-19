@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -19,6 +19,7 @@
 #pragma once
 
 #include <list>
+#include <optional>
 
 #include "flexisip/event.hh"
 #include "flexisip/module-router.hh"
@@ -81,7 +82,8 @@ private:
 	const int* getUrgentCodes();
 	void onShortTimer();
 	void onLateTimeout() override;
-	void cancelOthers(const std::shared_ptr<BranchInfo>& br, sip_t* received_cancel);
+	void cancelOthers(const std::shared_ptr<BranchInfo>& br);
+	void cancelAll(sip_t* received_cancel);
 	void cancelOthersWithStatus(const std::shared_ptr<BranchInfo>& br, ForkStatus status);
 	void logResponse(const std::shared_ptr<ResponseSipEvent>& ev, const BranchInfo*);
 	void forwardThenLogResponse(const std::shared_ptr<BranchInfo>&);
@@ -95,7 +97,16 @@ private:
 	std::unique_ptr<sofiasip::Timer> mShortTimer{}; // optionally used to send retryable responses
 	std::shared_ptr<CallLog> mLog{};
 	bool mCancelled = false;
-	sip_reason_t* mCancelReason = nullptr;
+
+	struct CancelInfo {
+		CancelInfo(sofiasip::Home& home, const ForkStatus& status);
+		CancelInfo(sip_reason_t* reason);
+
+		ForkStatus mStatus;
+		sip_reason_t* mReason{};
+	};
+
+	std::optional<CancelInfo> mCancel;
 	static const int sUrgentCodesWithout603[];
 	static constexpr auto CLASS_NAME = "ForkCallContext";
 };
