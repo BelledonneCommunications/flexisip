@@ -23,12 +23,12 @@ namespace flexisip {
 /**
  * This enumeration is used while call cancellation to clarify
  * the scenario which caused the cancellation.
-*/
+ */
 enum class ForkStatus {
 	AcceptedElsewhere, /**< The call branch is canceled because the call has been accepted in another branch of the
 	                      ForkContext. */
-	DeclineElsewhere,  /**< The call branch is canceled because the call has been declined in another branch of the
-	                      ForkContext. */
+	DeclinedElsewhere, /**< The call branch is canceled because the call has been declined in another branch of the
+	                     ForkContext. */
 	Standard           /**< The call branch is canceled because the call has been canceled by the caller. */
 };
 
