@@ -30,6 +30,7 @@
 
 #include "asserts.hh"
 #include "core-assert.hh"
+#include "tester.hh"
 
 #include "client-core.hh"
 #include "linphone/misc.h"
@@ -86,6 +87,7 @@ std::shared_ptr<linphone::Core> minimalCore(linphone::Factory& factory) {
 	linphoneConfig->setString("storage", "uri", dataDir + "/null");
 	linphoneConfig->setString("lime", "x3dh_db_path", ":memory:");
 	auto core = factory.createCoreWithConfig(linphoneConfig, nullptr);
+	factory.setDataDir(bcTesterWriteDir() / "");
 	auto clientTransport = factory.createTransports();
 	clientTransport->setTcpPort(LC_SIP_TRANSPORT_DONTBIND);
 	clientTransport->setUdpPort(LC_SIP_TRANSPORT_DONTBIND);
