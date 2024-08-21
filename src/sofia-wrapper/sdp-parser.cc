@@ -67,6 +67,12 @@ SdpMedia* SdpMedia::wrap(::sdp_media_t* raw) {
 	return static_cast<SdpMedia*>(raw);
 }
 
+SdpConnection* SdpConnection::wrap(::sdp_connection_t* raw) {
+	static_assert(sizeof(SdpConnection) == sizeof(*raw),
+	              "You cannot add members to an SdpConnection. It is meant as a transparent wrapper.");
+	return static_cast<SdpConnection*>(raw);
+}
+
 SdpAttribute* SdpAttribute::wrap(::sdp_attribute_t* raw) {
 	static_assert(sizeof(SdpAttribute) == sizeof(*raw),
 	              "You cannot add members to an SdpAttribute. It is meant as a transparent wrapper.");
@@ -75,6 +81,10 @@ SdpAttribute* SdpAttribute::wrap(::sdp_attribute_t* raw) {
 
 SdpMediaList SdpSession::medias() {
 	return SdpMediaList(sdp_media);
+}
+
+SdpConnection& SdpSession::connection() {
+	return *SdpConnection::wrap(sdp_connection);
 }
 
 SdpMediaAttributeFilter::Iterator::Iterator(::sdp_attribute_t* ptr, const char* name)
