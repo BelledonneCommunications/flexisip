@@ -23,6 +23,7 @@
 
 #include "soci/session.h"
 #include "soci/sqlite3/soci-sqlite3.h"
+#include <flexisip/module-router.hh>
 
 #include "belle-sip/auth-helper.h"
 
@@ -144,31 +145,37 @@ struct DtmfListener : public linphone::CallListener {
 };
 
 /*
-    Test bridging to *and* from an external sip provider/domain. (Arbitrarily called "Jabiru")
+    Test bridging to *and* from an external sip provider/domain (arbitrarily called "Jabiru").
     We configure 2 providers, one for each direction.
 
-    The first, "Outbound" provider will attempt to find an external account matching the caller, and bridge the call
+    The first, "outbound" provider will attempt to find an external account matching the caller, and bridge the call
     using that account.
-    The second, "Inbound" provider will attempt to find the external account that received the call to determine the uri
+    The second, "inbound" provider will attempt to find the external account that received the call to determine the uri
     to call in the internal domain, and send the invite to the flexisip proxy.
 
-    We'll need a user registered to the internal Flexisip proxy. Let's call him Felix <sip:felix@flexisip.example.org>.
-    Felix will need an account on the external Jabiru proxy, with a potentially different username than the one he uses
-    on Flexisip: <sip:definitely-not-felix@jabiru.example.org>. That account will be provisioned in the B2BUA's account
-    pool.
-    Then we'll need a user registered to the Jabiru proxy, let's call him Jasper <sip:jasper@jabiru.example.org>.
+    We'll need a user registered to the internal Flexisip proxy.
+    Let's call him "Felix" <sip:felix@flexisip.example.org>.
+    Felix will need an account on the external Jabiru proxy: <sip:felix@jabiru.example.org>.
+    That account will be provisioned in the B2BUA's account pool.
+    Then we'll need a user registered to the Jabiru proxy, let's call him "Jasper" <sip:jasper@jabiru.example.org>.
 
     Felix will first attempt to call Jasper as if he was in the same domain as him, using the address
     <sip:jasper@flexisip.example.org>. Jasper should receive a bridged call coming from
-    <sip:definitely-not-felix@jabiru.example.org>, Felix's external account managed by the B2BUA.
+    <sip:felix@jabiru.example.org>, Felix's external account managed by the B2BUA.
 
-    Then Jasper will in turn attempt to call Felix's external account, <sip:definitely-not-felix@jabiru.example.org>,
+    Then Jasper will in turn attempt to call Felix's external account, <sip:felix@jabiru.example.org>,
     and Felix should receive a call form Jasper that should look like it's coming from within the same domain as him:
     <sip:jasper@flexisip.example.org>
+
+    Finally, test a third scenario: internal calls.
+    Thus, a third user, "Emilie" <sip:emilie@flexisip.example.org, will attempt to call Felix's internal account.
+
+    Note: this test makes sure all calls are routed through the external proxy (Jabiru).
 */
 template <const std::string& flexisipTransport, const std::string& jabiruTransport>
 void bidirectionalBridging() {
-	StringFormatter jsonConfig{R"json({
+	StringFormatter jsonConfig{
+	    R"json({
 		"schemaVersion": 2,
 		"providers": [
 			{
@@ -202,145 +209,170 @@ void bidirectionalBridging() {
 				"outgoingInvite": {
 					"to": "{account.alias}",
 					"from": "sip:{incoming.from.user}@{account.alias.hostport}{incoming.from.uriParameters}",
-					"outboundProxy": "<sip:127.0.0.1:flexisipPort;transport=flexisipTransport>"
+					"outboundProxy": "<sip:127.0.0.1:#flexisipPort#;transport=#flexisipTransport#>"
 				},
 				"accountPool": "FlockOfJabirus"
 			}
 		],
 		"accountPools": {
 			"FlockOfJabirus": {
-				"outboundProxy": "<sip:127.0.0.1:jabiruPort;transport=jabiruTransport>",
+				"outboundProxy": "<sip:127.0.0.3:#jabiruPort#;transport=#jabiruTransport#>",
 				"registrationRequired": true,
 				"maxCallsPerLine": 3125,
 				"loader": [
 					{
-						"uri": "sip:definitely-not-felix@jabiru.example.org",
-						"alias": "sip:felix@flexisip.example.org"
+						"uri": "#felixUriOnJabiru#",
+						"alias": "#felixUriOnFlexisip#"
+					},
+					{
+						"uri": "#emilieUriOnJabiru#",
+						"alias": "#emilieUriOnFlexisip#"
 					}
 				]
 			}
 		}
 	})json",
-	                           '', ''};
+	    '#',
+	    '#',
+	};
+	auto toUriOnJabiru = "unexpected"s;
+	auto fromUriOnJabiru = "unexpected"s;
+	InjectedHooks hooks{
+	    // Save SIP uris from "To" and "From" headers when Jabiru receive INVITE requests.
+	    .onRequest =
+	        [&toUriOnJabiru, &fromUriOnJabiru](const std::shared_ptr<RequestSipEvent>& requestEvent) {
+		        const auto* sip = requestEvent->getSip();
+		        if (!sip or !sip->sip_request or sip->sip_request->rq_method != sip_method_invite or !sip->sip_cseq or
+		            sip->sip_cseq->cs_seq != 20) {
+			        return;
+		        }
+		        if (!BC_ASSERT(sip->sip_from and sip->sip_to and sip->sip_request)) {
+			        return;
+		        }
+		        toUriOnJabiru = SipUri{sip->sip_to->a_url}.str();
+		        fromUriOnJabiru = SipUri{sip->sip_from->a_url}.str();
+	        },
+	};
 	TempFile providersJson{};
 	Server flexisipProxy{{
-	    // Requesting bind on port 0 to let the kernel find any available port
 	    {"global/transports", "sip:127.0.0.1:0;transport="s + flexisipTransport},
 	    {"module::Registrar/enabled", "true"},
 	    {"module::Registrar/reg-domains", "flexisip.example.org"},
 	    {"b2bua-server/application", "sip-bridge"},
-	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport="s + flexisipTransport},
+	    {"b2bua-server/transport", "sip:127.0.0.2:0;transport="s + flexisipTransport},
+	    {"b2bua-server/one-connection-per-account", "true"},
 	    {"b2bua-server::sip-bridge/providers", providersJson.getFilename()},
+	    {"module::B2bua/enabled", "true"},
+	    {"module::MediaRelay/prevent-loops", "false"},
 	    // B2bua use writable-dir instead of var folder
 	    {"b2bua-server/data-directory", bcTesterWriteDir()},
 	}};
 	flexisipProxy.start();
-	Server jabiruProxy{{
-	    // Requesting bind on port 0 to let the kernel find any available port
-	    {"global/transports", "sip:127.0.0.1:0;transport="s + jabiruTransport},
-	    {"module::Registrar/enabled", "true"},
-	    {"module::Registrar/reg-domains", "jabiru.example.org"},
-	}};
+	Server jabiruProxy{
+	    {
+	        {"global/transports", "sip:127.0.0.3:0;transport="s + jabiruTransport},
+	        {"module::Registrar/enabled", "true"},
+	        {"module::Registrar/reg-domains", "jabiru.example.org"},
+	        {"module::MediaRelay/enabled", "false"},
+	    },
+	    &hooks,
+	};
 	jabiruProxy.start();
+
+	const auto felixUriOnJabiru = "sip:felix@jabiru.example.org"s;
+	const auto felixUriOnFlexisip = "sip:felix@flexisip.example.org"s;
+	const auto jasperUriOnJabiru = "sip:jasper@jabiru.example.org"s;
+	const auto jasperUriOnFlexisip = "sip:jasper@flexisip.example.org"s;
+	const auto emilieUriOnJabiru = "sip:emilie@jabiru.example.org"s;
+	const auto emilieUriOnFlexisip = "sip:emilie@flexisip.example.org"s;
 	providersJson.writeStream() << jsonConfig.format({
 	    {"flexisipPort", flexisipProxy.getFirstPort()},
 	    {"flexisipTransport", flexisipTransport},
 	    {"jabiruPort", jabiruProxy.getFirstPort()},
 	    {"jabiruTransport", jabiruTransport},
+	    {"felixUriOnJabiru", felixUriOnJabiru},
+	    {"felixUriOnFlexisip", felixUriOnFlexisip},
+	    {"emilieUriOnJabiru", emilieUriOnJabiru},
+	    {"emilieUriOnFlexisip", emilieUriOnFlexisip},
 	});
-	const auto b2buaLoop = std::make_shared<sofiasip::SuRoot>();
+
+	// Instantiate B2BUA server using configuration indicated in Flexisip proxy.
 	const auto& config = flexisipProxy.getConfigManager();
-	const auto b2buaServer = std::make_shared<B2buaServer>(b2buaLoop, config);
+	const auto b2buaServer = make_shared<B2buaServer>(flexisipProxy.getAgent()->getRoot(), config);
 	b2buaServer->init();
-	config->getRoot()
-	    ->get<GenericStruct>("module::Router")
-	    ->get<ConfigStringList>("static-targets")
-	    ->set({"sip:127.0.0.1:" + ("tcp"s == flexisipTransport
-	                                   ? std::to_string(b2buaServer->getTcpPort()) + ";transport=tcp"
-	                                   : std::to_string(b2buaServer->getUdpPort()) + ";transport=udp")});
-	flexisipProxy.getAgent()->findModule("Router")->reload();
-	const auto felix = ClientBuilder(*flexisipProxy.getAgent()).build("felix@flexisip.example.org");
-	const auto jasper = ClientBuilder(*jabiruProxy.getAgent()).build("jasper@jabiru.example.org");
-	CoreAssert asserter{flexisipProxy, b2buaLoop, jabiruProxy};
+	const auto b2buaServerUri =
+	    "sip:127.0.0.2:" + ("tcp" == flexisipTransport ? to_string(b2buaServer->getTcpPort()) + ";transport=tcp"
+	                                                   : to_string(b2buaServer->getUdpPort()) + ";transport=udp");
+
+	// Update module::B2bua of Flexisip proxy.
+	const auto* cfgRoot = config->getRoot();
+	cfgRoot->get<GenericStruct>("module::B2bua")->get<ConfigString>("b2bua-server")->set(b2buaServerUri);
+	flexisipProxy.getAgent()->findModule("B2bua")->reload();
+	// Get Router module of Jabiru proxy in order to access forked calls statistics.
+	const auto jabiruRouterModule = dynamic_pointer_cast<ModuleRouter>(jabiruProxy.getAgent()->findModule("Router"));
+	BC_HARD_ASSERT(jabiruRouterModule != nullptr);
+
+	auto felix = ClientBuilder(*flexisipProxy.getAgent()).build(felixUriOnFlexisip);
+	auto jasper = ClientBuilder(*jabiruProxy.getAgent()).build(jasperUriOnJabiru);
+	auto emilie = ClientBuilder(*flexisipProxy.getAgent()).build(emilieUriOnFlexisip);
+
+	CoreAssert asserter{flexisipProxy, jabiruProxy};
+	// Make sure B2BUA accounts are registered on external domain.
 	asserter
 	    .iterateUpTo(
 	        3,
-	        [&sipProviders =
-	             dynamic_cast<const b2bua::bridge::SipBridge&>(b2buaServer->getApplication()).getProviders()] {
-		        for (const auto& provider : sipProviders) {
+	        [&providers = dynamic_cast<const b2bua::bridge::SipBridge&>(b2buaServer->getApplication()).getProviders()] {
+		        for (const auto& provider : providers) {
 			        for (const auto& [_, account] : provider.getAccountSelectionStrategy().getAccountPool()) {
 				        FAIL_IF(!account->isAvailable());
 			        }
 		        }
-		        // b2bua accounts registered
 		        return ASSERTION_PASSED();
 	        },
 	        40ms)
 	    .assert_passed();
 	asserter.registerSteppable(felix);
 	asserter.registerSteppable(jasper);
+	asserter.registerSteppable(emilie);
 
 	// Flexisip -> Jabiru
-	felix.invite("jasper@flexisip.example.org");
-	BC_HARD_ASSERT(asserter
-	                   .iterateUpTo(
-	                       3,
-	                       [&jasper] {
-		                       const auto& current_call = jasper.getCurrentCall();
-		                       FAIL_IF(current_call == std::nullopt);
-		                       FAIL_IF(current_call->getState() != linphone::Call::State::IncomingReceived);
-		                       // invite received
-		                       return ASSERTION_PASSED();
-	                       },
-	                       300ms)
-	                   .assert_passed());
-	BC_ASSERT_CPP_EQUAL(jasper.getCurrentCall()->getRemoteAddress()->asStringUriOnly(),
-	                    "sip:definitely-not-felix@jabiru.example.org");
-
-	// cleanup
-	jasper.getCurrentCall()->accept();
-	jasper.getCurrentCall()->terminate();
-	asserter
-	    .iterateUpTo(
-	        10,
-	        [&felix] {
-		        const auto& current_call = felix.getCurrentCall();
-		        FAIL_IF(current_call != std::nullopt);
-		        return ASSERTION_PASSED();
-	        },
-	        200ms)
-	    .assert_passed();
+	BC_HARD_ASSERT(felix.call(jasper, jasper.getCore()->createAddress(jasperUriOnFlexisip)) != nullptr);
+	const auto& jasperCall = jasper.getCurrentCall();
+	// Verify "To" and "From" headers in INVITE request received by Jabiru proxy from B2BUA.
+	BC_ASSERT_CPP_EQUAL(toUriOnJabiru, jasperUriOnJabiru);
+	BC_ASSERT_CPP_EQUAL(fromUriOnJabiru, felixUriOnJabiru);
+	BC_ASSERT_CPP_EQUAL(jasperCall->getRemoteAddress()->asStringUriOnly(), felixUriOnJabiru);
+	// Verify that Jabiru proxy actually created a ForkCallContext for this call.
+	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mCountCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mCountCallForks->finish->read(), 1);
+	BC_ASSERT(jasper.endCurrentCall(felix));
+	fromUriOnJabiru = toUriOnJabiru = "unexpected"; // Reset.
 
 	// Jabiru -> Flexisip
-	jasper.invite("definitely-not-felix@jabiru.example.org");
-	BC_HARD_ASSERT(asserter
-	                   .iterateUpTo(
-	                       2,
-	                       [&felix] {
-		                       const auto& current_call = felix.getCurrentCall();
-		                       FAIL_IF(current_call == std::nullopt);
-		                       FAIL_IF(current_call->getState() != linphone::Call::State::IncomingReceived);
-		                       // invite received
-		                       return ASSERTION_PASSED();
-	                       },
-	                       400ms)
-	                   .assert_passed());
-	BC_ASSERT_CPP_EQUAL(felix.getCurrentCall()->getRemoteAddress()->asStringUriOnly(),
-	                    "sip:jasper@flexisip.example.org");
+	BC_HARD_ASSERT(jasper.call(felix, felix.getCore()->createAddress(felixUriOnJabiru)) != nullptr);
+	const auto& felixCall = felix.getCurrentCall();
+	// Verify "To" and "From" headers in INVITE request received by Jabiru proxy from B2BUA.
+	BC_ASSERT_CPP_EQUAL(toUriOnJabiru, felixUriOnJabiru);
+	BC_ASSERT_CPP_EQUAL(fromUriOnJabiru, jasperUriOnJabiru);
+	BC_ASSERT_CPP_EQUAL(felixCall->getRemoteAddress()->asStringUriOnly(), jasperUriOnFlexisip);
+	// Verify that Jabiru proxy actually created a ForkCallContext for this call.
+	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mCountCallForks->start->read(), 2);
+	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mCountCallForks->finish->read(), 2);
+	BC_ASSERT(felix.endCurrentCall(jasper));
+	fromUriOnJabiru = toUriOnJabiru = "unexpected"; // Reset.
 
-	// shutdown / cleanup
-	felix.getCurrentCall()->accept();
-	felix.getCurrentCall()->terminate();
-	asserter
-	    .iterateUpTo(
-	        2,
-	        [&jasper] {
-		        const auto& current_call = jasper.getCurrentCall();
-		        FAIL_IF(current_call != std::nullopt);
-		        return ASSERTION_PASSED();
-	        },
-	        400ms)
-	    .assert_passed();
+	// Flexisip -> Flexisip
+	BC_HARD_ASSERT(felix.call(emilie, jabiruProxy) != nullptr);
+	const auto& emilieCall = emilie.getCurrentCall();
+	// Verify "To" and "From" headers in INVITE request received by Jabiru proxy from B2BUA.
+	BC_ASSERT_CPP_EQUAL(toUriOnJabiru, emilieUriOnJabiru);
+	BC_ASSERT_CPP_EQUAL(fromUriOnJabiru, felixUriOnJabiru);
+	BC_ASSERT_CPP_EQUAL(emilieCall->getRemoteAddress()->asStringUriOnly(), felixUriOnFlexisip);
+	// Verify that Jabiru proxy actually created a ForkCallContext for this call.
+	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mCountCallForks->start->read(), 3);
+	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mCountCallForks->finish->read(), 3);
+	BC_ASSERT(felix.endCurrentCall(emilie, jabiruProxy));
+
 	std::ignore = b2buaServer->stop();
 }
 
