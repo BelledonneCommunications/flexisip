@@ -408,13 +408,6 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	    },
 	    {
 	        DurationS,
-	        "no-rtp-on-hold-timeout",
-	        "Duration after which the B2BUA will terminate a call that is on hold if no RTP packets are received from "
-	        "the other call participant.",
-	        "3600",
-	    },
-	    {
-	        DurationS,
 	        "max-call-duration",
 	        "Any call bridged through the B2BUA that has been running for longer than this amount of seconds will be "
 	        "terminated. Set to 0 to disable and let calls run unbounded.",

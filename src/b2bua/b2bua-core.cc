@@ -108,7 +108,6 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 	core->setVideoPort(videoPortMin == videoPortMax ? videoPortMin : -1);
 	core->setVideoPortRange(videoPortMin, videoPortMax);
 
-	// Set no-RTP timeout
 	const auto* noRTPTimeoutParameter = config.get<ConfigDuration<chrono::seconds>>("no-rtp-timeout");
 	const auto noRTPTimeout = noRTPTimeoutParameter->read();
 	if (noRTPTimeout <= 0ms) {
@@ -116,15 +115,6 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 		throw FlexisipException{"invalid value for '" + parameterName + "', duration must be strictly positive"};
 	}
 	core->setNortpTimeout(static_cast<int>(chrono::duration_cast<chrono::seconds>(noRTPTimeout).count()));
-
-	// Set no-RTP on hold timeout
-	const auto* noRTPOnHoldTimeoutParameter = config.get<ConfigDuration<chrono::seconds>>("no-rtp-on-hold-timeout");
-	const auto noRTPOnHoldTimeout = noRTPOnHoldTimeoutParameter->read();
-	if (noRTPOnHoldTimeout <= 0ms) {
-		const auto parameterName = noRTPOnHoldTimeoutParameter->getCompleteName();
-		throw FlexisipException{"invalid value for '" + parameterName + "', duration must be strictly positive"};
-	}
-	core->setNortpOnholdTimeout(static_cast<int>(chrono::duration_cast<chrono::seconds>(noRTPOnHoldTimeout).count()));
 
 	const auto* maxCallDurationParameter = config.get<ConfigDuration<chrono::seconds>>("max-call-duration");
 	const auto maxCallDuration = maxCallDurationParameter->read();

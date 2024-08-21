@@ -1596,25 +1596,24 @@ static void unknownMediaAttrAreFilteredOutOnReinvites() {
 }
 
 /*
- * Test "no-rtp-on-hold-timeout" parameter.
+ * Test "no-rtp-timeout" parameter when call is on hold.
  *
  * A call is established through the B2BUA between a pauser and a pausee.
  * The pauser sets the call on hold. The pauser then stops sending RTP packets.
- * Test that the B2BUA terminates the call after "no-rtp-on-hold-timeout".
+ * Test that the B2BUA terminates the call after "no-rtp-timeout" triggers.
  */
-void onHoldCallIsTerminatedAfterNoRTPOnHoldTimeoutTriggers() {
+void onHoldCallIsTerminatedAfterNoRTPTimeoutTriggers() {
 	Server proxy{{
 	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
 	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
 	    {"b2bua-server/application", "trenscrypter"},
+	    {"b2bua-server/no-rtp-timeout", "1"},
 	    // Forward everything to the b2bua
 	    {"module::B2bua/enabled", "true"},
 	    {"module::Registrar/enabled", "true"},
 	    {"module::Registrar/reg-domains", "example.org"},
 	    // Media Relay has problem when everyone is running on localhost
 	    {"module::MediaRelay/enabled", "false"},
-	    {"b2bua-server/no-rtp-timeout", "30"},
-	    {"b2bua-server/no-rtp-on-hold-timeout", "1"},
 	    // B2bua use writable-dir instead of var folder
 	    {"b2bua-server/data-directory", bcTesterWriteDir()},
 	}};
@@ -1638,12 +1637,16 @@ void onHoldCallIsTerminatedAfterNoRTPOnHoldTimeoutTriggers() {
 	auto pauser = builder.build("pauser@example.org");
 	auto pausee = builder.build("pausee@example.org");
 	CoreAssert asserter{pauser, proxy, pausee};
+
+	// Make call.
 	const auto& callFromPauser = pauser.invite(pausee);
 	BC_HARD_ASSERT(callFromPauser != nullptr);
 	BC_HARD_ASSERT(pausee.hasReceivedCallFrom(pauser));
 	const auto& pauserCall = pauser.getCurrentCall();
 	const auto& pauseeCall = pausee.getCurrentCall();
 	BC_HARD_ASSERT(pauseeCall.has_value());
+
+	// Accept incoming call.
 	pauseeCall->accept();
 	asserter
 	    .iterateUpTo(
@@ -1675,6 +1678,7 @@ void onHoldCallIsTerminatedAfterNoRTPOnHoldTimeoutTriggers() {
 	// Make pauser send RTP packets to wrong host:port so the B2BUA stops receiving RTP packets.
 	pauserCall->setRTPRemotePort(4);
 
+	// Check both calls are terminated.
 	asserter
 	    .iterateUpTo(
 	        0x20,
@@ -1720,7 +1724,7 @@ TestSuite _{
         CLASSY_TEST(pauseWithAudioInactive),
         CLASSY_TEST(answerToPauseWithAudioInactive),
         CLASSY_TEST(unknownMediaAttrAreFilteredOutOnReinvites),
-        CLASSY_TEST(onHoldCallIsTerminatedAfterNoRTPOnHoldTimeoutTriggers),
+        CLASSY_TEST(onHoldCallIsTerminatedAfterNoRTPTimeoutTriggers),
     },
 };
 } // namespace
