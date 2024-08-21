@@ -118,6 +118,8 @@ make -C ./build -j<njobs> package
 
 Packages are now available in ./build directory.
 
+[More info on RPM packaging](./packaging/rpm/README.md)
+
 ## Docker
 
 A docker image can be built from sources using the following command:
