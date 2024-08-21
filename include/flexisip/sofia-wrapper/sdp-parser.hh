@@ -32,12 +32,21 @@ public:
 	friend std::ostream& operator<<(std::ostream&, const SdpParsingError&);
 };
 
-/** SDP session or media attribute
- *  ("a=" line)
+/**
+ * SDP session or media attribute
+ * ("a=" line)
  */
 class SdpAttribute : private ::sdp_attribute_t {
 public:
+	/**
+	 * An SDP attribute is just a bunch of pointers.
+	 * The default copy constructor will be shallow and (very) unsafe.
+	 * If you need a copy, write a dedicated function and think it through.
+	 */
+	SdpAttribute(const SdpAttribute&) = delete;
+
 	static SdpAttribute* wrap(::sdp_attribute_t*);
+
 	std::string_view name() const {
 		return a_name;
 	}
@@ -79,8 +88,6 @@ public:
 	Iterator end() {
 		return Iterator(nullptr, mName);
 	}
-	[[deprecated("TODO")]] Iterator begin() const;
-	[[deprecated("TODO")]] Iterator end() const;
 
 private:
 	::sdp_attribute_t* mHead;
@@ -88,14 +95,10 @@ private:
 };
 
 /**
- * An abstraction to iterate over a linked-list of ::sdp_attribute_t
- *
- * This class is iterable.
+ * An abstraction to access a linked-list of ::sdp_attribute_t
  */
 class SdpMediaAttributeList {
 public:
-	class [[deprecated("TODO")]] Iterator;
-
 	explicit SdpMediaAttributeList(::sdp_attribute_t* head) : mHead(head){};
 
 	/** Find attributes matching given name. */
@@ -103,11 +106,71 @@ public:
 		return SdpMediaAttributeFilter(mHead, name);
 	}
 
-	[[deprecated("TODO")]] Iterator begin() const;
-	[[deprecated("TODO")]] Iterator end() const;
-
 private:
 	::sdp_attribute_t* mHead;
+};
+
+/**
+ * SDP connection - host or group address.
+ * ("c=" line)
+ *
+ * Some getters and setters are not yet implemented. They may be added later.
+ */
+class SdpConnection : private ::sdp_connection_t {
+public:
+	/**
+	 * An SDP connection is just a bunch of pointers.
+	 * The default copy constructor will be shallow and (very) unsafe.
+	 * If you need a copy, write a dedicated function and think it through.
+	 */
+	SdpConnection(const SdpConnection&) = delete;
+
+	static SdpConnection* wrap(::sdp_connection_t*);
+
+	// Host or group address
+	std::string_view address() const {
+		return c_address;
+	}
+};
+
+/**
+ * An abstraction to iterate over a linked-list of ::sdp_connection_t.
+ *
+ * This class is iterable.
+ */
+class SdpConnectionList {
+public:
+	class Iterator {
+	public:
+		explicit Iterator(::sdp_connection_t* ptr) : mPtr(ptr) {
+		}
+		Iterator& operator++() {
+			mPtr = mPtr->c_next;
+			return *this;
+		}
+		bool operator!=(const Iterator& other) const {
+			return mPtr != other.mPtr;
+		}
+		SdpConnection& operator*() {
+			return *SdpConnection::wrap(mPtr);
+		}
+
+	private:
+		::sdp_connection_t* mPtr;
+	};
+
+	explicit SdpConnectionList(::sdp_connection_t* head) : mHead(head) {
+	}
+
+	Iterator begin() {
+		return Iterator(mHead);
+	}
+	Iterator end() {
+		return Iterator(nullptr);
+	}
+
+private:
+	::sdp_connection_t* mHead;
 };
 
 /** Media announcement.
@@ -120,33 +183,32 @@ private:
  * attributes.
  *
  * There is a pointer (m_user) for the application data, too.
+ *
+ * Some getters and setters are not yet implemented. They may be added later.
  */
 class SdpMedia : private ::sdp_media_t {
 public:
+	/**
+	 * An SDP media is just a bunch of pointers.
+	 * The default copy constructor will be shallow and (very) unsafe.
+	 * If you need a copy, write a dedicated function and think it through.
+	 */
+	SdpMedia(const SdpMedia&) = delete;
+
 	static SdpMedia* wrap(::sdp_media_t*);
 
+	// Media attributes
 	SdpMediaAttributeList attributes() {
 		return SdpMediaAttributeList(m_attributes);
 	}
-
-	[[deprecated("TODO")]] sdp_session_t* m_session();        /**< Back-pointer to session level */
-	[[deprecated("TODO")]] sdp_media_e m_type();              /**< Media type  */
-	[[deprecated("TODO")]] sdp_text_t* m_type_name();         /**< Media type name */
-	[[deprecated("TODO")]] unsigned long m_port();            /**< Transport port number */
-	[[deprecated("TODO")]] unsigned long m_number_of_ports(); /**< Number of ports (if multiple) */
-	[[deprecated("TODO")]] sdp_proto_e m_proto();             /**< Transport protocol  */
-	[[deprecated("TODO")]] sdp_text_t* m_proto_name();        /**< Transport protocol name */
-	[[deprecated("TODO")]] sdp_list_t* m_format();            /**< List of media formats */
-	[[deprecated("TODO")]] sdp_rtpmap_t* m_rtpmaps();         /**< List of RTP maps */
-	[[deprecated("TODO")]] sdp_text_t* m_information();       /**< Media information */
-	[[deprecated("TODO")]] sdp_connection_t* m_connections(); /**< List of addresses used */
-	[[deprecated("TODO")]] sdp_bandwidth_t* m_bandwidths();   /**< Bandwidth specification */
-	[[deprecated("TODO")]] sdp_key_t* m_key();                /**< Media key */
-	[[deprecated("TODO")]] void* m_user();                    /**< User data. */
-	/** Rejected media */
-	[[deprecated("TODO")]] unsigned m_rejected();
-	/** Inactive, recvonly, sendonly, sendrecv */
-	[[deprecated("TODO")]] ::sdp_mode_t m_mode();
+	// List of addresses used
+	SdpConnectionList connections() {
+		return SdpConnectionList(m_connections);
+	}
+	// Media type name
+	std::string_view typeName() const {
+		return m_type_name;
+	}
 };
 
 /**
@@ -184,8 +246,6 @@ public:
 	Iterator end() {
 		return Iterator(nullptr);
 	}
-	[[deprecated("TODO")]] Iterator begin() const;
-	[[deprecated("TODO")]] Iterator end() const;
 
 private:
 	::sdp_media_t* mHead;
@@ -195,27 +255,24 @@ private:
  * SDP session description
  *
  * Created by `SdpParser`
+ *
+ * Some getters and setters are not yet implemented. They may be added later.
  */
 class SdpSession : private ::sdp_session_t {
 public:
+	/**
+	 * An SDP session is just a bunch of pointers.
+	 * The default copy constructor will be shallow and (very) unsafe.
+	 * If you need a copy, write a dedicated function and think it through.
+	 */
+	SdpSession(const SdpSession&) = delete;
+
 	static SdpSession* wrap(::sdp_session_t*);
 
 	// Media descriptors
 	SdpMediaList medias();
-
-	[[deprecated("TODO")]] sdp_version_t* sdp_version();       /**< SDP version */
-	[[deprecated("TODO")]] sdp_origin_t* sdp_origin();         /**< Owner/creator and session ID */
-	[[deprecated("TODO")]] sdp_text_t* sdp_subject();          /**< Session name */
-	[[deprecated("TODO")]] sdp_text_t* sdp_information();      /**< Session information  */
-	[[deprecated("TODO")]] sdp_text_t* sdp_uri();              /**< URi of description */
-	[[deprecated("TODO")]] sdp_list_t* sdp_emails();           /**< E-mail address(s) */
-	[[deprecated("TODO")]] sdp_list_t* sdp_phones();           /**< Phone number(s)  */
-	[[deprecated("TODO")]] sdp_connection_t* sdp_connection(); /**< Group (or member) address */
-	[[deprecated("TODO")]] sdp_bandwidth_t* sdp_bandwidths();  /**< Session bandwidth */
-	[[deprecated("TODO")]] sdp_time_t* sdp_time();             /**< Session active time */
-	[[deprecated("TODO")]] sdp_key_t* sdp_key();               /**< Session key */
-	[[deprecated("TODO")]] sdp_attribute_t* sdp_attributes();  /**< Session attributes */
-	[[deprecated("TODO")]] sdp_text_t* sdp_charset();          /**< SDP charset (default is UTF8) */
+	// Group (or member) address
+	SdpConnection& connection();
 };
 
 /**
@@ -228,11 +285,10 @@ public:
 	};
 	using UniquePtr = std::unique_ptr<SdpParser, Deleter>;
 
+	// The flags list is not exhaustive. The other flags supported by sdp_parse may be added later.
 	enum class Flags : int {
 		None = 0,
 		Strict = ::sdp_parse_flags_e::sdp_f_strict,
-
-		__TheRest [[deprecated("TODO: Add flags supported by sdp_parse")]],
 	};
 
 	// Create a new stand-alone SdpParser
@@ -254,9 +310,6 @@ public:
 	 *   The reference and all the data in the structure are valid until the SdpParser is destructed.
 	 */
 	std::variant<std::reference_wrapper<SdpSession>, SdpParsingError> session();
-
-	[[deprecated("To be wrapped")]] int sdp_sanity_check();
-	[[deprecated("To be wrapped")]] su_home_t* sdp_parser_home();
 
 private:
 	// Bare wrapper to `sdp_parse`
