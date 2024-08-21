@@ -19,7 +19,6 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <unordered_map>
 
 #include "sofia-sip/sip.h"
 
@@ -34,7 +33,6 @@
 #include "utils/call-builder.hh"
 #include "utils/client-builder.hh"
 #include "utils/client-call.hh"
-#include "utils/client-core.hh"
 #include "utils/core-assert.hh"
 #include "utils/injected-module-info.hh"
 #include "utils/proxy-server.hh"
@@ -44,8 +42,7 @@
 
 using namespace std;
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 namespace {
 const std::map<std::string, std::string> CONFIG{
@@ -210,6 +207,110 @@ void relay_candidates_should_not_be_added_to_ice_reinvites() {
 	BC_ASSERT_CPP_EQUAL(anyRelayCandidate, noCandidateFound);
 }
 
+/*
+ * Test address masquerading in SDP.
+ *
+ * A call (audio-only) is established between an inviter and a recipient.
+ * Later on, the call is updated (audio and video).
+ * Test that address masquerading is correctly applied to INVITE and re-INVITE requests along with their corresponding
+ * responses.
+ */
+void address_masquerading_in_sdp_with_call_update() {
+	using namespace sofiasip;
+	string hostAfterRequest = "unexpected"s;
+	string hostAfterResponse = "unexpected"s;
+	const auto getHostInMediaConnection = [](const sip_t* sip, string& host) {
+		// Get SDP session.
+		const auto* sipPayload = sip->sip_payload;
+		BC_HARD_ASSERT(sipPayload != nullptr);
+		const auto sdpParser = SdpParser::parse({sipPayload->pl_data, sipPayload->pl_len});
+		auto& session = EXPECT_VARIANT(reference_wrapper<SdpSession>).in(sdpParser->session()).get();
+
+		if (sip->sip_cseq->cs_seq == 20) {
+			auto& media = *(session.medias().begin());
+			BC_HARD_ASSERT_CPP_EQUAL(media.typeName(), "audio"); // media descriptor for audio is on first line
+			host = (*media.connections().begin()).address();
+		}
+		if (sip->sip_cseq->cs_seq == 22) {
+			auto& media = *(++session.medias().begin());
+			BC_HARD_ASSERT_CPP_EQUAL(media.typeName(), "video"); // media descriptor for video is on second line
+			host = (*media.connections().begin()).address();
+		}
+	};
+	auto hooks = InjectedHooks{
+	    .injectAfterModule = "MediaRelay",
+	    .onRequest =
+	        [&](const auto& request) {
+		        const auto* sip = request->getSip();
+		        if (!sip or !sip->sip_request or sip->sip_request->rq_method != sip_method_invite or !sip->sip_cseq) {
+			        return;
+		        }
+		        getHostInMediaConnection(sip, hostAfterRequest);
+	        },
+	    .onResponse =
+	        [&](const auto& response) {
+		        const auto* sip = response->getSip();
+		        if (!sip or !sip->sip_cseq or sip->sip_cseq->cs_method != sip_method_invite or !sip->sip_status or
+		            sip->sip_status->st_status != 200) {
+			        return;
+		        }
+		        getHostInMediaConnection(sip, hostAfterResponse);
+	        },
+	};
+
+	// Server configuration.
+	const auto serverIPAddress = "127.0.0.2"s;
+	auto config = map<string, string>{{"global/transports", "sip:" + serverIPAddress + ":0"}};
+	config.merge(map<string, string>{CONFIG});
+
+	// Instantiate server and clients.
+	auto server = Server(config, &hooks);
+	server.start();
+	auto builder = ClientBuilder(*server.getAgent());
+	builder.setIce(OnOff::On).setVideoReceive(OnOff::On).setVideoSend(OnOff::On);
+	auto inviter = builder.build("sip:inviter@sip.example.org");
+	auto recipient = builder.build("sip:recipient@sip.example.org");
+	auto asserter = CoreAssert(inviter, server, recipient);
+
+	// Initiate call.
+	const auto& call = inviter.invite(recipient);
+	BC_HARD_ASSERT(call != nullptr);
+	recipient.hasReceivedCallFrom(inviter).hard_assert_passed();
+	recipient.getCurrentCall()->accept();
+	asserter
+	    .iterateUpTo(
+	        0x20, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 2s)
+	    .hard_assert_passed();
+	asserter
+	    .iterateUpTo(
+	        0x20, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::StreamsRunning); }, 2s)
+	    .hard_assert_passed();
+
+	// Verify that address masquerading was correctly applied.
+	BC_ASSERT_CPP_EQUAL(hostAfterRequest, serverIPAddress);
+	BC_ASSERT_CPP_EQUAL(hostAfterResponse, serverIPAddress);
+	hostAfterRequest = hostAfterResponse = "unexpected"s; // Reset.
+
+	// Video re-INVITE (wait for ICE re-INVITE to complete).
+	const auto& enableVideo = call->getCore()->createCallParams(call);
+	enableVideo->enableVideo(true);
+	call->update(enableVideo);
+	asserter
+	    .iterateUpTo(
+	        0x20, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 2s)
+	    .hard_assert_passed();
+	asserter
+	    .iterateUpTo(
+	        0x20, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::StreamsRunning); }, 2s)
+	    .hard_assert_passed();
+
+	// Verify that address masquerading was correctly applied.
+	BC_ASSERT_CPP_EQUAL(hostAfterRequest, serverIPAddress);
+	BC_ASSERT_CPP_EQUAL(hostAfterResponse, serverIPAddress);
+
+	BC_ASSERT(recipient.endCurrentCall(inviter));
+}
+
 void early_media_video_sendrecv_takeover() {
 	Server server(CONFIG);
 	server.start();
@@ -351,10 +452,10 @@ TestSuite _("MediaRelay",
                 CLASSY_TEST(ice_candidates_in_response_only),
                 CLASSY_TEST(ice_candidates_are_not_erased_in_a_valid_context),
                 CLASSY_TEST(relay_candidates_should_not_be_added_to_ice_reinvites),
+                CLASSY_TEST(address_masquerading_in_sdp_with_call_update),
                 CLASSY_TEST(early_media_video_sendrecv_takeover),
                 CLASSY_TEST(early_media_bidirectional_video),
             });
 }
 
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester
