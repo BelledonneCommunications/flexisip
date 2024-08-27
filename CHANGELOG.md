@@ -13,7 +13,7 @@ Group changes to describe their impact on the project, as follows:
 | Fixed          | Any bug fixes                                         |
 | Security       | To invite users to upgrade in case of vulnerabilities |
 
-## [2.3.4]
+## [2.3.4] - 2024-07-24
 ### [Added]
 - **Proxy/Registrar:** add 'max-contacts-per-registration' to reject REGISTER requests containing more Contact headers
   than the specified limit.
