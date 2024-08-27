@@ -62,7 +62,7 @@ Group changes to describe their impact on the project, as follows:
 - **CentOS 7:** support discontinued as distribution end-of-life is scheduled for 2024-06-30.
 - **Debian 10:** support discontinued as distribution end-of-life is scheduled for 2024-06-30.
 
-## [2.3.4]
+## [2.3.4] - 2024-07-24
 ### [Added]
 - **Dependencies:** added `python3-google-auth` and `python3-requests` to package dependencies.
 - **Build:** added CMake variable `FLEXISIP_VERSION` to enable build without GIT repository.
