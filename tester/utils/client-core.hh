@@ -19,16 +19,15 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 
 #include <linphone++/call_params.hh>
 #include <linphone++/linphone.hh>
-#include <optional>
 
 #include "agent.hh"
 #include "asserts.hh"
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 std::shared_ptr<linphone::Core> minimalCore(linphone::Factory& factory);
 
@@ -39,20 +38,23 @@ class CallBuilder;
 class ClientCall;
 
 /**
- * Class to manage a client Core
+ * Manage a client Core.
  */
 class CoreClient {
 public:
 	/**
-	 * @deprecated Use a ClientBuilder
+	 * @deprecated use a ClientBuilder instead.
 	 */
-	CoreClient(const std::string& me, const std::shared_ptr<Agent>& agent);
+	[[deprecated("use a ClientBuilder instead")]] CoreClient(const std::string& me,
+	                                                         const std::shared_ptr<Agent>& agent);
 
 	CoreClient(const CoreClient& other) = delete;
 	CoreClient(CoreClient&& other) = default;
 
 	~CoreClient();
 
+	std::optional<ClientCall> getCurrentCall() const;
+	std::shared_ptr<linphone::CallLog> getCallLog() const;
 	const std::shared_ptr<linphone::Core>& getCore() const noexcept {
 		return mCore;
 	}
@@ -68,6 +70,15 @@ public:
 	std::string getGruu() const {
 		return "\"<urn:uuid:" + getUuid() + ">\"";
 	}
+	/**
+	 * Get listening TCP port.
+	 * Sets one up at random if not enabled.
+	 */
+	int getTcpPort() const;
+	/**
+	 * @return the message list for THE FIRST chatroom in the chatroom list
+	 */
+	std::list<std::shared_ptr<linphone::ChatMessage>> getChatMessages();
 
 	std::chrono::seconds getCallInviteReceivedDelay() const noexcept {
 		return mCallInviteReceivedDelay;
@@ -75,6 +86,7 @@ public:
 	void setCallInviteReceivedDelay(std::chrono::seconds aDelay) noexcept {
 		mCallInviteReceivedDelay = aDelay;
 	}
+	void setRoute(const std::string& host, const std::string& port);
 	void addListener(const std::shared_ptr<linphone::CoreListener>& listener) const {
 		mCore->addListener(listener);
 	}
@@ -82,15 +94,23 @@ public:
 		mAccount->addListener(listener);
 	}
 
+	ChatRoomBuilder chatroomBuilder() const;
+	CallBuilder callBuilder() const;
+
 	void disconnect() const;
 	void reconnect() const;
 
 	/**
-	 * Establish a call
+	 * Establish a call and verifies it is running (media sent/received on both ends).
+	 *
+	 * @note if needed, you can provide an external proxy on which iterate during this process
 	 *
 	 * @param[in] callee 			client to call
 	 * @param[in] calleeAddress 	override address of the client to call
-	 * @param[in] callerCallParams	call params used by the caller to answer the call. nullptr to use default callParams
+	 * @param[in] callerCallParams	call parameters used by the caller to create the call (nullptr -> use default)
+	 * @param[in] calleeCallParams	call parameters used by the callee to answer the call (nullptr -> use default)
+	 * @param[in] calleeIdleDevices callee devices to verify (check they ring and get cancelled)
+	 * @param[in] externalProxy     external proxy on which iterate
 	 *
 	 * @return the established call from caller side, nullptr on failure
 	 */
@@ -98,120 +118,224 @@ public:
 	                                     const std::shared_ptr<const linphone::Address>& calleeAddress,
 	                                     const std::shared_ptr<linphone::CallParams>& callerCallParams = nullptr,
 	                                     const std::shared_ptr<linphone::CallParams>& calleeCallParams = nullptr,
-	                                     const std::vector<std::shared_ptr<CoreClient>>& calleeIdleDevices = {});
+	                                     const std::vector<std::shared_ptr<CoreClient>>& calleeIdleDevices = {},
+	                                     const std::shared_ptr<Agent>& externalProxy = nullptr);
+	/**
+	 * Establish a call and verifies it is running (media sent/received on both ends).
+	 *
+	 * @note if needed, you can provide an external proxy on which iterate during this process
+	 *
+	 * @param[in] callee 			client to call
+	 * @param[in] callerCallParams	call parameters used by the caller to create the call (nullptr -> use default)
+	 * @param[in] calleeCallParams	call parameters used by the callee to answer the call (nullptr -> use default)
+	 * @param[in] calleeIdleDevices callee devices to verify (check they ring and get cancelled)
+	 * @param[in] externalProxy     external proxy on which iterate
+	 *
+	 * @return the established call from caller side, nullptr on failure
+	 */
 	std::shared_ptr<linphone::Call> call(const CoreClient& callee,
 	                                     const std::shared_ptr<linphone::CallParams>& callerCallParams = nullptr,
 	                                     const std::shared_ptr<linphone::CallParams>& calleeCallParams = nullptr,
-	                                     const std::vector<std::shared_ptr<CoreClient>>& calleeIdleDevices = {});
+	                                     const std::vector<std::shared_ptr<CoreClient>>& calleeIdleDevices = {},
+	                                     const std::shared_ptr<Agent>& externalProxy = nullptr);
+	/**
+	 * Establish a call and verifies it is running (media sent/received on both ends).
+	 *
+	 * @note if needed, you can provide an external proxy on which iterate during this process
+	 *
+	 * @param[in] callee 			client to call
+	 * @param[in] callerCallParams	call parameters used by the caller to create the call (nullptr -> use default)
+	 * @param[in] calleeCallParams	call parameters used by the callee to answer the call (nullptr -> use default)
+	 * @param[in] calleeIdleDevices callee devices to verify (check they ring and get cancelled)
+	 * @param[in] externalProxy     external proxy on which iterate
+	 *
+	 * @return the established call from caller side, nullptr on failure
+	 */
 	std::shared_ptr<linphone::Call> call(const std::shared_ptr<CoreClient>& callee,
 	                                     const std::shared_ptr<linphone::CallParams>& callerCallParams = nullptr,
 	                                     const std::shared_ptr<linphone::CallParams>& calleeCallParams = nullptr,
-	                                     const std::vector<std::shared_ptr<CoreClient>>& calleeIdleDevices = {});
-
+	                                     const std::vector<std::shared_ptr<CoreClient>>& calleeIdleDevices = {},
+	                                     const std::shared_ptr<Agent>& externalProxy = nullptr);
 	/**
-	 * Establish a call, but decline the call before it starts
+	 * Establish a call and verifies it is running (media sent/received on both ends).
+	 * Run the main loop of the given external proxy during this process.
+	 *
+	 * @param[in] callee        client to call
+	 * @param[in] externalProxy external proxy on which iterate
+	 *
+	 * @return the established call from caller side, nullptr on failure
+	 */
+	std::shared_ptr<linphone::Call> call(const CoreClient& callee, const Server& externalProxy);
+	/**
+	 * Establish a call, but decline the call before it starts.
+	 *
+	 * @note if needed, you can provide an external proxy on which iterate during this process
 	 *
 	 * @param[in] callee 			client to call
-	 * @param[in] callerCallParams	call params used by the caller to answer the call. nullptr to use default callParams
+	 * @param[in] callerCallParams	call params used by the caller to answer the call (nullptr -> use default)
+	 * @param[in] externalProxy     external proxy on which iterate
 	 *
 	 * @return the established call from caller side, nullptr on failure
 	 */
 	std::shared_ptr<linphone::Call>
 	callWithEarlyDecline(const std::shared_ptr<CoreClient>& callee,
-	                     const std::shared_ptr<linphone::CallParams>& callerCallParams = nullptr);
-
+	                     const std::shared_ptr<linphone::CallParams>& callerCallParams = nullptr,
+	                     const std::shared_ptr<Agent>& externalProxy = nullptr);
 	/**
-	 * Establish a call, but cancel before callee receive it
+	 * Establish a call, but cancel before callee receive it.
+	 *
+	 * @note if needed, you can provide an external proxy on which iterate during this process
 	 *
 	 * @param[in] callee 			client to call
-	 * @param[in] callerCallParams	call params used by the caller to answer the call. nullptr to use default callParams
-	 * @param[in] calleeCallParams	call params used by the callee to accept the call. nullptr to use default callParams
+	 * @param[in] callerCallParams	call params used by the caller to answer the call (nullptr -> use default)
+	 * @param[in] calleeCallParams	call params used by the callee to accept the call (nullptr -> use default)
+	 * @param[in] externalProxy     external proxy on which iterate
 	 *
 	 * @return the established call from caller side, nullptr on failure
 	 */
 	std::shared_ptr<linphone::Call>
 	callWithEarlyCancel(const std::shared_ptr<CoreClient>& callee,
 	                    const std::shared_ptr<linphone::CallParams>& callerCallParams = nullptr,
-	                    bool isCalleeAway = false);
+	                    bool isCalleeAway = false,
+	                    const std::shared_ptr<Agent>& externalProxy = nullptr);
 	/**
-	 * Establish a video call.
-	 * video is enabled caller side, with or without callParams given
+	 * Establish a video call. Video is enabled on caller side whether callParams were given or not.
+	 *
+	 * @note if needed, you can provide an external proxy on which iterate during this process
 	 *
 	 * @param[in] callee 			client to call
-	 * @param[in] callerCallParams	call params used by the caller to answer the call. nullptr to use default callParams
-	 * @param[in] calleeCallParams	call params used by the callee to accept the call. nullptr to use default callParams
+	 * @param[in] callerCallParams	call params used by the caller to answer the call (nullptr -> use default)
+	 * @param[in] calleeCallParams	call params used by the callee to accept the call (nullptr -> use default)
+	 * @param[in] externalProxy     external proxy on which iterate
+	 *
+	 * @return the established call from caller side, nullptr on failure
+	 */
+	std::shared_ptr<linphone::Call> callVideo(const CoreClient& callee,
+	                                          const std::shared_ptr<linphone::CallParams>& callerCallParams = nullptr,
+	                                          const std::shared_ptr<linphone::CallParams>& calleeCallParams = nullptr,
+	                                          const std::shared_ptr<Agent>& externalProxy = nullptr);
+	/**
+	 * Establish a video call. Video is enabled on caller side whether callParams were given or not.
+	 *
+	 * @note if needed, you can provide an external proxy on which iterate during this process
+	 *
+	 * @param[in] callee 			client to call
+	 * @param[in] callerCallParams	call params used by the caller to answer the call (nullptr -> use default)
+	 * @param[in] calleeCallParams	call params used by the callee to accept the call (nullptr -> use default)
+	 * @param[in] externalProxy     external proxy on which iterate
 	 *
 	 * @return the established call from caller side, nullptr on failure
 	 */
 	std::shared_ptr<linphone::Call> callVideo(const std::shared_ptr<const CoreClient>& callee,
 	                                          const std::shared_ptr<linphone::CallParams>& callerCallParams = nullptr,
-	                                          const std::shared_ptr<linphone::CallParams>& calleeCallParams = nullptr);
-	std::shared_ptr<linphone::Call> callVideo(const CoreClient& callee,
-	                                          const std::shared_ptr<linphone::CallParams>& callerCallParams = nullptr,
-	                                          const std::shared_ptr<linphone::CallParams>& calleeCallParams = nullptr);
-
+	                                          const std::shared_ptr<linphone::CallParams>& calleeCallParams = nullptr,
+	                                          const std::shared_ptr<Agent>& externalProxy = nullptr);
 	/**
 	 * Update an ongoing call.
-	 * When enable/disable video, check that it is correctly executed on both sides
+	 * When enabling/disabling video, verifies that it is correctly executed on both sides.
 	 *
-	 * @param[in] peer				peer clientCore involved in the call
+	 * @note if needed, you can provide an external proxy on which iterate during this process
+	 *
+	 * @param[in] peer				peer client core involved in the call
 	 * @param[in] callerCallParams	new call params to be used by self
+	 * @param[in] externalProxy     external proxy on which iterate
 	 *
-	 * @return true if all asserts in the callUpdate succeded, false otherwise
+	 * @return true if all asserts in the callUpdate succeeded, false otherwise
 	 */
-	bool callUpdate(const CoreClient& peer, const std::shared_ptr<linphone::CallParams>& callerCallParams);
-
+	bool callUpdate(const CoreClient& peer,
+	                const std::shared_ptr<linphone::CallParams>& callerCallParams,
+	                const std::shared_ptr<Agent>& externalProxy = nullptr);
 	/**
-	 * Get from the two sides the current call and terminate if from this side
-	 * assertion failed if one of the client is not in a call or both won't end into Released state
+	 * Get current call from both sides and terminate the call from this side.
+	 * Assertion fails if one of the client is not in a call or both won't end into Released state.
 	 *
-	 * @param[in]	peer	The other client involved in the call
+	 * @note if needed, you can provide an external proxy on which iterate during this process
 	 *
-	 * @return true if all asserts in the function succeded, false otherwise
+	 * @param[in] peer          the other client involved in the call
+	 * @param[in] externalProxy external proxy on which iterate
+	 *
+	 * @return true if all asserts in the function succeeded, false otherwise
 	 */
-	bool endCurrentCall(const CoreClient& peer);
-	bool endCurrentCall(const std::shared_ptr<CoreClient>& peer);
+	bool endCurrentCall(const CoreClient& peer, const std::shared_ptr<Agent>& externalProxy = nullptr);
+	/**
+	 * Get current call from both sides and terminate the call from this side.
+	 * Assertion fails if one of the client is not in a call or both won't end into Released state.
+	 *
+	 * @note if needed, you can provide an external proxy on which iterate during this process
+	 *
+	 * @param[in] peer          the other client involved in the call
+	 * @param[in] externalProxy external proxy on which iterate
+	 *
+	 * @return true if all asserts in the function succeeded, false otherwise
+	 */
+	bool endCurrentCall(const std::shared_ptr<CoreClient>& peer, const std::shared_ptr<Agent>& externalProxy = nullptr);
+	/**
+	 * Get current call from both sides and terminate the call from this side.
+	 * Assertion fails if one of the client is not in a call or both won't end into Released state.
+	 * Run the main loop of the given external proxy during this process.
+	 *
+	 * @param[in] peer          the other client involved in the call
+	 * @param[in] externalProxy external proxy on which iterate
+	 *
+	 * @return true if all asserts in the function succeeded, false otherwise
+	 */
+	bool endCurrentCall(const CoreClient& peer, const Server& externalProxy);
+	/**
+	 * Get current call from both sides and terminate the call from this side.
+	 * Assertion fails if one of the client is not in a call or both won't end into Released state.
+	 * Run the main loop of the given external proxy during this process.
+	 *
+	 * @param[in] peer          the other client involved in the call
+	 * @param[in] externalProxy external proxy on which iterate
+	 *
+	 * @return true if all asserts in the function succeeded, false otherwise
+	 */
+	bool endCurrentCall(const std::shared_ptr<CoreClient>& peer, const Server& externalProxy);
 
 	void runFor(std::chrono::milliseconds duration);
 
 	/**
-	 * Iterates the two sides of a fresh call and evaluates whether this end is in
-	 * linphone::Call::State::IncomingReceived
+	 * Iterate the two sides of a fresh call and evaluates whether this client is in
+	 * linphone::Call::State::IncomingReceived or not.
 	 *
-	 * @param[in]	peer	The other client involved in the call
+	 * @note if needed, you can provide an external proxy on which iterate during this process
+	 *
+	 * @param[in] peer          the other client involved in the call
+	 * @param[in] externalProxy external proxy on which iterate
 	 *
 	 * @return true if there is a current call in IncomingReceived state
 	 */
-	[[nodiscard]] AssertionResult hasReceivedCallFrom(const CoreClient& peer) const;
+	[[nodiscard]] AssertionResult hasReceivedCallFrom(const CoreClient& peer,
+	                                                  const std::shared_ptr<Agent>& externalProxy = nullptr) const;
 
 	/**
-	 * Invites another CoreClient but makes no asserts. Does not iterate any of the Cores.
+	 * Invite another CoreClient but makes no asserts. Does not iterate any of the Cores.
 	 *
-	 * @param[in]	peer	The other client to call
+	 * @param[in]	peer	the other client to call
 	 *
-	 * @return the new call. nullptr if the invite failed @maybenil
+	 * @return the new call, nullptr if the invite failed @maybenil
 	 */
 	std::shared_ptr<linphone::Call> invite(const CoreClient& peer) const;
-	std::shared_ptr<linphone::Call> invite(const CoreClient& peer,
-	                                       const std::shared_ptr<const linphone::CallParams>&) const;
-	std::shared_ptr<linphone::Call> invite(const std::string&,
-	                                       const std::shared_ptr<const linphone::CallParams>& params = nullptr) const;
-
-	std::optional<ClientCall> getCurrentCall() const;
-	std::shared_ptr<linphone::CallLog> getCallLog() const;
-
-	// Get listening TCP port. Sets one up at random if not enabled.
-	int getTcpPort() const;
-
 	/**
-	 * @return The message list for THE FIRST chatroom in the chatroom list
+	 * Invite another CoreClient but makes no asserts. Does not iterate any of the Cores.
+	 *
+	 * @param[in] peer	 the other client to call
+	 * @param[in] params call parameters
+	 *
+	 * @return the new call, nullptr if the invite failed @maybenil
 	 */
-	std::list<std::shared_ptr<linphone::ChatMessage>> getChatMessages();
-
-	ChatRoomBuilder chatroomBuilder() const;
-	CallBuilder callBuilder() const;
-
-	void setRoute(const std::string& host, const std::string& port);
+	std::shared_ptr<linphone::Call> invite(const CoreClient& peer,
+	                                       const std::shared_ptr<const linphone::CallParams>& params) const;
+	/**
+	 * Invite another CoreClient but makes no asserts. Does not iterate any of the Cores.
+	 *
+	 * @param[in] aor	 the address of record of the client to invite
+	 * @param[in] params call parameters
+	 *
+	 * @return the new call, nullptr if the invite failed @maybenil
+	 */
+	std::shared_ptr<linphone::Call> invite(const std::string& aor,
+	                                       const std::shared_ptr<const linphone::CallParams>& params = nullptr) const;
 
 private:
 	friend class ClientBuilder;
@@ -228,7 +352,6 @@ private:
 	std::shared_ptr<const linphone::Address> mMe;
 	const Agent& mAgent; /**< Agent we're registered to */
 	std::chrono::seconds mCallInviteReceivedDelay{5};
-}; // class CoreClient
+};
 
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester
