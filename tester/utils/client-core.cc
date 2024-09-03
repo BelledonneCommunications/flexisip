@@ -47,7 +47,7 @@ namespace flexisip::tester {
 namespace {
 
 auto assert_data_transmitted(linphone::Call& calleeCall, linphone::Call& callerCall, bool videoOriginallyEnabled) {
-	return [&, videoOriginallyEnabled] {
+	return [&calleeCall, &callerCall, videoOriginallyEnabled] {
 		const auto& calleeAudioStats = calleeCall.getAudioStats();
 		FAIL_IF(calleeAudioStats == nullptr);
 		const auto& callerAudioStats = callerCall.getAudioStats();
@@ -77,7 +77,7 @@ auto assert_data_transmitted(linphone::Call& calleeCall, linphone::Call& callerC
 } // namespace
 
 std::shared_ptr<linphone::Core> minimalCore(linphone::Factory& factory) {
-	auto dataDir = std::string(bc_tester_get_writable_dir_prefix());
+	const auto dataDir = std::string(bc_tester_get_writable_dir_prefix());
 	auto linphoneConfig = factory.createConfig("");
 
 	linphoneConfig->setBool("logging", "disable_stdout", true);
@@ -112,8 +112,8 @@ CoreClient::~CoreClient() {
 		}
 	}
 	if (mCore) {
-		mCore->stopAsync(); // stopAsync is not really async, we must clear the account first or it will wait for the
-		                    // unregistration on server
+		mCore->stopAsync(); // stopAsync is not really async, we must clear the account first, or it will wait for the
+		                    // un-registration on server
 		CoreAssert(mCore, mAgent)
 		    .wait([&core = mCore] {
 			    FAIL_IF(core->getGlobalState() != linphone::GlobalState::Off);
@@ -125,105 +125,127 @@ CoreClient::~CoreClient() {
 
 std::shared_ptr<linphone::Call> CoreClient::callVideo(const std::shared_ptr<const CoreClient>& callee,
                                                       const std::shared_ptr<linphone::CallParams>& callerCallParams,
-                                                      const std::shared_ptr<linphone::CallParams>& calleeCallParams) {
-	return callVideo(*callee, callerCallParams, calleeCallParams);
+                                                      const std::shared_ptr<linphone::CallParams>& calleeCallParams,
+                                                      const std::shared_ptr<Agent>& externalProxy) {
+	return callVideo(*callee, callerCallParams, calleeCallParams, externalProxy);
 }
 
 std::shared_ptr<linphone::Call> CoreClient::callVideo(const CoreClient& callee,
                                                       const std::shared_ptr<linphone::CallParams>& callerCallParams,
-                                                      const std::shared_ptr<linphone::CallParams>& calleeCallParams) {
-	std::shared_ptr<linphone::CallParams> callParams = callerCallParams;
+                                                      const std::shared_ptr<linphone::CallParams>& calleeCallParams,
+                                                      const std::shared_ptr<Agent>& externalProxy) {
+	const auto calleeAddress = callee.getAccount()->getParams()->getIdentityAddress();
+	auto callParams = callerCallParams;
 	if (callParams == nullptr) {
 		callParams = mCore->createCallParams(nullptr);
 	}
 	callParams->enableVideo(true);
-	return call(callee, callParams, calleeCallParams);
+	return call(callee, calleeAddress, callParams, calleeCallParams, {}, externalProxy);
 }
 
 std::shared_ptr<linphone::Call> CoreClient::call(const CoreClient& callee,
                                                  const std::shared_ptr<const linphone::Address>& calleeAddress,
                                                  const std::shared_ptr<linphone::CallParams>& callerCallParams,
                                                  const std::shared_ptr<linphone::CallParams>& calleeCallParams,
-                                                 const std::vector<std::shared_ptr<CoreClient>>& calleeIdleDevices) {
-	shared_ptr<CallParams> callParams = callerCallParams;
+                                                 const std::vector<std::shared_ptr<CoreClient>>& calleeIdleDevices,
+                                                 const std::shared_ptr<Agent>& externalProxy) {
+	auto callParams = callerCallParams;
 	if (callParams == nullptr) {
 		callParams = mCore->createCallParams(nullptr);
 	}
 
-	auto _calleeAddress = calleeAddress->clone();
-	_calleeAddress->removeUriParam("gr");
-	auto callerCall = mCore->inviteAddressWithParams(_calleeAddress, callParams);
+	auto clonedCalleeAddress = calleeAddress->clone();
+	clonedCalleeAddress->removeUriParam("gr");
+	auto callerCall = mCore->inviteAddressWithParams(clonedCalleeAddress, callParams);
 
 	if (callerCall == nullptr) {
-		BC_FAIL("Invite failed");
+		BC_FAIL("Invite \"" + clonedCalleeAddress->asString() + "\" failed");
 		return nullptr;
 	}
 
-	const auto calleeCore = callee.getCore();
-	CoreAssert asserter{mCore, mAgent, calleeCore};
-	CoreAssert idleAsserter{mCore, mAgent};
+	CoreAssert asserter{mCore, mAgent, callee.mCore, callee.mAgent};
+	CoreAssert idleAsserter{mCore, mAgent, callee.mCore, callee.mAgent};
 	for (const auto& calleeDevice : calleeIdleDevices) {
 		idleAsserter.registerSteppable(calleeDevice);
 	}
+	if (externalProxy) {
+		asserter.registerSteppable(externalProxy);
+		idleAsserter.registerSteppable(externalProxy);
+	}
 
-	// Check call get the incoming call and caller is in OutgoingRinging state
-	if (!BC_ASSERT_TRUE(callee.hasReceivedCallFrom(*this))) {
+	// Check call get the incoming call and caller is in OutgoingRinging state.
+	if (!callee.hasReceivedCallFrom(*this, externalProxy).assert_passed()) {
 		return nullptr;
 	}
+
 	if (!calleeIdleDevices.empty()) {
-		// If callee also have idle devices check that they are ringing too
-		if (!BC_ASSERT_TRUE(idleAsserter.wait([calleeIdleDevices] {
-			    return all_of(
-			        calleeIdleDevices.cbegin(), calleeIdleDevices.cend(), [](const shared_ptr<CoreClient>& idleDevice) {
-				        return idleDevice->getCurrentCall() != std::nullopt &&
-				               idleDevice->getCurrentCall()->getState() == linphone::Call::State::IncomingReceived;
-			        });
-		    }))) {
+		// If callee also have idle devices, verify that they are ringing too.
+		if (!idleAsserter
+		         .wait([&calleeIdleDevices] {
+			         FAIL_IF(any_of(calleeIdleDevices.cbegin(), calleeIdleDevices.cend(),
+			                        [](const shared_ptr<CoreClient>& idleDevice) {
+				                        const auto call = idleDevice->getCurrentCall();
+				                        return call == std::nullopt ||
+				                               call->getState() != linphone::Call::State::IncomingReceived;
+			                        }));
+			         return ASSERTION_PASSED();
+		         })
+		         .assert_passed()) {
 			return nullptr;
 		}
 	}
 
-	auto calleeCall = calleeCore->getCurrentCall();
+	const auto calleeCall = callee.mCore->getCurrentCall();
 	if (calleeCall == nullptr) {
 		BC_FAIL("No call received");
 		return nullptr;
 	}
 
-	if (!BC_ASSERT_TRUE(asserter.wait(
-	        [callerCall] { return (callerCall->getState() == linphone::Call::State::OutgoingRinging); }))) {
+	if (!asserter
+	         .wait([&callerCall] {
+		         FAIL_IF(callerCall->getState() != linphone::Call::State::OutgoingRinging);
+		         return ASSERTION_PASSED();
+	         })
+	         .assert_passed()) {
 		return nullptr;
 	}
 
 	// Callee answer the call
-	if (!BC_ASSERT_TRUE(calleeCall->acceptWithParams(calleeCallParams) == 0)) {
+	if (!BC_ASSERT(calleeCall->acceptWithParams(calleeCallParams) == 0)) {
 		return nullptr;
 	};
 
-	if (!BC_ASSERT_TRUE(asserter.waitUntil(std::chrono::seconds(5), [calleeCall, callerCall] {
-		    return (callerCall->getState() == linphone::Call::State::StreamsRunning &&
-		            calleeCall->getState() == linphone::Call::State::StreamsRunning);
-	    }))) {
-		BC_ASSERT_TRUE(callerCall->getState() == linphone::Call::State::StreamsRunning);
-		BC_ASSERT_TRUE(calleeCall->getState() == linphone::Call::State::StreamsRunning);
+	if (!asserter
+	         .waitUntil(5s,
+	                    [&calleeCall, &callerCall] {
+		                    FAIL_IF(callerCall->getState() != linphone::Call::State::StreamsRunning);
+		                    FAIL_IF(calleeCall->getState() != linphone::Call::State::StreamsRunning);
+		                    return ASSERTION_PASSED();
+	                    })
+	         .assert_passed()) {
+		BC_ASSERT(callerCall->getState() == linphone::Call::State::StreamsRunning);
+		BC_ASSERT(calleeCall->getState() == linphone::Call::State::StreamsRunning);
 		return nullptr;
 	}
 	if (!calleeIdleDevices.empty()) {
 		// If callee also have idle devices check that they are not ringing anymore / got cancelled.
-		if (!BC_ASSERT_TRUE(idleAsserter.wait([calleeIdleDevices] {
-			    return all_of(calleeIdleDevices.cbegin(), calleeIdleDevices.cend(),
-			                  [](const shared_ptr<CoreClient>& idleDevice) {
-				                  return idleDevice->getCurrentCall() == std::nullopt ||
-				                         idleDevice->getCurrentCall()->getState() == linphone::Call::State::End ||
-				                         idleDevice->getCurrentCall()->getState() == linphone::Call::State::Released;
-			                  });
-		    }))) {
+		if (!idleAsserter
+		         .wait([&calleeIdleDevices] {
+			         FAIL_IF(!all_of(calleeIdleDevices.cbegin(), calleeIdleDevices.cend(),
+			                         [](const shared_ptr<CoreClient>& idleDevice) {
+				                         const auto call = idleDevice->getCurrentCall();
+				                         return call == std::nullopt ||
+				                                call->getState() == linphone::Call::State::End ||
+				                                call->getState() == linphone::Call::State::Released;
+			                         }));
+			         return ASSERTION_PASSED();
+		         })
+		         .assert_passed()) {
 			return nullptr;
 		}
 	}
 
-	if (!asserter
-	         .waitUntil(std::chrono::seconds(12),
-	                    assert_data_transmitted(*calleeCall, *callerCall, callParams->videoEnabled()))
+	if (!asserter.waitUntil(12s, assert_data_transmitted(*calleeCall, *callerCall, callParams->videoEnabled()))
 	         .assert_passed()) {
 		return nullptr;
 	}
@@ -234,23 +256,31 @@ std::shared_ptr<linphone::Call> CoreClient::call(const CoreClient& callee,
 std::shared_ptr<linphone::Call> CoreClient::call(const CoreClient& callee,
                                                  const std::shared_ptr<linphone::CallParams>& callerCallParams,
                                                  const std::shared_ptr<linphone::CallParams>& calleeCallParams,
-                                                 const std::vector<std::shared_ptr<CoreClient>>& calleeIdleDevices) {
-	auto calleeAddress = callee.getAccount()->getParams()->getIdentityAddress();
-	return call(callee, calleeAddress, callerCallParams, calleeCallParams, calleeIdleDevices);
+                                                 const std::vector<std::shared_ptr<CoreClient>>& calleeIdleDevices,
+                                                 const std::shared_ptr<Agent>& externalProxy) {
+	const auto calleeAddress = callee.getAccount()->getParams()->getIdentityAddress();
+	return call(callee, calleeAddress, callerCallParams, calleeCallParams, calleeIdleDevices, externalProxy);
 }
 
 std::shared_ptr<linphone::Call> CoreClient::call(const std::shared_ptr<CoreClient>& callee,
                                                  const std::shared_ptr<linphone::CallParams>& callerCallParams,
                                                  const std::shared_ptr<linphone::CallParams>& calleeCallParams,
-                                                 const std::vector<std::shared_ptr<CoreClient>>& calleeIdleDevices) {
-	return call(*callee, callerCallParams, calleeCallParams, calleeIdleDevices);
+                                                 const std::vector<std::shared_ptr<CoreClient>>& calleeIdleDevices,
+                                                 const std::shared_ptr<Agent>& externalProxy) {
+	return call(*callee, callerCallParams, calleeCallParams, calleeIdleDevices, externalProxy);
+}
+
+std::shared_ptr<linphone::Call> CoreClient::call(const CoreClient& callee, const Server& externalProxy) {
+	const auto calleeAddress = callee.getAccount()->getParams()->getIdentityAddress();
+	return call(callee, calleeAddress, nullptr, nullptr, {}, externalProxy.getAgent());
 }
 
 std::shared_ptr<linphone::Call>
 CoreClient::callWithEarlyCancel(const std::shared_ptr<CoreClient>& callee,
                                 const std::shared_ptr<linphone::CallParams>& callerCallParams,
-                                bool isCalleeAway) {
-	shared_ptr<linphone::CallParams> callParams = callerCallParams;
+                                bool isCalleeAway,
+                                const std::shared_ptr<Agent>& externalProxy) {
+	auto callParams = callerCallParams;
 	if (callParams == nullptr) {
 		callParams = mCore->createCallParams(nullptr);
 	}
@@ -260,51 +290,69 @@ CoreClient::callWithEarlyCancel(const std::shared_ptr<CoreClient>& callee,
 	auto callerCall = mCore->inviteAddressWithParams(addressWithoutGr, callParams);
 
 	if (callerCall == nullptr) {
-		BC_FAIL("Invite failed");
+		BC_FAIL("Invite \"" + addressWithoutGr->asString() + "\" failed");
 		return nullptr;
 	}
 
-	CoreAssert asserter{mCore, mAgent};
+	CoreAssert asserter{mCore, mAgent, callee->mCore, callee->mAgent};
 	if (isCalleeAway) {
 		callee->disconnect();
 	} else {
 		asserter.registerSteppable(callee);
 	}
+	if (externalProxy) {
+		asserter.registerSteppable(externalProxy);
+	}
 
 	// Check call get the incoming call and caller is in OutgoingRinging state
 	if (isCalleeAway) {
-		if (!BC_ASSERT_TRUE(asserter.waitUntil(seconds(10), [&callerCall, agent = &mAgent] {
-			    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
-			    return callerCall->getState() == linphone::Call::State::OutgoingProgress &&
-			           moduleRouter->mStats.mCountCallForks->start->read() == 1;
-		    }))) {
+		if (!asserter
+		         .waitUntil(10s,
+		                    [&callerCall, agent = &mAgent] {
+			                    FAIL_IF(callerCall->getState() != linphone::Call::State::OutgoingProgress);
+			                    const auto& module = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+			                    FAIL_IF(module->mStats.mCountCallForks->start->read() == 1);
+			                    return ASSERTION_PASSED();
+		                    })
+		         .assert_passed()) {
 			return nullptr;
 		}
 	} else {
-		if (!BC_ASSERT_TRUE(asserter.waitUntil(seconds(15), [&callerCall, &callee] {
-			    return callerCall->getState() == linphone::Call::State::OutgoingRinging && callee->getCurrentCall() &&
-			           callee->getCurrentCall()->getState() == Call::State::IncomingReceived;
-		    }))) {
+		if (!asserter
+		         .waitUntil(15s,
+		                    [&callerCall, &callee] {
+			                    FAIL_IF(callerCall->getState() != linphone::Call::State::OutgoingRinging);
+			                    const auto calleeCall = callee->getCurrentCall();
+			                    FAIL_IF(!calleeCall.has_value());
+			                    FAIL_IF(calleeCall->getState() != Call::State::IncomingReceived);
+			                    return ASSERTION_PASSED();
+		                    })
+		         .assert_passed()) {
 			return nullptr;
 		}
 	}
 
 	callerCall->terminate();
 
-	if (!BC_ASSERT_TRUE(asserter.wait([&callerCall, isCalleeAway, &callee] {
-		    return callerCall->getState() == linphone::Call::State::Released &&
-		           (isCalleeAway || !callee->getCurrentCall() ||
-		            callee->getCurrentCall()->getState() == Call::State::Released);
-	    }))) {
+	if (!asserter
+	         .wait([&callerCall, isCalleeAway, &callee] {
+		         FAIL_IF(callerCall->getState() != linphone::Call::State::Released);
+		         const auto calleeCall = callee->getCurrentCall();
+		         FAIL_IF(isCalleeAway && !calleeCall && calleeCall->getState() != Call::State::Released);
+		         return ASSERTION_PASSED();
+	         })
+	         .assert_passed()) {
 		return nullptr;
 	}
+
 	return callerCall;
 }
 
 std::shared_ptr<linphone::Call>
 CoreClient::callWithEarlyDecline(const std::shared_ptr<CoreClient>& callee,
-                                 const std::shared_ptr<linphone::CallParams>& callerCallParams) {
-	shared_ptr<linphone::CallParams> callParams = callerCallParams;
+                                 const std::shared_ptr<linphone::CallParams>& callerCallParams,
+                                 const std::shared_ptr<Agent>& externalProxy) {
+	auto callParams = callerCallParams;
 	if (callParams == nullptr) {
 		callParams = mCore->createCallParams(nullptr);
 	}
@@ -314,93 +362,130 @@ CoreClient::callWithEarlyDecline(const std::shared_ptr<CoreClient>& callee,
 	auto callerCall = mCore->inviteAddressWithParams(addressWithoutGr, callParams);
 
 	if (callerCall == nullptr) {
-		BC_FAIL("Invite failed");
+		BC_FAIL("Invite \"" + addressWithoutGr->asString() + "\" failed");
 		return nullptr;
 	}
 
-	CoreAssert asserter{mCore, mAgent};
+	CoreAssert asserter{mCore, mAgent, callee->mCore, callee->mAgent};
 	asserter.registerSteppable(callee);
+	if (externalProxy) {
+		asserter.registerSteppable(externalProxy);
+	}
 
-	// Check call get the incoming call and caller is in OutgoingRinging state
-	if (!BC_ASSERT_TRUE(asserter.waitUntil(seconds(10), [&callerCall, &callee] {
-		    return callerCall->getState() == linphone::Call::State::OutgoingRinging && callee->getCurrentCall() &&
-		           callee->getCurrentCall()->getState() == Call::State::IncomingReceived;
-	    }))) {
+	// Check call get the incoming call and caller is in OutgoingRinging state.
+	if (!asserter
+	         .waitUntil(10s,
+	                    [&callerCall, &callee] {
+		                    FAIL_IF(callerCall->getState() != linphone::Call::State::OutgoingRinging);
+		                    const auto calleeCall = callee->getCurrentCall();
+		                    FAIL_IF(!calleeCall.has_value());
+		                    FAIL_IF(calleeCall->getState() != linphone::Call::State::IncomingReceived);
+		                    return ASSERTION_PASSED();
+	                    })
+	         .assert_passed()) {
 		return nullptr;
 	}
 
 	callee->getCurrentCall()->decline(linphone::Reason::Declined);
 
-	if (!BC_ASSERT_TRUE(asserter.wait([&callerCall, &callee] {
-		    return callerCall->getState() == linphone::Call::State::Released &&
-		           (!callee->getCurrentCall() || callee->getCurrentCall()->getState() == Call::State::Released);
-	    }))) {
+	if (!asserter
+	         .wait([&callerCall, &callee] {
+		         FAIL_IF(callerCall->getState() != linphone::Call::State::Released);
+		         const auto calleeCall = callee->getCurrentCall();
+		         FAIL_IF(calleeCall && calleeCall->getState() != Call::State::Released);
+		         return ASSERTION_PASSED();
+	         })
+	         .assert_passed()) {
 		return nullptr;
 	}
+
 	return callerCall;
 }
 
-bool CoreClient::callUpdate(const CoreClient& peer, const std::shared_ptr<linphone::CallParams>& callParams) {
+bool CoreClient::callUpdate(const CoreClient& peer,
+                            const std::shared_ptr<linphone::CallParams>& callParams,
+                            const std::shared_ptr<Agent>& externalProxy) {
 	if (callParams == nullptr) {
 		BC_FAIL("Cannot update call without new call params");
 	}
 
-	auto peerCore = peer.getCore();
-	auto selfCall = mCore->getCurrentCall();
-	auto peerCall = peerCore->getCurrentCall();
+	const auto selfCall = mCore->getCurrentCall();
+	const auto peerCall = peer.mCore->getCurrentCall();
 	if (selfCall == nullptr || peerCall == nullptr) {
 		BC_FAIL("Trying to update a call but at least one participant is not currently engaged in one");
 		return false;
 	}
 
-	// peer is set to auto accept update so just check the changes after
+	CoreAssert asserter{mCore, peer.mCore, mAgent, peer.mAgent};
+	if (externalProxy) {
+		asserter.registerSteppable(externalProxy);
+	}
+
+	// Our peer is set to auto accept the call update so just verify the changes after.
 	selfCall->update(callParams);
-	using State = linphone::Call::State;
-	BC_ASSERT_TRUE(selfCall->getState() == State::Updating);
-	BC_ASSERT_TRUE(peerCall->getState() == State::StreamsRunning);
+	BC_ASSERT(selfCall->getState() == linphone::Call::State::Updating);
+	BC_ASSERT(peerCall->getState() == linphone::Call::State::StreamsRunning);
 
 	// Wait for the update to be concluded
-	if (!BC_ASSERT_TRUE(CoreAssert(mCore, peerCore, mAgent)
-	                        .iterateUpTo(5,
-	                                     [&selfCall = *selfCall] {
-		                                     FAIL_IF(selfCall.getState() != State::StreamsRunning);
-		                                     return ASSERTION_PASSED();
-	                                     })
-	                        .assert_passed()))
+	if (!asserter
+	         .iterateUpTo(5,
+	                      [&selfCall = *selfCall] {
+		                      FAIL_IF(selfCall.getState() != linphone::Call::State::StreamsRunning);
+		                      return ASSERTION_PASSED();
+	                      })
+	         .assert_passed())
 		return false;
-	BC_ASSERT_TRUE(peerCall->getState() == State::StreamsRunning);
+	BC_ASSERT(peerCall->getState() == linphone::Call::State::StreamsRunning);
 
-	if (!CoreAssert(mCore, peerCore, mAgent)
-	         .waitUntil(std::chrono::seconds(12),
-	                    assert_data_transmitted(*peerCall, *selfCall, callParams->videoEnabled()))
+	if (!asserter.waitUntil(12s, assert_data_transmitted(*peerCall, *selfCall, callParams->videoEnabled()))
 	         .assert_passed())
 		return false;
 
 	return true;
 }
 
-bool CoreClient::endCurrentCall(const CoreClient& peer) {
-	const auto& peerCore = peer.getCore();
+bool CoreClient::endCurrentCall(const CoreClient& peer, const std::shared_ptr<Agent>& externalProxy) {
 	auto selfCall = mCore->getCurrentCall();
-	auto peerCall = peerCore->getCurrentCall();
+	auto peerCall = peer.mCore->getCurrentCall();
 	if (selfCall == nullptr || peerCall == nullptr) {
 		BC_FAIL("Trying to end call but No current call running");
 		return false;
 	}
-	mCore->getCurrentCall()->terminate();
-	if (!BC_ASSERT_TRUE(CoreAssert(mCore, peerCore, mAgent).waitUntil(std::chrono::seconds(5), [selfCall, peerCall] {
-		    return (selfCall->getState() == linphone::Call::State::Released &&
-		            peerCall->getState() == linphone::Call::State::Released);
-	    }))) {
-		BC_ASSERT_TRUE(selfCall->getState() == linphone::Call::State::Released);
-		BC_ASSERT_TRUE(peerCall->getState() == linphone::Call::State::Released);
+
+	CoreAssert asserter{mCore, peer.mCore, mAgent, peer.mAgent};
+	if (externalProxy) {
+		asserter.registerSteppable(externalProxy);
+	}
+
+	selfCall->terminate();
+	if (!asserter
+	         .waitUntil(5s,
+	                    [selfCall, peerCall] {
+		                    FAIL_IF(selfCall->getState() != linphone::Call::State::Released);
+		                    FAIL_IF(peerCall->getState() != linphone::Call::State::Released);
+		                    return ASSERTION_PASSED();
+	                    })
+	         .assert_passed()) {
+		BC_ASSERT(selfCall->getState() == linphone::Call::State::Released);
+		BC_ASSERT(peerCall->getState() == linphone::Call::State::Released);
 		return false;
 	}
+
 	return true;
 }
 
-bool CoreClient::endCurrentCall(const std::shared_ptr<CoreClient>& peer) {
-	return endCurrentCall(*peer);
+bool CoreClient::endCurrentCall(const std::shared_ptr<CoreClient>& peer, const std::shared_ptr<Agent>& externalProxy) {
+	return endCurrentCall(*peer, externalProxy);
+}
+
+bool CoreClient::endCurrentCall(const flexisip::tester::CoreClient& peer,
+                                const flexisip::tester::Server& externalProxy) {
+	return endCurrentCall(peer, externalProxy.getAgent());
+}
+
+bool CoreClient::endCurrentCall(const std::shared_ptr<CoreClient>& peer,
+                                const flexisip::tester::Server& externalProxy) {
+	return endCurrentCall(*peer, externalProxy.getAgent());
 }
 
 void CoreClient::runFor(std::chrono::milliseconds duration) {
@@ -410,11 +495,16 @@ void CoreClient::runFor(std::chrono::milliseconds duration) {
 	}
 }
 
-AssertionResult CoreClient::hasReceivedCallFrom(const CoreClient& peer) const {
-	return CoreAssert(mCore, peer.getCore(), mAgent).waitUntil(30s, [this] {
-		const auto& current_call = mCore->getCurrentCall();
-		FAIL_IF(current_call == nullptr);
-		FAIL_IF(current_call->getState() != linphone::Call::State::IncomingReceived);
+AssertionResult CoreClient::hasReceivedCallFrom(const CoreClient& peer,
+                                                const std::shared_ptr<Agent>& externalProxy) const {
+	auto asserter = CoreAssert(mCore, mAgent, peer.mCore, peer.mAgent);
+	if (externalProxy) {
+		asserter.registerSteppable(externalProxy);
+	}
+	return asserter.waitUntil(30s, [this] {
+		const auto& call = mCore->getCurrentCall();
+		FAIL_IF(call == nullptr);
+		FAIL_IF(call->getState() != linphone::Call::State::IncomingReceived);
 		return ASSERTION_PASSED();
 	});
 }
