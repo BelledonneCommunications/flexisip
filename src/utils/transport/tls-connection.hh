@@ -303,8 +303,12 @@ private:
 	std::string mHost{}, mPort{};
 	bool mMustBeHttp2 = false;
 	std::chrono::milliseconds mTimeout{20000};
-	MustFinishThread mThread;
 	std::string mLogPrefix{};
+
+	/* Must be the last field to be deleted first and guarantee all previous fields will be available to the thread on
+	 * destruction
+	 */
+	MustFinishThread mThread;
 };
 
 } // namespace flexisip
