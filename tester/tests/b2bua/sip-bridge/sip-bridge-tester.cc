@@ -1475,15 +1475,15 @@ void dtmfForwarding() {
 	        {V1AccountDesc{"sip:bridge@sip.provider1.com", "", ""}},
 	    },
 	};
-	
+
 	// Instantiate and build clients.
 	// Note: added different port ranges to reduce the risk of selecting the same port.
 	server->configureExternalProviderBridge(std::move(providers));
 	auto builder = ClientBuilder{*server->getAgent()};
 	const auto intercomUri = "sip:intercom@sip.company1.com"s;
-	InternalClient intercom = builder.setAudioPortRange(40000, 49999).build(intercomUri);
+	InternalClient intercom = builder.setAudioPort(port::Range{.min = 40000, .max = 49999}).build(intercomUri);
 	const auto phoneUri = "sip:+39064728917@sip.provider1.com;user=phone"s;
-	ExternalClient phone = builder.setAudioPortRange(50000, 59999).build(phoneUri);
+	ExternalClient phone = builder.setAudioPort(port::Range{.min = 50000, .max = 59999}).build(phoneUri);
 
 	CoreAssert asserter{intercom.getCore(), phone.getCore(), server};
 	const auto legAListener = make_shared<DtmfListener>();

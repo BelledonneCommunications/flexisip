@@ -28,6 +28,7 @@
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
 #include "utils/string-utils.hh"
+#include "utils/variant-utils.hh"
 
 namespace flexisip {
 namespace tester {
@@ -102,9 +103,11 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 		config->setBool("sip", "inactive_audio_on_pause", static_cast<bool>(mSetAudioInactiveOnPause));
 	}
 
-	core->setAudioPort(-1);
-	core->setVideoPort(-1);
-	core->setAudioPortRange(mAudioPortRange.first, mAudioPortRange.second);
+	Match(mAudioPort)
+	    .against([&core](port::Range range) { core->setAudioPortRange(range.min, range.max); },
+	             [&core](port::Port port) { core->setAudioPort(port.port); },
+	             [&core](port::Auto) { core->setAudioPort(LC_SIP_TRANSPORT_RANDOM); });
+	core->setVideoPort(LC_SIP_TRANSPORT_RANDOM);
 	core->setUseFiles(true);
 
 	core->setPlayFile(mPlayFilePath);
@@ -247,8 +250,8 @@ ClientBuilder& ClientBuilder::setInactiveAudioOnPause(OnOff value) {
 	return *this;
 }
 
-ClientBuilder& ClientBuilder::setAudioPortRange(int min, int max) {
-	mAudioPortRange = {min, max};
+ClientBuilder& ClientBuilder::setAudioPort(port::PortSetting setting) {
+	mAudioPort = setting;
 	return *this;
 }
 

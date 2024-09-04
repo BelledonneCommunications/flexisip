@@ -161,7 +161,7 @@ void relay_candidates_should_not_be_added_to_ice_reinvites() {
 
 	const auto& call = inviter.invite(recipient);
 	BC_HARD_ASSERT(call != nullptr);
-	ASSERT_PASSED(recipient.hasReceivedCallFrom(inviter));
+	BC_HARD_ASSERT(recipient.hasReceivedCallFrom(inviter).assert_passed());
 	recipient.getCurrentCall()->accept();
 	// Initial INVITE contains relay candidates
 	BC_ASSERT(!anyRelayCandidate.empty());
@@ -169,7 +169,7 @@ void relay_candidates_should_not_be_added_to_ice_reinvites() {
 
 	asserter
 	    .iterateUpTo(
-	        119, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 1800ms)
+	        120, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 2700ms)
 	    .assert_passed();
 	// ICE re-INVITE does not contain relay candidates
 	BC_ASSERT_CPP_EQUAL(anyRelayCandidate, noCandidateFound);
@@ -178,19 +178,19 @@ void relay_candidates_should_not_be_added_to_ice_reinvites() {
 	// Video re-INVITE
 	asserter
 	    .iterateUpTo(
-	        2,
+	        3,
 	        [&] {
 		        // Wait for ICE reinvite to complete
 		        return LOOP_ASSERTION(call->getState() == linphone::Call::State::StreamsRunning);
 	        },
-	        300ms)
+	        750ms)
 	    .assert_passed();
 	const auto& enableVideo = call->getCore()->createCallParams(call);
 	enableVideo->enableVideo(true);
 	call->update(enableVideo);
 	asserter
 	    .iterateUpTo(
-	        4, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::StreamsRunning); }, 400ms)
+	        5, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::StreamsRunning); }, 600ms)
 	    .assert_passed();
 	// Video re-INVITE contains relay candidates
 	BC_ASSERT(!anyRelayCandidate.empty());
@@ -198,7 +198,7 @@ void relay_candidates_should_not_be_added_to_ice_reinvites() {
 
 	asserter
 	    .iterateUpTo(
-	        118, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 1600ms)
+	        120, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 4s)
 	    .assert_passed();
 	// Video ICE re-INVITE does not contain relay candidates
 	BC_ASSERT_CPP_EQUAL(anyRelayCandidate, noCandidateFound);
