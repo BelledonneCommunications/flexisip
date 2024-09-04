@@ -501,7 +501,7 @@ AssertionResult CoreClient::hasReceivedCallFrom(const CoreClient& peer,
 	if (externalProxy) {
 		asserter.registerSteppable(externalProxy);
 	}
-	return asserter.waitUntil(30s, [this] {
+	return asserter.waitUntil(mCallInviteReceivedDelay, [this] {
 		const auto& call = mCore->getCurrentCall();
 		FAIL_IF(call == nullptr);
 		FAIL_IF(call->getState() != linphone::Call::State::IncomingReceived);

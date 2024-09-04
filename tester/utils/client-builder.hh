@@ -21,11 +21,11 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <variant>
 
 #include "agent.hh"
 #include <linphone++/linphone.hh>
 
-#include "utils/proxy-server.hh"
 namespace flexisip {
 namespace pushnotification {
 
@@ -33,6 +33,23 @@ class RFC8599PushParams;
 
 }
 namespace tester {
+
+namespace port {
+
+struct Auto {};
+
+struct Port {
+	std::uint16_t port;
+};
+
+struct Range {
+	std::uint16_t min;
+	std::uint16_t max;
+};
+
+using PortSetting = std::variant<Auto, Port, Range>;
+
+} // namespace port
 
 class CoreClient;
 
@@ -66,7 +83,7 @@ public:
 	ClientBuilder& setCustomContact(const std::string& contact);
 	ClientBuilder& setPushParams(const pushnotification::RFC8599PushParams& params);
 	ClientBuilder& setInactiveAudioOnPause(OnOff);
-	ClientBuilder& setAudioPortRange(int min, int max);
+	ClientBuilder& setAudioPort(port::PortSetting);
 	/**
 	 * Add some Apple-specific push info to REGISTERs
 	 */
@@ -88,7 +105,7 @@ private:
 	OnOff mIce : 1;
 	OnOff mRegister : 1;
 	OnOff mSetAudioInactiveOnPause = OnOff::Off;
-	std::pair<int, int> mAudioPortRange{1024, 65535};
+	port::PortSetting mAudioPort = port::Auto();
 	std::string mPassword{""};
 };
 
