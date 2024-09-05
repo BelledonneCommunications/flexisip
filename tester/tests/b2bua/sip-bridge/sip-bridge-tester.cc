@@ -845,14 +845,14 @@ void mwiBridging() {
 				"outgoingInvite": {
 					"to": "{account.alias}",
 					"from": "sip:{incoming.from.user}@{account.alias.hostport}{incoming.from.uriParameters}",
-					"outboundProxy": "<sip:127.0.0.1:port;transport=tcp>"
+					"outboundProxy": "<sip:127.0.0.1:#port#;transport=tcp>"
 				},
 				"accountPool": "FlockOfJabirus"
 			}
 		],
 		"accountPools": {
 			"FlockOfJabirus": {
-				"outboundProxy": "<sip:127.0.0.1:port;transport=tcp>",
+				"outboundProxy": "<sip:127.0.0.1:#port#;transport=tcp>",
 				"registrationRequired": true,
 				"maxCallsPerLine": 3125,
 				"loader": [
@@ -864,7 +864,7 @@ void mwiBridging() {
 			}
 		}
 	})json",
-	                           '', ''};
+	                           '#', '#'};
 	StringFormatter flexisipRoutesConfig{
 	    R"str(<sip:127.0.0.1:%port%;transport=tcp>	request.uri.domain == 'jabiru.example.org')str", '%', '%'};
 
@@ -951,9 +951,12 @@ void mwiBridging() {
 	asserter
 	    .waitUntil(std::chrono::milliseconds{200},
 	               [&subscriberMwiListener] {
-		               const MwiCoreStats& stats = subscriberMwiListener->getStats();
-		               FAIL_IF(stats.nbMwiReceived != 1 && stats.nbNewMWIVoice != 4 && stats.nbOldMWIVoice != 8 &&
-		                       stats.nbNewUrgentMWIVoice != 1 && stats.nbOldUrgentMWIVoice != 2);
+		               const auto& stats = subscriberMwiListener->getStats();
+		               FAIL_IF(stats.nbMwiReceived != 1);
+		               FAIL_IF(stats.nbNewMWIVoice != 4);
+		               FAIL_IF(stats.nbOldMWIVoice != 8);
+		               FAIL_IF(stats.nbNewUrgentMWIVoice != 1);
+		               FAIL_IF(stats.nbOldUrgentMWIVoice != 2);
 		               return ASSERTION_PASSED();
 	               })
 	    .assert_passed();
