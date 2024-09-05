@@ -185,7 +185,8 @@ auto callScript(const std::string& command, int expected_status, BcAssert<>& ass
 		return output;
 	});
 
-	BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(33, [&fut] { return fut.wait_for(0s) == std::future_status::ready; }));
+	asserter.iterateUpTo(33, [&fut] { return LOOP_ASSERTION(fut.wait_for(0s) == std::future_status::ready); })
+	    .hard_assert_passed();
 
 	return fut.get();
 }

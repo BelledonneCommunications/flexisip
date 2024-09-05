@@ -116,7 +116,8 @@ def formatMessage(args):
 def sendMessage(remote_socket, message):
 	import socket
 	with socket.socket(socket.AF_UNIX) as s:
-		s.settimeout(1)
+		timeout_seconds = 3
+		s.settimeout(timeout_seconds)
 		try:
 			s.connect(remote_socket)
 			s.send(message.encode())
