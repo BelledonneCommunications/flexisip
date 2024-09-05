@@ -75,7 +75,7 @@ class B2buaServer : public ServiceServer,
 public:
 	friend class tester::b2buatester::B2buaServer;
 
-	// Used to flag invites emitted by the B2BUA so they are not re-routed back to it by the B2bua module
+	// Used to flag invites emitted by the B2BUA, so they are not re-routed back to it by the B2bua module.
 	static constexpr auto& kCustomHeader = "X-Flexisip-B2BUA";
 
 	B2buaServer(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg);
@@ -92,11 +92,9 @@ public:
 	int getTcpPort() const {
 		return mCore->getTransportsUsed()->getTcpPort();
 	}
-
 	int getUdpPort() const {
 		return mCore->getTransportsUsed()->getUdpPort();
 	}
-
 	const b2bua::Application& getApplication() const {
 		return *mApplication;
 	}
@@ -107,17 +105,13 @@ protected:
 	std::unique_ptr<AsyncCleanup> _stop() override;
 
 private:
-	const std::shared_ptr<linphone::Call>& getPeerCall(const std::shared_ptr<linphone::Call>& call) const;
+	std::shared_ptr<linphone::Call> getPeerCall(const std::shared_ptr<linphone::Call>& call) const;
 
+	const std::string mLogPrefix{"B2BUA-server"};
 	std::shared_ptr<ConfigManager> mConfigManager;
 	CommandLineInterface mCli;
 	std::shared_ptr<b2bua::B2buaCore> mCore;
-	std::unordered_map<std::string, std::shared_ptr<linphone::Call>> mPeerCalls;
-	struct EventInfo {
-		std::shared_ptr<linphone::Event> peerEvent;
-		bool isLegA;
-	};
-	std::unordered_map<std::string, EventInfo> mPeerEvents;
+	std::unordered_map<std::shared_ptr<linphone::Call>, std::weak_ptr<linphone::Call>> mPeerCalls;
 	std::unique_ptr<b2bua::Application> mApplication = nullptr;
 };
 
